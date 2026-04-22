@@ -1,0 +1,3 @@
+# Keep the demo video out of the plugin zip produced by `npm run package`
+# (which uses `git archive`, honors `export-ignore`).
+/docs/demo.mp4 export-ignore

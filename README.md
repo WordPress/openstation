@@ -4,6 +4,28 @@ A WordPress plugin that reimagines `/wp-admin` as a desktop operating system. Ad
 
 Zero Core patches. Every feature is wired through public WordPress hooks.
 
+## Demo
+
+<video src="./docs/demo.mp4" controls width="720"></video>
+
+---
+
+## Contents
+
+- [Demo](#demo)
+- [What it does today](#what-it-does-today)
+- [Where it's going](#where-its-going)
+- [Repository layout](#repository-layout)
+- [How to run it](#how-to-run-it)
+  - [1. Install dependencies](#1-install-dependencies)
+  - [2. Build the TypeScript bundle](#2-build-the-typescript-bundle)
+  - [3. Get it running in WordPress](#3-get-it-running-in-wordpress)
+  - [4. Activate & toggle](#4-activate--toggle)
+  - [5. Run the tests](#5-run-the-tests)
+- [Requirements](#requirements)
+- [For plugin authors](#for-plugin-authors)
+- [License](#license)
+
 ---
 
 ## What it does today
