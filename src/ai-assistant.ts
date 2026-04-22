@@ -256,8 +256,6 @@ export class AiAssistant implements AiAssistantApi {
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
-	/** Unsubscribe from the command-registry changes; called on close/destroy. */
-	private _unsubCommands: ( () => void ) | null = null;
 	/** Highlighted index in the per-command argument suggestion list. */
 	private _selectedSuggestion = 0;
 	/** Cached latest suggestion list so keyboard nav can read it without re-calling suggest(). */
@@ -283,8 +281,10 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Re-render the command list when plugins register commands
 		// after the panel has mounted. If the palette is currently in
-		// command mode, refresh it so the new item appears live.
-		this._unsubCommands = subscribeCommands( () => {
+		// command mode, refresh it so the new item appears live. The
+		// panel is a page-lifetime singleton, so we don't capture the
+		// unsubscribe handle — the subscription dies with the page.
+		subscribeCommands( () => {
 			if ( this._isOpen && this._input.value.startsWith( '/' ) ) {
 				this._renderCommandMode();
 			}
@@ -649,10 +649,11 @@ export class AiAssistant implements AiAssistantApi {
 	 * doesn't need a bubble; in that case we clear the results area.
 	 * A plain string is shorthand for `{ message: string }`.
 	 */
-	private _renderCommandResult( cmd: DesktopCommand, result: CommandResult ): void {
+	private _renderCommandResult( _cmd: DesktopCommand, result: CommandResult ): void {
 		if ( result === undefined || result === null ) {
 			// Silent success — clear any prior bubble.
-			this._clearResults();
+			this._resultsEl.innerHTML = '';
+			this._resultsEl.hidden = true;
 			return;
 		}
 

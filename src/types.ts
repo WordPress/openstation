@@ -169,11 +169,15 @@ export interface WindowConfig {
  * @public
  * @since 0.10.0
  */
-export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 'submenu' > {
+export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 'submenu' | 'x' | 'y' > {
 	/** Optional `#hash`-style URL for history. Auto-generated from `id` when absent. */
 	url?: string;
 	/** Always `true` for native windows. Accepted for clarity; the shell enforces it. */
 	native?: true;
+	/** Initial x position in pixels. Defaults to 0; the shell's cascade positioner usually takes over. */
+	x?: number;
+	/** Initial y position in pixels. Defaults to 0; the shell's cascade positioner usually takes over. */
+	y?: number;
 }
 
 /**
