@@ -15,7 +15,8 @@
 		"test": "npm run test:js",
 		"test:js": "vitest run",
 		"test:js:watch": "vitest",
-		"test:php": "phpunit --configuration tests/phpunit/phpunit.xml.dist"
+		"test:php": "vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist",
+		"test:php:install": "bash bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest"
 	},
 	"devDependencies": {
 		"@typescript-eslint/eslint-plugin": "^7.18.0",

@@ -1,0 +1,16 @@
+{
+	"name": "automattic/wp-desktop-mode",
+	"description": "WordPress admin as a desktop OS — dev dependencies for PHPUnit.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=7.4"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^9.6",
+		"yoast/phpunit-polyfills": "^2.0"
+	},
+	"config": {
+		"sort-packages": true
+	}
+}

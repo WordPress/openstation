@@ -64,26 +64,20 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          # PHPUnit 9 is what WordPress core's test suite is
-          # compatible with — pinning avoids the 10.x strict mode
-          # breakage the plugin's phpunit.xml would otherwise trip.
-          tools: phpunit:9, composer:v2
+          # PHPUnit comes from Composer (pinned ^9.6 in composer.json) so
+          # dev and CI run the same binary. We keep the composer:v2 tool
+          # itself to manage the install.
+          tools: composer:v2
           coverage: none
 
-      - name: Install SVN (required by install-wp-tests.sh)
+      - name: Install SVN (required by bin/install-wp-tests.sh)
         run: sudo apt-get update && sudo apt-get install -y subversion
 
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
       - name: Install WordPress test suite
-        env:
-          WP_VERSION: ${{ matrix.wp }}
-        run: |
-          # Canonical WP test-installer script from wp-cli's scaffold.
-          # Pinned to a release tag so a silent upstream change can't
-          # break the CI lane.
-          curl -sSL -o /tmp/install-wp-tests.sh \
-            https://raw.githubusercontent.com/wp-cli/scaffold-command/v2.4.0/templates/install-wp-tests.sh
-          chmod +x /tmp/install-wp-tests.sh
-          /tmp/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 "$WP_VERSION"
+        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 "${{ matrix.wp }}"
 
       - name: Run PHPUnit
         env:

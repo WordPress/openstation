@@ -8,11 +8,33 @@ This file is for people working **on** `wp-desktop-mode` — the plugin itself, 
 npm install           # one-time
 npm run dev           # watch: rebuilds assets/js/desktop.js on save
 npm run lint          # ESLint — our CI runs this
-npm run test:js       # Vitest — 180+ tests
+npm run test:js       # Vitest — ~360 tests, no WordPress needed
 npm run test:js:watch # Vitest in watch mode
-npm run test:php      # PHPUnit (requires WP test suite installed)
 npm run build         # produces both assets/js/desktop{,.min}.js
 ```
+
+### PHP tests — one-time setup
+
+PHPUnit runs against a real WordPress test install. You need:
+
+- **Composer** — `composer install` pulls PHPUnit 9 + `yoast/phpunit-polyfills` into `vendor/`.
+- **MySQL** — a running server the test DB can live on (`brew services start mysql` on macOS, your package manager on Linux).
+- **Subversion** — `bin/install-wp-tests.sh` uses SVN to fetch WordPress Core and the test library. On macOS: `brew install subversion`.
+
+Then, once:
+
+```bash
+composer install
+npm run test:php:install    # creates the `wordpress_test` DB + downloads WP test lib
+```
+
+And from there:
+
+```bash
+npm run test:php            # PHPUnit, @group desktop-mode
+```
+
+Default creds are `root` with no password at `127.0.0.1`. To override, call the installer directly — `bash bin/install-wp-tests.sh <db> <user> <pass> <host> <wp-version>`.
 
 Manual QA runs against the Dockerised WordPress environment in the parent Core-checkout repo — `npm run env:start` / `env:install` there. This plugin folder is self-contained; Docker orchestration stays in the host.
 

@@ -7,10 +7,18 @@
  *
  * Expects the WP_TESTS_DIR environment variable (or WP_PHPUNIT__DIR when
  * using the wp-phpunit/wp-phpunit composer package) to point at the
- * WordPress test library.
+ * WordPress test library. Falls back to /tmp/wordpress-tests-lib — the
+ * default location `bin/install-wp-tests.sh` installs to.
  *
  * @package WPDesktopMode
  */
+
+// Composer autoload brings in phpunit-polyfills (required by modern
+// WordPress test suites running on PHPUnit 9).
+$_autoload = dirname( __DIR__, 2 ) . '/vendor/autoload.php';
+if ( file_exists( $_autoload ) ) {
+	require_once $_autoload;
+}
 
 $_tests_dir = getenv( 'WP_TESTS_DIR' );
 if ( ! $_tests_dir ) {
@@ -21,7 +29,8 @@ if ( ! $_tests_dir ) {
 }
 
 if ( ! file_exists( "{$_tests_dir}/includes/functions.php" ) ) {
-	echo "Could not find {$_tests_dir}/includes/functions.php. Set WP_TESTS_DIR or install the WP test suite." . PHP_EOL;
+	echo "Could not find {$_tests_dir}/includes/functions.php." . PHP_EOL;
+	echo "Run 'npm run test:php:install' (requires svn + MySQL) or set WP_TESTS_DIR manually." . PHP_EOL;
 	exit( 1 );
 }
 
