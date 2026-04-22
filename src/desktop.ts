@@ -287,11 +287,11 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.14.0
 	 */
-	registerCommand:    ( cmd: DesktopCommand ) => void;
+	registerCommand: ( cmd: DesktopCommand ) => void;
 	/** Remove a previously registered command by slug. @since 0.14.0 */
-	unregisterCommand:  ( slug: string ) => void;
+	unregisterCommand: ( slug: string ) => void;
 	/** Snapshot of all currently registered commands. @since 0.14.0 */
-	listCommands:       () => DesktopCommand[];
+	listCommands: () => DesktopCommand[];
 	/**
 	 * Register a Cmd+K palette. The shell owns a single shortcut
 	 * handler that cycles through every registered palette; the
@@ -311,13 +311,13 @@ export interface WpDesktopPublicApi {
 	 * Re-registering the same id replaces the previous entry.
 	 * @since 0.14.0
 	 */
-	registerPalette:    ( p: Palette ) => () => void;
+	registerPalette: ( p: Palette ) => () => void;
 	/** Remove a palette from the cycle. Idempotent. @since 0.14.0 */
-	unregisterPalette:  ( id: string ) => void;
+	unregisterPalette: ( id: string ) => void;
 	/** Snapshot of registered palettes. @since 0.14.0 */
-	listPalettes:       () => Palette[];
+	listPalettes: () => Palette[];
 	/** Open a specific palette, closing any other open one. @since 0.14.0 */
-	openPalette:        ( id: string ) => void;
+	openPalette: ( id: string ) => void;
 }
 
 declare global {
@@ -396,14 +396,14 @@ function init(): void {
 	// the wallpaper element (defensive; shouldn't happen in practice).
 	const osSettings = new OsSettings(
 		{
-			mediaUrl:               config.mediaUrl,
-			restNonce:              config.restNonce,
-			canUpload:              !! config.canUpload,
-			isAdmin:                !! config.currentUserIsAdmin,
-			aiPlatformSettings:     config.aiPlatformSettings ?? null,
-			aiPlatformSettingsUrl:  config.aiPlatformSettingsUrl ?? '',
-			extendedOptions:        config.extendedOptions ?? null,
-			extendedOptionsUrl:     config.extendedOptionsUrl ?? '',
+			mediaUrl: config.mediaUrl,
+			restNonce: config.restNonce,
+			canUpload: !! config.canUpload,
+			isAdmin: !! config.currentUserIsAdmin,
+			aiPlatformSettings: config.aiPlatformSettings ?? null,
+			aiPlatformSettingsUrl: config.aiPlatformSettingsUrl ?? '',
+			extendedOptions: config.extendedOptions ?? null,
+			extendedOptionsUrl: config.extendedOptionsUrl ?? '',
 		},
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
@@ -414,9 +414,9 @@ function init(): void {
 	// falls back to an empty string when AI is not configured (the search
 	// will return a 403 from the permission gate and show an error).
 	const aiAssistant = new AiAssistant( {
-		aiSearchUrl:       config.aiSearchUrl ?? '',
+		aiSearchUrl: config.aiSearchUrl ?? '',
 		aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
-		restNonce:         config.restNonce,
+		restNonce: config.restNonce,
 	} );
 
 	// Cross-window drag bridge — stores the attachment payload the
@@ -431,10 +431,10 @@ function init(): void {
 	// more palettes via wp.desktop.registerPalette and Cmd+K cycles
 	// through them in registration order.
 	registerPalette( {
-		id:     'wp-desktop-ai-assistant',
-		label:  'AI Assistant',
-		open:   () => aiAssistant.open(),
-		close:  () => aiAssistant.close(),
+		id: 'wp-desktop-ai-assistant',
+		label: 'AI Assistant',
+		open: () => aiAssistant.open(),
+		close: () => aiAssistant.close(),
 		isOpen: () => aiAssistant.isOpen,
 	} );
 	installPaletteShortcut();
@@ -734,13 +734,13 @@ function init(): void {
 				// rare at this point — the shell enqueues all
 				// native-window scripts as shell deps), fall through
 				// to an empty body rather than throwing.
-				const registry = ( window as unknown as {
+				const nativeRegistry = ( window as unknown as {
 					wpDesktopNativeWindows?: Record<
 						string,
-						( ( body: HTMLElement ) => void ) | undefined
+						( ( el: HTMLElement ) => void ) | undefined
 					>;
 				} ).wpDesktopNativeWindows;
-				const render = registry?.[ def.id ];
+				const render = nativeRegistry?.[ def.id ];
 				if ( render ) {
 					render( body );
 				}
@@ -823,7 +823,7 @@ function init(): void {
 		setDefaultWindow,
 		refreshMenu,
 		config,
-		ai:         aiAssistant,
+		ai: aiAssistant,
 		dragBridge,
 		registerCommand,
 		unregisterCommand,

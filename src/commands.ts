@@ -22,19 +22,19 @@
 // ---------------------------------------------------------------------------
 
 export interface CommandAdminLink {
-	title:       string;
-	url:         string;
+	title: string;
+	url: string;
 	description: string;
-	icon:        string;
+	icon: string;
 }
 
 export interface CommandEntity {
-	id:          number;
-	type:        'post' | 'page' | 'comment';
-	title?:      string;
-	url:         string;
-	edit_url:    string;
-	topic?:      string;
+	id: number;
+	type: 'post' | 'page' | 'comment';
+	title?: string;
+	url: string;
+	edit_url: string;
+	topic?: string;
 	ai_summary?: string;
 }
 
@@ -66,8 +66,8 @@ export interface CommandContext {
 	 *
 	 * @since 0.14.0
 	 *
-	 * @param message    Headline question, short and direct.
-	 * @param details    Optional secondary line shown below the message.
+	 * @param message Headline question, short and direct.
+	 * @param details Optional secondary line shown below the message.
 	 */
 	confirm( message: string, details?: string ): Promise< boolean >;
 	/** Show a toast / ephemeral message (future). Currently a no-op. */
@@ -86,10 +86,10 @@ export type CommandResult =
 	| void
 	| string
 	| {
-		message:      string;
+		message: string;
 		answer_type?: 'chat' | 'navigation' | 'entity';
 		admin_links?: CommandAdminLink[];
-		entity?:      CommandEntity | null;
+		entity?: CommandEntity | null;
 	};
 
 /**
@@ -146,7 +146,7 @@ export interface DesktopCommand {
 	 */
 	suggest?: (
 		args: string,
-		ctx:  CommandContext,
+		ctx: CommandContext,
 	) => CommandSuggestion[] | Promise< CommandSuggestion[] >;
 	/**
 	 * Handler invoked when the user runs the command. Receives the
@@ -161,7 +161,7 @@ export interface DesktopCommand {
 // ---------------------------------------------------------------------------
 
 const registry = new Map< string, DesktopCommand >();
-const listeners = new Set< () => void >();
+const listeners = new Set<() => void >();
 
 /**
  * Register (or replace) a command. Slug matching is case-insensitive;
@@ -280,9 +280,9 @@ function notify(): void {
 // ---------------------------------------------------------------------------
 
 export interface ParsedCommandInput {
-	isCommand:   boolean;
-	slug:        string;
-	args:        string;
+	isCommand: boolean;
+	slug: string;
+	args: string;
 	hasArgsPart: boolean;
 }
 
@@ -296,9 +296,9 @@ export function parseCommandInput( input: string ): ParsedCommandInput {
 		return { isCommand: true, slug: rest, args: '', hasArgsPart: false };
 	}
 	return {
-		isCommand:   true,
-		slug:        rest.slice( 0, spaceIdx ),
-		args:        rest.slice( spaceIdx + 1 ),
+		isCommand: true,
+		slug: rest.slice( 0, spaceIdx ),
+		args: rest.slice( spaceIdx + 1 ),
 		hasArgsPart: true,
 	};
 }

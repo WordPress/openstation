@@ -18,7 +18,6 @@
  * @since 0.14.0
  */
 
-import type { DesktopConfig } from './types';
 import { HOOKS, doAction, applyFilters } from './hooks';
 import {
 	filterCommands,
@@ -92,7 +91,7 @@ function renderInlineMd( s: string ): string {
  * Render a short markdown string to safe HTML.
  *
  * @param md Raw markdown-ish text (typically an AI response).
- * @returns HTML string, safe to set via innerHTML.
+ * @return HTML string, safe to set via innerHTML.
  */
 function renderMarkdown( md: string ): string {
 	if ( ! md ) {
@@ -108,7 +107,9 @@ function renderMarkdown( md: string ): string {
 
 	for ( const raw of blocks ) {
 		const lines = raw.split( /\n/ ).map( ( l ) => l.trim() ).filter( ( l ) => l !== '' );
-		if ( lines.length === 0 ) continue;
+		if ( lines.length === 0 ) {
+			continue;
+		}
 
 		const isUL = lines.every( ( l ) => /^[-*]\s+/.test( l ) );
 		const isOL = lines.every( ( l ) => /^\d+\.\s+/.test( l ) );
@@ -174,51 +175,51 @@ type AnswerType = 'entity' | 'navigation' | 'chat';
 
 interface SearchResult {
 	answer_type: AnswerType;
-	message:     string;
-	entity:      EntityDetail | null;
+	message: string;
+	entity: EntityDetail | null;
 	admin_links: AdminLink[] | null;
-	iterations:  number;
-	exhausted:   boolean;
-	continue:    ContinueHint | null;
+	iterations: number;
+	exhausted: boolean;
+	continue: ContinueHint | null;
 }
 
 interface EntityDetail {
-	id:          number;
-	type:        'post' | 'page' | 'comment';
-	title?:      string;
-	excerpt?:    string;
+	id: number;
+	type: 'post' | 'page' | 'comment';
+	title?: string;
+	excerpt?: string;
 	post_title?: string;
-	post_url?:   string;
-	ai_summary:  string;
-	topic:       string;
-	url:         string;
-	edit_url:    string;
-	date?:       string;
-	harmful?:    boolean;
-	spam?:       boolean;
+	post_url?: string;
+	ai_summary: string;
+	topic: string;
+	url: string;
+	edit_url: string;
+	date?: string;
+	harmful?: boolean;
+	spam?: boolean;
 }
 
 interface AdminLink {
-	title:       string;
-	url:         string;
+	title: string;
+	url: string;
 	description: string;
-	icon:        string;
+	icon: string;
 }
 
 interface ContinueHint {
-	tool:        string;
+	tool: string;
 	entity_type: string;
-	offset:      number;
-	label:       string;
+	offset: number;
+	label: string;
 }
 
 // Minimal shape of the window manager we use — avoids pulling full types.
 interface WindowManagerLite {
 	open( cfg: {
-		id?:    string;
-		url:    string;
-		title:  string;
-		icon?:  string;
+		id?: string;
+		url: string;
+		title: string;
+		icon?: string;
 		native?: boolean;
 	} ): unknown;
 }
@@ -240,23 +241,23 @@ const SUGGESTED_PROMPTS = [
 // ---------------------------------------------------------------------------
 
 export class AiAssistant implements AiAssistantApi {
-	private _el:          HTMLElement;
-	private _input:       HTMLInputElement;
-	private _submitBtn:   HTMLButtonElement;
-	private _closeBtn:    HTMLButtonElement;
-	private _resultsEl:   HTMLElement;
-	private _isOpen       = false;
-	private _isSearching  = false;
+	private _el: HTMLElement;
+	private _input: HTMLInputElement;
+	private _submitBtn: HTMLButtonElement;
+	private _closeBtn: HTMLButtonElement;
+	private _resultsEl: HTMLElement;
+	private _isOpen = false;
+	private _isSearching = false;
 	private _previousFocus: Element | null = null;
-	private _aiSearchUrl:       string;
+	private _aiSearchUrl: string;
 	private _aiSearchStreamUrl: string;
-	private _restNonce:         string;
-	private _currentStream:     EventSource | null = null;
+	private _restNonce: string;
+	private _currentStream: EventSource | null = null;
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
 	/** Unsubscribe from the command-registry changes; called on close/destroy. */
-	private _unsubCommands:  ( () => void ) | null = null;
+	private _unsubCommands: ( () => void ) | null = null;
 	/** Highlighted index in the per-command argument suggestion list. */
 	private _selectedSuggestion = 0;
 	/** Cached latest suggestion list so keyboard nav can read it without re-calling suggest(). */
@@ -265,16 +266,16 @@ export class AiAssistant implements AiAssistantApi {
 	private _suggestToken = 0;
 
 	constructor( config: { aiSearchUrl: string; aiSearchStreamUrl: string; restNonce: string } ) {
-		this._aiSearchUrl       = config.aiSearchUrl;
+		this._aiSearchUrl = config.aiSearchUrl;
 		this._aiSearchStreamUrl = config.aiSearchStreamUrl;
-		this._restNonce         = config.restNonce;
+		this._restNonce = config.restNonce;
 
 		this._el = this._buildDOM();
 		document.body.appendChild( this._el );
 
-		this._input     = this._el.querySelector( '.wp-desktop-ai__input' )!;
+		this._input = this._el.querySelector( '.wp-desktop-ai__input' )!;
 		this._submitBtn = this._el.querySelector( '.wp-desktop-ai__submit' )!;
-		this._closeBtn  = this._el.querySelector( '.wp-desktop-ai__close' )!;
+		this._closeBtn = this._el.querySelector( '.wp-desktop-ai__close' )!;
 		this._resultsEl = this._el.querySelector( '.wp-desktop-ai__results' )!;
 
 		this._bindEvents();
@@ -301,13 +302,13 @@ export class AiAssistant implements AiAssistantApi {
 			return;
 		}
 		this._isOpen = true;
-		this._previousFocus = document.activeElement;
+		this._previousFocus = this._el.ownerDocument.activeElement;
 
 		// Reset the input, keyboard-selection, and the results area so
 		// every open feels like a fresh conversation — no stale query,
 		// no leftover command highlight.
-		this._input.value        = '';
-		this._selectedCommand    = 0;
+		this._input.value = '';
+		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
 		this._renderSuggestions();
 
@@ -320,7 +321,9 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	close(): void {
-		if ( ! this._isOpen ) return;
+		if ( ! this._isOpen ) {
+			return;
+		}
 		this._isOpen = false;
 		this._el.classList.remove( 'is-open' );
 		this._el.setAttribute( 'aria-hidden', 'true' );
@@ -329,10 +332,12 @@ export class AiAssistant implements AiAssistantApi {
 		this._closeStream();
 		this._isSearching = false;
 		this._submitBtn.disabled = false;
-		this._input.disabled     = false;
+		this._input.disabled = false;
 
 		const onEnd = ( e: TransitionEvent ) => {
-			if ( e.target !== this._el || e.propertyName !== 'opacity' ) return;
+			if ( e.target !== this._el || e.propertyName !== 'opacity' ) {
+				return;
+			}
 			this._el.setAttribute( 'hidden', '' );
 			this._el.removeEventListener( 'transitionend', onEnd );
 			if ( this._previousFocus instanceof HTMLElement ) {
@@ -343,7 +348,11 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	toggle(): void {
-		this._isOpen ? this.close() : this.open();
+		if ( this._isOpen ) {
+			this.close();
+		} else {
+			this.open();
+		}
 	}
 
 	get isOpen(): boolean {
@@ -367,21 +376,23 @@ export class AiAssistant implements AiAssistantApi {
 			if ( e.key === 'Escape' ) {
 				e.stopPropagation();
 				this.close();
-				return;
 			}
 		} );
 
 		// Tab focus trap.
 		this._el.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
-			if ( e.key !== 'Tab' ) return;
+			if ( e.key !== 'Tab' ) {
+				return;
+			}
 			const focusable = [ this._closeBtn, this._input, this._submitBtn ]
 				.filter( ( el ) => ! el.disabled );
 			const first = focusable[ 0 ];
-			const last  = focusable[ focusable.length - 1 ];
-			if ( e.shiftKey && document.activeElement === first ) {
+			const last = focusable[ focusable.length - 1 ];
+			const active = this._el.ownerDocument.activeElement;
+			if ( e.shiftKey && active === first ) {
 				e.preventDefault();
 				last.focus();
-			} else if ( ! e.shiftKey && document.activeElement === last ) {
+			} else if ( ! e.shiftKey && active === last ) {
 				e.preventDefault();
 				first.focus();
 			}
@@ -510,7 +521,7 @@ export class AiAssistant implements AiAssistantApi {
 			this._submitBtn.classList.toggle( 'has-value', hasValue );
 			// Reset both selection cursors whenever the filter text
 			// changes — typing resets you to the top of the list.
-			this._selectedCommand    = 0;
+			this._selectedCommand = 0;
 			this._selectedSuggestion = 0;
 
 			if ( this._input.value.startsWith( '/' ) ) {
@@ -530,7 +541,9 @@ export class AiAssistant implements AiAssistantApi {
 
 	private async _onSubmit(): Promise<void> {
 		const raw = this._input.value.trim();
-		if ( ! raw || this._isSearching ) return;
+		if ( ! raw || this._isSearching ) {
+			return;
+		}
 
 		// Slash-command dispatch. Anything starting with `/` is treated
 		// as a plugin-contributed command — we look up the slug and
@@ -556,7 +569,9 @@ export class AiAssistant implements AiAssistantApi {
 	 * answer, and surfaces thrown errors as an error-state bubble.
 	 */
 	private async _runCommand( cmd: DesktopCommand, args: string ): Promise<void> {
-		if ( this._isSearching ) return;
+		if ( this._isSearching ) {
+			return;
+		}
 
 		// ----- before-run filter ----------------------------------------
 		// Plugins can subscribe to wp-desktop.command.before-run and
@@ -568,7 +583,7 @@ export class AiAssistant implements AiAssistantApi {
 			[]
 		>( HOOKS.COMMAND_BEFORE_RUN, {
 			proceed: true,
-			slug:    cmd.slug,
+			slug: cmd.slug,
 			args,
 			command: cmd,
 		} );
@@ -579,22 +594,22 @@ export class AiAssistant implements AiAssistantApi {
 			return;
 		}
 
-		this._isSearching        = true;
+		this._isSearching = true;
 		this._submitBtn.disabled = true;
-		this._input.disabled     = true;
+		this._input.disabled = true;
 		this._showThinking( `Running /${ cmd.slug }…` );
 
 		const ctx: CommandContext = {
-			close:        () => this.close(),
+			close: () => this.close(),
 			openInWindow: ( url, title, icon ) => this._openInLegacyWindow( url, title, icon ),
-			confirm:      ( msg, details ) => this._confirm( msg, details ),
+			confirm: ( msg, details ) => this._confirm( msg, details ),
 		};
 
 		try {
 			const result = await Promise.resolve( cmd.run( args, ctx ) );
 			this._renderCommandResult( cmd, result );
 			doAction( HOOKS.COMMAND_AFTER_RUN, {
-				slug:    cmd.slug,
+				slug: cmd.slug,
 				args,
 				command: cmd,
 				result,
@@ -603,15 +618,15 @@ export class AiAssistant implements AiAssistantApi {
 			const msg = err instanceof Error ? err.message : String( err );
 			this._showError( `Command /${ cmd.slug } failed: ${ msg }` );
 			doAction( HOOKS.COMMAND_ERROR, {
-				slug:    cmd.slug,
+				slug: cmd.slug,
 				args,
 				command: cmd,
-				error:   err,
+				error: err,
 			} );
 		} finally {
-			this._isSearching        = false;
+			this._isSearching = false;
 			this._submitBtn.disabled = false;
-			this._input.disabled     = false;
+			this._input.disabled = false;
 			this._input.focus();
 		}
 	}
@@ -624,6 +639,7 @@ export class AiAssistant implements AiAssistantApi {
 	 */
 	private _confirm( message: string, details?: string ): Promise< boolean > {
 		const text = details ? `${ message }\n\n${ details }` : message;
+		// eslint-disable-next-line no-alert -- default impl uses the native dialog; the shell can swap in a custom one via the stable Promise<boolean> contract.
 		return Promise.resolve( window.confirm( text ) );
 	}
 
@@ -644,35 +660,37 @@ export class AiAssistant implements AiAssistantApi {
 			typeof result === 'string'
 				? {
 					answer_type: 'chat',
-					message:     result,
-					entity:      null,
+					message: result,
+					entity: null,
 					admin_links: null,
-					iterations:  0,
-					exhausted:   true,
-					continue:    null,
+					iterations: 0,
+					exhausted: true,
+					continue: null,
 				}
 				: {
 					answer_type: result.answer_type ?? 'chat',
-					message:     result.message,
-					entity:      ( result.entity as EntityDetail | null ) ?? null,
+					message: result.message,
+					entity: ( result.entity as EntityDetail | null ) ?? null,
 					admin_links: ( result.admin_links as AdminLink[] | null ) ?? null,
-					iterations:  0,
-					exhausted:   true,
-					continue:    null,
+					iterations: 0,
+					exhausted: true,
+					continue: null,
 				};
 
 		this._showResult( '', answer );
 	}
 
 	private _runSearch(
-		query:       string,
-		resumeTool:  string | null,
+		query: string,
+		resumeTool: string | null,
 		startOffset: number,
 	): void {
-		if ( this._isSearching ) return;
-		this._isSearching        = true;
+		if ( this._isSearching ) {
+			return;
+		}
+		this._isSearching = true;
 		this._submitBtn.disabled = true;
-		this._input.disabled     = true;
+		this._input.disabled = true;
 		this._showThinking( 'Thinking…' );
 
 		// Prefer SSE streaming so the user sees real-time progress ticks
@@ -691,8 +709,8 @@ export class AiAssistant implements AiAssistantApi {
 	 * progress messages as the agent picks tools and runs them.
 	 */
 	private _runSearchStream(
-		query:       string,
-		resumeTool:  string | null,
+		query: string,
+		resumeTool: string | null,
 		startOffset: number,
 	): void {
 		const url = new URL( this._aiSearchStreamUrl, window.location.origin );
@@ -710,9 +728,9 @@ export class AiAssistant implements AiAssistantApi {
 		const finish = () => {
 			es.close();
 			this._currentStream = null;
-			this._isSearching        = false;
+			this._isSearching = false;
 			this._submitBtn.disabled = false;
-			this._input.disabled     = false;
+			this._input.disabled = false;
 			this._input.focus();
 		};
 
@@ -723,7 +741,9 @@ export class AiAssistant implements AiAssistantApi {
 			} catch {
 				return;
 			}
-			if ( ! data || typeof data !== 'object' ) return;
+			if ( ! data || typeof data !== 'object' ) {
+				return;
+			}
 
 			switch ( data.event ) {
 				case 'open':
@@ -762,22 +782,22 @@ export class AiAssistant implements AiAssistantApi {
 	 * Legacy fetch path — used when EventSource is not available.
 	 */
 	private async _runSearchFetch(
-		query:       string,
-		resumeTool:  string | null,
+		query: string,
+		resumeTool: string | null,
 		startOffset: number,
 	): Promise<void> {
 		try {
 			const body: Record<string, unknown> = { query };
 			if ( resumeTool ) {
-				body.resume_tool  = resumeTool;
+				body.resume_tool = resumeTool;
 				body.start_offset = startOffset;
 			}
 
 			const res = await fetch( this._aiSearchUrl, {
-				method:  'POST',
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-WP-Nonce':  this._restNonce,
+					'X-WP-Nonce': this._restNonce,
 				},
 				body: JSON.stringify( body ),
 			} );
@@ -792,9 +812,9 @@ export class AiAssistant implements AiAssistantApi {
 		} catch {
 			this._showError( 'Network error — please check your connection and try again.' );
 		} finally {
-			this._isSearching        = false;
+			this._isSearching = false;
 			this._submitBtn.disabled = false;
-			this._input.disabled     = false;
+			this._input.disabled = false;
 			this._input.focus();
 		}
 	}
@@ -884,16 +904,16 @@ export class AiAssistant implements AiAssistantApi {
 						data-index="${ i }"
 					>
 						<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
-							c.icon ?? 'dashicons-arrow-right-alt'
-						) }" aria-hidden="true"></span>
+		c.icon ?? 'dashicons-arrow-right-alt',
+	) }" aria-hidden="true"></span>
 						<span class="wp-desktop-ai__cmd-body">
 							<span class="wp-desktop-ai__cmd-title">
 								/${ this._esc( c.slug ) }
 								${ c.hint ? `<span class="wp-desktop-ai__cmd-hint">${ this._esc( c.hint ) }</span>` : '' }
 							</span>
 							${ c.description
-								? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( c.description ) }</span>`
-								: '' }
+		? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( c.description ) }</span>`
+		: '' }
 						</span>
 					</button>
 				`;
@@ -952,9 +972,9 @@ export class AiAssistant implements AiAssistantApi {
 		const myToken = ++this._suggestToken;
 
 		const ctx: CommandContext = {
-			close:        () => this.close(),
+			close: () => this.close(),
 			openInWindow: ( url, title, icon ) => this._openInLegacyWindow( url, title, icon ),
-			confirm:      ( msg, details ) => this._confirm( msg, details ),
+			confirm: ( msg, details ) => this._confirm( msg, details ),
 		};
 
 		let result: CommandSuggestion[] | Promise< CommandSuggestion[] >;
@@ -1019,19 +1039,19 @@ export class AiAssistant implements AiAssistantApi {
 		return `
 			<div class="wp-desktop-ai__cmd-active">
 				<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
-					cmd.icon ?? 'dashicons-arrow-right-alt',
-				) }" aria-hidden="true"></span>
+		cmd.icon ?? 'dashicons-arrow-right-alt',
+	) }" aria-hidden="true"></span>
 				<div class="wp-desktop-ai__cmd-body">
 					<span class="wp-desktop-ai__cmd-title">
 						/${ this._esc( cmd.slug ) }
 						${ cmd.hint ? `<span class="wp-desktop-ai__cmd-hint">${ this._esc( cmd.hint ) }</span>` : '' }
 					</span>
 					${ cmd.description
-						? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
-						: '' }
+		? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
+		: '' }
 					${ standalone
-						? '<span class="wp-desktop-ai__cmd-enter-hint">Press <kbd>↵</kbd> to run</span>'
-						: '' }
+		? '<span class="wp-desktop-ai__cmd-enter-hint">Press <kbd>↵</kbd> to run</span>'
+		: '' }
 				</div>
 			</div>
 		`;
@@ -1056,13 +1076,13 @@ export class AiAssistant implements AiAssistantApi {
 						data-index="${ i }"
 					>
 						<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
-							s.icon ?? 'dashicons-arrow-right-alt',
-						) }" aria-hidden="true"></span>
+		s.icon ?? 'dashicons-arrow-right-alt',
+	) }" aria-hidden="true"></span>
 						<span class="wp-desktop-ai__cmd-body">
 							<span class="wp-desktop-ai__cmd-suggest-label">${ this._esc( s.label ) }</span>
 							${ s.description
-								? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( s.description ) }</span>`
-								: '' }
+		? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( s.description ) }</span>`
+		: '' }
 						</span>
 					</button>
 				`;
@@ -1081,16 +1101,16 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	private _renderSuggestions(): void {
-		this._resultsEl.hidden   = false;
+		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
 			<div class="wp-desktop-ai__suggestions">
 				<p class="wp-desktop-ai__suggestions-label">${ this._esc( 'Try asking' ) }</p>
 				<div class="wp-desktop-ai__suggestions-list">
 					${ SUGGESTED_PROMPTS.map(
-						( p ) => `<button type="button" class="wp-desktop-ai__suggestion" data-prompt="${ this._esc( p ) }">
+		( p ) => `<button type="button" class="wp-desktop-ai__suggestion" data-prompt="${ this._esc( p ) }">
 							${ this._esc( p ) }
 						</button>`,
-					).join( '' ) }
+	).join( '' ) }
 				</div>
 			</div>
 		`;
@@ -1109,7 +1129,7 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	private _showThinking( message: string = 'Thinking…' ): void {
-		this._resultsEl.hidden    = false;
+		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
 			<div class="wp-desktop-ai__state wp-desktop-ai__state--thinking">
 				${ ICON_SPINNER }
@@ -1119,7 +1139,7 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	private _showError( message: string ): void {
-		this._resultsEl.hidden    = false;
+		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
 			<div class="wp-desktop-ai__state wp-desktop-ai__state--error">
 				<span>${ this._esc( message ) }</span>
@@ -1166,10 +1186,12 @@ export class AiAssistant implements AiAssistantApi {
 			'.wp-desktop-ai__entity-open',
 		).forEach( ( btn ) => {
 			btn.addEventListener( 'click', () => {
-				const url   = btn.dataset.url ?? '';
+				const url = btn.dataset.url ?? '';
 				const title = btn.dataset.title ?? '';
-				const icon  = btn.dataset.icon ?? 'dashicons-admin-generic';
-				if ( url ) this._openInLegacyWindow( url, title, icon );
+				const icon = btn.dataset.icon ?? 'dashicons-admin-generic';
+				if ( url ) {
+					this._openInLegacyWindow( url, title, icon );
+				}
 			} );
 		} );
 
@@ -1178,10 +1200,12 @@ export class AiAssistant implements AiAssistantApi {
 			'.wp-desktop-ai__admin-link',
 		).forEach( ( btn ) => {
 			btn.addEventListener( 'click', () => {
-				const url   = btn.dataset.url ?? '';
+				const url = btn.dataset.url ?? '';
 				const title = btn.dataset.title ?? '';
-				const icon  = btn.dataset.icon ?? 'dashicons-admin-generic';
-				if ( url ) this._openInLegacyWindow( url, title, icon );
+				const icon = btn.dataset.icon ?? 'dashicons-admin-generic';
+				if ( url ) {
+					this._openInLegacyWindow( url, title, icon );
+				}
 			} );
 		} );
 
@@ -1189,27 +1213,32 @@ export class AiAssistant implements AiAssistantApi {
 		const cont = this._resultsEl.querySelector<HTMLButtonElement>( '.wp-desktop-ai__continue-btn' );
 		if ( cont ) {
 			cont.addEventListener( 'click', () => {
-				const tool   = cont.dataset.tool ?? null;
+				const tool = cont.dataset.tool ?? null;
 				const offset = parseInt( cont.dataset.offset ?? '0', 10 );
-				const q      = cont.dataset.query ?? query;
+				const q = cont.dataset.query ?? query;
 				this._runSearch( q, tool, offset );
 			} );
 		}
 	}
 
 	private _renderEntityCard( e: EntityDetail ): string {
-		const isComment  = e.type === 'comment';
-		const title      = isComment
+		const isComment = e.type === 'comment';
+		const title = isComment
 			? `Comment on “${ this._esc( e.post_title ?? 'post' ) }”`
 			: this._esc( e.title ?? 'Untitled' );
-		const summary    = this._esc( e.ai_summary || e.excerpt || '' );
-		const typeLabel  = e.type.charAt( 0 ).toUpperCase() + e.type.slice( 1 );
-		const topicChip  = e.topic ? `<span class="wp-desktop-ai__entity-topic">${ this._esc( e.topic ) }</span>` : '';
+		const summary = this._esc( e.ai_summary || e.excerpt || '' );
+		const typeLabel = e.type.charAt( 0 ).toUpperCase() + e.type.slice( 1 );
+		const topicChip = e.topic ? `<span class="wp-desktop-ai__entity-topic">${ this._esc( e.topic ) }</span>` : '';
 
 		// Pick a Dashicon for the window icon based on entity type.
-		const icon = isComment ? 'dashicons-admin-comments'
-			: e.type === 'page' ? 'dashicons-admin-page'
-			: 'dashicons-admin-post';
+		let icon: string;
+		if ( isComment ) {
+			icon = 'dashicons-admin-comments';
+		} else if ( e.type === 'page' ) {
+			icon = 'dashicons-admin-page';
+		} else {
+			icon = 'dashicons-admin-post';
+		}
 
 		return `
 			<div class="wp-desktop-ai__entity">

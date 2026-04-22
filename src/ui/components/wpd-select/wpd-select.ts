@@ -180,11 +180,11 @@ export class WpdSelect extends Component {
 
 		return html`
 			${ label
-				? html`<label
+		? html`<label
 						class="wpd-select__label"
 						for=${ selectId }
 					>${ label }</label>`
-				: html`` }
+		: html`` }
 			<span class="wpd-select__wrap">
 				<select
 					id=${ selectId }
@@ -194,12 +194,12 @@ export class WpdSelect extends Component {
 					@change=${ ( e: Event ) => this._onChange( e ) }
 				>
 					${ placeholder && ! current
-						? html`<option value="" disabled selected>
+		? html`<option value="" disabled selected>
 								${ placeholder }
 						  </option>`
-						: html`` }
+		: html`` }
 					${ options.map(
-						( o ) => html`
+		( o ) => html`
 							<option
 								value=${ o.value }
 								?disabled=${ o.disabled }
@@ -208,7 +208,7 @@ export class WpdSelect extends Component {
 								${ o.label }
 							</option>
 						`,
-					) }
+	) }
 				</select>
 				<!--
 					Inline SVG — the previous dashicons-classed span

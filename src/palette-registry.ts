@@ -44,7 +44,7 @@ export interface Palette {
 }
 
 const palettes: Palette[] = [];
-const listeners = new Set< () => void >();
+const listeners = new Set<() => void >();
 
 /**
  * Add a palette to the registry. Returns an unsubscribe function — call
@@ -168,11 +168,15 @@ export function cyclePalettes(): void {
  */
 export function openPaletteOnly( id: string ): void {
 	const target = palettes.find( ( p ) => p.id === id );
-	if ( ! target ) return;
+	if ( ! target ) {
+		return;
+	}
 	for ( const p of palettes ) {
 		if ( p.id !== id ) {
 			try {
-				if ( p.isOpen() ) p.close();
+				if ( p.isOpen() ) {
+					p.close();
+				}
 			} catch {
 				/* swallow */
 			}
@@ -201,7 +205,9 @@ let installed = false;
  * never listens for Escape.
  */
 export function installPaletteShortcut(): void {
-	if ( installed ) return;
+	if ( installed ) {
+		return;
+	}
 	installed = true;
 
 	// Parent-document keydown — catches Cmd+K when focus is on the shell
@@ -209,8 +215,12 @@ export function installPaletteShortcut(): void {
 	document.addEventListener(
 		'keydown',
 		( e: KeyboardEvent ) => {
-			if ( ! ( e.metaKey || e.ctrlKey ) || e.key !== 'k' ) return;
-			if ( e.shiftKey || e.altKey ) return;
+			if ( ! ( e.metaKey || e.ctrlKey ) || e.key !== 'k' ) {
+				return;
+			}
+			if ( e.shiftKey || e.altKey ) {
+				return;
+			}
 			e.preventDefault();
 			cyclePalettes();
 		},
@@ -224,7 +234,9 @@ export function installPaletteShortcut(): void {
 	// Gutenberg / TinyMCE / a plugin admin screen.
 	const origin = window.location.origin;
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
-		if ( e.origin !== origin ) return;
+		if ( e.origin !== origin ) {
+			return;
+		}
 		const data = e.data as { type?: string } | null;
 		if ( data && data.type === 'wp-desktop-palette-cycle' ) {
 			cyclePalettes();

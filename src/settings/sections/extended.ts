@@ -17,8 +17,8 @@ import type { SettingsCtx } from '../types';
 
 interface ExtendedState {
 	media_library_enhanced: boolean;
-	saving:                 boolean;
-	error:                  string;
+	saving: boolean;
+	error: string;
 }
 
 export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
@@ -26,8 +26,8 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 
 	const state: ExtendedState = {
 		media_library_enhanced: extendedOptions?.media_library_enhanced === true,
-		saving:                 false,
-		error:                  '',
+		saving: false,
+		error: '',
 	};
 
 	const el = document.createElement( 'div' );
@@ -37,15 +37,15 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 			return;
 		}
 		state.saving = true;
-		state.error  = '';
+		state.error = '';
 		paint();
 
 		try {
 			const res = await fetch( extendedOptionsUrl, {
-				method:  'POST',
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-WP-Nonce':   restNonce,
+					'X-WP-Nonce': restNonce,
 				},
 				body: JSON.stringify( {
 					options: {
@@ -82,8 +82,8 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 				<wpd-section
 					heading=${ __( 'Extended options' ) }
 					description=${ __(
-						'Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.',
-					) }
+		'Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.',
+	) }
 				>
 					<wpd-checkbox-label
 						label=${ __( 'Enable drag-and-drop in the Media Library' ) }
@@ -93,16 +93,16 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 
 					<p class="wp-desktop-ext__hint">
 						${ __(
-							'Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.',
-						) }
+		'Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.',
+	) }
 					</p>
 
 					${ state.error
-						? html`<p class="wp-desktop-ext__error">${ state.error }</p>`
-						: html`` }
+		? html`<p class="wp-desktop-ext__error">${ state.error }</p>`
+		: html`` }
 					${ state.saving
-						? html`<p class="wp-desktop-ext__saving">${ __( 'Saving…' ) }</p>`
-						: html`` }
+		? html`<p class="wp-desktop-ext__saving">${ __( 'Saving…' ) }</p>`
+		: html`` }
 				</wpd-section>
 			`,
 			el,

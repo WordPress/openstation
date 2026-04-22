@@ -273,7 +273,6 @@ export abstract class Component extends HTMLElement {
 		}
 	}
 
-
 	private static _lightStylesAdopted = new WeakSet<typeof Component>();
 
 	private _adoptLightStyles( ctor: typeof Component ): void {

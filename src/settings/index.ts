@@ -195,8 +195,8 @@ export class OsSettings implements SettingsCtx {
 					>
 					<wpd-tab value="ai">${ __( 'AI Settings' ) }</wpd-tab>
 					${ this.config.isAdmin
-						? html`<wpd-tab value="extended">${ __( 'Extended Options' ) }</wpd-tab>`
-						: html`` }
+		? html`<wpd-tab value="extended">${ __( 'Extended Options' ) }</wpd-tab>`
+		: html`` }
 				</wpd-tabs>
 				<wpd-tabpanel for="appearance">
 					${ buildWallpaperSection( this, body ) }
@@ -207,10 +207,10 @@ export class OsSettings implements SettingsCtx {
 					${ buildAiSection( this ) }
 				</wpd-tabpanel>
 				${ this.config.isAdmin
-					? html`<wpd-tabpanel for="extended">
+		? html`<wpd-tabpanel for="extended">
 							${ buildExtendedSection( this ) }
 						</wpd-tabpanel>`
-					: html`` }
+		: html`` }
 				<div class="wp-desktop-os-settings__footer">
 					<wpd-button variant="ghost" @click=${ onReset }
 						>${ __( 'Reset to defaults' ) }</wpd-button

@@ -34,7 +34,9 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 
 	const onProvider = ( e: Event ): void => {
 		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
-		if ( ! AI_PROVIDERS.some( ( p ) => p.id === id ) ) return;
+		if ( ! AI_PROVIDERS.some( ( p ) => p.id === id ) ) {
+			return;
+		}
 		ctx.state.ai = { ...ctx.state.ai, provider: id as AiProviderId };
 		ctx.save();
 	};
@@ -55,8 +57,8 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 				<wpd-section
 					heading=${ __( 'AI integration' ) }
 					description=${ platformEnabled
-						? __( 'A platform-wide AI key is configured. You can optionally set a personal key below to override it.' )
-						: __( 'Connect an AI provider to power assistive features across the desktop.' ) }
+		? __( 'A platform-wide AI key is configured. You can optionally set a personal key below to override it.' )
+		: __( 'Connect an AI provider to power assistive features across the desktop.' ) }
 				>
 					<wpd-checkbox-label
 						label=${ __( 'Enable AI features' ) }
@@ -71,8 +73,8 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 						@wpd-pick=${ onProvider }
 					>
 						${ AI_PROVIDERS.map(
-							( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
-						) }
+		( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
+	) }
 					</wpd-select>
 
 					<wpd-text-field
@@ -81,8 +83,8 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 						reveal
 						autocomplete="off"
 						placeholder=${ platformEnabled
-							? __( 'Using platform key — enter to override' )
-							: __( 'sk-…' ) }
+		? __( 'Using platform key — enter to override' )
+		: __( 'sk-…' ) }
 						value=${ ctx.state.ai.apiKey }
 						?disabled=${ ! ctx.state.ai.enabled }
 						@wpd-input-change=${ onApiKey }
@@ -104,11 +106,11 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 // ---------------------------------------------------------------------------
 
 interface PlatformState {
-	enabled:  boolean;
+	enabled: boolean;
 	provider: string;
-	apiKey:   string;
-	saving:   boolean;
-	error:    string;
+	apiKey: string;
+	saving: boolean;
+	error: string;
 }
 
 function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
@@ -116,33 +118,35 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 		ctx.config;
 
 	const state: PlatformState = {
-		enabled:  initial?.enabled  ?? false,
+		enabled: initial?.enabled ?? false,
 		provider: initial?.provider ?? 'openai',
-		apiKey:   initial?.apiKey   ?? '',
-		saving:   false,
-		error:    '',
+		apiKey: initial?.apiKey ?? '',
+		saving: false,
+		error: '',
 	};
 
 	const el = document.createElement( 'div' );
 
 	const save = async (): Promise<void> => {
-		if ( ! url || ! nonce || state.saving ) return;
+		if ( ! url || ! nonce || state.saving ) {
+			return;
+		}
 		state.saving = true;
-		state.error  = '';
+		state.error = '';
 		paint();
 
 		try {
 			const res = await fetch( url, {
-				method:  'POST',
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-WP-Nonce':  nonce,
+					'X-WP-Nonce': nonce,
 				},
 				body: JSON.stringify( {
 					settings: {
-						enabled:  state.enabled,
+						enabled: state.enabled,
 						provider: state.provider,
-						apiKey:   state.apiKey,
+						apiKey: state.apiKey,
 					},
 				} ),
 			} );
@@ -173,7 +177,9 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 
 	const onProvider = ( e: Event ): void => {
 		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
-		if ( ! AI_PROVIDERS.some( ( p ) => p.id === id ) ) return;
+		if ( ! AI_PROVIDERS.some( ( p ) => p.id === id ) ) {
+			return;
+		}
 		state.provider = id;
 		save();
 	};
@@ -182,7 +188,9 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 		state.apiKey = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
 	};
 
-	const onApiKeyCommit = (): void => { save(); };
+	const onApiKeyCommit = (): void => {
+		save();
+	};
 
 	const paint = (): void =>
 		render(
@@ -204,8 +212,8 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 						@wpd-pick=${ onProvider }
 					>
 						${ AI_PROVIDERS.map(
-							( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
-						) }
+		( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
+	) }
 					</wpd-select>
 
 					<wpd-text-field
@@ -222,11 +230,11 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 					></wpd-text-field>
 
 					${ state.error
-						? html`<p class="wp-desktop-ai-settings__error">${ state.error }</p>`
-						: html`` }
+		? html`<p class="wp-desktop-ai-settings__error">${ state.error }</p>`
+		: html`` }
 					${ state.saving
-						? html`<p class="wp-desktop-ai-settings__saving">${ __( 'Saving…' ) }</p>`
-						: html`` }
+		? html`<p class="wp-desktop-ai-settings__saving">${ __( 'Saving…' ) }</p>`
+		: html`` }
 				</wpd-section>
 			`,
 			el,
