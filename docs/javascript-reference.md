@@ -1213,3 +1213,5 @@ Call it each frame (or throttled — the function is cheap but it does walk the 
 - [Examples — React to window events](./examples/react-to-window-events.md)
 - [Examples — Add a dock badge](./examples/dock-badge.md)
 - [Examples — Register a wallpaper](./examples/register-wallpaper.md)
+
+
