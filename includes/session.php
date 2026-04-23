@@ -172,7 +172,17 @@ function wpdm_clear_session( $user_id ) {
  */
 function wpdm_sanitize_session( $session ) {
 	$clean = wpdm_empty_session();
-	$clean['updated'] = time();
+
+	// Preserve the client's `updated` timestamp when present — it's what
+	// wpdm_save_session compares to detect stale writes from another tab.
+	// Stamping `time()` here would overwrite it before the comparison ran,
+	// so equal-timestamp writes could never be distinguished from stale
+	// ones. Fall back to server time only when the incoming value is
+	// missing or invalid.
+	$incoming_updated = ( is_array( $session ) && isset( $session['updated'] ) )
+		? (int) $session['updated']
+		: 0;
+	$clean['updated'] = $incoming_updated > 0 ? $incoming_updated : time();
 
 	if ( ! is_array( $session ) ) {
 		return $clean;

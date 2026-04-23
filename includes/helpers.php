@@ -485,22 +485,6 @@ function wpdm_sanitize_dock_icon( $icon ) {
 		return preg_replace( '/[^a-z0-9_-]/', '', $icon );
 	}
 
-	// SVG data URI — the JS dock renders these as CSS background-image,
-	// which does NOT execute script in any currently shipping browser
-	// (Chrome/Firefox/Safari all treat SVG-in-CSS-background as an
-	// image-only context since ~2017). Strict validation on the base64
-	// payload prevents anything other than proper base64 from reaching
-	// the DOM; any other data:* scheme (javascript:, text/html, etc.)
-	// is rejected outright by the prefix check.
-	$svg_prefix = 'data:image/svg+xml;base64,';
-	if ( 0 === stripos( $icon, $svg_prefix ) ) {
-		$payload = substr( $icon, strlen( $svg_prefix ) );
-		if ( preg_match( '/^[A-Za-z0-9+\/=]+$/', $payload ) ) {
-			return $icon;
-		}
-		return $fallback;
-	}
-
 	// http/https URL — the icon is a hosted image.
 	if ( 0 === stripos( $icon, 'http://' ) || 0 === stripos( $icon, 'https://' ) ) {
 		$clean = esc_url_raw( $icon, array( 'http', 'https' ) );

@@ -53,7 +53,10 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$slug,
 			$page_title,
 			$classes,
-			$hookname ?: 'menu-' . sanitize_key( $slug ),
+			// Real WP hooknames normalize dots to dashes (`index.php` → `menu-index-php`),
+			// but `sanitize_key` would strip the dot and produce `menu-indexphp`.
+			// Pre-replace so the synthetic ids the tests assert against match.
+			$hookname ?: 'menu-' . sanitize_key( str_replace( '.', '-', $slug ) ),
 			$icon,
 		);
 	}
