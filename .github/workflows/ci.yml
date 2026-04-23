@@ -33,59 +33,33 @@ jobs:
         run: npm run test:js
 
   php:
-    name: PHPUnit · PHP ${{ matrix.php }} · WP ${{ matrix.wp }}
+    name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - php: '8.1'
-            wp: 'latest'
-          - php: '8.2'
-            wp: 'latest'
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
+        php: [ '8.1', '8.2' ]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          php-version: ${{ matrix.php }}
-          # PHPUnit 9 is what WordPress core's test suite is
-          # compatible with — pinning avoids the 10.x strict mode
-          # breakage the plugin's phpunit.xml would otherwise trip.
-          tools: phpunit:9, composer:v2
-          coverage: none
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-      - name: Install SVN (required by install-wp-tests.sh)
-        run: sudo apt-get update && sudo apt-get install -y subversion
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Install WordPress test suite
+      - name: Start wp-env
         env:
-          WP_VERSION: ${{ matrix.wp }}
-        run: |
-          # Canonical WP test-installer script from wp-cli's scaffold.
-          # Pinned to a release tag so a silent upstream change can't
-          # break the CI lane.
-          curl -sSL -o /tmp/install-wp-tests.sh \
-            https://raw.githubusercontent.com/wp-cli/scaffold-command/v2.4.0/templates/install-wp-tests.sh
-          chmod +x /tmp/install-wp-tests.sh
-          /tmp/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 "$WP_VERSION"
+          WP_ENV_PHP_VERSION: ${{ matrix.php }}
+        run: npm run env:start
+
+      - name: Install PHP dev dependencies
+        run: npm run test:php:install
 
       - name: Run PHPUnit
-        env:
-          WP_TESTS_DIR: /tmp/wordpress-tests-lib
         run: npm run test:php
