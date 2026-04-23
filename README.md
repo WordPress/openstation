@@ -194,7 +194,7 @@ You need a running WordPress to load the plugin into. Pick whichever is easier.
 
 Run `npm run package` to build a zip from `HEAD` (with correct 0644 / 0755 permissions), then follow the [Quick install](#quick-install) steps 2–3 to upload and activate it. Re-package and re-upload after each change.
 
-> If you changed source, run `npm run build` and commit the regenerated `assets/js/desktop*.js` first — they're tracked.
+> If you changed source, run `npm run build` before `npm run package` — the Vite output is gitignored, and `bin/package.sh` splices the built files into the zip from your working tree.
 
 ##### Clone `wordpress-develop` and symlink
 
