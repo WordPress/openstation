@@ -184,7 +184,12 @@ You need a running WordPress for the plugin to load into. Pick whichever is easi
 
 Works with any WordPress you already have: [Studio by WordPress.com](https://developer.wordpress.com/studio/), [`wp-env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/), or a hosted site.
 
-Package the repo as a plugin zip:
+Grab the latest zip from GitHub Releases:
+
+- **Latest** — [`wp-desktop-mode.zip`](https://github.com/WordPress/desktop-mode/releases/latest/download/wp-desktop-mode.zip) (always points at the most recent release)
+- **All releases** — [github.com/WordPress/desktop-mode/releases](https://github.com/WordPress/desktop-mode/releases)
+
+Or package the repo yourself from a local clone:
 
 ```bash
 npm run package
