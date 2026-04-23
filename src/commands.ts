@@ -133,6 +133,22 @@ export interface DesktopCommand {
 	/** Dashicon class for the list item (default `dashicons-arrow-right-alt`). */
 	icon?: string;
 	/**
+	 * Optional owner tag — the WordPress script handle that registered
+	 * the command. Set this when a plugin deactivation should live-
+	 * unregister its commands: the server-sync module walks the command
+	 * registry and removes every command whose `owner` matches a handle
+	 * that just left the `serverCommandScripts` payload.
+	 *
+	 * Plugins that don't set `owner` still get live-*registration* on
+	 * activation (their JS runs, they call `registerCommand`, the palette
+	 * repaints). Only the live-unregistration-on-deactivation case needs
+	 * this field — omitting it is a graceful fallback to "commands stay
+	 * until the next page reload."
+	 *
+	 * @since 0.15.0
+	 */
+	owner?: string;
+	/**
 	 * Optional argument autocomplete. Called as the user types after
 	 * `/<slug> `, with the current args prefix. Returns (or resolves
 	 * to) a list of {@link CommandSuggestion}s the palette renders for

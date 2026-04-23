@@ -26,6 +26,7 @@ import * as registry from './wallpapers/registry';
 import { WallpaperLayer } from './wallpapers/layer';
 import { registerBuiltInWallpapers } from './wallpapers/built-in';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
+import { createCommandRegistrySync } from './commands/server-sync';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
 	collectWallpaperSurfaces,
@@ -695,6 +696,21 @@ function init(): void {
 		Array.isArray( config.serverWallpapers ) ? config.serverWallpapers : [],
 	);
 
+	// Command-palette sync — mirrors the widget / wallpaper pattern for
+	// slash-commands registered by plugins via
+	// `wp_desktop_register_command_script()`. Loads each opted-in
+	// script URL on boot (idempotent if WP already enqueued it) and on
+	// mid-session plugins-changed signals, so a newly-installed plugin's
+	// commands appear in the palette without a reload. Deactivation
+	// unregisters commands tagged with a departing script handle as
+	// their `owner`; untagged commands survive until the next page load
+	// (graceful backwards-compat).
+	const syncServerCommands = createCommandRegistrySync();
+	void syncServerCommands(
+		Array.isArray( config.serverCommandScripts ) ? config.serverCommandScripts : [],
+		Array.isArray( config.serverCommands ) ? config.serverCommands : [],
+	);
+
 	// Hoisted so the desktop-icons render code below and the
 	// `window.wp.desktop.registerWindow` public export both
 	// reference the same function — no double-wrapping, no drift.
@@ -774,6 +790,7 @@ function init(): void {
 		syncNativeWindows,
 		syncServerWidgets,
 		syncServerWallpapers,
+		syncServerCommands,
 	);
 
 	// Expose the public API on `window.wp.desktop`. The `hooks` field
@@ -1407,6 +1424,10 @@ function bindMenuRefresh(
 	syncServerWallpapers: (
 		list: import( './types' ).DesktopWallpaperServerEntry[],
 	) => Promise< void >,
+	syncServerCommands: (
+		scripts: import( './types' ).DesktopCommandScriptServerEntry[],
+		commands?: import( './types' ).DesktopCommandServerEntry[],
+	) => Promise< void >,
 ): () => Promise<void> {
 	// Shared applier — takes a freshly-split payload and rebuilds
 	// both rails. Extracted so the message-with-payload path (no
@@ -1417,12 +1438,16 @@ function bindMenuRefresh(
 		nativeWindows?: unknown;
 		serverWidgets?: unknown;
 		serverWallpapers?: unknown;
+		serverCommandScripts?: unknown;
+		serverCommands?: unknown;
 	} ): void => {
 		const dockItems = payload.dockItems;
 		const taskbarItems = payload.taskbarItems;
 		const nativeWindows = payload.nativeWindows;
 		const serverWidgets = payload.serverWidgets;
 		const serverWallpapers = payload.serverWallpapers;
+		const serverCommandScripts = payload.serverCommandScripts;
+		const serverCommands = payload.serverCommands;
 
 		// Guard: an empty `dockItems` list is NEVER legitimate —
 		// WordPress Core always ships Dashboard, which lands on the
@@ -1504,6 +1529,26 @@ function bindMenuRefresh(
 			config.serverWallpapers =
 				serverWallpapers as DesktopConfig[ 'serverWallpapers' ];
 		}
+
+		// Command-palette sync — loads plugin-contributed command scripts
+		// on activation and unregisters owner-tagged commands when a
+		// handle leaves the payload. `serverCommandScripts` may be
+		// absent on older menu REST responses that haven't been redeployed
+		// yet; treat missing as "no change."
+		if ( Array.isArray( serverCommandScripts ) ) {
+			void syncServerCommands(
+				serverCommandScripts as import( './types' ).DesktopCommandScriptServerEntry[],
+				Array.isArray( serverCommands )
+					? ( serverCommands as import( './types' ).DesktopCommandServerEntry[] )
+					: undefined,
+			);
+			config.serverCommandScripts =
+				serverCommandScripts as DesktopConfig[ 'serverCommandScripts' ];
+			if ( Array.isArray( serverCommands ) ) {
+				config.serverCommands =
+					serverCommands as DesktopConfig[ 'serverCommands' ];
+			}
+		}
 	};
 
 	const refresh = async (): Promise<void> => {
@@ -1525,6 +1570,8 @@ function bindMenuRefresh(
 				nativeWindows?: DesktopConfig[ 'nativeWindows' ];
 				serverWidgets?: DesktopConfig[ 'serverWidgets' ];
 				serverWallpapers?: DesktopConfig[ 'serverWallpapers' ];
+				serverCommandScripts?: DesktopConfig[ 'serverCommandScripts' ];
+				serverCommands?: DesktopConfig[ 'serverCommands' ];
 			};
 			applyPayload( data );
 		} catch ( err ) {
@@ -1549,6 +1596,10 @@ function bindMenuRefresh(
 				dockItems?: unknown;
 				taskbarItems?: unknown;
 				nativeWindows?: unknown;
+				serverWidgets?: unknown;
+				serverWallpapers?: unknown;
+				serverCommandScripts?: unknown;
+				serverCommands?: unknown;
 			};
 		} | null;
 		if ( ! data || data.type !== 'wp-desktop-plugins-changed' ) {

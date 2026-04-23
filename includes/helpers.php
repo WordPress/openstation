@@ -764,6 +764,12 @@ function wpdm_build_menu_payload() {
 		'serverWallpapers' => function_exists( 'wpdm_build_desktop_wallpapers_payload' )
 			? wpdm_build_desktop_wallpapers_payload()
 			: array(),
+		'serverCommandScripts' => function_exists( 'wpdm_build_desktop_command_scripts_payload' )
+			? wpdm_build_desktop_command_scripts_payload()
+			: array(),
+		'serverCommands'   => function_exists( 'wpdm_build_desktop_commands_payload' )
+			? wpdm_build_desktop_commands_payload()
+			: array(),
 		'desktopIcons'     => function_exists( 'wpdm_build_desktop_icons_payload' )
 			? wpdm_build_desktop_icons_payload()
 			: array(),

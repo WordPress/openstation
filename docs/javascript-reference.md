@@ -463,6 +463,19 @@ window.wp.desktop.registerCommand( {
 
 **Errors** thrown from `run` are caught and rendered as an error bubble — the panel doesn't crash.
 
+**Live-refresh on plugin install/activate.** If your plugin's script is declared via `wp_desktop_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
+
+```javascript
+window.wp.desktop.registerCommand( {
+    slug:  'ha-lights',
+    label: 'Home Assistant: Lights',
+    owner: 'home-assistant-commands', // must match the WP script handle
+    run:   ( args, ctx ) => { /* … */ },
+} );
+```
+
+Commands without `owner` still register live on activation; they only persist past a deactivation until the next page reload (graceful backwards-compat).
+
 ---
 
 ### `unregisterCommand( slug )` — Stable

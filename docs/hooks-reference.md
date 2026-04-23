@@ -128,6 +128,59 @@ do_action( 'wp_desktop_wallpaper_registered', string $id, array $entry );
 
 Fires after `wp_register_desktop_icon()` successfully stores a desktop shortcut tile. Same contract as the other registration actions — no fire on `WP_Error` return.
 
+---
+
+### `wp_desktop_command_script_registered` — Stable
+
+Fires after `wp_desktop_register_command_script()` stores a command-palette script handle. Also fires when `wp_register_desktop_command()` implicitly registers its `script` argument.
+
+```php
+do_action( 'wp_desktop_command_script_registered', string $handle );
+```
+
+### `wp_desktop_command_registered` — Stable
+
+Fires after `wp_register_desktop_command()` successfully stores a command's metadata. Does not fire on `WP_Error`.
+
+```php
+do_action( 'wp_desktop_command_registered', string $slug, array $entry );
+```
+
+### `wp_desktop_register_command_script( $handle )` — Stable (PHP function)
+
+Declares a WP-registered script handle as a command-palette provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerCommand()` calls made by the plugin's JS appear in the palette **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep command definitions in TypeScript and only touch PHP to declare the handle.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'home-assistant-commands',
+        plugins_url( 'js/commands.js', __FILE__ ),
+        array( 'wp-desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'home-assistant-commands' );
+} );
+wp_desktop_register_command_script( 'home-assistant-commands' );
+```
+
+For live *unregistration* on deactivation, the plugin's JS should set `owner: 'home-assistant-commands'` on each `registerCommand` call — see `docs/javascript-reference.md`. Untagged commands stay until the next page reload.
+
+### `wp_register_desktop_command( $args )` — Stable (PHP function)
+
+Optional companion that also declares command metadata server-side. Advisory today — reserved for future pre-registration shims (showing a greyed-out command before the plugin's JS loads). Implicitly calls `wp_desktop_register_command_script( $args['script'] )` when `script` is provided.
+
+```php
+wp_register_desktop_command( array(
+    'slug'        => 'ha-lights',
+    'label'       => __( 'Home Assistant: Lights', 'home-assistant' ),
+    'description' => __( 'Toggle smart lights from the palette.', 'home-assistant' ),
+    'icon'        => 'dashicons-lightbulb',
+    'hint'        => '[room]',
+    'script'      => 'home-assistant-commands',
+) );
+```
+
 ```php
 do_action( 'wp_desktop_icon_registered', string $id, array $entry );
 ```

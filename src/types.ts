@@ -368,6 +368,61 @@ export interface DesktopWallpaperServerEntry {
 }
 
 /**
+ * Server-declared command-script entry passed from PHP via
+ * `serverCommandScripts`. One entry per
+ * `wp_desktop_register_command_script()` call (or indirectly via
+ * `wp_register_desktop_command()`).
+ *
+ * The shell injects each `scriptUrl` into the shell page on mid-
+ * session plugin activation. The loaded script registers its commands
+ * through the normal `wp.desktop.registerCommand()` path; the live
+ * command-registry subscription (see `subscribeCommands`) then repaints
+ * any open palette without a reload.
+ *
+ * @public
+ * @since 0.15.0
+ */
+export interface DesktopCommandScriptServerEntry {
+	/** WordPress script handle — doubles as the command `owner` key used for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+}
+
+/**
+ * Server-declared command metadata passed from PHP via
+ * `serverCommands`. Optional companion to
+ * `DesktopCommandScriptServerEntry` — plugins declaring commands with
+ * `wp_register_desktop_command()` emit one entry per command so metadata
+ * is enumerable without executing the plugin's JS. The `run` function
+ * still lives JS-side and is attached by the script referenced in
+ * `scriptUrl` when it loads.
+ *
+ * Advisory today — reserved for future pre-registration shims.
+ *
+ * @public
+ * @since 0.15.0
+ */
+export interface DesktopCommandServerEntry {
+	slug: string;
+	label: string;
+	description: string;
+	icon: string;
+	hint: string;
+	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
+	scriptUrl: string;
+	/**
+	 * WordPress script handle this command belongs to. Enables live-
+	 * unregistration on plugin deactivation without requiring the plugin
+	 * to set `owner` on each JS `registerCommand` call — the sync walks
+	 * the previous payload's slug→handle mapping when a handle leaves.
+	 *
+	 * @since 0.15.0
+	 */
+	scriptHandle: string;
+}
+
+/**
  * Server-declared desktop icon — a shortcut tile on the wallpaper
  * that opens a native window or a URL on click. Registered via PHP
  * with `wp_register_desktop_icon()`.
@@ -567,6 +622,21 @@ export interface DesktopConfig {
 	 * current selection.
 	 */
 	serverWallpapers: DesktopWallpaperServerEntry[];
+	/**
+	 * Script handles opted-in via `wp_desktop_register_command_script()`.
+	 * Shell injects each URL on boot and on mid-session activation so
+	 * new slash-commands appear in the palette without a reload.
+	 *
+	 * @since 0.15.0
+	 */
+	serverCommandScripts?: DesktopCommandScriptServerEntry[];
+	/**
+	 * Server-declared command metadata (from `wp_register_desktop_command()`).
+	 * Advisory today — reserved for future pre-registration shims.
+	 *
+	 * @since 0.15.0
+	 */
+	serverCommands?: DesktopCommandServerEntry[];
 	/**
 	 * Server-declared desktop icons (from `wp_register_desktop_icon()`).
 	 * The shell renders these as shortcut tiles on the wallpaper;

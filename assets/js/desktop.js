@@ -4954,8 +4954,9 @@ var wpDesktop = function(exports) {
      *
      * @since 0.14.0
      *
-     * @param options.exceptIds  Window ids to skip even before the filter runs.
-     * @returns Number of windows actually closed.
+     * @param options           Close options.
+     * @param options.exceptIds Window ids to skip even before the filter runs.
+     * @return Number of windows actually closed.
      */
     closeAll(options) {
       const exceptSet = new Set(options?.exceptIds ?? []);
@@ -6772,8 +6773,12 @@ var wpDesktop = function(exports) {
     }
     _clamp(value) {
       const { min, max } = this._readRange();
-      if (value < min) return min;
-      if (value > max) return max;
+      if (value < min) {
+        return min;
+      }
+      if (value > max) {
+        return max;
+      }
       return value;
     }
     _onInput(e) {
@@ -8297,7 +8302,9 @@ var wpDesktop = function(exports) {
     };
     const onProvider = (e) => {
       const id = e.detail?.value ?? "";
-      if (!AI_PROVIDERS.some((p) => p.id === id)) return;
+      if (!AI_PROVIDERS.some((p) => p.id === id)) {
+        return;
+      }
       ctx.state.ai = { ...ctx.state.ai, provider: id };
       ctx.save();
     };
@@ -8362,7 +8369,9 @@ var wpDesktop = function(exports) {
     };
     const el = document.createElement("div");
     const save = async () => {
-      if (!url || !nonce || state.saving) return;
+      if (!url || !nonce || state.saving) {
+        return;
+      }
       state.saving = true;
       state.error = "";
       paint();
@@ -8403,7 +8412,9 @@ var wpDesktop = function(exports) {
     };
     const onProvider = (e) => {
       const id = e.detail?.value ?? "";
-      if (!AI_PROVIDERS.some((p) => p.id === id)) return;
+      if (!AI_PROVIDERS.some((p) => p.id === id)) {
+        return;
+      }
       state.provider = id;
       save();
     };
@@ -9678,6 +9689,166 @@ var wpDesktop = function(exports) {
           await registerEntry(entry);
         }
       }
+    };
+  }
+  const registry = /* @__PURE__ */ new Map();
+  const listeners$1 = /* @__PURE__ */ new Set();
+  function registerCommand(cmd) {
+    if (!cmd || typeof cmd.slug !== "string" || cmd.slug.trim() === "") {
+      return;
+    }
+    if (typeof cmd.label !== "string" || cmd.label.trim() === "") {
+      return;
+    }
+    if (typeof cmd.run !== "function") {
+      return;
+    }
+    const slug = cmd.slug.trim().toLowerCase();
+    if (!/^[a-z0-9_\-]+$/.test(slug)) {
+      if (typeof console !== "undefined") {
+        console.warn(
+          "[wp-desktop-mode] registerCommand: slug must be [a-z0-9_-]+, got",
+          cmd.slug
+        );
+      }
+      return;
+    }
+    registry.set(slug, { ...cmd, slug });
+    notify$1();
+  }
+  function unregisterCommand(slug) {
+    if (registry.delete(slug.toLowerCase())) {
+      notify$1();
+    }
+  }
+  function listCommands() {
+    return Array.from(registry.values());
+  }
+  function findCommand(slug) {
+    return registry.get(slug.toLowerCase()) ?? null;
+  }
+  function filterCommands(query) {
+    const q = query.trim().toLowerCase();
+    if (q === "") {
+      return listCommands();
+    }
+    return listCommands().filter(
+      (c) => c.slug.toLowerCase().startsWith(q) || c.label.toLowerCase().includes(q)
+    );
+  }
+  function subscribeCommands(cb) {
+    listeners$1.add(cb);
+    return () => {
+      listeners$1.delete(cb);
+    };
+  }
+  function notify$1() {
+    const snapshot = Array.from(listeners$1);
+    for (const cb of snapshot) {
+      try {
+        cb();
+      } catch (err) {
+        if (typeof console !== "undefined") {
+          console.error("[wp-desktop-mode] command-registry listener threw:", err);
+        }
+      }
+    }
+  }
+  function parseCommandInput(input) {
+    if (!input.startsWith("/")) {
+      return { isCommand: false, slug: "", args: "", hasArgsPart: false };
+    }
+    const rest = input.slice(1);
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) {
+      return { isCommand: true, slug: rest, args: "", hasArgsPart: false };
+    }
+    return {
+      isCommand: true,
+      slug: rest.slice(0, spaceIdx),
+      args: rest.slice(spaceIdx + 1),
+      hasArgsPart: true
+    };
+  }
+  function createCommandRegistrySync() {
+    const loadedHandles = /* @__PURE__ */ new Set();
+    const loadedUrls = /* @__PURE__ */ new Set();
+    let prevSlugsByHandle = /* @__PURE__ */ new Map();
+    const ensureScript = async (entry) => {
+      if (!entry.scriptUrl || loadedUrls.has(entry.scriptUrl)) {
+        loadedHandles.add(entry.handle);
+        return;
+      }
+      try {
+        await loadVendorScript(entry.scriptUrl);
+      } catch (err) {
+        doAction(HOOKS.SHELL_ERROR, {
+          scope: "command-script-load",
+          handle: entry.handle,
+          url: entry.scriptUrl,
+          error: err
+        });
+        return;
+      }
+      loadedUrls.add(entry.scriptUrl);
+      loadedHandles.add(entry.handle);
+    };
+    const slugsByHandleFrom = (commands) => {
+      const map = /* @__PURE__ */ new Map();
+      if (!commands) {
+        return map;
+      }
+      for (const entry of commands) {
+        if (!entry.scriptHandle || !entry.slug) {
+          continue;
+        }
+        let set = map.get(entry.scriptHandle);
+        if (!set) {
+          set = /* @__PURE__ */ new Set();
+          map.set(entry.scriptHandle, set);
+        }
+        set.add(entry.slug);
+      }
+      return map;
+    };
+    const collectSlugsToRemove = (handle) => {
+      const slugs = /* @__PURE__ */ new Set();
+      for (const cmd of listCommands()) {
+        if (cmd.owner === handle) {
+          slugs.add(cmd.slug);
+        }
+      }
+      const declared = prevSlugsByHandle.get(handle);
+      if (declared) {
+        for (const slug of declared) {
+          slugs.add(slug);
+        }
+      }
+      return slugs;
+    };
+    return async (scripts, commands) => {
+      const incomingHandles = /* @__PURE__ */ new Set();
+      for (const entry of scripts) {
+        if (entry.handle) {
+          incomingHandles.add(entry.handle);
+        }
+      }
+      for (const handle of Array.from(loadedHandles)) {
+        if (incomingHandles.has(handle)) {
+          continue;
+        }
+        for (const slug of collectSlugsToRemove(handle)) {
+          unregisterCommand(slug);
+        }
+        loadedHandles.delete(handle);
+      }
+      for (const entry of scripts) {
+        if (!entry.handle || loadedHandles.has(entry.handle)) {
+          continue;
+        }
+        await ensureScript(entry);
+      }
+      prevSlugsByHandle = slugsByHandleFrom(commands);
     };
   }
   function collectWallpaperSurfaces(manager) {
@@ -11168,85 +11339,6 @@ var wpDesktop = function(exports) {
       }
     }
   }
-  const registry = /* @__PURE__ */ new Map();
-  const listeners$1 = /* @__PURE__ */ new Set();
-  function registerCommand(cmd) {
-    if (!cmd || typeof cmd.slug !== "string" || cmd.slug.trim() === "") {
-      return;
-    }
-    if (typeof cmd.label !== "string" || cmd.label.trim() === "") {
-      return;
-    }
-    if (typeof cmd.run !== "function") {
-      return;
-    }
-    const slug = cmd.slug.trim().toLowerCase();
-    if (!/^[a-z0-9_\-]+$/.test(slug)) {
-      if (typeof console !== "undefined") {
-        console.warn(
-          "[wp-desktop-mode] registerCommand: slug must be [a-z0-9_-]+, got",
-          cmd.slug
-        );
-      }
-      return;
-    }
-    registry.set(slug, { ...cmd, slug });
-    notify$1();
-  }
-  function unregisterCommand(slug) {
-    if (registry.delete(slug.toLowerCase())) {
-      notify$1();
-    }
-  }
-  function listCommands() {
-    return Array.from(registry.values());
-  }
-  function findCommand(slug) {
-    return registry.get(slug.toLowerCase()) ?? null;
-  }
-  function filterCommands(query) {
-    const q = query.trim().toLowerCase();
-    if (q === "") {
-      return listCommands();
-    }
-    return listCommands().filter(
-      (c) => c.slug.toLowerCase().startsWith(q) || c.label.toLowerCase().includes(q)
-    );
-  }
-  function subscribeCommands(cb) {
-    listeners$1.add(cb);
-    return () => {
-      listeners$1.delete(cb);
-    };
-  }
-  function notify$1() {
-    const snapshot = Array.from(listeners$1);
-    for (const cb of snapshot) {
-      try {
-        cb();
-      } catch (err) {
-        if (typeof console !== "undefined") {
-          console.error("[wp-desktop-mode] command-registry listener threw:", err);
-        }
-      }
-    }
-  }
-  function parseCommandInput(input) {
-    if (!input.startsWith("/")) {
-      return { isCommand: false, slug: "", args: "", hasArgsPart: false };
-    }
-    const rest = input.slice(1);
-    const spaceIdx = rest.indexOf(" ");
-    if (spaceIdx === -1) {
-      return { isCommand: true, slug: rest, args: "", hasArgsPart: false };
-    }
-    return {
-      isCommand: true,
-      slug: rest.slice(0, spaceIdx),
-      args: rest.slice(spaceIdx + 1),
-      hasArgsPart: true
-    };
-  }
   function escapeHtmlForMd(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
@@ -11270,7 +11362,9 @@ var wpDesktop = function(exports) {
     const out = [];
     for (const raw of blocks) {
       const lines = raw.split(/\n/).map((l) => l.trim()).filter((l) => l !== "");
-      if (lines.length === 0) continue;
+      if (lines.length === 0) {
+        continue;
+      }
       const isUL = lines.every((l) => /^[-*]\s+/.test(l));
       const isOL = lines.every((l) => /^\d+\.\s+/.test(l));
       if (isUL) {
@@ -11320,7 +11414,6 @@ var wpDesktop = function(exports) {
       this._previousFocus = null;
       this._currentStream = null;
       this._selectedCommand = 0;
-      this._unsubCommands = null;
       this._selectedSuggestion = 0;
       this._currentSuggestions = [];
       this._suggestToken = 0;
@@ -11335,7 +11428,7 @@ var wpDesktop = function(exports) {
       this._resultsEl = this._el.querySelector(".wp-desktop-ai__results");
       this._bindEvents();
       this._renderSuggestions();
-      this._unsubCommands = subscribeCommands(() => {
+      subscribeCommands(() => {
         if (this._isOpen && this._input.value.startsWith("/")) {
           this._renderCommandMode();
         }
@@ -11351,7 +11444,7 @@ var wpDesktop = function(exports) {
         return;
       }
       this._isOpen = true;
-      this._previousFocus = document.activeElement;
+      this._previousFocus = this._el.ownerDocument.activeElement;
       this._input.value = "";
       this._selectedCommand = 0;
       this._submitBtn.classList.remove("has-value");
@@ -11363,7 +11456,9 @@ var wpDesktop = function(exports) {
       requestAnimationFrame(() => this._input.focus());
     }
     close() {
-      if (!this._isOpen) return;
+      if (!this._isOpen) {
+        return;
+      }
       this._isOpen = false;
       this._el.classList.remove("is-open");
       this._el.setAttribute("aria-hidden", "true");
@@ -11372,7 +11467,9 @@ var wpDesktop = function(exports) {
       this._submitBtn.disabled = false;
       this._input.disabled = false;
       const onEnd = (e) => {
-        if (e.target !== this._el || e.propertyName !== "opacity") return;
+        if (e.target !== this._el || e.propertyName !== "opacity") {
+          return;
+        }
         this._el.setAttribute("hidden", "");
         this._el.removeEventListener("transitionend", onEnd);
         if (this._previousFocus instanceof HTMLElement) {
@@ -11382,7 +11479,11 @@ var wpDesktop = function(exports) {
       this._el.addEventListener("transitionend", onEnd);
     }
     toggle() {
-      this._isOpen ? this.close() : this.open();
+      if (this._isOpen) {
+        this.close();
+      } else {
+        this.open();
+      }
     }
     get isOpen() {
       return this._isOpen;
@@ -11395,18 +11496,20 @@ var wpDesktop = function(exports) {
         if (e.key === "Escape") {
           e.stopPropagation();
           this.close();
-          return;
         }
       });
       this._el.addEventListener("keydown", (e) => {
-        if (e.key !== "Tab") return;
+        if (e.key !== "Tab") {
+          return;
+        }
         const focusable = [this._closeBtn, this._input, this._submitBtn].filter((el) => !el.disabled);
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
+        const active2 = this._el.ownerDocument.activeElement;
+        if (e.shiftKey && active2 === first) {
           e.preventDefault();
           last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
+        } else if (!e.shiftKey && active2 === last) {
           e.preventDefault();
           first.focus();
         }
@@ -11511,7 +11614,9 @@ var wpDesktop = function(exports) {
     // ------------------------------------------------------------------
     async _onSubmit() {
       const raw = this._input.value.trim();
-      if (!raw || this._isSearching) return;
+      if (!raw || this._isSearching) {
+        return;
+      }
       const parsed = parseCommandInput(this._input.value);
       if (parsed.isCommand) {
         const cmd = findCommand(parsed.slug);
@@ -11530,7 +11635,9 @@ var wpDesktop = function(exports) {
      * answer, and surfaces thrown errors as an error-state bubble.
      */
     async _runCommand(cmd, args) {
-      if (this._isSearching) return;
+      if (this._isSearching) {
+        return;
+      }
       const gate = applyFilters(HOOKS.COMMAND_BEFORE_RUN, {
         proceed: true,
         slug: cmd.slug,
@@ -11595,9 +11702,10 @@ ${details}` : message;
      * doesn't need a bubble; in that case we clear the results area.
      * A plain string is shorthand for `{ message: string }`.
      */
-    _renderCommandResult(cmd, result) {
+    _renderCommandResult(_cmd, result) {
       if (result === void 0 || result === null) {
-        this._clearResults();
+        this._resultsEl.innerHTML = "";
+        this._resultsEl.hidden = true;
         return;
       }
       const answer = typeof result === "string" ? {
@@ -11620,7 +11728,9 @@ ${details}` : message;
       this._showResult("", answer);
     }
     _runSearch(query, resumeTool, startOffset) {
-      if (this._isSearching) return;
+      if (this._isSearching) {
+        return;
+      }
       this._isSearching = true;
       this._submitBtn.disabled = true;
       this._input.disabled = true;
@@ -11661,7 +11771,9 @@ ${details}` : message;
         } catch {
           return;
         }
-        if (!data || typeof data !== "object") return;
+        if (!data || typeof data !== "object") {
+          return;
+        }
         switch (data.event) {
           case "open":
             break;
@@ -12004,7 +12116,9 @@ ${details}` : message;
           const url = btn.dataset.url ?? "";
           const title = btn.dataset.title ?? "";
           const icon = btn.dataset.icon ?? "dashicons-admin-generic";
-          if (url) this._openInLegacyWindow(url, title, icon);
+          if (url) {
+            this._openInLegacyWindow(url, title, icon);
+          }
         });
       });
       this._resultsEl.querySelectorAll(
@@ -12014,7 +12128,9 @@ ${details}` : message;
           const url = btn.dataset.url ?? "";
           const title = btn.dataset.title ?? "";
           const icon = btn.dataset.icon ?? "dashicons-admin-generic";
-          if (url) this._openInLegacyWindow(url, title, icon);
+          if (url) {
+            this._openInLegacyWindow(url, title, icon);
+          }
         });
       });
       const cont = this._resultsEl.querySelector(".wp-desktop-ai__continue-btn");
@@ -12033,7 +12149,14 @@ ${details}` : message;
       const summary = this._esc(e.ai_summary || e.excerpt || "");
       const typeLabel = e.type.charAt(0).toUpperCase() + e.type.slice(1);
       const topicChip = e.topic ? `<span class="wp-desktop-ai__entity-topic">${this._esc(e.topic)}</span>` : "";
-      const icon = isComment ? "dashicons-admin-comments" : e.type === "page" ? "dashicons-admin-page" : "dashicons-admin-post";
+      let icon;
+      if (isComment) {
+        icon = "dashicons-admin-comments";
+      } else if (e.type === "page") {
+        icon = "dashicons-admin-page";
+      } else {
+        icon = "dashicons-admin-post";
+      }
       return `
 			<div class="wp-desktop-ai__entity">
 				<div class="wp-desktop-ai__entity-header">
@@ -12349,11 +12472,15 @@ ${details}` : message;
   }
   function openPaletteOnly(id) {
     const target = palettes.find((p) => p.id === id);
-    if (!target) return;
+    if (!target) {
+      return;
+    }
     for (const p of palettes) {
       if (p.id !== id) {
         try {
-          if (p.isOpen()) p.close();
+          if (p.isOpen()) {
+            p.close();
+          }
         } catch {
         }
       }
@@ -12365,13 +12492,19 @@ ${details}` : message;
   }
   let installed = false;
   function installPaletteShortcut() {
-    if (installed) return;
+    if (installed) {
+      return;
+    }
     installed = true;
     document.addEventListener(
       "keydown",
       (e) => {
-        if (!(e.metaKey || e.ctrlKey) || e.key !== "k") return;
-        if (e.shiftKey || e.altKey) return;
+        if (!(e.metaKey || e.ctrlKey) || e.key !== "k") {
+          return;
+        }
+        if (e.shiftKey || e.altKey) {
+          return;
+        }
         e.preventDefault();
         cyclePalettes();
       },
@@ -12379,7 +12512,9 @@ ${details}` : message;
     );
     const origin = window.location.origin;
     window.addEventListener("message", (e) => {
-      if (e.origin !== origin) return;
+      if (e.origin !== origin) {
+        return;
+      }
       const data = e.data;
       if (data && data.type === "wp-desktop-palette-cycle") {
         cyclePalettes();
@@ -13161,6 +13296,11 @@ ${details}` : message;
     void syncServerWallpapers(
       Array.isArray(config.serverWallpapers) ? config.serverWallpapers : []
     );
+    const syncServerCommands = createCommandRegistrySync();
+    void syncServerCommands(
+      Array.isArray(config.serverCommandScripts) ? config.serverCommandScripts : [],
+      Array.isArray(config.serverCommands) ? config.serverCommands : []
+    );
     const registerWindow = createRegisterWindow(manager);
     const openRegisteredNativeWindow = (id) => {
       const def = Array.isArray(config.nativeWindows) ? config.nativeWindows.find((w) => w.id === id) : null;
@@ -13177,8 +13317,8 @@ ${details}` : message;
         minHeight: def.minHeight,
         autofocus: def.autofocus,
         render: (body) => {
-          const registry2 = window.wpDesktopNativeWindows;
-          const render2 = registry2?.[def.id];
+          const nativeRegistry = window.wpDesktopNativeWindows;
+          const render2 = nativeRegistry?.[def.id];
           if (render2) {
             render2(body);
           }
@@ -13200,7 +13340,8 @@ ${details}` : message;
       config,
       syncNativeWindows,
       syncServerWidgets,
-      syncServerWallpapers
+      syncServerWallpapers,
+      syncServerCommands
     );
     window.wp = window.wp || {};
     window.wp.desktop = {
@@ -13540,13 +13681,15 @@ ${details}` : message;
     });
   }
   const MENU_REFRESH_DEBOUNCE_MS = 250;
-  function bindMenuRefresh(dock, taskbar, taskbarEl, desktopArea, config, syncNativeWindows, syncServerWidgets, syncServerWallpapers) {
+  function bindMenuRefresh(dock, taskbar, taskbarEl, desktopArea, config, syncNativeWindows, syncServerWidgets, syncServerWallpapers, syncServerCommands) {
     const applyPayload = (payload) => {
       const dockItems = payload.dockItems;
       const taskbarItems = payload.taskbarItems;
       const nativeWindows = payload.nativeWindows;
       const serverWidgets = payload.serverWidgets;
       const serverWallpapers = payload.serverWallpapers;
+      const serverCommandScripts = payload.serverCommandScripts;
+      const serverCommands = payload.serverCommands;
       if (!Array.isArray(dockItems) || dockItems.length === 0) {
         return;
       }
@@ -13585,6 +13728,16 @@ ${details}` : message;
           serverWallpapers
         );
         config.serverWallpapers = serverWallpapers;
+      }
+      if (Array.isArray(serverCommandScripts)) {
+        void syncServerCommands(
+          serverCommandScripts,
+          Array.isArray(serverCommands) ? serverCommands : void 0
+        );
+        config.serverCommandScripts = serverCommandScripts;
+        if (Array.isArray(serverCommands)) {
+          config.serverCommands = serverCommands;
+        }
       }
     };
     const refresh = async () => {
