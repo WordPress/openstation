@@ -198,33 +198,35 @@ export class OsSettings implements SettingsCtx {
 						: html`` }
 				</wpd-tabs>
 				<wpd-tabpanel for="appearance">
-					<p class="wp-desktop-os-settings__intro">
-						${ __(
-							'Personalize your desktop. Changes apply instantly and are saved to this browser.',
-						) }
-					</p>
-					${ buildWallpaperSection( this, body ) }
-					${ buildAccentSection( this ) }
-					${ buildDockSizeSection( this ) }
+					<wpd-panel>
+						<p class="wp-desktop-os-settings__intro">
+							${ __(
+								'Personalize your desktop. Changes apply instantly and are saved to this browser.',
+							) }
+						</p>
+						${ buildWallpaperSection( this, body ) }
+						${ buildAccentSection( this ) }
+						${ buildDockSizeSection( this ) }
+					</wpd-panel>
 				</wpd-tabpanel>
 				<wpd-tabpanel for="ai">
-					${ buildAiSection( this ) }
+					<wpd-panel>${ buildAiSection( this ) }</wpd-panel>
 				</wpd-tabpanel>
 				${ this.config.isAdmin
 					? html`<wpd-tabpanel for="extended">
-							${ buildExtendedSection( this ) }
+							<wpd-panel>${ buildExtendedSection( this ) }</wpd-panel>
 						</wpd-tabpanel>`
 					: html`` }
 				${ this.config.isAdmin
 					? html`<wpd-tabpanel for="help">
-							${ buildHelpSection() }
+							<wpd-panel>${ buildHelpSection() }</wpd-panel>
 						</wpd-tabpanel>`
 					: html`` }
-				<div class="wp-desktop-os-settings__footer">
+				<wpd-panel class="wp-desktop-os-settings__footer">
 					<wpd-button variant="ghost" @click=${ onReset }
 						>${ __( 'Reset to defaults' ) }</wpd-button
 					>
-				</div>
+				</wpd-panel>
 			`,
 			body,
 		);
