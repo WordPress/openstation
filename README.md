@@ -188,9 +188,12 @@ Leave it running in a separate terminal; refresh the browser after each save. Se
 
 #### 3. Load into a local WordPress
 
-Clone Core's Docker-based dev host alongside this repo and symlink the plugin in:
+You need a running WordPress to load the plugin into. Pick whichever is easier.
+
+**Clone `wordpress-develop` and symlink** — best dev loop: `npm run dev` rebuilds on save, a browser refresh picks it up.
 
 ```bash
+# clone Core's Docker-based dev host alongside this repo
 git clone https://github.com/WordPress/wordpress-develop.git
 cd wordpress-develop
 npm install
@@ -209,9 +212,9 @@ Credentials: `admin` / `password`
 
 Stop the environment with `npm run env:stop` (from the `wordpress-develop` directory).
 
-Then activate as in the [Quick install](#quick-install) steps 2–3.
+**Studio, wp-env, or a hosted WP** — run `npm run package` to build a zip from `HEAD` (with correct 0644 / 0755 permissions), then upload it the same way as the [Quick install](#quick-install) flow. Re-package and re-upload after each change. If you changed source, run `npm run build` and commit the regenerated `assets/js/desktop*.js` first — they're tracked.
 
-> Prefer to test against a hosted WP instead? Run `npm run package` to build a zip from `HEAD` (with correct 0644 / 0755 permissions) and upload it the same way as the Quick install path. If you changed source, run `npm run build` and commit the regenerated `assets/js/desktop*.js` first — they're tracked.
+Then activate as in the [Quick install](#quick-install) steps 2–3.
 
 ---
 
