@@ -17,10 +17,8 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 - [Still ahead](#still-ahead)
 - [Repository layout](#repository-layout)
 - [How to run it](#how-to-run-it)
-  - [1. Install dependencies](#1-install-dependencies)
-  - [2. Build the TypeScript bundle](#2-build-the-typescript-bundle)
-  - [3. Get it running in WordPress](#3-get-it-running-in-wordpress)
-  - [4. Activate & toggle](#4-activate--toggle)
+  - [Quick install](#quick-install)
+  - [Development setup](#development-setup)
 - [Requirements](#requirements)
 - [For plugin authors](#for-plugin-authors)
 - [License](#license)
@@ -147,13 +145,25 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 
 ## How to run it
 
-### 1. Install dependencies
+### Quick install
+
+Just want to try it? Grab the pre-built zip and upload it to any WordPress — [Studio by WordPress.com](https://developer.wordpress.com/studio/), [`wp-env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/), or a hosted site. No Node, no build step.
+
+1. Download [`wp-desktop-mode.zip`](https://github.com/WordPress/desktop-mode/releases/latest/download/wp-desktop-mode.zip) from the latest release (or pick a specific version from the [releases page](https://github.com/WordPress/desktop-mode/releases)).
+2. In WP Admin: **Plugins → Add New → Upload Plugin**, choose the zip, and activate.
+3. Click the **desktop** icon in the admin bar's top-right corner. The admin reloads inside the desktop shell. Click the same icon again to return to classic admin.
+
+### Development setup
+
+For hacking on the plugin: clone the repo, run the build in watch mode, and load it into a local WordPress via symlink so every save is one browser refresh away.
+
+#### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Build the TypeScript bundle
+#### 2. Build the TypeScript bundle
 
 The plugin uses **[Vite](https://vitejs.dev/)** in library mode. esbuild handles transpile and minify, so builds finish in ~70 ms per bundle.
 
@@ -176,37 +186,11 @@ npm run dev
 
 Leave it running in a separate terminal; refresh the browser after each save. Set `define( 'SCRIPT_DEBUG', true )` in `wp-config.php` so WordPress picks up the unminified bundle during development.
 
-### 3. Get it running in WordPress
+#### 3. Load into a local WordPress
 
-You need a running WordPress for the plugin to load into. Pick whichever is easier.
-
-#### Option A — Install as a zip (easiest)
-
-Works with any WordPress you already have: [Studio by WordPress.com](https://developer.wordpress.com/studio/), [`wp-env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/), or a hosted site.
-
-Grab the latest zip from GitHub Releases:
-
-- **Latest** — [`wp-desktop-mode.zip`](https://github.com/WordPress/desktop-mode/releases/latest/download/wp-desktop-mode.zip) (always points at the most recent release)
-- **All releases** — [github.com/WordPress/desktop-mode/releases](https://github.com/WordPress/desktop-mode/releases)
-
-Or package the repo yourself from a local clone:
+Clone Core's Docker-based dev host alongside this repo and symlink the plugin in:
 
 ```bash
-npm run package
-```
-
-> Packages `HEAD` with correct file/dir permissions (0644 / 0755) so WordPress can read the files after extraction. If you changed source, run `npm run build` and commit the regenerated `assets/js/desktop*.js` first — they're tracked.
-
-Then in WP Admin go to **Plugins → Add New → Upload Plugin**, choose `wp-desktop-mode.zip`, and activate. Skip ahead to [§4 Activate & toggle](#4-activate--toggle).
-
-> Good for trying it out. Not ideal for active development — every change requires a rebuild + re-upload.
-
-#### Option B — Clone `wordpress-develop` (for active development)
-
-This gives you the full dev loop: `npm run dev` in the plugin rebuilds on save, and a browser refresh picks it up.
-
-```bash
-# clone Core's Docker-based dev host alongside this repo
 git clone https://github.com/WordPress/wordpress-develop.git
 cd wordpress-develop
 npm install
@@ -225,14 +209,9 @@ Credentials: `admin` / `password`
 
 Stop the environment with `npm run env:stop` (from the `wordpress-develop` directory).
 
-### 4. Activate & toggle
+Then activate as in the [Quick install](#quick-install) steps 2–3.
 
-1. Log in at `/wp-admin`.
-2. **Plugins → WP Desktop Mode → Activate**.
-3. Click the **desktop** icon in the admin bar's top-right corner.
-4. The admin reloads inside the desktop shell.
-
-Click the same icon again to return to classic admin.
+> Prefer to test against a hosted WP instead? Run `npm run package` to build a zip from `HEAD` (with correct 0644 / 0755 permissions) and upload it the same way as the Quick install path. If you changed source, run `npm run build` and commit the regenerated `assets/js/desktop*.js` first — they're tracked.
 
 ---
 
