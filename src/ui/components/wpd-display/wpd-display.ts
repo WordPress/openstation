@@ -41,6 +41,53 @@ export class WpdDisplay extends Component {
 	static props = [ 'value', 'size', 'align' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Display',
+		summary:
+			'Single-line numeric/text readout — right-aligned, tabular-nums, auto-ellipsized. The readout every calculator, stopwatch, ticker, counter, or meter reinvents. Host is aria-live="polite" so screen readers announce value changes without yanking focus.',
+		status: 'stable',
+		since: '0.10.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Convenience readout. Ignored when the caller slots their own content.',
+			},
+			{
+				name: 'size',
+				type: "'sm' | 'md' | 'lg' | 'xl'",
+				default: 'lg',
+				description: 'Typography scale. lg is calculator-sized.',
+			},
+			{
+				name: 'align',
+				type: "'start' | 'center' | 'end'",
+				default: 'end',
+				description: 'Text alignment. `end` matches ledger/calculator right-alignment.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Custom readout markup (currency prefix, unit suffix, etc.). Only rendered when `value` is not set.' },
+			{ name: 'label', description: 'Optional leading label.' },
+		],
+		parts: [
+			{ name: 'output', description: 'Inner <output> element holding the readout.' },
+		],
+		cssProps: [
+			{ name: '--wpd-display-size' },
+			{ name: '--wpd-display-align' },
+			{ name: '--wpd-display-bg' },
+			{ name: '--wpd-display-fg' },
+			{ name: '--wpd-display-border-radius' },
+		],
+		example: html`
+			<wpd-stack gap="8">
+				<wpd-display value="1,234.00" size="xl"></wpd-display>
+				<wpd-display value="00:42.19" size="lg" align="center"></wpd-display>
+			</wpd-stack>
+		`,
+	} as const;
+
 	connectedCallback(): void {
 		super.connectedCallback?.();
 		// Live-region semantics so screen readers announce

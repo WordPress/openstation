@@ -65,6 +65,7 @@ import { buildAccentSection } from './sections/accent';
 import { buildAiSection } from './sections/ai';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildExtendedSection } from './sections/extended';
+import { buildHelpSection } from './sections/help';
 import {
 	buildWallpaperSection,
 	registerCustomGradient,
@@ -184,11 +185,6 @@ export class OsSettings implements SettingsCtx {
 
 		render(
 			html`
-				<p class="wp-desktop-os-settings__intro">
-					${ __(
-		'Personalize your desktop. Changes apply instantly and are saved to this browser.',
-	) }
-				</p>
 				<wpd-tabs value="appearance" label=${ __( 'Settings sections' ) }>
 					<wpd-tab value="appearance"
 						>${ __( 'Appearance' ) }</wpd-tab
@@ -197,8 +193,16 @@ export class OsSettings implements SettingsCtx {
 					${ this.config.isAdmin
 						? html`<wpd-tab value="extended">${ __( 'Extended Options' ) }</wpd-tab>`
 						: html`` }
+					${ this.config.isAdmin
+						? html`<wpd-tab value="help">${ __( 'Help' ) }</wpd-tab>`
+						: html`` }
 				</wpd-tabs>
 				<wpd-tabpanel for="appearance">
+					<p class="wp-desktop-os-settings__intro">
+						${ __(
+							'Personalize your desktop. Changes apply instantly and are saved to this browser.',
+						) }
+					</p>
 					${ buildWallpaperSection( this, body ) }
 					${ buildAccentSection( this ) }
 					${ buildDockSizeSection( this ) }
@@ -209,6 +213,11 @@ export class OsSettings implements SettingsCtx {
 				${ this.config.isAdmin
 					? html`<wpd-tabpanel for="extended">
 							${ buildExtendedSection( this ) }
+						</wpd-tabpanel>`
+					: html`` }
+				${ this.config.isAdmin
+					? html`<wpd-tabpanel for="help">
+							${ buildHelpSection() }
 						</wpd-tabpanel>`
 					: html`` }
 				<div class="wp-desktop-os-settings__footer">

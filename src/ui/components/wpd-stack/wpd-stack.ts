@@ -29,6 +29,41 @@ export class WpdStack extends Component {
 	static props = [ 'gap', 'align' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Stack',
+		summary:
+			'Vertical flex layout with a gap — the "stack" primitive every design system eventually invents. Use it instead of hand-rolling display:flex; flex-direction:column.',
+		status: 'stable',
+		since: '0.10.0',
+		props: [
+			{
+				name: 'gap',
+				type: 'integer (px)',
+				default: '12',
+				description: 'Space between children.',
+			},
+			{
+				name: 'align',
+				type: "'start' | 'center' | 'end' | 'stretch'",
+				default: 'stretch',
+				description: 'Cross-axis alignment (align-items).',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Stacked children.' },
+		],
+		cssProps: [
+			{ name: '--wpd-stack-gap', default: '12px' },
+			{ name: '--wpd-stack-align', default: 'stretch' },
+		],
+		example: html`
+			<wpd-stack gap="12">
+				<wpd-section heading="Foo">First</wpd-section>
+				<wpd-section heading="Bar">Second</wpd-section>
+			</wpd-stack>
+		`,
+	} as const;
+
 	protected render() {
 		const gap = ( this as unknown as { gap: string | null } ).gap;
 		const align = ( this as unknown as { align: string | null } ).align;

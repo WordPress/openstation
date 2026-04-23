@@ -33,6 +33,52 @@ export class WpdGrid extends Component {
 	static props = [ 'columns', 'rows', 'gap', 'column-gap', 'row-gap' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Grid',
+		summary:
+			'Neutral CSS grid container. The 2-D twin of <wpd-stack>/<wpd-cluster>. No role is emitted — callers wrap in role="grid"/"radiogroup" if warranted.',
+		status: 'stable',
+		since: '0.10.0',
+		props: [
+			{
+				name: 'columns',
+				type: 'integer',
+				default: '1',
+				description: 'Number of equal-width columns (repeat(N, minmax(0, 1fr))).',
+			},
+			{
+				name: 'rows',
+				type: 'integer',
+				description: 'Optional fixed row count. Omit for content-driven sizing.',
+			},
+			{ name: 'gap', type: 'integer (px)', description: 'Cell spacing on both axes.' },
+			{ name: 'column-gap', type: 'integer (px)', description: 'x-axis override.' },
+			{ name: 'row-gap', type: 'integer (px)', description: 'y-axis override.' },
+		],
+		slots: [
+			{ name: '(default)', description: 'Grid children.' },
+		],
+		cssProps: [
+			{ name: '--wpd-grid-columns' },
+			{ name: '--wpd-grid-rows' },
+			{ name: '--wpd-grid-gap' },
+			{ name: '--wpd-grid-column-gap' },
+			{ name: '--wpd-grid-row-gap' },
+		],
+		example: html`
+			<wpd-grid columns="4" gap="8">
+				<wpd-button>7</wpd-button>
+				<wpd-button>8</wpd-button>
+				<wpd-button>9</wpd-button>
+				<wpd-button variant="primary">÷</wpd-button>
+				<wpd-button>4</wpd-button>
+				<wpd-button>5</wpd-button>
+				<wpd-button>6</wpd-button>
+				<wpd-button variant="primary">×</wpd-button>
+			</wpd-grid>
+		`,
+	} as const;
+
 	protected render() {
 		const columns = ( this as unknown as { columns: string | null } ).columns;
 		const rows = ( this as unknown as { rows: string | null } ).rows;

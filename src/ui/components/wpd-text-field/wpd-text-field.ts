@@ -58,6 +58,77 @@ export class WpdTextField extends Component {
 	] as const;
 	static styles = [ textFieldStyles ];
 
+	static help = {
+		title: 'Text field',
+		summary:
+			'Labelled text input primitive. Two-way reflects `value`, emits wpd-input-change per keystroke, wpd-input-commit on blur/change, and wpd-submit on Enter. Optional password reveal toggle.',
+		status: 'stable',
+		since: '0.11.0',
+		props: [
+			{ name: 'label', type: 'string', description: 'Visible label above the input.' },
+			{ name: 'value', type: 'string', description: 'Current input value; reflected two-way.' },
+			{ name: 'placeholder', type: 'string', description: 'Native placeholder string.' },
+			{ name: 'disabled', type: 'boolean attribute', description: 'Disables the native input.' },
+			{ name: 'readonly', type: 'boolean attribute', description: 'Marks the input readonly.' },
+			{
+				name: 'autocomplete',
+				type: 'string',
+				default: 'off',
+				description: 'Forwarded to the native input autocomplete attribute.',
+			},
+			{
+				name: 'type',
+				type: 'string',
+				default: 'text',
+				description: 'Native input type (text, password, email, search, tel, url).',
+			},
+			{ name: 'maxlength', type: 'integer (string)', description: 'Native maxlength.' },
+			{ name: 'minlength', type: 'integer (string)', description: 'Native minlength.' },
+			{ name: 'pattern', type: 'regex string', description: 'Native validation pattern.' },
+			{ name: 'name', type: 'string', description: 'Forwarded to the native input for form submission.' },
+			{ name: 'suffix', type: 'string', description: 'Text rendered inside the right edge of the input row.' },
+			{
+				name: 'invalid',
+				type: 'boolean attribute',
+				description: 'Marks the field aria-invalid and applies the error style.',
+			},
+			{
+				name: 'reveal',
+				type: 'boolean attribute',
+				description: 'On type="password" fields, adds an eye-icon toggle that flips the input between hidden and visible text.',
+			},
+		],
+		events: [
+			{
+				name: 'wpd-input-change',
+				description: 'Fires on every input keystroke.',
+				detail: '{ value: string }',
+			},
+			{
+				name: 'wpd-input-commit',
+				description: 'Fires on the native change event (blur / Enter).',
+				detail: '{ value: string }',
+			},
+			{
+				name: 'wpd-submit',
+				description: 'Fires when the user presses Enter (without Shift/Alt/Meta).',
+				detail: '{ value: string }',
+			},
+		],
+		cssProps: [
+			{ name: '--wp-desktop-text', description: 'Text colour.' },
+			{ name: '--wp-desktop-muted', description: 'Label + suffix colour.' },
+			{ name: '--wp-desktop-border', description: 'Input outline.' },
+			{ name: '--wp-desktop-window-bg', description: 'Input background.' },
+		],
+		example: html`
+			<wpd-stack gap="8">
+				<wpd-text-field label="Note title" value="Untitled" placeholder="Name this note"></wpd-text-field>
+				<wpd-text-field type="password" reveal label="API key"></wpd-text-field>
+			</wpd-stack>
+		`,
+	} as const;
+
 	/** Whether the password text is currently visible. Internal state, not reflected to an attribute. */
 	private _revealed = false;
 

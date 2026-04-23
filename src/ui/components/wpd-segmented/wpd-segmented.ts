@@ -17,6 +17,31 @@ export class WpdSegment extends Component {
 	static props = [ 'value' ] as const;
 	static styles = [ segmentStyles ];
 
+	static help = {
+		title: 'Segment',
+		summary:
+			'Single pill inside a <wpd-segmented> group. Value identifies it for selection; aria-checked is mirrored by the parent.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Identifier this segment contributes to the parent group selection.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Visible segment label.' },
+		],
+		events: [
+			{
+				name: 'wpd-segment-pick',
+				description: 'Internal event bubbled to the parent <wpd-segmented>. Consumers should listen for wpd-pick on the group instead.',
+				detail: '{ value: string }',
+			},
+		],
+	} as const;
+
 	protected render() {
 		this.setAttribute( 'role', 'radio' );
 		return html`
@@ -37,6 +62,48 @@ defineComponent( 'wpd-segment', WpdSegment );
 export class WpdSegmented extends Component {
 	static props = [ 'value', 'label' ] as const;
 	static styles = [ segmentedStyles ];
+
+	static help = {
+		title: 'Segmented',
+		summary:
+			'iOS-style segmented radio group. Pill-shaped bar of equal-width <wpd-segment> children where exactly one is active.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Currently selected segment value. Mirrored onto child aria-checked.',
+			},
+			{
+				name: 'label',
+				type: 'string',
+				description: 'aria-label for the radiogroup.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: '<wpd-segment value="…"> children.' },
+		],
+		events: [
+			{
+				name: 'wpd-pick',
+				description: 'Fires when the selected segment changes.',
+				detail: '{ value: string }',
+			},
+		],
+		cssProps: [
+			{ name: '--wp-desktop-window-bg', description: 'Pill background.' },
+			{ name: '--wp-desktop-text', description: 'Active label colour.' },
+			{ name: '--wp-desktop-muted', description: 'Inactive label colour.' },
+		],
+		example: html`
+			<wpd-segmented value="md" label="Dock size">
+				<wpd-segment value="sm">Small</wpd-segment>
+				<wpd-segment value="md">Medium</wpd-segment>
+				<wpd-segment value="lg">Large</wpd-segment>
+			</wpd-segmented>
+		`,
+	} as const;
 
 	connectedCallback(): void {
 		super.connectedCallback();

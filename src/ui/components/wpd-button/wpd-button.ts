@@ -51,6 +51,67 @@ export class WpdButton extends Component {
 	static props = [ 'variant', 'disabled', 'type', 'busy', 'fill-cell' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Button',
+		summary:
+			'Thin wrapper around <button> with consistent variant styling and a slot for the label.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'variant',
+				type: "'primary' | 'secondary' | 'ghost' | 'danger' | 'link'",
+				default: 'ghost',
+				description:
+					'Visual weight of the button. Use primary for the single attention-grabbing action per surface.',
+			},
+			{
+				name: 'disabled',
+				type: 'boolean attribute',
+				description: 'Disable pointer + keyboard interaction and dim the chrome.',
+			},
+			{
+				name: 'type',
+				type: "'button' | 'submit' | 'reset'",
+				default: 'button',
+				description: 'Forwarded to the underlying native <button>.',
+			},
+			{
+				name: 'busy',
+				type: 'boolean attribute',
+				description: 'Marks the button as in-progress (e.g., awaiting a fetch).',
+			},
+			{
+				name: 'fill-cell',
+				type: 'boolean attribute',
+				description:
+					'Grow to fill the parent flex/grid cell. Useful for tiled keypads.',
+			},
+		],
+		slots: [ { name: '(default)', description: 'Button label.' } ],
+		parts: [ { name: 'button', description: 'Underlying <button> element.' } ],
+		cssProps: [
+			{ name: '--wpd-button-bg', description: 'Background color.' },
+			{ name: '--wpd-button-fg', description: 'Text color.' },
+			{ name: '--wpd-button-border', description: 'Border shorthand.' },
+			{ name: '--wpd-button-border-radius', default: '6px' },
+			{ name: '--wpd-button-padding', default: '6px 12px' },
+			{
+				name: '--wpd-button-min-height',
+				description: 'Minimum height when fill-cell is set.',
+			},
+		],
+		example: html`
+			<wpd-cluster gap="8">
+				<wpd-button variant="primary">Primary</wpd-button>
+				<wpd-button variant="secondary">Secondary</wpd-button>
+				<wpd-button variant="ghost">Ghost</wpd-button>
+				<wpd-button variant="danger">Danger</wpd-button>
+				<wpd-button variant="link">Link</wpd-button>
+			</wpd-cluster>
+		`,
+	} as const;
+
 	protected render() {
 		const disabled =
 			( this as unknown as { disabled: string | null } ).disabled !== null;

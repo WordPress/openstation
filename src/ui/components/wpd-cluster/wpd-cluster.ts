@@ -29,6 +29,48 @@ export class WpdCluster extends Component {
 	static props = [ 'gap', 'justify', 'align' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Cluster',
+		summary:
+			'Horizontal flex layout with a gap + wrap. The sibling of <wpd-stack> — use it for rows of controls (button groups, toolbars). Children wrap gracefully when the container narrows.',
+		status: 'stable',
+		since: '0.10.0',
+		props: [
+			{
+				name: 'gap',
+				type: 'integer (px)',
+				default: '8',
+				description: 'Space between children.',
+			},
+			{
+				name: 'justify',
+				type: "'start' | 'center' | 'end' | 'space-between' | 'space-around'",
+				default: 'start',
+				description: 'Main-axis alignment (justify-content).',
+			},
+			{
+				name: 'align',
+				type: "'start' | 'center' | 'end' | 'stretch' | 'baseline'",
+				default: 'center',
+				description: 'Cross-axis alignment (align-items).',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Inline children.' },
+		],
+		cssProps: [
+			{ name: '--wpd-cluster-gap', default: '8px' },
+			{ name: '--wpd-cluster-justify', default: 'start' },
+			{ name: '--wpd-cluster-align', default: 'center' },
+		],
+		example: html`
+			<wpd-cluster gap="8" justify="end">
+				<wpd-button>Cancel</wpd-button>
+				<wpd-button variant="primary">Save</wpd-button>
+			</wpd-cluster>
+		`,
+	} as const;
+
 	protected render() {
 		const gap = ( this as unknown as { gap: string | null } ).gap;
 		const justify = ( this as unknown as { justify: string | null } ).justify;

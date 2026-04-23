@@ -33,6 +33,39 @@ export class WpdPanel extends Component {
 	static props = [ 'gap', 'padding' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Panel',
+		summary:
+			'Padded, flex-column container matching the default inset and rhythm of a native-window body. Opt-in for the OS-Settings-style padded layout.',
+		status: 'stable',
+		since: '0.10.0',
+		props: [
+			{
+				name: 'gap',
+				type: 'integer (px)',
+				default: '12',
+				description: 'Space between children.',
+			},
+			{
+				name: 'padding',
+				type: 'integer (px)',
+				default: '16',
+				description: 'Inset around children. Pass 0 to drop the inset.',
+			},
+		],
+		slots: [ { name: '(default)', description: 'Panel body.' } ],
+		cssProps: [
+			{ name: '--wpd-panel-gap', default: '12px' },
+			{ name: '--wpd-panel-padding', default: '16px' },
+		],
+		example: html`
+			<wpd-panel>
+				<wpd-section heading="Look">Panel section A</wpd-section>
+				<wpd-section heading="Feel">Panel section B</wpd-section>
+			</wpd-panel>
+		`,
+	} as const;
+
 	protected render() {
 		const gap = ( this as unknown as { gap: string | null } ).gap;
 		const padding = ( this as unknown as { padding: string | null } ).padding;

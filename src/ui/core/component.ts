@@ -28,6 +28,7 @@
 
 import { render, type TemplateResult } from './html';
 import type { StyleDef } from './css';
+import type { WpdHelp } from './help';
 
 /**
  * Prop-accessor declaration. For now every prop is a string at the
@@ -60,6 +61,13 @@ export abstract class Component extends HTMLElement {
 	 * slotting or isolation (rare).
 	 */
 	static shadow = true;
+
+	/**
+	 * Optional in-product help descriptor. Consumed by the Help tab
+	 * in OS Settings — components without one fall back to a minimal
+	 * rendering built from `static props`. See {@link WpdHelp}.
+	 */
+	static help?: WpdHelp;
 
 	static get observedAttributes(): string[] {
 		return ( this.props as readonly string[] ).map( kebab );

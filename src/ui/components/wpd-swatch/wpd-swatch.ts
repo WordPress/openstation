@@ -14,6 +14,63 @@ export class WpdSwatch extends Component {
 	static props = [ 'value', 'label', 'selected', 'preview', 'size', 'variant' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Swatch',
+		summary:
+			'Selectable color/wallpaper tile. Renders as an aria-pressed button with a background driven by the preview attribute.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Identifier emitted on the wpd-pick event when the swatch is clicked.',
+			},
+			{
+				name: 'label',
+				type: 'string',
+				description: 'aria-label + title for the button.',
+			},
+			{
+				name: 'selected',
+				type: 'boolean attribute',
+				description: 'Marks the swatch as the active choice within a swatch-grid.',
+			},
+			{
+				name: 'preview',
+				type: 'CSS background value',
+				description: 'Raw CSS background (color, gradient, url()) painted on the tile.',
+			},
+			{
+				name: 'size',
+				type: 'string',
+				description: 'Visual size hint (e.g. sm, md, lg). Consumed by the stylesheet.',
+			},
+			{
+				name: 'variant',
+				type: 'string',
+				description: 'Optional visual variant (e.g. color vs wallpaper).',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Optional overlay content rendered inside the tile.' },
+		],
+		events: [
+			{
+				name: 'wpd-pick',
+				description: 'Fires when the swatch is clicked.',
+				detail: '{ value: string }',
+			},
+		],
+		example: html`
+			<wpd-swatch-grid label="Accent">
+				<wpd-swatch value="red" preview="#ef4444" label="Red" selected></wpd-swatch>
+				<wpd-swatch value="blue" preview="#3b82f6" label="Blue"></wpd-swatch>
+				<wpd-swatch value="green" preview="#10b981" label="Green"></wpd-swatch>
+			</wpd-swatch-grid>
+		`,
+	} as const;
+
 	protected render() {
 		const selected =
 			( this as unknown as { selected: string | null } ).selected !== null;

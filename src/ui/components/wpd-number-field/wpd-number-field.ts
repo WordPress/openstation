@@ -56,6 +56,65 @@ export class WpdNumberField extends Component {
 	] as const;
 	static styles = [ textFieldStyles ];
 
+	static help = {
+		title: 'Number field',
+		summary:
+			'Labelled numeric input. Wraps <wpd-text-field> semantics but forces type="number" and emits already-parsed numbers, clamping to min/max on commit.',
+		status: 'stable',
+		since: '0.11.0',
+		props: [
+			{ name: 'label', type: 'string', description: 'Visible label above the input.' },
+			{ name: 'value', type: 'number (string)', description: 'Current numeric value; two-way reflected.' },
+			{ name: 'placeholder', type: 'string', description: 'Native placeholder string.' },
+			{ name: 'disabled', type: 'boolean attribute', description: 'Disables the native input.' },
+			{ name: 'readonly', type: 'boolean attribute', description: 'Marks the input readonly.' },
+			{ name: 'name', type: 'string', description: 'Forwarded for form submission.' },
+			{ name: 'suffix', type: 'string', description: 'Unit text rendered at the right edge (e.g. "€", "px").' },
+			{ name: 'min', type: 'number (string)', description: 'Lower clamp applied on commit.' },
+			{ name: 'max', type: 'number (string)', description: 'Upper clamp applied on commit.' },
+			{
+				name: 'step',
+				type: 'number (string) | "any"',
+				default: 'any',
+				description: 'Native step granularity.',
+			},
+			{ name: 'invalid', type: 'boolean attribute', description: 'Marks the field aria-invalid.' },
+		],
+		events: [
+			{
+				name: 'wpd-input-change',
+				description: 'Fires on each keystroke when the current text parses as a finite number. Not clamped.',
+				detail: '{ value: number }',
+			},
+			{
+				name: 'wpd-input-commit',
+				description: 'Fires on blur / native change, clamped to min/max.',
+				detail: '{ value: number }',
+			},
+			{
+				name: 'wpd-submit',
+				description: 'Fires on Enter (without Shift/Alt/Meta), clamped.',
+				detail: '{ value: number }',
+			},
+		],
+		cssProps: [
+			{ name: '--wp-desktop-text', description: 'Text colour.' },
+			{ name: '--wp-desktop-muted', description: 'Label + suffix colour.' },
+			{ name: '--wp-desktop-border', description: 'Input outline.' },
+			{ name: '--wp-desktop-window-bg', description: 'Input background.' },
+		],
+		example: html`
+			<wpd-number-field
+				label="Amount"
+				value="100"
+				min="0"
+				max="9999"
+				step="0.01"
+				suffix="€"
+			></wpd-number-field>
+		`,
+	} as const;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		ensureAutoId( this );

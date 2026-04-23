@@ -12,6 +12,71 @@ export class WpdRangeField extends Component {
 	static props = [ 'label', 'value', 'min', 'max', 'step', 'suffix' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Range field',
+		summary:
+			'Label + range slider + live numeric readout. Emits wpd-range-change with an already-parsed number.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'label',
+				type: 'string',
+				description: 'Visible label above the slider.',
+			},
+			{
+				name: 'value',
+				type: 'number (string)',
+				default: '0',
+				description: 'Current slider value.',
+			},
+			{
+				name: 'min',
+				type: 'number (string)',
+				default: '0',
+				description: 'Lower bound of the slider range.',
+			},
+			{
+				name: 'max',
+				type: 'number (string)',
+				default: '100',
+				description: 'Upper bound of the slider range.',
+			},
+			{
+				name: 'step',
+				type: 'number (string)',
+				default: '1',
+				description: 'Slider step granularity.',
+			},
+			{
+				name: 'suffix',
+				type: 'string',
+				description: 'Text appended to the readout (e.g. "px", "%").',
+			},
+		],
+		events: [
+			{
+				name: 'wpd-range-change',
+				description: 'Fires on every slider movement.',
+				detail: '{ value: number }',
+			},
+		],
+		cssProps: [
+			{ name: '--wp-desktop-text', description: 'Readout + label colour.' },
+			{ name: '--wp-desktop-muted', description: 'Secondary colour.' },
+		],
+		example: html`
+			<wpd-range-field
+				label="Dock size"
+				value="48"
+				min="32"
+				max="80"
+				step="4"
+				suffix="px"
+			></wpd-range-field>
+		`,
+	} as const;
+
 	protected render() {
 		const label = ( this as unknown as { label: string | null } ).label || '';
 		const value =

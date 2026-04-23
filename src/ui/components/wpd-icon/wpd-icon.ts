@@ -30,6 +30,37 @@ export class WpdIcon extends Component {
 	static props = [ 'name', 'size' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Icon',
+		summary:
+			'Dashicon wrapper that inherits theme colour + sizing from its context. Accepts either the dashicon suffix ("calculator") or the full class ("dashicons-calculator"). Marked aria-hidden; wrap in a button/link with its own label for accessible use.',
+		status: 'stable',
+		since: '0.10.0',
+		props: [
+			{
+				name: 'name',
+				type: 'string',
+				description: 'Dashicon identifier, with or without the `dashicons-` prefix.',
+			},
+			{
+				name: 'size',
+				type: 'integer (px)',
+				default: '16',
+				description: 'Glyph size in pixels.',
+			},
+		],
+		cssProps: [
+			{ name: '--wpd-icon-size', default: '16px' },
+		],
+		example: html`
+			<wpd-cluster gap="8" align="center">
+				<wpd-icon name="admin-post"></wpd-icon>
+				<wpd-icon name="calculator" size="20"></wpd-icon>
+				<wpd-icon name="dashicons-star-filled" size="32"></wpd-icon>
+			</wpd-cluster>
+		`,
+	} as const;
+
 	protected render() {
 		const rawName = ( this as unknown as { name: string | null } ).name || '';
 		// Tolerate both `calculator` and `dashicons-calculator` — the

@@ -54,6 +54,50 @@ export class WpdWindowButton extends Component {
 	static props = [ 'icon', 'active', 'danger' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Window button',
+		summary:
+			'Chrome button used in native-window title bars. Built-in icons cover the standard controls (minimize, maximize, fullscreen, detach, close, menu). Focused/unfocused coloring is driven by --wpd-btn-* CSS custom properties the window shell owns.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'icon',
+				type: "'minimize' | 'maximize' | 'fullscreen' | 'fullscreen-exit' | 'detach' | 'close' | 'menu'",
+				description: 'Which built-in inline SVG to paint. Omit to supply your own via the slot.',
+			},
+			{
+				name: 'active',
+				type: 'boolean attribute',
+				description: 'Applies the pressed-down look (used e.g. while a menu it triggers is open).',
+			},
+			{
+				name: 'danger',
+				type: 'boolean attribute',
+				description: 'Swaps the hover wash to red — used by the close button.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Optional custom icon markup (inline SVG) when `icon` is omitted.' },
+		],
+		cssProps: [
+			{ name: '--wpd-btn-color', description: 'Resting foreground.' },
+			{ name: '--wpd-btn-color-hover', description: 'Hover foreground.' },
+			{ name: '--wpd-btn-bg-hover', description: 'Hover background wash.' },
+			{ name: '--wpd-btn-bg-active', description: 'Pressed background.' },
+			{ name: '--wpd-btn-danger-hover', description: 'Hover background for danger variant.' },
+			{ name: '--wpd-btn-outline', description: 'Focus outline colour.' },
+		],
+		example: html`
+			<wpd-cluster gap="2">
+				<wpd-window-button icon="minimize"></wpd-window-button>
+				<wpd-window-button icon="maximize"></wpd-window-button>
+				<wpd-window-button icon="menu"></wpd-window-button>
+				<wpd-window-button icon="close" danger></wpd-window-button>
+			</wpd-cluster>
+		`,
+	} as const;
+
 	protected render() {
 		const iconKey =
 			( this as unknown as { icon: string | null } ).icon || '';

@@ -544,3 +544,211 @@
 	color: #646970;
 	font-style: italic;
 }
+
+/*
+ * Help tab — developer-facing component reference. Two-column layout
+ * (nav + detail) on desktop, stacks naturally on narrow windows via
+ * the same container the OS Settings panel lives in.
+ */
+.wp-desktop-os-settings__help-count {
+	margin: 4px 0 0;
+	font-size: 12px;
+	color: #646970;
+}
+
+.wp-desktop-os-settings__help-layout {
+	display: grid;
+	grid-template-columns: 200px 1fr;
+	gap: 20px;
+	align-items: start;
+}
+
+@container (max-width: 640px) {
+	.wp-desktop-os-settings__help-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+.wp-desktop-os-settings__help-nav {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 480px;
+	overflow-y: auto;
+	padding: 4px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+}
+
+.wp-desktop-os-settings__help-nav-item {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	align-items: flex-start;
+	width: 100%;
+	padding: 6px 10px;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	text-align: start;
+	cursor: pointer;
+	font: inherit;
+	color: inherit;
+}
+
+.wp-desktop-os-settings__help-nav-item:hover {
+	background: #fff;
+	border-color: #dcdcde;
+}
+
+.wp-desktop-os-settings__help-nav-item.is-active {
+	background: #fff;
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.wp-desktop-os-settings__help-nav-title {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.wp-desktop-os-settings__help-nav-tag {
+	font-family: Menlo, Consolas, monospace;
+	font-size: 11px;
+	color: #646970;
+}
+
+.wp-desktop-os-settings__help-detail {
+	min-width: 0;
+	padding: 16px 18px 18px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+}
+
+.wp-desktop-os-settings__help-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+	margin: 0 0 8px;
+}
+
+.wp-desktop-os-settings__help-title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.wp-desktop-os-settings__help-code {
+	font-family: Menlo, Consolas, monospace;
+	font-size: 12px;
+	color: #646970;
+}
+
+.wp-desktop-os-settings__help-badge {
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	background: #e4e7eb;
+	color: #1d2327;
+}
+
+.wp-desktop-os-settings__help-badge.is-experimental {
+	background: #fcf9e8;
+	color: #996800;
+}
+
+.wp-desktop-os-settings__help-badge.is-planned {
+	background: #e1e8ff;
+	color: #123fb3;
+}
+
+.wp-desktop-os-settings__help-since {
+	font-size: 11px;
+	color: #646970;
+}
+
+.wp-desktop-os-settings__help-summary {
+	margin: 0 0 16px;
+	color: #1d2327;
+}
+
+.wp-desktop-os-settings__help-group {
+	margin: 0 0 16px;
+}
+
+.wp-desktop-os-settings__help-group h4 {
+	margin: 0 0 8px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #646970;
+}
+
+.wp-desktop-os-settings__help-example {
+	padding: 16px;
+	background: #fff;
+	border: 1px dashed #c3c4c7;
+	border-radius: 6px;
+}
+
+.wp-desktop-os-settings__help-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.wp-desktop-os-settings__help-table th,
+.wp-desktop-os-settings__help-table td {
+	padding: 6px 8px;
+	border-bottom: 1px solid #dcdcde;
+	text-align: start;
+	vertical-align: top;
+}
+
+.wp-desktop-os-settings__help-table th {
+	font-weight: 600;
+	color: #646970;
+	background: #fff;
+}
+
+.wp-desktop-os-settings__help-table code,
+.wp-desktop-os-settings__help-list code {
+	font-family: Menlo, Consolas, monospace;
+	font-size: 11px;
+	padding: 1px 4px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+}
+
+.wp-desktop-os-settings__help-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wp-desktop-os-settings__help-list li {
+	padding: 4px 0;
+	border-bottom: 1px solid #ececee;
+	font-size: 12px;
+}
+
+.wp-desktop-os-settings__help-list li:last-child {
+	border-bottom: 0;
+}
+
+.wp-desktop-os-settings__help-note {
+	margin: 12px 0 0;
+	padding: 10px 12px;
+	background: #fcf9e8;
+	border: 1px solid #f5e6a5;
+	border-radius: 6px;
+	font-size: 12px;
+	color: #996800;
+}

@@ -25,6 +25,29 @@ import { menuItemStyles, menuStyles } from './wpd-menu.styles';
 export class WpdMenu extends Component {
 	static styles = [ menuStyles ];
 
+	static help = {
+		title: 'Menu',
+		summary:
+			'Popover menu used in window title bars and other overflow triggers. Presentation-only: the consumer owns open/close state via the `hidden` attribute and any outside-click dismissal.',
+		status: 'stable',
+		since: '0.9.0',
+		slots: [
+			{ name: '(default)', description: '<wpd-menu-item> children.' },
+		],
+		cssProps: [
+			{ name: '--wp-desktop-window-bg', description: 'Menu background.' },
+			{ name: '--wp-desktop-window-border', description: 'Menu border.' },
+			{ name: '--wp-desktop-text', description: 'Item text colour.' },
+		],
+		example: html`
+			<wpd-menu>
+				<wpd-menu-item value="new" icon="dashicons-plus">Open another window</wpd-menu-item>
+				<wpd-menu-item value="startup" role="menuitemcheckbox" checked>Open on startup</wpd-menu-item>
+				<wpd-menu-item value="close">Close window</wpd-menu-item>
+			</wpd-menu>
+		`,
+	} as const;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.setAttribute( 'role', 'menu' );
@@ -39,6 +62,41 @@ defineComponent( 'wpd-menu', WpdMenu );
 export class WpdMenuItem extends Component {
 	static props = [ 'icon', 'value', 'checked' ] as const;
 	static styles = [ menuItemStyles ];
+
+	static help = {
+		title: 'Menu item',
+		summary:
+			'Single row inside a <wpd-menu>. Supports three looks: plain label, left-aligned dashicon (icon="dashicons-…"), or a checkbox indicator (role="menuitemcheckbox" + checked).',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'icon',
+				type: 'string (dashicons class)',
+				description: 'Dashicons class rendered on the left. Ignored when role="menuitemcheckbox".',
+			},
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Identifier emitted in wpd-menu-item-click.detail.value.',
+			},
+			{
+				name: 'checked',
+				type: 'boolean attribute',
+				description: 'Visible check indicator. Only honoured when role="menuitemcheckbox".',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Menu item label.' },
+		],
+		events: [
+			{
+				name: 'wpd-menu-item-click',
+				description: 'Fires when the item is clicked; bubbles so the <wpd-menu> parent can delegate.',
+				detail: '{ value: string | null }',
+			},
+		],
+	} as const;
 
 	connectedCallback(): void {
 		super.connectedCallback();

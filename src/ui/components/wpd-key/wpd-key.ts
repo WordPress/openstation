@@ -73,6 +73,100 @@ export class WpdKey extends Component {
 	] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Key',
+		summary:
+			'Semantic key cap — a press-sensitive tile that fires wpd-key on click AND when the matching event.key/event.code is pressed anywhere on the document. Use for calculators, on-screen keyboards, synths, and keybinding demos.',
+		status: 'stable',
+		since: '0.10.0',
+		props: [
+			{
+				name: 'key',
+				type: 'string (KeyboardEvent.key)',
+				description: 'Key value to match. Case-sensitive per the spec.',
+			},
+			{
+				name: 'code',
+				type: 'string (KeyboardEvent.code)',
+				description: 'Positional key code to match. Takes priority over `key` when set.',
+			},
+			{
+				name: 'label',
+				type: 'string',
+				description: 'Visible text on the cap. Falls back to slotted content.',
+			},
+			{
+				name: 'variant',
+				type: "'primary' | 'secondary' | 'ghost' | 'danger'",
+				default: 'ghost',
+				description: 'Visual weight (mirrors <wpd-button>).',
+			},
+			{
+				name: 'fill-cell',
+				type: 'boolean attribute',
+				description: 'Grow to fill the parent grid cell. Usually on for calculator layouts.',
+			},
+			{
+				name: 'hold',
+				type: 'boolean attribute',
+				description: 'Switch from a single wpd-key to paired wpd-key-down / wpd-key-up events. Useful for synths and games.',
+			},
+			{
+				name: 'modifier',
+				type: "'ctrl' | 'alt' | 'shift' | 'meta', combos joined by '+'",
+				description: 'Required modifier set for a keyboard match. Strict matching prevents bare `7` firing on Ctrl+7.',
+			},
+			{
+				name: 'disabled',
+				type: 'boolean attribute',
+				description: 'Disables click + keyboard matching.',
+			},
+		],
+		parts: [
+			{ name: 'button', description: 'Underlying <button> element.' },
+		],
+		events: [
+			{
+				name: 'wpd-key',
+				description: 'Fires once per press (click OR keydown) when `hold` is not set.',
+				detail: "{ key, code, label, source: 'click' | 'keyboard' }",
+			},
+			{
+				name: 'wpd-key-down',
+				description: 'When `hold` is set, fires on press.',
+				detail: "{ key, code, label, source: 'click' | 'keyboard' }",
+			},
+			{
+				name: 'wpd-key-up',
+				description: 'When `hold` is set, fires on release.',
+				detail: "{ key, code, label, source: 'click' | 'keyboard' }",
+			},
+		],
+		cssProps: [
+			{ name: '--wpd-key-bg' },
+			{ name: '--wpd-key-bg-hover' },
+			{ name: '--wpd-key-bg-pressed' },
+			{ name: '--wpd-key-fg' },
+			{ name: '--wpd-key-border' },
+			{ name: '--wpd-key-border-radius' },
+			{ name: '--wpd-key-padding' },
+			{ name: '--wpd-key-min-height' },
+			{ name: '--wpd-key-font-size' },
+		],
+		example: html`
+			<wpd-grid columns="4" gap="4">
+				<wpd-key key="7" label="7"></wpd-key>
+				<wpd-key key="8" label="8"></wpd-key>
+				<wpd-key key="9" label="9"></wpd-key>
+				<wpd-key key="/" label="÷" variant="primary"></wpd-key>
+				<wpd-key key="Escape" label="AC" variant="danger"></wpd-key>
+				<wpd-key key="Backspace" label="⌫"></wpd-key>
+				<wpd-key key="%" label="%"></wpd-key>
+				<wpd-key key="Enter" label="=" variant="primary"></wpd-key>
+			</wpd-grid>
+		`,
+	} as const;
+
 	private _onKeyDown: ( ( e: KeyboardEvent ) => void ) | null = null;
 	private _onKeyUp: ( ( e: KeyboardEvent ) => void ) | null = null;
 	private _keyHeldByKeyboard = false;

@@ -40,6 +40,46 @@ export class WpdRow extends Component {
 	static props = [ 'gap', 'column-gap', 'row-gap' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Row',
+		summary:
+			'Horizontal 12-column grid row. Children declare their width via a `col="N"` attribute (1..12); a child without `col` spans the full row. The col attribute lives on the child, so any element type works.',
+		status: 'stable',
+		since: '0.12.0',
+		props: [
+			{
+				name: 'gap',
+				type: 'integer (px)',
+				default: '12',
+				description: 'Cell spacing on both axes.',
+			},
+			{
+				name: 'column-gap',
+				type: 'integer (px)',
+				description: 'x-axis override — takes precedence over `gap` for columns.',
+			},
+			{
+				name: 'row-gap',
+				type: 'integer (px)',
+				description: 'y-axis override for wrapped rows.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Children with optional `col="N"` attributes.' },
+		],
+		cssProps: [
+			{ name: '--wpd-row-gap', default: '12px' },
+			{ name: '--wpd-row-column-gap' },
+			{ name: '--wpd-row-row-gap' },
+		],
+		example: html`
+			<wpd-row>
+				<wpd-text-field col="6" label="First name"></wpd-text-field>
+				<wpd-text-field col="6" label="Last name"></wpd-text-field>
+			</wpd-row>
+		`,
+	} as const;
+
 	protected render() {
 		const gap = ( this as unknown as { gap: string | null } ).gap;
 		const cg = (

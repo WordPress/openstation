@@ -37,6 +37,31 @@ export class WpdTab extends Component {
 	static props = [ 'value' ] as const;
 	static styles = [ tabStyles ];
 
+	static help = {
+		title: 'Tab',
+		summary:
+			'Single tab inside a <wpd-tabs> strip. Carries its identifier via `value`; aria-selected + tabindex are mirrored by the parent.',
+		status: 'stable',
+		since: '0.7.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Identifier the tab contributes to the parent strip selection.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Visible tab label.' },
+		],
+		events: [
+			{
+				name: 'wpd-tab-pick',
+				description: 'Internal event bubbled to the parent <wpd-tabs>. Consumers should listen for wpd-tab-change on the strip instead.',
+				detail: '{ value: string | null }',
+			},
+		],
+	} as const;
+
 	protected render() {
 		this.setAttribute( 'role', 'tab' );
 		return html`
@@ -57,6 +82,49 @@ defineComponent( 'wpd-tab', WpdTab );
 export class WpdTabs extends Component {
 	static props = [ 'value', 'label' ] as const;
 	static styles = [ tabsStyles ];
+
+	static help = {
+		title: 'Tabs',
+		summary:
+			'Underline-accent tab strip. Pair with sibling <wpd-tabpanel for="…"> elements and the strip auto-toggles their hidden attribute on selection.',
+		status: 'stable',
+		since: '0.7.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Currently active tab value. Mirrored to child <wpd-tab> aria-selected.',
+			},
+			{
+				name: 'label',
+				type: 'string',
+				description: 'aria-label for the tablist — describe the tab group for assistive tech.',
+			},
+		],
+		slots: [
+			{
+				name: '(default)',
+				description: '<wpd-tab value="…"> children forming the strip.',
+			},
+		],
+		events: [
+			{
+				name: 'wpd-tab-change',
+				description: 'Fires when the active tab changes.',
+				detail: '{ value: string }',
+			},
+		],
+		example: html`
+			<wpd-tabs value="one" label="Demo tabs">
+				<wpd-tab value="one">One</wpd-tab>
+				<wpd-tab value="two">Two</wpd-tab>
+				<wpd-tab value="three">Three</wpd-tab>
+			</wpd-tabs>
+			<wpd-tabpanel for="one">First panel.</wpd-tabpanel>
+			<wpd-tabpanel for="two">Second panel.</wpd-tabpanel>
+			<wpd-tabpanel for="three">Third panel.</wpd-tabpanel>
+		`,
+	} as const;
 
 	connectedCallback(): void {
 		super.connectedCallback();
@@ -157,6 +225,24 @@ defineComponent( 'wpd-tabs', WpdTabs );
 export class WpdTabPanel extends Component {
 	static props = [ 'for' ] as const;
 	static styles = [ tabPanelStyles ];
+
+	static help = {
+		title: 'Tab panel',
+		summary:
+			'Auto-managed panel paired with a sibling <wpd-tabs>. Declares which tab it belongs to via `for="<tab-value>"`; the parent strip toggles `hidden` whenever the active tab changes. role="tabpanel" and tabindex="0" are set automatically.',
+		status: 'stable',
+		since: '0.11.0',
+		props: [
+			{
+				name: 'for',
+				type: 'string',
+				description: 'Matches the `value` of the owning <wpd-tab>. Panel is shown when its parent tabs strip is on that value.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Panel body content.' },
+		],
+	} as const;
 	// Shadow DOM — the render target for this component is its
 	// own shadow root, which holds a single `<slot>` that projects
 	// whatever the caller placed between the `<wpd-tabpanel>` open

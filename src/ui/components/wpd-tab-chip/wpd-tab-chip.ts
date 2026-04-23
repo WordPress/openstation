@@ -19,6 +19,30 @@ export class WpdTabChip extends Component {
 	static props = [ 'variant' ] as const;
 	static styles = [ styles ];
 
+	static help = {
+		title: 'Tab chip',
+		summary:
+			'Small action button dropped inside an external sub-tab. `detach` lifts with an accent wash on hover; `close` uses a red destructive wash. Click bubbles as a native click — consumers read `variant` if they need to distinguish.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'variant',
+				type: "'detach' | 'close'",
+				description: 'Selects the built-in SVG icon and the hover wash colour.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Optional custom icon markup when `variant` is omitted.' },
+		],
+		example: html`
+			<wpd-cluster gap="4">
+				<wpd-tab-chip variant="detach"></wpd-tab-chip>
+				<wpd-tab-chip variant="close"></wpd-tab-chip>
+			</wpd-cluster>
+		`,
+	} as const;
+
 	protected render() {
 		const variant =
 			( this as unknown as { variant: string | null } ).variant || '';

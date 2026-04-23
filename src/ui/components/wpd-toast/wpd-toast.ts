@@ -19,6 +19,26 @@ import { containerStyles, toastStyles } from './wpd-toast.styles';
 export class WpdToastContainer extends Component {
 	static styles = [ containerStyles ];
 
+	static help = {
+		title: 'Toast container',
+		summary:
+			'Singleton stack beneath <body> that hosts transient <wpd-toast> notifications in the top-right. Created lazily by showToast(); authors rarely place one themselves.',
+		status: 'stable',
+		since: '0.9.0',
+		slots: [
+			{ name: '(default)', description: '<wpd-toast> children, stacked vertically.' },
+		],
+		cssProps: [
+			{ name: '--wp-desktop-z-fullscreen', description: 'z-index base — toasts sit above fullscreen windows.' },
+		],
+		example: html`
+			<wpd-toast-container>
+				<wpd-toast state="in">Settings saved.</wpd-toast>
+				<wpd-toast state="in" action="Undo">Theme changed.</wpd-toast>
+			</wpd-toast-container>
+		`,
+	} as const;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.setAttribute( 'aria-live', 'polite' );
@@ -33,6 +53,39 @@ defineComponent( 'wpd-toast-container', WpdToastContainer );
 export class WpdToast extends Component {
 	static props = [ 'action', 'state' ] as const;
 	static styles = [ toastStyles ];
+
+	static help = {
+		title: 'Toast',
+		summary:
+			'Single transient notification. Message is slotted; fade-in / fade-out is CSS-driven by flipping the state attribute between "in" and "out". Usually created via the showToast() helper rather than authored by hand.',
+		status: 'stable',
+		since: '0.9.0',
+		props: [
+			{
+				name: 'action',
+				type: 'string',
+				description: 'Optional action button label. When set, a button renders on the right and emits wpd-toast-action on click.',
+			},
+			{
+				name: 'state',
+				type: "'in' | 'out'",
+				description: 'Drives the CSS fade transition. Set to "in" when rendered, flip to "out" before removal.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Message text.' },
+		],
+		events: [
+			{
+				name: 'wpd-toast-action',
+				description: 'Fires when the action button is clicked.',
+				detail: '{}',
+			},
+		],
+		example: html`
+			<wpd-toast state="in" action="Undo">Post moved to trash.</wpd-toast>
+		`,
+	} as const;
 
 	connectedCallback(): void {
 		super.connectedCallback();

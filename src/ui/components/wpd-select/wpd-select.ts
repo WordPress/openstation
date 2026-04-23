@@ -42,6 +42,29 @@ export class WpdOption extends Component {
 	static props = [ 'value', 'disabled' ] as const;
 	static styles = [ optionStyles ];
 
+	static help = {
+		title: 'Option',
+		summary:
+			'Opaque data carrier for <wpd-select>. Carries its identifier in `value` and its visible label in textContent. Not rendered directly — the parent reads these and builds a native <select>.',
+		status: 'stable',
+		since: '0.11.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Option identifier read by the parent <wpd-select>.',
+			},
+			{
+				name: 'disabled',
+				type: 'boolean attribute',
+				description: 'Renders the option disabled in the parent <select>.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: 'Label text read from textContent.' },
+		],
+	} as const;
+
 	protected render() {
 		// Intentionally empty — the option is a data carrier. Its
 		// label lives in its light-DOM textContent, which the parent
@@ -60,6 +83,62 @@ export class WpdSelect extends Component {
 		'name',
 	] as const;
 	static styles = [ selectStyles ];
+
+	static help = {
+		title: 'Select',
+		summary:
+			'Dropdown picker that wraps a native <select>. Mirrors the <wpd-segmented> contract (set value, listen for wpd-pick) so callers can swap tag names when a list outgrows a pill bar.',
+		status: 'stable',
+		since: '0.11.0',
+		props: [
+			{
+				name: 'value',
+				type: 'string',
+				description: 'Currently selected option value.',
+			},
+			{
+				name: 'label',
+				type: 'string',
+				description: 'Visible label rendered above the select and forwarded to the native control as aria-label.',
+			},
+			{
+				name: 'placeholder',
+				type: 'string',
+				description: 'Disabled leading option shown when no value is set.',
+			},
+			{
+				name: 'disabled',
+				type: 'boolean attribute',
+				description: 'Disables the native select and dims the chrome.',
+			},
+			{
+				name: 'name',
+				type: 'string',
+				description: 'Forwarded to the native <select name=…> for form submission.',
+			},
+		],
+		slots: [
+			{ name: '(default)', description: '<wpd-option value="…"> children.' },
+		],
+		events: [
+			{
+				name: 'wpd-pick',
+				description: 'Fires when the user picks a new option.',
+				detail: '{ value: string }',
+			},
+		],
+		cssProps: [
+			{ name: '--wp-desktop-text', description: 'Label + value colour.' },
+			{ name: '--wp-desktop-muted', description: 'Placeholder + chevron colour.' },
+		],
+		example: html`
+			<wpd-select value="eur" label="Currency">
+				<wpd-option value="eur">Euro</wpd-option>
+				<wpd-option value="usd">US Dollar</wpd-option>
+				<wpd-option value="jpy">Japanese Yen</wpd-option>
+			</wpd-select>
+		`,
+	} as const;
 
 	/**
 	 * Declarative item-list setter. Replaces the existing
