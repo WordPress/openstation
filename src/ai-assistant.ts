@@ -905,16 +905,16 @@ export class AiAssistant implements AiAssistantApi {
 						data-index="${ i }"
 					>
 						<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
-		c.icon ?? 'dashicons-arrow-right-alt',
-	) }" aria-hidden="true"></span>
+							c.icon ?? 'dashicons-arrow-right-alt',
+						) }" aria-hidden="true"></span>
 						<span class="wp-desktop-ai__cmd-body">
 							<span class="wp-desktop-ai__cmd-title">
 								/${ this._esc( c.slug ) }
 								${ c.hint ? `<span class="wp-desktop-ai__cmd-hint">${ this._esc( c.hint ) }</span>` : '' }
 							</span>
 							${ c.description
-		? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( c.description ) }</span>`
-		: '' }
+								? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( c.description ) }</span>`
+								: '' }
 						</span>
 					</button>
 				`;
@@ -1040,19 +1040,19 @@ export class AiAssistant implements AiAssistantApi {
 		return `
 			<div class="wp-desktop-ai__cmd-active">
 				<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
-		cmd.icon ?? 'dashicons-arrow-right-alt',
-	) }" aria-hidden="true"></span>
+					cmd.icon ?? 'dashicons-arrow-right-alt',
+				) }" aria-hidden="true"></span>
 				<div class="wp-desktop-ai__cmd-body">
 					<span class="wp-desktop-ai__cmd-title">
 						/${ this._esc( cmd.slug ) }
 						${ cmd.hint ? `<span class="wp-desktop-ai__cmd-hint">${ this._esc( cmd.hint ) }</span>` : '' }
 					</span>
 					${ cmd.description
-		? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
-		: '' }
+						? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
+						: '' }
 					${ standalone
-		? '<span class="wp-desktop-ai__cmd-enter-hint">Press <kbd>↵</kbd> to run</span>'
-		: '' }
+						? '<span class="wp-desktop-ai__cmd-enter-hint">Press <kbd>↵</kbd> to run</span>'
+						: '' }
 				</div>
 			</div>
 		`;
@@ -1077,13 +1077,13 @@ export class AiAssistant implements AiAssistantApi {
 						data-index="${ i }"
 					>
 						<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
-		s.icon ?? 'dashicons-arrow-right-alt',
-	) }" aria-hidden="true"></span>
+							s.icon ?? 'dashicons-arrow-right-alt',
+						) }" aria-hidden="true"></span>
 						<span class="wp-desktop-ai__cmd-body">
 							<span class="wp-desktop-ai__cmd-suggest-label">${ this._esc( s.label ) }</span>
 							${ s.description
-		? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( s.description ) }</span>`
-		: '' }
+								? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( s.description ) }</span>`
+								: '' }
 						</span>
 					</button>
 				`;
@@ -1108,10 +1108,10 @@ export class AiAssistant implements AiAssistantApi {
 				<p class="wp-desktop-ai__suggestions-label">${ this._esc( 'Try asking' ) }</p>
 				<div class="wp-desktop-ai__suggestions-list">
 					${ SUGGESTED_PROMPTS.map(
-		( p ) => `<button type="button" class="wp-desktop-ai__suggestion" data-prompt="${ this._esc( p ) }">
+						( p ) => `<button type="button" class="wp-desktop-ai__suggestion" data-prompt="${ this._esc( p ) }">
 							${ this._esc( p ) }
 						</button>`,
-	).join( '' ) }
+					).join( '' ) }
 				</div>
 			</div>
 		`;

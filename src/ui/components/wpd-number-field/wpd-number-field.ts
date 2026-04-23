@@ -86,11 +86,11 @@ export class WpdNumberField extends Component {
 
 		return html`
 			${ label
-		? html`<label
+				? html`<label
 						class="wpd-text-field__label"
 						for=${ inputId }
 					>${ label }</label>`
-		: html`` }
+				: html`` }
 			<span class="wpd-text-field__row">
 				<input
 					id=${ inputId }
@@ -112,8 +112,8 @@ export class WpdNumberField extends Component {
 					@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }
 				/>
 				${ suffix
-		? html`<span class="wpd-text-field__suffix">${ suffix }</span>`
-		: html`` }
+					? html`<span class="wpd-text-field__suffix">${ suffix }</span>`
+					: html`` }
 			</span>
 		`;
 	}

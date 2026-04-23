@@ -57,8 +57,8 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 				<wpd-section
 					heading=${ __( 'AI integration' ) }
 					description=${ platformEnabled
-		? __( 'A platform-wide AI key is configured. You can optionally set a personal key below to override it.' )
-		: __( 'Connect an AI provider to power assistive features across the desktop.' ) }
+						? __( 'A platform-wide AI key is configured. You can optionally set a personal key below to override it.' )
+						: __( 'Connect an AI provider to power assistive features across the desktop.' ) }
 				>
 					<wpd-checkbox-label
 						label=${ __( 'Enable AI features' ) }
@@ -73,8 +73,8 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 						@wpd-pick=${ onProvider }
 					>
 						${ AI_PROVIDERS.map(
-		( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
-	) }
+							( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
+						) }
 					</wpd-select>
 
 					<wpd-text-field
@@ -83,8 +83,8 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 						reveal
 						autocomplete="off"
 						placeholder=${ platformEnabled
-		? __( 'Using platform key — enter to override' )
-		: __( 'sk-…' ) }
+							? __( 'Using platform key — enter to override' )
+							: __( 'sk-…' ) }
 						value=${ ctx.state.ai.apiKey }
 						?disabled=${ ! ctx.state.ai.enabled }
 						@wpd-input-change=${ onApiKey }
@@ -212,8 +212,8 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 						@wpd-pick=${ onProvider }
 					>
 						${ AI_PROVIDERS.map(
-		( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
-	) }
+							( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
+						) }
 					</wpd-select>
 
 					<wpd-text-field
@@ -230,11 +230,11 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 					></wpd-text-field>
 
 					${ state.error
-		? html`<p class="wp-desktop-ai-settings__error">${ state.error }</p>`
-		: html`` }
+						? html`<p class="wp-desktop-ai-settings__error">${ state.error }</p>`
+						: html`` }
 					${ state.saving
-		? html`<p class="wp-desktop-ai-settings__saving">${ __( 'Saving…' ) }</p>`
-		: html`` }
+						? html`<p class="wp-desktop-ai-settings__saving">${ __( 'Saving…' ) }</p>`
+						: html`` }
 				</wpd-section>
 			`,
 			el,
