@@ -745,8 +745,9 @@ export class WindowManager {
 	 *
 	 * @since 0.14.0
 	 *
-	 * @param options.exceptIds  Window ids to skip even before the filter runs.
-	 * @returns Number of windows actually closed.
+	 * @param options           Close options.
+	 * @param options.exceptIds Window ids to skip even before the filter runs.
+	 * @return Number of windows actually closed.
 	 */
 	public closeAll( options?: { exceptIds?: string[] } ): number {
 		const exceptSet = new Set( options?.exceptIds ?? [] );
@@ -765,7 +766,7 @@ export class WindowManager {
 			initialCandidates,
 		);
 		const finalList = Array.isArray( filtered ) ? filtered : initialCandidates;
-		const skipped   = initialCandidates.filter( ( w ) => ! finalList.includes( w ) );
+		const skipped = initialCandidates.filter( ( w ) => ! finalList.includes( w ) );
 
 		let closed = 0;
 		// Iterate a copy because close() removes from the underlying

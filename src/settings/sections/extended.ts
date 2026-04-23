@@ -17,8 +17,8 @@ import type { SettingsCtx } from '../types';
 
 interface ExtendedState {
 	media_library_enhanced: boolean;
-	saving:                 boolean;
-	error:                  string;
+	saving: boolean;
+	error: string;
 }
 
 export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
@@ -26,8 +26,8 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 
 	const state: ExtendedState = {
 		media_library_enhanced: extendedOptions?.media_library_enhanced === true,
-		saving:                 false,
-		error:                  '',
+		saving: false,
+		error: '',
 	};
 
 	const el = document.createElement( 'div' );
@@ -37,15 +37,15 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 			return;
 		}
 		state.saving = true;
-		state.error  = '';
+		state.error = '';
 		paint();
 
 		try {
 			const res = await fetch( extendedOptionsUrl, {
-				method:  'POST',
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-WP-Nonce':   restNonce,
+					'X-WP-Nonce': restNonce,
 				},
 				body: JSON.stringify( {
 					options: {

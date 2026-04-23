@@ -131,8 +131,12 @@ export class WpdNumberField extends Component {
 
 	private _clamp( value: number ): number {
 		const { min, max } = this._readRange();
-		if ( value < min ) return min;
-		if ( value > max ) return max;
+		if ( value < min ) {
+			return min;
+		}
+		if ( value > max ) {
+			return max;
+		}
 		return value;
 	}
 

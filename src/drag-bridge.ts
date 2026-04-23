@@ -37,13 +37,13 @@
  */
 
 export interface DragPayload {
-	id:            number;
-	url:           string;
-	title:         string;
-	alt:           string;
-	mime:          string;
+	id: number;
+	url: string;
+	title: string;
+	alt: string;
+	mime: string;
 	thumbnailUrl?: string;
-	sizes?:        Record<string, unknown>;
+	sizes?: Record<string, unknown>;
 }
 
 /** Public surface — mounted on `wp.desktop.dragBridge`. */
@@ -57,7 +57,7 @@ export interface DragBridgeApi {
 /** Event names we dispatch on `document`. */
 export const DRAG_BRIDGE_EVENTS = {
 	START: 'wp-desktop-cross-frame-drag-start',
-	END:   'wp-desktop-cross-frame-drag-end',
+	END: 'wp-desktop-cross-frame-drag-end',
 } as const;
 
 // -----------------------------------------------------------------------
@@ -65,7 +65,7 @@ export const DRAG_BRIDGE_EVENTS = {
 // -----------------------------------------------------------------------
 
 interface StartMsg {
-	type:    'wp-desktop-drag-start';
+	type: 'wp-desktop-drag-start';
 	payload: DragPayload;
 }
 interface EndMsg {
@@ -78,18 +78,18 @@ interface PayloadRequestMsg {
 type InboundMsg = StartMsg | EndMsg | PayloadRequestMsg;
 
 function isStart( m: unknown ): m is StartMsg {
-	return !! m && typeof m === 'object'
-		&& ( m as { type?: unknown } ).type === 'wp-desktop-drag-start'
-		&& !! ( m as { payload?: unknown } ).payload
-		&& typeof ( m as { payload?: unknown } ).payload === 'object';
+	return !! m && typeof m === 'object' &&
+		( m as { type?: unknown } ).type === 'wp-desktop-drag-start' &&
+		!! ( m as { payload?: unknown } ).payload &&
+		typeof ( m as { payload?: unknown } ).payload === 'object';
 }
 function isEnd( m: unknown ): m is EndMsg {
-	return !! m && typeof m === 'object'
-		&& ( m as { type?: unknown } ).type === 'wp-desktop-drag-end';
+	return !! m && typeof m === 'object' &&
+		( m as { type?: unknown } ).type === 'wp-desktop-drag-end';
 }
 function isPayloadRequest( m: unknown ): m is PayloadRequestMsg {
-	return !! m && typeof m === 'object'
-		&& ( m as { type?: unknown } ).type === 'wp-desktop-drag-payload-request';
+	return !! m && typeof m === 'object' &&
+		( m as { type?: unknown } ).type === 'wp-desktop-drag-payload-request';
 }
 
 // -----------------------------------------------------------------------

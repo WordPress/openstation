@@ -54,11 +54,11 @@ export interface OpenableWindow {
 /** Minimal shape of the window manager we use. */
 interface WindowManagerLite {
 	open( cfg: {
-		id?:     string;
+		id?: string;
 		baseId?: string;
-		url:     string;
-		title:   string;
-		icon?:   string;
+		url: string;
+		title: string;
+		icon?: string;
 	} ): unknown;
 }
 
@@ -99,7 +99,7 @@ function collectOpenables(): OpenableWindow[] {
 	const desktop = ( window as unknown as {
 		wp?: {
 			desktop?: {
-				config?:        DesktopConfig;
+				config?: DesktopConfig;
 				windowManager?: WindowManagerLite;
 			};
 		};
@@ -109,7 +109,7 @@ function collectOpenables(): OpenableWindow[] {
 		return [];
 	}
 
-	const wm     = desktop.windowManager;
+	const wm = desktop.windowManager;
 	const config = desktop.config;
 	if ( ! wm || ! config ) {
 		return [];
@@ -118,17 +118,17 @@ function collectOpenables(): OpenableWindow[] {
 	const items: OpenableWindow[] = [];
 
 	const fromMenu = ( item: DockItemConfig, group: string ) => ( {
-		id:          item.id,
-		label:       item.title,
+		id: item.id,
+		label: item.title,
 		description: group,
-		icon:        item.icon,
-		open:        () =>
+		icon: item.icon,
+		open: () =>
 			wm.open( {
-				id:     item.id,
+				id: item.id,
 				baseId: item.id,
-				url:    item.url,
-				title:  item.title,
-				icon:   item.icon,
+				url: item.url,
+				title: item.title,
+				icon: item.icon,
 			} ),
 	} );
 
@@ -151,11 +151,11 @@ function collectOpenables(): OpenableWindow[] {
 // ---------------------------------------------------------------------------
 
 const openCommand: DesktopCommand = {
-	slug:        'open',
-	label:       'Open',
+	slug: 'open',
+	label: 'Open',
 	description: 'Open an admin page or registered window.',
-	hint:        '[window]',
-	icon:        'dashicons-external',
+	hint: '[window]',
+	icon: 'dashicons-external',
 
 	/**
 	 * Suggest matching windows as the user types args. Simple
@@ -164,7 +164,7 @@ const openCommand: DesktopCommand = {
 	 * the plugin listed it with a friendly label or the slug.
 	 */
 	suggest( args: string ): CommandSuggestion[] {
-		const q    = args.trim().toLowerCase();
+		const q = args.trim().toLowerCase();
 		const list = collectOpenables();
 		const hits = q === ''
 			? list
@@ -174,10 +174,10 @@ const openCommand: DesktopCommand = {
 					w.id.toLowerCase().includes( q ),
 			);
 		return hits.slice( 0, 12 ).map( ( w ) => ( {
-			value:       w.label,
-			label:       w.label,
+			value: w.label,
+			label: w.label,
 			description: w.description,
-			icon:        w.icon ?? 'dashicons-external',
+			icon: w.icon ?? 'dashicons-external',
 		} ) );
 	},
 

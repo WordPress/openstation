@@ -48,9 +48,9 @@ export interface DesktopIconRenderDeps {
  *
  * @since 0.11.0
  *
- * @param host   Desktop-area element (`#wp-desktop-area`).
- * @param icons  Ordered list from `config.desktopIcons`.
- * @param deps   See {@link DesktopIconRenderDeps}.
+ * @param host  Desktop-area element (`#wp-desktop-area`).
+ * @param icons Ordered list from `config.desktopIcons`.
+ * @param deps  See {@link DesktopIconRenderDeps}.
  */
 export function renderDesktopIcons(
 	host: HTMLElement,

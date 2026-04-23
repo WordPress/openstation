@@ -100,6 +100,19 @@ module.exports = {
 		// trust the reader knows multiplication binds tighter than
 		// addition.
 		'no-mixed-operators': 'off',
+		// The WP/ESLint indent rule was tuned for JSX — it has special
+		// handling for JSXElement / JSXExpressionContainer nodes so
+		// ternaries indented deeper inside `prop={ cond ? x : y }` read
+		// naturally. We use tagged-template DSLs (`html\`...\``) instead,
+		// and the rule has no equivalent awareness there: ternaries
+		// inside `${...}` get flattened against the enclosing block and
+		// lose their visual alignment with the surrounding template. Opt
+		// out inside template literals so the author's visual indent is
+		// preserved; everything outside templates is still checked.
+		indent: [ 'error', 'tab', {
+			ignoredNodes: [ 'TemplateLiteral *' ],
+			SwitchCase: 1,
+		} ],
 	},
 	overrides: [
 		{
