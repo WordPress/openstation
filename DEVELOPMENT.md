@@ -5,16 +5,21 @@ This file is for people working **on** `wp-desktop-mode` — the plugin itself, 
 ## Dev loop
 
 ```bash
-npm install           # one-time
-npm run dev           # watch: rebuilds assets/js/desktop.js on save
-npm run lint          # ESLint — our CI runs this
-npm run test:js       # Vitest — 180+ tests
-npm run test:js:watch # Vitest in watch mode
-npm run test:php      # PHPUnit (requires WP test suite installed)
-npm run build         # produces both assets/js/desktop{,.min}.js
+npm install                # one-time
+npm run dev                # watch: rebuilds assets/js/desktop.js on save
+npm run lint               # ESLint — our CI runs this
+npm run test:js            # Vitest — 180+ tests
+npm run test:js:watch      # Vitest in watch mode
+npm run build              # produces both assets/js/desktop{,.min}.js
+
+# PHPUnit runs inside a wp-env container (requires Docker):
+npm run env:start          # first run pulls WP + MariaDB images
+npm run test:php:install   # composer install inside the tests-cli container (once)
+npm run test:php           # the PHPUnit run itself
+npm run env:stop           # when you're done
 ```
 
-Manual QA runs against the Dockerised WordPress environment in the parent Core-checkout repo — `npm run env:start` / `env:install` there. This plugin folder is self-contained; Docker orchestration stays in the host.
+`npm run env:start` spins up a self-contained WordPress + MariaDB stack under `wp-content/plugins/wp-desktop-mode` — it's scoped to automated tests. Manual QA is a separate concern and runs against the Dockerised environment in the parent Core-checkout repo (`env:start` / `env:install` there).
 
 ## Module layout
 
@@ -130,7 +135,8 @@ interface in `src/desktop.ts`. To add a method:
 - **Vitest** — `tests/vitest/*.test.ts` + colocated
   `src/ui/components/*/*.test.ts`. Runs in jsdom. ~200 tests.
 - **PHPUnit** — `tests/phpunit/tests/*.php`. Tagged `@group desktop-mode`.
-  Run from the Core test harness (`WP_TESTS_DIR`).
+  Runs inside wp-env's `tests-cli` container (PHPUnit 9.6 +
+  phpunit-polyfills). Configured in `.wp-env.json` + `composer.json`.
 - **E2E** — planned (Playwright). Nothing landed yet.
 
 ## What breaks most often
