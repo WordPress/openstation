@@ -53,7 +53,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$slug,
 			$page_title,
 			$classes,
-			$hookname ?: 'menu-' . sanitize_key( $slug ),
+			$hookname ?: 'menu-' . sanitize_key( str_replace( '.', '-', $slug ) ),
 			$icon,
 		);
 	}

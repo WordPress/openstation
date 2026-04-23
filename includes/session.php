@@ -172,11 +172,17 @@ function wpdm_clear_session( $user_id ) {
  */
 function wpdm_sanitize_session( $session ) {
 	$clean = wpdm_empty_session();
-	$clean['updated'] = time();
 
 	if ( ! is_array( $session ) ) {
+		$clean['updated'] = time();
 		return $clean;
 	}
+
+	// Preserve the client's `updated` timestamp so the stale-write guard
+	// in wpdm_save_session compares client-to-client (not client-to-server
+	// wallclock) — two saves landing in the same second must tie, not lose.
+	$incoming_updated = isset( $session['updated'] ) ? (int) $session['updated'] : 0;
+	$clean['updated'] = $incoming_updated > 0 ? $incoming_updated : time();
 
 	if ( isset( $session['focused'] ) && is_string( $session['focused'] ) ) {
 		$clean['focused'] = sanitize_key( $session['focused'] );
