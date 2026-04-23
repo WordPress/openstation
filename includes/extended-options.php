@@ -12,7 +12,9 @@
  *     draggable — users can drag images out of the library into any
  *     drop target (text fields, TinyMCE/Gutenberg blocks, custom
  *     drop zones) without the library having to be re-built from
- *     scratch.
+ *     scratch. **Defaults to `true`** — the enhancement is opt-OUT;
+ *     sites that want vanilla Media Library behaviour must explicitly
+ *     toggle it off in OS Settings → Extended Options.
  *
  * @package WPDesktopMode
  */
@@ -35,14 +37,20 @@ const WPDM_EXTENDED_OPTIONS_KEY = 'wp_desktop_extended_options';
  */
 function wpdm_get_extended_options() {
 	$defaults = array(
-		'media_library_enhanced' => false,
+		'media_library_enhanced' => true,
 	);
 	$raw = get_option( WPDM_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}
+	// Fall back to the default only when the key is ABSENT — so an
+	// admin who explicitly saved `false` stays opted-out even though
+	// the shipped default is now `true`. `! empty()` would wrongly
+	// coerce an explicit `false` back to the default.
 	return array(
-		'media_library_enhanced' => ! empty( $raw['media_library_enhanced'] ),
+		'media_library_enhanced' => array_key_exists( 'media_library_enhanced', $raw )
+			? (bool) $raw['media_library_enhanced']
+			: $defaults['media_library_enhanced'],
 	);
 }
 
