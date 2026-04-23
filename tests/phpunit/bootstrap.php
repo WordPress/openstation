@@ -5,23 +5,31 @@
  * Loads the WordPress test framework and activates the plugin before
  * each run so the plugin's hooks are wired in the test environment.
  *
- * Expects the WP_TESTS_DIR environment variable (or WP_PHPUNIT__DIR when
- * using the wp-phpunit/wp-phpunit composer package) to point at the
- * WordPress test library.
+ * Designed to run inside the wp-env `tests-cli` container, which ships
+ * WordPress' test library at /wordpress-phpunit and exposes it via
+ * WP_TESTS_DIR.
  *
  * @package WPDesktopMode
  */
+
+// Composer autoload brings in phpunit-polyfills (required by modern
+// WordPress test suites on PHPUnit 9).
+$_autoload = dirname( __DIR__, 2 ) . '/vendor/autoload.php';
+if ( file_exists( $_autoload ) ) {
+	require_once $_autoload;
+}
 
 $_tests_dir = getenv( 'WP_TESTS_DIR' );
 if ( ! $_tests_dir ) {
 	$_tests_dir = getenv( 'WP_PHPUNIT__DIR' );
 }
 if ( ! $_tests_dir ) {
-	$_tests_dir = rtrim( sys_get_temp_dir(), '/\\' ) . '/wordpress-tests-lib';
+	$_tests_dir = '/wordpress-phpunit';
 }
 
 if ( ! file_exists( "{$_tests_dir}/includes/functions.php" ) ) {
-	echo "Could not find {$_tests_dir}/includes/functions.php. Set WP_TESTS_DIR or install the WP test suite." . PHP_EOL;
+	echo "Could not find {$_tests_dir}/includes/functions.php." . PHP_EOL;
+	echo "Run tests inside wp-env — see README for `npm run test:php` setup." . PHP_EOL;
 	exit( 1 );
 }
 
