@@ -110,6 +110,32 @@ export class IframeCommandBridge {
 				}
 			}
 		} );
+
+		// A minimized window is visually gone — showing its commands
+		// in the palette would confuse the user ("where would that
+		// even run?"). Evict on minimize; on restore, the window
+		// manager fires a fresh `wp-desktop-window-focused` which flows
+		// through `onFocused` and rebuilds the list.
+		document.addEventListener( 'wp-desktop-window-changed', ( e: Event ) => {
+			const detail = ( e as CustomEvent< { windowId?: string; reason?: string; state?: string } > ).detail;
+			if ( ! detail || typeof detail.windowId !== 'string' ) {
+				return;
+			}
+			if ( detail.reason !== 'state' ) {
+				return;
+			}
+			if ( detail.state !== 'minimized' ) {
+				return;
+			}
+			if ( this.subscribedWindowId === detail.windowId ) {
+				const removed = unregisterByOwner( ownerFor( detail.windowId ) );
+				devLog( '[wpd-cmd:parent] minimized %s → evicted %d commands', detail.windowId, removed );
+				// Clear so a restore-fired focus event re-subscribes
+				// instead of short-circuiting on the `already
+				// subscribed` check.
+				this.subscribedWindowId = null;
+			}
+		} );
 		window.addEventListener( 'message', ( e: MessageEvent ) => {
 			if ( e.origin !== window.location.origin ) {
 				return;
