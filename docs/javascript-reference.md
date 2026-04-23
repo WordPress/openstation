@@ -710,6 +710,25 @@ Reports which screen-meta panel (if any) is currently open inside the iframe.
 { type: 'wp-desktop-screen-meta-state'; open: 'screen-options' | 'help' | null }
 ```
 
+#### `wp-desktop-commands-list` — Experimental
+Reports the current `wp.data.select('core/commands')` registry of this iframe to the parent shell. Emitted after the iframe receives `wp-desktop-commands-subscribe`, and then re-emitted (de-duplicated) whenever the store changes. The parent re-publishes each entry as a slash-command in the shell palette tagged `owner: 'iframe:<windowId>'`.
+
+Each `HarvestedCommand` carries a `kind` field the iframe computes by dry-invoking the original callback inside a `window.location`-intercept sandbox: callbacks whose only observable effect is a navigation are flagged `navigate` (with the captured `url`) so the shell can open a new desktop window; everything else is `action` and proxies back into the iframe via `wp-desktop-commands-invoke`.
+
+```typescript
+{
+    type: 'wp-desktop-commands-list';
+    commands: Array<{
+        name: string;
+        label: string;
+        icon?: string;
+        context?: string;
+        kind: 'navigate' | 'action';
+        url?: string;
+    }>;
+}
+```
+
 ---
 
 ### parent → iframe
@@ -737,6 +756,27 @@ Asks the iframe to toggle a named screen-meta panel. The iframe is the authority
 
 ```typescript
 { type: 'wp-desktop-toggle-panel'; panel: 'screen-options' | 'help' }
+```
+
+#### `wp-desktop-commands-subscribe` — Experimental
+Tells the iframe to begin streaming its `wp.data.select('core/commands')` registry to the parent via `wp-desktop-commands-list`. The shell sends this to the iframe owned by the currently focused window and rescinds it (`wp-desktop-commands-unsubscribe`) when focus moves elsewhere.
+
+```typescript
+{ type: 'wp-desktop-commands-subscribe' }
+```
+
+#### `wp-desktop-commands-unsubscribe` — Experimental
+Tells the iframe to stop streaming its command list. The parent unregisters any shell-palette entries still tagged with this window's owner.
+
+```typescript
+{ type: 'wp-desktop-commands-unsubscribe' }
+```
+
+#### `wp-desktop-commands-invoke` — Experimental
+Asks the iframe to run a previously harvested `action`-kind command. Sent when the user selects the command from the shell palette. Navigation-kind commands are handled parent-side by opening a new desktop window — the iframe never sees them.
+
+```typescript
+{ type: 'wp-desktop-commands-invoke'; name: string }
 ```
 
 ---

@@ -27,6 +27,7 @@ import { WallpaperLayer } from './wallpapers/layer';
 import { registerBuiltInWallpapers } from './wallpapers/built-in';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createCommandRegistrySync } from './commands/server-sync';
+import { IframeCommandBridge } from './commands/iframe-bridge';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
 	collectWallpaperSurfaces,
@@ -439,6 +440,15 @@ function init(): void {
 		isOpen: () => aiAssistant.isOpen,
 	} );
 	installPaletteShortcut();
+
+	// Iframe command bridge — pulls `wp.data.select('core/commands')` out
+	// of whichever window has focus and exposes the commands as slash-
+	// commands in the shell palette. Navigation commands rewrite to open
+	// a new desktop window; actions proxy back into the iframe.
+	new IframeCommandBridge( {
+		manager,
+		adminUrl: config.adminUrl,
+	} ).install();
 
 	// Admin-bar "Ask AI" button and programmatic `wp-desktop-open-ai`
 	// dispatches now route through openPaletteOnly so any other plugin

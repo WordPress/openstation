@@ -239,6 +239,30 @@ export function unregisterCommand( slug: string ): void {
 	}
 }
 
+/**
+ * Remove every command whose `owner` tag matches. Used by the iframe
+ * command-bridge to evict a focused window's commands when focus moves
+ * elsewhere, and by the command server-sync on plugin deactivation.
+ *
+ * @since 0.16.0
+ */
+export function unregisterByOwner( owner: string ): number {
+	if ( ! owner ) {
+		return 0;
+	}
+	let removed = 0;
+	for ( const [ slug, cmd ] of Array.from( registry.entries() ) ) {
+		if ( cmd.owner === owner ) {
+			registry.delete( slug );
+			removed++;
+		}
+	}
+	if ( removed > 0 ) {
+		notify();
+	}
+	return removed;
+}
+
 /** Return every registered command in insertion order. */
 export function listCommands(): DesktopCommand[] {
 	return Array.from( registry.values() );

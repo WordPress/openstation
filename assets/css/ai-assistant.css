@@ -679,6 +679,23 @@
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
+/*
+ * When keyboard navigation is driving selection, suppress the :hover
+ * style on rows. Without this, arrowing the cursor past the row that
+ * happens to sit under the mouse pointer paints BOTH rows as active
+ * — the keyboard target from `.is-selected` and the pointer target
+ * from `:hover`. The JS toggles this class on the list container on
+ * ArrowUp/Down and clears it on the next real `mousemove`.
+ */
+.wp-desktop-ai__cmd-list--kb-nav .wp-desktop-ai__cmd-item:hover {
+	background: transparent;
+	border-color: transparent;
+}
+.wp-desktop-ai__cmd-list--kb-nav .wp-desktop-ai__cmd-item.is-selected:hover {
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
+}
+
 .wp-desktop-ai__cmd-item:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;

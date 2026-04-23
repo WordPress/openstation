@@ -894,111 +894,505 @@ function wpdm_chromeless_bridge_script() {
 	}, true );
 
 	/*
-	 * Cmd+K / Ctrl+K forwarder — double-press to escalate.
+	 * Cmd+K / Ctrl+K forwarder — single-press, unconditional.
 	 *
-	 * Native keydown events don't cross iframe boundaries, so without
-	 * this shim the parent shell's Cmd+K handler never fires while
-	 * focus lives inside a chromeless iframe. We don't want to
-	 * override in-page command palettes (Gutenberg's block insert,
-	 * TinyMCE's quick menus, plugin launchers) — users installed those
-	 * for a reason. Behaviour we want instead:
+	 * Native keydown events don't cross iframe boundaries. Inside a
+	 * chromeless admin page we want exactly ONE command palette: the
+	 * desktop shell's. WordPress's own `core/commands` palette is
+	 * harvested by `__wpdHarvestCommands` below and re-surfaced in the
+	 * shell palette, so there's no reason to ever let the in-page palette
+	 * take the keystroke.
 	 *
-	 *   1st press → let the in-page handler run. Nothing interrupts.
-	 *   2nd press (within DOUBLE_WINDOW ms) → escalate: preventDefault,
-	 *   stopImmediatePropagation, and postMessage the parent to advance
-	 *   the shell palette cycle. The in-page palette that opened on
-	 *   the first press is already visible; our cycle treats that as
-	 *   the "current" slot and rotates to the next.
-	 *
-	 * Plain admin pages without their own Cmd+K handler still need two
-	 * presses to reach our palette — minor trade-off, offset by the
-	 * "Ask AI ⌘K" admin-bar button which is always a one-click path.
-	 *
-	 * Shift/Alt modifiers are NEVER intercepted so user shortcuts using
+	 * Capture phase + `stopImmediatePropagation` so we win the race
+	 * against Gutenberg / TinyMCE / plugin handlers bound to the same
+	 * shortcut. Shift/Alt modifiers pass through so user shortcuts using
 	 * those combos keep working.
 	 */
-	( function () {
-		var DOUBLE_WINDOW = 600; // ms
-		var lastPress = 0;
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( ! ( e.metaKey || e.ctrlKey ) ) return;
+		if ( e.key !== 'k' && e.key !== 'K' ) return;
+		if ( e.shiftKey || e.altKey ) return;
 
-		document.addEventListener( 'keydown', function ( e ) {
-			if ( ! ( e.metaKey || e.ctrlKey ) ) return;
-			if ( e.key !== 'k' && e.key !== 'K' ) return;
-			if ( e.shiftKey || e.altKey ) return;
+		e.preventDefault();
+		e.stopImmediatePropagation();
 
-			var now = Date.now();
-			var isDouble = ( now - lastPress ) < DOUBLE_WINDOW;
-			lastPress = now;
+		try {
+			window.parent.postMessage(
+				{ type: 'wp-desktop-palette-cycle' },
+				window.location.origin
+			);
+		} catch ( err ) { /* cross-origin parent; swallow */ }
+	}, true );
 
-			if ( ! isDouble ) {
-				// First press — leave the event alone so the iframe's
-				// own Cmd+K handler (Gutenberg, TinyMCE, plugin) can
-				// react natively.
+	/*
+	 * Command harvester — bridges `wp.data.select('core/commands')` to
+	 * the parent shell.
+	 *
+	 * On `wp-desktop-commands-subscribe` from the parent, subscribe to
+	 * the `core/commands` store and post `wp-desktop-commands-list` on
+	 * every change (de-duplicated). On `wp-desktop-commands-invoke`, run
+	 * the original callback inside this iframe — the parent fires this
+	 * when the user selects a proxied command from the shell palette.
+	 *
+	 * Commands are classified by dry-invoking their callback inside a
+	 * `window.location`-intercept sandbox: pure-navigation callbacks
+	 * are flagged `navigate` (with the captured URL) so the parent can
+	 * open a new desktop window instead of navigating this iframe out
+	 * of chromeless mode. Everything else is `action` and proxies back
+	 * into this iframe on user selection.
+	 */
+	var __wpdCommandsSubscribed   = false;
+	var __wpdCommandsUnsub        = null;
+	var __wpdCommandsLastPayload  = '';
+	var __wpdCommandsDebounceId   = null;
+	var __wpdCommandsOrigin       = window.location.origin;
+	// Cache per command name so the `window.location`-intercept
+	// sandbox only runs once per command. Re-classifying on every
+	// store tick would repeatedly fire side-effectful action
+	// callbacks (preference toggles, modal opens) — unacceptable.
+	// Keyed by name; value is the frozen classification minus the
+	// live `label` / `icon` (which we always re-read in case the
+	// command updated its own metadata).
+	var __wpdCommandsKindCache    = Object.create( null );
+
+	function __wpdClassifyCommand( cmd ) {
+		// Defensive defaults — a broken registry should not tank the bridge.
+		var out = {
+			name:    String( cmd && cmd.name ? cmd.name : '' ),
+			label:   String( cmd && cmd.label ? cmd.label : '' ),
+			icon:    cmd && cmd.icon && typeof cmd.icon === 'string' ? cmd.icon : undefined,
+			context: cmd && cmd.context ? String( cmd.context ) : undefined,
+			kind:    'action',
+			url:     undefined
+		};
+		if ( ! cmd || typeof cmd.callback !== 'function' ) {
+			return out;
+		}
+
+		// Short-circuit on cached classifications — the dry-run has
+		// real side effects for non-navigation callbacks, so we pay
+		// that cost exactly once per command name per page load.
+		var cached = __wpdCommandsKindCache[ out.name ];
+		if ( cached ) {
+			out.kind = cached.kind;
+			out.url  = cached.url;
+			return out;
+		}
+
+		// STATIC classification — read the callback's source text and
+		// look for a string-literal navigation target. We deliberately
+		// do NOT execute the callback. An earlier iteration tried a
+		// dry-run with a `window.location` intercept sandbox, but
+		// `Location.prototype.href` is non-configurable: the shim
+		// silently failed, every nav callback actually navigated the
+		// iframe, the new page re-harvested, and the cascade opened
+		// windows forever.
+		//
+		// Cases caught (WP's @wordpress/core-commands callbacks are
+		// all of this shape):
+		//   document.location.href = 'url'
+		//   window.location.href   = "url"
+		//   location.href          = `url`
+		//   location.assign( 'url' )
+		//   location.replace( 'url' )
+		//
+		// Computed URLs (template-literal interpolation, addQueryArgs
+		// calls, variables) fall back to `action` — the user picking
+		// them will still run the real callback inside the iframe,
+		// which is the safe default.
+		var src = '';
+		try { src = Function.prototype.toString.call( cmd.callback ); } catch ( _err ) { src = ''; }
+		var navRe = /(?:document\.location\.href|window\.location\.href|location\.href)\s*=\s*['"]([^'"$]+?)['"]/;
+		var asgRe = /location\.(?:assign|replace)\s*\(\s*['"]([^'"$]+?)['"]\s*\)/;
+		var mm = src.match( navRe ) || src.match( asgRe );
+		if ( mm && mm[ 1 ] ) {
+			try {
+				out.url  = new URL( mm[ 1 ], window.location.href ).toString();
+				out.kind = 'navigate';
+			} catch ( _err ) {
+				out.kind = 'action';
+			}
+		}
+		__wpdCommandsKindCache[ out.name ] = { kind: out.kind, url: out.url };
+		return out;
+	}
+
+	// Harvested commands accumulate here. The React harvester writes
+	// the full list each render; `__wpdPostCommandsList` reads + posts.
+	var __wpdLastRawCommands = [];
+	// Name → live `callback` reference. Loader-returned commands are
+	// NOT in `wp.data.select('core/commands').getCommands()` — the
+	// store only exposes statically-registered entries. Without a
+	// private cache keyed off the React harvester's most recent render,
+	// invoking a loader command from the parent palette ("Duplicate
+	// block", "Transform to...", pattern commands) would silently fall
+	// through to the `getCommands()` lookup and no-op.
+	var __wpdCommandCallbacks = Object.create( null );
+
+	function __wpdFinalizeCommands( raw ) {
+		var seen = Object.create( null );
+		var out = [];
+		var skipped = { missing: 0, disabled: 0, dup: 0 };
+		for ( var i = 0; i < raw.length; i++ ) {
+			var cmd = raw[ i ];
+			if ( ! cmd || ! cmd.name || ! cmd.label ) { skipped.missing++; continue; }
+			if ( cmd.disabled ) { skipped.disabled++; continue; }
+			if ( seen[ cmd.name ] ) { skipped.dup++; continue; }
+			seen[ cmd.name ] = true;
+			out.push( __wpdClassifyCommand( cmd ) );
+		}
+		console.log( '[wpd-cmd:iframe] finalize: kept %d, skipped %o', out.length, skipped );
+		return out;
+	}
+
+	function __wpdHarvestCommands() {
+		return __wpdFinalizeCommands( __wpdLastRawCommands );
+	}
+
+	// React-mounted harvester. Block-level / editor-contextual commands
+	// (tier 3 loaders like `core/block-editor/selected-block-commands`,
+	// `core/edit-post/pattern-commands`) are React *hooks* — they call
+	// `useSelect` internally, which only works inside a function-
+	// component render. So we mount an invisible React tree whose
+	// children invoke each loader's hook at render time. On every
+	// re-render (block selection changes, entity edits, welcome guide
+	// toggled) the effect re-posts the fresh command list to the
+	// parent. One component per loader keeps the rules-of-hooks
+	// contract — the hook count inside each `LoaderSlot` is fixed at
+	// one call (plus the constant `useEffect`), so React's reconciler
+	// is happy.
+	var __wpdReactMounted = false;
+
+	function __wpdMountReactHarvester() {
+		if ( __wpdReactMounted ) return;
+		if ( ! window.wp || ! window.wp.element || ! window.wp.data ) {
+			console.log( '[wpd-cmd:iframe] react-harvester: wp.element/wp.data missing' );
+			return;
+		}
+		var el        = window.wp.element;
+		var createEl  = el.createElement;
+		var useEffect = el.useEffect;
+		var useRef    = el.useRef;
+		var useMemo   = el.useMemo;
+		var useSelect = ( window.wp.data && window.wp.data.useSelect ) || null;
+		if ( ! createEl || ! useSelect || ! el.createRoot || ! useRef ) {
+			console.log( '[wpd-cmd:iframe] react-harvester: wp.element API incomplete' );
+			return;
+		}
+		__wpdReactMounted = true;
+
+		// Hidden mount point. Positioned off-screen + `aria-hidden` so
+		// nothing the harvester renders (it renders null anyway) can
+		// leak into the accessibility tree or the visible document.
+		var host = document.createElement( 'div' );
+		host.setAttribute( 'aria-hidden', 'true' );
+		host.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;left:-9999px;top:-9999px;';
+		( document.body || document.documentElement ).appendChild( host );
+
+		// Shared mutable bucket — ref-based aggregation to avoid the
+		// classic setState-inside-useEffect loop. A `setState` here
+		// would fire a parent re-render, which would fire the loader
+		// hook again, which returns a fresh commands array with a new
+		// reference even when the contents are identical, which would
+		// re-fire the effect and setState again → Maximum update
+		// depth exceeded. Refs don't trigger renders, so the loop is
+		// broken even when hooks churn references.
+		var resultsBucket = { perLoader: {}, statics: [], loadersList: [] };
+
+		function commandsFingerprint( cmds ) {
+			if ( ! Array.isArray( cmds ) || cmds.length === 0 ) return '';
+			// Cheap identity — name count is enough to decide whether
+			// to re-post. Accepts some false negatives (two different
+			// commands sharing a name) we'll never hit in practice.
+			var keys = new Array( cmds.length );
+			for ( var i = 0; i < cmds.length; i++ ) {
+				var c = cmds[ i ];
+				keys[ i ] = c && c.name ? c.name : '';
+			}
+			return keys.join( '|' );
+		}
+
+		function mergeAndPost() {
+			var merged = [];
+			var loadersList = resultsBucket.loadersList;
+			if ( Array.isArray( loadersList ) ) {
+				for ( var i = 0; i < loadersList.length; i++ ) {
+					var bucket = resultsBucket.perLoader[ loadersList[ i ] ];
+					if ( Array.isArray( bucket ) ) merged = merged.concat( bucket );
+				}
+			}
+			if ( Array.isArray( resultsBucket.statics ) ) {
+				merged = merged.concat( resultsBucket.statics );
+			}
+			// Refresh the callback cache off the SAME snapshot we're
+			// about to post. Loader-returned commands close over React
+			// state (selected block, edited entity, etc.) that's only
+			// valid for this render pass, so rebuilding from scratch
+			// every merge keeps invoke-from-parent honest instead of
+			// calling a stale closure.
+			__wpdCommandCallbacks = Object.create( null );
+			for ( var j = 0; j < merged.length; j++ ) {
+				var cc = merged[ j ];
+				if ( cc && cc.name && typeof cc.callback === 'function' ) {
+					__wpdCommandCallbacks[ cc.name ] = cc.callback;
+				}
+			}
+			__wpdLastRawCommands = merged;
+			console.log( '[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
+				merged.length,
+				loadersList.length,
+				Array.isArray( resultsBucket.statics ) ? resultsBucket.statics.length : 0
+			);
+			__wpdSchedulePost();
+		}
+
+		// One slot per loader. Calls the loader's hook at render time;
+		// an effect keyed on the commands' name-fingerprint writes the
+		// fresh list into the shared bucket and posts. Ref-based, no
+		// setState → no re-render cascade.
+		function LoaderSlot( props ) {
+			var loader = props.loader;
+			var result = null;
+			try {
+				result = loader.hook( { search: '' } );
+			} catch ( err ) {
+				if ( ! loader.__wpdLoggedThrow ) {
+					loader.__wpdLoggedThrow = true;
+					console.log( '[wpd-cmd:iframe] react-harvester: loader "%s" threw', loader.name, err );
+				}
+			}
+			var cmds = ( result && Array.isArray( result.commands ) ) ? result.commands : [];
+			var key  = useMemo( function () { return commandsFingerprint( cmds ); }, [ cmds ] );
+
+			useEffect( function () {
+				resultsBucket.perLoader[ loader.name ] = cmds;
+				mergeAndPost();
+			}, [ key ] );
+
+			useEffect( function () {
+				return function () {
+					delete resultsBucket.perLoader[ loader.name ];
+					mergeAndPost();
+				};
+			}, [] );
+
+			return null;
+		}
+
+		function Harvester() {
+			var loaders = useSelect( function ( s ) {
+				var ss = s( 'core/commands' );
+				return ( ss && typeof ss.getCommandLoaders === 'function' )
+					? ss.getCommandLoaders( true )
+					: [];
+			}, [] );
+			var staticCmds = useSelect( function ( s ) {
+				var ss = s( 'core/commands' );
+				return ( ss && typeof ss.getCommands === 'function' )
+					? ss.getCommands( true )
+					: [];
+			}, [] );
+
+			// Track the loader-name ordering so `mergeAndPost` can emit
+			// tier-3 in a deterministic order (React reconciliation
+			// order = registration order = the order the user sees).
+			var loadersNames = useMemo( function () {
+				if ( ! Array.isArray( loaders ) ) return [];
+				return loaders.map( function ( l ) { return l ? l.name : ''; } );
+			}, [ loaders ] );
+			var loadersKey = loadersNames.join( '|' );
+			useEffect( function () {
+				resultsBucket.loadersList = loadersNames;
+				mergeAndPost();
+			}, [ loadersKey ] );
+
+			var staticKey = useMemo( function () { return commandsFingerprint( staticCmds ); }, [ staticCmds ] );
+			useEffect( function () {
+				resultsBucket.statics = Array.isArray( staticCmds ) ? staticCmds : [];
+				mergeAndPost();
+			}, [ staticKey ] );
+
+			if ( ! Array.isArray( loaders ) || loaders.length === 0 ) {
+				return null;
+			}
+			var children = [];
+			for ( var i = 0; i < loaders.length; i++ ) {
+				var loader = loaders[ i ];
+				if ( ! loader || typeof loader.hook !== 'function' ) continue;
+				children.push( createEl( LoaderSlot, {
+					key: loader.name,
+					loader: loader
+				} ) );
+			}
+			return createEl( el.Fragment || 'div', null, children );
+		}
+
+		try {
+			var root = el.createRoot( host );
+			root.render( createEl( Harvester ) );
+			console.log( '[wpd-cmd:iframe] react-harvester: mounted' );
+		} catch ( err ) {
+			__wpdReactMounted = false;
+			console.log( '[wpd-cmd:iframe] react-harvester: mount threw', err );
+		}
+	}
+
+	function __wpdPostCommandsList() {
+		var list = __wpdHarvestCommands();
+		// Cheap de-dupe — the store fires on every unrelated preference
+		// change too, and shipping an identical payload is pure noise.
+		var key = '';
+		try { key = JSON.stringify( list ); } catch ( _err ) { key = String( list.length ); }
+		if ( key === __wpdCommandsLastPayload ) {
+			console.log( '[wpd-cmd:iframe] post: skipping duplicate payload (%d cmds)', list.length );
+			return;
+		}
+		__wpdCommandsLastPayload = key;
+		console.log( '[wpd-cmd:iframe] post: sending %d commands to parent', list.length, list );
+		try {
+			window.parent.postMessage(
+				{ type: 'wp-desktop-commands-list', commands: list },
+				__wpdCommandsOrigin
+			);
+		} catch ( err ) {
+			console.log( '[wpd-cmd:iframe] post: postMessage threw', err );
+		}
+	}
+
+	function __wpdSchedulePost() {
+		if ( __wpdCommandsDebounceId !== null ) return;
+		__wpdCommandsDebounceId = window.setTimeout( function () {
+			__wpdCommandsDebounceId = null;
+			__wpdPostCommandsList();
+		}, 60 );
+	}
+
+	function __wpdSubscribeCommands() {
+		console.log( '[wpd-cmd:iframe] subscribe requested (already=%s, mounted=%s, url=%s)', __wpdCommandsSubscribed, __wpdReactMounted, window.location.href );
+		__wpdCommandsSubscribed = true;
+
+		// If the React harvester is already running (focus left and
+		// came back), the bucket still holds the latest merged list.
+		// Reset the dedupe key so the next post actually ships, then
+		// schedule it. The harvester itself won't re-fire its effects
+		// just because the parent re-subscribed — React only reacts to
+		// store changes, and the store hasn't changed. We have to
+		// push from here.
+		if ( __wpdReactMounted ) {
+			__wpdCommandsLastPayload = '';
+			console.log( '[wpd-cmd:iframe] subscribe: harvester already mounted, re-shipping bucket (%d cmds)', __wpdLastRawCommands.length );
+			__wpdSchedulePost();
+			return;
+		}
+
+		var attempts = 0;
+		function tryBind() {
+			if ( ! __wpdCommandsSubscribed ) return;
+			if ( ! window.wp || ! window.wp.data || typeof window.wp.data.subscribe !== 'function' ) {
+				if ( attempts++ < 40 ) {
+					if ( attempts === 1 || attempts % 5 === 0 ) {
+						console.log( '[wpd-cmd:iframe] subscribe: wp.data not ready yet (attempt %d)', attempts );
+					}
+					window.setTimeout( tryBind, 150 );
+				} else {
+					console.log( '[wpd-cmd:iframe] subscribe: gave up waiting for wp.data after %d attempts', attempts );
+				}
 				return;
 			}
+			console.log( '[wpd-cmd:iframe] subscribe: wp.data ready, binding (attempts=%d)', attempts );
+			// Mount the React harvester — tier 3 loaders are hooks and
+			// need a legal render context to execute. On every re-render
+			// the component's effect calls `__wpdSchedulePost` with the
+			// fresh merged list, so we don't need a separate
+			// `wp.data.subscribe` callback.
+			__wpdMountReactHarvester();
+		}
+		tryBind();
+	}
 
-			// Second press within the window — escalate.
-			e.preventDefault();
-			e.stopImmediatePropagation();
-			// Reset so a third press restarts the "first" cycle rather
-			// than triggering another instant escalation.
-			lastPress = 0;
+	function __wpdUnsubscribeCommands() {
+		__wpdCommandsSubscribed = false;
+		if ( __wpdCommandsUnsub ) {
+			try { __wpdCommandsUnsub(); } catch ( _err ) { /* swallow */ }
+			__wpdCommandsUnsub = null;
+		}
+		__wpdCommandsLastPayload = '';
+	}
 
-			// Dismiss whatever in-page palette the FIRST press opened.
-			// Gutenberg's command palette, TinyMCE menus, and most WP
-			// `@wordpress/components` modals all close on Escape — so
-			// we synthesise one. We fire it twice:
-			//
-			//   (a) Immediately — handles the common case where the
-			//       first press's palette already rendered.
-			//
-			//   (b) On the next animation frame — handles the fast
-			//       double-press race where the first palette hadn't
-			//       painted yet when the second press arrived. By the
-			//       next frame it has, and Escape dismisses it.
-			//
-			// If the in-page UI doesn't listen for Escape there's no
-			// harm — the synthetic event dispatches into a document
-			// that ignores it. Worst case the two palettes briefly
-			// overlap; they won't both capture the keyboard because
-			// focus has already followed the escalation to the parent.
-			function closeInPagePalette() {
-				try {
-					var ev = new KeyboardEvent( 'keydown', {
-						key:        'Escape',
-						code:       'Escape',
-						keyCode:    27,
-						which:      27,
-						bubbles:    true,
-						cancelable: true
-					} );
-					document.dispatchEvent( ev );
-					// Matching keyup — some handlers bind to keyup, not
-					// keydown, so fire both for safety.
-					var up = new KeyboardEvent( 'keyup', {
-						key:        'Escape',
-						code:       'Escape',
-						keyCode:    27,
-						which:      27,
-						bubbles:    true,
-						cancelable: true
-					} );
-					document.dispatchEvent( up );
-				} catch ( err ) { /* swallow */ }
-			}
-			closeInPagePalette();
-			if ( typeof requestAnimationFrame === 'function' ) {
-				requestAnimationFrame( closeInPagePalette );
-			}
-
+	function __wpdInvokeCommand( name ) {
+		console.log( '[wpd-cmd:iframe] invoke: looking up "%s"', name );
+		// Primary lookup — the React harvester's latest snapshot. This
+		// covers loader-returned commands (Duplicate block, Transform
+		// to, pattern commands) that never appear in the static
+		// `getCommands()` list.
+		var cb = __wpdCommandCallbacks[ name ];
+		if ( typeof cb === 'function' ) {
+			console.log( '[wpd-cmd:iframe] invoke: hit harvester cache for "%s"', name );
 			try {
-				window.parent.postMessage(
-					{ type: 'wp-desktop-palette-cycle' },
-					window.location.origin
-				);
-			} catch ( err ) { /* cross-origin parent; swallow */ }
-		}, true );
-	} )();
+				cb( { close: function () {} } );
+			} catch ( err ) {
+				console.log( '[wpd-cmd:iframe] invoke: "%s" callback threw', name, err );
+			}
+			return;
+		}
+		// Fallback — statically registered commands that never passed
+		// through the harvester (registered after the last render).
+		if ( ! window.wp || ! window.wp.data ) {
+			console.log( '[wpd-cmd:iframe] invoke: "%s" not found and wp.data missing', name );
+			return;
+		}
+		var sel = null;
+		try { sel = window.wp.data.select( 'core/commands' ); } catch ( _err ) { return; }
+		if ( ! sel || typeof sel.getCommands !== 'function' ) return;
+		var raw;
+		try { raw = sel.getCommands(); } catch ( _err ) { return; }
+		if ( ! raw ) return;
+		for ( var i = 0; i < raw.length; i++ ) {
+			if ( raw[ i ] && raw[ i ].name === name && typeof raw[ i ].callback === 'function' ) {
+				console.log( '[wpd-cmd:iframe] invoke: hit getCommands fallback for "%s"', name );
+				try {
+					raw[ i ].callback( { close: function () {} } );
+				} catch ( err ) {
+					console.log( '[wpd-cmd:iframe] invoke: "%s" fallback callback threw', name, err );
+				}
+				return;
+			}
+		}
+		console.log( '[wpd-cmd:iframe] invoke: "%s" NOT FOUND in harvester cache or getCommands()', name );
+	}
+
+	// Attach the listener BEFORE the bridge-ready ping so a subscribe
+	// posted synchronously in response is guaranteed to land.
+	window.addEventListener( 'message', function ( e ) {
+		if ( e.origin !== __wpdCommandsOrigin ) return;
+		if ( ! e.data || typeof e.data.type !== 'string' ) return;
+		if ( e.data.type === 'wp-desktop-commands-subscribe' ) {
+			__wpdSubscribeCommands();
+		} else if ( e.data.type === 'wp-desktop-commands-unsubscribe' ) {
+			console.log( '[wpd-cmd:iframe] unsubscribe received' );
+			__wpdUnsubscribeCommands();
+		} else if ( e.data.type === 'wp-desktop-commands-invoke' && typeof e.data.name === 'string' ) {
+			console.log( '[wpd-cmd:iframe] invoke received: %s', e.data.name );
+			__wpdInvokeCommand( e.data.name );
+		}
+	} );
+
+	console.log( '[wpd-cmd:iframe] bridge ready, listening for subscribe (url=%s)', window.location.href );
+	// Handshake: tell the parent we're ready so it can (re)send any
+	// subscribe that was dispatched before this listener attached.
+	// Without this ping, a subscribe posted during iframe navigation
+	// arrives at a context whose message listener isn't installed yet
+	// and is silently dropped — the symptom is an empty palette even
+	// though `wp.data.select('core/commands')` is perfectly happy.
+	try {
+		window.parent.postMessage(
+			{ type: 'wp-desktop-bridge-ready' },
+			__wpdCommandsOrigin
+		);
+		console.log( '[wpd-cmd:iframe] bridge-ready signal sent to parent' );
+	} catch ( err ) {
+		console.log( '[wpd-cmd:iframe] bridge-ready postMessage threw', err );
+	}
 
 	var links = document.getElementById( 'screen-meta-links' );
 	if ( ! links ) {

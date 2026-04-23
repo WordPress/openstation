@@ -22,6 +22,7 @@ import { HOOKS, doAction, applyFilters } from './hooks';
 import {
 	filterCommands,
 	findCommand,
+	listCommands,
 	parseCommandInput,
 	subscribeCommands,
 	type CommandContext,
@@ -256,6 +257,15 @@ export class AiAssistant implements AiAssistantApi {
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
+	/**
+	 * Set while an arrow key is driving the command-list cursor.
+	 * Blocks the `mouseenter` hover handler from snatching selection
+	 * back to whatever item the pointer happens to rest on after the
+	 * list re-renders. Cleared on the next real `mousemove` — the user
+	 * actually moving the mouse is the signal that they want pointer
+	 * control again.
+	 */
+	private _keyboardNav = false;
 	/** Highlighted index in the per-command argument suggestion list. */
 	private _selectedSuggestion = 0;
 	/** Cached latest suggestion list so keyboard nav can read it without re-calling suggest(). */
@@ -310,7 +320,16 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.value = '';
 		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
-		this._renderSuggestions();
+		// When commands are registered (harvested from the focused
+		// window's `core/commands` store, built-ins, plugin-contributed
+		// palette entries), show them eagerly — the user shouldn't have
+		// to type "/" first to discover what's available. Falls back to
+		// the AI suggestions surface when the registry is empty.
+		if ( listCommands().length > 0 ) {
+			this._renderCommandMode();
+		} else {
+			this._renderSuggestions();
+		}
 
 		this._el.removeAttribute( 'hidden' );
 		void this._el.offsetHeight;
@@ -420,26 +439,34 @@ export class AiAssistant implements AiAssistantApi {
 			const parsed = parseCommandInput( this._input.value );
 
 			// -----------------------------------------------------------
-			// PICK MODE — user is still typing the slug after "/".
+			// PICK MODE — user is typing a slug after "/", OR the input
+			// is empty and we're showing the full contextual command
+			// list eagerly (so the user never has to type `/` just to
+			// see what's available).
 			// -----------------------------------------------------------
-			if ( parsed.isCommand && ! parsed.hasArgsPart ) {
-				const matches = filterCommands( parsed.slug );
+			const eagerPicking = parsed.isCommand === false && this._input.value === '' && listCommands().length > 0;
+			if ( ( parsed.isCommand && ! parsed.hasArgsPart ) || eagerPicking ) {
+				const matches = this._sortCommands(
+					eagerPicking ? listCommands() : filterCommands( parsed.slug ),
+				);
 				if ( e.key === 'ArrowDown' ) {
 					e.preventDefault();
 					this._selectedCommand = Math.min(
 						this._selectedCommand + 1,
 						Math.max( 0, matches.length - 1 ),
 					);
-					this._renderCommandMode();
+					this._keyboardNav = true;
+					this._paintCommandSelection();
 					return;
 				}
 				if ( e.key === 'ArrowUp' ) {
 					e.preventDefault();
 					this._selectedCommand = Math.max( 0, this._selectedCommand - 1 );
-					this._renderCommandMode();
+					this._keyboardNav = true;
+					this._paintCommandSelection();
 					return;
 				}
-				if ( e.key === 'Tab' && matches.length > 0 ) {
+				if ( e.key === 'Tab' && matches.length > 0 && ! eagerPicking ) {
 					e.preventDefault();
 					const pick = matches[ this._selectedCommand ] ?? matches[ 0 ];
 					this._input.value = `/${ pick.slug } `;
@@ -527,10 +554,31 @@ export class AiAssistant implements AiAssistantApi {
 			if ( this._input.value.startsWith( '/' ) ) {
 				this._renderCommandMode();
 			} else if ( ! hasValue ) {
-				this._renderSuggestions();
+				// Empty input: eager command list if we have any,
+				// otherwise the AI suggestions surface.
+				if ( listCommands().length > 0 ) {
+					this._renderCommandMode();
+				} else {
+					this._renderSuggestions();
+				}
 			} else {
 				// User is typing a regular AI query and had results from
 				// a prior run; leave them visible so they can keep editing.
+			}
+		} );
+
+		// Reset the keyboard-nav guard on any real pointer movement.
+		// Without this, after pressing ArrowDown the palette stays
+		// "keyboard-controlled" forever and `mouseenter` never regains
+		// authority — moving the mouse again should clearly hand
+		// control back.
+		this._resultsEl.addEventListener( 'mousemove', () => {
+			if ( this._keyboardNav ) {
+				this._keyboardNav = false;
+				const list = this._resultsEl.querySelector( '.wp-desktop-ai__cmd-list' );
+				if ( list ) {
+					list.classList.remove( 'wp-desktop-ai__cmd-list--kb-nav' );
+				}
 			}
 		} );
 	}
@@ -878,7 +926,7 @@ export class AiAssistant implements AiAssistantApi {
 		}
 
 		// Picking mode: show filtered command list.
-		const matches = filterCommands( parsed.slug );
+		const matches = this._sortCommands( filterCommands( parsed.slug ) );
 
 		if ( matches.length === 0 ) {
 			this._resultsEl.innerHTML = `
@@ -909,7 +957,7 @@ export class AiAssistant implements AiAssistantApi {
 						) }" aria-hidden="true"></span>
 						<span class="wp-desktop-ai__cmd-body">
 							<span class="wp-desktop-ai__cmd-title">
-								/${ this._esc( c.slug ) }
+								${ this._esc( c.label ) }
 								${ c.hint ? `<span class="wp-desktop-ai__cmd-hint">${ this._esc( c.hint ) }</span>` : '' }
 							</span>
 							${ c.description
@@ -942,6 +990,12 @@ export class AiAssistant implements AiAssistantApi {
 					this._renderCommandMode();
 				} );
 				btn.addEventListener( 'mouseenter', () => {
+					// Ignore `mouseenter` fired by the DOM landing under
+					// the pointer after a keyboard arrow re-render. A
+					// real `mousemove` clears the guard.
+					if ( this._keyboardNav ) {
+						return;
+					}
 					const idx = parseInt( btn.dataset.index ?? '0', 10 );
 					if ( ! Number.isNaN( idx ) ) {
 						this._selectedCommand = idx;
@@ -1090,6 +1144,48 @@ export class AiAssistant implements AiAssistantApi {
 			} )
 			.join( '' );
 		return `<div class="wp-desktop-ai__cmd-suggest-list">${ items }</div>`;
+	}
+
+	/**
+	 * Stable sort used everywhere the palette turns a command list into
+	 * UI: iframe-harvested commands (owner prefix `iframe:`) float to
+	 * the top so contextual Gutenberg / admin commands from the focused
+	 * window read first. Tier-3 loader entries register ahead of tier-2
+	 * statics inside the bridge, so "stable" preserves that ordering
+	 * within the iframe block.
+	 */
+	private _sortCommands( list: DesktopCommand[] ): DesktopCommand[] {
+		return list.slice().sort( ( a, b ) => {
+			const aIframe = typeof a.owner === 'string' && a.owner.startsWith( 'iframe:' ) ? 0 : 1;
+			const bIframe = typeof b.owner === 'string' && b.owner.startsWith( 'iframe:' ) ? 0 : 1;
+			return aIframe - bIframe;
+		} );
+	}
+
+	/**
+	 * Flip the is-selected class on the command rows without re-rendering
+	 * the whole list. Re-rendering caused two bad effects: (a) fresh DOM
+	 * nodes fired `mouseenter` under the pointer and jumped selection
+	 * back to wherever the mouse was, (b) focus / scroll state was lost.
+	 * Keeping the DOM stable and just flipping a class preserves both.
+	 * Also scrolls the newly-selected row into view for long lists.
+	 */
+	private _paintCommandSelection(): void {
+		const items = this._resultsEl.querySelectorAll< HTMLElement >( '.wp-desktop-ai__cmd-item' );
+		items.forEach( ( el, i ) => {
+			el.classList.toggle( 'is-selected', i === this._selectedCommand );
+		} );
+		// Suppress :hover on the list while keyboard nav is active —
+		// without this the row under the mouse pointer stays styled as
+		// active alongside the new keyboard-selected row.
+		const list = this._resultsEl.querySelector< HTMLElement >( '.wp-desktop-ai__cmd-list' );
+		if ( list ) {
+			list.classList.toggle( 'wp-desktop-ai__cmd-list--kb-nav', this._keyboardNav );
+		}
+		const active = items[ this._selectedCommand ];
+		if ( active && typeof active.scrollIntoView === 'function' ) {
+			active.scrollIntoView( { block: 'nearest' } );
+		}
 	}
 
 	/** Flip the is-selected class on the suggestion rows without re-rendering the whole list. */
