@@ -1,3 +1,7 @@
 /node_modules
 /vendor
 /wp-desktop-mode.zip
+
+# Vite build output — regenerate locally with `npm run build`.
+/assets/js/desktop.js
+/assets/js/desktop.min.js
