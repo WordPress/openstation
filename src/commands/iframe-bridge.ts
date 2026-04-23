@@ -250,7 +250,14 @@ export class IframeCommandBridge {
 				slug,
 				label: cmd.label,
 				icon: iconFor( cmd ),
+				iconSvg: typeof cmd.iconSvg === 'string' && cmd.iconSvg !== '' ? cmd.iconSvg : undefined,
 				owner,
+				// Harvested commands are contextual by construction —
+				// they come from whichever window has focus. Surface
+				// them eagerly so the user sees "Duplicate block" /
+				// "Toggle distraction free" without having to type `/`
+				// first.
+				eager: true,
 				run: cmd.kind === 'navigate' && cmd.url
 					? this.runNavigate( cmd.url, cmd.label, iconFor( cmd ) )
 					: this.runProxy( windowId, cmd.name ),

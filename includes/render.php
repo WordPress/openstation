@@ -955,12 +955,32 @@ function wpdm_chromeless_bridge_script() {
 	// command updated its own metadata).
 	var __wpdCommandsKindCache    = Object.create( null );
 
+	function __wpdRenderIconElement( icon ) {
+		if ( ! icon ) return '';
+		if ( typeof icon === 'string' ) return '';
+		if ( ! window.wp || ! window.wp.element || typeof window.wp.element.renderToString !== 'function' ) {
+			return '';
+		}
+		try {
+			var rendered = window.wp.element.renderToString( icon );
+			// `@wordpress/icons` entries render as a complete `<svg>`
+			// tag. Anything else (wrapped components, empty fragments,
+			// strings) falls back to dashicons in the palette — we only
+			// accept markup we can inject straight into the icon slot.
+			if ( typeof rendered === 'string' && rendered.toLowerCase().indexOf( '<svg' ) === 0 ) {
+				return rendered;
+			}
+		} catch ( _err ) { /* swallow */ }
+		return '';
+	}
+
 	function __wpdClassifyCommand( cmd ) {
 		// Defensive defaults — a broken registry should not tank the bridge.
 		var out = {
 			name:    String( cmd && cmd.name ? cmd.name : '' ),
 			label:   String( cmd && cmd.label ? cmd.label : '' ),
 			icon:    cmd && cmd.icon && typeof cmd.icon === 'string' ? cmd.icon : undefined,
+			iconSvg: undefined,
 			context: cmd && cmd.context ? String( cmd.context ) : undefined,
 			kind:    'action',
 			url:     undefined
@@ -969,14 +989,23 @@ function wpdm_chromeless_bridge_script() {
 			return out;
 		}
 
-		// Short-circuit on cached classifications — the dry-run has
-		// real side effects for non-navigation callbacks, so we pay
-		// that cost exactly once per command name per page load.
+		// Short-circuit on cached classifications — `renderToString` on
+		// the React icon is expensive, and the static URL regex scan
+		// on `callback.toString()` is pure CPU we've already paid once.
 		var cached = __wpdCommandsKindCache[ out.name ];
 		if ( cached ) {
-			out.kind = cached.kind;
-			out.url  = cached.url;
+			out.kind    = cached.kind;
+			out.url     = cached.url;
+			out.iconSvg = cached.iconSvg;
 			return out;
+		}
+
+		// Render the React icon once per command name — Gutenberg
+		// commands ship `icon` as a `@wordpress/icons` React element
+		// the postMessage bridge can't serialize, so we flatten it to
+		// a static SVG string here.
+		if ( cmd.icon && typeof cmd.icon !== 'string' ) {
+			out.iconSvg = __wpdRenderIconElement( cmd.icon );
 		}
 
 		// STATIC classification — read the callback's source text and
@@ -1013,7 +1042,7 @@ function wpdm_chromeless_bridge_script() {
 				out.kind = 'action';
 			}
 		}
-		__wpdCommandsKindCache[ out.name ] = { kind: out.kind, url: out.url };
+		__wpdCommandsKindCache[ out.name ] = { kind: out.kind, url: out.url, iconSvg: out.iconSvg };
 		return out;
 	}
 

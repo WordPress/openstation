@@ -22,7 +22,7 @@ import { HOOKS, doAction, applyFilters } from './hooks';
 import {
 	filterCommands,
 	findCommand,
-	listCommands,
+	listEagerCommands,
 	parseCommandInput,
 	subscribeCommands,
 	type CommandContext,
@@ -295,7 +295,16 @@ export class AiAssistant implements AiAssistantApi {
 		// panel is a page-lifetime singleton, so we don't capture the
 		// unsubscribe handle — the subscription dies with the page.
 		subscribeCommands( () => {
-			if ( this._isOpen && this._input.value.startsWith( '/' ) ) {
+			if ( ! this._isOpen ) {
+				return;
+			}
+			// Refresh when in slash-command mode, or when the input is
+			// empty and we're showing eager commands — harvested
+			// commands arrive asynchronously after panel open, so the
+			// empty-input view has to react to registry changes too.
+			if ( this._input.value.startsWith( '/' ) ) {
+				this._renderCommandMode();
+			} else if ( this._input.value === '' && listEagerCommands().length > 0 ) {
 				this._renderCommandMode();
 			}
 		} );
@@ -320,12 +329,13 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.value = '';
 		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
-		// When commands are registered (harvested from the focused
-		// window's `core/commands` store, built-ins, plugin-contributed
-		// palette entries), show them eagerly — the user shouldn't have
-		// to type "/" first to discover what's available. Falls back to
-		// the AI suggestions surface when the registry is empty.
-		if ( listCommands().length > 0 ) {
+		// Show any commands flagged `eager` immediately — today that's
+		// everything harvested from the focused window's
+		// `core/commands` store via the iframe bridge (block editor
+		// actions, pattern commands, feature toggles). Slash-only
+		// commands stay hidden until the user types `/`. If nothing
+		// eager is registered, fall back to the AI suggestions surface.
+		if ( listEagerCommands().length > 0 ) {
 			this._renderCommandMode();
 		} else {
 			this._renderSuggestions();
@@ -444,10 +454,12 @@ export class AiAssistant implements AiAssistantApi {
 			// list eagerly (so the user never has to type `/` just to
 			// see what's available).
 			// -----------------------------------------------------------
-			const eagerPicking = parsed.isCommand === false && this._input.value === '' && listCommands().length > 0;
+			const eagerPicking = parsed.isCommand === false && this._input.value === '' && listEagerCommands().length > 0;
 			if ( ( parsed.isCommand && ! parsed.hasArgsPart ) || eagerPicking ) {
 				const matches = this._sortCommands(
-					eagerPicking ? listCommands() : filterCommands( parsed.slug ),
+					eagerPicking
+						? listEagerCommands()
+						: filterCommands( parsed.slug ).filter( ( c ) => c.eager !== true ),
 				);
 				if ( e.key === 'ArrowDown' ) {
 					e.preventDefault();
@@ -554,9 +566,9 @@ export class AiAssistant implements AiAssistantApi {
 			if ( this._input.value.startsWith( '/' ) ) {
 				this._renderCommandMode();
 			} else if ( ! hasValue ) {
-				// Empty input: eager command list if we have any,
-				// otherwise the AI suggestions surface.
-				if ( listCommands().length > 0 ) {
+				// Empty input: eager command list if any are
+				// registered, otherwise the AI suggestions surface.
+				if ( listEagerCommands().length > 0 ) {
 					this._renderCommandMode();
 				} else {
 					this._renderSuggestions();
@@ -925,8 +937,20 @@ export class AiAssistant implements AiAssistantApi {
 			// Fall through to picking mode when the slug doesn't match.
 		}
 
-		// Picking mode: show filtered command list.
-		const matches = this._sortCommands( filterCommands( parsed.slug ) );
+		// Picking mode. The `eager` flag splits the registry into two
+		// disjoint surfaces:
+		//   - Empty input (not even `/` typed): eager commands only
+		//     (contextual block actions / editor toggles harvested
+		//     from the focused iframe).
+		//   - `/` typed (or `/<query>`): slash-only commands. Eager
+		//     commands are intentionally hidden here — the user has
+		//     announced "I'm looking for a tool to invoke" and mixing
+		//     context-dependent actions into that list is noise.
+		const eagerPicking = parsed.isCommand === false && this._input.value === '';
+		const filtered = eagerPicking
+			? listEagerCommands()
+			: filterCommands( parsed.slug ).filter( ( c ) => c.eager !== true );
+		const matches = this._sortCommands( filtered );
 
 		if ( matches.length === 0 ) {
 			this._resultsEl.innerHTML = `
@@ -952,9 +976,9 @@ export class AiAssistant implements AiAssistantApi {
 						data-slug="${ this._esc( c.slug ) }"
 						data-index="${ i }"
 					>
-						<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
-							c.icon ?? 'dashicons-arrow-right-alt',
-						) }" aria-hidden="true"></span>
+						${ c.iconSvg
+							? `<span class="wp-desktop-ai__cmd-icon wp-desktop-ai__cmd-icon--svg" aria-hidden="true">${ c.iconSvg }</span>`
+							: `<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc( c.icon ?? 'dashicons-arrow-right-alt' ) }" aria-hidden="true"></span>` }
 						<span class="wp-desktop-ai__cmd-body">
 							<span class="wp-desktop-ai__cmd-title">
 								${ this._esc( c.label ) }

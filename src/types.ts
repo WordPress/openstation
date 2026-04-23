@@ -817,6 +817,20 @@ export interface HarvestedCommand {
 	name: string;
 	label: string;
 	icon?: string;
+	/**
+	 * Pre-rendered SVG markup for the command's icon. Gutenberg ships
+	 * most command icons as React elements from `@wordpress/icons`
+	 * (e.g. the `duplicate` block glyph), which the structured-clone
+	 * algorithm behind `postMessage` can't carry. The iframe renders
+	 * these to an HTML string via `wp.element.renderToString` and
+	 * forwards the result here; the parent palette injects it directly
+	 * into the row's icon slot. Empty / absent when the icon was a
+	 * plain dashicons class (covered by `icon` above) or unset.
+	 *
+	 * Trust note: the string is same-origin and never user-authored,
+	 * so rendering via `innerHTML` is safe.
+	 */
+	iconSvg?: string;
 	context?: string;
 	kind: 'navigate' | 'action';
 	url?: string;

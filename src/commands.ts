@@ -133,6 +133,32 @@ export interface DesktopCommand {
 	/** Dashicon class for the list item (default `dashicons-arrow-right-alt`). */
 	icon?: string;
 	/**
+	 * Pre-rendered SVG markup rendered inline as the item glyph.
+	 * Takes precedence over `icon` when present. Populated today by
+	 * the iframe-command bridge forwarding `@wordpress/icons` elements
+	 * via `renderToString`; plugins may set it directly when shipping
+	 * a custom SVG is easier than enqueueing a dashicon.
+	 *
+	 * @since 0.16.0
+	 */
+	iconSvg?: string;
+	/**
+	 * When true, the command surfaces in the palette as soon as the
+	 * user opens it — no need to type `/` first. Set this for
+	 * contextual commands whose relevance is obvious from the current
+	 * window (Gutenberg block actions, editor toggles, etc.): the
+	 * iframe-command bridge auto-sets it on every harvested entry.
+	 *
+	 * When falsy (the default), the command is slash-only — it only
+	 * appears after the user types `/`. Good for utility / namespaced
+	 * commands the user must deliberately invoke (plugin-registered
+	 * tools, destructive actions) where showing them eagerly would add
+	 * noise.
+	 *
+	 * @since 0.16.0
+	 */
+	eager?: boolean;
+	/**
 	 * Optional owner tag — the WordPress script handle that registered
 	 * the command. Set this when a plugin deactivation should live-
 	 * unregister its commands: the server-sync module walks the command
@@ -266,6 +292,17 @@ export function unregisterByOwner( owner: string ): number {
 /** Return every registered command in insertion order. */
 export function listCommands(): DesktopCommand[] {
 	return Array.from( registry.values() );
+}
+
+/**
+ * Return only commands flagged `eager` — the subset the palette
+ * surfaces before the user types anything. See the `eager` field on
+ * {@link DesktopCommand} for the opt-in semantics.
+ *
+ * @since 0.16.0
+ */
+export function listEagerCommands(): DesktopCommand[] {
+	return Array.from( registry.values() ).filter( ( c ) => c.eager === true );
 }
 
 /** Look up a command by exact slug. */
