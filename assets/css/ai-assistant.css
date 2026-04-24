@@ -673,8 +673,36 @@
 	transition: background 0.1s, border-color 0.1s;
 }
 
+/*
+ * Single-line rows (no `.wp-desktop-ai__cmd-desc` child) need the
+ * icon + label baseline-centered instead of top-aligned, otherwise
+ * the label floats to the top of the taller icon tile and reads as
+ * misaligned. `:has()` is widely supported in evergreen browsers the
+ * desktop shell already targets.
+ */
+.wp-desktop-ai__cmd-item:not(:has(.wp-desktop-ai__cmd-desc)) {
+	align-items: center;
+}
+
 .wp-desktop-ai__cmd-item:hover,
 .wp-desktop-ai__cmd-item.is-selected {
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
+}
+
+/*
+ * When keyboard navigation is driving selection, suppress the :hover
+ * style on rows. Without this, arrowing the cursor past the row that
+ * happens to sit under the mouse pointer paints BOTH rows as active
+ * — the keyboard target from `.is-selected` and the pointer target
+ * from `:hover`. The JS toggles this class on the list container on
+ * ArrowUp/Down and clears it on the next real `mousemove`.
+ */
+.wp-desktop-ai__cmd-list--kb-nav .wp-desktop-ai__cmd-item:hover {
+	background: transparent;
+	border-color: transparent;
+}
+.wp-desktop-ai__cmd-list--kb-nav .wp-desktop-ai__cmd-item.is-selected:hover {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
@@ -689,13 +717,35 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
-	font-size: 16px;
+	width: 36px;
+	height: 36px;
+	font-size: 20px;
 	color: var( --wp-admin-theme-color, #2271b1 );
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, #fff );
-	border-radius: 6px;
-	margin-top: 1px;
+	border-radius: 7px;
+}
+
+/*
+ * Dashicons ship at a 20px baseline; the tile was scaled up but
+ * dashicons glyphs need explicit sizing to follow.
+ */
+.wp-desktop-ai__cmd-icon.dashicons {
+	font-size: 22px;
+	width: 36px;
+	height: 36px;
+	line-height: 36px;
+}
+
+/*
+ * Raw-SVG icon slot (command bridge forwards rendered
+ * `@wordpress/icons` markup). Constrain the inline SVG so it sits
+ * centered inside the tile regardless of the viewBox the source icon
+ * shipped with.
+ */
+.wp-desktop-ai__cmd-icon--svg svg {
+	width: 24px;
+	height: 24px;
+	fill: currentColor;
 }
 
 .wp-desktop-ai__cmd-body {

@@ -1,0 +1,84 @@
+name: PR Preview with Build
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+          npm run package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: built-plugin
+          path: wp-desktop-mode.zip
+
+  expose-build:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      artifact-url: ${{ steps.expose.outputs.artifact-url }}
+    steps:
+      - name: Expose built artifact
+        id: expose
+        uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@v2
+        with:
+          artifact-name: 'built-plugin'
+          artifact-filename: 'wp-desktop-mode.zip'
+          pr-number: ${{ github.event.pull_request.number }}
+          commit-sha: ${{ github.sha }}
+          artifacts-to-keep: '20'
+
+  create-blueprint:
+    needs: expose-build
+    runs-on: ubuntu-latest
+    outputs:
+      blueprint: ${{ steps.blueprint.outputs.result }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/github-script@v7
+        id: blueprint
+        env:
+          ARTIFACT_URL: ${{ needs.expose-build.outputs.artifact-url }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.wordpress-org/blueprints/blueprint.json';
+            const blueprint = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const install = blueprint.steps.find((s) => s.step === 'installPlugin');
+            install.pluginData.url = process.env.ARTIFACT_URL;
+            return JSON.stringify(blueprint);
+          result-encoding: string
+
+  preview:
+    needs: create-blueprint
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: WordPress/action-wp-playground-pr-preview@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          blueprint: ${{ needs.create-blueprint.outputs.blueprint }}

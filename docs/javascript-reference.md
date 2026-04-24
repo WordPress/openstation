@@ -362,6 +362,9 @@ Registrations are live — if the palette is open when you call this, the new co
 | `description` | `string` | no | One-line description under the label |
 | `hint` | `string` | no | Argument hint, e.g. `"[post id]"` |
 | `icon` | `string` | no | Dashicons class, default `dashicons-arrow-right-alt` |
+| `iconSvg` | `string` | no | *Since 0.16.0.* Raw `<svg>…</svg>` markup rendered inline; takes precedence over `icon`. Used internally by the iframe-command bridge to forward `@wordpress/icons` elements; plugins may set it when shipping a one-off glyph is easier than enqueueing a dashicon. |
+| `eager` | `boolean` | no | *Since 0.16.0.* When `true`, the command appears on the empty-input palette without the user typing `/`. When falsy (default), it only surfaces after `/`. Eager and slash-only surfaces are **disjoint** — typing `/` hides eager commands. Use `eager: true` for contextual / always-relevant actions (block editor shortcuts, site-wide toggles); leave it off for utility commands the user deliberately invokes. |
+| `owner` | `string` | no | Optional tag for grouped eviction via `unregisterByOwner()`. The iframe bridge uses `iframe:<windowId>`; plugins typically pass their script handle. |
 | `suggest( args, ctx )` | `function` | no | Argument autocomplete. Returns or resolves to `CommandSuggestion[]`. When present, the palette renders a live list the user can navigate with ↑/↓ and commit with Tab / Enter. |
 | `run( args, ctx )` | `function` | yes | Handler. `args` is the raw text after `/<slug> `. May be async. |
 
@@ -710,6 +713,30 @@ Reports which screen-meta panel (if any) is currently open inside the iframe.
 { type: 'wp-desktop-screen-meta-state'; open: 'screen-options' | 'help' | null }
 ```
 
+#### `wp-desktop-commands-list` — Experimental
+Reports the current `wp.data.select('core/commands')` registry of this iframe to the parent shell. Emitted after the iframe receives `wp-desktop-commands-subscribe`, and then re-emitted (de-duplicated) whenever a re-render of the in-iframe React harvester changes the merged list. The parent re-publishes each entry as a slash-command in the shell palette tagged `owner: 'iframe:<windowId>'` and `eager: true` so the command surfaces before the user types `/`.
+
+Collection spans tier-2 (context-scoped `getCommands(true)`) and tier-3 (dynamic `getCommandLoaders(true)` hooks — invoked inside a mounted React tree so the rules of hooks hold). Global tier-1 navigation commands are deliberately skipped: the user already has them via the dock.
+
+Each `HarvestedCommand` carries a `kind` field the iframe computes by **statically matching** `callback.toString()` against a string-literal navigation target (`location.href = '…'`, `.assign('…')`, `.replace('…')`). An earlier dry-run approach triggered infinite window spawning because `Location.prototype.href` is non-configurable — the shim silently failed and every nav callback actually navigated. Computed URLs fall back to `action` and proxy back into the iframe via `wp-desktop-commands-invoke`.
+
+`iconSvg` carries the `@wordpress/icons` React element flattened to SVG markup via `wp.element.renderToString`; the structured-clone algorithm behind `postMessage` would refuse the raw element.
+
+```typescript
+{
+    type: 'wp-desktop-commands-list';
+    commands: Array<{
+        name: string;
+        label: string;
+        icon?: string;     // dashicons class, if the source icon was a string
+        iconSvg?: string;  // rendered <svg>…</svg> markup for React icons
+        context?: string;
+        kind: 'navigate' | 'action';
+        url?: string;
+    }>;
+}
+```
+
 ---
 
 ### parent → iframe
@@ -737,6 +764,27 @@ Asks the iframe to toggle a named screen-meta panel. The iframe is the authority
 
 ```typescript
 { type: 'wp-desktop-toggle-panel'; panel: 'screen-options' | 'help' }
+```
+
+#### `wp-desktop-commands-subscribe` — Experimental
+Tells the iframe to begin streaming its `wp.data.select('core/commands')` registry to the parent via `wp-desktop-commands-list`. The shell sends this to the iframe owned by the currently focused window and rescinds it (`wp-desktop-commands-unsubscribe`) when focus moves elsewhere.
+
+```typescript
+{ type: 'wp-desktop-commands-subscribe' }
+```
+
+#### `wp-desktop-commands-unsubscribe` — Experimental
+Tells the iframe to stop streaming its command list. The parent unregisters any shell-palette entries still tagged with this window's owner.
+
+```typescript
+{ type: 'wp-desktop-commands-unsubscribe' }
+```
+
+#### `wp-desktop-commands-invoke` — Experimental
+Asks the iframe to run a previously harvested `action`-kind command. Sent when the user selects the command from the shell palette. Navigation-kind commands are handled parent-side by opening a new desktop window — the iframe never sees them.
+
+```typescript
+{ type: 'wp-desktop-commands-invoke'; name: string }
 ```
 
 ---

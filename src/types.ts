@@ -798,6 +798,45 @@ export interface ToastTypeDef {
 }
 
 /**
+ * A single command harvested from an iframe's `wp.data.select('core/commands')`
+ * registry. Emitted by the chromeless bridge and consumed by the parent's
+ * iframe-command bridge module, which re-registers each entry as a
+ * slash-command in the shell palette for whichever window currently has focus.
+ *
+ * `kind` is decided inside the iframe by dry-invoking the original callback
+ * inside a `window.location`-intercept sandbox: a callback whose only
+ * observable effect is a navigation is classified `navigate` (with the
+ * captured `url`), and the parent rewrites the selection to open a new
+ * desktop window instead of navigating the current iframe out of chromeless
+ * mode. Anything else is `action` — the parent proxies execution back
+ * into the iframe via `wp-desktop-commands-invoke`.
+ *
+ * @since 0.16.0
+ */
+export interface HarvestedCommand {
+	name: string;
+	label: string;
+	icon?: string;
+	/**
+	 * Pre-rendered SVG markup for the command's icon. Gutenberg ships
+	 * most command icons as React elements from `@wordpress/icons`
+	 * (e.g. the `duplicate` block glyph), which the structured-clone
+	 * algorithm behind `postMessage` can't carry. The iframe renders
+	 * these to an HTML string via `wp.element.renderToString` and
+	 * forwards the result here; the parent palette injects it directly
+	 * into the row's icon slot. Empty / absent when the icon was a
+	 * plain dashicons class (covered by `icon` above) or unset.
+	 *
+	 * Trust note: the string is same-origin and never user-authored,
+	 * so rendering via `innerHTML` is safe.
+	 */
+	iconSvg?: string;
+	context?: string;
+	kind: 'navigate' | 'action';
+	url?: string;
+}
+
+/**
  * Bridge events sent from iframe to parent shell.
  */
 export type BridgeEventFromIframe =
@@ -806,7 +845,8 @@ export type BridgeEventFromIframe =
 	| { type: 'wp-desktop-notification'; title: string; body: string }
 	| { type: 'wp-desktop-ready' }
 	| { type: 'wp-desktop-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
-	| { type: 'wp-desktop-screen-meta-state'; open: 'screen-options' | 'help' | null };
+	| { type: 'wp-desktop-screen-meta-state'; open: 'screen-options' | 'help' | null }
+	| { type: 'wp-desktop-commands-list'; commands: HarvestedCommand[] };
 
 /**
  * Bridge events sent from parent shell to iframe.
@@ -814,4 +854,7 @@ export type BridgeEventFromIframe =
 export type BridgeEventToIframe =
 	| { type: 'wp-desktop-focus' }
 	| { type: 'wp-desktop-color-scheme'; scheme: string }
-	| { type: 'wp-desktop-toggle-panel'; panel: 'screen-options' | 'help' };
+	| { type: 'wp-desktop-toggle-panel'; panel: 'screen-options' | 'help' }
+	| { type: 'wp-desktop-commands-subscribe' }
+	| { type: 'wp-desktop-commands-unsubscribe' }
+	| { type: 'wp-desktop-commands-invoke'; name: string };

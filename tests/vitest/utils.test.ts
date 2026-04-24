@@ -7,6 +7,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	deriveWindowId,
 	sanitizeClassName,
+	sanitizeIconSvg,
 	urlMatchKey,
 } from '../../src/utils';
 
@@ -128,5 +129,59 @@ describe( 'utils/urlMatchKey', () => {
 		// input as-is rather than bubbling up a TypeError.
 		const weird = 'not a\0 url';
 		expect( urlMatchKey( weird ) ).toBeTypeOf( 'string' );
+	} );
+} );
+
+describe( 'utils/sanitizeIconSvg', () => {
+	test( 'round-trips a clean <svg> through the parser', () => {
+		const input = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>';
+		const out = sanitizeIconSvg( input );
+		expect( out ).toContain( '<svg' );
+		expect( out ).toContain( '<path' );
+		expect( out ).toContain( 'viewBox="0 0 24 24"' );
+	} );
+
+	test( 'strips <script> children', () => {
+		const input = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><path d="M0 0"/></svg>';
+		const out = sanitizeIconSvg( input );
+		expect( out ).not.toContain( '<script' );
+		expect( out ).not.toContain( 'alert' );
+		expect( out ).toContain( '<path' );
+	} );
+
+	test( 'strips <foreignObject> subtrees', () => {
+		const input = '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><iframe src="x"></iframe></foreignObject></svg>';
+		const out = sanitizeIconSvg( input );
+		expect( out.toLowerCase() ).not.toContain( 'foreignobject' );
+		expect( out ).not.toContain( '<iframe' );
+	} );
+
+	test( 'strips on* event-handler attributes', () => {
+		const input = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><path onclick="x" d="M0"/></svg>';
+		const out = sanitizeIconSvg( input );
+		expect( out ).not.toContain( 'onload' );
+		expect( out ).not.toContain( 'onclick' );
+		expect( out ).toContain( '<path' );
+	} );
+
+	test( 'strips javascript: URL attribute values', () => {
+		const input = '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:alert(1)"><path d="M0"/></a></svg>';
+		const out = sanitizeIconSvg( input );
+		expect( out.toLowerCase() ).not.toContain( 'javascript:' );
+	} );
+
+	test( 'returns empty string when root is not an <svg>', () => {
+		expect( sanitizeIconSvg( '<div>nope</div>' ) ).toBe( '' );
+	} );
+
+	test( 'returns empty string for empty input', () => {
+		expect( sanitizeIconSvg( '' ) ).toBe( '' );
+	} );
+
+	test( 'returns empty string for malformed markup', () => {
+		// Parse error path — the function bails rather than returning
+		// partially-recovered output.
+		const out = sanitizeIconSvg( '<svg><path' );
+		expect( out ).toBe( '' );
 	} );
 } );

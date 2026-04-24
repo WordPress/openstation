@@ -282,3 +282,16 @@ html.wp-toolbar:has( body.wp-desktop-chromeless ) {
 .wp-desktop-chromeless .update-nag {
 	border-top: 1px solid #d63638;
 }
+
+/* ---------------------------------------------------------------
+ * Suppress WordPress's native command palette inside chromeless
+ * iframes. The chromeless bridge intercepts Cmd+K and forwards to
+ * the desktop shell, but if an in-page component triggers the
+ * palette via another path (programmatic dispatch, a menu item)
+ * the dialog would still render. Hide it so the shell's palette
+ * stays the only surface users ever see.
+ * --------------------------------------------------------------- */
+.wp-desktop-chromeless .commands-command-menu__container,
+.wp-desktop-chromeless .commands-command-menu {
+	display: none !important;
+}

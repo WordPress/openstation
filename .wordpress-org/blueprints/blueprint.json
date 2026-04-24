@@ -1,0 +1,18 @@
+{
+  "landingPage": "/wp-admin/",
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://github.com/WordPress/desktop-mode/releases/latest/download/wp-desktop-mode.zip"
+      },
+      "options": { "activate": true }
+    }
+  ]
+}
