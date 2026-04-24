@@ -423,6 +423,54 @@ export interface DesktopCommandServerEntry {
 }
 
 /**
+ * Server-declared settings-tab script entry passed from PHP via
+ * `serverSettingsTabScripts`. One entry per
+ * `wp_desktop_register_settings_tab_script()` call (or indirectly via
+ * `wp_register_desktop_settings_tab()`).
+ *
+ * The shell injects each `scriptUrl` on mid-session plugin activation;
+ * the loaded script calls `wp.desktop.registerSettingsTab()` and the
+ * OS Settings window (subscribed to the tab registry) repaints.
+ *
+ * @public
+ * @since 0.17.0
+ */
+export interface DesktopSettingsTabScriptServerEntry {
+	/** WordPress script handle — doubles as the tab `owner` key used for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+}
+
+/**
+ * Server-declared settings-tab metadata passed from PHP via
+ * `serverSettingsTabs`. Optional companion to
+ * `DesktopSettingsTabScriptServerEntry`. Enables live unregistration on
+ * plugin deactivation without requiring the plugin's JS to set `owner`
+ * on each `registerSettingsTab()` call — the sync walks the previous
+ * payload's id→handle mapping when a handle leaves.
+ *
+ * @public
+ * @since 0.17.0
+ */
+export interface DesktopSettingsTabServerEntry {
+	id: string;
+	label: string;
+	/**
+	 * Required capability. The shell today collapses this to an admin
+	 * vs everyone gate; `manage_options` maps to admin-only, anything
+	 * else to everyone-visible.
+	 */
+	capability: string;
+	/** Sort order relative to built-in tabs. */
+	order: number;
+	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
+	scriptUrl: string;
+	/** WordPress script handle this tab belongs to. */
+	scriptHandle: string;
+}
+
+/**
  * Server-declared desktop icon — a shortcut tile on the wallpaper
  * that opens a native window or a URL on click. Registered via PHP
  * with `wp_register_desktop_icon()`.
@@ -637,6 +685,22 @@ export interface DesktopConfig {
 	 * @since 0.15.0
 	 */
 	serverCommands?: DesktopCommandServerEntry[];
+	/**
+	 * Script handles opted-in via `wp_desktop_register_settings_tab_script()`.
+	 * Shell injects each URL on boot and on mid-session activation so
+	 * new OS Settings tabs appear without a reload.
+	 *
+	 * @since 0.17.0
+	 */
+	serverSettingsTabScripts?: DesktopSettingsTabScriptServerEntry[];
+	/**
+	 * Server-declared settings-tab metadata (from
+	 * `wp_register_desktop_settings_tab()`). Enables live unregistration
+	 * on deactivation without per-call `owner` in JS.
+	 *
+	 * @since 0.17.0
+	 */
+	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
 	/**
 	 * Server-declared desktop icons (from `wp_register_desktop_icon()`).
 	 * The shell renders these as shortcut tiles on the wallpaper;

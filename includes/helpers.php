@@ -754,6 +754,12 @@ function wpdm_build_menu_payload() {
 		'serverCommands'   => function_exists( 'wpdm_build_desktop_commands_payload' )
 			? wpdm_build_desktop_commands_payload()
 			: array(),
+		'serverSettingsTabScripts' => function_exists( 'wpdm_build_desktop_settings_tab_scripts_payload' )
+			? wpdm_build_desktop_settings_tab_scripts_payload()
+			: array(),
+		'serverSettingsTabs' => function_exists( 'wpdm_build_desktop_settings_tabs_payload' )
+			? wpdm_build_desktop_settings_tabs_payload()
+			: array(),
 		'desktopIcons'     => function_exists( 'wpdm_build_desktop_icons_payload' )
 			? wpdm_build_desktop_icons_payload()
 			: array(),

@@ -27,6 +27,13 @@ import { WallpaperLayer } from './wallpapers/layer';
 import { registerBuiltInWallpapers } from './wallpapers/built-in';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createCommandRegistrySync } from './commands/server-sync';
+import { createSettingsTabRegistrySync } from './settings/server-sync';
+import {
+	registerSettingsTab,
+	unregisterSettingsTab,
+	listSettingsTabs,
+	type DesktopSettingsTab,
+} from './settings/registry';
 import { IframeCommandBridge } from './commands/iframe-bridge';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
@@ -214,6 +221,23 @@ export interface WpDesktopPublicApi {
 	/** Run `cb` after `wp-desktop.init` has fired (immediately if already fired). */
 	whenReady: ( cb: () => void ) => void;
 	/**
+	 * Short alias of {@link whenReady}. The idiomatic entry point for
+	 * plugin scripts — especially those loaded late by server-sync
+	 * (widgets, wallpapers, commands, settings tabs) after
+	 * `wp-desktop.init` has already fired. Mirrors the ergonomics of
+	 * `jQuery( fn )`: the callback runs synchronously (via microtask)
+	 * if the shell is already booted, otherwise queues.
+	 *
+	 * ```js
+	 * wp.desktop.ready( () => {
+	 *     wp.desktop.registerSettingsTab( { ... } );
+	 * } );
+	 * ```
+	 *
+	 * @since 0.17.0
+	 */
+	ready: ( cb: () => void ) => void;
+	/**
 	 * Synchronously report whether the shell's `wp-desktop.init` action
 	 * has fired. Lets late-loading plugin code branch between
 	 * "register directly" and "schedule via whenReady" without racing.
@@ -294,6 +318,30 @@ export interface WpDesktopPublicApi {
 	unregisterCommand: ( slug: string ) => void;
 	/** Snapshot of all currently registered commands. @since 0.14.0 */
 	listCommands: () => DesktopCommand[];
+	/**
+	 * Register a tab in the OS Settings window.
+	 *
+	 * ```js
+	 * wp.desktop.registerSettingsTab( {
+	 *   id: 'my-plugin',
+	 *   label: 'My Plugin',
+	 *   capability: 'manage_options', // optional — admin-only when set to this
+	 *   order: 50,                    // optional — default 100 (after built-ins)
+	 *   owner: 'my-plugin-settings',  // optional — enables live-unregister
+	 *   render: ( body ) => { body.textContent = 'Hello'; },
+	 * } );
+	 * ```
+	 *
+	 * Built-in tab orders for reference: appearance=10, ai=20,
+	 * extended=30, help=40.
+	 *
+	 * @since 0.17.0
+	 */
+	registerSettingsTab: ( tab: DesktopSettingsTab ) => void;
+	/** Remove a previously registered settings tab. @since 0.17.0 */
+	unregisterSettingsTab: ( id: string ) => void;
+	/** Snapshot of all registered third-party settings tabs. @since 0.17.0 */
+	listSettingsTabs: () => DesktopSettingsTab[];
 	/**
 	 * Register a Cmd+K palette. The shell owns a single shortcut
 	 * handler that cycles through every registered palette; the
@@ -721,6 +769,19 @@ function init(): void {
 		Array.isArray( config.serverCommands ) ? config.serverCommands : [],
 	);
 
+	// Settings-tab sync — same pattern as commands, for OS Settings
+	// tabs registered by plugins via
+	// `wp_desktop_register_settings_tab_script()`. Injects each
+	// opted-in script so a plugin's `registerSettingsTab()` call
+	// lands and the (possibly open) OS Settings window repaints.
+	const syncServerSettingsTabs = createSettingsTabRegistrySync();
+	void syncServerSettingsTabs(
+		Array.isArray( config.serverSettingsTabScripts )
+			? config.serverSettingsTabScripts
+			: [],
+		Array.isArray( config.serverSettingsTabs ) ? config.serverSettingsTabs : [],
+	);
+
 	// Hoisted so the desktop-icons render code below and the
 	// `window.wp.desktop.registerWindow` public export both
 	// reference the same function — no double-wrapping, no drift.
@@ -801,6 +862,7 @@ function init(): void {
 		syncServerWidgets,
 		syncServerWallpapers,
 		syncServerCommands,
+		syncServerSettingsTabs,
 	);
 
 	// Expose the public API on `window.wp.desktop`. The `hooks` field
@@ -846,6 +908,7 @@ function init(): void {
 		registerModule,
 		loadModules,
 		whenReady,
+		ready: whenReady,
 		isReady,
 		setDefaultWindow,
 		refreshMenu,
@@ -855,6 +918,9 @@ function init(): void {
 		registerCommand,
 		unregisterCommand,
 		listCommands,
+		registerSettingsTab,
+		unregisterSettingsTab,
+		listSettingsTabs,
 		registerPalette,
 		unregisterPalette,
 		listPalettes,
@@ -1438,6 +1504,10 @@ function bindMenuRefresh(
 		scripts: import( './types' ).DesktopCommandScriptServerEntry[],
 		commands?: import( './types' ).DesktopCommandServerEntry[],
 	) => Promise< void >,
+	syncServerSettingsTabs: (
+		scripts: import( './types' ).DesktopSettingsTabScriptServerEntry[],
+		tabs?: import( './types' ).DesktopSettingsTabServerEntry[],
+	) => Promise< void >,
 ): () => Promise<void> {
 	// Shared applier — takes a freshly-split payload and rebuilds
 	// both rails. Extracted so the message-with-payload path (no
@@ -1450,6 +1520,8 @@ function bindMenuRefresh(
 		serverWallpapers?: unknown;
 		serverCommandScripts?: unknown;
 		serverCommands?: unknown;
+		serverSettingsTabScripts?: unknown;
+		serverSettingsTabs?: unknown;
 	} ): void => {
 		const dockItems = payload.dockItems;
 		const taskbarItems = payload.taskbarItems;
@@ -1458,6 +1530,8 @@ function bindMenuRefresh(
 		const serverWallpapers = payload.serverWallpapers;
 		const serverCommandScripts = payload.serverCommandScripts;
 		const serverCommands = payload.serverCommands;
+		const serverSettingsTabScripts = payload.serverSettingsTabScripts;
+		const serverSettingsTabs = payload.serverSettingsTabs;
 
 		// Guard: an empty `dockItems` list is NEVER legitimate —
 		// WordPress Core always ships Dashboard, which lands on the
@@ -1559,6 +1633,25 @@ function bindMenuRefresh(
 					serverCommands as DesktopConfig[ 'serverCommands' ];
 			}
 		}
+
+		// Settings-tab sync — mirror of the commands block. Loads
+		// plugin-contributed settings-tab scripts on activation and
+		// unregisters tabs attributable to a handle that just left
+		// the payload.
+		if ( Array.isArray( serverSettingsTabScripts ) ) {
+			void syncServerSettingsTabs(
+				serverSettingsTabScripts as import( './types' ).DesktopSettingsTabScriptServerEntry[],
+				Array.isArray( serverSettingsTabs )
+					? ( serverSettingsTabs as import( './types' ).DesktopSettingsTabServerEntry[] )
+					: undefined,
+			);
+			config.serverSettingsTabScripts =
+				serverSettingsTabScripts as DesktopConfig[ 'serverSettingsTabScripts' ];
+			if ( Array.isArray( serverSettingsTabs ) ) {
+				config.serverSettingsTabs =
+					serverSettingsTabs as DesktopConfig[ 'serverSettingsTabs' ];
+			}
+		}
 	};
 
 	const refresh = async (): Promise<void> => {
@@ -1582,6 +1675,8 @@ function bindMenuRefresh(
 				serverWallpapers?: DesktopConfig[ 'serverWallpapers' ];
 				serverCommandScripts?: DesktopConfig[ 'serverCommandScripts' ];
 				serverCommands?: DesktopConfig[ 'serverCommands' ];
+				serverSettingsTabScripts?: DesktopConfig[ 'serverSettingsTabScripts' ];
+				serverSettingsTabs?: DesktopConfig[ 'serverSettingsTabs' ];
 			};
 			applyPayload( data );
 		} catch ( err ) {
@@ -1610,6 +1705,8 @@ function bindMenuRefresh(
 				serverWallpapers?: unknown;
 				serverCommandScripts?: unknown;
 				serverCommands?: unknown;
+				serverSettingsTabScripts?: unknown;
+				serverSettingsTabs?: unknown;
 			};
 		} | null;
 		if ( ! data || data.type !== 'wp-desktop-plugins-changed' ) {

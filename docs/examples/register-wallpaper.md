@@ -31,7 +31,7 @@ add_action( 'admin_enqueue_scripts', function () {
 **my-wallpaper.js**
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/register', () => {
+wp.desktop.ready( () => {
     wp.desktop.registerWallpaper( {
         id: 'my-plugin/ocean',
         label: 'Ocean',
@@ -51,7 +51,7 @@ The swatch appears in OS Settings next time the panel opens. Clicking it writes 
 Declare dependencies by module id — the shell ships `pixijs` pre-registered and loads it before `mount` fires the first time anyone activates a wallpaper that needs it. Concurrent activations dedupe the fetch automatically.
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/register', () => {
+wp.desktop.ready( () => {
     wp.desktop.registerWallpaper( {
         id: 'my-plugin/particles',
         label: 'Particles',
@@ -102,7 +102,7 @@ wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/register', () => {
 If you use a library that isn't pre-registered, register it once. Other plugins can then `needs:` it by id and share your fetch.
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/modules', () => {
+wp.desktop.ready( () => {
     wp.desktop.registerModule( {
         id: 'three-js',
         url: `${ wp.desktop.config.pluginUrl }/vendor/three.min.js`,
@@ -128,7 +128,7 @@ Any wallpaper can ship `renderEditor`. When that wallpaper is the selected swatc
 ```javascript
 const state = { tint: '#6366f1' };
 
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/register', () => {
+wp.desktop.ready( () => {
     wp.desktop.registerWallpaper( {
         id: 'my-plugin/tintable',
         label: 'Tintable',

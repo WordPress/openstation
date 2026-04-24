@@ -37,6 +37,8 @@ export { WpdGrid } from './wpd-grid/wpd-grid';
 export { WpdDisplay } from './wpd-display/wpd-display';
 export { WpdEmptyState } from './wpd-empty-state/wpd-empty-state';
 export { WpdKey } from './wpd-key/wpd-key';
+export { WpdCode } from './wpd-code/wpd-code';
+export { WpdSteps, WpdStep } from './wpd-steps/wpd-steps';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -77,4 +79,7 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-display',
 	'wpd-empty-state',
 	'wpd-key',
+	'wpd-code',
+	'wpd-steps',
+	'wpd-step',
 ] as const;

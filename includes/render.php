@@ -124,6 +124,12 @@ function wpdm_enqueue_assets() {
 	$server_commands   = isset( $menu_payload['serverCommands'] )
 		? $menu_payload['serverCommands']
 		: array();
+	$server_settings_tab_scripts = isset( $menu_payload['serverSettingsTabScripts'] )
+		? $menu_payload['serverSettingsTabScripts']
+		: array();
+	$server_settings_tabs = isset( $menu_payload['serverSettingsTabs'] )
+		? $menu_payload['serverSettingsTabs']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -158,6 +164,8 @@ function wpdm_enqueue_assets() {
 	 *     @type array  $serverWallpapers Server-declared wallpapers (via `wp_register_desktop_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.wpDesktopWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
 	 *     @type array  $serverCommandScripts Script handles opted-in via `wp_desktop_register_command_script`. Shell injects each URL on activation so commands registered by `wp.desktop.registerCommand` appear in the palette live. Deactivation unregisters any commands whose `owner` matches the departing handle.
 	 *     @type array  $serverCommands   Server-declared command metadata (via `wp_register_desktop_command`). Advisory today — reserved for future pre-registration shims.
+	 *     @type array  $serverSettingsTabScripts Script handles opted-in via `wp_desktop_register_settings_tab_script`. Shell injects each URL on activation so tabs registered by `wp.desktop.registerSettingsTab` appear in the OS Settings window live. Deactivation unregisters tabs attributable to the departing handle.
+	 *     @type array  $serverSettingsTabs Server-declared settings-tab metadata (via `wp_register_desktop_settings_tab`). Enables live unregistration on plugin deactivation without requiring JS to set `owner`.
 	 *     @type array  $desktopIcons     Server-declared desktop icons (via `wp_register_desktop_icon`). Rendered on the wallpaper as clickable shortcut tiles.
 	 *     @type array  $accentColors     Swatch list for the OS Settings accent picker. Filterable via `wp_desktop_accent_colors`.
 	 *     @type array  $toastTypes       Toast-notification type map. Filterable via `wp_desktop_toast_types`.
@@ -190,6 +198,8 @@ function wpdm_enqueue_assets() {
 			'serverWallpapers' => $server_wallpapers,
 			'serverCommandScripts' => $server_command_scripts,
 			'serverCommands'   => $server_commands,
+			'serverSettingsTabScripts' => $server_settings_tab_scripts,
+			'serverSettingsTabs' => $server_settings_tabs,
 			'desktopIcons'     => $desktop_icons,
 			'accentColors'     => wpdm_get_accent_colors(),
 			'toastTypes'       => wpdm_get_toast_types(),

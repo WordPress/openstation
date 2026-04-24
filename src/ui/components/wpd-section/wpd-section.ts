@@ -16,7 +16,7 @@ import { Component, defineComponent, html } from '../../core';
 import { styles } from './wpd-section.styles';
 
 export class WpdSection extends Component {
-	static props = [ 'heading', 'description' ] as const;
+	static props = [ 'heading', 'description', 'stack' ] as const;
 	static styles = [ styles ];
 
 	static help = {
@@ -35,6 +35,12 @@ export class WpdSection extends Component {
 				name: 'description',
 				type: 'string',
 				description: 'Secondary descriptive paragraph below the heading.',
+			},
+			{
+				name: 'stack',
+				type: 'boolean',
+				description:
+					'When present, the default slot becomes a flex column with a consistent gap (--wpd-section-gap, default 12px) between children. Opt-in — existing callers whose slotted controls ship their own margin stay unchanged. Recommended for third-party settings tabs and any new surface.',
 			},
 		],
 		slots: [
@@ -64,7 +70,7 @@ export class WpdSection extends Component {
 		return html`
 			<h3 class="wpd-section__heading">${ heading }</h3>
 			<p class="wpd-section__description">${ description }</p>
-			<slot></slot>
+			<div class="wpd-section__body"><slot></slot></div>
 		`;
 	}
 }

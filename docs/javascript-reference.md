@@ -499,6 +499,151 @@ window.wp.desktop.listCommands().forEach( ( c ) => console.log( `/${ c.slug } �
 
 ---
 
+### `registerSettingsTab( def )` — Stable  *(since 0.17.0)*
+
+Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Extended Options, Help — and renders its body via your `render( body, ctx )` callback.
+
+**Definition shape:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. |
+| `label` | `string` | yes | Tab label. |
+| `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
+| `order` | `number` | no | Default `100`. Built-ins: appearance=10, ai=20, extended=30, help=40. |
+| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `wp_desktop_register_settings_tab_script()`. |
+| `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
+
+**`ctx` shape:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, ai: { enabled, provider, apiKey } }`. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
+| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user edits the AI key in the adjacent AI tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
+
+```javascript
+// Use `wp.desktop.ready()` (not `addAction( 'wp-desktop.init', … )`) —
+// plugin settings scripts are loaded via server-sync AFTER
+// `wp-desktop.init` has already fired, so a raw addAction callback
+// would never run. `ready()` handles both the already-fired and
+// not-yet-fired cases. See "Bootstrap" above for the full story.
+wp.desktop.ready( () => {
+    wp.desktop.registerSettingsTab( {
+        id:         'my-plugin',
+        label:      'My Plugin',
+        capability: 'manage_options',
+        order:      50,
+        owner:      'my-plugin-settings',
+        render( body, ctx ) {
+            // Layout: use <wpd-section stack> (or <wpd-stack> inside a
+            // vanilla <wpd-section>) so children get consistent gap.
+            // The default slot of <wpd-section> has no gap — cramped
+            // is the default without opt-in.
+            body.innerHTML = `
+                <wpd-section
+                    heading="My Plugin"
+                    description="Configure the plugin."
+                    stack
+                >
+                    <wpd-text-field label="Name"></wpd-text-field>
+                    <wpd-button>Save</wpd-button>
+                </wpd-section>
+            `;
+
+            // Read current AI settings configured in the adjacent AI tab.
+            const { apiKey } = ctx.getOsSettings().ai;
+            console.log( 'current OpenAI key length:', apiKey.length );
+
+            // Re-read when the user edits settings elsewhere in the
+            // panel. Unsubscribe on next re-render / window close.
+            const off = ctx.subscribeOsSettings( ( next ) => {
+                console.log( 'settings changed — new key len:', next.ai.apiKey.length );
+            } );
+
+            // Clean up if the body is detached (window closed, reset clicked).
+            const mo = new MutationObserver( () => {
+                if ( ! body.isConnected ) {
+                    off();
+                    mo.disconnect();
+                }
+            } );
+            mo.observe( body.parentNode ?? body, { childList: true } );
+        },
+    } );
+} );
+```
+
+Tabs registered after the OS Settings window is already open repaint live — the panel subscribes to the registry.
+
+**Layout tip — `<wpd-section stack>`**
+
+The default slot of `<wpd-section>` has no gap between children. For third-party tabs that put raw fields directly in the slot, opt into flex-column layout with the `stack` attribute:
+
+```html
+<wpd-section heading="Settings" stack>
+    <wpd-text-field label="Name"></wpd-text-field>
+    <wpd-checkbox-label label="Enabled"></wpd-checkbox-label>
+    <wpd-button>Save</wpd-button>
+</wpd-section>
+```
+
+Gap is `--wpd-section-gap` (default `12px`). Alternative: wrap the content in an explicit `<wpd-stack>`. Built-in sections omit `stack` because their slotted components already carry their own `margin-block-end`.
+
+**Inline code — `<wpd-code>`**  *(since 0.17.0)*
+
+Use `<wpd-code>` for inline URLs, flag names, slugs, or any monospace string. **Don't** use `<wpd-key>` for these: `<wpd-key>` installs a global `keydown` listener so the tile flashes on matching keystrokes — rendering `chrome://flags` inside a `<wpd-key>` would steal `c`, `h`, `r`, `o`, `m`, `e`. `<wpd-code>` has no listeners.
+
+```html
+Open <wpd-code>chrome://flags</wpd-code> and enable
+<wpd-code>experimental-web-platform-features</wpd-code>.
+
+<wpd-code block>
+wp_register_desktop_settings_tab( array(
+    'id'    => 'my-plugin',
+    'label' => 'My Plugin',
+) );
+</wpd-code>
+```
+
+**Ordered steps — `<wpd-steps>` + `<wpd-step>`**  *(since 0.17.0)*
+
+Auto-numbered setup / onboarding flows. Numbers come from a CSS counter, so inserting or removing a `<wpd-step>` renumbers the rest automatically. Set `done` on a step to render a ✓ chip instead of the number.
+
+```html
+<wpd-steps>
+    <wpd-step title="Install the plugin">
+        Search the plugin directory for “My Plugin” and click Install.
+    </wpd-step>
+    <wpd-step title="Open Settings">
+        Go to <wpd-code>Settings → My Plugin</wpd-code>.
+    </wpd-step>
+    <wpd-step title="Enter your API key" done>
+        Already done earlier in this flow.
+    </wpd-step>
+</wpd-steps>
+```
+
+For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `wp_register_desktop_settings_tab()` in PHP.
+
+---
+
+### `unregisterSettingsTab( id )` — Stable  *(since 0.17.0)*
+
+Remove a previously registered tab. Idempotent.
+
+```javascript
+wp.desktop.unregisterSettingsTab( 'my-plugin' );
+```
+
+---
+
+### `listSettingsTabs()` — Stable  *(since 0.17.0)*
+
+Snapshot of every currently registered third-party settings tab, sorted by `order`. Built-in tabs are not included.
+
+---
+
 ### `registerPalette( def )` — Stable  *(since 0.14.0)*
 
 Register a Cmd+K-triggered overlay ("palette"). The shell owns a single global shortcut handler that **cycles** through every registered palette — first press opens palette 0, second press closes it and opens palette 1, and so on. Pressing Cmd+K when the last palette is open closes it entirely; the next press re-opens palette 0.
@@ -518,7 +663,7 @@ This means multiple plugin palettes, plus the built-in AI Assistant, coexist wit
 Returns an **unsubscribe function**. Plugins that register at shell-load time typically don't need it, but HMR / late teardown use cases should call it.
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/launcher', function () {
+wp.desktop.ready( () => {
     const unregister = wp.desktop.registerPalette( {
         id:     'my-plugin/launcher',
         label:  'My Quick Launcher',
@@ -805,13 +950,30 @@ If you've used `addFilter` / `addAction` in Gutenberg, you already know how thes
 
 ### Bootstrap
 
-Plugins typically register everything inside a `wp-desktop.init` action callback so the `window.wp.desktop` public API is guaranteed to be populated when they fire. Late-enqueued scripts can call `wp.desktop.whenReady(cb)` — it runs immediately if init has already fired, otherwise it queues.
+**Recommended:** use `wp.desktop.ready( fn )` — it mirrors `jQuery( fn )` and is safe for scripts loaded at any point in the lifecycle, including scripts injected mid-session by the server-sync modules (widgets, wallpapers, commands, settings tabs).
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/boot', () => {
+wp.desktop.ready( () => {
     // wp.desktop is fully populated; register away.
     wp.desktop.registerWallpaper( myWallpaper );
+    wp.desktop.registerSettingsTab( { ... } );
 } );
+```
+
+`ready()` runs the callback **synchronously via a microtask** if `wp-desktop.init` has already fired, or queues it via `addAction( 'wp-desktop.init', … )` otherwise. It's a shorter alias of `wp.desktop.whenReady()` (both have been Stable since 0.14.0; the `ready` name ships in 0.17.0).
+
+> **Why not `wp.hooks.addAction( 'wp-desktop.init', … )` directly?**
+>
+> `addAction()` queues a callback for *future* firings of the action. When a plugin script is loaded **after** `wp-desktop.init` has already fired — the normal case for anything registered by a server-sync module — the callback is never invoked. `ready()` handles both cases: already-fired (call immediately) and not-yet-fired (queue on the action). Use `ready()` as the default; reach for `addAction()` directly only if you specifically want multi-fire semantics.
+
+If you need a synchronous check (e.g. to branch between "register directly" and "schedule"), use `wp.desktop.isReady()`:
+
+```javascript
+if ( wp.desktop.isReady() ) {
+    wp.desktop.registerCommand( myCommand );
+} else {
+    wp.desktop.ready( () => wp.desktop.registerCommand( myCommand ) );
+}
 ```
 
 ### Hooks catalog
@@ -1052,7 +1214,7 @@ interface WallpaperContext {
 ### Minimal CSS wallpaper
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/boot', () => {
+wp.desktop.ready( () => {
     wp.desktop.registerWallpaper( {
         id: 'my-plugin/ocean',
         label: 'Ocean',
@@ -1068,7 +1230,7 @@ wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/boot', () => {
 Don't hardcode URLs to vendor libraries — declare them by module id. The shell pre-registers common modules (`pixijs` today), and plugins can register their own. When the wallpaper activates, the shell loads every listed module before `mount` fires; concurrent activations dedupe through the memoized script loader.
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/boot', () => {
+wp.desktop.ready( () => {
     wp.desktop.registerWallpaper( {
         id: 'my-plugin/spinner',
         label: 'Spinner',
@@ -1154,7 +1316,9 @@ wp.desktop.registerWallpaper( {
 | `getWallpaperSurfaces()` | Stable | Live `WallpaperSurface[]` for collision-aware wallpapers. See "Wallpaper surfaces" below. |
 | `registerModule( def )` | Stable | Register a shared vendor library under a stable id. |
 | `loadModules( ids )` | Stable | Imperatively load registered modules. Usually unnecessary — canvas wallpapers declare `needs[]` and the shell resolves. |
-| `whenReady( cb )` | Stable | Run `cb` after `wp-desktop.init` has fired |
+| `ready( cb )` | Stable *(since 0.17.0)* | **Recommended bootstrap entry point.** Run `cb` after `wp-desktop.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
+| `whenReady( cb )` | Stable | Original name for `ready( cb )` — same behaviour; keep using it if you've already adopted it. |
+| `isReady()` | Stable | Synchronous boolean — has `wp-desktop.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
 | `refreshMenu()` | Stable | Force a refetch of the live admin-menu split. Auto-fired on plugin activation / deactivation. |
 | `setDefaultWindow( url \| null )` | Stable | Update the user's "open on startup" preference. |
 | `config` | Stable | The `DesktopConfig` that booted the shell |

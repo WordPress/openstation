@@ -35,7 +35,7 @@ add_action( 'admin_enqueue_scripts', function () {
     // Wait until `wp.desktop` is available — the shell script loads
     // independently of this one, so we use the `wp-desktop.init`
     // action which fires after the public API is mounted.
-    wp.hooks.addAction( 'wp-desktop.init', 'my-echo', function () {
+    wp.desktop.ready( function () {
         wp.desktop.registerCommand( {
             slug:        'echo',
             label:       'Echo',
@@ -62,7 +62,7 @@ A more realistic command: parses a post ID argument, hits a plugin REST endpoint
 **my-comments.js**
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-comments', function () {
+wp.desktop.ready( function () {
     wp.desktop.registerCommand( {
         slug:        'turn_on_comments',
         label:       'Turn on comments',
@@ -209,7 +209,7 @@ wp.desktop.registerCommand( {
 A destructive command that uses every plugin point: `ctx.confirm()` for the user prompt, `windowManager.closeAll()` for the batch op, and the `wp-desktop.windows.close-all` filter so any plugin can keep specific windows alive.
 
 ```javascript
-wp.hooks.addAction( 'wp-desktop.init', 'my-plugin/close-all', function () {
+wp.desktop.ready( function () {
     wp.desktop.registerCommand( {
         slug:        'close_all_windows',
         label:       'Close all windows',

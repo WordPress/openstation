@@ -36,6 +36,7 @@ require_once WPDM_DIR . 'includes/accents.php';
 require_once WPDM_DIR . 'includes/toast-types.php';
 require_once WPDM_DIR . 'includes/components.php';
 require_once WPDM_DIR . 'includes/commands.php';
+require_once WPDM_DIR . 'includes/settings-tabs.php';
 require_once WPDM_DIR . 'includes/wallpapers.php';
 require_once WPDM_DIR . 'includes/render.php';
 require_once WPDM_DIR . 'includes/extended-options.php';

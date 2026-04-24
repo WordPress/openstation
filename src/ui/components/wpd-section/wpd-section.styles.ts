@@ -34,4 +34,20 @@ export const styles = css`
 	.wpd-section__description:empty {
 		display: none;
 	}
+	/*
+	 * Opt-in child stacking. Set the \`stack\` attribute to turn the
+	 * default slot into a flex column with a consistent gap — saves
+	 * every caller from reaching for a \`<wpd-stack>\` wrapper or
+	 * discovering the cramped default. Existing callers whose slotted
+	 * children already carry their own \`margin-block-end\` (the
+	 * built-in OS Settings sections) omit the attribute and get
+	 * original behaviour.
+	 *
+	 * \`--wpd-section-gap\` is overridable per-instance.
+	 */
+	:host( [ stack ] ) .wpd-section__body {
+		display: flex;
+		flex-direction: column;
+		gap: var( --wpd-section-gap, 12px );
+	}
 `;

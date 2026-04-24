@@ -187,6 +187,71 @@ do_action( 'wp_desktop_icon_registered', string $id, array $entry );
 
 ---
 
+### `wp_desktop_settings_tab_script_registered` — Stable
+
+Fires after `wp_desktop_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `wp_register_desktop_settings_tab()` implicitly registers its `script` argument.
+
+```php
+do_action( 'wp_desktop_settings_tab_script_registered', string $handle );
+```
+
+### `wp_desktop_settings_tab_registered` — Stable
+
+Fires after `wp_register_desktop_settings_tab()` successfully stores a tab's metadata. Does not fire on `WP_Error`.
+
+```php
+do_action( 'wp_desktop_settings_tab_registered', string $id, array $entry );
+```
+
+### `wp_desktop_register_settings_tab_script( $handle )` — Stable (PHP function)
+
+Declares a WP-registered script handle as an OS Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerSettingsTab()` calls made by the plugin's JS appear in the OS Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-settings',
+        plugins_url( 'js/settings.js', __FILE__ ),
+        array( 'wp-desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-settings' );
+} );
+wp_desktop_register_settings_tab_script( 'my-plugin-settings' );
+```
+
+For live *unregistration* on deactivation, either:
+- set `owner: 'my-plugin-settings'` on the JS `registerSettingsTab()` call, OR
+- declare the tab with `wp_register_desktop_settings_tab()` below (the `script` arg ties the id to the handle server-side).
+
+Tabs using neither mechanism stay until the next page reload.
+
+### `wp_register_desktop_settings_tab( $args )` — Stable (PHP function)
+
+Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly calls `wp_desktop_register_settings_tab_script( $args['script'] )` when `script` is provided.
+
+```php
+wp_register_desktop_settings_tab( array(
+    'id'         => 'my-plugin',
+    'label'      => __( 'My Plugin', 'my-plugin' ),
+    'capability' => 'manage_options', // optional — admin-only when set to exactly this
+    'order'      => 50,               // optional — default 100 (after built-ins)
+    'script'     => 'my-plugin-settings',
+) );
+```
+
+**Built-in tab orders** (for reference when picking `order`):
+- `appearance` = 10
+- `ai` = 20
+- `extended` = 30
+- `help` = 40
+- Third-party default = 100 (appended after built-ins)
+
+**Capability gating today**: the shell collapses `capability` to a simple admin-vs-everyone distinction. `'manage_options'` means admin-only; any other value (including empty) means visible to everyone. Widening to arbitrary capabilities is a future expansion.
+
+---
+
 ### `wp_desktop_window_tab_registered` — Stable
 
 Fires after `wp_register_desktop_window_tab()` successfully attaches a tab to a native window. Useful for companion plugins that need to follow up (e.g. register a help overlay only when a Stats tab actually exists).

@@ -72,7 +72,10 @@ import {
 	registerCustomImageIfPresent,
 	teardownEditor,
 } from './sections/wallpaper';
+import { listSettingsTabs, subscribeSettingsTabs } from './registry';
 
+// eslint-disable-next-line no-duplicate-imports
+import type { DesktopSettingsTab, OsSettingsSnapshot } from './registry';
 export type { OsSettingsConfig };
 
 /**
@@ -95,6 +98,39 @@ export class OsSettings implements SettingsCtx {
 	 * mounted in the OS Settings panel. Null when no editor is active.
 	 */
 	public activeEditorTeardown: WallpaperTeardown | null = null;
+
+	/**
+	 * Unsubscribe from the settings-tab registry. Set while a panel is
+	 * mounted; cleared when the panel re-renders or the next render
+	 * takes over.
+	 */
+	private tabRegistryUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Subscribers to OS Settings state changes — third-party tabs that
+	 * need to react when the user edits AI key / accent / etc. in an
+	 * adjacent built-in tab. Fired from {@link save}.
+	 */
+	private osSettingsListeners = new Set<( snapshot: OsSettingsSnapshot ) => void>();
+
+	/** Project the private state into the public snapshot shape. */
+	public getOsSettingsSnapshot(): OsSettingsSnapshot {
+		return {
+			wallpaper: this.state.wallpaper,
+			accent: this.state.accent,
+			dockSize: this.state.dockSize,
+			ai: { ...this.state.ai },
+		};
+	}
+
+	public subscribeOsSettings(
+		cb: ( snapshot: OsSettingsSnapshot ) => void,
+	): () => void {
+		this.osSettingsListeners.add( cb );
+		return () => {
+			this.osSettingsListeners.delete( cb );
+		};
+	}
 
 	constructor( config: OsSettingsConfig, layer: WallpaperLayer ) {
 		this.config = config;
@@ -154,6 +190,22 @@ export class OsSettings implements SettingsCtx {
 
 	public save(): void {
 		saveState( this.state );
+		if ( this.osSettingsListeners.size > 0 ) {
+			const snapshot = this.getOsSettingsSnapshot();
+			const listeners = Array.from( this.osSettingsListeners );
+			for ( const cb of listeners ) {
+				try {
+					cb( snapshot );
+				} catch ( err ) {
+					if ( typeof console !== 'undefined' ) {
+						console.error(
+							'[wp-desktop-mode] os-settings listener threw:',
+							err,
+						);
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -169,6 +221,13 @@ export class OsSettings implements SettingsCtx {
 		// path, so we do it defensively here.
 		teardownEditor( this );
 
+		// Drop any previous registry subscription — we'll resubscribe
+		// below. Without this, every re-render leaks a listener.
+		if ( this.tabRegistryUnsubscribe ) {
+			this.tabRegistryUnsubscribe();
+			this.tabRegistryUnsubscribe = null;
+		}
+
 		body.classList.add( 'wp-desktop-os-settings' );
 
 		const onReset = (): void => {
@@ -183,21 +242,32 @@ export class OsSettings implements SettingsCtx {
 			this.renderPanel( body );
 		};
 
-		render(
-			html`
-				<wpd-tabs value="appearance" label=${ __( 'Settings sections' ) }>
-					<wpd-tab value="appearance"
-						>${ __( 'Appearance' ) }</wpd-tab
-					>
-					<wpd-tab value="ai">${ __( 'AI Settings' ) }</wpd-tab>
-					${ this.config.isAdmin
-						? html`<wpd-tab value="extended">${ __( 'Extended Options' ) }</wpd-tab>`
-						: html`` }
-					${ this.config.isAdmin
-						? html`<wpd-tab value="help">${ __( 'Help' ) }</wpd-tab>`
-						: html`` }
-				</wpd-tabs>
-				<wpd-tabpanel for="appearance">
+		// Interleave third-party tabs with the built-ins by `order`.
+		// Built-in orders match the hardcoded visual sequence so a
+		// plugin registering at `order: 15` slots between Appearance
+		// and AI Settings.
+		const isAdmin = this.config.isAdmin;
+		const externalTabs = listSettingsTabs().filter( ( tab ) =>
+			isTabVisible( tab, isAdmin ),
+		);
+
+		interface TabRow {
+			id: string;
+			order: number;
+			tab: ReturnType< typeof html >;
+			panel: ReturnType< typeof html >;
+			/** For external tabs — invoked after render to mount content. */
+			mount?: ( host: HTMLElement ) => void;
+		}
+
+		const rows: TabRow[] = [
+			{
+				id: 'appearance',
+				order: 10,
+				tab: html`<wpd-tab value="appearance"
+					>${ __( 'Appearance' ) }</wpd-tab
+				>`,
+				panel: html`<wpd-tabpanel for="appearance">
 					<wpd-panel>
 						<p class="wp-desktop-os-settings__intro">
 							${ __(
@@ -208,20 +278,85 @@ export class OsSettings implements SettingsCtx {
 						${ buildAccentSection( this ) }
 						${ buildDockSizeSection( this ) }
 					</wpd-panel>
-				</wpd-tabpanel>
-				<wpd-tabpanel for="ai">
+				</wpd-tabpanel>`,
+			},
+			{
+				id: 'ai',
+				order: 20,
+				tab: html`<wpd-tab value="ai">${ __( 'AI Settings' ) }</wpd-tab>`,
+				panel: html`<wpd-tabpanel for="ai">
 					<wpd-panel>${ buildAiSection( this ) }</wpd-panel>
-				</wpd-tabpanel>
-				${ this.config.isAdmin
-					? html`<wpd-tabpanel for="extended">
-							<wpd-panel>${ buildExtendedSection( this ) }</wpd-panel>
-						</wpd-tabpanel>`
-					: html`` }
-				${ this.config.isAdmin
-					? html`<wpd-tabpanel for="help">
-							<wpd-panel>${ buildHelpSection() }</wpd-panel>
-						</wpd-tabpanel>`
-					: html`` }
+				</wpd-tabpanel>`,
+			},
+		];
+
+		if ( isAdmin ) {
+			rows.push( {
+				id: 'extended',
+				order: 30,
+				tab: html`<wpd-tab value="extended"
+					>${ __( 'Extended Options' ) }</wpd-tab
+				>`,
+				panel: html`<wpd-tabpanel for="extended">
+					<wpd-panel>${ buildExtendedSection( this ) }</wpd-panel>
+				</wpd-tabpanel>`,
+			} );
+			rows.push( {
+				id: 'help',
+				order: 40,
+				tab: html`<wpd-tab value="help">${ __( 'Help' ) }</wpd-tab>`,
+				panel: html`<wpd-tabpanel for="help">
+					<wpd-panel>${ buildHelpSection() }</wpd-panel>
+				</wpd-tabpanel>`,
+			} );
+		}
+
+		for ( const tab of externalTabs ) {
+			const tabId = `ext-${ tab.id }`;
+			const hostAttr = `wpd-settings-tab-host-${ tab.id }`;
+			const tabRef = tab;
+			rows.push( {
+				id: tabId,
+				order: tab.order ?? 100,
+				tab: html`<wpd-tab value=${ tabId }>${ tab.label }</wpd-tab>`,
+				panel: html`<wpd-tabpanel for=${ tabId }>
+					<wpd-panel><div data-host=${ hostAttr }></div></wpd-panel>
+				</wpd-tabpanel>`,
+				mount: ( rootBody: HTMLElement ): void => {
+					const host = rootBody.querySelector< HTMLElement >(
+						`[data-host="${ hostAttr }"]`,
+					);
+					if ( ! host ) {
+						return;
+					}
+					try {
+						tabRef.render( host, {
+							isAdmin,
+							getOsSettings: () => this.getOsSettingsSnapshot(),
+							subscribeOsSettings: ( cb ) =>
+								this.subscribeOsSettings( cb ),
+						} );
+					} catch ( err ) {
+						if ( typeof console !== 'undefined' ) {
+							console.error(
+								'[wp-desktop-mode] settings tab render threw:',
+								tabRef.id,
+								err,
+							);
+						}
+					}
+				},
+			} );
+		}
+
+		rows.sort( ( a, b ) => a.order - b.order );
+
+		render(
+			html`
+				<wpd-tabs value="appearance" label=${ __( 'Settings sections' ) }>
+					${ rows.map( ( r ) => r.tab ) }
+				</wpd-tabs>
+				${ rows.map( ( r ) => r.panel ) }
 				<wpd-panel class="wp-desktop-os-settings__footer">
 					<wpd-button variant="ghost" @click=${ onReset }
 						>${ __( 'Reset to defaults' ) }</wpd-button
@@ -230,5 +365,43 @@ export class OsSettings implements SettingsCtx {
 			`,
 			body,
 		);
+
+		// Mount external tab content after the tabpanels are in the
+		// DOM so their hosts can be queried.
+		for ( const row of rows ) {
+			if ( row.mount ) {
+				row.mount( body );
+			}
+		}
+
+		// Re-render when the registry changes so a plugin that loads
+		// *after* the OS Settings window opens (via the server-sync
+		// script injection) still gets its tab painted live.
+		this.tabRegistryUnsubscribe = subscribeSettingsTabs( () => {
+			// Guard against the window being closed between the
+			// notification and the re-render: if body is detached,
+			// silently drop the subscription.
+			if ( ! body.isConnected ) {
+				if ( this.tabRegistryUnsubscribe ) {
+					this.tabRegistryUnsubscribe();
+					this.tabRegistryUnsubscribe = null;
+				}
+				return;
+			}
+			this.renderPanel( body );
+		} );
 	}
+}
+
+/**
+ * Capability → visibility gate. The shell today collapses capability
+ * to a simple admin-or-everyone distinction: `manage_options` requires
+ * admin; anything else (including empty) is visible to everyone.
+ * Widening to real capability checks is a future expansion.
+ */
+function isTabVisible( tab: DesktopSettingsTab, isAdmin: boolean ): boolean {
+	if ( tab.capability && tab.capability === 'manage_options' ) {
+		return isAdmin;
+	}
+	return true;
 }
