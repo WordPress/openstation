@@ -5,7 +5,10 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
-import { cycleFocus } from '../../src/window-manager/switcher';
+import {
+	cycleFocus,
+	isTextEntryFocus,
+} from '../../src/window-manager/switcher';
 import {
 	clearHooksStub,
 	installHooksStub,
@@ -115,5 +118,64 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 		manager._overviewActive = false;
 		cycleFocus( manager, 'next' );
 		expect( manager.getFocused() ).toBe( a );
+	} );
+
+	describe( 'isTextEntryFocus gate', () => {
+		let transient: HTMLElement[] = [];
+
+		function mount<T extends HTMLElement>( el: T ): T {
+			document.body.appendChild( el );
+			transient.push( el );
+			return el;
+		}
+
+		afterEach( () => {
+			for ( const el of transient ) {
+				el.remove();
+			}
+			transient = [];
+		} );
+
+		test( 'returns true when a nested iframe is focused (Gutenberg case)', () => {
+			const iframe = mount( document.createElement( 'iframe' ) );
+			iframe.tabIndex = 0;
+			iframe.focus();
+			expect( document.activeElement ).toBe( iframe );
+			expect( isTextEntryFocus( document ) ).toBe( true );
+		} );
+
+		test( 'returns true when a TEXTAREA is focused', () => {
+			const ta = mount( document.createElement( 'textarea' ) );
+			ta.focus();
+			expect( isTextEntryFocus( document ) ).toBe( true );
+		} );
+
+		test( 'returns true when a text INPUT is focused', () => {
+			const input = mount( document.createElement( 'input' ) );
+			input.type = 'text';
+			input.focus();
+			expect( isTextEntryFocus( document ) ).toBe( true );
+		} );
+
+		test( 'returns false when a button INPUT is focused', () => {
+			const input = mount( document.createElement( 'input' ) );
+			input.type = 'button';
+			input.focus();
+			expect( isTextEntryFocus( document ) ).toBe( false );
+		} );
+
+		test( 'returns true when a contenteditable DIV is focused', () => {
+			const div = mount( document.createElement( 'div' ) );
+			div.setAttribute( 'contenteditable', 'true' );
+			div.tabIndex = 0;
+			div.focus();
+			expect( isTextEntryFocus( document ) ).toBe( true );
+		} );
+
+		test( 'returns false when a plain button is focused', () => {
+			const btn = mount( document.createElement( 'button' ) );
+			btn.focus();
+			expect( isTextEntryFocus( document ) ).toBe( false );
+		} );
 	} );
 } );

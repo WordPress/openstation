@@ -1492,9 +1492,15 @@ function wpdm_chromeless_bridge_script() {
 		if ( e.ctrlKey || e.metaKey || e.altKey ) return;
 		if ( e.code !== 'Backquote' ) return;
 
+		// IFRAME case catches Gutenberg: the block canvas is a nested
+		// iframe, and Gutenberg re-dispatches cloned keydowns up to
+		// this document for its shortcut system. Without this branch
+		// typing ` in a block would cycle windows. Any other nested
+		// iframe owning keyboard handling gets the same treatment.
 		var el = document.activeElement;
 		if ( el ) {
 			var tag = el.tagName;
+			if ( tag === 'IFRAME' ) return;
 			if ( tag === 'TEXTAREA' ) return;
 			if ( tag === 'INPUT' ) {
 				var type = ( el.type || '' ).toLowerCase();

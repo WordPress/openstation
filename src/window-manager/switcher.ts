@@ -93,18 +93,27 @@ let installed = false;
 
 /**
  * True when the given document's focused element consumes bare
- * keystrokes as text — INPUT (text-ish types), TEXTAREA, or anything
- * with `contenteditable`. Caller uses this to skip the window-cycle
- * when the user is typing, so `` ` `` still reaches the field.
+ * keystrokes as text — INPUT (text-ish types), TEXTAREA, anything
+ * with `contenteditable`, or a nested IFRAME (focus is inside some
+ * child frame that owns its own keyboard handling; we must not
+ * steal keystrokes from it).
  *
- * We deliberately treat SELECT, checkbox / radio / button INPUTs as
- * non-text: they don't accept character input, so stealing `` ` `` from
- * them is fine.
+ * The IFRAME case is what catches Gutenberg: the block canvas is a
+ * nested iframe, and Gutenberg re-dispatches a cloned keydown up to
+ * the outer document for its shortcut system. Without this branch
+ * we'd cycle windows while the user is typing into a block.
+ *
+ * SELECT, checkbox / radio / button INPUTs are treated as non-text:
+ * they don't accept character input, so stealing `` ` `` from them
+ * is fine.
  */
-function isTextEntryFocus( doc: Document ): boolean {
+export function isTextEntryFocus( doc: Document ): boolean {
 	const el = doc.activeElement as HTMLElement | null;
 	if ( ! el ) {
 		return false;
+	}
+	if ( el instanceof HTMLIFrameElement ) {
+		return true;
 	}
 	if ( el instanceof HTMLTextAreaElement ) {
 		return true;
@@ -129,7 +138,13 @@ function isTextEntryFocus( doc: Document ): boolean {
 		] );
 		return textTypes.has( el.type );
 	}
-	return el.isContentEditable;
+	if ( el.isContentEditable === true ) {
+		return true;
+	}
+	// Fallback for environments (jsdom) that don't implement
+	// `HTMLElement.isContentEditable` — check the attribute directly.
+	const ce = el.getAttribute( 'contenteditable' );
+	return ce !== null && ce !== 'false';
 }
 
 /**
