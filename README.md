@@ -4,7 +4,7 @@ A WordPress plugin that reimagines `/wp-admin` as a desktop operating system. Ad
 
 Zero Core patches. Every feature is wired through public WordPress hooks.
 
-<a href="https://playground.wordpress.net#%7B%22landingPage%22%3A%22%2Fwp-admin%2F%22%2C%22preferredVersions%22%3A%7B%22php%22%3A%228.2%22%2C%22wp%22%3A%22latest%22%7D%2C%22steps%22%3A%5B%7B%22step%22%3A%22installPlugin%22%2C%22pluginData%22%3A%7B%22resource%22%3A%22url%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FWordPress%2Fdesktop-mode%2Freleases%2Flatest%2Fdownload%2Fwp-desktop-mode.zip%22%7D%2C%22options%22%3A%7B%22activate%22%3Atrue%7D%7D%5D%7D">
+<a href="https://playground.wordpress.net?blueprint-url=https://raw.githubusercontent.com/WordPress/desktop-mode/refs/heads/trunk/.wordpress-org/blueprints/blueprint.json">
   <img src="https://raw.githubusercontent.com/WordPress/action-wp-playground-pr-preview/v2/assets/playground-preview-button.svg" alt="Playground Demo Link" width="180">
 </a>
 
