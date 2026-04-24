@@ -2,29 +2,21 @@
 
 Maintainer guide. Users install by downloading `/releases/latest/download/wp-desktop-mode.zip`.
 
-## Three ways to cut a release
+## Two ways to cut a release
 
-All three end at the same place: a `vX.Y.Z` tag on origin, which fires the build-and-publish half of [`.github/workflows/release.yml`](.github/workflows/release.yml) to produce a GitHub Release with `wp-desktop-mode.zip` attached. Pick whichever is least friction at the moment.
+Both end at the same place: a `vX.Y.Z` tag on origin, which fires [`.github/workflows/release.yml`](.github/workflows/release.yml) to build and publish a GitHub Release with `wp-desktop-mode.zip` attached.
 
-### 1. GitHub UI — one click
-
-Actions → **Release** workflow → **Run workflow** → type `0.5.0` → **Run workflow**.
-
-The workflow bumps all three version locations on `trunk`, commits, tags, builds, and publishes. No local git needed. Best for quick releases from anywhere, including your phone.
-
-> **Note**: requires the repo's branch protection / ruleset to allow `github-actions[bot]` to push to `trunk`. See [First-time setup](#first-time-setup-checks).
-
-### 2. Local one-liner
+### 1. Local one-liner (recommended)
 
 ```bash
 ./bin/release.sh 0.5.0
 ```
 
-Bumps, commits, pushes to trunk, **waits for CI green**, tags, pushes tag. Aborts cleanly if the tree is dirty, you're not on trunk, or CI fails. Best when you want the extra "CI passed before tagging" guarantee.
+Bumps all three version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if the tree is dirty, you're not on trunk, local trunk is out of sync with origin, or CI fails. Resumable — re-running after a mid-flow failure picks up where it left off.
 
 Requires the `gh` CLI authenticated (`gh auth status`).
 
-### 3. Manual, step by step
+### 2. Manual, step by step
 
 ```bash
 ./bin/bump-version.sh 0.5.0
@@ -39,19 +31,17 @@ Full transparency, useful when something in the automation breaks.
 
 Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps pointing at the last stable. The workflow detects the hyphen and sets `--prerelease` automatically. Drop the prerelease tag wherever the stable version goes:
 
-- UI: type `0.5.0-rc1` in the Run workflow dialog.
-- Local: `./bin/release.sh 0.5.0-rc1`.
-- Manual: tag as `v0.5.0-rc1`.
+- Script: `./bin/release.sh 0.5.0-rc1`
+- Manual: tag as `v0.5.0-rc1`
 
 ## What each tool does
 
 | Tool | Purpose |
 |---|---|
-| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `WPDM_VERSION`. Used by both the UI workflow and the local script. |
+| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `WPDM_VERSION`. |
 | `bin/package.sh` | Packages `wp-desktop-mode.zip` from HEAD + current built JS. Errors if the build is stale. |
-| `bin/release.sh <version>` | Full local release (Option 2). |
-| `release.yml` — `workflow_dispatch` | Full UI release (Option 1). |
-| `release.yml` — `push: tags: v*` | Build + publish. Fires for all three options. |
+| `bin/release.sh <version>` | Full local release (Option 1). |
+| `release.yml` — `push: tags: v*` | Build + publish. Fires for both options. |
 
 ## Version locations
 
@@ -88,9 +78,6 @@ The zip has the exact contents the workflow uploads.
 **`Version mismatch — tag 'X' vs package.json=Y header=Y WPDM_VERSION=Y`**
 You pushed a tag without bumping first, or bumped but didn't push the bump commit before tagging. Fix locally, delete the broken tag (`git push --delete origin vX.Y.Z`), re-tag from the correct commit, push again.
 
-**UI workflow fails at "Bump, commit, tag, push" with a permission error**
-Your branch protection / ruleset forbids `github-actions[bot]` from pushing to `trunk`. Fix: add the bot to the ruleset's bypass actors (Settings → Rules → your trunk ruleset → Bypass list), or fall back to Option 2 / 3.
-
 **`bin/release.sh` aborts with "working tree is dirty"**
 Commit or stash your in-progress work first. The script refuses to bundle unrelated changes into the bump commit.
 
@@ -104,7 +91,6 @@ Shouldn't happen — `bin/package.sh` errors out if the build artifacts aren't p
 
 Before cutting the first release, confirm:
 
-- Repo Settings → Actions → General → Workflow permissions is set to **Read and write permissions** (needed for `gh release create` and for the UI workflow's pushes).
-- For Option 1 (UI): the trunk ruleset / branch protection allows `github-actions[bot]` to push. If the repo enforces "Changes must be made through a pull request", add the bot to bypass actors, or use Option 2 / 3.
+- Repo Settings → Actions → General → Workflow permissions is set to **Read and write permissions** (needed for `gh release create`).
 - The `v*` tag pattern isn't blocked by a tag protection rule.
-- CI is passing on `trunk`. Options 1 and 3 trust you to eyeball this; Option 2 enforces it automatically.
+- CI is passing on `trunk`. Option 1 enforces this automatically; Option 2 trusts you to eyeball it.

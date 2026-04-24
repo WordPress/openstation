@@ -1,81 +1,23 @@
 name: Release
 
-# Two entry points, same outcome (tag + published Release with zip):
-#   1. push a vX.Y.Z tag       → skips the `bump` job, goes straight to build+publish
-#   2. workflow_dispatch with a version → `bump` job edits trunk and pushes the tag,
-#      then build+publish runs against it.
+# Triggered by pushing a vX.Y.Z tag. Builds the plugin zip and creates a
+# GitHub Release with it attached. Use `bin/release.sh` locally to cut a
+# release end-to-end (bump + commit + tag + push).
 
 on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (no v prefix, e.g., 0.5.0 or 0.5.0-rc1)'
-        required: true
-        type: string
 
 permissions:
   contents: write
 
 jobs:
-  bump:
-    name: Bump and tag
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: trunk
-          fetch-depth: 0
-
-      - name: Validate version
-        run: |
-          v="${{ inputs.version }}"
-          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
-            echo "::error::'$v' is not a valid version (expected X.Y.Z or X.Y.Z-prerelease)"
-            exit 1
-          fi
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Bump, commit, tag, push
-        run: |
-          v="${{ inputs.version }}"
-          ./bin/bump-version.sh "$v"
-          git commit -am "chore: bump to $v"
-          git push origin trunk
-          git tag "v$v"
-          git push origin "v$v"
-
   release:
     name: Build & publish release
-    needs: [bump]
-    # Runs in both paths: when `bump` succeeded (dispatch) or was skipped (tag push).
-    if: always() && (needs.bump.result == 'success' || needs.bump.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - name: Determine tag
-        id: tag
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.tag.outputs.tag }}
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -89,7 +31,7 @@ jobs:
 
       - name: Verify tag matches plugin version
         run: |
-          tag="${{ steps.tag.outputs.tag }}"
+          tag="${{ github.ref_name }}"
           tag="${tag#v}"
           pkg=$(node -p "require('./package.json').version")
           header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' wp-desktop-mode.php)
@@ -109,7 +51,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ steps.tag.outputs.tag }}"
+          tag="${{ github.ref_name }}"
           flags=()
           if [[ "$tag" == *-* ]]; then
             flags+=(--prerelease)
