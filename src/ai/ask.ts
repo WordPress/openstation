@@ -23,12 +23,13 @@
  * @since 0.17.0
  */
 
-import { listAiCallableCommands, findCommand } from '../commands';
-import type {
-	CommandContext,
-	CommandResult,
-	CommandAdminLink,
-	CommandEntity,
+import {
+	listAiCallableCommands,
+	findCommand,
+	type CommandContext,
+	type CommandResult,
+	type CommandAdminLink,
+	type CommandEntity,
 } from '../commands';
 import type { DesktopConfig } from '../types';
 
@@ -316,15 +317,15 @@ export function createAsk( deps: AskDeps ) {
 		opts: AskOptions,
 	): Promise<
 		| {
-				ok: true;
-				slug: string;
-				args: string;
-				result: CommandResult | { error: string };
-		  }
+			ok: true;
+			slug: string;
+			args: string;
+			result: CommandResult | { error: string };
+		}
 		| {
-				ok: false;
-				response: AskResult;
-		  }
+			ok: false;
+			response: AskResult;
+		}
 	> => {
 		const slug = payload.tool?.slug ?? '';
 		const args = payload.tool?.args ?? '';
@@ -436,9 +437,13 @@ export function createAsk( deps: AskDeps ) {
 			};
 		}
 
-		const command_tools = normaliseToolsOpt( opts.tools );
+		const commandTools = normaliseToolsOpt( opts.tools );
 		const sp = normaliseSystemPrompt( opts.systemPrompt );
 
+		// The REST endpoint's request body uses snake_case field names
+		// (WordPress convention) — assigned via property access, which
+		// the camelcase ESLint rule allows; only bare-identifier
+		// locals are required to be camelCase.
 		const body: Record< string, unknown > = { query: text };
 		if ( opts.resumeTool ) {
 			body.resume_tool = opts.resumeTool;
@@ -446,8 +451,8 @@ export function createAsk( deps: AskDeps ) {
 		if ( typeof opts.startOffset === 'number' ) {
 			body.start_offset = opts.startOffset;
 		}
-		if ( command_tools.length > 0 ) {
-			body.command_tools = command_tools;
+		if ( commandTools.length > 0 ) {
+			body.command_tools = commandTools;
 		}
 		if ( sp ) {
 			body.system_prompt_text = sp.text;
