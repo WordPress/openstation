@@ -70,7 +70,20 @@ export interface CommandContext {
 	 * @param details Optional secondary line shown below the message.
 	 */
 	confirm( message: string, details?: string ): Promise< boolean >;
-	/** Show a toast / ephemeral message (future). Currently a no-op. */
+	/**
+	 * Show a toast / ephemeral message to the user.
+	 *
+	 * **Not yet wired — calls are silently dropped today.** Planned to
+	 * route through the shared toast layer in a follow-up release. If
+	 * you need user feedback from a command `run()` right now, return
+	 * a `string` or `{ message: string }` from `run()` and the
+	 * assistant overlay / `wp.desktop.ai.ask()` caller will surface
+	 * it as `res.message`. For out-of-band toasts, dispatch
+	 * `wp-desktop.shell.toast` via `wp.desktop.hooks.doAction()`.
+	 *
+	 * This field stays typed so command code written today compiles
+	 * against the final API unchanged.
+	 */
 	notify?: ( message: string ) => void;
 }
 

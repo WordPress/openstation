@@ -138,7 +138,14 @@ interface AskDeps {
 		aiSearchUrl?: string;
 		restNonce?: string;
 	};
-	fallbackContext?: () => CommandContext;
+	/**
+	 * Builds the default `CommandContext` handed to a command's
+	 * `run()` when the caller doesn't pass their own. Required —
+	 * `desktop.ts` wires a real one that closes the assistant and
+	 * opens windows via the window manager. Tests pass whatever
+	 * minimal stub they need.
+	 */
+	fallbackContext: () => CommandContext;
 }
 
 const isAbortError = ( err: unknown ): boolean => {
@@ -164,6 +171,11 @@ const normaliseToolsOpt = (
 		return all;
 	}
 	if ( Array.isArray( tools ) ) {
+		// Slugs stored in the registry are already lowercase (enforced
+		// at `registerCommand` time), so we can match them directly —
+		// the caller's list is compared against canonical slugs, with
+		// a `.toLowerCase()` on the caller's side only if they passed
+		// mixed-case strings.
 		const allowed = new Set( tools.map( ( s ) => s.toLowerCase() ) );
 		return all.filter( ( c ) => allowed.has( c.slug ) );
 	}
@@ -202,26 +214,66 @@ const normaliseSystemPrompt = (
 };
 
 /**
+ * Pick the first non-empty string out of the command's return value
+ * and the server's initial payload. Used to seed `message` when the
+ * follow-up leg is skipped. Extracted so the logic has one home.
+ */
+function liftMessage(
+	payloadMessage: string | undefined,
+	result: CommandResult | { error: string },
+): string {
+	const seed = payloadMessage ?? '';
+	if ( seed !== '' ) {
+		return seed;
+	}
+	if ( typeof result === 'string' && result !== '' ) {
+		return result;
+	}
+	if (
+		result &&
+		typeof result === 'object' &&
+		'message' in result &&
+		typeof ( result as { message?: string } ).message === 'string'
+	) {
+		return ( result as { message: string } ).message;
+	}
+	return '';
+}
+
+/**
+ * Serialise the command's return value into the shape
+ * `/ai/search`'s `follow_up.result` expects. Non-object returns
+ * (string / void) get wrapped as `{ value: … }` so the server
+ * always sees an object it can JSON-encode.
+ */
+function serialiseOutcome(
+	result: CommandResult | { error: string } | undefined,
+): Record< string, unknown > {
+	if ( result === undefined ) {
+		return { value: null };
+	}
+	if ( typeof result === 'object' && result !== null ) {
+		return result as Record< string, unknown >;
+	}
+	return { value: result };
+}
+
+/**
  * Factory — binds to a config getter so the caller (desktop.ts) can
  * hand in the live shell config without this module reading globals.
  *
  * @since 0.17.0
  */
 export function createAsk( deps: AskDeps ) {
-	return async function ask(
-		query: string,
-		opts: AskOptions = {},
-	): Promise< AskResult > {
-		const text = ( query ?? '' ).trim();
-		if ( text === '' ) {
-			return {
-				answer_type: 'chat',
-				message: '',
-				entity: null,
-				admin_links: null,
-			};
-		}
-
+	// ------------------------------------------------------------
+	// Helper — POST to /ai/search + normalise errors. Used for both
+	// the primary leg and the follow-up leg. Keeps network + error
+	// semantics in one place.
+	// ------------------------------------------------------------
+	const postToSearch = async (
+		body: Record< string, unknown >,
+		signal: AbortSignal | undefined,
+	): Promise< Response > => {
 		const config = deps.config();
 		const url = config.aiSearchUrl ?? '';
 		const nonce = config.restNonce ?? '';
@@ -229,6 +281,159 @@ export function createAsk( deps: AskDeps ) {
 			throw new Error(
 				'[wp-desktop-mode] wp.desktop.ai.ask: aiSearchUrl / restNonce missing from config. AI Copilot may not be enabled.',
 			);
+		}
+		try {
+			return await fetch( url, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': nonce,
+				},
+				body: JSON.stringify( body ),
+				signal,
+			} );
+		} catch ( err ) {
+			if ( isAbortError( err ) ) {
+				throw err;
+			}
+			throw new Error(
+				`[wp-desktop-mode] wp.desktop.ai.ask: network error — ${ String(
+					( err as Error )?.message ?? err,
+				) }`,
+			);
+		}
+	};
+
+	// ------------------------------------------------------------
+	// Helper — when the server returned `tool_call`, find the
+	// command in the client registry, build a CommandContext, run
+	// it, and catch failures into a structured `{ error }` payload
+	// so the `AskResult` shape stays uniform.
+	// ------------------------------------------------------------
+	const dispatchToolCall = async (
+		payload: AskResult & { tool?: { slug: string; args: string } },
+		opts: AskOptions,
+	): Promise<
+		| {
+				ok: true;
+				slug: string;
+				args: string;
+				result: CommandResult | { error: string };
+		  }
+		| {
+				ok: false;
+				response: AskResult;
+		  }
+	> => {
+		const slug = payload.tool?.slug ?? '';
+		const args = payload.tool?.args ?? '';
+		const cmd = findCommand( slug );
+		if ( ! cmd ) {
+			return {
+				ok: false,
+				response: {
+					answer_type: 'tool_call',
+					message: `Command /${ slug } was not registered on this page.`,
+					entity: null,
+					admin_links: null,
+					toolCall: {
+						slug,
+						args,
+						result: { error: 'command_not_found' },
+					},
+					request_id: payload.request_id,
+				},
+			};
+		}
+
+		const ctx: CommandContext = opts.commandContext ?? deps.fallbackContext();
+
+		let result: CommandResult | { error: string };
+		try {
+			result = await Promise.resolve( cmd.run( args, ctx ) );
+		} catch ( err ) {
+			result = { error: String( ( err as Error )?.message ?? err ) };
+		}
+		return { ok: true, slug, args, result };
+	};
+
+	// ------------------------------------------------------------
+	// Helper — second-leg fetch that asks the server to compose a
+	// natural-language reply about the command outcome. Swallows
+	// network / HTTP failures so the command result is never lost
+	// to a degraded follow-up; `AbortError` still propagates so
+	// `AbortController.abort()` behaves uniformly across legs.
+	// ------------------------------------------------------------
+	const composeFollowUp = async (
+		text: string,
+		slug: string,
+		args: string,
+		result: CommandResult | { error: string },
+		sp: { text: string; mode: 'append' | 'replace' } | null,
+		signal: AbortSignal | undefined,
+	): Promise< string | null > => {
+		const body: Record< string, unknown > = {
+			query: text,
+			follow_up: {
+				tool: { slug, args },
+				result: serialiseOutcome( result ),
+			},
+		};
+		if ( sp ) {
+			body.system_prompt_text = sp.text;
+			body.system_prompt_mode = sp.mode;
+		}
+
+		let res: Response;
+		try {
+			res = await postToSearch( body, signal );
+		} catch ( err ) {
+			if ( isAbortError( err ) ) {
+				throw err;
+			}
+			// Degrade — primary result wins.
+			return null;
+		}
+		if ( ! res.ok ) {
+			return null;
+		}
+		const payload = ( await res.json().catch( () => ( {} ) ) ) as {
+			message?: string;
+		};
+		const message = typeof payload.message === 'string' ? payload.message.trim() : '';
+		return message !== '' ? payload.message ?? null : null;
+	};
+
+	return async function ask(
+		query: string,
+		opts: AskOptions = {},
+	): Promise< AskResult > {
+		const text = ( query ?? '' ).trim();
+		if ( text === '' ) {
+			// Empty query with non-default options is almost certainly
+			// a caller bug (someone built up an `opts` object then
+			// forgot to populate `query`). Throw loudly for the mixed
+			// case; preserve the silent no-op only for bare empty
+			// calls where the caller may legitimately want a harmless
+			// noop (e.g. debouncing an input field).
+			const hasMeaningfulOpts =
+				opts.tools !== undefined ||
+				opts.systemPrompt !== undefined ||
+				opts.followUp === true ||
+				opts.resumeTool !== undefined ||
+				opts.commandContext !== undefined;
+			if ( hasMeaningfulOpts ) {
+				throw new Error(
+					'[wp-desktop-mode] wp.desktop.ai.ask: empty query passed with non-default options — likely a caller bug. Provide a query or call without options.',
+				);
+			}
+			return {
+				answer_type: 'chat',
+				message: '',
+				entity: null,
+				admin_links: null,
+			};
 		}
 
 		const command_tools = normaliseToolsOpt( opts.tools );
@@ -249,28 +454,7 @@ export function createAsk( deps: AskDeps ) {
 			body.system_prompt_mode = sp.mode;
 		}
 
-		let res: Response;
-		try {
-			res = await fetch( url, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': nonce,
-				},
-				body: JSON.stringify( body ),
-				signal: opts.signal,
-			} );
-		} catch ( err ) {
-			if ( isAbortError( err ) ) {
-				throw err;
-			}
-			throw new Error(
-				`[wp-desktop-mode] wp.desktop.ai.ask: network error — ${ String(
-					( err as Error )?.message ?? err,
-				) }`,
-			);
-		}
+		const res = await postToSearch( body, opts.signal );
 
 		if ( ! res.ok ) {
 			const detail = await res
@@ -287,147 +471,46 @@ export function createAsk( deps: AskDeps ) {
 			tool?: { slug: string; args: string };
 		};
 
-		// -----------------------------------------------------------
-		// Tool-call short-circuit — the server said the model's
-		// answer was to invoke a slash-command. Look it up locally
-		// and run it. Failures don't reject the promise: we wrap
-		// them in `{ error: ... }` so the caller has a uniform
-		// `AskResult` shape.
-		// -----------------------------------------------------------
-		if ( payload.answer_type === 'tool_call' && payload.tool ) {
-			const slug = payload.tool.slug;
-			const args = payload.tool.args ?? '';
-			const cmd = findCommand( slug );
-			if ( ! cmd ) {
-				return {
-					answer_type: 'tool_call',
-					message: `Command /${ slug } was not registered on this page.`,
-					entity: null,
-					admin_links: null,
-					toolCall: {
-						slug,
-						args,
-						result: { error: 'command_not_found' },
-					},
-					request_id: payload.request_id,
-				};
-			}
-
-			const ctx: CommandContext =
-				opts.commandContext ??
-				deps.fallbackContext?.() ??
-				{
-					close: () => void 0,
-					openInWindow: () => void 0,
-					confirm: () => Promise.resolve( true ),
-				};
-
-			let result: CommandResult | { error: string };
-			try {
-				const maybe = await Promise.resolve( cmd.run( args, ctx ) );
-				result = maybe;
-			} catch ( err ) {
-				result = {
-					error: String( ( err as Error )?.message ?? err ),
-				};
-			}
-
-			// Lift a plain-string command return into `message` so
-			// the caller doesn't need to type-check every time. This
-			// is the one-shot fallback; the follow-up leg below
-			// overwrites `message` with the AI-composed reply.
-			let message = payload.message ?? '';
-			if ( typeof result === 'string' && result !== '' && message === '' ) {
-				message = result;
-			} else if (
-				result &&
-				typeof result === 'object' &&
-				'message' in result &&
-				typeof ( result as { message?: string } ).message === 'string' &&
-				message === ''
-			) {
-				message = ( result as { message: string } ).message;
-			}
-
-			// ---------------------------------------------------------
-			// Follow-up leg (opt-in). Ask the server for an AI-composed
-			// reply describing the outcome in the voice of the system
-			// prompt. On any failure we preserve the one-shot fallback
-			// — the command *did* run; losing the composed reply is a
-			// degraded experience, not a user-visible error.
-			// ---------------------------------------------------------
-			if ( opts.followUp === true ) {
-				const followBody: Record< string, unknown > = {
-					query: text,
-					follow_up: {
-						tool: { slug, args },
-						// Serialisable projection of the command's return
-						// value. Non-object returns (string, void) get
-						// wrapped in `{ value: … }` so the server always
-						// sees an object it can JSON-stringify.
-						result:
-							result === undefined
-								? { value: null }
-								: typeof result === 'object'
-									? result
-									: { value: result },
-					},
-				};
-				if ( sp ) {
-					followBody.system_prompt_text = sp.text;
-					followBody.system_prompt_mode = sp.mode;
-				}
-
-				try {
-					const fRes = await fetch( url, {
-						method: 'POST',
-						credentials: 'same-origin',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-WP-Nonce': nonce,
-						},
-						body: JSON.stringify( followBody ),
-						signal: opts.signal,
-					} );
-					if ( fRes.ok ) {
-						const fPayload = ( await fRes.json() ) as {
-							message?: string;
-							request_id?: string;
-						};
-						if (
-							typeof fPayload.message === 'string' &&
-							fPayload.message.trim() !== ''
-						) {
-							message = fPayload.message;
-						}
-					}
-				} catch ( err ) {
-					// Abort always propagates — the caller asked to cancel.
-					if ( isAbortError( err ) ) {
-						throw err;
-					}
-					// Any other failure: swallow. The tool ran, we have
-					// a one-shot `message` already, degraded-not-broken.
-				}
-			}
-
+		if ( payload.answer_type !== 'tool_call' || ! payload.tool ) {
 			return {
-				answer_type: 'tool_call',
-				message,
-				entity: null,
-				admin_links: null,
-				toolCall: { slug, args, result },
+				answer_type: payload.answer_type,
+				message: payload.message ?? '',
+				entity: payload.entity ?? null,
+				admin_links: payload.admin_links ?? null,
 				request_id: payload.request_id,
+				continue: payload.continue ?? null,
 			};
 		}
 
+		const dispatch = await dispatchToolCall( payload, opts );
+		if ( ! dispatch.ok ) {
+			return dispatch.response;
+		}
+
+		const { slug, args, result } = dispatch;
+		let message = liftMessage( payload.message, result );
+
+		if ( opts.followUp === true ) {
+			const composed = await composeFollowUp(
+				text,
+				slug,
+				args,
+				result,
+				sp,
+				opts.signal,
+			);
+			if ( composed !== null ) {
+				message = composed;
+			}
+		}
+
 		return {
-			answer_type: payload.answer_type,
-			message: payload.message ?? '',
-			entity: payload.entity ?? null,
-			admin_links: payload.admin_links ?? null,
+			answer_type: 'tool_call',
+			message,
+			entity: null,
+			admin_links: null,
+			toolCall: { slug, args, result },
 			request_id: payload.request_id,
-			continue: payload.continue ?? null,
 		};
 	};
 }

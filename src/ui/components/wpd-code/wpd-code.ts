@@ -32,7 +32,7 @@ export class WpdCode extends Component {
 		title: 'Code',
 		summary:
 			'Inline monospace code badge — safe for URLs, flag names, and any string that would otherwise steal keypresses if rendered as <wpd-key>. Set `block` for a multi-line snippet box.',
-		status: 'stable',
+		status: 'experimental',
 		since: '0.17.0',
 		props: [
 			{

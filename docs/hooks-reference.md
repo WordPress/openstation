@@ -181,13 +181,15 @@ wp_register_desktop_command( array(
 ) );
 ```
 
+**No `ai_callable` PHP-side flag — by design.** The [`aiCallable`](./javascript-reference.md#wpdesktopaiask-query-opts--stable-since-0170) opt-in lives on the JS-side `registerCommand` call only, because `wp.desktop.ai.ask()` harvests from the client registry (not server metadata). To gate further per-user once a command has opted in, use the `wp_desktop_ai_command_allowed` filter below.
+
 ```php
 do_action( 'wp_desktop_icon_registered', string $id, array $entry );
 ```
 
 ---
 
-### `wp_desktop_settings_tab_script_registered` — Stable
+### `wp_desktop_settings_tab_script_registered` — Experimental (since 0.17.0)
 
 Fires after `wp_desktop_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `wp_register_desktop_settings_tab()` implicitly registers its `script` argument.
 
@@ -195,7 +197,7 @@ Fires after `wp_desktop_register_settings_tab_script()` stores an OS Settings ta
 do_action( 'wp_desktop_settings_tab_script_registered', string $handle );
 ```
 
-### `wp_desktop_settings_tab_registered` — Stable
+### `wp_desktop_settings_tab_registered` — Experimental (since 0.17.0)
 
 Fires after `wp_register_desktop_settings_tab()` successfully stores a tab's metadata. Does not fire on `WP_Error`.
 
@@ -203,7 +205,7 @@ Fires after `wp_register_desktop_settings_tab()` successfully stores a tab's met
 do_action( 'wp_desktop_settings_tab_registered', string $id, array $entry );
 ```
 
-### `wp_desktop_register_settings_tab_script( $handle )` — Stable (PHP function)
+### `wp_desktop_register_settings_tab_script( $handle )` — Experimental (PHP function, since 0.17.0)
 
 Declares a WP-registered script handle as an OS Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerSettingsTab()` calls made by the plugin's JS appear in the OS Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
 
@@ -227,7 +229,7 @@ For live *unregistration* on deactivation, either:
 
 Tabs using neither mechanism stay until the next page reload.
 
-### `wp_register_desktop_settings_tab( $args )` — Stable (PHP function)
+### `wp_register_desktop_settings_tab( $args )` — Experimental (PHP function, since 0.17.0)
 
 Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly calls `wp_desktop_register_settings_tab_script( $args['script'] )` when `script` is provided.
 
@@ -855,7 +857,7 @@ apply_filters( 'wp_desktop_ai_error_log_candidates', array $candidates );
 
 ---
 
-## AI Copilot extensibility — `/ai/search` (Stable, since 0.17.0)
+## AI Copilot extensibility — `/ai/search` (Experimental, since 0.17.0)
 
 Every `POST /wp-desktop/v1/ai/search` call — whether driven by the built-in overlay or by `wp.desktop.ai.ask()` — runs through this layered hook surface. Use it to:
 
@@ -1008,7 +1010,7 @@ do_action( 'wp_desktop_ai_search_error', array $error );
 
 ---
 
-### `wp_register_desktop_ai_tool( $args )` — Stable (PHP function, since 0.17.0)
+### `wp_register_desktop_ai_tool( $args )` — Experimental (PHP function, since 0.17.0)
 
 Register a server-dispatched AI tool. Tool handlers run on the server, return a JSON-serialisable array, and the result is fed straight back to the OpenAI agent loop. This is the right home for integrations that are inherently server-side: site-health checks, order lookups, WP-CLI wrappers, database-heavy queries.
 

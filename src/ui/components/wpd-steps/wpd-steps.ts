@@ -36,7 +36,7 @@ export class WpdSteps extends Component {
 		title: 'Steps',
 		summary:
 			'Ordered/numbered-steps container. Children are <wpd-step> elements; numbers are assigned via a CSS counter so insertions renumber automatically. Use for onboarding, setup flows, migration guides.',
-		status: 'stable',
+		status: 'experimental',
 		since: '0.17.0',
 		slots: [
 			{
@@ -74,7 +74,7 @@ export class WpdStep extends Component {
 		title: 'Step',
 		summary:
 			'A single numbered step inside <wpd-steps>. Renders an auto-numbered chip and an optional bold title above the slotted body.',
-		status: 'stable',
+		status: 'experimental',
 		since: '0.17.0',
 		props: [
 			{

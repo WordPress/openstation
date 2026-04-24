@@ -786,75 +786,43 @@ INSTRUCTIONS;
 	}
 
 	// -----------------------------------------------------------------------
-	// System-prompt extensibility.
-	//
-	// Three layers, applied in order:
-	//   1. `wp_desktop_ai_system_prompt_appendix` — stacking extension
-	//      point. Every plugin's filter result is concatenated. Safe
-	//      for the common case ("my plugin adds domain context").
-	//   2. Client override — `system_prompt_text` + `system_prompt_mode`
-	//      from the REST request. `append` is always allowed; `replace`
-	//      requires a capability the default shell gates behind
-	//      `manage_options` (filterable).
-	//   3. `wp_desktop_ai_system_prompt` — final transform pass. Plugins
-	//      can rewrite the composed prompt (rare; mainly for
-	//      compliance-style "always include this disclaimer" overlays).
+	// System-prompt extensibility. All three layers — appendix filter,
+	// client override (append/replace with capability gate), and final
+	// transform — live in `wpdm_ai_compose_instructions()` so the
+	// primary run and the follow-up leg stay in lockstep. See the
+	// helper for the order of application; see the filter docblocks
+	// below for the public contract on each extension point.
 	// -----------------------------------------------------------------------
 	$prompt_context = array(
-		'query'           => $query,
-		'user_id'         => $user_id,
-		'request_id'      => $request_id,
-		'client_override' => '' !== $system_prompt_text ? $system_prompt_mode : null,
+		'query'      => $query,
+		'user_id'    => $user_id,
+		'request_id' => $request_id,
 	);
 
 	/**
 	 * Short-circuit extension — appended to the built-in instructions
 	 * verbatim. Use this when a plugin just wants to add domain
 	 * context (room list, product catalogue, company jargon) without
-	 * restructuring the core rules.
+	 * restructuring the core rules. Fires for both the primary
+	 * `/ai/search` run and the follow-up composed-reply leg.
 	 *
 	 * @since 0.17.0
 	 *
 	 * @param string $appendix Accumulated appendix. Default empty.
-	 * @param array  $context  { query, user_id, request_id, client_override }.
+	 * @param array  $context  { query, user_id, request_id, client_override, phase? }.
 	 */
-	$server_appendix = (string) apply_filters( 'wp_desktop_ai_system_prompt_appendix', '', $prompt_context );
-	if ( '' !== $server_appendix ) {
-		$instructions .= "\n\n" . $server_appendix;
-	}
 
-	if ( '' !== $system_prompt_text ) {
-		if ( 'replace' === $system_prompt_mode ) {
-			/**
-			 * Capability required for a client to send
-			 * `system_prompt: { mode: 'replace' }`. Defaults to
-			 * `manage_options` — replacing the whole prompt can
-			 * effectively hijack the assistant, so it's admin-only
-			 * out of the box.
-			 *
-			 * @since 0.17.0
-			 *
-			 * @param string $capability Default `manage_options`.
-			 * @param array  $context
-			 */
-			$required_cap = (string) apply_filters(
-				'wp_desktop_ai_system_prompt_replace_capability',
-				'manage_options',
-				$prompt_context
-			);
-			if ( '' === $required_cap || user_can( $user_id, $required_cap ) ) {
-				$instructions = $system_prompt_text;
-			} else {
-				// Silently downgrade to append — the user didn't
-				// have the cap to replace, but append is always
-				// allowed, so we preserve their intent rather than
-				// drop their text.
-				$instructions .= "\n\n" . $system_prompt_text;
-			}
-		} else {
-			$instructions .= "\n\n" . $system_prompt_text;
-		}
-	}
+	/**
+	 * Capability required for a client to send
+	 * `system_prompt: { mode: 'replace' }`. Defaults to `manage_options`
+	 * — replacing the whole prompt can effectively hijack the
+	 * assistant, so it's admin-only out of the box.
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param string $capability Default `manage_options`.
+	 * @param array  $context
+	 */
 
 	/**
 	 * Final transform pass. Fires after the built-in instructions,
@@ -865,7 +833,11 @@ INSTRUCTIONS;
 	 * @param string $instructions Composed system prompt.
 	 * @param array  $context
 	 */
-	$instructions = (string) apply_filters( 'wp_desktop_ai_system_prompt', $instructions, $prompt_context );
+	$instructions = wpdm_ai_compose_instructions(
+		$instructions,
+		$prompt_context,
+		array( 'text' => $system_prompt_text, 'mode' => $system_prompt_mode )
+	);
 
 	// -----------------------------------------------------------------------
 	// Tool assembly — built-in search/navigation + PHP-registered +
@@ -894,18 +866,6 @@ INSTRUCTIONS;
 	$command_tools_by_name = array();
 	$command_defs          = array();
 
-	/**
-	 * Per-tool filter on the client-supplied command list. Return
-	 * `false` to drop a command entirely before it reaches the
-	 * model — the right hook for per-role / per-command gating.
-	 *
-	 * @since 0.17.0
-	 *
-	 * @param bool|array $allowed Either the (possibly mutated) command
-	 *                            tool entry, or `false` to drop it.
-	 * @param string     $slug    Command slug.
-	 * @param array      $context { user_id, request_id }.
-	 */
 	foreach ( $command_tools_raw as $cmd ) {
 		if ( ! is_array( $cmd ) ) {
 			continue;
@@ -914,6 +874,18 @@ INSTRUCTIONS;
 		if ( $slug === '' || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
 			continue;
 		}
+		/**
+		 * Per-tool filter on the client-supplied command list. Return
+		 * `false` to drop a command entirely before it reaches the
+		 * model — the right hook for per-role / per-command gating.
+		 *
+		 * @since 0.17.0
+		 *
+		 * @param bool|array $allowed Either the (possibly mutated) command
+		 *                            tool entry, or `false` to drop it.
+		 * @param string     $slug    Command slug.
+		 * @param array      $context { user_id, request_id }.
+		 */
 		$allowed = apply_filters(
 			'wp_desktop_ai_command_allowed',
 			$cmd,
@@ -1330,6 +1302,75 @@ INSTRUCTIONS;
 }
 
 /**
+ * Compose the final system-prompt string for an `/ai/search` call.
+ *
+ * One code path used by both the primary run and the follow-up leg —
+ * keeps the voice consistent across legs and removes a class of drift
+ * bug where the two paths's prompt-assembly drifts apart.
+ *
+ * Applies three layers in order:
+ *   1. `wp_desktop_ai_system_prompt_appendix` — stacking filter;
+ *      every plugin's return is concatenated.
+ *   2. Client override — `system_prompt_text` + `system_prompt_mode`.
+ *      `append` always allowed; `replace` gated on
+ *      `wp_desktop_ai_system_prompt_replace_capability`. Non-permitted
+ *      `replace` downgrades to `append` so the caller's text is
+ *      preserved rather than dropped.
+ *   3. `wp_desktop_ai_system_prompt` — final transform pass.
+ *
+ * @since 0.17.0
+ * @internal
+ *
+ * @param string $core    Built-in instructions for this phase
+ *                        (agent loop / follow-up summariser).
+ * @param array  $context { query, user_id, request_id, phase? }.
+ * @param array  $client  { text, mode } client override; either field
+ *                        empty means no override.
+ * @return string Composed system prompt.
+ */
+function wpdm_ai_compose_instructions( $core, array $context, array $client = array() ) {
+	$instructions = (string) $core;
+	$user_id      = isset( $context['user_id'] ) ? (int) $context['user_id'] : 0;
+
+	$client_text = isset( $client['text'] ) && is_string( $client['text'] ) ? $client['text'] : '';
+	$client_mode = isset( $client['mode'] ) && in_array( $client['mode'], array( 'append', 'replace' ), true )
+		? (string) $client['mode']
+		: 'append';
+
+	$ctx_for_filter = $context;
+	$ctx_for_filter['client_override'] = '' !== $client_text ? $client_mode : null;
+
+	/** @see wp_desktop_ai_system_prompt_appendix — documented at primary call site. */
+	$server_appendix = (string) apply_filters( 'wp_desktop_ai_system_prompt_appendix', '', $ctx_for_filter );
+	if ( '' !== $server_appendix ) {
+		$instructions .= "\n\n" . $server_appendix;
+	}
+
+	if ( '' !== $client_text ) {
+		if ( 'replace' === $client_mode ) {
+			/** @see wp_desktop_ai_system_prompt_replace_capability — documented at primary call site. */
+			$required_cap = (string) apply_filters(
+				'wp_desktop_ai_system_prompt_replace_capability',
+				'manage_options',
+				$ctx_for_filter
+			);
+			if ( '' === $required_cap || ( $user_id > 0 && user_can( $user_id, $required_cap ) ) ) {
+				$instructions = $client_text;
+			} else {
+				// Silently downgrade to append — preserves the caller's
+				// text rather than dropping it when the cap check fails.
+				$instructions .= "\n\n" . $client_text;
+			}
+		} else {
+			$instructions .= "\n\n" . $client_text;
+		}
+	}
+
+	/** @see wp_desktop_ai_system_prompt — documented at primary call site. */
+	return (string) apply_filters( 'wp_desktop_ai_system_prompt', $instructions, $ctx_for_filter );
+}
+
+/**
  * Compose a natural-language reply describing the outcome of a
  * client-dispatched command invocation.
  *
@@ -1393,34 +1434,16 @@ INSTRUCTIONS;
 		? (string) $extra['system_prompt_mode']
 		: 'append';
 
-	$prompt_context = array(
-		'query'           => $query,
-		'user_id'         => $user_id,
-		'request_id'      => $request_id,
-		'client_override' => '' !== $system_prompt_text ? $system_prompt_mode : null,
-		'phase'           => 'follow_up',
+	$instructions = wpdm_ai_compose_instructions(
+		$instructions,
+		array(
+			'query'      => $query,
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+			'phase'      => 'follow_up',
+		),
+		array( 'text' => $system_prompt_text, 'mode' => $system_prompt_mode )
 	);
-	$server_appendix = (string) apply_filters( 'wp_desktop_ai_system_prompt_appendix', '', $prompt_context );
-	if ( '' !== $server_appendix ) {
-		$instructions .= "\n\n" . $server_appendix;
-	}
-	if ( '' !== $system_prompt_text ) {
-		if ( 'replace' === $system_prompt_mode ) {
-			$required_cap = (string) apply_filters(
-				'wp_desktop_ai_system_prompt_replace_capability',
-				'manage_options',
-				$prompt_context
-			);
-			if ( '' === $required_cap || user_can( $user_id, $required_cap ) ) {
-				$instructions = $system_prompt_text;
-			} else {
-				$instructions .= "\n\n" . $system_prompt_text;
-			}
-		} else {
-			$instructions .= "\n\n" . $system_prompt_text;
-		}
-	}
-	$instructions = (string) apply_filters( 'wp_desktop_ai_system_prompt', $instructions, $prompt_context );
 
 	$slug         = isset( $tool['slug'] ) ? (string) $tool['slug'] : '';
 	$tool_args    = isset( $tool['args'] ) ? (string) $tool['args'] : '';
@@ -1434,9 +1457,24 @@ INSTRUCTIONS;
 	// bound. 4 KB is enough for a status string, a small result list,
 	// or a short error envelope — anything bigger gets truncated with
 	// a marker so the model knows the tail was dropped.
+	//
+	// `mb_*` variants so truncation on a multibyte boundary
+	// (Japanese / emoji / accented UTF-8) can't produce invalid JSON
+	// that OpenAI would reject. Falls back to byte-level substr when
+	// mbstring is unavailable (rare but possible on minimal PHP
+	// builds).
 	$max_outcome_len = (int) apply_filters( 'wp_desktop_ai_followup_outcome_max_chars', 4000 );
-	if ( $max_outcome_len > 0 && strlen( $outcome_json ) > $max_outcome_len ) {
-		$outcome_json = substr( $outcome_json, 0, $max_outcome_len ) . '…[truncated]';
+	if ( $max_outcome_len > 0 ) {
+		$has_mbstring = function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' );
+		$current_len  = $has_mbstring
+			? mb_strlen( $outcome_json, 'UTF-8' )
+			: strlen( $outcome_json );
+		if ( $current_len > $max_outcome_len ) {
+			$outcome_json = $has_mbstring
+				? mb_substr( $outcome_json, 0, $max_outcome_len, 'UTF-8' )
+				: substr( $outcome_json, 0, $max_outcome_len );
+			$outcome_json .= '…[truncated]';
+		}
 	}
 
 	$user_message = sprintf(
@@ -1480,13 +1518,17 @@ INSTRUCTIONS;
 		return $response;
 	}
 
-	$text = wpdm_ai_extract_text( $response );
+	$text     = wpdm_ai_extract_text( $response );
+	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
 		// Graceful degrade — if OpenAI returned nothing usable, fall
 		// back to a generic confirmation so the caller always has a
 		// message to show. Better than returning an error and losing
-		// the fact that the command *did* run.
-		$text = 'Done.';
+		// the fact that the command *did* run. We flag the degrade so
+		// observability subscribers can distinguish a deliberate
+		// "Done." from a silently-degraded one.
+		$text     = 'Done.';
+		$fallback = true;
 	}
 
 	$final = array(
@@ -1499,6 +1541,7 @@ INSTRUCTIONS;
 		'continue'    => null,
 		'request_id'  => $request_id,
 		'tool'        => array( 'slug' => $slug, 'args' => $tool_args ),
+		'fallback'    => $fallback,
 	);
 
 	$final = (array) apply_filters(
@@ -1521,6 +1564,7 @@ INSTRUCTIONS;
 			'answer_type' => 'chat',
 			'iterations'  => 1,
 			'phase'       => 'follow_up',
+			'fallback'    => $fallback,
 		)
 	);
 

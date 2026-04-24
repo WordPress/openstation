@@ -499,7 +499,7 @@ window.wp.desktop.listCommands().forEach( ( c ) => console.log( `/${ c.slug } �
 
 ---
 
-### `wp.desktop.ai.ask( query, opts? )` — Stable  *(since 0.17.0)*
+### `wp.desktop.ai.ask( query, opts? )` — Experimental  *(since 0.17.0)*
 
 Programmatic access to the AI Copilot — same endpoint the built-in overlay talks to. Resolves to an `AskResult`; rejects on network errors, HTTP failures, or abort.
 
@@ -628,7 +628,7 @@ See also: [`docs/examples/ai-ask.md`](./examples/ai-ask.md).
 
 ---
 
-### `registerSettingsTab( def )` — Stable  *(since 0.17.0)*
+### `registerSettingsTab( def )` — Experimental  *(since 0.17.0)*
 
 Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Extended Options, Help — and renders its body via your `render( body, ctx )` callback.
 
@@ -757,7 +757,7 @@ For live *unregistration on deactivation*, either set `owner` (as above) to your
 
 ---
 
-### `unregisterSettingsTab( id )` — Stable  *(since 0.17.0)*
+### `unregisterSettingsTab( id )` — Experimental  *(since 0.17.0)*
 
 Remove a previously registered tab. Idempotent.
 
@@ -767,7 +767,7 @@ wp.desktop.unregisterSettingsTab( 'my-plugin' );
 
 ---
 
-### `listSettingsTabs()` — Stable  *(since 0.17.0)*
+### `listSettingsTabs()` — Experimental  *(since 0.17.0)*
 
 Snapshot of every currently registered third-party settings tab, sorted by `order`. Built-in tabs are not included.
 
@@ -1445,7 +1445,7 @@ wp.desktop.registerWallpaper( {
 | `getWallpaperSurfaces()` | Stable | Live `WallpaperSurface[]` for collision-aware wallpapers. See "Wallpaper surfaces" below. |
 | `registerModule( def )` | Stable | Register a shared vendor library under a stable id. |
 | `loadModules( ids )` | Stable | Imperatively load registered modules. Usually unnecessary — canvas wallpapers declare `needs[]` and the shell resolves. |
-| `ready( cb )` | Stable *(since 0.17.0)* | **Recommended bootstrap entry point.** Run `cb` after `wp-desktop.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
+| `ready( cb )` | Experimental *(since 0.17.0)* | **Recommended bootstrap entry point.** Run `cb` after `wp-desktop.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
 | `whenReady( cb )` | Stable | Original name for `ready( cb )` — same behaviour; keep using it if you've already adopted it. |
 | `isReady()` | Stable | Synchronous boolean — has `wp-desktop.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
 | `refreshMenu()` | Stable | Force a refetch of the live admin-menu split. Auto-fired on plugin activation / deactivation. |

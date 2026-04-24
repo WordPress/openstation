@@ -26,6 +26,26 @@ const CONFIG = {
 	restNonce: 'test-nonce',
 };
 
+/**
+ * Minimal `CommandContext` used as the `fallbackContext` dep. Tests
+ * that care about the context (verifying `close` was called etc.)
+ * build their own; everything else pulls this.
+ */
+const stubCtx = () => ( {
+	close: () => void 0,
+	openInWindow: () => void 0,
+	confirm: () => Promise.resolve( true ),
+} );
+
+/**
+ * Build an AbortError-shaped error without leaning on jsdom's
+ * `DOMException`, which is flaky around the second constructor arg
+ * (doesn't reliably set `name`). All `ask()` checks is `err.name`.
+ */
+function makeAbortError(): Error {
+	return Object.assign( new Error( 'aborted' ), { name: 'AbortError' } );
+}
+
 type FetchMock = ReturnType< typeof vi.fn >;
 
 function mockFetchOnce( response: unknown, init: Partial< Response > = {} ): FetchMock {
@@ -88,7 +108,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			admin_links: null,
 			request_id: 'req-1',
 		} );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 
 		const res = await ask( 'hi' );
 
@@ -113,7 +133,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 
 	test( 'empty/whitespace query short-circuits without hitting the network', async () => {
 		const fetchFn = mockFetchOnce( { answer_type: 'chat', message: '' } );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		const res = await ask( '   ' );
 		expect( fetchFn ).not.toHaveBeenCalled();
 		expect( res.answer_type ).toBe( 'chat' );
@@ -139,7 +159,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			answer_type: 'chat',
 			message: 'ok',
 		} );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		await ask( 'turn lights on', { tools: 'aiCallable' } );
 
 		const body = JSON.parse(
@@ -168,7 +188,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			tool: { slug: 'turn_lights', args: 'ON' },
 			request_id: 'req-tc',
 		} );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 
 		const res = await ask( 'hey turn on the lights', {
 			tools: 'aiCallable',
@@ -191,7 +211,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			message: '',
 			tool: { slug: 'ghost_command', args: '' },
 		} );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		const res = await ask( 'ping' );
 		expect( res.answer_type ).toBe( 'tool_call' );
 		expect( res.toolCall?.result ).toEqual( {
@@ -213,7 +233,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			message: '',
 			tool: { slug: 'explodes', args: '' },
 		} );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		const res = await ask( 'x', { tools: 'aiCallable' } );
 		expect( ( res.toolCall?.result as { error: string } ).error ).toBe(
 			'kaboom',
@@ -226,7 +246,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			answer_type: 'chat',
 			message: 'ok',
 		} );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		await ask( 'hi', { systemPrompt: 'You are friendly.' } );
 		const body = JSON.parse(
 			fetchFn.mock.calls[ 0 ][ 1 ].body as string,
@@ -240,7 +260,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			answer_type: 'chat',
 			message: 'ok',
 		} );
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		await ask( 'hi', {
 			systemPrompt: { mode: 'replace', text: 'Only answer in haiku.' },
 		} );
@@ -261,13 +281,14 @@ describe( 'wp.desktop.ai.ask()', () => {
 					json: async () => ( { message: 'AI disabled' } ),
 				} ) as unknown as Response,
 		);
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		await expect( ask( 'hi' ) ).rejects.toThrow( /AI disabled/ );
 	} );
 
 	test( 'missing aiSearchUrl throws a readable error before fetching', async () => {
 		const ask = createAsk( {
 			config: () => ( { aiSearchUrl: '', restNonce: '' } ),
+			fallbackContext: stubCtx,
 		} );
 		await expect( ask( 'hi' ) ).rejects.toThrow(
 			/aiSearchUrl \/ restNonce missing/,
@@ -302,7 +323,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			},
 		] );
 
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		const res = await ask( 'turn on the lights', {
 			tools: 'aiCallable',
 			followUp: true,
@@ -347,7 +368,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			{ answer_type: 'chat', message: 'Counted 42 items.' },
 		] );
 
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		await ask( 'how many things are there', {
 			tools: 'aiCallable',
 			followUp: true,
@@ -363,6 +384,51 @@ describe( 'wp.desktop.ai.ask()', () => {
 		} );
 
 		unregisterCommand( 'count_things' );
+	} );
+
+	test( 'followUp: true + systemPrompt { mode: replace } forwards both legs', async () => {
+		registerCommand( {
+			slug: 'noop_replace',
+			label: 'No-op',
+			aiCallable: true,
+			run: () => 'ok',
+		} );
+
+		const fetchFn = mockFetchSequence( [
+			{
+				answer_type: 'tool_call',
+				message: '',
+				tool: { slug: 'noop_replace', args: '' },
+			},
+			{ answer_type: 'chat', message: 'Done.' },
+		] );
+
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
+		await ask( 'do it', {
+			tools: 'aiCallable',
+			followUp: true,
+			systemPrompt: { mode: 'replace', text: 'Reply in one word.' },
+		} );
+
+		const leg1 = JSON.parse( fetchFn.mock.calls[ 0 ][ 1 ].body as string );
+		const leg2 = JSON.parse( fetchFn.mock.calls[ 1 ][ 1 ].body as string );
+
+		expect( leg1.system_prompt_mode ).toBe( 'replace' );
+		expect( leg1.system_prompt_text ).toBe( 'Reply in one word.' );
+		expect( leg2.system_prompt_mode ).toBe( 'replace' );
+		expect( leg2.system_prompt_text ).toBe( 'Reply in one word.' );
+
+		unregisterCommand( 'noop_replace' );
+	} );
+
+	test( 'empty query with non-default opts throws to catch caller bugs', async () => {
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
+		await expect(
+			ask( '', { followUp: true } ),
+		).rejects.toThrow( /empty query passed with non-default options/ );
+		await expect(
+			ask( '   ', { tools: 'aiCallable' } ),
+		).rejects.toThrow( /empty query passed with non-default options/ );
 	} );
 
 	test( 'followUp: true forwards systemPrompt to the second leg', async () => {
@@ -382,7 +448,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			{ answer_type: 'chat', message: 'Done.' },
 		] );
 
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		await ask( 'noop', {
 			tools: 'aiCallable',
 			followUp: true,
@@ -415,7 +481,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			new Error( 'network fail on leg 2' ),
 		] );
 
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		const res = await ask( 'try it', {
 			tools: 'aiCallable',
 			followUp: true,
@@ -434,7 +500,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			{ answer_type: 'chat', message: 'just chatting' },
 		] );
 
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		const res = await ask( 'hello', { followUp: true } );
 
 		// Only one fetch — follow-up is only relevant for tool_call.
@@ -450,12 +516,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 			run: () => 'primary',
 		} );
 
-		// jsdom's `DOMException` is flaky around the second constructor
-		// arg (doesn't reliably set `name`), so build the AbortError
-		// shape directly — all `ask()` checks is `err.name`.
-		const abortErr = Object.assign( new Error( 'aborted' ), {
-			name: 'AbortError',
-		} );
+		const abortErr = makeAbortError();
 		mockFetchSequence( [
 			{
 				answer_type: 'tool_call',
@@ -466,7 +527,7 @@ describe( 'wp.desktop.ai.ask()', () => {
 		] );
 
 		const controller = new AbortController();
-		const ask = createAsk( { config: () => CONFIG } );
+		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		await expect(
 			ask( 'try', {
 				tools: 'aiCallable',
