@@ -30,7 +30,7 @@ import {
 } from './../commands';
 import type { HarvestedCommand } from './../types';
 import type { WindowManager } from './../window-manager';
-import { deriveWindowId } from './../utils';
+import { deriveWindowId, sanitizeIconSvg } from './../utils';
 
 // Small development logging helper to avoid raw `console.log` scattered
 // throughout the file and to satisfy the `no-console` ESLint rule in
@@ -151,7 +151,7 @@ export class IframeCommandBridge {
 			// message listener has attached (navigation inside a window,
 			// slow editor boot, etc.).
 			if ( data.type === 'wp-desktop-bridge-ready' ) {
-				const win = this.windowForSource( e.source );
+				const win = this.manager.findByIframeSource( e.source );
 				devLog(
 					'[wpd-cmd:parent] bridge-ready from window=%s (subscribedTo=%s)',
 					win ? win.id : 'unknown',
@@ -171,11 +171,22 @@ export class IframeCommandBridge {
 				return;
 			}
 			// Attribute the list to whichever window's iframe sent it.
-			const win = this.windowForSource( e.source );
+			const win = this.manager.findByIframeSource( e.source );
 			if ( ! win ) {
 				devLog(
-					'[wpd-cmd:parent] commands-list: could not match source to a window (stack=%o)',
-					this.manager._stack.map( ( w ) => w.id ),
+					'[wpd-cmd:parent] commands-list: could not match source to any window',
+				);
+				return;
+			}
+			// Only accept lists from the currently subscribed window.
+			// Background iframes shouldn't be streaming (they were told
+			// to unsubscribe), but if one does — stale or misbehaving
+			// — we don't want its commands leaking into the palette.
+			if ( win.id !== this.subscribedWindowId ) {
+				devLog(
+					'[wpd-cmd:parent] commands-list: ignoring list from non-subscribed window %s (subscribed=%s)',
+					win.id,
+					this.subscribedWindowId,
 				);
 				return;
 			}
@@ -194,18 +205,6 @@ export class IframeCommandBridge {
 		if ( focused ) {
 			this.onFocused( focused.id );
 		}
-	}
-
-	private windowForSource( source: MessageEventSource | null ) {
-		if ( ! source ) {
-			return null;
-		}
-		for ( const w of this.manager._stack ) {
-			if ( w.iframe && w.iframe.contentWindow === source ) {
-				return w;
-			}
-		}
-		return null;
 	}
 
 	private onFocused( windowId: string ): void {
@@ -271,12 +270,15 @@ export class IframeCommandBridge {
 				continue;
 			}
 			const slug = slugFor( windowId, cmd.name );
+			const safeSvg = typeof cmd.iconSvg === 'string' && cmd.iconSvg !== ''
+				? sanitizeIconSvg( cmd.iconSvg )
+				: '';
 
 			const def: DesktopCommand = {
 				slug,
 				label: cmd.label,
 				icon: iconFor( cmd ),
-				iconSvg: typeof cmd.iconSvg === 'string' && cmd.iconSvg !== '' ? cmd.iconSvg : undefined,
+				iconSvg: safeSvg !== '' ? safeSvg : undefined,
 				owner,
 				// Harvested commands are contextual by construction —
 				// they come from whichever window has focus. Surface

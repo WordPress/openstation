@@ -106,3 +106,84 @@ export function urlMatchKey( url: string ): string {
 		return url;
 	}
 }
+
+/**
+ * Sanitize an SVG string before injecting it via `innerHTML`.
+ *
+ * The iframe command bridge forwards `@wordpress/icons` React elements
+ * through `renderToString` → postMessage → parent. The payload is
+ * same-origin by construction — only a script already running with
+ * admin privileges in the iframe could forge it — but "same-origin"
+ * is not "safe": a compromised or malicious plugin inside the iframe
+ * could register a command whose icon renders script / event-handler
+ * SVG. Strip the well-known dangerous subset so a future extension of
+ * the bridge (a plugin-authored icon pipeline, user-supplied themes)
+ * can't turn a layout glyph into an XSS primitive.
+ *
+ * The policy is intentionally strict: discard anything that doesn't
+ * parse into a single root `<svg>` element, drop `<script>` / `<style>`
+ * / `<foreignObject>` subtrees, strip any attribute whose name starts
+ * with `on`, and drop any attribute value containing `javascript:`.
+ * Falls back to an empty string when the DOM parser isn't available
+ * (SSR, unit tests without jsdom) — callers treat empty as "no SVG,
+ * use the dashicon fallback".
+ */
+export function sanitizeIconSvg( svg: string ): string {
+	if ( typeof svg !== 'string' || svg === '' ) {
+		return '';
+	}
+	if ( typeof DOMParser === 'undefined' ) {
+		return '';
+	}
+	let doc: Document;
+	try {
+		doc = new DOMParser().parseFromString( svg, 'image/svg+xml' );
+	} catch {
+		return '';
+	}
+	const root = doc.documentElement;
+	if ( ! root || root.nodeName.toLowerCase() !== 'svg' ) {
+		return '';
+	}
+	// Bail on any parsererror node the browser inserts on malformed input.
+	if ( doc.getElementsByTagName( 'parsererror' ).length > 0 ) {
+		return '';
+	}
+
+	const BANNED_TAGS = new Set( [ 'script', 'style', 'foreignobject', 'iframe', 'object', 'embed' ] );
+	const walk = ( el: Element ): void => {
+		// Snapshot first — we mutate siblings during traversal.
+		const children = Array.from( el.children );
+		for ( const child of children ) {
+			if ( BANNED_TAGS.has( child.nodeName.toLowerCase() ) ) {
+				child.remove();
+				continue;
+			}
+			// Strip event-handler attributes and javascript: URLs.
+			for ( const attr of Array.from( child.attributes ) ) {
+				const name = attr.name.toLowerCase();
+				const value = attr.value.trim().toLowerCase();
+				if ( name.startsWith( 'on' ) ) {
+					child.removeAttribute( attr.name );
+					continue;
+				}
+				if ( value.startsWith( 'javascript:' ) ) {
+					child.removeAttribute( attr.name );
+				}
+			}
+			walk( child );
+		}
+	};
+	walk( root );
+
+	// Root attributes need the same treatment.
+	for ( const attr of Array.from( root.attributes ) ) {
+		const name = attr.name.toLowerCase();
+		const value = attr.value.trim().toLowerCase();
+		if ( name.startsWith( 'on' ) || value.startsWith( 'javascript:' ) ) {
+			root.removeAttribute( attr.name );
+		}
+	}
+
+	return root.outerHTML;
+}

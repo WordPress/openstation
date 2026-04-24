@@ -941,8 +941,17 @@ function wpdm_chromeless_bridge_script() {
 	 * of chromeless mode. Everything else is `action` and proxies back
 	 * into this iframe on user selection.
 	 */
+	// Dev-only logging. Every `[wpd-cmd:iframe] …` line in this file
+	// routes through `__wpdLog`, which is a no-op in production. The
+	// `/*__WPDM_CMD_DEBUG__*/` placeholder is substituted by PHP
+	// below with the JSON-encoded value of `WP_DEBUG`.
+	var __WPD_CMD_DEBUG = /*__WPDM_CMD_DEBUG__*/false;
+	function __wpdLog() {
+		if ( ! __WPD_CMD_DEBUG ) return;
+		try { console.log.apply( console, arguments ); } catch ( _e ) { /* swallow */ }
+	}
+
 	var __wpdCommandsSubscribed   = false;
-	var __wpdCommandsUnsub        = null;
 	var __wpdCommandsLastPayload  = '';
 	var __wpdCommandsDebounceId   = null;
 	var __wpdCommandsOrigin       = window.location.origin;
@@ -1070,7 +1079,7 @@ function wpdm_chromeless_bridge_script() {
 			seen[ cmd.name ] = true;
 			out.push( __wpdClassifyCommand( cmd ) );
 		}
-		console.log( '[wpd-cmd:iframe] finalize: kept %d, skipped %o', out.length, skipped );
+		__wpdLog( '[wpd-cmd:iframe] finalize: kept %d, skipped %o', out.length, skipped );
 		return out;
 	}
 
@@ -1091,11 +1100,17 @@ function wpdm_chromeless_bridge_script() {
 	// one call (plus the constant `useEffect`), so React's reconciler
 	// is happy.
 	var __wpdReactMounted = false;
+	// Stashed so `__wpdUnsubscribeCommands` can tear the harvester
+	// down when focus leaves the window — otherwise the component
+	// keeps re-rendering on every store tick, calling `mergeAndPost`,
+	// and posting command lists the parent drops on the floor.
+	var __wpdReactRoot    = null;
+	var __wpdReactHost    = null;
 
 	function __wpdMountReactHarvester() {
 		if ( __wpdReactMounted ) return;
 		if ( ! window.wp || ! window.wp.element || ! window.wp.data ) {
-			console.log( '[wpd-cmd:iframe] react-harvester: wp.element/wp.data missing' );
+			__wpdLog( '[wpd-cmd:iframe] react-harvester: wp.element/wp.data missing' );
 			return;
 		}
 		var el        = window.wp.element;
@@ -1105,7 +1120,7 @@ function wpdm_chromeless_bridge_script() {
 		var useMemo   = el.useMemo;
 		var useSelect = ( window.wp.data && window.wp.data.useSelect ) || null;
 		if ( ! createEl || ! useSelect || ! el.createRoot || ! useRef ) {
-			console.log( '[wpd-cmd:iframe] react-harvester: wp.element API incomplete' );
+			__wpdLog( '[wpd-cmd:iframe] react-harvester: wp.element API incomplete' );
 			return;
 		}
 		__wpdReactMounted = true;
@@ -1117,6 +1132,7 @@ function wpdm_chromeless_bridge_script() {
 		host.setAttribute( 'aria-hidden', 'true' );
 		host.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;left:-9999px;top:-9999px;';
 		( document.body || document.documentElement ).appendChild( host );
+		__wpdReactHost = host;
 
 		// Shared mutable bucket — ref-based aggregation to avoid the
 		// classic setState-inside-useEffect loop. A `setState` here
@@ -1167,7 +1183,7 @@ function wpdm_chromeless_bridge_script() {
 				}
 			}
 			__wpdLastRawCommands = merged;
-			console.log( '[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
+			__wpdLog( '[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
 				merged.length,
 				loadersList.length,
 				Array.isArray( resultsBucket.statics ) ? resultsBucket.statics.length : 0
@@ -1187,7 +1203,7 @@ function wpdm_chromeless_bridge_script() {
 			} catch ( err ) {
 				if ( ! loader.__wpdLoggedThrow ) {
 					loader.__wpdLoggedThrow = true;
-					console.log( '[wpd-cmd:iframe] react-harvester: loader "%s" threw', loader.name, err );
+					__wpdLog( '[wpd-cmd:iframe] react-harvester: loader "%s" threw', loader.name, err );
 				}
 			}
 			var cmds = ( result && Array.isArray( result.commands ) ) ? result.commands : [];
@@ -1258,33 +1274,64 @@ function wpdm_chromeless_bridge_script() {
 
 		try {
 			var root = el.createRoot( host );
+			__wpdReactRoot = root;
 			root.render( createEl( Harvester ) );
-			console.log( '[wpd-cmd:iframe] react-harvester: mounted' );
+			__wpdLog( '[wpd-cmd:iframe] react-harvester: mounted' );
 		} catch ( err ) {
 			__wpdReactMounted = false;
-			console.log( '[wpd-cmd:iframe] react-harvester: mount threw', err );
+			__wpdReactRoot    = null;
+			if ( __wpdReactHost && __wpdReactHost.parentNode ) {
+				__wpdReactHost.parentNode.removeChild( __wpdReactHost );
+			}
+			__wpdReactHost = null;
+			__wpdLog( '[wpd-cmd:iframe] react-harvester: mount threw', err );
 		}
+	}
+
+	function __wpdUnmountReactHarvester() {
+		if ( __wpdReactRoot ) {
+			try { __wpdReactRoot.unmount(); } catch ( _err ) { /* swallow */ }
+		}
+		__wpdReactRoot = null;
+		if ( __wpdReactHost && __wpdReactHost.parentNode ) {
+			__wpdReactHost.parentNode.removeChild( __wpdReactHost );
+		}
+		__wpdReactHost       = null;
+		__wpdReactMounted    = false;
+		__wpdLastRawCommands = [];
+		__wpdCommandCallbacks = Object.create( null );
 	}
 
 	function __wpdPostCommandsList() {
 		var list = __wpdHarvestCommands();
 		// Cheap de-dupe — the store fires on every unrelated preference
 		// change too, and shipping an identical payload is pure noise.
+		// Fingerprint on `name|kind|url` keeps us sensitive to the
+		// visible surface (name changes, navigate-vs-action flips,
+		// destination URL changes) while skipping `JSON.stringify` of
+		// the entire payload — label/icon churn inside a single command
+		// is rare and re-shipping on it is harmless noise vs. a hot
+		// path allocation cost.
 		var key = '';
-		try { key = JSON.stringify( list ); } catch ( _err ) { key = String( list.length ); }
+		for ( var k = 0; k < list.length; k++ ) {
+			var lc = list[ k ];
+			key += ( lc && lc.name ? lc.name : '' ) + '|'
+				+ ( lc && lc.kind ? lc.kind : '' ) + '|'
+				+ ( lc && lc.url  ? lc.url  : '' ) + '\n';
+		}
 		if ( key === __wpdCommandsLastPayload ) {
-			console.log( '[wpd-cmd:iframe] post: skipping duplicate payload (%d cmds)', list.length );
+			__wpdLog( '[wpd-cmd:iframe] post: skipping duplicate payload (%d cmds)', list.length );
 			return;
 		}
 		__wpdCommandsLastPayload = key;
-		console.log( '[wpd-cmd:iframe] post: sending %d commands to parent', list.length, list );
+		__wpdLog( '[wpd-cmd:iframe] post: sending %d commands to parent', list.length, list );
 		try {
 			window.parent.postMessage(
 				{ type: 'wp-desktop-commands-list', commands: list },
 				__wpdCommandsOrigin
 			);
 		} catch ( err ) {
-			console.log( '[wpd-cmd:iframe] post: postMessage threw', err );
+			__wpdLog( '[wpd-cmd:iframe] post: postMessage threw', err );
 		}
 	}
 
@@ -1297,7 +1344,7 @@ function wpdm_chromeless_bridge_script() {
 	}
 
 	function __wpdSubscribeCommands() {
-		console.log( '[wpd-cmd:iframe] subscribe requested (already=%s, mounted=%s, url=%s)', __wpdCommandsSubscribed, __wpdReactMounted, window.location.href );
+		__wpdLog( '[wpd-cmd:iframe] subscribe requested (already=%s, mounted=%s, url=%s)', __wpdCommandsSubscribed, __wpdReactMounted, window.location.href );
 		__wpdCommandsSubscribed = true;
 
 		// If the React harvester is already running (focus left and
@@ -1309,7 +1356,7 @@ function wpdm_chromeless_bridge_script() {
 		// push from here.
 		if ( __wpdReactMounted ) {
 			__wpdCommandsLastPayload = '';
-			console.log( '[wpd-cmd:iframe] subscribe: harvester already mounted, re-shipping bucket (%d cmds)', __wpdLastRawCommands.length );
+			__wpdLog( '[wpd-cmd:iframe] subscribe: harvester already mounted, re-shipping bucket (%d cmds)', __wpdLastRawCommands.length );
 			__wpdSchedulePost();
 			return;
 		}
@@ -1320,15 +1367,15 @@ function wpdm_chromeless_bridge_script() {
 			if ( ! window.wp || ! window.wp.data || typeof window.wp.data.subscribe !== 'function' ) {
 				if ( attempts++ < 40 ) {
 					if ( attempts === 1 || attempts % 5 === 0 ) {
-						console.log( '[wpd-cmd:iframe] subscribe: wp.data not ready yet (attempt %d)', attempts );
+						__wpdLog( '[wpd-cmd:iframe] subscribe: wp.data not ready yet (attempt %d)', attempts );
 					}
 					window.setTimeout( tryBind, 150 );
 				} else {
-					console.log( '[wpd-cmd:iframe] subscribe: gave up waiting for wp.data after %d attempts', attempts );
+					__wpdLog( '[wpd-cmd:iframe] subscribe: gave up waiting for wp.data after %d attempts', attempts );
 				}
 				return;
 			}
-			console.log( '[wpd-cmd:iframe] subscribe: wp.data ready, binding (attempts=%d)', attempts );
+			__wpdLog( '[wpd-cmd:iframe] subscribe: wp.data ready, binding (attempts=%d)', attempts );
 			// Mount the React harvester — tier 3 loaders are hooks and
 			// need a legal render context to execute. On every re-render
 			// the component's effect calls `__wpdSchedulePost` with the
@@ -1340,34 +1387,40 @@ function wpdm_chromeless_bridge_script() {
 	}
 
 	function __wpdUnsubscribeCommands() {
-		__wpdCommandsSubscribed = false;
-		if ( __wpdCommandsUnsub ) {
-			try { __wpdCommandsUnsub(); } catch ( _err ) { /* swallow */ }
-			__wpdCommandsUnsub = null;
-		}
+		__wpdCommandsSubscribed  = false;
 		__wpdCommandsLastPayload = '';
+		if ( __wpdCommandsDebounceId !== null ) {
+			try { window.clearTimeout( __wpdCommandsDebounceId ); } catch ( _err ) { /* swallow */ }
+			__wpdCommandsDebounceId = null;
+		}
+		// Fully tear down the React harvester. Keeping it mounted in
+		// the background wastes CPU: every store tick re-renders the
+		// loader hooks, which rebuild the callback cache and post to
+		// the parent (who drops the message because this window isn't
+		// the subscribed one). On re-subscribe we remount from scratch.
+		__wpdUnmountReactHarvester();
 	}
 
 	function __wpdInvokeCommand( name ) {
-		console.log( '[wpd-cmd:iframe] invoke: looking up "%s"', name );
+		__wpdLog( '[wpd-cmd:iframe] invoke: looking up "%s"', name );
 		// Primary lookup — the React harvester's latest snapshot. This
 		// covers loader-returned commands (Duplicate block, Transform
 		// to, pattern commands) that never appear in the static
 		// `getCommands()` list.
 		var cb = __wpdCommandCallbacks[ name ];
 		if ( typeof cb === 'function' ) {
-			console.log( '[wpd-cmd:iframe] invoke: hit harvester cache for "%s"', name );
+			__wpdLog( '[wpd-cmd:iframe] invoke: hit harvester cache for "%s"', name );
 			try {
 				cb( { close: function () {} } );
 			} catch ( err ) {
-				console.log( '[wpd-cmd:iframe] invoke: "%s" callback threw', name, err );
+				__wpdLog( '[wpd-cmd:iframe] invoke: "%s" callback threw', name, err );
 			}
 			return;
 		}
 		// Fallback — statically registered commands that never passed
 		// through the harvester (registered after the last render).
 		if ( ! window.wp || ! window.wp.data ) {
-			console.log( '[wpd-cmd:iframe] invoke: "%s" not found and wp.data missing', name );
+			__wpdLog( '[wpd-cmd:iframe] invoke: "%s" not found and wp.data missing', name );
 			return;
 		}
 		var sel = null;
@@ -1378,16 +1431,16 @@ function wpdm_chromeless_bridge_script() {
 		if ( ! raw ) return;
 		for ( var i = 0; i < raw.length; i++ ) {
 			if ( raw[ i ] && raw[ i ].name === name && typeof raw[ i ].callback === 'function' ) {
-				console.log( '[wpd-cmd:iframe] invoke: hit getCommands fallback for "%s"', name );
+				__wpdLog( '[wpd-cmd:iframe] invoke: hit getCommands fallback for "%s"', name );
 				try {
 					raw[ i ].callback( { close: function () {} } );
 				} catch ( err ) {
-					console.log( '[wpd-cmd:iframe] invoke: "%s" fallback callback threw', name, err );
+					__wpdLog( '[wpd-cmd:iframe] invoke: "%s" fallback callback threw', name, err );
 				}
 				return;
 			}
 		}
-		console.log( '[wpd-cmd:iframe] invoke: "%s" NOT FOUND in harvester cache or getCommands()', name );
+		__wpdLog( '[wpd-cmd:iframe] invoke: "%s" NOT FOUND in harvester cache or getCommands()', name );
 	}
 
 	// Attach the listener BEFORE the bridge-ready ping so a subscribe
@@ -1398,15 +1451,15 @@ function wpdm_chromeless_bridge_script() {
 		if ( e.data.type === 'wp-desktop-commands-subscribe' ) {
 			__wpdSubscribeCommands();
 		} else if ( e.data.type === 'wp-desktop-commands-unsubscribe' ) {
-			console.log( '[wpd-cmd:iframe] unsubscribe received' );
+			__wpdLog( '[wpd-cmd:iframe] unsubscribe received' );
 			__wpdUnsubscribeCommands();
 		} else if ( e.data.type === 'wp-desktop-commands-invoke' && typeof e.data.name === 'string' ) {
-			console.log( '[wpd-cmd:iframe] invoke received: %s', e.data.name );
+			__wpdLog( '[wpd-cmd:iframe] invoke received: %s', e.data.name );
 			__wpdInvokeCommand( e.data.name );
 		}
 	} );
 
-	console.log( '[wpd-cmd:iframe] bridge ready, listening for subscribe (url=%s)', window.location.href );
+	__wpdLog( '[wpd-cmd:iframe] bridge ready, listening for subscribe (url=%s)', window.location.href );
 	// Handshake: tell the parent we're ready so it can (re)send any
 	// subscribe that was dispatched before this listener attached.
 	// Without this ping, a subscribe posted during iframe navigation
@@ -1418,9 +1471,9 @@ function wpdm_chromeless_bridge_script() {
 			{ type: 'wp-desktop-bridge-ready' },
 			__wpdCommandsOrigin
 		);
-		console.log( '[wpd-cmd:iframe] bridge-ready signal sent to parent' );
+		__wpdLog( '[wpd-cmd:iframe] bridge-ready signal sent to parent' );
 	} catch ( err ) {
-		console.log( '[wpd-cmd:iframe] bridge-ready postMessage threw', err );
+		__wpdLog( '[wpd-cmd:iframe] bridge-ready postMessage threw', err );
 	}
 
 	var links = document.getElementById( 'screen-meta-links' );
@@ -1533,6 +1586,12 @@ JS;
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
 	$js = str_replace( '/*__WPDM_MENU_PAYLOAD__*/', $menu_payload_json, $js );
+
+	// Gate the command-bridge dev logs. `WP_DEBUG` is the conventional
+	// "I'm a developer and want noisy output" switch; anything else
+	// (default production) silences every `__wpdLog` call in the bridge.
+	$cmd_debug = ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ? 'true' : 'false';
+	$js        = str_replace( '/*__WPDM_CMD_DEBUG__*/false', $cmd_debug, $js );
 
 	wp_print_inline_script_tag( $js );
 }

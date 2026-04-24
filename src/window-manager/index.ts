@@ -666,6 +666,21 @@ export class WindowManager {
 		return [ ...this._stack ];
 	}
 
+	/**
+	 * Find the window whose iframe's contentWindow matches the given
+	 * message source. Used by cross-frame bridges to attribute inbound
+	 * `postMessage` events to the originating window without reaching
+	 * into `_stack`.
+	 */
+	public findByIframeSource( source: MessageEventSource | null ): Window | undefined {
+		if ( ! source ) {
+			return undefined;
+		}
+		return this._stack.find(
+			( w ) => w.iframe !== null && w.iframe.contentWindow === source,
+		);
+	}
+
 	/** Get the currently focused (topmost) window. */
 	public getFocused(): Window | undefined {
 		return this._stack.length > 0 ? this._stack[ this._stack.length - 1 ] : undefined;
