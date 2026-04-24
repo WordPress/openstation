@@ -16,5 +16,6 @@ require_once __DIR__ . '/openai.php';
 require_once __DIR__ . '/analysis.php';
 require_once __DIR__ . '/jobs.php';
 require_once __DIR__ . '/hooks.php';
+require_once __DIR__ . '/tools-registry.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/reindex.php';

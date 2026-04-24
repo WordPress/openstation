@@ -125,6 +125,10 @@ export {
 
 export type { DesktopSettingsTab, SettingsTabRenderCtx } from './settings/registry';
 
+// ----- AI Copilot programmatic API -----
+
+export type { AskFn, AskOptions, AskResult, AskToolCall } from './ai/ask';
+
 // ----- Public class types (for plugins that need to type-cast an
 // instance returned by `wp.desktop.windowManager` / `.dock`) -----
 

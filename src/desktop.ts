@@ -50,6 +50,7 @@ import {
 } from './native-windows';
 import { renderDesktopIcons } from './desktop-icons';
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
+import { createAsk } from './ai/ask';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
 	registerCommand,
@@ -468,6 +469,43 @@ function init(): void {
 		aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 		restNonce: config.restNonce,
 	} );
+
+	// Late-bind the programmatic `ask` entry point. Passing `config`
+	// through a getter (rather than capturing at construction time)
+	// means plugins that mutate `wp.desktop.config` at runtime see
+	// the fresh values, matching the rest of the public API's "read
+	// live" contract.
+	aiAssistant.attachAsk(
+		createAsk( {
+			config: () => config,
+			fallbackContext: () => ( {
+				close: () => aiAssistant.close(),
+				openInWindow: ( url, title, icon ) => {
+					// WindowManager.open accepts `id?` at runtime (derived from
+					// the URL when missing); the TS signature requires it, so
+					// we route through the existing assistant helper which
+					// already handles the fallback + type widening.
+					( manager as unknown as {
+						open( cfg: {
+							id?: string;
+							url: string;
+							title: string;
+							icon?: string;
+						} ): unknown;
+					} ).open( {
+						url,
+						title,
+						icon: icon ?? 'dashicons-admin-generic',
+					} );
+				},
+				confirm: ( msg ) =>
+					Promise.resolve(
+						// eslint-disable-next-line no-alert
+						typeof window.confirm === 'function' ? window.confirm( msg ) : true,
+					),
+			} ),
+		} ),
+	);
 
 	// Cross-window drag bridge — stores the attachment payload the
 	// Media Library iframe sends on dragstart so drop-receiver iframes

@@ -677,7 +677,7 @@ function wpdm_ai_progress_message( $tool_name ) {
 	return 'Thinking…';
 }
 
-function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offset = 0, $on_progress = null ) {
+function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
 	/**
 	 * Progress emitter — sends a tick to the caller if they provided a
 	 * callable; no-op otherwise. Callers use this to render real-time
@@ -693,6 +693,44 @@ function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offs
 	$valid_tools  = array_merge(
 		$search_tools,
 		array( 'list_admin_pages', 'search_wporg_plugins', 'get_php_error_log' )
+	);
+
+	// -----------------------------------------------------------------------
+	// Extensibility context — command tools from the client, PHP-registered
+	// tools from the server-side registry, system-prompt overrides, and a
+	// per-call request_id for observability fanout.
+	// -----------------------------------------------------------------------
+	$user_id            = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
+	$request_id         = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
+		? (string) $extra['request_id']
+		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'wpdm_ai_', true ) );
+	$command_tools_raw  = isset( $extra['command_tools'] ) && is_array( $extra['command_tools'] ) ? $extra['command_tools'] : array();
+	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
+	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
+		? (string) $extra['system_prompt_mode']
+		: 'append';
+
+	/**
+	 * Fires once per `/ai/search` invocation, after validation and
+	 * before any OpenAI call. First anchor in the observability trio
+	 * (`wp_desktop_ai_search_started` / `wp_desktop_ai_tool_called`
+	 * / `wp_desktop_ai_search_completed`).
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param array $context {
+	 *     @type string $query      User query.
+	 *     @type int    $user_id
+	 *     @type string $request_id UUID correlating the whole run.
+	 * }
+	 */
+	do_action(
+		'wp_desktop_ai_search_started',
+		array(
+			'query'      => $query,
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+		)
 	);
 
 	if ( $initial_tool !== null && ! in_array( $initial_tool, $search_tools, true ) ) {
@@ -747,7 +785,218 @@ INSTRUCTIONS;
 		$instructions .= $continuation_note;
 	}
 
-	$tools       = wpdm_ai_search_tool_definitions();
+	// -----------------------------------------------------------------------
+	// System-prompt extensibility.
+	//
+	// Three layers, applied in order:
+	//   1. `wp_desktop_ai_system_prompt_appendix` — stacking extension
+	//      point. Every plugin's filter result is concatenated. Safe
+	//      for the common case ("my plugin adds domain context").
+	//   2. Client override — `system_prompt_text` + `system_prompt_mode`
+	//      from the REST request. `append` is always allowed; `replace`
+	//      requires a capability the default shell gates behind
+	//      `manage_options` (filterable).
+	//   3. `wp_desktop_ai_system_prompt` — final transform pass. Plugins
+	//      can rewrite the composed prompt (rare; mainly for
+	//      compliance-style "always include this disclaimer" overlays).
+	// -----------------------------------------------------------------------
+	$prompt_context = array(
+		'query'           => $query,
+		'user_id'         => $user_id,
+		'request_id'      => $request_id,
+		'client_override' => '' !== $system_prompt_text ? $system_prompt_mode : null,
+	);
+
+	/**
+	 * Short-circuit extension — appended to the built-in instructions
+	 * verbatim. Use this when a plugin just wants to add domain
+	 * context (room list, product catalogue, company jargon) without
+	 * restructuring the core rules.
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param string $appendix Accumulated appendix. Default empty.
+	 * @param array  $context  { query, user_id, request_id, client_override }.
+	 */
+	$server_appendix = (string) apply_filters( 'wp_desktop_ai_system_prompt_appendix', '', $prompt_context );
+	if ( '' !== $server_appendix ) {
+		$instructions .= "\n\n" . $server_appendix;
+	}
+
+	if ( '' !== $system_prompt_text ) {
+		if ( 'replace' === $system_prompt_mode ) {
+			/**
+			 * Capability required for a client to send
+			 * `system_prompt: { mode: 'replace' }`. Defaults to
+			 * `manage_options` — replacing the whole prompt can
+			 * effectively hijack the assistant, so it's admin-only
+			 * out of the box.
+			 *
+			 * @since 0.17.0
+			 *
+			 * @param string $capability Default `manage_options`.
+			 * @param array  $context
+			 */
+			$required_cap = (string) apply_filters(
+				'wp_desktop_ai_system_prompt_replace_capability',
+				'manage_options',
+				$prompt_context
+			);
+			if ( '' === $required_cap || user_can( $user_id, $required_cap ) ) {
+				$instructions = $system_prompt_text;
+			} else {
+				// Silently downgrade to append — the user didn't
+				// have the cap to replace, but append is always
+				// allowed, so we preserve their intent rather than
+				// drop their text.
+				$instructions .= "\n\n" . $system_prompt_text;
+			}
+		} else {
+			$instructions .= "\n\n" . $system_prompt_text;
+		}
+	}
+
+	/**
+	 * Final transform pass. Fires after the built-in instructions,
+	 * server appendix, and client override have all been composed.
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param string $instructions Composed system prompt.
+	 * @param array  $context
+	 */
+	$instructions = (string) apply_filters( 'wp_desktop_ai_system_prompt', $instructions, $prompt_context );
+
+	// -----------------------------------------------------------------------
+	// Tool assembly — built-in search/navigation + PHP-registered +
+	// client-supplied command tools.
+	// -----------------------------------------------------------------------
+	$builtin_tools = wpdm_ai_search_tool_definitions();
+
+	// PHP-registered tools (capability-filtered for the current user).
+	$registered_entries = function_exists( 'wpdm_get_registered_ai_tools_for_user' )
+		? wpdm_get_registered_ai_tools_for_user( $user_id )
+		: array();
+
+	// Track registered + command tool maps so the agent loop can
+	// dispatch without re-walking the registry on every iteration.
+	$registered_by_name = array();
+	foreach ( $registered_entries as $entry ) {
+		$registered_by_name[ (string) $entry['name'] ] = $entry;
+	}
+
+	$registered_defs = array_map( 'wpdm_ai_tool_entry_to_definition', $registered_entries );
+
+	// Command tools — namespaced as `command_<slug>` on the server so
+	// they can't collide with built-in tool names. Each takes a single
+	// optional `args` string arg (matches the slash-command contract
+	// where args are a single string the plugin's `run()` parses).
+	$command_tools_by_name = array();
+	$command_defs          = array();
+
+	/**
+	 * Per-tool filter on the client-supplied command list. Return
+	 * `false` to drop a command entirely before it reaches the
+	 * model — the right hook for per-role / per-command gating.
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param bool|array $allowed Either the (possibly mutated) command
+	 *                            tool entry, or `false` to drop it.
+	 * @param string     $slug    Command slug.
+	 * @param array      $context { user_id, request_id }.
+	 */
+	foreach ( $command_tools_raw as $cmd ) {
+		if ( ! is_array( $cmd ) ) {
+			continue;
+		}
+		$slug = isset( $cmd['slug'] ) ? (string) $cmd['slug'] : '';
+		if ( $slug === '' || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
+			continue;
+		}
+		$allowed = apply_filters(
+			'wp_desktop_ai_command_allowed',
+			$cmd,
+			$slug,
+			array( 'user_id' => $user_id, 'request_id' => $request_id )
+		);
+		if ( false === $allowed || ! is_array( $allowed ) ) {
+			continue;
+		}
+		$label       = isset( $allowed['label'] ) ? (string) $allowed['label'] : $slug;
+		$description = isset( $allowed['description'] ) ? (string) $allowed['description'] : '';
+		$hint        = isset( $allowed['hint'] ) ? (string) $allowed['hint'] : '';
+		$tool_name   = 'command_' . $slug;
+
+		$command_tools_by_name[ $tool_name ] = array( 'slug' => $slug );
+		$command_defs[]                      = array(
+			'type'        => 'function',
+			'name'        => $tool_name,
+			'description' => trim( $label . ( '' !== $description ? ' — ' . $description : '' ) ),
+			'parameters'  => array(
+				'type'       => 'object',
+				'properties' => array(
+					'args' => array(
+						'type'        => 'string',
+						'description' => $hint !== ''
+							? sprintf( 'Arguments for this command. Hint: %s', $hint )
+							: 'Arguments for this command. Leave empty when the command takes none.',
+					),
+				),
+				'required'             => array( 'args' ),
+				'additionalProperties' => false,
+			),
+		);
+	}
+
+	/**
+	 * Transform the command-tool subset before merging with the
+	 * built-in + registered tools. Useful for bulk gating, renaming,
+	 * or injecting synthetic command tools.
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param array $command_defs Command tool definitions.
+	 * @param array $context      { user_id, request_id }.
+	 */
+	$command_defs = (array) apply_filters(
+		'wp_desktop_ai_command_tools',
+		$command_defs,
+		array( 'user_id' => $user_id, 'request_id' => $request_id )
+	);
+
+	$tools = array_merge( $builtin_tools, $registered_defs, $command_defs );
+
+	/**
+	 * Transform the full tool list (built-in + PHP-registered + command)
+	 * just before it goes to OpenAI. Fires once per run — changes apply
+	 * to every iteration in the agent loop.
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param array $tools   Full OpenAI tool definitions array.
+	 * @param array $context { user_id, request_id, query }.
+	 */
+	$tools = (array) apply_filters(
+		'wp_desktop_ai_tools',
+		$tools,
+		array( 'user_id' => $user_id, 'request_id' => $request_id, 'query' => $query )
+	);
+
+	// Widen the permitted-tools list to include everything we just
+	// assembled — the agent loop rejects any `function_call` whose
+	// name isn't in here.
+	foreach ( $registered_defs as $def ) {
+		if ( isset( $def['name'] ) ) {
+			$valid_tools[] = (string) $def['name'];
+		}
+	}
+	foreach ( $command_defs as $def ) {
+		if ( isset( $def['name'] ) ) {
+			$valid_tools[] = (string) $def['name'];
+		}
+	}
+
 	$text_format = array(
 		'type'   => 'json_schema',
 		'name'   => 'search_answer',
@@ -823,7 +1072,7 @@ INSTRUCTIONS;
 				$entity = wpdm_ai_search_build_entity( $entity_type, $entity_id );
 			}
 
-			return array(
+			$final = array(
 				'answer_type' => $answer_type,
 				'message'     => $message,
 				'entity'      => $entity,
@@ -831,7 +1080,103 @@ INSTRUCTIONS;
 				'iterations'  => $iterations + 1,
 				'exhausted'   => ! $last_has_more,
 				'continue'    => null,
+				'request_id'  => $request_id,
 			);
+
+			/**
+			 * Final transform hook — fires right before the HTTP
+			 * response is returned. Plugins can rewrite `message`,
+			 * inject `admin_links`, coerce `answer_type`, etc.
+			 *
+			 * @since 0.17.0
+			 *
+			 * @param array $answer  Final answer payload.
+			 * @param array $context { query, user_id, request_id }.
+			 */
+			$final = (array) apply_filters(
+				'wp_desktop_ai_answer',
+				$final,
+				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+			);
+
+			do_action(
+				'wp_desktop_ai_search_completed',
+				array(
+					'query'       => $query,
+					'user_id'     => $user_id,
+					'request_id'  => $request_id,
+					'answer_type' => $final['answer_type'] ?? 'chat',
+					'iterations'  => $final['iterations'] ?? 0,
+				)
+			);
+
+			return $final;
+		}
+
+		// -------------------------------------------------------------------
+		// Command-tool short-circuit.
+		//
+		// If the model emitted `command_<slug>`, we return immediately with
+		// `answer_type: 'tool_call'` — the client owns the command's `run()`
+		// function (lives in plugin JS) and executes it locally. We do NOT
+		// send anything else back to OpenAI this turn — would burn tokens
+		// for a no-op second response.
+		// -------------------------------------------------------------------
+		$command_tool_call = null;
+		foreach ( $function_calls as $fc ) {
+			$name = (string) ( $fc['name'] ?? '' );
+			if ( isset( $command_tools_by_name[ $name ] ) ) {
+				$decoded = is_array( json_decode( $fc['arguments'] ?? '{}', true ) )
+					? json_decode( $fc['arguments'], true )
+					: array();
+				$command_tool_call = array(
+					'slug' => $command_tools_by_name[ $name ]['slug'],
+					'args' => isset( $decoded['args'] ) ? (string) $decoded['args'] : '',
+				);
+				break;
+			}
+		}
+		if ( $command_tool_call !== null ) {
+			do_action(
+				'wp_desktop_ai_tool_called',
+				array(
+					'tool_name'  => 'command_' . $command_tool_call['slug'],
+					'args'       => array( 'args' => $command_tool_call['args'] ),
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
+			);
+
+			$final = array(
+				'answer_type' => 'tool_call',
+				'message'     => '',
+				'entity'      => null,
+				'admin_links' => null,
+				'tool'        => $command_tool_call,
+				'iterations'  => $iterations + 1,
+				'exhausted'   => false,
+				'continue'    => null,
+				'request_id'  => $request_id,
+			);
+
+			$final = (array) apply_filters(
+				'wp_desktop_ai_answer',
+				$final,
+				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+			);
+
+			do_action(
+				'wp_desktop_ai_search_completed',
+				array(
+					'query'       => $query,
+					'user_id'     => $user_id,
+					'request_id'  => $request_id,
+					'answer_type' => 'tool_call',
+					'iterations'  => $final['iterations'] ?? 0,
+				)
+			);
+
+			return $final;
 		}
 
 		// Execute each tool call and collect results.
@@ -854,17 +1199,62 @@ INSTRUCTIONS;
 				: array();
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
+			// Registered PHP-dispatched tool — handler lives in the
+			// plugin's `wp_register_desktop_ai_tool()` entry. Capability
+			// was already checked at list-assembly time.
+			$is_registered = isset( $registered_by_name[ $tool_name ] );
+
+			$progress_msg = $is_registered
+				? ( (string) ( $registered_by_name[ $tool_name ]['progress_message'] ?? '' ) ?: 'Working…' )
+				: wpdm_ai_progress_message( $tool_name );
+
 			$emit( array(
 				'phase'   => 'tool_call',
 				'tool'    => $tool_name,
-				'message' => wpdm_ai_progress_message( $tool_name ),
+				'message' => $progress_msg,
 			) );
 
-			$batch = wpdm_ai_search_dispatch_tool( $tool_name, $args );
+			do_action(
+				'wp_desktop_ai_tool_called',
+				array(
+					'tool_name'  => $tool_name,
+					'args'       => $args,
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
+			);
 
-			$last_tool     = $tool_name;
-			$last_offset   = $offset;
-			$last_has_more = (bool) ( $batch['has_more'] ?? false );
+			if ( $is_registered ) {
+				$batch = wpdm_ai_invoke_registered_tool(
+					$registered_by_name[ $tool_name ],
+					$args,
+					$user_id
+				);
+			} else {
+				$batch = wpdm_ai_search_dispatch_tool( $tool_name, $args );
+				$last_tool     = $tool_name;
+				$last_offset   = $offset;
+				$last_has_more = (bool) ( $batch['has_more'] ?? false );
+			}
+
+			/**
+			 * Transform a tool result before it goes back to the
+			 * model. Fires for every tool, built-in and registered.
+			 *
+			 * @since 0.17.0
+			 *
+			 * @param array  $batch     Tool result payload.
+			 * @param string $tool_name Tool function name.
+			 * @param array  $args      Decoded args from the call.
+			 * @param array  $context   { user_id, request_id }.
+			 */
+			$batch = (array) apply_filters(
+				'wp_desktop_ai_tool_result',
+				$batch,
+				$tool_name,
+				$args,
+				array( 'user_id' => $user_id, 'request_id' => $request_id )
+			);
 
 			$tool_outputs[] = array(
 				'type'    => 'function_call_output',
@@ -908,7 +1298,7 @@ INSTRUCTIONS;
 		);
 	}
 
-	return array(
+	$final = array(
 		'answer_type' => 'chat',
 		'message'     => 'I searched 100 items without finding a clear match. Want me to keep looking further?',
 		'entity'      => null,
@@ -916,7 +1306,225 @@ INSTRUCTIONS;
 		'iterations'  => WPDM_AI_SEARCH_MAX_ITERATIONS,
 		'exhausted'   => ! $last_has_more,
 		'continue'    => $continue,
+		'request_id'  => $request_id,
 	);
+
+	$final = (array) apply_filters(
+		'wp_desktop_ai_answer',
+		$final,
+		array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+	);
+
+	do_action(
+		'wp_desktop_ai_search_completed',
+		array(
+			'query'       => $query,
+			'user_id'     => $user_id,
+			'request_id'  => $request_id,
+			'answer_type' => 'chat',
+			'iterations'  => WPDM_AI_SEARCH_MAX_ITERATIONS,
+		)
+	);
+
+	return $final;
+}
+
+/**
+ * Compose a natural-language reply describing the outcome of a
+ * client-dispatched command invocation.
+ *
+ * Called by the REST endpoint when the client sends `follow_up` —
+ * the second leg of the opt-in agentic flow triggered by
+ * `wp.desktop.ai.ask( q, { tools: 'aiCallable', followUp: true } )`.
+ *
+ * Single-turn, no tools, no structured-output schema — the model
+ * sees the original query + a summary of what happened and writes a
+ * one/two-sentence reply in the voice of the system prompt. We reuse
+ * the same system-prompt pipeline as the main search so plugins
+ * appending instructions via `wp_desktop_ai_system_prompt_appendix`
+ * see consistent voice across the two legs.
+ *
+ * @since 0.17.0
+ *
+ * @param string $api_key   OpenAI API key.
+ * @param string $query     Original user query.
+ * @param array  $tool      { slug, args } — what ran.
+ * @param array  $outcome   Tool result payload. Opaque — JSON-encoded
+ *                          into the model's context so it can reason
+ *                          about whatever shape the plugin returned.
+ * @param array  $extra     Same shape as `wpdm_ai_run_search`'s
+ *                          `$extra` — carries user_id, request_id,
+ *                          system-prompt overrides.
+ * @return array|WP_Error   `{ answer_type: 'chat', message, … }` or error.
+ */
+function wpdm_ai_run_followup( $api_key, $query, array $tool, array $outcome, array $extra = array() ) {
+	$user_id    = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
+	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
+		? (string) $extra['request_id']
+		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'wpdm_ai_', true ) );
+
+	do_action(
+		'wp_desktop_ai_search_started',
+		array(
+			'query'      => $query,
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+			'phase'      => 'follow_up',
+		)
+	);
+
+	// Mirror the main search's system-prompt layering so voice stays
+	// consistent between the two legs. We build a simpler core-
+	// instructions block — no tool guidance, since this run has none.
+	$instructions = <<<INSTRUCTIONS
+You are the same friendly WordPress assistant that just dispatched a command on behalf of the user. You now have the result of that command.
+
+Write a SHORT reply (one or two sentences, first person, warm and conversational) describing what happened. Match the voice the site owner set in their system prompt — do not restart small talk, just confirm what you did.
+
+Rules:
+- If the outcome looks successful, confirm plainly. Example: "Done — your office light is on now."
+- If the outcome looks like an error (has an `error` field, a failure message, or obviously negative content), apologise briefly and paraphrase what went wrong. Do not invent details the outcome did not include.
+- Do NOT recommend the user try something else unless the outcome explicitly suggests it.
+- Do NOT describe the tool mechanism ("I called command_turn_light") — the user only cares about the real-world effect.
+INSTRUCTIONS;
+
+	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
+	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
+		? (string) $extra['system_prompt_mode']
+		: 'append';
+
+	$prompt_context = array(
+		'query'           => $query,
+		'user_id'         => $user_id,
+		'request_id'      => $request_id,
+		'client_override' => '' !== $system_prompt_text ? $system_prompt_mode : null,
+		'phase'           => 'follow_up',
+	);
+	$server_appendix = (string) apply_filters( 'wp_desktop_ai_system_prompt_appendix', '', $prompt_context );
+	if ( '' !== $server_appendix ) {
+		$instructions .= "\n\n" . $server_appendix;
+	}
+	if ( '' !== $system_prompt_text ) {
+		if ( 'replace' === $system_prompt_mode ) {
+			$required_cap = (string) apply_filters(
+				'wp_desktop_ai_system_prompt_replace_capability',
+				'manage_options',
+				$prompt_context
+			);
+			if ( '' === $required_cap || user_can( $user_id, $required_cap ) ) {
+				$instructions = $system_prompt_text;
+			} else {
+				$instructions .= "\n\n" . $system_prompt_text;
+			}
+		} else {
+			$instructions .= "\n\n" . $system_prompt_text;
+		}
+	}
+	$instructions = (string) apply_filters( 'wp_desktop_ai_system_prompt', $instructions, $prompt_context );
+
+	$slug         = isset( $tool['slug'] ) ? (string) $tool['slug'] : '';
+	$tool_args    = isset( $tool['args'] ) ? (string) $tool['args'] : '';
+	$outcome_json = wp_json_encode( $outcome );
+	if ( ! is_string( $outcome_json ) ) {
+		$outcome_json = '""';
+	}
+
+	// Bound the outcome payload so a malicious or buggy plugin that
+	// returns a 5MB blob can't inflate OpenAI token usage without
+	// bound. 4 KB is enough for a status string, a small result list,
+	// or a short error envelope — anything bigger gets truncated with
+	// a marker so the model knows the tail was dropped.
+	$max_outcome_len = (int) apply_filters( 'wp_desktop_ai_followup_outcome_max_chars', 4000 );
+	if ( $max_outcome_len > 0 && strlen( $outcome_json ) > $max_outcome_len ) {
+		$outcome_json = substr( $outcome_json, 0, $max_outcome_len ) . '…[truncated]';
+	}
+
+	$user_message = sprintf(
+		"Original user request: %s\n\nYou invoked the command `%s` with args `%s`. It returned:\n\n```json\n%s\n```\n\nWrite your short confirmation / apology now.",
+		$query,
+		$slug,
+		$tool_args,
+		$outcome_json
+	);
+
+	do_action(
+		'wp_desktop_ai_tool_called',
+		array(
+			'tool_name'  => 'followup_summarise',
+			'args'       => array( 'slug' => $slug, 'tool_args' => $tool_args ),
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+		)
+	);
+
+	$response = wpdm_ai_openai_responses_call(
+		$api_key,
+		array( array( 'role' => 'user', 'content' => $user_message ) ),
+		array(),        // no tools — we want a plain reply
+		null,           // no JSON schema — free-form text
+		$instructions
+	);
+
+	if ( is_wp_error( $response ) ) {
+		do_action(
+			'wp_desktop_ai_search_error',
+			array(
+				'code'       => $response->get_error_code(),
+				'message'    => $response->get_error_message(),
+				'data'       => $response->get_error_data(),
+				'user_id'    => $user_id,
+				'request_id' => $request_id,
+				'phase'      => 'follow_up',
+			)
+		);
+		return $response;
+	}
+
+	$text = wpdm_ai_extract_text( $response );
+	if ( ! is_string( $text ) || '' === trim( $text ) ) {
+		// Graceful degrade — if OpenAI returned nothing usable, fall
+		// back to a generic confirmation so the caller always has a
+		// message to show. Better than returning an error and losing
+		// the fact that the command *did* run.
+		$text = 'Done.';
+	}
+
+	$final = array(
+		'answer_type' => 'chat',
+		'message'     => trim( $text ),
+		'entity'      => null,
+		'admin_links' => null,
+		'iterations'  => 1,
+		'exhausted'   => false,
+		'continue'    => null,
+		'request_id'  => $request_id,
+		'tool'        => array( 'slug' => $slug, 'args' => $tool_args ),
+	);
+
+	$final = (array) apply_filters(
+		'wp_desktop_ai_answer',
+		$final,
+		array(
+			'query'      => $query,
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+			'phase'      => 'follow_up',
+		)
+	);
+
+	do_action(
+		'wp_desktop_ai_search_completed',
+		array(
+			'query'       => $query,
+			'user_id'     => $user_id,
+			'request_id'  => $request_id,
+			'answer_type' => 'chat',
+			'iterations'  => 1,
+			'phase'       => 'follow_up',
+		)
+	);
+
+	return $final;
 }
 
 // ---------------------------------------------------------------------------
@@ -956,13 +1564,60 @@ function wpdm_register_ai_search_rest_route() {
 					'sanitize_callback' => static function ( $v ) {
 						return in_array( $v, array( 'search_posts', 'search_pages', 'search_comments' ), true )
 							? $v : null;
-					},
+				},
 				),
 				'start_offset' => array(
 					'required'          => false,
 					'type'              => 'integer',
 					'default'           => 0,
 					'sanitize_callback' => 'absint',
+				),
+				// Client-harvested slash-commands the user's plugins have
+				// opted in as AI tools. Each entry: { slug, label, description?, hint? }.
+				// The slug is namespaced server-side as `command_<slug>`
+				// and any tool_call the model emits with that name short-
+				// circuits back to the client for local dispatch.
+				'command_tools' => array(
+					'required' => false,
+					'type'     => 'array',
+					'default'  => array(),
+					'items'    => array(
+						'type'       => 'object',
+						'properties' => array(
+							'slug'        => array( 'type' => 'string' ),
+							'label'       => array( 'type' => 'string' ),
+							'description' => array( 'type' => 'string' ),
+							'hint'        => array( 'type' => 'string' ),
+						),
+					),
+				),
+				// Free-form system-prompt override.
+				//   mode: 'append' → concatenated onto the built-in prompt (safe for everyone)
+				//   mode: 'replace' → replaces the built-in prompt entirely, gated on
+				//                     `wp_desktop_ai_system_prompt_replace_capability`
+				//                     (default `manage_options`).
+				'system_prompt_text' => array(
+					'required' => false,
+					'type'     => 'string',
+					'default'  => '',
+				),
+				'system_prompt_mode' => array(
+					'required'          => false,
+					'type'              => 'string',
+					'default'           => 'append',
+					'sanitize_callback' => static function ( $v ) {
+						return in_array( $v, array( 'append', 'replace' ), true ) ? $v : 'append';
+					},
+				),
+				// Follow-up leg of the agentic command-dispatch flow.
+				// When present, the endpoint SKIPS the agent loop entirely
+				// and runs a single-turn "summarise this outcome" call
+				// through OpenAI instead. The client sends this on the
+				// second leg of `ask( q, { tools: 'aiCallable', followUp: true } )`.
+				'follow_up' => array(
+					'required' => false,
+					'type'     => array( 'object', 'null' ),
+					'default'  => null,
 				),
 			),
 		)
@@ -1010,9 +1665,63 @@ function wpdm_rest_ai_search( WP_REST_Request $request ) {
 	$resume_tool  = $request->get_param( 'resume_tool' );
 	$start_offset = $request->get_param( 'start_offset' );
 
-	$result = wpdm_ai_run_search( $api_key, $query, $resume_tool, $start_offset );
+	$command_tools = $request->get_param( 'command_tools' );
+	if ( ! is_array( $command_tools ) ) {
+		$command_tools = array();
+	}
+
+	$extra = array(
+		'user_id'            => $user_id,
+		'request_id'         => function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'wpdm_ai_', true ),
+		'command_tools'      => $command_tools,
+		'system_prompt_text' => (string) $request->get_param( 'system_prompt_text' ),
+		'system_prompt_mode' => (string) $request->get_param( 'system_prompt_mode' ),
+	);
+
+	/**
+	 * Last-mile filter on the whole `/ai/search` request bundle.
+	 * Plugins get one hook to rewrite query, swap tools, or inject
+	 * metadata before the agent loop starts.
+	 *
+	 * @since 0.17.0
+	 *
+	 * @param array $extra Extended context (mutable).
+	 * @param array $core  Core request params { query, resume_tool, start_offset }.
+	 */
+	$extra = (array) apply_filters(
+		'wp_desktop_ai_request',
+		$extra,
+		array(
+			'query'        => $query,
+			'resume_tool'  => $resume_tool,
+			'start_offset' => $start_offset,
+		)
+	);
+
+	// Follow-up leg — skip the agent loop, summarise the tool outcome.
+	$follow_up = $request->get_param( 'follow_up' );
+	if ( is_array( $follow_up ) && isset( $follow_up['tool'] ) && is_array( $follow_up['tool'] ) ) {
+		$tool    = $follow_up['tool'];
+		$outcome = isset( $follow_up['result'] )
+			? ( is_array( $follow_up['result'] ) ? $follow_up['result'] : array( 'value' => $follow_up['result'] ) )
+			: array();
+		$result = wpdm_ai_run_followup( $api_key, $query, $tool, $outcome, $extra );
+	} else {
+		$result = wpdm_ai_run_search( $api_key, $query, $resume_tool, $start_offset, null, $extra );
+	}
 
 	if ( is_wp_error( $result ) ) {
+		$request_id = isset( $extra['request_id'] ) ? (string) $extra['request_id'] : '';
+		do_action(
+			'wp_desktop_ai_search_error',
+			array(
+				'code'       => $result->get_error_code(),
+				'message'    => $result->get_error_message(),
+				'data'       => $result->get_error_data(),
+				'user_id'    => $user_id,
+				'request_id' => $request_id,
+			)
+		);
 		return $result;
 	}
 

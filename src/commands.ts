@@ -175,6 +175,25 @@ export interface DesktopCommand {
 	 */
 	owner?: string;
 	/**
+	 * Opt into being callable by the AI Copilot as a tool.
+	 *
+	 * When `true`, `wp.desktop.ai.ask()` harvests this command into
+	 * the `command_tools` array sent to `/ai/search`. If the model
+	 * matches the user's query to this command, the server returns
+	 * `{ answer_type: 'tool_call', tool: { slug, args } }` and the
+	 * shell invokes the command's `run()` locally.
+	 *
+	 * Default `false`. Opt-in was chosen deliberately: the AI is a
+	 * natural-language surface, and handing it every registered
+	 * command (including destructive ones like `/delete_all_posts`)
+	 * would turn a typo into a catastrophe. Commands that are safe
+	 * to invoke via a paraphrased user intent ("turn on the lights")
+	 * set this explicitly.
+	 *
+	 * @since 0.17.0
+	 */
+	aiCallable?: boolean;
+	/**
 	 * Optional argument autocomplete. Called as the user types after
 	 * `/<slug> `, with the current args prefix. Returns (or resolves
 	 * to) a list of {@link CommandSuggestion}s the palette renders for
@@ -292,6 +311,41 @@ export function unregisterByOwner( owner: string ): number {
 /** Return every registered command in insertion order. */
 export function listCommands(): DesktopCommand[] {
 	return Array.from( registry.values() );
+}
+
+/**
+ * Return every command opted in as an AI tool via `aiCallable: true`.
+ * The shape the AI Copilot wants is narrow — slug plus a bit of
+ * metadata for the model's tool-description field — so we project
+ * here rather than shipping the full `DesktopCommand` (including
+ * `run`/`suggest` closures) over the wire.
+ *
+ * @since 0.17.0
+ */
+export function listAiCallableCommands(): Array< {
+	slug: string;
+	label: string;
+	description: string;
+	hint: string;
+} > {
+	const out: Array< {
+		slug: string;
+		label: string;
+		description: string;
+		hint: string;
+	} > = [];
+	for ( const cmd of registry.values() ) {
+		if ( cmd.aiCallable !== true ) {
+			continue;
+		}
+		out.push( {
+			slug: cmd.slug,
+			label: cmd.label,
+			description: cmd.description ?? '',
+			hint: cmd.hint ?? '',
+		} );
+	}
+	return out;
 }
 
 /**

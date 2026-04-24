@@ -499,6 +499,135 @@ window.wp.desktop.listCommands().forEach( ( c ) => console.log( `/${ c.slug } �
 
 ---
 
+### `wp.desktop.ai.ask( query, opts? )` — Stable  *(since 0.17.0)*
+
+Programmatic access to the AI Copilot — same endpoint the built-in overlay talks to. Resolves to an `AskResult`; rejects on network errors, HTTP failures, or abort.
+
+```javascript
+const res = await wp.desktop.ai.ask( 'where do I manage categories?' );
+// res = { answer_type: 'navigation', message: '…', admin_links: [ … ], request_id: '…' }
+```
+
+**`AskOptions`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `signal` | `AbortSignal` | Cancels the underlying `fetch`. Rejections are `DOMException('AbortError')` — handle them separately from real errors. |
+| `resumeTool` | `'search_posts' \| 'search_pages' \| 'search_comments'` | Continue an exhausted search. Pass the `tool` from a prior `res.continue`. |
+| `startOffset` | `number` | Accompanies `resumeTool`. |
+| `tools` | `false \| 'aiCallable' \| string[] \| (slug) => boolean` | Opt into command-as-tool dispatch. See "Commands as AI tools" below. |
+| `followUp` | `boolean` | Default `false`. When `true`, after a command runs, `ask()` fires a **second** `/ai/search` request carrying the tool's return value so the AI can compose a natural-language confirmation in the voice of the system prompt. See "Natural-language replies" below. |
+| `systemPrompt` | `string \| { mode: 'append' \| 'replace', text: string }` | Override the system prompt. String shorthand = append. `replace` requires `manage_options` server-side; non-admin callers get a silent downgrade to append. |
+| `commandContext` | `CommandContext` | Passed to any command's `run()` when the AI invokes one. Defaults to a minimal stub (closes assistant, opens URLs in legacy windows). |
+
+**`AskResult`:**
+
+```ts
+{
+    answer_type: 'entity' | 'navigation' | 'chat' | 'tool_call';
+    message: string;
+    entity?: CommandEntity | null;
+    admin_links?: CommandAdminLink[] | null;
+    toolCall?: {                    // present only when answer_type === 'tool_call'
+        slug: string;
+        args: string;
+        result: CommandResult | { error: string };
+    };
+    request_id?: string;            // server-issued UUID for tracing
+    continue?: { tool, offset, label } | null;
+}
+```
+
+**Commands as AI tools.**
+
+Mark a command `aiCallable: true` to opt it in, then pass `tools: 'aiCallable'` (or a predicate) when calling `ask()`:
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerCommand( {
+        slug: 'turn_lights',
+        label: 'Turn lights on/off',
+        description: 'Toggle smart lights.',
+        hint: 'ON or OFF',
+        aiCallable: true,                     // ← opt-in
+        run: ( args, ctx ) => {
+            const state = args.trim().toUpperCase();
+            // ...call Home Assistant...
+            return `Lights ${ state }.`;
+        },
+    } );
+} );
+
+// Later — from a voice plugin, a chat widget, an automation:
+const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
+    tools: 'aiCallable',
+} );
+// res.answer_type === 'tool_call'
+// res.toolCall === { slug: 'turn_lights', args: 'ON', result: 'Lights ON.' }
+// res.message   === 'Lights ON.'  // string returns are lifted into message
+```
+
+Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `wp_desktop_ai_command_allowed` provides a second line of defence for per-role gating.
+
+**Security notes.**
+
+1. The server never executes a client-harvested command — it returns `{ answer_type: 'tool_call', tool: { slug, args } }` and the client invokes `run()` locally. The model can't reach through to any server-side code via this path.
+2. For server-side tools, use [`wp_register_desktop_ai_tool()`](./hooks-reference.md#wp_register_desktop_ai_tool-args--stable-php-function-since-0170). Handlers are capability-gated and the registry is invisible to callers who don't have the cap.
+3. Command `description` is fed to the model verbatim — treat it as untrusted surface for plugin authors exactly as you'd treat any other plugin string.
+
+**Natural-language replies — `followUp: true`**
+
+By default, `ask()` runs in **one-shot** mode: when the AI picks a command, `res.message` is whatever the command's `run()` returned (typically a short status string like `"Light is ON."`). That's fast and cheap — one OpenAI round-trip — but the AI never actually writes anything about the action.
+
+Opt into **agentic** mode with `followUp: true` and `ask()` fires a second `/ai/search` request after the command runs. The server summarises the outcome in the voice of the system prompt:
+
+```javascript
+const res = await wp.desktop.ai.ask( 'hey turn on the office light', {
+    tools:     'aiCallable',
+    followUp:  true,
+} );
+
+// Before (one-shot):
+// res.message === 'Light is ON.'                            ← raw run() return
+
+// After (followUp):
+// res.message === 'Done — your office light is on now. Anything else?'
+```
+
+- **Cost:** one extra OpenAI call per command invocation.
+- **Latency:** roughly doubles (call 1 + local run + call 2).
+- **Degradation:** if the second leg fails (network, API), `ask()` **does not throw** — `res.toolCall.result` is preserved and `res.message` falls back to the one-shot string. The command *ran*; losing the composed reply is a degraded experience, not an error.
+- **AbortSignal:** aborting during either leg rejects with `AbortError` as usual.
+- **Irrelevant for non-tool_call responses:** if the AI answers with `entity`, `navigation`, or `chat`, `followUp: true` is a no-op (there's no tool outcome to summarise).
+
+When to use it:
+- **Yes — voice / chat / assistant surfaces.** Users expect a conversational reply.
+- **Yes — wrap around plugin commands that return objects, not strings.** `{ total: 42, items: [...] }` is not a user-friendly message; let the AI phrase it.
+- **Skip — one-tap "execute" buttons.** Raw `run()` return is already fine and users don't need extra latency.
+
+**AbortSignal example:**
+
+```javascript
+const controller = new AbortController();
+setTimeout( () => controller.abort(), 5000 );
+
+try {
+    const res = await wp.desktop.ai.ask( 'find my post about málaga', {
+        signal: controller.signal,
+    } );
+} catch ( err ) {
+    if ( err instanceof DOMException && err.name === 'AbortError' ) {
+        // user-visible cancellation
+    } else {
+        throw err;
+    }
+}
+```
+
+See also: [`docs/examples/ai-ask.md`](./examples/ai-ask.md).
+
+---
+
 ### `registerSettingsTab( def )` — Stable  *(since 0.17.0)*
 
 Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Extended Options, Help — and renders its body via your `render( body, ctx )` callback.

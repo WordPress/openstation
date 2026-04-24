@@ -855,6 +855,191 @@ apply_filters( 'wp_desktop_ai_error_log_candidates', array $candidates );
 
 ---
 
+## AI Copilot extensibility — `/ai/search` (Stable, since 0.17.0)
+
+Every `POST /wp-desktop/v1/ai/search` call — whether driven by the built-in overlay or by `wp.desktop.ai.ask()` — runs through this layered hook surface. Use it to:
+
+- Inject domain context into the system prompt.
+- Add or remove tools the AI can call.
+- Gate which slash-commands the AI is allowed to invoke.
+- Transform tool results on their way back to the model.
+- Rewrite the final answer.
+- Observe / log / cost-track every call via the start/tool/complete/error action trio.
+
+Every filter receives a `$context` array with at least `{ user_id, request_id }`. `request_id` is a UUID minted once per call — use it to correlate `wp_desktop_ai_search_started`, each `wp_desktop_ai_tool_called`, and the final `wp_desktop_ai_search_completed`.
+
+### `wp_desktop_ai_system_prompt_appendix` — Stable
+
+Most-common extension point. Every plugin's return value is concatenated onto the built-in instructions. Safe to stack across plugins — none overwrite each other.
+
+```php
+add_filter( 'wp_desktop_ai_system_prompt_appendix', function ( $appendix, $ctx ) {
+    return $appendix . "\n\nThis site controls a smart home. Rooms: kitchen, living room, bedroom.";
+}, 10, 2 );
+```
+
+### `wp_desktop_ai_system_prompt` — Stable
+
+Final transform pass on the composed prompt (built-in + appendix + any client override). Reserved for deep integrations — compliance disclaimers, restructured instructions. Most plugins should reach for the appendix filter instead.
+
+```php
+apply_filters( 'wp_desktop_ai_system_prompt', string $instructions, array $context );
+```
+
+### `wp_desktop_ai_system_prompt_replace_capability` — Stable
+
+Capability the client must hold to send `system_prompt: { mode: 'replace' }`. Default `manage_options`. Non-admin requests with `mode: 'replace'` silently downgrade to `append` — text is never dropped.
+
+```php
+apply_filters( 'wp_desktop_ai_system_prompt_replace_capability', string $capability, array $context );
+```
+
+### `wp_desktop_ai_request` — Stable
+
+Last-mile filter on the whole request bundle, right before `wpdm_ai_run_search()` fires. Mutable — return a modified array to rewrite `command_tools`, inject default `system_prompt_text`, add a sub-request flag that downstream filters observe.
+
+```php
+apply_filters( 'wp_desktop_ai_request', array $extra, array $core );
+// $extra = { user_id, request_id, command_tools, system_prompt_text, system_prompt_mode }
+// $core  = { query, resume_tool, start_offset }
+```
+
+### `wp_desktop_ai_tools` — Stable
+
+Transforms the full tool list (built-in search + PHP-registered + client commands) once per run, just before it goes to OpenAI. Add tools, remove tools, rewrite descriptions.
+
+```php
+apply_filters( 'wp_desktop_ai_tools', array $tools, array $context );
+```
+
+### `wp_desktop_ai_command_tools` — Stable
+
+Narrower sibling — fires on only the command-derived subset. Right hook for bulk gating ("strip every command from this tool list for unauthenticated requests").
+
+```php
+apply_filters( 'wp_desktop_ai_command_tools', array $command_defs, array $context );
+```
+
+### `wp_desktop_ai_command_allowed` — Stable
+
+Per-slug gate. Fired once per client-supplied command, before it's converted into a tool definition. Return `false` to drop the command entirely.
+
+```php
+add_filter( 'wp_desktop_ai_command_allowed', function ( $entry, $slug, $ctx ) {
+    // Non-admins can't invoke the /delete_* family via the AI.
+    if ( str_starts_with( $slug, 'delete_' ) && ! user_can( $ctx['user_id'], 'manage_options' ) ) {
+        return false;
+    }
+    return $entry;
+}, 10, 3 );
+```
+
+### `wp_desktop_ai_tool_result` — Stable
+
+Transform a tool's result on its way back to the model. Fires for **every** tool — built-in search_*, PHP-registered via `wp_register_desktop_ai_tool()`, and command tools alike.
+
+```php
+apply_filters( 'wp_desktop_ai_tool_result', array $result, string $tool_name, array $args, array $context );
+```
+
+### `wp_desktop_ai_answer` — Stable
+
+Final transform hook — fires immediately before the HTTP response is returned. Also fires for the `tool_call` short-circuit, the follow-up composed reply, and the budget-exhausted path.
+
+```php
+apply_filters( 'wp_desktop_ai_answer', array $answer, array $context );
+// $answer shape: { answer_type, message, entity, admin_links, tool?, iterations, exhausted, continue, request_id }
+// $context: { query, user_id, request_id, phase? }  — phase='follow_up' on the second leg
+```
+
+### `wp_desktop_ai_followup_outcome_max_chars` — Stable
+
+Caps the size of the serialised tool result the follow-up leg sends to OpenAI. Default `4000` characters — enough for a status string, a small result list, or a short error envelope. Set `0` to disable truncation (not recommended — a buggy or malicious plugin that returns a 5 MB blob would then inflate token usage unbounded).
+
+```php
+apply_filters( 'wp_desktop_ai_followup_outcome_max_chars', int $max_chars );
+```
+
+### `wp_desktop_ai_tool_registered` — Stable
+
+Fires after `wp_register_desktop_ai_tool()` successfully stores a tool definition. Does not fire on `WP_Error`.
+
+```php
+do_action( 'wp_desktop_ai_tool_registered', string $name, array $entry );
+```
+
+### `wp_desktop_ai_search_started` — Stable
+
+Fires once per `/ai/search` invocation, after validation, before any OpenAI call. First anchor of the observability trio.
+
+```php
+do_action( 'wp_desktop_ai_search_started', array $context );
+// $context = { query, user_id, request_id, phase? }
+```
+
+`phase` is `'follow_up'` when the event fires for the second leg of the agentic command-dispatch flow (triggered by the client sending `ask( q, { followUp: true } )`). Omitted on the primary leg.
+
+### `wp_desktop_ai_tool_called` — Stable
+
+Fires each time a tool runs — search_*, PHP-registered, or a command tool short-circuit.
+
+```php
+do_action( 'wp_desktop_ai_tool_called', array $payload );
+// $payload = { tool_name, args, user_id, request_id }
+```
+
+### `wp_desktop_ai_search_completed` — Stable
+
+Fires after the final answer is composed (every success path). Observability partner to `wp_desktop_ai_search_started`.
+
+```php
+do_action( 'wp_desktop_ai_search_completed', array $payload );
+// $payload = { query, user_id, request_id, answer_type, iterations }
+```
+
+### `wp_desktop_ai_search_error` — Stable
+
+Fires on any `WP_Error` path — REST permission deny, OpenAI failure, tool handler exception. Includes the `request_id` so subscribers can correlate with `wp_desktop_ai_search_started`.
+
+```php
+do_action( 'wp_desktop_ai_search_error', array $error );
+// $error = { code, message, data, user_id?, request_id? }
+```
+
+---
+
+### `wp_register_desktop_ai_tool( $args )` — Stable (PHP function, since 0.17.0)
+
+Register a server-dispatched AI tool. Tool handlers run on the server, return a JSON-serialisable array, and the result is fed straight back to the OpenAI agent loop. This is the right home for integrations that are inherently server-side: site-health checks, order lookups, WP-CLI wrappers, database-heavy queries.
+
+```php
+wp_register_desktop_ai_tool( array(
+    'name'             => 'list_recent_orders',
+    'description'      => 'List the site\'s most recent WooCommerce orders.',
+    'parameters'       => array(
+        'type'       => 'object',
+        'properties' => array(
+            'limit'  => array( 'type' => 'integer' ),
+            'status' => array( 'type' => 'string', 'enum' => array( 'processing', 'completed' ) ),
+        ),
+        'required'   => array( 'limit' ),
+    ),
+    'handler'          => 'my_plugin_list_orders',
+    'capability'       => 'manage_woocommerce',
+    'progress_message' => 'Checking recent orders…',
+) );
+
+function my_plugin_list_orders( array $args, int $user_id ) : array {
+    return array( 'orders' => array( /* ... */ ) );
+}
+```
+
+Handler signature: `function( array $args, int $user_id ): array|WP_Error`. A `WP_Error` return, or a thrown exception, is caught automatically — the error envelope goes back to the model as the tool result (so the agent can try something else) and fires `wp_desktop_ai_search_error`. Never surfaces raw exception messages to the user.
+
+`capability` is enforced **before** the tool is visible to the model — unauthorised users never see it exists.
+
+---
+
 ## Planned (not yet fired)
 
 The filters and actions below are **reserved names** documented for forward compatibility. They will land with the phase indicated. Do not register listeners in production code until the status flips to Stable.

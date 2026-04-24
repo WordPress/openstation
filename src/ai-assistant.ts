@@ -170,6 +170,17 @@ export interface AiAssistantApi {
 	close(): void;
 	toggle(): void;
 	readonly isOpen: boolean;
+	/**
+	 * Programmatic access to the AI Copilot — same endpoint the
+	 * overlay uses. See {@link AskFn}.
+	 *
+	 * Wired in `desktop.ts`, not in the class constructor, so the
+	 * `ask` function can close over the live shell config / window
+	 * manager without `AiAssistant` growing those dependencies.
+	 *
+	 * @since 0.17.0
+	 */
+	ask: import( './ai/ask' ).AskFn;
 }
 
 type AnswerType = 'entity' | 'navigation' | 'chat';
@@ -386,6 +397,24 @@ export class AiAssistant implements AiAssistantApi {
 
 	get isOpen(): boolean {
 		return this._isOpen;
+	}
+
+	/**
+	 * Programmatic Copilot entry point. Injected by `desktop.ts` via
+	 * {@link attachAsk} after the shell config is ready so plugins
+	 * can `wp.desktop.ai.ask( '…' )` without poking the DOM.
+	 *
+	 * @since 0.17.0
+	 */
+	public ask: import( './ai/ask' ).AskFn = () => {
+		throw new Error(
+			'[wp-desktop-mode] wp.desktop.ai.ask called before the shell finished booting.',
+		);
+	};
+
+	/** Late-binding helper used by `desktop.ts`. Not part of the public API. */
+	public attachAsk( fn: import( './ai/ask' ).AskFn ): void {
+		this.ask = fn;
 	}
 
 	// ------------------------------------------------------------------
