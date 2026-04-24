@@ -11,6 +11,7 @@
  */
 
 import { WindowManager } from './window-manager';
+import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import { Dock, type SystemDockItem } from './dock';
 import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
@@ -439,6 +440,7 @@ function init(): void {
 		isOpen: () => aiAssistant.isOpen,
 	} );
 	installPaletteShortcut();
+	installWindowSwitcherShortcut( manager );
 
 	// Admin-bar "Ask AI" button and programmatic `wp-desktop-open-ai`
 	// dispatches now route through openPaletteOnly so any other plugin
