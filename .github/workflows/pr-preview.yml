@@ -48,7 +48,7 @@ jobs:
           artifact-filename: 'wp-desktop-mode.zip'
           pr-number: ${{ github.event.pull_request.number }}
           commit-sha: ${{ github.sha }}
-          artifacts-to-keep: '2'
+          artifacts-to-keep: '20'
 
   create-blueprint:
     needs: expose-build
