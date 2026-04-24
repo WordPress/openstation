@@ -2,11 +2,7 @@
 
 Maintainer guide. Users install by downloading `/releases/latest/download/wp-desktop-mode.zip`.
 
-## Two ways to cut a release
-
-Both end at the same place: a `vX.Y.Z` tag on origin, which fires [`.github/workflows/release.yml`](.github/workflows/release.yml) to build and publish a GitHub Release with `wp-desktop-mode.zip` attached.
-
-### 1. Local one-liner (recommended)
+## Cutting a release
 
 ```bash
 ./bin/release.sh 0.5.0
@@ -14,25 +10,17 @@ Both end at the same place: a `vX.Y.Z` tag on origin, which fires [`.github/work
 
 Bumps all three version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if the tree is dirty, you're not on trunk, local trunk is out of sync with origin, or CI fails. Resumable — re-running after a mid-flow failure picks up where it left off.
 
+The tag push fires [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds and publishes a GitHub Release with `wp-desktop-mode.zip` attached.
+
 Requires the `gh` CLI authenticated (`gh auth status`).
-
-### 2. Manual, step by step
-
-```bash
-./bin/bump-version.sh 0.5.0
-git commit -am "chore: bump to 0.5.0" && git push origin trunk
-# wait for CI green on the bump commit
-git tag v0.5.0 && git push origin v0.5.0
-```
-
-Full transparency, useful when something in the automation breaks.
 
 ## Pre-releases
 
-Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps pointing at the last stable. The workflow detects the hyphen and sets `--prerelease` automatically. Drop the prerelease tag wherever the stable version goes:
+Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps pointing at the last stable. The workflow detects the hyphen and sets `--prerelease` automatically:
 
-- Script: `./bin/release.sh 0.5.0-rc1`
-- Manual: tag as `v0.5.0-rc1`
+```bash
+./bin/release.sh 0.5.0-rc1
+```
 
 ## What each tool does
 
@@ -40,8 +28,8 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 |---|---|
 | `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `WPDM_VERSION`. |
 | `bin/package.sh` | Packages `wp-desktop-mode.zip` from HEAD + current built JS. Errors if the build is stale. |
-| `bin/release.sh <version>` | Full local release (Option 1). |
-| `release.yml` — `push: tags: v*` | Build + publish. Fires for both options. |
+| `bin/release.sh <version>` | Full end-to-end release. |
+| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release. |
 
 ## Version locations
 
@@ -93,4 +81,4 @@ Before cutting the first release, confirm:
 
 - Repo Settings → Actions → General → Workflow permissions is set to **Read and write permissions** (needed for `gh release create`).
 - The `v*` tag pattern isn't blocked by a tag protection rule.
-- CI is passing on `trunk`. Option 1 enforces this automatically; Option 2 trusts you to eyeball it.
+- CI is passing on `trunk` (the script enforces this before tagging).
