@@ -45,6 +45,7 @@ jobs:
         uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@v2
         with:
           artifact-name: 'built-plugin'
+          artifact-filename: 'wp-desktop-mode.zip'
           pr-number: ${{ github.event.pull_request.number }}
           commit-sha: ${{ github.sha }}
           artifacts-to-keep: '2'
