@@ -628,6 +628,189 @@ See also: [`docs/examples/ai-ask.md`](./examples/ai-ask.md).
 
 ---
 
+### `registerTitleBarButton( def )` — Experimental  *(since 0.17.0)*
+
+Add a custom button to the title bar of any matching window. The right surface for cross-window verbs ("connect to", "live preview", "broadcast"). Predicate decides which windows show the button; you can render an `<wpd-window-button>` with a click handler, or own the host entirely with a custom `render`.
+
+**Returns** `true` on success, `false` on validation failure (a `console.warn` names the bad field, so you can branch on the return value AND log goes through your own monitor pipeline).
+
+**`TitleBarButtonDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `wp_register_desktop_window` / `wp_register_desktop_widget` accept (slashes welcome). Wider than `registerCommand`'s slug or `registerSettingsTab`'s id, which can't use slashes (those values are also used in slash-command parsing / CSS selectors). Re-registering replaces. |
+| `label` | `string` | Tooltip + aria-label. |
+| `icon` | `string` | Dashicons class (`'dashicons-foo'`), inline SVG (`'<svg>…</svg>'`), or built-in key (`'minimize'` / `'menu'` / etc.). |
+| `placement` | `'left' \| 'right'` | Default `'left'` (next to title). `'right'` lands before the window controls. |
+| `order` | `number` | Default 100. Sorts within placement. |
+| `match` | `( window ) => boolean` | Predicate against the live `Window` instance. Throwing equals not-matching. |
+| `onClick` | `( window, ev ) => void` | Optional. Fires **exactly once per user activation** — wired to the button's `wpd-button-activate` CustomEvent (not raw `click`), so no doubles, no swallowed events when the title-bar drag tracker races. Skip if you use `render`. |
+| `render` | `( host, window ) => void` | Optional. Owns the `<wpd-window-button>` host entirely; bind your own click + dropdown. |
+| `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerTitleBarButton( {
+        id:    'live-preview/connect',
+        label: 'Live preview',
+        icon:  'dashicons-visibility',
+        match: ( w ) => w.config.url?.includes( 'post.php' ) ?? false,
+        onClick: ( hostWindow ) => {
+            // Show a popover of other open windows; on hover, highlight; on click, connect.
+        },
+        owner: 'my-plugin-titlebar',
+    } );
+} );
+```
+
+PHP companion (so plugins activated mid-session paint live):
+
+```php
+wp_desktop_register_titlebar_button_script( 'my-plugin-titlebar' );
+```
+
+---
+
+### `Window.setTitle( title )` — Stable
+
+Update a window's title bar from outside it. Useful for plugins that want to retitle a preview window as the user types ("Live Preview — My Post"), prefix with status, etc. Fires `wp-desktop.window.title-changed` with `{ windowId, title }` so other subscribers can react.
+
+```javascript
+const w = wp.desktop.windowManager.getById( 'my-preview' );
+w.setTitle( `Live Preview — ${ postTitle }` );
+```
+
+---
+
+### `Window.iframeSend( payload, opts? )` — Experimental  *(since 0.18.0)*
+
+Send a payload into a window's iframe. **Only valid for windows registered with `iframeContent`** — non-iframeContent windows no-op with a console warning.
+
+Available **synchronously** the moment `wp.desktop.registerWindow` returns. Calls before the iframe finishes loading are buffered and flushed automatically:
+
+| Mode | Default? | Behaviour |
+|---|---|---|
+| FIFO buffer | yes (no opts) | every call queues in order, flushed verbatim on `load`. Use for setup messages where every payload matters (`{ type: 'init' }`, etc.). |
+| Coalesced single-slot | `{ coalesce: true }` | each call overwrites the slot; only the most-recent payload survives until load. Use for live-stream snapshots (Gutenberg editor content, scroll position) where pre-load intermediates are throwaway. |
+
+Once the iframe has loaded, both modes flush directly to `postMessage` — the load gate becomes a no-op.
+
+```javascript
+const win = wp.desktop.registerWindow( {
+    id: 'my-preview',
+    iframeContent: { url, bridge: true, onMessage: ... },
+} );
+
+// Setup — FIFO, every payload preserved:
+win.iframeSend( { type: 'init',   config: { theme: 'dark' } } );
+win.iframeSend( { type: 'config', verbose: true } );
+
+// Live stream — coalesced, latest-only pre-load:
+editorConn.subscribe( 'gutenberg:content', ( html ) => {
+    win.iframeSend( { type: 'preview:html', html }, { coalesce: true } );
+} );
+```
+
+`iframeSend` is the recommended surface for outbound traffic into a `iframeContent` window. The closure passed to `iframeContent.onReady` does the same thing but only exists *after* the iframe loads — fine for inbound subscriptions, but for outbound sends `iframeSend` doesn't force you to capture a closure or coordinate with the load gate.
+
+---
+
+### `Window.setHighlight( mode, opts? )` — Experimental  *(since 0.17.0)*
+
+Toggle a visual ring on a window from outside it.
+
+```javascript
+const w = wp.desktop.windowManager.getById( 'edit-post' );
+w.setHighlight( 'preview' );           // temporary ring (clear yourself on mouseleave)
+w.setHighlight( 'persistent' );        // sticky ring
+w.setHighlight( null );                // clear
+w.setHighlight( 'preview', { color: '#f59e0b' } );  // override colour
+```
+
+`'preview'` and `'persistent'` are visually distinct; the shell does NOT auto-clear either — that's the caller's responsibility. CSS variable: `--wp-window-highlight-color` (default `--wp-admin-theme-color`).
+
+---
+
+### `wp.desktop.connect( windowId, opts? )` — Experimental  *(since 0.17.0)*
+
+Open a typed pub/sub channel with another window's iframe. Returns a `WindowConnection`. Ideal for plugins that need to listen to or talk to content inside an iframe — first use case: live-preview a Gutenberg editor.
+
+```javascript
+const conn = wp.desktop.connect( 'edit-post', {
+    topics: [ 'gutenberg:content' ],
+    onOpen: () => console.log( 'iframe handshake done' ),
+    onClose: ( reason ) => console.log( 'closed:', reason ),
+} );
+
+const off = conn.subscribe( 'gutenberg:content', ( html ) => {
+    document.querySelector( '#preview' ).innerHTML = html;
+} );
+
+conn.send( 'preview:zoom', { factor: 1.5 } );
+off();              // unsubscribe single topic
+conn.disconnect();  // tear the whole connection down
+```
+
+**`WindowConnection` shape:**
+
+| Field | Notes |
+|---|---|
+| `id` | Unique connection id (for trace correlation). |
+| `target` | The window id this connection points at. |
+| `isOpen()` | `true` after the iframe acks the handshake. |
+| `subscribe( topic, cb )` | Returns unsubscribe. Use `'*'` for a wildcard. |
+| `send( topic, payload )` | Messages sent before the iframe acks are queued and flushed in order. |
+| `disconnect()` | Idempotent. Fires `onClose( 'disconnect' )`. |
+
+**Lifecycle reasons handed to `onClose`:** `'disconnect'`, `'window-closed'`, `'navigated'`.
+
+Cross-origin guard: every postMessage is sent + accepted only on the shell's `window.location.origin`. Plugin-provided topic names + payloads pass through verbatim — sanitise before publishing if the payload could include user-typed HTML.
+
+---
+
+### `wp.desktop.iframe.publish` / `subscribe` / `onConnection` — Experimental  *(since 0.17.0)*
+
+Iframe-side counterpart to `connect()`. **Available on every chromeless wp-admin page** — the shell injects this into the page footer. Use inside any plugin code that runs inside an iframe (Gutenberg integrations, plugin admin pages) to publish events to parent-side connections without re-implementing `postMessage`.
+
+```javascript
+// Inside an iframe — e.g. a plugin script that runs on post.php:
+wp.desktop.iframe.onConnection( () => {
+    const editor = wp.data.select( 'core/editor' );
+    wp.data.subscribe( () => {
+        wp.desktop.iframe.publish(
+            'gutenberg:content',
+            editor.getEditedPostContent(),
+        );
+    } );
+} );
+
+// Receive parent → iframe traffic too:
+wp.desktop.iframe.subscribe( 'preview:zoom', ( payload ) => {
+    document.body.style.zoom = String( payload.factor );
+} );
+```
+
+`publish( topic, payload )` fans the message out to every parent-side connection currently open against this iframe. `onConnection` callbacks are replayed for currently-open connections, so a late registration still sees who's already there.
+
+**Lifecycle hooks** (parent-side, observability):
+
+```javascript
+wp.desktop.hooks.addAction( 'wp-desktop.connection.opened', 'me', ( e ) => {
+    // e = { connectionId, targetWindowId, topics }
+} );
+wp.desktop.hooks.addAction( 'wp-desktop.connection.closed', 'me', ( e ) => {
+    // e = { connectionId, reason }
+} );
+wp.desktop.hooks.addAction( 'wp-desktop.connection.message', 'me', ( e ) => {
+    // e = { connectionId, topic, direction: 'in' | 'out' }
+    // High-volume — keep subscribers cheap.
+} );
+```
+
+See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for the full live-preview recipe.
+
+---
+
 ### `registerSettingsTab( def )` — Experimental  *(since 0.17.0)*
 
 Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Extended Options, Help — and renders its body via your `render( body, ctx )` callback.

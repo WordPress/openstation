@@ -618,6 +618,41 @@ export const HOOKS = {
 	 * regardless of which wallpaper (if any) is active.
 	 */
 	SHELL_VISIBILITY: 'wp-desktop.shell.visibility',
+	/**
+	 * Action — fires when a `wp.desktop.connect()` connection
+	 * completes its iframe handshake. Payload:
+	 * `{ connectionId, targetWindowId, topics }`.
+	 *
+	 * @since 0.17.0
+	 */
+	CONNECTION_OPENED: 'wp-desktop.connection.opened',
+	/**
+	 * Action — fires when a connection tears down. Payload:
+	 * `{ connectionId, reason: 'disconnect' | 'window-closed' | 'navigated' }`.
+	 *
+	 * @since 0.17.0
+	 */
+	CONNECTION_CLOSED: 'wp-desktop.connection.closed',
+	/**
+	 * Action — fires for every message routed through a connection.
+	 * Payload: `{ connectionId, topic, direction: 'in' | 'out' }`.
+	 * Used for debug consoles + traffic auditing; high-volume topics
+	 * fire this many times per second, so subscribers should be
+	 * cheap.
+	 *
+	 * @since 0.17.0
+	 */
+	CONNECTION_MESSAGE: 'wp-desktop.connection.message',
+	/**
+	 * Filter — fires when an iframe calls
+	 * `wp.desktop.iframe.requestConnection()`. Default value is
+	 * `true` (accept). Return `false` to reject, or an object
+	 * `{ topics: string[] }` to accept while narrowing the topic
+	 * list. `$context` carries `{ windowId, requestId, topics }`.
+	 *
+	 * @since 0.18.0
+	 */
+	IFRAME_CONNECTION_REQUEST: 'wp-desktop.iframe.connection-request',
 } as const;
 
 /**

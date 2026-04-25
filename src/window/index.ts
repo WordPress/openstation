@@ -26,6 +26,12 @@ import './../ui/components/wpd-tab-chip/wpd-tab-chip';
 
 import { createWindowElement, updateFullscreenBodyClass } from './dom';
 import { handleWindowMessage } from './iframe-bridge';
+import {
+	buttonsForWindow,
+	subscribeTitleBarButtons,
+	type TitleBarButtonDef,
+} from './../title-bar-buttons/registry';
+import { paintTitleBarButtonIcon } from './../title-bar-buttons/paint-icon';
 
 /**
  * Origin snapshot taken at module load. Same-origin guards in this
@@ -137,6 +143,28 @@ export class Window {
 	public _externalTabSeq = 0;
 
 	/**
+	 * Unsubscribe handle for the title-bar-button registry. Cleared
+	 * on close so the closed window stops repainting on registry
+	 * changes. Null until the constructor wires it up.
+	 * @internal
+	 */
+	public _titleBarButtonsUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Send-into-iframe closure for windows registered with
+	 * `iframeContent`. Populated by `createRegisterWindow` after
+	 * `manager.open()` returns; null for non-iframeContent windows.
+	 *
+	 * Public-facing access goes through {@link iframeSend} — that
+	 * method is the API surface, this field is the implementation
+	 * back-end.
+	 * @internal
+	 */
+	public _iframeSendImpl:
+		| ( ( payload: unknown, opts?: { coalesce?: boolean } ) => void )
+		| null = null;
+
+	/**
 	 * Which tab is currently foregrounded: 'primary' or a tab id.
 	 * @internal
 	 */
@@ -213,6 +241,15 @@ export class Window {
 		this._boundOnMessage = ( e: MessageEvent ) => handleWindowMessage( this, e );
 
 		this.bindEvents();
+
+		// Render any plugin-registered title-bar buttons that match
+		// this window. Subscribe so registrations made AFTER this
+		// window opens still take effect; the unsubscribe is wired
+		// in `close()`.
+		this.renderCustomTitleBarButtons();
+		this._titleBarButtonsUnsubscribe = subscribeTitleBarButtons( () => {
+			this.renderCustomTitleBarButtons();
+		} );
 
 		// Native render is intentionally NOT run here. The window
 		// manager calls {@link hydrateNative} AFTER appending the
@@ -948,6 +985,178 @@ export class Window {
 	}
 
 	/**
+	 * (Re)render plugin-registered title-bar buttons that match this
+	 * window. Called once from the constructor and again whenever
+	 * the registry changes. Cheap — clears each slot then walks the
+	 * filtered list; matching N predicates against this single
+	 * window is O(N).
+	 *
+	 * @internal
+	 */
+	public renderCustomTitleBarButtons(): void {
+		const leftSlot = this.element.querySelector< HTMLElement >(
+			'.wp-desktop-window__custom-buttons--left',
+		);
+		const rightSlot = this.element.querySelector< HTMLElement >(
+			'.wp-desktop-window__custom-buttons--right',
+		);
+		if ( ! leftSlot || ! rightSlot ) {
+			return;
+		}
+		leftSlot.innerHTML = '';
+		rightSlot.innerHTML = '';
+
+		const { left, right } = buttonsForWindow( this );
+		const fill = ( slot: HTMLElement, defs: TitleBarButtonDef[] ): void => {
+			for ( const def of defs ) {
+				const host = document.createElement( 'wpd-window-button' );
+				paintTitleBarButtonIcon( host, def.icon );
+				host.setAttribute( 'aria-label', def.label );
+				host.setAttribute( 'title', def.label );
+				host.classList.add( 'wp-desktop-window__btn' );
+				host.classList.add( 'wp-desktop-window__btn--custom' );
+				host.dataset.buttonId = def.id;
+				slot.appendChild( host );
+
+				if ( typeof def.render === 'function' ) {
+					try {
+						def.render( host, this );
+					} catch ( err ) {
+						if ( typeof console !== 'undefined' ) {
+							console.error(
+								'[wp-desktop-mode] title-bar-button render threw:',
+								def.id,
+								err,
+							);
+						}
+					}
+				} else if ( typeof def.onClick === 'function' ) {
+					// Listen for `wpd-button-activate` — the once-per-
+					// gesture CustomEvent the component fires. Using
+					// the named event (not raw `click`) means the
+					// contract is "fires exactly once per user
+					// activation, never racy with the title-bar
+					// drag handler". The drag-handler exclusion in
+					// `src/window/pointer.ts` makes raw `click`
+					// reliable too, but plugin authors should reach
+					// for the named event for clarity.
+					host.addEventListener( 'wpd-button-activate', ( ev ) => {
+						try {
+							def.onClick!( this, ev as unknown as MouseEvent );
+						} catch ( err ) {
+							if ( typeof console !== 'undefined' ) {
+								console.error(
+									'[wp-desktop-mode] title-bar-button onClick threw:',
+									def.id,
+									err,
+								);
+							}
+						}
+					} );
+				}
+			}
+		};
+		fill( leftSlot, left );
+		fill( rightSlot, right );
+	}
+
+	/**
+	 * Send a payload into this window's iframe.
+	 *
+	 * **Only valid for windows registered with `iframeContent`** —
+	 * non-iframeContent windows have no synthesised iframe to send
+	 * into and the call no-ops with a console warning.
+	 *
+	 * Available **synchronously** the moment `wp.desktop.registerWindow`
+	 * returns — calls before the iframe finishes loading are buffered
+	 * and flushed automatically:
+	 *
+	 *   - **FIFO buffer (default)** — every `iframeSend( payload )`
+	 *     without options is queued in order and flushed verbatim on
+	 *     `load`. Use for setup messages where every payload matters
+	 *     (`{ type: 'init' }`, `{ type: 'config' }`, ...).
+	 *
+	 *   - **Coalesced single-slot** — `iframeSend( payload, { coalesce: true } )`
+	 *     overwrites the slot on each call; only the most-recent
+	 *     payload survives until load. Use for live-stream snapshots
+	 *     (Gutenberg editor content, scroll position) where pre-load
+	 *     intermediates are throwaway and you want the freshest one.
+	 *
+	 * Once the iframe has loaded, both modes flush directly to
+	 * `postMessage` — the load gate becomes a no-op.
+	 *
+	 * Replaces the "store the `send` closure from `onReady` and pray
+	 * the iframe is ready" pattern. The closure is still passed to
+	 * `onReady` for callers who already use that surface; `iframeSend`
+	 * is just the equivalent surface that's available *before* load,
+	 * which is the case the doc previously claimed worked but didn't.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param payload       Anything `postMessage` can serialise.
+	 * @param opts          Optional config bag.
+	 * @param opts.coalesce When true, overwrite a single pre-load
+	 *                      slot instead of appending to the FIFO
+	 *                      queue. Ignored after load.
+	 */
+	public iframeSend(
+		payload: unknown,
+		opts?: { coalesce?: boolean },
+	): void {
+		if ( ! this._iframeSendImpl ) {
+			if ( typeof console !== 'undefined' ) {
+				console.warn(
+					'[wp-desktop-mode] Window.iframeSend: no iframeContent on this window. Did you mean wp.desktop.connect( id ).send(…)?',
+				);
+			}
+			return;
+		}
+		this._iframeSendImpl( payload, opts );
+	}
+
+	/**
+	 * Toggle a visual highlight on the window. Used by plugins that
+	 * need to point at a window from outside it — e.g. a "connect to"
+	 * dropdown that highlights candidate windows on hover.
+	 *
+	 *   - `'preview'`     — temporary ring; caller is expected to
+	 *                       clear on `mouseleave`. Multiple plugins
+	 *                       can hover-preview without stomping each
+	 *                       other (last write wins).
+	 *   - `'persistent'`  — sticky ring; caller is responsible for
+	 *                       clearing it.
+	 *   - `null` / unset  — clear all highlight state.
+	 *
+	 * Override the colour per-call via `opts.color`, or globally
+	 * via the `--wp-window-highlight-color` custom property.
+	 *
+	 * @since 0.17.0
+	 */
+	public setHighlight(
+		mode: 'preview' | 'persistent' | null,
+		opts?: { color?: string },
+	): void {
+		const el = this.element;
+		if ( ! el ) {
+			return;
+		}
+		el.classList.remove(
+			'wp-window--highlight-preview',
+			'wp-window--highlight-persistent',
+		);
+		if ( mode === 'preview' ) {
+			el.classList.add( 'wp-window--highlight-preview' );
+		} else if ( mode === 'persistent' ) {
+			el.classList.add( 'wp-window--highlight-persistent' );
+		}
+		if ( opts?.color ) {
+			el.style.setProperty( '--wp-window-highlight-color', opts.color );
+		} else if ( mode === null ) {
+			el.style.removeProperty( '--wp-window-highlight-color' );
+		}
+	}
+
+	/**
 	 * Close and destroy the window.
 	 *
 	 * Plays a subtle closing animation before removing the element.
@@ -975,6 +1184,13 @@ export class Window {
 		}
 
 		this._isDestroyed = true;
+
+		// Drop the title-bar-button subscription so a closed window
+		// stops repainting on registry changes.
+		if ( this._titleBarButtonsUnsubscribe ) {
+			this._titleBarButtonsUnsubscribe();
+			this._titleBarButtonsUnsubscribe = null;
+		}
 
 		// Tear down the body resize observer now rather than on
 		// element.remove() — subscribers shouldn't see a phantom
@@ -1151,3 +1367,4 @@ export class Window {
 		openActionsMenu( this );
 	}
 }
+

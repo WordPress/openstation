@@ -17,6 +17,7 @@ import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
 import {
 	HOOKS,
+	addAction,
 	doAction,
 	rawHooks,
 	whenReady,
@@ -35,6 +36,18 @@ import {
 	listSettingsTabs,
 	type DesktopSettingsTab,
 } from './settings/registry';
+import {
+	registerTitleBarButton,
+	unregisterTitleBarButton,
+	listTitleBarButtons,
+	type TitleBarButtonDef,
+} from './title-bar-buttons/registry';
+import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
+import {
+	createConnectionBridge,
+	type WindowConnection,
+	type ConnectOptions,
+} from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
@@ -344,6 +357,32 @@ export interface WpDesktopPublicApi {
 	unregisterSettingsTab: ( id: string ) => void;
 	/** Snapshot of all registered third-party settings tabs. @since 0.17.0 */
 	listSettingsTabs: () => DesktopSettingsTab[];
+	/**
+	 * Register a custom button in the title bar of any matching
+	 * window. Predicate decides which windows show it. See
+	 * `TitleBarButtonDef` for the full options shape.
+	 *
+	 * Returns `true` when the button was registered, `false` on
+	 * validation failure (a `console.warn` names the bad field).
+	 *
+	 * @since 0.17.0
+	 */
+	registerTitleBarButton: ( def: TitleBarButtonDef ) => boolean;
+	/** Remove a previously registered title-bar button. @since 0.17.0 */
+	unregisterTitleBarButton: ( id: string ) => void;
+	/** Snapshot of registered title-bar buttons. @since 0.17.0 */
+	listTitleBarButtons: () => TitleBarButtonDef[];
+	/**
+	 * Open a typed pub/sub connection to another window's iframe.
+	 * Returns a `WindowConnection` with `subscribe`, `send`, and
+	 * `disconnect`. Messages are queued before the iframe acks the
+	 * handshake; the iframe-side counterpart is
+	 * `wp.desktop.iframe.publish/subscribe` (injected into every
+	 * chromeless wp-admin page).
+	 *
+	 * @since 0.17.0
+	 */
+	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	/**
 	 * Register a Cmd+K palette. The shell owns a single shortcut
 	 * handler that cycles through every registered palette; the
@@ -822,6 +861,40 @@ function init(): void {
 		Array.isArray( config.serverSettingsTabs ) ? config.serverSettingsTabs : [],
 	);
 
+	// Title-bar-button sync — same pattern. Loads opted-in scripts
+	// so plugin-registered buttons appear in matching windows on
+	// activation; deactivation drops buttons by `owner` tag.
+	const syncServerTitleBarButtons = createTitleBarButtonRegistrySync();
+	void syncServerTitleBarButtons(
+		Array.isArray( config.serverTitleBarButtonScripts )
+			? config.serverTitleBarButtonScripts
+			: [],
+	);
+
+	// Cross-window connection bridge — parent side. Builds the
+	// `connect()` factory + the iframe-message router. The router
+	// is wired into `iframe-bridge.ts` below via a side-channel
+	// global so individual Window instances don't need to know
+	// about the bridge.
+	const connectionBridge = createConnectionBridge( manager );
+	(
+		window as unknown as {
+			__wpDesktopConnectionBridge?: ReturnType< typeof createConnectionBridge >;
+		}
+	).__wpDesktopConnectionBridge = connectionBridge;
+	// Tear down connections when their target window closes.
+	addAction( HOOKS.WINDOW_CLOSED, 'wp-desktop-mode/connection-cleanup', ( e: { windowId?: string } ) => {
+		if ( e?.windowId ) {
+			connectionBridge.onWindowClosed( e.windowId );
+		}
+	} );
+	// Re-arm pending handshakes once an iframe finishes loading.
+	addAction( HOOKS.IFRAME_READY, 'wp-desktop-mode/connection-rearm', ( e: { windowId?: string } ) => {
+		if ( e?.windowId ) {
+			connectionBridge.onIframeReady( e.windowId );
+		}
+	} );
+
 	// Hoisted so the desktop-icons render code below and the
 	// `window.wp.desktop.registerWindow` public export both
 	// reference the same function — no double-wrapping, no drift.
@@ -903,6 +976,7 @@ function init(): void {
 		syncServerWallpapers,
 		syncServerCommands,
 		syncServerSettingsTabs,
+		syncServerTitleBarButtons,
 	);
 
 	// Expose the public API on `window.wp.desktop`. The `hooks` field
@@ -961,6 +1035,10 @@ function init(): void {
 		registerSettingsTab,
 		unregisterSettingsTab,
 		listSettingsTabs,
+		registerTitleBarButton,
+		unregisterTitleBarButton,
+		listTitleBarButtons,
+		connect: connectionBridge.connect,
 		registerPalette,
 		unregisterPalette,
 		listPalettes,
@@ -1548,6 +1626,9 @@ function bindMenuRefresh(
 		scripts: import( './types' ).DesktopSettingsTabScriptServerEntry[],
 		tabs?: import( './types' ).DesktopSettingsTabServerEntry[],
 	) => Promise< void >,
+	syncServerTitleBarButtons: (
+		scripts: import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
+	) => Promise< void >,
 ): () => Promise<void> {
 	// Shared applier — takes a freshly-split payload and rebuilds
 	// both rails. Extracted so the message-with-payload path (no
@@ -1691,6 +1772,18 @@ function bindMenuRefresh(
 				config.serverSettingsTabs =
 					serverSettingsTabs as DesktopConfig[ 'serverSettingsTabs' ];
 			}
+		}
+
+		// Title-bar-button sync — same shape as the commands block.
+		const serverTitleBarButtonScripts = (
+			payload as { serverTitleBarButtonScripts?: unknown }
+		).serverTitleBarButtonScripts;
+		if ( Array.isArray( serverTitleBarButtonScripts ) ) {
+			void syncServerTitleBarButtons(
+				serverTitleBarButtonScripts as import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
+			);
+			config.serverTitleBarButtonScripts =
+				serverTitleBarButtonScripts as DesktopConfig[ 'serverTitleBarButtonScripts' ];
 		}
 	};
 

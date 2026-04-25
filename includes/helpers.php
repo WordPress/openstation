@@ -147,14 +147,57 @@ add_filter( 'wp_redirect', 'wpdm_classic_preserve_redirect', 999 );
  * @return bool True if this is a chromeless (iframe) request.
  */
 function wpdm_is_chromeless_request() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
-	if ( empty( $_GET['wp_desktop'] ) || '1' !== wp_unslash( $_GET['wp_desktop'] ) ) {
+	if ( ! wpdm_is_enabled() ) {
+		// Only allow chromeless mode if the user actually has
+		// desktop mode enabled. Prevents stripping admin chrome via
+		// a bare `?wp_desktop=1` parameter from a logged-out URL.
 		return false;
 	}
 
-	// Only allow chromeless mode if the user actually has desktop mode enabled.
-	// This prevents stripping admin chrome via a bare ?wp_desktop=1 parameter.
-	return wpdm_is_enabled();
+	// Primary signal — the explicit query flag the parent shell
+	// adds when opening windows.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
+	if ( ! empty( $_GET['wp_desktop'] ) && '1' === wp_unslash( $_GET['wp_desktop'] ) ) {
+		return true;
+	}
+
+	// Fallback signal — the request is a same-origin iframe load.
+	// Modern browsers (Chrome 80+, Firefox 90+, Safari 16.4+) send
+	// the `Sec-Fetch-*` headers reliably, and they are immune to
+	// JavaScript spoofing (the browser sets them itself).
+	//
+	// This catches the failure mode where an internal admin
+	// navigation drops the `?wp_desktop=1` query flag — Gutenberg's
+	// `window.location` assignments, meta-refresh redirects, or any
+	// link the inline rewriter missed. The user is in an iframe on
+	// the same origin, has desktop mode enabled, so render as
+	// chromeless.
+	//
+	// `Sec-Fetch-Site: same-origin` is the cross-origin guard so a
+	// foreign site that iframes the wp-admin page can't trick us
+	// into stripping the chrome — the user agent reports the
+	// embedding context honestly.
+	$fetch_dest = isset( $_SERVER['HTTP_SEC_FETCH_DEST'] )
+		? (string) $_SERVER['HTTP_SEC_FETCH_DEST']
+		: '';
+	$fetch_site = isset( $_SERVER['HTTP_SEC_FETCH_SITE'] )
+		? (string) $_SERVER['HTTP_SEC_FETCH_SITE']
+		: '';
+	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
+		/**
+		 * Filter the Sec-Fetch fallback. Return false to require an
+		 * explicit `?wp_desktop=1` flag (matches pre-0.18 behaviour);
+		 * useful for environments where a reverse proxy strips the
+		 * `Sec-Fetch-*` headers and they can't be trusted.
+		 *
+		 * @since 0.18.0
+		 *
+		 * @param bool $allow Default true.
+		 */
+		return (bool) apply_filters( 'wp_desktop_chromeless_sec_fetch_fallback', true );
+	}
+
+	return false;
 }
 
 /**
@@ -759,6 +802,9 @@ function wpdm_build_menu_payload() {
 			: array(),
 		'serverSettingsTabs' => function_exists( 'wpdm_build_desktop_settings_tabs_payload' )
 			? wpdm_build_desktop_settings_tabs_payload()
+			: array(),
+		'serverTitleBarButtonScripts' => function_exists( 'wpdm_build_desktop_titlebar_button_scripts_payload' )
+			? wpdm_build_desktop_titlebar_button_scripts_payload()
 			: array(),
 		'desktopIcons'     => function_exists( 'wpdm_build_desktop_icons_payload' )
 			? wpdm_build_desktop_icons_payload()

@@ -54,6 +54,20 @@ function wpdm_enqueue_assets() {
 		return;
 	}
 
+	// Auto-enqueue the iframe bridge anywhere a desktop-mode user
+	// might land. The bundle self-bails when not inside an iframe
+	// (`window.parent === window`), so it's a no-op on the parent
+	// shell — but cheap insurance against the failure mode the
+	// developer hit: an internal admin navigation drops the
+	// `?wp_desktop=1` flag, the chromeless inline bridge doesn't
+	// run, and `wp.desktop.iframe` silently disappears. With this
+	// auto-enqueue, the API is universally present for any same-
+	// origin admin page a desktop-mode user opens — chromeless or
+	// accidentally classic.
+	if ( wpdm_is_enabled() ) {
+		wp_enqueue_script( 'wp-desktop-iframe-bridge' );
+	}
+
 	// Chromeless requests (iframes) need chromeless styles and overrides.
 	if ( wpdm_is_chromeless_request() ) {
 		wp_enqueue_style( 'wp-desktop' );
@@ -130,6 +144,9 @@ function wpdm_enqueue_assets() {
 	$server_settings_tabs = isset( $menu_payload['serverSettingsTabs'] )
 		? $menu_payload['serverSettingsTabs']
 		: array();
+	$server_titlebar_button_scripts = isset( $menu_payload['serverTitleBarButtonScripts'] )
+		? $menu_payload['serverTitleBarButtonScripts']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -200,6 +217,7 @@ function wpdm_enqueue_assets() {
 			'serverCommands'   => $server_commands,
 			'serverSettingsTabScripts' => $server_settings_tab_scripts,
 			'serverSettingsTabs' => $server_settings_tabs,
+			'serverTitleBarButtonScripts' => $server_titlebar_button_scripts,
 			'desktopIcons'     => $desktop_icons,
 			'accentColors'     => wpdm_get_accent_colors(),
 			'toastTypes'       => wpdm_get_toast_types(),
@@ -212,6 +230,11 @@ function wpdm_enqueue_assets() {
 			'defaultWindow'    => wpdm_get_default_window( get_current_user_id() ),
 			'canUpload'        => current_user_can( 'upload_files' ),
 			'pluginUrl'        => esc_url_raw( untrailingslashit( WPDM_URL ) ),
+			'iframeBridgeUrl'  => esc_url_raw(
+				WPDM_URL . 'assets/js/iframe-bridge'
+				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
+				. '.js?ver=' . WPDM_VERSION
+			),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => wpdm_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/os-settings' ) ),
@@ -1089,7 +1112,6 @@ function wpdm_chromeless_bridge_script() {
 			seen[ cmd.name ] = true;
 			out.push( __wpdClassifyCommand( cmd ) );
 		}
-		__wpdLog( '[wpd-cmd:iframe] finalize: kept %d, skipped %o', out.length, skipped );
 		return out;
 	}
 
@@ -1120,7 +1142,6 @@ function wpdm_chromeless_bridge_script() {
 	function __wpdMountReactHarvester() {
 		if ( __wpdReactMounted ) return;
 		if ( ! window.wp || ! window.wp.element || ! window.wp.data ) {
-			__wpdLog( '[wpd-cmd:iframe] react-harvester: wp.element/wp.data missing' );
 			return;
 		}
 		var el        = window.wp.element;
@@ -1130,7 +1151,6 @@ function wpdm_chromeless_bridge_script() {
 		var useMemo   = el.useMemo;
 		var useSelect = ( window.wp.data && window.wp.data.useSelect ) || null;
 		if ( ! createEl || ! useSelect || ! el.createRoot || ! useRef ) {
-			__wpdLog( '[wpd-cmd:iframe] react-harvester: wp.element API incomplete' );
 			return;
 		}
 		__wpdReactMounted = true;
@@ -1193,7 +1213,6 @@ function wpdm_chromeless_bridge_script() {
 				}
 			}
 			__wpdLastRawCommands = merged;
-			__wpdLog( '[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
 				merged.length,
 				loadersList.length,
 				Array.isArray( resultsBucket.statics ) ? resultsBucket.statics.length : 0
@@ -1213,7 +1232,6 @@ function wpdm_chromeless_bridge_script() {
 			} catch ( err ) {
 				if ( ! loader.__wpdLoggedThrow ) {
 					loader.__wpdLoggedThrow = true;
-					__wpdLog( '[wpd-cmd:iframe] react-harvester: loader "%s" threw', loader.name, err );
 				}
 			}
 			var cmds = ( result && Array.isArray( result.commands ) ) ? result.commands : [];
@@ -1286,7 +1304,6 @@ function wpdm_chromeless_bridge_script() {
 			var root = el.createRoot( host );
 			__wpdReactRoot = root;
 			root.render( createEl( Harvester ) );
-			__wpdLog( '[wpd-cmd:iframe] react-harvester: mounted' );
 		} catch ( err ) {
 			__wpdReactMounted = false;
 			__wpdReactRoot    = null;
@@ -1294,7 +1311,6 @@ function wpdm_chromeless_bridge_script() {
 				__wpdReactHost.parentNode.removeChild( __wpdReactHost );
 			}
 			__wpdReactHost = null;
-			__wpdLog( '[wpd-cmd:iframe] react-harvester: mount threw', err );
 		}
 	}
 
@@ -1330,18 +1346,18 @@ function wpdm_chromeless_bridge_script() {
 				+ ( lc && lc.url  ? lc.url  : '' ) + '\n';
 		}
 		if ( key === __wpdCommandsLastPayload ) {
-			__wpdLog( '[wpd-cmd:iframe] post: skipping duplicate payload (%d cmds)', list.length );
 			return;
 		}
 		__wpdCommandsLastPayload = key;
-		__wpdLog( '[wpd-cmd:iframe] post: sending %d commands to parent', list.length, list );
 		try {
 			window.parent.postMessage(
 				{ type: 'wp-desktop-commands-list', commands: list },
 				__wpdCommandsOrigin
 			);
 		} catch ( err ) {
-			__wpdLog( '[wpd-cmd:iframe] post: postMessage threw', err );
+			/* cross-origin parent (shouldn't happen for chromeless pages, but
+			 * don't let a throw break the bridge) */
+			__wpdLog( '[wpd-cmd:iframe] postCommandsList: postMessage threw', err );
 		}
 	}
 
@@ -1354,7 +1370,6 @@ function wpdm_chromeless_bridge_script() {
 	}
 
 	function __wpdSubscribeCommands() {
-		__wpdLog( '[wpd-cmd:iframe] subscribe requested (already=%s, mounted=%s, url=%s)', __wpdCommandsSubscribed, __wpdReactMounted, window.location.href );
 		__wpdCommandsSubscribed = true;
 
 		// If the React harvester is already running (focus left and
@@ -1366,7 +1381,6 @@ function wpdm_chromeless_bridge_script() {
 		// push from here.
 		if ( __wpdReactMounted ) {
 			__wpdCommandsLastPayload = '';
-			__wpdLog( '[wpd-cmd:iframe] subscribe: harvester already mounted, re-shipping bucket (%d cmds)', __wpdLastRawCommands.length );
 			__wpdSchedulePost();
 			return;
 		}
@@ -1376,16 +1390,10 @@ function wpdm_chromeless_bridge_script() {
 			if ( ! __wpdCommandsSubscribed ) return;
 			if ( ! window.wp || ! window.wp.data || typeof window.wp.data.subscribe !== 'function' ) {
 				if ( attempts++ < 40 ) {
-					if ( attempts === 1 || attempts % 5 === 0 ) {
-						__wpdLog( '[wpd-cmd:iframe] subscribe: wp.data not ready yet (attempt %d)', attempts );
-					}
 					window.setTimeout( tryBind, 150 );
-				} else {
-					__wpdLog( '[wpd-cmd:iframe] subscribe: gave up waiting for wp.data after %d attempts', attempts );
 				}
 				return;
 			}
-			__wpdLog( '[wpd-cmd:iframe] subscribe: wp.data ready, binding (attempts=%d)', attempts );
 			// Mount the React harvester — tier 3 loaders are hooks and
 			// need a legal render context to execute. On every re-render
 			// the component's effect calls `__wpdSchedulePost` with the
@@ -1412,14 +1420,12 @@ function wpdm_chromeless_bridge_script() {
 	}
 
 	function __wpdInvokeCommand( name ) {
-		__wpdLog( '[wpd-cmd:iframe] invoke: looking up "%s"', name );
 		// Primary lookup — the React harvester's latest snapshot. This
 		// covers loader-returned commands (Duplicate block, Transform
 		// to, pattern commands) that never appear in the static
 		// `getCommands()` list.
 		var cb = __wpdCommandCallbacks[ name ];
 		if ( typeof cb === 'function' ) {
-			__wpdLog( '[wpd-cmd:iframe] invoke: hit harvester cache for "%s"', name );
 			try {
 				cb( { close: function () {} } );
 			} catch ( err ) {
@@ -1430,7 +1436,6 @@ function wpdm_chromeless_bridge_script() {
 		// Fallback — statically registered commands that never passed
 		// through the harvester (registered after the last render).
 		if ( ! window.wp || ! window.wp.data ) {
-			__wpdLog( '[wpd-cmd:iframe] invoke: "%s" not found and wp.data missing', name );
 			return;
 		}
 		var sel = null;
@@ -1441,7 +1446,6 @@ function wpdm_chromeless_bridge_script() {
 		if ( ! raw ) return;
 		for ( var i = 0; i < raw.length; i++ ) {
 			if ( raw[ i ] && raw[ i ].name === name && typeof raw[ i ].callback === 'function' ) {
-				__wpdLog( '[wpd-cmd:iframe] invoke: hit getCommands fallback for "%s"', name );
 				try {
 					raw[ i ].callback( { close: function () {} } );
 				} catch ( err ) {
@@ -1450,7 +1454,6 @@ function wpdm_chromeless_bridge_script() {
 				return;
 			}
 		}
-		__wpdLog( '[wpd-cmd:iframe] invoke: "%s" NOT FOUND in harvester cache or getCommands()', name );
 	}
 
 	// Attach the listener BEFORE the bridge-ready ping so a subscribe
@@ -1461,15 +1464,12 @@ function wpdm_chromeless_bridge_script() {
 		if ( e.data.type === 'wp-desktop-commands-subscribe' ) {
 			__wpdSubscribeCommands();
 		} else if ( e.data.type === 'wp-desktop-commands-unsubscribe' ) {
-			__wpdLog( '[wpd-cmd:iframe] unsubscribe received' );
 			__wpdUnsubscribeCommands();
 		} else if ( e.data.type === 'wp-desktop-commands-invoke' && typeof e.data.name === 'string' ) {
-			__wpdLog( '[wpd-cmd:iframe] invoke received: %s', e.data.name );
 			__wpdInvokeCommand( e.data.name );
 		}
 	} );
 
-	__wpdLog( '[wpd-cmd:iframe] bridge ready, listening for subscribe (url=%s)', window.location.href );
 	// Handshake: tell the parent we're ready so it can (re)send any
 	// subscribe that was dispatched before this listener attached.
 	// Without this ping, a subscribe posted during iframe navigation
@@ -1481,7 +1481,6 @@ function wpdm_chromeless_bridge_script() {
 			{ type: 'wp-desktop-bridge-ready' },
 			__wpdCommandsOrigin
 		);
-		__wpdLog( '[wpd-cmd:iframe] bridge-ready signal sent to parent' );
 	} catch ( err ) {
 		__wpdLog( '[wpd-cmd:iframe] bridge-ready postMessage threw', err );
 	}
@@ -1537,6 +1536,16 @@ function wpdm_chromeless_bridge_script() {
 			);
 		} catch ( err ) { /* cross-origin parent; swallow */ }
 	}, true );
+
+	// Skip if the standalone iframe-bridge bundle already wired
+	// screen-meta hoisting on this page. Two bridges racing to read
+	// `aria-expanded` and reflect state would double-fire the
+	// `wp-desktop-screen-meta-state` message and flicker the
+	// title-bar buttons.
+	if ( window.__wpDesktopScreenMetaInstalled ) {
+		return;
+	}
+	window.__wpDesktopScreenMetaInstalled = true;
 
 	var links = document.getElementById( 'screen-meta-links' );
 	if ( ! links ) {
@@ -1639,6 +1648,247 @@ function wpdm_chromeless_bridge_script() {
 		}
 		target.click();
 	} );
+
+	/* -----------------------------------------------------------------
+	 * Connection bridge — iframe side.
+	 *
+	 * Plugins call `wp.desktop.iframe.publish(topic, payload)` /
+	 * `subscribe(topic, cb)` / `onConnection(cb)` to talk to a parent-
+	 * side `wp.desktop.connect()` caller. The shell only routes;
+	 * topic semantics are plugin-defined.
+	 *
+	 * Connections are tracked locally so `onConnection` can fire when
+	 * the parent opens a new channel (typical use: start emitting
+	 * heavy events only after at least one consumer subscribed). Each
+	 * connection carries a topic-allowlist negotiated at handshake
+	 * time — wildcard ('*') subscribers see everything.
+	 * ----------------------------------------------------------------- */
+	var _wpdConnections = {};
+	var _wpdConnectionListeners = [];
+	var _wpdSubs = {};   // topic → [cb, ...]
+	var _wpdParentOrigin = window.location.origin;
+
+	function _wpdEmitToParent( connectionId, topic, payload ) {
+		try {
+			window.parent.postMessage( {
+				type: 'wp-desktop-bridge-publish',
+				connectionId: connectionId,
+				topic: topic,
+				payload: payload
+			}, _wpdParentOrigin );
+		} catch ( _err ) { /* parent gone */ }
+	}
+
+	window.addEventListener( 'message', function ( ev ) {
+		if ( ev.origin !== _wpdParentOrigin ) {
+			return;
+		}
+		var data = ev && ev.data;
+		if ( ! data || typeof data !== 'object' || typeof data.type !== 'string' ) {
+			return;
+		}
+
+		if ( data.type === 'wp-desktop-bridge-handshake' && typeof data.connectionId === 'string' ) {
+			if ( _wpdConnections[ data.connectionId ] ) {
+				/* Re-handshake on iframe-ready re-arm — no-op besides
+				 * acking again so the parent can resume. */
+				try {
+					window.parent.postMessage( {
+						type: 'wp-desktop-bridge-handshake-ack',
+						connectionId: data.connectionId
+					}, _wpdParentOrigin );
+				} catch ( _err ) { /* swallow */ }
+				return;
+			}
+			var conn = {
+				id: data.connectionId,
+				topics: Array.isArray( data.topics ) ? data.topics.slice() : []
+			};
+			_wpdConnections[ conn.id ] = conn;
+			try {
+				window.parent.postMessage( {
+					type: 'wp-desktop-bridge-handshake-ack',
+					connectionId: conn.id
+				}, _wpdParentOrigin );
+			} catch ( _err ) { /* swallow */ }
+			for ( var i = 0; i < _wpdConnectionListeners.length; i++ ) {
+				try {
+					_wpdConnectionListeners[ i ]( {
+						id: conn.id,
+						topics: conn.topics.slice()
+					} );
+				} catch ( _err ) { /* swallow listener */ }
+			}
+			return;
+		}
+
+		if ( data.type === 'wp-desktop-bridge-publish' && typeof data.topic === 'string' ) {
+			var bucket = _wpdSubs[ data.topic ];
+			if ( bucket ) {
+				for ( var j = 0; j < bucket.length; j++ ) {
+					try {
+						bucket[ j ]( data.payload, { topic: data.topic, connectionId: data.connectionId } );
+					} catch ( _err ) { /* swallow subscriber */ }
+				}
+			}
+			var wildcard = _wpdSubs[ '*' ];
+			if ( wildcard ) {
+				for ( var k = 0; k < wildcard.length; k++ ) {
+					try {
+						wildcard[ k ]( data.payload, { topic: data.topic, connectionId: data.connectionId } );
+					} catch ( _err ) { /* swallow */ }
+				}
+			}
+			return;
+		}
+
+		if ( data.type === 'wp-desktop-bridge-disconnect' && typeof data.connectionId === 'string' ) {
+			delete _wpdConnections[ data.connectionId ];
+			return;
+		}
+	} );
+
+	var iframeApi = {
+		/**
+		 * Publish a payload under a topic. Sent to every connection
+		 * — typical case is one connection per parent caller, but
+		 * a debug console may have several at once.
+		 */
+		publish: function ( topic, payload ) {
+			if ( typeof topic !== 'string' || topic === '' ) {
+				return;
+			}
+			var ids = Object.keys( _wpdConnections );
+			for ( var i = 0; i < ids.length; i++ ) {
+				_wpdEmitToParent( ids[ i ], topic, payload );
+			}
+		},
+		/**
+		 * Subscribe to a topic. Returns an unsubscribe function.
+		 * Use `'*'` to receive every published payload (debugging).
+		 */
+		subscribe: function ( topic, cb ) {
+			if ( typeof topic !== 'string' || topic === '' || typeof cb !== 'function' ) {
+				return function () {};
+			}
+			var bucket = _wpdSubs[ topic ];
+			if ( ! bucket ) {
+				bucket = [];
+				_wpdSubs[ topic ] = bucket;
+			}
+			bucket.push( cb );
+			return function () {
+				var i = bucket.indexOf( cb );
+				if ( i >= 0 ) {
+					bucket.splice( i, 1 );
+				}
+			};
+		},
+		/**
+		 * Notified whenever a parent caller opens a connection. Use
+		 * to start emitting heavy publish events only when somebody
+		 * is listening.
+		 */
+		onConnection: function ( cb ) {
+			if ( typeof cb !== 'function' ) {
+				return function () {};
+			}
+			_wpdConnectionListeners.push( cb );
+			/* Replay current connections — late subscribers still
+			 * see who's already there. */
+			var ids = Object.keys( _wpdConnections );
+			for ( var i = 0; i < ids.length; i++ ) {
+				try {
+					cb( {
+						id: _wpdConnections[ ids[ i ] ].id,
+						topics: _wpdConnections[ ids[ i ] ].topics.slice()
+					} );
+				} catch ( _err ) { /* swallow */ }
+			}
+			return function () {
+				var i = _wpdConnectionListeners.indexOf( cb );
+				if ( i >= 0 ) {
+					_wpdConnectionListeners.splice( i, 1 );
+				}
+			};
+		},
+		/**
+		 * Iframe-initiated connection request. See
+		 * `assets/js/iframe-bridge.js` — same shape, same protocol.
+		 */
+		requestConnection: function ( opts ) {
+			opts = opts || {};
+			var topics = Array.isArray( opts.topics ) ? opts.topics.slice() : [];
+			var requestId = 'wpdir-' + Math.random().toString( 36 ).slice( 2, 10 );
+
+			return new Promise( function ( resolve, reject ) {
+				var settled = false;
+				var timeoutMs = typeof opts.timeoutMs === 'number'
+					? opts.timeoutMs
+					: 5000;
+
+				function settle( ok, value ) {
+					if ( settled ) {
+						return;
+					}
+					settled = true;
+					window.removeEventListener( 'message', onAck );
+					clearTimeout( timer );
+					if ( ok ) {
+						resolve( value );
+					} else {
+						reject( value );
+					}
+				}
+
+				function onAck( ev ) {
+					if ( ev.origin !== _wpdParentOrigin ) {
+						return;
+					}
+					var d = ev && ev.data;
+					if (
+						! d ||
+						typeof d !== 'object' ||
+						d.type !== 'wp-desktop-bridge-connection-ack' ||
+						d.requestId !== requestId
+					) {
+						return;
+					}
+					if ( d.accepted ) {
+						var summary = {
+							id: typeof d.connectionId === 'string' ? d.connectionId : '',
+							topics: topics.slice()
+						};
+						if ( typeof opts.onOpen === 'function' ) {
+							try { opts.onOpen( summary ); } catch ( _err ) { /* swallow */ }
+						}
+						settle( true, summary );
+					} else {
+						settle( false, new Error( d.reason || 'rejected' ) );
+					}
+				}
+				window.addEventListener( 'message', onAck );
+
+				var timer = setTimeout( function () {
+					settle( false, new Error( 'timeout' ) );
+				}, timeoutMs );
+
+				try {
+					window.parent.postMessage( {
+						type: 'wp-desktop-bridge-connection-request',
+						requestId: requestId,
+						topics: topics
+					}, _wpdParentOrigin );
+				} catch ( err ) {
+					settle( false, err );
+				}
+			} );
+		}
+	};
+
+	if ( ! window.wp ) { window.wp = {}; }
+	if ( ! window.wp.desktop ) { window.wp.desktop = {}; }
+	window.wp.desktop.iframe = iframeApi;
 } )();
 JS;
 

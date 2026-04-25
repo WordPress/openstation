@@ -189,6 +189,36 @@ do_action( 'wp_desktop_icon_registered', string $id, array $entry );
 
 ---
 
+### `wp_desktop_titlebar_button_script_registered` — Experimental (since 0.17.0)
+
+Fires after `wp_desktop_register_titlebar_button_script()` stores a title-bar button script handle.
+
+```php
+do_action( 'wp_desktop_titlebar_button_script_registered', string $handle );
+```
+
+### `wp_desktop_register_titlebar_button_script( $handle )` — Experimental (PHP function, since 0.17.0)
+
+Declares a WP-registered script handle as a title-bar button provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerTitleBarButton()` calls made by the plugin's JS render in matching window title bars **without a page reload**.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-titlebar',
+        plugins_url( 'js/titlebar.js', __FILE__ ),
+        array( 'wp-desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-titlebar' );
+} );
+wp_desktop_register_titlebar_button_script( 'my-plugin-titlebar' );
+```
+
+For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on each `registerTitleBarButton` call. Untagged buttons survive past deactivation until the next page reload — graceful backwards-compat.
+
+---
+
 ### `wp_desktop_settings_tab_script_registered` — Experimental (since 0.17.0)
 
 Fires after `wp_desktop_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `wp_register_desktop_settings_tab()` implicitly registers its `script` argument.

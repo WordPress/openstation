@@ -178,6 +178,88 @@ export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 
 	x?: number;
 	/** Initial y position in pixels. Defaults to 0; the shell's cascade positioner usually takes over. */
 	y?: number;
+	/**
+	 * Convenience: declare this native window's body as a single
+	 * iframe with shell-managed lifecycle. The shell creates the
+	 * `<iframe>`, validates `event.source` on every incoming
+	 * postMessage, hands you a `send()` closure that's safe to call
+	 * (queued until the iframe acks ready), and auto-injects the
+	 * iframe-side bridge (`wp.desktop.iframe.publish/subscribe/
+	 * onConnection/requestConnection`) on same-origin pages when
+	 * `bridge: true`.
+	 *
+	 * Replaces ~50 lines of per-plugin postMessage plumbing with a
+	 * single config block. When you set this, **don't pass `render`**
+	 * — the shell synthesises the body for you.
+	 *
+	 * @since 0.18.0
+	 */
+	iframeContent?: NativeWindowIframeContent;
+}
+
+/**
+ * Configuration for a native window whose body is a single
+ * shell-managed iframe. Used by `NativeWindowDef.iframeContent`.
+ *
+ * @public
+ * @since 0.18.0
+ */
+export interface NativeWindowIframeContent {
+	/**
+	 * URL the iframe loads. Cross-origin is allowed but `bridge`
+	 * auto-inject and `event.source` validation are best-effort
+	 * (sandboxed cross-origin iframes get neither — `onMessage`
+	 * still fires for messages whose `event.source` matches the
+	 * iframe's `contentWindow`).
+	 */
+	url: string;
+	/**
+	 * Optional `sandbox` attribute. Pass the value verbatim
+	 * (e.g. `'allow-scripts allow-same-origin'`). Omit for an
+	 * unsandboxed iframe (the default — most common case for same-
+	 * origin admin pages).
+	 */
+	sandbox?: string;
+	/**
+	 * When `true`, the shell injects the iframe-side connection
+	 * bridge (`wp.desktop.iframe.publish/subscribe/onConnection/
+	 * requestConnection`) into the iframe's document after load.
+	 * Same-origin only — cross-origin iframes are out of reach for
+	 * script injection so the flag is silently ignored.
+	 *
+	 * Default `false`. Set this when your iframe is a same-origin
+	 * page that wants to participate in `wp.desktop.connect()`
+	 * traffic without enqueueing the bridge handle itself.
+	 */
+	bridge?: boolean;
+	/**
+	 * Fires once the iframe document has loaded. The `send` closure
+	 * posts to the iframe's `contentWindow` with the right
+	 * `targetOrigin` (the iframe URL's origin).
+	 *
+	 * For sending **before** the iframe has loaded — use the
+	 * synchronous `Window.iframeSend( payload, opts? )` method
+	 * available the moment `registerWindow` returns. That method
+	 * routes through the same internal queue: FIFO for ordered
+	 * setup messages, or `{ coalesce: true }` for latest-wins
+	 * snapshots (live-preview streams). `onReady` is still the
+	 * right surface for the rest of your iframe-side setup
+	 * (subscribing to messages from the iframe, etc.); for the
+	 * outbound flow plugins typically reach for `iframeSend`
+	 * because it doesn't force a closure capture.
+	 */
+	onReady?: (
+		send: (
+			payload: unknown,
+			opts?: { coalesce?: boolean },
+		) => void,
+	) => void;
+	/**
+	 * Receives every message whose `event.source ===
+	 * iframe.contentWindow`. Handles the source-check the shell
+	 * would otherwise force every plugin to reinvent.
+	 */
+	onMessage?: ( payload: unknown ) => void;
 }
 
 /**
@@ -443,6 +525,23 @@ export interface DesktopSettingsTabScriptServerEntry {
 }
 
 /**
+ * Server-declared title-bar-button script entry. One per
+ * `wp_desktop_register_titlebar_button_script()` call. The shell
+ * injects each `scriptUrl` on mid-session activation; the loaded
+ * script calls `wp.desktop.registerTitleBarButton()` and the
+ * window-class registry subscriber repaints every open window.
+ *
+ * @public
+ * @since 0.17.0
+ */
+export interface DesktopTitleBarButtonScriptServerEntry {
+	/** WordPress script handle — doubles as the button `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+}
+
+/**
  * Server-declared settings-tab metadata passed from PHP via
  * `serverSettingsTabs`. Optional companion to
  * `DesktopSettingsTabScriptServerEntry`. Enables live unregistration on
@@ -702,6 +801,15 @@ export interface DesktopConfig {
 	 */
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
 	/**
+	 * Script handles opted-in via
+	 * `wp_desktop_register_titlebar_button_script()`. Shell injects
+	 * each URL on boot and on mid-session activation so newly-
+	 * installed plugins paint their title-bar buttons live.
+	 *
+	 * @since 0.17.0
+	 */
+	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
+	/**
 	 * Server-declared desktop icons (from `wp_register_desktop_icon()`).
 	 * The shell renders these as shortcut tiles on the wallpaper;
 	 * click-through opens either the referenced native window (if
@@ -748,6 +856,15 @@ export interface DesktopConfig {
 	 * relative to the wp-desktop-mode install.
 	 */
 	pluginUrl: string;
+	/**
+	 * Absolute URL of the standalone iframe-bridge script. Used by
+	 * the `iframeContent: { bridge: true }` auto-inject path on
+	 * `registerWindow` and exposed for plugins that need to inject
+	 * the bridge into their own same-origin iframes manually.
+	 *
+	 * @since 0.18.0
+	 */
+	iframeBridgeUrl?: string;
 	/** Nonce for the REST endpoint (X-WP-Nonce header). */
 	restNonce: string;
 	/** Canonical `/wp-desktop/` URL — used for history.replaceState. */
@@ -910,7 +1027,28 @@ export type BridgeEventFromIframe =
 	| { type: 'wp-desktop-ready' }
 	| { type: 'wp-desktop-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
 	| { type: 'wp-desktop-screen-meta-state'; open: 'screen-options' | 'help' | null }
-	| { type: 'wp-desktop-commands-list'; commands: HarvestedCommand[] };
+	| { type: 'wp-desktop-commands-list'; commands: HarvestedCommand[] }
+	// -----------------------------------------------------------------
+	// Cross-window connection bridge — extensible pub/sub between any
+	// parent-side caller (e.g. a plugin's title-bar dropdown) and a
+	// chromeless iframe. The shell only routes; topic semantics are
+	// plugin-defined. See `wp.desktop.connect()` and
+	// `wp.desktop.iframe.publish/subscribe`.
+	// -----------------------------------------------------------------
+	| {
+		type: 'wp-desktop-bridge-handshake-ack';
+		connectionId: string;
+	}
+	| {
+		type: 'wp-desktop-bridge-publish';
+		connectionId: string;
+		topic: string;
+		payload: unknown;
+	}
+	| {
+		type: 'wp-desktop-bridge-disconnect';
+		connectionId: string;
+	};
 
 /**
  * Bridge events sent from parent shell to iframe.
@@ -921,4 +1059,20 @@ export type BridgeEventToIframe =
 	| { type: 'wp-desktop-toggle-panel'; panel: 'screen-options' | 'help' }
 	| { type: 'wp-desktop-commands-subscribe' }
 	| { type: 'wp-desktop-commands-unsubscribe' }
-	| { type: 'wp-desktop-commands-invoke'; name: string };
+	| { type: 'wp-desktop-commands-invoke'; name: string }
+	// Connection-bridge messages (parent → iframe).
+	| {
+		type: 'wp-desktop-bridge-handshake';
+		connectionId: string;
+		topics: string[];
+	}
+	| {
+		type: 'wp-desktop-bridge-publish';
+		connectionId: string;
+		topic: string;
+		payload: unknown;
+	}
+	| {
+		type: 'wp-desktop-bridge-disconnect';
+		connectionId: string;
+	};

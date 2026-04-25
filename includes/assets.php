@@ -75,6 +75,22 @@ function wpdm_register_assets() {
 		true
 	);
 
+	// `wp-desktop-iframe-bridge` — opt-in iframe-side bridge that
+	// provides `wp.desktop.iframe.publish/subscribe/onConnection/
+	// requestConnection` to any same-origin iframe that enqueues it.
+	// Same code is also injected inline by the chromeless bridge
+	// (so chromeless wp-admin pages don't need a separate enqueue)
+	// and auto-injected when a native window opts in via
+	// `iframeContent: { bridge: true }`. Plugins targeting their
+	// own iframe pages just enqueue this handle.
+	wp_register_script(
+		'wp-desktop-iframe-bridge',
+		WPDM_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
+		array(),
+		$version,
+		true
+	);
+
 	// Wire the translation bundle to this script handle. WP looks
 	// for `languages/wp-desktop-mode-{locale}-wp-desktop.json` and
 	// injects its `locale_data` into `wp.i18n` just before the

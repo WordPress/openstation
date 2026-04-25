@@ -44,6 +44,7 @@ export type {
 	MonitorEntry,
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
+	DesktopTitleBarButtonScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	NativeWindowDef,
@@ -125,6 +126,17 @@ export {
 
 export type { DesktopSettingsTab, SettingsTabRenderCtx } from './settings/registry';
 
+// ----- Title-bar buttons (per-window action buttons) -----
+
+export type {
+	TitleBarButtonDef,
+	TitleBarButtonRenderCtx,
+} from './title-bar-buttons/registry';
+
+// ----- Cross-window connection bridge -----
+
+export type { ConnectOptions, WindowConnection } from './connection';
+
 // ----- AI Copilot programmatic API -----
 
 export type { AskFn, AskOptions, AskResult, AskToolCall } from './ai/ask';
@@ -151,7 +163,10 @@ export {
 	onWindow,
 } from './native-windows';
 
-export type { WindowLifecycleHandlers } from './native-windows';
+export type {
+	IframeContentSendFn,
+	WindowLifecycleHandlers,
+} from './native-windows';
 
 // ----- Wallpaper surfaces (collision-aware wallpapers) -----
 

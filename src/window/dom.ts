@@ -200,8 +200,20 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const screenMeta = document.createElement( 'div' );
 	screenMeta.className = 'wp-desktop-window__screen-meta';
 
+	// Slot containers for plugin-registered title-bar buttons. Filled
+	// by the Window class on construct + on registry change. Empty
+	// by default — `display: contents` on the wrappers means they're
+	// invisible to layout when no plugin has registered for this
+	// window.
+	const customLeft = document.createElement( 'span' );
+	customLeft.className = 'wp-desktop-window__custom-buttons wp-desktop-window__custom-buttons--left';
+
+	const customRight = document.createElement( 'span' );
+	customRight.className = 'wp-desktop-window__custom-buttons wp-desktop-window__custom-buttons--right';
+
 	titleBar.appendChild( iconEl );
 	titleBar.appendChild( titleEl );
+	titleBar.appendChild( customLeft );
 	titleBar.appendChild( screenMeta );
 	// ⋯ menu sits as the last item before the controls divider so it
 	// groups with the page-level chrome (screen options, help) rather
@@ -212,6 +224,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		titleBar.appendChild( menuBtn );
 		titleBar.appendChild( menuPanel );
 	}
+	titleBar.appendChild( customRight );
 	titleBar.appendChild( controls );
 
 	const body = document.createElement( 'div' );
