@@ -786,6 +786,264 @@ var wpDesktopCodeEditor = function(exports) {
     }
     return body;
   }
+  function showConfirm(args) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "wpdc-conflict-overlay";
+      const dialog = document.createElement("div");
+      dialog.className = "wpdc-conflict-dialog";
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute("aria-labelledby", "wpdc-confirm-title");
+      const title = document.createElement("h2");
+      title.id = "wpdc-confirm-title";
+      title.className = "wpdc-conflict-dialog__title";
+      title.textContent = args.title;
+      const body = document.createElement("p");
+      body.className = "wpdc-conflict-dialog__body";
+      body.textContent = args.body;
+      const actions = document.createElement("div");
+      actions.className = "wpdc-conflict-dialog__actions";
+      const finish = (ok) => {
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        resolve(ok);
+      };
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--quiet";
+      cancel.textContent = args.cancelLabel ?? "Cancel";
+      cancel.addEventListener("click", () => finish(false));
+      const confirm = document.createElement("button");
+      confirm.type = "button";
+      confirm.className = "wpdc-conflict-dialog__btn";
+      {
+        confirm.classList.add("wpdc-conflict-dialog__btn--danger");
+      }
+      confirm.textContent = args.confirmLabel ?? "Confirm";
+      confirm.addEventListener("click", () => finish(true));
+      actions.append(cancel, confirm);
+      dialog.append(title, body, actions);
+      overlay.append(dialog);
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          finish(false);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          finish(true);
+        }
+      };
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          finish(false);
+        }
+      });
+      document.addEventListener("keydown", onKey);
+      document.body.append(overlay);
+      cancel.focus();
+    });
+  }
+  function mountTabsStrip(opts) {
+    const { mount, onActivate, onClose } = opts;
+    mount.classList.add("wpdc-tabs");
+    const ul = document.createElement("ul");
+    ul.className = "wpdc-tabs__list";
+    mount.replaceChildren(ul);
+    const tabs = /* @__PURE__ */ new Map();
+    const order = [];
+    let active = null;
+    const updateActiveClass = () => {
+      for (const [path, tab] of tabs) {
+        tab.li.classList.toggle("wpdc-tabs__tab--active", path === active);
+      }
+    };
+    const indexOf = (path) => order.indexOf(path);
+    const pickNeighbour = (path) => {
+      const idx = indexOf(path);
+      if (idx === -1) {
+        return null;
+      }
+      if (order[idx + 1]) {
+        return order[idx + 1];
+      }
+      if (order[idx - 1]) {
+        return order[idx - 1];
+      }
+      return null;
+    };
+    const removeTab = (path) => {
+      const tab = tabs.get(path);
+      if (!tab) {
+        return;
+      }
+      const wasActive = active === path;
+      const successor = wasActive ? pickNeighbour(path) : null;
+      tab.li.remove();
+      tabs.delete(path);
+      const idx = indexOf(path);
+      if (idx !== -1) {
+        order.splice(idx, 1);
+      }
+      if (wasActive) {
+        active = successor;
+        updateActiveClass();
+        if (active) {
+          onActivate(active);
+        }
+      }
+      onClose(path);
+    };
+    const closeWithGuard = async (path) => {
+      const tab = tabs.get(path);
+      if (!tab) {
+        return;
+      }
+      if (tab.dirty) {
+        const ok = await showConfirm({
+          title: "Close without saving?",
+          body: `${tab.path} has unsaved changes. Close anyway?`,
+          confirmLabel: "Close without saving",
+          cancelLabel: "Keep open"
+        });
+        if (!ok) {
+          return;
+        }
+      }
+      removeTab(path);
+    };
+    const buildTab = (file) => {
+      const li = document.createElement("li");
+      li.className = "wpdc-tabs__tab";
+      li.dataset.path = file.path;
+      li.title = file.path;
+      const body = document.createElement("button");
+      body.type = "button";
+      body.className = "wpdc-tabs__body";
+      body.addEventListener("click", () => {
+        if (active !== file.path) {
+          active = file.path;
+          updateActiveClass();
+          onActivate(file.path);
+        }
+      });
+      const icon = document.createElement("span");
+      icon.className = `wpdc-tabs__icon dashicons ${file.icon}`;
+      icon.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.className = "wpdc-tabs__label";
+      label.textContent = file.label;
+      body.append(icon, label);
+      const trailing = document.createElement("span");
+      trailing.className = "wpdc-tabs__trailing";
+      const dirtyEl = document.createElement("span");
+      dirtyEl.className = "wpdc-tabs__dirty";
+      dirtyEl.textContent = "●";
+      dirtyEl.setAttribute("aria-label", "Unsaved changes");
+      const closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "wpdc-tabs__close";
+      closeBtn.setAttribute("aria-label", "Close tab");
+      closeBtn.textContent = "×";
+      closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void closeWithGuard(file.path);
+      });
+      trailing.append(dirtyEl, closeBtn);
+      li.append(body, trailing);
+      li.addEventListener("auxclick", (e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          void closeWithGuard(file.path);
+        }
+      });
+      return { ...file, dirty: false, li, dirtyEl };
+    };
+    const setDirty = (path, dirty) => {
+      const tab = tabs.get(path);
+      if (!tab || tab.dirty === dirty) {
+        return;
+      }
+      tab.dirty = dirty;
+      tab.li.classList.toggle("wpdc-tabs__tab--dirty", dirty);
+    };
+    return {
+      open(file) {
+        let tab = tabs.get(file.path);
+        if (!tab) {
+          tab = buildTab(file);
+          tabs.set(file.path, tab);
+          order.push(file.path);
+          ul.append(tab.li);
+        }
+        active = file.path;
+        updateActiveClass();
+        tab.li.scrollIntoView({
+          inline: "nearest",
+          block: "nearest",
+          behavior: "smooth"
+        });
+        return active;
+      },
+      closeQuiet(path) {
+        removeTab(path);
+      },
+      setActive(path) {
+        if (!tabs.has(path)) {
+          return;
+        }
+        active = path;
+        updateActiveClass();
+      },
+      getActive() {
+        return active;
+      },
+      setDirty,
+      has(path) {
+        return tabs.has(path);
+      },
+      dispose() {
+        tabs.clear();
+        order.length = 0;
+        active = null;
+        mount.replaceChildren();
+      }
+    };
+  }
+  function tabMetaForPath(path) {
+    const slash = path.lastIndexOf("/");
+    const label = slash >= 0 ? path.slice(slash + 1) : path;
+    const dot = label.lastIndexOf(".");
+    const ext = dot >= 0 ? label.slice(dot + 1).toLowerCase() : "";
+    const ICON_BY_EXT = {
+      php: "dashicons-editor-code",
+      js: "dashicons-editor-code",
+      mjs: "dashicons-editor-code",
+      cjs: "dashicons-editor-code",
+      jsx: "dashicons-editor-code",
+      ts: "dashicons-editor-code",
+      tsx: "dashicons-editor-code",
+      css: "dashicons-art",
+      scss: "dashicons-art",
+      sass: "dashicons-art",
+      less: "dashicons-art",
+      html: "dashicons-html",
+      htm: "dashicons-html",
+      json: "dashicons-media-text",
+      md: "dashicons-media-document",
+      mdx: "dashicons-media-document",
+      svg: "dashicons-format-image",
+      xml: "dashicons-media-text",
+      yml: "dashicons-media-text",
+      yaml: "dashicons-media-text",
+      txt: "dashicons-media-default"
+    };
+    return {
+      path,
+      label,
+      icon: ICON_BY_EXT[ext] ?? "dashicons-media-default"
+    };
+  }
   const FOLDER_ICON_CLOSED = "dashicons-category";
   const FOLDER_ICON_OPEN = "dashicons-portfolio";
   const FILE_ICON = "dashicons-media-default";
@@ -968,15 +1226,17 @@ var wpDesktopCodeEditor = function(exports) {
     treeMount.className = "wpdc-editor__tree";
     const right = document.createElement("div");
     right.className = "wpdc-editor__right";
+    const tabsMount = document.createElement("div");
+    tabsMount.className = "wpdc-editor__tabs-host";
     const editorMount = document.createElement("div");
     editorMount.className = "wpdc-editor__monaco-host";
     const statusBar = document.createElement("div");
     statusBar.className = "wpdc-editor__statusbar";
     statusBar.textContent = "Select a file from the tree.";
-    right.append(editorMount, statusBar);
+    right.append(tabsMount, editorMount, statusBar);
     split.append(treeMount, right);
     monacoSlot.replaceChildren(split);
-    return { treeMount, editorMount, statusBar };
+    return { treeMount, tabsMount, editorMount, statusBar };
   }
   function formatBytes(n) {
     if (n < 1024) {
@@ -1014,7 +1274,10 @@ var wpDesktopCodeEditor = function(exports) {
       monacoSlot.textContent = err instanceof Error ? err.message : "Failed to load Monaco.";
       return;
     }
-    const { treeMount, editorMount, statusBar } = buildShell(root, monacoSlot);
+    const { treeMount, tabsMount, editorMount, statusBar } = buildShell(
+      root,
+      monacoSlot
+    );
     const placeholder = monaco.editor.createModel(
       "// Click a file in the tree to open it.\n",
       "plaintext"
@@ -1022,17 +1285,43 @@ var wpDesktopCodeEditor = function(exports) {
     const editor = monaco.editor.create(editorMount, {
       model: placeholder,
       theme: "vs-dark",
-      automaticLayout: true,
-      minimap: { enabled: true },
+      // `automaticLayout: true` polls + relayouts synchronously
+      // every tick during a drag-resize, which makes the minimap
+      // canvas flicker. We drive layout via a rAF-throttled
+      // ResizeObserver below — one layout per frame, no flicker.
+      automaticLayout: false,
+      minimap: {
+        enabled: true,
+        // Render the minimap as colour blocks rather than
+        // individual character glyphs — same level of detail
+        // at a fraction of the per-frame cost. Cheaper redraws
+        // = less visible churn during resize.
+        renderCharacters: false
+      },
       fontSize: 13,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-      // Phase 3 — editing on. Save shortcut wired below.
       readOnly: false,
       scrollBeyondLastLine: false
     });
+    let layoutScheduled = false;
+    const scheduleLayout = () => {
+      if (layoutScheduled) {
+        return;
+      }
+      layoutScheduled = true;
+      requestAnimationFrame(() => {
+        layoutScheduled = false;
+        editor.layout();
+      });
+    };
+    const layoutObserver = new ResizeObserver(() => {
+      scheduleLayout();
+    });
+    layoutObserver.observe(editorMount);
     const models = createModelCache();
-    let activeFile = null;
-    let openController = null;
+    const openFiles = /* @__PURE__ */ new Map();
+    const modelChangeDisposers = /* @__PURE__ */ new Map();
+    const openControllers = /* @__PURE__ */ new Map();
     let saveController = null;
     const setStatus = (text, kind = "info") => {
       statusBar.textContent = text;
@@ -1052,10 +1341,69 @@ var wpDesktopCodeEditor = function(exports) {
         )} · ${formatMtime(file.mtime)}${suffix}`
       );
     };
-    const openFile = async (path) => {
-      openController?.abort();
+    const recomputeDirty = (path) => {
+      const file = openFiles.get(path);
+      const model = models.get(path);
+      if (!file || !model) {
+        return;
+      }
+      const dirty = model.getVersionId() !== file.savedVersionId;
+      tabs.setDirty(path, dirty);
+    };
+    const showFile = (path) => {
+      const model = models.get(path);
+      if (!model) {
+        return;
+      }
+      editor.setModel(model);
+      const file = openFiles.get(path);
+      if (file) {
+        renderFileStatus(file);
+      }
+    };
+    const onTabActivate = (path) => {
+      showFile(path);
+    };
+    const onTabClose = (path) => {
+      openControllers.get(path)?.abort();
+      openControllers.delete(path);
+      modelChangeDisposers.get(path)?.();
+      modelChangeDisposers.delete(path);
+      const model = models.get(path);
+      if (model && !model.isDisposed()) {
+        model.dispose();
+      }
+      openFiles.delete(path);
+      if (!tabs.getActive()) {
+        editor.setModel(placeholder);
+        setStatus("Select a file from the tree.");
+      }
+    };
+    const tabs = mountTabsStrip({
+      mount: tabsMount,
+      onActivate: onTabActivate,
+      onClose: onTabClose
+    });
+    const trackModelChanges = (path) => {
+      const model = models.get(path);
+      if (!model) {
+        return;
+      }
+      modelChangeDisposers.get(path)?.();
+      const sub = model.onDidChangeContent(() => {
+        recomputeDirty(path);
+      });
+      modelChangeDisposers.set(path, () => sub.dispose());
+    };
+    const openFileFromTree = async (path) => {
+      if (tabs.has(path)) {
+        tabs.open(tabMetaForPath(path));
+        showFile(path);
+        return;
+      }
+      openControllers.get(path)?.abort();
       const ac = new AbortController();
-      openController = ac;
+      openControllers.set(path, ac);
       setStatus(`${path} · loading…`);
       try {
         const file = await fetchFile(path, ac.signal);
@@ -1063,13 +1411,15 @@ var wpDesktopCodeEditor = function(exports) {
           return;
         }
         const model = models.open(monaco, path, file.content);
-        editor.setModel(model);
-        activeFile = {
+        openFiles.set(path, {
           path: file.path,
           mtime: file.mtime,
-          size: file.size
-        };
-        renderFileStatus(activeFile);
+          size: file.size,
+          savedVersionId: model.getVersionId()
+        });
+        trackModelChanges(path);
+        tabs.open(tabMetaForPath(file.path));
+        showFile(file.path);
       } catch (err) {
         if (err.name === "AbortError") {
           return;
@@ -1082,18 +1432,19 @@ var wpDesktopCodeEditor = function(exports) {
         }
         setStatus(msg, "error");
       } finally {
-        if (openController === ac) {
-          openController = null;
+        if (openControllers.get(path) === ac) {
+          openControllers.delete(path);
         }
       }
     };
     const saveActiveFile = async () => {
-      if (!activeFile) {
+      const activePath = tabs.getActive();
+      if (!activePath) {
         return;
       }
-      const file = activeFile;
-      const model = editor.getModel();
-      if (!model) {
+      const file = openFiles.get(activePath);
+      const model = models.get(activePath);
+      if (!file || !model) {
         return;
       }
       const content = model.getValue();
@@ -1106,13 +1457,19 @@ var wpDesktopCodeEditor = function(exports) {
         if (ac.signal.aborted) {
           return;
         }
-        activeFile = {
+        const updated = {
           path: result.path,
           mtime: result.mtime,
-          size: result.size
+          size: result.size,
+          // Snapshot the model's versionId at save time. Any
+          // subsequent edit advances the versionId, which
+          // `recomputeDirty` reads to set the tab marker.
+          savedVersionId: model.getVersionId()
         };
+        openFiles.set(file.path, updated);
+        tabs.setDirty(file.path, false);
         renderFileStatus(
-          activeFile,
+          updated,
           ` · saved at ${formatTime(Date.now())}`
         );
       } catch (err) {
@@ -1134,30 +1491,27 @@ var wpDesktopCodeEditor = function(exports) {
             serverSize: data.server_size
           });
           if (choice === "cancel") {
-            setStatus(
-              `${file.path} · save cancelled`,
-              "error"
-            );
+            setStatus(`${file.path} · save cancelled`, "error");
             return;
           }
           if (choice === "reload") {
             model.setValue(data.server_content);
-            activeFile = {
+            const reloaded = {
               path: file.path,
               mtime: data.server_mtime,
-              size: data.server_size
+              size: data.server_size,
+              savedVersionId: model.getVersionId()
             };
-            renderFileStatus(
-              activeFile,
-              " · reloaded from disk"
-            );
+            openFiles.set(file.path, reloaded);
+            tabs.setDirty(file.path, false);
+            renderFileStatus(reloaded, " · reloaded from disk");
             return;
           }
-          activeFile = {
-            path: file.path,
+          openFiles.set(file.path, {
+            ...file,
             mtime: data.server_mtime,
             size: data.server_size
-          };
+          });
           await saveActiveFile();
           return;
         }
@@ -1194,7 +1548,7 @@ var wpDesktopCodeEditor = function(exports) {
     mountFileTree({
       mount: treeMount,
       onOpen: (path) => {
-        void openFile(path);
+        void openFileFromTree(path);
       }
     });
     root.classList.remove(LOADING_CLASS);

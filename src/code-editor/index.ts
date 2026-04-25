@@ -1,15 +1,21 @@
 /**
- * Code Editor — Phase 3 entry.
+ * Code Editor — Phase 3 / 2.5 entry.
  *
- * Two-pane layout: file tree on the left, Monaco on the right with
- * a status bar underneath. Clicking a file in the tree fetches its
- * content over REST and opens it in Monaco. **Editing is now
- * enabled** — Cmd/Ctrl+S writes back through `/code/file`.
+ * Three-zone layout:
  *
- * The shell pre-clones the registered `<template>` into the body
- * before invoking us — see `wpdc_render_editor_template()` in
- * `includes/code-editor/window.php`. We locate the declarative
- * mount points and elevate them.
+ *   ┌────────────┬──────────────────────────────────────┐
+ *   │            │  tab strip                           │
+ *   │   tree     ├──────────────────────────────────────┤
+ *   │            │  Monaco                              │
+ *   │            ├──────────────────────────────────────┤
+ *   │            │  status bar                          │
+ *   └────────────┴──────────────────────────────────────┘
+ *
+ * Click a file in the tree → opens (or focuses) a tab on the right.
+ * Each tab owns its Monaco model + per-file save state. Cmd/Ctrl+S
+ * writes the active tab's buffer through `/code/file`. Closing a
+ * dirty tab confirms; closing the last tab returns to the
+ * placeholder.
  *
  * @public
  * @since 0.18.0
@@ -24,6 +30,11 @@ import {
 	saveFile,
 	type ConflictData,
 } from './rest';
+import {
+	mountTabsStrip,
+	tabMetaForPath,
+	type TabsStripHandle,
+} from './tabs';
 import { mountFileTree, type FileTreeHandle } from './tree';
 
 import type * as Monaco from 'monaco-editor';
@@ -42,19 +53,19 @@ export const MONACO_MOUNT_SELECTOR = '[data-wpdc-editor-monaco]';
 export const LOADING_CLASS = 'wpdc-editor--loading';
 export const ERROR_CLASS = 'wpdc-editor--error';
 
-/** Per-open-file state — what the editor needs to save it back. */
+/** Per-open-file save state. Keyed by relative path. */
 interface OpenFile {
 	path: string;
 	mtime: number;
 	size: number;
+	/** Hash of the saved-on-disk content; used to derive the dirty flag. */
+	savedVersionId: number;
 }
 
-/**
- * Build the two-pane layout: tree | editor split, with a status bar
- * underneath the editor.
- */
+/** Build the layout: tree on the left, (tabs / Monaco / status) on the right. */
 function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	treeMount: HTMLElement;
+	tabsMount: HTMLElement;
 	editorMount: HTMLElement;
 	statusBar: HTMLElement;
 } {
@@ -69,6 +80,9 @@ function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	const right = document.createElement( 'div' );
 	right.className = 'wpdc-editor__right';
 
+	const tabsMount = document.createElement( 'div' );
+	tabsMount.className = 'wpdc-editor__tabs-host';
+
 	const editorMount = document.createElement( 'div' );
 	editorMount.className = 'wpdc-editor__monaco-host';
 
@@ -76,12 +90,12 @@ function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	statusBar.className = 'wpdc-editor__statusbar';
 	statusBar.textContent = 'Select a file from the tree.';
 
-	right.append( editorMount, statusBar );
+	right.append( tabsMount, editorMount, statusBar );
 	split.append( treeMount, right );
 
 	monacoSlot.replaceChildren( split );
 
-	return { treeMount, editorMount, statusBar };
+	return { treeMount, tabsMount, editorMount, statusBar };
 }
 
 function formatBytes( n: number ): string {
@@ -127,7 +141,10 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		return;
 	}
 
-	const { treeMount, editorMount, statusBar } = buildShell( root, monacoSlot );
+	const { treeMount, tabsMount, editorMount, statusBar } = buildShell(
+		root,
+		monacoSlot,
+	);
 
 	const placeholder = monaco.editor.createModel(
 		'// Click a file in the tree to open it.\n',
@@ -137,19 +154,50 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const editor = monaco.editor.create( editorMount, {
 		model: placeholder,
 		theme: 'vs-dark',
-		automaticLayout: true,
-		minimap: { enabled: true },
+		// `automaticLayout: true` polls + relayouts synchronously
+		// every tick during a drag-resize, which makes the minimap
+		// canvas flicker. We drive layout via a rAF-throttled
+		// ResizeObserver below — one layout per frame, no flicker.
+		automaticLayout: false,
+		minimap: {
+			enabled: true,
+			// Render the minimap as colour blocks rather than
+			// individual character glyphs — same level of detail
+			// at a fraction of the per-frame cost. Cheaper redraws
+			// = less visible churn during resize.
+			renderCharacters: false,
+		},
 		fontSize: 13,
 		fontFamily:
 			'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-		// Phase 3 — editing on. Save shortcut wired below.
 		readOnly: false,
 		scrollBeyondLastLine: false,
 	} );
 
+	// rAF-throttled layout. Multiple ResizeObserver entries collapse
+	// into a single layout per frame; the minimap repaints once per
+	// frame in lockstep with the browser's compositor instead of
+	// many times mid-frame.
+	let layoutScheduled = false;
+	const scheduleLayout = (): void => {
+		if ( layoutScheduled ) {
+			return;
+		}
+		layoutScheduled = true;
+		requestAnimationFrame( () => {
+			layoutScheduled = false;
+			editor.layout();
+		} );
+	};
+	const layoutObserver = new ResizeObserver( () => {
+		scheduleLayout();
+	} );
+	layoutObserver.observe( editorMount );
+
 	const models = createModelCache();
-	let activeFile: OpenFile | null = null;
-	let openController: AbortController | null = null;
+	const openFiles = new Map< string, OpenFile >();
+	const modelChangeDisposers = new Map< string, () => void >(); // eslint-disable-line func-call-spacing
+	const openControllers = new Map< string, AbortController >();
 	let saveController: AbortController | null = null;
 
 	const setStatus = (
@@ -175,10 +223,97 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		);
 	};
 
-	const openFile = async ( path: string ): Promise< void > => {
-		openController?.abort();
+	/**
+	 * Re-evaluate the dirty marker for a given path. The tab strip's
+	 * dirty flag is derived from the model's `versionId` vs the
+	 * `savedVersionId` we stash on every successful save (or on
+	 * initial load). Cheap to call on every keystroke.
+	 *
+	 * Callbacks below close over `tabs`, declared later in this
+	 * scope. Safe because every closure runs only AFTER
+	 * `mountTabsStrip` returns and assigns the binding — invoking
+	 * them earlier (which we don't) would TDZ.
+	 */
+	const recomputeDirty = ( path: string ): void => {
+		const file = openFiles.get( path );
+		const model = models.get( path );
+		if ( ! file || ! model ) {
+			return;
+		}
+		const dirty = model.getVersionId() !== file.savedVersionId;
+		tabs.setDirty( path, dirty );
+	};
+
+	const showFile = ( path: string ): void => {
+		const model = models.get( path );
+		if ( ! model ) {
+			return;
+		}
+		editor.setModel( model );
+		const file = openFiles.get( path );
+		if ( file ) {
+			renderFileStatus( file );
+		}
+	};
+
+	const onTabActivate = ( path: string ): void => {
+		showFile( path );
+	};
+
+	const onTabClose = ( path: string ): void => {
+		// Tear down per-file state. Aborting any in-flight open is
+		// kinder than letting it overwrite the buffer of whatever's
+		// active right now.
+		openControllers.get( path )?.abort();
+		openControllers.delete( path );
+		modelChangeDisposers.get( path )?.();
+		modelChangeDisposers.delete( path );
+
+		const model = models.get( path );
+		if ( model && ! model.isDisposed() ) {
+			model.dispose();
+		}
+		openFiles.delete( path );
+
+		if ( ! tabs.getActive() ) {
+			editor.setModel( placeholder );
+			setStatus( 'Select a file from the tree.' );
+		}
+	};
+
+	const tabs: TabsStripHandle = mountTabsStrip( {
+		mount: tabsMount,
+		onActivate: onTabActivate,
+		onClose: onTabClose,
+	} );
+
+	const trackModelChanges = ( path: string ): void => {
+		const model = models.get( path );
+		if ( ! model ) {
+			return;
+		}
+		// One subscription per model — re-binding on every open
+		// would leak.
+		modelChangeDisposers.get( path )?.();
+		const sub = model.onDidChangeContent( () => {
+			recomputeDirty( path );
+		} );
+		modelChangeDisposers.set( path, () => sub.dispose() );
+	};
+
+	const openFileFromTree = async ( path: string ): Promise< void > => {
+		// Already open? Just focus its tab.
+		if ( tabs.has( path ) ) {
+			tabs.open( tabMetaForPath( path ) );
+			showFile( path );
+			return;
+		}
+
+		// Cancel any concurrent open for the same path (rapid
+		// re-clicks while still loading).
+		openControllers.get( path )?.abort();
 		const ac = new AbortController();
-		openController = ac;
+		openControllers.set( path, ac );
 
 		setStatus( `${ path } · loading…` );
 
@@ -188,13 +323,16 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 				return;
 			}
 			const model = models.open( monaco, path, file.content );
-			editor.setModel( model );
-			activeFile = {
+			openFiles.set( path, {
 				path: file.path,
 				mtime: file.mtime,
 				size: file.size,
-			};
-			renderFileStatus( activeFile );
+				savedVersionId: model.getVersionId(),
+			} );
+			trackModelChanges( path );
+
+			tabs.open( tabMetaForPath( file.path ) );
+			showFile( file.path );
 		} catch ( err ) {
 			if ( ( err as Error ).name === 'AbortError' ) {
 				return;
@@ -207,26 +345,20 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			}
 			setStatus( msg, 'error' );
 		} finally {
-			if ( openController === ac ) {
-				openController = null;
+			if ( openControllers.get( path ) === ac ) {
+				openControllers.delete( path );
 			}
 		}
 	};
 
-	/**
-	 * Save the current model to disk. Handles 409 conflicts by
-	 * showing the dialog and retrying as the user requested
-	 * (reload from disk / overwrite anyway / cancel).
-	 *
-	 * Returns silently — status bar is the side channel.
-	 */
 	const saveActiveFile = async (): Promise< void > => {
-		if ( ! activeFile ) {
+		const activePath = tabs.getActive();
+		if ( ! activePath ) {
 			return;
 		}
-		const file = activeFile;
-		const model = editor.getModel();
-		if ( ! model ) {
+		const file = openFiles.get( activePath );
+		const model = models.get( activePath );
+		if ( ! file || ! model ) {
 			return;
 		}
 		const content = model.getValue();
@@ -242,13 +374,19 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			if ( ac.signal.aborted ) {
 				return;
 			}
-			activeFile = {
+			const updated: OpenFile = {
 				path: result.path,
 				mtime: result.mtime,
 				size: result.size,
+				// Snapshot the model's versionId at save time. Any
+				// subsequent edit advances the versionId, which
+				// `recomputeDirty` reads to set the tab marker.
+				savedVersionId: model.getVersionId(),
 			};
+			openFiles.set( file.path, updated );
+			tabs.setDirty( file.path, false );
 			renderFileStatus(
-				activeFile,
+				updated,
 				` · saved at ${ formatTime( Date.now() ) }`,
 			);
 		} catch ( err ) {
@@ -270,32 +408,29 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 					serverSize: data.server_size,
 				} );
 				if ( choice === 'cancel' ) {
-					setStatus(
-						`${ file.path } · save cancelled`,
-						'error',
-					);
+					setStatus( `${ file.path } · save cancelled`, 'error' );
 					return;
 				}
 				if ( choice === 'reload' ) {
 					model.setValue( data.server_content );
-					activeFile = {
+					const reloaded: OpenFile = {
 						path: file.path,
 						mtime: data.server_mtime,
 						size: data.server_size,
+						savedVersionId: model.getVersionId(),
 					};
-					renderFileStatus(
-						activeFile,
-						' · reloaded from disk',
-					);
+					openFiles.set( file.path, reloaded );
+					tabs.setDirty( file.path, false );
+					renderFileStatus( reloaded, ' · reloaded from disk' );
 					return;
 				}
-				// Overwrite — re-issue the save with the server's
-				// mtime so the optimistic-concurrency check passes.
-				activeFile = {
-					path: file.path,
+				// Overwrite — bump our mtime to the server's so the
+				// next-attempt's concurrency check passes.
+				openFiles.set( file.path, {
+					...file,
 					mtime: data.server_mtime,
 					size: data.server_size,
-				};
+				} );
 				await saveActiveFile();
 				return;
 			}
@@ -313,11 +448,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		}
 	};
 
-	// Bind Cmd/Ctrl+S inside Monaco. `addCommand` runs only when the
-	// editor has focus — exactly what we want; pressing Cmd-S while
-	// the tree is focused shouldn't trigger the editor's save. The
-	// `KeyMod | KeyCode` bitwise composition is the Monaco-canonical
-	// keybinding API — disabling no-bitwise just for these lines.
 	editor.addCommand(
 		// eslint-disable-next-line no-bitwise
 		monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
@@ -339,7 +469,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const tree: FileTreeHandle = mountFileTree( {
 		mount: treeMount,
 		onOpen: ( path ) => {
-			void openFile( path );
+			void openFileFromTree( path );
 		},
 	} );
 
