@@ -24,6 +24,7 @@
 import { showConflictDialog } from './conflict-dialog';
 import { createModelCache, languageFor } from './file-models';
 import { loadMonaco } from './monaco-bootstrap';
+import { setPhpProviderHost } from './providers/php';
 import {
 	fetchFile,
 	RestError,
@@ -301,12 +302,20 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		modelChangeDisposers.set( path, () => sub.dispose() );
 	};
 
-	const openFileFromTree = async ( path: string ): Promise< void > => {
-		// Already open? Just focus its tab.
+	/**
+	 * Idempotently open a file: returns the existing model if already
+	 * open as a tab, otherwise fetches via REST + creates the model
+	 * + opens the tab. Returns the model on success, null on error
+	 * (errors surface on the status bar).
+	 */
+	const openFile = async (
+		path: string,
+	): Promise< Monaco.editor.ITextModel | null > => {
+		// Already open? Focus its tab and return the cached model.
 		if ( tabs.has( path ) ) {
 			tabs.open( tabMetaForPath( path ) );
 			showFile( path );
-			return;
+			return models.get( path );
 		}
 
 		// Cancel any concurrent open for the same path (rapid
@@ -320,7 +329,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		try {
 			const file = await fetchFile( path, ac.signal );
 			if ( ac.signal.aborted ) {
-				return;
+				return null;
 			}
 			const model = models.open( monaco, path, file.content );
 			openFiles.set( path, {
@@ -333,9 +342,10 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 			tabs.open( tabMetaForPath( file.path ) );
 			showFile( file.path );
+			return model;
 		} catch ( err ) {
 			if ( ( err as Error ).name === 'AbortError' ) {
-				return;
+				return null;
 			}
 			let msg = 'Failed to open file.';
 			if ( err instanceof RestError ) {
@@ -344,11 +354,36 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 				msg = err.message;
 			}
 			setStatus( msg, 'error' );
+			return null;
 		} finally {
 			if ( openControllers.get( path ) === ac ) {
 				openControllers.delete( path );
 			}
 		}
+	};
+
+	/**
+	 * Open a file AND scroll the editor to a specific line. Used by
+	 * the PHP `Go to Definition` provider when the user cmd-clicks a
+	 * workspace symbol — opens the file in a new tab (or focuses
+	 * existing) and reveals the declaration line.
+	 */
+	const openFileAtLine = async (
+		path: string,
+		line: number,
+	): Promise< Monaco.editor.ITextModel | null > => {
+		const model = await openFile( path );
+		if ( ! model ) {
+			return null;
+		}
+		// Defer to the next tick so Monaco has time to bind the model
+		// to the editor before we try to reveal a line in it.
+		requestAnimationFrame( () => {
+			editor.revealLineInCenter( line );
+			editor.setPosition( { lineNumber: line, column: 1 } );
+			editor.focus();
+		} );
+		return model;
 	};
 
 	const saveActiveFile = async (): Promise< void > => {
@@ -466,10 +501,15 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		},
 	} );
 
+	// Wire the PHP `Go to Definition` provider to this editor's
+	// open-file plumbing. Cmd-clicking a workspace symbol now opens
+	// the file in a tab and scrolls to its declaration line.
+	setPhpProviderHost( { openFileAtLine } );
+
 	const tree: FileTreeHandle = mountFileTree( {
 		mount: treeMount,
 		onOpen: ( path ) => {
-			void openFileFromTree( path );
+			void openFile( path );
 		},
 	} );
 

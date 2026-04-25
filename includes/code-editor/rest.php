@@ -153,7 +153,22 @@ function wpdc_register_editor_rest_routes() {
 
 	register_rest_route(
 		WPDC_REST_NAMESPACE,
-		'/code/php-symbols/(?P<name>[A-Za-z0-9_\\-/.]+)',
+		'/code/php-symbols/rescan',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => wpdc_rest_handler( 'wpdc_rest_php_symbols_rescan' ),
+			'permission_callback' => 'wpdc_rest_permission',
+		)
+	);
+
+	register_rest_route(
+		WPDC_REST_NAMESPACE,
+		// `[A-Za-z0-9_\\/.-]` — alphanum, underscore, namespace
+		// separator (`\`), slash, period, hyphen. PHP single-quoted
+		// strings preserve `\\` as two chars; the regex sees `\\`,
+		// matching one literal backslash. Hyphen at the end of the
+		// class is literal without escaping.
+		'/code/php-symbols/(?P<name>[A-Za-z0-9_\\\\/.-]+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => wpdc_rest_handler( 'wpdc_rest_php_symbol_detail' ),
@@ -590,8 +605,39 @@ function wpdc_rest_php_symbols( WP_REST_Request $request ) {
  * @param WP_REST_Request $request
  * @return array|WP_Error
  */
+/**
+ * POST /wp-desktop/v1/code/php-symbols/rescan
+ *
+ * Drop the workspace index and rebuild from scratch. Useful after
+ * activating a plugin / installing a theme so the editor doesn't
+ * stay blind to the new symbols until WP-Cron picks up the slack.
+ *
+ * Returns the count of files indexed.
+ *
+ * @since 0.18.0
+ */
+function wpdc_rest_php_symbols_rescan() {
+	wpdc_flush_workspace_index();
+	$index = wpdc_refresh_workspace_index( 5000 );
+	return array(
+		'files'   => count( $index['files'] ),
+		'rebuilt' => true,
+	);
+}
+
 function wpdc_rest_php_symbol_detail( WP_REST_Request $request ) {
 	$name = (string) $request->get_param( 'name' );
+
+	// Workspace first — when a project ships a helper with the same
+	// name as a WP core fn, the local definition is almost always
+	// what the user actually wants to navigate to.
+	if ( function_exists( 'wpdc_get_workspace_symbol' ) ) {
+		$ws = wpdc_get_workspace_symbol( $name );
+		if ( null !== $ws ) {
+			return $ws;
+		}
+	}
+
 	$entry = wpdc_get_php_symbol( $name );
 	if ( null === $entry ) {
 		return new WP_Error(

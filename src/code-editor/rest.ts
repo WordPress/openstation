@@ -165,6 +165,10 @@ export interface PhpSymbolDetail extends PhpSymbolMatch {
 		by_ref: boolean;
 		type: string | null;
 	} >;
+	/** Workspace symbols only — relative path under the workspace root. */
+	file?: string;
+	/** Workspace symbols only — 1-indexed line of the declaration. */
+	line?: number;
 }
 
 /**

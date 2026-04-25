@@ -837,12 +837,20 @@ var wpDesktopCodeEditor = function(exports) {
       }
     }
   }
+  let activeHost = null;
+  function setPhpProviderHost(host) {
+    activeHost = host;
+  }
   function registerPhpProviders(monaco) {
     const w = window;
     if (w.__wpdcPhpProvidersRegistered) {
       return;
     }
     w.__wpdcPhpProvidersRegistered = true;
+    registerStatelessProviders(monaco);
+    registerDefinitionProvider(monaco);
+  }
+  function registerStatelessProviders(monaco) {
     const completionLatest = new CancellableLatest();
     const detailLatest = new CancellableLatest();
     monaco.languages.registerCompletionItemProvider("php", {
@@ -955,6 +963,49 @@ var wpDesktopCodeEditor = function(exports) {
             ...detail.doc ? [{ value: detail.doc }] : []
           ]
         };
+      }
+    });
+  }
+  function registerDefinitionProvider(monaco) {
+    monaco.languages.registerDefinitionProvider("php", {
+      async provideDefinition(model, position) {
+        const host = activeHost;
+        if (!host) {
+          return null;
+        }
+        const word = model.getWordAtPosition(position);
+        if (!word || !word.word) {
+          return null;
+        }
+        let detail;
+        try {
+          detail = await fetchPhpSymbolDetail(word.word);
+        } catch (err) {
+          if (err instanceof RestError && err.status === 404) {
+            return null;
+          }
+          throw err;
+        }
+        const file = detail.file;
+        const line = detail.line;
+        if (typeof file !== "string" || !file || typeof line !== "number") {
+          return null;
+        }
+        const target = await host.openFileAtLine(file, line);
+        if (!target) {
+          return null;
+        }
+        return [
+          {
+            uri: target.uri,
+            range: {
+              startLineNumber: Math.max(1, line),
+              endLineNumber: Math.max(1, line),
+              startColumn: 1,
+              endColumn: 1
+            }
+          }
+        ];
       }
     });
   }
@@ -1640,11 +1691,11 @@ var wpDesktopCodeEditor = function(exports) {
       });
       modelChangeDisposers.set(path, () => sub.dispose());
     };
-    const openFileFromTree = async (path) => {
+    const openFile = async (path) => {
       if (tabs.has(path)) {
         tabs.open(tabMetaForPath(path));
         showFile(path);
-        return;
+        return models.get(path);
       }
       openControllers.get(path)?.abort();
       const ac = new AbortController();
@@ -1653,7 +1704,7 @@ var wpDesktopCodeEditor = function(exports) {
       try {
         const file = await fetchFile(path, ac.signal);
         if (ac.signal.aborted) {
-          return;
+          return null;
         }
         const model = models.open(monaco, path, file.content);
         openFiles.set(path, {
@@ -1665,9 +1716,10 @@ var wpDesktopCodeEditor = function(exports) {
         trackModelChanges(path);
         tabs.open(tabMetaForPath(file.path));
         showFile(file.path);
+        return model;
       } catch (err) {
         if (err.name === "AbortError") {
-          return;
+          return null;
         }
         let msg = "Failed to open file.";
         if (err instanceof RestError) {
@@ -1676,11 +1728,24 @@ var wpDesktopCodeEditor = function(exports) {
           msg = err.message;
         }
         setStatus(msg, "error");
+        return null;
       } finally {
         if (openControllers.get(path) === ac) {
           openControllers.delete(path);
         }
       }
+    };
+    const openFileAtLine = async (path, line) => {
+      const model = await openFile(path);
+      if (!model) {
+        return null;
+      }
+      requestAnimationFrame(() => {
+        editor.revealLineInCenter(line);
+        editor.setPosition({ lineNumber: line, column: 1 });
+        editor.focus();
+      });
+      return model;
     };
     const saveActiveFile = async () => {
       const activePath = tabs.getActive();
@@ -1790,10 +1855,11 @@ var wpDesktopCodeEditor = function(exports) {
         void saveActiveFile();
       }
     });
+    setPhpProviderHost({ openFileAtLine });
     mountFileTree({
       mount: treeMount,
       onOpen: (path) => {
-        void openFileFromTree(path);
+        void openFile(path);
       }
     });
     root.classList.remove(LOADING_CLASS);

@@ -27,6 +27,21 @@ import {
 
 import type * as Monaco from 'monaco-editor';
 
+/**
+ * Host callback the provider calls when the user requests
+ * `Go to Definition` on a workspace symbol — `index.ts` plumbs
+ * its tab-open + scroll-to-line logic through here. Returning the
+ * model from a successful open lets the provider return a
+ * Location pointing at it; returning null tells Monaco to give
+ * up gracefully.
+ */
+export interface PhpProviderHost {
+	openFileAtLine: (
+		path: string,
+		line: number,
+	) => Promise< Monaco.editor.ITextModel | null >;
+}
+
 /** Context the user's cursor sits in — drives the completion query. */
 type EditorContext =
 	| { kind: 'general'; prefix: string }
@@ -163,8 +178,30 @@ class CancellableLatest< T > {
 }
 
 /**
- * Register the Monaco PHP providers. Idempotent — caller can invoke
- * multiple times; we install once per Monaco instance.
+ * Mutable host slot shared by the registered providers. Each editor
+ * mount calls {@link setPhpProviderHost} to point the providers at
+ * its tab-open / scroll-to-line plumbing — re-registering Monaco
+ * providers per editor-open would stack them and Monaco would
+ * aggregate stale results.
+ */
+let activeHost: PhpProviderHost | null = null;
+
+/**
+ * Point the provider's `Go to Definition` callback at this host.
+ * Pass `null` on teardown to detach.
+ */
+export function setPhpProviderHost( host: PhpProviderHost | null ): void {
+	activeHost = host;
+}
+
+/**
+ * Register the Monaco PHP providers. Idempotent — first call wires
+ * completion / hover / definition once per Monaco instance; all
+ * subsequent calls no-op.
+ *
+ * The definition provider reads from {@link activeHost} at request
+ * time, so callers don't need to re-register when the editor host
+ * changes — they just call {@link setPhpProviderHost}.
  */
 export function registerPhpProviders( monaco: typeof Monaco ): void {
 	const w = window as unknown as { __wpdcPhpProvidersRegistered?: boolean };
@@ -172,7 +209,11 @@ export function registerPhpProviders( monaco: typeof Monaco ): void {
 		return;
 	}
 	w.__wpdcPhpProvidersRegistered = true;
+	registerStatelessProviders( monaco );
+	registerDefinitionProvider( monaco );
+}
 
+function registerStatelessProviders( monaco: typeof Monaco ): void {
 	const completionLatest = new CancellableLatest< PhpSymbolMatch[] >();
 	const detailLatest = new CancellableLatest< { doc: string; signature: string; since: string } | null >();
 
@@ -310,6 +351,70 @@ export function registerPhpProviders( monaco: typeof Monaco ): void {
 					...( detail.doc ? [ { value: detail.doc } ] : [] ),
 				],
 			};
+		},
+	} );
+}
+
+/**
+ * Definition provider — drives `Go to Definition` (Cmd/Ctrl-click,
+ * F12, "Reveal Definition" command palette).
+ *
+ * Workflow when the user invokes it on a workspace symbol:
+ *   1. Look up the symbol detail; if it carries `file` + `line`,
+ *      that's a workspace symbol we can navigate to.
+ *   2. Ask the host (index.ts) to open the file as a tab. The host
+ *      returns the now-existing Monaco model.
+ *   3. Return a `Location` pointing at line 1 of that model — Monaco
+ *      switches the editor to it and scrolls there.
+ *
+ * For WP-core symbols the source is a `wp-includes/foo.php` file
+ * outside the workspace, so we don't try to navigate. Hover docs +
+ * the source link in the popup carry the user the rest of the way.
+ */
+function registerDefinitionProvider( monaco: typeof Monaco ): void {
+	monaco.languages.registerDefinitionProvider( 'php', {
+		async provideDefinition( model, position ) {
+			const host = activeHost;
+			if ( ! host ) {
+				return null;
+			}
+			const word = model.getWordAtPosition( position );
+			if ( ! word || ! word.word ) {
+				return null;
+			}
+			let detail;
+			try {
+				detail = await fetchPhpSymbolDetail( word.word );
+			} catch ( err ) {
+				if ( err instanceof RestError && err.status === 404 ) {
+					return null;
+				}
+				throw err;
+			}
+
+			const file = ( detail as unknown as { file?: string } ).file;
+			const line = ( detail as unknown as { line?: number } ).line;
+			if ( typeof file !== 'string' || ! file || typeof line !== 'number' ) {
+				// WP-core symbol — no workspace path to jump to.
+				return null;
+			}
+
+			const target = await host.openFileAtLine( file, line );
+			if ( ! target ) {
+				return null;
+			}
+
+			return [
+				{
+					uri: target.uri,
+					range: {
+						startLineNumber: Math.max( 1, line ),
+						endLineNumber: Math.max( 1, line ),
+						startColumn: 1,
+						endColumn: 1,
+					},
+				},
+			];
 		},
 	} );
 }
