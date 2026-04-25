@@ -796,13 +796,14 @@ function init(): void {
 	// `config.nativeWindows`; the live-refresh path calls the same
 	// syncer with the fresh payload so activation / deactivation
 	// maps to tile add / remove without any shell reload.
-	const syncNativeWindows = createNativeWindowSync( {
+	const nativeWindows = createNativeWindowSync( {
 		manager,
 		dock,
 		taskbar,
 		taskbarEl,
 		desktopArea,
 	} );
+	const syncNativeWindows = nativeWindows.sync;
 	void syncNativeWindows(
 		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
 	);
@@ -895,9 +896,12 @@ function init(): void {
 		}
 	} );
 
-	// Hoisted so the desktop-icons render code below and the
-	// `window.wp.desktop.registerWindow` public export both
-	// reference the same function — no double-wrapping, no drift.
+	// Public-API alias for the lower-level `manager.open({ native:
+	// true, … })` path. Plugins that build their UI entirely in JS
+	// (no PHP `wp_register_desktop_window`) reach for this. The
+	// PHP-registered native-window path goes through
+	// `nativeWindows.openById` instead — which pre-clones the
+	// template into the body before render fires.
 	const registerWindow = createRegisterWindow( manager );
 
 	// Desktop icons — shortcut tiles on the wallpaper, registered
@@ -905,52 +909,17 @@ function init(): void {
 	// every live menu refresh so a plugin activation adds / removes
 	// tiles without a full shell reload.
 	//
-	// The `openWindow` callback reaches into the native-window
-	// registry the shell keeps in sync with `config.nativeWindows`.
-	// When the icon's target plugin has been deactivated since the
-	// icon was registered, the registry lookup returns null and the
-	// click becomes a no-op — the icon itself disappears on the
-	// next refresh via `wp_desktop_icons` filtering.
-	const openRegisteredNativeWindow = ( id: string ): boolean => {
-		const def = Array.isArray( config.nativeWindows )
-			? config.nativeWindows.find( ( w ) => w.id === id )
-			: null;
-		if ( ! def ) {
-			return false;
-		}
-		registerWindow( {
-			id: def.id,
-			title: def.title,
-			icon: def.icon,
-			width: def.width,
-			height: def.height,
-			minWidth: def.minWidth,
-			minHeight: def.minHeight,
-			autofocus: def.autofocus,
-			render: ( body: HTMLElement ) => {
-				// Native windows registered from PHP publish their
-				// render callback on `window.wpDesktopNativeWindows`.
-				// If the plugin's script hasn't loaded yet (very
-				// rare at this point — the shell enqueues all
-				// native-window scripts as shell deps), fall through
-				// to an empty body rather than throwing.
-				const nativeRegistry = ( window as unknown as {
-					wpDesktopNativeWindows?: Record<
-						string,
-						( ( el: HTMLElement ) => void ) | undefined
-					>;
-				} ).wpDesktopNativeWindows;
-				const render = nativeRegistry?.[ def.id ];
-				if ( render ) {
-					render( body );
-				}
-			},
-		} );
-		return true;
-	};
+	// The icon's `openWindow` delegates straight to
+	// `nativeWindows.openById` — the same opener the dock/taskbar
+	// click goes through. This is load-bearing: the canonical opener
+	// pre-clones the registered template into the body before the
+	// plugin's render callback fires. Hand-rolling a separate path
+	// here (which we used to do) leaks an empty body to render
+	// callbacks that depend on the cloned template, breaking every
+	// plugin that follows the documented pattern.
 	if ( Array.isArray( config.desktopIcons ) && config.desktopIcons.length > 0 ) {
 		renderDesktopIcons( desktopArea, config.desktopIcons, {
-			openWindow: openRegisteredNativeWindow,
+			openWindow: nativeWindows.openById,
 			manager,
 		} );
 	}

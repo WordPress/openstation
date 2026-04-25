@@ -65,3 +65,38 @@
 	color: #f48771;
 	white-space: pre-wrap;
 }
+
+/*
+ * Phase 1b smoke-test surface — a plain language picker between the
+ * title bar and the editor. Phase 2 replaces this with the real file
+ * tree, so the styling is functional, not load-bearing.
+ */
+.wpdc-editor__picker {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: #252526; /* Matches Monaco's vs-dark side bar. */
+	border-bottom: 1px solid #1e1e1e;
+	font-size: 12px;
+}
+
+.wpdc-editor__picker-label {
+	color: #cccccc;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.wpdc-editor__picker-select {
+	background: #3c3c3c;
+	color: #cccccc;
+	border: 1px solid #1e1e1e;
+	border-radius: 3px;
+	padding: 3px 6px;
+	font: inherit;
+}
+
+.wpdc-editor__picker-select:focus {
+	outline: 1px solid #007acc;
+	outline-offset: 1px;
+}

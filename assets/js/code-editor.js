@@ -457,6 +457,19 @@ var wpDesktopCodeEditor = function(exports) {
   };
   let cached = null;
   let pending = null;
+  function installWorkerEnvironment(monacoVendorUrl) {
+    const workerMainUrl = `${monacoVendorUrl}/base/worker/workerMain.js`;
+    const baseUrl = monacoVendorUrl.replace(/\/vs$/, "");
+    const proxy = `
+		self.MonacoEnvironment = { baseUrl: '${baseUrl}' };
+		importScripts('${workerMainUrl}');
+	`;
+    self.MonacoEnvironment = {
+      getWorkerUrl: () => URL.createObjectURL(
+        new Blob([proxy], { type: "text/javascript" })
+      )
+    };
+  }
   async function loadMonaco() {
     if (cached) {
       return cached;
@@ -470,24 +483,66 @@ var wpDesktopCodeEditor = function(exports) {
         "wp-desktop-code-editor: monacoVendorUrl missing from wpDesktopCodeEditorConfig — is window.php enqueued?"
       );
     }
+    installWorkerEnvironment(config2.monacoVendorUrl);
     loader.config({
       paths: { vs: config2.monacoVendorUrl }
     });
     pending = loader.init().then((monaco) => {
       cached = monaco;
+      configureLanguageServices(cached);
       return cached;
     });
     return pending;
   }
-  const SAMPLE_PHP = `<?php
+  function configureLanguageServices(monaco) {
+    const ts = monaco.languages.typescript;
+    const compilerOptions = {
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.ESNext,
+      jsx: ts.JsxEmit.React,
+      jsxFactory: "React.createElement",
+      jsxFragmentFactory: "React.Fragment",
+      moduleResolution: ts.ModuleResolutionKind.NodeJs,
+      allowJs: true,
+      allowNonTsExtensions: true,
+      esModuleInterop: true,
+      isolatedModules: true,
+      resolveJsonModule: true,
+      strict: false
+    };
+    ts.typescriptDefaults.setCompilerOptions(compilerOptions);
+    ts.javascriptDefaults.setCompilerOptions(compilerOptions);
+    ts.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+      // 2307 — "Cannot find module 'X'": single-file context, almost
+      // always noise. Re-enable once Phase 2's file tree gives the
+      // worker a project to resolve against.
+      // 2304 — "Cannot find name 'X'": same.
+      diagnosticCodesToIgnore: [2307, 2304]
+    });
+    ts.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+      diagnosticCodesToIgnore: [2307, 2304]
+    });
+  }
+  const SAMPLES = [
+    {
+      id: "php",
+      label: "PHP",
+      language: "php",
+      uri: "inmemory://samples/sample.php",
+      content: `<?php
 /**
  * Welcome to the WP Desktop Code editor.
  *
- * Phase 1a: Monaco renders inside a native desktop window with PHP
- * syntax highlighting. No workers, no file tree, no save.
+ * Phase 1b: TypeScript / JavaScript / CSS / SCSS / HTML / JSON
+ * IntelliSense is online (try the language picker above this editor).
  *
- * Phase 1b adds full IntelliSense for JS/TS/JSX/TSX/CSS/SCSS/HTML/MD.
- * Phase 5 adds WordPress-aware PHP IntelliSense.
+ * PHP IntelliSense — including WordPress-aware completion for
+ * \`add_action\`, \`wp_get_current_user\`, etc. — lands in Phase 5.
+ * For now PHP gets syntax highlighting only.
  */
 
 function wpdc_say_hello( $name = 'world' ) {
@@ -495,15 +550,294 @@ function wpdc_say_hello( $name = 'world' ) {
 }
 
 add_action( 'init', function () {
-    // Try editing this file inside the editor window.
     error_log( wpdc_say_hello( 'WP Desktop Mode' ) );
 } );
-`;
+`
+    },
+    {
+      id: "ts",
+      label: "TypeScript",
+      language: "typescript",
+      uri: "inmemory://samples/sample.ts",
+      content: `/**
+ * Try typing on a fresh line:
+ *
+ *   const arr = [1, 2, 3];
+ *   arr.|     ← should autocomplete to .map / .filter / .reduce / .length
+ *
+ * Hover over an identifier to see its inferred type.
+ */
+
+interface Plugin {
+	id: string;
+	render: ( body: HTMLElement ) => void;
+}
+
+const plugins: Plugin[] = [
+	{ id: 'jorvy', render: ( body ) => body.append( 'I am Iron Man.' ) },
+];
+
+const ids = plugins.map( ( p ) => p.id ).join( ', ' );
+`
+    },
+    {
+      id: "tsx",
+      label: "TSX (React)",
+      language: "typescript",
+      uri: "inmemory://samples/sample.tsx",
+      content: `/**
+ * Try typing inside the JSX:
+ *
+ *   <div onCl|     ← autocompletes to onClick / onClickCapture
+ *   <input ty|     ← autocompletes to type=
+ *
+ * Hover \`useState\` to see its generic signature.
+ */
+
+import * as React from 'react';
+
+interface CounterProps {
+	initial?: number;
+	onChange?: ( value: number ) => void;
+}
+
+export function Counter( { initial = 0, onChange }: CounterProps ) {
+	const [ value, setValue ] = React.useState( initial );
+	return (
+		<div className="counter">
+			<button onClick={ () => {
+				setValue( value + 1 );
+				onChange?.( value + 1 );
+			} }>
+				{ value }
+			</button>
+		</div>
+	);
+}
+`
+    },
+    {
+      id: "js",
+      label: "JavaScript",
+      language: "javascript",
+      uri: "inmemory://samples/sample.js",
+      content: `/**
+ * Vanilla JS — JSDoc drives inference even without TS.
+ *
+ *   const ev = doc.|   ← autocompletes off the inferred Document type.
+ */
+
+/** @type {Document} */
+const doc = document;
+
+const links = doc.querySelectorAll( 'a[href^="#"]' );
+links.forEach( ( link ) => {
+	link.addEventListener( 'click', ( e ) => e.preventDefault() );
+} );
+`
+    },
+    {
+      id: "jsx",
+      label: "JSX",
+      language: "javascript",
+      uri: "inmemory://samples/sample.jsx",
+      content: `/**
+ * Vanilla JSX (no types, no imports declared in this in-memory
+ * file). JSX intrinsics still autocomplete because the TS worker
+ * is configured with \`jsx: 'react'\`.
+ */
+
+function Greeting( { name } ) {
+	return <h1 className="greet">Hello, { name }!</h1>;
+}
+
+const root = document.getElementById( 'app' );
+// Pretend ReactDOM.render(<Greeting name="World" />, root)
+`
+    },
+    {
+      id: "css",
+      label: "CSS",
+      language: "css",
+      uri: "inmemory://samples/sample.css",
+      content: `/**
+ * Try:
+ *   - Hover \`#2271b1\` — color preview pops.
+ *   - Type \`background-\` on a fresh line — completion lists
+ *     background-color, background-image, etc.
+ *   - Misspell a property — squiggle.
+ */
+
+.wp-desktop-window {
+	box-sizing: border-box;
+	background-color: #2271b1;
+	color: white;
+	padding: 12px;
+	border-radius: 8px;
+}
+
+.wp-desktop-window:hover {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+`
+    },
+    {
+      id: "scss",
+      label: "SCSS",
+      language: "scss",
+      uri: "inmemory://samples/sample.scss",
+      content: `/**
+ * SCSS-specific features the worker validates:
+ *   - \`@include\` / \`@mixin\` completion.
+ *   - Variable references — type \`$\` to see options.
+ *   - Nested selectors collapse + linting.
+ */
+
+$accent: #2271b1;
+$radius: 8px;
+
+@mixin elevate( $depth: 2 ) {
+	box-shadow: 0 #{ $depth * 2 }px #{ $depth * 6 }px rgba(0, 0, 0, 0.15);
+}
+
+.wp-desktop-window {
+	background: $accent;
+	border-radius: $radius;
+
+	&:hover {
+		@include elevate( 3 );
+	}
+
+	&__title {
+		font-weight: 600;
+	}
+}
+`
+    },
+    {
+      id: "html",
+      label: "HTML",
+      language: "html",
+      uri: "inmemory://samples/sample.html",
+      content: `<!--
+  Try:
+    - Type < on a fresh line — tag completion.
+    - Inside <style>…</style> the CSS worker takes over.
+    - Inside <script>…<\/script> the JS worker takes over.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>WP Desktop Mode</title>
+	<style>
+		body { font-family: system-ui, sans-serif; margin: 2rem; }
+		h1 { color: #2271b1; }
+	</style>
+</head>
+<body>
+	<h1>Hello, world.</h1>
+	<script>
+		console.log( 'Embedded JS — completion still works here.' );
+	<\/script>
+</body>
+</html>
+`
+    },
+    {
+      id: "json",
+      label: "JSON",
+      language: "json",
+      uri: "inmemory://samples/sample.json",
+      content: `{
+	"name": "wp-desktop-mode",
+	"version": "0.18.0",
+	"description": "Renders the WordPress admin as a desktop OS.",
+	"keywords": [ "wordpress", "admin", "desktop" ],
+	"comment": "Try removing a comma above — the worker will squiggle it."
+}
+`
+    },
+    {
+      id: "md",
+      label: "Markdown",
+      language: "markdown",
+      uri: "inmemory://samples/sample.md",
+      content: `# WP Desktop Code editor
+
+This sample exercises **markdown tokenization**. Monaco doesn't ship
+a markdown language service, so there's no IntelliSense here — just
+paint.
+
+## What's online in Phase 1b
+
+- TypeScript / JavaScript IntelliSense (with JSX/TSX).
+- CSS / SCSS / LESS validation.
+- HTML completion + embedded-language switching.
+- JSON schema-flavored validation.
+
+## What's coming
+
+- Phase 2 — file tree backed by REST.
+- Phase 3 — save flow with WP_Filesystem.
+- Phase 5 — WordPress-aware PHP IntelliSense.
+
+\`\`\`ts
+// Code blocks tokenize with the right language even here.
+const ok: boolean = true;
+\`\`\`
+`
+    }
+  ];
   const ROOT_SELECTOR = "[data-wpdc-editor-root]";
-  const LOADING_SELECTOR = "[data-wpdc-editor-loading]";
   const MONACO_MOUNT_SELECTOR = "[data-wpdc-editor-monaco]";
   const LOADING_CLASS = "wpdc-editor--loading";
   const ERROR_CLASS = "wpdc-editor--error";
+  const modelCache = /* @__PURE__ */ new Map();
+  function getOrCreateModel(monaco, sample) {
+    const cached2 = modelCache.get(sample.id);
+    if (cached2 && !cached2.isDisposed()) {
+      return cached2;
+    }
+    const uri = monaco.Uri.parse(sample.uri);
+    const existing = monaco.editor.getModel(uri);
+    if (existing) {
+      modelCache.set(sample.id, existing);
+      return existing;
+    }
+    const model = monaco.editor.createModel(sample.content, sample.language, uri);
+    modelCache.set(sample.id, model);
+    return model;
+  }
+  function buildLanguagePicker(current, onPick) {
+    const wrap = document.createElement("div");
+    wrap.className = "wpdc-editor__picker";
+    const label = document.createElement("label");
+    label.className = "wpdc-editor__picker-label";
+    label.textContent = "Sample";
+    const select = document.createElement("select");
+    select.className = "wpdc-editor__picker-select";
+    for (const sample of SAMPLES) {
+      const opt = document.createElement("option");
+      opt.value = sample.id;
+      opt.textContent = sample.label;
+      if (sample.id === current.id) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    }
+    select.addEventListener("change", () => {
+      const next = SAMPLES.find((s) => s.id === select.value);
+      if (next) {
+        onPick(next);
+      }
+    });
+    const id = `wpdc-editor-picker-${Math.random().toString(36).slice(2, 8)}`;
+    select.id = id;
+    label.htmlFor = id;
+    wrap.append(label, select);
+    return wrap;
+  }
   async function renderEditor(body) {
     const root = body.querySelector(ROOT_SELECTOR);
     const mount = body.querySelector(MONACO_MOUNT_SELECTOR);
@@ -522,20 +856,22 @@ add_action( 'init', function () {
       mount.textContent = err instanceof Error ? err.message : "Failed to load Monaco.";
       return;
     }
-    const model = monaco.editor.createModel(SAMPLE_PHP, "php");
-    monaco.editor.create(mount, {
-      model,
+    let active = SAMPLES.find((s) => s.id === "php") ?? SAMPLES[0];
+    const editor = monaco.editor.create(mount, {
+      model: getOrCreateModel(monaco, active),
       theme: "vs-dark",
       automaticLayout: true,
       minimap: { enabled: true },
       fontSize: 13,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-      // Phase 1a: read-only would be safer (no save flow yet), but
-      // we want the user to feel the editor in their hands. Edits
-      // are in-memory — closing the window discards them.
       readOnly: false,
       scrollBeyondLastLine: false
     });
+    const picker = buildLanguagePicker(active, (next) => {
+      active = next;
+      editor.setModel(getOrCreateModel(monaco, next));
+    });
+    root.insertBefore(picker, mount);
     root.classList.remove(LOADING_CLASS);
   }
   const registry = window.wpDesktopNativeWindows ?? (window.wpDesktopNativeWindows = {});
@@ -544,7 +880,6 @@ add_action( 'init', function () {
   };
   exports.ERROR_CLASS = ERROR_CLASS;
   exports.LOADING_CLASS = LOADING_CLASS;
-  exports.LOADING_SELECTOR = LOADING_SELECTOR;
   exports.MONACO_MOUNT_SELECTOR = MONACO_MOUNT_SELECTOR;
   exports.ROOT_SELECTOR = ROOT_SELECTOR;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });

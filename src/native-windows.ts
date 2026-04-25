@@ -591,14 +591,45 @@ interface NativeWindowGlobals {
  * closure rather than module globals so tests can mount multiple
  * shells in sequence cleanly.
  */
+/**
+ * Public surface of {@link createNativeWindowSync}.
+ *
+ * @public
+ */
+export interface NativeWindowSync {
+	/**
+	 * Reconcile the dock/taskbar tiles to a server-supplied list.
+	 * Adds tiles for new entries, removes tiles whose entry has
+	 * disappeared. Idempotent.
+	 */
+	sync: ( list: NativeWindowServerEntry[] ) => Promise< void >;
+	/**
+	 * Open a registered native window by id. Used by entry points
+	 * that don't go through the dock — desktop icons on the
+	 * wallpaper, programmatic API calls, AI commands, etc. Returns
+	 * `false` when the id isn't registered (the window opener silently
+	 * no-ops, the caller decides what to do — usually nothing, since
+	 * the icon/command would be hidden in the same refresh cycle).
+	 *
+	 * Goes through the same `openFromEntry` path as the dock click,
+	 * so the body always has the cloned template before the render
+	 * callback fires. **Do not duplicate this elsewhere.**
+	 */
+	openById: ( id: string ) => boolean;
+}
+
 export function createNativeWindowSync(
 	deps: NativeWindowRegistryDeps,
-): ( list: NativeWindowServerEntry[] ) => Promise< void > {
+): NativeWindowSync {
 	const { manager, dock, taskbar, taskbarEl, desktopArea } = deps;
 
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
 	const loadedScripts = new Set< string >();
+	// Entry index — `openById` reaches in here when the desktop-icon
+	// or AI-command paths request "open whatever's registered as <id>".
+	// Always reflects the most recent sync.
+	const entriesById = new Map< string, NativeWindowServerEntry >();
 
 	const ensureTaskbarVisible = (): void => {
 		if ( taskbarEl && taskbarEl.hidden ) {
@@ -749,12 +780,18 @@ export function createNativeWindowSync(
 		dock?.removeSystemItem( id );
 		taskbar?.removeSystemItem( id );
 		registered.delete( id );
+		entriesById.delete( id );
 	};
 
-	return async ( list ) => {
+	const sync = async ( list: NativeWindowServerEntry[] ) => {
 		const incoming = new Set< string >();
 		for ( const entry of list ) {
 			incoming.add( entry.id );
+			// Refresh the index every sync so `openById` always
+			// reflects the latest payload (a plugin update can
+			// change a window's title / dimensions / template
+			// without touching the dock-tile lifecycle).
+			entriesById.set( entry.id, entry );
 		}
 
 		// Removals first — if the plugin reactivates with the same
@@ -775,6 +812,17 @@ export function createNativeWindowSync(
 			}
 		}
 	};
+
+	const openById = ( id: string ): boolean => {
+		const entry = entriesById.get( id );
+		if ( ! entry ) {
+			return false;
+		}
+		openFromEntry( entry );
+		return true;
+	};
+
+	return { sync, openById };
 }
 
 export function cloneTemplate(
