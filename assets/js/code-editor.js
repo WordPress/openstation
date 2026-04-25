@@ -153,6 +153,80 @@ var wpDesktopCodeEditor = function(exports) {
       }
     };
   }
+  const FLAG = "__wpdcEditorListenersInstalled";
+  function getDesktop() {
+    const w = window;
+    return w.wp?.desktop ?? null;
+  }
+  function openEditorWindow() {
+    const desktop = getDesktop();
+    if (!desktop) {
+      return false;
+    }
+    const existing = desktop.windowManager.getById("wpdc-editor");
+    if (existing) {
+      existing.focus?.();
+      return true;
+    }
+    return desktop.openWindow("wpdc-editor");
+  }
+  function openEditorAtPath(path, line = 1) {
+    openEditorWindow();
+    const fire = () => window.postMessage(
+      { type: "wp-desktop-code-open", path, line },
+      window.location.origin
+    );
+    requestAnimationFrame(fire);
+  }
+  function isOpenEditorMessage(data) {
+    if (!data || typeof data !== "object") {
+      return false;
+    }
+    const msg = data;
+    return msg.type === "wp-desktop-code-open" && typeof msg.path === "string" && (msg.line === void 0 || typeof msg.line === "number");
+  }
+  function installPostMessageListener() {
+    window.addEventListener("message", (event) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      if (!isOpenEditorMessage(event.data)) {
+        return;
+      }
+      const desktop = getDesktop();
+      const existing = desktop?.windowManager.getById("wpdc-editor");
+      if (!existing) {
+        openEditorAtPath(event.data.path, event.data.line ?? 1);
+      }
+    });
+  }
+  function installKeyboardShortcut() {
+    window.addEventListener(
+      "keydown",
+      (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
+          const target = e.target;
+          if (target?.isContentEditable && !target.closest("[data-wpdc-editor-root]")) {
+            return;
+          }
+          e.preventDefault();
+          openEditorWindow();
+        }
+      },
+      // Capture so wp-admin's own keydown handlers don't swallow
+      // the shortcut before we see it.
+      { capture: true }
+    );
+  }
+  function installEditorGlobalListeners() {
+    const w = window;
+    if (w[FLAG]) {
+      return;
+    }
+    w[FLAG] = true;
+    installKeyboardShortcut();
+    installPostMessageListener();
+  }
   function _arrayLikeToArray(r, a) {
     (null == a || a > r.length) && (a = r.length);
     for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
@@ -1340,6 +1414,22 @@ var wpDesktopCodeEditor = function(exports) {
       icon: ICON_BY_EXT[ext] ?? "dashicons-media-default"
     };
   }
+  const DARK_SCHEMES = /* @__PURE__ */ new Set([
+    "midnight",
+    "ectoplasm",
+    "coffee",
+    "ocean"
+  ]);
+  function monacoThemeForScheme(scheme) {
+    if (!scheme) {
+      return "vs-dark";
+    }
+    return DARK_SCHEMES.has(scheme) ? "vs-dark" : "vs";
+  }
+  function currentColorScheme() {
+    const cfg = window.wpDesktopConfig;
+    return cfg?.colorScheme ?? "";
+  }
   const FOLDER_ICON_CLOSED = "dashicons-category";
   const FOLDER_ICON_OPEN = "dashicons-portfolio";
   const FILE_ICON = "dashicons-media-default";
@@ -1528,11 +1618,16 @@ var wpDesktopCodeEditor = function(exports) {
     editorMount.className = "wpdc-editor__monaco-host";
     const statusBar = document.createElement("div");
     statusBar.className = "wpdc-editor__statusbar";
-    statusBar.textContent = "Select a file from the tree.";
+    const statusLeft = document.createElement("span");
+    statusLeft.className = "wpdc-editor__statusbar-left";
+    statusLeft.textContent = "Select a file from the tree.";
+    const statusRight = document.createElement("span");
+    statusRight.className = "wpdc-editor__statusbar-right";
+    statusBar.append(statusLeft, statusRight);
     right.append(tabsMount, editorMount, statusBar);
     split.append(treeMount, right);
     monacoSlot.replaceChildren(split);
-    return { treeMount, tabsMount, editorMount, statusBar };
+    return { treeMount, tabsMount, editorMount, statusBar, statusLeft, statusRight };
   }
   function formatBytes(n) {
     if (n < 1024) {
@@ -1570,7 +1665,14 @@ var wpDesktopCodeEditor = function(exports) {
       monacoSlot.textContent = err instanceof Error ? err.message : "Failed to load Monaco.";
       return;
     }
-    const { treeMount, tabsMount, editorMount, statusBar } = buildShell(
+    const {
+      treeMount,
+      tabsMount,
+      editorMount,
+      statusBar,
+      statusLeft,
+      statusRight
+    } = buildShell(
       root,
       monacoSlot
     );
@@ -1580,7 +1682,7 @@ var wpDesktopCodeEditor = function(exports) {
     );
     const editor = monaco.editor.create(editorMount, {
       model: placeholder,
-      theme: "vs-dark",
+      theme: monacoThemeForScheme(currentColorScheme()),
       // `automaticLayout: true` polls + relayouts synchronously
       // every tick during a drag-resize, which makes the minimap
       // canvas flicker. We drive layout via a rAF-throttled
@@ -1619,8 +1721,27 @@ var wpDesktopCodeEditor = function(exports) {
     const modelChangeDisposers = /* @__PURE__ */ new Map();
     const openControllers = /* @__PURE__ */ new Map();
     let saveController = null;
+    const setWindowTitle = (title) => {
+      const win = window.wp?.desktop?.windowManager?.getById("wpdc-editor");
+      win?.setTitle?.(title);
+    };
+    const baseTitle = "Code";
+    const refreshWindowTitle = () => {
+      const activePath = tabs.getActive();
+      if (!activePath) {
+        setWindowTitle(baseTitle);
+        return;
+      }
+      const file = openFiles.get(activePath);
+      const editorModel = editor.getModel();
+      const isDirty = !!file && !!editorModel && editorModel.getVersionId() !== file.savedVersionId;
+      const basename = activePath.split("/").pop() ?? activePath;
+      setWindowTitle(
+        `${isDirty ? "● " : ""}${basename} — ${baseTitle}`
+      );
+    };
     const setStatus = (text, kind = "info") => {
-      statusBar.textContent = text;
+      statusLeft.textContent = text;
       statusBar.classList.toggle(
         "wpdc-editor__statusbar--error",
         kind === "error"
@@ -1629,6 +1750,9 @@ var wpDesktopCodeEditor = function(exports) {
         "wpdc-editor__statusbar--success",
         kind === "success"
       );
+    };
+    const setCursorStatus = (line, column) => {
+      statusRight.textContent = `Ln ${line}, Col ${column}`;
     };
     const renderFileStatus = (file, suffix = "") => {
       setStatus(
@@ -1645,6 +1769,9 @@ var wpDesktopCodeEditor = function(exports) {
       }
       const dirty = model.getVersionId() !== file.savedVersionId;
       tabs.setDirty(path, dirty);
+      if (tabs.getActive() === path) {
+        refreshWindowTitle();
+      }
     };
     const showFile = (path) => {
       const model = models.get(path);
@@ -1656,6 +1783,7 @@ var wpDesktopCodeEditor = function(exports) {
       if (file) {
         renderFileStatus(file);
       }
+      refreshWindowTitle();
     };
     const onTabActivate = (path) => {
       showFile(path);
@@ -1673,6 +1801,7 @@ var wpDesktopCodeEditor = function(exports) {
       if (!tabs.getActive()) {
         editor.setModel(placeholder);
         setStatus("Select a file from the tree.");
+        refreshWindowTitle();
       }
     };
     const tabs = mountTabsStrip({
@@ -1855,7 +1984,25 @@ var wpDesktopCodeEditor = function(exports) {
         void saveActiveFile();
       }
     });
+    editor.onDidChangeCursorPosition((e) => {
+      setCursorStatus(e.position.lineNumber, e.position.column);
+    });
+    const initial = editor.getPosition();
+    if (initial) {
+      setCursorStatus(initial.lineNumber, initial.column);
+    }
     setPhpProviderHost({ openFileAtLine });
+    const onPostOpen = (event) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      const data = event.data;
+      if (!data || data.type !== "wp-desktop-code-open" || typeof data.path !== "string") {
+        return;
+      }
+      void openFileAtLine(data.path, data.line ?? 1);
+    };
+    window.addEventListener("message", onPostOpen);
     mountFileTree({
       mount: treeMount,
       onOpen: (path) => {
@@ -1864,6 +2011,7 @@ var wpDesktopCodeEditor = function(exports) {
     });
     root.classList.remove(LOADING_CLASS);
   }
+  installEditorGlobalListeners();
   const registry = window.wpDesktopNativeWindows ?? (window.wpDesktopNativeWindows = {});
   registry["wpdc-editor"] = (body) => {
     void renderEditor(body);

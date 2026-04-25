@@ -247,6 +247,32 @@ if ( win && win.state === 'normal' ) win.minimize();
 
 ---
 
+### `wp.desktop.openWindow( id )` — Stable (since 0.18.0)
+
+Open (or focus) a server-registered native window by id. Symmetric with `wp_register_desktop_window( $id, ... )` — pass the same string.
+
+```typescript
+wp.desktop.openWindow( id: string ): boolean;
+```
+
+Returns `true` if a window with that id is registered and was opened (or already open and focused), `false` otherwise.
+
+Goes through the same canonical opener as the dock click + the wallpaper-icon click — so the body comes pre-populated with the cloned `<template>` declared at registration time. Plugin authors can rely on the same render-callback contract no matter which entry point opens the window.
+
+```javascript
+// Open the Code editor.
+wp.desktop.openWindow( 'wpdc-editor' );
+
+// Cross-plugin: surface a sister plugin's monitoring dashboard.
+if ( ! wp.desktop.openWindow( 'alcazaba-monitor' ) ) {
+    // Sibling plugin isn't active — handle gracefully.
+}
+```
+
+For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`wp-desktop-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
+
+---
+
 #### Virtual desktops ("Spaces")
 
 Multiple "Spaces" with windows distributed across them. Each desktop has an id, a label, and (server-side) a position in the persisted session.

@@ -23,6 +23,7 @@
 
 import { showConflictDialog } from './conflict-dialog';
 import { createModelCache, languageFor } from './file-models';
+import { installEditorGlobalListeners } from './global-listeners';
 import { loadMonaco } from './monaco-bootstrap';
 import { setPhpProviderHost } from './providers/php';
 import {
@@ -36,6 +37,7 @@ import {
 	tabMetaForPath,
 	type TabsStripHandle,
 } from './tabs';
+import { currentColorScheme, monacoThemeForScheme } from './theme';
 import { mountFileTree, type FileTreeHandle } from './tree';
 
 import type * as Monaco from 'monaco-editor';
@@ -69,6 +71,8 @@ function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	tabsMount: HTMLElement;
 	editorMount: HTMLElement;
 	statusBar: HTMLElement;
+	statusLeft: HTMLElement;
+	statusRight: HTMLElement;
 } {
 	root.classList.add( 'wpdc-editor--phase3' );
 
@@ -89,14 +93,22 @@ function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 
 	const statusBar = document.createElement( 'div' );
 	statusBar.className = 'wpdc-editor__statusbar';
-	statusBar.textContent = 'Select a file from the tree.';
+
+	const statusLeft = document.createElement( 'span' );
+	statusLeft.className = 'wpdc-editor__statusbar-left';
+	statusLeft.textContent = 'Select a file from the tree.';
+
+	const statusRight = document.createElement( 'span' );
+	statusRight.className = 'wpdc-editor__statusbar-right';
+
+	statusBar.append( statusLeft, statusRight );
 
 	right.append( tabsMount, editorMount, statusBar );
 	split.append( treeMount, right );
 
 	monacoSlot.replaceChildren( split );
 
-	return { treeMount, tabsMount, editorMount, statusBar };
+	return { treeMount, tabsMount, editorMount, statusBar, statusLeft, statusRight };
 }
 
 function formatBytes( n: number ): string {
@@ -142,7 +154,14 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		return;
 	}
 
-	const { treeMount, tabsMount, editorMount, statusBar } = buildShell(
+	const {
+		treeMount,
+		tabsMount,
+		editorMount,
+		statusBar,
+		statusLeft,
+		statusRight,
+	} = buildShell(
 		root,
 		monacoSlot,
 	);
@@ -154,7 +173,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 	const editor = monaco.editor.create( editorMount, {
 		model: placeholder,
-		theme: 'vs-dark',
+		theme: monacoThemeForScheme( currentColorScheme() ),
 		// `automaticLayout: true` polls + relayouts synchronously
 		// every tick during a drag-resize, which makes the minimap
 		// canvas flicker. We drive layout via a rAF-throttled
@@ -201,11 +220,52 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const openControllers = new Map< string, AbortController >();
 	let saveController: AbortController | null = null;
 
+	// Resolve the desktop Window once — used to update the window's
+	// chrome title with the active file's name + dirty marker. Lookup
+	// is by id (matches the `wp_register_desktop_window( 'wpdc-editor' )`
+	// registration). Falls back to a no-op if the global API isn't
+	// available (e.g. tests that mount the editor in isolation).
+	const setWindowTitle = ( title: string ): void => {
+		const win = (
+			window as unknown as {
+				wp?: {
+					desktop?: {
+						windowManager?: {
+							getById: (
+								id: string,
+							) => { setTitle?: ( t: string ) => void } | null;
+						};
+					};
+				};
+			}
+		).wp?.desktop?.windowManager?.getById( 'wpdc-editor' );
+		win?.setTitle?.( title );
+	};
+
+	const baseTitle = 'Code';
+	const refreshWindowTitle = (): void => {
+		const activePath = tabs.getActive();
+		if ( ! activePath ) {
+			setWindowTitle( baseTitle );
+			return;
+		}
+		const file = openFiles.get( activePath );
+		const editorModel = editor.getModel();
+		const isDirty =
+			!! file &&
+			!! editorModel &&
+			editorModel.getVersionId() !== file.savedVersionId;
+		const basename = activePath.split( '/' ).pop() ?? activePath;
+		setWindowTitle(
+			`${ isDirty ? '● ' : '' }${ basename } — ${ baseTitle }`,
+		);
+	};
+
 	const setStatus = (
 		text: string,
 		kind: 'info' | 'error' | 'success' = 'info',
 	): void => {
-		statusBar.textContent = text;
+		statusLeft.textContent = text;
 		statusBar.classList.toggle(
 			'wpdc-editor__statusbar--error',
 			kind === 'error',
@@ -214,6 +274,10 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			'wpdc-editor__statusbar--success',
 			kind === 'success',
 		);
+	};
+
+	const setCursorStatus = ( line: number, column: number ): void => {
+		statusRight.textContent = `Ln ${ line }, Col ${ column }`;
 	};
 
 	const renderFileStatus = ( file: OpenFile, suffix: string = '' ): void => {
@@ -243,6 +307,12 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		}
 		const dirty = model.getVersionId() !== file.savedVersionId;
 		tabs.setDirty( path, dirty );
+		// Window-title dirty marker only matters for the active tab —
+		// `refreshWindowTitle` reads it itself, no path comparison
+		// needed here.
+		if ( tabs.getActive() === path ) {
+			refreshWindowTitle();
+		}
 	};
 
 	const showFile = ( path: string ): void => {
@@ -255,6 +325,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		if ( file ) {
 			renderFileStatus( file );
 		}
+		refreshWindowTitle();
 	};
 
 	const onTabActivate = ( path: string ): void => {
@@ -279,6 +350,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		if ( ! tabs.getActive() ) {
 			editor.setModel( placeholder );
 			setStatus( 'Select a file from the tree.' );
+			refreshWindowTitle();
 		}
 	};
 
@@ -501,10 +573,45 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		},
 	} );
 
+	// Cursor position → status bar's right zone. Monaco fires
+	// `onDidChangeCursorPosition` for both keyboard movement and
+	// mouse clicks; one subscription covers both.
+	editor.onDidChangeCursorPosition( ( e ) => {
+		setCursorStatus( e.position.lineNumber, e.position.column );
+	} );
+	const initial = editor.getPosition();
+	if ( initial ) {
+		setCursorStatus( initial.lineNumber, initial.column );
+	}
+
 	// Wire the PHP `Go to Definition` provider to this editor's
 	// open-file plumbing. Cmd-clicking a workspace symbol now opens
 	// the file in a tab and scrolls to its declaration line.
 	setPhpProviderHost( { openFileAtLine } );
+
+	// In-editor `wp-desktop-code-open` handler. The page-level
+	// listener in `global-listeners.ts` opens the editor window and
+	// re-broadcasts the message; this handler catches the broadcast
+	// once the render callback has mounted. Same listener also
+	// handles direct messages from a user-open editor (no
+	// re-broadcast needed in that case).
+	const onPostOpen = ( event: MessageEvent ): void => {
+		if ( event.origin !== window.location.origin ) {
+			return;
+		}
+		const data = event.data as
+			| { type?: string; path?: string; line?: number }
+			| null;
+		if (
+			! data ||
+			data.type !== 'wp-desktop-code-open' ||
+			typeof data.path !== 'string'
+		) {
+			return;
+		}
+		void openFileAtLine( data.path, data.line ?? 1 );
+	};
+	window.addEventListener( 'message', onPostOpen );
 
 	const tree: FileTreeHandle = mountFileTree( {
 		mount: treeMount,
@@ -516,6 +623,11 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	root.classList.remove( LOADING_CLASS );
 	void tree;
 }
+
+// Install page-level keyboard shortcut + open-from-elsewhere
+// postMessage listener. Idempotent — bundle imported multiple times
+// (rare but possible if a plugin re-enqueues it) won't double-attach.
+installEditorGlobalListeners();
 
 const registry =
 	( window.wpDesktopNativeWindows ??

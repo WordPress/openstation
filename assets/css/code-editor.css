@@ -266,15 +266,30 @@
 
 .wpdc-editor__statusbar {
 	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
 	padding: 4px 12px;
 	background: #007acc;
 	color: #ffffff;
 	font-size: 11px;
 	letter-spacing: 0.02em;
 	border-top: 1px solid #1e1e1e;
+}
+
+.wpdc-editor__statusbar-left {
+	flex: 1;
+	min-width: 0;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.wpdc-editor__statusbar-right {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.92;
 }
 
 .wpdc-editor__statusbar--error {

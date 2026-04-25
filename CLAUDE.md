@@ -141,6 +141,8 @@ docs/
     │                            provider callback shapes, or active-provider resolution rules change.
     ├── ai-ask.md                UPDATE/READ WHEN: wp.desktop.ai.ask() contract, AI-tool-calling
     │                            protocol, or wp_register_desktop_ai_tool() signature changes.
+    ├── code-editor-open.md      UPDATE/READ WHEN: wp-desktop-code-open postMessage protocol,
+    │                            wp.desktop.openWindow contract, or Cmd/Ctrl+Shift+E shortcut changes.
     ├── connect-to-window.md     UPDATE/READ WHEN: registerTitleBarButton, Window.setHighlight,
     │                            wp.desktop.connect, or wp.desktop.iframe.* contract changes;
     │                            wp-desktop-bridge-* postMessage protocol changes.

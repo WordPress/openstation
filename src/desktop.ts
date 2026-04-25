@@ -200,6 +200,21 @@ export interface WpDesktopPublicApi {
 	 */
 	registerWindow: ( def: NativeWindowDef ) => DesktopWindow;
 	/**
+	 * Open (or focus) a server-registered native window by id —
+	 * the same path the dock click + wallpaper-icon click go
+	 * through, so callers inherit the cloned-template body that
+	 * `wp_register_desktop_window( 'template' )` declared.
+	 *
+	 * Returns `true` if the window was opened (or already open and
+	 * was focused), `false` if no native window is registered with
+	 * that id. Used by the global Cmd/Ctrl+Shift+E shortcut, by
+	 * the AI Copilot's "open editor" tool, and by plugin authors
+	 * that want to surface a sister-plugin's window.
+	 *
+	 * @since 0.18.0
+	 */
+	openWindow: ( id: string ) => boolean;
+	/**
 	 * Clone a `<template>` element's contents into a fresh
 	 * `DocumentFragment`. Convenience wrapper — accepts either the
 	 * element's DOM id or the element itself. Throws if the
@@ -981,6 +996,7 @@ function init(): void {
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
+		openWindow: nativeWindows.openById,
 		cloneTemplate,
 		onWindow,
 		registerSystemTile: ( item, placement = 'taskbar' ) => {

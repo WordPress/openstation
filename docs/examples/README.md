@@ -28,5 +28,6 @@ defined( 'ABSPATH' ) || exit;
 - [Native window with tabs (auto-swap pattern)](./native-window-with-tabs.md)
 - [Layout primitives (body → panel → row → col)](./layout-primitives.md)
 - [Native windows — overview + render-callback contract](./native-windows.md)
+- [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.
