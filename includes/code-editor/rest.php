@@ -127,13 +127,40 @@ function wpdc_register_editor_rest_routes() {
 		WPDC_REST_NAMESPACE,
 		'/code/file',
 		array(
-			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => wpdc_rest_handler( 'wpdc_rest_read_file' ),
-			'permission_callback' => 'wpdc_rest_permission',
-			'args'                => array(
-				'path' => array(
-					'required' => true,
-					'type'     => 'string',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => wpdc_rest_handler( 'wpdc_rest_read_file' ),
+				'permission_callback' => 'wpdc_rest_permission',
+				'args'                => array(
+					'path' => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+				),
+			),
+			array(
+				// Both PUT and POST — some hosts' WAFs (mod_security
+				// rule sets in particular) block PUT requests
+				// containing `<?php` strings outright. Accepting
+				// POST as well lets the client fall through.
+				'methods'             => 'PUT, POST',
+				'callback'            => wpdc_rest_handler( 'wpdc_rest_write_file' ),
+				'permission_callback' => 'wpdc_rest_permission',
+				'args'                => array(
+					'path'        => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+					'content_b64' => array(
+						'required'    => true,
+						'type'        => 'string',
+						'description' => 'Base64-encoded UTF-8 file contents. Encoded on the wire to bypass WAFs that scan POST bodies for `<?php` strings.',
+					),
+					'mtime'       => array(
+						'required'    => true,
+						'type'        => 'integer',
+						'description' => 'The mtime the editor read this file at. Server compares against current mtime; mismatch returns 409 with the disk version.',
+					),
 				),
 			),
 		)
@@ -356,4 +383,88 @@ function wpdc_rest_read_file( WP_REST_Request $request ) {
 		'size'     => $size,
 		'encoding' => 'utf-8',
 	);
+}
+
+/**
+ * POST/PUT /wp-desktop/v1/code/file
+ *
+ * Body:
+ *   path        (string)  relative path inside the workspace.
+ *   content_b64 (string)  base64-encoded UTF-8 file contents.
+ *   mtime       (integer) the mtime the client opened the file at.
+ *
+ * Returns `{ path, mtime, size }` on success, or `WP_Error` with a
+ * stable code on failure (`wpdc_conflict`, `wpdc_path_outside_workspace`,
+ * `wpdc_extension_denied`, `wpdc_filesystem_unavailable`,
+ * `wpdc_write_failed`, `wpdc_invalid_payload`).
+ *
+ * The path resolution + capability check are identical to the read
+ * route — `wpdc_resolve_path` rejects symlink escapes / traversal /
+ * disallowed extensions before the writer ever runs.
+ *
+ * @since 0.18.0
+ *
+ * @param WP_REST_Request $request
+ * @return array|WP_Error
+ */
+function wpdc_rest_write_file( WP_REST_Request $request ) {
+	$rel = (string) $request->get_param( 'path' );
+	$abs = wpdc_resolve_path( $rel );
+	if ( is_wp_error( $abs ) ) {
+		return $abs;
+	}
+
+	$content_b64 = (string) $request->get_param( 'content_b64' );
+	if ( '' === $content_b64 ) {
+		return new WP_Error(
+			'wpdc_invalid_payload',
+			__( 'Missing content_b64 in request body.', 'wp-desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	$content = base64_decode( $content_b64, true );
+	if ( false === $content ) {
+		return new WP_Error(
+			'wpdc_invalid_payload',
+			__( 'content_b64 is not valid base64.', 'wp-desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
+		return new WP_Error(
+			'wpdc_invalid_payload',
+			__( 'Decoded content is not valid UTF-8 — only text files can be saved.', 'wp-desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	/**
+	 * Cap on the bytes a single save can write. Default 5 MB —
+	 * matches the read-side `wpdc_max_file_bytes` so a file you
+	 * could open you can also save back. Filterable independently
+	 * for plugins that want a tighter write quota.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param int $bytes
+	 */
+	$max_bytes = (int) apply_filters( 'wpdc_max_save_bytes', 5 * 1024 * 1024 );
+	if ( strlen( $content ) > $max_bytes ) {
+		return new WP_Error(
+			'wpdc_payload_too_large',
+			sprintf(
+				/* translators: 1: payload size, 2: limit. */
+				__( 'Save payload too large (%1$s bytes; limit %2$s).', 'wp-desktop-mode' ),
+				number_format_i18n( strlen( $content ) ),
+				number_format_i18n( $max_bytes )
+			),
+			array( 'status' => 413 )
+		);
+	}
+
+	$expected_mtime = (int) $request->get_param( 'mtime' );
+
+	return wpdc_write_file( $abs, $content, $expected_mtime );
 }

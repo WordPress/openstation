@@ -1,9 +1,10 @@
 /**
- * Code Editor — Phase 2 entry.
+ * Code Editor — Phase 3 entry.
  *
- * Two-pane layout: file tree on the left, Monaco on the right.
- * Clicking a file in the tree fetches its content over REST and
- * opens it in Monaco read-only (Phase 3 enables save).
+ * Two-pane layout: file tree on the left, Monaco on the right with
+ * a status bar underneath. Clicking a file in the tree fetches its
+ * content over REST and opens it in Monaco. **Editing is now
+ * enabled** — Cmd/Ctrl+S writes back through `/code/file`.
  *
  * The shell pre-clones the registered `<template>` into the body
  * before invoking us — see `wpdc_render_editor_template()` in
@@ -14,9 +15,15 @@
  * @since 0.18.0
  */
 
+import { showConflictDialog } from './conflict-dialog';
 import { createModelCache, languageFor } from './file-models';
 import { loadMonaco } from './monaco-bootstrap';
-import { fetchFile, RestError } from './rest';
+import {
+	fetchFile,
+	RestError,
+	saveFile,
+	type ConflictData,
+} from './rest';
 import { mountFileTree, type FileTreeHandle } from './tree';
 
 import type * as Monaco from 'monaco-editor';
@@ -35,19 +42,23 @@ export const MONACO_MOUNT_SELECTOR = '[data-wpdc-editor-monaco]';
 export const LOADING_CLASS = 'wpdc-editor--loading';
 export const ERROR_CLASS = 'wpdc-editor--error';
 
+/** Per-open-file state — what the editor needs to save it back. */
+interface OpenFile {
+	path: string;
+	mtime: number;
+	size: number;
+}
+
 /**
  * Build the two-pane layout: tree | editor split, with a status bar
  * underneath the editor.
- *
- * Returns the elements the rest of the entry needs to wire behaviour
- * (mount the file tree, host Monaco, update the status bar).
  */
 function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	treeMount: HTMLElement;
 	editorMount: HTMLElement;
 	statusBar: HTMLElement;
 } {
-	root.classList.add( 'wpdc-editor--phase2' );
+	root.classList.add( 'wpdc-editor--phase3' );
 
 	const split = document.createElement( 'div' );
 	split.className = 'wpdc-editor__split';
@@ -68,16 +79,11 @@ function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	right.append( editorMount, statusBar );
 	split.append( treeMount, right );
 
-	// Slot the Monaco host into the spot the existing template
-	// reserved (`[data-wpdc-editor-monaco]`); replace any earlier
-	// content with the new split layout. Keeps the template
-	// contract — JS only enhances the slot the PHP declared.
 	monacoSlot.replaceChildren( split );
 
 	return { treeMount, editorMount, statusBar };
 }
 
-/** Format file size as "12 KB" / "1.2 MB" — for the status bar. */
 function formatBytes( n: number ): string {
 	if ( n < 1024 ) {
 		return `${ n } B`;
@@ -95,13 +101,10 @@ function formatMtime( mtime: number ): string {
 	return new Date( mtime * 1000 ).toLocaleString();
 }
 
-/**
- * Render callback handed to the shell.
- *
- * The shell has already cloned the template into the body. We find
- * the Monaco mount slot the template declared and replace it with
- * the two-pane Phase-2 layout.
- */
+function formatTime( ts: number ): string {
+	return new Date( ts ).toLocaleTimeString();
+}
+
 async function renderEditor( body: HTMLElement ): Promise< void > {
 	const root = body.querySelector< HTMLElement >( ROOT_SELECTOR );
 	const monacoSlot = body.querySelector< HTMLElement >( MONACO_MOUNT_SELECTOR );
@@ -126,9 +129,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 	const { treeMount, editorMount, statusBar } = buildShell( root, monacoSlot );
 
-	// Empty placeholder model so the editor mounts immediately rather
-	// than waiting for the first file open. Replaced on every
-	// `setModel` below.
 	const placeholder = monaco.editor.createModel(
 		'// Click a file in the tree to open it.\n',
 		'plaintext',
@@ -142,40 +142,43 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		fontSize: 13,
 		fontFamily:
 			'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-		// Phase 2 is read-only; Phase 3 flips this to false +
-		// enables the save flow.
-		readOnly: true,
+		// Phase 3 — editing on. Save shortcut wired below.
+		readOnly: false,
 		scrollBeyondLastLine: false,
 	} );
 
 	const models = createModelCache();
-	const inflight = new Map< string, AbortController >();
-	let activeRequest: AbortController | null = null;
+	let activeFile: OpenFile | null = null;
+	let openController: AbortController | null = null;
+	let saveController: AbortController | null = null;
 
-	const setStatus = ( text: string, kind: 'info' | 'error' = 'info' ) => {
+	const setStatus = (
+		text: string,
+		kind: 'info' | 'error' | 'success' = 'info',
+	): void => {
 		statusBar.textContent = text;
 		statusBar.classList.toggle(
 			'wpdc-editor__statusbar--error',
 			kind === 'error',
 		);
+		statusBar.classList.toggle(
+			'wpdc-editor__statusbar--success',
+			kind === 'success',
+		);
+	};
+
+	const renderFileStatus = ( file: OpenFile, suffix: string = '' ): void => {
+		setStatus(
+			`${ file.path } · ${ languageFor( file.path ) } · ${ formatBytes(
+				file.size,
+			) } · ${ formatMtime( file.mtime ) }${ suffix }`,
+		);
 	};
 
 	const openFile = async ( path: string ): Promise< void > => {
-		// Cancel a pending open if the user clicks rapidly.
-		activeRequest?.abort();
+		openController?.abort();
 		const ac = new AbortController();
-		activeRequest = ac;
-		inflight.set( path, ac );
-
-		const fast = models.get( path );
-		if ( fast ) {
-			editor.setModel( fast );
-			setStatus(
-				`${ path } · ${ languageFor( path ) } · cached`,
-			);
-			// Still revalidate against the server so we don't serve
-			// a stale buffer if the file changed externally.
-		}
+		openController = ac;
 
 		setStatus( `${ path } · loading…` );
 
@@ -186,11 +189,12 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			}
 			const model = models.open( monaco, path, file.content );
 			editor.setModel( model );
-			setStatus(
-				`${ path } · ${ languageFor( path ) } · ${ formatBytes(
-					file.size,
-				) } · ${ formatMtime( file.mtime ) }`,
-			);
+			activeFile = {
+				path: file.path,
+				mtime: file.mtime,
+				size: file.size,
+			};
+			renderFileStatus( activeFile );
 		} catch ( err ) {
 			if ( ( err as Error ).name === 'AbortError' ) {
 				return;
@@ -203,12 +207,134 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			}
 			setStatus( msg, 'error' );
 		} finally {
-			inflight.delete( path );
-			if ( activeRequest === ac ) {
-				activeRequest = null;
+			if ( openController === ac ) {
+				openController = null;
 			}
 		}
 	};
+
+	/**
+	 * Save the current model to disk. Handles 409 conflicts by
+	 * showing the dialog and retrying as the user requested
+	 * (reload from disk / overwrite anyway / cancel).
+	 *
+	 * Returns silently — status bar is the side channel.
+	 */
+	const saveActiveFile = async (): Promise< void > => {
+		if ( ! activeFile ) {
+			return;
+		}
+		const file = activeFile;
+		const model = editor.getModel();
+		if ( ! model ) {
+			return;
+		}
+		const content = model.getValue();
+
+		saveController?.abort();
+		const ac = new AbortController();
+		saveController = ac;
+
+		setStatus( `${ file.path } · saving…` );
+
+		try {
+			const result = await saveFile( file.path, content, file.mtime, ac.signal );
+			if ( ac.signal.aborted ) {
+				return;
+			}
+			activeFile = {
+				path: result.path,
+				mtime: result.mtime,
+				size: result.size,
+			};
+			renderFileStatus(
+				activeFile,
+				` · saved at ${ formatTime( Date.now() ) }`,
+			);
+		} catch ( err ) {
+			if ( ( err as Error ).name === 'AbortError' ) {
+				return;
+			}
+			if ( err instanceof RestError && err.code === 'wpdc_conflict' ) {
+				const data = ( err.data ?? null ) as ConflictData | null;
+				if ( ! data ) {
+					setStatus(
+						`${ file.path } · conflict but no server data; reload manually.`,
+						'error',
+					);
+					return;
+				}
+				const choice = await showConflictDialog( {
+					path: file.path,
+					serverMtime: data.server_mtime,
+					serverSize: data.server_size,
+				} );
+				if ( choice === 'cancel' ) {
+					setStatus(
+						`${ file.path } · save cancelled`,
+						'error',
+					);
+					return;
+				}
+				if ( choice === 'reload' ) {
+					model.setValue( data.server_content );
+					activeFile = {
+						path: file.path,
+						mtime: data.server_mtime,
+						size: data.server_size,
+					};
+					renderFileStatus(
+						activeFile,
+						' · reloaded from disk',
+					);
+					return;
+				}
+				// Overwrite — re-issue the save with the server's
+				// mtime so the optimistic-concurrency check passes.
+				activeFile = {
+					path: file.path,
+					mtime: data.server_mtime,
+					size: data.server_size,
+				};
+				await saveActiveFile();
+				return;
+			}
+			let msg = 'Failed to save.';
+			if ( err instanceof RestError ) {
+				msg = `${ err.code } — ${ err.message }`;
+			} else if ( err instanceof Error ) {
+				msg = err.message;
+			}
+			setStatus( `${ file.path } · ${ msg }`, 'error' );
+		} finally {
+			if ( saveController === ac ) {
+				saveController = null;
+			}
+		}
+	};
+
+	// Bind Cmd/Ctrl+S inside Monaco. `addCommand` runs only when the
+	// editor has focus — exactly what we want; pressing Cmd-S while
+	// the tree is focused shouldn't trigger the editor's save. The
+	// `KeyMod | KeyCode` bitwise composition is the Monaco-canonical
+	// keybinding API — disabling no-bitwise just for these lines.
+	editor.addCommand(
+		// eslint-disable-next-line no-bitwise
+		monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+		() => {
+			void saveActiveFile();
+		},
+	);
+	editor.addAction( {
+		id: 'wpdc.saveFile',
+		label: 'Save File',
+		// eslint-disable-next-line no-bitwise
+		keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS ],
+		contextMenuGroupId: 'navigation',
+		run: () => {
+			void saveActiveFile();
+		},
+	} );
 
 	const tree: FileTreeHandle = mountFileTree( {
 		mount: treeMount,
@@ -218,13 +344,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	} );
 
 	root.classList.remove( LOADING_CLASS );
-
-	// Light-touch teardown. The shell doesn't currently feed us a
-	// "window closed" signal at this layer (the render callback's
-	// return value would be it — Phase 6 hooks that up); for now,
-	// the cache lives until the page reloads, which is fine for
-	// read-only Phase 2.
-	void tree; // (lint: handle is intentionally retained)
+	void tree;
 }
 
 const registry =

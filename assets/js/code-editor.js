@@ -1,5 +1,69 @@
 var wpDesktopCodeEditor = function(exports) {
   "use strict";
+  function showConflictDialog(args) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "wpdc-conflict-overlay";
+      const dialog = document.createElement("div");
+      dialog.className = "wpdc-conflict-dialog";
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute("aria-labelledby", "wpdc-conflict-title");
+      const title = document.createElement("h2");
+      title.id = "wpdc-conflict-title";
+      title.className = "wpdc-conflict-dialog__title";
+      title.textContent = "File changed on disk";
+      const body = document.createElement("p");
+      body.className = "wpdc-conflict-dialog__body";
+      body.textContent = `Someone else (or another tab) modified ${args.path} since you opened it. Choose how to resolve:`;
+      const meta = document.createElement("p");
+      meta.className = "wpdc-conflict-dialog__meta";
+      meta.textContent = `Server version: ${args.serverSize} bytes · ${new Date(
+        args.serverMtime * 1e3
+      ).toLocaleString()}`;
+      const actions = document.createElement("div");
+      actions.className = "wpdc-conflict-dialog__actions";
+      const finish = (choice) => {
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        resolve(choice);
+      };
+      const reload = document.createElement("button");
+      reload.type = "button";
+      reload.className = "wpdc-conflict-dialog__btn";
+      reload.textContent = "Reload from disk";
+      reload.title = "Discard your edits and load the server version.";
+      reload.addEventListener("click", () => finish("reload"));
+      const overwrite = document.createElement("button");
+      overwrite.type = "button";
+      overwrite.className = "wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--danger";
+      overwrite.textContent = "Overwrite anyway";
+      overwrite.title = "Save your edits, replacing the server version.";
+      overwrite.addEventListener("click", () => finish("overwrite"));
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--quiet";
+      cancel.textContent = "Cancel";
+      cancel.addEventListener("click", () => finish("cancel"));
+      actions.append(cancel, reload, overwrite);
+      dialog.append(title, body, meta, actions);
+      overlay.append(dialog);
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          finish("cancel");
+        }
+      };
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          finish("cancel");
+        }
+      });
+      document.addEventListener("keydown", onKey);
+      document.body.append(overlay);
+      cancel.focus();
+    });
+  }
   function languageFor(path) {
     const lower = path.toLowerCase();
     const dot = lower.lastIndexOf(".");
@@ -680,6 +744,48 @@ var wpDesktopCodeEditor = function(exports) {
       signal
     );
   }
+  function utf8ToBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i++) {
+      bin += String.fromCharCode(bytes[i]);
+    }
+    return btoa(bin);
+  }
+  async function saveFile(path, content, mtime, signal) {
+    const config2 = getConfig();
+    const res = await fetch(config2.fileUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-WP-Nonce": config2.restNonce
+      },
+      body: JSON.stringify({
+        path,
+        content_b64: utf8ToBase64(content),
+        mtime
+      }),
+      signal
+    });
+    let body = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
+    }
+    if (!res.ok) {
+      const obj = body ?? {};
+      throw new RestError(
+        obj.message ?? `HTTP ${res.status}`,
+        obj.code ?? "wpdc_http_error",
+        res.status,
+        obj.data ?? null
+      );
+    }
+    return body;
+  }
   const FOLDER_ICON_CLOSED = "dashicons-category";
   const FOLDER_ICON_OPEN = "dashicons-portfolio";
   const FILE_ICON = "dashicons-media-default";
@@ -855,7 +961,7 @@ var wpDesktopCodeEditor = function(exports) {
   const LOADING_CLASS = "wpdc-editor--loading";
   const ERROR_CLASS = "wpdc-editor--error";
   function buildShell(root, monacoSlot) {
-    root.classList.add("wpdc-editor--phase2");
+    root.classList.add("wpdc-editor--phase3");
     const split = document.createElement("div");
     split.className = "wpdc-editor__split";
     const treeMount = document.createElement("div");
@@ -887,6 +993,9 @@ var wpDesktopCodeEditor = function(exports) {
     }
     return new Date(mtime * 1e3).toLocaleString();
   }
+  function formatTime(ts) {
+    return new Date(ts).toLocaleTimeString();
+  }
   async function renderEditor(body) {
     const root = body.querySelector(ROOT_SELECTOR);
     const monacoSlot = body.querySelector(MONACO_MOUNT_SELECTOR);
@@ -917,33 +1026,36 @@ var wpDesktopCodeEditor = function(exports) {
       minimap: { enabled: true },
       fontSize: 13,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-      // Phase 2 is read-only; Phase 3 flips this to false +
-      // enables the save flow.
-      readOnly: true,
+      // Phase 3 — editing on. Save shortcut wired below.
+      readOnly: false,
       scrollBeyondLastLine: false
     });
     const models = createModelCache();
-    const inflight = /* @__PURE__ */ new Map();
-    let activeRequest = null;
+    let activeFile = null;
+    let openController = null;
+    let saveController = null;
     const setStatus = (text, kind = "info") => {
       statusBar.textContent = text;
       statusBar.classList.toggle(
         "wpdc-editor__statusbar--error",
         kind === "error"
       );
+      statusBar.classList.toggle(
+        "wpdc-editor__statusbar--success",
+        kind === "success"
+      );
+    };
+    const renderFileStatus = (file, suffix = "") => {
+      setStatus(
+        `${file.path} · ${languageFor(file.path)} · ${formatBytes(
+          file.size
+        )} · ${formatMtime(file.mtime)}${suffix}`
+      );
     };
     const openFile = async (path) => {
-      activeRequest?.abort();
+      openController?.abort();
       const ac = new AbortController();
-      activeRequest = ac;
-      inflight.set(path, ac);
-      const fast = models.get(path);
-      if (fast) {
-        editor.setModel(fast);
-        setStatus(
-          `${path} · ${languageFor(path)} · cached`
-        );
-      }
+      openController = ac;
       setStatus(`${path} · loading…`);
       try {
         const file = await fetchFile(path, ac.signal);
@@ -952,11 +1064,12 @@ var wpDesktopCodeEditor = function(exports) {
         }
         const model = models.open(monaco, path, file.content);
         editor.setModel(model);
-        setStatus(
-          `${path} · ${languageFor(path)} · ${formatBytes(
-            file.size
-          )} · ${formatMtime(file.mtime)}`
-        );
+        activeFile = {
+          path: file.path,
+          mtime: file.mtime,
+          size: file.size
+        };
+        renderFileStatus(activeFile);
       } catch (err) {
         if (err.name === "AbortError") {
           return;
@@ -969,12 +1082,115 @@ var wpDesktopCodeEditor = function(exports) {
         }
         setStatus(msg, "error");
       } finally {
-        inflight.delete(path);
-        if (activeRequest === ac) {
-          activeRequest = null;
+        if (openController === ac) {
+          openController = null;
         }
       }
     };
+    const saveActiveFile = async () => {
+      if (!activeFile) {
+        return;
+      }
+      const file = activeFile;
+      const model = editor.getModel();
+      if (!model) {
+        return;
+      }
+      const content = model.getValue();
+      saveController?.abort();
+      const ac = new AbortController();
+      saveController = ac;
+      setStatus(`${file.path} · saving…`);
+      try {
+        const result = await saveFile(file.path, content, file.mtime, ac.signal);
+        if (ac.signal.aborted) {
+          return;
+        }
+        activeFile = {
+          path: result.path,
+          mtime: result.mtime,
+          size: result.size
+        };
+        renderFileStatus(
+          activeFile,
+          ` · saved at ${formatTime(Date.now())}`
+        );
+      } catch (err) {
+        if (err.name === "AbortError") {
+          return;
+        }
+        if (err instanceof RestError && err.code === "wpdc_conflict") {
+          const data = err.data ?? null;
+          if (!data) {
+            setStatus(
+              `${file.path} · conflict but no server data; reload manually.`,
+              "error"
+            );
+            return;
+          }
+          const choice = await showConflictDialog({
+            path: file.path,
+            serverMtime: data.server_mtime,
+            serverSize: data.server_size
+          });
+          if (choice === "cancel") {
+            setStatus(
+              `${file.path} · save cancelled`,
+              "error"
+            );
+            return;
+          }
+          if (choice === "reload") {
+            model.setValue(data.server_content);
+            activeFile = {
+              path: file.path,
+              mtime: data.server_mtime,
+              size: data.server_size
+            };
+            renderFileStatus(
+              activeFile,
+              " · reloaded from disk"
+            );
+            return;
+          }
+          activeFile = {
+            path: file.path,
+            mtime: data.server_mtime,
+            size: data.server_size
+          };
+          await saveActiveFile();
+          return;
+        }
+        let msg = "Failed to save.";
+        if (err instanceof RestError) {
+          msg = `${err.code} — ${err.message}`;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        setStatus(`${file.path} · ${msg}`, "error");
+      } finally {
+        if (saveController === ac) {
+          saveController = null;
+        }
+      }
+    };
+    editor.addCommand(
+      // eslint-disable-next-line no-bitwise
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      () => {
+        void saveActiveFile();
+      }
+    );
+    editor.addAction({
+      id: "wpdc.saveFile",
+      label: "Save File",
+      // eslint-disable-next-line no-bitwise
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+      contextMenuGroupId: "navigation",
+      run: () => {
+        void saveActiveFile();
+      }
+    });
     mountFileTree({
       mount: treeMount,
       onOpen: (path) => {

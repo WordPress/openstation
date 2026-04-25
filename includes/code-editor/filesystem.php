@@ -235,6 +235,226 @@ function wpdc_resolve_path( $rel_path ) {
 	return $resolved_norm;
 }
 
+// ---------------------------------------------------------------------------
+// Write
+// ---------------------------------------------------------------------------
+
+/**
+ * Write `$content` to a file inside the workspace.
+ *
+ * The whole save flow goes through here. Path safety has already
+ * been checked by the REST layer's `wpdc_resolve_path()` call;
+ * this function focuses on the actual write — `WP_Filesystem`
+ * dispatch, optimistic-concurrency check via mtime, OPcache
+ * invalidation, the before/after action hooks plugins use to
+ * audit or transform.
+ *
+ * Returns:
+ *
+ *   array  { path, mtime, size }                        — happy path.
+ *   WP_Error 'wpdc_conflict'                            — caller's
+ *           expected mtime doesn't match current. Error data carries
+ *           `{ server_mtime, server_content, server_size }` so the
+ *           UI can offer "diff & overwrite" / "reload from disk".
+ *   WP_Error 'wpdc_filesystem_unavailable'              — host needs
+ *           FTP/SSH credentials we don't yet collect. Phase 4 work.
+ *   WP_Error 'wpdc_write_failed'                        — generic.
+ *
+ * @since 0.18.0
+ *
+ * @param string $absolute_path     Result of {@see wpdc_resolve_path()}.
+ * @param string $content           UTF-8 bytes to write.
+ * @param int    $expected_mtime    The mtime the caller read this
+ *                                  file at; pass `0` for new files.
+ * @return array|WP_Error
+ */
+function wpdc_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
+	if ( ! is_string( $absolute_path ) || '' === $absolute_path ) {
+		return new WP_Error(
+			'wpdc_write_invalid_path',
+			__( 'Invalid path supplied to wpdc_write_file().', 'wp-desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
+
+	// Phase 3 ships overwrites of existing files only. New-file
+	// creation goes through a future `/code/file/create` route so
+	// the UX (filename picker, parent directory cap-check) doesn't
+	// accidentally piggyback on the save shortcut.
+	if ( ! is_file( $absolute_path ) ) {
+		return new WP_Error(
+			'wpdc_write_target_missing',
+			__( 'File does not exist; the editor cannot create new files yet.', 'wp-desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	// Optimistic-concurrency check. `0` opts out (caller knows the
+	// file is fresh — e.g. a programmatic save right after a read
+	// inside the same request).
+	$expected_mtime = (int) $expected_mtime;
+	$current_mtime  = (int) filemtime( $absolute_path );
+	if ( $expected_mtime > 0 && $current_mtime !== $expected_mtime ) {
+		$current = file_get_contents( $absolute_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		return new WP_Error(
+			'wpdc_conflict',
+			__( 'File changed on disk since you opened it. Reload or overwrite.', 'wp-desktop-mode' ),
+			array(
+				'status'         => 409,
+				'server_mtime'   => $current_mtime,
+				'server_content' => false === $current ? '' : $current,
+				'server_size'    => (int) filesize( $absolute_path ),
+			)
+		);
+	}
+
+	$context = array(
+		'path'   => wpdc_path_to_relative( $absolute_path ),
+		'mtime'  => $current_mtime,
+		'bytes'  => strlen( $content ),
+	);
+
+	/**
+	 * Filter the bytes about to be written.
+	 *
+	 * Plugins use this to auto-format, normalize line endings, run
+	 * a linter pre-write, etc. Returning a string replaces the
+	 * payload; returning a WP_Error aborts the save and surfaces
+	 * the error to the caller.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param string $content       Bytes the editor wants to write.
+	 * @param string $absolute_path Resolved absolute path.
+	 * @param array  $context       { path (rel), mtime, bytes }.
+	 */
+	$filtered = apply_filters( 'wpdc_save_content', $content, $absolute_path, $context );
+	if ( is_wp_error( $filtered ) ) {
+		return $filtered;
+	}
+	if ( is_string( $filtered ) ) {
+		$content = $filtered;
+	}
+
+	/**
+	 * Fires before a file is written. Plugins use this for audit
+	 * logging or to short-circuit by returning early elsewhere.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param string $absolute_path
+	 * @param string $content
+	 * @param array  $context
+	 */
+	do_action( 'wpdc_before_save', $absolute_path, $content, $context );
+
+	$fs = wpdc_get_filesystem();
+	if ( is_wp_error( $fs ) ) {
+		return $fs;
+	}
+
+	if ( ! $fs->put_contents( $absolute_path, $content, FS_CHMOD_FILE ) ) {
+		return new WP_Error(
+			'wpdc_write_failed',
+			__( 'WP_Filesystem refused the write. The file may be read-only or owned by a different user.', 'wp-desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
+
+	// Bust OPcache for `.php` writes so the next request picks up
+	// the new bytecode. Easy to forget — the bug appears as "I
+	// edited the file but the site still runs the old code."
+	if ( function_exists( 'opcache_invalidate' ) && '.php' === substr( strtolower( $absolute_path ), -4 ) ) {
+		@opcache_invalidate( $absolute_path, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	}
+
+	// Re-stat after write — `clearstatcache` so the new mtime is
+	// fresh, not the stale one PHP cached during the read above.
+	clearstatcache( true, $absolute_path );
+	$new_mtime = (int) filemtime( $absolute_path );
+	$new_size  = (int) filesize( $absolute_path );
+
+	$context['mtime'] = $new_mtime;
+	$context['bytes'] = $new_size;
+
+	/**
+	 * Fires after a successful write. Carries the new mtime + size
+	 * so audit-log subscribers don't have to re-stat.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param string $absolute_path
+	 * @param string $content
+	 * @param array  $context
+	 */
+	do_action( 'wpdc_after_save', $absolute_path, $content, $context );
+
+	return array(
+		'path'  => wpdc_path_to_relative( $absolute_path ),
+		'mtime' => $new_mtime,
+		'size'  => $new_size,
+	);
+}
+
+/**
+ * Returns an initialized WP_Filesystem global, or WP_Error.
+ *
+ * Bottlenecks every editor write through one place so:
+ *   - We can swap `WP_Filesystem_Direct` for FTP/SSH later
+ *     without touching the writer.
+ *   - Hosts that genuinely require credentials surface a single
+ *     stable error code (`wpdc_filesystem_unavailable`) the JS
+ *     can branch on (Phase 4 will turn that into a credential
+ *     prompt UI).
+ *
+ * Phase 3 only supports the direct method — sufficient for
+ * Docker dev + most managed/single-tenant hosts. Shared-FTP-only
+ * hosts are documented as a follow-up.
+ *
+ * @since 0.18.0
+ *
+ * @return WP_Filesystem_Base|WP_Error
+ */
+function wpdc_get_filesystem() {
+	global $wp_filesystem;
+
+	if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
+		return $wp_filesystem;
+	}
+
+	if ( ! function_exists( 'WP_Filesystem' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+
+	// Force Direct for now. The non-direct branch outputs an HTML
+	// credentials form (which would corrupt JSON); we'd rather
+	// fail loud with a JSON error.
+	add_filter( 'filesystem_method', 'wpdc_force_direct_filesystem', 999 );
+	$ok = WP_Filesystem();
+	remove_filter( 'filesystem_method', 'wpdc_force_direct_filesystem', 999 );
+
+	if ( ! $ok || ! ( $wp_filesystem instanceof WP_Filesystem_Base ) ) {
+		return new WP_Error(
+			'wpdc_filesystem_unavailable',
+			__( "This host doesn't allow direct file writes from the WordPress process. The code editor's save flow needs FTP/SSH credentials, which aren't supported yet.", 'wp-desktop-mode' ),
+			array( 'status' => 503 )
+		);
+	}
+
+	return $wp_filesystem;
+}
+
+/**
+ * @internal Filter callback for `wpdc_get_filesystem()` — pin to direct.
+ */
+function wpdc_force_direct_filesystem() {
+	return 'direct';
+}
+
+// ---------------------------------------------------------------------------
+// Path translation
+// ---------------------------------------------------------------------------
+
 /**
  * Strip the workspace prefix from an absolute path; returns the
  * forward-slash-normalized relative path used in REST responses.

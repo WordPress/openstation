@@ -131,3 +131,89 @@ export function fetchFile(
 		signal,
 	);
 }
+
+/** Server's response to a successful save. */
+export interface SaveResponse {
+	path: string;
+	mtime: number;
+	size: number;
+}
+
+/** Error data shape on a 409 conflict. */
+export interface ConflictData {
+	server_mtime: number;
+	server_content: string;
+	server_size: number;
+}
+
+/**
+ * Encode a JS string to base64. UTF-safe — `btoa()` alone fails on
+ * any non-ASCII character; we go through TextEncoder and then base64
+ * the bytes.
+ */
+function utf8ToBase64( str: string ): string {
+	const bytes = new TextEncoder().encode( str );
+	let bin = '';
+	for ( let i = 0; i < bytes.length; i++ ) {
+		bin += String.fromCharCode( bytes[ i ] );
+	}
+	return btoa( bin );
+}
+
+/**
+ * POST /wp-desktop/v1/code/file — write a file's contents.
+ *
+ * On a 409 conflict (file changed on disk since the editor opened
+ * it) the thrown {@link RestError} carries `data` shaped as
+ * {@link ConflictData} — caller can branch and offer "reload from
+ * disk" / "overwrite anyway".
+ *
+ * @since 0.18.0
+ */
+export async function saveFile(
+	path: string,
+	content: string,
+	mtime: number,
+	signal?: AbortSignal,
+): Promise< SaveResponse > {
+	const config = getConfig();
+
+	const res = await fetch( config.fileUrl, {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			'X-WP-Nonce': config.restNonce,
+		},
+		body: JSON.stringify( {
+			path,
+			content_b64: utf8ToBase64( content ),
+			mtime,
+		} ),
+		signal,
+	} );
+
+	let body: unknown = null;
+	try {
+		body = await res.json();
+	} catch {
+		body = null;
+	}
+
+	if ( ! res.ok ) {
+		const obj = ( body ?? {} ) as {
+			code?: string;
+			message?: string;
+			data?: unknown;
+		};
+		throw new RestError(
+			obj.message ?? `HTTP ${ res.status }`,
+			obj.code ?? 'wpdc_http_error',
+			res.status,
+			obj.data ?? null,
+		);
+	}
+
+	return body as SaveResponse;
+}

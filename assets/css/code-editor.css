@@ -116,6 +116,95 @@
 	background: #be3a31;
 }
 
+.wpdc-editor__statusbar--success {
+	background: #2d8b2d;
+}
+
+/* ---------------------------------------------------------------
+ * Conflict dialog (save flow).
+ * --------------------------------------------------------------- */
+
+.wpdc-conflict-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.55);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100000;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+.wpdc-conflict-dialog {
+	background: #252526;
+	color: #cccccc;
+	border: 1px solid #1e1e1e;
+	border-radius: 6px;
+	box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+	padding: 20px 24px;
+	width: min(520px, 90vw);
+}
+
+.wpdc-conflict-dialog__title {
+	font-size: 16px;
+	margin: 0 0 12px;
+	color: #ffffff;
+}
+
+.wpdc-conflict-dialog__body {
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0 0 8px;
+}
+
+.wpdc-conflict-dialog__meta {
+	font-size: 11px;
+	color: #969696;
+	margin: 0 0 20px;
+}
+
+.wpdc-conflict-dialog__actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.wpdc-conflict-dialog__btn {
+	padding: 6px 14px;
+	background: #0e639c;
+	color: #ffffff;
+	border: 1px solid #1e1e1e;
+	border-radius: 3px;
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.wpdc-conflict-dialog__btn:hover {
+	background: #1177bb;
+}
+
+.wpdc-conflict-dialog__btn:focus-visible {
+	outline: 2px solid #007acc;
+	outline-offset: 1px;
+}
+
+.wpdc-conflict-dialog__btn--danger {
+	background: #be3a31;
+}
+
+.wpdc-conflict-dialog__btn--danger:hover {
+	background: #d54034;
+}
+
+.wpdc-conflict-dialog__btn--quiet {
+	background: #3c3c3c;
+}
+
+.wpdc-conflict-dialog__btn--quiet:hover {
+	background: #4a4a4a;
+}
+
 /* ---------------------------------------------------------------
  * File tree.
  * --------------------------------------------------------------- */
