@@ -16,6 +16,11 @@
  */
 class Tests_DesktopMode_TitleBarButtons extends WP_UnitTestCase {
 
+	public function set_up() {
+		parent::set_up();
+		wpdm_flush_script_handle_registries();
+	}
+
 	/**
 	 * @covers ::wp_desktop_register_titlebar_button_script
 	 */
@@ -59,6 +64,8 @@ class Tests_DesktopMode_TitleBarButtons extends WP_UnitTestCase {
 	 * @covers ::wpdm_build_desktop_titlebar_button_scripts_payload
 	 */
 	public function test_payload_omits_unresolvable_handles() {
+		$this->setExpectedIncorrectUsage( 'wp_desktop_register_titlebar_button_script' );
+
 		$handle = 'tb-c-' . substr( md5( uniqid() ), 0, 8 );
 		wp_desktop_register_titlebar_button_script( $handle );
 		$payload = wpdm_build_desktop_titlebar_button_scripts_payload();

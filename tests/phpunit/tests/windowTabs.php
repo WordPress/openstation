@@ -348,9 +348,13 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<wpd-tabs value="main">', $html );
 		$this->assertStringContainsString( '<wpd-tab value="main">', $html );
 		$this->assertStringContainsString( '<wpd-tab value="about">About</wpd-tab>', $html );
+		// Main panel is the active one — no `hidden` attribute.
 		$this->assertStringContainsString( '<wpd-tabpanel for="main">', $html );
 		$this->assertStringContainsString( '<p class="main">MAIN</p>', $html );
-		$this->assertStringContainsString( '<wpd-tabpanel for="about">', $html );
+		// Non-active panel ships with `hidden` so first paint is
+		// correct regardless of custom-element upgrade order — see
+		// the Phase A DX fix in `wpdm_build_native_window_template_html`.
+		$this->assertStringContainsString( '<wpd-tabpanel for="about" hidden>', $html );
 		$this->assertStringContainsString( '<p class="about">ABOUT</p>', $html );
 	}
 

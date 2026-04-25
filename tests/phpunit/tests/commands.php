@@ -17,6 +17,14 @@
  */
 class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 
+	public function set_up() {
+		parent::set_up();
+		// Module-level stores are process-static; flush so a prior
+		// test's synthetic handle doesn't trip our payload-builder's
+		// `_doing_it_wrong` notice during this test.
+		wpdm_flush_script_handle_registries();
+	}
+
 	/**
 	 * @covers ::wp_desktop_register_command_script
 	 */
@@ -62,9 +70,13 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 	 * @covers ::wpdm_build_desktop_command_scripts_payload
 	 */
 	public function test_payload_omits_unresolvable_handles() {
+		$this->setExpectedIncorrectUsage( 'wp_desktop_register_command_script' );
+
 		$handle = 'cmd-test-c-' . uniqid();
 		// Registered as a provider but the script handle itself was
-		// never enqueued / registered with wp_register_script.
+		// never enqueued / registered with wp_register_script —
+		// payload omits it AND fires a `_doing_it_wrong` notice
+		// pointing at the unresolvable handle.
 		wp_desktop_register_command_script( $handle );
 
 		$payload = wpdm_build_desktop_command_scripts_payload();

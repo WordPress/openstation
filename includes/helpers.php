@@ -854,6 +854,68 @@ function wpdm_resolve_script_url( $handle ) {
 }
 
 /**
+ * Fire a `_doing_it_wrong()` notice exactly once per handle per
+ * request. Shared by every `wpdm_build_desktop_*_scripts_payload()`
+ * caller — payload builders run on every shell-config rebuild
+ * (multiple times per page load via REST + admin-bar refresh +
+ * tests), so undeduped notices spam the error log AND trip
+ * `expectedIncorrectUsage` assertions in unrelated tests.
+ *
+ * @since 0.18.0
+ *
+ * @param string $function_name `wp_desktop_register_*_script` — passed verbatim to `_doing_it_wrong`.
+ * @param string $kind          Human label: `Command`, `Settings-tab`, `Title-bar button`.
+ * @param string $handle        Offending script handle.
+ */
+function wpdm_warn_unresolvable_script_handle( $function_name, $kind, $handle ) {
+	static $warned = array();
+	$cache_key = $function_name . '|' . $handle;
+	if ( isset( $warned[ $cache_key ] ) ) {
+		return;
+	}
+	$warned[ $cache_key ] = true;
+
+	if ( '__flush__' === $handle ) {
+		// Test escape hatch: clear the dedupe cache so a flush
+		// helper can reset between tests.
+		$warned = array();
+		return;
+	}
+
+	_doing_it_wrong(
+		$function_name,
+		sprintf(
+			/* translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle. */
+			esc_html__( '%1$s script handle "%2$s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'wp-desktop-mode' ),
+			esc_html( $kind ),
+			esc_html( $handle )
+		),
+		'0.18.0'
+	);
+}
+
+/**
+ * Test-only: clear every script-handle registry + the dedupe
+ * cache for the unresolvable-handle notice. Tests call this in
+ * `set_up` so prior tests' synthetic handles can't leak into
+ * later assertions about payload shape.
+ *
+ * @since 0.18.0
+ */
+function wpdm_flush_script_handle_registries() {
+	if ( function_exists( 'wpdm_flush_desktop_command_script_registry' ) ) {
+		wpdm_flush_desktop_command_script_registry();
+	}
+	if ( function_exists( 'wpdm_flush_desktop_settings_tab_script_registry' ) ) {
+		wpdm_flush_desktop_settings_tab_script_registry();
+	}
+	if ( function_exists( 'wpdm_flush_desktop_titlebar_button_script_registry' ) ) {
+		wpdm_flush_desktop_titlebar_button_script_registry();
+	}
+	wpdm_warn_unresolvable_script_handle( '', '', '__flush__' );
+}
+
+/**
  * Serialize the server-declared native-window registry into the
  * payload shape the shell consumes. For each entry registered via
  * `wp_register_desktop_window()`, we capture: the window's

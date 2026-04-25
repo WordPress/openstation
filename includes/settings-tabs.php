@@ -183,6 +183,10 @@ function wp_register_desktop_settings_tab( $args = array() ) {
 function wpdm_desktop_settings_tab_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
+	if ( '__flush__' === (string) $handle ) {
+		$store = array();
+		return array();
+	}
 	if ( '' === (string) $handle ) {
 		return $store;
 	}
@@ -190,6 +194,16 @@ function wpdm_desktop_settings_tab_script_registry( $handle = '', $value = null 
 		$store[ (string) $handle ] = (bool) $value;
 	}
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
+}
+
+/**
+ * Test-only: clear the registry between PHPUnit cases. See
+ * {@see wpdm_flush_script_handle_registries()}.
+ *
+ * @since 0.18.0
+ */
+function wpdm_flush_desktop_settings_tab_script_registry() {
+	wpdm_desktop_settings_tab_script_registry( '__flush__' );
 }
 
 /**
@@ -238,14 +252,10 @@ function wpdm_build_desktop_settings_tab_scripts_payload() {
 		}
 		$url = wpdm_resolve_script_url( $handle );
 		if ( '' === $url ) {
-			_doing_it_wrong(
+			wpdm_warn_unresolvable_script_handle(
 				'wp_desktop_register_settings_tab_script',
-				sprintf(
-					/* translators: %s: script handle. */
-					esc_html__( 'Settings-tab script handle "%s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'wp-desktop-mode' ),
-					esc_html( (string) $handle )
-				),
-				'0.18.0'
+				'Settings-tab',
+				(string) $handle
 			);
 			continue;
 		}

@@ -23,6 +23,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 		parent::set_up();
 		set_current_screen( 'dashboard' );
 		wp_set_current_user( self::$admin_id );
+		wpdm_flush_script_handle_registries();
 	}
 
 	public function tear_down() {

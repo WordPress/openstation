@@ -187,6 +187,10 @@ function wp_register_desktop_command( $args = array() ) {
 function wpdm_desktop_command_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
+	if ( '__flush__' === (string) $handle ) {
+		$store = array();
+		return array();
+	}
 	if ( '' === (string) $handle ) {
 		return $store;
 	}
@@ -194,6 +198,17 @@ function wpdm_desktop_command_script_registry( $handle = '', $value = null ) {
 		$store[ (string) $handle ] = (bool) $value;
 	}
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
+}
+
+/**
+ * Flush the command-script registry. Tests call this in `set_up` so
+ * a previous test's stale handle doesn't leak into the next test's
+ * payload-build assertions. No production caller.
+ *
+ * @since 0.18.0
+ */
+function wpdm_flush_desktop_command_script_registry() {
+	wpdm_desktop_command_script_registry( '__flush__' );
 }
 
 /**
@@ -243,14 +258,10 @@ function wpdm_build_desktop_command_scripts_payload() {
 		}
 		$url = wpdm_resolve_script_url( $handle );
 		if ( '' === $url ) {
-			_doing_it_wrong(
+			wpdm_warn_unresolvable_script_handle(
 				'wp_desktop_register_command_script',
-				sprintf(
-					/* translators: %s: script handle. */
-					esc_html__( 'Command script handle "%s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'wp-desktop-mode' ),
-					esc_html( (string) $handle )
-				),
-				'0.18.0'
+				'Command',
+				(string) $handle
 			);
 			continue;
 		}

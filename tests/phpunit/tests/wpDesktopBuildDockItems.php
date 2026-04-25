@@ -30,6 +30,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		$menu                   = array();
 		$submenu                = array();
 		wp_set_current_user( self::$admin_id );
+		wpdm_flush_script_handle_registries();
 	}
 
 	public function tear_down() {

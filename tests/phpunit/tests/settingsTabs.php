@@ -16,6 +16,11 @@
  */
 class Tests_DesktopMode_SettingsTabs extends WP_UnitTestCase {
 
+	public function set_up() {
+		parent::set_up();
+		wpdm_flush_script_handle_registries();
+	}
+
 	/**
 	 * @covers ::wp_desktop_register_settings_tab_script
 	 */
@@ -61,6 +66,8 @@ class Tests_DesktopMode_SettingsTabs extends WP_UnitTestCase {
 	 * @covers ::wpdm_build_desktop_settings_tab_scripts_payload
 	 */
 	public function test_payload_omits_unresolvable_handles() {
+		$this->setExpectedIncorrectUsage( 'wp_desktop_register_settings_tab_script' );
+
 		$handle = 'settings-tab-c-' . uniqid();
 		wp_desktop_register_settings_tab_script( $handle );
 

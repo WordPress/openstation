@@ -203,13 +203,35 @@ function wpdc_index_wp_core_functions() {
 function wpdc_index_wp_core_hooks() {
 	$out = array();
 
-	$dirs = array();
+	$dirs       = array();
+	$root_files = array();
 	if ( defined( 'ABSPATH' ) ) {
 		$abs = rtrim( wp_normalize_path( ABSPATH ), '/' );
-		foreach ( array( 'wp-includes', 'wp-admin/includes' ) as $sub ) {
+		// `wp-includes/` and `wp-admin/` (the latter recursively
+		// includes its `includes/` + `network/` + the top-level
+		// `admin.php` + friends — admin-only hooks like `admin_init`
+		// live there).
+		foreach ( array( 'wp-includes', 'wp-admin' ) as $sub ) {
 			$candidate = $abs . '/' . $sub;
 			if ( is_dir( $candidate ) ) {
 				$dirs[] = $candidate;
+			}
+		}
+		// WP root files. `wp-settings.php` is where canonical actions
+		// like `init`, `wp_loaded`, `admin_init`, `setup_theme`, etc.
+		// fire. Without these the index would miss the load-bearing
+		// hooks every plugin actually subscribes to.
+		foreach (
+			array(
+				'wp-settings.php',
+				'wp-load.php',
+				'wp-blog-header.php',
+				'wp-config.php',
+			) as $file
+		) {
+			$candidate = $abs . '/' . $file;
+			if ( is_file( $candidate ) ) {
+				$root_files[] = $candidate;
 			}
 		}
 	}
@@ -228,6 +250,10 @@ function wpdc_index_wp_core_hooks() {
 			}
 			wpdc_scan_hooks_in_file( $file->getPathname(), $out );
 		}
+	}
+
+	foreach ( $root_files as $file ) {
+		wpdc_scan_hooks_in_file( $file, $out );
 	}
 
 	return $out;
