@@ -104,4 +104,46 @@ describe( 'commands.ts — 0.16.0 additions', () => {
 			expect( listEagerCommands() ).toEqual( [] );
 		} );
 	} );
+
+	describe( 'registerCommand validation', () => {
+		test( 'accepts vendor/sub-id slugs (namespacing)', async () => {
+			const { registerCommand, listCommands } = await load();
+			registerCommand( { slug: 'wpglp/convert', label: 'Convert', run: () => {} } );
+			expect( listCommands().map( ( c ) => c.slug ) ).toContain(
+				'wpglp/convert',
+			);
+		} );
+
+		test( 'throws RegistrationError on missing slug', async () => {
+			const { registerCommand } = await load();
+			expect( () =>
+				registerCommand( {
+					slug: '',
+					label: 'A',
+					run: () => {},
+				} as never ),
+			).toThrow( /Command registration rejected/ );
+		} );
+
+		test( 'throws RegistrationError on bad slug characters', async () => {
+			const { registerCommand } = await load();
+			expect( () =>
+				registerCommand( {
+					slug: 'has spaces',
+					label: 'A',
+					run: () => {},
+				} as never ),
+			).toThrow( /Command registration rejected/ );
+		} );
+
+		test( 'throws RegistrationError on missing run function', async () => {
+			const { registerCommand } = await load();
+			expect( () =>
+				registerCommand( {
+					slug: 'no-run',
+					label: 'A',
+				} as never ),
+			).toThrow( /Command registration rejected/ );
+		} );
+	} );
 } );

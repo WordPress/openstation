@@ -72,14 +72,14 @@ describe( 'wallpapers/registry.ts', () => {
 		expect( all().map( ( w ) => w.id ) ).toEqual( [ 'a' ] );
 	} );
 
-	test( 'register drops invalid defs (missing id)', async () => {
+	test( 'register throws RegistrationError for missing id', async () => {
 		const { register, all } = await loadRegistry();
 		const bad = { label: 'Nope', type: 'css', value: '#f00', preview: '#f00' } as unknown as WallpaperDef;
-		register( bad );
+		expect( () => register( bad ) ).toThrow( /Wallpaper registration rejected/ );
 		expect( all() ).toEqual( [] );
 	} );
 
-	test( 'register drops invalid type', async () => {
+	test( 'register throws RegistrationError for invalid type', async () => {
 		const { register, all } = await loadRegistry();
 		const bad = {
 			id: 'weird',
@@ -87,11 +87,11 @@ describe( 'wallpapers/registry.ts', () => {
 			type: 'hologram',
 			preview: '#f00',
 		} as unknown as WallpaperDef;
-		register( bad );
+		expect( () => register( bad ) ).toThrow( /Wallpaper registration rejected/ );
 		expect( all() ).toEqual( [] );
 	} );
 
-	test( 'canvas defs require a mount function', async () => {
+	test( 'canvas defs throw RegistrationError without a mount function', async () => {
 		const { register, all } = await loadRegistry();
 		const missingMount = {
 			id: 'canvas',
@@ -99,7 +99,7 @@ describe( 'wallpapers/registry.ts', () => {
 			type: 'canvas',
 			preview: '#000',
 		} as unknown as WallpaperDef;
-		register( missingMount );
+		expect( () => register( missingMount ) ).toThrow( /Wallpaper registration rejected/ );
 		expect( all() ).toEqual( [] );
 	} );
 

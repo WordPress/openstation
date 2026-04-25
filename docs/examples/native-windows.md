@@ -1,51 +1,21 @@
-# Native windows — coming in Phase 7
+# Native windows
 
-**Status: Planned.** Track progress in [native-windows-proposal.md](../native-windows-proposal.md).
+**Status: Stable.** The native-window registration API has shipped. This page is a redirect — the worked examples live in dedicated docs.
 
-Native windows are windows whose content renders directly in the parent DOM instead of inside a chromeless iframe. They're intended for desktop-first UI — small tools, chat widgets, status HUDs — that would be awkward to wedge into a full admin-page iframe.
+Native windows are windows whose content renders directly in the parent DOM instead of inside a chromeless iframe. Use them for desktop-first UI — small tools, chat widgets, status HUDs — that would be awkward to wedge into a full admin-page iframe.
 
-The **OS Settings** window in the current shell already uses the native-window path internally. Once the API is public, it'll look roughly like this:
+## Where to start
 
-```php
-<?php
-/**
- * Plugin Name: Jorvy (Marvel Quotes)
- */
-defined( 'ABSPATH' ) || exit;
+- **[Register a desktop icon (Jorvy)](./register-icon.md)** — the canonical end-to-end example: PHP `wp_register_desktop_window()` + `wp_register_desktop_icon()` + a JS render callback. Read this first.
+- **[Native window with tabs](./native-window-with-tabs.md)** — multi-pane windows via `wp_register_desktop_window_tab()`, including the auto-swap rendering pattern other plugins can extend.
+- **[Layout primitives](./layout-primitives.md)** — `<wpd-stack>` / `<wpd-section>` / `<wpd-row>` / etc. Compose these inside your template callback.
 
-wp_register_desktop_window( 'jorvy', array(
-    'title' => 'Jorvy',
-    'icon'  => 'dashicons-star-filled',
-    'width' => 320,
-    'height' => 180,
-    // Sketch: a path to an enqueued script handle that exports a render function.
-    // Exact API is still being designed — see the proposal for the current draft.
-    'render' => 'jorvy/render',
-) );
+## The render-callback contract in one paragraph
 
-wp_register_desktop_icon( 'jorvy', array(
-    'title'  => 'Jorvy',
-    'icon'   => 'dashicons-star-filled',
-    'window' => 'native',
-) );
-```
-
-```js
-// jorvy.js
-wp.desktop.registerNativeWindow( 'jorvy', {
-    render: ( body ) => {
-        const quote = document.createElement( 'p' );
-        quote.textContent = '"I am Iron Man."';
-        body.appendChild( quote );
-        return () => { /* cleanup */ };
-    },
-} );
-```
-
-Meanwhile — if your extension happens to render inside an iframe (a plugin admin page at a specific `admin.php?page=my-plugin` URL), the existing iframe-window path works today. Register it as a dock item and open it via `wp.desktop.windowManager.open()`.
+The shell clones the registered `<template>` into the window body **before** invoking your render callback, so render is enhancement, not construction: query `body.querySelector( … )` for the mount points your template declared, light them up. The callback's return value is captured as a teardown (cleared on window close — interval cleanup, listener removal, the usual). To start from a blank canvas anyway, call `body.replaceChildren()` first; nothing the shell did is irreversible.
 
 ## Related
 
 - [Dock badges](./dock-badge.md) — registering a regular iframe-backed dock item.
 - [Architecture: two window types](../architecture.md) — iframe vs native distinction.
-- [native-windows-proposal.md](../native-windows-proposal.md) — the RFC.
+- [native-windows-proposal.md](../native-windows-proposal.md) — historical RFC; the shipped API differs in details, the docs above are authoritative.

@@ -17,6 +17,8 @@
  * @since 0.17.0
  */
 
+import { throwOnRegistrationErrors } from '../registration-errors';
+
 import type { Window as DesktopWindow } from '../window';
 
 export interface TitleBarButtonRenderCtx {
@@ -32,11 +34,10 @@ export interface TitleBarButtonDef {
 	 * convention as `wp_register_desktop_window( 'wpglp/preview' )`,
 	 * `wp_register_desktop_widget( 'myplugin/stats' )`, etc.
 	 *
-	 * **Wider than other JS-side registries** — `registerCommand`'s
-	 * `slug` and `registerSettingsTab`'s `id` use the stricter
-	 * `[a-z0-9_-]+` because their values are also used in slash-
-	 * command parsing and CSS selectors respectively. Title-bar
-	 * button ids are pure registry keys, so the slash works here.
+	 * Same shape every other JS-side registry now uses
+	 * (`registerCommand`, etc.) — slugs are routinely namespaced
+	 * `vendor/sub-id` so two plugins can ship the same short name
+	 * without colliding.
 	 */
 	id: string;
 	/** Tooltip + aria-label. */
@@ -129,59 +130,56 @@ const listeners = new Set<() => void >();
 const TITLE_BAR_BUTTON_ID = /^[a-z0-9_/-]+$/;
 
 /**
- * Register (or replace) a title-bar button. Re-registering with
- * the same id replaces the previous entry — mirrors WordPress's
+ * Register (or replace) a title-bar button. Re-registering with the
+ * same id replaces the previous entry — mirrors WordPress's
  * `register_*` semantics.
  *
- * Returns `true` on success and `false` on validation failure so
- * callers can branch (the previous `void` return forced plugin
- * authors to discover failures via a hidden `console.warn` after
- * the button silently never appeared). Every failure path also
- * emits a `console.warn` naming the field that's wrong.
+ * Throws a {@link RegistrationError} when validation fails. Plugin
+ * authors who registered a button and then watched the title bar
+ * stay empty used to have to inspect a console warning to discover
+ * the field they got wrong; an audible throw turns that into a
+ * stack frame they read at registration time.
  *
- * @since 0.17.0
+ * @since 0.18.0  Throws on validation failure (was: returned `false`).
  *
- * @param def Button definition.
- * @return `true` when the button was registered, `false` on
- *         validation failure.
+ * @param  def Button definition.
+ * @throws {RegistrationError} when `def` fails validation.
  */
-export function registerTitleBarButton( def: TitleBarButtonDef ): boolean {
-	const reject = ( reason: string ): false => {
-		if ( typeof console !== 'undefined' ) {
-			console.warn(
-				`[wp-desktop-mode] registerTitleBarButton: ${ reason }`,
-				def,
+export function registerTitleBarButton( def: TitleBarButtonDef ): void {
+	const errors: string[] = [];
+
+	if ( ! def || typeof def !== 'object' ) {
+		errors.push( 'def (not an object)' );
+	} else {
+		if ( typeof def.id !== 'string' || def.id.trim() === '' ) {
+			errors.push( 'id (missing)' );
+		} else if ( ! TITLE_BAR_BUTTON_ID.test( def.id.trim().toLowerCase() ) ) {
+			errors.push(
+				`id (must match ${ TITLE_BAR_BUTTON_ID } — lowercase alphanum, hyphens, underscores, slashes for vendor/sub-id)`,
 			);
 		}
-		return false;
-	};
+		if ( typeof def.label !== 'string' || def.label.trim() === '' ) {
+			errors.push( 'label (missing)' );
+		}
+		if ( typeof def.icon !== 'string' || def.icon.trim() === '' ) {
+			errors.push( 'icon (missing)' );
+		}
+		if ( typeof def.match !== 'function' ) {
+			errors.push( 'match (must be a function)' );
+		}
+		if (
+			typeof def.onClick !== 'function' &&
+			typeof def.render !== 'function'
+		) {
+			errors.push( 'onClick|render (at least one must be a function)' );
+		}
+	}
 
-	if ( ! def || typeof def.id !== 'string' || def.id.trim() === '' ) {
-		return reject( 'missing or empty `id`' );
-	}
-	if ( typeof def.label !== 'string' || def.label.trim() === '' ) {
-		return reject( 'missing or empty `label`' );
-	}
-	if ( typeof def.icon !== 'string' || def.icon.trim() === '' ) {
-		return reject( 'missing or empty `icon`' );
-	}
-	if ( typeof def.match !== 'function' ) {
-		return reject( '`match` must be a function' );
-	}
-	if ( typeof def.onClick !== 'function' && typeof def.render !== 'function' ) {
-		return reject(
-			'at least one of `onClick` or `render` is required — without one the button does nothing',
-		);
-	}
+	throwOnRegistrationErrors( 'TitleBarButton', errors, def );
+
 	const id = def.id.trim().toLowerCase();
-	if ( ! TITLE_BAR_BUTTON_ID.test( id ) ) {
-		return reject(
-			`id must match ${ TITLE_BAR_BUTTON_ID } (lowercase alphanum, hyphens, underscores, slashes)`,
-		);
-	}
 	registry.set( id, { ...def, id } );
 	notify();
-	return true;
 }
 
 export function unregisterTitleBarButton( id: string ): void {

@@ -42,6 +42,7 @@ require_once WPDM_DIR . 'includes/wallpapers.php';
 require_once WPDM_DIR . 'includes/render.php';
 require_once WPDM_DIR . 'includes/extended-options.php';
 require_once WPDM_DIR . 'includes/ai-copilot/bootstrap.php';
+require_once WPDM_DIR . 'includes/code-editor/bootstrap.php';
 
 /**
  * Load the plugin's translations early so strings emitted on

@@ -154,8 +154,10 @@ export type { WidgetLayer } from './widgets/layer';
 /**
  * Native-window convenience wrappers. `registerWindow` is a compact
  * alias for the boilerplate-heavy `windowManager.open({ native: true, … })`
- * pattern; `cloneTemplate` short-circuits the `<template>`-element
- * cloning dance every native window would otherwise inline.
+ * pattern. `cloneTemplate` is exported for advanced cases (re-cloning,
+ * custom hydration) — `wp_register_desktop_window()` plugins don't
+ * need it because the shell pre-clones the template into the window
+ * body before the render callback fires.
  */
 export {
 	cloneTemplate,

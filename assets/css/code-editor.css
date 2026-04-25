@@ -1,0 +1,67 @@
+/**
+ * Code Editor app — minimal CSS for the Monaco mount + loading state.
+ *
+ * Monaco brings its own theming once it boots; this file only handles
+ * the period before Monaco is ready, plus the layout primitives
+ * Monaco needs (full-bleed mount node).
+ *
+ * @since 0.18.0
+ */
+
+.wpdc-editor {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	background: #1e1e1e; /* Matches Monaco's vs-dark to avoid flash. */
+	color: #d4d4d4;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+.wpdc-editor__loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	gap: 8px;
+	font-size: 13px;
+	opacity: 0.65;
+}
+
+.wpdc-editor__loading .dashicons {
+	font-size: 32px;
+	width: 32px;
+	height: 32px;
+}
+
+.wpdc-editor__loading p {
+	margin: 0;
+}
+
+/*
+ * Monaco mounts into this element once loaded. It needs an explicit
+ * size — Monaco won't measure a zero-height parent gracefully, hence
+ * `automaticLayout: true` in the editor options + flex: 1 here.
+ */
+.wpdc-editor__monaco {
+	flex: 1;
+	min-height: 0;
+	display: none;
+}
+
+.wpdc-editor:not(.wpdc-editor--loading) .wpdc-editor__monaco {
+	display: block;
+}
+
+.wpdc-editor:not(.wpdc-editor--loading) .wpdc-editor__loading {
+	display: none;
+}
+
+.wpdc-editor--error .wpdc-editor__monaco {
+	display: block;
+	padding: 16px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: #f48771;
+	white-space: pre-wrap;
+}

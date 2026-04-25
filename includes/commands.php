@@ -243,6 +243,15 @@ function wpdm_build_desktop_command_scripts_payload() {
 		}
 		$url = wpdm_resolve_script_url( $handle );
 		if ( '' === $url ) {
+			_doing_it_wrong(
+				'wp_desktop_register_command_script',
+				sprintf(
+					/* translators: %s: script handle. */
+					esc_html__( 'Command script handle "%s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'wp-desktop-mode' ),
+					esc_html( (string) $handle )
+				),
+				'0.18.0'
+			);
 			continue;
 		}
 		$out[]          = array(

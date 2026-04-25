@@ -27,6 +27,6 @@ defined( 'ABSPATH' ) || exit;
 - [Connect to a window — title-bar button + iframe pub/sub](./connect-to-window.md)
 - [Native window with tabs (auto-swap pattern)](./native-window-with-tabs.md)
 - [Layout primitives (body → panel → row → col)](./layout-primitives.md)
-- [Native windows — planned (Phase 7)](./native-windows.md)
+- [Native windows — overview + render-callback contract](./native-windows.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.

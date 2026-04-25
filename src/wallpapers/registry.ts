@@ -20,7 +20,7 @@
 import { applyFilters, HOOKS } from '../hooks';
 import {
 	collectRegistrationErrors,
-	logRegistrationErrors,
+	throwOnRegistrationErrors,
 } from '../registration-errors';
 import type { WallpaperDef } from './types';
 
@@ -36,11 +36,11 @@ const seed: WallpaperDef[] = [];
  * API so plugin identity can be tracked.
  */
 export function register( def: WallpaperDef ): void {
-	const errors = collectRegistrationErrors< WallpaperDef >( def, WALLPAPER_CHECKS );
-	if ( errors.length > 0 ) {
-		logRegistrationErrors( 'Wallpaper', errors, def );
-		return;
-	}
+	throwOnRegistrationErrors(
+		'Wallpaper',
+		collectRegistrationErrors< WallpaperDef >( def, WALLPAPER_CHECKS ),
+		def,
+	);
 	// Replace an existing entry with the same id rather than doubling
 	// up. Late registrations win — matches WP's `register_*` semantics
 	// where the most recent call owns the final state.

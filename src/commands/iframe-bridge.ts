@@ -258,7 +258,19 @@ export class IframeCommandBridge {
 					? this.runNavigate( cmd.url, cmd.label, iconFor( cmd ) )
 					: this.runProxy( windowId, cmd.name ),
 			};
-			registerCommand( def );
+			// External commands flow in over postMessage; one
+			// malformed entry shouldn't kill the whole batch. Log
+			// and continue so the rest still register.
+			try {
+				registerCommand( def );
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					'[wp-desktop-mode] iframe-bridge: dropping bad command',
+					def,
+					err,
+				);
+			}
 		}
 	}
 

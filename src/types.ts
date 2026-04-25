@@ -105,9 +105,19 @@ export interface WindowConfig {
 	native?: boolean;
 	/**
 	 * Render callback for native windows. Invoked once after the window
-	 * element mounts; receives the empty `.wp-desktop-window__body` and
-	 * fills it with whatever DOM the module wants. Ignored when
-	 * `native` is falsy.
+	 * element mounts; receives the `.wp-desktop-window__body` and
+	 * fills it. Ignored when `native` is falsy.
+	 *
+	 * Body content at call time depends on which entry point opened
+	 * the window:
+	 *
+	 *   - **`wp_register_desktop_window()` (PHP)** — the shell clones
+	 *     the registered `<template>` into the body before the
+	 *     callback fires. Render = enhancement: query mount points,
+	 *     light them up. See `wpDesktopNativeWindows[ id ]`.
+	 *   - **`windowManager.open({ native: true, render })` (raw JS)** —
+	 *     no template plumbing exists at this layer. The body is
+	 *     empty; the callback constructs the DOM directly.
 	 */
 	render?: ( body: HTMLElement ) => void;
 	/**

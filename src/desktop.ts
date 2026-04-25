@@ -367,7 +367,7 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.17.0
 	 */
-	registerTitleBarButton: ( def: TitleBarButtonDef ) => boolean;
+	registerTitleBarButton: ( def: TitleBarButtonDef ) => void;
 	/** Remove a previously registered title-bar button. @since 0.17.0 */
 	unregisterTitleBarButton: ( id: string ) => void;
 	/** Snapshot of registered title-bar buttons. @since 0.17.0 */

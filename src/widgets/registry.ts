@@ -15,7 +15,7 @@
 import { applyFilters, HOOKS } from '../hooks';
 import {
 	collectRegistrationErrors,
-	logRegistrationErrors,
+	throwOnRegistrationErrors,
 } from '../registration-errors';
 import type { WidgetDef } from './types';
 
@@ -28,11 +28,11 @@ const seed: WidgetDef[] = [];
  * plugins override a built-in if they really want to.
  */
 export function register( def: WidgetDef ): void {
-	const errors = collectRegistrationErrors< WidgetDef >( def, WIDGET_CHECKS );
-	if ( errors.length > 0 ) {
-		logRegistrationErrors( 'Widget', errors, def );
-		return;
-	}
+	throwOnRegistrationErrors(
+		'Widget',
+		collectRegistrationErrors< WidgetDef >( def, WIDGET_CHECKS ),
+		def,
+	);
 	const idx = seed.findIndex( ( w ) => w.id === def.id );
 	if ( idx >= 0 ) {
 		seed[ idx ] = def;

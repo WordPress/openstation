@@ -58,6 +58,13 @@ function wpdm_register_assets() {
 		$version
 	);
 
+	wp_register_style(
+		'wp-desktop-code-editor',
+		WPDM_URL . 'assets/css/code-editor.css',
+		array( 'wp-desktop-variables', 'dashicons' ),
+		$version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action
@@ -89,6 +96,25 @@ function wpdm_register_assets() {
 		array(),
 		$version,
 		true
+	);
+
+	// `wp-desktop-code-editor` — Monaco-backed code editor app. Loaded
+	// lazily by the native-window sync the first time the editor window
+	// opens; registers a render callback on
+	// `window.wpDesktopNativeWindows['wpdc-editor']`. The script itself
+	// is small (file tree + REST glue + Monaco bootstrap shim) — Monaco
+	// is loaded separately at runtime from `assets/vendor/monaco-editor`.
+	wp_register_script(
+		'wp-desktop-code-editor',
+		WPDM_URL . 'assets/js/code-editor' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		$version,
+		true
+	);
+	wp_set_script_translations(
+		'wp-desktop-code-editor',
+		'wp-desktop-mode',
+		WPDM_DIR . 'languages'
 	);
 
 	// Wire the translation bundle to this script handle. WP looks

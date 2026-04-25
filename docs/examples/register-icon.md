@@ -100,6 +100,8 @@ Drops a clickable tile on the wallpaper at the `position` you specify (lower num
 
 Native windows render in JS because a `render( body )` callback can't cross the PHP→client wire. The script declares its render function on `window.wpDesktopNativeWindows[ <id> ]`; the shell invokes it when the window opens and captures the return value as a teardown (interval cleanup, DOM detach, whatever the plugin needs).
 
+**The body comes pre-populated.** Before invoking the callback, the shell clones the registered `template` into the window body — so `body.querySelector( '.jorvy__quote' )` returns the `<p>` declared in the PHP template above, with no manual cloning. Render callbacks are pure enhancement: query the mount points your template declared, light them up. To start from a blank canvas anyway, call `body.replaceChildren()` first.
+
 ## Confirming it worked
 
 1. Activate the plugin at **Plugins → Jorvy**.

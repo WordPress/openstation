@@ -38,60 +38,53 @@ describe( 'title-bar-buttons registry', () => {
 		}
 	} );
 
-	test( 'registers a button with onClick + returns true', () => {
-		const ok = registerTitleBarButton( {
+	test( 'registers a button with onClick', () => {
+		registerTitleBarButton( {
 			id: 'a',
 			label: 'A',
 			icon: 'dashicons-admin-generic',
 			match: () => true,
 			onClick: () => void 0,
 		} );
-		expect( ok ).toBe( true );
 		expect( listTitleBarButtons() ).toHaveLength( 1 );
 	} );
 
 	test( 'accepts the vendor/sub-id namespacing convention', () => {
-		// Matches the shape `wp_register_desktop_window( 'wpglp/preview' )`
-		// uses; rejecting it here was the trap the developer hit.
-		const ok = registerTitleBarButton( {
+		registerTitleBarButton( {
 			id: 'wpglp/version',
 			label: 'Version',
 			icon: 'dashicons-info',
 			match: () => true,
 			onClick: () => void 0,
 		} );
-		expect( ok ).toBe( true );
 		expect( listTitleBarButtons().map( ( b ) => b.id ) ).toContain(
 			'wpglp/version',
 		);
 	} );
 
-	test( 'rejects a button missing both onClick and render — returns false', () => {
-		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => void 0 );
-		const ok = registerTitleBarButton( {
-			id: 'b',
-			label: 'B',
-			icon: 'dashicons-admin-generic',
-			match: () => true,
-		} as never );
-		expect( ok ).toBe( false );
+	test( 'throws RegistrationError when onClick + render both missing', () => {
+		expect( () =>
+			registerTitleBarButton( {
+				id: 'b',
+				label: 'B',
+				icon: 'dashicons-admin-generic',
+				match: () => true,
+			} as never ),
+		).toThrow( /TitleBarButton registration rejected/ );
 		expect( listTitleBarButtons() ).toHaveLength( 0 );
-		expect( warn ).toHaveBeenCalled();
-		warn.mockRestore();
 	} );
 
-	test( 'rejects an id with truly invalid characters — returns false', () => {
-		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => void 0 );
-		const ok = registerTitleBarButton( {
-			id: 'has spaces',
-			label: 'X',
-			icon: 'i',
-			match: () => true,
-			onClick: () => void 0,
-		} );
-		expect( ok ).toBe( false );
+	test( 'throws RegistrationError on truly invalid id characters', () => {
+		expect( () =>
+			registerTitleBarButton( {
+				id: 'has spaces',
+				label: 'X',
+				icon: 'i',
+				match: () => true,
+				onClick: () => void 0,
+			} ),
+		).toThrow( /TitleBarButton registration rejected/ );
 		expect( listTitleBarButtons() ).toHaveLength( 0 );
-		warn.mockRestore();
 	} );
 
 	test( 'predicate filters which windows see the button', () => {

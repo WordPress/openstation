@@ -98,16 +98,18 @@ class Tests_DesktopMode_RegistrationErrors extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Native windows can register without a `script` handle — the
+	 * cloned template IS the window for declarative-only plugins.
+	 *
 	 * @covers ::wp_register_desktop_window
 	 */
-	public function test_window_missing_script_returns_wp_error() {
+	public function test_window_without_script_registers() {
 		$result = wp_register_desktop_window(
-			'no-script',
+			'declarative-only',
 			$this->valid_window_args( array( 'script' => '' ) )
 		);
 
-		$this->assertWPError( $result );
-		$this->assertSame( 'wp_desktop_missing_script', $result->get_error_code() );
+		$this->assertTrue( $result );
 	}
 
 	/**

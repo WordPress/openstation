@@ -36,4 +36,23 @@ describe( '<wpd-stack>', () => {
 		const stack = host.querySelector< HTMLElement >( 'wpd-stack' )!;
 		expect( stack.style.getPropertyValue( '--wpd-stack-gap' ) ).toBe( '' );
 	} );
+
+	test( 'writes `padding` as a custom property — accepts 0', async () => {
+		host.innerHTML = `<wpd-stack padding="16"></wpd-stack>`;
+		await tick();
+		const stack = host.querySelector< HTMLElement >( 'wpd-stack' )!;
+		expect( stack.style.getPropertyValue( '--wpd-stack-padding' ) ).toBe( '16px' );
+
+		host.innerHTML = `<wpd-stack padding="0"></wpd-stack>`;
+		await tick();
+		const zero = host.querySelector< HTMLElement >( 'wpd-stack' )!;
+		expect( zero.style.getPropertyValue( '--wpd-stack-padding' ) ).toBe( '0px' );
+	} );
+
+	test( 'non-numeric padding is ignored', async () => {
+		host.innerHTML = `<wpd-stack padding="big"></wpd-stack>`;
+		await tick();
+		const stack = host.querySelector< HTMLElement >( 'wpd-stack' )!;
+		expect( stack.style.getPropertyValue( '--wpd-stack-padding' ) ).toBe( '' );
+	} );
 } );

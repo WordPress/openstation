@@ -134,6 +134,24 @@ function wp_desktop_component( $tag, $attrs = array(), $content = '' ) {
 			$attr_parts[] = esc_attr( $key );
 			continue;
 		}
+		if ( is_array( $value ) || is_object( $value ) ) {
+			// Wrong-shape value on a non-style key. Without this
+			// guard PHP's string cast would emit `key="Array"` /
+			// `key="Object"` — embarrassing in production, silent
+			// in debug. Surface it loudly under WP_DEBUG and drop
+			// the attribute everywhere else.
+			_doing_it_wrong(
+				__FUNCTION__,
+				sprintf(
+					/* translators: 1: attribute name, 2: tag name. */
+					esc_html__( 'Attribute "%1$s" on <%2$s> received a non-scalar value (array/object). Only the `style` attribute accepts an array; other attributes must be strings, booleans, or null. The attribute was skipped.', 'wp-desktop-mode' ),
+					esc_html( $key ),
+					esc_html( $tag )
+				),
+				'0.18.0'
+			);
+			continue;
+		}
 		$attr_parts[] = sprintf(
 			'%s="%s"',
 			esc_attr( $key ),
@@ -277,9 +295,14 @@ function wpdm_format_css_value( $property, $value ) {
  *      output of the `template` callback. Each registered window
  *      gets its own template element.
  *   3. On `admin_enqueue_scripts` (shell-side), enqueues the
- *      caller's `script` handle — the script is expected to
- *      register a JS render callback that reads the cloned
- *      template and paints the body.
+ *      caller's `script` handle if one was provided. The script
+ *      registers a render callback at
+ *      `window.wpDesktopNativeWindows[<id>]`. On every window open
+ *      the shell clones the registered template into the body and
+ *      then invokes the callback — render is enhancement: query
+ *      the body for mount points your template declared, light
+ *      them up. Without a `script` the cloned template IS the
+ *      window; declarative-only plugins need zero JS.
  *   4. Passes a localized config blob to the script
  *      (`wpDesktopNativeWindow_<id>`) carrying the window's
  *      `id`, `title`, `icon`, dimensions, and `placement`. The
@@ -311,12 +334,20 @@ function wpdm_format_css_value( $property, $value ) {
  *
  *     @type string   $title        Window + tooltip title. Required.
  *     @type string   $icon         Dashicons class or URL. Required.
- *     @type callable $template     Called between `<template>` open
- *                                  + close tags on `admin_footer`.
- *                                  Receives no args; echoes HTML.
+ *     @type callable $template     Echoes the window body markup.
+ *                                  Wrapped on `admin_footer` in a
+ *                                  `<template id="wpdm-native-window-
+ *                                  <id>">`; cloned into the window
+ *                                  body on every open. The render
+ *                                  callback runs against the cloned
+ *                                  body, so mount points declared in
+ *                                  the template are guaranteed to be
+ *                                  present.
  *     @type string   $script       Registered script handle that
  *                                  owns the JS render callback.
- *                                  Required.
+ *                                  Optional — omit for a purely
+ *                                  declarative window whose body is
+ *                                  exactly the cloned template.
  *     @type int      $width        Initial width (px). Default 520.
  *     @type int      $height       Initial height (px). Default 400.
  *     @type int      $min_width    Minimum width (px). Default 280.
@@ -396,13 +427,6 @@ function wp_register_desktop_window( $id, $args = array() ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_title',
 			__( 'Native window registration requires a non-empty `title`.', 'wp-desktop-mode' ),
-			array( 'id' => $id )
-		);
-	}
-	if ( '' === (string) $args['script'] ) {
-		return wpdm_registration_error(
-			'wp_desktop_missing_script',
-			__( 'Native window registration requires a `script` handle that owns the render callback.', 'wp-desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -1254,14 +1278,33 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 		}
 	}
 
-	$value = sanitize_key( (string) $args['value'] );
-	if ( '' === $value ) {
+	// Tab values accept both flat slugs ('convert') and a single
+	// `vendor/sub-id` namespace ('plugin/convert') so two plugins
+	// targeting the same window can ship same-named tabs without
+	// stomping each other in the registry. The downstream uses
+	// (`wpd-tabpanel[for="…"]`, `<wpd-tab value="…">`) all pass the
+	// value through esc_attr and use it as an attribute selector,
+	// which tolerates the slash.
+	$value_raw = strtolower( trim( (string) $args['value'] ) );
+	if ( '' === $value_raw ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_tab_value',
 			__( 'Window tab registration requires a non-empty `value`.', 'wp-desktop-mode' ),
 			array( 'window_id' => $window_id )
 		);
 	}
+	if ( ! preg_match( '/^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/', $value_raw ) ) {
+		return wpdm_registration_error(
+			'wp_desktop_invalid_tab_value',
+			sprintf(
+				/* translators: %s: the invalid value. */
+				__( 'Window tab `value` "%s" must match /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ — lowercase alphanum + hyphen/underscore, with at most one `vendor/sub-id` slash.', 'wp-desktop-mode' ),
+				$value_raw
+			),
+			array( 'window_id' => $window_id, 'value' => $value_raw )
+		);
+	}
+	$value = $value_raw;
 	if ( WPDM_NATIVE_WINDOW_MAIN_TAB === $value ) {
 		return wpdm_registration_error(
 			'wp_desktop_reserved_tab_value',
@@ -1520,11 +1563,23 @@ function wpdm_build_native_window_template_html( $entry ) {
 	}
 	$buffer .= '</wpd-tabs>';
 
+	// Stamp `hidden` on every non-active panel directly in the
+	// emitted HTML. The client-side `<wpd-tabs>` syncs panel
+	// visibility on `value` changes, but its initial sync runs
+	// inside a microtask — and panel siblings may not have upgraded
+	// in time on first paint. Setting the attribute server-side
+	// makes first paint correct regardless of upgrade order; the JS
+	// keeps owning subsequent transitions.
 	foreach ( $tabs as $tab ) {
 		if ( ! is_callable( $tab['template'] ) ) {
 			continue;
 		}
-		$buffer .= '<wpd-tabpanel for="' . esc_attr( $tab['value'] ) . '">';
+		$is_active = WPDM_NATIVE_WINDOW_MAIN_TAB === $tab['value'];
+		$buffer   .= sprintf(
+			'<wpd-tabpanel for="%s"%s>',
+			esc_attr( $tab['value'] ),
+			$is_active ? '' : ' hidden'
+		);
 		ob_start();
 		call_user_func( $tab['template'] );
 		$buffer .= (string) ob_get_clean();

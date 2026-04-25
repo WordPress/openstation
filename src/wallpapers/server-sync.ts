@@ -128,7 +128,19 @@ export function createWallpaperRegistrySync(
 			// script was late to settle.
 			return;
 		}
-		registry.register( def );
+		// Server-sync hydrates many defs in a row; one malformed def
+		// shouldn't kill the loop. Catch the throw and surface via
+		// SHELL_ERROR so the sync can continue with the rest.
+		try {
+			registry.register( def );
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'wallpaper-register',
+				id: entry.id,
+				error: err,
+			} );
+			return;
+		}
 		registered.add( entry.id );
 		// Re-apply the current wallpaper selection so a plugin that
 		// activates with its saved wallpaper selection picks up

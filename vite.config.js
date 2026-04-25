@@ -41,6 +41,16 @@ const TARGETS = {
 		fileBase: 'iframe-bridge',
 		iifeName: 'wpDesktopIframeBridge',
 	},
+	// Monaco-backed code editor app. Bundles only OUR shell code (file
+	// tree, REST glue, Monaco bootstrap shim) — Monaco itself is loaded
+	// at runtime from `assets/vendor/monaco-editor/` via its own AMD
+	// loader, which is incompatible with our IIFE pipeline. See
+	// `src/code-editor/monaco-bootstrap.ts`.
+	'code-editor': {
+		entry:    'src/code-editor/index.ts',
+		fileBase: 'code-editor',
+		iifeName: 'wpDesktopCodeEditor',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

@@ -15,6 +15,8 @@
  * @since 0.14.0
  */
 
+import { throwOnRegistrationErrors } from './registration-errors';
+
 // ---------------------------------------------------------------------------
 // Public shape of an admin link — matches the AI answer schema so
 // command handlers can return links the assistant already knows how
@@ -234,6 +236,15 @@ export interface DesktopCommand {
 // Registry
 // ---------------------------------------------------------------------------
 
+/**
+ * Slug regex — matches the convention used across every other
+ * registration API (windows, widgets, icons, title-bar buttons):
+ * lowercase alphanum, hyphens, underscores, with an optional
+ * `vendor/sub-id` form so two plugins can ship a `convert` command
+ * without colliding.
+ */
+const COMMAND_SLUG = /^[a-z0-9_/-]+$/;
+
 const registry = new Map< string, DesktopCommand >();
 const listeners = new Set<() => void >();
 
@@ -267,25 +278,29 @@ const listeners = new Set<() => void >();
  * @since 0.14.0
  */
 export function registerCommand( cmd: DesktopCommand ): void {
-	if ( ! cmd || typeof cmd.slug !== 'string' || cmd.slug.trim() === '' ) {
-		return;
-	}
-	if ( typeof cmd.label !== 'string' || cmd.label.trim() === '' ) {
-		return;
-	}
-	if ( typeof cmd.run !== 'function' ) {
-		return;
-	}
-	const slug = cmd.slug.trim().toLowerCase();
-	if ( ! /^[a-z0-9_\-]+$/.test( slug ) ) {
-		if ( typeof console !== 'undefined' ) {
-			console.warn(
-				'[wp-desktop-mode] registerCommand: slug must be [a-z0-9_-]+, got',
-				cmd.slug,
+	const errors: string[] = [];
+	const slug = typeof cmd?.slug === 'string' ? cmd.slug.trim().toLowerCase() : '';
+
+	if ( ! cmd || typeof cmd !== 'object' ) {
+		errors.push( 'def (not an object)' );
+	} else {
+		if ( typeof cmd.slug !== 'string' || cmd.slug.trim() === '' ) {
+			errors.push( 'slug (missing)' );
+		} else if ( ! COMMAND_SLUG.test( slug ) ) {
+			errors.push(
+				`slug (must match ${ COMMAND_SLUG } — lowercase alphanum, hyphens, underscores, slashes for vendor/sub-id)`,
 			);
 		}
-		return;
+		if ( typeof cmd.label !== 'string' || cmd.label.trim() === '' ) {
+			errors.push( 'label (missing)' );
+		}
+		if ( typeof cmd.run !== 'function' ) {
+			errors.push( 'run (must be a function)' );
+		}
 	}
+
+	throwOnRegistrationErrors( 'Command', errors, cmd );
+
 	registry.set( slug, { ...cmd, slug } );
 	notify();
 }

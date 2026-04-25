@@ -10,11 +10,13 @@
  *     size defaults, and a warning-free id derivation when the
  *     caller omits `baseId`.
  *
- *   - {@link cloneTemplate} → a tiny `<template>` cloner for plugins
- *     that ship their UI as an inert template and want to hydrate a
- *     fresh copy per window. Saves the "find the template, clone
- *     content, query nodes" boilerplate every native window
- *     otherwise reinvents.
+ *   - {@link cloneTemplate} → a tiny `<template>` cloner. The shell
+ *     uses it internally to populate every native window's body with
+ *     the registered template before invoking the render callback,
+ *     so plugin authors using `wp_register_desktop_window()` don't
+ *     touch this directly. Exported for advanced cases that want to
+ *     re-clone (e.g. dynamic per-row templates, custom hydration
+ *     flows outside the standard pipeline).
  *
  * Both are intentionally thin — they don't introduce new runtime
  * state. Plugins that outgrow them can always call the underlying
@@ -418,24 +420,16 @@ export function createRegisterWindow(
 
 /**
  * Clone the contents of a `<template>` element and return the
- * resulting `DocumentFragment`. A thin utility, but it short-
- * circuits the "grab template, clone, cast" dance every native
- * window currently inlines:
+ * resulting `DocumentFragment`.
  *
- * ```ts
- * const tpl = document.getElementById( 'myplugin-calc' ) as HTMLTemplateElement;
- * const tree = tpl.content.cloneNode( true ) as DocumentFragment;
- * body.appendChild( tree );
- * ```
- *
- * becomes:
- *
- * ```ts
- * body.appendChild( cloneTemplate( 'myplugin-calc' ) );
- * ```
+ * **Native-window authors don't usually call this.** The shell pre-
+ * clones the registered template into the window body before
+ * invoking the render callback — see {@link RenderCallback}. Reach
+ * for `cloneTemplate` only when you need to re-clone (per-row list
+ * templates, dynamic hydration outside the standard pipeline).
  *
  * Accepts either a DOM id string or a template element directly,
- * so plugins that already have a reference don't double-lookup.
+ * so callers that already hold a reference don't double-lookup.
  * Throws when the id doesn't resolve or the element isn't a
  * `<template>` — templates are declarative and a missing one
  * almost always signals a markup bug worth surfacing.
@@ -573,6 +567,17 @@ export interface NativeWindowRegistryDeps {
 	desktopArea: HTMLElement;
 }
 
+/**
+ * Render callback contract for native desktop windows.
+ *
+ * When the window opens, the shell clones the registered `<template>`
+ * into `body`, then invokes the callback. Implementations enhance:
+ * query for mount points the template declared (data attributes, ids,
+ * classes) and light them up. To start from a blank canvas, call
+ * `body.replaceChildren()` first.
+ *
+ * @public
+ */
 type RenderCallback = ( body: HTMLElement ) => void;
 
 interface NativeWindowGlobals {
@@ -651,19 +656,20 @@ export function createNativeWindowSync(
 			{};
 		const render = globalRegistry[ entry.id ];
 
-		// Fallback render when the plugin didn't register one (or
-		// its script failed to load): just clone the template into
-		// the window body. Gives a declarative-template plugin a
-		// fully working window without any JS render callback.
-		const finalRender: RenderCallback = render
-			? render
-			: ( body ) => {
-				try {
-					body.appendChild( cloneTemplate( entry.templateId ) );
-				} catch {
-					/* Missing template — give up quietly. */
-				}
-			};
+		// Pre-populate the window body with the cloned template, then
+		// hand it to the optional render callback. The render contract
+		// is enhancement: declare static markup in `template`, query
+		// the body for mount points in render, light them up. Without
+		// a render callback the cloned template IS the window —
+		// declarative-only plugins need zero JS.
+		//
+		// `cloneTemplate` throws (and console.errors) when the
+		// template element is missing — let it surface; a missing
+		// template is a developer error worth seeing, not silencing.
+		const finalRender: RenderCallback = ( body ) => {
+			body.appendChild( cloneTemplate( entry.templateId ) );
+			render?.( body );
+		};
 
 		manager.open( {
 			id: entry.id,

@@ -51,10 +51,59 @@ export function collectRegistrationErrors<T>(
 }
 
 /**
- * Log a registration rejection with a readable error + the offending
- * def payload so the plugin author can introspect. Console-only:
- * throwing would break compatibility with plugins that register in a
- * fire-and-forget way.
+ * Thrown by every direct registration entry point when validation
+ * fails. Carries the registry kind ("Command", "Wallpaper", …), the
+ * per-field error list, and the offending def so callers can branch
+ * on a typed error rather than parsing a string.
+ *
+ * @public
+ */
+export class RegistrationError extends Error {
+	public readonly kind: string;
+	public readonly errors: string[];
+	public readonly def: unknown;
+
+	constructor( kind: string, errors: string[], def: unknown ) {
+		super(
+			`[wp-desktop-mode] ${ kind } registration rejected — fields: ` +
+				errors.join( ', ' ) +
+				'.',
+		);
+		this.name = 'RegistrationError';
+		this.kind = kind;
+		this.errors = errors;
+		this.def = def;
+	}
+}
+
+/**
+ * Throw a {@link RegistrationError} when `errors` is non-empty.
+ *
+ * The default for direct registration calls (`registerCommand`,
+ * `registerWallpaper`, …): make failures audible. Plugin authors
+ * stare at "the button never appeared" for hours when registrations
+ * fail silently — throwing turns 30 minutes of guessing into a
+ * console-frame they can read.
+ *
+ * Server-sync loops that register many defs in a row should wrap
+ * each call in try/catch (or use {@link logRegistrationErrors}) so
+ * one bad def doesn't kill the batch.
+ */
+export function throwOnRegistrationErrors(
+	kind: string,
+	errors: string[],
+	def: unknown,
+): void {
+	if ( errors.length === 0 ) {
+		return;
+	}
+	throw new RegistrationError( kind, errors, def );
+}
+
+/**
+ * Non-throwing variant — log the rejection and continue. For batch
+ * paths (server-sync hydration) where one bad def shouldn't break
+ * everything else.
  */
 export function logRegistrationErrors(
 	kind: string,
