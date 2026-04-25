@@ -15,8 +15,8 @@
 
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
-import { AI_PROVIDERS } from '../constants';
-import type { AiProviderId, SettingsCtx } from '../types';
+import { getAiProviders } from '../constants';
+import type { SettingsCtx } from '../types';
 
 // ---------------------------------------------------------------------------
 // Personal settings
@@ -34,16 +34,31 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 
 	const onProvider = ( e: Event ): void => {
 		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
-		if ( ! AI_PROVIDERS.some( ( p ) => p.id === id ) ) {
+		if ( ! getAiProviders().some( ( p ) => p.id === id ) ) {
 			return;
 		}
-		ctx.state.ai = { ...ctx.state.ai, provider: id as AiProviderId };
+		// Stash the current key under the previous provider before switching
+		// so each provider keeps its own key even if the user toggles back.
+		const prev = ctx.state.ai.provider;
+		const apiKeys = { ...( ctx.state.ai.apiKeys ?? {} ) };
+		if ( ctx.state.ai.apiKey ) {
+			apiKeys[ prev ] = ctx.state.ai.apiKey;
+		}
+		ctx.state.ai = {
+			...ctx.state.ai,
+			provider: id,
+			apiKeys,
+			apiKey: apiKeys[ id ] ?? '',
+		};
 		ctx.save();
+		paint();
 	};
 
 	const onApiKey = ( e: Event ): void => {
 		const value = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
-		ctx.state.ai = { ...ctx.state.ai, apiKey: value };
+		const apiKeys = { ...( ctx.state.ai.apiKeys ?? {} ) };
+		apiKeys[ ctx.state.ai.provider ] = value;
+		ctx.state.ai = { ...ctx.state.ai, apiKey: value, apiKeys };
 		ctx.save();
 	};
 
@@ -51,6 +66,9 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 		const platformEnabled =
 			ctx.config.aiPlatformSettings?.enabled === true &&
 			!! ctx.config.aiPlatformSettings?.apiKey;
+		const activeProvider =
+			getAiProviders().find( ( p ) => p.id === ctx.state.ai.provider ) ?? getAiProviders()[ 0 ];
+		const apiKeyLabel = activeProvider?.apiKeyLabel ?? __( 'API key' );
 
 		render(
 			html`
@@ -72,13 +90,13 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 						?disabled=${ ! ctx.state.ai.enabled }
 						@wpd-pick=${ onProvider }
 					>
-						${ AI_PROVIDERS.map(
+						${ getAiProviders().map(
 							( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
 						) }
 					</wpd-select>
 
 					<wpd-text-field
-						label=${ __( 'API key' ) }
+						label=${ apiKeyLabel }
 						type="password"
 						reveal
 						autocomplete="off"
@@ -177,7 +195,7 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 
 	const onProvider = ( e: Event ): void => {
 		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
-		if ( ! AI_PROVIDERS.some( ( p ) => p.id === id ) ) {
+		if ( ! getAiProviders().some( ( p ) => p.id === id ) ) {
 			return;
 		}
 		state.provider = id;
@@ -211,7 +229,7 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 						?disabled=${ ! state.enabled || state.saving }
 						@wpd-pick=${ onProvider }
 					>
-						${ AI_PROVIDERS.map(
+						${ getAiProviders().map(
 							( p ) => html`<wpd-option value=${ p.id }>${ p.label }</wpd-option>`,
 						) }
 					</wpd-select>

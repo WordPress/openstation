@@ -137,6 +137,8 @@ docs/
     ├── react-to-window-events.md
     │                            UPDATE/READ WHEN: window-lifecycle CustomEvent shape changes.
     ├── register-command.md     UPDATE/READ WHEN: command registry API (JS or PHP) changes.
+    ├── register-ai-provider.md  UPDATE/READ WHEN: wp_register_desktop_ai_provider() contract,
+    │                            provider callback shapes, or active-provider resolution rules change.
     ├── ai-ask.md                UPDATE/READ WHEN: wp.desktop.ai.ask() contract, AI-tool-calling
     │                            protocol, or wp_register_desktop_ai_tool() signature changes.
     ├── connect-to-window.md     UPDATE/READ WHEN: registerTitleBarButton, Window.setHighlight,

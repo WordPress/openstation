@@ -132,13 +132,70 @@ export const DEFAULTS: OsSettingsState = {
 		enabled: false,
 		provider: 'openai',
 		apiKey: '',
+		apiKeys: {},
 	},
 };
 
 /**
- * Available AI providers. Single-entry for now — the picker is still a
- * `<wpd-select>` so adding the next provider is zero-UI-churn.
+ * Hard-coded fallback list — the only provider we know about without
+ * reading the runtime registry. {@link getAiProviders} prefers the
+ * runtime `wpDesktopConfig.aiProviders` list when present, so adding a
+ * new provider is a pure PHP concern.
  */
-export const AI_PROVIDERS = [
-	{ id: 'openai' as const, label: 'OpenAI' },
-] as const;
+export const AI_PROVIDERS: ReadonlyArray< {
+	id: string;
+	label: string;
+	description?: string;
+	apiKeyLabel?: string;
+	apiKeyLink?: string;
+} > = [
+	{
+		id: 'openai',
+		label: 'OpenAI',
+		apiKeyLabel: 'OpenAI API key',
+		apiKeyLink: 'https://platform.openai.com/api-keys',
+	},
+];
+
+/**
+ * Returns the runtime list of registered AI providers.
+ *
+ * Falls back to {@link AI_PROVIDERS} when the shell config is missing
+ * (rare — happens in some test contexts and the very first frame
+ * before `wpDesktopConfig` is populated).
+ */
+export function getAiProviders(): ReadonlyArray< {
+	id: string;
+	label: string;
+	description?: string;
+	apiKeyLabel?: string;
+	apiKeyLink?: string;
+} > {
+	const cfg = (
+		window as typeof window & {
+			wpDesktopConfig?: {
+				aiProviders?: Array< {
+					id: string;
+					label: string;
+					description?: string;
+					api_key_label?: string;
+					api_key_link?: string;
+					capabilities?: string[];
+				} >;
+			};
+		}
+	).wpDesktopConfig;
+
+	const list = cfg?.aiProviders;
+	if ( ! Array.isArray( list ) || list.length === 0 ) {
+		return AI_PROVIDERS;
+	}
+
+	return list.map( ( p ) => ( {
+		id: p.id,
+		label: p.label,
+		description: p.description,
+		apiKeyLabel: p.api_key_label,
+		apiKeyLink: p.api_key_link,
+	} ) );
+}

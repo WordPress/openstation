@@ -56,7 +56,7 @@ function wpdm_ai_job_analyze_post( $post_id, $user_id ) {
 	$messages = wpdm_ai_messages_for_post( $post );
 	$schema   = wpdm_ai_schema_content();
 
-	$result = wpdm_ai_openai_structured_request( $api_key, $messages, $schema, 'content_analysis' );
+	$result = wpdm_ai_provider_structured_request( $user_id, $api_key, $messages, $schema, 'content_analysis' );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -109,7 +109,7 @@ function wpdm_ai_job_analyze_term( $term_id, $taxonomy, $user_id ) {
 	$messages = wpdm_ai_messages_for_term( $term );
 	$schema   = wpdm_ai_schema_content();
 
-	$result = wpdm_ai_openai_structured_request( $api_key, $messages, $schema, 'content_analysis' );
+	$result = wpdm_ai_provider_structured_request( $user_id, $api_key, $messages, $schema, 'content_analysis' );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -161,7 +161,7 @@ function wpdm_ai_job_analyze_comment( $comment_id, $user_id ) {
 	$messages = wpdm_ai_messages_for_comment( $comment );
 	$schema   = wpdm_ai_schema_comment();
 
-	$result = wpdm_ai_openai_structured_request( $api_key, $messages, $schema, 'comment_analysis' );
+	$result = wpdm_ai_provider_structured_request( $user_id, $api_key, $messages, $schema, 'comment_analysis' );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log

@@ -980,20 +980,30 @@ INSTRUCTIONS;
 
 	// -----------------------------------------------------------------------
 	// First call — user query as input, instructions as system guidance.
+	// Dispatched through the active provider (default: OpenAI). State is
+	// opaque to the loop — providers stash whatever continuation token
+	// they need (OpenAI: previous_response_id; others may use nothing).
 	// -----------------------------------------------------------------------
-	$response = wpdm_ai_openai_responses_call(
-		$api_key,
-		array( array( 'role' => 'user', 'content' => $query ) ),
-		$tools,
-		$text_format,
-		$instructions
-	);
-
-	if ( is_wp_error( $response ) ) {
-		return $response;
+	$turn_input = wpdm_ai_provider_make_turn_input( $user_id, 'user_message', $query );
+	if ( is_wp_error( $turn_input ) ) {
+		return $turn_input;
 	}
 
-	$previous_id   = $response['id'] ?? '';
+	$turn = wpdm_ai_provider_agentic_call(
+		$user_id,
+		$api_key,
+		$turn_input,
+		$tools,
+		$text_format,
+		$instructions,
+		null
+	);
+
+	if ( is_wp_error( $turn ) ) {
+		return $turn;
+	}
+
+	$state         = $turn['next_state'];
 	$last_tool     = $initial_tool ?? 'search_posts';
 	$last_offset   = $start_offset;
 	$last_has_more = true;
@@ -1005,21 +1015,22 @@ INSTRUCTIONS;
 	// conversation state; we only send what's new each turn.
 	// -----------------------------------------------------------------------
 	for ( $i = 0; $i < WPDM_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
-		$function_calls = wpdm_ai_extract_function_calls( $response );
+		$function_calls = is_array( $turn['function_calls'] ?? null ) ? $turn['function_calls'] : array();
 
 		// No tool calls in this response → final answer.
 		if ( empty( $function_calls ) ) {
 			$emit( array( 'phase' => 'composing', 'message' => 'Putting together your answer…' ) );
-			$text = wpdm_ai_extract_text( $response );
+			$text = $turn['text'] ?? null;
 			if ( ! is_string( $text ) ) {
-				// Log the raw output so mismatches in the Responses API shape
-				// are visible without having to re-run with a debugger.
+				// Log the raw output so mismatches in the provider response
+				// shape are visible without having to re-run with a debugger.
+				$raw = is_array( $turn['raw'] ?? null ) ? $turn['raw'] : array();
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( '[WP Desktop Mode AI] Unexpected output shape: ' . wp_json_encode( $response['output'] ?? [] ) );
+				error_log( '[WP Desktop Mode AI] Unexpected output shape: ' . wp_json_encode( $raw ) );
 				return new WP_Error(
 					'wpdm_ai_empty',
-					'Responses API returned no text in the final turn.',
-					array( 'output' => $response['output'] ?? [] )
+					'AI provider returned no text in the final turn.',
+					array( 'raw' => $raw )
 				);
 			}
 
@@ -1151,7 +1162,10 @@ INSTRUCTIONS;
 			return $final;
 		}
 
-		// Execute each tool call and collect results.
+		// Execute each tool call and collect results in the registry's
+		// normalized shape — `{ call_id, output (json string) }`. The
+		// provider's `make_turn_input('tool_results', …)` reshapes them
+		// for the underlying API.
 		$tool_outputs = array();
 		foreach ( $function_calls as $fc ) {
 			$tool_name = $fc['name'] ?? '';
@@ -1159,7 +1173,6 @@ INSTRUCTIONS;
 
 			if ( ! in_array( $tool_name, $valid_tools, true ) ) {
 				$tool_outputs[] = array(
-					'type'    => 'function_call_output',
 					'call_id' => $call_id,
 					'output'  => wp_json_encode( array( 'error' => "Unknown tool '{$tool_name}'." ) ),
 				);
@@ -1229,7 +1242,6 @@ INSTRUCTIONS;
 			);
 
 			$tool_outputs[] = array(
-				'type'    => 'function_call_output',
 				'call_id' => $call_id,
 				'output'  => wp_json_encode( $batch ),
 			);
@@ -1237,22 +1249,30 @@ INSTRUCTIONS;
 
 		$iterations++;
 
-		// Next turn — only send the tool results; OpenAI reconstructs
-		// the full context via previous_response_id.
-		$response = wpdm_ai_openai_responses_call(
+		// Next turn — only send the tool results. Providers that support
+		// server-side context chaining (OpenAI's previous_response_id)
+		// use the opaque $state we threaded through; others can read
+		// the tool results and append them to whatever history they keep.
+		$turn_input = wpdm_ai_provider_make_turn_input( $user_id, 'tool_results', $tool_outputs );
+		if ( is_wp_error( $turn_input ) ) {
+			return $turn_input;
+		}
+
+		$turn = wpdm_ai_provider_agentic_call(
+			$user_id,
 			$api_key,
-			$tool_outputs,
+			$turn_input,
 			$tools,
 			$text_format,
 			'',
-			$previous_id
+			$state
 		);
 
-		if ( is_wp_error( $response ) ) {
-			return $response;
+		if ( is_wp_error( $turn ) ) {
+			return $turn;
 		}
 
-		$previous_id = $response['id'] ?? $previous_id;
+		$state = $turn['next_state'] ?? $state;
 	}
 
 	// -----------------------------------------------------------------------
@@ -1495,30 +1515,37 @@ INSTRUCTIONS;
 		)
 	);
 
-	$response = wpdm_ai_openai_responses_call(
+	$turn_input = wpdm_ai_provider_make_turn_input( $user_id, 'user_message', $user_message );
+	if ( is_wp_error( $turn_input ) ) {
+		return $turn_input;
+	}
+
+	$turn = wpdm_ai_provider_agentic_call(
+		$user_id,
 		$api_key,
-		array( array( 'role' => 'user', 'content' => $user_message ) ),
-		array(),        // no tools — we want a plain reply
-		null,           // no JSON schema — free-form text
-		$instructions
+		$turn_input,
+		array(),  // no tools — we want a plain reply
+		null,     // no JSON schema — free-form text
+		$instructions,
+		null
 	);
 
-	if ( is_wp_error( $response ) ) {
+	if ( is_wp_error( $turn ) ) {
 		do_action(
 			'wp_desktop_ai_search_error',
 			array(
-				'code'       => $response->get_error_code(),
-				'message'    => $response->get_error_message(),
-				'data'       => $response->get_error_data(),
+				'code'       => $turn->get_error_code(),
+				'message'    => $turn->get_error_message(),
+				'data'       => $turn->get_error_data(),
 				'user_id'    => $user_id,
 				'request_id' => $request_id,
 				'phase'      => 'follow_up',
 			)
 		);
-		return $response;
+		return $turn;
 	}
 
-	$text     = wpdm_ai_extract_text( $response );
+	$text     = $turn['text'] ?? null;
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
 		// Graceful degrade — if OpenAI returned nothing usable, fall

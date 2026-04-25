@@ -242,6 +242,7 @@ function wpdm_enqueue_assets() {
 			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'wpdm_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? wpdm_ai_get_platform_settings() : null,
 			'aiPlatformSettingsUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/ai/platform-settings' ) ),
+			'aiProviders'           => wpdm_ai_get_providers_for_config(),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? wpdm_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/extended-options' ) ),
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),

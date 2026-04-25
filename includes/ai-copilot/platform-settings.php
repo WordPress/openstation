@@ -36,7 +36,8 @@ function wpdm_ai_get_platform_settings() {
 	$defaults = array(
 		'enabled'  => false,
 		'provider' => 'openai',
-		'apiKey'   => '',
+		'apiKey'   => '',     // Legacy — kept for backwards compat with 0.14–0.17 callers.
+		'apiKeys'  => array(), // Per-provider keys.
 	);
 
 	$raw = get_option( WPDM_AI_PLATFORM_OPTION, array() );
@@ -44,14 +45,35 @@ function wpdm_ai_get_platform_settings() {
 		return $defaults;
 	}
 
+	$provider = $defaults['provider'];
+	if ( isset( $raw['provider'] ) && is_string( $raw['provider'] ) ) {
+		$slug = sanitize_key( $raw['provider'] );
+		if ( '' !== $slug ) {
+			$provider = $slug;
+		}
+	}
+
+	$keys = array();
+	if ( isset( $raw['apiKeys'] ) && is_array( $raw['apiKeys'] ) ) {
+		foreach ( $raw['apiKeys'] as $pid => $val ) {
+			if ( count( $keys ) >= 32 ) {
+				break;
+			}
+			$slug = sanitize_key( (string) $pid );
+			if ( '' === $slug || ! is_string( $val ) ) {
+				continue;
+			}
+			$keys[ $slug ] = $val;
+		}
+	}
+
 	return array(
 		'enabled'  => ! empty( $raw['enabled'] ),
-		'provider' => ( isset( $raw['provider'] ) && in_array( $raw['provider'], WPDM_OS_SETTINGS_AI_PROVIDERS, true ) )
-			? (string) $raw['provider']
-			: $defaults['provider'],
+		'provider' => $provider,
 		'apiKey'   => ( isset( $raw['apiKey'] ) && is_string( $raw['apiKey'] ) )
 			? $raw['apiKey']
 			: $defaults['apiKey'],
+		'apiKeys'  => $keys,
 	);
 }
 
@@ -68,14 +90,35 @@ function wpdm_ai_save_platform_settings( $raw ) {
 		return false;
 	}
 
+	$provider = 'openai';
+	if ( isset( $raw['provider'] ) && is_string( $raw['provider'] ) ) {
+		$slug = sanitize_key( $raw['provider'] );
+		if ( '' !== $slug ) {
+			$provider = $slug;
+		}
+	}
+
+	$keys = array();
+	if ( isset( $raw['apiKeys'] ) && is_array( $raw['apiKeys'] ) ) {
+		foreach ( $raw['apiKeys'] as $pid => $val ) {
+			if ( count( $keys ) >= 32 ) {
+				break;
+			}
+			$slug = sanitize_key( (string) $pid );
+			if ( '' === $slug || ! is_string( $val ) ) {
+				continue;
+			}
+			$keys[ $slug ] = substr( sanitize_text_field( $val ), 0, 512 );
+		}
+	}
+
 	$clean = array(
 		'enabled'  => ! empty( $raw['enabled'] ),
-		'provider' => ( isset( $raw['provider'] ) && in_array( $raw['provider'], WPDM_OS_SETTINGS_AI_PROVIDERS, true ) )
-			? (string) $raw['provider']
-			: 'openai',
+		'provider' => $provider,
 		'apiKey'   => ( isset( $raw['apiKey'] ) && is_string( $raw['apiKey'] ) )
 			? substr( sanitize_text_field( $raw['apiKey'] ), 0, 512 )
 			: '',
+		'apiKeys'  => $keys,
 	);
 
 	return update_option( WPDM_AI_PLATFORM_OPTION, $clean, false );

@@ -807,7 +807,112 @@ add_filter( 'wp_desktop_native_window_tab_wrap_padding', function ( $padding, $w
 
 ## AI Copilot hooks — Stable
 
-The AI assistant (Cmd+K palette) runs an OpenAI agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
+The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
+
+The shell ships with a built-in **OpenAI** provider (Responses API). Other providers are pluggable — see [`wp_register_desktop_ai_provider`](#wp_register_desktop_ai_provider-args--experimental-php-function-since-0180) below.
+
+### `wp_register_desktop_ai_provider( $args )` — Experimental (PHP function, since 0.18.0)
+
+Register an alternative AI back-end (Anthropic, Gemini, a local LLM, …). Each provider supplies three callables that fully encapsulate its wire format; the shell drives the agentic loop, observability, and tool dispatch unchanged.
+
+```php
+wp_register_desktop_ai_provider( string $id, array $args ): true|WP_Error
+```
+
+`$args`:
+
+| Key | Type | Required | Notes |
+|---|---|---|---|
+| `label` | `string` | optional | Human-readable display name. |
+| `description` | `string` | optional | Shown under the picker. |
+| `api_key_label` | `string` | optional | Label for the API-key field in OS Settings → AI. |
+| `api_key_link` | `string` | optional | URL where the user obtains a key. |
+| `default_model` | `string` | optional | Model id used when `wp_desktop_ai_model` returns ''. |
+| `capabilities` | `string[]` | optional | Informational tags (e.g., `tools`, `structured_output`). |
+| `make_turn_input` | `callable` | **required** | Builds an opaque turn-input the shell hands to `agentic_call` next turn. |
+| `agentic_call` | `callable` | **required** | One turn of the agentic loop. |
+| `structured_request` | `callable` | **required** | Single-shot structured-output request. |
+
+Required callable signatures:
+
+```php
+// $kind: 'user_message' | 'tool_results'
+// payload: string for 'user_message'; array of [{call_id, output (json string)}, …] for 'tool_results'.
+function make_turn_input( string $kind, mixed $payload ): mixed;
+
+// Returns array{ text:?string, function_calls: array, next_state: mixed, raw: mixed }
+// or WP_Error. function_calls items: { name, call_id, arguments (json string) }.
+function agentic_call(
+    string $api_key,
+    mixed  $turn_input,
+    array  $tools,
+    ?array $text_format,
+    string $instructions,
+    mixed  $state
+): array|WP_Error;
+
+function structured_request(
+    string $api_key,
+    array  $messages,    // [ { role, content }, … ]
+    array  $schema,       // JSON Schema
+    string $schema_name,
+    string $model         // '' → use the provider's default_model
+): array|WP_Error;
+```
+
+Hook `wp_desktop_ai_register_providers` (fires lazily on first lookup) for registration:
+
+```php
+add_action( 'wp_desktop_ai_register_providers', function () {
+    wp_register_desktop_ai_provider( 'anthropic', array(
+        'label'              => 'Anthropic Claude',
+        'api_key_label'      => 'Anthropic API key',
+        'api_key_link'       => 'https://console.anthropic.com/settings/keys',
+        'default_model'      => 'claude-sonnet-4-6',
+        'make_turn_input'    => 'my_anthropic_make_turn_input',
+        'agentic_call'       => 'my_anthropic_agentic_call',
+        'structured_request' => 'my_anthropic_structured_request',
+    ) );
+} );
+```
+
+See [`docs/examples/register-ai-provider.md`](./examples/register-ai-provider.md) for a worked example.
+
+### `wp_unregister_desktop_ai_provider( $id )` — Experimental (PHP function, since 0.18.0)
+
+Removes a provider from the registry. Returns `true` if a provider was removed, `false` if the id was unknown.
+
+### `wp_desktop_ai_register_providers` — Experimental (since 0.18.0)
+
+Action fired exactly once per request, the first time the registry is read. Hook it to call `wp_register_desktop_ai_provider()`.
+
+```php
+do_action( 'wp_desktop_ai_register_providers' );
+```
+
+### `wp_desktop_ai_provider_registered` — Experimental (since 0.18.0)
+
+Fires after a provider has been successfully registered.
+
+```php
+do_action( 'wp_desktop_ai_provider_registered', string $id, array $def );
+```
+
+### `wp_desktop_ai_active_provider` — Experimental (since 0.18.0)
+
+Filter the resolved active-provider id. Useful for per-request pinning (e.g., based on capability or query content).
+
+```php
+apply_filters( 'wp_desktop_ai_active_provider', string $provider_id, int $user_id );
+```
+
+```php
+// Force admins to use Anthropic; everyone else stays on the default.
+add_filter( 'wp_desktop_ai_active_provider', function ( $id, $user_id ) {
+    return user_can( $user_id, 'manage_options' ) ? 'anthropic' : $id;
+}, 10, 2 );
+```
+
 
 ### `wp_desktop_ai_model` — Stable
 

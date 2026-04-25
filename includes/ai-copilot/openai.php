@@ -290,3 +290,161 @@ function wpdm_ai_openai_responses_call(
 
 	return wpdm_ai_do_request( $api_key, $body );
 }
+
+// ---------------------------------------------------------------------------
+// Provider-registry adapters
+//
+// These wire the OpenAI implementation as the built-in default provider.
+// Each callback simply translates between the registry's normalized shape
+// and the existing OpenAI helpers above. New providers (Anthropic, Gemini,
+// local LLMs, …) ship their own equivalents and register the same way.
+// ---------------------------------------------------------------------------
+
+/**
+ * Build an opaque "turn input" for the OpenAI provider.
+ *
+ * For the Responses API a turn input is the `input` array. We accept two
+ * kinds — a fresh user message, or a batch of tool results to resume an
+ * agentic loop with `previous_response_id` already in state.
+ *
+ * @since 0.18.0
+ *
+ * @param string $kind 'user_message' | 'tool_results'.
+ * @param mixed  $payload For 'user_message': string. For 'tool_results':
+ *                        array of [{ call_id, output (json string) }, …].
+ * @return array Input items array, ready for the Responses API.
+ */
+function wpdm_ai_openai_make_turn_input( $kind, $payload ) {
+	if ( 'user_message' === $kind ) {
+		return array(
+			array(
+				'role'    => 'user',
+				'content' => is_string( $payload ) ? $payload : (string) wp_json_encode( $payload ),
+			),
+		);
+	}
+
+	if ( 'tool_results' === $kind && is_array( $payload ) ) {
+		$items = array();
+		foreach ( $payload as $r ) {
+			if ( ! is_array( $r ) ) {
+				continue;
+			}
+			$items[] = array(
+				'type'    => 'function_call_output',
+				'call_id' => isset( $r['call_id'] ) ? (string) $r['call_id'] : '',
+				'output'  => isset( $r['output'] ) ? (string) $r['output'] : '',
+			);
+		}
+		return $items;
+	}
+
+	return array();
+}
+
+/**
+ * One turn of the agentic loop via the OpenAI Responses API.
+ *
+ * @since 0.18.0
+ *
+ * @param string     $api_key      OpenAI key.
+ * @param array      $turn_input   Output of {@see wpdm_ai_openai_make_turn_input}.
+ * @param array      $tools        Responses-API tool definitions (flat shape).
+ * @param array|null $text_format  Optional `text.format` object for structured output.
+ * @param string     $instructions System-level instructions.
+ * @param mixed      $state        Provider state ['previous_response_id' => …] | null.
+ * @return array|WP_Error
+ */
+function wpdm_ai_openai_provider_agentic_call(
+	$api_key,
+	$turn_input,
+	array $tools,
+	$text_format,
+	$instructions,
+	$state = null
+) {
+	$previous_response_id = '';
+	if ( is_array( $state ) && ! empty( $state['previous_response_id'] ) ) {
+		$previous_response_id = (string) $state['previous_response_id'];
+	}
+
+	$response = wpdm_ai_openai_responses_call(
+		$api_key,
+		is_array( $turn_input ) ? $turn_input : array(),
+		$tools,
+		$text_format,
+		$instructions,
+		$previous_response_id
+	);
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+
+	// Normalize function-call shape — registry contract is { name, call_id, arguments (string) }.
+	$function_calls = array();
+	foreach ( wpdm_ai_extract_function_calls( $response ) as $fc ) {
+		$function_calls[] = array(
+			'name'      => isset( $fc['name'] ) ? (string) $fc['name'] : '',
+			'call_id'   => isset( $fc['call_id'] ) ? (string) $fc['call_id'] : '',
+			'arguments' => isset( $fc['arguments'] ) ? (string) $fc['arguments'] : '',
+		);
+	}
+
+	return array(
+		'text'           => wpdm_ai_extract_text( $response ),
+		'function_calls' => $function_calls,
+		'next_state'     => array( 'previous_response_id' => isset( $response['id'] ) ? (string) $response['id'] : '' ),
+		'raw'            => $response,
+	);
+}
+
+/**
+ * OpenAI provider — single-shot structured output adapter.
+ *
+ * Thin wrapper that selects a default model when the caller passes ''.
+ *
+ * @since 0.18.0
+ *
+ * @param string $api_key
+ * @param array  $messages
+ * @param array  $schema
+ * @param string $schema_name
+ * @param string $model       Empty string → use the provider default.
+ * @return array|WP_Error
+ */
+function wpdm_ai_openai_provider_structured_request(
+	$api_key,
+	array $messages,
+	array $schema,
+	$schema_name,
+	$model = ''
+) {
+	$model = '' === (string) $model ? WPDM_AI_DEFAULT_MODEL : (string) $model;
+	return wpdm_ai_openai_structured_request( $api_key, $messages, $schema, (string) $schema_name, $model );
+}
+
+/**
+ * Register the built-in OpenAI provider.
+ *
+ * Registration runs on `wp_desktop_ai_register_providers` (fired lazily on
+ * first lookup) so the registry doesn't depend on plugin load order.
+ *
+ * @since 0.18.0
+ */
+function wpdm_ai_register_openai_provider() {
+	wp_register_desktop_ai_provider(
+		'openai',
+		array(
+			'label'              => 'OpenAI',
+			'description'        => 'OpenAI Responses API (gpt-5 family). Default provider.',
+			'api_key_label'      => 'OpenAI API key',
+			'api_key_link'       => 'https://platform.openai.com/api-keys',
+			'default_model'      => WPDM_AI_DEFAULT_MODEL,
+			'capabilities'       => array( 'tools', 'structured_output', 'previous_response_id' ),
+			'make_turn_input'    => 'wpdm_ai_openai_make_turn_input',
+			'agentic_call'       => 'wpdm_ai_openai_provider_agentic_call',
+			'structured_request' => 'wpdm_ai_openai_provider_structured_request',
+		)
+	);
+}
+add_action( 'wp_desktop_ai_register_providers', 'wpdm_ai_register_openai_provider' );

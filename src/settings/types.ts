@@ -35,16 +35,30 @@ export interface CustomImage {
 
 /**
  * AI provider id. Kept as a plain string so new providers can be added
- * without touching the sanitization ladder — only registered ids in the
- * AI section's own picker are offered in the UI.
+ * without touching the sanitization ladder — the picker is driven by the
+ * runtime list in `wpDesktopConfig.aiProviders`, populated by every
+ * plugin that calls `wp_register_desktop_ai_provider()`.
  */
-export type AiProviderId = 'openai';
+export type AiProviderId = string;
 
-/** AI integration preferences — provider choice + API key. */
+/** AI integration preferences — provider choice + per-provider API keys. */
 export interface AiSettings {
 	enabled: boolean;
 	provider: AiProviderId;
+	/** Legacy single-key field; treated as the OpenAI key for backwards compat. */
 	apiKey: string;
+	/** Per-provider key map. Falls back to `apiKey` for `openai`. */
+	apiKeys: Record< string, string >;
+}
+
+/** Provider entry surfaced via `wpDesktopConfig.aiProviders`. */
+export interface AiProviderEntry {
+	id: string;
+	label: string;
+	description: string;
+	api_key_label: string;
+	api_key_link: string;
+	capabilities: string[];
 }
 
 /** Shape of the persisted settings. Defaults merged on load. */
@@ -91,7 +105,12 @@ export interface OsSettingsConfig {
 	/** Whether the current user has manage_options capability. */
 	isAdmin: boolean;
 	/** Platform-wide AI settings — null for non-admins. */
-	aiPlatformSettings: { enabled: boolean; provider: string; apiKey: string } | null;
+	aiPlatformSettings: {
+		enabled: boolean;
+		provider: string;
+		apiKey: string;
+		apiKeys?: Record< string, string >;
+	} | null;
 	/** REST endpoint for reading/writing platform AI settings. */
 	aiPlatformSettingsUrl: string;
 	/** Platform-wide extended options — null for non-admins. */
