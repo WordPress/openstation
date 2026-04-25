@@ -1,0 +1,359 @@
+<?php
+/**
+ * Desktop Mode — Code Editor REST routes.
+ *
+ * Phase 2 surface (read-only):
+ *   - GET /wp-desktop/v1/code/tree?path=<rel>  → list a directory.
+ *   - GET /wp-desktop/v1/code/file?path=<rel>  → read a file's content.
+ *
+ * Phase 3 will add PUT /code/file (write) + DELETE /code/file + a
+ * /code/file/rename route.
+ *
+ * Every route bottlenecks through {@see wpdc_resolve_path()} for path
+ * safety + the same `permission_callback` (logged-in admin holding
+ * `edit_plugins`, with `DISALLOW_FILE_EDIT` honoured). Handlers wrap
+ * their body in `ob_start()` / `ob_get_clean()` because PHP notices
+ * (with `WP_DEBUG=true` + `display_errors=on`) get printed before the
+ * REST headers, which corrupts the JSON response — a sneaky bug
+ * that's easy to ship and impossible to debug from the user side.
+ *
+ * @package WPDesktopMode
+ * @since 0.18.0
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+const WPDC_REST_NAMESPACE = 'wp-desktop/v1';
+
+/**
+ * Permission gate for every editor REST route.
+ *
+ * Filterable via `wpdc_required_capability` so a site can swap
+ * `edit_plugins` for a custom cap without forking. Returns `true` /
+ * `WP_Error` so REST builds a proper 401/403 response.
+ *
+ * @since 0.18.0
+ *
+ * @return true|WP_Error
+ */
+function wpdc_rest_permission() {
+	if ( ! is_user_logged_in() ) {
+		return new WP_Error(
+			'wpdc_unauthenticated',
+			__( 'You must be logged in to use the code editor.', 'wp-desktop-mode' ),
+			array( 'status' => 401 )
+		);
+	}
+
+	if ( ! wpdc_file_edit_allowed() ) {
+		return new WP_Error(
+			'wpdc_file_edit_disabled',
+			__( 'In-admin file editing is disabled on this site (DISALLOW_FILE_EDIT).', 'wp-desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+
+	/**
+	 * Filter the capability required to use the code editor.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param string $capability Default `edit_plugins`.
+	 */
+	$cap = (string) apply_filters( 'wpdc_required_capability', 'edit_plugins' );
+	if ( ! current_user_can( $cap ) ) {
+		return new WP_Error(
+			'wpdc_forbidden',
+			__( 'You do not have permission to use the code editor.', 'wp-desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+
+	return true;
+}
+
+/**
+ * Wrap a REST handler so PHP notices / warnings printed under
+ * WP_DEBUG don't leak into the response body and corrupt the JSON.
+ *
+ * @since 0.18.0
+ *
+ * @param callable $handler `function( WP_REST_Request ): array|WP_REST_Response|WP_Error`.
+ * @return callable
+ */
+function wpdc_rest_handler( $handler ) {
+	return static function ( WP_REST_Request $request ) use ( $handler ) {
+		ob_start();
+		try {
+			$result = call_user_func( $handler, $request );
+		} finally {
+			// Discard whatever PHP notices/warnings buffered up.
+			// Logged still goes to error_log; the REST response
+			// stays clean JSON.
+			ob_end_clean();
+		}
+		return $result;
+	};
+}
+
+// ---------------------------------------------------------------------------
+// Route registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register the editor's REST routes.
+ *
+ * @since 0.18.0
+ */
+function wpdc_register_editor_rest_routes() {
+	register_rest_route(
+		WPDC_REST_NAMESPACE,
+		'/code/tree',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => wpdc_rest_handler( 'wpdc_rest_tree' ),
+			'permission_callback' => 'wpdc_rest_permission',
+			'args'                => array(
+				'path' => array(
+					'required' => false,
+					'type'     => 'string',
+					'default'  => '',
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		WPDC_REST_NAMESPACE,
+		'/code/file',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => wpdc_rest_handler( 'wpdc_rest_read_file' ),
+			'permission_callback' => 'wpdc_rest_permission',
+			'args'                => array(
+				'path' => array(
+					'required' => true,
+					'type'     => 'string',
+				),
+			),
+		)
+	);
+}
+add_action( 'rest_api_init', 'wpdc_register_editor_rest_routes' );
+
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /wp-desktop/v1/code/tree?path=<rel>
+ *
+ * Lists a single directory level. Returns folders first, then files,
+ * each alphabetised. Skips dotfiles by default (filterable). Files
+ * outside the extension allowlist are listed but flagged so the JS
+ * tree can grey them out — a flat refusal to list them would hide
+ * legitimate context (the user knows which file they're trying to
+ * open; we just can't open it ourselves).
+ *
+ * @since 0.18.0
+ *
+ * @param WP_REST_Request $request
+ * @return array|WP_Error
+ */
+function wpdc_rest_tree( WP_REST_Request $request ) {
+	$rel  = (string) $request->get_param( 'path' );
+	$abs  = wpdc_resolve_path( $rel );
+	if ( is_wp_error( $abs ) ) {
+		return $abs;
+	}
+	if ( ! is_dir( $abs ) ) {
+		return new WP_Error(
+			'wpdc_not_a_directory',
+			__( 'Path is not a directory.', 'wp-desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	$entries = array();
+	$dh      = @opendir( $abs ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+	if ( false === $dh ) {
+		return new WP_Error(
+			'wpdc_directory_unreadable',
+			__( 'Directory is not readable.', 'wp-desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
+
+	$exts = wpdc_extension_allowlist();
+
+	/**
+	 * Filter whether dotfiles (names starting with `.`) appear in
+	 * the tree. Default `false` — most plugin/theme work doesn't
+	 * involve dotfiles and they're noisy in the picker.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param bool $include_dotfiles
+	 */
+	$include_dotfiles = (bool) apply_filters( 'wpdc_tree_include_dotfiles', false );
+
+	while ( false !== ( $name = readdir( $dh ) ) ) {
+		if ( '.' === $name || '..' === $name ) {
+			continue;
+		}
+		if ( ! $include_dotfiles && '.' === $name[0] ) {
+			continue;
+		}
+
+		$child_abs = $abs . DIRECTORY_SEPARATOR . $name;
+		$is_dir    = is_dir( $child_abs );
+		$is_link   = is_link( $child_abs );
+
+		if ( $is_link ) {
+			// realpath the symlink. If it leaves the workspace, hide
+			// it entirely (don't list a row that can't be opened) —
+			// keeps the tree honest.
+			$resolved = realpath( $child_abs );
+			$root     = wpdc_workspace_root();
+			if (
+				false === $resolved ||
+				(
+					rtrim( $resolved, DIRECTORY_SEPARATOR ) !== rtrim( $root, DIRECTORY_SEPARATOR ) &&
+					strpos(
+						rtrim( $resolved, DIRECTORY_SEPARATOR ) . DIRECTORY_SEPARATOR,
+						rtrim( $root, DIRECTORY_SEPARATOR ) . DIRECTORY_SEPARATOR
+					) !== 0
+				)
+			) {
+				continue;
+			}
+		}
+
+		$ext     = $is_dir ? '' : strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+		$allowed = $is_dir ? true : in_array( $ext, $exts, true );
+
+		$entry = array(
+			'name'    => (string) $name,
+			'path'    => wpdc_path_to_relative( $child_abs ),
+			'type'    => $is_dir ? 'dir' : 'file',
+			'size'    => $is_dir ? 0 : (int) @filesize( $child_abs ), // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			'mtime'   => (int) @filemtime( $child_abs ), // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			'allowed' => $allowed,
+		);
+
+		$entries[] = $entry;
+	}
+	closedir( $dh );
+
+	// Folders first, then files, each alphabetical (case-insensitive).
+	usort(
+		$entries,
+		static function ( $a, $b ) {
+			if ( $a['type'] !== $b['type'] ) {
+				return 'dir' === $a['type'] ? -1 : 1;
+			}
+			return strcasecmp( $a['name'], $b['name'] );
+		}
+	);
+
+	/**
+	 * Filter the directory entries before returning them.
+	 *
+	 * Plugins can hide rows (e.g. a security plugin censoring its
+	 * own config), prepend virtual entries, or rewrite the
+	 * `allowed` flag to lock down a path.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param array  $entries List of entry arrays.
+	 * @param string $rel     Relative directory path being listed.
+	 * @param string $abs     Absolute directory path.
+	 */
+	$entries = (array) apply_filters( 'wpdc_tree_entries', $entries, $rel, $abs );
+
+	return array(
+		'path'    => wpdc_path_to_relative( $abs ),
+		'entries' => $entries,
+	);
+}
+
+/**
+ * GET /wp-desktop/v1/code/file?path=<rel>
+ *
+ * Returns the file's UTF-8 content + mtime + size. Phase 3 adds a
+ * PUT counterpart that takes `if_unmodified_since: <mtime>` so two
+ * tabs editing the same file can't silently clobber each other.
+ *
+ * Files larger than the threshold are refused — Monaco starts to
+ * struggle past ~5MB and a 50MB file is almost certainly a binary
+ * masquerading as a known extension. Threshold is filterable.
+ *
+ * @since 0.18.0
+ *
+ * @param WP_REST_Request $request
+ * @return array|WP_Error
+ */
+function wpdc_rest_read_file( WP_REST_Request $request ) {
+	$rel = (string) $request->get_param( 'path' );
+	$abs = wpdc_resolve_path( $rel );
+	if ( is_wp_error( $abs ) ) {
+		return $abs;
+	}
+	if ( ! is_file( $abs ) ) {
+		return new WP_Error(
+			'wpdc_not_a_file',
+			__( 'Path is not a file.', 'wp-desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	/**
+	 * Maximum file size (bytes) the editor will read. Default 5 MB.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param int $bytes
+	 */
+	$max_bytes = (int) apply_filters( 'wpdc_max_file_bytes', 5 * 1024 * 1024 );
+	$size      = (int) filesize( $abs );
+	if ( $size > $max_bytes ) {
+		return new WP_Error(
+			'wpdc_file_too_large',
+			sprintf(
+				/* translators: 1: file size, 2: limit. */
+				__( 'File is too large to open in the editor (%1$s bytes; limit %2$s).', 'wp-desktop-mode' ),
+				number_format_i18n( $size ),
+				number_format_i18n( $max_bytes )
+			),
+			array( 'status' => 413, 'size' => $size, 'limit' => $max_bytes )
+		);
+	}
+
+	$content = file_get_contents( $abs ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	if ( false === $content ) {
+		return new WP_Error(
+			'wpdc_file_unreadable',
+			__( 'File is not readable.', 'wp-desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
+
+	// Reject files that aren't valid UTF-8. Binaries (images, fonts)
+	// trip this — the allowlist's mostly-text shape catches them on
+	// extension already, but `*.svg` is the easy escape hatch.
+	if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
+		return new WP_Error(
+			'wpdc_binary_file',
+			__( 'File contents are not valid UTF-8 — the editor only opens text files.', 'wp-desktop-mode' ),
+			array( 'status' => 415 )
+		);
+	}
+
+	return array(
+		'path'     => wpdc_path_to_relative( $abs ),
+		'content'  => $content,
+		'mtime'    => (int) filemtime( $abs ),
+		'size'     => $size,
+		'encoding' => 'utf-8',
+	);
+}

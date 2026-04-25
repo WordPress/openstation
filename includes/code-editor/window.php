@@ -178,6 +178,9 @@ function wpdc_localize_editor_config() {
 		array(
 			'monacoVendorUrl' => wpdc_monaco_vendor_url(),
 			'pluginUrl'       => untrailingslashit( WPDM_URL ),
+			'restNonce'       => wp_create_nonce( 'wp_rest' ),
+			'treeUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/code/tree' ) ),
+			'fileUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/code/file' ) ),
 		)
 	);
 

@@ -42,12 +42,24 @@ import loader from '@monaco-editor/loader';
 
 import type * as Monaco from 'monaco-editor';
 
+/**
+ * Shape of the localized config every editor module reads. Sourced
+ * from `wpdc_localize_editor_config()` in
+ * `includes/code-editor/window.php`. Re-declared here in
+ * `monaco-bootstrap.ts` only — every other module imports the type
+ * to keep one canonical declaration.
+ */
+export interface CodeEditorConfig {
+	monacoVendorUrl: string;
+	pluginUrl: string;
+	restNonce: string;
+	treeUrl: string;
+	fileUrl: string;
+}
+
 declare global {
 	interface Window {
-		wpDesktopCodeEditorConfig?: {
-			monacoVendorUrl: string;
-			pluginUrl: string;
-		};
+		wpDesktopCodeEditorConfig?: CodeEditorConfig;
 	}
 }
 

@@ -66,37 +66,171 @@
 	white-space: pre-wrap;
 }
 
+/* ---------------------------------------------------------------
+ * Phase 2 — two-pane layout: tree | (editor + status bar).
+ * --------------------------------------------------------------- */
+
+.wpdc-editor__split {
+	display: grid;
+	grid-template-columns: 240px 1fr;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+}
+
+.wpdc-editor__tree {
+	overflow: auto;
+	background: #252526; /* Matches Monaco's vs-dark side bar. */
+	border-right: 1px solid #1e1e1e;
+	padding: 8px 0;
+	font-size: 12px;
+	color: #cccccc;
+}
+
+.wpdc-editor__right {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+.wpdc-editor__monaco-host {
+	flex: 1;
+	min-height: 0;
+}
+
+.wpdc-editor__statusbar {
+	flex: 0 0 auto;
+	padding: 4px 12px;
+	background: #007acc;
+	color: #ffffff;
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	border-top: 1px solid #1e1e1e;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wpdc-editor__statusbar--error {
+	background: #be3a31;
+}
+
+/* ---------------------------------------------------------------
+ * File tree.
+ * --------------------------------------------------------------- */
+
+.wpdc-tree {
+	user-select: none;
+}
+
+.wpdc-tree ul {
+	list-style: none;
+	margin: 0;
+	/*
+	 * Padding is intentionally NOT reset here — `.wpdc-tree__root`
+	 * and `.wpdc-tree__children` each set their own. Resetting at
+	 * this level out-specificities the per-class rules and the
+	 * tree paints flat.
+	 */
+}
+
+.wpdc-tree__root {
+	padding: 0 4px;
+}
+
 /*
- * Phase 1b smoke-test surface — a plain language picker between the
- * title bar and the editor. Phase 2 replaces this with the real file
- * tree, so the styling is functional, not load-bearing.
+ * Each nested <ul> indents 16px AND paints a faint vertical guide
+ * line down its left gutter. Guides stack naturally because every
+ * level brings its own background — no depth math, no per-row
+ * inline styles. Same idea VS Code uses for its tree.
  */
-.wpdc-editor__picker {
+.wpdc-tree__children {
+	padding-left: 16px;
+	background-image: linear-gradient(
+		to right,
+		transparent 6px,
+		rgba(255, 255, 255, 0.08) 6px,
+		rgba(255, 255, 255, 0.08) 7px,
+		transparent 7px
+	);
+	background-repeat: repeat-y;
+	background-position: 0 0;
+}
+
+.wpdc-tree__row {
+	margin: 0;
+}
+
+.wpdc-tree__btn {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 6px 10px;
-	background: #252526; /* Matches Monaco's vs-dark side bar. */
-	border-bottom: 1px solid #1e1e1e;
-	font-size: 12px;
-}
-
-.wpdc-editor__picker-label {
-	color: #cccccc;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
-}
-
-.wpdc-editor__picker-select {
-	background: #3c3c3c;
-	color: #cccccc;
-	border: 1px solid #1e1e1e;
-	border-radius: 3px;
+	gap: 4px;
+	width: 100%;
 	padding: 3px 6px;
+	background: transparent;
+	border: 0;
+	color: inherit;
 	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	border-radius: 3px;
 }
 
-.wpdc-editor__picker-select:focus {
+.wpdc-tree__btn:hover {
+	background: #2a2d2e;
+}
+
+.wpdc-tree__btn:focus-visible {
 	outline: 1px solid #007acc;
-	outline-offset: 1px;
+	outline-offset: -1px;
+}
+
+.wpdc-tree__row--active > .wpdc-tree__btn,
+.wpdc-tree__row--active > .wpdc-tree__btn:hover {
+	background: #094771;
+	color: #ffffff;
+}
+
+.wpdc-tree__row--disabled > .wpdc-tree__btn {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.wpdc-tree__caret {
+	display: inline-block;
+	width: 10px;
+	font-size: 9px;
+	color: #969696;
+	flex-shrink: 0;
+}
+
+.wpdc-tree__icon {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	color: #c5c5c5;
+	flex-shrink: 0;
+}
+
+.wpdc-tree__row--dir > .wpdc-tree__btn .wpdc-tree__icon {
+	color: #dcb67a; /* VS Code folder yellow. */
+}
+
+.wpdc-tree__label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpdc-tree__loading,
+.wpdc-tree__error {
+	padding: 4px 8px;
+	color: #969696;
+	font-style: italic;
+}
+
+.wpdc-tree__error {
+	color: #f48771;
 }

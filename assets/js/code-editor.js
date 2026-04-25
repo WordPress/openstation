@@ -1,5 +1,94 @@
 var wpDesktopCodeEditor = function(exports) {
   "use strict";
+  function languageFor(path) {
+    const lower = path.toLowerCase();
+    const dot = lower.lastIndexOf(".");
+    const ext = dot >= 0 ? lower.slice(dot + 1) : "";
+    switch (ext) {
+      case "php":
+        return "php";
+      case "js":
+      case "mjs":
+      case "cjs":
+        return "javascript";
+      case "jsx":
+        return "javascript";
+      case "ts":
+        return "typescript";
+      case "tsx":
+        return "typescript";
+      case "css":
+        return "css";
+      case "scss":
+        return "scss";
+      case "sass":
+        return "scss";
+      case "less":
+        return "less";
+      case "html":
+      case "htm":
+        return "html";
+      case "json":
+        return "json";
+      case "md":
+      case "mdx":
+        return "markdown";
+      case "xml":
+      case "svg":
+        return "xml";
+      case "yml":
+      case "yaml":
+        return "yaml";
+      default:
+        return "plaintext";
+    }
+  }
+  function createModelCache() {
+    const cache = /* @__PURE__ */ new Map();
+    const monacoUriFor = (monaco, path) => {
+      return monaco.Uri.parse(`file:///workspace/${path}`);
+    };
+    return {
+      get(path) {
+        const cached2 = cache.get(path);
+        if (cached2 && !cached2.isDisposed()) {
+          return cached2;
+        }
+        cache.delete(path);
+        return null;
+      },
+      open(monaco, path, content) {
+        const cached2 = cache.get(path);
+        if (cached2 && !cached2.isDisposed()) {
+          if (cached2.getValue() !== content) {
+            cached2.setValue(content);
+          }
+          return cached2;
+        }
+        const uri = monacoUriFor(monaco, path);
+        const existing = monaco.editor.getModel(uri);
+        if (existing) {
+          cache.set(path, existing);
+          return existing;
+        }
+        const model = monaco.editor.createModel(
+          content,
+          languageFor(path),
+          uri
+        );
+        cache.set(path, model);
+        return model;
+      },
+      disposeAll() {
+        for (const model of cache.values()) {
+          if (!model.isDisposed()) {
+            model.dispose();
+          }
+        }
+        cache.clear();
+      }
+    };
+  }
   function _arrayLikeToArray(r, a) {
     (null == a || a > r.length) && (a = r.length);
     for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
@@ -527,321 +616,281 @@ var wpDesktopCodeEditor = function(exports) {
       diagnosticCodesToIgnore: [2307, 2304]
     });
   }
-  const SAMPLES = [
-    {
-      id: "php",
-      label: "PHP",
-      language: "php",
-      uri: "inmemory://samples/sample.php",
-      content: `<?php
-/**
- * Welcome to the WP Desktop Code editor.
- *
- * Phase 1b: TypeScript / JavaScript / CSS / SCSS / HTML / JSON
- * IntelliSense is online (try the language picker above this editor).
- *
- * PHP IntelliSense — including WordPress-aware completion for
- * \`add_action\`, \`wp_get_current_user\`, etc. — lands in Phase 5.
- * For now PHP gets syntax highlighting only.
- */
-
-function wpdc_say_hello( $name = 'world' ) {
-    return sprintf( 'Hello, %s!', sanitize_text_field( $name ) );
-}
-
-add_action( 'init', function () {
-    error_log( wpdc_say_hello( 'WP Desktop Mode' ) );
-} );
-`
-    },
-    {
-      id: "ts",
-      label: "TypeScript",
-      language: "typescript",
-      uri: "inmemory://samples/sample.ts",
-      content: `/**
- * Try typing on a fresh line:
- *
- *   const arr = [1, 2, 3];
- *   arr.|     ← should autocomplete to .map / .filter / .reduce / .length
- *
- * Hover over an identifier to see its inferred type.
- */
-
-interface Plugin {
-	id: string;
-	render: ( body: HTMLElement ) => void;
-}
-
-const plugins: Plugin[] = [
-	{ id: 'jorvy', render: ( body ) => body.append( 'I am Iron Man.' ) },
-];
-
-const ids = plugins.map( ( p ) => p.id ).join( ', ' );
-`
-    },
-    {
-      id: "tsx",
-      label: "TSX (React)",
-      language: "typescript",
-      uri: "inmemory://samples/sample.tsx",
-      content: `/**
- * Try typing inside the JSX:
- *
- *   <div onCl|     ← autocompletes to onClick / onClickCapture
- *   <input ty|     ← autocompletes to type=
- *
- * Hover \`useState\` to see its generic signature.
- */
-
-import * as React from 'react';
-
-interface CounterProps {
-	initial?: number;
-	onChange?: ( value: number ) => void;
-}
-
-export function Counter( { initial = 0, onChange }: CounterProps ) {
-	const [ value, setValue ] = React.useState( initial );
-	return (
-		<div className="counter">
-			<button onClick={ () => {
-				setValue( value + 1 );
-				onChange?.( value + 1 );
-			} }>
-				{ value }
-			</button>
-		</div>
-	);
-}
-`
-    },
-    {
-      id: "js",
-      label: "JavaScript",
-      language: "javascript",
-      uri: "inmemory://samples/sample.js",
-      content: `/**
- * Vanilla JS — JSDoc drives inference even without TS.
- *
- *   const ev = doc.|   ← autocompletes off the inferred Document type.
- */
-
-/** @type {Document} */
-const doc = document;
-
-const links = doc.querySelectorAll( 'a[href^="#"]' );
-links.forEach( ( link ) => {
-	link.addEventListener( 'click', ( e ) => e.preventDefault() );
-} );
-`
-    },
-    {
-      id: "jsx",
-      label: "JSX",
-      language: "javascript",
-      uri: "inmemory://samples/sample.jsx",
-      content: `/**
- * Vanilla JSX (no types, no imports declared in this in-memory
- * file). JSX intrinsics still autocomplete because the TS worker
- * is configured with \`jsx: 'react'\`.
- */
-
-function Greeting( { name } ) {
-	return <h1 className="greet">Hello, { name }!</h1>;
-}
-
-const root = document.getElementById( 'app' );
-// Pretend ReactDOM.render(<Greeting name="World" />, root)
-`
-    },
-    {
-      id: "css",
-      label: "CSS",
-      language: "css",
-      uri: "inmemory://samples/sample.css",
-      content: `/**
- * Try:
- *   - Hover \`#2271b1\` — color preview pops.
- *   - Type \`background-\` on a fresh line — completion lists
- *     background-color, background-image, etc.
- *   - Misspell a property — squiggle.
- */
-
-.wp-desktop-window {
-	box-sizing: border-box;
-	background-color: #2271b1;
-	color: white;
-	padding: 12px;
-	border-radius: 8px;
-}
-
-.wp-desktop-window:hover {
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-`
-    },
-    {
-      id: "scss",
-      label: "SCSS",
-      language: "scss",
-      uri: "inmemory://samples/sample.scss",
-      content: `/**
- * SCSS-specific features the worker validates:
- *   - \`@include\` / \`@mixin\` completion.
- *   - Variable references — type \`$\` to see options.
- *   - Nested selectors collapse + linting.
- */
-
-$accent: #2271b1;
-$radius: 8px;
-
-@mixin elevate( $depth: 2 ) {
-	box-shadow: 0 #{ $depth * 2 }px #{ $depth * 6 }px rgba(0, 0, 0, 0.15);
-}
-
-.wp-desktop-window {
-	background: $accent;
-	border-radius: $radius;
-
-	&:hover {
-		@include elevate( 3 );
-	}
-
-	&__title {
-		font-weight: 600;
-	}
-}
-`
-    },
-    {
-      id: "html",
-      label: "HTML",
-      language: "html",
-      uri: "inmemory://samples/sample.html",
-      content: `<!--
-  Try:
-    - Type < on a fresh line — tag completion.
-    - Inside <style>…</style> the CSS worker takes over.
-    - Inside <script>…<\/script> the JS worker takes over.
--->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>WP Desktop Mode</title>
-	<style>
-		body { font-family: system-ui, sans-serif; margin: 2rem; }
-		h1 { color: #2271b1; }
-	</style>
-</head>
-<body>
-	<h1>Hello, world.</h1>
-	<script>
-		console.log( 'Embedded JS — completion still works here.' );
-	<\/script>
-</body>
-</html>
-`
-    },
-    {
-      id: "json",
-      label: "JSON",
-      language: "json",
-      uri: "inmemory://samples/sample.json",
-      content: `{
-	"name": "wp-desktop-mode",
-	"version": "0.18.0",
-	"description": "Renders the WordPress admin as a desktop OS.",
-	"keywords": [ "wordpress", "admin", "desktop" ],
-	"comment": "Try removing a comma above — the worker will squiggle it."
-}
-`
-    },
-    {
-      id: "md",
-      label: "Markdown",
-      language: "markdown",
-      uri: "inmemory://samples/sample.md",
-      content: `# WP Desktop Code editor
-
-This sample exercises **markdown tokenization**. Monaco doesn't ship
-a markdown language service, so there's no IntelliSense here — just
-paint.
-
-## What's online in Phase 1b
-
-- TypeScript / JavaScript IntelliSense (with JSX/TSX).
-- CSS / SCSS / LESS validation.
-- HTML completion + embedded-language switching.
-- JSON schema-flavored validation.
-
-## What's coming
-
-- Phase 2 — file tree backed by REST.
-- Phase 3 — save flow with WP_Filesystem.
-- Phase 5 — WordPress-aware PHP IntelliSense.
-
-\`\`\`ts
-// Code blocks tokenize with the right language even here.
-const ok: boolean = true;
-\`\`\`
-`
+  class RestError extends Error {
+    constructor(message, code, status, data) {
+      super(message);
+      this.name = "RestError";
+      this.code = code;
+      this.status = status;
+      this.data = data;
     }
-  ];
+  }
+  function getConfig() {
+    const config2 = window.wpDesktopCodeEditorConfig;
+    if (!config2) {
+      throw new Error(
+        "wp-desktop-code-editor: wpDesktopCodeEditorConfig missing — is the editor enqueued?"
+      );
+    }
+    return config2;
+  }
+  async function getJson(url, params, signal) {
+    const config2 = getConfig();
+    const u = new URL(url);
+    for (const [k, v] of Object.entries(params)) {
+      u.searchParams.set(k, v);
+    }
+    const res = await fetch(u.toString(), {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "X-WP-Nonce": config2.restNonce
+      },
+      signal
+    });
+    let body = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
+    }
+    if (!res.ok) {
+      const obj = body ?? {};
+      throw new RestError(
+        obj.message ?? `HTTP ${res.status}`,
+        obj.code ?? "wpdc_http_error",
+        res.status,
+        obj.data ?? null
+      );
+    }
+    return body;
+  }
+  function fetchTree(path, signal) {
+    return getJson(
+      getConfig().treeUrl,
+      { path },
+      signal
+    );
+  }
+  function fetchFile(path, signal) {
+    return getJson(
+      getConfig().fileUrl,
+      { path },
+      signal
+    );
+  }
+  const FOLDER_ICON_CLOSED = "dashicons-category";
+  const FOLDER_ICON_OPEN = "dashicons-portfolio";
+  const FILE_ICON = "dashicons-media-default";
+  const FILE_ICONS_BY_EXT = {
+    php: "dashicons-editor-code",
+    js: "dashicons-editor-code",
+    mjs: "dashicons-editor-code",
+    cjs: "dashicons-editor-code",
+    jsx: "dashicons-editor-code",
+    ts: "dashicons-editor-code",
+    tsx: "dashicons-editor-code",
+    css: "dashicons-art",
+    scss: "dashicons-art",
+    sass: "dashicons-art",
+    less: "dashicons-art",
+    html: "dashicons-html",
+    htm: "dashicons-html",
+    json: "dashicons-media-text",
+    md: "dashicons-media-document",
+    mdx: "dashicons-media-document",
+    svg: "dashicons-format-image",
+    xml: "dashicons-media-text",
+    yml: "dashicons-media-text",
+    yaml: "dashicons-media-text",
+    txt: "dashicons-media-default"
+  };
+  function iconFor(entry, expanded) {
+    if (entry.type === "dir") {
+      return expanded ? FOLDER_ICON_OPEN : FOLDER_ICON_CLOSED;
+    }
+    const dot = entry.name.lastIndexOf(".");
+    const ext = dot >= 0 ? entry.name.slice(dot + 1).toLowerCase() : "";
+    return FILE_ICONS_BY_EXT[ext] ?? FILE_ICON;
+  }
+  function mountFileTree(opts) {
+    const { mount, onOpen } = opts;
+    mount.classList.add("wpdc-tree");
+    mount.replaceChildren();
+    const childrenByPath = /* @__PURE__ */ new Map();
+    const expanded = /* @__PURE__ */ new Set();
+    const inflight = /* @__PURE__ */ new Map();
+    const renderRow = (entry) => {
+      const li = document.createElement("li");
+      li.className = `wpdc-tree__row wpdc-tree__row--${entry.type}`;
+      if (!entry.allowed && entry.type === "file") {
+        li.classList.add("wpdc-tree__row--disabled");
+      }
+      li.dataset.path = entry.path;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "wpdc-tree__btn";
+      if (!entry.allowed && entry.type === "file") {
+        button.disabled = true;
+        button.title = "File extension is not in the editor allowlist.";
+      }
+      const caret = document.createElement("span");
+      caret.className = "wpdc-tree__caret";
+      caret.textContent = entry.type === "dir" ? "▸" : "";
+      const icon = document.createElement("span");
+      icon.className = `wpdc-tree__icon dashicons ${iconFor(entry, false)}`;
+      icon.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.className = "wpdc-tree__label";
+      label.textContent = entry.name;
+      button.append(caret, icon, label);
+      li.append(button);
+      if (entry.type === "file") {
+        button.addEventListener("click", () => {
+          if (!entry.allowed) {
+            return;
+          }
+          mount.querySelectorAll(".wpdc-tree__row--active").forEach(
+            (el) => el.classList.remove("wpdc-tree__row--active")
+          );
+          li.classList.add("wpdc-tree__row--active");
+          onOpen(entry.path);
+        });
+        return li;
+      }
+      const childUl = document.createElement("ul");
+      childUl.className = "wpdc-tree__children";
+      childUl.hidden = true;
+      li.append(childUl);
+      const setExpanded = (open) => {
+        caret.textContent = open ? "▾" : "▸";
+        icon.className = `wpdc-tree__icon dashicons ${iconFor(entry, open)}`;
+        childUl.hidden = !open;
+        button.setAttribute("aria-expanded", open ? "true" : "false");
+      };
+      button.addEventListener("click", async () => {
+        if (expanded.has(entry.path)) {
+          expanded.delete(entry.path);
+          setExpanded(false);
+          inflight.get(entry.path)?.abort();
+          inflight.delete(entry.path);
+          return;
+        }
+        expanded.add(entry.path);
+        setExpanded(true);
+        if (childrenByPath.has(entry.path)) {
+          return;
+        }
+        const ac = new AbortController();
+        inflight.set(entry.path, ac);
+        try {
+          const placeholder = document.createElement("li");
+          placeholder.className = "wpdc-tree__loading";
+          placeholder.textContent = "Loading…";
+          childUl.append(placeholder);
+          const resp = await fetchTree(entry.path, ac.signal);
+          childUl.replaceChildren();
+          for (const child of resp.entries) {
+            childUl.append(renderRow(child));
+          }
+          childrenByPath.set(entry.path, childUl);
+        } catch (err) {
+          if (err.name === "AbortError") {
+            return;
+          }
+          childUl.replaceChildren();
+          const errorRow = document.createElement("li");
+          errorRow.className = "wpdc-tree__error";
+          errorRow.textContent = err instanceof Error ? err.message : "Failed to load";
+          childUl.append(errorRow);
+        } finally {
+          inflight.delete(entry.path);
+        }
+      });
+      setExpanded(false);
+      return li;
+    };
+    const rootUl = document.createElement("ul");
+    rootUl.className = "wpdc-tree__root";
+    mount.append(rootUl);
+    const loading = document.createElement("li");
+    loading.className = "wpdc-tree__loading";
+    loading.textContent = "Loading workspace…";
+    rootUl.append(loading);
+    const rootController = new AbortController();
+    void (async () => {
+      try {
+        const resp = await fetchTree("", rootController.signal);
+        rootUl.replaceChildren();
+        for (const entry of resp.entries) {
+          rootUl.append(renderRow(entry));
+        }
+      } catch (err) {
+        if (err.name === "AbortError") {
+          return;
+        }
+        rootUl.replaceChildren();
+        const errorRow = document.createElement("li");
+        errorRow.className = "wpdc-tree__error";
+        errorRow.textContent = err instanceof Error ? err.message : "Failed to load workspace";
+        rootUl.append(errorRow);
+      }
+    })();
+    return {
+      dispose() {
+        rootController.abort();
+        for (const ac of inflight.values()) {
+          ac.abort();
+        }
+        inflight.clear();
+        childrenByPath.clear();
+        expanded.clear();
+        mount.replaceChildren();
+      }
+    };
+  }
   const ROOT_SELECTOR = "[data-wpdc-editor-root]";
   const MONACO_MOUNT_SELECTOR = "[data-wpdc-editor-monaco]";
   const LOADING_CLASS = "wpdc-editor--loading";
   const ERROR_CLASS = "wpdc-editor--error";
-  const modelCache = /* @__PURE__ */ new Map();
-  function getOrCreateModel(monaco, sample) {
-    const cached2 = modelCache.get(sample.id);
-    if (cached2 && !cached2.isDisposed()) {
-      return cached2;
-    }
-    const uri = monaco.Uri.parse(sample.uri);
-    const existing = monaco.editor.getModel(uri);
-    if (existing) {
-      modelCache.set(sample.id, existing);
-      return existing;
-    }
-    const model = monaco.editor.createModel(sample.content, sample.language, uri);
-    modelCache.set(sample.id, model);
-    return model;
+  function buildShell(root, monacoSlot) {
+    root.classList.add("wpdc-editor--phase2");
+    const split = document.createElement("div");
+    split.className = "wpdc-editor__split";
+    const treeMount = document.createElement("div");
+    treeMount.className = "wpdc-editor__tree";
+    const right = document.createElement("div");
+    right.className = "wpdc-editor__right";
+    const editorMount = document.createElement("div");
+    editorMount.className = "wpdc-editor__monaco-host";
+    const statusBar = document.createElement("div");
+    statusBar.className = "wpdc-editor__statusbar";
+    statusBar.textContent = "Select a file from the tree.";
+    right.append(editorMount, statusBar);
+    split.append(treeMount, right);
+    monacoSlot.replaceChildren(split);
+    return { treeMount, editorMount, statusBar };
   }
-  function buildLanguagePicker(current, onPick) {
-    const wrap = document.createElement("div");
-    wrap.className = "wpdc-editor__picker";
-    const label = document.createElement("label");
-    label.className = "wpdc-editor__picker-label";
-    label.textContent = "Sample";
-    const select = document.createElement("select");
-    select.className = "wpdc-editor__picker-select";
-    for (const sample of SAMPLES) {
-      const opt = document.createElement("option");
-      opt.value = sample.id;
-      opt.textContent = sample.label;
-      if (sample.id === current.id) {
-        opt.selected = true;
-      }
-      select.appendChild(opt);
+  function formatBytes(n) {
+    if (n < 1024) {
+      return `${n} B`;
     }
-    select.addEventListener("change", () => {
-      const next = SAMPLES.find((s) => s.id === select.value);
-      if (next) {
-        onPick(next);
-      }
-    });
-    const id = `wpdc-editor-picker-${Math.random().toString(36).slice(2, 8)}`;
-    select.id = id;
-    label.htmlFor = id;
-    wrap.append(label, select);
-    return wrap;
+    if (n < 1024 * 1024) {
+      return `${(n / 1024).toFixed(1)} KB`;
+    }
+    return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  function formatMtime(mtime) {
+    if (!mtime) {
+      return "";
+    }
+    return new Date(mtime * 1e3).toLocaleString();
   }
   async function renderEditor(body) {
     const root = body.querySelector(ROOT_SELECTOR);
-    const mount = body.querySelector(MONACO_MOUNT_SELECTOR);
-    if (!root || !mount) {
+    const monacoSlot = body.querySelector(MONACO_MOUNT_SELECTOR);
+    if (!root || !monacoSlot) {
       console.error(
         "[wp-desktop-code-editor] Template mount nodes missing; ensure wpdc_render_editor_template ran."
       );
@@ -853,25 +902,85 @@ const ok: boolean = true;
     } catch (err) {
       root.classList.remove(LOADING_CLASS);
       root.classList.add(ERROR_CLASS);
-      mount.textContent = err instanceof Error ? err.message : "Failed to load Monaco.";
+      monacoSlot.textContent = err instanceof Error ? err.message : "Failed to load Monaco.";
       return;
     }
-    let active = SAMPLES.find((s) => s.id === "php") ?? SAMPLES[0];
-    const editor = monaco.editor.create(mount, {
-      model: getOrCreateModel(monaco, active),
+    const { treeMount, editorMount, statusBar } = buildShell(root, monacoSlot);
+    const placeholder = monaco.editor.createModel(
+      "// Click a file in the tree to open it.\n",
+      "plaintext"
+    );
+    const editor = monaco.editor.create(editorMount, {
+      model: placeholder,
       theme: "vs-dark",
       automaticLayout: true,
       minimap: { enabled: true },
       fontSize: 13,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-      readOnly: false,
+      // Phase 2 is read-only; Phase 3 flips this to false +
+      // enables the save flow.
+      readOnly: true,
       scrollBeyondLastLine: false
     });
-    const picker = buildLanguagePicker(active, (next) => {
-      active = next;
-      editor.setModel(getOrCreateModel(monaco, next));
+    const models = createModelCache();
+    const inflight = /* @__PURE__ */ new Map();
+    let activeRequest = null;
+    const setStatus = (text, kind = "info") => {
+      statusBar.textContent = text;
+      statusBar.classList.toggle(
+        "wpdc-editor__statusbar--error",
+        kind === "error"
+      );
+    };
+    const openFile = async (path) => {
+      activeRequest?.abort();
+      const ac = new AbortController();
+      activeRequest = ac;
+      inflight.set(path, ac);
+      const fast = models.get(path);
+      if (fast) {
+        editor.setModel(fast);
+        setStatus(
+          `${path} · ${languageFor(path)} · cached`
+        );
+      }
+      setStatus(`${path} · loading…`);
+      try {
+        const file = await fetchFile(path, ac.signal);
+        if (ac.signal.aborted) {
+          return;
+        }
+        const model = models.open(monaco, path, file.content);
+        editor.setModel(model);
+        setStatus(
+          `${path} · ${languageFor(path)} · ${formatBytes(
+            file.size
+          )} · ${formatMtime(file.mtime)}`
+        );
+      } catch (err) {
+        if (err.name === "AbortError") {
+          return;
+        }
+        let msg = "Failed to open file.";
+        if (err instanceof RestError) {
+          msg = `${err.code} — ${err.message}`;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        setStatus(msg, "error");
+      } finally {
+        inflight.delete(path);
+        if (activeRequest === ac) {
+          activeRequest = null;
+        }
+      }
+    };
+    mountFileTree({
+      mount: treeMount,
+      onOpen: (path) => {
+        void openFile(path);
+      }
     });
-    root.insertBefore(picker, mount);
     root.classList.remove(LOADING_CLASS);
   }
   const registry = window.wpDesktopNativeWindows ?? (window.wpDesktopNativeWindows = {});
