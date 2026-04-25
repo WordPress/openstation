@@ -125,6 +125,50 @@ function wpdc_register_editor_rest_routes() {
 
 	register_rest_route(
 		WPDC_REST_NAMESPACE,
+		'/code/php-symbols',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => wpdc_rest_handler( 'wpdc_rest_php_symbols' ),
+			'permission_callback' => 'wpdc_rest_permission',
+			'args'                => array(
+				'prefix' => array(
+					'required' => false,
+					'type'     => 'string',
+					'default'  => '',
+				),
+				'kinds'  => array(
+					'required'    => false,
+					'type'        => 'string',
+					'default'     => '',
+					'description' => 'Comma-separated subset of {function,action,filter}. Empty = all.',
+				),
+				'limit'  => array(
+					'required' => false,
+					'type'     => 'integer',
+					'default'  => 50,
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		WPDC_REST_NAMESPACE,
+		'/code/php-symbols/(?P<name>[A-Za-z0-9_\\-/.]+)',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => wpdc_rest_handler( 'wpdc_rest_php_symbol_detail' ),
+			'permission_callback' => 'wpdc_rest_permission',
+			'args'                => array(
+				'name' => array(
+					'required' => true,
+					'type'     => 'string',
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		WPDC_REST_NAMESPACE,
 		'/code/file',
 		array(
 			array(
@@ -467,4 +511,98 @@ function wpdc_rest_write_file( WP_REST_Request $request ) {
 	$expected_mtime = (int) $request->get_param( 'mtime' );
 
 	return wpdc_write_file( $abs, $content, $expected_mtime );
+}
+
+/**
+ * GET /wp-desktop/v1/code/php-symbols?prefix=&kinds=&limit=
+ *
+ * Prefix-matches the WP core symbol index (functions + hooks). Used
+ * by Monaco's PHP completion provider; cap-bounded at 50 matches by
+ * default so the dropdown never gets unwieldy.
+ *
+ * `kinds` is comma-separated — `function`, `action`, `filter`.
+ * Empty (default) returns all kinds. Pass e.g. `kinds=action,filter`
+ * inside an `add_action( '|` context for hook-only completion.
+ *
+ * @since 0.18.0
+ *
+ * @param WP_REST_Request $request
+ * @return array
+ */
+function wpdc_rest_php_symbols( WP_REST_Request $request ) {
+	$prefix = (string) $request->get_param( 'prefix' );
+	$kinds_raw = (string) $request->get_param( 'kinds' );
+	$limit  = (int) $request->get_param( 'limit' );
+
+	$kinds = array();
+	if ( '' !== $kinds_raw ) {
+		foreach ( explode( ',', $kinds_raw ) as $k ) {
+			$k = strtolower( trim( $k ) );
+			if ( in_array( $k, array( 'function', 'action', 'filter' ), true ) ) {
+				$kinds[] = $k;
+			}
+		}
+	}
+
+	/**
+	 * Filterable max result count — completion dropdowns past 50
+	 * become hard to scan.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param int $limit
+	 */
+	$limit = (int) apply_filters( 'wpdc_php_completion_max_results', $limit > 0 ? $limit : 50 );
+
+	$matches = wpdc_query_php_symbols( $prefix, $kinds, $limit );
+
+	// Trim heavy fields for the list response — Monaco doesn't need
+	// the full PHPDoc until the user hovers, and doc strings dominate
+	// the JSON size. Hover route returns the fat shape.
+	$out = array();
+	foreach ( $matches as $entry ) {
+		$out[] = array(
+			'name'      => $entry['name'],
+			'kind'      => $entry['kind'],
+			'signature' => $entry['signature'] ?? $entry['name'],
+			'since'     => $entry['since'] ?? '',
+			'source'    => $entry['source'] ?? '',
+		);
+	}
+
+	return array(
+		'prefix'  => $prefix,
+		'kinds'   => $kinds,
+		'count'   => count( $out ),
+		'matches' => $out,
+	);
+}
+
+/**
+ * GET /wp-desktop/v1/code/php-symbols/<name>
+ *
+ * Returns the full record for a single symbol — including the PHPDoc
+ * summary, parameters, and source location. Used by Monaco's hover
+ * provider lazily (on user hover, not on every keystroke).
+ *
+ * @since 0.18.0
+ *
+ * @param WP_REST_Request $request
+ * @return array|WP_Error
+ */
+function wpdc_rest_php_symbol_detail( WP_REST_Request $request ) {
+	$name = (string) $request->get_param( 'name' );
+	$entry = wpdc_get_php_symbol( $name );
+	if ( null === $entry ) {
+		return new WP_Error(
+			'wpdc_symbol_not_found',
+			sprintf(
+				/* translators: %s: symbol name. */
+				__( 'No PHP symbol matches "%s".', 'wp-desktop-mode' ),
+				$name
+			),
+			array( 'status' => 404 )
+		);
+	}
+	return $entry;
 }

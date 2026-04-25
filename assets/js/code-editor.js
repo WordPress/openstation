@@ -608,78 +608,6 @@ var wpDesktopCodeEditor = function(exports) {
     init,
     __getMonacoInstance
   };
-  let cached = null;
-  let pending = null;
-  function installWorkerEnvironment(monacoVendorUrl) {
-    const workerMainUrl = `${monacoVendorUrl}/base/worker/workerMain.js`;
-    const baseUrl = monacoVendorUrl.replace(/\/vs$/, "");
-    const proxy = `
-		self.MonacoEnvironment = { baseUrl: '${baseUrl}' };
-		importScripts('${workerMainUrl}');
-	`;
-    self.MonacoEnvironment = {
-      getWorkerUrl: () => URL.createObjectURL(
-        new Blob([proxy], { type: "text/javascript" })
-      )
-    };
-  }
-  async function loadMonaco() {
-    if (cached) {
-      return cached;
-    }
-    if (pending) {
-      return pending;
-    }
-    const config2 = window.wpDesktopCodeEditorConfig;
-    if (!config2?.monacoVendorUrl) {
-      throw new Error(
-        "wp-desktop-code-editor: monacoVendorUrl missing from wpDesktopCodeEditorConfig — is window.php enqueued?"
-      );
-    }
-    installWorkerEnvironment(config2.monacoVendorUrl);
-    loader.config({
-      paths: { vs: config2.monacoVendorUrl }
-    });
-    pending = loader.init().then((monaco) => {
-      cached = monaco;
-      configureLanguageServices(cached);
-      return cached;
-    });
-    return pending;
-  }
-  function configureLanguageServices(monaco) {
-    const ts = monaco.languages.typescript;
-    const compilerOptions = {
-      target: ts.ScriptTarget.ES2020,
-      module: ts.ModuleKind.ESNext,
-      jsx: ts.JsxEmit.React,
-      jsxFactory: "React.createElement",
-      jsxFragmentFactory: "React.Fragment",
-      moduleResolution: ts.ModuleResolutionKind.NodeJs,
-      allowJs: true,
-      allowNonTsExtensions: true,
-      esModuleInterop: true,
-      isolatedModules: true,
-      resolveJsonModule: true,
-      strict: false
-    };
-    ts.typescriptDefaults.setCompilerOptions(compilerOptions);
-    ts.javascriptDefaults.setCompilerOptions(compilerOptions);
-    ts.typescriptDefaults.setDiagnosticsOptions({
-      noSemanticValidation: false,
-      noSyntaxValidation: false,
-      // 2307 — "Cannot find module 'X'": single-file context, almost
-      // always noise. Re-enable once Phase 2's file tree gives the
-      // worker a project to resolve against.
-      // 2304 — "Cannot find name 'X'": same.
-      diagnosticCodesToIgnore: [2307, 2304]
-    });
-    ts.javascriptDefaults.setDiagnosticsOptions({
-      noSemanticValidation: false,
-      noSyntaxValidation: false,
-      diagnosticCodesToIgnore: [2307, 2304]
-    });
-  }
   class RestError extends Error {
     constructor(message, code, status, data) {
       super(message);
@@ -744,6 +672,46 @@ var wpDesktopCodeEditor = function(exports) {
       signal
     );
   }
+  function fetchPhpSymbols(prefix, kinds, signal) {
+    const params = { prefix };
+    if (kinds.length > 0) {
+      params.kinds = kinds.join(",");
+    }
+    return getJson(
+      getConfig().phpSymbolsUrl,
+      params,
+      signal
+    );
+  }
+  async function fetchPhpSymbolDetail(name, signal) {
+    const config2 = getConfig();
+    const url = config2.phpSymbolUrl + encodeURIComponent(name);
+    const res = await fetch(url, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "X-WP-Nonce": config2.restNonce
+      },
+      signal
+    });
+    let body = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
+    }
+    if (!res.ok) {
+      const obj = body ?? {};
+      throw new RestError(
+        obj.message ?? `HTTP ${res.status}`,
+        obj.code ?? "wpdc_http_error",
+        res.status,
+        null
+      );
+    }
+    return body;
+  }
   function utf8ToBase64(str) {
     const bytes = new TextEncoder().encode(str);
     let bin = "";
@@ -785,6 +753,283 @@ var wpDesktopCodeEditor = function(exports) {
       );
     }
     return body;
+  }
+  function detectHookContext(textBefore) {
+    const action = textBefore.match(
+      /(add_action|do_action|do_action_ref_array)\s*\(\s*(['"])([^'"]*)$/
+    );
+    if (action) {
+      return { kind: "hook", hookKind: "action", prefix: action[3] };
+    }
+    const filter = textBefore.match(
+      /(add_filter|apply_filters|apply_filters_ref_array)\s*\(\s*(['"])([^'"]*)$/
+    );
+    if (filter) {
+      return { kind: "hook", hookKind: "filter", prefix: filter[3] };
+    }
+    return null;
+  }
+  function detectIdentifierPrefix(textBefore) {
+    const m = textBefore.match(/([A-Za-z_][A-Za-z0-9_]*)$/);
+    return m ? m[1] : "";
+  }
+  function detectContext(textBefore) {
+    const hook = detectHookContext(textBefore);
+    if (hook) {
+      return hook;
+    }
+    const prefix = detectIdentifierPrefix(textBefore);
+    if (!prefix) {
+      return null;
+    }
+    return { kind: "general", prefix };
+  }
+  function entryToCompletionItem(monaco, entry, range, context) {
+    const isHook = entry.kind === "action" || entry.kind === "filter";
+    let detail = entry.signature;
+    if (entry.kind !== "function") {
+      const label = entry.kind === "action" ? "Action" : "Filter";
+      detail = entry.since ? `${label} · since ${entry.since}` : label;
+    }
+    const insertText = isHook ? entry.name : `${entry.name}($0)`;
+    const insertTextRules = isHook ? monaco.languages.CompletionItemInsertTextRule.None : monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet;
+    const kind = entry.kind === "function" ? monaco.languages.CompletionItemKind.Function : monaco.languages.CompletionItemKind.Event;
+    return {
+      label: entry.name,
+      kind,
+      detail,
+      insertText,
+      insertTextRules,
+      range,
+      // Defer doc fetch to resolution time so the dropdown isn't
+      // blocked on N hover-doc roundtrips. Monaco calls
+      // `resolveCompletionItem` only when the user actually
+      // selects/hovers a row.
+      documentation: void 0,
+      // Sort hooks above functions when in a hook context so the
+      // list reflects what the user is actually typing toward.
+      sortText: context.kind === "hook" && isHook ? `0_${entry.name}` : `1_${entry.name}`
+    };
+  }
+  class CancellableLatest {
+    constructor() {
+      this.active = null;
+    }
+    async run(fn) {
+      this.active?.abort();
+      const ac = new AbortController();
+      this.active = ac;
+      try {
+        const result = await fn(ac.signal);
+        if (ac.signal.aborted) {
+          return null;
+        }
+        return result;
+      } catch (err) {
+        if (err.name === "AbortError") {
+          return null;
+        }
+        throw err;
+      } finally {
+        if (this.active === ac) {
+          this.active = null;
+        }
+      }
+    }
+  }
+  function registerPhpProviders(monaco) {
+    const w = window;
+    if (w.__wpdcPhpProvidersRegistered) {
+      return;
+    }
+    w.__wpdcPhpProvidersRegistered = true;
+    const completionLatest = new CancellableLatest();
+    const detailLatest = new CancellableLatest();
+    monaco.languages.registerCompletionItemProvider("php", {
+      // Trigger after every keystroke that could continue an
+      // identifier, plus the quote characters that open hook names.
+      triggerCharacters: [
+        "_",
+        "'",
+        '"',
+        ..."abcdefghijklmnopqrstuvwxyz".split("")
+      ],
+      async provideCompletionItems(model, position) {
+        const textBefore = model.getValueInRange({
+          startLineNumber: position.lineNumber,
+          startColumn: 1,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column
+        });
+        const ctx = detectContext(textBefore);
+        if (!ctx) {
+          return { suggestions: [] };
+        }
+        const minLen = ctx.kind === "hook" ? 0 : 2;
+        if (ctx.prefix.length < minLen) {
+          return { suggestions: [] };
+        }
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
+        let kinds = [];
+        if (ctx.kind === "hook") {
+          kinds = ctx.hookKind === "action" ? ["action"] : ["filter"];
+        }
+        const matches = await completionLatest.run(
+          (signal) => fetchPhpSymbols(ctx.prefix, kinds, signal).then(
+            (r) => r.matches
+          )
+        );
+        if (!matches) {
+          return { suggestions: [] };
+        }
+        return {
+          suggestions: matches.map(
+            (entry) => entryToCompletionItem(monaco, entry, range, ctx)
+          ),
+          incomplete: matches.length >= 50
+        };
+      },
+      async resolveCompletionItem(item) {
+        try {
+          const label = typeof item.label === "string" ? item.label : item.label.label;
+          const detail = await fetchPhpSymbolDetail(label);
+          let documentation = item.documentation;
+          if (detail.doc) {
+            const sincePrefix = detail.since ? `_Since ${detail.since}._
+
+` : "";
+            const sourceSuffix = detail.source ? `
+
+— \`${detail.source}\`` : "";
+            documentation = {
+              value: sincePrefix + detail.doc + sourceSuffix
+            };
+          }
+          return {
+            ...item,
+            detail: detail.signature || item.detail,
+            documentation
+          };
+        } catch {
+          return item;
+        }
+      }
+    });
+    monaco.languages.registerHoverProvider("php", {
+      async provideHover(model, position) {
+        const word = model.getWordAtPosition(position);
+        if (!word || !word.word) {
+          return null;
+        }
+        const detail = await detailLatest.run(
+          (signal) => fetchPhpSymbolDetail(word.word, signal).then((d) => ({
+            doc: d.doc,
+            signature: d.signature,
+            since: d.since
+          })).catch((err) => {
+            if (err instanceof RestError && err.status === 404) {
+              return null;
+            }
+            throw err;
+          })
+        );
+        if (!detail) {
+          return null;
+        }
+        return {
+          range: {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn
+          },
+          contents: [
+            { value: "```php\n" + detail.signature + "\n```" },
+            ...detail.since ? [{ value: `_Since ${detail.since}._` }] : [],
+            ...detail.doc ? [{ value: detail.doc }] : []
+          ]
+        };
+      }
+    });
+  }
+  let cached = null;
+  let pending = null;
+  function installWorkerEnvironment(monacoVendorUrl) {
+    const workerMainUrl = `${monacoVendorUrl}/base/worker/workerMain.js`;
+    const baseUrl = monacoVendorUrl.replace(/\/vs$/, "");
+    const proxy = `
+		self.MonacoEnvironment = { baseUrl: '${baseUrl}' };
+		importScripts('${workerMainUrl}');
+	`;
+    self.MonacoEnvironment = {
+      getWorkerUrl: () => URL.createObjectURL(
+        new Blob([proxy], { type: "text/javascript" })
+      )
+    };
+  }
+  async function loadMonaco() {
+    if (cached) {
+      return cached;
+    }
+    if (pending) {
+      return pending;
+    }
+    const config2 = window.wpDesktopCodeEditorConfig;
+    if (!config2?.monacoVendorUrl) {
+      throw new Error(
+        "wp-desktop-code-editor: monacoVendorUrl missing from wpDesktopCodeEditorConfig — is window.php enqueued?"
+      );
+    }
+    installWorkerEnvironment(config2.monacoVendorUrl);
+    loader.config({
+      paths: { vs: config2.monacoVendorUrl }
+    });
+    pending = loader.init().then((monaco) => {
+      cached = monaco;
+      configureLanguageServices(cached);
+      registerPhpProviders(cached);
+      return cached;
+    });
+    return pending;
+  }
+  function configureLanguageServices(monaco) {
+    const ts = monaco.languages.typescript;
+    const compilerOptions = {
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.ESNext,
+      jsx: ts.JsxEmit.React,
+      jsxFactory: "React.createElement",
+      jsxFragmentFactory: "React.Fragment",
+      moduleResolution: ts.ModuleResolutionKind.NodeJs,
+      allowJs: true,
+      allowNonTsExtensions: true,
+      esModuleInterop: true,
+      isolatedModules: true,
+      resolveJsonModule: true,
+      strict: false
+    };
+    ts.typescriptDefaults.setCompilerOptions(compilerOptions);
+    ts.javascriptDefaults.setCompilerOptions(compilerOptions);
+    ts.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+      // 2307 — "Cannot find module 'X'": single-file context, almost
+      // always noise. Re-enable once Phase 2's file tree gives the
+      // worker a project to resolve against.
+      // 2304 — "Cannot find name 'X'": same.
+      diagnosticCodesToIgnore: [2307, 2304]
+    });
+    ts.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+      diagnosticCodesToIgnore: [2307, 2304]
+    });
   }
   function showConfirm(args) {
     return new Promise((resolve) => {

@@ -40,6 +40,8 @@
 
 import loader from '@monaco-editor/loader';
 
+import { registerPhpProviders } from './providers/php';
+
 import type * as Monaco from 'monaco-editor';
 
 /**
@@ -55,6 +57,8 @@ export interface CodeEditorConfig {
 	restNonce: string;
 	treeUrl: string;
 	fileUrl: string;
+	phpSymbolsUrl: string;
+	phpSymbolUrl: string;
 }
 
 declare global {
@@ -137,6 +141,7 @@ export async function loadMonaco(): Promise< typeof Monaco > {
 	pending = loader.init().then( ( monaco ) => {
 		cached = monaco as unknown as typeof Monaco;
 		configureLanguageServices( cached );
+		registerPhpProviders( cached );
 		return cached;
 	} );
 

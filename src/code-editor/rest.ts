@@ -132,6 +132,107 @@ export function fetchFile(
 	);
 }
 
+// ---------------------------------------------------------------------------
+// PHP symbol lookup
+// ---------------------------------------------------------------------------
+
+export type PhpSymbolKind = 'function' | 'action' | 'filter' | 'class' | 'constant';
+
+/** List-mode entry — trim shape, no full PHPDoc. */
+export interface PhpSymbolMatch {
+	name: string;
+	kind: PhpSymbolKind;
+	signature: string;
+	since: string;
+	source: string;
+}
+
+export interface PhpSymbolsResponse {
+	prefix: string;
+	kinds: PhpSymbolKind[];
+	count: number;
+	matches: PhpSymbolMatch[];
+}
+
+/** Detail-mode entry — full PHPDoc + parameter list. */
+export interface PhpSymbolDetail extends PhpSymbolMatch {
+	doc: string;
+	params?: Array< {
+		name: string;
+		optional: boolean;
+		default: string | null;
+		variadic: boolean;
+		by_ref: boolean;
+		type: string | null;
+	} >;
+}
+
+/**
+ * GET /wp-desktop/v1/code/php-symbols?prefix=…&kinds=…
+ *
+ * Returns the trimmed list shape (no full doc strings) — Monaco
+ * fetches the heavy `PhpSymbolDetail` lazily via {@link fetchPhpSymbolDetail}
+ * only when the user hovers / requests resolve.
+ */
+export function fetchPhpSymbols(
+	prefix: string,
+	kinds: PhpSymbolKind[],
+	signal?: AbortSignal,
+): Promise< PhpSymbolsResponse > {
+	const params: Record< string, string > = { prefix };
+	if ( kinds.length > 0 ) {
+		params.kinds = kinds.join( ',' );
+	}
+	return getJson< PhpSymbolsResponse >(
+		getConfig().phpSymbolsUrl,
+		params,
+		signal,
+	);
+}
+
+/**
+ * GET /wp-desktop/v1/code/php-symbols/<name>
+ *
+ * Full record for one symbol — PHPDoc summary, parameters, source.
+ * Drives the hover popover.
+ */
+export async function fetchPhpSymbolDetail(
+	name: string,
+	signal?: AbortSignal,
+): Promise< PhpSymbolDetail > {
+	const config = getConfig();
+	const url = config.phpSymbolUrl + encodeURIComponent( name );
+
+	const res = await fetch( url, {
+		method: 'GET',
+		credentials: 'same-origin',
+		headers: {
+			Accept: 'application/json',
+			'X-WP-Nonce': config.restNonce,
+		},
+		signal,
+	} );
+
+	let body: unknown = null;
+	try {
+		body = await res.json();
+	} catch {
+		body = null;
+	}
+
+	if ( ! res.ok ) {
+		const obj = ( body ?? {} ) as { code?: string; message?: string };
+		throw new RestError(
+			obj.message ?? `HTTP ${ res.status }`,
+			obj.code ?? 'wpdc_http_error',
+			res.status,
+			null,
+		);
+	}
+
+	return body as PhpSymbolDetail;
+}
+
 /** Server's response to a successful save. */
 export interface SaveResponse {
 	path: string;

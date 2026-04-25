@@ -181,6 +181,8 @@ function wpdc_localize_editor_config() {
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'treeUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/code/tree' ) ),
 			'fileUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/code/file' ) ),
+			'phpSymbolsUrl'   => esc_url_raw( rest_url( 'wp-desktop/v1/code/php-symbols' ) ),
+			'phpSymbolUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/code/php-symbols/' ) ),
 		)
 	);
 

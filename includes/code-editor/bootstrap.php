@@ -22,4 +22,5 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/window.php';
 require_once __DIR__ . '/filesystem.php';
+require_once __DIR__ . '/php-indexer.php';
 require_once __DIR__ . '/rest.php';
