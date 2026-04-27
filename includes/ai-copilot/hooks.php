@@ -82,6 +82,7 @@ function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
 				@set_time_limit( 120 ); // phpcs:ignore
 			}
 
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- generic dispatcher; caller passes a desktop_mode_* hook name.
 			do_action_ref_array( $hook, $args );
 		},
 		PHP_INT_MAX

@@ -110,14 +110,21 @@ function desktop_mode_bootstrap_admin_menu_for_rest() {
 		return;
 	}
 
+	// Polyfill core admin-context constants when this code runs outside
+	// of a true admin request (e.g. the portal handler bootstrapping the
+	// menu before WP has initialised admin context). Each is guarded by
+	// `! defined()` so we only set them if WP itself hasn't.
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WP core constant polyfill.
 	if ( ! defined( 'WP_ADMIN' ) ) {
-		define( 'WP_ADMIN', true );
+		define( 'WP_ADMIN', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WP core constant polyfill.
 	}
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WP core constant polyfill.
 	if ( ! defined( 'WP_NETWORK_ADMIN' ) ) {
-		define( 'WP_NETWORK_ADMIN', false );
+		define( 'WP_NETWORK_ADMIN', false ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WP core constant polyfill.
 	}
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WP core constant polyfill.
 	if ( ! defined( 'WP_USER_ADMIN' ) ) {
-		define( 'WP_USER_ADMIN', false );
+		define( 'WP_USER_ADMIN', false ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WP core constant polyfill.
 	}
 
 	// `add_menu_page` + friends live in admin/includes; a plugin's

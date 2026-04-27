@@ -1767,7 +1767,7 @@ add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
  *
  * ```php
  * add_action( 'admin_enqueue_scripts', function () {
- *     wp_enqueue_desktop_script(
+ *     desktop_mode_enqueue_script(
  *         'my-plugin',
  *         plugins_url( 'my-plugin.js', __FILE__ ),
  *         array(),           // extra deps on top of the desktop defaults
@@ -1790,7 +1790,7 @@ add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
  *                                   to `true` — the shell is always in head.
  * @return void
  */
-function wp_enqueue_desktop_script( $handle, $src, $extra_deps = array(), $version = null, $in_footer = true ) {
+function desktop_mode_enqueue_script( $handle, $src, $extra_deps = array(), $version = null, $in_footer = true ) {
 	$deps = array_merge(
 		array( 'wp-desktop', 'wp-hooks' ),
 		is_array( $extra_deps ) ? $extra_deps : array()
