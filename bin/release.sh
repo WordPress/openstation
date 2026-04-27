@@ -33,11 +33,15 @@ fi
 
 # Refuse to clobber an existing release.
 if git rev-parse "$tag" >/dev/null 2>&1; then
-	echo "error: tag $tag already exists locally. Delete it or choose a different version." >&2
+	echo "error: tag $tag already exists locally." >&2
+	echo "  delete it with:  git tag -d $tag" >&2
+	echo "  or choose a different version." >&2
 	exit 1
 fi
 if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-	echo "error: tag $tag already exists on origin. Choose a different version." >&2
+	echo "error: tag $tag already exists on origin." >&2
+	echo "  delete it with:  git push --delete origin $tag" >&2
+	echo "  or choose a different version." >&2
 	exit 1
 fi
 
