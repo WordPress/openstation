@@ -97,8 +97,8 @@
 
 /*
  * Fullscreen ("focus") state — the window escapes the desktop area and
- * covers the entire viewport, hiding the admin bar, dock, and taskbar
- * behind it. Uses position: fixed so no ancestor overflow clips it, and
+ * covers the entire viewport, hiding the admin bar and dock behind
+ * it. Uses position: fixed so no ancestor overflow clips it, and
  * a z-index above the admin bar (--wp-desktop-z-adminbar). Inline
  * geometry set by toggleMaximize() is overridden with !important because
  * we never want fullscreen to respect a saved x/y/width/height.

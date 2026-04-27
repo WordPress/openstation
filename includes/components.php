@@ -12,8 +12,8 @@
  *   - {@see wp_register_desktop_window()} collapses the
  *     boilerplate for declaring a PHP-owned native window: one
  *     call emits the `<template>` the shell clones, enqueues
- *     the plugin's JS render bundle, and wires a dock-or-taskbar
- *     tile on window-ready. Plugins write the template callback
+ *     the plugin's JS render bundle, and wires a dock tile on
+ *     window-ready. Plugins write the template callback
  *     + the render callback on the JS side — the plumbing is ours.
  *
  * @package WPDesktopMode
@@ -321,10 +321,9 @@ function wpdm_format_css_value( $property, $value ) {
  *     @type int      $height       Initial height (px). Default 400.
  *     @type int      $min_width    Minimum width (px). Default 280.
  *     @type int      $min_height   Minimum height (px). Default 220.
- *     @type string   $placement    'dock' | 'taskbar' | 'none'.
- *                                  Default 'taskbar'. 'none' skips
- *                                  the tile (plugin owns its own
- *                                  UI surface).
+ *     @type string   $placement    'dock' | 'none'. Default 'dock'.
+ *                                  'none' skips the tile (plugin
+ *                                  opens the window programmatically).
  *     @type string[] $capabilities User capabilities that gate the
  *                                  registration. ANY miss returns
  *                                  `WP_Error wp_desktop_capability_denied`.
@@ -368,7 +367,7 @@ function wp_register_desktop_window( $id, $args = array() ) {
 		'height'           => 400,
 		'min_width'        => 280,
 		'min_height'       => 220,
-		'placement'        => 'taskbar',
+		'placement'        => 'dock',
 		'capabilities'     => array(),
 		'autofocus'        => false,
 		'main_tab_label'   => '',
@@ -414,9 +413,9 @@ function wp_register_desktop_window( $id, $args = array() ) {
 		);
 	}
 
-	$placement = in_array( $args['placement'], array( 'dock', 'taskbar', 'none' ), true )
+	$placement = in_array( $args['placement'], array( 'dock', 'none' ), true )
 		? $args['placement']
-		: 'taskbar';
+		: 'dock';
 
 	$entry = array(
 		'id'               => $id,
@@ -921,7 +920,7 @@ function wpdm_build_desktop_wallpapers_payload() {
  * the wallpaper (think macOS desktop icons / phone home screen apps)
  * and opens a native window or a URL on click.
  *
- * Icons are distinct from dock/taskbar tiles: the dock rail is for
+ * Icons are distinct from dock tiles: the dock rail is for
  * top-level admin pages, the desktop surface is for quick shortcuts
  * a user or theme wants front-and-centre. A single plugin can
  * register a window AND an icon that opens it — the two surfaces

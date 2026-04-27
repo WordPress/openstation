@@ -147,7 +147,7 @@ export class WallpaperLayer {
 			this.element.style.setProperty( '--wp-desktop-bg', value );
 			// Also mirror onto the shell so theming rules that read
 			// the variable from the shell (per-scheme overrides,
-			// taskbar backgrounds if we add them) see the active
+			// dock-pill backgrounds) see the active
 			// value. This matches the pre-registry behavior.
 			const shell = document.getElementById( 'wp-desktop-shell' );
 			shell?.style.setProperty( '--wp-desktop-bg', value );

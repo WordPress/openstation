@@ -4,8 +4,8 @@
  * Registered once at init time via {@link registerBuiltInCommands}.
  * Currently one command:
  *
- *   /open [window]  — autocompletes from every dock + taskbar item
- *                     plus any entry plugins contribute via the
+ *   /open [window]  — autocompletes from every dock item plus any
+ *                     entry plugins contribute via the
  *                     `wp-desktop.open-command.items` filter. Picking
  *                     a suggestion opens the matching window.
  *
@@ -32,8 +32,7 @@ import type { DockItemConfig, DesktopConfig } from './types';
 /**
  * An openable window surfaced by the `/open` command. Either
  * `wp-desktop.open-command.items` subscribers contribute these, or
- * the built-in collector derives them from `config.dockItems` /
- * `config.taskbarItems`.
+ * the built-in collector derives them from `config.dockItems`.
  */
 export interface OpenableWindow {
 	/** Stable id — used for exact-match fallback in `run()`. */
@@ -70,7 +69,7 @@ interface WindowManagerLite {
  * Build the list of openable windows the `/open` command offers.
  *
  * Starts with every admin-menu entry the shell already knows about
- * (dock + taskbar), then runs it through the
+ * (dock items), then runs it through the
  * `wp-desktop.open-command.items` filter so plugins can prepend,
  * append, or replace entries. Example (plugin JS):
  *
@@ -134,9 +133,6 @@ function collectOpenables(): OpenableWindow[] {
 
 	for ( const item of config.dockItems ?? [] ) {
 		items.push( fromMenu( item, 'Admin menu' ) );
-	}
-	for ( const item of config.taskbarItems ?? [] ) {
-		items.push( fromMenu( item, 'Plugin' ) );
 	}
 
 	const filtered = applyFilters< OpenableWindow[], unknown[] >(

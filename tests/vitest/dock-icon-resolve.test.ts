@@ -39,7 +39,10 @@ function makeItem( overrides: Partial< DockItem > = {} ): DockItem {
 	};
 }
 
-function mountDock( items: DockItem[], orientation: 'left' | 'bottom' = 'bottom' ) {
+function mountDock(
+	items: DockItem[],
+	orientation: 'left' | 'right' | 'bottom' = 'bottom',
+) {
 	const container = document.createElement( 'nav' );
 	document.body.appendChild( container );
 	const dock = new Dock( container, makeManagerStub(), items, 'http://localhost/wp-admin/', orientation );
@@ -269,22 +272,48 @@ describe( 'Dock.replaceItems', () => {
 	} );
 } );
 
-describe( 'dock orientation modifiers', () => {
+describe( 'dock orientation tooltip anchor', () => {
 	beforeEach( () => installHooksStub() );
 	afterEach( () => {
 		clearHooksStub();
 		document.body.innerHTML = '';
+		document
+			.querySelectorAll( '.wp-desktop-dock__tooltip' )
+			.forEach( ( el ) => el.remove() );
 	} );
 
-	test( 'left orientation adds vertical modifier', () => {
-		const { container } = mountDock( [ makeItem( { icon: 'dashicons-admin-post' } ) ], 'left' );
-		expect( container.classList.contains( 'wp-desktop-dock--vertical' ) ).toBe( true );
-		expect( container.classList.contains( 'wp-desktop-dock--horizontal' ) ).toBe( false );
+	// The dock no longer carries orientation modifier classes — placement
+	// is driven by `data-wp-desktop-dock-placement` on the shell root and
+	// CSS keys off that. The runtime artifact of orientation is the
+	// tooltip anchor class, which flips so the label sits outside the
+	// rail on whichever edge it hugs.
+
+	test( 'left orientation: tooltip has no anchor modifier (default = right of tile)', () => {
+		mountDock(
+			[ makeItem( { icon: 'dashicons-admin-post' } ) ],
+			'left',
+		);
+		const tip = document.querySelector( '.wp-desktop-dock__tooltip' );
+		expect( tip ).not.toBeNull();
+		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--above' ) ).toBe( false );
+		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--before' ) ).toBe( false );
 	} );
 
-	test( 'bottom orientation adds horizontal modifier', () => {
-		const { container } = mountDock( [ makeItem( { icon: 'dashicons-admin-post' } ) ], 'bottom' );
-		expect( container.classList.contains( 'wp-desktop-dock--horizontal' ) ).toBe( true );
-		expect( container.classList.contains( 'wp-desktop-dock--vertical' ) ).toBe( false );
+	test( 'right orientation: tooltip carries --before anchor', () => {
+		mountDock(
+			[ makeItem( { icon: 'dashicons-admin-post' } ) ],
+			'right',
+		);
+		const tip = document.querySelector( '.wp-desktop-dock__tooltip' );
+		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--before' ) ).toBe( true );
+	} );
+
+	test( 'bottom orientation: tooltip carries --above anchor', () => {
+		mountDock(
+			[ makeItem( { icon: 'dashicons-admin-post' } ) ],
+			'bottom',
+		);
+		const tip = document.querySelector( '.wp-desktop-dock__tooltip' );
+		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--above' ) ).toBe( true );
 	} );
 } );

@@ -9,13 +9,13 @@ When the user installs or activates a plugin, the **chromeless bridge** inside t
 Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
 
 ```
-{ dockItems, taskbarItems, nativeWindows, serverWidgets, serverWallpapers,
+{ dockItems, nativeWindows, serverWidgets, serverWallpapers,
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
   desktopIcons }
 ```
 
-- **PHP-declared** things are in the payload: dock, taskbar, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
+- **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.wpDesktopWallpapers[id]` / `window.wpDesktopWidgets[id]`). The sync reads the def and registers it.
 - **Commands use the same pattern since 0.15.0** via `wp_desktop_register_command_script( $handle )` (primary, minimum-ceremony) or `wp_register_desktop_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate — graceful backwards-compat.
 - **OS Settings tabs use the same pattern since 0.17.0** via `wp_desktop_register_settings_tab_script( $handle )` (primary) or `wp_register_desktop_settings_tab( $args )` (optional — id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, ai=20, extended=30, help=40) are interleaved with the registry in `src/settings/index.ts` `renderPanel()` and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.

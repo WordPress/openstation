@@ -8,12 +8,12 @@ A high-level tour, mostly so hook reference + examples make sense.
 Browser tab
 ├── Parent shell  (wp-admin, desktop class on body)
 │   ├── Admin bar            — classic WP toolbar + desktop-mode toggle
-│   ├── Dock                 — left edge, core WP menus from $menu
-│   ├── Desktop area         — wallpaper; hosts windows + desktop icons
-│   │   ├── Window A         — <iframe src="edit.php?wp_desktop=1">
-│   │   ├── Window B         — <iframe src="upload.php?wp_desktop=1">
-│   │   └── Window C (native)— <div> with plugin-rendered content
-│   └── Taskbar              — bottom pill, plugin-contributed admin.php?page=* menus
+│   ├── Dock                 — unified rail (core + plugin menus from $menu)
+│   │                           placement (left / right / bottom) = user pref
+│   └── Desktop area         — wallpaper; hosts windows + desktop icons
+│       ├── Window A         — <iframe src="edit.php?wp_desktop=1">
+│       ├── Window B         — <iframe src="upload.php?wp_desktop=1">
+│       └── Window C (native)— <div> with plugin-rendered content
 │
 └── Each iframe renders a chromeless admin page
     — real WordPress request, stripped of wp-admin chrome
@@ -124,7 +124,7 @@ Never edit Core's `common.css` or color scheme files. Everything we need is expo
 
 ## What's shipped vs. what comes next
 
-**Shipped** — taskbar (0.5), multi-window orchestration + session restore, virtual desktops / Spaces (0.6), wallpaper registry (0.6), widget registry (0.7), overview + arrange + snap (0.8–0.9), native windows and tabs (0.10–0.11), AI assistant + slash commands + palette registry (0.13–0.14), cross-frame drag bridge for Media Library (0.14), OS Settings native window, accent + custom-gradient editor, toast notifications, iframe observability (`iframe-ready` / `iframe-error` / `iframe-network-completed`), letter-badge icon fallback, batch `closeAll()` with protection filter, primary-desktop filter, iframe command-palette bridge (0.16 — harvests `@wordpress/commands` from the focused window into the shell palette; see "Command palette bridge" above).
+**Shipped** — unified dock with left / right / bottom placement (user preference in OS Settings; default bottom), multi-window orchestration + session restore, virtual desktops / Spaces (0.6), wallpaper registry (0.6), widget registry (0.7), overview + arrange + snap (0.8–0.9), native windows and tabs (0.10–0.11), AI assistant + slash commands + palette registry (0.13–0.14), cross-frame drag bridge for Media Library (0.14), OS Settings native window, accent + custom-gradient editor, toast notifications, iframe observability (`iframe-ready` / `iframe-error` / `iframe-network-completed`), letter-badge icon fallback, batch `closeAll()` with protection filter, primary-desktop filter, iframe command-palette bridge (0.16 — harvests `@wordpress/commands` from the focused window into the shell palette; see "Command palette bridge" above).
 
 **Coming up**
 

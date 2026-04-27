@@ -2,22 +2,22 @@
 /**
  * Desktop Mode — Live menu REST endpoint.
  *
- * Exposes the current admin menu split into `dockItems` + `taskbarItems`
- * so the shell can reload it after the admin menu changes under its
- * feet — the paradigmatic case being plugin activation / deactivation.
+ * Exposes the current admin menu as `dockItems` so the shell can
+ * reload it after the admin menu changes under its feet — the
+ * paradigmatic case being plugin activation / deactivation.
  *
  * The shell boots with a snapshot of the menu localized into
- * `wpDesktopConfig.dockItems` + `wpDesktopConfig.taskbarItems`. That
- * snapshot is correct for the page load but goes stale the moment the
- * user activates a new plugin inside a windowed `plugins.php` — the
- * iframe reloads, the parent shell does not. Without a refresh path
- * the new plugin's top-level menu never appears on the taskbar until
- * the user hard-reloads the whole tab.
+ * `wpDesktopConfig.dockItems`. That snapshot is correct for the page
+ * load but goes stale the moment the user activates a new plugin
+ * inside a windowed `plugins.php` — the iframe reloads, the parent
+ * shell does not. Without a refresh path the new plugin's top-level
+ * menu never appears on the dock until the user hard-reloads the
+ * whole tab.
  *
  * This endpoint is the refresh path: the chromeless bridge in
  * `render.php` postMessages `wp-desktop-plugins-changed` when the
  * activation redirect lands, and the shell fetches here to get the
- * fresh split. Shared underlying builder (`wpdm_build_menu_payload`)
+ * fresh payload. Shared underlying builder (`wpdm_build_menu_payload`)
  * guarantees the live payload matches the boot payload.
  *
  * @package WPDesktopMode
@@ -56,10 +56,10 @@ add_action( 'rest_api_init', 'wpdm_register_menu_route' );
  * Bootstraps the admin menu first — REST requests don't load
  * `wp-admin/menu.php`, so the `$menu` / `$submenu` globals are empty
  * by default and `wpdm_build_menu_payload()` would return an empty
- * split. Without the bootstrap, the shell's live-refresh path (fired
- * after the user activates a plugin inside a windowed `plugins.php`)
- * would call `replaceItems([])` on both the dock + taskbar and wipe
- * every icon from the sidebar. We saw exactly that regression in the
+ * payload. Without the bootstrap, the shell's live-refresh path
+ * (fired after the user activates a plugin inside a windowed
+ * `plugins.php`) would call `replaceItems([])` on the dock and wipe
+ * every icon from the rail. We saw exactly that regression in the
  * wild before this fix landed.
  *
  * Always goes through `wpdm_build_menu_payload()` so every piece of
@@ -69,7 +69,7 @@ add_action( 'rest_api_init', 'wpdm_register_menu_route' );
  *
  * @since 0.9.0
  *
- * @return WP_REST_Response Payload with `dockItems` + `taskbarItems`.
+ * @return WP_REST_Response Payload with `dockItems`.
  */
 function wpdm_rest_get_menu() {
 	wpdm_bootstrap_admin_menu_for_rest();

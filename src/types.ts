@@ -241,8 +241,8 @@ export interface NativeWindowServerEntry {
 	title: string;
 	/** Dashicons class or URL. */
 	icon: string;
-	/** 'dock' | 'taskbar' | 'none'. */
-	placement: 'dock' | 'taskbar' | 'none';
+	/** `'dock'` = render a system tile on the unified dock, `'none'` = register the window but render no tile (plugin opens programmatically). */
+	placement: 'dock' | 'none';
 	/** Initial window dimensions in px. */
 	width: number;
 	height: number;
@@ -557,13 +557,12 @@ export interface DockItemConfig {
 	 */
 	multi?: boolean;
 	/**
-	 * Server-side routing hint: `'dock'` for core WordPress menus
-	 * rendered on the left-edge dock, `'taskbar'` for plugin-
-	 * contributed top-level menus rendered in the bottom taskbar.
-	 * Derived by `wpdm_dock_placement` in PHP; filterable via the
-	 * `wp_desktop_dock_placement` hook.
+	 * Whether this item is a first-party WordPress core menu entry
+	 * (Dashboard, Posts, Media, Plugins, Users, Settings, CPTs,
+	 * taxonomies). Used by the dock to render a visual separator
+	 * between core and plugin tiles.
 	 */
-	placement?: 'dock' | 'taskbar';
+	isCore?: boolean;
 }
 
 /**
@@ -634,19 +633,14 @@ export interface DesktopConfig {
 	/** The active color scheme slug. */
 	colorScheme: string;
 	/**
-	 * Dock items derived from the admin menu and filtered to CORE
-	 * WordPress pages (Dashboard, Posts, Plugins, Users, Settings,
-	 * and CPTs). Rendered on the left-edge dock.
+	 * Dock items derived from the admin menu. Core WordPress pages
+	 * (Dashboard, Posts, Plugins, Users, Settings, CPTs) are ordered
+	 * first; plugin-contributed top-level menus (`admin.php?page=*`)
+	 * follow. Items the `wp_desktop_dock_placement` filter hid are
+	 * omitted. Rendered as a single unified rail — the placement
+	 * (left / right / bottom) is the user's OS Settings preference.
 	 */
 	dockItems: DockItemConfig[];
-	/**
-	 * Plugin-contributed top-level menus (anything routed through
-	 * `admin.php?page=*`). Rendered in the bottom taskbar, macOS-
-	 * style. Split from `dockItems` by `wpdm_dock_placement` in PHP
-	 * with the `wp_desktop_dock_placement` filter as an escape hatch
-	 * for plugins that want to override the default heuristic.
-	 */
-	taskbarItems: DockItemConfig[];
 	/**
 	 * Server-declared native windows (from `wp_register_desktop_window()`).
 	 * Shell auto-registers system tiles at boot + syncs them on every
@@ -717,12 +711,10 @@ export interface DesktopConfig {
 	/** REST endpoint for media uploads (wp/v2/media). */
 	mediaUrl: string;
 	/**
-	 * REST endpoint returning the live admin-menu split
-	 * (`{ dockItems, taskbarItems }`). The shell calls it after the
-	 * chromeless bridge signals `wp-desktop-plugins-changed` so
-	 * newly-activated plugins surface on the taskbar without a full
-	 * tab reload. Same payload shape as `dockItems` + `taskbarItems`
-	 * at boot.
+	 * REST endpoint returning the live admin-menu payload
+	 * (`{ dockItems }`). The shell calls it after the chromeless
+	 * bridge signals `wp-desktop-plugins-changed` so newly-activated
+	 * plugins surface on the dock without a full tab reload.
 	 */
 	menuUrl: string;
 	/** REST endpoint for saving the default-window preference. */

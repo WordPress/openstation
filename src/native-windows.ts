@@ -269,8 +269,6 @@ export function onWindow(
 export interface NativeWindowRegistryDeps {
 	manager: WindowManager;
 	dock: Dock | null;
-	taskbar: Dock | null;
-	taskbarEl: HTMLElement | null;
 	desktopArea: HTMLElement;
 }
 
@@ -290,18 +288,11 @@ interface NativeWindowGlobals {
 export function createNativeWindowSync(
 	deps: NativeWindowRegistryDeps,
 ): ( list: NativeWindowServerEntry[] ) => Promise< void > {
-	const { manager, dock, taskbar, taskbarEl, desktopArea } = deps;
+	const { manager, dock } = deps;
 
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
 	const loadedScripts = new Set< string >();
-
-	const ensureTaskbarVisible = (): void => {
-		if ( taskbarEl && taskbarEl.hidden ) {
-			taskbarEl.hidden = false;
-			desktopArea.classList.add( 'wp-desktop-area--with-taskbar' );
-		}
-	};
 
 	const ensureTemplate = ( entry: NativeWindowServerEntry ): void => {
 		if ( injectedTemplates.has( entry.templateId ) ) {
@@ -405,34 +396,15 @@ export function createNativeWindowSync(
 		ensureTemplate( entry );
 		await ensureScript( entry );
 
-		const rail = 'dock' === entry.placement ? dock : taskbar;
-		if ( ! rail ) {
-			// Rail element missing (old shell markup) — fall back
-			// to dock to keep the tile visible.
-			dock?.appendSystemItem( {
-				id: entry.id,
-				title: entry.title,
-				icon: entry.icon,
-				isOpen: () => !! manager.getById( entry.id ),
-				onOpen: () => openFromEntry( entry ),
-			} );
-		} else {
-			rail.appendSystemItem( {
-				id: entry.id,
-				title: entry.title,
-				icon: entry.icon,
-				isOpen: () => !! manager.getById( entry.id ),
-				onOpen: () => openFromEntry( entry ),
-			} );
-			if ( rail === taskbar ) {
-				ensureTaskbarVisible();
-			}
-		}
-
-		doAction( HOOKS.DOCK_ITEM_APPENDED, {
+		dock?.appendSystemItem( {
 			id: entry.id,
-			placement: 'dock' === entry.placement ? 'dock' : 'taskbar',
+			title: entry.title,
+			icon: entry.icon,
+			isOpen: () => !! manager.getById( entry.id ),
+			onOpen: () => openFromEntry( entry ),
 		} );
+
+		doAction( HOOKS.DOCK_ITEM_APPENDED, { id: entry.id } );
 
 		registered.add( entry.id );
 	};
@@ -442,7 +414,6 @@ export function createNativeWindowSync(
 			return;
 		}
 		dock?.removeSystemItem( id );
-		taskbar?.removeSystemItem( id );
 		registered.delete( id );
 	};
 

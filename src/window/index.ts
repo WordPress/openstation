@@ -842,11 +842,11 @@ export class Window {
 
 	/**
 	 * Toggle fullscreen ("focus") mode — the window covers the entire
-	 * viewport, hiding the admin bar, dock, and taskbar behind it.
+	 * viewport, hiding the admin bar and dock behind it.
 	 *
 	 * This is the equivalent of macOS's green zoom-to-fullscreen: an
 	 * immersive mode distinct from maximize (which only fills the
-	 * desktop area between dock and taskbar).
+	 * desktop area, respecting the dock inset).
 	 */
 	public toggleFullscreen(): void {
 		if ( this.state === 'fullscreen' ) {

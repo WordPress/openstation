@@ -1,42 +1,38 @@
 /**
  * Desktop Mode — Dock.
  *
- * Icon-only vertical strip on the left edge of the desktop.
- * Contains admin menu shortcuts and an always-present
- * "Show Desktop" (minimize all) button with the WordPress logo.
+ * Single unified rail that hosts every admin menu (core and plugin
+ * alike) plus shell-level system tiles. Placement (left / right /
+ * bottom) is driven by the user's OS Settings preference and reflected
+ * on the shell root as `data-wp-desktop-dock-placement`; this stylesheet
+ * keys off that attribute for layout, tooltip anchor, and indicator
+ * position. The dock element itself is placement-agnostic.
  *
  * @since 6.9.0
  */
 
-/* Dock container — sits inside .wp-desktop-shell__body flex row. */
+/* ------------------------------------------------------------------
+ * Shared dock chrome — applies to every placement.
+ * ------------------------------------------------------------------ */
+
 .wp-desktop-dock {
-	width: var(--wp-desktop-dock-width);
 	display: flex;
-	flex-direction: column;
 	align-items: center;
-	padding: 16px 0 12px;
-	gap: 6px;
-	z-index: var(--wp-desktop-z-dock);
-	background: var(--wp-desktop-dock-bg);
-	backdrop-filter: blur(20px);
-	-webkit-backdrop-filter: blur(20px);
-	border-inline-end: 1px solid var(--wp-desktop-dock-border);
+	z-index: var( --wp-desktop-z-dock );
+	background: var( --wp-desktop-dock-bg );
+	backdrop-filter: blur( 20px );
+	-webkit-backdrop-filter: blur( 20px );
+	flex-shrink: 0;
 	/*
 	 * overflow: visible so the per-tile "Open another" chip can float
-	 * just past the dock's inline-end border. Typical admin menus fit
-	 * the viewport height vertically without a scrollbar; if this ever
-	 * needs to scroll in practice, wrap tiles in a scroll container
-	 * rather than re-clipping the overflow here.
+	 * past the dock's outer edge. Real-world menus fit the viewport
+	 * without a scrollbar; if this ever needs to scroll, wrap tiles
+	 * in a scroll container rather than clipping here.
 	 */
 	overflow: visible;
-	flex-shrink: 0;
 }
 
-/*
- * Dock tile — a vertical stack: primary icon button (fixed 40×40) on
- * top, optional instance rail below. Height is auto so multi tiles
- * grow by a few px when windows are open and shrink back when closed.
- */
+/* A single dock tile — icon button (+ optional instance rail below). */
 .wp-desktop-dock__item {
 	position: relative;
 	display: flex;
@@ -59,112 +55,45 @@
 	cursor: pointer;
 	padding: 0;
 	background: transparent;
-	color: rgba(255, 255, 255, 0.7);
+	color: rgba( 255, 255, 255, 0.7 );
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
 .wp-desktop-dock__item-primary:hover {
-	background: rgba(255, 255, 255, 0.15);
+	background: rgba( 255, 255, 255, 0.15 );
 	color: #fff;
-	transform: scale(1.1);
+	transform: scale( 1.1 );
 }
 
 .wp-desktop-dock__item-primary:active {
-	transform: scale(0.95);
+	transform: scale( 0.95 );
 }
 
 .wp-desktop-dock__item-primary:focus-visible {
-	outline: 2px solid rgba(255, 255, 255, 0.7);
+	outline: 2px solid rgba( 255, 255, 255, 0.7 );
 	outline-offset: 2px;
-}
-
-/*
- * "Open another" floating chip — sits off the right edge of the tile,
- * outside the icon so it doesn't crowd the notification badge or
- * compete with the icon glyph. Only rendered when ≥1 instance of a
- * multi-capable page is open (no instance → no need to open another).
- *
- * Positioned absolutely so it floats alongside the dock without
- * widening the tile column. The dock's container uses `overflow:
- * visible` so this chip can extend past the dock's inline-end border.
- */
-.wp-desktop-dock__item-new {
-	position: absolute;
-	top: 50%;
-	inset-inline-end: -13px;
-	transform: translateY(-50%);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	padding: 0;
-	border: 2px solid var(--wp-desktop-dock-bg, rgba(0, 0, 0, 0.4));
-	border-radius: 50%;
-	background: var(--wp-admin-theme-color, #2271b1);
-	color: #fff;
-	cursor: pointer;
-	transition: background-color 0.15s ease, transform 0.15s ease;
-	z-index: 1;
-}
-
-.wp-desktop-dock__item-new[hidden] {
-	display: none;
-}
-
-.wp-desktop-dock__item-new:hover {
-	background: #fff;
-	color: var(--wp-admin-theme-color, #2271b1);
-	transform: translateY(-50%) scale(1.1);
-}
-
-.wp-desktop-dock__item-new:focus-visible {
-	outline: 2px solid rgba(255, 255, 255, 0.85);
-	outline-offset: 2px;
-}
-
-/* Active indicator — dot on the left edge when this page has an open window. */
-.wp-desktop-dock__item--active::before {
-	content: "";
-	position: absolute;
-	inset-inline-start: -6px;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 4px;
-	height: 4px;
-	border-radius: 50%;
-	background: #fff;
-}
-
-/* Focused indicator — larger dot when this is the focused window. */
-.wp-desktop-dock__item--focused::before {
-	width: 4px;
-	height: 16px;
-	border-radius: 2px;
 }
 
 /* Dashicon inside dock item. */
 .wp-desktop-dock__item .dashicons {
-	font-size: var(--wp-desktop-dock-icon-size, 20px);
-	width: var(--wp-desktop-dock-icon-size, 20px);
-	height: var(--wp-desktop-dock-icon-size, 20px);
+	font-size: var( --wp-desktop-dock-icon-size, 20px );
+	width: var( --wp-desktop-dock-icon-size, 20px );
+	height: var( --wp-desktop-dock-icon-size, 20px );
 	line-height: 1;
 }
 
 /* SVG icon (for custom post types with data:image/svg+xml icons). */
 .wp-desktop-dock__item-svg {
-	width: var(--wp-desktop-dock-icon-size, 20px);
-	height: var(--wp-desktop-dock-icon-size, 20px);
+	width: var( --wp-desktop-dock-icon-size, 20px );
+	height: var( --wp-desktop-dock-icon-size, 20px );
 	display: block;
 	fill: currentColor;
 }
 
 /*
  * Letter-badge icon — rendered for items registered without a
- * dashicon / SVG / image URL. Visually a miniature macOS-style
- * "app placeholder": rounded square tinted with a title-derived
- * hue, first letter of the title centered inside. Sized a little
- * larger than a bare dashicon so the letter has visual weight.
+ * dashicon / SVG / image URL. Miniature "app placeholder": rounded
+ * square tinted with a title-derived hue, first letter centered.
  */
 .wp-desktop-dock__item-letter {
 	display: flex;
@@ -180,19 +109,14 @@
 	line-height: 1;
 	letter-spacing: 0;
 	text-shadow: 0 1px 1px rgba( 0, 0, 0, 0.22 );
-	/*
-	 * Inner highlight + subtle outer darkening gives the tile a
-	 * tiny bevel. Keeps the letter badge from looking flat next to
-	 * real app icons on the taskbar.
-	 */
 	box-shadow:
 		inset 0 1px 0 rgba( 255, 255, 255, 0.2 ),
 		inset 0 -1px 0 rgba( 0, 0, 0, 0.15 );
 }
 
 .wp-desktop-dock__item img.wp-desktop-dock__item-img {
-	width: var(--wp-desktop-dock-icon-size, 20px);
-	height: var(--wp-desktop-dock-icon-size, 20px);
+	width: var( --wp-desktop-dock-icon-size, 20px );
+	height: var( --wp-desktop-dock-icon-size, 20px );
 	display: block;
 	opacity: 0.7;
 	transition: opacity 0.15s ease;
@@ -202,62 +126,68 @@
 	opacity: 1;
 }
 
-/* ---------------------------------------------------------------------------
- * Notification badge — iOS/macOS-style pill that peeks out of the
- * icon's top-right corner instead of sitting on top of the icon.
- *
- * Three design moves:
- *
- *   1. Negative offsets (top/inset-inline-end: -3px) so the badge
- *      straddles the icon edge. The icon stays fully legible.
- *
- *   2. Ring in the dock's background color (box-shadow spread) creates
- *      a "punched-out" look — clean separation from whatever sits
- *      behind (a white Yoast SVG, a colorful WooCommerce icon, a dark
- *      dashicon). The ring is what makes iOS badges feel polished.
- *
- *   3. Subtle top-lit gradient + fine drop shadow give it dimensional
- *      depth so it reads as a pinned element rather than a flat paint.
- *
- * Shape is an auto-rounded pill: perfectly circular for single-digit
- * counts, smoothly oval for 2-digit / "99+" via border-radius: 999px.
- * ------------------------------------------------------------------------- */
+/* "Open another" floating chip — shown on multi-capable tiles that
+ * already have ≥1 open instance. Positioned inside each orientation
+ * block so the chip hugs the outward edge of the tile. */
+.wp-desktop-dock__item-new {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 2px solid var( --wp-desktop-dock-bg, rgba( 0, 0, 0, 0.4 ) );
+	border-radius: 50%;
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: #fff;
+	cursor: pointer;
+	transition: background-color 0.15s ease, transform 0.15s ease;
+	z-index: 1;
+}
+
+.wp-desktop-dock__item-new[hidden] {
+	display: none;
+}
+
+.wp-desktop-dock__item-new:hover {
+	background: #fff;
+	color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.wp-desktop-dock__item-new:focus-visible {
+	outline: 2px solid rgba( 255, 255, 255, 0.85 );
+	outline-offset: 2px;
+}
+
+/* Notification badge — iOS/macOS-style pill straddling the tile
+ * corner. Ring matches the dock bg so it reads as "punched out."
+ * Badge positioning is placement-aware via the blocks below. */
 .wp-desktop-dock__badge {
 	position: absolute;
-	top: -3px;
-	inset-inline-end: -3px;
 	min-width: 16px;
 	height: 16px;
 	padding: 0 5px;
 	box-sizing: border-box;
 	border-radius: 999px;
-
-	/* Two-tone red — lighter at the top, deeper at the bottom. Reads
-	   as a crisp ruby on any icon background. */
 	background: linear-gradient( 180deg, #ff5a5a 0%, #d63638 100% );
 	color: #fff;
-
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-
 	font-size: 10px;
 	font-weight: 700;
 	line-height: 1;
 	letter-spacing: 0.01em;
 	text-align: center;
 	font-variant-numeric: tabular-nums;
-
-	/* Ring + shadow. The ring spread matches the dock bg color so
-	   there's a clean halo between the badge and the icon behind it. */
 	box-shadow:
 		0 0 0 1.5px var( --wp-desktop-dock-bg, rgba( 0, 0, 0, 0.4 ) ),
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
-
 	pointer-events: none;
-	/* A hair of scale-up on hover of the tile, just to add a touch of
-	   life when the user is browsing. Uses the parent tile's :hover. */
 	transition: transform 0.15s ease;
+	top: -3px;
+	inset-inline-end: -3px;
 }
 
 .wp-desktop-dock__item:hover .wp-desktop-dock__badge {
@@ -265,12 +195,16 @@
 	top: -4px;
 }
 
-/* Tooltip — appears on hover, to the right of the dock. */
+/* System tiles — same footprint as menu tiles, no badges, no rails. */
+.wp-desktop-dock__item--system .wp-desktop-dock__item-primary {
+	color: rgba( 255, 255, 255, 0.8 );
+}
+
+/* Shared tooltip — placement-specific anchor modifiers applied by JS. */
 .wp-desktop-dock__tooltip {
 	position: fixed;
-	inset-inline-start: calc(var(--wp-desktop-dock-width) + 8px);
 	padding: 6px 12px;
-	background: rgba(0, 0, 0, 0.85);
+	background: rgba( 0, 0, 0, 0.85 );
 	color: #fff;
 	font-size: 12px;
 	font-weight: 400;
@@ -278,82 +212,166 @@
 	white-space: nowrap;
 	border-radius: 6px;
 	pointer-events: none;
-	z-index: calc(var(--wp-desktop-z-dock) + 1);
+	z-index: calc( var( --wp-desktop-z-dock ) + 1 );
 	opacity: 0;
-	transform: translateX(-4px);
 	transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .wp-desktop-dock__tooltip--visible {
 	opacity: 1;
-	transform: translateX(0);
 }
 
-/*
- * No margin needed — the dock and desktop area are flex siblings
- * inside .wp-desktop-shell__body, so layout is automatic.
- */
+/* ------------------------------------------------------------------
+ * Vertical placement (left + right) — dock runs the full shell body
+ * height along one edge, with items stacked vertically.
+ * ------------------------------------------------------------------ */
 
-/*
- * Hairline between admin-menu tiles and JS-registered system tiles
- * (OS Settings today, Jorvy / widgets later). Auto-margined to push
- * system items to the bottom of the dock so they always sit as the
- * last cluster, regardless of how many menu items are above.
- */
-.wp-desktop-dock__separator {
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ] .wp-desktop-dock,
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ] .wp-desktop-dock {
+	width: var( --wp-desktop-dock-width );
+	flex-direction: column;
+	padding: 16px 0 12px;
+	gap: 6px;
+}
+
+/* Left: dock is the first flex item in __body (row layout). */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ] .wp-desktop-dock {
+	border-inline-end: 1px solid var( --wp-desktop-dock-border );
+	order: -1;
+}
+
+/* Right: push the dock to the end of __body and flip the border edge. */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ] .wp-desktop-dock {
+	border-inline-start: 1px solid var( --wp-desktop-dock-border );
+	order: 1;
+}
+
+/* Active-indicator dot — left dock: inside-edge vertical pill. */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__item--active::before {
+	content: "";
+	position: absolute;
+	inset-inline-start: -6px;
+	top: 50%;
+	transform: translateY( -50% );
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: #fff;
+}
+
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__item--focused::before {
+	width: 4px;
+	height: 16px;
+	border-radius: 2px;
+}
+
+/* Right dock: indicator on the opposite edge (inside-facing). */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ]
+	.wp-desktop-dock__item--active::before {
+	content: "";
+	position: absolute;
+	inset-inline-end: -6px;
+	top: 50%;
+	transform: translateY( -50% );
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: #fff;
+}
+
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ]
+	.wp-desktop-dock__item--focused::before {
+	width: 4px;
+	height: 16px;
+	border-radius: 2px;
+}
+
+/* "Open another" chip — left: right of tile; right: left of tile. */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__item-new {
+	top: 50%;
+	inset-inline-end: -13px;
+	transform: translateY( -50% );
+}
+
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__item-new:hover {
+	transform: translateY( -50% ) scale( 1.1 );
+}
+
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ]
+	.wp-desktop-dock__item-new {
+	top: 50%;
+	inset-inline-start: -13px;
+	transform: translateY( -50% );
+}
+
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ]
+	.wp-desktop-dock__item-new:hover {
+	transform: translateY( -50% ) scale( 1.1 );
+}
+
+/* Separator — horizontal hairline between menu tiles and system
+ * tiles, with margin-top: auto pushing system items to the bottom.
+ * The `--group` variant is used inline between core and plugin
+ * menu tiles; it keeps the hairline styling but drops the auto
+ * margin so it sits exactly where it's inserted. */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__separator,
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ]
+	.wp-desktop-dock__separator {
 	width: 60%;
 	height: 1px;
 	margin: 8px auto 4px;
-	background: var(--wp-desktop-dock-border);
+	background: var( --wp-desktop-dock-border );
 	flex-shrink: 0;
 	margin-top: auto;
 }
 
-/* System tiles — same footprint as menu tiles, no badges, no rails. */
-.wp-desktop-dock__item--system .wp-desktop-dock__item-primary {
-	color: rgba(255, 255, 255, 0.8);
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__separator--group,
+.wp-desktop-shell[ data-wp-desktop-dock-placement="right" ]
+	.wp-desktop-dock__separator--group {
+	margin: 10px auto;
+	background: rgba( 255, 255, 255, 0.22 );
 }
 
-/* ---------------------------------------------------------------
- * Horizontal (taskbar) orientation.
- *
- * The taskbar shares the Dock class and most of the CSS above —
- * these rules only override the parts that are axis-dependent:
- * the container's flex direction, the separator between menu and
- * system items, the active-indicator dot position, and the
- * tooltip anchor.
- *
- * Rendered as a sibling of `.wp-desktop-shell__body` at the
- * bottom of `#wp-desktop-shell` (see includes/render.php) — the
- * shell is a column flex, so the taskbar takes its natural
- * height at the bottom and the body flex-1 shrinks vertically
- * to fit.
- *
- * Used for plugin-contributed top-level admin menus
- * (`admin.php?page=*`) — see wpdm_dock_placement in helpers.php.
- * --------------------------------------------------------------- */
+/* Tooltip — left dock: tile's right side; right dock: tile's left side. */
+.wp-desktop-dock__tooltip {
+	transform: translateX( -4px );
+}
 
-.wp-desktop-dock--horizontal {
-	/*
-	 * Floating pill — detaches from the shell edges AND the shell's
-	 * column flex. An earlier version used `align-self: center` +
-	 * `margin: 0 0 12px` which worked visually but left the taskbar
-	 * as a flex sibling that stole vertical space: the left dock
-	 * couldn't reach the bottom of the shell because the column
-	 * flex partitioned the height between body and taskbar.
-	 *
-	 * `position: absolute` pulls the taskbar out of flow entirely
-	 * — the shell body (dock + desktop area) regains the full shell
-	 * height and the taskbar hovers above as pure chrome. Matches
-	 * the macOS Dock, which is a floating layer over the desktop
-	 * rather than a reserved strip.
-	 *
-	 * Centered horizontally via symmetric insets + `margin: auto`
-	 * (direction-agnostic for RTL). Width: fit-content so the pill
-	 * sizes to its tile count; max-width caps it on narrow
-	 * viewports so it never collides with the right-edge widgets
-	 * column.
-	 */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__tooltip {
+	inset-inline-start: calc( var( --wp-desktop-dock-width ) + 8px );
+}
+
+.wp-desktop-shell[ data-wp-desktop-dock-placement="left" ]
+	.wp-desktop-dock__tooltip--visible {
+	transform: translateX( 0 );
+}
+
+.wp-desktop-dock__tooltip--before {
+	/* Right-placed dock — tooltip sits to the left of the tile. JS
+	 * writes the left coord to the tile's left edge; this translate
+	 * pulls the tooltip further left by its own width. */
+	transform: translate( calc( -100% - 8px ), 0 );
+}
+
+.wp-desktop-dock__tooltip--before.wp-desktop-dock__tooltip--visible {
+	transform: translate( calc( -100% - 8px ), 0 );
+	opacity: 1;
+}
+
+/* ------------------------------------------------------------------
+ * Bottom placement — floating macOS-style pill centered above the
+ * viewport floor. Absolutely positioned so it floats as pure chrome
+ * rather than stealing vertical space from the shell body.
+ * ------------------------------------------------------------------ */
+
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ] .wp-desktop-dock {
 	position: absolute;
 	inset-inline-start: 0;
 	inset-inline-end: 0;
@@ -367,113 +385,97 @@
 	gap: 6px;
 	border-radius: 18px;
 
-	/*
-	 * Glass tint distinct from the left dock. Slightly warmer, more
-	 * saturated, and more translucent so the wallpaper showing
-	 * through reads as deliberate chrome — not a clone of the
-	 * sidebar.
-	 */
+	/* Warmer, more saturated glass tint than vertical placements so
+	 * the floating pill reads as a distinct piece of chrome rather
+	 * than a section of the sidebar. */
 	background: rgba( 22, 22, 26, 0.42 );
 	backdrop-filter: blur( 28px ) saturate( 170% );
 	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
 
-	/*
-	 * 1 px hairline border wraps the pill; the inset highlight at
-	 * the top adds just enough of a bevel that the pill reads as a
-	 * physical object lifted off the wallpaper. The drop shadow is
-	 * soft and wide — no harsh edge — so the pill floats rather
-	 * than stamping.
-	 */
 	border: 1px solid rgba( 255, 255, 255, 0.12 );
-	border-inline-end: 1px solid rgba( 255, 255, 255, 0.12 );
 	border-block-start: 1px solid rgba( 255, 255, 255, 0.18 );
 	box-shadow:
 		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
 		0 10px 32px rgba( 0, 0, 0, 0.45 );
 }
 
-/*
- * When empty (all plugin menus filtered out, or no plugins
- * registered one), JS sets `hidden` which maps to `display:
- * none`. Nothing else to do — the shell's column flex reclaims
- * the space automatically.
- */
-.wp-desktop-dock--horizontal[hidden] {
-	display: none;
-}
-
-/*
- * The separator between menu items and JS-registered system
- * items is vertical in the left dock (horizontal line rule with
- * margin-top: auto pushing system items to the bottom). In the
- * taskbar it's a vertical hairline with margin-inline-start:
- * auto so system items cluster at the right edge.
- *
- * Today there are no system items on the taskbar, but the rule
- * is here so Jorvy / future plugins that want to register a
- * shell-level tile via `appendSystemItem` don't need a CSS
- * change.
- */
-.wp-desktop-dock--horizontal .wp-desktop-dock__separator {
-	width: 1px;
-	height: 60%;
-	margin: auto 4px auto 8px;
-	margin-inline-start: auto;
-}
-
-/*
- * Active-indicator dot flips from left-edge vertical pill to
- * below-tile horizontal pill — macOS Dock convention. The
- * absolute positioning still reads `inset-inline-*` so RTL
- * layouts get the same centered anchor.
- */
-.wp-desktop-dock--horizontal .wp-desktop-dock__item--active::before {
+/* Active-indicator dot — below the tile, macOS-style. */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ]
+	.wp-desktop-dock__item--active::before {
+	content: "";
+	position: absolute;
 	inset-inline-start: 50%;
 	top: auto;
 	bottom: -4px;
-	transform: translateX(-50%);
+	transform: translateX( -50% );
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: #fff;
 }
 
-.wp-desktop-dock--horizontal .wp-desktop-dock__item--focused::before {
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ]
+	.wp-desktop-dock__item--focused::before {
 	width: 16px;
 	height: 4px;
 	border-radius: 2px;
 }
 
-/*
- * The "Open another" floating chip sits off the right edge of
- * tiles in the vertical dock. On the horizontal taskbar the
- * same position would overlap the next tile — move it to the
- * top-right corner of the tile instead. Same visual affordance
- * ("+" badge on a tile that already has ≥1 instance) but
- * positioned where it doesn't collide with neighbours.
- */
-.wp-desktop-dock--horizontal .wp-desktop-dock__item-new {
+/* "Open another" chip — floats above the tile's top-right corner so
+ * it doesn't collide with neighbouring tiles in the horizontal row. */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ]
+	.wp-desktop-dock__item-new {
 	top: -6px;
 	inset-inline-end: -6px;
 	transform: none;
 }
 
-.wp-desktop-dock--horizontal .wp-desktop-dock__item-new:hover {
-	transform: scale(1.1);
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ]
+	.wp-desktop-dock__item-new:hover {
+	transform: scale( 1.1 );
+}
+
+/* Separator — vertical hairline between menu tiles and system tiles,
+ * with margin-inline-start: auto pushing system items to the end.
+ * The `--group` variant keeps the hairline styling for the inline
+ * core→plugin boundary but drops the auto margin so it sits where
+ * inserted. Tighter margin than the auto variant so the two groups
+ * read as related rather than completely isolated. */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ]
+	.wp-desktop-dock__separator {
+	width: 1px;
+	height: 60%;
+	margin: auto 4px auto 8px;
+	margin-inline-start: auto;
+	background: var( --wp-desktop-dock-border );
+	flex-shrink: 0;
 }
 
 /*
- * Tooltip-above variant — tooltip positions itself above the
- * hovered tile instead of to the right of the dock. JS writes
- * the anchor coordinates (left = tile horizontal center, top =
- * tile top - 14px); CSS translates the tooltip up by its own
- * height so it sits cleanly above the tile.
- *
- * Entry animation still uses the opacity + small translate
- * pattern — we bake the -100% Y offset into the base transform
- * so the animation just changes the Y delta.
+ * Group separator — sits inline between the core cluster and the
+ * plugin cluster. Brighter than the menu-vs-system separator because
+ * it carries user meaning ("this is where your installed apps
+ * begin"), and flanked by extra gap so the boundary reads at a
+ * glance rather than disappearing into the dock tint.
  */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ]
+	.wp-desktop-dock__separator--group {
+	width: 1px;
+	height: 60%;
+	margin: auto 10px;
+	margin-inline-start: 10px;
+	background: rgba( 255, 255, 255, 0.22 );
+	flex-shrink: 0;
+}
+
+/* Tooltip — above the hovered tile. JS writes the horizontal center
+ * + a top near the tile's top edge; CSS translates the tooltip up by
+ * its own height so it clears the tile. */
 .wp-desktop-dock__tooltip--above {
 	inset-inline-start: auto;
-	transform: translate(-50%, calc(-100% - 4px));
+	transform: translate( -50%, calc( -100% - 4px ) );
 }
 
 .wp-desktop-dock__tooltip--above.wp-desktop-dock__tooltip--visible {
-	transform: translate(-50%, -100%);
+	transform: translate( -50%, -100% );
 }

@@ -98,17 +98,14 @@ function wpdm_enqueue_assets() {
 		}
 	}
 
-	// Build dock items from the admin menu, then split by placement.
-	// Core pages (Dashboard, Posts, Plugins, Users, Settings, …) go
-	// to the left-edge dock; installed-plugin top-level routes go to
-	// the bottom taskbar. `wpdm_is_core_menu_slug` is the heuristic;
-	// `wp_desktop_dock_placement` is the per-item filter escape hatch.
-	// `wpdm_build_menu_payload` is shared with the REST menu endpoint
-	// so a live refresh (post plugin-activation) produces the same
-	// split the boot payload did.
+	// Build dock items from the admin menu. Core pages are ordered
+	// first (Dashboard, Posts, Plugins, Users, Settings, …), then
+	// plugin-contributed top-level routes. `wp_desktop_dock_placement`
+	// is the per-item filter escape hatch for hiding. Shared with the
+	// REST menu endpoint so live refreshes (post plugin-activation)
+	// produce the same ordering as the boot payload.
 	$menu_payload    = wpdm_build_menu_payload();
 	$dock_items      = $menu_payload['dockItems'];
-	$taskbar_items   = $menu_payload['taskbarItems'];
 	$native_windows  = isset( $menu_payload['nativeWindows'] )
 		? $menu_payload['nativeWindows']
 		: array();
@@ -157,8 +154,7 @@ function wpdm_enqueue_assets() {
 	 *     @type string $currentIcon  Dashicon class for the current page.
 	 *     @type string $adminUrl     The base admin URL.
 	 *     @type string $colorScheme  The active admin color scheme.
-	 *     @type array  $dockItems    Dock items derived from the admin menu, filtered to CORE WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…).
-	 *     @type array  $taskbarItems Plugin-contributed top-level menu items (admin.php?page=*). Rendered in the bottom taskbar — see `wpdm_dock_placement` + `wp_desktop_dock_placement` for the routing heuristic.
+	 *     @type array  $dockItems    Dock items derived from the admin menu. Core WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…) are ordered first; plugin-contributed top-level routes (admin.php?page=*) follow. Items hidden via `wp_desktop_dock_placement` are omitted.
 	 *     @type array  $nativeWindows Server-declared native windows (via `wp_register_desktop_window`). Shell registers + syncs tiles based on this list — activation/deactivation is a diff without shell reload.
 	 *     @type array  $serverWidgets Server-declared right-column widgets (via `wp_register_desktop_widget`). Shell syncs the widget registry + dynamically loads plugin scripts so widgets appear in the picker without a shell reload.
 	 *     @type array  $serverWallpapers Server-declared wallpapers (via `wp_register_desktop_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.wpDesktopWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
@@ -192,7 +188,6 @@ function wpdm_enqueue_assets() {
 			'adminUrl'         => esc_url( admin_url() ),
 			'colorScheme'      => sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' ),
 			'dockItems'        => $dock_items,
-			'taskbarItems'     => $taskbar_items,
 			'nativeWindows'    => $native_windows,
 			'serverWidgets'    => $server_widgets,
 			'serverWallpapers' => $server_wallpapers,
@@ -288,7 +283,7 @@ function wpdm_render_shell() {
 				 * beneath windows (z-index 1 vs. windows at 100+).
 				 * Hosted INSIDE `.wp-desktop-area` so scrolling the
 				 * area (not that we do today) would scroll widgets
-				 * with it, and so the dock/taskbar naturally frame
+				 * with it, and so the dock naturally frames
 				 * it. Empty on first render — JS (`WidgetLayer`)
 				 * populates it on boot.
 				 */
@@ -296,23 +291,6 @@ function wpdm_render_shell() {
 				<aside id="wp-desktop-widgets" class="wp-desktop-widgets" aria-label="<?php esc_attr_e( 'Widgets', 'wp-desktop-mode' ); ?>"></aside>
 			</div>
 		</div>
-		<?php
-		/*
-		 * Taskbar — bottom-edge horizontal rail for plugin-contributed
-		 * top-level menus (`admin.php?page=*` routes). Sibling of the
-		 * shell body rather than a child, so the column flex layout
-		 * gives body `flex: 1` and the taskbar auto-sized height at
-		 * the bottom. JS hides it (`hidden=true`) when no plugins
-		 * contributed taskbar items — see `src/desktop.ts`.
-		 *
-		 * Shares `Dock` class + CSS with the left-edge dock, switched
-		 * to horizontal via the `--horizontal` modifier + orientation
-		 * argument to the TS constructor. Tooltip anchors flip to
-		 * above-tile and the active-window indicator dot flips to the
-		 * top of each tile — see dock.css.
-		 */
-		?>
-		<nav id="wp-desktop-taskbar" class="wp-desktop-dock wp-desktop-dock--horizontal" role="toolbar" aria-label="<?php esc_attr_e( 'Plugin navigation', 'wp-desktop-mode' ); ?>"></nav>
 	</div>
 	<?php
 	/**
@@ -680,8 +658,8 @@ function wpdm_chromeless_bridge_script() {
 	/*
 	 * Menu-changed signal.
 	 *
-	 * The shell's dock + taskbar are built from `$menu` at page-load
-	 * time and then frozen — the iframe reload that follows plugin
+	 * The shell's dock is built from `$menu` at page-load time and
+	 * then frozen — the iframe reload that follows plugin
 	 * activation / deactivation / installation doesn't tell the
 	 * parent the admin menu just mutated. This handler fires inside
 	 * the iframe that JUST LOADED plugins.php (or a sibling menu-

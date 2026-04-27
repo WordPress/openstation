@@ -5,8 +5,8 @@
  * collision-aware wallpaper should treat as solid: snow piles on
  * `top` faces, rain splashes off `bottom` faces, leaves settle on
  * horizontal rims. Seeded by the shell for every piece of chrome it
- * knows about — windows, the desktop floor, the taskbar, the dock,
- * widget cards — and filtered through `wp-desktop.wallpaper.surfaces`
+ * knows about — windows, the desktop floor, the dock, widget cards —
+ * and filtered through `wp-desktop.wallpaper.surfaces`
  * so plugins that own floating DOM can contribute their own.
  *
  * Coordinates are in **viewport space** (clientX / clientY) to
@@ -34,13 +34,13 @@ import type { WindowManager } from '../window-manager';
 export interface WallpaperSurface {
 	/**
 	 * Stable-ish identifier. Built-in surfaces use namespaced ids
-	 * (`window:foo`, `shell:floor`, `taskbar:top`, `dock:edge`,
-	 * `widget:clock`); custom surfaces returned by plugin filters
+	 * (`window:foo`, `shell:floor`, `dock:edge`, `widget:clock`);
+	 * custom surfaces returned by plugin filters
 	 * should namespace with the plugin's slug (`myplugin:picker`).
 	 */
 	id: string;
 	/** Origin of the surface. Plugins use `'custom'`. */
-	kind: 'window' | 'shell' | 'taskbar' | 'dock' | 'widget' | 'custom';
+	kind: 'window' | 'shell' | 'dock' | 'widget' | 'custom';
 	/** Rect in viewport coordinates (clientX / clientY). */
 	rect: { x: number; y: number; width: number; height: number };
 	/**
@@ -117,45 +117,55 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		} );
 	}
 
-	// Taskbar top edge — present only when the user has plugins
-	// routed to the bottom rail AND the element is unhidden.
-	// Treated as a solid surface so snow piles on top of the pill
-	// the same way it does on window tops.
-	const taskbarEl = document.getElementById( 'wp-desktop-taskbar' );
-	if ( taskbarEl && ! taskbarEl.hidden ) {
-		const r = taskbarEl.getBoundingClientRect();
-		if ( r.width > 0 && r.height > 0 ) {
-			seed.push( {
-				id: 'taskbar:top',
-				kind: 'taskbar',
-				rect: rectFromDom( r ),
-				face: 'top',
-				element: taskbarEl,
-			} );
-		}
-	}
-
-	// Dock inline edge — the right side of the left-edge dock
-	// (LTR; the logic reads `right` either way because the rect
-	// reflects the effective direction). Surfaced as a vertical
-	// collision edge so horizontally-moving effects (leaves blown
-	// by wind, rain slanted by gusts) can bounce off it.
+	// Dock edge — a thin collision strip along whichever side of the
+	// dock faces the desktop area. Placement (left / right / bottom)
+	// is driven by the user's OS Settings preference; we read the
+	// shell attribute to pick the correct face. Horizontally-moving
+	// effects (leaves, rain slanted by gusts) bounce off vertical
+	// dock edges; vertically-falling effects (snow) pile on the top
+	// edge of a bottom-placed dock.
 	const dockEl = document.getElementById( 'wp-desktop-dock' );
 	if ( dockEl ) {
 		const r = dockEl.getBoundingClientRect();
 		if ( r.width > 0 && r.height > 0 ) {
-			seed.push( {
-				id: 'dock:edge',
-				kind: 'dock',
-				rect: {
-					x: r.right - 1,
-					y: r.top,
-					width: 1,
-					height: r.height,
-				},
-				face: 'right',
-				element: dockEl,
-			} );
+			// The shell carries the canonical id `wp-desktop-shell` and
+			// also typically the matching class. Read by id so tests
+			// (which mount the shell as a plain `<div id="…">`) and
+			// production (which adds both id and class) both resolve.
+			const placement =
+				document
+					.getElementById( 'wp-desktop-shell' )
+					?.getAttribute( 'data-wp-desktop-dock-placement' ) ?? 'bottom';
+			if ( placement === 'bottom' ) {
+				seed.push( {
+					id: 'dock:edge',
+					kind: 'dock',
+					rect: { x: r.left, y: r.top, width: r.width, height: 1 },
+					face: 'top',
+					element: dockEl,
+				} );
+			} else if ( placement === 'right' ) {
+				seed.push( {
+					id: 'dock:edge',
+					kind: 'dock',
+					rect: { x: r.left, y: r.top, width: 1, height: r.height },
+					face: 'left',
+					element: dockEl,
+				} );
+			} else {
+				seed.push( {
+					id: 'dock:edge',
+					kind: 'dock',
+					rect: {
+						x: r.right - 1,
+						y: r.top,
+						width: 1,
+						height: r.height,
+					},
+					face: 'right',
+					element: dockEl,
+				} );
+			}
 		}
 	}
 

@@ -64,6 +64,7 @@ import type {
 import { buildAccentSection } from './sections/accent';
 import { buildAiSection } from './sections/ai';
 import { buildDockSizeSection } from './sections/dock-size';
+import { buildDockPlacementSection } from './sections/dock-placement';
 import { buildExtendedSection } from './sections/extended';
 import { buildHelpSection } from './sections/help';
 import {
@@ -119,6 +120,7 @@ export class OsSettings implements SettingsCtx {
 			wallpaper: this.state.wallpaper,
 			accent: this.state.accent,
 			dockSize: this.state.dockSize,
+			dockPlacement: this.state.dockPlacement,
 			ai: { ...this.state.ai },
 		};
 	}
@@ -186,6 +188,16 @@ export class OsSettings implements SettingsCtx {
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
 		root.style.setProperty( '--wp-desktop-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--wp-desktop-dock-icon-size', `${ dockSize.icon }px` );
+
+		// Dock placement is driven by an attribute on the shell root;
+		// dock.css keys off it for orientation, and desktop.css adjusts
+		// the area inset accordingly. Written here so every apply() is
+		// the single source of truth — no matter how the state got to
+		// this point (init from localStorage, picker change, reset).
+		shell.setAttribute(
+			'data-wp-desktop-dock-placement',
+			this.state.dockPlacement,
+		);
 	}
 
 	public save(): void {
@@ -276,6 +288,7 @@ export class OsSettings implements SettingsCtx {
 						</p>
 						${ buildWallpaperSection( this, body ) }
 						${ buildAccentSection( this ) }
+						${ buildDockPlacementSection( this ) }
 						${ buildDockSizeSection( this ) }
 					</wpd-panel>
 				</wpd-tabpanel>`,

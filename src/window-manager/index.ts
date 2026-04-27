@@ -582,7 +582,7 @@ export class WindowManager {
 
 		// `closed` still fires here (not after the fade-out) for
 		// back-compat — historically subscribers have relied on it
-		// to update counts / taskbar state as soon as the user
+		// to update counts / dock state as soon as the user
 		// clicks the X. Keep that timing; plugins that need the live
 		// element now have `closing` above.
 		const closedDetail = { windowId: win.id };

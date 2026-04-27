@@ -59,19 +59,10 @@ export interface DockItem {
 	submenu: { title: string; url: string }[];
 	/** Whether this admin page supports multiple open windows. */
 	multi?: boolean;
-	/**
-	 * Which rail the item was routed to by the PHP-side heuristic
-	 * (`wpdm_dock_placement`). `'dock'` = core WP menus on the
-	 * left-edge dock; `'taskbar'` = plugin-contributed top-level
-	 * menus on the bottom taskbar. Currently informational — the
-	 * shell splits items by this field in `desktop.ts` before
-	 * constructing the two Dock instances.
-	 */
-	placement?: 'dock' | 'taskbar';
 }
 
 /** Which edge of the screen the rail hugs. Drives tooltip anchoring + modifier CSS. */
-export type DockOrientation = 'left' | 'bottom';
+export type DockOrientation = 'left' | 'right' | 'bottom';
 
 /**
  * Stable 32-bit-ish string hash mapped into the hue circle. Used by
@@ -102,21 +93,14 @@ export function hashTitleToHue( title: string ): number {
  * Dock class.
  *
  * Manages the dock element, its icons, tooltips, and interaction with
- * the window manager. Rendered either on the left edge (core WP
- * menus — the classic dock) or along the bottom (installed-plugin
- * menus — the macOS-style taskbar), controlled by `orientation`. The
- * two instances share all of this class's logic; only CSS classes +
- * tooltip positioning differ.
+ * the window manager. The dock is a single unified rail that hosts
+ * every admin menu — core and plugin alike — and can render along any
+ * of three edges (left, right, or bottom). Placement is controlled by
+ * the user's `dockPlacement` OS setting via an attribute on the shell
+ * root; this class just reads its `orientation` arg to anchor tooltips
+ * and flip the indicator-dot side.
  */
 export class Dock {
-	/**
-	 * Monotonic instance counter used to build unique hook-registration
-	 * namespaces for each `Dock`. Without this, the left dock and the
-	 * bottom taskbar would share a namespace and WP's `addAction`
-	 * de-dup would silently drop whichever registered first.
-	 */
-	private static _instanceSeq = 0;
-
 	private container: HTMLElement;
 	private windowManager: WindowManager;
 	private items: DockItem[];
@@ -141,22 +125,22 @@ export class Dock {
 		this.adminUrl = adminUrl;
 		this.orientation = orientation;
 
-		// Mark the container with the orientation modifier so CSS can
-		// flip flex-direction, indicator-dot position, etc. The base
-		// `.wp-desktop-dock` class still applies — shared styling
-		// stays shared, only the deltas live behind the modifier.
-		this.container.classList.add(
-			orientation === 'bottom'
-				? 'wp-desktop-dock--horizontal'
-				: 'wp-desktop-dock--vertical',
-		);
+		// Orientation drives CSS indirectly via the shell root's
+		// `data-wp-desktop-dock-placement` attribute, so the dock
+		// element itself no longer carries modifier classes. Layout
+		// (vertical vs horizontal), indicator-dot anchor, and tile
+		// margins all key off the shell attribute in dock.css.
 
-		// Create tooltip element (shared across all items).
+		// Tooltip — shared across all items. Anchor class flips per
+		// orientation so the tooltip sits outside the dock regardless
+		// of which edge it hugs.
 		this.tooltip = document.createElement( 'div' );
 		this.tooltip.className = 'wp-desktop-dock__tooltip';
 		this.tooltip.setAttribute( 'role', 'tooltip' );
 		if ( orientation === 'bottom' ) {
 			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--above' );
+		} else if ( orientation === 'right' ) {
+			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--before' );
 		}
 		document.body.appendChild( this.tooltip );
 
@@ -166,11 +150,10 @@ export class Dock {
 
 	/**
 	 * Replace the menu-derived tile list with a fresh one, preserving
-	 * any JS-registered system tiles (OS Settings today, Jorvy /
-	 * widgets later). Used by the live menu-refresh path: after a
-	 * plugin is activated or deactivated, the shell refetches the
-	 * split payload from `/wp-desktop/v1/menu` and calls this on
-	 * both rails so the dock + taskbar repaint without a tab reload.
+	 * any JS-registered system tiles. Used by the live menu-refresh
+	 * path: after a plugin is activated or deactivated, the shell
+	 * refetches the payload from `/wp-desktop/v1/menu` and calls this
+	 * so the dock repaints without a tab reload.
 	 *
 	 * Old menu tiles are removed from both the DOM and the lookup
 	 * map; new tiles are inserted before the system separator (or
@@ -180,18 +163,62 @@ export class Dock {
 	 * window indicators survive the swap.
 	 *
 	 * @param items New DockItem list. Pass `[]` to clear everything
-	 *              menu-derived — common when the last plugin on the
-	 *              taskbar is deactivated.
+	 *              menu-derived.
 	 */
+	/**
+	 * Update the dock's orientation in response to a live placement
+	 * change from OS Settings. Cosmetic only — CSS handles the visual
+	 * position via the shell root's `data-wp-desktop-dock-placement`
+	 * attribute. All this method does is keep the tooltip anchor in
+	 * sync so it sits outside the rail on whichever edge is active.
+	 */
+	public setOrientation( orientation: DockOrientation ): void {
+		if ( this.orientation === orientation ) {
+			return;
+		}
+		this.orientation = orientation;
+		this.tooltip.classList.remove(
+			'wp-desktop-dock__tooltip--above',
+			'wp-desktop-dock__tooltip--before',
+		);
+		if ( orientation === 'bottom' ) {
+			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--above' );
+		} else if ( orientation === 'right' ) {
+			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--before' );
+		}
+	}
+
 	public replaceItems( items: DockItem[] ): void {
 		for ( const el of this.itemElements.values() ) {
 			el.remove();
 		}
+		// Also remove any stale group separator from a previous render.
+		this.container
+			.querySelectorAll(
+				'.wp-desktop-dock__separator--group',
+			)
+			.forEach( ( el ) => el.remove() );
 		this.itemElements.clear();
 
 		this.items = items;
 
+		let insertedGroupSeparator = false;
+		let tilesInsertedThisPass = 0;
 		for ( const item of items ) {
+			if ( ! insertedGroupSeparator && item.isCore === false ) {
+				if ( tilesInsertedThisPass > 0 ) {
+					const sep = document.createElement( 'div' );
+					sep.className =
+						'wp-desktop-dock__separator wp-desktop-dock__separator--group';
+					sep.setAttribute( 'aria-hidden', 'true' );
+					if ( this.systemSeparator ) {
+						this.container.insertBefore( sep, this.systemSeparator );
+					} else {
+						this.container.appendChild( sep );
+					}
+				}
+				insertedGroupSeparator = true;
+			}
 			const btn = this.createItemButton( item );
 			this.itemElements.set( item.id, btn );
 			if ( this.systemSeparator ) {
@@ -199,6 +226,7 @@ export class Dock {
 			} else {
 				this.container.appendChild( btn );
 			}
+			tilesInsertedThisPass++;
 		}
 
 		this.updateActiveStates();
@@ -270,12 +298,33 @@ export class Dock {
 
 	/**
 	 * Render the dock contents.
+	 *
+	 * Items are ordered server-side with core WordPress menus first and
+	 * plugin-contributed menus after. We insert a `--group` separator
+	 * at the first core→plugin transition so the two clusters read as
+	 * distinct groups of tiles — "default apps" and "installed apps"
+	 * in macOS-dock parlance. The separator is skipped when the menu
+	 * contains only one kind (no plugin menus, or a theme's filter
+	 * reordered everything into one class).
 	 */
 	private render(): void {
 		this.container.innerHTML = '';
 
-		// Dock items from the admin menu.
+		let insertedGroupSeparator = false;
 		for ( const item of this.items ) {
+			if ( ! insertedGroupSeparator && item.isCore === false ) {
+				// Only insert if there's at least one core tile before
+				// us — otherwise a plugin-only dock would lead with a
+				// lonely separator.
+				if ( this.container.childElementCount > 0 ) {
+					const sep = document.createElement( 'div' );
+					sep.className =
+						'wp-desktop-dock__separator wp-desktop-dock__separator--group';
+					sep.setAttribute( 'aria-hidden', 'true' );
+					this.container.appendChild( sep );
+				}
+				insertedGroupSeparator = true;
+			}
 			const btn = this.createItemButton( item );
 			this.itemElements.set( item.id, btn );
 			this.container.appendChild( btn );
@@ -420,7 +469,7 @@ export class Dock {
 	 *
 	 * Priority: dashicons class → inline SVG data URI → image URL →
 	 * letter badge derived from the item's title. The letter fallback is
-	 * important for the taskbar: plugin authors routinely register
+	 * important for plugin tiles: plugin authors routinely register
 	 * top-level menus with `add_menu_page()` and omit the icon argument
 	 * (defaulting to `'div'` or empty), which would otherwise render as
 	 * an indistinguishable wall of generic wrenches. A colored letter
@@ -632,10 +681,9 @@ export class Dock {
 
 	/**
 	 * Bind tooltip show/hide on hover. Tooltip anchor differs per
-	 * orientation: left dock → vertically centered on the tile, placed
-	 * to its right via CSS; bottom taskbar → horizontally centered,
-	 * placed above the tile via CSS. We set the relevant coordinate
-	 * inline each enter; the CSS takes care of the rest.
+	 * orientation: left dock → tile's right side, right dock → tile's
+	 * left side, bottom dock → above the tile. We set the relevant
+	 * coordinate inline each enter; the CSS takes care of the rest.
 	 */
 	private bindTooltip( el: HTMLElement, text: string ): void {
 		el.addEventListener( 'pointerenter', () => {
@@ -660,8 +708,15 @@ export class Dock {
 			// Horizontal centering; CSS handles the vertical offset.
 			this.tooltip.style.left = `${ rect.left + rect.width / 2 }px`;
 			this.tooltip.style.top = `${ rect.top - 14 }px`;
+		} else if ( this.orientation === 'right' ) {
+			// Tooltip sits to the LEFT of the tile — anchor on the
+			// tile's left edge; CSS --before modifier translates it
+			// further left + centers vertically.
+			this.tooltip.style.top = `${ rect.top + rect.height / 2 - 14 }px`;
+			this.tooltip.style.left = `${ rect.left }px`;
 		} else {
-			// Vertical centering; CSS handles the horizontal offset.
+			// Left orientation (default). Vertical centering; CSS
+			// handles the horizontal offset.
 			this.tooltip.style.top = `${ rect.top + rect.height / 2 - 14 }px`;
 			this.tooltip.style.left = '';
 		}
@@ -725,15 +780,7 @@ export class Dock {
 		// the active desktop" even though the stack is unchanged.
 		// Listen via the hook bus so a plugin that manually calls
 		// switchDesktop() also triggers a repaint.
-		//
-		// Namespace is unique per Dock instance because we have TWO
-		// (left dock + bottom taskbar); a shared static namespace was
-		// causing wp.hooks.addAction's de-dup to drop whichever
-		// registered first, leaving one of the two docks stale on
-		// desktop switch. The orientation plus a monotonic counter
-		// guarantees uniqueness without losing the "where did this
-		// come from?" debuggability of a readable namespace.
-		const ns = `wp-desktop-mode/dock-${ this.orientation }-${ ++Dock._instanceSeq }`;
+		const ns = 'wp-desktop-mode/dock';
 		window.wp?.hooks?.addAction?.(
 			'wp-desktop.desktop.switched',
 			ns,

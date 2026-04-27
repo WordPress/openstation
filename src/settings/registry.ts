@@ -31,6 +31,7 @@ export interface OsSettingsSnapshot {
 	wallpaper: string;
 	accent: string;
 	dockSize: string;
+	dockPlacement: 'left' | 'right' | 'bottom';
 	ai: {
 		enabled: boolean;
 		provider: string;

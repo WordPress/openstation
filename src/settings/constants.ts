@@ -117,10 +117,22 @@ export const DOCK_SIZES = [
 	{ id: 'large', label: 'Large', width: 72, icon: 26 },
 ] as const;
 
+/**
+ * Dock-placement options. Drives the `data-wp-desktop-dock-placement`
+ * attribute on the shell root; CSS keys off that attribute to position
+ * the rail, flip the tooltip anchor, and adjust the desktop-area inset.
+ */
+export const DOCK_PLACEMENTS = [
+	{ id: 'bottom', label: 'Bottom' },
+	{ id: 'left', label: 'Left' },
+	{ id: 'right', label: 'Right' },
+] as const;
+
 export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'wp-blue',
 	dockSize: 'default',
+	dockPlacement: 'bottom',
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',

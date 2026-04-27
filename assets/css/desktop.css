@@ -195,6 +195,17 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	background: transparent;
 }
 
+/*
+ * When the dock is pinned to the bottom it floats as an absolutely
+ * positioned pill, overlapping the desktop area's lower edge. Reserve
+ * the corresponding inset so windows and desktop icons aren't
+ * occluded by the dock. The reserved height roughly matches the pill
+ * (40px icons + 16px padding + 12px gap below + 8px breathing room).
+ */
+.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ] .wp-desktop-area {
+	padding-bottom: 80px;
+}
+
 /* ---------------------------------------------------------------
  * Desktop icons — wallpaper shortcut tiles registered via the
  * `wp_register_desktop_icon()` PHP API. Rendered inside the

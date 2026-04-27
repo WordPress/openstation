@@ -19,6 +19,7 @@ import type { DOCK_SIZES } from './constants';
  */
 export type AccentId = string;
 export type DockSizeId = ( typeof DOCK_SIZES )[ number ][ 'id' ];
+export type DockPlacementId = 'left' | 'right' | 'bottom';
 
 /** Two endpoints on the gradient, plus an angle in degrees (0–360). */
 export interface CustomGradient {
@@ -52,6 +53,7 @@ export interface OsSettingsState {
 	wallpaper: string;
 	accent: AccentId;
 	dockSize: DockSizeId;
+	dockPlacement: DockPlacementId;
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
 	/**

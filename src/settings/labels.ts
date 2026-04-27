@@ -8,7 +8,7 @@
  */
 
 import { __ } from '../i18n';
-import type { AccentId, DockSizeId } from './types';
+import type { AccentId, DockPlacementId, DockSizeId } from './types';
 
 export function translateAccentLabel( id: AccentId, fallback: string ): string {
 	switch ( id ) {
@@ -37,6 +37,22 @@ export function translateDockSizeLabel( id: DockSizeId, fallback: string ): stri
 			return __( 'Default' );
 		case 'large':
 			return __( 'Large' );
+		default:
+			return fallback;
+	}
+}
+
+export function translateDockPlacementLabel(
+	id: DockPlacementId,
+	fallback: string,
+): string {
+	switch ( id ) {
+		case 'bottom':
+			return __( 'Bottom' );
+		case 'left':
+			return __( 'Left' );
+		case 'right':
+			return __( 'Right' );
 		default:
 			return fallback;
 	}

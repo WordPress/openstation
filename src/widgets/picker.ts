@@ -5,8 +5,8 @@
  * bottom of the widget column. Lists every registered widget; each
  * entry either clicks to add or shows "Added" if already on screen.
  *
- * Intentionally NOT a native window — native windows carry dock /
- * taskbar chrome that'd feel over-engineered for a 1-click add. A
+ * Intentionally NOT a native window — native windows carry titlebar
+ * chrome that'd feel over-engineered for a 1-click add. A
  * self-contained floating panel with Esc + outside-click dismiss
  * matches the overview top-bar's tile-add vocabulary the user
  * already recognises.

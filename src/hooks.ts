@@ -240,8 +240,8 @@ export const HOOKS = {
 	 * should consider for collision / accumulation effects (snow
 	 * piling, leaves settling, rain splash). Seeded by the shell
 	 * with: every visible (non-minimized) window's top edge; the
-	 * desktop-area floor; the taskbar top when present; the dock's
-	 * inline edge; and every mounted widget card's top edge.
+	 * desktop-area floor; the dock's outward-facing edge; and every
+	 * mounted widget card's top edge.
 	 *
 	 * Plugins that own their own DOM (e.g. floating pickers,
 	 * custom overlays) can push additional surfaces so snow
@@ -403,10 +403,9 @@ export const HOOKS = {
 	COMPONENTS_REGISTERED: 'wp-desktop.components.registered',
 	/**
 	 * Action, fires after `wp.desktop.registerSystemTile()` inserts
-	 * a tile into the dock or taskbar. Payload: `{ id: string,
-	 * placement: 'dock' | 'taskbar' }`. Useful for plugins that
-	 * want to decorate tiles they didn't register themselves —
-	 * analytics, theming, per-tile badges.
+	 * a tile into the unified dock. Payload: `{ id: string }`. Useful
+	 * for plugins that want to decorate tiles they didn't register
+	 * themselves — analytics, theming, per-tile badges.
 	 */
 	DOCK_ITEM_APPENDED: 'wp-desktop.dock.item-appended',
 
