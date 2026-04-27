@@ -148,6 +148,11 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The save-desktop-mode nonce must be reachable from the toggle's
+	 * click handler. Today the config is delivered via wp_localize_script
+	 * on the `wpdm-admin-bar` handle, so we assert the nonce that
+	 * lands in that script's `data` matches wp_create_nonce( 'save-desktop-mode' ).
+	 *
 	 * @covers ::wpdm_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_nonce_is_baked_into_inline_script() {
@@ -155,17 +160,19 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		wpdm_enqueue_toggle_assets();
 
-		$after  = wp_scripts()->get_data( 'admin-bar', 'after' );
-		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
-		$this->assertStringContainsString( 'save-desktop-mode', $inline );
+		$before = wp_scripts()->get_data( 'wpdm-admin-bar', 'before' );
+		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
+		$expected_nonce = wp_create_nonce( 'save-desktop-mode' );
+		$this->assertStringContainsString( '"nonce":"' . $expected_nonce . '"', $data );
 	}
 
 	/**
 	 * The click handler's config must be emitted as a JSON literal, not
 	 * string-interpolated. That way a weird nonce, URL, or filter return
-	 * value can never break out of its quotes and inject script. This test
-	 * asserts the JSON property shape is present (e.g. `"nonce":"..."`)
-	 * rather than raw `var nonce = '...'` interpolation.
+	 * value can never break out of its quotes and inject script.
+	 * wp_localize_script JSON-encodes its argument by definition; this
+	 * test asserts the expected JSON shape lands on the wpdm-admin-bar
+	 * handle so the contract is held end-to-end.
 	 *
 	 * @covers ::wpdm_enqueue_toggle_assets
 	 */
@@ -174,15 +181,15 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		wpdm_enqueue_toggle_assets();
 
-		$after  = wp_scripts()->get_data( 'admin-bar', 'after' );
-		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
+		$before = wp_scripts()->get_data( 'wpdm-admin-bar', 'before' );
+		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
 
 		// JSON-shaped properties for every value we inject.
-		$this->assertMatchesRegularExpression( '/"nonce":"[a-f0-9]+"/', $inline );
-		$this->assertMatchesRegularExpression( '/"active":(true|false)/', $inline );
-		$this->assertStringContainsString( '"classicUrl":"', $inline );
-		$this->assertStringContainsString( '"portalUrl":"', $inline );
-		$this->assertStringContainsString( '"ajaxUrl":"', $inline );
+		$this->assertMatchesRegularExpression( '/"nonce":"[a-f0-9]+"/', $data );
+		$this->assertMatchesRegularExpression( '/"active":(true|false)/', $data );
+		$this->assertStringContainsString( '"classicUrl":"', $data );
+		$this->assertStringContainsString( '"portalUrl":"', $data );
+		$this->assertStringContainsString( '"ajaxUrl":"', $data );
 	}
 
 	/**
@@ -438,28 +445,20 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The inline JS click router must know how to recognise a
-	 * plugin-registered item. We assert the `wp-admin-bar-desktop-layout-custom-`
-	 * prefix check + the `wp-desktop.arrange.custom-action` dispatch are
-	 * both baked into the admin-bar script.
-	 *
-	 * @covers ::wpdm_enqueue_toggle_assets
+	 * The shipped click router must know how to recognise a
+	 * plugin-registered item. The router lives in
+	 * `assets/js/admin-bar.js` (extracted from inline PHP for wp.org
+	 * compliance). We assert the prefix check + custom-action dispatch
+	 * are both present in that file.
 	 */
 	public function test_toggle_assets_route_custom_arrange_items() {
-		wp_set_current_user( self::$admin_id );
+		$js_path = dirname( __DIR__, 3 ) . '/assets/js/admin-bar.js';
+		$this->assertFileExists( $js_path );
 
-		wpdm_enqueue_toggle_assets();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- test-only file read.
+		$js = (string) file_get_contents( $js_path );
 
-		$after  = wp_scripts()->get_data( 'admin-bar', 'after' );
-		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
-
-		$this->assertStringContainsString(
-			'wp-admin-bar-desktop-layout-custom-',
-			$inline
-		);
-		$this->assertStringContainsString(
-			'wp-desktop.arrange.custom-action',
-			$inline
-		);
+		$this->assertStringContainsString( 'wp-admin-bar-desktop-layout-custom-', $js );
+		$this->assertStringContainsString( 'wp-desktop.arrange.custom-action', $js );
 	}
 }

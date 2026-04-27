@@ -392,16 +392,22 @@ function wpdm_enqueue_toggle_assets() {
 		WPDM_VERSION,
 		true
 	);
-	wp_localize_script(
+	// Emit the config as a JSON literal via wp_add_inline_script (not
+	// wp_localize_script — the latter casts booleans to '' / '1', which
+	// breaks the click handler's `!! cfg.active` check). 'before' runs
+	// before admin-bar.js so the global is ready when the IIFE fires.
+	wp_add_inline_script(
 		'wpdm-admin-bar',
-		'wpDesktopAdminBar',
-		array(
-			'nonce'      => wp_create_nonce( 'save-desktop-mode' ),
-			'active'     => wpdm_is_enabled() && ! wpdm_is_classic_request(),
-			'classicUrl' => esc_url_raw( admin_url() ),
-			'portalUrl'  => esc_url_raw( wpdm_portal_url() ),
-			'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
-		)
+		'var wpDesktopAdminBar = ' . wp_json_encode(
+			array(
+				'nonce'      => wp_create_nonce( 'save-desktop-mode' ),
+				'active'     => wpdm_is_enabled() && ! wpdm_is_classic_request(),
+				'classicUrl' => esc_url_raw( admin_url() ),
+				'portalUrl'  => esc_url_raw( wpdm_portal_url() ),
+				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
+			)
+		) . ';',
+		'before'
 	);
 	wp_enqueue_script( 'wpdm-admin-bar' );
 }
