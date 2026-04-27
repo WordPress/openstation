@@ -43,6 +43,16 @@ export type { WpdBadgeTone } from './wpd-badge/wpd-badge';
 export { WpdLog } from './wpd-log/wpd-log';
 export type { WpdLogRowRenderer } from './wpd-log/wpd-log';
 export { WpdSteps, WpdStep } from './wpd-steps/wpd-steps';
+export { WpdTable } from './wpd-table/wpd-table';
+export type {
+	WpdTableColumn,
+	WpdTableFilters,
+	WpdTableGetRowId,
+	WpdTableRowId,
+	WpdTableSort,
+	WpdTableSubTableFn,
+	WpdTableSubTableResult,
+} from './wpd-table/wpd-table';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -88,4 +98,5 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-log',
 	'wpd-steps',
 	'wpd-step',
+	'wpd-table',
 ] as const;
