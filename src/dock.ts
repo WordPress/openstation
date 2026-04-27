@@ -59,6 +59,14 @@ export interface DockItem {
 	submenu: { title: string; url: string }[];
 	/** Whether this admin page supports multiple open windows. */
 	multi?: boolean;
+	/**
+	 * Whether this item is a first-party WordPress core menu entry
+	 * (Dashboard, Posts, Media, Plugins, Users, Settings, CPTs,
+	 * taxonomies). Used by the dock to render a visual separator
+	 * between core and plugin tiles. Server-side classifier lives
+	 * in `desktop_mode_is_core_menu_slug`.
+	 */
+	isCore?: boolean;
 }
 
 /** Which edge of the screen the rail hugs. Drives tooltip anchoring + modifier CSS. */

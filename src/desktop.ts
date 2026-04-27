@@ -889,6 +889,7 @@ function init(): void {
 	// the same statement.
 	const refreshMenu = bindMenuRefresh(
 		dock,
+		desktopArea,
 		config,
 		syncNativeWindows,
 		syncServerWidgets,
@@ -1516,13 +1517,16 @@ const MENU_REFRESH_DEBOUNCE_MS = 250;
  *
  * No-ops when `config.menuUrl` isn't present.
  *
- * @param dock   Unified dock instance.
- * @param config Boot config; `dockItems` is mutated in place after
- *               each successful refresh.
+ * @param dock        Unified dock instance.
+ * @param desktopArea Desktop area element — wears live-refresh
+ *                    classes the applier may toggle.
+ * @param config      Boot config; `dockItems` is mutated in place
+ *                    after each successful refresh.
  * @return An async function plugins can call to force a refresh.
  */
 function bindMenuRefresh(
 	dock: Dock | null,
+	desktopArea: HTMLElement,
 	config: DesktopConfig,
 	syncNativeWindows: (
 		list: import( './types' ).NativeWindowServerEntry[],

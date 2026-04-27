@@ -382,9 +382,11 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Every built dock item carries a `placement` field — `'dock'`
-	 * for core admin pages + CPTs, `'taskbar'` for plugin-installed
-	 * top-level routes.
+	 * Every built dock item carries a `placement` field — defaults to
+	 * `'dock'` for every menu (the unified rail hosts both core and
+	 * plugin items) — and an `isCore` flag the renderer uses to insert
+	 * a visual separator between the core cluster and the plugin
+	 * cluster.
 	 *
 	 * @covers ::desktop_mode_build_dock_items
 	 * @covers ::desktop_mode_is_core_menu_slug
@@ -410,12 +412,22 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$by_id[ $item['id'] ] = $item;
 		}
 
+		// Every visible item lands on the unified dock by default.
 		$this->assertSame( 'dock', $by_id['menu-index-php']['placement'] );
 		$this->assertSame( 'dock', $by_id['menu-edit-php']['placement'] );
 		$this->assertSame( 'dock', $by_id['menu-options-general-php']['placement'] );
 		$this->assertSame( 'dock', $by_id['menu-plugins-php']['placement'] );
-		$this->assertSame( 'taskbar', $by_id['menu-woocommerce']['placement'] );
-		$this->assertSame( 'taskbar', $by_id['menu-wpseo_dashboard']['placement'] );
+		$this->assertSame( 'dock', $by_id['menu-woocommerce']['placement'] );
+		$this->assertSame( 'dock', $by_id['menu-wpseo_dashboard']['placement'] );
+
+		// `isCore` is what the JS renderer uses to insert the visual
+		// separator between core and plugin tile clusters.
+		$this->assertTrue( $by_id['menu-index-php']['isCore'] );
+		$this->assertTrue( $by_id['menu-edit-php']['isCore'] );
+		$this->assertTrue( $by_id['menu-options-general-php']['isCore'] );
+		$this->assertTrue( $by_id['menu-plugins-php']['isCore'] );
+		$this->assertFalse( $by_id['menu-woocommerce']['isCore'] );
+		$this->assertFalse( $by_id['menu-wpseo_dashboard']['isCore'] );
 	}
 
 	/**
@@ -431,21 +443,18 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	}
 
 	/**
-	 * `desktop_mode_dock_placement` lets plugins + site admins re-home
-	 * any menu item. Return `'dock'` to promote a plugin to the left
-	 * bar, `'taskbar'` to demote a core item to the bottom.
+	 * `desktop_mode_dock_placement` lets plugins + site admins hide
+	 * any menu item from the dock. Returning anything else coerces
+	 * back to `'dock'` (the default).
 	 *
 	 * @covers ::desktop_mode_dock_placement
 	 */
-	public function test_placement_filter_can_promote_or_demote() {
+	public function test_placement_filter_can_hide_items() {
 		add_filter(
 			'desktop_mode_dock_placement',
 			static function ( $placement, $slug ) {
-				if ( 'jetpack' === $slug ) {
-					return 'dock';
-				}
-				if ( 'tools.php' === $slug ) {
-					return 'taskbar';
+				if ( 'background-tool' === $slug ) {
+					return 'hidden';
 				}
 				return $placement;
 			},
@@ -453,16 +462,16 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			2
 		);
 
-		$this->assertSame( 'dock', desktop_mode_dock_placement( 'jetpack' ) );
-		$this->assertSame( 'taskbar', desktop_mode_dock_placement( 'tools.php' ) );
+		// Hidden items disappear from the dock.
+		$this->assertSame( 'hidden', desktop_mode_dock_placement( 'background-tool' ) );
 		// Unrelated slugs still get the default answer.
 		$this->assertSame( 'dock', desktop_mode_dock_placement( 'edit.php' ) );
-		$this->assertSame( 'taskbar', desktop_mode_dock_placement( 'my-other-plugin' ) );
+		$this->assertSame( 'dock', desktop_mode_dock_placement( 'jetpack' ) );
 	}
 
 	/**
-	 * A filter that returns garbage is ignored — the heuristic's
-	 * default wins to keep the shell rendering predictably.
+	 * A filter that returns garbage is ignored — items default to
+	 * `'dock'` to keep the shell rendering predictably.
 	 *
 	 * @covers ::desktop_mode_dock_placement
 	 */
@@ -474,19 +483,19 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			}
 		);
 		$this->assertSame( 'dock', desktop_mode_dock_placement( 'edit.php' ) );
-		$this->assertSame( 'taskbar', desktop_mode_dock_placement( 'some-plugin' ) );
+		$this->assertSame( 'dock', desktop_mode_dock_placement( 'some-plugin' ) );
 	}
 
 	/**
 	 * Plugins that don't want to claim chrome real estate can return
 	 * `'hidden'` from the placement filter. The item must disappear
-	 * from both rails in the shell payload while still being a valid
+	 * from the unified dock payload while still being a valid
 	 * server-side menu entry.
 	 *
 	 * @covers ::desktop_mode_dock_placement
 	 * @covers ::desktop_mode_build_menu_payload
 	 */
-	public function test_hidden_placement_removes_item_from_both_rails() {
+	public function test_hidden_placement_removes_item_from_dock() {
 		add_filter(
 			'desktop_mode_dock_placement',
 			static function ( $placement, $slug ) {
@@ -509,10 +518,8 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 
 		$payload  = desktop_mode_build_menu_payload();
 		$dock_ids = wp_list_pluck( $payload['dockItems'], 'id' );
-		$bar_ids  = wp_list_pluck( $payload['taskbarItems'], 'id' );
 
 		$this->assertNotContains( 'menu-background-tool', $dock_ids );
-		$this->assertNotContains( 'menu-background-tool', $bar_ids );
-		$this->assertContains( 'menu-other-plugin', $bar_ids );
+		$this->assertContains( 'menu-other-plugin', $dock_ids );
 	}
 }
