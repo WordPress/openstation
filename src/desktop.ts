@@ -63,6 +63,7 @@ import {
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { renderDesktopIcons } from './desktop-icons';
+import { createApplyPayload } from './menu-refresh-apply';
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
@@ -932,11 +933,16 @@ function init(): void {
 	// here (which we used to do) leaks an empty body to render
 	// callbacks that depend on the cloned template, breaking every
 	// plugin that follows the documented pattern.
-	if ( Array.isArray( config.desktopIcons ) && config.desktopIcons.length > 0 ) {
-		renderDesktopIcons( desktopArea, config.desktopIcons, {
+	const renderIcons = (
+		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
+	): void => {
+		renderDesktopIcons( desktopArea, icons, {
 			openWindow: nativeWindows.openById,
 			manager,
 		} );
+	};
+	if ( Array.isArray( config.desktopIcons ) && config.desktopIcons.length > 0 ) {
+		renderIcons( config.desktopIcons );
 	}
 
 	// Live menu refresh — rebuild both rails when a plugin activation
@@ -961,6 +967,7 @@ function init(): void {
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		renderIcons,
 	);
 
 	// Expose the public API on `window.wp.desktop`. The `hooks` field
@@ -1614,163 +1621,28 @@ function bindMenuRefresh(
 	syncServerTitleBarButtons: (
 		scripts: import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
 	) => Promise< void >,
+	renderIcons: (
+		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
+	) => void,
 ): () => Promise<void> {
 	// Shared applier — takes a freshly-split payload and rebuilds
-	// both rails. Extracted so the message-with-payload path (no
-	// REST) and the manual-refresh path (REST) share behaviour.
-	const applyPayload = ( payload: {
-		dockItems?: unknown;
-		taskbarItems?: unknown;
-		nativeWindows?: unknown;
-		serverWidgets?: unknown;
-		serverWallpapers?: unknown;
-		serverCommandScripts?: unknown;
-		serverCommands?: unknown;
-		serverSettingsTabScripts?: unknown;
-		serverSettingsTabs?: unknown;
-	} ): void => {
-		const dockItems = payload.dockItems;
-		const taskbarItems = payload.taskbarItems;
-		const nativeWindows = payload.nativeWindows;
-		const serverWidgets = payload.serverWidgets;
-		const serverWallpapers = payload.serverWallpapers;
-		const serverCommandScripts = payload.serverCommandScripts;
-		const serverCommands = payload.serverCommands;
-		const serverSettingsTabScripts = payload.serverSettingsTabScripts;
-		const serverSettingsTabs = payload.serverSettingsTabs;
-
-		// Guard: an empty `dockItems` list is NEVER legitimate —
-		// WordPress Core always ships Dashboard, which lands on the
-		// dock by default. An empty response means the server side
-		// failed to build the menu (e.g. the `$menu` global wasn't
-		// populated in REST context and our bootstrap didn't kick
-		// in). Skip the swap entirely rather than wipe the user's
-		// sidebar.
-		if ( ! Array.isArray( dockItems ) || dockItems.length === 0 ) {
-			return;
-		}
-		if ( dock ) {
-			dock.replaceItems( dockItems as DesktopConfig[ 'dockItems' ] );
-			config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
-		}
-
-		// Taskbar CAN legitimately be empty (user has no plugins
-		// with top-level menus yet). Only touched when the payload
-		// also carries a taskbarItems array — missing field means
-		// "no data", not "clear it."
-		if ( Array.isArray( taskbarItems ) ) {
-			taskbar?.replaceItems(
-				taskbarItems as DesktopConfig[ 'taskbarItems' ],
-			);
-			config.taskbarItems = taskbarItems as DesktopConfig[ 'taskbarItems' ];
-
-			// Visibility check spans BOTH menu-derived tiles AND
-			// JS-registered system tiles (like the Calculator's
-			// native-window launcher). Counting only `taskbarItems`
-			// would incorrectly hide the whole rail whenever the
-			// LAST menu-plugin deactivates — even if a native
-			// window is still sitting on the rail. Asking the dock
-			// itself via `hasItems()` keeps both kinds of tile in
-			// the "is this rail alive?" equation.
-			const hasAnyTaskbarTile = taskbar?.hasItems() ?? false;
-			if ( taskbarEl ) {
-				taskbarEl.hidden = ! hasAnyTaskbarTile;
-			}
-			desktopArea.classList.toggle(
-				'wp-desktop-area--with-taskbar',
-				hasAnyTaskbarTile,
-			);
-		}
-
-		// Native-window sync — server registry is the source of
-		// truth for plugin-owned native windows. Tiles added
-		// server-side (plugin activated via `wp_register_desktop_window`)
-		// appear; tiles whose plugin deactivated disappear. All
-		// without a shell reload.
-		if ( Array.isArray( nativeWindows ) ) {
-			void syncNativeWindows(
-				nativeWindows as import( './types' ).NativeWindowServerEntry[],
-			);
-			config.nativeWindows =
-				nativeWindows as DesktopConfig[ 'nativeWindows' ];
-		}
-
-		// Widget-registry sync — same lifecycle story for the
-		// right-column widget layer. Plugins declared via
-		// `wp_register_desktop_widget()` show up in the picker
-		// without a reload; deactivated plugin widgets disappear.
-		if ( Array.isArray( serverWidgets ) ) {
-			void syncServerWidgets(
-				serverWidgets as import( './types' ).DesktopWidgetServerEntry[],
-			);
-			config.serverWidgets =
-				serverWidgets as DesktopConfig[ 'serverWidgets' ];
-		}
-
-		// Wallpaper-registry sync — same lifecycle, now for the
-		// OS Settings wallpaper picker. New plugin wallpapers
-		// surface without a reload; deactivated ones disappear and
-		// the active selection falls back to a built-in if it was
-		// the one leaving.
-		if ( Array.isArray( serverWallpapers ) ) {
-			void syncServerWallpapers(
-				serverWallpapers as import( './types' ).DesktopWallpaperServerEntry[],
-			);
-			config.serverWallpapers =
-				serverWallpapers as DesktopConfig[ 'serverWallpapers' ];
-		}
-
-		// Command-palette sync — loads plugin-contributed command scripts
-		// on activation and unregisters owner-tagged commands when a
-		// handle leaves the payload. `serverCommandScripts` may be
-		// absent on older menu REST responses that haven't been redeployed
-		// yet; treat missing as "no change."
-		if ( Array.isArray( serverCommandScripts ) ) {
-			void syncServerCommands(
-				serverCommandScripts as import( './types' ).DesktopCommandScriptServerEntry[],
-				Array.isArray( serverCommands )
-					? ( serverCommands as import( './types' ).DesktopCommandServerEntry[] )
-					: undefined,
-			);
-			config.serverCommandScripts =
-				serverCommandScripts as DesktopConfig[ 'serverCommandScripts' ];
-			if ( Array.isArray( serverCommands ) ) {
-				config.serverCommands =
-					serverCommands as DesktopConfig[ 'serverCommands' ];
-			}
-		}
-
-		// Settings-tab sync — mirror of the commands block. Loads
-		// plugin-contributed settings-tab scripts on activation and
-		// unregisters tabs attributable to a handle that just left
-		// the payload.
-		if ( Array.isArray( serverSettingsTabScripts ) ) {
-			void syncServerSettingsTabs(
-				serverSettingsTabScripts as import( './types' ).DesktopSettingsTabScriptServerEntry[],
-				Array.isArray( serverSettingsTabs )
-					? ( serverSettingsTabs as import( './types' ).DesktopSettingsTabServerEntry[] )
-					: undefined,
-			);
-			config.serverSettingsTabScripts =
-				serverSettingsTabScripts as DesktopConfig[ 'serverSettingsTabScripts' ];
-			if ( Array.isArray( serverSettingsTabs ) ) {
-				config.serverSettingsTabs =
-					serverSettingsTabs as DesktopConfig[ 'serverSettingsTabs' ];
-			}
-		}
-
-		// Title-bar-button sync — same shape as the commands block.
-		const serverTitleBarButtonScripts = (
-			payload as { serverTitleBarButtonScripts?: unknown }
-		).serverTitleBarButtonScripts;
-		if ( Array.isArray( serverTitleBarButtonScripts ) ) {
-			void syncServerTitleBarButtons(
-				serverTitleBarButtonScripts as import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
-			);
-			config.serverTitleBarButtonScripts =
-				serverTitleBarButtonScripts as DesktopConfig[ 'serverTitleBarButtonScripts' ];
-		}
-	};
+	// both rails. Extracted into its own module so the message-with-
+	// payload path (no REST) and the manual-refresh path (REST) share
+	// behaviour AND the contract is unit-testable in isolation.
+	const applyPayload = createApplyPayload( {
+		dock,
+		taskbar,
+		taskbarEl,
+		desktopArea,
+		config,
+		syncNativeWindows,
+		syncServerWidgets,
+		syncServerWallpapers,
+		syncServerCommands,
+		syncServerSettingsTabs,
+		syncServerTitleBarButtons,
+		renderIcons,
+	} );
 
 	const refresh = async (): Promise<void> => {
 		if ( ! config.menuUrl ) {
@@ -1795,6 +1667,8 @@ function bindMenuRefresh(
 				serverCommands?: DesktopConfig[ 'serverCommands' ];
 				serverSettingsTabScripts?: DesktopConfig[ 'serverSettingsTabScripts' ];
 				serverSettingsTabs?: DesktopConfig[ 'serverSettingsTabs' ];
+				serverTitleBarButtonScripts?: DesktopConfig[ 'serverTitleBarButtonScripts' ];
+				desktopIcons?: DesktopConfig[ 'desktopIcons' ];
 			};
 			applyPayload( data );
 		} catch ( err ) {
@@ -1825,6 +1699,8 @@ function bindMenuRefresh(
 				serverCommands?: unknown;
 				serverSettingsTabScripts?: unknown;
 				serverSettingsTabs?: unknown;
+				serverTitleBarButtonScripts?: unknown;
+				desktopIcons?: unknown;
 			};
 		} | null;
 		if ( ! data || data.type !== 'wp-desktop-plugins-changed' ) {

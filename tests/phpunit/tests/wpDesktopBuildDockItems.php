@@ -305,23 +305,26 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Inline SVG data URIs were previously preserved for the Core
-	 * Site Health / Privacy icons, but SVG can carry script that
-	 * executes when the icon is rendered as a CSS background. The
-	 * sanitizer now rejects every `data:` URI and falls back to the
-	 * generic dashicon. Menus that shipped an inline SVG should
-	 * register a dashicons class or an http(s) image URL instead.
+	 * Inline SVG data URIs are the canonical menu-icon shape for
+	 * modern WP plugins (Yoast, WooCommerce, Jetpack, etc.). The
+	 * shell renders them via CSS `background-image`, which sandboxes
+	 * scripts inside the SVG just like an `<img>` would, so passing
+	 * a well-formed `data:image/svg+xml;base64,…` value through is
+	 * safe and necessary — without it every plugin tile collapses to
+	 * the gear fallback. The strict regex in `wpdm_sanitize_dock_icon`
+	 * still rejects malformed shapes and non-SVG `data:` schemes
+	 * (covered by sibling tests).
 	 *
 	 * @covers ::wpdm_sanitize_dock_icon
 	 */
-	public function test_icon_data_svg_rejected() {
+	public function test_icon_well_formed_svg_data_uri_passes_through() {
 		global $menu;
 		$svg  = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		$menu = array( $this->make_menu_row( 'Y', 'read', 'y.php', '', '', 'hook-y', $svg ) );
 
 		$items = wpdm_build_dock_items();
 
-		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
+		$this->assertSame( $svg, $items[0]['icon'] );
 	}
 
 	/**

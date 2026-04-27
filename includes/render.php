@@ -1214,6 +1214,8 @@ function wpdm_chromeless_bridge_script() {
 				}
 			}
 			__wpdLastRawCommands = merged;
+			__wpdLog(
+				'[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
 				merged.length,
 				loadersList.length,
 				Array.isArray( resultsBucket.statics ) ? resultsBucket.statics.length : 0

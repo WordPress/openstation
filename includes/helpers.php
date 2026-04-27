@@ -490,16 +490,26 @@ function wpdm_build_dock_items() {
  *   - An http/https URL pointing at an image asset
  *   - `'none'` or `'div'` (CSS hooks, no icon asset)
  *
- * Anything else — `javascript:` URIs, `data:` URIs (even benign-looking
- * `image/svg+xml` ones, which can carry inline scripts that execute
- * when rendered as a CSS background), inline event handlers, or raw
- * HTML — is rejected and replaced with the generic fallback. The
- * return value is always a string that is safe to drop into an
- * `img.src` or a CSS class without further escaping.
+ * Inline SVG data URIs (`data:image/svg+xml;base64,…` and
+ * `data:image/svg+xml,…`) are also accepted because that's how the
+ * vast majority of WP plugins ship their menu icon — Yoast,
+ * WooCommerce, Jetpack, Elementor, et al. all register `$menu[$i][6]`
+ * as an SVG data URI. Other `data:` schemes (`data:text/html`,
+ * `data:application/javascript`, …) and raw `javascript:` / `vbscript:`
+ * / `file:` schemes remain rejected. The shell renders the SVG via a
+ * CSS `background-image`, which (per the modern browser security model
+ * shared with `<img>`) sandboxes scripts inside the SVG so they do not
+ * execute.
+ *
+ * The return value is always a string safe to drop into an `img.src`,
+ * a CSS class, or a CSS `url()` background without further escaping.
  *
  * @since 0.4.0
- * @since 0.11.0 Rejects `data:` URIs outright; previously accepted
- *               `data:image/svg+xml` values.
+ * @since 0.11.0 Rejected `data:` URIs outright (regression — see 0.18.x).
+ * @since 0.18.x Re-allowed `data:image/svg+xml{;base64,|,}` so plugin
+ *               icons (Yoast, WooCommerce, Jetpack, etc.) appear on the
+ *               dock/taskbar instead of collapsing to the gear fallback.
+ *               Other `data:` schemes still rejected.
  *
  * @param mixed $icon Raw icon value from the menu registration.
  * @return string Sanitized icon string.
@@ -532,6 +542,27 @@ function wpdm_sanitize_dock_icon( $icon ) {
 	if ( 0 === stripos( $icon, 'http://' ) || 0 === stripos( $icon, 'https://' ) ) {
 		$clean = esc_url_raw( $icon, array( 'http', 'https' ) );
 		return $clean ? $clean : $fallback;
+	}
+
+	// `data:image/svg+xml` — the canonical inline-icon shape WordPress
+	// plugins use for their admin-menu icon (`$menu[$i][6]`). Two valid
+	// payload encodings: base64 (`;base64,<base64>`) and URL-encoded
+	// (`,<percent-encoded>`). Reject everything outside the SVG MIME so
+	// `data:text/html` and `data:application/javascript` still bounce.
+	//
+	// Strict whole-string regex — no embedded whitespace, no smuggled
+	// quotes, no second `data:` prefix. Case-insensitive on the scheme
+	// alone since `Data:` and `DATA:` are syntactically valid but the
+	// payload portion stays case-sensitive (base64 alphabet is).
+	if ( 0 === stripos( $icon, 'data:image/svg+xml' ) ) {
+		if (
+			preg_match( '#^data:image/svg\+xml;base64,[A-Za-z0-9+/=]+$#i', $icon )
+			|| preg_match( '#^data:image/svg\+xml,[A-Za-z0-9._~!$&\'()*+,;=:@/?%-]+$#i', $icon )
+		) {
+			return $icon;
+		}
+		// Malformed SVG data URI — fall through to fallback rather than
+		// pass a half-validated string through to the renderer.
 	}
 
 	return $fallback;
