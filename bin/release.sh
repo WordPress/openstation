@@ -54,8 +54,9 @@ fi
 pkg=$(node -p "require('./package.json').version")
 header=$(awk '/^[[:space:]]*\*[[:space:]]*Version:/ { print $3; exit }' desktop-mode.php)
 constant=$(awk -F"'" '/DESKTOP_MODE_VERSION/ { print $4; exit }' desktop-mode.php)
+stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
 
-if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" ]]; then
+if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" ]]; then
 	echo "All version locations already at $new — skipping bump, resuming at CI wait."
 else
 	./bin/bump-version.sh "$new"

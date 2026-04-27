@@ -33,13 +33,14 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 
 ## Version locations
 
-Three places, kept in sync by `bin/bump-version.sh`:
+Four places, kept in sync by `bin/bump-version.sh`:
 
 - `package.json` → `"version"` (and `package-lock.json` via `npm version`)
 - `desktop-mode.php` → plugin header `Version:`
 - `desktop-mode.php` → `DESKTOP_MODE_VERSION` constant
+- `readme.txt` → `Stable tag:` (wp.org rejects submissions when this drifts from the plugin header `Version:`)
 
-The `release` job re-reads all three at tag time and fails with a clear error if any doesn't match the tag. This catches "forgot to bump one".
+The `release` job re-reads all four at tag time and fails with a clear error if any doesn't match the tag. This catches "forgot to bump one".
 
 ## Versioning scheme
 
