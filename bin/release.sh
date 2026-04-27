@@ -71,13 +71,17 @@ else
 fi
 
 sha=$(git rev-parse HEAD)
-echo "Waiting for CI on ${sha}..."
+echo "Waiting for CI to register a run on ${sha} (polling for up to 5 min)..."
 
 # CI may take a few minutes to register the run after the push.
 run_id=""
-for _ in $(seq 1 100); do
+for i in $(seq 1 100); do
 	run_id=$(gh run list --branch trunk --workflow ci.yml --commit "$sha" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
 	[[ -n "$run_id" ]] && break
+	# Heartbeat every 30 s so the script doesn't look frozen while CI registers.
+	if (( i % 10 == 0 )); then
+		printf '  …%ds elapsed, still polling\n' $((i * 3))
+	fi
 	sleep 3
 done
 
@@ -86,7 +90,14 @@ if [[ -z "$run_id" ]]; then
 	exit 1
 fi
 
+run_url=$(gh run view "$run_id" --json url -q '.url' 2>/dev/null || true)
+echo "CI run ${run_id} registered — watching until it finishes (typically 3-5 min)."
+[[ -n "$run_url" ]] && echo "  ${run_url}"
+echo "  (gh run watch is silent until each job completes; this is normal.)"
+
 gh run watch "$run_id" --exit-status
+
+echo "CI passed — tagging ${tag} and pushing..."
 
 git tag "$tag"
 git push origin "$tag"
