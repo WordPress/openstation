@@ -191,6 +191,7 @@ function desktop_mode_ai_reindex_posts( $post_type, $user_id, $force = false ) {
 			'post_status'    => 'publish',
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- admin-initiated reindex: scans posts by EXISTS/NOT EXISTS on our AI-summary meta key so we know which posts still need a summary. Single-clause query against an indexed key.
 			'meta_query'     => $meta_query,
 		)
 	);
@@ -204,6 +205,7 @@ function desktop_mode_ai_reindex_posts( $post_type, $user_id, $force = false ) {
 				'post_status'    => 'publish',
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- counter for the reindex report; single EXISTS clause.
 				'meta_query'     => array(
 					array(
 						'key'     => DESKTOP_MODE_AI_META_KEY,
@@ -259,6 +261,7 @@ function desktop_mode_ai_reindex_comments( $user_id, $force = false ) {
 			'type'       => 'comment',
 			'fields'     => 'ids',
 			'number'     => 0, // 0 = no limit
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- admin-initiated comment reindex; same EXISTS/NOT EXISTS pattern as the post reindex above.
 			'meta_query' => $meta_query,
 		)
 	);
@@ -270,6 +273,7 @@ function desktop_mode_ai_reindex_comments( $user_id, $force = false ) {
 				'status'     => 'approve',
 				'type'       => 'comment',
 				'count'      => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- counter for the comment-reindex report; single EXISTS clause.
 				'meta_query' => array(
 					array(
 						'key'     => DESKTOP_MODE_AI_META_KEY,

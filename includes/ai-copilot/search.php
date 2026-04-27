@@ -367,6 +367,7 @@ function desktop_mode_ai_search_fetch_posts( $post_type, $offset ) {
 			'no_found_rows'          => false,
 			'update_post_term_cache' => false,
 			'update_post_meta_cache' => true,
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- AI search batch fetch; targets only the small subset of posts that already have an AI summary stamped, single EXISTS clause against an indexed key.
 			'meta_query'             => array(
 				array(
 					'key'     => DESKTOP_MODE_AI_META_KEY,
@@ -423,6 +424,7 @@ function desktop_mode_ai_search_fetch_comments( $offset ) {
 	$base_args = array(
 		'status'     => 'approve',
 		'type'       => 'comment',
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- AI search batch fetch for comments; targets only AI-summarised entries via single EXISTS clause.
 		'meta_query' => array(
 			array(
 				'key'     => DESKTOP_MODE_AI_META_KEY,
@@ -518,6 +520,7 @@ function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $offset ) {
 		'post_id'    => $post_id,
 		'status'     => 'approve',
 		'type'       => 'comment',
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- comments-by-post AI search; further narrowed by post_id + EXISTS on the AI summary key.
 		'meta_query' => array(
 			array(
 				'key'     => DESKTOP_MODE_AI_META_KEY,
