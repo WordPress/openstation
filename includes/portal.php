@@ -108,7 +108,7 @@ function wpdm_handle_portal_request( $wp ) {
 	//   3. Dashboard fallback.
 	$target = '';
 	if ( ! empty( $_GET['target'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$target = wpdm_sanitize_portal_target( wp_unslash( (string) $_GET['target'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$target = wpdm_sanitize_portal_target( sanitize_text_field( wp_unslash( $_GET['target'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	}
 	if ( '' === $target ) {
 		$target = wpdm_portal_entry_url( $user_id );
@@ -138,7 +138,7 @@ function wpdm_is_portal_request() {
 		return false;
 	}
 
-	$uri  = wp_unslash( $_SERVER['REQUEST_URI'] );
+	$uri  = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 	$path = wp_parse_url( $uri, PHP_URL_PATH );
 	if ( ! is_string( $path ) ) {
 		return false;
@@ -187,7 +187,7 @@ function wpdm_redirect_plain_admin_to_portal() {
 	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
 		return;
 	}
-	if ( ! empty( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== strtoupper( (string) $_SERVER['REQUEST_METHOD'] ) ) {
+	if ( ! empty( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) ) {
 		return;
 	}
 
@@ -233,7 +233,7 @@ function wpdm_redirect_plain_admin_to_portal() {
 	// for. The portal handler reads `target`, validates it's same-origin
 	// wp-admin, and uses it as the entry URL.
 	$portal_url = wpdm_portal_url();
-	$target     = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$target     = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	if ( is_string( $target ) && '' !== $target ) {
 		$portal_url = add_query_arg( 'target', rawurlencode( $target ), $portal_url );
 	}

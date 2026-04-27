@@ -1938,7 +1938,7 @@ function wpdm_classic_link_interceptor() {
 
 	$flag_literal = wp_json_encode( WPDM_CLASSIC_FLAG );
 
-	$js = <<<JS
+	$js = "
 ( function () {
 	var FLAG = {$flag_literal};
 
@@ -2003,7 +2003,7 @@ function wpdm_classic_link_interceptor() {
 		}
 	}, true );
 } )();
-JS;
+";
 
 	wp_print_inline_script_tag( $js );
 }

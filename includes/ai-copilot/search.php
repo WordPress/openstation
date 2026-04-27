@@ -749,37 +749,37 @@ function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offs
 		);
 	}
 
-	$instructions = <<<INSTRUCTIONS
+	$instructions = "
 You are a friendly, conversational assistant embedded in a WordPress site. You help the site owner:
 
 1. **Find content** they've written (posts, pages, comments) by describing it in natural language.
-2. **Navigate wp-admin** when they ask where to find something ("where are the categories?", "how do I manage users?").
+2. **Navigate wp-admin** when they ask where to find something (\"where are the categories?\", \"how do I manage users?\").
 3. **Recommend plugins** from the official WordPress.org directory when they need extra functionality.
 4. **Check the site's error log** when they're troubleshooting something.
 5. **Chat** — if the request doesn't fit the above, just answer conversationally.
 
-Tone: warm, concise, helpful. First person ("I found this post…", "Here's where you'll find that…"). Not a search engine tone — no "Match found" or robot phrasing.
+Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's where you'll find that…\"). Not a search engine tone — no \"Match found\" or robot phrasing.
 
 Tools:
 - search_posts / search_pages / search_comments / search_comments_by_post(post_id, offset): content-lookup tools. Compare each item's topic + ai_summary to the user's description. Stop once you find a good match. Use the same tool with next_offset if has_more is true and no match yet. When the query mentions BOTH a post and a comment on that post, call search_posts first to identify the post, THEN search_comments_by_post with the ID.
 - list_admin_pages: returns the full catalog of wp-admin destinations. Call once per navigation query, then select the 1-3 most relevant entries.
-- search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation ("a plugin for X", "is there a plugin that does Y?"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like "Plugin Name · 5M+ installs · 4.8★" (rating is 0-100, divide by 20 to get stars).
-- get_php_error_log(lines): reads the tail of the site's PHP error log. Admin-only (the tool itself checks). Use when the user asks "any errors?", "check the logs", "what's broken?", troubleshooting. Each entry has { timestamp, level, message }. Summarise the most important errors (Fatal > Warning > Notice) in your message; don't copy-paste everything.
+- search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation (\"a plugin for X\", \"is there a plugin that does Y?\"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like \"Plugin Name · 5M+ installs · 4.8★\" (rating is 0-100, divide by 20 to get stars).
+- get_php_error_log(lines): reads the tail of the site's PHP error log. Admin-only (the tool itself checks). Use when the user asks \"any errors?\", \"check the logs\", \"what's broken?\", troubleshooting. Each entry has { timestamp, level, message }. Summarise the most important errors (Fatal > Warning > Notice) in your message; don't copy-paste everything.
 
 Choosing which track:
-- "I remember a post/page/comment about X" → the corresponding search_* tool.
-- "where can I find X?" / "how do I manage Y?" → list_admin_pages.
-- "plugin for X" / "recommend a plugin" → search_wporg_plugins → present as admin_links.
-- "any errors?" / "check logs" / troubleshooting → get_php_error_log → summarise in chat.
-- Greeting, unclear, or chit-chat → answer_type "chat" with a brief helpful message (no tools needed).
+- \"I remember a post/page/comment about X\" → the corresponding search_* tool.
+- \"where can I find X?\" / \"how do I manage Y?\" → list_admin_pages.
+- \"plugin for X\" / \"recommend a plugin\" → search_wporg_plugins → present as admin_links.
+- \"any errors?\" / \"check logs\" / troubleshooting → get_php_error_log → summarise in chat.
+- Greeting, unclear, or chit-chat → answer_type \"chat\" with a brief helpful message (no tools needed).
 
 Always return one of three answer_type values in the structured output:
-- "entity": you identified a single post/page/comment. Fill entity_id + entity_type. admin_links = null.
-- "navigation": you're recommending admin pages OR plugin install links. Fill admin_links. entity_id + entity_type = null.
-- "chat": you're answering conversationally — including log summaries, greetings, "nothing found" answers. entity_id + entity_type + admin_links all null.
+- \"entity\": you identified a single post/page/comment. Fill entity_id + entity_type. admin_links = null.
+- \"navigation\": you're recommending admin pages OR plugin install links. Fill admin_links. entity_id + entity_type = null.
+- \"chat\": you're answering conversationally — including log summaries, greetings, \"nothing found\" answers. entity_id + entity_type + admin_links all null.
 
 The message field is always a friendly sentence or two shown directly to the user. Make it sound like a person, not a log line.
-INSTRUCTIONS;
+";
 
 	if ( $continuation_note ) {
 		$instructions .= $continuation_note;
@@ -1437,17 +1437,17 @@ function wpdm_ai_run_followup( $api_key, $query, array $tool, array $outcome, ar
 	// Mirror the main search's system-prompt layering so voice stays
 	// consistent between the two legs. We build a simpler core-
 	// instructions block — no tool guidance, since this run has none.
-	$instructions = <<<INSTRUCTIONS
+	$instructions = "
 You are the same friendly WordPress assistant that just dispatched a command on behalf of the user. You now have the result of that command.
 
 Write a SHORT reply (one or two sentences, first person, warm and conversational) describing what happened. Match the voice the site owner set in their system prompt — do not restart small talk, just confirm what you did.
 
 Rules:
-- If the outcome looks successful, confirm plainly. Example: "Done — your office light is on now."
+- If the outcome looks successful, confirm plainly. Example: \"Done — your office light is on now.\"
 - If the outcome looks like an error (has an `error` field, a failure message, or obviously negative content), apologise briefly and paraphrase what went wrong. Do not invent details the outcome did not include.
 - Do NOT recommend the user try something else unless the outcome explicitly suggests it.
-- Do NOT describe the tool mechanism ("I called command_turn_light") — the user only cares about the real-world effect.
-INSTRUCTIONS;
+- Do NOT describe the tool mechanism (\"I called command_turn_light\") — the user only cares about the real-world effect.
+";
 
 	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
 	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
@@ -2056,9 +2056,11 @@ function wpdm_ai_parse_log_line( $line ) {
 }
 
 /**
- * Return the last $lines of a file without loading the whole file
- * into memory. Reads backwards from EOF in 4 KB chunks until it has
- * enough newlines. Safe for log files that grow to tens of megabytes.
+ * Return the last $lines of a file. Loads the file via WP_Filesystem
+ * (the only file-read API allowed for wp.org-hosted plugins) and
+ * slices off the trailing N+1 entries. Realistic error logs sit
+ * in the kilobyte range when admins look at them; if a site routinely
+ * lets logs grow into tens of MB, that's the symptom, not this read.
  *
  * @since 0.14.0
  *
@@ -2067,33 +2069,25 @@ function wpdm_ai_parse_log_line( $line ) {
  * @return string[] Lines in original order (oldest first).
  */
 function wpdm_ai_tail_file( $path, $lines ) {
-	$size = @filesize( $path );
-	if ( ! $size ) {
+	if ( ! function_exists( 'WP_Filesystem' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+	WP_Filesystem();
+	global $wp_filesystem;
+	if ( ! $wp_filesystem || ! $wp_filesystem->exists( $path ) ) {
 		return array();
 	}
 
-	$fp = @fopen( $path, 'r' );
-	if ( ! $fp ) {
+	$contents = $wp_filesystem->get_contents( $path );
+	if ( false === $contents || '' === $contents ) {
 		return array();
 	}
 
-	$chunk_size = 4096;
-	$pos        = $size;
-	$buffer     = '';
-	$line_count = 0;
-
-	while ( $pos > 0 && $line_count <= $lines ) {
-		$read = min( $chunk_size, $pos );
-		$pos -= $read;
-		fseek( $fp, $pos );
-		$chunk  = fread( $fp, $read );
-		$buffer = $chunk . $buffer;
-		$line_count = substr_count( $buffer, "\n" );
+	$all = preg_split( '/\r?\n/', $contents );
+	if ( ! is_array( $all ) ) {
+		return array();
 	}
 
-	fclose( $fp );
-
-	$all = preg_split( '/\r?\n/', $buffer );
 	return array_slice( $all, -1 * ( $lines + 1 ) );
 }
 

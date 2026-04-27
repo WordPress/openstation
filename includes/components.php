@@ -1308,8 +1308,8 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 	if ( WPDM_NATIVE_WINDOW_MAIN_TAB === $value ) {
 		return wpdm_registration_error(
 			'wp_desktop_reserved_tab_value',
-			/* translators: %s: the reserved value. */
 			sprintf(
+				/* translators: %s: the reserved value. */
 				__( 'The tab value "%s" is reserved for the window\'s own template tab.', 'desktop-mode' ),
 				WPDM_NATIVE_WINDOW_MAIN_TAB
 			),

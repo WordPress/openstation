@@ -2,7 +2,7 @@
 Contributors: allterraindeveloper, epeicher
 Tags: desktop, admin, ui, productivity, ai
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 7.4
 Stable tag: 0.5.1
 License: GPLv2 or later

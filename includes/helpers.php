@@ -157,7 +157,7 @@ function wpdm_is_chromeless_request() {
 	// Primary signal — the explicit query flag the parent shell
 	// adds when opening windows.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
-	if ( ! empty( $_GET['wp_desktop'] ) && '1' === wp_unslash( $_GET['wp_desktop'] ) ) {
+	if ( ! empty( $_GET['wp_desktop'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wp_desktop'] ) ) ) {
 		return true;
 	}
 
@@ -178,10 +178,10 @@ function wpdm_is_chromeless_request() {
 	// into stripping the chrome — the user agent reports the
 	// embedding context honestly.
 	$fetch_dest = isset( $_SERVER['HTTP_SEC_FETCH_DEST'] )
-		? (string) $_SERVER['HTTP_SEC_FETCH_DEST']
+		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_DEST'] ) )
 		: '';
 	$fetch_site = isset( $_SERVER['HTTP_SEC_FETCH_SITE'] )
-		? (string) $_SERVER['HTTP_SEC_FETCH_SITE']
+		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) )
 		: '';
 	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
 		/**
@@ -224,7 +224,7 @@ function wpdm_is_classic_request() {
 		return false;
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
-	return '1' === (string) wp_unslash( $_GET[ WPDM_CLASSIC_FLAG ] );
+	return '1' === sanitize_text_field( wp_unslash( $_GET[ WPDM_CLASSIC_FLAG ] ) );
 }
 
 /**
@@ -914,7 +914,7 @@ function wpdm_warn_unresolvable_script_handle( $function_name, $kind, $handle ) 
 	}
 
 	_doing_it_wrong(
-		$function_name,
+		esc_html( $function_name ),
 		sprintf(
 			/* translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle. */
 			esc_html__( '%1$s script handle "%2$s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'desktop-mode' ),
