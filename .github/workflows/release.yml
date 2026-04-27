@@ -35,9 +35,9 @@ jobs:
           tag="${tag#v}"
           pkg=$(node -p "require('./package.json').version")
           header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' desktop-mode.php)
-          constant=$(grep -oP "WPDM_VERSION',\s*'\K[^']+" desktop-mode.php)
+          constant=$(grep -oP "DESKTOP_MODE_VERSION',\s*'\K[^']+" desktop-mode.php)
           if ! [[ "$tag" == "$pkg" && "$tag" == "$header" && "$tag" == "$constant" ]]; then
-            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header WPDM_VERSION=$constant"
+            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header DESKTOP_MODE_VERSION=$constant"
             exit 1
           fi
 

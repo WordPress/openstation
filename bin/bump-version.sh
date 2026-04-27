@@ -19,7 +19,7 @@ npm version "$new" --no-git-tag-version --allow-same-version > /dev/null
 
 # Perl — portable inline edit; BSD and GNU sed differ on the `-i` form.
 perl -i -pe "s/^(\s*\*\s*Version:\s*)\S+/\${1}${new}/" desktop-mode.php
-perl -i -pe "s/(WPDM_VERSION',\s*')[^']+/\${1}${new}/" desktop-mode.php
+perl -i -pe "s/(DESKTOP_MODE_VERSION',\s*')[^']+/\${1}${new}/" desktop-mode.php
 
 cat <<EOF
 Bumped to $new. Next:
