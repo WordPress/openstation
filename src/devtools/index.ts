@@ -80,6 +80,29 @@ export interface OnRequestOptions {
 
 export type RequestObserver = ( obs: RequestObservation ) => void;
 
+export interface ReloadWithDebugSessionOptions {
+	/**
+	 * Query-arg name added to the iframe's URL so the document load
+	 * itself carries the session id (HTTP headers can't be set on a
+	 * full-document navigation — a query-arg is the only same-origin
+	 * carrier the server can read at `init`). Defaults to
+	 * `wp_debug_session`.
+	 */
+	queryArg?: string;
+	/**
+	 * The header name contributed alongside. Plugins that publish to
+	 * the debug bus from REST / AJAX endpoints read this header via
+	 * {@link desktop_mode_debug_session_for_request}; it defaults to
+	 * `X-WP-Debug-Session` (the canonical one).
+	 */
+	headerName?: string;
+}
+
+export interface ReloadWithDebugSessionResult {
+	/** Disposer — removes the header contribution AND the load listener. */
+	dispose: () => void;
+}
+
 export interface DevtoolsApi {
 	/**
 	 * Contribute an HTTP header that the target window's iframe will
@@ -103,6 +126,31 @@ export interface DevtoolsApi {
 		cb: RequestObserver,
 		opts?: OnRequestOptions,
 	) => () => void;
+	/**
+	 * Reload a window's iframe with a debug-session id baked into both
+	 * the URL (so the document load itself is captured) AND the
+	 * request-header contribution registry (so subsequent fetch / XHR
+	 * / sendBeacon calls carry the same session). Bundles the
+	 * boilerplate every devtool plugin would otherwise re-derive:
+	 *
+	 *   1. Add the header contribution.
+	 *   2. Rewrite `iframe.src` with a session query-arg.
+	 *   3. Re-push the header on the iframe's load event (handled by
+	 *      the per-window load listener `addRequestHeader` already
+	 *      installs).
+	 *   4. Hand back a single disposer that tears down everything.
+	 *
+	 * Returns `null` if the window doesn't exist or has no iframe
+	 * (native windows; cross-origin iframe pages would fail the same-
+	 * origin guard the bridge enforces elsewhere).
+	 *
+	 * @since 0.6.0
+	 */
+	reloadWithDebugSession: (
+		windowId: string,
+		sessionId: string,
+		opts?: ReloadWithDebugSessionOptions,
+	) => ReloadWithDebugSessionResult | null;
 	/** Generic per-session debug bus. See {@link DebugBusApi}. */
 	debug: DebugBusApi;
 }
@@ -149,6 +197,15 @@ interface WindowState {
 	headers: Map< string, HeaderContribution[] >;
 	observers: Set< RequestObserver >;
 	observeCount: number;
+	/**
+	 * Bound `load` listener on the target iframe. Installed once per
+	 * window when the first contribution / observer registers; ensures
+	 * a fresh document (e.g. after `iframe.src = newUrl`) re-receives
+	 * its instrumentation. Removed when the state is gc'd.
+	 */
+	loadHandler: ( () => void ) | null;
+	/** The iframe we attached `loadHandler` to. Tracked so we can remove it. */
+	loadHandlerTarget: HTMLIFrameElement | null;
 }
 
 const states = new Map< string, WindowState >();
@@ -162,10 +219,80 @@ function ensureState( windowId: string ): WindowState {
 			headers: new Map(),
 			observers: new Set(),
 			observeCount: 0,
+			loadHandler: null,
+			loadHandlerTarget: null,
 		};
 		states.set( windowId, s );
 	}
+	ensureLoadHandler( windowId, s );
 	return s;
+}
+
+/**
+ * Make sure the target iframe has a `load` listener that re-pushes
+ * instrumentation. Plugins frequently mutate `iframe.src` directly
+ * (to add a debug-session query arg, switch admin pages without
+ * the framework's navigate bridge, etc.); without this, the new
+ * document lands with `__wpdInstrument.headers` empty because the
+ * chromeless inline bridge resets that slot on every fresh page.
+ *
+ * The shell's `IFRAME_READY` action is the spec'd path for the
+ * same job, but `wp-desktop-ready` isn't actually emitted by the
+ * chromeless bridge today, so relying on that hook leaves a
+ * timing gap. The native `load` event fires unconditionally and
+ * is also same-origin-safe to attach to.
+ *
+ * Idempotent: re-runs cheaply when the iframe element changes
+ * (rare — mostly happens if a window is reused after destroy /
+ * recreate cycles).
+ */
+function ensureLoadHandler( windowId: string, s: WindowState ): void {
+	const iframe = findIframe( windowId );
+	if ( ! iframe ) {
+		return;
+	}
+	if ( s.loadHandlerTarget === iframe && s.loadHandler ) {
+		return;
+	}
+	if (
+		s.loadHandlerTarget &&
+		s.loadHandler &&
+		typeof s.loadHandlerTarget.removeEventListener === 'function'
+	) {
+		s.loadHandlerTarget.removeEventListener( 'load', s.loadHandler );
+	}
+	if ( typeof iframe.addEventListener !== 'function' ) {
+		// Stub iframes (typical in tests where the consumer mocks
+		// just `contentWindow.postMessage`) don't expose the
+		// listener API. Skip the install rather than throw — header
+		// pushes still go out, only the post-reload re-push is gated
+		// on a real event surface.
+		return;
+	}
+	const handler = (): void => {
+		// `load` fires before the iframe document's listeners are
+		// guaranteed installed. Defer one microtask so the chromeless
+		// inline bridge has run its synchronous setup (it's at the top
+		// of `admin_footer`, so it's parsed by the time `load` fires,
+		// but its message listener attaches synchronously inside the
+		// same tick — defer is belt-and-braces).
+		queueMicrotask( () => pushInstrumentation( windowId ) );
+	};
+	iframe.addEventListener( 'load', handler );
+	s.loadHandler = handler;
+	s.loadHandlerTarget = iframe;
+}
+
+function detachLoadHandler( s: WindowState ): void {
+	if (
+		s.loadHandlerTarget &&
+		s.loadHandler &&
+		typeof s.loadHandlerTarget.removeEventListener === 'function'
+	) {
+		s.loadHandlerTarget.removeEventListener( 'load', s.loadHandler );
+	}
+	s.loadHandler = null;
+	s.loadHandlerTarget = null;
 }
 
 function findIframe( windowId: string ): HTMLIFrameElement | null {
@@ -315,22 +442,29 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 		return;
 	}
 	sp.inflight = true;
-	// Pass the live subscription channels along with the request.
-	// Without this, the server-side drain has no channel set to walk
-	// (the `desktop_mode_debug_channels` filter is the only fallback)
-	// and returns an empty events list on every poll — silent failure
-	// that looks like "publishes never arrive". The channels live in
-	// `sp.channels` already, so we just stamp them into the URL on
-	// every poll; subscribers added between polls show up on the next
-	// tick.
-	const channels = Array.from( sp.channels.keys() );
-	const channelQuery = channels
-		.map( ( c ) => `&channels[]=${ encodeURIComponent( c ) }` )
-		.join( '' );
-	const url =
-		`${ restUrl }wp-desktop/v1/debug?sessionId=${ encodeURIComponent(
-			sessionId,
-		) }&since=${ sp.cursor }` + channelQuery;
+	// Compose the URL via WHATWG URL + searchParams so it stays valid
+	// under BOTH permalink modes:
+	//
+	//   - Pretty: `restUrl` ends in `/wp-json/`, plain path append +
+	//     `?sessionId=…` works.
+	//   - Ugly:   `restUrl` is `<site>/?rest_route=/`. Naive string
+	//     concatenation produces a URL with two `?` separators —
+	//     WordPress routes the request to the homepage, returns HTML,
+	//     and `JSON.parse` blows up. Using `searchParams.set` makes
+	//     the URL parser handle the existing query correctly.
+	//
+	// Plus: stamp every active subscription channel as `channels[]=…`
+	// so the server-side drain has the full list to walk. Without
+	// this, the drain returns `{ events: [] }` on every poll unless a
+	// `desktop_mode_debug_channels` filter contributor exists — silent
+	// failure that looks like "publishes never arrive".
+	const u = new URL( restUrl + 'wp-desktop/v1/debug', window.location.origin );
+	u.searchParams.set( 'sessionId', sessionId );
+	u.searchParams.set( 'since', String( sp.cursor ) );
+	for ( const ch of sp.channels.keys() ) {
+		u.searchParams.append( 'channels[]', ch );
+	}
+	const url = u.toString();
 	fetch( url, {
 		credentials: 'same-origin',
 		headers: { 'X-WP-Nonce': restNonce },
@@ -551,6 +685,52 @@ export const devtools: DevtoolsApi = {
 			gcWindowState( windowId );
 		};
 	},
+	reloadWithDebugSession( windowId, sessionId, opts ) {
+		if (
+			typeof windowId !== 'string' ||
+			windowId === '' ||
+			typeof sessionId !== 'string' ||
+			sessionId === ''
+		) {
+			return null;
+		}
+		const iframe = findIframe( windowId );
+		if ( ! iframe ) {
+			return null;
+		}
+		const headerName = opts?.headerName || 'X-WP-Debug-Session';
+		const queryArg = opts?.queryArg || 'wp_debug_session';
+
+		// Step 1: register the header contribution. This also installs
+		// the per-window load listener that re-pushes instrumentation
+		// after every reload — so the navigation we're about to
+		// trigger gets its headers stamped onto the new document
+		// without the caller wiring anything up.
+		const stopHeader = devtools.addRequestHeader( windowId, headerName, sessionId );
+
+		// Step 2: rewrite the URL with the session query-arg. We
+		// preserve any existing query-args + hash so the page state
+		// the user was looking at survives the reload. Falls through
+		// silently if the URL is unparseable — better to swallow than
+		// throw on what is otherwise a "best-effort reload" call.
+		try {
+			const currentSrc = iframe.getAttribute( 'src' ) || iframe.src || '';
+			const u = new URL( currentSrc, window.location.origin );
+			u.searchParams.set( queryArg, sessionId );
+			iframe.src = u.toString();
+		} catch {
+			// Even if URL composition failed, the header contribution
+			// is still useful for any subsequent same-document fetch /
+			// XHR. Don't unwind — just return the disposer pointing at
+			// what we did manage to set up.
+		}
+
+		return {
+			dispose: () => {
+				stopHeader();
+			},
+		};
+	},
 	debug: debugBus,
 };
 
@@ -560,6 +740,7 @@ function gcWindowState( windowId: string ): void {
 		return;
 	}
 	if ( s.headers.size === 0 && s.observers.size === 0 ) {
+		detachLoadHandler( s );
 		states.delete( windowId );
 	}
 }

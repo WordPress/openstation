@@ -1804,6 +1804,44 @@ const stop = wp.desktop.devtools.onRequest(
 
 Default payload: `{ windowId, method, url, status, duration, failed }`. With `observe: true`: also `requestHeaders`, `responseHeaders`. The shell aggregates — as long as any active subscriber wants `observe`, the iframe runs in observation mode; otherwise it ships only the privacy-conscious summary.
 
+### `wp.desktop.devtools.reloadWithDebugSession( windowId, sessionId, opts? )` — Experimental
+
+Reload a window's iframe with a debug session id baked into both the URL and the request-header contribution registry. Bundles four boilerplate steps every devtool would otherwise re-derive:
+
+```js
+const sessionId = wp.desktop.devtools.debug.startSession();
+const handle = wp.desktop.devtools.reloadWithDebugSession( windowId, sessionId );
+// later:
+handle.dispose(); // removes header + cleans up
+```
+
+What it does:
+
+1. Adds an `X-WP-Debug-Session: <sessionId>` header contribution (overridable via `opts.headerName`).
+2. Rewrites `iframe.src` with a `wp_debug_session=<sessionId>` query-arg (overridable via `opts.queryArg`) so the document load itself carries the session — HTTP headers can't ride along on full-document navigations, only the URL can.
+3. Re-pushes the header contribution on the iframe's native `load` event so a fresh document picks up its instrumentation deterministically. (This was a real timing race plugins were hitting — a manual `iframe.src = newUrl` could land with `__wpdInstrument.headers` empty.)
+4. Returns a single disposer that tears down everything.
+
+Returns `null` when the window doesn't exist or has no iframe (native windows).
+
+Server side, read the URL flag in your capture hook:
+
+```php
+add_action( 'init', function () {
+    $sid = desktop_mode_debug_session_for_request();
+    if ( '' === $sid && isset( $_GET['wp_debug_session'] ) ) {
+        $sid = sanitize_key( wp_unslash( $_GET['wp_debug_session'] ) );
+    }
+    if ( '' === $sid ) {
+        return;
+    }
+    if ( ! defined( 'SAVEQUERIES' ) ) {
+        define( 'SAVEQUERIES', true );
+    }
+    // … shutdown hook publishes via desktop_mode_debug_publish( $sid, … )
+}, 1 );
+```
+
 ### `wp.desktop.devtools.debug` — Experimental
 
 Generic per-session pub/sub bus. Pair with PHP `desktop_mode_debug_publish()`.

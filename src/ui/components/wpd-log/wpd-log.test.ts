@@ -80,4 +80,37 @@ describe( '<wpd-log>', () => {
 		expect( rows.length ).toBeGreaterThan( 0 );
 		expect( rows[ 0 ].textContent ).toBe( '[0] first' );
 	} );
+
+	test( 'auto-row-height: rows render without a pinned height', async () => {
+		host.innerHTML = `<wpd-log auto-row-height></wpd-log>`;
+		await tick();
+		const log = host.querySelector( 'wpd-log' ) as WpdLog< string >;
+		log.renderRow = ( entry ) => {
+			const el = document.createElement( 'div' );
+			el.textContent = entry;
+			return el;
+		};
+		log.push( 'a' );
+		await tick();
+		const row = log.shadowRoot!.querySelector< HTMLElement >( '.row' )!;
+		// Default fixed-height path stamps `height: 22px`; auto-row-height
+		// must not pin a height — content drives the cell.
+		expect( row.style.height ).toBe( 'auto' );
+	} );
+
+	test( 'auto-row-height: max-rows trims heights cache in lockstep', async () => {
+		host.innerHTML = `<wpd-log auto-row-height max-rows="2"></wpd-log>`;
+		await tick();
+		const log = host.querySelector( 'wpd-log' ) as WpdLog< number >;
+		log.push( 1 );
+		log.push( 2 );
+		log.push( 3 ); // evicts the first
+		expect( log.entries ).toEqual( [ 2, 3 ] );
+		// Internal sanity: the heights array must not retain a stale
+		// entry past the eviction (would mis-align indices and offset
+		// math). Read via the typed view — internal field access is
+		// fine in tests.
+		const internal = log as unknown as { _heights: number[] };
+		expect( internal._heights.length ).toBeLessThanOrEqual( 2 );
+	} );
 } );

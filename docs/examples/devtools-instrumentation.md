@@ -86,6 +86,14 @@ wp.desktop.ready( () => {
                                 <wpd-badge tone="success">Attached</wpd-badge>
                                 <span style="opacity:0.7">${ ctx.window.config.ownerHandle || 'core' }</span>
                             </wpd-cluster>
+                            <!--
+                              row-height="22" is fixed-row-height mode (fast path).
+                              Each row MUST fit in 22px or it clips silently. For
+                              variable-content rows (header line + body block,
+                              expandable details), set `auto-row-height` instead —
+                              the component will measure each row and use cumulative
+                              offsets for the virtualizer.
+                            -->
                             <wpd-log id="log" row-height="22" max-rows="2000"></wpd-log>
                         </wpd-stack>
                     `;
@@ -157,3 +165,17 @@ When the URL is the only attribution surface (a window backed by a core admin pa
 ## REST endpoint surface
 
 The debug bus exposes a single REST route: `GET /wp-desktop/v1/debug?sessionId=…&since=…&channel=…` (or `channels[]=…&channels[]=…`). Permission: logged-in admin (`manage_options`); override via the `desktop_mode_debug_rest_permission` filter. The `desktop_mode_debug_publish` action fires synchronously on every publish for observability widgets that don't want to round-trip through the poll loop.
+
+### Talking to the endpoint directly
+
+`wp.desktop.devtools.debug.subscribe()` is the supported path — it polls, dedupes, and replays events to your callback. If you need to bypass the poll loop (custom UI cadence, batched drains on demand, integration with a non-shell consumer), use **`wp.apiFetch`** rather than rolling your own `fetch()`:
+
+```js
+const events = await wp.apiFetch( {
+    path: `/wp-desktop/v1/debug?sessionId=${ sid }&channels[]=query&since=${ cursor }`,
+} );
+```
+
+`wp.apiFetch` handles two things you'd otherwise re-derive: nonce attachment and URL composition under both pretty-permalink (`/wp-json/`) and ugly-permalink (`?rest_route=/`) installs. Hand-built `fetch( restUrl + 'wp-desktop/v1/debug?sessionId=…' )` works on pretty-permalink sites and silently breaks on ugly-permalink sites — the URL ends up with two `?` separators, WordPress routes to the homepage, the response is HTML, and `JSON.parse` throws.
+
+The shell's own poll loop uses WHATWG `URL` + `searchParams` for the same reason — both permalink schemes round-trip cleanly.

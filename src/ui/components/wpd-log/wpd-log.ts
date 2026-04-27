@@ -10,7 +10,7 @@
  * This component virtualises:
  *
  *   - Only rows in (or near) the viewport exist in the DOM.
- *   - A `.spacer` sized to `entries × rowHeight` provides the
+ *   - A `.spacer` sized to the total content height provides the
  *     scrollbar geometry; the `.window` (absolutely positioned
  *     inside it) stamps the visible slice and is re-stamped on
  *     scroll.
@@ -21,6 +21,34 @@
  *     appends keep it pinned (classic `tail -f` behavior). When the
  *     user scrolls up to inspect a past row, sticking is
  *     suspended until they scroll back to the bottom edge.
+ *
+ * ## Row-height contract — read this before shipping
+ *
+ * **Default mode (fast path) is fixed-row-height.** Each rendered row
+ * MUST fit inside `row-height` pixels. Content taller than
+ * `row-height` is **clipped silently** — the component does not
+ * measure rendered rows, so a multi-line entry that exceeds the
+ * height looks like a broken layout. This is the price the fixed-
+ * height virtualizer pays for O(1) viewport-finding (no per-row
+ * measurement passes, no DOM read on the hot append path).
+ *
+ * If your rows are one-liners (typical for SQL inspectors, log
+ * tails, REST timing): leave the default. It's the cheapest path.
+ *
+ * If your rows have variable content (a header line + a body block,
+ * collapsible details, inline previews): set `auto-row-height` on
+ * the host. The component will measure each row on first render and
+ * cache per-entry heights for the virtualizer. One extra layout pass
+ * per visible row, scrollbar height settles after the first scroll
+ * through the buffer, but no more silent clipping.
+ *
+ * ```html
+ * <!-- One-liners — fast path -->
+ * <wpd-log row-height="22"></wpd-log>
+ *
+ * <!-- Variable rows — measured -->
+ * <wpd-log auto-row-height></wpd-log>
+ * ```
  *
  * Usage (programmatic — typical for streaming log consumers):
  *
@@ -77,7 +105,7 @@ function defaultRowRenderer( entry: unknown ): HTMLElement {
 }
 
 export class WpdLog< T = unknown > extends Component {
-	static props = [ 'rowHeight', 'maxRows', 'overscan', 'empty' ] as const;
+	static props = [ 'rowHeight', 'maxRows', 'overscan', 'empty', 'autoRowHeight' ] as const;
 	static styles = [ styles ];
 
 	static help = {
@@ -91,7 +119,13 @@ export class WpdLog< T = unknown > extends Component {
 				name: 'row-height',
 				type: 'number',
 				description:
-					'Fixed row height in pixels. Required for virtualization math. Default 22.',
+					'Fixed row height in pixels. Required for the default (fixed-height) virtualizer math. Default 22. Content taller than this clips silently — set `auto-row-height` for variable-height rows.',
+			},
+			{
+				name: 'auto-row-height',
+				type: 'boolean',
+				description:
+					'Opt into measured row heights. Each row is measured on first render and cached; the virtualizer uses cumulative offsets for window positioning. One extra layout pass per visible row vs. the fixed-height fast path. Use when rows have variable content (header + body, collapsible details).',
 			},
 			{
 				name: 'max-rows',
@@ -116,7 +150,7 @@ export class WpdLog< T = unknown > extends Component {
 			{
 				name: 'wpd-log-append',
 				description:
-					'Fires after each `append( entry )`. detail.entry is the appended item; detail.length is the new buffer size.',
+					'Fires after each `push( entry )`. detail.entry is the appended item; detail.length is the new buffer size.',
 			},
 		],
 		cssProps: [
@@ -133,6 +167,21 @@ export class WpdLog< T = unknown > extends Component {
 	private _entries: T[] = [];
 	private _renderRow: WpdLogRowRenderer< T > = defaultRowRenderer as WpdLogRowRenderer< T >;
 	private _stickToBottom = true;
+
+	/**
+	 * Per-entry measured height — auto-row-height mode only. Sparse:
+	 * unmeasured indices read as `rowHeight` (default). Stays index-
+	 * aligned with `_entries`; trimmed in lockstep when `max-rows` evicts.
+	 */
+	private _heights: number[] = [];
+	/**
+	 * Cumulative offsets — `_offsets[i]` is the top edge of entry i.
+	 * Auto-row-height mode only. Lazily computed by `_ensureOffsets()`
+	 * and invalidated whenever `_heights` changes.
+	 */
+	private _offsets: number[] = [];
+	private _offsetsValid = false;
+
 	private _onScroll = (): void => {
 		// User scrolled — recompute stickiness based on whether they
 		// landed on the bottom edge. A 4px slop accounts for sub-pixel
@@ -179,12 +228,19 @@ export class WpdLog< T = unknown > extends Component {
 	 * stamped into a `<span>`. Default is a JSON stringification, so a
 	 * freshly-mounted log paints something useful before the consumer
 	 * wires up.
+	 *
+	 * Reassigning `renderRow` invalidates measured heights — under
+	 * `auto-row-height` mode, the new renderer's row sizes will likely
+	 * differ from the previous, so we re-measure on next paint.
 	 */
 	get renderRow(): WpdLogRowRenderer< T > {
 		return this._renderRow;
 	}
 	set renderRow( fn: WpdLogRowRenderer< T > ) {
 		this._renderRow = typeof fn === 'function' ? fn : ( defaultRowRenderer as WpdLogRowRenderer< T > );
+		this._heights = [];
+		this._invalidateOffsets();
+		this._paintSpacer();
 		this._paintWindow();
 	}
 
@@ -194,6 +250,8 @@ export class WpdLog< T = unknown > extends Component {
 	}
 	set entries( next: readonly T[] ) {
 		this._entries = Array.isArray( next ) ? next.slice() : [];
+		this._heights = [];
+		this._invalidateOffsets();
 		this._enforceMaxRows();
 		this._afterEntriesMutation();
 	}
@@ -228,6 +286,8 @@ export class WpdLog< T = unknown > extends Component {
 	/** Drop every entry. */
 	clear(): void {
 		this._entries = [];
+		this._heights = [];
+		this._invalidateOffsets();
 		this._afterEntriesMutation();
 	}
 
@@ -240,10 +300,16 @@ export class WpdLog< T = unknown > extends Component {
 	private _enforceMaxRows(): void {
 		const cap = this._readMaxRows();
 		if ( cap > 0 && this._entries.length > cap ) {
+			const drop = this._entries.length - cap;
 			// Drop the oldest. `splice` mutates in-place — cheaper than
 			// reassigning a slice for the typical case where we trim
-			// 1-N entries off the front.
-			this._entries.splice( 0, this._entries.length - cap );
+			// 1-N entries off the front. Heights array follows in
+			// lockstep so index alignment with entries holds.
+			this._entries.splice( 0, drop );
+			if ( this._heights.length > 0 ) {
+				this._heights.splice( 0, Math.min( drop, this._heights.length ) );
+			}
+			this._invalidateOffsets();
 		}
 	}
 
@@ -273,12 +339,76 @@ export class WpdLog< T = unknown > extends Component {
 		return Number.isFinite( raw ) && raw >= 0 ? Math.floor( raw ) : 6;
 	}
 
+	private _isAutoHeight(): boolean {
+		return this.getAttribute( 'auto-row-height' ) !== null;
+	}
+
+	private _invalidateOffsets(): void {
+		this._offsetsValid = false;
+		this._offsets = [];
+	}
+
+	/**
+	 * Build / refresh the cumulative-offsets array under
+	 * auto-row-height mode. Unmeasured entries fall back to the
+	 * declared `row-height`; once they paint and we measure them, the
+	 * invalidation flag flips and we rebuild.
+	 */
+	private _ensureOffsets(): void {
+		if ( this._offsetsValid ) {
+			return;
+		}
+		const fallback = this._readRowHeight();
+		const offsets: number[] = new Array( this._entries.length );
+		let acc = 0;
+		for ( let i = 0; i < this._entries.length; i++ ) {
+			offsets[ i ] = acc;
+			const h = this._heights[ i ];
+			acc += Number.isFinite( h ) && h > 0 ? h : fallback;
+		}
+		this._offsets = offsets;
+		( this as unknown as { _totalHeight: number } )._totalHeight = acc;
+		this._offsetsValid = true;
+	}
+
+	private _totalContentHeight(): number {
+		if ( this._isAutoHeight() ) {
+			this._ensureOffsets();
+			return ( this as unknown as { _totalHeight?: number } )._totalHeight ?? 0;
+		}
+		return this._entries.length * this._readRowHeight();
+	}
+
+	/**
+	 * Binary-search the auto-mode offsets array for the first entry
+	 * whose top edge is at or past `scrollTop`. Returns the index of
+	 * the LAST entry that starts at or before scrollTop — i.e. the
+	 * topmost row that's still partially visible.
+	 */
+	private _findIndexAtOffset( scrollTop: number ): number {
+		const offsets = this._offsets;
+		if ( offsets.length === 0 ) {
+			return 0;
+		}
+		let lo = 0;
+		let hi = offsets.length - 1;
+		while ( lo < hi ) {
+			const mid = Math.floor( ( lo + hi + 1 ) / 2 );
+			if ( offsets[ mid ] <= scrollTop ) {
+				lo = mid;
+			} else {
+				hi = mid - 1;
+			}
+		}
+		return lo;
+	}
+
 	private _paintSpacer(): void {
 		const spacer = this.shadowRoot?.querySelector< HTMLElement >( '.spacer' );
 		if ( ! spacer ) {
 			return;
 		}
-		spacer.style.height = `${ this._entries.length * this._readRowHeight() }px`;
+		spacer.style.height = `${ this._totalContentHeight() }px`;
 	}
 
 	private _paintWindow(): void {
@@ -298,20 +428,33 @@ export class WpdLog< T = unknown > extends Component {
 			empty.style.display = 'none';
 		}
 
+		const auto = this._isAutoHeight();
 		const rowHeight = this._readRowHeight();
 		const overscan = this._readOverscan();
 		const viewportH = this.clientHeight;
 		const scrollTop = this.scrollTop;
-		const startIdx = Math.max( 0, Math.floor( scrollTop / rowHeight ) - overscan );
-		const endIdx = Math.min(
-			this._entries.length,
-			Math.ceil( ( scrollTop + viewportH ) / rowHeight ) + overscan,
-		);
+
+		let startIdx: number;
+		let endIdx: number;
+		if ( auto ) {
+			this._ensureOffsets();
+			const firstVisible = this._findIndexAtOffset( scrollTop );
+			const lastVisible = this._findIndexAtOffset( scrollTop + viewportH );
+			startIdx = Math.max( 0, firstVisible - overscan );
+			endIdx = Math.min( this._entries.length, lastVisible + 1 + overscan );
+		} else {
+			startIdx = Math.max( 0, Math.floor( scrollTop / rowHeight ) - overscan );
+			endIdx = Math.min(
+				this._entries.length,
+				Math.ceil( ( scrollTop + viewportH ) / rowHeight ) + overscan,
+			);
+		}
 
 		// Stamp the visible slice into a fragment so we touch the live
 		// DOM exactly once per paint. `replaceChildren( frag )` swaps in
 		// a single layout pass.
 		const frag = document.createDocumentFragment();
+		const renderedRows: Array< { idx: number; el: HTMLElement } > = [];
 		for ( let i = startIdx; i < endIdx; i++ ) {
 			const rendered = this._renderRow( this._entries[ i ], i );
 			let row: HTMLElement;
@@ -323,13 +466,58 @@ export class WpdLog< T = unknown > extends Component {
 			}
 			row.classList.add( 'row' );
 			row.style.position = 'absolute';
-			row.style.top = `${ i * rowHeight }px`;
 			row.style.left = '0';
 			row.style.right = '0';
-			row.style.height = `${ rowHeight }px`;
+			if ( auto ) {
+				row.style.top = `${ this._offsets[ i ] }px`;
+				// Don't pin a height — the measured-mode whole point
+				// is letting content drive height. `min-height: 0`
+				// override on the row class would also work; using
+				// `auto` here avoids fighting the CSS default.
+				row.style.height = 'auto';
+			} else {
+				row.style.top = `${ i * rowHeight }px`;
+				row.style.height = `${ rowHeight }px`;
+			}
 			frag.appendChild( row );
+			renderedRows.push( { idx: i, el: row } );
 		}
 		winEl.replaceChildren( frag );
+
+		if ( ! auto ) {
+			return;
+		}
+
+		// Measurement pass — read each freshly-mounted row's actual
+		// height and update the cache. If anything changed, invalidate
+		// offsets, re-paint the spacer, and re-paint the window. Guard
+		// the recursion by only re-painting when at least one row
+		// actually moved; otherwise we'd spin forever on a row whose
+		// clientHeight rounds the cached value.
+		let changed = false;
+		const fallback = this._readRowHeight();
+		for ( const { idx, el } of renderedRows ) {
+			const h = el.offsetHeight || fallback;
+			const prev = this._heights[ idx ];
+			if ( ! Number.isFinite( prev ) || Math.abs( prev - h ) > 0.5 ) {
+				this._heights[ idx ] = h;
+				changed = true;
+			}
+		}
+		if ( changed ) {
+			this._invalidateOffsets();
+			this._ensureOffsets();
+			// Reposition the rows we already stamped — cheaper than a
+			// full re-render, and visually identical. Subsequent paints
+			// will pick up the cached heights without measurement.
+			for ( const { idx, el } of renderedRows ) {
+				el.style.top = `${ this._offsets[ idx ] }px`;
+			}
+			this._paintSpacer();
+			if ( this._stickToBottom ) {
+				this.scrollTop = this.scrollHeight;
+			}
+		}
 	}
 
 	protected render() {

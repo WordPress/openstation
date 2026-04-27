@@ -121,6 +121,114 @@ describe( 'devtools.addRequestHeader', () => {
 		const { dt } = await freshDevtools();
 		expect( () => dt.devtools.addRequestHeader( 'absent', 'X', 'y' ) ).not.toThrow();
 	} );
+
+	test( 'iframe load event re-pushes instrumentation', async () => {
+		// Regression: if the wp-desktop-ready signal isn't emitted
+		// (chromeless bridge doesn't post it today), only the iframe's
+		// native `load` event closes the timing gap. Headers
+		// registered before a manual `iframe.src = newUrl` MUST be
+		// re-pushed when the new document loads, otherwise plugins
+		// that inject session tokens see them silently dropped.
+		const { dt } = await freshDevtools();
+		const ctx = mountFakeWindow( 'reload-target' );
+
+		// Wire the load handler directly on the fake — `mountFakeWindow`
+		// doesn't surface an `addEventListener` because the iframe is a
+		// stub. Patch in just enough to satisfy the devtools module.
+		let loadCb: ( () => void ) | null = null;
+		const stub = ( window as unknown as {
+			wp: { desktop: { windowManager: { getById: ( id: string ) => unknown } } };
+		} ).wp.desktop.windowManager.getById( 'reload-target' ) as {
+			iframe: HTMLIFrameElement;
+		};
+		( stub.iframe as unknown as {
+			addEventListener: ( name: string, cb: () => void ) => void;
+			removeEventListener: ( name: string, cb: () => void ) => void;
+		} ).addEventListener = ( name, cb ) => {
+			if ( name === 'load' ) {
+				loadCb = cb;
+			}
+		};
+		( stub.iframe as unknown as {
+			removeEventListener: ( name: string, cb: () => void ) => void;
+		} ).removeEventListener = () => {
+			loadCb = null;
+		};
+
+		dt.devtools.addRequestHeader( 'reload-target', 'X-Token', 'first' );
+		const beforeLoadCount = ctx.captures.length;
+		expect( loadCb ).not.toBeNull();
+
+		// Simulate a manual iframe reload — drain microtasks so the
+		// load handler's queueMicrotask defer settles.
+		( loadCb as unknown as () => void )();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// At least one extra push must have landed since the load
+		// fired. Header value still 'first' — we're testing re-push,
+		// not a value change.
+		expect( ctx.captures.length ).toBeGreaterThan( beforeLoadCount );
+		const last = ctx.captures[ ctx.captures.length - 1 ];
+		expect( last.headers ).toEqual( { 'X-Token': 'first' } );
+	} );
+
+	test( 'reloadWithDebugSession bundles header + query-arg + cleanup', async () => {
+		const { dt } = await freshDevtools();
+		const ctx = mountFakeWindow( 'with-session' );
+
+		// Ensure the fake iframe has a usable `src` getter / setter
+		// and add/removeEventListener stubs the load-handler logic
+		// queries on registration.
+		const stub = ( window as unknown as {
+			wp: { desktop: { windowManager: { getById: ( id: string ) => unknown } } };
+		} ).wp.desktop.windowManager.getById( 'with-session' ) as {
+			iframe: HTMLIFrameElement & { _src: string };
+		};
+		stub.iframe._src = 'http://example.test/wp-admin/post.php';
+		Object.defineProperty( stub.iframe, 'src', {
+			configurable: true,
+			get() {
+				return ( this as { _src: string } )._src;
+			},
+			set( v: string ) {
+				( this as { _src: string } )._src = v;
+			},
+		} );
+		( stub.iframe as unknown as {
+			getAttribute: ( name: string ) => string | null;
+		} ).getAttribute = ( name ) =>
+			name === 'src' ? stub.iframe._src : null;
+		( stub.iframe as unknown as {
+			addEventListener: ( n: string, cb: () => void ) => void;
+		} ).addEventListener = () => void 0;
+		( stub.iframe as unknown as {
+			removeEventListener: ( n: string, cb: () => void ) => void;
+		} ).removeEventListener = () => void 0;
+
+		const result = dt.devtools.reloadWithDebugSession(
+			'with-session',
+			'sess-xyz',
+		);
+		expect( result ).not.toBeNull();
+		// The src must now carry the session query-arg.
+		expect( stub.iframe._src ).toContain( 'wp_debug_session=sess-xyz' );
+		// And a header contribution was pushed.
+		const last = ctx.captures[ ctx.captures.length - 1 ];
+		expect( last.headers[ 'X-WP-Debug-Session' ] ).toBe( 'sess-xyz' );
+
+		// Disposer removes the header.
+		result!.dispose();
+		const afterDispose = ctx.captures[ ctx.captures.length - 1 ];
+		expect( afterDispose.headers[ 'X-WP-Debug-Session' ] ).toBeUndefined();
+	} );
+
+	test( 'reloadWithDebugSession returns null for unknown window', async () => {
+		const { dt } = await freshDevtools();
+		expect(
+			dt.devtools.reloadWithDebugSession( 'absent', 'sess' ),
+		).toBeNull();
+	} );
 } );
 
 describe( 'devtools.onRequest', () => {
@@ -221,6 +329,52 @@ describe( 'devtools.debug', () => {
 		expect( onLog ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'poll URL composes correctly under ugly permalinks (?rest_route=/)', async () => {
+		// Ugly-permalinks produce restUrl = `<site>/?rest_route=/`.
+		// Naive string concat produces `<site>/?rest_route=/wp-desktop/v1/debug?sessionId=…`
+		// — two `?` separators, WordPress routes to the homepage,
+		// JSON.parse blows up. The fix uses `URL` + `searchParams` so
+		// the URL parser folds the second batch of params into the
+		// existing query.
+		( window as unknown as {
+			wpDesktopConfig?: { restUrl?: string; restNonce?: string };
+		} ).wpDesktopConfig = {
+			restUrl: 'http://example.test/?rest_route=/',
+			restNonce: 'abc',
+		};
+		const calls: string[] = [];
+		const fetchSpy = vi
+			.spyOn( globalThis, 'fetch' )
+			.mockImplementation( ( input: RequestInfo | URL ) => {
+				calls.push( typeof input === 'string' ? input : input.toString() );
+				return Promise.resolve(
+					new Response( JSON.stringify( { events: [], cursor: 0 } ), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' },
+					} ),
+				);
+			} );
+		try {
+			const { dt } = await freshDevtools();
+			dt.devtools.debug.subscribe( 'sess-ugly', 'query', () => void 0 );
+			await new Promise( ( r ) => setTimeout( r, 0 ) );
+			expect( calls.length ).toBeGreaterThan( 0 );
+			const url = calls[ 0 ];
+			// Exactly one `?` in the URL — separator for the rolled-up
+			// query string (which now contains rest_route + sessionId
+			// + since + channels[]).
+			expect( url.match( /\?/g )?.length ).toBe( 1 );
+			expect( url ).toContain( 'rest_route=' );
+			expect( url ).toContain( 'sessionId=sess-ugly' );
+			// `URL.searchParams` percent-encodes `[]` here — the server
+			// decodes via PHP `parse_str`, so both forms are accepted.
+			expect( url ).toContain( 'channels%5B%5D=query' );
+		} finally {
+			fetchSpy.mockRestore();
+			delete ( window as unknown as { wpDesktopConfig?: unknown } ).wpDesktopConfig;
+		}
+	} );
+
 	test( 'poll URL includes subscribed channels (regression: empty drains)', async () => {
 		// Server-side drain returns `{ events: [] }` when no channels
 		// are passed and no `desktop_mode_debug_channels` filter
@@ -258,7 +412,7 @@ describe( 'devtools.debug', () => {
 			expect( calls.length ).toBeGreaterThan( 0 );
 			const url = calls[ 0 ];
 			expect( url ).toContain( 'sessionId=sess-1' );
-			expect( url ).toContain( 'channels[]=query' );
+			expect( url ).toContain( 'channels%5B%5D=query' );
 		} finally {
 			fetchSpy.mockRestore();
 			delete ( window as unknown as { wpDesktopConfig?: unknown } ).wpDesktopConfig;

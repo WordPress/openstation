@@ -53,6 +53,20 @@ export const styles = css`
 		text-overflow: ellipsis;
 	}
 
+	/*
+	 * Auto-row-height mode — the virtualizer measures each rendered
+	 * row, so we let content drive height. The fixed-height \`overflow:
+	 * hidden\` would clip multi-line content the same way the default
+	 * mode does — defeats the point. Plugins can still set their own
+	 * \`overflow\` on the rendered row element.
+	 */
+	:host( [ auto-row-height ] ) .row {
+		min-height: 0;
+		overflow: visible;
+		text-overflow: clip;
+		white-space: var( --wpd-log-row-white-space, normal );
+	}
+
 	.empty {
 		display: flex;
 		align-items: center;

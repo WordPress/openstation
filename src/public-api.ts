@@ -149,6 +149,8 @@ export type {
 	DevtoolsApi,
 	HeaderValue,
 	OnRequestOptions,
+	ReloadWithDebugSessionOptions,
+	ReloadWithDebugSessionResult,
 	RequestObservation,
 	RequestObserver,
 } from './devtools';
