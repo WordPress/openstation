@@ -1297,6 +1297,54 @@ See [`docs/examples/native-window-with-tabs.md`](./examples/native-window-with-t
 
 ---
 
+## DevTools / debug bus (since 0.6.0)
+
+### `desktop_mode_debug_publish( $session_id, $channel, $payload )` — Experimental (PHP function)
+
+Publish a payload onto the per-session debug bus. Plugins running inside an admin / REST / AJAX request hook a capture (e.g. `SAVEQUERIES` for SQL, `pre_http_request` for outbound HTTP, output buffering for response inspection), then call this to stream events to a client-side inspector window.
+
+```php
+$session_id = desktop_mode_debug_session_for_request();
+if ( '' !== $session_id ) {
+    desktop_mode_debug_publish( $session_id, 'query', array(
+        'sql'  => $sql,
+        'time' => $duration,
+    ) );
+}
+```
+
+**Args**: `$session_id` (string from the `X-WP-Debug-Session` header — see helper below), `$channel` (free-form lowercase ASCII; convention: `query`, `log`, `rest_timing`), `$payload` (anything `wp_json_encode()` can serialise).
+
+**Storage**: per-(session, channel) ring buffer in a transient, capped at 500 events (filterable via `desktop_mode_debug_ring_size`), TTL 1 hour.
+
+### `desktop_mode_debug_session_for_request()` — Experimental (PHP function)
+
+Read the debug session id from the current request's `X-WP-Debug-Session` header. Sanitises against UUID-shape input; returns `''` when absent or invalid. Use this to gate capture work so non-instrumented requests pay zero cost.
+
+### `desktop_mode_debug_publish` — Experimental (action)
+
+Fires synchronously after a publish lands in the ring buffer.
+
+```php
+do_action( 'desktop_mode_debug_publish', string $session_id, string $channel, mixed $payload );
+```
+
+### `desktop_mode_debug_ring_size` — Experimental (filter)
+
+Override the per-(session, channel) ring buffer cap. Default 500.
+
+### `desktop_mode_debug_channels` — Experimental (filter)
+
+Declare the full set of channels for a given session id. Read by `GET /wp-desktop/v1/debug` when no `channel` / `channels[]` query parameter is present.
+
+### `desktop_mode_debug_rest_permission` — Experimental (filter)
+
+Override the default `manage_options` permission gate on `GET /wp-desktop/v1/debug`.
+
+See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrumentation.md) for the full walkthrough — header contributions, observe mode, debug bus.
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

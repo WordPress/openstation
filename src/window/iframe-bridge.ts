@@ -169,14 +169,25 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// pre-computed server-side so subscribers don't have to re-derive
 	// the success / 4xx / 5xx / network boundary.
 	if ( data.type === 'wp-desktop-iframe-network' ) {
-		doAction( HOOKS.IFRAME_NETWORK_COMPLETED, {
+		const networkPayload: Record< string, unknown > = {
 			windowId: win.id,
 			method: typeof data.method === 'string' ? data.method : 'GET',
 			url: typeof data.url === 'string' ? data.url : '',
 			status: typeof data.status === 'number' ? data.status : 0,
 			duration: typeof data.duration === 'number' ? data.duration : 0,
 			failed: !! data.failed,
-		} );
+		};
+		// `requestHeaders` / `responseHeaders` only ride along when
+		// devtools have asked the iframe to observe (via
+		// `wp.desktop.devtools.onRequest( id, cb, { observe: true } )`).
+		// Default deliveries stay summary-only for privacy.
+		if ( data.requestHeaders && typeof data.requestHeaders === 'object' ) {
+			networkPayload.requestHeaders = data.requestHeaders;
+		}
+		if ( data.responseHeaders && typeof data.responseHeaders === 'object' ) {
+			networkPayload.responseHeaders = data.responseHeaders;
+		}
+		doAction( HOOKS.IFRAME_NETWORK_COMPLETED, networkPayload );
 	}
 }
 

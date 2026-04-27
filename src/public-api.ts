@@ -141,6 +141,18 @@ export type { ConnectOptions, WindowConnection } from './connection';
 
 export type { AskFn, AskOptions, AskResult, AskToolCall } from './ai/ask';
 
+// ----- DevTools / cross-plugin instrumentation -----
+
+export type {
+	DebugBusApi,
+	DebugEvent,
+	DevtoolsApi,
+	HeaderValue,
+	OnRequestOptions,
+	RequestObservation,
+	RequestObserver,
+} from './devtools';
+
 // ----- Public class types (for plugins that need to type-cast an
 // instance returned by `wp.desktop.windowManager` / `.dock`) -----
 
@@ -187,6 +199,7 @@ export type { WallpaperSurface } from './wallpapers/surfaces';
 // major release without a deprecation notice first.
 
 export {
+	WpdBadge,
 	WpdButton,
 	WpdCheckboxLabel,
 	WpdCluster,
@@ -197,6 +210,7 @@ export {
 	WpdGrid,
 	WpdIcon,
 	WpdKey,
+	WpdLog,
 	WpdMenu,
 	WpdMenuItem,
 	WpdPanel,
@@ -216,6 +230,7 @@ export {
 	WpdToastContainer,
 	WpdWindowButton,
 } from './ui/components';
+export type { WpdBadgeTone, WpdLogRowRenderer } from './ui/components';
 
 // Stable variant enum for <wpd-button> — plugins can narrow props
 // against the recognised set rather than hard-coding strings.

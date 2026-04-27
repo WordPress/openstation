@@ -38,6 +38,10 @@ export { WpdDisplay } from './wpd-display/wpd-display';
 export { WpdEmptyState } from './wpd-empty-state/wpd-empty-state';
 export { WpdKey } from './wpd-key/wpd-key';
 export { WpdCode } from './wpd-code/wpd-code';
+export { WpdBadge } from './wpd-badge/wpd-badge';
+export type { WpdBadgeTone } from './wpd-badge/wpd-badge';
+export { WpdLog } from './wpd-log/wpd-log';
+export type { WpdLogRowRenderer } from './wpd-log/wpd-log';
 export { WpdSteps, WpdStep } from './wpd-steps/wpd-steps';
 
 // List of tags registered by this barrel. `doAction(
@@ -80,6 +84,8 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-empty-state',
 	'wpd-key',
 	'wpd-code',
+	'wpd-badge',
+	'wpd-log',
 	'wpd-steps',
 	'wpd-step',
 ] as const;

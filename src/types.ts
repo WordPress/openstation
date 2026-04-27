@@ -153,6 +153,19 @@ export interface WindowConfig {
 	 * `wp-desktop.window.body-resized` hook.
 	 */
 	onResize?: ( width: number, height: number ) => void;
+	/**
+	 * Attribution: the WordPress script handle (or plugin slug) that
+	 * registered this window. Surfaced so devtools / inspectors that
+	 * instrument a window from the outside can identify the owning
+	 * plugin without parsing URLs. Populated automatically for native
+	 * windows registered via `desktop_mode_register_window( $args )`
+	 * (carries `$args['script']`); plugins that open iframe windows
+	 * directly may set this themselves. Empty / undefined when the
+	 * window comes from a core admin page with no plugin owner.
+	 *
+	 * @since 0.6.0
+	 */
+	ownerHandle?: string;
 }
 
 /**
@@ -351,6 +364,14 @@ export interface NativeWindowServerEntry {
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
+	/**
+	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
+	 * windows registered via `desktop_mode_register_window()`. Devtools
+	 * read this off `Window.config.ownerHandle` once the window opens.
+	 *
+	 * @since 0.6.0
+	 */
+	ownerHandle: string;
 	/**
 	 * Tab descriptors for this window. Always includes at least the
 	 * main tab (whose `template` renders the window's own body); if

@@ -598,22 +598,118 @@ function desktop_mode_chromeless_bridge_script() {
 			} catch ( _err ) { /* swallow */ }
 		} );
 
-		var wpdReportNetwork = function ( method, url, status, duration, failed ) {
+		// Devtools instrumentation slot — populated by
+		// `wp-desktop-instrument-set` messages from the parent shell.
+		// Mutable: parent overwrites the whole object on every change
+		// (header add/remove, observe toggle).
+		//
+		// Headers: { name: 'value' } — already pre-merged by the parent
+		// (RFC 7230 §3.2.2 join applied there).
+		// Observe: when true, network reports include request +
+		// response headers; otherwise only the privacy-conscious
+		// summary travels parent-bound.
+		window.__wpdInstrument = window.__wpdInstrument || { headers: {}, observe: false };
+		try {
+			window.addEventListener( 'message', function ( ev ) {
+				if ( ev.origin !== window.location.origin || ev.source !== window.parent ) {
+					return;
+				}
+				var d = ev && ev.data;
+				if ( ! d || typeof d !== 'object' || d.type !== 'wp-desktop-instrument-set' ) {
+					return;
+				}
+				window.__wpdInstrument = {
+					headers: d.headers && typeof d.headers === 'object' ? d.headers : {},
+					observe: !! d.observe
+				};
+			} );
+		} catch ( _err ) { /* swallow — instrumentation is best-effort */ }
+
+		var wpdReportNetwork = function ( method, url, status, duration, failed, extra ) {
 			try {
-				window.parent.postMessage( {
+				var msg = {
 					type: 'wp-desktop-iframe-network',
 					method: String( method || 'GET' ).toUpperCase(),
 					url: String( url || '' ),
 					status: typeof status === 'number' ? status : 0,
 					duration: typeof duration === 'number' ? duration : 0,
 					failed: !! failed
-				}, window.location.origin );
+				};
+				if ( extra && window.__wpdInstrument && window.__wpdInstrument.observe ) {
+					if ( extra.requestHeaders ) {
+						msg.requestHeaders = extra.requestHeaders;
+					}
+					if ( extra.responseHeaders ) {
+						msg.responseHeaders = extra.responseHeaders;
+					}
+				}
+				window.parent.postMessage( msg, window.location.origin );
 			} catch ( _err ) { /* swallow */ }
+		};
+
+		// Helper — convert an arbitrary `init.headers` shape into a
+		// plain `{ name: value }` map so the instrument layer can
+		// merge contributed headers without caring whether the caller
+		// passed a Headers, an array of pairs, or a plain object.
+		var wpdHeadersToObject = function ( h ) {
+			var out = {};
+			if ( ! h ) {
+				return out;
+			}
+			if ( typeof Headers !== 'undefined' && h instanceof Headers ) {
+				try {
+					h.forEach( function ( v, k ) { out[ k ] = v; } );
+				} catch ( _e ) { /* swallow */ }
+				return out;
+			}
+			if ( Array.isArray( h ) ) {
+				for ( var i = 0; i < h.length; i++ ) {
+					if ( h[ i ] && h[ i ].length >= 2 ) {
+						out[ h[ i ][ 0 ] ] = h[ i ][ 1 ];
+					}
+				}
+				return out;
+			}
+			if ( typeof h === 'object' ) {
+				for ( var k in h ) {
+					if ( Object.prototype.hasOwnProperty.call( h, k ) ) {
+						out[ k ] = h[ k ];
+					}
+				}
+			}
+			return out;
+		};
+
+		// Helper — snapshot the contributed-header set at request time.
+		// Header values can theoretically come and go between requests
+		// (parent ref-counts contributions) so we read fresh on every
+		// call rather than caching at wrap time.
+		var wpdContributedHeaders = function () {
+			var inst = window.__wpdInstrument || {};
+			var headers = inst.headers || {};
+			var out = {};
+			for ( var k in headers ) {
+				if ( Object.prototype.hasOwnProperty.call( headers, k ) && typeof headers[ k ] === 'string' ) {
+					out[ k ] = headers[ k ];
+				}
+			}
+			return out;
 		};
 
 		// Wrap fetch. Called AFTER `admin_footer` runs — plugin code
 		// using fetch during synchronous page boot (rare in wp-admin)
 		// bypasses this, but lazy calls (the common case) are captured.
+		//
+		// Two layers of behavior:
+		//
+		//   - Always: timing + status reporting (the original
+		//     observability contract).
+		//   - When `__wpdInstrument.headers` is non-empty: merge those
+		//     headers into the request before dispatch so devtools can
+		//     tag every outgoing call without each plugin reinventing
+		//     a fetch wrapper.
+		//   - When `__wpdInstrument.observe`: also relay request +
+		//     response headers in the parent-bound network message.
 		if ( typeof window.fetch === 'function' ) {
 			var wpdOrigFetch = window.fetch;
 			window.fetch = function ( input, init ) {
@@ -631,11 +727,51 @@ function desktop_mode_chromeless_bridge_script() {
 					url = input.url || '';
 					method = ( input.method || ( init && init.method ) || 'GET' );
 				}
+
+				// Header contribution + capture. Build a single
+				// `Headers` instance so contributed values overwrite /
+				// stack predictably regardless of the caller's input
+				// shape, then re-attach to a cloned init.
+				var contributed = wpdContributedHeaders();
+				var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
+				var requestHeaders = null;
+				var hasContributed = false;
+				for ( var ck in contributed ) {
+					if ( Object.prototype.hasOwnProperty.call( contributed, ck ) ) {
+						hasContributed = true;
+						break;
+					}
+				}
+				if ( hasContributed || observe ) {
+					var existing = wpdHeadersToObject( init && init.headers );
+					if ( input && typeof input === 'object' && input.headers ) {
+						var fromReq = wpdHeadersToObject( input.headers );
+						for ( var rk in fromReq ) {
+							if ( Object.prototype.hasOwnProperty.call( fromReq, rk ) && ! ( rk in existing ) ) {
+								existing[ rk ] = fromReq[ rk ];
+							}
+						}
+					}
+					for ( var ck2 in contributed ) {
+						if ( Object.prototype.hasOwnProperty.call( contributed, ck2 ) ) {
+							existing[ ck2 ] = contributed[ ck2 ];
+						}
+					}
+					if ( hasContributed ) {
+						init = init ? Object.assign( {}, init ) : {};
+						init.headers = existing;
+						arguments[ 1 ] = init;
+					}
+					if ( observe ) {
+						requestHeaders = existing;
+					}
+				}
+
 				var promise;
 				try {
 					promise = wpdOrigFetch.apply( this, arguments );
 				} catch ( sync ) {
-					wpdReportNetwork( method, url, 0, 0, true );
+					wpdReportNetwork( method, url, 0, 0, true, requestHeaders ? { requestHeaders: requestHeaders } : null );
 					throw sync;
 				}
 				return promise.then(
@@ -643,14 +779,25 @@ function desktop_mode_chromeless_bridge_script() {
 						var dur = ( ( typeof performance !== 'undefined' && performance.now )
 							? performance.now()
 							: Date.now() ) - start;
-						wpdReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok );
+						var extra = null;
+						if ( requestHeaders ) {
+							extra = { requestHeaders: requestHeaders };
+							try {
+								var rh = {};
+								if ( res && res.headers && typeof res.headers.forEach === 'function' ) {
+									res.headers.forEach( function ( v, k ) { rh[ k ] = v; } );
+								}
+								extra.responseHeaders = rh;
+							} catch ( _hErr ) { /* swallow */ }
+						}
+						wpdReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
 						return res;
 					},
 					function ( err ) {
 						var dur = ( ( typeof performance !== 'undefined' && performance.now )
 							? performance.now()
 							: Date.now() ) - start;
-						wpdReportNetwork( method, url, 0, Math.round( dur ), true );
+						wpdReportNetwork( method, url, 0, Math.round( dur ), true, requestHeaders ? { requestHeaders: requestHeaders } : null );
 						throw err;
 					}
 				);
@@ -661,37 +808,155 @@ function desktop_mode_chromeless_bridge_script() {
 		// XHR, so fetch-only instrumentation would miss most of the
 		// legacy admin surface. Record method + URL on open; fire on
 		// loadend regardless of success / failure.
+		//
+		// Header contribution layer: `setRequestHeader` after open() but
+		// before send() — that's the only window the spec allows. The
+		// caller's own headers are tracked so observation can include
+		// them alongside the contributed ones.
 		if ( typeof XMLHttpRequest !== 'undefined' ) {
 			var wpdOrigOpen = XMLHttpRequest.prototype.open;
 			var wpdOrigSend = XMLHttpRequest.prototype.send;
+			var wpdOrigSetHeader = XMLHttpRequest.prototype.setRequestHeader;
 			XMLHttpRequest.prototype.open = function ( method, url ) {
 				try {
 					this.__wpdMethod = method;
 					this.__wpdUrl = url;
+					this.__wpdReqHeaders = {};
 				} catch ( _err ) { /* frozen instance — skip */ }
 				return wpdOrigOpen.apply( this, arguments );
+			};
+			XMLHttpRequest.prototype.setRequestHeader = function ( name, value ) {
+				try {
+					if ( ! this.__wpdReqHeaders ) {
+						this.__wpdReqHeaders = {};
+					}
+					this.__wpdReqHeaders[ name ] = value;
+				} catch ( _err ) { /* swallow */ }
+				return wpdOrigSetHeader.apply( this, arguments );
 			};
 			XMLHttpRequest.prototype.send = function () {
 				var xhr = this;
 				var start = ( typeof performance !== 'undefined' && performance.now )
 					? performance.now()
 					: Date.now();
+
+				// Apply contributed headers right before send. Doing it
+				// here rather than in open() means contributions added
+				// after open() (e.g. in async-built request flows) still
+				// land on the wire.
+				var contributed = wpdContributedHeaders();
+				var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
+				for ( var hk in contributed ) {
+					if ( Object.prototype.hasOwnProperty.call( contributed, hk ) ) {
+						try {
+							wpdOrigSetHeader.call( xhr, hk, contributed[ hk ] );
+							if ( ! xhr.__wpdReqHeaders ) {
+								xhr.__wpdReqHeaders = {};
+							}
+							xhr.__wpdReqHeaders[ hk ] = contributed[ hk ];
+						} catch ( _hErr ) { /* `setRequestHeader` rejects forbidden names — skip */ }
+					}
+				}
+
 				var fire = function () {
 					var dur = ( ( typeof performance !== 'undefined' && performance.now )
 						? performance.now()
 						: Date.now() ) - start;
+					var extra = null;
+					if ( observe ) {
+						extra = {
+							requestHeaders: xhr.__wpdReqHeaders || {}
+						};
+						try {
+							var raw = xhr.getAllResponseHeaders ? xhr.getAllResponseHeaders() : '';
+							var resHeaders = {};
+							if ( raw && typeof raw === 'string' ) {
+								var lines = raw.trim().split( /[\r\n]+/ );
+								for ( var li = 0; li < lines.length; li++ ) {
+									var idx = lines[ li ].indexOf( ':' );
+									if ( idx > 0 ) {
+										resHeaders[ lines[ li ].slice( 0, idx ).trim() ] = lines[ li ].slice( idx + 1 ).trim();
+									}
+								}
+							}
+							extra.responseHeaders = resHeaders;
+						} catch ( _rErr ) { /* swallow */ }
+					}
 					wpdReportNetwork(
 						xhr.__wpdMethod,
 						xhr.__wpdUrl,
 						xhr.status,
 						Math.round( dur ),
-						xhr.status === 0 || xhr.status >= 400
+						xhr.status === 0 || xhr.status >= 400,
+						extra
 					);
 				};
 				try {
 					xhr.addEventListener( 'loadend', fire );
 				} catch ( _err ) { /* swallow */ }
 				return wpdOrigSend.apply( this, arguments );
+			};
+		}
+
+		// Wrap sendBeacon — used by analytics + telemetry. The Beacon
+		// API doesn't accept headers (the entire point of beacons is
+		// minimal payload + best-effort delivery). When devtools have
+		// contributed headers we silently fall back to fetch with
+		// `keepalive: true`, which is the closest semantic match —
+		// guaranteed POST + same fire-and-forget intent + custom headers
+		// allowed. Without contributions we just relay the call.
+		if ( typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' ) {
+			var wpdOrigBeacon = navigator.sendBeacon.bind( navigator );
+			navigator.sendBeacon = function ( url, data ) {
+				var contributed = wpdContributedHeaders();
+				var hasContributed = false;
+				for ( var ck in contributed ) {
+					if ( Object.prototype.hasOwnProperty.call( contributed, ck ) ) {
+						hasContributed = true;
+						break;
+					}
+				}
+				var start = ( typeof performance !== 'undefined' && performance.now )
+					? performance.now()
+					: Date.now();
+				if ( ! hasContributed ) {
+					var ok = false;
+					try { ok = !! wpdOrigBeacon( url, data ); } catch ( _e ) { ok = false; }
+					wpdReportNetwork( 'POST', url, ok ? 200 : 0, 0, ! ok );
+					return ok;
+				}
+				try {
+					var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
+					var headers = {};
+					for ( var hk2 in contributed ) {
+						if ( Object.prototype.hasOwnProperty.call( contributed, hk2 ) ) {
+							headers[ hk2 ] = contributed[ hk2 ];
+						}
+					}
+					window.fetch( url, {
+						method: 'POST',
+						body: data,
+						keepalive: true,
+						credentials: 'same-origin',
+						headers: headers
+					} ).then(
+						function ( res ) {
+							var dur = ( ( typeof performance !== 'undefined' && performance.now )
+								? performance.now()
+								: Date.now() ) - start;
+							wpdReportNetwork( 'POST', url, res.status, Math.round( dur ), ! res.ok, observe ? { requestHeaders: headers } : null );
+						},
+						function () {
+							var dur = ( ( typeof performance !== 'undefined' && performance.now )
+								? performance.now()
+								: Date.now() ) - start;
+							wpdReportNetwork( 'POST', url, 0, Math.round( dur ), true, observe ? { requestHeaders: headers } : null );
+						}
+					);
+					return true;
+				} catch ( _bErr ) {
+					return false;
+				}
 			};
 		}
 	} catch ( _err ) {

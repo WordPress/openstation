@@ -47,4 +47,51 @@ export const styles = css`
 		white-space: pre;
 		overflow-x: auto;
 	}
+
+	/*
+	 * Copy button. Anchored to the right; on the inline variant it's
+	 * tucked alongside the code via inline-flex; on \`block\` it sits
+	 * top-right inside the snippet box. Uses the same dashicon-like
+	 * glyphs the rest of the shell ships, no external icon font.
+	 */
+	:host( [ copy ] ) {
+		position: relative;
+	}
+	:host( [ copy ] ):not( [ block ] ) {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.copy {
+		appearance: none;
+		background: transparent;
+		border: 0;
+		padding: 0;
+		margin: 0;
+		font: inherit;
+		cursor: pointer;
+		color: var( --wpd-code-copy-color, var( --wp-desktop-text-muted, #57606a ) );
+		opacity: var( --wpd-code-copy-opacity, 0.6 );
+		transition: opacity 120ms ease, color 120ms ease;
+		line-height: 1;
+		font-size: 0.95em;
+	}
+	.copy:hover,
+	.copy:focus-visible {
+		opacity: 1;
+		color: var( --wpd-code-copy-color-hover, var( --wp-admin-theme-color, #007cba ) );
+	}
+	:host( [ block ] ) .copy {
+		position: absolute;
+		top: 6px;
+		inset-inline-end: 8px;
+		padding: 4px 6px;
+		background: var( --wpd-code-copy-bg, rgba( 255, 255, 255, 0.6 ) );
+		border-radius: 4px;
+		opacity: 0;
+	}
+	:host( [ block ] ):hover .copy,
+	:host( [ block ] ):focus-within .copy {
+		opacity: 1;
+	}
 `;

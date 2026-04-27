@@ -397,6 +397,7 @@ export function createRegisterWindow(
 			onResize: def.onResize,
 			autofocus: def.autofocus,
 			initialState: def.initialState,
+			ownerHandle: def.ownerHandle,
 			multi: def.multi,
 			desktopId: def.desktopId,
 		} );
@@ -717,6 +718,7 @@ export function createNativeWindowSync(
 			minHeight: entry.minHeight,
 			render: finalRender,
 			autofocus: entry.autofocus,
+			ownerHandle: entry.ownerHandle || entry.scriptHandle,
 		} );
 	};
 

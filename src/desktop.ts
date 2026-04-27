@@ -82,6 +82,7 @@ import {
 	installPaletteShortcut,
 	type Palette,
 } from './palette-registry';
+import { devtools } from './devtools';
 
 /**
  * Origin snapshot taken at shell module load. Every same-origin gate
@@ -425,6 +426,26 @@ export interface WpDesktopPublicApi {
 	listPalettes: () => Palette[];
 	/** Open a specific palette, closing any other open one. @since 0.14.0 */
 	openPalette: ( id: string ) => void;
+	/**
+	 * Cross-plugin instrumentation surface. Lets a third-party
+	 * devtool (SQL inspector, perf profiler, request logger) attach
+	 * behavior to a window registered by another plugin without
+	 * reaching into iframe globals.
+	 *
+	 * - `addRequestHeader( windowId, name, value )` contributes an
+	 *   HTTP header the iframe attaches to every fetch / XHR /
+	 *   sendBeacon. Multiple devtools may contribute the same header;
+	 *   values are joined per RFC 7230. Returns a disposer.
+	 * - `onRequest( windowId, cb, { observe } )` subscribes to every
+	 *   completed request. Pass `observe: true` to receive
+	 *   request + response headers (default summary covers method/
+	 *   url/status/duration only).
+	 * - `debug` is a generic per-session pub/sub bus backed by REST
+	 *   polling — pair it with PHP `desktop_mode_debug_publish()`.
+	 *
+	 * @since 0.6.0
+	 */
+	devtools: import( './devtools' ).DevtoolsApi;
 }
 
 declare global {
@@ -1035,6 +1056,7 @@ function init(): void {
 		unregisterPalette,
 		listPalettes,
 		openPalette: openPaletteOnly,
+		devtools,
 	};
 
 	// Fire `wp-desktop.init` — plugins can now register wallpapers

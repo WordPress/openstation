@@ -1020,6 +1020,7 @@ function desktop_mode_build_native_windows_payload() {
 			'templateHtml' => $template_html,
 			'scriptUrl'    => $script_url,
 			'scriptHandle' => $script_handle,
+			'ownerHandle'  => $script_handle,
 			'tabs'         => $tab_descriptors,
 		);
 	}
