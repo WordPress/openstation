@@ -111,7 +111,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 
 ```
 .
-├── wp-desktop-mode.php    # bootstrap: header, constants, require_once of includes/
+├── desktop-mode.php       # bootstrap: header, constants, require_once of includes/
 ├── includes/              # PHP subsystems
 │   ├── helpers.php              admin-bar.php       ajax.php
 │   ├── assets.php               render.php          portal.php
@@ -153,7 +153,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 
 Just want to try it? Grab the pre-built zip and upload it to any WordPress — [Studio by WordPress.com](https://developer.wordpress.com/studio/), [`wp-env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/), or a hosted site. No Node, no build step.
 
-1. Download [`wp-desktop-mode.zip`](https://github.com/WordPress/desktop-mode/releases/latest/download/wp-desktop-mode.zip) from the latest release (or pick a specific version from the [releases page](https://github.com/WordPress/desktop-mode/releases)).
+1. Download [`desktop-mode.zip`](https://github.com/WordPress/desktop-mode/releases/latest/download/desktop-mode.zip) from the latest release (or pick a specific version from the [releases page](https://github.com/WordPress/desktop-mode/releases)).
 2. In WP Admin: **Plugins → Add New → Upload Plugin**, choose the zip, and activate.
 3. Click the **desktop** icon in the admin bar's top-right corner. The admin reloads inside the desktop shell. Click the same icon again to return to classic admin.
 
@@ -211,7 +211,7 @@ cd wordpress-develop
 npm install
 
 # symlink this plugin into the WP plugins directory
-ln -s "$(pwd)/../alcazaba-plugin" src/wp-content/plugins/wp-desktop-mode
+ln -s "$(pwd)/../alcazaba-plugin" src/wp-content/plugins/desktop-mode
 
 # boot + install WordPress
 npm run env:start      # nginx + PHP + MySQL in Docker

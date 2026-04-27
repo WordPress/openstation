@@ -4,7 +4,7 @@ Five minutes, a new dock icon, and a window that opens a custom URL.
 
 ## 1. Your plugin skeleton
 
-Create a plugin alongside wp-desktop-mode (anywhere under `wp-content/plugins/`):
+Create a plugin alongside desktop-mode (anywhere under `wp-content/plugins/`):
 
 ```php
 <?php

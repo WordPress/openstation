@@ -1,6 +1,6 @@
 # Development guide
 
-This file is for people working **on** `wp-desktop-mode` — the plugin itself, not plugins that extend it. If you want to extend the shell, start with [`docs/getting-started.md`](docs/getting-started.md).
+This file is for people working **on** `desktop-mode` — the plugin itself, not plugins that extend it. If you want to extend the shell, start with [`docs/getting-started.md`](docs/getting-started.md).
 
 ## Dev loop
 
@@ -19,7 +19,7 @@ npm run test:php           # the PHPUnit run itself
 npm run env:stop           # when you're done
 ```
 
-`npm run env:start` spins up a self-contained WordPress + MariaDB stack under `wp-content/plugins/wp-desktop-mode` — it's scoped to automated tests. Manual QA is a separate concern and runs against the Dockerised environment in the parent Core-checkout repo (`env:start` / `env:install` there).
+`npm run env:start` spins up a self-contained WordPress + MariaDB stack under `wp-content/plugins/desktop-mode` — it's scoped to automated tests. Manual QA is a separate concern and runs against the Dockerised environment in the parent Core-checkout repo (`env:start` / `env:install` there).
 
 ## Module layout
 

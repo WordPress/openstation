@@ -34,8 +34,8 @@ jobs:
           tag="${{ github.ref_name }}"
           tag="${tag#v}"
           pkg=$(node -p "require('./package.json').version")
-          header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' wp-desktop-mode.php)
-          constant=$(grep -oP "WPDM_VERSION',\s*'\K[^']+" wp-desktop-mode.php)
+          header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' desktop-mode.php)
+          constant=$(grep -oP "WPDM_VERSION',\s*'\K[^']+" desktop-mode.php)
           if ! [[ "$tag" == "$pkg" && "$tag" == "$header" && "$tag" == "$constant" ]]; then
             echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header WPDM_VERSION=$constant"
             exit 1
@@ -60,4 +60,4 @@ jobs:
             --title "$tag" \
             --generate-notes \
             "${flags[@]}" \
-            wp-desktop-mode.zip
+            desktop-mode.zip

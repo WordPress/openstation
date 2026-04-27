@@ -32,8 +32,8 @@
 		"env:start": "wp-env start",
 		"env:stop": "wp-env stop",
 		"env:destroy": "wp-env destroy",
-		"test:php:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-desktop-mode composer install",
-		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-desktop-mode vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist"
+		"test:php:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode composer install",
+		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist"
 	},
 	"devDependencies": {
 		"@monaco-editor/loader": "^1.7.0",

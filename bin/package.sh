@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-prefix="wp-desktop-mode"
+prefix="desktop-mode"
 out="${1:-$prefix.zip}"
 root=$(pwd)
 tmp=$(mktemp -d)

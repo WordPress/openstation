@@ -31,7 +31,7 @@ Key server-side entry points:
 
 | File | Purpose |
 |---|---|
-| `wp-desktop-mode.php` | Plugin bootstrap — loads the `includes/` files. |
+| `desktop-mode.php` | Plugin bootstrap — loads the `includes/` files. |
 | `includes/helpers.php` | `wpdm_is_enabled()`, `wpdm_is_chromeless_request()`, dock builder, chromeless admin-bar suppression. |
 | `includes/ajax.php` | `wpdm_ajax_save()` — the `wp_ajax_save-desktop-mode` endpoint. |
 | `includes/admin-bar.php` | Toggle node + inline JS click handler. |
