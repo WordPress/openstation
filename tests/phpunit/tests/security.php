@@ -137,18 +137,49 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Data URIs are rejected outright after Phase 1 — even benign-
-	 * looking `image/svg+xml` values could execute script when
-	 * rendered as a CSS background, which made the previous allowlist
-	 * a footgun.
+	 * `data:image/svg+xml` icons are accepted in two well-formed
+	 * shapes (`;base64,<base64>` and `,<percent-encoded>`) because
+	 * that's how WordPress plugins universally ship their admin-menu
+	 * icon (Yoast, WooCommerce, Jetpack, et al.). The shell renders
+	 * them via CSS `background-image`, which sandboxes scripts inside
+	 * the SVG just like an `<img>` would. Rejecting them across the
+	 * board collapses every plugin's branded icon to the gear fallback.
+	 *
+	 * Malformed SVG data URIs and non-SVG `data:` schemes still bounce.
 	 *
 	 * @covers ::wpdm_sanitize_dock_icon
 	 */
-	public function test_data_uri_rejected() {
+	public function test_svg_data_uri_allowed() {
+		$base64 = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+		$this->assertSame( $base64, wpdm_sanitize_dock_icon( $base64 ) );
+
+		$encoded = 'data:image/svg+xml,%3Csvg%2F%3E';
+		$this->assertSame( $encoded, wpdm_sanitize_dock_icon( $encoded ) );
+
+		// Scheme casing is allowed (browsers accept it); payload casing
+		// stays as-given (base64 alphabet is case-sensitive).
+		$mixed_case = 'DATA:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+		$this->assertSame( $mixed_case, wpdm_sanitize_dock_icon( $mixed_case ) );
+	}
+
+	/**
+	 * Non-SVG `data:` schemes and malformed SVG data URIs return the
+	 * fallback. The pre-0.18.x blanket rejection was overzealous, but
+	 * the targeted rejection of the dangerous shapes still holds.
+	 *
+	 * @covers ::wpdm_sanitize_dock_icon
+	 */
+	public function test_data_uri_rejected_when_not_svg_or_malformed() {
 		$fallback = 'dashicons-admin-generic';
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'data:image/svg+xml;utf8,<svg onload="alert(1)"></svg>' ) );
 		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'data:text/html,<script>alert(1)</script>' ) );
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'DATA:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' ) );
+		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'data:application/javascript,alert(1)' ) );
+		// `;utf8,` is not one of the two valid SVG payload encodings —
+		// treat the unrecognised parameter as malformed.
+		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'data:image/svg+xml;utf8,<svg onload="alert(1)"></svg>' ) );
+		// Smuggled quote / whitespace in the base64 payload — strict
+		// regex must reject.
+		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'data:image/svg+xml;base64,PHN2Z" onerror=alert(1) x="' ) );
+		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( "data:image/svg+xml;base64,PHN2\nZz4=" ) );
 	}
 
 	/**

@@ -136,14 +136,16 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Data-URI icons are rejected by the shared `wpdm_sanitize_dock_icon`
-	 * sanitizer (from Phase 1), so the stored entry falls back to the
-	 * generic dashicon. Ensures icons flowing through the desktop-icon
-	 * surface get the same treatment dock tiles get.
+	 * Malformed SVG data URIs (here: the unsupported `;utf8,` shape
+	 * with an `onload` payload) are rejected by the shared
+	 * `wpdm_sanitize_dock_icon` sanitizer and fall back to the
+	 * generic dashicon. Well-formed `data:image/svg+xml;base64,…` and
+	 * `data:image/svg+xml,<percent-encoded>` ARE accepted — see the
+	 * sibling test below.
 	 *
 	 * @covers ::wp_register_desktop_icon
 	 */
-	public function test_data_uri_icon_falls_back_to_generic() {
+	public function test_malformed_svg_data_uri_falls_back_to_generic() {
 		$result = wp_register_desktop_icon( 'svg-attempt', array(
 			'title'  => 'SVG Attempt',
 			'icon'   => 'data:image/svg+xml;utf8,<svg onload="alert(1)"/>',
@@ -153,6 +155,26 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 		$this->assertTrue( $result );
 		$entry = wpdm_desktop_icon_registry( 'svg-attempt' );
 		$this->assertSame( 'dashicons-admin-generic', $entry['icon'] );
+	}
+
+	/**
+	 * Well-formed SVG data URIs flow through unchanged so plugin-
+	 * registered desktop icons get the plugin's branded SVG instead
+	 * of the gear fallback — same policy as the dock/taskbar tiles.
+	 *
+	 * @covers ::wp_register_desktop_icon
+	 */
+	public function test_well_formed_svg_data_uri_is_preserved() {
+		$svg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
+		$result = wp_register_desktop_icon( 'svg-ok', array(
+			'title'  => 'SVG OK',
+			'icon'   => $svg,
+			'window' => 'jorvy',
+		) );
+
+		$this->assertTrue( $result );
+		$entry = wpdm_desktop_icon_registry( 'svg-ok' );
+		$this->assertSame( $svg, $entry['icon'] );
 	}
 
 	/**
