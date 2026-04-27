@@ -50,9 +50,10 @@ fi
 # a previous mid-flow failure (or a past bug in bump-version.sh) may
 # have left some files out of sync, and a naive resume would silently
 # skip the catch-up.
+# awk (instead of `grep -oP`) for BSD/macOS portability — `-P` is GNU-only.
 pkg=$(node -p "require('./package.json').version")
-header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' desktop-mode.php)
-constant=$(grep -oP "DESKTOP_MODE_VERSION',\s*'\K[^']+" desktop-mode.php)
+header=$(awk '/^[[:space:]]*\*[[:space:]]*Version:/ { print $3; exit }' desktop-mode.php)
+constant=$(awk -F"'" '/DESKTOP_MODE_VERSION/ { print $4; exit }' desktop-mode.php)
 
 if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" ]]; then
 	echo "All version locations already at $new — skipping bump, resuming at CI wait."
