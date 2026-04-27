@@ -4,7 +4,7 @@
  * Mirrors `src/commands/server-sync.ts` and
  * `src/settings/server-sync.ts` for the title-bar registry. Plugins
  * opt in server-side with
- * `wp_desktop_register_titlebar_button_script()`; this module
+ * `desktop_mode_register_titlebar_button_script()`; this module
  * loads each opted-in script on activation, and on deactivation
  * unregisters every button whose `owner` matches the departing
  * handle.

@@ -1,6 +1,6 @@
 # Style a specific admin page inside the iframe
 
-Chromeless iframes load the admin page with most WordPress chrome hidden, but the page's own CSS still applies. Use `wp_desktop_chromeless_styles` to append overrides **inside the iframe only**.
+Chromeless iframes load the admin page with most WordPress chrome hidden, but the page's own CSS still applies. Use `desktop_mode_chromeless_styles` to append overrides **inside the iframe only**.
 
 ```php
 <?php
@@ -9,7 +9,7 @@ Chromeless iframes load the admin page with most WordPress chrome hidden, but th
  */
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'wp_desktop_chromeless_styles', function () {
+add_action( 'desktop_mode_chromeless_styles', function () {
     // Only applies to the iframe's chromeless request, not the parent shell.
     wp_add_inline_style(
         'wp-desktop-chromeless',
@@ -28,12 +28,12 @@ The chromeless CSS is loaded into **every** iframe. WordPress adds page-specific
 
 ## When to use this vs. the shell-side CSS
 
-- **This hook** (`wp_desktop_chromeless_styles`) — tweaks inside the iframe: a form, a list table, a sidebar, an editor canvas.
+- **This hook** (`desktop_mode_chromeless_styles`) — tweaks inside the iframe: a form, a list table, a sidebar, an editor canvas.
 - **Your own `admin_enqueue_scripts` handler** — parent shell changes: dock styling, window chrome, wallpaper.
 
 If in doubt: the iframe contains WordPress admin pages; the shell contains *windows* that contain iframes.
 
 ## Related
 
-- [Hooks Reference — `wp_desktop_chromeless_styles`](../hooks-reference.md#wp_desktop_chromeless_styles--stable)
-- [Hooks Reference — `wp_desktop_chromeless_after`](../hooks-reference.md#wp_desktop_chromeless_after--stable)
+- [Hooks Reference — `desktop_mode_chromeless_styles`](../hooks-reference.md#desktop_mode_chromeless_styles--stable)
+- [Hooks Reference — `desktop_mode_chromeless_after`](../hooks-reference.md#desktop_mode_chromeless_after--stable)

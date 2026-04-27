@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for wpdm_chromeless_preserve_redirect() — the wp_redirect
+ * Tests for desktop_mode_chromeless_preserve_redirect() — the wp_redirect
  * filter that re-appends `wp_desktop=1` to same-site admin redirects so
  * chromeless iframes don't "break out" of chromeless mode after a
  * POST-then-redirect flow (e.g., saving a classic-editor post).
@@ -24,76 +24,76 @@ class Tests_WPDesktopChromelessPreserveRedirect extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		delete_user_meta( self::$admin_id, 'wp_desktop_mode' );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		unset( $_GET['wp_desktop'] );
 		parent::tear_down();
 	}
 
 	private function enter_chromeless() {
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['wp_desktop'] = '1';
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
 	 */
 	public function test_appends_flag_to_admin_redirect_in_chromeless() {
 		$this->enter_chromeless();
 
-		$filtered = wpdm_chromeless_preserve_redirect( admin_url( 'edit.php' ) );
+		$filtered = desktop_mode_chromeless_preserve_redirect( admin_url( 'edit.php' ) );
 
 		$this->assertStringContainsString( 'wp_desktop=1', $filtered );
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
 	 */
 	public function test_leaves_admin_redirect_alone_when_not_chromeless() {
 		$location = admin_url( 'edit.php' );
 
-		$this->assertSame( $location, wpdm_chromeless_preserve_redirect( $location ) );
+		$this->assertSame( $location, desktop_mode_chromeless_preserve_redirect( $location ) );
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
 	 */
 	public function test_leaves_non_admin_redirect_alone() {
 		$this->enter_chromeless();
 
 		$location = home_url( '/hello-world/' );
 
-		$this->assertSame( $location, wpdm_chromeless_preserve_redirect( $location ) );
+		$this->assertSame( $location, desktop_mode_chromeless_preserve_redirect( $location ) );
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
 	 */
 	public function test_does_not_double_append_when_flag_already_present() {
 		$this->enter_chromeless();
 
 		$location = admin_url( 'edit.php?wp_desktop=1' );
-		$filtered = wpdm_chromeless_preserve_redirect( $location );
+		$filtered = desktop_mode_chromeless_preserve_redirect( $location );
 
 		$this->assertSame( $location, $filtered );
 		$this->assertSame( 1, substr_count( $filtered, 'wp_desktop=' ) );
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
 	 */
 	public function test_leaves_empty_location_alone() {
 		$this->enter_chromeless();
 
-		$this->assertSame( '', wpdm_chromeless_preserve_redirect( '' ) );
+		$this->assertSame( '', desktop_mode_chromeless_preserve_redirect( '' ) );
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
 	 */
 	public function test_preserves_existing_query_args() {
 		$this->enter_chromeless();
 
-		$filtered = wpdm_chromeless_preserve_redirect(
+		$filtered = desktop_mode_chromeless_preserve_redirect(
 			admin_url( 'post.php?post=7&action=edit&message=1' )
 		);
 
@@ -107,12 +107,12 @@ class Tests_WPDesktopChromelessPreserveRedirect extends WP_UnitTestCase {
 	 * The filter must be wired on `wp_redirect` so Core's redirect path
 	 * actually runs through it.
 	 *
-	 * @covers ::wpdm_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
 	 */
 	public function test_filter_is_registered_on_wp_redirect() {
 		$this->assertSame(
 			999,
-			has_filter( 'wp_redirect', 'wpdm_chromeless_preserve_redirect' )
+			has_filter( 'wp_redirect', 'desktop_mode_chromeless_preserve_redirect' )
 		);
 	}
 }

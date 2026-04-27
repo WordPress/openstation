@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * Third-party plugins register server-side tools the AI Copilot can
  * invoke during a `/ai/search` call. Mirrors every other
- * registration API in this plugin (`wp_register_desktop_window`,
- * `wp_register_desktop_wallpaper`, `wp_register_desktop_widget`).
+ * registration API in this plugin (`desktop_mode_register_window`,
+ * `desktop_mode_register_wallpaper`, `desktop_mode_register_widget`).
  *
  * Tools registered here are *PHP-dispatched* — the tool's `handler`
  * runs on the server, returns a JSON-serialisable array, and the
@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * wp_register_desktop_ai_tool( array(
+ * desktop_mode_register_ai_tool( array(
  *     'name'             => 'list_recent_orders',
  *     'description'      => 'List the site\'s most recent WooCommerce orders.',
  *     'parameters'       => array(
@@ -42,7 +42,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Handlers receive `( array $args, int $user_id )` and return
  * `array|WP_Error`. An error return is caught, reported via the
- * `wp_desktop_ai_search_error` action, and relayed to the model as a
+ * `desktop_mode_ai_search_error` action, and relayed to the model as a
  * structured `{ error: ... }` tool result so the agent can decide
  * whether to try another tool.
  *
@@ -76,7 +76,7 @@ defined( 'ABSPATH' ) || exit;
  * }
  * @return true|WP_Error `true` on success, `WP_Error` on validation failure.
  */
-function wp_register_desktop_ai_tool( $args ) {
+function desktop_mode_register_ai_tool( $args ) {
 	$defaults = array(
 		'name'             => '',
 		'description'      => '',
@@ -92,29 +92,29 @@ function wp_register_desktop_ai_tool( $args ) {
 
 	$name = (string) $args['name'];
 	if ( '' === $name || ! preg_match( '/^[a-z0-9_]{1,64}$/', $name ) ) {
-		return wpdm_registration_error(
-			'wp_desktop_ai_tool_invalid_name',
+		return desktop_mode_registration_error(
+			'desktop_mode_ai_tool_invalid_name',
 			__( 'AI tool registration requires a `name` matching [a-z0-9_]{1,64}.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
 	}
 	if ( '' === (string) $args['description'] ) {
-		return wpdm_registration_error(
-			'wp_desktop_ai_tool_missing_description',
+		return desktop_mode_registration_error(
+			'desktop_mode_ai_tool_missing_description',
 			__( 'AI tool registration requires a non-empty `description`.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
 	}
 	if ( ! is_callable( $args['handler'] ) ) {
-		return wpdm_registration_error(
-			'wp_desktop_ai_tool_invalid_handler',
+		return desktop_mode_registration_error(
+			'desktop_mode_ai_tool_invalid_handler',
 			__( 'AI tool registration requires a callable `handler`.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
 	}
 	if ( ! is_array( $args['parameters'] ) && ! is_object( $args['parameters'] ) ) {
-		return wpdm_registration_error(
-			'wp_desktop_ai_tool_invalid_parameters',
+		return desktop_mode_registration_error(
+			'desktop_mode_ai_tool_invalid_parameters',
 			__( 'AI tool `parameters` must be a JSON-Schema object.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
@@ -128,7 +128,7 @@ function wp_register_desktop_ai_tool( $args ) {
 		'capability'       => (string) $args['capability'],
 		'progress_message' => (string) $args['progress_message'],
 	);
-	wpdm_desktop_ai_tool_registry( $name, $entry );
+	desktop_mode_desktop_ai_tool_registry( $name, $entry );
 
 	/**
 	 * Fires after a desktop AI tool is successfully registered.
@@ -138,14 +138,14 @@ function wp_register_desktop_ai_tool( $args ) {
 	 * @param string $name  The tool name.
 	 * @param array  $entry The stored registry entry (handler included).
 	 */
-	do_action( 'wp_desktop_ai_tool_registered', $name, $entry );
+	do_action( 'desktop_mode_ai_tool_registered', $name, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for AI tools declared via
- * {@see wp_register_desktop_ai_tool()}.
+ * {@see desktop_mode_register_ai_tool()}.
  *
  * @since 0.17.0
  * @internal
@@ -154,7 +154,7 @@ function wp_register_desktop_ai_tool( $args ) {
  * @param array|null $entry Entry to store, or `null` to read.
  * @return array|null|array<string,array>
  */
-function wpdm_desktop_ai_tool_registry( $name = '', $entry = null ) {
+function desktop_mode_desktop_ai_tool_registry( $name = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $name ) {
@@ -171,7 +171,7 @@ function wpdm_desktop_ai_tool_registry( $name = '', $entry = null ) {
  *
  * Walks the registry, drops any tool whose `capability` the current
  * user doesn't hold, and runs the surviving list through the
- * `wp_desktop_ai_tools` filter alongside the built-in tools.
+ * `desktop_mode_ai_tools` filter alongside the built-in tools.
  *
  * @since 0.17.0
  *
@@ -180,8 +180,8 @@ function wpdm_desktop_ai_tool_registry( $name = '', $entry = null ) {
  *                 the caller is expected to strip `handler` before
  *                 sending the definitions to OpenAI.
  */
-function wpdm_get_registered_ai_tools_for_user( $user_id ) {
-	$registry = wpdm_desktop_ai_tool_registry();
+function desktop_mode_get_registered_ai_tools_for_user( $user_id ) {
+	$registry = desktop_mode_desktop_ai_tool_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -207,7 +207,7 @@ function wpdm_get_registered_ai_tools_for_user( $user_id ) {
  * @param array $entry Registry entry.
  * @return array OpenAI tool definition.
  */
-function wpdm_ai_tool_entry_to_definition( array $entry ) {
+function desktop_mode_ai_tool_entry_to_definition( array $entry ) {
 	return array(
 		'type'        => 'function',
 		'name'        => (string) $entry['name'],
@@ -228,7 +228,7 @@ function wpdm_ai_tool_entry_to_definition( array $entry ) {
  * @param int   $user_id Current user (forwarded to the handler).
  * @return array JSON-serialisable payload (error envelope on failure).
  */
-function wpdm_ai_invoke_registered_tool( array $entry, array $args, $user_id ) {
+function desktop_mode_ai_invoke_registered_tool( array $entry, array $args, $user_id ) {
 	$name = (string) ( $entry['name'] ?? '' );
 	try {
 		$result = call_user_func( $entry['handler'], $args, (int) $user_id );
@@ -244,9 +244,9 @@ function wpdm_ai_invoke_registered_tool( array $entry, array $args, $user_id ) {
 		 * @param \Throwable $e     The caught exception.
 		 */
 		do_action(
-			'wp_desktop_ai_search_error',
+			'desktop_mode_ai_search_error',
 			array(
-				'code'    => 'wpdm_ai_tool_exception',
+				'code'    => 'desktop_mode_ai_tool_exception',
 				'message' => 'Tool handler threw.',
 				'data'    => array( 'tool' => $name ),
 			),

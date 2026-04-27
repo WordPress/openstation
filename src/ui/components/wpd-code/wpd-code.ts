@@ -15,7 +15,7 @@
  *
  *   <!-- Multi-line snippet -->
  *   <wpd-code block>
- *     wp_register_desktop_settings_tab( array( …) );
+ *     desktop_mode_register_settings_tab( array( …) );
  *   </wpd-code>
  *
  * @since 0.17.0

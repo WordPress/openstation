@@ -7,7 +7,7 @@
  * the current HTTP request. The editor stays responsive even when the
  * OpenAI API is slow.
  *
- * Deduplication: a 60-second transient (`wpdm_ai_q_{type}_{id}`) prevents
+ * Deduplication: a 60-second transient (`desktop_mode_ai_q_{type}_{id}`) prevents
  * the same entity from being queued twice when WordPress fires the hook
  * multiple times in one request (e.g. `save_post` fires for the revision
  * AND the parent on autosave-adjacent events).
@@ -41,12 +41,12 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.14.0
  *
- * @param string $hook      Cron hook name, e.g. 'wpdm_ai_analyze_post'.
+ * @param string $hook      Cron hook name, e.g. 'desktop_mode_ai_analyze_post'.
  * @param array  $args      Arguments passed to the hook callback.
  * @param string $dedup_key Unique string used to build the transient key.
  */
-function wpdm_ai_schedule_job( $hook, array $args, $dedup_key ) {
-	$transient = 'wpdm_ai_q_' . md5( $dedup_key );
+function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
+	$transient = 'desktop_mode_ai_q_' . md5( $dedup_key );
 
 	if ( get_transient( $transient ) ) {
 		return; // Already queued within the guard window — skip.
@@ -103,7 +103,7 @@ function wpdm_ai_schedule_job( $hook, array $args, $dedup_key ) {
  * @param int $fallback_user_id Author/owner to try when no current user.
  * @return int User ID, or 0 if no AI-enabled user could be found.
  */
-function wpdm_ai_resolve_user_id( $fallback_user_id = 0 ) {
+function desktop_mode_ai_resolve_user_id( $fallback_user_id = 0 ) {
 	$uid = get_current_user_id();
 	if ( $uid > 0 ) {
 		return $uid;
@@ -116,7 +116,7 @@ function wpdm_ai_resolve_user_id( $fallback_user_id = 0 ) {
 
 	// Last resort: any administrator with AI configured. Scans the first
 	// 20 admins to avoid a full table scan on large sites.
-	return wpdm_ai_find_enabled_user();
+	return desktop_mode_ai_find_enabled_user();
 }
 
 /**
@@ -129,7 +129,7 @@ function wpdm_ai_resolve_user_id( $fallback_user_id = 0 ) {
  *
  * @return int User ID, or 0 if none found.
  */
-function wpdm_ai_find_enabled_user() {
+function desktop_mode_ai_find_enabled_user() {
 	$admin_ids = get_users(
 		array(
 			'role'   => 'administrator',
@@ -139,7 +139,7 @@ function wpdm_ai_find_enabled_user() {
 	);
 
 	foreach ( $admin_ids as $uid ) {
-		if ( wpdm_ai_is_enabled( (int) $uid ) ) {
+		if ( desktop_mode_ai_is_enabled( (int) $uid ) ) {
 			return (int) $uid;
 		}
 	}
@@ -158,7 +158,7 @@ function wpdm_ai_find_enabled_user() {
  *   - Auto-saves (DOING_AUTOSAVE constant)
  *   - Revisions (post_type = 'revision')
  *   - Auto-draft / trash / inherit statuses
- *   - Unsupported post types (filtered by `wp_desktop_ai_supported_post_types`)
+ *   - Unsupported post types (filtered by `desktop_mode_ai_supported_post_types`)
  *
  * We use the DOING_AUTOSAVE constant directly rather than wp_doing_autosave()
  * and check post_type directly rather than calling wp_is_post_revision() —
@@ -172,7 +172,7 @@ function wpdm_ai_find_enabled_user() {
  * @param WP_Post $post    Post object.
  * @param bool    $update  Whether this is an update.
  */
-function wpdm_ai_on_save_post( $post_id, WP_Post $post, $update ) {
+function desktop_mode_ai_on_save_post( $post_id, WP_Post $post, $update ) {
 	// Skip autosaves — constant is reliable in all contexts.
 	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 		return;
@@ -186,25 +186,25 @@ function wpdm_ai_on_save_post( $post_id, WP_Post $post, $update ) {
 	}
 
 	$supported_types = (array) apply_filters(
-		'wp_desktop_ai_supported_post_types',
+		'desktop_mode_ai_supported_post_types',
 		array( 'post', 'page' )
 	);
 	if ( ! in_array( $post->post_type, $supported_types, true ) ) {
 		return;
 	}
 
-	$user_id = wpdm_ai_resolve_user_id( (int) $post->post_author );
-	if ( ! wpdm_ai_is_enabled( $user_id ) ) {
+	$user_id = desktop_mode_ai_resolve_user_id( (int) $post->post_author );
+	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		return;
 	}
 
-	wpdm_ai_schedule_job(
-		'wpdm_ai_analyze_post',
+	desktop_mode_ai_schedule_job(
+		'desktop_mode_ai_analyze_post',
 		array( $post_id, $user_id ),
 		'post_' . $post_id
 	);
 }
-add_action( 'save_post', 'wpdm_ai_on_save_post', 20, 3 );
+add_action( 'save_post', 'desktop_mode_ai_on_save_post', 20, 3 );
 
 // ---------------------------------------------------------------------------
 // Taxonomy terms — categories & tags (and any registered taxonomy)
@@ -219,38 +219,38 @@ add_action( 'save_post', 'wpdm_ai_on_save_post', 20, 3 );
  * @param int    $tt_id    Term taxonomy ID (unused).
  * @param string $taxonomy Taxonomy slug.
  */
-function wpdm_ai_on_term_change( $term_id, $tt_id, $taxonomy ) {
+function desktop_mode_ai_on_term_change( $term_id, $tt_id, $taxonomy ) {
 	$supported_taxonomies = (array) apply_filters(
-		'wp_desktop_ai_supported_taxonomies',
+		'desktop_mode_ai_supported_taxonomies',
 		array( 'category', 'post_tag' )
 	);
 	if ( ! in_array( $taxonomy, $supported_taxonomies, true ) ) {
 		return;
 	}
 
-	$user_id = wpdm_ai_resolve_user_id();
+	$user_id = desktop_mode_ai_resolve_user_id();
 	if ( $user_id <= 0 ) {
 		// No identifiable user for this term change — skip.
 		// Term creates/edits in WP-CLI or batch imports will simply not
 		// get analyzed unless a specific user context is available.
 		return;
 	}
-	if ( ! wpdm_ai_is_enabled( $user_id ) ) {
+	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		return;
 	}
 
-	wpdm_ai_schedule_job(
-		'wpdm_ai_analyze_term',
+	desktop_mode_ai_schedule_job(
+		'desktop_mode_ai_analyze_term',
 		array( $term_id, $taxonomy, $user_id ),
 		'term_' . $term_id . '_' . $taxonomy
 	);
 }
 
 // `created_term` fires on new term insertion (all taxonomies).
-add_action( 'created_term', 'wpdm_ai_on_term_change', 20, 3 );
+add_action( 'created_term', 'desktop_mode_ai_on_term_change', 20, 3 );
 
 // `edited_term` fires after a term has been updated.
-add_action( 'edited_term', 'wpdm_ai_on_term_change', 20, 3 );
+add_action( 'edited_term', 'desktop_mode_ai_on_term_change', 20, 3 );
 
 // ---------------------------------------------------------------------------
 // Comments
@@ -263,7 +263,7 @@ add_action( 'edited_term', 'wpdm_ai_on_term_change', 20, 3 );
  *
  * @param int $comment_id The comment ID.
  */
-function wpdm_ai_on_comment_change( $comment_id ) {
+function desktop_mode_ai_on_comment_change( $comment_id ) {
 	$comment = get_comment( $comment_id );
 	if ( ! $comment instanceof WP_Comment ) {
 		return;
@@ -280,24 +280,24 @@ function wpdm_ai_on_comment_change( $comment_id ) {
 	// fall back to current_user (moderator context), then to 0 (rejected).
 	$user_id = (int) $comment->user_id;
 	if ( $user_id <= 0 ) {
-		$user_id = wpdm_ai_resolve_user_id();
+		$user_id = desktop_mode_ai_resolve_user_id();
 	}
 	if ( $user_id <= 0 ) {
 		return;
 	}
-	if ( ! wpdm_ai_is_enabled( $user_id ) ) {
+	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		return;
 	}
 
-	wpdm_ai_schedule_job(
-		'wpdm_ai_analyze_comment',
+	desktop_mode_ai_schedule_job(
+		'desktop_mode_ai_analyze_comment',
 		array( $comment_id, $user_id ),
 		'comment_' . $comment_id
 	);
 }
 
 // `wp_insert_comment` fires after a new comment is inserted into the DB.
-add_action( 'wp_insert_comment', 'wpdm_ai_on_comment_change', 20, 1 );
+add_action( 'wp_insert_comment', 'desktop_mode_ai_on_comment_change', 20, 1 );
 
 // `edit_comment` fires after an existing comment is updated.
-add_action( 'edit_comment', 'wpdm_ai_on_comment_change', 20, 1 );
+add_action( 'edit_comment', 'desktop_mode_ai_on_comment_change', 20, 1 );

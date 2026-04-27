@@ -32,8 +32,8 @@ Key server-side entry points:
 | File | Purpose |
 |---|---|
 | `desktop-mode.php` | Plugin bootstrap — loads the `includes/` files. |
-| `includes/helpers.php` | `wpdm_is_enabled()`, `wpdm_is_chromeless_request()`, dock builder, chromeless admin-bar suppression. |
-| `includes/ajax.php` | `wpdm_ajax_save()` — the `wp_ajax_save-desktop-mode` endpoint. |
+| `includes/helpers.php` | `desktop_mode_is_enabled()`, `desktop_mode_is_chromeless_request()`, dock builder, chromeless admin-bar suppression. |
+| `includes/ajax.php` | `desktop_mode_ajax_save()` — the `wp_ajax_save-desktop-mode` endpoint. |
 | `includes/admin-bar.php` | Toggle node + inline JS click handler. |
 | `includes/assets.php` | Registers CSS/JS handles on `init`. |
 | `includes/render.php` | Shell markup, chromeless bridge emission, body classes. |
@@ -61,9 +61,9 @@ Used for **every existing admin page**. Zero plugin changes required — the chr
 
 ### Native windows (shipped — 0.11.0)
 
-Registered via `wp_register_desktop_window()` (PHP) or `wp.desktop.registerWindow()` (JS). Content renders **directly in the parent DOM** — no iframe, direct shell access, lower overhead. Good for lightweight tools (color picker, settings panels, quick notes) and for anything that wants to participate in cross-window interactions directly.
+Registered via `desktop_mode_register_window()` (PHP) or `wp.desktop.registerWindow()` (JS). Content renders **directly in the parent DOM** — no iframe, direct shell access, lower overhead. Good for lightweight tools (color picker, settings panels, quick notes) and for anything that wants to participate in cross-window interactions directly.
 
-Additional tabs can be attached to any native window with `wp_register_desktop_window_tab()` — the first tab is the window's own template, and subsequent registrations (from any plugin) append after it. When two or more tabs exist the shell auto-wraps the render tree in `<wpd-stack>` + `<wpd-tabs>` so plugin authors don't hand-write tabstrip markup.
+Additional tabs can be attached to any native window with `desktop_mode_register_window_tab()` — the first tab is the window's own template, and subsequent registrations (from any plugin) append after it. When two or more tabs exist the shell auto-wraps the render tree in `<wpd-stack>` + `<wpd-tabs>` so plugin authors don't hand-write tabstrip markup.
 
 The shell's own **OS Settings** native window (wallpaper / accent / dock-size / AI config / default-window) is both a shipped feature and the reference implementation. Lifecycle hooks — `wp-desktop.native-window.before-render` (filter), `after-render`, `before-close` — let a plugin decorate or wrap another plugin's render output.
 
@@ -81,10 +81,10 @@ All session routes require a valid `X-WP-Nonce` (the standard REST nonce) and th
 
 We also extend Core's `/wp/v2/media` endpoint with two opt-in query parameters so the OS Settings wallpaper picker (and any plugin that wants the same capability) can ask the server to filter out images that are too small to look good stretched across the desktop:
 
-- `wpdm_min_width=<int>`  — only return images at least this many pixels wide.
-- `wpdm_min_height=<int>` — only return images at least this many pixels tall.
+- `desktop_mode_min_width=<int>`  — only return images at least this many pixels wide.
+- `desktop_mode_min_height=<int>` — only return images at least this many pixels tall.
 
-Both params are purely additive — omitting them keeps the endpoint's default behavior untouched. Implementation lives in `includes/media-query.php`: every new upload gets stamped with two flat numeric post-meta keys (`_wpdm_width`, `_wpdm_height`) via `wp_generate_attachment_metadata` / `wp_update_attachment_metadata`, and the params translate into a `WP_Meta_Query` NUMERIC `>=` clause. Pre-existing attachments are backfilled opportunistically — each filtered REST request stamps up to 50 unstamped images — so a site upgrading into this feature starts seeing real filtered results within a few picker opens rather than requiring a CLI run. Once every image has been stamped, the `wpdm_media_dims_backfilled` site option flips to `1` and the sweep query is skipped from then on.
+Both params are purely additive — omitting them keeps the endpoint's default behavior untouched. Implementation lives in `includes/media-query.php`: every new upload gets stamped with two flat numeric post-meta keys (`_wpdm_width`, `_wpdm_height`) via `wp_generate_attachment_metadata` / `wp_update_attachment_metadata`, and the params translate into a `WP_Meta_Query` NUMERIC `>=` clause. Pre-existing attachments are backfilled opportunistically — each filtered REST request stamps up to 50 unstamped images — so a site upgrading into this feature starts seeing real filtered results within a few picker opens rather than requiring a CLI run. Once every image has been stamped, the `desktop_mode_media_dims_backfilled` site option flips to `1` and the sweep query is skipped from then on.
 
 ## Command palette bridge (Cmd+K, hijacked)
 
@@ -131,6 +131,6 @@ Never edit Core's `common.css` or color scheme files. Everything we need is expo
 - **Polish** — color-scheme-aware variables across every shell surface, View Transitions API animations, full accessibility audit (ARIA, focus traps, keyboard navigation).
 - **Mobile (phone OS)** — `responsive.ts` + `mobile.ts`: home-screen grid, full-screen apps, app switcher, gesture nav, bottom tab bar. `wp.desktop.mode` returns `'desktop' | 'tablet' | 'mobile'`.
 - **Tablet hybrid** — split view, slide-over overlay, horizontal bottom dock, optional desktop-mode toggle for large tablets.
-- **The North Star — cross-window drag & drop** — extend the existing cross-frame drag bridge beyond Media Library attachments: pluggable mime-type negotiation (`wp_desktop_drag_mime_types` / `wp_desktop_drag_payload` / `wp_desktop_drop_accepts`), Gutenberg block-insertion target, visual lift-and-drop feedback.
+- **The North Star — cross-window drag & drop** — extend the existing cross-frame drag bridge beyond Media Library attachments: pluggable mime-type negotiation (`desktop_mode_drag_mime_types` / `desktop_mode_drag_payload` / `desktop_mode_drop_accepts`), Gutenberg block-insertion target, visual lift-and-drop feedback.
 
 See [Hooks Reference](./hooks-reference.md) for the filter/action names each phase will introduce.

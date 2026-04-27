@@ -198,10 +198,10 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 	// THE PRIMARY REGRESSION GUARD.
 	//
-	// `desktopIcons` is in the PHP payload (`wpdm_build_menu_payload`)
+	// `desktopIcons` is in the PHP payload (`desktop_mode_build_menu_payload`)
 	// and was rendered at boot, but the live applier never read it —
 	// so a plugin that registered a wallpaper icon via
-	// `wp_register_desktop_icon()` only appeared after F5 and likewise
+	// `desktop_mode_register_icon()` only appeared after F5 and likewise
 	// stayed on the wallpaper after deactivation. This test pins both
 	// halves of the contract.
 	describe( 'desktopIcons live-refresh (regression)', () => {

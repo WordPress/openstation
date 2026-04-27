@@ -158,7 +158,7 @@ export class OsSettings implements SettingsCtx {
 		}
 
 		// Wallpaper — look up in the registry. Fall back to the
-		// server-declared default id (via `wp_desktop_default_wallpaper`)
+		// server-declared default id (via `desktop_mode_default_wallpaper`)
 		// if the saved wallpaper was registered by a plugin that's no
 		// longer loaded, then to the TS compile-time default as a last
 		// resort.

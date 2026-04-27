@@ -1,7 +1,7 @@
 <?php
 /**
- * Tests for `wp_desktop_register_command_script()` and
- * `wp_register_desktop_command()` — the PHP-side entry points that
+ * Tests for `desktop_mode_register_command_script()` and
+ * `desktop_mode_register_command()` — the PHP-side entry points that
  * hand command-palette providers off to the shell's server-sync so
  * newly-installed plugins appear live in the palette.
  *
@@ -22,38 +22,38 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 		// Module-level stores are process-static; flush so a prior
 		// test's synthetic handle doesn't trip our payload-builder's
 		// `_doing_it_wrong` notice during this test.
-		wpdm_flush_script_handle_registries();
+		desktop_mode_flush_script_handle_registries();
 	}
 
 	/**
-	 * @covers ::wp_desktop_register_command_script
+	 * @covers ::desktop_mode_register_command_script
 	 */
 	public function test_register_command_script_stores_handle() {
 		$handle = 'cmd-test-a-' . uniqid();
-		$result = wp_desktop_register_command_script( $handle );
+		$result = desktop_mode_register_command_script( $handle );
 		$this->assertTrue( $result );
 
-		$this->assertTrue( wpdm_desktop_command_script_registry( $handle ) );
+		$this->assertTrue( desktop_mode_desktop_command_script_registry( $handle ) );
 	}
 
 	/**
-	 * @covers ::wp_desktop_register_command_script
+	 * @covers ::desktop_mode_register_command_script
 	 */
 	public function test_register_command_script_rejects_empty_handle() {
-		$result = wp_desktop_register_command_script( '' );
+		$result = desktop_mode_register_command_script( '' );
 		$this->assertInstanceOf( 'WP_Error', $result );
-		$this->assertSame( 'wp_desktop_missing_handle', $result->get_error_code() );
+		$this->assertSame( 'desktop_mode_missing_handle', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wpdm_build_desktop_command_scripts_payload
+	 * @covers ::desktop_mode_build_desktop_command_scripts_payload
 	 */
 	public function test_payload_resolves_registered_handle_to_absolute_url() {
 		$handle = 'cmd-test-b-' . uniqid();
 		wp_register_script( $handle, 'https://example.test/cmd.js', array(), '1.0.0', true );
-		wp_desktop_register_command_script( $handle );
+		desktop_mode_register_command_script( $handle );
 
-		$payload = wpdm_build_desktop_command_scripts_payload();
+		$payload = desktop_mode_build_desktop_command_scripts_payload();
 
 		$entry = null;
 		foreach ( $payload as $p ) {
@@ -67,30 +67,30 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_build_desktop_command_scripts_payload
+	 * @covers ::desktop_mode_build_desktop_command_scripts_payload
 	 */
 	public function test_payload_omits_unresolvable_handles() {
-		$this->setExpectedIncorrectUsage( 'wp_desktop_register_command_script' );
+		$this->setExpectedIncorrectUsage( 'desktop_mode_register_command_script' );
 
 		$handle = 'cmd-test-c-' . uniqid();
 		// Registered as a provider but the script handle itself was
 		// never enqueued / registered with wp_register_script —
 		// payload omits it AND fires a `_doing_it_wrong` notice
 		// pointing at the unresolvable handle.
-		wp_desktop_register_command_script( $handle );
+		desktop_mode_register_command_script( $handle );
 
-		$payload = wpdm_build_desktop_command_scripts_payload();
+		$payload = desktop_mode_build_desktop_command_scripts_payload();
 		foreach ( $payload as $entry ) {
 			$this->assertNotSame( $handle, $entry['handle'] );
 		}
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_command
+	 * @covers ::desktop_mode_register_command
 	 */
 	public function test_register_desktop_command_stores_metadata() {
 		$slug = 'cmd-test-d-' . uniqid();
-		$result = wp_register_desktop_command( array(
+		$result = desktop_mode_register_command( array(
 			'slug'        => $slug,
 			'label'       => 'Home Assistant: Lights',
 			'description' => 'Toggle smart lights',
@@ -98,52 +98,52 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 		) );
 		$this->assertTrue( $result );
 
-		$entry = wpdm_desktop_command_registry( $slug );
+		$entry = desktop_mode_desktop_command_registry( $slug );
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'Home Assistant: Lights', $entry['label'] );
 		$this->assertSame( 'dashicons-lightbulb', $entry['icon'] );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_command
+	 * @covers ::desktop_mode_register_command
 	 */
 	public function test_register_desktop_command_implicitly_registers_its_script() {
 		$slug   = 'cmd-test-e-' . uniqid();
 		$handle = 'cmd-script-e-' . uniqid();
-		wp_register_desktop_command( array(
+		desktop_mode_register_command( array(
 			'slug'   => $slug,
 			'label'  => 'Lights',
 			'script' => $handle,
 		) );
 
-		$this->assertTrue( wpdm_desktop_command_script_registry( $handle ) );
+		$this->assertTrue( desktop_mode_desktop_command_script_registry( $handle ) );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_command
+	 * @covers ::desktop_mode_register_command
 	 */
 	public function test_register_desktop_command_requires_slug_and_label() {
-		$no_slug = wp_register_desktop_command( array( 'label' => 'x' ) );
+		$no_slug = desktop_mode_register_command( array( 'label' => 'x' ) );
 		$this->assertInstanceOf( 'WP_Error', $no_slug );
-		$this->assertSame( 'wp_desktop_missing_slug', $no_slug->get_error_code() );
+		$this->assertSame( 'desktop_mode_missing_slug', $no_slug->get_error_code() );
 
-		$no_label = wp_register_desktop_command( array( 'slug' => 'cmd-test-f-' . uniqid() ) );
+		$no_label = desktop_mode_register_command( array( 'slug' => 'cmd-test-f-' . uniqid() ) );
 		$this->assertInstanceOf( 'WP_Error', $no_label );
-		$this->assertSame( 'wp_desktop_missing_label', $no_label->get_error_code() );
+		$this->assertSame( 'desktop_mode_missing_label', $no_label->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wp_desktop_register_command_script
+	 * @covers ::desktop_mode_register_command_script
 	 */
 	public function test_registered_action_fires_per_call() {
 		$calls = array();
-		add_action( 'wp_desktop_command_script_registered', function ( $handle ) use ( &$calls ) {
+		add_action( 'desktop_mode_command_script_registered', function ( $handle ) use ( &$calls ) {
 			$calls[] = $handle;
 		} );
 		$h1 = 'cmd-test-g-' . uniqid();
 		$h2 = 'cmd-test-h-' . uniqid();
-		wp_desktop_register_command_script( $h1 );
-		wp_desktop_register_command_script( $h2 );
+		desktop_mode_register_command_script( $h1 );
+		desktop_mode_register_command_script( $h2 );
 		$this->assertContains( $h1, $calls );
 		$this->assertContains( $h2, $calls );
 	}

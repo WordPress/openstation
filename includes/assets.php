@@ -15,52 +15,52 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.1.0
  */
-function wpdm_register_assets() {
-	$version = WPDM_VERSION;
+function desktop_mode_register_assets() {
+	$version = DESKTOP_MODE_VERSION;
 	$suffix  = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
 	// Styles.
 	wp_register_style(
 		'wp-desktop-variables',
-		WPDM_URL . 'assets/css/variables.css',
+		DESKTOP_MODE_URL . 'assets/css/variables.css',
 		array(),
 		$version
 	);
 	wp_register_style(
 		'wp-desktop',
-		WPDM_URL . 'assets/css/desktop.css',
+		DESKTOP_MODE_URL . 'assets/css/desktop.css',
 		array( 'wp-desktop-variables' ),
 		$version
 	);
 	wp_register_style(
 		'wp-desktop-windows',
-		WPDM_URL . 'assets/css/windows.css',
+		DESKTOP_MODE_URL . 'assets/css/windows.css',
 		array( 'wp-desktop-variables', 'dashicons' ),
 		$version
 	);
 	wp_register_style(
 		'wp-desktop-dock',
-		WPDM_URL . 'assets/css/dock.css',
+		DESKTOP_MODE_URL . 'assets/css/dock.css',
 		array( 'wp-desktop-variables', 'dashicons' ),
 		$version
 	);
 	wp_register_style(
 		'wp-desktop-chromeless',
-		WPDM_URL . 'assets/css/chromeless.css',
+		DESKTOP_MODE_URL . 'assets/css/chromeless.css',
 		array( 'wp-desktop' ),
 		$version
 	);
 
 	wp_register_style(
 		'wp-desktop-ai-assistant',
-		WPDM_URL . 'assets/css/ai-assistant.css',
+		DESKTOP_MODE_URL . 'assets/css/ai-assistant.css',
 		array( 'wp-desktop-variables' ),
 		$version
 	);
 
 	wp_register_style(
 		'wp-desktop-code-editor',
-		WPDM_URL . 'assets/css/code-editor.css',
+		DESKTOP_MODE_URL . 'assets/css/code-editor.css',
 		array( 'wp-desktop-variables', 'dashicons' ),
 		$version
 	);
@@ -76,7 +76,7 @@ function wpdm_register_assets() {
 	// explicitly to guarantee load order.
 	wp_register_script(
 		'wp-desktop',
-		WPDM_URL . 'assets/js/desktop' . $suffix . '.js',
+		DESKTOP_MODE_URL . 'assets/js/desktop' . $suffix . '.js',
 		array( 'wp-hooks', 'wp-i18n' ),
 		$version,
 		true
@@ -92,7 +92,7 @@ function wpdm_register_assets() {
 	// own iframe pages just enqueue this handle.
 	wp_register_script(
 		'wp-desktop-iframe-bridge',
-		WPDM_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
+		DESKTOP_MODE_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
 		array(),
 		$version,
 		true
@@ -106,7 +106,7 @@ function wpdm_register_assets() {
 	// is loaded separately at runtime from `assets/vendor/monaco-editor`.
 	wp_register_script(
 		'wp-desktop-code-editor',
-		WPDM_URL . 'assets/js/code-editor' . $suffix . '.js',
+		DESKTOP_MODE_URL . 'assets/js/code-editor' . $suffix . '.js',
 		array( 'wp-i18n' ),
 		$version,
 		true
@@ -114,7 +114,7 @@ function wpdm_register_assets() {
 	wp_set_script_translations(
 		'wp-desktop-code-editor',
 		'desktop-mode',
-		WPDM_DIR . 'languages'
+		DESKTOP_MODE_DIR . 'languages'
 	);
 
 	// Wire the translation bundle to this script handle. WP looks
@@ -125,7 +125,7 @@ function wpdm_register_assets() {
 	wp_set_script_translations(
 		'wp-desktop',
 		'desktop-mode',
-		WPDM_DIR . 'languages'
+		DESKTOP_MODE_DIR . 'languages'
 	);
 }
-add_action( 'init', 'wpdm_register_assets' );
+add_action( 'init', 'desktop_mode_register_assets' );

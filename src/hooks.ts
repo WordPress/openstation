@@ -377,7 +377,7 @@ export const HOOKS = {
 
 	/**
 	 * Action, fires when a user clicks a desktop icon (a shortcut
-	 * tile registered server-side via `wp_register_desktop_icon()`
+	 * tile registered server-side via `desktop_mode_register_icon()`
 	 * and rendered on the wallpaper). Payload: `{ id: string,
 	 * target: 'window' | 'url' }`. Fires BEFORE the default open
 	 * action — plugins cannot cancel the open from this hook, but
@@ -476,7 +476,7 @@ export const HOOKS = {
 	/**
 	 * Action, fires when the user clicks a plugin-registered entry in
 	 * the Arrange admin-bar submenu (items added via the
-	 * `wp_desktop_arrange_menu_items` PHP filter). Payload `{ id }`
+	 * `desktop_mode_arrange_menu_items` PHP filter). Payload `{ id }`
 	 * where `id` is the item's `id` field as registered. Plugins
 	 * subscribe here to run their custom arrangement logic.
 	 */

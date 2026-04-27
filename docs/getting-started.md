@@ -21,19 +21,19 @@ Activate it in WP Admin → Plugins.
 The plugin exposes a single helper your code should use:
 
 ```php
-if ( function_exists( 'wpdm_is_enabled' ) && wpdm_is_enabled() ) {
+if ( function_exists( 'desktop_mode_is_enabled' ) && desktop_mode_is_enabled() ) {
     // The current user has desktop mode on. Adapt behavior if needed.
 }
 ```
 
-`wpdm_is_enabled()` returns `true` only when the active user has the `wp_desktop_mode` user meta set to `'1'`. If the plugin is inactive, the function does not exist — always guard with `function_exists()`.
+`desktop_mode_is_enabled()` returns `true` only when the active user has the `desktop_mode_mode` user meta set to `'1'`. If the plugin is inactive, the function does not exist — always guard with `function_exists()`.
 
 ## 3. Add a dock item
 
-The dock is built from the admin `$menu` global by default. To surface a purely virtual entry (one that isn't in the admin menu), filter `wp_desktop_dock_items`:
+The dock is built from the admin `$menu` global by default. To surface a purely virtual entry (one that isn't in the admin menu), filter `desktop_mode_dock_items`:
 
 ```php
-add_filter( 'wp_desktop_dock_items', function ( $items ) {
+add_filter( 'desktop_mode_dock_items', function ( $items ) {
     $items[] = array(
         'slug'     => 'my-extension-panel',
         'title'    => 'My Panel',
@@ -61,7 +61,7 @@ document.addEventListener( 'wp-desktop-window-opened', function ( e ) {
 Enqueue this file only in desktop mode:
 
 ```php
-add_action( 'wp_desktop_mode_init', function () {
+add_action( 'desktop_mode_mode_init', function () {
     wp_enqueue_script(
         'my-extension-shell',
         plugin_dir_url( __FILE__ ) . 'shell.js',
@@ -72,14 +72,14 @@ add_action( 'wp_desktop_mode_init', function () {
 } );
 ```
 
-`wp_desktop_mode_init` fires inside the parent shell render — perfect for enqueueing shell-level code.
+`desktop_mode_mode_init` fires inside the parent shell render — perfect for enqueueing shell-level code.
 
 ## 5. Gate by role
 
 Block desktop mode for a specific user class:
 
 ```php
-add_filter( 'wp_desktop_mode_enabled', function ( $enabled, $user_id ) {
+add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
     // Contributors stay in classic admin.
     if ( user_can( $user_id, 'contributor' ) ) {
         return false;

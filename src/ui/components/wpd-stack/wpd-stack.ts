@@ -23,7 +23,7 @@
  * on the host. Pass `0` for edge-to-edge content. Used by the
  * native-window tab wrap so plugin authors can dial inset via the
  * `main_tab_padding` registration arg + the
- * `wp_desktop_native_window_tab_wrap_padding` filter.
+ * `desktop_mode_native_window_tab_wrap_padding` filter.
  *
  * @since 0.10.0
  */

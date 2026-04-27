@@ -8,9 +8,9 @@
  * shell drives the agentic loop and observability without knowing which
  * vendor is on the other end.
  *
- * Registration timing: hook `wp_desktop_ai_register_providers` (fires on
+ * Registration timing: hook `desktop_mode_ai_register_providers` (fires on
  * `init` at default priority). Plugins can also call
- * {@see wp_register_desktop_ai_provider()} at any time before the first
+ * {@see desktop_mode_register_ai_provider()} at any time before the first
  * dispatch — the registry is just an in-memory map.
  *
  * Provider contract (every key is required unless noted):
@@ -47,10 +47,10 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Default provider id when none is selected. */
-const WPDM_AI_DEFAULT_PROVIDER = 'openai';
+const DESKTOP_MODE_AI_DEFAULT_PROVIDER = 'openai';
 
 /** Required callback keys every registered provider must supply. */
-const WPDM_AI_PROVIDER_REQUIRED_CALLBACKS = array(
+const DESKTOP_MODE_AI_PROVIDER_REQUIRED_CALLBACKS = array(
 	'make_turn_input',
 	'agentic_call',
 	'structured_request',
@@ -74,7 +74,7 @@ const WPDM_AI_PROVIDER_REQUIRED_CALLBACKS = array(
  * @param array|null  $def    Provider definition (for 'set').
  * @return array Current registry snapshot.
  */
-function wpdm_ai_providers_storage( $action = null, $id = '', $def = null ) {
+function desktop_mode_ai_providers_storage( $action = null, $id = '', $def = null ) {
 	static $providers = array();
 
 	if ( 'set' === $action ) {
@@ -102,16 +102,16 @@ function wpdm_ai_providers_storage( $action = null, $id = '', $def = null ) {
  * @param array  $args Provider definition. See file header for the contract.
  * @return true|WP_Error True on success, WP_Error if the definition is invalid.
  */
-function wp_register_desktop_ai_provider( $id, array $args ) {
+function desktop_mode_register_ai_provider( $id, array $args ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
-		return new WP_Error( 'wpdm_ai_provider_id', 'Provider id cannot be empty.' );
+		return new WP_Error( 'desktop_mode_ai_provider_id', 'Provider id cannot be empty.' );
 	}
 
-	foreach ( WPDM_AI_PROVIDER_REQUIRED_CALLBACKS as $key ) {
+	foreach ( DESKTOP_MODE_AI_PROVIDER_REQUIRED_CALLBACKS as $key ) {
 		if ( ! isset( $args[ $key ] ) || ! is_callable( $args[ $key ] ) ) {
 			return new WP_Error(
-				'wpdm_ai_provider_callback',
+				'desktop_mode_ai_provider_callback',
 				sprintf( 'Provider "%s" is missing required callable "%s".', $id, $key )
 			);
 		}
@@ -132,7 +132,7 @@ function wp_register_desktop_ai_provider( $id, array $args ) {
 		'structured_request' => $args['structured_request'],
 	);
 
-	wpdm_ai_providers_storage( 'set', $id, $def );
+	desktop_mode_ai_providers_storage( 'set', $id, $def );
 
 	/**
 	 * Fires after a provider has been registered. Useful for telemetry.
@@ -142,7 +142,7 @@ function wp_register_desktop_ai_provider( $id, array $args ) {
 	 * @param string $id  Provider id.
 	 * @param array  $def Stored provider definition.
 	 */
-	do_action( 'wp_desktop_ai_provider_registered', $id, $def );
+	do_action( 'desktop_mode_ai_provider_registered', $id, $def );
 
 	return true;
 }
@@ -155,13 +155,13 @@ function wp_register_desktop_ai_provider( $id, array $args ) {
  * @param string $id Provider id.
  * @return bool True if a provider was removed.
  */
-function wp_unregister_desktop_ai_provider( $id ) {
+function desktop_mode_unregister_ai_provider( $id ) {
 	$id      = sanitize_key( (string) $id );
-	$before  = wpdm_ai_providers_storage();
+	$before  = desktop_mode_ai_providers_storage();
 	if ( ! isset( $before[ $id ] ) ) {
 		return false;
 	}
-	wpdm_ai_providers_storage( 'unset', $id );
+	desktop_mode_ai_providers_storage( 'unset', $id );
 	return true;
 }
 
@@ -172,13 +172,13 @@ function wp_unregister_desktop_ai_provider( $id ) {
 /**
  * Fires the registration action exactly once per request.
  *
- * Plugins should hook `wp_desktop_ai_register_providers` to register their
+ * Plugins should hook `desktop_mode_ai_register_providers` to register their
  * providers. We fire it lazily on first lookup so registration order
  * doesn't depend on plugin load order.
  *
  * @since 0.18.0
  */
-function wpdm_ai_ensure_providers_registered() {
+function desktop_mode_ai_ensure_providers_registered() {
 	static $fired = false;
 	if ( $fired ) {
 		return;
@@ -190,7 +190,7 @@ function wpdm_ai_ensure_providers_registered() {
 	 *
 	 * @since 0.18.0
 	 */
-	do_action( 'wp_desktop_ai_register_providers' );
+	do_action( 'desktop_mode_ai_register_providers' );
 }
 
 // ---------------------------------------------------------------------------
@@ -200,16 +200,16 @@ function wpdm_ai_ensure_providers_registered() {
 /**
  * Returns the registered providers in a JS-safe shape (no callables).
  *
- * Used by `wp_desktop_shell_config` to populate the OS Settings provider
+ * Used by `desktop_mode_shell_config` to populate the OS Settings provider
  * picker so the dropdown reflects whatever any plugin has registered.
  *
  * @since 0.18.0
  *
  * @return array<int, array{ id:string, label:string, description:string, api_key_label:string, api_key_link:string, capabilities:array }>
  */
-function wpdm_ai_get_providers_for_config() {
+function desktop_mode_ai_get_providers_for_config() {
 	$out = array();
-	foreach ( wp_desktop_ai_get_providers() as $id => $def ) {
+	foreach ( desktop_mode_ai_get_providers() as $id => $def ) {
 		$out[] = array(
 			'id'            => (string) $id,
 			'label'         => (string) $def['label'],
@@ -229,9 +229,9 @@ function wpdm_ai_get_providers_for_config() {
  *
  * @return array<string, array> Map of provider id → definition.
  */
-function wp_desktop_ai_get_providers() {
-	wpdm_ai_ensure_providers_registered();
-	return wpdm_ai_providers_storage();
+function desktop_mode_ai_get_providers() {
+	desktop_mode_ai_ensure_providers_registered();
+	return desktop_mode_ai_providers_storage();
 }
 
 /**
@@ -242,9 +242,9 @@ function wp_desktop_ai_get_providers() {
  * @param string $id Provider id.
  * @return array|null Provider definition, or null if unregistered.
  */
-function wp_desktop_ai_get_provider( $id ) {
+function desktop_mode_ai_get_provider( $id ) {
 	$id        = sanitize_key( (string) $id );
-	$providers = wp_desktop_ai_get_providers();
+	$providers = desktop_mode_ai_get_providers();
 	return $providers[ $id ] ?? null;
 }
 
@@ -255,9 +255,9 @@ function wp_desktop_ai_get_provider( $id ) {
  *   1. Per-user OS Settings 'provider' field (if it points at a registered
  *      provider).
  *   2. Platform settings 'provider' field (same check).
- *   3. WPDM_AI_DEFAULT_PROVIDER ('openai').
+ *   3. DESKTOP_MODE_AI_DEFAULT_PROVIDER ('openai').
  *
- * The `wp_desktop_ai_active_provider` filter wraps the resolved value so
+ * The `desktop_mode_ai_active_provider` filter wraps the resolved value so
  * a plugin can pin a specific provider per-request (e.g., based on
  * request_id, query content, or admin capability).
  *
@@ -267,27 +267,27 @@ function wp_desktop_ai_get_provider( $id ) {
  * @return string Provider id. Always a string; may not point at a
  *                registered provider if every fallback misses.
  */
-function wp_desktop_ai_get_active_provider_id( $user_id ) {
+function desktop_mode_ai_get_active_provider_id( $user_id ) {
 	$user_id   = (int) $user_id;
-	$providers = wp_desktop_ai_get_providers();
+	$providers = desktop_mode_ai_get_providers();
 
 	$candidate = '';
-	if ( $user_id > 0 && function_exists( 'wpdm_ai_get_settings' ) ) {
-		$ai = wpdm_ai_get_settings( $user_id );
+	if ( $user_id > 0 && function_exists( 'desktop_mode_ai_get_settings' ) ) {
+		$ai = desktop_mode_ai_get_settings( $user_id );
 		if ( ! empty( $ai['provider'] ) && isset( $providers[ $ai['provider'] ] ) ) {
 			$candidate = (string) $ai['provider'];
 		}
 	}
 
-	if ( '' === $candidate && function_exists( 'wpdm_ai_get_platform_settings' ) ) {
-		$platform = wpdm_ai_get_platform_settings();
+	if ( '' === $candidate && function_exists( 'desktop_mode_ai_get_platform_settings' ) ) {
+		$platform = desktop_mode_ai_get_platform_settings();
 		if ( ! empty( $platform['provider'] ) && isset( $providers[ $platform['provider'] ] ) ) {
 			$candidate = (string) $platform['provider'];
 		}
 	}
 
 	if ( '' === $candidate ) {
-		$candidate = WPDM_AI_DEFAULT_PROVIDER;
+		$candidate = DESKTOP_MODE_AI_DEFAULT_PROVIDER;
 	}
 
 	/**
@@ -298,7 +298,7 @@ function wp_desktop_ai_get_active_provider_id( $user_id ) {
 	 * @param string $candidate Resolved provider id.
 	 * @param int    $user_id   User id (0 for anonymous).
 	 */
-	return (string) apply_filters( 'wp_desktop_ai_active_provider', $candidate, $user_id );
+	return (string) apply_filters( 'desktop_mode_ai_active_provider', $candidate, $user_id );
 }
 
 /**
@@ -309,12 +309,12 @@ function wp_desktop_ai_get_active_provider_id( $user_id ) {
  * @param int $user_id
  * @return array|WP_Error
  */
-function wp_desktop_ai_get_active_provider( $user_id ) {
-	$id  = wp_desktop_ai_get_active_provider_id( $user_id );
-	$def = wp_desktop_ai_get_provider( $id );
+function desktop_mode_ai_get_active_provider( $user_id ) {
+	$id  = desktop_mode_ai_get_active_provider_id( $user_id );
+	$def = desktop_mode_ai_get_provider( $id );
 	if ( null === $def ) {
 		return new WP_Error(
-			'wpdm_ai_no_provider',
+			'desktop_mode_ai_no_provider',
 			sprintf( 'AI provider "%s" is not registered.', $id ),
 			array( 'provider' => $id )
 		);
@@ -337,8 +337,8 @@ function wp_desktop_ai_get_active_provider( $user_id ) {
  * @param mixed  $payload Kind-specific payload (see file header).
  * @return mixed|WP_Error Turn-input opaque value, or WP_Error.
  */
-function wpdm_ai_provider_make_turn_input( $user_id, $kind, $payload ) {
-	$provider = wp_desktop_ai_get_active_provider( $user_id );
+function desktop_mode_ai_provider_make_turn_input( $user_id, $kind, $payload ) {
+	$provider = desktop_mode_ai_get_active_provider( $user_id );
 	if ( is_wp_error( $provider ) ) {
 		return $provider;
 	}
@@ -352,14 +352,14 @@ function wpdm_ai_provider_make_turn_input( $user_id, $kind, $payload ) {
  *
  * @param int        $user_id      User id.
  * @param string     $api_key      Provider API key.
- * @param mixed      $turn_input   Opaque value from {@see wpdm_ai_provider_make_turn_input}.
+ * @param mixed      $turn_input   Opaque value from {@see desktop_mode_ai_provider_make_turn_input}.
  * @param array      $tools        Tool definitions (provider format).
  * @param array|null $text_format  Optional structured-output schema (provider format).
  * @param string     $instructions System prompt.
  * @param mixed      $state        Provider-specific continuation state, or null on first turn.
  * @return array|WP_Error Normalized turn result or WP_Error.
  */
-function wpdm_ai_provider_agentic_call(
+function desktop_mode_ai_provider_agentic_call(
 	$user_id,
 	$api_key,
 	$turn_input,
@@ -368,7 +368,7 @@ function wpdm_ai_provider_agentic_call(
 	$instructions,
 	$state = null
 ) {
-	$provider = wp_desktop_ai_get_active_provider( $user_id );
+	$provider = desktop_mode_ai_get_active_provider( $user_id );
 	if ( is_wp_error( $provider ) ) {
 		return $provider;
 	}
@@ -389,7 +389,7 @@ function wpdm_ai_provider_agentic_call(
 
 	if ( ! is_array( $result ) ) {
 		return new WP_Error(
-			'wpdm_ai_provider_shape',
+			'desktop_mode_ai_provider_shape',
 			sprintf( 'Provider "%s" agentic_call returned a non-array.', $provider['id'] )
 		);
 	}
@@ -418,7 +418,7 @@ function wpdm_ai_provider_agentic_call(
  * @param string $model       Optional model override; '' lets the provider pick its default.
  * @return array|WP_Error
  */
-function wpdm_ai_provider_structured_request(
+function desktop_mode_ai_provider_structured_request(
 	$user_id,
 	$api_key,
 	array $messages,
@@ -426,7 +426,7 @@ function wpdm_ai_provider_structured_request(
 	$schema_name,
 	$model = ''
 ) {
-	$provider = wp_desktop_ai_get_active_provider( $user_id );
+	$provider = desktop_mode_ai_get_active_provider( $user_id );
 	if ( is_wp_error( $provider ) ) {
 		return $provider;
 	}

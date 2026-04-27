@@ -12,7 +12,7 @@ import type { DOCK_SIZES } from './constants';
 
 /**
  * Accent id. Historically derived from the built-in `ACCENTS` tuple,
- * but accents now come from PHP (`wp_desktop_accent_colors`) and a
+ * but accents now come from PHP (`desktop_mode_accent_colors`) and a
  * theme can legitimately add its own swatch. String is the honest
  * type — validation happens at runtime in `getAccents()` / state
  * deserialization.
@@ -37,7 +37,7 @@ export interface CustomImage {
  * AI provider id. Kept as a plain string so new providers can be added
  * without touching the sanitization ladder — the picker is driven by the
  * runtime list in `wpDesktopConfig.aiProviders`, populated by every
- * plugin that calls `wp_register_desktop_ai_provider()`.
+ * plugin that calls `desktop_mode_register_ai_provider()`.
  */
 export type AiProviderId = string;
 

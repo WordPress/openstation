@@ -204,7 +204,7 @@ export interface WpDesktopPublicApi {
 	 * Open (or focus) a server-registered native window by id —
 	 * the same path the dock click + wallpaper-icon click go
 	 * through, so callers inherit the cloned-template body that
-	 * `wp_register_desktop_window( 'template' )` declared.
+	 * `desktop_mode_register_window( 'template' )` declared.
 	 *
 	 * Returns `true` if the window was opened (or already open and
 	 * was focused), `false` if no native window is registered with
@@ -807,7 +807,7 @@ function init(): void {
 	};
 
 	// Native-window sync — the server-declared list from
-	// `wp_register_desktop_window()` drives system-tile lifecycle
+	// `desktop_mode_register_window()` drives system-tile lifecycle
 	// for plugin-owned native windows. At boot we prime tiles from
 	// `config.nativeWindows`; the live-refresh path calls the same
 	// syncer with the fresh payload so activation / deactivation
@@ -825,7 +825,7 @@ function init(): void {
 	);
 
 	// Widget-registry sync — same story for the right-column widget
-	// layer. Plugins declare widgets via `wp_register_desktop_widget()`;
+	// layer. Plugins declare widgets via `desktop_mode_register_widget()`;
 	// the shell adds / removes defs from its registry as plugins
 	// activate / deactivate mid-session, dynamically loading the
 	// plugin's script so the mount callback lands on
@@ -839,7 +839,7 @@ function init(): void {
 
 	// Wallpaper-registry sync — third instance of the same pattern,
 	// same reasoning. Plugins declare wallpapers via
-	// `wp_register_desktop_wallpaper()`; the shell loads the
+	// `desktop_mode_register_wallpaper()`; the shell loads the
 	// plugin's JS, reads the full `WallpaperDef` off
 	// `window.wpDesktopWallpapers[ id ]`, and adds / removes it
 	// from the registry as activation / deactivation plays out.
@@ -852,7 +852,7 @@ function init(): void {
 
 	// Command-palette sync — mirrors the widget / wallpaper pattern for
 	// slash-commands registered by plugins via
-	// `wp_desktop_register_command_script()`. Loads each opted-in
+	// `desktop_mode_register_command_script()`. Loads each opted-in
 	// script URL on boot (idempotent if WP already enqueued it) and on
 	// mid-session plugins-changed signals, so a newly-installed plugin's
 	// commands appear in the palette without a reload. Deactivation
@@ -867,7 +867,7 @@ function init(): void {
 
 	// Settings-tab sync — same pattern as commands, for OS Settings
 	// tabs registered by plugins via
-	// `wp_desktop_register_settings_tab_script()`. Injects each
+	// `desktop_mode_register_settings_tab_script()`. Injects each
 	// opted-in script so a plugin's `registerSettingsTab()` call
 	// lands and the (possibly open) OS Settings window repaints.
 	const syncServerSettingsTabs = createSettingsTabRegistrySync();
@@ -914,14 +914,14 @@ function init(): void {
 
 	// Public-API alias for the lower-level `manager.open({ native:
 	// true, … })` path. Plugins that build their UI entirely in JS
-	// (no PHP `wp_register_desktop_window`) reach for this. The
+	// (no PHP `desktop_mode_register_window`) reach for this. The
 	// PHP-registered native-window path goes through
 	// `nativeWindows.openById` instead — which pre-clones the
 	// template into the body before render fires.
 	const registerWindow = createRegisterWindow( manager );
 
 	// Desktop icons — shortcut tiles on the wallpaper, registered
-	// server-side via `wp_register_desktop_icon()`. Re-rendered on
+	// server-side via `desktop_mode_register_icon()`. Re-rendered on
 	// every live menu refresh so a plugin activation adds / removes
 	// tiles without a full shell reload.
 	//
@@ -1131,7 +1131,7 @@ function init(): void {
 	// here to unify the address bar around the portal URL — cosmetically
 	// nicer, but every browser reload hit /wp-desktop/, which triggered
 	// a portal HTTP redirect to the canonical admin URL, producing a
-	// visible address-bar flash (`/wp-admin/index.php?wp_desktop_portal=1`
+	// visible address-bar flash (`/wp-admin/index.php?desktop_mode_portal=1`
 	// → `/wp-desktop/`) on every reload. Leaving the URL as the actual
 	// admin URL eliminates the flash and makes reloads instant — the
 	// user sees /wp-admin/... in the address bar in exchange, which is
@@ -1346,7 +1346,7 @@ function bindTopWindowLinkInterceptor(
 			}
 			// The Detach-to-classic action explicitly wants a real tab with
 			// classic chrome — don't steal it back into the shell.
-			if ( url.searchParams.has( 'wp_desktop_classic' ) ) {
+			if ( url.searchParams.has( 'desktop_mode_classic' ) ) {
 				return;
 			}
 

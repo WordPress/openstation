@@ -17,8 +17,8 @@ Plus metadata: a label, a link to where the user gets an API key, an optional de
 ## Registration
 
 ```php
-add_action( 'wp_desktop_ai_register_providers', function () {
-    wp_register_desktop_ai_provider( 'anthropic', array(
+add_action( 'desktop_mode_ai_register_providers', function () {
+    desktop_mode_register_ai_provider( 'anthropic', array(
         'label'              => 'Anthropic Claude',
         'description'        => 'Anthropic Messages API.',
         'api_key_label'      => 'Anthropic API key',
@@ -32,7 +32,7 @@ add_action( 'wp_desktop_ai_register_providers', function () {
 } );
 ```
 
-Use `wp_desktop_ai_register_providers` rather than `init` directly — registration runs lazily on first lookup, so order doesn't depend on plugin load priority.
+Use `desktop_mode_ai_register_providers` rather than `init` directly — registration runs lazily on first lookup, so order doesn't depend on plugin load priority.
 
 ## Building turn inputs
 
@@ -94,7 +94,7 @@ function my_anthropic_agentic_call(
                 'anthropic-version' => '2023-06-01',
             ),
             'body' => wp_json_encode( array(
-                'model'       => apply_filters( 'wp_desktop_ai_model', 'claude-sonnet-4-6', 'agentic_search' ),
+                'model'       => apply_filters( 'desktop_mode_ai_model', 'claude-sonnet-4-6', 'agentic_search' ),
                 'system'      => $instructions,
                 'messages'    => $messages,
                 'tools'       => my_anthropic_translate_tools( $tools ),
@@ -185,10 +185,10 @@ You don't have to do anything to participate; the shell already plumbs the resol
 
 ## Picking the active provider per-request
 
-If you want to route specific requests to a specific provider — say, "force admins to use Anthropic" — filter `wp_desktop_ai_active_provider`:
+If you want to route specific requests to a specific provider — say, "force admins to use Anthropic" — filter `desktop_mode_ai_active_provider`:
 
 ```php
-add_filter( 'wp_desktop_ai_active_provider', function ( $id, $user_id ) {
+add_filter( 'desktop_mode_ai_active_provider', function ( $id, $user_id ) {
     return user_can( $user_id, 'manage_options' ) ? 'anthropic' : $id;
 }, 10, 2 );
 ```

@@ -4,8 +4,8 @@
  *
  * Adds two opt-in query parameters to `/wp/v2/media`:
  *
- *   - `wpdm_min_width`  — only return images at least this many pixels wide.
- *   - `wpdm_min_height` — only return images at least this many pixels tall.
+ *   - `desktop_mode_min_width`  — only return images at least this many pixels wide.
+ *   - `desktop_mode_min_height` — only return images at least this many pixels tall.
  *
  * The OS Settings wallpaper picker uses these to keep a site with thousands
  * of small product images from burying the handful of desktop-worthy HD
@@ -26,14 +26,14 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Numeric post-meta keys stamped on every image attachment. */
-const WPDM_META_WIDTH  = '_wpdm_width';
-const WPDM_META_HEIGHT = '_wpdm_height';
+const DESKTOP_MODE_META_WIDTH  = '_wpdm_width';
+const DESKTOP_MODE_META_HEIGHT = '_wpdm_height';
 
 /** Option key flipped to `1` once every image has been backfilled. */
-const WPDM_BACKFILL_DONE_OPTION = 'wpdm_media_dims_backfilled';
+const DESKTOP_MODE_BACKFILL_DONE_OPTION = 'desktop_mode_media_dims_backfilled';
 
 /** How many legacy attachments to backfill per filtered REST request. */
-const WPDM_MEDIA_BACKFILL_BATCH = 50;
+const DESKTOP_MODE_MEDIA_BACKFILL_BATCH = 50;
 
 /**
  * Stamp numeric dimension meta whenever an attachment's metadata is
@@ -48,7 +48,7 @@ const WPDM_MEDIA_BACKFILL_BATCH = 50;
  * @param int   $attachment_id  Attachment post ID.
  * @return array The metadata, unchanged — we only read from it.
  */
-function wpdm_stamp_media_dimensions( $metadata, $attachment_id ) {
+function desktop_mode_stamp_media_dimensions( $metadata, $attachment_id ) {
 	if ( ! is_array( $metadata ) ) {
 		return $metadata;
 	}
@@ -59,16 +59,16 @@ function wpdm_stamp_media_dimensions( $metadata, $attachment_id ) {
 	// Stamp zero for images we can't measure (SVGs, broken files) so the
 	// backfill sweep knows we've already inspected this row and doesn't
 	// re-check it on every subsequent filtered request.
-	update_post_meta( $attachment_id, WPDM_META_WIDTH, max( 0, $width ) );
-	update_post_meta( $attachment_id, WPDM_META_HEIGHT, max( 0, $height ) );
+	update_post_meta( $attachment_id, DESKTOP_MODE_META_WIDTH, max( 0, $width ) );
+	update_post_meta( $attachment_id, DESKTOP_MODE_META_HEIGHT, max( 0, $height ) );
 
 	return $metadata;
 }
-add_filter( 'wp_generate_attachment_metadata', 'wpdm_stamp_media_dimensions', 10, 2 );
-add_filter( 'wp_update_attachment_metadata', 'wpdm_stamp_media_dimensions', 10, 2 );
+add_filter( 'wp_generate_attachment_metadata', 'desktop_mode_stamp_media_dimensions', 10, 2 );
+add_filter( 'wp_update_attachment_metadata', 'desktop_mode_stamp_media_dimensions', 10, 2 );
 
 /**
- * Register the `wpdm_min_width` / `wpdm_min_height` query parameters on
+ * Register the `desktop_mode_min_width` / `desktop_mode_min_height` query parameters on
  * the media collection so Core sanitizes them before they reach our
  * query filter. Without this, the params would still work but would
  * show up as unknown to any REST consumer introspecting the schema.
@@ -78,20 +78,20 @@ add_filter( 'wp_update_attachment_metadata', 'wpdm_stamp_media_dimensions', 10, 
  * @param array $params Existing collection params.
  * @return array
  */
-function wpdm_register_media_query_params( $params ) {
-	$params['wpdm_min_width'] = array(
+function desktop_mode_register_media_query_params( $params ) {
+	$params['desktop_mode_min_width'] = array(
 		'description' => __( 'Only return images at least this many pixels wide.', 'desktop-mode' ),
 		'type'        => 'integer',
 		'minimum'     => 1,
 	);
-	$params['wpdm_min_height'] = array(
+	$params['desktop_mode_min_height'] = array(
 		'description' => __( 'Only return images at least this many pixels tall.', 'desktop-mode' ),
 		'type'        => 'integer',
 		'minimum'     => 1,
 	);
 	return $params;
 }
-add_filter( 'rest_attachment_collection_params', 'wpdm_register_media_query_params' );
+add_filter( 'rest_attachment_collection_params', 'desktop_mode_register_media_query_params' );
 
 /**
  * Inject meta_query clauses on the attachment REST query when either
@@ -105,9 +105,9 @@ add_filter( 'rest_attachment_collection_params', 'wpdm_register_media_query_para
  * @param WP_REST_Request $request The REST request.
  * @return array The query args, possibly with extra meta_query entries.
  */
-function wpdm_filter_media_by_dimensions( $args, $request ) {
-	$min_width  = absint( $request->get_param( 'wpdm_min_width' ) );
-	$min_height = absint( $request->get_param( 'wpdm_min_height' ) );
+function desktop_mode_filter_media_by_dimensions( $args, $request ) {
+	$min_width  = absint( $request->get_param( 'desktop_mode_min_width' ) );
+	$min_height = absint( $request->get_param( 'desktop_mode_min_height' ) );
 
 	if ( ! $min_width && ! $min_height ) {
 		return $args;
@@ -116,7 +116,7 @@ function wpdm_filter_media_by_dimensions( $args, $request ) {
 	// Chip away at any remaining unstamped attachments before the query
 	// runs, so a site upgrading into this feature gets useful results on
 	// roughly the first few picker opens rather than after a CLI run.
-	wpdm_backfill_media_dimensions( WPDM_MEDIA_BACKFILL_BATCH );
+	desktop_mode_backfill_media_dimensions( DESKTOP_MODE_MEDIA_BACKFILL_BATCH );
 
 	$meta_query = isset( $args['meta_query'] ) && is_array( $args['meta_query'] )
 		? $args['meta_query']
@@ -125,7 +125,7 @@ function wpdm_filter_media_by_dimensions( $args, $request ) {
 	$clauses = array();
 	if ( $min_width ) {
 		$clauses[] = array(
-			'key'     => WPDM_META_WIDTH,
+			'key'     => DESKTOP_MODE_META_WIDTH,
 			'value'   => $min_width,
 			'compare' => '>=',
 			'type'    => 'NUMERIC',
@@ -133,7 +133,7 @@ function wpdm_filter_media_by_dimensions( $args, $request ) {
 	}
 	if ( $min_height ) {
 		$clauses[] = array(
-			'key'     => WPDM_META_HEIGHT,
+			'key'     => DESKTOP_MODE_META_HEIGHT,
 			'value'   => $min_height,
 			'compare' => '>=',
 			'type'    => 'NUMERIC',
@@ -158,7 +158,7 @@ function wpdm_filter_media_by_dimensions( $args, $request ) {
 
 	return $args;
 }
-add_filter( 'rest_attachment_query', 'wpdm_filter_media_by_dimensions', 10, 2 );
+add_filter( 'rest_attachment_query', 'desktop_mode_filter_media_by_dimensions', 10, 2 );
 
 /**
  * Stamp dimension meta on up to $batch image attachments that don't
@@ -174,8 +174,8 @@ add_filter( 'rest_attachment_query', 'wpdm_filter_media_by_dimensions', 10, 2 );
  * @param int $batch Maximum attachments to stamp this pass.
  * @return int Number of attachments stamped (0 when nothing remained).
  */
-function wpdm_backfill_media_dimensions( $batch ) {
-	if ( get_option( WPDM_BACKFILL_DONE_OPTION ) ) {
+function desktop_mode_backfill_media_dimensions( $batch ) {
+	if ( get_option( DESKTOP_MODE_BACKFILL_DONE_OPTION ) ) {
 		return 0;
 	}
 
@@ -192,7 +192,7 @@ function wpdm_backfill_media_dimensions( $batch ) {
 			'update_post_term_cache' => false,
 			'meta_query'             => array(
 				array(
-					'key'     => WPDM_META_WIDTH,
+					'key'     => DESKTOP_MODE_META_WIDTH,
 					'compare' => 'NOT EXISTS',
 				),
 			),
@@ -204,7 +204,7 @@ function wpdm_backfill_media_dimensions( $batch ) {
 		// If a plugin ever adds new images via a back door that bypasses
 		// `wp_generate_attachment_metadata`, those can be picked up by
 		// manually deleting this option.
-		update_option( WPDM_BACKFILL_DONE_OPTION, 1, false );
+		update_option( DESKTOP_MODE_BACKFILL_DONE_OPTION, 1, false );
 		return 0;
 	}
 
@@ -220,8 +220,8 @@ function wpdm_backfill_media_dimensions( $batch ) {
 
 		// Always stamp, even when zero — that's how the sweep query
 		// knows to skip this row on the next pass.
-		update_post_meta( $id, WPDM_META_WIDTH, max( 0, $width ) );
-		update_post_meta( $id, WPDM_META_HEIGHT, max( 0, $height ) );
+		update_post_meta( $id, DESKTOP_MODE_META_WIDTH, max( 0, $width ) );
+		update_post_meta( $id, DESKTOP_MODE_META_HEIGHT, max( 0, $height ) );
 	}
 
 	return count( $ids );

@@ -10,7 +10,7 @@
  *
  * This endpoint is intentionally idempotent — calling it multiple times
  * is safe; entities that already have the meta are counted but skipped,
- * and the deduplication transient in `wpdm_ai_schedule_job()` prevents
+ * and the deduplication transient in `desktop_mode_ai_schedule_job()` prevents
  * double-queuing for entities that were just scheduled.
  *
  * Typical use cases:
@@ -30,14 +30,14 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.14.0
  */
-function wpdm_register_ai_reindex_rest_route() {
+function desktop_mode_register_ai_reindex_rest_route() {
 	register_rest_route(
 		'wp-desktop/v1',
 		'/ai/reindex',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'wpdm_rest_ai_reindex',
-			'permission_callback' => 'wpdm_rest_ai_reindex_permission',
+			'callback'            => 'desktop_mode_rest_ai_reindex',
+			'permission_callback' => 'desktop_mode_rest_ai_reindex_permission',
 			'args'                => array(
 				'entity_types' => array(
 					'required'          => false,
@@ -59,7 +59,7 @@ function wpdm_register_ai_reindex_rest_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'wpdm_register_ai_reindex_rest_route' );
+add_action( 'rest_api_init', 'desktop_mode_register_ai_reindex_rest_route' );
 
 /**
  * Permission: logged-in admin with AI enabled.
@@ -71,17 +71,17 @@ add_action( 'rest_api_init', 'wpdm_register_ai_reindex_rest_route' );
  *
  * @return bool|WP_Error
  */
-function wpdm_rest_ai_reindex_permission() {
+function desktop_mode_rest_ai_reindex_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
 		return new WP_Error(
-			'wpdm_ai_forbidden',
+			'desktop_mode_ai_forbidden',
 			'Only administrators can trigger a reindex.',
 			array( 'status' => 403 )
 		);
 	}
-	if ( ! wpdm_ai_is_enabled( get_current_user_id() ) ) {
+	if ( ! desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
 		return new WP_Error(
-			'wpdm_ai_disabled',
+			'desktop_mode_ai_disabled',
 			'AI features are not enabled. Enable them in OS Settings → AI Settings.',
 			array( 'status' => 403 )
 		);
@@ -100,7 +100,7 @@ function wpdm_rest_ai_reindex_permission() {
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
-function wpdm_rest_ai_reindex( WP_REST_Request $request ) {
+function desktop_mode_rest_ai_reindex( WP_REST_Request $request ) {
 	$user_id      = get_current_user_id();
 	$entity_types = (array) $request->get_param( 'entity_types' );
 	$force        = (bool) $request->get_param( 'force' );
@@ -113,7 +113,7 @@ function wpdm_rest_ai_reindex( WP_REST_Request $request ) {
 	// Posts
 	// -----------------------------------------------------------------------
 	if ( in_array( 'post', $entity_types, true ) ) {
-		$result = wpdm_ai_reindex_posts( 'post', $user_id, $force );
+		$result = desktop_mode_ai_reindex_posts( 'post', $user_id, $force );
 		$queued          += $result['queued'];
 		$already_indexed += $result['already_indexed'];
 		$breakdown['post'] = $result;
@@ -123,7 +123,7 @@ function wpdm_rest_ai_reindex( WP_REST_Request $request ) {
 	// Pages
 	// -----------------------------------------------------------------------
 	if ( in_array( 'page', $entity_types, true ) ) {
-		$result = wpdm_ai_reindex_posts( 'page', $user_id, $force );
+		$result = desktop_mode_ai_reindex_posts( 'page', $user_id, $force );
 		$queued          += $result['queued'];
 		$already_indexed += $result['already_indexed'];
 		$breakdown['page'] = $result;
@@ -133,7 +133,7 @@ function wpdm_rest_ai_reindex( WP_REST_Request $request ) {
 	// Comments
 	// -----------------------------------------------------------------------
 	if ( in_array( 'comment', $entity_types, true ) ) {
-		$result = wpdm_ai_reindex_comments( $user_id, $force );
+		$result = desktop_mode_ai_reindex_comments( $user_id, $force );
 		$queued          += $result['queued'];
 		$already_indexed += $result['already_indexed'];
 		$breakdown['comment'] = $result;
@@ -175,12 +175,12 @@ function wpdm_rest_ai_reindex( WP_REST_Request $request ) {
  * @param bool   $force     When true, re-queue even already-indexed posts.
  * @return array{ queued: int, already_indexed: int }
  */
-function wpdm_ai_reindex_posts( $post_type, $user_id, $force = false ) {
+function desktop_mode_ai_reindex_posts( $post_type, $user_id, $force = false ) {
 	$meta_query = $force
 		? array()
 		: array(
 			array(
-				'key'     => WPDM_AI_META_KEY,
+				'key'     => DESKTOP_MODE_AI_META_KEY,
 				'compare' => 'NOT EXISTS',
 			),
 		);
@@ -206,7 +206,7 @@ function wpdm_ai_reindex_posts( $post_type, $user_id, $force = false ) {
 				'fields'         => 'ids',
 				'meta_query'     => array(
 					array(
-						'key'     => WPDM_AI_META_KEY,
+						'key'     => DESKTOP_MODE_AI_META_KEY,
 						'compare' => 'EXISTS',
 					),
 				),
@@ -218,10 +218,10 @@ function wpdm_ai_reindex_posts( $post_type, $user_id, $force = false ) {
 	foreach ( $ids as $post_id ) {
 		// Clear the debounce transient so force-reindex always goes through.
 		if ( $force ) {
-			delete_transient( 'wpdm_ai_q_' . md5( 'post_' . $post_id ) );
+			delete_transient( 'desktop_mode_ai_q_' . md5( 'post_' . $post_id ) );
 		}
-		wpdm_ai_schedule_job(
-			'wpdm_ai_analyze_post',
+		desktop_mode_ai_schedule_job(
+			'desktop_mode_ai_analyze_post',
 			array( (int) $post_id, $user_id ),
 			'post_' . $post_id
 		);
@@ -243,12 +243,12 @@ function wpdm_ai_reindex_posts( $post_type, $user_id, $force = false ) {
  * @param bool $force   When true, re-queue even already-indexed comments.
  * @return array{ queued: int, already_indexed: int }
  */
-function wpdm_ai_reindex_comments( $user_id, $force = false ) {
+function desktop_mode_ai_reindex_comments( $user_id, $force = false ) {
 	$meta_query = $force
 		? array()
 		: array(
 			array(
-				'key'     => WPDM_AI_META_KEY,
+				'key'     => DESKTOP_MODE_AI_META_KEY,
 				'compare' => 'NOT EXISTS',
 			),
 		);
@@ -272,7 +272,7 @@ function wpdm_ai_reindex_comments( $user_id, $force = false ) {
 				'count'      => true,
 				'meta_query' => array(
 					array(
-						'key'     => WPDM_AI_META_KEY,
+						'key'     => DESKTOP_MODE_AI_META_KEY,
 						'compare' => 'EXISTS',
 					),
 				),
@@ -283,10 +283,10 @@ function wpdm_ai_reindex_comments( $user_id, $force = false ) {
 	$queued = 0;
 	foreach ( $comments as $comment_id ) {
 		if ( $force ) {
-			delete_transient( 'wpdm_ai_q_' . md5( 'comment_' . $comment_id ) );
+			delete_transient( 'desktop_mode_ai_q_' . md5( 'comment_' . $comment_id ) );
 		}
-		wpdm_ai_schedule_job(
-			'wpdm_ai_analyze_comment',
+		desktop_mode_ai_schedule_job(
+			'desktop_mode_ai_analyze_comment',
 			array( (int) $comment_id, $user_id ),
 			'comment_' . $comment_id
 		);

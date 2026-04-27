@@ -11,7 +11,7 @@ Add a feature flag + REST endpoint to the shell config so your TypeScript can re
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'wp_desktop_shell_config', function ( $config ) {
+add_filter( 'desktop_mode_shell_config', function ( $config ) {
     $config['myFeature'] = array(
         'enabled'  => (bool) get_option( 'my_ext_feature_enabled' ),
         'endpoint' => esc_url_raw( rest_url( 'my-ext/v1/stats' ) ),
@@ -46,5 +46,5 @@ document.addEventListener( 'wp-desktop-init', () => {
 
 ## Related
 
-- [Hooks Reference — `wp_desktop_shell_config`](../hooks-reference.md#wp_desktop_shell_config--stable)
+- [Hooks Reference — `desktop_mode_shell_config`](../hooks-reference.md#desktop_mode_shell_config--stable)
 - [JavaScript Reference — `wp-desktop-init`](../javascript-reference.md#wp-desktop-init--stable)

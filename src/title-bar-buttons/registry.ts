@@ -31,8 +31,8 @@ export interface TitleBarButtonDef {
 	 * Unique id matching `/^[a-z0-9_/-]+$/` (lower-case alphanum +
 	 * hyphen + underscore + slash). Slashes are accepted so plugin
 	 * authors can use the same `vendor/sub-id` namespacing
-	 * convention as `wp_register_desktop_window( 'wpglp/preview' )`,
-	 * `wp_register_desktop_widget( 'myplugin/stats' )`, etc.
+	 * convention as `desktop_mode_register_window( 'wpglp/preview' )`,
+	 * `desktop_mode_register_widget( 'myplugin/stats' )`, etc.
 	 *
 	 * Same shape every other JS-side registry now uses
 	 * (`registerCommand`, etc.) — slugs are routinely namespaced

@@ -19,7 +19,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** wp_options key for the platform-wide AI settings. */
-const WPDM_AI_PLATFORM_OPTION = 'wp_desktop_ai_platform';
+const DESKTOP_MODE_AI_PLATFORM_OPTION = 'desktop_mode_ai_platform';
 
 // ---------------------------------------------------------------------------
 // Get / save
@@ -32,7 +32,7 @@ const WPDM_AI_PLATFORM_OPTION = 'wp_desktop_ai_platform';
  *
  * @return array{ enabled: bool, provider: string, apiKey: string }
  */
-function wpdm_ai_get_platform_settings() {
+function desktop_mode_ai_get_platform_settings() {
 	$defaults = array(
 		'enabled'  => false,
 		'provider' => 'openai',
@@ -40,7 +40,7 @@ function wpdm_ai_get_platform_settings() {
 		'apiKeys'  => array(), // Per-provider keys.
 	);
 
-	$raw = get_option( WPDM_AI_PLATFORM_OPTION, array() );
+	$raw = get_option( DESKTOP_MODE_AI_PLATFORM_OPTION, array() );
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}
@@ -85,7 +85,7 @@ function wpdm_ai_get_platform_settings() {
  * @param mixed $raw Incoming settings payload (from REST or direct call).
  * @return bool True on success.
  */
-function wpdm_ai_save_platform_settings( $raw ) {
+function desktop_mode_ai_save_platform_settings( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return false;
 	}
@@ -121,7 +121,7 @@ function wpdm_ai_save_platform_settings( $raw ) {
 		'apiKeys'  => $keys,
 	);
 
-	return update_option( WPDM_AI_PLATFORM_OPTION, $clean, false );
+	return update_option( DESKTOP_MODE_AI_PLATFORM_OPTION, $clean, false );
 }
 
 // ---------------------------------------------------------------------------
@@ -133,20 +133,20 @@ function wpdm_ai_save_platform_settings( $raw ) {
  *
  * @since 0.14.0
  */
-function wpdm_register_ai_platform_settings_rest_route() {
+function desktop_mode_register_ai_platform_settings_rest_route() {
 	register_rest_route(
 		'wp-desktop/v1',
 		'/ai/platform-settings',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'wpdm_rest_get_ai_platform_settings',
-				'permission_callback' => 'wpdm_rest_ai_platform_permission',
+				'callback'            => 'desktop_mode_rest_get_ai_platform_settings',
+				'permission_callback' => 'desktop_mode_rest_ai_platform_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'wpdm_rest_save_ai_platform_settings',
-				'permission_callback' => 'wpdm_rest_ai_platform_permission',
+				'callback'            => 'desktop_mode_rest_save_ai_platform_settings',
+				'permission_callback' => 'desktop_mode_rest_ai_platform_permission',
 				'args'                => array(
 					'settings' => array(
 						'required' => true,
@@ -157,7 +157,7 @@ function wpdm_register_ai_platform_settings_rest_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'wpdm_register_ai_platform_settings_rest_route' );
+add_action( 'rest_api_init', 'desktop_mode_register_ai_platform_settings_rest_route' );
 
 /**
  * Permission: administrators only.
@@ -166,10 +166,10 @@ add_action( 'rest_api_init', 'wpdm_register_ai_platform_settings_rest_route' );
  *
  * @return bool|WP_Error
  */
-function wpdm_rest_ai_platform_permission() {
+function desktop_mode_rest_ai_platform_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
 		return new WP_Error(
-			'wpdm_ai_forbidden',
+			'desktop_mode_ai_forbidden',
 			'Only administrators can manage platform AI settings.',
 			array( 'status' => 403 )
 		);
@@ -184,8 +184,8 @@ function wpdm_rest_ai_platform_permission() {
  *
  * @return WP_REST_Response
  */
-function wpdm_rest_get_ai_platform_settings() {
-	return rest_ensure_response( wpdm_ai_get_platform_settings() );
+function desktop_mode_rest_get_ai_platform_settings() {
+	return rest_ensure_response( desktop_mode_ai_get_platform_settings() );
 }
 
 /**
@@ -196,8 +196,8 @@ function wpdm_rest_get_ai_platform_settings() {
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
-function wpdm_rest_save_ai_platform_settings( WP_REST_Request $request ) {
+function desktop_mode_rest_save_ai_platform_settings( WP_REST_Request $request ) {
 	$payload = $request->get_param( 'settings' );
-	wpdm_ai_save_platform_settings( $payload );
-	return rest_ensure_response( wpdm_ai_get_platform_settings() );
+	desktop_mode_ai_save_platform_settings( $payload );
+	return rest_ensure_response( desktop_mode_ai_get_platform_settings() );
 }

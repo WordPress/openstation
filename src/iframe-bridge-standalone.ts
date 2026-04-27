@@ -373,7 +373,7 @@ interface IframeWp {
 	// protocol.
 	//
 	// Used to live ONLY in the chromeless inline bridge (gated on
-	// `wpdm_is_chromeless_request()`), so any internal navigation
+	// `desktop_mode_is_chromeless_request()`), so any internal navigation
 	// that dropped the `?wp_desktop=1` flag silently lost the title-
 	// bar icons. This standalone bridge is auto-enqueued on every
 	// admin page, so detection runs regardless. A sentinel global

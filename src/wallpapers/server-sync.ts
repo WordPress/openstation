@@ -5,7 +5,7 @@
  * `src/native-windows.ts`, `src/widgets/server-sync.ts` for the
  * symmetric versions on their own registries). Plugins declare
  * their wallpaper server-side via
- * `wp_register_desktop_wallpaper()`; this module diffs the shell's
+ * `desktop_mode_register_wallpaper()`; this module diffs the shell's
  * current wallpaper registry against the fresh payload on every
  * live refresh and bridges the plugin-side JS into the shell's
  * registry.

@@ -6,8 +6,8 @@ Native windows are windows whose content renders directly in the parent DOM inst
 
 ## Where to start
 
-- **[Register a desktop icon (Jorvy)](./register-icon.md)** — the canonical end-to-end example: PHP `wp_register_desktop_window()` + `wp_register_desktop_icon()` + a JS render callback. Read this first.
-- **[Native window with tabs](./native-window-with-tabs.md)** — multi-pane windows via `wp_register_desktop_window_tab()`, including the auto-swap rendering pattern other plugins can extend.
+- **[Register a desktop icon (Jorvy)](./register-icon.md)** — the canonical end-to-end example: PHP `desktop_mode_register_window()` + `desktop_mode_register_icon()` + a JS render callback. Read this first.
+- **[Native window with tabs](./native-window-with-tabs.md)** — multi-pane windows via `desktop_mode_register_window_tab()`, including the auto-swap rendering pattern other plugins can extend.
 - **[Layout primitives](./layout-primitives.md)** — `<wpd-stack>` / `<wpd-section>` / `<wpd-row>` / etc. Compose these inside your template callback.
 
 ## The render-callback contract in one paragraph

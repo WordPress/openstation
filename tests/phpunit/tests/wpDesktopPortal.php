@@ -30,15 +30,15 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		unset(
 			$_SERVER['REQUEST_URI'],
 			$_SERVER['REQUEST_METHOD'],
-			$_GET[ WPDM_PORTAL_FLAG ],
-			$_GET[ WPDM_CLASSIC_FLAG ],
+			$_GET[ DESKTOP_MODE_PORTAL_FLAG ],
+			$_GET[ DESKTOP_MODE_CLASSIC_FLAG ],
 			$_GET['wp_desktop']
 		);
-		delete_user_meta( self::$admin_id, 'wp_desktop_mode' );
-		delete_user_meta( self::$admin_id, WPDM_SESSION_META_KEY );
-		delete_user_meta( self::$subscriber_id, 'wp_desktop_mode' );
-		remove_all_filters( 'wp_desktop_portal_auto_enable' );
-		remove_all_filters( 'wp_desktop_admin_redirect_to_portal' );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+		delete_user_meta( self::$admin_id, DESKTOP_MODE_SESSION_META_KEY );
+		delete_user_meta( self::$subscriber_id, 'desktop_mode_mode' );
+		remove_all_filters( 'desktop_mode_portal_auto_enable' );
+		remove_all_filters( 'desktop_mode_admin_redirect_to_portal' );
 		parent::tear_down();
 	}
 
@@ -47,7 +47,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 * target, same interception technique as capture_redirect() below.
 	 */
 	private function capture_admin_init_redirect() {
-		return $this->capture_with( 'wpdm_redirect_plain_admin_to_portal' );
+		return $this->capture_with( 'desktop_mode_redirect_plain_admin_to_portal' );
 	}
 
 	/**
@@ -64,7 +64,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 */
 	private function capture_redirect( $request_uri ) {
 		$_SERVER['REQUEST_URI'] = $request_uri;
-		return $this->capture_with( 'wpdm_handle_portal_request', null );
+		return $this->capture_with( 'desktop_mode_handle_portal_request', null );
 	}
 
 	/**
@@ -79,14 +79,14 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		$captured = null;
 		$filter   = function ( $location ) use ( &$captured ) {
 			$captured = $location;
-			throw new RuntimeException( 'wpdm_test_redirect_intercepted' );
+			throw new RuntimeException( 'desktop_mode_test_redirect_intercepted' );
 		};
 		add_filter( 'wp_redirect', $filter, 10, 1 );
 
 		try {
 			$callable( ...$args );
 		} catch ( RuntimeException $e ) {
-			if ( 'wpdm_test_redirect_intercepted' !== $e->getMessage() ) {
+			if ( 'desktop_mode_test_redirect_intercepted' !== $e->getMessage() ) {
 				throw $e;
 			}
 		} finally {
@@ -97,62 +97,62 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_portal_url
+	 * @covers ::desktop_mode_portal_url
 	 */
 	public function test_portal_url_is_canonical() {
-		$this->assertSame( home_url( '/wp-desktop/' ), wpdm_portal_url() );
+		$this->assertSame( home_url( '/wp-desktop/' ), desktop_mode_portal_url() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_portal_request
+	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_detects_exact_path() {
 		$_SERVER['REQUEST_URI'] = '/wp-desktop';
-		$this->assertTrue( wpdm_is_portal_request() );
+		$this->assertTrue( desktop_mode_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_portal_request
+	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_detects_trailing_slash() {
 		$_SERVER['REQUEST_URI'] = '/wp-desktop/';
-		$this->assertTrue( wpdm_is_portal_request() );
+		$this->assertTrue( desktop_mode_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_portal_request
+	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_ignores_query_string() {
 		$_SERVER['REQUEST_URI'] = '/wp-desktop/?foo=bar';
-		$this->assertTrue( wpdm_is_portal_request() );
+		$this->assertTrue( desktop_mode_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_portal_request
+	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_rejects_subpaths() {
 		$_SERVER['REQUEST_URI'] = '/wp-desktop/foo';
-		$this->assertFalse( wpdm_is_portal_request() );
+		$this->assertFalse( desktop_mode_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_portal_request
+	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_rejects_unrelated_paths() {
 		$_SERVER['REQUEST_URI'] = '/wp-admin/';
-		$this->assertFalse( wpdm_is_portal_request() );
+		$this->assertFalse( desktop_mode_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_portal_request
+	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_false_when_uri_missing() {
 		unset( $_SERVER['REQUEST_URI'] );
-		$this->assertFalse( wpdm_is_portal_request() );
+		$this->assertFalse( desktop_mode_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	public function test_handler_is_noop_when_not_portal() {
 		wp_set_current_user( self::$admin_id );
@@ -162,7 +162,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	public function test_logged_out_user_redirected_to_login() {
 		wp_set_current_user( 0 );
@@ -170,23 +170,23 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 
 		$this->assertNotNull( $redirect );
 		$this->assertStringContainsString( 'wp-login.php', $redirect );
-		$this->assertStringContainsString( rawurlencode( wpdm_portal_url() ), $redirect );
+		$this->assertStringContainsString( rawurlencode( desktop_mode_portal_url() ), $redirect );
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	public function test_logged_in_user_auto_enabled() {
 		wp_set_current_user( self::$admin_id );
-		$this->assertSame( '', get_user_meta( self::$admin_id, 'wp_desktop_mode', true ) );
+		$this->assertSame( '', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 
 		$this->capture_redirect( '/wp-desktop/' );
 
-		$this->assertSame( '1', get_user_meta( self::$admin_id, 'wp_desktop_mode', true ) );
+		$this->assertSame( '1', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	public function test_portal_redirects_to_admin_with_flag() {
 		wp_set_current_user( self::$admin_id );
@@ -194,23 +194,23 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 
 		$this->assertNotNull( $redirect );
 		$this->assertStringStartsWith( admin_url(), $redirect );
-		$this->assertStringContainsString( WPDM_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_FLAG . '=1', $redirect );
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	public function test_auto_enable_filter_can_disable_auto_toggle() {
 		wp_set_current_user( self::$admin_id );
-		add_filter( 'wp_desktop_portal_auto_enable', '__return_false' );
+		add_filter( 'desktop_mode_portal_auto_enable', '__return_false' );
 
 		$this->capture_redirect( '/wp-desktop/' );
 
-		$this->assertSame( '', get_user_meta( self::$admin_id, 'wp_desktop_mode', true ) );
+		$this->assertSame( '', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	public function test_auto_enable_filter_receives_user_id() {
 		wp_set_current_user( self::$admin_id );
@@ -218,7 +218,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		$received_id = null;
 
 		add_filter(
-			'wp_desktop_portal_auto_enable',
+			'desktop_mode_portal_auto_enable',
 			function ( $enable, $user_id ) use ( &$received_id ) {
 				$received_id = $user_id;
 				return $enable;
@@ -233,24 +233,24 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	public function test_auto_enable_noop_when_meta_already_set() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$count_before = did_action( 'update_user_meta' );
 		$this->capture_redirect( '/wp-desktop/' );
 
 		// Still '1' — we didn't flip it off and back on.
-		$this->assertSame( '1', get_user_meta( self::$admin_id, 'wp_desktop_mode', true ) );
+		$this->assertSame( '1', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
 
 	/**
-	 * @covers ::wpdm_portal_entry_url
+	 * @covers ::desktop_mode_portal_entry_url
 	 */
 	public function test_entry_url_falls_back_to_dashboard_when_session_empty() {
-		$this->assertSame( admin_url( 'index.php' ), wpdm_portal_entry_url( self::$admin_id ) );
+		$this->assertSame( admin_url( 'index.php' ), desktop_mode_portal_entry_url( self::$admin_id ) );
 	}
 
 	/**
@@ -258,10 +258,10 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 * `wp_desktop=1` (iframe flag) would land the top window in chromeless
 	 * mode with no admin bar, no toggle, and no way out. Strip it.
 	 *
-	 * @covers ::wpdm_portal_entry_url
+	 * @covers ::desktop_mode_portal_entry_url
 	 */
 	public function test_entry_url_strips_chromeless_flag() {
-		wpdm_save_session(
+		desktop_mode_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
@@ -281,17 +281,17 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 			)
 		);
 
-		$entry = wpdm_portal_entry_url( self::$admin_id );
+		$entry = desktop_mode_portal_entry_url( self::$admin_id );
 
 		$this->assertStringNotContainsString( 'wp_desktop=1', $entry );
 	}
 
 	/**
-	 * @covers ::wpdm_portal_entry_url
+	 * @covers ::desktop_mode_portal_entry_url
 	 */
 	public function test_entry_url_returns_focused_window_url() {
 		$target = admin_url( 'edit.php?post_type=page' );
-		wpdm_save_session(
+		desktop_mode_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
@@ -322,14 +322,14 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( $target, wpdm_portal_entry_url( self::$admin_id ) );
+		$this->assertSame( $target, desktop_mode_portal_entry_url( self::$admin_id ) );
 	}
 
 	/**
-	 * @covers ::wpdm_portal_entry_url
+	 * @covers ::desktop_mode_portal_entry_url
 	 */
 	public function test_entry_url_falls_back_when_focused_missing() {
-		wpdm_save_session(
+		desktop_mode_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
@@ -349,27 +349,27 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( admin_url( 'index.php' ), wpdm_portal_entry_url( self::$admin_id ) );
+		$this->assertSame( admin_url( 'index.php' ), desktop_mode_portal_entry_url( self::$admin_id ) );
 	}
 
 	/**
-	 * @covers ::wpdm_handle_portal_request
+	 * @covers ::desktop_mode_handle_portal_request
 	 */
 	/**
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_sends_desktop_user_to_portal() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
 
 		$redirect = $this->capture_admin_init_redirect();
 
-		$this->assertSame( wpdm_portal_url(), $redirect );
+		$this->assertSame( desktop_mode_portal_url(), $redirect );
 	}
 
 	/**
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_when_desktop_mode_off() {
 		wp_set_current_user( self::$admin_id );
@@ -379,11 +379,11 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_on_chromeless_request() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
 		$_GET['wp_desktop']        = '1';
 
@@ -391,34 +391,34 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_when_portal_flag_already_present() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD']    = 'GET';
-		$_GET[ WPDM_PORTAL_FLAG ] = '1';
+		$_GET[ DESKTOP_MODE_PORTAL_FLAG ] = '1';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
 	/**
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_on_post_method() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
 	/**
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_on_admin_post_page() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
 		$GLOBALS['pagenow']        = 'admin-post.php';
 
@@ -430,30 +430,30 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The detach button opens a URL tagged with `wp_desktop_classic=1`.
+	 * The detach button opens a URL tagged with `desktop_mode_classic=1`.
 	 * That tag tells the admin_init redirect to leave this one request
 	 * alone so the user can view the page as classic wp-admin in a new
 	 * tab without flipping off desktop mode account-wide.
 	 *
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_when_classic_flag_present() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD']      = 'GET';
-		$_GET[ WPDM_CLASSIC_FLAG ] = '1';
+		$_GET[ DESKTOP_MODE_CLASSIC_FLAG ] = '1';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
 	/**
-	 * @covers ::wpdm_redirect_plain_admin_to_portal
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_filter_can_disable() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
-		add_filter( 'wp_desktop_admin_redirect_to_portal', '__return_false' );
+		add_filter( 'desktop_mode_admin_redirect_to_portal', '__return_false' );
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
@@ -461,7 +461,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	public function test_portal_honors_session_focused_window() {
 		wp_set_current_user( self::$admin_id );
 		$target_path = 'edit.php?post_type=page';
-		wpdm_save_session(
+		desktop_mode_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
@@ -484,6 +484,6 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		$redirect = $this->capture_redirect( '/wp-desktop/' );
 
 		$this->assertStringContainsString( 'post_type=page', $redirect );
-		$this->assertStringContainsString( WPDM_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_FLAG . '=1', $redirect );
 	}
 }

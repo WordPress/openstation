@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string
  */
 function wpdc_monaco_vendor_url() {
-	return untrailingslashit( WPDM_URL . 'assets/vendor/monaco-editor/min/vs' );
+	return untrailingslashit( DESKTOP_MODE_URL . 'assets/vendor/monaco-editor/min/vs' );
 }
 
 /**
@@ -69,7 +69,7 @@ function wpdc_current_user_can_edit() {
  *
  * Plugin authors who want to reshape this layout (e.g. add a custom
  * status bar, replace the loading copy, ship a different icon) can
- * filter the rendered HTML via `wp_desktop_code_editor_template_html`
+ * filter the rendered HTML via `desktop_mode_code_editor_template_html`
  * — keep the `data-wpdc-editor-monaco` hook intact and the JS will
  * mount Monaco there regardless of surrounding markup.
  *
@@ -93,14 +93,14 @@ function wpdc_render_editor_template() {
 	 *
 	 * The JS render callback queries `[data-wpdc-editor-monaco]` to
 	 * mount Monaco — keep that hook (or rename via the
-	 * `wp_desktop_code_editor_mount_selector` filter) and you can
+	 * `desktop_mode_code_editor_mount_selector` filter) and you can
 	 * restyle / restructure everything else.
 	 *
 	 * @since 0.18.0
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	echo apply_filters( 'wp_desktop_code_editor_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo apply_filters( 'desktop_mode_code_editor_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 /**
@@ -117,7 +117,7 @@ function wpdc_register_editor_window() {
 		return;
 	}
 
-	$registered = wp_register_desktop_window(
+	$registered = desktop_mode_register_window(
 		'wpdc-editor',
 		array(
 			'title'        => __( 'Code', 'desktop-mode' ),
@@ -142,7 +142,7 @@ function wpdc_register_editor_window() {
 		return;
 	}
 
-	wp_register_desktop_icon(
+	desktop_mode_register_icon(
 		'wpdc-editor',
 		array(
 			'title'        => __( 'Code', 'desktop-mode' ),
@@ -177,7 +177,7 @@ function wpdc_localize_editor_config() {
 		'wpDesktopCodeEditorConfig',
 		array(
 			'monacoVendorUrl' => wpdc_monaco_vendor_url(),
-			'pluginUrl'       => untrailingslashit( WPDM_URL ),
+			'pluginUrl'       => untrailingslashit( DESKTOP_MODE_URL ),
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'treeUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/code/tree' ) ),
 			'fileUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/code/file' ) ),

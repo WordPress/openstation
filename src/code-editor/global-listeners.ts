@@ -3,7 +3,7 @@
  *
  * Two global handlers that run on every desktop-mode page load
  * (the editor's bundle is enqueued eagerly by
- * `wpdm_enqueue_native_window_scripts`), regardless of whether
+ * `desktop_mode_enqueue_native_window_scripts`), regardless of whether
  * the editor window is currently open:
  *
  *   - **Cmd/Ctrl + Shift + E** keyboard shortcut → open / focus

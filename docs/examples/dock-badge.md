@@ -9,7 +9,7 @@ Adds a new "Pending Orders" icon to the dock, with a live badge showing the curr
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'wp_desktop_dock_items', function ( $items ) {
+add_filter( 'desktop_mode_dock_items', function ( $items ) {
     $pending = (int) get_option( 'my_pending_order_count', 0 );
 
     $items[] = array(
@@ -31,5 +31,5 @@ The dock reads `badge` at render time, so it only changes on shell reload. To pu
 
 ## Related
 
-- [Hooks Reference — `wp_desktop_dock_items`](../hooks-reference.md#wp_desktop_dock_items--stable)
-- [Hooks Reference — `wp_desktop_dock_item`](../hooks-reference.md#wp_desktop_dock_item--stable)
+- [Hooks Reference — `desktop_mode_dock_items`](../hooks-reference.md#desktop_mode_dock_items--stable)
+- [Hooks Reference — `desktop_mode_dock_item`](../hooks-reference.md#desktop_mode_dock_item--stable)

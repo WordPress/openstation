@@ -148,7 +148,7 @@ export function createApplyPayload(
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added
 		// server-side (plugin activated via
-		// `wp_register_desktop_window`) appear; tiles whose plugin
+		// `desktop_mode_register_window`) appear; tiles whose plugin
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
 			void syncNativeWindows(
@@ -160,7 +160,7 @@ export function createApplyPayload(
 
 		// Widget-registry sync — same lifecycle story for the
 		// right-column widget layer. Plugins declared via
-		// `wp_register_desktop_widget()` show up in the picker
+		// `desktop_mode_register_widget()` show up in the picker
 		// without a reload; deactivated plugin widgets disappear.
 		if ( Array.isArray( serverWidgets ) ) {
 			void syncServerWidgets(

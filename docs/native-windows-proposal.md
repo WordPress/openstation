@@ -1,6 +1,6 @@
 # Native Windows & Framework Interop
 
-**Status:** Stable — shipped in 0.11.0. `wp_register_desktop_window()` and `wp_register_desktop_window_tab()` are the public PHP API; `wp.desktop.registerWindow()` is the JS counterpart. See [`examples/native-windows.md`](./examples/native-windows.md) and [`examples/native-window-with-tabs.md`](./examples/native-window-with-tabs.md) for working recipes.
+**Status:** Stable — shipped in 0.11.0. `desktop_mode_register_window()` and `desktop_mode_register_window_tab()` are the public PHP API; `wp.desktop.registerWindow()` is the JS counterpart. See [`examples/native-windows.md`](./examples/native-windows.md) and [`examples/native-window-with-tabs.md`](./examples/native-window-with-tabs.md) for working recipes.
 
 This document describes the public contract for **native desktop windows** — windows whose content renders directly in the parent DOM instead of through an iframe — and the story for how plugins written with React, Vue, Svelte, Lit, or plain custom elements plug in without the shell taking a framework dependency.
 
@@ -8,7 +8,7 @@ The goal is to make one decision up front: **the shell's extension contract is t
 
 ## Goals
 
-- A single PHP registration API for native windows: `wp_register_desktop_window()`.
+- A single PHP registration API for native windows: `desktop_mode_register_window()`.
 - A single JS registration API for runtime-defined windows: `wp.desktop.registerWindow()`.
 - Web Components as a **first-class authoring path**, on equal footing with a render callback. No framework gets special treatment.
 - Zero bundled UI framework in the shell. A plugin that wants React pays React's cost; a plugin that ships a custom element pays nothing extra.
@@ -22,15 +22,15 @@ The goal is to make one decision up front: **the shell's extension contract is t
 
 ## The API
 
-### PHP: `wp_register_desktop_window()`
+### PHP: `desktop_mode_register_window()`
 
 ```php
-wp_register_desktop_window( 'jorvy', array(
+desktop_mode_register_window( 'jorvy', array(
     // Required. Human-readable label for the title bar, dock tooltip, a11y.
     'title'          => __( 'Jorvy', 'jorvy' ),
 
     // Required. Dashicons class, data-URI, or image URL — same rules as
-    // `wpdm_sanitize_dock_icon()` uses for menu-item icons today.
+    // `desktop_mode_sanitize_dock_icon()` uses for menu-item icons today.
     'icon'           => 'dashicons-star-filled',
 
     // Pick exactly one of the three authoring paths below.
@@ -75,7 +75,7 @@ wp_register_desktop_window( 'jorvy', array(
 ) );
 ```
 
-Behind the scenes this populates a registry exposed to the shell via `wp_desktop_shell_config` → `nativeWindows`. The registry is filterable as `wp_desktop_native_windows` for last-mile overrides.
+Behind the scenes this populates a registry exposed to the shell via `desktop_mode_shell_config` → `nativeWindows`. The registry is filterable as `desktop_mode_native_windows` for last-mile overrides.
 
 ### JS: `wp.desktop.registerWindow()`
 
@@ -181,7 +181,7 @@ The `ctx` object passed to callbacks exposes the read-only window handle, the dr
 ## Security & sandboxing
 
 - **Same origin, same realm.** Native window code executes in the parent shell's JS realm — there is no iframe boundary. This is the point: direct DOM access, shared state, cross-window coordination. But it means a misbehaving plugin can reach the rest of the shell. Treat this like any other `wp_enqueue_script` — it's a plugin author surface, not an end-user one.
-- **Capability checks stay server-side.** `wp_register_desktop_window()` enforces `capability` before emitting the registration into the shell config. A user without the cap never sees the icon and cannot open the window via `wp.desktop.openWindow()`.
+- **Capability checks stay server-side.** `desktop_mode_register_window()` enforces `capability` before emitting the registration into the shell config. A user without the cap never sees the icon and cannot open the window via `wp.desktop.openWindow()`.
 - **No eval, no Function constructors.** The render-path strings (`render`, `module`, `custom_element`) are looked up / imported, never evaluated as code. `render: 'jorvy.renderQuotePanel'` resolves via walking `window` — if it's missing, the shell logs and shows an error state rather than creating a sink for arbitrary strings.
 - **Nonces for server interaction** are the plugin's responsibility; the shell doesn't wrap fetch calls.
 
@@ -208,7 +208,7 @@ add_action( 'init', function () {
         true
     );
 
-    wp_register_desktop_window( 'jorvy', array(
+    desktop_mode_register_window( 'jorvy', array(
         'title'          => 'Jorvy',
         'icon'           => 'dashicons-star-filled',
         'custom_element' => 'jorvy-panel',
@@ -295,7 +295,7 @@ Nothing else migrates. Iframe windows stay iframe windows — that's the whole p
 2. **Async mounts.** Should `render` / `module` be allowed to return a Promise, and the shell shows a spinner until it resolves? Leaning: yes, but keep the spinner opt-in via `ctx.setLoading( true )` rather than implicit.
 3. **Multi-instance native windows.** The iframe side has `multi: true`; native windows currently don't. Jorvy doesn't need it, but a "Quick Note" native window probably does. Low risk to add the flag now even if no shipping caller uses it.
 4. **Persistence.** Native windows are currently skipped from session snapshot because `render` is a closure. With a registry, we can serialize by id and rehydrate — at the cost of requiring every plugin to either be idempotent on re-mount or opt out. Leaning: opt-in per registration (`'persist' => true`, default false).
-5. **Dock registration vs. separate `wp_register_desktop_icon()`.** The CLAUDE.md vision has both dock items and wallpaper icons. Should `wp_register_desktop_window()` be orthogonal to `wp_register_desktop_icon()`, or should the window registration produce both when `show_in_dock` / `show_on_desktop` are set? Leaning: orthogonal — windows and icons are different concepts, even if most plugins use them together.
+5. **Dock registration vs. separate `desktop_mode_register_icon()`.** The CLAUDE.md vision has both dock items and wallpaper icons. Should `desktop_mode_register_window()` be orthogonal to `desktop_mode_register_icon()`, or should the window registration produce both when `show_in_dock` / `show_on_desktop` are set? Leaning: orthogonal — windows and icons are different concepts, even if most plugins use them together.
 
 ## Next steps
 

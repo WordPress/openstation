@@ -214,7 +214,7 @@ window.wp.desktop.windowManager.openNew( {
 } );
 ```
 
-The server-side `wp_desktop_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#wp_desktop_dock_item_multi--stable).
+The server-side `desktop_mode_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_item_multi--stable).
 
 ---
 
@@ -249,7 +249,7 @@ if ( win && win.state === 'normal' ) win.minimize();
 
 ### `wp.desktop.openWindow( id )` — Stable (since 0.18.0)
 
-Open (or focus) a server-registered native window by id. Symmetric with `wp_register_desktop_window( $id, ... )` — pass the same string.
+Open (or focus) a server-registered native window by id. Symmetric with `desktop_mode_register_window( $id, ... )` — pass the same string.
 
 ```typescript
 wp.desktop.openWindow( id: string ): boolean;
@@ -349,7 +349,7 @@ If a `Window.close()` throws, the loop catches and continues — one bad window 
 ---
 
 ### `dock` — Stable
-The left-edge `Dock` instance (or `null` if the dock element wasn't in the DOM). Hosts **core WordPress menus** — Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies. Calling it directly is usually unnecessary — dock items are data-driven via `wp_desktop_dock_items`.
+The left-edge `Dock` instance (or `null` if the dock element wasn't in the DOM). Hosts **core WordPress menus** — Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies. Calling it directly is usually unnecessary — dock items are data-driven via `desktop_mode_dock_items`.
 
 ---
 
@@ -358,7 +358,7 @@ The bottom-edge `Dock` instance (or `null` if the shell markup lacks the taskbar
 
 Rendered as a floating macOS-style pill at the bottom of the shell. Same class, same tooltip / active-dot / "+" chip behaviour as the left dock — only orientation + CSS differ.
 
-Server-side the split is driven by `wpdm_dock_placement()` and the `wp_desktop_dock_placement` filter — see the [Hooks reference](./hooks-reference.md#wp_desktop_dock_placement--stable) for how to override routing (pin a plugin to the dock; move a core menu to the taskbar).
+Server-side the split is driven by `desktop_mode_dock_placement()` and the `desktop_mode_dock_placement` filter — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_placement--stable) for how to override routing (pin a plugin to the dock; move a core menu to the taskbar).
 
 **Icon fallback:** when a plugin registers a menu without a dashicon / SVG / URL, the taskbar renders a **letter badge** in a hue deterministically derived from the menu title. Same plugin, same colour across reloads. Plugins shipping their own icon art always override the fallback.
 
@@ -492,7 +492,7 @@ window.wp.desktop.registerCommand( {
 
 **Errors** thrown from `run` are caught and rendered as an error bubble — the panel doesn't crash.
 
-**Live-refresh on plugin install/activate.** If your plugin's script is declared via `wp_desktop_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
+**Live-refresh on plugin install/activate.** If your plugin's script is declared via `desktop_mode_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
 
 ```javascript
 window.wp.desktop.registerCommand( {
@@ -593,12 +593,12 @@ const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
 // res.message   === 'Lights ON.'  // string returns are lifted into message
 ```
 
-Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `wp_desktop_ai_command_allowed` provides a second line of defence for per-role gating.
+Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `desktop_mode_ai_command_allowed` provides a second line of defence for per-role gating.
 
 **Security notes.**
 
 1. The server never executes a client-harvested command — it returns `{ answer_type: 'tool_call', tool: { slug, args } }` and the client invokes `run()` locally. The model can't reach through to any server-side code via this path.
-2. For server-side tools, use [`wp_register_desktop_ai_tool()`](./hooks-reference.md#wp_register_desktop_ai_tool-args--stable-php-function-since-0170). Handlers are capability-gated and the registry is invisible to callers who don't have the cap.
+2. For server-side tools, use [`desktop_mode_register_ai_tool()`](./hooks-reference.md#desktop_mode_register_ai_tool-args--stable-php-function-since-0170). Handlers are capability-gated and the registry is invisible to callers who don't have the cap.
 3. Command `description` is fed to the model verbatim — treat it as untrusted surface for plugin authors exactly as you'd treat any other plugin string.
 
 **Natural-language replies — `followUp: true`**
@@ -664,7 +664,7 @@ Add a custom button to the title bar of any matching window. The right surface f
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `wp_register_desktop_window` / `wp_register_desktop_widget` accept (slashes welcome). Wider than `registerCommand`'s slug or `registerSettingsTab`'s id, which can't use slashes (those values are also used in slash-command parsing / CSS selectors). Re-registering replaces. |
+| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `desktop_mode_register_window` / `desktop_mode_register_widget` accept (slashes welcome). Wider than `registerCommand`'s slug or `registerSettingsTab`'s id, which can't use slashes (those values are also used in slash-command parsing / CSS selectors). Re-registering replaces. |
 | `label` | `string` | Tooltip + aria-label. |
 | `icon` | `string` | Dashicons class (`'dashicons-foo'`), inline SVG (`'<svg>…</svg>'`), or built-in key (`'minimize'` / `'menu'` / etc.). |
 | `placement` | `'left' \| 'right'` | Default `'left'` (next to title). `'right'` lands before the window controls. |
@@ -692,7 +692,7 @@ wp.desktop.ready( () => {
 PHP companion (so plugins activated mid-session paint live):
 
 ```php
-wp_desktop_register_titlebar_button_script( 'my-plugin-titlebar' );
+desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
 
 ---
@@ -849,7 +849,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | `label` | `string` | yes | Tab label. |
 | `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
 | `order` | `number` | no | Default `100`. Built-ins: appearance=10, ai=20, extended=30, help=40. |
-| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `wp_desktop_register_settings_tab_script()`. |
+| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `desktop_mode_register_settings_tab_script()`. |
 | `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
 
 **`ctx` shape:**
@@ -937,7 +937,7 @@ Open <wpd-code>chrome://flags</wpd-code> and enable
 <wpd-code>experimental-web-platform-features</wpd-code>.
 
 <wpd-code block>
-wp_register_desktop_settings_tab( array(
+desktop_mode_register_settings_tab( array(
     'id'    => 'my-plugin',
     'label' => 'My Plugin',
 ) );
@@ -962,7 +962,7 @@ Auto-numbered setup / onboarding flows. Numbers come from a CSS counter, so inse
 </wpd-steps>
 ```
 
-For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `wp_register_desktop_settings_tab()` in PHP.
+For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `desktop_mode_register_settings_tab()` in PHP.
 
 ---
 
@@ -1351,7 +1351,7 @@ Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks co
 | `wp-desktop.arrange.tile.dimensions` | filter | Stable | filters `{ cols, rows }`; context `{ windowCount, areaWidth, areaHeight }`. Override the auto-chosen grid (e.g., force a 3-column newsroom layout). Returns must be positive integers and `cols * rows >= windowCount`, otherwise the filter is ignored. |
 | `wp-desktop.arrange.snap.changed` | action | Stable | `{ enabled }` — fires when the user toggles "Snap to grid" |
 | `wp-desktop.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
-| `wp-desktop.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `wp_desktop_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
+| `wp-desktop.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `desktop_mode_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
 
 #### Virtual desktops ("Spaces")
 
@@ -1697,7 +1697,7 @@ wp.desktop.whenReady( () => {
 } );
 ```
 
-**Why the default is `taskbar`:** plugin-contributed admin menus live in the bottom pill already (see `wp_desktop_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left dock focused on core WP. If you want the left rail, pass `placement: 'dock'` explicitly — the shell will honor it without coercion.
+**Why the default is `taskbar`:** plugin-contributed admin menus live in the bottom pill already (see `desktop_mode_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left dock focused on core WP. If you want the left rail, pass `placement: 'dock'` explicitly — the shell will honor it without coercion.
 
 **Taskbar auto-unhide.** When a system tile lands on a previously-empty taskbar (no plugin menus, no prior tiles), the rail automatically un-hides and the desktop area picks up the `--with-taskbar` CSS modifier. Subsequent tiles reuse the already-shown pill.
 

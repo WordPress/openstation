@@ -22,24 +22,24 @@ defined( 'ABSPATH' ) || exit;
  * @param string $classes Space-separated CSS class string.
  * @return string
  */
-function wpdm_admin_body_classes( $classes ) {
-	if ( wpdm_is_chromeless_request() ) {
+function desktop_mode_admin_body_classes( $classes ) {
+	if ( desktop_mode_is_chromeless_request() ) {
 		return ltrim( $classes . ' wp-desktop-chromeless' );
 	}
 
 	// Per-request classic override: don't tag the body as desktop-active so
 	// the classic chrome isn't hidden by CSS for this one tab.
-	if ( wpdm_is_classic_request() ) {
+	if ( desktop_mode_is_classic_request() ) {
 		return $classes;
 	}
 
-	if ( wpdm_is_enabled() ) {
+	if ( desktop_mode_is_enabled() ) {
 		return ltrim( $classes . ' wp-desktop-active' );
 	}
 
 	return $classes;
 }
-add_filter( 'admin_body_class', 'wpdm_admin_body_classes' );
+add_filter( 'admin_body_class', 'desktop_mode_admin_body_classes' );
 
 /**
  * Enqueues the desktop mode shell assets (CSS + JS) when desktop mode is active.
@@ -49,7 +49,7 @@ add_filter( 'admin_body_class', 'wpdm_admin_body_classes' );
  *
  * @since 0.1.0
  */
-function wpdm_enqueue_assets() {
+function desktop_mode_enqueue_assets() {
 	if ( ! is_admin() ) {
 		return;
 	}
@@ -64,12 +64,12 @@ function wpdm_enqueue_assets() {
 	// auto-enqueue, the API is universally present for any same-
 	// origin admin page a desktop-mode user opens — chromeless or
 	// accidentally classic.
-	if ( wpdm_is_enabled() ) {
+	if ( desktop_mode_is_enabled() ) {
 		wp_enqueue_script( 'wp-desktop-iframe-bridge' );
 	}
 
 	// Chromeless requests (iframes) need chromeless styles and overrides.
-	if ( wpdm_is_chromeless_request() ) {
+	if ( desktop_mode_is_chromeless_request() ) {
 		wp_enqueue_style( 'wp-desktop' );
 		wp_enqueue_style( 'wp-desktop-chromeless' );
 
@@ -82,11 +82,11 @@ function wpdm_enqueue_assets() {
 		 *
 		 * @since 0.1.0
 		 */
-		do_action( 'wp_desktop_chromeless_styles' );
+		do_action( 'desktop_mode_chromeless_styles' );
 		return;
 	}
 
-	if ( ! wpdm_is_enabled() || wpdm_is_classic_request() ) {
+	if ( ! desktop_mode_is_enabled() || desktop_mode_is_classic_request() ) {
 		return;
 	}
 
@@ -115,12 +115,12 @@ function wpdm_enqueue_assets() {
 	// Build dock items from the admin menu, then split by placement.
 	// Core pages (Dashboard, Posts, Plugins, Users, Settings, …) go
 	// to the left-edge dock; installed-plugin top-level routes go to
-	// the bottom taskbar. `wpdm_is_core_menu_slug` is the heuristic;
-	// `wp_desktop_dock_placement` is the per-item filter escape hatch.
-	// `wpdm_build_menu_payload` is shared with the REST menu endpoint
+	// the bottom taskbar. `desktop_mode_is_core_menu_slug` is the heuristic;
+	// `desktop_mode_dock_placement` is the per-item filter escape hatch.
+	// `desktop_mode_build_menu_payload` is shared with the REST menu endpoint
 	// so a live refresh (post plugin-activation) produces the same
 	// split the boot payload did.
-	$menu_payload    = wpdm_build_menu_payload();
+	$menu_payload    = desktop_mode_build_menu_payload();
 	$dock_items      = $menu_payload['dockItems'];
 	$taskbar_items   = $menu_payload['taskbarItems'];
 	$native_windows  = isset( $menu_payload['nativeWindows'] )
@@ -156,10 +156,10 @@ function wpdm_enqueue_assets() {
 	// for the same page — otherwise auto-opening the entry window and
 	// clicking the same dock icon would create a duplicate.
 	$current_query = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	unset( $current_query[ WPDM_PORTAL_FLAG ] );
+	unset( $current_query[ DESKTOP_MODE_PORTAL_FLAG ] );
 	$current_page = admin_url( $pagenow ) . ( ! empty( $current_query ) ? '?' . http_build_query( $current_query ) : '' );
 
-	$from_portal = ! empty( $_GET[ WPDM_PORTAL_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$from_portal = ! empty( $_GET[ DESKTOP_MODE_PORTAL_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 	/**
 	 * Filters the desktop shell configuration passed to JavaScript.
@@ -175,18 +175,18 @@ function wpdm_enqueue_assets() {
 	 *     @type string $adminUrl     The base admin URL.
 	 *     @type string $colorScheme  The active admin color scheme.
 	 *     @type array  $dockItems    Dock items derived from the admin menu, filtered to CORE WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…).
-	 *     @type array  $taskbarItems Plugin-contributed top-level menu items (admin.php?page=*). Rendered in the bottom taskbar — see `wpdm_dock_placement` + `wp_desktop_dock_placement` for the routing heuristic.
-	 *     @type array  $nativeWindows Server-declared native windows (via `wp_register_desktop_window`). Shell registers + syncs tiles based on this list — activation/deactivation is a diff without shell reload.
-	 *     @type array  $serverWidgets Server-declared right-column widgets (via `wp_register_desktop_widget`). Shell syncs the widget registry + dynamically loads plugin scripts so widgets appear in the picker without a shell reload.
-	 *     @type array  $serverWallpapers Server-declared wallpapers (via `wp_register_desktop_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.wpDesktopWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
-	 *     @type array  $serverCommandScripts Script handles opted-in via `wp_desktop_register_command_script`. Shell injects each URL on activation so commands registered by `wp.desktop.registerCommand` appear in the palette live. Deactivation unregisters any commands whose `owner` matches the departing handle.
-	 *     @type array  $serverCommands   Server-declared command metadata (via `wp_register_desktop_command`). Advisory today — reserved for future pre-registration shims.
-	 *     @type array  $serverSettingsTabScripts Script handles opted-in via `wp_desktop_register_settings_tab_script`. Shell injects each URL on activation so tabs registered by `wp.desktop.registerSettingsTab` appear in the OS Settings window live. Deactivation unregisters tabs attributable to the departing handle.
-	 *     @type array  $serverSettingsTabs Server-declared settings-tab metadata (via `wp_register_desktop_settings_tab`). Enables live unregistration on plugin deactivation without requiring JS to set `owner`.
-	 *     @type array  $desktopIcons     Server-declared desktop icons (via `wp_register_desktop_icon`). Rendered on the wallpaper as clickable shortcut tiles.
-	 *     @type array  $accentColors     Swatch list for the OS Settings accent picker. Filterable via `wp_desktop_accent_colors`.
-	 *     @type array  $toastTypes       Toast-notification type map. Filterable via `wp_desktop_toast_types`.
-	 *     @type string $defaultWallpaper Wallpaper slug applied on first boot. Filterable via `wp_desktop_default_wallpaper`.
+	 *     @type array  $taskbarItems Plugin-contributed top-level menu items (admin.php?page=*). Rendered in the bottom taskbar — see `desktop_mode_dock_placement` + `desktop_mode_dock_placement` for the routing heuristic.
+	 *     @type array  $nativeWindows Server-declared native windows (via `desktop_mode_register_window`). Shell registers + syncs tiles based on this list — activation/deactivation is a diff without shell reload.
+	 *     @type array  $serverWidgets Server-declared right-column widgets (via `desktop_mode_register_widget`). Shell syncs the widget registry + dynamically loads plugin scripts so widgets appear in the picker without a shell reload.
+	 *     @type array  $serverWallpapers Server-declared wallpapers (via `desktop_mode_register_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.wpDesktopWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
+	 *     @type array  $serverCommandScripts Script handles opted-in via `desktop_mode_register_command_script`. Shell injects each URL on activation so commands registered by `wp.desktop.registerCommand` appear in the palette live. Deactivation unregisters any commands whose `owner` matches the departing handle.
+	 *     @type array  $serverCommands   Server-declared command metadata (via `desktop_mode_register_command`). Advisory today — reserved for future pre-registration shims.
+	 *     @type array  $serverSettingsTabScripts Script handles opted-in via `desktop_mode_register_settings_tab_script`. Shell injects each URL on activation so tabs registered by `wp.desktop.registerSettingsTab` appear in the OS Settings window live. Deactivation unregisters tabs attributable to the departing handle.
+	 *     @type array  $serverSettingsTabs Server-declared settings-tab metadata (via `desktop_mode_register_settings_tab`). Enables live unregistration on plugin deactivation without requiring JS to set `owner`.
+	 *     @type array  $desktopIcons     Server-declared desktop icons (via `desktop_mode_register_icon`). Rendered on the wallpaper as clickable shortcut tiles.
+	 *     @type array  $accentColors     Swatch list for the OS Settings accent picker. Filterable via `desktop_mode_accent_colors`.
+	 *     @type array  $toastTypes       Toast-notification type map. Filterable via `desktop_mode_toast_types`.
+	 *     @type string $defaultWallpaper Wallpaper slug applied on first boot. Filterable via `desktop_mode_default_wallpaper`.
 	 *     @type array  $session      Saved session (windows, focused, updated).
 	 *     @type string $sessionUrl       REST endpoint for saving the session.
 	 *     @type string $mediaUrl         REST endpoint for media uploads (wp/v2/media).
@@ -201,7 +201,7 @@ function wpdm_enqueue_assets() {
 	 * }
 	 */
 	$config = apply_filters(
-		'wp_desktop_shell_config',
+		'desktop_mode_shell_config',
 		array(
 			'currentPage'      => esc_url( $current_page ),
 			'currentTitle'     => wp_strip_all_tags( $title ),
@@ -219,34 +219,34 @@ function wpdm_enqueue_assets() {
 			'serverSettingsTabs' => $server_settings_tabs,
 			'serverTitleBarButtonScripts' => $server_titlebar_button_scripts,
 			'desktopIcons'     => $desktop_icons,
-			'accentColors'     => wpdm_get_accent_colors(),
-			'toastTypes'       => wpdm_get_toast_types(),
-			'defaultWallpaper' => wpdm_get_default_wallpaper(),
-			'session'          => wpdm_get_session( get_current_user_id() ),
+			'accentColors'     => desktop_mode_get_accent_colors(),
+			'toastTypes'       => desktop_mode_get_toast_types(),
+			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),
+			'session'          => desktop_mode_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'wp-desktop/v1/session' ) ),
 			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),
 			'menuUrl'          => esc_url_raw( rest_url( 'wp-desktop/v1/menu' ) ),
 			'defaultWindowUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/default-window' ) ),
-			'defaultWindow'    => wpdm_get_default_window( get_current_user_id() ),
+			'defaultWindow'    => desktop_mode_get_default_window( get_current_user_id() ),
 			'canUpload'        => current_user_can( 'upload_files' ),
-			'pluginUrl'        => esc_url_raw( untrailingslashit( WPDM_URL ) ),
+			'pluginUrl'        => esc_url_raw( untrailingslashit( DESKTOP_MODE_URL ) ),
 			'iframeBridgeUrl'  => esc_url_raw(
-				WPDM_URL . 'assets/js/iframe-bridge'
+				DESKTOP_MODE_URL . 'assets/js/iframe-bridge'
 				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
-				. '.js?ver=' . WPDM_VERSION
+				. '.js?ver=' . DESKTOP_MODE_VERSION
 			),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
-			'osSettings'            => wpdm_get_os_settings( get_current_user_id() ),
+			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/os-settings' ) ),
 			'aiSearchUrl'           => esc_url_raw( rest_url( 'wp-desktop/v1/ai/search' ) ),
-			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'wpdm_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
-			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? wpdm_ai_get_platform_settings() : null,
+			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
+			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? desktop_mode_ai_get_platform_settings() : null,
 			'aiPlatformSettingsUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/ai/platform-settings' ) ),
-			'aiProviders'           => wpdm_ai_get_providers_for_config(),
-			'extendedOptions'       => current_user_can( 'manage_options' ) ? wpdm_get_extended_options() : null,
+			'aiProviders'           => desktop_mode_ai_get_providers_for_config(),
+			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/extended-options' ) ),
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
-			'portalUrl'        => esc_url( wpdm_portal_url() ),
+			'portalUrl'        => esc_url( desktop_mode_portal_url() ),
 			'fromPortal'       => $from_portal,
 		)
 	);
@@ -258,9 +258,9 @@ function wpdm_enqueue_assets() {
 	 *
 	 * @since 0.1.0
 	 */
-	do_action( 'wp_desktop_mode_init' );
+	do_action( 'desktop_mode_mode_init' );
 }
-add_action( 'admin_enqueue_scripts', 'wpdm_enqueue_assets' );
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
 
 /**
  * Injects the desktop shell markup into the admin page.
@@ -273,8 +273,8 @@ add_action( 'admin_enqueue_scripts', 'wpdm_enqueue_assets' );
  *
  * @since 0.1.0
  */
-function wpdm_render_shell() {
-	if ( wpdm_is_chromeless_request() || ! wpdm_is_enabled() || wpdm_is_classic_request() ) {
+function desktop_mode_render_shell() {
+	if ( desktop_mode_is_chromeless_request() || ! desktop_mode_is_enabled() || desktop_mode_is_classic_request() ) {
 		return;
 	}
 
@@ -283,7 +283,7 @@ function wpdm_render_shell() {
 	 *
 	 * @since 0.1.0
 	 */
-	do_action( 'wp_desktop_shell_before' );
+	do_action( 'desktop_mode_shell_before' );
 
 	// Stamp the user's admin color scheme onto the shell root so the
 	// variables.css per-scheme selectors kick in before first paint —
@@ -344,9 +344,9 @@ function wpdm_render_shell() {
 	 *
 	 * @since 0.1.0
 	 */
-	do_action( 'wp_desktop_shell_after' );
+	do_action( 'desktop_mode_shell_after' );
 }
-add_action( 'in_admin_header', 'wpdm_render_shell', 5 );
+add_action( 'in_admin_header', 'desktop_mode_render_shell', 5 );
 
 /**
  * Forces Gutenberg out of fullscreen mode and dismisses welcome guides
@@ -377,8 +377,8 @@ add_action( 'in_admin_header', 'wpdm_render_shell', 5 );
  *
  * @since 0.1.0
  */
-function wpdm_chromeless_editor_preferences() {
-	if ( ! wpdm_is_chromeless_request() ) {
+function desktop_mode_chromeless_editor_preferences() {
+	if ( ! desktop_mode_is_chromeless_request() ) {
 		return;
 	}
 
@@ -449,7 +449,7 @@ JS;
 	wp_add_inline_script( 'wp-edit-site', $script, 'after' );
 	wp_add_inline_script( 'wp-edit-widgets', $script, 'after' );
 }
-add_action( 'enqueue_block_editor_assets', 'wpdm_chromeless_editor_preferences' );
+add_action( 'enqueue_block_editor_assets', 'desktop_mode_chromeless_editor_preferences' );
 
 /**
  * Outputs the chromeless screen-meta bridge script.
@@ -461,8 +461,8 @@ add_action( 'enqueue_block_editor_assets', 'wpdm_chromeless_editor_preferences' 
  *
  * @since 0.1.0
  */
-function wpdm_chromeless_bridge_script() {
-	if ( ! wpdm_is_chromeless_request() ) {
+function desktop_mode_chromeless_bridge_script() {
+	if ( ! desktop_mode_is_chromeless_request() ) {
 		return;
 	}
 
@@ -473,7 +473,7 @@ function wpdm_chromeless_bridge_script() {
 	 *
 	 * @param string $hook_suffix The current admin page hook suffix.
 	 */
-	do_action( 'wp_desktop_chromeless_after', isset( $GLOBALS['hook_suffix'] ) ? $GLOBALS['hook_suffix'] : '' );
+	do_action( 'desktop_mode_chromeless_after', isset( $GLOBALS['hook_suffix'] ) ? $GLOBALS['hook_suffix'] : '' );
 
 	// Menu payload — built from the LIVE $menu / $submenu globals
 	// populated by real admin-context bootstrapping. We capture it here
@@ -502,7 +502,7 @@ function wpdm_chromeless_bridge_script() {
 			true
 		)
 	) {
-		$encoded = wp_json_encode( wpdm_build_menu_payload() );
+		$encoded = wp_json_encode( desktop_mode_build_menu_payload() );
 		if ( false !== $encoded ) {
 			$menu_payload_json = $encoded;
 		}
@@ -524,7 +524,7 @@ function wpdm_chromeless_bridge_script() {
 			var here = new URL( window.location.href );
 			if ( here.searchParams.has( 'wp_desktop' ) ) {
 				here.searchParams.delete( 'wp_desktop' );
-				here.searchParams.delete( 'wp_desktop_portal' );
+				here.searchParams.delete( 'desktop_mode_portal' );
 				window.location.replace( here.toString() );
 			}
 		} catch ( err ) {
@@ -1910,19 +1910,19 @@ JS;
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_footer', 'wpdm_chromeless_bridge_script' );
+add_action( 'admin_footer', 'desktop_mode_chromeless_bridge_script' );
 
 /**
  * Outputs a same-origin admin link/form rewriter for detached ("classic
  * override") tabs.
  *
  * Without this, the first navigation after a detach drops the
- * `wp_desktop_classic=1` flag and the next page falls back to the
+ * `desktop_mode_classic=1` flag and the next page falls back to the
  * desktop shell — because the user meta is still `'1'` and the
  * `admin_init` portal redirect kicks in. The JS here re-stamps the flag
  * on every same-origin `/wp-admin/` `<a href>` and `<form action>` so
  * navigations within the tab stay classic. Server-side redirects are
- * covered by {@see wpdm_classic_preserve_redirect}.
+ * covered by {@see desktop_mode_classic_preserve_redirect}.
  *
  * Narrowly scoped: only runs when the current request itself carries
  * the classic flag. Skips modifier-clicks (cmd/ctrl/shift/alt), targets
@@ -1931,12 +1931,12 @@ add_action( 'admin_footer', 'wpdm_chromeless_bridge_script' );
  *
  * @since 0.4.0
  */
-function wpdm_classic_link_interceptor() {
-	if ( ! wpdm_is_classic_request() ) {
+function desktop_mode_classic_link_interceptor() {
+	if ( ! desktop_mode_is_classic_request() ) {
 		return;
 	}
 
-	$flag_literal = wp_json_encode( WPDM_CLASSIC_FLAG );
+	$flag_literal = wp_json_encode( DESKTOP_MODE_CLASSIC_FLAG );
 
 	$js = "
 ( function () {
@@ -2007,4 +2007,4 @@ function wpdm_classic_link_interceptor() {
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_footer', 'wpdm_classic_link_interceptor' );
+add_action( 'admin_footer', 'desktop_mode_classic_link_interceptor' );

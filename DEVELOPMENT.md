@@ -94,7 +94,7 @@ public _privateField: Map< string, unknown > = new Map();
 ## Adding a new hook
 
 1. **Name it.** Convention: `wp-desktop.<domain>.<event>` (JS) or
-   `wp_desktop_<domain>_<event>` (PHP). Add the constant to the `HOOKS`
+   `desktop_mode_<domain>_<event>` (PHP). Add the constant to the `HOOKS`
    enum in `src/hooks.ts` with a JSDoc describing payload + timing.
 2. **Fire it.** `doAction( HOOKS.NEW_THING, payload )` for actions or
    `applyFilters( HOOKS.NEW_THING, value, context )` for filters.

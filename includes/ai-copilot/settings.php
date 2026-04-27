@@ -2,7 +2,7 @@
 /**
  * Desktop Mode — AI Copilot settings helpers.
  *
- * Thin wrappers around `wpdm_get_os_settings()` scoped to the AI block.
+ * Thin wrappers around `desktop_mode_get_os_settings()` scoped to the AI block.
  * All other copilot modules call these instead of reading user meta
  * directly so the key path is one place to change.
  *
@@ -19,8 +19,8 @@ defined( 'ABSPATH' ) || exit;
  * @param int $user_id
  * @return array{ enabled: bool, provider: string, apiKey: string }
  */
-function wpdm_ai_get_settings( $user_id ) {
-	$os = wpdm_get_os_settings( (int) $user_id );
+function desktop_mode_ai_get_settings( $user_id ) {
+	$os = desktop_mode_get_os_settings( (int) $user_id );
 	$defaults = array(
 		'enabled'  => false,
 		'provider' => 'openai',
@@ -44,26 +44,26 @@ function wpdm_ai_get_settings( $user_id ) {
  * @param int $user_id
  * @return bool
  */
-function wpdm_ai_is_enabled( $user_id ) {
+function desktop_mode_ai_is_enabled( $user_id ) {
 	$user_id  = (int) $user_id;
-	$platform = wpdm_ai_get_platform_settings();
-	$active   = function_exists( 'wp_desktop_ai_get_active_provider_id' )
-		? wp_desktop_ai_get_active_provider_id( $user_id )
+	$platform = desktop_mode_ai_get_platform_settings();
+	$active   = function_exists( 'desktop_mode_ai_get_active_provider_id' )
+		? desktop_mode_ai_get_active_provider_id( $user_id )
 		: 'openai';
 
 	// 1. Platform key — works for any user, including anonymous contexts.
 	// Resolve via the per-provider map first, then fall back to the
 	// legacy single `apiKey` field (which is treated as the openai key).
-	if ( ! empty( $platform['enabled'] ) && '' !== wpdm_ai_resolve_key_for_provider( $platform, $active ) ) {
+	if ( ! empty( $platform['enabled'] ) && '' !== desktop_mode_ai_resolve_key_for_provider( $platform, $active ) ) {
 		return true;
 	}
 
 	// 2. Per-user override.
-	$ai = wpdm_ai_get_settings( $user_id );
+	$ai = desktop_mode_ai_get_settings( $user_id );
 	if ( empty( $ai['enabled'] ) ) {
 		return false;
 	}
-	if ( '' === wpdm_ai_resolve_key_for_provider( $ai, $active ) ) {
+	if ( '' === desktop_mode_ai_resolve_key_for_provider( $ai, $active ) ) {
 		return false;
 	}
 
@@ -82,7 +82,7 @@ function wpdm_ai_is_enabled( $user_id ) {
  * @param string $provider_id Provider id to resolve for.
  * @return string Trimmed API key, or '' if none.
  */
-function wpdm_ai_resolve_key_for_provider( array $settings, $provider_id ) {
+function desktop_mode_ai_resolve_key_for_provider( array $settings, $provider_id ) {
 	$provider_id = (string) $provider_id;
 	$keys        = isset( $settings['apiKeys'] ) && is_array( $settings['apiKeys'] ) ? $settings['apiKeys'] : array();
 
@@ -109,20 +109,20 @@ function wpdm_ai_resolve_key_for_provider( array $settings, $provider_id ) {
  * @param int $user_id
  * @return string API key, or empty string if none configured.
  */
-function wpdm_ai_get_api_key( $user_id ) {
+function desktop_mode_ai_get_api_key( $user_id ) {
 	$user_id = (int) $user_id;
-	$active  = function_exists( 'wp_desktop_ai_get_active_provider_id' )
-		? wp_desktop_ai_get_active_provider_id( $user_id )
+	$active  = function_exists( 'desktop_mode_ai_get_active_provider_id' )
+		? desktop_mode_ai_get_active_provider_id( $user_id )
 		: 'openai';
 
 	// Per-user override takes precedence.
-	$ai  = wpdm_ai_get_settings( $user_id );
-	$key = wpdm_ai_resolve_key_for_provider( $ai, $active );
+	$ai  = desktop_mode_ai_get_settings( $user_id );
+	$key = desktop_mode_ai_resolve_key_for_provider( $ai, $active );
 	if ( '' !== $key ) {
 		return $key;
 	}
 
 	// Fall back to platform key.
-	$platform = wpdm_ai_get_platform_settings();
-	return wpdm_ai_resolve_key_for_provider( $platform, $active );
+	$platform = desktop_mode_ai_get_platform_settings();
+	return desktop_mode_ai_resolve_key_for_provider( $platform, $active );
 }

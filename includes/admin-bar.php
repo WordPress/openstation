@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @param WP_Admin_Bar $wp_admin_bar The WP_Admin_Bar instance.
  */
-function wpdm_admin_bar_toggle( $wp_admin_bar ) {
+function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
@@ -28,14 +28,14 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 	// "Active" means "the user is *currently viewing* desktop mode",
 	// not "the preference is enabled in user meta." These diverge on
 	// requests carrying the per-request classic override
-	// (`?wp_desktop_classic=1`) — the user's meta may be '1' but the
+	// (`?desktop_mode_classic=1`) — the user's meta may be '1' but the
 	// page they're looking at right now is classic admin. If we went
 	// by meta alone, the toggle here would read "Switch to Classic
 	// Admin" on a page that's already classic, and the user's first
 	// click would disable desktop mode entirely (redirecting to
 	// classic admin) instead of taking them back into the shell.
 	// The second click would then re-enable it — a two-click trap.
-	$is_active = wpdm_is_enabled() && ! wpdm_is_classic_request();
+	$is_active = desktop_mode_is_enabled() && ! desktop_mode_is_classic_request();
 	$label     = $is_active
 		? __( 'Switch to Classic Admin', 'desktop-mode' )
 		: __( 'Switch to Desktop Mode', 'desktop-mode' );
@@ -58,7 +58,7 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 	// AI Assistant trigger — shown when desktop mode is active AND the
 	// current user has AI features configured. Clicking (or pressing
 	// Cmd+K anywhere) opens the spotlight-style AI overlay.
-	if ( $is_active && function_exists( 'wpdm_ai_is_enabled' ) && wpdm_ai_is_enabled( get_current_user_id() ) ) {
+	if ( $is_active && function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
 		// Use dashicons-admin-comments (speech bubble) — same rendering
 		// path as the toggle + arrange buttons, no SVG / HTML parsing
 		// issues in the admin-bar context. The ⌘K badge is added via
@@ -177,7 +177,7 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 		 *
 		 * @param array $items Existing custom items (default empty).
 		 */
-		$custom = apply_filters( 'wp_desktop_arrange_menu_items', array() );
+		$custom = apply_filters( 'desktop_mode_arrange_menu_items', array() );
 		if ( is_array( $custom ) ) {
 			// Stable sort by `position` (default 10 — after built-ins),
 			// preserving registration order within a tie.
@@ -232,7 +232,7 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 		}
 	}
 }
-add_action( 'admin_bar_menu', 'wpdm_admin_bar_toggle', 190 );
+add_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle', 190 );
 
 /**
  * Enqueues the inline CSS and JS for the desktop mode toggle.
@@ -242,7 +242,7 @@ add_action( 'admin_bar_menu', 'wpdm_admin_bar_toggle', 190 );
  *
  * @since 0.1.0
  */
-function wpdm_enqueue_toggle_assets() {
+function desktop_mode_enqueue_toggle_assets() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
@@ -380,16 +380,16 @@ function wpdm_enqueue_toggle_assets() {
 	// raw into the script body) so special characters, quotes, and
 	// unexpected shapes can't break the parser or be exploited.
 	// `active` must match the visual state shown on the toggle above —
-	// i.e. "currently viewing desktop mode." Using `wpdm_is_enabled()`
+	// i.e. "currently viewing desktop mode." Using `desktop_mode_is_enabled()`
 	// alone would misclassify a classic-override request (meta = '1',
-	// URL carrying `wp_desktop_classic=1`) as active, causing the
+	// URL carrying `desktop_mode_classic=1`) as active, causing the
 	// click handler to send `enabled=0` when the user actually wants
 	// to return to the shell.
 	wp_register_script(
 		'wpdm-admin-bar',
-		WPDM_URL . 'assets/js/admin-bar.js',
+		DESKTOP_MODE_URL . 'assets/js/admin-bar.js',
 		array( 'admin-bar' ),
-		WPDM_VERSION,
+		DESKTOP_MODE_VERSION,
 		true
 	);
 	// Emit the config as a JSON literal via wp_add_inline_script (not
@@ -401,9 +401,9 @@ function wpdm_enqueue_toggle_assets() {
 		'var wpDesktopAdminBar = ' . wp_json_encode(
 			array(
 				'nonce'      => wp_create_nonce( 'save-desktop-mode' ),
-				'active'     => wpdm_is_enabled() && ! wpdm_is_classic_request(),
+				'active'     => desktop_mode_is_enabled() && ! desktop_mode_is_classic_request(),
 				'classicUrl' => esc_url_raw( admin_url() ),
-				'portalUrl'  => esc_url_raw( wpdm_portal_url() ),
+				'portalUrl'  => esc_url_raw( desktop_mode_portal_url() ),
 				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
 			)
 		) . ';',
@@ -411,5 +411,5 @@ function wpdm_enqueue_toggle_assets() {
 	);
 	wp_enqueue_script( 'wpdm-admin-bar' );
 }
-add_action( 'admin_enqueue_scripts', 'wpdm_enqueue_toggle_assets' );
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_toggle_assets' );
 

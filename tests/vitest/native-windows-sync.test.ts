@@ -4,7 +4,7 @@
  * tile section) against the server's `nativeWindows` payload.
  *
  * The bug class this file guards against: a plugin that registers a
- * `wp_register_desktop_window( ... 'placement' => 'taskbar' )` should
+ * `desktop_mode_register_window( ... 'placement' => 'taskbar' )` should
  * appear on the bottom bar the moment it's activated from the
  * chromeless plugins.php iframe, and disappear the moment it's
  * deactivated — both without a page reload. The `applyPayload` path

@@ -200,7 +200,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		const payload = evt!.args[ 0 ] as { windowId: string; url: string };
 		expect( payload.windowId ).toBe( 'posts' );
 		expect( payload.url ).not.toContain( 'wp_desktop=1' );
-		expect( payload.url ).toContain( 'wp_desktop_classic=1' );
+		expect( payload.url ).toContain( 'desktop_mode_classic=1' );
 
 		openSpy.mockRestore();
 	} );

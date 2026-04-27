@@ -17,7 +17,7 @@
  * This endpoint is the refresh path: the chromeless bridge in
  * `render.php` postMessages `wp-desktop-plugins-changed` when the
  * activation redirect lands, and the shell fetches here to get the
- * fresh split. Shared underlying builder (`wpdm_build_menu_payload`)
+ * fresh split. Shared underlying builder (`desktop_mode_build_menu_payload`)
  * guarantees the live payload matches the boot payload.
  *
  * @package WPDesktopMode
@@ -31,13 +31,13 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.9.0
  */
-function wpdm_register_menu_route() {
+function desktop_mode_register_menu_route() {
 	register_rest_route(
 		'wp-desktop/v1',
 		'/menu',
 		array(
 			'methods'             => 'GET',
-			'callback'            => 'wpdm_rest_get_menu',
+			'callback'            => 'desktop_mode_rest_get_menu',
 			'permission_callback' => function () {
 				// `read` is the floor for any wp-admin access, which is
 				// what the shell represents. Anything stricter would
@@ -48,21 +48,21 @@ function wpdm_register_menu_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'wpdm_register_menu_route' );
+add_action( 'rest_api_init', 'desktop_mode_register_menu_route' );
 
 /**
  * REST callback: returns the current menu split.
  *
  * Bootstraps the admin menu first — REST requests don't load
  * `wp-admin/menu.php`, so the `$menu` / `$submenu` globals are empty
- * by default and `wpdm_build_menu_payload()` would return an empty
+ * by default and `desktop_mode_build_menu_payload()` would return an empty
  * split. Without the bootstrap, the shell's live-refresh path (fired
  * after the user activates a plugin inside a windowed `plugins.php`)
  * would call `replaceItems([])` on both the dock + taskbar and wipe
  * every icon from the sidebar. We saw exactly that regression in the
  * wild before this fix landed.
  *
- * Always goes through `wpdm_build_menu_payload()` so every piece of
+ * Always goes through `desktop_mode_build_menu_payload()` so every piece of
  * routing logic (core heuristic, per-item filter, capability checks,
  * badge counts) is applied exactly once, in the same order as the
  * shell's initial render.
@@ -71,9 +71,9 @@ add_action( 'rest_api_init', 'wpdm_register_menu_route' );
  *
  * @return WP_REST_Response Payload with `dockItems` + `taskbarItems`.
  */
-function wpdm_rest_get_menu() {
-	wpdm_bootstrap_admin_menu_for_rest();
-	return rest_ensure_response( wpdm_build_menu_payload() );
+function desktop_mode_rest_get_menu() {
+	desktop_mode_bootstrap_admin_menu_for_rest();
+	return rest_ensure_response( desktop_mode_build_menu_payload() );
 }
 
 /**
@@ -105,7 +105,7 @@ function wpdm_rest_get_menu() {
  *
  * @since 0.9.0
  */
-function wpdm_bootstrap_admin_menu_for_rest() {
+function desktop_mode_bootstrap_admin_menu_for_rest() {
 	if ( ! empty( $GLOBALS['menu'] ) ) {
 		return;
 	}

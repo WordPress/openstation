@@ -3,8 +3,8 @@
  *
  * Mirrors `src/commands/server-sync.ts` for the settings-tab registry.
  * Plugins opt in server-side with
- * `wp_desktop_register_settings_tab_script()` (and optionally
- * `wp_register_desktop_settings_tab()`); this module receives the
+ * `desktop_mode_register_settings_tab_script()` (and optionally
+ * `desktop_mode_register_settings_tab()`); this module receives the
  * current list of registered script URLs on every live refresh and:
  *
  *   - Injects each new `scriptUrl` into the shell page via
@@ -19,7 +19,7 @@
  *          `registerSettingsTab({ …, owner: 'my-script-handle' })`.
  *       2. The id↔handle mapping captured from the *previous*
  *          `serverSettingsTabs` payload. Plugins that declare
- *          metadata via `wp_register_desktop_settings_tab()` with a
+ *          metadata via `desktop_mode_register_settings_tab()` with a
  *          `script` arg get this for free — no JS change required.
  *
  *     Plugins using neither mechanism keep their tabs until the next

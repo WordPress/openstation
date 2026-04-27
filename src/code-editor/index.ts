@@ -222,7 +222,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 	// Resolve the desktop Window once — used to update the window's
 	// chrome title with the active file's name + dirty marker. Lookup
-	// is by id (matches the `wp_register_desktop_window( 'wpdc-editor' )`
+	// is by id (matches the `desktop_mode_register_window( 'wpdc-editor' )`
 	// registration). Falls back to a no-op if the global API isn't
 	// available (e.g. tests that mount the editor in isolation).
 	const setWindowTitle = ( title: string ): void => {

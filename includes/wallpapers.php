@@ -4,7 +4,7 @@
  *
  * The five gradient / solid presets that ship with the plugin, each
  * registered through the same public API third-party plugins use
- * (`wp_register_desktop_wallpaper()`). Dogfooding the registration
+ * (`desktop_mode_register_wallpaper()`). Dogfooding the registration
  * surface for the built-ins is how we discover whether the API is
  * expressive enough for plugin authors — if we couldn't describe our
  * own presets through it, the API is broken.
@@ -13,7 +13,7 @@
  * before the shell config is built (shell render runs on
  * `admin_enqueue_scripts`, which fires after `init`), and before any
  * late third-party plugin that wants to react via the
- * `wp_desktop_wallpaper_registered` action.
+ * `desktop_mode_wallpaper_registered` action.
  *
  * @package WPDesktopMode
  * @since   0.11.0
@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.11.0
  */
-function wpdm_register_builtin_wallpapers() {
+function desktop_mode_register_builtin_wallpapers() {
 	$presets = array(
 		array(
 			'id'    => 'dark',
@@ -56,7 +56,7 @@ function wpdm_register_builtin_wallpapers() {
 	);
 
 	foreach ( $presets as $preset ) {
-		wp_register_desktop_wallpaper( $preset['id'], array(
+		desktop_mode_register_wallpaper( $preset['id'], array(
 			'label'   => $preset['label'],
 			'preview' => $preset['value'],
 			'value'   => $preset['value'],
@@ -64,4 +64,4 @@ function wpdm_register_builtin_wallpapers() {
 		) );
 	}
 }
-add_action( 'init', 'wpdm_register_builtin_wallpapers', 5 );
+add_action( 'init', 'desktop_mode_register_builtin_wallpapers', 5 );

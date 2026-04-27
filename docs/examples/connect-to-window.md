@@ -40,7 +40,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
 // Tell the shell our titlebar script registers buttons — gets the
 // live-refresh injection on plugin activation.
-wp_desktop_register_titlebar_button_script( 'my-plugin-titlebar' );
+desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
 
 ## 2. Parent-side — register the button

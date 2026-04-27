@@ -952,8 +952,8 @@ export class Window {
 	 * wp-admin.
 	 *
 	 * Strips the chromeless `wp_desktop` flag and the transient
-	 * `wp_desktop_portal` flag, and tags the URL with
-	 * `wp_desktop_classic=1` so the server-side admin_init redirect
+	 * `desktop_mode_portal` flag, and tags the URL with
+	 * `desktop_mode_classic=1` so the server-side admin_init redirect
 	 * (which otherwise forwards plain admin URLs to `/wp-desktop/`)
 	 * lets the request through. The tag only has to survive the first
 	 * request; once the browser renders the page, the user's in-tab
@@ -974,8 +974,8 @@ export class Window {
 			return;
 		}
 		url.searchParams.delete( 'wp_desktop' );
-		url.searchParams.delete( 'wp_desktop_portal' );
-		url.searchParams.set( 'wp_desktop_classic', '1' );
+		url.searchParams.delete( 'desktop_mode_portal' );
+		url.searchParams.set( 'desktop_mode_classic', '1' );
 
 		// `noopener` is required for security (tabs should not be able
 		// to reach back into window.opener), and it also lets the

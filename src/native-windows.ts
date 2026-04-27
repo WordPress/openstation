@@ -13,7 +13,7 @@
  *   - {@link cloneTemplate} → a tiny `<template>` cloner. The shell
  *     uses it internally to populate every native window's body with
  *     the registered template before invoking the render callback,
- *     so plugin authors using `wp_register_desktop_window()` don't
+ *     so plugin authors using `desktop_mode_register_window()` don't
  *     touch this directly. Exported for advanced cases that want to
  *     re-clone (e.g. dynamic per-row templates, custom hydration
  *     flows outside the standard pipeline).
@@ -553,7 +553,7 @@ export function onWindow(
  *
  * Mutually exclusive with the legacy JS-only path (a plugin calling
  * `wp.desktop.registerSystemTile` directly). Plugins that use
- * `wp_register_desktop_window()` get this automatic lifecycle;
+ * `desktop_mode_register_window()` get this automatic lifecycle;
  * plugins that stick to the JS-only path self-manage their tiles.
  *
  * @public

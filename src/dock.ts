@@ -61,7 +61,7 @@ export interface DockItem {
 	multi?: boolean;
 	/**
 	 * Which rail the item was routed to by the PHP-side heuristic
-	 * (`wpdm_dock_placement`). `'dock'` = core WP menus on the
+	 * (`desktop_mode_dock_placement`). `'dock'` = core WP menus on the
 	 * left-edge dock; `'taskbar'` = plugin-contributed top-level
 	 * menus on the bottom taskbar. Currently informational — the
 	 * shell splits items by this field in `desktop.ts` before
