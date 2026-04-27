@@ -7,7 +7,7 @@
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel López Sánchez
- * Author URI:        https://github.com/WordPress/desktop-mode
+ * Author URI:        https://github.com/allterraindeveloper
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode
