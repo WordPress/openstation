@@ -169,7 +169,7 @@ function wpdc_resolve_path( $rel_path ) {
 	if ( '' === $root ) {
 		return new WP_Error(
 			'wpdc_no_workspace',
-			__( 'Code editor workspace root is not configured or could not be resolved.', 'wp-desktop-mode' ),
+			__( 'Code editor workspace root is not configured or could not be resolved.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
@@ -193,7 +193,7 @@ function wpdc_resolve_path( $rel_path ) {
 	if ( preg_match( '/[\\x00-\\x1f]/', $rel_path ) ) {
 		return new WP_Error(
 			'wpdc_path_invalid',
-			__( 'Path contains control characters.', 'wp-desktop-mode' ),
+			__( 'Path contains control characters.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -203,7 +203,7 @@ function wpdc_resolve_path( $rel_path ) {
 	if ( false === $resolved ) {
 		return new WP_Error(
 			'wpdc_path_not_found',
-			__( 'Path does not exist or is not accessible.', 'wp-desktop-mode' ),
+			__( 'Path does not exist or is not accessible.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
@@ -219,7 +219,7 @@ function wpdc_resolve_path( $rel_path ) {
 	) {
 		return new WP_Error(
 			'wpdc_path_outside_workspace',
-			__( 'Path resolves outside the workspace root.', 'wp-desktop-mode' ),
+			__( 'Path resolves outside the workspace root.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -227,7 +227,7 @@ function wpdc_resolve_path( $rel_path ) {
 	if ( ! wpdc_extension_allowed( $resolved_norm ) ) {
 		return new WP_Error(
 			'wpdc_extension_denied',
-			__( 'File extension is not allowed by the editor.', 'wp-desktop-mode' ),
+			__( 'File extension is not allowed by the editor.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -272,7 +272,7 @@ function wpdc_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
 	if ( ! is_string( $absolute_path ) || '' === $absolute_path ) {
 		return new WP_Error(
 			'wpdc_write_invalid_path',
-			__( 'Invalid path supplied to wpdc_write_file().', 'wp-desktop-mode' ),
+			__( 'Invalid path supplied to wpdc_write_file().', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
@@ -284,7 +284,7 @@ function wpdc_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
 	if ( ! is_file( $absolute_path ) ) {
 		return new WP_Error(
 			'wpdc_write_target_missing',
-			__( 'File does not exist; the editor cannot create new files yet.', 'wp-desktop-mode' ),
+			__( 'File does not exist; the editor cannot create new files yet.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
@@ -298,7 +298,7 @@ function wpdc_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
 		$current = file_get_contents( $absolute_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		return new WP_Error(
 			'wpdc_conflict',
-			__( 'File changed on disk since you opened it. Reload or overwrite.', 'wp-desktop-mode' ),
+			__( 'File changed on disk since you opened it. Reload or overwrite.', 'desktop-mode' ),
 			array(
 				'status'         => 409,
 				'server_mtime'   => $current_mtime,
@@ -356,7 +356,7 @@ function wpdc_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
 	if ( ! $fs->put_contents( $absolute_path, $content, FS_CHMOD_FILE ) ) {
 		return new WP_Error(
 			'wpdc_write_failed',
-			__( 'WP_Filesystem refused the write. The file may be read-only or owned by a different user.', 'wp-desktop-mode' ),
+			__( 'WP_Filesystem refused the write. The file may be read-only or owned by a different user.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
@@ -436,7 +436,7 @@ function wpdc_get_filesystem() {
 	if ( ! $ok || ! ( $wp_filesystem instanceof WP_Filesystem_Base ) ) {
 		return new WP_Error(
 			'wpdc_filesystem_unavailable',
-			__( "This host doesn't allow direct file writes from the WordPress process. The code editor's save flow needs FTP/SSH credentials, which aren't supported yet.", 'wp-desktop-mode' ),
+			__( "This host doesn't allow direct file writes from the WordPress process. The code editor's save flow needs FTP/SSH credentials, which aren't supported yet.", 'desktop-mode' ),
 			array( 'status' => 503 )
 		);
 	}

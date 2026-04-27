@@ -80,12 +80,12 @@ add_filter( 'wp_update_attachment_metadata', 'wpdm_stamp_media_dimensions', 10, 
  */
 function wpdm_register_media_query_params( $params ) {
 	$params['wpdm_min_width'] = array(
-		'description' => __( 'Only return images at least this many pixels wide.', 'wp-desktop-mode' ),
+		'description' => __( 'Only return images at least this many pixels wide.', 'desktop-mode' ),
 		'type'        => 'integer',
 		'minimum'     => 1,
 	);
 	$params['wpdm_min_height'] = array(
-		'description' => __( 'Only return images at least this many pixels tall.', 'wp-desktop-mode' ),
+		'description' => __( 'Only return images at least this many pixels tall.', 'desktop-mode' ),
 		'type'        => 'integer',
 		'minimum'     => 1,
 	);

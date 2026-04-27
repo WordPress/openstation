@@ -95,28 +95,28 @@ function wp_register_desktop_ai_tool( $args ) {
 	if ( '' === $name || ! preg_match( '/^[a-z0-9_]{1,64}$/', $name ) ) {
 		return wpdm_registration_error(
 			'wp_desktop_ai_tool_invalid_name',
-			__( 'AI tool registration requires a `name` matching [a-z0-9_]{1,64}.', 'wp-desktop-mode' ),
+			__( 'AI tool registration requires a `name` matching [a-z0-9_]{1,64}.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
 	}
 	if ( '' === (string) $args['description'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_ai_tool_missing_description',
-			__( 'AI tool registration requires a non-empty `description`.', 'wp-desktop-mode' ),
+			__( 'AI tool registration requires a non-empty `description`.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
 	}
 	if ( ! is_callable( $args['handler'] ) ) {
 		return wpdm_registration_error(
 			'wp_desktop_ai_tool_invalid_handler',
-			__( 'AI tool registration requires a callable `handler`.', 'wp-desktop-mode' ),
+			__( 'AI tool registration requires a callable `handler`.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
 	}
 	if ( ! is_array( $args['parameters'] ) && ! is_object( $args['parameters'] ) ) {
 		return wpdm_registration_error(
 			'wp_desktop_ai_tool_invalid_parameters',
-			__( 'AI tool `parameters` must be a JSON-Schema object.', 'wp-desktop-mode' ),
+			__( 'AI tool `parameters` must be a JSON-Schema object.', 'desktop-mode' ),
 			array( 'name' => $name )
 		);
 	}

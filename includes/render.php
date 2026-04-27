@@ -291,7 +291,7 @@ function wpdm_render_shell() {
 	// frame before swapping.
 	$scheme = sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' );
 	?>
-	<div id="wp-desktop-shell" class="wp-desktop-shell" data-wp-desktop-scheme="<?php echo esc_attr( $scheme ); ?>" role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'wp-desktop-mode' ); ?>">
+	<div id="wp-desktop-shell" class="wp-desktop-shell" data-wp-desktop-scheme="<?php echo esc_attr( $scheme ); ?>" role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
 		<?php
 		/*
 		 * Wallpaper layer — sits behind both the dock and the desktop
@@ -304,7 +304,7 @@ function wpdm_render_shell() {
 		?>
 		<div id="wp-desktop-wallpaper" class="wp-desktop-wallpaper" aria-hidden="true"></div>
 		<div class="wp-desktop-shell__body">
-			<nav id="wp-desktop-dock" class="wp-desktop-dock" role="toolbar" aria-label="<?php esc_attr_e( 'Admin navigation', 'wp-desktop-mode' ); ?>"></nav>
+			<nav id="wp-desktop-dock" class="wp-desktop-dock" role="toolbar" aria-label="<?php esc_attr_e( 'Admin navigation', 'desktop-mode' ); ?>"></nav>
 			<div id="wp-desktop-area" class="wp-desktop-area wp-desktop-area--with-dock">
 				<?php
 				/*
@@ -317,7 +317,7 @@ function wpdm_render_shell() {
 				 * populates it on boot.
 				 */
 				?>
-				<aside id="wp-desktop-widgets" class="wp-desktop-widgets" aria-label="<?php esc_attr_e( 'Widgets', 'wp-desktop-mode' ); ?>"></aside>
+				<aside id="wp-desktop-widgets" class="wp-desktop-widgets" aria-label="<?php esc_attr_e( 'Widgets', 'desktop-mode' ); ?>"></aside>
 			</div>
 		</div>
 		<?php
@@ -336,7 +336,7 @@ function wpdm_render_shell() {
 		 * top of each tile — see dock.css.
 		 */
 		?>
-		<nav id="wp-desktop-taskbar" class="wp-desktop-dock wp-desktop-dock--horizontal" role="toolbar" aria-label="<?php esc_attr_e( 'Plugin navigation', 'wp-desktop-mode' ); ?>"></nav>
+		<nav id="wp-desktop-taskbar" class="wp-desktop-dock wp-desktop-dock--horizontal" role="toolbar" aria-label="<?php esc_attr_e( 'Plugin navigation', 'desktop-mode' ); ?>"></nav>
 	</div>
 	<?php
 	/**

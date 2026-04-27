@@ -34,25 +34,25 @@ function wpdm_get_toast_types() {
 	$defaults = array(
 		array(
 			'id'    => 'success',
-			'label' => __( 'Success', 'wp-desktop-mode' ),
+			'label' => __( 'Success', 'desktop-mode' ),
 			'icon'  => 'dashicons-yes-alt',
 			'tone'  => 'positive',
 		),
 		array(
 			'id'    => 'warning',
-			'label' => __( 'Warning', 'wp-desktop-mode' ),
+			'label' => __( 'Warning', 'desktop-mode' ),
 			'icon'  => 'dashicons-warning',
 			'tone'  => 'warning',
 		),
 		array(
 			'id'    => 'error',
-			'label' => __( 'Error', 'wp-desktop-mode' ),
+			'label' => __( 'Error', 'desktop-mode' ),
 			'icon'  => 'dashicons-dismiss',
 			'tone'  => 'critical',
 		),
 		array(
 			'id'    => 'shell-error',
-			'label' => __( 'Shell error', 'wp-desktop-mode' ),
+			'label' => __( 'Shell error', 'desktop-mode' ),
 			'icon'  => 'dashicons-bug',
 			'tone'  => 'critical',
 		),

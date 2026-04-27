@@ -37,8 +37,8 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 	// The second click would then re-enable it — a two-click trap.
 	$is_active = wpdm_is_enabled() && ! wpdm_is_classic_request();
 	$label     = $is_active
-		? __( 'Switch to Classic Admin', 'wp-desktop-mode' )
-		: __( 'Switch to Desktop Mode', 'wp-desktop-mode' );
+		? __( 'Switch to Classic Admin', 'desktop-mode' )
+		: __( 'Switch to Desktop Mode', 'desktop-mode' );
 
 	$wp_admin_bar->add_node(
 		array(
@@ -68,11 +68,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 				'parent' => 'top-secondary',
 				'id'     => 'desktop-ai-assistant',
 				'title'  => '<span class="ab-icon dashicons dashicons-admin-comments" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'wp-desktop-mode' ) . '</span>',
+					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'desktop-mode' ) . '</span>',
 				'href'   => '#',
 				'meta'   => array(
 					'class'    => 'desktop-ai-btn',
-					'title'    => __( 'Open AI Assistant (Cmd+K)', 'wp-desktop-mode' ),
+					'title'    => __( 'Open AI Assistant (Cmd+K)', 'desktop-mode' ),
 					'tabindex' => 0,
 				),
 			)
@@ -90,10 +90,10 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 				'parent' => 'top-secondary',
 				'id'     => 'desktop-layout-menu',
 				'title'  => '<span class="ab-icon dashicons dashicons-grid-view" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Arrange', 'wp-desktop-mode' ) . '</span>',
+					. '<span class="ab-label">' . esc_html__( 'Arrange', 'desktop-mode' ) . '</span>',
 				'href'   => '#',
 				'meta'   => array(
-					'title'    => __( 'Arrange windows', 'wp-desktop-mode' ),
+					'title'    => __( 'Arrange windows', 'desktop-mode' ),
 					'tabindex' => 0,
 				),
 			)
@@ -102,11 +102,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-cascade',
-				'title'  => esc_html__( 'Cascade', 'wp-desktop-mode' ),
+				'title'  => esc_html__( 'Cascade', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-action',
-					'title' => __( 'Lay all windows out from top-left, offset so every title bar stays visible.', 'wp-desktop-mode' ),
+					'title' => __( 'Lay all windows out from top-left, offset so every title bar stays visible.', 'desktop-mode' ),
 				),
 			)
 		);
@@ -114,11 +114,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-overview',
-				'title'  => esc_html__( 'Overview', 'wp-desktop-mode' ),
+				'title'  => esc_html__( 'Overview', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-action',
-					'title' => __( 'Zoom out to see every window at once. Click one to focus it.', 'wp-desktop-mode' ),
+					'title' => __( 'Zoom out to see every window at once. Click one to focus it.', 'desktop-mode' ),
 				),
 			)
 		);
@@ -132,11 +132,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-snap',
 				'title'  => '<span class="wpdm-layout-checkbox" aria-hidden="true">☐</span> '
-					. esc_html__( 'Snap to grid', 'wp-desktop-mode' ),
+					. esc_html__( 'Snap to grid', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-snap',
-					'title' => __( 'Snap windows to a grid while dragging or resizing.', 'wp-desktop-mode' ),
+					'title' => __( 'Snap windows to a grid while dragging or resizing.', 'desktop-mode' ),
 				),
 			)
 		);
@@ -144,11 +144,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-tile',
-				'title'  => esc_html__( 'Tile all windows', 'wp-desktop-mode' ),
+				'title'  => esc_html__( 'Tile all windows', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-action',
-					'title' => __( 'Pack every window into an evenly tiled grid that fills the desktop.', 'wp-desktop-mode' ),
+					'title' => __( 'Pack every window into an evenly tiled grid that fills the desktop.', 'desktop-mode' ),
 				),
 			)
 		);

@@ -35,12 +35,12 @@ defined( 'ABSPATH' ) || exit;
  */
 function wpdm_get_accent_colors() {
 	$defaults = array(
-		array( 'id' => 'wp-blue',  'label' => __( 'WordPress Blue', 'wp-desktop-mode' ), 'value' => '#2271b1' ),
-		array( 'id' => 'indigo',   'label' => __( 'Indigo',  'wp-desktop-mode' ),         'value' => '#3858e9' ),
-		array( 'id' => 'teal',     'label' => __( 'Teal',    'wp-desktop-mode' ),         'value' => '#04a4cc' ),
-		array( 'id' => 'emerald',  'label' => __( 'Emerald', 'wp-desktop-mode' ),         'value' => '#059669' ),
-		array( 'id' => 'amber',    'label' => __( 'Amber',   'wp-desktop-mode' ),         'value' => '#d97706' ),
-		array( 'id' => 'rose',     'label' => __( 'Rose',    'wp-desktop-mode' ),         'value' => '#e11d48' ),
+		array( 'id' => 'wp-blue',  'label' => __( 'WordPress Blue', 'desktop-mode' ), 'value' => '#2271b1' ),
+		array( 'id' => 'indigo',   'label' => __( 'Indigo',  'desktop-mode' ),         'value' => '#3858e9' ),
+		array( 'id' => 'teal',     'label' => __( 'Teal',    'desktop-mode' ),         'value' => '#04a4cc' ),
+		array( 'id' => 'emerald',  'label' => __( 'Emerald', 'desktop-mode' ),         'value' => '#059669' ),
+		array( 'id' => 'amber',    'label' => __( 'Amber',   'desktop-mode' ),         'value' => '#d97706' ),
+		array( 'id' => 'rose',     'label' => __( 'Rose',    'desktop-mode' ),         'value' => '#e11d48' ),
 	);
 
 	/**

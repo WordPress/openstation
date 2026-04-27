@@ -95,7 +95,7 @@ function wp_desktop_component( $tag, $attrs = array(), $content = '' ) {
 				__FUNCTION__,
 				sprintf(
 					/* translators: %s: the attempted tag name. */
-					esc_html__( 'wp_desktop_component() only accepts tags with the wpd- prefix; got "%s".', 'wp-desktop-mode' ),
+					esc_html__( 'wp_desktop_component() only accepts tags with the wpd- prefix; got "%s".', 'desktop-mode' ),
 					esc_html( $tag )
 				),
 				'0.10.0'
@@ -144,7 +144,7 @@ function wp_desktop_component( $tag, $attrs = array(), $content = '' ) {
 				__FUNCTION__,
 				sprintf(
 					/* translators: 1: attribute name, 2: tag name. */
-					esc_html__( 'Attribute "%1$s" on <%2$s> received a non-scalar value (array/object). Only the `style` attribute accepts an array; other attributes must be strings, booleans, or null. The attribute was skipped.', 'wp-desktop-mode' ),
+					esc_html__( 'Attribute "%1$s" on <%2$s> received a non-scalar value (array/object). Only the `style` attribute accepts an array; other attributes must be strings, booleans, or null. The attribute was skipped.', 'desktop-mode' ),
 					esc_html( $key ),
 					esc_html( $tag )
 				),
@@ -386,7 +386,7 @@ function wp_register_desktop_window( $id, $args = array() ) {
 	if ( '' === $id ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_id',
-			__( 'Native window id is required and must be a valid slug.', 'wp-desktop-mode' )
+			__( 'Native window id is required and must be a valid slug.', 'desktop-mode' )
 		);
 	}
 
@@ -414,7 +414,7 @@ function wp_register_desktop_window( $id, $args = array() ) {
 				'wp_desktop_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
-					__( 'Current user lacks the %s capability required to register this native window.', 'wp-desktop-mode' ),
+					__( 'Current user lacks the %s capability required to register this native window.', 'desktop-mode' ),
 					(string) $cap
 				),
 				array( 'capability' => (string) $cap, 'id' => $id )
@@ -426,14 +426,14 @@ function wp_register_desktop_window( $id, $args = array() ) {
 	if ( '' === (string) $args['title'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_title',
-			__( 'Native window registration requires a non-empty `title`.', 'wp-desktop-mode' ),
+			__( 'Native window registration requires a non-empty `title`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( ! is_callable( $args['template'] ) ) {
 		return wpdm_registration_error(
 			'wp_desktop_invalid_template',
-			__( 'Native window registration requires a callable `template` that echoes the template body.', 'wp-desktop-mode' ),
+			__( 'Native window registration requires a callable `template` that echoes the template body.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -579,7 +579,7 @@ function wp_register_desktop_widget( $id, $args = array() ) {
 	if ( '' === $id ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_id',
-			__( 'Widget id is required.', 'wp-desktop-mode' )
+			__( 'Widget id is required.', 'desktop-mode' )
 		);
 	}
 
@@ -606,7 +606,7 @@ function wp_register_desktop_widget( $id, $args = array() ) {
 				'wp_desktop_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
-					__( 'Current user lacks the %s capability required to register this widget.', 'wp-desktop-mode' ),
+					__( 'Current user lacks the %s capability required to register this widget.', 'desktop-mode' ),
 					(string) $cap
 				),
 				array( 'capability' => (string) $cap, 'id' => $id )
@@ -620,7 +620,7 @@ function wp_register_desktop_widget( $id, $args = array() ) {
 	if ( '' === (string) $args['label'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_label',
-			__( 'Widget registration requires a non-empty `label`.', 'wp-desktop-mode' ),
+			__( 'Widget registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -790,7 +790,7 @@ function wp_register_desktop_wallpaper( $id, $args = array() ) {
 	if ( '' === $id ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_id',
-			__( 'Wallpaper id is required.', 'wp-desktop-mode' )
+			__( 'Wallpaper id is required.', 'desktop-mode' )
 		);
 	}
 
@@ -810,7 +810,7 @@ function wp_register_desktop_wallpaper( $id, $args = array() ) {
 				'wp_desktop_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
-					__( 'Current user lacks the %s capability required to register this wallpaper.', 'wp-desktop-mode' ),
+					__( 'Current user lacks the %s capability required to register this wallpaper.', 'desktop-mode' ),
 					(string) $cap
 				),
 				array( 'capability' => (string) $cap, 'id' => $id )
@@ -820,7 +820,7 @@ function wp_register_desktop_wallpaper( $id, $args = array() ) {
 	if ( '' === (string) $args['label'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_label',
-			__( 'Wallpaper registration requires a non-empty `label`.', 'wp-desktop-mode' ),
+			__( 'Wallpaper registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -834,7 +834,7 @@ function wp_register_desktop_wallpaper( $id, $args = array() ) {
 	if ( 'canvas' === $type && '' === (string) $args['script'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_script',
-			__( 'Canvas wallpaper registration requires a `script` handle that publishes the def.', 'wp-desktop-mode' ),
+			__( 'Canvas wallpaper registration requires a `script` handle that publishes the def.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -994,7 +994,7 @@ function wp_register_desktop_icon( $id, $args = array() ) {
 	if ( '' === $id ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_id',
-			__( 'Desktop icon id is required and must be a valid slug.', 'wp-desktop-mode' )
+			__( 'Desktop icon id is required and must be a valid slug.', 'desktop-mode' )
 		);
 	}
 
@@ -1014,7 +1014,7 @@ function wp_register_desktop_icon( $id, $args = array() ) {
 				'wp_desktop_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
-					__( 'Current user lacks the %s capability required to register this desktop icon.', 'wp-desktop-mode' ),
+					__( 'Current user lacks the %s capability required to register this desktop icon.', 'desktop-mode' ),
 					(string) $cap
 				),
 				array( 'capability' => (string) $cap, 'id' => $id )
@@ -1025,7 +1025,7 @@ function wp_register_desktop_icon( $id, $args = array() ) {
 	if ( '' === (string) $args['title'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_title',
-			__( 'Desktop icon registration requires a non-empty `title`.', 'wp-desktop-mode' ),
+			__( 'Desktop icon registration requires a non-empty `title`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -1035,14 +1035,14 @@ function wp_register_desktop_icon( $id, $args = array() ) {
 	if ( '' !== $window && '' !== $url ) {
 		return wpdm_registration_error(
 			'wp_desktop_conflicting_target',
-			__( 'Desktop icon cannot declare both `window` and `url`; pick one target.', 'wp-desktop-mode' ),
+			__( 'Desktop icon cannot declare both `window` and `url`; pick one target.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( '' === $window && '' === $url ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_target',
-			__( 'Desktop icon must declare a `window` id or a `url` target.', 'wp-desktop-mode' ),
+			__( 'Desktop icon must declare a `window` id or a `url` target.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -1054,7 +1054,7 @@ function wp_register_desktop_icon( $id, $args = array() ) {
 		if ( '' === $url ) {
 			return wpdm_registration_error(
 				'wp_desktop_invalid_url',
-				__( 'Desktop icon `url` must be a valid http(s) URL.', 'wp-desktop-mode' ),
+				__( 'Desktop icon `url` must be a valid http(s) URL.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
 		}
@@ -1250,7 +1250,7 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 	if ( '' === $window_id ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_window_id',
-			__( 'Window id is required when registering a tab.', 'wp-desktop-mode' )
+			__( 'Window id is required when registering a tab.', 'desktop-mode' )
 		);
 	}
 
@@ -1270,7 +1270,7 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 				'wp_desktop_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
-					__( 'Current user lacks the %s capability required to register this window tab.', 'wp-desktop-mode' ),
+					__( 'Current user lacks the %s capability required to register this window tab.', 'desktop-mode' ),
 					(string) $cap
 				),
 				array( 'capability' => (string) $cap, 'window_id' => $window_id )
@@ -1289,7 +1289,7 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 	if ( '' === $value_raw ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_tab_value',
-			__( 'Window tab registration requires a non-empty `value`.', 'wp-desktop-mode' ),
+			__( 'Window tab registration requires a non-empty `value`.', 'desktop-mode' ),
 			array( 'window_id' => $window_id )
 		);
 	}
@@ -1298,7 +1298,7 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 			'wp_desktop_invalid_tab_value',
 			sprintf(
 				/* translators: %s: the invalid value. */
-				__( 'Window tab `value` "%s" must match /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ — lowercase alphanum + hyphen/underscore, with at most one `vendor/sub-id` slash.', 'wp-desktop-mode' ),
+				__( 'Window tab `value` "%s" must match /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ — lowercase alphanum + hyphen/underscore, with at most one `vendor/sub-id` slash.', 'desktop-mode' ),
 				$value_raw
 			),
 			array( 'window_id' => $window_id, 'value' => $value_raw )
@@ -1310,7 +1310,7 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 			'wp_desktop_reserved_tab_value',
 			/* translators: %s: the reserved value. */
 			sprintf(
-				__( 'The tab value "%s" is reserved for the window\'s own template tab.', 'wp-desktop-mode' ),
+				__( 'The tab value "%s" is reserved for the window\'s own template tab.', 'desktop-mode' ),
 				WPDM_NATIVE_WINDOW_MAIN_TAB
 			),
 			array( 'window_id' => $window_id, 'value' => $value )
@@ -1319,14 +1319,14 @@ function wp_register_desktop_window_tab( $window_id, $args = array() ) {
 	if ( '' === (string) $args['label'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_label',
-			__( 'Window tab registration requires a non-empty `label`.', 'wp-desktop-mode' ),
+			__( 'Window tab registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'window_id' => $window_id )
 		);
 	}
 	if ( ! is_callable( $args['template'] ) ) {
 		return wpdm_registration_error(
 			'wp_desktop_invalid_template',
-			__( 'Window tab registration requires a callable `template` that echoes the pane body.', 'wp-desktop-mode' ),
+			__( 'Window tab registration requires a callable `template` that echoes the pane body.', 'desktop-mode' ),
 			array( 'window_id' => $window_id )
 		);
 	}

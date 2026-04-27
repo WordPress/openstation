@@ -1,7 +1,7 @@
 {
   "translation-revision-date": "2026-04-19 20:58+0200",
-  "generator": "wp-desktop-mode/0.4.0",
-  "source": "wp-desktop-mode-es_ES.po",
+  "generator": "desktop-mode/0.4.0",
+  "source": "desktop-mode-es_ES.po",
   "domain": "messages",
   "locale_data": {
     "messages": {

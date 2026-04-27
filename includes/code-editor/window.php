@@ -81,7 +81,7 @@ function wpdc_render_editor_template() {
 	<div class="wpdc-editor wpdc-editor--loading" data-wpdc-editor-root>
 		<div class="wpdc-editor__loading" data-wpdc-editor-loading>
 			<span class="dashicons dashicons-editor-code" aria-hidden="true"></span>
-			<p><?php esc_html_e( 'Loading editor…', 'wp-desktop-mode' ); ?></p>
+			<p><?php esc_html_e( 'Loading editor…', 'desktop-mode' ); ?></p>
 		</div>
 		<div class="wpdc-editor__monaco" data-wpdc-editor-monaco></div>
 	</div>
@@ -120,7 +120,7 @@ function wpdc_register_editor_window() {
 	$registered = wp_register_desktop_window(
 		'wpdc-editor',
 		array(
-			'title'        => __( 'Code', 'wp-desktop-mode' ),
+			'title'        => __( 'Code', 'desktop-mode' ),
 			'icon'         => 'dashicons-editor-code',
 			'template'     => 'wpdc_render_editor_template',
 			'script'       => 'wp-desktop-code-editor',
@@ -138,14 +138,14 @@ function wpdc_register_editor_window() {
 		// validations could fail here. Log and bail rather than blow up
 		// the whole init phase.
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[wp-desktop-mode] Code editor window registration failed: ' . $registered->get_error_message() );
+		error_log( '[desktop-mode] Code editor window registration failed: ' . $registered->get_error_message() );
 		return;
 	}
 
 	wp_register_desktop_icon(
 		'wpdc-editor',
 		array(
-			'title'        => __( 'Code', 'wp-desktop-mode' ),
+			'title'        => __( 'Code', 'desktop-mode' ),
 			'icon'         => 'dashicons-editor-code',
 			'window'       => 'wpdc-editor',
 			'position'     => 50,

@@ -73,7 +73,7 @@ function wpdm_handle_portal_request( $wp ) {
 	// blocked `read` from admin don't land in a broken window.
 	if ( ! current_user_can( 'read' ) ) {
 		wp_die(
-			esc_html__( 'Sorry, you are not allowed to access the WordPress desktop.', 'wp-desktop-mode' ),
+			esc_html__( 'Sorry, you are not allowed to access the WordPress desktop.', 'desktop-mode' ),
 			'',
 			array( 'response' => 403 )
 		);

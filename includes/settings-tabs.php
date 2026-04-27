@@ -39,7 +39,7 @@ defined( 'ABSPATH' ) || exit;
  *     wp_register_script(
  *         'my-plugin-settings',
  *         plugins_url( 'js/settings.js', __FILE__ ),
- *         array( 'wp-desktop-mode' ),
+ *         array( 'desktop-mode' ),
  *         '1.0.0',
  *         true
  *     );
@@ -58,7 +58,7 @@ function wp_desktop_register_settings_tab_script( $handle ) {
 	if ( '' === $handle ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_handle',
-			__( 'Settings tab script registration requires a non-empty script handle.', 'wp-desktop-mode' )
+			__( 'Settings tab script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
@@ -131,14 +131,14 @@ function wp_register_desktop_settings_tab( $args = array() ) {
 	if ( '' === $id || ! preg_match( '/^[a-z0-9_\-]+$/', $id ) ) {
 		return wpdm_registration_error(
 			'wp_desktop_invalid_id',
-			__( 'Settings tab registration requires a non-empty `id` matching [a-z0-9_-]+.', 'wp-desktop-mode' ),
+			__( 'Settings tab registration requires a non-empty `id` matching [a-z0-9_-]+.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_label',
-			__( 'Settings tab registration requires a non-empty `label`.', 'wp-desktop-mode' ),
+			__( 'Settings tab registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}

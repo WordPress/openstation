@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  *     wp_register_script(
  *         'home-assistant-commands',
  *         plugins_url( 'js/commands.js', __FILE__ ),
- *         array( 'wp-desktop-mode' ),
+ *         array( 'desktop-mode' ),
  *         '1.0.0',
  *         true
  *     );
@@ -63,7 +63,7 @@ function wp_desktop_register_command_script( $handle ) {
 	if ( '' === $handle ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_handle',
-			__( 'Command script registration requires a non-empty script handle.', 'wp-desktop-mode' )
+			__( 'Command script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
@@ -134,13 +134,13 @@ function wp_register_desktop_command( $args = array() ) {
 	if ( '' === $slug ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_slug',
-			__( 'Command registration requires a non-empty `slug`.', 'wp-desktop-mode' )
+			__( 'Command registration requires a non-empty `slug`.', 'desktop-mode' )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_label',
-			__( 'Command registration requires a non-empty `label`.', 'wp-desktop-mode' ),
+			__( 'Command registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'slug' => $slug )
 		);
 	}

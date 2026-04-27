@@ -30,7 +30,7 @@ defined( 'ABSPATH' ) || exit;
  *     wp_register_script(
  *         'my-plugin-titlebar',
  *         plugins_url( 'js/titlebar.js', __FILE__ ),
- *         array( 'wp-desktop-mode' ),
+ *         array( 'desktop-mode' ),
  *         '1.0.0',
  *         true
  *     );
@@ -54,7 +54,7 @@ function wp_desktop_register_titlebar_button_script( $handle ) {
 	if ( '' === $handle ) {
 		return wpdm_registration_error(
 			'wp_desktop_missing_handle',
-			__( 'Title-bar button script registration requires a non-empty script handle.', 'wp-desktop-mode' )
+			__( 'Title-bar button script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 

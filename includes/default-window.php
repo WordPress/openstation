@@ -183,7 +183,7 @@ function wpdm_register_default_window_routes() {
 			// where both branches are explicit.
 			'args'                => array(
 				'url' => array(
-					'description' => __( 'Admin URL to open on portal entry, or null to disable.', 'wp-desktop-mode' ),
+					'description' => __( 'Admin URL to open on portal entry, or null to disable.', 'desktop-mode' ),
 				),
 			),
 		)
@@ -227,7 +227,7 @@ function wpdm_rest_set_default_window( $request ) {
 	if ( ! is_string( $url ) ) {
 		return new WP_Error(
 			'wpdm_invalid_url',
-			__( 'The `url` parameter must be a string or null.', 'wp-desktop-mode' ),
+			__( 'The `url` parameter must be a string or null.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -236,7 +236,7 @@ function wpdm_rest_set_default_window( $request ) {
 	if ( ! $ok ) {
 		return new WP_Error(
 			'wpdm_invalid_url',
-			__( 'The URL is not a valid same-origin wp-admin URL.', 'wp-desktop-mode' ),
+			__( 'The URL is not a valid same-origin wp-admin URL.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}

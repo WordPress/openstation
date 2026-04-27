@@ -30,27 +30,27 @@ function wpdm_register_builtin_wallpapers() {
 	$presets = array(
 		array(
 			'id'    => 'dark',
-			'label' => __( 'Graphite', 'wp-desktop-mode' ),
+			'label' => __( 'Graphite', 'desktop-mode' ),
 			'value' => 'linear-gradient(135deg, #1d2327 0%, #2c3338 50%, #1d2327 100%)',
 		),
 		array(
 			'id'    => 'aurora',
-			'label' => __( 'Aurora', 'wp-desktop-mode' ),
+			'label' => __( 'Aurora', 'desktop-mode' ),
 			'value' => 'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)',
 		),
 		array(
 			'id'    => 'sunset',
-			'label' => __( 'Sunset', 'wp-desktop-mode' ),
+			'label' => __( 'Sunset', 'desktop-mode' ),
 			'value' => 'linear-gradient(135deg, #ff512f 0%, #dd2476 100%)',
 		),
 		array(
 			'id'    => 'forest',
-			'label' => __( 'Forest', 'wp-desktop-mode' ),
+			'label' => __( 'Forest', 'desktop-mode' ),
 			'value' => 'linear-gradient(135deg, #134e5e 0%, #71b280 100%)',
 		),
 		array(
 			'id'    => 'mono',
-			'label' => __( 'Mono', 'wp-desktop-mode' ),
+			'label' => __( 'Mono', 'desktop-mode' ),
 			'value' => '#1d2327',
 		),
 	);

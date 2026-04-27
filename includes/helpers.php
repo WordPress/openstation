@@ -350,11 +350,11 @@ function wpdm_url_is_same_admin( $url ) {
 function wpdm_resolve_admin_target( $file ) {
 	$file = is_string( $file ) ? trim( $file ) : '';
 	if ( '' === $file ) {
-		return new WP_Error( 'wp_desktop_empty_target', __( 'Admin target cannot be empty.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'wp_desktop_empty_target', __( 'Admin target cannot be empty.', 'desktop-mode' ) );
 	}
 
 	if ( false !== strpos( $file, '..' ) || false !== strpos( $file, '/' ) || false !== strpos( $file, '\\' ) ) {
-		return new WP_Error( 'wp_desktop_invalid_target', __( 'Admin target contains invalid path characters.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'wp_desktop_invalid_target', __( 'Admin target contains invalid path characters.', 'desktop-mode' ) );
 	}
 
 	// Lowercase match mirrors WP's filesystem assumptions on case-
@@ -362,12 +362,12 @@ function wpdm_resolve_admin_target( $file ) {
 	// check below is the final arbiter; this regex just pre-filters
 	// clearly bad inputs.
 	if ( ! preg_match( '/^[a-z0-9_-]+\.php$/i', $file ) ) {
-		return new WP_Error( 'wp_desktop_invalid_target', __( 'Admin target must be a plain .php filename.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'wp_desktop_invalid_target', __( 'Admin target must be a plain .php filename.', 'desktop-mode' ) );
 	}
 
 	$candidate = ABSPATH . 'wp-admin/' . $file;
 	if ( ! file_exists( $candidate ) ) {
-		return new WP_Error( 'wp_desktop_unknown_target', __( 'Admin target does not exist.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'wp_desktop_unknown_target', __( 'Admin target does not exist.', 'desktop-mode' ) );
 	}
 
 	return admin_url( $file );
@@ -917,7 +917,7 @@ function wpdm_warn_unresolvable_script_handle( $function_name, $kind, $handle ) 
 		$function_name,
 		sprintf(
 			/* translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle. */
-			esc_html__( '%1$s script handle "%2$s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'wp-desktop-mode' ),
+			esc_html__( '%1$s script handle "%2$s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'desktop-mode' ),
 			esc_html( $kind ),
 			esc_html( $handle )
 		),

@@ -113,18 +113,18 @@ function wpdm_register_assets() {
 	);
 	wp_set_script_translations(
 		'wp-desktop-code-editor',
-		'wp-desktop-mode',
+		'desktop-mode',
 		WPDM_DIR . 'languages'
 	);
 
 	// Wire the translation bundle to this script handle. WP looks
-	// for `languages/wp-desktop-mode-{locale}-wp-desktop.json` and
+	// for `languages/desktop-mode-{locale}-wp-desktop.json` and
 	// injects its `locale_data` into `wp.i18n` just before the
 	// script runs — so every `__()` call resolves to the right
 	// language without any runtime fetch.
 	wp_set_script_translations(
 		'wp-desktop',
-		'wp-desktop-mode',
+		'desktop-mode',
 		WPDM_DIR . 'languages'
 	);
 }

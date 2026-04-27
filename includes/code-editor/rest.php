@@ -40,7 +40,7 @@ function wpdc_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
 			'wpdc_unauthenticated',
-			__( 'You must be logged in to use the code editor.', 'wp-desktop-mode' ),
+			__( 'You must be logged in to use the code editor.', 'desktop-mode' ),
 			array( 'status' => 401 )
 		);
 	}
@@ -48,7 +48,7 @@ function wpdc_rest_permission() {
 	if ( ! wpdc_file_edit_allowed() ) {
 		return new WP_Error(
 			'wpdc_file_edit_disabled',
-			__( 'In-admin file editing is disabled on this site (DISALLOW_FILE_EDIT).', 'wp-desktop-mode' ),
+			__( 'In-admin file editing is disabled on this site (DISALLOW_FILE_EDIT).', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -64,7 +64,7 @@ function wpdc_rest_permission() {
 	if ( ! current_user_can( $cap ) ) {
 		return new WP_Error(
 			'wpdc_forbidden',
-			__( 'You do not have permission to use the code editor.', 'wp-desktop-mode' ),
+			__( 'You do not have permission to use the code editor.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -255,7 +255,7 @@ function wpdc_rest_tree( WP_REST_Request $request ) {
 	if ( ! is_dir( $abs ) ) {
 		return new WP_Error(
 			'wpdc_not_a_directory',
-			__( 'Path is not a directory.', 'wp-desktop-mode' ),
+			__( 'Path is not a directory.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -265,7 +265,7 @@ function wpdc_rest_tree( WP_REST_Request $request ) {
 	if ( false === $dh ) {
 		return new WP_Error(
 			'wpdc_directory_unreadable',
-			__( 'Directory is not readable.', 'wp-desktop-mode' ),
+			__( 'Directory is not readable.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
@@ -388,7 +388,7 @@ function wpdc_rest_read_file( WP_REST_Request $request ) {
 	if ( ! is_file( $abs ) ) {
 		return new WP_Error(
 			'wpdc_not_a_file',
-			__( 'Path is not a file.', 'wp-desktop-mode' ),
+			__( 'Path is not a file.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -407,7 +407,7 @@ function wpdc_rest_read_file( WP_REST_Request $request ) {
 			'wpdc_file_too_large',
 			sprintf(
 				/* translators: 1: file size, 2: limit. */
-				__( 'File is too large to open in the editor (%1$s bytes; limit %2$s).', 'wp-desktop-mode' ),
+				__( 'File is too large to open in the editor (%1$s bytes; limit %2$s).', 'desktop-mode' ),
 				number_format_i18n( $size ),
 				number_format_i18n( $max_bytes )
 			),
@@ -419,7 +419,7 @@ function wpdc_rest_read_file( WP_REST_Request $request ) {
 	if ( false === $content ) {
 		return new WP_Error(
 			'wpdc_file_unreadable',
-			__( 'File is not readable.', 'wp-desktop-mode' ),
+			__( 'File is not readable.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
@@ -430,7 +430,7 @@ function wpdc_rest_read_file( WP_REST_Request $request ) {
 	if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
 		return new WP_Error(
 			'wpdc_binary_file',
-			__( 'File contents are not valid UTF-8 — the editor only opens text files.', 'wp-desktop-mode' ),
+			__( 'File contents are not valid UTF-8 — the editor only opens text files.', 'desktop-mode' ),
 			array( 'status' => 415 )
 		);
 	}
@@ -477,7 +477,7 @@ function wpdc_rest_write_file( WP_REST_Request $request ) {
 	if ( '' === $content_b64 ) {
 		return new WP_Error(
 			'wpdc_invalid_payload',
-			__( 'Missing content_b64 in request body.', 'wp-desktop-mode' ),
+			__( 'Missing content_b64 in request body.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -486,7 +486,7 @@ function wpdc_rest_write_file( WP_REST_Request $request ) {
 	if ( false === $content ) {
 		return new WP_Error(
 			'wpdc_invalid_payload',
-			__( 'content_b64 is not valid base64.', 'wp-desktop-mode' ),
+			__( 'content_b64 is not valid base64.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -494,7 +494,7 @@ function wpdc_rest_write_file( WP_REST_Request $request ) {
 	if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
 		return new WP_Error(
 			'wpdc_invalid_payload',
-			__( 'Decoded content is not valid UTF-8 — only text files can be saved.', 'wp-desktop-mode' ),
+			__( 'Decoded content is not valid UTF-8 — only text files can be saved.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -515,7 +515,7 @@ function wpdc_rest_write_file( WP_REST_Request $request ) {
 			'wpdc_payload_too_large',
 			sprintf(
 				/* translators: 1: payload size, 2: limit. */
-				__( 'Save payload too large (%1$s bytes; limit %2$s).', 'wp-desktop-mode' ),
+				__( 'Save payload too large (%1$s bytes; limit %2$s).', 'desktop-mode' ),
 				number_format_i18n( strlen( $content ) ),
 				number_format_i18n( $max_bytes )
 			),
@@ -644,7 +644,7 @@ function wpdc_rest_php_symbol_detail( WP_REST_Request $request ) {
 			'wpdc_symbol_not_found',
 			sprintf(
 				/* translators: %s: symbol name. */
-				__( 'No PHP symbol matches "%s".', 'wp-desktop-mode' ),
+				__( 'No PHP symbol matches "%s".', 'desktop-mode' ),
 				$name
 			),
 			array( 'status' => 404 )

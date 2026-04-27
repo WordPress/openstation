@@ -10,7 +10,7 @@
  * Author URI:        https://github.com/WordPress/desktop-mode
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       wp-desktop-mode
+ * Text Domain:       desktop-mode
  *
  * @package WPDesktopMode
  */
@@ -43,25 +43,3 @@ require_once WPDM_DIR . 'includes/render.php';
 require_once WPDM_DIR . 'includes/extended-options.php';
 require_once WPDM_DIR . 'includes/ai-copilot/bootstrap.php';
 require_once WPDM_DIR . 'includes/code-editor/bootstrap.php';
-
-/**
- * Load the plugin's translations early so strings emitted on
- * `plugins_loaded`-adjacent hooks (admin bar, enqueues, etc.) are
- * already translatable. Shipped bundles live under `languages/` as
- * `wp-desktop-mode-{locale}.{mo,l10n.php}` for PHP strings and
- * `wp-desktop-mode-{locale}-wp-desktop.json` for the JS bundle.
- *
- * `init` (not `plugins_loaded`) is the modern canonical load point
- * since WP 6.7 — loading earlier triggers a `_doing_it_wrong`
- * warning under strict setups.
- *
- * @since 0.8.0
- */
-function wpdm_load_textdomain() {
-	load_plugin_textdomain(
-		'wp-desktop-mode',
-		false,
-		dirname( plugin_basename( WPDM_FILE ) ) . '/languages'
-	);
-}
-add_action( 'init', 'wpdm_load_textdomain' );
