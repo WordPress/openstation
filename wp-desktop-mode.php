@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       WP Desktop Mode
+ * Plugin Name:       Desktop Mode
  * Plugin URI:        https://github.com/WordPress/desktop-mode
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
  * Version:           0.5.1

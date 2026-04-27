@@ -1,4 +1,4 @@
-=== WP Desktop Mode ===
+=== Desktop Mode ===
 Contributors: allterraindeveloper, epeicher
 Tags: desktop, admin, ui, productivity, ai
 Requires at least: 6.0
@@ -12,7 +12,7 @@ Reimagines the WordPress admin as a desktop OS — draggable, resizable, minimiz
 
 == Description ==
 
-WP Desktop Mode renders /wp-admin as a desktop operating system. Admin screens open as draggable, resizable, minimizable windows on a desktop, with a left-edge dock built from the admin menu. The classic admin stays untouched for everyone else, and deactivating the plugin restores vanilla Core exactly.
+Desktop Mode renders /wp-admin as a desktop operating system. Admin screens open as draggable, resizable, minimizable windows on a desktop, with a left-edge dock built from the admin menu. The classic admin stays untouched for everyone else, and deactivating the plugin restores vanilla Core exactly.
 
 Zero Core patches. Every feature is wired through public WordPress hooks.
 
@@ -33,7 +33,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 
 = For plugin authors =
 
-WP Desktop Mode is built to be extended. Every significant behavior is hookable — add a desktop icon, register a dock item, gate desktop mode by role, react to window events, or register a native window, all from your own plugin with zero patches here.
+Desktop Mode is built to be extended. Every significant behavior is hookable — add a desktop icon, register a dock item, gate desktop mode by role, react to window events, or register a native window, all from your own plugin with zero patches here.
 
 Comprehensive PHP and JavaScript hook surface, plus stable `wp_register_desktop_*` functions for windows, widgets, wallpapers, icons, window tabs, commands, settings tabs, and AI tools. See the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
 
