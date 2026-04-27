@@ -1,4 +1,5 @@
 <?php
+defined( 'ABSPATH' ) || exit;
 /**
  * Desktop Mode — AI tool registration API.
  *
@@ -48,8 +49,6 @@
  * @since 0.17.0
  * @package WPDesktopMode
  */
-
-defined( 'ABSPATH' ) || exit;
 
 /**
  * Register a server-side AI tool.
