@@ -41,17 +41,27 @@ if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; the
 	exit 1
 fi
 
-# Resume-friendly: skip bump+commit+push if HEAD is already at the target
-# version (the sync check above guarantees HEAD == origin/trunk).
-current=$(node -p "require('./package.json').version")
-if [[ "$current" == "$new" ]]; then
-	echo "package.json already at $new — skipping bump, resuming at CI wait."
+# Resume-friendly: skip bump+commit+push only if ALL version locations
+# already match the target. Checking just package.json is not enough —
+# a previous mid-flow failure (or a past bug in bump-version.sh) may
+# have left some files out of sync, and a naive resume would silently
+# skip the catch-up.
+pkg=$(node -p "require('./package.json').version")
+header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' desktop-mode.php)
+constant=$(grep -oP "DESKTOP_MODE_VERSION',\s*'\K[^']+" desktop-mode.php)
+
+if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" ]]; then
+	echo "All version locations already at $new — skipping bump, resuming at CI wait."
 else
 	./bin/bump-version.sh "$new"
-	git commit -am "chore: bump to $new"
-	# Skip the interactive pre-push trunk prompt — the preflight checks above
-	# already verify this is an intentional release push.
-	git push --no-verify origin trunk
+	if git diff --quiet; then
+		echo "bump-version.sh produced no changes — versions already in sync."
+	else
+		git commit -am "chore: bump to $new"
+		# Skip the interactive pre-push trunk prompt — the preflight checks above
+		# already verify this is an intentional release push.
+		git push --no-verify origin trunk
+	fi
 fi
 
 sha=$(git rev-parse HEAD)
