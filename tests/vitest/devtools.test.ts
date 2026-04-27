@@ -220,4 +220,48 @@ describe( 'devtools.debug', () => {
 		expect( onQuery ).toHaveBeenCalledTimes( 1 );
 		expect( onLog ).toHaveBeenCalledTimes( 1 );
 	} );
+
+	test( 'poll URL includes subscribed channels (regression: empty drains)', async () => {
+		// Server-side drain returns `{ events: [] }` when no channels
+		// are passed and no `desktop_mode_debug_channels` filter
+		// contributor exists. The poll URL must therefore stamp every
+		// active subscription channel as `channels[]=…` so the server
+		// has the full set to walk. Regression for a real silent-fail
+		// bug: subscribe + publish-on-server returned nothing because
+		// the URL omitted channels entirely.
+		( window as unknown as {
+			wpDesktopConfig?: { restUrl?: string; restNonce?: string };
+		} ).wpDesktopConfig = {
+			restUrl: 'https://example.test/wp-json/',
+			restNonce: 'abc',
+		};
+		const calls: string[] = [];
+		const fetchSpy = vi
+			.spyOn( globalThis, 'fetch' )
+			.mockImplementation( ( input: RequestInfo | URL ) => {
+				calls.push( typeof input === 'string' ? input : input.toString() );
+				return Promise.resolve(
+					new Response(
+						JSON.stringify( { events: [], cursor: 0 } ),
+						{ status: 200, headers: { 'Content-Type': 'application/json' } },
+					),
+				);
+			} );
+		try {
+			const { dt } = await freshDevtools();
+			// Single channel — the first poll fires synchronously
+			// inside `subscribe()`, so checking `calls[0]` reflects the
+			// URL the server would actually receive when a real plugin
+			// follows the docs verbatim.
+			dt.devtools.debug.subscribe( 'sess-1', 'query', () => void 0 );
+			await new Promise( ( r ) => setTimeout( r, 0 ) );
+			expect( calls.length ).toBeGreaterThan( 0 );
+			const url = calls[ 0 ];
+			expect( url ).toContain( 'sessionId=sess-1' );
+			expect( url ).toContain( 'channels[]=query' );
+		} finally {
+			fetchSpy.mockRestore();
+			delete ( window as unknown as { wpDesktopConfig?: unknown } ).wpDesktopConfig;
+		}
+	} );
 } );

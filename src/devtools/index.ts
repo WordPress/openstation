@@ -315,9 +315,22 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 		return;
 	}
 	sp.inflight = true;
-	const url = `${ restUrl }wp-desktop/v1/debug?sessionId=${ encodeURIComponent(
-		sessionId,
-	) }&since=${ sp.cursor }`;
+	// Pass the live subscription channels along with the request.
+	// Without this, the server-side drain has no channel set to walk
+	// (the `desktop_mode_debug_channels` filter is the only fallback)
+	// and returns an empty events list on every poll — silent failure
+	// that looks like "publishes never arrive". The channels live in
+	// `sp.channels` already, so we just stamp them into the URL on
+	// every poll; subscribers added between polls show up on the next
+	// tick.
+	const channels = Array.from( sp.channels.keys() );
+	const channelQuery = channels
+		.map( ( c ) => `&channels[]=${ encodeURIComponent( c ) }` )
+		.join( '' );
+	const url =
+		`${ restUrl }wp-desktop/v1/debug?sessionId=${ encodeURIComponent(
+			sessionId,
+		) }&since=${ sp.cursor }` + channelQuery;
 	fetch( url, {
 		credentials: 'same-origin',
 		headers: { 'X-WP-Nonce': restNonce },
