@@ -23,6 +23,10 @@ trap 'rm -rf "$tmp"' EXIT
 built=(
 	"assets/js/desktop.js"
 	"assets/js/desktop.min.js"
+	"assets/js/iframe-bridge.js"
+	"assets/js/iframe-bridge.min.js"
+	"assets/js/code-editor.js"
+	"assets/js/code-editor.min.js"
 )
 
 for file in "${built[@]}"; do
@@ -32,7 +36,7 @@ for file in "${built[@]}"; do
 	fi
 done
 
-git archive --prefix="$prefix/" HEAD | tar -x -C "$tmp"
+git archive --worktree-attributes --prefix="$prefix/" HEAD | tar -x -C "$tmp"
 
 for file in "${built[@]}"; do
 	cp "$file" "$tmp/$prefix/$file"
