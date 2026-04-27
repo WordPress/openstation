@@ -2,6 +2,39 @@
 
 Short file. Things I've forgotten or hand-waved before. If it's obvious from reading the code, don't add it here.
 
+## ⛔ Source-of-truth rule: NEVER hand-edit JS in `assets/js/`
+
+**`assets/js/*.js` is build output. Treat it as if it were `dist/`.**
+
+Every shipped JS bundle has a TypeScript source under `src/`. The two
+bundles today are:
+
+| Built file | TS source | Built by |
+|---|---|---|
+| `assets/js/desktop[.min].js` | `src/desktop.ts` | `npm run build:desktop` |
+| `assets/js/iframe-bridge[.min].js` | `src/iframe-bridge-standalone.ts` | `npm run build:iframe-bridge` |
+
+`npm run build` runs both. Vite's `WPDM_TARGET` env var (`desktop` /
+`iframe-bridge`) selects the entry — see `vite.config.js`.
+
+Process:
+
+1. Edit only TS files under `src/` (and CSS under `assets/css/` if
+   styling — that's not built).
+2. Run `npm run build` (or the per-target script).
+3. Run `npm run lint` (or `:fix`) — must pass on EVERYTHING you touched.
+4. Run `npm run test:js` — must stay green.
+5. Run `./node_modules/.bin/tsc --noEmit` — must stay green.
+
+If you ever find yourself reaching for `assets/js/*.js` directly, stop
+and write the TS instead. Hand-edited JS is overwritten by the next
+`npm run build` and produces no TS-checked types — silent class of bug.
+
+**Lint scope:** `npm run lint` runs on `src/**/*.ts` only. Test files
+under `tests/vitest/` aren't in the lint config (typescript-eslint
+project doesn't include them); rely on `tsc --noEmit` + `vitest` to
+catch issues there.
+
 ## Live-refresh on plugin install/activate — how it actually works
 
 When the user installs or activates a plugin, the **chromeless bridge** inside the `plugins.php` iframe postMessages `wp-desktop-plugins-changed` to the parent shell with a **payload captured in real admin context** (plugins that gate `admin_menu` on `is_admin()` at load time register correctly there; a REST roundtrip from the shell cannot replicate that, so don't try).
@@ -12,6 +45,7 @@ Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
 { dockItems, nativeWindows, serverWidgets, serverWallpapers,
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
+  serverTitleBarButtonScripts,
   desktopIcons }
 ```
 
@@ -72,6 +106,15 @@ docs/
 │                                            method/property, user meta keys, query flags.
 │                               READ BEFORE: any shell-JS or bridge change.
 │
+├── bridge-protocol.md          End-to-end wiring of the connection bridge — postMessage
+│                               types, lifecycle walkthrough, sniff points for debugging.
+│                               UPDATE WHEN: bridge protocol message catalog changes,
+│                                            new lifecycle steps, new internal sniff points.
+│                               READ BEFORE: changes to src/connection/, src/window/iframe-bridge.ts,
+│                                            assets/js/iframe-bridge.js, the chromeless inline
+│                                            bridge in includes/render.php, or
+│                                            src/native-windows.ts buildIframeContentRender.
+│
 ├── native-windows-proposal.md  Contract for native windows + framework interop.
 │                               UPDATE WHEN: the native-window API, tab system, or framework
 │                                            integration story changes.
@@ -94,8 +137,15 @@ docs/
     ├── react-to-window-events.md
     │                            UPDATE/READ WHEN: window-lifecycle CustomEvent shape changes.
     ├── register-command.md     UPDATE/READ WHEN: command registry API (JS or PHP) changes.
+    ├── register-ai-provider.md  UPDATE/READ WHEN: wp_register_desktop_ai_provider() contract,
+    │                            provider callback shapes, or active-provider resolution rules change.
     ├── ai-ask.md                UPDATE/READ WHEN: wp.desktop.ai.ask() contract, AI-tool-calling
     │                            protocol, or wp_register_desktop_ai_tool() signature changes.
+    ├── code-editor-open.md      UPDATE/READ WHEN: wp-desktop-code-open postMessage protocol,
+    │                            wp.desktop.openWindow contract, or Cmd/Ctrl+Shift+E shortcut changes.
+    ├── connect-to-window.md     UPDATE/READ WHEN: registerTitleBarButton, Window.setHighlight,
+    │                            wp.desktop.connect, or wp.desktop.iframe.* contract changes;
+    │                            wp-desktop-bridge-* postMessage protocol changes.
     ├── register-icon.md        UPDATE/READ WHEN: wp_register_desktop_icon() contract changes.
     ├── register-wallpaper.md   UPDATE/READ WHEN: WallpaperDef or wp_register_desktop_wallpaper() changes.
     └── window-lifecycle.md     UPDATE/READ WHEN: window state machine / lifecycle hooks change.

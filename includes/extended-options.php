@@ -22,7 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** wp_options key for the extended options bundle. */
-const WPDM_EXTENDED_OPTIONS_KEY = 'wp_desktop_extended_options';
+const DESKTOP_MODE_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
 
 // ---------------------------------------------------------------------------
 // Get / save
@@ -35,11 +35,11 @@ const WPDM_EXTENDED_OPTIONS_KEY = 'wp_desktop_extended_options';
  *
  * @return array{ media_library_enhanced: bool }
  */
-function wpdm_get_extended_options() {
+function desktop_mode_get_extended_options() {
 	$defaults = array(
 		'media_library_enhanced' => true,
 	);
-	$raw = get_option( WPDM_EXTENDED_OPTIONS_KEY, array() );
+	$raw = get_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}
@@ -62,14 +62,14 @@ function wpdm_get_extended_options() {
  * @param mixed $raw Incoming payload.
  * @return bool
  */
-function wpdm_save_extended_options( $raw ) {
+function desktop_mode_save_extended_options( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return false;
 	}
 	$clean = array(
 		'media_library_enhanced' => ! empty( $raw['media_library_enhanced'] ),
 	);
-	return update_option( WPDM_EXTENDED_OPTIONS_KEY, $clean, false );
+	return update_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, $clean, false );
 }
 
 // ---------------------------------------------------------------------------
@@ -81,20 +81,20 @@ function wpdm_save_extended_options( $raw ) {
  *
  * @since 0.14.0
  */
-function wpdm_register_extended_options_rest_routes() {
+function desktop_mode_register_extended_options_rest_routes() {
 	register_rest_route(
 		'wp-desktop/v1',
 		'/extended-options',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'wpdm_rest_get_extended_options',
-				'permission_callback' => 'wpdm_rest_extended_options_permission',
+				'callback'            => 'desktop_mode_rest_get_extended_options',
+				'permission_callback' => 'desktop_mode_rest_extended_options_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'wpdm_rest_save_extended_options',
-				'permission_callback' => 'wpdm_rest_extended_options_permission',
+				'callback'            => 'desktop_mode_rest_save_extended_options',
+				'permission_callback' => 'desktop_mode_rest_extended_options_permission',
 				'args'                => array(
 					'options' => array(
 						'required' => true,
@@ -105,7 +105,7 @@ function wpdm_register_extended_options_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'wpdm_register_extended_options_rest_routes' );
+add_action( 'rest_api_init', 'desktop_mode_register_extended_options_rest_routes' );
 
 /**
  * Permission: admins only.
@@ -114,10 +114,10 @@ add_action( 'rest_api_init', 'wpdm_register_extended_options_rest_routes' );
  *
  * @return bool|WP_Error
  */
-function wpdm_rest_extended_options_permission() {
+function desktop_mode_rest_extended_options_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
 		return new WP_Error(
-			'wpdm_extended_forbidden',
+			'desktop_mode_extended_forbidden',
 			'Only administrators can manage extended options.',
 			array( 'status' => 403 )
 		);
@@ -132,8 +132,8 @@ function wpdm_rest_extended_options_permission() {
  *
  * @return WP_REST_Response
  */
-function wpdm_rest_get_extended_options() {
-	return rest_ensure_response( wpdm_get_extended_options() );
+function desktop_mode_rest_get_extended_options() {
+	return rest_ensure_response( desktop_mode_get_extended_options() );
 }
 
 /**
@@ -144,10 +144,10 @@ function wpdm_rest_get_extended_options() {
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
-function wpdm_rest_save_extended_options( WP_REST_Request $request ) {
+function desktop_mode_rest_save_extended_options( WP_REST_Request $request ) {
 	$payload = $request->get_param( 'options' );
-	wpdm_save_extended_options( $payload );
-	return rest_ensure_response( wpdm_get_extended_options() );
+	desktop_mode_save_extended_options( $payload );
+	return rest_ensure_response( desktop_mode_get_extended_options() );
 }
 
 // ---------------------------------------------------------------------------
@@ -162,22 +162,22 @@ function wpdm_rest_save_extended_options( WP_REST_Request $request ) {
  *
  * @since 0.14.0
  */
-function wpdm_enqueue_media_library_enhancement() {
+function desktop_mode_enqueue_media_library_enhancement() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
 
-	$options = wpdm_get_extended_options();
+	$options = desktop_mode_get_extended_options();
 	if ( empty( $options['media_library_enhanced'] ) ) {
 		return;
 	}
 
 	wp_enqueue_script(
 		'wpdm-media-library-enhanced',
-		WPDM_URL . 'assets/js/media-library-enhanced.js',
+		DESKTOP_MODE_URL . 'assets/js/media-library-enhanced.js',
 		array(),
-		WPDM_VERSION,
+		DESKTOP_MODE_VERSION,
 		true
 	);
 }
-add_action( 'admin_enqueue_scripts', 'wpdm_enqueue_media_library_enhancement', 20 );
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_media_library_enhancement', 20 );

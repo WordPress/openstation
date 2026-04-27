@@ -19,7 +19,7 @@
 
 import type { DesktopConfig } from '../types';
 import {
-	AI_PROVIDERS,
+	getAiProviders,
 	DEFAULTS,
 	DOCK_PLACEMENTS,
 	DOCK_SIZES,
@@ -199,16 +199,29 @@ export function structuredDefaults(): OsSettingsState {
 
 export function sanitizeAi( raw: unknown ): AiSettings {
 	if ( ! raw || typeof raw !== 'object' ) {
-		return { ...DEFAULTS.ai };
+		return { ...DEFAULTS.ai, apiKeys: {} };
 	}
-	const { enabled, provider, apiKey } = raw as Partial<AiSettings>;
-	const validProvider = AI_PROVIDERS.some( ( p ) => p.id === provider )
-		? ( provider as AiSettings[ 'provider' ] )
-		: DEFAULTS.ai.provider;
+	const { enabled, provider, apiKey, apiKeys } = raw as Partial< AiSettings >;
+	const known = getAiProviders();
+	const validProvider =
+		typeof provider === 'string' && known.some( ( p ) => p.id === provider )
+			? provider
+			: DEFAULTS.ai.provider;
+
+	const cleanKeys: Record< string, string > = {};
+	if ( apiKeys && typeof apiKeys === 'object' ) {
+		for ( const [ pid, val ] of Object.entries( apiKeys ) ) {
+			if ( typeof val === 'string' ) {
+				cleanKeys[ pid ] = val.slice( 0, 512 );
+			}
+		}
+	}
+
 	return {
 		enabled: typeof enabled === 'boolean' ? enabled : DEFAULTS.ai.enabled,
 		provider: validProvider,
 		apiKey: typeof apiKey === 'string' ? apiKey : DEFAULTS.ai.apiKey,
+		apiKeys: cleanKeys,
 	};
 }
 

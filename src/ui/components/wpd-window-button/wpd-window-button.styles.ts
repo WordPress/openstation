@@ -52,4 +52,40 @@ export const styles = css`
 		pointer-events: none;
 		flex-shrink: 0;
 	}
+	/*
+	 * When the icon attribute is empty or unrecognised (the case
+	 * for plugin-registered buttons that pass their icon via the
+	 * default slot — Dashicons span / inline SVG / etc.), the
+	 * shadow built-in svg stays empty. Without this rule the
+	 * empty 14×14 box still occupies flex space and pushes the
+	 * slot icon off-centre. The :empty pseudo matches when the
+	 * element has no children, which is exactly the
+	 * no-built-in-icon case.
+	 */
+	svg:empty {
+		display: none;
+	}
+	/*
+	 * Slot content sits as a sibling of the built-in svg inside
+	 * the flex button — already centred by the parent's
+	 * align-items + justify-content. We only need to make sure
+	 * slotted children don't introduce their own baseline gap
+	 * (block-display SVGs, line-height-1 spans).
+	 *
+	 * For Dashicons spans we deliberately do NOT set width /
+	 * height / font-size — the WP Dashicons stylesheet already
+	 * sizes them to 20×20 with line-height: 1, which is the
+	 * font's natural metric. Overriding either knocks the glyph
+	 * off centre.
+	 *
+	 * Two explicit selectors instead of slotted-wildcard — the
+	 * star char inside a template literal trips the TS parser.
+	 * Listing the two real cases is more readable anyway.
+	 */
+	::slotted( span ) {
+		line-height: 1;
+	}
+	::slotted( svg ) {
+		display: block;
+	}
 `;

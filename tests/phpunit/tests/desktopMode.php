@@ -16,43 +16,43 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		unset( $_GET['wp_desktop'], $_GET[ WPDM_CLASSIC_FLAG ] );
-		delete_user_meta( self::$admin_id, 'wp_desktop_mode' );
+		unset( $_GET['wp_desktop'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::wpdm_is_enabled
+	 * @covers ::desktop_mode_is_enabled
 	 */
 	public function test_returns_false_for_logged_out_user() {
 		wp_set_current_user( 0 );
-		$this->assertFalse( wpdm_is_enabled() );
+		$this->assertFalse( desktop_mode_is_enabled() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_enabled
+	 * @covers ::desktop_mode_is_enabled
 	 */
 	public function test_returns_false_when_meta_is_missing() {
 		wp_set_current_user( self::$admin_id );
-		$this->assertFalse( wpdm_is_enabled() );
+		$this->assertFalse( desktop_mode_is_enabled() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_enabled
+	 * @covers ::desktop_mode_is_enabled
 	 */
 	public function test_returns_false_when_meta_is_empty_string() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '' );
-		$this->assertFalse( wpdm_is_enabled() );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '' );
+		$this->assertFalse( desktop_mode_is_enabled() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_enabled
+	 * @covers ::desktop_mode_is_enabled
 	 */
 	public function test_returns_true_when_meta_is_one() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
-		$this->assertTrue( wpdm_is_enabled() );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$this->assertTrue( desktop_mode_is_enabled() );
 	}
 
 	/**
@@ -60,34 +60,34 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	 * handler stores either '1' or empty string, so anything else
 	 * (legacy data, manual edits, plugin tampering) is treated as off.
 	 *
-	 * @covers ::wpdm_is_enabled
+	 * @covers ::desktop_mode_is_enabled
 	 */
 	public function test_returns_false_for_non_one_truthy_meta() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', 'true' );
-		$this->assertFalse( wpdm_is_enabled() );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', 'true' );
+		$this->assertFalse( desktop_mode_is_enabled() );
 
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '0' );
-		$this->assertFalse( wpdm_is_enabled() );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '0' );
+		$this->assertFalse( desktop_mode_is_enabled() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_chromeless_request
+	 * @covers ::desktop_mode_is_chromeless_request
 	 */
 	public function test_chromeless_false_without_query_param() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
-		$this->assertFalse( wpdm_is_chromeless_request() );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$this->assertFalse( desktop_mode_is_chromeless_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_chromeless_request
+	 * @covers ::desktop_mode_is_chromeless_request
 	 */
 	public function test_chromeless_false_when_param_is_not_one() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['wp_desktop'] = 'yes';
-		$this->assertFalse( wpdm_is_chromeless_request() );
+		$this->assertFalse( desktop_mode_is_chromeless_request() );
 	}
 
 	/**
@@ -96,80 +96,80 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	 * enabled. Otherwise anyone could send a victim a link with
 	 * ?wp_desktop=1 and load admin pages without the navigation.
 	 *
-	 * @covers ::wpdm_is_chromeless_request
+	 * @covers ::desktop_mode_is_chromeless_request
 	 */
 	public function test_chromeless_false_when_user_has_desktop_mode_off() {
 		wp_set_current_user( self::$admin_id );
 		// Meta intentionally not set.
 		$_GET['wp_desktop'] = '1';
-		$this->assertFalse( wpdm_is_chromeless_request() );
+		$this->assertFalse( desktop_mode_is_chromeless_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_chromeless_request
+	 * @covers ::desktop_mode_is_chromeless_request
 	 */
 	public function test_chromeless_false_for_logged_out_user_with_param() {
 		wp_set_current_user( 0 );
 		$_GET['wp_desktop'] = '1';
-		$this->assertFalse( wpdm_is_chromeless_request() );
+		$this->assertFalse( desktop_mode_is_chromeless_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_chromeless_request
+	 * @covers ::desktop_mode_is_chromeless_request
 	 */
 	public function test_chromeless_true_when_param_set_and_user_opted_in() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['wp_desktop'] = '1';
-		$this->assertTrue( wpdm_is_chromeless_request() );
+		$this->assertTrue( desktop_mode_is_chromeless_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_hide_admin_bar
+	 * @covers ::desktop_mode_chromeless_hide_admin_bar
 	 */
 	public function test_show_admin_bar_filter_returns_false_in_chromeless() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['wp_desktop'] = '1';
-		$this->assertFalse( wpdm_chromeless_hide_admin_bar( true ) );
+		$this->assertFalse( desktop_mode_chromeless_hide_admin_bar( true ) );
 	}
 
 	/**
-	 * @covers ::wpdm_chromeless_hide_admin_bar
+	 * @covers ::desktop_mode_chromeless_hide_admin_bar
 	 */
 	public function test_show_admin_bar_filter_passes_through_outside_chromeless() {
 		wp_set_current_user( self::$admin_id );
 		// No chromeless param, no meta — both conditions for chromeless fail.
-		$this->assertTrue( wpdm_chromeless_hide_admin_bar( true ) );
-		$this->assertFalse( wpdm_chromeless_hide_admin_bar( false ) );
+		$this->assertTrue( desktop_mode_chromeless_hide_admin_bar( true ) );
+		$this->assertFalse( desktop_mode_chromeless_hide_admin_bar( false ) );
 	}
 
 	/**
 	 * The filter is registered at module load via add_filter().
 	 * Verify it actually fires through apply_filters('show_admin_bar').
 	 *
-	 * @covers ::wpdm_chromeless_hide_admin_bar
+	 * @covers ::desktop_mode_chromeless_hide_admin_bar
 	 */
 	public function test_show_admin_bar_filter_is_wired() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['wp_desktop'] = '1';
 		$this->assertFalse( apply_filters( 'show_admin_bar', true ) );
 	}
 
 	/**
-	 * @covers ::wpdm_is_classic_request
+	 * @covers ::desktop_mode_is_classic_request
 	 */
 	public function test_classic_request_false_without_query_param() {
-		$this->assertFalse( wpdm_is_classic_request() );
+		$this->assertFalse( desktop_mode_is_classic_request() );
 	}
 
 	/**
-	 * @covers ::wpdm_is_classic_request
+	 * @covers ::desktop_mode_is_classic_request
 	 */
 	public function test_classic_request_false_when_param_is_not_one() {
-		$_GET[ WPDM_CLASSIC_FLAG ] = 'yes';
-		$this->assertFalse( wpdm_is_classic_request() );
+		$_GET[ DESKTOP_MODE_CLASSIC_FLAG ] = 'yes';
+		$this->assertFalse( desktop_mode_is_classic_request() );
 	}
 
 	/**
@@ -177,28 +177,28 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	 * the user isn't logged in (there's no shell to hide in that case,
 	 * but the helper shouldn't falsely return true for ambiguous values).
 	 *
-	 * @covers ::wpdm_is_classic_request
+	 * @covers ::desktop_mode_is_classic_request
 	 */
 	public function test_classic_request_true_when_param_is_one() {
-		$_GET[ WPDM_CLASSIC_FLAG ] = '1';
-		$this->assertTrue( wpdm_is_classic_request() );
+		$_GET[ DESKTOP_MODE_CLASSIC_FLAG ] = '1';
+		$this->assertTrue( desktop_mode_is_classic_request() );
 	}
 
 	/**
 	 * Classic override is orthogonal to the user's account preference —
-	 * `wpdm_is_enabled()` should still reflect the stored meta even
+	 * `desktop_mode_is_enabled()` should still reflect the stored meta even
 	 * when the per-request classic flag is active, because the admin-bar
 	 * toggle reads meta to label itself correctly.
 	 *
-	 * @covers ::wpdm_is_enabled
-	 * @covers ::wpdm_is_classic_request
+	 * @covers ::desktop_mode_is_enabled
+	 * @covers ::desktop_mode_is_classic_request
 	 */
 	public function test_classic_request_does_not_change_desktop_mode_helper() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
-		$_GET[ WPDM_CLASSIC_FLAG ] = '1';
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET[ DESKTOP_MODE_CLASSIC_FLAG ] = '1';
 
-		$this->assertTrue( wpdm_is_enabled() );
-		$this->assertTrue( wpdm_is_classic_request() );
+		$this->assertTrue( desktop_mode_is_enabled() );
+		$this->assertTrue( desktop_mode_is_classic_request() );
 	}
 }

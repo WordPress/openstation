@@ -9,9 +9,9 @@
  * when the OpenAI API is slow.
  *
  * Hook names:
- *   wpdm_ai_analyze_post     ($post_id,    $user_id)
- *   wpdm_ai_analyze_term     ($term_id,    $taxonomy, $user_id)
- *   wpdm_ai_analyze_comment  ($comment_id, $user_id)
+ *   desktop_mode_ai_analyze_post     ($post_id,    $user_id)
+ *   desktop_mode_ai_analyze_term     ($term_id,    $taxonomy, $user_id)
+ *   desktop_mode_ai_analyze_comment  ($comment_id, $user_id)
  *
  * @package WPDesktopMode
  */
@@ -30,11 +30,11 @@ defined( 'ABSPATH' ) || exit;
  * @param int $post_id The post ID.
  * @param int $user_id The ID of the user whose API key to use.
  */
-function wpdm_ai_job_analyze_post( $post_id, $user_id ) {
+function desktop_mode_ai_job_analyze_post( $post_id, $user_id ) {
 	$post_id = (int) $post_id;
 	$user_id = (int) $user_id;
 
-	if ( ! wpdm_ai_is_enabled( $user_id ) ) {
+	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		return;
 	}
 
@@ -45,18 +45,18 @@ function wpdm_ai_job_analyze_post( $post_id, $user_id ) {
 
 	/** @var array $supported_types Post types the copilot analyzes. */
 	$supported_types = (array) apply_filters(
-		'wp_desktop_ai_supported_post_types',
+		'desktop_mode_ai_supported_post_types',
 		array( 'post', 'page' )
 	);
 	if ( ! in_array( $post->post_type, $supported_types, true ) ) {
 		return;
 	}
 
-	$api_key  = wpdm_ai_get_api_key( $user_id );
-	$messages = wpdm_ai_messages_for_post( $post );
-	$schema   = wpdm_ai_schema_content();
+	$api_key  = desktop_mode_ai_get_api_key( $user_id );
+	$messages = desktop_mode_ai_messages_for_post( $post );
+	$schema   = desktop_mode_ai_schema_content();
 
-	$result = wpdm_ai_openai_structured_request( $api_key, $messages, $schema, 'content_analysis' );
+	$result = desktop_mode_ai_provider_structured_request( $user_id, $api_key, $messages, $schema, 'content_analysis' );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -64,7 +64,7 @@ function wpdm_ai_job_analyze_post( $post_id, $user_id ) {
 		return;
 	}
 
-	wpdm_ai_save_meta( 'post', $post_id, $result );
+	desktop_mode_ai_save_meta( 'post', $post_id, $result );
 
 	/**
 	 * Fires after a post or page has been successfully analyzed by the AI copilot.
@@ -75,9 +75,9 @@ function wpdm_ai_job_analyze_post( $post_id, $user_id ) {
 	 * @param array   $result   The structured analysis result.
 	 * @param WP_Post $post     The post object.
 	 */
-	do_action( 'wp_desktop_ai_post_analyzed', $post_id, $result, $post );
+	do_action( 'desktop_mode_ai_post_analyzed', $post_id, $result, $post );
 }
-add_action( 'wpdm_ai_analyze_post', 'wpdm_ai_job_analyze_post', 10, 2 );
+add_action( 'desktop_mode_ai_analyze_post', 'desktop_mode_ai_job_analyze_post', 10, 2 );
 
 // ---------------------------------------------------------------------------
 // Job: taxonomy term (category, tag, custom)
@@ -92,11 +92,11 @@ add_action( 'wpdm_ai_analyze_post', 'wpdm_ai_job_analyze_post', 10, 2 );
  * @param string $taxonomy The taxonomy slug.
  * @param int    $user_id  The ID of the user whose API key to use.
  */
-function wpdm_ai_job_analyze_term( $term_id, $taxonomy, $user_id ) {
+function desktop_mode_ai_job_analyze_term( $term_id, $taxonomy, $user_id ) {
 	$term_id = (int) $term_id;
 	$user_id = (int) $user_id;
 
-	if ( ! wpdm_ai_is_enabled( $user_id ) ) {
+	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		return;
 	}
 
@@ -105,11 +105,11 @@ function wpdm_ai_job_analyze_term( $term_id, $taxonomy, $user_id ) {
 		return;
 	}
 
-	$api_key  = wpdm_ai_get_api_key( $user_id );
-	$messages = wpdm_ai_messages_for_term( $term );
-	$schema   = wpdm_ai_schema_content();
+	$api_key  = desktop_mode_ai_get_api_key( $user_id );
+	$messages = desktop_mode_ai_messages_for_term( $term );
+	$schema   = desktop_mode_ai_schema_content();
 
-	$result = wpdm_ai_openai_structured_request( $api_key, $messages, $schema, 'content_analysis' );
+	$result = desktop_mode_ai_provider_structured_request( $user_id, $api_key, $messages, $schema, 'content_analysis' );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -117,7 +117,7 @@ function wpdm_ai_job_analyze_term( $term_id, $taxonomy, $user_id ) {
 		return;
 	}
 
-	wpdm_ai_save_meta( 'term', $term_id, $result );
+	desktop_mode_ai_save_meta( 'term', $term_id, $result );
 
 	/**
 	 * Fires after a taxonomy term has been successfully analyzed by the AI copilot.
@@ -128,9 +128,9 @@ function wpdm_ai_job_analyze_term( $term_id, $taxonomy, $user_id ) {
 	 * @param array   $result   The structured analysis result.
 	 * @param WP_Term $term     The term object.
 	 */
-	do_action( 'wp_desktop_ai_term_analyzed', $term_id, $result, $term );
+	do_action( 'desktop_mode_ai_term_analyzed', $term_id, $result, $term );
 }
-add_action( 'wpdm_ai_analyze_term', 'wpdm_ai_job_analyze_term', 10, 3 );
+add_action( 'desktop_mode_ai_analyze_term', 'desktop_mode_ai_job_analyze_term', 10, 3 );
 
 // ---------------------------------------------------------------------------
 // Job: comment
@@ -144,11 +144,11 @@ add_action( 'wpdm_ai_analyze_term', 'wpdm_ai_job_analyze_term', 10, 3 );
  * @param int $comment_id The comment ID.
  * @param int $user_id    The ID of the user whose API key to use.
  */
-function wpdm_ai_job_analyze_comment( $comment_id, $user_id ) {
+function desktop_mode_ai_job_analyze_comment( $comment_id, $user_id ) {
 	$comment_id = (int) $comment_id;
 	$user_id    = (int) $user_id;
 
-	if ( ! wpdm_ai_is_enabled( $user_id ) ) {
+	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		return;
 	}
 
@@ -157,11 +157,11 @@ function wpdm_ai_job_analyze_comment( $comment_id, $user_id ) {
 		return;
 	}
 
-	$api_key  = wpdm_ai_get_api_key( $user_id );
-	$messages = wpdm_ai_messages_for_comment( $comment );
-	$schema   = wpdm_ai_schema_comment();
+	$api_key  = desktop_mode_ai_get_api_key( $user_id );
+	$messages = desktop_mode_ai_messages_for_comment( $comment );
+	$schema   = desktop_mode_ai_schema_comment();
 
-	$result = wpdm_ai_openai_structured_request( $api_key, $messages, $schema, 'comment_analysis' );
+	$result = desktop_mode_ai_provider_structured_request( $user_id, $api_key, $messages, $schema, 'comment_analysis' );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -169,7 +169,7 @@ function wpdm_ai_job_analyze_comment( $comment_id, $user_id ) {
 		return;
 	}
 
-	wpdm_ai_save_meta( 'comment', $comment_id, $result );
+	desktop_mode_ai_save_meta( 'comment', $comment_id, $result );
 
 	/**
 	 * Fires after a comment has been successfully analyzed by the AI copilot.
@@ -184,6 +184,6 @@ function wpdm_ai_job_analyze_comment( $comment_id, $user_id ) {
 	 * @param array      $result     The structured analysis result.
 	 * @param WP_Comment $comment    The comment object.
 	 */
-	do_action( 'wp_desktop_ai_comment_analyzed', $comment_id, $result, $comment );
+	do_action( 'desktop_mode_ai_comment_analyzed', $comment_id, $result, $comment );
 }
-add_action( 'wpdm_ai_analyze_comment', 'wpdm_ai_job_analyze_comment', 10, 2 );
+add_action( 'desktop_mode_ai_analyze_comment', 'desktop_mode_ai_job_analyze_comment', 10, 2 );

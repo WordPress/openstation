@@ -1,0 +1,39 @@
+# Files excluded from `git archive` (and therefore from the plugin ZIP
+# produced by bin/package.sh). Runtime code, CSS, images, vendored libs,
+# language files, LICENSE, README.md, and readme.txt are NOT listed here
+# and ship in the ZIP. Dev tooling, build config, source TS, tests, and
+# developer docs are excluded.
+
+# Dotfiles / dev tooling
+/.github/           export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/.eslintignore      export-ignore
+/.eslintrc.cjs      export-ignore
+/.nvmrc             export-ignore
+/.wp-env.json       export-ignore
+/.wordpress-org/    export-ignore
+
+# Internal docs / notes (not for end users)
+/CLAUDE.md          export-ignore
+/DEVELOPMENT.md     export-ignore
+/RELEASE.md         export-ignore
+
+# Source + build config (assets/js/*.js is the shipped output)
+/src/               export-ignore
+/tsconfig.json      export-ignore
+/vite.config.js     export-ignore
+/vitest.config.ts   export-ignore
+/package.json       export-ignore
+/package-lock.json  export-ignore
+
+# Tests + their tooling
+/tests/             export-ignore
+/composer.json      export-ignore
+/composer.lock      export-ignore
+
+# Developer-facing docs (linked from readme.txt → GitHub)
+/docs/              export-ignore
+
+# Packaging / release scripts (dev-only)
+/bin/               export-ignore

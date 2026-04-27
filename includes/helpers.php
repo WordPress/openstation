@@ -14,12 +14,12 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return bool True if the current user has desktop mode active.
  */
-function wpdm_is_enabled() {
+function desktop_mode_is_enabled() {
 	if ( ! is_user_logged_in() ) {
 		return false;
 	}
 
-	return '1' === get_user_meta( get_current_user_id(), 'wp_desktop_mode', true );
+	return '1' === get_user_meta( get_current_user_id(), 'desktop_mode_mode', true );
 }
 
 /**
@@ -28,7 +28,7 @@ function wpdm_is_enabled() {
  * Hooked on the `show_admin_bar` filter so the front-end bar path also
  * sees a false return. In admin, `is_admin_bar_showing()` short-circuits
  * to true for any is_admin() request regardless of this filter, so the
- * actual render is stopped by `wpdm_chromeless_suppress_admin_bar`
+ * actual render is stopped by `desktop_mode_chromeless_suppress_admin_bar`
  * below; this filter is kept for completeness + tests.
  *
  * @since 0.1.0
@@ -36,13 +36,13 @@ function wpdm_is_enabled() {
  * @param bool $show Whether the admin bar should be shown.
  * @return bool
  */
-function wpdm_chromeless_hide_admin_bar( $show ) {
-	if ( wpdm_is_chromeless_request() ) {
+function desktop_mode_chromeless_hide_admin_bar( $show ) {
+	if ( desktop_mode_is_chromeless_request() ) {
 		return false;
 	}
 	return $show;
 }
-add_filter( 'show_admin_bar', 'wpdm_chromeless_hide_admin_bar' );
+add_filter( 'show_admin_bar', 'desktop_mode_chromeless_hide_admin_bar' );
 
 /**
  * Suppresses the admin bar render inside chromeless iframes.
@@ -54,13 +54,13 @@ add_filter( 'show_admin_bar', 'wpdm_chromeless_hide_admin_bar' );
  *
  * @since 0.1.0
  */
-function wpdm_chromeless_suppress_admin_bar() {
-	if ( wpdm_is_chromeless_request() ) {
+function desktop_mode_chromeless_suppress_admin_bar() {
+	if ( desktop_mode_is_chromeless_request() ) {
 		remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
 		remove_action( 'wp_body_open', 'wp_admin_bar_render', 0 );
 	}
 }
-add_action( 'admin_init', 'wpdm_chromeless_suppress_admin_bar' );
+add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
 
 /**
  * Preserves the `wp_desktop` flag through admin redirects.
@@ -81,8 +81,8 @@ add_action( 'admin_init', 'wpdm_chromeless_suppress_admin_bar' );
  * @param string $location The redirect URL.
  * @return string The redirect URL, with `wp_desktop=1` appended when applicable.
  */
-function wpdm_chromeless_preserve_redirect( $location ) {
-	if ( empty( $location ) || ! wpdm_is_chromeless_request() ) {
+function desktop_mode_chromeless_preserve_redirect( $location ) {
+	if ( empty( $location ) || ! desktop_mode_is_chromeless_request() ) {
 		return $location;
 	}
 
@@ -98,10 +98,10 @@ function wpdm_chromeless_preserve_redirect( $location ) {
 
 	return add_query_arg( 'wp_desktop', '1', $location );
 }
-add_filter( 'wp_redirect', 'wpdm_chromeless_preserve_redirect', 999 );
+add_filter( 'wp_redirect', 'desktop_mode_chromeless_preserve_redirect', 999 );
 
 /**
- * Preserves the `wp_desktop_classic` flag through admin redirects.
+ * Preserves the `desktop_mode_classic` flag through admin redirects.
  *
  * The detached-tab workflow depends on the classic flag living on every
  * same-tab navigation — otherwise a `wp_redirect()` after saving a post
@@ -116,10 +116,10 @@ add_filter( 'wp_redirect', 'wpdm_chromeless_preserve_redirect', 999 );
  * @since 0.4.0
  *
  * @param string $location The redirect URL.
- * @return string The redirect URL, with `wp_desktop_classic=1` appended when applicable.
+ * @return string The redirect URL, with `desktop_mode_classic=1` appended when applicable.
  */
-function wpdm_classic_preserve_redirect( $location ) {
-	if ( empty( $location ) || ! wpdm_is_classic_request() ) {
+function desktop_mode_classic_preserve_redirect( $location ) {
+	if ( empty( $location ) || ! desktop_mode_is_classic_request() ) {
 		return $location;
 	}
 
@@ -127,13 +127,13 @@ function wpdm_classic_preserve_redirect( $location ) {
 		return $location;
 	}
 
-	if ( false !== strpos( $location, WPDM_CLASSIC_FLAG . '=' ) ) {
+	if ( false !== strpos( $location, DESKTOP_MODE_CLASSIC_FLAG . '=' ) ) {
 		return $location;
 	}
 
-	return add_query_arg( WPDM_CLASSIC_FLAG, '1', $location );
+	return add_query_arg( DESKTOP_MODE_CLASSIC_FLAG, '1', $location );
 }
-add_filter( 'wp_redirect', 'wpdm_classic_preserve_redirect', 999 );
+add_filter( 'wp_redirect', 'desktop_mode_classic_preserve_redirect', 999 );
 
 /**
  * Checks whether the current request is a chromeless request.
@@ -146,42 +146,85 @@ add_filter( 'wp_redirect', 'wpdm_classic_preserve_redirect', 999 );
  *
  * @return bool True if this is a chromeless (iframe) request.
  */
-function wpdm_is_chromeless_request() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
-	if ( empty( $_GET['wp_desktop'] ) || '1' !== wp_unslash( $_GET['wp_desktop'] ) ) {
+function desktop_mode_is_chromeless_request() {
+	if ( ! desktop_mode_is_enabled() ) {
+		// Only allow chromeless mode if the user actually has
+		// desktop mode enabled. Prevents stripping admin chrome via
+		// a bare `?wp_desktop=1` parameter from a logged-out URL.
 		return false;
 	}
 
-	// Only allow chromeless mode if the user actually has desktop mode enabled.
-	// This prevents stripping admin chrome via a bare ?wp_desktop=1 parameter.
-	return wpdm_is_enabled();
+	// Primary signal — the explicit query flag the parent shell
+	// adds when opening windows.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
+	if ( ! empty( $_GET['wp_desktop'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wp_desktop'] ) ) ) {
+		return true;
+	}
+
+	// Fallback signal — the request is a same-origin iframe load.
+	// Modern browsers (Chrome 80+, Firefox 90+, Safari 16.4+) send
+	// the `Sec-Fetch-*` headers reliably, and they are immune to
+	// JavaScript spoofing (the browser sets them itself).
+	//
+	// This catches the failure mode where an internal admin
+	// navigation drops the `?wp_desktop=1` query flag — Gutenberg's
+	// `window.location` assignments, meta-refresh redirects, or any
+	// link the inline rewriter missed. The user is in an iframe on
+	// the same origin, has desktop mode enabled, so render as
+	// chromeless.
+	//
+	// `Sec-Fetch-Site: same-origin` is the cross-origin guard so a
+	// foreign site that iframes the wp-admin page can't trick us
+	// into stripping the chrome — the user agent reports the
+	// embedding context honestly.
+	$fetch_dest = isset( $_SERVER['HTTP_SEC_FETCH_DEST'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_DEST'] ) )
+		: '';
+	$fetch_site = isset( $_SERVER['HTTP_SEC_FETCH_SITE'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) )
+		: '';
+	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
+		/**
+		 * Filter the Sec-Fetch fallback. Return false to require an
+		 * explicit `?wp_desktop=1` flag (matches pre-0.18 behaviour);
+		 * useful for environments where a reverse proxy strips the
+		 * `Sec-Fetch-*` headers and they can't be trusted.
+		 *
+		 * @since 0.18.0
+		 *
+		 * @param bool $allow Default true.
+		 */
+		return (bool) apply_filters( 'desktop_mode_chromeless_sec_fetch_fallback', true );
+	}
+
+	return false;
 }
 
 /**
  * Checks whether the current request carries the "classic override" flag.
  *
  * The window-chrome "Detach" action opens an admin page in a new browser tab
- * with `?wp_desktop_classic=1` so the user can view that one page outside the
+ * with `?desktop_mode_classic=1` so the user can view that one page outside the
  * desktop shell without disabling desktop mode account-wide. The flag is a
- * per-request override: `wpdm_is_enabled()` still returns true (the user's
+ * per-request override: `desktop_mode_is_enabled()` still returns true (the user's
  * preference hasn't changed), but the shell, shell assets, and body class are
  * skipped for this request so the classic admin renders normally.
  *
- * Keep this separate from `wpdm_is_enabled()` so the admin-bar toggle in
+ * Keep this separate from `desktop_mode_is_enabled()` so the admin-bar toggle in
  * the detached tab correctly reflects the account state — letting the user
  * disable desktop mode entirely from the tab if they want to.
  *
  * @since 0.4.0
  *
- * @return bool True if the request carries `?wp_desktop_classic=1`.
+ * @return bool True if the request carries `?desktop_mode_classic=1`.
  */
-function wpdm_is_classic_request() {
+function desktop_mode_is_classic_request() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
-	if ( empty( $_GET[ WPDM_CLASSIC_FLAG ] ) ) {
+	if ( empty( $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] ) ) {
 		return false;
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
-	return '1' === (string) wp_unslash( $_GET[ WPDM_CLASSIC_FLAG ] );
+	return '1' === sanitize_text_field( wp_unslash( $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] ) );
 }
 
 /**
@@ -193,7 +236,7 @@ function wpdm_is_classic_request() {
  * without forking the TS build.
  *
  * ```php
- * add_filter( 'wp_desktop_default_wallpaper', function () {
+ * add_filter( 'desktop_mode_default_wallpaper', function () {
  *     return 'my-plugin/brand';
  * } );
  * ```
@@ -207,7 +250,7 @@ function wpdm_is_classic_request() {
  * @return string Wallpaper id. Empty string if the filter returns
  *                an invalid value.
  */
-function wpdm_get_default_wallpaper() {
+function desktop_mode_get_default_wallpaper() {
 	/**
 	 * Filters the wallpaper id loaded on first boot / new user.
 	 *
@@ -215,7 +258,7 @@ function wpdm_get_default_wallpaper() {
 	 *
 	 * @param string $id Default wallpaper slug.
 	 */
-	$id = apply_filters( 'wp_desktop_default_wallpaper', 'dark' );
+	$id = apply_filters( 'desktop_mode_default_wallpaper', 'dark' );
 	if ( ! is_string( $id ) ) {
 		return '';
 	}
@@ -226,18 +269,18 @@ function wpdm_get_default_wallpaper() {
  * Build a `WP_Error` for a desktop-mode registration failure.
  *
  * Centralises the error-code vocabulary used by every
- * `wp_register_desktop_*()` function so plugin authors see a
+ * `desktop_mode_register_*()` function so plugin authors see a
  * consistent contract. The canonical error-code list lives in
  * `docs/hooks-reference.md`.
  *
  * @since 0.11.0
  *
- * @param string $code    Short error slug (e.g. `wp_desktop_missing_title`).
+ * @param string $code    Short error slug (e.g. `desktop_mode_missing_title`).
  * @param string $message Human-readable message. Should be translated.
  * @param array  $data    Optional extra context attached to the error.
  * @return WP_Error
  */
-function wpdm_registration_error( $code, $message, $data = array() ) {
+function desktop_mode_registration_error( $code, $message, $data = array() ) {
 	return new WP_Error(
 		(string) $code,
 		(string) $message,
@@ -260,7 +303,7 @@ function wpdm_registration_error( $code, $message, $data = array() ) {
  * @param string $url URL to test.
  * @return bool
  */
-function wpdm_url_is_same_admin( $url ) {
+function desktop_mode_url_is_same_admin( $url ) {
 	if ( ! is_string( $url ) || '' === $url ) {
 		return false;
 	}
@@ -304,14 +347,14 @@ function wpdm_url_is_same_admin( $url ) {
  * @param string $file Bare admin filename (no path, no query string).
  * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
  */
-function wpdm_resolve_admin_target( $file ) {
+function desktop_mode_resolve_admin_target( $file ) {
 	$file = is_string( $file ) ? trim( $file ) : '';
 	if ( '' === $file ) {
-		return new WP_Error( 'wp_desktop_empty_target', __( 'Admin target cannot be empty.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'desktop_mode_empty_target', __( 'Admin target cannot be empty.', 'desktop-mode' ) );
 	}
 
 	if ( false !== strpos( $file, '..' ) || false !== strpos( $file, '/' ) || false !== strpos( $file, '\\' ) ) {
-		return new WP_Error( 'wp_desktop_invalid_target', __( 'Admin target contains invalid path characters.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'desktop_mode_invalid_target', __( 'Admin target contains invalid path characters.', 'desktop-mode' ) );
 	}
 
 	// Lowercase match mirrors WP's filesystem assumptions on case-
@@ -319,12 +362,12 @@ function wpdm_resolve_admin_target( $file ) {
 	// check below is the final arbiter; this regex just pre-filters
 	// clearly bad inputs.
 	if ( ! preg_match( '/^[a-z0-9_-]+\.php$/i', $file ) ) {
-		return new WP_Error( 'wp_desktop_invalid_target', __( 'Admin target must be a plain .php filename.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'desktop_mode_invalid_target', __( 'Admin target must be a plain .php filename.', 'desktop-mode' ) );
 	}
 
 	$candidate = ABSPATH . 'wp-admin/' . $file;
 	if ( ! file_exists( $candidate ) ) {
-		return new WP_Error( 'wp_desktop_unknown_target', __( 'Admin target does not exist.', 'wp-desktop-mode' ) );
+		return new WP_Error( 'desktop_mode_unknown_target', __( 'Admin target does not exist.', 'desktop-mode' ) );
 	}
 
 	return admin_url( $file );
@@ -342,7 +385,7 @@ function wpdm_resolve_admin_target( $file ) {
  * @return array[] Array of dock item arrays, each containing:
  *                 id, title, icon, url, badge, submenu.
  */
-function wpdm_build_dock_items() {
+function desktop_mode_build_dock_items() {
 	global $menu, $submenu;
 
 	if ( empty( $menu ) ) {
@@ -380,10 +423,10 @@ function wpdm_build_dock_items() {
 		// Determine the icon. Menu entries can set `$item[6]` to anything
 		// — a dashicon class, a remote URL, a data:URI, 'none', or 'div'
 		// — so normalize before we serialize it for the shell JS.
-		$icon = wpdm_sanitize_dock_icon( $item[6] ?? '' );
+		$icon = desktop_mode_sanitize_dock_icon( $item[6] ?? '' );
 
 		// Build the full URL for the menu item.
-		$url = wpdm_menu_item_url( $item[2] );
+		$url = desktop_mode_menu_item_url( $item[2] );
 
 		// Build submenu items.
 		$sub_items = array();
@@ -399,7 +442,7 @@ function wpdm_build_dock_items() {
 				$sub_raw_title = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', $sub_item[0] );
 				$sub_items[]   = array(
 					'title' => trim( wp_strip_all_tags( $sub_raw_title ) ),
-					'url'   => wpdm_menu_item_url( $sub_item[2] ),
+					'url'   => desktop_mode_menu_item_url( $sub_item[2] ),
 				);
 			}
 		}
@@ -411,9 +454,9 @@ function wpdm_build_dock_items() {
 			'url'       => $url,
 			'badge'     => $badge,
 			'submenu'   => $sub_items,
-			'multi'     => wpdm_dock_item_is_multi( $item[2] ),
-			'placement' => wpdm_dock_placement( $item[2] ),
-			'isCore'    => wpdm_is_core_menu_slug( $item[2] ),
+			'multi'     => desktop_mode_dock_item_is_multi( $item[2] ),
+			'placement' => desktop_mode_dock_placement( $item[2] ),
+			'isCore'    => desktop_mode_is_core_menu_slug( $item[2] ),
 		);
 
 		/**
@@ -424,7 +467,7 @@ function wpdm_build_dock_items() {
 		 * @param array  $dock_item The dock item data.
 		 * @param string $menu_slug The menu slug.
 		 */
-		$dock_item = apply_filters( 'wp_desktop_dock_item', $dock_item, $item[2] );
+		$dock_item = apply_filters( 'desktop_mode_dock_item', $dock_item, $item[2] );
 
 		$items[] = $dock_item;
 	}
@@ -436,7 +479,7 @@ function wpdm_build_dock_items() {
 	 *
 	 * @param array[] $items Array of dock item arrays.
 	 */
-	return apply_filters( 'wp_desktop_dock_items', $items );
+	return apply_filters( 'desktop_mode_dock_items', $items );
 }
 
 /**
@@ -454,18 +497,31 @@ function wpdm_build_dock_items() {
  *     layer extracts the real icon from the hidden `#adminmenu` DOM
  *     for these cases.
  *
- * Anything else — `javascript:` URIs, non-SVG / non-base64 data URIs,
- * inline event handlers, or raw HTML — is rejected and replaced with
- * the generic fallback. The return value is always a string that is
- * safe to drop into an `img.src` or a CSS class without further
- * escaping.
+ * Inline SVG data URIs (`data:image/svg+xml;base64,…` and
+ * `data:image/svg+xml,…`) are also accepted because that's how the
+ * vast majority of WP plugins ship their menu icon — Yoast,
+ * WooCommerce, Jetpack, Elementor, et al. all register `$menu[$i][6]`
+ * as an SVG data URI. Other `data:` schemes (`data:text/html`,
+ * `data:application/javascript`, …) and raw `javascript:` / `vbscript:`
+ * / `file:` schemes remain rejected. The shell renders the SVG via a
+ * CSS `background-image`, which (per the modern browser security model
+ * shared with `<img>`) sandboxes scripts inside the SVG so they do not
+ * execute.
+ *
+ * The return value is always a string safe to drop into an `img.src`,
+ * a CSS class, or a CSS `url()` background without further escaping.
  *
  * @since 0.4.0
+ * @since 0.11.0 Rejected `data:` URIs outright (regression — see 0.18.x).
+ * @since 0.18.x Re-allowed `data:image/svg+xml{;base64,|,}` so plugin
+ *               icons (Yoast, WooCommerce, Jetpack, etc.) appear on the
+ *               dock instead of collapsing to the gear fallback.
+ *               Other `data:` schemes still rejected.
  *
  * @param mixed $icon Raw icon value from the menu registration.
  * @return string Sanitized icon string.
  */
-function wpdm_sanitize_dock_icon( $icon ) {
+function desktop_mode_sanitize_dock_icon( $icon ) {
 	$fallback = 'dashicons-admin-generic';
 	if ( ! is_string( $icon ) || '' === $icon ) {
 		return $fallback;
@@ -484,22 +540,31 @@ function wpdm_sanitize_dock_icon( $icon ) {
 		return preg_replace( '/[^a-z0-9_-]/', '', $icon );
 	}
 
-	// data:image/svg+xml;base64,… URI. The shell renders these as CSS
-	// background-images, where SVG script content is inert per spec.
-	// Validate the base64 charset so a malformed URI can't slip into
-	// the emitted markup.
-	if ( 0 === stripos( $icon, 'data:image/svg+xml;base64,' ) ) {
-		$payload = substr( $icon, strlen( 'data:image/svg+xml;base64,' ) );
-		if ( $payload && preg_match( '/^[A-Za-z0-9+\/=]+$/', $payload ) ) {
-			return $icon;
-		}
-		return $fallback;
-	}
-
 	// http/https URL — the icon is a hosted image.
 	if ( 0 === stripos( $icon, 'http://' ) || 0 === stripos( $icon, 'https://' ) ) {
 		$clean = esc_url_raw( $icon, array( 'http', 'https' ) );
 		return $clean ? $clean : $fallback;
+	}
+
+	// `data:image/svg+xml` — the canonical inline-icon shape WordPress
+	// plugins use for their admin-menu icon (`$menu[$i][6]`). Two valid
+	// payload encodings: base64 (`;base64,<base64>`) and URL-encoded
+	// (`,<percent-encoded>`). Reject everything outside the SVG MIME so
+	// `data:text/html` and `data:application/javascript` still bounce.
+	//
+	// Strict whole-string regex — no embedded whitespace, no smuggled
+	// quotes, no second `data:` prefix. Case-insensitive on the scheme
+	// alone since `Data:` and `DATA:` are syntactically valid but the
+	// payload portion stays case-sensitive (base64 alphabet is).
+	if ( 0 === stripos( $icon, 'data:image/svg+xml' ) ) {
+		if (
+			preg_match( '#^data:image/svg\+xml;base64,[A-Za-z0-9+/=]+$#i', $icon )
+			|| preg_match( '#^data:image/svg\+xml,[A-Za-z0-9._~!$&\'()*+,;=:@/?%-]+$#i', $icon )
+		) {
+			return $icon;
+		}
+		// Malformed SVG data URI — fall through to fallback rather than
+		// pass a half-validated string through to the renderer.
 	}
 
 	return $fallback;
@@ -517,7 +582,7 @@ function wpdm_sanitize_dock_icon( $icon ) {
  *
  * The default rule matches the base filename of the menu slug against a
  * known list. Plugin authors can override via the
- * `wp_desktop_dock_item_multi` filter to mark any custom page as multi
+ * `desktop_mode_dock_item_multi` filter to mark any custom page as multi
  * (or force a stock list page into singleton mode).
  *
  * @since 0.5.0
@@ -527,7 +592,7 @@ function wpdm_sanitize_dock_icon( $icon ) {
  *                          so `edit.php?post_type=page` resolves correctly.
  * @return bool True if this page supports multiple simultaneous windows.
  */
-function wpdm_dock_item_is_multi( $menu_slug ) {
+function desktop_mode_dock_item_is_multi( $menu_slug ) {
 	// Multi-capable admin files. Match by the base file regardless of
 	// any query string (post_type, taxonomy, page, paged, etc.) so every
 	// CPT and every taxonomy inherits the same rule as their parent.
@@ -555,7 +620,7 @@ function wpdm_dock_item_is_multi( $menu_slug ) {
 	 * @param bool   $multi     Whether this page is multi-capable.
 	 * @param string $menu_slug The menu slug (e.g. `edit.php?post_type=page`).
 	 */
-	return (bool) apply_filters( 'wp_desktop_dock_item_multi', $multi, $menu_slug );
+	return (bool) apply_filters( 'desktop_mode_dock_item_multi', $multi, $menu_slug );
 }
 
 /**
@@ -581,11 +646,11 @@ function wpdm_dock_item_is_multi( $menu_slug ) {
  *      below).
  *
  * Plugins + site admins can override any answer via
- * `wp_desktop_dock_placement`:
+ * `desktop_mode_dock_placement`:
  *
  * ```php
  * // Keep Jetpack on the left dock:
- * add_filter( 'wp_desktop_dock_placement', function ( $placement, $slug ) {
+ * add_filter( 'desktop_mode_dock_placement', function ( $placement, $slug ) {
  *     return 'jetpack' === $slug ? 'dock' : $placement;
  * }, 10, 2 );
  * ```
@@ -595,7 +660,7 @@ function wpdm_dock_item_is_multi( $menu_slug ) {
  * @param string $menu_slug Menu item slug (e.g. `edit.php`, `edit.php?post_type=foo`, `woocommerce`).
  * @return bool True when the slug is a core admin page.
  */
-function wpdm_is_core_menu_slug( $menu_slug ) {
+function desktop_mode_is_core_menu_slug( $menu_slug ) {
 	$slug = (string) $menu_slug;
 	$base = strtok( $slug, '?' );
 
@@ -652,14 +717,14 @@ function wpdm_is_core_menu_slug( $menu_slug ) {
  *                  desktop-shell tile.
  *
  * Default is `'dock'` for every menu item. Plugins + site admins can
- * hide individual items via the `wp_desktop_dock_placement` filter.
+ * hide individual items via the `desktop_mode_dock_placement` filter.
  *
  * @since 0.9.0
  *
  * @param string $menu_slug The menu slug (e.g. `edit.php`, `woocommerce`).
  * @return string `'dock'` or `'hidden'`.
  */
-function wpdm_dock_placement( $menu_slug ) {
+function desktop_mode_dock_placement( $menu_slug ) {
 	/**
 	 * Filter whether a specific menu item is shown in the dock.
 	 *
@@ -673,7 +738,7 @@ function wpdm_dock_placement( $menu_slug ) {
 	 * @param string $placement Default — always `'dock'`.
 	 * @param string $menu_slug The menu slug triggering the lookup.
 	 */
-	$filtered = apply_filters( 'wp_desktop_dock_placement', 'dock', $menu_slug );
+	$filtered = apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
 	return 'hidden' === $filtered ? 'hidden' : 'dock';
 }
 
@@ -693,8 +758,8 @@ function wpdm_dock_placement( $menu_slug ) {
  *
  * @return array{dockItems: array[]} Menu payload.
  */
-function wpdm_build_menu_payload() {
-	$all = wpdm_build_dock_items();
+function desktop_mode_build_menu_payload() {
+	$all = desktop_mode_build_dock_items();
 
 	// Drop hidden items; preserve the default "core first, plugins
 	// after" ordering by partitioning on the core classifier.
@@ -708,10 +773,11 @@ function wpdm_build_menu_payload() {
 	);
 
 	// Partition on the per-item `isCore` flag set in
-	// wpdm_build_dock_items — that classifier ran against the raw
-	// menu slug ($item[2]), which is what wpdm_is_core_menu_slug
-	// actually compares. The outer 'id' field is a sanitized CSS id
-	// (e.g. `toplevel_page_jetpack`) and would never match.
+	// desktop_mode_build_dock_items — that classifier ran against the
+	// raw menu slug ($item[2]), which is what
+	// desktop_mode_is_core_menu_slug actually compares. The outer 'id'
+	// field is a sanitized CSS id (e.g. `toplevel_page_jetpack`) and
+	// would never match.
 	$core = array();
 	$plugin = array();
 	foreach ( $visible as $item ) {
@@ -726,27 +792,30 @@ function wpdm_build_menu_payload() {
 
 	return array(
 		'dockItems'        => $dock,
-		'nativeWindows'    => wpdm_build_native_windows_payload(),
-		'serverWidgets'    => function_exists( 'wpdm_build_desktop_widgets_payload' )
-			? wpdm_build_desktop_widgets_payload()
+		'nativeWindows'    => desktop_mode_build_native_windows_payload(),
+		'serverWidgets'    => function_exists( 'desktop_mode_build_desktop_widgets_payload' )
+			? desktop_mode_build_desktop_widgets_payload()
 			: array(),
-		'serverWallpapers' => function_exists( 'wpdm_build_desktop_wallpapers_payload' )
-			? wpdm_build_desktop_wallpapers_payload()
+		'serverWallpapers' => function_exists( 'desktop_mode_build_desktop_wallpapers_payload' )
+			? desktop_mode_build_desktop_wallpapers_payload()
 			: array(),
-		'serverCommandScripts' => function_exists( 'wpdm_build_desktop_command_scripts_payload' )
-			? wpdm_build_desktop_command_scripts_payload()
+		'serverCommandScripts' => function_exists( 'desktop_mode_build_desktop_command_scripts_payload' )
+			? desktop_mode_build_desktop_command_scripts_payload()
 			: array(),
-		'serverCommands'   => function_exists( 'wpdm_build_desktop_commands_payload' )
-			? wpdm_build_desktop_commands_payload()
+		'serverCommands'   => function_exists( 'desktop_mode_build_desktop_commands_payload' )
+			? desktop_mode_build_desktop_commands_payload()
 			: array(),
-		'serverSettingsTabScripts' => function_exists( 'wpdm_build_desktop_settings_tab_scripts_payload' )
-			? wpdm_build_desktop_settings_tab_scripts_payload()
+		'serverSettingsTabScripts' => function_exists( 'desktop_mode_build_desktop_settings_tab_scripts_payload' )
+			? desktop_mode_build_desktop_settings_tab_scripts_payload()
 			: array(),
-		'serverSettingsTabs' => function_exists( 'wpdm_build_desktop_settings_tabs_payload' )
-			? wpdm_build_desktop_settings_tabs_payload()
+		'serverSettingsTabs' => function_exists( 'desktop_mode_build_desktop_settings_tabs_payload' )
+			? desktop_mode_build_desktop_settings_tabs_payload()
 			: array(),
-		'desktopIcons'     => function_exists( 'wpdm_build_desktop_icons_payload' )
-			? wpdm_build_desktop_icons_payload()
+		'serverTitleBarButtonScripts' => function_exists( 'desktop_mode_build_desktop_titlebar_button_scripts_payload' )
+			? desktop_mode_build_desktop_titlebar_button_scripts_payload()
+			: array(),
+		'desktopIcons'     => function_exists( 'desktop_mode_build_desktop_icons_payload' )
+			? desktop_mode_build_desktop_icons_payload()
 			: array(),
 	);
 }
@@ -757,8 +826,8 @@ function wpdm_build_menu_payload() {
  * when the handle isn't registered or has no source — callers
  * treat an empty string as "no script to load."
  *
- * Shared between `wp_register_desktop_window()` and
- * `wp_register_desktop_widget()` because both need the same
+ * Shared between `desktop_mode_register_window()` and
+ * `desktop_mode_register_widget()` because both need the same
  * handle→URL plumbing to power mid-session dynamic script
  * loading in the shell.
  *
@@ -767,7 +836,7 @@ function wpdm_build_menu_payload() {
  * @param string $handle WP script handle.
  * @return string Absolute URL, or empty string on miss.
  */
-function wpdm_resolve_script_url( $handle ) {
+function desktop_mode_resolve_script_url( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
 		return '';
@@ -793,9 +862,71 @@ function wpdm_resolve_script_url( $handle ) {
 }
 
 /**
+ * Fire a `_doing_it_wrong()` notice exactly once per handle per
+ * request. Shared by every `desktop_mode_build_desktop_*_scripts_payload()`
+ * caller — payload builders run on every shell-config rebuild
+ * (multiple times per page load via REST + admin-bar refresh +
+ * tests), so undeduped notices spam the error log AND trip
+ * `expectedIncorrectUsage` assertions in unrelated tests.
+ *
+ * @since 0.18.0
+ *
+ * @param string $function_name `desktop_mode_register_*_script` — passed verbatim to `_doing_it_wrong`.
+ * @param string $kind          Human label: `Command`, `Settings-tab`, `Title-bar button`.
+ * @param string $handle        Offending script handle.
+ */
+function desktop_mode_warn_unresolvable_script_handle( $function_name, $kind, $handle ) {
+	static $warned = array();
+	$cache_key = $function_name . '|' . $handle;
+	if ( isset( $warned[ $cache_key ] ) ) {
+		return;
+	}
+	$warned[ $cache_key ] = true;
+
+	if ( '__flush__' === $handle ) {
+		// Test escape hatch: clear the dedupe cache so a flush
+		// helper can reset between tests.
+		$warned = array();
+		return;
+	}
+
+	_doing_it_wrong(
+		esc_html( $function_name ),
+		sprintf(
+			/* translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle. */
+			esc_html__( '%1$s script handle "%2$s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'desktop-mode' ),
+			esc_html( $kind ),
+			esc_html( $handle )
+		),
+		'0.18.0'
+	);
+}
+
+/**
+ * Test-only: clear every script-handle registry + the dedupe
+ * cache for the unresolvable-handle notice. Tests call this in
+ * `set_up` so prior tests' synthetic handles can't leak into
+ * later assertions about payload shape.
+ *
+ * @since 0.18.0
+ */
+function desktop_mode_flush_script_handle_registries() {
+	if ( function_exists( 'desktop_mode_flush_desktop_command_script_registry' ) ) {
+		desktop_mode_flush_desktop_command_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_desktop_settings_tab_script_registry' ) ) {
+		desktop_mode_flush_desktop_settings_tab_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_desktop_titlebar_button_script_registry' ) ) {
+		desktop_mode_flush_desktop_titlebar_button_script_registry();
+	}
+	desktop_mode_warn_unresolvable_script_handle( '', '', '__flush__' );
+}
+
+/**
  * Serialize the server-declared native-window registry into the
  * payload shape the shell consumes. For each entry registered via
- * `wp_register_desktop_window()`, we capture: the window's
+ * `desktop_mode_register_window()`, we capture: the window's
  * metadata (id/title/icon/placement/dimensions/autofocus), the
  * rendered template HTML (by running the template callback into an
  * output buffer), and the URL of the enqueued script handle (so
@@ -806,11 +937,11 @@ function wpdm_resolve_script_url( $handle ) {
  *
  * @return array[]
  */
-function wpdm_build_native_windows_payload() {
-	if ( ! function_exists( 'wpdm_native_window_registry' ) ) {
+function desktop_mode_build_native_windows_payload() {
+	if ( ! function_exists( 'desktop_mode_native_window_registry' ) ) {
 		return array();
 	}
-	$registry = wpdm_native_window_registry();
+	$registry = desktop_mode_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}
@@ -823,29 +954,29 @@ function wpdm_build_native_windows_payload() {
 
 		// Capture the template HTML (tab-wrapped when any
 		// additional tabs are registered via
-		// `wp_register_desktop_window_tab()`; flat otherwise).
+		// `desktop_mode_register_window_tab()`; flat otherwise).
 		// Captured as a string so the shell can inject it as a
 		// `<template>` at mid-session plugin activation without a
 		// reload.
-		$template_html = wpdm_build_native_window_template_html( $entry );
+		$template_html = desktop_mode_build_native_window_template_html( $entry );
 
 		// Resolve script handle → URL so the shell can inject a
 		// `<script>` tag dynamically on mid-session activation.
 		$script_handle = isset( $entry['script'] ) ? (string) $entry['script'] : '';
-		$script_url    = wpdm_resolve_script_url( $script_handle );
+		$script_url    = desktop_mode_resolve_script_url( $script_handle );
 
 		// Tab metadata (label + extra script URLs) ships alongside
 		// the template so the shell can render a picker UI or load
 		// additional tab scripts when a tab's activation is late.
 		$tab_descriptors = array();
-		if ( function_exists( 'wpdm_get_native_window_tabs' ) ) {
-			foreach ( wpdm_get_native_window_tabs( $entry['id'] ) as $tab ) {
+		if ( function_exists( 'desktop_mode_get_native_window_tabs' ) ) {
+			foreach ( desktop_mode_get_native_window_tabs( $entry['id'] ) as $tab ) {
 				$tab_descriptors[] = array(
 					'value'        => $tab['value'],
 					'label'        => $tab['label'],
 					'isMain'       => $tab['is_main'],
 					'scriptUrl'    => '' !== $tab['script']
-						? wpdm_resolve_script_url( $tab['script'] )
+						? desktop_mode_resolve_script_url( $tab['script'] )
 						: '',
 					'scriptHandle' => $tab['script'],
 				);
@@ -884,7 +1015,7 @@ function wpdm_build_native_windows_payload() {
  * @param string $slug The menu item slug or URL.
  * @return string The full admin URL.
  */
-function wpdm_menu_item_url( $slug ) {
+function desktop_mode_menu_item_url( $slug ) {
 	// Already a full URL.
 	if ( str_starts_with( $slug, 'http://' ) || str_starts_with( $slug, 'https://' ) ) {
 		return esc_url( $slug );

@@ -214,7 +214,7 @@ window.wp.desktop.windowManager.openNew( {
 } );
 ```
 
-The server-side `wp_desktop_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#wp_desktop_dock_item_multi--stable).
+The server-side `desktop_mode_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_item_multi--stable).
 
 ---
 
@@ -244,6 +244,32 @@ The `state` property is read-only-ish — mutate via the methods (`minimize()`, 
 const win = wp.desktop.windowManager.getById( 'edit-php' );
 if ( win && win.state === 'normal' ) win.minimize();
 ```
+
+---
+
+### `wp.desktop.openWindow( id )` — Stable (since 0.18.0)
+
+Open (or focus) a server-registered native window by id. Symmetric with `desktop_mode_register_window( $id, ... )` — pass the same string.
+
+```typescript
+wp.desktop.openWindow( id: string ): boolean;
+```
+
+Returns `true` if a window with that id is registered and was opened (or already open and focused), `false` otherwise.
+
+Goes through the same canonical opener as the dock click + the wallpaper-icon click — so the body comes pre-populated with the cloned `<template>` declared at registration time. Plugin authors can rely on the same render-callback contract no matter which entry point opens the window.
+
+```javascript
+// Open the Code editor.
+wp.desktop.openWindow( 'wpdc-editor' );
+
+// Cross-plugin: surface a sister plugin's monitoring dashboard.
+if ( ! wp.desktop.openWindow( 'alcazaba-monitor' ) ) {
+    // Sibling plugin isn't active — handle gracefully.
+}
+```
+
+For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`wp-desktop-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
 
 ---
 
@@ -323,7 +349,7 @@ If a `Window.close()` throws, the loop catches and continues — one bad window 
 ---
 
 ### `dock` — Stable
-The left-edge `Dock` instance (or `null` if the dock element wasn't in the DOM). Hosts **core WordPress menus** — Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies. Calling it directly is usually unnecessary — dock items are data-driven via `wp_desktop_dock_items`.
+The left-edge `Dock` instance (or `null` if the dock element wasn't in the DOM). Hosts **core WordPress menus** — Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies. Calling it directly is usually unnecessary — dock items are data-driven via `desktop_mode_dock_items`.
 
 ---
 
@@ -332,7 +358,7 @@ The bottom-edge `Dock` instance (or `null` if the shell markup lacks the taskbar
 
 Rendered as a floating macOS-style pill at the bottom of the shell. Same class, same tooltip / active-dot / "+" chip behaviour as the left dock — only orientation + CSS differ.
 
-Server-side the split is driven by `wpdm_dock_placement()` and the `wp_desktop_dock_placement` filter — see the [Hooks reference](./hooks-reference.md#wp_desktop_dock_placement--stable) for how to override routing (pin a plugin to the dock; move a core menu to the taskbar).
+Server-side the split is driven by `desktop_mode_dock_placement()` and the `desktop_mode_dock_placement` filter — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_placement--stable) for how to override routing (pin a plugin to the dock; move a core menu to the taskbar).
 
 **Icon fallback:** when a plugin registers a menu without a dashicon / SVG / URL, the taskbar renders a **letter badge** in a hue deterministically derived from the menu title. Same plugin, same colour across reloads. Plugins shipping their own icon art always override the fallback.
 
@@ -466,7 +492,7 @@ window.wp.desktop.registerCommand( {
 
 **Errors** thrown from `run` are caught and rendered as an error bubble — the panel doesn't crash.
 
-**Live-refresh on plugin install/activate.** If your plugin's script is declared via `wp_desktop_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
+**Live-refresh on plugin install/activate.** If your plugin's script is declared via `desktop_mode_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
 
 ```javascript
 window.wp.desktop.registerCommand( {
@@ -567,12 +593,12 @@ const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
 // res.message   === 'Lights ON.'  // string returns are lifted into message
 ```
 
-Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `wp_desktop_ai_command_allowed` provides a second line of defence for per-role gating.
+Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `desktop_mode_ai_command_allowed` provides a second line of defence for per-role gating.
 
 **Security notes.**
 
 1. The server never executes a client-harvested command — it returns `{ answer_type: 'tool_call', tool: { slug, args } }` and the client invokes `run()` locally. The model can't reach through to any server-side code via this path.
-2. For server-side tools, use [`wp_register_desktop_ai_tool()`](./hooks-reference.md#wp_register_desktop_ai_tool-args--stable-php-function-since-0170). Handlers are capability-gated and the registry is invisible to callers who don't have the cap.
+2. For server-side tools, use [`desktop_mode_register_ai_tool()`](./hooks-reference.md#desktop_mode_register_ai_tool-args--stable-php-function-since-0170). Handlers are capability-gated and the registry is invisible to callers who don't have the cap.
 3. Command `description` is fed to the model verbatim — treat it as untrusted surface for plugin authors exactly as you'd treat any other plugin string.
 
 **Natural-language replies — `followUp: true`**
@@ -628,6 +654,189 @@ See also: [`docs/examples/ai-ask.md`](./examples/ai-ask.md).
 
 ---
 
+### `registerTitleBarButton( def )` — Experimental  *(since 0.17.0)*
+
+Add a custom button to the title bar of any matching window. The right surface for cross-window verbs ("connect to", "live preview", "broadcast"). Predicate decides which windows show the button; you can render an `<wpd-window-button>` with a click handler, or own the host entirely with a custom `render`.
+
+**Returns** `true` on success, `false` on validation failure (a `console.warn` names the bad field, so you can branch on the return value AND log goes through your own monitor pipeline).
+
+**`TitleBarButtonDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `desktop_mode_register_window` / `desktop_mode_register_widget` accept (slashes welcome). Wider than `registerCommand`'s slug or `registerSettingsTab`'s id, which can't use slashes (those values are also used in slash-command parsing / CSS selectors). Re-registering replaces. |
+| `label` | `string` | Tooltip + aria-label. |
+| `icon` | `string` | Dashicons class (`'dashicons-foo'`), inline SVG (`'<svg>…</svg>'`), or built-in key (`'minimize'` / `'menu'` / etc.). |
+| `placement` | `'left' \| 'right'` | Default `'left'` (next to title). `'right'` lands before the window controls. |
+| `order` | `number` | Default 100. Sorts within placement. |
+| `match` | `( window ) => boolean` | Predicate against the live `Window` instance. Throwing equals not-matching. |
+| `onClick` | `( window, ev ) => void` | Optional. Fires **exactly once per user activation** — wired to the button's `wpd-button-activate` CustomEvent (not raw `click`), so no doubles, no swallowed events when the title-bar drag tracker races. Skip if you use `render`. |
+| `render` | `( host, window ) => void` | Optional. Owns the `<wpd-window-button>` host entirely; bind your own click + dropdown. |
+| `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerTitleBarButton( {
+        id:    'live-preview/connect',
+        label: 'Live preview',
+        icon:  'dashicons-visibility',
+        match: ( w ) => w.config.url?.includes( 'post.php' ) ?? false,
+        onClick: ( hostWindow ) => {
+            // Show a popover of other open windows; on hover, highlight; on click, connect.
+        },
+        owner: 'my-plugin-titlebar',
+    } );
+} );
+```
+
+PHP companion (so plugins activated mid-session paint live):
+
+```php
+desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
+```
+
+---
+
+### `Window.setTitle( title )` — Stable
+
+Update a window's title bar from outside it. Useful for plugins that want to retitle a preview window as the user types ("Live Preview — My Post"), prefix with status, etc. Fires `wp-desktop.window.title-changed` with `{ windowId, title }` so other subscribers can react.
+
+```javascript
+const w = wp.desktop.windowManager.getById( 'my-preview' );
+w.setTitle( `Live Preview — ${ postTitle }` );
+```
+
+---
+
+### `Window.iframeSend( payload, opts? )` — Experimental  *(since 0.18.0)*
+
+Send a payload into a window's iframe. **Only valid for windows registered with `iframeContent`** — non-iframeContent windows no-op with a console warning.
+
+Available **synchronously** the moment `wp.desktop.registerWindow` returns. Calls before the iframe finishes loading are buffered and flushed automatically:
+
+| Mode | Default? | Behaviour |
+|---|---|---|
+| FIFO buffer | yes (no opts) | every call queues in order, flushed verbatim on `load`. Use for setup messages where every payload matters (`{ type: 'init' }`, etc.). |
+| Coalesced single-slot | `{ coalesce: true }` | each call overwrites the slot; only the most-recent payload survives until load. Use for live-stream snapshots (Gutenberg editor content, scroll position) where pre-load intermediates are throwaway. |
+
+Once the iframe has loaded, both modes flush directly to `postMessage` — the load gate becomes a no-op.
+
+```javascript
+const win = wp.desktop.registerWindow( {
+    id: 'my-preview',
+    iframeContent: { url, bridge: true, onMessage: ... },
+} );
+
+// Setup — FIFO, every payload preserved:
+win.iframeSend( { type: 'init',   config: { theme: 'dark' } } );
+win.iframeSend( { type: 'config', verbose: true } );
+
+// Live stream — coalesced, latest-only pre-load:
+editorConn.subscribe( 'gutenberg:content', ( html ) => {
+    win.iframeSend( { type: 'preview:html', html }, { coalesce: true } );
+} );
+```
+
+`iframeSend` is the recommended surface for outbound traffic into a `iframeContent` window. The closure passed to `iframeContent.onReady` does the same thing but only exists *after* the iframe loads — fine for inbound subscriptions, but for outbound sends `iframeSend` doesn't force you to capture a closure or coordinate with the load gate.
+
+---
+
+### `Window.setHighlight( mode, opts? )` — Experimental  *(since 0.17.0)*
+
+Toggle a visual ring on a window from outside it.
+
+```javascript
+const w = wp.desktop.windowManager.getById( 'edit-post' );
+w.setHighlight( 'preview' );           // temporary ring (clear yourself on mouseleave)
+w.setHighlight( 'persistent' );        // sticky ring
+w.setHighlight( null );                // clear
+w.setHighlight( 'preview', { color: '#f59e0b' } );  // override colour
+```
+
+`'preview'` and `'persistent'` are visually distinct; the shell does NOT auto-clear either — that's the caller's responsibility. CSS variable: `--wp-window-highlight-color` (default `--wp-admin-theme-color`).
+
+---
+
+### `wp.desktop.connect( windowId, opts? )` — Experimental  *(since 0.17.0)*
+
+Open a typed pub/sub channel with another window's iframe. Returns a `WindowConnection`. Ideal for plugins that need to listen to or talk to content inside an iframe — first use case: live-preview a Gutenberg editor.
+
+```javascript
+const conn = wp.desktop.connect( 'edit-post', {
+    topics: [ 'gutenberg:content' ],
+    onOpen: () => console.log( 'iframe handshake done' ),
+    onClose: ( reason ) => console.log( 'closed:', reason ),
+} );
+
+const off = conn.subscribe( 'gutenberg:content', ( html ) => {
+    document.querySelector( '#preview' ).innerHTML = html;
+} );
+
+conn.send( 'preview:zoom', { factor: 1.5 } );
+off();              // unsubscribe single topic
+conn.disconnect();  // tear the whole connection down
+```
+
+**`WindowConnection` shape:**
+
+| Field | Notes |
+|---|---|
+| `id` | Unique connection id (for trace correlation). |
+| `target` | The window id this connection points at. |
+| `isOpen()` | `true` after the iframe acks the handshake. |
+| `subscribe( topic, cb )` | Returns unsubscribe. Use `'*'` for a wildcard. |
+| `send( topic, payload )` | Messages sent before the iframe acks are queued and flushed in order. |
+| `disconnect()` | Idempotent. Fires `onClose( 'disconnect' )`. |
+
+**Lifecycle reasons handed to `onClose`:** `'disconnect'`, `'window-closed'`, `'navigated'`.
+
+Cross-origin guard: every postMessage is sent + accepted only on the shell's `window.location.origin`. Plugin-provided topic names + payloads pass through verbatim — sanitise before publishing if the payload could include user-typed HTML.
+
+---
+
+### `wp.desktop.iframe.publish` / `subscribe` / `onConnection` — Experimental  *(since 0.17.0)*
+
+Iframe-side counterpart to `connect()`. **Available on every chromeless wp-admin page** — the shell injects this into the page footer. Use inside any plugin code that runs inside an iframe (Gutenberg integrations, plugin admin pages) to publish events to parent-side connections without re-implementing `postMessage`.
+
+```javascript
+// Inside an iframe — e.g. a plugin script that runs on post.php:
+wp.desktop.iframe.onConnection( () => {
+    const editor = wp.data.select( 'core/editor' );
+    wp.data.subscribe( () => {
+        wp.desktop.iframe.publish(
+            'gutenberg:content',
+            editor.getEditedPostContent(),
+        );
+    } );
+} );
+
+// Receive parent → iframe traffic too:
+wp.desktop.iframe.subscribe( 'preview:zoom', ( payload ) => {
+    document.body.style.zoom = String( payload.factor );
+} );
+```
+
+`publish( topic, payload )` fans the message out to every parent-side connection currently open against this iframe. `onConnection` callbacks are replayed for currently-open connections, so a late registration still sees who's already there.
+
+**Lifecycle hooks** (parent-side, observability):
+
+```javascript
+wp.desktop.hooks.addAction( 'wp-desktop.connection.opened', 'me', ( e ) => {
+    // e = { connectionId, targetWindowId, topics }
+} );
+wp.desktop.hooks.addAction( 'wp-desktop.connection.closed', 'me', ( e ) => {
+    // e = { connectionId, reason }
+} );
+wp.desktop.hooks.addAction( 'wp-desktop.connection.message', 'me', ( e ) => {
+    // e = { connectionId, topic, direction: 'in' | 'out' }
+    // High-volume — keep subscribers cheap.
+} );
+```
+
+See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for the full live-preview recipe.
+
+---
+
 ### `registerSettingsTab( def )` — Experimental  *(since 0.17.0)*
 
 Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Extended Options, Help — and renders its body via your `render( body, ctx )` callback.
@@ -640,7 +849,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | `label` | `string` | yes | Tab label. |
 | `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
 | `order` | `number` | no | Default `100`. Built-ins: appearance=10, ai=20, extended=30, help=40. |
-| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `wp_desktop_register_settings_tab_script()`. |
+| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `desktop_mode_register_settings_tab_script()`. |
 | `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
 
 **`ctx` shape:**
@@ -728,7 +937,7 @@ Open <wpd-code>chrome://flags</wpd-code> and enable
 <wpd-code>experimental-web-platform-features</wpd-code>.
 
 <wpd-code block>
-wp_register_desktop_settings_tab( array(
+desktop_mode_register_settings_tab( array(
     'id'    => 'my-plugin',
     'label' => 'My Plugin',
 ) );
@@ -753,7 +962,7 @@ Auto-numbered setup / onboarding flows. Numbers come from a CSS counter, so inse
 </wpd-steps>
 ```
 
-For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `wp_register_desktop_settings_tab()` in PHP.
+For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `desktop_mode_register_settings_tab()` in PHP.
 
 ---
 
@@ -1142,7 +1351,7 @@ Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks co
 | `wp-desktop.arrange.tile.dimensions` | filter | Stable | filters `{ cols, rows }`; context `{ windowCount, areaWidth, areaHeight }`. Override the auto-chosen grid (e.g., force a 3-column newsroom layout). Returns must be positive integers and `cols * rows >= windowCount`, otherwise the filter is ignored. |
 | `wp-desktop.arrange.snap.changed` | action | Stable | `{ enabled }` — fires when the user toggles "Snap to grid" |
 | `wp-desktop.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
-| `wp-desktop.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `wp_desktop_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
+| `wp-desktop.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `desktop_mode_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
 
 #### Virtual desktops ("Spaces")
 
@@ -1488,7 +1697,7 @@ wp.desktop.whenReady( () => {
 } );
 ```
 
-**Why the default is `taskbar`:** plugin-contributed admin menus live in the bottom pill already (see `wp_desktop_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left dock focused on core WP. If you want the left rail, pass `placement: 'dock'` explicitly — the shell will honor it without coercion.
+**Why the default is `taskbar`:** plugin-contributed admin menus live in the bottom pill already (see `desktop_mode_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left dock focused on core WP. If you want the left rail, pass `placement: 'dock'` explicitly — the shell will honor it without coercion.
 
 **Taskbar auto-unhide.** When a system tile lands on a previously-empty taskbar (no plugin menus, no prior tiles), the rail automatically un-hides and the desktop area picks up the `--with-taskbar` CSS modifier. Subsequent tiles reuse the already-shown pill.
 

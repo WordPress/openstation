@@ -7,7 +7,7 @@
  *
  * Most values are fallbacks. The live set comes from
  * `wpDesktopConfig.accentColors` / `.defaultWallpaper`, populated by
- * PHP via `wp_desktop_accent_colors` / `wp_desktop_default_wallpaper`
+ * PHP via `desktop_mode_accent_colors` / `desktop_mode_default_wallpaper`
  * filters. The getters in this file do the `runtime config → fallback`
  * dance so callers never have to branch on "is the config hydrated?"
  */
@@ -43,7 +43,7 @@ export const DEFAULT_WALLPAPER_ID = 'dark';
  * This is the compile-time fallback list used when PHP doesn't hand
  * us a live `accentColors` array in `wpDesktopConfig` — the live list
  * is what the picker actually renders. Plugins that want to
- * customise the list should hook `wp_desktop_accent_colors` in PHP,
+ * customise the list should hook `desktop_mode_accent_colors` in PHP,
  * not fork this constant.
  */
 export const DEFAULT_ACCENTS: readonly AccentColor[] = [
@@ -59,7 +59,7 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
  * Resolve the live accent-color list.
  *
  * Reads `window.wp.desktop.config.accentColors` (populated by PHP via
- * `wp_desktop_accent_colors`) and validates each entry shape. Drops
+ * `desktop_mode_accent_colors`) and validates each entry shape. Drops
  * malformed entries rather than letting a bad filter render broken
  * swatches. Falls back to {@link DEFAULT_ACCENTS} when the config is
  * missing or yields zero valid entries.
@@ -144,13 +144,70 @@ export const DEFAULTS: OsSettingsState = {
 		enabled: false,
 		provider: 'openai',
 		apiKey: '',
+		apiKeys: {},
 	},
 };
 
 /**
- * Available AI providers. Single-entry for now — the picker is still a
- * `<wpd-select>` so adding the next provider is zero-UI-churn.
+ * Hard-coded fallback list — the only provider we know about without
+ * reading the runtime registry. {@link getAiProviders} prefers the
+ * runtime `wpDesktopConfig.aiProviders` list when present, so adding a
+ * new provider is a pure PHP concern.
  */
-export const AI_PROVIDERS = [
-	{ id: 'openai' as const, label: 'OpenAI' },
-] as const;
+export const AI_PROVIDERS: ReadonlyArray< {
+	id: string;
+	label: string;
+	description?: string;
+	apiKeyLabel?: string;
+	apiKeyLink?: string;
+} > = [
+	{
+		id: 'openai',
+		label: 'OpenAI',
+		apiKeyLabel: 'OpenAI API key',
+		apiKeyLink: 'https://platform.openai.com/api-keys',
+	},
+];
+
+/**
+ * Returns the runtime list of registered AI providers.
+ *
+ * Falls back to {@link AI_PROVIDERS} when the shell config is missing
+ * (rare — happens in some test contexts and the very first frame
+ * before `wpDesktopConfig` is populated).
+ */
+export function getAiProviders(): ReadonlyArray< {
+	id: string;
+	label: string;
+	description?: string;
+	apiKeyLabel?: string;
+	apiKeyLink?: string;
+} > {
+	const cfg = (
+		window as typeof window & {
+			wpDesktopConfig?: {
+				aiProviders?: Array< {
+					id: string;
+					label: string;
+					description?: string;
+					api_key_label?: string;
+					api_key_link?: string;
+					capabilities?: string[];
+				} >;
+			};
+		}
+	).wpDesktopConfig;
+
+	const list = cfg?.aiProviders;
+	if ( ! Array.isArray( list ) || list.length === 0 ) {
+		return AI_PROVIDERS;
+	}
+
+	return list.map( ( p ) => ( {
+		id: p.id,
+		label: p.label,
+		description: p.description,
+		apiKeyLabel: p.api_key_label,
+		apiKeyLink: p.api_key_link,
+	} ) );
+}

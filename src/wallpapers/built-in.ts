@@ -7,7 +7,7 @@
  * `includes/wallpapers.php` — and flow to the shell through the same
  * `config.serverWallpapers` payload third-party plugins use. A theme
  * can now add / remove / rename a built-in via `add_filter(
- * 'wp_desktop_wallpapers', … )` in `functions.php` without rebuilding
+ * 'desktop_mode_wallpapers', … )` in `functions.php` without rebuilding
  * the bundle.
  *
  * The file is kept so imports in `src/desktop.ts` don't break; the

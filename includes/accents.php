@@ -5,7 +5,7 @@
  * The OS Settings panel lets users pick an accent color that the shell
  * applies to `--wp-admin-theme-color` on the parent frame. Themes and
  * plugins can extend or restrict the swatch list via the
- * {@see 'wp_desktop_accent_colors'} filter — e.g. a brand theme that
+ * {@see 'desktop_mode_accent_colors'} filter — e.g. a brand theme that
  * injects its corporate palette, or a compliance plugin that collapses
  * the list to a single approved value.
  *
@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  *   - `value` is a hex color applied to `--wp-admin-theme-color`.
  *
  * The defaults ship with six WordPress-adjacent swatches. Consumers
- * mutate the list via the `wp_desktop_accent_colors` filter — entries
+ * mutate the list via the `desktop_mode_accent_colors` filter — entries
  * whose `value` fails `sanitize_hex_color()` are dropped silently so a
  * bad filter return can't inject arbitrary CSS into the shell.
  *
@@ -33,21 +33,21 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<int, array{id: string, label: string, value: string}>
  */
-function wpdm_get_accent_colors() {
+function desktop_mode_get_accent_colors() {
 	$defaults = array(
-		array( 'id' => 'wp-blue',  'label' => __( 'WordPress Blue', 'wp-desktop-mode' ), 'value' => '#2271b1' ),
-		array( 'id' => 'indigo',   'label' => __( 'Indigo',  'wp-desktop-mode' ),         'value' => '#3858e9' ),
-		array( 'id' => 'teal',     'label' => __( 'Teal',    'wp-desktop-mode' ),         'value' => '#04a4cc' ),
-		array( 'id' => 'emerald',  'label' => __( 'Emerald', 'wp-desktop-mode' ),         'value' => '#059669' ),
-		array( 'id' => 'amber',    'label' => __( 'Amber',   'wp-desktop-mode' ),         'value' => '#d97706' ),
-		array( 'id' => 'rose',     'label' => __( 'Rose',    'wp-desktop-mode' ),         'value' => '#e11d48' ),
+		array( 'id' => 'wp-blue',  'label' => __( 'WordPress Blue', 'desktop-mode' ), 'value' => '#2271b1' ),
+		array( 'id' => 'indigo',   'label' => __( 'Indigo',  'desktop-mode' ),         'value' => '#3858e9' ),
+		array( 'id' => 'teal',     'label' => __( 'Teal',    'desktop-mode' ),         'value' => '#04a4cc' ),
+		array( 'id' => 'emerald',  'label' => __( 'Emerald', 'desktop-mode' ),         'value' => '#059669' ),
+		array( 'id' => 'amber',    'label' => __( 'Amber',   'desktop-mode' ),         'value' => '#d97706' ),
+		array( 'id' => 'rose',     'label' => __( 'Rose',    'desktop-mode' ),         'value' => '#e11d48' ),
 	);
 
 	/**
 	 * Filters the list of accent-color swatches offered in OS Settings.
 	 *
 	 * ```php
-	 * add_filter( 'wp_desktop_accent_colors', function ( $colors ) {
+	 * add_filter( 'desktop_mode_accent_colors', function ( $colors ) {
 	 *     $colors[] = array(
 	 *         'id'    => 'brand',
 	 *         'label' => __( 'Brand', 'my-plugin' ),
@@ -66,7 +66,7 @@ function wpdm_get_accent_colors() {
 	 *
 	 * @param array $defaults Built-in swatches.
 	 */
-	$filtered = apply_filters( 'wp_desktop_accent_colors', $defaults );
+	$filtered = apply_filters( 'desktop_mode_accent_colors', $defaults );
 	if ( ! is_array( $filtered ) ) {
 		return $defaults;
 	}

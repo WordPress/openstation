@@ -57,12 +57,17 @@ describe( 'widgets/registry', () => {
 		expect( list.map( ( w ) => w.id ) ).toEqual( [ 'a' ] );
 	} );
 
-	test( 'register drops invalid defs with a console warning', async () => {
+	test( 'register throws RegistrationError on invalid defs', async () => {
 		const registry = await import( '../../src/widgets/registry' );
-		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
-		registry.register( { id: '', label: 'x', description: '', icon: 'i', mount: () => () => undefined } as unknown as never );
-		expect( warn ).toHaveBeenCalled();
-		warn.mockRestore();
+		expect( () =>
+			registry.register( {
+				id: '',
+				label: 'x',
+				description: '',
+				icon: 'i',
+				mount: () => () => undefined,
+			} as unknown as never ),
+		).toThrow( /Widget registration rejected/ );
 	} );
 
 	test( 'register late-wins on id conflict', async () => {

@@ -18,8 +18,11 @@ fi
 npm version "$new" --no-git-tag-version --allow-same-version > /dev/null
 
 # Perl — portable inline edit; BSD and GNU sed differ on the `-i` form.
-perl -i -pe "s/^(\s*\*\s*Version:\s*)\S+/\${1}${new}/" wp-desktop-mode.php
-perl -i -pe "s/(WPDM_VERSION',\s*')[^']+/\${1}${new}/" wp-desktop-mode.php
+perl -i -pe "s/^(\s*\*\s*Version:\s*)\S+/\${1}${new}/" desktop-mode.php
+perl -i -pe "s/(DESKTOP_MODE_VERSION',\s*')[^']+/\${1}${new}/" desktop-mode.php
+# wp.org rejects submissions whose readme.txt Stable tag doesn't match
+# the plugin header Version, so keep them in lockstep.
+perl -i -pe "s/^(Stable tag:\s*)\S+/\${1}${new}/" readme.txt
 
 cat <<EOF
 Bumped to $new. Next:

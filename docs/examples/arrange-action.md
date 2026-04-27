@@ -13,7 +13,7 @@ The contract is a PHP filter (to register the menu item) plus a JS action (to ru
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'wp_desktop_arrange_menu_items', function ( $items ) {
+add_filter( 'desktop_mode_arrange_menu_items', function ( $items ) {
     $items[] = array(
         'id'          => 'diagonal',
         'title'       => __( 'Diagonal cascade', 'diagonal-cascade' ),
@@ -27,7 +27,7 @@ add_filter( 'wp_desktop_arrange_menu_items', function ( $items ) {
 // main script handle; adding it as a dep guarantees `window.wp.desktop`
 // is populated by the time your code runs.
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'wpdm_is_enabled' ) || ! wpdm_is_enabled() ) {
+    if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
         return;
     }
     wp_enqueue_script(
@@ -90,5 +90,5 @@ wp.desktop.hooks.addAction(
 
 ## Related
 
-- [`wp_desktop_arrange_menu_items` filter](../hooks-reference.md#wp_desktop_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
+- [`desktop_mode_arrange_menu_items` filter](../hooks-reference.md#desktop_mode_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
 - [`wp-desktop.arrange.*` action family](../javascript-reference.md#arrange--snap--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.

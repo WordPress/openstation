@@ -126,7 +126,7 @@ When the tool's logic is inherently server-side (database lookups, WooCommerce, 
 
 ```php
 add_action( 'init', function () {
-    wp_register_desktop_ai_tool( array(
+    desktop_mode_register_ai_tool( array(
         'name'             => 'list_recent_orders',
         'description'      => 'Return the N most recent WooCommerce orders.',
         'parameters'       => array(
@@ -164,22 +164,22 @@ No JS required. The tool shows up to OpenAI automatically on every user who has 
 Every call is trace-able via three actions that share a `request_id`:
 
 ```php
-add_action( 'wp_desktop_ai_search_started', function ( $ctx ) {
+add_action( 'desktop_mode_ai_search_started', function ( $ctx ) {
     // { query, user_id, request_id }
     my_logger()->info( 'ai.started', $ctx );
 } );
 
-add_action( 'wp_desktop_ai_tool_called', function ( $ctx ) {
+add_action( 'desktop_mode_ai_tool_called', function ( $ctx ) {
     // { tool_name, args, user_id, request_id }
     my_logger()->debug( 'ai.tool', $ctx );
 } );
 
-add_action( 'wp_desktop_ai_search_completed', function ( $ctx ) {
+add_action( 'desktop_mode_ai_search_completed', function ( $ctx ) {
     // { query, user_id, request_id, answer_type, iterations }
     my_logger()->info( 'ai.completed', $ctx );
 } );
 
-add_action( 'wp_desktop_ai_search_error', function ( $err ) {
+add_action( 'desktop_mode_ai_search_error', function ( $err ) {
     my_logger()->error( 'ai.error', $err );
 } );
 ```

@@ -17,10 +17,10 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Meta key used across posts, terms, and comments. */
-const WPDM_AI_META_KEY = '_wpdm_ai_analysis';
+const DESKTOP_MODE_AI_META_KEY = '_wpdm_ai_analysis';
 
 /** Max characters of post content / comment text sent to OpenAI. */
-const WPDM_AI_CONTENT_MAX_CHARS = 3000;
+const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
 
 // ---------------------------------------------------------------------------
 // JSON Schemas
@@ -36,7 +36,7 @@ const WPDM_AI_CONTENT_MAX_CHARS = 3000;
  *
  * @return array
  */
-function wpdm_ai_schema_content() {
+function desktop_mode_ai_schema_content() {
 	$schema = array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -65,7 +65,7 @@ function wpdm_ai_schema_content() {
 	 *
 	 * @param array $schema The JSON Schema array.
 	 */
-	return (array) apply_filters( 'wp_desktop_ai_schema_content', $schema );
+	return (array) apply_filters( 'desktop_mode_ai_schema_content', $schema );
 }
 
 /**
@@ -77,7 +77,7 @@ function wpdm_ai_schema_content() {
  *
  * @return array
  */
-function wpdm_ai_schema_comment() {
+function desktop_mode_ai_schema_comment() {
 	$schema = array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -109,7 +109,7 @@ function wpdm_ai_schema_comment() {
 	 *
 	 * @param array $schema The JSON Schema array.
 	 */
-	return (array) apply_filters( 'wp_desktop_ai_schema_comment', $schema );
+	return (array) apply_filters( 'desktop_mode_ai_schema_comment', $schema );
 }
 
 // ---------------------------------------------------------------------------
@@ -124,12 +124,12 @@ function wpdm_ai_schema_comment() {
  * @param WP_Post $post
  * @return array Chat messages array.
  */
-function wpdm_ai_messages_for_post( WP_Post $post ) {
+function desktop_mode_ai_messages_for_post( WP_Post $post ) {
 	$type    = ucfirst( $post->post_type );
 	$title   = wp_strip_all_tags( $post->post_title );
 	$content = wp_strip_all_tags( $post->post_content );
 	$content = preg_replace( '/\s+/', ' ', trim( $content ) );
-	$content = mb_substr( $content, 0, WPDM_AI_CONTENT_MAX_CHARS );
+	$content = mb_substr( $content, 0, DESKTOP_MODE_AI_CONTENT_MAX_CHARS );
 	$excerpt = wp_strip_all_tags( $post->post_excerpt );
 
 	$user_text  = "Analyze the following WordPress {$type}.\n\n";
@@ -147,7 +147,7 @@ function wpdm_ai_messages_for_post( WP_Post $post ) {
 	 * @param string  $user_text The composed user message.
 	 * @param WP_Post $post      The post being analyzed.
 	 */
-	$user_text = (string) apply_filters( 'wp_desktop_ai_post_prompt', $user_text, $post );
+	$user_text = (string) apply_filters( 'desktop_mode_ai_post_prompt', $user_text, $post );
 
 	return array(
 		array(
@@ -169,11 +169,11 @@ function wpdm_ai_messages_for_post( WP_Post $post ) {
  * @param WP_Term $term
  * @return array Chat messages array.
  */
-function wpdm_ai_messages_for_term( WP_Term $term ) {
+function desktop_mode_ai_messages_for_term( WP_Term $term ) {
 	$taxonomy    = ucwords( str_replace( '_', ' ', $term->taxonomy ) );
 	$name        = $term->name;
 	$description = wp_strip_all_tags( $term->description );
-	$description = mb_substr( preg_replace( '/\s+/', ' ', trim( $description ) ), 0, WPDM_AI_CONTENT_MAX_CHARS );
+	$description = mb_substr( preg_replace( '/\s+/', ' ', trim( $description ) ), 0, DESKTOP_MODE_AI_CONTENT_MAX_CHARS );
 
 	$user_text  = "Analyze the following WordPress {$taxonomy} term.\n\n";
 	$user_text .= "Name: {$name}\n";
@@ -191,7 +191,7 @@ function wpdm_ai_messages_for_term( WP_Term $term ) {
 	 * @param string  $user_text The composed user message.
 	 * @param WP_Term $term      The term being analyzed.
 	 */
-	$user_text = (string) apply_filters( 'wp_desktop_ai_term_prompt', $user_text, $term );
+	$user_text = (string) apply_filters( 'desktop_mode_ai_term_prompt', $user_text, $term );
 
 	return array(
 		array(
@@ -217,9 +217,9 @@ function wpdm_ai_messages_for_term( WP_Term $term ) {
  * @param WP_Comment $comment
  * @return array Chat messages array.
  */
-function wpdm_ai_messages_for_comment( WP_Comment $comment ) {
+function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
 	$text = wp_strip_all_tags( $comment->comment_content );
-	$text = mb_substr( preg_replace( '/\s+/', ' ', trim( $text ) ), 0, WPDM_AI_CONTENT_MAX_CHARS );
+	$text = mb_substr( preg_replace( '/\s+/', ' ', trim( $text ) ), 0, DESKTOP_MODE_AI_CONTENT_MAX_CHARS );
 
 	$user_text = "Analyze the following WordPress comment.\n\n";
 	$user_text .= "Comment:\n{$text}\n\n";
@@ -232,7 +232,7 @@ function wpdm_ai_messages_for_comment( WP_Comment $comment ) {
 			$user_text .= 'Post title: ' . wp_strip_all_tags( $post->post_title ) . "\n";
 		}
 
-		$post_analysis = wpdm_ai_get_meta( 'post', $post_id );
+		$post_analysis = desktop_mode_ai_get_meta( 'post', $post_id );
 		if ( $post_analysis && ! empty( $post_analysis['ai_summary'] ) ) {
 			$user_text .= 'Post summary: ' . $post_analysis['ai_summary'] . "\n";
 		}
@@ -252,7 +252,7 @@ function wpdm_ai_messages_for_comment( WP_Comment $comment ) {
 	 * @param string     $user_text The composed user message.
 	 * @param WP_Comment $comment   The comment being analyzed.
 	 */
-	$user_text = (string) apply_filters( 'wp_desktop_ai_comment_prompt', $user_text, $comment );
+	$user_text = (string) apply_filters( 'desktop_mode_ai_comment_prompt', $user_text, $comment );
 
 	return array(
 		array(
@@ -280,7 +280,7 @@ function wpdm_ai_messages_for_comment( WP_Comment $comment ) {
  * @param array  $analysis    The structured output array from OpenAI.
  * @return bool
  */
-function wpdm_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
+function desktop_mode_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
 	$entity_id = (int) $entity_id;
 	if ( $entity_id <= 0 ) {
 		return false;
@@ -291,13 +291,13 @@ function wpdm_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
 
 	switch ( $entity_type ) {
 		case 'post':
-			return false !== update_post_meta( $entity_id, WPDM_AI_META_KEY, $analysis );
+			return false !== update_post_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
 
 		case 'term':
-			return false !== update_term_meta( $entity_id, WPDM_AI_META_KEY, $analysis );
+			return false !== update_term_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
 
 		case 'comment':
-			return false !== update_comment_meta( $entity_id, WPDM_AI_META_KEY, $analysis );
+			return false !== update_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
 	}
 
 	return false;
@@ -312,7 +312,7 @@ function wpdm_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
  * @param int    $entity_id
  * @return array|null
  */
-function wpdm_ai_get_meta( $entity_type, $entity_id ) {
+function desktop_mode_ai_get_meta( $entity_type, $entity_id ) {
 	$entity_id = (int) $entity_id;
 	if ( $entity_id <= 0 ) {
 		return null;
@@ -321,13 +321,13 @@ function wpdm_ai_get_meta( $entity_type, $entity_id ) {
 	$raw = null;
 	switch ( $entity_type ) {
 		case 'post':
-			$raw = get_post_meta( $entity_id, WPDM_AI_META_KEY, true );
+			$raw = get_post_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
 			break;
 		case 'term':
-			$raw = get_term_meta( $entity_id, WPDM_AI_META_KEY, true );
+			$raw = get_term_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
 			break;
 		case 'comment':
-			$raw = get_comment_meta( $entity_id, WPDM_AI_META_KEY, true );
+			$raw = get_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
 			break;
 	}
 

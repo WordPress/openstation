@@ -2,7 +2,7 @@
  * Desktop Mode — Wallpaper shortcut icons.
  *
  * Renders the list of `config.desktopIcons` entries (from
- * `wp_register_desktop_icon()` in PHP) as clickable tiles on the
+ * `desktop_mode_register_icon()` in PHP) as clickable tiles on the
  * desktop wallpaper. Clicking an icon either opens the referenced
  * native window (via the injected `openWindow` callback) or opens the
  * URL as an iframe window / new tab.

@@ -2,8 +2,22 @@
  * `<wpd-window-button>` — single chrome button used in window
  * title bars. Built-in icons cover the five control buttons
  * (minimize / maximize / fullscreen-toggle / detach / close) plus
- * the `⋯` menu trigger. A slot lets plugin authors ship custom
- * icons by dropping inline SVG inside the tag.
+ * the `⋯` menu trigger.
+ *
+ * The `icon` attribute ONLY accepts the seven built-in keys
+ * listed below — passing a Dashicons class or an inline SVG string
+ * via `icon` will silently render nothing because the icon map
+ * doesn't have an entry. To use a Dashicons class, append a
+ * `<span class="dashicons dashicons-foo">` as a light-DOM child
+ * (the global Dashicons stylesheet doesn't penetrate the shadow
+ * boundary). To use an inline SVG, drop the `<svg>` element as a
+ * light-DOM child the same way. The default slot picks both up.
+ *
+ * The title-bar registry's `paintTitleBarButtonIcon` helper does
+ * this routing automatically for plugin-registered buttons — see
+ * `src/window/index.ts` — so plugin authors using
+ * `wp.desktop.registerTitleBarButton({ icon: 'dashicons-…', … })`
+ * don't have to think about the difference.
  *
  * Focused / unfocused coloring is driven by outer CSS custom
  * properties (`--wpd-btn-color`, `--wpd-btn-bg-hover`, etc.) that
@@ -17,8 +31,19 @@
  *   - `danger` — boolean, swaps hover to a red wash (used by the
  *     close button)
  *
- * Events: native `click` bubbles. No custom CustomEvent — the
- * consumer just attaches a click listener.
+ * Events:
+ *   - `click` — native; bubbles out of the shadow root as usual.
+ *     Reliable because the title-bar drag-handler excludes any
+ *     element matching `.wp-desktop-window__btn` — static clicks
+ *     (no mouse movement between down and up) land normally.
+ *   - `wpd-button-activate` — CustomEvent fired exactly once per
+ *     user activation. `bubbles: true; composed: true; cancelable:
+ *     true`. Use this when you want a contract that's explicitly
+ *     scoped to button activation, not entangled with raw pointer
+ *     events. Plugin-registered title-bar buttons that pass an
+ *     `onClick` callback are wired to this event automatically —
+ *     the registry calls your callback exactly once per click,
+ *     never doubles, never races with drag detection.
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -130,10 +155,25 @@ export class WpdWindowButton extends Component {
 	 * so we stash the intended markup in a hidden buffer and
 	 * `innerHTML = ` the svg once here — a one-shot post-render
 	 * hook that keeps the declarative template honest.
+	 *
+	 * Also wires up the `wpd-button-activate` CustomEvent that
+	 * fires exactly once per gesture — the canonical contract
+	 * for plugin-registered title-bar buttons. Plugin authors who
+	 * use `addEventListener( 'click', cb )` directly still get
+	 * what they expect (the title bar's drag-handler now excludes
+	 * chrome buttons by class so static clicks land normally),
+	 * but `wpd-button-activate` is the documented surface that
+	 * documents the once-per-gesture contract explicitly. See
+	 * the class-level docblock for rationale.
 	 */
 	connectedCallback(): void {
 		super.connectedCallback();
 		queueMicrotask( () => this._paintSvg() );
+		// Wire the activate event on the same microtask cadence as
+		// the SVG paint — the shadow-DOM `<button>` doesn't exist
+		// until `super.connectedCallback()` finishes its render
+		// pass, which the Component base may defer.
+		queueMicrotask( () => this._wireActivateEvent() );
 	}
 
 	attributeChangedCallback(
@@ -161,6 +201,53 @@ export class WpdWindowButton extends Component {
 				svg.innerHTML = markup;
 			}
 		}
+	}
+
+	/**
+	 * Tracks whether we've already wired the activate listener to
+	 * the shadow's `<button>`. `connectedCallback` runs once per
+	 * insertion into the DOM, so the typical lifecycle hits this
+	 * once — but a host moved between containers (uncommon, but
+	 * spec-allowed) would re-enter; the guard keeps double-firing
+	 * out of that edge case.
+	 */
+	private _activateWired = false;
+
+	private _wireActivateEvent(): void {
+		if ( this._activateWired ) {
+			return;
+		}
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return;
+		}
+		const button = root.querySelector( 'button' );
+		if ( ! button ) {
+			return;
+		}
+		this._activateWired = true;
+
+		// One CustomEvent per native click — bubbles + composed so
+		// listeners on the host (or any ancestor) receive it.
+		// `composed: true` is required for the event to cross the
+		// shadow boundary; otherwise it dies inside the component.
+		//
+		// We dispatch unconditionally on every click. We deliberately
+		// do NOT check `ev.defaultPrevented` because handler order
+		// is observable: a caller's `preventDefault()` listener
+		// might run before or after ours depending on registration
+		// order, so gating on it produces inconsistent results.
+		// Callers who want to suppress activation should not bind
+		// a `wpd-button-activate` listener in the first place.
+		button.addEventListener( 'click', () => {
+			this.dispatchEvent(
+				new CustomEvent( 'wpd-button-activate', {
+					bubbles: true,
+					composed: true,
+					cancelable: true,
+				} ),
+			);
+		} );
 	}
 }
 defineComponent( 'wpd-window-button', WpdWindowButton );

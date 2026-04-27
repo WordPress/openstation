@@ -5,20 +5,20 @@
  * Two entry points, mirroring the command-palette surface
  * ({@see includes/commands.php}):
  *
- *   - `wp_desktop_register_settings_tab_script( $handle )` — primary,
+ *   - `desktop_mode_register_settings_tab_script( $handle )` — primary,
  *     minimum-ceremony opt-in. Tells the shell: "this enqueued script
  *     registers OS Settings tabs; include it in the plugins-changed
  *     payload so it gets injected mid-session without a full reload."
  *
- *   - `wp_register_desktop_settings_tab( $args )` — optional. Declares
+ *   - `desktop_mode_register_settings_tab( $args )` — optional. Declares
  *     tab metadata server-side so the shell can live-unregister tabs on
  *     plugin deactivation without the JS having to tag every
  *     `registerSettingsTab()` with an `owner`.
  *
- * Both APIs feed `wpdm_build_desktop_settings_tab_scripts_payload()`
- * and `wpdm_build_desktop_settings_tabs_payload()`, which contribute
+ * Both APIs feed `desktop_mode_build_desktop_settings_tab_scripts_payload()`
+ * and `desktop_mode_build_desktop_settings_tabs_payload()`, which contribute
  * `serverSettingsTabScripts` and `serverSettingsTabs` to the shell
- * payload in `wpdm_build_menu_payload()`.
+ * payload in `desktop_mode_build_menu_payload()`.
  *
  * The tab's `render` callback lives JS-side — the PHP layer only
  * ferries identity and metadata.
@@ -39,13 +39,13 @@ defined( 'ABSPATH' ) || exit;
  *     wp_register_script(
  *         'my-plugin-settings',
  *         plugins_url( 'js/settings.js', __FILE__ ),
- *         array( 'wp-desktop-mode' ),
+ *         array( 'desktop-mode' ),
  *         '1.0.0',
  *         true
  *     );
  *     wp_enqueue_script( 'my-plugin-settings' );
  * } );
- * wp_desktop_register_settings_tab_script( 'my-plugin-settings' );
+ * desktop_mode_register_settings_tab_script( 'my-plugin-settings' );
  * ```
  *
  * @since 0.17.0
@@ -53,16 +53,16 @@ defined( 'ABSPATH' ) || exit;
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function wp_desktop_register_settings_tab_script( $handle ) {
+function desktop_mode_register_settings_tab_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return wpdm_registration_error(
-			'wp_desktop_missing_handle',
-			__( 'Settings tab script registration requires a non-empty script handle.', 'wp-desktop-mode' )
+		return desktop_mode_registration_error(
+			'desktop_mode_missing_handle',
+			__( 'Settings tab script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	wpdm_desktop_settings_tab_script_registry( $handle, true );
+	desktop_mode_desktop_settings_tab_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop settings-tab script handle is registered.
@@ -71,14 +71,14 @@ function wp_desktop_register_settings_tab_script( $handle ) {
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'wp_desktop_settings_tab_script_registered', $handle );
+	do_action( 'desktop_mode_settings_tab_script_registered', $handle );
 
 	return true;
 }
 
 /**
  * Declare an OS Settings tab server-side. Optional companion to
- * `wp_desktop_register_settings_tab_script()` — plugins that declare
+ * `desktop_mode_register_settings_tab_script()` — plugins that declare
  * their tab here get live-unregister-on-deactivate for free; plugins
  * that don't can still set `owner` on their JS `registerSettingsTab()`
  * call, or accept "tab stays until next reload" as graceful fallback.
@@ -86,7 +86,7 @@ function wp_desktop_register_settings_tab_script( $handle ) {
  * Example:
  *
  * ```php
- * wp_register_desktop_settings_tab( array(
+ * desktop_mode_register_settings_tab( array(
  *     'id'         => 'my-plugin',
  *     'label'      => __( 'My Plugin', 'my-plugin' ),
  *     'capability' => 'manage_options',
@@ -96,7 +96,7 @@ function wp_desktop_register_settings_tab_script( $handle ) {
  * ```
  *
  * Implicitly registers the `script` handle via
- * `wp_desktop_register_settings_tab_script()` when provided.
+ * `desktop_mode_register_settings_tab_script()` when provided.
  *
  * @since 0.17.0
  *
@@ -117,7 +117,7 @@ function wp_desktop_register_settings_tab_script( $handle ) {
  * }
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function wp_register_desktop_settings_tab( $args = array() ) {
+function desktop_mode_register_settings_tab( $args = array() ) {
 	$defaults = array(
 		'id'         => '',
 		'label'      => '',
@@ -129,16 +129,16 @@ function wp_register_desktop_settings_tab( $args = array() ) {
 
 	$id = (string) $args['id'];
 	if ( '' === $id || ! preg_match( '/^[a-z0-9_\-]+$/', $id ) ) {
-		return wpdm_registration_error(
-			'wp_desktop_invalid_id',
-			__( 'Settings tab registration requires a non-empty `id` matching [a-z0-9_-]+.', 'wp-desktop-mode' ),
+		return desktop_mode_registration_error(
+			'desktop_mode_invalid_id',
+			__( 'Settings tab registration requires a non-empty `id` matching [a-z0-9_-]+.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
-		return wpdm_registration_error(
-			'wp_desktop_missing_label',
-			__( 'Settings tab registration requires a non-empty `label`.', 'wp-desktop-mode' ),
+		return desktop_mode_registration_error(
+			'desktop_mode_missing_label',
+			__( 'Settings tab registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
@@ -150,10 +150,10 @@ function wp_register_desktop_settings_tab( $args = array() ) {
 		'order'      => (int) $args['order'],
 		'script'     => (string) $args['script'],
 	);
-	wpdm_desktop_settings_tab_registry( $id, $entry );
+	desktop_mode_desktop_settings_tab_registry( $id, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		wpdm_desktop_settings_tab_script_registry( $entry['script'], true );
+		desktop_mode_desktop_settings_tab_script_registry( $entry['script'], true );
 	}
 
 	/**
@@ -164,14 +164,14 @@ function wp_register_desktop_settings_tab( $args = array() ) {
 	 * @param string $id    The tab id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'wp_desktop_settings_tab_registered', $id, $entry );
+	do_action( 'desktop_mode_settings_tab_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for settings-tab script handles
- * declared via {@see wp_desktop_register_settings_tab_script()}.
+ * declared via {@see desktop_mode_register_settings_tab_script()}.
  *
  * @since 0.17.0
  * @internal
@@ -180,9 +180,13 @@ function wp_register_desktop_settings_tab( $args = array() ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function wpdm_desktop_settings_tab_script_registry( $handle = '', $value = null ) {
+function desktop_mode_desktop_settings_tab_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
+	if ( '__flush__' === (string) $handle ) {
+		$store = array();
+		return array();
+	}
 	if ( '' === (string) $handle ) {
 		return $store;
 	}
@@ -193,8 +197,18 @@ function wpdm_desktop_settings_tab_script_registry( $handle = '', $value = null 
 }
 
 /**
+ * Test-only: clear the registry between PHPUnit cases. See
+ * {@see desktop_mode_flush_script_handle_registries()}.
+ *
+ * @since 0.18.0
+ */
+function desktop_mode_flush_desktop_settings_tab_script_registry() {
+	desktop_mode_desktop_settings_tab_script_registry( '__flush__' );
+}
+
+/**
  * Internal module-level registry for tabs declared via
- * {@see wp_register_desktop_settings_tab()}.
+ * {@see desktop_mode_register_settings_tab()}.
  *
  * @since 0.17.0
  * @internal
@@ -203,7 +217,7 @@ function wpdm_desktop_settings_tab_script_registry( $handle = '', $value = null 
  * @param array|null $entry Entry to store, or `null` to read.
  * @return array|null
  */
-function wpdm_desktop_settings_tab_registry( $id = '', $entry = null ) {
+function desktop_mode_desktop_settings_tab_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -224,8 +238,8 @@ function wpdm_desktop_settings_tab_registry( $id = '', $entry = null ) {
  *
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
-function wpdm_build_desktop_settings_tab_scripts_payload() {
-	$registry = wpdm_desktop_settings_tab_script_registry();
+function desktop_mode_build_desktop_settings_tab_scripts_payload() {
+	$registry = desktop_mode_desktop_settings_tab_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -236,8 +250,13 @@ function wpdm_build_desktop_settings_tab_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = wpdm_resolve_script_url( $handle );
+		$url = desktop_mode_resolve_script_url( $handle );
 		if ( '' === $url ) {
+			desktop_mode_warn_unresolvable_script_handle(
+				'desktop_mode_register_settings_tab_script',
+				'Settings-tab',
+				(string) $handle
+			);
 			continue;
 		}
 		$out[]           = array(
@@ -251,7 +270,7 @@ function wpdm_build_desktop_settings_tab_scripts_payload() {
 
 /**
  * Build the metadata payload for tabs declared via
- * {@see wp_register_desktop_settings_tab()}. Each entry carries the
+ * {@see desktop_mode_register_settings_tab()}. Each entry carries the
  * resolved `scriptUrl` alongside metadata so the shell's sync can
  * unregister tabs attributable to a script handle that just left the
  * `serverSettingsTabScripts` payload.
@@ -260,8 +279,8 @@ function wpdm_build_desktop_settings_tab_scripts_payload() {
  *
  * @return array[]
  */
-function wpdm_build_desktop_settings_tabs_payload() {
-	$registry = wpdm_desktop_settings_tab_registry();
+function desktop_mode_build_desktop_settings_tabs_payload() {
+	$registry = desktop_mode_desktop_settings_tab_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -274,7 +293,7 @@ function wpdm_build_desktop_settings_tabs_payload() {
 			'label'        => (string) $entry['label'],
 			'capability'   => (string) $entry['capability'],
 			'order'        => (int) $entry['order'],
-			'scriptUrl'    => '' !== $handle ? wpdm_resolve_script_url( $handle ) : '',
+			'scriptUrl'    => '' !== $handle ? desktop_mode_resolve_script_url( $handle ) : '',
 			'scriptHandle' => $handle,
 		);
 	}

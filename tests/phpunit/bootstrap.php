@@ -38,7 +38,7 @@ require_once "{$_tests_dir}/includes/functions.php";
 tests_add_filter(
 	'muplugins_loaded',
 	static function () {
-		require dirname( __DIR__, 2 ) . '/wp-desktop-mode.php';
+		require dirname( __DIR__, 2 ) . '/desktop-mode.php';
 	}
 );
 

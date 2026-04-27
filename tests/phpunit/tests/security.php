@@ -17,21 +17,21 @@
 class Tests_DesktopMode_Security extends WP_UnitTestCase {
 
 	/**
-	 * @covers ::wpdm_url_is_same_admin
+	 * @covers ::desktop_mode_url_is_same_admin
 	 */
 	public function test_same_admin_url_passes() {
-		$this->assertTrue( wpdm_url_is_same_admin( admin_url( 'edit.php' ) ) );
-		$this->assertTrue( wpdm_url_is_same_admin( admin_url( 'plugins.php?page=foo' ) ) );
+		$this->assertTrue( desktop_mode_url_is_same_admin( admin_url( 'edit.php' ) ) );
+		$this->assertTrue( desktop_mode_url_is_same_admin( admin_url( 'plugins.php?page=foo' ) ) );
 	}
 
 	/**
-	 * @covers ::wpdm_url_is_same_admin
+	 * @covers ::desktop_mode_url_is_same_admin
 	 */
 	public function test_empty_or_non_string_rejected() {
-		$this->assertFalse( wpdm_url_is_same_admin( '' ) );
-		$this->assertFalse( wpdm_url_is_same_admin( null ) );
-		$this->assertFalse( wpdm_url_is_same_admin( 123 ) );
-		$this->assertFalse( wpdm_url_is_same_admin( array( 'url' => admin_url() ) ) );
+		$this->assertFalse( desktop_mode_url_is_same_admin( '' ) );
+		$this->assertFalse( desktop_mode_url_is_same_admin( null ) );
+		$this->assertFalse( desktop_mode_url_is_same_admin( 123 ) );
+		$this->assertFalse( desktop_mode_url_is_same_admin( array( 'url' => admin_url() ) ) );
 	}
 
 	/**
@@ -40,60 +40,60 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 	 * the stringified admin URL would accept a URL whose normalization
 	 * happens to share the prefix.
 	 *
-	 * @covers ::wpdm_url_is_same_admin
+	 * @covers ::desktop_mode_url_is_same_admin
 	 */
 	public function test_cross_origin_rejected() {
-		$this->assertFalse( wpdm_url_is_same_admin( 'https://evil.example.com/wp-admin/edit.php' ) );
-		$this->assertFalse( wpdm_url_is_same_admin( 'http://evil.example.com/wp-admin/' ) );
+		$this->assertFalse( desktop_mode_url_is_same_admin( 'https://evil.example.com/wp-admin/edit.php' ) );
+		$this->assertFalse( desktop_mode_url_is_same_admin( 'http://evil.example.com/wp-admin/' ) );
 	}
 
 	/**
 	 * Protocol-relative URLs (`//evil.com/…`) can smuggle cross-origin
 	 * addresses past a prefix check — parse + host compare catches them.
 	 *
-	 * @covers ::wpdm_url_is_same_admin
+	 * @covers ::desktop_mode_url_is_same_admin
 	 */
 	public function test_protocol_relative_rejected() {
-		$this->assertFalse( wpdm_url_is_same_admin( '//evil.example.com/wp-admin/edit.php' ) );
+		$this->assertFalse( desktop_mode_url_is_same_admin( '//evil.example.com/wp-admin/edit.php' ) );
 	}
 
 	/**
 	 * A URL whose path is prefix-similar but not under `/wp-admin/`
 	 * (e.g. `/wp-administrator/…`) must not pass.
 	 *
-	 * @covers ::wpdm_url_is_same_admin
+	 * @covers ::desktop_mode_url_is_same_admin
 	 */
 	public function test_look_alike_path_rejected() {
 		$home_host = wp_parse_url( home_url(), PHP_URL_HOST );
 		$this->assertFalse(
-			wpdm_url_is_same_admin( 'http://' . $home_host . '/wp-administrator/edit.php' )
+			desktop_mode_url_is_same_admin( 'http://' . $home_host . '/wp-administrator/edit.php' )
 		);
 	}
 
 	/**
-	 * @covers ::wpdm_resolve_admin_target
+	 * @covers ::desktop_mode_resolve_admin_target
 	 */
 	public function test_resolve_admin_target_valid_file() {
-		$resolved = wpdm_resolve_admin_target( 'edit.php' );
+		$resolved = desktop_mode_resolve_admin_target( 'edit.php' );
 		$this->assertIsString( $resolved );
 		$this->assertStringContainsString( '/wp-admin/edit.php', $resolved );
 	}
 
 	/**
-	 * @covers ::wpdm_resolve_admin_target
+	 * @covers ::desktop_mode_resolve_admin_target
 	 */
 	public function test_resolve_admin_target_path_traversal_rejected() {
-		$this->assertWPError( wpdm_resolve_admin_target( '../../wp-config.php' ) );
-		$this->assertWPError( wpdm_resolve_admin_target( '..\\..\\wp-config.php' ) );
-		$this->assertWPError( wpdm_resolve_admin_target( 'sub/edit.php' ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( '../../wp-config.php' ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( '..\\..\\wp-config.php' ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( 'sub/edit.php' ) );
 	}
 
 	/**
-	 * @covers ::wpdm_resolve_admin_target
+	 * @covers ::desktop_mode_resolve_admin_target
 	 */
 	public function test_resolve_admin_target_empty_rejected() {
-		$this->assertWPError( wpdm_resolve_admin_target( '' ) );
-		$this->assertWPError( wpdm_resolve_admin_target( null ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( '' ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( null ) );
 	}
 
 	/**
@@ -101,73 +101,104 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 	 * the filesystem check is what separates a real admin page from an
 	 * attacker-chosen string that happens to match the allow-regex.
 	 *
-	 * @covers ::wpdm_resolve_admin_target
+	 * @covers ::desktop_mode_resolve_admin_target
 	 */
 	public function test_resolve_admin_target_nonexistent_file_rejected() {
-		$error = wpdm_resolve_admin_target( 'definitely-not-a-real-admin-page.php' );
+		$error = desktop_mode_resolve_admin_target( 'definitely-not-a-real-admin-page.php' );
 		$this->assertWPError( $error );
-		$this->assertSame( 'wp_desktop_unknown_target', $error->get_error_code() );
+		$this->assertSame( 'desktop_mode_unknown_target', $error->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wpdm_resolve_admin_target
+	 * @covers ::desktop_mode_resolve_admin_target
 	 */
 	public function test_resolve_admin_target_non_php_rejected() {
-		$this->assertWPError( wpdm_resolve_admin_target( 'edit' ) );
-		$this->assertWPError( wpdm_resolve_admin_target( 'edit.html' ) );
-		$this->assertWPError( wpdm_resolve_admin_target( 'index.php?shenanigans=1' ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( 'edit' ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( 'edit.html' ) );
+		$this->assertWPError( desktop_mode_resolve_admin_target( 'index.php?shenanigans=1' ) );
 	}
 
 	/**
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_dashicon_class_allowed() {
-		$this->assertSame( 'dashicons-admin-post', wpdm_sanitize_dock_icon( 'dashicons-admin-post' ) );
-		$this->assertSame( 'dashicons-admin-generic', wpdm_sanitize_dock_icon( '' ) );
+		$this->assertSame( 'dashicons-admin-post', desktop_mode_sanitize_dock_icon( 'dashicons-admin-post' ) );
+		$this->assertSame( 'dashicons-admin-generic', desktop_mode_sanitize_dock_icon( '' ) );
 	}
 
 	/**
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_http_image_url_allowed() {
 		$this->assertSame(
 			'https://example.com/icon.png',
-			wpdm_sanitize_dock_icon( 'https://example.com/icon.png' )
+			desktop_mode_sanitize_dock_icon( 'https://example.com/icon.png' )
 		);
 	}
 
 	/**
-	 * Data URIs are rejected outright after Phase 1 — even benign-
-	 * looking `image/svg+xml` values could execute script when
-	 * rendered as a CSS background, which made the previous allowlist
-	 * a footgun.
+	 * `data:image/svg+xml` icons are accepted in two well-formed
+	 * shapes (`;base64,<base64>` and `,<percent-encoded>`) because
+	 * that's how WordPress plugins universally ship their admin-menu
+	 * icon (Yoast, WooCommerce, Jetpack, et al.). The shell renders
+	 * them via CSS `background-image`, which sandboxes scripts inside
+	 * the SVG just like an `<img>` would. Rejecting them across the
+	 * board collapses every plugin's branded icon to the gear fallback.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * Malformed SVG data URIs and non-SVG `data:` schemes still bounce.
+	 *
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
-	public function test_data_uri_rejected() {
-		$fallback = 'dashicons-admin-generic';
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'data:image/svg+xml;utf8,<svg onload="alert(1)"></svg>' ) );
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'data:text/html,<script>alert(1)</script>' ) );
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'DATA:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' ) );
+	public function test_svg_data_uri_allowed() {
+		$base64 = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+		$this->assertSame( $base64, desktop_mode_sanitize_dock_icon( $base64 ) );
+
+		$encoded = 'data:image/svg+xml,%3Csvg%2F%3E';
+		$this->assertSame( $encoded, desktop_mode_sanitize_dock_icon( $encoded ) );
+
+		// Scheme casing is allowed (browsers accept it); payload casing
+		// stays as-given (base64 alphabet is case-sensitive).
+		$mixed_case = 'DATA:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+		$this->assertSame( $mixed_case, desktop_mode_sanitize_dock_icon( $mixed_case ) );
 	}
 
 	/**
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * Non-SVG `data:` schemes and malformed SVG data URIs return the
+	 * fallback. The pre-0.18.x blanket rejection was overzealous, but
+	 * the targeted rejection of the dangerous shapes still holds.
+	 *
+	 * @covers ::desktop_mode_sanitize_dock_icon
+	 */
+	public function test_data_uri_rejected_when_not_svg_or_malformed() {
+		$fallback = 'dashicons-admin-generic';
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( 'data:text/html,<script>alert(1)</script>' ) );
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( 'data:application/javascript,alert(1)' ) );
+		// `;utf8,` is not one of the two valid SVG payload encodings —
+		// treat the unrecognised parameter as malformed.
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( 'data:image/svg+xml;utf8,<svg onload="alert(1)"></svg>' ) );
+		// Smuggled quote / whitespace in the base64 payload — strict
+		// regex must reject.
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( 'data:image/svg+xml;base64,PHN2Z" onerror=alert(1) x="' ) );
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( "data:image/svg+xml;base64,PHN2\nZz4=" ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_javascript_uri_rejected() {
 		$fallback = 'dashicons-admin-generic';
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'javascript:alert(1)' ) );
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'file:///etc/passwd' ) );
-		$this->assertSame( $fallback, wpdm_sanitize_dock_icon( 'vbscript:MsgBox' ) );
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( 'javascript:alert(1)' ) );
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( 'file:///etc/passwd' ) );
+		$this->assertSame( $fallback, desktop_mode_sanitize_dock_icon( 'vbscript:MsgBox' ) );
 	}
 
 	/**
-	 * @covers ::wpdm_sanitize_session_dimension
+	 * @covers ::desktop_mode_sanitize_session_dimension
 	 */
 	public function test_dimension_clamps_to_bounds() {
-		$this->assertSame( 100, wpdm_sanitize_session_dimension( 100, 0, 1000 ) );
-		$this->assertSame( 1000, wpdm_sanitize_session_dimension( 99999, 0, 1000 ) );
-		$this->assertSame( 0, wpdm_sanitize_session_dimension( -500, 0, 1000 ) );
+		$this->assertSame( 100, desktop_mode_sanitize_session_dimension( 100, 0, 1000 ) );
+		$this->assertSame( 1000, desktop_mode_sanitize_session_dimension( 99999, 0, 1000 ) );
+		$this->assertSame( 0, desktop_mode_sanitize_session_dimension( -500, 0, 1000 ) );
 	}
 
 	/**
@@ -175,14 +206,14 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 	 * objects, NAN, INF) return `$min` rather than silently coercing
 	 * to zero via PHP's permissive `(int)` cast.
 	 *
-	 * @covers ::wpdm_sanitize_session_dimension
+	 * @covers ::desktop_mode_sanitize_session_dimension
 	 */
 	public function test_dimension_non_numeric_returns_min() {
-		$this->assertSame( 50, wpdm_sanitize_session_dimension( 'garbage', 50, 1000 ) );
-		$this->assertSame( 50, wpdm_sanitize_session_dimension( array( 200 ), 50, 1000 ) );
-		$this->assertSame( 50, wpdm_sanitize_session_dimension( null, 50, 1000 ) );
-		$this->assertSame( 50, wpdm_sanitize_session_dimension( INF, 50, 1000 ) );
-		$this->assertSame( 50, wpdm_sanitize_session_dimension( NAN, 50, 1000 ) );
+		$this->assertSame( 50, desktop_mode_sanitize_session_dimension( 'garbage', 50, 1000 ) );
+		$this->assertSame( 50, desktop_mode_sanitize_session_dimension( array( 200 ), 50, 1000 ) );
+		$this->assertSame( 50, desktop_mode_sanitize_session_dimension( null, 50, 1000 ) );
+		$this->assertSame( 50, desktop_mode_sanitize_session_dimension( INF, 50, 1000 ) );
+		$this->assertSame( 50, desktop_mode_sanitize_session_dimension( NAN, 50, 1000 ) );
 	}
 
 	/**
@@ -190,20 +221,20 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 	 * helper don't want to trim upstream, and PHP's `is_numeric()`
 	 * accepts leading/trailing whitespace after a `trim()`.
 	 *
-	 * @covers ::wpdm_sanitize_session_dimension
+	 * @covers ::desktop_mode_sanitize_session_dimension
 	 */
 	public function test_dimension_numeric_string_accepted() {
-		$this->assertSame( 200, wpdm_sanitize_session_dimension( '  200  ', 0, 1000 ) );
-		$this->assertSame( 200, wpdm_sanitize_session_dimension( '200', 0, 1000 ) );
+		$this->assertSame( 200, desktop_mode_sanitize_session_dimension( '  200  ', 0, 1000 ) );
+		$this->assertSame( 200, desktop_mode_sanitize_session_dimension( '200', 0, 1000 ) );
 	}
 
 	/**
 	 * Session sanitizer drops windows whose URL points off-origin —
-	 * the `wpdm_url_is_same_admin()` gate replaces the prior `strpos`
+	 * the `desktop_mode_url_is_same_admin()` gate replaces the prior `strpos`
 	 * check and now rejects protocol-relative + cross-origin URLs that
 	 * a prefix comparison would have accepted.
 	 *
-	 * @covers ::wpdm_sanitize_session
+	 * @covers ::desktop_mode_sanitize_session
 	 */
 	public function test_session_rejects_cross_origin_window() {
 		$session = array(
@@ -221,7 +252,7 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 				),
 			),
 		);
-		$clean = wpdm_sanitize_session( $session );
+		$clean = desktop_mode_sanitize_session( $session );
 		$this->assertSame( array(), $clean['windows'] );
 	}
 
@@ -231,7 +262,7 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 	 * are dropped silently (not truncated — a truncated URL points
 	 * somewhere we don't control).
 	 *
-	 * @covers ::wpdm_sanitize_session
+	 * @covers ::desktop_mode_sanitize_session
 	 */
 	public function test_session_drops_oversized_external_tab_urls() {
 		$long_url = 'https://example.com/' . str_repeat( 'a', 2100 );
@@ -252,7 +283,7 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 				),
 			),
 		);
-		$clean = wpdm_sanitize_session( $session );
+		$clean = desktop_mode_sanitize_session( $session );
 		$this->assertCount( 1, $clean['windows'] );
 		$tabs = $clean['windows'][0]['externalTabs'] ?? array();
 		$this->assertCount( 1, $tabs );
@@ -265,20 +296,20 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 	 * that matches the previous regex-only check is rejected because
 	 * no such file ships in `wp-admin/`.
 	 *
-	 * @covers ::wpdm_sanitize_portal_target
+	 * @covers ::desktop_mode_sanitize_portal_target
 	 */
 	public function test_portal_target_nonexistent_file_rejected() {
 		$this->assertSame(
 			'',
-			wpdm_sanitize_portal_target( '/wp-admin/definitely-not-a-real-page.php' )
+			desktop_mode_sanitize_portal_target( '/wp-admin/definitely-not-a-real-page.php' )
 		);
 	}
 
 	/**
-	 * @covers ::wpdm_sanitize_portal_target
+	 * @covers ::desktop_mode_sanitize_portal_target
 	 */
 	public function test_portal_target_valid_admin_page_accepted() {
-		$resolved = wpdm_sanitize_portal_target( '/wp-admin/edit.php?post_type=page' );
+		$resolved = desktop_mode_sanitize_portal_target( '/wp-admin/edit.php?post_type=page' );
 		$this->assertNotSame( '', $resolved );
 		$this->assertStringContainsString( 'edit.php', $resolved );
 		$this->assertStringContainsString( 'post_type=page', $resolved );

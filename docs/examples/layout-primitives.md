@@ -69,7 +69,7 @@ You can use `<wpd-panel>` directly inside a render callback without a body — t
 ## Full example — the converter re-implemented
 
 ```php
-wp_register_desktop_window( 'converter', array(
+desktop_mode_register_window( 'converter', array(
     'title'    => __( 'Unit Converter', 'my-plugin' ),
     'width'    => 420,
     'height'   => 320,
@@ -153,10 +153,10 @@ window.wpDesktopNativeWindows.converter = function ( body ) {
 
 ## Inline styles via the `style` array
 
-`wp_desktop_component()` accepts `style` as either the usual string value or an associative array of CSS-property → value pairs. The array form serializes to a single `style="…"` attribute with auto-unit for length-shaped properties.
+`desktop_mode_component()` accepts `style` as either the usual string value or an associative array of CSS-property → value pairs. The array form serializes to a single `style="…"` attribute with auto-unit for length-shaped properties.
 
 ```php
-wp_desktop_component( 'wpd-stack', array(
+desktop_mode_component( 'wpd-stack', array(
     'gap'   => 12,
     'style' => array(
         'padding'       => 0,
@@ -172,7 +172,7 @@ The array form is the ergonomic path — it mirrors the React/Vue `style` prop. 
 ### Plain string form still works
 
 ```php
-wp_desktop_component( 'wpd-stack', array(
+desktop_mode_component( 'wpd-stack', array(
     'style' => 'padding: 0; margin-top: 16px',
 ), $children );
 ```

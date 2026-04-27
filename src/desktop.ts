@@ -17,6 +17,7 @@ import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
 import {
 	HOOKS,
+	addAction,
 	doAction,
 	rawHooks,
 	whenReady,
@@ -35,6 +36,18 @@ import {
 	listSettingsTabs,
 	type DesktopSettingsTab,
 } from './settings/registry';
+import {
+	registerTitleBarButton,
+	unregisterTitleBarButton,
+	listTitleBarButtons,
+	type TitleBarButtonDef,
+} from './title-bar-buttons/registry';
+import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
+import {
+	createConnectionBridge,
+	type WindowConnection,
+	type ConnectOptions,
+} from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
@@ -50,6 +63,7 @@ import {
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { renderDesktopIcons } from './desktop-icons';
+import { createApplyPayload } from './menu-refresh-apply';
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
@@ -166,6 +180,21 @@ export interface WpDesktopPublicApi {
 	 * the shell fills in the boilerplate.
 	 */
 	registerWindow: ( def: NativeWindowDef ) => DesktopWindow;
+	/**
+	 * Open (or focus) a server-registered native window by id —
+	 * the same path the dock click + wallpaper-icon click go
+	 * through, so callers inherit the cloned-template body that
+	 * `desktop_mode_register_window( 'template' )` declared.
+	 *
+	 * Returns `true` if the window was opened (or already open and
+	 * was focused), `false` if no native window is registered with
+	 * that id. Used by the global Cmd/Ctrl+Shift+E shortcut, by
+	 * the AI Copilot's "open editor" tool, and by plugin authors
+	 * that want to surface a sister-plugin's window.
+	 *
+	 * @since 0.18.0
+	 */
+	openWindow: ( id: string ) => boolean;
 	/**
 	 * Clone a `<template>` element's contents into a fresh
 	 * `DocumentFragment`. Convenience wrapper — accepts either the
@@ -324,6 +353,32 @@ export interface WpDesktopPublicApi {
 	unregisterSettingsTab: ( id: string ) => void;
 	/** Snapshot of all registered third-party settings tabs. @since 0.17.0 */
 	listSettingsTabs: () => DesktopSettingsTab[];
+	/**
+	 * Register a custom button in the title bar of any matching
+	 * window. Predicate decides which windows show it. See
+	 * `TitleBarButtonDef` for the full options shape.
+	 *
+	 * Returns `true` when the button was registered, `false` on
+	 * validation failure (a `console.warn` names the bad field).
+	 *
+	 * @since 0.17.0
+	 */
+	registerTitleBarButton: ( def: TitleBarButtonDef ) => void;
+	/** Remove a previously registered title-bar button. @since 0.17.0 */
+	unregisterTitleBarButton: ( id: string ) => void;
+	/** Snapshot of registered title-bar buttons. @since 0.17.0 */
+	listTitleBarButtons: () => TitleBarButtonDef[];
+	/**
+	 * Open a typed pub/sub connection to another window's iframe.
+	 * Returns a `WindowConnection` with `subscribe`, `send`, and
+	 * `disconnect`. Messages are queued before the iframe acks the
+	 * handshake; the iframe-side counterpart is
+	 * `wp.desktop.iframe.publish/subscribe` (injected into every
+	 * chromeless wp-admin page).
+	 *
+	 * @since 0.17.0
+	 */
+	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	/**
 	 * Register a Cmd+K palette. The shell owns a single shortcut
 	 * handler that cycles through every registered palette; the
@@ -686,22 +741,23 @@ function init(): void {
 	};
 
 	// Native-window sync — the server-declared list from
-	// `wp_register_desktop_window()` drives system-tile lifecycle
+	// `desktop_mode_register_window()` drives system-tile lifecycle
 	// for plugin-owned native windows. At boot we prime tiles from
 	// `config.nativeWindows`; the live-refresh path calls the same
 	// syncer with the fresh payload so activation / deactivation
 	// maps to tile add / remove without any shell reload.
-	const syncNativeWindows = createNativeWindowSync( {
+	const nativeWindows = createNativeWindowSync( {
 		manager,
 		dock,
 		desktopArea,
 	} );
+	const syncNativeWindows = nativeWindows.sync;
 	void syncNativeWindows(
 		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
 	);
 
 	// Widget-registry sync — same story for the right-column widget
-	// layer. Plugins declare widgets via `wp_register_desktop_widget()`;
+	// layer. Plugins declare widgets via `desktop_mode_register_widget()`;
 	// the shell adds / removes defs from its registry as plugins
 	// activate / deactivate mid-session, dynamically loading the
 	// plugin's script so the mount callback lands on
@@ -715,7 +771,7 @@ function init(): void {
 
 	// Wallpaper-registry sync — third instance of the same pattern,
 	// same reasoning. Plugins declare wallpapers via
-	// `wp_register_desktop_wallpaper()`; the shell loads the
+	// `desktop_mode_register_wallpaper()`; the shell loads the
 	// plugin's JS, reads the full `WallpaperDef` off
 	// `window.wpDesktopWallpapers[ id ]`, and adds / removes it
 	// from the registry as activation / deactivation plays out.
@@ -728,7 +784,7 @@ function init(): void {
 
 	// Command-palette sync — mirrors the widget / wallpaper pattern for
 	// slash-commands registered by plugins via
-	// `wp_desktop_register_command_script()`. Loads each opted-in
+	// `desktop_mode_register_command_script()`. Loads each opted-in
 	// script URL on boot (idempotent if WP already enqueued it) and on
 	// mid-session plugins-changed signals, so a newly-installed plugin's
 	// commands appear in the palette without a reload. Deactivation
@@ -743,7 +799,7 @@ function init(): void {
 
 	// Settings-tab sync — same pattern as commands, for OS Settings
 	// tabs registered by plugins via
-	// `wp_desktop_register_settings_tab_script()`. Injects each
+	// `desktop_mode_register_settings_tab_script()`. Injects each
 	// opted-in script so a plugin's `registerSettingsTab()` call
 	// lands and the (possibly open) OS Settings window repaints.
 	const syncServerSettingsTabs = createSettingsTabRegistrySync();
@@ -754,64 +810,71 @@ function init(): void {
 		Array.isArray( config.serverSettingsTabs ) ? config.serverSettingsTabs : [],
 	);
 
-	// Hoisted so the desktop-icons render code below and the
-	// `window.wp.desktop.registerWindow` public export both
-	// reference the same function — no double-wrapping, no drift.
+	// Title-bar-button sync — same pattern. Loads opted-in scripts
+	// so plugin-registered buttons appear in matching windows on
+	// activation; deactivation drops buttons by `owner` tag.
+	const syncServerTitleBarButtons = createTitleBarButtonRegistrySync();
+	void syncServerTitleBarButtons(
+		Array.isArray( config.serverTitleBarButtonScripts )
+			? config.serverTitleBarButtonScripts
+			: [],
+	);
+
+	// Cross-window connection bridge — parent side. Builds the
+	// `connect()` factory + the iframe-message router. The router
+	// is wired into `iframe-bridge.ts` below via a side-channel
+	// global so individual Window instances don't need to know
+	// about the bridge.
+	const connectionBridge = createConnectionBridge( manager );
+	(
+		window as unknown as {
+			__wpDesktopConnectionBridge?: ReturnType< typeof createConnectionBridge >;
+		}
+	).__wpDesktopConnectionBridge = connectionBridge;
+	// Tear down connections when their target window closes.
+	addAction( HOOKS.WINDOW_CLOSED, 'wp-desktop-mode/connection-cleanup', ( e: { windowId?: string } ) => {
+		if ( e?.windowId ) {
+			connectionBridge.onWindowClosed( e.windowId );
+		}
+	} );
+	// Re-arm pending handshakes once an iframe finishes loading.
+	addAction( HOOKS.IFRAME_READY, 'wp-desktop-mode/connection-rearm', ( e: { windowId?: string } ) => {
+		if ( e?.windowId ) {
+			connectionBridge.onIframeReady( e.windowId );
+		}
+	} );
+
+	// Public-API alias for the lower-level `manager.open({ native:
+	// true, … })` path. Plugins that build their UI entirely in JS
+	// (no PHP `desktop_mode_register_window`) reach for this. The
+	// PHP-registered native-window path goes through
+	// `nativeWindows.openById` instead — which pre-clones the
+	// template into the body before render fires.
 	const registerWindow = createRegisterWindow( manager );
 
 	// Desktop icons — shortcut tiles on the wallpaper, registered
-	// server-side via `wp_register_desktop_icon()`. Re-rendered on
+	// server-side via `desktop_mode_register_icon()`. Re-rendered on
 	// every live menu refresh so a plugin activation adds / removes
 	// tiles without a full shell reload.
 	//
-	// The `openWindow` callback reaches into the native-window
-	// registry the shell keeps in sync with `config.nativeWindows`.
-	// When the icon's target plugin has been deactivated since the
-	// icon was registered, the registry lookup returns null and the
-	// click becomes a no-op — the icon itself disappears on the
-	// next refresh via `wp_desktop_icons` filtering.
-	const openRegisteredNativeWindow = ( id: string ): boolean => {
-		const def = Array.isArray( config.nativeWindows )
-			? config.nativeWindows.find( ( w ) => w.id === id )
-			: null;
-		if ( ! def ) {
-			return false;
-		}
-		registerWindow( {
-			id: def.id,
-			title: def.title,
-			icon: def.icon,
-			width: def.width,
-			height: def.height,
-			minWidth: def.minWidth,
-			minHeight: def.minHeight,
-			autofocus: def.autofocus,
-			render: ( body: HTMLElement ) => {
-				// Native windows registered from PHP publish their
-				// render callback on `window.wpDesktopNativeWindows`.
-				// If the plugin's script hasn't loaded yet (very
-				// rare at this point — the shell enqueues all
-				// native-window scripts as shell deps), fall through
-				// to an empty body rather than throwing.
-				const nativeRegistry = ( window as unknown as {
-					wpDesktopNativeWindows?: Record<
-						string,
-						( ( el: HTMLElement ) => void ) | undefined
-					>;
-				} ).wpDesktopNativeWindows;
-				const render = nativeRegistry?.[ def.id ];
-				if ( render ) {
-					render( body );
-				}
-			},
-		} );
-		return true;
-	};
-	if ( Array.isArray( config.desktopIcons ) && config.desktopIcons.length > 0 ) {
-		renderDesktopIcons( desktopArea, config.desktopIcons, {
-			openWindow: openRegisteredNativeWindow,
+	// The icon's `openWindow` delegates straight to
+	// `nativeWindows.openById` — the same opener the dock/taskbar
+	// click goes through. This is load-bearing: the canonical opener
+	// pre-clones the registered template into the body before the
+	// plugin's render callback fires. Hand-rolling a separate path
+	// here (which we used to do) leaks an empty body to render
+	// callbacks that depend on the cloned template, breaking every
+	// plugin that follows the documented pattern.
+	const renderIcons = (
+		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
+	): void => {
+		renderDesktopIcons( desktopArea, icons, {
+			openWindow: nativeWindows.openById,
 			manager,
 		} );
+	};
+	if ( Array.isArray( config.desktopIcons ) && config.desktopIcons.length > 0 ) {
+		renderIcons( config.desktopIcons );
 	}
 
 	// Live menu refresh — rebuild the dock when a plugin activation
@@ -832,6 +895,8 @@ function init(): void {
 		syncServerWallpapers,
 		syncServerCommands,
 		syncServerSettingsTabs,
+		syncServerTitleBarButtons,
+		renderIcons,
 	);
 
 	// Live dock-placement + orientation sync: when the user changes
@@ -874,6 +939,7 @@ function init(): void {
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
+		openWindow: nativeWindows.openById,
 		cloneTemplate,
 		onWindow,
 		registerSystemTile: ( item ) => {
@@ -896,6 +962,10 @@ function init(): void {
 		registerSettingsTab,
 		unregisterSettingsTab,
 		listSettingsTabs,
+		registerTitleBarButton,
+		unregisterTitleBarButton,
+		listTitleBarButtons,
+		connect: connectionBridge.connect,
 		registerPalette,
 		unregisterPalette,
 		listPalettes,
@@ -996,7 +1066,7 @@ function init(): void {
 	// here to unify the address bar around the portal URL — cosmetically
 	// nicer, but every browser reload hit /wp-desktop/, which triggered
 	// a portal HTTP redirect to the canonical admin URL, producing a
-	// visible address-bar flash (`/wp-admin/index.php?wp_desktop_portal=1`
+	// visible address-bar flash (`/wp-admin/index.php?desktop_mode_portal=1`
 	// → `/wp-desktop/`) on every reload. Leaving the URL as the actual
 	// admin URL eliminates the flash and makes reloads instant — the
 	// user sees /wp-admin/... in the address bar in exchange, which is
@@ -1211,7 +1281,7 @@ function bindTopWindowLinkInterceptor(
 			}
 			// The Detach-to-classic action explicitly wants a real tab with
 			// classic chrome — don't steal it back into the shell.
-			if ( url.searchParams.has( 'wp_desktop_classic' ) ) {
+			if ( url.searchParams.has( 'desktop_mode_classic' ) ) {
 				return;
 			}
 
@@ -1471,120 +1541,28 @@ function bindMenuRefresh(
 		scripts: import( './types' ).DesktopSettingsTabScriptServerEntry[],
 		tabs?: import( './types' ).DesktopSettingsTabServerEntry[],
 	) => Promise< void >,
+	syncServerTitleBarButtons: (
+		scripts: import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
+	) => Promise< void >,
+	renderIcons: (
+		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
+	) => void,
 ): () => Promise<void> {
-	// Shared applier — takes a freshly-split payload and rebuilds
-	// both rails. Extracted so the message-with-payload path (no
-	// REST) and the manual-refresh path (REST) share behaviour.
-	const applyPayload = ( payload: {
-		dockItems?: unknown;
-		nativeWindows?: unknown;
-		serverWidgets?: unknown;
-		serverWallpapers?: unknown;
-		serverCommandScripts?: unknown;
-		serverCommands?: unknown;
-		serverSettingsTabScripts?: unknown;
-		serverSettingsTabs?: unknown;
-	} ): void => {
-		const dockItems = payload.dockItems;
-		const nativeWindows = payload.nativeWindows;
-		const serverWidgets = payload.serverWidgets;
-		const serverWallpapers = payload.serverWallpapers;
-		const serverCommandScripts = payload.serverCommandScripts;
-		const serverCommands = payload.serverCommands;
-		const serverSettingsTabScripts = payload.serverSettingsTabScripts;
-		const serverSettingsTabs = payload.serverSettingsTabs;
-
-		// Guard: an empty `dockItems` list is NEVER legitimate —
-		// WordPress Core always ships Dashboard, which lands on the
-		// dock by default. An empty response means the server side
-		// failed to build the menu (e.g. the `$menu` global wasn't
-		// populated in REST context and our bootstrap didn't kick
-		// in). Skip the swap entirely rather than wipe the rail.
-		if ( ! Array.isArray( dockItems ) || dockItems.length === 0 ) {
-			return;
-		}
-		if ( dock ) {
-			dock.replaceItems( dockItems as DesktopConfig[ 'dockItems' ] );
-			config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
-		}
-
-		// Native-window sync — server registry is the source of
-		// truth for plugin-owned native windows. Tiles added
-		// server-side (plugin activated via `wp_register_desktop_window`)
-		// appear; tiles whose plugin deactivated disappear. All
-		// without a shell reload.
-		if ( Array.isArray( nativeWindows ) ) {
-			void syncNativeWindows(
-				nativeWindows as import( './types' ).NativeWindowServerEntry[],
-			);
-			config.nativeWindows =
-				nativeWindows as DesktopConfig[ 'nativeWindows' ];
-		}
-
-		// Widget-registry sync — same lifecycle story for the
-		// right-column widget layer. Plugins declared via
-		// `wp_register_desktop_widget()` show up in the picker
-		// without a reload; deactivated plugin widgets disappear.
-		if ( Array.isArray( serverWidgets ) ) {
-			void syncServerWidgets(
-				serverWidgets as import( './types' ).DesktopWidgetServerEntry[],
-			);
-			config.serverWidgets =
-				serverWidgets as DesktopConfig[ 'serverWidgets' ];
-		}
-
-		// Wallpaper-registry sync — same lifecycle, now for the
-		// OS Settings wallpaper picker. New plugin wallpapers
-		// surface without a reload; deactivated ones disappear and
-		// the active selection falls back to a built-in if it was
-		// the one leaving.
-		if ( Array.isArray( serverWallpapers ) ) {
-			void syncServerWallpapers(
-				serverWallpapers as import( './types' ).DesktopWallpaperServerEntry[],
-			);
-			config.serverWallpapers =
-				serverWallpapers as DesktopConfig[ 'serverWallpapers' ];
-		}
-
-		// Command-palette sync — loads plugin-contributed command scripts
-		// on activation and unregisters owner-tagged commands when a
-		// handle leaves the payload. `serverCommandScripts` may be
-		// absent on older menu REST responses that haven't been redeployed
-		// yet; treat missing as "no change."
-		if ( Array.isArray( serverCommandScripts ) ) {
-			void syncServerCommands(
-				serverCommandScripts as import( './types' ).DesktopCommandScriptServerEntry[],
-				Array.isArray( serverCommands )
-					? ( serverCommands as import( './types' ).DesktopCommandServerEntry[] )
-					: undefined,
-			);
-			config.serverCommandScripts =
-				serverCommandScripts as DesktopConfig[ 'serverCommandScripts' ];
-			if ( Array.isArray( serverCommands ) ) {
-				config.serverCommands =
-					serverCommands as DesktopConfig[ 'serverCommands' ];
-			}
-		}
-
-		// Settings-tab sync — mirror of the commands block. Loads
-		// plugin-contributed settings-tab scripts on activation and
-		// unregisters tabs attributable to a handle that just left
-		// the payload.
-		if ( Array.isArray( serverSettingsTabScripts ) ) {
-			void syncServerSettingsTabs(
-				serverSettingsTabScripts as import( './types' ).DesktopSettingsTabScriptServerEntry[],
-				Array.isArray( serverSettingsTabs )
-					? ( serverSettingsTabs as import( './types' ).DesktopSettingsTabServerEntry[] )
-					: undefined,
-			);
-			config.serverSettingsTabScripts =
-				serverSettingsTabScripts as DesktopConfig[ 'serverSettingsTabScripts' ];
-			if ( Array.isArray( serverSettingsTabs ) ) {
-				config.serverSettingsTabs =
-					serverSettingsTabs as DesktopConfig[ 'serverSettingsTabs' ];
-			}
-		}
-	};
+	// the dock. Extracted into its own module so the message-with-
+	// payload path (no REST) and the manual-refresh path (REST) share
+	// behaviour AND the contract is unit-testable in isolation.
+	const applyPayload = createApplyPayload( {
+		dock,
+		desktopArea,
+		config,
+		syncNativeWindows,
+		syncServerWidgets,
+		syncServerWallpapers,
+		syncServerCommands,
+		syncServerSettingsTabs,
+		syncServerTitleBarButtons,
+		renderIcons,
+	} );
 
 	const refresh = async (): Promise<void> => {
 		if ( ! config.menuUrl ) {
@@ -1608,6 +1586,8 @@ function bindMenuRefresh(
 				serverCommands?: DesktopConfig[ 'serverCommands' ];
 				serverSettingsTabScripts?: DesktopConfig[ 'serverSettingsTabScripts' ];
 				serverSettingsTabs?: DesktopConfig[ 'serverSettingsTabs' ];
+				serverTitleBarButtonScripts?: DesktopConfig[ 'serverTitleBarButtonScripts' ];
+				desktopIcons?: DesktopConfig[ 'desktopIcons' ];
 			};
 			applyPayload( data );
 		} catch ( err ) {
@@ -1637,6 +1617,8 @@ function bindMenuRefresh(
 				serverCommands?: unknown;
 				serverSettingsTabScripts?: unknown;
 				serverSettingsTabs?: unknown;
+				serverTitleBarButtonScripts?: unknown;
+				desktopIcons?: unknown;
 			};
 		} | null;
 		if ( ! data || data.type !== 'wp-desktop-plugins-changed' ) {

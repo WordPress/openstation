@@ -6,7 +6,7 @@
  * upload failed, a plugin crashed, …). Each toast carries a `type`
  * slug that the shell maps to a color + icon. The defaults cover
  * `success`, `warning`, `error`, and `shell-error`; plugins and themes
- * extend the list via the {@see 'wp_desktop_toast_types'} filter to
+ * extend the list via the {@see 'desktop_mode_toast_types'} filter to
  * register their own slugs (e.g. `update-available`).
  *
  * @package WPDesktopMode
@@ -30,29 +30,29 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<int, array{id: string, label: string, icon: string, tone: string}>
  */
-function wpdm_get_toast_types() {
+function desktop_mode_get_toast_types() {
 	$defaults = array(
 		array(
 			'id'    => 'success',
-			'label' => __( 'Success', 'wp-desktop-mode' ),
+			'label' => __( 'Success', 'desktop-mode' ),
 			'icon'  => 'dashicons-yes-alt',
 			'tone'  => 'positive',
 		),
 		array(
 			'id'    => 'warning',
-			'label' => __( 'Warning', 'wp-desktop-mode' ),
+			'label' => __( 'Warning', 'desktop-mode' ),
 			'icon'  => 'dashicons-warning',
 			'tone'  => 'warning',
 		),
 		array(
 			'id'    => 'error',
-			'label' => __( 'Error', 'wp-desktop-mode' ),
+			'label' => __( 'Error', 'desktop-mode' ),
 			'icon'  => 'dashicons-dismiss',
 			'tone'  => 'critical',
 		),
 		array(
 			'id'    => 'shell-error',
-			'label' => __( 'Shell error', 'wp-desktop-mode' ),
+			'label' => __( 'Shell error', 'desktop-mode' ),
 			'icon'  => 'dashicons-bug',
 			'tone'  => 'critical',
 		),
@@ -64,7 +64,7 @@ function wpdm_get_toast_types() {
 	 * Filters the toast-notification type map.
 	 *
 	 * ```php
-	 * add_filter( 'wp_desktop_toast_types', function ( $types ) {
+	 * add_filter( 'desktop_mode_toast_types', function ( $types ) {
 	 *     $types[] = array(
 	 *         'id'    => 'update-available',
 	 *         'label' => __( 'Update available', 'my-plugin' ),
@@ -84,7 +84,7 @@ function wpdm_get_toast_types() {
 	 *
 	 * @param array $defaults Built-in toast types.
 	 */
-	$filtered = apply_filters( 'wp_desktop_toast_types', $defaults );
+	$filtered = apply_filters( 'desktop_mode_toast_types', $defaults );
 	if ( ! is_array( $filtered ) ) {
 		return $defaults;
 	}

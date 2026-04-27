@@ -11,7 +11,8 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 3. **[Hooks Reference](./hooks-reference.md)** — every PHP action and filter, with signatures, defaults, and minimal examples.
 4. **[JavaScript Reference](./javascript-reference.md)** — CustomEvents on `document`, the `window.wp.desktop` API, and the iframe `postMessage` bridge.
 5. **[Examples](./examples/README.md)** — recipes you can copy into a plugin.
-6. **[Native Windows & Framework Interop](./native-windows-proposal.md)** — *Stable (shipped 0.11.0).* Public API for `wp_register_desktop_window()` / `wp_register_desktop_window_tab()`, Web Components as first-class, and how React / Vue / Svelte plug in without the shell taking a framework dependency. See also [examples/native-windows.md](./examples/native-windows.md) and [examples/native-window-with-tabs.md](./examples/native-window-with-tabs.md).
+6. **[Bridge Protocol Overview](./bridge-protocol.md)** — *internals doc.* End-to-end wiring of `wp.desktop.connect()` / `wp.desktop.iframe.*` / the synthesised iframe inside native windows. Read when debugging a stuck handshake or building unusual integrations.
+7. **[Native Windows & Framework Interop](./native-windows-proposal.md)** — *Stable (shipped 0.11.0).* Public API for `desktop_mode_register_window()` / `desktop_mode_register_window_tab()`, Web Components as first-class, and how React / Vue / Svelte plug in without the shell taking a framework dependency. See also [examples/native-windows.md](./examples/native-windows.md) and [examples/native-window-with-tabs.md](./examples/native-window-with-tabs.md).
 
 ## Conventions used in this docs folder
 
@@ -19,7 +20,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
   - **Stable** — shipping today, backwards-compatible inside the current major version.
   - **Experimental** — shipping but signature may change.
   - **Planned** — reserved name, not yet fired. Do not rely on it.
-- **Code examples** are complete, drop-in, and use `wpdm_` / `wp_desktop_` prefixes as they would in a real plugin.
+- **Code examples** are complete, drop-in, and use `desktop_mode_` / `desktop_mode_` prefixes as they would in a real plugin.
 - **PHP examples** assume a plugin file with `defined( 'ABSPATH' ) || exit;` at the top.
 - **Versions** — features are tagged `@since` with the desktop-mode plugin version that introduced them, not the WordPress version.
 

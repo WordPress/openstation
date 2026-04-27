@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @param WP_Admin_Bar $wp_admin_bar The WP_Admin_Bar instance.
  */
-function wpdm_admin_bar_toggle( $wp_admin_bar ) {
+function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
@@ -28,17 +28,17 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 	// "Active" means "the user is *currently viewing* desktop mode",
 	// not "the preference is enabled in user meta." These diverge on
 	// requests carrying the per-request classic override
-	// (`?wp_desktop_classic=1`) — the user's meta may be '1' but the
+	// (`?desktop_mode_classic=1`) — the user's meta may be '1' but the
 	// page they're looking at right now is classic admin. If we went
 	// by meta alone, the toggle here would read "Switch to Classic
 	// Admin" on a page that's already classic, and the user's first
 	// click would disable desktop mode entirely (redirecting to
 	// classic admin) instead of taking them back into the shell.
 	// The second click would then re-enable it — a two-click trap.
-	$is_active = wpdm_is_enabled() && ! wpdm_is_classic_request();
+	$is_active = desktop_mode_is_enabled() && ! desktop_mode_is_classic_request();
 	$label     = $is_active
-		? __( 'Switch to Classic Admin', 'wp-desktop-mode' )
-		: __( 'Switch to Desktop Mode', 'wp-desktop-mode' );
+		? __( 'Switch to Classic Admin', 'desktop-mode' )
+		: __( 'Switch to Desktop Mode', 'desktop-mode' );
 
 	$wp_admin_bar->add_node(
 		array(
@@ -58,7 +58,7 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 	// AI Assistant trigger — shown when desktop mode is active AND the
 	// current user has AI features configured. Clicking (or pressing
 	// Cmd+K anywhere) opens the spotlight-style AI overlay.
-	if ( $is_active && function_exists( 'wpdm_ai_is_enabled' ) && wpdm_ai_is_enabled( get_current_user_id() ) ) {
+	if ( $is_active && function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
 		// Use dashicons-admin-comments (speech bubble) — same rendering
 		// path as the toggle + arrange buttons, no SVG / HTML parsing
 		// issues in the admin-bar context. The ⌘K badge is added via
@@ -68,11 +68,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 				'parent' => 'top-secondary',
 				'id'     => 'desktop-ai-assistant',
 				'title'  => '<span class="ab-icon dashicons dashicons-admin-comments" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'wp-desktop-mode' ) . '</span>',
+					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'desktop-mode' ) . '</span>',
 				'href'   => '#',
 				'meta'   => array(
 					'class'    => 'desktop-ai-btn',
-					'title'    => __( 'Open AI Assistant (Cmd+K)', 'wp-desktop-mode' ),
+					'title'    => __( 'Open AI Assistant (Cmd+K)', 'desktop-mode' ),
 					'tabindex' => 0,
 				),
 			)
@@ -90,10 +90,10 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 				'parent' => 'top-secondary',
 				'id'     => 'desktop-layout-menu',
 				'title'  => '<span class="ab-icon dashicons dashicons-grid-view" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Arrange', 'wp-desktop-mode' ) . '</span>',
+					. '<span class="ab-label">' . esc_html__( 'Arrange', 'desktop-mode' ) . '</span>',
 				'href'   => '#',
 				'meta'   => array(
-					'title'    => __( 'Arrange windows', 'wp-desktop-mode' ),
+					'title'    => __( 'Arrange windows', 'desktop-mode' ),
 					'tabindex' => 0,
 				),
 			)
@@ -102,11 +102,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-cascade',
-				'title'  => esc_html__( 'Cascade', 'wp-desktop-mode' ),
+				'title'  => esc_html__( 'Cascade', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-action',
-					'title' => __( 'Lay all windows out from top-left, offset so every title bar stays visible.', 'wp-desktop-mode' ),
+					'title' => __( 'Lay all windows out from top-left, offset so every title bar stays visible.', 'desktop-mode' ),
 				),
 			)
 		);
@@ -114,11 +114,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-overview',
-				'title'  => esc_html__( 'Overview', 'wp-desktop-mode' ),
+				'title'  => esc_html__( 'Overview', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-action',
-					'title' => __( 'Zoom out to see every window at once. Click one to focus it.', 'wp-desktop-mode' ),
+					'title' => __( 'Zoom out to see every window at once. Click one to focus it.', 'desktop-mode' ),
 				),
 			)
 		);
@@ -132,11 +132,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-snap',
 				'title'  => '<span class="wpdm-layout-checkbox" aria-hidden="true">☐</span> '
-					. esc_html__( 'Snap to grid', 'wp-desktop-mode' ),
+					. esc_html__( 'Snap to grid', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-snap',
-					'title' => __( 'Snap windows to a grid while dragging or resizing.', 'wp-desktop-mode' ),
+					'title' => __( 'Snap windows to a grid while dragging or resizing.', 'desktop-mode' ),
 				),
 			)
 		);
@@ -144,11 +144,11 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-tile',
-				'title'  => esc_html__( 'Tile all windows', 'wp-desktop-mode' ),
+				'title'  => esc_html__( 'Tile all windows', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
 					'class' => 'wpdm-layout-action',
-					'title' => __( 'Pack every window into an evenly tiled grid that fills the desktop.', 'wp-desktop-mode' ),
+					'title' => __( 'Pack every window into an evenly tiled grid that fills the desktop.', 'desktop-mode' ),
 				),
 			)
 		);
@@ -177,7 +177,7 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 		 *
 		 * @param array $items Existing custom items (default empty).
 		 */
-		$custom = apply_filters( 'wp_desktop_arrange_menu_items', array() );
+		$custom = apply_filters( 'desktop_mode_arrange_menu_items', array() );
 		if ( is_array( $custom ) ) {
 			// Stable sort by `position` (default 10 — after built-ins),
 			// preserving registration order within a tie.
@@ -232,7 +232,7 @@ function wpdm_admin_bar_toggle( $wp_admin_bar ) {
 		}
 	}
 }
-add_action( 'admin_bar_menu', 'wpdm_admin_bar_toggle', 190 );
+add_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle', 190 );
 
 /**
  * Enqueues the inline CSS and JS for the desktop mode toggle.
@@ -242,7 +242,7 @@ add_action( 'admin_bar_menu', 'wpdm_admin_bar_toggle', 190 );
  *
  * @since 0.1.0
  */
-function wpdm_enqueue_toggle_assets() {
+function desktop_mode_enqueue_toggle_assets() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
@@ -380,188 +380,36 @@ function wpdm_enqueue_toggle_assets() {
 	// raw into the script body) so special characters, quotes, and
 	// unexpected shapes can't break the parser or be exploited.
 	// `active` must match the visual state shown on the toggle above —
-	// i.e. "currently viewing desktop mode." Using `wpdm_is_enabled()`
+	// i.e. "currently viewing desktop mode." Using `desktop_mode_is_enabled()`
 	// alone would misclassify a classic-override request (meta = '1',
-	// URL carrying `wp_desktop_classic=1`) as active, causing the
+	// URL carrying `desktop_mode_classic=1`) as active, causing the
 	// click handler to send `enabled=0` when the user actually wants
 	// to return to the shell.
-	$config = wp_json_encode(
-		array(
-			'nonce'      => wp_create_nonce( 'save-desktop-mode' ),
-			'active'     => wpdm_is_enabled() && ! wpdm_is_classic_request(),
-			'classicUrl' => esc_url_raw( admin_url() ),
-			'portalUrl'  => esc_url_raw( wpdm_portal_url() ),
-			'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
-		)
+	wp_register_script(
+		'wpdm-admin-bar',
+		DESKTOP_MODE_URL . 'assets/js/admin-bar.js',
+		array( 'admin-bar' ),
+		DESKTOP_MODE_VERSION,
+		true
 	);
-
-	$js = <<<JS
-( function() {
-	var toggle = document.getElementById( 'wp-admin-bar-desktop-mode-toggle' );
-	if ( ! toggle ) {
-		return;
-	}
-	var cfg = {$config};
-	toggle.addEventListener( 'click', function( e ) {
-		e.preventDefault();
-		var isActive = !! cfg.active;
-		var newValue = isActive ? '' : '1';
-		// Fallback targets if the server response is missing a `redirect`
-		// field (shouldn't happen, but keep the click functional either
-		// way). Disabling -> classic admin (NOT the portal, which would
-		// auto-re-enable); enabling -> portal URL so the shell takes over.
-		var fallback = isActive ? cfg.classicUrl : cfg.portalUrl;
-		// The toggle lives in an admin bar that may be rendered either in
-		// the top window (classic) or — today it's suppressed in iframes,
-		// but a plugin could surface it — inside a chromeless iframe. In
-		// either case we want the ENTIRE browser tab to navigate, so we
-		// hit `window.top` and fall back to `window` if cross-origin
-		// security blocks access.
-		function navigate( url ) {
-			try {
-				window.top.location.href = url;
-			} catch ( err ) {
-				window.location.href = url;
-			}
-		}
-		var body = new URLSearchParams();
-		body.set( 'action', 'save-desktop-mode' );
-		body.set( 'nonce', cfg.nonce );
-		body.set( 'enabled', newValue );
-		var xhr = new XMLHttpRequest();
-		xhr.open( 'POST', cfg.ajaxUrl, true );
-		xhr.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded' );
-		xhr.onload = function() {
-			if ( xhr.status !== 200 ) {
-				return;
-			}
-			var target = fallback;
-			try {
-				var resp = JSON.parse( xhr.responseText );
-				if ( resp && resp.success && resp.data && resp.data.redirect ) {
-					target = resp.data.redirect;
-				}
-			} catch ( parseErr ) {}
-			navigate( target );
-		};
-		xhr.send( body.toString() );
-	} );
-
-	// Layout menu — each child item calls a WindowManager method on
-	// the public shell API. We bind one delegated click listener on
-	// the parent submenu so adding more layouts in the future
-	// (split, full-width, etc.) is a matter of adding nodes in PHP,
-	// not new JS. `href=#` is set server-side; we preventDefault +
-	// intercept.
-	//
-	// The snap-to-grid checkbox is special: clicking it toggles the
-	// preference AND repaints the box without dismissing the menu
-	// (default WP behaviour would close the submenu on any click,
-	// breaking the "set it and forget it" feel of a checkbox).
-	var layoutMenu = document.getElementById( 'wp-admin-bar-desktop-layout-menu' );
-	if ( ! layoutMenu ) return;
-
-	function paintSnapCheckbox( enabled ) {
-		var node = document.querySelector(
-			'#wp-admin-bar-desktop-layout-snap .wpdm-layout-checkbox'
-		);
-		if ( ! node ) return;
-		node.textContent = enabled ? '\u2611' : '\u2610'; // ☑ / ☐
-		var item = document.getElementById( 'wp-admin-bar-desktop-layout-snap' );
-		if ( item ) {
-			item.setAttribute( 'aria-checked', enabled ? 'true' : 'false' );
-			item.setAttribute( 'role', 'menuitemcheckbox' );
-		}
-	}
-
-	function getManager() {
-		return window.wp && window.wp.desktop && window.wp.desktop.windowManager;
-	}
-
-	// Initial paint — wait for the shell to publish the manager,
-	// then mirror the persisted snap preference. Polled rather than
-	// hooked because the inline script ships with the admin bar
-	// (loads early) and the shell's WindowManager arrives later.
-	function initFromManager() {
-		var wm = getManager();
-		if ( ! wm || typeof wm.isSnapEnabled !== 'function' ) {
-			window.setTimeout( initFromManager, 60 );
-			return;
-		}
-		paintSnapCheckbox( wm.isSnapEnabled() );
-	}
-	initFromManager();
-
-	layoutMenu.addEventListener( 'click', function( e ) {
-		var t = e.target;
-		if ( ! t || ! t.closest ) return;
-
-		var snapItem = t.closest( '.wpdm-layout-snap' );
-		if ( snapItem ) {
-			// Stop propagation so WP's own "click closes submenu"
-			// chain never fires. preventDefault keeps the `#` href
-			// from scrolling the page to top.
-			e.preventDefault();
-			e.stopPropagation();
-			var wm = getManager();
-			if ( ! wm || typeof wm.setSnapEnabled !== 'function' ) return;
-			var next = ! wm.isSnapEnabled();
-			wm.setSnapEnabled( next );
-			paintSnapCheckbox( next );
-			return;
-		}
-
-		var actionLink = t.closest( '.wpdm-layout-action > .ab-item, .wpdm-layout-action' );
-		if ( ! actionLink ) return;
-		e.preventDefault();
-		var id = actionLink.closest( '[id^="wp-admin-bar-desktop-layout-"]' );
-		if ( ! id ) return;
-		var manager = getManager();
-		if ( ! manager ) return;
-		if ( id.id === 'wp-admin-bar-desktop-layout-cascade' && typeof manager.cascade === 'function' ) {
-			manager.cascade();
-		} else if ( id.id === 'wp-admin-bar-desktop-layout-overview' && typeof manager.enterOverview === 'function' ) {
-			manager.enterOverview();
-		} else if ( id.id === 'wp-admin-bar-desktop-layout-tile' && typeof manager.tile === 'function' ) {
-			manager.tile();
-		} else if ( id.id.indexOf( 'wp-admin-bar-desktop-layout-custom-' ) === 0 ) {
-			// Plugin-registered custom item. Strip the shared prefix to
-			// recover the `id` the plugin supplied via the PHP filter,
-			// then dispatch the public JS action. Plugins subscribe
-			// via wp.hooks.addAction( 'wp-desktop.arrange.custom-action', ... ).
-			var customId = id.id.replace( 'wp-admin-bar-desktop-layout-custom-', '' );
-			var hooks = window.wp && window.wp.hooks;
-			if ( hooks && typeof hooks.doAction === 'function' ) {
-				hooks.doAction( 'wp-desktop.arrange.custom-action', { id: customId } );
-			}
-		}
-		// After running an action, dismiss the submenu so the user
-		// lands in the newly arranged desktop instead of the menu
-		// hanging open on top. WP's admin bar toggles visibility via
-		// a `.hover` class on the parent `li.menupop` — we remove it
-		// AND blur the active element so a re-hover is required for
-		// the next open. The snap checkbox stays open by design
-		// (it's handled by the earlier branch and never reaches
-		// this close path).
-		layoutMenu.classList.remove( 'hover' );
-		if ( document.activeElement && typeof document.activeElement.blur === 'function' ) {
-			document.activeElement.blur();
-		}
-	} );
-
-	// AI Assistant button — dispatches the `wp-desktop-open-ai` event that
-	// the AiAssistant class listens for. Using an event instead of a direct
-	// call decouples the admin-bar inline script (which runs early, before
-	// the desktop shell has initialised) from the AiAssistant instance.
-	var aiBtn = document.getElementById( 'wp-admin-bar-desktop-ai-assistant' );
-	if ( aiBtn ) {
-		aiBtn.addEventListener( 'click', function( e ) {
-			e.preventDefault();
-			document.dispatchEvent( new CustomEvent( 'wp-desktop-open-ai' ) );
-		} );
-	}
-} )();
-JS;
-	wp_add_inline_script( 'admin-bar', $js );
+	// Emit the config as a JSON literal via wp_add_inline_script (not
+	// wp_localize_script — the latter casts booleans to '' / '1', which
+	// breaks the click handler's `!! cfg.active` check). 'before' runs
+	// before admin-bar.js so the global is ready when the IIFE fires.
+	wp_add_inline_script(
+		'wpdm-admin-bar',
+		'var wpDesktopAdminBar = ' . wp_json_encode(
+			array(
+				'nonce'      => wp_create_nonce( 'save-desktop-mode' ),
+				'active'     => desktop_mode_is_enabled() && ! desktop_mode_is_classic_request(),
+				'classicUrl' => esc_url_raw( admin_url() ),
+				'portalUrl'  => esc_url_raw( desktop_mode_portal_url() ),
+				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
+			)
+		) . ';',
+		'before'
+	);
+	wp_enqueue_script( 'wpdm-admin-bar' );
 }
-add_action( 'admin_enqueue_scripts', 'wpdm_enqueue_toggle_assets' );
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_toggle_assets' );
+

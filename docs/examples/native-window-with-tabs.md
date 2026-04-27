@@ -2,7 +2,7 @@
 
 Two ways to add tabs to a native window:
 
-1. **[PHP-only (zero template boilerplate)](#option-a-php-only-registration)** — register the window, then register extra tabs with `wp_register_desktop_window_tab()`. The shell emits the `<wpd-tabs>` + `<wpd-tabpanel>` markup for you. Matches the legacy iframe-window DX where submenus auto-become tabs.
+1. **[PHP-only (zero template boilerplate)](#option-a-php-only-registration)** — register the window, then register extra tabs with `desktop_mode_register_window_tab()`. The shell emits the `<wpd-tabs>` + `<wpd-tabpanel>` markup for you. Matches the legacy iframe-window DX where submenus auto-become tabs.
 2. **[Hand-rolled markup (still supported)](#option-b-hand-rolled-wpd-tabpanel)** — write the `<wpd-tabs>` + `<wpd-tabpanel>` elements directly in your template callback. Auto-swap via `<wpd-tabpanel>` (from `0.11.0`) still handles pane visibility — you just author the tab strip yourself.
 
 Pick option A for the common case (static tab list, one plugin owns the window). Pick option B when you need dynamic tabs, conditional panes, or custom layouts the auto-wrap can't express.
@@ -18,7 +18,7 @@ Pick option A for the common case (static tab list, one plugin owns the window).
  */
 defined( 'ABSPATH' ) || exit;
 
-wp_register_desktop_window( 'jorvy', array(
+desktop_mode_register_window( 'jorvy', array(
     'title'          => __( 'Jorvy', 'jorvy' ),
     'main_tab_label' => __( 'Quotes', 'jorvy' ),  // first tab label; falls back to `title`
     'icon'           => 'dashicons-star-filled',
@@ -33,7 +33,7 @@ wp_register_desktop_window( 'jorvy', array(
     },
 ) );
 
-wp_register_desktop_window_tab( 'jorvy', array(
+desktop_mode_register_window_tab( 'jorvy', array(
     'value'    => 'about',
     'label'    => __( 'About', 'jorvy' ),
     'position' => 10,
@@ -76,7 +76,7 @@ Another plugin can attach tabs to Jorvy's window without coordinating — a good
 
 ```php
 // jorvy-stats/jorvy-stats.php
-wp_register_desktop_window_tab( 'jorvy', array(
+desktop_mode_register_window_tab( 'jorvy', array(
     'value'    => 'stats',
     'label'    => __( 'Stats', 'jorvy-stats' ),
     'position' => 20,
@@ -126,7 +126,7 @@ Tabs that ship static markup need no JS at all — the About pane in the example
 Pass `script` on the tab registration. The shell enqueues it as a dep of the window:
 
 ```php
-wp_register_desktop_window_tab( 'jorvy', array(
+desktop_mode_register_window_tab( 'jorvy', array(
     'value'    => 'stats',
     'label'    => __( 'Stats', 'jorvy-stats' ),
     'template' => 'jorvy_stats_template',
@@ -147,7 +147,7 @@ Earlier versions of the kit shipped `<wpd-tabs>` + `<wpd-tab>` but left pane man
 ## The pattern
 
 ```php
-wp_desktop_component( 'wpd-stack', array( 'gap' => 12 ), (
+desktop_mode_component( 'wpd-stack', array( 'gap' => 12 ), (
     wpd_tabs_block( 'calc' ) .
     wpd_tabpanel_block( 'calc', $calc_ui ) .
     wpd_tabpanel_block( 'convert', $convert_ui )
@@ -196,7 +196,7 @@ That is the whole wiring. Clicking a tab flips `hidden` on the matching `<wpd-ta
  */
 defined( 'ABSPATH' ) || exit;
 
-wp_register_desktop_window( 'two-tab-demo', array(
+desktop_mode_register_window( 'two-tab-demo', array(
     'title'  => __( 'Two-tab Demo', 'my-plugin' ),
     'icon'   => 'dashicons-layout',
     'width'  => 480,
@@ -241,7 +241,7 @@ wp_register_desktop_window( 'two-tab-demo', array(
 ) );
 
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'wpdm_is_enabled' ) || ! wpdm_is_enabled() ) {
+    if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
         return;
     }
     wp_enqueue_script(
@@ -290,9 +290,9 @@ add_action( 'admin_enqueue_scripts', function () {
 ### Before (0.10 and earlier)
 
 ```php
-wp_desktop_component( 'wpd-tabs', [ 'value' => 'calc' ], $tab_children );
-wp_desktop_component( 'wpd-stack', [ 'data-pane' => 'calc', 'gap' => 8 ], $calc_children );
-wp_desktop_component( 'wpd-stack', [ 'data-pane' => 'convert', 'gap' => 6, 'hidden' => true ], $convert_children );
+desktop_mode_component( 'wpd-tabs', [ 'value' => 'calc' ], $tab_children );
+desktop_mode_component( 'wpd-stack', [ 'data-pane' => 'calc', 'gap' => 8 ], $calc_children );
+desktop_mode_component( 'wpd-stack', [ 'data-pane' => 'convert', 'gap' => 6, 'hidden' => true ], $convert_children );
 ```
 
 ```js

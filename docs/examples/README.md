@@ -23,8 +23,11 @@ defined( 'ABSPATH' ) || exit;
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)
 - [Programmatic AI Copilot — `wp.desktop.ai.ask()`](./ai-ask.md)
+- [Register a custom AI provider (Anthropic / Gemini / local LLM)](./register-ai-provider.md)
+- [Connect to a window — title-bar button + iframe pub/sub](./connect-to-window.md)
 - [Native window with tabs (auto-swap pattern)](./native-window-with-tabs.md)
 - [Layout primitives (body → panel → row → col)](./layout-primitives.md)
-- [Native windows — planned (Phase 7)](./native-windows.md)
+- [Native windows — overview + render-callback contract](./native-windows.md)
+- [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.

@@ -5,21 +5,21 @@
  * Two entry points, mirroring the rest of the plugin surface but tuned
  * for the command-palette use case:
  *
- *   - `wp_desktop_register_command_script( $handle )` — primary, minimum-
+ *   - `desktop_mode_register_command_script( $handle )` — primary, minimum-
  *     ceremony opt-in. Tells the shell: "this enqueued script registers
  *     slash-commands; include it in the plugins-changed payload so it
  *     gets injected into the shell page mid-session when my plugin is
  *     installed or activated without a full reload."
  *
- *   - `wp_register_desktop_command( $args )` — optional. Plugins that
+ *   - `desktop_mode_register_command( $args )` — optional. Plugins that
  *     want to declare command metadata server-side (for discoverability
  *     tooling, REST enumeration, future pre-registration shims) use this.
  *     The `run` function still lives JS-side; metadata is advisory today.
  *
- * Both APIs feed `wpdm_build_desktop_command_scripts_payload()` and
- * `wpdm_build_desktop_commands_payload()`, which contribute
+ * Both APIs feed `desktop_mode_build_desktop_command_scripts_payload()` and
+ * `desktop_mode_build_desktop_commands_payload()`, which contribute
  * `serverCommandScripts` and `serverCommands` to the shell payload in
- * `wpdm_build_menu_payload()`.
+ * `desktop_mode_build_menu_payload()`.
  *
  * @since 0.15.0
  * @package WPDesktopMode
@@ -37,13 +37,13 @@ defined( 'ABSPATH' ) || exit;
  *     wp_register_script(
  *         'home-assistant-commands',
  *         plugins_url( 'js/commands.js', __FILE__ ),
- *         array( 'wp-desktop-mode' ),
+ *         array( 'desktop-mode' ),
  *         '1.0.0',
  *         true
  *     );
  *     wp_enqueue_script( 'home-assistant-commands' );
  * } );
- * wp_desktop_register_command_script( 'home-assistant-commands' );
+ * desktop_mode_register_command_script( 'home-assistant-commands' );
  * ```
  *
  * The script's JS side calls `wp.desktop.registerCommand( { … } )` as
@@ -58,16 +58,16 @@ defined( 'ABSPATH' ) || exit;
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function wp_desktop_register_command_script( $handle ) {
+function desktop_mode_register_command_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return wpdm_registration_error(
-			'wp_desktop_missing_handle',
-			__( 'Command script registration requires a non-empty script handle.', 'wp-desktop-mode' )
+		return desktop_mode_registration_error(
+			'desktop_mode_missing_handle',
+			__( 'Command script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	wpdm_desktop_command_script_registry( $handle, true );
+	desktop_mode_desktop_command_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop command script handle is registered.
@@ -76,14 +76,14 @@ function wp_desktop_register_command_script( $handle ) {
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'wp_desktop_command_script_registered', $handle );
+	do_action( 'desktop_mode_command_script_registered', $handle );
 
 	return true;
 }
 
 /**
  * Declare a desktop command server-side. Optional companion to
- * `wp_desktop_register_command_script()` for plugins that want metadata
+ * `desktop_mode_register_command_script()` for plugins that want metadata
  * enumerable without JS execution (REST, future pre-registration, etc.).
  * The command's `run` function still lives JS-side; this function only
  * stores metadata.
@@ -91,7 +91,7 @@ function wp_desktop_register_command_script( $handle ) {
  * Example:
  *
  * ```php
- * wp_register_desktop_command( array(
+ * desktop_mode_register_command( array(
  *     'slug'        => 'ha-lights',
  *     'label'       => __( 'Home Assistant: Lights', 'home-assistant' ),
  *     'description' => __( 'Toggle smart lights from the palette.', 'home-assistant' ),
@@ -102,7 +102,7 @@ function wp_desktop_register_command_script( $handle ) {
  * ```
  *
  * Implicitly registers the `script` handle via
- * `wp_desktop_register_command_script()` when provided, so plugins using
+ * `desktop_mode_register_command_script()` when provided, so plugins using
  * this API don't need to call both functions.
  *
  * @since 0.15.0
@@ -114,12 +114,12 @@ function wp_desktop_register_command_script( $handle ) {
  *     @type string $icon        Dashicons class. Default `dashicons-arrow-right-alt`.
  *     @type string $hint        Argument hint rendered next to the slug. Default empty.
  *     @type string $script      WP script handle providing the `run` function.
- *                               Registered via `wp_desktop_register_command_script()`
+ *                               Registered via `desktop_mode_register_command_script()`
  *                               when present. Default empty (advisory registration only).
  * }
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function wp_register_desktop_command( $args = array() ) {
+function desktop_mode_register_command( $args = array() ) {
 	$defaults = array(
 		'slug'        => '',
 		'label'       => '',
@@ -132,15 +132,15 @@ function wp_register_desktop_command( $args = array() ) {
 
 	$slug = (string) $args['slug'];
 	if ( '' === $slug ) {
-		return wpdm_registration_error(
-			'wp_desktop_missing_slug',
-			__( 'Command registration requires a non-empty `slug`.', 'wp-desktop-mode' )
+		return desktop_mode_registration_error(
+			'desktop_mode_missing_slug',
+			__( 'Command registration requires a non-empty `slug`.', 'desktop-mode' )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
-		return wpdm_registration_error(
-			'wp_desktop_missing_label',
-			__( 'Command registration requires a non-empty `label`.', 'wp-desktop-mode' ),
+		return desktop_mode_registration_error(
+			'desktop_mode_missing_label',
+			__( 'Command registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'slug' => $slug )
 		);
 	}
@@ -153,10 +153,10 @@ function wp_register_desktop_command( $args = array() ) {
 		'hint'        => (string) $args['hint'],
 		'script'      => (string) $args['script'],
 	);
-	wpdm_desktop_command_registry( $slug, $entry );
+	desktop_mode_desktop_command_registry( $slug, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		wpdm_desktop_command_script_registry( $entry['script'], true );
+		desktop_mode_desktop_command_script_registry( $entry['script'], true );
 	}
 
 	/**
@@ -167,14 +167,14 @@ function wp_register_desktop_command( $args = array() ) {
 	 * @param string $slug  The command slug.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'wp_desktop_command_registered', $slug, $entry );
+	do_action( 'desktop_mode_command_registered', $slug, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for command script handles declared
- * via {@see wp_desktop_register_command_script()}. Accessed by both the
+ * via {@see desktop_mode_register_command_script()}. Accessed by both the
  * registration API (write) and the payload builder (read).
  *
  * @since 0.15.0
@@ -184,9 +184,13 @@ function wp_register_desktop_command( $args = array() ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function wpdm_desktop_command_script_registry( $handle = '', $value = null ) {
+function desktop_mode_desktop_command_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
+	if ( '__flush__' === (string) $handle ) {
+		$store = array();
+		return array();
+	}
 	if ( '' === (string) $handle ) {
 		return $store;
 	}
@@ -197,8 +201,19 @@ function wpdm_desktop_command_script_registry( $handle = '', $value = null ) {
 }
 
 /**
+ * Flush the command-script registry. Tests call this in `set_up` so
+ * a previous test's stale handle doesn't leak into the next test's
+ * payload-build assertions. No production caller.
+ *
+ * @since 0.18.0
+ */
+function desktop_mode_flush_desktop_command_script_registry() {
+	desktop_mode_desktop_command_script_registry( '__flush__' );
+}
+
+/**
  * Internal module-level registry for commands declared via
- * {@see wp_register_desktop_command()}.
+ * {@see desktop_mode_register_command()}.
  *
  * @since 0.15.0
  * @internal
@@ -207,7 +222,7 @@ function wpdm_desktop_command_script_registry( $handle = '', $value = null ) {
  * @param array|null $entry Entry to store, or `null` to read.
  * @return array|null
  */
-function wpdm_desktop_command_registry( $slug = '', $entry = null ) {
+function desktop_mode_desktop_command_registry( $slug = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $slug ) {
@@ -221,7 +236,7 @@ function wpdm_desktop_command_registry( $slug = '', $entry = null ) {
 
 /**
  * Build the script-handle payload fed to the shell. Resolves each
- * registered handle to an absolute URL via {@see wpdm_resolve_script_url()};
+ * registered handle to an absolute URL via {@see desktop_mode_resolve_script_url()};
  * handles that aren't currently enqueued (plugin not active this request)
  * resolve to an empty URL and are dropped.
  *
@@ -229,8 +244,8 @@ function wpdm_desktop_command_registry( $slug = '', $entry = null ) {
  *
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
-function wpdm_build_desktop_command_scripts_payload() {
-	$registry = wpdm_desktop_command_script_registry();
+function desktop_mode_build_desktop_command_scripts_payload() {
+	$registry = desktop_mode_desktop_command_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -241,8 +256,13 @@ function wpdm_build_desktop_command_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = wpdm_resolve_script_url( $handle );
+		$url = desktop_mode_resolve_script_url( $handle );
 		if ( '' === $url ) {
+			desktop_mode_warn_unresolvable_script_handle(
+				'desktop_mode_register_command_script',
+				'Command',
+				(string) $handle
+			);
 			continue;
 		}
 		$out[]          = array(
@@ -256,7 +276,7 @@ function wpdm_build_desktop_command_scripts_payload() {
 
 /**
  * Build the metadata payload for commands declared via
- * {@see wp_register_desktop_command()}. Each entry carries the resolved
+ * {@see desktop_mode_register_command()}. Each entry carries the resolved
  * `scriptUrl` alongside metadata so the shell's sync knows which script
  * contributed it — enables future pre-registration shims without a round
  * trip.
@@ -265,8 +285,8 @@ function wpdm_build_desktop_command_scripts_payload() {
  *
  * @return array[]
  */
-function wpdm_build_desktop_commands_payload() {
-	$registry = wpdm_desktop_command_registry();
+function desktop_mode_build_desktop_commands_payload() {
+	$registry = desktop_mode_desktop_command_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -280,7 +300,7 @@ function wpdm_build_desktop_commands_payload() {
 			'description'  => (string) $entry['description'],
 			'icon'         => (string) $entry['icon'],
 			'hint'         => (string) $entry['hint'],
-			'scriptUrl'    => '' !== $handle ? wpdm_resolve_script_url( $handle ) : '',
+			'scriptUrl'    => '' !== $handle ? desktop_mode_resolve_script_url( $handle ) : '',
 			'scriptHandle' => $handle,
 		);
 	}

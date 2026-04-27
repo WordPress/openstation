@@ -93,11 +93,9 @@ export class IframeCommandBridge {
 
 	/** Wire up the focus / close / message listeners. Idempotent. */
 	public install(): void {
-		devLog( '[wpd-cmd:parent] IframeCommandBridge installing' );
 		document.addEventListener( 'wp-desktop-window-focused', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
 			if ( detail && typeof detail.windowId === 'string' ) {
-				devLog( '[wpd-cmd:parent] window-focused: %s', detail.windowId );
 				this.onFocused( detail.windowId );
 			}
 		} );
@@ -128,8 +126,6 @@ export class IframeCommandBridge {
 				return;
 			}
 			if ( this.subscribedWindowId === detail.windowId ) {
-				const removed = unregisterByOwner( ownerFor( detail.windowId ) );
-				devLog( '[wpd-cmd:parent] minimized %s → evicted %d commands', detail.windowId, removed );
 				// Clear so a restore-fired focus event re-subscribes
 				// instead of short-circuiting on the `already
 				// subscribed` check.
@@ -152,11 +148,6 @@ export class IframeCommandBridge {
 			// slow editor boot, etc.).
 			if ( data.type === 'wp-desktop-bridge-ready' ) {
 				const win = this.manager.findByIframeSource( e.source );
-				devLog(
-					'[wpd-cmd:parent] bridge-ready from window=%s (subscribedTo=%s)',
-					win ? win.id : 'unknown',
-					this.subscribedWindowId,
-				);
 				if ( win && win.id === this.subscribedWindowId ) {
 					this.sendSubscribe( win.id );
 				}
@@ -167,15 +158,11 @@ export class IframeCommandBridge {
 				return;
 			}
 			if ( ! Array.isArray( data.commands ) ) {
-				devLog( '[wpd-cmd:parent] commands-list: payload not an array', data );
 				return;
 			}
 			// Attribute the list to whichever window's iframe sent it.
 			const win = this.manager.findByIframeSource( e.source );
 			if ( ! win ) {
-				devLog(
-					'[wpd-cmd:parent] commands-list: could not match source to any window',
-				);
 				return;
 			}
 			// Only accept lists from the currently subscribed window.
@@ -183,25 +170,13 @@ export class IframeCommandBridge {
 			// to unsubscribe), but if one does — stale or misbehaving
 			// — we don't want its commands leaking into the palette.
 			if ( win.id !== this.subscribedWindowId ) {
-				devLog(
-					'[wpd-cmd:parent] commands-list: ignoring list from non-subscribed window %s (subscribed=%s)',
-					win.id,
-					this.subscribedWindowId,
-				);
 				return;
 			}
-			devLog(
-				'[wpd-cmd:parent] commands-list: %d cmds from window "%s"',
-				data.commands.length,
-				win.id,
-				data.commands,
-			);
 			this.applyList( win.id, data.commands );
 		} );
 
 		// Seed against whatever window is focused at install time.
 		const focused = this.manager.getFocused();
-		devLog( '[wpd-cmd:parent] install: initial focused window=%s', focused ? focused.id : null );
 		if ( focused ) {
 			this.onFocused( focused.id );
 		}
@@ -209,7 +184,6 @@ export class IframeCommandBridge {
 
 	private onFocused( windowId: string ): void {
 		if ( this.subscribedWindowId === windowId ) {
-			devLog( '[wpd-cmd:parent] onFocused: already subscribed to %s, skipping', windowId );
 			return;
 		}
 
@@ -226,8 +200,7 @@ export class IframeCommandBridge {
 					/* swallow */
 				}
 			}
-			const removed = unregisterByOwner( ownerFor( this.subscribedWindowId ) );
-			devLog( '[wpd-cmd:parent] onFocused: evicted %d commands from prior window %s', removed, this.subscribedWindowId );
+			unregisterByOwner( ownerFor( this.subscribedWindowId ) );
 		}
 
 		this.subscribedWindowId = windowId;
@@ -238,15 +211,12 @@ export class IframeCommandBridge {
 	private sendSubscribe( windowId: string ): void {
 		const win = this.manager.getById( windowId );
 		if ( ! win ) {
-			devLog( '[wpd-cmd:parent] sendSubscribe: no window found for id %s', windowId );
 			return;
 		}
 		if ( ! win.iframe ) {
-			devLog( '[wpd-cmd:parent] sendSubscribe: window %s is native (no iframe) — nothing to subscribe', windowId );
 			return;
 		}
 		if ( ! win.iframe.contentWindow ) {
-			devLog( '[wpd-cmd:parent] sendSubscribe: iframe for %s has no contentWindow yet', windowId );
 			return;
 		}
 		try {
@@ -254,7 +224,6 @@ export class IframeCommandBridge {
 				{ type: 'wp-desktop-commands-subscribe' },
 				window.location.origin,
 			);
-			devLog( '[wpd-cmd:parent] sendSubscribe: sent subscribe to iframe for %s', windowId );
 		} catch ( err ) {
 			devLog( '[wpd-cmd:parent] sendSubscribe: postMessage threw', err );
 		}
@@ -264,7 +233,6 @@ export class IframeCommandBridge {
 		const owner = ownerFor( windowId );
 		unregisterByOwner( owner );
 
-		let registered = 0;
 		for ( const cmd of commands ) {
 			if ( ! cmd || ! cmd.name || ! cmd.label ) {
 				continue;
@@ -290,10 +258,20 @@ export class IframeCommandBridge {
 					? this.runNavigate( cmd.url, cmd.label, iconFor( cmd ) )
 					: this.runProxy( windowId, cmd.name ),
 			};
-			registerCommand( def );
-			registered++;
+			// External commands flow in over postMessage; one
+			// malformed entry shouldn't kill the whole batch. Log
+			// and continue so the rest still register.
+			try {
+				registerCommand( def );
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					'[wp-desktop-mode] iframe-bridge: dropping bad command',
+					def,
+					err,
+				);
+			}
 		}
-		devLog( '[wpd-cmd:parent] applyList: registered %d/%d commands for owner %s', registered, commands.length, owner );
 	}
 
 	private runNavigate(

@@ -44,6 +44,7 @@ export type {
 	MonitorEntry,
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
+	DesktopTitleBarButtonScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	NativeWindowDef,
@@ -125,6 +126,17 @@ export {
 
 export type { DesktopSettingsTab, SettingsTabRenderCtx } from './settings/registry';
 
+// ----- Title-bar buttons (per-window action buttons) -----
+
+export type {
+	TitleBarButtonDef,
+	TitleBarButtonRenderCtx,
+} from './title-bar-buttons/registry';
+
+// ----- Cross-window connection bridge -----
+
+export type { ConnectOptions, WindowConnection } from './connection';
+
 // ----- AI Copilot programmatic API -----
 
 export type { AskFn, AskOptions, AskResult, AskToolCall } from './ai/ask';
@@ -142,8 +154,10 @@ export type { WidgetLayer } from './widgets/layer';
 /**
  * Native-window convenience wrappers. `registerWindow` is a compact
  * alias for the boilerplate-heavy `windowManager.open({ native: true, … })`
- * pattern; `cloneTemplate` short-circuits the `<template>`-element
- * cloning dance every native window would otherwise inline.
+ * pattern. `cloneTemplate` is exported for advanced cases (re-cloning,
+ * custom hydration) — `desktop_mode_register_window()` plugins don't
+ * need it because the shell pre-clones the template into the window
+ * body before the render callback fires.
  */
 export {
 	cloneTemplate,
@@ -151,7 +165,10 @@ export {
 	onWindow,
 } from './native-windows';
 
-export type { WindowLifecycleHandlers } from './native-windows';
+export type {
+	IframeContentSendFn,
+	WindowLifecycleHandlers,
+} from './native-windows';
 
 // ----- Wallpaper surfaces (collision-aware wallpapers) -----
 

@@ -12,7 +12,7 @@
  *      first configure from whichever window the user marks as
  *      their startup window.
  *
- * Stored as a serialized array on user-meta `wp_desktop_default_window`.
+ * Stored as a serialized array on user-meta `desktop_mode_default_window`.
  * A missing meta entry is treated as `{ enabled: true, url: <dashboard> }`
  * for backward compatibility with pre-0.6 installs.
  *
@@ -23,7 +23,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** User-meta key. */
-const WPDM_DEFAULT_WINDOW_META = 'wp_desktop_default_window';
+const DESKTOP_MODE_DEFAULT_WINDOW_META = 'desktop_mode_default_window';
 
 /**
  * Fetch the user's default-window preference as a normalized array.
@@ -33,7 +33,7 @@ const WPDM_DEFAULT_WINDOW_META = 'wp_desktop_default_window';
  * @param int $user_id User ID. Falls back to the current user when 0.
  * @return array{enabled: bool, url: string} Always returns both keys.
  */
-function wpdm_get_default_window( $user_id = 0 ) {
+function desktop_mode_get_default_window( $user_id = 0 ) {
 	$user_id = $user_id ? (int) $user_id : get_current_user_id();
 	$fallback_url = admin_url( 'index.php' );
 	$default = array(
@@ -45,7 +45,7 @@ function wpdm_get_default_window( $user_id = 0 ) {
 		return $default;
 	}
 
-	$raw = get_user_meta( $user_id, WPDM_DEFAULT_WINDOW_META, true );
+	$raw = get_user_meta( $user_id, DESKTOP_MODE_DEFAULT_WINDOW_META, true );
 	if ( ! is_array( $raw ) ) {
 		return $default;
 	}
@@ -75,7 +75,7 @@ function wpdm_get_default_window( $user_id = 0 ) {
  * @param string|null $url     URL to set, or null to disable.
  * @return bool True on success, false on invalid URL or unknown user.
  */
-function wpdm_set_default_window( $user_id, $url ) {
+function desktop_mode_set_default_window( $user_id, $url ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
@@ -84,7 +84,7 @@ function wpdm_set_default_window( $user_id, $url ) {
 	if ( null === $url ) {
 		update_user_meta(
 			$user_id,
-			WPDM_DEFAULT_WINDOW_META,
+			DESKTOP_MODE_DEFAULT_WINDOW_META,
 			array(
 				'enabled' => false,
 				'url'     => admin_url( 'index.php' ),
@@ -93,14 +93,14 @@ function wpdm_set_default_window( $user_id, $url ) {
 		return true;
 	}
 
-	$clean = wpdm_validate_default_window_url( $url );
+	$clean = desktop_mode_validate_default_window_url( $url );
 	if ( '' === $clean ) {
 		return false;
 	}
 
 	update_user_meta(
 		$user_id,
-		WPDM_DEFAULT_WINDOW_META,
+		DESKTOP_MODE_DEFAULT_WINDOW_META,
 		array(
 			'enabled' => true,
 			'url'     => $clean,
@@ -120,7 +120,7 @@ function wpdm_set_default_window( $user_id, $url ) {
  * @param string $url Raw input.
  * @return string Fully-qualified URL, or empty string if rejected.
  */
-function wpdm_validate_default_window_url( $url ) {
+function desktop_mode_validate_default_window_url( $url ) {
 	$url = trim( (string) $url );
 	if ( '' === $url ) {
 		return '';
@@ -166,13 +166,13 @@ function wpdm_validate_default_window_url( $url ) {
  *
  * @since 0.6.0
  */
-function wpdm_register_default_window_routes() {
+function desktop_mode_register_default_window_routes() {
 	register_rest_route(
 		'wp-desktop/v1',
 		'/default-window',
 		array(
 			'methods'             => 'POST',
-			'callback'            => 'wpdm_rest_set_default_window',
+			'callback'            => 'desktop_mode_rest_set_default_window',
 			'permission_callback' => function () {
 				return is_user_logged_in() && current_user_can( 'read' );
 			},
@@ -183,13 +183,13 @@ function wpdm_register_default_window_routes() {
 			// where both branches are explicit.
 			'args'                => array(
 				'url' => array(
-					'description' => __( 'Admin URL to open on portal entry, or null to disable.', 'wp-desktop-mode' ),
+					'description' => __( 'Admin URL to open on portal entry, or null to disable.', 'desktop-mode' ),
 				),
 			),
 		)
 	);
 }
-add_action( 'rest_api_init', 'wpdm_register_default_window_routes' );
+add_action( 'rest_api_init', 'desktop_mode_register_default_window_routes' );
 
 /**
  * REST handler — writes the default-window meta and returns the
@@ -207,7 +207,7 @@ add_action( 'rest_api_init', 'wpdm_register_default_window_routes' );
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
-function wpdm_rest_set_default_window( $request ) {
+function desktop_mode_rest_set_default_window( $request ) {
 	$user_id = get_current_user_id();
 	$params  = $request->get_json_params();
 
@@ -220,26 +220,26 @@ function wpdm_rest_set_default_window( $request ) {
 
 	// Null / missing / empty string all disable the default.
 	if ( null === $url || '' === $url ) {
-		wpdm_set_default_window( $user_id, null );
-		return rest_ensure_response( wpdm_get_default_window( $user_id ) );
+		desktop_mode_set_default_window( $user_id, null );
+		return rest_ensure_response( desktop_mode_get_default_window( $user_id ) );
 	}
 
 	if ( ! is_string( $url ) ) {
 		return new WP_Error(
-			'wpdm_invalid_url',
-			__( 'The `url` parameter must be a string or null.', 'wp-desktop-mode' ),
+			'desktop_mode_invalid_url',
+			__( 'The `url` parameter must be a string or null.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	$ok = wpdm_set_default_window( $user_id, $url );
+	$ok = desktop_mode_set_default_window( $user_id, $url );
 	if ( ! $ok ) {
 		return new WP_Error(
-			'wpdm_invalid_url',
-			__( 'The URL is not a valid same-origin wp-admin URL.', 'wp-desktop-mode' ),
+			'desktop_mode_invalid_url',
+			__( 'The URL is not a valid same-origin wp-admin URL.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	return rest_ensure_response( wpdm_get_default_window( $user_id ) );
+	return rest_ensure_response( desktop_mode_get_default_window( $user_id ) );
 }

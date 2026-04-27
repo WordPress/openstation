@@ -8,7 +8,7 @@
  *
  * @group desktop-mode
  *
- * @covers ::wpdm_build_dock_items
+ * @covers ::desktop_mode_build_dock_items
  */
 class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 
@@ -30,15 +30,16 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		$menu                   = array();
 		$submenu                = array();
 		wp_set_current_user( self::$admin_id );
+		desktop_mode_flush_script_handle_registries();
 	}
 
 	public function tear_down() {
 		global $menu, $submenu;
 		$menu    = $this->original_menu;
 		$submenu = $this->original_submenu;
-		remove_all_filters( 'wp_desktop_dock_items' );
-		remove_all_filters( 'wp_desktop_dock_item' );
-		remove_all_filters( 'wp_desktop_dock_placement' );
+		remove_all_filters( 'desktop_mode_dock_items' );
+		remove_all_filters( 'desktop_mode_dock_item' );
+		remove_all_filters( 'desktop_mode_dock_placement' );
 		parent::tear_down();
 	}
 
@@ -61,7 +62,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	public function test_returns_empty_array_when_menu_globals_are_empty() {
 		global $menu;
 		$menu = array();
-		$this->assertSame( array(), wpdm_build_dock_items() );
+		$this->assertSame( array(), desktop_mode_build_dock_items() );
 	}
 
 	public function test_skips_separators() {
@@ -71,7 +72,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertCount( 1, $items );
 		$this->assertSame( 'Posts', $items[0]['title'] );
@@ -84,7 +85,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertCount( 1, $items );
 		$this->assertSame( 'Posts', $items[0]['title'] );
@@ -102,7 +103,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Settings', 'manage_options', 'options-general.php' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$titles = wp_list_pluck( $items, 'title' );
 		$this->assertContains( 'Read', $titles );
@@ -128,7 +129,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'Plugins', $items[0]['title'] );
 		$this->assertSame( 3, $items[0]['badge'] );
@@ -138,7 +139,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 		$this->assertSame( 0, $items[0]['badge'] );
 	}
 
@@ -149,7 +150,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			array( 'Custom', 'read', 'custom.php', '', '', 'menu-custom', '' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
@@ -161,7 +162,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			array( 'Add New', 'edit_posts', 'post-new.php' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertCount( 2, $items[0]['submenu'] );
 		$this->assertSame( 'All Posts', $items[0]['submenu'][0]['title'] );
@@ -179,7 +180,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			array( 'Add New', 'edit_posts', 'post-new.php' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertCount( 1, $items[0]['submenu'] );
 		$this->assertSame( 'All Posts', $items[0]['submenu'][0]['title'] );
@@ -193,7 +194,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			array( 'Customize', 'customize', 'customize.php', '', 'hide-if-no-customize' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
 		$this->assertContains( 'Themes', $titles );
@@ -205,7 +206,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 
 		add_filter(
-			'wp_desktop_dock_item',
+			'desktop_mode_dock_item',
 			function ( $item, $slug ) {
 				$item['title'] = strtoupper( $item['title'] );
 				$item['slug']  = $slug;
@@ -215,7 +216,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			2
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 		$this->assertSame( 'POSTS', $items[0]['title'] );
 		$this->assertSame( 'edit.php', $items[0]['slug'] );
 	}
@@ -225,13 +226,13 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 
 		add_filter(
-			'wp_desktop_dock_items',
+			'desktop_mode_dock_items',
 			function () {
 				return array( array( 'id' => 'replaced', 'title' => 'Replaced' ) );
 			}
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 		$this->assertCount( 1, $items );
 		$this->assertSame( 'replaced', $items[0]['id'] );
 	}
@@ -240,13 +241,13 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * Dashicons values are passed through intact — these are CSS class
 	 * names baked into Core's menu config and safe to render.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_icon_dashicon_class_preserved() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', 'dashicons-admin-post' ) );
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-post', $items[0]['icon'] );
 	}
@@ -255,13 +256,13 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * Falling back to the generic icon when the menu row doesn't supply
 	 * one (or supplies an empty string) keeps the shell renderable.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_icon_falls_back_to_generic_when_empty() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', '' ) );
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
@@ -271,7 +272,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * The shell has no special handling for them, so collapsing to the
 	 * generic dashicon gives a safe, visible fallback.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_icon_none_and_div_collapse_to_generic() {
 		global $menu;
@@ -280,7 +281,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Div',  'read', 'div.php',  '', '', 'hook-div',  'div' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 		$this->assertSame( 'dashicons-admin-generic', $items[1]['icon'] );
@@ -290,7 +291,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * http(s) URLs — e.g. a plugin bundling its own PNG — pass through
 	 * esc_url_raw so scheme-shaped bytes can't slip past.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_icon_http_url_preserved_after_sanitizing() {
 		global $menu;
@@ -298,29 +299,32 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'X', 'read', 'x.php', '', '', 'hook-x', 'https://example.com/icon.png' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'https://example.com/icon.png', $items[0]['icon'] );
 	}
 
 	/**
-	 * Inline SVG data URIs were previously preserved for the Core
-	 * Site Health / Privacy icons, but SVG can carry script that
-	 * executes when the icon is rendered as a CSS background. The
-	 * sanitizer now rejects every `data:` URI and falls back to the
-	 * generic dashicon. Menus that shipped an inline SVG should
-	 * register a dashicons class or an http(s) image URL instead.
+	 * Inline SVG data URIs are the canonical menu-icon shape for
+	 * modern WP plugins (Yoast, WooCommerce, Jetpack, etc.). The
+	 * shell renders them via CSS `background-image`, which sandboxes
+	 * scripts inside the SVG just like an `<img>` would, so passing
+	 * a well-formed `data:image/svg+xml;base64,…` value through is
+	 * safe and necessary — without it every plugin tile collapses to
+	 * the gear fallback. The strict regex in `desktop_mode_sanitize_dock_icon`
+	 * still rejects malformed shapes and non-SVG `data:` schemes
+	 * (covered by sibling tests).
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
-	public function test_icon_data_svg_rejected() {
+	public function test_icon_well_formed_svg_data_uri_passes_through() {
 		global $menu;
 		$svg  = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		$menu = array( $this->make_menu_row( 'Y', 'read', 'y.php', '', '', 'hook-y', $svg ) );
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
-		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
+		$this->assertSame( $svg, $items[0]['icon'] );
 	}
 
 	/**
@@ -328,13 +332,13 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * the shell wrote it to an `<img src>` or anchor. Must be dropped to
 	 * the fallback icon, not passed through.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_icon_javascript_url_is_rejected() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Z', 'read', 'z.php', '', '', 'hook-z', 'javascript:alert(1)' ) );
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
@@ -344,7 +348,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * common XSS vector and must be rejected, even though `data:` itself
 	 * is allowed for the SVG case.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_icon_non_svg_data_uri_is_rejected() {
 		global $menu;
@@ -352,7 +356,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'A', 'read', 'a.php', '', '', 'hook-a', 'data:text/html,<script>alert(1)</script>' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
@@ -362,7 +366,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * hostile plugin break out of the class attribute on the shell side.
 	 * Strip everything that isn't a legal dashicon class character.
 	 *
-	 * @covers ::wpdm_sanitize_dock_icon
+	 * @covers ::desktop_mode_sanitize_dock_icon
 	 */
 	public function test_icon_dashicon_breakout_attempt_is_scrubbed() {
 		global $menu;
@@ -370,7 +374,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'B', 'read', 'b.php', '', '', 'hook-b', 'dashicons-admin-post" onerror="alert(1)' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-postonerroralert1', $items[0]['icon'] );
 		$this->assertStringNotContainsString( '"', $items[0]['icon'] );
@@ -382,9 +386,9 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * for core admin pages + CPTs, `'taskbar'` for plugin-installed
 	 * top-level routes.
 	 *
-	 * @covers ::wpdm_build_dock_items
-	 * @covers ::wpdm_is_core_menu_slug
-	 * @covers ::wpdm_dock_placement
+	 * @covers ::desktop_mode_build_dock_items
+	 * @covers ::desktop_mode_is_core_menu_slug
+	 * @covers ::desktop_mode_dock_placement
 	 */
 	public function test_placement_distinguishes_core_from_plugin_menus() {
 		global $menu;
@@ -400,7 +404,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Yoast SEO', 'read', 'wpseo_dashboard' ),
 		);
 
-		$items = wpdm_build_dock_items();
+		$items = desktop_mode_build_dock_items();
 		$by_id = array();
 		foreach ( $items as $item ) {
 			$by_id[ $item['id'] ] = $item;
@@ -419,23 +423,23 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * They should be treated as Core (left dock) because conceptually
 	 * they're content, same as Posts and Pages.
 	 *
-	 * @covers ::wpdm_is_core_menu_slug
+	 * @covers ::desktop_mode_is_core_menu_slug
 	 */
 	public function test_cpt_routes_count_as_core() {
-		$this->assertTrue( wpdm_is_core_menu_slug( 'edit.php?post_type=product' ) );
-		$this->assertTrue( wpdm_is_core_menu_slug( 'edit.php?post_type=wp_block' ) );
+		$this->assertTrue( desktop_mode_is_core_menu_slug( 'edit.php?post_type=product' ) );
+		$this->assertTrue( desktop_mode_is_core_menu_slug( 'edit.php?post_type=wp_block' ) );
 	}
 
 	/**
-	 * `wp_desktop_dock_placement` lets plugins + site admins re-home
+	 * `desktop_mode_dock_placement` lets plugins + site admins re-home
 	 * any menu item. Return `'dock'` to promote a plugin to the left
 	 * bar, `'taskbar'` to demote a core item to the bottom.
 	 *
-	 * @covers ::wpdm_dock_placement
+	 * @covers ::desktop_mode_dock_placement
 	 */
 	public function test_placement_filter_can_promote_or_demote() {
 		add_filter(
-			'wp_desktop_dock_placement',
+			'desktop_mode_dock_placement',
 			static function ( $placement, $slug ) {
 				if ( 'jetpack' === $slug ) {
 					return 'dock';
@@ -449,28 +453,28 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			2
 		);
 
-		$this->assertSame( 'dock', wpdm_dock_placement( 'jetpack' ) );
-		$this->assertSame( 'taskbar', wpdm_dock_placement( 'tools.php' ) );
+		$this->assertSame( 'dock', desktop_mode_dock_placement( 'jetpack' ) );
+		$this->assertSame( 'taskbar', desktop_mode_dock_placement( 'tools.php' ) );
 		// Unrelated slugs still get the default answer.
-		$this->assertSame( 'dock', wpdm_dock_placement( 'edit.php' ) );
-		$this->assertSame( 'taskbar', wpdm_dock_placement( 'my-other-plugin' ) );
+		$this->assertSame( 'dock', desktop_mode_dock_placement( 'edit.php' ) );
+		$this->assertSame( 'taskbar', desktop_mode_dock_placement( 'my-other-plugin' ) );
 	}
 
 	/**
 	 * A filter that returns garbage is ignored — the heuristic's
 	 * default wins to keep the shell rendering predictably.
 	 *
-	 * @covers ::wpdm_dock_placement
+	 * @covers ::desktop_mode_dock_placement
 	 */
 	public function test_placement_filter_rejects_unknown_values() {
 		add_filter(
-			'wp_desktop_dock_placement',
+			'desktop_mode_dock_placement',
 			static function () {
 				return 'sidebar'; // not a valid placement
 			}
 		);
-		$this->assertSame( 'dock', wpdm_dock_placement( 'edit.php' ) );
-		$this->assertSame( 'taskbar', wpdm_dock_placement( 'some-plugin' ) );
+		$this->assertSame( 'dock', desktop_mode_dock_placement( 'edit.php' ) );
+		$this->assertSame( 'taskbar', desktop_mode_dock_placement( 'some-plugin' ) );
 	}
 
 	/**
@@ -479,12 +483,12 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 	 * from both rails in the shell payload while still being a valid
 	 * server-side menu entry.
 	 *
-	 * @covers ::wpdm_dock_placement
-	 * @covers ::wpdm_build_menu_payload
+	 * @covers ::desktop_mode_dock_placement
+	 * @covers ::desktop_mode_build_menu_payload
 	 */
 	public function test_hidden_placement_removes_item_from_both_rails() {
 		add_filter(
-			'wp_desktop_dock_placement',
+			'desktop_mode_dock_placement',
 			static function ( $placement, $slug ) {
 				if ( 'background-tool' === $slug ) {
 					return 'hidden';
@@ -495,7 +499,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			2
 		);
 
-		$this->assertSame( 'hidden', wpdm_dock_placement( 'background-tool' ) );
+		$this->assertSame( 'hidden', desktop_mode_dock_placement( 'background-tool' ) );
 
 		global $menu;
 		$menu = array(
@@ -503,7 +507,7 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Other Plugin', 'manage_options', 'other-plugin' ),
 		);
 
-		$payload  = wpdm_build_menu_payload();
+		$payload  = desktop_mode_build_menu_payload();
 		$dock_ids = wp_list_pluck( $payload['dockItems'], 'id' );
 		$bar_ids  = wp_list_pluck( $payload['taskbarItems'], 'id' );
 

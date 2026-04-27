@@ -16,8 +16,8 @@
  *   - Ambiguous queries → agent tries in priority order (posts → pages →
  *     comments) following the system-prompt guidance.
  *
- * Budget: max WPDM_AI_SEARCH_MAX_ITERATIONS (10) tool-call rounds per
- * request × WPDM_AI_SEARCH_BATCH_SIZE (10) items = up to 100 entities.
+ * Budget: max DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS (10) tool-call rounds per
+ * request × DESKTOP_MODE_AI_SEARCH_BATCH_SIZE (10) items = up to 100 entities.
  * When the budget is exhausted the response includes a `continue` object
  * the client uses to resume from the exact offset that was last searched.
  *
@@ -29,10 +29,10 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Maximum agentic tool-call iterations per search request. */
-const WPDM_AI_SEARCH_MAX_ITERATIONS = 10;
+const DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS = 10;
 
 /** Entities fetched per tool-call round. */
-const WPDM_AI_SEARCH_BATCH_SIZE = 10;
+const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
 
 // ---------------------------------------------------------------------------
 // Tool definitions — one per entity type so the model picks semantically
@@ -52,7 +52,7 @@ const WPDM_AI_SEARCH_BATCH_SIZE = 10;
  *
  * @return array[]
  */
-function wpdm_ai_search_tool_definitions() {
+function desktop_mode_ai_search_tool_definitions() {
 	// Responses API tool definitions are FLAT — no nested `function` wrapper.
 	// The `type`, `name`, `description`, and `parameters` sit at the top level.
 	$offset_param = array(
@@ -160,7 +160,7 @@ function wpdm_ai_search_tool_definitions() {
  * real admin path), a short description, and a Dashicons icon class the
  * UI can use when opening the URL in a legacy iframe window.
  *
- * Filterable via `wp_desktop_ai_admin_page_catalog` so third-party
+ * Filterable via `desktop_mode_ai_admin_page_catalog` so third-party
  * plugins can contribute their own admin destinations (e.g. a plugin
  * adding a top-level menu can surface its settings page here).
  *
@@ -168,7 +168,7 @@ function wpdm_ai_search_tool_definitions() {
  *
  * @return array[]
  */
-function wpdm_ai_get_admin_page_catalog() {
+function desktop_mode_ai_get_admin_page_catalog() {
 	$catalog = array(
 		array( 'title' => 'Dashboard',          'url' => admin_url( 'index.php' ),                             'icon' => 'dashicons-dashboard',        'description' => 'The main admin dashboard — activity, drafts, site overview.' ),
 		array( 'title' => 'All Posts',          'url' => admin_url( 'edit.php' ),                              'icon' => 'dashicons-admin-post',       'description' => 'List, edit, bulk-manage blog posts.' ),
@@ -209,7 +209,7 @@ function wpdm_ai_get_admin_page_catalog() {
 	 *
 	 * @param array[] $catalog Array of entries, each with title/url/icon/description.
 	 */
-	return (array) apply_filters( 'wp_desktop_ai_admin_page_catalog', $catalog );
+	return (array) apply_filters( 'desktop_mode_ai_admin_page_catalog', $catalog );
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ function wpdm_ai_get_admin_page_catalog() {
  *
  * @return array
  */
-function wpdm_ai_search_answer_schema() {
+function desktop_mode_ai_search_answer_schema() {
 	return array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -302,27 +302,27 @@ function wpdm_ai_search_answer_schema() {
  * @param array  $args      Decoded arguments from the model's tool call.
  * @return array Tool result payload.
  */
-function wpdm_ai_search_dispatch_tool( $tool_name, array $args ) {
+function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
 	$offset  = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
 	switch ( $tool_name ) {
 		case 'search_posts':
-			return wpdm_ai_search_fetch_posts( 'post', $offset );
+			return desktop_mode_ai_search_fetch_posts( 'post', $offset );
 		case 'search_pages':
-			return wpdm_ai_search_fetch_posts( 'page', $offset );
+			return desktop_mode_ai_search_fetch_posts( 'page', $offset );
 		case 'search_comments':
-			return wpdm_ai_search_fetch_comments( $offset );
+			return desktop_mode_ai_search_fetch_comments( $offset );
 		case 'search_comments_by_post':
 			$post_id = max( 0, (int) ( $args['post_id'] ?? 0 ) );
-			return wpdm_ai_search_fetch_comments_by_post( $post_id, $offset );
+			return desktop_mode_ai_search_fetch_comments_by_post( $post_id, $offset );
 		case 'list_admin_pages':
 			return array(
 				'tool'  => 'list_admin_pages',
-				'pages' => wpdm_ai_get_admin_page_catalog(),
+				'pages' => desktop_mode_ai_get_admin_page_catalog(),
 			);
 		case 'search_wporg_plugins':
 			$q = isset( $args['query'] ) ? sanitize_text_field( (string) $args['query'] ) : '';
-			return wpdm_ai_fetch_wporg_plugins( $q );
+			return desktop_mode_ai_fetch_wporg_plugins( $q );
 		case 'get_php_error_log':
 			if ( ! current_user_can( 'manage_options' ) ) {
 				return array(
@@ -333,7 +333,7 @@ function wpdm_ai_search_dispatch_tool( $tool_name, array $args ) {
 				);
 			}
 			$lines = isset( $args['lines'] ) ? max( 1, min( 500, (int) $args['lines'] ) ) : 50;
-			return wpdm_ai_fetch_error_log( $lines );
+			return desktop_mode_ai_fetch_error_log( $lines );
 	}
 
 	return array(
@@ -357,19 +357,20 @@ function wpdm_ai_search_dispatch_tool( $tool_name, array $args ) {
  * @param int    $offset
  * @return array
  */
-function wpdm_ai_search_fetch_posts( $post_type, $offset ) {
+function desktop_mode_ai_search_fetch_posts( $post_type, $offset ) {
 	$query = new WP_Query(
 		array(
 			'post_type'              => $post_type,
 			'post_status'            => 'publish',
-			'posts_per_page'         => WPDM_AI_SEARCH_BATCH_SIZE,
+			'posts_per_page'         => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 			'offset'                 => $offset,
 			'no_found_rows'          => false,
 			'update_post_term_cache' => false,
 			'update_post_meta_cache' => true,
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- AI search batch fetch; targets only the small subset of posts that already have an AI summary stamped, single EXISTS clause against an indexed key.
 			'meta_query'             => array(
 				array(
-					'key'     => WPDM_AI_META_KEY,
+					'key'     => DESKTOP_MODE_AI_META_KEY,
 					'compare' => 'EXISTS',
 				),
 			),
@@ -378,7 +379,7 @@ function wpdm_ai_search_fetch_posts( $post_type, $offset ) {
 
 	$items = array();
 	foreach ( $query->posts as $post ) {
-		$meta = wpdm_ai_get_meta( 'post', $post->ID );
+		$meta = desktop_mode_ai_get_meta( 'post', $post->ID );
 		if ( ! $meta ) {
 			continue;
 		}
@@ -406,8 +407,8 @@ function wpdm_ai_search_fetch_posts( $post_type, $offset ) {
 		'items'      => $items,
 		'count'      => count( $items ),
 		'total'      => $total,
-		'has_more'   => ( $offset + WPDM_AI_SEARCH_BATCH_SIZE ) < $total,
-		'next_offset' => $offset + WPDM_AI_SEARCH_BATCH_SIZE,
+		'has_more'   => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
+		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 	);
 }
 
@@ -419,20 +420,21 @@ function wpdm_ai_search_fetch_posts( $post_type, $offset ) {
  * @param int $offset
  * @return array
  */
-function wpdm_ai_search_fetch_comments( $offset ) {
+function desktop_mode_ai_search_fetch_comments( $offset ) {
 	$base_args = array(
 		'status'     => 'approve',
 		'type'       => 'comment',
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- AI search batch fetch for comments; targets only AI-summarised entries via single EXISTS clause.
 		'meta_query' => array(
 			array(
-				'key'     => WPDM_AI_META_KEY,
+				'key'     => DESKTOP_MODE_AI_META_KEY,
 				'compare' => 'EXISTS',
 			),
 		),
 	);
 
 	$comments = get_comments( array_merge( $base_args, array(
-		'number' => WPDM_AI_SEARCH_BATCH_SIZE,
+		'number' => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 		'offset' => $offset,
 		'count'  => false,
 	) ) );
@@ -441,7 +443,7 @@ function wpdm_ai_search_fetch_comments( $offset ) {
 
 	$items = array();
 	foreach ( $comments as $comment ) {
-		$meta = wpdm_ai_get_meta( 'comment', $comment->comment_ID );
+		$meta = desktop_mode_ai_get_meta( 'comment', $comment->comment_ID );
 		if ( ! $meta ) {
 			continue;
 		}
@@ -472,8 +474,8 @@ function wpdm_ai_search_fetch_comments( $offset ) {
 		'items'       => $items,
 		'count'       => count( $items ),
 		'total'       => $total,
-		'has_more'    => ( $offset + WPDM_AI_SEARCH_BATCH_SIZE ) < $total,
-		'next_offset' => $offset + WPDM_AI_SEARCH_BATCH_SIZE,
+		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
+		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 	);
 }
 
@@ -498,7 +500,7 @@ function wpdm_ai_search_fetch_comments( $offset ) {
  * @param int $offset
  * @return array Tool result payload.
  */
-function wpdm_ai_search_fetch_comments_by_post( $post_id, $offset ) {
+function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $offset ) {
 	$post_id = (int) $post_id;
 
 	if ( $post_id <= 0 ) {
@@ -518,16 +520,17 @@ function wpdm_ai_search_fetch_comments_by_post( $post_id, $offset ) {
 		'post_id'    => $post_id,
 		'status'     => 'approve',
 		'type'       => 'comment',
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- comments-by-post AI search; further narrowed by post_id + EXISTS on the AI summary key.
 		'meta_query' => array(
 			array(
-				'key'     => WPDM_AI_META_KEY,
+				'key'     => DESKTOP_MODE_AI_META_KEY,
 				'compare' => 'EXISTS',
 			),
 		),
 	);
 
 	$comments = get_comments( array_merge( $base_args, array(
-		'number' => WPDM_AI_SEARCH_BATCH_SIZE,
+		'number' => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 		'offset' => $offset,
 		'count'  => false,
 	) ) );
@@ -539,7 +542,7 @@ function wpdm_ai_search_fetch_comments_by_post( $post_id, $offset ) {
 
 	$items = array();
 	foreach ( $comments as $comment ) {
-		$meta = wpdm_ai_get_meta( 'comment', $comment->comment_ID );
+		$meta = desktop_mode_ai_get_meta( 'comment', $comment->comment_ID );
 		if ( ! $meta ) {
 			continue;
 		}
@@ -566,8 +569,8 @@ function wpdm_ai_search_fetch_comments_by_post( $post_id, $offset ) {
 		'items'       => $items,
 		'count'       => count( $items ),
 		'total'       => $total,
-		'has_more'    => ( $offset + WPDM_AI_SEARCH_BATCH_SIZE ) < $total,
-		'next_offset' => $offset + WPDM_AI_SEARCH_BATCH_SIZE,
+		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
+		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 	);
 }
 
@@ -582,7 +585,7 @@ function wpdm_ai_search_fetch_comments_by_post( $post_id, $offset ) {
  * @param int    $entity_id
  * @return array|null
  */
-function wpdm_ai_search_build_entity( $entity_type, $entity_id ) {
+function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 	$entity_id = (int) $entity_id;
 
 	if ( in_array( $entity_type, array( 'post', 'page' ), true ) ) {
@@ -590,7 +593,7 @@ function wpdm_ai_search_build_entity( $entity_type, $entity_id ) {
 		if ( ! $post instanceof WP_Post ) {
 			return null;
 		}
-		$meta = wpdm_ai_get_meta( 'post', $entity_id );
+		$meta = desktop_mode_ai_get_meta( 'post', $entity_id );
 		return array(
 			'id'         => $entity_id,
 			'type'       => $post->post_type,
@@ -609,7 +612,7 @@ function wpdm_ai_search_build_entity( $entity_type, $entity_id ) {
 		if ( ! $comment instanceof WP_Comment ) {
 			return null;
 		}
-		$meta        = wpdm_ai_get_meta( 'comment', $entity_id );
+		$meta        = desktop_mode_ai_get_meta( 'comment', $entity_id );
 		$parent_post = get_post( $comment->comment_post_ID );
 		return array(
 			'id'          => $entity_id,
@@ -664,7 +667,7 @@ function wpdm_ai_search_build_entity( $entity_type, $entity_id ) {
  * @param string $tool_name
  * @return string
  */
-function wpdm_ai_progress_message( $tool_name ) {
+function desktop_mode_ai_progress_message( $tool_name ) {
 	switch ( $tool_name ) {
 		case 'search_posts':            return 'Looking through your posts…';
 		case 'search_pages':            return 'Checking your pages…';
@@ -677,7 +680,7 @@ function wpdm_ai_progress_message( $tool_name ) {
 	return 'Thinking…';
 }
 
-function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
+function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
 	/**
 	 * Progress emitter — sends a tick to the caller if they provided a
 	 * callable; no-op otherwise. Callers use this to render real-time
@@ -703,7 +706,7 @@ function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offs
 	$user_id            = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
 	$request_id         = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
 		? (string) $extra['request_id']
-		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'wpdm_ai_', true ) );
+		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'desktop_mode_ai_', true ) );
 	$command_tools_raw  = isset( $extra['command_tools'] ) && is_array( $extra['command_tools'] ) ? $extra['command_tools'] : array();
 	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
 	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
@@ -713,8 +716,8 @@ function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offs
 	/**
 	 * Fires once per `/ai/search` invocation, after validation and
 	 * before any OpenAI call. First anchor in the observability trio
-	 * (`wp_desktop_ai_search_started` / `wp_desktop_ai_tool_called`
-	 * / `wp_desktop_ai_search_completed`).
+	 * (`desktop_mode_ai_search_started` / `desktop_mode_ai_tool_called`
+	 * / `desktop_mode_ai_search_completed`).
 	 *
 	 * @since 0.17.0
 	 *
@@ -725,7 +728,7 @@ function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offs
 	 * }
 	 */
 	do_action(
-		'wp_desktop_ai_search_started',
+		'desktop_mode_ai_search_started',
 		array(
 			'query'      => $query,
 			'user_id'    => $user_id,
@@ -749,37 +752,37 @@ function wpdm_ai_run_search( $api_key, $query, $initial_tool = null, $start_offs
 		);
 	}
 
-	$instructions = <<<INSTRUCTIONS
+	$instructions = "
 You are a friendly, conversational assistant embedded in a WordPress site. You help the site owner:
 
 1. **Find content** they've written (posts, pages, comments) by describing it in natural language.
-2. **Navigate wp-admin** when they ask where to find something ("where are the categories?", "how do I manage users?").
+2. **Navigate wp-admin** when they ask where to find something (\"where are the categories?\", \"how do I manage users?\").
 3. **Recommend plugins** from the official WordPress.org directory when they need extra functionality.
 4. **Check the site's error log** when they're troubleshooting something.
 5. **Chat** — if the request doesn't fit the above, just answer conversationally.
 
-Tone: warm, concise, helpful. First person ("I found this post…", "Here's where you'll find that…"). Not a search engine tone — no "Match found" or robot phrasing.
+Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's where you'll find that…\"). Not a search engine tone — no \"Match found\" or robot phrasing.
 
 Tools:
 - search_posts / search_pages / search_comments / search_comments_by_post(post_id, offset): content-lookup tools. Compare each item's topic + ai_summary to the user's description. Stop once you find a good match. Use the same tool with next_offset if has_more is true and no match yet. When the query mentions BOTH a post and a comment on that post, call search_posts first to identify the post, THEN search_comments_by_post with the ID.
 - list_admin_pages: returns the full catalog of wp-admin destinations. Call once per navigation query, then select the 1-3 most relevant entries.
-- search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation ("a plugin for X", "is there a plugin that does Y?"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like "Plugin Name · 5M+ installs · 4.8★" (rating is 0-100, divide by 20 to get stars).
-- get_php_error_log(lines): reads the tail of the site's PHP error log. Admin-only (the tool itself checks). Use when the user asks "any errors?", "check the logs", "what's broken?", troubleshooting. Each entry has { timestamp, level, message }. Summarise the most important errors (Fatal > Warning > Notice) in your message; don't copy-paste everything.
+- search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation (\"a plugin for X\", \"is there a plugin that does Y?\"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like \"Plugin Name · 5M+ installs · 4.8★\" (rating is 0-100, divide by 20 to get stars).
+- get_php_error_log(lines): reads the tail of the site's PHP error log. Admin-only (the tool itself checks). Use when the user asks \"any errors?\", \"check the logs\", \"what's broken?\", troubleshooting. Each entry has { timestamp, level, message }. Summarise the most important errors (Fatal > Warning > Notice) in your message; don't copy-paste everything.
 
 Choosing which track:
-- "I remember a post/page/comment about X" → the corresponding search_* tool.
-- "where can I find X?" / "how do I manage Y?" → list_admin_pages.
-- "plugin for X" / "recommend a plugin" → search_wporg_plugins → present as admin_links.
-- "any errors?" / "check logs" / troubleshooting → get_php_error_log → summarise in chat.
-- Greeting, unclear, or chit-chat → answer_type "chat" with a brief helpful message (no tools needed).
+- \"I remember a post/page/comment about X\" → the corresponding search_* tool.
+- \"where can I find X?\" / \"how do I manage Y?\" → list_admin_pages.
+- \"plugin for X\" / \"recommend a plugin\" → search_wporg_plugins → present as admin_links.
+- \"any errors?\" / \"check logs\" / troubleshooting → get_php_error_log → summarise in chat.
+- Greeting, unclear, or chit-chat → answer_type \"chat\" with a brief helpful message (no tools needed).
 
 Always return one of three answer_type values in the structured output:
-- "entity": you identified a single post/page/comment. Fill entity_id + entity_type. admin_links = null.
-- "navigation": you're recommending admin pages OR plugin install links. Fill admin_links. entity_id + entity_type = null.
-- "chat": you're answering conversationally — including log summaries, greetings, "nothing found" answers. entity_id + entity_type + admin_links all null.
+- \"entity\": you identified a single post/page/comment. Fill entity_id + entity_type. admin_links = null.
+- \"navigation\": you're recommending admin pages OR plugin install links. Fill admin_links. entity_id + entity_type = null.
+- \"chat\": you're answering conversationally — including log summaries, greetings, \"nothing found\" answers. entity_id + entity_type + admin_links all null.
 
 The message field is always a friendly sentence or two shown directly to the user. Make it sound like a person, not a log line.
-INSTRUCTIONS;
+";
 
 	if ( $continuation_note ) {
 		$instructions .= $continuation_note;
@@ -788,7 +791,7 @@ INSTRUCTIONS;
 	// -----------------------------------------------------------------------
 	// System-prompt extensibility. All three layers — appendix filter,
 	// client override (append/replace with capability gate), and final
-	// transform — live in `wpdm_ai_compose_instructions()` so the
+	// transform — live in `desktop_mode_ai_compose_instructions()` so the
 	// primary run and the follow-up leg stay in lockstep. See the
 	// helper for the order of application; see the filter docblocks
 	// below for the public contract on each extension point.
@@ -833,7 +836,7 @@ INSTRUCTIONS;
 	 * @param string $instructions Composed system prompt.
 	 * @param array  $context
 	 */
-	$instructions = wpdm_ai_compose_instructions(
+	$instructions = desktop_mode_ai_compose_instructions(
 		$instructions,
 		$prompt_context,
 		array( 'text' => $system_prompt_text, 'mode' => $system_prompt_mode )
@@ -843,11 +846,11 @@ INSTRUCTIONS;
 	// Tool assembly — built-in search/navigation + PHP-registered +
 	// client-supplied command tools.
 	// -----------------------------------------------------------------------
-	$builtin_tools = wpdm_ai_search_tool_definitions();
+	$builtin_tools = desktop_mode_ai_search_tool_definitions();
 
 	// PHP-registered tools (capability-filtered for the current user).
-	$registered_entries = function_exists( 'wpdm_get_registered_ai_tools_for_user' )
-		? wpdm_get_registered_ai_tools_for_user( $user_id )
+	$registered_entries = function_exists( 'desktop_mode_get_registered_ai_tools_for_user' )
+		? desktop_mode_get_registered_ai_tools_for_user( $user_id )
 		: array();
 
 	// Track registered + command tool maps so the agent loop can
@@ -857,7 +860,7 @@ INSTRUCTIONS;
 		$registered_by_name[ (string) $entry['name'] ] = $entry;
 	}
 
-	$registered_defs = array_map( 'wpdm_ai_tool_entry_to_definition', $registered_entries );
+	$registered_defs = array_map( 'desktop_mode_ai_tool_entry_to_definition', $registered_entries );
 
 	// Command tools — namespaced as `command_<slug>` on the server so
 	// they can't collide with built-in tool names. Each takes a single
@@ -887,7 +890,7 @@ INSTRUCTIONS;
 		 * @param array      $context { user_id, request_id }.
 		 */
 		$allowed = apply_filters(
-			'wp_desktop_ai_command_allowed',
+			'desktop_mode_ai_command_allowed',
 			$cmd,
 			$slug,
 			array( 'user_id' => $user_id, 'request_id' => $request_id )
@@ -932,7 +935,7 @@ INSTRUCTIONS;
 	 * @param array $context      { user_id, request_id }.
 	 */
 	$command_defs = (array) apply_filters(
-		'wp_desktop_ai_command_tools',
+		'desktop_mode_ai_command_tools',
 		$command_defs,
 		array( 'user_id' => $user_id, 'request_id' => $request_id )
 	);
@@ -950,7 +953,7 @@ INSTRUCTIONS;
 	 * @param array $context { user_id, request_id, query }.
 	 */
 	$tools = (array) apply_filters(
-		'wp_desktop_ai_tools',
+		'desktop_mode_ai_tools',
 		$tools,
 		array( 'user_id' => $user_id, 'request_id' => $request_id, 'query' => $query )
 	);
@@ -973,27 +976,37 @@ INSTRUCTIONS;
 		'type'   => 'json_schema',
 		'name'   => 'search_answer',
 		'strict' => true,
-		'schema' => wpdm_ai_search_answer_schema(),
+		'schema' => desktop_mode_ai_search_answer_schema(),
 	);
 
 	$emit( array( 'phase' => 'start', 'message' => 'Thinking about your question…' ) );
 
 	// -----------------------------------------------------------------------
 	// First call — user query as input, instructions as system guidance.
+	// Dispatched through the active provider (default: OpenAI). State is
+	// opaque to the loop — providers stash whatever continuation token
+	// they need (OpenAI: previous_response_id; others may use nothing).
 	// -----------------------------------------------------------------------
-	$response = wpdm_ai_openai_responses_call(
-		$api_key,
-		array( array( 'role' => 'user', 'content' => $query ) ),
-		$tools,
-		$text_format,
-		$instructions
-	);
-
-	if ( is_wp_error( $response ) ) {
-		return $response;
+	$turn_input = desktop_mode_ai_provider_make_turn_input( $user_id, 'user_message', $query );
+	if ( is_wp_error( $turn_input ) ) {
+		return $turn_input;
 	}
 
-	$previous_id   = $response['id'] ?? '';
+	$turn = desktop_mode_ai_provider_agentic_call(
+		$user_id,
+		$api_key,
+		$turn_input,
+		$tools,
+		$text_format,
+		$instructions,
+		null
+	);
+
+	if ( is_wp_error( $turn ) ) {
+		return $turn;
+	}
+
+	$state         = $turn['next_state'];
 	$last_tool     = $initial_tool ?? 'search_posts';
 	$last_offset   = $start_offset;
 	$last_has_more = true;
@@ -1004,28 +1017,29 @@ INSTRUCTIONS;
 	// the final answer. We use `previous_response_id` so OpenAI manages the
 	// conversation state; we only send what's new each turn.
 	// -----------------------------------------------------------------------
-	for ( $i = 0; $i < WPDM_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
-		$function_calls = wpdm_ai_extract_function_calls( $response );
+	for ( $i = 0; $i < DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
+		$function_calls = is_array( $turn['function_calls'] ?? null ) ? $turn['function_calls'] : array();
 
 		// No tool calls in this response → final answer.
 		if ( empty( $function_calls ) ) {
 			$emit( array( 'phase' => 'composing', 'message' => 'Putting together your answer…' ) );
-			$text = wpdm_ai_extract_text( $response );
+			$text = $turn['text'] ?? null;
 			if ( ! is_string( $text ) ) {
-				// Log the raw output so mismatches in the Responses API shape
-				// are visible without having to re-run with a debugger.
+				// Log the raw output so mismatches in the provider response
+				// shape are visible without having to re-run with a debugger.
+				$raw = is_array( $turn['raw'] ?? null ) ? $turn['raw'] : array();
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( '[WP Desktop Mode AI] Unexpected output shape: ' . wp_json_encode( $response['output'] ?? [] ) );
+				error_log( '[WP Desktop Mode AI] Unexpected output shape: ' . wp_json_encode( $raw ) );
 				return new WP_Error(
-					'wpdm_ai_empty',
-					'Responses API returned no text in the final turn.',
-					array( 'output' => $response['output'] ?? [] )
+					'desktop_mode_ai_empty',
+					'AI provider returned no text in the final turn.',
+					array( 'raw' => $raw )
 				);
 			}
 
 			$answer = json_decode( $text, true );
 			if ( ! is_array( $answer ) ) {
-				return new WP_Error( 'wpdm_ai_result_parse', 'Could not parse structured search answer.' );
+				return new WP_Error( 'desktop_mode_ai_result_parse', 'Could not parse structured search answer.' );
 			}
 
 			$answer_type = isset( $answer['answer_type'] ) && in_array( $answer['answer_type'], array( 'entity', 'navigation', 'chat' ), true )
@@ -1041,7 +1055,7 @@ INSTRUCTIONS;
 
 			$entity = null;
 			if ( 'entity' === $answer_type && $entity_id && $entity_type ) {
-				$entity = wpdm_ai_search_build_entity( $entity_type, $entity_id );
+				$entity = desktop_mode_ai_search_build_entity( $entity_type, $entity_id );
 			}
 
 			$final = array(
@@ -1066,13 +1080,13 @@ INSTRUCTIONS;
 			 * @param array $context { query, user_id, request_id }.
 			 */
 			$final = (array) apply_filters(
-				'wp_desktop_ai_answer',
+				'desktop_mode_ai_answer',
 				$final,
 				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
 			);
 
 			do_action(
-				'wp_desktop_ai_search_completed',
+				'desktop_mode_ai_search_completed',
 				array(
 					'query'       => $query,
 					'user_id'     => $user_id,
@@ -1110,7 +1124,7 @@ INSTRUCTIONS;
 		}
 		if ( $command_tool_call !== null ) {
 			do_action(
-				'wp_desktop_ai_tool_called',
+				'desktop_mode_ai_tool_called',
 				array(
 					'tool_name'  => 'command_' . $command_tool_call['slug'],
 					'args'       => array( 'args' => $command_tool_call['args'] ),
@@ -1132,13 +1146,13 @@ INSTRUCTIONS;
 			);
 
 			$final = (array) apply_filters(
-				'wp_desktop_ai_answer',
+				'desktop_mode_ai_answer',
 				$final,
 				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
 			);
 
 			do_action(
-				'wp_desktop_ai_search_completed',
+				'desktop_mode_ai_search_completed',
 				array(
 					'query'       => $query,
 					'user_id'     => $user_id,
@@ -1151,7 +1165,10 @@ INSTRUCTIONS;
 			return $final;
 		}
 
-		// Execute each tool call and collect results.
+		// Execute each tool call and collect results in the registry's
+		// normalized shape — `{ call_id, output (json string) }`. The
+		// provider's `make_turn_input('tool_results', …)` reshapes them
+		// for the underlying API.
 		$tool_outputs = array();
 		foreach ( $function_calls as $fc ) {
 			$tool_name = $fc['name'] ?? '';
@@ -1159,7 +1176,6 @@ INSTRUCTIONS;
 
 			if ( ! in_array( $tool_name, $valid_tools, true ) ) {
 				$tool_outputs[] = array(
-					'type'    => 'function_call_output',
 					'call_id' => $call_id,
 					'output'  => wp_json_encode( array( 'error' => "Unknown tool '{$tool_name}'." ) ),
 				);
@@ -1172,13 +1188,13 @@ INSTRUCTIONS;
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
 			// Registered PHP-dispatched tool — handler lives in the
-			// plugin's `wp_register_desktop_ai_tool()` entry. Capability
+			// plugin's `desktop_mode_register_ai_tool()` entry. Capability
 			// was already checked at list-assembly time.
 			$is_registered = isset( $registered_by_name[ $tool_name ] );
 
 			$progress_msg = $is_registered
 				? ( (string) ( $registered_by_name[ $tool_name ]['progress_message'] ?? '' ) ?: 'Working…' )
-				: wpdm_ai_progress_message( $tool_name );
+				: desktop_mode_ai_progress_message( $tool_name );
 
 			$emit( array(
 				'phase'   => 'tool_call',
@@ -1187,7 +1203,7 @@ INSTRUCTIONS;
 			) );
 
 			do_action(
-				'wp_desktop_ai_tool_called',
+				'desktop_mode_ai_tool_called',
 				array(
 					'tool_name'  => $tool_name,
 					'args'       => $args,
@@ -1197,13 +1213,13 @@ INSTRUCTIONS;
 			);
 
 			if ( $is_registered ) {
-				$batch = wpdm_ai_invoke_registered_tool(
+				$batch = desktop_mode_ai_invoke_registered_tool(
 					$registered_by_name[ $tool_name ],
 					$args,
 					$user_id
 				);
 			} else {
-				$batch = wpdm_ai_search_dispatch_tool( $tool_name, $args );
+				$batch = desktop_mode_ai_search_dispatch_tool( $tool_name, $args );
 				$last_tool     = $tool_name;
 				$last_offset   = $offset;
 				$last_has_more = (bool) ( $batch['has_more'] ?? false );
@@ -1221,7 +1237,7 @@ INSTRUCTIONS;
 			 * @param array  $context   { user_id, request_id }.
 			 */
 			$batch = (array) apply_filters(
-				'wp_desktop_ai_tool_result',
+				'desktop_mode_ai_tool_result',
 				$batch,
 				$tool_name,
 				$args,
@@ -1229,7 +1245,6 @@ INSTRUCTIONS;
 			);
 
 			$tool_outputs[] = array(
-				'type'    => 'function_call_output',
 				'call_id' => $call_id,
 				'output'  => wp_json_encode( $batch ),
 			);
@@ -1237,22 +1252,30 @@ INSTRUCTIONS;
 
 		$iterations++;
 
-		// Next turn — only send the tool results; OpenAI reconstructs
-		// the full context via previous_response_id.
-		$response = wpdm_ai_openai_responses_call(
+		// Next turn — only send the tool results. Providers that support
+		// server-side context chaining (OpenAI's previous_response_id)
+		// use the opaque $state we threaded through; others can read
+		// the tool results and append them to whatever history they keep.
+		$turn_input = desktop_mode_ai_provider_make_turn_input( $user_id, 'tool_results', $tool_outputs );
+		if ( is_wp_error( $turn_input ) ) {
+			return $turn_input;
+		}
+
+		$turn = desktop_mode_ai_provider_agentic_call(
+			$user_id,
 			$api_key,
-			$tool_outputs,
+			$turn_input,
 			$tools,
 			$text_format,
 			'',
-			$previous_id
+			$state
 		);
 
-		if ( is_wp_error( $response ) ) {
-			return $response;
+		if ( is_wp_error( $turn ) ) {
+			return $turn;
 		}
 
-		$previous_id = $response['id'] ?? $previous_id;
+		$state = $turn['next_state'] ?? $state;
 	}
 
 	// -----------------------------------------------------------------------
@@ -1260,7 +1283,7 @@ INSTRUCTIONS;
 	// -----------------------------------------------------------------------
 	$continue = null;
 	if ( $last_has_more ) {
-		$next_offset = $last_offset + WPDM_AI_SEARCH_BATCH_SIZE;
+		$next_offset = $last_offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE;
 		$type_label  = str_replace( 'search_', '', $last_tool ) . 's';
 		$continue    = array(
 			'tool'        => $last_tool,
@@ -1275,26 +1298,26 @@ INSTRUCTIONS;
 		'message'     => 'I searched 100 items without finding a clear match. Want me to keep looking further?',
 		'entity'      => null,
 		'admin_links' => null,
-		'iterations'  => WPDM_AI_SEARCH_MAX_ITERATIONS,
+		'iterations'  => DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS,
 		'exhausted'   => ! $last_has_more,
 		'continue'    => $continue,
 		'request_id'  => $request_id,
 	);
 
 	$final = (array) apply_filters(
-		'wp_desktop_ai_answer',
+		'desktop_mode_ai_answer',
 		$final,
 		array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
 	);
 
 	do_action(
-		'wp_desktop_ai_search_completed',
+		'desktop_mode_ai_search_completed',
 		array(
 			'query'       => $query,
 			'user_id'     => $user_id,
 			'request_id'  => $request_id,
 			'answer_type' => 'chat',
-			'iterations'  => WPDM_AI_SEARCH_MAX_ITERATIONS,
+			'iterations'  => DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS,
 		)
 	);
 
@@ -1309,14 +1332,14 @@ INSTRUCTIONS;
  * bug where the two paths's prompt-assembly drifts apart.
  *
  * Applies three layers in order:
- *   1. `wp_desktop_ai_system_prompt_appendix` — stacking filter;
+ *   1. `desktop_mode_ai_system_prompt_appendix` — stacking filter;
  *      every plugin's return is concatenated.
  *   2. Client override — `system_prompt_text` + `system_prompt_mode`.
  *      `append` always allowed; `replace` gated on
- *      `wp_desktop_ai_system_prompt_replace_capability`. Non-permitted
+ *      `desktop_mode_ai_system_prompt_replace_capability`. Non-permitted
  *      `replace` downgrades to `append` so the caller's text is
  *      preserved rather than dropped.
- *   3. `wp_desktop_ai_system_prompt` — final transform pass.
+ *   3. `desktop_mode_ai_system_prompt` — final transform pass.
  *
  * @since 0.17.0
  * @internal
@@ -1328,7 +1351,7 @@ INSTRUCTIONS;
  *                        empty means no override.
  * @return string Composed system prompt.
  */
-function wpdm_ai_compose_instructions( $core, array $context, array $client = array() ) {
+function desktop_mode_ai_compose_instructions( $core, array $context, array $client = array() ) {
 	$instructions = (string) $core;
 	$user_id      = isset( $context['user_id'] ) ? (int) $context['user_id'] : 0;
 
@@ -1340,17 +1363,17 @@ function wpdm_ai_compose_instructions( $core, array $context, array $client = ar
 	$ctx_for_filter = $context;
 	$ctx_for_filter['client_override'] = '' !== $client_text ? $client_mode : null;
 
-	/** @see wp_desktop_ai_system_prompt_appendix — documented at primary call site. */
-	$server_appendix = (string) apply_filters( 'wp_desktop_ai_system_prompt_appendix', '', $ctx_for_filter );
+	/** @see desktop_mode_ai_system_prompt_appendix — documented at primary call site. */
+	$server_appendix = (string) apply_filters( 'desktop_mode_ai_system_prompt_appendix', '', $ctx_for_filter );
 	if ( '' !== $server_appendix ) {
 		$instructions .= "\n\n" . $server_appendix;
 	}
 
 	if ( '' !== $client_text ) {
 		if ( 'replace' === $client_mode ) {
-			/** @see wp_desktop_ai_system_prompt_replace_capability — documented at primary call site. */
+			/** @see desktop_mode_ai_system_prompt_replace_capability — documented at primary call site. */
 			$required_cap = (string) apply_filters(
-				'wp_desktop_ai_system_prompt_replace_capability',
+				'desktop_mode_ai_system_prompt_replace_capability',
 				'manage_options',
 				$ctx_for_filter
 			);
@@ -1366,8 +1389,8 @@ function wpdm_ai_compose_instructions( $core, array $context, array $client = ar
 		}
 	}
 
-	/** @see wp_desktop_ai_system_prompt — documented at primary call site. */
-	return (string) apply_filters( 'wp_desktop_ai_system_prompt', $instructions, $ctx_for_filter );
+	/** @see desktop_mode_ai_system_prompt — documented at primary call site. */
+	return (string) apply_filters( 'desktop_mode_ai_system_prompt', $instructions, $ctx_for_filter );
 }
 
 /**
@@ -1382,7 +1405,7 @@ function wpdm_ai_compose_instructions( $core, array $context, array $client = ar
  * sees the original query + a summary of what happened and writes a
  * one/two-sentence reply in the voice of the system prompt. We reuse
  * the same system-prompt pipeline as the main search so plugins
- * appending instructions via `wp_desktop_ai_system_prompt_appendix`
+ * appending instructions via `desktop_mode_ai_system_prompt_appendix`
  * see consistent voice across the two legs.
  *
  * @since 0.17.0
@@ -1393,19 +1416,19 @@ function wpdm_ai_compose_instructions( $core, array $context, array $client = ar
  * @param array  $outcome   Tool result payload. Opaque — JSON-encoded
  *                          into the model's context so it can reason
  *                          about whatever shape the plugin returned.
- * @param array  $extra     Same shape as `wpdm_ai_run_search`'s
+ * @param array  $extra     Same shape as `desktop_mode_ai_run_search`'s
  *                          `$extra` — carries user_id, request_id,
  *                          system-prompt overrides.
  * @return array|WP_Error   `{ answer_type: 'chat', message, … }` or error.
  */
-function wpdm_ai_run_followup( $api_key, $query, array $tool, array $outcome, array $extra = array() ) {
+function desktop_mode_ai_run_followup( $api_key, $query, array $tool, array $outcome, array $extra = array() ) {
 	$user_id    = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
 	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
 		? (string) $extra['request_id']
-		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'wpdm_ai_', true ) );
+		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'desktop_mode_ai_', true ) );
 
 	do_action(
-		'wp_desktop_ai_search_started',
+		'desktop_mode_ai_search_started',
 		array(
 			'query'      => $query,
 			'user_id'    => $user_id,
@@ -1417,24 +1440,24 @@ function wpdm_ai_run_followup( $api_key, $query, array $tool, array $outcome, ar
 	// Mirror the main search's system-prompt layering so voice stays
 	// consistent between the two legs. We build a simpler core-
 	// instructions block — no tool guidance, since this run has none.
-	$instructions = <<<INSTRUCTIONS
+	$instructions = "
 You are the same friendly WordPress assistant that just dispatched a command on behalf of the user. You now have the result of that command.
 
 Write a SHORT reply (one or two sentences, first person, warm and conversational) describing what happened. Match the voice the site owner set in their system prompt — do not restart small talk, just confirm what you did.
 
 Rules:
-- If the outcome looks successful, confirm plainly. Example: "Done — your office light is on now."
+- If the outcome looks successful, confirm plainly. Example: \"Done — your office light is on now.\"
 - If the outcome looks like an error (has an `error` field, a failure message, or obviously negative content), apologise briefly and paraphrase what went wrong. Do not invent details the outcome did not include.
 - Do NOT recommend the user try something else unless the outcome explicitly suggests it.
-- Do NOT describe the tool mechanism ("I called command_turn_light") — the user only cares about the real-world effect.
-INSTRUCTIONS;
+- Do NOT describe the tool mechanism (\"I called command_turn_light\") — the user only cares about the real-world effect.
+";
 
 	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
 	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
 		? (string) $extra['system_prompt_mode']
 		: 'append';
 
-	$instructions = wpdm_ai_compose_instructions(
+	$instructions = desktop_mode_ai_compose_instructions(
 		$instructions,
 		array(
 			'query'      => $query,
@@ -1463,7 +1486,7 @@ INSTRUCTIONS;
 	// that OpenAI would reject. Falls back to byte-level substr when
 	// mbstring is unavailable (rare but possible on minimal PHP
 	// builds).
-	$max_outcome_len = (int) apply_filters( 'wp_desktop_ai_followup_outcome_max_chars', 4000 );
+	$max_outcome_len = (int) apply_filters( 'desktop_mode_ai_followup_outcome_max_chars', 4000 );
 	if ( $max_outcome_len > 0 ) {
 		$has_mbstring = function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' );
 		$current_len  = $has_mbstring
@@ -1486,7 +1509,7 @@ INSTRUCTIONS;
 	);
 
 	do_action(
-		'wp_desktop_ai_tool_called',
+		'desktop_mode_ai_tool_called',
 		array(
 			'tool_name'  => 'followup_summarise',
 			'args'       => array( 'slug' => $slug, 'tool_args' => $tool_args ),
@@ -1495,30 +1518,37 @@ INSTRUCTIONS;
 		)
 	);
 
-	$response = wpdm_ai_openai_responses_call(
+	$turn_input = desktop_mode_ai_provider_make_turn_input( $user_id, 'user_message', $user_message );
+	if ( is_wp_error( $turn_input ) ) {
+		return $turn_input;
+	}
+
+	$turn = desktop_mode_ai_provider_agentic_call(
+		$user_id,
 		$api_key,
-		array( array( 'role' => 'user', 'content' => $user_message ) ),
-		array(),        // no tools — we want a plain reply
-		null,           // no JSON schema — free-form text
-		$instructions
+		$turn_input,
+		array(),  // no tools — we want a plain reply
+		null,     // no JSON schema — free-form text
+		$instructions,
+		null
 	);
 
-	if ( is_wp_error( $response ) ) {
+	if ( is_wp_error( $turn ) ) {
 		do_action(
-			'wp_desktop_ai_search_error',
+			'desktop_mode_ai_search_error',
 			array(
-				'code'       => $response->get_error_code(),
-				'message'    => $response->get_error_message(),
-				'data'       => $response->get_error_data(),
+				'code'       => $turn->get_error_code(),
+				'message'    => $turn->get_error_message(),
+				'data'       => $turn->get_error_data(),
 				'user_id'    => $user_id,
 				'request_id' => $request_id,
 				'phase'      => 'follow_up',
 			)
 		);
-		return $response;
+		return $turn;
 	}
 
-	$text     = wpdm_ai_extract_text( $response );
+	$text     = $turn['text'] ?? null;
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
 		// Graceful degrade — if OpenAI returned nothing usable, fall
@@ -1545,7 +1575,7 @@ INSTRUCTIONS;
 	);
 
 	$final = (array) apply_filters(
-		'wp_desktop_ai_answer',
+		'desktop_mode_ai_answer',
 		$final,
 		array(
 			'query'      => $query,
@@ -1556,7 +1586,7 @@ INSTRUCTIONS;
 	);
 
 	do_action(
-		'wp_desktop_ai_search_completed',
+		'desktop_mode_ai_search_completed',
 		array(
 			'query'       => $query,
 			'user_id'     => $user_id,
@@ -1580,14 +1610,14 @@ INSTRUCTIONS;
  *
  * @since 0.14.0
  */
-function wpdm_register_ai_search_rest_route() {
+function desktop_mode_register_ai_search_rest_route() {
 	register_rest_route(
 		'wp-desktop/v1',
 		'/ai/search',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'wpdm_rest_ai_search',
-			'permission_callback' => 'wpdm_rest_ai_search_permission',
+			'callback'            => 'desktop_mode_rest_ai_search',
+			'permission_callback' => 'desktop_mode_rest_ai_search_permission',
 			'args'                => array(
 				'query'        => array(
 					'required'          => true,
@@ -1638,7 +1668,7 @@ function wpdm_register_ai_search_rest_route() {
 				// Free-form system-prompt override.
 				//   mode: 'append' → concatenated onto the built-in prompt (safe for everyone)
 				//   mode: 'replace' → replaces the built-in prompt entirely, gated on
-				//                     `wp_desktop_ai_system_prompt_replace_capability`
+				//                     `desktop_mode_ai_system_prompt_replace_capability`
 				//                     (default `manage_options`).
 				'system_prompt_text' => array(
 					'required' => false,
@@ -1667,7 +1697,7 @@ function wpdm_register_ai_search_rest_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'wpdm_register_ai_search_rest_route' );
+add_action( 'rest_api_init', 'desktop_mode_register_ai_search_rest_route' );
 
 /**
  * Permission callback.
@@ -1676,17 +1706,17 @@ add_action( 'rest_api_init', 'wpdm_register_ai_search_rest_route' );
  *
  * @return bool|WP_Error
  */
-function wpdm_rest_ai_search_permission() {
+function desktop_mode_rest_ai_search_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
 		return new WP_Error(
-			'wpdm_ai_forbidden',
+			'desktop_mode_ai_forbidden',
 			'You must be logged in to use the AI search.',
 			array( 'status' => 403 )
 		);
 	}
-	if ( ! wpdm_ai_is_enabled( get_current_user_id() ) ) {
+	if ( ! desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
 		return new WP_Error(
-			'wpdm_ai_disabled',
+			'desktop_mode_ai_disabled',
 			'AI features are not enabled. Enable them in OS Settings → AI Settings.',
 			array( 'status' => 403 )
 		);
@@ -1702,9 +1732,9 @@ function wpdm_rest_ai_search_permission() {
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
-function wpdm_rest_ai_search( WP_REST_Request $request ) {
+function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 	$user_id      = get_current_user_id();
-	$api_key      = wpdm_ai_get_api_key( $user_id );
+	$api_key      = desktop_mode_ai_get_api_key( $user_id );
 	$query        = $request->get_param( 'query' );
 	$resume_tool  = $request->get_param( 'resume_tool' );
 	$start_offset = $request->get_param( 'start_offset' );
@@ -1716,7 +1746,7 @@ function wpdm_rest_ai_search( WP_REST_Request $request ) {
 
 	$extra = array(
 		'user_id'            => $user_id,
-		'request_id'         => function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'wpdm_ai_', true ),
+		'request_id'         => function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'desktop_mode_ai_', true ),
 		'command_tools'      => $command_tools,
 		'system_prompt_text' => (string) $request->get_param( 'system_prompt_text' ),
 		'system_prompt_mode' => (string) $request->get_param( 'system_prompt_mode' ),
@@ -1733,7 +1763,7 @@ function wpdm_rest_ai_search( WP_REST_Request $request ) {
 	 * @param array $core  Core request params { query, resume_tool, start_offset }.
 	 */
 	$extra = (array) apply_filters(
-		'wp_desktop_ai_request',
+		'desktop_mode_ai_request',
 		$extra,
 		array(
 			'query'        => $query,
@@ -1749,15 +1779,15 @@ function wpdm_rest_ai_search( WP_REST_Request $request ) {
 		$outcome = isset( $follow_up['result'] )
 			? ( is_array( $follow_up['result'] ) ? $follow_up['result'] : array( 'value' => $follow_up['result'] ) )
 			: array();
-		$result = wpdm_ai_run_followup( $api_key, $query, $tool, $outcome, $extra );
+		$result = desktop_mode_ai_run_followup( $api_key, $query, $tool, $outcome, $extra );
 	} else {
-		$result = wpdm_ai_run_search( $api_key, $query, $resume_tool, $start_offset, null, $extra );
+		$result = desktop_mode_ai_run_search( $api_key, $query, $resume_tool, $start_offset, null, $extra );
 	}
 
 	if ( is_wp_error( $result ) ) {
 		$request_id = isset( $extra['request_id'] ) ? (string) $extra['request_id'] : '';
 		do_action(
-			'wp_desktop_ai_search_error',
+			'desktop_mode_ai_search_error',
 			array(
 				'code'       => $result->get_error_code(),
 				'message'    => $result->get_error_message(),
@@ -1786,7 +1816,7 @@ function wpdm_rest_ai_search( WP_REST_Request $request ) {
  * @param string $query Search terms.
  * @return array Tool result payload ready for the model.
  */
-function wpdm_ai_fetch_wporg_plugins( $query ) {
+function desktop_mode_ai_fetch_wporg_plugins( $query ) {
 	$query = trim( (string) $query );
 	if ( $query === '' ) {
 		return array(
@@ -1800,7 +1830,7 @@ function wpdm_ai_fetch_wporg_plugins( $query ) {
 
 	// Transient cache to protect the w.org API from repeated queries
 	// within the same conversation.
-	$cache_key = 'wpdm_ai_plugins_' . md5( strtolower( $query ) );
+	$cache_key = 'desktop_mode_ai_plugins_' . md5( strtolower( $query ) );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
 		return $cached;
@@ -1932,7 +1962,7 @@ function wpdm_ai_fetch_wporg_plugins( $query ) {
  * @param int $lines Number of lines to return (clamped 1-500 by caller).
  * @return array
  */
-function wpdm_ai_fetch_error_log( $lines = 50 ) {
+function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
 	$candidates = array();
 	if ( defined( 'WP_CONTENT_DIR' ) ) {
 		$candidates[] = WP_CONTENT_DIR . '/debug.log';
@@ -1950,7 +1980,7 @@ function wpdm_ai_fetch_error_log( $lines = 50 ) {
 	 *
 	 * @param string[] $candidates File paths, in probe order.
 	 */
-	$candidates = (array) apply_filters( 'wp_desktop_ai_error_log_candidates', $candidates );
+	$candidates = (array) apply_filters( 'desktop_mode_ai_error_log_candidates', $candidates );
 
 	$log_path = '';
 	foreach ( $candidates as $path ) {
@@ -1971,7 +2001,7 @@ function wpdm_ai_fetch_error_log( $lines = 50 ) {
 		);
 	}
 
-	$tail = wpdm_ai_tail_file( $log_path, $lines );
+	$tail = desktop_mode_ai_tail_file( $log_path, $lines );
 
 	$entries = array();
 	foreach ( $tail as $line ) {
@@ -1979,7 +2009,7 @@ function wpdm_ai_fetch_error_log( $lines = 50 ) {
 		if ( $line === '' ) {
 			continue;
 		}
-		$entries[] = wpdm_ai_parse_log_line( $line );
+		$entries[] = desktop_mode_ai_parse_log_line( $line );
 	}
 
 	return array(
@@ -2003,7 +2033,7 @@ function wpdm_ai_fetch_error_log( $lines = 50 ) {
  * @param string $line
  * @return array
  */
-function wpdm_ai_parse_log_line( $line ) {
+function desktop_mode_ai_parse_log_line( $line ) {
 	// Cap individual messages so a runaway stack trace doesn't balloon
 	// the payload sent to OpenAI.
 	$line = mb_substr( $line, 0, 600 );
@@ -2029,9 +2059,11 @@ function wpdm_ai_parse_log_line( $line ) {
 }
 
 /**
- * Return the last $lines of a file without loading the whole file
- * into memory. Reads backwards from EOF in 4 KB chunks until it has
- * enough newlines. Safe for log files that grow to tens of megabytes.
+ * Return the last $lines of a file. Loads the file via WP_Filesystem
+ * (the only file-read API allowed for wp.org-hosted plugins) and
+ * slices off the trailing N+1 entries. Realistic error logs sit
+ * in the kilobyte range when admins look at them; if a site routinely
+ * lets logs grow into tens of MB, that's the symptom, not this read.
  *
  * @since 0.14.0
  *
@@ -2039,34 +2071,26 @@ function wpdm_ai_parse_log_line( $line ) {
  * @param int    $lines
  * @return string[] Lines in original order (oldest first).
  */
-function wpdm_ai_tail_file( $path, $lines ) {
-	$size = @filesize( $path );
-	if ( ! $size ) {
+function desktop_mode_ai_tail_file( $path, $lines ) {
+	if ( ! function_exists( 'WP_Filesystem' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+	WP_Filesystem();
+	global $wp_filesystem;
+	if ( ! $wp_filesystem || ! $wp_filesystem->exists( $path ) ) {
 		return array();
 	}
 
-	$fp = @fopen( $path, 'r' );
-	if ( ! $fp ) {
+	$contents = $wp_filesystem->get_contents( $path );
+	if ( false === $contents || '' === $contents ) {
 		return array();
 	}
 
-	$chunk_size = 4096;
-	$pos        = $size;
-	$buffer     = '';
-	$line_count = 0;
-
-	while ( $pos > 0 && $line_count <= $lines ) {
-		$read = min( $chunk_size, $pos );
-		$pos -= $read;
-		fseek( $fp, $pos );
-		$chunk  = fread( $fp, $read );
-		$buffer = $chunk . $buffer;
-		$line_count = substr_count( $buffer, "\n" );
+	$all = preg_split( '/\r?\n/', $contents );
+	if ( ! is_array( $all ) ) {
+		return array();
 	}
 
-	fclose( $fp );
-
-	$all = preg_split( '/\r?\n/', $buffer );
 	return array_slice( $all, -1 * ( $lines + 1 ) );
 }
 
@@ -2082,7 +2106,7 @@ function wpdm_ai_tail_file( $path, $lines ) {
 /**
  * admin-ajax handler for the streaming search endpoint.
  *
- * URL: /wp-admin/admin-ajax.php?action=wpdm_ai_search_stream
+ * URL: /wp-admin/admin-ajax.php?action=desktop_mode_ai_search_stream
  *   &nonce=<rest_nonce>
  *   &query=<user question>
  *   &resume_tool=<search_posts|…>   (optional)
@@ -2095,7 +2119,7 @@ function wpdm_ai_tail_file( $path, $lines ) {
  *
  * @since 0.14.0
  */
-function wpdm_ai_ajax_search_stream() {
+function desktop_mode_ai_ajax_search_stream() {
 	$nonce = isset( $_GET['nonce'] ) ? (string) $_GET['nonce'] : ''; // phpcs:ignore WordPress.Security
 	if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 		status_header( 403 );
@@ -2106,7 +2130,7 @@ function wpdm_ai_ajax_search_stream() {
 		exit;
 	}
 	$user_id = get_current_user_id();
-	if ( ! wpdm_ai_is_enabled( $user_id ) ) {
+	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		status_header( 403 );
 		exit;
 	}
@@ -2154,9 +2178,9 @@ function wpdm_ai_ajax_search_stream() {
 	// start showing "Thinking…" without waiting for the first OpenAI call.
 	$emit( array( 'event' => 'open' ) );
 
-	$api_key = wpdm_ai_get_api_key( $user_id );
+	$api_key = desktop_mode_ai_get_api_key( $user_id );
 
-	$result = wpdm_ai_run_search(
+	$result = desktop_mode_ai_run_search(
 		$api_key,
 		$query,
 		$resume_tool,
@@ -2181,4 +2205,4 @@ function wpdm_ai_ajax_search_stream() {
 
 	exit;
 }
-add_action( 'wp_ajax_wpdm_ai_search_stream', 'wpdm_ai_ajax_search_stream' );
+add_action( 'wp_ajax_wpdm_ai_search_stream', 'desktop_mode_ai_ajax_search_stream' );

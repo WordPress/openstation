@@ -40,9 +40,9 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		delete_user_meta( self::$admin_id, 'wp_desktop_mode' );
-		remove_all_filters( 'wp_desktop_shell_config' );
-		remove_all_filters( 'wp_desktop_arrange_menu_items' );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+		remove_all_filters( 'desktop_mode_shell_config' );
+		remove_all_filters( 'desktop_mode_arrange_menu_items' );
 		unset( $_GET['wp_desktop'] );
 		parent::tear_down();
 	}
@@ -52,12 +52,12 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 */
 	private function build_admin_bar() {
 		$admin_bar = new WP_Admin_Bar();
-		wpdm_admin_bar_toggle( $admin_bar );
+		desktop_mode_admin_bar_toggle( $admin_bar );
 		return $admin_bar;
 	}
 
 	/**
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_toggle_is_added_for_admin_in_admin() {
 		wp_set_current_user( self::$admin_id );
@@ -69,7 +69,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_toggle_is_not_added_for_logged_out_user() {
 		wp_set_current_user( 0 );
@@ -82,7 +82,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * the admin bar is used by logged-in users too, but the desktop mode
 	 * toggle is admin-only.
 	 *
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_toggle_is_not_added_on_front_end() {
 		wp_set_current_user( self::$admin_id );
@@ -92,11 +92,11 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_toggle_title_switches_when_desktop_mode_is_active() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$bar  = $this->build_admin_bar();
 		$node = $bar->get_node( 'desktop-mode-toggle' );
 
@@ -105,7 +105,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_toggle_title_advertises_desktop_mode_when_inactive() {
 		wp_set_current_user( self::$admin_id );
@@ -121,7 +121,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * so it runs before the secondary groups render. Registration happens
 	 * inside WP_Admin_Bar::add_menus(), so we need to build the bar first.
 	 *
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_toggle_is_registered_on_admin_bar_menu_action() {
 		wp_set_current_user( self::$admin_id );
@@ -130,17 +130,17 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		$this->assertSame(
 			190,
-			has_action( 'admin_bar_menu', 'wpdm_admin_bar_toggle' )
+			has_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle' )
 		);
 	}
 
 	/**
-	 * @covers ::wpdm_enqueue_toggle_assets
+	 * @covers ::desktop_mode_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_are_added_to_admin_bar_style() {
 		wp_set_current_user( self::$admin_id );
 
-		wpdm_enqueue_toggle_assets();
+		desktop_mode_enqueue_toggle_assets();
 
 		$after  = wp_styles()->get_data( 'admin-bar', 'after' );
 		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
@@ -148,53 +148,60 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_enqueue_toggle_assets
+	 * The save-desktop-mode nonce must be reachable from the toggle's
+	 * click handler. Today the config is delivered via wp_localize_script
+	 * on the `wpdm-admin-bar` handle, so we assert the nonce that
+	 * lands in that script's `data` matches wp_create_nonce( 'save-desktop-mode' ).
+	 *
+	 * @covers ::desktop_mode_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_nonce_is_baked_into_inline_script() {
 		wp_set_current_user( self::$admin_id );
 
-		wpdm_enqueue_toggle_assets();
+		desktop_mode_enqueue_toggle_assets();
 
-		$after  = wp_scripts()->get_data( 'admin-bar', 'after' );
-		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
-		$this->assertStringContainsString( 'save-desktop-mode', $inline );
+		$before = wp_scripts()->get_data( 'wpdm-admin-bar', 'before' );
+		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
+		$expected_nonce = wp_create_nonce( 'save-desktop-mode' );
+		$this->assertStringContainsString( '"nonce":"' . $expected_nonce . '"', $data );
 	}
 
 	/**
 	 * The click handler's config must be emitted as a JSON literal, not
 	 * string-interpolated. That way a weird nonce, URL, or filter return
-	 * value can never break out of its quotes and inject script. This test
-	 * asserts the JSON property shape is present (e.g. `"nonce":"..."`)
-	 * rather than raw `var nonce = '...'` interpolation.
+	 * value can never break out of its quotes and inject script.
+	 * wp_localize_script JSON-encodes its argument by definition; this
+	 * test asserts the expected JSON shape lands on the wpdm-admin-bar
+	 * handle so the contract is held end-to-end.
 	 *
-	 * @covers ::wpdm_enqueue_toggle_assets
+	 * @covers ::desktop_mode_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_config_is_json_encoded() {
 		wp_set_current_user( self::$admin_id );
 
-		wpdm_enqueue_toggle_assets();
+		desktop_mode_enqueue_toggle_assets();
 
-		$after  = wp_scripts()->get_data( 'admin-bar', 'after' );
-		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
+		$before = wp_scripts()->get_data( 'wpdm-admin-bar', 'before' );
+		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
 
 		// JSON-shaped properties for every value we inject.
-		$this->assertMatchesRegularExpression( '/"nonce":"[a-f0-9]+"/', $inline );
-		$this->assertMatchesRegularExpression( '/"active":(true|false)/', $inline );
-		$this->assertStringContainsString( '"classicUrl":"', $inline );
-		$this->assertStringContainsString( '"portalUrl":"', $inline );
-		$this->assertStringContainsString( '"ajaxUrl":"', $inline );
+		$this->assertMatchesRegularExpression( '/"nonce":"[a-f0-9]+"/', $data );
+		$this->assertMatchesRegularExpression( '/"active":(true|false)/', $data );
+		$this->assertStringContainsString( '"classicUrl":"', $data );
+		$this->assertStringContainsString( '"portalUrl":"', $data );
+		$this->assertStringContainsString( '"ajaxUrl":"', $data );
 	}
 
 	/**
 	 * The function exits early for logged-out users. We verify that by
 	 * checking the toggle-specific selector is NOT in the inline CSS.
 	 *
-	 * @covers ::wpdm_enqueue_toggle_assets
+	 * @covers ::desktop_mode_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_skipped_for_logged_out_user() {
 		wp_set_current_user( 0 );
 
-		wpdm_enqueue_toggle_assets();
+		desktop_mode_enqueue_toggle_assets();
 
 		$after  = wp_styles()->get_data( 'admin-bar', 'after' );
 		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
@@ -202,25 +209,25 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_enqueue_assets
+	 * @covers ::desktop_mode_enqueue_assets
 	 */
 	public function test_desktop_mode_assets_not_enqueued_when_mode_off() {
 		wp_set_current_user( self::$admin_id );
 
-		wpdm_enqueue_assets();
+		desktop_mode_enqueue_assets();
 
 		$this->assertFalse( wp_style_is( 'wp-desktop', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'wp-desktop', 'enqueued' ) );
 	}
 
 	/**
-	 * @covers ::wpdm_enqueue_assets
+	 * @covers ::desktop_mode_enqueue_assets
 	 */
 	public function test_desktop_mode_assets_enqueued_when_mode_on() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
-		wpdm_enqueue_assets();
+		desktop_mode_enqueue_assets();
 
 		$this->assertTrue( wp_style_is( 'wp-desktop', 'enqueued' ) );
 		$this->assertTrue( wp_style_is( 'wp-desktop-windows', 'enqueued' ) );
@@ -232,14 +239,14 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * Chromeless requests must get the chromeless stylesheet but NOT the
 	 * full shell assets — the shell lives in the parent frame.
 	 *
-	 * @covers ::wpdm_enqueue_assets
+	 * @covers ::desktop_mode_enqueue_assets
 	 */
 	public function test_chromeless_request_enqueues_chromeless_style_only() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['wp_desktop'] = '1';
 
-		wpdm_enqueue_assets();
+		desktop_mode_enqueue_assets();
 
 		$this->assertTrue( wp_style_is( 'wp-desktop-chromeless', 'enqueued' ) );
 		$this->assertFalse( wp_style_is( 'wp-desktop-windows', 'enqueued' ) );
@@ -248,13 +255,13 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_enqueue_assets
+	 * @covers ::desktop_mode_enqueue_assets
 	 */
 	public function test_desktop_mode_assets_localize_shell_config() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
-		wpdm_enqueue_assets();
+		desktop_mode_enqueue_assets();
 
 		$data = wp_scripts()->get_data( 'wp-desktop', 'data' );
 		$this->assertNotEmpty( $data );
@@ -263,31 +270,31 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_enqueue_assets
+	 * @covers ::desktop_mode_enqueue_assets
 	 */
 	public function test_shell_config_filter_can_replace_entire_config() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'wp_desktop_shell_config',
+			'desktop_mode_shell_config',
 			function () {
 				return array( 'currentTitle' => 'Filtered Title' );
 			}
 		);
 
-		wpdm_enqueue_assets();
+		desktop_mode_enqueue_assets();
 
 		$data = (string) wp_scripts()->get_data( 'wp-desktop', 'data' );
 		$this->assertStringContainsString( 'Filtered Title', $data );
 	}
 
 	/**
-	 * @covers ::wpdm_enqueue_assets
+	 * @covers ::desktop_mode_enqueue_assets
 	 */
 	public function test_default_filters_wire_enqueue_callbacks_to_admin_enqueue_scripts() {
-		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'wpdm_enqueue_toggle_assets' ) );
-		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'wpdm_enqueue_assets' ) );
+		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_toggle_assets' ) );
+		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' ) );
 	}
 
 	/**
@@ -295,11 +302,11 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * mode is active. Only validates presence + parenting; each item's
 	 * click wiring lives in the inline JS under the toggle assets.
 	 *
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_arrange_menu_has_builtins_when_active() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$bar = $this->build_admin_bar();
 
 		$this->assertNotNull( $bar->get_node( 'desktop-layout-menu' ) );
@@ -312,19 +319,19 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 	/**
 	 * Plugins add entries to the Arrange submenu via the
-	 * `wp_desktop_arrange_menu_items` filter. Each entry becomes an
+	 * `desktop_mode_arrange_menu_items` filter. Each entry becomes an
 	 * admin-bar node under `desktop-layout-menu` with id prefixed by
 	 * `desktop-layout-custom-` — the inline JS routes its click to
 	 * `wp-desktop.arrange.custom-action` with the original slug.
 	 *
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_arrange_menu_appends_custom_items_from_filter() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'wp_desktop_arrange_menu_items',
+			'desktop_mode_arrange_menu_items',
 			function ( $items ) {
 				$items[] = array(
 					'id'          => 'diagonal',
@@ -348,14 +355,14 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * Entries missing `id` or `title` are silently dropped — plugins
 	 * can't accidentally create an unrouteable menu item.
 	 *
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_arrange_menu_drops_invalid_custom_items() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'wp_desktop_arrange_menu_items',
+			'desktop_mode_arrange_menu_items',
 			function ( $items ) {
 				$items[] = array( 'title' => 'No ID' );
 				$items[] = array( 'id' => 'no-title' );
@@ -375,14 +382,14 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	/**
 	 * `position` sorts custom items; ties preserve registration order.
 	 *
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_arrange_menu_sorts_custom_items_by_position() {
 		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'wp_desktop_mode', '1' );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'wp_desktop_arrange_menu_items',
+			'desktop_mode_arrange_menu_items',
 			function ( $items ) {
 				$items[] = array( 'id' => 'late',  'title' => 'Late',  'position' => 50 );
 				$items[] = array( 'id' => 'early', 'title' => 'Early', 'position' => 5 );
@@ -418,14 +425,14 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * i.e., the user is viewing the desktop shell. On classic admin
 	 * the filter is never invoked so plugins don't waste cycles.
 	 *
-	 * @covers ::wpdm_admin_bar_toggle
+	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
 	public function test_arrange_menu_filter_not_invoked_in_classic_admin() {
 		wp_set_current_user( self::$admin_id );
 		// Default: desktop meta off → classic admin.
 		$invocations = 0;
 		add_filter(
-			'wp_desktop_arrange_menu_items',
+			'desktop_mode_arrange_menu_items',
 			function ( $items ) use ( &$invocations ) {
 				$invocations++;
 				return $items;
@@ -438,28 +445,20 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The inline JS click router must know how to recognise a
-	 * plugin-registered item. We assert the `wp-admin-bar-desktop-layout-custom-`
-	 * prefix check + the `wp-desktop.arrange.custom-action` dispatch are
-	 * both baked into the admin-bar script.
-	 *
-	 * @covers ::wpdm_enqueue_toggle_assets
+	 * The shipped click router must know how to recognise a
+	 * plugin-registered item. The router lives in
+	 * `assets/js/admin-bar.js` (extracted from inline PHP for wp.org
+	 * compliance). We assert the prefix check + custom-action dispatch
+	 * are both present in that file.
 	 */
 	public function test_toggle_assets_route_custom_arrange_items() {
-		wp_set_current_user( self::$admin_id );
+		$js_path = dirname( __DIR__, 3 ) . '/assets/js/admin-bar.js';
+		$this->assertFileExists( $js_path );
 
-		wpdm_enqueue_toggle_assets();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- test-only file read.
+		$js = (string) file_get_contents( $js_path );
 
-		$after  = wp_scripts()->get_data( 'admin-bar', 'after' );
-		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
-
-		$this->assertStringContainsString(
-			'wp-admin-bar-desktop-layout-custom-',
-			$inline
-		);
-		$this->assertStringContainsString(
-			'wp-desktop.arrange.custom-action',
-			$inline
-		);
+		$this->assertStringContainsString( 'wp-admin-bar-desktop-layout-custom-', $js );
+		$this->assertStringContainsString( 'wp-desktop.arrange.custom-action', $js );
 	}
 }

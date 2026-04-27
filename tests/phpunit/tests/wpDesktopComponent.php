@@ -1,7 +1,7 @@
 
 <?php
 /**
- * Tests for `wp_desktop_component()` — the helper that plugin
+ * Tests for `desktop_mode_component()` — the helper that plugin
  * authors use from PHP to emit safely-escaped `<wpd-*>` markup,
  * including the `style => [...]` array form for inline styles.
  *
@@ -19,7 +19,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	 */
 	private function render( $tag, $attrs = array(), $content = '' ) {
 		ob_start();
-		wp_desktop_component( $tag, $attrs, $content );
+		desktop_mode_component( $tag, $attrs, $content );
 		return (string) ob_get_clean();
 	}
 
@@ -28,7 +28,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	// ---------------------------------------------------------------
 
 	/**
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_style_array_serializes_to_inline_declarations() {
 		$html = $this->render( 'wpd-stack', array(
@@ -52,7 +52,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	 * passes through unit-less because `0` is dimensionally valid on
 	 * every CSS property.
 	 *
-	 * @covers ::wpdm_format_css_value
+	 * @covers ::desktop_mode_format_css_value
 	 */
 	public function test_style_array_auto_units_length_properties() {
 		$html = $this->render( 'wpd-stack', array(
@@ -76,7 +76,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_style_array_with_unit_strings_passes_through() {
 		$html = $this->render( 'wpd-stack', array(
@@ -92,7 +92,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_style_string_value_still_works() {
 		$html = $this->render( 'wpd-stack', array(
@@ -109,7 +109,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	 * injection attempts) are dropped silently. The rest of the
 	 * declarations still render.
 	 *
-	 * @covers ::wpdm_serialize_style_array
+	 * @covers ::desktop_mode_serialize_style_array
 	 */
 	public function test_style_array_drops_malformed_property_names() {
 		$html = $this->render( 'wpd-stack', array(
@@ -129,7 +129,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	 * Null / false values on individual style entries are dropped.
 	 * Useful for conditional styling: `'padding' => $dense ? 0 : null`.
 	 *
-	 * @covers ::wpdm_serialize_style_array
+	 * @covers ::desktop_mode_serialize_style_array
 	 */
 	public function test_style_array_drops_null_and_false_values() {
 		$html = $this->render( 'wpd-stack', array(
@@ -150,7 +150,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	 * Empty style array produces no `style` attribute at all —
 	 * avoids a dangling `style=""` in the rendered HTML.
 	 *
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_empty_style_array_produces_no_attribute() {
 		$html = $this->render( 'wpd-stack', array(
@@ -168,7 +168,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	 * escaped value (`onclick=&quot;…&quot;`), but the quote
 	 * escaping prevents it from becoming a new attribute.
 	 *
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_style_array_output_is_escaped() {
 		$html = $this->render( 'wpd-stack', array(
@@ -190,7 +190,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	// ---------------------------------------------------------------
 
 	/**
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_boolean_attribute_renders_bare() {
 		$html = $this->render( 'wpd-stack', array(
@@ -200,7 +200,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_numeric_zero_value_renders_as_padding_0() {
 		// The developer's original repro case — integer 0 as a
@@ -213,7 +213,7 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wp_desktop_component
+	 * @covers ::desktop_mode_component
 	 */
 	public function test_content_is_echoed_verbatim() {
 		$html = $this->render( 'wpd-stack', array(), '<p>inner</p>' );
@@ -221,16 +221,16 @@ class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_format_css_value
+	 * @covers ::desktop_mode_format_css_value
 	 */
 	public function test_format_css_value_handles_edge_values() {
-		$this->assertSame( '', wpdm_format_css_value( 'padding', null ) );
-		$this->assertSame( '', wpdm_format_css_value( 'padding', false ) );
-		$this->assertSame( '', wpdm_format_css_value( 'padding', '' ) );
-		$this->assertSame( '', wpdm_format_css_value( 'padding', '  ' ) );
-		$this->assertSame( '12px', wpdm_format_css_value( 'padding', 12 ) );
-		$this->assertSame( '12px', wpdm_format_css_value( 'padding', '12' ) );
-		$this->assertSame( '1.5', wpdm_format_css_value( 'opacity', 1.5 ) );
-		$this->assertSame( '0', wpdm_format_css_value( 'padding', 0 ) );
+		$this->assertSame( '', desktop_mode_format_css_value( 'padding', null ) );
+		$this->assertSame( '', desktop_mode_format_css_value( 'padding', false ) );
+		$this->assertSame( '', desktop_mode_format_css_value( 'padding', '' ) );
+		$this->assertSame( '', desktop_mode_format_css_value( 'padding', '  ' ) );
+		$this->assertSame( '12px', desktop_mode_format_css_value( 'padding', 12 ) );
+		$this->assertSame( '12px', desktop_mode_format_css_value( 'padding', '12' ) );
+		$this->assertSame( '1.5', desktop_mode_format_css_value( 'opacity', 1.5 ) );
+		$this->assertSame( '0', desktop_mode_format_css_value( 'padding', 0 ) );
 	}
 }

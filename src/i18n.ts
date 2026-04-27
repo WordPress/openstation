@@ -10,7 +10,7 @@
  *
  * Every user-facing string in our TypeScript should go through
  * `__()` / `_x()` / `_n()` here rather than being hard-coded. The
- * functions DEFAULT the text domain to `'wp-desktop-mode'` so
+ * functions DEFAULT the text domain to `'desktop-mode'` so
  * callers write `__( 'Add widget' )` and don't have to repeat the
  * domain on every call.
  *
@@ -24,7 +24,7 @@
 /* eslint-disable @wordpress/i18n-text-domain, @wordpress/i18n-no-variables */
 
 /** Plugin-wide text domain. Kept as a const so typos become TS errors. */
-export const TEXT_DOMAIN = 'wp-desktop-mode';
+export const TEXT_DOMAIN = 'desktop-mode';
 
 /**
  * Structural type for the slice of `@wordpress/i18n` we actually

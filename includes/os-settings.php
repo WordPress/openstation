@@ -15,13 +15,21 @@
 defined( 'ABSPATH' ) || exit;
 
 /** User meta key for OS Settings. */
-const WPDM_OS_SETTINGS_META_KEY = 'wp_desktop_os_settings';
+const DESKTOP_MODE_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 
 /** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */
-const WPDM_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
+const DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
 
-/** Valid AI provider IDs — mirrors the TS `AI_PROVIDERS` constant. */
-const WPDM_OS_SETTINGS_AI_PROVIDERS = array( 'openai' );
+/**
+ * Built-in AI provider IDs.
+ *
+ * Other providers register themselves via {@see desktop_mode_register_ai_provider()};
+ * sanitization no longer gates the field against this list (the active-provider
+ * resolver does the existence check at lookup time).
+ *
+ * @deprecated 0.18.0 Kept for backwards compatibility; use the provider registry.
+ */
+const DESKTOP_MODE_OS_SETTINGS_AI_PROVIDERS = array( 'openai' );
 
 /**
  * Returns a well-shaped default OS settings array.
@@ -33,7 +41,7 @@ const WPDM_OS_SETTINGS_AI_PROVIDERS = array( 'openai' );
  *
  * @return array
  */
-function wpdm_default_os_settings() {
+function desktop_mode_default_os_settings() {
 	return array(
 		'wallpaper'    => 'dark',
 		'accent'       => 'wp-blue',
@@ -48,7 +56,8 @@ function wpdm_default_os_settings() {
 		'ai'           => array(
 			'enabled'  => false,
 			'provider' => 'openai',
-			'apiKey'   => '',
+			'apiKey'   => '',     // Legacy field — treated as the OpenAI key for backwards compat.
+			'apiKeys'  => array(), // Per-provider keys: { [provider_id]: string }.
 		),
 	);
 }
@@ -64,18 +73,18 @@ function wpdm_default_os_settings() {
  * @param int $user_id The user ID.
  * @return array
  */
-function wpdm_get_os_settings( $user_id ) {
+function desktop_mode_get_os_settings( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
-		return wpdm_default_os_settings();
+		return desktop_mode_default_os_settings();
 	}
 
-	$raw = get_user_meta( $user_id, WPDM_OS_SETTINGS_META_KEY, true );
+	$raw = get_user_meta( $user_id, DESKTOP_MODE_OS_SETTINGS_META_KEY, true );
 	if ( ! is_array( $raw ) ) {
-		return wpdm_default_os_settings();
+		return desktop_mode_default_os_settings();
 	}
 
-	return wpdm_sanitize_os_settings( $raw );
+	return desktop_mode_sanitize_os_settings( $raw );
 }
 
 /**
@@ -87,14 +96,14 @@ function wpdm_get_os_settings( $user_id ) {
  * @param mixed $settings Raw settings payload from the client.
  * @return bool True on success, false otherwise.
  */
-function wpdm_save_os_settings( $user_id, $settings ) {
+function desktop_mode_save_os_settings( $user_id, $settings ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
 	}
 
-	$clean = wpdm_sanitize_os_settings( $settings );
-	return false !== update_user_meta( $user_id, WPDM_OS_SETTINGS_META_KEY, $clean );
+	$clean = desktop_mode_sanitize_os_settings( $settings );
+	return false !== update_user_meta( $user_id, DESKTOP_MODE_OS_SETTINGS_META_KEY, $clean );
 }
 
 /**
@@ -109,8 +118,8 @@ function wpdm_save_os_settings( $user_id, $settings ) {
  * @param mixed $raw Raw settings from the client or user meta.
  * @return array Sanitized settings.
  */
-function wpdm_sanitize_os_settings( $raw ) {
-	$defaults = wpdm_default_os_settings();
+function desktop_mode_sanitize_os_settings( $raw ) {
+	$defaults = desktop_mode_default_os_settings();
 
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
@@ -128,7 +137,7 @@ function wpdm_sanitize_os_settings( $raw ) {
 		: $defaults['accent'];
 
 	// Dock size — must be one of the three known values.
-	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], WPDM_OS_SETTINGS_DOCK_SIZES, true )
+	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES, true )
 		? (string) $raw['dockSize']
 		: $defaults['dockSize'];
 
@@ -176,11 +185,15 @@ function wpdm_sanitize_os_settings( $raw ) {
 			$ai['enabled'] = (bool) $raw_ai['enabled'];
 		}
 
-		if (
-			isset( $raw_ai['provider'] ) &&
-			in_array( $raw_ai['provider'], WPDM_OS_SETTINGS_AI_PROVIDERS, true )
-		) {
-			$ai['provider'] = (string) $raw_ai['provider'];
+		// Provider — accept any sanitize_key()-clean string. We don't gate
+		// on the registry here because providers register on `init` and
+		// sanitize may run earlier (REST boot). Existence is checked at
+		// lookup time by `desktop_mode_ai_get_active_provider_id()`.
+		if ( isset( $raw_ai['provider'] ) && is_string( $raw_ai['provider'] ) ) {
+			$slug = sanitize_key( $raw_ai['provider'] );
+			if ( '' !== $slug ) {
+				$ai['provider'] = $slug;
+			}
 		}
 
 		// API key — strip tags and limit length. The key is opaque to us;
@@ -188,6 +201,22 @@ function wpdm_sanitize_os_settings( $raw ) {
 		// real API key while preventing runaway meta writes.
 		if ( isset( $raw_ai['apiKey'] ) && is_string( $raw_ai['apiKey'] ) ) {
 			$ai['apiKey'] = substr( sanitize_text_field( $raw_ai['apiKey'] ), 0, 512 );
+		}
+
+		// Per-provider keys map. Limited to 32 entries to bound storage.
+		if ( isset( $raw_ai['apiKeys'] ) && is_array( $raw_ai['apiKeys'] ) ) {
+			$keys = array();
+			foreach ( $raw_ai['apiKeys'] as $pid => $val ) {
+				if ( count( $keys ) >= 32 ) {
+					break;
+				}
+				$slug = sanitize_key( (string) $pid );
+				if ( '' === $slug || ! is_string( $val ) ) {
+					continue;
+				}
+				$keys[ $slug ] = substr( sanitize_text_field( $val ), 0, 512 );
+			}
+			$ai['apiKeys'] = $keys;
 		}
 	}
 
@@ -207,20 +236,20 @@ function wpdm_sanitize_os_settings( $raw ) {
  *
  * @since 0.14.0
  */
-function wpdm_register_os_settings_rest_routes() {
+function desktop_mode_register_os_settings_rest_routes() {
 	register_rest_route(
 		'wp-desktop/v1',
 		'/os-settings',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'wpdm_rest_get_os_settings',
-				'permission_callback' => 'wpdm_rest_os_settings_permission',
+				'callback'            => 'desktop_mode_rest_get_os_settings',
+				'permission_callback' => 'desktop_mode_rest_os_settings_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'wpdm_rest_save_os_settings',
-				'permission_callback' => 'wpdm_rest_os_settings_permission',
+				'callback'            => 'desktop_mode_rest_save_os_settings',
+				'permission_callback' => 'desktop_mode_rest_os_settings_permission',
 				'args'                => array(
 					'settings' => array(
 						'required' => true,
@@ -231,7 +260,7 @@ function wpdm_register_os_settings_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'wpdm_register_os_settings_rest_routes' );
+add_action( 'rest_api_init', 'desktop_mode_register_os_settings_rest_routes' );
 
 /**
  * Permission gate for OS settings REST routes.
@@ -240,7 +269,7 @@ add_action( 'rest_api_init', 'wpdm_register_os_settings_rest_routes' );
  *
  * @return bool
  */
-function wpdm_rest_os_settings_permission() {
+function desktop_mode_rest_os_settings_permission() {
 	return is_user_logged_in() && current_user_can( 'read' );
 }
 
@@ -251,8 +280,8 @@ function wpdm_rest_os_settings_permission() {
  *
  * @return WP_REST_Response
  */
-function wpdm_rest_get_os_settings() {
-	return rest_ensure_response( wpdm_get_os_settings( get_current_user_id() ) );
+function desktop_mode_rest_get_os_settings() {
+	return rest_ensure_response( desktop_mode_get_os_settings( get_current_user_id() ) );
 }
 
 /**
@@ -263,9 +292,9 @@ function wpdm_rest_get_os_settings() {
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
  */
-function wpdm_rest_save_os_settings( WP_REST_Request $request ) {
+function desktop_mode_rest_save_os_settings( WP_REST_Request $request ) {
 	$user_id  = get_current_user_id();
 	$payload  = $request->get_param( 'settings' );
-	wpdm_save_os_settings( $user_id, $payload );
-	return rest_ensure_response( wpdm_get_os_settings( $user_id ) );
+	desktop_mode_save_os_settings( $user_id, $payload );
+	return rest_ensure_response( desktop_mode_get_os_settings( $user_id ) );
 }

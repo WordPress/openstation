@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the PHP-registered built-in wallpaper presets and the
- * `wp_desktop_wallpapers` filter.
+ * `desktop_mode_wallpapers` filter.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -12,17 +12,17 @@
 class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 
 	public function tear_down() {
-		remove_all_filters( 'wp_desktop_wallpapers' );
+		remove_all_filters( 'desktop_mode_wallpapers' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::wpdm_register_builtin_wallpapers
+	 * @covers ::desktop_mode_register_builtin_wallpapers
 	 */
 	public function test_builtins_are_registered_after_init() {
 		// `init` has already fired by the time the first test runs,
 		// so the registry should carry all five presets.
-		$registry = wpdm_desktop_wallpaper_registry();
+		$registry = desktop_mode_desktop_wallpaper_registry();
 
 		$this->assertIsArray( $registry );
 		$this->assertArrayHasKey( 'dark', $registry );
@@ -33,10 +33,10 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_register_builtin_wallpapers
+	 * @covers ::desktop_mode_register_builtin_wallpapers
 	 */
 	public function test_builtins_are_css_type_with_value() {
-		$dark = wpdm_desktop_wallpaper_registry( 'dark' );
+		$dark = desktop_mode_desktop_wallpaper_registry( 'dark' );
 
 		$this->assertIsArray( $dark );
 		$this->assertSame( 'css', $dark['type'] );
@@ -47,13 +47,13 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 
 	/**
 	 * The shell payload builder is what the client actually sees. It
-	 * applies the `wp_desktop_wallpapers` filter + shapes entries to
+	 * applies the `desktop_mode_wallpapers` filter + shapes entries to
 	 * match the TS `DesktopWallpaperServerEntry` contract.
 	 *
-	 * @covers ::wpdm_build_desktop_wallpapers_payload
+	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
 	 */
 	public function test_payload_carries_value_for_css_builtins() {
-		$payload = wpdm_build_desktop_wallpapers_payload();
+		$payload = desktop_mode_build_desktop_wallpapers_payload();
 
 		$this->assertIsArray( $payload );
 		$ids = wp_list_pluck( $payload, 'id' );
@@ -73,10 +73,10 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_build_desktop_wallpapers_payload
+	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
 	 */
 	public function test_filter_can_add_entry_to_payload() {
-		add_filter( 'wp_desktop_wallpapers', static function ( $registry ) {
+		add_filter( 'desktop_mode_wallpapers', static function ( $registry ) {
 			$registry['brand'] = array(
 				'id'      => 'brand',
 				'label'   => 'Brand',
@@ -88,22 +88,22 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 			return $registry;
 		} );
 
-		$payload = wpdm_build_desktop_wallpapers_payload();
+		$payload = desktop_mode_build_desktop_wallpapers_payload();
 		$ids     = wp_list_pluck( $payload, 'id' );
 
 		$this->assertContains( 'brand', $ids );
 	}
 
 	/**
-	 * @covers ::wpdm_build_desktop_wallpapers_payload
+	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
 	 */
 	public function test_filter_can_remove_entry_from_payload() {
-		add_filter( 'wp_desktop_wallpapers', static function ( $registry ) {
+		add_filter( 'desktop_mode_wallpapers', static function ( $registry ) {
 			unset( $registry['sunset'] );
 			return $registry;
 		} );
 
-		$payload = wpdm_build_desktop_wallpapers_payload();
+		$payload = desktop_mode_build_desktop_wallpapers_payload();
 		$ids     = wp_list_pluck( $payload, 'id' );
 
 		$this->assertNotContains( 'sunset', $ids );
@@ -111,25 +111,25 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_build_desktop_wallpapers_payload
+	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
 	 */
 	public function test_filter_non_array_return_yields_empty_payload() {
-		add_filter( 'wp_desktop_wallpapers', static function () {
+		add_filter( 'desktop_mode_wallpapers', static function () {
 			return 'broken';
 		} );
 
-		$this->assertSame( array(), wpdm_build_desktop_wallpapers_payload() );
+		$this->assertSame( array(), desktop_mode_build_desktop_wallpapers_payload() );
 	}
 
 	/**
-	 * `wp_register_desktop_wallpaper()` defaults `value` to `preview`
+	 * `desktop_mode_register_wallpaper()` defaults `value` to `preview`
 	 * when callers omit it — keeps the common "same string for swatch
 	 * and surface" case a one-field call.
 	 *
-	 * @covers ::wp_register_desktop_wallpaper
+	 * @covers ::desktop_mode_register_wallpaper
 	 */
 	public function test_value_defaults_to_preview_when_omitted() {
-		$result = wp_register_desktop_wallpaper( 'test-default', array(
+		$result = desktop_mode_register_wallpaper( 'test-default', array(
 			'label'   => 'Test',
 			'preview' => '#abcdef',
 			'type'    => 'css',
@@ -137,7 +137,7 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 
 		$this->assertTrue( $result );
 
-		$entry = wpdm_desktop_wallpaper_registry( 'test-default' );
+		$entry = desktop_mode_desktop_wallpaper_registry( 'test-default' );
 		$this->assertSame( '#abcdef', $entry['value'] );
 	}
 }

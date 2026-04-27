@@ -16,7 +16,7 @@ A one-PHP-file companion plugin that puts a shortcut tile on the desktop wallpap
 defined( 'ABSPATH' ) || exit;
 
 // 1. The native window — a small panel the shell renders into.
-wp_register_desktop_window( 'jorvy', array(
+desktop_mode_register_window( 'jorvy', array(
     'title'    => __( 'Jorvy', 'jorvy' ),
     'icon'     => 'dashicons-star-filled',
     'width'    => 320,
@@ -34,7 +34,7 @@ wp_register_desktop_window( 'jorvy', array(
 
 // 2. The shortcut tile on the wallpaper — clicking it opens the
 //    registered native window (matched by id).
-wp_register_desktop_icon( 'jorvy', array(
+desktop_mode_register_icon( 'jorvy', array(
     'title'    => __( 'Jorvy', 'jorvy' ),
     'icon'     => 'dashicons-star-filled',
     'window'   => 'jorvy',
@@ -45,7 +45,7 @@ wp_register_desktop_icon( 'jorvy', array(
 //    `window.wpDesktopNativeWindows[ 'jorvy' ]` so the shell can
 //    invoke it when the window opens.
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'wpdm_is_enabled' ) || ! wpdm_is_enabled() ) {
+    if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
         return;
     }
     wp_enqueue_script(
@@ -88,11 +88,11 @@ add_action( 'admin_enqueue_scripts', function () {
 
 ## What each call buys you
 
-### `wp_register_desktop_window( $id, $args )`
+### `desktop_mode_register_window( $id, $args )`
 
 Declares the native window — its title, icon, initial dimensions, template markup, and render script. Returns `true` on success, `WP_Error` on any validation failure (missing `title`, missing `script`, non-callable `template`, unmet capability).
 
-### `wp_register_desktop_icon( $id, $args )`
+### `desktop_mode_register_icon( $id, $args )`
 
 Drops a clickable tile on the wallpaper at the `position` you specify (lower numbers render top-left). The `window` key must match the id of a registered native window; the alternative is `url` (either a same-origin admin URL that opens as an iframe window, or an off-site URL that opens in a new browser tab). Mutually exclusive.
 
@@ -100,26 +100,28 @@ Drops a clickable tile on the wallpaper at the `position` you specify (lower num
 
 Native windows render in JS because a `render( body )` callback can't cross the PHP→client wire. The script declares its render function on `window.wpDesktopNativeWindows[ <id> ]`; the shell invokes it when the window opens and captures the return value as a teardown (interval cleanup, DOM detach, whatever the plugin needs).
 
+**The body comes pre-populated.** Before invoking the callback, the shell clones the registered `template` into the window body — so `body.querySelector( '.jorvy__quote' )` returns the `<p>` declared in the PHP template above, with no manual cloning. Render callbacks are pure enhancement: query the mount points your template declared, light them up. To start from a blank canvas anyway, call `body.replaceChildren()` first.
+
 ## Confirming it worked
 
 1. Activate the plugin at **Plugins → Jorvy**.
 2. Enable desktop mode via the admin-bar toggle.
 3. A star icon labeled *Jorvy* appears on the wallpaper.
 4. Click it — the Marvel-quote panel opens; the quote rotates every ten seconds.
-5. Check the action history: `wp_desktop_window_registered` and `wp_desktop_icon_registered` each fired once.
+5. Check the action history: `desktop_mode_window_registered` and `desktop_mode_icon_registered` each fired once.
 
 ## Error handling
 
 If you want to see the error path in action, comment out the `'title'` argument in the icon registration and watch the error log:
 
 ```
-[jorvy] registration failed: wp_desktop_missing_title — Desktop icon registration requires a non-empty `title`.
+[jorvy] registration failed: desktop_mode_missing_title — Desktop icon registration requires a non-empty `title`.
 ```
 
 The `WP_Error` contract means you find typos at plugin-load time, not at first-click time.
 
 ## See also
 
-- [`wp_register_desktop_window()`](../hooks-reference.md#registration-functions) — full argument reference and error-code table.
-- [`wp_desktop_icon_registered`](../hooks-reference.md#wp_desktop_icon_registered--stable) — the post-registration action.
-- [`wp_desktop_icons`](../hooks-reference.md#wp_desktop_icons--stable) — filter for hiding/reordering icons registered by others.
+- [`desktop_mode_register_window()`](../hooks-reference.md#registration-functions) — full argument reference and error-code table.
+- [`desktop_mode_icon_registered`](../hooks-reference.md#desktop_mode_icon_registered--stable) — the post-registration action.
+- [`desktop_mode_icons`](../hooks-reference.md#desktop_mode_icons--stable) — filter for hiding/reordering icons registered by others.

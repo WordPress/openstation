@@ -11,12 +11,12 @@ require_once ABSPATH . 'wp-admin/includes/ajax-actions.php';
  * @group desktop-mode
  * @group ajax
  *
- * @covers ::wpdm_ajax_save
+ * @covers ::desktop_mode_ajax_save
  */
 class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 
 	public function tear_down() {
-		remove_all_filters( 'wp_desktop_mode_enabled' );
+		remove_all_filters( 'desktop_mode_mode_enabled' );
 		parent::tear_down();
 	}
 
@@ -46,7 +46,7 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 
 		$this->assertTrue( $response['success'] );
 		$this->assertSame( '1', $response['data']['enabled'] );
-		$this->assertSame( '1', get_user_meta( get_current_user_id(), 'wp_desktop_mode', true ) );
+		$this->assertSame( '1', get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) );
 	}
 
 	/**
@@ -57,18 +57,18 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 		$this->_setRole( 'administrator' );
 		$response = $this->dispatch( '1' );
 
-		$this->assertSame( wpdm_portal_url(), $response['data']['redirect'] );
+		$this->assertSame( desktop_mode_portal_url(), $response['data']['redirect'] );
 	}
 
 	public function test_disables_desktop_mode_for_user() {
 		$this->_setRole( 'administrator' );
-		update_user_meta( get_current_user_id(), 'wp_desktop_mode', '1' );
+		update_user_meta( get_current_user_id(), 'desktop_mode_mode', '1' );
 
 		$response = $this->dispatch( '' );
 
 		$this->assertTrue( $response['success'] );
 		$this->assertSame( '', $response['data']['enabled'] );
-		$this->assertSame( '', get_user_meta( get_current_user_id(), 'wp_desktop_mode', true ) );
+		$this->assertSame( '', get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) );
 	}
 
 	/**
@@ -79,12 +79,12 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 	 */
 	public function test_disable_response_redirects_to_plain_admin_not_portal() {
 		$this->_setRole( 'administrator' );
-		update_user_meta( get_current_user_id(), 'wp_desktop_mode', '1' );
+		update_user_meta( get_current_user_id(), 'desktop_mode_mode', '1' );
 
 		$response = $this->dispatch( '' );
 
 		$this->assertSame( admin_url(), $response['data']['redirect'] );
-		$this->assertNotSame( wpdm_portal_url(), $response['data']['redirect'] );
+		$this->assertNotSame( desktop_mode_portal_url(), $response['data']['redirect'] );
 	}
 
 	/**
@@ -93,13 +93,13 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 	 */
 	public function test_non_one_truthy_values_disable_mode() {
 		$this->_setRole( 'administrator' );
-		update_user_meta( get_current_user_id(), 'wp_desktop_mode', '1' );
+		update_user_meta( get_current_user_id(), 'desktop_mode_mode', '1' );
 
 		$response = $this->dispatch( 'true' );
 
 		$this->assertTrue( $response['success'] );
 		$this->assertSame( '', $response['data']['enabled'] );
-		$this->assertSame( '', get_user_meta( get_current_user_id(), 'wp_desktop_mode', true ) );
+		$this->assertSame( '', get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) );
 	}
 
 	public function test_missing_nonce_dies() {
@@ -123,19 +123,19 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 	}
 
 	/**
-	 * The wp_desktop_mode_enabled filter must be honored: if a plugin
+	 * The desktop_mode_mode_enabled filter must be honored: if a plugin
 	 * disables desktop mode for this user, the AJAX endpoint refuses
 	 * to update the meta.
 	 */
 	public function test_wp_desktop_mode_enabled_filter_blocks_save() {
 		$this->_setRole( 'administrator' );
-		add_filter( 'wp_desktop_mode_enabled', '__return_false' );
+		add_filter( 'desktop_mode_mode_enabled', '__return_false' );
 
 		$response = $this->dispatch( '1' );
 
 		$this->assertFalse( $response['success'] );
 		$this->assertSame( 'desktop_mode_disabled', $response['data'] );
-		$this->assertSame( '', get_user_meta( get_current_user_id(), 'wp_desktop_mode', true ) );
+		$this->assertSame( '', get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) );
 	}
 
 	/**
@@ -146,17 +146,17 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 	 */
 	public function test_user_without_read_cap_is_forbidden() {
 		// Build a throwaway role with no capabilities, including no `read`.
-		add_role( 'wpdm_test_nonread', 'No Read', array() );
-		$uid = self::factory()->user->create( array( 'role' => 'wpdm_test_nonread' ) );
+		add_role( 'desktop_mode_test_nonread', 'No Read', array() );
+		$uid = self::factory()->user->create( array( 'role' => 'desktop_mode_test_nonread' ) );
 		wp_set_current_user( $uid );
 
 		$response = $this->dispatch( '1' );
 
 		$this->assertFalse( $response['success'] );
 		$this->assertSame( 'desktop_mode_forbidden', $response['data'] );
-		$this->assertSame( '', get_user_meta( $uid, 'wp_desktop_mode', true ) );
+		$this->assertSame( '', get_user_meta( $uid, 'desktop_mode_mode', true ) );
 
-		remove_role( 'wpdm_test_nonread' );
+		remove_role( 'desktop_mode_test_nonread' );
 	}
 
 	/**
@@ -169,7 +169,7 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 		$received_id = null;
 
 		add_filter(
-			'wp_desktop_mode_enabled',
+			'desktop_mode_mode_enabled',
 			function ( $enabled, $user_id ) use ( &$received_id ) {
 				$received_id = $user_id;
 				return $enabled;

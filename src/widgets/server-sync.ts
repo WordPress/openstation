@@ -3,7 +3,7 @@
  *
  * Symmetrical to the native-window sync (`src/native-windows.ts`):
  * plugins declare their widget metadata server-side via
- * `wp_register_desktop_widget()`, and this module diffs the shell's
+ * `desktop_mode_register_widget()`, and this module diffs the shell's
  * current registry against the fresh payload on every live refresh.
  * New entries trigger dynamic script loading so the plugin's mount
  * callback (`window.wpDesktopWidgets[ id ]`) becomes available
@@ -124,7 +124,16 @@ export function createWidgetRegistrySync(
 			// again.
 			return;
 		}
-		registry.register( def );
+		try {
+			registry.register( def );
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'widget-register',
+				id: entry.id,
+				error: err,
+			} );
+			return;
+		}
 		registered.add( entry.id );
 		// Refresh the picker so the new widget shows up in its
 		// available list right away. If the user had this widget

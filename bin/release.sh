@@ -13,6 +13,10 @@ new="$1"
 tag="v$new"
 
 command -v gh >/dev/null || { echo "error: 'gh' CLI required (for CI polling)" >&2; exit 1; }
+if ! gh auth status >/dev/null 2>&1; then
+	echo "error: gh CLI is not authenticated. Run:  gh auth login" >&2
+	exit 1
+fi
 
 branch=$(git rev-parse --abbrev-ref HEAD)
 if [[ "$branch" != "trunk" ]]; then
@@ -33,42 +37,71 @@ fi
 
 # Refuse to clobber an existing release.
 if git rev-parse "$tag" >/dev/null 2>&1; then
-	echo "error: tag $tag already exists locally. Delete it or choose a different version." >&2
+	echo "error: tag $tag already exists locally." >&2
+	echo "  delete it with:  git tag -d $tag" >&2
+	echo "  or choose a different version." >&2
 	exit 1
 fi
 if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-	echo "error: tag $tag already exists on origin. Choose a different version." >&2
+	echo "error: tag $tag already exists on origin." >&2
+	echo "  delete it with:  git push --delete origin $tag" >&2
+	echo "  or choose a different version." >&2
 	exit 1
 fi
 
-# Resume-friendly: skip bump+commit+push if HEAD is already at the target
-# version (the sync check above guarantees HEAD == origin/trunk).
-current=$(node -p "require('./package.json').version")
-if [[ "$current" == "$new" ]]; then
-	echo "package.json already at $new — skipping bump, resuming at CI wait."
+# Resume-friendly: skip bump+commit+push only if ALL version locations
+# already match the target. Checking just package.json is not enough —
+# a previous mid-flow failure (or a past bug in bump-version.sh) may
+# have left some files out of sync, and a naive resume would silently
+# skip the catch-up.
+# awk (instead of `grep -oP`) for BSD/macOS portability — `-P` is GNU-only.
+pkg=$(node -p "require('./package.json').version")
+header=$(awk '/^[[:space:]]*\*[[:space:]]*Version:/ { print $3; exit }' desktop-mode.php)
+constant=$(awk -F"'" '/DESKTOP_MODE_VERSION/ { print $4; exit }' desktop-mode.php)
+stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
+
+if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" ]]; then
+	echo "All version locations already at $new — skipping bump, resuming at CI wait."
 else
 	./bin/bump-version.sh "$new"
-	git commit -am "chore: bump to $new"
-	git push origin trunk
+	if git diff --quiet; then
+		echo "bump-version.sh produced no changes — versions already in sync."
+	else
+		git commit -am "chore: bump to $new"
+		# Skip the interactive pre-push trunk prompt — the preflight checks above
+		# already verify this is an intentional release push.
+		git push --no-verify origin trunk
+	fi
 fi
 
 sha=$(git rev-parse HEAD)
-echo "Waiting for CI on ${sha}..."
+echo "Waiting for CI to register a run on ${sha} (polling for up to 5 min)..."
 
-# CI may take a couple of seconds to register the run after the push.
+# CI may take a few minutes to register the run after the push.
 run_id=""
-for _ in 1 2 3 4 5; do
+for i in $(seq 1 100); do
 	run_id=$(gh run list --branch trunk --workflow ci.yml --commit "$sha" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
 	[[ -n "$run_id" ]] && break
+	# Heartbeat every 30 s so the script doesn't look frozen while CI registers.
+	if (( i % 10 == 0 )); then
+		printf '  …%ds elapsed, still polling\n' $((i * 3))
+	fi
 	sleep 3
 done
 
 if [[ -z "$run_id" ]]; then
-	echo "error: no CI run found for $sha after 15s" >&2
+	echo "error: no CI run found for $sha after 5 minutes" >&2
 	exit 1
 fi
 
+run_url=$(gh run view "$run_id" --json url -q '.url' 2>/dev/null || true)
+echo "CI run ${run_id} registered — watching until it finishes (typically 3-5 min)."
+[[ -n "$run_url" ]] && echo "  ${run_url}"
+echo "  (gh run watch is silent until each job completes; this is normal.)"
+
 gh run watch "$run_id" --exit-status
+
+echo "CI passed — tagging ${tag} and pushing..."
 
 git tag "$tag"
 git push origin "$tag"

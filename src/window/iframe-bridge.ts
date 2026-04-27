@@ -48,6 +48,25 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		win.setTitle( data.title );
 	}
 
+	// Cross-window connection bridge — route any `wp-desktop-bridge-*`
+	// message to the parent-side connection registry. The bridge is
+	// installed on `window` by `desktop.ts` so individual Window
+	// instances don't need to know about it; null-check guards
+	// startup ordering (the listener runs before `init()` in tests).
+	if ( typeof data.type === 'string' && data.type.startsWith( 'wp-desktop-bridge-' ) ) {
+		const bridge = (
+			window as unknown as {
+				__wpDesktopConnectionBridge?: {
+					routeIncomingFromIframe(
+						msg: unknown,
+						fromWindowId?: string,
+					): void;
+				};
+			}
+		).__wpDesktopConnectionBridge;
+		bridge?.routeIncomingFromIframe( data, win.id );
+	}
+
 	// Iframe boot signal — the chromeless bridge script posts this
 	// once its message listeners are attached. Fires
 	// `HOOKS.IFRAME_READY` so plugin authors get a reliable

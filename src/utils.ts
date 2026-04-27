@@ -100,7 +100,7 @@ export function urlMatchKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
 		parsed.searchParams.delete( 'wp_desktop' );
-		parsed.searchParams.delete( 'wp_desktop_portal' );
+		parsed.searchParams.delete( 'desktop_mode_portal' );
 		return parsed.pathname.replace( /\/+$/, '' ) + '?' + parsed.searchParams.toString();
 	} catch {
 		return url;

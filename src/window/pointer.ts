@@ -97,8 +97,25 @@ interface UnstateParams {
 /** Title-bar pointerdown → drag session. */
 export function handleDragStart( win: Window, e: PointerEvent ): void {
 	// Only drag from the title bar background, not from any buttons.
+	//
+	// The class-level guard (`__btn` / `__custom-buttons`) catches
+	// anything that's a chrome button regardless of which container
+	// it sits in — load-bearing for plugin-registered title-bar
+	// buttons, which live in the `__custom-buttons--*` slots and
+	// would otherwise capture the pointer here. Without this, a
+	// static click (no mouse movement between down and up) on a
+	// plugin button gets swallowed by the drag tracker because
+	// `setPointerCapture` redirects the pointerup away from the
+	// button's own click pipeline. Plugin authors hit this as
+	// "click handler fires ~1 in 10 times unless I move the mouse."
+	//
+	// The container guards stay too — they cover the built-in chrome
+	// (controls, screen-meta, ⋯ menu) and existed before plugin
+	// buttons were a concept. Defence in depth.
 	const target = e.target as HTMLElement;
 	if (
+		target.closest( '.wp-desktop-window__btn' ) ||
+		target.closest( '.wp-desktop-window__custom-buttons' ) ||
 		target.closest( '.wp-desktop-window__controls' ) ||
 		target.closest( '.wp-desktop-window__screen-meta' ) ||
 		target.closest( '.wp-desktop-window__menu-btn' ) ||

@@ -455,3 +455,67 @@ wpd-tab-chip + wpd-tab-chip {
 	color: #1d2327;
 	background: var(--wp-desktop-window-bg);
 }
+
+/*
+ * Highlight rings. Toggled from JS by `Window.setHighlight()` —
+ * used by plugins that need to point at a window from outside it
+ * (e.g. a "connect to" dropdown that previews candidate windows on
+ * hover). `--wp-window-highlight-color` is overridable per-instance
+ * via `setHighlight( mode, { color } )` or globally via the
+ * variable.
+ */
+.wp-window {
+	--wp-window-highlight-color: var(
+		--wp-admin-theme-color, #2271b1
+	);
+}
+.wp-window--highlight-preview {
+	box-shadow: 0 0 0 3px var( --wp-window-highlight-color ),
+		0 0 24px 4px var( --wp-window-highlight-color );
+	transition: box-shadow 0.12s ease;
+	z-index: 9999;
+}
+.wp-window--highlight-persistent {
+	box-shadow: 0 0 0 2px var( --wp-window-highlight-color );
+	transition: box-shadow 0.12s ease;
+}
+
+/*
+ * Slots for plugin-registered title-bar buttons. Empty by default
+ * — `display: contents` hides them entirely from layout when no
+ * plugin has registered a button for the window. When buttons ARE
+ * present, they sit inline next to the title (left slot) or just
+ * before the window controls (right slot).
+ */
+.wp-desktop-window__custom-buttons {
+	display: contents;
+}
+.wp-desktop-window__btn--custom {
+	margin: 0 2px;
+}
+/*
+ * Plugin-supplied icons render in the host's light DOM so the
+ * global Dashicons stylesheet reaches them (shadow DOM doesn't
+ * inherit page CSS).
+ *
+ * Dashicons render at their native 20×20 — that's the size the
+ * font is hinted for and the only one where glyph metrics put
+ * the visual centre on the geometric centre. Earlier we tried
+ * down-scaling them to 14×14 to match the built-in chrome icons,
+ * but font-size: 14 on a Dashicon shifts the glyph 1–2 pixels
+ * off centre because the font's ascent/descent ratio doesn't
+ * scale linearly. The 30×30 button has 5px of padding around a
+ * 20×20 glyph — comfortable, and visually consistent with the
+ * 14×14 chrome icons because both are flex-centred in the same
+ * box.
+ *
+ * For inline-SVG icons that plugin authors ship without explicit
+ * width/height, we DO clamp to 18×18 — those are the cases where
+ * a bare `<svg>` would otherwise size to its viewBox or default
+ * to 300×150 (the spec default) and overflow the button.
+ */
+.wp-desktop-window__btn--custom svg:not( [ width ] ):not( [ height ] ) {
+	width: 18px;
+	height: 18px;
+	display: block;
+}

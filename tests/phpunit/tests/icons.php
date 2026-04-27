@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for `wp_register_desktop_icon()` and the `wp_desktop_icons`
+ * Tests for `desktop_mode_register_icon()` and the `desktop_mode_icons`
  * filter that renders shortcut tiles on the wallpaper.
  *
  * @package WordPress
@@ -29,16 +29,16 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_actions( 'wp_desktop_icon_registered' );
-		remove_all_filters( 'wp_desktop_icons' );
+		remove_all_actions( 'desktop_mode_icon_registered' );
+		remove_all_filters( 'desktop_mode_icons' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_success_with_window_target() {
-		$result = wp_register_desktop_icon( 'jorvy', array(
+		$result = desktop_mode_register_icon( 'jorvy', array(
 			'title'    => 'Jorvy',
 			'icon'     => 'dashicons-star-filled',
 			'window'   => 'jorvy',
@@ -47,7 +47,7 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 
 		$this->assertTrue( $result );
 
-		$entry = wpdm_desktop_icon_registry( 'jorvy' );
+		$entry = desktop_mode_desktop_icon_registry( 'jorvy' );
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'jorvy', $entry['window'] );
 		$this->assertSame( '', $entry['url'] );
@@ -55,132 +55,154 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_success_with_url_target() {
 		$url = admin_url( 'edit.php' );
-		$result = wp_register_desktop_icon( 'posts-shortcut', array(
+		$result = desktop_mode_register_icon( 'posts-shortcut', array(
 			'title' => 'All Posts',
 			'icon'  => 'dashicons-admin-post',
 			'url'   => $url,
 		) );
 
 		$this->assertTrue( $result );
-		$entry = wpdm_desktop_icon_registry( 'posts-shortcut' );
+		$entry = desktop_mode_desktop_icon_registry( 'posts-shortcut' );
 		$this->assertSame( $url, $entry['url'] );
 		$this->assertSame( '', $entry['window'] );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_both_window_and_url_returns_wp_error() {
-		$result = wp_register_desktop_icon( 'both', array(
+		$result = desktop_mode_register_icon( 'both', array(
 			'title'  => 'Both',
 			'window' => 'jorvy',
 			'url'    => admin_url( 'edit.php' ),
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'wp_desktop_conflicting_target', $result->get_error_code() );
+		$this->assertSame( 'desktop_mode_conflicting_target', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_neither_window_nor_url_returns_wp_error() {
-		$result = wp_register_desktop_icon( 'neither', array(
+		$result = desktop_mode_register_icon( 'neither', array(
 			'title' => 'Neither',
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'wp_desktop_missing_target', $result->get_error_code() );
+		$this->assertSame( 'desktop_mode_missing_target', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_missing_title_returns_wp_error() {
-		$result = wp_register_desktop_icon( 'no-title', array(
+		$result = desktop_mode_register_icon( 'no-title', array(
 			'window' => 'jorvy',
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'wp_desktop_missing_title', $result->get_error_code() );
+		$this->assertSame( 'desktop_mode_missing_title', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_missing_id_returns_wp_error() {
-		$result = wp_register_desktop_icon( '', array(
+		$result = desktop_mode_register_icon( '', array(
 			'title'  => 'X',
 			'window' => 'jorvy',
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'wp_desktop_missing_id', $result->get_error_code() );
+		$this->assertSame( 'desktop_mode_missing_id', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_invalid_url_returns_wp_error() {
-		$result = wp_register_desktop_icon( 'bad-url', array(
+		$result = desktop_mode_register_icon( 'bad-url', array(
 			'title' => 'Bad URL',
 			'url'   => 'javascript:alert(1)',
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'wp_desktop_invalid_url', $result->get_error_code() );
+		$this->assertSame( 'desktop_mode_invalid_url', $result->get_error_code() );
 	}
 
 	/**
-	 * Data-URI icons are rejected by the shared `wpdm_sanitize_dock_icon`
-	 * sanitizer (from Phase 1), so the stored entry falls back to the
-	 * generic dashicon. Ensures icons flowing through the desktop-icon
-	 * surface get the same treatment dock tiles get.
+	 * Malformed SVG data URIs (here: the unsupported `;utf8,` shape
+	 * with an `onload` payload) are rejected by the shared
+	 * `desktop_mode_sanitize_dock_icon` sanitizer and fall back to the
+	 * generic dashicon. Well-formed `data:image/svg+xml;base64,…` and
+	 * `data:image/svg+xml,<percent-encoded>` ARE accepted — see the
+	 * sibling test below.
 	 *
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
-	public function test_data_uri_icon_falls_back_to_generic() {
-		$result = wp_register_desktop_icon( 'svg-attempt', array(
+	public function test_malformed_svg_data_uri_falls_back_to_generic() {
+		$result = desktop_mode_register_icon( 'svg-attempt', array(
 			'title'  => 'SVG Attempt',
 			'icon'   => 'data:image/svg+xml;utf8,<svg onload="alert(1)"/>',
 			'window' => 'jorvy',
 		) );
 
 		$this->assertTrue( $result );
-		$entry = wpdm_desktop_icon_registry( 'svg-attempt' );
+		$entry = desktop_mode_desktop_icon_registry( 'svg-attempt' );
 		$this->assertSame( 'dashicons-admin-generic', $entry['icon'] );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * Well-formed SVG data URIs flow through unchanged so plugin-
+	 * registered desktop icons get the plugin's branded SVG instead
+	 * of the gear fallback — same policy as the dock/taskbar tiles.
+	 *
+	 * @covers ::desktop_mode_register_icon
+	 */
+	public function test_well_formed_svg_data_uri_is_preserved() {
+		$svg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
+		$result = desktop_mode_register_icon( 'svg-ok', array(
+			'title'  => 'SVG OK',
+			'icon'   => $svg,
+			'window' => 'jorvy',
+		) );
+
+		$this->assertTrue( $result );
+		$entry = desktop_mode_desktop_icon_registry( 'svg-ok' );
+		$this->assertSame( $svg, $entry['icon'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_capability_gate_denies_subscriber() {
 		wp_set_current_user( self::$subscriber_id );
 
-		$result = wp_register_desktop_icon( 'gated', array(
+		$result = desktop_mode_register_icon( 'gated', array(
 			'title'        => 'Gated',
 			'window'       => 'jorvy',
 			'capabilities' => array( 'manage_options' ),
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'wp_desktop_capability_denied', $result->get_error_code() );
+		$this->assertSame( 'desktop_mode_capability_denied', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_registered_action_fires_on_success() {
 		$calls = array();
-		add_action( 'wp_desktop_icon_registered', static function ( $id, $entry ) use ( &$calls ) {
+		add_action( 'desktop_mode_icon_registered', static function ( $id, $entry ) use ( &$calls ) {
 			$calls[] = array( 'id' => $id, 'entry' => $entry );
 		}, 10, 2 );
 
-		wp_register_desktop_icon( 'fire', array(
+		desktop_mode_register_icon( 'fire', array(
 			'title'  => 'Fire',
 			'window' => 'jorvy',
 		) );
@@ -190,15 +212,15 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_icon
+	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_registered_action_does_not_fire_on_error() {
 		$count = 0;
-		add_action( 'wp_desktop_icon_registered', static function () use ( &$count ) {
+		add_action( 'desktop_mode_icon_registered', static function () use ( &$count ) {
 			$count++;
 		} );
 
-		wp_register_desktop_icon( 'broken', array(
+		desktop_mode_register_icon( 'broken', array(
 			// missing target — returns WP_Error
 			'title' => 'Broken',
 		) );
@@ -207,21 +229,21 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_build_desktop_icons_payload
+	 * @covers ::desktop_mode_build_desktop_icons_payload
 	 */
 	public function test_payload_sorts_by_position() {
-		wp_register_desktop_icon( 'second', array(
+		desktop_mode_register_icon( 'second', array(
 			'title'    => 'Second',
 			'window'   => 'jorvy',
 			'position' => 20,
 		) );
-		wp_register_desktop_icon( 'first', array(
+		desktop_mode_register_icon( 'first', array(
 			'title'    => 'First',
 			'window'   => 'jorvy',
 			'position' => 10,
 		) );
 
-		$payload = wpdm_build_desktop_icons_payload();
+		$payload = desktop_mode_build_desktop_icons_payload();
 
 		$found_first  = null;
 		$found_second = null;
@@ -239,20 +261,20 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wpdm_build_desktop_icons_payload
+	 * @covers ::desktop_mode_build_desktop_icons_payload
 	 */
 	public function test_filter_can_remove_icon() {
-		wp_register_desktop_icon( 'filtered-out', array(
+		desktop_mode_register_icon( 'filtered-out', array(
 			'title'  => 'Filtered Out',
 			'window' => 'jorvy',
 		) );
 
-		add_filter( 'wp_desktop_icons', static function ( $registry ) {
+		add_filter( 'desktop_mode_icons', static function ( $registry ) {
 			unset( $registry['filtered-out'] );
 			return $registry;
 		} );
 
-		$payload = wpdm_build_desktop_icons_payload();
+		$payload = desktop_mode_build_desktop_icons_payload();
 		$ids     = wp_list_pluck( $payload, 'id' );
 
 		$this->assertNotContains( 'filtered-out', $ids );

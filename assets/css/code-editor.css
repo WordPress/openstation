@@ -1,0 +1,505 @@
+/**
+ * Code Editor app — minimal CSS for the Monaco mount + loading state.
+ *
+ * Monaco brings its own theming once it boots; this file only handles
+ * the period before Monaco is ready, plus the layout primitives
+ * Monaco needs (full-bleed mount node).
+ *
+ * @since 0.18.0
+ */
+
+.wpdc-editor {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	background: #1e1e1e; /* Matches Monaco's vs-dark to avoid flash. */
+	color: #d4d4d4;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+.wpdc-editor__loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	gap: 8px;
+	font-size: 13px;
+	opacity: 0.65;
+}
+
+.wpdc-editor__loading .dashicons {
+	font-size: 32px;
+	width: 32px;
+	height: 32px;
+}
+
+.wpdc-editor__loading p {
+	margin: 0;
+}
+
+/*
+ * Monaco mounts into this element once loaded. It needs an explicit
+ * size — Monaco won't measure a zero-height parent gracefully, hence
+ * `automaticLayout: true` in the editor options + flex: 1 here.
+ */
+.wpdc-editor__monaco {
+	flex: 1;
+	min-height: 0;
+	display: none;
+}
+
+.wpdc-editor:not(.wpdc-editor--loading) .wpdc-editor__monaco {
+	display: block;
+}
+
+.wpdc-editor:not(.wpdc-editor--loading) .wpdc-editor__loading {
+	display: none;
+}
+
+.wpdc-editor--error .wpdc-editor__monaco {
+	display: block;
+	padding: 16px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: #f48771;
+	white-space: pre-wrap;
+}
+
+/* ---------------------------------------------------------------
+ * Phase 2 — two-pane layout: tree | (editor + status bar).
+ * --------------------------------------------------------------- */
+
+.wpdc-editor__split {
+	display: grid;
+	grid-template-columns: 240px 1fr;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+}
+
+.wpdc-editor__tree {
+	overflow: auto;
+	background: #252526; /* Matches Monaco's vs-dark side bar. */
+	border-right: 1px solid #1e1e1e;
+	padding: 8px 0;
+	font-size: 12px;
+	color: #cccccc;
+}
+
+.wpdc-editor__right {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+.wpdc-editor__tabs-host {
+	flex: 0 0 auto;
+}
+
+.wpdc-editor__monaco-host {
+	flex: 1;
+	min-height: 0;
+}
+
+/* ---------------------------------------------------------------
+ * Tab strip.
+ *
+ * Layout per tab: [icon] [label] [dirty dot] [close ×]
+ *
+ * Both trailing affordances live in fixed slots so widths don't
+ * shift on hover/state changes — no "ghost gap" while close fades
+ * in. Dirty dot is opacity-0 when clean (slot still reserved),
+ * opacity-1 when dirty. Close × is always visible.
+ * --------------------------------------------------------------- */
+
+.wpdc-tabs {
+	background: #252526;
+	border-bottom: 1px solid #1e1e1e;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: thin;
+}
+
+/*
+ * Higher-specificity reset — wp-admin's default `<ul>` and `<li>`
+ * styles set a margin-block-end, which (because flex containers
+ * shrink to fit the children's margin box) leaks out as a gap
+ * below the tab strip. Plain `.wpdc-tabs__list { margin: 0 }`
+ * loses to `.wp-admin ul` etc; `.wpdc-tabs ul` ties their
+ * specificity and the later rule wins.
+ */
+.wpdc-tabs ul.wpdc-tabs__list,
+.wpdc-tabs ul.wpdc-tabs__list li.wpdc-tabs__tab {
+	margin: 0;
+	padding: 0;
+}
+
+.wpdc-tabs__list {
+	display: flex;
+	flex-wrap: nowrap;
+	list-style: none;
+}
+
+.wpdc-tabs__tab {
+	display: flex;
+	align-items: center;
+	min-width: 120px;
+	max-width: 240px;
+	height: 32px;
+	background: #2d2d2d;
+	color: #969696;
+	border-right: 1px solid #252526;
+	cursor: pointer;
+	flex-shrink: 0;
+	position: relative;
+	list-style: none;
+}
+
+.wpdc-tabs__tab:hover {
+	background: #2a2d2e;
+}
+
+.wpdc-tabs__tab--active {
+	background: #1e1e1e;
+	color: #ffffff;
+}
+
+.wpdc-tabs__tab--active::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	height: 1px;
+	background: #007acc;
+}
+
+.wpdc-tabs__body {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	padding: 0 4px 0 12px;
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	text-align: left;
+}
+
+.wpdc-tabs__body:focus-visible {
+	outline: 1px solid #007acc;
+	outline-offset: -3px;
+}
+
+.wpdc-tabs__icon {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	color: #c5c5c5;
+}
+
+.wpdc-tabs__label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpdc-tabs__trailing {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding-right: 6px;
+	flex-shrink: 0;
+}
+
+.wpdc-tabs__dirty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	font-size: 14px;
+	line-height: 1;
+	color: #cccccc;
+	opacity: 0;
+}
+
+.wpdc-tabs__tab--dirty .wpdc-tabs__dirty {
+	opacity: 1;
+}
+
+.wpdc-tabs__close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	font-size: 16px;
+	line-height: 1;
+	color: #969696;
+	background: transparent;
+	border: 0;
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.wpdc-tabs__close:hover {
+	background: #3c3c3c;
+	color: #ffffff;
+}
+
+.wpdc-tabs__tab--active .wpdc-tabs__close {
+	color: #cccccc;
+}
+
+.wpdc-tabs__tab--dirty .wpdc-tabs__label {
+	font-style: italic;
+}
+
+.wpdc-editor__statusbar {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 4px 12px;
+	background: #007acc;
+	color: #ffffff;
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	border-top: 1px solid #1e1e1e;
+}
+
+.wpdc-editor__statusbar-left {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wpdc-editor__statusbar-right {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.92;
+}
+
+.wpdc-editor__statusbar--error {
+	background: #be3a31;
+}
+
+.wpdc-editor__statusbar--success {
+	background: #2d8b2d;
+}
+
+/* ---------------------------------------------------------------
+ * Conflict dialog (save flow).
+ * --------------------------------------------------------------- */
+
+.wpdc-conflict-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.55);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100000;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+.wpdc-conflict-dialog {
+	background: #252526;
+	color: #cccccc;
+	border: 1px solid #1e1e1e;
+	border-radius: 6px;
+	box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+	padding: 20px 24px;
+	width: min(520px, 90vw);
+}
+
+.wpdc-conflict-dialog__title {
+	font-size: 16px;
+	margin: 0 0 12px;
+	color: #ffffff;
+}
+
+.wpdc-conflict-dialog__body {
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0 0 8px;
+}
+
+.wpdc-conflict-dialog__meta {
+	font-size: 11px;
+	color: #969696;
+	margin: 0 0 20px;
+}
+
+.wpdc-conflict-dialog__actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.wpdc-conflict-dialog__btn {
+	padding: 6px 14px;
+	background: #0e639c;
+	color: #ffffff;
+	border: 1px solid #1e1e1e;
+	border-radius: 3px;
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.wpdc-conflict-dialog__btn:hover {
+	background: #1177bb;
+}
+
+.wpdc-conflict-dialog__btn:focus-visible {
+	outline: 2px solid #007acc;
+	outline-offset: 1px;
+}
+
+.wpdc-conflict-dialog__btn--danger {
+	background: #be3a31;
+}
+
+.wpdc-conflict-dialog__btn--danger:hover {
+	background: #d54034;
+}
+
+.wpdc-conflict-dialog__btn--quiet {
+	background: #3c3c3c;
+}
+
+.wpdc-conflict-dialog__btn--quiet:hover {
+	background: #4a4a4a;
+}
+
+/* ---------------------------------------------------------------
+ * File tree.
+ * --------------------------------------------------------------- */
+
+.wpdc-tree {
+	user-select: none;
+}
+
+.wpdc-tree ul {
+	list-style: none;
+	margin: 0;
+	/*
+	 * Padding is intentionally NOT reset here — `.wpdc-tree__root`
+	 * and `.wpdc-tree__children` each set their own. Resetting at
+	 * this level out-specificities the per-class rules and the
+	 * tree paints flat.
+	 */
+}
+
+.wpdc-tree__root {
+	padding: 0 4px;
+}
+
+/*
+ * Each nested <ul> indents 16px AND paints a faint vertical guide
+ * line down its left gutter. Guides stack naturally because every
+ * level brings its own background — no depth math, no per-row
+ * inline styles. Same idea VS Code uses for its tree.
+ */
+.wpdc-tree__children {
+	padding-left: 16px;
+	background-image: linear-gradient(
+		to right,
+		transparent 6px,
+		rgba(255, 255, 255, 0.08) 6px,
+		rgba(255, 255, 255, 0.08) 7px,
+		transparent 7px
+	);
+	background-repeat: repeat-y;
+	background-position: 0 0;
+}
+
+.wpdc-tree__row {
+	margin: 0;
+}
+
+.wpdc-tree__btn {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	width: 100%;
+	padding: 3px 6px;
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	border-radius: 3px;
+}
+
+.wpdc-tree__btn:hover {
+	background: #2a2d2e;
+}
+
+.wpdc-tree__btn:focus-visible {
+	outline: 1px solid #007acc;
+	outline-offset: -1px;
+}
+
+.wpdc-tree__row--active > .wpdc-tree__btn,
+.wpdc-tree__row--active > .wpdc-tree__btn:hover {
+	background: #094771;
+	color: #ffffff;
+}
+
+.wpdc-tree__row--disabled > .wpdc-tree__btn {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.wpdc-tree__caret {
+	display: inline-block;
+	width: 10px;
+	font-size: 9px;
+	color: #969696;
+	flex-shrink: 0;
+}
+
+.wpdc-tree__icon {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	color: #c5c5c5;
+	flex-shrink: 0;
+}
+
+.wpdc-tree__row--dir > .wpdc-tree__btn .wpdc-tree__icon {
+	color: #dcb67a; /* VS Code folder yellow. */
+}
+
+.wpdc-tree__label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpdc-tree__loading,
+.wpdc-tree__error {
+	padding: 4px 8px;
+	color: #969696;
+	font-style: italic;
+}
+
+.wpdc-tree__error {
+	color: #f48771;
+}

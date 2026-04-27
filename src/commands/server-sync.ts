@@ -3,8 +3,8 @@
  *
  * Mirrors `src/widgets/server-sync.ts` and `src/wallpapers/server-sync.ts`
  * for the command registry. Plugins opt in server-side with
- * `wp_desktop_register_command_script()` (and optionally
- * `wp_register_desktop_command()`); this module receives the list of
+ * `desktop_mode_register_command_script()` (and optionally
+ * `desktop_mode_register_command()`); this module receives the list of
  * registered script URLs on every live refresh (plugins.php bridge or
  * boot-time from `config`) and:
  *
@@ -21,7 +21,7 @@
  *          `registerCommand({ …, owner: 'my-script-handle' })`.
  *       2. The slug↔handle mapping captured from the *previous*
  *          `serverCommands` payload. Plugins that declare their
- *          metadata via `wp_register_desktop_command()` with a
+ *          metadata via `desktop_mode_register_command()` with a
  *          `script` arg get this for free — no JS change required.
  *
  *     Plugins using neither mechanism keep their commands until the

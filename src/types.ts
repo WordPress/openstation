@@ -105,9 +105,19 @@ export interface WindowConfig {
 	native?: boolean;
 	/**
 	 * Render callback for native windows. Invoked once after the window
-	 * element mounts; receives the empty `.wp-desktop-window__body` and
-	 * fills it with whatever DOM the module wants. Ignored when
-	 * `native` is falsy.
+	 * element mounts; receives the `.wp-desktop-window__body` and
+	 * fills it. Ignored when `native` is falsy.
+	 *
+	 * Body content at call time depends on which entry point opened
+	 * the window:
+	 *
+	 *   - **`desktop_mode_register_window()` (PHP)** — the shell clones
+	 *     the registered `<template>` into the body before the
+	 *     callback fires. Render = enhancement: query mount points,
+	 *     light them up. See `wpDesktopNativeWindows[ id ]`.
+	 *   - **`windowManager.open({ native: true, render })` (raw JS)** —
+	 *     no template plumbing exists at this layer. The body is
+	 *     empty; the callback constructs the DOM directly.
 	 */
 	render?: ( body: HTMLElement ) => void;
 	/**
@@ -178,6 +188,88 @@ export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 
 	x?: number;
 	/** Initial y position in pixels. Defaults to 0; the shell's cascade positioner usually takes over. */
 	y?: number;
+	/**
+	 * Convenience: declare this native window's body as a single
+	 * iframe with shell-managed lifecycle. The shell creates the
+	 * `<iframe>`, validates `event.source` on every incoming
+	 * postMessage, hands you a `send()` closure that's safe to call
+	 * (queued until the iframe acks ready), and auto-injects the
+	 * iframe-side bridge (`wp.desktop.iframe.publish/subscribe/
+	 * onConnection/requestConnection`) on same-origin pages when
+	 * `bridge: true`.
+	 *
+	 * Replaces ~50 lines of per-plugin postMessage plumbing with a
+	 * single config block. When you set this, **don't pass `render`**
+	 * — the shell synthesises the body for you.
+	 *
+	 * @since 0.18.0
+	 */
+	iframeContent?: NativeWindowIframeContent;
+}
+
+/**
+ * Configuration for a native window whose body is a single
+ * shell-managed iframe. Used by `NativeWindowDef.iframeContent`.
+ *
+ * @public
+ * @since 0.18.0
+ */
+export interface NativeWindowIframeContent {
+	/**
+	 * URL the iframe loads. Cross-origin is allowed but `bridge`
+	 * auto-inject and `event.source` validation are best-effort
+	 * (sandboxed cross-origin iframes get neither — `onMessage`
+	 * still fires for messages whose `event.source` matches the
+	 * iframe's `contentWindow`).
+	 */
+	url: string;
+	/**
+	 * Optional `sandbox` attribute. Pass the value verbatim
+	 * (e.g. `'allow-scripts allow-same-origin'`). Omit for an
+	 * unsandboxed iframe (the default — most common case for same-
+	 * origin admin pages).
+	 */
+	sandbox?: string;
+	/**
+	 * When `true`, the shell injects the iframe-side connection
+	 * bridge (`wp.desktop.iframe.publish/subscribe/onConnection/
+	 * requestConnection`) into the iframe's document after load.
+	 * Same-origin only — cross-origin iframes are out of reach for
+	 * script injection so the flag is silently ignored.
+	 *
+	 * Default `false`. Set this when your iframe is a same-origin
+	 * page that wants to participate in `wp.desktop.connect()`
+	 * traffic without enqueueing the bridge handle itself.
+	 */
+	bridge?: boolean;
+	/**
+	 * Fires once the iframe document has loaded. The `send` closure
+	 * posts to the iframe's `contentWindow` with the right
+	 * `targetOrigin` (the iframe URL's origin).
+	 *
+	 * For sending **before** the iframe has loaded — use the
+	 * synchronous `Window.iframeSend( payload, opts? )` method
+	 * available the moment `registerWindow` returns. That method
+	 * routes through the same internal queue: FIFO for ordered
+	 * setup messages, or `{ coalesce: true }` for latest-wins
+	 * snapshots (live-preview streams). `onReady` is still the
+	 * right surface for the rest of your iframe-side setup
+	 * (subscribing to messages from the iframe, etc.); for the
+	 * outbound flow plugins typically reach for `iframeSend`
+	 * because it doesn't force a closure capture.
+	 */
+	onReady?: (
+		send: (
+			payload: unknown,
+			opts?: { coalesce?: boolean },
+		) => void,
+	) => void;
+	/**
+	 * Receives every message whose `event.source ===
+	 * iframe.contentWindow`. Handles the source-check the shell
+	 * would otherwise force every plugin to reinvent.
+	 */
+	onMessage?: ( payload: unknown ) => void;
 }
 
 /**
@@ -224,7 +316,7 @@ export interface MonitorEntry {
 /**
  * Server-declared native-window entry passed from PHP via the
  * `nativeWindows` config field. One entry per
- * `wp_register_desktop_window()` call. The shell automatically
+ * `desktop_mode_register_window()` call. The shell automatically
  * adds + removes tiles to match this list across boots AND mid-
  * session plugin activation / deactivation — so activating a
  * plugin that registered via this helper makes its tile appear
@@ -263,7 +355,7 @@ export interface NativeWindowServerEntry {
 	 * Tab descriptors for this window. Always includes at least the
 	 * main tab (whose `template` renders the window's own body); if
 	 * additional tabs were registered via
-	 * `wp_register_desktop_window_tab()` they follow in position
+	 * `desktop_mode_register_window_tab()` they follow in position
 	 * order. Empty array is equivalent to "main tab only" — the
 	 * shell renders the window body directly without a tab strip.
 	 *
@@ -280,7 +372,7 @@ export interface NativeWindowServerEntry {
 /**
  * A single tab descriptor on a native window — either the main tab
  * (`isMain: true`) whose template is the window's own body, or a
- * registered `wp_register_desktop_window_tab()` entry.
+ * registered `desktop_mode_register_window_tab()` entry.
  *
  * @public
  * @since 0.11.0
@@ -298,7 +390,7 @@ export interface NativeWindowTabEntry {
 /**
  * Server-declared desktop-widget entry passed from PHP via the
  * `serverWidgets` config field. One entry per
- * `wp_register_desktop_widget()` call.
+ * `desktop_mode_register_widget()` call.
  *
  * The mount callback itself is not serializable; plugins register
  * it on `window.wpDesktopWidgets[ <id> ]` as a `(container, ctx)
@@ -334,7 +426,7 @@ export interface DesktopWidgetServerEntry {
 /**
  * Server-declared wallpaper entry passed from PHP via
  * `serverWallpapers`. One entry per
- * `wp_register_desktop_wallpaper()` call. Only metadata crosses
+ * `desktop_mode_register_wallpaper()` call. Only metadata crosses
  * the wire; the plugin's mount / resolveValue / renderEditor
  * callbacks are announced via
  * `window.wpDesktopWallpapers[ <id> ]` as a full `WallpaperDef`,
@@ -370,8 +462,8 @@ export interface DesktopWallpaperServerEntry {
 /**
  * Server-declared command-script entry passed from PHP via
  * `serverCommandScripts`. One entry per
- * `wp_desktop_register_command_script()` call (or indirectly via
- * `wp_register_desktop_command()`).
+ * `desktop_mode_register_command_script()` call (or indirectly via
+ * `desktop_mode_register_command()`).
  *
  * The shell injects each `scriptUrl` into the shell page on mid-
  * session plugin activation. The loaded script registers its commands
@@ -393,7 +485,7 @@ export interface DesktopCommandScriptServerEntry {
  * Server-declared command metadata passed from PHP via
  * `serverCommands`. Optional companion to
  * `DesktopCommandScriptServerEntry` — plugins declaring commands with
- * `wp_register_desktop_command()` emit one entry per command so metadata
+ * `desktop_mode_register_command()` emit one entry per command so metadata
  * is enumerable without executing the plugin's JS. The `run` function
  * still lives JS-side and is attached by the script referenced in
  * `scriptUrl` when it loads.
@@ -425,8 +517,8 @@ export interface DesktopCommandServerEntry {
 /**
  * Server-declared settings-tab script entry passed from PHP via
  * `serverSettingsTabScripts`. One entry per
- * `wp_desktop_register_settings_tab_script()` call (or indirectly via
- * `wp_register_desktop_settings_tab()`).
+ * `desktop_mode_register_settings_tab_script()` call (or indirectly via
+ * `desktop_mode_register_settings_tab()`).
  *
  * The shell injects each `scriptUrl` on mid-session plugin activation;
  * the loaded script calls `wp.desktop.registerSettingsTab()` and the
@@ -437,6 +529,23 @@ export interface DesktopCommandServerEntry {
  */
 export interface DesktopSettingsTabScriptServerEntry {
 	/** WordPress script handle — doubles as the tab `owner` key used for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+}
+
+/**
+ * Server-declared title-bar-button script entry. One per
+ * `desktop_mode_register_titlebar_button_script()` call. The shell
+ * injects each `scriptUrl` on mid-session activation; the loaded
+ * script calls `wp.desktop.registerTitleBarButton()` and the
+ * window-class registry subscriber repaints every open window.
+ *
+ * @public
+ * @since 0.17.0
+ */
+export interface DesktopTitleBarButtonScriptServerEntry {
+	/** WordPress script handle — doubles as the button `owner` key for live unregistration. */
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
@@ -473,7 +582,7 @@ export interface DesktopSettingsTabServerEntry {
 /**
  * Server-declared desktop icon — a shortcut tile on the wallpaper
  * that opens a native window or a URL on click. Registered via PHP
- * with `wp_register_desktop_icon()`.
+ * with `desktop_mode_register_icon()`.
  *
  * @since 0.11.0
  * @public
@@ -553,7 +662,7 @@ export interface DockItemConfig {
 	 * Whether this admin page supports multiple open windows. Determined
 	 * server-side — list screens (Posts, Pages, Media, Users, Comments,
 	 * taxonomies) are true by default; Settings / Tools / Dashboard are
-	 * false. Filterable via `wp_desktop_dock_item_multi`.
+	 * false. Filterable via `desktop_mode_dock_item_multi`.
 	 */
 	multi?: boolean;
 	/**
@@ -636,20 +745,20 @@ export interface DesktopConfig {
 	 * Dock items derived from the admin menu. Core WordPress pages
 	 * (Dashboard, Posts, Plugins, Users, Settings, CPTs) are ordered
 	 * first; plugin-contributed top-level menus (`admin.php?page=*`)
-	 * follow. Items the `wp_desktop_dock_placement` filter hid are
+	 * follow. Items the `desktop_mode_dock_placement` filter hid are
 	 * omitted. Rendered as a single unified rail — the placement
 	 * (left / right / bottom) is the user's OS Settings preference.
 	 */
 	dockItems: DockItemConfig[];
 	/**
-	 * Server-declared native windows (from `wp_register_desktop_window()`).
+	 * Server-declared native windows (from `desktop_mode_register_window()`).
 	 * Shell auto-registers system tiles at boot + syncs them on every
 	 * live menu refresh so plugin activate / deactivate maps to tile
 	 * add / remove with no browser reload.
 	 */
 	nativeWindows: NativeWindowServerEntry[];
 	/**
-	 * Server-declared widgets (from `wp_register_desktop_widget()`).
+	 * Server-declared widgets (from `desktop_mode_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the
 	 * widget registry + dynamically loads plugin scripts on mid-
 	 * session activation, so widgets appear in the picker without
@@ -657,7 +766,7 @@ export interface DesktopConfig {
 	 */
 	serverWidgets: DesktopWidgetServerEntry[];
 	/**
-	 * Server-declared wallpapers (from `wp_register_desktop_wallpaper()`).
+	 * Server-declared wallpapers (from `desktop_mode_register_wallpaper()`).
 	 * Same lifecycle as widgets + native windows — shell loads the
 	 * plugin's JS, reads the full `WallpaperDef` from the global,
 	 * and registers it. Deactivation unregisters + re-applies the
@@ -665,7 +774,7 @@ export interface DesktopConfig {
 	 */
 	serverWallpapers: DesktopWallpaperServerEntry[];
 	/**
-	 * Script handles opted-in via `wp_desktop_register_command_script()`.
+	 * Script handles opted-in via `desktop_mode_register_command_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new slash-commands appear in the palette without a reload.
 	 *
@@ -673,14 +782,14 @@ export interface DesktopConfig {
 	 */
 	serverCommandScripts?: DesktopCommandScriptServerEntry[];
 	/**
-	 * Server-declared command metadata (from `wp_register_desktop_command()`).
+	 * Server-declared command metadata (from `desktop_mode_register_command()`).
 	 * Advisory today — reserved for future pre-registration shims.
 	 *
 	 * @since 0.15.0
 	 */
 	serverCommands?: DesktopCommandServerEntry[];
 	/**
-	 * Script handles opted-in via `wp_desktop_register_settings_tab_script()`.
+	 * Script handles opted-in via `desktop_mode_register_settings_tab_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new OS Settings tabs appear without a reload.
 	 *
@@ -689,14 +798,23 @@ export interface DesktopConfig {
 	serverSettingsTabScripts?: DesktopSettingsTabScriptServerEntry[];
 	/**
 	 * Server-declared settings-tab metadata (from
-	 * `wp_register_desktop_settings_tab()`). Enables live unregistration
+	 * `desktop_mode_register_settings_tab()`). Enables live unregistration
 	 * on deactivation without per-call `owner` in JS.
 	 *
 	 * @since 0.17.0
 	 */
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
 	/**
-	 * Server-declared desktop icons (from `wp_register_desktop_icon()`).
+	 * Script handles opted-in via
+	 * `desktop_mode_register_titlebar_button_script()`. Shell injects
+	 * each URL on boot and on mid-session activation so newly-
+	 * installed plugins paint their title-bar buttons live.
+	 *
+	 * @since 0.17.0
+	 */
+	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
+	/**
+	 * Server-declared desktop icons (from `desktop_mode_register_icon()`).
 	 * The shell renders these as shortcut tiles on the wallpaper;
 	 * click-through opens either the referenced native window (if
 	 * `window` is set) or the URL (if `url` is set).
@@ -740,6 +858,15 @@ export interface DesktopConfig {
 	 * relative to the wp-desktop-mode install.
 	 */
 	pluginUrl: string;
+	/**
+	 * Absolute URL of the standalone iframe-bridge script. Used by
+	 * the `iframeContent: { bridge: true }` auto-inject path on
+	 * `registerWindow` and exposed for plugins that need to inject
+	 * the bridge into their own same-origin iframes manually.
+	 *
+	 * @since 0.18.0
+	 */
+	iframeBridgeUrl?: string;
 	/** Nonce for the REST endpoint (X-WP-Nonce header). */
 	restNonce: string;
 	/** Canonical `/wp-desktop/` URL — used for history.replaceState. */
@@ -748,7 +875,7 @@ export interface DesktopConfig {
 	fromPortal: boolean;
 	/**
 	 * Accent swatches shown in the OS Settings color picker. Filterable
-	 * server-side via `wp_desktop_accent_colors`. Optional — the TS
+	 * server-side via `desktop_mode_accent_colors`. Optional — the TS
 	 * side falls back to a built-in default list when this is missing
 	 * (older PHP builds, hostile filter that returned garbage, etc.).
 	 *
@@ -757,7 +884,7 @@ export interface DesktopConfig {
 	accentColors?: AccentColor[];
 	/**
 	 * Toast-notification type map. Filterable server-side via
-	 * `wp_desktop_toast_types`. Optional — same fallback story as
+	 * `desktop_mode_toast_types`. Optional — same fallback story as
 	 * `accentColors`.
 	 *
 	 * @since 0.11.0
@@ -765,7 +892,7 @@ export interface DesktopConfig {
 	toastTypes?: ToastTypeDef[];
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
-	 * server-side via `wp_desktop_default_wallpaper`. Optional — an
+	 * server-side via `desktop_mode_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.
 	 *
 	 * @since 0.11.0
@@ -795,7 +922,7 @@ export interface DesktopConfig {
 	aiSearchUrl?: string;
 	/**
 	 * SSE streaming endpoint for the agentic search — admin-ajax.php with
-	 * `action=wpdm_ai_search_stream` pre-filled. The JS EventSource appends
+	 * `action=desktop_mode_ai_search_stream` pre-filled. The JS EventSource appends
 	 * &nonce= and &query= when connecting.
 	 * @since 0.14.0
 	 */
@@ -902,7 +1029,28 @@ export type BridgeEventFromIframe =
 	| { type: 'wp-desktop-ready' }
 	| { type: 'wp-desktop-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
 	| { type: 'wp-desktop-screen-meta-state'; open: 'screen-options' | 'help' | null }
-	| { type: 'wp-desktop-commands-list'; commands: HarvestedCommand[] };
+	| { type: 'wp-desktop-commands-list'; commands: HarvestedCommand[] }
+	// -----------------------------------------------------------------
+	// Cross-window connection bridge — extensible pub/sub between any
+	// parent-side caller (e.g. a plugin's title-bar dropdown) and a
+	// chromeless iframe. The shell only routes; topic semantics are
+	// plugin-defined. See `wp.desktop.connect()` and
+	// `wp.desktop.iframe.publish/subscribe`.
+	// -----------------------------------------------------------------
+	| {
+		type: 'wp-desktop-bridge-handshake-ack';
+		connectionId: string;
+	}
+	| {
+		type: 'wp-desktop-bridge-publish';
+		connectionId: string;
+		topic: string;
+		payload: unknown;
+	}
+	| {
+		type: 'wp-desktop-bridge-disconnect';
+		connectionId: string;
+	};
 
 /**
  * Bridge events sent from parent shell to iframe.
@@ -913,4 +1061,20 @@ export type BridgeEventToIframe =
 	| { type: 'wp-desktop-toggle-panel'; panel: 'screen-options' | 'help' }
 	| { type: 'wp-desktop-commands-subscribe' }
 	| { type: 'wp-desktop-commands-unsubscribe' }
-	| { type: 'wp-desktop-commands-invoke'; name: string };
+	| { type: 'wp-desktop-commands-invoke'; name: string }
+	// Connection-bridge messages (parent → iframe).
+	| {
+		type: 'wp-desktop-bridge-handshake';
+		connectionId: string;
+		topics: string[];
+	}
+	| {
+		type: 'wp-desktop-bridge-publish';
+		connectionId: string;
+		topic: string;
+		payload: unknown;
+	}
+	| {
+		type: 'wp-desktop-bridge-disconnect';
+		connectionId: string;
+	};

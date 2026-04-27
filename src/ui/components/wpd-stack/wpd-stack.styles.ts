@@ -15,6 +15,7 @@ export const styles = css`
 		flex-direction: column;
 		gap: var( --wpd-stack-gap, 12px );
 		align-items: var( --wpd-stack-align, stretch );
+		padding: var( --wpd-stack-padding, 0 );
 	}
 	:host( [ hidden ] ) {
 		display: none;

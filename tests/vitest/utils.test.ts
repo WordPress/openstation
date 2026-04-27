@@ -107,7 +107,7 @@ describe( 'utils/urlMatchKey', () => {
 
 	test( 'equates URLs that differ in the portal flag', () => {
 		const plain = urlMatchKey( `${ ADMIN }index.php` );
-		const portal = urlMatchKey( `${ ADMIN }index.php?wp_desktop_portal=1` );
+		const portal = urlMatchKey( `${ ADMIN }index.php?desktop_mode_portal=1` );
 		expect( plain ).toBe( portal );
 	} );
 

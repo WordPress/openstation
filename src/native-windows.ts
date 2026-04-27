@@ -10,11 +10,13 @@
  *     size defaults, and a warning-free id derivation when the
  *     caller omits `baseId`.
  *
- *   - {@link cloneTemplate} → a tiny `<template>` cloner for plugins
- *     that ship their UI as an inert template and want to hydrate a
- *     fresh copy per window. Saves the "find the template, clone
- *     content, query nodes" boilerplate every native window
- *     otherwise reinvents.
+ *   - {@link cloneTemplate} → a tiny `<template>` cloner. The shell
+ *     uses it internally to populate every native window's body with
+ *     the registered template before invoking the render callback,
+ *     so plugin authors using `desktop_mode_register_window()` don't
+ *     touch this directly. Exported for advanced cases that want to
+ *     re-clone (e.g. dynamic per-row templates, custom hydration
+ *     flows outside the standard pipeline).
  *
  * Both are intentionally thin — they don't introduce new runtime
  * state. Plugins that outgrow them can always call the underlying
@@ -25,8 +27,13 @@
 
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
 import { loadVendorScript } from './wallpapers/vendor-loader';
+import { registerSyntheticIframe } from './connection';
 import type { Dock } from './dock';
-import type { NativeWindowDef, NativeWindowServerEntry } from './types';
+import type {
+	NativeWindowDef,
+	NativeWindowIframeContent,
+	NativeWindowServerEntry,
+} from './types';
 import type { WindowManager } from './window-manager';
 import type { Window as DesktopWindow } from './window';
 
@@ -74,6 +81,249 @@ const DEFAULT_NATIVE_WIDTH = 520;
 const DEFAULT_NATIVE_HEIGHT = 400;
 
 /**
+ * Synthesise a `render( body )` callback that renders an iframe
+ * inside the native window's body and manages its lifecycle:
+ *
+ *   - Creates the `<iframe>` with the configured URL + sandbox.
+ *   - On the iframe's `load` event, calls `onReady( send )` and
+ *     flushes any messages queued before load.
+ *   - Listens for `message` events whose `event.source` matches
+ *     the iframe's `contentWindow` (the source-check every plugin
+ *     would otherwise reinvent) and forwards `event.data` to
+ *     `onMessage`.
+ *   - When `bridge: true` AND the iframe is same-origin, injects
+ *     the public iframe-side bridge script via `<script>` so the
+ *     iframe can `wp.desktop.iframe.publish/subscribe/
+ *     onConnection/requestConnection` without enqueueing the
+ *     bridge handle itself.
+ *
+ * Listener + iframe are torn down via the parent window's `onClose`
+ * — wired in by `createRegisterWindow` below so the plugin's own
+ * `onClose` also runs.
+ *
+ * @internal
+ */
+/**
+ * Public shape of the send closure. Re-exported through
+ * `Window.iframeSend` and the `onReady` callback parameter.
+ *
+ * @public
+ * @since 0.18.0
+ */
+export type IframeContentSendFn = (
+	payload: unknown,
+	opts?: { coalesce?: boolean },
+) => void;
+
+/** Out-param the render closure populates synchronously. */
+interface IframeContentSendHandle {
+	send: IframeContentSendFn | null;
+}
+
+function buildIframeContentRender(
+	cfg: NativeWindowIframeContent,
+	cleanups: ( () => void )[],
+	windowId: string,
+	sendHandle: IframeContentSendHandle,
+): ( body: HTMLElement ) => void {
+	return ( body: HTMLElement ) => {
+		const iframe = document.createElement( 'iframe' );
+		iframe.style.width = '100%';
+		iframe.style.height = '100%';
+		iframe.style.border = '0';
+		iframe.setAttribute( 'src', cfg.url );
+		if ( typeof cfg.sandbox === 'string' && cfg.sandbox !== '' ) {
+			iframe.setAttribute( 'sandbox', cfg.sandbox );
+		}
+		body.style.padding = '0';
+		body.appendChild( iframe );
+
+		// Tell the connection bridge that this window's "iframe"
+		// lives here in the native body, not on `Window.iframe`.
+		// Without this, `wp.desktop.connect( id ).send( … )` would
+		// silently drop messages — the bridge's iframe lookup would
+		// hit a null `Window.iframe` and bail.
+		const unregisterSynth = registerSyntheticIframe( windowId, iframe );
+		cleanups.push( unregisterSynth );
+
+		// Resolve the iframe URL's origin for the postMessage
+		// targetOrigin. If the URL is relative or invalid, fall back
+		// to the shell's own origin (matches the chromeless bridge's
+		// trust boundary).
+		let targetOrigin: string;
+		try {
+			targetOrigin = new URL( cfg.url, window.location.origin ).origin;
+		} catch {
+			targetOrigin = window.location.origin;
+		}
+
+		// Pre-load message buffers.
+		//
+		//   - `fifoQueue` — every `send()` call without `coalesce`
+		//     is queued and flushed in order on load. Use for
+		//     setup messages where every payload matters
+		//     ({ type:'init' }, { type:'config' }, etc.).
+		//
+		//   - `coalesceSlot` — single-slot buffer used when the
+		//     caller passes `{ coalesce: true }`. Each call
+		//     overwrites the slot; only the most-recent payload
+		//     survives until load. Use for live-stream snapshots
+		//     (Gutenberg editor content, scroll position, hover
+		//     state) where pre-load intermediates are throwaway
+		//     and you want the freshest one.
+		let isLoaded = false;
+		const fifoQueue: unknown[] = [];
+		let hasCoalesce = false;
+		let coalesceSlot: unknown;
+
+		const sendNow = ( payload: unknown ): void => {
+			try {
+				iframe.contentWindow?.postMessage( payload, targetOrigin );
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[wp-desktop-mode] iframeContent.send: postMessage failed',
+						err,
+					);
+				}
+			}
+		};
+
+		const send: IframeContentSendFn = ( payload, opts ) => {
+			if ( isLoaded ) {
+				sendNow( payload );
+				return;
+			}
+			if ( opts?.coalesce ) {
+				coalesceSlot = payload;
+				hasCoalesce = true;
+				return;
+			}
+			fifoQueue.push( payload );
+		};
+
+		// Expose synchronously so `Window.iframeSend` can route
+		// calls into THIS render's queue. `manager.open()` invokes
+		// `render(body)` from within its constructor, so by the time
+		// `manager.open()` returns to `createRegisterWindow`, this
+		// out-param is already populated.
+		sendHandle.send = send;
+
+		const onLoad = (): void => {
+			isLoaded = true;
+
+			// Bridge auto-inject — same-origin only. Cross-origin
+			// iframes throw on `contentDocument` access; we silently
+			// skip in that case so the rest of the lifecycle still
+			// works (the plugin can still ship its own bridge
+			// integration if it wants one).
+			if ( cfg.bridge ) {
+				try {
+					const doc = iframe.contentDocument;
+					if ( doc && ! doc.querySelector( 'script[data-wp-desktop-iframe-bridge]' ) ) {
+						const bridgeUrl = (
+							window as unknown as {
+								wpDesktopConfig?: { iframeBridgeUrl?: string };
+							}
+						).wpDesktopConfig?.iframeBridgeUrl;
+						if ( bridgeUrl ) {
+							const s = doc.createElement( 'script' );
+							s.src = bridgeUrl;
+							s.setAttribute( 'data-wp-desktop-iframe-bridge', '1' );
+							doc.head?.appendChild( s );
+						}
+					}
+				} catch {
+					/* cross-origin — silently skip auto-inject */
+				}
+			}
+
+			try {
+				cfg.onReady?.( send );
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[wp-desktop-mode] iframeContent.onReady threw:',
+						err,
+					);
+				}
+			}
+
+			// Flush FIFO first so setup messages arrive in order;
+			// the coalesce slot lands last so it represents the
+			// freshest snapshot — matters for live-preview cases
+			// where the queue mixes init + repeated stream payloads.
+			while ( fifoQueue.length ) {
+				sendNow( fifoQueue.shift() );
+			}
+			if ( hasCoalesce ) {
+				sendNow( coalesceSlot );
+				hasCoalesce = false;
+				coalesceSlot = undefined;
+			}
+		};
+		iframe.addEventListener( 'load', onLoad );
+
+		// Source-checked message dispatch. Restricting on
+		// `event.source === iframe.contentWindow` is the canonical
+		// way to ensure the message came from THIS iframe (rather
+		// than another iframe in the same shell or a top-level
+		// foreign caller). Origin is also validated — same-origin
+		// only by default, matching the chromeless bridge.
+		//
+		// Bridge-prefixed messages (`wp-desktop-bridge-*`) are also
+		// forwarded into the connection registry so this iframe can
+		// participate in `wp.desktop.connect()` traffic — the
+		// chromeless bridge's own message listener doesn't see this
+		// iframe (it sits inside a native window's body, not the
+		// shell-managed iframe).
+		const onMessage = ( e: MessageEvent ): void => {
+			if ( ! iframe.contentWindow || e.source !== iframe.contentWindow ) {
+				return;
+			}
+			if ( e.origin !== targetOrigin && e.origin !== window.location.origin ) {
+				return;
+			}
+			const data = e.data;
+			if (
+				data &&
+				typeof data === 'object' &&
+				typeof ( data as { type?: string } ).type === 'string' &&
+				( data as { type: string } ).type.startsWith( 'wp-desktop-bridge-' )
+			) {
+				const bridgeRouter = (
+					window as unknown as {
+						__wpDesktopConnectionBridge?: {
+							routeIncomingFromIframe(
+								d: unknown,
+								fromWindowId?: string,
+							): void;
+						};
+					}
+				).__wpDesktopConnectionBridge;
+				bridgeRouter?.routeIncomingFromIframe( data, windowId );
+			}
+			try {
+				cfg.onMessage?.( e.data );
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[wp-desktop-mode] iframeContent.onMessage threw:',
+						err,
+					);
+				}
+			}
+		};
+		window.addEventListener( 'message', onMessage );
+
+		cleanups.push( () => {
+			window.removeEventListener( 'message', onMessage );
+			iframe.removeEventListener( 'load', onLoad );
+		} );
+	};
+}
+
+/**
  * Build the `registerWindow` implementation bound to the shell's
  * window manager. Returned function is the one exposed on
  * `wp.desktop.registerWindow`.
@@ -89,11 +339,47 @@ export function createRegisterWindow(
 	manager: WindowManager,
 ): ( def: NativeWindowDef ) => DesktopWindow {
 	return ( def: NativeWindowDef ) => {
+		// `iframeContent` shorthand — the shell synthesises a render
+		// callback that builds an iframe + handles the load /
+		// postMessage / source-check lifecycle. Plugins that need a
+		// non-iframe body still pass `render` directly; the two
+		// shapes are mutually exclusive.
+		let render = def.render;
+		const cleanups: ( () => void )[] = [];
+		const sendHandle: IframeContentSendHandle = { send: null };
+		if ( def.iframeContent ) {
+			if ( render && typeof console !== 'undefined' ) {
+				console.warn(
+					'[wp-desktop-mode] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
+				);
+			}
+			render = buildIframeContentRender(
+				def.iframeContent,
+				cleanups,
+				def.id,
+				sendHandle,
+			);
+		}
+
+		const userOnClose = def.onClose;
+		const onClose: typeof userOnClose = cleanups.length
+			? ( () => {
+				for ( const fn of cleanups ) {
+					try {
+						fn();
+					} catch {
+						/* swallow — don't let cleanup errors block close */
+					}
+				}
+				userOnClose?.();
+			} )
+			: userOnClose;
+
 		// If the window already exists, manager.open() focuses the
 		// existing instance on its own. We still normalise the config
 		// so a re-open call doesn't leak the caller's unset size
 		// fields into the eventually-opened instance.
-		return manager.open( {
+		const win = manager.open( {
 			id: def.id,
 			baseId: def.baseId || def.id,
 			native: true,
@@ -106,37 +392,44 @@ export function createRegisterWindow(
 			height: def.height ?? DEFAULT_NATIVE_HEIGHT,
 			minWidth: def.minWidth ?? DEFAULT_NATIVE_MIN_WIDTH,
 			minHeight: def.minHeight ?? DEFAULT_NATIVE_MIN_HEIGHT,
-			render: def.render,
-			onClose: def.onClose,
+			render,
+			onClose,
 			onResize: def.onResize,
 			autofocus: def.autofocus,
 			initialState: def.initialState,
 			multi: def.multi,
 			desktopId: def.desktopId,
 		} );
+
+		// Wire the iframeContent send closure onto the Window so
+		// callers can `win.iframeSend( payload )` synchronously,
+		// without waiting for `onReady`. The send fn was populated
+		// during `render(body)` which runs inside `manager.open()`,
+		// so by this point `sendHandle.send` is set when
+		// `iframeContent` was configured. For windows that focused
+		// an already-open instance (idempotent re-open), the existing
+		// Window's send fn stays unchanged — re-rendering would
+		// stomp the still-valid live queue.
+		if ( sendHandle.send && ! win._iframeSendImpl ) {
+			win._iframeSendImpl = sendHandle.send;
+		}
+
+		return win;
 	};
 }
 
 /**
  * Clone the contents of a `<template>` element and return the
- * resulting `DocumentFragment`. A thin utility, but it short-
- * circuits the "grab template, clone, cast" dance every native
- * window currently inlines:
+ * resulting `DocumentFragment`.
  *
- * ```ts
- * const tpl = document.getElementById( 'myplugin-calc' ) as HTMLTemplateElement;
- * const tree = tpl.content.cloneNode( true ) as DocumentFragment;
- * body.appendChild( tree );
- * ```
- *
- * becomes:
- *
- * ```ts
- * body.appendChild( cloneTemplate( 'myplugin-calc' ) );
- * ```
+ * **Native-window authors don't usually call this.** The shell pre-
+ * clones the registered template into the window body before
+ * invoking the render callback — see {@link RenderCallback}. Reach
+ * for `cloneTemplate` only when you need to re-clone (per-row list
+ * templates, dynamic hydration outside the standard pipeline).
  *
  * Accepts either a DOM id string or a template element directly,
- * so plugins that already have a reference don't double-lookup.
+ * so callers that already hold a reference don't double-lookup.
  * Throws when the id doesn't resolve or the element isn't a
  * `<template>` — templates are declarative and a missing one
  * almost always signals a markup bug worth surfacing.
@@ -260,7 +553,7 @@ export function onWindow(
  *
  * Mutually exclusive with the legacy JS-only path (a plugin calling
  * `wp.desktop.registerSystemTile` directly). Plugins that use
- * `wp_register_desktop_window()` get this automatic lifecycle;
+ * `desktop_mode_register_window()` get this automatic lifecycle;
  * plugins that stick to the JS-only path self-manage their tiles.
  *
  * @public
@@ -272,6 +565,17 @@ export interface NativeWindowRegistryDeps {
 	desktopArea: HTMLElement;
 }
 
+/**
+ * Render callback contract for native desktop windows.
+ *
+ * When the window opens, the shell clones the registered `<template>`
+ * into `body`, then invokes the callback. Implementations enhance:
+ * query for mount points the template declared (data attributes, ids,
+ * classes) and light them up. To start from a blank canvas, call
+ * `body.replaceChildren()` first.
+ *
+ * @public
+ */
 type RenderCallback = ( body: HTMLElement ) => void;
 
 interface NativeWindowGlobals {
@@ -285,14 +589,45 @@ interface NativeWindowGlobals {
  * closure rather than module globals so tests can mount multiple
  * shells in sequence cleanly.
  */
+/**
+ * Public surface of {@link createNativeWindowSync}.
+ *
+ * @public
+ */
+export interface NativeWindowSync {
+	/**
+	 * Reconcile the dock tiles to a server-supplied list.
+	 * Adds tiles for new entries, removes tiles whose entry has
+	 * disappeared. Idempotent.
+	 */
+	sync: ( list: NativeWindowServerEntry[] ) => Promise< void >;
+	/**
+	 * Open a registered native window by id. Used by entry points
+	 * that don't go through the dock — desktop icons on the
+	 * wallpaper, programmatic API calls, AI commands, etc. Returns
+	 * `false` when the id isn't registered (the window opener silently
+	 * no-ops, the caller decides what to do — usually nothing, since
+	 * the icon/command would be hidden in the same refresh cycle).
+	 *
+	 * Goes through the same `openFromEntry` path as the dock click,
+	 * so the body always has the cloned template before the render
+	 * callback fires. **Do not duplicate this elsewhere.**
+	 */
+	openById: ( id: string ) => boolean;
+}
+
 export function createNativeWindowSync(
 	deps: NativeWindowRegistryDeps,
-): ( list: NativeWindowServerEntry[] ) => Promise< void > {
+): NativeWindowSync {
 	const { manager, dock } = deps;
 
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
 	const loadedScripts = new Set< string >();
+	// Entry index — `openById` reaches in here when the desktop-icon
+	// or AI-command paths request "open whatever's registered as <id>".
+	// Always reflects the most recent sync.
+	const entriesById = new Map< string, NativeWindowServerEntry >();
 
 	const ensureTemplate = ( entry: NativeWindowServerEntry ): void => {
 		if ( injectedTemplates.has( entry.templateId ) ) {
@@ -343,19 +678,20 @@ export function createNativeWindowSync(
 			{};
 		const render = globalRegistry[ entry.id ];
 
-		// Fallback render when the plugin didn't register one (or
-		// its script failed to load): just clone the template into
-		// the window body. Gives a declarative-template plugin a
-		// fully working window without any JS render callback.
-		const finalRender: RenderCallback = render
-			? render
-			: ( body ) => {
-				try {
-					body.appendChild( cloneTemplate( entry.templateId ) );
-				} catch {
-					/* Missing template — give up quietly. */
-				}
-			};
+		// Pre-populate the window body with the cloned template, then
+		// hand it to the optional render callback. The render contract
+		// is enhancement: declare static markup in `template`, query
+		// the body for mount points in render, light them up. Without
+		// a render callback the cloned template IS the window —
+		// declarative-only plugins need zero JS.
+		//
+		// `cloneTemplate` throws (and console.errors) when the
+		// template element is missing — let it surface; a missing
+		// template is a developer error worth seeing, not silencing.
+		const finalRender: RenderCallback = ( body ) => {
+			body.appendChild( cloneTemplate( entry.templateId ) );
+			render?.( body );
+		};
 
 		manager.open( {
 			id: entry.id,
@@ -415,12 +751,18 @@ export function createNativeWindowSync(
 		}
 		dock?.removeSystemItem( id );
 		registered.delete( id );
+		entriesById.delete( id );
 	};
 
-	return async ( list ) => {
+	const sync = async ( list: NativeWindowServerEntry[] ) => {
 		const incoming = new Set< string >();
 		for ( const entry of list ) {
 			incoming.add( entry.id );
+			// Refresh the index every sync so `openById` always
+			// reflects the latest payload (a plugin update can
+			// change a window's title / dimensions / template
+			// without touching the dock-tile lifecycle).
+			entriesById.set( entry.id, entry );
 		}
 
 		// Removals first — if the plugin reactivates with the same
@@ -441,6 +783,17 @@ export function createNativeWindowSync(
 			}
 		}
 	};
+
+	const openById = ( id: string ): boolean => {
+		const entry = entriesById.get( id );
+		if ( ! entry ) {
+			return false;
+		}
+		openFromEntry( entry );
+		return true;
+	};
+
+	return { sync, openById };
 }
 
 export function cloneTemplate(

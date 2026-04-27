@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.1.0
  */
-function wpdm_ajax_save() {
+function desktop_mode_ajax_save() {
 	check_ajax_referer( 'save-desktop-mode', 'nonce' );
 
 	// A valid nonce proves *this* request was authored by the current
@@ -34,22 +34,22 @@ function wpdm_ajax_save() {
 	 * @param bool $enabled Whether desktop mode is enabled. Default true.
 	 * @param int  $user_id The current user ID.
 	 */
-	$allowed = apply_filters( 'wp_desktop_mode_enabled', true, get_current_user_id() );
+	$allowed = apply_filters( 'desktop_mode_mode_enabled', true, get_current_user_id() );
 	if ( ! $allowed ) {
 		wp_send_json_error( 'desktop_mode_disabled' );
 	}
 
 	$enabled = ! empty( $_POST['enabled'] ) && '1' === $_POST['enabled'] ? '1' : '';
 
-	update_user_meta( get_current_user_id(), 'wp_desktop_mode', $enabled );
+	update_user_meta( get_current_user_id(), 'desktop_mode_mode', $enabled );
 
 	// Tell the client where to land. Enabling from classic admin forwards
 	// through the portal so the shell takes over and the address bar
 	// collapses to /wp-desktop/. Disabling from the shell jumps to a
 	// plain admin URL — NOT the portal, which would auto-re-enable the
-	// mode via the `wp_desktop_portal_auto_enable` filter and trap the
+	// mode via the `desktop_mode_portal_auto_enable` filter and trap the
 	// user in a loop.
-	$redirect = '1' === $enabled ? wpdm_portal_url() : admin_url();
+	$redirect = '1' === $enabled ? desktop_mode_portal_url() : admin_url();
 
 	wp_send_json_success(
 		array(
@@ -58,4 +58,4 @@ function wpdm_ajax_save() {
 		)
 	);
 }
-add_action( 'wp_ajax_save-desktop-mode', 'wpdm_ajax_save' );
+add_action( 'wp_ajax_save-desktop-mode', 'desktop_mode_ajax_save' );

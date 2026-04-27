@@ -1,6 +1,6 @@
 /node_modules
 /vendor
-/wp-desktop-mode.zip
+/desktop-mode.zip
 /tests/phpunit/.phpunit.result.cache
 
 # Vite build output — regenerate locally with `npm run build`.
