@@ -632,7 +632,40 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		this._measureHeaderHeight();
 		this._scheduleStickyOffsets();
 		this._maybeWarnStickyHeader();
+		this._maybeWarnLoadingDesync( tbody );
 		this._ensureResizeObserver();
+	}
+
+	private _loadingDesyncWarned = false;
+	/**
+	 * Diagnostic for the "I set `loading` but the skeleton never
+	 * appeared" footgun. If we get here with the attribute on but no
+	 * `.skeleton` rows in `tbody`, something between attribute set and
+	 * paint went off the rails — historically this happened when the
+	 * base `Component.attributeChangedCallback` called `_scheduleRender`
+	 * directly, bypassing our `requestUpdate` override. Same pattern as
+	 * the sticky-columns 0px tripwire: should never fire, but if it
+	 * does, names the bug instead of leaving the dev guessing.
+	 */
+	private _maybeWarnLoadingDesync( tbody: Element ): void {
+		if ( this._loadingDesyncWarned ) {
+			return;
+		}
+		if ( ! this.hasAttribute( 'loading' ) ) {
+			return;
+		}
+		if ( tbody.querySelector( 'tr.skeleton' ) ) {
+			return;
+		}
+		this._loadingDesyncWarned = true;
+		// eslint-disable-next-line no-console
+		console.warn(
+			'[wpd-table] `loading` attribute is set but no skeleton rows ' +
+				'rendered. Either attributeChangedCallback didn\'t route through ' +
+				'requestUpdate (framework regression), or `loading` was set after ' +
+				'the most recent paint and no follow-up trigger ran. Toggling ' +
+				'`data` will force a paint as a workaround.',
+		);
 	}
 
 	/**

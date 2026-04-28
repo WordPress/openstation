@@ -534,6 +534,41 @@ describe( '<wpd-table>', () => {
 		}
 	} );
 
+	test( 'toggling the `loading` attribute live re-paints the body without a data reassignment', async () => {
+		// Regression: attribute changes on a wpd-table used to bypass
+		// the imperative paint pipeline because the base
+		// Component.attributeChangedCallback called _scheduleRender
+		// directly instead of routing through requestUpdate. Result:
+		// flipping `loading` re-rendered the templated skeleton but
+		// never rebuilt the body, so the skeleton rows never appeared.
+		host.innerHTML = `<wpd-table></wpd-table>`;
+		await tick();
+		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
+		table.columns = [ { key: 'name' } ];
+		table.data = sampleData;
+		await tick();
+		expect(
+			table.shadowRoot!.querySelectorAll( 'tbody tr.skeleton' ).length,
+		).toBe( 0 );
+
+		table.setAttribute( 'loading', '' );
+		await tick();
+		expect(
+			table.shadowRoot!.querySelectorAll( 'tbody tr.skeleton' ).length,
+		).toBeGreaterThan( 0 );
+
+		table.removeAttribute( 'loading' );
+		await tick();
+		expect(
+			table.shadowRoot!.querySelectorAll( 'tbody tr.skeleton' ).length,
+		).toBe( 0 );
+		expect(
+			table.shadowRoot!.querySelectorAll(
+				'tbody tr:not(.skeleton):not(.empty)',
+			).length,
+		).toBe( sampleData.length );
+	} );
+
 	test( 'recomputeLayout() is callable as a public escape hatch', async () => {
 		host.innerHTML = `<wpd-table sticky-columns="1"></wpd-table>`;
 		await tick();
