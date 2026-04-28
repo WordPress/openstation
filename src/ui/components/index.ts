@@ -53,6 +53,12 @@ export type {
 	WpdTableSubTableFn,
 	WpdTableSubTableResult,
 } from './wpd-table/wpd-table';
+export { WpdSpinner, WPD_SPINNER_PRESETS } from './wpd-spinner/wpd-spinner';
+export type {
+	WpdSpinnerConfig,
+	WpdSpinnerPreset,
+	WpdSpinnerPulse,
+} from './wpd-spinner/wpd-spinner';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -99,4 +105,5 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-steps',
 	'wpd-step',
 	'wpd-table',
+	'wpd-spinner',
 ] as const;

@@ -28,6 +28,7 @@ defined( 'ABSPATH' ) || exit;
 - [Native window with tabs (auto-swap pattern)](./native-window-with-tabs.md)
 - [Layout primitives (body → panel → row → col)](./layout-primitives.md)
 - [Render a data table — filters, sticky columns, sub-tables](./data-table.md)
+- [Loading spinner — presets and color overrides](./spinner.md)
 - [Native windows — overview + render-callback contract](./native-windows.md)
 - [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)

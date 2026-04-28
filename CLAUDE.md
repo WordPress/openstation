@@ -149,6 +149,8 @@ docs/
     ├── data-table.md            UPDATE/READ WHEN: <wpd-table> contract changes — column descriptor
     │                            shape, filter kinds, sticky-columns/header behavior, sub-table API,
     │                            or wpd-table-{filter-change,row-click,expand-change} event details.
+    ├── spinner.md               UPDATE/READ WHEN: <wpd-spinner> contract changes — preset list,
+    │                            attribute names, CSS-variable surface, or accessibility defaults.
     ├── register-icon.md        UPDATE/READ WHEN: wp_register_desktop_icon() contract changes.
     ├── register-wallpaper.md   UPDATE/READ WHEN: WallpaperDef or wp_register_desktop_wallpaper() changes.
     └── window-lifecycle.md     UPDATE/READ WHEN: window state machine / lifecycle hooks change.
