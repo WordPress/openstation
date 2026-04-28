@@ -65,6 +65,13 @@ function desktop_mode_register_assets() {
 		$version
 	);
 
+	wp_register_style(
+		'wp-desktop-phpmyadmin',
+		DESKTOP_MODE_URL . 'assets/css/phpmyadmin.css',
+		array( 'wp-desktop-variables', 'dashicons' ),
+		$version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action
@@ -115,6 +122,19 @@ function desktop_mode_register_assets() {
 		'wp-desktop-code-editor',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `wp-desktop-phpmyadmin` — tiny shim that mounts an <iframe> against
+	// the bundled phpMyAdmin install at `assets/vendor/phpmyadmin/`.
+	// Loaded lazily by the native-window sync the first time the user
+	// opens the phpMyAdmin window; registers a render callback on
+	// `window.wpDesktopNativeWindows['wpdc-phpmyadmin']`.
+	wp_register_script(
+		'wp-desktop-phpmyadmin',
+		DESKTOP_MODE_URL . 'assets/js/phpmyadmin' . $suffix . '.js',
+		array(),
+		$version,
+		true
 	);
 
 	// Wire the translation bundle to this script handle. WP looks

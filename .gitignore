@@ -6,3 +6,13 @@
 # Vite build output — regenerate locally with `npm run build`.
 /assets/js/desktop.js
 /assets/js/desktop.min.js
+
+# phpMyAdmin vendor distribution — fetched on demand by
+# bin/fetch-phpmyadmin.sh. Excluded because the extracted distribution is
+# ~50MB and changes on phpMyAdmin's release cadence, not this plugin's.
+/assets/vendor/phpmyadmin/
+
+# Diagnostic log written by config.inc.php / DbiMysqli-sqlite.php during
+# debugging. Lives inside the (gitignored) vendor dir today, but pin
+# the path in case someone wires the marker elsewhere.
+wpdc-debug.log

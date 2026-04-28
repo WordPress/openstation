@@ -31,6 +31,7 @@ defined( 'ABSPATH' ) || exit;
 - [Loading spinner — presets and color overrides](./spinner.md)
 - [Native windows — overview + render-callback contract](./native-windows.md)
 - [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
+- [phpMyAdmin shortcut (built-in app, local-only)](./phpmyadmin-shortcut.md)
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.

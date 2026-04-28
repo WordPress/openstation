@@ -51,6 +51,15 @@ const TARGETS = {
 		fileBase: 'code-editor',
 		iifeName: 'wpDesktopCodeEditor',
 	},
+	// phpMyAdmin window — tiny shim that mounts an <iframe> pointing at
+	// the bundled phpMyAdmin install under `assets/vendor/phpmyadmin/`
+	// (fetched separately via `bin/fetch-phpmyadmin.sh`). All the heavy
+	// lifting happens server-side inside that iframe.
+	phpmyadmin: {
+		entry:    'src/phpmyadmin/index.ts',
+		fileBase: 'phpmyadmin',
+		iifeName: 'wpDesktopPhpMyAdmin',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

@@ -27,6 +27,8 @@ built=(
 	"assets/js/iframe-bridge.min.js"
 	"assets/js/code-editor.js"
 	"assets/js/code-editor.min.js"
+	"assets/js/phpmyadmin.js"
+	"assets/js/phpmyadmin.min.js"
 )
 
 for file in "${built[@]}"; do
@@ -41,6 +43,19 @@ git archive --worktree-attributes --prefix="$prefix/" HEAD | tar -x -C "$tmp"
 for file in "${built[@]}"; do
 	cp "$file" "$tmp/$prefix/$file"
 done
+
+# phpMyAdmin vendor is gitignored (large, fetched separately) so it isn't
+# in the git archive — splice it in from the working tree if present. The
+# shortcut is a no-op without it, so missing vendor only loses the
+# feature; not a fatal packaging error.
+if [[ -d assets/vendor/phpmyadmin ]]; then
+	mkdir -p "$tmp/$prefix/assets/vendor"
+	cp -R assets/vendor/phpmyadmin "$tmp/$prefix/assets/vendor/phpmyadmin"
+	echo "Bundled phpMyAdmin vendor distribution."
+else
+	echo "Note: assets/vendor/phpmyadmin not present — phpMyAdmin shortcut will be inert."
+	echo "      Run 'bin/fetch-phpmyadmin.sh' before packaging to bundle it."
+fi
 
 ( cd "$tmp" && zip -qr "$root/$out" "$prefix" )
 
