@@ -109,6 +109,47 @@ if ( '' !== $wpdc_pma_wp_root && ! defined( 'ABSPATH' ) ) {
 }
 unset( $wpdc_pma_wp_root );
 
+// Hard gate on the vendor entrypoint.
+//
+// `assets/vendor/phpmyadmin/index.php` is directly reachable as a PHP
+// file under `wp-content/plugins/`. The capability + environment gate
+// in `window.php` only controls whether the desktop *icon* is shown —
+// it doesn't stop the web server from executing this file. Without
+// the gate below, an internet-exposed install that ships the plugin
+// would expose the WordPress DB credentials baked into the
+// `auth_type = config` block further down to any unauthenticated
+// visitor that finds the URL.
+//
+// We enforce ONLY the environment check here, not the capability
+// check. Two reasons:
+//
+//   1. The environment check is the load-bearing one — it's what
+//      closes the production-fail-open hole. The capability check is
+//      already enforced reliably on the icon side
+//      (`wpdc_phpmyadmin_available()` in `window.php`), so a low-
+//      privilege user can't discover the URL through the UI in the
+//      first place.
+//   2. SHORTINIT above skipped pluggable.php / user.php / capabilities
+//      / the role classes — `current_user_can()` doesn't exist yet
+//      and synthesising it (manual `require_once` of those files +
+//      a fresh `wp_validate_auth_cookie()` round-trip) is fragile in
+//      this no-init context. Several setups (wp-env, WordPress
+//      Develop, wasm) have surfaced cases where the cookie validation
+//      silently returns no-user even for an authenticated admin,
+//      locking out legitimate local devs while adding little real
+//      defence on top of the icon-side gate.
+//
+// On failure, return 404 (not 403) so the existence of the entrypoint
+// isn't disclosed to probes on misconfigured production installs.
+if ( ! function_exists( 'wp_get_environment_type' )
+	|| 'local' !== wp_get_environment_type()
+) {
+	if ( ! headers_sent() ) {
+		header( 'HTTP/1.0 404 Not Found' );
+	}
+	exit;
+}
+
 // Override session save path — wasm/Playground default points at a
 // non-existent dir (`/home/web_user`), breaking phpMyAdmin's first
 // session_start. sys_get_temp_dir() resolves to a writable location
