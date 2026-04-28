@@ -625,6 +625,34 @@ function desktop_mode_chromeless_bridge_script() {
 			} );
 		} catch ( _err ) { /* swallow — instrumentation is best-effort */ }
 
+		// Sensitive headers — never echo their values to the parent
+		// shell, even under `observe: true`. The header name is kept
+		// (a debugger wants to see "an Authorization went out") with
+		// the value replaced by `[REDACTED]` so devtool consumers can
+		// reason about request shape without risking nonce / cookie /
+		// bearer-token disclosure to other admin-installed plugins
+		// listening on `devtools.onRequest({ observe: true })`.
+		var WPD_REDACT = {
+			'authorization':       1,
+			'proxy-authorization': 1,
+			'cookie':              1,
+			'set-cookie':          1,
+			'x-wp-nonce':          1
+		};
+		var wpdRedactHeaders = function ( headers ) {
+			if ( ! headers || typeof headers !== 'object' ) {
+				return headers;
+			}
+			var out = {};
+			for ( var k in headers ) {
+				if ( ! Object.prototype.hasOwnProperty.call( headers, k ) ) {
+					continue;
+				}
+				out[ k ] = WPD_REDACT[ String( k ).toLowerCase() ] ? '[REDACTED]' : headers[ k ];
+			}
+			return out;
+		};
+
 		var wpdReportNetwork = function ( method, url, status, duration, failed, extra ) {
 			try {
 				var msg = {
@@ -637,10 +665,10 @@ function desktop_mode_chromeless_bridge_script() {
 				};
 				if ( extra && window.__wpdInstrument && window.__wpdInstrument.observe ) {
 					if ( extra.requestHeaders ) {
-						msg.requestHeaders = extra.requestHeaders;
+						msg.requestHeaders = wpdRedactHeaders( extra.requestHeaders );
 					}
 					if ( extra.responseHeaders ) {
-						msg.responseHeaders = extra.responseHeaders;
+						msg.responseHeaders = wpdRedactHeaders( extra.responseHeaders );
 					}
 				}
 				window.parent.postMessage( msg, window.location.origin );

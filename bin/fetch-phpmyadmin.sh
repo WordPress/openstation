@@ -11,15 +11,19 @@
 # Idempotent: bails early if assets/vendor/phpmyadmin/index.php already
 # exists. Pass --force to refetch.
 #
-# Verifies the download against the .sha256 companion file phpmyadmin.net
-# publishes at the same URL — we trust HTTPS for the hash file itself.
+# Verifies the download against a SHA-256 hardcoded in this script.
+# The hash was captured once from phpmyadmin.net's published .sha256
+# companion file — pinning here closes the MITM-with-valid-cert
+# attack on the same host serving both the zip and the hash. When
+# bumping VERSION, also refresh EXPECTED_SHA256 from
+# https://files.phpmyadmin.net/phpMyAdmin/<VERSION>/<basename>.sha256.
 
 set -euo pipefail
 
 VERSION="5.2.3"
 ZIP_BASENAME="phpMyAdmin-${VERSION}-english.zip"
 URL="https://files.phpmyadmin.net/phpMyAdmin/${VERSION}/${ZIP_BASENAME}"
-SHA_URL="${URL}.sha256"
+EXPECTED_SHA256="a59e54436489a9676edc0a8b2294ade4092bdad1c25919f857b20ec96b944920"
 
 cd "$(dirname "$0")/.."
 
@@ -43,10 +47,10 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 echo "Downloading phpMyAdmin ${VERSION}..."
-curl -fsSL "$URL"     -o "${tmp}/${ZIP_BASENAME}"
-curl -fsSL "$SHA_URL" -o "${tmp}/${ZIP_BASENAME}.sha256"
+curl -fsSL "$URL" -o "${tmp}/${ZIP_BASENAME}"
 
-echo "Verifying SHA-256..."
+echo "Verifying SHA-256 against pinned hash..."
+echo "${EXPECTED_SHA256}  ${ZIP_BASENAME}" > "${tmp}/${ZIP_BASENAME}.sha256"
 ( cd "$tmp" && shasum -a 256 -c "${ZIP_BASENAME}.sha256" )
 
 echo "Extracting..."
