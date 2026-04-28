@@ -52,11 +52,53 @@ export interface DesktopIconRenderDeps {
  * @param icons Ordered list from `config.desktopIcons`.
  * @param deps  See {@link DesktopIconRenderDeps}.
  */
+/**
+ * Stable serialisation of the icons-array shape we actually care
+ * about. Used to skip rebuilds when the live menu-refresh path
+ * fires with an identical payload — chromeless `admin_footer`
+ * emits `wp-desktop-plugins-changed` on every iframe paint, so
+ * `applyPayload()` was previously rebuilding the icon grid
+ * dozens of times during normal use, taking out anything we'd
+ * appended (notification badges, plugin-added decorations) each
+ * time. Cheap fingerprint = string concat per icon; the array
+ * is small (typically <10 entries).
+ */
+function fingerprintIcons(
+	icons: readonly DesktopIconServerEntry[] | undefined,
+): string {
+	if ( ! icons || icons.length === 0 ) {
+		return '';
+	}
+	return icons
+		.map(
+			( i ) =>
+				`${ i.id }|${ i.title }|${ i.icon }|${ i.window ?? '' }|${
+					i.url ?? ''
+				}|${ i.position ?? 0 }`,
+		)
+		.join( ';' );
+}
+
+let _lastFingerprint = '';
+
 export function renderDesktopIcons(
 	host: HTMLElement,
 	icons: readonly DesktopIconServerEntry[] | undefined,
 	deps: DesktopIconRenderDeps,
 ): void {
+	// Bail when the icon list hasn't changed since our last
+	// render. This is the cheapest correct fix for "any plugin
+	// that decorates an icon (notification badge, drag handle,
+	// status dot) has its node wiped on the next live menu
+	// refresh." Anything that DOES change in the icons array
+	// (a plugin activated, a position shifted) flips the
+	// fingerprint and triggers the full rebuild.
+	const fp = fingerprintIcons( icons );
+	if ( fp === _lastFingerprint && host.querySelector( ':scope > .wp-desktop-icons' ) ) {
+		return;
+	}
+	_lastFingerprint = fp;
+
 	const existing = host.querySelector( ':scope > .wp-desktop-icons' );
 	if ( existing ) {
 		existing.remove();
@@ -75,6 +117,14 @@ export function renderDesktopIcons(
 	}
 
 	host.appendChild( container );
+
+	// Tell decorators (notification badges, drag handles, …) the
+	// grid was just rebuilt so they can re-attach. Suppressed when
+	// the fingerprint short-circuit above bailed — subscribers get
+	// pinged exactly when the DOM actually changed.
+	doAction( HOOKS.DESKTOP_ICONS_RENDERED, {
+		ids: ( icons ?? [] ).map( ( i ) => i.id ),
+	} );
 }
 
 function buildIcon(

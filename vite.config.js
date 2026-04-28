@@ -51,6 +51,16 @@ const TARGETS = {
 		fileBase: 'code-editor',
 		iifeName: 'wpDesktopCodeEditor',
 	},
+	// Recycle Bin app — a thin bundle that registers a render
+	// callback on `window.wpDesktopNativeWindows['wpdm-recycle-bin']`
+	// and renders a `<wpd-table>` populated from the REST list. The
+	// `<wpd-*>` elements themselves are defined by the main desktop
+	// bundle, so this module just consumes them.
+	'recycle-bin': {
+		entry:    'src/recycle-bin/index.ts',
+		fileBase: 'recycle-bin',
+		iifeName: 'wpDesktopRecycleBin',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

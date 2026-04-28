@@ -1894,6 +1894,157 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 	}
 
+	/* -----------------------------------------------------------------
+	 * Broadcast receiver — iframe side.
+	 *
+	 * The parent shell publishes broadcasts via
+	 * `wp.desktop.broadcast(topic, payload)` (see `src/broadcast.ts`).
+	 * It posts `{ type: 'wp-desktop-broadcast', topic, payload }` to
+	 * every open iframe. Here we re-dispatch that as a CustomEvent
+	 * on the iframe's own document so admin pages can subscribe with
+	 * plain `document.addEventListener( 'wp-desktop-broadcast', cb )`
+	 * — no extra script handle required.
+	 *
+	 * Iframe-side admin code can also publish UPSTREAM by posting
+	 * the same shape to `window.parent`; the parent's
+	 * `installBroadcastReceiver()` re-broadcasts to every other
+	 * iframe + native window.
+	 * ----------------------------------------------------------------- */
+	window.addEventListener( 'message', function ( e ) {
+		if ( e.origin !== origin ) {
+			return;
+		}
+		if ( ! e.data || e.data.type !== 'wp-desktop-broadcast' ) {
+			return;
+		}
+		try {
+			document.dispatchEvent( new CustomEvent( 'wp-desktop-broadcast', {
+				detail: { topic: e.data.topic, payload: e.data.payload }
+			} ) );
+		} catch ( _err ) { /* old browser without CustomEvent ctor — ignore */ }
+	} );
+
+	/* -----------------------------------------------------------------
+	 * Soft-reload — iframe-side default handler.
+	 *
+	 * When a `wp-desktop.<post_type>.changed` broadcast fires AND the
+	 * current iframe is on a known list page for that post type, we
+	 * fetch the current URL and replace the iframe's `#wpbody-content`
+	 * in place. The user sees the new state of the list — restored
+	 * post appears, deleted media disappears — without the WP loading
+	 * spinner that `location.reload()` would show.
+	 *
+	 * Single-edit pages (`post.php`, `post-new.php`) are deliberately
+	 * NOT in the rule set: replacing their body would destroy any
+	 * unsaved Gutenberg/classic-editor state. Plugins that want
+	 * specific behaviour for those pages can subscribe to the same
+	 * topic on `document` and handle it themselves.
+	 *
+	 * The fetch carries a custom header so a later phase can serve a
+	 * minimal partial response if we want to optimise; for now WP
+	 * returns the full admin page and we just pluck the body.
+	 *
+	 * WP list-table JS uses event delegation on `document`/`body`,
+	 * which survives `replaceWith`. If a specific page breaks after
+	 * a swap (e.g. inline-edit double-binding), that page's plugin
+	 * should listen for `wp-desktop-soft-reloaded` and rebind.
+	 * ----------------------------------------------------------------- */
+	var WPDM_SOFT_RELOAD_RULES = [
+		{
+			topic: 'wp-desktop.post.changed',
+			match: function () {
+				if ( ! _wpdmEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
+				var t = new URLSearchParams( location.search ).get( 'post_type' );
+				return t === null || t === 'post';
+			}
+		},
+		{
+			topic: 'wp-desktop.page.changed',
+			match: function () {
+				if ( ! _wpdmEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
+				return new URLSearchParams( location.search ).get( 'post_type' ) === 'page';
+			}
+		},
+		{
+			topic: 'wp-desktop.attachment.changed',
+			match: function () {
+				return _wpdmEndsWith( location.pathname, '/wp-admin/upload.php' );
+			}
+		},
+		{
+			topic: 'wp-desktop.comment.changed',
+			match: function () {
+				return _wpdmEndsWith( location.pathname, '/wp-admin/edit-comments.php' );
+			}
+		}
+	];
+
+	function _wpdmEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
+
+	var _wpdmSoftReloadInFlight = false;
+	var _wpdmSoftReloadQueued = false;
+
+	function _wpdmSoftReload() {
+		if ( _wpdmSoftReloadInFlight ) {
+			_wpdmSoftReloadQueued = true;
+			return;
+		}
+		_wpdmSoftReloadInFlight = true;
+		fetch( location.href, {
+			credentials: 'same-origin',
+			cache: 'no-cache',
+			headers: { 'X-WP-Desktop-Soft-Reload': '1' }
+		} ).then( function ( r ) {
+			if ( ! r.ok ) throw new Error( 'soft-reload fetch failed: ' + r.status );
+			return r.text();
+		} ).then( function ( html ) {
+			var doc = new DOMParser().parseFromString( html, 'text/html' );
+			var fresh = doc.querySelector( '#wpbody-content' );
+			var live = document.querySelector( '#wpbody-content' );
+			if ( ! fresh || ! live ) {
+				/* Markup we expected isn't there — admin pages we
+				 * don't recognise (or core changes the structure).
+				 * Don't reload; let the iframe stay as it is rather
+				 * than show a spinner the user told us not to. */
+				return;
+			}
+			live.replaceWith( fresh );
+			try {
+				document.dispatchEvent( new CustomEvent( 'wp-desktop-soft-reloaded' ) );
+			} catch ( _err ) {}
+			/* Some WP scripts re-init on DOMContentLoaded only — let
+			 * pages opt-in to a re-init by listening to the event
+			 * above. We intentionally do NOT re-fire DOMContentLoaded;
+			 * that's almost always wrong (double-init of jQuery/WP). */
+		} ).catch( function ( err ) {
+			/* Network error — leave the iframe untouched. The user's
+			 * next manual interaction will refresh state, and the
+			 * next broadcast will retry. */
+			if ( window.console && window.console.warn ) {
+				window.console.warn( '[wp-desktop] soft-reload skipped:', err );
+			}
+		} ).then( function () {
+			_wpdmSoftReloadInFlight = false;
+			if ( _wpdmSoftReloadQueued ) {
+				_wpdmSoftReloadQueued = false;
+				_wpdmSoftReload();
+			}
+		} );
+	}
+
+	document.addEventListener( 'wp-desktop-broadcast', function ( e ) {
+		var detail = e.detail || {};
+		var topic = detail.topic;
+		if ( ! topic ) return;
+		for ( var i = 0; i < WPDM_SOFT_RELOAD_RULES.length; i++ ) {
+			var r = WPDM_SOFT_RELOAD_RULES[ i ];
+			if ( r.topic === topic && r.match() ) {
+				_wpdmSoftReload();
+				return;
+			}
+		}
+	} );
+
 	window.addEventListener( 'message', function( e ) {
 		if ( e.origin !== origin ) {
 			return;

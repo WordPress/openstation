@@ -66,6 +66,13 @@ import { renderDesktopIcons } from './desktop-icons';
 import { createApplyPayload } from './menu-refresh-apply';
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
+import {
+	attachBroadcastBus,
+	broadcast,
+	installBroadcastReceiver,
+	subscribe,
+} from './broadcast';
+import { startRecycleBinBadge } from './recycle-bin/badge';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
 	registerCommand,
@@ -400,6 +407,37 @@ export interface WpDesktopPublicApi {
 	 * @since 0.17.0
 	 */
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
+	/**
+	 * Cross-window broadcast. Publishes a payload on a topic to
+	 * every window — native or iframe — that has subscribed. The
+	 * canonical built-in topic is `wp-desktop.data-changed`,
+	 * emitted by the Recycle Bin whenever an item is restored or
+	 * permanently deleted; the shell's default subscriber reloads
+	 * any iframe whose URL matches a known admin page for the
+	 * affected post type.
+	 *
+	 * Plugins are encouraged to namespace their topics
+	 * (`acme.orders.refunded`, etc.). Wildcard `'*'` subscriptions
+	 * are supported by `subscribe()` but expensive — use sparingly.
+	 *
+	 * @since 0.21.0
+	 */
+	broadcast: < T = unknown >( topic: string, payload: T ) => void;
+	/**
+	 * Subscribe to broadcast topics. Returns an unsubscribe handle.
+	 * Use `'*'` to receive every payload.
+	 *
+	 * Iframe-side admin pages can subscribe via plain DOM —
+	 * `document.addEventListener( 'wp-desktop-broadcast', cb )` —
+	 * the chromeless bridge re-dispatches every incoming broadcast
+	 * as that CustomEvent.
+	 *
+	 * @since 0.21.0
+	 */
+	subscribe: < T = unknown >(
+		topic: string,
+		cb: ( payload: T, meta: { topic: string } ) => void,
+	) => () => void;
 	/**
 	 * Register a Cmd+K palette. The shell owns a single shortcut
 	 * handler that cycles through every registered palette; the
@@ -915,6 +953,43 @@ function init(): void {
 	// global so individual Window instances don't need to know
 	// about the bridge.
 	const connectionBridge = createConnectionBridge( manager );
+
+	// Cross-window broadcast bus — generic fan-out pub/sub. Built-in
+	// uses today: Recycle Bin publishes `wp-desktop.data-changed`
+	// when items move in/out of trash; iframes (Posts list, Media
+	// Library, …) and other native windows can react.
+	attachBroadcastBus( manager );
+	installBroadcastReceiver();
+
+	// Recycle-bin count badge — painted on the dock/taskbar tile
+	// + desktop icon as soon as those exist. Initial value comes
+	// from the shell config (`recycleBinCount`); cross-window
+	// `wp-desktop.<type>.changed` broadcasts deliver delta updates
+	// so the badge stays accurate without an explicit refresh.
+	// `wp_localize_script` coerces every scalar to a string — so
+	// `recycleBinCount: 2` (int) lands here as `'2'` (string).
+	// `Number()` handles both shapes, and the `|| 0` guard turns
+	// `NaN` (missing key) into a safe zero.
+	const cfgWithBin = config as DesktopConfig & {
+		recycleBinCount?: number | string;
+		recycleBinCountUrl?: string;
+	};
+	const cfgCountRaw = cfgWithBin.recycleBinCount;
+	startRecycleBinBadge(
+		Number( cfgCountRaw ) || 0,
+		typeof cfgWithBin.recycleBinCountUrl === 'string'
+			? cfgWithBin.recycleBinCountUrl
+			: '',
+	);
+
+	// Auto-reload iframes on `wp-desktop.<post_type>.changed` is
+	// handled IN THE IFRAME (see the chromeless bridge in
+	// `includes/render.php`). The iframe-side handler does a soft
+	// reload — fetch the current URL, swap `#wpbody-content` —
+	// instead of a full `iframe.contentWindow.location.reload()`
+	// from the parent, which produces the WP loading spinner the
+	// user explicitly asked us not to show. Native windows still
+	// react via `wp.desktop.subscribe()`; nothing here.
 	(
 		window as unknown as {
 			__wpDesktopConnectionBridge?: ReturnType< typeof createConnectionBridge >;
@@ -1052,6 +1127,8 @@ function init(): void {
 		unregisterTitleBarButton,
 		listTitleBarButtons,
 		connect: connectionBridge.connect,
+		broadcast,
+		subscribe,
 		registerPalette,
 		unregisterPalette,
 		listPalettes,

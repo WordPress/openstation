@@ -1345,6 +1345,175 @@ See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrument
 
 ---
 
+## Recycle Bin
+
+The Recycle Bin window captures attachments into the WordPress trash (posts and pages already trash by default) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
+
+### `wp_desktop_recycle_bin_capture_post_types` — Experimental (filter)
+
+Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]`. Returning a list excluding `attachment` disables the soft-delete interception entirely — vanilla `wp_delete_attachment()` resumes.
+
+```php
+add_filter( 'wp_desktop_recycle_bin_capture_post_types', function ( $types ) {
+    $types[] = 'product';
+    return $types;
+} );
+```
+
+### `wp_desktop_recycle_bin_should_capture` — Experimental (filter)
+
+Per-attachment opt-out. Returning `false` for a specific `WP_Post` lets that single deletion bypass the bin.
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_should_capture', bool $capture, WP_Post $post );
+```
+
+### `wp_desktop_recycle_bin_query_args` — Experimental (filter)
+
+Customize the `WP_Query` args used to populate the bin — scope it to the current user, restrict by role, or interleave additional post types beyond the capture list.
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_query_args', array $query_args, array $caller_args );
+```
+
+### `wp_desktop_recycle_bin_items` / `wp_desktop_recycle_bin_item` — Experimental (filter)
+
+`..._item` reshapes a single row before it's returned to JS; `..._items` filters the final list. The `id`, `type`, and `deleted_at` fields are load-bearing — keep them when extending.
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_item', array $item, WP_Post $post );
+apply_filters( 'wp_desktop_recycle_bin_items', array $items, WP_Query $query );
+```
+
+### `wp_desktop_recycle_bin_user_can_view|restore|purge|use` — Experimental (filter)
+
+Per-item capability gates. `_use` controls whether the bin window is registered at all for the current user; the others gate individual operations. Defaults: `_use` → `edit_posts`, `_view` → `edit_post`, `_restore`/`_purge` → `delete_post` (the same gate WP itself uses for trash/untrash).
+
+### `wp_desktop_recycle_bin_window_args` / `wp_desktop_recycle_bin_icon_args` — Experimental (filter)
+
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the bin — useful to change dimensions, swap the dashicon, or move the window from the taskbar to the dock.
+
+### `wp_desktop_recycle_bin_template_html` — Experimental (filter)
+
+The full template body before it's emitted into the native-window template element. Keep the `data-wpdm-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
+
+### Lifecycle actions
+
+```php
+do_action( 'wp_desktop_recycle_bin_item_captured', int $post_id, int $user_id, string $now_gmt );
+do_action( 'wp_desktop_recycle_bin_before_restore', int $post_id, WP_Post $post );
+do_action( 'wp_desktop_recycle_bin_after_restore',  int $post_id );
+do_action( 'wp_desktop_recycle_bin_before_purge',   int $post_id, WP_Post $post );
+do_action( 'wp_desktop_recycle_bin_after_purge',    int $post_id, string $type );
+do_action( 'wp_desktop_recycle_bin_emptied',        int $purged, int $skipped );
+```
+
+### REST endpoints
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET`  | `/wp-desktop/v1/recycle-bin` | List trashed items (`page`, `per_page`, `type`, `search`). |
+| `POST` | `/wp-desktop/v1/recycle-bin/restore` | Restore by id. Body: `{ ids: int[] }`. |
+| `POST` | `/wp-desktop/v1/recycle-bin/purge` | Permanently delete. Body: `{ ids: int[] }`. |
+| `POST` | `/wp-desktop/v1/recycle-bin/empty` | Empty everything the current user can purge. |
+
+### JS extension points
+
+- `wp.hooks.applyFilters( 'wp_desktop.recycleBin.columns', cols )` — append/replace `<wpd-table>` columns.
+- `document.addEventListener( 'wp-desktop-recycle-bin-changed', e => …)` — fired after every restore / purge / empty with `{ kind, ok, errors, source }`. `source` is `'local'` (the bin's own action), `'chromeless'` (a delete in another window's iframe), or `'heartbeat'` (a delete elsewhere — other tab, REST, WP-CLI).
+- `wp.hooks.doAction( 'wp_desktop.recycleBin.changed', …)` — same payload, hook-bus form.
+
+### Cross-window broadcast
+
+After every restore / purge / empty the bin publishes one topic
+**per affected post type** on the shell-wide broadcast bus
+(`wp.desktop.broadcast`). The same chromeless footer in
+`realtime.php` also emits these topics for any admin request
+that ran `wp_trash_post` / `untrash_post` / `before_delete_post`
+/ `trashed_comment` / `untrashed_comment` / `deleted_comment` —
+so the recycle bin learns instantly when a list-table trashes
+something, and the corresponding list iframe refreshes when the
+bin restores something.
+
+Topic format: **`wp-desktop.<post_type>.changed`** — the literal
+post-type slug (`post`, `page`, `attachment`, `comment`, or any
+CPT). Payload:
+
+```js
+{ source: 'recycle-bin' | 'admin' | <plugin>,
+  action: 'trashed' | 'untrashed' | 'deleted',
+  ids:    number[] }
+```
+
+**Iframe-side default behaviour: soft reload.** The chromeless
+bridge installs a built-in subscriber that, when the topic
+matches the iframe's current page, *fetches the URL it's already
+on* and replaces `#wpbody-content` in place. The user sees the
+list update — restored post appears, trashed media disappears —
+without the WP loading spinner that `location.reload()` would
+show. Mappings:
+
+| Topic                              | List page                           |
+|------------------------------------|-------------------------------------|
+| `wp-desktop.post.changed`          | `edit.php` (post type unset / `post`) |
+| `wp-desktop.page.changed`          | `edit.php?post_type=page`           |
+| `wp-desktop.attachment.changed`    | `upload.php`                        |
+| `wp-desktop.comment.changed`       | `edit-comments.php`                 |
+
+Single-edit pages (`post.php`, `post-new.php`) deliberately have
+**no** soft-reload handler, because replacing their body would
+destroy unsaved Gutenberg / classic-editor state. Plugins wanting
+specific behaviour for those pages subscribe to the same topic
+themselves and decide how to react.
+
+After every successful soft-reload the bridge dispatches
+`wp-desktop-soft-reloaded` on the iframe's `document` so plugins
+that need to re-bind state (e.g. their own custom widgets in the
+list table) have a single signal to listen for.
+
+**Plugin extension.** Subscribers from anywhere (parent shell,
+native windows, iframes) can use the bus directly:
+
+```js
+wp.desktop.subscribe( 'wp-desktop.post.changed', ( payload ) => {
+    if ( payload.action === 'untrashed' ) {
+        myEditorRedrawSidebar( payload.ids );
+    }
+} );
+```
+
+Iframe-side admin pages subscribe via plain DOM:
+
+```js
+document.addEventListener( 'wp-desktop-broadcast', ( e ) => {
+    if ( e.detail.topic !== 'wp-desktop.post.changed' ) return;
+    // your custom handling — fires after the built-in soft reload
+} );
+```
+
+### Real-time signal
+
+The bin window updates without polling via two channels:
+
+1. **Chromeless `postMessage` (instant).** Whenever a delete fires inside an iframe-rendered admin page (e.g. "Move to Trash" on `post.php`), `realtime.php` emits an inline footer script that posts `{ type: 'wp-desktop-recycle-bin-changed', ts }` to the parent shell.
+2. **Heartbeat (catch-all, ≤15 s).** A delete also bumps `_wpdm_recycle_bin_change_ts` (autoload=false). While the bin window is open, its tab enqueues `wpdm_recycle_bin_seen_ts` on every Heartbeat tick; the `heartbeat_received` filter answers `{ changed, ts }`. Closed-bin tabs send nothing — zero per-tick cost.
+
+Hook this to push your own real-time channel (websocket, SSE) without re-listening on every delete action:
+
+```php
+do_action( 'wp_desktop_recycle_bin_signal', int $ts_ms );
+```
+
+Suppress the chromeless footer emit per request:
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_emit_footer_signal', bool $emit );
+```
+
+See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end recipes (custom post types, audit logging, custom columns).
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

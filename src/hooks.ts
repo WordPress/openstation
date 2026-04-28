@@ -228,6 +228,13 @@ export const HOOKS = {
 	 */
 	SHELL_ERROR: 'wp-desktop.shell.error',
 	/**
+	 * Action, fires once per `wp.desktop.broadcast()` call with the
+	 * fully-resolved `{ topic, payload }` detail. Lets plugins log,
+	 * mirror, or augment broadcast traffic without subscribing for
+	 * every individual topic.
+	 */
+	BROADCAST: 'wp-desktop.broadcast',
+	/**
 	 * Filter, applies to a `MonitorEntry` before a monitor widget
 	 * renders it. Plugins can mutate the entry (rewrite the message,
 	 * add `extra` fields) or return `null` to suppress it. Used by
@@ -387,6 +394,22 @@ export const HOOKS = {
 	 * @since 0.11.0
 	 */
 	DESKTOP_ICON_CLICKED: 'wp-desktop.desktop-icon.clicked',
+	/**
+	 * Action, fires after the wallpaper icon grid is rendered or
+	 * re-rendered. Payload: `{ ids: string[] }` — the ids in the
+	 * order they were painted. Plugins that decorate icons
+	 * (notification badges, drag handles, status dots) subscribe
+	 * to this so their decorations survive a live menu refresh
+	 * that legitimately rebuilds the grid.
+	 *
+	 * Idempotent payload (`{ ids: [] }`) when the icon list is
+	 * empty; suppressed entirely when the rendered DOM is
+	 * unchanged from the previous call (the fingerprint short-
+	 * circuit upstream skips both the rebuild and this signal).
+	 *
+	 * @since 0.21.0
+	 */
+	DESKTOP_ICONS_RENDERED: 'wp-desktop.desktop-icons.rendered',
 
 	// ------------------------------------------------------------------
 	// Cross-plugin composition.
