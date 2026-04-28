@@ -35,14 +35,27 @@
 	gap: 8px;
 }
 
+/*
+ * Honour the `hidden` attribute. The browser's UA stylesheet
+ * sets `[hidden] { display: none }`, but our explicit
+ * `display: flex` above wins on specificity. This rule restores
+ * the expected behaviour so `bulk.hidden = true` from JS
+ * actually hides the bulk action group when nothing is selected.
+ */
+.wpdm-recycle-bin__toolbar-right[hidden] {
+	display: none;
+}
+
 .wpdm-recycle-bin__toolbar-trailing {
 	margin-inline-start: auto;
 }
 
 .wpdm-recycle-bin__count {
 	font-size: 12px;
+	font-weight: 600;
 	color: var( --wpd-text-muted, #50575e );
 	font-variant-numeric: tabular-nums;
+	padding-inline-end: 4px;
 }
 
 .wpdm-recycle-bin__body {
