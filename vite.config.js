@@ -61,6 +61,13 @@ const TARGETS = {
 		fileBase: 'recycle-bin',
 		iifeName: 'wpDesktopRecycleBin',
 	},
+	// Cron Manager app - lazy native-window bundle for listing,
+	// editing, creating, running, and deleting WP-Cron events.
+	'cron-manager': {
+		entry:    'src/cron-manager/index.ts',
+		fileBase: 'cron-manager',
+		iifeName: 'wpDesktopCronManager',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

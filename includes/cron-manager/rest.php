@@ -1,0 +1,192 @@
+<?php
+/**
+ * Desktop Mode - Cron Manager REST routes.
+ *
+ * REST namespace: `/wp-desktop/v1/cron`.
+ *
+ * @package WPDesktopMode
+ * @since   0.22.0
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Register REST routes.
+ *
+ * @since 0.22.0
+ */
+function wpdm_cron_manager_register_rest_routes() {
+	register_rest_route(
+		'wp-desktop/v1',
+		'/cron/events',
+		array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'wpdm_cron_manager_rest_permission',
+				'callback'            => 'wpdm_cron_manager_rest_list_events',
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'wpdm_cron_manager_rest_permission',
+				'callback'            => 'wpdm_cron_manager_rest_create_event',
+			),
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'permission_callback' => 'wpdm_cron_manager_rest_permission',
+				'callback'            => 'wpdm_cron_manager_rest_update_event',
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'permission_callback' => 'wpdm_cron_manager_rest_permission',
+				'callback'            => 'wpdm_cron_manager_rest_delete_event',
+			),
+		)
+	);
+
+	register_rest_route(
+		'wp-desktop/v1',
+		'/cron/schedules',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'permission_callback' => 'wpdm_cron_manager_rest_permission',
+			'callback'            => 'wpdm_cron_manager_rest_list_schedules',
+		)
+	);
+
+	register_rest_route(
+		'wp-desktop/v1',
+		'/cron/events/run-now',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'wpdm_cron_manager_rest_permission',
+			'callback'            => 'wpdm_cron_manager_rest_run_now',
+		)
+	);
+}
+add_action( 'rest_api_init', 'wpdm_cron_manager_register_rest_routes' );
+
+/**
+ * Permission gate for every Cron Manager REST route.
+ *
+ * @since 0.22.0
+ *
+ * @return true|WP_Error
+ */
+function wpdm_cron_manager_rest_permission() {
+	if ( ! is_user_logged_in() ) {
+		return new WP_Error(
+			'wpdm_cron_unauthenticated',
+			__( 'You must be logged in to manage cron jobs.', 'desktop-mode' ),
+			array( 'status' => 401 )
+		);
+	}
+	if ( ! wpdm_cron_manager_user_can_use() ) {
+		return new WP_Error(
+			'wpdm_cron_forbidden',
+			__( 'You do not have permission to manage cron jobs.', 'desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+	return true;
+}
+
+/**
+ * GET /cron/events.
+ *
+ * @since 0.22.0
+ *
+ * @return WP_REST_Response
+ */
+function wpdm_cron_manager_rest_list_events() {
+	return rest_ensure_response(
+		array(
+			'events' => wpdm_cron_manager_list_events(),
+		)
+	);
+}
+
+/**
+ * GET /cron/schedules.
+ *
+ * @since 0.22.0
+ *
+ * @return WP_REST_Response
+ */
+function wpdm_cron_manager_rest_list_schedules() {
+	return rest_ensure_response(
+		array(
+			'schedules' => wpdm_cron_manager_get_schedules_payload(),
+		)
+	);
+}
+
+/**
+ * POST /cron/events.
+ *
+ * @since 0.22.0
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return WP_REST_Response|WP_Error
+ */
+function wpdm_cron_manager_rest_create_event( WP_REST_Request $request ) {
+	$result = wpdm_cron_manager_create_event( $request->get_json_params() );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return rest_ensure_response( $result );
+}
+
+/**
+ * PUT/PATCH /cron/events.
+ *
+ * @since 0.22.0
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return WP_REST_Response|WP_Error
+ */
+function wpdm_cron_manager_rest_update_event( WP_REST_Request $request ) {
+	$params   = $request->get_json_params();
+	$identity = is_array( $params ) && isset( $params['identity'] ) ? $params['identity'] : null;
+	$event    = is_array( $params ) && isset( $params['event'] ) ? $params['event'] : null;
+	$result   = wpdm_cron_manager_update_event( $identity, $event );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return rest_ensure_response( $result );
+}
+
+/**
+ * DELETE /cron/events.
+ *
+ * @since 0.22.0
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return WP_REST_Response|WP_Error
+ */
+function wpdm_cron_manager_rest_delete_event( WP_REST_Request $request ) {
+	$params   = $request->get_json_params();
+	$identity = is_array( $params ) && isset( $params['identity'] ) ? $params['identity'] : null;
+	$result   = wpdm_cron_manager_delete_event( $identity );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return rest_ensure_response( $result );
+}
+
+/**
+ * POST /cron/events/run-now.
+ *
+ * @since 0.22.0
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return WP_REST_Response|WP_Error
+ */
+function wpdm_cron_manager_rest_run_now( WP_REST_Request $request ) {
+	$params   = $request->get_json_params();
+	$identity = is_array( $params ) && isset( $params['identity'] ) ? $params['identity'] : null;
+	$result   = wpdm_cron_manager_run_event_now( $identity );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return rest_ensure_response( $result );
+}

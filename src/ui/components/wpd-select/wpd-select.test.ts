@@ -72,6 +72,26 @@ describe( '<wpd-select> + <wpd-option>', () => {
 		expect( stub.selected ).toBe( true );
 	} );
 
+	test( 'placeholder does not duplicate an explicit empty option', async () => {
+		host.innerHTML = `
+			<wpd-select placeholder="All schedules">
+				<wpd-option value="">All schedules</wpd-option>
+				<wpd-option value="daily">Once Daily</wpd-option>
+			</wpd-select>
+		`;
+		await tick();
+		await tick();
+
+		const el = host.querySelector( 'wpd-select' )!;
+		const native = el.shadowRoot!.querySelector( 'select' ) as HTMLSelectElement;
+
+		expect( native.options.length ).toBe( 2 );
+		expect( native.options[ 0 ].textContent?.trim() ).toBe( 'All schedules' );
+		expect( native.options[ 0 ].value ).toBe( '' );
+		expect( native.options[ 0 ].disabled ).toBe( false );
+		expect( native.options[ 0 ].selected ).toBe( true );
+	} );
+
 	test( 'late-added options trigger a re-render via the mutation observer', async () => {
 		host.innerHTML = `<wpd-select value=""></wpd-select>`;
 		await tick();

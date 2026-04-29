@@ -251,6 +251,7 @@ export class WpdSelect extends Component {
 		const selectAriaLabel = label || placeholder;
 
 		const options = this._readOptions();
+		const hasEmptyOption = options.some( ( o ) => o.value === '' );
 		// Shadow-DOM <label for=…> pairing — the inner id is
 		// derived from the host's auto-id (or explicit id) so
 		// label-click focuses the select.
@@ -272,7 +273,7 @@ export class WpdSelect extends Component {
 					name=${ name }
 					@change=${ ( e: Event ) => this._onChange( e ) }
 				>
-					${ placeholder && ! current
+					${ placeholder && ! current && ! hasEmptyOption
 						? html`<option value="" disabled selected>
 								${ placeholder }
 						  </option>`
@@ -280,7 +281,7 @@ export class WpdSelect extends Component {
 					${ options.map(
 						( o ) => html`
 							<option
-								value=${ o.value }
+								.value=${ o.value }
 								?disabled=${ o.disabled }
 								?selected=${ o.value === current }
 							>

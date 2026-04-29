@@ -76,6 +76,14 @@ function desktop_mode_register_assets() {
 		file_exists( $recycle_bin_css ) ? (string) filemtime( $recycle_bin_css ) : $version
 	);
 
+	$cron_manager_css = DESKTOP_MODE_DIR . 'assets/css/cron-manager.css';
+	wp_register_style(
+		'wp-desktop-cron-manager',
+		DESKTOP_MODE_URL . 'assets/css/cron-manager.css',
+		array( 'wp-desktop-variables', 'dashicons' ),
+		file_exists( $cron_manager_css ) ? (string) filemtime( $cron_manager_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action
@@ -151,6 +159,23 @@ function desktop_mode_register_assets() {
 	);
 	wp_set_script_translations(
 		'wp-desktop-recycle-bin',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `wp-desktop-cron-manager` - native window for browsing and
+	// managing WP-Cron events. Lazy-loaded by the native-window sync
+	// the first time `wpdm-cron-manager` opens.
+	$cron_manager_js = DESKTOP_MODE_DIR . 'assets/js/cron-manager' . $suffix . '.js';
+	wp_register_script(
+		'wp-desktop-cron-manager',
+		DESKTOP_MODE_URL . 'assets/js/cron-manager' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $cron_manager_js ) ? (string) filemtime( $cron_manager_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'wp-desktop-cron-manager',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);
