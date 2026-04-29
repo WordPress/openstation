@@ -16,8 +16,7 @@
 
 # Internal docs / notes (not for end users)
 /CLAUDE.md          export-ignore
-/DEVELOPMENT.md     export-ignore
-/RELEASE.md         export-ignore
+/AGENTS.md          export-ignore
 
 # Source + build config (assets/js/*.js is the shipped output)
 /src/               export-ignore
