@@ -55,15 +55,18 @@ window.requestAttention(
 Sister API for setting the numeric badge without poking the DOM:
 
 ```js
-wp.desktop.taskbar?.setBadge( 'my-plugin-inbox', 7 );
-wp.desktop.taskbar?.clearBadge( 'my-plugin-inbox' );
-// `wp.desktop.dock.setBadge(...)` if your tile lives on the left rail.
+wp.desktop.dock?.setBadge?.(    'my-plugin-inbox', 7 );
+wp.desktop.taskbar?.setBadge?.( 'my-plugin-inbox', 7 );
+wp.desktop.icons?.setBadge?.(   'my-plugin-inbox', 7 );
+wp.desktop.dock?.clearBadge?.(    'my-plugin-inbox' );
+wp.desktop.taskbar?.clearBadge?.( 'my-plugin-inbox' );
+wp.desktop.icons?.clearBadge?.(   'my-plugin-inbox' );
 ```
 
-The dock-vs-taskbar resolution mirrors the registered window's
-`placement`. Both methods fire a
-`wpd-dock-item-badge-changed` CustomEvent on `document` so other
-plugins can mirror.
+Fan to all three rails — the rail that owns the id paints, the
+others silently no-op. Every applied change publishes
+`wp-desktop/badge-changed` on the activity bus with `rail`
+identifying the surface.
 
 ## Mute (Do Not Disturb) — JS hook
 

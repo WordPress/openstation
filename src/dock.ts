@@ -10,10 +10,11 @@
  */
 
 import { activity } from './activity';
+import { doAction, HOOKS } from './hooks';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
-import { hashTitleToHue as _hashTitleToHue } from './ui/util/hash-hue';
+import { hashTitleToHue } from './ui/util/hash-hue';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -75,13 +76,6 @@ export interface DockItem {
 /** Which edge of the screen the rail hugs. Drives tooltip anchoring + modifier CSS. */
 export type DockOrientation = 'left' | 'bottom';
 
-/**
- * Stable string-to-hue helper. Re-exported here for backwards-compat
- * — the canonical home is `src/ui/util/hash-hue.ts` so `<wpd-avatar>`
- * can share it without depending on the dock module.
- */
-export const hashTitleToHue = _hashTitleToHue;
-
 /** Attention modes accepted by `Dock.setAttention()` and `Window.requestAttention()`. */
 export type DockAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
 
@@ -122,9 +116,25 @@ export class Dock {
 	private itemElements: Map<string, HTMLElement> = new Map();
 	private adminUrl: string;
 	private orientation: DockOrientation;
+	/**
+	 * Routing discriminator stamped onto every event this rail
+	 * publishes. `'left'` orientation carries `'dock'`; `'bottom'`
+	 * carries `'taskbar'`. Lets a single `wp-desktop/badge-changed`
+	 * subscriber tell the two visually-distinct rails apart
+	 * without inferring from id space.
+	 */
+	private rail: 'dock' | 'taskbar';
 	private systemItems: SystemDockItem[] = [];
 	private systemItemElements: Map<string, HTMLElement> = new Map();
 	private systemSeparator: HTMLElement | null = null;
+	/**
+	 * Client-side badge overrides keyed by item id. Lets
+	 * `replaceItems()` re-paint a tile that a JS caller had already
+	 * decorated via `setBadge()` — without this map the next live
+	 * menu refresh would drop every client-set badge back to the
+	 * server-declared `item.badge` value.
+	 */
+	private badgeOverrides: Map<string, number> = new Map();
 
 	/**
 	 * Active attention timers, keyed by item id. Used to cancel a
@@ -145,6 +155,7 @@ export class Dock {
 		this.items = items;
 		this.adminUrl = adminUrl;
 		this.orientation = orientation;
+		this.rail = orientation === 'bottom' ? 'taskbar' : 'dock';
 
 		// Mark the container with the orientation modifier so CSS can
 		// flip flex-direction, indicator-dot position, etc. The base
@@ -204,6 +215,19 @@ export class Dock {
 			} else {
 				this.container.appendChild( btn );
 			}
+			// Re-apply any client-side badge override that was set
+			// before the refresh. Without this, the live menu
+			// refresh path would drop every JS-set badge back to
+			// the server-declared `item.badge` and plugins would
+			// have to re-decorate after every plugin activation —
+			// exactly the anti-pattern this PR is closing.
+			const override = this.badgeOverrides.get( item.id );
+			if ( override !== undefined ) {
+				const primary = btn.querySelector< HTMLElement >(
+					'.wp-desktop-dock__item-primary',
+				);
+				_applyBadgeNode( primary ?? btn, override );
+			}
 		}
 
 		this.updateActiveStates();
@@ -241,11 +265,17 @@ export class Dock {
 		tile.remove();
 		this.systemItemElements.delete( id );
 		this.systemItems = this.systemItems.filter( ( s ) => s.id !== id );
+		// Drop any client-side badge override the caller had set —
+		// the tile is gone, the override would otherwise re-apply
+		// on a future re-registration of the same id.
+		this.badgeOverrides.delete( id );
 
 		if ( this.systemItemElements.size === 0 && this.systemSeparator ) {
 			this.systemSeparator.remove();
 			this.systemSeparator = null;
 		}
+
+		doAction( HOOKS.DOCK_ITEM_REMOVED, { id, placement: this.rail } );
 	}
 
 	/**
@@ -268,27 +298,39 @@ export class Dock {
 	 */
 	public setBadge( itemId: string, count: number ): void {
 		const tile = this._resolveTileElement( itemId );
+		// No tile on this rail — silent no-op. Lets plugin authors
+		// fan a count to every rail (`dock.setBadge`, `taskbar.setBadge`,
+		// `icons.setBadge`) without each call double-emitting. The
+		// rail that actually owns the tile is the only one that
+		// paints and publishes; the others see "this id isn't mine"
+		// and bow out cleanly.
 		if ( ! tile ) {
 			return;
 		}
-		const safe = Math.max( 0, Math.floor( count ) );
+		const safe = Math.max( 0, Math.floor( Number( count ) || 0 ) );
+
+		// Track the client-side override so `replaceItems()` (live
+		// menu refresh) can re-apply it without having to re-call
+		// every plugin's badge wiring. `0` clears the override so
+		// the server-declared `item.badge` resumes ownership.
+		if ( safe === 0 ) {
+			this.badgeOverrides.delete( itemId );
+		} else {
+			this.badgeOverrides.set( itemId, safe );
+		}
+
 		const primary = tile.querySelector< HTMLElement >(
 			'.wp-desktop-dock__item-primary',
 		);
-		const host = primary ?? tile;
-		_applyBadgeNode( host, safe );
-		document.dispatchEvent(
-			new CustomEvent( 'wpd-dock-item-badge-changed', {
-				detail: { itemId, count: safe },
-			} ),
-		);
-		// Mirror the change on the activity bus so a global
-		// notification-center widget can aggregate badges across
-		// every plugin without having to bind low-level DOM events
-		// or know which rail (dock vs taskbar) emitted them.
+		_applyBadgeNode( primary ?? tile, safe );
+
+		// Single emission point — activity bus. `rail` is the
+		// routing discriminator so a single subscriber can
+		// compose dock + taskbar + icons under one shape.
 		activity.publish( 'wp-desktop/badge-changed', {
 			itemId,
 			count: safe,
+			rail: this.rail,
 		} );
 	}
 

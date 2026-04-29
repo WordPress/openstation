@@ -26,7 +26,6 @@ import {
 } from './hooks';
 import * as registry from './wallpapers/registry';
 import { WallpaperLayer } from './wallpapers/layer';
-import { registerBuiltInWallpapers } from './wallpapers/built-in';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createCommandRegistrySync } from './commands/server-sync';
 import { createSettingsTabRegistrySync } from './settings/server-sync';
@@ -62,7 +61,7 @@ import {
 	onWindow,
 	type WindowLifecycleHandlers,
 } from './native-windows';
-import { renderDesktopIcons } from './desktop-icons';
+import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
 import { createApplyPayload } from './menu-refresh-apply';
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
@@ -147,6 +146,37 @@ export interface WpDesktopPublicApi {
 	 * dock — only its orientation + CSS differ.
 	 */
 	taskbar: Dock | null;
+	/**
+	 * Wallpaper-icon rail — the third badge surface, alongside
+	 * the dock and taskbar. Mirrors `Dock.setBadge` exactly:
+	 *
+	 * ```ts
+	 * wp.desktop.icons.setBadge( 'wpdm-messages', 5 );
+	 * wp.desktop.icons.setBadge( 'wpdm-messages', 0 );  // clear
+	 * ```
+	 *
+	 * Every change publishes `wp-desktop/badge-changed` on the
+	 * activity bus with `rail: 'icon'` (the same channel the dock
+	 * and taskbar publish to with their own rail values), and
+	 * fires {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
+	 * `{ iconId, count, previousCount }`. Badges survive a full
+	 * grid rebuild — set once, the framework re-paints across
+	 * every live menu refresh.
+	 *
+	 * Plugin authors writing a single badge wrapper for all three
+	 * rails can fan a count to every surface idempotently:
+	 *
+	 * ```ts
+	 * function setBadgeEverywhere( id: string, count: number ): void {
+	 *     wp.desktop.dock?.setBadge?.(    id, count );
+	 *     wp.desktop.taskbar?.setBadge?.( id, count );
+	 *     wp.desktop.icons?.setBadge?.(   id, count );
+	 * }
+	 * ```
+	 *
+	 * @since 0.24.0
+	 */
+	icons: IconsApi;
 	saveSession: () => void;
 	/** Raw `@wordpress/hooks` bridge. Alias of `window.wp.hooks`. */
 	hooks: WpHooks;
@@ -692,7 +722,7 @@ const VIEWPORT_CLAMP_MARGIN = 12;
  * built-in slot has been assigned (e.g. if a plugin races init).
  */
 const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
-	'windowManager', 'dock', 'taskbar', 'saveSession', 'hooks', 'HOOKS',
+	'windowManager', 'dock', 'taskbar', 'icons', 'saveSession', 'hooks', 'HOOKS',
 	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer',
 	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
 	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
@@ -734,7 +764,6 @@ function init(): void {
 	if ( wallpaperEl ) {
 		wallpaperLayer = new WallpaperLayer( wallpaperEl, pluginUrl );
 	}
-	registerBuiltInWallpapers();
 
 	// Widget layer + registry. Same pattern as wallpapers: register
 	// built-ins synchronously so the `wp-desktop.widgets` filter
@@ -1298,6 +1327,7 @@ function init(): void {
 		windowManager: manager,
 		dock,
 		taskbar,
+		icons: iconsApi,
 		saveSession,
 		hooks: rawHooks(),
 		HOOKS,

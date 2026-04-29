@@ -1384,6 +1384,15 @@ export class Window {
 		} else if ( mode === null ) {
 			el.style.removeProperty( '--wp-window-highlight-color' );
 		}
+		// Surface the change on the hook bus so onboarding /
+		// drag-bridge / guidance plugins can react without
+		// observing DOM mutations. Pure-additive: handlers that
+		// don't subscribe see no behaviour change.
+		doAction( HOOKS.WINDOW_HIGHLIGHT_CHANGED, {
+			windowId: this.id,
+			mode,
+			color: opts?.color,
+		} );
 	}
 
 	/**

@@ -243,7 +243,12 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * Icon badge — symmetric to `.wp-desktop-dock__badge` but anchored
  * to the wallpaper-icon image. Same gradient, same ring, slightly
  * larger so it reads at the longer wallpaper viewing distance.
- * Painted by `wp.desktop.setBadge()` (see `src/recycle-bin/badge.ts`).
+ * Painted by `wp.desktop.icons.setBadge( id, count )` — see
+ * `src/desktop-icons.ts` for the imperative API and
+ * `src/recycle-bin/badge.ts` for the canonical multi-rail
+ * consumer. The class name is part of the stable contract; the
+ * positioning, color, and shadow are not — themes or future
+ * shell builds may restyle freely.
  */
 .wp-desktop-icon__badge {
 	position: absolute;

@@ -103,13 +103,21 @@ export interface ActivityChannelMap {
 	};
 	/**
 	 * Framework: a tile's badge count changed. Useful for global
-	 * notification-center widgets that aggregate across plugins.
-	 * Mirrors the `wpd-dock-item-badge-changed` CustomEvent on
-	 * the activity bus.
+	 * notification-center widgets that aggregate across plugins
+	 * without having to bind low-level DOM events or know which
+	 * surface emitted the change.
+	 *
+	 * `rail` is the routing discriminator — `'dock'` (left-edge),
+	 * `'taskbar'` (bottom), or `'icon'` (wallpaper shortcut). Every
+	 * rail emits the same event shape so a single subscriber can
+	 * compose a unified count without duplicating logic per
+	 * surface.
 	 */
 	'wp-desktop/badge-changed': {
 		itemId: string;
 		count: number;
+		/** Which rail painted the change. */
+		rail: 'dock' | 'taskbar' | 'icon';
 	};
 	/**
 	 * Framework: a caller asked to open a registered window —

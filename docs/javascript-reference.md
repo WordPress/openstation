@@ -527,6 +527,8 @@ If a `Window.close()` throws, the loop catches and continues — one bad window 
 ### `dock` — Stable
 The left-edge `Dock` instance (or `null` if the dock element wasn't in the DOM). Hosts **core WordPress menus** — Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies. Calling it directly is usually unnecessary — dock items are data-driven via `desktop_mode_dock_items`.
 
+`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `wp-desktop/badge-changed` on the activity bus with `rail: 'dock'` *(since 0.24.0)*. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` *(since 0.24.0)* — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+
 ---
 
 ### `taskbar` — Stable
@@ -537,6 +539,38 @@ Rendered as a floating macOS-style pill at the bottom of the shell. Same class, 
 Server-side the split is driven by `desktop_mode_dock_placement()` and the `desktop_mode_dock_placement` filter — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_placement--stable) for how to override routing (pin a plugin to the dock; move a core menu to the taskbar).
 
 **Icon fallback:** when a plugin registers a menu without a dashicon / SVG / URL, the taskbar renders a **letter badge** in a hue deterministically derived from the menu title. Same plugin, same colour across reloads. Plugins shipping their own icon art always override the fallback.
+
+---
+
+### `icons` — Stable *(since 0.24.0)*
+
+The wallpaper-icon rail — third badge surface alongside `dock` and `taskbar`. Mirrors the dock's `setBadge` shape exactly so plugin authors can fan a count to whichever rail happens to host their tile:
+
+```ts
+interface IconsApi {
+    setBadge:   ( iconId: string, count: number ) => void;
+    clearBadge: ( iconId: string ) => void;
+    getBadge:   ( iconId: string ) => number;
+}
+```
+
+```js
+wp.desktop.icons.setBadge(   'wpdm-messages', 5 );
+wp.desktop.icons.clearBadge( 'wpdm-messages' );
+wp.desktop.icons.getBadge(   'wpdm-messages' ); // → 0
+```
+
+- **Idempotent.** Same count twice = no DOM mutation, no re-emit.
+- **Silent no-op when the id isn't on the rail.** Lets the fan-to-all-rails pattern work without triple-emitting.
+- **Survives a full grid rebuild.** Plugin-set badges persist across plugin activations / live menu refreshes — set once, the renderer re-paints from internal state.
+- **`>99` renders as `99+`**.
+
+Every applied change publishes on:
+
+- `wp-desktop/badge-changed` activity channel with `{ itemId, count, rail: 'icon' }`.
+- `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }`.
+
+The rail does NOT auto-suppress badges based on window state — that's a per-app UX policy. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md) for the canonical "show 0 while my window is active" recipe.
 
 ---
 
@@ -756,7 +790,7 @@ interface ActivityApi {
 | `wp-desktop/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action` to rewrite. |
 | `wp-desktop/toast-shown` | Fire-and-forget — fires after the toast lands in the DOM. | Same shape as above. | No (filtering is too late). |
 | `wp-desktop/window-attention-requested` | Pre-attention — `Window.requestAttention()` and `dock.setAttention()` calls run through this. | `{ windowId, mode, durationMs?, intensity?, source?, cancel? }` | **Yes.** Set `cancel: true` for DND. Mutate `mode`/`durationMs`/`intensity` to scale the animation. |
-| `wp-desktop/badge-changed` | Fire-and-forget — `dock.setBadge()` mirrors here on every change. | `{ itemId, count }` | No. |
+| `wp-desktop/badge-changed` | Fire-and-forget — every `setBadge()` on dock / taskbar / icons mirrors here on every change. | `{ itemId, count, rail?: 'dock' \| 'taskbar' \| 'icon' }` *(rail since 0.24.0)* | No. |
 | `wp-desktop/open-requested` | Fire-and-forget — `wp.desktop.openWindow()` publishes here BEFORE deciding `opened` vs `reopened`. | `{ windowId, source }` | No. |
 | `wp-desktop/presence-changed` | Per-transition mirror of the `wp-desktop-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
 | `wp-desktop/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
@@ -1282,6 +1316,16 @@ w.setHighlight( 'preview', { color: '#f59e0b' } );  // override colour
 ```
 
 `'preview'` and `'persistent'` are visually distinct; the shell does NOT auto-clear either — that's the caller's responsibility. CSS variable: `--wp-window-highlight-color` (default `--wp-admin-theme-color`).
+
+Every change fires `HOOKS.WINDOW_HIGHLIGHT_CHANGED` on the hook bus *(since 0.24.0)* with `{ windowId, mode, color? }`, so onboarding / drag-bridge / guidance plugins can react without observing DOM mutations:
+
+```js
+wp.desktop.hooks.addAction(
+    wp.desktop.HOOKS.WINDOW_HIGHLIGHT_CHANGED,
+    'my-plugin/highlight-tracker',
+    ( { windowId, mode } ) => { /* … */ },
+);
+```
 
 ---
 
@@ -2541,35 +2585,58 @@ auto-cleared after `durationMs`.
 JS filter: `wp-desktop.window.attention( mode, { windowId, opts } )`
 — return `null` to mute the request (Do Not Disturb integration).
 
-CustomEvent: `wpd-dock-item-badge-changed` on `document` —
-`{ itemId, count }`. **The event always carries the count the
-caller passed to `setBadge`**, even when the badge is visually
-suppressed by the active-window rule below — observers logging
-"current unread" telemetry shouldn't have to handle two states.
+All three rails (`dock`, `taskbar`, `icons`) emit on the
+activity bus channel `wp-desktop/badge-changed` with payload
+`{ itemId, count, rail }`. The icon rail also fires
+`HOOKS.ICON_BADGE_CHANGED` on the hook bus with
+`{ iconId, count, previousCount }` for callers that only care
+about the icon surface.
 
-### Active-window suppression *(since 0.5.5)*
+## `wp.desktop.icons` — the wallpaper-icon rail *(since 0.24.0)*
 
-`Dock.setBadge( itemId, count )` stores the requested count and
-visually renders it **except** when the corresponding window is
-the currently focused, non-minimized window — in that case the
-badge fades out (visual count is 0) because the user is already
-looking at whatever the badge represents. The stored count is
-preserved internally; on close / minimize / blur the badge
-re-appears with the latest stored count automatically.
+**Stable.** Third badge surface, sibling of `wp.desktop.dock`
+and `wp.desktop.taskbar`. Same `setBadge( id, count )` shape, so
+plugin authors can fan a count to every rail with one wrapper
+function.
 
-The match is by id: a tile id of `'my-app'` is suppressed while
-the window with id `'my-app'` is active. Tiles whose ids never
-match a window id (admin-page tiles, third-party icons that don't
-open windows) are unaffected — their badges render
-unconditionally.
+```ts
+interface IconsApi {
+    setBadge:   ( iconId: string, count: number ) => void;
+    clearBadge: ( iconId: string ) => void;
+    getBadge:   ( iconId: string ) => number;
+}
+```
 
 ```js
-// Plugin code stays simple — no need to consult window state.
-wp.desktop.dock.setBadge( 'my-app', 5 );
-// If the user has the 'my-app' window open + focused, the
-// taskbar tile shows no badge. If they alt-tab away or close
-// the window, the framework re-paints the 5 automatically.
+wp.desktop.icons.setBadge(   'wpdm-messages', 5 );
+wp.desktop.icons.clearBadge( 'wpdm-messages' );
+wp.desktop.icons.getBadge(   'wpdm-messages' ); // → 0 (after clear)
 ```
+
+- **Idempotent.** Same count twice = no DOM mutation, no re-emit.
+- **Silent no-op when the id isn't on the rail.** Lets the
+  fan-to-all-rails pattern work without triple-emitting.
+- **Survives a full grid rebuild.** The framework persists the
+  badge across plugin activations / live menu refreshes — set
+  once, the renderer re-paints from internal state.
+- **`>99` renders as `99+`** so the pill stays compact.
+
+Every applied change publishes on:
+
+- `wp-desktop/badge-changed` activity channel with
+  `{ itemId, count, rail: 'icon' }`.
+- `HOOKS.ICON_BADGE_CHANGED` action with
+  `{ iconId, count, previousCount }`.
+
+### Apps own the "show 0 while my window is active" rule
+
+The framework does NOT auto-suppress badges based on window
+state. That decision belongs to the app — a "5 unread" badge
+should hide while the inbox is focused; a "5 failed deploys"
+badge should NOT. Subscribe to the relevant window-lifecycle
+hook and decide for yourself; see
+[`docs/examples/dock-badge.md`](./examples/dock-badge.md) for
+the canonical recipe.
 
 ## `<wpd-avatar>` — Stable (0.22.0)
 

@@ -25,8 +25,9 @@ var wpDesktopRecycleBin = function(exports) {
     }
   }
   const TARGET_ID = "wpdm-recycle-bin";
-  const BADGE_CLASS = "wp-desktop-dock__badge";
-  const ICON_BADGE_CLASS = "wp-desktop-icon__badge";
+  function getDesktopApi() {
+    return window.wp?.desktop;
+  }
   let _current = 0;
   function setRecycleBinBadge(next) {
     const safe = Math.max(0, Math.floor(next));
@@ -36,59 +37,16 @@ var wpDesktopRecycleBin = function(exports) {
     paintBadge(safe);
   }
   function paintBadge(count) {
-    const tile = document.querySelector(
-      `[data-system-id="${cssEscape(TARGET_ID)}"]`
-    );
-    const icon = document.querySelector(
-      `[data-icon-id="${cssEscape(TARGET_ID)}"]`
-    );
+    const desktop = getDesktopApi();
     const active = isBinWindowActive();
     const visible = active ? 0 : count;
-    log("paintBadge", {
-      count,
-      visible,
-      active,
-      tile: !!tile,
-      icon: !!icon
-    });
-    if (tile) {
-      const primary = tile.querySelector(
-        ".wp-desktop-dock__item-primary"
-      );
-      applyBadge(primary ?? tile, BADGE_CLASS, visible);
-    }
-    if (icon) {
-      applyBadge(icon, ICON_BADGE_CLASS, visible);
-    }
+    log("paintBadge", { count, visible, active });
+    desktop?.dock?.setBadge?.(TARGET_ID, visible);
+    desktop?.taskbar?.setBadge?.(TARGET_ID, visible);
+    desktop?.icons?.setBadge?.(TARGET_ID, visible);
   }
   function isBinWindowActive() {
-    const wp = window.wp;
-    return !!wp?.desktop?.windowManager?.isActive?.(TARGET_ID);
-  }
-  function applyBadge(host, className, count) {
-    const existing = host.querySelector(
-      `:scope > .${className}`
-    );
-    if (count <= 0) {
-      existing?.remove();
-      return;
-    }
-    const display = count > 99 ? "99+" : String(count);
-    if (existing) {
-      if (existing.textContent !== display) {
-        existing.textContent = display;
-      }
-      return;
-    }
-    const badge = document.createElement("span");
-    badge.className = className;
-    badge.textContent = display;
-    badge.setAttribute("aria-label", `${count} in trash`);
-    host.appendChild(badge);
-  }
-  function cssEscape(value) {
-    const c = window.CSS;
-    return c?.escape ? c.escape(value) : value;
+    return !!getDesktopApi()?.windowManager?.isActive?.(TARGET_ID);
   }
   const EVENT_NAME = "wp-desktop-recycle-bin-changed";
   const HEARTBEAT_FIELD = "wpdm_recycle_bin_seen_ts";

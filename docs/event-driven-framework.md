@@ -252,7 +252,7 @@ mirrors here so plugins can subscribe through one unified API:
 | `wp-desktop/toast-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-show on every `showToast()`. |
 | `wp-desktop/toast-shown` | No (post-render) | After the toast lands in the DOM. |
 | `wp-desktop/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` / `dock.setAttention()`. |
-| `wp-desktop/badge-changed` | No | Every `dock.setBadge()` change. |
+| `wp-desktop/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` (since 0.24.0) so a single subscriber can compose across surfaces. |
 | `wp-desktop/open-requested` | No | Every `wp.desktop.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
 | `wp-desktop/presence-changed` | No | Every presence transition (mirror of the `wp-desktop-presence-changed` CustomEvent). |
 | `wp-desktop/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
@@ -334,11 +334,15 @@ the app asked for — period.
 const WINDOW_ID = 'my-plugin/inbox';
 
 function repaintBadge() {
-    const total  = myPlugin.getUnreadCount();
-    const active = wp.desktop.windowManager.isActive( WINDOW_ID );
-    // Plugin's policy. The Dock just renders whatever we pass.
-    wp.desktop.dock.setBadge(    WINDOW_ID, active ? 0 : total );
-    wp.desktop.taskbar?.setBadge( WINDOW_ID, active ? 0 : total );
+    const total   = myPlugin.getUnreadCount();
+    const active  = wp.desktop.windowManager.isActive( WINDOW_ID );
+    const visible = active ? 0 : total;
+    // Plugin's policy. The rails just render whatever we pass.
+    // Three calls; the rail that owns the id paints, the others
+    // silently no-op. One activity event fires.
+    wp.desktop.dock?.setBadge?.(    WINDOW_ID, visible );
+    wp.desktop.taskbar?.setBadge?.( WINDOW_ID, visible );
+    wp.desktop.icons?.setBadge?.(   WINDOW_ID, visible );
 }
 
 // React to either axis changing.

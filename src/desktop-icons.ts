@@ -1,21 +1,41 @@
 /**
  * Desktop Mode — Wallpaper shortcut icons.
  *
- * Renders the list of `config.desktopIcons` entries (from
- * `desktop_mode_register_icon()` in PHP) as clickable tiles on the
- * desktop wallpaper. Clicking an icon either opens the referenced
- * native window (via the injected `openWindow` callback) or opens the
- * URL as an iframe window / new tab.
+ * Renders the list of `config.desktopIcons` entries (registered
+ * server-side via `desktop_mode_register_icon()`) as clickable
+ * tiles on the desktop wallpaper. Clicking an icon opens the
+ * referenced native window (via the injected `openWindow` callback)
+ * or opens the URL as an iframe window / new tab.
  *
- * Intentionally minimal — no drag-to-rearrange yet (positions are
- * server-declared via the `position` field), no right-click menus.
- * Plugins that want richer icon behaviour can subscribe to the
- * `wp-desktop.desktop-icon.clicked` action and override the default
- * click semantics.
+ * **Badge surface (since 0.24.0).** The icon rail mirrors the
+ * dock + taskbar API exactly: `setBadge( id, count )` is
+ * idempotent, `0` clears, `>99` renders `99+`. Every change emits
+ * `wp-desktop/badge-changed` with `rail: 'icon'` on the activity
+ * bus and {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus, so a
+ * plugin author writing one badge wrapper for all three rails
+ * sees one consistent shape across every surface.
+ *
+ * **Badges survive a grid rebuild.** The badge map IS the source
+ * of truth. `renderDesktopIcons` consults it at build time, so a
+ * plugin that calls `setBadge( 'foo', 5 )` doesn't have to
+ * re-decorate every time the live menu refresh fires
+ * {@link HOOKS.DESKTOP_ICONS_RENDERED}. A badge set BEFORE its
+ * icon enters the registry is honoured the moment the icon
+ * appears — the framework holds the value, the renderer paints
+ * it.
+ *
+ * Plugins that want richer icon behaviour (drag handles,
+ * right-click menus, custom decorations the framework doesn't
+ * own) can still subscribe to {@link HOOKS.DESKTOP_ICON_CLICKED}
+ * and {@link HOOKS.DESKTOP_ICONS_RENDERED}; reach for the badge
+ * API rather than DOM-scraping `[data-icon-id]` whenever the
+ * decoration is "show a number on this icon."
  *
  * @since 0.11.0
  */
 
+import { activity } from './activity';
+import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
 import { sanitizeClassName } from './utils';
 import type { DesktopIconServerEntry } from './types';
@@ -40,18 +60,174 @@ export interface DesktopIconRenderDeps {
 	manager: WindowManager;
 }
 
+/* --------------------------------------------------------------- *
+ *  Badge state — source of truth for the icon-rail badge surface.
+ *
+ *  Held at module scope so a `setBadge` call placed before the
+ *  grid has rendered (or BEFORE the targeted icon enters the
+ *  registry) is honoured the moment the renderer next runs.
+ *  Survives every full grid rebuild driven by the live menu
+ *  refresh path; the renderer consults this map at build time
+ *  rather than relying on plugins to re-decorate after every
+ *  `DESKTOP_ICONS_RENDERED`.
+ * --------------------------------------------------------------- */
+
+const BADGE_CLASS = 'wp-desktop-icon__badge';
+const _badges = new Map< string, number >();
+
 /**
- * Mount the icons grid on the desktop area. Safe to call repeatedly —
- * clears any prior container and re-renders from the current list so
- * a live menu refresh after plugin activation can rebuild the surface
- * without reloading the shell.
- *
- * @since 0.11.0
- *
- * @param host  Desktop-area element (`#wp-desktop-area`).
- * @param icons Ordered list from `config.desktopIcons`.
- * @param deps  See {@link DesktopIconRenderDeps}.
+ * Coerce a raw badge input to a non-negative integer count.
+ * Mirrors `Dock.setBadge`'s clamp so all three rails agree on
+ * what `setBadge( id, -1 )` and `setBadge( id, 1.7 )` mean.
  */
+function _safeBadge( count: number ): number {
+	return Math.max( 0, Math.floor( Number( count ) || 0 ) );
+}
+
+/**
+ * Set the badge count on a desktop icon. Idempotent: a no-op when
+ * the count is unchanged. `0` clears. Silent no-op when the id
+ * doesn't currently belong to a rendered icon — same semantics as
+ * `Dock.setBadge`, so plugin authors can fan a count across every
+ * rail and only the owning surface emits:
+ *
+ * ```ts
+ * function setBadgeEverywhere( id: string, count: number ): void {
+ *     wp.desktop.dock?.setBadge?.(    id, count );
+ *     wp.desktop.taskbar?.setBadge?.( id, count );
+ *     wp.desktop.icons?.setBadge?.(   id, count );
+ * }
+ * ```
+ *
+ * Three calls. One painted tile. One activity event. One hook
+ * fire. The two rails that don't own the id bow out silently.
+ *
+ * On every applied change this fires:
+ *
+ *   - `wp-desktop/badge-changed` on the activity bus with
+ *     `{ itemId, count, rail: 'icon' }`. Subscribe via
+ *     `wp.desktop.activity.subscribe( 'wp-desktop/badge-changed', cb )`
+ *     for global notification-center widgets that aggregate
+ *     across rails.
+ *   - {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
+ *     `{ iconId, count, previousCount }`. Subscribe via
+ *     `wp.hooks.addAction(...)` when only the icon rail matters.
+ *
+ * Badges survive a grid rebuild. The renderer consults the same
+ * map at build time, so a plugin that calls `setBadge( 'foo', 5 )`
+ * doesn't need to re-decorate after every live menu refresh.
+ *
+ * @public
+ * @since 0.24.0
+ *
+ * @param iconId Id passed to `desktop_mode_register_icon()`.
+ * @param count  Non-negative integer. `>99` renders as `99+`.
+ *               `0` removes the badge.
+ */
+export function setIconBadge( iconId: string, count: number ): void {
+	if ( ! iconId ) {
+		return;
+	}
+	const tile = _findIconTile( iconId );
+	if ( ! tile ) {
+		// Id not on this rail — silent no-op. See the docstring.
+		return;
+	}
+	const safe = _safeBadge( count );
+	const previous = _badges.get( iconId ) ?? 0;
+	if ( safe === previous ) {
+		return; // Idempotent — no DOM mutation, no signal storm.
+	}
+	if ( safe === 0 ) {
+		_badges.delete( iconId );
+	} else {
+		_badges.set( iconId, safe );
+	}
+	_paintBadgeNode( tile, safe );
+	activity.publish( 'wp-desktop/badge-changed', {
+		itemId: iconId,
+		count: safe,
+		rail: 'icon',
+	} );
+	doAction( HOOKS.ICON_BADGE_CHANGED, {
+		iconId,
+		count: safe,
+		previousCount: previous,
+	} );
+}
+
+/**
+ * Clear the badge on a desktop icon. Equivalent to
+ * `setIconBadge( id, 0 )`.
+ *
+ * @public
+ * @since 0.24.0
+ */
+export function clearIconBadge( iconId: string ): void {
+	setIconBadge( iconId, 0 );
+}
+
+/**
+ * Read the current badge value for an icon. Synchronous — never
+ * throws. Returns `0` for icons with no badge or unknown ids; a
+ * boundary value plugin authors can compare against without a
+ * separate "is set" check.
+ *
+ * Layer 1 (synchronous state) of the event-driven framework — use
+ * this for "what's the current count?" reads; subscribe to the
+ * activity channel for "tell me when it changes."
+ *
+ * @public
+ * @since 0.24.0
+ */
+export function getIconBadge( iconId: string ): number {
+	return _badges.get( iconId ) ?? 0;
+}
+
+/**
+ * Test-only reset — drops every tracked badge. Real code never
+ * calls this.
+ *
+ * @internal
+ */
+export function _resetIconBadgesForTests(): void {
+	_badges.clear();
+	_lastFingerprint = '';
+}
+
+/**
+ * Public icon-rail surface exposed on `wp.desktop.icons`. The
+ * shape is deliberately minimal and mirrors `Dock` so plugin
+ * authors can write a single badge wrapper that dispatches
+ * across rails. New methods only get added here when they earn
+ * a place across every rail — the cost of API drift between
+ * dock / taskbar / icon is paid in plugin churn.
+ *
+ * @public
+ * @since 0.24.0
+ */
+export interface IconsApi {
+	setBadge: ( iconId: string, count: number ) => void;
+	clearBadge: ( iconId: string ) => void;
+	getBadge: ( iconId: string ) => number;
+}
+
+/**
+ * Singleton — every bundle that imports this module ends up
+ * with the SAME badge map (the closure here is shared because
+ * the module is only loaded by the always-on shell bundle).
+ * Plugins reach this through `wp.desktop.icons` rather than
+ * importing the symbol directly.
+ *
+ * @public
+ * @since 0.24.0
+ */
+export const iconsApi: IconsApi = {
+	setBadge: setIconBadge,
+	clearBadge: clearIconBadge,
+	getBadge: getIconBadge,
+};
+
 /**
  * Stable serialisation of the icons-array shape we actually care
  * about. Used to skip rebuilds when the live menu-refresh path
@@ -59,9 +235,12 @@ export interface DesktopIconRenderDeps {
  * emits `wp-desktop-plugins-changed` on every iframe paint, so
  * `applyPayload()` was previously rebuilding the icon grid
  * dozens of times during normal use, taking out anything we'd
- * appended (notification badges, plugin-added decorations) each
- * time. Cheap fingerprint = string concat per icon; the array
- * is small (typically <10 entries).
+ * appended (drag handles, custom decorations) each time. Cheap
+ * fingerprint = string concat per icon; the array is small
+ * (typically <10 entries).
+ *
+ * Badges are intentionally NOT in the fingerprint — they live
+ * outside the server payload and are reconciled separately.
  */
 function fingerprintIcons(
 	icons: readonly DesktopIconServerEntry[] | undefined,
@@ -81,6 +260,23 @@ function fingerprintIcons(
 
 let _lastFingerprint = '';
 
+/**
+ * Mount the icons grid on the desktop area. Safe to call repeatedly —
+ * clears any prior container and re-renders from the current list so
+ * a live menu refresh after plugin activation can rebuild the surface
+ * without reloading the shell.
+ *
+ * Badges survive the rebuild for free: every freshly-built tile is
+ * decorated from `_badges` before being inserted, so a plugin that
+ * called `setIconBadge` once doesn't need to re-decorate after
+ * each {@link HOOKS.DESKTOP_ICONS_RENDERED}.
+ *
+ * @since 0.11.0
+ *
+ * @param host  Desktop-area element (`#wp-desktop-area`).
+ * @param icons Ordered list from `config.desktopIcons`.
+ * @param deps  See {@link DesktopIconRenderDeps}.
+ */
 export function renderDesktopIcons(
 	host: HTMLElement,
 	icons: readonly DesktopIconServerEntry[] | undefined,
@@ -88,11 +284,11 @@ export function renderDesktopIcons(
 ): void {
 	// Bail when the icon list hasn't changed since our last
 	// render. This is the cheapest correct fix for "any plugin
-	// that decorates an icon (notification badge, drag handle,
-	// status dot) has its node wiped on the next live menu
-	// refresh." Anything that DOES change in the icons array
-	// (a plugin activated, a position shifted) flips the
-	// fingerprint and triggers the full rebuild.
+	// that decorates an icon (drag handle, status dot) has its
+	// node wiped on the next live menu refresh." Anything that
+	// DOES change in the icons array (a plugin activated, a
+	// position shifted) flips the fingerprint and triggers the
+	// full rebuild.
 	const fp = fingerprintIcons( icons );
 	if ( fp === _lastFingerprint && host.querySelector( ':scope > .wp-desktop-icons' ) ) {
 		return;
@@ -110,21 +306,109 @@ export function renderDesktopIcons(
 	const container = document.createElement( 'div' );
 	container.className = 'wp-desktop-icons';
 	container.setAttribute( 'role', 'list' );
-	container.setAttribute( 'aria-label', 'Desktop icons' );
+	container.setAttribute( 'aria-label', __( 'Desktop icons' ) );
 
 	for ( const entry of icons ) {
-		container.appendChild( buildIcon( entry, deps ) );
+		const tile = buildIcon( entry, deps );
+		const stored = _badges.get( entry.id ) ?? 0;
+		if ( stored > 0 ) {
+			_paintBadgeNode( tile, stored );
+		}
+		container.appendChild( tile );
 	}
 
 	host.appendChild( container );
 
-	// Tell decorators (notification badges, drag handles, …) the
-	// grid was just rebuilt so they can re-attach. Suppressed when
-	// the fingerprint short-circuit above bailed — subscribers get
-	// pinged exactly when the DOM actually changed.
+	// Tell decorators (drag handles, status dots, …) the grid was
+	// just rebuilt so they can re-attach. Suppressed when the
+	// fingerprint short-circuit above bailed — subscribers get
+	// pinged exactly when the DOM actually changed. Notification
+	// badges no longer need this signal: the framework persists
+	// them in `_badges` and paints them as part of the build.
 	doAction( HOOKS.DESKTOP_ICONS_RENDERED, {
 		ids: ( icons ?? [] ).map( ( i ) => i.id ),
 	} );
+}
+
+/**
+ * Locate the rendered tile for an icon id. Returns null when the
+ * icon isn't in the DOM right now — a normal state during the
+ * window between `setIconBadge( 'foo', 5 )` and 'foo' first
+ * entering the registry, or after the icon's owning plugin has
+ * been deactivated.
+ *
+ * Uses a defensive `[data-icon-id]` lookup rather than a Map
+ * because the icon DOM is rebuilt wholesale on every fingerprint
+ * change; tracking element references would add a parallel
+ * lifetime that the build path would have to keep in sync.
+ *
+ * @internal
+ */
+function _findIconTile( iconId: string ): HTMLElement | null {
+	if ( ! iconId ) {
+		return null;
+	}
+	const container = document.querySelector< HTMLElement >(
+		'.wp-desktop-icons',
+	);
+	if ( ! container ) {
+		return null;
+	}
+	return container.querySelector< HTMLElement >(
+		`[data-icon-id="${ _cssEscape( iconId ) }"]`,
+	);
+}
+
+/**
+ * Idempotently paint or remove the numeric badge on an icon tile.
+ *
+ * Twin of `Dock`'s `_applyBadgeNode` — different host, different
+ * class, same contract. Mutates the badge node in place so an
+ * existing CSS animation isn't restarted by a no-op repaint.
+ *
+ * @internal
+ */
+function _paintBadgeNode( host: HTMLElement, count: number ): void {
+	const existing = host.querySelector< HTMLElement >(
+		`:scope > .${ BADGE_CLASS }`,
+	);
+	if ( count <= 0 ) {
+		existing?.remove();
+		return;
+	}
+	const display = count > 99 ? '99+' : String( count );
+	const ariaLabel = sprintf(
+		// translators: %d is the number of pending items in a desktop-icon badge.
+		_n( '%d notification', '%d notifications', count ),
+		count,
+	);
+	if ( existing ) {
+		if ( existing.textContent !== display ) {
+			existing.textContent = display;
+		}
+		existing.setAttribute( 'aria-label', ariaLabel );
+		return;
+	}
+	const badge = document.createElement( 'span' );
+	badge.className = BADGE_CLASS;
+	badge.textContent = display;
+	badge.setAttribute( 'aria-label', ariaLabel );
+	host.appendChild( badge );
+}
+
+/**
+ * Polyfill-ish wrapper for `CSS.escape`. Older engines without
+ * support fall through to a literal pass-through; the icon ids the
+ * framework produces are already PHP-sanitised slugs so the
+ * fallback is fine for the realistic id space.
+ */
+function _cssEscape( value: string ): string {
+	const c = (
+		window as unknown as {
+			CSS?: { escape?: ( s: string ) => string };
+		}
+	).CSS;
+	return c?.escape ? c.escape( value ) : value;
 }
 
 function buildIcon(

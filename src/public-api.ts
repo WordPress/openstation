@@ -161,6 +161,7 @@ export type {
 export type { Window } from './window';
 export type { WindowManager } from './window-manager';
 export type { Dock, DockOrientation, SystemDockItem } from './dock';
+export type { IconsApi } from './desktop-icons';
 export type { WidgetLayer } from './widgets/layer';
 
 // ----- The whole shell-public-API interface itself -----
