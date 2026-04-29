@@ -271,6 +271,23 @@ export const HOOKS = {
 	/** Action, fires when a window is added to the stack. */
 	WINDOW_OPENED: 'wp-desktop.window.opened',
 	/**
+	 * Action, fires when `manager.open(...)` is called for a baseId
+	 * whose window already exists on the active desktop. This is the
+	 * unambiguous "user requested to open this window again" signal
+	 * — distinct from focus changes (which double-fire on alt-tab and
+	 * skip when already focused) and from `WINDOW_OPENED` (which only
+	 * fires on first creation). Payload:
+	 * `{ windowId: string, baseId: string, wasMinimized: boolean }`.
+	 *
+	 * Plugins that hold per-window state (e.g. the code-editor's
+	 * active file) should listen here to re-orient the existing
+	 * window's content to whatever the caller wants to show — the
+	 * open-window call is synchronous, so any state the caller sets
+	 * BEFORE invoking `openWindow` is already in place when this
+	 * fires.
+	 */
+	WINDOW_REOPENED: 'wp-desktop.window.reopened',
+	/**
 	 * Action, fires BEFORE the window's element is detached from the
 	 * DOM but AFTER the manager has already removed it from the stack.
 	 * Payload: `{ windowId: string, element: HTMLElement }`.
@@ -287,6 +304,22 @@ export const HOOKS = {
 	WINDOW_CLOSED: 'wp-desktop.window.closed',
 	/** Action, fires when focus changes to a different window. */
 	WINDOW_FOCUSED: 'wp-desktop.window.focused',
+	/**
+	 * Action, fires for the window that LOST focus when another
+	 * window takes over. Symmetric counterpart to
+	 * `WINDOW_FOCUSED`. Payload: `{ windowId: string, focusedTo:
+	 * string | null }` — `focusedTo` identifies the new top of
+	 * the stack so blur subscribers can ignore alt-tabs to a
+	 * sibling they own.
+	 *
+	 * No-op when there's no previously-focused window (initial
+	 * boot, all-windows-closed). Manager fires this BEFORE
+	 * `WINDOW_FOCUSED` so subscribers see "blur old, focus new"
+	 * in deterministic order.
+	 *
+	 * @since 0.5.5
+	 */
+	WINDOW_BLURRED: 'wp-desktop.window.blurred',
 	/** Action, fires when a window is minimized. */
 	WINDOW_MINIMIZED: 'wp-desktop.window.minimized',
 	/** Action, fires when a window is restored from minimized. */

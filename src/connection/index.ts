@@ -2,13 +2,11 @@
  * Cross-window connection bridge.
  *
  * Plugins use `wp.desktop.connect( windowId )` to open a typed
- * pub/sub channel with any open window's iframe. The shell only
- * routes — topic semantics are plugin-defined. First use case:
- * a "live preview" plugin connects to a Gutenberg window,
- * subscribes to `gutenberg:content`, and forwards every keystroke
- * to a preview window registered as a second connection.
+ * pub/sub channel with any open window's content — iframe or
+ * native, the API is the same. The shell only routes; topic
+ * semantics are plugin-defined.
  *
- * Wire model:
+ * Wire model — iframe windows:
  *
  *   parent shell ─[postMessage]─▶ iframe (wp-desktop-bridge-handshake)
  *                                            │ chromeless-bridge installs handlers
@@ -16,22 +14,27 @@
  *                                       handshake-ack
  *   parent shell ◀─[postMessage]── iframe
  *
- * After the handshake, either side can `publish( topic, payload )`
- * and the other side's matching `subscribe( topic )` callback fires.
+ * Wire model — native windows:
  *
- * For native windows the iframe leg doesn't exist; `connect()` to a
- * native window still works (the parent-side `subscribe`/`send`
- * methods don't throw) but the iframe-side `wp.desktop.iframe.*`
- * helpers obviously aren't reachable. Plugins targeting native
- * windows should use `wp.desktop.windowManager.getById(id)` and
- * talk to the rendered DOM directly — the connection bridge is
- * specifically for crossing the iframe boundary.
+ *   parent shell ──▶ in-process `dispatchToNative`/`dispatchFromWindow`
+ *                    on `src/window-channels.ts`
+ *
+ * After setup, both kinds of `connect()` look identical to the
+ * caller: `publish( topic, payload )` reaches the other side, and
+ * `subscribe( topic, cb )` fires on every inbound match. Plugin
+ * authors don't need to know whether their target is an iframe or
+ * a native window — that's the whole point.
  *
  * @since 0.17.0
  */
 
 import { applyFilters, doAction, HOOKS } from './../hooks';
 import type { WindowManager } from './../window-manager';
+import {
+	addParentSubscriber,
+	dispatchToNative,
+	type WindowChannelCb,
+} from './../window-channels';
 
 const INITIAL_ORIGIN = window.location.origin;
 
@@ -120,6 +123,19 @@ export function registerSyntheticIframe(
 }
 
 /**
+ * Look up a synthetic iframe by window id. Used by `Window.send()`
+ * to route messages into the body iframe of native windows that
+ * registered an `iframeContent` block.
+ *
+ * @internal
+ */
+export function getSyntheticIframe(
+	windowId: string,
+): HTMLIFrameElement | null {
+	return _syntheticIframes.get( windowId ) ?? null;
+}
+
+/**
  * Generate a unique connection id. Cheap counter — these don't need
  * to be globally unique across browser tabs (they're scoped to a
  * single shell instance).
@@ -175,6 +191,24 @@ export function createConnectionBridge( manager: WindowManager ) {
 			return w?.iframe ?? null;
 		};
 
+		/**
+		 * Pure-native target — no iframe at all, neither real nor
+		 * synthetic. We route through the in-process channel bus
+		 * (`src/window-channels.ts`), which the native render's
+		 * `windowApi.send` / `windowApi.on` also feed.
+		 */
+		const isNativeTarget = (): boolean => {
+			if ( targetIframe() ) {
+				return false;
+			}
+			const w = manager.getById( targetWindowId );
+			return !! w && w.config?.native === true;
+		};
+		// Parent-side subscriptions installed against the channel bus
+		// (used only when the target is pure native). Tracked so we
+		// can drop them on disconnect.
+		const nativeSubUnsubs: Array< () => void > = [];
+
 		const flushQueue = (): void => {
 			const iframe = targetIframe();
 			if ( ! iframe ) {
@@ -196,16 +230,44 @@ export function createConnectionBridge( manager: WindowManager ) {
 			target: targetWindowId,
 			isOpen: () => isOpen,
 			subscribe( topic, cb ) {
+				const wrapped = cb as ( p: unknown, m: { topic: string } ) => void;
+				// Native target — feed the channel bus directly so
+				// the native render's `windowApi.send( topic )` lands
+				// here. Iframe target — keep the existing
+				// connection-scoped registry.
+				if ( isNativeTarget() ) {
+					const off = addParentSubscriber(
+						targetWindowId,
+						topic,
+						( ( payload: unknown, meta ) => {
+							doAction( HOOKS.CONNECTION_MESSAGE, {
+								connectionId: id,
+								topic: meta.channel,
+								direction: 'in',
+							} );
+							try {
+								wrapped( payload, { topic: meta.channel } );
+							} catch ( err ) {
+								if ( typeof console !== 'undefined' ) {
+									console.error(
+										'[wp-desktop-mode] connection subscriber threw:',
+										err,
+									);
+								}
+							}
+						} ) as WindowChannelCb,
+					);
+					nativeSubUnsubs.push( off );
+					return off;
+				}
 				let bucket = subs.get( topic );
 				if ( ! bucket ) {
 					bucket = new Set();
 					subs.set( topic, bucket );
 				}
-				bucket.add( cb as ( p: unknown, m: { topic: string } ) => void );
+				bucket.add( wrapped );
 				return () => {
-					bucket?.delete(
-						cb as ( p: unknown, m: { topic: string } ) => void,
-					);
+					bucket?.delete( wrapped );
 				};
 			},
 			send( topic, payload ) {
@@ -217,6 +279,12 @@ export function createConnectionBridge( manager: WindowManager ) {
 					topic,
 					direction: 'out',
 				} );
+				// Native target — dispatch in-process to the render's
+				// `windowApi.on( topic )` listeners.
+				if ( isNativeTarget() ) {
+					dispatchToNative( targetWindowId, topic, payload );
+					return;
+				}
 				if ( ! isOpen ) {
 					queue.push( { topic, payload } );
 					return;
@@ -329,6 +397,15 @@ export function createConnectionBridge( manager: WindowManager ) {
 						_connectionsByTarget.delete( targetWindowId );
 					}
 				}
+				// Native subscribers — drop the channel-bus handles so
+				// late dispatches don't fire stale callbacks.
+				for ( const off of nativeSubUnsubs.splice( 0 ) ) {
+					try {
+						off();
+					} catch {
+						/* swallow */
+					}
+				}
 				// Notify the iframe — best-effort, the window may have
 				// already closed.
 				if ( wasOpen ) {
@@ -364,6 +441,34 @@ export function createConnectionBridge( manager: WindowManager ) {
 			_connectionsByTarget.set( targetWindowId, bucket );
 		}
 		bucket.add( id );
+
+		// Native target — no handshake needed. Open synchronously
+		// and fire `onOpen` next tick so async-style callers don't
+		// see a re-entrant fire from inside `connect()` itself.
+		if ( isNativeTarget() ) {
+			Promise.resolve().then( () => {
+				if ( destroyed || isOpen ) {
+					return;
+				}
+				isOpen = true;
+				doAction( HOOKS.CONNECTION_OPENED, {
+					connectionId: id,
+					targetWindowId,
+					topics,
+				} );
+				try {
+					opts.onOpen?.();
+				} catch ( err ) {
+					if ( typeof console !== 'undefined' ) {
+						console.error(
+							'[wp-desktop-mode] connection.onOpen threw:',
+							err,
+						);
+					}
+				}
+			} );
+			return conn;
+		}
 
 		// Send the handshake. Iframes that haven't loaded yet won't
 		// have a `contentWindow`; the chromeless bridge replays

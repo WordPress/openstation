@@ -12,6 +12,7 @@
     const connections = {};
     const connectionListeners = [];
     const subs = {};
+    const channelSubs = {};
     const emitToParent = (connectionId, topic, payload) => {
       try {
         window.parent.postMessage(
@@ -98,6 +99,28 @@
       }
       if (data.type === "wp-desktop-bridge-disconnect" && typeof data.connectionId === "string") {
         delete connections[data.connectionId];
+      }
+      if (data.type === "wp-desktop-window-send" && typeof data.channel === "string") {
+        const d = data;
+        const meta = { channel: d.channel };
+        const bucket = channelSubs[d.channel];
+        if (bucket) {
+          for (const cb of bucket.slice()) {
+            try {
+              cb(d.payload, meta);
+            } catch {
+            }
+          }
+        }
+        const wildcard = channelSubs["*"];
+        if (wildcard) {
+          for (const cb of wildcard.slice()) {
+            try {
+              cb(d.payload, meta);
+            } catch {
+            }
+          }
+        }
       }
     });
     const iframeApi = {
@@ -229,6 +252,43 @@
       w.wp.desktop = {};
     }
     w.wp.desktop.iframe = iframeApi;
+    if (typeof w.wp.desktop.send !== "function") {
+      w.wp.desktop.send = (channel, payload) => {
+        if (typeof channel !== "string" || channel === "") {
+          return;
+        }
+        try {
+          window.parent.postMessage(
+            {
+              type: "wp-desktop-window-publish",
+              channel,
+              payload
+            },
+            parentOrigin
+          );
+        } catch {
+        }
+      };
+    }
+    if (typeof w.wp.desktop.on !== "function") {
+      w.wp.desktop.on = (channel, cb) => {
+        if (typeof channel !== "string" || channel === "" || typeof cb !== "function") {
+          return () => void 0;
+        }
+        let bucket = channelSubs[channel];
+        if (!bucket) {
+          bucket = [];
+          channelSubs[channel] = bucket;
+        }
+        bucket.push(cb);
+        return () => {
+          const i = bucket.indexOf(cb);
+          if (i >= 0) {
+            bucket.splice(i, 1);
+          }
+        };
+      };
+    }
     const sentinelHost = window;
     if (!sentinelHost.__wpDesktopScreenMetaInstalled) {
       sentinelHost.__wpDesktopScreenMetaInstalled = true;

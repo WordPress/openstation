@@ -9,9 +9,11 @@
  * @since 6.9.0
  */
 
+import { activity } from './activity';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
+import { hashTitleToHue as _hashTitleToHue } from './ui/util/hash-hue';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -74,28 +76,24 @@ export interface DockItem {
 export type DockOrientation = 'left' | 'bottom';
 
 /**
- * Stable 32-bit-ish string hash mapped into the hue circle. Used by
- * the letter-badge icon fallback so a plugin title like "Jetpack"
- * always paints the same color on the same machine and between
- * reloads — visual identity without the plugin having to ship art.
- *
- * The "djb2 lite" variant — good enough for UI differentiation, not
- * suitable for anything security-adjacent. Empty input returns a
- * neutral blue-gray so the badge never flashes a placeholder hue.
+ * Stable string-to-hue helper. Re-exported here for backwards-compat
+ * — the canonical home is `src/ui/util/hash-hue.ts` so `<wpd-avatar>`
+ * can share it without depending on the dock module.
  */
-export function hashTitleToHue( title: string ): number {
-	if ( ! title ) {
-		return 214; // Neutral blue-gray.
-	}
-	// djb2 with `hash * 33 + c`. Math.imul keeps the multiplication
-	// inside int32 range without needing bitwise ops (the WP ESLint
-	// preset disallows those), preserving enough entropy that
-	// realistic plugin titles spread around the hue circle.
-	let hash = 5381;
-	for ( let i = 0; i < title.length; i++ ) {
-		hash = Math.imul( hash, 33 ) + title.charCodeAt( i );
-	}
-	return ( ( hash % 360 ) + 360 ) % 360;
+export const hashTitleToHue = _hashTitleToHue;
+
+/** Attention modes accepted by `Dock.setAttention()` and `Window.requestAttention()`. */
+export type DockAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
+
+/** Visual intensity for an attention animation. */
+export type DockAttentionIntensity = 'subtle' | 'normal' | 'strong';
+
+/** Options for `Dock.setAttention()` / `Window.requestAttention()`. */
+export interface DockAttentionOptions {
+	/** Auto-clear after this many ms. `0` = until cleared by another call. Default 4000. */
+	durationMs?: number;
+	/** Animation intensity. Default `'normal'`. */
+	intensity?: DockAttentionIntensity;
 }
 
 /**
@@ -127,6 +125,13 @@ export class Dock {
 	private systemItems: SystemDockItem[] = [];
 	private systemItemElements: Map<string, HTMLElement> = new Map();
 	private systemSeparator: HTMLElement | null = null;
+
+	/**
+	 * Active attention timers, keyed by item id. Used to cancel a
+	 * pending auto-clear when a fresh `setAttention()` call comes in
+	 * before the previous duration has elapsed.
+	 */
+	private attentionTimers: Map<string, number> = new Map();
 
 	constructor(
 		container: HTMLElement,
@@ -241,6 +246,137 @@ export class Dock {
 			this.systemSeparator.remove();
 			this.systemSeparator = null;
 		}
+	}
+
+	/**
+	 * Set the badge count on a tile. Live-updates without a full
+	 * dock re-render — the existing tile's badge node is mutated in
+	 * place (or created if missing). Pass `0` to remove the badge.
+	 *
+	 * Resolves the tile in id order: menu items (`data-menu-slug`)
+	 * first, then system items (`data-system-id`), so callers can
+	 * use the same id surface regardless of which rail the tile
+	 * happens to live on.
+	 *
+	 * Idempotent: applying the same count is a no-op (no DOM mutation).
+	 *
+	 * @since 0.22.0
+	 *
+	 * @param itemId Tile id (menu slug for admin pages, system id
+	 *               for `appendSystemItem` / `registerSystemTile`).
+	 * @param count  Non-negative integer. `>99` renders as `99+`.
+	 */
+	public setBadge( itemId: string, count: number ): void {
+		const tile = this._resolveTileElement( itemId );
+		if ( ! tile ) {
+			return;
+		}
+		const safe = Math.max( 0, Math.floor( count ) );
+		const primary = tile.querySelector< HTMLElement >(
+			'.wp-desktop-dock__item-primary',
+		);
+		const host = primary ?? tile;
+		_applyBadgeNode( host, safe );
+		document.dispatchEvent(
+			new CustomEvent( 'wpd-dock-item-badge-changed', {
+				detail: { itemId, count: safe },
+			} ),
+		);
+		// Mirror the change on the activity bus so a global
+		// notification-center widget can aggregate badges across
+		// every plugin without having to bind low-level DOM events
+		// or know which rail (dock vs taskbar) emitted them.
+		activity.publish( 'wp-desktop/badge-changed', {
+			itemId,
+			count: safe,
+		} );
+	}
+
+	/**
+	 * Clear the badge on a tile. Equivalent to `setBadge( id, 0 )`.
+	 *
+	 * @since 0.22.0
+	 */
+	public clearBadge( itemId: string ): void {
+		this.setBadge( itemId, 0 );
+	}
+
+	/**
+	 * Apply or clear an attention animation on a tile.
+	 *
+	 *   - `'pulse'`  — soft halo + scale, ~1.4 s loop. Default.
+	 *   - `'shake'`  — short horizontal jiggle.
+	 *   - `'bounce'` — vertical bob, attention-grabbing.
+	 *   - `null`     — clear any active attention.
+	 *
+	 * Animations are gated on `prefers-reduced-motion: no-preference`;
+	 * the reduced-motion fallback shows a static accent ring for the
+	 * same duration so the affordance still works. `durationMs` of
+	 * `0` keeps the attention until the next call clears it.
+	 *
+	 * @since 0.22.0
+	 *
+	 * @param itemId Tile id.
+	 * @param mode   Animation mode or `null` to clear.
+	 * @param opts   Optional duration / intensity overrides.
+	 */
+	public setAttention(
+		itemId: string,
+		mode: DockAttentionMode,
+		opts: DockAttentionOptions = {},
+	): void {
+		const tile = this._resolveTileElement( itemId );
+		if ( ! tile ) {
+			return;
+		}
+
+		// Cancel any pending auto-clear from a previous call.
+		const pending = this.attentionTimers.get( itemId );
+		if ( pending !== undefined ) {
+			window.clearTimeout( pending );
+			this.attentionTimers.delete( itemId );
+		}
+
+		// Strip every prior attention class before applying the new one.
+		tile.classList.remove(
+			'wp-desktop-dock__item--attention-pulse',
+			'wp-desktop-dock__item--attention-shake',
+			'wp-desktop-dock__item--attention-bounce',
+			'wp-desktop-dock__item--intensity-subtle',
+			'wp-desktop-dock__item--intensity-normal',
+			'wp-desktop-dock__item--intensity-strong',
+		);
+
+		if ( mode === null ) {
+			return;
+		}
+
+		tile.classList.add( `wp-desktop-dock__item--attention-${ mode }` );
+		const intensity = opts.intensity ?? 'normal';
+		tile.classList.add( `wp-desktop-dock__item--intensity-${ intensity }` );
+
+		const duration = opts.durationMs ?? 4000;
+		if ( duration > 0 ) {
+			const handle = window.setTimeout( () => {
+				this.attentionTimers.delete( itemId );
+				this.setAttention( itemId, null );
+			}, duration );
+			this.attentionTimers.set( itemId, handle );
+		}
+	}
+
+	/**
+	 * Resolve a tile element by id — checks menu items first
+	 * (`data-menu-slug`), then system items (`data-system-id`). Used
+	 * by `setBadge` / `setAttention` so callers can reach either rail
+	 * with one id surface.
+	 */
+	private _resolveTileElement( itemId: string ): HTMLElement | null {
+		return (
+			this.itemElements.get( itemId ) ??
+			this.systemItemElements.get( itemId ) ??
+			null
+		);
 	}
 
 	/**
@@ -811,4 +947,51 @@ export class Dock {
 			tile.classList.toggle( 'wp-desktop-dock__item--focused', isFocused );
 		}
 	}
+}
+
+/**
+ * Idempotently paint or remove the numeric badge on a tile host.
+ *
+ * Shared between `Dock.setBadge()` and any external surface that
+ * decorates the same tiles (e.g. the recycle-bin badge module had
+ * its own copy of this logic). Mutates the badge node in place so
+ * an existing animation isn't restarted by a no-op repaint.
+ *
+ * @internal
+ */
+function _applyBadgeNode( host: HTMLElement, count: number ): void {
+	const existing = host.querySelector< HTMLElement >(
+		':scope > .wp-desktop-dock__badge',
+	);
+	if ( count <= 0 ) {
+		existing?.remove();
+		return;
+	}
+	const display = count > 99 ? '99+' : String( count );
+	if ( existing ) {
+		if ( existing.textContent !== display ) {
+			existing.textContent = display;
+		}
+		existing.setAttribute(
+			'aria-label',
+			sprintf(
+				// translators: %d is the number of pending items in a dock badge.
+				_n( '%d notification', '%d notifications', count ),
+				count,
+			),
+		);
+		return;
+	}
+	const badge = document.createElement( 'span' );
+	badge.className = 'wp-desktop-dock__badge';
+	badge.textContent = display;
+	badge.setAttribute(
+		'aria-label',
+		sprintf(
+			// translators: %d is the number of pending items in a dock badge.
+			_n( '%d notification', '%d notifications', count ),
+			count,
+		),
+	);
+	host.appendChild( badge );
 }

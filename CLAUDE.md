@@ -58,6 +58,48 @@ Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
 
 **When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`wp_register_desktop_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `applyPayload()` in `desktop.ts`. Don't invent a different mechanism.
 
+## Event-driven framework (since 0.5.5)
+
+The framework is a **transport + state provider**, not a UX policy maker. Apps subscribe to OS events, query window state synchronously, decide for themselves what to do. The framework MUST NOT auto-render based on heuristics it can't generalize across all apps. We learned this when the Dock briefly auto-suppressed badges while their window was focused — convenient for an unread-counter pattern, wrong for any plugin whose badge meant something else (deploy failures, queued items, etc.).
+
+Three layers:
+
+1. **State queries.** `windowManager.getById/isActive`, `presence.getStatus`, `createSharedStore`.
+2. **Window lifecycle events.** Document CustomEvents (`wp-desktop-window-*`) AND hook actions (`HOOKS.WINDOW_*`) for every transition: opened, reopened, focused, blurred, minimized, restored, maximized, unmaximized, fullscreen-entered/exited, closing, closed. Per-window facade: `wp.desktop.onWindow(id, handlers)`.
+3. **Activity channels.** `wp.desktop.activity.publish/subscribe/filter` with channel naming `<plugin>/<event>` — peer-to-peer state-change broadcasts on the hook bus.
+
+When you're tempted to add a heuristic inside the framework — "do X automatically when Y" — stop and turn it into a hook the app can subscribe to. App owns the policy.
+
+Canonical example in-tree: `src/recycle-bin/badge.ts`. Full doc: `docs/event-driven-framework.md`.
+
+## Presence — framework-level (since 0.5.5)
+
+Presence tracking (`online | inactive | offline`) lives in `includes/presence.php` and `src/presence/index.ts`. Any plugin can read `wp.desktop.presence.*` or `desktop_mode_presence_*()` without depending on a particular feature plugin being installed (chat, collaboration, …).
+
+Storage: `_wp_desktop_presence` option (autoload=false). The WordPress Heartbeat handler in `includes/presence.php` records bumps at priority 5; the framework client (`src/presence/index.ts`) sends `wp_desktop_presence_active: true` + `wp_desktop_user_active: <bool>` on every tick and ingests the snapshot from the response.
+
+Public surface — see `docs/javascript-reference.md` (`wp.desktop.presence`), `docs/hooks-reference.md` (filters / actions), and `docs/examples/presence.md` (recipe). Plugins with a faster delivery channel (an SSE stream, a WebSocket) can push updates straight into the framework store via `wp.desktop.presence.applyBatch()`.
+
+## Cross-bundle state — `wp.desktop.createSharedStore` (since 0.5.5)
+
+Each Desktop Mode feature compiles to its own Vite IIFE bundle (`desktop`, `code-editor`, `recycle-bin`, …, plus any third-party plugin bundles). Module-level state (a top-level `const state = ...` or `class Foo { …singleton… }`) defined in one bundle is **invisible** to another bundle even when both `import './state'` from the same source — each bundle has its own compiled copy. Mutations don't propagate; subscribers don't fire.
+
+**This was the bug that ate days of debugging on a multi-bundle feature.** Symptom: an always-on shell bundle called a setter that mutated module-level state; a lazy window-bundle read the same state, found the initial value, and rendered the placeholder — because the two bundles each had their own copy of the state module. The fix that's now standard:
+
+```ts
+import { createSharedStore } from '../shared-store';
+
+const store = createSharedStore< MyState >( 'my-plugin/state', () => initial() );
+// `store.state` is identical across every bundle that calls
+// createSharedStore with the same key.
+```
+
+The primitive is also exposed on the public API as `wp.desktop.createSharedStore`. See [`docs/javascript-reference.md`](docs/javascript-reference.md#createsharedstore-key-initialstate--stable-since-055) and [`docs/examples/shared-store.md`](docs/examples/shared-store.md).
+
+**When you ARE writing module-level state in a feature with multiple bundles, route it through `createSharedStore`.** This is non-negotiable.
+
+**Before importing from one bundle's entry into another bundle's tree**, double-check that you aren't dragging in heavy code as a side-effect. Pulling a single symbol from a bundle entry that side-effect-imports the whole feature (poller, SSE, leader, heartbeat, …) inflates the consumer bundle. Pull the symbol from the leaf module that defines it instead.
+
 ## Chromeless admin-bar suppression
 
 `is_admin_bar_showing()` short-circuits to `true` in admin context — the `show_admin_bar` filter alone is NOT sufficient inside chromeless iframes. We pair it with `remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 )` on `admin_init`, AND a CSS rule killing the reserved 32px. Do not remove either half.
@@ -153,6 +195,11 @@ docs/
     │                            attribute names, CSS-variable surface, or accessibility defaults.
     ├── register-icon.md        UPDATE/READ WHEN: wp_register_desktop_icon() contract changes.
     ├── register-wallpaper.md   UPDATE/READ WHEN: WallpaperDef or wp_register_desktop_wallpaper() changes.
+    ├── shared-store.md          UPDATE/READ WHEN: wp.desktop.createSharedStore() contract,
+    │                            slot key naming convention, or reset semantics change.
+    ├── presence.md              UPDATE/READ WHEN: wp.desktop.presence.* contract,
+    │                            wp_desktop_presence_* filters/actions, or the Heartbeat
+    │                            payload for `wp_desktop_presence` changes.
     └── window-lifecycle.md     UPDATE/READ WHEN: window state machine / lifecycle hooks change.
 ```
 

@@ -27,6 +27,7 @@ interface FakeIframe {
 interface FakeWindow {
 	id: string;
 	iframe: FakeIframe | null;
+	config?: { native?: boolean };
 }
 
 function makeManager(
@@ -241,5 +242,66 @@ describe( 'connection bridge', () => {
 			topic: 't',
 			payload: 1,
 		} );
+	} );
+
+	test( 'connect() to a native window opens immediately + routes through the channel bus', async () => {
+		const { addNativeSubscriber, dispatchFromWindow, _resetWindowChannelsForTests } =
+			await import( '../../src/window-channels' );
+		_resetWindowChannelsForTests();
+
+		const mgr = makeManager( {
+			'native-1': { id: 'native-1', iframe: null, config: { native: true } },
+		} );
+		const bridge = createConnectionBridge( mgr );
+
+		const onOpen = vi.fn();
+		const conn = bridge.connect( 'native-1', { topics: [], onOpen } );
+
+		// `connect()` to a native target opens on the next microtask
+		// without any handshake.
+		await Promise.resolve();
+		expect( onOpen ).toHaveBeenCalledTimes( 1 );
+		expect( conn.isOpen() ).toBe( true );
+
+		// `conn.send(topic)` reaches the native render's listeners
+		// (modeled by `addNativeSubscriber` here).
+		const nativeListener = vi.fn();
+		addNativeSubscriber( 'native-1', 'reload', nativeListener );
+		conn.send( 'reload', { force: true } );
+		expect( nativeListener ).toHaveBeenCalledWith(
+			{ force: true },
+			{ channel: 'reload', windowId: 'native-1' },
+		);
+
+		// `conn.subscribe(topic)` fires when the native render side
+		// publishes via `dispatchFromWindow`.
+		const peer = vi.fn();
+		conn.subscribe( 'saved', peer );
+		dispatchFromWindow( 'native-1', 'saved', { id: 7 } );
+		expect( peer ).toHaveBeenCalledWith( { id: 7 }, { topic: 'saved' } );
+
+		conn.disconnect();
+		_resetWindowChannelsForTests();
+	} );
+
+	test( 'native connect: disconnect drops subscribers from the channel bus', async () => {
+		const { dispatchFromWindow, _resetWindowChannelsForTests } =
+			await import( '../../src/window-channels' );
+		_resetWindowChannelsForTests();
+
+		const mgr = makeManager( {
+			'native-1': { id: 'native-1', iframe: null, config: { native: true } },
+		} );
+		const bridge = createConnectionBridge( mgr );
+
+		const conn = bridge.connect( 'native-1' );
+		await Promise.resolve();
+
+		const cb = vi.fn();
+		conn.subscribe( 'saved', cb );
+		conn.disconnect();
+		dispatchFromWindow( 'native-1', 'saved', { id: 7 } );
+		expect( cb ).not.toHaveBeenCalled();
+		_resetWindowChannelsForTests();
 	} );
 } );

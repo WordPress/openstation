@@ -2085,6 +2085,7 @@ function desktop_mode_chromeless_bridge_script() {
 	var _wpdConnections = {};
 	var _wpdConnectionListeners = [];
 	var _wpdSubs = {};   // topic → [cb, ...]
+	var _wpdChannelSubs = {};   // channel → [cb, ...] (window-channel API)
 	var _wpdParentOrigin = window.location.origin;
 
 	function _wpdEmitToParent( connectionId, topic, payload ) {
@@ -2163,6 +2164,33 @@ function desktop_mode_chromeless_bridge_script() {
 
 		if ( data.type === 'wp-desktop-bridge-disconnect' && typeof data.connectionId === 'string' ) {
 			delete _wpdConnections[ data.connectionId ];
+			return;
+		}
+
+		/* Unified window-channel delivery from the parent. Fires
+		 * every `wp.desktop.on( channel, cb )` subscriber for the
+		 * matching channel — same protocol as
+		 * `assets/js/iframe-bridge.js`. */
+		if ( data.type === 'wp-desktop-window-send' && typeof data.channel === 'string' && data.channel !== '' ) {
+			var meta = { channel: data.channel };
+			var cBucket = _wpdChannelSubs[ data.channel ];
+			if ( cBucket ) {
+				var cBucketSnap = cBucket.slice();
+				for ( var ci = 0; ci < cBucketSnap.length; ci++ ) {
+					try {
+						cBucketSnap[ ci ]( data.payload, meta );
+					} catch ( _err ) { /* swallow */ }
+				}
+			}
+			var cWildcard = _wpdChannelSubs[ '*' ];
+			if ( cWildcard ) {
+				var cWildcardSnap = cWildcard.slice();
+				for ( var cw = 0; cw < cWildcardSnap.length; cw++ ) {
+					try {
+						cWildcardSnap[ cw ]( data.payload, meta );
+					} catch ( _err ) { /* swallow */ }
+				}
+			}
 			return;
 		}
 	} );
@@ -2308,6 +2336,47 @@ function desktop_mode_chromeless_bridge_script() {
 	if ( ! window.wp ) { window.wp = {}; }
 	if ( ! window.wp.desktop ) { window.wp.desktop = {}; }
 	window.wp.desktop.iframe = iframeApi;
+
+	/* Unified window-channel API. Mirror of the equivalent block
+	 * in `assets/js/iframe-bridge.js` — keep both in sync. The
+	 * parent shell posts `wp-desktop-window-send` on
+	 * `Window.send( channel, payload )`; iframe-side handlers
+	 * register via `wp.desktop.on( channel, cb )`. Sending the
+	 * other way (`wp.desktop.send`) posts up to the parent where
+	 * `Window.on( channel, cb )` subscribers fire. */
+	if ( typeof window.wp.desktop.send !== 'function' ) {
+		window.wp.desktop.send = function ( channel, payload ) {
+			if ( typeof channel !== 'string' || channel === '' ) {
+				return;
+			}
+			try {
+				window.parent.postMessage( {
+					type: 'wp-desktop-window-publish',
+					channel: channel,
+					payload: payload
+				}, _wpdParentOrigin );
+			} catch ( _err ) { /* parent gone */ }
+		};
+	}
+	if ( typeof window.wp.desktop.on !== 'function' ) {
+		window.wp.desktop.on = function ( channel, cb ) {
+			if ( typeof channel !== 'string' || channel === '' || typeof cb !== 'function' ) {
+				return function () {};
+			}
+			var bucket = _wpdChannelSubs[ channel ];
+			if ( ! bucket ) {
+				bucket = [];
+				_wpdChannelSubs[ channel ] = bucket;
+			}
+			bucket.push( cb );
+			return function () {
+				var i = bucket.indexOf( cb );
+				if ( i >= 0 ) {
+					bucket.splice( i, 1 );
+				}
+			};
+		};
+	}
 } )();
 JS;
 

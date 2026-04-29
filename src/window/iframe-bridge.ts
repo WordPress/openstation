@@ -14,6 +14,7 @@ import { doAction, HOOKS } from '../hooks';
 import { showToast } from '../toast';
 import { addExternalTab } from './tabs';
 import type { Window } from './index';
+import { dispatchFromWindow, markWindowContentReady } from '../window-channels';
 
 /**
  * Origin snapshot taken once at module load. Any subsequent mutation
@@ -48,6 +49,19 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		win.setTitle( data.title );
 	}
 
+	// Unified window-channel publish. Iframe content called
+	// `wp.desktop.send( channel, payload )` (installed by the
+	// iframe-bridge) and we forward to the parent-side subscriber
+	// registry so `Window.on( channel, cb )` callbacks fire — same
+	// shape as native windows reaching for `windowApi.send()`.
+	if (
+		data.type === 'wp-desktop-window-publish' &&
+		typeof data.channel === 'string' &&
+		data.channel !== ''
+	) {
+		dispatchFromWindow( win.id, data.channel, data.payload );
+	}
+
 	// Cross-window connection bridge — route any `wp-desktop-bridge-*`
 	// message to the parent-side connection registry. The bridge is
 	// installed on `window` by `desktop.ts` so individual Window
@@ -74,6 +88,9 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// `load` event fires BEFORE our bridge attaches, which makes
 	// listener-timing a known footgun otherwise).
 	if ( data.type === 'wp-desktop-ready' ) {
+		// Bridge announced — anything queued via `Window.send()`
+		// before this point flushes now in FIFO order.
+		markWindowContentReady( win.id );
 		doAction( HOOKS.IFRAME_READY, { windowId: win.id } );
 	}
 

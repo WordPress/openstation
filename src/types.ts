@@ -106,7 +106,9 @@ export interface WindowConfig {
 	/**
 	 * Render callback for native windows. Invoked once after the window
 	 * element mounts; receives the `.wp-desktop-window__body` and
-	 * fills it. Ignored when `native` is falsy.
+	 * an optional render context whose `window.send` / `window.on`
+	 * are the unified channel-bus API for talking to / from this
+	 * window's content. Ignored when `native` is falsy.
 	 *
 	 * Body content at call time depends on which entry point opened
 	 * the window:
@@ -118,8 +120,17 @@ export interface WindowConfig {
 	 *   - **`windowManager.open({ native: true, render })` (raw JS)** —
 	 *     no template plumbing exists at this layer. The body is
 	 *     empty; the callback constructs the DOM directly.
+	 *
+	 * The second argument is populated when `wp.desktop.registerWindow()`
+	 * (or `desktop_mode_register_window()`) is the entry point —
+	 * legacy `windowManager.open()` callers still receive `body`
+	 * only; in that case use `wp.desktop.windowManager.getById(
+	 * id ).on/send` instead.
 	 */
-	render?: ( body: HTMLElement ) => void;
+	render?: (
+		body: HTMLElement,
+		ctx?: NativeRenderContext,
+	) => void | ( () => void );
 	/**
 	 * Auto-focus control for native windows. Pass `true` to focus
 	 * the body element itself (tabbable after render), a CSS
@@ -246,43 +257,69 @@ export interface NativeWindowIframeContent {
 	/**
 	 * When `true`, the shell injects the iframe-side connection
 	 * bridge (`wp.desktop.iframe.publish/subscribe/onConnection/
-	 * requestConnection`) into the iframe's document after load.
+	 * requestConnection` plus the unified `wp.desktop.send` /
+	 * `wp.desktop.on`) into the iframe's document after load.
 	 * Same-origin only — cross-origin iframes are out of reach for
 	 * script injection so the flag is silently ignored.
 	 *
 	 * Default `false`. Set this when your iframe is a same-origin
 	 * page that wants to participate in `wp.desktop.connect()`
-	 * traffic without enqueueing the bridge handle itself.
+	 * traffic / `Window.send` traffic without enqueueing the
+	 * bridge handle itself.
 	 */
 	bridge?: boolean;
-	/**
-	 * Fires once the iframe document has loaded. The `send` closure
-	 * posts to the iframe's `contentWindow` with the right
-	 * `targetOrigin` (the iframe URL's origin).
-	 *
-	 * For sending **before** the iframe has loaded — use the
-	 * synchronous `Window.iframeSend( payload, opts? )` method
-	 * available the moment `registerWindow` returns. That method
-	 * routes through the same internal queue: FIFO for ordered
-	 * setup messages, or `{ coalesce: true }` for latest-wins
-	 * snapshots (live-preview streams). `onReady` is still the
-	 * right surface for the rest of your iframe-side setup
-	 * (subscribing to messages from the iframe, etc.); for the
-	 * outbound flow plugins typically reach for `iframeSend`
-	 * because it doesn't force a closure capture.
-	 */
-	onReady?: (
-		send: (
-			payload: unknown,
-			opts?: { coalesce?: boolean },
-		) => void,
-	) => void;
 	/**
 	 * Receives every message whose `event.source ===
 	 * iframe.contentWindow`. Handles the source-check the shell
 	 * would otherwise force every plugin to reinvent.
+	 *
+	 * **Most plugins should NOT use this.** Reach for the unified
+	 * channel API instead — `Window.on( channel, cb )` from the
+	 * parent shell, paired with `wp.desktop.send( channel,
+	 * payload )` from inside the iframe. `onMessage` is the raw
+	 * `event.data` firehose, useful only for plugins that already
+	 * speak a non-`wp-desktop-window-*` postMessage protocol.
 	 */
 	onMessage?: ( payload: unknown ) => void;
+}
+
+/**
+ * Window-scoped channel API surfaced to native render callbacks
+ * as the second argument of {@link WindowConfig.render}. Plugin
+ * authors talk to / from the window's content through these two
+ * methods — same shape as the iframe-side `wp.desktop.send` /
+ * `wp.desktop.on`, so cross-cutting plugin code that doesn't
+ * care about render strategy stays render-strategy-agnostic.
+ *
+ * @public
+ * @since 0.5.5
+ */
+export interface NativeRenderContext {
+	/**
+	 * Per-window channel handle. Methods are bound to this window's
+	 * id so render code can lift them out of the context object
+	 * without losing scope.
+	 */
+	window: {
+		/**
+		 * Publish a payload on a named channel. Reaches every
+		 * `Window.on( channel, cb )` subscriber on the parent side
+		 * (and any peer `wp.desktop.connect( id ).on()` listeners).
+		 */
+		send< T = unknown >( channel: string, payload?: T ): void;
+		/**
+		 * Subscribe to a payload published from outside this window —
+		 * fires when a parent-side caller invokes `Window.send(
+		 * channel, payload )`. Returns an unsubscribe handle.
+		 */
+		on< T = unknown >(
+			channel: string,
+			cb: (
+				payload: T,
+				meta: { channel: string; windowId: string },
+			) => void,
+		): () => void;
+	};
 }
 
 /**
@@ -978,7 +1015,9 @@ export interface DesktopConfig {
 	 * drag-and-drop. Null for non-admin users.
 	 * @since 0.14.0
 	 */
-	extendedOptions?: { media_library_enhanced: boolean } | null;
+	extendedOptions?: {
+		media_library_enhanced: boolean;
+	} | null;
 	/**
 	 * REST endpoint for reading/writing extended options (admin only).
 	 * @since 0.14.0

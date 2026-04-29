@@ -111,9 +111,12 @@ export function _currentRecycleBinBadge(): number {
  * one — currently the system tile in the dock/taskbar
  * (`data-system-id`) and the desktop icon (`data-icon-id`).
  *
- * Pulling this out lets `start()` retry once after a microtask
- * to cover the case where we're called before the dock has
- * finished its initial render.
+ * Honours the framework "show 0 when my window is active" UX
+ * policy: when the user is currently looking at the bin window,
+ * the badge renders as 0 (no DOM badge node) so we don't double-
+ * signal. The actual `_current` count is preserved internally so
+ * the next paint after the user closes / minimizes the window
+ * shows the right number again.
  */
 function paintBadge( count: number ): void {
 	const tile = document.querySelector(
@@ -122,8 +125,12 @@ function paintBadge( count: number ): void {
 	const icon = document.querySelector< HTMLElement >(
 		`[data-icon-id="${ cssEscape( TARGET_ID ) }"]`,
 	);
+	const active = isBinWindowActive();
+	const visible = active ? 0 : count;
 	log( 'paintBadge', {
 		count,
+		visible,
+		active,
 		tile: !! tile,
 		icon: !! icon,
 	} );
@@ -131,11 +138,28 @@ function paintBadge( count: number ): void {
 		const primary = tile.querySelector< HTMLElement >(
 			'.wp-desktop-dock__item-primary',
 		);
-		applyBadge( primary ?? ( tile as HTMLElement ), BADGE_CLASS, count );
+		applyBadge( primary ?? ( tile as HTMLElement ), BADGE_CLASS, visible );
 	}
 	if ( icon ) {
-		applyBadge( icon, ICON_BADGE_CLASS, count );
+		applyBadge( icon, ICON_BADGE_CLASS, visible );
 	}
+}
+
+/**
+ * Window-activeness check — relies on the framework's
+ * `wp.desktop.windowManager.isActive()`. Falls back to false when
+ * the manager isn't reachable yet (this module loads inside
+ * `desktop.js` so that's rare, but cheap to handle).
+ */
+function isBinWindowActive(): boolean {
+	const wp = ( window as unknown as {
+		wp?: {
+			desktop?: {
+				windowManager?: { isActive?: ( id: string ) => boolean };
+			};
+		};
+	} ).wp;
+	return !! wp?.desktop?.windowManager?.isActive?.( TARGET_ID );
 }
 
 function applyBadge(
@@ -230,12 +254,19 @@ export function startRecycleBinBadge(
 		cfgDebug,
 		readyState: document.readyState,
 	} );
-	// Loud warning when the PHP filter didn't deliver — the badge
-	// will still update on the first heartbeat tick (~15 s), but
-	// the cold-load value is wrong and that's the bug we keep
-	// chasing. Sending this through `console.warn` so it shows
-	// up even with `info` filtered out in DevTools.
-	if ( typeof cfgCount !== 'number' ) {
+	// Loud warning when the PHP filter didn't deliver. Important:
+	// `wp_localize_script` stringifies every top-level scalar, so a
+	// PHP `(int) 0` arrives here as the string `"0"` — using
+	// `typeof !== 'number'` would yell on every healthy load and
+	// drown out the real signal. The genuine "filter missing"
+	// shapes are `undefined` (key absent) and `null`; numeric
+	// strings (the WP-localize default) and actual numbers both
+	// indicate a delivered value.
+	const cfgCountNum = Number( cfgCount );
+	const cfgCountIsHealthy =
+		( typeof cfgCount === 'number' || typeof cfgCount === 'string' ) &&
+		Number.isFinite( cfgCountNum );
+	if ( ! cfgCountIsHealthy ) {
 		warn(
 			'wpDesktopConfig.recycleBinCount is missing — PHP filter `desktop_mode_shell_config` did not deliver. Check your PHP error log for `[wpdm-bin debug]` lines.',
 			{ cfg },
@@ -262,6 +293,35 @@ export function startRecycleBinBadge(
 	wireBroadcastDeltas();
 	wirePostMessageFastPath();
 	wireHeartbeatProbe();
+	wireWindowLifecycleSignals();
+}
+
+/**
+ * Re-paint the badge when the bin window's lifecycle changes —
+ * focus / blur / minimize / restore / open / close. The
+ * `paintBadge` function consults
+ * `wp.desktop.windowManager.isActive()` and renders 0 while the
+ * user is looking at the window, so transitions need to trigger
+ * a re-paint to apply or undo that suppression. Internal count
+ * (`_current`) doesn't change here — only the rendered DOM
+ * value.
+ */
+function wireWindowLifecycleSignals(): void {
+	const ns = 'wp-desktop-mode/recycle-bin/badge-lifecycle';
+	const repaint = ( payload: unknown ): void => {
+		const detail = payload as { windowId?: string };
+		if ( detail?.windowId !== TARGET_ID ) {
+			return;
+		}
+		paintBadge( _current );
+	};
+	addAction( HOOKS.WINDOW_OPENED, ns, repaint );
+	addAction( HOOKS.WINDOW_FOCUSED, ns, repaint );
+	addAction( HOOKS.WINDOW_BLURRED, ns, repaint );
+	addAction( HOOKS.WINDOW_MINIMIZED, ns, repaint );
+	addAction( HOOKS.WINDOW_RESTORED, ns, repaint );
+	addAction( HOOKS.WINDOW_CLOSED, ns, repaint );
+	addAction( HOOKS.WINDOW_REOPENED, ns, repaint );
 }
 
 /**

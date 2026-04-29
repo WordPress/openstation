@@ -42,8 +42,12 @@ var wpDesktopRecycleBin = function(exports) {
     const icon = document.querySelector(
       `[data-icon-id="${cssEscape(TARGET_ID)}"]`
     );
+    const active = isBinWindowActive();
+    const visible = active ? 0 : count;
     log("paintBadge", {
       count,
+      visible,
+      active,
       tile: !!tile,
       icon: !!icon
     });
@@ -51,11 +55,15 @@ var wpDesktopRecycleBin = function(exports) {
       const primary = tile.querySelector(
         ".wp-desktop-dock__item-primary"
       );
-      applyBadge(primary ?? tile, BADGE_CLASS, count);
+      applyBadge(primary ?? tile, BADGE_CLASS, visible);
     }
     if (icon) {
-      applyBadge(icon, ICON_BADGE_CLASS, count);
+      applyBadge(icon, ICON_BADGE_CLASS, visible);
     }
+  }
+  function isBinWindowActive() {
+    const wp = window.wp;
+    return !!wp?.desktop?.windowManager?.isActive?.(TARGET_ID);
   }
   function applyBadge(host, className, count) {
     const existing = host.querySelector(

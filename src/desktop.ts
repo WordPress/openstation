@@ -73,6 +73,8 @@ import {
 	subscribe,
 } from './broadcast';
 import { startRecycleBinBadge } from './recycle-bin/badge';
+import { showToast, type ToastOptions } from './toast';
+import { renderKeyedList, clearKeyedList, type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
 	registerCommand,
@@ -90,6 +92,14 @@ import {
 	type Palette,
 } from './palette-registry';
 import { devtools } from './devtools';
+import { createSharedStore, type SharedStore } from './shared-store';
+import {
+	bootPresenceProbe,
+	presenceApi,
+	type PresenceApi,
+} from './presence';
+import { activity, type ActivityApi } from './activity';
+import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
 
 /**
  * Origin snapshot taken at shell module load. Every same-origin gate
@@ -222,7 +232,7 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.18.0
 	 */
-	openWindow: ( id: string ) => boolean;
+	openWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
 	 * Clone a `<template>` element's contents into a fresh
 	 * `DocumentFragment`. Convenience wrapper — accepts either the
@@ -232,12 +242,18 @@ export interface WpDesktopPublicApi {
 	cloneTemplate: ( template: string | HTMLTemplateElement ) => DocumentFragment;
 	/**
 	 * Subscribe to a specific window's lifecycle events by id.
-	 * Returns an unsubscribe function; also auto-unsubscribes when
-	 * the window closes. See {@link WindowLifecycleHandlers}.
+	 * Returns an unsubscribe function; by default also
+	 * auto-unsubscribes when the window closes (suits one-shot
+	 * per-instance subscribers). Pass `{ persistent: true }` for
+	 * app-lifetime subscribers that need to keep firing across
+	 * every open/close cycle (badge policies, toast suppression).
+	 *
+	 * See {@link WindowLifecycleHandlers}.
 	 */
 	onWindow: (
 		id: string,
 		handlers: WindowLifecycleHandlers,
+		options?: { persistent?: boolean },
 	) => () => void;
 	/** Load a vendor script once, memoized. See `src/wallpapers/vendor-loader.ts`. */
 	loadVendorScript: ( url: string ) => Promise<void>;
@@ -484,6 +500,167 @@ export interface WpDesktopPublicApi {
 	 * @since 0.6.0
 	 */
 	devtools: import( './devtools' ).DevtoolsApi;
+	/**
+	 * Cross-bundle reactive store factory.
+	 *
+	 * Each plugin / feature in Desktop Mode is typically built as
+	 * its own Vite IIFE bundle. Module-level state defined inside
+	 * one bundle is invisible to another bundle even when both
+	 * import the same source file — each bundle has its own copy.
+	 * `createSharedStore` solves this by attaching state to a
+	 * window-level slot keyed by your string. The first call with
+	 * a given key creates the store; every subsequent call with
+	 * the same key (in any bundle) returns the SAME store, so
+	 * mutations propagate and subscribers from any bundle fire on
+	 * any mutation.
+	 *
+	 * Mutation pattern is mutate-then-notify (no immutable updates,
+	 * no reducer enum). The returned handle exposes `state` (live
+	 * mutable object), `notify()`, `subscribe(cb)`, `getState()`,
+	 * and `reset()`.
+	 *
+	 * Use this any time you split your plugin's JS across more
+	 * than one bundle and need them to agree on something. Common
+	 * consumers: a feature whose lazy chat / detail-pane bundle
+	 * needs to read state from an always-on shell bundle.
+	 *
+	 * @example
+	 * ```js
+	 * const store = wp.desktop.createSharedStore(
+	 *     'my-plugin/state',
+	 *     () => ( { selectedId: null, items: [] } ),
+	 * );
+	 * store.subscribe( ( s ) => repaint( s ) );
+	 * store.state.selectedId = 7;
+	 * store.notify();
+	 * ```
+	 *
+	 * @since 0.5.5
+	 */
+	createSharedStore: < T >(
+		key: string,
+		initialState: () => T,
+	) => SharedStore< T >;
+	/**
+	 * Framework-level presence — who's currently in the desktop-mode
+	 * WP-Admin and what their state is (`online | inactive |
+	 * offline`). Always available regardless of which feature
+	 * plugins (chat, collaboration, …) happen to be installed.
+	 *
+	 * The probe is started automatically on `wp-desktop.init` and
+	 * piggy-backs on the WordPress Heartbeat to bump server-side
+	 * presence + receive the visible-users snapshot. Plugins read
+	 * `getStatus(userId)` / `getAll()` for a synchronous snapshot,
+	 * `subscribe(cb)` to react to changes, and listen for
+	 * `wp-desktop-presence-changed` CustomEvents on `document` for
+	 * status transitions (fires once per user per transition,
+	 * never on stable ticks).
+	 *
+	 * @example
+	 * ```js
+	 * if ( wp.desktop.presence.getStatus( authorId ) === 'online' ) {
+	 *     showOnlineBadge();
+	 * }
+	 * document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+	 *     console.log( e.detail.userId, e.detail.newStatus );
+	 * } );
+	 * ```
+	 *
+	 * @since 0.5.5
+	 */
+	presence: PresenceApi;
+	/**
+	 * Cross-plugin activity channels — a thin, named-channel layer
+	 * over `wp.hooks` for plugin-internal events that other
+	 * plugins might care about. Apps publish state changes; peers
+	 * subscribe + react. Convention is `<plugin>/<event>`:
+	 *
+	 * ```js
+	 * wp.desktop.activity.publish( 'inbox/unread-changed', { total: 5 } );
+	 * const off = wp.desktop.activity.subscribe(
+	 *     'inbox/unread-changed',
+	 *     ( { total } ) => repaintBadge( total ),
+	 * );
+	 * ```
+	 *
+	 * Channels are routed via `wp-desktop.activity.<channel>` on
+	 * the hook bus, so devtools / inspectors can list activity
+	 * traffic as a discrete group.
+	 *
+	 * @since 0.5.5
+	 */
+	activity: ActivityApi;
+	/**
+	 * Cross-feature WordPress Heartbeat bus.
+	 *
+	 * Every plugin that wants to read / write a per-tick payload
+	 * goes through here:
+	 *
+	 * ```js
+	 * wp.desktop.heartbeat.contribute( 'my-plugin/active', () => true );
+	 * wp.desktop.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
+	 *     applyServerSnapshot( v );
+	 * } );
+	 * ```
+	 *
+	 * The framework wires the underlying `heartbeat-send` /
+	 * `heartbeat-tick` jQuery events once. Plugins compose; no
+	 * boilerplate per feature.
+	 *
+	 * @since 0.5.5
+	 */
+	heartbeat: HeartbeatBus;
+	/**
+	 * Show a transient top-of-shell toast. Returns a dismiss callback
+	 * the caller can invoke early — useful when the state the toast
+	 * was reporting changes (e.g. dismiss inbound-message toasts the
+	 * moment the chat window mounts).
+	 *
+	 * Routes through the `wp-desktop/toast-requested` activity filter
+	 * before painting; plugins can mutate or cancel the payload.
+	 *
+	 * @since 0.23.0
+	 */
+	showToast: ( opts: ToastOptions ) => () => void;
+	/**
+	 * Keyed-list rendering helper for any plugin that paints a dynamic
+	 * list of items into a DOM container. Reuses element instances when
+	 * the keys match across renders so event listeners survive data
+	 * updates — the only reliable way to keep clicks working on rows
+	 * that may re-render mid-press.
+	 *
+	 * See {@link renderKeyedList} for the full options shape.
+	 *
+	 * @since 0.23.0
+	 */
+	renderKeyedList: < T >(
+		host: HTMLElement,
+		items: readonly T[],
+		opts: KeyedListOptions< T >,
+	) => void;
+	/**
+	 * Drop the keyed-list state for a host. Idempotent. Pair with
+	 * `renderKeyedList` when tearing down a list-bearing component.
+	 *
+	 * @since 0.23.0
+	 */
+	clearKeyedList: ( host: HTMLElement ) => void;
+	/**
+	 * Bless a plugin-owned subnamespace under `wp.desktop`. Plugins
+	 * that ship their own public surface (`wp.desktop.<your-plugin>`)
+	 * call this once at boot to publish their api object on the shell. Subsequent calls with the same
+	 * name replace the previous registration — re-registration is
+	 * idempotent and intentionally non-throwing so a plugin reload
+	 * does the right thing.
+	 *
+	 * Reserved names: any key already present on `wp.desktop` at the
+	 * moment of registration. Attempting to claim a reserved name
+	 * console.warns and is a no-op so a plugin can't accidentally
+	 * shadow a built-in.
+	 *
+	 * @since 0.23.0
+	 */
+	registerNamespace: ( name: string, api: object ) => void;
 }
 
 declare global {
@@ -505,6 +682,30 @@ const SESSION_SAVE_DEBOUNCE_MS = 500;
 
 /** Minimum margin between the restored window and the desktop edges when clamping. */
 const VIEWPORT_CLAMP_MARGIN = 12;
+
+/**
+ * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
+ * to overwrite. Source-of-truth for the reserved-names list — kept
+ * in sync with the {@link WpDesktopPublicApi} interface above. A
+ * runtime check lives in the registerNamespace wiring inside
+ * `init()`; this snapshot lets the warning fire even before any
+ * built-in slot has been assigned (e.g. if a plugin races init).
+ */
+const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
+	'windowManager', 'dock', 'taskbar', 'saveSession', 'hooks', 'HOOKS',
+	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer',
+	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
+	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
+	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
+	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
+	'unregisterCommand', 'listCommands', 'registerSettingsTab',
+	'unregisterSettingsTab', 'listSettingsTabs', 'registerTitleBarButton',
+	'unregisterTitleBarButton', 'listTitleBarButtons', 'connect',
+	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
+	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
+	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
+	'clearKeyedList', 'registerNamespace',
+] );
 
 /**
  * Initialize Desktop Mode.
@@ -961,6 +1162,29 @@ function init(): void {
 	attachBroadcastBus( manager );
 	installBroadcastReceiver();
 
+	// `wp-desktop.shell.toast` action — the documented way for plugins
+	// to surface a transient notification without importing
+	// `showToast` directly. Payload mirrors the `ToastOptions` type
+	// in `src/toast.ts`.
+	addAction(
+		'wp-desktop.shell.toast',
+		'wp-desktop-mode/shell-toast',
+		( payload: {
+			message?: string;
+			action?: { label: string; onClick: () => void };
+			duration?: number;
+		} ) => {
+			if ( ! payload || typeof payload.message !== 'string' ) {
+				return;
+			}
+			showToast( {
+				message: payload.message,
+				action: payload.action,
+				duration: payload.duration,
+			} );
+		},
+	);
+
 	// Recycle-bin count badge — painted on the dock/taskbar tile
 	// + desktop icon as soon as those exist. Initial value comes
 	// from the shell config (`recycleBinCount`); cross-window
@@ -1070,7 +1294,7 @@ function init(): void {
 	// aliases `window.wp.hooks` so plugins have one idiomatic entry
 	// point for both the window manager and the filter/action bus.
 	window.wp = window.wp || {};
-	window.wp.desktop = {
+	const desktopApi: WpDesktopPublicApi = {
 		windowManager: manager,
 		dock,
 		taskbar,
@@ -1134,7 +1358,53 @@ function init(): void {
 		listPalettes,
 		openPalette: openPaletteOnly,
 		devtools,
+		createSharedStore,
+		presence: presenceApi,
+		activity,
+		heartbeat,
+		showToast,
+		renderKeyedList,
+		clearKeyedList,
+		registerNamespace: ( name: string, api: object ) => {
+			if ( typeof name !== 'string' || name === '' ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					'[wp-desktop] registerNamespace: name must be a non-empty string',
+				);
+				return;
+			}
+			if ( ! api || typeof api !== 'object' ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[wp-desktop] registerNamespace("${ name }"): api must be an object`,
+				);
+				return;
+			}
+			const reserved = RESERVED_NAMESPACE_KEYS.has( name );
+			if ( reserved ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[wp-desktop] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
+				);
+				return;
+			}
+			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
+		},
 	};
+	window.wp.desktop = desktopApi;
+
+	// Wire the cross-feature Heartbeat bus before any consumer
+	// (presence, recycle bin, third-party plugins) registers a
+	// contributor / subscriber. Idempotent — safe to run twice
+	// if init() ever fires again.
+	bootHeartbeatBus();
+
+	// Boot the framework presence probe — always runs in desktop
+	// mode, regardless of whether the chat feature is enabled. The
+	// probe wires Heartbeat send/tick listeners that bump server
+	// presence and ingest the snapshot. Idempotent on repeat
+	// init() calls (the underlying singleton-guards itself).
+	bootPresenceProbe();
 
 	// Fire `wp-desktop.init` — plugins can now register wallpapers
 	// and hook other surfaces. Fired AFTER `window.wp.desktop` is

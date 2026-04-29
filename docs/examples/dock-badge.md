@@ -27,9 +27,29 @@ add_filter( 'desktop_mode_dock_items', function ( $items ) {
 
 ## Updating the badge live (without a refresh)
 
-The dock reads `badge` at render time, so it only changes on shell reload. To push live updates, dispatch a custom message from your shell-side JS and have the dock re-render. That API is planned — for now, rely on a page refresh or a short `setInterval` in your own code that manipulates the DOM under `#wp-desktop-dock`.
+**Stable** — shipped 0.22.0.
+
+Use the platform API instead of poking the DOM:
+
+```js
+wp.desktop.dock?.setBadge( 'my-orders', 7 );
+wp.desktop.taskbar?.setBadge( 'my-orders', 7 );  // if it lives on the bottom rail
+wp.desktop.dock?.clearBadge( 'my-orders' );      // shorthand for setBadge( id, 0 )
+```
+
+The id is the dock item's `slug` (or, for system tiles registered
+via `wp.desktop.registerSystemTile()`, the system id). Idempotent —
+applying the same count twice does not mutate the DOM.
+
+Both methods fire `wpd-dock-item-badge-changed` on `document` with
+`{ itemId, count }` so plugins can mirror the change anywhere.
+
+For attention-grabbing animations (pulse / shake / bounce on the
+tile), see
+[`window-request-attention.md`](./window-request-attention.md).
 
 ## Related
 
+- [`window-request-attention.md`](./window-request-attention.md) — pulse / shake / bounce a tile
 - [Hooks Reference — `desktop_mode_dock_items`](../hooks-reference.md#desktop_mode_dock_items--stable)
 - [Hooks Reference — `desktop_mode_dock_item`](../hooks-reference.md#desktop_mode_dock_item--stable)

@@ -25,17 +25,25 @@
  * @since 0.10.0
  */
 
+import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
 import type { Dock } from './dock';
 import type {
+	NativeRenderContext,
 	NativeWindowDef,
 	NativeWindowIframeContent,
 	NativeWindowServerEntry,
 } from './types';
 import type { WindowManager } from './window-manager';
 import type { Window as DesktopWindow } from './window';
+import {
+	addNativeSubscriber,
+	dispatchFromWindow,
+	markWindowContentReady,
+	type WindowChannelCb,
+} from './window-channels';
 
 /**
  * Scoped lifecycle handlers a caller passes to `onWindow( id, … )`.
@@ -51,12 +59,34 @@ import type { Window as DesktopWindow } from './window';
  */
 export interface WindowLifecycleHandlers {
 	opened?: () => void;
+	/**
+	 * `wp.desktop.openWindow(id)` was called for an already-open
+	 * instance — the plugin's render callback won't run again, but
+	 * the user/caller is asking to "show this window". A typical
+	 * use is to re-orient content (focus a tab, scroll to a row).
+	 * Payload mirrors the `WINDOW_REOPENED` action: `{ baseId,
+	 * wasMinimized }`. *Since 0.5.5.*
+	 */
+	reopened?: ( payload: { baseId: string; wasMinimized: boolean } ) => void;
 	focused?: () => void;
+	/**
+	 * Window lost focus to another window. Payload: `{ focusedTo }` —
+	 * the id of the window that took over (so subscribers can
+	 * decide whether the blur transitions to a peer they care
+	 * about). *Since 0.5.5.*
+	 */
+	blurred?: ( payload: { focusedTo: string | null } ) => void;
 	closing?: ( payload: { element: HTMLElement } ) => void;
 	closed?: () => void;
 	minimized?: () => void;
 	restored?: () => void;
 	maximized?: () => void;
+	/** *Since 0.5.5.* Fires when the window leaves maximized state. */
+	unmaximized?: () => void;
+	/** *Since 0.5.5.* Fires when the window enters fullscreen / focus mode. */
+	fullscreenEntered?: () => void;
+	/** *Since 0.5.5.* Fires when the window exits fullscreen / focus mode. */
+	fullscreenExited?: () => void;
 	resized?: ( payload: { width: number; height: number } ) => void;
 	/** Body-resized — fires on every paint where body dimensions change. */
 	bodyResized?: ( payload: { width: number; height: number } ) => void;
@@ -103,28 +133,10 @@ const DEFAULT_NATIVE_HEIGHT = 400;
  *
  * @internal
  */
-/**
- * Public shape of the send closure. Re-exported through
- * `Window.iframeSend` and the `onReady` callback parameter.
- *
- * @public
- * @since 0.18.0
- */
-export type IframeContentSendFn = (
-	payload: unknown,
-	opts?: { coalesce?: boolean },
-) => void;
-
-/** Out-param the render closure populates synchronously. */
-interface IframeContentSendHandle {
-	send: IframeContentSendFn | null;
-}
-
 function buildIframeContentRender(
 	cfg: NativeWindowIframeContent,
 	cleanups: ( () => void )[],
 	windowId: string,
-	sendHandle: IframeContentSendHandle,
 ): ( body: HTMLElement ) => void {
 	return ( body: HTMLElement ) => {
 		const iframe = document.createElement( 'iframe' );
@@ -146,10 +158,10 @@ function buildIframeContentRender(
 		const unregisterSynth = registerSyntheticIframe( windowId, iframe );
 		cleanups.push( unregisterSynth );
 
-		// Resolve the iframe URL's origin for the postMessage
-		// targetOrigin. If the URL is relative or invalid, fall back
-		// to the shell's own origin (matches the chromeless bridge's
-		// trust boundary).
+		// Resolve the iframe URL's origin once; the message handler
+		// uses it for the same-origin check on inbound messages.
+		// Falls back to the shell origin for relative / invalid
+		// URLs — matches the chromeless bridge's trust boundary.
 		let targetOrigin: string;
 		try {
 			targetOrigin = new URL( cfg.url, window.location.origin ).origin;
@@ -157,61 +169,7 @@ function buildIframeContentRender(
 			targetOrigin = window.location.origin;
 		}
 
-		// Pre-load message buffers.
-		//
-		//   - `fifoQueue` — every `send()` call without `coalesce`
-		//     is queued and flushed in order on load. Use for
-		//     setup messages where every payload matters
-		//     ({ type:'init' }, { type:'config' }, etc.).
-		//
-		//   - `coalesceSlot` — single-slot buffer used when the
-		//     caller passes `{ coalesce: true }`. Each call
-		//     overwrites the slot; only the most-recent payload
-		//     survives until load. Use for live-stream snapshots
-		//     (Gutenberg editor content, scroll position, hover
-		//     state) where pre-load intermediates are throwaway
-		//     and you want the freshest one.
-		let isLoaded = false;
-		const fifoQueue: unknown[] = [];
-		let hasCoalesce = false;
-		let coalesceSlot: unknown;
-
-		const sendNow = ( payload: unknown ): void => {
-			try {
-				iframe.contentWindow?.postMessage( payload, targetOrigin );
-			} catch ( err ) {
-				if ( typeof console !== 'undefined' ) {
-					console.error(
-						'[wp-desktop-mode] iframeContent.send: postMessage failed',
-						err,
-					);
-				}
-			}
-		};
-
-		const send: IframeContentSendFn = ( payload, opts ) => {
-			if ( isLoaded ) {
-				sendNow( payload );
-				return;
-			}
-			if ( opts?.coalesce ) {
-				coalesceSlot = payload;
-				hasCoalesce = true;
-				return;
-			}
-			fifoQueue.push( payload );
-		};
-
-		// Expose synchronously so `Window.iframeSend` can route
-		// calls into THIS render's queue. `manager.open()` invokes
-		// `render(body)` from within its constructor, so by the time
-		// `manager.open()` returns to `createRegisterWindow`, this
-		// out-param is already populated.
-		sendHandle.send = send;
-
 		const onLoad = (): void => {
-			isLoaded = true;
-
 			// Bridge auto-inject — same-origin only. Cross-origin
 			// iframes throw on `contentDocument` access; we silently
 			// skip in that case so the rest of the lifecycle still
@@ -238,29 +196,10 @@ function buildIframeContentRender(
 				}
 			}
 
-			try {
-				cfg.onReady?.( send );
-			} catch ( err ) {
-				if ( typeof console !== 'undefined' ) {
-					console.error(
-						'[wp-desktop-mode] iframeContent.onReady threw:',
-						err,
-					);
-				}
-			}
-
-			// Flush FIFO first so setup messages arrive in order;
-			// the coalesce slot lands last so it represents the
-			// freshest snapshot — matters for live-preview cases
-			// where the queue mixes init + repeated stream payloads.
-			while ( fifoQueue.length ) {
-				sendNow( fifoQueue.shift() );
-			}
-			if ( hasCoalesce ) {
-				sendNow( coalesceSlot );
-				hasCoalesce = false;
-				coalesceSlot = undefined;
-			}
+			// Flush every queued `Window.send()` payload in FIFO
+			// order — the canonical readiness signal for synthetic
+			// iframes.
+			markWindowContentReady( windowId );
 		};
 		iframe.addEventListener( 'load', onLoad );
 
@@ -303,6 +242,24 @@ function buildIframeContentRender(
 				).__wpDesktopConnectionBridge;
 				bridgeRouter?.routeIncomingFromIframe( data, windowId );
 			}
+			// Unified window-channel publish from the synthetic iframe.
+			// Mirror of the equivalent block in `src/window/iframe-bridge.ts`
+			// — keeps `iframeContent` native windows participating in
+			// the same `Window.on( channel, cb )` registry as
+			// shell-managed iframe windows.
+			if (
+				data &&
+				typeof data === 'object' &&
+				( data as { type?: string } ).type === 'wp-desktop-window-publish' &&
+				typeof ( data as { channel?: string } ).channel === 'string' &&
+				( data as { channel: string } ).channel !== ''
+			) {
+				dispatchFromWindow(
+					windowId,
+					( data as { channel: string } ).channel,
+					( data as { payload?: unknown } ).payload,
+				);
+			}
 			try {
 				cfg.onMessage?.( e.data );
 			} catch ( err ) {
@@ -344,11 +301,11 @@ export function createRegisterWindow(
 		// postMessage / source-check lifecycle. Plugins that need a
 		// non-iframe body still pass `render` directly; the two
 		// shapes are mutually exclusive.
-		let render = def.render;
+		const userRender = def.render;
+		let render = userRender;
 		const cleanups: ( () => void )[] = [];
-		const sendHandle: IframeContentSendHandle = { send: null };
 		if ( def.iframeContent ) {
-			if ( render && typeof console !== 'undefined' ) {
+			if ( userRender && typeof console !== 'undefined' ) {
 				console.warn(
 					'[wp-desktop-mode] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
 				);
@@ -357,8 +314,47 @@ export function createRegisterWindow(
 				def.iframeContent,
 				cleanups,
 				def.id,
-				sendHandle,
 			);
+		} else if ( userRender ) {
+			// Wrap the user's render callback so it receives the
+			// unified window API as its second argument. The wrapper
+			// builds a per-call context whose `send` / `on` are
+			// scoped to this window's id, so plugin authors get the
+			// same shape regardless of whether they're rendering an
+			// iframe-content window or a pure-native one.
+			render = ( body: HTMLElement ) => {
+				const ctx: NativeRenderContext = {
+					window: {
+						send< T = unknown >( channel: string, payload?: T ): void {
+							if ( typeof channel !== 'string' || channel === '' ) {
+								return;
+							}
+							dispatchFromWindow( def.id, channel, payload );
+						},
+						on< T = unknown >(
+							channel: string,
+							cb: (
+								payload: T,
+								meta: { channel: string; windowId: string },
+							) => void,
+						): () => void {
+							if (
+								typeof channel !== 'string' ||
+								channel === '' ||
+								typeof cb !== 'function'
+							) {
+								return () => undefined;
+							}
+							return addNativeSubscriber(
+								def.id,
+								channel,
+								cb as WindowChannelCb,
+							);
+						},
+					},
+				};
+				return userRender( body, ctx );
+			};
 		}
 
 		const userOnClose = def.onClose;
@@ -401,19 +397,6 @@ export function createRegisterWindow(
 			multi: def.multi,
 			desktopId: def.desktopId,
 		} );
-
-		// Wire the iframeContent send closure onto the Window so
-		// callers can `win.iframeSend( payload )` synchronously,
-		// without waiting for `onReady`. The send fn was populated
-		// during `render(body)` which runs inside `manager.open()`,
-		// so by this point `sendHandle.send` is set when
-		// `iframeContent` was configured. For windows that focused
-		// an already-open instance (idempotent re-open), the existing
-		// Window's send fn stays unchanged — re-rendering would
-		// stomp the still-valid live queue.
-		if ( sendHandle.send && ! win._iframeSendImpl ) {
-			win._iframeSendImpl = sendHandle.send;
-		}
 
 		return win;
 	};
@@ -471,24 +454,54 @@ export function createRegisterWindow(
  *
  * @public
  */
+/**
+ * Optional flags for {@link onWindow}.
+ *
+ * @since 0.5.5
+ */
+export interface OnWindowOptions {
+	/**
+	 * Default `false` — `onWindow` auto-unsubscribes after the
+	 * window's `closed` handler runs, matching the "one-shot per
+	 * window instance" use case (a plugin hooking a particular
+	 * open/close cycle, e.g. an undo toast that vanishes once
+	 * the window closes).
+	 *
+	 * Set `persistent: true` for app-level subscriptions that
+	 * should survive every open/close cycle for the lifetime of
+	 * the page — badge policies, toast suppression rules, anything
+	 * that needs to react every time the window comes back. Without
+	 * this flag, your handler stops firing after the first close
+	 * and you spend a half hour debugging.
+	 */
+	persistent?: boolean;
+}
+
 let onWindowInstanceCounter = 0;
 export function onWindow(
 	id: string,
 	handlers: WindowLifecycleHandlers,
+	options: OnWindowOptions = {},
 ): () => void {
 	const namespace = `wp-desktop-mode/on-window/${ id }/${ ++onWindowInstanceCounter }`;
+	const persistent = options.persistent === true;
 
 	// Map each handler slot onto the corresponding hook name + a
 	// windowId-filter-and-dispatch wrapper. Kept declarative so the
 	// table stays easy to audit / extend when new hooks land.
 	const bindings: Array< [ keyof WindowLifecycleHandlers, string ] > = [
 		[ 'opened', HOOKS.WINDOW_OPENED ],
+		[ 'reopened', HOOKS.WINDOW_REOPENED ],
 		[ 'focused', HOOKS.WINDOW_FOCUSED ],
+		[ 'blurred', HOOKS.WINDOW_BLURRED ],
 		[ 'closing', HOOKS.WINDOW_CLOSING ],
 		[ 'closed', HOOKS.WINDOW_CLOSED ],
 		[ 'minimized', HOOKS.WINDOW_MINIMIZED ],
 		[ 'restored', HOOKS.WINDOW_RESTORED ],
 		[ 'maximized', HOOKS.WINDOW_MAXIMIZED ],
+		[ 'unmaximized', HOOKS.WINDOW_UNMAXIMIZED ],
+		[ 'fullscreenEntered', HOOKS.WINDOW_FULLSCREEN_ENTERED ],
+		[ 'fullscreenExited', HOOKS.WINDOW_FULLSCREEN_EXITED ],
 		[ 'resized', HOOKS.WINDOW_RESIZED ],
 		[ 'bodyResized', HOOKS.WINDOW_BODY_RESIZED ],
 		[ 'boundsChanged', HOOKS.WINDOW_BOUNDS_CHANGED ],
@@ -524,8 +537,11 @@ export function onWindow(
 			( handler as ( x: unknown ) => void )( rest );
 			// Auto-unsubscribe after `closed` so subscribers who
 			// installed a one-shot listener per window instance
-			// don't leak.
-			if ( key === 'closed' ) {
+			// don't leak. Plugins that want app-lifetime
+			// subscriptions (badge policies, suppression rules)
+			// pass `{ persistent: true }` to opt out — the handler
+			// then keeps firing across every open/close cycle.
+			if ( key === 'closed' && ! persistent ) {
 				unsubscribe();
 			}
 		} );
@@ -579,7 +595,7 @@ export interface NativeWindowRegistryDeps {
  *
  * @public
  */
-type RenderCallback = ( body: HTMLElement ) => void;
+type RenderCallback = ( body: HTMLElement ) => void | ( () => void );
 
 interface NativeWindowGlobals {
 	wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
@@ -700,7 +716,12 @@ export function createNativeWindowSync(
 		// template is a developer error worth seeing, not silencing.
 		const finalRender: RenderCallback = ( body ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );
-			render?.( body );
+			// Forward the optional teardown returned by the plugin's
+			// render callback so the Window class can invoke it on
+			// close. Without this `return`, the teardown was silently
+			// discarded — plugins had no reliable cleanup hook for
+			// native windows.
+			return render?.( body );
 		};
 
 		manager.open( {
@@ -815,11 +836,24 @@ export function createNativeWindowSync(
 		}
 	};
 
-	const openById = ( id: string ): boolean => {
+	const openById = (
+		id: string,
+		opts: { source?: string } = {},
+	): boolean => {
 		const entry = entriesById.get( id );
 		if ( ! entry ) {
 			return false;
 		}
+		// Publish "user / caller asked to open this window" BEFORE
+		// the manager decides between creating a new instance and
+		// focusing the existing one. Plugins doing analytics, DND,
+		// or "show coachmark on first open" hook this independent
+		// of the WINDOW_OPENED / WINDOW_REOPENED branch the
+		// framework will take next.
+		activity.publish( 'wp-desktop/open-requested', {
+			windowId: id,
+			source: opts.source ?? 'api',
+		} );
 		openFromEntry( entry );
 		return true;
 	};

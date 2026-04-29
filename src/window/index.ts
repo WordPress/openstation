@@ -16,8 +16,18 @@
  */
 
 import type { WindowConfig, WindowState } from './../types';
+import { activity } from './../activity';
+import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
 import { __ } from './../i18n';
+import {
+	addParentSubscriber,
+	clearWindowChannels,
+	dispatchToNative,
+	enqueueWindowSend,
+	isWindowContentReady,
+	type WindowChannelCb,
+} from './../window-channels';
 // Register the window-chrome atoms — no named import needed, the
 // side-effect `defineComponent(...)` calls wire them up.
 import './../ui/components/wpd-window-button/wpd-window-button';
@@ -56,6 +66,17 @@ import {
 	toggleActionsMenu,
 } from './menus';
 import { handleDragStart, handleResizeStart } from './pointer';
+
+/** Animation mode accepted by `Window.requestAttention()`. */
+export type WindowAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
+
+/** Options accepted by `Window.requestAttention()`. */
+export interface WindowAttentionOptions {
+	/** Auto-clear after this many ms. `0` = until cleared. Default 4000. */
+	durationMs?: number;
+	/** Animation intensity. Default `'normal'`. */
+	intensity?: 'subtle' | 'normal' | 'strong';
+}
 
 /**
  * Desktop Window class.
@@ -151,18 +172,13 @@ export class Window {
 	public _titleBarButtonsUnsubscribe: ( () => void ) | null = null;
 
 	/**
-	 * Send-into-iframe closure for windows registered with
-	 * `iframeContent`. Populated by `createRegisterWindow` after
-	 * `manager.open()` returns; null for non-iframeContent windows.
-	 *
-	 * Public-facing access goes through {@link iframeSend} — that
-	 * method is the API surface, this field is the implementation
-	 * back-end.
+	 * Teardown function returned by the native-window render callback
+	 * (if any). Invoked on `close()` so plugin authors can dispose
+	 * listeners, intervals, observers, and anything else tied to the
+	 * window's lifecycle. Set in `hydrateNative()`.
 	 * @internal
 	 */
-	public _iframeSendImpl:
-		| ( ( payload: unknown, opts?: { coalesce?: boolean } ) => void )
-		| null = null;
+	public _nativeRenderTeardown: ( () => void ) | null = null;
 
 	/**
 	 * Which tab is currently foregrounded: 'primary' or a tab id.
@@ -365,7 +381,16 @@ export class Window {
 			{ windowId: this.id, config: this.config },
 		);
 		const body = filtered instanceof HTMLElement ? filtered : rawBody;
-		this.config.render( body );
+		// Capture the optional teardown returned by the render callback
+		// — invoked on `close()` so plugin authors can dispose
+		// listeners, intervals, observers tied to this window's
+		// lifecycle. Without this capture, returns from `render()`
+		// were silently discarded and authors had no reliable
+		// cleanup hook for native windows.
+		const maybeTeardown = this.config.render( body );
+		if ( typeof maybeTeardown === 'function' ) {
+			this._nativeRenderTeardown = maybeTeardown;
+		}
 		doAction( HOOKS.NATIVE_WINDOW_AFTER_RENDER, {
 			windowId: this.id,
 			body,
@@ -1061,57 +1086,106 @@ export class Window {
 	}
 
 	/**
-	 * Send a payload into this window's iframe.
+	 * Publish a payload on a named channel into this window's
+	 * content. The unified abstraction over iframe `postMessage` and
+	 * native render-callback dispatch — plugin authors write the
+	 * same call regardless of how the window is rendered.
 	 *
-	 * **Only valid for windows registered with `iframeContent`** —
-	 * non-iframeContent windows have no synthesised iframe to send
-	 * into and the call no-ops with a console warning.
+	 * **Iframe windows** (real iframes OR `iframeContent` natives):
+	 * the payload is delivered as `wp-desktop-window-send` via
+	 * `postMessage` and surfaces inside the iframe via
+	 * `wp.desktop.on( channel, cb )` (the iframe-bridge installs
+	 * the API on `wp.desktop`). Calls made before the iframe has
+	 * announced itself ready are queued in FIFO order and flushed
+	 * once the bridge connects — `Window.send` is safe the moment
+	 * the window object exists.
 	 *
-	 * Available **synchronously** the moment `wp.desktop.registerWindow`
-	 * returns — calls before the iframe finishes loading are buffered
-	 * and flushed automatically:
+	 * **Pure native windows**: the payload is delivered in-process
+	 * to subscribers the render callback registered through its
+	 * `windowApi.on( channel, cb )` (the second argument the render
+	 * receives). Always considered ready — no async boundary.
 	 *
-	 *   - **FIFO buffer (default)** — every `iframeSend( payload )`
-	 *     without options is queued in order and flushed verbatim on
-	 *     `load`. Use for setup messages where every payload matters
-	 *     (`{ type: 'init' }`, `{ type: 'config' }`, ...).
+	 * Plugin authors never branch on window type — same call, same
+	 * channel, same payload.
 	 *
-	 *   - **Coalesced single-slot** — `iframeSend( payload, { coalesce: true } )`
-	 *     overwrites the slot on each call; only the most-recent
-	 *     payload survives until load. Use for live-stream snapshots
-	 *     (Gutenberg editor content, scroll position) where pre-load
-	 *     intermediates are throwaway and you want the freshest one.
+	 * @since 0.5.5
 	 *
-	 * Once the iframe has loaded, both modes flush directly to
-	 * `postMessage` — the load gate becomes a no-op.
-	 *
-	 * Replaces the "store the `send` closure from `onReady` and pray
-	 * the iframe is ready" pattern. The closure is still passed to
-	 * `onReady` for callers who already use that surface; `iframeSend`
-	 * is just the equivalent surface that's available *before* load,
-	 * which is the case the doc previously claimed worked but didn't.
-	 *
-	 * @since 0.18.0
-	 *
-	 * @param payload       Anything `postMessage` can serialise.
-	 * @param opts          Optional config bag.
-	 * @param opts.coalesce When true, overwrite a single pre-load
-	 *                      slot instead of appending to the FIFO
-	 *                      queue. Ignored after load.
+	 * @param channel Slash- or dot-separated identifier (e.g.
+	 *                `'reload'`, `'editor/insert-block'`).
+	 * @param payload Anything `postMessage` can serialise.
 	 */
-	public iframeSend(
-		payload: unknown,
-		opts?: { coalesce?: boolean },
-	): void {
-		if ( ! this._iframeSendImpl ) {
-			if ( typeof console !== 'undefined' ) {
-				console.warn(
-					'[wp-desktop-mode] Window.iframeSend: no iframeContent on this window. Did you mean wp.desktop.connect( id ).send(…)?',
-				);
-			}
+	public send< T = unknown >( channel: string, payload?: T ): void {
+		if ( typeof channel !== 'string' || channel === '' ) {
 			return;
 		}
-		this._iframeSendImpl( payload, opts );
+		// Resolve the iframe target: real iframe attached to this
+		// Window OR a synthesised iframe registered by an
+		// `iframeContent` native window. Pure native windows have
+		// neither — they fall through to `dispatchToNative()`.
+		const target = this.iframe ?? getSyntheticIframe( this.id );
+		if ( ! target ) {
+			dispatchToNative( this.id, channel, payload );
+			return;
+		}
+		const sendNow = (): void => {
+			try {
+				target.contentWindow?.postMessage(
+					{
+						type: 'wp-desktop-window-send',
+						channel,
+						payload,
+					},
+					INITIAL_ORIGIN,
+				);
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[wp-desktop-mode] Window.send: postMessage failed',
+						err,
+					);
+				}
+			}
+		};
+		// Buffer until the iframe announces it's ready. For real
+		// iframes that's `wp-desktop-ready` from the chromeless
+		// bridge; for synthetic iframes it's the iframe's `load`
+		// event. Both paths call `markWindowContentReady()` which
+		// flushes the queue in FIFO order.
+		if ( isWindowContentReady( this.id ) ) {
+			sendNow();
+			return;
+		}
+		enqueueWindowSend( this.id, channel, payload, sendNow );
+	}
+
+	/**
+	 * Subscribe to a named channel published BY this window's
+	 * content. Mirror of {@link send} for the inbound direction.
+	 *
+	 * Iframe content publishes via `wp.desktop.send( channel,
+	 * payload )` (installed by the iframe bridge); native render
+	 * code publishes via `windowApi.send( channel, payload )`. Both
+	 * land here.
+	 *
+	 * Use the literal `'*'` to wildcard-subscribe to every channel
+	 * this window publishes.
+	 *
+	 * @since 0.5.5
+	 *
+	 * @return Unsubscribe handle. Idempotent.
+	 */
+	public on< T = unknown >(
+		channel: string,
+		cb: ( payload: T, meta: { channel: string; windowId: string } ) => void,
+	): () => void {
+		if ( typeof channel !== 'string' || channel === '' || typeof cb !== 'function' ) {
+			return () => undefined;
+		}
+		return addParentSubscriber(
+			this.id,
+			channel,
+			cb as WindowChannelCb,
+		);
 	}
 
 	/**
@@ -1132,6 +1206,162 @@ export class Window {
 	 *
 	 * @since 0.17.0
 	 */
+	/**
+	 * Request a visual "attention" signal on this window's tile in
+	 * the dock or taskbar — pulse, shake, or bounce. Used by plugins
+	 * that need to grab the user's eye when the window is closed or
+	 * unfocused (incoming chat message, long task finished, etc.).
+	 *
+	 * Resolution order:
+	 *   1. If a tile exists for this window's id on either rail
+	 *      (`wp.desktop.dock` or `wp.desktop.taskbar`), call
+	 *      `Dock.setAttention( id, mode, opts )`.
+	 *   2. Otherwise (e.g. `placement: 'none'`) fall back to
+	 *      `setHighlight('persistent')` on the window itself, auto-
+	 *      cleared after `opts.durationMs`. No-op if the window has
+	 *      no rendered chrome.
+	 *
+	 * The mode + opts pass through the `wp-desktop.window.attention`
+	 * filter first so plugins (or a Do-Not-Disturb preference) can
+	 * mute (`return null`) or modify the request.
+	 *
+	 * Animations are gated on `prefers-reduced-motion`; reduced-motion
+	 * users see a static accent ring for the same duration so the
+	 * affordance still works.
+	 *
+	 * @since 0.22.0
+	 */
+	public requestAttention(
+		mode: 'pulse' | 'shake' | 'bounce' | null,
+		opts: WindowAttentionOptions = {},
+	): void {
+		// Primary policy hook (since 0.5.5): plugins filter
+		// `wp-desktop/window-attention-requested` to cancel
+		// (`cancel: true`) for DND modes / reduced-motion, scale
+		// `durationMs`/`intensity`, or audit. The pre-0.5.5
+		// `wp-desktop.window.attention` filter still runs below
+		// for back-compat.
+		const intent = activity.filter(
+			'wp-desktop/window-attention-requested',
+			{
+				windowId: this.id,
+				mode,
+				durationMs: opts.durationMs,
+				intensity: opts.intensity,
+			},
+			opts,
+		);
+		if ( ! intent || intent.cancel === true ) {
+			return;
+		}
+		const intentMode = ( intent.mode ?? mode ) as WindowAttentionMode;
+		const intentOpts: WindowAttentionOptions = {
+			...opts,
+			durationMs:
+				typeof intent.durationMs === 'number'
+					? intent.durationMs
+					: opts.durationMs,
+			intensity:
+				typeof intent.intensity === 'string'
+					? ( intent.intensity as WindowAttentionOptions[ 'intensity' ] )
+					: opts.intensity,
+		};
+
+		const filtered = applyFilters<
+			WindowAttentionMode,
+			[ { windowId: string; opts: WindowAttentionOptions } ]
+		>(
+			'wp-desktop.window.attention',
+			intentMode,
+			{ windowId: this.id, opts: intentOpts },
+		);
+
+		// Resolve the docks via the public API so a plugin shell
+		// implementation that swaps Dock instances at runtime still
+		// gets the latest reference.
+		const wp = ( window as unknown as {
+			wp?: { desktop?: { dock?: unknown; taskbar?: unknown } };
+		} ).wp;
+		type SetAttentionFn = (
+			id: string,
+			m: WindowAttentionMode,
+			o: WindowAttentionOptions,
+		) => void;
+		const dockApi = wp?.desktop?.dock as
+			| { setAttention?: SetAttentionFn }
+			| null
+			| undefined;
+		const taskbarApi = wp?.desktop?.taskbar as
+			| { setAttention?: SetAttentionFn }
+			| null
+			| undefined;
+
+		let routed = false;
+		if ( typeof dockApi?.setAttention === 'function' ) {
+			dockApi.setAttention( this.id, filtered, intentOpts );
+			routed = true;
+		}
+		if ( typeof taskbarApi?.setAttention === 'function' ) {
+			taskbarApi.setAttention( this.id, filtered, intentOpts );
+			routed = true;
+		}
+
+		// Fallback for windows without a rail tile (placement: 'none').
+		// Use the existing highlight ring auto-cleared after the same
+		// duration so the API has meaningful behavior everywhere.
+		if ( ! routed && filtered !== null ) {
+			this.setHighlight( 'persistent' );
+			const duration = intentOpts.durationMs ?? 4000;
+			if ( duration > 0 ) {
+				window.setTimeout( () => {
+					this.setHighlight( null );
+				}, duration );
+			}
+		} else if ( ! routed && filtered === null ) {
+			this.setHighlight( null );
+		}
+	}
+
+	/**
+	 * Briefly jiggle the window element horizontally — the classic
+	 * MSN-Messenger nudge affordance. Plugins can request "look at
+	 * me" attention on their own window programmatically (e.g. a
+	 * chat plugin on inbound nudge, a CI plugin on a broken build).
+	 *
+	 * Composes with the inline `left`/`top` the window manager
+	 * writes (the shake is a CSS `transform`, not a position
+	 * change). Auto-clears the class on `animationend`. If a second
+	 * shake is requested while one is mid-flight, the class is
+	 * removed and re-added so the animation restarts.
+	 *
+	 * Reduced-motion fallback: a static accent ring for the same
+	 * duration. Authors who want a different visual can listen on
+	 * the JS filter `wp-desktop.window.shake` and return falsy to mute.
+	 *
+	 * @since 0.22.11
+	 */
+	public shake(): void {
+		const filtered = applyFilters< boolean, [ { windowId: string } ] >(
+			'wp-desktop.window.shake',
+			true,
+			{ windowId: this.id },
+		);
+		if ( filtered === false ) {
+			return;
+		}
+		const el = this.element;
+		el.classList.remove( 'wp-desktop-window--shaking' );
+		// Force reflow so removing then re-adding the class re-triggers
+		// the animation. Reading `offsetWidth` is the canonical hack.
+		void el.offsetWidth;
+		el.classList.add( 'wp-desktop-window--shaking' );
+		const onEnd = (): void => {
+			el.classList.remove( 'wp-desktop-window--shaking' );
+			el.removeEventListener( 'animationend', onEnd );
+		};
+		el.addEventListener( 'animationend', onEnd );
+	}
+
 	public setHighlight(
 		mode: 'preview' | 'persistent' | null,
 		opts?: { color?: string },
@@ -1192,11 +1422,32 @@ export class Window {
 			this._titleBarButtonsUnsubscribe = null;
 		}
 
+		// Invoke the optional teardown returned by the native-window
+		// render callback. Without this, plugin authors could never
+		// reliably dispose listeners scoped to a window's lifetime —
+		// the framework was discarding the return value.
+		if ( this._nativeRenderTeardown ) {
+			try {
+				this._nativeRenderTeardown();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-teardown',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderTeardown = null;
+		}
+
 		// Tear down the body resize observer now rather than on
 		// element.remove() — subscribers shouldn't see a phantom
 		// `body-resized` fire as the window animates out.
 		this._bodyResizeObserver?.disconnect();
 		this._bodyResizeObserver = null;
+
+		// Drop every channel-bus subscriber bound to this window so
+		// stale callbacks don't fire if the same id is reopened.
+		clearWindowChannels( this.id );
 
 		// Fire the inline `config.onClose` hook — per-window, NOT
 		// the broadcast `window.closing` hook (that fires via the

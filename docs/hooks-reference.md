@@ -219,7 +219,7 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
-### `desktop_mode_settings_tab_script_registered` — Experimental (since 0.17.0)
+### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument.
 
@@ -227,7 +227,7 @@ Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings 
 do_action( 'desktop_mode_settings_tab_script_registered', string $handle );
 ```
 
-### `desktop_mode_settings_tab_registered` — Experimental (since 0.17.0)
+### `desktop_mode_settings_tab_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's metadata. Does not fire on `WP_Error`.
 
@@ -235,7 +235,7 @@ Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's m
 do_action( 'desktop_mode_settings_tab_registered', string $id, array $entry );
 ```
 
-### `desktop_mode_register_settings_tab_script( $handle )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_settings_tab_script( $handle )` — Stable *(PHP function, since 0.17.0)*
 
 Declares a WP-registered script handle as an OS Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerSettingsTab()` calls made by the plugin's JS appear in the OS Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
 
@@ -259,7 +259,7 @@ For live *unregistration* on deactivation, either:
 
 Tabs using neither mechanism stay until the next page reload.
 
-### `desktop_mode_register_settings_tab( $args )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_settings_tab( $args )` — Stable *(PHP function, since 0.17.0)*
 
 Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly calls `desktop_mode_register_settings_tab_script( $args['script'] )` when `script` is provided.
 
@@ -1511,6 +1511,73 @@ apply_filters( 'wp_desktop_recycle_bin_emit_footer_signal', bool $emit );
 ```
 
 See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end recipes (custom post types, audit logging, custom columns).
+
+---
+
+## Presence
+
+Framework-level presence tracking. Storage in
+`_wp_desktop_presence` (autoload=false, single row keyed by user
+id). The WordPress Heartbeat carries the bumps + visibility
+snapshot; the JS API at `wp.desktop.presence.*` fans out to
+plugin code. See [`examples/presence.md`](./examples/presence.md)
+for a copy-pasteable recipe.
+
+### Filters — Stable
+
+```php
+apply_filters( 'wp_desktop_presence_inactive_after', $seconds );  // default 300 (5m)
+apply_filters( 'wp_desktop_presence_offline_after',  $seconds );  // default 120 (2m)
+apply_filters( 'wp_desktop_presence_can_track',      $can, $user_id );
+apply_filters( 'wp_desktop_presence_visible_users',  $ids, $viewer_id );
+```
+
+- **`wp_desktop_presence_inactive_after`** — seconds without
+  user input before `online` demotes to `inactive`. Tune up for
+  long-form writing tools, down for chat-heavy environments.
+- **`wp_desktop_presence_offline_after`** — seconds without a
+  heartbeat before any tracked user is considered `offline`.
+- **`wp_desktop_presence_can_track`** — per-user veto. Return
+  `false` to skip the bump entirely (compliance flags,
+  "appear invisible" toggles, allow-list policies).
+- **`wp_desktop_presence_visible_users`** — privacy gate.
+  Receives the candidate id list + the viewer id, returns the
+  list narrowed to whoever this viewer should see. Default
+  passes through unchanged. Plugins building team boundaries
+  hook here.
+
+### Actions — Stable
+
+```php
+do_action( 'wp_desktop_presence_recorded', $user_id, $record );
+do_action( 'wp_desktop_presence_changed',  $user_id, $new_status, $old_status );
+```
+
+- **`wp_desktop_presence_recorded`** — fires on every heartbeat
+  bump, whether status changed or not. Be cheap inside this
+  callback — it runs on every Heartbeat tick for every active
+  desktop-mode user.
+- **`wp_desktop_presence_changed`** — fires only on real status
+  transitions (`online ↔ inactive ↔ offline`). The right hook
+  for "user came online → notify a slack channel" type work.
+
+### PHP helpers (since 0.5.5)
+
+```php
+desktop_mode_presence_record( $user_id, $active = true );
+desktop_mode_presence_status_for_user( $user_id );
+desktop_mode_presence_get_all();
+desktop_mode_presence_snapshot( $user_ids = null );
+desktop_mode_presence_status_from_record( $record );    // pure compute helper
+desktop_mode_presence_visible_users( $ids, $viewer_id );
+```
+
+### REST endpoints
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET`  | `/wp-desktop/v1/presence` | Visible-users snapshot for the current viewer. |
+| `POST` | `/wp-desktop/v1/presence` | Bump (`{active:true}`), heartbeat-only (`{active:false}`), or "set yourself away" (`{inactive:true}`). |
 
 ---
 

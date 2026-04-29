@@ -20,7 +20,8 @@ export const segmentedStyles = css`
 
 export const segmentStyles = css`
 	:host {
-		flex: 1;
+		flex: 1 1 auto;
+		min-width: 0;
 	}
 	button {
 		appearance: none;
@@ -35,6 +36,10 @@ export const segmentStyles = css`
 		cursor: pointer;
 		border-radius: 5px;
 		transition: background-color 0.12s ease, color 0.12s ease;
+		/* Single-line labels — let the host grow horizontally to fit
+		 * the widest segment instead of wrapping mid-word. The pill
+		 * is naturally inline-flex so width follows content. */
+		white-space: nowrap;
 	}
 	:host( [ aria-checked='true' ] ) button {
 		background: var( --wp-desktop-window-bg, #fff );
