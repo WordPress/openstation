@@ -116,7 +116,9 @@ export interface OsSettingsConfig {
 	/** REST endpoint for reading/writing platform AI settings. */
 	aiPlatformSettingsUrl: string;
 	/** Platform-wide extended options — null for non-admins. */
-	extendedOptions: { media_library_enhanced: boolean } | null;
+	extendedOptions: {
+		media_library_enhanced: boolean;
+	} | null;
 	/** REST endpoint for reading/writing extended options. */
 	extendedOptionsUrl: string;
 }

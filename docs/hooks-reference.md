@@ -219,7 +219,7 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
-### `desktop_mode_settings_tab_script_registered` — Experimental (since 0.17.0)
+### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument.
 
@@ -227,7 +227,7 @@ Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings 
 do_action( 'desktop_mode_settings_tab_script_registered', string $handle );
 ```
 
-### `desktop_mode_settings_tab_registered` — Experimental (since 0.17.0)
+### `desktop_mode_settings_tab_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's metadata. Does not fire on `WP_Error`.
 
@@ -235,7 +235,7 @@ Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's m
 do_action( 'desktop_mode_settings_tab_registered', string $id, array $entry );
 ```
 
-### `desktop_mode_register_settings_tab_script( $handle )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_settings_tab_script( $handle )` — Stable *(PHP function, since 0.17.0)*
 
 Declares a WP-registered script handle as an OS Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerSettingsTab()` calls made by the plugin's JS appear in the OS Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
 
@@ -259,7 +259,7 @@ For live *unregistration* on deactivation, either:
 
 Tabs using neither mechanism stay until the next page reload.
 
-### `desktop_mode_register_settings_tab( $args )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_settings_tab( $args )` — Stable *(PHP function, since 0.17.0)*
 
 Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly calls `desktop_mode_register_settings_tab_script( $args['script'] )` when `script` is provided.
 
@@ -1257,6 +1257,353 @@ desktop_mode_register_window_tab( string $window_id, array $args );
 When at least one additional tab is registered, the shell wraps the entire window template in `<wpd-stack>` + `<wpd-tabs>` + one `<wpd-tabpanel>` per tab automatically — plugin authors stop hand-writing that markup. Single-pane windows (zero additional tabs) are unchanged.
 
 See [`docs/examples/native-window-with-tabs.md`](./examples/native-window-with-tabs.md) for a full walkthrough.
+
+---
+
+## DevTools / debug bus (since 0.6.0)
+
+### `desktop_mode_debug_publish( $session_id, $channel, $payload )` — Experimental (PHP function)
+
+Publish a payload onto the per-session debug bus. Plugins running inside an admin / REST / AJAX request hook a capture (e.g. `SAVEQUERIES` for SQL, `pre_http_request` for outbound HTTP, output buffering for response inspection), then call this to stream events to a client-side inspector window.
+
+```php
+$session_id = desktop_mode_debug_session_for_request();
+if ( '' !== $session_id ) {
+    desktop_mode_debug_publish( $session_id, 'query', array(
+        'sql'  => $sql,
+        'time' => $duration,
+    ) );
+}
+```
+
+**Args**: `$session_id` (string from the `X-WP-Debug-Session` header — see helper below), `$channel` (free-form lowercase ASCII; convention: `query`, `log`, `rest_timing`), `$payload` (anything `wp_json_encode()` can serialise).
+
+**Storage**: per-(session, channel) ring buffer in a transient, capped at 500 events (filterable via `desktop_mode_debug_ring_size`), TTL 1 hour.
+
+### `desktop_mode_debug_session_for_request()` — Experimental (PHP function)
+
+Read the debug session id from the current request's `X-WP-Debug-Session` header. Sanitises against UUID-shape input; returns `''` when absent or invalid. Use this to gate capture work so non-instrumented requests pay zero cost.
+
+### `desktop_mode_debug_publish` — Experimental (action)
+
+Fires synchronously after a publish lands in the ring buffer.
+
+```php
+do_action( 'desktop_mode_debug_publish', string $session_id, string $channel, mixed $payload );
+```
+
+### `desktop_mode_debug_ring_size` — Experimental (filter)
+
+Override the per-(session, channel) ring buffer cap. Default 500.
+
+### `desktop_mode_debug_channels` — Experimental (filter)
+
+Declare the full set of channels for a given session id. Read by `GET /wp-desktop/v1/debug` when no `channel` / `channels[]` query parameter is present.
+
+### `desktop_mode_debug_rest_permission` — Experimental (filter)
+
+Override the default `manage_options` permission gate on `GET /wp-desktop/v1/debug`.
+
+See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrumentation.md) for the full walkthrough — header contributions, observe mode, debug bus.
+
+---
+
+## Recycle Bin
+
+The Recycle Bin window captures attachments into the WordPress trash (posts and pages already trash by default) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
+
+### `wp_desktop_recycle_bin_capture_post_types` — Experimental (filter)
+
+Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]`. Returning a list excluding `attachment` disables the soft-delete interception entirely — vanilla `wp_delete_attachment()` resumes.
+
+```php
+add_filter( 'wp_desktop_recycle_bin_capture_post_types', function ( $types ) {
+    $types[] = 'product';
+    return $types;
+} );
+```
+
+### `wp_desktop_recycle_bin_should_capture` — Experimental (filter)
+
+Per-attachment opt-out. Returning `false` for a specific `WP_Post` lets that single deletion bypass the bin.
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_should_capture', bool $capture, WP_Post $post );
+```
+
+### `wp_desktop_recycle_bin_query_args` — Experimental (filter)
+
+Customize the `WP_Query` args used to populate the bin — scope it to the current user, restrict by role, or interleave additional post types beyond the capture list.
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_query_args', array $query_args, array $caller_args );
+```
+
+### `wp_desktop_recycle_bin_items` / `wp_desktop_recycle_bin_item` — Experimental (filter)
+
+`..._item` reshapes a single row before it's returned to JS; `..._items` filters the final list. The `id`, `type`, and `deleted_at` fields are load-bearing — keep them when extending.
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_item', array $item, WP_Post $post );
+apply_filters( 'wp_desktop_recycle_bin_items', array $items, WP_Query $query );
+```
+
+### `wp_desktop_recycle_bin_user_can_view|restore|purge|use` — Experimental (filter)
+
+Per-item capability gates. `_use` controls whether the bin window is registered at all for the current user; the others gate individual operations. Defaults: `_use` → `edit_posts`, `_view` → `edit_post`, `_restore`/`_purge` → `delete_post` (the same gate WP itself uses for trash/untrash).
+
+### `wp_desktop_recycle_bin_window_args` / `wp_desktop_recycle_bin_icon_args` — Experimental (filter)
+
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the bin — useful to change dimensions, swap the dashicon, or move the window from the taskbar to the dock.
+
+### `wp_desktop_recycle_bin_template_html` — Experimental (filter)
+
+The full template body before it's emitted into the native-window template element. Keep the `data-wpdm-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
+
+### Lifecycle actions
+
+```php
+do_action( 'wp_desktop_recycle_bin_item_captured', int $post_id, int $user_id, string $now_gmt );
+do_action( 'wp_desktop_recycle_bin_before_restore', int $post_id, WP_Post $post );
+do_action( 'wp_desktop_recycle_bin_after_restore',  int $post_id );
+do_action( 'wp_desktop_recycle_bin_before_purge',   int $post_id, WP_Post $post );
+do_action( 'wp_desktop_recycle_bin_after_purge',    int $post_id, string $type );
+do_action( 'wp_desktop_recycle_bin_emptied',        int $purged, int $skipped );
+```
+
+### REST endpoints
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET`  | `/wp-desktop/v1/recycle-bin` | List trashed items (`page`, `per_page`, `type`, `search`). |
+| `POST` | `/wp-desktop/v1/recycle-bin/restore` | Restore by id. Body: `{ ids: int[] }`. |
+| `POST` | `/wp-desktop/v1/recycle-bin/purge` | Permanently delete. Body: `{ ids: int[] }`. |
+| `POST` | `/wp-desktop/v1/recycle-bin/empty` | Empty everything the current user can purge. |
+
+### JS extension points
+
+- `wp.hooks.applyFilters( 'wp_desktop.recycleBin.columns', cols )` — append/replace `<wpd-table>` columns.
+- `document.addEventListener( 'wp-desktop-recycle-bin-changed', e => …)` — fired after every restore / purge / empty with `{ kind, ok, errors, source }`. `source` is `'local'` (the bin's own action), `'chromeless'` (a delete in another window's iframe), or `'heartbeat'` (a delete elsewhere — other tab, REST, WP-CLI).
+- `wp.hooks.doAction( 'wp_desktop.recycleBin.changed', …)` — same payload, hook-bus form.
+
+### Cross-window broadcast
+
+After every restore / purge / empty the bin publishes one topic
+**per affected post type** on the shell-wide broadcast bus
+(`wp.desktop.broadcast`). The same chromeless footer in
+`realtime.php` also emits these topics for any admin request
+that ran `wp_trash_post` / `untrash_post` / `before_delete_post`
+/ `trashed_comment` / `untrashed_comment` / `deleted_comment` —
+so the recycle bin learns instantly when a list-table trashes
+something, and the corresponding list iframe refreshes when the
+bin restores something.
+
+Topic format: **`wp-desktop.<post_type>.changed`** — the literal
+post-type slug (`post`, `page`, `attachment`, `comment`, or any
+CPT). Payload:
+
+```js
+{ source: 'recycle-bin' | 'admin' | <plugin>,
+  action: 'trashed' | 'untrashed' | 'deleted',
+  ids:    number[] }
+```
+
+**Iframe-side default behaviour: soft reload.** The chromeless
+bridge installs a built-in subscriber that, when the topic
+matches the iframe's current page, *fetches the URL it's already
+on* and replaces `#wpbody-content` in place. The user sees the
+list update — restored post appears, trashed media disappears —
+without the WP loading spinner that `location.reload()` would
+show. Mappings:
+
+| Topic                              | List page                           |
+|------------------------------------|-------------------------------------|
+| `wp-desktop.post.changed`          | `edit.php` (post type unset / `post`) |
+| `wp-desktop.page.changed`          | `edit.php?post_type=page`           |
+| `wp-desktop.attachment.changed`    | `upload.php`                        |
+| `wp-desktop.comment.changed`       | `edit-comments.php`                 |
+
+Single-edit pages (`post.php`, `post-new.php`) deliberately have
+**no** soft-reload handler, because replacing their body would
+destroy unsaved Gutenberg / classic-editor state. Plugins wanting
+specific behaviour for those pages subscribe to the same topic
+themselves and decide how to react.
+
+After every successful soft-reload the bridge dispatches
+`wp-desktop-soft-reloaded` on the iframe's `document` so plugins
+that need to re-bind state (e.g. their own custom widgets in the
+list table) have a single signal to listen for.
+
+**Plugin extension.** Subscribers from anywhere (parent shell,
+native windows, iframes) can use the bus directly:
+
+```js
+wp.desktop.subscribe( 'wp-desktop.post.changed', ( payload ) => {
+    if ( payload.action === 'untrashed' ) {
+        myEditorRedrawSidebar( payload.ids );
+    }
+} );
+```
+
+Iframe-side admin pages subscribe via plain DOM:
+
+```js
+document.addEventListener( 'wp-desktop-broadcast', ( e ) => {
+    if ( e.detail.topic !== 'wp-desktop.post.changed' ) return;
+    // your custom handling — fires after the built-in soft reload
+} );
+```
+
+### Real-time signal
+
+The bin window updates without polling via two channels:
+
+1. **Chromeless `postMessage` (instant).** Whenever a delete fires inside an iframe-rendered admin page (e.g. "Move to Trash" on `post.php`), `realtime.php` emits an inline footer script that posts `{ type: 'wp-desktop-recycle-bin-changed', ts }` to the parent shell.
+2. **Heartbeat (catch-all, ≤15 s).** A delete also bumps `_wpdm_recycle_bin_change_ts` (autoload=false). While the bin window is open, its tab enqueues `wpdm_recycle_bin_seen_ts` on every Heartbeat tick; the `heartbeat_received` filter answers `{ changed, ts }`. Closed-bin tabs send nothing — zero per-tick cost.
+
+Hook this to push your own real-time channel (websocket, SSE) without re-listening on every delete action:
+
+```php
+do_action( 'wp_desktop_recycle_bin_signal', int $ts_ms );
+```
+
+Suppress the chromeless footer emit per request:
+
+```php
+apply_filters( 'wp_desktop_recycle_bin_emit_footer_signal', bool $emit );
+```
+
+See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end recipes (custom post types, audit logging, custom columns).
+
+---
+
+## Presence
+
+Framework-level presence tracking. Storage in
+`_wp_desktop_presence` (autoload=false, single row keyed by user
+id). The WordPress Heartbeat carries the bumps + visibility
+snapshot; the JS API at `wp.desktop.presence.*` fans out to
+plugin code. See [`examples/presence.md`](./examples/presence.md)
+for a copy-pasteable recipe.
+
+### Filters — Stable
+
+```php
+apply_filters( 'wp_desktop_presence_inactive_after', $seconds );  // default 300 (5m)
+apply_filters( 'wp_desktop_presence_offline_after',  $seconds );  // default 120 (2m)
+apply_filters( 'wp_desktop_presence_can_track',      $can, $user_id );
+apply_filters( 'wp_desktop_presence_visible_users',  $ids, $viewer_id );
+```
+
+- **`wp_desktop_presence_inactive_after`** — seconds without
+  user input before `online` demotes to `inactive`. Tune up for
+  long-form writing tools, down for chat-heavy environments.
+- **`wp_desktop_presence_offline_after`** — seconds without a
+  heartbeat before any tracked user is considered `offline`.
+- **`wp_desktop_presence_can_track`** — per-user veto. Return
+  `false` to skip the bump entirely (compliance flags,
+  "appear invisible" toggles, allow-list policies).
+- **`wp_desktop_presence_visible_users`** — privacy gate.
+  Receives the candidate id list + the viewer id, returns the
+  list narrowed to whoever this viewer should see. Default
+  passes through unchanged. Plugins building team boundaries
+  hook here.
+
+### Actions — Stable
+
+```php
+do_action( 'wp_desktop_presence_recorded', $user_id, $record );
+do_action( 'wp_desktop_presence_changed',  $user_id, $new_status, $old_status );
+```
+
+- **`wp_desktop_presence_recorded`** — fires on every heartbeat
+  bump, whether status changed or not. Be cheap inside this
+  callback — it runs on every Heartbeat tick for every active
+  desktop-mode user.
+- **`wp_desktop_presence_changed`** — fires only on real status
+  transitions (`online ↔ inactive ↔ offline`). The right hook
+  for "user came online → notify a slack channel" type work.
+
+### PHP helpers (since 0.5.5)
+
+```php
+desktop_mode_presence_record( $user_id, $active = true );
+desktop_mode_presence_status_for_user( $user_id );
+desktop_mode_presence_get_all();
+desktop_mode_presence_snapshot( $user_ids = null );
+desktop_mode_presence_status_from_record( $record );    // pure compute helper
+desktop_mode_presence_visible_users( $ids, $viewer_id );
+```
+
+### REST endpoints
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET`  | `/wp-desktop/v1/presence` | Visible-users snapshot for the current viewer. |
+| `POST` | `/wp-desktop/v1/presence` | Bump (`{active:true}`), heartbeat-only (`{active:false}`), or "set yourself away" (`{inactive:true}`). |
+
+---
+
+## Window-chrome customization framework — Stable (since 0.6.0)
+
+Four-layer per-window appearance system. Layers 1-3 are Stable;
+Layer 4 (custom chrome render) is **Experimental**. Full recipes:
+[themes](./examples/window-theme.md), [controls](./examples/window-controls.md),
+[slots](./examples/window-slot.md), [custom chrome](./examples/custom-chrome.md).
+
+### Layer 1 — Themes (Stable)
+
+```php
+desktop_mode_register_window_theme_script( $handle );        // primary, low-ceremony
+desktop_mode_register_window_theme( $args );                  // optional metadata
+```
+
+`$args`: `id`, `label`, `tokens` (CSS-variable map, keys must start with `--`), `priority` (default 100), `script` (optional handle).
+
+Actions:
+- `desktop_mode_window_theme_script_registered( $handle )`
+- `desktop_mode_window_theme_registered( $id, $entry )`
+
+### Layer 2 — Controls (Stable)
+
+```php
+desktop_mode_register_window_control_script( $handle );
+desktop_mode_register_window_control( $args );
+```
+
+`$args`: `id`, `label`, `icon`, `placement` (`'left'|'right'|'controls'`, default `'left'`), `order` (default 100), `script`.
+
+Built-in control ids registered by the framework: `core/minimize`, `core/maximize`, `core/focus-tab`, `core/detach`, `core/close`. Plugins can `unregisterWindowControl()` any of them globally, or use per-window `appearance.controls.{order, hide, custom}` for window-scoped mutations.
+
+Actions:
+- `desktop_mode_window_control_script_registered( $handle )`
+- `desktop_mode_window_control_registered( $id, $entry )`
+
+### Layer 3 — Slots (Stable)
+
+```php
+desktop_mode_register_window_slot_script( $handle );
+desktop_mode_register_window_slot( $args );
+```
+
+`$args`: `id`, `slot` (one of `before-titlebar`, `before-icon`, `icon`, `title`, `after-title`, `before-controls`, `after-controls`, `after-titlebar`), `order` (default 100), `script`.
+
+Actions:
+- `desktop_mode_window_slot_script_registered( $handle )`
+- `desktop_mode_window_slot_registered( $id, $entry )`
+
+### Layer 4 — Custom chrome (Experimental)
+
+```php
+desktop_mode_register_window_chrome_script( $handle );
+desktop_mode_register_window_chrome( $args );
+```
+
+`$args`: `id`, `label`, `script`. **Experimental** — chrome render contract may change.
+
+Actions:
+- `desktop_mode_window_chrome_script_registered( $handle )`
+- `desktop_mode_window_chrome_registered( $id, $entry )`
 
 ---
 

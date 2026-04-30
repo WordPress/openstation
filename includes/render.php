@@ -144,6 +144,30 @@ function desktop_mode_enqueue_assets() {
 	$server_titlebar_button_scripts = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
 		: array();
+	$server_window_theme_scripts   = isset( $menu_payload['serverWindowThemeScripts'] )
+		? $menu_payload['serverWindowThemeScripts']
+		: array();
+	$server_window_themes          = isset( $menu_payload['serverWindowThemes'] )
+		? $menu_payload['serverWindowThemes']
+		: array();
+	$server_window_control_scripts = isset( $menu_payload['serverWindowControlScripts'] )
+		? $menu_payload['serverWindowControlScripts']
+		: array();
+	$server_window_controls        = isset( $menu_payload['serverWindowControls'] )
+		? $menu_payload['serverWindowControls']
+		: array();
+	$server_window_slot_scripts    = isset( $menu_payload['serverWindowSlotScripts'] )
+		? $menu_payload['serverWindowSlotScripts']
+		: array();
+	$server_window_slots           = isset( $menu_payload['serverWindowSlots'] )
+		? $menu_payload['serverWindowSlots']
+		: array();
+	$server_window_chrome_scripts  = isset( $menu_payload['serverWindowChromeScripts'] )
+		? $menu_payload['serverWindowChromeScripts']
+		: array();
+	$server_window_chromes         = isset( $menu_payload['serverWindowChromes'] )
+		? $menu_payload['serverWindowChromes']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -213,6 +237,14 @@ function desktop_mode_enqueue_assets() {
 			'serverSettingsTabScripts' => $server_settings_tab_scripts,
 			'serverSettingsTabs' => $server_settings_tabs,
 			'serverTitleBarButtonScripts' => $server_titlebar_button_scripts,
+			'serverWindowThemeScripts'  => $server_window_theme_scripts,
+			'serverWindowThemes'        => $server_window_themes,
+			'serverWindowControlScripts' => $server_window_control_scripts,
+			'serverWindowControls'      => $server_window_controls,
+			'serverWindowSlotScripts'   => $server_window_slot_scripts,
+			'serverWindowSlots'         => $server_window_slots,
+			'serverWindowChromeScripts' => $server_window_chrome_scripts,
+			'serverWindowChromes'       => $server_window_chromes,
 			'desktopIcons'     => $desktop_icons,
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),
@@ -576,22 +608,118 @@ function desktop_mode_chromeless_bridge_script() {
 			} catch ( _err ) { /* swallow */ }
 		} );
 
-		var wpdReportNetwork = function ( method, url, status, duration, failed ) {
+		// Devtools instrumentation slot — populated by
+		// `wp-desktop-instrument-set` messages from the parent shell.
+		// Mutable: parent overwrites the whole object on every change
+		// (header add/remove, observe toggle).
+		//
+		// Headers: { name: 'value' } — already pre-merged by the parent
+		// (RFC 7230 §3.2.2 join applied there).
+		// Observe: when true, network reports include request +
+		// response headers; otherwise only the privacy-conscious
+		// summary travels parent-bound.
+		window.__wpdInstrument = window.__wpdInstrument || { headers: {}, observe: false };
+		try {
+			window.addEventListener( 'message', function ( ev ) {
+				if ( ev.origin !== window.location.origin || ev.source !== window.parent ) {
+					return;
+				}
+				var d = ev && ev.data;
+				if ( ! d || typeof d !== 'object' || d.type !== 'wp-desktop-instrument-set' ) {
+					return;
+				}
+				window.__wpdInstrument = {
+					headers: d.headers && typeof d.headers === 'object' ? d.headers : {},
+					observe: !! d.observe
+				};
+			} );
+		} catch ( _err ) { /* swallow — instrumentation is best-effort */ }
+
+		var wpdReportNetwork = function ( method, url, status, duration, failed, extra ) {
 			try {
-				window.parent.postMessage( {
+				var msg = {
 					type: 'wp-desktop-iframe-network',
 					method: String( method || 'GET' ).toUpperCase(),
 					url: String( url || '' ),
 					status: typeof status === 'number' ? status : 0,
 					duration: typeof duration === 'number' ? duration : 0,
 					failed: !! failed
-				}, window.location.origin );
+				};
+				if ( extra && window.__wpdInstrument && window.__wpdInstrument.observe ) {
+					if ( extra.requestHeaders ) {
+						msg.requestHeaders = extra.requestHeaders;
+					}
+					if ( extra.responseHeaders ) {
+						msg.responseHeaders = extra.responseHeaders;
+					}
+				}
+				window.parent.postMessage( msg, window.location.origin );
 			} catch ( _err ) { /* swallow */ }
+		};
+
+		// Helper — convert an arbitrary `init.headers` shape into a
+		// plain `{ name: value }` map so the instrument layer can
+		// merge contributed headers without caring whether the caller
+		// passed a Headers, an array of pairs, or a plain object.
+		var wpdHeadersToObject = function ( h ) {
+			var out = {};
+			if ( ! h ) {
+				return out;
+			}
+			if ( typeof Headers !== 'undefined' && h instanceof Headers ) {
+				try {
+					h.forEach( function ( v, k ) { out[ k ] = v; } );
+				} catch ( _e ) { /* swallow */ }
+				return out;
+			}
+			if ( Array.isArray( h ) ) {
+				for ( var i = 0; i < h.length; i++ ) {
+					if ( h[ i ] && h[ i ].length >= 2 ) {
+						out[ h[ i ][ 0 ] ] = h[ i ][ 1 ];
+					}
+				}
+				return out;
+			}
+			if ( typeof h === 'object' ) {
+				for ( var k in h ) {
+					if ( Object.prototype.hasOwnProperty.call( h, k ) ) {
+						out[ k ] = h[ k ];
+					}
+				}
+			}
+			return out;
+		};
+
+		// Helper — snapshot the contributed-header set at request time.
+		// Header values can theoretically come and go between requests
+		// (parent ref-counts contributions) so we read fresh on every
+		// call rather than caching at wrap time.
+		var wpdContributedHeaders = function () {
+			var inst = window.__wpdInstrument || {};
+			var headers = inst.headers || {};
+			var out = {};
+			for ( var k in headers ) {
+				if ( Object.prototype.hasOwnProperty.call( headers, k ) && typeof headers[ k ] === 'string' ) {
+					out[ k ] = headers[ k ];
+				}
+			}
+			return out;
 		};
 
 		// Wrap fetch. Called AFTER `admin_footer` runs — plugin code
 		// using fetch during synchronous page boot (rare in wp-admin)
 		// bypasses this, but lazy calls (the common case) are captured.
+		//
+		// Two layers of behavior:
+		//
+		//   - Always: timing + status reporting (the original
+		//     observability contract).
+		//   - When `__wpdInstrument.headers` is non-empty: merge those
+		//     headers into the request before dispatch so devtools can
+		//     tag every outgoing call without each plugin reinventing
+		//     a fetch wrapper.
+		//   - When `__wpdInstrument.observe`: also relay request +
+		//     response headers in the parent-bound network message.
 		if ( typeof window.fetch === 'function' ) {
 			var wpdOrigFetch = window.fetch;
 			window.fetch = function ( input, init ) {
@@ -609,11 +737,51 @@ function desktop_mode_chromeless_bridge_script() {
 					url = input.url || '';
 					method = ( input.method || ( init && init.method ) || 'GET' );
 				}
+
+				// Header contribution + capture. Build a single
+				// `Headers` instance so contributed values overwrite /
+				// stack predictably regardless of the caller's input
+				// shape, then re-attach to a cloned init.
+				var contributed = wpdContributedHeaders();
+				var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
+				var requestHeaders = null;
+				var hasContributed = false;
+				for ( var ck in contributed ) {
+					if ( Object.prototype.hasOwnProperty.call( contributed, ck ) ) {
+						hasContributed = true;
+						break;
+					}
+				}
+				if ( hasContributed || observe ) {
+					var existing = wpdHeadersToObject( init && init.headers );
+					if ( input && typeof input === 'object' && input.headers ) {
+						var fromReq = wpdHeadersToObject( input.headers );
+						for ( var rk in fromReq ) {
+							if ( Object.prototype.hasOwnProperty.call( fromReq, rk ) && ! ( rk in existing ) ) {
+								existing[ rk ] = fromReq[ rk ];
+							}
+						}
+					}
+					for ( var ck2 in contributed ) {
+						if ( Object.prototype.hasOwnProperty.call( contributed, ck2 ) ) {
+							existing[ ck2 ] = contributed[ ck2 ];
+						}
+					}
+					if ( hasContributed ) {
+						init = init ? Object.assign( {}, init ) : {};
+						init.headers = existing;
+						arguments[ 1 ] = init;
+					}
+					if ( observe ) {
+						requestHeaders = existing;
+					}
+				}
+
 				var promise;
 				try {
 					promise = wpdOrigFetch.apply( this, arguments );
 				} catch ( sync ) {
-					wpdReportNetwork( method, url, 0, 0, true );
+					wpdReportNetwork( method, url, 0, 0, true, requestHeaders ? { requestHeaders: requestHeaders } : null );
 					throw sync;
 				}
 				return promise.then(
@@ -621,14 +789,25 @@ function desktop_mode_chromeless_bridge_script() {
 						var dur = ( ( typeof performance !== 'undefined' && performance.now )
 							? performance.now()
 							: Date.now() ) - start;
-						wpdReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok );
+						var extra = null;
+						if ( requestHeaders ) {
+							extra = { requestHeaders: requestHeaders };
+							try {
+								var rh = {};
+								if ( res && res.headers && typeof res.headers.forEach === 'function' ) {
+									res.headers.forEach( function ( v, k ) { rh[ k ] = v; } );
+								}
+								extra.responseHeaders = rh;
+							} catch ( _hErr ) { /* swallow */ }
+						}
+						wpdReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
 						return res;
 					},
 					function ( err ) {
 						var dur = ( ( typeof performance !== 'undefined' && performance.now )
 							? performance.now()
 							: Date.now() ) - start;
-						wpdReportNetwork( method, url, 0, Math.round( dur ), true );
+						wpdReportNetwork( method, url, 0, Math.round( dur ), true, requestHeaders ? { requestHeaders: requestHeaders } : null );
 						throw err;
 					}
 				);
@@ -639,37 +818,155 @@ function desktop_mode_chromeless_bridge_script() {
 		// XHR, so fetch-only instrumentation would miss most of the
 		// legacy admin surface. Record method + URL on open; fire on
 		// loadend regardless of success / failure.
+		//
+		// Header contribution layer: `setRequestHeader` after open() but
+		// before send() — that's the only window the spec allows. The
+		// caller's own headers are tracked so observation can include
+		// them alongside the contributed ones.
 		if ( typeof XMLHttpRequest !== 'undefined' ) {
 			var wpdOrigOpen = XMLHttpRequest.prototype.open;
 			var wpdOrigSend = XMLHttpRequest.prototype.send;
+			var wpdOrigSetHeader = XMLHttpRequest.prototype.setRequestHeader;
 			XMLHttpRequest.prototype.open = function ( method, url ) {
 				try {
 					this.__wpdMethod = method;
 					this.__wpdUrl = url;
+					this.__wpdReqHeaders = {};
 				} catch ( _err ) { /* frozen instance — skip */ }
 				return wpdOrigOpen.apply( this, arguments );
+			};
+			XMLHttpRequest.prototype.setRequestHeader = function ( name, value ) {
+				try {
+					if ( ! this.__wpdReqHeaders ) {
+						this.__wpdReqHeaders = {};
+					}
+					this.__wpdReqHeaders[ name ] = value;
+				} catch ( _err ) { /* swallow */ }
+				return wpdOrigSetHeader.apply( this, arguments );
 			};
 			XMLHttpRequest.prototype.send = function () {
 				var xhr = this;
 				var start = ( typeof performance !== 'undefined' && performance.now )
 					? performance.now()
 					: Date.now();
+
+				// Apply contributed headers right before send. Doing it
+				// here rather than in open() means contributions added
+				// after open() (e.g. in async-built request flows) still
+				// land on the wire.
+				var contributed = wpdContributedHeaders();
+				var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
+				for ( var hk in contributed ) {
+					if ( Object.prototype.hasOwnProperty.call( contributed, hk ) ) {
+						try {
+							wpdOrigSetHeader.call( xhr, hk, contributed[ hk ] );
+							if ( ! xhr.__wpdReqHeaders ) {
+								xhr.__wpdReqHeaders = {};
+							}
+							xhr.__wpdReqHeaders[ hk ] = contributed[ hk ];
+						} catch ( _hErr ) { /* `setRequestHeader` rejects forbidden names — skip */ }
+					}
+				}
+
 				var fire = function () {
 					var dur = ( ( typeof performance !== 'undefined' && performance.now )
 						? performance.now()
 						: Date.now() ) - start;
+					var extra = null;
+					if ( observe ) {
+						extra = {
+							requestHeaders: xhr.__wpdReqHeaders || {}
+						};
+						try {
+							var raw = xhr.getAllResponseHeaders ? xhr.getAllResponseHeaders() : '';
+							var resHeaders = {};
+							if ( raw && typeof raw === 'string' ) {
+								var lines = raw.trim().split( /[\r\n]+/ );
+								for ( var li = 0; li < lines.length; li++ ) {
+									var idx = lines[ li ].indexOf( ':' );
+									if ( idx > 0 ) {
+										resHeaders[ lines[ li ].slice( 0, idx ).trim() ] = lines[ li ].slice( idx + 1 ).trim();
+									}
+								}
+							}
+							extra.responseHeaders = resHeaders;
+						} catch ( _rErr ) { /* swallow */ }
+					}
 					wpdReportNetwork(
 						xhr.__wpdMethod,
 						xhr.__wpdUrl,
 						xhr.status,
 						Math.round( dur ),
-						xhr.status === 0 || xhr.status >= 400
+						xhr.status === 0 || xhr.status >= 400,
+						extra
 					);
 				};
 				try {
 					xhr.addEventListener( 'loadend', fire );
 				} catch ( _err ) { /* swallow */ }
 				return wpdOrigSend.apply( this, arguments );
+			};
+		}
+
+		// Wrap sendBeacon — used by analytics + telemetry. The Beacon
+		// API doesn't accept headers (the entire point of beacons is
+		// minimal payload + best-effort delivery). When devtools have
+		// contributed headers we silently fall back to fetch with
+		// `keepalive: true`, which is the closest semantic match —
+		// guaranteed POST + same fire-and-forget intent + custom headers
+		// allowed. Without contributions we just relay the call.
+		if ( typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' ) {
+			var wpdOrigBeacon = navigator.sendBeacon.bind( navigator );
+			navigator.sendBeacon = function ( url, data ) {
+				var contributed = wpdContributedHeaders();
+				var hasContributed = false;
+				for ( var ck in contributed ) {
+					if ( Object.prototype.hasOwnProperty.call( contributed, ck ) ) {
+						hasContributed = true;
+						break;
+					}
+				}
+				var start = ( typeof performance !== 'undefined' && performance.now )
+					? performance.now()
+					: Date.now();
+				if ( ! hasContributed ) {
+					var ok = false;
+					try { ok = !! wpdOrigBeacon( url, data ); } catch ( _e ) { ok = false; }
+					wpdReportNetwork( 'POST', url, ok ? 200 : 0, 0, ! ok );
+					return ok;
+				}
+				try {
+					var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
+					var headers = {};
+					for ( var hk2 in contributed ) {
+						if ( Object.prototype.hasOwnProperty.call( contributed, hk2 ) ) {
+							headers[ hk2 ] = contributed[ hk2 ];
+						}
+					}
+					window.fetch( url, {
+						method: 'POST',
+						body: data,
+						keepalive: true,
+						credentials: 'same-origin',
+						headers: headers
+					} ).then(
+						function ( res ) {
+							var dur = ( ( typeof performance !== 'undefined' && performance.now )
+								? performance.now()
+								: Date.now() ) - start;
+							wpdReportNetwork( 'POST', url, res.status, Math.round( dur ), ! res.ok, observe ? { requestHeaders: headers } : null );
+						},
+						function () {
+							var dur = ( ( typeof performance !== 'undefined' && performance.now )
+								? performance.now()
+								: Date.now() ) - start;
+							wpdReportNetwork( 'POST', url, 0, Math.round( dur ), true, observe ? { requestHeaders: headers } : null );
+						}
+					);
+					return true;
+				} catch ( _bErr ) {
+					return false;
+				}
 			};
 		}
 	} catch ( _err ) {
@@ -953,16 +1250,6 @@ function desktop_mode_chromeless_bridge_script() {
 	 * of chromeless mode. Everything else is `action` and proxies back
 	 * into this iframe on user selection.
 	 */
-	// Dev-only logging. Every `[wpd-cmd:iframe] …` line in this file
-	// routes through `__wpdLog`, which is a no-op in production. The
-	// `/*__WPDM_CMD_DEBUG__*/` placeholder is substituted by PHP
-	// below with the JSON-encoded value of `WP_DEBUG`.
-	var __WPD_CMD_DEBUG = /*__WPDM_CMD_DEBUG__*/false;
-	function __wpdLog() {
-		if ( ! __WPD_CMD_DEBUG ) return;
-		try { console.log.apply( console, arguments ); } catch ( _e ) { /* swallow */ }
-	}
-
 	var __wpdCommandsSubscribed   = false;
 	var __wpdCommandsLastPayload  = '';
 	var __wpdCommandsDebounceId   = null;
@@ -1192,12 +1479,6 @@ function desktop_mode_chromeless_bridge_script() {
 				}
 			}
 			__wpdLastRawCommands = merged;
-			__wpdLog(
-				'[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
-				merged.length,
-				loadersList.length,
-				Array.isArray( resultsBucket.statics ) ? resultsBucket.statics.length : 0
-			);
 			__wpdSchedulePost();
 		}
 
@@ -1210,10 +1491,8 @@ function desktop_mode_chromeless_bridge_script() {
 			var result = null;
 			try {
 				result = loader.hook( { search: '' } );
-			} catch ( err ) {
-				if ( ! loader.__wpdLoggedThrow ) {
-					loader.__wpdLoggedThrow = true;
-				}
+			} catch ( _err ) {
+				/* swallow — a buggy loader hook shouldn't take the harvester down */
 			}
 			var cmds = ( result && Array.isArray( result.commands ) ) ? result.commands : [];
 			var key  = useMemo( function () { return commandsFingerprint( cmds ); }, [ cmds ] );
@@ -1335,10 +1614,9 @@ function desktop_mode_chromeless_bridge_script() {
 				{ type: 'wp-desktop-commands-list', commands: list },
 				__wpdCommandsOrigin
 			);
-		} catch ( err ) {
+		} catch ( _err ) {
 			/* cross-origin parent (shouldn't happen for chromeless pages, but
 			 * don't let a throw break the bridge) */
-			__wpdLog( '[wpd-cmd:iframe] postCommandsList: postMessage threw', err );
 		}
 	}
 
@@ -1409,8 +1687,8 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( typeof cb === 'function' ) {
 			try {
 				cb( { close: function () {} } );
-			} catch ( err ) {
-				__wpdLog( '[wpd-cmd:iframe] invoke: "%s" callback threw', name, err );
+			} catch ( _err ) {
+				/* swallow — a plugin command callback that throws shouldn't break the bridge */
 			}
 			return;
 		}
@@ -1429,8 +1707,8 @@ function desktop_mode_chromeless_bridge_script() {
 			if ( raw[ i ] && raw[ i ].name === name && typeof raw[ i ].callback === 'function' ) {
 				try {
 					raw[ i ].callback( { close: function () {} } );
-				} catch ( err ) {
-					__wpdLog( '[wpd-cmd:iframe] invoke: "%s" fallback callback threw', name, err );
+				} catch ( _err ) {
+					/* swallow — see note in primary path above */
 				}
 				return;
 			}
@@ -1462,8 +1740,8 @@ function desktop_mode_chromeless_bridge_script() {
 			{ type: 'wp-desktop-bridge-ready' },
 			__wpdCommandsOrigin
 		);
-	} catch ( err ) {
-		__wpdLog( '[wpd-cmd:iframe] bridge-ready postMessage threw', err );
+	} catch ( _err ) {
+		/* parent gone or cross-origin — bridge handshake will retry on next load */
 	}
 
 	/*
@@ -1607,6 +1885,157 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 	}
 
+	/* -----------------------------------------------------------------
+	 * Broadcast receiver — iframe side.
+	 *
+	 * The parent shell publishes broadcasts via
+	 * `wp.desktop.broadcast(topic, payload)` (see `src/broadcast.ts`).
+	 * It posts `{ type: 'wp-desktop-broadcast', topic, payload }` to
+	 * every open iframe. Here we re-dispatch that as a CustomEvent
+	 * on the iframe's own document so admin pages can subscribe with
+	 * plain `document.addEventListener( 'wp-desktop-broadcast', cb )`
+	 * — no extra script handle required.
+	 *
+	 * Iframe-side admin code can also publish UPSTREAM by posting
+	 * the same shape to `window.parent`; the parent's
+	 * `installBroadcastReceiver()` re-broadcasts to every other
+	 * iframe + native window.
+	 * ----------------------------------------------------------------- */
+	window.addEventListener( 'message', function ( e ) {
+		if ( e.origin !== origin ) {
+			return;
+		}
+		if ( ! e.data || e.data.type !== 'wp-desktop-broadcast' ) {
+			return;
+		}
+		try {
+			document.dispatchEvent( new CustomEvent( 'wp-desktop-broadcast', {
+				detail: { topic: e.data.topic, payload: e.data.payload }
+			} ) );
+		} catch ( _err ) { /* old browser without CustomEvent ctor — ignore */ }
+	} );
+
+	/* -----------------------------------------------------------------
+	 * Soft-reload — iframe-side default handler.
+	 *
+	 * When a `wp-desktop.<post_type>.changed` broadcast fires AND the
+	 * current iframe is on a known list page for that post type, we
+	 * fetch the current URL and replace the iframe's `#wpbody-content`
+	 * in place. The user sees the new state of the list — restored
+	 * post appears, deleted media disappears — without the WP loading
+	 * spinner that `location.reload()` would show.
+	 *
+	 * Single-edit pages (`post.php`, `post-new.php`) are deliberately
+	 * NOT in the rule set: replacing their body would destroy any
+	 * unsaved Gutenberg/classic-editor state. Plugins that want
+	 * specific behaviour for those pages can subscribe to the same
+	 * topic on `document` and handle it themselves.
+	 *
+	 * The fetch carries a custom header so a later phase can serve a
+	 * minimal partial response if we want to optimise; for now WP
+	 * returns the full admin page and we just pluck the body.
+	 *
+	 * WP list-table JS uses event delegation on `document`/`body`,
+	 * which survives `replaceWith`. If a specific page breaks after
+	 * a swap (e.g. inline-edit double-binding), that page's plugin
+	 * should listen for `wp-desktop-soft-reloaded` and rebind.
+	 * ----------------------------------------------------------------- */
+	var WPDM_SOFT_RELOAD_RULES = [
+		{
+			topic: 'wp-desktop.post.changed',
+			match: function () {
+				if ( ! _wpdmEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
+				var t = new URLSearchParams( location.search ).get( 'post_type' );
+				return t === null || t === 'post';
+			}
+		},
+		{
+			topic: 'wp-desktop.page.changed',
+			match: function () {
+				if ( ! _wpdmEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
+				return new URLSearchParams( location.search ).get( 'post_type' ) === 'page';
+			}
+		},
+		{
+			topic: 'wp-desktop.attachment.changed',
+			match: function () {
+				return _wpdmEndsWith( location.pathname, '/wp-admin/upload.php' );
+			}
+		},
+		{
+			topic: 'wp-desktop.comment.changed',
+			match: function () {
+				return _wpdmEndsWith( location.pathname, '/wp-admin/edit-comments.php' );
+			}
+		}
+	];
+
+	function _wpdmEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
+
+	var _wpdmSoftReloadInFlight = false;
+	var _wpdmSoftReloadQueued = false;
+
+	function _wpdmSoftReload() {
+		if ( _wpdmSoftReloadInFlight ) {
+			_wpdmSoftReloadQueued = true;
+			return;
+		}
+		_wpdmSoftReloadInFlight = true;
+		fetch( location.href, {
+			credentials: 'same-origin',
+			cache: 'no-cache',
+			headers: { 'X-WP-Desktop-Soft-Reload': '1' }
+		} ).then( function ( r ) {
+			if ( ! r.ok ) throw new Error( 'soft-reload fetch failed: ' + r.status );
+			return r.text();
+		} ).then( function ( html ) {
+			var doc = new DOMParser().parseFromString( html, 'text/html' );
+			var fresh = doc.querySelector( '#wpbody-content' );
+			var live = document.querySelector( '#wpbody-content' );
+			if ( ! fresh || ! live ) {
+				/* Markup we expected isn't there — admin pages we
+				 * don't recognise (or core changes the structure).
+				 * Don't reload; let the iframe stay as it is rather
+				 * than show a spinner the user told us not to. */
+				return;
+			}
+			live.replaceWith( fresh );
+			try {
+				document.dispatchEvent( new CustomEvent( 'wp-desktop-soft-reloaded' ) );
+			} catch ( _err ) {}
+			/* Some WP scripts re-init on DOMContentLoaded only — let
+			 * pages opt-in to a re-init by listening to the event
+			 * above. We intentionally do NOT re-fire DOMContentLoaded;
+			 * that's almost always wrong (double-init of jQuery/WP). */
+		} ).catch( function ( err ) {
+			/* Network error — leave the iframe untouched. The user's
+			 * next manual interaction will refresh state, and the
+			 * next broadcast will retry. */
+			if ( window.console && window.console.warn ) {
+				window.console.warn( '[wp-desktop] soft-reload skipped:', err );
+			}
+		} ).then( function () {
+			_wpdmSoftReloadInFlight = false;
+			if ( _wpdmSoftReloadQueued ) {
+				_wpdmSoftReloadQueued = false;
+				_wpdmSoftReload();
+			}
+		} );
+	}
+
+	document.addEventListener( 'wp-desktop-broadcast', function ( e ) {
+		var detail = e.detail || {};
+		var topic = detail.topic;
+		if ( ! topic ) return;
+		for ( var i = 0; i < WPDM_SOFT_RELOAD_RULES.length; i++ ) {
+			var r = WPDM_SOFT_RELOAD_RULES[ i ];
+			if ( r.topic === topic && r.match() ) {
+				_wpdmSoftReload();
+				return;
+			}
+		}
+	} );
+
 	window.addEventListener( 'message', function( e ) {
 		if ( e.origin !== origin ) {
 			return;
@@ -1647,6 +2076,7 @@ function desktop_mode_chromeless_bridge_script() {
 	var _wpdConnections = {};
 	var _wpdConnectionListeners = [];
 	var _wpdSubs = {};   // topic → [cb, ...]
+	var _wpdChannelSubs = {};   // channel → [cb, ...] (window-channel API)
 	var _wpdParentOrigin = window.location.origin;
 
 	function _wpdEmitToParent( connectionId, topic, payload ) {
@@ -1725,6 +2155,33 @@ function desktop_mode_chromeless_bridge_script() {
 
 		if ( data.type === 'wp-desktop-bridge-disconnect' && typeof data.connectionId === 'string' ) {
 			delete _wpdConnections[ data.connectionId ];
+			return;
+		}
+
+		/* Unified window-channel delivery from the parent. Fires
+		 * every `wp.desktop.on( channel, cb )` subscriber for the
+		 * matching channel — same protocol as
+		 * `assets/js/iframe-bridge.js`. */
+		if ( data.type === 'wp-desktop-window-send' && typeof data.channel === 'string' && data.channel !== '' ) {
+			var meta = { channel: data.channel };
+			var cBucket = _wpdChannelSubs[ data.channel ];
+			if ( cBucket ) {
+				var cBucketSnap = cBucket.slice();
+				for ( var ci = 0; ci < cBucketSnap.length; ci++ ) {
+					try {
+						cBucketSnap[ ci ]( data.payload, meta );
+					} catch ( _err ) { /* swallow */ }
+				}
+			}
+			var cWildcard = _wpdChannelSubs[ '*' ];
+			if ( cWildcard ) {
+				var cWildcardSnap = cWildcard.slice();
+				for ( var cw = 0; cw < cWildcardSnap.length; cw++ ) {
+					try {
+						cWildcardSnap[ cw ]( data.payload, meta );
+					} catch ( _err ) { /* swallow */ }
+				}
+			}
 			return;
 		}
 	} );
@@ -1870,6 +2327,47 @@ function desktop_mode_chromeless_bridge_script() {
 	if ( ! window.wp ) { window.wp = {}; }
 	if ( ! window.wp.desktop ) { window.wp.desktop = {}; }
 	window.wp.desktop.iframe = iframeApi;
+
+	/* Unified window-channel API. Mirror of the equivalent block
+	 * in `assets/js/iframe-bridge.js` — keep both in sync. The
+	 * parent shell posts `wp-desktop-window-send` on
+	 * `Window.send( channel, payload )`; iframe-side handlers
+	 * register via `wp.desktop.on( channel, cb )`. Sending the
+	 * other way (`wp.desktop.send`) posts up to the parent where
+	 * `Window.on( channel, cb )` subscribers fire. */
+	if ( typeof window.wp.desktop.send !== 'function' ) {
+		window.wp.desktop.send = function ( channel, payload ) {
+			if ( typeof channel !== 'string' || channel === '' ) {
+				return;
+			}
+			try {
+				window.parent.postMessage( {
+					type: 'wp-desktop-window-publish',
+					channel: channel,
+					payload: payload
+				}, _wpdParentOrigin );
+			} catch ( _err ) { /* parent gone */ }
+		};
+	}
+	if ( typeof window.wp.desktop.on !== 'function' ) {
+		window.wp.desktop.on = function ( channel, cb ) {
+			if ( typeof channel !== 'string' || channel === '' || typeof cb !== 'function' ) {
+				return function () {};
+			}
+			var bucket = _wpdChannelSubs[ channel ];
+			if ( ! bucket ) {
+				bucket = [];
+				_wpdChannelSubs[ channel ] = bucket;
+			}
+			bucket.push( cb );
+			return function () {
+				var i = bucket.indexOf( cb );
+				if ( i >= 0 ) {
+					bucket.splice( i, 1 );
+				}
+			};
+		};
+	}
 } )();
 JS;
 
@@ -1879,12 +2377,6 @@ JS;
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
 	$js = str_replace( '/*__WPDM_MENU_PAYLOAD__*/', $menu_payload_json, $js );
-
-	// Gate the command-bridge dev logs. `WP_DEBUG` is the conventional
-	// "I'm a developer and want noisy output" switch; anything else
-	// (default production) silences every `__wpdLog` call in the bridge.
-	$cmd_debug = ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ? 'true' : 'false';
-	$js        = str_replace( '/*__WPDM_CMD_DEBUG__*/false', $cmd_debug, $js );
 
 	wp_print_inline_script_tag( $js );
 }

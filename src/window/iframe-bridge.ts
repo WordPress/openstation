@@ -14,6 +14,7 @@ import { doAction, HOOKS } from '../hooks';
 import { showToast } from '../toast';
 import { addExternalTab } from './tabs';
 import type { Window } from './index';
+import { dispatchFromWindow, markWindowContentReady } from '../window-channels';
 
 /**
  * Origin snapshot taken once at module load. Any subsequent mutation
@@ -48,6 +49,19 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		win.setTitle( data.title );
 	}
 
+	// Unified window-channel publish. Iframe content called
+	// `wp.desktop.send( channel, payload )` (installed by the
+	// iframe-bridge) and we forward to the parent-side subscriber
+	// registry so `Window.on( channel, cb )` callbacks fire — same
+	// shape as native windows reaching for `windowApi.send()`.
+	if (
+		data.type === 'wp-desktop-window-publish' &&
+		typeof data.channel === 'string' &&
+		data.channel !== ''
+	) {
+		dispatchFromWindow( win.id, data.channel, data.payload );
+	}
+
 	// Cross-window connection bridge — route any `wp-desktop-bridge-*`
 	// message to the parent-side connection registry. The bridge is
 	// installed on `window` by `desktop.ts` so individual Window
@@ -74,6 +88,9 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// `load` event fires BEFORE our bridge attaches, which makes
 	// listener-timing a known footgun otherwise).
 	if ( data.type === 'wp-desktop-ready' ) {
+		// Bridge announced — anything queued via `Window.send()`
+		// before this point flushes now in FIFO order.
+		markWindowContentReady( win.id );
 		doAction( HOOKS.IFRAME_READY, { windowId: win.id } );
 	}
 
@@ -168,15 +185,91 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// network-level failure before a response arrived; `failed` is
 	// pre-computed server-side so subscribers don't have to re-derive
 	// the success / 4xx / 5xx / network boundary.
+	// Layer-1 theme — iframe content can re-theme its own window
+	// via the bridge. `tokens` is a CSS-variable map; `setAppearanceTheme`
+	// validates inline overrides match the framework's shape.
+	if (
+		data.type === 'wp-desktop-chrome-theme' &&
+		data.tokens &&
+		typeof data.tokens === 'object'
+	) {
+		try {
+			win.setAppearanceTheme(
+				data.tokens as Record< string, string >,
+			);
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-bridge-chrome-theme',
+				windowId: win.id,
+				error: err,
+			} );
+		}
+	}
+
+	// Layer-2 controls — iframe can reorder / hide / inject controls
+	// for its own window.
+	if (
+		data.type === 'wp-desktop-chrome-controls' &&
+		data.config &&
+		typeof data.config === 'object'
+	) {
+		try {
+			win.setAppearanceControls(
+				data.config as import( '../types' ).WindowControlsConfig,
+			);
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-bridge-chrome-controls',
+				windowId: win.id,
+				error: err,
+			} );
+		}
+	}
+
+	// Layer-3 slots — iframe can replace any named slot with sandboxed
+	// HTML (rendered via textContent — never innerHTML — so iframe-side
+	// or plugin-supplied content can't smuggle script into the parent
+	// shell). Plugins that need rich slot markup register a parent-
+	// side `WindowSlotDef.render` callback instead.
+	if (
+		data.type === 'wp-desktop-chrome-slot' &&
+		typeof data.slot === 'string' &&
+		typeof data.html === 'string'
+	) {
+		try {
+			win.setAppearanceSlot(
+				data.slot as import( '../types' ).WindowSlotName,
+				{ html: data.html },
+			);
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-bridge-chrome-slot',
+				windowId: win.id,
+				error: err,
+			} );
+		}
+	}
+
 	if ( data.type === 'wp-desktop-iframe-network' ) {
-		doAction( HOOKS.IFRAME_NETWORK_COMPLETED, {
+		const networkPayload: Record< string, unknown > = {
 			windowId: win.id,
 			method: typeof data.method === 'string' ? data.method : 'GET',
 			url: typeof data.url === 'string' ? data.url : '',
 			status: typeof data.status === 'number' ? data.status : 0,
 			duration: typeof data.duration === 'number' ? data.duration : 0,
 			failed: !! data.failed,
-		} );
+		};
+		// `requestHeaders` / `responseHeaders` only ride along when
+		// devtools have asked the iframe to observe (via
+		// `wp.desktop.devtools.onRequest( id, cb, { observe: true } )`).
+		// Default deliveries stay summary-only for privacy.
+		if ( data.requestHeaders && typeof data.requestHeaders === 'object' ) {
+			networkPayload.requestHeaders = data.requestHeaders;
+		}
+		if ( data.responseHeaders && typeof data.responseHeaders === 'object' ) {
+			networkPayload.responseHeaders = data.responseHeaders;
+		}
+		doAction( HOOKS.IFRAME_NETWORK_COMPLETED, networkPayload );
 	}
 }
 

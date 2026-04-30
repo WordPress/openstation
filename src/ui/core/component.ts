@@ -96,7 +96,7 @@ export abstract class Component extends HTMLElement {
 
 	connectedCallback(): void {
 		this._adoptStyles();
-		this._scheduleRender();
+		this.requestUpdate();
 	}
 
 	attributeChangedCallback(
@@ -109,7 +109,12 @@ export abstract class Component extends HTMLElement {
 		}
 		const prop = camel( name );
 		this._propValues[ prop ] = newValue;
-		this._scheduleRender();
+		// Route through `requestUpdate()` — the single hook subclasses
+		// override to plug in extra work (e.g. an imperative paint
+		// pipeline alongside the templated render). Calling
+		// `_scheduleRender` directly here would bypass those hooks and
+		// silently desync state on attribute changes.
+		this.requestUpdate();
 	}
 
 	/**
@@ -219,7 +224,15 @@ export abstract class Component extends HTMLElement {
 					} else {
 						this.setAttribute( attr, str );
 					}
-					this._scheduleRender();
+					// `setAttribute`/`removeAttribute` will fire
+					// `attributeChangedCallback`, which itself calls
+					// `requestUpdate()` — but only when the attribute
+					// value actually changed at the DOM level. Programmatic
+					// setters that write back the same string don't fire
+					// the observer, so we still need our own update call.
+					// Both paths debounce on the same flag, so the cost
+					// is one extra microtask check at worst.
+					this.requestUpdate();
 				},
 				enumerable: true,
 				configurable: true,

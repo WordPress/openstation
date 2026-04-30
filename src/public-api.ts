@@ -141,13 +141,61 @@ export type { ConnectOptions, WindowConnection } from './connection';
 
 export type { AskFn, AskOptions, AskResult, AskToolCall } from './ai/ask';
 
+// ----- DevTools / cross-plugin instrumentation -----
+
+export type {
+	DebugBusApi,
+	DebugEvent,
+	DevtoolsApi,
+	HeaderValue,
+	OnRequestOptions,
+	ReloadWithDebugSessionOptions,
+	ReloadWithDebugSessionResult,
+	RequestObservation,
+	RequestObserver,
+} from './devtools';
+
 // ----- Public class types (for plugins that need to type-cast an
 // instance returned by `wp.desktop.windowManager` / `.dock`) -----
 
 export type { Window } from './window';
 export type { WindowManager } from './window-manager';
 export type { Dock, DockOrientation, SystemDockItem } from './dock';
+export type { IconsApi } from './desktop-icons';
 export type { WidgetLayer } from './widgets/layer';
+
+// ----- The whole shell-public-API interface itself -----
+//
+// Plugins that want to type-cast `window.wp.desktop` directly (e.g.
+// to satisfy a strict TS rule that flags `unknown as ...`) can import
+// the interface and use it as the cast target. The ambient
+// `src/global.d.ts` already augments `window.wp.desktop` to this type
+// — the export here is for cases where the consumer needs the
+// nominal name (function signatures, generics, etc.).
+
+export type { WpDesktopPublicApi } from './desktop';
+
+// ----- Toast options + keyed-list options for plugins that wrap
+// `wp.desktop.showToast` / `wp.desktop.renderKeyedList` -----
+
+export type { ToastOptions, ToastIntent } from './toast';
+
+// ----- DOM utilities (keyed-list reconciler) -----
+
+/**
+ * Keyed-list rendering helper for any plugin that paints a dynamic
+ * list of items into a DOM container. Reuses element instances when
+ * the keys match across renders so event listeners survive data
+ * updates — the only reliable way to keep clicks working on rows
+ * that may re-render mid-press.
+ *
+ * @since 0.22.10
+ */
+export {
+	renderKeyedList,
+	clearKeyedList,
+} from './ui/util/keyed-list';
+export type { KeyedListOptions } from './ui/util/keyed-list';
 
 // ----- Native window helpers -----
 
@@ -166,7 +214,6 @@ export {
 } from './native-windows';
 
 export type {
-	IframeContentSendFn,
 	WindowLifecycleHandlers,
 } from './native-windows';
 
@@ -187,6 +234,8 @@ export type { WallpaperSurface } from './wallpapers/surfaces';
 // major release without a deprecation notice first.
 
 export {
+	WpdAvatar,
+	WpdBadge,
 	WpdButton,
 	WpdCheckboxLabel,
 	WpdCluster,
@@ -197,6 +246,7 @@ export {
 	WpdGrid,
 	WpdIcon,
 	WpdKey,
+	WpdLog,
 	WpdMenu,
 	WpdMenuItem,
 	WpdPanel,
@@ -212,10 +262,12 @@ export {
 	WpdTab,
 	WpdTabChip,
 	WpdTabs,
+	WpdTextarea,
 	WpdToast,
 	WpdToastContainer,
 	WpdWindowButton,
 } from './ui/components';
+export type { WpdAvatarPresence, WpdBadgeTone, WpdLogRowRenderer } from './ui/components';
 
 // Stable variant enum for <wpd-button> — plugins can narrow props
 // against the recognised set rather than hard-coding strings.

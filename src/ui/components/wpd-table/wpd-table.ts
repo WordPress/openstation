@@ -1,0 +1,1600 @@
+/**
+ * `<wpd-table>` — data-driven, DX-first table.
+ *
+ * The pitch is "give it data + columns, get a nice table". Everything
+ * else is opt-in via attributes or a single column descriptor:
+ *
+ * ```ts
+ * const table = document.querySelector< WpdTable< User > >( '#users' )!;
+ * table.columns = [
+ *     { key: 'name',   label: 'Name',   filter: 'text',   sortable: true, sticky: true },
+ *     { key: 'email',  label: 'Email',  filter: 'text',   sortable: true },
+ *     { key: 'role',   label: 'Role',   filter: 'select' },
+ *     { key: 'logins', label: 'Logins', align: 'end',     sortable: true },
+ * ];
+ * table.data = users;
+ * table.subTable = ( row ) => row.history?.length
+ *     ? { columns: historyCols, data: row.history }
+ *     : null;
+ * ```
+ *
+ * ## Features at a glance
+ *
+ *   - **Per-column filters.** `column.filter = 'text' | 'select'`
+ *     (or `true`, default text). Inputs persist across re-paints so
+ *     typing never loses focus.
+ *   - **Click-to-sort.** `column.sortable = true` makes the header
+ *     cycle asc → desc → unsorted. Provide `column.sortValue` for
+ *     custom sort keys (e.g. parse a date out of a string).
+ *   - **Multi-row selection.** `selectable="single"` or
+ *     `selectable="multi"` auto-prepends a checkbox column. Read /
+ *     write the chosen row ids through `selection`; supply
+ *     `getRowId( row, i )` for stable ids across data refreshes.
+ *   - **Sticky columns.** `sticky-columns="N"` pins the first N
+ *     columns. Widths are measured after layout, so variable-width
+ *     columns work — RTL via `inset-inline-start`.
+ *   - **Sticky header.** `sticky-header` pins the header (plus the
+ *     filter row, if any) to the top of the scroll container.
+ *   - **Sub-tables.** `subTable( row, index )` returns a
+ *     `{ columns, data }` or any `Node` / template. An expander
+ *     column is auto-prepended; sub-tables nest infinitely.
+ *   - **Custom cells.** `column.render( value, row, index )` returns
+ *     a string, `Node`, or `html\`\`` template.
+ *   - **Loading state.** `loading` paints shimmering skeleton rows.
+ *   - **Empty state.** `<slot name="empty">` lets the host project a
+ *     CTA; the `empty` attribute is the text fallback.
+ *
+ * ## Programmatic API surface
+ *
+ * Every interactive piece has a method-form so callers don't poke at
+ * the DOM:
+ *
+ *   - `expand(i)`, `collapse(i)`, `expandAll()`, `collapseAll()`,
+ *     `isExpanded(i)`, `expanded` (getter / setter for the full set).
+ *   - `clearFilters()`, `filters` (read or pre-seed).
+ *   - `sort` (read or set), `clearSort()`.
+ *   - `select(id)`, `deselect(id)`, `selectAll()`, `clearSelection()`,
+ *     `selection`, `selectedRows`, `getRowId`.
+ *   - `scrollToRow(i)`.
+ *
+ * ## Why imperative paint
+ *
+ * The `html\`\`` template renderer parses every nested template via
+ * `template.innerHTML`, which applies HTML's content-model rules — so
+ * a sub-template with `<tr>`/`<td>`/`<col>` gets hoisted out of its
+ * expected parent. We render an empty table skeleton via the template
+ * tag, then paint headers / rows / cells imperatively. Filter inputs
+ * are kept across paints so typing into one doesn't lose focus on
+ * every keystroke.
+ *
+ * ## Events
+ *
+ *   - `wpd-table-filter-change` — `{ filters }` on filter input change.
+ *   - `wpd-table-sort-change` — `{ sort }` (or `{ sort: null }`).
+ *   - `wpd-table-selection-change` — `{ selection, rows }`.
+ *   - `wpd-table-row-click` — `{ row, index, originalEvent }` (skips
+ *     clicks on `data-noclick` descendants).
+ *   - `wpd-table-expand-change` — `{ row, index, expanded }`.
+ *
+ * @since 0.18.0
+ */
+
+import { Component, defineComponent, html, render as renderTemplate, type TemplateResult } from '../../core';
+import { styles } from './wpd-table.styles';
+
+/**
+ * Per-column descriptor. The bare minimum is `{ key }`; everything
+ * else is optional. Generic over the row type so `render` and
+ * `sortValue` get strong types when consumers type the table.
+ */
+export interface WpdTableColumn< T = Record< string, unknown > > {
+	/** Property on the row to read. Also used as the column id. */
+	key: string;
+	/** Header text. Defaults to `key`. */
+	label?: string;
+	/**
+	 * Built-in filter. `true` and `'text'` give a substring match;
+	 * `'select'` builds a dropdown from the unique column values.
+	 */
+	filter?: boolean | 'text' | 'select';
+	/** Make the header click-to-sort (asc → desc → unsorted cycle). */
+	sortable?: boolean;
+	/**
+	 * Custom value extractor for sorts. Defaults to `row[key]`. Use
+	 * for shaped sorts — e.g. parsing a date from a display string,
+	 * or sorting by a computed score.
+	 */
+	sortValue?: ( row: T, value: unknown ) => unknown;
+	/** Pin this column when sticky-columns covers its index. */
+	sticky?: boolean;
+	/** CSS text-align — `'start' | 'center' | 'end'`. */
+	align?: 'start' | 'center' | 'end';
+	/** Fixed CSS width — passed straight to `<col style="width">`. */
+	width?: string;
+	/** Custom cell renderer. Return a string, Node, or `html\`\``. */
+	render?: ( value: unknown, row: T, index: number ) => string | Node | TemplateResult;
+}
+
+/**
+ * Sub-table descriptor — independent of the parent's row type so a
+ * sub-table can have a totally different shape than its container
+ * (the typical case: an Orders table with a per-order Items sub-table).
+ */
+export type WpdTableSubTableResult =
+	| null
+	| undefined
+	| Node
+	| TemplateResult
+	| {
+		columns: WpdTableColumn< Record< string, unknown > >[];
+		data: Record< string, unknown >[];
+		/** Optional — make the nested sub-table itself expandable. */
+		subTable?: WpdTableSubTableFn;
+	};
+
+export type WpdTableSubTableFn< T = Record< string, unknown > > = (
+	row: T,
+	index: number,
+) => WpdTableSubTableResult;
+
+/** Filter map — column key → input value. Empty string means no filter. */
+export type WpdTableFilters = Record< string, string >;
+
+/** Active sort. `null` is "no sort applied". */
+export type WpdTableSort =
+	| { key: string; direction: 'asc' | 'desc' }
+	| null;
+
+/** Stable id for a row — defaults to its index. Override via `getRowId`. */
+export type WpdTableRowId = string | number;
+
+export type WpdTableGetRowId< T = Record< string, unknown > > = (
+	row: T,
+	index: number,
+) => WpdTableRowId;
+
+const EXPANDER_KEY = '__wpd_expander__';
+const SELECT_KEY = '__wpd_select__';
+
+interface FilterInputCache {
+	/** The wrapper `<th>` cell — kept across paints. */
+	th: HTMLTableCellElement;
+	/** The filter `<input>` or `<select>`. */
+	control: HTMLInputElement | HTMLSelectElement;
+	/** Last set of options written into a select (sorted, joined). */
+	optionsKey: string;
+	/** Filter kind currently mounted — re-create if it changes. */
+	kind: 'text' | 'select' | 'none';
+}
+
+export class WpdTable< T extends Record< string, unknown > = Record< string, unknown > > extends Component {
+	static props = [
+		'stickyColumns',
+		'stickyHeader',
+		'striped',
+		'hover',
+		'compact',
+		'bordered',
+		'empty',
+		'loading',
+		'loadingRows',
+		'selectable',
+	] as const;
+	static styles = [ styles ];
+
+	static help = {
+		title: 'Table',
+		summary:
+			'Data-driven table. Assign `columns` + `data` and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns/header, sub-tables, custom cell renderers, loading skeleton, and a slottable empty state.',
+		status: 'experimental',
+		since: '0.18.0',
+		props: [
+			{
+				name: 'sticky-columns',
+				type: 'integer',
+				description:
+					'Pin the first N columns to the inline-start edge. Widths are measured after layout, so variable-width columns work. The auto-injected expander (subTable) and select (selectable) columns count toward N.',
+			},
+			{
+				name: 'sticky-header',
+				type: 'boolean',
+				description:
+					'Pin the header (and filter row) to the top. Requires a scrolling parent or `--wpd-table-max-height` — the component warns once if it detects sticky-header on a non-scrolling container.',
+			},
+			{ name: 'striped', type: 'boolean', description: 'Zebra rows.' },
+			{ name: 'hover', type: 'boolean', description: 'Highlight rows on hover.' },
+			{ name: 'compact', type: 'boolean', description: 'Tighter padding + smaller font.' },
+			{ name: 'bordered', type: 'boolean', description: 'Vertical cell borders.' },
+			{
+				name: 'empty',
+				type: 'string',
+				description:
+					'Fallback text shown when there are no rows. For richer empty states, project light-DOM content into the `empty` slot.',
+			},
+			{
+				name: 'loading',
+				type: 'boolean',
+				description:
+					'Paint shimmering skeleton rows in place of body content. Filters / sort headers stay live.',
+			},
+			{
+				name: 'loading-rows',
+				type: 'integer',
+				description: 'Number of skeleton rows when loading. Default 5.',
+			},
+			{
+				name: 'selectable',
+				type: '"single" | "multi"',
+				description:
+					'Auto-prepend a checkbox column. `multi` puts a select-all checkbox in the header; `single` enforces at-most-one selected.',
+			},
+		],
+		events: [
+			{ name: 'wpd-table-filter-change', description: 'Filter input changed.' },
+			{ name: 'wpd-table-sort-change', description: 'Header click cycled the sort.' },
+			{ name: 'wpd-table-selection-change', description: 'Selection set changed.' },
+			{ name: 'wpd-table-row-click', description: 'Body row clicked (skips data-noclick descendants).' },
+			{ name: 'wpd-table-expand-change', description: 'Sub-table toggled.' },
+		],
+		slots: [
+			{ name: 'empty', description: 'Custom empty-state content (CTA, illustration, etc.).' },
+		],
+		cssProps: [
+			{ name: '--wpd-table-bg' },
+			{ name: '--wpd-table-border' },
+			{ name: '--wpd-table-header-bg' },
+			{ name: '--wpd-table-row-hover' },
+			{ name: '--wpd-table-stripe' },
+			{ name: '--wpd-table-cell-padding' },
+			{ name: '--wpd-table-font-size' },
+			{ name: '--wpd-table-max-height' },
+			{ name: '--wpd-table-skeleton-color' },
+		],
+		example: html`
+			<wpd-table id="sample-table" sticky-header striped hover></wpd-table>
+		`,
+	} as const;
+
+	private _data: T[] = [];
+	private _columns: WpdTableColumn< T >[] = [];
+	private _filters: WpdTableFilters = {};
+	private _expanded = new Set< number >();
+	private _subTable: WpdTableSubTableFn< T > | null = null;
+
+	private _sort: WpdTableSort = null;
+	private _selection = new Set< WpdTableRowId >();
+	private _getRowId: WpdTableGetRowId< T > = ( _row, index ) => index;
+
+	/** Filter input cells, keyed by column key, kept across paints. */
+	private _filterCache = new Map< string, FilterInputCache >();
+
+	private _paintScheduled = false;
+	private _stickyHeaderWarned = false;
+	private _stickyRaceWarned = false;
+	private _resizeObserver: ResizeObserver | null = null;
+	private _stickyMicroScheduled = false;
+	private _stickyRafHandle: number | null = null;
+
+	// ------------------------------------------------------------------
+	// Public properties — set from JS (use `.data=${...}` in templates).
+	// ------------------------------------------------------------------
+
+	/** The row buffer. Reassigning replaces (and clears expansion state). */
+	get data(): readonly T[] {
+		return this._data;
+	}
+	set data( next: readonly T[] | null | undefined ) {
+		this._data = Array.isArray( next ) ? next.slice() : [];
+		this._expanded.clear();
+		// Selection is intentionally NOT cleared — when callers supply a
+		// stable `getRowId`, selection survives data refreshes (the most
+		// useful behavior). Stale ids are filtered out at paint time.
+		this._schedulePaint();
+	}
+
+	/** Column descriptors. See {@link WpdTableColumn}. */
+	get columns(): readonly WpdTableColumn< T >[] {
+		return this._columns;
+	}
+	set columns( next: readonly WpdTableColumn< T >[] | null | undefined ) {
+		this._columns = Array.isArray( next ) ? next.slice() : [];
+		// Drop filters / sort / cached inputs whose column went away.
+		const keys = new Set( this._columns.map( ( c ) => c.key ) );
+		for ( const k of Object.keys( this._filters ) ) {
+			if ( ! keys.has( k ) ) {
+				delete this._filters[ k ];
+			}
+		}
+		for ( const k of Array.from( this._filterCache.keys() ) ) {
+			if ( ! keys.has( k ) ) {
+				this._filterCache.delete( k );
+			}
+		}
+		if ( this._sort && ! keys.has( this._sort.key ) ) {
+			this._sort = null;
+		}
+		this._schedulePaint();
+	}
+
+	/** Read or replace the current filter map. */
+	get filters(): Readonly< WpdTableFilters > {
+		return { ...this._filters };
+	}
+	set filters( next: WpdTableFilters | null | undefined ) {
+		this._filters = next ? { ...next } : {};
+		this._schedulePaint();
+	}
+
+	/** Read or set the active sort. `null` clears it. */
+	get sort(): WpdTableSort {
+		return this._sort ? { ...this._sort } : null;
+	}
+	set sort( next: WpdTableSort | undefined ) {
+		this._sort = next ? { ...next } : null;
+		this._schedulePaint();
+	}
+
+	/** Read or replace the selection (set of row ids). */
+	get selection(): ReadonlySet< WpdTableRowId > {
+		return new Set( this._selection );
+	}
+	set selection( next: Iterable< WpdTableRowId > | null | undefined ) {
+		this._selection = new Set( next ?? [] );
+		this._schedulePaint();
+	}
+
+	/** The currently-selected rows (resolved from `selection` + `data`). */
+	get selectedRows(): T[] {
+		const out: T[] = [];
+		this._data.forEach( ( row, i ) => {
+			if ( this._selection.has( this._getRowId( row, i ) ) ) {
+				out.push( row );
+			}
+		} );
+		return out;
+	}
+
+	/** Stable row-id extractor. Default is row index. */
+	get getRowId(): WpdTableGetRowId< T > {
+		return this._getRowId;
+	}
+	set getRowId( fn: WpdTableGetRowId< T > | null | undefined ) {
+		this._getRowId = typeof fn === 'function' ? fn : ( ( _r, i ) => i );
+		this._schedulePaint();
+	}
+
+	/**
+	 * Sub-table accessor. Return `null` (or omit) for rows with no
+	 * children. Return `{ columns, data }` to render a nested
+	 * `<wpd-table>` inline; or return any `Node` / `html\`\`` template
+	 * for fully custom expanded content.
+	 */
+	get subTable(): WpdTableSubTableFn< T > | null {
+		return this._subTable;
+	}
+	set subTable( fn: WpdTableSubTableFn< T > | null | undefined ) {
+		this._subTable = typeof fn === 'function' ? fn : null;
+		this._expanded.clear();
+		this._schedulePaint();
+	}
+
+	/** Read or replace the expansion set (row indices that are open). */
+	get expanded(): ReadonlySet< number > {
+		return new Set( this._expanded );
+	}
+	set expanded( next: Iterable< number > | null | undefined ) {
+		this._expanded = new Set( next ?? [] );
+		this._schedulePaint();
+	}
+
+	// ------------------------------------------------------------------
+	// Programmatic methods
+	// ------------------------------------------------------------------
+
+	/** Open a row's sub-table by index. No-op if the index is out of range. */
+	expand( index: number ): void {
+		if ( index < 0 || index >= this._data.length ) {
+			return;
+		}
+		if ( this._expanded.has( index ) ) {
+			return;
+		}
+		this._expanded.add( index );
+		this.emit( 'wpd-table-expand-change', {
+			row: this._data[ index ],
+			index,
+			expanded: true,
+		} );
+		this._schedulePaint();
+	}
+
+	/** Close a row's sub-table by index. No-op if it wasn't open. */
+	collapse( index: number ): void {
+		if ( ! this._expanded.has( index ) ) {
+			return;
+		}
+		this._expanded.delete( index );
+		this.emit( 'wpd-table-expand-change', {
+			row: this._data[ index ],
+			index,
+			expanded: false,
+		} );
+		this._schedulePaint();
+	}
+
+	/** Open every row that has children. */
+	expandAll(): void {
+		if ( ! this._subTable ) {
+			return;
+		}
+		let changed = false;
+		for ( let i = 0; i < this._data.length; i++ ) {
+			if ( ! this._subTable( this._data[ i ], i ) ) {
+				continue;
+			}
+			if ( ! this._expanded.has( i ) ) {
+				this._expanded.add( i );
+				changed = true;
+			}
+		}
+		if ( changed ) {
+			this._schedulePaint();
+		}
+	}
+
+	/** Close every open row. */
+	collapseAll(): void {
+		if ( this._expanded.size === 0 ) {
+			return;
+		}
+		this._expanded.clear();
+		this._schedulePaint();
+	}
+
+	isExpanded( index: number ): boolean {
+		return this._expanded.has( index );
+	}
+
+	/** Drop every active filter and emit `wpd-table-filter-change`. */
+	clearFilters(): void {
+		if ( Object.keys( this._filters ).length === 0 ) {
+			return;
+		}
+		this._filters = {};
+		this.emit( 'wpd-table-filter-change', { filters: {} } );
+		this._schedulePaint();
+	}
+
+	/** Drop the active sort and emit `wpd-table-sort-change`. */
+	clearSort(): void {
+		if ( this._sort === null ) {
+			return;
+		}
+		this._sort = null;
+		this.emit( 'wpd-table-sort-change', { sort: null } );
+		this._schedulePaint();
+	}
+
+	/** Add a row id to the selection. Emits `wpd-table-selection-change`. */
+	select( id: WpdTableRowId ): void {
+		if ( this._selection.has( id ) ) {
+			return;
+		}
+		const mode = this._readSelectable();
+		if ( mode === 'single' ) {
+			this._selection.clear();
+		}
+		this._selection.add( id );
+		this._emitSelectionChange();
+		this._schedulePaint();
+	}
+
+	/** Remove a row id from the selection. */
+	deselect( id: WpdTableRowId ): void {
+		if ( ! this._selection.delete( id ) ) {
+			return;
+		}
+		this._emitSelectionChange();
+		this._schedulePaint();
+	}
+
+	/** Select every row currently in `data` (multi-mode only). */
+	selectAll(): void {
+		if ( this._readSelectable() !== 'multi' ) {
+			return;
+		}
+		this._data.forEach( ( row, i ) =>
+			this._selection.add( this._getRowId( row, i ) ),
+		);
+		this._emitSelectionChange();
+		this._schedulePaint();
+	}
+
+	/** Empty the selection. */
+	clearSelection(): void {
+		if ( this._selection.size === 0 ) {
+			return;
+		}
+		this._selection.clear();
+		this._emitSelectionChange();
+		this._schedulePaint();
+	}
+
+	/** Scroll the (filtered) row at `index` into view inside the table's scroll container. */
+	scrollToRow( index: number ): void {
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return;
+		}
+		const rows = root.querySelectorAll< HTMLElement >(
+			'tbody tr:not(.subtable):not(.empty):not(.skeleton)',
+		);
+		const row = rows[ index ];
+		if ( row ) {
+			row.scrollIntoView( { block: 'nearest', inline: 'nearest' } );
+		}
+	}
+
+	connectedCallback(): void {
+		super.connectedCallback();
+		this._schedulePaint();
+	}
+
+	disconnectedCallback(): void {
+		this._resizeObserver?.disconnect();
+		this._resizeObserver = null;
+		if ( this._stickyRafHandle !== null && typeof cancelAnimationFrame !== 'undefined' ) {
+			cancelAnimationFrame( this._stickyRafHandle );
+			this._stickyRafHandle = null;
+		}
+	}
+
+	/**
+	 * Force a sticky-offsets recompute. Public escape hatch for the
+	 * rare case where layout settles after every internal hook has
+	 * fired — e.g. an out-of-band font swap or a JS-driven width
+	 * change on an ancestor that doesn't bubble through ResizeObserver.
+	 *
+	 * Usually you don't need this: the component schedules recomputes
+	 * on a microtask + animation frame after every paint, and a
+	 * ResizeObserver on the inner scroll element catches geometry
+	 * changes thereafter. Reach for `recomputeLayout()` only if you've
+	 * confirmed that all of those pathways missed your case.
+	 */
+	recomputeLayout(): void {
+		this._applyStickyOffsets();
+		this._measureHeaderHeight();
+	}
+
+	// ------------------------------------------------------------------
+	// Skeleton + paint pipeline
+	// ------------------------------------------------------------------
+
+	protected render(): TemplateResult {
+		return html`
+			<div class="scroll" part="scroll">
+				<table part="table">
+					<colgroup></colgroup>
+					<thead></thead>
+					<tbody></tbody>
+				</table>
+			</div>
+		`;
+	}
+
+	protected requestUpdate(): void {
+		super.requestUpdate();
+		this._schedulePaint();
+	}
+
+	private _schedulePaint(): void {
+		if ( this._paintScheduled || ! this.isConnected ) {
+			return;
+		}
+		this._paintScheduled = true;
+		queueMicrotask( () => {
+			this._paintScheduled = false;
+			if ( ! this.isConnected ) {
+				return;
+			}
+			this._paint();
+		} );
+	}
+
+	private _paint(): void {
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return;
+		}
+		if ( ! root.querySelector( 'tbody' ) ) {
+			renderTemplate( this.render(), root );
+		}
+
+		const colgroup = root.querySelector( 'colgroup' );
+		const thead = root.querySelector( 'thead' );
+		const tbody = root.querySelector( 'tbody' );
+		if ( ! colgroup || ! thead || ! tbody ) {
+			return;
+		}
+
+		const cols = this._effectiveColumns();
+		const stickyN = this._readStickyColumns();
+
+		this._paintColgroup( colgroup, cols );
+		this._paintHead( thead, cols, stickyN );
+		this._paintBody( tbody, cols, stickyN );
+
+		// Synchronous pass — fixes the common case where layout is
+		// already settled at paint time. The microtask + rAF passes
+		// scheduled below catch the cases where it isn't (mid-
+		// transition mounts, font swaps, async style applies).
+		this._applyStickyOffsets();
+		this._measureHeaderHeight();
+		this._scheduleStickyOffsets();
+		this._maybeWarnStickyHeader();
+		this._maybeWarnLoadingDesync( tbody );
+		this._ensureResizeObserver();
+	}
+
+	private _loadingDesyncWarned = false;
+	/**
+	 * Diagnostic for the "I set `loading` but the skeleton never
+	 * appeared" footgun. If we get here with the attribute on but no
+	 * `.skeleton` rows in `tbody`, something between attribute set and
+	 * paint went off the rails — historically this happened when the
+	 * base `Component.attributeChangedCallback` called `_scheduleRender`
+	 * directly, bypassing our `requestUpdate` override. Same pattern as
+	 * the sticky-columns 0px tripwire: should never fire, but if it
+	 * does, names the bug instead of leaving the dev guessing.
+	 */
+	private _maybeWarnLoadingDesync( tbody: Element ): void {
+		if ( this._loadingDesyncWarned ) {
+			return;
+		}
+		if ( ! this.hasAttribute( 'loading' ) ) {
+			return;
+		}
+		if ( tbody.querySelector( 'tr.skeleton' ) ) {
+			return;
+		}
+		this._loadingDesyncWarned = true;
+		// eslint-disable-next-line no-console
+		console.warn(
+			'[wpd-table] `loading` attribute is set but no skeleton rows ' +
+				'rendered. Either attributeChangedCallback didn\'t route through ' +
+				'requestUpdate (framework regression), or `loading` was set after ' +
+				'the most recent paint and no follow-up trigger ran. Toggling ' +
+				'`data` will force a paint as a workaround.',
+		);
+	}
+
+	/**
+	 * Belt-and-braces sticky-offset scheduling.
+	 *
+	 *   - Microtask: cheap, fires after the current task drains. Fixes
+	 *     mounts where the synchronous read in `_paint` happened before
+	 *     a sibling style applied.
+	 *   - rAF: fires before the next paint. Catches "layout settles
+	 *     after a queued style mutation" races — the most common cause
+	 *     of "col 1 ended up at inset-inline-start: 0px".
+	 *
+	 * Both reduce to a no-op when nothing changed. The cost is two
+	 * extra DOM reads per paint; the win is the bug class disappears.
+	 */
+	private _scheduleStickyOffsets(): void {
+		if ( ! this._stickyMicroScheduled ) {
+			this._stickyMicroScheduled = true;
+			queueMicrotask( () => {
+				this._stickyMicroScheduled = false;
+				if ( this.isConnected ) {
+					this._applyStickyOffsets();
+				}
+			} );
+		}
+		if (
+			this._stickyRafHandle === null &&
+			typeof requestAnimationFrame !== 'undefined'
+		) {
+			this._stickyRafHandle = requestAnimationFrame( () => {
+				this._stickyRafHandle = null;
+				if ( this.isConnected ) {
+					this._applyStickyOffsets();
+					this._measureHeaderHeight();
+				}
+			} );
+		}
+	}
+
+	/**
+	 * Wire a `ResizeObserver` on the inner `.scroll` element (NOT the
+	 * host). Why: the host's outer width is often pinned by its parent
+	 * panel — a vertical scrollbar appearing inside the table changes
+	 * the inner scroll-area width by ~15px without changing the host
+	 * size. Observing the host would miss that reflow and leave sticky
+	 * offsets stale.
+	 *
+	 * Idempotent — runs once after the first paint produces a real
+	 * `.scroll` element. Disconnect happens in `disconnectedCallback`.
+	 */
+	private _ensureResizeObserver(): void {
+		if ( this._resizeObserver ) {
+			return;
+		}
+		if ( typeof ResizeObserver === 'undefined' ) {
+			return;
+		}
+		const scroll = this.shadowRoot?.querySelector(
+			'.scroll',
+		) as HTMLElement | null;
+		if ( ! scroll ) {
+			return;
+		}
+		this._resizeObserver = new ResizeObserver( () => {
+			if ( ! this.isConnected ) {
+				return;
+			}
+			this._applyStickyOffsets();
+			this._measureHeaderHeight();
+			// A previously-zero scroll container that just became
+			// visible may now actually overflow — re-arm the warning
+			// so users get the heads-up the first time scroll context
+			// appears without a max-height.
+			this._stickyHeaderWarned = false;
+			this._maybeWarnStickyHeader();
+		} );
+		this._resizeObserver.observe( scroll );
+		// Also observe the host so panel-driven width changes (parent
+		// flex reflow, container query crossing) fire the callback.
+		// Multiple observe() calls on the same RO are allowed.
+		this._resizeObserver.observe( this );
+	}
+
+	private _paintColgroup(
+		colgroup: Element,
+		cols: WpdTableColumn< T >[],
+	): void {
+		const out: HTMLElement[] = [];
+		for ( const c of cols ) {
+			const col = document.createElement( 'col' );
+			if ( c.width ) {
+				col.style.width = c.width;
+			}
+			out.push( col );
+		}
+		colgroup.replaceChildren( ...out );
+	}
+
+	private _paintHead(
+		thead: Element,
+		cols: WpdTableColumn< T >[],
+		stickyN: number,
+	): void {
+		thead.replaceChildren();
+
+		const headerRow = document.createElement( 'tr' );
+		headerRow.setAttribute( 'part', 'header-row' );
+		for ( let i = 0; i < cols.length; i++ ) {
+			headerRow.appendChild( this._buildHeaderCell( cols[ i ], i, stickyN ) );
+		}
+		thead.appendChild( headerRow );
+
+		const hasFilter = cols.some( ( c ) => c.filter );
+		if ( hasFilter ) {
+			const filterRow = document.createElement( 'tr' );
+			filterRow.classList.add( 'filter-row' );
+			filterRow.setAttribute( 'part', 'filter-row' );
+			for ( let i = 0; i < cols.length; i++ ) {
+				filterRow.appendChild( this._buildFilterCell( cols[ i ], i, stickyN ) );
+			}
+			thead.appendChild( filterRow );
+		}
+	}
+
+	private _buildHeaderCell(
+		col: WpdTableColumn< T >,
+		index: number,
+		stickyN: number,
+	): HTMLTableCellElement {
+		const th = document.createElement( 'th' );
+		th.setAttribute( 'scope', 'col' );
+		th.dataset.key = col.key;
+		this._applyCellClasses( th, col, index, stickyN );
+
+		if ( col.key === SELECT_KEY ) {
+			const mode = this._readSelectable();
+			if ( mode === 'multi' ) {
+				const cb = document.createElement( 'input' );
+				cb.type = 'checkbox';
+				cb.className = 'select-all-checkbox';
+				cb.setAttribute( 'data-noclick', '' );
+				cb.setAttribute( 'aria-label', 'Select all rows' );
+				const total = this._data.length;
+				const selectedCount = this._countSelectedInData();
+				cb.checked = total > 0 && selectedCount === total;
+				cb.indeterminate = selectedCount > 0 && selectedCount < total;
+				cb.addEventListener( 'change', () => {
+					if ( cb.checked ) {
+						this.selectAll();
+					} else {
+						this.clearSelection();
+					}
+				} );
+				th.appendChild( cb );
+			}
+			return th;
+		}
+
+		th.textContent =
+			col.label ?? ( col.key === EXPANDER_KEY ? '' : col.key );
+
+		if ( col.sortable ) {
+			th.classList.add( 'is-sortable' );
+			const isActive = this._sort?.key === col.key;
+			const indicator = document.createElement( 'span' );
+			indicator.className = 'sort-indicator';
+			let arrow = '';
+			if ( isActive ) {
+				arrow = this._sort!.direction === 'asc' ? ' ▲' : ' ▼';
+			}
+			indicator.textContent = arrow;
+			th.appendChild( indicator );
+			if ( isActive ) {
+				th.classList.add(
+					this._sort!.direction === 'asc' ? 'sort-asc' : 'sort-desc',
+				);
+			}
+			th.addEventListener( 'click', () => this._cycleSort( col.key ) );
+		}
+
+		return th;
+	}
+
+	private _buildFilterCell(
+		col: WpdTableColumn< T >,
+		index: number,
+		stickyN: number,
+	): HTMLTableCellElement {
+		const cached = this._filterCache.get( col.key );
+		let desiredKind: FilterInputCache[ 'kind' ];
+		if (
+			! col.filter ||
+			col.key === EXPANDER_KEY ||
+			col.key === SELECT_KEY
+		) {
+			desiredKind = 'none';
+		} else if ( col.filter === 'select' ) {
+			desiredKind = 'select';
+		} else {
+			desiredKind = 'text';
+		}
+
+		if ( cached && cached.kind === desiredKind ) {
+			cached.th.className = '';
+			this._applyCellClasses( cached.th, col, index, stickyN );
+			if ( desiredKind === 'select' ) {
+				const select = cached.control as HTMLSelectElement;
+				const opts = this._uniqueValues( col.key );
+				const optsKey = opts.join( '' );
+				if ( optsKey !== cached.optionsKey ) {
+					this._populateSelect( select, opts, this._filters[ col.key ] ?? '' );
+					cached.optionsKey = optsKey;
+				} else {
+					select.value = this._filters[ col.key ] ?? '';
+				}
+			} else if ( desiredKind === 'text' ) {
+				const input = cached.control as HTMLInputElement;
+				const want = this._filters[ col.key ] ?? '';
+				if ( input.value !== want && input.ownerDocument.activeElement !== input ) {
+					input.value = want;
+				}
+			}
+			return cached.th;
+		}
+
+		const th = document.createElement( 'th' );
+		this._applyCellClasses( th, col, index, stickyN );
+
+		if ( desiredKind === 'none' ) {
+			this._filterCache.set( col.key, {
+				th,
+				control: document.createElement( 'input' ),
+				optionsKey: '',
+				kind: 'none',
+			} );
+			return th;
+		}
+
+		let control: HTMLInputElement | HTMLSelectElement;
+		let optionsKey = '';
+		if ( desiredKind === 'select' ) {
+			const select = document.createElement( 'select' );
+			select.classList.add( 'filter-select' );
+			select.setAttribute( 'data-noclick', '' );
+			select.setAttribute(
+				'aria-label',
+				`Filter ${ col.label ?? col.key }`,
+			);
+			const opts = this._uniqueValues( col.key );
+			this._populateSelect( select, opts, this._filters[ col.key ] ?? '' );
+			optionsKey = opts.join( '' );
+			select.addEventListener( 'change', () => {
+				this._onFilterChange( col.key, select.value );
+			} );
+			control = select;
+		} else {
+			const input = document.createElement( 'input' );
+			input.type = 'search';
+			input.classList.add( 'filter-input' );
+			input.setAttribute( 'data-noclick', '' );
+			input.setAttribute( 'placeholder', 'Filter…' );
+			input.setAttribute( 'aria-label', `Filter ${ col.label ?? col.key }` );
+			input.value = this._filters[ col.key ] ?? '';
+			input.addEventListener( 'input', () => {
+				this._onFilterChange( col.key, input.value );
+			} );
+			control = input;
+		}
+		th.appendChild( control );
+		this._filterCache.set( col.key, {
+			th,
+			control,
+			optionsKey,
+			kind: desiredKind,
+		} );
+		return th;
+	}
+
+	private _populateSelect(
+		select: HTMLSelectElement,
+		options: string[],
+		current: string,
+	): void {
+		select.replaceChildren();
+		const all = document.createElement( 'option' );
+		all.value = '';
+		all.textContent = 'All';
+		select.appendChild( all );
+		for ( const v of options ) {
+			const opt = document.createElement( 'option' );
+			opt.value = v;
+			opt.textContent = v;
+			if ( v === current ) {
+				opt.selected = true;
+			}
+			select.appendChild( opt );
+		}
+		select.value = current;
+	}
+
+	// ------------------------------------------------------------------
+	// Body
+	// ------------------------------------------------------------------
+
+	private _paintBody(
+		tbody: Element,
+		cols: WpdTableColumn< T >[],
+		stickyN: number,
+	): void {
+		tbody.replaceChildren();
+
+		if ( this.hasAttribute( 'loading' ) ) {
+			const count = this._readLoadingRows();
+			for ( let i = 0; i < count; i++ ) {
+				tbody.appendChild( this._buildSkeletonRow( cols, i ) );
+			}
+			return;
+		}
+
+		const filtered = this._sortedRows( this._filteredRows() );
+		if ( filtered.length === 0 ) {
+			tbody.appendChild( this._buildEmptyRow( cols.length ) );
+			return;
+		}
+		for ( const { row, index } of filtered ) {
+			tbody.appendChild( this._buildBodyRow( row, index, cols, stickyN ) );
+			if ( this._expanded.has( index ) && this._subTable ) {
+				const sub = this._subTable( row, index );
+				if ( sub ) {
+					tbody.appendChild( this._buildSubTableRow( sub, cols.length ) );
+				}
+			}
+		}
+	}
+
+	private _buildEmptyRow( colspan: number ): HTMLTableRowElement {
+		const tr = document.createElement( 'tr' );
+		tr.classList.add( 'empty' );
+		const td = document.createElement( 'td' );
+		td.colSpan = colspan;
+		// `<slot name="empty">` projects light-DOM content (a CTA, an
+		// illustration); when nothing is slotted, the slot's fallback
+		// is the `empty` attribute text — so we get rich-or-plain
+		// behavior from a single mount path.
+		const slot = document.createElement( 'slot' );
+		slot.name = 'empty';
+		slot.textContent = this.getAttribute( 'empty' ) || 'No data';
+		td.appendChild( slot );
+		tr.appendChild( td );
+		return tr;
+	}
+
+	private _buildSkeletonRow(
+		cols: WpdTableColumn< T >[],
+		seed: number,
+	): HTMLTableRowElement {
+		const tr = document.createElement( 'tr' );
+		tr.classList.add( 'skeleton' );
+		tr.setAttribute( 'aria-hidden', 'true' );
+		for ( const _c of cols ) {
+			const td = document.createElement( 'td' );
+			const bar = document.createElement( 'span' );
+			bar.className = 'skeleton-bar';
+			// Slight per-cell width variance so the skeleton doesn't
+			// look mechanically uniform.
+			const widthPct = 50 + ( ( seed * 7 + tr.children.length * 13 ) % 40 );
+			bar.style.width = `${ widthPct }%`;
+			td.appendChild( bar );
+			tr.appendChild( td );
+		}
+		return tr;
+	}
+
+	private _buildBodyRow(
+		row: T,
+		rowIndex: number,
+		cols: WpdTableColumn< T >[],
+		stickyN: number,
+	): HTMLTableRowElement {
+		const tr = document.createElement( 'tr' );
+		tr.setAttribute( 'part', 'row' );
+		tr.dataset.rowIndex = String( rowIndex );
+		const id = this._getRowId( row, rowIndex );
+		if ( this._selection.has( id ) ) {
+			tr.classList.add( 'is-selected' );
+		}
+		tr.addEventListener( 'click', ( e: Event ) => {
+			this._onRowClick( row, rowIndex, e );
+		} );
+		for ( let i = 0; i < cols.length; i++ ) {
+			tr.appendChild(
+				this._buildBodyCell( cols[ i ], i, row, rowIndex, stickyN ),
+			);
+		}
+		return tr;
+	}
+
+	private _buildBodyCell(
+		col: WpdTableColumn< T >,
+		colIndex: number,
+		row: T,
+		rowIndex: number,
+		stickyN: number,
+	): HTMLTableCellElement {
+		const td = document.createElement( 'td' );
+		this._applyCellClasses( td, col, colIndex, stickyN );
+
+		if ( col.key === SELECT_KEY ) {
+			const id = this._getRowId( row, rowIndex );
+			const cb = document.createElement( 'input' );
+			cb.type = 'checkbox';
+			cb.className = 'select-row-checkbox';
+			cb.setAttribute( 'data-noclick', '' );
+			cb.setAttribute( 'aria-label', 'Select row' );
+			cb.checked = this._selection.has( id );
+			cb.addEventListener( 'change', () => {
+				if ( cb.checked ) {
+					this.select( id );
+				} else {
+					this.deselect( id );
+				}
+			} );
+			td.appendChild( cb );
+			return td;
+		}
+
+		if ( col.key === EXPANDER_KEY ) {
+			const hasChildren = this._subTable
+				? !! this._subTable( row, rowIndex )
+				: false;
+			if ( ! hasChildren ) {
+				return td;
+			}
+			const isOpen = this._expanded.has( rowIndex );
+			const btn = document.createElement( 'button' );
+			btn.type = 'button';
+			btn.className = 'expander';
+			btn.setAttribute( 'data-noclick', '' );
+			btn.setAttribute( 'aria-expanded', isOpen ? 'true' : 'false' );
+			btn.setAttribute(
+				'aria-label',
+				isOpen ? 'Collapse row' : 'Expand row',
+			);
+			btn.textContent = isOpen ? '▾' : '▸';
+			btn.addEventListener( 'click', ( e: Event ) => {
+				this._toggleRow( rowIndex, row, e );
+			} );
+			td.appendChild( btn );
+			return td;
+		}
+
+		const value = ( row as Record< string, unknown > )[ col.key ];
+		if ( col.render ) {
+			const out = col.render( value, row, rowIndex );
+			this._mountCellContent( td, out );
+		} else if ( value !== null && value !== undefined ) {
+			td.textContent = String( value );
+		}
+		return td;
+	}
+
+	private _buildSubTableRow(
+		sub: Exclude< WpdTableSubTableResult, null | undefined >,
+		colspan: number,
+	): HTMLTableRowElement {
+		const tr = document.createElement( 'tr' );
+		tr.classList.add( 'subtable' );
+		tr.setAttribute( 'part', 'subtable-row' );
+		const td = document.createElement( 'td' );
+		td.colSpan = colspan;
+		const inner = document.createElement( 'div' );
+		inner.classList.add( 'subtable-inner' );
+
+		if ( sub instanceof Node ) {
+			inner.appendChild( sub );
+		} else if ( isTemplateResult( sub ) ) {
+			renderTemplate( sub, inner );
+		} else {
+			const nested = document.createElement( 'wpd-table' ) as WpdTable;
+			nested.columns = sub.columns;
+			nested.data = sub.data;
+			if ( sub.subTable ) {
+				nested.subTable = sub.subTable;
+			}
+			inner.appendChild( nested );
+		}
+
+		td.appendChild( inner );
+		tr.appendChild( td );
+		return tr;
+	}
+
+	private _mountCellContent(
+		td: HTMLElement,
+		out: string | Node | TemplateResult,
+	): void {
+		if ( typeof out === 'string' ) {
+			td.textContent = out;
+			return;
+		}
+		if ( out instanceof Node ) {
+			td.appendChild( out );
+			return;
+		}
+		if ( isTemplateResult( out ) ) {
+			renderTemplate( out, td );
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Behavior
+	// ------------------------------------------------------------------
+
+	private _onFilterChange( key: string, value: string ): void {
+		if ( value === '' ) {
+			delete this._filters[ key ];
+		} else {
+			this._filters[ key ] = value;
+		}
+		this.emit( 'wpd-table-filter-change', { filters: { ...this._filters } } );
+		// Re-paint body only — filter inputs themselves stay mounted
+		// (preserving focus + caret).
+		const root = this.shadowRoot;
+		const tbody = root?.querySelector( 'tbody' );
+		if ( tbody ) {
+			const cols = this._effectiveColumns();
+			const stickyN = this._readStickyColumns();
+			this._paintBody( tbody, cols, stickyN );
+			this._applyStickyOffsets();
+		}
+	}
+
+	private _onRowClick( row: T, index: number, e: Event ): void {
+		const path = ( e as Event & { composedPath?: () => EventTarget[] } ).composedPath?.() ?? [];
+		for ( const node of path ) {
+			if ( node instanceof Element && node.hasAttribute( 'data-noclick' ) ) {
+				return;
+			}
+			if ( node === this ) {
+				break;
+			}
+		}
+		this.emit( 'wpd-table-row-click', { row, index, originalEvent: e } );
+	}
+
+	private _toggleRow( index: number, row: T, e: Event ): void {
+		e.stopPropagation();
+		const isOpen = this._expanded.has( index );
+		if ( isOpen ) {
+			this._expanded.delete( index );
+		} else {
+			this._expanded.add( index );
+		}
+		this.emit( 'wpd-table-expand-change', {
+			row,
+			index,
+			expanded: ! isOpen,
+		} );
+		this._schedulePaint();
+	}
+
+	private _cycleSort( key: string ): void {
+		if ( ! this._sort || this._sort.key !== key ) {
+			this._sort = { key, direction: 'asc' };
+		} else if ( this._sort.direction === 'asc' ) {
+			this._sort = { key, direction: 'desc' };
+		} else {
+			this._sort = null;
+		}
+		this.emit( 'wpd-table-sort-change', {
+			sort: this._sort ? { ...this._sort } : null,
+		} );
+		this._schedulePaint();
+	}
+
+	private _emitSelectionChange(): void {
+		this.emit( 'wpd-table-selection-change', {
+			selection: Array.from( this._selection ),
+			rows: this.selectedRows,
+		} );
+	}
+
+	// ------------------------------------------------------------------
+	// Filtering + sorting
+	// ------------------------------------------------------------------
+
+	private _filteredRows(): Array< { row: T; index: number } > {
+		const out: Array< { row: T; index: number } > = [];
+		const active = Object.keys( this._filters ).filter(
+			( k ) => this._filters[ k ] !== '',
+		);
+		for ( let i = 0; i < this._data.length; i++ ) {
+			const row = this._data[ i ];
+			let pass = true;
+			for ( const key of active ) {
+				const col = this._columns.find( ( c ) => c.key === key );
+				const filter = this._filters[ key ] ?? '';
+				const cell = ( row as Record< string, unknown > )[ key ];
+				const cellStr = cell === null || cell === undefined ? '' : String( cell );
+				if ( col?.filter === 'select' ) {
+					if ( cellStr !== filter ) {
+						pass = false;
+						break;
+					}
+				} else if ( ! cellStr.toLowerCase().includes( filter.toLowerCase() ) ) {
+					pass = false;
+					break;
+				}
+			}
+			if ( pass ) {
+				out.push( { row, index: i } );
+			}
+		}
+		return out;
+	}
+
+	private _sortedRows(
+		rows: Array< { row: T; index: number } >,
+	): Array< { row: T; index: number } > {
+		if ( ! this._sort ) {
+			return rows;
+		}
+		const col = this._columns.find( ( c ) => c.key === this._sort!.key );
+		if ( ! col ) {
+			return rows;
+		}
+		const dir = this._sort.direction === 'desc' ? -1 : 1;
+		const out = rows.slice();
+		out.sort( ( a, b ) => {
+			const av = col.sortValue
+				? col.sortValue( a.row, ( a.row as Record< string, unknown > )[ col.key ] )
+				: ( a.row as Record< string, unknown > )[ col.key ];
+			const bv = col.sortValue
+				? col.sortValue( b.row, ( b.row as Record< string, unknown > )[ col.key ] )
+				: ( b.row as Record< string, unknown > )[ col.key ];
+			return compareValues( av, bv ) * dir;
+		} );
+		return out;
+	}
+
+	private _uniqueValues( key: string ): string[] {
+		const seen = new Set< string >();
+		for ( const row of this._data ) {
+			const v = ( row as Record< string, unknown > )[ key ];
+			if ( v === null || v === undefined ) {
+				continue;
+			}
+			seen.add( String( v ) );
+		}
+		return Array.from( seen ).sort();
+	}
+
+	private _countSelectedInData(): number {
+		let n = 0;
+		this._data.forEach( ( row, i ) => {
+			if ( this._selection.has( this._getRowId( row, i ) ) ) {
+				n++;
+			}
+		} );
+		return n;
+	}
+
+	// ------------------------------------------------------------------
+	// Sticky columns + attribute reads
+	// ------------------------------------------------------------------
+
+	private _readStickyColumns(): number {
+		const raw = parseInt( this.getAttribute( 'sticky-columns' ) || '0', 10 );
+		return Number.isFinite( raw ) && raw > 0 ? raw : 0;
+	}
+
+	private _readLoadingRows(): number {
+		const raw = parseInt( this.getAttribute( 'loading-rows' ) || '5', 10 );
+		return Number.isFinite( raw ) && raw > 0 ? Math.min( raw, 100 ) : 5;
+	}
+
+	private _readSelectable(): 'single' | 'multi' | null {
+		const v = this.getAttribute( 'selectable' );
+		if ( v === 'single' ) {
+			return 'single';
+		}
+		if ( v === 'multi' || v === '' ) {
+			return 'multi';
+		}
+		return null;
+	}
+
+	/**
+	 * Sticky-band membership. The first N columns get pinned, with two
+	 * per-column overrides: `column.sticky = true` opts in even outside
+	 * the band; `column.sticky = false` opts out within it.
+	 */
+	private _isStickyIndex(
+		index: number,
+		stickyN: number,
+		col: WpdTableColumn< T >,
+	): boolean {
+		if ( col.sticky === false ) {
+			return false;
+		}
+		if ( col.sticky === true ) {
+			return true;
+		}
+		return index < stickyN;
+	}
+
+	private _applyCellClasses(
+		cell: HTMLElement,
+		col: WpdTableColumn< T >,
+		index: number,
+		stickyN: number,
+	): void {
+		if ( col.key === EXPANDER_KEY ) {
+			cell.classList.add( 'col-expander' );
+		}
+		if ( col.key === SELECT_KEY ) {
+			cell.classList.add( 'col-select' );
+		}
+		if ( col.align === 'center' ) {
+			cell.classList.add( 'align-center' );
+		}
+		if ( col.align === 'end' ) {
+			cell.classList.add( 'align-end' );
+		}
+		const sticky = this._isStickyIndex( index, stickyN, col );
+		if ( sticky ) {
+			cell.classList.add( 'is-sticky' );
+			if ( index === stickyN - 1 ) {
+				cell.classList.add( 'is-sticky-edge' );
+			}
+		}
+	}
+
+	private _effectiveColumns(): WpdTableColumn< T >[] {
+		const out: WpdTableColumn< T >[] = [];
+		if ( this._readSelectable() ) {
+			out.push( {
+				key: SELECT_KEY,
+				label: '',
+				width: '36px',
+				align: 'center',
+			} );
+		}
+		if ( this._subTable ) {
+			out.push( {
+				key: EXPANDER_KEY,
+				label: '',
+				width: '32px',
+				align: 'center',
+			} );
+		}
+		out.push( ...this._columns );
+		return out;
+	}
+
+	/**
+	 * Walk the header row, sum the natural widths of the sticky cells,
+	 * then write cumulative `inset-inline-start` offsets onto every
+	 * row's matching cells.
+	 */
+	private _applyStickyOffsets(): void {
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return;
+		}
+		const headRow = root.querySelector( 'thead tr' );
+		if ( ! headRow ) {
+			return;
+		}
+		const ths = Array.from( headRow.children ) as HTMLElement[];
+		const offsets: number[] = [];
+		let acc = 0;
+		for ( let i = 0; i < ths.length; i++ ) {
+			offsets[ i ] = acc;
+			if ( ths[ i ].classList.contains( 'is-sticky' ) ) {
+				acc += ths[ i ].offsetWidth;
+			}
+		}
+		const rows = root.querySelectorAll(
+			'thead tr, tbody tr:not(.subtable):not(.empty):not(.skeleton)',
+		);
+		rows.forEach( ( r ) => {
+			const cells = Array.from( ( r as HTMLElement ).children ) as HTMLElement[];
+			for ( let i = 0; i < cells.length; i++ ) {
+				if ( cells[ i ].classList.contains( 'is-sticky' ) ) {
+					cells[ i ].style.insetInlineStart = `${ offsets[ i ] }px`;
+				}
+			}
+		} );
+
+		// Diagnostic: when sticky-columns >= 2, the second pinned cell
+		// MUST land at a non-zero offset (it's the cumulative width of
+		// the first). If we computed 0 and the host has a real width
+		// (so it's not just hidden), something measured pre-layout —
+		// usually a paint that happened while the panel was mid-
+		// transition. Tell the developer once, with the actual values,
+		// so they're not staring at DevTools wondering which side of
+		// the contract is broken.
+		this._maybeWarnStickyOffsetRace( ths, offsets );
+	}
+
+	private _maybeWarnStickyOffsetRace(
+		ths: HTMLElement[],
+		offsets: number[],
+	): void {
+		if ( this._stickyRaceWarned ) {
+			return;
+		}
+		const stickyN = this._readStickyColumns();
+		if ( stickyN < 2 ) {
+			return;
+		}
+		const lastIdx = Math.min( stickyN - 1, ths.length - 1 );
+		if ( lastIdx <= 0 ) {
+			return;
+		}
+		if ( offsets[ lastIdx ] !== 0 ) {
+			return;
+		}
+		// If the host has zero width (display: none, jsdom, hidden tab
+		// before first show), it's not a race — it's "haven't mounted
+		// visibly yet". The ResizeObserver will fire when it does, and
+		// we'll recompute correctly. Don't burn a warning on that.
+		if ( this.offsetWidth === 0 ) {
+			return;
+		}
+		this._stickyRaceWarned = true;
+		const w0 = ths[ 0 ]?.offsetWidth ?? 0;
+		// eslint-disable-next-line no-console
+		console.warn(
+			`[wpd-table] sticky-columns: column ${ lastIdx } resolved to ` +
+				`inset-inline-start: 0px while the host is visible. ` +
+				`ths[0].offsetWidth was ${ w0 }px at measurement time. ` +
+				'Likely a layout race — call recomputeLayout() after the ' +
+				'panel finishes its mount/transition, or wrap the assignment ' +
+				'of `data` in a requestAnimationFrame.',
+		);
+	}
+
+	private _measureHeaderHeight(): void {
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return;
+		}
+		const headRow = root.querySelector( 'thead tr' ) as HTMLElement | null;
+		if ( ! headRow ) {
+			return;
+		}
+		const h = headRow.offsetHeight;
+		if ( h > 0 ) {
+			this.style.setProperty( '--wpd-table-header-height', `${ h }px` );
+		}
+	}
+
+	/**
+	 * Once-per-element warning for the most common sticky-header
+	 * mistake: forgetting to give the table a scroll container. Without
+	 * a max-height (or a scrolling ancestor), `position: sticky`
+	 * silently does nothing because there's no scrollport for it to
+	 * stick within.
+	 */
+	private _maybeWarnStickyHeader(): void {
+		if ( this._stickyHeaderWarned ) {
+			return;
+		}
+		if ( ! this.hasAttribute( 'sticky-header' ) ) {
+			return;
+		}
+		// Need enough rows to actually need scrolling; bail on
+		// loading / tiny tables to avoid a false positive on the first
+		// paint of an async data table.
+		if ( this.hasAttribute( 'loading' ) || this._data.length < 8 ) {
+			return;
+		}
+		const scroll = this.shadowRoot?.querySelector(
+			'.scroll',
+		) as HTMLElement | null;
+		if ( ! scroll ) {
+			return;
+		}
+		// If the inner content can fit without scrolling, sticky is
+		// inert. The offsetWidth check guards against zero-layout
+		// (jsdom, hidden) where every measurement is 0 and would false-
+		// positive every time.
+		if ( scroll.offsetWidth === 0 ) {
+			return;
+		}
+		if ( scroll.scrollHeight <= scroll.clientHeight + 1 ) {
+			this._stickyHeaderWarned = true;
+			// eslint-disable-next-line no-console
+			console.warn(
+				'[wpd-table] sticky-header is set but the table has no scroll container. ' +
+					'Set --wpd-table-max-height on the host (or wrap it in a scrolling parent) so the header has something to stick to.',
+			);
+		}
+	}
+}
+
+function isTemplateResult( v: unknown ): v is TemplateResult {
+	return !! v && ( v as { __wpdHtml?: boolean } ).__wpdHtml === true;
+}
+
+/**
+ * Sort comparator. Numbers compare numerically; everything else falls
+ * back to a locale-aware string compare. `null` / `undefined` sort
+ * before any concrete value so unsorted data lands at the top.
+ */
+function compareValues( a: unknown, b: unknown ): number {
+	if ( a === b ) {
+		return 0;
+	}
+	if ( a === null || a === undefined ) {
+		return -1;
+	}
+	if ( b === null || b === undefined ) {
+		return 1;
+	}
+	if ( typeof a === 'number' && typeof b === 'number' ) {
+		return a - b;
+	}
+	if ( a instanceof Date && b instanceof Date ) {
+		return a.getTime() - b.getTime();
+	}
+	const an = Number( a );
+	const bn = Number( b );
+	if ( Number.isFinite( an ) && Number.isFinite( bn ) ) {
+		return an - bn;
+	}
+	return String( a ).localeCompare( String( b ) );
+}
+
+defineComponent( 'wpd-table', WpdTable );

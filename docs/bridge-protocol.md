@@ -46,7 +46,23 @@ A single page that maps every layer of the cross-window connection bridge end-to
 
 ## Message types
 
-All bridge messages have a `type` starting with `wp-desktop-bridge-`. The parent shell drops anything else; the iframe-side bridge ignores anything else too. Both sides validate `event.origin` against `window.location.origin` (or the iframe URL's resolved origin for `iframeContent` synthesised iframes).
+Two protocol families flow over the same `postMessage` boundary:
+
+- **Window-self channel** (`wp-desktop-window-*`) — the unified [`Window.send/on`](./javascript-reference.md#windowsend-channel-payload---stable-since-055) API. The first thing most plugin code reaches for. Single channel, no handshake, scoped to one window's content.
+- **Connection bridge** (`wp-desktop-bridge-*`) — multi-connection peer-to-peer with handshakes, used by `wp.desktop.connect()` / `wp.desktop.iframe.requestConnection()`.
+
+Both sides validate `event.origin` against `window.location.origin` (or the iframe URL's resolved origin for `iframeContent` synthesised iframes); messages without a recognized prefix are dropped.
+
+### Window-self channel — `wp-desktop-window-*`
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `wp-desktop-window-send` | parent → iframe | `{ channel, payload }` | Posted by `Window.send( channel, payload )`. The iframe-side bridge fires every `wp.desktop.on( channel, cb )` subscriber. |
+| `wp-desktop-window-publish` | iframe → parent | `{ channel, payload }` | Posted by `wp.desktop.send( channel, payload )` inside the iframe. The parent forwards to every `Window.on( channel, cb )` subscriber for this window. |
+
+Native (non-iframe) windows skip postMessage entirely — `Window.send` and the render's `windowApi.send` reach the parent / native channel-bus registries directly. Plugin authors don't need to know the window's render strategy; the framework picks the right delivery path.
+
+### Connection bridge — `wp-desktop-bridge-*`
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
@@ -56,6 +72,8 @@ All bridge messages have a `type` starting with `wp-desktop-bridge-`. The parent
 | `wp-desktop-bridge-disconnect` | both ways | `{ connectionId }` | Tear the connection down. Idempotent. |
 | `wp-desktop-bridge-connection-request` | iframe → parent | `{ requestId, topics }` | `wp.desktop.iframe.requestConnection()`. Parent fires `HOOKS.IFRAME_CONNECTION_REQUEST` filter; default accept. |
 | `wp-desktop-bridge-connection-ack` | parent → iframe | `{ requestId, accepted, connectionId? \| reason? }` | Reply to a request — accepts hand back the new connection id, rejects supply a reason. |
+
+When the connection bridge targets a **native** window (since 0.5.5), no postMessages are exchanged — `connect()` opens synchronously and `conn.send/subscribe` route through the same in-process channel bus that powers `Window.send/on`. Same `onOpen` / `isOpen` / `disconnect` semantics, no observable difference to the caller.
 
 ## Lifecycle walkthrough — parent-initiated connection
 

@@ -317,7 +317,7 @@ export class OsSettings implements SettingsCtx {
 			rows.push( {
 				id: 'help',
 				order: 40,
-				tab: html`<wpd-tab value="help">${ __( 'Help' ) }</wpd-tab>`,
+				tab: html`<wpd-tab value="help">${ __( 'Components' ) }</wpd-tab>`,
 				panel: html`<wpd-tabpanel for="help">
 					<wpd-panel>${ buildHelpSection() }</wpd-panel>
 				</wpd-tabpanel>`,

@@ -749,3 +749,108 @@
 	font-size: 12px;
 	color: #996800;
 }
+
+/* ---------------------------------------------------------------
+ * Window-fit scrolling.
+ *
+ * Without this block the OS Settings panel grows past the native
+ * window's viewport and the whole body scrolls — fine for short tabs
+ * but actively wrong for the Components tab, where a 200px nav rail
+ * and a tall detail pane should each scroll inside their own column,
+ * not in lockstep down a giant single-column page.
+ *
+ * Strategy:
+ *   1. The native window body normally has overflow:auto. Override it
+ *      to `hidden` ONLY when the OS Settings root is mounted (via
+ *      :has()) so other native windows keep their default page-scroll.
+ *   2. Make the OS Settings root a flex column that fills the body.
+ *      The tab strip + footer hug the top/bottom; the active
+ *      tabpanel takes the remaining height.
+ *   3. Each tabpanel scrolls itself (overflow:auto) — replaces the
+ *      whole-body scroll, visually identical for the simple tabs
+ *      (Appearance, AI, Extended) but pins the reset footer.
+ *   4. The Components tab opts OUT of overflow:auto so its inner
+ *      grid (nav + detail) can scroll independently per pane.
+ *
+ * `:has()` is supported in every evergreen engine (Chrome 105+,
+ * Safari 15.4+, Firefox 121+); fine for an admin-context shell.
+ * --------------------------------------------------------------- */
+.wp-desktop-window__body--native:has( .wp-desktop-os-settings ) {
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.wp-desktop-os-settings {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* The tab strip + footer must NOT shrink when the active panel
+   wants more height. Marking them flex-shrink:0 also keeps them
+   pinned visually as the panel below scrolls. */
+.wp-desktop-os-settings > wpd-tabs,
+.wp-desktop-os-settings > .wp-desktop-os-settings__footer {
+	flex: 0 0 auto;
+}
+
+.wp-desktop-os-settings > wpd-tabpanel {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+}
+
+/* Components tab — split-pane layout. Don't scroll the whole panel;
+   let the inner grid distribute height to nav + detail, each with
+   their own overflow.
+ *
+ * The `:not([hidden])` guard is load-bearing: a bare
+ * `wpd-tabpanel[for='help'] { display: flex }` rule has specificity
+ * (0,0,2,1) which outranks the shadow-DOM `:host([hidden]) {
+ * display: none }` rule (specificity 0,0,1,0), so the panel would
+ * keep rendering when it should be hidden — bleeding the Components
+ * UI into every other tab. Pinning the rule to the visible state
+ * leaves the hidden state to the shadow-DOM default. */
+.wp-desktop-os-settings > wpd-tabpanel[ for='help' ]:not( [ hidden ] ) {
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+.wp-desktop-os-settings
+	> wpd-tabpanel[ for='help' ]:not( [ hidden ] )
+	> wpd-panel {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.wp-desktop-os-settings__help {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+/* The intro card (Component library description) shouldn't grow —
+   it's content-sized so the grid below gets the remaining height. */
+.wp-desktop-os-settings__help > wpd-section {
+	flex: 0 0 auto;
+}
+.wp-desktop-os-settings__help-layout {
+	flex: 1;
+	min-height: 0;
+}
+
+/* Each split pane is its own scroll container. min-height:0 unlocks
+   shrinking in a grid item (default is `auto` which equals content
+   height — would defeat the overflow). max-height:100% pins the
+   pane to the grid track. */
+.wp-desktop-os-settings__help-nav,
+.wp-desktop-os-settings__help-detail {
+	min-height: 0;
+	max-height: 100%;
+	overflow-y: auto;
+}

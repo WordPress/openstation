@@ -19,6 +19,20 @@ function desktop_mode_register_assets() {
 	$version = DESKTOP_MODE_VERSION;
 	$suffix  = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
+	// `filemtime`-stamped version for built bundles. The plugin-wide
+	// `DESKTOP_MODE_VERSION` is bumped per release, but the bundles
+	// iterate faster — without a per-file mtime stamp, two clients
+	// loading the same `?ver=…` URL can be served different bytes
+	// (whichever build was on disk at upload time). Stamping with the
+	// file's modification time guarantees the URL changes whenever the
+	// file does, so "is my fix deployed?" is answerable from the
+	// network tab. Falls back to `$version` when the file is missing
+	// (test envs that import this file before the build runs).
+	$built_version = static function ( $relative ) use ( $version ) {
+		$path = DESKTOP_MODE_DIR . $relative;
+		return file_exists( $path ) ? (string) filemtime( $path ) : $version;
+	};
+
 	// Styles.
 	wp_register_style(
 		'wp-desktop-variables',
@@ -65,6 +79,17 @@ function desktop_mode_register_assets() {
 		$version
 	);
 
+	// `filemtime` instead of the plugin-wide `$version` for the
+	// recycle-bin CSS — this file iterates faster than the bundle
+	// and we never want a stale CSS cache to mask a real fix.
+	$recycle_bin_css = DESKTOP_MODE_DIR . 'assets/css/recycle-bin.css';
+	wp_register_style(
+		'wp-desktop-recycle-bin',
+		DESKTOP_MODE_URL . 'assets/css/recycle-bin.css',
+		array( 'wp-desktop-variables', 'dashicons' ),
+		file_exists( $recycle_bin_css ) ? (string) filemtime( $recycle_bin_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action
@@ -77,8 +102,12 @@ function desktop_mode_register_assets() {
 	wp_register_script(
 		'wp-desktop',
 		DESKTOP_MODE_URL . 'assets/js/desktop' . $suffix . '.js',
-		array( 'wp-hooks', 'wp-i18n' ),
-		$version,
+		// `heartbeat` + `jquery` — the recycle-bin badge module
+		// (loaded as part of this bundle) opts into the WordPress
+		// Heartbeat API so the count tile / desktop-icon badge
+		// stays in sync even when the bin window is closed.
+		array( 'wp-hooks', 'wp-i18n', 'heartbeat', 'jquery' ),
+		$built_version( 'assets/js/desktop' . $suffix . '.js' ),
 		true
 	);
 
@@ -94,7 +123,7 @@ function desktop_mode_register_assets() {
 		'wp-desktop-iframe-bridge',
 		DESKTOP_MODE_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
 		array(),
-		$version,
+		$built_version( 'assets/js/iframe-bridge' . $suffix . '.js' ),
 		true
 	);
 
@@ -108,11 +137,34 @@ function desktop_mode_register_assets() {
 		'wp-desktop-code-editor',
 		DESKTOP_MODE_URL . 'assets/js/code-editor' . $suffix . '.js',
 		array( 'wp-i18n' ),
-		$version,
+		$built_version( 'assets/js/code-editor' . $suffix . '.js' ),
 		true
 	);
 	wp_set_script_translations(
 		'wp-desktop-code-editor',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `wp-desktop-recycle-bin` — small bundle for the Recycle Bin
+	// native window. Lazy-loaded by the native-window sync the first
+	// time the bin opens; registers a render callback on
+	// `window.wpDesktopNativeWindows['wpdm-recycle-bin']`.
+	$recycle_bin_js = DESKTOP_MODE_DIR . 'assets/js/recycle-bin' . $suffix . '.js';
+	wp_register_script(
+		'wp-desktop-recycle-bin',
+		DESKTOP_MODE_URL . 'assets/js/recycle-bin' . $suffix . '.js',
+		// `heartbeat` + `jquery` — the bin opts in to the WordPress
+		// Heartbeat API while its window is open as the catch-all
+		// real-time channel for deletes that don't render an admin
+		// footer (REST/AJAX/other tabs/WP-CLI). See
+		// `src/recycle-bin/realtime.ts` for the subscriber.
+		array( 'wp-i18n', 'heartbeat', 'jquery' ),
+		file_exists( $recycle_bin_js ) ? (string) filemtime( $recycle_bin_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'wp-desktop-recycle-bin',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);

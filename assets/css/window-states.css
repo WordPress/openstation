@@ -138,6 +138,42 @@
 }
 
 /*
+ * Shake animation — used by `Window.shake()` for nudge / attention-
+ * grab affordances. The window briefly jiggles horizontally while
+ * keeping its position. Composes via CSS variable so the inline
+ * `left`/`top` written by the window manager keeps wining; the
+ * shake is a translate ON TOP of that.
+ *
+ * Reduced-motion fallback: a static accent ring for the same
+ * duration so users with prefers-reduced-motion still see the
+ * affordance without movement.
+ */
+@keyframes wp-desktop-window-shake {
+	0%, 100% { transform: translateX( 0 ); }
+	8%       { transform: translateX( -10px ); }
+	18%      { transform: translateX( 9px ); }
+	28%      { transform: translateX( -8px ); }
+	38%      { transform: translateX( 7px ); }
+	48%      { transform: translateX( -5px ); }
+	60%      { transform: translateX( 4px ); }
+	72%      { transform: translateX( -3px ); }
+	84%      { transform: translateX( 2px ); }
+}
+
+.wp-desktop-window--shaking {
+	animation: wp-desktop-window-shake 0.6s cubic-bezier( 0.36, 0.07, 0.19, 0.97 ) both;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wp-desktop-window--shaking {
+		animation: none;
+		outline: 3px solid var( --wp-admin-theme-color, #2271b1 );
+		outline-offset: 2px;
+		transition: outline 0.6s ease;
+	}
+}
+
+/*
  * Minimized state — fade + scale down.
  * Uses opacity + pointer-events instead of display: none so the
  * CSS transition can animate the change. The window is invisible

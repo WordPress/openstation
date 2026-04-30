@@ -11,7 +11,8 @@
  * across reloads), so it gets its own tests.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { Dock, hashTitleToHue, type DockItem } from '../../src/dock';
+import { Dock, type DockItem } from '../../src/dock';
+import { hashTitleToHue } from '../../src/ui/util/hash-hue';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 // Minimal WindowManager stub. The icon resolver never consults the

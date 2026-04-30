@@ -367,10 +367,37 @@ export class WindowManager {
 		// with the far-desktop instance.
 		const existing = this.getByBaseIdOnActiveDesktop( baseId );
 		if ( existing ) {
+			// Capture `wasMinimized` BEFORE `restore()` mutates the
+			// state to 'normal'; otherwise the reopen event always
+			// reports `wasMinimized: false` for windows that just
+			// transitioned through restore.
+			const wasMinimized = existing.state === 'minimized';
 			this.focus( existing );
-			if ( existing.state === 'minimized' ) {
+			if ( wasMinimized ) {
 				existing.restore();
 			}
+			// Plugins (messages, code-editor, …) routinely call
+			// `wp.desktop.openWindow(id)` to "switch the window to
+			// this state" — selecting a conversation, opening a file,
+			// jumping to a tab. For NEW windows the render callback
+			// runs and the seeded state lands on first paint; for
+			// EXISTING windows there was no signal at all that an
+			// open was requested. Plugins were forced to subscribe to
+			// `wp-desktop-window-focused` and infer "open" from
+			// "focus", which double-fires on every alt-tab and never
+			// fires when the window is already focused. The reopen
+			// event is the unambiguous "open requested while already
+			// open" signal — fires exactly once per `open()` call on
+			// an existing instance.
+			const reopenedDetail = {
+				windowId: existing.id,
+				baseId,
+				wasMinimized,
+			};
+			document.dispatchEvent(
+				new CustomEvent( 'wp-desktop-window-reopened', { detail: reopenedDetail } ),
+			);
+			doAction( HOOKS.WINDOW_REOPENED, reopenedDetail );
 			return existing;
 		}
 
@@ -534,6 +561,14 @@ export class WindowManager {
 
 	/** Focus a window: bring it to top of z-stack. */
 	public focus( win: Window ): void {
+		// Capture the previously-focused window BEFORE the splice/push
+		// changes the stack — needed so we can fire `WINDOW_BLURRED`
+		// for it. No-op when this `focus()` is hitting the already-
+		// top window (alt-tab to self) since blur+focus on the same
+		// id is misleading.
+		const previouslyFocused =
+			this._stack.length > 0 ? this._stack[ this._stack.length - 1 ] : null;
+
 		// Remove from current position and push to top.
 		const idx = this._stack.indexOf( win );
 		if ( idx > -1 ) {
@@ -547,7 +582,25 @@ export class WindowManager {
 			w.setFocused( i === this._stack.length - 1 );
 		} );
 
-		// Dispatch custom event + action.
+		// Fire blur for the OLD top BEFORE focused for the new top so
+		// subscribers see a "lose then gain" ordering. No blur fires
+		// when the new focus IS the previous top (idempotent re-focus).
+		if (
+			previouslyFocused &&
+			previouslyFocused !== win &&
+			previouslyFocused.id !== win.id
+		) {
+			const blurredDetail = {
+				windowId: previouslyFocused.id,
+				focusedTo: win.id,
+			};
+			document.dispatchEvent(
+				new CustomEvent( 'wp-desktop-window-blurred', { detail: blurredDetail } ),
+			);
+			doAction( HOOKS.WINDOW_BLURRED, blurredDetail );
+		}
+
+		// Dispatch custom event + action for the newly-focused window.
 		const focusedDetail = { windowId: win.id };
 		document.dispatchEvent(
 			new CustomEvent( 'wp-desktop-window-focused', { detail: focusedDetail } ),
@@ -684,6 +737,39 @@ export class WindowManager {
 	/** Get the currently focused (topmost) window. */
 	public getFocused(): Window | undefined {
 		return this._stack.length > 0 ? this._stack[ this._stack.length - 1 ] : undefined;
+	}
+
+	/**
+	 * "Is the window with this id currently in front of the user?"
+	 *
+	 * Returns true when the window exists in the manager AND it
+	 * isn't minimized AND it's the currently focused (topmost)
+	 * window. False otherwise — including for unknown ids, closed
+	 * windows, minimized windows, or windows that exist but aren't
+	 * on top.
+	 *
+	 * The canonical query for plugins implementing the "show
+	 * something *only when the user can't already see my
+	 * window*" pattern (badge counts, attention pulses, sounds,
+	 * toasts). Plugins that previously hand-rolled
+	 * `getById(id) && state !== 'minimized' && focused` can
+	 * collapse to this.
+	 *
+	 * @since 0.5.5
+	 *
+	 * @param id Window id to query.
+	 * @return True when the user is actively looking at this window.
+	 */
+	public isActive( id: string ): boolean {
+		const win = this.getById( id );
+		if ( ! win ) {
+			return false;
+		}
+		if ( win.state === 'minimized' ) {
+			return false;
+		}
+		const focused = this.getFocused();
+		return !! focused && focused.id === id;
 	}
 
 	// ---- Virtual desktop delegations ----
