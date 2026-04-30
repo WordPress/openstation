@@ -222,24 +222,30 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	inset-inline-end: 16px;
 	display: grid;
 	/*
-	 * Anchoring all four insets gives the grid a definite width.
-	 * `repeat(auto-fill, 88px)` needs a definite width to compute the
-	 * column count — without one, the grid collapses to a single
-	 * column and tiles cascade off the bottom edge. With the four
-	 * insets pinned, columns wrap left-to-right, top-to-bottom across
-	 * the full desktop area.
+	 * Column-major flow: icons fill the first column top-to-bottom,
+	 * then start the next column. Matches the macOS / Finder
+	 * convention. `grid-auto-flow: column` plus `auto-fill` rows
+	 * (sized to the container height) yields exactly that layout.
+	 *
+	 * All four insets are pinned so the container has a definite
+	 * height — `repeat(auto-fill, 96px)` needs that to compute the
+	 * row count. 96px is one icon button (48px image + 6px gap +
+	 * up-to-two-line label + 8px vertical padding); a slightly
+	 * generous figure leaves room for descenders without clipping.
 	 */
-	grid-template-columns: repeat(auto-fill, 88px);
-	grid-auto-rows: max-content;
+	grid-auto-flow: column;
+	grid-template-rows: repeat(auto-fill, 96px);
+	grid-auto-columns: 88px;
 	align-content: start;
 	justify-content: start;
 	gap: 12px;
 	z-index: 1;
 	pointer-events: none;
 	/*
-	 * Spill protection: if a user ever pins more icons than fit, the
-	 * grid scrolls inside its bounds rather than punching past the
-	 * dock. Individual tiles re-enable pointer events so they stay
+	 * Spill protection: if a user ever pins more icons than fit
+	 * vertically, the grid scrolls horizontally so the unreachable
+	 * tiles can be reached without clipping the visible ones.
+	 * Individual tiles re-enable pointer events so they stay
 	 * clickable inside the scroll surface.
 	 */
 	overflow: auto;
