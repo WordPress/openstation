@@ -229,9 +229,16 @@ export function createLayoutDispatcher(
 			deps.renderIcons( serverIcons );
 			return;
 		}
+		// Spatial owns the wallpaper as the "core surface": only
+		// synthesized core menu icons render here. Plugin admin
+		// menus already live in the bottom dock; rendering plugin-
+		// registered desktop icons on top would duplicate every
+		// plugin that ships both a top-level menu and a desktop
+		// shortcut. Plugin authors who want a Spatial-mode wallpaper
+		// presence can hook a filter in a follow-up if it comes up.
 		const { core } = partition();
 		const synthesized = core.map( coreItemToIconEntry );
-		deps.renderIcons( [ ...serverIcons, ...synthesized ] );
+		deps.renderIcons( synthesized );
 	};
 
 	const tearDownDocks = (): void => {

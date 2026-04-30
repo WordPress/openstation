@@ -217,12 +217,32 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 .wp-desktop-icons {
 	position: absolute;
 	inset-block-start: 16px;
+	inset-block-end: 16px;
 	inset-inline-start: 16px;
+	inset-inline-end: 16px;
 	display: grid;
+	/*
+	 * Anchoring all four insets gives the grid a definite width.
+	 * `repeat(auto-fill, 88px)` needs a definite width to compute the
+	 * column count — without one, the grid collapses to a single
+	 * column and tiles cascade off the bottom edge. With the four
+	 * insets pinned, columns wrap left-to-right, top-to-bottom across
+	 * the full desktop area.
+	 */
 	grid-template-columns: repeat(auto-fill, 88px);
+	grid-auto-rows: max-content;
+	align-content: start;
+	justify-content: start;
 	gap: 12px;
 	z-index: 1;
 	pointer-events: none;
+	/*
+	 * Spill protection: if a user ever pins more icons than fit, the
+	 * grid scrolls inside its bounds rather than punching past the
+	 * dock. Individual tiles re-enable pointer events so they stay
+	 * clickable inside the scroll surface.
+	 */
+	overflow: auto;
 }
 
 .wp-desktop-icon {
