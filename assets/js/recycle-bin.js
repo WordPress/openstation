@@ -147,7 +147,7 @@ var wpDesktopRecycleBin = function(exports) {
     const cfg = window.wpDesktopRecycleBinConfig;
     if (!cfg) {
       throw new Error(
-        "wpDesktopRecycleBinConfig is missing — the recycle-bin bundle was loaded outside of desktop mode."
+        "wpDesktopRecycleBinConfig is missing — config blob did not reach the page. This typically means the recycle-bin script handle was lazy-loaded by desktop-mode without its `wp_localize_script` data being included in the payload. See docs/examples/window-with-config.md."
       );
     }
     return cfg;

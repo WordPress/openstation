@@ -48,7 +48,7 @@ import {
 	type ConnectOptions,
 } from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
-import { loadVendorScript } from './wallpapers/vendor-loader';
+import { loadVendorScript, type ScriptExtras } from './wallpapers/vendor-loader';
 import {
 	collectWallpaperSurfaces,
 	type WallpaperSurface,
@@ -285,8 +285,16 @@ export interface WpDesktopPublicApi {
 		handlers: WindowLifecycleHandlers,
 		options?: { persistent?: boolean },
 	) => () => void;
-	/** Load a vendor script once, memoized. See `src/wallpapers/vendor-loader.ts`. */
-	loadVendorScript: ( url: string ) => Promise<void>;
+	/**
+	 * Load a vendor script once, memoized. The optional `extras` bag
+	 * mirrors what `desktop_mode_resolve_script_payload()` harvests
+	 * from a registered handle's `wp_localize_script` /
+	 * `wp_add_inline_script` / `wp_set_script_translations` data.
+	 * Bundles loaded via the shell's native-window / widgets / commands
+	 * sync paths get this for free; the public surface exposes the
+	 * primitive for parity. See `src/wallpapers/vendor-loader.ts`.
+	 */
+	loadVendorScript: ( url: string, extras?: ScriptExtras ) => Promise<void>;
 	/**
 	 * Live list of collision surfaces for wallpaper effects —
 	 * window tops, shell floor, taskbar top, dock edge, widget
@@ -691,11 +699,92 @@ export interface WpDesktopPublicApi {
 	 * @since 0.23.0
 	 */
 	registerNamespace: ( name: string, api: object ) => void;
+	/**
+	 * Read the bundle-bound config blob shipped via the `'config'`
+	 * arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`.
+	 * Returns `undefined` when no config was registered for `id`.
+	 *
+	 * Recommended over reading `window.wpDesktopWindowConfig[ id ]`
+	 * directly so the storage location can evolve without breaking
+	 * plugin bundles.
+	 *
+	 * @since 0.6.0
+	 */
+	getWindowConfig: < T = Record< string, unknown > >( id: string ) => T | undefined;
+	/**
+	 * Read-only diagnostics surface. Plugin authors integrating with
+	 * desktop-mode use these to answer "what state does the framework
+	 * think my window is in?" without inventing one-off probes from
+	 * scratch. Strictly observational — calling these methods is side-
+	 * effect free.
+	 *
+	 * @since 0.6.0
+	 */
+	debug: {
+		/**
+		 * Snapshot what the shell knows about a registered native
+		 * window. Returns `null` when `id` is not in the
+		 * `nativeWindows` payload (plugin not active, or id typo).
+		 *
+		 * Most useful values for "why isn't my bundle running?"
+		 * debugging:
+		 * - `loadPath: 'eager' | 'lazy' | 'unknown'` — eager means
+		 *   `desktop_mode_enqueue_native_window_scripts` printed the
+		 *   tag through `wp_print_scripts`; lazy means the shell
+		 *   appended a `<script>` via `loadVendorScript`. Lazy + a
+		 *   missing `configPresent` is the historical
+		 *   mid-session-activation bug fixed in 0.6.0.
+		 * - `configPresent` — whether
+		 *   `window.wpDesktopWindowConfig[ id ]` exists.
+		 * - `extras` — what the payload supplied for
+		 *   `loadVendorScript` to inject (translations / l10n /
+		 *   before / after counts).
+		 */
+		window: ( id: string ) => DesktopDebugWindow | null;
+	};
+}
+
+/**
+ * Read-only diagnostics for one native window. Returned by
+ * `wp.desktop.debug.window( id )`.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopDebugWindow {
+	id: string;
+	scriptHandle: string;
+	scriptUrl: string;
+	/**
+	 * `'eager'` — a `<script>` tag printed by `wp_print_scripts` was
+	 * found in the document for this URL.
+	 * `'lazy'`  — only the shell-injected (`data-wp-desktop-vendor`) tag is present.
+	 * `'unknown'` — neither (script never loaded yet, or the URL is empty).
+	 */
+	loadPath: 'eager' | 'lazy' | 'unknown';
+	tagInDom: boolean;
+	configPresent: boolean;
+	extras: {
+		hasTranslations: boolean;
+		l10nCount: number;
+		beforeCount: number;
+		afterCount: number;
+	};
 }
 
 declare global {
 	interface Window {
 		wpDesktopConfig?: DesktopConfig;
+		/**
+		 * Per-window config blobs, one entry per
+		 * `desktop_mode_register_window( $id, [ 'config' => … ] )`.
+		 * Read via {@link WpDesktopPublicApi.getWindowConfig} rather
+		 * than touching this global directly — the storage location
+		 * may evolve.
+		 *
+		 * @since 0.6.0
+		 */
+		wpDesktopWindowConfig?: Record< string, unknown >;
 	}
 	/**
 	 * Contribute `desktop` to the merged `window.wp` namespace. The
@@ -735,6 +824,7 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
 	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
+	'getWindowConfig', 'debug',
 ] );
 
 /**
@@ -1419,6 +1509,71 @@ function init(): void {
 				return;
 			}
 			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
+		},
+		getWindowConfig: < T = Record< string, unknown > >(
+			id: string,
+		): T | undefined => {
+			const store = window.wpDesktopWindowConfig;
+			if ( ! store || typeof store !== 'object' ) {
+				return undefined;
+			}
+			const value = ( store as Record< string, unknown > )[ id ];
+			return value === undefined ? undefined : ( value as T );
+		},
+		debug: {
+			window: ( id: string ): DesktopDebugWindow | null => {
+				const entry = ( config.nativeWindows ?? [] ).find(
+					( e ) => e.id === id,
+				);
+				if ( ! entry ) {
+					return null;
+				}
+				const url = entry.scriptUrl || '';
+				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';
+				let tagInDom = false;
+				if ( url ) {
+					const lazyTag = document.querySelector(
+						`script[data-wp-desktop-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
+					);
+					if ( lazyTag ) {
+						loadPath = 'lazy';
+						tagInDom = true;
+					} else {
+						// Match a non-lazy `<script src>` whose URL
+						// equals our resolved URL (with or without the
+						// `?ver=` query).
+						const eagerTag = Array.from(
+							document.querySelectorAll< HTMLScriptElement >(
+								'script[src]',
+							),
+						).find( ( s ) => s.src === url );
+						if ( eagerTag ) {
+							loadPath = 'eager';
+							tagInDom = true;
+						}
+					}
+				}
+				const cfgStore = window.wpDesktopWindowConfig;
+				const configPresent = !! (
+					cfgStore &&
+					typeof cfgStore === 'object' &&
+					Object.prototype.hasOwnProperty.call( cfgStore, id )
+				);
+				return {
+					id,
+					scriptHandle: entry.scriptHandle || '',
+					scriptUrl: url,
+					loadPath,
+					tagInDom,
+					configPresent,
+					extras: {
+						hasTranslations: !! entry.scriptTranslations,
+						l10nCount: ( entry.scriptL10n ?? [] ).length,
+						beforeCount: ( entry.scriptBefore ?? [] ).length,
+						afterCount: ( entry.scriptAfter ?? [] ).length,
+					},
+				};
+			},
 		},
 	};
 	window.wp.desktop = desktopApi;
