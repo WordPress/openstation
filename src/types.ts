@@ -177,7 +177,170 @@ export interface WindowConfig {
 	 * @since 0.6.0
 	 */
 	ownerHandle?: string;
+	/**
+	 * Per-window appearance overrides — themes (CSS variables),
+	 * controls (close / minimize / maximize layout + custom buttons),
+	 * slots (named title-bar regions), and chrome (full title-bar
+	 * render replacement, Experimental).
+	 *
+	 * Plugins can also drive these globally via the
+	 * `wp.desktop.registerWindowTheme()` / `registerWindowControl()` /
+	 * `registerWindowSlot()` / `registerWindowChrome()` registries plus
+	 * the `match` predicate; this field is the registration-time
+	 * shortcut for windows that opt in directly.
+	 *
+	 * @since 0.6.0
+	 */
+	appearance?: WindowAppearance;
 }
+
+/**
+ * Per-window appearance overrides. Each layer is independently
+ * optional — an empty `appearance` object is identical to omitting
+ * the field.
+ *
+ * Resolution order against the global registries:
+ *
+ *   1. Theme — the theme registered with the highest `priority` whose
+ *      `match` returns true wins. `appearance.theme.tokens` (inline)
+ *      overrides any registered match; `appearance.theme.themeId`
+ *      pins the theme to a specific registration.
+ *   2. Controls — registry entries are filtered by their `match`,
+ *      then `appearance.controls.order` / `.hide` / `.custom` apply
+ *      the per-window mutations.
+ *   3. Slots — registry entries with matching `match` paint each
+ *      slot in `order` ascending; `appearance.slots[name]` overrides
+ *      the slot entirely.
+ *   4. Chrome — `appearance.chrome` selects a registered chrome by
+ *      id; defaults to `'core/standard'`.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface WindowAppearance {
+	/** Theme override (CSS variables). */
+	theme?: WindowThemeRef;
+	/** Per-window control configuration. */
+	controls?: WindowControlsConfig;
+	/** Per-window slot overrides keyed by slot name. */
+	slots?: Partial< Record< WindowSlotName, WindowSlotConfig > >;
+	/**
+	 * Chrome registration id (e.g. `'core/standard'`,
+	 * `'my-plugin/macos'`). Defaults to `'core/standard'` when
+	 * omitted. Marked Experimental — chrome render contract may
+	 * change.
+	 */
+	chrome?: string;
+}
+
+/**
+ * Window-theme reference. Either a pinned theme id or an inline
+ * tokens map. The inline form bypasses the global theme registry —
+ * useful for one-off windows that don't merit a registration.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export type WindowThemeRef =
+	| { themeId: string; tokens?: never }
+	| { tokens: Record< string, string >; themeId?: never };
+
+/**
+ * Per-window control configuration. Mutates the resolved control
+ * list AFTER the global registry has been filtered by its match
+ * predicates.
+ *
+ *   - `order` — ids of controls in the order they should render
+ *     inside the controls cluster. Built-in ids are
+ *     `core/minimize`, `core/maximize`, `core/focus-tab`,
+ *     `core/detach`, `core/close`. Plugin custom controls register
+ *     their own ids. Controls not listed in `order` keep their
+ *     registry order after the listed ones.
+ *   - `hide` — ids to suppress on this window without unregistering
+ *     them globally. Built-in ids are valid here.
+ *   - `custom` — additional control entries scoped to this window
+ *     only (no registry registration required).
+ *   - `placement` — overall placement of the controls cluster.
+ *     Defaults to `'right'`.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface WindowControlsConfig {
+	order?: string[];
+	hide?: string[];
+	custom?: WindowControlInline[];
+	placement?: 'left' | 'right';
+}
+
+/**
+ * Inline control definition for `WindowControlsConfig.custom`. Same
+ * shape as the registry's `WindowControlDef` minus the cross-window
+ * fields (`match`, `owner`) — an inline control is bound to its
+ * window, so the window arg is implied.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface WindowControlInline {
+	id: string;
+	label: string;
+	icon?: string;
+	placement?: 'left' | 'right' | 'controls';
+	order?: number;
+	onClick?: ( ev: MouseEvent ) => void;
+	render?: ( host: HTMLElement ) => void;
+}
+
+/**
+ * Canonical slot names. The shell renders each slot in this
+ * left-to-right order:
+ *
+ * `before-titlebar` (above the bar) → `before-icon` → `icon` →
+ * `title` → `after-title` → screen-meta cluster → menu (iframe-only)
+ * → custom-button left slot → `before-controls` → `controls` →
+ * `after-controls` → custom-button right slot → `after-titlebar`
+ * (below the bar).
+ *
+ * @public
+ * @since 0.6.0
+ */
+export type WindowSlotName =
+	| 'before-titlebar'
+	| 'before-icon'
+	| 'icon'
+	| 'title'
+	| 'after-title'
+	| 'before-controls'
+	| 'controls'
+	| 'after-controls'
+	| 'after-titlebar';
+
+/**
+ * Per-window slot override. Three accepted shapes:
+ *
+ *   - **`{ html: string }`** — the shell sets the slot host's
+ *     `textContent` to the string (NOT `innerHTML`, so iframe-side
+ *     content can't smuggle script). Plugins that need rich markup
+ *     register a `WindowSlotDef.render` callback in the global
+ *     registry and gate it on a window-specific match predicate.
+ *   - **`{ render: (host, ctx) => …; replace?: boolean }`** — same
+ *     shape as the global registry's `WindowSlotDef.render`. The
+ *     callback runs every time the slot repaints.
+ *   - **`null`** — explicit "render nothing" (suppress any matching
+ *     global slot renderers and the default content). Use this to
+ *     hide the title or icon for a custom-chrome look.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export type WindowSlotConfig =
+	| { html: string }
+	| {
+		render: ( host: HTMLElement ) => void | ( () => void );
+		replace?: boolean;
+	}
+	| null;
 
 /**
  * Narrowed window configuration for **native** windows only. Author-
@@ -681,6 +844,132 @@ export interface DesktopTitleBarButtonScriptServerEntry {
 }
 
 /**
+ * Server-declared window-theme script entry. One per
+ * `desktop_mode_register_window_theme_script()` call. The shell
+ * injects each `scriptUrl` on mid-session activation; the loaded
+ * script calls `wp.desktop.registerWindowTheme()` and the chrome
+ * subscriber repaints every open window the theme matches.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowThemeScriptServerEntry {
+	/** WordPress script handle — doubles as the theme `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+}
+
+/**
+ * Server-declared window-theme metadata entry. Optional companion to
+ * {@link DesktopWindowThemeScriptServerEntry} — plugins that pre-declare
+ * theme tokens server-side via `desktop_mode_register_window_theme()`
+ * get the theme registered on the shell side without needing a JS
+ * round trip; ergonomic for designers who want a stylesheet-only
+ * theme. The `scriptUrl` carries any optional companion JS that
+ * registers a `match` predicate (the metadata-only path matches the
+ * theme to every window).
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowThemeServerEntry {
+	id: string;
+	label: string;
+	tokens: Record< string, string >;
+	priority: number;
+	scriptUrl: string;
+	scriptHandle: string;
+}
+
+/**
+ * Server-declared window-control script entry. One per
+ * `desktop_mode_register_window_control_script()` call.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowControlScriptServerEntry {
+	handle: string;
+	scriptUrl: string;
+}
+
+/**
+ * Server-declared window-control metadata entry — optional companion
+ * to {@link DesktopWindowControlScriptServerEntry}.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowControlServerEntry {
+	id: string;
+	label: string;
+	icon: string;
+	placement: 'left' | 'right' | 'controls';
+	order: number;
+	scriptUrl: string;
+	scriptHandle: string;
+}
+
+/**
+ * Server-declared window-slot script entry. One per
+ * `desktop_mode_register_window_slot_script()` call.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowSlotScriptServerEntry {
+	handle: string;
+	scriptUrl: string;
+}
+
+/**
+ * Server-declared window-slot metadata entry — optional companion to
+ * {@link DesktopWindowSlotScriptServerEntry}. The actual `render`
+ * callback always lives JS-side; this metadata only declares which
+ * slot the script targets so the live-refresh sync can attribute
+ * unregister calls.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowSlotServerEntry {
+	id: string;
+	slot: WindowSlotName;
+	order: number;
+	scriptUrl: string;
+	scriptHandle: string;
+}
+
+/**
+ * Server-declared custom-chrome script entry. One per
+ * `desktop_mode_register_window_chrome_script()` call.
+ *
+ * Marked Experimental — the chrome render contract may change.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowChromeScriptServerEntry {
+	handle: string;
+	scriptUrl: string;
+}
+
+/**
+ * Server-declared custom-chrome metadata entry — optional companion
+ * to {@link DesktopWindowChromeScriptServerEntry}. Marked Experimental.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopWindowChromeServerEntry {
+	id: string;
+	label: string;
+	scriptUrl: string;
+	scriptHandle: string;
+}
+
+/**
  * Server-declared settings-tab metadata passed from PHP via
  * `serverSettingsTabs`. Optional companion to
  * `DesktopSettingsTabScriptServerEntry`. Enables live unregistration on
@@ -956,6 +1245,69 @@ export interface DesktopConfig {
 	 * @since 0.17.0
 	 */
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_window_theme_script()`. The shell loads
+	 * each script on activation; the script calls
+	 * `wp.desktop.registerWindowTheme()` so window themes appear live.
+	 * Owner-tagged registrations live-unregister on deactivation.
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowThemeScripts?: DesktopWindowThemeScriptServerEntry[];
+	/**
+	 * Server-declared window-theme metadata (from
+	 * `desktop_mode_register_window_theme()`). Optional companion to
+	 * the script-handle list — pre-registers themes shell-side so
+	 * stylesheet-only themes (no JS) work, and so the sync can map
+	 * id → handle for live unregistration without per-call JS owner.
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowThemes?: DesktopWindowThemeServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_window_control_script()`.
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowControlScripts?: DesktopWindowControlScriptServerEntry[];
+	/**
+	 * Server-declared control metadata (from
+	 * `desktop_mode_register_window_control()`).
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowControls?: DesktopWindowControlServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_window_slot_script()`.
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowSlotScripts?: DesktopWindowSlotScriptServerEntry[];
+	/**
+	 * Server-declared slot metadata (from
+	 * `desktop_mode_register_window_slot()`).
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowSlots?: DesktopWindowSlotServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_window_chrome_script()`. **Experimental** —
+	 * the chrome render contract may change.
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowChromeScripts?: DesktopWindowChromeScriptServerEntry[];
+	/**
+	 * Server-declared custom-chrome metadata (from
+	 * `desktop_mode_register_window_chrome()`). **Experimental.**
+	 *
+	 * @since 0.6.0
+	 */
+	serverWindowChromes?: DesktopWindowChromeServerEntry[];
 	/**
 	 * Server-declared desktop icons (from `desktop_mode_register_icon()`).
 	 * The shell renders these as shortcut tiles on the wallpaper;

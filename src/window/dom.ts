@@ -60,6 +60,24 @@ export function updateFullscreenBodyClass(): void {
 }
 
 /**
+ * Build a slot host element. The `data-slot` attribute lets
+ * `paintWindowSlots()` target the host by name; the class
+ * `wp-desktop-window__slot--<name>` lets CSS hook into specific
+ * slots without parsing data attributes. Empty by default — the
+ * shell or plugins fill it via the slot pipeline.
+ *
+ * @since 0.6.0
+ * @internal
+ */
+function createSlotHost( name: string ): HTMLElement {
+	const host = document.createElement( 'span' );
+	host.className =
+		`wp-desktop-window__slot wp-desktop-window__slot--${ name }`;
+	host.dataset.slot = name;
+	return host;
+}
+
+/**
  * Build a title-bar control button via the `<wpd-window-button>` web
  * component. The component ships the SVG icon, variant styling,
  * focused-/unfocused-aware coloring (via custom properties set on the
@@ -163,37 +181,42 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		}
 	}
 
+	// Slot host helpers — Layer 3 of the chrome framework. Each
+	// named slot lives inside a `<span>` carrying a `data-slot`
+	// attribute, so `paintWindowSlots()` can target them by selector
+	// and plugins can replace / augment a slot's content via the
+	// `WindowSlotConfig` per-window appearance or via
+	// `wp.desktop.registerWindowSlot()`.
+	//
+	// Default content for `icon` and `title` reproduces the legacy
+	// title-bar visual; the other slots are empty by default.
+	const slotIcon = createSlotHost( 'icon' );
 	const iconEl = document.createElement( 'span' );
 	iconEl.className = `wp-desktop-window__icon dashicons ${ sanitizeClassName( config.icon ) }`;
 	iconEl.setAttribute( 'aria-hidden', 'true' );
+	slotIcon.appendChild( iconEl );
 
+	const slotTitle = createSlotHost( 'title' );
 	const titleEl = document.createElement( 'span' );
 	titleEl.className = 'wp-desktop-window__title';
 	titleEl.id = `wp-window-title-${ config.id }`;
 	titleEl.textContent = config.title;
+	slotTitle.appendChild( titleEl );
+
+	const slotBeforeTitlebar = createSlotHost( 'before-titlebar' );
+	const slotBeforeIcon = createSlotHost( 'before-icon' );
+	const slotAfterTitle = createSlotHost( 'after-title' );
+	const slotBeforeControls = createSlotHost( 'before-controls' );
+	const slotAfterControls = createSlotHost( 'after-controls' );
+	const slotAfterTitlebar = createSlotHost( 'after-titlebar' );
 
 	const controls = document.createElement( 'div' );
 	controls.className = 'wp-desktop-window__controls';
-
-	const btnMin = createControlButton( 'minimize', __( 'Minimize' ), 'minimize' );
-	const btnMax = createControlButton( 'maximize', __( 'Maximize' ), 'maximize' );
-	const btnFocus = createControlButton( 'focus', __( 'Enter fullscreen' ), 'fullscreen' );
-	// Detach: open this window's current URL in a new browser tab as
-	// plain classic admin (no desktop shell, no chromeless). Escape
-	// hatch for users who want to work on one page outside the
-	// windowed UI without disabling desktop mode globally.
-	const btnDetach = createControlButton( 'detach', __( 'Detach to new tab' ), 'detach' );
-	const btnClose = createControlButton( 'close', __( 'Close' ), 'close' );
-
-	controls.appendChild( btnMin );
-	controls.appendChild( btnMax );
-	controls.appendChild( btnFocus );
-	// Detach opens the window's URL in a classic admin tab — it has no
-	// meaning for native windows, which have no admin URL to hand off.
-	if ( ! config.native ) {
-		controls.appendChild( btnDetach );
-	}
-	controls.appendChild( btnClose );
+	// Cluster is populated by `paintWindowControls()` after the Window
+	// constructor wires up the registry subscription. Built-in
+	// controls (minimize / maximize / focus / detach / close) live in
+	// the same Layer-2 control registry plugins use; the per-window
+	// `appearance.controls` block reorders / hides / augments them.
 
 	// Screen meta buttons container (populated when iframe reports
 	// available panels).
@@ -211,8 +234,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const customRight = document.createElement( 'span' );
 	customRight.className = 'wp-desktop-window__custom-buttons wp-desktop-window__custom-buttons--right';
 
-	titleBar.appendChild( iconEl );
-	titleBar.appendChild( titleEl );
+	titleBar.appendChild( slotBeforeIcon );
+	titleBar.appendChild( slotIcon );
+	titleBar.appendChild( slotTitle );
+	titleBar.appendChild( slotAfterTitle );
 	titleBar.appendChild( customLeft );
 	titleBar.appendChild( screenMeta );
 	// ⋯ menu sits as the last item before the controls divider so it
@@ -225,7 +250,9 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		titleBar.appendChild( menuPanel );
 	}
 	titleBar.appendChild( customRight );
+	titleBar.appendChild( slotBeforeControls );
 	titleBar.appendChild( controls );
+	titleBar.appendChild( slotAfterControls );
 
 	const body = document.createElement( 'div' );
 	body.className = 'wp-desktop-window__body';
@@ -265,7 +292,9 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		resizeHandles.push( h );
 	}
 
+	el.appendChild( slotBeforeTitlebar );
 	el.appendChild( titleBar );
+	el.appendChild( slotAfterTitlebar );
 
 	// Tab strip — initialized whenever the window has a submenu OR
 	// supports external-link sub-tabs (which iframe windows grow at

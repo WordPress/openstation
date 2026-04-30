@@ -147,6 +147,30 @@ function desktop_mode_enqueue_assets() {
 	$server_titlebar_button_scripts = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
 		: array();
+	$server_window_theme_scripts   = isset( $menu_payload['serverWindowThemeScripts'] )
+		? $menu_payload['serverWindowThemeScripts']
+		: array();
+	$server_window_themes          = isset( $menu_payload['serverWindowThemes'] )
+		? $menu_payload['serverWindowThemes']
+		: array();
+	$server_window_control_scripts = isset( $menu_payload['serverWindowControlScripts'] )
+		? $menu_payload['serverWindowControlScripts']
+		: array();
+	$server_window_controls        = isset( $menu_payload['serverWindowControls'] )
+		? $menu_payload['serverWindowControls']
+		: array();
+	$server_window_slot_scripts    = isset( $menu_payload['serverWindowSlotScripts'] )
+		? $menu_payload['serverWindowSlotScripts']
+		: array();
+	$server_window_slots           = isset( $menu_payload['serverWindowSlots'] )
+		? $menu_payload['serverWindowSlots']
+		: array();
+	$server_window_chrome_scripts  = isset( $menu_payload['serverWindowChromeScripts'] )
+		? $menu_payload['serverWindowChromeScripts']
+		: array();
+	$server_window_chromes         = isset( $menu_payload['serverWindowChromes'] )
+		? $menu_payload['serverWindowChromes']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -218,6 +242,14 @@ function desktop_mode_enqueue_assets() {
 			'serverSettingsTabScripts' => $server_settings_tab_scripts,
 			'serverSettingsTabs' => $server_settings_tabs,
 			'serverTitleBarButtonScripts' => $server_titlebar_button_scripts,
+			'serverWindowThemeScripts'  => $server_window_theme_scripts,
+			'serverWindowThemes'        => $server_window_themes,
+			'serverWindowControlScripts' => $server_window_control_scripts,
+			'serverWindowControls'      => $server_window_controls,
+			'serverWindowSlotScripts'   => $server_window_slot_scripts,
+			'serverWindowSlots'         => $server_window_slots,
+			'serverWindowChromeScripts' => $server_window_chrome_scripts,
+			'serverWindowChromes'       => $server_window_chromes,
 			'desktopIcons'     => $desktop_icons,
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),
@@ -1240,16 +1272,6 @@ function desktop_mode_chromeless_bridge_script() {
 	 * of chromeless mode. Everything else is `action` and proxies back
 	 * into this iframe on user selection.
 	 */
-	// Dev-only logging. Every `[wpd-cmd:iframe] …` line in this file
-	// routes through `__wpdLog`, which is a no-op in production. The
-	// `/*__WPDM_CMD_DEBUG__*/` placeholder is substituted by PHP
-	// below with the JSON-encoded value of `WP_DEBUG`.
-	var __WPD_CMD_DEBUG = /*__WPDM_CMD_DEBUG__*/false;
-	function __wpdLog() {
-		if ( ! __WPD_CMD_DEBUG ) return;
-		try { console.log.apply( console, arguments ); } catch ( _e ) { /* swallow */ }
-	}
-
 	var __wpdCommandsSubscribed   = false;
 	var __wpdCommandsLastPayload  = '';
 	var __wpdCommandsDebounceId   = null;
@@ -1479,12 +1501,6 @@ function desktop_mode_chromeless_bridge_script() {
 				}
 			}
 			__wpdLastRawCommands = merged;
-			__wpdLog(
-				'[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
-				merged.length,
-				loadersList.length,
-				Array.isArray( resultsBucket.statics ) ? resultsBucket.statics.length : 0
-			);
 			__wpdSchedulePost();
 		}
 
@@ -1497,10 +1513,8 @@ function desktop_mode_chromeless_bridge_script() {
 			var result = null;
 			try {
 				result = loader.hook( { search: '' } );
-			} catch ( err ) {
-				if ( ! loader.__wpdLoggedThrow ) {
-					loader.__wpdLoggedThrow = true;
-				}
+			} catch ( _err ) {
+				/* swallow — a buggy loader hook shouldn't take the harvester down */
 			}
 			var cmds = ( result && Array.isArray( result.commands ) ) ? result.commands : [];
 			var key  = useMemo( function () { return commandsFingerprint( cmds ); }, [ cmds ] );
@@ -1622,10 +1636,9 @@ function desktop_mode_chromeless_bridge_script() {
 				{ type: 'wp-desktop-commands-list', commands: list },
 				__wpdCommandsOrigin
 			);
-		} catch ( err ) {
+		} catch ( _err ) {
 			/* cross-origin parent (shouldn't happen for chromeless pages, but
 			 * don't let a throw break the bridge) */
-			__wpdLog( '[wpd-cmd:iframe] postCommandsList: postMessage threw', err );
 		}
 	}
 
@@ -1696,8 +1709,8 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( typeof cb === 'function' ) {
 			try {
 				cb( { close: function () {} } );
-			} catch ( err ) {
-				__wpdLog( '[wpd-cmd:iframe] invoke: "%s" callback threw', name, err );
+			} catch ( _err ) {
+				/* swallow — a plugin command callback that throws shouldn't break the bridge */
 			}
 			return;
 		}
@@ -1716,8 +1729,8 @@ function desktop_mode_chromeless_bridge_script() {
 			if ( raw[ i ] && raw[ i ].name === name && typeof raw[ i ].callback === 'function' ) {
 				try {
 					raw[ i ].callback( { close: function () {} } );
-				} catch ( err ) {
-					__wpdLog( '[wpd-cmd:iframe] invoke: "%s" fallback callback threw', name, err );
+				} catch ( _err ) {
+					/* swallow — see note in primary path above */
 				}
 				return;
 			}
@@ -1749,8 +1762,8 @@ function desktop_mode_chromeless_bridge_script() {
 			{ type: 'wp-desktop-bridge-ready' },
 			__wpdCommandsOrigin
 		);
-	} catch ( err ) {
-		__wpdLog( '[wpd-cmd:iframe] bridge-ready postMessage threw', err );
+	} catch ( _err ) {
+		/* parent gone or cross-origin — bridge handshake will retry on next load */
 	}
 
 	/*
@@ -2386,12 +2399,6 @@ JS;
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
 	$js = str_replace( '/*__WPDM_MENU_PAYLOAD__*/', $menu_payload_json, $js );
-
-	// Gate the command-bridge dev logs. `WP_DEBUG` is the conventional
-	// "I'm a developer and want noisy output" switch; anything else
-	// (default production) silences every `__wpdLog` call in the bridge.
-	$cmd_debug = ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ? 'true' : 'false';
-	$js        = str_replace( '/*__WPDM_CMD_DEBUG__*/false', $cmd_debug, $js );
 
 	wp_print_inline_script_tag( $js );
 }
