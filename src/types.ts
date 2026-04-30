@@ -858,6 +858,14 @@ export interface DesktopWindowThemeScriptServerEntry {
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -880,6 +888,14 @@ export interface DesktopWindowThemeServerEntry {
 	priority: number;
 	scriptUrl: string;
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -892,6 +908,14 @@ export interface DesktopWindowThemeServerEntry {
 export interface DesktopWindowControlScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -909,6 +933,14 @@ export interface DesktopWindowControlServerEntry {
 	order: number;
 	scriptUrl: string;
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -921,6 +953,14 @@ export interface DesktopWindowControlServerEntry {
 export interface DesktopWindowSlotScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -939,6 +979,14 @@ export interface DesktopWindowSlotServerEntry {
 	order: number;
 	scriptUrl: string;
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -953,6 +1001,14 @@ export interface DesktopWindowSlotServerEntry {
 export interface DesktopWindowChromeScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -967,6 +1023,14 @@ export interface DesktopWindowChromeServerEntry {
 	label: string;
 	scriptUrl: string;
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
