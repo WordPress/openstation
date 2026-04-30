@@ -1827,6 +1827,78 @@ Snapshot of every currently registered third-party settings tab, sorted by `orde
 
 ---
 
+### `registerSubmenuRenderer( def )` — Stable *(since 0.18.0)*
+
+Register a renderer that takes over the popover the dock opens when the user right-clicks a tile with admin submenu items. The shipped baseline is a vertical list (`id: 'default'`); plugin authors can ship anything from a radial menu to floating cards to a centered command-K-style overlay.
+
+The active renderer follows the user's OS Settings → Appearance → Submenu style pick (persisted to user meta as `submenuRenderer`); registering does not auto-select. To make your renderer the default for fresh installs, register with `id: 'default'` — late registrations win and replace the shipped baseline.
+
+**Definition shape:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. |
+| `label` | `string` | yes | Shown in the OS Settings picker. |
+| `description` | `string` | no | One-line preview text for the picker. |
+| `icon` | `string` | no | Dashicon class for the picker icon. |
+| `apiVersion` | `1` | no | Reserved for forward-compat; unsupported versions are rejected at registration so out-of-date plugins fail loudly. Omit to match the current contract. |
+| `owner` | `string` | no | When set, plugin deactivation live-unregisters every renderer with this owner — same pattern used by commands and settings tabs. |
+| `mount( deps )` | `function` | yes | Build the popover, return a controller. See below. |
+
+**`mount( deps )` contract:**
+
+`deps` carries `{ item: DockItem, anchor: HTMLElement, orientation: 'left' | 'right' | 'bottom', onPick: (sub) => void, onClose: () => void }`. The renderer must:
+
+- Build its own DOM, anchored relative to `anchor`.
+- Call `onPick( submenu )` when the user activates an entry — the dock opens the URL in a window via the same code path the regular tile click uses (so submenus land in the right window with the in-window tab strip wired correctly).
+- Call `onClose()` when the user dismisses (Escape, outside click, blur, animation completion — whatever counts as a dismiss in your UX).
+- Return a `SubmenuController` with `close()` (animated dismiss) and `destroy()` (immediate teardown).
+
+A `mount()` that throws is caught: the failure is logged via `HOOKS.SHELL_ERROR` and the dispatcher falls back to the `'default'` renderer for that invocation, so the user sees a popover instead of nothing.
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerSubmenuRenderer( {
+        id:    'arc',
+        label: 'Arc',
+        description: 'Curved menu hovering above the tile.',
+        owner: 'my-plugin',
+        mount( { item, anchor, orientation, onPick, onClose } ) {
+            const root = document.createElement( 'div' );
+            root.className = 'my-arc';
+            root.setAttribute( 'role', 'menu' );
+            // … position against `anchor`, render `item.submenu`,
+            //   call `onPick( sub )` on click, `onClose()` on dismiss …
+            document.body.appendChild( root );
+            return {
+                close()   { root.classList.add( 'my-arc--closing' ); /* animate */ },
+                destroy() { root.remove(); },
+            };
+        },
+    } );
+} );
+```
+
+See the full walk-through in [`docs/examples/submenu-renderer.md`](./examples/submenu-renderer.md).
+
+---
+
+### `unregisterSubmenuRenderer( id )` — Stable *(since 0.18.0)*
+
+Remove a renderer by id. Idempotent — unknown ids are silent no-ops.
+
+```javascript
+wp.desktop.unregisterSubmenuRenderer( 'arc' );
+```
+
+---
+
+### `listSubmenuRenderers()` — Stable *(since 0.18.0)*
+
+Snapshot of every currently registered submenu renderer in registration order. Used by the OS Settings picker to populate its options; plugin authors rarely need it directly.
+
+---
+
 ### `registerPalette( def )` — Stable  *(since 0.14.0)*
 
 Register a Cmd+K-triggered overlay ("palette"). The shell owns a single global shortcut handler that **cycles** through every registered palette — first press opens palette 0, second press closes it and opens palette 1, and so on. Pressing Cmd+K when the last palette is open closes it entirely; the next press re-opens palette 0.

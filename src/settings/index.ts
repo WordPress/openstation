@@ -56,6 +56,7 @@ import {
 	getDefaultWallpaperId,
 } from './constants';
 import { loadState, saveState } from './state';
+import { setActiveSubmenuRenderer } from '../submenu';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -66,6 +67,7 @@ import { buildAiSection } from './sections/ai';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildExtendedSection } from './sections/extended';
+import { buildSubmenuRendererSection } from './sections/submenu-renderer';
 import { buildHelpSection } from './sections/help';
 import {
 	buildWallpaperSection,
@@ -121,6 +123,7 @@ export class OsSettings implements SettingsCtx {
 			accent: this.state.accent,
 			dockSize: this.state.dockSize,
 			desktopLayout: this.state.desktopLayout,
+			submenuRenderer: this.state.submenuRenderer,
 			ai: { ...this.state.ai },
 		};
 	}
@@ -200,6 +203,13 @@ export class OsSettings implements SettingsCtx {
 			'data-wp-desktop-layout',
 			this.state.desktopLayout,
 		);
+
+		// Submenu-renderer pick — push into the registry so the next
+		// dock right-click resolves through the user's choice. Doing
+		// this from `apply()` (rather than only on settings save)
+		// covers the boot path: state loads from server / localStorage,
+		// `apply()` runs, registry mirrors the persisted choice.
+		setActiveSubmenuRenderer( this.state.submenuRenderer );
 	}
 
 	public save(): void {
@@ -292,6 +302,7 @@ export class OsSettings implements SettingsCtx {
 						${ buildAccentSection( this ) }
 						${ buildDesktopLayoutSection( this ) }
 						${ buildDockSizeSection( this ) }
+						${ buildSubmenuRendererSection( this ) }
 					</wpd-panel>
 				</wpd-tabpanel>`,
 			},

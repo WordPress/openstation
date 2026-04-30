@@ -147,6 +147,13 @@ import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
  */
 const INITIAL_ORIGIN = window.location.origin;
 import { registerBuiltInWidgets } from './widgets/built-in';
+import {
+	installDefaultSubmenuRenderer,
+	listSubmenuRenderers,
+	registerSubmenuRenderer,
+	unregisterSubmenuRenderer,
+	type SubmenuRenderer,
+} from './submenu';
 import * as widgetRegistry from './widgets/registry';
 import { createWidgetRegistrySync } from './widgets/server-sync';
 import { WPD_COMPONENT_TAGS } from './ui/components';
@@ -549,6 +556,22 @@ export interface WpDesktopPublicApi {
 	unregisterSettingsTab: ( id: string ) => void;
 	/** Snapshot of all registered third-party settings tabs. @since 0.17.0 */
 	listSettingsTabs: () => DesktopSettingsTab[];
+	/**
+	 * Register a renderer for the dock submenu popover (the popover
+	 * that opens when the user right-clicks a tile with admin
+	 * submenu items). Plugins can ship anything from a radial menu
+	 * to floating cards; the user picks among registered renderers
+	 * in OS Settings → Appearance → Submenu style.
+	 *
+	 * See `docs/examples/submenu-renderer.md` for the full contract.
+	 *
+	 * @since 0.18.0
+	 */
+	registerSubmenuRenderer: ( renderer: SubmenuRenderer ) => void;
+	/** Remove a previously registered submenu renderer. @since 0.18.0 */
+	unregisterSubmenuRenderer: ( id: string ) => void;
+	/** Snapshot of all registered submenu renderers. @since 0.18.0 */
+	listSubmenuRenderers: () => SubmenuRenderer[];
 	/**
 	 * Register a custom button in the title bar of any matching
 	 * window. Predicate decides which windows show it. See
@@ -1083,7 +1106,9 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
 	'unregisterCommand', 'listCommands', 'registerSettingsTab',
-	'unregisterSettingsTab', 'listSettingsTabs', 'registerTitleBarButton',
+	'unregisterSettingsTab', 'listSettingsTabs',
+	'registerSubmenuRenderer', 'unregisterSubmenuRenderer', 'listSubmenuRenderers',
+	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
 	'applyWindowTheme',
@@ -1136,6 +1161,10 @@ function init(): void {
 	const widgetsEl = document.getElementById( 'wp-desktop-widgets' );
 	let widgetLayer: WidgetLayer | null = null;
 	registerBuiltInWidgets();
+	// Submenu renderer registry — install the built-in `'default'`
+	// list popover before `wp-desktop.init` fires so plugins that
+	// hook into the registry on init see a populated initial state.
+	installDefaultSubmenuRenderer();
 	if ( widgetsEl ) {
 		widgetLayer = new WidgetLayer( widgetsEl, pluginUrl );
 	}
@@ -1839,6 +1868,9 @@ function init(): void {
 		registerSettingsTab,
 		unregisterSettingsTab,
 		listSettingsTabs,
+		registerSubmenuRenderer,
+		unregisterSubmenuRenderer,
+		listSubmenuRenderers,
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,

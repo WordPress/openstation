@@ -82,6 +82,14 @@ export interface OsSettingsState {
 	accent: AccentId;
 	dockSize: DockSizeId;
 	desktopLayout: DesktopLayoutId;
+	/**
+	 * Active submenu-renderer id. Resolves through
+	 * `wp.desktop.submenu` registry; falls back to `'default'` when
+	 * the named renderer is missing (plugin deactivated, typo, etc.).
+	 *
+	 * @since 0.18.0
+	 */
+	submenuRenderer: string;
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
 	/**

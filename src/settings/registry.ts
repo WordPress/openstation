@@ -42,6 +42,13 @@ export interface OsSettingsSnapshot {
 	 * @since 0.18.0
 	 */
 	desktopLayout: 'classic' | 'unified' | 'spatial';
+	/**
+	 * Active submenu-renderer id; mirrors `wp.desktop.submenu` registry's
+	 * resolution. `'default'` is the shipped baseline list popover.
+	 *
+	 * @since 0.18.0
+	 */
+	submenuRenderer: string;
 	ai: {
 		enabled: boolean;
 		provider: string;

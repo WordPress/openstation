@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 - [Add a dock item with a badge](./dock-badge.md)
 - [Decorate the dock without forking the renderer](./dock-decoration-hooks.md)
+- [Replace the dock submenu popover](./submenu-renderer.md)
 - [Gate desktop mode by role](./gate-by-role.md)
 - [React to window events](./react-to-window-events.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)

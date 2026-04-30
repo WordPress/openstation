@@ -11,6 +11,12 @@
 
 import { activity } from './activity';
 import { applyFilters, doAction, HOOKS } from './hooks';
+import {
+	getSubmenuRenderer,
+	resolveActiveSubmenuRenderer,
+	type SubmenuController,
+	type SubmenuItem,
+} from './submenu';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
@@ -193,6 +199,17 @@ export class Dock {
 
 	/** Unique hooks-bus namespace per instance for clean teardown. */
 	private hooksNamespace: string;
+
+	/**
+	 * Active submenu popover, if one is open. Right-click on a tile
+	 * with `item.submenu.length > 0` mounts a renderer here; the next
+	 * right-click on a different tile, an outside click, Escape, or
+	 * a submenu pick closes it. Only one submenu is open at a time
+	 * across the shell — even across two coexisting Dock instances —
+	 * because the resolved renderer manages its own DOM but we still
+	 * want a single visible popover for the user.
+	 */
+	private activeSubmenu: SubmenuController | null = null;
 
 	private static instanceCounter = 0;
 
@@ -755,6 +772,19 @@ export class Dock {
 			this.openPage( item );
 		} );
 
+		// Right-click → submenu popover. Only fires for tiles whose
+		// admin menu actually has a submenu; tiles without one keep
+		// the browser's default context menu so devs can still
+		// inspect the shell. Guard the array existence too — older
+		// PHP payloads may omit the field rather than ship an empty
+		// array.
+		if ( Array.isArray( item.submenu ) && item.submenu.length > 0 ) {
+			tile.addEventListener( 'contextmenu', ( e: MouseEvent ) => {
+				e.preventDefault();
+				this.openSubmenu( item, tile );
+			} );
+		}
+
 		tile.appendChild( primary );
 
 		if ( item.multi ) {
@@ -1138,6 +1168,145 @@ export class Dock {
 	}
 
 	/**
+	 * Open the registered submenu renderer for `item`, anchored to
+	 * `tile`. Closes any popover that was already open first so we
+	 * never have two stacked.
+	 *
+	 * Renderer resolution goes through the registry's fallback chain
+	 * — user's pick → built-in `'default'` → first-registered. A
+	 * crashing renderer's mount() is caught; failure is reported via
+	 * {@link HOOKS.SHELL_ERROR} and we fall back to the default
+	 * renderer for that invocation so the user sees a popover instead
+	 * of nothing.
+	 */
+	private openSubmenu( item: DockItem, tile: HTMLElement ): void {
+		// A previous popover is gone immediately (no fade-out
+		// crossfade with the new one). Outside-click / Escape /
+		// onPick paths get the animated close instead.
+		this.destroySubmenu();
+		const onPick = ( sub: SubmenuItem ): void => {
+			this.openSubmenuPick( item, sub );
+			this.closeSubmenu();
+		};
+		const onClose = (): void => {
+			this.closeSubmenu();
+		};
+		const renderer = resolveActiveSubmenuRenderer();
+		if ( ! renderer ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'submenu-renderer',
+				message: 'No submenu renderer is registered.',
+			} );
+			return;
+		}
+		try {
+			this.activeSubmenu = renderer.mount( {
+				item,
+				anchor: tile,
+				orientation: this.orientation,
+				onPick,
+				onClose,
+			} );
+			return;
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'submenu-renderer',
+				rendererId: renderer.id,
+				error: err,
+			} );
+		}
+		// Fallback path: the user's pick crashed. Look up the
+		// `'default'` renderer DIRECTLY — going through resolveActive
+		// would just hand us the same broken renderer back. If the
+		// default itself is missing or also throws, we give up
+		// silently rather than show an empty popover.
+		if ( renderer.id === 'default' ) {
+			return;
+		}
+		const fallback = getSubmenuRenderer( 'default' );
+		if ( ! fallback ) {
+			return;
+		}
+		try {
+			this.activeSubmenu = fallback.mount( {
+				item,
+				anchor: tile,
+				orientation: this.orientation,
+				onPick,
+				onClose,
+			} );
+		} catch {
+			/* even the default failed — give up silently */
+		}
+	}
+
+	/**
+	 * Convert a user pick from the submenu popover into a window
+	 * open. Reuses {@link openPage} so the dock-tile click and the
+	 * submenu pick share one code path — same window manager call,
+	 * same `submenu` propagation into the in-window tab strip.
+	 */
+	private openSubmenuPick( item: DockItem, sub: SubmenuItem ): void {
+		this.windowManager.open( {
+			id: this.deriveWindowId( sub.url ),
+			baseId: this.deriveWindowId( item.url ),
+			url: sub.url,
+			title: item.title,
+			icon: item.icon.startsWith( 'dashicons-' )
+				? item.icon
+				: 'dashicons-admin-generic',
+			submenu: item.submenu,
+			multi: !! item.multi,
+		} );
+	}
+
+	/**
+	 * Animated close of the active submenu popover. Idempotent.
+	 * Called when the user picks an item, presses Escape, or clicks
+	 * outside — the renderer's `close()` runs its dismiss animation
+	 * before destroying. For unconditional teardown (opening another
+	 * popover, dock destroy) use {@link destroySubmenu}.
+	 */
+	private closeSubmenu(): void {
+		if ( ! this.activeSubmenu ) {
+			return;
+		}
+		const controller = this.activeSubmenu;
+		this.activeSubmenu = null;
+		try {
+			controller.close();
+		} catch {
+			// A renderer that throws on close shouldn't keep the
+			// dock from accepting a new popover. Force destroy as a
+			// safety net.
+			try {
+				controller.destroy();
+			} catch {
+				/* nothing more to do */
+			}
+		}
+	}
+
+	/**
+	 * Hard teardown of the active submenu popover. No animation. Used
+	 * when the dock itself is being torn down or when a different
+	 * tile is opening its own popover and we don't want two stacked
+	 * mid-animation.
+	 */
+	private destroySubmenu(): void {
+		if ( ! this.activeSubmenu ) {
+			return;
+		}
+		const controller = this.activeSubmenu;
+		this.activeSubmenu = null;
+		try {
+			controller.destroy();
+		} catch {
+			/* nothing more to do */
+		}
+	}
+
+	/**
 	 * Derive a window ID from an admin page URL.
 	 */
 	private deriveWindowId( url: string ): string {
@@ -1184,6 +1353,11 @@ export class Dock {
 	 * Idempotent: calling twice is safe.
 	 */
 	public destroy(): void {
+		// Drop any open submenu popover before removing the dock —
+		// otherwise a controller that anchors to one of our tiles
+		// would point at a detached node after destroy. Hard teardown
+		// (no animation) since the parent rail is going too.
+		this.destroySubmenu();
 		document.removeEventListener(
 			'wp-desktop-window-opened',
 			this.boundRefresh,
