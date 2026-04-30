@@ -320,6 +320,18 @@
 	margin-top: auto;
 }
 
+/*
+ * Hide the separator when nothing precedes it. The TS code creates
+ * a system / pinned separator before its first cluster item — on a
+ * clean install with only system items and no menu items, the
+ * separator becomes the dock's first child and would render as a
+ * stray hairline with nothing to divide. `:first-child` catches
+ * that case in both vertical dock and horizontal taskbar.
+ */
+.wp-desktop-dock__separator:first-child {
+	display: none;
+}
+
 /* System tiles — same footprint as menu tiles, no badges, no rails. */
 .wp-desktop-dock__item--system .wp-desktop-dock__item-primary {
 	color: rgba(255, 255, 255, 0.8);
