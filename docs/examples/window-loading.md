@@ -213,6 +213,44 @@ Both customization paths can choose between **mutation** (return / leave the inp
 
 Plugin failures in either step are caught and logged so a buggy customizer can't strand the user with a broken window — the shell falls back to the last good overlay.
 
+### Boot order (F5 / session restore)
+
+On page reload the shell rebuilds every restored window during startup — **before** plugin scripts' `whenReady( … )` callbacks have run. Naively, that would leave the first paint of restored windows showing the default `<wpd-spinner>` even when a plugin had registered a `WINDOW_LOADING_OVERLAY` filter inside `whenReady`.
+
+**The shell handles this for you.** After `HOOKS.INIT` fires (and one microtask later, so all `whenReady` callbacks have drained), the shell sweeps every currently-loading window and re-paints its overlay through the customization pipeline. So the canonical plugin shape:
+
+```js
+wp.desktop.whenReady( () => {
+    wp.desktop.hooks.addFilter(
+        'wp-desktop.window.loading-overlay',
+        'my-skin/branded',
+        ( host ) => { /* … */ },
+    );
+} );
+```
+
+Just works on F5, on first visit, on plugin activation mid-session — without any extra plumbing.
+
+### Late filter registrations
+
+If you need to register the `WINDOW_LOADING_OVERLAY` filter **after** init (a deferred async import, a runtime feature flag flip, a settings change), call `wp.desktop.repaintLoadingOverlays()` after registering — it sweeps every still-loading window and re-paints them through the pipeline:
+
+```js
+async function activateBrandSkin() {
+    const { brandRenderer } = await import( './brand-renderer.js' );
+    wp.desktop.hooks.addFilter(
+        'wp-desktop.window.loading-overlay',
+        'my-skin/lazy-branded',
+        brandRenderer,
+    );
+    // Catch any windows still loading right now — those that
+    // opened before `addFilter` ran.
+    wp.desktop.repaintLoadingOverlays();
+}
+```
+
+Idempotent and cheap — windows that already finished loading are unaffected.
+
 ## Style the default loader without a callback
 
 If you only want to retune the spinner colors / size, the CSS variables work fine — no JS needed:

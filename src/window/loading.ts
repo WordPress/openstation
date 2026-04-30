@@ -131,4 +131,67 @@ function _installSubscriptions(): void {
 			}, FADE_OUT_MS );
 		},
 	);
+
+	// Boot-order race fix: on F5 / session restore the shell rebuilds
+	// every restored window during startup — BEFORE plugin scripts'
+	// `whenReady()` callbacks have drained. A plugin that registers
+	// the `WINDOW_LOADING_OVERLAY` filter inside `whenReady( … )` is
+	// thus too late to influence the first paint of those restored
+	// windows; their overlays show the default `<wpd-spinner>` even
+	// though every subsequent open works correctly.
+	//
+	// Fix: subscribe to `HOOKS.INIT` and, deferred one microtask so
+	// every synchronous `whenReady` callback has had a chance to
+	// register its filter, sweep currently-loading windows and
+	// re-paint their overlays through the customization pipeline.
+	// `repaintLoadingOverlays` removes the existing overlay element
+	// and re-runs `ensureLoadingOverlay`, which applies the
+	// per-window inline `config.loading.render` AND any filter
+	// registered between then and now.
+	addAction(
+		HOOKS.INIT,
+		'wp-desktop-mode/loading-overlay-init-sweep',
+		() => {
+			// `queueMicrotask` runs AFTER all synchronous addAction
+			// handlers fire (whenReady callbacks registered before
+			// boot land here). For whenReady callbacks scheduled via
+			// `Promise.resolve().then` (rare — only when the plugin
+			// loads after init) the sweep won't catch them; those
+			// callers can call `wp.desktop.repaintLoadingOverlays()`
+			// directly after they register their filter.
+			queueMicrotask( () => repaintLoadingOverlays() );
+		},
+	);
+}
+
+/**
+ * Public escape hatch: re-paint every currently-loading window's
+ * overlay through the customization pipeline. Use after registering
+ * a `WINDOW_LOADING_OVERLAY` filter mid-life (a deferred async
+ * import, a plugin loaded post-init, a feature flag flip), so the
+ * filter applies to windows that are *still* loading.
+ *
+ * Idempotent + cheap. Iterates every `.wp-desktop-window__body--loading`
+ * in the DOM and re-runs `ensureLoadingOverlay`. Windows whose
+ * overlays were already torn down by a `markContentLoaded()` call
+ * in the meantime are not affected.
+ *
+ * Called automatically by the post-`INIT` sweep above — most
+ * plugins never need to invoke this directly.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export function repaintLoadingOverlays(): void {
+	const bodies = document.querySelectorAll< HTMLElement >(
+		'.wp-desktop-window__body--loading',
+	);
+	bodies.forEach( ( body ) => {
+		const windowEl = body.closest< HTMLElement >( '.wp-desktop-window' );
+		if ( ! windowEl ) {
+			return;
+		}
+		body.querySelector( ':scope .wp-desktop-window__loading' )?.remove();
+		ensureLoadingOverlay( windowEl );
+	} );
 }

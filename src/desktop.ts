@@ -12,7 +12,10 @@
 
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
-import { installWindowLoadingTransitions } from './window/loading';
+import {
+	installWindowLoadingTransitions,
+	repaintLoadingOverlays,
+} from './window/loading';
 import { Dock, type SystemDockItem } from './dock';
 import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
@@ -878,6 +881,36 @@ export interface WpDesktopPublicApi {
 	 */
 	showToast: ( opts: ToastOptions ) => () => void;
 	/**
+	 * Re-paint every currently-loading window's spinner overlay
+	 * through the customization pipeline (per-window
+	 * `config.loading.render` + `WINDOW_LOADING_OVERLAY` filter).
+	 *
+	 * Call this after registering a `WINDOW_LOADING_OVERLAY` filter
+	 * **mid-life** — i.e. NOT inside `whenReady( … )`. Filters
+	 * registered in `whenReady` are picked up automatically by the
+	 * shell's post-`HOOKS.INIT` sweep, so the typical plugin shape:
+	 *
+	 * ```js
+	 * wp.desktop.whenReady( () => {
+	 *     wp.desktop.hooks.addFilter(
+	 *         'wp-desktop.window.loading-overlay',
+	 *         'my-skin/branded',
+	 *         ( host ) => { ... }
+	 *     );
+	 * } );
+	 * ```
+	 *
+	 * never needs this. The escape hatch exists for plugins that
+	 * register their filter from a deferred async import, a
+	 * runtime feature flag flip, or a settings change after init.
+	 *
+	 * Idempotent. Safe to call multiple times — windows that
+	 * already finished loading are unaffected.
+	 *
+	 * @since 0.6.0
+	 */
+	repaintLoadingOverlays: () => void;
+	/**
 	 * Keyed-list rendering helper for any plugin that paints a dynamic
 	 * list of items into a DOM container. Reuses element instances when
 	 * the keys match across renders so event listeners survive data
@@ -1660,6 +1693,7 @@ function init(): void {
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
 		openWindow: nativeWindows.openById,
+		repaintLoadingOverlays,
 		cloneTemplate,
 		onWindow,
 		registerSystemTile: ( item, placement = 'taskbar' ) => {

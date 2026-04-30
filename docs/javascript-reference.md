@@ -966,6 +966,42 @@ Routes through the `wp-desktop/toast-requested` activity filter before painting;
 
 ---
 
+### `repaintLoadingOverlays()` — Stable *(since 0.6.0)*
+
+Re-paint every currently-loading window's spinner overlay through the customization pipeline (per-window `config.loading.render` + `WINDOW_LOADING_OVERLAY` filter).
+
+**You almost never need this.** Filters registered inside `wp.desktop.whenReady( … )` are picked up automatically by the shell's post-`HOOKS.INIT` sweep, including for F5 / session-restored windows that were constructed before the plugin script ran. The canonical plugin shape:
+
+```js
+wp.desktop.whenReady( () => {
+    wp.desktop.hooks.addFilter(
+        'wp-desktop.window.loading-overlay',
+        'my-skin/branded',
+        ( host ) => { /* … */ },
+    );
+} );
+```
+
+just works on F5 with no extra plumbing.
+
+`repaintLoadingOverlays()` exists as an escape hatch for plugins that register their `WINDOW_LOADING_OVERLAY` filter **mid-life** — after a deferred async import, a runtime feature-flag flip, or a settings change. Call it after `addFilter` and the shell will sweep every still-loading window through the pipeline:
+
+```js
+async function activateBrandSkin() {
+    const { brandRenderer } = await import( './brand-renderer.js' );
+    wp.desktop.hooks.addFilter(
+        'wp-desktop.window.loading-overlay',
+        'my-skin/lazy-branded',
+        brandRenderer,
+    );
+    wp.desktop.repaintLoadingOverlays();
+}
+```
+
+Idempotent + cheap — windows that already finished loading are unaffected.
+
+---
+
 ### `renderKeyedList( host, items, opts )` / `clearKeyedList( host )` — Stable *(since 0.23.0)*
 
 Keyed-list reconciler for any plugin that paints a dynamic list of items into a DOM container. Reuses element instances when keys match across renders so event listeners survive data updates — the only reliable way to keep clicks working on rows that may re-render mid-press.

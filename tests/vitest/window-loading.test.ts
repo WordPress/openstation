@@ -25,6 +25,7 @@ import { createWindowElement } from '../../src/window/dom';
 import {
 	_resetWindowLoadingTransitionsForTests,
 	installWindowLoadingTransitions,
+	repaintLoadingOverlays,
 } from '../../src/window/loading';
 
 const tick = (): Promise< void > => Promise.resolve();
@@ -673,6 +674,88 @@ describe( 'Loading overlay customization', () => {
 		expect( overlay ).not.toBeNull();
 		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
 		errSpy.mockRestore();
+	} );
+
+	test( 'repaintLoadingOverlays() applies a late-registered filter to currently-loading windows', () => {
+		// First open the window WITHOUT a registered filter — the
+		// overlay paints with default content.
+		const win = manager.open( {
+			id: 'late-filter',
+			url: '#late-filter',
+			title: 'Late Filter',
+		} );
+		const overlay = () => win.element.querySelector< HTMLElement >(
+			'.wp-desktop-window__loading',
+		)!;
+		expect( overlay().dataset.skinned ).toBeUndefined();
+
+		// Plugin registers its filter post-construction.
+		( window.wp!.hooks! ).addFilter(
+			HOOKS.WINDOW_LOADING_OVERLAY,
+			'late/skin',
+			( ...args: unknown[] ) => {
+				const host = args[ 0 ] as HTMLElement;
+				host.dataset.skinned = 'late';
+				return host;
+			},
+		);
+
+		// Without repainting, the existing overlay still has the
+		// pre-registration default. Sanity check.
+		expect( overlay().dataset.skinned ).toBeUndefined();
+
+		repaintLoadingOverlays();
+
+		// After the explicit repaint, the late-registered filter
+		// has applied to the still-loading window.
+		expect( overlay().dataset.skinned ).toBe( 'late' );
+	} );
+
+	test( 'F5 boot-order race: HOOKS.INIT triggers an automatic sweep', async () => {
+		// Construct the window first — simulates the F5 / session-
+		// restore order where windows exist before plugins register
+		// their filters.
+		const win = manager.open( {
+			id: 'f5-restore',
+			url: '#f5-restore',
+			title: 'F5 Restore',
+		} );
+
+		// Plugin filter lands AFTER construction (typical
+		// `wp.desktop.whenReady( () => addFilter(...) )` shape that
+		// fires during HOOKS.INIT).
+		( window.wp!.hooks! ).addFilter(
+			HOOKS.WINDOW_LOADING_OVERLAY,
+			'f5/skin',
+			( ...args: unknown[] ) => {
+				const host = args[ 0 ] as HTMLElement;
+				host.dataset.skinned = 'f5';
+				return host;
+			},
+		);
+
+		// Fire HOOKS.INIT — the shell's post-init sweep is on a
+		// `queueMicrotask`, so we wait one tick for it to drain.
+		( window.wp!.hooks! ).doAction( HOOKS.INIT, { config: {} } );
+		await Promise.resolve();
+
+		const overlay = win.element.querySelector< HTMLElement >(
+			'.wp-desktop-window__loading',
+		)!;
+		expect( overlay.dataset.skinned ).toBe( 'f5' );
+	} );
+
+	test( 'repaintLoadingOverlays() is a no-op for windows already loaded', () => {
+		const win = manager.open( {
+			id: 'already-loaded',
+			url: '#already-loaded',
+			title: 'Already Loaded',
+		} );
+		win.markContentLoaded();
+
+		// No throw, no DOM thrash on a window that's no longer in
+		// loading state.
+		expect( () => repaintLoadingOverlays() ).not.toThrow();
 	} );
 
 	test( 'markContentLoading re-arm re-applies config.loading.render', () => {
