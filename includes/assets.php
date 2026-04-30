@@ -19,6 +19,20 @@ function desktop_mode_register_assets() {
 	$version = DESKTOP_MODE_VERSION;
 	$suffix  = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
+	// `filemtime`-stamped version for built bundles. The plugin-wide
+	// `DESKTOP_MODE_VERSION` is bumped per release, but the bundles
+	// iterate faster — without a per-file mtime stamp, two clients
+	// loading the same `?ver=…` URL can be served different bytes
+	// (whichever build was on disk at upload time). Stamping with the
+	// file's modification time guarantees the URL changes whenever the
+	// file does, so "is my fix deployed?" is answerable from the
+	// network tab. Falls back to `$version` when the file is missing
+	// (test envs that import this file before the build runs).
+	$built_version = static function ( $relative ) use ( $version ) {
+		$path = DESKTOP_MODE_DIR . $relative;
+		return file_exists( $path ) ? (string) filemtime( $path ) : $version;
+	};
+
 	// Styles.
 	wp_register_style(
 		'wp-desktop-variables',
@@ -93,7 +107,7 @@ function desktop_mode_register_assets() {
 		// Heartbeat API so the count tile / desktop-icon badge
 		// stays in sync even when the bin window is closed.
 		array( 'wp-hooks', 'wp-i18n', 'heartbeat', 'jquery' ),
-		$version,
+		$built_version( 'assets/js/desktop' . $suffix . '.js' ),
 		true
 	);
 
@@ -109,7 +123,7 @@ function desktop_mode_register_assets() {
 		'wp-desktop-iframe-bridge',
 		DESKTOP_MODE_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
 		array(),
-		$version,
+		$built_version( 'assets/js/iframe-bridge' . $suffix . '.js' ),
 		true
 	);
 
@@ -123,7 +137,7 @@ function desktop_mode_register_assets() {
 		'wp-desktop-code-editor',
 		DESKTOP_MODE_URL . 'assets/js/code-editor' . $suffix . '.js',
 		array( 'wp-i18n' ),
-		$version,
+		$built_version( 'assets/js/code-editor' . $suffix . '.js' ),
 		true
 	);
 	wp_set_script_translations(
