@@ -36,3 +36,6 @@
 
 # Packaging / release scripts (dev-only)
 /bin/               export-ignore
+
+# Bundled extension plugins (shipped separately, not inside the shell zip)
+/extensions/        export-ignore
