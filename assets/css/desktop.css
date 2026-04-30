@@ -187,12 +187,17 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * because the wallpaper renders in the shell-level layer behind
  * both this area and the dock. Stacking context via position: relative
  * ensures children (windows) sit above the wallpaper.
+ *
+ * `padding-bottom` reserves room for the floating bottom dock pill
+ * that every layout (Classic, Unified, Spatial) puts at the bottom
+ * — 40px icons + 16px padding + 12px gap below + 8px breathing room.
  */
 .wp-desktop-area {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
 	background: transparent;
+	padding-bottom: 80px;
 }
 
 /* ---------------------------------------------------------------
@@ -212,12 +217,38 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 .wp-desktop-icons {
 	position: absolute;
 	inset-block-start: 16px;
+	inset-block-end: 16px;
 	inset-inline-start: 16px;
+	inset-inline-end: 16px;
 	display: grid;
-	grid-template-columns: repeat(auto-fill, 88px);
+	/*
+	 * Column-major flow: icons fill the first column top-to-bottom,
+	 * then start the next column. Matches the macOS / Finder
+	 * convention. `grid-auto-flow: column` plus `auto-fill` rows
+	 * (sized to the container height) yields exactly that layout.
+	 *
+	 * All four insets are pinned so the container has a definite
+	 * height — `repeat(auto-fill, 96px)` needs that to compute the
+	 * row count. 96px is one icon button (48px image + 6px gap +
+	 * up-to-two-line label + 8px vertical padding); a slightly
+	 * generous figure leaves room for descenders without clipping.
+	 */
+	grid-auto-flow: column;
+	grid-template-rows: repeat(auto-fill, 96px);
+	grid-auto-columns: 88px;
+	align-content: start;
+	justify-content: start;
 	gap: 12px;
 	z-index: 1;
 	pointer-events: none;
+	/*
+	 * Spill protection: if a user ever pins more icons than fit
+	 * vertically, the grid scrolls horizontally so the unreachable
+	 * tiles can be reached without clipping the visible ones.
+	 * Individual tiles re-enable pointer events so they stay
+	 * clickable inside the scroll surface.
+	 */
+	overflow: auto;
 }
 
 .wp-desktop-icon {
@@ -243,7 +274,12 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * Icon badge — symmetric to `.wp-desktop-dock__badge` but anchored
  * to the wallpaper-icon image. Same gradient, same ring, slightly
  * larger so it reads at the longer wallpaper viewing distance.
- * Painted by `wp.desktop.setBadge()` (see `src/recycle-bin/badge.ts`).
+ * Painted by `wp.desktop.icons.setBadge( id, count )` — see
+ * `src/desktop-icons.ts` for the imperative API and
+ * `src/recycle-bin/badge.ts` for the canonical multi-rail
+ * consumer. The class name is part of the stable contract; the
+ * positioning, color, and shadow are not — themes or future
+ * shell builds may restyle freely.
  */
 .wp-desktop-icon__badge {
 	position: absolute;

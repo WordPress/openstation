@@ -456,6 +456,7 @@ function desktop_mode_build_dock_items() {
 			'submenu'   => $sub_items,
 			'multi'     => desktop_mode_dock_item_is_multi( $item[2] ),
 			'placement' => desktop_mode_dock_placement( $item[2] ),
+			'isCore'    => desktop_mode_is_core_menu_slug( $item[2] ),
 		);
 
 		/**
@@ -488,7 +489,13 @@ function desktop_mode_build_dock_items() {
  *
  *   - A Dashicons class (e.g. `dashicons-admin-post`)
  *   - An http/https URL pointing at an image asset
- *   - `'none'` or `'div'` (CSS hooks, no icon asset)
+ *   - A `data:image/svg+xml;base64,…` URI (common for plugins that
+ *     ship inline vector art — Jetpack, WooCommerce, etc.). Rendered
+ *     as a CSS background-image, where per-spec SVG script content
+ *     does not execute, so the surface is safe.
+ *   - `'none'` or `'div'` (CSS hooks, no icon asset). The dock's JS
+ *     layer extracts the real icon from the hidden `#adminmenu` DOM
+ *     for these cases.
  *
  * Inline SVG data URIs (`data:image/svg+xml;base64,…` and
  * `data:image/svg+xml,…`) are also accepted because that's how the
@@ -508,7 +515,7 @@ function desktop_mode_build_dock_items() {
  * @since 0.11.0 Rejected `data:` URIs outright (regression — see 0.18.x).
  * @since 0.18.x Re-allowed `data:image/svg+xml{;base64,|,}` so plugin
  *               icons (Yoast, WooCommerce, Jetpack, etc.) appear on the
- *               dock/taskbar instead of collapsing to the gear fallback.
+ *               dock instead of collapsing to the gear fallback.
  *               Other `data:` schemes still rejected.
  *
  * @param mixed $icon Raw icon value from the menu registration.
@@ -522,11 +529,6 @@ function desktop_mode_sanitize_dock_icon( $icon ) {
 
 	$icon = trim( $icon );
 
-	// 'none' and 'div' tell WordPress to render an empty div for the
-	// admin-menu icon (the plugin styles it from CSS). We pass the
-	// fallback through; the JS dock has a getComputedStyle-based
-	// extractor that pulls the real icon from the hidden #adminmenu
-	// for these cases.
 	if ( 'none' === $icon || 'div' === $icon ) {
 		return $fallback;
 	}
@@ -624,8 +626,9 @@ function desktop_mode_dock_item_is_multi( $menu_slug ) {
 /**
  * Returns true when `$menu_slug` maps to a first-party WordPress
  * Core admin menu item (Dashboard, Posts, Pages, Media, Settings,
- * etc.), false otherwise — the caller uses the answer to route the
- * item to the left dock (core) vs the bottom taskbar (plugin).
+ * etc.), false otherwise. The caller uses the answer as an ordering
+ * hint — core items are placed ahead of plugin items in the
+ * unified dock rail.
  *
  * The rule:
  *
@@ -704,73 +707,48 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
 }
 
 /**
- * Resolve the dock placement for a given menu slug. Returns one of
- * three values:
+ * Resolve whether a given menu slug is rendered in the dock.
+ * Returns one of two values:
  *
- *   - `'dock'`    — render on the left-edge rail (default for core
- *                   WordPress pages: Dashboard, Posts, Plugins,
- *                   Users, Settings, CPTs, taxonomies, …).
- *   - `'taskbar'` — render on the bottom-edge taskbar (default for
- *                   everything else — installed plugins routed
- *                   through `admin.php?page=*`).
- *   - `'hidden'`  — don't render this item anywhere in the desktop
- *                   shell. The underlying admin menu entry still
- *                   exists server-side; this only affects dock /
- *                   taskbar rendering.
+ *   - `'dock'`   — render this item on the unified dock rail.
+ *   - `'hidden'` — don't render this item anywhere in the desktop
+ *                  shell. The underlying admin menu entry still
+ *                  exists server-side; this only suppresses the
+ *                  desktop-shell tile.
  *
- * Plugins + site admins can override any answer via the
- * `desktop_mode_dock_placement` filter. A plugin that wants to
- * completely opt out of the shell chrome (e.g. a utility plugin that
- * only registers sub-screens and shouldn't take up a tile) returns
- * `'hidden'` for its slug; one that wants first-class billing
- * returns `'dock'`; the default returns `'taskbar'`.
+ * Default is `'dock'` for every menu item. Plugins + site admins can
+ * hide individual items via the `desktop_mode_dock_placement` filter.
  *
  * @since 0.9.0
  *
  * @param string $menu_slug The menu slug (e.g. `edit.php`, `woocommerce`).
- * @return string `'dock'`, `'taskbar'`, or `'hidden'`.
+ * @return string `'dock'` or `'hidden'`.
  */
 function desktop_mode_dock_placement( $menu_slug ) {
-	$placement = desktop_mode_is_core_menu_slug( $menu_slug ) ? 'dock' : 'taskbar';
-
 	/**
-	 * Filter the dock placement for a specific menu item.
+	 * Filter whether a specific menu item is shown in the dock.
 	 *
-	 * Return `'dock'` to show the item in the left-edge core dock,
-	 * `'taskbar'` to show it in the bottom plugin taskbar, or
-	 * `'hidden'` to suppress it from both rails entirely. Any other
-	 * value coerces to the default heuristic answer — a defensive
-	 * guard so a misbehaving filter can't corrupt the split with
-	 * `null` / `false` / arbitrary strings.
+	 * Return `'dock'` to render the item on the dock (default) or
+	 * `'hidden'` to suppress it entirely. Any other value coerces to
+	 * `'dock'` — a defensive guard so a misbehaving filter can't
+	 * corrupt the dock with `null` / `false` / arbitrary strings.
 	 *
 	 * @since 0.9.0
 	 *
-	 * @param string $placement Default placement — `'dock'` for core
-	 *                          items, `'taskbar'` for everything else.
+	 * @param string $placement Default — always `'dock'`.
 	 * @param string $menu_slug The menu slug triggering the lookup.
 	 */
-	$filtered = apply_filters( 'desktop_mode_dock_placement', $placement, $menu_slug );
-	if ( 'dock' === $filtered || 'taskbar' === $filtered || 'hidden' === $filtered ) {
-		return $filtered;
-	}
-	return $placement;
+	$filtered = apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
+	return 'hidden' === $filtered ? 'hidden' : 'dock';
 }
 
 /**
- * Assemble the split menu payload consumed by the shell.
+ * Assemble the menu payload consumed by the shell.
  *
- * Runs the full dock-builder, then partitions the items into the two
- * rails by each item's `placement` key. Items with `placement` of
- * `'hidden'` are dropped entirely — plugins that want to stay out of
- * the desktop chrome (either because they're background-only tools
- * or because they own their own surface) filter themselves to
- * `'hidden'` and disappear from both rails without their server-side
- * menu entry going away.
- *
- * Returns the same shape the boot-time shell config exposes as
- * `dockItems` + `taskbarItems`, so the client can swap the `config`
- * values in place after a live refresh (e.g. after plugin activation
- * / deactivation).
+ * Runs the full dock-builder and returns a single `dockItems` array —
+ * core WordPress menus first (Dashboard, Posts, Media, …), then
+ * plugin-contributed top-level menus. Items whose `placement` is
+ * `'hidden'` are dropped entirely.
  *
  * Extracted out of `includes/render.php` so both the initial PHP
  * localize AND the `/wp-desktop/v1/menu` REST endpoint read from a
@@ -778,13 +756,13 @@ function desktop_mode_dock_placement( $menu_slug ) {
  *
  * @since 0.9.0
  *
- * @return array{dockItems: array[], taskbarItems: array[]} Split payload.
+ * @return array{dockItems: array[]} Menu payload.
  */
 function desktop_mode_build_menu_payload() {
 	$all = desktop_mode_build_dock_items();
 
-	// Hidden items disappear from both rails. The partition below
-	// only ever sees visible items.
+	// Drop hidden items; preserve the default "core first, plugins
+	// after" ordering by partitioning on the core classifier.
 	$visible = array_values(
 		array_filter(
 			$all,
@@ -794,27 +772,26 @@ function desktop_mode_build_menu_payload() {
 		)
 	);
 
-	$dock = array_values(
-		array_filter(
-			$visible,
-			static function ( $item ) {
-				return 'taskbar' !== ( $item['placement'] ?? 'dock' );
-			}
-		)
-	);
+	// Partition on the per-item `isCore` flag set in
+	// desktop_mode_build_dock_items — that classifier ran against the
+	// raw menu slug ($item[2]), which is what
+	// desktop_mode_is_core_menu_slug actually compares. The outer 'id'
+	// field is a sanitized CSS id (e.g. `toplevel_page_jetpack`) and
+	// would never match.
+	$core = array();
+	$plugin = array();
+	foreach ( $visible as $item ) {
+		if ( ! empty( $item['isCore'] ) ) {
+			$core[] = $item;
+		} else {
+			$plugin[] = $item;
+		}
+	}
 
-	$taskbar = array_values(
-		array_filter(
-			$visible,
-			static function ( $item ) {
-				return 'taskbar' === ( $item['placement'] ?? 'dock' );
-			}
-		)
-	);
+	$dock = array_merge( $core, $plugin );
 
 	return array(
 		'dockItems'        => $dock,
-		'taskbarItems'     => $taskbar,
 		'nativeWindows'    => desktop_mode_build_native_windows_payload(),
 		'serverWidgets'    => function_exists( 'desktop_mode_build_desktop_widgets_payload' )
 			? desktop_mode_build_desktop_widgets_payload()
@@ -837,6 +814,30 @@ function desktop_mode_build_menu_payload() {
 		'serverTitleBarButtonScripts' => function_exists( 'desktop_mode_build_desktop_titlebar_button_scripts_payload' )
 			? desktop_mode_build_desktop_titlebar_button_scripts_payload()
 			: array(),
+		'serverWindowThemeScripts'  => function_exists( 'desktop_mode_build_window_theme_scripts_payload' )
+			? desktop_mode_build_window_theme_scripts_payload()
+			: array(),
+		'serverWindowThemes'        => function_exists( 'desktop_mode_build_window_themes_payload' )
+			? desktop_mode_build_window_themes_payload()
+			: array(),
+		'serverWindowControlScripts' => function_exists( 'desktop_mode_build_window_control_scripts_payload' )
+			? desktop_mode_build_window_control_scripts_payload()
+			: array(),
+		'serverWindowControls'      => function_exists( 'desktop_mode_build_window_controls_payload' )
+			? desktop_mode_build_window_controls_payload()
+			: array(),
+		'serverWindowSlotScripts'   => function_exists( 'desktop_mode_build_window_slot_scripts_payload' )
+			? desktop_mode_build_window_slot_scripts_payload()
+			: array(),
+		'serverWindowSlots'         => function_exists( 'desktop_mode_build_window_slots_payload' )
+			? desktop_mode_build_window_slots_payload()
+			: array(),
+		'serverWindowChromeScripts' => function_exists( 'desktop_mode_build_window_chrome_scripts_payload' )
+			? desktop_mode_build_window_chrome_scripts_payload()
+			: array(),
+		'serverWindowChromes'       => function_exists( 'desktop_mode_build_window_chromes_payload' )
+			? desktop_mode_build_window_chromes_payload()
+			: array(),
 		'desktopIcons'     => function_exists( 'desktop_mode_build_desktop_icons_payload' )
 			? desktop_mode_build_desktop_icons_payload()
 			: array(),
@@ -844,35 +845,70 @@ function desktop_mode_build_menu_payload() {
 }
 
 /**
- * Resolve a registered WP script handle to an absolute URL
- * (with version cache-buster appended). Returns an empty string
- * when the handle isn't registered or has no source — callers
- * treat an empty string as "no script to load."
+ * Resolve a registered WP script handle into the full payload the
+ * shell needs to lazy-load it without going through `wp_print_scripts()`.
+ *
+ * Returns:
+ *
+ * ```
+ * array(
+ *     'url'          => 'https://…/script.js?ver=…',
+ *     'before'       => array( /* `wp_add_inline_script( $h, $code, 'before' )` strings *\/ ),
+ *     'after'        => array( /* `wp_add_inline_script( $h, $code, 'after' )` strings *\/ ),
+ *     'l10n'         => array( /* `wp_localize_script( $h, $name, $data )` precomputed `<script>var $name = …;</script>` strings *\/ ),
+ *     'translations' => string, /* `wp_set_script_translations()` JED chunk *\/
+ * )
+ * ```
+ *
+ * **The `l10n` / `before` / `after` / `translations` fields exist
+ * because the lazy-load path in the shell appends a raw
+ * `<script src="…">` and never invokes `wp_print_scripts()` — so any
+ * `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations`
+ * data attached to the handle would be silently dropped without this
+ * harvest.** The shell injects each entry as inline `<script>` tags
+ * around the lazy `<script src>` in the same order
+ * `WP_Scripts::do_item()` would have used.
+ *
+ * Returns an empty payload (`array( 'url' => '' )`) when the handle
+ * is unregistered or has no source — callers treat that as "no
+ * script to load."
  *
  * Shared between `desktop_mode_register_window()` and
- * `desktop_mode_register_widget()` because both need the same
- * handle→URL plumbing to power mid-session dynamic script
- * loading in the shell.
+ * `desktop_mode_register_widget()` (and every other registration that
+ * relies on lazy script loading in the shell) because all of them
+ * need identical handle→payload plumbing to power mid-session dynamic
+ * script loading without the `wp_print_scripts` lifecycle.
  *
  * @since 0.10.0
+ * @since 0.6.0 Returns full payload (was `string` URL only). Renamed
+ *              from `desktop_mode_resolve_script_url`.
  *
  * @param string $handle WP script handle.
- * @return string Absolute URL, or empty string on miss.
+ * @return array{ url:string, before:string[], after:string[], l10n:string[], translations:string } Payload (empty `url` on miss).
  */
-function desktop_mode_resolve_script_url( $handle ) {
+function desktop_mode_resolve_script_payload( $handle ) {
+	$empty = array(
+		'url'          => '',
+		'before'       => array(),
+		'after'        => array(),
+		'l10n'         => array(),
+		'translations' => '',
+	);
+
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return '';
+		return $empty;
 	}
 	$wp_scripts = wp_scripts();
 	if ( ! $wp_scripts || ! isset( $wp_scripts->registered[ $handle ] ) ) {
-		return '';
+		return $empty;
 	}
 	$registered = $wp_scripts->registered[ $handle ];
 	$src        = is_string( $registered->src ) ? $registered->src : '';
 	if ( '' === $src ) {
-		return '';
+		return $empty;
 	}
+
 	// Normalize relative paths + attach cache-bust ver.
 	$resolved = $src;
 	if ( 0 === strpos( $resolved, '/' ) && 0 !== strpos( $resolved, '//' ) ) {
@@ -881,7 +917,56 @@ function desktop_mode_resolve_script_url( $handle ) {
 	if ( ! empty( $registered->ver ) ) {
 		$resolved = add_query_arg( 'ver', $registered->ver, $resolved );
 	}
-	return $resolved;
+
+	// Harvest `extra` data the lazy-load path would otherwise drop.
+	$before = array();
+	$after  = array();
+	$l10n   = array();
+
+	if ( isset( $registered->extra['before'] ) && is_array( $registered->extra['before'] ) ) {
+		foreach ( $registered->extra['before'] as $code ) {
+			$code = (string) $code;
+			if ( '' !== $code ) {
+				$before[] = $code;
+			}
+		}
+	}
+	if ( isset( $registered->extra['after'] ) && is_array( $registered->extra['after'] ) ) {
+		foreach ( $registered->extra['after'] as $code ) {
+			$code = (string) $code;
+			if ( '' !== $code ) {
+				$after[] = $code;
+			}
+		}
+	}
+	// `wp_localize_script` stores its JS at `extra['data']` as a single
+	// concatenated string of `var x = …;` assignments. We capture it
+	// verbatim — the shell will eval it as the body of an inline
+	// `<script>` tag, mirroring what `WP_Scripts::print_extra_script()`
+	// does at print time.
+	if ( ! empty( $registered->extra['data'] ) && is_string( $registered->extra['data'] ) ) {
+		$l10n[] = $registered->extra['data'];
+	}
+
+	// Translations chunk — `wp_set_script_translations()` builds a
+	// `wp.i18n.setLocaleData( JSON, 'domain' )` snippet that the print
+	// pipeline emits before the script body. `print_translations(
+	// $handle, false )` returns the snippet without echoing.
+	$translations = '';
+	if ( method_exists( $wp_scripts, 'print_translations' ) ) {
+		$captured = $wp_scripts->print_translations( $handle, false );
+		if ( is_string( $captured ) ) {
+			$translations = $captured;
+		}
+	}
+
+	return array(
+		'url'          => $resolved,
+		'before'       => $before,
+		'after'        => $after,
+		'l10n'         => $l10n,
+		'translations' => $translations,
+	);
 }
 
 /**
@@ -943,6 +1028,30 @@ function desktop_mode_flush_script_handle_registries() {
 	if ( function_exists( 'desktop_mode_flush_desktop_titlebar_button_script_registry' ) ) {
 		desktop_mode_flush_desktop_titlebar_button_script_registry();
 	}
+	if ( function_exists( 'desktop_mode_flush_window_theme_script_registry' ) ) {
+		desktop_mode_flush_window_theme_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_theme_registry' ) ) {
+		desktop_mode_flush_window_theme_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_control_script_registry' ) ) {
+		desktop_mode_flush_window_control_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_control_registry' ) ) {
+		desktop_mode_flush_window_control_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_slot_script_registry' ) ) {
+		desktop_mode_flush_window_slot_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_slot_registry' ) ) {
+		desktop_mode_flush_window_slot_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_chrome_script_registry' ) ) {
+		desktop_mode_flush_window_chrome_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_chrome_registry' ) ) {
+		desktop_mode_flush_window_chrome_registry();
+	}
 	desktop_mode_warn_unresolvable_script_handle( '', '', '__flush__' );
 }
 
@@ -983,45 +1092,78 @@ function desktop_mode_build_native_windows_payload() {
 		// reload.
 		$template_html = desktop_mode_build_native_window_template_html( $entry );
 
-		// Resolve script handle → URL so the shell can inject a
-		// `<script>` tag dynamically on mid-session activation.
-		$script_handle = isset( $entry['script'] ) ? (string) $entry['script'] : '';
-		$script_url    = desktop_mode_resolve_script_url( $script_handle );
+		// Resolve script handle → full payload (URL + harvested
+		// `extra` data) so the shell can inject a `<script>` tag
+		// dynamically on mid-session activation WITHOUT dropping
+		// `wp_localize_script` / `wp_add_inline_script` data the way
+		// the bare `<script src>` lazy-load path would. See
+		// `desktop_mode_resolve_script_payload()` for shape.
+		$script_handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
+		$script_payload = desktop_mode_resolve_script_payload( $script_handle );
 
-		// Tab metadata (label + extra script URLs) ships alongside
+		// `config` arg on `desktop_mode_register_window()` — discoverable
+		// alternative to `wp_localize_script`. We synthesize a localize
+		// snippet so it lands through the same delivery path as native
+		// `wp_localize_script`. The bundle reads
+		// `window.wpDesktopWindowConfig[id]` (or via
+		// `wp.desktop.getWindowConfig(id)`).
+		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+			$script_payload['l10n'][] = sprintf(
+				'window.wpDesktopWindowConfig=window.wpDesktopWindowConfig||{};window.wpDesktopWindowConfig[%s]=%s;',
+				wp_json_encode( $entry['id'] ),
+				wp_json_encode( $entry['config'] )
+			);
+		}
+
+		// Tab metadata (label + extra script payloads) ships alongside
 		// the template so the shell can render a picker UI or load
 		// additional tab scripts when a tab's activation is late.
 		$tab_descriptors = array();
 		if ( function_exists( 'desktop_mode_get_native_window_tabs' ) ) {
 			foreach ( desktop_mode_get_native_window_tabs( $entry['id'] ) as $tab ) {
-				$tab_descriptors[] = array(
-					'value'        => $tab['value'],
-					'label'        => $tab['label'],
-					'isMain'       => $tab['is_main'],
-					'scriptUrl'    => '' !== $tab['script']
-						? desktop_mode_resolve_script_url( $tab['script'] )
-						: '',
-					'scriptHandle' => $tab['script'],
+				$tab_payload                 = '' !== $tab['script']
+					? desktop_mode_resolve_script_payload( $tab['script'] )
+					: array(
+						'url'          => '',
+						'before'       => array(),
+						'after'        => array(),
+						'l10n'         => array(),
+						'translations' => '',
+					);
+				$tab_descriptors[]           = array(
+					'value'             => $tab['value'],
+					'label'             => $tab['label'],
+					'isMain'            => $tab['is_main'],
+					'scriptUrl'         => $tab_payload['url'],
+					'scriptHandle'      => $tab['script'],
+					'scriptBefore'      => $tab_payload['before'],
+					'scriptAfter'       => $tab_payload['after'],
+					'scriptL10n'        => $tab_payload['l10n'],
+					'scriptTranslations' => $tab_payload['translations'],
 				);
 			}
 		}
 
 		$out[] = array(
-			'id'           => $entry['id'],
-			'title'        => $entry['title'],
-			'icon'         => $entry['icon'],
-			'placement'    => $entry['placement'],
-			'width'        => $entry['width'],
-			'height'       => $entry['height'],
-			'minWidth'     => $entry['min_width'],
-			'minHeight'    => $entry['min_height'],
-			'autofocus'    => $entry['autofocus'],
-			'templateId'   => 'wpdm-native-window-' . $entry['id'],
-			'templateHtml' => $template_html,
-			'scriptUrl'    => $script_url,
-			'scriptHandle' => $script_handle,
-			'ownerHandle'  => $script_handle,
-			'tabs'         => $tab_descriptors,
+			'id'                => $entry['id'],
+			'title'             => $entry['title'],
+			'icon'              => $entry['icon'],
+			'placement'         => $entry['placement'],
+			'width'             => $entry['width'],
+			'height'            => $entry['height'],
+			'minWidth'          => $entry['min_width'],
+			'minHeight'         => $entry['min_height'],
+			'autofocus'         => $entry['autofocus'],
+			'templateId'        => 'wpdm-native-window-' . $entry['id'],
+			'templateHtml'      => $template_html,
+			'scriptUrl'         => $script_payload['url'],
+			'scriptHandle'      => $script_handle,
+			'ownerHandle'       => $script_handle,
+			'scriptBefore'      => $script_payload['before'],
+			'scriptAfter'       => $script_payload['after'],
+			'scriptL10n'        => $script_payload['l10n'],
+			'scriptTranslations' => $script_payload['translations'],
+			'tabs'              => $tab_descriptors,
 		);
 	}
 

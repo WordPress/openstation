@@ -19,6 +19,21 @@ import type { DOCK_SIZES } from './constants';
  */
 export type AccentId = string;
 export type DockSizeId = ( typeof DOCK_SIZES )[ number ][ 'id' ];
+export type DockPlacementId = 'left' | 'right' | 'bottom';
+
+/**
+ * Top-level desktop layout. User-tunable via OS Settings → Appearance.
+ *
+ * - `classic` — left side bar with core admin menus + bottom dock with
+ *   plugin menus. Two `Dock` instances. Default.
+ * - `unified` — single bottom dock with every item. One `Dock` instance.
+ * - `spatial` — bottom dock with plugin menus + core menus rendered as
+ *   icons on the wallpaper. One `Dock` instance, plus synthesized
+ *   desktop icons.
+ *
+ * @since 0.18.0
+ */
+export type DesktopLayoutId = 'classic' | 'unified' | 'spatial';
 
 /** Two endpoints on the gradient, plus an angle in degrees (0–360). */
 export interface CustomGradient {
@@ -66,6 +81,7 @@ export interface OsSettingsState {
 	wallpaper: string;
 	accent: AccentId;
 	dockSize: DockSizeId;
+	desktopLayout: DesktopLayoutId;
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
 	/**
@@ -114,7 +130,9 @@ export interface OsSettingsConfig {
 	/** REST endpoint for reading/writing platform AI settings. */
 	aiPlatformSettingsUrl: string;
 	/** Platform-wide extended options — null for non-admins. */
-	extendedOptions: { media_library_enhanced: boolean } | null;
+	extendedOptions: {
+		media_library_enhanced: boolean;
+	} | null;
 	/** REST endpoint for reading/writing extended options. */
 	extendedOptionsUrl: string;
 }

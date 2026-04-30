@@ -20,6 +20,9 @@ const DESKTOP_MODE_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 /** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
 
+/** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
+const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
+
 /**
  * Built-in AI provider IDs.
  *
@@ -46,6 +49,7 @@ function desktop_mode_default_os_settings() {
 		'wallpaper'    => 'dark',
 		'accent'       => 'wp-blue',
 		'dockSize'     => 'default',
+		'desktopLayout' => 'classic',
 		'customGradient' => array(
 			'from'  => '#2271b1',
 			'to'    => '#7c3aed',
@@ -141,6 +145,13 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (string) $raw['dockSize']
 		: $defaults['dockSize'];
 
+	// Desktop layout — must be one of the three known values
+	// (`classic`, `unified`, `spatial`). Default `classic`.
+	$desktop_layout = isset( $raw['desktopLayout'] )
+		&& in_array( $raw['desktopLayout'], DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS, true )
+		? (string) $raw['desktopLayout']
+		: $defaults['desktopLayout'];
+
 	// Custom gradient — { from, to: valid hex; angle: int 0–360 }.
 	$custom_gradient = $defaults['customGradient'];
 	if ( isset( $raw['customGradient'] ) && is_array( $raw['customGradient'] ) ) {
@@ -224,6 +235,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'wallpaper'     => $wallpaper,
 		'accent'        => $accent,
 		'dockSize'      => $dock_size,
+		'desktopLayout' => $desktop_layout,
 		'customGradient' => $custom_gradient,
 		'customImage'   => $custom_image,
 		'libraryHdOnly' => $library_hd_only,

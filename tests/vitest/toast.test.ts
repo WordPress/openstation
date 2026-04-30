@@ -8,9 +8,14 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { showToast } from '../../src/toast';
+import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 describe( 'toast.ts', () => {
 	beforeEach( () => {
+		// `showToast` filters through `wp.desktop.activity`, which
+		// in turn calls `wp.hooks.applyFilters` — install the hooks
+		// stub so the call has a runtime to talk to.
+		installHooksStub();
 		document.body.innerHTML = '';
 		vi.useFakeTimers();
 	} );
@@ -18,6 +23,7 @@ describe( 'toast.ts', () => {
 	afterEach( () => {
 		vi.useRealTimers();
 		document.body.innerHTML = '';
+		clearHooksStub();
 	} );
 
 	test( 'showToast creates a container + toast element', () => {

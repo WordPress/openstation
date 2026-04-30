@@ -2,9 +2,9 @@
  * Live-menu-refresh payload applier.
  *
  * Pure factory extracted from `desktop.ts` so it can be exercised in
- * isolation. Given the parent shell's mutable `config`, the dock /
- * taskbar instances, and the per-surface sync callbacks, returns a
- * single `applyPayload( payload )` function that mirrors a fresh
+ * isolation. Given the parent shell's mutable `config`, the dock
+ * instance, and the per-surface sync callbacks, returns a single
+ * `applyPayload( payload )` function that mirrors a fresh
  * `wp-desktop-plugins-changed` payload onto the live shell — adding
  * dock tiles, repainting widgets, registering plugin wallpapers,
  * re-rendering wallpaper-shortcut icons, and so on, all without an F5.
@@ -15,7 +15,7 @@
  *
  * @since 0.18.0
  */
-import type { Dock } from './dock';
+import type { DockItem } from './dock';
 import type {
 	DesktopCommandScriptServerEntry,
 	DesktopCommandServerEntry,
@@ -32,7 +32,6 @@ import type {
 /** Shape of every payload key the bridge may carry. */
 export interface MenuRefreshPayload {
 	dockItems?: unknown;
-	taskbarItems?: unknown;
 	nativeWindows?: unknown;
 	serverWidgets?: unknown;
 	serverWallpapers?: unknown;
@@ -46,9 +45,17 @@ export interface MenuRefreshPayload {
 
 /** Dependencies the applier needs from the shell. */
 export interface MenuRefreshDeps {
-	dock: Dock | null;
-	taskbar: Dock | null;
-	taskbarEl: HTMLElement | null;
+	/**
+	 * Push a fresh dock-items list into whichever rails are live for
+	 * the current desktop layout. Routes core/plugin partitioning
+	 * through the layout dispatcher rather than reaching for a single
+	 * `Dock` instance — necessary because Classic uses two docks and
+	 * Spatial pushes core items to the wallpaper instead.
+	 *
+	 * No-op when the layout dispatcher hasn't been wired (older shell
+	 * markup, head-less tests).
+	 */
+	applyDockItems: ( items: DockItem[] ) => void;
 	desktopArea: HTMLElement;
 	config: DesktopConfig;
 	syncNativeWindows: ( list: NativeWindowServerEntry[] ) => Promise< void >;
@@ -74,10 +81,7 @@ export function createApplyPayload(
 	deps: MenuRefreshDeps,
 ): ( payload: MenuRefreshPayload ) => void {
 	const {
-		dock,
-		taskbar,
-		taskbarEl,
-		desktopArea,
+		applyDockItems,
 		config,
 		syncNativeWindows,
 		syncServerWidgets,
@@ -90,7 +94,6 @@ export function createApplyPayload(
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		const dockItems = payload.dockItems;
-		const taskbarItems = payload.taskbarItems;
 		const nativeWindows = payload.nativeWindows;
 		const serverWidgets = payload.serverWidgets;
 		const serverWallpapers = payload.serverWallpapers;
@@ -111,39 +114,8 @@ export function createApplyPayload(
 		if ( ! Array.isArray( dockItems ) || dockItems.length === 0 ) {
 			return;
 		}
-		if ( dock ) {
-			dock.replaceItems( dockItems as DesktopConfig[ 'dockItems' ] );
-			config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
-		}
-
-		// Taskbar CAN legitimately be empty (user has no plugins
-		// with top-level menus yet). Only touched when the payload
-		// also carries a taskbarItems array — missing field means
-		// "no data", not "clear it."
-		if ( Array.isArray( taskbarItems ) ) {
-			taskbar?.replaceItems(
-				taskbarItems as DesktopConfig[ 'taskbarItems' ],
-			);
-			config.taskbarItems =
-				taskbarItems as DesktopConfig[ 'taskbarItems' ];
-
-			// Visibility check spans BOTH menu-derived tiles AND
-			// JS-registered system tiles (like the Calculator's
-			// native-window launcher). Counting only `taskbarItems`
-			// would incorrectly hide the whole rail whenever the
-			// LAST menu-plugin deactivates — even if a native
-			// window is still sitting on the rail. Asking the dock
-			// itself via `hasItems()` keeps both kinds of tile in
-			// the "is this rail alive?" equation.
-			const hasAnyTaskbarTile = taskbar?.hasItems() ?? false;
-			if ( taskbarEl ) {
-				taskbarEl.hidden = ! hasAnyTaskbarTile;
-			}
-			desktopArea.classList.toggle(
-				'wp-desktop-area--with-taskbar',
-				hasAnyTaskbarTile,
-			);
-		}
+		applyDockItems( dockItems as DesktopConfig[ 'dockItems' ] );
+		config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
 
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added

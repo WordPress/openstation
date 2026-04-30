@@ -32,6 +32,7 @@
  * @since 0.21.0
  */
 
+import { activity } from './activity';
 import { applyFilters, doAction, HOOKS } from './hooks';
 import type { WindowManager } from './window-manager';
 
@@ -101,6 +102,17 @@ export function broadcast< T = unknown >( topic: string, payload: T ): void {
 	// In-shell — synchronous.
 	document.dispatchEvent( new CustomEvent( EVENT_NAME, { detail } ) );
 	doAction( HOOKS.BROADCAST, detail );
+
+	// Mirror onto the framework activity bus so in-tab consumers
+	// can subscribe via the unified `wp.desktop.activity.subscribe`
+	// surface instead of having to know about the broadcast bus.
+	// Cross-tab BroadcastChannel + cross-iframe postMessage fanout
+	// below stays the broadcast module's job — activity is in-tab
+	// only by design.
+	activity.publish(
+		filteredTopic as `${ string }/${ string }`,
+		filteredPayload,
+	);
 
 	// Fan out to every open iframe. Catch-and-continue: a single
 	// iframe's `contentWindow` going stale (cross-origin nav,

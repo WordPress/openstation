@@ -1,10 +1,19 @@
 {
 	"name": "wp-desktop-mode",
-	"version": "0.5.4",
+	"version": "0.6.0",
 	"private": true,
 	"type": "module",
 	"description": "WordPress admin as a desktop OS — draggable, resizable windows on a desktop with a dock.",
 	"license": "GPL-2.0-or-later",
+	"types": "src/public-api.ts",
+	"exports": {
+		".": {
+			"types": "./src/public-api.ts"
+		},
+		"./global": {
+			"types": "./src/global.d.ts"
+		}
+	},
 	"engines": {
 		"node": ">=24.0.0 <25.0.0"
 	},

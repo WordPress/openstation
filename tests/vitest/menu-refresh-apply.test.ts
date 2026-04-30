@@ -39,7 +39,6 @@ function makeConfig(): DesktopConfig {
 	// to keep the test focused on what the applier writes.
 	return {
 		dockItems: [],
-		taskbarItems: [],
 		nativeWindows: [],
 		serverWidgets: [],
 		serverWallpapers: [],
@@ -55,8 +54,6 @@ function makeConfig(): DesktopConfig {
 function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 	deps: MenuRefreshDeps;
 	dock: FakeDock;
-	taskbar: FakeDock;
-	taskbarEl: HTMLElement;
 	desktopArea: HTMLElement;
 	config: DesktopConfig;
 	syncs: {
@@ -70,8 +67,6 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 	renderIcons: ReturnType< typeof vi.fn >;
 } {
 	const dock = makeDock();
-	const taskbar = makeDock();
-	const taskbarEl = document.createElement( 'div' );
 	const desktopArea = document.createElement( 'div' );
 	const config = makeConfig();
 	const syncs = {
@@ -85,9 +80,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 	const renderIcons = vi.fn();
 
 	const deps: MenuRefreshDeps = {
-		dock: dock as unknown as MenuRefreshDeps[ 'dock' ],
-		taskbar: taskbar as unknown as MenuRefreshDeps[ 'taskbar' ],
-		taskbarEl,
+		applyDockItems: ( items ) => dock.replaceItems( items ),
 		desktopArea,
 		config,
 		syncNativeWindows: syncs.nativeWindows,
@@ -99,7 +92,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		renderIcons,
 		...overrides,
 	};
-	return { deps, dock, taskbar, taskbarEl, desktopArea, config, syncs, renderIcons };
+	return { deps, dock, desktopArea, config, syncs, renderIcons };
 }
 
 const MIN_DOCK = [ { id: 'dashboard', title: 'Dashboard' } ] as const;
@@ -135,32 +128,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( dock.replaceItems ).toHaveBeenCalledTimes( 1 );
 		expect( dock.replaceItems ).toHaveBeenCalledWith( items );
 		expect( config.dockItems ).toBe( items );
-	} );
-
-	test( 'taskbar visibility tracks the post-apply hasItems result', () => {
-		// Empty taskbar + no system tiles → hide rail
-		const { deps, taskbarEl, desktopArea, taskbar } = makeDeps();
-		taskbar.hasItems.mockReturnValue( false );
-		const apply = createApplyPayload( deps );
-
-		apply( { dockItems: [ ...MIN_DOCK ], taskbarItems: [] } );
-
-		expect( taskbarEl.hidden ).toBe( true );
-		expect(
-			desktopArea.classList.contains( 'wp-desktop-area--with-taskbar' ),
-		).toBe( false );
-
-		// Now a tile is present (e.g. plugin activated) → show rail
-		taskbar.hasItems.mockReturnValue( true );
-		apply( {
-			dockItems: [ ...MIN_DOCK ],
-			taskbarItems: [ { id: 'plugin-x', title: 'Plugin X' } ],
-		} );
-
-		expect( taskbarEl.hidden ).toBe( false );
-		expect(
-			desktopArea.classList.contains( 'wp-desktop-area--with-taskbar' ),
-		).toBe( true );
 	} );
 
 	test( 'forwards every server-* array to its dedicated sync', () => {
@@ -276,24 +243,13 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 // End-to-end live-refresh — REAL Dock instance, REAL DOM, real
 // applyPayload pipeline. Pins the user-visible behaviour: a plugin
 // (Yoast SEO, etc.) that adds a top-level admin menu MUST surface
-// as a tile on the bottom centered taskbar the moment its row in
-// `taskbarItems` arrives, and disappear from the rail the moment
-// its row leaves. Same for the left dock when a core menu item
-// appears / disappears (rare but possible — multisite, role-gated
-// menus, etc.).
-//
-// This is the regression class the user kept hitting: the previous
-// generation of this code had `taskbar.replaceItems` wired but
-// no test actually verified the full message-to-DOM hop, so quiet
-// breakage in any link of the chain (the applier, the dock, the
-// hidden-rail re-show) only showed up in production.
+// as a tile on the unified dock the moment its row arrives in
+// `dockItems`, and disappear the moment its row leaves.
 describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock', () => {
 	function buildShell(): {
 		dockEl: HTMLElement;
-		taskbarEl: HTMLElement;
 		desktopArea: HTMLElement;
 		dock: Dock;
-		taskbar: Dock;
 		config: DesktopConfig;
 	} {
 		document.body.innerHTML = '';
@@ -301,10 +257,7 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 		desktopArea.id = 'wp-desktop-area';
 		const dockEl = document.createElement( 'div' );
 		dockEl.id = 'wp-desktop-dock';
-		const taskbarEl = document.createElement( 'div' );
-		taskbarEl.id = 'wp-desktop-taskbar';
-		taskbarEl.hidden = true;
-		document.body.append( desktopArea, dockEl, taskbarEl );
+		document.body.append( desktopArea, dockEl );
 
 		const manager = {
 			open: vi.fn(),
@@ -315,16 +268,14 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 			getActiveDesktopId: () => 'desktop-1',
 		} as unknown as WindowManager;
 
-		const dock = new Dock( dockEl, manager, [], '/wp-admin/', 'left' );
-		const taskbar = new Dock( taskbarEl, manager, [], '/wp-admin/', 'bottom' );
+		const dock = new Dock( dockEl, manager, [], '/wp-admin/', 'bottom' );
 
 		const config = {
 			dockItems: [],
-			taskbarItems: [],
 			adminUrl: '/wp-admin/',
 		} as unknown as DesktopConfig;
 
-		return { dockEl, taskbarEl, desktopArea, dock, taskbar, config };
+		return { dockEl, desktopArea, dock, config };
 	}
 
 	function tilesIn( el: HTMLElement, attr: 'menu-slug' | 'system-id' ): string[] {
@@ -338,16 +289,12 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 
 	function makeNoopDeps(
 		dock: Dock,
-		taskbar: Dock,
-		taskbarEl: HTMLElement,
 		desktopArea: HTMLElement,
 		config: DesktopConfig,
 	): MenuRefreshDeps {
 		const noop = (): Promise< void > => Promise.resolve();
 		return {
-			dock,
-			taskbar,
-			taskbarEl,
+			applyDockItems: ( items ) => dock.replaceItems( items ),
 			desktopArea,
 			config,
 			syncNativeWindows: noop,
@@ -369,153 +316,89 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 		document.body.innerHTML = '';
 	} );
 
-	test( 'activation: a plugin top-level menu (e.g. Yoast SEO) appears on the bottom taskbar live', () => {
-		const { dock, taskbar, taskbarEl, desktopArea, config } = buildShell();
+	const dashboard = { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php', isCore: true } as const;
+	const yoast = { id: 'wpseo_dashboard', title: 'Yoast SEO', icon: 'dashicons-yoast', url: '/wp-admin/admin.php?page=wpseo_dashboard', isCore: false } as const;
+	const woo = { id: 'woocommerce', title: 'WooCommerce', icon: 'dashicons-store', url: '/wp-admin/admin.php?page=woocommerce', isCore: false } as const;
+
+	test( 'activation: a plugin top-level menu appears on the dock live', () => {
+		const { dock, dockEl, desktopArea, config } = buildShell();
 		const apply = createApplyPayload(
-			makeNoopDeps( dock, taskbar, taskbarEl, desktopArea, config ),
+			makeNoopDeps( dock, desktopArea, config ),
 		);
 
-		// Boot — Dashboard alone, taskbar empty, rail hidden.
-		apply( {
-			dockItems: [ { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php' } ],
-			taskbarItems: [],
-		} );
-		expect( taskbarEl.hidden ).toBe( true );
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [] );
+		apply( { dockItems: [ dashboard ] } );
+		expect( tilesIn( dockEl, 'menu-slug' ) ).toEqual( [ 'index.php' ] );
 
 		// Activate Yoast — bridge re-broadcasts with the new top-level
-		// menu now in `taskbarItems`.
-		apply( {
-			dockItems: [ { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php' } ],
-			taskbarItems: [
-				{ id: 'wpseo_dashboard', title: 'Yoast SEO', icon: 'dashicons-yoast', url: '/wp-admin/admin.php?page=wpseo_dashboard' },
-			],
-		} );
+		// menu now appended to `dockItems`.
+		apply( { dockItems: [ dashboard, yoast ] } );
 
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [ 'wpseo_dashboard' ] );
-		expect( taskbarEl.hidden ).toBe( false );
-		expect(
-			desktopArea.classList.contains( 'wp-desktop-area--with-taskbar' ),
-		).toBe( true );
+		expect( tilesIn( dockEl, 'menu-slug' ).sort() ).toEqual( [
+			'index.php',
+			'wpseo_dashboard',
+		] );
 	} );
 
-	test( 'deactivation: the same plugin disappears from the bottom taskbar live', () => {
-		const { dock, taskbar, taskbarEl, desktopArea, config } = buildShell();
+	test( 'activation/deactivation cycle: live dock tracks every step', () => {
+		const { dock, dockEl, desktopArea, config } = buildShell();
 		const apply = createApplyPayload(
-			makeNoopDeps( dock, taskbar, taskbarEl, desktopArea, config ),
+			makeNoopDeps( dock, desktopArea, config ),
 		);
 
-		// Boot with Yoast already on the rail.
-		apply( {
-			dockItems: [ { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php' } ],
-			taskbarItems: [
-				{ id: 'wpseo_dashboard', title: 'Yoast SEO', icon: 'dashicons-yoast', url: '/wp-admin/admin.php?page=wpseo_dashboard' },
-			],
-		} );
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [ 'wpseo_dashboard' ] );
+		apply( { dockItems: [ dashboard ] } );
+		apply( { dockItems: [ dashboard, yoast ] } );
+		expect( tilesIn( dockEl, 'menu-slug' ).sort() ).toEqual( [
+			'index.php',
+			'wpseo_dashboard',
+		] );
 
-		// Deactivate Yoast — bridge re-broadcasts with the entry gone.
-		apply( {
-			dockItems: [ { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php' } ],
-			taskbarItems: [],
-		} );
-
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [] );
-		// With no menu tiles AND no system tiles, the rail hides itself.
-		expect( taskbarEl.hidden ).toBe( true );
-		expect(
-			desktopArea.classList.contains( 'wp-desktop-area--with-taskbar' ),
-		).toBe( false );
-	} );
-
-	test( 'activation/deactivation cycle: live taskbar tracks every step', () => {
-		const { dock, taskbar, taskbarEl, desktopArea, config } = buildShell();
-		const apply = createApplyPayload(
-			makeNoopDeps( dock, taskbar, taskbarEl, desktopArea, config ),
-		);
-
-		const dashboard = { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php' };
-		const yoast = {
-			id: 'wpseo_dashboard',
-			title: 'Yoast SEO',
-			icon: 'dashicons-yoast',
-			url: '/wp-admin/admin.php?page=wpseo_dashboard',
-		};
-		const woo = {
-			id: 'woocommerce',
-			title: 'WooCommerce',
-			icon: 'dashicons-store',
-			url: '/wp-admin/admin.php?page=woocommerce',
-		};
-
-		apply( { dockItems: [ dashboard ], taskbarItems: [] } );
-		apply( { dockItems: [ dashboard ], taskbarItems: [ yoast ] } );
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [ 'wpseo_dashboard' ] );
-
-		apply( {
-			dockItems: [ dashboard ],
-			taskbarItems: [ yoast, woo ],
-		} );
-		expect( tilesIn( taskbarEl, 'menu-slug' ).sort() ).toEqual( [
+		apply( { dockItems: [ dashboard, yoast, woo ] } );
+		expect( tilesIn( dockEl, 'menu-slug' ).sort() ).toEqual( [
+			'index.php',
 			'woocommerce',
 			'wpseo_dashboard',
 		] );
 
-		apply( {
-			dockItems: [ dashboard ],
-			taskbarItems: [ woo ],
-		} );
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [ 'woocommerce' ] );
+		apply( { dockItems: [ dashboard, woo ] } );
+		expect( tilesIn( dockEl, 'menu-slug' ).sort() ).toEqual( [
+			'index.php',
+			'woocommerce',
+		] );
 
-		apply( { dockItems: [ dashboard ], taskbarItems: [] } );
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [] );
-		expect( taskbarEl.hidden ).toBe( true );
+		apply( { dockItems: [ dashboard ] } );
+		expect( tilesIn( dockEl, 'menu-slug' ) ).toEqual( [ 'index.php' ] );
 	} );
 
-	test( 'native-window tiles on the same rail survive a menu-derived replaceItems', () => {
-		// The bottom taskbar carries TWO kinds of tiles: menu-derived
-		// (`taskbarItems`, removed/added wholesale via `replaceItems`)
-		// and JS-registered system tiles (`appendSystemItem`, e.g. the
-		// Calculator native window). A live menu refresh that fires
-		// `taskbar.replaceItems` MUST NOT collateral-damage the system
-		// tiles — that's the contract Dock guards via the separate
-		// `systemItemElements` map. Pinning it here keeps any future
-		// "rewrite the dock" PR honest.
-		const { dock, taskbar, taskbarEl, desktopArea, config } = buildShell();
+	test( 'system tiles survive a menu-derived replaceItems', () => {
+		// The dock carries TWO kinds of tiles: menu-derived (`dockItems`,
+		// removed/added wholesale via `replaceItems`) and JS-registered
+		// system tiles (`appendSystemItem`, e.g. the OS Settings tile or
+		// a plugin-registered native-window launcher). A live menu
+		// refresh MUST NOT collateral-damage the system tiles.
+		const { dock, dockEl, desktopArea, config } = buildShell();
 		const apply = createApplyPayload(
-			makeNoopDeps( dock, taskbar, taskbarEl, desktopArea, config ),
+			makeNoopDeps( dock, desktopArea, config ),
 		);
 
-		// Calculator tile lands first, the way native-windows.ts would.
-		taskbar.appendSystemItem( {
+		dock.appendSystemItem( {
 			id: 'calculator',
 			title: 'Calculator',
 			icon: 'dashicons-calculator',
 			isOpen: () => false,
 			onOpen: () => {},
 		} );
-		expect( tilesIn( taskbarEl, 'system-id' ) ).toEqual( [ 'calculator' ] );
+		expect( tilesIn( dockEl, 'system-id' ) ).toEqual( [ 'calculator' ] );
 
-		// Then a plugin activates and adds a menu tile.
-		apply( {
-			dockItems: [ { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php' } ],
-			taskbarItems: [
-				{ id: 'wpseo_dashboard', title: 'Yoast SEO', icon: 'dashicons-yoast', url: '/wp-admin/admin.php?page=wpseo_dashboard' },
-			],
-		} );
+		apply( { dockItems: [ dashboard, yoast ] } );
 
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [ 'wpseo_dashboard' ] );
-		// SYSTEM tile must still be present.
-		expect( tilesIn( taskbarEl, 'system-id' ) ).toEqual( [ 'calculator' ] );
+		expect( tilesIn( dockEl, 'menu-slug' ).sort() ).toEqual( [
+			'index.php',
+			'wpseo_dashboard',
+		] );
+		expect( tilesIn( dockEl, 'system-id' ) ).toEqual( [ 'calculator' ] );
 
-		// Plugin deactivates — system tile keeps the rail alive.
-		apply( {
-			dockItems: [ { id: 'index.php', title: 'Dashboard', icon: 'dashicons-dashboard', url: '/wp-admin/index.php' } ],
-			taskbarItems: [],
-		} );
-		expect( tilesIn( taskbarEl, 'menu-slug' ) ).toEqual( [] );
-		expect( tilesIn( taskbarEl, 'system-id' ) ).toEqual( [ 'calculator' ] );
-		// System tile keeps it visible.
-		expect( taskbarEl.hidden ).toBe( false );
+		apply( { dockItems: [ dashboard ] } );
+		expect( tilesIn( dockEl, 'menu-slug' ) ).toEqual( [ 'index.php' ] );
+		expect( tilesIn( dockEl, 'system-id' ) ).toEqual( [ 'calculator' ] );
 	} );
 } );

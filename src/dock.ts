@@ -9,9 +9,12 @@
  * @since 6.9.0
  */
 
+import { activity } from './activity';
+import { doAction, HOOKS } from './hooks';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
+import { hashTitleToHue } from './ui/util/hash-hue';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -60,63 +63,45 @@ export interface DockItem {
 	/** Whether this admin page supports multiple open windows. */
 	multi?: boolean;
 	/**
-	 * Which rail the item was routed to by the PHP-side heuristic
-	 * (`desktop_mode_dock_placement`). `'dock'` = core WP menus on the
-	 * left-edge dock; `'taskbar'` = plugin-contributed top-level
-	 * menus on the bottom taskbar. Currently informational — the
-	 * shell splits items by this field in `desktop.ts` before
-	 * constructing the two Dock instances.
+	 * Whether this item is a first-party WordPress core menu entry
+	 * (Dashboard, Posts, Media, Plugins, Users, Settings, CPTs,
+	 * taxonomies). Used by the dock to render a visual separator
+	 * between core and plugin tiles. Server-side classifier lives
+	 * in `desktop_mode_is_core_menu_slug`.
 	 */
-	placement?: 'dock' | 'taskbar';
+	isCore?: boolean;
 }
 
 /** Which edge of the screen the rail hugs. Drives tooltip anchoring + modifier CSS. */
-export type DockOrientation = 'left' | 'bottom';
+export type DockOrientation = 'left' | 'right' | 'bottom';
 
-/**
- * Stable 32-bit-ish string hash mapped into the hue circle. Used by
- * the letter-badge icon fallback so a plugin title like "Jetpack"
- * always paints the same color on the same machine and between
- * reloads — visual identity without the plugin having to ship art.
- *
- * The "djb2 lite" variant — good enough for UI differentiation, not
- * suitable for anything security-adjacent. Empty input returns a
- * neutral blue-gray so the badge never flashes a placeholder hue.
- */
-export function hashTitleToHue( title: string ): number {
-	if ( ! title ) {
-		return 214; // Neutral blue-gray.
-	}
-	// djb2 with `hash * 33 + c`. Math.imul keeps the multiplication
-	// inside int32 range without needing bitwise ops (the WP ESLint
-	// preset disallows those), preserving enough entropy that
-	// realistic plugin titles spread around the hue circle.
-	let hash = 5381;
-	for ( let i = 0; i < title.length; i++ ) {
-		hash = Math.imul( hash, 33 ) + title.charCodeAt( i );
-	}
-	return ( ( hash % 360 ) + 360 ) % 360;
+/** Attention modes accepted by `Dock.setAttention()` and `Window.requestAttention()`. */
+export type DockAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
+
+/** Visual intensity for an attention animation. */
+export type DockAttentionIntensity = 'subtle' | 'normal' | 'strong';
+
+/** Options for `Dock.setAttention()` / `Window.requestAttention()`. */
+export interface DockAttentionOptions {
+	/** Auto-clear after this many ms. `0` = until cleared by another call. Default 4000. */
+	durationMs?: number;
+	/** Animation intensity. Default `'normal'`. */
+	intensity?: DockAttentionIntensity;
 }
 
 /**
  * Dock class.
  *
- * Manages the dock element, its icons, tooltips, and interaction with
- * the window manager. Rendered either on the left edge (core WP
- * menus — the classic dock) or along the bottom (installed-plugin
- * menus — the macOS-style taskbar), controlled by `orientation`. The
- * two instances share all of this class's logic; only CSS classes +
- * tooltip positioning differ.
+ * Manages a single dock element, its icons, tooltips, and interaction
+ * with the window manager. A dock can render along any of three edges
+ * (left, right, or bottom); placement is reflected on the dock
+ * element's own `data-wp-desktop-dock-placement` attribute, which CSS
+ * keys off for layout, tooltip anchor, and indicator position. This
+ * lets two `Dock` instances coexist in the same shell (used by the
+ * Classic desktop layout: a left side bar with core menus + a bottom
+ * dock with plugin menus) without their selectors colliding.
  */
 export class Dock {
-	/**
-	 * Monotonic instance counter used to build unique hook-registration
-	 * namespaces for each `Dock`. Without this, the left dock and the
-	 * bottom taskbar would share a namespace and WP's `addAction`
-	 * de-dup would silently drop whichever registered first.
-	 */
-	private static _instanceSeq = 0;
-
 	private container: HTMLElement;
 	private windowManager: WindowManager;
 	private items: DockItem[];
@@ -124,9 +109,44 @@ export class Dock {
 	private itemElements: Map<string, HTMLElement> = new Map();
 	private adminUrl: string;
 	private orientation: DockOrientation;
+	/**
+	 * Routing discriminator stamped onto every event this rail
+	 * publishes. `'left'` orientation carries `'dock'`; `'bottom'`
+	 * carries `'taskbar'`. Lets a single `wp-desktop/badge-changed`
+	 * subscriber tell the two visually-distinct rails apart
+	 * without inferring from id space.
+	 */
+	private rail: 'dock' | 'taskbar';
 	private systemItems: SystemDockItem[] = [];
 	private systemItemElements: Map<string, HTMLElement> = new Map();
 	private systemSeparator: HTMLElement | null = null;
+	/**
+	 * Client-side badge overrides keyed by item id. Lets
+	 * `replaceItems()` re-paint a tile that a JS caller had already
+	 * decorated via `setBadge()` — without this map the next live
+	 * menu refresh would drop every client-set badge back to the
+	 * server-declared `item.badge` value.
+	 */
+	private badgeOverrides: Map<string, number> = new Map();
+
+	/**
+	 * Active attention timers, keyed by item id. Used to cancel a
+	 * pending auto-clear when a fresh `setAttention()` call comes in
+	 * before the previous duration has elapsed.
+	 */
+	private attentionTimers: Map<string, number> = new Map();
+
+	/**
+	 * Window-lifecycle listener captured here so `destroy()` can
+	 * detach it from `document` and the hooks bus. Two simultaneous
+	 * docks (Classic layout) each register their own.
+	 */
+	private boundRefresh: () => void = () => undefined;
+
+	/** Unique hooks-bus namespace per instance for clean teardown. */
+	private hooksNamespace: string;
+
+	private static instanceCounter = 0;
 
 	constructor(
 		container: HTMLElement,
@@ -140,23 +160,28 @@ export class Dock {
 		this.items = items;
 		this.adminUrl = adminUrl;
 		this.orientation = orientation;
+		this.rail = orientation === 'bottom' ? 'taskbar' : 'dock';
+		this.hooksNamespace = `wp-desktop-mode/dock/${ ++Dock.instanceCounter }`;
 
-		// Mark the container with the orientation modifier so CSS can
-		// flip flex-direction, indicator-dot position, etc. The base
-		// `.wp-desktop-dock` class still applies — shared styling
-		// stays shared, only the deltas live behind the modifier.
-		this.container.classList.add(
-			orientation === 'bottom'
-				? 'wp-desktop-dock--horizontal'
-				: 'wp-desktop-dock--vertical',
+		// Placement lives on the dock element itself so two instances
+		// (Classic layout's left side bar + bottom dock) can coexist
+		// without their CSS scopes colliding. dock.css reads this
+		// attribute for layout, tooltip anchor, and indicator anchor.
+		this.container.setAttribute(
+			'data-wp-desktop-dock-placement',
+			orientation,
 		);
 
-		// Create tooltip element (shared across all items).
+		// Tooltip — shared across all items. Anchor class flips per
+		// orientation so the tooltip sits outside the dock regardless
+		// of which edge it hugs.
 		this.tooltip = document.createElement( 'div' );
 		this.tooltip.className = 'wp-desktop-dock__tooltip';
 		this.tooltip.setAttribute( 'role', 'tooltip' );
 		if ( orientation === 'bottom' ) {
 			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--above' );
+		} else if ( orientation === 'right' ) {
+			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--before' );
 		}
 		document.body.appendChild( this.tooltip );
 
@@ -166,11 +191,10 @@ export class Dock {
 
 	/**
 	 * Replace the menu-derived tile list with a fresh one, preserving
-	 * any JS-registered system tiles (OS Settings today, Jorvy /
-	 * widgets later). Used by the live menu-refresh path: after a
-	 * plugin is activated or deactivated, the shell refetches the
-	 * split payload from `/wp-desktop/v1/menu` and calls this on
-	 * both rails so the dock + taskbar repaint without a tab reload.
+	 * any JS-registered system tiles. Used by the live menu-refresh
+	 * path: after a plugin is activated or deactivated, the shell
+	 * refetches the payload from `/wp-desktop/v1/menu` and calls this
+	 * so the dock repaints without a tab reload.
 	 *
 	 * Old menu tiles are removed from both the DOM and the lookup
 	 * map; new tiles are inserted before the system separator (or
@@ -180,24 +204,89 @@ export class Dock {
 	 * window indicators survive the swap.
 	 *
 	 * @param items New DockItem list. Pass `[]` to clear everything
-	 *              menu-derived — common when the last plugin on the
-	 *              taskbar is deactivated.
+	 *              menu-derived.
 	 */
+	/**
+	 * Update the dock's orientation. Writes the new value to the
+	 * dock element's `data-wp-desktop-dock-placement` attribute (CSS
+	 * keys off it for layout) and keeps the tooltip anchor in sync.
+	 *
+	 * In practice, the layout dispatcher in `desktop.ts` rebuilds the
+	 * dock(s) from scratch on a layout change rather than re-orienting
+	 * a live instance — but this stays correct in case any caller
+	 * wants to flip orientation without the rebuild.
+	 */
+	public setOrientation( orientation: DockOrientation ): void {
+		if ( this.orientation === orientation ) {
+			return;
+		}
+		this.orientation = orientation;
+		this.container.setAttribute(
+			'data-wp-desktop-dock-placement',
+			orientation,
+		);
+		this.tooltip.classList.remove(
+			'wp-desktop-dock__tooltip--above',
+			'wp-desktop-dock__tooltip--before',
+		);
+		if ( orientation === 'bottom' ) {
+			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--above' );
+		} else if ( orientation === 'right' ) {
+			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--before' );
+		}
+	}
+
 	public replaceItems( items: DockItem[] ): void {
 		for ( const el of this.itemElements.values() ) {
 			el.remove();
 		}
+		// Also remove any stale group separator from a previous render.
+		this.container
+			.querySelectorAll(
+				'.wp-desktop-dock__separator--group',
+			)
+			.forEach( ( el ) => el.remove() );
 		this.itemElements.clear();
 
 		this.items = items;
 
+		let insertedGroupSeparator = false;
+		let tilesInsertedThisPass = 0;
 		for ( const item of items ) {
+			if ( ! insertedGroupSeparator && item.isCore === false ) {
+				if ( tilesInsertedThisPass > 0 ) {
+					const sep = document.createElement( 'div' );
+					sep.className =
+						'wp-desktop-dock__separator wp-desktop-dock__separator--group';
+					sep.setAttribute( 'aria-hidden', 'true' );
+					if ( this.systemSeparator ) {
+						this.container.insertBefore( sep, this.systemSeparator );
+					} else {
+						this.container.appendChild( sep );
+					}
+				}
+				insertedGroupSeparator = true;
+			}
 			const btn = this.createItemButton( item );
 			this.itemElements.set( item.id, btn );
 			if ( this.systemSeparator ) {
 				this.container.insertBefore( btn, this.systemSeparator );
 			} else {
 				this.container.appendChild( btn );
+			}
+			tilesInsertedThisPass++;
+			// Re-apply any client-side badge override that was set
+			// before the refresh. Without this, the live menu
+			// refresh path would drop every JS-set badge back to
+			// the server-declared `item.badge` and plugins would
+			// have to re-decorate after every plugin activation —
+			// exactly the anti-pattern this PR is closing.
+			const override = this.badgeOverrides.get( item.id );
+			if ( override !== undefined ) {
+				const primary = btn.querySelector< HTMLElement >(
+					'.wp-desktop-dock__item-primary',
+				);
+				_applyBadgeNode( primary ?? btn, override );
 			}
 		}
 
@@ -236,11 +325,160 @@ export class Dock {
 		tile.remove();
 		this.systemItemElements.delete( id );
 		this.systemItems = this.systemItems.filter( ( s ) => s.id !== id );
+		// Drop any client-side badge override the caller had set —
+		// the tile is gone, the override would otherwise re-apply
+		// on a future re-registration of the same id.
+		this.badgeOverrides.delete( id );
 
 		if ( this.systemItemElements.size === 0 && this.systemSeparator ) {
 			this.systemSeparator.remove();
 			this.systemSeparator = null;
 		}
+
+		doAction( HOOKS.DOCK_ITEM_REMOVED, { id, placement: this.rail } );
+	}
+
+	/**
+	 * Set the badge count on a tile. Live-updates without a full
+	 * dock re-render — the existing tile's badge node is mutated in
+	 * place (or created if missing). Pass `0` to remove the badge.
+	 *
+	 * Resolves the tile in id order: menu items (`data-menu-slug`)
+	 * first, then system items (`data-system-id`), so callers can
+	 * use the same id surface regardless of which rail the tile
+	 * happens to live on.
+	 *
+	 * Idempotent: applying the same count is a no-op (no DOM mutation).
+	 *
+	 * @since 0.22.0
+	 *
+	 * @param itemId Tile id (menu slug for admin pages, system id
+	 *               for `appendSystemItem` / `registerSystemTile`).
+	 * @param count  Non-negative integer. `>99` renders as `99+`.
+	 */
+	public setBadge( itemId: string, count: number ): void {
+		const tile = this._resolveTileElement( itemId );
+		// No tile on this rail — silent no-op. Lets plugin authors
+		// fan a count to every rail (`dock.setBadge`, `taskbar.setBadge`,
+		// `icons.setBadge`) without each call double-emitting. The
+		// rail that actually owns the tile is the only one that
+		// paints and publishes; the others see "this id isn't mine"
+		// and bow out cleanly.
+		if ( ! tile ) {
+			return;
+		}
+		const safe = Math.max( 0, Math.floor( Number( count ) || 0 ) );
+
+		// Track the client-side override so `replaceItems()` (live
+		// menu refresh) can re-apply it without having to re-call
+		// every plugin's badge wiring. `0` clears the override so
+		// the server-declared `item.badge` resumes ownership.
+		if ( safe === 0 ) {
+			this.badgeOverrides.delete( itemId );
+		} else {
+			this.badgeOverrides.set( itemId, safe );
+		}
+
+		const primary = tile.querySelector< HTMLElement >(
+			'.wp-desktop-dock__item-primary',
+		);
+		_applyBadgeNode( primary ?? tile, safe );
+
+		// Single emission point — activity bus. `rail` is the
+		// routing discriminator so a single subscriber can
+		// compose dock + taskbar + icons under one shape.
+		activity.publish( 'wp-desktop/badge-changed', {
+			itemId,
+			count: safe,
+			rail: this.rail,
+		} );
+	}
+
+	/**
+	 * Clear the badge on a tile. Equivalent to `setBadge( id, 0 )`.
+	 *
+	 * @since 0.22.0
+	 */
+	public clearBadge( itemId: string ): void {
+		this.setBadge( itemId, 0 );
+	}
+
+	/**
+	 * Apply or clear an attention animation on a tile.
+	 *
+	 *   - `'pulse'`  — soft halo + scale, ~1.4 s loop. Default.
+	 *   - `'shake'`  — short horizontal jiggle.
+	 *   - `'bounce'` — vertical bob, attention-grabbing.
+	 *   - `null`     — clear any active attention.
+	 *
+	 * Animations are gated on `prefers-reduced-motion: no-preference`;
+	 * the reduced-motion fallback shows a static accent ring for the
+	 * same duration so the affordance still works. `durationMs` of
+	 * `0` keeps the attention until the next call clears it.
+	 *
+	 * @since 0.22.0
+	 *
+	 * @param itemId Tile id.
+	 * @param mode   Animation mode or `null` to clear.
+	 * @param opts   Optional duration / intensity overrides.
+	 */
+	public setAttention(
+		itemId: string,
+		mode: DockAttentionMode,
+		opts: DockAttentionOptions = {},
+	): void {
+		const tile = this._resolveTileElement( itemId );
+		if ( ! tile ) {
+			return;
+		}
+
+		// Cancel any pending auto-clear from a previous call.
+		const pending = this.attentionTimers.get( itemId );
+		if ( pending !== undefined ) {
+			window.clearTimeout( pending );
+			this.attentionTimers.delete( itemId );
+		}
+
+		// Strip every prior attention class before applying the new one.
+		tile.classList.remove(
+			'wp-desktop-dock__item--attention-pulse',
+			'wp-desktop-dock__item--attention-shake',
+			'wp-desktop-dock__item--attention-bounce',
+			'wp-desktop-dock__item--intensity-subtle',
+			'wp-desktop-dock__item--intensity-normal',
+			'wp-desktop-dock__item--intensity-strong',
+		);
+
+		if ( mode === null ) {
+			return;
+		}
+
+		tile.classList.add( `wp-desktop-dock__item--attention-${ mode }` );
+		const intensity = opts.intensity ?? 'normal';
+		tile.classList.add( `wp-desktop-dock__item--intensity-${ intensity }` );
+
+		const duration = opts.durationMs ?? 4000;
+		if ( duration > 0 ) {
+			const handle = window.setTimeout( () => {
+				this.attentionTimers.delete( itemId );
+				this.setAttention( itemId, null );
+			}, duration );
+			this.attentionTimers.set( itemId, handle );
+		}
+	}
+
+	/**
+	 * Resolve a tile element by id — checks menu items first
+	 * (`data-menu-slug`), then system items (`data-system-id`). Used
+	 * by `setBadge` / `setAttention` so callers can reach either rail
+	 * with one id surface.
+	 */
+	private _resolveTileElement( itemId: string ): HTMLElement | null {
+		return (
+			this.itemElements.get( itemId ) ??
+			this.systemItemElements.get( itemId ) ??
+			null
+		);
 	}
 
 	/**
@@ -270,12 +508,33 @@ export class Dock {
 
 	/**
 	 * Render the dock contents.
+	 *
+	 * Items are ordered server-side with core WordPress menus first and
+	 * plugin-contributed menus after. We insert a `--group` separator
+	 * at the first core→plugin transition so the two clusters read as
+	 * distinct groups of tiles — "default apps" and "installed apps"
+	 * in macOS-dock parlance. The separator is skipped when the menu
+	 * contains only one kind (no plugin menus, or a theme's filter
+	 * reordered everything into one class).
 	 */
 	private render(): void {
 		this.container.innerHTML = '';
 
-		// Dock items from the admin menu.
+		let insertedGroupSeparator = false;
 		for ( const item of this.items ) {
+			if ( ! insertedGroupSeparator && item.isCore === false ) {
+				// Only insert if there's at least one core tile before
+				// us — otherwise a plugin-only dock would lead with a
+				// lonely separator.
+				if ( this.container.childElementCount > 0 ) {
+					const sep = document.createElement( 'div' );
+					sep.className =
+						'wp-desktop-dock__separator wp-desktop-dock__separator--group';
+					sep.setAttribute( 'aria-hidden', 'true' );
+					this.container.appendChild( sep );
+				}
+				insertedGroupSeparator = true;
+			}
 			const btn = this.createItemButton( item );
 			this.itemElements.set( item.id, btn );
 			this.container.appendChild( btn );
@@ -420,7 +679,7 @@ export class Dock {
 	 *
 	 * Priority: dashicons class → inline SVG data URI → image URL →
 	 * letter badge derived from the item's title. The letter fallback is
-	 * important for the taskbar: plugin authors routinely register
+	 * important for plugin tiles: plugin authors routinely register
 	 * top-level menus with `add_menu_page()` and omit the icon argument
 	 * (defaulting to `'div'` or empty), which would otherwise render as
 	 * an indistinguishable wall of generic wrenches. A colored letter
@@ -632,10 +891,9 @@ export class Dock {
 
 	/**
 	 * Bind tooltip show/hide on hover. Tooltip anchor differs per
-	 * orientation: left dock → vertically centered on the tile, placed
-	 * to its right via CSS; bottom taskbar → horizontally centered,
-	 * placed above the tile via CSS. We set the relevant coordinate
-	 * inline each enter; the CSS takes care of the rest.
+	 * orientation: left dock → tile's right side, right dock → tile's
+	 * left side, bottom dock → above the tile. We set the relevant
+	 * coordinate inline each enter; the CSS takes care of the rest.
 	 */
 	private bindTooltip( el: HTMLElement, text: string ): void {
 		el.addEventListener( 'pointerenter', () => {
@@ -660,8 +918,15 @@ export class Dock {
 			// Horizontal centering; CSS handles the vertical offset.
 			this.tooltip.style.left = `${ rect.left + rect.width / 2 }px`;
 			this.tooltip.style.top = `${ rect.top - 14 }px`;
+		} else if ( this.orientation === 'right' ) {
+			// Tooltip sits to the LEFT of the tile — anchor on the
+			// tile's left edge; CSS --before modifier translates it
+			// further left + centers vertically.
+			this.tooltip.style.top = `${ rect.top + rect.height / 2 - 14 }px`;
+			this.tooltip.style.left = `${ rect.left }px`;
 		} else {
-			// Vertical centering; CSS handles the horizontal offset.
+			// Left orientation (default). Vertical centering; CSS
+			// handles the horizontal offset.
 			this.tooltip.style.top = `${ rect.top + rect.height / 2 - 14 }px`;
 			this.tooltip.style.left = '';
 		}
@@ -718,6 +983,7 @@ export class Dock {
 	 */
 	private bindWindowEvents(): void {
 		const refresh = (): void => this.updateActiveStates();
+		this.boundRefresh = refresh;
 		document.addEventListener( 'wp-desktop-window-opened', refresh );
 		document.addEventListener( 'wp-desktop-window-closed', refresh );
 		document.addEventListener( 'wp-desktop-window-focused', refresh );
@@ -725,25 +991,62 @@ export class Dock {
 		// the active desktop" even though the stack is unchanged.
 		// Listen via the hook bus so a plugin that manually calls
 		// switchDesktop() also triggers a repaint.
-		//
-		// Namespace is unique per Dock instance because we have TWO
-		// (left dock + bottom taskbar); a shared static namespace was
-		// causing wp.hooks.addAction's de-dup to drop whichever
-		// registered first, leaving one of the two docks stale on
-		// desktop switch. The orientation plus a monotonic counter
-		// guarantees uniqueness without losing the "where did this
-		// come from?" debuggability of a readable namespace.
-		const ns = `wp-desktop-mode/dock-${ this.orientation }-${ ++Dock._instanceSeq }`;
 		window.wp?.hooks?.addAction?.(
 			'wp-desktop.desktop.switched',
-			ns,
+			this.hooksNamespace,
 			refresh,
 		);
 		window.wp?.hooks?.addAction?.(
 			'wp-desktop.desktop.closed',
-			ns,
+			this.hooksNamespace,
 			refresh,
 		);
+	}
+
+	/**
+	 * Tear the dock down: detach window-lifecycle listeners, clear
+	 * pending attention timers, remove the floating tooltip from
+	 * `document.body`, and empty the container's children. Used by
+	 * the layout dispatcher when the user switches `desktopLayout`
+	 * in OS Settings — old dock(s) get destroyed and a fresh set is
+	 * constructed for the new layout.
+	 *
+	 * Idempotent: calling twice is safe.
+	 */
+	public destroy(): void {
+		document.removeEventListener(
+			'wp-desktop-window-opened',
+			this.boundRefresh,
+		);
+		document.removeEventListener(
+			'wp-desktop-window-closed',
+			this.boundRefresh,
+		);
+		document.removeEventListener(
+			'wp-desktop-window-focused',
+			this.boundRefresh,
+		);
+		window.wp?.hooks?.removeAction?.(
+			'wp-desktop.desktop.switched',
+			this.hooksNamespace,
+		);
+		window.wp?.hooks?.removeAction?.(
+			'wp-desktop.desktop.closed',
+			this.hooksNamespace,
+		);
+		for ( const handle of this.attentionTimers.values() ) {
+			window.clearTimeout( handle );
+		}
+		this.attentionTimers.clear();
+		this.tooltip.remove();
+		while ( this.container.firstChild ) {
+			this.container.removeChild( this.container.firstChild );
+		}
+		this.itemElements.clear();
+		this.systemItemElements.clear();
+		this.systemItems = [];
+		this.systemSeparator = null;
+		this.container.removeAttribute( 'data-wp-desktop-dock-placement' );
 	}
 
 	/**
@@ -811,4 +1114,51 @@ export class Dock {
 			tile.classList.toggle( 'wp-desktop-dock__item--focused', isFocused );
 		}
 	}
+}
+
+/**
+ * Idempotently paint or remove the numeric badge on a tile host.
+ *
+ * Shared between `Dock.setBadge()` and any external surface that
+ * decorates the same tiles (e.g. the recycle-bin badge module had
+ * its own copy of this logic). Mutates the badge node in place so
+ * an existing animation isn't restarted by a no-op repaint.
+ *
+ * @internal
+ */
+function _applyBadgeNode( host: HTMLElement, count: number ): void {
+	const existing = host.querySelector< HTMLElement >(
+		':scope > .wp-desktop-dock__badge',
+	);
+	if ( count <= 0 ) {
+		existing?.remove();
+		return;
+	}
+	const display = count > 99 ? '99+' : String( count );
+	if ( existing ) {
+		if ( existing.textContent !== display ) {
+			existing.textContent = display;
+		}
+		existing.setAttribute(
+			'aria-label',
+			sprintf(
+				// translators: %d is the number of pending items in a dock badge.
+				_n( '%d notification', '%d notifications', count ),
+				count,
+			),
+		);
+		return;
+	}
+	const badge = document.createElement( 'span' );
+	badge.className = 'wp-desktop-dock__badge';
+	badge.textContent = display;
+	badge.setAttribute(
+		'aria-label',
+		sprintf(
+			// translators: %d is the number of pending items in a dock badge.
+			_n( '%d notification', '%d notifications', count ),
+			count,
+		),
+	);
+	host.appendChild( badge );
 }

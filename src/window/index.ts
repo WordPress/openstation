@@ -16,8 +16,20 @@
  */
 
 import type { WindowConfig, WindowState } from './../types';
+import { activity } from './../activity';
+import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
 import { __ } from './../i18n';
+import {
+	addParentSubscriber,
+	clearWindowChannels,
+	dispatchToNative,
+	enqueueWindowSend,
+	isWindowContentReady,
+	markWindowContentLoading,
+	markWindowContentReady,
+	type WindowChannelCb,
+} from './../window-channels';
 // Register the window-chrome atoms — no named import needed, the
 // side-effect `defineComponent(...)` calls wire them up.
 import './../ui/components/wpd-window-button/wpd-window-button';
@@ -32,6 +44,25 @@ import {
 	type TitleBarButtonDef,
 } from './../title-bar-buttons/registry';
 import { paintTitleBarButtonIcon } from './../title-bar-buttons/paint-icon';
+import {
+	applyWindowTheme,
+	clearWindowTheme,
+} from './../window-chrome/apply';
+import { subscribeWindowThemes } from './../window-chrome/themes/registry';
+import { subscribeWindowControls } from './../window-chrome/controls/registry';
+import { paintWindowControls } from './../window-chrome/controls/render';
+import { subscribeWindowSlots } from './../window-chrome/slots/registry';
+import { paintWindowSlots } from './../window-chrome/slots/render';
+import {
+	subscribeWindowChromes,
+	type ChromeRenderHandle,
+} from './../window-chrome/chrome/registry';
+import {
+	captureChromeState,
+	mountWindowChrome,
+	resolveChromeId,
+	STANDARD_CHROME_ID,
+} from './../window-chrome/chrome/apply';
 
 /**
  * Origin snapshot taken at module load. Same-origin guards in this
@@ -56,6 +87,17 @@ import {
 	toggleActionsMenu,
 } from './menus';
 import { handleDragStart, handleResizeStart } from './pointer';
+
+/** Animation mode accepted by `Window.requestAttention()`. */
+export type WindowAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
+
+/** Options accepted by `Window.requestAttention()`. */
+export interface WindowAttentionOptions {
+	/** Auto-clear after this many ms. `0` = until cleared. Default 4000. */
+	durationMs?: number;
+	/** Animation intensity. Default `'normal'`. */
+	intensity?: 'subtle' | 'normal' | 'strong';
+}
 
 /**
  * Desktop Window class.
@@ -151,18 +193,85 @@ export class Window {
 	public _titleBarButtonsUnsubscribe: ( () => void ) | null = null;
 
 	/**
-	 * Send-into-iframe closure for windows registered with
-	 * `iframeContent`. Populated by `createRegisterWindow` after
-	 * `manager.open()` returns; null for non-iframeContent windows.
+	 * Unsubscribe handle for the window-theme registry. Cleared on
+	 * close so the closed window stops re-applying theme tokens
+	 * when other plugins register / unregister themes.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowThemesUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Unsubscribe handle for the window-control registry. Cleared on
+	 * close.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowControlsUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Teardown handle returned by the most recent
+	 * {@link paintWindowControls} call. Re-paint replaces it; close
+	 * invokes the last one to drop event listeners on plugin-supplied
+	 * `render` callbacks.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowControlsTeardown: ( () => void ) | null = null;
+
+	/**
+	 * Unsubscribe handle for the window-slot registry. Cleared on
+	 * close.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowSlotsUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Teardown handle returned by the most recent
+	 * {@link paintWindowSlots} call.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowSlotsTeardown: ( () => void ) | null = null;
+
+	/**
+	 * Handle returned by the active custom chrome's `render()`.
+	 * `null` when the window uses `'core/standard'` (the default —
+	 * Layers 1-3 paint without a chrome handle). Tracked so window-
+	 * state updates can flow into `handle.update()` and `close()`
+	 * can call `handle.destroy()`.
 	 *
-	 * Public-facing access goes through {@link iframeSend} — that
-	 * method is the API surface, this field is the implementation
-	 * back-end.
+	 * **Experimental** since 0.6.0.
+	 *
 	 * @internal
 	 */
-	public _iframeSendImpl:
-		| ( ( payload: unknown, opts?: { coalesce?: boolean } ) => void )
-		| null = null;
+	public _chromeHandle: ChromeRenderHandle | null = null;
+
+	/**
+	 * Id of the chrome currently mounted (or `'core/standard'`).
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _chromeId: string = STANDARD_CHROME_ID;
+
+	/**
+	 * Unsubscribe handle for the chrome registry. Cleared on close.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowChromesUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Teardown function returned by the native-window render callback
+	 * (if any). Invoked on `close()` so plugin authors can dispose
+	 * listeners, intervals, observers, and anything else tied to the
+	 * window's lifecycle. Set in `hydrateNative()`.
+	 * @internal
+	 */
+	public _nativeRenderTeardown: ( () => void ) | null = null;
 
 	/**
 	 * Which tab is currently foregrounded: 'primary' or a tab id.
@@ -249,6 +358,60 @@ export class Window {
 		this.renderCustomTitleBarButtons();
 		this._titleBarButtonsUnsubscribe = subscribeTitleBarButtons( () => {
 			this.renderCustomTitleBarButtons();
+		} );
+
+		// Apply Layer-1 theme tokens (CSS variables) to the outer
+		// element. Resolution order: explicit `appearance.theme`
+		// override > registered theme whose `match` returns true >
+		// no theme (empty token map). Re-applied whenever the theme
+		// registry mutates so live activation paints immediately.
+		applyWindowTheme( this, this.config.appearance?.theme );
+		this._windowThemesUnsubscribe = subscribeWindowThemes( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			applyWindowTheme( this, this.config.appearance?.theme );
+		} );
+
+		// Layer-2 controls. The controls cluster is rendered from
+		// the registry (built-ins + plugin entries) so plugins can
+		// reorder, hide, or replace the close/min/max buttons via
+		// `appearance.controls`. Re-paints whenever the registry
+		// mutates so live activation appears immediately.
+		this.repaintWindowControls();
+		this._windowControlsUnsubscribe = subscribeWindowControls( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			this.repaintWindowControls();
+		} );
+
+		// Layer-3 slots. The title bar exposes named slot hosts
+		// (icon, title, before-titlebar, …) that plugins can replace
+		// or augment. Re-paints whenever the slot registry mutates.
+		this.repaintWindowSlots();
+		this._windowSlotsUnsubscribe = subscribeWindowSlots( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			this.repaintWindowSlots();
+		} );
+
+		// Layer-4 (Experimental) — custom chrome. Mounts when a
+		// non-`core/standard` chrome resolves; otherwise the standard
+		// title bar painted above stays put. Re-resolves on registry
+		// mutation so a chrome registered AFTER this window opens
+		// still takes effect.
+		this.remountWindowChrome();
+		this._windowChromesUnsubscribe = subscribeWindowChromes( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			// Only swap when the resolved id actually changed.
+			const next = resolveChromeId( this );
+			if ( next !== this._chromeId ) {
+				this.remountWindowChrome();
+			}
 		} );
 
 		// Native render is intentionally NOT run here. The window
@@ -365,7 +528,70 @@ export class Window {
 			{ windowId: this.id, config: this.config },
 		);
 		const body = filtered instanceof HTMLElement ? filtered : rawBody;
-		this.config.render( body );
+		// Capture the optional teardown returned by the render callback
+		// — invoked on `close()` so plugin authors can dispose
+		// listeners, intervals, observers tied to this window's
+		// lifecycle. Without this capture, returns from `render()`
+		// were silently discarded and authors had no reliable
+		// cleanup hook for native windows.
+		const maybeTeardown = this.config.render( body );
+
+		const captureTeardown = ( v: unknown ): void => {
+			if ( typeof v === 'function' ) {
+				this._nativeRenderTeardown = v as () => void;
+			}
+		};
+
+		// Promise-returning render: defer the readiness signal until
+		// the promise resolves. Callers that `return await fetch(...)`
+		// from their render get spinner-while-loading for free, with
+		// no manual `markReady()` plumbing. Rejections still mark the
+		// window ready so a flake doesn't leave the spinner stuck —
+		// the rejection itself is forwarded to `SHELL_ERROR` for
+		// observability.
+		if ( maybeTeardown instanceof Promise ) {
+			maybeTeardown.then(
+				( resolved ) => {
+					if ( this._isDestroyed ) {
+						return;
+					}
+					captureTeardown( resolved );
+					markWindowContentReady( this.id );
+				},
+				( err ) => {
+					if ( typeof console !== 'undefined' ) {
+						console.error(
+							`[wp-desktop-mode] native render rejected for "${ this.id }":`,
+							err,
+						);
+					}
+					doAction( HOOKS.SHELL_ERROR, {
+						scope: 'window-open',
+						id: this.id,
+						error: err,
+					} );
+					if ( this._isDestroyed ) {
+						return;
+					}
+					markWindowContentReady( this.id );
+				},
+			);
+		} else {
+			captureTeardown( maybeTeardown );
+			// Synchronous render: schedule readiness on the next
+			// animation frame so any DOM mutations made inside
+			// `render()` settle (custom-element upgrades, layout
+			// reads, ResizeObserver firing) before the fade-in
+			// transition begins. Skipped if the window has already
+			// been destroyed (open + close in the same frame).
+			requestAnimationFrame( () => {
+				if ( this._isDestroyed ) {
+					return;
+				}
+				markWindowContentReady( this.id );
+			} );
+		}
+
 		doAction( HOOKS.NATIVE_WINDOW_AFTER_RENDER, {
 			windowId: this.id,
 			body,
@@ -551,15 +777,13 @@ export class Window {
 			);
 		} );
 
-		// Window control buttons.
-		const btnMin = this.element.querySelector( '.wp-desktop-window__btn--minimize' ) as HTMLElement;
-		const btnMax = this.element.querySelector( '.wp-desktop-window__btn--maximize' ) as HTMLElement;
-		const btnFocus = this.element.querySelector( '.wp-desktop-window__btn--focus' ) as HTMLElement;
-		// Native windows skip the detach button entirely.
-		const btnDetach = this.element.querySelector(
-			'.wp-desktop-window__btn--detach',
-		) as HTMLElement | null;
-		const btnClose = this.element.querySelector( '.wp-desktop-window__btn--close' ) as HTMLElement;
+		// Window control buttons (close / minimize / maximize / focus
+		// / detach) are now rendered from the Layer-2 control registry
+		// via `paintWindowControls()` — click handlers are wired at
+		// render time directly on each button. The constructor-level
+		// `repaintWindowControls()` call sets them up before this
+		// `bindEvents()` runs, so the controls cluster is live before
+		// drag / resize bindings.
 
 		// Title-bar actions menu (iframe windows only).
 		const menuBtn = this.element.querySelector<HTMLElement>(
@@ -638,27 +862,6 @@ export class Window {
 			} );
 		}
 
-		btnMin.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.minimize();
-		} );
-		btnMax.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.toggleMaximize();
-		} );
-		btnFocus.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.toggleFullscreen();
-		} );
-		btnDetach?.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.detach();
-		} );
-		btnClose.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.close();
-		} );
-
 		// Double-click title bar to toggle maximize.
 		this._titleBar.addEventListener( 'dblclick', () => {
 			this.toggleMaximize();
@@ -710,12 +913,216 @@ export class Window {
 	/** Mark this window as focused or unfocused. */
 	public setFocused( focused: boolean ): void {
 		this.element.classList.toggle( 'wp-desktop-window--focused', focused );
+		this._notifyChromeStateChanged();
 	}
 
 	/** Update the window title. */
 	public setTitle( title: string ): void {
 		this._titleEl.textContent = title;
+		this.config.title = title;
 		doAction( HOOKS.WINDOW_TITLE_CHANGED, { windowId: this.id, title } );
+		this._notifyChromeStateChanged();
+	}
+
+	/**
+	 * Re-render the controls cluster from the Layer-2 registry +
+	 * the per-window `appearance.controls` block. Idempotent. The
+	 * old buttons (and any plugin-supplied render() teardowns) are
+	 * cleaned up before the new ones mount.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public repaintWindowControls(): void {
+		const controlsHost = this.element.querySelector< HTMLElement >(
+			'.wp-desktop-window__controls',
+		);
+		if ( ! controlsHost ) {
+			return;
+		}
+		if ( this._windowControlsTeardown ) {
+			try {
+				this._windowControlsTeardown();
+			} catch {
+				// Teardown failures shouldn't block the repaint.
+			}
+			this._windowControlsTeardown = null;
+		}
+		this._windowControlsTeardown = paintWindowControls( this, controlsHost );
+	}
+
+	/**
+	 * Apply (or clear) a per-window controls config at runtime.
+	 * Mutates `this.config.appearance.controls` and re-paints. Pass
+	 * `null` or `undefined` to clear the override and fall back to
+	 * the registry-only resolution.
+	 *
+	 * @since 0.6.0
+	 */
+	public setAppearanceControls(
+		override: import( '../types' ).WindowControlsConfig | null | undefined,
+	): void {
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			controls: override ?? undefined,
+		};
+		this.repaintWindowControls();
+	}
+
+	/**
+	 * Re-render every Layer-3 title-bar slot from the registry +
+	 * the per-window `appearance.slots` block. Idempotent. Plugin-
+	 * supplied teardowns from the previous paint run before the new
+	 * paint.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public repaintWindowSlots(): void {
+		if ( this._windowSlotsTeardown ) {
+			try {
+				this._windowSlotsTeardown();
+			} catch {
+				// see notes in repaintWindowControls.
+			}
+			this._windowSlotsTeardown = null;
+		}
+		this._windowSlotsTeardown = paintWindowSlots( this );
+	}
+
+	/**
+	 * Tear down the active custom chrome (if any) and mount the
+	 * resolved one. No-op when both old and new resolve to
+	 * `'core/standard'`. Idempotent.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public remountWindowChrome(): void {
+		if ( this._chromeHandle ) {
+			try {
+				this._chromeHandle.destroy();
+			} catch {
+				// Plugin teardown failures shouldn't block remount.
+			}
+			this._chromeHandle = null;
+		}
+		const mounted = mountWindowChrome( this );
+		if ( mounted ) {
+			this._chromeHandle = mounted.handle;
+			this._chromeId = mounted.id;
+		} else {
+			this._chromeId = STANDARD_CHROME_ID;
+		}
+	}
+
+	/**
+	 * Set the chrome id at runtime. Pass `null` / `undefined` to
+	 * fall back to the standard chrome.
+	 *
+	 * **Experimental** since 0.6.0 — the chrome render contract may
+	 * change in future minor versions.
+	 */
+	public setAppearanceChrome( chromeId: string | null | undefined ): void {
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			chrome: chromeId ?? undefined,
+		};
+		this.remountWindowChrome();
+	}
+
+	/**
+	 * Push the current window state into the active custom chrome
+	 * (if any). Called from {@link setTitle}, {@link setFocused}, and
+	 * the maximize / minimize / fullscreen transitions so chrome
+	 * implementations don't have to subscribe to lifecycle events to
+	 * keep their visual in sync.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _notifyChromeStateChanged(): void {
+		if ( ! this._chromeHandle?.update ) {
+			return;
+		}
+		try {
+			this._chromeHandle.update( captureChromeState( this ) );
+		} catch {
+			// see notes in repaintWindowControls.
+		}
+	}
+
+	/**
+	 * Apply (or clear) per-window slot overrides at runtime.
+	 * `slot === null` removes the named override; `slots === null`
+	 * clears all per-window slot overrides at once.
+	 *
+	 * @since 0.6.0
+	 */
+	public setAppearanceSlot(
+		slot: import( '../types' ).WindowSlotName,
+		config: import( '../types' ).WindowSlotConfig | undefined,
+	): void {
+		const existing = this.config.appearance?.slots ?? {};
+		const next = { ...existing };
+		if ( config === undefined ) {
+			delete next[ slot ];
+		} else {
+			next[ slot ] = config;
+		}
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			slots: next,
+		};
+		this.repaintWindowSlots();
+	}
+
+	/**
+	 * Apply (or clear) a per-window theme override at runtime. Accepts
+	 * three shapes for ergonomics:
+	 *
+	 *   - `string` — interpreted as a registered theme id.
+	 *   - `Record< string, string >` — interpreted as inline tokens.
+	 *   - `WindowThemeRef` — explicit `{ themeId }` or `{ tokens }`.
+	 *   - `null` / `undefined` — clear the override; the window falls
+	 *     back to whatever the registry's match resolves to.
+	 *
+	 * Calls through to {@link applyWindowTheme}. The override is
+	 * also written to `this.config.appearance.theme` so the next
+	 * registry-driven re-apply preserves the runtime choice.
+	 *
+	 * @since 0.6.0
+	 */
+	public setAppearanceTheme(
+		override:
+			| import( '../types' ).WindowThemeRef
+			| Record< string, string >
+			| string
+			| null
+			| undefined,
+	): void {
+		let resolved: import( '../types' ).WindowThemeRef | undefined;
+		if ( override === null || override === undefined ) {
+			resolved = undefined;
+		} else if ( typeof override === 'string' ) {
+			resolved = { themeId: override };
+		} else if (
+			typeof override === 'object' &&
+			(
+				'themeId' in override ||
+				'tokens' in override
+			)
+		) {
+			resolved = override as import( '../types' ).WindowThemeRef;
+		} else if ( typeof override === 'object' ) {
+			// Plain `{ "--foo": "bar" }` map.
+			resolved = { tokens: override as Record< string, string > };
+		}
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			theme: resolved,
+		};
+		applyWindowTheme( this, resolved );
 	}
 
 	/** Minimize the window. */
@@ -879,11 +1286,11 @@ export class Window {
 
 	/**
 	 * Toggle fullscreen ("focus") mode — the window covers the entire
-	 * viewport, hiding the admin bar, dock, and taskbar behind it.
+	 * viewport, hiding the admin bar and dock behind it.
 	 *
 	 * This is the equivalent of macOS's green zoom-to-fullscreen: an
 	 * immersive mode distinct from maximize (which only fills the
-	 * desktop area between dock and taskbar).
+	 * desktop area, respecting the dock inset).
 	 */
 	public toggleFullscreen(): void {
 		if ( this.state === 'fullscreen' ) {
@@ -1061,57 +1468,158 @@ export class Window {
 	}
 
 	/**
-	 * Send a payload into this window's iframe.
+	 * Publish a payload on a named channel into this window's
+	 * content. The unified abstraction over iframe `postMessage` and
+	 * native render-callback dispatch — plugin authors write the
+	 * same call regardless of how the window is rendered.
 	 *
-	 * **Only valid for windows registered with `iframeContent`** —
-	 * non-iframeContent windows have no synthesised iframe to send
-	 * into and the call no-ops with a console warning.
+	 * **Iframe windows** (real iframes OR `iframeContent` natives):
+	 * the payload is delivered as `wp-desktop-window-send` via
+	 * `postMessage` and surfaces inside the iframe via
+	 * `wp.desktop.on( channel, cb )` (the iframe-bridge installs
+	 * the API on `wp.desktop`). Calls made before the iframe has
+	 * announced itself ready are queued in FIFO order and flushed
+	 * once the bridge connects — `Window.send` is safe the moment
+	 * the window object exists.
 	 *
-	 * Available **synchronously** the moment `wp.desktop.registerWindow`
-	 * returns — calls before the iframe finishes loading are buffered
-	 * and flushed automatically:
+	 * **Pure native windows**: the payload is delivered in-process
+	 * to subscribers the render callback registered through its
+	 * `windowApi.on( channel, cb )` (the second argument the render
+	 * receives). Always considered ready — no async boundary.
 	 *
-	 *   - **FIFO buffer (default)** — every `iframeSend( payload )`
-	 *     without options is queued in order and flushed verbatim on
-	 *     `load`. Use for setup messages where every payload matters
-	 *     (`{ type: 'init' }`, `{ type: 'config' }`, ...).
+	 * Plugin authors never branch on window type — same call, same
+	 * channel, same payload.
 	 *
-	 *   - **Coalesced single-slot** — `iframeSend( payload, { coalesce: true } )`
-	 *     overwrites the slot on each call; only the most-recent
-	 *     payload survives until load. Use for live-stream snapshots
-	 *     (Gutenberg editor content, scroll position) where pre-load
-	 *     intermediates are throwaway and you want the freshest one.
+	 * @since 0.5.5
 	 *
-	 * Once the iframe has loaded, both modes flush directly to
-	 * `postMessage` — the load gate becomes a no-op.
-	 *
-	 * Replaces the "store the `send` closure from `onReady` and pray
-	 * the iframe is ready" pattern. The closure is still passed to
-	 * `onReady` for callers who already use that surface; `iframeSend`
-	 * is just the equivalent surface that's available *before* load,
-	 * which is the case the doc previously claimed worked but didn't.
-	 *
-	 * @since 0.18.0
-	 *
-	 * @param payload       Anything `postMessage` can serialise.
-	 * @param opts          Optional config bag.
-	 * @param opts.coalesce When true, overwrite a single pre-load
-	 *                      slot instead of appending to the FIFO
-	 *                      queue. Ignored after load.
+	 * @param channel Slash- or dot-separated identifier (e.g.
+	 *                `'reload'`, `'editor/insert-block'`).
+	 * @param payload Anything `postMessage` can serialise.
 	 */
-	public iframeSend(
-		payload: unknown,
-		opts?: { coalesce?: boolean },
-	): void {
-		if ( ! this._iframeSendImpl ) {
-			if ( typeof console !== 'undefined' ) {
-				console.warn(
-					'[wp-desktop-mode] Window.iframeSend: no iframeContent on this window. Did you mean wp.desktop.connect( id ).send(…)?',
-				);
-			}
+	public send< T = unknown >( channel: string, payload?: T ): void {
+		if ( typeof channel !== 'string' || channel === '' ) {
 			return;
 		}
-		this._iframeSendImpl( payload, opts );
+		// Resolve the iframe target: real iframe attached to this
+		// Window OR a synthesised iframe registered by an
+		// `iframeContent` native window. Pure native windows have
+		// neither — they fall through to `dispatchToNative()`.
+		const target = this.iframe ?? getSyntheticIframe( this.id );
+		if ( ! target ) {
+			dispatchToNative( this.id, channel, payload );
+			return;
+		}
+		const sendNow = (): void => {
+			try {
+				target.contentWindow?.postMessage(
+					{
+						type: 'wp-desktop-window-send',
+						channel,
+						payload,
+					},
+					INITIAL_ORIGIN,
+				);
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[wp-desktop-mode] Window.send: postMessage failed',
+						err,
+					);
+				}
+			}
+		};
+		// Buffer until the iframe announces it's ready. For real
+		// iframes that's `wp-desktop-ready` from the chromeless
+		// bridge; for synthetic iframes it's the iframe's `load`
+		// event. Both paths call `markWindowContentReady()` which
+		// flushes the queue in FIFO order.
+		if ( isWindowContentReady( this.id ) ) {
+			sendNow();
+			return;
+		}
+		enqueueWindowSend( this.id, channel, payload, sendNow );
+	}
+
+	/**
+	 * Subscribe to a named channel published BY this window's
+	 * content. Mirror of {@link send} for the inbound direction.
+	 *
+	 * Iframe content publishes via `wp.desktop.send( channel,
+	 * payload )` (installed by the iframe bridge); native render
+	 * code publishes via `windowApi.send( channel, payload )`. Both
+	 * land here.
+	 *
+	 * Use the literal `'*'` to wildcard-subscribe to every channel
+	 * this window publishes.
+	 *
+	 * @since 0.5.5
+	 *
+	 * @return Unsubscribe handle. Idempotent.
+	 */
+	public on< T = unknown >(
+		channel: string,
+		cb: ( payload: T, meta: { channel: string; windowId: string } ) => void,
+	): () => void {
+		if ( typeof channel !== 'string' || channel === '' || typeof cb !== 'function' ) {
+			return () => undefined;
+		}
+		return addParentSubscriber(
+			this.id,
+			channel,
+			cb as WindowChannelCb,
+		);
+	}
+
+	/**
+	 * Re-show the loading-spinner overlay over this window's body
+	 * and fade the content out. Mirror of {@link markContentLoaded}
+	 * for the entry edge — plugins call this before kicking off an
+	 * async refetch so the user sees the same affordance they saw
+	 * at first paint, and call `markContentLoaded()` once the work
+	 * resolves.
+	 *
+	 * The shell:
+	 *   - Adds the `wp-desktop-window__body--loading` modifier to
+	 *     the body (CSS fades the content out, fades the overlay
+	 *     in).
+	 *   - Re-attaches the overlay element if it was already torn
+	 *     down by a prior `markContentLoaded` call.
+	 *   - Fires the {@link HOOKS.WINDOW_CONTENT_LOADING} action +
+	 *     dispatches `wp-desktop-window-content-loading` on
+	 *     `document` (idempotent — no re-fire when already
+	 *     loading).
+	 *
+	 * Idempotent. Cheap to call repeatedly.
+	 *
+	 * @since 0.6.0
+	 */
+	public markContentLoading(): void {
+		markWindowContentLoading( this.id );
+	}
+
+	/**
+	 * Tell the shell this window's body content is ready — fades
+	 * the spinner overlay out, fades the content in, removes the
+	 * overlay element after the transition lands.
+	 *
+	 * Iframe windows mark themselves ready automatically on the
+	 * `wp-desktop-ready` postMessage from the chromeless bridge.
+	 * Native windows mark themselves ready automatically after
+	 * their `render( body )` callback (or its returned `Promise`)
+	 * resolves. Plugins only call this directly when:
+	 *
+	 *   - They're doing event-listener-based async loading the
+	 *     framework can't observe.
+	 *   - They re-armed loading via {@link markContentLoading}
+	 *     and need to clear it again.
+	 *
+	 * Idempotent. Fires the {@link HOOKS.WINDOW_CONTENT_LOADED}
+	 * action only on a loading → ready transition.
+	 *
+	 * @since 0.6.0
+	 */
+	public markContentLoaded(): void {
+		markWindowContentReady( this.id );
 	}
 
 	/**
@@ -1132,6 +1640,162 @@ export class Window {
 	 *
 	 * @since 0.17.0
 	 */
+	/**
+	 * Request a visual "attention" signal on this window's tile in
+	 * the dock or taskbar — pulse, shake, or bounce. Used by plugins
+	 * that need to grab the user's eye when the window is closed or
+	 * unfocused (incoming chat message, long task finished, etc.).
+	 *
+	 * Resolution order:
+	 *   1. If a tile exists for this window's id on either rail
+	 *      (`wp.desktop.dock` or `wp.desktop.taskbar`), call
+	 *      `Dock.setAttention( id, mode, opts )`.
+	 *   2. Otherwise (e.g. `placement: 'none'`) fall back to
+	 *      `setHighlight('persistent')` on the window itself, auto-
+	 *      cleared after `opts.durationMs`. No-op if the window has
+	 *      no rendered chrome.
+	 *
+	 * The mode + opts pass through the `wp-desktop.window.attention`
+	 * filter first so plugins (or a Do-Not-Disturb preference) can
+	 * mute (`return null`) or modify the request.
+	 *
+	 * Animations are gated on `prefers-reduced-motion`; reduced-motion
+	 * users see a static accent ring for the same duration so the
+	 * affordance still works.
+	 *
+	 * @since 0.22.0
+	 */
+	public requestAttention(
+		mode: 'pulse' | 'shake' | 'bounce' | null,
+		opts: WindowAttentionOptions = {},
+	): void {
+		// Primary policy hook (since 0.5.5): plugins filter
+		// `wp-desktop/window-attention-requested` to cancel
+		// (`cancel: true`) for DND modes / reduced-motion, scale
+		// `durationMs`/`intensity`, or audit. The pre-0.5.5
+		// `wp-desktop.window.attention` filter still runs below
+		// for back-compat.
+		const intent = activity.filter(
+			'wp-desktop/window-attention-requested',
+			{
+				windowId: this.id,
+				mode,
+				durationMs: opts.durationMs,
+				intensity: opts.intensity,
+			},
+			opts,
+		);
+		if ( ! intent || intent.cancel === true ) {
+			return;
+		}
+		const intentMode = ( intent.mode ?? mode ) as WindowAttentionMode;
+		const intentOpts: WindowAttentionOptions = {
+			...opts,
+			durationMs:
+				typeof intent.durationMs === 'number'
+					? intent.durationMs
+					: opts.durationMs,
+			intensity:
+				typeof intent.intensity === 'string'
+					? ( intent.intensity as WindowAttentionOptions[ 'intensity' ] )
+					: opts.intensity,
+		};
+
+		const filtered = applyFilters<
+			WindowAttentionMode,
+			[ { windowId: string; opts: WindowAttentionOptions } ]
+		>(
+			'wp-desktop.window.attention',
+			intentMode,
+			{ windowId: this.id, opts: intentOpts },
+		);
+
+		// Resolve the docks via the public API so a plugin shell
+		// implementation that swaps Dock instances at runtime still
+		// gets the latest reference.
+		const wp = ( window as unknown as {
+			wp?: { desktop?: { dock?: unknown; taskbar?: unknown } };
+		} ).wp;
+		type SetAttentionFn = (
+			id: string,
+			m: WindowAttentionMode,
+			o: WindowAttentionOptions,
+		) => void;
+		const dockApi = wp?.desktop?.dock as
+			| { setAttention?: SetAttentionFn }
+			| null
+			| undefined;
+		const taskbarApi = wp?.desktop?.taskbar as
+			| { setAttention?: SetAttentionFn }
+			| null
+			| undefined;
+
+		let routed = false;
+		if ( typeof dockApi?.setAttention === 'function' ) {
+			dockApi.setAttention( this.id, filtered, intentOpts );
+			routed = true;
+		}
+		if ( typeof taskbarApi?.setAttention === 'function' ) {
+			taskbarApi.setAttention( this.id, filtered, intentOpts );
+			routed = true;
+		}
+
+		// Fallback for windows without a rail tile (placement: 'none').
+		// Use the existing highlight ring auto-cleared after the same
+		// duration so the API has meaningful behavior everywhere.
+		if ( ! routed && filtered !== null ) {
+			this.setHighlight( 'persistent' );
+			const duration = intentOpts.durationMs ?? 4000;
+			if ( duration > 0 ) {
+				window.setTimeout( () => {
+					this.setHighlight( null );
+				}, duration );
+			}
+		} else if ( ! routed && filtered === null ) {
+			this.setHighlight( null );
+		}
+	}
+
+	/**
+	 * Briefly jiggle the window element horizontally — the classic
+	 * MSN-Messenger nudge affordance. Plugins can request "look at
+	 * me" attention on their own window programmatically (e.g. a
+	 * chat plugin on inbound nudge, a CI plugin on a broken build).
+	 *
+	 * Composes with the inline `left`/`top` the window manager
+	 * writes (the shake is a CSS `transform`, not a position
+	 * change). Auto-clears the class on `animationend`. If a second
+	 * shake is requested while one is mid-flight, the class is
+	 * removed and re-added so the animation restarts.
+	 *
+	 * Reduced-motion fallback: a static accent ring for the same
+	 * duration. Authors who want a different visual can listen on
+	 * the JS filter `wp-desktop.window.shake` and return falsy to mute.
+	 *
+	 * @since 0.22.11
+	 */
+	public shake(): void {
+		const filtered = applyFilters< boolean, [ { windowId: string } ] >(
+			'wp-desktop.window.shake',
+			true,
+			{ windowId: this.id },
+		);
+		if ( filtered === false ) {
+			return;
+		}
+		const el = this.element;
+		el.classList.remove( 'wp-desktop-window--shaking' );
+		// Force reflow so removing then re-adding the class re-triggers
+		// the animation. Reading `offsetWidth` is the canonical hack.
+		void el.offsetWidth;
+		el.classList.add( 'wp-desktop-window--shaking' );
+		const onEnd = (): void => {
+			el.classList.remove( 'wp-desktop-window--shaking' );
+			el.removeEventListener( 'animationend', onEnd );
+		};
+		el.addEventListener( 'animationend', onEnd );
+	}
+
 	public setHighlight(
 		mode: 'preview' | 'persistent' | null,
 		opts?: { color?: string },
@@ -1154,6 +1818,15 @@ export class Window {
 		} else if ( mode === null ) {
 			el.style.removeProperty( '--wp-window-highlight-color' );
 		}
+		// Surface the change on the hook bus so onboarding /
+		// drag-bridge / guidance plugins can react without
+		// observing DOM mutations. Pure-additive: handlers that
+		// don't subscribe see no behaviour change.
+		doAction( HOOKS.WINDOW_HIGHLIGHT_CHANGED, {
+			windowId: this.id,
+			mode,
+			color: opts?.color,
+		} );
 	}
 
 	/**
@@ -1192,11 +1865,90 @@ export class Window {
 			this._titleBarButtonsUnsubscribe = null;
 		}
 
+		// Drop the window-theme subscription + clear any inline
+		// theme variables we wrote to the outer element. Strictly
+		// belt-and-braces — the element is about to leave the DOM —
+		// but keeps the WeakMap bookkeeping consistent if anyone
+		// holds a reference to the element after close.
+		if ( this._windowThemesUnsubscribe ) {
+			this._windowThemesUnsubscribe();
+			this._windowThemesUnsubscribe = null;
+		}
+		clearWindowTheme( this );
+
+		// Drop the window-controls subscription + tear down the
+		// last paint's plugin-supplied event listeners. The element
+		// is about to leave the DOM but explicit teardown keeps
+		// retained references (devtools, plugin caches) clean.
+		if ( this._windowControlsUnsubscribe ) {
+			this._windowControlsUnsubscribe();
+			this._windowControlsUnsubscribe = null;
+		}
+		if ( this._windowControlsTeardown ) {
+			try {
+				this._windowControlsTeardown();
+			} catch {
+				// see notes in repaintWindowControls.
+			}
+			this._windowControlsTeardown = null;
+		}
+
+		// Same teardown for Layer-3 slots — drop subscriber +
+		// invoke any teardowns plugins returned from `render()`.
+		if ( this._windowSlotsUnsubscribe ) {
+			this._windowSlotsUnsubscribe();
+			this._windowSlotsUnsubscribe = null;
+		}
+		if ( this._windowSlotsTeardown ) {
+			try {
+				this._windowSlotsTeardown();
+			} catch {
+				// see notes in repaintWindowSlots.
+			}
+			this._windowSlotsTeardown = null;
+		}
+
+		// Layer-4 — drop chrome registry subscriber + destroy() the
+		// custom chrome handle if one is mounted.
+		if ( this._windowChromesUnsubscribe ) {
+			this._windowChromesUnsubscribe();
+			this._windowChromesUnsubscribe = null;
+		}
+		if ( this._chromeHandle ) {
+			try {
+				this._chromeHandle.destroy();
+			} catch {
+				// Plugin teardown failures shouldn't take the close down.
+			}
+			this._chromeHandle = null;
+		}
+
+		// Invoke the optional teardown returned by the native-window
+		// render callback. Without this, plugin authors could never
+		// reliably dispose listeners scoped to a window's lifetime —
+		// the framework was discarding the return value.
+		if ( this._nativeRenderTeardown ) {
+			try {
+				this._nativeRenderTeardown();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-teardown',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderTeardown = null;
+		}
+
 		// Tear down the body resize observer now rather than on
 		// element.remove() — subscribers shouldn't see a phantom
 		// `body-resized` fire as the window animates out.
 		this._bodyResizeObserver?.disconnect();
 		this._bodyResizeObserver = null;
+
+		// Drop every channel-bus subscriber bound to this window so
+		// stale callbacks don't fire if the same id is reopened.
+		clearWindowChannels( this.id );
 
 		// Fire the inline `config.onClose` hook — per-window, NOT
 		// the broadcast `window.closing` hook (that fires via the

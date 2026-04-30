@@ -8,12 +8,12 @@ A high-level tour, mostly so hook reference + examples make sense.
 Browser tab
 ├── Parent shell  (wp-admin, desktop class on body)
 │   ├── Admin bar            — classic WP toolbar + desktop-mode toggle
-│   ├── Dock                 — left edge, core WP menus from $menu
-│   ├── Desktop area         — wallpaper; hosts windows + desktop icons
-│   │   ├── Window A         — <iframe src="edit.php?wp_desktop=1">
-│   │   ├── Window B         — <iframe src="upload.php?wp_desktop=1">
-│   │   └── Window C (native)— <div> with plugin-rendered content
-│   └── Taskbar              — bottom pill, plugin-contributed admin.php?page=* menus
+│   ├── Dock                 — unified rail (core + plugin menus from $menu)
+│   │                           placement (left / right / bottom) = user pref
+│   └── Desktop area         — wallpaper; hosts windows + desktop icons
+│       ├── Window A         — <iframe src="edit.php?wp_desktop=1">
+│       ├── Window B         — <iframe src="upload.php?wp_desktop=1">
+│       └── Window C (native)— <div> with plugin-rendered content
 │
 └── Each iframe renders a chromeless admin page
     — real WordPress request, stripped of wp-admin chrome
@@ -46,12 +46,26 @@ Key server-side entry points:
 2. `/wp-desktop/` serves a real admin page (Dashboard by default) with the shell wrapped around it.
 3. The shell's Vite-built TypeScript bundle (`desktop.js` in dev, `desktop.min.js` in prod) initializes:
    - Creates the `WindowManager`.
-   - Creates the `Dock`.
+   - Creates the **layout dispatcher** which owns the dock(s) for the active `desktopLayout` (see [Desktop layout modes](#desktop-layout-modes)).
    - Either restores the saved session (if one exists) **or** opens the current page in a new window.
    - Wires persistence — debounced `POST /wp-json/wp-desktop-mode/v1/session`.
 4. When a dock icon is clicked, the manager opens a window whose iframe `src` is the admin URL with `?wp_desktop=1` appended.
 5. The iframe renders WordPress normally, but the chromeless stylesheet hides the admin bar, side menu, and wp-footer.
 6. The iframe `postMessage`s its title, navigation, and screen-meta state up to the parent.
+
+## Desktop layout modes
+
+OS Settings → Appearance lets the user pick one of three top-level layouts. The shell root reflects the choice in `data-wp-desktop-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.
+
+| Mode | Default? | Bottom dock | Left side dock (`wp.desktop.sideDock`) | Wallpaper icons |
+|---|---|---|---|---|
+| **Classic** | ✅ since 0.18.0 | Plugin-contributed top-level menus (`isCore: false`) | Core admin menus (Dashboard, Posts, Media, Settings, …) | Plugin-registered icons only |
+| **Unified** | — *(was the default in 0.17.x)* | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
+| **Spatial** | — | Plugin menus only | — *(no side dock)* | Plugin-registered icons + **synthesized core icons** (one per core menu, prefixed `dock-core:`) |
+
+A user-meta value (`desktopLayout` inside the OS Settings JSON blob, REST-synced via the existing `/wp-json/wp-desktop-mode/v1/os-settings` endpoint) is the persistence layer. The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
+
+Listen for `wp-desktop-layout-changed` on `document` to react to a switch in plugin code — the event detail carries the new `layout` string plus current `primary`/`side` `Dock` references.
 
 ## Two window types
 
@@ -66,6 +80,17 @@ Registered via `desktop_mode_register_window()` (PHP) or `wp.desktop.registerWin
 Additional tabs can be attached to any native window with `desktop_mode_register_window_tab()` — the first tab is the window's own template, and subsequent registrations (from any plugin) append after it. When two or more tabs exist the shell auto-wraps the render tree in `<wpd-stack>` + `<wpd-tabs>` so plugin authors don't hand-write tabstrip markup.
 
 The shell's own **OS Settings** native window (wallpaper / accent / dock-size / AI config / default-window) is both a shipped feature and the reference implementation. Lifecycle hooks — `wp-desktop.native-window.before-render` (filter), `after-render`, `before-close` — let a plugin decorate or wrap another plugin's render output.
+
+#### Eager vs lazy script load — and what gets injected
+
+The script handle declared in `desktop_mode_register_window( …, [ 'script' => $handle ] )` reaches the shell page through one of two paths:
+
+- **Eager** — `desktop_mode_enqueue_native_window_scripts()` calls `wp_enqueue_script( $handle )` on `admin_enqueue_scripts:20`, so WordPress prints the tag normally through `wp_print_scripts()` along with all `extra` data (localize, inline, translations).
+- **Lazy** — when the shell receives the `nativeWindows` payload mid-session (e.g. after a `wp-desktop-plugins-changed` postMessage from the chromeless `plugins.php` iframe), it appends `<script src="…">` directly via `loadVendorScript( url, extras )`. **This path bypasses `wp_print_scripts()` entirely.**
+
+Since 0.6.0, the payload builders harvest each registered handle's `extra['data']` (localize), `extra['before']` / `extra['after']` (inline), and `wp_set_script_translations()` snippet into the `nativeWindows[]` entry as `scriptL10n` / `scriptBefore` / `scriptAfter` / `scriptTranslations`. The shell injects them as inline `<script>` tags around the lazy `<script src>` in `wp_print_scripts` order — translations → l10n → before → src → after. So `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations` work transparently on both paths.
+
+The `'config'` arg on `desktop_mode_register_window()` (also 0.6.0) ships through the same delivery path and is the recommended way to pass session-bound data to a bundle. See [`docs/examples/window-with-config.md`](./examples/window-with-config.md).
 
 ## Session persistence
 
@@ -124,7 +149,7 @@ Never edit Core's `common.css` or color scheme files. Everything we need is expo
 
 ## What's shipped vs. what comes next
 
-**Shipped** — taskbar (0.5), multi-window orchestration + session restore, virtual desktops / Spaces (0.6), wallpaper registry (0.6), widget registry (0.7), overview + arrange + snap (0.8–0.9), native windows and tabs (0.10–0.11), AI assistant + slash commands + palette registry (0.13–0.14), cross-frame drag bridge for Media Library (0.14), OS Settings native window, accent + custom-gradient editor, toast notifications, iframe observability (`iframe-ready` / `iframe-error` / `iframe-network-completed`), letter-badge icon fallback, batch `closeAll()` with protection filter, primary-desktop filter, iframe command-palette bridge (0.16 — harvests `@wordpress/commands` from the focused window into the shell palette; see "Command palette bridge" above).
+**Shipped** — unified dock with left / right / bottom placement (user preference in OS Settings; default bottom), multi-window orchestration + session restore, virtual desktops / Spaces (0.6), wallpaper registry (0.6), widget registry (0.7), overview + arrange + snap (0.8–0.9), native windows and tabs (0.10–0.11), AI assistant + slash commands + palette registry (0.13–0.14), cross-frame drag bridge for Media Library (0.14), OS Settings native window, accent + custom-gradient editor, toast notifications, iframe observability (`iframe-ready` / `iframe-error` / `iframe-network-completed`), letter-badge icon fallback, batch `closeAll()` with protection filter, primary-desktop filter, iframe command-palette bridge (0.16 — harvests `@wordpress/commands` from the focused window into the shell palette; see "Command palette bridge" above).
 
 **Coming up**
 

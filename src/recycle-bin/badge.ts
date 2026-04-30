@@ -49,12 +49,31 @@ function warn( ...args: unknown[] ): void {
 }
 
 const TARGET_ID = 'wpdm-recycle-bin';
-const BADGE_CLASS = 'wp-desktop-dock__badge';
-const ICON_BADGE_CLASS = 'wp-desktop-icon__badge';
 // Heartbeat field. `wp.heartbeat`'s `data` object is delivered as
 // `_POST['data'][ <key> ]` server-side; the key IS the field name
 // our `heartbeat_received` filter reads.
 const HEARTBEAT_FIELD = 'wpdm_recycle_bin_seen_ts';
+
+/**
+ * Narrow shape of `wp.desktop` we depend on here. Pulled in via
+ * the loose `window.wp.desktop` lookup rather than a direct
+ * import: this module loads inside the always-on shell bundle, so
+ * the public API is a guaranteed sibling — but typing the lookup
+ * keeps us honest about which methods we actually call.
+ */
+interface BadgeRails {
+	setBadge?: ( id: string, count: number ) => void;
+}
+interface WpDesktopBadgeRails {
+	dock?: BadgeRails | null;
+	taskbar?: BadgeRails | null;
+	icons?: BadgeRails;
+	windowManager?: { isActive?: ( id: string ) => boolean };
+}
+function getDesktopApi(): WpDesktopBadgeRails | undefined {
+	return ( window as unknown as { wp?: { desktop?: WpDesktopBadgeRails } } )
+		.wp?.desktop;
+}
 
 let _current = 0;
 // High-water mark for "did anything change since I last asked".
@@ -107,75 +126,41 @@ export function _currentRecycleBinBadge(): number {
 }
 
 /**
- * Idempotently paint the badge to every host that should carry
- * one — currently the system tile in the dock/taskbar
- * (`data-system-id`) and the desktop icon (`data-icon-id`).
+ * Fan the badge count to every rail that might be hosting our
+ * tile. The framework rails (`dock`, `taskbar`, `icons`) all
+ * expose the same `setBadge( id, count )` shape and silently
+ * no-op for ids they don't own — so calling all three is the
+ * canonical pattern, not a hack.
  *
- * Pulling this out lets `start()` retry once after a microtask
- * to cover the case where we're called before the dock has
- * finished its initial render.
+ * Honours the framework "show 0 when my window is active" UX
+ * policy: when the user is currently looking at the bin window,
+ * the badge renders as 0 so we don't double-signal. The internal
+ * `_current` count is preserved either way; closing or
+ * minimising the window restores the visible badge on the next
+ * lifecycle event (see {@link wireWindowLifecycleSignals}).
+ *
+ * No DOM scraping — the rails own paint state, including
+ * survival across grid rebuilds. Plugin authors looking for the
+ * canonical "how do I badge a tile" example should land here.
  */
 function paintBadge( count: number ): void {
-	const tile = document.querySelector(
-		`[data-system-id="${ cssEscape( TARGET_ID ) }"]`,
-	);
-	const icon = document.querySelector< HTMLElement >(
-		`[data-icon-id="${ cssEscape( TARGET_ID ) }"]`,
-	);
-	log( 'paintBadge', {
-		count,
-		tile: !! tile,
-		icon: !! icon,
-	} );
-	if ( tile ) {
-		const primary = tile.querySelector< HTMLElement >(
-			'.wp-desktop-dock__item-primary',
-		);
-		applyBadge( primary ?? ( tile as HTMLElement ), BADGE_CLASS, count );
-	}
-	if ( icon ) {
-		applyBadge( icon, ICON_BADGE_CLASS, count );
-	}
-}
-
-function applyBadge(
-	host: HTMLElement,
-	className: string,
-	count: number,
-): void {
-	const existing = host.querySelector< HTMLElement >(
-		`:scope > .${ className }`,
-	);
-	if ( count <= 0 ) {
-		existing?.remove();
-		return;
-	}
-	const display = count > 99 ? '99+' : String( count );
-	if ( existing ) {
-		if ( existing.textContent !== display ) {
-			existing.textContent = display;
-		}
-		return;
-	}
-	const badge = document.createElement( 'span' );
-	badge.className = className;
-	badge.textContent = display;
-	badge.setAttribute( 'aria-label', `${ count } in trash` );
-	host.appendChild( badge );
+	const desktop = getDesktopApi();
+	const active = isBinWindowActive();
+	const visible = active ? 0 : count;
+	log( 'paintBadge', { count, visible, active } );
+	desktop?.dock?.setBadge?.( TARGET_ID, visible );
+	desktop?.taskbar?.setBadge?.( TARGET_ID, visible );
+	desktop?.icons?.setBadge?.( TARGET_ID, visible );
 }
 
 /**
- * Polyfill-ish wrapper for `CSS.escape` — older browsers may not
- * have it (no-op fallback returns the input unchanged, which is
- * fine for our well-known id).
+ * Window-activeness check — relies on the framework's
+ * `wp.desktop.windowManager.isActive()`. Falls back to false when
+ * the manager isn't reachable yet (this module loads inside
+ * `desktop.js` so that's rare, but cheap to handle).
  */
-function cssEscape( value: string ): string {
-	const c = (
-		window as unknown as {
-			CSS?: { escape?: ( s: string ) => string };
-		}
-	).CSS;
-	return c?.escape ? c.escape( value ) : value;
+function isBinWindowActive(): boolean {
+	return !! getDesktopApi()?.windowManager?.isActive?.( TARGET_ID );
 }
 
 /**
@@ -230,12 +215,19 @@ export function startRecycleBinBadge(
 		cfgDebug,
 		readyState: document.readyState,
 	} );
-	// Loud warning when the PHP filter didn't deliver — the badge
-	// will still update on the first heartbeat tick (~15 s), but
-	// the cold-load value is wrong and that's the bug we keep
-	// chasing. Sending this through `console.warn` so it shows
-	// up even with `info` filtered out in DevTools.
-	if ( typeof cfgCount !== 'number' ) {
+	// Loud warning when the PHP filter didn't deliver. Important:
+	// `wp_localize_script` stringifies every top-level scalar, so a
+	// PHP `(int) 0` arrives here as the string `"0"` — using
+	// `typeof !== 'number'` would yell on every healthy load and
+	// drown out the real signal. The genuine "filter missing"
+	// shapes are `undefined` (key absent) and `null`; numeric
+	// strings (the WP-localize default) and actual numbers both
+	// indicate a delivered value.
+	const cfgCountNum = Number( cfgCount );
+	const cfgCountIsHealthy =
+		( typeof cfgCount === 'number' || typeof cfgCount === 'string' ) &&
+		Number.isFinite( cfgCountNum );
+	if ( ! cfgCountIsHealthy ) {
 		warn(
 			'wpDesktopConfig.recycleBinCount is missing — PHP filter `desktop_mode_shell_config` did not deliver. Check your PHP error log for `[wpdm-bin debug]` lines.',
 			{ cfg },
@@ -262,6 +254,35 @@ export function startRecycleBinBadge(
 	wireBroadcastDeltas();
 	wirePostMessageFastPath();
 	wireHeartbeatProbe();
+	wireWindowLifecycleSignals();
+}
+
+/**
+ * Re-paint the badge when the bin window's lifecycle changes —
+ * focus / blur / minimize / restore / open / close. The
+ * `paintBadge` function consults
+ * `wp.desktop.windowManager.isActive()` and renders 0 while the
+ * user is looking at the window, so transitions need to trigger
+ * a re-paint to apply or undo that suppression. Internal count
+ * (`_current`) doesn't change here — only the rendered DOM
+ * value.
+ */
+function wireWindowLifecycleSignals(): void {
+	const ns = 'wp-desktop-mode/recycle-bin/badge-lifecycle';
+	const repaint = ( payload: unknown ): void => {
+		const detail = payload as { windowId?: string };
+		if ( detail?.windowId !== TARGET_ID ) {
+			return;
+		}
+		paintBadge( _current );
+	};
+	addAction( HOOKS.WINDOW_OPENED, ns, repaint );
+	addAction( HOOKS.WINDOW_FOCUSED, ns, repaint );
+	addAction( HOOKS.WINDOW_BLURRED, ns, repaint );
+	addAction( HOOKS.WINDOW_MINIMIZED, ns, repaint );
+	addAction( HOOKS.WINDOW_RESTORED, ns, repaint );
+	addAction( HOOKS.WINDOW_CLOSED, ns, repaint );
+	addAction( HOOKS.WINDOW_REOPENED, ns, repaint );
 }
 
 /**

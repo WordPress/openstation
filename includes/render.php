@@ -112,17 +112,14 @@ function desktop_mode_enqueue_assets() {
 		}
 	}
 
-	// Build dock items from the admin menu, then split by placement.
-	// Core pages (Dashboard, Posts, Plugins, Users, Settings, …) go
-	// to the left-edge dock; installed-plugin top-level routes go to
-	// the bottom taskbar. `desktop_mode_is_core_menu_slug` is the heuristic;
-	// `desktop_mode_dock_placement` is the per-item filter escape hatch.
-	// `desktop_mode_build_menu_payload` is shared with the REST menu endpoint
-	// so a live refresh (post plugin-activation) produces the same
-	// split the boot payload did.
+	// Build dock items from the admin menu. Core pages are ordered
+	// first (Dashboard, Posts, Plugins, Users, Settings, …), then
+	// plugin-contributed top-level routes. `desktop_mode_dock_placement`
+	// is the per-item filter escape hatch for hiding. Shared with the
+	// REST menu endpoint so live refreshes (post plugin-activation)
+	// produce the same ordering as the boot payload.
 	$menu_payload    = desktop_mode_build_menu_payload();
 	$dock_items      = $menu_payload['dockItems'];
-	$taskbar_items   = $menu_payload['taskbarItems'];
 	$native_windows  = isset( $menu_payload['nativeWindows'] )
 		? $menu_payload['nativeWindows']
 		: array();
@@ -146,6 +143,30 @@ function desktop_mode_enqueue_assets() {
 		: array();
 	$server_titlebar_button_scripts = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
+		: array();
+	$server_window_theme_scripts   = isset( $menu_payload['serverWindowThemeScripts'] )
+		? $menu_payload['serverWindowThemeScripts']
+		: array();
+	$server_window_themes          = isset( $menu_payload['serverWindowThemes'] )
+		? $menu_payload['serverWindowThemes']
+		: array();
+	$server_window_control_scripts = isset( $menu_payload['serverWindowControlScripts'] )
+		? $menu_payload['serverWindowControlScripts']
+		: array();
+	$server_window_controls        = isset( $menu_payload['serverWindowControls'] )
+		? $menu_payload['serverWindowControls']
+		: array();
+	$server_window_slot_scripts    = isset( $menu_payload['serverWindowSlotScripts'] )
+		? $menu_payload['serverWindowSlotScripts']
+		: array();
+	$server_window_slots           = isset( $menu_payload['serverWindowSlots'] )
+		? $menu_payload['serverWindowSlots']
+		: array();
+	$server_window_chrome_scripts  = isset( $menu_payload['serverWindowChromeScripts'] )
+		? $menu_payload['serverWindowChromeScripts']
+		: array();
+	$server_window_chromes         = isset( $menu_payload['serverWindowChromes'] )
+		? $menu_payload['serverWindowChromes']
 		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
@@ -174,8 +195,7 @@ function desktop_mode_enqueue_assets() {
 	 *     @type string $currentIcon  Dashicon class for the current page.
 	 *     @type string $adminUrl     The base admin URL.
 	 *     @type string $colorScheme  The active admin color scheme.
-	 *     @type array  $dockItems    Dock items derived from the admin menu, filtered to CORE WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…).
-	 *     @type array  $taskbarItems Plugin-contributed top-level menu items (admin.php?page=*). Rendered in the bottom taskbar — see `desktop_mode_dock_placement` + `desktop_mode_dock_placement` for the routing heuristic.
+	 *     @type array  $dockItems    Dock items derived from the admin menu. Core WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…) are ordered first; plugin-contributed top-level routes (admin.php?page=*) follow. Items hidden via `desktop_mode_dock_placement` are omitted.
 	 *     @type array  $nativeWindows Server-declared native windows (via `desktop_mode_register_window`). Shell registers + syncs tiles based on this list — activation/deactivation is a diff without shell reload.
 	 *     @type array  $serverWidgets Server-declared right-column widgets (via `desktop_mode_register_widget`). Shell syncs the widget registry + dynamically loads plugin scripts so widgets appear in the picker without a shell reload.
 	 *     @type array  $serverWallpapers Server-declared wallpapers (via `desktop_mode_register_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.wpDesktopWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
@@ -209,7 +229,6 @@ function desktop_mode_enqueue_assets() {
 			'adminUrl'         => esc_url( admin_url() ),
 			'colorScheme'      => sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' ),
 			'dockItems'        => $dock_items,
-			'taskbarItems'     => $taskbar_items,
 			'nativeWindows'    => $native_windows,
 			'serverWidgets'    => $server_widgets,
 			'serverWallpapers' => $server_wallpapers,
@@ -218,6 +237,14 @@ function desktop_mode_enqueue_assets() {
 			'serverSettingsTabScripts' => $server_settings_tab_scripts,
 			'serverSettingsTabs' => $server_settings_tabs,
 			'serverTitleBarButtonScripts' => $server_titlebar_button_scripts,
+			'serverWindowThemeScripts'  => $server_window_theme_scripts,
+			'serverWindowThemes'        => $server_window_themes,
+			'serverWindowControlScripts' => $server_window_control_scripts,
+			'serverWindowControls'      => $server_window_controls,
+			'serverWindowSlotScripts'   => $server_window_slot_scripts,
+			'serverWindowSlots'         => $server_window_slots,
+			'serverWindowChromeScripts' => $server_window_chrome_scripts,
+			'serverWindowChromes'       => $server_window_chromes,
 			'desktopIcons'     => $desktop_icons,
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),
@@ -312,7 +339,7 @@ function desktop_mode_render_shell() {
 				 * beneath windows (z-index 1 vs. windows at 100+).
 				 * Hosted INSIDE `.wp-desktop-area` so scrolling the
 				 * area (not that we do today) would scroll widgets
-				 * with it, and so the dock/taskbar naturally frame
+				 * with it, and so the dock naturally frames
 				 * it. Empty on first render — JS (`WidgetLayer`)
 				 * populates it on boot.
 				 */
@@ -320,23 +347,6 @@ function desktop_mode_render_shell() {
 				<aside id="wp-desktop-widgets" class="wp-desktop-widgets" aria-label="<?php esc_attr_e( 'Widgets', 'desktop-mode' ); ?>"></aside>
 			</div>
 		</div>
-		<?php
-		/*
-		 * Taskbar — bottom-edge horizontal rail for plugin-contributed
-		 * top-level menus (`admin.php?page=*` routes). Sibling of the
-		 * shell body rather than a child, so the column flex layout
-		 * gives body `flex: 1` and the taskbar auto-sized height at
-		 * the bottom. JS hides it (`hidden=true`) when no plugins
-		 * contributed taskbar items — see `src/desktop.ts`.
-		 *
-		 * Shares `Dock` class + CSS with the left-edge dock, switched
-		 * to horizontal via the `--horizontal` modifier + orientation
-		 * argument to the TS constructor. Tooltip anchors flip to
-		 * above-tile and the active-window indicator dot flips to the
-		 * top of each tile — see dock.css.
-		 */
-		?>
-		<nav id="wp-desktop-taskbar" class="wp-desktop-dock wp-desktop-dock--horizontal" role="toolbar" aria-label="<?php esc_attr_e( 'Plugin navigation', 'desktop-mode' ); ?>"></nav>
 	</div>
 	<?php
 	/**
@@ -969,8 +979,8 @@ function desktop_mode_chromeless_bridge_script() {
 	/*
 	 * Menu-changed signal.
 	 *
-	 * The shell's dock + taskbar are built from `$menu` at page-load
-	 * time and then frozen — the iframe reload that follows plugin
+	 * The shell's dock is built from `$menu` at page-load time and
+	 * then frozen — the iframe reload that follows plugin
 	 * activation / deactivation / installation doesn't tell the
 	 * parent the admin menu just mutated. This handler fires inside
 	 * the iframe that JUST LOADED plugins.php (or a sibling menu-
@@ -1240,16 +1250,6 @@ function desktop_mode_chromeless_bridge_script() {
 	 * of chromeless mode. Everything else is `action` and proxies back
 	 * into this iframe on user selection.
 	 */
-	// Dev-only logging. Every `[wpd-cmd:iframe] …` line in this file
-	// routes through `__wpdLog`, which is a no-op in production. The
-	// `/*__WPDM_CMD_DEBUG__*/` placeholder is substituted by PHP
-	// below with the JSON-encoded value of `WP_DEBUG`.
-	var __WPD_CMD_DEBUG = /*__WPDM_CMD_DEBUG__*/false;
-	function __wpdLog() {
-		if ( ! __WPD_CMD_DEBUG ) return;
-		try { console.log.apply( console, arguments ); } catch ( _e ) { /* swallow */ }
-	}
-
 	var __wpdCommandsSubscribed   = false;
 	var __wpdCommandsLastPayload  = '';
 	var __wpdCommandsDebounceId   = null;
@@ -1479,12 +1479,6 @@ function desktop_mode_chromeless_bridge_script() {
 				}
 			}
 			__wpdLastRawCommands = merged;
-			__wpdLog(
-				'[wpd-cmd:iframe] react-harvester: merged %d (tier3-buckets=%d, tier2-static=%d)',
-				merged.length,
-				loadersList.length,
-				Array.isArray( resultsBucket.statics ) ? resultsBucket.statics.length : 0
-			);
 			__wpdSchedulePost();
 		}
 
@@ -1497,10 +1491,8 @@ function desktop_mode_chromeless_bridge_script() {
 			var result = null;
 			try {
 				result = loader.hook( { search: '' } );
-			} catch ( err ) {
-				if ( ! loader.__wpdLoggedThrow ) {
-					loader.__wpdLoggedThrow = true;
-				}
+			} catch ( _err ) {
+				/* swallow — a buggy loader hook shouldn't take the harvester down */
 			}
 			var cmds = ( result && Array.isArray( result.commands ) ) ? result.commands : [];
 			var key  = useMemo( function () { return commandsFingerprint( cmds ); }, [ cmds ] );
@@ -1622,10 +1614,9 @@ function desktop_mode_chromeless_bridge_script() {
 				{ type: 'wp-desktop-commands-list', commands: list },
 				__wpdCommandsOrigin
 			);
-		} catch ( err ) {
+		} catch ( _err ) {
 			/* cross-origin parent (shouldn't happen for chromeless pages, but
 			 * don't let a throw break the bridge) */
-			__wpdLog( '[wpd-cmd:iframe] postCommandsList: postMessage threw', err );
 		}
 	}
 
@@ -1696,8 +1687,8 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( typeof cb === 'function' ) {
 			try {
 				cb( { close: function () {} } );
-			} catch ( err ) {
-				__wpdLog( '[wpd-cmd:iframe] invoke: "%s" callback threw', name, err );
+			} catch ( _err ) {
+				/* swallow — a plugin command callback that throws shouldn't break the bridge */
 			}
 			return;
 		}
@@ -1716,8 +1707,8 @@ function desktop_mode_chromeless_bridge_script() {
 			if ( raw[ i ] && raw[ i ].name === name && typeof raw[ i ].callback === 'function' ) {
 				try {
 					raw[ i ].callback( { close: function () {} } );
-				} catch ( err ) {
-					__wpdLog( '[wpd-cmd:iframe] invoke: "%s" fallback callback threw', name, err );
+				} catch ( _err ) {
+					/* swallow — see note in primary path above */
 				}
 				return;
 			}
@@ -1749,8 +1740,8 @@ function desktop_mode_chromeless_bridge_script() {
 			{ type: 'wp-desktop-bridge-ready' },
 			__wpdCommandsOrigin
 		);
-	} catch ( err ) {
-		__wpdLog( '[wpd-cmd:iframe] bridge-ready postMessage threw', err );
+	} catch ( _err ) {
+		/* parent gone or cross-origin — bridge handshake will retry on next load */
 	}
 
 	/*
@@ -2085,6 +2076,7 @@ function desktop_mode_chromeless_bridge_script() {
 	var _wpdConnections = {};
 	var _wpdConnectionListeners = [];
 	var _wpdSubs = {};   // topic → [cb, ...]
+	var _wpdChannelSubs = {};   // channel → [cb, ...] (window-channel API)
 	var _wpdParentOrigin = window.location.origin;
 
 	function _wpdEmitToParent( connectionId, topic, payload ) {
@@ -2163,6 +2155,33 @@ function desktop_mode_chromeless_bridge_script() {
 
 		if ( data.type === 'wp-desktop-bridge-disconnect' && typeof data.connectionId === 'string' ) {
 			delete _wpdConnections[ data.connectionId ];
+			return;
+		}
+
+		/* Unified window-channel delivery from the parent. Fires
+		 * every `wp.desktop.on( channel, cb )` subscriber for the
+		 * matching channel — same protocol as
+		 * `assets/js/iframe-bridge.js`. */
+		if ( data.type === 'wp-desktop-window-send' && typeof data.channel === 'string' && data.channel !== '' ) {
+			var meta = { channel: data.channel };
+			var cBucket = _wpdChannelSubs[ data.channel ];
+			if ( cBucket ) {
+				var cBucketSnap = cBucket.slice();
+				for ( var ci = 0; ci < cBucketSnap.length; ci++ ) {
+					try {
+						cBucketSnap[ ci ]( data.payload, meta );
+					} catch ( _err ) { /* swallow */ }
+				}
+			}
+			var cWildcard = _wpdChannelSubs[ '*' ];
+			if ( cWildcard ) {
+				var cWildcardSnap = cWildcard.slice();
+				for ( var cw = 0; cw < cWildcardSnap.length; cw++ ) {
+					try {
+						cWildcardSnap[ cw ]( data.payload, meta );
+					} catch ( _err ) { /* swallow */ }
+				}
+			}
 			return;
 		}
 	} );
@@ -2308,6 +2327,47 @@ function desktop_mode_chromeless_bridge_script() {
 	if ( ! window.wp ) { window.wp = {}; }
 	if ( ! window.wp.desktop ) { window.wp.desktop = {}; }
 	window.wp.desktop.iframe = iframeApi;
+
+	/* Unified window-channel API. Mirror of the equivalent block
+	 * in `assets/js/iframe-bridge.js` — keep both in sync. The
+	 * parent shell posts `wp-desktop-window-send` on
+	 * `Window.send( channel, payload )`; iframe-side handlers
+	 * register via `wp.desktop.on( channel, cb )`. Sending the
+	 * other way (`wp.desktop.send`) posts up to the parent where
+	 * `Window.on( channel, cb )` subscribers fire. */
+	if ( typeof window.wp.desktop.send !== 'function' ) {
+		window.wp.desktop.send = function ( channel, payload ) {
+			if ( typeof channel !== 'string' || channel === '' ) {
+				return;
+			}
+			try {
+				window.parent.postMessage( {
+					type: 'wp-desktop-window-publish',
+					channel: channel,
+					payload: payload
+				}, _wpdParentOrigin );
+			} catch ( _err ) { /* parent gone */ }
+		};
+	}
+	if ( typeof window.wp.desktop.on !== 'function' ) {
+		window.wp.desktop.on = function ( channel, cb ) {
+			if ( typeof channel !== 'string' || channel === '' || typeof cb !== 'function' ) {
+				return function () {};
+			}
+			var bucket = _wpdChannelSubs[ channel ];
+			if ( ! bucket ) {
+				bucket = [];
+				_wpdChannelSubs[ channel ] = bucket;
+			}
+			bucket.push( cb );
+			return function () {
+				var i = bucket.indexOf( cb );
+				if ( i >= 0 ) {
+					bucket.splice( i, 1 );
+				}
+			};
+		};
+	}
 } )();
 JS;
 
@@ -2317,12 +2377,6 @@ JS;
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
 	$js = str_replace( '/*__WPDM_MENU_PAYLOAD__*/', $menu_payload_json, $js );
-
-	// Gate the command-bridge dev logs. `WP_DEBUG` is the conventional
-	// "I'm a developer and want noisy output" switch; anything else
-	// (default production) silences every `__wpdLog` call in the bridge.
-	$cmd_debug = ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ? 'true' : 'false';
-	$js        = str_replace( '/*__WPDM_CMD_DEBUG__*/false', $cmd_debug, $js );
 
 	wp_print_inline_script_tag( $js );
 }

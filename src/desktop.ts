@@ -12,6 +12,10 @@
 
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
+import {
+	installWindowLoadingTransitions,
+	repaintLoadingOverlays,
+} from './window/loading';
 import { Dock, type SystemDockItem } from './dock';
 import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
@@ -26,7 +30,6 @@ import {
 } from './hooks';
 import * as registry from './wallpapers/registry';
 import { WallpaperLayer } from './wallpapers/layer';
-import { registerBuiltInWallpapers } from './wallpapers/built-in';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createCommandRegistrySync } from './commands/server-sync';
 import { createSettingsTabRegistrySync } from './settings/server-sync';
@@ -44,12 +47,41 @@ import {
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
 import {
+	registerWindowTheme,
+	unregisterWindowTheme,
+	listWindowThemes,
+	type WindowThemeDef,
+} from './window-chrome/themes/registry';
+import { createWindowThemeRegistrySync } from './window-chrome/themes/server-sync';
+import {
+	registerWindowControl,
+	unregisterWindowControl,
+	listWindowControls,
+	type WindowControlDef,
+} from './window-chrome/controls/registry';
+import { registerBuiltInControls } from './window-chrome/controls/built-ins';
+import { createWindowControlRegistrySync } from './window-chrome/controls/server-sync';
+import {
+	registerWindowSlot,
+	unregisterWindowSlot,
+	listWindowSlots,
+	type WindowSlotDef,
+} from './window-chrome/slots/registry';
+import { createWindowSlotRegistrySync } from './window-chrome/slots/server-sync';
+import {
+	registerWindowChrome,
+	unregisterWindowChrome,
+	listWindowChromes,
+	type WindowChromeDef,
+} from './window-chrome/chrome/registry';
+import { createWindowChromeRegistrySync } from './window-chrome/chrome/server-sync';
+import {
 	createConnectionBridge,
 	type WindowConnection,
 	type ConnectOptions,
 } from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
-import { loadVendorScript } from './wallpapers/vendor-loader';
+import { loadVendorScript, type ScriptExtras } from './wallpapers/vendor-loader';
 import {
 	collectWallpaperSurfaces,
 	type WallpaperSurface,
@@ -62,7 +94,11 @@ import {
 	onWindow,
 	type WindowLifecycleHandlers,
 } from './native-windows';
-import { renderDesktopIcons } from './desktop-icons';
+import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
+import {
+	createLayoutDispatcher,
+	type LayoutDispatcher,
+} from './desktop-layout';
 import { createApplyPayload } from './menu-refresh-apply';
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
@@ -73,6 +109,8 @@ import {
 	subscribe,
 } from './broadcast';
 import { startRecycleBinBadge } from './recycle-bin/badge';
+import { showToast, type ToastOptions } from './toast';
+import { renderKeyedList, clearKeyedList, type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
 	registerCommand,
@@ -90,6 +128,14 @@ import {
 	type Palette,
 } from './palette-registry';
 import { devtools } from './devtools';
+import { createSharedStore, type SharedStore } from './shared-store';
+import {
+	bootPresenceProbe,
+	presenceApi,
+	type PresenceApi,
+} from './presence';
+import { activity, type ActivityApi } from './activity';
+import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
 
 /**
  * Origin snapshot taken at shell module load. Every same-origin gate
@@ -118,6 +164,80 @@ import type {
 } from './types';
 import type { Window as DesktopWindow } from './window';
 
+/* -------------------------------------------------------------------
+ * Pre-bootstrap shim — installs `window.wp.desktop` synchronously at
+ * module-parse time with a queueing `whenReady` so consumer scripts
+ * loaded with `array( 'wp-desktop' )` as their dep don't race the
+ * shell's `init()` execution.
+ *
+ * Why this exists: WordPress only orders the consumer's `<script>`
+ * tag AFTER `desktop.js` in the DOM — it doesn't wait for our
+ * bundle's bootstrap to finish. A consumer IIFE that runs the
+ * documented recipe…
+ *
+ *     wp.desktop.whenReady( () => { … } );
+ *
+ * …could fire before `init()` reached the
+ * `window.wp.desktop = desktopApi` assignment, blowing up with
+ * `wp.desktop.whenReady is not a function`.
+ *
+ * The shim:
+ *   1. Sets up `window.wp.desktop` immediately with `whenReady` /
+ *      `ready` / `isReady`. `whenReady` queues callbacks into a
+ *      module-local array.
+ *   2. Bootstrap merges the full API onto the same object via
+ *      `Object.assign` (NOT reassign — we'd otherwise lose the
+ *      shim's closure binding to the queue).
+ *   3. After HOOKS.INIT fires, the bootstrap drains the queue.
+ *
+ * Re-runs are idempotent: a previous installation is left alone so
+ * a duplicate enqueue / HMR reload doesn't blow away the queue.
+ *
+ * @since 0.6.1
+ */
+const _earlyReadyQueue: Array< () => void > = [];
+let _earlyReady = false;
+
+( function installEarlyDesktopShim() {
+	const w = window as { wp?: { desktop?: unknown } };
+	if ( ! w.wp ) {
+		w.wp = {};
+	}
+	if ( w.wp.desktop ) {
+		// Either the bootstrap already ran (full API installed) or
+		// a previous module load already set up this shim. Either
+		// way, leave it alone — the bootstrap's `Object.assign`
+		// path tolerates an already-shimmed slot.
+		return;
+	}
+	const shim = {
+		whenReady( cb: () => void ): void {
+			if ( typeof cb !== 'function' ) {
+				return;
+			}
+			if ( _earlyReady ) {
+				// Microtask-defer so the cb runs in the same
+				// async-shape consumers see post-bootstrap. The
+				// real `whenReady` (in `src/hooks.ts`) does the
+				// same.
+				Promise.resolve().then( cb );
+				return;
+			}
+			_earlyReadyQueue.push( cb );
+		},
+		ready( cb: () => void ): void {
+			shim.whenReady( cb );
+		},
+		isReady(): boolean {
+			return _earlyReady;
+		},
+	};
+	// Cast through unknown — the shim is a partial implementation;
+	// the bootstrap's Object.assign fills in the rest before any
+	// consumer reads beyond `whenReady` / `ready` / `isReady`.
+	w.wp.desktop = shim as unknown;
+}() );
+
 /** Stable id for the OS Settings native window. */
 const OS_SETTINGS_WINDOW_ID = 'wp-desktop-os-settings';
 
@@ -128,15 +248,61 @@ const OS_SETTINGS_WINDOW_ID = 'wp-desktop-os-settings';
  */
 export interface WpDesktopPublicApi {
 	windowManager: WindowManager;
+	/**
+	 * Primary (bottom) dock instance. Present in every layout. May
+	 * be replaced when the user switches `desktopLayout` in OS
+	 * Settings — plugins that cache a reference should listen for
+	 * the `wp-desktop-layout-changed` CustomEvent on `document` and
+	 * re-fetch from `wp.desktop.dock`.
+	 */
 	dock: Dock | null;
 	/**
-	 * Bottom-edge taskbar — `null` when either the shell markup lacks
-	 * the taskbar element (older shell build) or no plugin-contributed
-	 * menus were routed to it (`config.taskbarItems` empty). The
-	 * taskbar is an instance of the same `Dock` class as the left-edge
-	 * dock — only its orientation + CSS differ.
+	 * Side (left) dock instance — only non-null when the active
+	 * layout is `classic`. Holds core admin menus while the bottom
+	 * dock holds plugin menus. `null` in `unified` and `spatial`.
+	 *
+	 * @since 0.18.0
 	 */
-	taskbar: Dock | null;
+	sideDock: Dock | null;
+	/**
+	 * Currently-active desktop layout. Mirrors
+	 * `OsSettingsSnapshot.desktopLayout`; the framework writes
+	 * `data-wp-desktop-layout` on the shell root with this value so
+	 * plugins can also key off the attribute via CSS.
+	 *
+	 * @since 0.18.0
+	 */
+	desktopLayout: 'classic' | 'unified' | 'spatial';
+	/**
+	 * Wallpaper-icon rail — the second badge surface alongside the
+	 * dock. Mirrors `Dock.setBadge` exactly:
+	 *
+	 * ```ts
+	 * wp.desktop.icons.setBadge( 'wpdm-messages', 5 );
+	 * wp.desktop.icons.setBadge( 'wpdm-messages', 0 );  // clear
+	 * ```
+	 *
+	 * Every change publishes `wp-desktop/badge-changed` on the
+	 * activity bus with `rail: 'icon'` (the same channel the dock
+	 * publishes to with `rail: 'dock'`), and fires
+	 * {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
+	 * `{ iconId, count, previousCount }`. Badges survive a full
+	 * grid rebuild — set once, the framework re-paints across
+	 * every live menu refresh.
+	 *
+	 * Plugin authors writing a single badge wrapper for both
+	 * rails can fan a count to every surface idempotently:
+	 *
+	 * ```ts
+	 * function setBadgeEverywhere( id: string, count: number ): void {
+	 *     wp.desktop.dock?.setBadge?.(    id, count );
+	 *     wp.desktop.icons?.setBadge?.(   id, count );
+	 * }
+	 * ```
+	 *
+	 * @since 0.24.0
+	 */
+	icons: IconsApi;
 	saveSession: () => void;
 	/** Raw `@wordpress/hooks` bridge. Alias of `window.wp.hooks`. */
 	hooks: WpHooks;
@@ -177,24 +343,12 @@ export interface WpDesktopPublicApi {
 	widgetLayer: WidgetLayer | null;
 	/**
 	 * Register a shell-level system tile (a JS-owned launcher that
-	 * isn't part of the admin menu — Jorvy, a quick-notes panel, a
-	 * native-window tool) on one of the two rails.
-	 *
-	 * Default placement is `'taskbar'` — the bottom macOS-style pill
-	 * that already hosts installed-plugin menus. That keeps the
-	 * left-edge dock reserved for core WordPress pages + shell-owned
-	 * affordances (OS Settings). Plugins that genuinely belong on
-	 * the left rail (rare) can pass `placement: 'dock'` explicitly.
-	 *
-	 * When a tile lands on the taskbar and the taskbar was empty
-	 * (no plugin-menu items, no prior system tiles), the bar is
-	 * auto-unhidden. Returns the resolved placement for callers
-	 * that want to log / persist it.
+	 * isn't part of the admin menu — a quick-notes panel, a
+	 * native-window tool) on the unified dock rail. Tiles always
+	 * land on the dock; placement is the user's pref (left / right /
+	 * bottom) and applies uniformly.
 	 */
-	registerSystemTile: (
-		item: SystemDockItem,
-		placement?: 'dock' | 'taskbar',
-	) => 'dock' | 'taskbar';
+	registerSystemTile: ( item: SystemDockItem ) => void;
 	/**
 	 * Open a native window from a compact {@link NativeWindowDef}
 	 * with sensible shell-provided defaults (`native: true`,
@@ -222,7 +376,7 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.18.0
 	 */
-	openWindow: ( id: string ) => boolean;
+	openWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
 	 * Clone a `<template>` element's contents into a fresh
 	 * `DocumentFragment`. Convenience wrapper — accepts either the
@@ -232,18 +386,32 @@ export interface WpDesktopPublicApi {
 	cloneTemplate: ( template: string | HTMLTemplateElement ) => DocumentFragment;
 	/**
 	 * Subscribe to a specific window's lifecycle events by id.
-	 * Returns an unsubscribe function; also auto-unsubscribes when
-	 * the window closes. See {@link WindowLifecycleHandlers}.
+	 * Returns an unsubscribe function; by default also
+	 * auto-unsubscribes when the window closes (suits one-shot
+	 * per-instance subscribers). Pass `{ persistent: true }` for
+	 * app-lifetime subscribers that need to keep firing across
+	 * every open/close cycle (badge policies, toast suppression).
+	 *
+	 * See {@link WindowLifecycleHandlers}.
 	 */
 	onWindow: (
 		id: string,
 		handlers: WindowLifecycleHandlers,
+		options?: { persistent?: boolean },
 	) => () => void;
-	/** Load a vendor script once, memoized. See `src/wallpapers/vendor-loader.ts`. */
-	loadVendorScript: ( url: string ) => Promise<void>;
+	/**
+	 * Load a vendor script once, memoized. The optional `extras` bag
+	 * mirrors what `desktop_mode_resolve_script_payload()` harvests
+	 * from a registered handle's `wp_localize_script` /
+	 * `wp_add_inline_script` / `wp_set_script_translations` data.
+	 * Bundles loaded via the shell's native-window / widgets / commands
+	 * sync paths get this for free; the public surface exposes the
+	 * primitive for parity. See `src/wallpapers/vendor-loader.ts`.
+	 */
+	loadVendorScript: ( url: string, extras?: ScriptExtras ) => Promise<void>;
 	/**
 	 * Live list of collision surfaces for wallpaper effects —
-	 * window tops, shell floor, taskbar top, dock edge, widget
+	 * window tops, shell floor, dock edge, widget
 	 * cards, plus anything plugins added via the
 	 * `wp-desktop.wallpaper.surfaces` filter. Rects are in
 	 * viewport coordinates. Call each frame (or throttled) from a
@@ -397,6 +565,127 @@ export interface WpDesktopPublicApi {
 	/** Snapshot of registered title-bar buttons. @since 0.17.0 */
 	listTitleBarButtons: () => TitleBarButtonDef[];
 	/**
+	 * Register (or replace) a per-window theme — a CSS-variable map
+	 * applied to every matching window's outer element. The shell
+	 * routes registry mutations through every open window so live
+	 * activation paints immediately. Mirrors {@link registerCommand}
+	 * / {@link registerTitleBarButton} for predicate filtering and
+	 * `owner`-based teardown.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowTheme: ( def: WindowThemeDef ) => void;
+	/** Remove a previously registered window theme. @since 0.6.0 */
+	unregisterWindowTheme: ( id: string ) => void;
+	/** Snapshot of registered window themes. @since 0.6.0 */
+	listWindowThemes: () => WindowThemeDef[];
+	/**
+	 * Register (or replace) a window control. Built-in controls
+	 * (close, minimize, maximize, focus, detach) live in this same
+	 * registry under the `core/*` id prefix — plugins can `unregister`
+	 * any of them to hide globally, or use per-window
+	 * `appearance.controls.{order, hide, custom}` to mutate just
+	 * one window's cluster.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowControl: ( def: WindowControlDef ) => void;
+	/** Remove a previously registered window control by id. @since 0.6.0 */
+	unregisterWindowControl: ( id: string ) => void;
+	/** Snapshot of registered window controls. @since 0.6.0 */
+	listWindowControls: () => WindowControlDef[];
+	/**
+	 * Apply (or clear) a per-window controls config at runtime.
+	 * Pass `null` / `undefined` to clear and fall back to the
+	 * registry's default resolution.
+	 *
+	 * No-op when the window id is not currently open.
+	 *
+	 * @since 0.6.0
+	 */
+	applyWindowControls: (
+		windowId: string,
+		override: import( './types' ).WindowControlsConfig | null | undefined,
+	) => void;
+	/**
+	 * Register (or replace) a Layer-3 title-bar slot renderer. The
+	 * registered renderer paints into the named slot's host element
+	 * for every window the `match` predicate accepts. Multiple
+	 * registrations targeting the same slot stack in `order`.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowSlot: ( def: WindowSlotDef ) => void;
+	/** Remove a previously registered slot renderer. @since 0.6.0 */
+	unregisterWindowSlot: ( id: string ) => void;
+	/** Snapshot of registered slot renderers. @since 0.6.0 */
+	listWindowSlots: () => WindowSlotDef[];
+	/**
+	 * Apply (or clear) a per-window slot override at runtime. Pass
+	 * `undefined` for `config` to clear the override (default
+	 * content + matching registry entries take over again).
+	 *
+	 * No-op when the window id is not currently open.
+	 *
+	 * @since 0.6.0
+	 */
+	applyWindowSlot: (
+		windowId: string,
+		slot: import( './types' ).WindowSlotName,
+		config: import( './types' ).WindowSlotConfig | undefined,
+	) => void;
+	/**
+	 * **Experimental** — register (or replace) a custom chrome
+	 * implementation. A chrome owns the title-bar DOM tree of any
+	 * window that selects it via `WindowConfig.appearance.chrome`.
+	 * Layer-4 of the chrome framework — Layers 1-3 (theme, controls,
+	 * slots) cover 95%+ of customization use cases by composition.
+	 *
+	 * The chrome render contract may change in future minor versions.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowChrome: ( def: WindowChromeDef ) => void;
+	/** Remove a previously registered chrome by id. **Experimental.** @since 0.6.0 */
+	unregisterWindowChrome: ( id: string ) => void;
+	/** Snapshot of registered chromes. **Experimental.** @since 0.6.0 */
+	listWindowChromes: () => WindowChromeDef[];
+	/**
+	 * Set a window's chrome at runtime. Pass `null` / `undefined`
+	 * (or `'core/standard'`) to fall back to the standard chrome.
+	 *
+	 * **Experimental.** @since 0.6.0
+	 */
+	applyWindowChrome: (
+		windowId: string,
+		chromeId: string | null | undefined,
+	) => void;
+	/**
+	 * Apply (or clear) a per-window theme override at runtime.
+	 * Accepts a registered theme id (string), an inline tokens map
+	 * (`Record< string, string >`), an explicit `WindowThemeRef`, or
+	 * `null` to clear the override and fall back to the registry.
+	 *
+	 * No-op when the window id is not currently open.
+	 *
+	 * @since 0.6.0
+	 */
+	applyWindowTheme: (
+		windowId: string,
+		override:
+			| import( './types' ).WindowThemeRef
+			| Record< string, string >
+			| string
+			| null
+			| undefined,
+	) => void;
+	/**
 	 * Open a typed pub/sub connection to another window's iframe.
 	 * Returns a `WindowConnection` with `subscribe`, `send`, and
 	 * `disconnect`. Messages are queued before the iframe acks the
@@ -484,11 +773,283 @@ export interface WpDesktopPublicApi {
 	 * @since 0.6.0
 	 */
 	devtools: import( './devtools' ).DevtoolsApi;
+	/**
+	 * Cross-bundle reactive store factory.
+	 *
+	 * Each plugin / feature in Desktop Mode is typically built as
+	 * its own Vite IIFE bundle. Module-level state defined inside
+	 * one bundle is invisible to another bundle even when both
+	 * import the same source file — each bundle has its own copy.
+	 * `createSharedStore` solves this by attaching state to a
+	 * window-level slot keyed by your string. The first call with
+	 * a given key creates the store; every subsequent call with
+	 * the same key (in any bundle) returns the SAME store, so
+	 * mutations propagate and subscribers from any bundle fire on
+	 * any mutation.
+	 *
+	 * Mutation pattern is mutate-then-notify (no immutable updates,
+	 * no reducer enum). The returned handle exposes `state` (live
+	 * mutable object), `notify()`, `subscribe(cb)`, `getState()`,
+	 * and `reset()`.
+	 *
+	 * Use this any time you split your plugin's JS across more
+	 * than one bundle and need them to agree on something. Common
+	 * consumers: a feature whose lazy chat / detail-pane bundle
+	 * needs to read state from an always-on shell bundle.
+	 *
+	 * @example
+	 * ```js
+	 * const store = wp.desktop.createSharedStore(
+	 *     'my-plugin/state',
+	 *     () => ( { selectedId: null, items: [] } ),
+	 * );
+	 * store.subscribe( ( s ) => repaint( s ) );
+	 * store.state.selectedId = 7;
+	 * store.notify();
+	 * ```
+	 *
+	 * @since 0.5.5
+	 */
+	createSharedStore: < T >(
+		key: string,
+		initialState: () => T,
+	) => SharedStore< T >;
+	/**
+	 * Framework-level presence — who's currently in the desktop-mode
+	 * WP-Admin and what their state is (`online | inactive |
+	 * offline`). Always available regardless of which feature
+	 * plugins (chat, collaboration, …) happen to be installed.
+	 *
+	 * The probe is started automatically on `wp-desktop.init` and
+	 * piggy-backs on the WordPress Heartbeat to bump server-side
+	 * presence + receive the visible-users snapshot. Plugins read
+	 * `getStatus(userId)` / `getAll()` for a synchronous snapshot,
+	 * `subscribe(cb)` to react to changes, and listen for
+	 * `wp-desktop-presence-changed` CustomEvents on `document` for
+	 * status transitions (fires once per user per transition,
+	 * never on stable ticks).
+	 *
+	 * @example
+	 * ```js
+	 * if ( wp.desktop.presence.getStatus( authorId ) === 'online' ) {
+	 *     showOnlineBadge();
+	 * }
+	 * document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+	 *     console.log( e.detail.userId, e.detail.newStatus );
+	 * } );
+	 * ```
+	 *
+	 * @since 0.5.5
+	 */
+	presence: PresenceApi;
+	/**
+	 * Cross-plugin activity channels — a thin, named-channel layer
+	 * over `wp.hooks` for plugin-internal events that other
+	 * plugins might care about. Apps publish state changes; peers
+	 * subscribe + react. Convention is `<plugin>/<event>`:
+	 *
+	 * ```js
+	 * wp.desktop.activity.publish( 'inbox/unread-changed', { total: 5 } );
+	 * const off = wp.desktop.activity.subscribe(
+	 *     'inbox/unread-changed',
+	 *     ( { total } ) => repaintBadge( total ),
+	 * );
+	 * ```
+	 *
+	 * Channels are routed via `wp-desktop.activity.<channel>` on
+	 * the hook bus, so devtools / inspectors can list activity
+	 * traffic as a discrete group.
+	 *
+	 * @since 0.5.5
+	 */
+	activity: ActivityApi;
+	/**
+	 * Cross-feature WordPress Heartbeat bus.
+	 *
+	 * Every plugin that wants to read / write a per-tick payload
+	 * goes through here:
+	 *
+	 * ```js
+	 * wp.desktop.heartbeat.contribute( 'my-plugin/active', () => true );
+	 * wp.desktop.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
+	 *     applyServerSnapshot( v );
+	 * } );
+	 * ```
+	 *
+	 * The framework wires the underlying `heartbeat-send` /
+	 * `heartbeat-tick` jQuery events once. Plugins compose; no
+	 * boilerplate per feature.
+	 *
+	 * @since 0.5.5
+	 */
+	heartbeat: HeartbeatBus;
+	/**
+	 * Show a transient top-of-shell toast. Returns a dismiss callback
+	 * the caller can invoke early — useful when the state the toast
+	 * was reporting changes (e.g. dismiss inbound-message toasts the
+	 * moment the chat window mounts).
+	 *
+	 * Routes through the `wp-desktop/toast-requested` activity filter
+	 * before painting; plugins can mutate or cancel the payload.
+	 *
+	 * @since 0.23.0
+	 */
+	showToast: ( opts: ToastOptions ) => () => void;
+	/**
+	 * Re-paint every currently-loading window's spinner overlay
+	 * through the customization pipeline (per-window
+	 * `config.loading.render` + `WINDOW_LOADING_OVERLAY` filter).
+	 *
+	 * Call this after registering a `WINDOW_LOADING_OVERLAY` filter
+	 * **mid-life** — i.e. NOT inside `whenReady( … )`. Filters
+	 * registered in `whenReady` are picked up automatically by the
+	 * shell's post-`HOOKS.INIT` sweep, so the typical plugin shape:
+	 *
+	 * ```js
+	 * wp.desktop.whenReady( () => {
+	 *     wp.desktop.hooks.addFilter(
+	 *         'wp-desktop.window.loading-overlay',
+	 *         'my-skin/branded',
+	 *         ( host ) => { ... }
+	 *     );
+	 * } );
+	 * ```
+	 *
+	 * never needs this. The escape hatch exists for plugins that
+	 * register their filter from a deferred async import, a
+	 * runtime feature flag flip, or a settings change after init.
+	 *
+	 * Idempotent. Safe to call multiple times — windows that
+	 * already finished loading are unaffected.
+	 *
+	 * @since 0.6.0
+	 */
+	repaintLoadingOverlays: () => void;
+	/**
+	 * Keyed-list rendering helper for any plugin that paints a dynamic
+	 * list of items into a DOM container. Reuses element instances when
+	 * the keys match across renders so event listeners survive data
+	 * updates — the only reliable way to keep clicks working on rows
+	 * that may re-render mid-press.
+	 *
+	 * See {@link renderKeyedList} for the full options shape.
+	 *
+	 * @since 0.23.0
+	 */
+	renderKeyedList: < T >(
+		host: HTMLElement,
+		items: readonly T[],
+		opts: KeyedListOptions< T >,
+	) => void;
+	/**
+	 * Drop the keyed-list state for a host. Idempotent. Pair with
+	 * `renderKeyedList` when tearing down a list-bearing component.
+	 *
+	 * @since 0.23.0
+	 */
+	clearKeyedList: ( host: HTMLElement ) => void;
+	/**
+	 * Bless a plugin-owned subnamespace under `wp.desktop`. Plugins
+	 * that ship their own public surface (`wp.desktop.<your-plugin>`)
+	 * call this once at boot to publish their api object on the shell. Subsequent calls with the same
+	 * name replace the previous registration — re-registration is
+	 * idempotent and intentionally non-throwing so a plugin reload
+	 * does the right thing.
+	 *
+	 * Reserved names: any key already present on `wp.desktop` at the
+	 * moment of registration. Attempting to claim a reserved name
+	 * console.warns and is a no-op so a plugin can't accidentally
+	 * shadow a built-in.
+	 *
+	 * @since 0.23.0
+	 */
+	registerNamespace: ( name: string, api: object ) => void;
+	/**
+	 * Read the bundle-bound config blob shipped via the `'config'`
+	 * arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`.
+	 * Returns `undefined` when no config was registered for `id`.
+	 *
+	 * Recommended over reading `window.wpDesktopWindowConfig[ id ]`
+	 * directly so the storage location can evolve without breaking
+	 * plugin bundles.
+	 *
+	 * @since 0.6.0
+	 */
+	getWindowConfig: < T = Record< string, unknown > >( id: string ) => T | undefined;
+	/**
+	 * Read-only diagnostics surface. Plugin authors integrating with
+	 * desktop-mode use these to answer "what state does the framework
+	 * think my window is in?" without inventing one-off probes from
+	 * scratch. Strictly observational — calling these methods is side-
+	 * effect free.
+	 *
+	 * @since 0.6.0
+	 */
+	debug: {
+		/**
+		 * Snapshot what the shell knows about a registered native
+		 * window. Returns `null` when `id` is not in the
+		 * `nativeWindows` payload (plugin not active, or id typo).
+		 *
+		 * Most useful values for "why isn't my bundle running?"
+		 * debugging:
+		 * - `loadPath: 'eager' | 'lazy' | 'unknown'` — eager means
+		 *   `desktop_mode_enqueue_native_window_scripts` printed the
+		 *   tag through `wp_print_scripts`; lazy means the shell
+		 *   appended a `<script>` via `loadVendorScript`. Lazy + a
+		 *   missing `configPresent` is the historical
+		 *   mid-session-activation bug fixed in 0.6.0.
+		 * - `configPresent` — whether
+		 *   `window.wpDesktopWindowConfig[ id ]` exists.
+		 * - `extras` — what the payload supplied for
+		 *   `loadVendorScript` to inject (translations / l10n /
+		 *   before / after counts).
+		 */
+		window: ( id: string ) => DesktopDebugWindow | null;
+	};
+}
+
+/**
+ * Read-only diagnostics for one native window. Returned by
+ * `wp.desktop.debug.window( id )`.
+ *
+ * @public
+ * @since 0.6.0
+ */
+export interface DesktopDebugWindow {
+	id: string;
+	scriptHandle: string;
+	scriptUrl: string;
+	/**
+	 * `'eager'` — a `<script>` tag printed by `wp_print_scripts` was
+	 * found in the document for this URL.
+	 * `'lazy'`  — only the shell-injected (`data-wp-desktop-vendor`) tag is present.
+	 * `'unknown'` — neither (script never loaded yet, or the URL is empty).
+	 */
+	loadPath: 'eager' | 'lazy' | 'unknown';
+	tagInDom: boolean;
+	configPresent: boolean;
+	extras: {
+		hasTranslations: boolean;
+		l10nCount: number;
+		beforeCount: number;
+		afterCount: number;
+	};
 }
 
 declare global {
 	interface Window {
 		wpDesktopConfig?: DesktopConfig;
+		/**
+		 * Per-window config blobs, one entry per
+		 * `desktop_mode_register_window( $id, [ 'config' => … ] )`.
+		 * Read via {@link WpDesktopPublicApi.getWindowConfig} rather
+		 * than touching this global directly — the storage location
+		 * may evolve.
+		 *
+		 * @since 0.6.0
+		 */
+		wpDesktopWindowConfig?: Record< string, unknown >;
 	}
 	/**
 	 * Contribute `desktop` to the merged `window.wp` namespace. The
@@ -505,6 +1066,40 @@ const SESSION_SAVE_DEBOUNCE_MS = 500;
 
 /** Minimum margin between the restored window and the desktop edges when clamping. */
 const VIEWPORT_CLAMP_MARGIN = 12;
+
+/**
+ * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
+ * to overwrite. Source-of-truth for the reserved-names list — kept
+ * in sync with the {@link WpDesktopPublicApi} interface above. A
+ * runtime check lives in the registerNamespace wiring inside
+ * `init()`; this snapshot lets the warning fire even before any
+ * built-in slot has been assigned (e.g. if a plugin races init).
+ */
+const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
+	'windowManager', 'dock', 'taskbar', 'icons', 'saveSession', 'hooks', 'HOOKS',
+	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer',
+	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
+	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
+	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
+	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
+	'unregisterCommand', 'listCommands', 'registerSettingsTab',
+	'unregisterSettingsTab', 'listSettingsTabs', 'registerTitleBarButton',
+	'unregisterTitleBarButton', 'listTitleBarButtons',
+	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
+	'applyWindowTheme',
+	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
+	'applyWindowControls',
+	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
+	'applyWindowSlot',
+	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
+	'applyWindowChrome',
+	'connect',
+	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
+	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
+	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
+	'clearKeyedList', 'registerNamespace',
+	'getWindowConfig', 'debug',
+] );
 
 /**
  * Initialize Desktop Mode.
@@ -533,7 +1128,6 @@ function init(): void {
 	if ( wallpaperEl ) {
 		wallpaperLayer = new WallpaperLayer( wallpaperEl, pluginUrl );
 	}
-	registerBuiltInWallpapers();
 
 	// Widget layer + registry. Same pattern as wallpapers: register
 	// built-ins synchronously so the `wp-desktop.widgets` filter
@@ -660,90 +1254,115 @@ function init(): void {
 		openPaletteOnly( 'wp-desktop-ai-assistant' );
 	} );
 
-	// Dock (left edge, CORE WP menus). `config.dockItems` was already
-	// filtered server-side to core items — anything that routes via
-	// `admin.php?page=*` is split into `config.taskbarItems` below.
-	const dockEl = document.getElementById( 'wp-desktop-dock' );
-	let dock: Dock | null = null;
-	if ( dockEl && config.dockItems ) {
-		dock = new Dock( dockEl, manager, config.dockItems, config.adminUrl, 'left' );
+	// Dock(s) + desktop icons — managed by the layout dispatcher.
+	// User picks one of three layouts in OS Settings → Appearance:
+	// Classic (left side bar + bottom dock), Unified (single bottom
+	// rail), or Spatial (bottom dock + core menus as wallpaper
+	// icons). The dispatcher tears down and rebuilds the right set
+	// of `Dock` instances on every layout change and exposes a
+	// stable handle the rest of the shell (live menu refresh,
+	// public API) keeps wired to whichever rails are currently live.
+	const bottomDockEl = document.getElementById( 'wp-desktop-dock' );
+	const shellEl = document.getElementById( 'wp-desktop-shell' );
+	const shellBody = shellEl?.querySelector< HTMLElement >(
+		'.wp-desktop-shell__body',
+	);
+	let layoutDispatcher: LayoutDispatcher | null = null;
+
+	// Native-window sync is built BEFORE the dispatcher so the
+	// dispatcher's `renderIcons` closure can hand `nativeWindows.openById`
+	// to `renderDesktopIcons` without hitting a temporal-dead-zone
+	// reference (the dispatcher's constructor paints icons immediately).
+	// The system-tile callbacks close over the still-null
+	// `layoutDispatcher` and read it lazily; the initial sync that
+	// would invoke them is deferred until after the dispatcher is wired.
+	const nativeWindows = createNativeWindowSync( {
+		manager,
+		appendSystemTile: ( item ) =>
+			layoutDispatcher?.appendSystemTile( item ),
+		removeSystemTile: ( id ) => layoutDispatcher?.removeSystemTile( id ),
+		desktopArea,
+	} );
+	const syncNativeWindows = nativeWindows.sync;
+
+	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'wp-desktop-area--with-dock' );
-
-		// System tile at the bottom of the dock — last icon, after WP
-		// Settings. Clicking opens the native OS Settings window; the
-		// window manager focuses any existing instance instead of
-		// stacking a second.
-		dock.appendSystemItem( {
-			id: OS_SETTINGS_WINDOW_ID,
-			title: 'OS Settings',
-			icon: 'dashicons-desktop',
-			// "Open" for the dock dot means "open on the currently
-			// active desktop." OS Settings on another desktop
-			// shouldn't paint the dot on the active view.
-			isOpen: () => {
-				const win = manager.getById( OS_SETTINGS_WINDOW_ID );
-				if ( ! win ) {
-					return false;
-				}
-				return (
-					( win.config.desktopId || manager.getActiveDesktopId() ) ===
-					manager.getActiveDesktopId()
-				);
+		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
+		const renderIcons = (
+			icons: import( './types' ).DesktopIconServerEntry[] | undefined,
+		): void => {
+			renderDesktopIcons( desktopArea, icons, {
+				openWindow: nativeWindows.openById,
+				manager,
+			} );
+		};
+		layoutDispatcher = createLayoutDispatcher(
+			{
+				shellRoot: shellEl,
+				shellBody,
+				bottomDockEl,
+				desktopArea,
+				windowManager: manager,
+				adminUrl: config.adminUrl,
+				renderIcons,
 			},
-			onOpen: () => {
-				manager.open( {
-					id: OS_SETTINGS_WINDOW_ID,
-					baseId: OS_SETTINGS_WINDOW_ID,
-					url: '#os-settings',
-					title: 'OS Settings',
-					icon: 'dashicons-desktop',
-					native: true,
-					render: ( body ) => osSettings.renderPanel( body ),
-					// Sized to comfortably fit three wallpaper swatches
-					// across plus the media-library grid showing 5–6
-					// thumbnails per row — smaller defaults forced the
-					// sections into a single narrow column.
-					width: 820,
-					height: 720,
-					minWidth: 560,
-					minHeight: 480,
-				} );
-			},
-		} );
-	}
-
-	// Taskbar (bottom edge, PLUGIN-contributed menus). Instantiated
-	// with the same `Dock` class as the left rail — behavior is
-	// identical (tooltips, active-window dots, multi-instance rail,
-	// same icon fallbacks). Only orientation + CSS differ. The taskbar
-	// DOM element is optional — older shell builds without it render
-	// fine, the taskbar just no-ops.
-	//
-	// ALWAYS instantiate when the element exists, even if the item
-	// list is empty. The live menu-refresh path (plugin activation
-	// inside a windowed plugins.php) needs an existing Dock instance
-	// to call `replaceItems()` on — creating one lazily on first
-	// refresh would mean the user's FIRST plugin activation wouldn't
-	// re-render. Hidden via `[hidden]` when empty so it doesn't show
-	// an empty glass pill floating over the wallpaper.
-	const taskbarEl = document.getElementById( 'wp-desktop-taskbar' );
-	let taskbar: Dock | null = null;
-	if ( taskbarEl ) {
-		const initialTaskbarItems = Array.isArray( config.taskbarItems )
-			? config.taskbarItems
-			: [];
-		taskbar = new Dock(
-			taskbarEl,
-			manager,
-			initialTaskbarItems,
-			config.adminUrl,
-			'bottom',
+			initialLayout,
+			config.dockItems,
+			config.desktopIcons,
 		);
-		taskbarEl.hidden = initialTaskbarItems.length === 0;
-		if ( initialTaskbarItems.length > 0 ) {
-			desktopArea.classList.add( 'wp-desktop-area--with-taskbar' );
-		}
+		// OS Settings tile — `'core'` affinity so it lands on the side
+		// dock in Classic (with core admin menus, where users expect a
+		// shell-owned affordance) and on the primary rail in Unified
+		// and Spatial (where there is no side dock to host it).
+		// Tracked by the dispatcher so it re-attaches automatically
+		// after a layout rebuild.
+		layoutDispatcher.appendSystemTile(
+			{
+				id: OS_SETTINGS_WINDOW_ID,
+				title: 'OS Settings',
+				icon: 'dashicons-desktop',
+				// "Open" for the dock dot means "open on the currently
+				// active desktop." OS Settings on another desktop
+				// shouldn't paint the dot on the active view.
+				isOpen: () => {
+					const win = manager.getById( OS_SETTINGS_WINDOW_ID );
+					if ( ! win ) {
+						return false;
+					}
+					return (
+						( win.config.desktopId ||
+							manager.getActiveDesktopId() ) ===
+						manager.getActiveDesktopId()
+					);
+				},
+				onOpen: () => {
+					manager.open( {
+						id: OS_SETTINGS_WINDOW_ID,
+						baseId: OS_SETTINGS_WINDOW_ID,
+						url: '#os-settings',
+						title: 'OS Settings',
+						icon: 'dashicons-desktop',
+						native: true,
+						render: ( body ) => osSettings.renderPanel( body ),
+						width: 820,
+						height: 720,
+						minWidth: 560,
+						minHeight: 480,
+					} );
+				},
+			},
+			'core',
+		);
 	}
+	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
+
+	// Initial native-window registry sync — runs AFTER the dispatcher
+	// is wired so plugin-owned tiles route through the dispatcher's
+	// `appendSystemTile` callback rather than hitting the no-op
+	// fallback while the dispatcher is still null.
+	void syncNativeWindows(
+		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+	);
 
 	// Bootstrap: restore session (if any), then decide whether to also
 	// auto-open the current admin URL. The rules compose three signals:
@@ -839,49 +1458,20 @@ function init(): void {
 	};
 
 	/**
-	 * Place a system tile on the requested rail. Extracted so
-	 * `registerSystemTile` can do its single taskbar-unhide + hook
-	 * fire uniformly regardless of the placement branch it takes.
-	 * Returns the resolved placement — it may differ from the
-	 * requested value when the taskbar element is missing.
+	 * Place a system tile on the bottom dock rail via the layout
+	 * dispatcher so it re-attaches automatically after a layout
+	 * rebuild. Plugin-registered launchers that aren't part of the
+	 * admin menu (native-window tools, quick-notes panels) land here.
 	 */
-	const placeSystemTile = (
-		item: SystemDockItem,
-		placement: 'dock' | 'taskbar',
-	): 'dock' | 'taskbar' => {
-		if ( placement === 'dock' ) {
-			dock?.appendSystemItem( item );
-			return 'dock';
-		}
-		if ( ! taskbar ) {
-			dock?.appendSystemItem( item );
-			return 'dock';
-		}
-		taskbar.appendSystemItem( item );
-		if ( taskbarEl && taskbarEl.hidden ) {
-			taskbarEl.hidden = false;
-			desktopArea.classList.add( 'wp-desktop-area--with-taskbar' );
-		}
-		return 'taskbar';
+	const placeSystemTile = ( item: SystemDockItem ): void => {
+		layoutDispatcher?.appendSystemTile( item );
 	};
 
-	// Native-window sync — the server-declared list from
-	// `desktop_mode_register_window()` drives system-tile lifecycle
-	// for plugin-owned native windows. At boot we prime tiles from
-	// `config.nativeWindows`; the live-refresh path calls the same
-	// syncer with the fresh payload so activation / deactivation
-	// maps to tile add / remove without any shell reload.
-	const nativeWindows = createNativeWindowSync( {
-		manager,
-		dock,
-		taskbar,
-		taskbarEl,
-		desktopArea,
-	} );
-	const syncNativeWindows = nativeWindows.sync;
-	void syncNativeWindows(
-		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
-	);
+	// (Native-window sync was wired earlier — before the layout
+	// dispatcher — so the dispatcher's `renderIcons` could close over
+	// `nativeWindows.openById` without a TDZ. The initial bulk sync
+	// runs right after the dispatcher is built, so plugin-owned
+	// native-window tiles route through the dispatcher.)
 
 	// Widget-registry sync — same story for the right-column widget
 	// layer. Plugins declare widgets via `desktop_mode_register_widget()`;
@@ -947,6 +1537,71 @@ function init(): void {
 			: [],
 	);
 
+	// Window-theme sync — Layer 1 of the chrome-customization
+	// framework. Loads scripts opted-in via
+	// `desktop_mode_register_window_theme_script()` AND honors
+	// PHP-declared metadata themes (token-only stylesheets) via
+	// `desktop_mode_register_window_theme()`. Live activation /
+	// deactivation paints / unpaints the theme on every open window
+	// the predicate matches.
+	const syncServerWindowThemes = createWindowThemeRegistrySync();
+	void syncServerWindowThemes(
+		Array.isArray( config.serverWindowThemeScripts )
+			? config.serverWindowThemeScripts
+			: [],
+		Array.isArray( config.serverWindowThemes )
+			? config.serverWindowThemes
+			: [],
+	);
+
+	// Layer-2 controls — register the built-in close/minimize/
+	// maximize/focus/detach buttons in the same registry plugins use
+	// for custom controls. Plugins that want to reorder, hide, or
+	// replace built-ins target their `core/*` ids via per-window
+	// `appearance.controls` or via a global `unregisterWindowControl`
+	// call. Idempotent — registering a window with the framework's
+	// own controls before this runs is fine because every Window
+	// constructor calls `repaintWindowControls()` after the registry
+	// is ready.
+	registerBuiltInControls();
+
+	// Plugin-driven control sync — same activation / deactivation
+	// lifecycle as themes and commands. Loads each opted-in plugin
+	// script so its `wp.desktop.registerWindowControl()` calls land,
+	// then drops owner-tagged controls when handles depart the
+	// payload (deactivation).
+	const syncServerWindowControls = createWindowControlRegistrySync();
+	void syncServerWindowControls(
+		Array.isArray( config.serverWindowControlScripts )
+			? config.serverWindowControlScripts
+			: [],
+		Array.isArray( config.serverWindowControls )
+			? config.serverWindowControls
+			: [],
+	);
+
+	// Layer-3 slot sync — same activation / deactivation lifecycle.
+	const syncServerWindowSlots = createWindowSlotRegistrySync();
+	void syncServerWindowSlots(
+		Array.isArray( config.serverWindowSlotScripts )
+			? config.serverWindowSlotScripts
+			: [],
+		Array.isArray( config.serverWindowSlots )
+			? config.serverWindowSlots
+			: [],
+	);
+
+	// Layer-4 (Experimental) custom-chrome sync — same lifecycle.
+	const syncServerWindowChromes = createWindowChromeRegistrySync();
+	void syncServerWindowChromes(
+		Array.isArray( config.serverWindowChromeScripts )
+			? config.serverWindowChromeScripts
+			: [],
+		Array.isArray( config.serverWindowChromes )
+			? config.serverWindowChromes
+			: [],
+	);
+
 	// Cross-window connection bridge — parent side. Builds the
 	// `connect()` factory + the iframe-message router. The router
 	// is wired into `iframe-bridge.ts` below via a side-channel
@@ -960,6 +1615,36 @@ function init(): void {
 	// Library, …) and other native windows can react.
 	attachBroadcastBus( manager );
 	installBroadcastReceiver();
+
+	// Loading-state transitions — show the `<wpd-spinner>` overlay
+	// while a window's iframe boots / native render fetches data,
+	// fade the content in once `WINDOW_CONTENT_LOADED` fires. The
+	// hook firing itself is in `src/window-channels.ts`; this just
+	// wires the visual side.
+	installWindowLoadingTransitions();
+
+	// `wp-desktop.shell.toast` action — the documented way for plugins
+	// to surface a transient notification without importing
+	// `showToast` directly. Payload mirrors the `ToastOptions` type
+	// in `src/toast.ts`.
+	addAction(
+		'wp-desktop.shell.toast',
+		'wp-desktop-mode/shell-toast',
+		( payload: {
+			message?: string;
+			action?: { label: string; onClick: () => void };
+			duration?: number;
+		} ) => {
+			if ( ! payload || typeof payload.message !== 'string' ) {
+				return;
+			}
+			showToast( {
+				message: payload.message,
+				action: payload.action,
+				duration: payload.duration,
+			} );
+		},
+	);
 
 	// Recycle-bin count badge — painted on the dock/taskbar tile
 	// + desktop icon as soon as those exist. Initial value comes
@@ -1029,32 +1714,38 @@ function init(): void {
 	// here (which we used to do) leaks an empty body to render
 	// callbacks that depend on the cloned template, breaking every
 	// plugin that follows the documented pattern.
+	// Wallpaper-icon repaint that re-uses whatever the layout
+	// dispatcher last said the merged list should be. In Spatial
+	// mode the dispatcher synthesizes core menu items as additional
+	// icons; in every other layout this is a passthrough to
+	// `renderDesktopIcons`.
 	const renderIcons = (
 		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 	): void => {
+		if ( layoutDispatcher ) {
+			layoutDispatcher.applyDesktopIcons( icons );
+			return;
+		}
+		// Headless paths without a dispatcher (rare; tests, older
+		// shell markup) still need direct rendering.
 		renderDesktopIcons( desktopArea, icons, {
 			openWindow: nativeWindows.openById,
 			manager,
 		} );
 	};
-	if ( Array.isArray( config.desktopIcons ) && config.desktopIcons.length > 0 ) {
-		renderIcons( config.desktopIcons );
-	}
 
-	// Live menu refresh — rebuild both rails when a plugin activation
+	// Live menu refresh — rebuild the dock when a plugin activation
 	// or deactivation lands in any windowed `plugins.php`. Without
-	// this the dock + taskbar reflect the server-side `$menu` at
-	// shell boot only, so the user would have to hard-reload the
-	// whole tab to see a newly-activated plugin's top-level menu
-	// appear on the taskbar (or vanish on deactivation).
+	// this the dock reflects the server-side `$menu` at shell boot
+	// only, so the user would have to hard-reload the whole tab to
+	// see a newly-activated plugin's top-level menu appear on the
+	// dock (or vanish on deactivation).
 	//
 	// Wired BEFORE the `window.wp.desktop` assignment so the returned
 	// refresh function is available to expose in the public API in
 	// the same statement.
 	const refreshMenu = bindMenuRefresh(
-		dock,
-		taskbar,
-		taskbarEl,
+		layoutDispatcher,
 		desktopArea,
 		config,
 		syncNativeWindows,
@@ -1066,14 +1757,39 @@ function init(): void {
 		renderIcons,
 	);
 
+	// Live desktop-layout sync: when the user picks a new layout
+	// in OS Settings, the dispatcher tears down the current dock(s),
+	// rebuilds for the new layout, and (in Spatial) re-emits the
+	// merged wallpaper-icons list. `osSettings.apply()` has already
+	// written `data-wp-desktop-layout` on the shell root by the time
+	// this fires.
+	//
+	// The public-API references on `wp.desktop` are mutated in place
+	// so a plugin reading `wp.desktop.dock` after a layout change
+	// gets the current primary rail without an explicit re-fetch.
+	// Plugins that CACHED a reference earlier should listen for
+	// `wp-desktop-layout-changed` to know the value moved.
+	osSettings.subscribeOsSettings( ( snapshot ) => {
+		if ( ! layoutDispatcher ) {
+			return;
+		}
+		layoutDispatcher.setLayout( snapshot.desktopLayout );
+		desktopApi.dock = layoutDispatcher.getPrimary();
+		desktopApi.sideDock = layoutDispatcher.getSide();
+		desktopApi.desktopLayout = snapshot.desktopLayout;
+	} );
+
 	// Expose the public API on `window.wp.desktop`. The `hooks` field
 	// aliases `window.wp.hooks` so plugins have one idiomatic entry
 	// point for both the window manager and the filter/action bus.
 	window.wp = window.wp || {};
-	window.wp.desktop = {
+	const desktopApi: WpDesktopPublicApi = {
 		windowManager: manager,
 		dock,
-		taskbar,
+		sideDock: layoutDispatcher?.getSide() ?? null,
+		desktopLayout:
+			osSettings.getOsSettingsSnapshot().desktopLayout,
+		icons: iconsApi,
 		saveSession,
 		hooks: rawHooks(),
 		HOOKS,
@@ -1100,12 +1816,12 @@ function init(): void {
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
 		openWindow: nativeWindows.openById,
+		repaintLoadingOverlays,
 		cloneTemplate,
 		onWindow,
-		registerSystemTile: ( item, placement = 'taskbar' ) => {
-			const resolved = placeSystemTile( item, placement );
-			doAction( HOOKS.DOCK_ITEM_APPENDED, { id: item.id, placement: resolved } );
-			return resolved;
+		registerSystemTile: ( item ) => {
+			placeSystemTile( item );
+			doAction( HOOKS.DOCK_ITEM_APPENDED, { id: item.id } );
 		},
 		registerModule,
 		loadModules,
@@ -1126,6 +1842,46 @@ function init(): void {
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,
+		registerWindowTheme,
+		unregisterWindowTheme,
+		listWindowThemes,
+		applyWindowTheme: ( windowId, override ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceTheme( override );
+		},
+		registerWindowControl,
+		unregisterWindowControl,
+		listWindowControls,
+		applyWindowControls: ( windowId, override ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceControls( override );
+		},
+		registerWindowSlot,
+		unregisterWindowSlot,
+		listWindowSlots,
+		applyWindowSlot: ( windowId, slot, slotConfig ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceSlot( slot, slotConfig );
+		},
+		registerWindowChrome,
+		unregisterWindowChrome,
+		listWindowChromes,
+		applyWindowChrome: ( windowId, chromeId ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceChrome( chromeId );
+		},
 		connect: connectionBridge.connect,
 		broadcast,
 		subscribe,
@@ -1134,7 +1890,136 @@ function init(): void {
 		listPalettes,
 		openPalette: openPaletteOnly,
 		devtools,
+		createSharedStore,
+		presence: presenceApi,
+		activity,
+		heartbeat,
+		showToast,
+		renderKeyedList,
+		clearKeyedList,
+		registerNamespace: ( name: string, api: object ) => {
+			if ( typeof name !== 'string' || name === '' ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					'[wp-desktop] registerNamespace: name must be a non-empty string',
+				);
+				return;
+			}
+			if ( ! api || typeof api !== 'object' ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[wp-desktop] registerNamespace("${ name }"): api must be an object`,
+				);
+				return;
+			}
+			const reserved = RESERVED_NAMESPACE_KEYS.has( name );
+			if ( reserved ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[wp-desktop] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
+				);
+				return;
+			}
+			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
+		},
+		getWindowConfig: < T = Record< string, unknown > >(
+			id: string,
+		): T | undefined => {
+			const store = window.wpDesktopWindowConfig;
+			if ( ! store || typeof store !== 'object' ) {
+				return undefined;
+			}
+			const value = ( store as Record< string, unknown > )[ id ];
+			return value === undefined ? undefined : ( value as T );
+		},
+		debug: {
+			window: ( id: string ): DesktopDebugWindow | null => {
+				const entry = ( config.nativeWindows ?? [] ).find(
+					( e ) => e.id === id,
+				);
+				if ( ! entry ) {
+					return null;
+				}
+				const url = entry.scriptUrl || '';
+				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';
+				let tagInDom = false;
+				if ( url ) {
+					const lazyTag = document.querySelector(
+						`script[data-wp-desktop-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
+					);
+					if ( lazyTag ) {
+						loadPath = 'lazy';
+						tagInDom = true;
+					} else {
+						// Match a non-lazy `<script src>` whose URL
+						// equals our resolved URL (with or without the
+						// `?ver=` query).
+						const eagerTag = Array.from(
+							document.querySelectorAll< HTMLScriptElement >(
+								'script[src]',
+							),
+						).find( ( s ) => s.src === url );
+						if ( eagerTag ) {
+							loadPath = 'eager';
+							tagInDom = true;
+						}
+					}
+				}
+				const cfgStore = window.wpDesktopWindowConfig;
+				const configPresent = !! (
+					cfgStore &&
+					typeof cfgStore === 'object' &&
+					Object.prototype.hasOwnProperty.call( cfgStore, id )
+				);
+				return {
+					id,
+					scriptHandle: entry.scriptHandle || '',
+					scriptUrl: url,
+					loadPath,
+					tagInDom,
+					configPresent,
+					extras: {
+						hasTranslations: !! entry.scriptTranslations,
+						l10nCount: ( entry.scriptL10n ?? [] ).length,
+						beforeCount: ( entry.scriptBefore ?? [] ).length,
+						afterCount: ( entry.scriptAfter ?? [] ).length,
+					},
+				};
+			},
+		},
 	};
+	// Merge the full API onto the early-shim object (NOT reassign
+	// the slot — the shim's `whenReady` closes over `_earlyReadyQueue`,
+	// and reassigning would orphan the queue from the bootstrap's
+	// drain below). Object.assign overwrites `whenReady`/`ready`/
+	// `isReady` with the canonical versions from `src/hooks.ts`.
+	if ( ! window.wp ) {
+		window.wp = {};
+	}
+	if ( ! window.wp.desktop ) {
+		// Shim wasn't installed (degraded path — should never
+		// happen in production because the IIFE at the top of
+		// this module runs before `init()`). Set the slot directly.
+		window.wp.desktop = desktopApi;
+	} else {
+		Object.assign(
+			window.wp.desktop as unknown as Record< string, unknown >,
+			desktopApi as unknown as Record< string, unknown >,
+		);
+	}
+
+	// Wire the cross-feature Heartbeat bus before any consumer
+	// (presence, recycle bin, third-party plugins) registers a
+	// contributor / subscriber. Idempotent — safe to run twice
+	// if init() ever fires again.
+	bootHeartbeatBus();
+
+	// Boot the framework presence probe — always runs in desktop
+	// mode, regardless of whether the chat feature is enabled. The
+	// probe wires Heartbeat send/tick listeners that bump server
+	// presence and ingest the snapshot. Idempotent on repeat
+	// init() calls (the underlying singleton-guards itself).
+	bootPresenceProbe();
 
 	// Fire `wp-desktop.init` — plugins can now register wallpapers
 	// and hook other surfaces. Fired AFTER `window.wp.desktop` is
@@ -1156,6 +2041,33 @@ function init(): void {
 	registerBuiltInCommands();
 
 	doAction( HOOKS.INIT, { config } );
+
+	// Drain the early-shim's whenReady queue. Callbacks queued by
+	// consumer scripts that landed BEFORE the bootstrap finished
+	// see a fully-mounted `window.wp.desktop` (full API + HOOKS.INIT
+	// already fired) when they fire. Callbacks queued AFTER this
+	// point go through the canonical `whenReady` from `src/hooks.ts`
+	// (already merged onto the slot above), which handles the
+	// post-init case via `Promise.resolve().then( cb )`.
+	_earlyReady = true;
+	const queued = _earlyReadyQueue.splice( 0 );
+	for ( const cb of queued ) {
+		try {
+			cb();
+		} catch ( err ) {
+			// Don't let one consumer's bad callback strand the
+			// rest. Surface via SHELL_ERROR + console — same shape
+			// as the wallpaper / widget mount error handlers.
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'when-ready-cb',
+				error: err,
+			} );
+			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
+				console.error( '[wp-desktop-mode] whenReady cb threw:', err );
+			}
+		}
+	}
 
 	// Re-apply the wallpaper once init subscribers have had a chance
 	// to register — if the user's saved selection belongs to a plugin
@@ -1673,31 +2585,25 @@ const MENU_REFRESH_DEBOUNCE_MS = 250;
  *
  * Listens for `wp-desktop-plugins-changed` postMessages from the
  * chromeless bridge (fired when an iframe lands on `plugins.php`), then
- * debounces + fetches `/wp-desktop/v1/menu` and calls `replaceItems()`
- * on whichever rails changed. Also exposes the fetch as a return value
- * so the public API can expose a manual `wp.desktop.refreshMenu()` for
- * plugins that mutate the menu server-side outside the plugins.php
- * flow (rare, but the escape hatch costs nothing).
+ * debounces + fetches `/wp-desktop/v1/menu` and routes the items
+ * through the layout dispatcher (which partitions them across
+ * whichever rails are live for the current desktop layout). Also
+ * exposes the fetch as a return value so the public API can expose a
+ * manual `wp.desktop.refreshMenu()` for plugins that mutate the menu
+ * server-side outside the plugins.php flow.
  *
- * No-ops when `config.menuUrl` isn't present — older PHP builds that
- * predate the REST endpoint get the boot-time menu only.
+ * No-ops when `config.menuUrl` isn't present.
  *
- * @param dock        Left-edge dock instance (may be null).
- * @param taskbar     Bottom-edge taskbar instance (may be null).
- * @param taskbarEl   Taskbar DOM element, used to flip `hidden` when
- *                    items go from empty → populated or vice versa.
- * @param desktopArea Desktop area element — wears the
- *                    `--with-taskbar` modifier when items are present.
- * @param config      Boot config; `taskbarItems` / `dockItems` are
- *                    mutated in place after each successful refresh so
- *                    plugins that read `wp.desktop.config` after a
- *                    refresh see fresh values.
+ * @param layoutDispatcher Owns the `Dock` instance(s) — receives the
+ *                         fresh dock-items list for partitioning.
+ * @param desktopArea      Desktop area element — wears live-refresh
+ *                         classes the applier may toggle.
+ * @param config           Boot config; `dockItems` is mutated in place
+ *                         after each successful refresh.
  * @return An async function plugins can call to force a refresh.
  */
 function bindMenuRefresh(
-	dock: Dock | null,
-	taskbar: Dock | null,
-	taskbarEl: HTMLElement | null,
+	layoutDispatcher: LayoutDispatcher | null,
 	desktopArea: HTMLElement,
 	config: DesktopConfig,
 	syncNativeWindows: (
@@ -1724,14 +2630,11 @@ function bindMenuRefresh(
 		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 	) => void,
 ): () => Promise<void> {
-	// Shared applier — takes a freshly-split payload and rebuilds
-	// both rails. Extracted into its own module so the message-with-
+	// the dock. Extracted into its own module so the message-with-
 	// payload path (no REST) and the manual-refresh path (REST) share
 	// behaviour AND the contract is unit-testable in isolation.
 	const applyPayload = createApplyPayload( {
-		dock,
-		taskbar,
-		taskbarEl,
+		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
 		desktopArea,
 		config,
 		syncNativeWindows,
@@ -1758,7 +2661,6 @@ function bindMenuRefresh(
 			}
 			const data = ( await res.json() ) as {
 				dockItems?: DesktopConfig[ 'dockItems' ];
-				taskbarItems?: DesktopConfig[ 'taskbarItems' ];
 				nativeWindows?: DesktopConfig[ 'nativeWindows' ];
 				serverWidgets?: DesktopConfig[ 'serverWidgets' ];
 				serverWallpapers?: DesktopConfig[ 'serverWallpapers' ];
@@ -1790,7 +2692,6 @@ function bindMenuRefresh(
 			type?: string;
 			payload?: {
 				dockItems?: unknown;
-				taskbarItems?: unknown;
 				nativeWindows?: unknown;
 				serverWidgets?: unknown;
 				serverWallpapers?: unknown;

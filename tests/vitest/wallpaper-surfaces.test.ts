@@ -196,6 +196,7 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 
 		const dock = document.createElement( 'nav' );
 		dock.id = 'wp-desktop-dock';
+		dock.className = 'wp-desktop-dock';
 		stubRect( dock, { left: 0, top: 0, width: 56, height: 900 } );
 		shell.appendChild( dock );
 
@@ -253,19 +254,28 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 		expect( surfaces.map( ( s ) => s.id ) ).not.toContain( 'window:min-win' );
 	} );
 
-	test( 'includes taskbar top when the element is present and unhidden', () => {
-		const taskbar = document.createElement( 'nav' );
-		taskbar.id = 'wp-desktop-taskbar';
-		stubRect( taskbar, { left: 400, top: 830, width: 600, height: 60 } );
-		shell.appendChild( taskbar );
+	test( 'dock edge face flips with placement attribute', () => {
+		const dockEl = document.getElementById( 'wp-desktop-dock' )!;
 
-		const withBar = collectWallpaperSurfaces( manager );
-		expect( withBar.find( ( s ) => s.id === 'taskbar:top' ) ).toBeDefined();
+		// Default (no attribute → bottom placement): face 'top'.
+		const bottomFace = collectWallpaperSurfaces( manager ).find(
+			( s ) => s.id === 'dock:edge',
+		)?.face;
+		expect( bottomFace ).toBe( 'top' );
 
-		// Hiding it drops the surface.
-		taskbar.hidden = true;
-		const hidden = collectWallpaperSurfaces( manager );
-		expect( hidden.find( ( s ) => s.id === 'taskbar:top' ) ).toBeUndefined();
+		// Left placement: face 'right' (inside-edge of left rail).
+		dockEl.setAttribute( 'data-wp-desktop-dock-placement', 'left' );
+		const leftFace = collectWallpaperSurfaces( manager ).find(
+			( s ) => s.id === 'dock:edge',
+		)?.face;
+		expect( leftFace ).toBe( 'right' );
+
+		// Right placement: face 'left' (inside-edge of right rail).
+		dockEl.setAttribute( 'data-wp-desktop-dock-placement', 'right' );
+		const rightFace = collectWallpaperSurfaces( manager ).find(
+			( s ) => s.id === 'dock:edge',
+		)?.face;
+		expect( rightFace ).toBe( 'left' );
 	} );
 
 	test( 'applies wp-desktop.wallpaper.surfaces filter — plugin can add custom surface', () => {

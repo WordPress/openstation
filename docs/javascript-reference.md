@@ -50,6 +50,74 @@ document.addEventListener( 'wp-desktop-window-opened', ( e ) => {
 
 ---
 
+### `wp-desktop-window-reopened` — Stable
+Fires when `wp.desktop.openWindow(id)` (or `windowManager.open(...)`) is called for a `baseId` whose window already exists on the active desktop. The framework just focuses + restores the existing window — the render callback does NOT re-run, and `wp-desktop-window-opened` does NOT fire again. This event is the unambiguous "user requested an open while already open" signal — exactly once per `open()` call on an existing instance.
+
+Plugins that hold per-window state (e.g. the code editor's active file) should listen here to re-orient the existing window's content to whatever the caller wants to show. The open call is synchronous, so any state the caller sets BEFORE invoking `openWindow` is already in place when this fires.
+
+```javascript
+document.addEventListener( 'wp-desktop-window-reopened', ( e ) => {
+    if ( e.detail.windowId !== 'my-plugin/inbox' ) return;
+    // Re-orient the window's main pane to whatever the caller
+    // wanted to show.
+    refreshFocusedItem();
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{ windowId: string, baseId: string, wasMinimized: boolean }
+```
+
+`wasMinimized` reflects the state at the moment of the call, BEFORE the framework's automatic restore-from-minimized happens. Useful for animating "popped from the dock".
+
+---
+
+### `wp-desktop-window-content-loading` — Stable *(since 0.6.0)*
+
+Fires every time a window enters the **loading** state — at construction (every window starts loading) and whenever a plugin calls `Window.markContentLoading()` or the native render context's `ctx.window.markLoading()` mid-life (e.g. before refetching data).
+
+The shell paints a `<wpd-spinner>` overlay over the body while the window is loading and fades the body content out. The overlay's spinner is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with the window's width.
+
+**Edge-triggered.** Idempotent calls don't re-fire — a plugin that calls `markLoading()` twice in a row sees the event exactly once.
+
+```javascript
+document.addEventListener( 'wp-desktop-window-content-loading', ( e ) => {
+    if ( e.detail.windowId === 'my-plugin/inbox' ) {
+        analytics.start( 'inbox-load' );
+    }
+} );
+```
+
+**`detail` shape:** `{ windowId: string }`
+
+Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADING` (`wp-desktop.window.content-loading`).
+
+---
+
+### `wp-desktop-window-content-loaded` — Stable *(since 0.6.0)*
+
+Fires when a window's body content becomes ready — for iframe windows the moment the chromeless bridge announces `wp-desktop-ready`, for native windows after the user's `render( body )` callback (or its returned Promise) resolves, and whenever a plugin calls `Window.markContentLoaded()` or `ctx.window.markReady()` mid-life. The shell removes the loading overlay and fades the body content in on this transition.
+
+**Use this instead of branching on iframe vs. native.** The unified signal across both render strategies. Iframe-only consumers can still subscribe to `wp-desktop.iframe.ready`, which fires alongside this event for iframe windows.
+
+**Edge-triggered.** Only fires on a loading → ready transition. A plugin that arms loading via `markContentLoading()` and then calls `markContentLoaded()` again will see a fresh event each cycle.
+
+```javascript
+document.addEventListener( 'wp-desktop-window-content-loaded', ( e ) => {
+    if ( e.detail.windowId === 'my-plugin/inbox' ) {
+        analytics.complete( 'inbox-load' );
+    }
+} );
+```
+
+**`detail` shape:** `{ windowId: string }`
+
+Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADED` (`wp-desktop.window.content-loaded`).
+
+---
+
 ### `wp-desktop-window-focused` — Stable
 Fires when a window is focused (promoted to topmost z-index).
 
@@ -60,6 +128,32 @@ document.addEventListener( 'wp-desktop-window-focused', ( e ) => {
 ```
 
 **`detail` shape:** `{ windowId: string }`
+
+---
+
+### `wp-desktop-window-blurred` — Stable *(since 0.5.5)*
+
+Fires on the window that **lost** focus when another window is promoted to topmost. Pairs with `wp-desktop-window-focused` for the symmetric "I am no longer the active window" signal — without this event, apps had to track focus transitions themselves to derive blur. Useful for badge policies, attention timers, and any "render differently when not active" UI.
+
+```javascript
+document.addEventListener( 'wp-desktop-window-blurred', ( e ) => {
+    const { windowId, focusedTo } = e.detail;
+    if ( windowId === 'my-app' ) {
+        repaintBadge();
+    }
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    windowId:  string,            // the window that lost focus
+    focusedTo: string | null,     // the window that took focus, or null
+}
+```
+
+Companion `wp.hooks` action: `HOOKS.WINDOW_BLURRED` (`wp-desktop.window.blurred`).
 
 ---
 
@@ -88,6 +182,63 @@ Internal event used by the session saver. Fires for geometry changes (drag-end, 
 
 ---
 
+### `wp-desktop-presence-changed` — Stable *(since 0.5.5)*
+
+Fires when a tracked user's presence transitions between `online`,
+`inactive`, and `offline`. Does NOT fire on stable ticks where the
+status didn't change — listeners only see real transitions, so
+"user came online" / "user went away" UIs hook here without
+debouncing themselves.
+
+The viewer-side filter (`wp_desktop_presence_visible_users`) gates
+which users surface in any one viewer's tab — a transition for a
+user the viewer can't see produces no event.
+
+```javascript
+document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+    const { userId, oldStatus, newStatus, lastSeenMs } = e.detail;
+    if ( oldStatus !== 'online' && newStatus === 'online' ) {
+        toast( `${ userId } is online` );
+    }
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    userId:       number,
+    oldStatus:    'online' | 'inactive' | 'offline' | null,  // null on first sighting
+    newStatus:    'online' | 'inactive' | 'offline',
+    lastSeenMs:   number,
+    lastActiveMs: number,
+}
+```
+
+---
+
+### `wp-desktop-layout-changed` — Stable *(since 0.18.0)*
+Fires when the user picks a new top-level desktop layout in OS Settings → Appearance. The shell tears down and rebuilds the dock(s) before the event fires; plugins that cached `wp.desktop.dock` should re-fetch from the event detail (or read `wp.desktop.dock` again — it's mutated in place). The shell root reflects the new value in `data-wp-desktop-layout` attribute by the time this fires, so CSS selectors keyed on it will already match.
+
+```javascript
+document.addEventListener( 'wp-desktop-layout-changed', ( e ) => {
+    const { layout, primary, side } = e.detail;
+    console.log( 'Desktop layout is now', layout );
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    layout: 'classic' | 'unified' | 'spatial',
+    primary: Dock | null,   // bottom dock — always present
+    side:    Dock | null,   // left side bar — non-null only in classic
+}
+```
+
+---
+
 ### `wp-desktop-drag-start` — Planned (Phase 8)
 Will fire when a drag operation escalates across window boundaries.
 
@@ -112,11 +263,42 @@ Populated after `wp-desktop-init`. Do not access before that event fires.
 
 ```typescript
 window.wp.desktop = {
-    windowManager: WindowManager,
-    dock:          Dock | null,
-    saveSession:   () => void,
+    // Window management
+    windowManager:     WindowManager,
+    openWindow:        ( id, opts? ) => boolean,
+    onWindow:          ( id, handlers, opts? ) => () => void,
+
+    // Surfaces
+    dock:              Dock | null,                            // primary (bottom)
+    sideDock:          Dock | null,                            // since 0.18.0 — left, classic only
+    desktopLayout:     'classic' | 'unified' | 'spatial',       // since 0.18.0
+    icons:             IconsApi,                                // since 0.24.0
+    saveSession:       () => void,
+
+    // Cross-bundle / cross-window primitives                  // since 0.5.5
+    createSharedStore: < T >( key, init ) => SharedStore< T >,
+    activity:          ActivityApi,                            // typed pub/sub
+    heartbeat:         HeartbeatBus,                           // wp Heartbeat bus
+    broadcast:         < T >( topic, payload ) => void,        // cross-window
+    subscribe:         ( topic, cb ) => () => void,            // cross-window
+
+    // Framework features
+    presence:          PresenceApi,                            // since 0.5.5
+    ai:                AiApi,
+    devtools:          DevtoolsApi,
+
+    // Native-window glue                                      // since 0.6.0
+    getWindowConfig:   < T >( id ) => T | undefined,
+    debug:             { window: ( id ) => DesktopDebugWindow | null },
+
+    // Lifecycle
+    whenReady / ready: ( cb ) => void,
+    isReady:           () => boolean,
+    config:            DesktopConfig,
 };
 ```
+
+The full surface is broader; the table above lists the core primitives most plugins reach for. See the per-API sections below for shapes.
 
 ### `windowManager` — Stable
 
@@ -227,14 +409,21 @@ interface Window {
     readonly id:      string;     // stable identifier
     readonly config:  WindowConfig;
     readonly element: HTMLElement; // outer .wp-desktop-window node
-    readonly iframe:  HTMLIFrameElement | null; // null for native windows
     state: 'normal' | 'minimized' | 'maximized' | 'fullscreen';
 
+    // Lifecycle
     close(): void;
     minimize(): void;
     restore(): void;
     maximize(): void;
-    detach(): void;          // pop into a new browser tab
+    detach(): void;          // pop into a new browser tab (iframe windows only)
+
+    // Unified channel API — works for iframe AND native windows.
+    send< T = unknown >( channel: string, payload?: T ): void;
+    on< T = unknown >(
+        channel: string,
+        cb: ( payload: T, meta: { channel: string; windowId: string } ) => void,
+    ): () => void;
 }
 ```
 
@@ -245,19 +434,78 @@ const win = wp.desktop.windowManager.getById( 'edit-php' );
 if ( win && win.state === 'normal' ) win.minimize();
 ```
 
+#### `Window.send( channel, payload? )` — Stable *(since 0.5.5)*
+
+Publish a payload into this window's content. **The unified abstraction over iframe `postMessage` and native render-callback dispatch — plugin authors write the same call regardless of how the window is rendered.**
+
+For iframe windows (real iframes OR `iframeContent`-shorthand natives) the payload is delivered as `wp-desktop-window-send` via `postMessage` and surfaces inside the iframe via `wp.desktop.on( channel, cb )` (the iframe-bridge installs the API on `wp.desktop`). For pure-native windows the payload is dispatched in-process to subscribers the render callback registered through its `windowApi.on( channel, cb )`.
+
+```javascript
+const win = wp.desktop.windowManager.getById( 'wpdc-editor' );
+win.send( 'editor:open-file', { path: 'plugins/foo/bar.php', line: 42 } );
+```
+
+Plugin authors **never** branch on window type, **never** reach for `postMessage`, **never** read `win.iframe` to decide a code path. Same call, same channel, same payload — the framework picks the right delivery mechanism.
+
+#### `Window.on( channel, cb )` — Stable *(since 0.5.5)*
+
+Subscribe to a channel published BY this window's content. Mirror of `send()` for the inbound direction. Iframe content publishes via `wp.desktop.send( channel, payload )` (installed by the iframe-bridge); native render code publishes via the `windowApi.send` it received in the render context. Both land here.
+
+Use `'*'` for a wildcard subscription that fires on every channel from this window.
+
+```javascript
+const win = wp.desktop.windowManager.getById( 'wpdc-editor' );
+const off = win.on( 'editor:saved', ( { path } ) => {
+    toast( `${ path } saved.` );
+} );
+```
+
+Returns an unsubscribe handle. Subscribers are dropped automatically when the window closes — no leak even if the caller forgets to detach.
+
+#### Cross-window peer connections — `wp.desktop.connect()` works for both types *(since 0.5.5)*
+
+`wp.desktop.connect( windowId )` opens a typed pub/sub channel with a peer window. As of 0.5.5, **the connection works identically whether the target is iframe or native**: for iframe targets the bridge negotiates a handshake then crosses the iframe boundary via `postMessage`; for native targets it routes synchronously through the same in-process channel bus that powers `Window.send/on`. The caller writes the same `conn.send(topic, payload)` / `conn.subscribe(topic, cb)` regardless.
+
+```javascript
+const conn = wp.desktop.connect( 'jorvy', {
+    topics: [ 'jorvy:quote-changed' ],
+    onOpen: () => conn.send( 'jorvy:next-quote', {} ),
+} );
+conn.subscribe( 'jorvy:quote-changed', ( payload ) => {
+    repaintQuoteWidget( payload );
+} );
+```
+
+Native targets fire `onOpen` on the next microtask (no handshake to wait for); iframe targets fire it after the iframe acks the handshake. `isOpen()`, `disconnect()`, and the `wp-desktop.connection.*` hook lifecycle behave identically for both kinds.
+
 ---
 
-### `wp.desktop.openWindow( id )` — Stable (since 0.18.0)
+### `wp.desktop.openWindow( id, opts? )` — Stable (since 0.18.0)
 
 Open (or focus) a server-registered native window by id. Symmetric with `desktop_mode_register_window( $id, ... )` — pass the same string.
 
 ```typescript
-wp.desktop.openWindow( id: string ): boolean;
+wp.desktop.openWindow(
+    id:    string,
+    opts?: { source?: string },
+): boolean;
 ```
 
 Returns `true` if a window with that id is registered and was opened (or already open and focused), `false` otherwise.
 
 Goes through the same canonical opener as the dock click + the wallpaper-icon click — so the body comes pre-populated with the cloned `<template>` declared at registration time. Plugin authors can rely on the same render-callback contract no matter which entry point opens the window.
+
+**`opts.source`** *(since 0.5.5)* — optional string identifying who triggered the open. The framework publishes `wp-desktop/open-requested` on the activity bus *before* the open is processed, so analytics, do-not-disturb modes, and audit subscribers can observe the user's intent independently of the outcome:
+
+```javascript
+wp.desktop.openWindow( 'my-plugin/inbox', { source: 'global-search' } );
+
+wp.desktop.activity.subscribe( 'wp-desktop/open-requested', ( { windowId, source } ) => {
+    track( 'window.open.requested', { windowId, source } );
+} );
+```
+
+Conventional `source` values: `'dock'`, `'taskbar'`, `'icon'`, `'shortcut'`, `'palette'`, `'api'` (default when omitted). Custom strings are fine — pick one that matches the surface the user clicked.
 
 ```javascript
 // Open the Code editor.
@@ -270,6 +518,52 @@ if ( ! wp.desktop.openWindow( 'alcazaba-monitor' ) ) {
 ```
 
 For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`wp-desktop-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
+
+---
+
+### `wp.desktop.getWindowConfig( id )` — Stable *(since 0.6.0)*
+
+Read the bundle-bound config blob shipped via the `'config'` arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.
+
+```js
+const cfg = wp.desktop.getWindowConfig( 'my-plugin/cron' );
+// → { restNonce: '…', eventsUrl: 'https://…', … }
+```
+
+The blob is delivered through the same payload path as `wp_localize_script` `extra['data']` — it lands on both eager and lazy script-load paths, so it's the recommended way to ship REST URLs / nonces / capability flags / anything session-bound to a native-window bundle.
+
+See [`examples/window-with-config.md`](./examples/window-with-config.md) for a full recipe.
+
+### `wp.desktop.debug.window( id )` — Stable *(since 0.6.0)*
+
+Read-only diagnostic snapshot of what the shell knows about a registered native window:
+
+```js
+wp.desktop.debug.window( 'my-plugin/cron' );
+// → {
+//     id: 'my-plugin/cron',
+//     scriptHandle: 'my-plugin-cron',
+//     scriptUrl: 'https://…/cron.min.js?ver=…',
+//     loadPath: 'eager' | 'lazy' | 'unknown',
+//     tagInDom: true,
+//     configPresent: true,
+//     extras: {
+//         hasTranslations: false,
+//         l10nCount: 1,
+//         beforeCount: 0,
+//         afterCount: 0,
+//     },
+//   }
+```
+
+Returns `null` when `id` is not in the `nativeWindows` payload (plugin not active, capability gate, id typo).
+
+`loadPath`:
+- `'eager'` — a `<script>` tag printed by `wp_print_scripts` was found in the document for this URL.
+- `'lazy'` — only the shell-injected `<script data-wp-desktop-vendor>` tag is present.
+- `'unknown'` — neither (script never loaded yet, or empty URL).
+
+Use this when integration debugging — particularly when a bundle's config global is missing. `loadPath: 'lazy'` plus `configPresent: false` is the historical mid-session-activation bug that 0.6.0 fixed by harvesting `extra` data into the payload; if you still see this in a current install, the integration is the place to look.
 
 ---
 
@@ -349,18 +643,73 @@ If a `Window.close()` throws, the loop catches and continues — one bad window 
 ---
 
 ### `dock` — Stable
-The left-edge `Dock` instance (or `null` if the dock element wasn't in the DOM). Hosts **core WordPress menus** — Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies. Calling it directly is usually unnecessary — dock items are data-driven via `desktop_mode_dock_items`.
+The **primary (bottom) `Dock` instance** (or `null` if the dock element wasn't in the DOM). Always present once the shell has booted. What it holds depends on the active `desktopLayout`:
+
+- **Classic** — plugin-contributed top-level menus only (core menus go to `sideDock`).
+- **Unified** — every menu, core and plugin alike, sharing one rail.
+- **Spatial** — plugin menus only (core menus are rendered as wallpaper icons).
+
+`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `wp-desktop/badge-changed` on the activity bus with `rail: 'dock'` *(since 0.24.0)*. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` *(since 0.24.0)* — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+
+> **Layout switching note** — the underlying instance is replaced when the user picks a new layout in OS Settings → Appearance. `wp.desktop.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `wp-desktop-layout-changed` and refresh.
 
 ---
 
-### `taskbar` — Stable
-The bottom-edge `Dock` instance (or `null` if the shell markup lacks the taskbar element OR if no plugin-contributed menus were routed to it). Hosts **installed-plugin top-level menus** — anything routed through `admin.php?page=*` that isn't recognized as a core file.
+### `sideDock` — Stable *(since 0.18.0)*
+Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified and Spatial.
 
-Rendered as a floating macOS-style pill at the bottom of the shell. Same class, same tooltip / active-dot / "+" chip behaviour as the left dock — only orientation + CSS differ.
+Same `Dock` API as `dock`, just with `data-wp-desktop-dock-placement="left"` so its CSS selectors don't collide with the bottom rail.
 
-Server-side the split is driven by `desktop_mode_dock_placement()` and the `desktop_mode_dock_placement` filter — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_placement--stable) for how to override routing (pin a plugin to the dock; move a core menu to the taskbar).
+```js
+wp.desktop.sideDock?.setBadge( 'edit.php', 3 );
+```
 
-**Icon fallback:** when a plugin registers a menu without a dashicon / SVG / URL, the taskbar renders a **letter badge** in a hue deterministically derived from the menu title. Same plugin, same colour across reloads. Plugins shipping their own icon art always override the fallback.
+**Icon fallback:** as with the primary dock, a menu without dashicon / SVG / URL renders a letter badge in a hue derived from the title — same plugin, same colour across reloads.
+
+---
+
+### `desktopLayout` — Stable *(since 0.18.0)*
+Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OS Settings → Appearance pick and the `data-wp-desktop-layout` attribute on the shell root.
+
+```js
+if ( wp.desktop.desktopLayout === 'spatial' ) {
+    // Core menus are wallpaper icons; expect `sideDock` to be null.
+}
+```
+
+Listen for `wp-desktop-layout-changed` to react to a switch.
+
+---
+
+### `icons` — Stable *(since 0.24.0)*
+
+The wallpaper-icon rail — second badge surface alongside `dock`. Mirrors the dock's `setBadge` shape exactly so plugin authors can fan a count to whichever rail happens to host their tile (also `sideDock` in Classic layout):
+
+```ts
+interface IconsApi {
+    setBadge:   ( iconId: string, count: number ) => void;
+    clearBadge: ( iconId: string ) => void;
+    getBadge:   ( iconId: string ) => number;
+}
+```
+
+```js
+wp.desktop.icons.setBadge(   'wpdm-messages', 5 );
+wp.desktop.icons.clearBadge( 'wpdm-messages' );
+wp.desktop.icons.getBadge(   'wpdm-messages' ); // → 0
+```
+
+- **Idempotent.** Same count twice = no DOM mutation, no re-emit.
+- **Silent no-op when the id isn't on the rail.** Lets the fan-to-all-rails pattern work without triple-emitting.
+- **Survives a full grid rebuild.** Plugin-set badges persist across plugin activations / live menu refreshes — set once, the renderer re-paints from internal state.
+- **`>99` renders as `99+`**.
+
+Every applied change publishes on:
+
+- `wp-desktop/badge-changed` activity channel with `{ itemId, count, rail: 'icon' }`.
+- `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }`.
+
+The rail does NOT auto-suppress badges based on window state — that's a per-app UX policy. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md) for the canonical "show 0 while my window is active" recipe.
 
 ---
 
@@ -371,6 +720,427 @@ A debounced function that schedules a session write. Call it after mutating wind
 window.wp.desktop.windowManager.focus( someWindow );
 window.wp.desktop.saveSession();
 ```
+
+---
+
+### `presence` — Stable *(since 0.5.5)*
+
+Framework-level presence tracking — who's currently in the desktop-mode WP-Admin and what their state is. Always available, regardless of which feature plugins (chat, collaboration, …) happen to be installed. Useful for any UI that wants to surface who's around: avatar dots, "online now" lists, collaborative cursors, real-time co-editing indicators, etc.
+
+The probe boots automatically on `wp-desktop-init` and piggy-backs the WordPress Heartbeat — every tick (~15 s default in admin) the client sends `wp_desktop_presence_active: true` plus `wp_desktop_user_active: <bool>` (true when the user moused / typed within the last 5 minutes), and the server responds with the visible-users snapshot.
+
+```javascript
+// Synchronous lookup for a single user.
+wp.desktop.presence.getStatus( userId );          // 'online' | 'inactive' | 'offline'
+
+// Full snapshot (clone — safe to iterate).
+const map = wp.desktop.presence.getAll();          // Map<number, { status, lastSeenMs, lastActiveMs }>
+
+// Single-user record or null.
+const entry = wp.desktop.presence.getEntry( userId );
+
+// React to changes.
+const off = wp.desktop.presence.subscribe( ( state ) => {
+    // state.byUser is a ReadonlyMap. Fires on every tick that lands a snapshot.
+    repaintBadges( state.byUser );
+} );
+
+// Force the next heartbeat tick to flag the current user as active.
+wp.desktop.presence.markActive();
+
+// Push a batch of presence updates into the framework store. Use this
+// when your plugin has a faster delivery channel than the heartbeat
+// (e.g. an SSE stream that emits per-conversation presence events) and
+// you want every consumer of `wp.desktop.presence.*` — including
+// `getStatus()` callers in unrelated plugins — to see the freshest data.
+// `lastSeenMs` / `lastActiveMs` are optional; when omitted, the existing
+// timestamps are preserved.
+wp.desktop.presence.applyBatch( [
+    { userId: 7, status: 'online' },
+    { userId: 12, status: 'inactive', lastSeenMs: Date.now() - 90_000 },
+] );
+```
+
+**State machine:**
+
+| Status     | Meaning                                                                                     |
+|------------|---------------------------------------------------------------------------------------------|
+| `online`   | Heartbeat within `wp_desktop_presence_offline_after` AND user input within `wp_desktop_presence_inactive_after`. |
+| `inactive` | Heartbeat present, but no input within `wp_desktop_presence_inactive_after` (default 5 min). |
+| `offline`  | No heartbeat in `wp_desktop_presence_offline_after` (default 2 min).                        |
+
+**Visibility:**
+
+The server-side `wp_desktop_presence_visible_users` filter gates which users surface to a given viewer. By default everyone tracked is visible to everyone tracked; plugins can narrow (e.g. "subscribers only see other subscribers") without the client knowing.
+
+**Companion CustomEvent:** [`wp-desktop-presence-changed`](#wp-desktop-presence-changed--stable-since-055) fires once per status transition per user, with a `null` oldStatus on first sighting.
+
+**See also:** [`docs/examples/presence.md`](./examples/presence.md) for an end-to-end recipe.
+
+---
+
+### `createSharedStore( key, initialState )` — Stable *(since 0.5.5)*
+
+Cross-bundle reactive state primitive. Every plugin in Desktop Mode is typically built as its own Vite IIFE bundle, and module-level state defined in one bundle is **invisible** to another bundle even when both import the same source file — each bundle ends up with its own compiled copy. `createSharedStore` solves this by attaching state to a window-level slot keyed by the string you pass; the first call with a given key creates the store, every subsequent call (in any bundle) returns the SAME store. Mutations propagate; subscribers from any bundle fire on any mutation.
+
+You only need this when you split your plugin's JS across more than one bundle. A plugin that ships a single bundle can use plain module-level state and skip the primitive entirely.
+
+```javascript
+const store = wp.desktop.createSharedStore( 'my-plugin/state', () => ( {
+    selectedId: null,
+    items: [],
+} ) );
+
+// Reactive reads
+const off = store.subscribe( ( s ) => repaint( s ) );
+
+// Mutate-then-notify (no immutable updates, no reducer enum)
+store.state.selectedId = 7;
+store.state.items.push( newItem );
+store.notify();
+
+// Read-only snapshot (same reference, narrower type)
+const current = store.getState();
+
+// Stop listening
+off();
+```
+
+**API shape:**
+
+```typescript
+interface SharedStore< T > {
+    state: T;                                       // mutable
+    getState(): Readonly< T >;                      // narrowed read view
+    notify(): void;                                 // wake subscribers
+    subscribe( cb: ( s: Readonly< T > ) => void ): () => void;
+    reset(): void;                                  // tests only
+}
+
+wp.desktop.createSharedStore< T >(
+    key:          string,                           // 'plugin/purpose'
+    initialState: () => T,                          // thunk; runs once
+): SharedStore< T >;
+```
+
+**Key conventions:**
+
+- Use `'<plugin>/<purpose>'` (e.g. `'my-plugin/state'`) so accidental collisions across plugins are unlikely.
+- The same key from any bundle returns the same store. Use distinct keys for genuinely separate stores.
+- The `initialState` thunk is **only called once per key** — re-calls return the existing instance.
+- `reset()` preserves the outer object identity for object state, so consumers that captured `const s = store.state;` keep working after a reset.
+
+**Why a primitive instead of "just use a window global":**
+
+Plugin authors were rolling their own `window.__myPluginShared` slots and reinventing the same dedupe + subscribe + notify wiring every time. This standardises the pattern, removes the sharp edges (stale captures across reset, stranded subscribers when one bundle throws), and gives every plugin one predictable place to look.
+
+---
+
+### `onWindow( id, handlers, options? )` — Stable *(since 0.5.5)*
+
+The typed wrapper for "subscribe to *this one* window's lifecycle." Filters every action by `windowId`, lets you bind every event in one shot, and returns a single unsubscribe handle. Use this instead of hand-rolling `addAction(HOOKS.WINDOW_*)` calls + windowId checks unless you specifically want lifetime control over each subscription.
+
+```typescript
+wp.desktop.onWindow(
+    id:       string,
+    handlers: WindowLifecycleHandlers,
+    options?: { persistent?: boolean },
+): () => void;
+
+interface WindowLifecycleHandlers {
+    opened?:            ( e: { windowId, page, title, url } ) => void;
+    reopened?:          ( e: { windowId, baseId, wasMinimized } ) => void;
+    focused?:           ( e: { windowId } ) => void;
+    blurred?:           ( e: { windowId, focusedTo } ) => void;
+    closing?:           ( e: { windowId, element } ) => void;
+    closed?:            ( e: { windowId } ) => void;
+    minimized?:         ( e: { windowId } ) => void;
+    restored?:          ( e: { windowId } ) => void;
+    maximized?:         ( e: { windowId } ) => void;
+    unmaximized?:       ( e: { windowId } ) => void;
+    fullscreenEntered?: ( e: { windowId } ) => void;
+    fullscreenExited?:  ( e: { windowId } ) => void;
+    resized?:           ( e: { windowId, x, y, width, height } ) => void;
+    bodyResized?:       ( e: { windowId, width, height } ) => void;
+    boundsChanged?:     ( e: { windowId, x, y, width, height } ) => void;
+}
+```
+
+**`options.persistent`** — default `false`. The framework auto-unsubscribes on `closed` so a per-instance subscription (an undo toast that vanishes when the window closes) doesn't leak handlers when the window is recreated. **Set `persistent: true`** for app-level subscriptions that need to keep firing for every open / close cycle of the page — badge policies, do-not-disturb modes, anything that depends on the *current* state of the window over the lifetime of the tab.
+
+```javascript
+// Per-instance — auto-unsubscribes on close.
+const off = wp.desktop.onWindow( 'my-plugin/inbox', {
+    focused:   () => clearAttention(),
+    blurred:   () => repaintBadge(),
+    closed:    () => recordSession(),
+} );
+
+// App-lifetime — keeps firing every time the window reopens.
+wp.desktop.onWindow(
+    'my-plugin/inbox',
+    {
+        opened:    () => repaintBadge(),
+        focused:   () => repaintBadge(),
+        blurred:   () => repaintBadge(),
+        minimized: () => repaintBadge(),
+        restored:  () => repaintBadge(),
+        closed:    () => repaintBadge(),
+        reopened:  () => repaintBadge(),
+    },
+    { persistent: true },
+);
+```
+
+**The `persistent` footgun.** Without `persistent: true`, your handler stops firing after the first close. A common bug: a badge policy module subscribes once at boot, the user closes + reopens the window, and badges stop updating. If you're confused about why your subscription stopped working, this is almost always why.
+
+---
+
+### `activity` — Stable *(since 0.5.5)*
+
+Cross-plugin activity bus. The transport layer for "thing X happened in plugin A; plugin B might care." Built on top of `wp.hooks` with three benefits over raw `doAction`/`addAction`:
+
+1. **A documented naming convention** (`<plugin>/<event>`).
+2. **A predictable hook prefix** (`wp-desktop.activity.<channel>`) so devtools can list activity traffic as a discrete group.
+3. **Type-safe payloads** via the `ActivityChannelMap` interface (extend in your own `.d.ts`).
+
+```typescript
+interface ActivityApi {
+    publish< K extends keyof ActivityChannelMap >(
+        channel: K,
+        payload?: ActivityChannelMap[ K ],
+    ): void;
+    subscribe< K extends keyof ActivityChannelMap >(
+        channel: K,
+        cb:      ( payload: ActivityChannelMap[ K ] ) => void,
+    ): () => void;
+    filter< K extends keyof ActivityChannelMap >(
+        channel: K,
+        value:   ActivityChannelMap[ K ],
+        ...args: unknown[]
+    ): ActivityChannelMap[ K ];
+}
+```
+
+**Built-in channels** *(since 0.5.5)* — every framework primitive that publishes mirrors here:
+
+| Channel | Direction | Payload | Filterable? |
+|---|---|---|---|
+| `wp-desktop/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action` to rewrite. |
+| `wp-desktop/toast-shown` | Fire-and-forget — fires after the toast lands in the DOM. | Same shape as above. | No (filtering is too late). |
+| `wp-desktop/window-attention-requested` | Pre-attention — `Window.requestAttention()` and `dock.setAttention()` calls run through this. | `{ windowId, mode, durationMs?, intensity?, source?, cancel? }` | **Yes.** Set `cancel: true` for DND. Mutate `mode`/`durationMs`/`intensity` to scale the animation. |
+| `wp-desktop/badge-changed` | Fire-and-forget — every `setBadge()` on dock / taskbar / icons mirrors here on every change. | `{ itemId, count, rail?: 'dock' \| 'taskbar' \| 'icon' }` *(rail since 0.24.0)* | No. |
+| `wp-desktop/open-requested` | Fire-and-forget — `wp.desktop.openWindow()` publishes here BEFORE deciding `opened` vs `reopened`. | `{ windowId, source }` | No. |
+| `wp-desktop/presence-changed` | Per-transition mirror of the `wp-desktop-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
+| `wp-desktop/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
+
+**Plugin channels** — pick a `<plugin>/<event>` slug and publish. Augment `ActivityChannelMap` for compile-time payload checking:
+
+```ts
+declare module 'wp-desktop-mode/activity' {
+    interface ActivityChannelMap {
+        'my-plugin/something-happened': { id: number; reason: string };
+    }
+}
+```
+
+```javascript
+// Publish — peers see it immediately.
+wp.desktop.activity.publish( 'inbox/unread-changed', { total: 5 } );
+
+// Subscribe.
+const off = wp.desktop.activity.subscribe(
+    'inbox/unread-changed',
+    ( { total } ) => repaintWidget( total ),
+);
+
+// Filter — let plugins veto / shape a value before peers see it.
+const safeOutgoing = wp.desktop.activity.filter(
+    'inbox/outgoing-payload',
+    payload,
+    { author: currentUserId },
+);
+```
+
+**See also:** [`docs/event-driven-framework.md`](./event-driven-framework.md) for the bigger pattern.
+
+---
+
+### `heartbeat` — Stable *(since 0.5.5)*
+
+Cross-feature WordPress Heartbeat bus. Wraps the global jQuery Heartbeat (`heartbeat-send` / `heartbeat-tick`) in a typed pub/sub so multiple plugins can read AND write per-tick payloads without each one re-implementing the jQuery boilerplate. The framework wires the underlying jQuery events exactly once.
+
+```typescript
+interface HeartbeatBus {
+    contribute< T = unknown >(
+        field:    string,
+        supplier: () => T | undefined,    // return undefined to skip this tick
+    ): () => void;                         // unsubscribe
+    subscribe< T = unknown >(
+        field: string,
+        cb:    ( value: T ) => void,
+    ): () => void;                         // unsubscribe
+}
+```
+
+**Outgoing — `contribute`.** Add a field to the next `heartbeat-send` payload by registering a supplier. The supplier runs once per tick; return `undefined` to skip the field for that tick. **Last writer wins** — re-contributing the same field replaces the previous supplier (use this if you want to swap policies cleanly).
+
+```javascript
+// Tell the server "I'm at the desk" every tick.
+const off = wp.desktop.heartbeat.contribute(
+    'my-plugin/active',
+    () => isActive() ? true : undefined,
+);
+```
+
+**Incoming — `subscribe`.** React to a field on the `heartbeat-tick` response. Multiple subscribers compose; one failing subscriber doesn't strand peers (errors go to `console.error`).
+
+```javascript
+const off = wp.desktop.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
+    applyServerSnapshot( v );
+} );
+```
+
+**Why this exists.** Without a shared bus, every feature that wants to ride Heartbeat re-binds `jQuery(document).on('heartbeat-send', …)` itself. Three problems: (1) the boilerplate is identical, (2) no plugin can see what other plugins are contributing on the same tick, (3) a thrown error in any handler can strand later handlers on the same event. The bus consolidates the wiring, exposes the typed channel surface, and isolates errors per supplier/subscriber.
+
+**Built-in consumer.** `presence` contributes `wp_desktop_presence_active` + `wp_desktop_user_active` and subscribes to `wp_desktop_presence`. Read [`src/presence/index.ts`](../src/presence/index.ts) for the canonical pattern.
+
+---
+
+### `broadcast` / `subscribe` — Stable *(since 0.21.0)*
+
+Cross-window pub/sub. Fan-out fan-in primitive — any module can publish on a topic and every subscriber (in the parent shell, in any open iframe, in any other tab via `BroadcastChannel`) receives the payload. Distinct from `wp.desktop.activity` in two ways: it crosses iframe boundaries, and it has no `<plugin>/<event>` typing — topics are free-form strings.
+
+```typescript
+wp.desktop.broadcast< T >( topic: string, payload: T ): void;
+
+wp.desktop.subscribe< T >(
+    topic: string,                         // or '*' for wildcard
+    cb:    ( payload: T, meta: { topic: string } ) => void,
+): () => void;
+```
+
+```javascript
+// Notify every window that a record changed.
+wp.desktop.broadcast( 'posts/updated', { id: 42 } );
+
+// React across windows.
+wp.desktop.subscribe( 'posts/updated', ( { id } ) => {
+    refetchIfShowing( id );
+} );
+```
+
+**Mirror onto activity** *(since 0.5.5)* — every `broadcast()` *also* publishes on the activity bus under the same topic name (so long as it matches the `<plugin>/<event>` shape), so in-tab subscribers can use the unified `activity.subscribe` surface without knowing whether the producer ran broadcast vs activity. Cross-tab + cross-iframe fan-out stays the broadcast bus's job.
+
+---
+
+### `showToast( opts )` — Stable *(since 0.23.0)*
+
+Show a transient top-of-shell toast. Returns a dismiss callback the caller can invoke early — useful when the state the toast was reporting changes (e.g. dismiss "X arrived" toasts the moment the related window mounts).
+
+```typescript
+wp.desktop.showToast( {
+    message: string;
+    duration?: number;                                     // ms; default 4000
+    action?: { label: string; onClick: () => void };       // optional CTA
+} ): () => void;
+```
+
+```javascript
+const dismiss = wp.desktop.showToast( {
+    message: 'Saved',
+    duration: 3000,
+    action: { label: 'Undo', onClick: () => undo() },
+} );
+
+// Tear it down early if the underlying state changes:
+windowOpenedCallback( () => dismiss() );
+```
+
+Routes through the `wp-desktop/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
+
+---
+
+### `repaintLoadingOverlays()` — Stable *(since 0.6.0)*
+
+Re-paint every currently-loading window's spinner overlay through the customization pipeline (per-window `config.loading.render` + `WINDOW_LOADING_OVERLAY` filter).
+
+**You almost never need this.** Filters registered inside `wp.desktop.whenReady( … )` are picked up automatically by the shell's post-`HOOKS.INIT` sweep, including for F5 / session-restored windows that were constructed before the plugin script ran. The canonical plugin shape:
+
+```js
+wp.desktop.whenReady( () => {
+    wp.desktop.hooks.addFilter(
+        'wp-desktop.window.loading-overlay',
+        'my-skin/branded',
+        ( host ) => { /* … */ },
+    );
+} );
+```
+
+just works on F5 with no extra plumbing.
+
+`repaintLoadingOverlays()` exists as an escape hatch for plugins that register their `WINDOW_LOADING_OVERLAY` filter **mid-life** — after a deferred async import, a runtime feature-flag flip, or a settings change. Call it after `addFilter` and the shell will sweep every still-loading window through the pipeline:
+
+```js
+async function activateBrandSkin() {
+    const { brandRenderer } = await import( './brand-renderer.js' );
+    wp.desktop.hooks.addFilter(
+        'wp-desktop.window.loading-overlay',
+        'my-skin/lazy-branded',
+        brandRenderer,
+    );
+    wp.desktop.repaintLoadingOverlays();
+}
+```
+
+Idempotent + cheap — windows that already finished loading are unaffected.
+
+---
+
+### `renderKeyedList( host, items, opts )` / `clearKeyedList( host )` — Stable *(since 0.23.0)*
+
+Keyed-list reconciler for any plugin that paints a dynamic list of items into a DOM container. Reuses element instances when keys match across renders so event listeners survive data updates — the only reliable way to keep clicks working on rows that may re-render mid-press.
+
+```javascript
+wp.desktop.renderKeyedList( hostEl, items, {
+    keyOf:    ( item ) => item.id,
+    buildItem ( item ) {
+        const li = document.createElement( 'li' );
+        li.dataset.id = String( item.id );
+        // mousedown survives across re-renders because the element does:
+        li.addEventListener( 'mousedown', () => onSelect( item ) );
+        return li;
+    },
+    updateItem( el, item ) {
+        el.querySelector( '.title' ).textContent = item.title;
+    },
+} );
+
+// On unmount:
+wp.desktop.clearKeyedList( hostEl );
+```
+
+**Why this matters.** Without keyed reconciliation, list re-renders typically do `host.innerHTML = ''` followed by a full rebuild. If the user is mid-press on a row when the repaint happens, `mousedown` fires on the OLD node, the rebuild destroys it, and `mouseup` lands on a new node — the browser does NOT synthesize a `click` and the user's tap silently does nothing. Use `mousedown` (not `click`) for selection-style listeners on elements that may be removed by future state changes.
+
+---
+
+### `registerNamespace( name, api )` — Stable *(since 0.23.0)*
+
+Bless a plugin-owned subnamespace under `wp.desktop`. Plugins that ship their own public surface (`wp.desktop.<your-plugin>`) call this once at boot to publish their api object on the shell.
+
+```javascript
+wp.desktop.registerNamespace( 'my-plugin', {
+    open:  () => { /* ... */ },
+    close: () => { /* ... */ },
+    state: () => readState(),
+} );
+
+// Later, in any other plugin:
+wp.desktop[ 'my-plugin' ].open();
+```
+
+- **Re-registration is idempotent.** Calling with the same name replaces the previous registration so a plugin reload does the right thing.
+- **Reserved names refuse to register.** Built-in keys (`windowManager`, `dock`, `presence`, `activity`, …) console.warn and are no-ops so a plugin can't accidentally shadow a built-in. Any non-conflicting name is allowed; conventional pattern is your plugin slug.
 
 ---
 
@@ -708,36 +1478,33 @@ w.setTitle( `Live Preview — ${ postTitle }` );
 
 ---
 
-### `Window.iframeSend( payload, opts? )` — Experimental  *(since 0.18.0)*
+### `Window.markContentLoading()` / `Window.markContentLoaded()` — Stable *(since 0.6.0)*
 
-Send a payload into a window's iframe. **Only valid for windows registered with `iframeContent`** — non-iframeContent windows no-op with a console warning.
-
-Available **synchronously** the moment `wp.desktop.registerWindow` returns. Calls before the iframe finishes loading are buffered and flushed automatically:
-
-| Mode | Default? | Behaviour |
-|---|---|---|
-| FIFO buffer | yes (no opts) | every call queues in order, flushed verbatim on `load`. Use for setup messages where every payload matters (`{ type: 'init' }`, etc.). |
-| Coalesced single-slot | `{ coalesce: true }` | each call overwrites the slot; only the most-recent payload survives until load. Use for live-stream snapshots (Gutenberg editor content, scroll position) where pre-load intermediates are throwaway. |
-
-Once the iframe has loaded, both modes flush directly to `postMessage` — the load gate becomes a no-op.
+Drive the spinner overlay over a window's body programmatically. Mirrors the `ctx.window.markLoading` / `ctx.window.markReady` pair available inside a native `render` callback — these methods are the equivalent for code that holds a `Window` instance from outside.
 
 ```javascript
-const win = wp.desktop.registerWindow( {
-    id: 'my-preview',
-    iframeContent: { url, bridge: true, onMessage: ... },
-} );
+const w = wp.desktop.windowManager.getById( 'my-app' );
 
-// Setup — FIFO, every payload preserved:
-win.iframeSend( { type: 'init',   config: { theme: 'dark' } } );
-win.iframeSend( { type: 'config', verbose: true } );
+// Show the spinner (e.g. before refetching the body's data).
+w.markContentLoading();
 
-// Live stream — coalesced, latest-only pre-load:
-editorConn.subscribe( 'gutenberg:content', ( html ) => {
-    win.iframeSend( { type: 'preview:html', html }, { coalesce: true } );
-} );
+await refetchData();
+w.appendBody( renderTable( data ) );
+
+// Hide the spinner, fade the content in.
+w.markContentLoaded();
 ```
 
-`iframeSend` is the recommended surface for outbound traffic into a `iframeContent` window. The closure passed to `iframeContent.onReady` does the same thing but only exists *after* the iframe loads — fine for inbound subscriptions, but for outbound sends `iframeSend` doesn't force you to capture a closure or coordinate with the load gate.
+Idempotent: calling `markContentLoading()` twice in a row only fires `WINDOW_CONTENT_LOADING` once; the same edge-trigger logic applies to `markContentLoaded()`.
+
+The framework calls `markContentLoaded()` automatically when:
+- An iframe window's chromeless bridge posts `wp-desktop-ready`.
+- A native window's `render( body )` callback returns synchronously (next animation frame).
+- A native window's `render( body )` returns a `Promise` (when the promise resolves).
+
+Plugins only need to call these directly for **refetch** patterns or for **event-listener-driven async loads** the framework can't observe.
+
+See also: [the `wp-desktop-window-content-loaded` CustomEvent](#wp-desktop-window-content-loaded--stable-since-060) and the [`HOOKS.WINDOW_CONTENT_LOADED`](#hookswindow_content_loaded) action.
 
 ---
 
@@ -754,6 +1521,39 @@ w.setHighlight( 'preview', { color: '#f59e0b' } );  // override colour
 ```
 
 `'preview'` and `'persistent'` are visually distinct; the shell does NOT auto-clear either — that's the caller's responsibility. CSS variable: `--wp-window-highlight-color` (default `--wp-admin-theme-color`).
+
+Every change fires `HOOKS.WINDOW_HIGHLIGHT_CHANGED` on the hook bus *(since 0.24.0)* with `{ windowId, mode, color? }`, so onboarding / drag-bridge / guidance plugins can react without observing DOM mutations:
+
+```js
+wp.desktop.hooks.addAction(
+    wp.desktop.HOOKS.WINDOW_HIGHLIGHT_CHANGED,
+    'my-plugin/highlight-tracker',
+    ( { windowId, mode } ) => { /* … */ },
+);
+```
+
+---
+
+### `Window.shake()` — Stable *(since 0.22.11)*
+
+Briefly jiggle the window element horizontally — the classic MSN-Messenger nudge affordance. Lets any plugin request "look at me" attention on its own window programmatically (e.g. a chat plugin on inbound nudge, a CI plugin on a broken build).
+
+```javascript
+const w = wp.desktop.windowManager.getById( 'my-window' );
+w.shake();
+```
+
+Composes with the inline `left`/`top` the window manager writes (the shake is a CSS `transform`, not a position change). Auto-clears on `animationend`. If a second shake is requested while one is mid-flight, the class is removed and re-added so the animation restarts.
+
+**Reduced-motion fallback:** a static accent ring for the same duration. Plugins that want to mute shakes for a specific window can register a `wp-desktop.window.shake` filter that returns `false`:
+
+```javascript
+wp.hooks.addFilter(
+    'wp-desktop.window.shake',
+    'my-plugin/no-shake',
+    ( allow, { windowId } ) => ( windowId === 'my-window' ? false : allow ),
+);
+```
 
 ---
 
@@ -794,9 +1594,54 @@ Cross-origin guard: every postMessage is sent + accepted only on the shell's `wi
 
 ---
 
+### `wp.desktop.send` / `wp.desktop.on` — Stable *(since 0.5.5)*
+
+**Window-side counterpart to `Window.send/on`.** Available on every chromeless wp-admin page (the shell injects it into the page footer) AND inside every native render's render context. **The single, unified API plugin authors use to talk to / from a window's content — same shape regardless of whether the window is an iframe or a pure-native render.**
+
+**Inside an iframe** (chromeless wp-admin page or `iframeContent` body):
+
+```javascript
+// Tell the parent that the editor saved.
+wp.desktop.send( 'editor:saved', { path: '/wp-content/...', size: 1234 } );
+
+// Listen for parent → window messages.
+const off = wp.desktop.on( 'editor:open-file', ( { path, line } ) => {
+    openFile( path, line );
+} );
+```
+
+**Inside a native render callback** — the second arg of the render carries a window-scoped binding so plugin authors don't need to look up their own window:
+
+```javascript
+wp.desktop.registerWindow( {
+    id: 'my-tool',
+    render: ( body, { window } ) => {
+        body.querySelector( 'button.save' ).addEventListener( 'click', () => {
+            window.send( 'tool:saved', { id: 42 } );
+        } );
+        const off = window.on( 'tool:reset', () => { /* … */ } );
+        return () => off();
+    },
+} );
+```
+
+**On the parent side** (anywhere outside the window), use `Window.send/on` — the symmetric counterpart. The same channel name reaches the same subscribers.
+
+```javascript
+const win = wp.desktop.windowManager.getById( 'my-tool' );
+win.send( 'tool:reset', {} );           // → wp.desktop.on( 'tool:reset' ) inside the window
+win.on( 'tool:saved', ( payload ) => {  // ← wp.desktop.send( 'tool:saved' ) inside the window
+    log( 'saved', payload );
+} );
+```
+
+**Why this matters.** Pre-0.5.5 the iframe-side API was namespaced as `wp.desktop.iframe.*` and pure-native windows had no equivalent — plugin authors targeting native windows had to reach into the DOM. The `send/on` pair removes the leak: same code on either side, same code regardless of render strategy.
+
+---
+
 ### `wp.desktop.iframe.publish` / `subscribe` / `onConnection` — Experimental  *(since 0.17.0)*
 
-Iframe-side counterpart to `connect()`. **Available on every chromeless wp-admin page** — the shell injects this into the page footer. Use inside any plugin code that runs inside an iframe (Gutenberg integrations, plugin admin pages) to publish events to parent-side connections without re-implementing `postMessage`.
+Iframe-side counterpart to `wp.desktop.connect()` — the older multi-listener / handshake-aware bridge. Most plugin code should reach for [`wp.desktop.send` / `wp.desktop.on`](#wpdesktopsend--wpdesktopon--stable-since-055) instead; this surface is only useful when (a) the iframe wants to know how many parent-side callers are listening (`onConnection`), or (b) the iframe wants to broadcast on a topic that fans out to every open `connect()` rather than to a single window-scoped channel.
 
 ```javascript
 // Inside an iframe — e.g. a plugin script that runs on post.php:
@@ -837,7 +1682,7 @@ See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for 
 
 ---
 
-### `registerSettingsTab( def )` — Experimental  *(since 0.17.0)*
+### `registerSettingsTab( def )` — Stable *(since 0.17.0)*
 
 Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Extended Options, Help — and renders its body via your `render( body, ctx )` callback.
 
@@ -966,7 +1811,7 @@ For live *unregistration on deactivation*, either set `owner` (as above) to your
 
 ---
 
-### `unregisterSettingsTab( id )` — Experimental  *(since 0.17.0)*
+### `unregisterSettingsTab( id )` — Stable *(since 0.17.0)*
 
 Remove a previously registered tab. Idempotent.
 
@@ -976,7 +1821,7 @@ wp.desktop.unregisterSettingsTab( 'my-plugin' );
 
 ---
 
-### `listSettingsTabs()` — Experimental  *(since 0.17.0)*
+### `listSettingsTabs()` — Stable *(since 0.17.0)*
 
 Snapshot of every currently registered third-party settings tab, sorted by `order`. Built-in tabs are not included.
 
@@ -1107,9 +1952,19 @@ window.wp.desktop.registerCommand( {
 
 For communication between the parent shell and iframe admin pages. Every message is validated for `event.origin === window.location.origin`.
 
+> **Most plugin authors should never look at this section.** The unified [`Window.send/on`](#windowsend-channel-payload---stable-since-055) and iframe-side [`wp.desktop.send/on`](#wpdesktopsend--wpdesktopon--stable-since-055) hide every postMessage type catalogued below. This section is for: (a) debugging the bridge, (b) writing low-level shell internals, (c) integrating an iframe page that doesn't enqueue the standard `wp-desktop-iframe-bridge` script. If your goal is "tell my window's content something happened," reach for `Window.send/on` first.
+
 ### iframe → parent
 
 All messages are dispatched via `window.parent.postMessage( { type, ... }, window.location.origin )` from inside the chromeless admin iframe.
+
+#### `wp-desktop-window-publish` — Stable *(since 0.5.5)*
+
+The unified channel-API outbound primitive. Posted internally by `wp.desktop.send( channel, payload )` inside the iframe. The parent shell forwards every match to `Window.on( channel, cb )` subscribers for this iframe's window. **Plugin authors should call `wp.desktop.send` instead of posting this manually** — the latter is documented for debugging.
+
+```typescript
+{ type: 'wp-desktop-window-publish'; channel: string; payload?: unknown }
+```
 
 #### `wp-desktop-title-change` — Stable
 Update the window's title bar.
@@ -1226,6 +2081,14 @@ Each `HarvestedCommand` carries a `kind` field the iframe computes by **statical
 
 ```javascript
 iframe.contentWindow.postMessage( { type, ... }, window.location.origin );
+```
+
+#### `wp-desktop-window-send` — Stable *(since 0.5.5)*
+
+The unified channel-API inbound primitive. Posted internally by `Window.send( channel, payload )` for iframe targets. Inside the iframe the bridge forwards each match to `wp.desktop.on( channel, cb )` subscribers. **Plugin authors should call `Window.send` instead of posting this manually** — the latter is documented for debugging.
+
+```typescript
+{ type: 'wp-desktop-window-send'; channel: string; payload?: unknown }
 ```
 
 #### `wp-desktop-focus` — Stable
@@ -1442,9 +2305,14 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `wp-desktop.window.opened` | action | Stable | `{ windowId, page, title, url }` |
+| `wp-desktop.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized }` — fires when `openWindow()` is called for an already-open window |
+| `wp-desktop.window.content-loading` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
+| `wp-desktop.window.content-loaded` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading → ready transition (iframe `load` / `wp-desktop-ready`, native render Promise resolves, or `markContentLoaded()`). Edge-triggered. |
+| `wp-desktop.window.loading-overlay` | filter | Stable *(0.6.0)* | `(host: HTMLElement, ctx: { windowId, config }) → HTMLElement`. Receives the default overlay element (or whatever a per-window `config.loading.render` produced) and may mutate it or return a replacement. Plugins use this to brand every window's loader, swap the spinner preset, append status text. |
 | `wp-desktop.window.closing` | action | Stable | `{ windowId, element }` — fires BEFORE the element is detached (use this when you need an element reference, e.g. for anchored wallpaper overlays) |
 | `wp-desktop.window.closed` | action | Stable | `{ windowId }` |
 | `wp-desktop.window.focused` | action | Stable | `{ windowId }` — fires on focus changes |
+| `wp-desktop.window.blurred` | action | Stable *(0.5.5)* | `{ windowId, focusedTo }` — fires on the window that lost focus when another window is promoted |
 | `wp-desktop.window.title-changed` | action | Stable | `{ windowId, title }` — iframe-sourced title updates |
 | `wp-desktop.window.minimized` | action | Stable | `{ windowId }` |
 | `wp-desktop.window.restored` | action | Stable | `{ windowId }` — restored from minimized |
@@ -1889,6 +2757,210 @@ See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrument
 
 ---
 
+## Window attention API
+
+**Stable** — shipped 0.22.0. See
+[`examples/window-request-attention.md`](./examples/window-request-attention.md)
+for the worked example.
+
+```ts
+class Window {
+    requestAttention(
+        mode: 'pulse' | 'shake' | 'bounce' | null,
+        opts?: {
+            durationMs?: number;          // default 4000; 0 = until cleared
+            intensity?: 'subtle' | 'normal' | 'strong'; // default 'normal'
+        },
+    ): void;
+}
+
+class Dock {
+    setBadge( itemId: string, count: number ): void;
+    clearBadge( itemId: string ): void;
+    setAttention(
+        itemId: string,
+        mode: 'pulse' | 'shake' | 'bounce' | null,
+        opts?: { durationMs?: number; intensity?: 'subtle' | 'normal' | 'strong' },
+    ): void;
+}
+```
+
+`Window.requestAttention()` resolves the tile (dock or taskbar based
+on registered `placement`) and routes to `Dock.setAttention()`. For
+`placement: 'none'` windows, falls back to `setHighlight('persistent')`
+auto-cleared after `durationMs`.
+
+JS filter: `wp-desktop.window.attention( mode, { windowId, opts } )`
+— return `null` to mute the request (Do Not Disturb integration).
+
+All three rails (`dock`, `taskbar`, `icons`) emit on the
+activity bus channel `wp-desktop/badge-changed` with payload
+`{ itemId, count, rail }`. The icon rail also fires
+`HOOKS.ICON_BADGE_CHANGED` on the hook bus with
+`{ iconId, count, previousCount }` for callers that only care
+about the icon surface.
+
+## `wp.desktop.icons` — the wallpaper-icon rail *(since 0.24.0)*
+
+**Stable.** Third badge surface, sibling of `wp.desktop.dock`
+and `wp.desktop.taskbar`. Same `setBadge( id, count )` shape, so
+plugin authors can fan a count to every rail with one wrapper
+function.
+
+```ts
+interface IconsApi {
+    setBadge:   ( iconId: string, count: number ) => void;
+    clearBadge: ( iconId: string ) => void;
+    getBadge:   ( iconId: string ) => number;
+}
+```
+
+```js
+wp.desktop.icons.setBadge(   'wpdm-messages', 5 );
+wp.desktop.icons.clearBadge( 'wpdm-messages' );
+wp.desktop.icons.getBadge(   'wpdm-messages' ); // → 0 (after clear)
+```
+
+- **Idempotent.** Same count twice = no DOM mutation, no re-emit.
+- **Silent no-op when the id isn't on the rail.** Lets the
+  fan-to-all-rails pattern work without triple-emitting.
+- **Survives a full grid rebuild.** The framework persists the
+  badge across plugin activations / live menu refreshes — set
+  once, the renderer re-paints from internal state.
+- **`>99` renders as `99+`** so the pill stays compact.
+
+Every applied change publishes on:
+
+- `wp-desktop/badge-changed` activity channel with
+  `{ itemId, count, rail: 'icon' }`.
+- `HOOKS.ICON_BADGE_CHANGED` action with
+  `{ iconId, count, previousCount }`.
+
+### Apps own the "show 0 while my window is active" rule
+
+The framework does NOT auto-suppress badges based on window
+state. That decision belongs to the app — a "5 unread" badge
+should hide while the inbox is focused; a "5 failed deploys"
+badge should NOT. Subscribe to the relevant window-lifecycle
+hook and decide for yourself; see
+[`docs/examples/dock-badge.md`](./examples/dock-badge.md) for
+the canonical recipe.
+
+## `<wpd-avatar>` — Stable (0.22.0)
+
+```html
+<wpd-avatar
+    src="https://…/me.jpg"
+    name="Daniel López"
+    size="40"               <!-- px or 'xs' | 'sm' | 'md' | 'lg' | 'xl' -->
+    presence="online"       <!-- 'online' | 'inactive' | 'offline' -->
+    user-id="42"            <!-- auto-subscribes to wp-desktop-presence-changed -->
+></wpd-avatar>
+```
+
+Falls back to a deterministic-hue letter tile when `src` is empty
+or fails to load. Emits `wpd-avatar-click` `{ userId: number | null }`.
+
+## `<wpd-textarea>` — Stable (0.22.0)
+
+```html
+<wpd-textarea
+    label="Message"
+    rows="2"
+    auto-grow
+    max-rows="8"
+    submit-on-enter        <!-- Enter sends; Shift+Enter newlines -->
+    maxlength="4000"
+></wpd-textarea>
+```
+
+Same event shape as `<wpd-text-field>`: `wpd-input-change`,
+`wpd-input-commit`, `wpd-submit`. Imperative methods:
+`focusInput()`, `clear()`, `refreshAutosize()`.
+
+---
+
+## Window-chrome customization framework (since 0.6.0)
+
+Per-window appearance customization across four layers. Layers 1-3
+are Stable; Layer 4 is **Experimental**. Recipes live in dedicated
+example docs (linked at the bottom).
+
+### `WindowConfig.appearance` — Stable (Layer 4 Experimental)
+
+A new optional field on every window declaration:
+
+```ts
+interface WindowAppearance {
+    theme?: WindowThemeRef;                       // Layer 1
+    controls?: WindowControlsConfig;              // Layer 2
+    slots?: Partial< Record< WindowSlotName, WindowSlotConfig > >; // Layer 3
+    chrome?: string;                              // Layer 4 — Experimental
+}
+```
+
+### Public APIs on `wp.desktop.*`
+
+```ts
+// Layer 1 — Themes (Stable)
+wp.desktop.registerWindowTheme( def );          // throws RegistrationError on bad input
+wp.desktop.unregisterWindowTheme( id );
+wp.desktop.listWindowThemes();
+wp.desktop.applyWindowTheme( windowId, override );
+
+// Layer 2 — Controls (Stable)
+wp.desktop.registerWindowControl( def );
+wp.desktop.unregisterWindowControl( id );       // pass 'core/close' to hide globally
+wp.desktop.listWindowControls();
+wp.desktop.applyWindowControls( windowId, override );
+
+// Layer 3 — Slots (Stable)
+wp.desktop.registerWindowSlot( def );
+wp.desktop.unregisterWindowSlot( id );
+wp.desktop.listWindowSlots();
+wp.desktop.applyWindowSlot( windowId, slot, config );
+
+// Layer 4 — Custom chrome (Experimental)
+wp.desktop.registerWindowChrome( def );
+wp.desktop.unregisterWindowChrome( id );
+wp.desktop.listWindowChromes();
+wp.desktop.applyWindowChrome( windowId, chromeId );
+```
+
+### JS hooks (under `wp.hooks` / `addFilter`-`addAction`)
+
+| Name | Type | Status | Notes |
+|------|------|--------|-------|
+| `wp-desktop.window.chrome.theme` | filter | Stable | Mutate the resolved CSS-variable map per window. |
+| `wp-desktop.window.chrome.theme-changed` | action | Stable | Fires after each successful theme apply. |
+| `wp-desktop.window.chrome.controls` | filter | Stable | Mutate the resolved per-placement control list. |
+| `wp-desktop.window.chrome.slot` | filter | Stable | Mutate the host element of each slot after content settles. |
+| `wp-desktop.window.chrome.render` | filter | Experimental | Mutate the chrome id selected for a window. |
+| `wp-desktop.window.chrome.applied` | action | Stable | Fires per layer after a paint completes. `layer` is `'controls' \| 'slots' \| 'chrome'`. |
+
+### Iframe-side bridge (`wp.desktop.iframe.chrome.*`) — Stable
+
+Inside any chromeless iframe, plugin code can drive its own window's chrome via these helpers (parent-side handlers route them to the matching `Window.setAppearance*` methods):
+
+```ts
+wp.desktop.iframe.chrome.setTheme( tokens );    // CSS-var map
+wp.desktop.iframe.chrome.setControls( config ); // WindowControlsConfig
+wp.desktop.iframe.chrome.setSlot( name, html ); // sandboxed via textContent
+```
+
+### postMessage protocol additions
+
+```ts
+// iframe → parent
+{ type: 'wp-desktop-chrome-theme',    tokens: Record< string, string > }
+{ type: 'wp-desktop-chrome-controls', config: WindowControlsConfig }
+{ type: 'wp-desktop-chrome-slot',     slot: string, html: string }
+```
+
+Each is origin-gated to the parent shell's origin and source-gated to the matching window's iframe `contentWindow`.
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.
@@ -1896,3 +2968,9 @@ See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrument
 - [Examples — Add a dock badge](./examples/dock-badge.md)
 - [Examples — Register a wallpaper](./examples/register-wallpaper.md)
 - [Examples — Cross-window devtools](./examples/devtools-instrumentation.md)
+- [Examples — Send a chat message](./examples/messaging-send.md)
+- [Examples — Pulse a window's icon](./examples/window-request-attention.md)
+- [Examples — Window themes](./examples/window-theme.md)
+- [Examples — Window controls](./examples/window-controls.md)
+- [Examples — Window slots](./examples/window-slot.md)
+- [Examples — Custom window chrome (Experimental)](./examples/custom-chrome.md)

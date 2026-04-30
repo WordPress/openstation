@@ -35,13 +35,13 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/wp-desktop/` portal URL auto-enables desktop mode for first-time visitors (gated by `desktop_mode_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`desktop_mode_admin_redirect_to_portal`).
 
 - **Desktop shell**
-  Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, left dock, bottom taskbar, right-column widget layer, and full windowing system. `desktop_mode_mode_init`, `desktop_mode_shell_before` / `_after`, and the `desktop_mode_shell_config` filter are the main extension points.
+  Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OS Settings — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `desktop_mode_mode_init`, `desktop_mode_shell_before` / `_after`, and the `desktop_mode_shell_config` filter are the main extension points.
 
 - **Window system — iframe + native**
   Iframe windows load admin pages with `?wp_desktop=1` (chromeless mode). Native windows render directly in the parent DOM via `desktop_mode_register_window()` / `wp.desktop.registerWindow()` — multi-tab native windows are supported through `desktop_mode_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
 
-- **Dock + Taskbar**
-  Left-edge dock for core WP menus; bottom macOS-style pill taskbar for installed-plugin menus. Placement is routed by `desktop_mode_dock_placement` (dock / taskbar / hidden). Per-item multi-window support via `desktop_mode_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
+- **Dock**
+  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is the user's OS Settings preference. Core menus are ordered before plugin menus; per-item hiding via `desktop_mode_dock_placement` (`'hidden'`). Per-item multi-window support via `desktop_mode_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
 
 - **Virtual desktops (“Spaces”)**
   Multiple desktops per user, each with its own window set. Overview grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.

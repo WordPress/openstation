@@ -77,6 +77,33 @@ desktop_mode_register_window( 'jorvy', array(
 
 Behind the scenes this populates a registry exposed to the shell via `desktop_mode_shell_config` → `nativeWindows`. The registry is filterable as `desktop_mode_native_windows` for last-mile overrides.
 
+#### Shipping config to the bundle
+
+Use the `'config'` arg (since 0.6.0) for any session-bound data the bundle needs — REST URLs, nonces, capability flags:
+
+```php
+desktop_mode_register_window( 'my/window', array(
+    /* … */
+    'script' => 'my-script-handle',
+    'config' => array(
+        'restNonce' => wp_create_nonce( 'wp_rest' ),
+        'eventsUrl' => esc_url_raw( rest_url( 'my/v1/events' ) ),
+    ),
+) );
+```
+
+Read it from JS:
+
+```js
+const cfg = wp.desktop.getWindowConfig( 'my/window' );
+```
+
+Why this matters: native-window scripts may be loaded **eagerly** (via `wp_enqueue_script` at boot) or **lazily** (the shell appends a `<script>` after a payload-refresh, e.g. mid-session plugin activation). The lazy path bypasses `wp_print_scripts()` entirely. Without the `'config'` arg's delivery path, any data attached via `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations` would be silently dropped on the lazy path.
+
+Since 0.6.0 the shell harvests that `extra` data into the payload and re-injects it inline alongside the lazy `<script>` tag, so existing `wp_localize_script` callers continue to work — but the `'config'` arg is the discoverable, supported way and is recommended for new windows. See [`examples/window-with-config.md`](./examples/window-with-config.md).
+
+For diagnostics, `wp.desktop.debug.window( id )` (read-only) reports the load path, whether the tag is in the DOM, and whether the config global landed.
+
 ### JS: `wp.desktop.registerWindow()`
 
 For windows whose definition is easier to express in JS than in PHP (or for shell-internal modules like OS Settings):

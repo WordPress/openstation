@@ -219,7 +219,7 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
-### `desktop_mode_settings_tab_script_registered` — Experimental (since 0.17.0)
+### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument.
 
@@ -227,7 +227,7 @@ Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings 
 do_action( 'desktop_mode_settings_tab_script_registered', string $handle );
 ```
 
-### `desktop_mode_settings_tab_registered` — Experimental (since 0.17.0)
+### `desktop_mode_settings_tab_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's metadata. Does not fire on `WP_Error`.
 
@@ -235,7 +235,7 @@ Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's m
 do_action( 'desktop_mode_settings_tab_registered', string $id, array $entry );
 ```
 
-### `desktop_mode_register_settings_tab_script( $handle )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_settings_tab_script( $handle )` — Stable *(PHP function, since 0.17.0)*
 
 Declares a WP-registered script handle as an OS Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerSettingsTab()` calls made by the plugin's JS appear in the OS Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
 
@@ -259,7 +259,7 @@ For live *unregistration* on deactivation, either:
 
 Tabs using neither mechanism stay until the next page reload.
 
-### `desktop_mode_register_settings_tab( $args )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_settings_tab( $args )` — Stable *(PHP function, since 0.17.0)*
 
 Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly calls `desktop_mode_register_settings_tab_script( $args['script'] )` when `script` is provided.
 
@@ -498,47 +498,16 @@ add_filter( 'desktop_mode_dock_item_multi', function ( $multi, $slug ) {
 
 ### `desktop_mode_dock_placement` — Stable
 
-Chooses where a menu item appears in the desktop shell. Three values are recognized:
+Chooses whether a menu item appears in the dock. Two values are recognized:
 
-- `'dock'` — left-edge vertical strip (core WordPress menus — Dashboard, Posts, Media, Users, Settings, CPTs, taxonomies…).
-- `'taskbar'` — bottom horizontal pill (default for installed-plugin top-level menus routed through `admin.php?page=*`).
-- `'hidden'` — suppress the item entirely. The underlying admin menu entry still exists server-side; this only prevents rendering on either desktop-mode rail. Plugins that don't want to claim chrome real estate (utility tools, background services, plugins that render only into existing surfaces) set this.
+- `'dock'` (default) — render the item on the unified dock.
+- `'hidden'` — suppress the item entirely. The underlying admin menu entry still exists server-side; this only prevents rendering on the dock. Plugins that don't want to claim chrome real estate (utility tools, background services, plugins that render only into existing surfaces) set this.
 
 ```php
 apply_filters( 'desktop_mode_dock_placement', string $placement, string $menu_slug );
 ```
 
-The built-in routing heuristic (`desktop_mode_dock_placement`) returns `'dock'` for:
-
-- Hardcoded core menu files (`index.php`, `edit.php`, `upload.php`, `plugins.php`, `users.php`, `tools.php`, `options-*.php`, `themes.php`, `site-health.php`, `update-core.php`, and every admin file in the core allowlist).
-- Every `edit.php?post_type=*` route (all Custom Post Types render alongside core menus).
-- Every `edit-tags.php?taxonomy=*` route (taxonomies follow their parent).
-
-Every other top-level menu returns `'taskbar'`. Return `'dock'` to promote a plugin menu onto the left rail, `'taskbar'` to demote a core-looking menu out of it, or `'hidden'` to remove it from the shell entirely.
-
-Return values other than those three are silently ignored — the item falls back to the default. That keeps a misbehaving filter (returning `null`, a bool, etc.) from corrupting the rail split.
-
-**Example — pin a plugin menu to the left dock because it's a first-class admin surface on this install:**
-
-```php
-add_filter( 'desktop_mode_dock_placement', function ( $placement, $slug ) {
-    if ( 'woocommerce' === $slug ) {
-        return 'dock';
-    }
-    return $placement;
-}, 10, 2 );
-```
-
-**Example — move Tools down to the taskbar because the site never uses it:**
-
-```php
-add_filter( 'desktop_mode_dock_placement', function ( $placement, $slug ) {
-    if ( 'tools.php' === $slug ) {
-        return 'taskbar';
-    }
-    return $placement;
-}, 10, 2 );
-```
+Return values other than `'dock'` or `'hidden'` coerce to `'dock'` — a defensive guard so a misbehaving filter (returning `null`, a bool, etc.) can't corrupt the rail.
 
 **Example — hide a plugin from the shell entirely (from inside that plugin's own PHP):**
 
@@ -551,7 +520,7 @@ add_filter( 'desktop_mode_dock_placement', function ( $placement, $slug ) {
 }, 10, 2 );
 ```
 
-The split happens once per request, server-side, in `includes/render.php` — each item's `placement` key is computed when `desktop_mode_build_dock_items()` runs, then the shell splits the list into `config.dockItems` + `config.taskbarItems` before localizing to JS. Hidden items are dropped before either list is built. The client never re-sorts, so the filter is the only place to override routing.
+Ordering within the dock is set server-side: core WordPress menus (Dashboard, Posts, Media, Users, Settings, CPTs, taxonomies, …) are sorted before plugin-contributed top-level menus. To fully reorder, use `desktop_mode_dock_items` — it receives the built list and returns a reshaped one.
 
 The live menu-refresh endpoint (`GET /wp-desktop/v1/menu`, fired after plugin activation / deactivation inside a windowed `plugins.php`) runs the same builder, so a filter change takes effect without a full tab reload.
 
@@ -1188,18 +1157,12 @@ apply_filters( 'desktop_mode_window_reuse',          bool  $reuse, string $page 
 apply_filters( 'desktop_mode_window_excluded_pages', array $excluded );
 ```
 
-### Taskbar — Phase 3
-```php
-apply_filters( 'desktop_mode_taskbar_items',    array  $items );
-apply_filters( 'desktop_mode_taskbar_tray',     array  $tray );
-apply_filters( 'desktop_mode_taskbar_position', string $position );
-```
-
 ### Dock (extended) — Phase 3+
 ```php
-apply_filters( 'desktop_mode_dock_position', string $position );   // 'left' | 'bottom'
-apply_filters( 'desktop_mode_dock_style',    array  $style );      // icon size, gap, blur
+apply_filters( 'desktop_mode_dock_style', array $style );      // icon size, gap, blur
 ```
+
+> Dock placement (left / right / bottom) ships as a user preference in OS Settings, persisted via the standard settings REST endpoint. No server-side filter is wired today — a plugin that wants to force a placement can set the user meta directly or post to `/wp-desktop/v1/os-settings`.
 
 ### Desktop area — Phase 4+
 ```php
@@ -1511,6 +1474,136 @@ apply_filters( 'wp_desktop_recycle_bin_emit_footer_signal', bool $emit );
 ```
 
 See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end recipes (custom post types, audit logging, custom columns).
+
+---
+
+## Presence
+
+Framework-level presence tracking. Storage in
+`_wp_desktop_presence` (autoload=false, single row keyed by user
+id). The WordPress Heartbeat carries the bumps + visibility
+snapshot; the JS API at `wp.desktop.presence.*` fans out to
+plugin code. See [`examples/presence.md`](./examples/presence.md)
+for a copy-pasteable recipe.
+
+### Filters — Stable
+
+```php
+apply_filters( 'wp_desktop_presence_inactive_after', $seconds );  // default 300 (5m)
+apply_filters( 'wp_desktop_presence_offline_after',  $seconds );  // default 120 (2m)
+apply_filters( 'wp_desktop_presence_can_track',      $can, $user_id );
+apply_filters( 'wp_desktop_presence_visible_users',  $ids, $viewer_id );
+```
+
+- **`wp_desktop_presence_inactive_after`** — seconds without
+  user input before `online` demotes to `inactive`. Tune up for
+  long-form writing tools, down for chat-heavy environments.
+- **`wp_desktop_presence_offline_after`** — seconds without a
+  heartbeat before any tracked user is considered `offline`.
+- **`wp_desktop_presence_can_track`** — per-user veto. Return
+  `false` to skip the bump entirely (compliance flags,
+  "appear invisible" toggles, allow-list policies).
+- **`wp_desktop_presence_visible_users`** — privacy gate.
+  Receives the candidate id list + the viewer id, returns the
+  list narrowed to whoever this viewer should see. Default
+  passes through unchanged. Plugins building team boundaries
+  hook here.
+
+### Actions — Stable
+
+```php
+do_action( 'wp_desktop_presence_recorded', $user_id, $record );
+do_action( 'wp_desktop_presence_changed',  $user_id, $new_status, $old_status );
+```
+
+- **`wp_desktop_presence_recorded`** — fires on every heartbeat
+  bump, whether status changed or not. Be cheap inside this
+  callback — it runs on every Heartbeat tick for every active
+  desktop-mode user.
+- **`wp_desktop_presence_changed`** — fires only on real status
+  transitions (`online ↔ inactive ↔ offline`). The right hook
+  for "user came online → notify a slack channel" type work.
+
+### PHP helpers (since 0.5.5)
+
+```php
+desktop_mode_presence_record( $user_id, $active = true );
+desktop_mode_presence_status_for_user( $user_id );
+desktop_mode_presence_get_all();
+desktop_mode_presence_snapshot( $user_ids = null );
+desktop_mode_presence_status_from_record( $record );    // pure compute helper
+desktop_mode_presence_visible_users( $ids, $viewer_id );
+```
+
+### REST endpoints
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET`  | `/wp-desktop/v1/presence` | Visible-users snapshot for the current viewer. |
+| `POST` | `/wp-desktop/v1/presence` | Bump (`{active:true}`), heartbeat-only (`{active:false}`), or "set yourself away" (`{inactive:true}`). |
+
+---
+
+## Window-chrome customization framework — Stable (since 0.6.0)
+
+Four-layer per-window appearance system. Layers 1-3 are Stable;
+Layer 4 (custom chrome render) is **Experimental**. Full recipes:
+[themes](./examples/window-theme.md), [controls](./examples/window-controls.md),
+[slots](./examples/window-slot.md), [custom chrome](./examples/custom-chrome.md).
+
+### Layer 1 — Themes (Stable)
+
+```php
+desktop_mode_register_window_theme_script( $handle );        // primary, low-ceremony
+desktop_mode_register_window_theme( $args );                  // optional metadata
+```
+
+`$args`: `id`, `label`, `tokens` (CSS-variable map, keys must start with `--`), `priority` (default 100), `script` (optional handle).
+
+Actions:
+- `desktop_mode_window_theme_script_registered( $handle )`
+- `desktop_mode_window_theme_registered( $id, $entry )`
+
+### Layer 2 — Controls (Stable)
+
+```php
+desktop_mode_register_window_control_script( $handle );
+desktop_mode_register_window_control( $args );
+```
+
+`$args`: `id`, `label`, `icon`, `placement` (`'left'|'right'|'controls'`, default `'left'`), `order` (default 100), `script`.
+
+Built-in control ids registered by the framework: `core/minimize`, `core/maximize`, `core/focus-tab`, `core/detach`, `core/close`. Plugins can `unregisterWindowControl()` any of them globally, or use per-window `appearance.controls.{order, hide, custom}` for window-scoped mutations.
+
+Actions:
+- `desktop_mode_window_control_script_registered( $handle )`
+- `desktop_mode_window_control_registered( $id, $entry )`
+
+### Layer 3 — Slots (Stable)
+
+```php
+desktop_mode_register_window_slot_script( $handle );
+desktop_mode_register_window_slot( $args );
+```
+
+`$args`: `id`, `slot` (one of `before-titlebar`, `before-icon`, `icon`, `title`, `after-title`, `before-controls`, `after-controls`, `after-titlebar`), `order` (default 100), `script`.
+
+Actions:
+- `desktop_mode_window_slot_script_registered( $handle )`
+- `desktop_mode_window_slot_registered( $id, $entry )`
+
+### Layer 4 — Custom chrome (Experimental)
+
+```php
+desktop_mode_register_window_chrome_script( $handle );
+desktop_mode_register_window_chrome( $args );
+```
+
+`$args`: `id`, `label`, `script`. **Experimental** — chrome render contract may change.
+
+Actions:
+- `desktop_mode_window_chrome_script_registered( $handle )`
+- `desktop_mode_window_chrome_registered( $id, $entry )`
 
 ---
 

@@ -12,8 +12,8 @@
  *   - {@see desktop_mode_register_window()} collapses the
  *     boilerplate for declaring a PHP-owned native window: one
  *     call emits the `<template>` the shell clones, enqueues
- *     the plugin's JS render bundle, and wires a dock-or-taskbar
- *     tile on window-ready. Plugins write the template callback
+ *     the plugin's JS render bundle, and wires a dock tile on
+ *     window-ready. Plugins write the template callback
  *     + the render callback on the JS side — the plumbing is ours.
  *
  * @package WPDesktopMode
@@ -352,10 +352,9 @@ function desktop_mode_format_css_value( $property, $value ) {
  *     @type int      $height       Initial height (px). Default 400.
  *     @type int      $min_width    Minimum width (px). Default 280.
  *     @type int      $min_height   Minimum height (px). Default 220.
- *     @type string   $placement    'dock' | 'taskbar' | 'none'.
- *                                  Default 'taskbar'. 'none' skips
- *                                  the tile (plugin owns its own
- *                                  UI surface).
+ *     @type string   $placement    'dock' | 'none'. Default 'dock'.
+ *                                  'none' skips the tile (plugin
+ *                                  opens the window programmatically).
  *     @type string[] $capabilities User capabilities that gate the
  *                                  registration. ANY miss returns
  *                                  `WP_Error desktop_mode_capability_denied`.
@@ -376,6 +375,22 @@ function desktop_mode_format_css_value( $property, $value ) {
  *                                  for edge-to-edge content.
  *                                  Filterable at runtime via
  *                                  `desktop_mode_native_window_tab_wrap_padding`.
+ *     @type array    $config       Arbitrary serializable data to ship
+ *                                  to the bundle alongside the script
+ *                                  tag. Read in JS via
+ *                                  `wp.desktop.getWindowConfig( $id )`
+ *                                  (or directly at
+ *                                  `window.wpDesktopWindowConfig[ $id ]`).
+ *                                  Recommended over `wp_localize_script`
+ *                                  for native-window scripts because
+ *                                  the lazy-load path bypasses
+ *                                  `wp_print_scripts` — passing config
+ *                                  through this arg guarantees delivery
+ *                                  on both eager AND lazy paths
+ *                                  (mid-session activation). Use this
+ *                                  for REST URLs, nonces, capability
+ *                                  flags, anything session-bound. Empty
+ *                                  array (default) ships nothing.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` when any
  *                       required arg is missing/invalid or a
@@ -399,11 +414,12 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		'height'           => 400,
 		'min_width'        => 280,
 		'min_height'       => 220,
-		'placement'        => 'taskbar',
+		'placement'        => 'dock',
 		'capabilities'     => array(),
 		'autofocus'        => false,
 		'main_tab_label'   => '',
 		'main_tab_padding' => '',
+		'config'           => array(),
 	);
 	$args = wp_parse_args( $args, $defaults );
 
@@ -438,9 +454,9 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		);
 	}
 
-	$placement = in_array( $args['placement'], array( 'dock', 'taskbar', 'none' ), true )
+	$placement = in_array( $args['placement'], array( 'dock', 'none' ), true )
 		? $args['placement']
-		: 'taskbar';
+		: 'dock';
 
 	$entry = array(
 		'id'               => $id,
@@ -458,6 +474,11 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		// Stored as-is (string or int). `desktop_mode_build_native_window_template_html`
 		// coerces to int and falls back to 16 when absent.
 		'main_tab_padding' => $args['main_tab_padding'],
+		// Bundle-bound config delivered through the same path as
+		// `wp_localize_script` `extra['data']` — see the `config` doc
+		// in this function's `$args` block and `desktop_mode_resolve_script_payload()`
+		// for how it lands on the wire.
+		'config'           => is_array( $args['config'] ) ? $args['config'] : array(),
 	);
 	desktop_mode_native_window_registry( $id, $entry );
 
@@ -697,23 +718,27 @@ function desktop_mode_build_desktop_widgets_payload() {
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$script_url = desktop_mode_resolve_script_url( $entry['script'] );
+		$script_payload = desktop_mode_resolve_script_payload( $entry['script'] );
 
 		$out[] = array(
-			'id'            => $entry['id'],
-			'label'         => $entry['label'],
-			'description'   => $entry['description'],
-			'icon'          => $entry['icon'],
-			'movable'       => $entry['movable'],
-			'resizable'     => $entry['resizable'],
-			'minWidth'      => $entry['min_width'],
-			'minHeight'     => $entry['min_height'],
-			'maxWidth'      => $entry['max_width'],
-			'maxHeight'     => $entry['max_height'],
-			'defaultWidth'  => $entry['default_width'],
-			'defaultHeight' => $entry['default_height'],
-			'scriptUrl'     => $script_url,
-			'scriptHandle'  => $entry['script'],
+			'id'                => $entry['id'],
+			'label'             => $entry['label'],
+			'description'       => $entry['description'],
+			'icon'              => $entry['icon'],
+			'movable'           => $entry['movable'],
+			'resizable'         => $entry['resizable'],
+			'minWidth'          => $entry['min_width'],
+			'minHeight'         => $entry['min_height'],
+			'maxWidth'          => $entry['max_width'],
+			'maxHeight'         => $entry['max_height'],
+			'defaultWidth'      => $entry['default_width'],
+			'defaultHeight'     => $entry['default_height'],
+			'scriptUrl'         => $script_payload['url'],
+			'scriptHandle'      => $entry['script'],
+			'scriptBefore'      => $script_payload['before'],
+			'scriptAfter'       => $script_payload['after'],
+			'scriptL10n'        => $script_payload['l10n'],
+			'scriptTranslations' => $script_payload['translations'],
 		);
 	}
 	return $out;
@@ -927,14 +952,20 @@ function desktop_mode_build_desktop_wallpapers_payload() {
 		if ( ! is_array( $entry ) || empty( $entry['id'] ) ) {
 			continue;
 		}
+		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
+		$payload = desktop_mode_resolve_script_payload( $handle );
 		$out[] = array(
-			'id'           => (string) $entry['id'],
-			'label'        => isset( $entry['label'] ) ? (string) $entry['label'] : '',
-			'preview'      => isset( $entry['preview'] ) ? (string) $entry['preview'] : '',
-			'type'         => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
-			'value'        => isset( $entry['value'] ) ? (string) $entry['value'] : '',
-			'scriptUrl'    => desktop_mode_resolve_script_url( isset( $entry['script'] ) ? (string) $entry['script'] : '' ),
-			'scriptHandle' => isset( $entry['script'] ) ? (string) $entry['script'] : '',
+			'id'                => (string) $entry['id'],
+			'label'             => isset( $entry['label'] ) ? (string) $entry['label'] : '',
+			'preview'           => isset( $entry['preview'] ) ? (string) $entry['preview'] : '',
+			'type'              => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
+			'value'             => isset( $entry['value'] ) ? (string) $entry['value'] : '',
+			'scriptUrl'         => $payload['url'],
+			'scriptHandle'      => $handle,
+			'scriptBefore'      => $payload['before'],
+			'scriptAfter'       => $payload['after'],
+			'scriptL10n'        => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
@@ -945,7 +976,7 @@ function desktop_mode_build_desktop_wallpapers_payload() {
  * the wallpaper (think macOS desktop icons / phone home screen apps)
  * and opens a native window or a URL on click.
  *
- * Icons are distinct from dock/taskbar tiles: the dock rail is for
+ * Icons are distinct from dock tiles: the dock rail is for
  * top-level admin pages, the desktop surface is for quick shortcuts
  * a user or theme wants front-and-centre. A single plugin can
  * register a window AND an icon that opens it — the two surfaces
@@ -1696,6 +1727,26 @@ function desktop_mode_enqueue_native_window_scripts() {
 				),
 			)
 		);
+
+		// Bundle-bound `config` (since 0.6.0). Ships through
+		// `wp_add_inline_script` `'before'` so it lands on the eager
+		// path the same way `wp_localize_script` does, AND through
+		// the lazy-load payload (see `desktop_mode_resolve_script_payload`)
+		// so the same data is available even when the script is
+		// dynamically injected mid-session. The bundle reads it via
+		// `wp.desktop.getWindowConfig( id )` or directly at
+		// `window.wpDesktopWindowConfig[ id ]`.
+		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+			wp_add_inline_script(
+				$entry['script'],
+				sprintf(
+					'window.wpDesktopWindowConfig=window.wpDesktopWindowConfig||{};window.wpDesktopWindowConfig[%s]=%s;',
+					wp_json_encode( $entry['id'] ),
+					wp_json_encode( $entry['config'] )
+				),
+				'before'
+			);
+		}
 	}
 }
 add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_native_window_scripts', 20 );
