@@ -1881,24 +1881,29 @@ export class Window {
 			this._titleBarButtonsUnsubscribe = null;
 		}
 
-		// Drop the window-theme subscription + clear any inline
-		// theme variables we wrote to the outer element. Strictly
-		// belt-and-braces — the element is about to leave the DOM —
-		// but keeps the WeakMap bookkeeping consistent if anyone
-		// holds a reference to the element after close.
+		// Drop the window-theme subscription pre-animation — no
+		// visible effect; just stops registry-change callbacks from
+		// firing while the window is animating away. The actual
+		// theme-variable wipe (`clearWindowTheme`) is deferred into
+		// `onDone()` because it MUTATES inline CSS — running it
+		// pre-animation snaps the window back to the default theme
+		// (border, shadow, bg, fg, accent, …) the instant the user
+		// clicks close, before the fade has a chance to run. With
+		// the wipe deferred, the window keeps its themed appearance
+		// for the entire fade-out.
 		if ( this._windowThemesUnsubscribe ) {
 			this._windowThemesUnsubscribe();
 			this._windowThemesUnsubscribe = null;
 		}
-		clearWindowTheme( this );
 
 		// Subscription teardowns that have no visible effect happen
 		// pre-animation. The matching plugin-supplied teardowns
 		// (which CAN mutate visible DOM — destroy() the chrome,
 		// remove control buttons, drop slot content, clear native-
-		// window body) are deferred into `onDone()` below so the
-		// window's fade-out doesn't reveal the default chrome / a
-		// blank body / missing buttons mid-animation.
+		// window body, wipe theme CSS variables) are deferred into
+		// `onDone()` below so the window's fade-out doesn't reveal
+		// the default chrome / a blank body / missing buttons /
+		// reset theme mid-animation.
 		if ( this._windowControlsUnsubscribe ) {
 			this._windowControlsUnsubscribe();
 			this._windowControlsUnsubscribe = null;
@@ -1980,6 +1985,11 @@ export class Window {
 				}
 				this._chromeHandle = null;
 			}
+			// Theme CSS-variable wipe — also deferred so the themed
+			// appearance survives the entire fade-out. The element is
+			// about to leave the DOM regardless; the wipe is purely
+			// belt-and-braces against retained references.
+			clearWindowTheme( this );
 			if ( this._nativeRenderTeardown ) {
 				try {
 					this._nativeRenderTeardown();

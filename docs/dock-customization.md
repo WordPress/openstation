@@ -155,6 +155,36 @@ current version and detect the shell version at runtime.
 
 ---
 
+## Companion APIs for renderer-agnostic plugin code
+
+A plugin that wants to compose against the dock without committing to
+a specific layer reaches for these instead of DOM scraping. All
+**Stable since 0.18.0**:
+
+| API | Returns | Use it for |
+|---|---|---|
+| `wp.desktop.openOsSettings()` | `void` | Portable opener for the shell's OS Settings window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OS Settings tile lives on a different rail than your custom renderer. |
+| `wp.desktop.listSystemTiles()` | `Array<{ id, title, icon, affinity }>` | Enumerate every JS-registered system tile (OS Settings, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
+| `wp.desktop.getSystemTile( id )` | `SystemDockItem \| null` | Fetch a specific tile to invoke its `onOpen()` callback. |
+| `wp.desktop.getMenuItems()` | `DockItem[]` | The complete admin-menu list, regardless of how the active layout would partition it. Renderer-agnostic alternative to `mount-deps.fullMenu`. |
+
+```js
+// Open a known system tile from anywhere — no DOM scraping.
+wp.desktop.getSystemTile( 'wp-desktop-os-settings' )?.onOpen();
+
+// Or the dedicated entry point for OS Settings:
+wp.desktop.openOsSettings();
+
+// Iterate all system tiles for a custom launcher.
+for ( const tile of wp.desktop.listSystemTiles() ) {
+    console.log( tile.id, tile.title );
+}
+```
+
+See the full reference for the [`DockItem` shape](./javascript-reference.md#dockitem-shape) — the canonical menu-item type these APIs return — including the `submenu` invariant that `submenu.length > 0` reliably means "has real children" (the shell strips self-link entries server-side).
+
+---
+
 ## Where to go next
 
 - **[Decoration hooks recipes](./examples/dock-decoration-hooks.md)** — six examples from one-line classNames to grid-wide IntersectionObservers.

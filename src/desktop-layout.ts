@@ -44,6 +44,7 @@ import {
 	type DockRailMountDeps,
 } from './dock-rail';
 import type { WindowManager } from './window-manager';
+import { deriveWindowId } from './utils';
 import type { DesktopLayoutId } from './settings/types';
 import { doAction, HOOKS } from './hooks';
 
@@ -136,6 +137,38 @@ export interface LayoutDispatcher {
 	): void;
 	/** Remove a previously-appended system tile by id. */
 	removeSystemTile( id: string ): void;
+	/**
+	 * Snapshot of every system tile registered across both rails.
+	 * Read-only entry view ({ id, title, icon, affinity }) — use
+	 * {@link getSystemTile} to fetch the underlying `SystemDockItem`
+	 * with its `onOpen` / `isOpen` callbacks.
+	 *
+	 * @since 0.18.0
+	 */
+	listSystemTiles(): Array< {
+		id: string;
+		title: string;
+		icon: string;
+		affinity: SystemTileAffinity;
+	} >;
+	/**
+	 * Look up a system tile by id. Returns the underlying
+	 * `SystemDockItem` so callers can invoke `onOpen()` directly.
+	 * Returns `null` for unknown ids.
+	 *
+	 * @since 0.18.0
+	 */
+	getSystemTile( id: string ): SystemDockItem | null;
+	/**
+	 * Snapshot of the complete admin-menu list — the same data the
+	 * dispatcher partitions across rails based on layout. Use this
+	 * when a custom rail renderer needs the full picture (Classic
+	 * layout's primary rail only sees `!isCore` items via
+	 * mount-deps; this returns every item).
+	 *
+	 * @since 0.18.0
+	 */
+	getMenuItems(): DockItem[];
 	/** Tear down all docks. Called on shell unload (or in tests). */
 	destroy(): void;
 }
@@ -336,21 +369,43 @@ export function createLayoutDispatcher(
 	): DockRailMountDeps => ( {
 		container,
 		items: railItems,
+		// `fullMenu` is the complete admin-menu list. Renderers that
+		// want to ignore the layout's partitioning (e.g., paint
+		// every menu item in one ring regardless of `isCore`) read
+		// this instead of `items`. Snapshot per-mount so a renderer
+		// holding the array sees a stable list; live updates flow
+		// through `replaceItems`.
+		fullMenu: items.slice(),
 		orientation,
 		windowManager: deps.windowManager,
 		adminUrl: deps.adminUrl,
-		// `openItem` / `openSystemItem` / `requestSubmenu` are
-		// routing callbacks for custom renderers. The default
-		// renderer wires equivalents inside `Dock` directly, so
-		// these no-op when the controller doesn't call them. Wired
-		// the same way the existing `Dock.openPage` / submenu
-		// trigger work so custom renderers stay compatible with
-		// multi-instance opens, session restore, etc.
+		// `openItem` / `openSubmenuPick` / `openSystemItem` /
+		// `requestSubmenu` are routing callbacks for custom
+		// renderers. They mirror exactly what the default renderer
+		// (`Dock.openPage` / `Dock.openSubmenuPick`) does internally
+		// — same `deriveWindowId(url, adminUrl)` call, same window-
+		// config shape — so a custom renderer addresses the same
+		// window with the same id at runtime. Switching renderer
+		// mid-session doesn't lose the user's open windows.
 		openItem: ( item ) => {
+			const baseId = deriveWindowId( item.url, deps.adminUrl );
 			deps.windowManager.open( {
-				id: item.id,
-				baseId: item.id,
+				id: baseId,
+				baseId,
 				url: item.url,
+				title: item.title,
+				icon: item.icon.startsWith( 'dashicons-' )
+					? item.icon
+					: 'dashicons-admin-generic',
+				submenu: item.submenu,
+				multi: !! item.multi,
+			} );
+		},
+		openSubmenuPick: ( item, sub ) => {
+			deps.windowManager.open( {
+				id: deriveWindowId( sub.url, deps.adminUrl ),
+				baseId: deriveWindowId( item.url, deps.adminUrl ),
+				url: sub.url,
 				title: item.title,
 				icon: item.icon.startsWith( 'dashicons-' )
 					? item.icon
@@ -469,6 +524,16 @@ export function createLayoutDispatcher(
 			// when the tile lives on only one of them.
 			railFor( entry.affinity )?.removeSystemItem( id );
 		},
+		listSystemTiles: () =>
+			Array.from( systemTiles.values() ).map( ( entry ) => ( {
+				id: entry.item.id,
+				title: entry.item.title,
+				icon: entry.item.icon,
+				affinity: entry.affinity,
+			} ) ),
+		getSystemTile: ( id: string ): SystemDockItem | null =>
+			systemTiles.get( id )?.item ?? null,
+		getMenuItems: () => items.slice(),
 		destroy: (): void => {
 			tearDownDocks();
 			removeSideDockEl();

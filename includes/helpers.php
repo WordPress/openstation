@@ -429,6 +429,22 @@ function desktop_mode_build_dock_items() {
 		$url = desktop_mode_menu_item_url( $item[2] );
 
 		// Build submenu items.
+		//
+		// WordPress auto-prepends a self-link entry to every parent
+		// menu's `$submenu[$slug]` (the first child shares the parent's
+		// slug + URL — that's what `add_menu_page()` generates so the
+		// admin UI can render a clickable parent in the sidebar). For
+		// the shell's JS surface we strip this entry so:
+		//
+		//   - `submenu.length === 0` reliably means "no real children"
+		//     (the right-click submenu popover stays suppressed; the
+		//     in-window tab strip stays hidden).
+		//   - `submenu.length > 0` reliably means "has real child links"
+		//     — every entry points at a distinct URL.
+		//
+		// Detection by URL (post-`desktop_mode_menu_item_url()` normalize)
+		// rather than slug equality covers plugins that register a child
+		// at a different slug pointing at the parent's URL.
 		$sub_items = array();
 		if ( ! empty( $submenu[ $item[2] ] ) ) {
 			foreach ( $submenu[ $item[2] ] as $sub_item ) {
@@ -439,10 +455,17 @@ function desktop_mode_build_dock_items() {
 				if ( ! empty( $sub_item[4] ) && false !== strpos( $sub_item[4], 'hide-if-no-customize' ) ) {
 					continue;
 				}
+				$sub_url = desktop_mode_menu_item_url( $sub_item[2] );
+				// Self-link strip — `$sub_url === $url` covers WP's
+				// auto-prepended entry AND any plugin-registered alias
+				// that happens to land on the parent URL.
+				if ( $sub_url === $url ) {
+					continue;
+				}
 				$sub_raw_title = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', $sub_item[0] );
 				$sub_items[]   = array(
 					'title' => trim( wp_strip_all_tags( $sub_raw_title ) ),
-					'url'   => desktop_mode_menu_item_url( $sub_item[2] ),
+					'url'   => $sub_url,
 				);
 			}
 		}

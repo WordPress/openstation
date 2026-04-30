@@ -158,15 +158,20 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		global $menu, $submenu;
 		$menu               = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 		$submenu['edit.php'] = array(
+			// WordPress's auto-prepended self-link — stripped by the
+			// dock builder so the JS layer's `submenu.length > 0`
+			// invariant ("has real children") holds.
 			array( 'All Posts', 'edit_posts', 'edit.php' ),
 			array( 'Add New', 'edit_posts', 'post-new.php' ),
+			array( 'Tags', 'manage_categories', 'edit-tags.php?taxonomy=post_tag' ),
 		);
 
 		$items = desktop_mode_build_dock_items();
 
+		// Self-link stripped — only the two genuine children survive.
 		$this->assertCount( 2, $items[0]['submenu'] );
-		$this->assertSame( 'All Posts', $items[0]['submenu'][0]['title'] );
-		$this->assertSame( 'Add New', $items[0]['submenu'][1]['title'] );
+		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
+		$this->assertSame( array( 'Add New', 'Tags' ), $titles );
 	}
 
 	public function test_filters_submenu_by_capability() {
@@ -178,27 +183,67 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		$submenu['edit.php'] = array(
 			array( 'All Posts', 'read', 'edit.php' ),
 			array( 'Add New', 'edit_posts', 'post-new.php' ),
+			array( 'Tags', 'read', 'edit-tags.php?taxonomy=post_tag' ),
 		);
 
 		$items = desktop_mode_build_dock_items();
 
+		// `All Posts` is the self-link (stripped). `Add New` is
+		// capability-filtered out (subscribers can't `edit_posts`).
+		// `Tags` survives both gates.
 		$this->assertCount( 1, $items[0]['submenu'] );
-		$this->assertSame( 'All Posts', $items[0]['submenu'][0]['title'] );
+		$this->assertSame( 'Tags', $items[0]['submenu'][0]['title'] );
 	}
 
 	public function test_skips_hide_if_no_customize_submenu_items() {
 		global $menu, $submenu;
 		$menu                  = array( $this->make_menu_row( 'Themes', 'edit_theme_options', 'themes.php' ) );
 		$submenu['themes.php'] = array(
-			array( 'Themes', 'edit_theme_options', 'themes.php' ),
+			array( 'Themes', 'edit_theme_options', 'themes.php' ), // self-link, also stripped
 			array( 'Customize', 'customize', 'customize.php', '', 'hide-if-no-customize' ),
+			array( 'Menus', 'edit_theme_options', 'nav-menus.php' ),
 		);
 
 		$items = desktop_mode_build_dock_items();
 
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
-		$this->assertContains( 'Themes', $titles );
-		$this->assertNotContains( 'Customize', $titles );
+		$this->assertNotContains( 'Themes', $titles );      // self-link strip
+		$this->assertNotContains( 'Customize', $titles );   // hide-if-no-customize
+		$this->assertContains( 'Menus', $titles );          // genuine child
+	}
+
+	/**
+	 * Self-link strip — pin the invariant the JS layer documents
+	 * (`submenu.length > 0` reliably means "has real children").
+	 *
+	 * Every parent menu page WordPress registers via
+	 * `add_menu_page()` auto-prepends a child entry whose URL
+	 * matches the parent's. Without the strip, every top-level
+	 * item appears to "have a submenu" — the user-reported gap
+	 * that motivated this fix.
+	 */
+	public function test_strips_self_link_submenu_entry() {
+		global $menu, $submenu;
+		$menu               = array( $this->make_menu_row( 'Comments', 'edit_posts', 'edit-comments.php' ) );
+
+		// A leaf menu — no real children. WordPress would still
+		// prepend a self-link in some scenarios; assert that the
+		// dock builder yields an empty submenu in either case.
+		$submenu['edit-comments.php'] = array(
+			array( 'Comments', 'edit_posts', 'edit-comments.php' ),
+		);
+		$leaf_only = desktop_mode_build_dock_items();
+		$this->assertSame( array(), $leaf_only[0]['submenu'] );
+
+		// A parent with one self-link + one real child — only the
+		// real child survives.
+		$submenu['edit-comments.php'] = array(
+			array( 'Comments', 'edit_posts', 'edit-comments.php' ),
+			array( 'Recent', 'edit_posts', 'edit-comments.php?status=approved' ),
+		);
+		$with_real_child = desktop_mode_build_dock_items();
+		$this->assertCount( 1, $with_real_child[0]['submenu'] );
+		$this->assertSame( 'Recent', $with_real_child[0]['submenu'][0]['title'] );
 	}
 
 	public function test_wp_desktop_dock_item_filter_can_modify_each_entry() {

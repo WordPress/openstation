@@ -16,7 +16,7 @@ import {
 	installWindowLoadingTransitions,
 	repaintLoadingOverlays,
 } from './window/loading';
-import { Dock, type SystemDockItem } from './dock';
+import { Dock, type DockItem, type SystemDockItem } from './dock';
 import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
 import {
@@ -597,6 +597,87 @@ export interface WpDesktopPublicApi {
 	/** Snapshot of all registered rail renderers. @since 0.18.0 */
 	listDockRailRenderers: () => DockRailRenderer[];
 	/**
+	 * Open (or focus, if already open) the shell's OS Settings
+	 * window. Routes through the same `manager.open()` call the
+	 * dock's OS Settings tile uses, so a window opened here is
+	 * indistinguishable from one opened by a dock click — same
+	 * id, same render callback, same dimensions, same focus and
+	 * minimize behaviour.
+	 *
+	 * Useful for custom dock rail renderers that want to surface
+	 * OS Settings inside their own UI without relying on the
+	 * dock's system tile being reachable (Classic layout puts OS
+	 * Settings on the side rail, which a custom primary-rail
+	 * renderer can't see).
+	 *
+	 * @since 0.18.0
+	 */
+	openOsSettings: () => void;
+	/**
+	 * Derive a stable window id from an admin URL — the same id the
+	 * default rail renderer uses when it opens a tile. Matches the
+	 * shell's internal slugifier; a custom renderer that calls
+	 * `wp.desktop.deriveWindowId(url)` and
+	 * `wp.desktop.windowManager.open({ id, … })` addresses the same
+	 * window the default renderer would, so switching renderer
+	 * mid-session doesn't lose the user's open windows.
+	 *
+	 * Plugins almost always want this over rolling their own
+	 * slugifier — a custom slug means the renderer can't
+	 * reuse-or-focus a window the default renderer opened.
+	 *
+	 * `adminUrl` defaults to `wp.desktop.config.adminUrl` so callers
+	 * normally pass just the URL.
+	 *
+	 * @since 0.18.0
+	 */
+	deriveWindowId: ( url: string, adminUrl?: string ) => string;
+	/**
+	 * Snapshot of every JS-registered system tile across both
+	 * rails. Returns `[]` when the layout dispatcher hasn't booted
+	 * yet (rare; only happens before `wp-desktop.init` fires).
+	 *
+	 * Custom rail renderers use this to compose against the same
+	 * tile set the default renderer paints — e.g., a launcher
+	 * palette that lists every native-window plugin tile + the
+	 * OS Settings tile in one place.
+	 *
+	 * @since 0.18.0
+	 */
+	listSystemTiles: () => Array< {
+		id: string;
+		title: string;
+		icon: string;
+		affinity: 'core' | 'plugin';
+	} >;
+	/**
+	 * Look up a system tile by id. Returns the underlying
+	 * `SystemDockItem` so callers can read its `title` / `icon` /
+	 * `isOpen()` predicate, or invoke `onOpen()` to forward the
+	 * action — the canonical "open by id" path that doesn't
+	 * require DOM scraping.
+	 *
+	 * Returns `null` when the id isn't registered or when the
+	 * dispatcher hasn't booted yet.
+	 *
+	 * @since 0.18.0
+	 */
+	getSystemTile: ( id: string ) => SystemDockItem | null;
+	/**
+	 * Read the complete admin-menu list, regardless of which rail
+	 * it would partition to under the active layout. The default
+	 * Classic layout splits the menu (core to side rail, plugin to
+	 * primary rail), so a custom rail renderer's `mount-deps.items`
+	 * is layout-scoped — this returns the full picture.
+	 *
+	 * Snapshots `config.dockItems` (the boot payload + the most
+	 * recent live-refresh result). Returns `[]` before the shell
+	 * has finished booting.
+	 *
+	 * @since 0.18.0
+	 */
+	getMenuItems: () => DockItem[];
+	/**
 	 * Register a custom button in the title bar of any matching
 	 * window. Predicate decides which windows show it. See
 	 * `TitleBarButtonDef` for the full options shape.
@@ -1133,6 +1214,8 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'unregisterSettingsTab', 'listSettingsTabs',
 	'registerSubmenuRenderer', 'unregisterSubmenuRenderer', 'listSubmenuRenderers',
 	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
+	'openOsSettings', 'deriveWindowId',
+	'listSystemTiles', 'getSystemTile', 'getMenuItems',
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
@@ -1394,24 +1477,43 @@ function init(): void {
 						manager.getActiveDesktopId()
 					);
 				},
-				onOpen: () => {
-					manager.open( {
-						id: OS_SETTINGS_WINDOW_ID,
-						baseId: OS_SETTINGS_WINDOW_ID,
-						url: '#os-settings',
-						title: 'OS Settings',
-						icon: 'dashicons-desktop',
-						native: true,
-						render: ( body ) => osSettings.renderPanel( body ),
-						width: 820,
-						height: 720,
-						minWidth: 560,
-						minHeight: 480,
-					} );
-				},
+				onOpen: openOsSettings,
 			},
 			'core',
 		);
+	}
+
+	/**
+	 * Public OS Settings opener. Routes through the same
+	 * `manager.open()` call the system tile uses so a window
+	 * reopened from `wp.desktop.openOsSettings()` is identical to
+	 * one opened by clicking the dock tile — same id, same render
+	 * callback, same dimensions, same focus / minimize behaviour.
+	 *
+	 * Defined as a closure so the OS Settings tile registration
+	 * AND the public API both reach the same opener; previously the
+	 * opener lived inside the tile's `onOpen` closure with no way
+	 * for plugin authors to invoke it short of DOM-scraping the
+	 * tile element. See gap report (`docs/dock-customization.md`)
+	 * — custom rail renderers needed a portable way to surface OS
+	 * Settings inside their own UI.
+	 *
+	 * @since 0.18.0
+	 */
+	function openOsSettings(): void {
+		manager.open( {
+			id: OS_SETTINGS_WINDOW_ID,
+			baseId: OS_SETTINGS_WINDOW_ID,
+			url: '#os-settings',
+			title: 'OS Settings',
+			icon: 'dashicons-desktop',
+			native: true,
+			render: ( body ) => osSettings.renderPanel( body ),
+			width: 820,
+			height: 720,
+			minWidth: 560,
+			minHeight: 480,
+		} );
 	}
 	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
 
@@ -1904,6 +2006,13 @@ function init(): void {
 		registerDockRailRenderer,
 		unregisterDockRailRenderer,
 		listDockRailRenderers,
+		openOsSettings,
+		deriveWindowId: ( url: string, overrideAdminUrl?: string ) =>
+			deriveWindowId( url, overrideAdminUrl ?? config.adminUrl ),
+		listSystemTiles: () => layoutDispatcher?.listSystemTiles() ?? [],
+		getSystemTile: ( id: string ) =>
+			layoutDispatcher?.getSystemTile( id ) ?? null,
+		getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,

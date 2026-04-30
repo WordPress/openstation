@@ -24,6 +24,7 @@ import type {
 	DockOrientation,
 	SystemDockItem,
 } from '../dock';
+import type { SubmenuItem } from '../submenu';
 import type { WindowManager } from '../window-manager';
 
 /**
@@ -61,9 +62,54 @@ import type { WindowManager } from '../window-manager';
  */
 export interface DockRailMountDeps {
 	container: HTMLElement;
+	/**
+	 * The rail-scoped slice of the menu — what THIS rail is meant to
+	 * paint. Classic layout splits the menu (`isCore` to side rail,
+	 * the rest to primary), so a custom renderer registered against
+	 * the primary rail in Classic only sees the plugin half here.
+	 *
+	 * Use this when you want to honour the layout's intent. Use
+	 * {@link fullMenu} when you want the entire admin menu
+	 * regardless of rail.
+	 */
 	items: DockItem[];
+	/**
+	 * The COMPLETE admin-menu list, including items routed to other
+	 * rails or to the wallpaper-icon grid (Spatial). A custom
+	 * renderer that wants to paint a *unified view* of the entire
+	 * admin — or that wants to ignore the layout's partitioning
+	 * logic for its own UX — reads this. Updates with every live
+	 * menu refresh.
+	 *
+	 * @since 0.18.0
+	 */
+	fullMenu: DockItem[];
 	orientation: DockOrientation;
+	/**
+	 * Primary tile click — routes through the same
+	 * `windowManager.open()` the default renderer uses, so custom
+	 * renderers stay compatible with multi-instance, submenu
+	 * propagation into the in-window tab strip, session restore,
+	 * per-window theming.
+	 */
 	openItem( item: DockItem ): void;
+	/**
+	 * Submenu pick — invoked when the user activates a child link
+	 * of `item` (typically from a submenu popover the renderer
+	 * surfaces). Mirrors `openItem` but opens the child URL while
+	 * preserving the parent's identity for `baseId`, icon, and
+	 * the in-window tab strip.
+	 *
+	 * Renderers that surface submenus (orbit, radial menu, hovering
+	 * cards, anything that fans out children) call this instead of
+	 * deriving window ids themselves — the framework's id derivation
+	 * (`deriveWindowId`) is exposed via this callback so plugin and
+	 * default renderers address the same window with the same id at
+	 * runtime.
+	 *
+	 * @since 0.18.0
+	 */
+	openSubmenuPick( item: DockItem, sub: SubmenuItem ): void;
 	openSystemItem( item: SystemDockItem ): void;
 	requestSubmenu( item: DockItem, anchor: HTMLElement ): void;
 	windowManager: WindowManager;

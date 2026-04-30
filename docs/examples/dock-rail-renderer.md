@@ -39,11 +39,13 @@ interface DockRailRenderer {
 }
 
 interface DockRailMountDeps {
-    container:     HTMLElement;          // your renderer owns this
-    items:         DockItem[];           // initial menu items
+    container:     HTMLElement;                    // your renderer owns this
+    items:         DockItem[];                     // rail-scoped slice (see "Two cohorts" below)
+    fullMenu:      DockItem[];                     // since 0.18.0 — complete admin menu
     orientation:   'left' | 'right' | 'bottom';
-    openItem(      item ): void;         // primary tile click — routes through window manager
-    openSystemItem( item ): void;        // OS Settings / plugin native-window tiles
+    openItem(      item ): void;                   // primary tile click — routes through window manager
+    openSubmenuPick( item, sub: SubmenuItem ): void; // since 0.18.0 — submenu link click
+    openSystemItem( item ): void;                  // OS Settings / plugin native-window tiles
     requestSubmenu( item, anchor ): void;
     windowManager: WindowManager;
     adminUrl:      string;
@@ -71,17 +73,128 @@ A `mount()` that throws is caught: the failure is logged via
 `'default'` renderer for that rail. The user sees a working dock
 instead of nothing.
 
+## Two cohorts: `items` vs `fullMenu`
+
+Dock items split into two views the renderer can read at mount time:
+
+| Field | What it carries | Use it when… |
+|---|---|---|
+| `items` | The **rail-scoped slice** the layout dispatcher routed to *this* rail. | You want to honour the layout's intent. Classic primary rail sees plugin items only; the side rail (default renderer) sees core items. Unified sees everything. Spatial sees plugin items only (core renders as wallpaper icons). |
+| `fullMenu` *(since 0.18.0)* | The **complete admin menu** regardless of rail. | You want to paint a unified view ignoring the layout's partitioning. A "ring" or "stage" renderer that surfaces every menu in one circle reads `fullMenu`. |
+
+A renderer that doesn't care about the layout split (it draws every
+menu on screen no matter which rail it's mounted on) reads
+`fullMenu`:
+
+```js
+mount( { fullMenu, openItem, container } ) {
+    for ( const item of fullMenu ) {
+        const tile = document.createElement( 'button' );
+        tile.textContent = item.title;
+        tile.addEventListener( 'click', () => openItem( item ) );
+        container.appendChild( tile );
+    }
+    // …
+}
+```
+
+Live updates flow through the controller's `replaceItems( items )`
+the same way regardless of which view you read at mount —
+`replaceItems` carries the same rail-scoped slice. If your renderer
+needs the full menu after a refresh, call
+`wp.desktop.getMenuItems()` from inside `replaceItems`.
+
+## System tiles — `appendSystemItem` lifecycle
+
+`replaceItems` and `appendSystemItem` are independent update paths.
+The shell does **not** re-emit `appendSystemItem` for previously-added
+tiles after a `replaceItems` refresh — your renderer is responsible
+for persisting the system-tile cohort across menu refreshes.
+
+The canonical pattern: track system tiles in a closure-scoped
+`Map`, re-paint them in `replaceItems()` after rebuilding the menu
+cohort.
+
+```js
+mount( { container, items, openItem } ) {
+    const systemTiles = new Map();
+
+    function paintMenu( list ) {
+        // … build menu DOM, attach openItem click handlers …
+    }
+    function paintSystemTile( item ) {
+        // … build system-tile DOM, attach item.onOpen click handler …
+    }
+    function unpaintSystemTile( id ) { /* … */ }
+
+    paintMenu( items );
+
+    return {
+        replaceItems( menu ) {
+            // Wipe and rebuild menu tiles.
+            paintMenu( menu );
+            // Re-attach every tracked system tile so the menu
+            // refresh doesn't lose them.
+            for ( const item of systemTiles.values() ) {
+                paintSystemTile( item );
+            }
+        },
+        appendSystemItem( item ) {
+            systemTiles.set( item.id, item );
+            paintSystemTile( item );
+        },
+        removeSystemItem( id ) {
+            systemTiles.delete( id );
+            unpaintSystemTile( id );
+        },
+        destroy() { /* clean both cohorts */ },
+    };
+}
+```
+
+The default renderer (the shipped `Dock` class) uses exactly this
+pattern internally — see `Dock.replaceItems()` if you want the
+reference implementation.
+
 ## Routing — call the deps, don't reach for the manager
 
-The mount-deps include three routing callbacks: `openItem`,
-`openSystemItem`, `requestSubmenu`. Renderers should use these
-instead of calling `windowManager.open()` directly because they
-encapsulate the right behaviour:
+The mount-deps include four routing callbacks: `openItem`,
+`openSubmenuPick`, `openSystemItem`, `requestSubmenu`. Renderers
+should use these instead of calling `windowManager.open()`
+directly because they encapsulate the right behaviour:
 
 - multi-instance handling (`+` chip semantics)
 - session restore wiring
 - submenu propagation into the in-window tab strip
 - per-window theming
+- **window-id derivation** — `openItem(item)` and
+  `openSubmenuPick(item, sub)` both call `deriveWindowId(url, adminUrl)`
+  internally, so a custom renderer addresses the same window the
+  default renderer would. A renderer that rolls its own slugifier
+  ends up with mismatched ids — switching renderer mid-session
+  loses the user's open windows. Plugins that absolutely need to
+  build a window config from scratch can call
+  `wp.desktop.deriveWindowId(url)` for the same id semantics.
+
+`openSubmenuPick(item, sub)` is the canonical path for surfacing
+submenus. A renderer that paints a radial menu / fan-out / cards
+popover and lets the user pick a child link calls this with the
+parent item + the picked submenu entry. The framework opens the
+child URL with `baseId` pinned to the parent's id so the in-window
+tab strip propagates correctly.
+
+```js
+mount( { fullMenu, openItem, openSubmenuPick } ) {
+    // …
+    onTileClick: ( item ) => openItem( item ),
+    onSubmenuPick: ( item, sub ) => openSubmenuPick( item, sub ),
+}
+```
+
+> **Don't pass a string to `windowManager.open()`.** It accepts a
+> config object only — passing a URL string silently produces a
+> hung iframe with no console error. Use `openItem` /
+> `openSubmenuPick` instead; they build the right config shape.
 
 A renderer that calls `windowManager.open()` directly works today
 but might silently miss a future feature. Stick to the callbacks

@@ -148,6 +148,55 @@ wp.desktop.hooks.addAction(
 );
 ```
 
+## A note on CSS-variable transitions
+
+A common decoration pattern is to drive a `transform` (scale,
+translate) off a custom CSS property so a hover state interpolates
+smoothly. By default, custom properties are typed as `<string>`,
+which CSS can't interpolate — the transition snaps. Two paths:
+
+- **Drive the transform inline from JS** — set `el.style.transform`
+  directly in the relevant pointer / focus listener. Portable
+  across every browser; the transition `transform 180ms` you set
+  on the element interpolates the value the way CSS expects.
+
+```js
+wp.desktop.hooks.addAction(
+    'wp-desktop.dock.tile-rendered',
+    'my-plugin/lift',
+    ( { el } ) => {
+        el.style.transition = 'transform 180ms ease';
+        el.addEventListener( 'pointerenter', () => {
+            el.style.transform = 'translateY( -2px ) scale( 1.05 )';
+        } );
+        el.addEventListener( 'pointerleave', () => {
+            el.style.transform = '';
+        } );
+    },
+);
+```
+
+- **Use `@property`** — declare your custom property with an
+  explicit `syntax` so the browser can interpolate it:
+
+```css
+@property --tile-scale {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 1;
+}
+.my-plugin-tile {
+    transform: scale( var( --tile-scale ) );
+    transition: --tile-scale 180ms ease;
+}
+.my-plugin-tile:hover { --tile-scale: 1.05; }
+```
+
+This is the cleaner authoring model but requires `@property`
+support — Safari ≤15.3, Firefox ≤127, and several embedded
+WebViews skip the transition silently and snap to the end value.
+If your plugin must work on those, use the inline-JS path.
+
 ## Compatibility with custom renderers
 
 A custom rail renderer (see [`dock-rail-renderer.md`](./dock-rail-renderer.md))

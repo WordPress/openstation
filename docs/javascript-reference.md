@@ -1971,6 +1971,91 @@ Snapshot of every currently registered rail renderer in registration order. Used
 
 ---
 
+### `openOsSettings()` — Stable *(since 0.18.0)*
+
+Open (or focus, if already open) the shell's OS Settings window. Routes through the same `windowManager.open()` call the dock's OS Settings tile uses, so a window opened via `wp.desktop.openOsSettings()` is indistinguishable from one opened by clicking the dock tile — same id, same render callback, same dimensions, same focus / minimize behaviour.
+
+```js
+wp.desktop.openOsSettings();
+```
+
+The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OS Settings tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OS Settings from inside the renderer used to require DOM-scraping `[data-system-id="wp-desktop-os-settings"]` and clicking it; this method is the documented portable path.
+
+---
+
+### `deriveWindowId( url, adminUrl? )` — Stable *(since 0.18.0)*
+
+Derive a stable window id from an admin URL — the same id the default rail renderer uses when it opens a tile. Matches the shell's internal slugifier; a custom renderer that calls `wp.desktop.deriveWindowId( url )` and `wp.desktop.windowManager.open( { id, … } )` addresses the same window the default renderer would. Switching renderer mid-session preserves the user's open windows because both renderers agree on ids.
+
+`adminUrl` defaults to `wp.desktop.config.adminUrl` so callers normally pass just the URL:
+
+```js
+const id = wp.desktop.deriveWindowId( '/wp-admin/edit.php' );
+// → 'edit-php' (or whatever the shell's slugifier produces)
+wp.desktop.windowManager.open( { id, baseId: id, url: '/wp-admin/edit.php', /* … */ } );
+```
+
+> **For rail renderers** — prefer `openItem( item )` / `openSubmenuPick( item, sub )` from `DockRailMountDeps`. They call `deriveWindowId` internally with the right `adminUrl` and build the rest of the window config for you. Only reach for `deriveWindowId` directly when you need the id for something other than `windowManager.open()` (e.g., an indicator, a deep-link, an analytics event).
+
+> **Don't pass a string to `windowManager.open()`.** It accepts a config object only — passing a URL string silently produces a hung iframe with no console error. Build the config with `deriveWindowId` for the id, or use the routing callbacks above.
+
+---
+
+### `listSystemTiles()` — Stable *(since 0.18.0)*
+
+Snapshot of every JS-registered system tile across both rails. Returns `[]` when the layout dispatcher hasn't booted yet (rare; only happens before `wp-desktop.init` fires).
+
+Each entry is a read-only descriptor — the underlying `SystemDockItem` (with its `onOpen` / `isOpen` callbacks) lives behind `getSystemTile( id )`.
+
+```typescript
+[
+    {
+        id:       string,
+        title:    string,
+        icon:     string,
+        affinity: 'core' | 'plugin',  // 'core' tiles route to side rail in Classic
+    },
+    …
+]
+```
+
+```js
+const tiles = wp.desktop.listSystemTiles();
+const settings = tiles.find( ( t ) => t.id === 'wp-desktop-os-settings' );
+// settings → { id, title: 'OS Settings', icon: 'dashicons-desktop', affinity: 'core' }
+```
+
+A custom rail renderer that wants to compose against the same tile set the default renderer paints — e.g., a launcher palette that lists every native-window plugin tile + the OS Settings tile in one place — uses this to enumerate.
+
+---
+
+### `getSystemTile( id )` — Stable *(since 0.18.0)*
+
+Look up a system tile by id. Returns the underlying `SystemDockItem` so callers can read its `title` / `icon` / `isOpen()` predicate, or invoke `onOpen()` to forward the action.
+
+Returns `null` when the id isn't registered or the dispatcher hasn't booted yet.
+
+```js
+// Open a known system tile from anywhere — no DOM scraping.
+wp.desktop.getSystemTile( 'wp-desktop-os-settings' )?.onOpen();
+```
+
+---
+
+### `getMenuItems()` — Stable *(since 0.18.0)*
+
+Read the complete admin-menu list, regardless of how the active layout would partition it across rails. The default Classic layout splits the menu (core to side rail, plugin to primary rail), so a custom rail renderer's `mount-deps.items` is layout-scoped — `getMenuItems()` returns the full picture for renderers that want to paint a unified view of the entire admin.
+
+```js
+const everything = wp.desktop.getMenuItems();   // [ DockItem, DockItem, … ]
+```
+
+Returns a defensive copy — mutating the result doesn't change shell state. Updates with every live menu refresh; call from inside `wp-desktop.window.dock-items-changed` listeners (or the rail renderer's `replaceItems`) to get the fresh post-refresh snapshot.
+
+> **For renderers using the registry path:** `DockRailMountDeps.fullMenu` carries the same data and is preferable inside a `mount()` body — it's a snapshot at the moment the rail mounts, so a renderer holding the array sees a stable reference.
+
+---
+
 ### `registerPalette( def )` — Stable  *(since 0.14.0)*
 
 Register a Cmd+K-triggered overlay ("palette"). The shell owns a single global shortcut handler that **cycles** through every registered palette — first press opens palette 0, second press closes it and opens palette 1, and so on. Pressing Cmd+K when the last palette is open closes it entirely; the next press re-opens palette 0.
@@ -2478,6 +2563,61 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 The window hooks fan out alongside the existing `wp-desktop-window-*` CustomEvents (see section 2) — both APIs fire for every state change. New code should prefer the hook bus.
 
 All hooks can be listed via `wp.hooks.hasAction()` / `hasFilter()` for defensive checks.
+
+#### `DockItem` shape
+
+The canonical menu-item type, surfaced everywhere a custom dock surface needs to read what the admin menu contains: `wp.desktop.getMenuItems()`, the rail renderer's `mount-deps.items` and `mount-deps.fullMenu`, the controller's `replaceItems( items )` parameter, every dock decoration hook context.
+
+```typescript
+interface DockItem {
+    id:       string;        // menu slug — `'edit.php'`, `'wpseo_dashboard'`, …
+    title:    string;        // human-readable label
+    icon:     string;        // dashicon class | `data:` URI | `http(s):` URL
+    url:      string;        // admin URL the tile opens
+    badge:    number;        // numeric badge; 0 = no badge
+    submenu:  { title: string; url: string }[];
+    multi:    boolean;       // multi-instance "+" chip eligibility
+    isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
+}
+```
+
+**`submenu` invariant** — the shell strips self-link entries server-side before the array reaches the JS layer (WordPress's `$submenu[$slug]` includes a self-link as the first entry; the dock data builder removes it). So:
+
+- `submenu.length === 0` reliably means "no real children" — the right-click context menu suppresses the popover trigger, the in-window tab strip stays hidden.
+- `submenu.length > 0` reliably means "has real child links" — every entry points at a distinct URL.
+
+A custom rail renderer that decides whether to show a submenu indicator (a chevron, a hover treatment) can read `item.submenu.length > 0` without defensive `submenu.length > 1` or self-URL filtering. The framework owns the contract.
+
+**Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OS Settings, plugin native-window launchers).
+
+A custom rail renderer's controller MUST persist its system-tile DOM across `replaceItems` calls — the shell does NOT re-emit `appendSystemItem` for previously-added tiles after a menu refresh. Practical pattern: track system tiles in a closure-scoped `Map`, re-paint them in `replaceItems()` after rebuilding the menu cohort.
+
+```js
+let systemTiles = new Map();
+return {
+    replaceItems( menu ) {
+        renderMenu( menu );
+        // Re-attach every tracked system tile so a menu refresh
+        // doesn't lose them.
+        for ( const item of systemTiles.values() ) {
+            renderSystemTile( item );
+        }
+    },
+    appendSystemItem( item ) {
+        systemTiles.set( item.id, item );
+        renderSystemTile( item );
+    },
+    removeSystemItem( id ) {
+        systemTiles.delete( id );
+        unrenderSystemTile( id );
+    },
+    destroy() { /* clean both cohorts */ },
+};
+```
+
+The default renderer uses exactly this pattern internally — `Dock.replaceItems()` re-renders menu tiles + re-applies cached badge overrides + leaves system tiles in place untouched.
+
+---
 
 #### Dock decoration
 
