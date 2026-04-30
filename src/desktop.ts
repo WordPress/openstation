@@ -154,6 +154,13 @@ import {
 	unregisterSubmenuRenderer,
 	type SubmenuRenderer,
 } from './submenu';
+import {
+	installDefaultDockRailRenderer,
+	listDockRailRenderers,
+	registerDockRailRenderer,
+	unregisterDockRailRenderer,
+	type DockRailRenderer,
+} from './dock-rail';
 import * as widgetRegistry from './widgets/registry';
 import { createWidgetRegistrySync } from './widgets/server-sync';
 import { WPD_COMPONENT_TAGS } from './ui/components';
@@ -572,6 +579,23 @@ export interface WpDesktopPublicApi {
 	unregisterSubmenuRenderer: ( id: string ) => void;
 	/** Snapshot of all registered submenu renderers. @since 0.18.0 */
 	listSubmenuRenderers: () => SubmenuRenderer[];
+	/**
+	 * Register a renderer that REPLACES the dock rail entirely.
+	 * Plugins can ship a circular ring, a Stage-Manager-style
+	 * stack, a floating cluster — anything that fits the
+	 * controller contract. The user picks among registered
+	 * renderers in OS Settings → Appearance → Dock style.
+	 *
+	 * See `docs/examples/dock-rail-renderer.md` for the full
+	 * contract.
+	 *
+	 * @since 0.18.0
+	 */
+	registerDockRailRenderer: ( renderer: DockRailRenderer ) => void;
+	/** Remove a previously registered rail renderer. @since 0.18.0 */
+	unregisterDockRailRenderer: ( id: string ) => void;
+	/** Snapshot of all registered rail renderers. @since 0.18.0 */
+	listDockRailRenderers: () => DockRailRenderer[];
 	/**
 	 * Register a custom button in the title bar of any matching
 	 * window. Predicate decides which windows show it. See
@@ -1108,6 +1132,7 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'unregisterCommand', 'listCommands', 'registerSettingsTab',
 	'unregisterSettingsTab', 'listSettingsTabs',
 	'registerSubmenuRenderer', 'unregisterSubmenuRenderer', 'listSubmenuRenderers',
+	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
@@ -1165,6 +1190,11 @@ function init(): void {
 	// list popover before `wp-desktop.init` fires so plugins that
 	// hook into the registry on init see a populated initial state.
 	installDefaultSubmenuRenderer();
+	// Dock rail renderer registry — same idea: install the built-in
+	// `'default'` icon-strip renderer before `wp-desktop.init` so
+	// the layout dispatcher (constructed below) can resolve it on
+	// the very first paint.
+	installDefaultDockRailRenderer();
 	if ( widgetsEl ) {
 		widgetLayer = new WidgetLayer( widgetsEl, pluginUrl );
 	}
@@ -1871,6 +1901,9 @@ function init(): void {
 		registerSubmenuRenderer,
 		unregisterSubmenuRenderer,
 		listSubmenuRenderers,
+		registerDockRailRenderer,
+		unregisterDockRailRenderer,
+		listDockRailRenderers,
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,

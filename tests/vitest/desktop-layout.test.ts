@@ -23,6 +23,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createLayoutDispatcher } from '../../src/desktop-layout';
 import { type DockItem, type SystemDockItem } from '../../src/dock';
+import {
+	_resetDockRailRenderersForTests,
+	installDefaultDockRailRenderer,
+} from '../../src/dock-rail';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import type { WindowManager } from '../../src/window-manager';
 import type { DesktopIconServerEntry } from '../../src/types';
@@ -133,9 +137,14 @@ function makeDeps(
 }
 
 describe( 'desktop-layout dispatcher', () => {
-	beforeEach( () => installHooksStub() );
+	beforeEach( () => {
+		installHooksStub();
+		_resetDockRailRenderersForTests();
+		installDefaultDockRailRenderer();
+	} );
 	afterEach( () => {
 		clearHooksStub();
+		_resetDockRailRenderersForTests();
 		document.body.innerHTML = '';
 	} );
 

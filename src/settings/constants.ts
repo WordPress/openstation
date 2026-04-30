@@ -151,6 +151,7 @@ export const DEFAULTS: OsSettingsState = {
 	dockSize: 'default',
 	desktopLayout: 'classic',
 	submenuRenderer: 'default',
+	dockRailRenderer: 'default',
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',

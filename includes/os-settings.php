@@ -51,6 +51,7 @@ function desktop_mode_default_os_settings() {
 		'dockSize'     => 'default',
 		'desktopLayout' => 'classic',
 		'submenuRenderer' => 'default',
+		'dockRailRenderer' => 'default',
 		'customGradient' => array(
 			'from'  => '#2271b1',
 			'to'    => '#7c3aed',
@@ -166,6 +167,16 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		}
 	}
 
+	// Dock rail renderer id — same shape and reasoning as
+	// `submenuRenderer`. JS-side registry resolves at use time.
+	$dock_rail_renderer = $defaults['dockRailRenderer'];
+	if ( isset( $raw['dockRailRenderer'] ) && is_string( $raw['dockRailRenderer'] ) ) {
+		$slug = sanitize_key( $raw['dockRailRenderer'] );
+		if ( '' !== $slug ) {
+			$dock_rail_renderer = $slug;
+		}
+	}
+
 	// Custom gradient — { from, to: valid hex; angle: int 0–360 }.
 	$custom_gradient = $defaults['customGradient'];
 	if ( isset( $raw['customGradient'] ) && is_array( $raw['customGradient'] ) ) {
@@ -246,15 +257,16 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 	}
 
 	return array(
-		'wallpaper'      => $wallpaper,
-		'accent'         => $accent,
-		'dockSize'       => $dock_size,
-		'desktopLayout'  => $desktop_layout,
-		'submenuRenderer' => $submenu_renderer,
-		'customGradient' => $custom_gradient,
-		'customImage'    => $custom_image,
-		'libraryHdOnly'  => $library_hd_only,
-		'ai'             => $ai,
+		'wallpaper'        => $wallpaper,
+		'accent'           => $accent,
+		'dockSize'         => $dock_size,
+		'desktopLayout'    => $desktop_layout,
+		'submenuRenderer'  => $submenu_renderer,
+		'dockRailRenderer' => $dock_rail_renderer,
+		'customGradient'   => $custom_gradient,
+		'customImage'      => $custom_image,
+		'libraryHdOnly'    => $library_hd_only,
+		'ai'               => $ai,
 	);
 }
 

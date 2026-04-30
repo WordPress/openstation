@@ -90,6 +90,14 @@ export interface OsSettingsState {
 	 * @since 0.18.0
 	 */
 	submenuRenderer: string;
+	/**
+	 * Active dock rail-renderer id. Same fallback story as
+	 * `submenuRenderer` — missing or invalid resolves to `'default'`
+	 * (the built-in icon-strip renderer).
+	 *
+	 * @since 0.18.0
+	 */
+	dockRailRenderer: string;
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
 	/**

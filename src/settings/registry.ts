@@ -49,6 +49,13 @@ export interface OsSettingsSnapshot {
 	 * @since 0.18.0
 	 */
 	submenuRenderer: string;
+	/**
+	 * Active dock rail-renderer id; mirrors the dock-rail registry's
+	 * resolution. `'default'` is the shipped icon-strip renderer.
+	 *
+	 * @since 0.18.0
+	 */
+	dockRailRenderer: string;
 	ai: {
 		enabled: boolean;
 		provider: string;

@@ -57,6 +57,7 @@ import {
 } from './constants';
 import { loadState, saveState } from './state';
 import { setActiveSubmenuRenderer } from '../submenu';
+import { setActiveDockRailRenderer } from '../dock-rail';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -68,6 +69,7 @@ import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildExtendedSection } from './sections/extended';
 import { buildSubmenuRendererSection } from './sections/submenu-renderer';
+import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
 import { buildHelpSection } from './sections/help';
 import {
 	buildWallpaperSection,
@@ -124,6 +126,7 @@ export class OsSettings implements SettingsCtx {
 			dockSize: this.state.dockSize,
 			desktopLayout: this.state.desktopLayout,
 			submenuRenderer: this.state.submenuRenderer,
+			dockRailRenderer: this.state.dockRailRenderer,
 			ai: { ...this.state.ai },
 		};
 	}
@@ -210,6 +213,10 @@ export class OsSettings implements SettingsCtx {
 		// covers the boot path: state loads from server / localStorage,
 		// `apply()` runs, registry mirrors the persisted choice.
 		setActiveSubmenuRenderer( this.state.submenuRenderer );
+		// Same for the dock rail renderer. The dispatcher subscribes
+		// to the registry and rebuilds the rails when the resolved
+		// renderer changes — flipping this calls into that pipeline.
+		setActiveDockRailRenderer( this.state.dockRailRenderer );
 	}
 
 	public save(): void {
@@ -302,6 +309,7 @@ export class OsSettings implements SettingsCtx {
 						${ buildAccentSection( this ) }
 						${ buildDesktopLayoutSection( this ) }
 						${ buildDockSizeSection( this ) }
+						${ buildDockRailRendererSection( this ) }
 						${ buildSubmenuRendererSection( this ) }
 					</wpd-panel>
 				</wpd-tabpanel>`,

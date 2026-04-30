@@ -121,6 +121,15 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_-]+$/.test( parsed.submenuRenderer )
 				? parsed.submenuRenderer
 				: DEFAULTS.submenuRenderer,
+		// Dock rail renderer — same shape as submenuRenderer:
+		// any sanitize_key()-clean string survives, the registry
+		// resolves at use time and falls back to `'default'` when
+		// the picked renderer isn't registered.
+		dockRailRenderer:
+			typeof parsed.dockRailRenderer === 'string' &&
+			/^[a-z0-9_-]+$/.test( parsed.dockRailRenderer )
+				? parsed.dockRailRenderer
+				: DEFAULTS.dockRailRenderer,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
 		libraryHdOnly:

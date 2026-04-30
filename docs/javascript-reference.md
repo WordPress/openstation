@@ -1899,6 +1899,78 @@ Snapshot of every currently registered submenu renderer in registration order. U
 
 ---
 
+### `registerDockRailRenderer( def )` — Stable *(since 0.18.0)*
+
+Register a renderer that **replaces the dock rail entirely**. The default `'default'` renderer is the shipped icon-strip backed by the `Dock` class; plugin authors can ship anything from a circular ring to a Stage-Manager-style stack to a floating cluster. The user picks among registered renderers in OS Settings → Appearance → Dock style (persisted to user meta as `dockRailRenderer`).
+
+The active renderer is mounted into the dock container by the layout dispatcher; the controller it returns drives every subsequent live update (live menu refresh, system tile add/remove, badge updates, attention animations). A renderer that throws from `mount()` is caught — the failure is logged via `HOOKS.SHELL_ERROR` and the dispatcher falls back to the built-in `'default'` so the user never sees an empty dock.
+
+**Definition shape:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. `'default'` is reserved for the shipped icon-strip renderer; a plugin that registers `id: 'default'` replaces the baseline. |
+| `label` | `string` | yes | Shown in the OS Settings picker. |
+| `description` | `string` | no | One-line preview text for the picker. |
+| `icon` | `string` | no | Dashicon class for the picker icon. |
+| `apiVersion` | `1` | no | Reserved for forward-compat. Omit to match the current contract. |
+| `owner` | `string` | no | Plugin-deactivation auto-unregisters every renderer with this tag. |
+| `mount( deps )` | `function` | yes | Build the rail UI. Return a controller. See below. |
+
+**`mount( deps )` contract — `deps` shape:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `container` | `HTMLElement` | The rail's host element. The renderer owns everything inside it; the shell does not paint here after `mount()` returns. |
+| `items` | `DockItem[]` | Initial menu-derived tile list. |
+| `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-wp-desktop-dock-placement` attribute. |
+| `openItem( item )` | `function` | Primary tile click. Routes through the same `windowManager.open()` the default renderer uses (multi-instance, submenu propagation, session restore). Renderers SHOULD use this instead of calling the manager directly. |
+| `openSystemItem( item )` | `function` | System-tile click (OS Settings, plugin-owned native windows). Mirrors `openItem` for the non-menu cohort. |
+| `requestSubmenu( item, anchor )` | `function` | Invoke the active submenu renderer. Lets a custom rail renderer participate in the right-click → popover flow without re-implementing the submenu surface. |
+| `windowManager` | `WindowManager` | Full instance. Use sparingly; prefer the routing callbacks. |
+| `adminUrl` | `string` | Admin URL prefix for window-id derivation. |
+
+**Returned controller — `DockRailController`:**
+
+Required: `replaceItems`, `appendSystemItem`, `removeSystemItem`, `destroy`. Optional: `setBadge`, `setAttention`, `setOrientation`. Optional methods are silently skipped when the active renderer doesn't implement them — a renderer without a badge surface still works; those signals just don't paint.
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerDockRailRenderer( {
+        id:    'my-ring',
+        label: 'Ring',
+        owner: 'my-plugin',
+        mount( { container, items, openItem } ) {
+            // … paint items on a circle, click → openItem(item) …
+            return {
+                replaceItems( next )  { /* repaint */ },
+                appendSystemItem( i ) { /* add a system tile */ },
+                removeSystemItem( id ){ /* remove it */ },
+                destroy()             { container.innerHTML = ''; },
+            };
+        },
+    } );
+} );
+```
+
+See the full walk-through in [`docs/examples/dock-rail-renderer.md`](./examples/dock-rail-renderer.md).
+
+> **`wp.desktop.dock` with a custom renderer.** When the default renderer is active, `wp.desktop.dock` / `wp.desktop.sideDock` continue to return the underlying `Dock` instance (backwards compat). With a custom renderer active, both return `null` — plugins that need renderer-agnostic access should reach for `windowManager`, `activity`, or the public hook surface instead.
+
+---
+
+### `unregisterDockRailRenderer( id )` — Stable *(since 0.18.0)*
+
+Remove a rail renderer by id. Idempotent — unknown ids are silent no-ops.
+
+---
+
+### `listDockRailRenderers()` — Stable *(since 0.18.0)*
+
+Snapshot of every currently registered rail renderer in registration order. Used by the OS Settings picker; plugin authors rarely need it directly.
+
+---
+
 ### `registerPalette( def )` — Stable  *(since 0.14.0)*
 
 Register a Cmd+K-triggered overlay ("palette"). The shell owns a single global shortcut handler that **cycles** through every registered palette — first press opens palette 0, second press closes it and opens palette 1, and so on. Pressing Cmd+K when the last palette is open closes it entirely; the next press re-opens palette 0.
