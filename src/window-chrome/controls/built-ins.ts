@@ -1,6 +1,6 @@
 /**
  * Built-in window controls — minimize, maximize, fullscreen,
- * detach, close.
+ * detach, reload, close.
  *
  * Each built-in registers as a `WindowControlDef` with a stable
  * `core/*` id, the same icon + label the hardcoded title bar used,
@@ -22,7 +22,7 @@ import { registerWindowControl } from './registry';
 import type { Window as DesktopWindow } from '../../window';
 
 /**
- * Register the five built-in title-bar controls. Idempotent — calling
+ * Register the six built-in title-bar controls. Idempotent — calling
  * it twice replaces the entries with identical definitions.
  *
  * Called once by the shell during boot. Plugins should NOT call this;
@@ -79,6 +79,20 @@ export function registerBuiltInControls(): void {
 		match: ( win: DesktopWindow ) => ! win.config.native,
 		onClick: ( win ) => {
 			win.detach();
+		},
+	} );
+
+	registerWindowControl( {
+		id: 'core/reload',
+		label: __( 'Reload' ),
+		icon: 'reload',
+		placement: 'controls',
+		order: 45,
+		core: true,
+		// Native windows own their DOM directly — no iframe to reload.
+		match: ( win: DesktopWindow ) => ! win.config.native,
+		onClick: ( win ) => {
+			win.reload();
 		},
 	} );
 

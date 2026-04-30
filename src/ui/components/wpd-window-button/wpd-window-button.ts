@@ -1,8 +1,8 @@
 /**
  * `<wpd-window-button>` — single chrome button used in window
- * title bars. Built-in icons cover the five control buttons
- * (minimize / maximize / fullscreen-toggle / detach / close) plus
- * the `⋯` menu trigger.
+ * title bars. Built-in icons cover the six control buttons
+ * (minimize / maximize / fullscreen-toggle / detach / reload /
+ * close) plus the `⋯` menu trigger.
  *
  * The `icon` attribute ONLY accepts the seven built-in keys
  * listed below — passing a Dashicons class or an inline SVG string
@@ -26,7 +26,7 @@
  *
  * Attributes:
  *   - `icon="minimize" | "maximize" | "fullscreen" | "fullscreen-exit"
- *          | "detach" | "close" | "menu"` — picks a built-in SVG
+ *          | "detach" | "reload" | "close" | "menu"` — picks a built-in SVG
  *   - `active` — boolean, applies the pressed-down look
  *   - `danger` — boolean, swaps hover to a red wash (used by the
  *     close button)
@@ -67,6 +67,18 @@ const ICONS: Record<string, string> = {
 		'<path d="M2 4.5H4.5V2M7.5 2V4.5H10M2 7.5H4.5V10M7.5 10V7.5H10" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
 	detach:
 		'<path d="M5 2H2.5v7.5H10V7M6.5 2H10v3.5M10 2L5.5 6.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+	reload:
+		// Filled icon scaled from a 512×512 source into the 12×12 viewBox
+		// shared with the other title-bar glyphs. The wrapping `<g>` does
+		// the math; the inner path is dropped in unmodified so its
+		// authoring tool can be re-edited and copy-pasted again.
+		// `scale(0.021)` ≈ 90% of full fit, with `translate(0.6)` to
+		// keep the result centered inside the 12×12 viewBox so the
+		// glyph reads slightly smaller than min/max/close — closer to
+		// the visual weight of the other title-bar buttons.
+		'<g transform="translate(0.6 0.6) scale(0.021)" fill="currentColor">' +
+		'<path d="m504.554 233.704-76.447 91.467c-6.329 7.572-15.417 11.479-24.571 11.479a31.872 31.872 0 0 1-20.504-7.447l-91.467-76.447c-13.561-11.334-15.366-31.515-4.032-45.075s31.515-15.366 45.075-4.032l37.506 31.347c-10.274-74.891-74.668-132.774-152.337-132.774C132.984 102.223 64 171.207 64 256s68.984 153.777 153.777 153.777c17.673 0 32 14.327 32 32s-14.327 32-32 32c-58.17 0-112.859-22.653-153.991-63.785C22.653 368.859 0 314.17 0 256s22.653-112.859 63.786-153.992c41.132-41.132 95.821-63.785 153.991-63.785s112.859 22.653 153.992 63.785c32.517 32.516 53.471 73.508 60.829 117.991l22.849-27.339c11.334-13.56 31.515-15.364 45.075-4.032 13.56 11.335 15.365 31.516 4.032 45.076z"/>' +
+		'</g>',
 	close:
 		'<path d="M3.25 3.25l5.5 5.5M3.25 8.75l5.5-5.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>',
 	menu:
@@ -88,7 +100,7 @@ export class WpdWindowButton extends Component {
 		props: [
 			{
 				name: 'icon',
-				type: "'minimize' | 'maximize' | 'fullscreen' | 'fullscreen-exit' | 'detach' | 'close' | 'menu'",
+				type: "'minimize' | 'maximize' | 'fullscreen' | 'fullscreen-exit' | 'detach' | 'reload' | 'close' | 'menu'",
 				description: 'Which built-in inline SVG to paint. Omit to supply your own via the slot.',
 			},
 			{

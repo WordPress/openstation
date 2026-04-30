@@ -627,3 +627,62 @@ wpd-tab-chip + wpd-tab-chip {
 	height: 18px;
 	display: block;
 }
+
+/* ---------------------------------------------------------------
+ * Reload button feedback.
+ *
+ * Click feedback is decoupled from the loading state:
+ *
+ *   1. On click, the icon performs a single 360° rotation with a
+ *      fast-start / slow-end ease curve — confirms the user's
+ *      gesture independently of how long the page takes to load.
+ *      The `--spinning` class is added by the click handler and
+ *      removed on `animationend` so a subsequent click restarts
+ *      the animation cleanly.
+ *
+ *   2. While the window body is in the `--loading` state (set by
+ *      `markContentLoading()` and cleared on the iframe's
+ *      `wp-desktop-ready` postMessage), the button is dimmed and
+ *      non-interactive so a second click can't desync the
+ *      chromeless bridge's loading handshake.
+ *
+ * `:has()` is used instead of mirroring the `--loading` modifier
+ * onto the window root because upstream's loading API only
+ * decorates the body element. Browsers without :has() (very old)
+ * fall back to a static dimmed button — feature, not bug.
+ * --------------------------------------------------------------- */
+
+.wp-desktop-window:has( .wp-desktop-window__body--loading )
+	.wp-desktop-window__btn--reload {
+	pointer-events: none;
+	opacity: 0.55;
+}
+
+/*
+ * Click feedback animation. The custom easing — `cubic-bezier( 0.05,
+ * 0.7, 0.1, 1 )` — is a steeper-than-default ease-out: ~70% of the
+ * rotation lands in the first 30% of the duration, then it decelerates.
+ * Reads as "snap, then settle" rather than the linear glide of a
+ * loading-spinner, reinforcing that this is a one-shot acknowledgement
+ * of the gesture rather than progress through a long task. The `0.6s`
+ * duration is short enough to never block the user but long enough
+ * that the deceleration is legible.
+ */
+.wp-desktop-window__btn--reload.wp-desktop-window__btn--spinning {
+	animation: wpd-reload-spin-once 0.6s cubic-bezier( 0.05, 0.7, 0.1, 1 );
+}
+
+@keyframes wpd-reload-spin-once {
+	from {
+		transform: rotate( 0deg );
+	}
+	to {
+		transform: rotate( 360deg );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wp-desktop-window__btn--reload.wp-desktop-window__btn--spinning {
+		animation: none;
+	}
+}
