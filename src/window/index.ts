@@ -59,6 +59,7 @@ import {
 } from './../window-chrome/chrome/registry';
 import {
 	captureChromeState,
+	CUSTOM_CHROME_CLASS,
 	mountWindowChrome,
 	resolveChromeId,
 	STANDARD_CHROME_ID,
@@ -1007,6 +1008,11 @@ export class Window {
 			}
 			this._chromeHandle = null;
 		}
+		// Drop the marker class while no chrome is mounted — the
+		// default chrome should be visible during the brief window
+		// between teardown and the next mount. `mountWindowChrome`
+		// re-adds the class on success.
+		this.element.classList.remove( CUSTOM_CHROME_CLASS );
 		const mounted = mountWindowChrome( this );
 		if ( mounted ) {
 			this._chromeHandle = mounted.handle;
@@ -1042,6 +1048,16 @@ export class Window {
 	 * @since 0.6.0
 	 */
 	public _notifyChromeStateChanged(): void {
+		// Belt-and-braces: a window mid-close (or fully torn down)
+		// must NEVER re-enter the plugin's `update()`. A plugin's
+		// update implementation might re-render from scratch — if it
+		// fires during the close fade, the user could briefly see a
+		// half-rebuilt chrome (or, worse, the default chrome
+		// underneath if the plugin's render races). Block the call
+		// at the source.
+		if ( this._isDestroyed ) {
+			return;
+		}
 		if ( ! this._chromeHandle?.update ) {
 			return;
 		}

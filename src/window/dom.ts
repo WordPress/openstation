@@ -454,6 +454,21 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	titleBar.appendChild( controls );
 	titleBar.appendChild( slotAfterControls );
 
+	// Stamp every framework-shipped titlebar child with a marker
+	// attribute so the chrome framework can hide them as a group
+	// when a custom chrome mounts. This is the load-bearing
+	// guarantee that the default chrome NEVER peeks through a
+	// custom one — even mid-fade during a window close, even if
+	// the plugin's render() forgot to clear `innerHTML`. The CSS
+	// rule lives in `assets/css/window-chrome.css`; no JS reads
+	// the attribute back, it's purely a hide-target.
+	for ( const child of Array.from( titleBar.children ) ) {
+		( child as HTMLElement ).setAttribute(
+			'data-wp-desktop-default-chrome',
+			'',
+		);
+	}
+
 	const body = document.createElement( 'div' );
 	body.className = 'wp-desktop-window__body wp-desktop-window__body--loading';
 

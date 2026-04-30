@@ -627,3 +627,32 @@ wpd-tab-chip + wpd-tab-chip {
 	height: 18px;
 	display: block;
 }
+
+/* ----------------------------------------------------------------
+ * Custom-chrome marker — hides every framework-shipped titlebar
+ * child while a plugin's chrome is mounted.
+ *
+ * The window gets the `wp-desktop-window--custom-chrome` class the
+ * moment `mountWindowChrome` succeeds (BEFORE the plugin's
+ * `render()` runs). Default children carry the
+ * `data-wp-desktop-default-chrome` attribute stamped at element-
+ * creation time. The combination is a load-bearing guarantee:
+ * even if the plugin's render() doesn't clear `titlebar.innerHTML`,
+ * even if a plugin's destroy() leaks the standard chrome back into
+ * place, even mid-fade during a window close — the default chrome
+ * NEVER becomes visible while the marker class is active.
+ *
+ * The class is removed only when the chrome is swapped to standard
+ * (in `Window.remountWindowChrome`); during a window close it
+ * persists until `element.remove()` runs in `onDone()`, which is
+ * after the fade has reached opacity 0 — so the user never sees
+ * the swap.
+ *
+ * @since 0.18.0
+ * ---------------------------------------------------------------- */
+
+.wp-desktop-window--custom-chrome
+	> .wp-desktop-window__titlebar
+	> [ data-wp-desktop-default-chrome ] {
+	display: none !important;
+}
