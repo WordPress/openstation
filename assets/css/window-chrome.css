@@ -139,6 +139,57 @@
 	flex-shrink: 0;
 }
 
+/*
+ * Layer-3 slot hosts.
+ *
+ * Most in-titlebar slots wrap canonical chrome elements without
+ * contributing to the flex layout themselves — `display: contents`
+ * removes the wrapper's box so the inner element (icon span with
+ * `flex-shrink: 0`, before/after spacers, etc.) keeps its
+ * original layout role.
+ *
+ * The `title` slot is the exception: it's the flex-grow region of
+ * the title bar (`flex: 1`). When a plugin replaces the default
+ * title with custom HTML or a render callback, we want the new
+ * content to inherit the same "fill the remaining horizontal
+ * space" behaviour — so the slot itself owns `flex: 1` and the
+ * default title element's own `flex: 1` cooperates inside the
+ * nested flex.
+ *
+ * before/after-titlebar slots are flex-column children of
+ * `.wp-desktop-window` (siblings of the title bar). They're real
+ * boxes — plugins can paint backgrounds, padding, borders. Empty
+ * hosts collapse via `:empty` so they take no space until populated.
+ *
+ * @since 0.6.0
+ */
+.wp-desktop-window__slot--before-icon,
+.wp-desktop-window__slot--icon,
+.wp-desktop-window__slot--after-title,
+.wp-desktop-window__slot--before-controls,
+.wp-desktop-window__slot--after-controls {
+	display: contents;
+}
+
+.wp-desktop-window__slot--title {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	overflow: hidden;
+}
+
+.wp-desktop-window__slot--before-titlebar,
+.wp-desktop-window__slot--after-titlebar {
+	display: block;
+	flex-shrink: 0;
+}
+
+.wp-desktop-window__slot--before-titlebar:empty,
+.wp-desktop-window__slot--after-titlebar:empty {
+	display: none;
+}
+
 /* ---------------------------------------------------------------
  * Window control buttons.
  *

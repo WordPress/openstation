@@ -426,6 +426,74 @@ export const HOOKS = {
 	 */
 	NATIVE_WINDOW_BEFORE_CLOSE: 'wp-desktop.native-window.before-close',
 
+	// ------------------------------------------------------------------
+	// Window-chrome customization framework. Plugins drive per-window
+	// appearance (theme, controls, slots, full chrome render) through
+	// the `wp.desktop.registerWindow*` registries; these hooks expose
+	// every resolution step so plugins can mutate or observe the
+	// chrome pipeline without owning a registration.
+	//
+	// Layers 1-3 (theme, controls, slots) are Stable. Layer 4 (chrome
+	// render) is Experimental — `WINDOW_CHROME_RENDER` may change.
+	// ------------------------------------------------------------------
+
+	/**
+	 * Filter, applied to the resolved CSS-variable map for a window.
+	 * Receives `Record< string, string >`; context: `{ windowId,
+	 * config }`. Plugins return a mutated map to override or augment
+	 * the per-window theme tokens — e.g. tint every Gutenberg
+	 * window's title bar to brand colour.
+	 *
+	 * Stable since 0.6.0.
+	 */
+	WINDOW_CHROME_THEME: 'wp-desktop.window.chrome.theme',
+	/**
+	 * Filter, applied to the resolved control list for a window.
+	 * Receives `WindowControlDef[]`; context: `{ windowId, config,
+	 * placement: 'left' | 'right' | 'controls' }`. Plugins return a
+	 * mutated array to reorder, hide, or inject controls per-window.
+	 *
+	 * Stable since 0.6.0.
+	 */
+	WINDOW_CHROME_CONTROLS: 'wp-desktop.window.chrome.controls',
+	/**
+	 * Filter, applied per slot when the chrome paints. Receives the
+	 * slot host element; context: `{ windowId, slot, config }`.
+	 * Plugins can mutate `host` (append decorative children, set
+	 * inline styles) without owning a `WindowSlotDef` registration.
+	 * The shell never reads the return value — this is an action-
+	 * shaped filter so existing `addFilter` plumbing applies.
+	 *
+	 * Stable since 0.6.0.
+	 */
+	WINDOW_CHROME_SLOT: 'wp-desktop.window.chrome.slot',
+	/**
+	 * Filter, applied to the chrome id selected for a window.
+	 * Receives the resolved id (defaults to `'core/standard'`);
+	 * context: `{ windowId, config }`. Returning a different id
+	 * swaps the chrome registration. **Experimental** — chrome
+	 * render contract may change.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CHROME_RENDER: 'wp-desktop.window.chrome.render',
+	/**
+	 * Action, fires after a window's chrome has been mounted /
+	 * remounted. Payload: `{ windowId, chromeId }`. Subscribers can
+	 * post-decorate the chrome (attach observers, anchor pickers).
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CHROME_APPLIED: 'wp-desktop.window.chrome.applied',
+	/**
+	 * Action, fires after a window's theme tokens are applied to its
+	 * outer element. Payload: `{ windowId, themeId, tokens }`. Lets
+	 * plugins react to theme changes without diffing CSS variables.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CHROME_THEME_CHANGED: 'wp-desktop.window.chrome.theme-changed',
+
 	/**
 	 * Action, fires when a user clicks a desktop icon (a shortcut
 	 * tile registered server-side via `desktop_mode_register_icon()`

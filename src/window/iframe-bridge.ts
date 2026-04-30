@@ -185,6 +185,71 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// network-level failure before a response arrived; `failed` is
 	// pre-computed server-side so subscribers don't have to re-derive
 	// the success / 4xx / 5xx / network boundary.
+	// Layer-1 theme — iframe content can re-theme its own window
+	// via the bridge. `tokens` is a CSS-variable map; `setAppearanceTheme`
+	// validates inline overrides match the framework's shape.
+	if (
+		data.type === 'wp-desktop-chrome-theme' &&
+		data.tokens &&
+		typeof data.tokens === 'object'
+	) {
+		try {
+			win.setAppearanceTheme(
+				data.tokens as Record< string, string >,
+			);
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-bridge-chrome-theme',
+				windowId: win.id,
+				error: err,
+			} );
+		}
+	}
+
+	// Layer-2 controls — iframe can reorder / hide / inject controls
+	// for its own window.
+	if (
+		data.type === 'wp-desktop-chrome-controls' &&
+		data.config &&
+		typeof data.config === 'object'
+	) {
+		try {
+			win.setAppearanceControls(
+				data.config as import( '../types' ).WindowControlsConfig,
+			);
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-bridge-chrome-controls',
+				windowId: win.id,
+				error: err,
+			} );
+		}
+	}
+
+	// Layer-3 slots — iframe can replace any named slot with sandboxed
+	// HTML (rendered via textContent — never innerHTML — so iframe-side
+	// or plugin-supplied content can't smuggle script into the parent
+	// shell). Plugins that need rich slot markup register a parent-
+	// side `WindowSlotDef.render` callback instead.
+	if (
+		data.type === 'wp-desktop-chrome-slot' &&
+		typeof data.slot === 'string' &&
+		typeof data.html === 'string'
+	) {
+		try {
+			win.setAppearanceSlot(
+				data.slot as import( '../types' ).WindowSlotName,
+				{ html: data.html },
+			);
+		} catch ( err ) {
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-bridge-chrome-slot',
+				windowId: win.id,
+				error: err,
+			} );
+		}
+	}
+
 	if ( data.type === 'wp-desktop-iframe-network' ) {
 		const networkPayload: Record< string, unknown > = {
 			windowId: win.id,

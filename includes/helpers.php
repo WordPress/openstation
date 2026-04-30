@@ -837,6 +837,30 @@ function desktop_mode_build_menu_payload() {
 		'serverTitleBarButtonScripts' => function_exists( 'desktop_mode_build_desktop_titlebar_button_scripts_payload' )
 			? desktop_mode_build_desktop_titlebar_button_scripts_payload()
 			: array(),
+		'serverWindowThemeScripts'  => function_exists( 'desktop_mode_build_window_theme_scripts_payload' )
+			? desktop_mode_build_window_theme_scripts_payload()
+			: array(),
+		'serverWindowThemes'        => function_exists( 'desktop_mode_build_window_themes_payload' )
+			? desktop_mode_build_window_themes_payload()
+			: array(),
+		'serverWindowControlScripts' => function_exists( 'desktop_mode_build_window_control_scripts_payload' )
+			? desktop_mode_build_window_control_scripts_payload()
+			: array(),
+		'serverWindowControls'      => function_exists( 'desktop_mode_build_window_controls_payload' )
+			? desktop_mode_build_window_controls_payload()
+			: array(),
+		'serverWindowSlotScripts'   => function_exists( 'desktop_mode_build_window_slot_scripts_payload' )
+			? desktop_mode_build_window_slot_scripts_payload()
+			: array(),
+		'serverWindowSlots'         => function_exists( 'desktop_mode_build_window_slots_payload' )
+			? desktop_mode_build_window_slots_payload()
+			: array(),
+		'serverWindowChromeScripts' => function_exists( 'desktop_mode_build_window_chrome_scripts_payload' )
+			? desktop_mode_build_window_chrome_scripts_payload()
+			: array(),
+		'serverWindowChromes'       => function_exists( 'desktop_mode_build_window_chromes_payload' )
+			? desktop_mode_build_window_chromes_payload()
+			: array(),
 		'desktopIcons'     => function_exists( 'desktop_mode_build_desktop_icons_payload' )
 			? desktop_mode_build_desktop_icons_payload()
 			: array(),
@@ -942,6 +966,30 @@ function desktop_mode_flush_script_handle_registries() {
 	}
 	if ( function_exists( 'desktop_mode_flush_desktop_titlebar_button_script_registry' ) ) {
 		desktop_mode_flush_desktop_titlebar_button_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_theme_script_registry' ) ) {
+		desktop_mode_flush_window_theme_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_theme_registry' ) ) {
+		desktop_mode_flush_window_theme_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_control_script_registry' ) ) {
+		desktop_mode_flush_window_control_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_control_registry' ) ) {
+		desktop_mode_flush_window_control_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_slot_script_registry' ) ) {
+		desktop_mode_flush_window_slot_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_slot_registry' ) ) {
+		desktop_mode_flush_window_slot_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_chrome_script_registry' ) ) {
+		desktop_mode_flush_window_chrome_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_chrome_registry' ) ) {
+		desktop_mode_flush_window_chrome_registry();
 	}
 	desktop_mode_warn_unresolvable_script_handle( '', '', '__flush__' );
 }

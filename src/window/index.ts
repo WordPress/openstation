@@ -42,6 +42,25 @@ import {
 	type TitleBarButtonDef,
 } from './../title-bar-buttons/registry';
 import { paintTitleBarButtonIcon } from './../title-bar-buttons/paint-icon';
+import {
+	applyWindowTheme,
+	clearWindowTheme,
+} from './../window-chrome/apply';
+import { subscribeWindowThemes } from './../window-chrome/themes/registry';
+import { subscribeWindowControls } from './../window-chrome/controls/registry';
+import { paintWindowControls } from './../window-chrome/controls/render';
+import { subscribeWindowSlots } from './../window-chrome/slots/registry';
+import { paintWindowSlots } from './../window-chrome/slots/render';
+import {
+	subscribeWindowChromes,
+	type ChromeRenderHandle,
+} from './../window-chrome/chrome/registry';
+import {
+	captureChromeState,
+	mountWindowChrome,
+	resolveChromeId,
+	STANDARD_CHROME_ID,
+} from './../window-chrome/chrome/apply';
 
 /**
  * Origin snapshot taken at module load. Same-origin guards in this
@@ -172,6 +191,78 @@ export class Window {
 	public _titleBarButtonsUnsubscribe: ( () => void ) | null = null;
 
 	/**
+	 * Unsubscribe handle for the window-theme registry. Cleared on
+	 * close so the closed window stops re-applying theme tokens
+	 * when other plugins register / unregister themes.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowThemesUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Unsubscribe handle for the window-control registry. Cleared on
+	 * close.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowControlsUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Teardown handle returned by the most recent
+	 * {@link paintWindowControls} call. Re-paint replaces it; close
+	 * invokes the last one to drop event listeners on plugin-supplied
+	 * `render` callbacks.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowControlsTeardown: ( () => void ) | null = null;
+
+	/**
+	 * Unsubscribe handle for the window-slot registry. Cleared on
+	 * close.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowSlotsUnsubscribe: ( () => void ) | null = null;
+
+	/**
+	 * Teardown handle returned by the most recent
+	 * {@link paintWindowSlots} call.
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowSlotsTeardown: ( () => void ) | null = null;
+
+	/**
+	 * Handle returned by the active custom chrome's `render()`.
+	 * `null` when the window uses `'core/standard'` (the default —
+	 * Layers 1-3 paint without a chrome handle). Tracked so window-
+	 * state updates can flow into `handle.update()` and `close()`
+	 * can call `handle.destroy()`.
+	 *
+	 * **Experimental** since 0.6.0.
+	 *
+	 * @internal
+	 */
+	public _chromeHandle: ChromeRenderHandle | null = null;
+
+	/**
+	 * Id of the chrome currently mounted (or `'core/standard'`).
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _chromeId: string = STANDARD_CHROME_ID;
+
+	/**
+	 * Unsubscribe handle for the chrome registry. Cleared on close.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _windowChromesUnsubscribe: ( () => void ) | null = null;
+
+	/**
 	 * Teardown function returned by the native-window render callback
 	 * (if any). Invoked on `close()` so plugin authors can dispose
 	 * listeners, intervals, observers, and anything else tied to the
@@ -265,6 +356,60 @@ export class Window {
 		this.renderCustomTitleBarButtons();
 		this._titleBarButtonsUnsubscribe = subscribeTitleBarButtons( () => {
 			this.renderCustomTitleBarButtons();
+		} );
+
+		// Apply Layer-1 theme tokens (CSS variables) to the outer
+		// element. Resolution order: explicit `appearance.theme`
+		// override > registered theme whose `match` returns true >
+		// no theme (empty token map). Re-applied whenever the theme
+		// registry mutates so live activation paints immediately.
+		applyWindowTheme( this, this.config.appearance?.theme );
+		this._windowThemesUnsubscribe = subscribeWindowThemes( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			applyWindowTheme( this, this.config.appearance?.theme );
+		} );
+
+		// Layer-2 controls. The controls cluster is rendered from
+		// the registry (built-ins + plugin entries) so plugins can
+		// reorder, hide, or replace the close/min/max buttons via
+		// `appearance.controls`. Re-paints whenever the registry
+		// mutates so live activation appears immediately.
+		this.repaintWindowControls();
+		this._windowControlsUnsubscribe = subscribeWindowControls( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			this.repaintWindowControls();
+		} );
+
+		// Layer-3 slots. The title bar exposes named slot hosts
+		// (icon, title, before-titlebar, …) that plugins can replace
+		// or augment. Re-paints whenever the slot registry mutates.
+		this.repaintWindowSlots();
+		this._windowSlotsUnsubscribe = subscribeWindowSlots( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			this.repaintWindowSlots();
+		} );
+
+		// Layer-4 (Experimental) — custom chrome. Mounts when a
+		// non-`core/standard` chrome resolves; otherwise the standard
+		// title bar painted above stays put. Re-resolves on registry
+		// mutation so a chrome registered AFTER this window opens
+		// still takes effect.
+		this.remountWindowChrome();
+		this._windowChromesUnsubscribe = subscribeWindowChromes( () => {
+			if ( this._isDestroyed ) {
+				return;
+			}
+			// Only swap when the resolved id actually changed.
+			const next = resolveChromeId( this );
+			if ( next !== this._chromeId ) {
+				this.remountWindowChrome();
+			}
 		} );
 
 		// Native render is intentionally NOT run here. The window
@@ -576,15 +721,13 @@ export class Window {
 			);
 		} );
 
-		// Window control buttons.
-		const btnMin = this.element.querySelector( '.wp-desktop-window__btn--minimize' ) as HTMLElement;
-		const btnMax = this.element.querySelector( '.wp-desktop-window__btn--maximize' ) as HTMLElement;
-		const btnFocus = this.element.querySelector( '.wp-desktop-window__btn--focus' ) as HTMLElement;
-		// Native windows skip the detach button entirely.
-		const btnDetach = this.element.querySelector(
-			'.wp-desktop-window__btn--detach',
-		) as HTMLElement | null;
-		const btnClose = this.element.querySelector( '.wp-desktop-window__btn--close' ) as HTMLElement;
+		// Window control buttons (close / minimize / maximize / focus
+		// / detach) are now rendered from the Layer-2 control registry
+		// via `paintWindowControls()` — click handlers are wired at
+		// render time directly on each button. The constructor-level
+		// `repaintWindowControls()` call sets them up before this
+		// `bindEvents()` runs, so the controls cluster is live before
+		// drag / resize bindings.
 
 		// Title-bar actions menu (iframe windows only).
 		const menuBtn = this.element.querySelector<HTMLElement>(
@@ -663,27 +806,6 @@ export class Window {
 			} );
 		}
 
-		btnMin.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.minimize();
-		} );
-		btnMax.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.toggleMaximize();
-		} );
-		btnFocus.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.toggleFullscreen();
-		} );
-		btnDetach?.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.detach();
-		} );
-		btnClose.addEventListener( 'click', ( e: Event ) => {
-			e.stopPropagation();
-			this.close();
-		} );
-
 		// Double-click title bar to toggle maximize.
 		this._titleBar.addEventListener( 'dblclick', () => {
 			this.toggleMaximize();
@@ -735,12 +857,216 @@ export class Window {
 	/** Mark this window as focused or unfocused. */
 	public setFocused( focused: boolean ): void {
 		this.element.classList.toggle( 'wp-desktop-window--focused', focused );
+		this._notifyChromeStateChanged();
 	}
 
 	/** Update the window title. */
 	public setTitle( title: string ): void {
 		this._titleEl.textContent = title;
+		this.config.title = title;
 		doAction( HOOKS.WINDOW_TITLE_CHANGED, { windowId: this.id, title } );
+		this._notifyChromeStateChanged();
+	}
+
+	/**
+	 * Re-render the controls cluster from the Layer-2 registry +
+	 * the per-window `appearance.controls` block. Idempotent. The
+	 * old buttons (and any plugin-supplied render() teardowns) are
+	 * cleaned up before the new ones mount.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public repaintWindowControls(): void {
+		const controlsHost = this.element.querySelector< HTMLElement >(
+			'.wp-desktop-window__controls',
+		);
+		if ( ! controlsHost ) {
+			return;
+		}
+		if ( this._windowControlsTeardown ) {
+			try {
+				this._windowControlsTeardown();
+			} catch {
+				// Teardown failures shouldn't block the repaint.
+			}
+			this._windowControlsTeardown = null;
+		}
+		this._windowControlsTeardown = paintWindowControls( this, controlsHost );
+	}
+
+	/**
+	 * Apply (or clear) a per-window controls config at runtime.
+	 * Mutates `this.config.appearance.controls` and re-paints. Pass
+	 * `null` or `undefined` to clear the override and fall back to
+	 * the registry-only resolution.
+	 *
+	 * @since 0.6.0
+	 */
+	public setAppearanceControls(
+		override: import( '../types' ).WindowControlsConfig | null | undefined,
+	): void {
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			controls: override ?? undefined,
+		};
+		this.repaintWindowControls();
+	}
+
+	/**
+	 * Re-render every Layer-3 title-bar slot from the registry +
+	 * the per-window `appearance.slots` block. Idempotent. Plugin-
+	 * supplied teardowns from the previous paint run before the new
+	 * paint.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public repaintWindowSlots(): void {
+		if ( this._windowSlotsTeardown ) {
+			try {
+				this._windowSlotsTeardown();
+			} catch {
+				// see notes in repaintWindowControls.
+			}
+			this._windowSlotsTeardown = null;
+		}
+		this._windowSlotsTeardown = paintWindowSlots( this );
+	}
+
+	/**
+	 * Tear down the active custom chrome (if any) and mount the
+	 * resolved one. No-op when both old and new resolve to
+	 * `'core/standard'`. Idempotent.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public remountWindowChrome(): void {
+		if ( this._chromeHandle ) {
+			try {
+				this._chromeHandle.destroy();
+			} catch {
+				// Plugin teardown failures shouldn't block remount.
+			}
+			this._chromeHandle = null;
+		}
+		const mounted = mountWindowChrome( this );
+		if ( mounted ) {
+			this._chromeHandle = mounted.handle;
+			this._chromeId = mounted.id;
+		} else {
+			this._chromeId = STANDARD_CHROME_ID;
+		}
+	}
+
+	/**
+	 * Set the chrome id at runtime. Pass `null` / `undefined` to
+	 * fall back to the standard chrome.
+	 *
+	 * **Experimental** since 0.6.0 — the chrome render contract may
+	 * change in future minor versions.
+	 */
+	public setAppearanceChrome( chromeId: string | null | undefined ): void {
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			chrome: chromeId ?? undefined,
+		};
+		this.remountWindowChrome();
+	}
+
+	/**
+	 * Push the current window state into the active custom chrome
+	 * (if any). Called from {@link setTitle}, {@link setFocused}, and
+	 * the maximize / minimize / fullscreen transitions so chrome
+	 * implementations don't have to subscribe to lifecycle events to
+	 * keep their visual in sync.
+	 *
+	 * @internal
+	 * @since 0.6.0
+	 */
+	public _notifyChromeStateChanged(): void {
+		if ( ! this._chromeHandle?.update ) {
+			return;
+		}
+		try {
+			this._chromeHandle.update( captureChromeState( this ) );
+		} catch {
+			// see notes in repaintWindowControls.
+		}
+	}
+
+	/**
+	 * Apply (or clear) per-window slot overrides at runtime.
+	 * `slot === null` removes the named override; `slots === null`
+	 * clears all per-window slot overrides at once.
+	 *
+	 * @since 0.6.0
+	 */
+	public setAppearanceSlot(
+		slot: import( '../types' ).WindowSlotName,
+		config: import( '../types' ).WindowSlotConfig | undefined,
+	): void {
+		const existing = this.config.appearance?.slots ?? {};
+		const next = { ...existing };
+		if ( config === undefined ) {
+			delete next[ slot ];
+		} else {
+			next[ slot ] = config;
+		}
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			slots: next,
+		};
+		this.repaintWindowSlots();
+	}
+
+	/**
+	 * Apply (or clear) a per-window theme override at runtime. Accepts
+	 * three shapes for ergonomics:
+	 *
+	 *   - `string` — interpreted as a registered theme id.
+	 *   - `Record< string, string >` — interpreted as inline tokens.
+	 *   - `WindowThemeRef` — explicit `{ themeId }` or `{ tokens }`.
+	 *   - `null` / `undefined` — clear the override; the window falls
+	 *     back to whatever the registry's match resolves to.
+	 *
+	 * Calls through to {@link applyWindowTheme}. The override is
+	 * also written to `this.config.appearance.theme` so the next
+	 * registry-driven re-apply preserves the runtime choice.
+	 *
+	 * @since 0.6.0
+	 */
+	public setAppearanceTheme(
+		override:
+			| import( '../types' ).WindowThemeRef
+			| Record< string, string >
+			| string
+			| null
+			| undefined,
+	): void {
+		let resolved: import( '../types' ).WindowThemeRef | undefined;
+		if ( override === null || override === undefined ) {
+			resolved = undefined;
+		} else if ( typeof override === 'string' ) {
+			resolved = { themeId: override };
+		} else if (
+			typeof override === 'object' &&
+			(
+				'themeId' in override ||
+				'tokens' in override
+			)
+		) {
+			resolved = override as import( '../types' ).WindowThemeRef;
+		} else if ( typeof override === 'object' ) {
+			// Plain `{ "--foo": "bar" }` map.
+			resolved = { tokens: override as Record< string, string > };
+		}
+		this.config.appearance = {
+			...( this.config.appearance ?? {} ),
+			theme: resolved,
+		};
+		applyWindowTheme( this, resolved );
 	}
 
 	/** Minimize the window. */
@@ -1429,6 +1755,64 @@ export class Window {
 		if ( this._titleBarButtonsUnsubscribe ) {
 			this._titleBarButtonsUnsubscribe();
 			this._titleBarButtonsUnsubscribe = null;
+		}
+
+		// Drop the window-theme subscription + clear any inline
+		// theme variables we wrote to the outer element. Strictly
+		// belt-and-braces — the element is about to leave the DOM —
+		// but keeps the WeakMap bookkeeping consistent if anyone
+		// holds a reference to the element after close.
+		if ( this._windowThemesUnsubscribe ) {
+			this._windowThemesUnsubscribe();
+			this._windowThemesUnsubscribe = null;
+		}
+		clearWindowTheme( this );
+
+		// Drop the window-controls subscription + tear down the
+		// last paint's plugin-supplied event listeners. The element
+		// is about to leave the DOM but explicit teardown keeps
+		// retained references (devtools, plugin caches) clean.
+		if ( this._windowControlsUnsubscribe ) {
+			this._windowControlsUnsubscribe();
+			this._windowControlsUnsubscribe = null;
+		}
+		if ( this._windowControlsTeardown ) {
+			try {
+				this._windowControlsTeardown();
+			} catch {
+				// see notes in repaintWindowControls.
+			}
+			this._windowControlsTeardown = null;
+		}
+
+		// Same teardown for Layer-3 slots — drop subscriber +
+		// invoke any teardowns plugins returned from `render()`.
+		if ( this._windowSlotsUnsubscribe ) {
+			this._windowSlotsUnsubscribe();
+			this._windowSlotsUnsubscribe = null;
+		}
+		if ( this._windowSlotsTeardown ) {
+			try {
+				this._windowSlotsTeardown();
+			} catch {
+				// see notes in repaintWindowSlots.
+			}
+			this._windowSlotsTeardown = null;
+		}
+
+		// Layer-4 — drop chrome registry subscriber + destroy() the
+		// custom chrome handle if one is mounted.
+		if ( this._windowChromesUnsubscribe ) {
+			this._windowChromesUnsubscribe();
+			this._windowChromesUnsubscribe = null;
+		}
+		if ( this._chromeHandle ) {
+			try {
+				this._chromeHandle.destroy();
+			} catch {
+				// Plugin teardown failures shouldn't take the close down.
+			}
+			this._chromeHandle = null;
 		}
 
 		// Invoke the optional teardown returned by the native-window

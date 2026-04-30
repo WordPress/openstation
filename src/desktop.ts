@@ -43,6 +43,35 @@ import {
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
 import {
+	registerWindowTheme,
+	unregisterWindowTheme,
+	listWindowThemes,
+	type WindowThemeDef,
+} from './window-chrome/themes/registry';
+import { createWindowThemeRegistrySync } from './window-chrome/themes/server-sync';
+import {
+	registerWindowControl,
+	unregisterWindowControl,
+	listWindowControls,
+	type WindowControlDef,
+} from './window-chrome/controls/registry';
+import { registerBuiltInControls } from './window-chrome/controls/built-ins';
+import { createWindowControlRegistrySync } from './window-chrome/controls/server-sync';
+import {
+	registerWindowSlot,
+	unregisterWindowSlot,
+	listWindowSlots,
+	type WindowSlotDef,
+} from './window-chrome/slots/registry';
+import { createWindowSlotRegistrySync } from './window-chrome/slots/server-sync';
+import {
+	registerWindowChrome,
+	unregisterWindowChrome,
+	listWindowChromes,
+	type WindowChromeDef,
+} from './window-chrome/chrome/registry';
+import { createWindowChromeRegistrySync } from './window-chrome/chrome/server-sync';
+import {
 	createConnectionBridge,
 	type WindowConnection,
 	type ConnectOptions,
@@ -126,6 +155,80 @@ import type {
 	SessionWindow,
 } from './types';
 import type { Window as DesktopWindow } from './window';
+
+/* -------------------------------------------------------------------
+ * Pre-bootstrap shim — installs `window.wp.desktop` synchronously at
+ * module-parse time with a queueing `whenReady` so consumer scripts
+ * loaded with `array( 'wp-desktop' )` as their dep don't race the
+ * shell's `init()` execution.
+ *
+ * Why this exists: WordPress only orders the consumer's `<script>`
+ * tag AFTER `desktop.js` in the DOM — it doesn't wait for our
+ * bundle's bootstrap to finish. A consumer IIFE that runs the
+ * documented recipe…
+ *
+ *     wp.desktop.whenReady( () => { … } );
+ *
+ * …could fire before `init()` reached the
+ * `window.wp.desktop = desktopApi` assignment, blowing up with
+ * `wp.desktop.whenReady is not a function`.
+ *
+ * The shim:
+ *   1. Sets up `window.wp.desktop` immediately with `whenReady` /
+ *      `ready` / `isReady`. `whenReady` queues callbacks into a
+ *      module-local array.
+ *   2. Bootstrap merges the full API onto the same object via
+ *      `Object.assign` (NOT reassign — we'd otherwise lose the
+ *      shim's closure binding to the queue).
+ *   3. After HOOKS.INIT fires, the bootstrap drains the queue.
+ *
+ * Re-runs are idempotent: a previous installation is left alone so
+ * a duplicate enqueue / HMR reload doesn't blow away the queue.
+ *
+ * @since 0.6.1
+ */
+const _earlyReadyQueue: Array< () => void > = [];
+let _earlyReady = false;
+
+( function installEarlyDesktopShim() {
+	const w = window as { wp?: { desktop?: unknown } };
+	if ( ! w.wp ) {
+		w.wp = {};
+	}
+	if ( w.wp.desktop ) {
+		// Either the bootstrap already ran (full API installed) or
+		// a previous module load already set up this shim. Either
+		// way, leave it alone — the bootstrap's `Object.assign`
+		// path tolerates an already-shimmed slot.
+		return;
+	}
+	const shim = {
+		whenReady( cb: () => void ): void {
+			if ( typeof cb !== 'function' ) {
+				return;
+			}
+			if ( _earlyReady ) {
+				// Microtask-defer so the cb runs in the same
+				// async-shape consumers see post-bootstrap. The
+				// real `whenReady` (in `src/hooks.ts`) does the
+				// same.
+				Promise.resolve().then( cb );
+				return;
+			}
+			_earlyReadyQueue.push( cb );
+		},
+		ready( cb: () => void ): void {
+			shim.whenReady( cb );
+		},
+		isReady(): boolean {
+			return _earlyReady;
+		},
+	};
+	// Cast through unknown — the shim is a partial implementation;
+	// the bootstrap's Object.assign fills in the rest before any
+	// consumer reads beyond `whenReady` / `ready` / `isReady`.
+	w.wp.desktop = shim as unknown;
+}() );
 
 /** Stable id for the OS Settings native window. */
 const OS_SETTINGS_WINDOW_ID = 'wp-desktop-os-settings';
@@ -443,6 +546,127 @@ export interface WpDesktopPublicApi {
 	/** Snapshot of registered title-bar buttons. @since 0.17.0 */
 	listTitleBarButtons: () => TitleBarButtonDef[];
 	/**
+	 * Register (or replace) a per-window theme — a CSS-variable map
+	 * applied to every matching window's outer element. The shell
+	 * routes registry mutations through every open window so live
+	 * activation paints immediately. Mirrors {@link registerCommand}
+	 * / {@link registerTitleBarButton} for predicate filtering and
+	 * `owner`-based teardown.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowTheme: ( def: WindowThemeDef ) => void;
+	/** Remove a previously registered window theme. @since 0.6.0 */
+	unregisterWindowTheme: ( id: string ) => void;
+	/** Snapshot of registered window themes. @since 0.6.0 */
+	listWindowThemes: () => WindowThemeDef[];
+	/**
+	 * Register (or replace) a window control. Built-in controls
+	 * (close, minimize, maximize, focus, detach) live in this same
+	 * registry under the `core/*` id prefix — plugins can `unregister`
+	 * any of them to hide globally, or use per-window
+	 * `appearance.controls.{order, hide, custom}` to mutate just
+	 * one window's cluster.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowControl: ( def: WindowControlDef ) => void;
+	/** Remove a previously registered window control by id. @since 0.6.0 */
+	unregisterWindowControl: ( id: string ) => void;
+	/** Snapshot of registered window controls. @since 0.6.0 */
+	listWindowControls: () => WindowControlDef[];
+	/**
+	 * Apply (or clear) a per-window controls config at runtime.
+	 * Pass `null` / `undefined` to clear and fall back to the
+	 * registry's default resolution.
+	 *
+	 * No-op when the window id is not currently open.
+	 *
+	 * @since 0.6.0
+	 */
+	applyWindowControls: (
+		windowId: string,
+		override: import( './types' ).WindowControlsConfig | null | undefined,
+	) => void;
+	/**
+	 * Register (or replace) a Layer-3 title-bar slot renderer. The
+	 * registered renderer paints into the named slot's host element
+	 * for every window the `match` predicate accepts. Multiple
+	 * registrations targeting the same slot stack in `order`.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowSlot: ( def: WindowSlotDef ) => void;
+	/** Remove a previously registered slot renderer. @since 0.6.0 */
+	unregisterWindowSlot: ( id: string ) => void;
+	/** Snapshot of registered slot renderers. @since 0.6.0 */
+	listWindowSlots: () => WindowSlotDef[];
+	/**
+	 * Apply (or clear) a per-window slot override at runtime. Pass
+	 * `undefined` for `config` to clear the override (default
+	 * content + matching registry entries take over again).
+	 *
+	 * No-op when the window id is not currently open.
+	 *
+	 * @since 0.6.0
+	 */
+	applyWindowSlot: (
+		windowId: string,
+		slot: import( './types' ).WindowSlotName,
+		config: import( './types' ).WindowSlotConfig | undefined,
+	) => void;
+	/**
+	 * **Experimental** — register (or replace) a custom chrome
+	 * implementation. A chrome owns the title-bar DOM tree of any
+	 * window that selects it via `WindowConfig.appearance.chrome`.
+	 * Layer-4 of the chrome framework — Layers 1-3 (theme, controls,
+	 * slots) cover 95%+ of customization use cases by composition.
+	 *
+	 * The chrome render contract may change in future minor versions.
+	 *
+	 * @since 0.6.0
+	 */
+	registerWindowChrome: ( def: WindowChromeDef ) => void;
+	/** Remove a previously registered chrome by id. **Experimental.** @since 0.6.0 */
+	unregisterWindowChrome: ( id: string ) => void;
+	/** Snapshot of registered chromes. **Experimental.** @since 0.6.0 */
+	listWindowChromes: () => WindowChromeDef[];
+	/**
+	 * Set a window's chrome at runtime. Pass `null` / `undefined`
+	 * (or `'core/standard'`) to fall back to the standard chrome.
+	 *
+	 * **Experimental.** @since 0.6.0
+	 */
+	applyWindowChrome: (
+		windowId: string,
+		chromeId: string | null | undefined,
+	) => void;
+	/**
+	 * Apply (or clear) a per-window theme override at runtime.
+	 * Accepts a registered theme id (string), an inline tokens map
+	 * (`Record< string, string >`), an explicit `WindowThemeRef`, or
+	 * `null` to clear the override and fall back to the registry.
+	 *
+	 * No-op when the window id is not currently open.
+	 *
+	 * @since 0.6.0
+	 */
+	applyWindowTheme: (
+		windowId: string,
+		override:
+			| import( './types' ).WindowThemeRef
+			| Record< string, string >
+			| string
+			| null
+			| undefined,
+	) => void;
+	/**
 	 * Open a typed pub/sub connection to another window's iframe.
 	 * Returns a `WindowConnection` with `subscribe`, `send`, and
 	 * `disconnect`. Messages are queued before the iframe acks the
@@ -730,7 +954,16 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
 	'unregisterCommand', 'listCommands', 'registerSettingsTab',
 	'unregisterSettingsTab', 'listSettingsTabs', 'registerTitleBarButton',
-	'unregisterTitleBarButton', 'listTitleBarButtons', 'connect',
+	'unregisterTitleBarButton', 'listTitleBarButtons',
+	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
+	'applyWindowTheme',
+	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
+	'applyWindowControls',
+	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
+	'applyWindowSlot',
+	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
+	'applyWindowChrome',
+	'connect',
 	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
 	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
@@ -1177,6 +1410,71 @@ function init(): void {
 			: [],
 	);
 
+	// Window-theme sync — Layer 1 of the chrome-customization
+	// framework. Loads scripts opted-in via
+	// `desktop_mode_register_window_theme_script()` AND honors
+	// PHP-declared metadata themes (token-only stylesheets) via
+	// `desktop_mode_register_window_theme()`. Live activation /
+	// deactivation paints / unpaints the theme on every open window
+	// the predicate matches.
+	const syncServerWindowThemes = createWindowThemeRegistrySync();
+	void syncServerWindowThemes(
+		Array.isArray( config.serverWindowThemeScripts )
+			? config.serverWindowThemeScripts
+			: [],
+		Array.isArray( config.serverWindowThemes )
+			? config.serverWindowThemes
+			: [],
+	);
+
+	// Layer-2 controls — register the built-in close/minimize/
+	// maximize/focus/detach buttons in the same registry plugins use
+	// for custom controls. Plugins that want to reorder, hide, or
+	// replace built-ins target their `core/*` ids via per-window
+	// `appearance.controls` or via a global `unregisterWindowControl`
+	// call. Idempotent — registering a window with the framework's
+	// own controls before this runs is fine because every Window
+	// constructor calls `repaintWindowControls()` after the registry
+	// is ready.
+	registerBuiltInControls();
+
+	// Plugin-driven control sync — same activation / deactivation
+	// lifecycle as themes and commands. Loads each opted-in plugin
+	// script so its `wp.desktop.registerWindowControl()` calls land,
+	// then drops owner-tagged controls when handles depart the
+	// payload (deactivation).
+	const syncServerWindowControls = createWindowControlRegistrySync();
+	void syncServerWindowControls(
+		Array.isArray( config.serverWindowControlScripts )
+			? config.serverWindowControlScripts
+			: [],
+		Array.isArray( config.serverWindowControls )
+			? config.serverWindowControls
+			: [],
+	);
+
+	// Layer-3 slot sync — same activation / deactivation lifecycle.
+	const syncServerWindowSlots = createWindowSlotRegistrySync();
+	void syncServerWindowSlots(
+		Array.isArray( config.serverWindowSlotScripts )
+			? config.serverWindowSlotScripts
+			: [],
+		Array.isArray( config.serverWindowSlots )
+			? config.serverWindowSlots
+			: [],
+	);
+
+	// Layer-4 (Experimental) custom-chrome sync — same lifecycle.
+	const syncServerWindowChromes = createWindowChromeRegistrySync();
+	void syncServerWindowChromes(
+		Array.isArray( config.serverWindowChromeScripts )
+			? config.serverWindowChromeScripts
+			: [],
+		Array.isArray( config.serverWindowChromes )
+			? config.serverWindowChromes
+			: [],
+	);
+
 	// Cross-window connection bridge — parent side. Builds the
 	// `connect()` factory + the iframe-message router. The router
 	// is wired into `iframe-bridge.ts` below via a side-channel
@@ -1380,6 +1678,46 @@ function init(): void {
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,
+		registerWindowTheme,
+		unregisterWindowTheme,
+		listWindowThemes,
+		applyWindowTheme: ( windowId, override ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceTheme( override );
+		},
+		registerWindowControl,
+		unregisterWindowControl,
+		listWindowControls,
+		applyWindowControls: ( windowId, override ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceControls( override );
+		},
+		registerWindowSlot,
+		unregisterWindowSlot,
+		listWindowSlots,
+		applyWindowSlot: ( windowId, slot, slotConfig ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceSlot( slot, slotConfig );
+		},
+		registerWindowChrome,
+		unregisterWindowChrome,
+		listWindowChromes,
+		applyWindowChrome: ( windowId, chromeId ) => {
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			win.setAppearanceChrome( chromeId );
+		},
 		connect: connectionBridge.connect,
 		broadcast,
 		subscribe,
@@ -1421,7 +1759,25 @@ function init(): void {
 			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
 		},
 	};
-	window.wp.desktop = desktopApi;
+	// Merge the full API onto the early-shim object (NOT reassign
+	// the slot — the shim's `whenReady` closes over `_earlyReadyQueue`,
+	// and reassigning would orphan the queue from the bootstrap's
+	// drain below). Object.assign overwrites `whenReady`/`ready`/
+	// `isReady` with the canonical versions from `src/hooks.ts`.
+	if ( ! window.wp ) {
+		window.wp = {};
+	}
+	if ( ! window.wp.desktop ) {
+		// Shim wasn't installed (degraded path — should never
+		// happen in production because the IIFE at the top of
+		// this module runs before `init()`). Set the slot directly.
+		window.wp.desktop = desktopApi;
+	} else {
+		Object.assign(
+			window.wp.desktop as unknown as Record< string, unknown >,
+			desktopApi as unknown as Record< string, unknown >,
+		);
+	}
 
 	// Wire the cross-feature Heartbeat bus before any consumer
 	// (presence, recycle bin, third-party plugins) registers a
@@ -1456,6 +1812,33 @@ function init(): void {
 	registerBuiltInCommands();
 
 	doAction( HOOKS.INIT, { config } );
+
+	// Drain the early-shim's whenReady queue. Callbacks queued by
+	// consumer scripts that landed BEFORE the bootstrap finished
+	// see a fully-mounted `window.wp.desktop` (full API + HOOKS.INIT
+	// already fired) when they fire. Callbacks queued AFTER this
+	// point go through the canonical `whenReady` from `src/hooks.ts`
+	// (already merged onto the slot above), which handles the
+	// post-init case via `Promise.resolve().then( cb )`.
+	_earlyReady = true;
+	const queued = _earlyReadyQueue.splice( 0 );
+	for ( const cb of queued ) {
+		try {
+			cb();
+		} catch ( err ) {
+			// Don't let one consumer's bad callback strand the
+			// rest. Surface via SHELL_ERROR + console — same shape
+			// as the wallpaper / widget mount error handlers.
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'when-ready-cb',
+				error: err,
+			} );
+			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
+				console.error( '[wp-desktop-mode] whenReady cb threw:', err );
+			}
+		}
+	}
 
 	// Re-apply the wallpaper once init subscribers have had a chance
 	// to register — if the user's saved selection belongs to a plugin

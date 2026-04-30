@@ -48,6 +48,29 @@ interface RequestConnectionOptions {
 	onOpen?: ( conn: ConnectionRecord ) => void;
 }
 
+/**
+ * Iframe-side window-chrome helpers — symmetric with the parent
+ * shell's `wp.desktop.applyWindowTheme` / `applyWindowControls` /
+ * `applyWindowSlot`. The iframe content can re-theme its own
+ * window, reorder controls, or replace a slot without owning a
+ * registry entry on the parent side. Each helper just posts to
+ * the parent; the parent's iframe-bridge handler routes the
+ * message to the appropriate `Window.setAppearance*` method.
+ *
+ * `setSlot` is HTML-only (sandboxed via `textContent` on the
+ * parent) — rich slot renders require a parent-side
+ * `registerWindowSlot()` registration. That asymmetry is by
+ * design: a malicious or buggy iframe can't smuggle script into
+ * the parent shell DOM.
+ *
+ * @since 0.6.0
+ */
+interface IframeChromeApi {
+	setTheme( tokens: Record< string, string > | null ): void;
+	setControls( config: unknown ): void;
+	setSlot( name: string, html: string ): void;
+}
+
 interface IframeApi {
 	publish( topic: string, payload: unknown ): void;
 	subscribe( topic: string, cb: SubscriberCb ): () => void;
@@ -55,6 +78,7 @@ interface IframeApi {
 	requestConnection(
 		opts: RequestConnectionOptions,
 	): Promise< ConnectionRecord >;
+	chrome: IframeChromeApi;
 }
 
 type WindowChannelCb = (
@@ -312,6 +336,51 @@ interface IframeWp {
 		 * `handleConnectionRequest` + the
 		 * `wp-desktop.iframe.connection-request` filter.
 		 */
+		chrome: {
+			setTheme( tokens ) {
+				try {
+					window.parent.postMessage(
+						{
+							type: 'wp-desktop-chrome-theme',
+							tokens: tokens ?? {},
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* parent gone */
+				}
+			},
+			setControls( config ) {
+				try {
+					window.parent.postMessage(
+						{
+							type: 'wp-desktop-chrome-controls',
+							config: config ?? null,
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* parent gone */
+				}
+			},
+			setSlot( name, html ) {
+				if ( typeof name !== 'string' || name === '' ) {
+					return;
+				}
+				try {
+					window.parent.postMessage(
+						{
+							type: 'wp-desktop-chrome-slot',
+							slot: name,
+							html: typeof html === 'string' ? html : '',
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* parent gone */
+				}
+			},
+		},
 		requestConnection( opts ) {
 			const o = opts ?? {};
 			const topics = Array.isArray( o.topics ) ? o.topics.slice() : [];

@@ -182,6 +182,48 @@
        * `handleConnectionRequest` + the
        * `wp-desktop.iframe.connection-request` filter.
        */
+      chrome: {
+        setTheme(tokens) {
+          try {
+            window.parent.postMessage(
+              {
+                type: "wp-desktop-chrome-theme",
+                tokens: tokens ?? {}
+              },
+              parentOrigin
+            );
+          } catch {
+          }
+        },
+        setControls(config) {
+          try {
+            window.parent.postMessage(
+              {
+                type: "wp-desktop-chrome-controls",
+                config: config ?? null
+              },
+              parentOrigin
+            );
+          } catch {
+          }
+        },
+        setSlot(name, html) {
+          if (typeof name !== "string" || name === "") {
+            return;
+          }
+          try {
+            window.parent.postMessage(
+              {
+                type: "wp-desktop-chrome-slot",
+                slot: name,
+                html: typeof html === "string" ? html : ""
+              },
+              parentOrigin
+            );
+          } catch {
+          }
+        }
+      },
       requestConnection(opts) {
         const o = opts ?? {};
         const topics = Array.isArray(o.topics) ? o.topics.slice() : [];

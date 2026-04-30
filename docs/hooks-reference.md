@@ -1581,6 +1581,69 @@ desktop_mode_presence_visible_users( $ids, $viewer_id );
 
 ---
 
+## Window-chrome customization framework — Stable (since 0.6.0)
+
+Four-layer per-window appearance system. Layers 1-3 are Stable;
+Layer 4 (custom chrome render) is **Experimental**. Full recipes:
+[themes](./examples/window-theme.md), [controls](./examples/window-controls.md),
+[slots](./examples/window-slot.md), [custom chrome](./examples/custom-chrome.md).
+
+### Layer 1 — Themes (Stable)
+
+```php
+desktop_mode_register_window_theme_script( $handle );        // primary, low-ceremony
+desktop_mode_register_window_theme( $args );                  // optional metadata
+```
+
+`$args`: `id`, `label`, `tokens` (CSS-variable map, keys must start with `--`), `priority` (default 100), `script` (optional handle).
+
+Actions:
+- `desktop_mode_window_theme_script_registered( $handle )`
+- `desktop_mode_window_theme_registered( $id, $entry )`
+
+### Layer 2 — Controls (Stable)
+
+```php
+desktop_mode_register_window_control_script( $handle );
+desktop_mode_register_window_control( $args );
+```
+
+`$args`: `id`, `label`, `icon`, `placement` (`'left'|'right'|'controls'`, default `'left'`), `order` (default 100), `script`.
+
+Built-in control ids registered by the framework: `core/minimize`, `core/maximize`, `core/focus-tab`, `core/detach`, `core/close`. Plugins can `unregisterWindowControl()` any of them globally, or use per-window `appearance.controls.{order, hide, custom}` for window-scoped mutations.
+
+Actions:
+- `desktop_mode_window_control_script_registered( $handle )`
+- `desktop_mode_window_control_registered( $id, $entry )`
+
+### Layer 3 — Slots (Stable)
+
+```php
+desktop_mode_register_window_slot_script( $handle );
+desktop_mode_register_window_slot( $args );
+```
+
+`$args`: `id`, `slot` (one of `before-titlebar`, `before-icon`, `icon`, `title`, `after-title`, `before-controls`, `after-controls`, `after-titlebar`), `order` (default 100), `script`.
+
+Actions:
+- `desktop_mode_window_slot_script_registered( $handle )`
+- `desktop_mode_window_slot_registered( $id, $entry )`
+
+### Layer 4 — Custom chrome (Experimental)
+
+```php
+desktop_mode_register_window_chrome_script( $handle );
+desktop_mode_register_window_chrome( $args );
+```
+
+`$args`: `id`, `label`, `script`. **Experimental** — chrome render contract may change.
+
+Actions:
+- `desktop_mode_window_chrome_script_registered( $handle )`
+- `desktop_mode_window_chrome_registered( $id, $entry )`
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

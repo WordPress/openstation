@@ -2672,6 +2672,87 @@ Same event shape as `<wpd-text-field>`: `wpd-input-change`,
 
 ---
 
+## Window-chrome customization framework (since 0.6.0)
+
+Per-window appearance customization across four layers. Layers 1-3
+are Stable; Layer 4 is **Experimental**. Recipes live in dedicated
+example docs (linked at the bottom).
+
+### `WindowConfig.appearance` — Stable (Layer 4 Experimental)
+
+A new optional field on every window declaration:
+
+```ts
+interface WindowAppearance {
+    theme?: WindowThemeRef;                       // Layer 1
+    controls?: WindowControlsConfig;              // Layer 2
+    slots?: Partial< Record< WindowSlotName, WindowSlotConfig > >; // Layer 3
+    chrome?: string;                              // Layer 4 — Experimental
+}
+```
+
+### Public APIs on `wp.desktop.*`
+
+```ts
+// Layer 1 — Themes (Stable)
+wp.desktop.registerWindowTheme( def );          // throws RegistrationError on bad input
+wp.desktop.unregisterWindowTheme( id );
+wp.desktop.listWindowThemes();
+wp.desktop.applyWindowTheme( windowId, override );
+
+// Layer 2 — Controls (Stable)
+wp.desktop.registerWindowControl( def );
+wp.desktop.unregisterWindowControl( id );       // pass 'core/close' to hide globally
+wp.desktop.listWindowControls();
+wp.desktop.applyWindowControls( windowId, override );
+
+// Layer 3 — Slots (Stable)
+wp.desktop.registerWindowSlot( def );
+wp.desktop.unregisterWindowSlot( id );
+wp.desktop.listWindowSlots();
+wp.desktop.applyWindowSlot( windowId, slot, config );
+
+// Layer 4 — Custom chrome (Experimental)
+wp.desktop.registerWindowChrome( def );
+wp.desktop.unregisterWindowChrome( id );
+wp.desktop.listWindowChromes();
+wp.desktop.applyWindowChrome( windowId, chromeId );
+```
+
+### JS hooks (under `wp.hooks` / `addFilter`-`addAction`)
+
+| Name | Type | Status | Notes |
+|------|------|--------|-------|
+| `wp-desktop.window.chrome.theme` | filter | Stable | Mutate the resolved CSS-variable map per window. |
+| `wp-desktop.window.chrome.theme-changed` | action | Stable | Fires after each successful theme apply. |
+| `wp-desktop.window.chrome.controls` | filter | Stable | Mutate the resolved per-placement control list. |
+| `wp-desktop.window.chrome.slot` | filter | Stable | Mutate the host element of each slot after content settles. |
+| `wp-desktop.window.chrome.render` | filter | Experimental | Mutate the chrome id selected for a window. |
+| `wp-desktop.window.chrome.applied` | action | Stable | Fires per layer after a paint completes. `layer` is `'controls' \| 'slots' \| 'chrome'`. |
+
+### Iframe-side bridge (`wp.desktop.iframe.chrome.*`) — Stable
+
+Inside any chromeless iframe, plugin code can drive its own window's chrome via these helpers (parent-side handlers route them to the matching `Window.setAppearance*` methods):
+
+```ts
+wp.desktop.iframe.chrome.setTheme( tokens );    // CSS-var map
+wp.desktop.iframe.chrome.setControls( config ); // WindowControlsConfig
+wp.desktop.iframe.chrome.setSlot( name, html ); // sandboxed via textContent
+```
+
+### postMessage protocol additions
+
+```ts
+// iframe → parent
+{ type: 'wp-desktop-chrome-theme',    tokens: Record< string, string > }
+{ type: 'wp-desktop-chrome-controls', config: WindowControlsConfig }
+{ type: 'wp-desktop-chrome-slot',     slot: string, html: string }
+```
+
+Each is origin-gated to the parent shell's origin and source-gated to the matching window's iframe `contentWindow`.
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.
@@ -2681,3 +2762,7 @@ Same event shape as `<wpd-text-field>`: `wpd-input-change`,
 - [Examples — Cross-window devtools](./examples/devtools-instrumentation.md)
 - [Examples — Send a chat message](./examples/messaging-send.md)
 - [Examples — Pulse a window's icon](./examples/window-request-attention.md)
+- [Examples — Window themes](./examples/window-theme.md)
+- [Examples — Window controls](./examples/window-controls.md)
+- [Examples — Window slots](./examples/window-slot.md)
+- [Examples — Custom window chrome (Experimental)](./examples/custom-chrome.md)
