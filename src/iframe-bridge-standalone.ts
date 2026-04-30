@@ -48,6 +48,29 @@ interface RequestConnectionOptions {
 	onOpen?: ( conn: ConnectionRecord ) => void;
 }
 
+/**
+ * Iframe-side window-chrome helpers — symmetric with the parent
+ * shell's `wp.desktop.applyWindowTheme` / `applyWindowControls` /
+ * `applyWindowSlot`. The iframe content can re-theme its own
+ * window, reorder controls, or replace a slot without owning a
+ * registry entry on the parent side. Each helper just posts to
+ * the parent; the parent's iframe-bridge handler routes the
+ * message to the appropriate `Window.setAppearance*` method.
+ *
+ * `setSlot` is HTML-only (sandboxed via `textContent` on the
+ * parent) — rich slot renders require a parent-side
+ * `registerWindowSlot()` registration. That asymmetry is by
+ * design: a malicious or buggy iframe can't smuggle script into
+ * the parent shell DOM.
+ *
+ * @since 0.6.0
+ */
+interface IframeChromeApi {
+	setTheme( tokens: Record< string, string > | null ): void;
+	setControls( config: unknown ): void;
+	setSlot( name: string, html: string ): void;
+}
+
 interface IframeApi {
 	publish( topic: string, payload: unknown ): void;
 	subscribe( topic: string, cb: SubscriberCb ): () => void;
@@ -55,10 +78,20 @@ interface IframeApi {
 	requestConnection(
 		opts: RequestConnectionOptions,
 	): Promise< ConnectionRecord >;
+	chrome: IframeChromeApi;
 }
 
+type WindowChannelCb = (
+	payload: unknown,
+	meta: { channel: string },
+) => void;
+
 interface IframeWp {
-	desktop?: { iframe?: IframeApi };
+	desktop?: {
+		iframe?: IframeApi;
+		send?: ( channel: string, payload?: unknown ) => void;
+		on?: ( channel: string, cb: WindowChannelCb ) => () => void;
+	};
 }
 
 ( function() {
@@ -78,6 +111,15 @@ interface IframeWp {
 	const connections: Record< string, ConnectionRecord > = {};
 	const connectionListeners: ConnectionListenerCb[] = [];
 	const subs: Record< string, SubscriberCb[] > = {};
+
+	/**
+	 * Per-channel subscribers for the unified window-channel API
+	 * (`wp.desktop.send` / `wp.desktop.on`). Distinct from the
+	 * connection-bridge `subs` map above — this one fires from
+	 * `wp-desktop-window-send` messages the parent posts on
+	 * `Window.send( channel, payload )`.
+	 */
+	const channelSubs: Record< string, WindowChannelCb[] > = {};
 
 	const emitToParent = (
 		connectionId: string,
@@ -197,6 +239,37 @@ interface IframeWp {
 		) {
 			delete connections[ data.connectionId ];
 		}
+
+		// Unified window-channel delivery from the parent. Fires
+		// every `wp.desktop.on( channel, cb )` subscriber for the
+		// matching channel.
+		if (
+			data.type === 'wp-desktop-window-send' &&
+			typeof ( data as { channel?: unknown } ).channel === 'string'
+		) {
+			const d = data as { channel: string; payload?: unknown };
+			const meta = { channel: d.channel };
+			const bucket = channelSubs[ d.channel ];
+			if ( bucket ) {
+				for ( const cb of bucket.slice() ) {
+					try {
+						cb( d.payload, meta );
+					} catch {
+						/* swallow subscriber */
+					}
+				}
+			}
+			const wildcard = channelSubs[ '*' ];
+			if ( wildcard ) {
+				for ( const cb of wildcard.slice() ) {
+					try {
+						cb( d.payload, meta );
+					} catch {
+						/* swallow */
+					}
+				}
+			}
+		}
 	} );
 
 	const iframeApi: IframeApi = {
@@ -263,6 +336,51 @@ interface IframeWp {
 		 * `handleConnectionRequest` + the
 		 * `wp-desktop.iframe.connection-request` filter.
 		 */
+		chrome: {
+			setTheme( tokens ) {
+				try {
+					window.parent.postMessage(
+						{
+							type: 'wp-desktop-chrome-theme',
+							tokens: tokens ?? {},
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* parent gone */
+				}
+			},
+			setControls( config ) {
+				try {
+					window.parent.postMessage(
+						{
+							type: 'wp-desktop-chrome-controls',
+							config: config ?? null,
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* parent gone */
+				}
+			},
+			setSlot( name, html ) {
+				if ( typeof name !== 'string' || name === '' ) {
+					return;
+				}
+				try {
+					window.parent.postMessage(
+						{
+							type: 'wp-desktop-chrome-slot',
+							slot: name,
+							html: typeof html === 'string' ? html : '',
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* parent gone */
+				}
+			},
+		},
 		requestConnection( opts ) {
 			const o = opts ?? {};
 			const topics = Array.isArray( o.topics ) ? o.topics.slice() : [];
@@ -361,6 +479,65 @@ interface IframeWp {
 		w.wp.desktop = {};
 	}
 	w.wp.desktop.iframe = iframeApi;
+
+	/**
+	 * Unified window-channel API. The parent posts on this window
+	 * via `Window.send( channel, payload )`; iframe-side handlers
+	 * register via `wp.desktop.on( channel, cb )`. Symmetric with
+	 * the native render's `windowApi.on()` — plugin authors write
+	 * the same code regardless of which side they're on.
+	 *
+	 * Sending the OTHER way (`wp.desktop.send( channel, payload )`)
+	 * posts a `wp-desktop-window-publish` message up to the parent,
+	 * where every `Window.on( channel, cb )` subscriber fires.
+	 *
+	 * @since 0.5.5
+	 */
+	if ( typeof w.wp.desktop.send !== 'function' ) {
+		w.wp.desktop.send = ( channel: string, payload?: unknown ): void => {
+			if ( typeof channel !== 'string' || channel === '' ) {
+				return;
+			}
+			try {
+				window.parent.postMessage(
+					{
+						type: 'wp-desktop-window-publish',
+						channel,
+						payload,
+					},
+					parentOrigin,
+				);
+			} catch {
+				/* parent gone — silently drop */
+			}
+		};
+	}
+	if ( typeof w.wp.desktop.on !== 'function' ) {
+		w.wp.desktop.on = (
+			channel: string,
+			cb: WindowChannelCb,
+		): () => void => {
+			if (
+				typeof channel !== 'string' ||
+				channel === '' ||
+				typeof cb !== 'function'
+			) {
+				return () => undefined;
+			}
+			let bucket = channelSubs[ channel ];
+			if ( ! bucket ) {
+				bucket = [];
+				channelSubs[ channel ] = bucket;
+			}
+			bucket.push( cb );
+			return () => {
+				const i = bucket!.indexOf( cb );
+				if ( i >= 0 ) {
+					bucket!.splice( i, 1 );
+				}
+			};
+		};
+	}
 
 	// -----------------------------------------------------------------
 	// Screen-meta hoist — Help & Screen Options icons.

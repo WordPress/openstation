@@ -53,8 +53,14 @@ describe( 'commands/server-sync.ts', () => {
 		] );
 
 		expect( spy ).toHaveBeenCalledTimes( 2 );
-		expect( spy ).toHaveBeenCalledWith( 'https://example.test/a.js' );
-		expect( spy ).toHaveBeenCalledWith( 'https://example.test/b.js' );
+		expect( spy ).toHaveBeenCalledWith(
+			'https://example.test/a.js',
+			expect.any( Object ),
+		);
+		expect( spy ).toHaveBeenCalledWith(
+			'https://example.test/b.js',
+			expect.any( Object ),
+		);
 	} );
 
 	test( 'is idempotent — a second sync with the same handles is a no-op', async () => {

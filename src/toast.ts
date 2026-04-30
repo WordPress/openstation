@@ -16,6 +16,7 @@
  * @since 0.7.0
  */
 
+import { activity } from './activity';
 import './ui/components/wpd-toast/wpd-toast';
 
 /** Default how-long-it-stays duration in ms. */
@@ -45,18 +46,59 @@ export interface ToastOptions {
 }
 
 /**
+ * Toast intent payload routed through the
+ * `wp-desktop/toast-requested` filter. Plugins can mutate the
+ * fields, set `cancel: true` to suppress the render, or pass
+ * through unchanged. Caller-supplied `meta` carries the
+ * publishing app's context — useful for filters that want to
+ * make policy decisions per-source ("ignore toasts from
+ * messages while DND is on", etc.).
+ *
+ * @since 0.5.5
+ */
+export interface ToastIntent extends ToastOptions {
+	/**
+	 * Originating app id, for filter scoping. Conventional
+	 * value: the plugin's Vite bundle / module slug.
+	 */
+	source?: string;
+	/**
+	 * Free-form context the publishing app attaches; filters
+	 * can read but should not require any specific shape.
+	 */
+	meta?: Record< string, unknown >;
+	/** Filter sets this to `true` to suppress the render. */
+	cancel?: boolean;
+}
+
+/**
  * Show a toast. Returns a dismiss callback the caller can invoke
  * early (e.g., when the state the toast was reporting changes).
+ *
+ * Routes through `wp-desktop/toast-requested` activity filter
+ * before painting — plugins can register a filter that returns
+ * `null` (or sets `cancel: true`) to suppress, or mutates the
+ * payload to amplify / quiet the toast. Without a registered
+ * filter the call passes through unchanged: zero-cost transparent
+ * pipe.
  */
 export function showToast( options: ToastOptions ): () => void {
+	const intent: ToastIntent = activity.filter(
+		'wp-desktop/toast-requested',
+		{ ...options },
+	) as ToastIntent;
+	if ( ! intent || intent.cancel === true ) {
+		return () => undefined;
+	}
+
 	const container = ensureContainer();
 	const toast = document.createElement( 'wpd-toast' );
-	toast.textContent = options.message;
+	toast.textContent = intent.message;
 
-	if ( options.action ) {
-		toast.setAttribute( 'action', options.action.label );
+	if ( intent.action ) {
+		toast.setAttribute( 'action', intent.action.label );
 		toast.addEventListener( 'wpd-toast-action', () => {
-			options.action?.onClick();
+			intent.action?.onClick();
 			dismiss();
 		} );
 	}
@@ -88,8 +130,14 @@ export function showToast( options: ToastOptions ): () => void {
 
 	dismissTimer = window.setTimeout(
 		dismiss,
-		options.duration ?? DEFAULT_DURATION_MS,
+		intent.duration ?? DEFAULT_DURATION_MS,
 	) as unknown as number;
+
+	// Fire-and-forget broadcast that a toast went up. Audit /
+	// telemetry plugins subscribe; the toast renderer doesn't wait
+	// for these handlers (publish is synchronous but consumers
+	// shouldn't lean on that).
+	activity.publish( 'wp-desktop/toast-shown', { ...intent } );
 
 	return dismiss;
 }

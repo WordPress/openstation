@@ -62,7 +62,12 @@ export function createCommandRegistrySync(): (
 			return;
 		}
 		try {
-			await loadVendorScript( entry.scriptUrl );
+			await loadVendorScript( entry.scriptUrl, {
+				translations: entry.scriptTranslations,
+				l10n: entry.scriptL10n,
+				before: entry.scriptBefore,
+				after: entry.scriptAfter,
+			} );
 		} catch ( err ) {
 			doAction( HOOKS.SHELL_ERROR, {
 				scope: 'command-script-load',

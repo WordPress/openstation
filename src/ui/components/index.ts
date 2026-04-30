@@ -59,6 +59,10 @@ export type {
 	WpdSpinnerPreset,
 	WpdSpinnerPulse,
 } from './wpd-spinner/wpd-spinner';
+export { WpdRelativeTime } from './wpd-relative-time/wpd-relative-time';
+export { WpdAvatar } from './wpd-avatar/wpd-avatar';
+export type { WpdAvatarPresence } from './wpd-avatar/wpd-avatar';
+export { WpdTextarea } from './wpd-textarea/wpd-textarea';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -106,4 +110,7 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-step',
 	'wpd-table',
 	'wpd-spinner',
+	'wpd-relative-time',
+	'wpd-avatar',
+	'wpd-textarea',
 ] as const;

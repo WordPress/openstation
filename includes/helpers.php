@@ -837,6 +837,30 @@ function desktop_mode_build_menu_payload() {
 		'serverTitleBarButtonScripts' => function_exists( 'desktop_mode_build_desktop_titlebar_button_scripts_payload' )
 			? desktop_mode_build_desktop_titlebar_button_scripts_payload()
 			: array(),
+		'serverWindowThemeScripts'  => function_exists( 'desktop_mode_build_window_theme_scripts_payload' )
+			? desktop_mode_build_window_theme_scripts_payload()
+			: array(),
+		'serverWindowThemes'        => function_exists( 'desktop_mode_build_window_themes_payload' )
+			? desktop_mode_build_window_themes_payload()
+			: array(),
+		'serverWindowControlScripts' => function_exists( 'desktop_mode_build_window_control_scripts_payload' )
+			? desktop_mode_build_window_control_scripts_payload()
+			: array(),
+		'serverWindowControls'      => function_exists( 'desktop_mode_build_window_controls_payload' )
+			? desktop_mode_build_window_controls_payload()
+			: array(),
+		'serverWindowSlotScripts'   => function_exists( 'desktop_mode_build_window_slot_scripts_payload' )
+			? desktop_mode_build_window_slot_scripts_payload()
+			: array(),
+		'serverWindowSlots'         => function_exists( 'desktop_mode_build_window_slots_payload' )
+			? desktop_mode_build_window_slots_payload()
+			: array(),
+		'serverWindowChromeScripts' => function_exists( 'desktop_mode_build_window_chrome_scripts_payload' )
+			? desktop_mode_build_window_chrome_scripts_payload()
+			: array(),
+		'serverWindowChromes'       => function_exists( 'desktop_mode_build_window_chromes_payload' )
+			? desktop_mode_build_window_chromes_payload()
+			: array(),
 		'desktopIcons'     => function_exists( 'desktop_mode_build_desktop_icons_payload' )
 			? desktop_mode_build_desktop_icons_payload()
 			: array(),
@@ -844,35 +868,70 @@ function desktop_mode_build_menu_payload() {
 }
 
 /**
- * Resolve a registered WP script handle to an absolute URL
- * (with version cache-buster appended). Returns an empty string
- * when the handle isn't registered or has no source — callers
- * treat an empty string as "no script to load."
+ * Resolve a registered WP script handle into the full payload the
+ * shell needs to lazy-load it without going through `wp_print_scripts()`.
+ *
+ * Returns:
+ *
+ * ```
+ * array(
+ *     'url'          => 'https://…/script.js?ver=…',
+ *     'before'       => array( /* `wp_add_inline_script( $h, $code, 'before' )` strings *\/ ),
+ *     'after'        => array( /* `wp_add_inline_script( $h, $code, 'after' )` strings *\/ ),
+ *     'l10n'         => array( /* `wp_localize_script( $h, $name, $data )` precomputed `<script>var $name = …;</script>` strings *\/ ),
+ *     'translations' => string, /* `wp_set_script_translations()` JED chunk *\/
+ * )
+ * ```
+ *
+ * **The `l10n` / `before` / `after` / `translations` fields exist
+ * because the lazy-load path in the shell appends a raw
+ * `<script src="…">` and never invokes `wp_print_scripts()` — so any
+ * `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations`
+ * data attached to the handle would be silently dropped without this
+ * harvest.** The shell injects each entry as inline `<script>` tags
+ * around the lazy `<script src>` in the same order
+ * `WP_Scripts::do_item()` would have used.
+ *
+ * Returns an empty payload (`array( 'url' => '' )`) when the handle
+ * is unregistered or has no source — callers treat that as "no
+ * script to load."
  *
  * Shared between `desktop_mode_register_window()` and
- * `desktop_mode_register_widget()` because both need the same
- * handle→URL plumbing to power mid-session dynamic script
- * loading in the shell.
+ * `desktop_mode_register_widget()` (and every other registration that
+ * relies on lazy script loading in the shell) because all of them
+ * need identical handle→payload plumbing to power mid-session dynamic
+ * script loading without the `wp_print_scripts` lifecycle.
  *
  * @since 0.10.0
+ * @since 0.6.0 Returns full payload (was `string` URL only). Renamed
+ *              from `desktop_mode_resolve_script_url`.
  *
  * @param string $handle WP script handle.
- * @return string Absolute URL, or empty string on miss.
+ * @return array{ url:string, before:string[], after:string[], l10n:string[], translations:string } Payload (empty `url` on miss).
  */
-function desktop_mode_resolve_script_url( $handle ) {
+function desktop_mode_resolve_script_payload( $handle ) {
+	$empty = array(
+		'url'          => '',
+		'before'       => array(),
+		'after'        => array(),
+		'l10n'         => array(),
+		'translations' => '',
+	);
+
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return '';
+		return $empty;
 	}
 	$wp_scripts = wp_scripts();
 	if ( ! $wp_scripts || ! isset( $wp_scripts->registered[ $handle ] ) ) {
-		return '';
+		return $empty;
 	}
 	$registered = $wp_scripts->registered[ $handle ];
 	$src        = is_string( $registered->src ) ? $registered->src : '';
 	if ( '' === $src ) {
-		return '';
+		return $empty;
 	}
+
 	// Normalize relative paths + attach cache-bust ver.
 	$resolved = $src;
 	if ( 0 === strpos( $resolved, '/' ) && 0 !== strpos( $resolved, '//' ) ) {
@@ -881,7 +940,56 @@ function desktop_mode_resolve_script_url( $handle ) {
 	if ( ! empty( $registered->ver ) ) {
 		$resolved = add_query_arg( 'ver', $registered->ver, $resolved );
 	}
-	return $resolved;
+
+	// Harvest `extra` data the lazy-load path would otherwise drop.
+	$before = array();
+	$after  = array();
+	$l10n   = array();
+
+	if ( isset( $registered->extra['before'] ) && is_array( $registered->extra['before'] ) ) {
+		foreach ( $registered->extra['before'] as $code ) {
+			$code = (string) $code;
+			if ( '' !== $code ) {
+				$before[] = $code;
+			}
+		}
+	}
+	if ( isset( $registered->extra['after'] ) && is_array( $registered->extra['after'] ) ) {
+		foreach ( $registered->extra['after'] as $code ) {
+			$code = (string) $code;
+			if ( '' !== $code ) {
+				$after[] = $code;
+			}
+		}
+	}
+	// `wp_localize_script` stores its JS at `extra['data']` as a single
+	// concatenated string of `var x = …;` assignments. We capture it
+	// verbatim — the shell will eval it as the body of an inline
+	// `<script>` tag, mirroring what `WP_Scripts::print_extra_script()`
+	// does at print time.
+	if ( ! empty( $registered->extra['data'] ) && is_string( $registered->extra['data'] ) ) {
+		$l10n[] = $registered->extra['data'];
+	}
+
+	// Translations chunk — `wp_set_script_translations()` builds a
+	// `wp.i18n.setLocaleData( JSON, 'domain' )` snippet that the print
+	// pipeline emits before the script body. `print_translations(
+	// $handle, false )` returns the snippet without echoing.
+	$translations = '';
+	if ( method_exists( $wp_scripts, 'print_translations' ) ) {
+		$captured = $wp_scripts->print_translations( $handle, false );
+		if ( is_string( $captured ) ) {
+			$translations = $captured;
+		}
+	}
+
+	return array(
+		'url'          => $resolved,
+		'before'       => $before,
+		'after'        => $after,
+		'l10n'         => $l10n,
+		'translations' => $translations,
+	);
 }
 
 /**
@@ -943,6 +1051,30 @@ function desktop_mode_flush_script_handle_registries() {
 	if ( function_exists( 'desktop_mode_flush_desktop_titlebar_button_script_registry' ) ) {
 		desktop_mode_flush_desktop_titlebar_button_script_registry();
 	}
+	if ( function_exists( 'desktop_mode_flush_window_theme_script_registry' ) ) {
+		desktop_mode_flush_window_theme_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_theme_registry' ) ) {
+		desktop_mode_flush_window_theme_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_control_script_registry' ) ) {
+		desktop_mode_flush_window_control_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_control_registry' ) ) {
+		desktop_mode_flush_window_control_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_slot_script_registry' ) ) {
+		desktop_mode_flush_window_slot_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_slot_registry' ) ) {
+		desktop_mode_flush_window_slot_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_chrome_script_registry' ) ) {
+		desktop_mode_flush_window_chrome_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_chrome_registry' ) ) {
+		desktop_mode_flush_window_chrome_registry();
+	}
 	desktop_mode_warn_unresolvable_script_handle( '', '', '__flush__' );
 }
 
@@ -983,45 +1115,78 @@ function desktop_mode_build_native_windows_payload() {
 		// reload.
 		$template_html = desktop_mode_build_native_window_template_html( $entry );
 
-		// Resolve script handle → URL so the shell can inject a
-		// `<script>` tag dynamically on mid-session activation.
-		$script_handle = isset( $entry['script'] ) ? (string) $entry['script'] : '';
-		$script_url    = desktop_mode_resolve_script_url( $script_handle );
+		// Resolve script handle → full payload (URL + harvested
+		// `extra` data) so the shell can inject a `<script>` tag
+		// dynamically on mid-session activation WITHOUT dropping
+		// `wp_localize_script` / `wp_add_inline_script` data the way
+		// the bare `<script src>` lazy-load path would. See
+		// `desktop_mode_resolve_script_payload()` for shape.
+		$script_handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
+		$script_payload = desktop_mode_resolve_script_payload( $script_handle );
 
-		// Tab metadata (label + extra script URLs) ships alongside
+		// `config` arg on `desktop_mode_register_window()` — discoverable
+		// alternative to `wp_localize_script`. We synthesize a localize
+		// snippet so it lands through the same delivery path as native
+		// `wp_localize_script`. The bundle reads
+		// `window.wpDesktopWindowConfig[id]` (or via
+		// `wp.desktop.getWindowConfig(id)`).
+		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+			$script_payload['l10n'][] = sprintf(
+				'window.wpDesktopWindowConfig=window.wpDesktopWindowConfig||{};window.wpDesktopWindowConfig[%s]=%s;',
+				wp_json_encode( $entry['id'] ),
+				wp_json_encode( $entry['config'] )
+			);
+		}
+
+		// Tab metadata (label + extra script payloads) ships alongside
 		// the template so the shell can render a picker UI or load
 		// additional tab scripts when a tab's activation is late.
 		$tab_descriptors = array();
 		if ( function_exists( 'desktop_mode_get_native_window_tabs' ) ) {
 			foreach ( desktop_mode_get_native_window_tabs( $entry['id'] ) as $tab ) {
-				$tab_descriptors[] = array(
-					'value'        => $tab['value'],
-					'label'        => $tab['label'],
-					'isMain'       => $tab['is_main'],
-					'scriptUrl'    => '' !== $tab['script']
-						? desktop_mode_resolve_script_url( $tab['script'] )
-						: '',
-					'scriptHandle' => $tab['script'],
+				$tab_payload                 = '' !== $tab['script']
+					? desktop_mode_resolve_script_payload( $tab['script'] )
+					: array(
+						'url'          => '',
+						'before'       => array(),
+						'after'        => array(),
+						'l10n'         => array(),
+						'translations' => '',
+					);
+				$tab_descriptors[]           = array(
+					'value'             => $tab['value'],
+					'label'             => $tab['label'],
+					'isMain'            => $tab['is_main'],
+					'scriptUrl'         => $tab_payload['url'],
+					'scriptHandle'      => $tab['script'],
+					'scriptBefore'      => $tab_payload['before'],
+					'scriptAfter'       => $tab_payload['after'],
+					'scriptL10n'        => $tab_payload['l10n'],
+					'scriptTranslations' => $tab_payload['translations'],
 				);
 			}
 		}
 
 		$out[] = array(
-			'id'           => $entry['id'],
-			'title'        => $entry['title'],
-			'icon'         => $entry['icon'],
-			'placement'    => $entry['placement'],
-			'width'        => $entry['width'],
-			'height'       => $entry['height'],
-			'minWidth'     => $entry['min_width'],
-			'minHeight'    => $entry['min_height'],
-			'autofocus'    => $entry['autofocus'],
-			'templateId'   => 'wpdm-native-window-' . $entry['id'],
-			'templateHtml' => $template_html,
-			'scriptUrl'    => $script_url,
-			'scriptHandle' => $script_handle,
-			'ownerHandle'  => $script_handle,
-			'tabs'         => $tab_descriptors,
+			'id'                => $entry['id'],
+			'title'             => $entry['title'],
+			'icon'              => $entry['icon'],
+			'placement'         => $entry['placement'],
+			'width'             => $entry['width'],
+			'height'            => $entry['height'],
+			'minWidth'          => $entry['min_width'],
+			'minHeight'         => $entry['min_height'],
+			'autofocus'         => $entry['autofocus'],
+			'templateId'        => 'wpdm-native-window-' . $entry['id'],
+			'templateHtml'      => $template_html,
+			'scriptUrl'         => $script_payload['url'],
+			'scriptHandle'      => $script_handle,
+			'ownerHandle'       => $script_handle,
+			'scriptBefore'      => $script_payload['before'],
+			'scriptAfter'       => $script_payload['after'],
+			'scriptL10n'        => $script_payload['l10n'],
+			'scriptTranslations' => $script_payload['translations'],
+			'tabs'              => $tab_descriptors,
 		);
 	}
 

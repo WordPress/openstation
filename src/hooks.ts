@@ -228,6 +228,13 @@ export const HOOKS = {
 	 */
 	SHELL_ERROR: 'wp-desktop.shell.error',
 	/**
+	 * Action, fires once per `wp.desktop.broadcast()` call with the
+	 * fully-resolved `{ topic, payload }` detail. Lets plugins log,
+	 * mirror, or augment broadcast traffic without subscribing for
+	 * every individual topic.
+	 */
+	BROADCAST: 'wp-desktop.broadcast',
+	/**
 	 * Filter, applies to a `MonitorEntry` before a monitor widget
 	 * renders it. Plugins can mutate the entry (rewrite the message,
 	 * add `extra` fields) or return `null` to suppress it. Used by
@@ -264,6 +271,89 @@ export const HOOKS = {
 	/** Action, fires when a window is added to the stack. */
 	WINDOW_OPENED: 'wp-desktop.window.opened',
 	/**
+	 * Action, fires when a window's body enters the loading state — at
+	 * construction (every window starts loading) and whenever a plugin
+	 * calls {@link NativeRenderContext.window.markLoading} or
+	 * `Window.markContentLoading()` mid-life. Payload: `{ windowId }`.
+	 *
+	 * The shell shows a `<wpd-spinner>` overlay while the window is in
+	 * the loading state and fades content in on the loaded transition.
+	 * Subscribe to this hook (or to {@link WINDOW_CONTENT_LOADED}) when
+	 * you need to react to either edge — analytics, instrumentation,
+	 * decorating the spinner with a per-window message.
+	 *
+	 * Edge-triggered: idempotent calls don't re-fire. The matching
+	 * `wp-desktop-window-content-loading` CustomEvent dispatches on
+	 * `document` with the same payload.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CONTENT_LOADING: 'wp-desktop.window.content-loading',
+	/**
+	 * Action, fires when a window's body content becomes ready — for
+	 * iframe windows the moment the chromeless bridge announces
+	 * `wp-desktop-ready`, for native windows after the user's
+	 * `render( body )` callback (or its returned promise) resolves, and
+	 * whenever a plugin calls {@link NativeRenderContext.window.markReady}
+	 * or `Window.markContentLoaded()` mid-life. Payload: `{ windowId }`.
+	 *
+	 * The unified "window content is ready" signal across both render
+	 * strategies — use this instead of branching on iframe vs. native.
+	 * Iframe-only consumers can still subscribe to {@link IFRAME_READY},
+	 * which fires alongside this hook for iframe windows. The shell
+	 * removes the loading overlay and fades the content in on this
+	 * transition.
+	 *
+	 * Edge-triggered: only fires on a loading → ready transition.
+	 * The matching `wp-desktop-window-content-loaded` CustomEvent
+	 * dispatches on `document` with the same payload.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CONTENT_LOADED: 'wp-desktop.window.content-loaded',
+	/**
+	 * Filter, applied to the loading-overlay HTMLElement just after
+	 * the shell paints its default `<wpd-spinner>` and after any
+	 * per-window inline customization (`config.loading.render`)
+	 * runs. Receives the overlay element; context: `{ windowId,
+	 * config }`. Plugins may mutate the element (e.g.
+	 * `host.replaceChildren( myBrandedLoader )` to swap out the
+	 * default entirely, or `host.querySelector('wpd-spinner')!.
+	 * setAttribute('preset', 'comet')` to retune the spinner) or
+	 * return a different element to replace the overlay wholesale.
+	 *
+	 * Use cases: a brand-skin plugin that overrides every window's
+	 * spinner with its own logo; a status-bar plugin that adds
+	 * "Loading… 47% — fetching posts" text; an A/B-test framework
+	 * that swaps the loader during an experiment.
+	 *
+	 * Resolution order for the loading overlay:
+	 *   1. Default content (`<wpd-spinner>`) is painted.
+	 *   2. Per-window `config.loading.render( host, ctx )` runs.
+	 *   3. This filter runs.
+	 *   4. The result is appended to the window body.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_LOADING_OVERLAY: 'wp-desktop.window.loading-overlay',
+	/**
+	 * Action, fires when `manager.open(...)` is called for a baseId
+	 * whose window already exists on the active desktop. This is the
+	 * unambiguous "user requested to open this window again" signal
+	 * — distinct from focus changes (which double-fire on alt-tab and
+	 * skip when already focused) and from `WINDOW_OPENED` (which only
+	 * fires on first creation). Payload:
+	 * `{ windowId: string, baseId: string, wasMinimized: boolean }`.
+	 *
+	 * Plugins that hold per-window state (e.g. the code-editor's
+	 * active file) should listen here to re-orient the existing
+	 * window's content to whatever the caller wants to show — the
+	 * open-window call is synchronous, so any state the caller sets
+	 * BEFORE invoking `openWindow` is already in place when this
+	 * fires.
+	 */
+	WINDOW_REOPENED: 'wp-desktop.window.reopened',
+	/**
 	 * Action, fires BEFORE the window's element is detached from the
 	 * DOM but AFTER the manager has already removed it from the stack.
 	 * Payload: `{ windowId: string, element: HTMLElement }`.
@@ -280,6 +370,22 @@ export const HOOKS = {
 	WINDOW_CLOSED: 'wp-desktop.window.closed',
 	/** Action, fires when focus changes to a different window. */
 	WINDOW_FOCUSED: 'wp-desktop.window.focused',
+	/**
+	 * Action, fires for the window that LOST focus when another
+	 * window takes over. Symmetric counterpart to
+	 * `WINDOW_FOCUSED`. Payload: `{ windowId: string, focusedTo:
+	 * string | null }` — `focusedTo` identifies the new top of
+	 * the stack so blur subscribers can ignore alt-tabs to a
+	 * sibling they own.
+	 *
+	 * No-op when there's no previously-focused window (initial
+	 * boot, all-windows-closed). Manager fires this BEFORE
+	 * `WINDOW_FOCUSED` so subscribers see "blur old, focus new"
+	 * in deterministic order.
+	 *
+	 * @since 0.5.5
+	 */
+	WINDOW_BLURRED: 'wp-desktop.window.blurred',
 	/** Action, fires when a window is minimized. */
 	WINDOW_MINIMIZED: 'wp-desktop.window.minimized',
 	/** Action, fires when a window is restored from minimized. */
@@ -328,6 +434,17 @@ export const HOOKS = {
 	/** Action, fires when iframe title updates change the window title. */
 	WINDOW_TITLE_CHANGED: 'wp-desktop.window.title-changed',
 	/**
+	 * Action, fires when a window's `setHighlight()` mode changes.
+	 * Payload: `{ windowId: string, mode: 'preview' | 'persistent' | null,
+	 * color?: string }`. Lets onboarding / guidance / drag-bridge
+	 * plugins react when another module flagged one of their
+	 * windows as the focus of a multi-step interaction without
+	 * having to observe DOM mutations.
+	 *
+	 * @since 0.24.0
+	 */
+	WINDOW_HIGHLIGHT_CHANGED: 'wp-desktop.window.highlight-changed',
+	/**
 	 * Action, fires when a window's body element's dimensions
 	 * change — mount, user resize, viewport reflow. Payload: `{
 	 * windowId: string, width: number, height: number }`. Body
@@ -375,6 +492,74 @@ export const HOOKS = {
 	 */
 	NATIVE_WINDOW_BEFORE_CLOSE: 'wp-desktop.native-window.before-close',
 
+	// ------------------------------------------------------------------
+	// Window-chrome customization framework. Plugins drive per-window
+	// appearance (theme, controls, slots, full chrome render) through
+	// the `wp.desktop.registerWindow*` registries; these hooks expose
+	// every resolution step so plugins can mutate or observe the
+	// chrome pipeline without owning a registration.
+	//
+	// Layers 1-3 (theme, controls, slots) are Stable. Layer 4 (chrome
+	// render) is Experimental — `WINDOW_CHROME_RENDER` may change.
+	// ------------------------------------------------------------------
+
+	/**
+	 * Filter, applied to the resolved CSS-variable map for a window.
+	 * Receives `Record< string, string >`; context: `{ windowId,
+	 * config }`. Plugins return a mutated map to override or augment
+	 * the per-window theme tokens — e.g. tint every Gutenberg
+	 * window's title bar to brand colour.
+	 *
+	 * Stable since 0.6.0.
+	 */
+	WINDOW_CHROME_THEME: 'wp-desktop.window.chrome.theme',
+	/**
+	 * Filter, applied to the resolved control list for a window.
+	 * Receives `WindowControlDef[]`; context: `{ windowId, config,
+	 * placement: 'left' | 'right' | 'controls' }`. Plugins return a
+	 * mutated array to reorder, hide, or inject controls per-window.
+	 *
+	 * Stable since 0.6.0.
+	 */
+	WINDOW_CHROME_CONTROLS: 'wp-desktop.window.chrome.controls',
+	/**
+	 * Filter, applied per slot when the chrome paints. Receives the
+	 * slot host element; context: `{ windowId, slot, config }`.
+	 * Plugins can mutate `host` (append decorative children, set
+	 * inline styles) without owning a `WindowSlotDef` registration.
+	 * The shell never reads the return value — this is an action-
+	 * shaped filter so existing `addFilter` plumbing applies.
+	 *
+	 * Stable since 0.6.0.
+	 */
+	WINDOW_CHROME_SLOT: 'wp-desktop.window.chrome.slot',
+	/**
+	 * Filter, applied to the chrome id selected for a window.
+	 * Receives the resolved id (defaults to `'core/standard'`);
+	 * context: `{ windowId, config }`. Returning a different id
+	 * swaps the chrome registration. **Experimental** — chrome
+	 * render contract may change.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CHROME_RENDER: 'wp-desktop.window.chrome.render',
+	/**
+	 * Action, fires after a window's chrome has been mounted /
+	 * remounted. Payload: `{ windowId, chromeId }`. Subscribers can
+	 * post-decorate the chrome (attach observers, anchor pickers).
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CHROME_APPLIED: 'wp-desktop.window.chrome.applied',
+	/**
+	 * Action, fires after a window's theme tokens are applied to its
+	 * outer element. Payload: `{ windowId, themeId, tokens }`. Lets
+	 * plugins react to theme changes without diffing CSS variables.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CHROME_THEME_CHANGED: 'wp-desktop.window.chrome.theme-changed',
+
 	/**
 	 * Action, fires when a user clicks a desktop icon (a shortcut
 	 * tile registered server-side via `desktop_mode_register_icon()`
@@ -387,6 +572,45 @@ export const HOOKS = {
 	 * @since 0.11.0
 	 */
 	DESKTOP_ICON_CLICKED: 'wp-desktop.desktop-icon.clicked',
+	/**
+	 * Action, fires after the wallpaper icon grid is rendered or
+	 * re-rendered. Payload: `{ ids: string[] }` — the ids in the
+	 * order they were painted. Plugins that decorate icons with
+	 * surfaces the framework doesn't natively expose (drag handles,
+	 * status dots) subscribe to this so their decorations survive a
+	 * live menu refresh that legitimately rebuilds the grid.
+	 *
+	 * Notification badges have a first-class API since 0.24.0 —
+	 * use `wp.desktop.icons.setBadge( id, count )` (and subscribe
+	 * to {@link ICON_BADGE_CHANGED}) instead of decorating from
+	 * here. The framework persists badge state across rebuilds, so
+	 * a plugin that uses the API doesn't need to re-decorate on
+	 * every render.
+	 *
+	 * Idempotent payload (`{ ids: [] }`) when the icon list is
+	 * empty; suppressed entirely when the rendered DOM is
+	 * unchanged from the previous call (the fingerprint short-
+	 * circuit upstream skips both the rebuild and this signal).
+	 *
+	 * @since 0.21.0
+	 */
+	DESKTOP_ICONS_RENDERED: 'wp-desktop.desktop-icons.rendered',
+	/**
+	 * Action, fires whenever the badge count on a desktop icon
+	 * changes. Payload: `{ iconId: string, count: number,
+	 * previousCount: number }`. Symmetric to {@link DOCK_ITEM_APPENDED}
+	 * and the dock/taskbar `wpd-dock-item-badge-changed` CustomEvent
+	 * — the icon rail's lifecycle hook for badge transitions.
+	 *
+	 * Mirrors `wp-desktop/badge-changed` on the activity bus with
+	 * `rail: 'icon'`. Subscribe to whichever surface fits — the
+	 * activity channel composes across rails for global widgets,
+	 * this hook fires only for icon-rail badges with the previous
+	 * count carried alongside for delta-aware consumers.
+	 *
+	 * @since 0.24.0
+	 */
+	ICON_BADGE_CHANGED: 'wp-desktop.icon.badge-changed',
 
 	// ------------------------------------------------------------------
 	// Cross-plugin composition.
@@ -409,6 +633,17 @@ export const HOOKS = {
 	 * analytics, theming, per-tile badges.
 	 */
 	DOCK_ITEM_APPENDED: 'wp-desktop.dock.item-appended',
+	/**
+	 * Action, fires after a system tile is removed from a rail
+	 * via `Dock.removeSystemItem()` (typically the server-driven
+	 * native-window-sync path on plugin deactivation). Payload:
+	 * `{ id: string, placement: 'dock' | 'taskbar' }`. Symmetric
+	 * to {@link DOCK_ITEM_APPENDED}; lets analytics / decorators /
+	 * cleanup hooks see the full lifecycle without polling the DOM.
+	 *
+	 * @since 0.24.0
+	 */
+	DOCK_ITEM_REMOVED: 'wp-desktop.dock.item-removed',
 
 	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.

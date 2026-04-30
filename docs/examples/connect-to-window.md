@@ -191,26 +191,37 @@ const previewWin = wp.desktop.registerWindow( {
     },
 } );
 
-// Push state into the preview window — works synchronously, even if
-// the iframe is still loading. FIFO mode for setup, coalesce for
-// the live stream so pre-load intermediates collapse to the
-// latest snapshot.
-previewWin.iframeSend( { type: 'init', config: { theme: 'dark' } } );
+// Push state into the preview window. `Window.send` is safe to
+// call before the iframe has finished loading — pre-load sends
+// queue and flush in FIFO order once the iframe-bridge announces
+// itself ready.
+previewWin.send( 'init', { theme: 'dark' } );
 
 editorConn.subscribe( 'gutenberg:content', ( html ) => {
-    previewWin.iframeSend(
-        { type: 'preview:html', html },
-        { coalesce: true },           // live stream — latest only
-    );
+    previewWin.send( 'preview:html', html );
 } );
 ```
 
-Why `coalesce: true` matters here: if the user is typing and three keystrokes fire while the iframe is still loading, FIFO would deliver all three (wasted work — the first two are already obsolete by the time they paint). Coalesce mode keeps only the last keystroke, so the preview iframe always opens to the freshest snapshot.
+If you want the live stream to collapse pre-load intermediates to the freshest snapshot (so three keystrokes during iframe load become one), keep your own latest-only ref outside the queue:
+
+```javascript
+let latest = null;
+let queued = false;
+editorConn.subscribe( 'gutenberg:content', ( html ) => {
+    latest = html;
+    if ( queued ) return;
+    queued = true;
+    queueMicrotask( () => {
+        previewWin.send( 'preview:html', latest );
+        queued = false;
+    } );
+} );
+```
 
 Then inside `my-preview-page`:
 
 ```javascript
-wp.desktop.iframe.subscribe( 'preview:html', ( html ) => {
+wp.desktop.on( 'preview:html', ( html ) => {
     document.querySelector( '#preview-target' ).innerHTML = html;
 } );
 ```

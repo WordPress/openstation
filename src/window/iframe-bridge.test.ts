@@ -10,6 +10,10 @@ import { handleWindowMessage } from './iframe-bridge';
 import { HOOKS } from '../hooks';
 import type { Window } from './index';
 import {
+	_resetWindowChannelsForTests,
+	markWindowContentLoading,
+} from '../window-channels';
+import {
 	clearHooksStub,
 	installHooksStub,
 	type FakeWpHooks,
@@ -47,7 +51,10 @@ describe( 'iframe-bridge: wp-desktop-ready', () => {
 	beforeEach( () => {
 		hooks = installHooksStub();
 	} );
-	afterEach( () => clearHooksStub() );
+	afterEach( () => {
+		clearHooksStub();
+		_resetWindowChannelsForTests();
+	} );
 
 	test( 'fires HOOKS.IFRAME_READY with { windowId }', () => {
 		const win = mockWindow();
@@ -55,6 +62,21 @@ describe( 'iframe-bridge: wp-desktop-ready', () => {
 		hooks.addAction( HOOKS.IFRAME_READY, 'test', ( ...args ) => {
 			seen.push( args[ 0 ] as { windowId: string } );
 		} );
+
+		postToWindow( win, { type: 'wp-desktop-ready' } );
+
+		expect( seen ).toEqual( [ { windowId: 'test-window' } ] );
+	} );
+
+	test( 'fires HOOKS.WINDOW_CONTENT_LOADED on the loading → ready transition', () => {
+		const win = mockWindow();
+		const seen: Array< { windowId: string } > = [];
+		hooks.addAction( HOOKS.WINDOW_CONTENT_LOADED, 'test', ( ...args ) => {
+			seen.push( args[ 0 ] as { windowId: string } );
+		} );
+		// Construction-side mark — without it the loaded hook
+		// would correctly stay silent (no transition to surface).
+		markWindowContentLoading( 'test-window' );
 
 		postToWindow( win, { type: 'wp-desktop-ready' } );
 

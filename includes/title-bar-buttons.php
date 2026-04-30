@@ -128,8 +128,8 @@ function desktop_mode_build_desktop_titlebar_button_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = desktop_mode_resolve_script_url( $handle );
-		if ( '' === $url ) {
+		$payload = desktop_mode_resolve_script_payload( $handle );
+		if ( '' === $payload['url'] ) {
 			// Loud diagnostic — visible under WP_DEBUG. Plugin
 			// authors who pass a typo'd handle, or call our
 			// register helper before `wp_register_script()`, used
@@ -145,8 +145,12 @@ function desktop_mode_build_desktop_titlebar_button_scripts_payload() {
 			continue;
 		}
 		$out[]           = array(
-			'handle'    => (string) $handle,
-			'scriptUrl' => $url,
+			'handle'             => (string) $handle,
+			'scriptUrl'          => $payload['url'],
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 		$seen[ $handle ] = true;
 	}
