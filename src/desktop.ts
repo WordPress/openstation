@@ -1268,6 +1268,23 @@ function init(): void {
 		'.wp-desktop-shell__body',
 	);
 	let layoutDispatcher: LayoutDispatcher | null = null;
+
+	// Native-window sync is built BEFORE the dispatcher so the
+	// dispatcher's `renderIcons` closure can hand `nativeWindows.openById`
+	// to `renderDesktopIcons` without hitting a temporal-dead-zone
+	// reference (the dispatcher's constructor paints icons immediately).
+	// The system-tile callbacks close over the still-null
+	// `layoutDispatcher` and read it lazily; the initial sync that
+	// would invoke them is deferred until after the dispatcher is wired.
+	const nativeWindows = createNativeWindowSync( {
+		manager,
+		appendSystemTile: ( item ) =>
+			layoutDispatcher?.appendSystemTile( item ),
+		removeSystemTile: ( id ) => layoutDispatcher?.removeSystemTile( id ),
+		desktopArea,
+	} );
+	const syncNativeWindows = nativeWindows.sync;
+
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'wp-desktop-area--with-dock' );
 		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
@@ -1293,46 +1310,59 @@ function init(): void {
 			config.dockItems,
 			config.desktopIcons,
 		);
-		// OS Settings tile — registered with the dispatcher so it
-		// re-attaches to whichever bottom rail is live after every
-		// layout rebuild. The tile lives on the bottom dock in every
-		// layout (it's a shell-owned affordance, not a plugin menu).
-		layoutDispatcher.appendSystemTile( {
-			id: OS_SETTINGS_WINDOW_ID,
-			title: 'OS Settings',
-			icon: 'dashicons-desktop',
-			// "Open" for the dock dot means "open on the currently
-			// active desktop." OS Settings on another desktop shouldn't
-			// paint the dot on the active view.
-			isOpen: () => {
-				const win = manager.getById( OS_SETTINGS_WINDOW_ID );
-				if ( ! win ) {
-					return false;
-				}
-				return (
-					( win.config.desktopId ||
-						manager.getActiveDesktopId() ) ===
-					manager.getActiveDesktopId()
-				);
+		// OS Settings tile — `'core'` affinity so it lands on the side
+		// dock in Classic (with core admin menus, where users expect a
+		// shell-owned affordance) and on the primary rail in Unified
+		// and Spatial (where there is no side dock to host it).
+		// Tracked by the dispatcher so it re-attaches automatically
+		// after a layout rebuild.
+		layoutDispatcher.appendSystemTile(
+			{
+				id: OS_SETTINGS_WINDOW_ID,
+				title: 'OS Settings',
+				icon: 'dashicons-desktop',
+				// "Open" for the dock dot means "open on the currently
+				// active desktop." OS Settings on another desktop
+				// shouldn't paint the dot on the active view.
+				isOpen: () => {
+					const win = manager.getById( OS_SETTINGS_WINDOW_ID );
+					if ( ! win ) {
+						return false;
+					}
+					return (
+						( win.config.desktopId ||
+							manager.getActiveDesktopId() ) ===
+						manager.getActiveDesktopId()
+					);
+				},
+				onOpen: () => {
+					manager.open( {
+						id: OS_SETTINGS_WINDOW_ID,
+						baseId: OS_SETTINGS_WINDOW_ID,
+						url: '#os-settings',
+						title: 'OS Settings',
+						icon: 'dashicons-desktop',
+						native: true,
+						render: ( body ) => osSettings.renderPanel( body ),
+						width: 820,
+						height: 720,
+						minWidth: 560,
+						minHeight: 480,
+					} );
+				},
 			},
-			onOpen: () => {
-				manager.open( {
-					id: OS_SETTINGS_WINDOW_ID,
-					baseId: OS_SETTINGS_WINDOW_ID,
-					url: '#os-settings',
-					title: 'OS Settings',
-					icon: 'dashicons-desktop',
-					native: true,
-					render: ( body ) => osSettings.renderPanel( body ),
-					width: 820,
-					height: 720,
-					minWidth: 560,
-					minHeight: 480,
-				} );
-			},
-		} );
+			'core',
+		);
 	}
 	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
+
+	// Initial native-window registry sync — runs AFTER the dispatcher
+	// is wired so plugin-owned tiles route through the dispatcher's
+	// `appendSystemTile` callback rather than hitting the no-op
+	// fallback while the dispatcher is still null.
+	void syncNativeWindows(
+		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+	);
 
 	// Bootstrap: restore session (if any), then decide whether to also
 	// auto-open the current admin URL. The rules compose three signals:
@@ -1437,22 +1467,11 @@ function init(): void {
 		layoutDispatcher?.appendSystemTile( item );
 	};
 
-	// Native-window sync — the server-declared list from
-	// `desktop_mode_register_window()` drives system-tile lifecycle
-	// for plugin-owned native windows. At boot we prime tiles from
-	// `config.nativeWindows`; the live-refresh path calls the same
-	// syncer with the fresh payload so activation / deactivation
-	// maps to tile add / remove without any shell reload.
-	const nativeWindows = createNativeWindowSync( {
-		manager,
-		appendSystemTile: ( item ) => layoutDispatcher?.appendSystemTile( item ),
-		removeSystemTile: ( id ) => layoutDispatcher?.removeSystemTile( id ),
-		desktopArea,
-	} );
-	const syncNativeWindows = nativeWindows.sync;
-	void syncNativeWindows(
-		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
-	);
+	// (Native-window sync was wired earlier — before the layout
+	// dispatcher — so the dispatcher's `renderIcons` could close over
+	// `nativeWindows.openById` without a TDZ. The initial bulk sync
+	// runs right after the dispatcher is built, so plugin-owned
+	// native-window tiles route through the dispatcher.)
 
 	// Widget-registry sync — same story for the right-column widget
 	// layer. Plugins declare widgets via `desktop_mode_register_widget()`;

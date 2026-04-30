@@ -432,6 +432,103 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( ids ).toEqual( [ 'plugin:newer', 'dock-core:index.php' ] );
 	} );
 
+	test( 'appendSystemTile: core affinity lands on the side dock in classic', () => {
+		const { deps } = makeDeps();
+		const dispatcher = createLayoutDispatcher(
+			deps,
+			'classic',
+			[ dashboard, yoast ],
+			[],
+		);
+		dispatcher.appendSystemTile( noopTile, 'core' );
+		expect(
+			document
+				.getElementById( 'wp-desktop-side-dock' )!
+				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+		).not.toBeNull();
+		expect(
+			document
+				.getElementById( 'wp-desktop-dock' )!
+				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+		).toBeNull();
+	} );
+
+	test( 'appendSystemTile: core affinity falls back to primary in unified', () => {
+		const { deps } = makeDeps();
+		const dispatcher = createLayoutDispatcher(
+			deps,
+			'unified',
+			[ dashboard, yoast ],
+			[],
+		);
+		dispatcher.appendSystemTile( noopTile, 'core' );
+		expect(
+			document
+				.getElementById( 'wp-desktop-dock' )!
+				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+		).not.toBeNull();
+	} );
+
+	test( 'appendSystemTile: core affinity falls back to primary in spatial', () => {
+		const { deps } = makeDeps();
+		const dispatcher = createLayoutDispatcher(
+			deps,
+			'spatial',
+			[ dashboard, yoast ],
+			[],
+		);
+		dispatcher.appendSystemTile( noopTile, 'core' );
+		expect(
+			document
+				.getElementById( 'wp-desktop-dock' )!
+				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+		).not.toBeNull();
+	} );
+
+	test( 'appendSystemTile: plugin affinity (default) always goes to primary', () => {
+		const { deps } = makeDeps();
+		const dispatcher = createLayoutDispatcher(
+			deps,
+			'classic',
+			[ dashboard, yoast ],
+			[],
+		);
+		dispatcher.appendSystemTile( noopTile );
+		expect(
+			document
+				.getElementById( 'wp-desktop-dock' )!
+				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+		).not.toBeNull();
+		expect(
+			document
+				.getElementById( 'wp-desktop-side-dock' )!
+				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+		).toBeNull();
+	} );
+
+	test( 'core-affinity tile follows the layout: classic side → unified primary', () => {
+		const { deps } = makeDeps();
+		const dispatcher = createLayoutDispatcher(
+			deps,
+			'classic',
+			[ dashboard, yoast ],
+			[],
+		);
+		dispatcher.appendSystemTile( noopTile, 'core' );
+		dispatcher.setLayout( 'unified' );
+		// Side dock element is gone; tile should re-attach to the
+		// rebuilt primary (bottom) dock since there's no side rail
+		// in unified.
+		expect(
+			document.getElementById( 'wp-desktop-side-dock' ),
+		).toBeNull();
+		expect(
+			document
+				.getElementById( 'wp-desktop-dock' )!
+				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+		).not.toBeNull();
+	} );
+
 	test( 'appendSystemTile: tracked tiles survive a layout rebuild', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(

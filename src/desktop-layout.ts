@@ -38,6 +38,15 @@ import { Dock, type DockItem, type SystemDockItem } from './dock';
 import type { WindowManager } from './window-manager';
 import type { DesktopLayoutId } from './settings/types';
 
+/**
+ * Where a system tile prefers to live. `'core'` follows the rail
+ * that holds core admin menus (side bar in Classic, primary rail
+ * elsewhere); `'plugin'` always lands on the primary rail with
+ * plugin menus. Defaults to `'plugin'` so plugin-registered native-
+ * window tiles continue to sit alongside other plugin entries.
+ */
+export type SystemTileAffinity = 'core' | 'plugin';
+
 /** External wiring the dispatcher needs from the shell boot path. */
 export interface LayoutDispatcherDeps {
 	/** Outermost shell root — receives `data-wp-desktop-layout`. */
@@ -97,12 +106,25 @@ export interface LayoutDispatcher {
 	 */
 	applyDesktopIcons( serverIcons: DesktopIconServerEntry[] | undefined ): void;
 	/**
-	 * Append a JS-owned "system" tile to the bottom dock. The tile is
-	 * tracked so it survives layout changes — every rebuild re-attaches
-	 * the tracked set in registration order. Calling twice with the
-	 * same id replaces the previous tile (idempotent).
+	 * Append a JS-owned "system" tile. The tile is tracked so it
+	 * survives layout changes — every rebuild re-attaches the
+	 * tracked set in registration order. Calling twice with the same
+	 * id replaces the previous tile (idempotent).
+	 *
+	 * `affinity` controls which rail the tile lives on:
+	 *
+	 * - `'plugin'` *(default)* — always lands on the primary (bottom)
+	 *   dock alongside plugin admin menus. Used by plugin-registered
+	 *   native-window tiles.
+	 * - `'core'` — lands on the side dock when one exists (Classic
+	 *   layout, alongside core admin menus); falls back to the primary
+	 *   dock in Unified and Spatial where there is no side rail. Used
+	 *   by shell-owned affordances like OS Settings.
 	 */
-	appendSystemTile( item: SystemDockItem ): void;
+	appendSystemTile(
+		item: SystemDockItem,
+		affinity?: SystemTileAffinity,
+	): void;
 	/** Remove a previously-appended system tile by id. */
 	removeSystemTile( id: string ): void;
 	/** Tear down all docks. Called on shell unload (or in tests). */
@@ -149,7 +171,19 @@ export function createLayoutDispatcher(
 	// shell adds the OS Settings tile right after construction; native-
 	// window registration adds plugin-owned tiles. Iteration is in
 	// insertion order so re-attach matches the original visual order.
-	const systemTiles = new Map< string, SystemDockItem >();
+	// Each entry remembers its affinity so a `'core'` tile can route
+	// to the side dock in Classic and to primary in Unified/Spatial.
+	const systemTiles = new Map<
+		string,
+		{ item: SystemDockItem; affinity: SystemTileAffinity }
+	>();
+
+	const railFor = ( affinity: SystemTileAffinity ): Dock | null => {
+		if ( affinity === 'core' && side ) {
+			return side;
+		}
+		return primary;
+	};
 
 	const ensureSideDockEl = (): HTMLElement => {
 		const existing = document.getElementById(
@@ -253,13 +287,11 @@ export function createLayoutDispatcher(
 			);
 		}
 
-		// Re-attach every tracked system tile to the rebuilt primary
-		// rail so OS Settings, plugin-owned native-window launchers,
-		// and the like land on the new dock at boot order.
-		if ( primary ) {
-			for ( const tile of systemTiles.values() ) {
-				primary.appendSystemItem( tile );
-			}
+		// Re-attach every tracked system tile to the rebuilt rails
+		// according to its registered affinity, in registration order
+		// so the visual order survives the rebuild.
+		for ( const entry of systemTiles.values() ) {
+			railFor( entry.affinity )?.appendSystemItem( entry.item );
 		}
 	};
 
@@ -300,15 +332,23 @@ export function createLayoutDispatcher(
 			serverIcons = next ?? [];
 			repaintIcons();
 		},
-		appendSystemTile: ( item: SystemDockItem ): void => {
-			systemTiles.set( item.id, item );
-			primary?.appendSystemItem( item );
+		appendSystemTile: (
+			item: SystemDockItem,
+			affinity: SystemTileAffinity = 'plugin',
+		): void => {
+			systemTiles.set( item.id, { item, affinity } );
+			railFor( affinity )?.appendSystemItem( item );
 		},
 		removeSystemTile: ( id: string ): void => {
-			if ( ! systemTiles.delete( id ) ) {
+			const entry = systemTiles.get( id );
+			if ( ! entry ) {
 				return;
 			}
-			primary?.removeSystemItem( id );
+			systemTiles.delete( id );
+			// Remove from whichever rail currently hosts it. Idempotent
+			// `removeSystemItem` lets us call both without side effects
+			// when the tile lives on only one of them.
+			railFor( entry.affinity )?.removeSystemItem( id );
 		},
 		destroy: (): void => {
 			tearDownDocks();
