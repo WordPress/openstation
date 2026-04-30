@@ -1876,68 +1876,24 @@ export class Window {
 		}
 		clearWindowTheme( this );
 
-		// Drop the window-controls subscription + tear down the
-		// last paint's plugin-supplied event listeners. The element
-		// is about to leave the DOM but explicit teardown keeps
-		// retained references (devtools, plugin caches) clean.
+		// Subscription teardowns that have no visible effect happen
+		// pre-animation. The matching plugin-supplied teardowns
+		// (which CAN mutate visible DOM — destroy() the chrome,
+		// remove control buttons, drop slot content, clear native-
+		// window body) are deferred into `onDone()` below so the
+		// window's fade-out doesn't reveal the default chrome / a
+		// blank body / missing buttons mid-animation.
 		if ( this._windowControlsUnsubscribe ) {
 			this._windowControlsUnsubscribe();
 			this._windowControlsUnsubscribe = null;
 		}
-		if ( this._windowControlsTeardown ) {
-			try {
-				this._windowControlsTeardown();
-			} catch {
-				// see notes in repaintWindowControls.
-			}
-			this._windowControlsTeardown = null;
-		}
-
-		// Same teardown for Layer-3 slots — drop subscriber +
-		// invoke any teardowns plugins returned from `render()`.
 		if ( this._windowSlotsUnsubscribe ) {
 			this._windowSlotsUnsubscribe();
 			this._windowSlotsUnsubscribe = null;
 		}
-		if ( this._windowSlotsTeardown ) {
-			try {
-				this._windowSlotsTeardown();
-			} catch {
-				// see notes in repaintWindowSlots.
-			}
-			this._windowSlotsTeardown = null;
-		}
-
-		// Layer-4 — drop chrome registry subscriber + destroy() the
-		// custom chrome handle if one is mounted.
 		if ( this._windowChromesUnsubscribe ) {
 			this._windowChromesUnsubscribe();
 			this._windowChromesUnsubscribe = null;
-		}
-		if ( this._chromeHandle ) {
-			try {
-				this._chromeHandle.destroy();
-			} catch {
-				// Plugin teardown failures shouldn't take the close down.
-			}
-			this._chromeHandle = null;
-		}
-
-		// Invoke the optional teardown returned by the native-window
-		// render callback. Without this, plugin authors could never
-		// reliably dispose listeners scoped to a window's lifetime —
-		// the framework was discarding the return value.
-		if ( this._nativeRenderTeardown ) {
-			try {
-				this._nativeRenderTeardown();
-			} catch ( err ) {
-				doAction( HOOKS.SHELL_ERROR, {
-					scope: 'native-window-teardown',
-					id: this.id,
-					error: err,
-				} );
-			}
-			this._nativeRenderTeardown = null;
 		}
 
 		// Tear down the body resize observer now rather than on
@@ -1975,6 +1931,52 @@ export class Window {
 				return;
 			}
 			removed = true;
+
+			// Visible-DOM teardowns deferred from above — run them
+			// here, after the closing animation has faded the window
+			// to opacity 0, so a custom chrome unmounting (or a
+			// plugin slot / control / native body teardown) can't
+			// flash the default chrome through the live pixels
+			// mid-fade. The window leaves the DOM in the next step
+			// regardless; whatever the children look like during
+			// these calls is invisible.
+			if ( this._windowControlsTeardown ) {
+				try {
+					this._windowControlsTeardown();
+				} catch {
+					// see notes in repaintWindowControls.
+				}
+				this._windowControlsTeardown = null;
+			}
+			if ( this._windowSlotsTeardown ) {
+				try {
+					this._windowSlotsTeardown();
+				} catch {
+					// see notes in repaintWindowSlots.
+				}
+				this._windowSlotsTeardown = null;
+			}
+			if ( this._chromeHandle ) {
+				try {
+					this._chromeHandle.destroy();
+				} catch {
+					// Plugin teardown failures shouldn't take the close down.
+				}
+				this._chromeHandle = null;
+			}
+			if ( this._nativeRenderTeardown ) {
+				try {
+					this._nativeRenderTeardown();
+				} catch ( err ) {
+					doAction( HOOKS.SHELL_ERROR, {
+						scope: 'native-window-teardown',
+						id: this.id,
+						error: err,
+					} );
+				}
+				this._nativeRenderTeardown = null;
+			}
+
 			window.removeEventListener( 'message', this._boundOnMessage );
 			if ( this._boundOnDocumentPointerDown ) {
 				document.removeEventListener(
