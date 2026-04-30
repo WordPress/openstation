@@ -236,13 +236,16 @@ function desktop_mode_desktop_command_registry( $slug = '', $entry = null ) {
 
 /**
  * Build the script-handle payload fed to the shell. Resolves each
- * registered handle to an absolute URL via {@see desktop_mode_resolve_script_url()};
+ * registered handle to a full payload via {@see desktop_mode_resolve_script_payload()};
  * handles that aren't currently enqueued (plugin not active this request)
- * resolve to an empty URL and are dropped.
+ * resolve to an empty URL and are dropped. The harvested `extra` data
+ * (localize / inline / translations) ships alongside the URL so the
+ * shell's lazy `<script>` injection doesn't drop it the way a bare
+ * `<script src="…">` append would.
  *
  * @since 0.15.0
  *
- * @return array[] List of `{ handle, scriptUrl }` entries.
+ * @return array[] List of `{ handle, scriptUrl, scriptBefore, scriptAfter, scriptL10n, scriptTranslations }` entries.
  */
 function desktop_mode_build_desktop_command_scripts_payload() {
 	$registry = desktop_mode_desktop_command_script_registry();
@@ -256,8 +259,8 @@ function desktop_mode_build_desktop_command_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = desktop_mode_resolve_script_url( $handle );
-		if ( '' === $url ) {
+		$payload = desktop_mode_resolve_script_payload( $handle );
+		if ( '' === $payload['url'] ) {
 			desktop_mode_warn_unresolvable_script_handle(
 				'desktop_mode_register_command_script',
 				'Command',
@@ -266,8 +269,12 @@ function desktop_mode_build_desktop_command_scripts_payload() {
 			continue;
 		}
 		$out[]          = array(
-			'handle'    => (string) $handle,
-			'scriptUrl' => $url,
+			'handle'             => (string) $handle,
+			'scriptUrl'          => $payload['url'],
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 		$seen[ $handle ] = true;
 	}
@@ -293,15 +300,28 @@ function desktop_mode_build_desktop_commands_payload() {
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$handle = (string) $entry['script'];
+		$handle  = (string) $entry['script'];
+		$payload = '' !== $handle
+			? desktop_mode_resolve_script_payload( $handle )
+			: array(
+				'url'          => '',
+				'before'       => array(),
+				'after'        => array(),
+				'l10n'         => array(),
+				'translations' => '',
+			);
 		$out[]  = array(
-			'slug'         => (string) $entry['slug'],
-			'label'        => (string) $entry['label'],
-			'description'  => (string) $entry['description'],
-			'icon'         => (string) $entry['icon'],
-			'hint'         => (string) $entry['hint'],
-			'scriptUrl'    => '' !== $handle ? desktop_mode_resolve_script_url( $handle ) : '',
-			'scriptHandle' => $handle,
+			'slug'              => (string) $entry['slug'],
+			'label'             => (string) $entry['label'],
+			'description'       => (string) $entry['description'],
+			'icon'              => (string) $entry['icon'],
+			'hint'              => (string) $entry['hint'],
+			'scriptUrl'         => $payload['url'],
+			'scriptHandle'      => $handle,
+			'scriptBefore'      => $payload['before'],
+			'scriptAfter'       => $payload['after'],
+			'scriptL10n'        => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
