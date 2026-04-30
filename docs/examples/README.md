@@ -30,6 +30,7 @@ defined( 'ABSPATH' ) || exit;
 - [Render a data table — filters, sticky columns, sub-tables](./data-table.md)
 - [Loading spinner — presets and color overrides](./spinner.md)
 - [Native windows — overview + render-callback contract](./native-windows.md)
+- [Native window with bundle-bound config (REST URLs, nonces)](./window-with-config.md)
 - [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 - [Extend the Recycle Bin](./recycle-bin.md)

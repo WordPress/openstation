@@ -219,6 +219,10 @@ window.wp.desktop = {
     ai:                AiApi,
     devtools:          DevtoolsApi,
 
+    // Native-window glue                                      // since 0.6.0
+    getWindowConfig:   < T >( id ) => T | undefined,
+    debug:             { window: ( id ) => DesktopDebugWindow | null },
+
     // Lifecycle
     whenReady / ready: ( cb ) => void,
     isReady:           () => boolean,
@@ -446,6 +450,52 @@ if ( ! wp.desktop.openWindow( 'alcazaba-monitor' ) ) {
 ```
 
 For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`wp-desktop-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
+
+---
+
+### `wp.desktop.getWindowConfig( id )` — Stable *(since 0.6.0)*
+
+Read the bundle-bound config blob shipped via the `'config'` arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.
+
+```js
+const cfg = wp.desktop.getWindowConfig( 'my-plugin/cron' );
+// → { restNonce: '…', eventsUrl: 'https://…', … }
+```
+
+The blob is delivered through the same payload path as `wp_localize_script` `extra['data']` — it lands on both eager and lazy script-load paths, so it's the recommended way to ship REST URLs / nonces / capability flags / anything session-bound to a native-window bundle.
+
+See [`examples/window-with-config.md`](./examples/window-with-config.md) for a full recipe.
+
+### `wp.desktop.debug.window( id )` — Stable *(since 0.6.0)*
+
+Read-only diagnostic snapshot of what the shell knows about a registered native window:
+
+```js
+wp.desktop.debug.window( 'my-plugin/cron' );
+// → {
+//     id: 'my-plugin/cron',
+//     scriptHandle: 'my-plugin-cron',
+//     scriptUrl: 'https://…/cron.min.js?ver=…',
+//     loadPath: 'eager' | 'lazy' | 'unknown',
+//     tagInDom: true,
+//     configPresent: true,
+//     extras: {
+//         hasTranslations: false,
+//         l10nCount: 1,
+//         beforeCount: 0,
+//         afterCount: 0,
+//     },
+//   }
+```
+
+Returns `null` when `id` is not in the `nativeWindows` payload (plugin not active, capability gate, id typo).
+
+`loadPath`:
+- `'eager'` — a `<script>` tag printed by `wp_print_scripts` was found in the document for this URL.
+- `'lazy'` — only the shell-injected `<script data-wp-desktop-vendor>` tag is present.
+- `'unknown'` — neither (script never loaded yet, or empty URL).
+
+Use this when integration debugging — particularly when a bundle's config global is missing. `loadPath: 'lazy'` plus `configPresent: false` is the historical mid-session-activation bug that 0.6.0 fixed by harvesting `extra` data into the payload; if you still see this in a current install, the integration is the place to look.
 
 ---
 
