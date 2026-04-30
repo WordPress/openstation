@@ -402,6 +402,21 @@ export interface NativeWindowServerEntry {
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
 	/**
+	 * `wp_add_inline_script( $h, $code, 'before' )` strings harvested
+	 * from the registered script handle. Injected as inline `<script>`
+	 * tags before the lazy-load `<script src>` so the data lands the
+	 * same way `wp_print_scripts()` would have printed it.
+	 *
+	 * @since 0.6.0
+	 */
+	scriptBefore?: string[];
+	/** `wp_add_inline_script( $h, $code, 'after' )` strings. Injected after the body's `load` event. @since 0.6.0 */
+	scriptAfter?: string[];
+	/** Precomputed `wp_localize_script()` `var x = …;` blobs. Injected before the body. @since 0.6.0 */
+	scriptL10n?: string[];
+	/** `wp.i18n.setLocaleData(…)` snippet from `wp_set_script_translations()`. Injected before everything. @since 0.6.0 */
+	scriptTranslations?: string;
+	/**
 	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
 	 * windows registered via `desktop_mode_register_window()`. Devtools
 	 * read this off `Window.config.ownerHandle` once the window opens.
@@ -443,6 +458,14 @@ export interface NativeWindowTabEntry {
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -479,6 +502,14 @@ export interface DesktopWidgetServerEntry {
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -515,6 +546,14 @@ export interface DesktopWallpaperServerEntry {
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -537,6 +576,14 @@ export interface DesktopCommandScriptServerEntry {
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -570,6 +617,14 @@ export interface DesktopCommandServerEntry {
 	 * @since 0.15.0
 	 */
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -590,6 +645,14 @@ export interface DesktopSettingsTabScriptServerEntry {
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -607,6 +670,14 @@ export interface DesktopTitleBarButtonScriptServerEntry {
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
@@ -635,6 +706,14 @@ export interface DesktopSettingsTabServerEntry {
 	scriptUrl: string;
 	/** WordPress script handle this tab belongs to. */
 	scriptHandle: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
 }
 
 /**
