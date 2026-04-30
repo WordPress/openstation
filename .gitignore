@@ -1,6 +1,7 @@
 /node_modules
 /vendor
 /desktop-mode.zip
+/dist/
 /tests/phpunit/.phpunit.result.cache
 
 # Vite build output — regenerate locally with `npm run build`.

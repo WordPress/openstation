@@ -62,6 +62,36 @@ npm run package   # builds + writes desktop-mode.zip at the repo root
 
 The zip has the exact contents the workflow uploads.
 
+## Packaging extensions
+
+Sibling plugins under `extensions/` (e.g. `desktop-mode-cron-manager`,
+`desktop-mode-phpmyadmin`) are packaged separately with:
+
+```bash
+./bin/package-extensions.sh             # writes to dist/
+./bin/package-extensions.sh /tmp/out    # writes to a custom dir
+```
+
+Each extension produces one `<slug>.zip` under `dist/` (gitignored).
+The script iterates every directory under `extensions/` that has a
+matching `<slug>.php` plugin file. For each, it:
+
+1. Runs any `bin/fetch-*.sh` scripts the extension ships with — these
+   are idempotent vendor fetchers (e.g. `desktop-mode-phpmyadmin`'s
+   `bin/fetch-phpmyadmin.sh` pulls a SHA-256-pinned phpMyAdmin 5.2.3
+   zip into `assets/vendor/phpmyadmin/`, the directory is gitignored).
+2. Stages tracked + untracked-but-not-gitignored files via
+   `git ls-files -co --exclude-standard`, so packaging works on
+   uncommitted work too.
+3. Splices any `assets/vendor/*` working-tree content back in (vendors
+   are gitignored by convention so end users still get a zip that
+   activates without a setup step).
+4. Round-trips through `tar` + `zip` so file modes land at 0644 / 0755
+   — same trick `bin/package.sh` uses for the main plugin.
+
+Extensions are versioned independently from the parent plugin; bump
+the version in the extension's plugin header before re-packaging.
+
 ## Troubleshooting
 
 **`Version mismatch — tag 'X' vs package.json=Y header=Y DESKTOP_MODE_VERSION=Y`**
