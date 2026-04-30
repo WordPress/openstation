@@ -26,6 +26,8 @@ import {
 	dispatchToNative,
 	enqueueWindowSend,
 	isWindowContentReady,
+	markWindowContentLoading,
+	markWindowContentReady,
 	type WindowChannelCb,
 } from './../window-channels';
 // Register the window-chrome atoms — no named import needed, the
@@ -533,9 +535,63 @@ export class Window {
 		// were silently discarded and authors had no reliable
 		// cleanup hook for native windows.
 		const maybeTeardown = this.config.render( body );
-		if ( typeof maybeTeardown === 'function' ) {
-			this._nativeRenderTeardown = maybeTeardown;
+
+		const captureTeardown = ( v: unknown ): void => {
+			if ( typeof v === 'function' ) {
+				this._nativeRenderTeardown = v as () => void;
+			}
+		};
+
+		// Promise-returning render: defer the readiness signal until
+		// the promise resolves. Callers that `return await fetch(...)`
+		// from their render get spinner-while-loading for free, with
+		// no manual `markReady()` plumbing. Rejections still mark the
+		// window ready so a flake doesn't leave the spinner stuck —
+		// the rejection itself is forwarded to `SHELL_ERROR` for
+		// observability.
+		if ( maybeTeardown instanceof Promise ) {
+			maybeTeardown.then(
+				( resolved ) => {
+					if ( this._isDestroyed ) {
+						return;
+					}
+					captureTeardown( resolved );
+					markWindowContentReady( this.id );
+				},
+				( err ) => {
+					if ( typeof console !== 'undefined' ) {
+						console.error(
+							`[wp-desktop-mode] native render rejected for "${ this.id }":`,
+							err,
+						);
+					}
+					doAction( HOOKS.SHELL_ERROR, {
+						scope: 'window-open',
+						id: this.id,
+						error: err,
+					} );
+					if ( this._isDestroyed ) {
+						return;
+					}
+					markWindowContentReady( this.id );
+				},
+			);
+		} else {
+			captureTeardown( maybeTeardown );
+			// Synchronous render: schedule readiness on the next
+			// animation frame so any DOM mutations made inside
+			// `render()` settle (custom-element upgrades, layout
+			// reads, ResizeObserver firing) before the fade-in
+			// transition begins. Skipped if the window has already
+			// been destroyed (open + close in the same frame).
+			requestAnimationFrame( () => {
+				if ( this._isDestroyed ) {
+					return;
+				}
+				markWindowContentReady( this.id );
+			} );
 		}
+
 		doAction( HOOKS.NATIVE_WINDOW_AFTER_RENDER, {
 			windowId: this.id,
 			body,
@@ -1512,6 +1568,58 @@ export class Window {
 			channel,
 			cb as WindowChannelCb,
 		);
+	}
+
+	/**
+	 * Re-show the loading-spinner overlay over this window's body
+	 * and fade the content out. Mirror of {@link markContentLoaded}
+	 * for the entry edge — plugins call this before kicking off an
+	 * async refetch so the user sees the same affordance they saw
+	 * at first paint, and call `markContentLoaded()` once the work
+	 * resolves.
+	 *
+	 * The shell:
+	 *   - Adds the `wp-desktop-window__body--loading` modifier to
+	 *     the body (CSS fades the content out, fades the overlay
+	 *     in).
+	 *   - Re-attaches the overlay element if it was already torn
+	 *     down by a prior `markContentLoaded` call.
+	 *   - Fires the {@link HOOKS.WINDOW_CONTENT_LOADING} action +
+	 *     dispatches `wp-desktop-window-content-loading` on
+	 *     `document` (idempotent — no re-fire when already
+	 *     loading).
+	 *
+	 * Idempotent. Cheap to call repeatedly.
+	 *
+	 * @since 0.6.0
+	 */
+	public markContentLoading(): void {
+		markWindowContentLoading( this.id );
+	}
+
+	/**
+	 * Tell the shell this window's body content is ready — fades
+	 * the spinner overlay out, fades the content in, removes the
+	 * overlay element after the transition lands.
+	 *
+	 * Iframe windows mark themselves ready automatically on the
+	 * `wp-desktop-ready` postMessage from the chromeless bridge.
+	 * Native windows mark themselves ready automatically after
+	 * their `render( body )` callback (or its returned `Promise`)
+	 * resolves. Plugins only call this directly when:
+	 *
+	 *   - They're doing event-listener-based async loading the
+	 *     framework can't observe.
+	 *   - They re-armed loading via {@link markContentLoading}
+	 *     and need to clear it again.
+	 *
+	 * Idempotent. Fires the {@link HOOKS.WINDOW_CONTENT_LOADED}
+	 * action only on a loading → ready transition.
+	 *
+	 * @since 0.6.0
+	 */
+	public markContentLoaded(): void {
+		markWindowContentReady( this.id );
 	}
 
 	/**

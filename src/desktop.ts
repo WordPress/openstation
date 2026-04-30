@@ -12,6 +12,7 @@
 
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
+import { installWindowLoadingTransitions } from './window/loading';
 import { Dock, type SystemDockItem } from './dock';
 import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
@@ -1488,6 +1489,13 @@ function init(): void {
 	// Library, …) and other native windows can react.
 	attachBroadcastBus( manager );
 	installBroadcastReceiver();
+
+	// Loading-state transitions — show the `<wpd-spinner>` overlay
+	// while a window's iframe boots / native render fetches data,
+	// fade the content in once `WINDOW_CONTENT_LOADED` fires. The
+	// hook firing itself is in `src/window-channels.ts`; this just
+	// wires the visual side.
+	installWindowLoadingTransitions();
 
 	// `wp-desktop.shell.toast` action — the documented way for plugins
 	// to surface a transient notification without importing

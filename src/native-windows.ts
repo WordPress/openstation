@@ -41,6 +41,7 @@ import type { Window as DesktopWindow } from './window';
 import {
 	addNativeSubscriber,
 	dispatchFromWindow,
+	markWindowContentLoading,
 	markWindowContentReady,
 	type WindowChannelCb,
 } from './window-channels';
@@ -137,7 +138,7 @@ function buildIframeContentRender(
 	cfg: NativeWindowIframeContent,
 	cleanups: ( () => void )[],
 	windowId: string,
-): ( body: HTMLElement ) => void {
+): ( body: HTMLElement ) => Promise< void > {
 	return ( body: HTMLElement ) => {
 		const iframe = document.createElement( 'iframe' );
 		iframe.style.width = '100%';
@@ -169,6 +170,17 @@ function buildIframeContentRender(
 			targetOrigin = window.location.origin;
 		}
 
+		// Promise resolves when the iframe finishes loading. The
+		// shell's `hydrateNative` awaits this before flipping the
+		// window out of the loading state — so `iframeContent`
+		// native windows get the same spinner-while-loading
+		// affordance as plain iframe windows. `markWindowContentReady`
+		// is also called inline to flush any queued sends; firing it
+		// twice is a no-op (the loading-state delete is edge-triggered).
+		let resolveReady: ( () => void ) | null = null;
+		const readyPromise = new Promise< void >( ( resolve ) => {
+			resolveReady = resolve;
+		} );
 		const onLoad = (): void => {
 			// Bridge auto-inject — same-origin only. Cross-origin
 			// iframes throw on `contentDocument` access; we silently
@@ -200,6 +212,7 @@ function buildIframeContentRender(
 			// order — the canonical readiness signal for synthetic
 			// iframes.
 			markWindowContentReady( windowId );
+			resolveReady?.();
 		};
 		iframe.addEventListener( 'load', onLoad );
 
@@ -277,6 +290,8 @@ function buildIframeContentRender(
 			window.removeEventListener( 'message', onMessage );
 			iframe.removeEventListener( 'load', onLoad );
 		} );
+
+		return readyPromise;
 	};
 }
 
@@ -350,6 +365,12 @@ export function createRegisterWindow(
 								channel,
 								cb as WindowChannelCb,
 							);
+						},
+						markLoading(): void {
+							markWindowContentLoading( def.id );
+						},
+						markReady(): void {
+							markWindowContentReady( def.id );
 						},
 					},
 				};

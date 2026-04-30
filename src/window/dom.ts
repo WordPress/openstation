@@ -11,6 +11,53 @@
 import type { WindowConfig } from '../types';
 import { sanitizeClassName, urlMatchKey } from '../utils';
 import { __, sprintf } from '../i18n';
+// Side-effect import — registers `<wpd-spinner>` so the loading
+// overlay rendered below upgrades synchronously when the body is
+// connected to the document. Custom-element registrations are
+// idempotent, so importing here is safe even if a downstream entry
+// imported the spinner first.
+import '../ui/components/wpd-spinner/wpd-spinner';
+import {
+	markWindowContentLoading,
+	markWindowContentReady,
+} from '../window-channels';
+import { HOOKS, applyFilters } from '../hooks';
+
+/**
+ * Carrier symbol used to stash a window's config on its outer
+ * element so `ensureLoadingOverlay` can re-apply the same custom
+ * render path when a plugin calls `markContentLoading()` mid-life.
+ * `Symbol` keys are invisible to JSON-serializing devtools snapshots
+ * and never collide with userland code that walks `el` properties.
+ *
+ * @internal
+ */
+const WINDOW_CONFIG_KEY = Symbol.for( 'wp-desktop-mode/window-config' );
+
+type ConfigCarrier = HTMLElement & { [ WINDOW_CONFIG_KEY ]?: WindowConfig };
+
+/**
+ * Stash the WindowConfig on the outer element. `createWindowElement`
+ * calls this so post-construction helpers (`ensureLoadingOverlay`)
+ * can recover the config without taking a manager dependency.
+ *
+ * @internal
+ */
+function setWindowConfigOnElement( el: HTMLElement, config: WindowConfig ): void {
+	( el as ConfigCarrier )[ WINDOW_CONFIG_KEY ] = config;
+}
+
+/**
+ * Read the stashed WindowConfig off an outer element. Returns
+ * `undefined` for elements that didn't go through
+ * `createWindowElement` (only happens in test fixtures that hand-
+ * roll mocked windows; the production code always sets it).
+ *
+ * @internal
+ */
+function getWindowConfigFromElement( el: HTMLElement ): WindowConfig | undefined {
+	return ( el as ConfigCarrier )[ WINDOW_CONFIG_KEY ];
+}
 
 /**
  * Origin snapshot taken at module load. The same-origin gate in
@@ -57,6 +104,159 @@ export function updateFullscreenBodyClass(): void {
 	const hasFullscreen =
 		document.querySelectorAll( '.wp-desktop-window--fullscreen' ).length > 0;
 	document.body.classList.toggle( 'wp-desktop-has-fullscreen-window', hasFullscreen );
+}
+
+/**
+ * Build the default loading-overlay shell (positioned div +
+ * `<wpd-spinner>`). Always returns a fresh element so the
+ * customization pipeline can mutate it freely. The spinner uses
+ * a responsive `clamp(96px, 14vw, 192px)` size so the affordance
+ * scales with the window's width.
+ *
+ * @internal
+ */
+function buildDefaultLoadingOverlay(): HTMLElement {
+	const overlay = document.createElement( 'div' );
+	overlay.className = 'wp-desktop-window__loading';
+	// `aria-hidden` so screen readers don't announce the spinner —
+	// the window's title bar already has a `role="dialog"` + label,
+	// and the spinner's own `<svg role="img" aria-label="Loading">`
+	// is the per-spinner SR signal. Keeping the overlay aria-hidden
+	// avoids double-announcement when the window opens.
+	overlay.setAttribute( 'aria-hidden', 'true' );
+
+	const spinner = document.createElement( 'wpd-spinner' );
+	// `classic` — canonical WordPress mark, three concentric arcs,
+	// no dots, no pulse. The `orbit` preset's outermost trailing
+	// dots reads as a frantic skinny orbit at large sizes; classic
+	// reads as a calm "the system is working" affordance, which is
+	// the right tone for a window that's still loading. Plugins
+	// that prefer a more lively look can swap the preset via the
+	// `WINDOW_LOADING_OVERLAY` filter.
+	spinner.setAttribute( 'preset', 'classic' );
+	spinner.setAttribute( 'size', 'clamp(96px, 14vw, 192px)' );
+	spinner.setAttribute( 'label', __( 'Loading window content' ) );
+	overlay.appendChild( spinner );
+	return overlay;
+}
+
+/**
+ * Build the loading-overlay element painted into a window's body
+ * at construction (and re-painted on every `markContentLoading`
+ * re-arm). Resolution order:
+ *
+ *   1. The default `<wpd-spinner>` shell is painted.
+ *   2. `config.loading.render( host, ctx )` runs if defined —
+ *      lets a single-window plugin mutate the overlay (replace
+ *      contents, retune the spinner, append a status line).
+ *   3. `WINDOW_LOADING_OVERLAY` filter runs — lets a global
+ *      theme/skin plugin override every window's overlay.
+ *
+ * Both customization paths can either mutate the existing host
+ * (in-place) or return a different element. The shell takes the
+ * filter's return value if it's an `HTMLElement`, otherwise
+ * keeps the input.
+ *
+ * Plugin failures are caught + logged so a buggy customizer
+ * doesn't strand the user with a broken window — the shell
+ * falls back to whatever overlay was last good.
+ *
+ * @since 0.6.0
+ * @internal
+ */
+function createLoadingOverlay( config: WindowConfig ): HTMLElement {
+	let overlay = buildDefaultLoadingOverlay();
+	const ctx = { windowId: config.id, config };
+
+	if ( typeof config.loading?.render === 'function' ) {
+		try {
+			config.loading.render( overlay, ctx );
+		} catch ( err ) {
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[wp-desktop-mode] loading.render threw for "${ config.id }":`,
+					err,
+				);
+			}
+		}
+	}
+
+	try {
+		const filtered = applyFilters< HTMLElement, [ typeof ctx ] >(
+			HOOKS.WINDOW_LOADING_OVERLAY,
+			overlay,
+			ctx,
+		);
+		if ( filtered instanceof HTMLElement ) {
+			overlay = filtered;
+		}
+	} catch ( err ) {
+		if ( typeof console !== 'undefined' ) {
+			console.error(
+				`[wp-desktop-mode] WINDOW_LOADING_OVERLAY filter threw for "${ config.id }":`,
+				err,
+			);
+		}
+	}
+
+	// Defensive: a customizer might have stripped the class while
+	// replacing children. Re-add it so the CSS rules that drive
+	// the fade transition + positioning still apply. The class is
+	// what `wp-desktop-window__body--loading` selectors depend on.
+	if ( overlay && ! overlay.classList.contains( 'wp-desktop-window__loading' ) ) {
+		overlay.classList.add( 'wp-desktop-window__loading' );
+	}
+	return overlay;
+}
+
+/**
+ * Remove the loading overlay element from a window's body. Call
+ * AFTER the fade-out transition has settled so the spinner doesn't
+ * pop. The matching CSS rule sets `transition: opacity` on the
+ * overlay; the Window class waits the same duration before
+ * invoking this helper.
+ *
+ * Idempotent — a window whose overlay was already removed (e.g.
+ * because `markContentLoaded` was called twice in a row) silently
+ * no-ops.
+ *
+ * @since 0.6.0
+ * @internal
+ */
+export function removeLoadingOverlay( windowEl: HTMLElement ): void {
+	const overlay = windowEl.querySelector( ':scope .wp-desktop-window__loading' );
+	overlay?.remove();
+}
+
+/**
+ * Re-attach the loading overlay to a window's body. Used when a
+ * plugin calls `Window.markContentLoading()` after the overlay was
+ * already removed — the framework needs to repaint the spinner so
+ * the next `markContentLoaded` has something to fade out.
+ *
+ * Re-runs the same customization pipeline as the initial paint
+ * (per-window `config.loading.render` + `WINDOW_LOADING_OVERLAY`
+ * filter), so a plugin's branded loader keeps applying across
+ * refetch cycles. Falls back to the default overlay if the
+ * window element wasn't created via `createWindowElement` (test
+ * fixtures, hand-rolled DOM).
+ *
+ * @since 0.6.0
+ * @internal
+ */
+export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
+	const body = windowEl.querySelector< HTMLElement >(
+		':scope .wp-desktop-window__body',
+	);
+	if ( ! body ) {
+		return;
+	}
+	const existing = body.querySelector( ':scope .wp-desktop-window__loading' );
+	if ( existing ) {
+		return;
+	}
+	const config = getWindowConfigFromElement( windowEl );
+	body.appendChild( config ? createLoadingOverlay( config ) : buildDefaultLoadingOverlay() );
 }
 
 /**
@@ -255,7 +455,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	titleBar.appendChild( slotAfterControls );
 
 	const body = document.createElement( 'div' );
-	body.className = 'wp-desktop-window__body';
+	body.className = 'wp-desktop-window__body wp-desktop-window__body--loading';
 
 	// Native windows own the body contents via {@link WindowConfig.render}
 	// — called from the Window constructor after mount. Skip the iframe
@@ -274,9 +474,43 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		iframe.src = chromelessSrc ?? 'about:blank';
 
 		body.appendChild( iframe );
+
+		// Native `load` event is the floor signal: even if the
+		// chromeless inline bridge isn't installed (cross-origin /
+		// sandboxed / a future code path that strips the script),
+		// the browser's `load` event fires once the document parses
+		// and we still want the spinner to clear. The
+		// `wp-desktop-ready` postMessage from the chromeless bridge
+		// (handled in `iframe-bridge.ts`) ALSO calls
+		// `markWindowContentReady` — both paths converge on the
+		// idempotent loading → ready transition.
+		const onIframeLoad = (): void => {
+			markWindowContentReady( config.id );
+		};
+		iframe.addEventListener( 'load', onIframeLoad );
 	} else {
 		body.classList.add( 'wp-desktop-window__body--native' );
 	}
+
+	// Loading overlay — sits above the body content (iframe or native
+	// render output) until the window's content reports ready. The
+	// shell drives the visibility via the `--loading` body modifier;
+	// the overlay element itself is removed once the fade-out
+	// transition lands so it doesn't intercept pointer events on a
+	// "ready" window. Painted unconditionally for every window type so
+	// production lag (slow iframe boot, async native data fetch)
+	// always has the same affordance. Customization is plumbed via
+	// `config.loading.render` (per-window) and the
+	// `WINDOW_LOADING_OVERLAY` filter (global) — see
+	// `createLoadingOverlay` above.
+	body.appendChild( createLoadingOverlay( config ) );
+
+	// Mark this window as being in the loading state from the moment
+	// the body element exists. Plugins or shell code that subscribe to
+	// `WINDOW_CONTENT_LOADING` see the entry edge here; the matching
+	// `WINDOW_CONTENT_LOADED` fires when the iframe-bridge or native
+	// render reports done.
+	markWindowContentLoading( config.id );
 
 	// Resize handles — 4 corners, each independently hit-testable.
 	// The SE corner keeps the legacy class so existing CSS selectors
@@ -336,6 +570,13 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	for ( const h of resizeHandles ) {
 		el.appendChild( h );
 	}
+
+	// Stash the config so post-construction helpers
+	// (`ensureLoadingOverlay`) can recover the customization
+	// callbacks without taking a manager dependency. Symbol-keyed
+	// to keep it invisible to userland code that walks `el`
+	// properties.
+	setWindowConfigOnElement( el, config );
 
 	return el;
 }

@@ -126,11 +126,35 @@ export interface WindowConfig {
 	 * legacy `windowManager.open()` callers still receive `body`
 	 * only; in that case use `wp.desktop.windowManager.getById(
 	 * id ).on/send` instead.
+	 *
+	 * **Loading lifecycle.** Every native window starts in the
+	 * loading state — the shell paints a `<wpd-spinner>` overlay
+	 * over the body until the content is ready. The shell removes
+	 * the overlay automatically:
+	 *
+	 *   - When `render` returns a non-Promise value, on the next
+	 *     animation frame after `render` returns (gives any
+	 *     synchronous DOM mutations a chance to settle).
+	 *   - When `render` returns a `Promise`, when the promise
+	 *     resolves. The promise's resolved value is treated as the
+	 *     teardown function (or void) — same contract as the
+	 *     synchronous return.
+	 *   - When the plugin calls `ctx.window.markReady()` directly,
+	 *     immediately. Useful for non-promise async (event listener
+	 *     based loading) or for re-readying after a refetch
+	 *     triggered by `ctx.window.markLoading()`.
+	 *
+	 * The matching `wp-desktop-window-content-loaded` CustomEvent
+	 * dispatches on `document` and the `WINDOW_CONTENT_LOADED` hook
+	 * fires on the loading → ready transition.
 	 */
 	render?: (
 		body: HTMLElement,
 		ctx?: NativeRenderContext,
-	) => void | ( () => void );
+	) =>
+		| void
+		| ( () => void )
+		| Promise< void | ( () => void ) >;
 	/**
 	 * Auto-focus control for native windows. Pass `true` to focus
 	 * the body element itself (tabbable after render), a CSS
@@ -192,6 +216,34 @@ export interface WindowConfig {
 	 * @since 0.6.0
 	 */
 	appearance?: WindowAppearance;
+	/**
+	 * Per-window override for the loading-overlay content. The
+	 * shell paints a default `<wpd-spinner>` into every window's
+	 * body at construction (and re-paints when a plugin re-enters
+	 * the loading state via `markContentLoading`); set
+	 * `loading.render` to mutate that overlay — replace its
+	 * children, retune the spinner attributes, append a status
+	 * line, brand it for your plugin.
+	 *
+	 *   - The callback runs each time the overlay is built (first
+	 *     paint AND every re-arm). Treat it as a render function:
+	 *     idempotent + side-effect-free apart from DOM writes.
+	 *   - Use `host.replaceChildren( …yourElements )` to fully
+	 *     swap out the default. Use `host.appendChild( … )` to
+	 *     decorate it.
+	 *   - For shell-wide customization (every plugin's loader
+	 *     looks the same), add a filter on
+	 *     `HOOKS.WINDOW_LOADING_OVERLAY` instead — runs AFTER this
+	 *     callback, so a global theme can still override.
+	 *
+	 * @since 0.6.0
+	 */
+	loading?: {
+		render?: (
+			host: HTMLElement,
+			ctx: { windowId: string; config: WindowConfig },
+		) => void;
+	};
 }
 
 /**
@@ -482,6 +534,35 @@ export interface NativeRenderContext {
 				meta: { channel: string; windowId: string },
 			) => void,
 		): () => void;
+		/**
+		 * Re-show the loading spinner overlay. Use BEFORE kicking off
+		 * an async refetch so the user sees the same affordance they
+		 * saw at first paint — the shell handles the fade transition,
+		 * the plugin just calls this and `markReady()` when its work
+		 * is done.
+		 *
+		 * Idempotent: calling twice in a row only fires the
+		 * `WINDOW_CONTENT_LOADING` hook once (edge-triggered).
+		 *
+		 * @since 0.6.0
+		 */
+		markLoading(): void;
+		/**
+		 * Tell the shell the body content is ready — hides the
+		 * spinner overlay and fades the content in. Called
+		 * automatically by the shell after a synchronous `render()`
+		 * returns or after a Promise-returning `render()` resolves;
+		 * plugins only call this directly when they kick off async
+		 * work that the framework can't observe (event-listener
+		 * based loading, manual refetches initiated via
+		 * `markLoading()`).
+		 *
+		 * Idempotent: only fires `WINDOW_CONTENT_LOADED` on the
+		 * loading → ready transition.
+		 *
+		 * @since 0.6.0
+		 */
+		markReady(): void;
 	};
 }
 

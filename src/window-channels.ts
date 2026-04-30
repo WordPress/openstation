@@ -26,6 +26,8 @@
  * @since 0.5.5
  */
 
+import { HOOKS, doAction } from './hooks';
+
 export type WindowChannelMeta = {
 	channel: string;
 	windowId: string;
@@ -192,6 +194,7 @@ export function dispatchToNative(
  * ---------------------------------------------------------------- */
 
 const _readyWindows = new Set< string >();
+const _loadingWindows = new Set< string >();
 type PendingSend = {
 	channel: string;
 	payload: unknown;
@@ -211,32 +214,98 @@ export function isWindowContentReady( windowId: string ): boolean {
 }
 
 /**
+ * Whether a window is currently in the visual loading state — i.e.
+ * the shell is showing the spinner overlay and the body content is
+ * faded out. Driven by {@link markWindowContentLoading} (enter) and
+ * {@link markWindowContentReady} (exit). Independent from transport
+ * readiness ({@link isWindowContentReady}): a window may be transport-
+ * ready (queued sends already flushed) yet visually loading because
+ * a plugin called `markLoading()` to refetch.
+ *
+ * @internal
+ */
+export function isWindowContentLoading( windowId: string ): boolean {
+	return _loadingWindows.has( windowId );
+}
+
+/**
+ * Fires the canonical "window entered loading state" signal.
+ * Called automatically when a window's body is constructed, and
+ * exposed through `Window.markContentLoading()` /
+ * `NativeRenderContext.window.markLoading()` so plugin authors can
+ * re-show the spinner mid-life (e.g. before refetching data).
+ *
+ * Edge-triggered: idempotent calls don't re-fire the hook.
+ *
+ * @internal
+ */
+export function markWindowContentLoading( windowId: string ): void {
+	if ( _loadingWindows.has( windowId ) ) {
+		return;
+	}
+	_loadingWindows.add( windowId );
+	doAction( HOOKS.WINDOW_CONTENT_LOADING, { windowId } );
+	if ( typeof document !== 'undefined' ) {
+		document.dispatchEvent(
+			new CustomEvent( 'wp-desktop-window-content-loading', {
+				detail: { windowId },
+			} ),
+		);
+	}
+}
+
+/**
  * Mark a window's content as ready and flush any sends that
- * `Window.send()` queued in the meantime. Idempotent — second and
- * later calls are no-ops.
+ * `Window.send()` queued in the meantime.
+ *
+ * Two semantics rolled into one call:
+ *
+ *   1. Transport readiness — one-shot. The first call adds the
+ *      window to `_readyWindows` and flushes any queued sends. Later
+ *      calls skip the flush (idempotent, matching the pre-0.6.0
+ *      contract).
+ *   2. Visual loading state — edge-triggered. Fires
+ *      `WINDOW_CONTENT_LOADED` + the
+ *      `wp-desktop-window-content-loaded` CustomEvent only on a
+ *      loading → ready transition. A plugin re-arming the spinner
+ *      with `markContentLoading` and then calling
+ *      `markContentLoaded` again will see a fresh hook fire.
  *
  * @internal
  */
 export function markWindowContentReady( windowId: string ): void {
-	if ( _readyWindows.has( windowId ) ) {
-		return;
-	}
-	_readyWindows.add( windowId );
-	const queued = _pendingSends.get( windowId );
-	if ( ! queued ) {
-		return;
-	}
-	_pendingSends.delete( windowId );
-	for ( const m of queued ) {
-		try {
-			m.flush();
-		} catch ( err ) {
-			if ( typeof console !== 'undefined' ) {
-				console.error(
-					`[wp-desktop-mode] flushing queued window-send for "${ m.channel }" threw:`,
-					err,
-				);
+	if ( ! _readyWindows.has( windowId ) ) {
+		_readyWindows.add( windowId );
+		const queued = _pendingSends.get( windowId );
+		if ( queued ) {
+			_pendingSends.delete( windowId );
+			for ( const m of queued ) {
+				try {
+					m.flush();
+				} catch ( err ) {
+					if ( typeof console !== 'undefined' ) {
+						console.error(
+							`[wp-desktop-mode] flushing queued window-send for "${ m.channel }" threw:`,
+							err,
+						);
+					}
+				}
 			}
+		}
+	}
+
+	// Visual loading → ready transition. `Set.delete` returns true
+	// when the entry was actually present, so this fires exactly
+	// once per loading episode regardless of how many times callers
+	// invoke `markWindowContentReady`.
+	if ( _loadingWindows.delete( windowId ) ) {
+		doAction( HOOKS.WINDOW_CONTENT_LOADED, { windowId } );
+		if ( typeof document !== 'undefined' ) {
+			document.dispatchEvent(
+				new CustomEvent( 'wp-desktop-window-content-loaded', {
+					detail: { windowId },
+				} ),
+			);
 		}
 	}
 }
@@ -272,6 +341,7 @@ export function clearWindowChannels( windowId: string ): void {
 	_parentSubs.delete( windowId );
 	_nativeSubs.delete( windowId );
 	_readyWindows.delete( windowId );
+	_loadingWindows.delete( windowId );
 	_pendingSends.delete( windowId );
 }
 
@@ -285,5 +355,6 @@ export function _resetWindowChannelsForTests(): void {
 	_parentSubs.clear();
 	_nativeSubs.clear();
 	_readyWindows.clear();
+	_loadingWindows.clear();
 	_pendingSends.clear();
 }

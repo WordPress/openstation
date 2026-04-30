@@ -271,6 +271,72 @@ export const HOOKS = {
 	/** Action, fires when a window is added to the stack. */
 	WINDOW_OPENED: 'wp-desktop.window.opened',
 	/**
+	 * Action, fires when a window's body enters the loading state — at
+	 * construction (every window starts loading) and whenever a plugin
+	 * calls {@link NativeRenderContext.window.markLoading} or
+	 * `Window.markContentLoading()` mid-life. Payload: `{ windowId }`.
+	 *
+	 * The shell shows a `<wpd-spinner>` overlay while the window is in
+	 * the loading state and fades content in on the loaded transition.
+	 * Subscribe to this hook (or to {@link WINDOW_CONTENT_LOADED}) when
+	 * you need to react to either edge — analytics, instrumentation,
+	 * decorating the spinner with a per-window message.
+	 *
+	 * Edge-triggered: idempotent calls don't re-fire. The matching
+	 * `wp-desktop-window-content-loading` CustomEvent dispatches on
+	 * `document` with the same payload.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CONTENT_LOADING: 'wp-desktop.window.content-loading',
+	/**
+	 * Action, fires when a window's body content becomes ready — for
+	 * iframe windows the moment the chromeless bridge announces
+	 * `wp-desktop-ready`, for native windows after the user's
+	 * `render( body )` callback (or its returned promise) resolves, and
+	 * whenever a plugin calls {@link NativeRenderContext.window.markReady}
+	 * or `Window.markContentLoaded()` mid-life. Payload: `{ windowId }`.
+	 *
+	 * The unified "window content is ready" signal across both render
+	 * strategies — use this instead of branching on iframe vs. native.
+	 * Iframe-only consumers can still subscribe to {@link IFRAME_READY},
+	 * which fires alongside this hook for iframe windows. The shell
+	 * removes the loading overlay and fades the content in on this
+	 * transition.
+	 *
+	 * Edge-triggered: only fires on a loading → ready transition.
+	 * The matching `wp-desktop-window-content-loaded` CustomEvent
+	 * dispatches on `document` with the same payload.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_CONTENT_LOADED: 'wp-desktop.window.content-loaded',
+	/**
+	 * Filter, applied to the loading-overlay HTMLElement just after
+	 * the shell paints its default `<wpd-spinner>` and after any
+	 * per-window inline customization (`config.loading.render`)
+	 * runs. Receives the overlay element; context: `{ windowId,
+	 * config }`. Plugins may mutate the element (e.g.
+	 * `host.replaceChildren( myBrandedLoader )` to swap out the
+	 * default entirely, or `host.querySelector('wpd-spinner')!.
+	 * setAttribute('preset', 'comet')` to retune the spinner) or
+	 * return a different element to replace the overlay wholesale.
+	 *
+	 * Use cases: a brand-skin plugin that overrides every window's
+	 * spinner with its own logo; a status-bar plugin that adds
+	 * "Loading… 47% — fetching posts" text; an A/B-test framework
+	 * that swaps the loader during an experiment.
+	 *
+	 * Resolution order for the loading overlay:
+	 *   1. Default content (`<wpd-spinner>`) is painted.
+	 *   2. Per-window `config.loading.render( host, ctx )` runs.
+	 *   3. This filter runs.
+	 *   4. The result is appended to the window body.
+	 *
+	 * @since 0.6.0
+	 */
+	WINDOW_LOADING_OVERLAY: 'wp-desktop.window.loading-overlay',
+	/**
 	 * Action, fires when `manager.open(...)` is called for a baseId
 	 * whose window already exists on the active desktop. This is the
 	 * unambiguous "user requested to open this window again" signal

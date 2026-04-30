@@ -481,6 +481,63 @@ wpd-tab-chip + wpd-tab-chip {
 	border: none;
 	display: block;
 	background: var(--wp-desktop-window-bg);
+	opacity: 1;
+	transition: opacity 0.25s ease;
+}
+
+/*
+ * Loading-state overlay — painted by `src/window/dom.ts` into
+ * every window's body and removed once the body's content reports
+ * ready. The `<wpd-spinner>` inside is sized responsively against
+ * the window's width via `clamp(96px, 14vw, 192px)` so a tiny
+ * popover gets a small spinner and a maximized window gets a big
+ * one. Placed above the body content (iframe / native render
+ * output) and kept aria-hidden so the spinner's own SR-label is
+ * the only loading announcement.
+ *
+ * `transition-delay` on the overlay's fade-in means a render
+ * that lands within ~120ms never paints the spinner — the
+ * overlay only becomes visible when there's actually a wait
+ * worth surfacing. This keeps the affordance from flashing on
+ * fast local-dev loads while still covering the slow production
+ * iframe boots that motivated it.
+ */
+.wp-desktop-window__loading {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	background: var(--wp-desktop-window-bg);
+	opacity: 0;
+	/* Default (loaded → loading-removed) — fade out immediately. */
+	transition: opacity 0.25s ease;
+	z-index: 1;
+}
+
+.wp-desktop-window__body--loading > .wp-desktop-window__iframe,
+.wp-desktop-window__body--loading > :not(.wp-desktop-window__loading) {
+	opacity: 0;
+	transition: opacity 0.25s ease;
+}
+
+.wp-desktop-window__body--loading > .wp-desktop-window__loading {
+	opacity: 1;
+	/* Entry transition with a small delay — loads that finish in
+	 * under ~120ms never paint the spinner, so fast local-dev /
+	 * hot-cache fires don't flash. Slow production iframe boots
+	 * still see the spinner. */
+	transition-delay: 0.12s;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wp-desktop-window__iframe,
+	.wp-desktop-window__loading,
+	.wp-desktop-window__body--loading > .wp-desktop-window__iframe,
+	.wp-desktop-window__body--loading > :not(.wp-desktop-window__loading) {
+		transition: none;
+	}
 }
 
 /*
