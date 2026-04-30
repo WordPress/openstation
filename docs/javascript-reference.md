@@ -217,6 +217,28 @@ document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
 
 ---
 
+### `wp-desktop-layout-changed` — Stable *(since 0.18.0)*
+Fires when the user picks a new top-level desktop layout in OS Settings → Appearance. The shell tears down and rebuilds the dock(s) before the event fires; plugins that cached `wp.desktop.dock` should re-fetch from the event detail (or read `wp.desktop.dock` again — it's mutated in place). The shell root reflects the new value in `data-wp-desktop-layout` attribute by the time this fires, so CSS selectors keyed on it will already match.
+
+```javascript
+document.addEventListener( 'wp-desktop-layout-changed', ( e ) => {
+    const { layout, primary, side } = e.detail;
+    console.log( 'Desktop layout is now', layout );
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    layout: 'classic' | 'unified' | 'spatial',
+    primary: Dock | null,   // bottom dock — always present
+    side:    Dock | null,   // left side bar — non-null only in classic
+}
+```
+
+---
+
 ### `wp-desktop-drag-start` — Planned (Phase 8)
 Will fire when a drag operation escalates across window boundaries.
 
@@ -247,8 +269,10 @@ window.wp.desktop = {
     onWindow:          ( id, handlers, opts? ) => () => void,
 
     // Surfaces
-    dock:              Dock | null,
-    taskbar:           Dock | null,
+    dock:              Dock | null,                            // primary (bottom)
+    sideDock:          Dock | null,                            // since 0.18.0 — left, classic only
+    desktopLayout:     'classic' | 'unified' | 'spatial',       // since 0.18.0
+    icons:             IconsApi,                                // since 0.24.0
     saveSession:       () => void,
 
     // Cross-bundle / cross-window primitives                  // since 0.5.5
@@ -619,26 +643,47 @@ If a `Window.close()` throws, the loop catches and continues — one bad window 
 ---
 
 ### `dock` — Stable
-The left-edge `Dock` instance (or `null` if the dock element wasn't in the DOM). Hosts **core WordPress menus** — Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies. Calling it directly is usually unnecessary — dock items are data-driven via `desktop_mode_dock_items`.
+The **primary (bottom) `Dock` instance** (or `null` if the dock element wasn't in the DOM). Always present once the shell has booted. What it holds depends on the active `desktopLayout`:
+
+- **Classic** — plugin-contributed top-level menus only (core menus go to `sideDock`).
+- **Unified** — every menu, core and plugin alike, sharing one rail.
+- **Spatial** — plugin menus only (core menus are rendered as wallpaper icons).
 
 `setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `wp-desktop/badge-changed` on the activity bus with `rail: 'dock'` *(since 0.24.0)*. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` *(since 0.24.0)* — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
+> **Layout switching note** — the underlying instance is replaced when the user picks a new layout in OS Settings → Appearance. `wp.desktop.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `wp-desktop-layout-changed` and refresh.
+
 ---
 
-### `taskbar` — Stable
-The bottom-edge `Dock` instance (or `null` if the shell markup lacks the taskbar element OR if no plugin-contributed menus were routed to it). Hosts **installed-plugin top-level menus** — anything routed through `admin.php?page=*` that isn't recognized as a core file.
+### `sideDock` — Stable *(since 0.18.0)*
+Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified and Spatial.
 
-Rendered as a floating macOS-style pill at the bottom of the shell. Same class, same tooltip / active-dot / "+" chip behaviour as the left dock — only orientation + CSS differ.
+Same `Dock` API as `dock`, just with `data-wp-desktop-dock-placement="left"` so its CSS selectors don't collide with the bottom rail.
 
-Server-side the split is driven by `desktop_mode_dock_placement()` and the `desktop_mode_dock_placement` filter — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_placement--stable) for how to override routing (pin a plugin to the dock; move a core menu to the taskbar).
+```js
+wp.desktop.sideDock?.setBadge( 'edit.php', 3 );
+```
 
-**Icon fallback:** when a plugin registers a menu without a dashicon / SVG / URL, the taskbar renders a **letter badge** in a hue deterministically derived from the menu title. Same plugin, same colour across reloads. Plugins shipping their own icon art always override the fallback.
+**Icon fallback:** as with the primary dock, a menu without dashicon / SVG / URL renders a letter badge in a hue derived from the title — same plugin, same colour across reloads.
+
+---
+
+### `desktopLayout` — Stable *(since 0.18.0)*
+Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OS Settings → Appearance pick and the `data-wp-desktop-layout` attribute on the shell root.
+
+```js
+if ( wp.desktop.desktopLayout === 'spatial' ) {
+    // Core menus are wallpaper icons; expect `sideDock` to be null.
+}
+```
+
+Listen for `wp-desktop-layout-changed` to react to a switch.
 
 ---
 
 ### `icons` — Stable *(since 0.24.0)*
 
-The wallpaper-icon rail — third badge surface alongside `dock` and `taskbar`. Mirrors the dock's `setBadge` shape exactly so plugin authors can fan a count to whichever rail happens to host their tile:
+The wallpaper-icon rail — second badge surface alongside `dock`. Mirrors the dock's `setBadge` shape exactly so plugin authors can fan a count to whichever rail happens to host their tile (also `sideDock` in Classic layout):
 
 ```ts
 interface IconsApi {

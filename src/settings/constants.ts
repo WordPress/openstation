@@ -119,8 +119,14 @@ export const DOCK_SIZES = [
 
 /**
  * Dock-placement options. Drives the `data-wp-desktop-dock-placement`
- * attribute on the shell root; CSS keys off that attribute to position
- * the rail, flip the tooltip anchor, and adjust the desktop-area inset.
+ * attribute that each `Dock` instance writes onto its own root. CSS
+ * keys off that attribute to position the rail, flip the tooltip
+ * anchor, and adjust the desktop-area inset.
+ *
+ * Placement is no longer user-tunable on its own: it is derived from
+ * the active `desktopLayout` (classic uses both `bottom` and `left`,
+ * unified + spatial both use `bottom`). The list is kept around as
+ * the canonical orientation set the dock and its CSS reason about.
  */
 export const DOCK_PLACEMENTS = [
 	{ id: 'bottom', label: 'Bottom' },
@@ -128,11 +134,22 @@ export const DOCK_PLACEMENTS = [
 	{ id: 'right', label: 'Right' },
 ] as const;
 
+/**
+ * Desktop layout options. User picks one in OS Settings → Appearance;
+ * the shell root reflects the choice in `data-wp-desktop-layout` and
+ * the layout dispatcher rebuilds the dock(s) + desktop icons.
+ */
+export const DESKTOP_LAYOUTS = [
+	{ id: 'classic', label: 'Classic' },
+	{ id: 'unified', label: 'Unified' },
+	{ id: 'spatial', label: 'Spatial' },
+] as const;
+
 export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'wp-blue',
 	dockSize: 'default',
-	dockPlacement: 'bottom',
+	desktopLayout: 'classic',
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',

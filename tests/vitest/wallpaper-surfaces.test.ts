@@ -196,6 +196,7 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 
 		const dock = document.createElement( 'nav' );
 		dock.id = 'wp-desktop-dock';
+		dock.className = 'wp-desktop-dock';
 		stubRect( dock, { left: 0, top: 0, width: 56, height: 900 } );
 		shell.appendChild( dock );
 
@@ -254,6 +255,8 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 	} );
 
 	test( 'dock edge face flips with placement attribute', () => {
+		const dockEl = document.getElementById( 'wp-desktop-dock' )!;
+
 		// Default (no attribute → bottom placement): face 'top'.
 		const bottomFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
@@ -261,14 +264,14 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 		expect( bottomFace ).toBe( 'top' );
 
 		// Left placement: face 'right' (inside-edge of left rail).
-		shell.setAttribute( 'data-wp-desktop-dock-placement', 'left' );
+		dockEl.setAttribute( 'data-wp-desktop-dock-placement', 'left' );
 		const leftFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;
 		expect( leftFace ).toBe( 'right' );
 
 		// Right placement: face 'left' (inside-edge of right rail).
-		shell.setAttribute( 'data-wp-desktop-dock-placement', 'right' );
+		dockEl.setAttribute( 'data-wp-desktop-dock-placement', 'right' );
 		const rightFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;

@@ -187,22 +187,16 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * because the wallpaper renders in the shell-level layer behind
  * both this area and the dock. Stacking context via position: relative
  * ensures children (windows) sit above the wallpaper.
+ *
+ * `padding-bottom` reserves room for the floating bottom dock pill
+ * that every layout (Classic, Unified, Spatial) puts at the bottom
+ * — 40px icons + 16px padding + 12px gap below + 8px breathing room.
  */
 .wp-desktop-area {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
 	background: transparent;
-}
-
-/*
- * When the dock is pinned to the bottom it floats as an absolutely
- * positioned pill, overlapping the desktop area's lower edge. Reserve
- * the corresponding inset so windows and desktop icons aren't
- * occluded by the dock. The reserved height roughly matches the pill
- * (40px icons + 16px padding + 12px gap below + 8px breathing room).
- */
-.wp-desktop-shell[ data-wp-desktop-dock-placement="bottom" ] .wp-desktop-area {
 	padding-bottom: 80px;
 }
 

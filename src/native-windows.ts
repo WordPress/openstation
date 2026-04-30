@@ -29,7 +29,7 @@ import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
-import type { Dock } from './dock';
+import type { SystemDockItem } from './dock';
 import type {
 	NativeRenderContext,
 	NativeWindowDef,
@@ -599,7 +599,15 @@ export function onWindow(
  */
 export interface NativeWindowRegistryDeps {
 	manager: WindowManager;
-	dock: Dock | null;
+	/**
+	 * Append a JS-owned tile to the bottom dock rail. Plugin-registered
+	 * native windows hand their tile here; the layout dispatcher tracks
+	 * the registration so it survives a layout rebuild without the sync
+	 * having to re-run.
+	 */
+	appendSystemTile: ( item: SystemDockItem ) => void;
+	/** Remove a previously-appended system tile by id. */
+	removeSystemTile: ( id: string ) => void;
 	desktopArea: HTMLElement;
 }
 
@@ -657,7 +665,7 @@ export interface NativeWindowSync {
 export function createNativeWindowSync(
 	deps: NativeWindowRegistryDeps,
 ): NativeWindowSync {
-	const { manager, dock } = deps;
+	const { manager, appendSystemTile, removeSystemTile } = deps;
 
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
@@ -781,7 +789,7 @@ export function createNativeWindowSync(
 		ensureTemplate( entry );
 		await ensureScript( entry );
 
-		dock?.appendSystemItem( {
+		appendSystemTile( {
 			id: entry.id,
 			title: entry.title,
 			icon: entry.icon,
@@ -798,7 +806,7 @@ export function createNativeWindowSync(
 		if ( ! registered.has( id ) ) {
 			return;
 		}
-		dock?.removeSystemItem( id );
+		removeSystemTile( id );
 		registered.delete( id );
 		entriesById.delete( id );
 	};

@@ -95,6 +95,10 @@ import {
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
+import {
+	createLayoutDispatcher,
+	type LayoutDispatcher,
+} from './desktop-layout';
 import { createApplyPayload } from './menu-refresh-apply';
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
@@ -244,7 +248,31 @@ const OS_SETTINGS_WINDOW_ID = 'wp-desktop-os-settings';
  */
 export interface WpDesktopPublicApi {
 	windowManager: WindowManager;
+	/**
+	 * Primary (bottom) dock instance. Present in every layout. May
+	 * be replaced when the user switches `desktopLayout` in OS
+	 * Settings — plugins that cache a reference should listen for
+	 * the `wp-desktop-layout-changed` CustomEvent on `document` and
+	 * re-fetch from `wp.desktop.dock`.
+	 */
 	dock: Dock | null;
+	/**
+	 * Side (left) dock instance — only non-null when the active
+	 * layout is `classic`. Holds core admin menus while the bottom
+	 * dock holds plugin menus. `null` in `unified` and `spatial`.
+	 *
+	 * @since 0.18.0
+	 */
+	sideDock: Dock | null;
+	/**
+	 * Currently-active desktop layout. Mirrors
+	 * `OsSettingsSnapshot.desktopLayout`; the framework writes
+	 * `data-wp-desktop-layout` on the shell root with this value so
+	 * plugins can also key off the attribute via CSS.
+	 *
+	 * @since 0.18.0
+	 */
+	desktopLayout: 'classic' | 'unified' | 'spatial';
 	/**
 	 * Wallpaper-icon rail — the second badge surface alongside the
 	 * dock. Mirrors `Dock.setBadge` exactly:
@@ -1226,42 +1254,64 @@ function init(): void {
 		openPaletteOnly( 'wp-desktop-ai-assistant' );
 	} );
 
-	// Dock — one unified rail that hosts every admin menu (core and
-	// plugin alike). Placement (left / right / bottom) is the user's
-	// OS-Settings preference; the shell root's
-	// `data-wp-desktop-dock-placement` attribute is the single source
-	// of truth CSS reads, and `osSettings.apply()` writes it on boot
-	// before the first paint. The `Dock` class itself just needs to
-	// know its orientation to anchor tooltips correctly.
-	const dockEl = document.getElementById( 'wp-desktop-dock' );
-	let dock: Dock | null = null;
-	if ( dockEl && config.dockItems ) {
-		const dockPlacement = osSettings.getOsSettingsSnapshot().dockPlacement;
-		dock = new Dock(
-			dockEl,
-			manager,
-			config.dockItems,
-			config.adminUrl,
-			dockPlacement,
-		);
+	// Dock(s) + desktop icons — managed by the layout dispatcher.
+	// User picks one of three layouts in OS Settings → Appearance:
+	// Classic (left side bar + bottom dock), Unified (single bottom
+	// rail), or Spatial (bottom dock + core menus as wallpaper
+	// icons). The dispatcher tears down and rebuilds the right set
+	// of `Dock` instances on every layout change and exposes a
+	// stable handle the rest of the shell (live menu refresh,
+	// public API) keeps wired to whichever rails are currently live.
+	const bottomDockEl = document.getElementById( 'wp-desktop-dock' );
+	const shellEl = document.getElementById( 'wp-desktop-shell' );
+	const shellBody = shellEl?.querySelector< HTMLElement >(
+		'.wp-desktop-shell__body',
+	);
+	let layoutDispatcher: LayoutDispatcher | null = null;
+	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'wp-desktop-area--with-dock' );
-
-		// OS Settings tile — appended to the unified dock so it's
-		// reachable from whichever edge the user pins the rail to.
-		dock.appendSystemItem( {
+		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
+		const renderIcons = (
+			icons: import( './types' ).DesktopIconServerEntry[] | undefined,
+		): void => {
+			renderDesktopIcons( desktopArea, icons, {
+				openWindow: nativeWindows.openById,
+				manager,
+			} );
+		};
+		layoutDispatcher = createLayoutDispatcher(
+			{
+				shellRoot: shellEl,
+				shellBody,
+				bottomDockEl,
+				desktopArea,
+				windowManager: manager,
+				adminUrl: config.adminUrl,
+				renderIcons,
+			},
+			initialLayout,
+			config.dockItems,
+			config.desktopIcons,
+		);
+		// OS Settings tile — registered with the dispatcher so it
+		// re-attaches to whichever bottom rail is live after every
+		// layout rebuild. The tile lives on the bottom dock in every
+		// layout (it's a shell-owned affordance, not a plugin menu).
+		layoutDispatcher.appendSystemTile( {
 			id: OS_SETTINGS_WINDOW_ID,
 			title: 'OS Settings',
 			icon: 'dashicons-desktop',
 			// "Open" for the dock dot means "open on the currently
-			// active desktop." OS Settings on another desktop
-			// shouldn't paint the dot on the active view.
+			// active desktop." OS Settings on another desktop shouldn't
+			// paint the dot on the active view.
 			isOpen: () => {
 				const win = manager.getById( OS_SETTINGS_WINDOW_ID );
 				if ( ! win ) {
 					return false;
 				}
 				return (
-					( win.config.desktopId || manager.getActiveDesktopId() ) ===
+					( win.config.desktopId ||
+						manager.getActiveDesktopId() ) ===
 					manager.getActiveDesktopId()
 				);
 			},
@@ -1282,6 +1332,7 @@ function init(): void {
 			},
 		} );
 	}
+	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
 
 	// Bootstrap: restore session (if any), then decide whether to also
 	// auto-open the current admin URL. The rules compose three signals:
@@ -1377,12 +1428,13 @@ function init(): void {
 	};
 
 	/**
-	 * Place a system tile on the unified dock rail. Plugin-registered
-	 * launchers that aren't part of the admin menu (native-window
-	 * tools, quick-notes panels) land here.
+	 * Place a system tile on the bottom dock rail via the layout
+	 * dispatcher so it re-attaches automatically after a layout
+	 * rebuild. Plugin-registered launchers that aren't part of the
+	 * admin menu (native-window tools, quick-notes panels) land here.
 	 */
 	const placeSystemTile = ( item: SystemDockItem ): void => {
-		dock?.appendSystemItem( item );
+		layoutDispatcher?.appendSystemTile( item );
 	};
 
 	// Native-window sync — the server-declared list from
@@ -1393,7 +1445,8 @@ function init(): void {
 	// maps to tile add / remove without any shell reload.
 	const nativeWindows = createNativeWindowSync( {
 		manager,
-		dock,
+		appendSystemTile: ( item ) => layoutDispatcher?.appendSystemTile( item ),
+		removeSystemTile: ( id ) => layoutDispatcher?.removeSystemTile( id ),
 		desktopArea,
 	} );
 	const syncNativeWindows = nativeWindows.sync;
@@ -1642,17 +1695,25 @@ function init(): void {
 	// here (which we used to do) leaks an empty body to render
 	// callbacks that depend on the cloned template, breaking every
 	// plugin that follows the documented pattern.
+	// Wallpaper-icon repaint that re-uses whatever the layout
+	// dispatcher last said the merged list should be. In Spatial
+	// mode the dispatcher synthesizes core menu items as additional
+	// icons; in every other layout this is a passthrough to
+	// `renderDesktopIcons`.
 	const renderIcons = (
 		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 	): void => {
+		if ( layoutDispatcher ) {
+			layoutDispatcher.applyDesktopIcons( icons );
+			return;
+		}
+		// Headless paths without a dispatcher (rare; tests, older
+		// shell markup) still need direct rendering.
 		renderDesktopIcons( desktopArea, icons, {
 			openWindow: nativeWindows.openById,
 			manager,
 		} );
 	};
-	if ( Array.isArray( config.desktopIcons ) && config.desktopIcons.length > 0 ) {
-		renderIcons( config.desktopIcons );
-	}
 
 	// Live menu refresh — rebuild the dock when a plugin activation
 	// or deactivation lands in any windowed `plugins.php`. Without
@@ -1665,7 +1726,7 @@ function init(): void {
 	// refresh function is available to expose in the public API in
 	// the same statement.
 	const refreshMenu = bindMenuRefresh(
-		dock,
+		layoutDispatcher,
 		desktopArea,
 		config,
 		syncNativeWindows,
@@ -1677,12 +1738,26 @@ function init(): void {
 		renderIcons,
 	);
 
-	// Live dock-placement + orientation sync: when the user changes
-	// the dock placement in OS Settings, apply() has already written
-	// the shell attribute that CSS keys off; the `Dock` instance
-	// needs the same signal so its tooltip anchor stays correct.
+	// Live desktop-layout sync: when the user picks a new layout
+	// in OS Settings, the dispatcher tears down the current dock(s),
+	// rebuilds for the new layout, and (in Spatial) re-emits the
+	// merged wallpaper-icons list. `osSettings.apply()` has already
+	// written `data-wp-desktop-layout` on the shell root by the time
+	// this fires.
+	//
+	// The public-API references on `wp.desktop` are mutated in place
+	// so a plugin reading `wp.desktop.dock` after a layout change
+	// gets the current primary rail without an explicit re-fetch.
+	// Plugins that CACHED a reference earlier should listen for
+	// `wp-desktop-layout-changed` to know the value moved.
 	osSettings.subscribeOsSettings( ( snapshot ) => {
-		dock?.setOrientation( snapshot.dockPlacement );
+		if ( ! layoutDispatcher ) {
+			return;
+		}
+		layoutDispatcher.setLayout( snapshot.desktopLayout );
+		desktopApi.dock = layoutDispatcher.getPrimary();
+		desktopApi.sideDock = layoutDispatcher.getSide();
+		desktopApi.desktopLayout = snapshot.desktopLayout;
 	} );
 
 	// Expose the public API on `window.wp.desktop`. The `hooks` field
@@ -1692,6 +1767,9 @@ function init(): void {
 	const desktopApi: WpDesktopPublicApi = {
 		windowManager: manager,
 		dock,
+		sideDock: layoutDispatcher?.getSide() ?? null,
+		desktopLayout:
+			osSettings.getOsSettingsSnapshot().desktopLayout,
 		icons: iconsApi,
 		saveSession,
 		hooks: rawHooks(),
@@ -2488,22 +2566,25 @@ const MENU_REFRESH_DEBOUNCE_MS = 250;
  *
  * Listens for `wp-desktop-plugins-changed` postMessages from the
  * chromeless bridge (fired when an iframe lands on `plugins.php`), then
- * debounces + fetches `/wp-desktop/v1/menu` and calls `replaceItems()`
- * on the unified dock. Also exposes the fetch as a return value so the
- * public API can expose a manual `wp.desktop.refreshMenu()` for plugins
- * that mutate the menu server-side outside the plugins.php flow.
+ * debounces + fetches `/wp-desktop/v1/menu` and routes the items
+ * through the layout dispatcher (which partitions them across
+ * whichever rails are live for the current desktop layout). Also
+ * exposes the fetch as a return value so the public API can expose a
+ * manual `wp.desktop.refreshMenu()` for plugins that mutate the menu
+ * server-side outside the plugins.php flow.
  *
  * No-ops when `config.menuUrl` isn't present.
  *
- * @param dock        Unified dock instance.
- * @param desktopArea Desktop area element — wears live-refresh
- *                    classes the applier may toggle.
- * @param config      Boot config; `dockItems` is mutated in place
- *                    after each successful refresh.
+ * @param layoutDispatcher Owns the `Dock` instance(s) — receives the
+ *                         fresh dock-items list for partitioning.
+ * @param desktopArea      Desktop area element — wears live-refresh
+ *                         classes the applier may toggle.
+ * @param config           Boot config; `dockItems` is mutated in place
+ *                         after each successful refresh.
  * @return An async function plugins can call to force a refresh.
  */
 function bindMenuRefresh(
-	dock: Dock | null,
+	layoutDispatcher: LayoutDispatcher | null,
 	desktopArea: HTMLElement,
 	config: DesktopConfig,
 	syncNativeWindows: (
@@ -2534,7 +2615,7 @@ function bindMenuRefresh(
 	// payload path (no REST) and the manual-refresh path (REST) share
 	// behaviour AND the contract is unit-testable in isolation.
 	const applyPayload = createApplyPayload( {
-		dock,
+		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
 		desktopArea,
 		config,
 		syncNativeWindows,

@@ -54,6 +54,21 @@ function setupHarness(): Harness {
 	return { dockEl, desktopArea, dock, manager, managerOpen };
 }
 
+/**
+ * Build the deps `createNativeWindowSync` expects from a harness —
+ * the system-tile callbacks delegate to the harness's `Dock` instance
+ * directly so the tests still assert against real DOM tiles.
+ */
+function depsFromHarness( h: Harness ) {
+	return {
+		manager: h.manager,
+		appendSystemTile: ( item: Parameters< Dock[ 'appendSystemItem' ] >[ 0 ] ) =>
+			h.dock.appendSystemItem( item ),
+		removeSystemTile: ( id: string ) => h.dock.removeSystemItem( id ),
+		desktopArea: h.desktopArea,
+	};
+}
+
 function entry(
 	id: string,
 	overrides: Partial< NativeWindowServerEntry > = {},
@@ -99,11 +114,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 'boot: an empty list registers no tiles', async () => {
 		const h = setupHarness();
-		const { sync } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [] );
 
@@ -112,11 +123,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 'activation: a freshly-arrived entry adds a system tile to the dock', async () => {
 		const h = setupHarness();
-		const { sync } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [] );
 		expect( tilesIn( h.dockEl ) ).toEqual( [] );
@@ -129,11 +136,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 'deactivation: an entry that disappears from the list pulls its tile', async () => {
 		const h = setupHarness();
-		const { sync } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [
 			entry( 'calculator' ),
@@ -156,11 +159,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 'deactivation of the last entry leaves no system tiles behind', async () => {
 		const h = setupHarness();
-		const { sync } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [ entry( 'calculator' ) ] );
 		expect( h.dock.hasItems() ).toBe( true );
@@ -173,11 +172,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 're-syncing the same list is idempotent — no duplicate tiles', async () => {
 		const h = setupHarness();
-		const { sync } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [ entry( 'calculator' ) ] );
 		await sync( [ entry( 'calculator' ) ] );
@@ -188,11 +183,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 'reactivation: id leaves the list, then comes back — tile is re-registered', async () => {
 		const h = setupHarness();
-		const { sync } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [ entry( 'calculator' ) ] );
 		await sync( [] );
@@ -205,11 +196,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 'placement="none" runs the script + template injection but registers no tile', async () => {
 		const h = setupHarness();
-		const { sync } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [ entry( 'silent', { placement: 'none' } ) ] );
 
@@ -218,11 +205,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	test( 'openById opens a registered entry and rejects an unknown id', async () => {
 		const h = setupHarness();
-		const { sync, openById } = createNativeWindowSync( {
-			manager: h.manager,
-			dock: h.dock,
-			desktopArea: h.desktopArea,
-		} );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
 
 		await sync( [ entry( 'calculator' ) ] );
 		expect( openById( 'calculator' ) ).toBe( true );

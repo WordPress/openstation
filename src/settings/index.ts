@@ -63,8 +63,8 @@ import type {
 } from './types';
 import { buildAccentSection } from './sections/accent';
 import { buildAiSection } from './sections/ai';
+import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
-import { buildDockPlacementSection } from './sections/dock-placement';
 import { buildExtendedSection } from './sections/extended';
 import { buildHelpSection } from './sections/help';
 import {
@@ -120,7 +120,7 @@ export class OsSettings implements SettingsCtx {
 			wallpaper: this.state.wallpaper,
 			accent: this.state.accent,
 			dockSize: this.state.dockSize,
-			dockPlacement: this.state.dockPlacement,
+			desktopLayout: this.state.desktopLayout,
 			ai: { ...this.state.ai },
 		};
 	}
@@ -189,14 +189,16 @@ export class OsSettings implements SettingsCtx {
 		root.style.setProperty( '--wp-desktop-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--wp-desktop-dock-icon-size', `${ dockSize.icon }px` );
 
-		// Dock placement is driven by an attribute on the shell root;
-		// dock.css keys off it for orientation, and desktop.css adjusts
-		// the area inset accordingly. Written here so every apply() is
-		// the single source of truth — no matter how the state got to
-		// this point (init from localStorage, picker change, reset).
+		// Desktop layout is driven by an attribute on the shell root;
+		// the layout dispatcher (desktop.ts) reads it on init and on
+		// every settings change to rebuild the dock(s) and (in spatial
+		// mode) the synthesized desktop icons. Written here so every
+		// apply() is the single source of truth — no matter how the
+		// state got to this point (init from localStorage, picker
+		// change, reset).
 		shell.setAttribute(
-			'data-wp-desktop-dock-placement',
-			this.state.dockPlacement,
+			'data-wp-desktop-layout',
+			this.state.desktopLayout,
 		);
 	}
 
@@ -288,7 +290,7 @@ export class OsSettings implements SettingsCtx {
 						</p>
 						${ buildWallpaperSection( this, body ) }
 						${ buildAccentSection( this ) }
-						${ buildDockPlacementSection( this ) }
+						${ buildDesktopLayoutSection( this ) }
 						${ buildDockSizeSection( this ) }
 					</wpd-panel>
 				</wpd-tabpanel>`,

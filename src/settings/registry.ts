@@ -31,7 +31,17 @@ export interface OsSettingsSnapshot {
 	wallpaper: string;
 	accent: string;
 	dockSize: string;
-	dockPlacement: 'left' | 'right' | 'bottom';
+	/**
+	 * Top-level desktop layout. Drives the dock(s) layout:
+	 *
+	 * - `classic` — left side bar (core menus) + bottom dock (plugins).
+	 * - `unified` — single bottom dock with every menu.
+	 * - `spatial` — bottom dock with plugins; core menus rendered as
+	 *   icons on the wallpaper.
+	 *
+	 * @since 0.18.0
+	 */
+	desktopLayout: 'classic' | 'unified' | 'spatial';
 	ai: {
 		enabled: boolean;
 		provider: string;

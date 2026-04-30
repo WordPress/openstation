@@ -80,7 +80,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 	const renderIcons = vi.fn();
 
 	const deps: MenuRefreshDeps = {
-		dock: dock as unknown as MenuRefreshDeps[ 'dock' ],
+		applyDockItems: ( items ) => dock.replaceItems( items ),
 		desktopArea,
 		config,
 		syncNativeWindows: syncs.nativeWindows,
@@ -294,7 +294,7 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 	): MenuRefreshDeps {
 		const noop = (): Promise< void > => Promise.resolve();
 		return {
-			dock,
+			applyDockItems: ( items ) => dock.replaceItems( items ),
 			desktopArea,
 			config,
 			syncNativeWindows: noop,

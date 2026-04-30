@@ -15,7 +15,7 @@
  *
  * @since 0.18.0
  */
-import type { Dock } from './dock';
+import type { DockItem } from './dock';
 import type {
 	DesktopCommandScriptServerEntry,
 	DesktopCommandServerEntry,
@@ -45,7 +45,17 @@ export interface MenuRefreshPayload {
 
 /** Dependencies the applier needs from the shell. */
 export interface MenuRefreshDeps {
-	dock: Dock | null;
+	/**
+	 * Push a fresh dock-items list into whichever rails are live for
+	 * the current desktop layout. Routes core/plugin partitioning
+	 * through the layout dispatcher rather than reaching for a single
+	 * `Dock` instance — necessary because Classic uses two docks and
+	 * Spatial pushes core items to the wallpaper instead.
+	 *
+	 * No-op when the layout dispatcher hasn't been wired (older shell
+	 * markup, head-less tests).
+	 */
+	applyDockItems: ( items: DockItem[] ) => void;
 	desktopArea: HTMLElement;
 	config: DesktopConfig;
 	syncNativeWindows: ( list: NativeWindowServerEntry[] ) => Promise< void >;
@@ -71,7 +81,7 @@ export function createApplyPayload(
 	deps: MenuRefreshDeps,
 ): ( payload: MenuRefreshPayload ) => void {
 	const {
-		dock,
+		applyDockItems,
 		config,
 		syncNativeWindows,
 		syncServerWidgets,
@@ -104,10 +114,8 @@ export function createApplyPayload(
 		if ( ! Array.isArray( dockItems ) || dockItems.length === 0 ) {
 			return;
 		}
-		if ( dock ) {
-			dock.replaceItems( dockItems as DesktopConfig[ 'dockItems' ] );
-			config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
-		}
+		applyDockItems( dockItems as DesktopConfig[ 'dockItems' ] );
+		config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
 
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added

@@ -46,12 +46,26 @@ Key server-side entry points:
 2. `/wp-desktop/` serves a real admin page (Dashboard by default) with the shell wrapped around it.
 3. The shell's Vite-built TypeScript bundle (`desktop.js` in dev, `desktop.min.js` in prod) initializes:
    - Creates the `WindowManager`.
-   - Creates the `Dock`.
+   - Creates the **layout dispatcher** which owns the dock(s) for the active `desktopLayout` (see [Desktop layout modes](#desktop-layout-modes)).
    - Either restores the saved session (if one exists) **or** opens the current page in a new window.
    - Wires persistence — debounced `POST /wp-json/wp-desktop-mode/v1/session`.
 4. When a dock icon is clicked, the manager opens a window whose iframe `src` is the admin URL with `?wp_desktop=1` appended.
 5. The iframe renders WordPress normally, but the chromeless stylesheet hides the admin bar, side menu, and wp-footer.
 6. The iframe `postMessage`s its title, navigation, and screen-meta state up to the parent.
+
+## Desktop layout modes
+
+OS Settings → Appearance lets the user pick one of three top-level layouts. The shell root reflects the choice in `data-wp-desktop-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.
+
+| Mode | Default? | Bottom dock | Left side dock (`wp.desktop.sideDock`) | Wallpaper icons |
+|---|---|---|---|---|
+| **Classic** | ✅ since 0.18.0 | Plugin-contributed top-level menus (`isCore: false`) | Core admin menus (Dashboard, Posts, Media, Settings, …) | Plugin-registered icons only |
+| **Unified** | — *(was the default in 0.17.x)* | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
+| **Spatial** | — | Plugin menus only | — *(no side dock)* | Plugin-registered icons + **synthesized core icons** (one per core menu, prefixed `dock-core:`) |
+
+A user-meta value (`desktopLayout` inside the OS Settings JSON blob, REST-synced via the existing `/wp-json/wp-desktop-mode/v1/os-settings` endpoint) is the persistence layer. The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
+
+Listen for `wp-desktop-layout-changed` on `document` to react to a switch in plugin code — the event detail carries the new `layout` string plus current `primary`/`side` `Dock` references.
 
 ## Two window types
 

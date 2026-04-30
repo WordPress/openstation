@@ -117,55 +117,57 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		} );
 	}
 
-	// Dock edge — a thin collision strip along whichever side of the
-	// dock faces the desktop area. Placement (left / right / bottom)
-	// is driven by the user's OS Settings preference; we read the
-	// shell attribute to pick the correct face. Horizontally-moving
-	// effects (leaves, rain slanted by gusts) bounce off vertical
-	// dock edges; vertically-falling effects (snow) pile on the top
-	// edge of a bottom-placed dock.
-	const dockEl = document.getElementById( 'wp-desktop-dock' );
-	if ( dockEl ) {
+	// Dock edge — a thin collision strip along whichever side of each
+	// live dock faces the desktop area. The dock element itself
+	// carries the placement attribute, so two simultaneous instances
+	// (Classic layout: a left side bar + a bottom dock) each emit
+	// their own surface. Horizontally-moving effects (leaves, rain
+	// slanted by gusts) bounce off vertical dock edges; vertically-
+	// falling effects (snow) pile on the top edge of a bottom dock.
+	const dockEls = document.querySelectorAll< HTMLElement >(
+		'.wp-desktop-dock',
+	);
+	let dockIndex = 0;
+	for ( const dockEl of Array.from( dockEls ) ) {
 		const r = dockEl.getBoundingClientRect();
-		if ( r.width > 0 && r.height > 0 ) {
-			// The shell carries the canonical id `wp-desktop-shell` and
-			// also typically the matching class. Read by id so tests
-			// (which mount the shell as a plain `<div id="…">`) and
-			// production (which adds both id and class) both resolve.
-			const placement =
-				document
-					.getElementById( 'wp-desktop-shell' )
-					?.getAttribute( 'data-wp-desktop-dock-placement' ) ?? 'bottom';
-			if ( placement === 'bottom' ) {
-				seed.push( {
-					id: 'dock:edge',
-					kind: 'dock',
-					rect: { x: r.left, y: r.top, width: r.width, height: 1 },
-					face: 'top',
-					element: dockEl,
-				} );
-			} else if ( placement === 'right' ) {
-				seed.push( {
-					id: 'dock:edge',
-					kind: 'dock',
-					rect: { x: r.left, y: r.top, width: 1, height: r.height },
-					face: 'left',
-					element: dockEl,
-				} );
-			} else {
-				seed.push( {
-					id: 'dock:edge',
-					kind: 'dock',
-					rect: {
-						x: r.right - 1,
-						y: r.top,
-						width: 1,
-						height: r.height,
-					},
-					face: 'right',
-					element: dockEl,
-				} );
-			}
+		if ( r.width <= 0 || r.height <= 0 ) {
+			continue;
+		}
+		const placement =
+			dockEl.getAttribute( 'data-wp-desktop-dock-placement' ) ?? 'bottom';
+		// First dock keeps the canonical `dock:edge` id for backwards
+		// compat with single-rail layouts; subsequent docks suffix.
+		const id = dockIndex === 0 ? 'dock:edge' : `dock:edge:${ dockIndex }`;
+		dockIndex++;
+		if ( placement === 'bottom' ) {
+			seed.push( {
+				id,
+				kind: 'dock',
+				rect: { x: r.left, y: r.top, width: r.width, height: 1 },
+				face: 'top',
+				element: dockEl,
+			} );
+		} else if ( placement === 'right' ) {
+			seed.push( {
+				id,
+				kind: 'dock',
+				rect: { x: r.left, y: r.top, width: 1, height: r.height },
+				face: 'left',
+				element: dockEl,
+			} );
+		} else {
+			seed.push( {
+				id,
+				kind: 'dock',
+				rect: {
+					x: r.right - 1,
+					y: r.top,
+					width: 1,
+					height: r.height,
+				},
+				face: 'right',
+				element: dockEl,
+			} );
 		}
 	}
 

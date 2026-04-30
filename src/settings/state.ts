@@ -21,7 +21,7 @@ import type { DesktopConfig } from '../types';
 import {
 	getAiProviders,
 	DEFAULTS,
-	DOCK_PLACEMENTS,
+	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
 	STORAGE_KEY,
 	getAccents,
@@ -32,7 +32,7 @@ import type {
 	AiSettings,
 	CustomGradient,
 	CustomImage,
-	DockPlacementId,
+	DesktopLayoutId,
 	DockSizeId,
 	OsSettingsState,
 } from './types';
@@ -105,11 +105,11 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		dockSize: DOCK_SIZES.some( ( d ) => d.id === parsed.dockSize )
 			? ( parsed.dockSize as DockSizeId )
 			: DEFAULTS.dockSize,
-		dockPlacement: DOCK_PLACEMENTS.some(
-			( p ) => p.id === parsed.dockPlacement,
+		desktopLayout: DESKTOP_LAYOUTS.some(
+			( l ) => l.id === parsed.desktopLayout,
 		)
-			? ( parsed.dockPlacement as DockPlacementId )
-			: DEFAULTS.dockPlacement,
+			? ( parsed.desktopLayout as DesktopLayoutId )
+			: DEFAULTS.desktopLayout,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
 		libraryHdOnly:

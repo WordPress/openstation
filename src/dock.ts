@@ -92,13 +92,14 @@ export interface DockAttentionOptions {
 /**
  * Dock class.
  *
- * Manages the dock element, its icons, tooltips, and interaction with
- * the window manager. The dock is a single unified rail that hosts
- * every admin menu — core and plugin alike — and can render along any
- * of three edges (left, right, or bottom). Placement is controlled by
- * the user's `dockPlacement` OS setting via an attribute on the shell
- * root; this class just reads its `orientation` arg to anchor tooltips
- * and flip the indicator-dot side.
+ * Manages a single dock element, its icons, tooltips, and interaction
+ * with the window manager. A dock can render along any of three edges
+ * (left, right, or bottom); placement is reflected on the dock
+ * element's own `data-wp-desktop-dock-placement` attribute, which CSS
+ * keys off for layout, tooltip anchor, and indicator position. This
+ * lets two `Dock` instances coexist in the same shell (used by the
+ * Classic desktop layout: a left side bar with core menus + a bottom
+ * dock with plugin menus) without their selectors colliding.
  */
 export class Dock {
 	private container: HTMLElement;
@@ -135,6 +136,18 @@ export class Dock {
 	 */
 	private attentionTimers: Map<string, number> = new Map();
 
+	/**
+	 * Window-lifecycle listener captured here so `destroy()` can
+	 * detach it from `document` and the hooks bus. Two simultaneous
+	 * docks (Classic layout) each register their own.
+	 */
+	private boundRefresh: () => void = () => undefined;
+
+	/** Unique hooks-bus namespace per instance for clean teardown. */
+	private hooksNamespace: string;
+
+	private static instanceCounter = 0;
+
 	constructor(
 		container: HTMLElement,
 		windowManager: WindowManager,
@@ -148,12 +161,16 @@ export class Dock {
 		this.adminUrl = adminUrl;
 		this.orientation = orientation;
 		this.rail = orientation === 'bottom' ? 'taskbar' : 'dock';
+		this.hooksNamespace = `wp-desktop-mode/dock/${ ++Dock.instanceCounter }`;
 
-		// Orientation drives CSS indirectly via the shell root's
-		// `data-wp-desktop-dock-placement` attribute, so the dock
-		// element itself no longer carries modifier classes. Layout
-		// (vertical vs horizontal), indicator-dot anchor, and tile
-		// margins all key off the shell attribute in dock.css.
+		// Placement lives on the dock element itself so two instances
+		// (Classic layout's left side bar + bottom dock) can coexist
+		// without their CSS scopes colliding. dock.css reads this
+		// attribute for layout, tooltip anchor, and indicator anchor.
+		this.container.setAttribute(
+			'data-wp-desktop-dock-placement',
+			orientation,
+		);
 
 		// Tooltip — shared across all items. Anchor class flips per
 		// orientation so the tooltip sits outside the dock regardless
@@ -190,17 +207,24 @@ export class Dock {
 	 *              menu-derived.
 	 */
 	/**
-	 * Update the dock's orientation in response to a live placement
-	 * change from OS Settings. Cosmetic only — CSS handles the visual
-	 * position via the shell root's `data-wp-desktop-dock-placement`
-	 * attribute. All this method does is keep the tooltip anchor in
-	 * sync so it sits outside the rail on whichever edge is active.
+	 * Update the dock's orientation. Writes the new value to the
+	 * dock element's `data-wp-desktop-dock-placement` attribute (CSS
+	 * keys off it for layout) and keeps the tooltip anchor in sync.
+	 *
+	 * In practice, the layout dispatcher in `desktop.ts` rebuilds the
+	 * dock(s) from scratch on a layout change rather than re-orienting
+	 * a live instance — but this stays correct in case any caller
+	 * wants to flip orientation without the rebuild.
 	 */
 	public setOrientation( orientation: DockOrientation ): void {
 		if ( this.orientation === orientation ) {
 			return;
 		}
 		this.orientation = orientation;
+		this.container.setAttribute(
+			'data-wp-desktop-dock-placement',
+			orientation,
+		);
 		this.tooltip.classList.remove(
 			'wp-desktop-dock__tooltip--above',
 			'wp-desktop-dock__tooltip--before',
@@ -959,6 +983,7 @@ export class Dock {
 	 */
 	private bindWindowEvents(): void {
 		const refresh = (): void => this.updateActiveStates();
+		this.boundRefresh = refresh;
 		document.addEventListener( 'wp-desktop-window-opened', refresh );
 		document.addEventListener( 'wp-desktop-window-closed', refresh );
 		document.addEventListener( 'wp-desktop-window-focused', refresh );
@@ -966,17 +991,62 @@ export class Dock {
 		// the active desktop" even though the stack is unchanged.
 		// Listen via the hook bus so a plugin that manually calls
 		// switchDesktop() also triggers a repaint.
-		const ns = 'wp-desktop-mode/dock';
 		window.wp?.hooks?.addAction?.(
 			'wp-desktop.desktop.switched',
-			ns,
+			this.hooksNamespace,
 			refresh,
 		);
 		window.wp?.hooks?.addAction?.(
 			'wp-desktop.desktop.closed',
-			ns,
+			this.hooksNamespace,
 			refresh,
 		);
+	}
+
+	/**
+	 * Tear the dock down: detach window-lifecycle listeners, clear
+	 * pending attention timers, remove the floating tooltip from
+	 * `document.body`, and empty the container's children. Used by
+	 * the layout dispatcher when the user switches `desktopLayout`
+	 * in OS Settings — old dock(s) get destroyed and a fresh set is
+	 * constructed for the new layout.
+	 *
+	 * Idempotent: calling twice is safe.
+	 */
+	public destroy(): void {
+		document.removeEventListener(
+			'wp-desktop-window-opened',
+			this.boundRefresh,
+		);
+		document.removeEventListener(
+			'wp-desktop-window-closed',
+			this.boundRefresh,
+		);
+		document.removeEventListener(
+			'wp-desktop-window-focused',
+			this.boundRefresh,
+		);
+		window.wp?.hooks?.removeAction?.(
+			'wp-desktop.desktop.switched',
+			this.hooksNamespace,
+		);
+		window.wp?.hooks?.removeAction?.(
+			'wp-desktop.desktop.closed',
+			this.hooksNamespace,
+		);
+		for ( const handle of this.attentionTimers.values() ) {
+			window.clearTimeout( handle );
+		}
+		this.attentionTimers.clear();
+		this.tooltip.remove();
+		while ( this.container.firstChild ) {
+			this.container.removeChild( this.container.firstChild );
+		}
+		this.itemElements.clear();
+		this.systemItemElements.clear();
+		this.systemItems = [];
+		this.systemSeparator = null;
+		this.container.removeAttribute( 'data-wp-desktop-dock-placement' );
 	}
 
 	/**
