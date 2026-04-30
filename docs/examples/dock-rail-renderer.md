@@ -1,5 +1,16 @@
 # Replace the dock rail entirely
 
+> **Where this fits.** Dock customization has three layers — see
+> [the overview](../dock-customization.md). This page covers the
+> radical layer: owning the entire rail. Decoration hooks and the
+> submenu renderer continue to work alongside whatever you build.
+>
+> | If you want to… | Use… |
+> |---|---|
+> | Add classNames, wrap tiles, animate them in | [Decoration hooks](./dock-decoration-hooks.md) |
+> | Replace the right-click submenu popover | [Submenu renderer](./submenu-renderer.md) |
+> | Replace the entire rail (ring, stack, etc.) | **Rail renderer** *(this page)* |
+
 The radical end of dock customization: a plugin can take over the
 entire rail and paint it however they want — a circular ring, a
 Stage-Manager-style stack, a floating cluster, anything that fits

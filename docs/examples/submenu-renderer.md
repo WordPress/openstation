@@ -1,5 +1,16 @@
 # Replace the dock submenu popover
 
+> **Where this fits.** Dock customization has three layers — see
+> [the overview](../dock-customization.md). This page covers the
+> middle layer: replacing the right-click popover. It composes with
+> whichever rail renderer the user has active.
+>
+> | If you want to… | Use… |
+> |---|---|
+> | Add classNames, wrap tiles, animate them in | [Decoration hooks](./dock-decoration-hooks.md) |
+> | Replace the right-click submenu popover | **Submenu renderer** *(this page)* |
+> | Replace the entire rail (ring, stack, etc.) | [Rail renderer](./dock-rail-renderer.md) |
+
 Right-clicking a dock tile that has admin submenu items opens a popover
 listing those links. The shipped renderer is a vertical list — fine,
 but easy to make more interesting. This example shows two paths:

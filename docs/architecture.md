@@ -67,6 +67,36 @@ A user-meta value (`desktopLayout` inside the OS Settings JSON blob, REST-synced
 
 Listen for `wp-desktop-layout-changed` on `document` to react to a switch in plugin code — the event detail carries the new `layout` string plus current `primary`/`side` `Dock` references.
 
+## Dock customization — three registries
+
+Layered on top of the layout dispatcher: three orthogonal extensibility registries plugin authors can use to customize the dock without forking the renderer. Each registry is opt-in; the shipped baseline works unchanged when no plugins register.
+
+| Registry | Surface | When to reach for it |
+|---|---|---|
+| **Decoration hooks** | Render-pipeline filters and actions fired by the default rail renderer — `tile-class`, `tile-element`, `tile-rendered`, `tile-tooltip`, `before-render`, `after-render`. | Animations, classNames, wrappers, custom tooltips. Composable across plugins; plugin authors don't have to replace the rail. |
+| **Submenu renderer** | `wp.desktop.registerSubmenuRenderer( { id, label, mount } )` — owns the popover that opens on right-click. | Radial menus, hovering cards, command-K-style overlays. The default ships a vertical list popover. |
+| **Dock rail renderer** | `wp.desktop.registerDockRailRenderer( { id, label, mount } )` — owns the entire rail. | Circular ring, Stage-Manager stack, floating cluster. The default ships the icon-strip backed by the `Dock` class. |
+
+How they plug in:
+
+- **Default rail renderer** wraps the existing `Dock` class. The layout dispatcher calls `renderer.mount({ container, items, openItem, requestSubmenu, ... })` which constructs a `Dock` and returns a controller. The dispatcher's downstream calls (live menu refresh, system tile add/remove, badge updates) all go through the controller.
+- **Custom rail renderers** receive the same `mount-deps` shape and return their own controller. The `openItem` / `openSystemItem` / `requestSubmenu` callbacks are the routing surface — renderers SHOULD use them rather than reaching for `windowManager` directly so they stay compatible with future shell features (multi-instance, session restore, per-window theming).
+- **Submenu renderer** is invoked by the rail renderer on right-click. The default rail renderer wires `contextmenu` listeners that resolve the active submenu renderer via the registry. Custom rail renderers receive `requestSubmenu` in their mount-deps and call it the same way.
+- **Decoration hooks** are emitted from inside the default rail renderer. Custom rail renderers SHOULD emit equivalent hooks at equivalent points so plugins that decorate through the hook surface keep working when the user picks a different renderer. The shell can't enforce this — the hook calls are `applyFilters` / `doAction` calls a renderer chooses to make.
+
+Robustness guarantees:
+
+- Every `mount()` runs inside try/catch. A throwing renderer logs via `HOOKS.SHELL_ERROR` and the dispatcher falls back to the built-in `'default'` for that rail or popover.
+- `apiVersion: 1` is enforced at registration so an out-of-date plugin can't stand on a load-bearing bug; an unsupported version throws.
+- Owner-tagged registrations sweep on plugin deactivation: `unregisterByOwner( 'plugin-script-handle' )` removes every renderer the plugin contributed; if the user had one of them active, the dispatcher rebuilds with the shipped baseline. No reload required.
+- `wp.desktop.dock` and `wp.desktop.sideDock` continue to return the underlying `Dock` instance when the default renderer is active (Symbol-keyed escape hatch). With a custom renderer active, both return `null` — plugin authors who need renderer-agnostic access reach for `windowManager` / `activity` / hooks instead.
+
+Persistence:
+
+- `submenuRenderer` and `dockRailRenderer` live on `OsSettingsState` (REST-synced to user meta via `/wp-json/wp-desktop-mode/v1/os-settings`). Both fields take any `sanitize_key()`-clean string; the JS-side registry resolves at use time and falls back to `'default'` when the named renderer is missing (plugin deactivated, typo). No server-side allow-list — renderers register from JS at runtime.
+
+See [`docs/dock-customization.md`](./dock-customization.md) for the plugin-author overview and [`docs/examples/`](./examples/README.md) for full walk-throughs.
+
 ## Two window types
 
 ### Iframe windows (default)

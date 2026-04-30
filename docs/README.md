@@ -14,6 +14,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 6. **[Examples](./examples/README.md)** — recipes you can copy into a plugin.
 7. **[Bridge Protocol Overview](./bridge-protocol.md)** — *internals doc.* End-to-end wiring of `wp.desktop.connect()` / `wp.desktop.iframe.*` / the synthesised iframe inside native windows. Read when debugging a stuck handshake or building unusual integrations.
 8. **[Native Windows & Framework Interop](./native-windows-proposal.md)** — *Stable (shipped 0.11.0).* Public API for `desktop_mode_register_window()` / `desktop_mode_register_window_tab()`, Web Components as first-class, and how React / Vue / Svelte plug in without the shell taking a framework dependency. See also [examples/native-windows.md](./examples/native-windows.md) and [examples/native-window-with-tabs.md](./examples/native-window-with-tabs.md).
+9. **[Dock Customization](./dock-customization.md)** — *Stable (since 0.18.0).* Three orthogonal registries — decoration hooks, submenu renderer, dock rail renderer — that let a plugin author go from "tweak a className" to "replace the entire rail with a circular ring." Start here if you want to customize the dock visual.
 
 ## Conventions used in this docs folder
 

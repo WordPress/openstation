@@ -1,12 +1,19 @@
 # Decorate the dock without forking the renderer
 
+> **Where this fits.** Dock customization has three layers — see
+> [the overview](../dock-customization.md). This page covers the
+> cheapest layer: decoration hooks. They compose with any rail
+> renderer and across multiple plugins.
+>
+> | If you want to… | Use… |
+> |---|---|
+> | Add classNames, wrap tiles, animate them in | **Decoration hooks** *(this page)* |
+> | Replace the right-click submenu popover | [Submenu renderer](./submenu-renderer.md) |
+> | Replace the entire rail (ring, stack, etc.) | [Rail renderer](./dock-rail-renderer.md) |
+
 The default `Dock` renderer fires a small set of filters and actions while it
 paints. Plugins compose decoration — animations, classNames, wrappers,
 custom tooltips — through these instead of replacing the whole rail.
-
-> Need to replace the rail entirely (circular layout, Stage Manager, etc.)?
-> See [`dock-rail-renderer.md`](./dock-rail-renderer.md). This file covers
-> the cheap, additive path that works alongside any renderer.
 
 **Status:** Stable since 0.18.0.
 
