@@ -38,7 +38,16 @@ export function buildDockRailRendererSection(
 
 	let renderers: DockRailRenderer[] = listDockRailRenderers();
 
-	const paint = (): void =>
+	const paint = (): void => {
+		// Hide the picker entirely when there's only the shipped
+		// default — a one-pill segmented control adds noise without
+		// giving the user a real choice. Plugins that register a
+		// renderer flip the count > 1 and the picker materializes
+		// live (the registry-subscribe below repaints).
+		if ( renderers.length <= 1 ) {
+			render( html``, wrapper );
+			return;
+		}
 		render(
 			html`
 				<wpd-section
@@ -62,6 +71,7 @@ export function buildDockRailRendererSection(
 			`,
 			wrapper,
 		);
+	};
 
 	const unsubscribe = subscribeDockRailRenderers( () => {
 		renderers = listDockRailRenderers();
