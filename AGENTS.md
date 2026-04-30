@@ -200,6 +200,10 @@ docs/
     ├── presence.md              UPDATE/READ WHEN: wp.desktop.presence.* contract,
     │                            wp_desktop_presence_* filters/actions, or the Heartbeat
     │                            payload for `wp_desktop_presence` changes.
+    ├── window-with-config.md    UPDATE/READ WHEN: the 'config' arg on
+    │                            desktop_mode_register_window(), wp.desktop.getWindowConfig(),
+    │                            wp.desktop.debug.window(), or the lazy-load extras
+    │                            harvest contract changes.
     └── window-lifecycle.md     UPDATE/READ WHEN: window state machine / lifecycle hooks change.
 ```
 

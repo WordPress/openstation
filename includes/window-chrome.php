@@ -238,8 +238,8 @@ function desktop_mode_build_window_theme_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = desktop_mode_resolve_script_url( $handle );
-		if ( '' === $url ) {
+		$payload = desktop_mode_resolve_script_payload( $handle );
+		if ( '' === $payload['url'] ) {
 			desktop_mode_warn_unresolvable_script_handle(
 				'desktop_mode_register_window_theme_script',
 				'Window theme',
@@ -248,8 +248,12 @@ function desktop_mode_build_window_theme_scripts_payload() {
 			continue;
 		}
 		$out[]           = array(
-			'handle'    => (string) $handle,
-			'scriptUrl' => $url,
+			'handle'             => (string) $handle,
+			'scriptUrl'          => $payload['url'],
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 		$seen[ $handle ] = true;
 	}
@@ -272,14 +276,21 @@ function desktop_mode_build_window_themes_payload() {
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$handle = (string) $entry['script'];
+		$handle  = (string) $entry['script'];
+		$payload = '' !== $handle
+			? desktop_mode_resolve_script_payload( $handle )
+			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
 		$out[]  = array(
-			'id'           => (string) $entry['id'],
-			'label'        => (string) $entry['label'],
-			'tokens'       => (array) $entry['tokens'],
-			'priority'     => (int) $entry['priority'],
-			'scriptUrl'    => '' !== $handle ? desktop_mode_resolve_script_url( $handle ) : '',
-			'scriptHandle' => $handle,
+			'id'                => (string) $entry['id'],
+			'label'             => (string) $entry['label'],
+			'tokens'            => (array) $entry['tokens'],
+			'priority'          => (int) $entry['priority'],
+			'scriptUrl'         => $payload['url'],
+			'scriptHandle'      => $handle,
+			'scriptBefore'      => $payload['before'],
+			'scriptAfter'       => $payload['after'],
+			'scriptL10n'        => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
@@ -460,8 +471,8 @@ function desktop_mode_build_window_control_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = desktop_mode_resolve_script_url( $handle );
-		if ( '' === $url ) {
+		$payload = desktop_mode_resolve_script_payload( $handle );
+		if ( '' === $payload['url'] ) {
 			desktop_mode_warn_unresolvable_script_handle(
 				'desktop_mode_register_window_control_script',
 				'Window control',
@@ -470,8 +481,12 @@ function desktop_mode_build_window_control_scripts_payload() {
 			continue;
 		}
 		$out[]           = array(
-			'handle'    => (string) $handle,
-			'scriptUrl' => $url,
+			'handle'             => (string) $handle,
+			'scriptUrl'          => $payload['url'],
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 		$seen[ $handle ] = true;
 	}
@@ -490,15 +505,22 @@ function desktop_mode_build_window_controls_payload() {
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$handle = (string) $entry['script'];
+		$handle  = (string) $entry['script'];
+		$payload = '' !== $handle
+			? desktop_mode_resolve_script_payload( $handle )
+			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
 		$out[]  = array(
-			'id'           => (string) $entry['id'],
-			'label'        => (string) $entry['label'],
-			'icon'         => (string) $entry['icon'],
-			'placement'    => (string) $entry['placement'],
-			'order'        => (int) $entry['order'],
-			'scriptUrl'    => '' !== $handle ? desktop_mode_resolve_script_url( $handle ) : '',
-			'scriptHandle' => $handle,
+			'id'                => (string) $entry['id'],
+			'label'             => (string) $entry['label'],
+			'icon'              => (string) $entry['icon'],
+			'placement'         => (string) $entry['placement'],
+			'order'             => (int) $entry['order'],
+			'scriptUrl'         => $payload['url'],
+			'scriptHandle'      => $handle,
+			'scriptBefore'      => $payload['before'],
+			'scriptAfter'       => $payload['after'],
+			'scriptL10n'        => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
@@ -682,8 +704,8 @@ function desktop_mode_build_window_slot_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = desktop_mode_resolve_script_url( $handle );
-		if ( '' === $url ) {
+		$payload = desktop_mode_resolve_script_payload( $handle );
+		if ( '' === $payload['url'] ) {
 			desktop_mode_warn_unresolvable_script_handle(
 				'desktop_mode_register_window_slot_script',
 				'Window slot',
@@ -692,8 +714,12 @@ function desktop_mode_build_window_slot_scripts_payload() {
 			continue;
 		}
 		$out[]           = array(
-			'handle'    => (string) $handle,
-			'scriptUrl' => $url,
+			'handle'             => (string) $handle,
+			'scriptUrl'          => $payload['url'],
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 		$seen[ $handle ] = true;
 	}
@@ -712,13 +738,20 @@ function desktop_mode_build_window_slots_payload() {
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$handle = (string) $entry['script'];
+		$handle  = (string) $entry['script'];
+		$payload = '' !== $handle
+			? desktop_mode_resolve_script_payload( $handle )
+			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
 		$out[]  = array(
-			'id'           => (string) $entry['id'],
-			'slot'         => (string) $entry['slot'],
-			'order'        => (int) $entry['order'],
-			'scriptUrl'    => '' !== $handle ? desktop_mode_resolve_script_url( $handle ) : '',
-			'scriptHandle' => $handle,
+			'id'                => (string) $entry['id'],
+			'slot'              => (string) $entry['slot'],
+			'order'             => (int) $entry['order'],
+			'scriptUrl'         => $payload['url'],
+			'scriptHandle'      => $handle,
+			'scriptBefore'      => $payload['before'],
+			'scriptAfter'       => $payload['after'],
+			'scriptL10n'        => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
@@ -874,8 +907,8 @@ function desktop_mode_build_window_chrome_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$url = desktop_mode_resolve_script_url( $handle );
-		if ( '' === $url ) {
+		$payload = desktop_mode_resolve_script_payload( $handle );
+		if ( '' === $payload['url'] ) {
 			desktop_mode_warn_unresolvable_script_handle(
 				'desktop_mode_register_window_chrome_script',
 				'Window chrome',
@@ -884,8 +917,12 @@ function desktop_mode_build_window_chrome_scripts_payload() {
 			continue;
 		}
 		$out[]           = array(
-			'handle'    => (string) $handle,
-			'scriptUrl' => $url,
+			'handle'             => (string) $handle,
+			'scriptUrl'          => $payload['url'],
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 		$seen[ $handle ] = true;
 	}
@@ -904,12 +941,19 @@ function desktop_mode_build_window_chromes_payload() {
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$handle = (string) $entry['script'];
+		$handle  = (string) $entry['script'];
+		$payload = '' !== $handle
+			? desktop_mode_resolve_script_payload( $handle )
+			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
 		$out[]  = array(
-			'id'           => (string) $entry['id'],
-			'label'        => (string) $entry['label'],
-			'scriptUrl'    => '' !== $handle ? desktop_mode_resolve_script_url( $handle ) : '',
-			'scriptHandle' => $handle,
+			'id'                => (string) $entry['id'],
+			'label'             => (string) $entry['label'],
+			'scriptUrl'         => $payload['url'],
+			'scriptHandle'      => $handle,
+			'scriptBefore'      => $payload['before'],
+			'scriptAfter'       => $payload['after'],
+			'scriptL10n'        => $payload['l10n'],
+			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;

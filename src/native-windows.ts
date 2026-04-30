@@ -704,7 +704,12 @@ export function createNativeWindowSync(
 			return;
 		}
 		try {
-			await loadVendorScript( entry.scriptUrl );
+			await loadVendorScript( entry.scriptUrl, {
+				translations: entry.scriptTranslations,
+				l10n: entry.scriptL10n,
+				before: entry.scriptBefore,
+				after: entry.scriptAfter,
+			} );
 		} catch ( err ) {
 			// Load failed — surface via SHELL_ERROR. The tile will
 			// still render + open, but the window's body will only
