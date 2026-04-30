@@ -2335,6 +2335,38 @@ The window hooks fan out alongside the existing `wp-desktop-window-*` CustomEven
 
 All hooks can be listed via `wp.hooks.hasAction()` / `hasFilter()` for defensive checks.
 
+#### Dock decoration
+
+Render-pipeline hooks the default `Dock` renderer fires while painting tiles. Use these to add classNames, wrap tiles, customize tooltips, or animate tiles in — without forking the renderer. See [`docs/examples/dock-decoration-hooks.md`](./examples/dock-decoration-hooks.md).
+
+Custom rail renderers (registered via `wp.desktop.registerDockRailRenderer`, see below) **should** fire the same hooks at equivalent points so plugin decoration keeps working when the user picks a different renderer.
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `wp-desktop.dock.before-render` | action | Stable *(0.18.0)* | `DockRenderContext` — fires at start of every paint pass (initial mount + every `replaceItems`) |
+| `wp-desktop.dock.tile-class` | filter | Stable *(0.18.0)* | `( classes: string[], ctx: DockTileContext ) → string[]` — order preserved |
+| `wp-desktop.dock.tile-element` | filter | Stable *(0.18.0)* | `( el: HTMLElement, ctx: DockTileContext ) → HTMLElement` — wrap, don't replace; the shell still finds `[data-menu-slug]` / `[data-system-id]` descendants for active state |
+| `wp-desktop.dock.tile-tooltip` | filter | Stable *(0.18.0)* | `( label: string, ctx: DockTileContext ) → string` — runs once at bind time; empty string suppresses the tooltip |
+| `wp-desktop.dock.tile-rendered` | action | Stable *(0.18.0)* | `DockTileContext & { el: HTMLElement }` — fires once per tile after insertion (computed layout is ready) |
+| `wp-desktop.dock.after-render` | action | Stable *(0.18.0)* | `DockRenderContext` with frozen `tileElements: ReadonlyMap<string, HTMLElement>` |
+| `wp-desktop.dock.item-appended` | action | Stable *(0.22.0)* | `{ id }` — fires when `wp.desktop.registerSystemTile()` lands a tile |
+| `wp-desktop.dock.item-removed` | action | Stable *(0.24.0)* | `{ id, placement }` — symmetric counterpart to `item-appended` |
+
+**`DockHookContextBase`** (shared by both context types):
+
+```typescript
+{
+    rail: 'dock' | 'taskbar';            // mirrors Dock.rail discriminator
+    orientation: 'left' | 'right' | 'bottom';
+    dockId: string;                       // host element id — disambiguates two-rail layouts
+    container: HTMLElement;
+}
+```
+
+**`DockTileContext`** (per-tile hooks): `DockHookContextBase` plus `{ item: DockItem | SystemDockItem; isSystem: boolean }`. `isSystem` is the discriminator for narrowing `item`.
+
+**`DockRenderContext`** (bulk hooks): `DockHookContextBase` plus `{ items: DockItem[]; tileElements: ReadonlyMap<string, HTMLElement> }`. The map is read-only — mutating it desyncs the rail.
+
 #### Iframe observability
 
 Lifecycle + instrumentation for the chromeless iframe inside each window. Re-dispatched from `postMessage` payloads the iframe bridge forwards, so subscribers get a unified event stream without juggling the lower-level message bus themselves.

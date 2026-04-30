@@ -645,6 +645,86 @@ export const HOOKS = {
 	DOCK_ITEM_REMOVED: 'wp-desktop.dock.item-removed',
 
 	// ------------------------------------------------------------------
+	// Dock decoration hooks — render-pipeline filters and actions the
+	// default `Dock` renderer fires while painting tiles. Plugins
+	// compose decoration (animations, classNames, wrappers, tooltips)
+	// without forking the renderer. Custom rail renderers SHOULD fire
+	// the same hooks for ecosystem compatibility — see
+	// `docs/examples/dock-decoration-hooks.md` for the contract.
+	//
+	// Every detail object carries `{ rail, orientation, dockId,
+	// container }` so a single subscriber can disambiguate when two
+	// rails coexist (Classic layout's left side bar + bottom dock).
+	// `dockId` matches the host element's `id` (e.g. `'wp-desktop-dock'`
+	// or `'wp-desktop-side-dock'`) and is the stable
+	// disambiguator — `rail` and `orientation` are convenience
+	// projections of where the renderer is painting.
+	// ------------------------------------------------------------------
+
+	/**
+	 * Action, fires at the start of every dock paint pass — both the
+	 * initial mount and every `replaceItems()` that follows on the
+	 * live menu-refresh path. Payload `DockRenderContext`. Use this
+	 * to invalidate cached per-render decoration state before the
+	 * tiles repopulate.
+	 *
+	 * @since 0.18.0
+	 */
+	DOCK_BEFORE_RENDER: 'wp-desktop.dock.before-render',
+	/**
+	 * Action, fires once every menu and system tile has landed in
+	 * the DOM for a paint pass. Payload `DockRenderContext` plus a
+	 * frozen `tileElements: ReadonlyMap<string, HTMLElement>` so a
+	 * plugin can decorate every tile in one sweep. Symmetric to
+	 * {@link DOCK_BEFORE_RENDER}.
+	 *
+	 * @since 0.18.0
+	 */
+	DOCK_AFTER_RENDER: 'wp-desktop.dock.after-render',
+	/**
+	 * Filter, runs once per tile while the renderer is composing the
+	 * className list. Plugins may add, remove, or reorder classes.
+	 * Signature: `( classes: string[], detail: DockTileContext ) =>
+	 * string[]`. Order is preserved.
+	 *
+	 * @since 0.18.0
+	 */
+	DOCK_TILE_CLASS: 'wp-desktop.dock.tile-class',
+	/**
+	 * Filter, runs once per tile after the renderer finishes building
+	 * the element but before it lands in the DOM. Return the same
+	 * element with mutations, or replace with a wrapper — the shell
+	 * inserts whatever you return. Signature:
+	 * `( el: HTMLElement, detail: DockTileContext ) => HTMLElement`.
+	 *
+	 * Returning a different node still has to expose a stable
+	 * `[data-menu-slug="<id>"]` (or `[data-system-id="<id>"]`)
+	 * descendant for active-state / badge updates to find the tile;
+	 * wrap, don't replace.
+	 *
+	 * @since 0.18.0
+	 */
+	DOCK_TILE_ELEMENT: 'wp-desktop.dock.tile-element',
+	/**
+	 * Action, fires once per tile after it has been inserted into
+	 * the DOM. Payload `DockTileContext` plus the resolved `el`. Use
+	 * for post-insertion decoration where computed layout matters
+	 * (measurements, IntersectionObserver bindings, etc.).
+	 *
+	 * @since 0.18.0
+	 */
+	DOCK_TILE_RENDERED: 'wp-desktop.dock.tile-rendered',
+	/**
+	 * Filter, resolves the tooltip text for a tile. Runs once at
+	 * bind time so the dock doesn't re-filter on every pointerenter.
+	 * Signature: `( label: string, detail: DockTileContext ) =>
+	 * string`. Return an empty string to suppress the tooltip.
+	 *
+	 * @since 0.18.0
+	 */
+	DOCK_TILE_TOOLTIP: 'wp-desktop.dock.tile-tooltip',
+
+	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.
 	//
 	// The "Arrange" admin-bar menu drives two layout algorithms —
