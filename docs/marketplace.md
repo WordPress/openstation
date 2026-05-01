@@ -145,10 +145,23 @@ For developers iterating on an extension without cutting a release:
 ```php
 // wp-config.php
 define( 'WP_DEBUG', true );
+```
+
+When `WP_DEBUG` is on AND the running plugin folder also contains
+`extensions.json` and an `extensions/` directory (which is true when
+the plugin is symlinked or live-mounted from a source checkout), the
+local-dev path activates automatically — no further config needed.
+
+For unusual setups where the plugin is NOT mounted from the source
+checkout (e.g. wp-env mounting plugins one place and the repo
+elsewhere), you can override with an explicit path:
+
+```php
+define( 'WP_DEBUG', true );
 define( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR', '/abs/path/to/desktop-mode-checkout' );
 ```
 
-When both constants are set:
+In either case:
 
 - **Manifest** is synthesized in PHP from `extensions.json` plus each
   plugin's header at the checkout (mirroring what

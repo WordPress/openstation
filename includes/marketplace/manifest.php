@@ -143,11 +143,38 @@ function desktop_mode_marketplace_local_manifest() {
 	if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
 		return null;
 	}
-	if ( ! defined( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR' ) ) {
+
+	// Resolve the checkout root in two ways:
+	//
+	//   1. Explicit override via WP_DESKTOP_LOCAL_MARKETPLACE_DIR.
+	//      Useful when the plugin is *not* the same as the source
+	//      checkout — e.g. wp-env mounting the plugin folder at one
+	//      path and the repo root at another.
+	//
+	//   2. Auto-detect from DESKTOP_MODE_DIR. When the running plugin
+	//      lives in a directory that ALSO contains `extensions.json`
+	//      and an `extensions/` directory, treat it as the source
+	//      checkout. Released plugin zips export-ignore both, so this
+	//      cannot accidentally trip in production even if WP_DEBUG is
+	//      on. Lets a developer running the plugin from a symlinked
+	//      checkout get the marketplace working with zero config.
+	$checkout = null;
+	if ( defined( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR' ) ) {
+		$checkout = (string) WP_DESKTOP_LOCAL_MARKETPLACE_DIR;
+	} elseif ( defined( 'DESKTOP_MODE_DIR' ) ) {
+		$candidate = rtrim( (string) DESKTOP_MODE_DIR, '/\\' );
+		if (
+			is_readable( $candidate . '/extensions.json' )
+			&& is_dir( $candidate . '/extensions' )
+		) {
+			$checkout = $candidate;
+		}
+	}
+
+	if ( null === $checkout ) {
 		return null;
 	}
 
-	$checkout = (string) WP_DESKTOP_LOCAL_MARKETPLACE_DIR;
 	$catalog = $checkout . '/extensions.json';
 	if ( ! is_readable( $catalog ) ) {
 		return new WP_Error(

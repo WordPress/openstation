@@ -39,3 +39,4 @@
 
 # Bundled extension plugins (shipped separately, not inside the shell zip)
 /extensions/        export-ignore
+/extensions.json    export-ignore
