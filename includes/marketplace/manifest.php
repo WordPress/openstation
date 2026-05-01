@@ -55,6 +55,22 @@ function desktop_mode_marketplace_manifest_url() {
  * @return array|WP_Error Decoded manifest array on success.
  */
 function desktop_mode_marketplace_fetch_manifest( $force = false ) {
+	// Local-dev fast path: when WP_DEBUG is on AND
+	// WP_DESKTOP_LOCAL_MARKETPLACE_DIR points at a checkout, synthesize
+	// the manifest from `extensions.json` + each plugin's header instead
+	// of round-tripping through a release. Lets contributors test the
+	// marketplace before any release that ships `extensions.resolved.json`
+	// exists, and lets extension authors see header changes (Version,
+	// Requires PHP, …) reflected immediately. Skips the transient cache
+	// — recomputation is cheap and the user is iterating.
+	$local = desktop_mode_marketplace_local_manifest();
+	if ( is_wp_error( $local ) ) {
+		return $local;
+	}
+	if ( is_array( $local ) ) {
+		return $local;
+	}
+
 	if ( ! $force ) {
 		$cached = get_site_transient( DESKTOP_MODE_MARKETPLACE_TRANSIENT );
 		if ( is_array( $cached ) ) {
@@ -103,6 +119,93 @@ function desktop_mode_marketplace_fetch_manifest( $force = false ) {
 	set_site_transient( DESKTOP_MODE_MARKETPLACE_TRANSIENT, $decoded, DESKTOP_MODE_MARKETPLACE_CACHE_TTL );
 
 	return $decoded;
+}
+
+/**
+ * Builds a synthetic manifest from a local checkout, mirroring what
+ * `bin/build-manifest.sh` produces in CI.
+ *
+ * Reads `extensions.json` at the checkout root and merges in `Version`,
+ * `Requires at least`, and `Requires PHP` from each extension's plugin
+ * header. `download_url` is intentionally left empty — the local-dev
+ * install path runs `bin/package-extensions.sh` against the checkout and
+ * never reads `download_url`, so no value is needed.
+ *
+ * Returns null when local-dev mode is off (the normal remote-fetch path
+ * runs); WP_Error when the constant is set but the checkout doesn't look
+ * right; the manifest array on success.
+ *
+ * @since 0.6.0
+ *
+ * @return array|WP_Error|null
+ */
+function desktop_mode_marketplace_local_manifest() {
+	if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+		return null;
+	}
+	if ( ! defined( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR' ) ) {
+		return null;
+	}
+
+	$checkout = (string) WP_DESKTOP_LOCAL_MARKETPLACE_DIR;
+	$catalog = $checkout . '/extensions.json';
+	if ( ! is_readable( $catalog ) ) {
+		return new WP_Error(
+			'desktop_mode_marketplace_local_no_catalog',
+			sprintf(
+				/* translators: %s: filesystem path */
+				__( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR is set but %s is not readable.', 'desktop-mode' ),
+				$catalog
+			),
+			array( 'status' => 500 )
+		);
+	}
+
+	$decoded = json_decode( (string) file_get_contents( $catalog ), true );
+	if ( ! is_array( $decoded ) || empty( $decoded['extensions'] ) || ! is_array( $decoded['extensions'] ) ) {
+		return new WP_Error(
+			'desktop_mode_marketplace_local_invalid_catalog',
+			sprintf(
+				/* translators: %s: filesystem path */
+				__( 'Could not parse %s — expected an object with an "extensions" array.', 'desktop-mode' ),
+				$catalog
+			),
+			array( 'status' => 500 )
+		);
+	}
+
+	if ( ! function_exists( 'get_plugin_data' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+
+	$entries = array();
+	foreach ( $decoded['extensions'] as $entry ) {
+		if ( ! is_array( $entry ) || empty( $entry['slug'] ) ) {
+			continue;
+		}
+		$slug = (string) $entry['slug'];
+		$plugin_file = $checkout . '/extensions/' . $slug . '/' . $slug . '.php';
+		if ( ! is_readable( $plugin_file ) ) {
+			continue;
+		}
+		$data = get_plugin_data( $plugin_file, false, false );
+		if ( ! empty( $data['Version'] ) ) {
+			$entry['version'] = (string) $data['Version'];
+		}
+		if ( ! empty( $data['RequiresWP'] ) ) {
+			$entry['requires_wp'] = (string) $data['RequiresWP'];
+		}
+		if ( ! empty( $data['RequiresPHP'] ) ) {
+			$entry['requires_php'] = (string) $data['RequiresPHP'];
+		}
+		$entries[] = $entry;
+	}
+
+	return array(
+		'generated_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
+		'release_tag'  => 'local',
+		'extensions'   => $entries,
+	);
 }
 
 /**

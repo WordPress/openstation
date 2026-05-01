@@ -148,15 +148,34 @@ define( 'WP_DEBUG', true );
 define( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR', '/abs/path/to/desktop-mode-checkout' );
 ```
 
-When both constants are set, *install* and *update* calls run
-`bin/package-extensions.sh` against the checkout and install the
-freshly-built `dist/<slug>.zip` from disk instead of downloading
-anything. The manifest still comes from the release URL — only the
-binary source changes — so listing semantics are identical.
+When both constants are set:
 
-The hatch refuses to fire if `php exec()` is disabled or the script
-isn't executable. Production hosts almost always disable `exec`, so
-this is a no-op in real deployments even if the constants leak in.
+- **Manifest** is synthesized in PHP from `extensions.json` plus each
+  plugin's header at the checkout (mirroring what
+  `bin/build-manifest.sh` produces in CI). No release dependency, no
+  network call, no transient cache — header changes (`Version`,
+  `Requires PHP`, …) appear immediately on the next list fetch.
+
+- **Install / update** calls run `bin/package-extensions.sh` against
+  the checkout and install the freshly-built `dist/<slug>.zip` from
+  disk instead of downloading.
+
+This means the marketplace works end-to-end against a checkout — useful
+for testing the whole loop before any release that ships
+`extensions.resolved.json` exists, and for extension authors iterating
+on a slug.
+
+The hatch refuses to fire if `php exec()` is disabled or
+`bin/package-extensions.sh` isn't executable. Production hosts almost
+always disable `exec`, so this is a no-op in real deployments even if
+the constants leak in.
+
+Caveat: in local-dev mode, `download_url` is left empty on each
+manifest entry, so installed extensions don't surface in WP's native
+`site_transient_update_plugins` (the SSRF allowlist would reject an
+empty URL). The inline "Update available" banner inside the
+Extensions tab still works because it's computed from version diff,
+not from the update transient.
 
 ## Update detection
 
