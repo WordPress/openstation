@@ -169,19 +169,22 @@ In either case:
   network call, no transient cache — header changes (`Version`,
   `Requires PHP`, …) appear immediately on the next list fetch.
 
-- **Install / update** calls run `bin/package-extensions.sh` against
-  the checkout and install the freshly-built `dist/<slug>.zip` from
-  disk instead of downloading.
+- **Install / update** zips the extension folder in pure PHP via
+  `ZipArchive` and feeds it to `Plugin_Upgrader::install()` — no
+  download, no `bin/`, no `git`, no `bash`, `tar`, or `zip` binaries
+  required. Vendored content (e.g. `assets/vendor/phpmyadmin/`) is
+  included verbatim if present in the checkout; if it isn't, run the
+  extension's `bin/fetch-*.sh` once on the host first.
 
 This means the marketplace works end-to-end against a checkout — useful
 for testing the whole loop before any release that ships
 `extensions.resolved.json` exists, and for extension authors iterating
 on a slug.
 
-The hatch refuses to fire if `php exec()` is disabled or
-`bin/package-extensions.sh` isn't executable. Production hosts almost
-always disable `exec`, so this is a no-op in real deployments even if
-the constants leak in.
+The auto-detect requires `extensions.json` + `extensions/` to live
+next to the plugin file — both are `export-ignore`'d from the
+production zip, so a released install can't trip this even if
+`WP_DEBUG` happens to be on.
 
 Caveat: in local-dev mode, `download_url` is left empty on each
 manifest entry, so installed extensions don't surface in WP's native

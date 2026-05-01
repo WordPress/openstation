@@ -116,72 +116,112 @@ function desktop_mode_marketplace_get_entry( $slug ) {
 }
 
 /**
- * Returns the path to a built zip from a local checkout, building it
- * on demand via `bin/package-extensions.sh`. Only fires when local-dev
- * mode is active (see `desktop_mode_marketplace_local_checkout()`);
- * otherwise returns null and the standard download-from-release path
- * runs.
+ * Builds a zip of an extension folder from a local checkout, in pure
+ * PHP via ZipArchive.
+ *
+ * Why not shell out to `bin/package-extensions.sh`? That script needs
+ * `bin/`, `git`, `bash`, `tar`, and `zip` to be present at the
+ * checkout — none of which are guaranteed in a typical wp-env / Studio
+ * setup, which mounts only the plugin folder (not the source tree) and
+ * runs PHP in a sandbox where `exec()` may be disabled. Doing it in
+ * PHP keeps this hatch usable across environments.
+ *
+ * Skips the dev/build artifacts that have no business in a plugin zip
+ * (`.git`, `.DS_Store`, `node_modules`, OS junk). Vendored content
+ * (e.g. `assets/vendor/phpmyadmin/` for the phpMyAdmin extension) IS
+ * included verbatim — that's the same behaviour
+ * `bin/package-extensions.sh` produces in CI via its splice step. If
+ * the vendor dir is missing locally, run the extension's
+ * `bin/fetch-*.sh` once on the host before installing.
  *
  * @since 0.6.0
  *
  * @param string $slug
- * @return string|WP_Error|null Absolute path on success; WP_Error if dev
- *                              mode is on but the build failed; null when
- *                              dev mode is off.
+ * @return string|WP_Error|null Absolute path on success; WP_Error if
+ *                              local-dev mode is on but the build
+ *                              failed; null when local-dev mode is off.
  */
 function desktop_mode_marketplace_local_zip( $slug ) {
 	$checkout = desktop_mode_marketplace_local_checkout();
 	if ( null === $checkout ) {
 		return null;
 	}
-	$script = $checkout . '/bin/package-extensions.sh';
-	if ( ! is_executable( $script ) ) {
+	$src = $checkout . '/extensions/' . $slug;
+	if ( ! is_dir( $src ) ) {
 		return new WP_Error(
-			'desktop_mode_marketplace_local_missing',
+			'desktop_mode_marketplace_local_missing_ext',
 			sprintf(
 				/* translators: %s: filesystem path */
-				__( 'Local marketplace mode is active but %s is not executable.', 'desktop-mode' ),
-				$script
+				__( 'Extension folder not found in checkout: %s', 'desktop-mode' ),
+				$src
 			),
 			array( 'status' => 500 )
 		);
 	}
-	if ( ! function_exists( 'exec' ) ) {
+	if ( ! class_exists( 'ZipArchive' ) ) {
 		return new WP_Error(
-			'desktop_mode_marketplace_exec_disabled',
-			__( 'PHP exec() is disabled — local dev mode cannot run the package script.', 'desktop-mode' ),
+			'desktop_mode_marketplace_no_zip_archive',
+			__( 'PHP ZipArchive is required for local-dev install.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
 
-	$out = array();
-	$rc = 0;
-	$cmd = 'cd ' . escapeshellarg( $checkout ) . ' && ' . escapeshellarg( $script ) . ' 2>&1';
-	exec( $cmd, $out, $rc );
-	if ( 0 !== $rc ) {
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	$tmp_zip = wp_tempnam( $slug . '.zip' );
+	if ( ! $tmp_zip ) {
 		return new WP_Error(
-			'desktop_mode_marketplace_local_build_failed',
-			__( 'package-extensions.sh exited non-zero.', 'desktop-mode' ),
-			array(
-				'status' => 500,
-				'output' => implode( "\n", $out ),
-			)
-		);
-	}
-
-	$zip = $checkout . '/dist/' . $slug . '.zip';
-	if ( ! is_readable( $zip ) ) {
-		return new WP_Error(
-			'desktop_mode_marketplace_local_missing_zip',
-			sprintf(
-				/* translators: %s: filesystem path */
-				__( 'Expected zip not found after build: %s', 'desktop-mode' ),
-				$zip
-			),
+			'desktop_mode_marketplace_tmp_failed',
+			__( 'Could not allocate a temp file for the local zip.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
-	return $zip;
+
+	$zip = new ZipArchive();
+	if ( true !== $zip->open( $tmp_zip, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
+		@unlink( $tmp_zip );
+		return new WP_Error(
+			'desktop_mode_marketplace_zip_open_failed',
+			__( 'Could not create the local zip.', 'desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
+
+	$src_real = realpath( $src );
+	$prefix_len = strlen( $src_real ) + 1;
+	$skip_pattern = '#(^|/)(\.git|\.DS_Store|node_modules|\.cache|dist)(/|$)#';
+
+	$iter = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $src_real, FilesystemIterator::SKIP_DOTS ),
+		RecursiveIteratorIterator::SELF_FIRST
+	);
+	foreach ( $iter as $item ) {
+		/** @var SplFileInfo $item */
+		$abs = $item->getPathname();
+		$rel = (string) substr( $abs, $prefix_len );
+		if ( '' === $rel ) {
+			continue;
+		}
+		if ( preg_match( $skip_pattern, $rel ) ) {
+			continue;
+		}
+		$entry = $slug . '/' . $rel;
+		if ( $item->isDir() ) {
+			$zip->addEmptyDir( $entry );
+		} else {
+			$zip->addFile( $abs, $entry );
+		}
+	}
+
+	if ( true !== $zip->close() ) {
+		@unlink( $tmp_zip );
+		return new WP_Error(
+			'desktop_mode_marketplace_zip_close_failed',
+			__( 'Could not finalize the local zip.', 'desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
+
+	return $tmp_zip;
 }
 
 /**
