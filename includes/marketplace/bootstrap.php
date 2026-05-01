@@ -32,12 +32,14 @@
  * Local-dev escape hatch
  * ----------------------
  *
- * When `WP_DEBUG` is on AND `WP_DESKTOP_LOCAL_MARKETPLACE_DIR` points
- * at a checkout of this repo, install / update calls run
- * `bin/package-extensions.sh` against that checkout and install from
- * the freshly-built `dist/<slug>.zip` instead of downloading from a
- * release. Lets an extension developer iterate without cutting a
- * tag. See `installer.php` for details.
+ * When `WP_DEBUG` is on AND the running plugin folder either contains
+ * `extensions.json` + `extensions/` (auto-detect) OR
+ * `WP_DESKTOP_LOCAL_MARKETPLACE_DIR` is set, the marketplace
+ * synthesizes the manifest from the local checkout and runs
+ * `bin/package-extensions.sh` against it for install / update —
+ * skipping any release roundtrip. See
+ * `desktop_mode_marketplace_local_checkout()` in `manifest.php` for
+ * the resolution rules.
  *
  * @since 0.6.0
  * @package WPDesktopMode

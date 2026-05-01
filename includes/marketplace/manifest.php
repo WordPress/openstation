@@ -122,6 +122,48 @@ function desktop_mode_marketplace_fetch_manifest( $force = false ) {
 }
 
 /**
+ * Resolves the local-dev source checkout, if any.
+ *
+ * Two ways the checkout is found:
+ *
+ *   1. Explicit override via `WP_DESKTOP_LOCAL_MARKETPLACE_DIR`.
+ *      Useful when the plugin is *not* the same as the source
+ *      checkout — e.g. wp-env mounting the plugin folder at one
+ *      path and the repo root at another.
+ *
+ *   2. Auto-detect from `DESKTOP_MODE_DIR`. When the running plugin
+ *      lives in a directory that ALSO contains `extensions.json` and
+ *      an `extensions/` directory, treat it as the source checkout.
+ *      Released plugin zips `export-ignore` both, so a production
+ *      install can't trip this even if `WP_DEBUG` is on.
+ *
+ * Both resolution paths require `WP_DEBUG`. Returns null when local
+ * mode is off; an absolute path string otherwise.
+ *
+ * @since 0.6.0
+ *
+ * @return string|null
+ */
+function desktop_mode_marketplace_local_checkout() {
+	if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+		return null;
+	}
+	if ( defined( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR' ) ) {
+		return rtrim( (string) WP_DESKTOP_LOCAL_MARKETPLACE_DIR, '/\\' );
+	}
+	if ( defined( 'DESKTOP_MODE_DIR' ) ) {
+		$candidate = rtrim( (string) DESKTOP_MODE_DIR, '/\\' );
+		if (
+			is_readable( $candidate . '/extensions.json' )
+			&& is_dir( $candidate . '/extensions' )
+		) {
+			return $candidate;
+		}
+	}
+	return null;
+}
+
+/**
  * Builds a synthetic manifest from a local checkout, mirroring what
  * `bin/build-manifest.sh` produces in CI.
  *
@@ -132,45 +174,15 @@ function desktop_mode_marketplace_fetch_manifest( $force = false ) {
  * never reads `download_url`, so no value is needed.
  *
  * Returns null when local-dev mode is off (the normal remote-fetch path
- * runs); WP_Error when the constant is set but the checkout doesn't look
- * right; the manifest array on success.
+ * runs); WP_Error when the checkout doesn't look right; the manifest
+ * array on success.
  *
  * @since 0.6.0
  *
  * @return array|WP_Error|null
  */
 function desktop_mode_marketplace_local_manifest() {
-	if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
-		return null;
-	}
-
-	// Resolve the checkout root in two ways:
-	//
-	//   1. Explicit override via WP_DESKTOP_LOCAL_MARKETPLACE_DIR.
-	//      Useful when the plugin is *not* the same as the source
-	//      checkout — e.g. wp-env mounting the plugin folder at one
-	//      path and the repo root at another.
-	//
-	//   2. Auto-detect from DESKTOP_MODE_DIR. When the running plugin
-	//      lives in a directory that ALSO contains `extensions.json`
-	//      and an `extensions/` directory, treat it as the source
-	//      checkout. Released plugin zips export-ignore both, so this
-	//      cannot accidentally trip in production even if WP_DEBUG is
-	//      on. Lets a developer running the plugin from a symlinked
-	//      checkout get the marketplace working with zero config.
-	$checkout = null;
-	if ( defined( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR' ) ) {
-		$checkout = (string) WP_DESKTOP_LOCAL_MARKETPLACE_DIR;
-	} elseif ( defined( 'DESKTOP_MODE_DIR' ) ) {
-		$candidate = rtrim( (string) DESKTOP_MODE_DIR, '/\\' );
-		if (
-			is_readable( $candidate . '/extensions.json' )
-			&& is_dir( $candidate . '/extensions' )
-		) {
-			$checkout = $candidate;
-		}
-	}
-
+	$checkout = desktop_mode_marketplace_local_checkout();
 	if ( null === $checkout ) {
 		return null;
 	}

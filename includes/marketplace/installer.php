@@ -117,9 +117,10 @@ function desktop_mode_marketplace_get_entry( $slug ) {
 
 /**
  * Returns the path to a built zip from a local checkout, building it
- * on demand via `bin/package-extensions.sh`. Only fires when the
- * dev-mode constant is set; otherwise returns null and the standard
- * download-from-release path runs.
+ * on demand via `bin/package-extensions.sh`. Only fires when local-dev
+ * mode is active (see `desktop_mode_marketplace_local_checkout()`);
+ * otherwise returns null and the standard download-from-release path
+ * runs.
  *
  * @since 0.6.0
  *
@@ -129,20 +130,17 @@ function desktop_mode_marketplace_get_entry( $slug ) {
  *                              dev mode is off.
  */
 function desktop_mode_marketplace_local_zip( $slug ) {
-	if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+	$checkout = desktop_mode_marketplace_local_checkout();
+	if ( null === $checkout ) {
 		return null;
 	}
-	if ( ! defined( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR' ) ) {
-		return null;
-	}
-	$checkout = (string) WP_DESKTOP_LOCAL_MARKETPLACE_DIR;
 	$script = $checkout . '/bin/package-extensions.sh';
 	if ( ! is_executable( $script ) ) {
 		return new WP_Error(
 			'desktop_mode_marketplace_local_missing',
 			sprintf(
 				/* translators: %s: filesystem path */
-				__( 'WP_DESKTOP_LOCAL_MARKETPLACE_DIR is set but %s is not executable.', 'desktop-mode' ),
+				__( 'Local marketplace mode is active but %s is not executable.', 'desktop-mode' ),
 				$script
 			),
 			array( 'status' => 500 )
