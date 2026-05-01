@@ -24,6 +24,20 @@ const DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large'
 const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
 
 /**
+ * Valid AI live-progress transports — mirrors the TS `AI_TRANSPORTS` constant.
+ *
+ * - `sse` — Server-Sent Events; real-time progress ticks. Requires the host
+ *   to allow long-lived `text/event-stream` connections.
+ * - `off` — single request, no progress ticks. Works everywhere; the user
+ *   sees "Thinking…" until the final answer.
+ *
+ * Default is `off` because some hosts (locked-down shared environments,
+ * proxies that buffer responses) silently drop SSE mid-stream, which surfaces
+ * to the user as "Lost connection to the assistant".
+ */
+const DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS = array( 'sse', 'off' );
+
+/**
  * Built-in AI provider IDs.
  *
  * Other providers register themselves via {@see desktop_mode_register_ai_provider()};
@@ -59,10 +73,11 @@ function desktop_mode_default_os_settings() {
 		'customImage'  => null,
 		'libraryHdOnly' => true,
 		'ai'           => array(
-			'enabled'  => false,
-			'provider' => 'openai',
-			'apiKey'   => '',     // Legacy field — treated as the OpenAI key for backwards compat.
-			'apiKeys'  => array(), // Per-provider keys: { [provider_id]: string }.
+			'enabled'   => false,
+			'provider'  => 'openai',
+			'apiKey'    => '',     // Legacy field — treated as the OpenAI key for backwards compat.
+			'apiKeys'   => array(), // Per-provider keys: { [provider_id]: string }.
+			'transport' => 'off',   // Live-progress transport: 'sse' | 'off'. Default off — see DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS.
 		),
 	);
 }
@@ -229,6 +244,15 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		// real API key while preventing runaway meta writes.
 		if ( isset( $raw_ai['apiKey'] ) && is_string( $raw_ai['apiKey'] ) ) {
 			$ai['apiKey'] = substr( sanitize_text_field( $raw_ai['apiKey'] ), 0, 512 );
+		}
+
+		// Live-progress transport — must be one of the known values.
+		if (
+			isset( $raw_ai['transport'] )
+			&& is_string( $raw_ai['transport'] )
+			&& in_array( $raw_ai['transport'], DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS, true )
+		) {
+			$ai['transport'] = $raw_ai['transport'];
 		}
 
 		// Per-provider keys map. Limited to 32 entries to bound storage.

@@ -56,6 +56,22 @@ export interface CustomImage {
  */
 export type AiProviderId = string;
 
+/**
+ * Live-progress transport for the AI Copilot search.
+ *
+ * - `sse` — Server-Sent Events. Real-time progress ticks; preferred where the
+ *   host allows long-lived `text/event-stream` connections.
+ * - `off` — single REST request, no progress ticks. Works everywhere; the
+ *   user sees "Thinking…" until the final answer arrives.
+ *
+ * Default `off` because some hosts silently drop SSE mid-stream, which
+ * surfaces to the user as "Lost connection to the assistant". Power users
+ * on hosts known to support SSE can opt in.
+ *
+ * @since 0.18.1
+ */
+export type AiTransportId = 'sse' | 'off';
+
 /** AI integration preferences — provider choice + per-provider API keys. */
 export interface AiSettings {
 	enabled: boolean;
@@ -64,6 +80,12 @@ export interface AiSettings {
 	apiKey: string;
 	/** Per-provider key map. Falls back to `apiKey` for `openai`. */
 	apiKeys: Record< string, string >;
+	/**
+	 * Live-progress transport. See {@link AiTransportId}. Default `off`.
+	 *
+	 * @since 0.18.1
+	 */
+	transport: AiTransportId;
 }
 
 /** Provider entry surfaced via `wpDesktopConfig.aiProviders`. */

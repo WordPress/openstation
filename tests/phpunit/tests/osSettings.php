@@ -110,4 +110,33 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$loaded = desktop_mode_get_os_settings( $user_id );
 		$this->assertSame( 'fan', $loaded['dockRailRenderer'] );
 	}
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_ai_transport_is_off() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertArrayHasKey( 'transport', $defaults['ai'] );
+		$this->assertSame( 'off', $defaults['ai']['transport'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_known_ai_transport() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'ai' => array( 'transport' => 'sse' ) )
+		);
+		$this->assertSame( 'sse', $clean['ai']['transport'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_rejects_unknown_ai_transport() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'ai' => array( 'transport' => 'websocket' ) )
+		);
+		$this->assertSame( 'off', $clean['ai']['transport'] );
+	}
 }

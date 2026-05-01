@@ -53,6 +53,14 @@ export interface OsSettingsSnapshot {
 		enabled: boolean;
 		provider: string;
 		apiKey: string;
+		/**
+		 * Live-progress transport for AI search: `'sse' | 'off'`. Default
+		 * `'off'`. Surfaced so a third-party AI tab can read the user's
+		 * preferred transport without rebuilding the picker.
+		 *
+		 * @since 0.18.1
+		 */
+		transport: 'sse' | 'off';
 	};
 }
 

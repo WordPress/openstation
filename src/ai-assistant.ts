@@ -265,6 +265,12 @@ export class AiAssistant implements AiAssistantApi {
 	private _aiSearchStreamUrl: string;
 	private _restNonce: string;
 	private _currentStream: EventSource | null = null;
+	/**
+	 * Reads the user's preferred live-progress transport from OS Settings.
+	 * Defaults to `'off'` when the shell hasn't wired one in — the
+	 * conservative choice for hosts that may block SSE.
+	 */
+	private _getTransport: () => 'sse' | 'off';
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
@@ -284,10 +290,16 @@ export class AiAssistant implements AiAssistantApi {
 	/** Monotonic counter to discard stale async suggest() results. */
 	private _suggestToken = 0;
 
-	constructor( config: { aiSearchUrl: string; aiSearchStreamUrl: string; restNonce: string } ) {
+	constructor( config: {
+		aiSearchUrl: string;
+		aiSearchStreamUrl: string;
+		restNonce: string;
+		getTransport?: () => 'sse' | 'off';
+	} ) {
 		this._aiSearchUrl = config.aiSearchUrl;
 		this._aiSearchStreamUrl = config.aiSearchStreamUrl;
 		this._restNonce = config.restNonce;
+		this._getTransport = config.getTransport ?? ( () => 'off' );
 
 		this._el = this._buildDOM();
 		document.body.appendChild( this._el );
@@ -783,11 +795,22 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.disabled = true;
 		this._showThinking( 'Thinking…' );
 
-		// Prefer SSE streaming so the user sees real-time progress ticks
-		// ("Looking through your posts…"). Falls back to a plain fetch
-		// against the REST endpoint if EventSource is unavailable or the
-		// stream URL wasn't provisioned by PHP.
-		if ( typeof EventSource !== 'undefined' && this._aiSearchStreamUrl ) {
+		// Two transports, picked by the user in OS Settings → AI Settings:
+		//   - 'sse' — real-time progress ticks via EventSource. Preferred
+		//     UX, but some hosts (locked-down shared environments,
+		//     buffering proxies) drop the stream and surface as "Lost
+		//     connection to the assistant". Power users opt in.
+		//   - 'off' (default) — single REST request. No progress ticks;
+		//     the user sees "Thinking…" until the final answer. Reliable
+		//     everywhere.
+		// We additionally fall back to fetch when EventSource is missing
+		// or PHP didn't provision a stream URL, so an SSE pick on a host
+		// that can't actually run it still degrades gracefully.
+		const useSse =
+			this._getTransport() === 'sse' &&
+			typeof EventSource !== 'undefined' &&
+			!! this._aiSearchStreamUrl;
+		if ( useSse ) {
 			this._runSearchStream( query, resumeTool, startOffset );
 		} else {
 			this._runSearchFetch( query, resumeTool, startOffset );

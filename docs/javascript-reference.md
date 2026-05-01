@@ -1736,7 +1736,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, ai: { enabled, provider, apiKey } }`. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, ai: { enabled, provider, apiKey, transport } }`. `transport` is `'sse' \| 'off'` (default `'off'`) — the user's preferred live-progress transport for AI search; SSE is opt-in because some hosts block long-lived `text/event-stream` connections. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user edits the AI key in the adjacent AI tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript

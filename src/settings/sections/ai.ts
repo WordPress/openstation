@@ -15,8 +15,8 @@
 
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
-import { getAiProviders } from '../constants';
-import type { SettingsCtx } from '../types';
+import { AI_TRANSPORTS, getAiProviders } from '../constants';
+import type { AiTransportId, SettingsCtx } from '../types';
 
 // ---------------------------------------------------------------------------
 // Personal settings
@@ -59,6 +59,15 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 		const apiKeys = { ...( ctx.state.ai.apiKeys ?? {} ) };
 		apiKeys[ ctx.state.ai.provider ] = value;
 		ctx.state.ai = { ...ctx.state.ai, apiKey: value, apiKeys };
+		ctx.save();
+	};
+
+	const onTransport = ( e: Event ): void => {
+		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+		if ( ! AI_TRANSPORTS.some( ( t ) => t.id === id ) ) {
+			return;
+		}
+		ctx.state.ai = { ...ctx.state.ai, transport: id as AiTransportId };
 		ctx.save();
 	};
 
@@ -107,6 +116,20 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 						?disabled=${ ! ctx.state.ai.enabled }
 						@wpd-input-change=${ onApiKey }
 					></wpd-text-field>
+
+					<wpd-select
+						label=${ __( 'Live progress updates' ) }
+						value=${ ctx.state.ai.transport }
+						?disabled=${ ! ctx.state.ai.enabled }
+						@wpd-pick=${ onTransport }
+					>
+						${ AI_TRANSPORTS.map(
+							( t ) => html`<wpd-option value=${ t.id }>${ t.label }</wpd-option>`,
+						) }
+					</wpd-select>
+					<p class="wp-desktop-ext__hint">
+						${ __( 'How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see "Lost connection to the assistant" errors).' ) }
+					</p>
 				</wpd-section>
 
 				${ ctx.config.isAdmin ? _buildGlobalSection( ctx ) : html`` }

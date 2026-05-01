@@ -20,6 +20,7 @@
 import type { DesktopConfig } from '../types';
 import {
 	getAiProviders,
+	AI_TRANSPORTS,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
@@ -30,6 +31,7 @@ import {
 import type {
 	AccentId,
 	AiSettings,
+	AiTransportId,
 	CustomGradient,
 	CustomImage,
 	DesktopLayoutId,
@@ -209,7 +211,7 @@ export function sanitizeAi( raw: unknown ): AiSettings {
 	if ( ! raw || typeof raw !== 'object' ) {
 		return { ...DEFAULTS.ai, apiKeys: {} };
 	}
-	const { enabled, provider, apiKey, apiKeys } = raw as Partial< AiSettings >;
+	const { enabled, provider, apiKey, apiKeys, transport } = raw as Partial< AiSettings >;
 	const known = getAiProviders();
 	const validProvider =
 		typeof provider === 'string' && known.some( ( p ) => p.id === provider )
@@ -225,11 +227,18 @@ export function sanitizeAi( raw: unknown ): AiSettings {
 		}
 	}
 
+	const validTransport: AiTransportId =
+		typeof transport === 'string' &&
+		AI_TRANSPORTS.some( ( t ) => t.id === transport )
+			? ( transport as AiTransportId )
+			: DEFAULTS.ai.transport;
+
 	return {
 		enabled: typeof enabled === 'boolean' ? enabled : DEFAULTS.ai.enabled,
 		provider: validProvider,
 		apiKey: typeof apiKey === 'string' ? apiKey : DEFAULTS.ai.apiKey,
 		apiKeys: cleanKeys,
+		transport: validTransport,
 	};
 }
 

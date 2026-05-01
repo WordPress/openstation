@@ -163,8 +163,23 @@ export const DEFAULTS: OsSettingsState = {
 		provider: 'openai',
 		apiKey: '',
 		apiKeys: {},
+		transport: 'off',
 	},
 };
+
+/**
+ * Live-progress transport options. Order is the picker order in OS Settings.
+ *
+ * Default `off` is reliable on every host; `sse` is faster but needs the
+ * server (and any reverse proxy in front of it) to allow long-lived
+ * `text/event-stream` connections.
+ *
+ * @since 0.18.1
+ */
+export const AI_TRANSPORTS = [
+	{ id: 'off', label: 'Off' },
+	{ id: 'sse', label: 'Streaming (SSE)' },
+] as const;
 
 /**
  * Hard-coded fallback list — the only provider we know about without

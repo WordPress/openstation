@@ -1366,6 +1366,10 @@ function init(): void {
 		aiSearchUrl: config.aiSearchUrl ?? '',
 		aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 		restNonce: config.restNonce,
+		// Transport picker lives in OS Settings → AI Settings. Read live
+		// (not captured at construction) so a change applies on the next
+		// search without a page reload.
+		getTransport: () => osSettings.getOsSettingsSnapshot().ai.transport,
 	} );
 
 	// Late-bind the programmatic `ask` entry point. Passing `config`
