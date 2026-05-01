@@ -19,6 +19,7 @@ import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 import {
 	registerWindowControl,
+	listWindowControls,
 	_resetWindowControlRegistryForTests,
 } from '../../src/window-chrome/controls/registry';
 import { registerBuiltInControls } from '../../src/window-chrome/controls/built-ins';
@@ -46,6 +47,7 @@ function fakeWin(
 	toggleMaximize: ReturnType< typeof vi.fn >;
 	toggleFullscreen: ReturnType< typeof vi.fn >;
 	detach: ReturnType< typeof vi.fn >;
+	reload: ReturnType< typeof vi.fn >;
 	close: ReturnType< typeof vi.fn >;
 } {
 	return {
@@ -56,6 +58,7 @@ function fakeWin(
 		toggleMaximize: vi.fn(),
 		toggleFullscreen: vi.fn(),
 		detach: vi.fn(),
+		reload: vi.fn(),
 		close: vi.fn(),
 	};
 }
@@ -75,7 +78,7 @@ describe( 'resolveWindowControls', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
-			win as Parameters< typeof resolveWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
 		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).toEqual( [
 			'core/minimize',
@@ -91,7 +94,7 @@ describe( 'resolveWindowControls', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'os-settings', { native: true } );
 		const resolved = resolveWindowControls(
-			win as Parameters< typeof resolveWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
 		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).not.toContain(
 			'core/detach',
@@ -108,7 +111,7 @@ describe( 'resolveWindowControls', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
-			win as Parameters< typeof resolveWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
 			{ hide: [ 'core/detach', 'core/focus-tab' ] },
 		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).toEqual( [
@@ -123,7 +126,7 @@ describe( 'resolveWindowControls', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
-			win as Parameters< typeof resolveWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
 			{
 				order: [ 'core/close', 'core/minimize', 'core/maximize' ],
 			},
@@ -147,7 +150,7 @@ describe( 'resolveWindowControls', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
-			win as Parameters< typeof resolveWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
 			{
 				custom: [
 					{
@@ -178,7 +181,7 @@ describe( 'resolveWindowControls', () => {
 		);
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
-			win as Parameters< typeof resolveWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
 		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).not.toContain(
 			'core/maximize',
@@ -195,7 +198,7 @@ describe( 'paintWindowControls', () => {
 		win.element.appendChild( host );
 
 		paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 
@@ -210,7 +213,7 @@ describe( 'paintWindowControls', () => {
 		const win = fakeWin( 'edit-post' );
 		const host = document.createElement( 'div' );
 		paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 		const closeBtn = host.querySelector(
@@ -222,12 +225,53 @@ describe( 'paintWindowControls', () => {
 		expect( win.close ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	// Regression net for the title-bar Reload button. We've already had
+	// one merge silently drop pieces of this wiring; lock the full
+	// contract — registration, icon, label, click target — so a future
+	// regression fails loudly instead of vanishing the button.
+	test( 'core/reload registration locks icon, label, and click target', () => {
+		registerBuiltInControls();
+		const def = listWindowControls().find( ( c ) => c.id === 'core/reload' );
+		expect( def ).toBeDefined();
+		expect( def?.icon ).toBe( 'reload' );
+		expect( def?.label ).toBe( 'Reload' );
+		expect( def?.placement ).toBe( 'controls' );
+		expect( def?.core ).toBe( true );
+	} );
+
+	test( 'Window class exposes a reload() method (click-target contract)', async () => {
+		// The reload control's onClick calls `win.reload()`. Lock that
+		// the real Window class still ships that method — a rename or
+		// removal would otherwise leave the button click no-oping at
+		// runtime with no static error.
+		const mod = await import( '../../src/window' );
+		expect( typeof mod.Window.prototype.reload ).toBe( 'function' );
+	} );
+
+	test( 'click on core/reload button dispatches win.reload()', () => {
+		registerBuiltInControls();
+		const win = fakeWin( 'edit-post' );
+		const host = document.createElement( 'div' );
+		paintWindowControls(
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
+			host,
+		);
+		const reloadBtn = host.querySelector(
+			'.wp-desktop-window__btn--reload',
+		) as HTMLElement;
+		expect( reloadBtn ).not.toBeNull();
+		reloadBtn.dispatchEvent(
+			new CustomEvent( 'wpd-button-activate', { bubbles: true } ),
+		);
+		expect( win.reload ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'repaint replaces previous buttons; teardown drops listeners', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const host = document.createElement( 'div' );
 		const teardown1 = paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 		const firstClose = host.querySelector(
@@ -237,7 +281,7 @@ describe( 'paintWindowControls', () => {
 		// Repaint — old buttons gone, new buttons in.
 		teardown1();
 		const teardown2 = paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 		const secondClose = host.querySelector(
@@ -271,7 +315,7 @@ describe( 'paintWindowControls', () => {
 		const win = fakeWin( 'edit-post' );
 		const host = document.createElement( 'div' );
 		paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 		expect( layers.at( -1 ) ).toBe( 'controls' );
@@ -296,7 +340,7 @@ describe( 'paintWindowControls', () => {
 			},
 		};
 		paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 		const star = host.querySelector(
@@ -315,7 +359,7 @@ describe( 'paintWindowControls', () => {
 		const host = document.createElement( 'div' );
 		win.config.appearance = { controls: { placement: 'left' } };
 		paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 		expect(
@@ -338,7 +382,7 @@ describe( 'paintWindowControls', () => {
 		const win = fakeWin( 'edit-post' );
 		const host = document.createElement( 'div' );
 		paintWindowControls(
-			win as Parameters< typeof paintWindowControls >[ 0 ],
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
 		// First button is the order-5 plugin entry, before core/minimize (order 10).
