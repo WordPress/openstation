@@ -36,7 +36,7 @@
 
 import { activity } from './activity';
 import { __, _n, sprintf } from './i18n';
-import { doAction, HOOKS } from './hooks';
+import { applyFilters, doAction, HOOKS } from './hooks';
 import { sanitizeClassName } from './utils';
 import type { DesktopIconServerEntry } from './types';
 import type { WindowManager } from './window-manager';
@@ -259,6 +259,47 @@ function fingerprintIcons(
 }
 
 let _lastFingerprint = '';
+let _lastRender:
+	| {
+		host: HTMLElement;
+		icons: readonly DesktopIconServerEntry[] | undefined;
+		deps: DesktopIconRenderDeps;
+	}
+	| null = null;
+
+/**
+ * Bust the icon-fingerprint cache so the next call to
+ * `renderDesktopIcons` always rebuilds, even when the input
+ * `icons` array hasn't changed. Used by the mobile layer when
+ * the responsive mode flips — the input list is the same but
+ * the `desktop_mode_desktop_icons` filter now produces a
+ * different output, and the fingerprint can't see filter output.
+ *
+ * @internal
+ */
+export function resetDesktopIconsFingerprint(): void {
+	_lastFingerprint = '';
+}
+
+/**
+ * Re-run the most recent `renderDesktopIcons` call with the
+ * fingerprint cache cleared. Lets the mobile layer force an
+ * immediate repaint when its `desktop_mode_desktop_icons`
+ * filter starts producing different output (mode flip), without
+ * waiting for the next live menu refresh REST round-trip.
+ *
+ * Returns `false` when no prior render has been recorded.
+ *
+ * @internal
+ */
+export function repaintDesktopIcons(): boolean {
+	if ( ! _lastRender ) {
+		return false;
+	}
+	_lastFingerprint = '';
+	renderDesktopIcons( _lastRender.host, _lastRender.icons, _lastRender.deps );
+	return true;
+}
 
 /**
  * Mount the icons grid on the desktop area. Safe to call repeatedly —
@@ -282,6 +323,23 @@ export function renderDesktopIcons(
 	icons: readonly DesktopIconServerEntry[] | undefined,
 	deps: DesktopIconRenderDeps,
 ): void {
+	// Snapshot the last call before the filter so `repaintDesktopIcons`
+	// can re-run with the original input — the filter's output
+	// depends on live state (responsive mode, plugin filters), so
+	// reapplying the filter to a stored result would compound.
+	_lastRender = { host, icons, deps };
+
+	// Filter pass — lets plugins (and the mobile module) inject,
+	// reorder, or remove icons before the grid is built. The
+	// filter receives the full list and returns the list to
+	// render. Mobile mode hooks this to merge every admin-menu
+	// item into the icon grid so the wallpaper acts as a phone
+	// home screen.
+	icons = applyFilters< readonly DesktopIconServerEntry[] | undefined, [] >(
+		'desktop_mode_desktop_icons',
+		icons,
+	);
+
 	// Bail when the icon list hasn't changed since our last
 	// render. This is the cheapest correct fix for "any plugin
 	// that decorates an icon (drag handle, status dot) has its

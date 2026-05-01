@@ -48,6 +48,19 @@ html.wp-toolbar:has( body.wp-desktop-chromeless ) {
 	padding-inline-start: 0 !important;
 }
 
+/*
+ * WordPress core's narrow-viewport stylesheet pins
+ * `#wpbody { padding-top: 46px }` under 600 px to clear the
+ * mobile admin bar on the classic shell. In chromeless mode the
+ * admin bar is suppressed (the parent shell paints its own), so
+ * that padding is dead space at the top of every iframed page.
+ * Zero it out so the page content renders flush against the
+ * window's title bar / tab strip.
+ */
+.wp-desktop-chromeless #wpbody {
+	padding-top: 0 !important;
+}
+
 /* ---------------------------------------------------------------
  * Screen Meta (Screen Options / Help panels)
  * The toggle buttons (#screen-meta-links) are hidden because

@@ -59,6 +59,12 @@ function desktop_mode_register_assets() {
 		$version
 	);
 	wp_register_style(
+		'wp-desktop-mobile',
+		DESKTOP_MODE_URL . 'assets/css/mobile.css',
+		array( 'wp-desktop-variables', 'wp-desktop' ),
+		$version
+	);
+	wp_register_style(
 		'wp-desktop-chromeless',
 		DESKTOP_MODE_URL . 'assets/css/chromeless.css',
 		array( 'wp-desktop' ),

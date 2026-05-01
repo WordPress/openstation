@@ -1619,7 +1619,39 @@ export interface DesktopConfig {
 	 * @since 0.14.0
 	 */
 	extendedOptionsUrl?: string;
+	/**
+	 * Responsive breakpoints used by the mode-detection probe.
+	 * `mobile`: viewports `<=` this width are mobile.
+	 * `tablet`: viewports `<=` this width (and `>` mobile) are tablet.
+	 * Anything wider is `'desktop'`. Filterable server-side via
+	 * `desktop_mode_responsive_breakpoints`.
+	 *
+	 * @since 0.7.0
+	 */
+	responsiveBreakpoints?: { mobile: number; tablet: number };
+	/**
+	 * Server-side initial guess at the responsive mode, derived from
+	 * `wp_is_mobile()`. The JS probe corrects on first paint based on
+	 * the actual viewport, but having a guess lets the shell apply
+	 * the right `data-wp-desktop-mode` attribute before first JS tick
+	 * — eliminates a one-frame flash of desktop chrome on phones.
+	 * Filterable server-side via `desktop_mode_mode_type`.
+	 *
+	 * @since 0.7.0
+	 */
+	initialMode?: DesktopMode;
 }
+
+/**
+ * Responsive layout mode. `'desktop'` is the default classic shell.
+ * `'mobile'` collapses the dock into a wallpaper home grid, drops
+ * window drag/resize/min/max, force-maximizes every window, and
+ * paints a fixed bottom switcher strip. `'tablet'` is detected but
+ * currently behaves like desktop — reserved for future hybrid UI.
+ *
+ * @since 0.7.0
+ */
+export type DesktopMode = 'desktop' | 'tablet' | 'mobile';
 
 /**
  * A single entry in the OS Settings accent-color picker.

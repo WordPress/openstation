@@ -182,7 +182,7 @@ Never edit Core's `common.css` or color scheme files. Everything we need is expo
 **Coming up**
 
 - **Polish** — color-scheme-aware variables across every shell surface, View Transitions API animations, full accessibility audit (ARIA, focus traps, keyboard navigation).
-- **Mobile (phone OS)** — `responsive.ts` + `mobile.ts`: home-screen grid, full-screen apps, app switcher, gesture nav, bottom tab bar. `wp.desktop.mode` returns `'desktop' | 'tablet' | 'mobile'`.
+- **Mobile (phone OS)** — `src/mobile/index.ts` (shipped 0.7.0): viewport probe, force-maximize on every window, drag/resize vetoes via `wp-desktop.window.{drag,resize}-allowed` filters, hidden dock, bottom thumbnail switcher (`wp-desktop-mobile-switcher`), `data-wp-desktop-mode="mobile"` attribute on `<html>`. `wp.desktop.mode()` returns the current mode; `wp.desktop.responsive.subscribe(fn)` reacts to flips. The breakpoints (`mobile <= 640`, `tablet <= 1024`) are filterable server-side via `desktop_mode_responsive_breakpoints`. Still planned: gesture nav, pull-to-refresh, app-switcher cards with live thumbnails.
 - **Tablet hybrid** — split view, slide-over overlay, horizontal bottom dock, optional desktop-mode toggle for large tablets.
 - **The North Star — cross-window drag & drop** — extend the existing cross-frame drag bridge beyond Media Library attachments: pluggable mime-type negotiation (`desktop_mode_drag_mime_types` / `desktop_mode_drag_payload` / `desktop_mode_drop_accepts`), Gutenberg block-insertion target, visual lift-and-drop feedback.
 

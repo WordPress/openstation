@@ -1207,14 +1207,44 @@ apply_filters( 'desktop_mode_icon',         array  $icon_config, string $icon_id
 
 > `desktop_mode_icons` and `desktop_mode_wallpapers` and the widget registry filter are **shipped** — see their Stable entries above. `desktop_mode_widgets` is not a PHP filter; the JS-side `wp-desktop.widgets` filter is the canonical hook (widgets are declared via `desktop_mode_register_widget()` server-side).
 
-### Responsive — Phase 5–6
+### Responsive — Stable (mobile mode shipped 0.7.0)
+
 ```php
-apply_filters( 'desktop_mode_mode_type',           string $mode );   // 'desktop' | 'tablet' | 'mobile'
+apply_filters( 'desktop_mode_mode_type',                string $mode );   // 'desktop' | 'tablet' | 'mobile'
+apply_filters( 'desktop_mode_responsive_breakpoints',   array  $bps );    // { mobile: 640, tablet: 1024 }
+```
+
+`desktop_mode_mode_type` is the server-side initial guess (defaults
+to `wp_is_mobile() ? 'mobile' : 'desktop'`). The JS probe corrects
+on first paint based on the actual viewport — the filter exists to
+seed the `data-wp-desktop-mode` attribute so phones don't see a
+one-frame flash of desktop chrome.
+
+`desktop_mode_responsive_breakpoints` lets admins retune the cutoff:
+viewports `<= mobile` become mobile, `<= tablet` (and `> mobile`)
+become tablet, anything wider is desktop.
+
+JS-side filters (callable via `wp.desktop.hooks.addFilter`):
+
+| Filter | Default | Context | Notes |
+|---|---|---|---|
+| `desktop_mode_responsive_resolve` | `'desktop' \| 'tablet' \| 'mobile'` | `{ width }` | Final say on the resolved mode. Plugins can pin a mode regardless of viewport (e.g. always desktop on a specific tab). |
+| `wp-desktop.window.drag-allowed` | `true` | `{ windowId, mode, event }` | Mobile module returns `false` here. Plugins can layer additional drag vetoes (e.g. while a modal is showing). |
+| `wp-desktop.window.resize-allowed` | `true` | `{ windowId, mode, event }` | Same shape — mobile pins it `false`. |
+| `desktop_mode_mobile_app_switcher` | `Window[]` | none | Filters the tile list shown in the bottom switcher. Active-desktop only by default. |
+
+Reserved-but-not-yet-fired:
+
+```php
 apply_filters( 'desktop_mode_mobile_grid_items',   array  $items );
 apply_filters( 'desktop_mode_mobile_tab_bar',      array  $tabs );
-apply_filters( 'desktop_mode_mobile_app_switcher', array  $cards );
 apply_filters( 'desktop_mode_tablet_split_config', array  $config );
 ```
+
+The `RESPONSIVE_MODE_CHANGED` action fires on every mode flip;
+subscribe via `wp.desktop.hooks.addAction( wp.desktop.HOOKS.RESPONSIVE_MODE_CHANGED, … )`. The
+`wp-desktop-mode-changed` `CustomEvent` on `document` carries the
+same `{ from, to, viewport }` detail.
 
 ### Native windows — reserved extensions
 ```php

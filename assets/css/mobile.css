@@ -1,0 +1,924 @@
+/**
+ * Desktop Mode — Mobile / responsive layer styles.
+ *
+ * All rules scope under `html[data-wp-desktop-mode="mobile"]`. The
+ * attribute is set by `src/mobile/index.ts` from the responsive
+ * probe. When mode flips to `desktop`/`tablet` these rules become
+ * inert and the classic shell layout takes over.
+ *
+ * @since 0.7.0
+ */
+
+/*
+ * Strip-height var. Set live by the switcher's ResizeObserver; the
+ * default keeps mobile layout sane when the switcher isn't mounted
+ * yet (e.g. between mode-flip and first paint).
+ */
+html[data-wp-desktop-mode="mobile"] {
+	/*
+	 * Strip height is now ZERO — the radial FAB floats over the
+	 * window content instead of reserving its own bottom band. The
+	 * variable still exists in case a plugin pinned to it; the
+	 * rule below force-clears the desktop-area's bottom inset.
+	 */
+	--wp-desktop-mobile-strip-height: 0px;
+	--wp-desktop-mobile-titlebar-height: 56px;
+	--wp-desktop-mobile-adminbar-height: 40px;
+	--wp-desktop-radial-fab-size: 64px;
+
+	/*
+	 * Pin Core's admin-bar height var so the shell's `inset-block-start`
+	 * (driven by `var(--wp-admin--admin-bar--height)`) collapses too.
+	 * Without this, Core's narrow-viewport stylesheet inflates the bar
+	 * to 46px+ and any per-row expansion (multi-line submenu titles,
+	 * larger touch targets WP applies under 600px) eats into the
+	 * window title-bar's vertical real estate.
+	 */
+	--wp-admin--admin-bar--height: var(--wp-desktop-mobile-adminbar-height);
+}
+
+/*
+ * Keep the admin bar visually compact on mobile. The bar must stay
+ * visible (it hosts the only escape hatch — the "Switch to Classic
+ * Admin" toggle), but every Core rule that grows it under 600px /
+ * 782px competes with our shell layout. Pin every load-bearing
+ * dimension so a single row of icons fits cleanly above the window
+ * title bar.
+ */
+html[data-wp-desktop-mode="mobile"] #wpadminbar {
+	height: var(--wp-desktop-mobile-adminbar-height) !important;
+	min-height: var(--wp-desktop-mobile-adminbar-height) !important;
+}
+
+html[data-wp-desktop-mode="mobile"] #wpadminbar .ab-item,
+html[data-wp-desktop-mode="mobile"] #wpadminbar a.ab-item,
+html[data-wp-desktop-mode="mobile"] #wpadminbar > #wp-toolbar > ul > li > .ab-item,
+html[data-wp-desktop-mode="mobile"] #wpadminbar > #wp-toolbar > ul > li > a.ab-item {
+	height: var(--wp-desktop-mobile-adminbar-height) !important;
+	line-height: var(--wp-desktop-mobile-adminbar-height) !important;
+	padding: 0 8px !important;
+}
+
+/*
+ * Drop the admin-bar avatar / user-info badges that Core stretches
+ * into multi-line blocks at narrow widths. The user menu remains
+ * accessible via the toggle button in the bar.
+ */
+html[data-wp-desktop-mode="mobile"] #wpadminbar #wp-admin-bar-my-account .display-name,
+html[data-wp-desktop-mode="mobile"] #wpadminbar #wp-admin-bar-my-account .username {
+	display: none !important;
+}
+
+/*
+ * Mobile shell offset — the desktop CSS hard-codes 46px under 782px.
+ * Override with our pinned height so the window title bar lines up
+ * directly under the admin bar with no gap. Use the literal value
+ * (not the var) so any inherited fallback inside the shell stylesheet
+ * loses, and pin a `!important` to outrank Core's narrow-viewport
+ * stylesheet which forces `#wpadminbar` styling at the same
+ * specificity.
+ */
+html[data-wp-desktop-mode="mobile"] .wp-desktop-shell {
+	/*
+	 * The shell already lays out via `position: fixed` + `inset: 0`
+	 * (with start overridden here). We deliberately avoid an
+	 * explicit `height: calc(100vh - …)` because mobile Safari's
+	 * `100vh` excludes the dynamic URL bar and would clip the
+	 * radial FAB while the URL bar is shown.
+	 */
+	inset-block-start: var(--wp-desktop-mobile-adminbar-height) !important;
+	inset-block-end: 0 !important;
+}
+
+/*
+ * Kill the body / wpbody padding Core applies under 782px — they
+ * push our shell content down (the window title bar ends up tucked
+ * under the admin bar) because Core's mobile stylesheet adds
+ * vertical padding intended for the classic admin layout. The
+ * shell uses `position: fixed`, so it doesn't need any of that
+ * padding and any leftover inflates the wpbody bottom region the
+ * window chrome lives inside.
+ */
+html[data-wp-desktop-mode="mobile"].wp-toolbar,
+html[data-wp-desktop-mode="mobile"] {
+	padding-top: 0 !important;
+}
+
+html[data-wp-desktop-mode="mobile"] body.wp-desktop-active {
+	padding-bottom: 0 !important;
+	margin-bottom: 0 !important;
+}
+
+html[data-wp-desktop-mode="mobile"] #wpbody,
+html[data-wp-desktop-mode="mobile"] #wpbody-content,
+html[data-wp-desktop-mode="mobile"] #wpcontent {
+	padding: 0 !important;
+	margin: 0 !important;
+}
+
+/*
+ * Hide the dock entirely on mobile — the home grid takes its place.
+ * Mobile users get every menu item as a wallpaper icon.
+ */
+html[data-wp-desktop-mode="mobile"] #wp-desktop-dock,
+html[data-wp-desktop-mode="mobile"] .wp-desktop-dock {
+	display: none !important;
+}
+
+/*
+ * Hide the widget rail entirely on mobile. Widgets (and the
+ * "Add widget" placeholder) belong to the desktop metaphor; on
+ * a phone the wallpaper is filled with home-screen icons and
+ * the dashed-border placeholder is just visual noise. Plugin-
+ * registered widgets remain registered — they just don't render
+ * on this surface while the viewport is in mobile mode.
+ */
+html[data-wp-desktop-mode="mobile"] #wp-desktop-widgets,
+html[data-wp-desktop-mode="mobile"] .wp-desktop-widgets {
+	display: none !important;
+}
+
+/*
+ * Drop the dock-reserved inset from the desktop area, AND zero out
+ * the bottom inset — the radial FAB floats over the window content
+ * instead of reserving its own band. Window content extends edge to
+ * edge from the admin bar to the bottom of the viewport.
+ */
+html[data-wp-desktop-mode="mobile"] .wp-desktop-area--with-dock,
+html[data-wp-desktop-mode="mobile"] .wp-desktop-area {
+	inset-inline-start: 0 !important;
+	inset-block-end: 0 !important;
+}
+
+/*
+ * Force-maximized windows in mobile mode. The TS layer also calls
+ * `maximize()` on every open; the CSS belt-and-suspenders pin keeps
+ * a window pinned to the area even if a plugin tries to apply a
+ * floating geometry mid-flight.
+ */
+html[data-wp-desktop-mode="mobile"] .wp-desktop-window {
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+/*
+ * Hide the resize handles entirely so users can't initiate a drag
+ * even by mouse. Belt to the JS filter gate.
+ */
+html[data-wp-desktop-mode="mobile"] .wp-desktop-window__resize-handle,
+html[data-wp-desktop-mode="mobile"] .wp-desktop-window__resize {
+	display: none !important;
+}
+
+/*
+ * Title bar removed entirely on mobile. Chrome reduces to body +
+ * tabs strip (the submenu navigation row). Close + reload move
+ * to floating chips that flank the radial FAB so the user always
+ * has thumb-friendly access without giving up vertical real estate
+ * for a 56 px banner per window. The tabs strip stays at the top
+ * of the body; everything else stays as-is.
+ */
+html[data-wp-desktop-mode="mobile"] .wp-desktop-window__titlebar {
+	display: none !important;
+}
+
+/* Body fills the area the title bar used to occupy. */
+html[data-wp-desktop-mode="mobile"] .wp-desktop-window__body {
+	border-radius: 0 !important;
+}
+
+/*
+ * Bigger, touch-friendly title bar with larger hit targets.
+ * `align-items: center` is already declared in the desktop
+ * stylesheet but we re-pin it under our taller `min-height`
+ * so every direct child — controls cluster, title, slot
+ * containers — vertically centres in the 56 px row.
+ */
+/*
+ * Title bar is removed entirely on mobile (rule earlier in this
+ * stylesheet). The reload + close actions migrate to the radial
+ * FAB chips. Plugin-registered title-bar buttons effectively
+ * disappear too — they sit in the same slot — and that's
+ * accepted: mobile mode is opinionated about chrome.
+ */
+
+html[data-wp-desktop-mode="mobile"] .wp-desktop-window {
+	z-index: 1;
+}
+
+/*
+ * Hide the tabs strip on mobile entirely. The radial menu owns
+ * navigation across submenus — drilling into a parent dock item
+ * fans out its children, so the in-window tab strip would just
+ * duplicate that path. Drops a horizontal band of chrome and
+ * gives the iframe content the full body area.
+ */
+html[data-wp-desktop-mode="mobile"] .wp-desktop-window__tabs {
+	display: none !important;
+}
+
+/* Tabs are fully hidden on mobile (rule above). The 2-column
+ * grid layout that used to live here was deleted along with the
+ * decision to drop the strip — radial submenu drilling covers
+ * the same navigation. */
+
+/*
+ * Mobile radial launcher. Replaces the bottom thumbnail strip with
+ * a single floating "+" button anchored bottom-centre. Tapping the
+ * FAB expands a fan of icons in an upward arc above it; the user
+ * pans left/right to scroll through items. Tapping a parent item
+ * re-roots the radial — the parent slides to the centre and its
+ * submenu fans out. The same icon doubles as the back affordance.
+ *
+ * The radial is the ONLY launcher surface in mobile mode — the dock,
+ * the desktop-icons grid, and the old bottom strip are all hidden.
+ */
+.wp-desktop-radial {
+	position: fixed;
+	inset: 0;
+	pointer-events: none; /* see __backdrop / __fab / __arc rules below */
+	z-index: 99999;
+	display: none;
+}
+
+html[data-wp-desktop-mode="mobile"] .wp-desktop-radial {
+	display: block;
+}
+
+.wp-desktop-radial__backdrop {
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(
+		circle at 50% calc(100% - 60px),
+		rgba(0, 0, 0, 0.55) 0%,
+		rgba(0, 0, 0, 0.35) 35%,
+		rgba(0, 0, 0, 0) 70%
+	);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.22s ease;
+}
+
+.wp-desktop-radial--open .wp-desktop-radial__backdrop {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/*
+ * Gesture pad — invisible square covering the entire radial
+ * footprint (apex + lateral icons + a comfortable margin). All
+ * pointer events for the pan gesture register here so the user
+ * can start a drag from anywhere inside the radial, not just on
+ * a tile. Sits behind tiles in z-order; the gesture handler uses
+ * `elementFromPoint` on pointerup to dispatch tile taps.
+ */
+.wp-desktop-radial__gesture-pad {
+	position: absolute;
+	left: 50%;
+	bottom: calc(24px + var(--wp-desktop-radial-fab-size) / 2);
+	width: 420px;
+	height: 240px;
+	margin-left: -210px;
+	margin-bottom: -10px;
+	pointer-events: none;
+	touch-action: none;
+}
+
+.wp-desktop-radial--open .wp-desktop-radial__gesture-pad {
+	pointer-events: auto;
+}
+
+/* The arc is anchored at the centre of the FAB (bottom centre of the
+ * viewport) and items position themselves via `--wpdm-radial-x/y`
+ * relative to the arc origin. */
+.wp-desktop-radial__arc {
+	position: absolute;
+	left: 50%;
+	bottom: calc(24px + var(--wp-desktop-radial-fab-size) / 2);
+	width: 1px;
+	height: 1px;
+	pointer-events: none;
+	touch-action: none;
+}
+
+.wp-desktop-radial--open .wp-desktop-radial__arc {
+	pointer-events: auto;
+}
+
+.wp-desktop-radial__tile {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 64px;
+	height: 64px;
+	margin-left: -32px;
+	margin-top: -32px;
+	padding: 0;
+	transform: translate(var(--wpdm-radial-x, 0), var(--wpdm-radial-y, 0)) scale(0.5);
+	display: block;
+	border-radius: 50%;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	background: rgba(28, 28, 32, 0.85);
+	color: #fff;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+	opacity: 0;
+	transition:
+		transform 0.32s cubic-bezier(0.2, 0.9, 0.2, 1.05),
+		opacity 0.22s ease,
+		background 0.15s ease,
+		border-color 0.15s ease;
+}
+
+/* Tile is visible only while the radial is open. Visibility comes
+ * from a CSS var stamped by the JS layer (per-tile, depends on
+ * how far off the visible arc the item lives). When the radial
+ * closes — or a tile leaves on a scene change — both `opacity`
+ * and `transform` revert through the transition above. */
+.wp-desktop-radial--open .wp-desktop-radial__tile {
+	transform: translate(var(--wpdm-radial-x, 0), var(--wpdm-radial-y, 0)) scale(1);
+	opacity: var(--wpdm-radial-visibility, 1);
+}
+
+/*
+ * Exit animation. When a tile no longer matches the active scene
+ * (radial closed, drilled into submenu, etc.) the JS adds this
+ * class. The class targets a smaller scale + zero opacity with the
+ * same transition duration, so the tile fades and shrinks back
+ * toward the FAB before the JS cleanup removes it from the DOM
+ * 260ms later.
+ */
+.wp-desktop-radial__tile--leaving {
+	transform: translate(var(--wpdm-radial-x, 0), var(--wpdm-radial-y, 0)) scale(0.4) !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+/*
+ * Entry animation. The keyframe is preferable to a transition
+ * because the new tile is appended to a parent that already
+ * carries `.--open`, so its computed style would jump straight
+ * to the open-state values and skip the transition. A keyframe
+ * runs once on append regardless and gives us a guaranteed
+ * scale-up + fade-in for every newly-introduced tile (radial
+ * open, drill into submenu, drill back out).
+ */
+.wp-desktop-radial__tile--entering {
+	animation: wp-desktop-radial-tile-enter 0.36s cubic-bezier(0.2, 0.9, 0.2, 1.05) both;
+}
+
+@keyframes wp-desktop-radial-tile-enter {
+	from {
+		transform: translate(var(--wpdm-radial-x, 0), var(--wpdm-radial-y, 0)) scale(0.4);
+		opacity: 0;
+	}
+	to {
+		transform: translate(var(--wpdm-radial-x, 0), var(--wpdm-radial-y, 0)) scale(1);
+		opacity: var(--wpdm-radial-visibility, 1);
+	}
+}
+
+/* Icon centered in the tile and grown to fill most of the circle.
+ * The curved label hugs the inner bottom arc behind it so the
+ * label doesn't shift the icon's optical centre off-axis — the
+ * text and the glyph share the same geometric centre point. */
+.wp-desktop-radial__tile-icon {
+	position: absolute;
+	left: 50%;
+	top: 38%;
+	transform: translate(-50%, -50%);
+	font-size: 22px;
+	width: 22px;
+	height: 22px;
+	line-height: 1;
+	pointer-events: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.wp-desktop-radial__tile-icon.dashicons,
+.wp-desktop-radial__tile-icon.dashicons::before {
+	font-size: 22px !important;
+	line-height: 1 !important;
+	width: 22px;
+	height: 22px;
+}
+
+/* SVG layer that hosts the curved <textPath>. Same dimensions as
+ * the tile so the path coordinate space matches the tile's
+ * geometry (viewBox is 0..80). */
+.wp-desktop-radial__tile-svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	overflow: visible;
+}
+
+.wp-desktop-radial__tile-curve-text {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	fill: rgba(255, 255, 255, 0.95);
+	text-transform: uppercase;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	/* Outline so the curved label stays legible at any background. */
+	paint-order: stroke;
+	stroke: rgba(0, 0, 0, 0.65);
+	stroke-width: 2.5;
+	stroke-linejoin: round;
+}
+
+/* Items that correspond to a currently-open window get an accent
+ * ring so the radial doubles as the app switcher. */
+.wp-desktop-radial__tile--open {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow:
+		0 0 0 2px rgba(255, 255, 255, 0.05),
+		0 0 0 3px var(--wp-admin-theme-color, #2271b1),
+		0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Open-window prefix tiles (the radial's app-switcher slots).
+ * Tinted accent-colour fill so they read as a distinct group
+ * from the dock-item tiles next to them — "switch to" vs. "open
+ * for the first time". */
+.wp-desktop-radial__tile--window {
+	background: color-mix(in srgb, var(--wp-admin-theme-color, #2271b1) 70%, #1c1c20);
+	border-color: var(--wp-admin-theme-color, #2271b1);
+}
+
+/* The currently-focused window pulses subtly. */
+.wp-desktop-radial__tile--focused {
+	background: var(--wp-admin-theme-color, #2271b1);
+}
+
+/* Submenu indicator dot was visually noisy on mobile — every
+ * dock item has children so the dot was on every tile. The
+ * "tap to drill" affordance comes from the radial behaviour
+ * itself. Rule retained as a no-op marker so the JS class
+ * toggle keeps making sense for future styling. */
+.wp-desktop-radial__tile--has-children {
+	/* intentionally empty */
+}
+
+/* The FAB. Always visible in mobile mode. Doubles as a "back"
+ * button while drilled into a submenu. */
+.wp-desktop-radial__fab {
+	position: absolute;
+	left: 50%;
+	bottom: 24px;
+	width: var(--wp-desktop-radial-fab-size);
+	height: var(--wp-desktop-radial-fab-size);
+	margin-left: calc(var(--wp-desktop-radial-fab-size) / -2);
+	border-radius: 50%;
+	border: none;
+	background: var(--wp-admin-theme-color, #2271b1);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	pointer-events: auto;
+	box-shadow:
+		0 8px 24px rgba(0, 0, 0, 0.45),
+		0 0 0 4px rgba(0, 0, 0, 0.15);
+	transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.2, 1.1), background 0.2s ease;
+}
+
+.wp-desktop-radial__fab:active {
+	transform: scale(0.94);
+}
+
+.wp-desktop-radial--open .wp-desktop-radial__fab {
+	transform: rotate(45deg);
+}
+
+.wp-desktop-radial--drilled .wp-desktop-radial__fab {
+	transform: rotate(0deg);
+	background: rgba(28, 28, 32, 0.9);
+}
+
+.wp-desktop-radial__fab-icon {
+	font-size: 28px;
+	width: 28px;
+	height: 28px;
+	line-height: 1;
+	transition: transform 0.2s ease;
+}
+
+.wp-desktop-radial--drilled .wp-desktop-radial__fab-icon {
+	/* Show a back chevron treatment via a small inset ring while
+	 * drilled — keeps the dashicon recognisable. */
+	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+	border-radius: 50%;
+}
+
+/*
+ * Window action chips (Reload, Close) — fan out either side of
+ * the FAB while the radial is open. Title bars are removed in
+ * mobile mode so these are the user's only path to those
+ * actions; they live close to the same thumb-zone as the FAB.
+ */
+.wp-desktop-radial__actions {
+	position: absolute;
+	left: 50%;
+	bottom: calc(24px + var(--wp-desktop-radial-fab-size) / 2);
+	display: flex;
+	gap: 0;
+	pointer-events: none;
+	transform: translate(-50%, 50%);
+}
+
+.wp-desktop-radial__action {
+	position: absolute;
+	width: 48px;
+	height: 48px;
+	margin-left: -24px;
+	margin-top: -24px;
+	border-radius: 50%;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: rgba(28, 28, 32, 0.85);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+	opacity: 0;
+	transform: translate(0, 0) scale(0.5);
+	pointer-events: none;
+	transition:
+		transform 0.32s cubic-bezier(0.2, 0.9, 0.2, 1.05),
+		opacity 0.22s ease,
+		background 0.15s ease;
+}
+
+/* Visible only when the radial is open AND a window is focused.
+ * Without a focused window the chips have nothing to act on, so
+ * we hide them — JS toggles `--has-focus` on the root. */
+.wp-desktop-radial--open.wp-desktop-radial--has-focus .wp-desktop-radial__action {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/*
+ * Reload (upper-left) and Close (upper-right) sit at the top
+ * corners of the radial — diagonally up-and-out from the FAB,
+ * past the bounding box of the icon arc. Geometry: items occupy
+ * a circle of radius 140 around the FAB; placing the chips at
+ * (±170, -170) puts them about 50 px clear of any item edge,
+ * comfortably in the screen corners but still tied to the
+ * radial's overall shape.
+ */
+.wp-desktop-radial--open.wp-desktop-radial--has-focus .wp-desktop-radial__action--reload {
+	transform: translate(-170px, -170px) scale(1);
+}
+
+/* Close (upper-right) mirrored. Tinted red on press so the
+ * dangerous action visually telegraphs itself. */
+.wp-desktop-radial--open.wp-desktop-radial--has-focus .wp-desktop-radial__action--close {
+	transform: translate(170px, -170px) scale(1);
+}
+
+.wp-desktop-radial__action--close:hover {
+	background: rgba(214, 54, 56, 0.85);
+	border-color: rgba(214, 54, 56, 1);
+}
+
+.wp-desktop-radial__action .dashicons {
+	font-size: 22px !important;
+	width: 22px;
+	height: 22px;
+	line-height: 1 !important;
+}
+
+/*
+ * FAB visibility state machine — `peeking` half-hides the button
+ * below the viewport edge so it's discoverable but unobtrusive
+ * while the user works inside a window. Tapping it (or any
+ * interaction with the open radial) lifts it to its `revealed`
+ * resting position; 3 s of inactivity re-engages `peeking`.
+ *
+ * Implementation: translate the FAB down by ~55% of its diameter
+ * when the root carries `--peeking`. The button stays clickable
+ * (top half remains in the viewport) so the user can lift it.
+ */
+.wp-desktop-radial--peeking .wp-desktop-radial__fab {
+	/*
+	 * Show only a quarter of the FAB. With the chevron pinned
+	 * near the top (see below) the visible sliver acts as a
+	 * thin "lift me" tab on the bottom edge of the viewport.
+	 */
+	transform: translateY(90%);
+	opacity: 0.95;
+}
+
+/* Icon swap when peeking: hide the canonical plus, show the
+ * chevron. The chevron is anchored to the TOP of the FAB so it
+ * remains visible regardless of how aggressively the FAB hides. */
+.wp-desktop-radial__fab-peek-icon {
+	display: none;
+	position: absolute;
+	left: 50%;
+	top: 12px;
+	transform: translateX(-50%);
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	line-height: 1;
+	color: #fff;
+	pointer-events: none;
+}
+
+.wp-desktop-radial--peeking .wp-desktop-radial__fab-icon {
+	visibility: hidden;
+}
+
+.wp-desktop-radial--peeking .wp-desktop-radial__fab-peek-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	animation: wp-desktop-radial-peek-bob 1.4s ease-in-out infinite;
+}
+
+@keyframes wp-desktop-radial-peek-bob {
+	0%, 100% { transform: translate(-50%, 0); }
+	50%      { transform: translate(-50%, -3px); }
+}
+
+.wp-desktop-radial--peeking.wp-desktop-radial--open .wp-desktop-radial__fab {
+	/* Defensive — `open` always wins over `peeking`; the radial
+	 * boot-state path keeps these mutually exclusive but a CSS
+	 * race during a transition could overlap them briefly. */
+	transform: rotate(45deg);
+}
+
+/* Subtle glow on the peeking edge so the user knows there's
+ * something to tap. Pulses gently every 4 seconds — frequent
+ * enough to be discovered, slow enough to fade into the chrome. */
+.wp-desktop-radial--peeking .wp-desktop-radial__fab::before {
+	content: "";
+	position: absolute;
+	inset: -8px;
+	border-radius: 50%;
+	background: var(--wp-admin-theme-color, #2271b1);
+	opacity: 0.25;
+	z-index: -1;
+	animation: wp-desktop-radial-peek-pulse 4s ease-in-out infinite;
+}
+
+@keyframes wp-desktop-radial-peek-pulse {
+	0%, 100% { transform: scale(1); opacity: 0.18; }
+	50%      { transform: scale(1.18); opacity: 0.32; }
+}
+
+/*
+ * Sweep hint — a small double-headed arrow that travels along the
+ * arc above the radial items, scrubbing left to right and back to
+ * tell the user "this whole strip slides". The SVG's coordinate
+ * system is anchored at the FAB centre (translated below), and
+ * the path matches the radial's natural arc but at a slightly
+ * larger radius so it floats just above the icons.
+ */
+.wp-desktop-radial__sweep {
+	position: absolute;
+	left: 50%;
+	bottom: calc(24px + var(--wp-desktop-radial-fab-size) / 2);
+	width: 500px;
+	height: 250px;
+	margin-left: -250px;
+	overflow: visible;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.3s ease 0.15s;
+}
+
+.wp-desktop-radial--open .wp-desktop-radial__sweep {
+	opacity: 1;
+}
+
+/*
+ * Travel the arrow along an arc above the items via CSS
+ * `offset-path`. The path mirrors the natural item arc (radius
+ * 175 from the FAB centre, spanning roughly -100° to +100°) so
+ * the sweep visually rides the upper border of the radial. The
+ * arrow's transform-origin is auto so it stays tangent to the
+ * curve as it moves.
+ */
+.wp-desktop-radial__sweep-arrow {
+	/* Static "scrub" hint pinned above the topmost tile. No
+	 * animation — the icon's presence alone telegraphs that the
+	 * arc is interactive. */
+	transform: translate(0, -188px);
+}
+
+/*
+ * Centre-screen preview thumbnail. When the radial snaps a tile
+ * into the apex slot AND a window of that kind is already open,
+ * this floats in the middle of the viewport. Tapping focuses the
+ * existing window so the user doesn't have to commit to opening
+ * a duplicate. Hidden by default; the JS toggles `--visible` on
+ * snap and clears it on close / no-match.
+ */
+.wp-desktop-radial__preview {
+	position: absolute;
+	left: 50%;
+	top: 38%;
+	transform: translate(-50%, -50%) scale(0.85);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 22px 28px;
+	min-width: 180px;
+	max-width: 75vw;
+	border-radius: 18px;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: rgba(28, 28, 32, 0.55);
+	backdrop-filter: blur(20px) saturate(160%);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+	color: #fff;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	pointer-events: none;
+	opacity: 0;
+	transition:
+		opacity 0.22s ease,
+		transform 0.28s cubic-bezier(0.2, 0.9, 0.2, 1.05);
+}
+
+.wp-desktop-radial__preview--visible {
+	pointer-events: auto;
+	opacity: 1;
+	transform: translate(-50%, -50%) scale(1);
+}
+
+.wp-desktop-radial__preview:active {
+	transform: translate(-50%, -50%) scale(0.96);
+}
+
+.wp-desktop-radial__preview-icon {
+	font-size: 36px;
+	width: 36px;
+	height: 36px;
+	line-height: 1;
+}
+
+.wp-desktop-radial__preview-icon.dashicons,
+.wp-desktop-radial__preview-icon.dashicons::before {
+	font-size: 36px !important;
+	line-height: 1 !important;
+	width: 36px;
+	height: 36px;
+}
+
+.wp-desktop-radial__preview-label {
+	font-size: 15px;
+	font-weight: 600;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	letter-spacing: 0.01em;
+}
+
+.wp-desktop-radial__preview-hint {
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	opacity: 0.7;
+	text-transform: uppercase;
+}
+
+/* Single-match card — same visual as the parent preview but with
+ * the click target being the card itself. Drops border+padding
+ * so the parent preview owns those. */
+.wp-desktop-radial__preview-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	color: inherit;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	font: inherit;
+}
+
+/* Multi-match preview: header with summary, then a horizontal
+ * pill strip with one button per matching window. User taps
+ * the pill of the window they want to focus. */
+.wp-desktop-radial__preview--multi {
+	min-width: 240px;
+	max-width: 90vw;
+	padding: 14px 18px 16px;
+}
+
+.wp-desktop-radial__preview-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 10px;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.wp-desktop-radial__preview-header .wp-desktop-radial__preview-icon {
+	font-size: 22px;
+	width: 22px;
+	height: 22px;
+}
+
+.wp-desktop-radial__preview-header .wp-desktop-radial__preview-icon.dashicons,
+.wp-desktop-radial__preview-header .wp-desktop-radial__preview-icon.dashicons::before {
+	font-size: 22px !important;
+	width: 22px;
+	height: 22px;
+}
+
+.wp-desktop-radial__preview-strip {
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+	margin: 0 -4px;
+	padding: 0 4px;
+	scroll-snap-type: x proximity;
+}
+
+.wp-desktop-radial__preview-strip::-webkit-scrollbar {
+	display: none;
+}
+
+.wp-desktop-radial__preview-pill {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 14px;
+	min-height: 36px;
+	min-width: 80px;
+	max-width: 200px;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: rgba(255, 255, 255, 0.08);
+	color: #fff;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	transition: background 0.15s ease, border-color 0.15s ease;
+	scroll-snap-align: start;
+}
+
+.wp-desktop-radial__preview-pill:hover {
+	background: rgba(255, 255, 255, 0.16);
+	border-color: rgba(255, 255, 255, 0.28);
+}
+
+.wp-desktop-radial__preview-pill--focused {
+	background: var(--wp-admin-theme-color, #2271b1);
+	border-color: var(--wp-admin-theme-color, #2271b1);
+}
+
+.wp-desktop-radial__preview-pill-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * Make the desktop-icons grid (which renders dock items + plugin
+ * icons in mobile via the `desktop_mode_mobile_grid_items` filter)
+ * feel like a phone home screen. Larger tiles, more breathing
+ * room, multi-column auto-fill.
+ */
+html[data-wp-desktop-mode="mobile"] #wp-desktop-icons,
+html[data-wp-desktop-mode="mobile"] .wp-desktop-icons {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+	gap: 16px;
+	padding: 24px;
+	align-content: start;
+}
+
+html[data-wp-desktop-mode="mobile"] .wp-desktop-icon {
+	position: static !important;
+	left: auto !important;
+	top: auto !important;
+}
