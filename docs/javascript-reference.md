@@ -241,6 +241,34 @@ document.addEventListener( 'wp-desktop-layout-changed', ( e ) => {
 
 ---
 
+### `wp-desktop-mode-changed` — Stable *(since 0.7.0)*
+Fires whenever the responsive layout mode flips. Mode is one of
+`'desktop' | 'tablet' | 'mobile'`. The shell stamps the resolved
+mode on `<html data-wp-desktop-mode="…">` so plugins can also
+key off the attribute via CSS.
+
+```typescript
+{
+    from:    'desktop' | 'tablet' | 'mobile',
+    to:      'desktop' | 'tablet' | 'mobile',
+    viewport: { width: number, height: number },
+}
+```
+
+The matching `wp.desktop.HOOKS.RESPONSIVE_MODE_CHANGED` action fires
+on the same payload (preferred entry point for plugins already
+hook-bus aware). Plugin-side detection of mobile mode:
+
+```javascript
+if ( wp.desktop.mode() === 'mobile' ) { /* … */ }
+
+const off = wp.desktop.responsive.subscribe( ( mode ) => {
+    document.documentElement.dataset.myAppLayout = mode;
+} );
+```
+
+---
+
 ### `wp-desktop-drag-start` — Planned (Phase 8)
 Will fire when a drag operation escalates across window boundaries.
 
@@ -753,6 +781,45 @@ A debounced function that schedules a session write. Call it after mutating wind
 ```javascript
 window.wp.desktop.windowManager.focus( someWindow );
 window.wp.desktop.saveSession();
+```
+
+---
+
+### `mode()` / `responsive` — Stable *(since 0.7.0)*
+
+`wp.desktop.mode()` is a synchronous accessor for the current
+responsive layout — `'desktop' | 'tablet' | 'mobile'`. The
+mode is also stamped on `<html data-wp-desktop-mode="…">` so
+plugin CSS can react without subscribing.
+
+`wp.desktop.responsive.subscribe( fn )` returns an unsubscribe.
+`fn` is invoked on every flip (not on initial mount — combine with
+a synchronous `wp.desktop.mode()` read if you need both).
+
+`wp.desktop.responsive.override( mode | null )` pins the mode
+in-memory (does **not** persist) regardless of viewport. Pass
+`null` to resume viewport-driven detection. Useful for tests and
+power-user "always desktop on this phone" preferences.
+
+Mobile mode behavior:
+- `<html>` carries `data-wp-desktop-mode="mobile"`.
+- The dock is hidden; an icon grid on the wallpaper replaces it.
+- Windows are force-maximized; drag and resize are vetoed via the
+  `wp-desktop.window.{drag,resize}-allowed` filters.
+- The minimize / maximize controls are hidden in the title bar.
+- A bottom thumbnail strip (`wp-desktop-mobile-switcher`) lists
+  every open window on the active desktop.
+
+```javascript
+if ( wp.desktop.mode() === 'mobile' ) {
+    // hide a feature that doesn't make sense on small screens
+}
+
+const off = wp.desktop.responsive.subscribe( ( mode ) => {
+    if ( mode === 'mobile' ) {
+        myPlugin.collapseSidebar();
+    }
+} );
 ```
 
 ---

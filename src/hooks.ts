@@ -978,6 +978,41 @@ export const HOOKS = {
 	 * @since 0.18.0
 	 */
 	IFRAME_CONNECTION_REQUEST: 'wp-desktop.iframe.connection-request',
+
+	// ------------------------------------------------------------------
+	// Responsive / mobile mode (since 0.7.0).
+	// ------------------------------------------------------------------
+	/**
+	 * Action — fires when the responsive mode flips between
+	 * `'desktop'`, `'tablet'`, and `'mobile'`. Payload:
+	 * `{ from: DesktopMode, to: DesktopMode, viewport: { width: number; height: number } }`.
+	 * Plugins that maintain mode-specific UI (a sidebar that should
+	 * collapse on phone widths, a toolbar that should reshape) listen
+	 * here. The matching `wp-desktop-mode-changed` CustomEvent is
+	 * dispatched on `document` with the same detail.
+	 *
+	 * @since 0.7.0
+	 */
+	RESPONSIVE_MODE_CHANGED: 'wp-desktop.responsive.mode-changed',
+	/**
+	 * Filter — gates whether a window may begin a drag session. Fires
+	 * at the top of the title-bar pointerdown handler with default
+	 * value `true`. Return `false` to suppress drag (used by mobile
+	 * mode to make windows non-draggable). `$context` carries
+	 * `{ windowId, mode, event }`.
+	 *
+	 * @since 0.7.0
+	 */
+	WINDOW_DRAG_ALLOWED: 'wp-desktop.window.drag-allowed',
+	/**
+	 * Filter — gates whether a window may begin a resize session.
+	 * Fires at the top of the resize-handle pointerdown handler with
+	 * default value `true`. Return `false` to suppress resize.
+	 * `$context` carries `{ windowId, mode, event }`.
+	 *
+	 * @since 0.7.0
+	 */
+	WINDOW_RESIZE_ALLOWED: 'wp-desktop.window.resize-allowed',
 } as const;
 
 /**

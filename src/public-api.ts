@@ -40,6 +40,7 @@
 export type {
 	Desktop,
 	DesktopConfig,
+	DesktopMode,
 	DockItemConfig,
 	MonitorEntry,
 	DesktopSettingsTabScriptServerEntry,

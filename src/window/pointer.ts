@@ -13,9 +13,21 @@
  * @since 0.8.1
  */
 
-import { doAction, HOOKS } from '../hooks';
+import { applyFilters, doAction, HOOKS } from '../hooks';
 import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN } from './constants';
 import type { Window } from './index';
+
+/**
+ * Read the current responsive mode without taking a hard dependency
+ * on `src/mobile`. The mobile module writes a `data-wp-desktop-mode`
+ * attribute on `<html>` whenever the probe ticks; reading it here
+ * keeps pointer.ts free of an import cycle. Returns `'desktop'` when
+ * the attribute is absent (classic mode, tests).
+ */
+function readResponsiveMode(): 'desktop' | 'tablet' | 'mobile' {
+	const value = document.documentElement.getAttribute( 'data-wp-desktop-mode' );
+	return value === 'mobile' || value === 'tablet' ? value : 'desktop';
+}
 
 /**
  * Build a rAF-coalesced emitter for `WINDOW_BOUNDS_CHANGED` during a
@@ -96,6 +108,23 @@ interface UnstateParams {
 
 /** Title-bar pointerdown → drag session. */
 export function handleDragStart( win: Window, e: PointerEvent ): void {
+	// Mode-aware gate. Mobile mode subscribes to this filter and
+	// returns `false` so windows are pinned to the maximized rect.
+	// Plugins can also veto drag for individual windows (e.g. while
+	// a modal is showing). Default `true` keeps desktop behavior.
+	const mode = readResponsiveMode();
+	const allowed = applyFilters<
+		boolean,
+		[ { windowId: string; mode: 'desktop' | 'tablet' | 'mobile'; event: PointerEvent } ]
+	>(
+		HOOKS.WINDOW_DRAG_ALLOWED,
+		true,
+		{ windowId: win.id, mode, event: e },
+	);
+	if ( ! allowed ) {
+		return;
+	}
+
 	// Only drag from the title bar background, not from any buttons.
 	//
 	// The class-level guard (`__btn` / `__custom-buttons`) catches
@@ -408,6 +437,20 @@ type ResizeDir = 'ne' | 'nw' | 'se' | 'sw';
 
 /** Resize-handle pointerdown → resize session. */
 export function handleResizeStart( win: Window, e: PointerEvent ): void {
+	// Mode-aware gate — see `handleDragStart` for the rationale.
+	const mode = readResponsiveMode();
+	const allowed = applyFilters<
+		boolean,
+		[ { windowId: string; mode: 'desktop' | 'tablet' | 'mobile'; event: PointerEvent } ]
+	>(
+		HOOKS.WINDOW_RESIZE_ALLOWED,
+		true,
+		{ windowId: win.id, mode, event: e },
+	);
+	if ( ! allowed ) {
+		return;
+	}
+
 	// Maximized/fullscreen windows take the whole area — a resize
 	// drag would fight the max-geometry loop in window-manager's
 	// ResizeObserver, so bail early. Snapped windows DO allow resize

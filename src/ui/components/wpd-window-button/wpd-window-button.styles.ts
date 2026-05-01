@@ -19,8 +19,15 @@ export const styles = css`
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 30px;
-		height: 30px;
+		/*
+		 * Size driven by --wpd-btn-size so callers can scale
+		 * the whole button (and its icon, via the matched
+		 * --wpd-btn-icon-size below) without forking styles.
+		 * The mobile shell pumps these up so the touch target
+		 * matches a finger; desktop keeps the canonical 30 px.
+		 */
+		width: var( --wpd-btn-size, 30px );
+		height: var( --wpd-btn-size, 30px );
 		padding: 0;
 		border: none;
 		border-radius: 5px;
@@ -28,6 +35,20 @@ export const styles = css`
 		color: var( --wpd-btn-color, currentColor );
 		cursor: pointer;
 		transition: background-color 0.15s ease, color 0.15s ease;
+	}
+	/* Built-in inline SVG icon. Fallback matches the legacy 14 px
+	 * size; mobile bumps this via --wpd-btn-icon-size. */
+	svg {
+		width: var( --wpd-btn-icon-size, 14px );
+		height: var( --wpd-btn-icon-size, 14px );
+	}
+	/* Slotted dashicons span. Fallback is 20 px (the dashicons
+	 * font's natural metric, declared in WP core). When the
+	 * caller sets --wpd-btn-icon-size the glyph scales with it. */
+	::slotted( span.dashicons ) {
+		font-size: var( --wpd-btn-icon-size, 20px ) !important;
+		width: var( --wpd-btn-icon-size, 20px );
+		height: var( --wpd-btn-icon-size, 20px );
 	}
 	button:hover {
 		color: var( --wpd-btn-color-hover, currentColor );

@@ -13,6 +13,12 @@
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import {
+	bootMobile,
+	getMode as getResponsiveMode,
+	getResponsiveApi,
+	type ResponsiveApi,
+} from './mobile';
+import {
 	installWindowLoadingTransitions,
 	repaintLoadingOverlays,
 } from './window/loading';
@@ -338,6 +344,24 @@ export interface WpDesktopPublicApi {
 	 * ```
 	 */
 	HOOKS: typeof import( './hooks' ).HOOKS;
+	/**
+	 * Current responsive layout mode — `'desktop' | 'tablet' | 'mobile'`.
+	 * Cheap synchronous accessor; for change notifications subscribe via
+	 * `wp.desktop.responsive.subscribe(fn)` or the
+	 * `wp-desktop.responsive.mode-changed` hook.
+	 *
+	 * @since 0.7.0
+	 */
+	mode: () => import( './types' ).DesktopMode;
+	/**
+	 * Responsive helpers. `subscribe(fn)` returns an unsubscribe; calls
+	 * `fn(mode)` on every flip. `override(mode | null)` forces a mode
+	 * (in-memory only — does not persist) for testing or the rare
+	 * power-user "always desktop" preference.
+	 *
+	 * @since 0.7.0
+	 */
+	responsive: ResponsiveApi;
 	/**
 	 * True when the desktop shell is mounted and active on this page.
 	 * Cheap capability check for plugins that also run in classic
@@ -2021,6 +2045,8 @@ function init(): void {
 		saveSession,
 		hooks: rawHooks(),
 		HOOKS,
+		mode: getResponsiveMode,
+		responsive: getResponsiveApi(),
 		isActive: () => !! document.getElementById( 'wp-desktop-shell' ),
 		registerWallpaper: ( def: WallpaperDef ) => {
 			registry.register( def );
@@ -2284,6 +2310,15 @@ function init(): void {
 	// `wp-desktop.open-command.items` can rely on the command being
 	// in the registry.
 	registerBuiltInCommands();
+
+	// Mobile / responsive layer — detection, force-maximize, bottom
+	// switcher, drag/resize gates. Boots before HOOKS.INIT so plugin
+	// init subscribers can subscribe to RESPONSIVE_MODE_CHANGED.
+	bootMobile( manager, {
+		breakpoints: config.responsiveBreakpoints,
+		initialMode: config.initialMode,
+		config,
+	} );
 
 	doAction( HOOKS.INIT, { config } );
 

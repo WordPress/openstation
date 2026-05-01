@@ -94,6 +94,7 @@ function desktop_mode_enqueue_assets() {
 	wp_enqueue_style( 'wp-desktop' );
 	wp_enqueue_style( 'wp-desktop-windows' );
 	wp_enqueue_style( 'wp-desktop-dock' );
+	wp_enqueue_style( 'wp-desktop-mobile' );
 	wp_enqueue_style( 'wp-desktop-ai-assistant' );
 
 	// JS.
@@ -279,6 +280,38 @@ function desktop_mode_enqueue_assets() {
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
 			'portalUrl'        => esc_url( desktop_mode_portal_url() ),
 			'fromPortal'       => $from_portal,
+			/**
+			 * Filters the responsive breakpoints used by the JS probe.
+			 *
+			 * Viewports `<= mobile` are mobile, viewports `<= tablet`
+			 * (and `> mobile`) are tablet, anything wider is desktop.
+			 *
+			 * @since 0.7.0
+			 *
+			 * @param array $breakpoints { mobile: int, tablet: int }.
+			 */
+			'responsiveBreakpoints' => apply_filters(
+				'desktop_mode_responsive_breakpoints',
+				array(
+					'mobile' => 640,
+					'tablet' => 1024,
+				)
+			),
+			/**
+			 * Filters the server-side initial guess at the responsive
+			 * mode. The JS probe corrects on first paint based on the
+			 * actual viewport — this value just sets the initial
+			 * `data-wp-desktop-mode` attribute so phones don't see a
+			 * one-frame flash of desktop chrome.
+			 *
+			 * @since 0.7.0
+			 *
+			 * @param string $mode One of 'desktop', 'tablet', 'mobile'.
+			 */
+			'initialMode'      => apply_filters(
+				'desktop_mode_mode_type',
+				wp_is_mobile() ? 'mobile' : 'desktop'
+			),
 		)
 	);
 
