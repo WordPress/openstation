@@ -135,6 +135,8 @@ export interface OsSettingsConfig {
 	} | null;
 	/** REST endpoint for reading/writing extended options. */
 	extendedOptionsUrl: string;
+	/** Base REST URL for the extensions marketplace (no trailing slash). */
+	marketplaceUrl: string;
 }
 
 /**

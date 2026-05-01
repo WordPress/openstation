@@ -14,6 +14,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 6. **[Examples](./examples/README.md)** — recipes you can copy into a plugin.
 7. **[Bridge Protocol Overview](./bridge-protocol.md)** — *internals doc.* End-to-end wiring of `wp.desktop.connect()` / `wp.desktop.iframe.*` / the synthesised iframe inside native windows. Read when debugging a stuck handshake or building unusual integrations.
 8. **[Native Windows & Framework Interop](./native-windows-proposal.md)** — *Stable (shipped 0.11.0).* Public API for `desktop_mode_register_window()` / `desktop_mode_register_window_tab()`, Web Components as first-class, and how React / Vue / Svelte plug in without the shell taking a framework dependency. See also [examples/native-windows.md](./examples/native-windows.md) and [examples/native-window-with-tabs.md](./examples/native-window-with-tabs.md).
+9. **[Extensions Marketplace](./marketplace.md)** — *Experimental (since 0.6.0).* In-shell catalog of Desktop Mode extensions resolved from a GitHub release manifest. Covers how to publish a new extension, point at a forked manifest, and the local-dev escape hatch.
 
 ## Conventions used in this docs folder
 

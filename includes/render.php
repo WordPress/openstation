@@ -272,6 +272,7 @@ function desktop_mode_enqueue_assets() {
 			'aiProviders'           => desktop_mode_ai_get_providers_for_config(),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/extended-options' ) ),
+			'marketplaceUrl'        => esc_url_raw( rest_url( 'wp-desktop/v1/marketplace' ) ),
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
 			'portalUrl'        => esc_url( desktop_mode_portal_url() ),
 			'fromPortal'       => $from_portal,

@@ -1607,6 +1607,63 @@ Actions:
 
 ---
 
+## Extensions marketplace — Experimental (since 0.6.0)
+
+Hooks exposed by `includes/marketplace/`. The marketplace fetches a
+release manifest, lists extensions in OS Settings → Extensions, and
+delegates install / activate / update / delete to the standard
+`Plugin_Upgrader`.
+
+### `wp_desktop_marketplace_manifest_url` — Experimental (filter)
+URL the marketplace fetches its resolved manifest from. Default points
+at the public repo's `latest` release alias; filter to point a fork or
+private mirror somewhere else.
+
+```php
+$url = apply_filters( 'wp_desktop_marketplace_manifest_url', $default_url );
+```
+
+**Example:**
+
+```php
+add_filter( 'wp_desktop_marketplace_manifest_url', function () {
+    return 'https://example.com/desktop-mode/extensions.resolved.json';
+} );
+```
+
+### `wp_desktop_marketplace_allowed_hosts` — Experimental (filter)
+Lowercase hostnames the marketplace will accept download URLs from.
+Used as an SSRF guard before passing a URL to `Plugin_Upgrader::install()`.
+The default list covers `github.com`, `objects.githubusercontent.com`,
+`codeload.github.com`, plus the host of the manifest URL itself.
+
+```php
+$hosts = apply_filters( 'wp_desktop_marketplace_allowed_hosts', $hosts );
+```
+
+### Lifecycle actions — Experimental
+Fired after each successful mutation. The `$entry` arg is the merged
+manifest entry as returned by `desktop_mode_marketplace_get_extensions()`.
+
+- `wp_desktop_marketplace_extension_installed( $slug, $entry )`
+- `wp_desktop_marketplace_extension_updated( $slug, $entry )`
+- `wp_desktop_marketplace_extension_deleted( $slug, $entry )`
+
+### REST endpoints
+Namespace `wp-desktop/v1/marketplace`. Read endpoints require
+`manage_options`; mutations require `install_plugins` + `delete_plugins`
++ `activate_plugins` (so multisite subsite admins get a read-only view).
+
+- `GET  /extensions` — merged manifest + installed-plugin state
+- `POST /refresh` — bust the manifest transient and re-fetch
+- `POST /install` `{ slug }`
+- `POST /update` `{ slug }`
+- `POST /activate` `{ slug }`
+- `POST /deactivate` `{ slug }`
+- `POST /delete` `{ slug }`
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

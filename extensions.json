@@ -1,0 +1,20 @@
+{
+	"extensions": [
+		{
+			"slug": "desktop-mode-cron-manager",
+			"name": "Cron Manager",
+			"short_description": "Browse, edit, delete, and run WP-Cron events from a native Desktop Mode window.",
+			"icon": null,
+			"homepage": "https://github.com/WordPress/desktop-mode/tree/trunk/extensions/desktop-mode-cron-manager",
+			"environments": ["local", "development", "staging", "production"]
+		},
+		{
+			"slug": "desktop-mode-phpmyadmin",
+			"name": "phpMyAdmin",
+			"short_description": "Embeds phpMyAdmin as a native window. Local environments only — phpMyAdmin runs with auth_type=config and gates closed on staging/production.",
+			"icon": null,
+			"homepage": "https://github.com/WordPress/desktop-mode/tree/trunk/extensions/desktop-mode-phpmyadmin",
+			"environments": ["local"]
+		}
+	]
+}

@@ -66,6 +66,7 @@ import { buildAiSection } from './sections/ai';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildExtendedSection } from './sections/extended';
+import { buildExtensionsSection } from './sections/extensions';
 import { buildHelpSection } from './sections/help';
 import {
 	buildWallpaperSection,
@@ -322,6 +323,16 @@ export class OsSettings implements SettingsCtx {
 				tab: html`<wpd-tab value="help">${ __( 'Components' ) }</wpd-tab>`,
 				panel: html`<wpd-tabpanel for="help">
 					<wpd-panel>${ buildHelpSection() }</wpd-panel>
+				</wpd-tabpanel>`,
+			} );
+			rows.push( {
+				id: 'extensions',
+				order: 50,
+				tab: html`<wpd-tab value="extensions"
+					>${ __( 'Extensions' ) }</wpd-tab
+				>`,
+				panel: html`<wpd-tabpanel for="extensions">
+					<wpd-panel>${ buildExtensionsSection( this ) }</wpd-panel>
 				</wpd-tabpanel>`,
 			} );
 		}

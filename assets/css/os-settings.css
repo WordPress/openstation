@@ -854,3 +854,157 @@
 	max-height: 100%;
 	overflow-y: auto;
 }
+
+/* -----------------------------------------------------------------
+ * Extensions marketplace section.
+ *
+ * Card-grid layout listing extensions resolved from the GitHub
+ * release manifest. Each card surfaces install / activate / update /
+ * delete actions, plus an inline update banner when a newer version
+ * is available.
+ * ----------------------------------------------------------------- */
+
+.wp-desktop-marketplace__toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin: 0 0 12px;
+}
+
+.wp-desktop-marketplace__hint {
+	margin: 6px 0 12px;
+	font-size: 12px;
+	color: #646970;
+	line-height: 1.5;
+}
+
+.wp-desktop-marketplace__error {
+	margin: 6px 0 12px;
+	font-size: 12px;
+	color: #d63638;
+}
+
+.wp-desktop-marketplace__grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 12px;
+}
+
+.wp-desktop-marketplace__card {
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 14px 16px;
+	background: #fff;
+}
+
+.wp-desktop-marketplace__card-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.wp-desktop-marketplace__title-block {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.wp-desktop-marketplace__name {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.wp-desktop-marketplace__version {
+	font-size: 12px;
+	font-weight: 400;
+	color: #646970;
+}
+
+.wp-desktop-marketplace__badge {
+	align-self: flex-start;
+	font-size: 11px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: #f0f0f1;
+	color: #50575e;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.wp-desktop-marketplace__badge--active {
+	background: #d1e9c5;
+	color: #1f5128;
+}
+
+.wp-desktop-marketplace__badge--inactive {
+	background: #f0f6fc;
+	color: #2271b1;
+}
+
+.wp-desktop-marketplace__actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.wp-desktop-marketplace__readonly {
+	font-size: 12px;
+	color: #646970;
+	font-style: italic;
+}
+
+.wp-desktop-marketplace__desc {
+	margin: 10px 0 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: #2c3338;
+}
+
+.wp-desktop-marketplace__warning {
+	margin: 8px 0 0;
+	font-size: 12px;
+	color: #8a6d00;
+	background: #fcf9e8;
+	padding: 6px 10px;
+	border-left: 3px solid #dba617;
+	border-radius: 3px;
+}
+
+.wp-desktop-marketplace__update {
+	margin: 10px 0 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 6px 10px;
+	background: #f6f7f7;
+	border-radius: 4px;
+}
+
+.wp-desktop-marketplace__update-line {
+	font-size: 12px;
+	color: #2c3338;
+}
+
+.wp-desktop-marketplace__links {
+	margin: 8px 0 0;
+	font-size: 12px;
+}
+
+.wp-desktop-marketplace__links a {
+	color: #2271b1;
+	text-decoration: none;
+}
+
+.wp-desktop-marketplace__links a:hover {
+	text-decoration: underline;
+}

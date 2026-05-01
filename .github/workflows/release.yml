@@ -48,6 +48,18 @@ jobs:
       - name: Package plugin zip
         run: bin/package.sh
 
+      # Build one zip per extension under extensions/ and a resolved
+      # manifest pointing at this tag's release assets. Both are
+      # uploaded alongside the main plugin zip so the in-app
+      # marketplace can fetch them from
+      # `releases/latest/download/extensions.resolved.json` and
+      # `releases/latest/download/<slug>.zip`.
+      - name: Package extensions
+        run: bin/package-extensions.sh
+
+      - name: Build extensions manifest
+        run: bin/build-manifest.sh "${{ github.ref_name }}"
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,8 +69,13 @@ jobs:
           if [[ "$tag" == *-* ]]; then
             flags+=(--prerelease)
           fi
+          shopt -s nullglob
+          extension_zips=( dist/*.zip )
+          shopt -u nullglob
           gh release create "$tag" \
             --title "$tag" \
             --generate-notes \
             "${flags[@]}" \
-            desktop-mode.zip
+            desktop-mode.zip \
+            "${extension_zips[@]}" \
+            dist/extensions.resolved.json
