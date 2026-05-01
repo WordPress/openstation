@@ -419,6 +419,15 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 	if ( tab.dataset.url ) {
 		const next = withChromelessParam( tab.dataset.url );
 		if ( next && win.iframe ) {
+			// Arm the loading overlay before re-pointing the iframe.
+			// The chromeless bridge clears it via `wp-desktop-ready`
+			// once the next page hydrates (and the iframe `load`
+			// event is the floor signal). Without this, in-place
+			// submenu navigation showed no spinner — visible only
+			// after we added the synthetic main tab in 0.18.x, which
+			// gave users a reason to navigate within tabs instead of
+			// closing + reopening the window.
+			win.markContentLoading();
 			win.iframe.src = next;
 		}
 		switchToTab( win, 'primary' );

@@ -86,6 +86,35 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		).toBeNull();
 	} );
 
+	test( 'prepends a synthetic parent tab when submenu omits the self-link', () => {
+		// `helpers.php` strips WP's auto-prepended self-link (the entry
+		// whose URL matches the parent's). Without an explicit "back to
+		// parent" tab, a user navigating from Posts → Categories has no
+		// way back to the listing short of closing + reopening the
+		// window. The synthetic tab fills that gap.
+		const win = manager.open( {
+			id: 'edit.php',
+			url: 'http://example.test/wp-admin/edit.php',
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			multi: false,
+			submenu: [
+				{ title: 'Add New Post', url: 'http://example.test/wp-admin/post-new.php' },
+				{ title: 'Categories', url: 'http://example.test/wp-admin/edit-tags.php?taxonomy=category' },
+				{ title: 'Tags', url: 'http://example.test/wp-admin/edit-tags.php?taxonomy=post_tag' },
+			],
+		} );
+
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.wp-desktop-window__tab' );
+		expect( tabs.length ).toBe( 4 );
+		expect( tabs[ 0 ].textContent ).toBe( 'Posts' );
+		expect( tabs[ 0 ].dataset.url ).toBe( 'http://example.test/wp-admin/edit.php' );
+		expect( tabs[ 0 ].dataset.kind ).toBe( 'submenu' );
+		// First tab is active because its URL matches the iframe's
+		// initial URL.
+		expect( tabs[ 0 ].classList.contains( 'wp-desktop-window__tab--active' ) ).toBe( true );
+	} );
+
 	test( 'opens + closes a singleton + re-opens without error', () => {
 		const first = manager.open( {
 			id: 'plugins.php',

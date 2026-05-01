@@ -561,7 +561,22 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 
 		if ( config.submenu && config.submenu.length > 0 && config.url ) {
 			const initialKey = urlMatchKey( config.url );
-			for ( const sub of config.submenu ) {
+
+			// Synthetic "back to parent" tab — `helpers.php` strips WP's
+			// auto-prepended self-link from `submenu`, so without this
+			// tab the only way back to the parent listing (e.g. All
+			// Posts from inside Categories) would be to close the window
+			// and reopen it. Skip if a caller-supplied submenu entry
+			// already points at the parent URL (avoids two tabs claiming
+			// the active state on the same key).
+			const parentAlreadyInSubmenu = config.submenu.some(
+				( s ) => urlMatchKey( s.url ) === initialKey,
+			);
+			const seedSubmenu: { title: string; url: string }[] = parentAlreadyInSubmenu
+				? [ ...config.submenu ]
+				: [ { title: config.title, url: config.url }, ...config.submenu ];
+
+			for ( const sub of seedSubmenu ) {
 				const tab = document.createElement( 'button' );
 				tab.className = 'wp-desktop-window__tab';
 				tab.dataset.kind = 'submenu';
