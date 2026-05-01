@@ -71,67 +71,9 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$this->assertSame( 'spatial', $loaded['desktopLayout'] );
 	}
 
-	// ----------------------------------------------------------
-	// submenuRenderer — same regression class as desktopLayout:
-	// a sanitize allow-list that drops unknown fields silently
-	// breaks the JS-side persistence on every refresh.
-	// ----------------------------------------------------------
-
-	/**
-	 * @covers ::desktop_mode_default_os_settings
-	 */
-	public function test_default_includes_submenu_renderer() {
-		$defaults = desktop_mode_default_os_settings();
-		$this->assertArrayHasKey( 'submenuRenderer', $defaults );
-		$this->assertSame( 'default', $defaults['submenuRenderer'] );
-	}
-
-	/**
-	 * Renderer ids are JS-side runtime registrations — we don't gate
-	 * on a server allow-list because plugin renderers register
-	 * asynchronously. We DO require sanitize_key()-clean ids; bad
-	 * input falls back to the default.
-	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
-	 */
-	public function test_sanitize_keeps_well_formed_submenu_renderer() {
-		$clean = desktop_mode_sanitize_os_settings(
-			array( 'submenuRenderer' => 'arc-popover' )
-		);
-		$this->assertSame( 'arc-popover', $clean['submenuRenderer'] );
-	}
-
-	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
-	 */
-	public function test_sanitize_strips_invalid_submenu_renderer() {
-		$clean = desktop_mode_sanitize_os_settings(
-			array( 'submenuRenderer' => 'BAD ID WITH SPACES' )
-		);
-		// `sanitize_key()` rejects spaces and uppercase — the bad
-		// input either becomes empty (falls back to default) or
-		// becomes a slug (`bad-id-with-spaces`). Either way the
-		// caller's intended-but-illegal id is rejected.
-		$this->assertNotSame( 'BAD ID WITH SPACES', $clean['submenuRenderer'] );
-	}
-
-	/**
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
-	 */
-	public function test_user_meta_round_trip_keeps_submenu_renderer() {
-		$user_id = self::factory()->user->create();
-		desktop_mode_save_os_settings(
-			$user_id,
-			array( 'submenuRenderer' => 'cards' )
-		);
-		$loaded = desktop_mode_get_os_settings( $user_id );
-		$this->assertSame( 'cards', $loaded['submenuRenderer'] );
-	}
 
 	// ----------------------------------------------------------
-	// dockRailRenderer — same shape and reasoning as
-	// `submenuRenderer`. Renderers register at runtime from JS,
+	// dockRailRenderer — renderers register at runtime from JS,
 	// so the sanitize step accepts any sanitize_key()-clean id;
 	// resolution falls back to `'default'` at use time.
 	// ----------------------------------------------------------

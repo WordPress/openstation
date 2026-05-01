@@ -50,7 +50,6 @@ function desktop_mode_default_os_settings() {
 		'accent'       => 'wp-blue',
 		'dockSize'     => 'default',
 		'desktopLayout' => 'classic',
-		'submenuRenderer' => 'default',
 		'dockRailRenderer' => 'default',
 		'customGradient' => array(
 			'from'  => '#2271b1',
@@ -159,16 +158,9 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 	// register from JS at runtime; existence is checked by the
 	// client at resolve time and falls back to `'default'` when
 	// missing.
-	$submenu_renderer = $defaults['submenuRenderer'];
-	if ( isset( $raw['submenuRenderer'] ) && is_string( $raw['submenuRenderer'] ) ) {
-		$slug = sanitize_key( $raw['submenuRenderer'] );
-		if ( '' !== $slug ) {
-			$submenu_renderer = $slug;
-		}
-	}
-
-	// Dock rail renderer id — same shape and reasoning as
-	// `submenuRenderer`. JS-side registry resolves at use time.
+	// Dock rail renderer id — accept any sanitize_key()-clean
+	// string. JS-side registry resolves at use time and falls back
+	// to `'default'` when the picked renderer isn't registered.
 	$dock_rail_renderer = $defaults['dockRailRenderer'];
 	if ( isset( $raw['dockRailRenderer'] ) && is_string( $raw['dockRailRenderer'] ) ) {
 		$slug = sanitize_key( $raw['dockRailRenderer'] );
@@ -261,7 +253,6 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'accent'           => $accent,
 		'dockSize'         => $dock_size,
 		'desktopLayout'    => $desktop_layout,
-		'submenuRenderer'  => $submenu_renderer,
 		'dockRailRenderer' => $dock_rail_renderer,
 		'customGradient'   => $custom_gradient,
 		'customImage'      => $custom_image,

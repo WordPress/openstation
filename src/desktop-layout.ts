@@ -376,6 +376,14 @@ export function createLayoutDispatcher(
 		// holding the array sees a stable list; live updates flow
 		// through `replaceItems`.
 		fullMenu: items.slice(),
+		// Same idea for system tiles — OS Settings, plugin-owned
+		// native-window launchers, etc. Lets a renderer apply
+		// uniform treatment across menu + system cohorts in one
+		// pass. Live updates flow through `appendSystemItem` /
+		// `removeSystemItem`.
+		fullSystemTiles: Array.from( systemTiles.values() ).map(
+			( entry ) => entry.item,
+		),
 		orientation,
 		windowManager: deps.windowManager,
 		adminUrl: deps.adminUrl,
@@ -415,16 +423,6 @@ export function createLayoutDispatcher(
 			} );
 		},
 		openSystemItem: ( item ) => item.onOpen(),
-		requestSubmenu: () => {
-			// Custom renderers wanting submenu support can resolve
-			// the active submenu renderer themselves; the default
-			// renderer wires its own contextmenu handler in `Dock`.
-			// This callback is a placeholder for a future commit
-			// that makes the registry-driven flow available to all
-			// renderers — exposing it now keeps the deps shape
-			// stable so plugin authors who code against `mount()`
-			// today don't see a breaking change later.
-		},
 	} );
 
 	const buildDocksForCurrentLayout = (): void => {

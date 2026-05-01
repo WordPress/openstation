@@ -430,18 +430,24 @@
 	background: rgba( 255, 255, 255, 0.22 );
 }
 
-/* Tooltip — left dock: tile's right side; right dock: tile's left side. */
-.wp-desktop-dock__tooltip {
+/* Tooltip — anchor modifiers are applied directly to the tooltip
+ * element (NOT via a descendant selector on `.wp-desktop-dock`)
+ * because the tooltip lives in `document.body`. JS writes the
+ * absolute `top` / `left` coords; CSS handles the slide-in
+ * animation direction per modifier.
+ *
+ *   - `--after`   : left-placed dock  (tooltip to the RIGHT of tile)
+ *   - `--before`  : right-placed dock (tooltip to the LEFT of tile)
+ *   - `--above`   : bottom-placed dock (tooltip ABOVE the tile)
+ */
+
+/* Left dock — tooltip slides in from the left by 4px. JS sets
+ * `left` to `tile.right + 8px`; the transform animates the entry. */
+.wp-desktop-dock__tooltip--after {
 	transform: translateX( -4px );
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__tooltip {
-	inset-inline-start: calc( var( --wp-desktop-dock-width ) + 8px );
-}
-
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__tooltip--visible {
+.wp-desktop-dock__tooltip--after.wp-desktop-dock__tooltip--visible {
 	transform: translateX( 0 );
 }
 
@@ -572,92 +578,4 @@
 	transform: translate( -50%, -100% );
 }
 
-/* ---------------------------------------------------------------
- * Submenu popover — default renderer.
- *
- * Right-clicking a dock tile that has admin submenu items opens
- * a popover anchored to the tile. Plugins can replace this with
- * a fully-custom renderer via wp.desktop.registerSubmenuRenderer
- * — see docs/examples/submenu-renderer.md. The CSS here only
- * applies to the built-in 'default' renderer.
- *
- * @since 0.18.0
- * --------------------------------------------------------------- */
-
-.wp-desktop-dock-submenu {
-	min-width: 180px;
-	max-width: 280px;
-	padding: 6px;
-	border-radius: 12px;
-	background: rgba( 22, 22, 26, 0.92 );
-	backdrop-filter: blur( 28px ) saturate( 170% );
-	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
-	border: 1px solid rgba( 255, 255, 255, 0.12 );
-	box-shadow:
-		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
-		0 12px 36px rgba( 0, 0, 0, 0.55 );
-	color: #fff;
-	opacity: 0;
-	transform: translateY( 4px ) scale( 0.98 );
-	transform-origin: center top;
-	transition:
-		opacity 0.15s ease,
-		transform 0.15s ease;
-	pointer-events: none;
-}
-
-.wp-desktop-dock-submenu--visible {
-	opacity: 1;
-	transform: translateY( 0 ) scale( 1 );
-	pointer-events: auto;
-}
-
-.wp-desktop-dock-submenu__list {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
-}
-
-.wp-desktop-dock-submenu__item {
-	margin: 0;
-	padding: 0;
-}
-
-.wp-desktop-dock-submenu__link {
-	display: block;
-	width: 100%;
-	padding: 8px 12px;
-	background: transparent;
-	border: 0;
-	border-radius: 6px;
-	color: rgba( 255, 255, 255, 0.92 );
-	text-align: start;
-	font-size: 13px;
-	line-height: 1.4;
-	cursor: pointer;
-	transition: background-color 0.1s ease;
-}
-
-.wp-desktop-dock-submenu__link:hover,
-.wp-desktop-dock-submenu__link:focus-visible {
-	background: rgba( 255, 255, 255, 0.12 );
-	outline: none;
-}
-
-.wp-desktop-dock-submenu__link:focus-visible {
-	box-shadow: 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
-}
-
-@media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-dock-submenu {
-		transition: opacity 0.05s linear;
-		transform: none;
-	}
-	.wp-desktop-dock-submenu--visible {
-		transform: none;
-	}
-}
 

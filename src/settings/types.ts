@@ -83,17 +83,9 @@ export interface OsSettingsState {
 	dockSize: DockSizeId;
 	desktopLayout: DesktopLayoutId;
 	/**
-	 * Active submenu-renderer id. Resolves through
-	 * `wp.desktop.submenu` registry; falls back to `'default'` when
-	 * the named renderer is missing (plugin deactivated, typo, etc.).
-	 *
-	 * @since 0.18.0
-	 */
-	submenuRenderer: string;
-	/**
-	 * Active dock rail-renderer id. Same fallback story as
-	 * `submenuRenderer` — missing or invalid resolves to `'default'`
-	 * (the built-in icon-strip renderer).
+	 * Active dock rail-renderer id. Resolves through the dock-rail
+	 * registry; missing or invalid falls back to `'default'` (the
+	 * built-in icon-strip renderer).
 	 *
 	 * @since 0.18.0
 	 */

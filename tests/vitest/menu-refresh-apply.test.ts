@@ -76,6 +76,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		commands: vi.fn().mockResolvedValue( undefined ),
 		settingsTabs: vi.fn().mockResolvedValue( undefined ),
 		titleBarButtons: vi.fn().mockResolvedValue( undefined ),
+		dockRailRenderers: vi.fn().mockResolvedValue( undefined ),
 	};
 	const renderIcons = vi.fn();
 
@@ -89,6 +90,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		syncServerCommands: syncs.commands,
 		syncServerSettingsTabs: syncs.settingsTabs,
 		syncServerTitleBarButtons: syncs.titleBarButtons,
+		syncServerDockRailRenderers: syncs.dockRailRenderers,
 		renderIcons,
 		...overrides,
 	};
@@ -303,6 +305,7 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 			syncServerCommands: noop,
 			syncServerSettingsTabs: noop,
 			syncServerTitleBarButtons: noop,
+			syncServerDockRailRenderers: noop,
 			renderIcons: () => {},
 		};
 	}

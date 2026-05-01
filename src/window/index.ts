@@ -1171,6 +1171,62 @@ export class Window {
 		this._emitChange( 'state' );
 	}
 
+	/**
+	 * Predicate: is this window currently minimized?
+	 *
+	 * Equivalent to `state === 'minimized'`, but expressed as a
+	 * method so callers don't have to grep for the canonical
+	 * state-string values. The state machine is:
+	 * `'normal' | 'minimized' | 'maximized' | 'fullscreen' |
+	 * 'snapped-left' | 'snapped-right'`.
+	 *
+	 * @public
+	 * @since 0.18.0
+	 */
+	public isMinimized(): boolean {
+		return this.state === 'minimized';
+	}
+
+	/** Predicate: is this window currently maximized? @since 0.18.0 */
+	public isMaximized(): boolean {
+		return this.state === 'maximized';
+	}
+
+	/** Predicate: is this window in fullscreen mode? @since 0.18.0 */
+	public isFullscreen(): boolean {
+		return this.state === 'fullscreen';
+	}
+
+	/**
+	 * Predicate: is this window currently snapped to a screen edge?
+	 * Returns `true` for both half-screen positions; pass an explicit
+	 * side string if you need to distinguish.
+	 *
+	 * @since 0.18.0
+	 */
+	public isSnapped( side?: 'left' | 'right' ): boolean {
+		if ( side === 'left' ) {
+			return this.state === 'snapped-left';
+		}
+		if ( side === 'right' ) {
+			return this.state === 'snapped-right';
+		}
+		return (
+			this.state === 'snapped-left' || this.state === 'snapped-right'
+		);
+	}
+
+	/**
+	 * Predicate: is this window currently the focused (top of stack)
+	 * window? Reads the `wp-desktop-window--focused` class the manager
+	 * toggles in `focus()` so the result matches what's visible.
+	 *
+	 * @since 0.18.0
+	 */
+	public isFocused(): boolean {
+		return this.element.classList.contains( 'wp-desktop-window--focused' );
+	}
+
 	public minimize(): void {
 		this.state = 'minimized';
 		this.element.classList.add( 'wp-desktop-window--minimized' );

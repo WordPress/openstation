@@ -38,6 +38,7 @@ require_once DESKTOP_MODE_DIR . 'includes/toast-types.php';
 require_once DESKTOP_MODE_DIR . 'includes/components.php';
 require_once DESKTOP_MODE_DIR . 'includes/commands.php';
 require_once DESKTOP_MODE_DIR . 'includes/settings-tabs.php';
+require_once DESKTOP_MODE_DIR . 'includes/dock-rail-renderer.php';
 require_once DESKTOP_MODE_DIR . 'includes/title-bar-buttons.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-chrome.php';
 require_once DESKTOP_MODE_DIR . 'includes/wallpapers.php';

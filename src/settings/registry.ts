@@ -43,13 +43,6 @@ export interface OsSettingsSnapshot {
 	 */
 	desktopLayout: 'classic' | 'unified' | 'spatial';
 	/**
-	 * Active submenu-renderer id; mirrors `wp.desktop.submenu` registry's
-	 * resolution. `'default'` is the shipped baseline list popover.
-	 *
-	 * @since 0.18.0
-	 */
-	submenuRenderer: string;
-	/**
 	 * Active dock rail-renderer id; mirrors the dock-rail registry's
 	 * resolution. `'default'` is the shipped icon-strip renderer.
 	 *

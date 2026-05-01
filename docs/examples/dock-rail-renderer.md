@@ -1,14 +1,13 @@
 # Replace the dock rail entirely
 
-> **Where this fits.** Dock customization has three layers — see
+> **Where this fits.** Dock customization has two layers — see
 > [the overview](../dock-customization.md). This page covers the
-> radical layer: owning the entire rail. Decoration hooks and the
-> submenu renderer continue to work alongside whatever you build.
+> radical layer: owning the entire rail. Decoration hooks continue
+> to work alongside whatever you build.
 >
 > | If you want to… | Use… |
 > |---|---|
 > | Add classNames, wrap tiles, animate them in | [Decoration hooks](./dock-decoration-hooks.md) |
-> | Replace the right-click submenu popover | [Submenu renderer](./submenu-renderer.md) |
 > | Replace the entire rail (ring, stack, etc.) | **Rail renderer** *(this page)* |
 
 The radical end of dock customization: a plugin can take over the
@@ -39,16 +38,16 @@ interface DockRailRenderer {
 }
 
 interface DockRailMountDeps {
-    container:     HTMLElement;                    // your renderer owns this
-    items:         DockItem[];                     // rail-scoped slice (see "Two cohorts" below)
-    fullMenu:      DockItem[];                     // since 0.18.0 — complete admin menu
-    orientation:   'left' | 'right' | 'bottom';
-    openItem(      item ): void;                   // primary tile click — routes through window manager
-    openSubmenuPick( item, sub: SubmenuItem ): void; // since 0.18.0 — submenu link click
-    openSystemItem( item ): void;                  // OS Settings / plugin native-window tiles
-    requestSubmenu( item, anchor ): void;
-    windowManager: WindowManager;
-    adminUrl:      string;
+    container:        HTMLElement;                    // your renderer owns this
+    items:            DockItem[];                     // rail-scoped slice (see "Two cohorts" below)
+    fullMenu:         DockItem[];                     // since 0.18.0 — complete admin menu
+    fullSystemTiles:  SystemDockItem[];               // since 0.18.0 — every JS-registered system tile
+    orientation:      'left' | 'right' | 'bottom';
+    openItem(         item ): void;                   // primary tile click — routes through window manager
+    openSubmenuPick(  item, sub: SubmenuItem ): void; // since 0.18.0 — submenu link click
+    openSystemItem(   item ): void;                   // OS Settings / plugin native-window tiles
+    windowManager:    WindowManager;
+    adminUrl:         string;
 }
 
 interface DockRailController {
@@ -73,25 +72,34 @@ A `mount()` that throws is caught: the failure is logged via
 `'default'` renderer for that rail. The user sees a working dock
 instead of nothing.
 
-## Two cohorts: `items` vs `fullMenu`
+## Two cohorts: `items` vs `fullMenu`, plus system tiles
 
-Dock items split into two views the renderer can read at mount time:
+Dock items split into views the renderer can read at mount time:
 
 | Field | What it carries | Use it when… |
 |---|---|---|
 | `items` | The **rail-scoped slice** the layout dispatcher routed to *this* rail. | You want to honour the layout's intent. Classic primary rail sees plugin items only; the side rail (default renderer) sees core items. Unified sees everything. Spatial sees plugin items only (core renders as wallpaper icons). |
 | `fullMenu` *(since 0.18.0)* | The **complete admin menu** regardless of rail. | You want to paint a unified view ignoring the layout's partitioning. A "ring" or "stage" renderer that surfaces every menu in one circle reads `fullMenu`. |
+| `fullSystemTiles` *(since 0.18.0)* | Every **JS-registered system tile** — OS Settings, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
 
 A renderer that doesn't care about the layout split (it draws every
 menu on screen no matter which rail it's mounted on) reads
-`fullMenu`:
+`fullMenu` AND `fullSystemTiles`:
 
 ```js
-mount( { fullMenu, openItem, container } ) {
-    for ( const item of fullMenu ) {
+mount( { fullMenu, fullSystemTiles, openItem, openSystemItem, container } ) {
+    // Partition every dockable thing in one pass — no parallel
+    // collections, no "wait, did I forget the system tiles?" bug.
+    const everything = [
+        ...fullMenu.map( ( item ) => ( { item, isSystem: false } ) ),
+        ...fullSystemTiles.map( ( item ) => ( { item, isSystem: true } ) ),
+    ];
+    for ( const { item, isSystem } of everything ) {
         const tile = document.createElement( 'button' );
         tile.textContent = item.title;
-        tile.addEventListener( 'click', () => openItem( item ) );
+        tile.addEventListener( 'click', () =>
+            isSystem ? openSystemItem( item ) : openItem( item ),
+        );
         container.appendChild( tile );
     }
     // …
@@ -158,10 +166,10 @@ reference implementation.
 
 ## Routing — call the deps, don't reach for the manager
 
-The mount-deps include four routing callbacks: `openItem`,
-`openSubmenuPick`, `openSystemItem`, `requestSubmenu`. Renderers
-should use these instead of calling `windowManager.open()`
-directly because they encapsulate the right behaviour:
+The mount-deps include three routing callbacks: `openItem`,
+`openSubmenuPick`, `openSystemItem`. Renderers should use these
+instead of calling `windowManager.open()` directly because they
+encapsulate the right behaviour:
 
 - multi-instance handling (`+` chip semantics)
 - session restore wiring
@@ -322,20 +330,34 @@ wp.desktop.dock?.setBadge( 'edit.php', 3 );
 
 ## Live registration on plugin activation
 
-Same lifecycle as commands and settings tabs: register from a
-script that loads with the shell, set `owner` so plugin
-deactivation auto-removes the renderer.
+Same lifecycle as commands and settings tabs. Register the script
+handle server-side via
+`desktop_mode_register_dock_rail_renderer_script()`; the shell
+loads the script over the chromeless bridge on activation, the JS
+calls `registerDockRailRenderer()`, and OS Settings → Dock style
+surfaces the new option immediately — no F5.
 
 ```php
-add_action( 'wp_desktop_shell_assets', function () {
-    wp_enqueue_script(
+<?php
+/**
+ * Plugin Name: My Ring Dock
+ */
+defined( 'ABSPATH' ) || exit;
+
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
         'my-rail-renderer',
         plugin_dir_url( __FILE__ ) . 'assets/rail-renderer.js',
-        array( 'wp-desktop-mode' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
+    wp_enqueue_script( 'my-rail-renderer' );
 } );
+
+// Opt this script into the live-refresh payload so it loads
+// the moment the plugin activates (and unloads on deactivation).
+desktop_mode_register_dock_rail_renderer_script( 'my-rail-renderer' );
 ```
 
 ```js
@@ -350,27 +372,122 @@ wp.desktop.ready( () => {
 } );
 ```
 
-When the plugin is deactivated mid-session, the shell calls
-`unregisterDockRailRenderersByOwner('my-rail-renderer')` — every
-renderer the plugin registered disappears from the picker, and if
-the user had it active, the dispatcher rebuilds the rail with the
-shipped baseline. No reload required.
+When the plugin is deactivated mid-session, the chromeless bridge
+emits a fresh payload without the handle; the shell's renderer
+sync calls `unregisterDockRailRenderersByOwner( 'my-rail-renderer' )`
+so every renderer the plugin contributed disappears from the
+picker. If the user had it active, the dispatcher's subscription
+to the registry resolves to `'default'` and rebuilds the rails
+with the shipped baseline. No reload required either way.
+
+> **Why `owner` matters.** Plugins that ship a renderer without
+> setting `owner: '<script-handle>'` keep their renderer until the
+> next full page load — graceful backwards-compat, but it means
+> a stale renderer can outlive its plugin until the user F5s.
+> Match `owner` to the script handle and live-unregister works.
+
+## Composability with decoration hooks
+
+The default `Dock` renderer fires the `wp-desktop.dock.tile-class`,
+`tile-element`, `tile-tooltip`, `tile-rendered`, `before-render`,
+and `after-render` filters/actions while painting. Custom rail
+renderers SHOULD fire the same hooks at equivalent points so
+decoration plugins (glow, shake, pulse, custom tooltips) work
+regardless of which renderer the user picked. The shell can't
+enforce this — but the framework provides one-line helpers so
+"running the hooks" is no harder than not running them:
+
+```js
+mount( { container, fullMenu } ) {
+    const ctx = { dockId: 'my-renderer', orientation: 'bottom' };
+
+    function buildTile( item, isSystem ) {
+        // 1. Apply the registered tile-class filter.
+        const baseClasses = [
+            'my-renderer__tile',
+            isSystem ? 'my-renderer__tile--system' : 'my-renderer__tile--menu',
+        ];
+        const classes = wp.desktop.applyTileClasses(
+            baseClasses,
+            item,
+            { ...ctx, isSystem },
+        );
+
+        const tile = document.createElement( 'button' );
+        tile.className = classes.join( ' ' );
+        tile.dataset[ isSystem ? 'systemId' : 'menuSlug' ] = item.id;
+
+        // 2. Render the icon via the canonical dispatch.
+        tile.appendChild( wp.desktop.renderIcon( item.icon, {
+            title: item.title,
+            className: 'my-renderer__icon',
+        } ) );
+
+        // 3. Resolve the tooltip text through the filter (returns
+        //    empty string if a plugin requested suppression).
+        const tooltipLabel = wp.desktop.applyTileTooltip(
+            item.title,
+            item,
+            { ...ctx, isSystem },
+        );
+        if ( tooltipLabel ) {
+            tile.title = tooltipLabel;
+        }
+
+        // 4. Let decoration plugins wrap or replace the tile.
+        const finalEl = wp.desktop.applyTileElement(
+            tile,
+            item,
+            { ...ctx, isSystem },
+        );
+
+        container.appendChild( finalEl );
+
+        // 5. Fire the after-insertion action so plugins doing
+        //    layout-dependent decoration (animations,
+        //    IntersectionObserver) get a chance.
+        wp.desktop.dispatchTileRendered( finalEl, item, {
+            ...ctx,
+            isSystem,
+        } );
+    }
+
+    // … paint everything, register the dock selector …
+    const unregisterSelector = wp.desktop.registerDockSelector(
+        '.my-renderer__root',
+    );
+
+    return {
+        replaceItems( menu ) { /* repaint, re-fire hooks */ },
+        appendSystemItem( item ) { buildTile( item, true ); },
+        removeSystemItem( id ) { /* … */ },
+        destroy() {
+            unregisterSelector();
+            container.innerHTML = '';
+        },
+    };
+}
+```
+
+`registerDockSelector` registers your renderer's root selector with
+`wp.desktop.isDockElement` so other plugins' click-outside handlers
+correctly recognise clicks on your renderer as "inside the dock"
+and don't dismiss themselves.
 
 ## Composability
 
-Three customization registries, all orthogonal:
+Two customization registries, both orthogonal:
 
 - **Decoration hooks** — fire from inside the *default* rail
   renderer. Custom rail renderers SHOULD fire equivalent hooks for
   ecosystem compatibility (the shell can't enforce, but it's a
-  signed contract).
-- **Submenu renderer** — owns the popover that opens on right-click.
-  Custom rail renderers call `requestSubmenu( item, anchor )` to
-  invoke whichever submenu renderer is active; combinations work.
+  signed contract). Use the `wp.desktop.applyTileClasses` /
+  `applyTileElement` / `applyTileTooltip` / `dispatchTileRendered`
+  helpers to participate in two lines.
 - **Dock rail renderer** — owns the entire rail. The radical
   customization layer.
 
 Pick the smallest layer that solves your problem. A glow effect
-and a custom tooltip is decoration hooks. A radial submenu is a
-submenu renderer. A circular dock with springy physics is a rail
-renderer. Plugin authors composing all three is a normal flow.
+and a custom tooltip is decoration hooks. A circular dock with
+springy physics is a rail renderer. Plugin authors composing both
+is a normal flow.

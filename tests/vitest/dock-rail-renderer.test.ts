@@ -297,7 +297,7 @@ describe( 'dock-rail dispatcher integration', () => {
 		expect( deps.items ).toHaveLength( 1 );
 		expect( typeof deps.openItem ).toBe( 'function' );
 		expect( typeof deps.openSystemItem ).toBe( 'function' );
-		expect( typeof deps.requestSubmenu ).toBe( 'function' );
+		expect( typeof deps.openSubmenuPick ).toBe( 'function' );
 	} );
 
 	test( 'getPrimary returns Dock for default renderer; null for custom', () => {

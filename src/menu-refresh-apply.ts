@@ -20,6 +20,7 @@ import type {
 	DesktopCommandScriptServerEntry,
 	DesktopCommandServerEntry,
 	DesktopConfig,
+	DesktopDockRailRendererScriptServerEntry,
 	DesktopIconServerEntry,
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
@@ -39,6 +40,7 @@ export interface MenuRefreshPayload {
 	serverCommands?: unknown;
 	serverSettingsTabScripts?: unknown;
 	serverSettingsTabs?: unknown;
+	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
 	desktopIcons?: unknown;
 }
@@ -74,6 +76,9 @@ export interface MenuRefreshDeps {
 	syncServerTitleBarButtons: (
 		scripts: DesktopTitleBarButtonScriptServerEntry[],
 	) => Promise< void >;
+	syncServerDockRailRenderers: (
+		scripts: DesktopDockRailRendererScriptServerEntry[],
+	) => Promise< void >;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 }
 
@@ -89,6 +94,7 @@ export function createApplyPayload(
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerDockRailRenderers,
 		renderIcons,
 	} = deps;
 
@@ -101,6 +107,7 @@ export function createApplyPayload(
 		const serverCommands = payload.serverCommands;
 		const serverSettingsTabScripts = payload.serverSettingsTabScripts;
 		const serverSettingsTabs = payload.serverSettingsTabs;
+		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
 		const desktopIcons = payload.desktopIcons;
 
@@ -201,6 +208,19 @@ export function createApplyPayload(
 			);
 			config.serverTitleBarButtonScripts =
 				serverTitleBarButtonScripts as DesktopConfig[ 'serverTitleBarButtonScripts' ];
+		}
+
+		// Dock rail renderer sync — load plugin renderer scripts on
+		// activation, owner-tagged sweep on deactivation. The
+		// registry's notify cascade handles repaint of the OS
+		// Settings picker AND triggers the layout dispatcher to
+		// rebuild rails if the resolved active renderer changed.
+		if ( Array.isArray( serverDockRailRendererScripts ) ) {
+			void syncServerDockRailRenderers(
+				serverDockRailRendererScripts as DesktopDockRailRendererScriptServerEntry[],
+			);
+			config.serverDockRailRendererScripts =
+				serverDockRailRendererScripts as DesktopConfig[ 'serverDockRailRendererScripts' ];
 		}
 
 		// Desktop-icon sync — re-render the wallpaper shortcut grid

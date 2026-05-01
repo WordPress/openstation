@@ -150,7 +150,6 @@ export const DEFAULTS: OsSettingsState = {
 	accent: 'wp-blue',
 	dockSize: 'default',
 	desktopLayout: 'classic',
-	submenuRenderer: 'default',
 	dockRailRenderer: 'default',
 	customGradient: {
 		from: '#2271b1',

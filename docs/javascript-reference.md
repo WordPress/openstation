@@ -31,6 +31,8 @@ document.addEventListener( 'wp-desktop-init', ( e ) => {
 { config: DesktopConfig, restored: boolean }
 ```
 
+> **Use `wp.desktop.ready( cb )` for bootstrap, not this event.** `ready()` (and its alias `whenReady()`) handles both the already-fired and not-yet-fired cases — a script loaded after `wp-desktop-init` (server-sync-injected widgets, settings tabs, command scripts) still gets its callback invoked via microtask. A raw `addEventListener( 'wp-desktop-init', cb )` listener registered after the event has dispatched silently never fires. The CustomEvent stays around for non-bootstrap analytics / instrumentation; bootstrap goes through `ready`. See ["Bootstrap" under Hooks](#bootstrap) for the full story.
+
 ---
 
 ### `wp-desktop-window-opened` — Stable
@@ -324,6 +326,9 @@ manager.getVisibleRects(): VisibleWindowRect[];
 
 // Batch operations
 manager.closeAll( options?: { exceptIds?: string[] } ): number;          // since 0.14.0
+manager.minimizeAll(): Window[];                                         // since 0.18.0
+manager.restoreFrom( windows: Window[] ): void;                          // since 0.18.0
+manager.toggleShowDesktop(): boolean;                                    // since 0.18.0
 manager.cascade(): void;
 manager.tile(): void;
 
@@ -353,6 +358,24 @@ manager.closeDesktop( id: string ): void;                                // sinc
     height?:       number;
     initialState?: 'normal' | 'minimized' | 'maximized' | 'fullscreen';
     submenu?:      { title: string; url: string }[];
+}
+```
+
+> **`open()` requires a config object.** Passing a URL string used to silently produce a window stuck on a loading spinner with no error in the console. Since 0.18.0 the manager throws `TypeError` at the call site if `config` isn't an object, or if `id` / `url` / `title` are missing or wrong-typed. Build the config; don't shorthand it.
+
+**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code).
+
+**`minimizeAll()` / `restoreFrom( windows )` / `toggleShowDesktop()`** — the "Show Desktop" gesture decomposed into reusable primitives. `minimizeAll()` returns the windows it actually minimized (skipping windows already in the `'minimized'` state), so you can pair it with a later `restoreFrom( minimizedSet )` that touches only what you minimized. `toggleShowDesktop()` is the higher-level call mirroring the wallpaper-click behaviour exactly — minimize when anything is visible, restore when everything's hidden. Returns `true` when the new state is "showing the desktop."
+
+```js
+// Plugin building an expand/collapse UI.
+let parked = [];
+function expand() {
+    parked = wp.desktop.windowManager.minimizeAll();
+}
+function collapse() {
+    wp.desktop.windowManager.restoreFrom( parked );
+    parked = [];
 }
 ```
 
@@ -409,7 +432,15 @@ interface Window {
     readonly id:      string;     // stable identifier
     readonly config:  WindowConfig;
     readonly element: HTMLElement; // outer .wp-desktop-window node
-    state: 'normal' | 'minimized' | 'maximized' | 'fullscreen';
+    state: 'normal' | 'minimized' | 'maximized' | 'fullscreen' | 'snapped-left' | 'snapped-right';
+
+    // State predicates — added 0.18.0; equivalent to `state === '…'`
+    // but easier to discover and harder to misspell at the call site.
+    isMinimized():  boolean;
+    isMaximized():  boolean;
+    isFullscreen(): boolean;
+    isSnapped( side?: 'left' | 'right' ): boolean;
+    isFocused():    boolean;        // mirrors the wp-desktop-window--focused class
 
     // Lifecycle
     close(): void;
@@ -427,11 +458,14 @@ interface Window {
 }
 ```
 
-The `state` property is read-only-ish — mutate via the methods (`minimize()`, `restore()`, `maximize()`) so the manager fires the right lifecycle hooks (`wp-desktop.window.minimized`, etc.). Reading it is fine and cheap.
+The `state` property is read-only-ish — mutate via the methods (`minimize()`, `restore()`, `maximize()`) so the manager fires the right lifecycle hooks (`wp-desktop.window.minimized`, etc.). Reading it is fine and cheap; the `is…()` predicates are equivalent and added in 0.18.0 so you don't have to remember the canonical state-string values.
 
 ```javascript
 const win = wp.desktop.windowManager.getById( 'edit-php' );
-if ( win && win.state === 'normal' ) win.minimize();
+// Both work; the predicate is harder to misuse than `! win.isMinimized?.()`
+// (which used to silently coerce undefined → true on every plugin author's
+// first attempt before the predicates landed).
+if ( win && ! win.isMinimized() ) win.minimize();
 ```
 
 #### `Window.send( channel, payload? )` — Stable *(since 0.5.5)*
@@ -1827,78 +1861,6 @@ Snapshot of every currently registered third-party settings tab, sorted by `orde
 
 ---
 
-### `registerSubmenuRenderer( def )` — Stable *(since 0.18.0)*
-
-Register a renderer that takes over the popover the dock opens when the user right-clicks a tile with admin submenu items. The shipped baseline is a vertical list (`id: 'default'`); plugin authors can ship anything from a radial menu to floating cards to a centered command-K-style overlay.
-
-The active renderer follows the user's OS Settings → Appearance → Submenu style pick (persisted to user meta as `submenuRenderer`); registering does not auto-select. To make your renderer the default for fresh installs, register with `id: 'default'` — late registrations win and replace the shipped baseline.
-
-**Definition shape:**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. |
-| `label` | `string` | yes | Shown in the OS Settings picker. |
-| `description` | `string` | no | One-line preview text for the picker. |
-| `icon` | `string` | no | Dashicon class for the picker icon. |
-| `apiVersion` | `1` | no | Reserved for forward-compat; unsupported versions are rejected at registration so out-of-date plugins fail loudly. Omit to match the current contract. |
-| `owner` | `string` | no | When set, plugin deactivation live-unregisters every renderer with this owner — same pattern used by commands and settings tabs. |
-| `mount( deps )` | `function` | yes | Build the popover, return a controller. See below. |
-
-**`mount( deps )` contract:**
-
-`deps` carries `{ item: DockItem, anchor: HTMLElement, orientation: 'left' | 'right' | 'bottom', onPick: (sub) => void, onClose: () => void }`. The renderer must:
-
-- Build its own DOM, anchored relative to `anchor`.
-- Call `onPick( submenu )` when the user activates an entry — the dock opens the URL in a window via the same code path the regular tile click uses (so submenus land in the right window with the in-window tab strip wired correctly).
-- Call `onClose()` when the user dismisses (Escape, outside click, blur, animation completion — whatever counts as a dismiss in your UX).
-- Return a `SubmenuController` with `close()` (animated dismiss) and `destroy()` (immediate teardown).
-
-A `mount()` that throws is caught: the failure is logged via `HOOKS.SHELL_ERROR` and the dispatcher falls back to the `'default'` renderer for that invocation, so the user sees a popover instead of nothing.
-
-```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerSubmenuRenderer( {
-        id:    'arc',
-        label: 'Arc',
-        description: 'Curved menu hovering above the tile.',
-        owner: 'my-plugin',
-        mount( { item, anchor, orientation, onPick, onClose } ) {
-            const root = document.createElement( 'div' );
-            root.className = 'my-arc';
-            root.setAttribute( 'role', 'menu' );
-            // … position against `anchor`, render `item.submenu`,
-            //   call `onPick( sub )` on click, `onClose()` on dismiss …
-            document.body.appendChild( root );
-            return {
-                close()   { root.classList.add( 'my-arc--closing' ); /* animate */ },
-                destroy() { root.remove(); },
-            };
-        },
-    } );
-} );
-```
-
-See the full walk-through in [`docs/examples/submenu-renderer.md`](./examples/submenu-renderer.md).
-
----
-
-### `unregisterSubmenuRenderer( id )` — Stable *(since 0.18.0)*
-
-Remove a renderer by id. Idempotent — unknown ids are silent no-ops.
-
-```javascript
-wp.desktop.unregisterSubmenuRenderer( 'arc' );
-```
-
----
-
-### `listSubmenuRenderers()` — Stable *(since 0.18.0)*
-
-Snapshot of every currently registered submenu renderer in registration order. Used by the OS Settings picker to populate its options; plugin authors rarely need it directly.
-
----
-
 ### `registerDockRailRenderer( def )` — Stable *(since 0.18.0)*
 
 Register a renderer that **replaces the dock rail entirely**. The default `'default'` renderer is the shipped icon-strip backed by the `Dock` class; plugin authors can ship anything from a circular ring to a Stage-Manager-style stack to a floating cluster. The user picks among registered renderers in OS Settings → Appearance → Dock style (persisted to user meta as `dockRailRenderer`).
@@ -2052,7 +2014,80 @@ const everything = wp.desktop.getMenuItems();   // [ DockItem, DockItem, … ]
 
 Returns a defensive copy — mutating the result doesn't change shell state. Updates with every live menu refresh; call from inside `wp-desktop.window.dock-items-changed` listeners (or the rail renderer's `replaceItems`) to get the fresh post-refresh snapshot.
 
-> **For renderers using the registry path:** `DockRailMountDeps.fullMenu` carries the same data and is preferable inside a `mount()` body — it's a snapshot at the moment the rail mounts, so a renderer holding the array sees a stable reference.
+> **For renderers using the registry path:** `DockRailMountDeps.fullMenu` and `fullSystemTiles` carry the same data and are preferable inside a `mount()` body — they're snapshots at the moment the rail mounts, so a renderer holding the arrays sees stable references.
+
+---
+
+### `renderIcon( icon, opts )` — Stable *(since 0.18.0)*
+
+Render an icon-string into a DOM element using the canonical dispatch the default dock uses. One implementation, four shapes:
+
+| Input | Output |
+|---|---|
+| `'dashicons-…'` | `<span class="dashicons dashicons-…">` |
+| `'data:image/svg+xml;base64,…'` | `<span>` with the SVG as a CSS background-image |
+| `'http(s)://…'` | `<img src=…>` |
+| Anything else (`''`, `'none'`, `'div'`, …) | Letter-badge fallback — coloured circle with the first one or two letters of `opts.title`, hue hashed from the title so the swatch is stable per plugin |
+
+```js
+const iconEl = wp.desktop.renderIcon( item.icon, {
+    title: item.title,
+    className: 'my-renderer__icon',
+} );
+host.appendChild( iconEl );
+```
+
+Custom rail renderers should use this so their icons look consistent with the default dock (and the letter-badge fallback colour stays stable across reloads — same hash function).
+
+---
+
+### `applyTileClasses( base, item, ctx )` / `applyTileElement` / `applyTileTooltip` / `dispatchTileRendered` — Stable *(since 0.18.0)*
+
+Run the registered dock decoration hooks against a tile your custom renderer is building. **Custom rail renderers SHOULD invoke these** at the equivalent points the default `Dock` renderer does — otherwise decoration plugins (glow, animations, custom tooltips) silently fail to apply when the user picks your renderer.
+
+```js
+const classes = wp.desktop.applyTileClasses(
+    [ 'my-renderer__tile' ],
+    item,
+    { dockId: 'my-renderer', orientation: 'bottom', isSystem: false },
+);
+tile.className = classes.join( ' ' );
+
+const tooltip = wp.desktop.applyTileTooltip( item.title, item, ctx );
+if ( tooltip ) {
+    tile.title = tooltip;
+}
+
+const finalEl = wp.desktop.applyTileElement( tile, item, ctx );
+host.appendChild( finalEl );
+
+wp.desktop.dispatchTileRendered( finalEl, item, ctx );
+```
+
+`ctx` shape: `{ dockId: string; orientation: 'left' | 'right' | 'bottom'; isSystem: boolean; rail?: 'dock' | 'taskbar'; container?: HTMLElement }`.
+
+---
+
+### `isDockElement( target )` / `registerDockSelector( selector )` — Stable *(since 0.18.0)*
+
+`isDockElement` walks an event target's `composedPath` looking for a known dock element. Returns `true` when the click landed on the default dock, the side dock, the dock tooltip, the submenu popover, or any custom-renderer root registered via `registerDockSelector`. Use in click-outside-to-dismiss handlers so plugins compose cleanly.
+
+```js
+document.addEventListener( 'pointerdown', ( e ) => {
+    if ( wp.desktop.isDockElement( e.target ) ) {
+        return; // click landed on the dock — keep my popover open
+    }
+    closeMyPopover();
+} );
+```
+
+`registerDockSelector` adds a CSS selector to the "inside the dock" set. Custom rail renderers should call this from `mount()` so other plugins' click-outside handlers correctly classify clicks on the renderer's surface. Returns an unregister function.
+
+```js
+const unregister = wp.desktop.registerDockSelector( '.my-renderer__root' );
+// later, in destroy():
+unregister();
+```
 
 ---
 

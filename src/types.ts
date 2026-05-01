@@ -831,6 +831,25 @@ export interface DesktopCommandScriptServerEntry {
 }
 
 /**
+ * Server-declared dock rail renderer script entry — produced by
+ * `desktop_mode_register_dock_rail_renderer_script( $handle )`. Same
+ * shape as `DesktopCommandScriptServerEntry`; `handle` doubles as
+ * the renderer's `owner` key for live unregistration on plugin
+ * deactivation.
+ *
+ * @public
+ * @since 0.18.0
+ */
+export interface DesktopDockRailRendererScriptServerEntry {
+	handle: string;
+	scriptUrl: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
+	scriptTranslations?: string;
+}
+
+/**
  * Server-declared command metadata passed from PHP via
  * `serverCommands`. Optional companion to
  * `DesktopCommandScriptServerEntry` — plugins declaring commands with
@@ -1375,6 +1394,15 @@ export interface DesktopConfig {
 	 * @since 0.17.0
 	 */
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_dock_rail_renderer_script()`. Shell loads
+	 * each URL on boot and on mid-session activation so plugin
+	 * renderers surface in OS Settings → Dock style without an F5.
+	 *
+	 * @since 0.18.0
+	 */
+	serverDockRailRendererScripts?: DesktopDockRailRendererScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_titlebar_button_script()`. Shell injects

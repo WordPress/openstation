@@ -358,6 +358,33 @@ export class WindowManager {
 	 * {@link openNew}.
 	 */
 	public open( config: Partial<WindowConfig> & { id: string; url: string; title: string } ): Window {
+		// Defensive boundary check — a previously-loose contract
+		// silently produced a hung iframe when callers passed a URL
+		// string instead of a config object (`url: undefined`,
+		// loading spinner forever). Throw at the boundary so plugin
+		// authors see the bug at the call site instead of debugging
+		// a stuck window.
+		if ( ! config || typeof config !== 'object' ) {
+			throw new TypeError(
+				'windowManager.open() requires a config object with at least { id, url, title }; received ' +
+					( config === null ? 'null' : typeof config ),
+			);
+		}
+		if ( typeof config.id !== 'string' || config.id === '' ) {
+			throw new TypeError(
+				'windowManager.open(): config.id must be a non-empty string.',
+			);
+		}
+		if ( typeof config.url !== 'string' || config.url === '' ) {
+			throw new TypeError(
+				'windowManager.open(): config.url must be a non-empty string. Pass an admin URL (e.g. "/wp-admin/edit.php") or a hash fragment (e.g. "#my-window") for native windows.',
+			);
+		}
+		if ( typeof config.title !== 'string' ) {
+			throw new TypeError(
+				'windowManager.open(): config.title must be a string.',
+			);
+		}
 		const baseId = config.baseId || config.id;
 		// Per-desktop ("Spaces") semantics: a window sharing this baseId
 		// counts as "the same window" only when it lives on the ACTIVE
@@ -890,6 +917,115 @@ export class WindowManager {
 		doAction( HOOKS.WINDOWS_AFTER_CLOSE_ALL, { closed, skipped } );
 
 		return closed;
+	}
+
+	/**
+	 * Minimize every currently-non-minimized window. Returns the
+	 * exact set that was minimized — i.e., excludes windows already
+	 * in the `'minimized'` state — so callers can pair the call with
+	 * a later {@link restoreFrom} that touches only the windows
+	 * they minimized.
+	 *
+	 * The "Show Desktop" gesture (clicking the wallpaper) routes
+	 * through this method (and {@link restoreFrom} on the second
+	 * click); plugin authors building expand/collapse UIs that
+	 * mimic the gesture should use these primitives instead of
+	 * rolling the loop themselves.
+	 *
+	 * @public
+	 * @since 0.18.0
+	 */
+	public minimizeAll(): Window[] {
+		const minimized: Window[] = [];
+		for ( const win of this._stack.slice() ) {
+			if ( win.state === 'minimized' ) {
+				continue;
+			}
+			try {
+				win.minimize();
+				minimized.push( win );
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[wp-desktop-mode] minimizeAll: window.minimize() threw for',
+						win.id,
+						err,
+					);
+				}
+			}
+		}
+		return minimized;
+	}
+
+	/**
+	 * Restore the given window list — the symmetric counterpart to
+	 * {@link minimizeAll}. Skips windows that have since been
+	 * closed and windows the user manually un-minimized between
+	 * the minimize and the restore.
+	 *
+	 * Pass the array {@link minimizeAll} returned to restore
+	 * exactly what you minimized; pass any subset to restore
+	 * selectively.
+	 *
+	 * @public
+	 * @since 0.18.0
+	 */
+	public restoreFrom( windows: Window[] ): void {
+		if ( ! Array.isArray( windows ) ) {
+			return;
+		}
+		const live = new Set( this._stack );
+		for ( const win of windows ) {
+			if ( ! live.has( win ) ) {
+				continue;
+			}
+			if ( win.state !== 'minimized' ) {
+				continue;
+			}
+			try {
+				win.restore();
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[wp-desktop-mode] restoreFrom: window.restore() threw for',
+						win.id,
+						err,
+					);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Toggle the "Show Desktop" state — if every live window is
+	 * already minimized, restore them all; otherwise minimize the
+	 * non-minimized cohort. Returns `true` when the new state is
+	 * "showing the desktop" (everything minimized after the call),
+	 * `false` when windows have just been restored.
+	 *
+	 * Mirrors the wallpaper-click gesture exactly, in one call.
+	 *
+	 * @public
+	 * @since 0.18.0
+	 */
+	public toggleShowDesktop(): boolean {
+		const all = this._stack.slice();
+		if ( all.length === 0 ) {
+			return false;
+		}
+		const allMinimized = all.every( ( w ) => w.state === 'minimized' );
+		if ( allMinimized ) {
+			for ( const win of all ) {
+				try {
+					win.restore();
+				} catch {
+					// see notes in restoreFrom.
+				}
+			}
+			return false;
+		}
+		this.minimizeAll();
+		return true;
 	}
 
 	// ---- Arrange + snap delegations ----

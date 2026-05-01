@@ -141,6 +141,9 @@ function desktop_mode_enqueue_assets() {
 	$server_settings_tabs = isset( $menu_payload['serverSettingsTabs'] )
 		? $menu_payload['serverSettingsTabs']
 		: array();
+	$server_dock_rail_renderer_scripts = isset( $menu_payload['serverDockRailRendererScripts'] )
+		? $menu_payload['serverDockRailRendererScripts']
+		: array();
 	$server_titlebar_button_scripts = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
 		: array();
@@ -236,6 +239,7 @@ function desktop_mode_enqueue_assets() {
 			'serverCommands'   => $server_commands,
 			'serverSettingsTabScripts' => $server_settings_tab_scripts,
 			'serverSettingsTabs' => $server_settings_tabs,
+			'serverDockRailRendererScripts' => $server_dock_rail_renderer_scripts,
 			'serverTitleBarButtonScripts' => $server_titlebar_button_scripts,
 			'serverWindowThemeScripts'  => $server_window_theme_scripts,
 			'serverWindowThemes'        => $server_window_themes,

@@ -110,21 +110,9 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		)
 			? ( parsed.desktopLayout as DesktopLayoutId )
 			: DEFAULTS.desktopLayout,
-		// Submenu renderer — accept any sanitize_key()-clean string.
-		// Existence in the registry is checked at resolve time
-		// (`resolveActiveSubmenuRenderer`), not here, because
-		// renderers are registered ASYNCHRONOUSLY relative to state
-		// load (`installDefaultSubmenuRenderer` runs at boot before
-		// `init`, but plugin scripts can register later).
-		submenuRenderer:
-			typeof parsed.submenuRenderer === 'string' &&
-			/^[a-z0-9_-]+$/.test( parsed.submenuRenderer )
-				? parsed.submenuRenderer
-				: DEFAULTS.submenuRenderer,
-		// Dock rail renderer — same shape as submenuRenderer:
-		// any sanitize_key()-clean string survives, the registry
-		// resolves at use time and falls back to `'default'` when
-		// the picked renderer isn't registered.
+		// Dock rail renderer — any sanitize_key()-clean string
+		// survives; the registry resolves at use time and falls back
+		// to `'default'` when the picked renderer isn't registered.
 		dockRailRenderer:
 			typeof parsed.dockRailRenderer === 'string' &&
 			/^[a-z0-9_-]+$/.test( parsed.dockRailRenderer )

@@ -17,6 +17,15 @@ import {
 	repaintLoadingOverlays,
 } from './window/loading';
 import { Dock, type DockItem, type SystemDockItem } from './dock';
+import { renderIcon } from './icon';
+import {
+	applyTileClasses,
+	applyTileElement,
+	applyTileTooltip,
+	dispatchTileRendered,
+	isDockElement,
+	registerDockSelector,
+} from './dock-helpers';
 import { OsSettings } from './settings';
 import { deriveWindowId, urlMatchKey } from './utils';
 import {
@@ -46,6 +55,7 @@ import {
 	type TitleBarButtonDef,
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
+import { createDockRailRendererSync } from './dock-rail/server-sync';
 import {
 	registerWindowTheme,
 	unregisterWindowTheme,
@@ -147,13 +157,6 @@ import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
  */
 const INITIAL_ORIGIN = window.location.origin;
 import { registerBuiltInWidgets } from './widgets/built-in';
-import {
-	installDefaultSubmenuRenderer,
-	listSubmenuRenderers,
-	registerSubmenuRenderer,
-	unregisterSubmenuRenderer,
-	type SubmenuRenderer,
-} from './submenu';
 import {
 	installDefaultDockRailRenderer,
 	listDockRailRenderers,
@@ -564,22 +567,6 @@ export interface WpDesktopPublicApi {
 	/** Snapshot of all registered third-party settings tabs. @since 0.17.0 */
 	listSettingsTabs: () => DesktopSettingsTab[];
 	/**
-	 * Register a renderer for the dock submenu popover (the popover
-	 * that opens when the user right-clicks a tile with admin
-	 * submenu items). Plugins can ship anything from a radial menu
-	 * to floating cards; the user picks among registered renderers
-	 * in OS Settings → Appearance → Submenu style.
-	 *
-	 * See `docs/examples/submenu-renderer.md` for the full contract.
-	 *
-	 * @since 0.18.0
-	 */
-	registerSubmenuRenderer: ( renderer: SubmenuRenderer ) => void;
-	/** Remove a previously registered submenu renderer. @since 0.18.0 */
-	unregisterSubmenuRenderer: ( id: string ) => void;
-	/** Snapshot of all registered submenu renderers. @since 0.18.0 */
-	listSubmenuRenderers: () => SubmenuRenderer[];
-	/**
 	 * Register a renderer that REPLACES the dock rail entirely.
 	 * Plugins can ship a circular ring, a Stage-Manager-style
 	 * stack, a floating cluster — anything that fits the
@@ -677,6 +664,67 @@ export interface WpDesktopPublicApi {
 	 * @since 0.18.0
 	 */
 	getMenuItems: () => DockItem[];
+	/**
+	 * Render an icon-string into a DOM element using the canonical
+	 * dispatch (dashicon class → `<span>`, base64 SVG data URI →
+	 * `<span>` background, http(s) URL → `<img>`, anything else →
+	 * letter-badge fallback). Use this so your renderer's icons
+	 * look consistent with the default dock's.
+	 *
+	 * @since 0.18.0
+	 */
+	renderIcon: (
+		icon: string,
+		opts: { title: string; className?: string },
+	) => HTMLElement;
+	/**
+	 * Run the registered `wp-desktop.dock.tile-class` filter against
+	 * a base classNames list. Custom rail renderers SHOULD use this
+	 * during tile build so decoration plugins compose with any
+	 * renderer the user picks. See `docs/examples/dock-rail-renderer.md`
+	 * for the full composition contract.
+	 *
+	 * @since 0.18.0
+	 */
+	applyTileClasses: typeof import( './dock-helpers' ).applyTileClasses;
+	/**
+	 * Run the registered `wp-desktop.dock.tile-element` filter so
+	 * decoration plugins can wrap a renderer's tile element.
+	 *
+	 * @since 0.18.0
+	 */
+	applyTileElement: typeof import( './dock-helpers' ).applyTileElement;
+	/**
+	 * Resolve the tooltip text for a tile through the registered
+	 * `wp-desktop.dock.tile-tooltip` filter. Empty return suppresses
+	 * the tooltip.
+	 *
+	 * @since 0.18.0
+	 */
+	applyTileTooltip: typeof import( './dock-helpers' ).applyTileTooltip;
+	/**
+	 * Fire the `wp-desktop.dock.tile-rendered` action after a tile
+	 * lands in the DOM.
+	 *
+	 * @since 0.18.0
+	 */
+	dispatchTileRendered: typeof import( './dock-helpers' ).dispatchTileRendered;
+	/**
+	 * Walk an event target's composedPath looking for a known dock
+	 * element. Custom rail renderers should register their root
+	 * selector via {@link registerDockSelector} at mount time, then
+	 * use this in click-outside-to-dismiss handlers.
+	 *
+	 * @since 0.18.0
+	 */
+	isDockElement: ( target: EventTarget | null ) => boolean;
+	/**
+	 * Register an additional CSS selector treated as "inside the
+	 * dock" by {@link isDockElement}. Returns an unregister callback.
+	 *
+	 * @since 0.18.0
+	 */
+	registerDockSelector: ( selector: string ) => () => void;
 	/**
 	 * Register a custom button in the title bar of any matching
 	 * window. Predicate decides which windows show it. See
@@ -1212,10 +1260,13 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
 	'unregisterCommand', 'listCommands', 'registerSettingsTab',
 	'unregisterSettingsTab', 'listSettingsTabs',
-	'registerSubmenuRenderer', 'unregisterSubmenuRenderer', 'listSubmenuRenderers',
 	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
 	'openOsSettings', 'deriveWindowId',
 	'listSystemTiles', 'getSystemTile', 'getMenuItems',
+	'renderIcon',
+	'applyTileClasses', 'applyTileElement', 'applyTileTooltip',
+	'dispatchTileRendered',
+	'isDockElement', 'registerDockSelector',
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
@@ -1269,14 +1320,10 @@ function init(): void {
 	const widgetsEl = document.getElementById( 'wp-desktop-widgets' );
 	let widgetLayer: WidgetLayer | null = null;
 	registerBuiltInWidgets();
-	// Submenu renderer registry — install the built-in `'default'`
-	// list popover before `wp-desktop.init` fires so plugins that
-	// hook into the registry on init see a populated initial state.
-	installDefaultSubmenuRenderer();
-	// Dock rail renderer registry — same idea: install the built-in
-	// `'default'` icon-strip renderer before `wp-desktop.init` so
-	// the layout dispatcher (constructed below) can resolve it on
-	// the very first paint.
+	// Dock rail renderer registry — install the built-in `'default'`
+	// icon-strip renderer before `wp-desktop.init` fires so the
+	// layout dispatcher (constructed below) can resolve it on the
+	// very first paint.
 	installDefaultDockRailRenderer();
 	if ( widgetsEl ) {
 		widgetLayer = new WidgetLayer( widgetsEl, pluginUrl );
@@ -1698,6 +1745,21 @@ function init(): void {
 			: [],
 	);
 
+	// Dock rail renderer sync — loads plugin renderer scripts on
+	// activation so OS Settings → Dock style surfaces them
+	// without an F5; owner-tagged sweep on deactivation. The
+	// dispatcher's subscription to the rail-renderer registry
+	// rebuilds the rails automatically if the user's active id
+	// now resolves to a freshly-loaded renderer.
+	const syncServerDockRailRenderers = createDockRailRendererSync();
+	void syncServerDockRailRenderers(
+		Array.isArray( config.serverDockRailRendererScripts )
+			? config.serverDockRailRendererScripts
+			: [],
+	);
+
+	// Submenu renderer sync — same shape, different registry.
+
 	// Window-theme sync — Layer 1 of the chrome-customization
 	// framework. Loads scripts opted-in via
 	// `desktop_mode_register_window_theme_script()` AND honors
@@ -1915,6 +1977,7 @@ function init(): void {
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerDockRailRenderers,
 		renderIcons,
 	);
 
@@ -2000,9 +2063,6 @@ function init(): void {
 		registerSettingsTab,
 		unregisterSettingsTab,
 		listSettingsTabs,
-		registerSubmenuRenderer,
-		unregisterSubmenuRenderer,
-		listSubmenuRenderers,
 		registerDockRailRenderer,
 		unregisterDockRailRenderer,
 		listDockRailRenderers,
@@ -2013,6 +2073,13 @@ function init(): void {
 		getSystemTile: ( id: string ) =>
 			layoutDispatcher?.getSystemTile( id ) ?? null,
 		getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+		renderIcon,
+		applyTileClasses,
+		applyTileElement,
+		applyTileTooltip,
+		dispatchTileRendered,
+		isDockElement,
+		registerDockSelector,
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,
@@ -2296,19 +2363,12 @@ function init(): void {
 		if ( desktopArea.classList.contains( 'wp-desktop-area--overview' ) ) {
 			return;
 		}
-		const windows = manager.getAll();
-		const allMinimized = windows.length > 0 && windows.every( ( w ) => w.state === 'minimized' );
-		if ( allMinimized ) {
-			for ( const win of windows ) {
-				win.restore();
-			}
-		} else {
-			for ( const win of windows ) {
-				if ( win.state !== 'minimized' ) {
-					win.minimize();
-				}
-			}
-		}
+		// One call instead of an inline loop — keeps the wallpaper
+		// click and the public `windowManager.toggleShowDesktop()`
+		// API in lock-step (plugins building expand/collapse UIs
+		// that mimic the gesture get the same focus / restore-order
+		// behaviour the shell uses).
+		manager.toggleShowDesktop();
 	} );
 
 	// The URL bar is intentionally NOT normalized to /wp-desktop/.
@@ -2800,6 +2860,9 @@ function bindMenuRefresh(
 	syncServerTitleBarButtons: (
 		scripts: import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
 	) => Promise< void >,
+	syncServerDockRailRenderers: (
+		scripts: import( './types' ).DesktopDockRailRendererScriptServerEntry[],
+	) => Promise< void >,
 	renderIcons: (
 		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 	) => void,
@@ -2817,6 +2880,7 @@ function bindMenuRefresh(
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerDockRailRenderers,
 		renderIcons,
 	} );
 
@@ -2873,6 +2937,7 @@ function bindMenuRefresh(
 				serverCommands?: unknown;
 				serverSettingsTabScripts?: unknown;
 				serverSettingsTabs?: unknown;
+				serverDockRailRendererScripts?: unknown;
 				serverTitleBarButtonScripts?: unknown;
 				desktopIcons?: unknown;
 			};

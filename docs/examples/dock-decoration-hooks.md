@@ -8,7 +8,6 @@
 > | If you want to… | Use… |
 > |---|---|
 > | Add classNames, wrap tiles, animate them in | **Decoration hooks** *(this page)* |
-> | Replace the right-click submenu popover | [Submenu renderer](./submenu-renderer.md) |
 > | Replace the entire rail (ring, stack, etc.) | [Rail renderer](./dock-rail-renderer.md) |
 
 The default `Dock` renderer fires a small set of filters and actions while it

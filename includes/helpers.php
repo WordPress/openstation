@@ -834,6 +834,9 @@ function desktop_mode_build_menu_payload() {
 		'serverSettingsTabs' => function_exists( 'desktop_mode_build_desktop_settings_tabs_payload' )
 			? desktop_mode_build_desktop_settings_tabs_payload()
 			: array(),
+		'serverDockRailRendererScripts' => function_exists( 'desktop_mode_build_dock_rail_renderer_scripts_payload' )
+			? desktop_mode_build_dock_rail_renderer_scripts_payload()
+			: array(),
 		'serverTitleBarButtonScripts' => function_exists( 'desktop_mode_build_desktop_titlebar_button_scripts_payload' )
 			? desktop_mode_build_desktop_titlebar_button_scripts_payload()
 			: array(),

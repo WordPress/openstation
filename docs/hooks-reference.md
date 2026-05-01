@@ -284,6 +284,40 @@ desktop_mode_register_settings_tab( array(
 
 ---
 
+### `desktop_mode_dock_rail_renderer_script_registered` — Stable *(since 0.18.0)*
+
+Fires after `desktop_mode_register_dock_rail_renderer_script()` stores a dock rail renderer script handle.
+
+```php
+do_action( 'desktop_mode_dock_rail_renderer_script_registered', string $handle );
+```
+
+---
+
+### `desktop_mode_register_dock_rail_renderer_script( $handle )` — Stable *(PHP function, since 0.18.0)*
+
+Declare a WP-registered script handle as a dock rail renderer provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerDockRailRenderer()` calls made by the plugin's JS surface in OS Settings → Dock style **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep renderer definitions in TypeScript and only touch PHP to declare the handle.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-rail',
+        plugins_url( 'js/rail.js', __FILE__ ),
+        array( 'desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-rail' );
+} );
+desktop_mode_register_dock_rail_renderer_script( 'my-plugin-rail' );
+```
+
+The plugin's JS calls `wp.desktop.registerDockRailRenderer({ id, label, owner: 'my-plugin-rail', mount })` — the matching `owner` enables live unregistration when the plugin deactivates. Renderers without `owner` stay until the next page reload (graceful backwards-compat).
+
+See [`docs/examples/dock-rail-renderer.md`](./examples/dock-rail-renderer.md) for the full plugin author walk-through.
+
+---
+
 ### `desktop_mode_window_tab_registered` — Stable
 
 Fires after `desktop_mode_register_window_tab()` successfully attaches a tab to a native window. Useful for companion plugins that need to follow up (e.g. register a help overlay only when a Stats tab actually exists).

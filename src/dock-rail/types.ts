@@ -9,9 +9,8 @@
  * Stage-Manager-style stack, a floating cluster — anything that
  * fits the controller contract.
  *
- * Mirrors `SubmenuRenderer` so plugin authors see the same DX
- * across both registries: `register()`, implement `mount()`, return
- * a controller. The shell handles error isolation and live-sync
+ * Plugin authors `register()`, implement `mount()`, and return a
+ * controller. The shell handles error isolation and live-sync
  * registration.
  *
  * @since 0.18.0
@@ -22,9 +21,9 @@ import type {
 	DockAttentionMode,
 	DockItem,
 	DockOrientation,
+	SubmenuItem,
 	SystemDockItem,
 } from '../dock';
-import type { SubmenuItem } from '../submenu';
 import type { WindowManager } from '../window-manager';
 
 /**
@@ -49,11 +48,6 @@ import type { WindowManager } from '../window-manager';
  *   - `openSystemItem( item )` — system-tile click (OS Settings,
  *     plugin-owned native windows). Mirrors `openItem` for the
  *     non-menu cohort.
- *   - `requestSubmenu( item, anchor )` — invoke the submenu
- *     renderer registry. Lets a custom rail renderer participate
- *     in the right-click → popover flow without re-implementing
- *     the submenu surface.
- *
  * **Read-only collaborators** for renderers that need them:
  *   - `windowManager` — full WindowManager. Use sparingly; prefer
  *     the routing callbacks. Provided for renderers that need raw
@@ -84,6 +78,24 @@ export interface DockRailMountDeps {
 	 * @since 0.18.0
 	 */
 	fullMenu: DockItem[];
+	/**
+	 * Snapshot of every JS-registered system tile across both rails
+	 * at mount time — the OS Settings tile, plugin-owned native-
+	 * window launchers, the recycle bin, etc. Mirrors `fullMenu`'s
+	 * shape: a single read at mount time of the cohort that flows
+	 * through `appendSystemItem` / `removeSystemItem` over the
+	 * renderer's lifetime.
+	 *
+	 * Use this when your renderer wants to apply uniform treatment
+	 * (partition, sort, filter, decorate) to *every* dockable
+	 * thing in one pass — without maintaining parallel collections
+	 * for menu items + system tiles. Live updates still flow
+	 * through the controller's `appendSystemItem` /
+	 * `removeSystemItem` hooks.
+	 *
+	 * @since 0.18.0
+	 */
+	fullSystemTiles: SystemDockItem[];
 	orientation: DockOrientation;
 	/**
 	 * Primary tile click — routes through the same
@@ -111,7 +123,6 @@ export interface DockRailMountDeps {
 	 */
 	openSubmenuPick( item: DockItem, sub: SubmenuItem ): void;
 	openSystemItem( item: SystemDockItem ): void;
-	requestSubmenu( item: DockItem, anchor: HTMLElement ): void;
 	windowManager: WindowManager;
 	adminUrl: string;
 }
