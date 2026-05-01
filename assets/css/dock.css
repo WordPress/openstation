@@ -90,6 +90,17 @@
 	height: var( --wp-desktop-dock-icon-size, 20px );
 	display: block;
 	fill: currentColor;
+	opacity: 0.7;
+	/* Some plugin SVGs ship hardcoded `fill="..."` attributes inside
+	   the markup, which override `fill: currentColor` and make the
+	   icon keep its brand color. Force the monochrome white palette
+	   to match dashicons. */
+	filter: brightness(0) invert(1);
+	transition: opacity 0.15s ease;
+}
+
+.wp-desktop-dock__item-primary:hover .wp-desktop-dock__item-svg {
+	opacity: 1;
 }
 
 /*
@@ -430,6 +441,17 @@
 	background: rgba( 255, 255, 255, 0.22 );
 }
 
+/*
+ * Hide the separator when nothing precedes it. The TS code creates
+ * a system / pinned separator before its first cluster item — on a
+ * clean install with only system items and no menu items, the
+ * separator becomes the dock's first child and would render as a
+ * stray hairline with nothing to divide.
+ */
+.wp-desktop-dock__separator:first-child {
+	display: none;
+}
+
 /* Tooltip — anchor modifiers are applied directly to the tooltip
  * element (NOT via a descendant selector on `.wp-desktop-dock`)
  * because the tooltip lives in `document.body`. JS writes the
@@ -542,7 +564,10 @@
 .wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ]
 	.wp-desktop-dock__separator {
 	width: 1px;
-	height: 60%;
+	/* Fixed height — `60%` collapses against the floating pill's
+	   intrinsic height, leaving the hairline effectively invisible.
+	   28px matches the dock tile inner glyph area. */
+	height: 28px;
 	margin: auto 4px auto 8px;
 	margin-inline-start: auto;
 	background: var( --wp-desktop-dock-border );

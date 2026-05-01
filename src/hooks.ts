@@ -431,6 +431,17 @@ export const HOOKS = {
 	WINDOW_RESIZE_END: 'wp-desktop.window.resize-end',
 	/** Action, fires when the user "detaches" a window to a classic tab. */
 	WINDOW_DETACHED: 'wp-desktop.window.detached',
+	/**
+	 * Action, fires when the user clicks the title-bar reload button
+	 * on an iframe-backed window. Payload: `{ windowId: string, url:
+	 * string }` where `url` is the URL being reloaded (the active
+	 * primary or external sub-tab). Subscribers can use this to
+	 * invalidate their own cache, force a save before navigation,
+	 * track usage as a UX signal, or sync state across companion
+	 * surfaces. Native windows do not fire this — they own their
+	 * DOM directly and the reload button doesn't apply.
+	 */
+	WINDOW_RELOADED: 'wp-desktop.window.reloaded',
 	/** Action, fires when iframe title updates change the window title. */
 	WINDOW_TITLE_CHANGED: 'wp-desktop.window.title-changed',
 	/**

@@ -82,6 +82,7 @@ describe( 'resolveWindowControls', () => {
 			'core/maximize',
 			'core/focus-tab',
 			'core/detach',
+			'core/reload',
 			'core/close',
 		] );
 	} );
@@ -94,6 +95,11 @@ describe( 'resolveWindowControls', () => {
 		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).not.toContain(
 			'core/detach',
+		);
+		// Native windows also skip core/reload — they own their DOM
+		// directly, so there's no iframe to reload.
+		expect( resolved.controls.map( ( c ) => c.id ) ).not.toContain(
+			'core/reload',
 		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).toContain( 'core/close' );
 	} );
@@ -108,6 +114,7 @@ describe( 'resolveWindowControls', () => {
 		expect( resolved.controls.map( ( c ) => c.id ) ).toEqual( [
 			'core/minimize',
 			'core/maximize',
+			'core/reload',
 			'core/close',
 		] );
 	} );
@@ -132,6 +139,7 @@ describe( 'resolveWindowControls', () => {
 		expect( resolved.controls.map( ( c ) => c.id ).slice( 3 ) ).toEqual( [
 			'core/focus-tab',
 			'core/detach',
+			'core/reload',
 		] );
 	} );
 
@@ -191,9 +199,10 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 
-		expect( host.children.length ).toBe( 5 );
+		expect( host.children.length ).toBe( 6 );
 		expect( host.querySelector( '.wp-desktop-window__btn--close' ) ).not.toBeNull();
 		expect( host.querySelector( '.wp-desktop-window__btn--minimize' ) ).not.toBeNull();
+		expect( host.querySelector( '.wp-desktop-window__btn--reload' ) ).not.toBeNull();
 	} );
 
 	test( 'click on core/close button dispatches win.close()', () => {

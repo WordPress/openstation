@@ -1464,6 +1464,113 @@ export class Window {
 	}
 
 	/**
+	 * Reload the active iframe of this window. If an external sub-tab
+	 * is foregrounded, that iframe is reloaded instead of the primary
+	 * one. Same-origin iframes use `location.reload()` for a clean
+	 * reload that preserves scroll position semantics; cross-origin
+	 * external tabs fall back to re-assigning `iframe.src`.
+	 *
+	 * No-op for native windows — they own their DOM directly and the
+	 * `core/reload` built-in's `match` predicate already filters them
+	 * out, but this guard keeps the contract honest if the method is
+	 * called by other code paths in the future.
+	 */
+	public reload(): void {
+		if ( this.config.native ) {
+			return;
+		}
+		// Guard against double-clicks during an in-flight reload — a
+		// second `location.reload()` while the first is still hydrating
+		// can desync the chromeless bridge's `wp-desktop-ready`
+		// handshake. The body's `--loading` class is the upstream
+		// signal set by `markContentLoading()` and cleared on the
+		// next `wp-desktop-ready` postMessage.
+		const body = this.element.querySelector( '.wp-desktop-window__body' );
+		if ( body?.classList.contains( 'wp-desktop-window__body--loading' ) ) {
+			return;
+		}
+		// Resolve the target surface and its URL up-front, before any
+		// observable side effect — so an unexpected null iframe or
+		// missing external-tab entry returns silently instead of
+		// arming the loading overlay with no actual reload behind it
+		// (which would leave the spinner stuck forever).
+		let reloadedUrl: string;
+		let triggerReload: () => void;
+		if ( this._activeTabId === 'primary' ) {
+			if ( ! this.iframe ) {
+				return;
+			}
+			const iframe = this.iframe;
+			reloadedUrl = this.getCurrentUrl();
+			triggerReload = () => {
+				try {
+					iframe.contentWindow?.location.reload();
+				} catch {
+					// Cross-origin or detached frame — re-assign src
+					// as a fallback. The current src is what's already
+					// loaded, so re-setting it triggers a fresh load.
+					iframe.src = iframe.src;
+				}
+			};
+		} else {
+			const entry = this._externalTabs.get( this._activeTabId );
+			if ( ! entry ) {
+				return;
+			}
+			reloadedUrl = entry.url;
+			triggerReload = () => {
+				try {
+					entry.iframe.contentWindow?.location.reload();
+				} catch {
+					entry.iframe.src = entry.url;
+				}
+			};
+		}
+		// Click feedback first (independent of network latency), then
+		// arm the loading overlay (will be cleared by `wp-desktop-ready`),
+		// then fire the actual reload, then notify subscribers.
+		this._spinReloadButton();
+		this.markContentLoading();
+		triggerReload();
+		doAction( HOOKS.WINDOW_RELOADED, {
+			windowId: this.id,
+			url: reloadedUrl,
+		} );
+	}
+
+	/**
+	 * Trigger the one-shot 360° rotation on the title-bar reload
+	 * button. Force-restart the animation by removing the class,
+	 * flushing a reflow, then re-adding it; otherwise a click during
+	 * an in-flight animation would be a no-op (CSS ignores re-applying
+	 * the same animation to an unchanged class). Pattern mirrors
+	 * {@link shake} for the same restart-on-repeat reason.
+	 *
+	 * Silent no-op when the title bar has been replaced by a custom
+	 * chrome layer that doesn't render the standard reload button.
+	 *
+	 * @internal
+	 */
+	private _spinReloadButton(): void {
+		const btn = this.element.querySelector(
+			'.wp-desktop-window__btn--reload',
+		);
+		if ( ! ( btn instanceof HTMLElement ) ) {
+			return;
+		}
+		btn.classList.remove( 'wp-desktop-window__btn--spinning' );
+		void btn.offsetWidth;
+		btn.classList.add( 'wp-desktop-window__btn--spinning' );
+		btn.addEventListener(
+			'animationend',
+			() => {
+				btn.classList.remove( 'wp-desktop-window__btn--spinning' );
+			},
+			{ once: true },
+		);
+	}
+
+	/**
 	 * (Re)render plugin-registered title-bar buttons that match this
 	 * window. Called once from the constructor and again whenever
 	 * the registry changes. Cheap — clears each slot then walks the
