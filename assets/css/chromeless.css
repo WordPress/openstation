@@ -98,12 +98,14 @@ html.wp-toolbar:has( body.wp-desktop-chromeless ) {
 }
 
 /*
- * Exception: plugin-install.php and theme-install.php expose
- * "Upload Plugin" / "Upload Theme" via .page-title-action — the only
- * entry point to the upload UI. Keep it visible there. See issue #38.
+ * Exceptions: keep .page-title-action visible where it's the only
+ * entry point to a sub-flow:
+ *  - plugin-install.php → "Upload Plugin"
+ *  - themes.php         → "Add Theme" (link to theme-install.php)
+ * See issue #38.
  */
 .wp-desktop-chromeless.plugin-install-php .wrap > .page-title-action,
-.wp-desktop-chromeless.theme-install-php .wrap > .page-title-action {
+.wp-desktop-chromeless.themes-php .wrap > .page-title-action {
 	display: inline-block;
 	margin-top: 12px;
 }
