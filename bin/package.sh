@@ -27,6 +27,8 @@ built=(
 	"assets/js/iframe-bridge.min.js"
 	"assets/js/code-editor.js"
 	"assets/js/code-editor.min.js"
+	"assets/js/recycle-bin.js"
+	"assets/js/recycle-bin.min.js"
 )
 
 for file in "${built[@]}"; do
