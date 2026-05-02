@@ -321,64 +321,106 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const titleBar = document.createElement( 'div' );
 	titleBar.className = 'wp-desktop-window__titlebar';
 
-	// Leading menu button — sits before the icon + title. Shown for any
-	// iframe-backed window; native windows (OS Settings, future plugins)
-	// have no admin URL and so skip the menu. Contents vary:
+	// Leading menu button — sits before the icon + title. Rendered for
+	// every window, native or iframe; per-item gating below decides
+	// which actions actually apply. Native windows skip "Open in
+	// browser tab" since they have no admin URL to hand off.
 	//
-	//   - Every iframe window gets "Open on startup" — a checkable item
-	//     that marks this window as the default-window preference.
-	//   - Multi-capable windows additionally get "Open another <page>".
-	//
-	// Future window-management verbs ("Tile left", "Duplicate", etc.)
-	// should migrate here so the title bar stops growing controls.
-	let menuBtn: HTMLElement | null = null;
-	let menuPanel: HTMLElement | null = null;
+	// Items in order:
+	//   - Open on startup        — checkable, marks this window as
+	//                              the default-window preference.
+	//   - Open another <Page>    — only when `config.multi`.
+	//   - Open in new window     — opens the current iframe URL as a
+	//                              fresh sibling.
+	//   - Reload                 — reloads the iframe (no-op for
+	//                              native windows; harmless to show).
+	//   - Open in browser tab    — detach to a classic admin tab.
+	//                              Iframe-only — skipped for native.
+	const menuBtn = document.createElement( 'wpd-window-button' );
+	menuBtn.setAttribute( 'icon', 'menu' );
+	menuBtn.setAttribute( 'aria-label', __( 'Window actions' ) );
+	menuBtn.setAttribute( 'aria-haspopup', 'menu' );
+	menuBtn.setAttribute( 'aria-expanded', 'false' );
+	// Keep the legacy classes so the title-bar layout selector that
+	// reshapes around the menu button (see windows.css
+	// `:has(.wp-desktop-window__menu-btn)`) still matches.
+	menuBtn.classList.add( 'wp-desktop-window__btn' );
+	menuBtn.classList.add( 'wp-desktop-window__menu-btn' );
+
+	const menuPanel = document.createElement( 'wpd-menu' );
+	menuPanel.classList.add( 'wp-desktop-window__menu-panel' );
+	menuPanel.hidden = true;
+
+	// "Open on startup" — checkable. Checked state is hydrated in
+	// `bindEvents()` once `window.wp.desktop.config` is populated;
+	// the item just needs to exist here.
+	const startup = document.createElement( 'wpd-menu-item' );
+	startup.setAttribute( 'role', 'menuitemcheckbox' );
+	startup.setAttribute( 'value', 'startup' );
+	// Legacy classes preserved so settings-refresh code can still
+	// find the item by class during the `default-window-changed`
+	// repaint.
+	startup.classList.add( 'wp-desktop-window__menu-item' );
+	startup.classList.add( 'wp-desktop-window__menu-item--startup' );
+	startup.textContent = __( 'Open on startup' );
+	menuPanel.appendChild( startup );
+
+	if ( config.multi ) {
+		const openAnother = document.createElement( 'wpd-menu-item' );
+		openAnother.setAttribute( 'role', 'menuitem' );
+		openAnother.setAttribute( 'value', 'open-another' );
+		openAnother.setAttribute( 'icon', 'dashicons-plus-alt2' );
+		openAnother.classList.add( 'wp-desktop-window__menu-item' );
+		openAnother.classList.add(
+			'wp-desktop-window__menu-item--open-another',
+		);
+		openAnother.textContent = sprintf(
+			// translators: %s is the window's admin-page name (e.g., "Posts")
+			__( 'Open another %s' ),
+			config.title,
+		);
+		menuPanel.appendChild( openAnother );
+	}
+
 	if ( ! config.native ) {
-		menuBtn = document.createElement( 'wpd-window-button' );
-		menuBtn.setAttribute( 'icon', 'menu' );
-		menuBtn.setAttribute( 'aria-label', __( 'Window actions' ) );
-		menuBtn.setAttribute( 'aria-haspopup', 'menu' );
-		menuBtn.setAttribute( 'aria-expanded', 'false' );
-		// Keep the legacy classes so the title-bar layout selector that
-		// reshapes around the menu button (see windows.css
-		// `:has(.wp-desktop-window__menu-btn)`) still matches.
-		menuBtn.classList.add( 'wp-desktop-window__btn' );
-		menuBtn.classList.add( 'wp-desktop-window__menu-btn' );
+		// "Open in new window" — opens the *current* iframe URL (where
+		// the user has navigated to) as a fresh sibling window.
+		// Iframe-only because there's no addressable URL on native.
+		const openInNew = document.createElement( 'wpd-menu-item' );
+		openInNew.setAttribute( 'role', 'menuitem' );
+		openInNew.setAttribute( 'value', 'open-in-new-window' );
+		openInNew.setAttribute( 'icon', 'dashicons-plus-alt' );
+		openInNew.classList.add( 'wp-desktop-window__menu-item' );
+		openInNew.classList.add( 'wp-desktop-window__menu-item--open-in-new-window' );
+		openInNew.textContent = __( 'Open in new window' );
+		menuPanel.appendChild( openInNew );
+	}
 
-		menuPanel = document.createElement( 'wpd-menu' );
-		menuPanel.classList.add( 'wp-desktop-window__menu-panel' );
-		menuPanel.hidden = true;
+	// "Reload" — was a built-in title-bar control until 0.6.2. Moved
+	// here because it's an infrequent action that didn't earn the
+	// permanent real estate. No-op for native windows; safe to show.
+	if ( ! config.native ) {
+		const reload = document.createElement( 'wpd-menu-item' );
+		reload.setAttribute( 'role', 'menuitem' );
+		reload.setAttribute( 'value', 'reload' );
+		reload.setAttribute( 'icon', 'dashicons-update' );
+		reload.classList.add( 'wp-desktop-window__menu-item' );
+		reload.classList.add( 'wp-desktop-window__menu-item--reload' );
+		reload.textContent = __( 'Reload' );
+		menuPanel.appendChild( reload );
 
-		// "Open on startup" — checkable. Checked state is hydrated in
-		// `bindEvents()` once `window.wp.desktop.config` is populated;
-		// the item just needs to exist here.
-		const startup = document.createElement( 'wpd-menu-item' );
-		startup.setAttribute( 'role', 'menuitemcheckbox' );
-		startup.setAttribute( 'value', 'startup' );
-		// Legacy classes preserved so settings-refresh code can still
-		// find the item by class during the `default-window-changed`
-		// repaint.
-		startup.classList.add( 'wp-desktop-window__menu-item' );
-		startup.classList.add( 'wp-desktop-window__menu-item--startup' );
-		startup.textContent = __( 'Open on startup' );
-		menuPanel.appendChild( startup );
-
-		if ( config.multi ) {
-			const openAnother = document.createElement( 'wpd-menu-item' );
-			openAnother.setAttribute( 'role', 'menuitem' );
-			openAnother.setAttribute( 'value', 'open-another' );
-			openAnother.setAttribute( 'icon', 'dashicons-plus-alt2' );
-			openAnother.classList.add( 'wp-desktop-window__menu-item' );
-			openAnother.classList.add(
-				'wp-desktop-window__menu-item--open-another',
-			);
-			openAnother.textContent = sprintf(
-				// translators: %s is the window's admin-page name (e.g., "Posts")
-				__( 'Open another %s' ),
-				config.title,
-			);
-			menuPanel.appendChild( openAnother );
-		}
+		// "Open in browser tab" — was the title bar's detach button.
+		// Strips chromeless params and opens the page in a classic
+		// admin tab. Iframe-only — native windows have no URL to
+		// hand off to the browser.
+		const openExternal = document.createElement( 'wpd-menu-item' );
+		openExternal.setAttribute( 'role', 'menuitem' );
+		openExternal.setAttribute( 'value', 'open-external' );
+		openExternal.setAttribute( 'icon', 'dashicons-external' );
+		openExternal.classList.add( 'wp-desktop-window__menu-item' );
+		openExternal.classList.add( 'wp-desktop-window__menu-item--open-external' );
+		openExternal.textContent = __( 'Open in browser tab' );
+		menuPanel.appendChild( openExternal );
 	}
 
 	// Slot host helpers — Layer 3 of the chrome framework. Each

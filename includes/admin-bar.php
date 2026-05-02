@@ -266,7 +266,11 @@ function desktop_mode_enqueue_toggle_assets() {
 			position: relative;
 		}
 		#wp-admin-bar-desktop-mode-toggle.desktop-mode-active .ab-icon.dashicons::before {
-			color: #72aee6;
+			/* Inherit the admin-bar text color so the active state
+			   matches the +New, Home, Comments dashicons. Previously
+			   hardcoded #72aee6, which forced blue regardless of the
+			   profile color scheme. */
+			color: inherit;
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-mode-toggle .ab-label,
@@ -288,12 +292,20 @@ function desktop_mode_enqueue_toggle_assets() {
 			content: "\f101";
 			top: 2px;
 			position: relative;
-			color: #72aee6;
+			/* See note on desktop-mode-toggle above — inherit so the
+			   icon matches the rest of the admin-bar dashicons
+			   across all WP profile color schemes. */
+			color: inherit;
 		}
-		/* ⌘K badge rendered purely in CSS to the right of the label */
+		/* ⌘K badge rendered purely in CSS to the right of the label.
+		   inline-flex + align-items:center centers the glyph inside
+		   its own padding box; a 1px upward translate compensates
+		   for the optical sag from the admin-bar label baseline. */
 		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-label::after {
 			content: "\2318K";
-			display: inline-block;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
 			margin-inline-start: 5px;
 			font-size: 10px;
 			line-height: 1;
@@ -305,6 +317,8 @@ function desktop_mode_enqueue_toggle_assets() {
 			vertical-align: middle;
 			font-weight: 400;
 			letter-spacing: 0;
+			position: relative;
+			top: -1px;
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-ai-assistant .ab-label {

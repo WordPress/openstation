@@ -169,6 +169,49 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Native marker — `native:<slug>` — is accepted by the validator
+	 * and round-trips through the user-meta storage. Used for
+	 * native windows (OS Settings, Recycle Bin, plugin-registered
+	 * native apps) which have no admin URL to forward to.
+	 *
+	 * @covers ::desktop_mode_validate_default_window_url
+	 */
+	public function test_validate_accepts_native_marker() {
+		$clean = desktop_mode_validate_default_window_url( 'native:wp-desktop-os-settings' );
+		$this->assertSame( 'native:wp-desktop-os-settings', $clean );
+	}
+
+	/**
+	 * @covers ::desktop_mode_validate_default_window_url
+	 */
+	public function test_validate_rejects_native_marker_with_unsafe_slug() {
+		// Slashes / spaces / empty / characters outside [a-z0-9_-]
+		// must be rejected so the marker can't smuggle a path
+		// traversal or a redirect through the validator.
+		$this->assertSame( '', desktop_mode_validate_default_window_url( 'native:' ) );
+		$this->assertSame( '', desktop_mode_validate_default_window_url( 'native:foo/bar' ) );
+		$this->assertSame( '', desktop_mode_validate_default_window_url( 'native:foo bar' ) );
+		$this->assertSame( '', desktop_mode_validate_default_window_url( 'native:../etc/passwd' ) );
+	}
+
+	/**
+	 * Portal redirects to admin home when the saved preference is a
+	 * native marker — the marker isn't a routable URL, but the
+	 * redirect must succeed at HTTP level so the shell can pick up
+	 * `defaultWindow.url` from the config and call
+	 * `nativeWindows.openById( <slug> )` after init.
+	 *
+	 * @covers ::desktop_mode_portal_entry_url
+	 */
+	public function test_portal_entry_url_falls_back_for_native_marker() {
+		desktop_mode_set_default_window( self::$admin_id, 'native:wp-desktop-os-settings' );
+
+		$url = desktop_mode_portal_entry_url( self::$admin_id );
+
+		$this->assertSame( admin_url(), $url );
+	}
+
+	/**
 	 * REST endpoint: happy path — string URL sets the preference.
 	 *
 	 * @covers ::desktop_mode_rest_set_default_window

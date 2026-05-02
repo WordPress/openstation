@@ -118,7 +118,8 @@ import {
 	installBroadcastReceiver,
 	subscribe,
 } from './broadcast';
-import { startRecycleBinBadge } from './recycle-bin/badge';
+import { startRecycleBinBadge, _currentRecycleBinBadge } from './recycle-bin/badge';
+import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
 import { showToast, type ToastOptions } from './toast';
 import { renderKeyedList, clearKeyedList, type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
@@ -1607,8 +1608,13 @@ function init(): void {
 		restoreSession( manager, config, desktopArea );
 	}
 	const defaultEnabled = config.defaultWindow?.enabled !== false;
+	const defaultUrlEarly = config.defaultWindow?.url ?? '';
+	const isNativeDefault =
+		typeof defaultUrlEarly === 'string' &&
+		defaultUrlEarly.startsWith( 'native:' );
 	const suppressAutoOpen =
-		config.fromPortal && ( hasSession || ! defaultEnabled );
+		config.fromPortal &&
+		( hasSession || ! defaultEnabled || isNativeDefault );
 	if ( ! suppressAutoOpen ) {
 		openCurrentPage( manager, config );
 	}
@@ -1660,14 +1666,55 @@ function init(): void {
 	// in a window's ⋯ menu, the manager calls this callback with the
 	// window. We either set this window's URL as the default, or — if
 	// it's already the default — disable it.
+	//
+	// Native windows (OS Settings, Recycle Bin, plugin-registered)
+	// have no admin URL — `getCurrentUrl()` returns the `#<id>` hash
+	// fallback, which isn't a redirectable URL the portal can forward
+	// to. We store a `native:<id>` marker instead; the PHP validator
+	// accepts the marker, the portal redirects to admin home when it
+	// sees one, and this module's boot flow opens the right native
+	// window after init.
 	manager.onToggleStartupRequested = ( win ) => {
 		const currentPref = config.defaultWindow;
-		const winUrl = win.getCurrentUrl();
-		const alreadyDefault =
-			!! currentPref?.enabled &&
-			urlMatchKey( currentPref.url ) === urlMatchKey( winUrl );
-		void setDefaultWindow( alreadyDefault ? null : winUrl );
+		const isNative = !! win.config.native;
+		const winValue = isNative ? `native:${ win.id }` : win.getCurrentUrl();
+		const matchesCurrent = isNative
+			? currentPref?.url === winValue
+			: urlMatchKey( currentPref?.url ?? '' ) === urlMatchKey( winValue );
+		const alreadyDefault = !! currentPref?.enabled && matchesCurrent;
+		void setDefaultWindow( alreadyDefault ? null : winValue );
 	};
+
+	// Open the native default window on portal entry. The portal
+	// redirected the user to admin home (because `native:` markers
+	// aren't redirectable), so `openCurrentPage` was suppressed
+	// above. Open the user's choice here, after the manager + native
+	// registry are wired.
+	//
+	// Two opener paths because the shell registers built-in native
+	// windows (OS Settings) directly against the manager via local
+	// closures, NOT through `nativeWindows.openById` — that registry
+	// only carries server-payload entries (plugin-registered native
+	// windows). Built-ins are matched by id first; everything else
+	// falls through to the registry.
+	if (
+		config.defaultWindow?.enabled &&
+		config.fromPortal &&
+		! hasSession &&
+		isNativeDefault
+	) {
+		const nativeId = defaultUrlEarly.slice( 'native:'.length );
+		// Defer one tick so the dispatcher / system tiles have
+		// finished mounting — both built-in openers and the
+		// registry assume the layout pass is complete.
+		queueMicrotask( () => {
+			if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
+				openOsSettings();
+				return;
+			}
+			void nativeWindows.openById( nativeId );
+		} );
+	}
 
 	/**
 	 * Place a system tile on the bottom dock rail via the layout
@@ -1893,6 +1940,15 @@ function init(): void {
 			? cfgWithBin.recycleBinCountUrl
 			: '',
 	);
+
+	// Register custom dock-peek renderers for shell-owned native
+	// windows (OS Settings, Recycle Bin). Plugins use the
+	// `wp-desktop.dock.peek-card-content` filter directly to surface
+	// their own thumbnails — this is just the built-in set so the
+	// in-tree windows look like first-class apps.
+	registerBuiltInPeekRenderers( {
+		getRecycleBinCount: _currentRecycleBinBadge,
+	} );
 
 	// Auto-reload iframes on `wp-desktop.<post_type>.changed` is
 	// handled IN THE IFRAME (see the chromeless bridge in

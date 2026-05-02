@@ -145,12 +145,20 @@ export function refreshStartupCheckState(
 	const pref = window.wp?.desktop?.config?.defaultWindow;
 	let isDefault = false;
 	if ( pref && pref.enabled && typeof pref.url === 'string' ) {
-		try {
-			const currentKey = urlMatchKey( win.getCurrentUrl() );
-			const prefKey = urlMatchKey( pref.url );
-			isDefault = currentKey === prefKey;
-		} catch {
-			isDefault = false;
+		// Native windows store their preference as `native:<id>` rather
+		// than a URL — `urlMatchKey` would normalize an unrelated
+		// string and false-match. Compare exactly for native windows;
+		// fall back to URL-key matching for iframe windows.
+		if ( win.config.native ) {
+			isDefault = pref.url === `native:${ win.id }`;
+		} else {
+			try {
+				const currentKey = urlMatchKey( win.getCurrentUrl() );
+				const prefKey = urlMatchKey( pref.url );
+				isDefault = currentKey === prefKey;
+			} catch {
+				isDefault = false;
+			}
 		}
 	}
 	if ( isDefault ) {

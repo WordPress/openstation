@@ -75,6 +75,9 @@ afterEach( () => {
 
 describe( 'resolveWindowControls', () => {
 	test( 'returns built-ins in registered order for an iframe window', () => {
+		// `core/detach` + `core/reload` lived here until 0.6.2 — they
+		// moved into the title-bar three-dots menu (see
+		// `src/window/dom.ts`). The cluster now ships four entries.
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
@@ -84,27 +87,31 @@ describe( 'resolveWindowControls', () => {
 			'core/minimize',
 			'core/maximize',
 			'core/focus-tab',
-			'core/detach',
-			'core/reload',
 			'core/close',
 		] );
 	} );
 
-	test( 'native windows skip core/detach (match predicate)', () => {
+	test( 'native windows still get the basic control cluster', () => {
+		// Pre-0.6.2 this test asserted that `core/detach` /
+		// `core/reload` were skipped for native windows. Both are
+		// gone from the cluster entirely now (relocated to the
+		// menu), so the assertion collapses to "native windows
+		// render the same minimize/maximize/focus/close set as
+		// iframe windows."
 		registerBuiltInControls();
 		const win = fakeWin( 'os-settings', { native: true } );
 		const resolved = resolveWindowControls(
 			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
 		);
+		expect( resolved.controls.map( ( c ) => c.id ) ).toContain(
+			'core/close',
+		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).not.toContain(
 			'core/detach',
 		);
-		// Native windows also skip core/reload — they own their DOM
-		// directly, so there's no iframe to reload.
 		expect( resolved.controls.map( ( c ) => c.id ) ).not.toContain(
 			'core/reload',
 		);
-		expect( resolved.controls.map( ( c ) => c.id ) ).toContain( 'core/close' );
 	} );
 
 	test( 'appearance.controls.hide drops specific built-ins', () => {
@@ -112,12 +119,11 @@ describe( 'resolveWindowControls', () => {
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
 			win as unknown as Parameters< typeof resolveWindowControls >[ 0 ],
-			{ hide: [ 'core/detach', 'core/focus-tab' ] },
+			{ hide: [ 'core/focus-tab' ] },
 		);
 		expect( resolved.controls.map( ( c ) => c.id ) ).toEqual( [
 			'core/minimize',
 			'core/maximize',
-			'core/reload',
 			'core/close',
 		] );
 	} );
@@ -131,18 +137,16 @@ describe( 'resolveWindowControls', () => {
 				order: [ 'core/close', 'core/minimize', 'core/maximize' ],
 			},
 		);
-		// First three follow the explicit order, then everything not
-		// mentioned in `order` keeps registry order.
 		expect( resolved.controls.map( ( c ) => c.id ).slice( 0, 3 ) ).toEqual( [
 			'core/close',
 			'core/minimize',
 			'core/maximize',
 		] );
-		// The remainder is appended in registry order.
+		// Whatever isn't named in `order` keeps registry order — for
+		// the post-0.6.2 cluster that's just `core/focus-tab`. The
+		// detach + reload built-ins moved to the title-bar menu.
 		expect( resolved.controls.map( ( c ) => c.id ).slice( 3 ) ).toEqual( [
 			'core/focus-tab',
-			'core/detach',
-			'core/reload',
 		] );
 	} );
 
@@ -202,10 +206,12 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 
-		expect( host.children.length ).toBe( 6 );
+		// minimize / maximize / focus-tab / close — detach + reload
+		// moved to the three-dots menu in 0.6.2.
+		expect( host.children.length ).toBe( 4 );
 		expect( host.querySelector( '.wp-desktop-window__btn--close' ) ).not.toBeNull();
 		expect( host.querySelector( '.wp-desktop-window__btn--minimize' ) ).not.toBeNull();
-		expect( host.querySelector( '.wp-desktop-window__btn--reload' ) ).not.toBeNull();
+		expect( host.querySelector( '.wp-desktop-window__btn--reload' ) ).toBeNull();
 	} );
 
 	test( 'click on core/close button dispatches win.close()', () => {
@@ -225,45 +231,25 @@ describe( 'paintWindowControls', () => {
 		expect( win.close ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	// Regression net for the title-bar Reload button. We've already had
-	// one merge silently drop pieces of this wiring; lock the full
-	// contract — registration, icon, label, click target — so a future
-	// regression fails loudly instead of vanishing the button.
-	test( 'core/reload registration locks icon, label, and click target', () => {
+	test( 'core/reload + core/detach are no longer registered', () => {
+		// In 0.6.2 these moved from the controls cluster to the
+		// title-bar three-dots menu (see `src/window/dom.ts`). Lock
+		// that the registry no longer carries them so a regression
+		// that re-adds them surfaces here.
 		registerBuiltInControls();
-		const def = listWindowControls().find( ( c ) => c.id === 'core/reload' );
-		expect( def ).toBeDefined();
-		expect( def?.icon ).toBe( 'reload' );
-		expect( def?.label ).toBe( 'Reload' );
-		expect( def?.placement ).toBe( 'controls' );
-		expect( def?.core ).toBe( true );
+		const ids = listWindowControls().map( ( c ) => c.id );
+		expect( ids ).not.toContain( 'core/reload' );
+		expect( ids ).not.toContain( 'core/detach' );
 	} );
 
-	test( 'Window class exposes a reload() method (click-target contract)', async () => {
-		// The reload control's onClick calls `win.reload()`. Lock that
-		// the real Window class still ships that method — a rename or
-		// removal would otherwise leave the button click no-oping at
+	test( 'Window class still exposes reload() + detach() (menu click targets)', async () => {
+		// The menu items wire to `win.reload()` / `win.detach()`. Lock
+		// that the Window class still ships both methods — a rename
+		// or removal would otherwise leave the menu items no-oping at
 		// runtime with no static error.
 		const mod = await import( '../../src/window' );
 		expect( typeof mod.Window.prototype.reload ).toBe( 'function' );
-	} );
-
-	test( 'click on core/reload button dispatches win.reload()', () => {
-		registerBuiltInControls();
-		const win = fakeWin( 'edit-post' );
-		const host = document.createElement( 'div' );
-		paintWindowControls(
-			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
-			host,
-		);
-		const reloadBtn = host.querySelector(
-			'.wp-desktop-window__btn--reload',
-		) as HTMLElement;
-		expect( reloadBtn ).not.toBeNull();
-		reloadBtn.dispatchEvent(
-			new CustomEvent( 'wpd-button-activate', { bubbles: true } ),
-		);
-		expect( win.reload ).toHaveBeenCalledTimes( 1 );
+		expect( typeof mod.Window.prototype.detach ).toBe( 'function' );
 	} );
 
 	test( 'repaint replaces previous buttons; teardown drops listeners', () => {

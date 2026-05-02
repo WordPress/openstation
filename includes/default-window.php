@@ -126,6 +126,20 @@ function desktop_mode_validate_default_window_url( $url ) {
 		return '';
 	}
 
+	// Native-window marker: "native:<slug>" stores a registered native
+	// window id (OS Settings, Recycle Bin, plugin-registered native
+	// apps) instead of an admin URL. The slug must match
+	// /^[a-z0-9_-]+$/i so a malicious save cannot smuggle path
+	// traversal or whitespace through the marker. The shell handles
+	// the actual open-on-startup at boot via nativeWindows.openById.
+	if ( 0 === strpos( $url, 'native:' ) ) {
+		$slug = substr( $url, strlen( 'native:' ) );
+		if ( '' === $slug || ! preg_match( '/^[a-z0-9_\-]+$/i', $slug ) ) {
+			return '';
+		}
+		return 'native:' . $slug;
+	}
+
 	// Allow same-origin http(s) URLs only.
 	$parsed = wp_parse_url( $url );
 	if ( ! is_array( $parsed ) || empty( $parsed['path'] ) ) {

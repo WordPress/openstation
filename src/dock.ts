@@ -15,6 +15,7 @@ import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
 import { hashTitleToHue } from './ui/util/hash-hue';
+import { attachDockPeek } from './dock-peek';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -197,6 +198,12 @@ export class Dock {
 	 * before the previous duration has elapsed.
 	 */
 	private attentionTimers: Map<string, number> = new Map();
+
+	/**
+	 * Per-tile teardown callbacks for the hover-peek. Populated on
+	 * tile creation, drained on `destroy()` and on every `replaceItems`.
+	 */
+	private peekTeardowns: Map<string, () => void> = new Map();
 
 	/**
 	 * Window-lifecycle listener captured here so `destroy()` can
@@ -630,6 +637,14 @@ export class Dock {
 	 * reordered everything into one class).
 	 */
 	private render(): void {
+		// Tear down peeks from the previous render — each tile is about
+		// to be discarded, so its hover listeners would dangle on a
+		// detached node. Idempotent.
+		for ( const teardown of this.peekTeardowns.values() ) {
+			teardown();
+		}
+		this.peekTeardowns.clear();
+
 		this.container.innerHTML = '';
 
 		const base = this.buildHookContextBase();
@@ -711,6 +726,40 @@ export class Dock {
 		tile.appendChild( primary );
 		this.bindTooltipFiltered( tile, item.title, ctx );
 
+		// System items represent native windows (OS Settings, Jorvy,
+		// plugin-registered native windows). When the window is open
+		// the peek shows a thumbnail card matching the live window's
+		// chrome — same as a multi tile, minus the Ghost Card since
+		// system windows are singletons by convention. The instance
+		// lookup is the system-item id directly (system items aren't
+		// URL-derived and the window-manager files them under the id
+		// that `appendSystemItem` was called with).
+		const teardown = attachDockPeek( {
+			tile,
+			item: {
+				id: item.id,
+				title: item.title,
+				icon: item.icon,
+				url: '',
+			},
+			getInstances: () => {
+				const win = this.windowManager.getById( item.id );
+				return win ? [ win ] : [];
+			},
+			enableGhost: false,
+			windowManager: this.windowManager,
+			getOrientation: () => this.orientation,
+			openNew: () => undefined,
+			suppressTooltip: ( on: boolean ) => {
+				if ( on ) {
+					this.tooltip.classList.remove(
+						'wp-desktop-dock__tooltip--visible',
+					);
+				}
+			},
+		} );
+		this.peekTeardowns.set( `system:${ item.id }`, teardown );
+
 		return applyFilters< HTMLElement >(
 			HOOKS.DOCK_TILE_ELEMENT,
 			tile,
@@ -781,61 +830,57 @@ export class Dock {
 
 		tile.appendChild( primary );
 
-		if ( item.multi ) {
-			// "Open another" chip floats off the right edge of the tile.
-			// Hidden until ≥1 instance is open — nothing to add
-			// alongside otherwise. Instance switching happens via the
-			// per-window controls, not the dock.
-			const addBtn = document.createElement( 'button' );
-			addBtn.type = 'button';
-			addBtn.className = 'wp-desktop-dock__item-new';
-			addBtn.hidden = true;
-			addBtn.setAttribute(
-				'aria-label',
-				// translators: %s is the admin-page title (e.g., "Posts")
-				sprintf( __( 'Open another %s' ), item.title ),
-			);
-			addBtn.innerHTML =
-				'<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">' +
-				'<path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>' +
-				'</svg>';
-			addBtn.addEventListener( 'click', ( e: Event ) => {
-				e.stopPropagation();
-				this.openNewInstance( item );
-			} );
-
-			// Override the tile's shared tooltip while hovering the chip:
-			// the default says the page name, but on the chip we want the
-			// action verb. On pointerleave back into the tile we restore
-			// the default text; leaving the tile entirely hides the
-			// tooltip as usual. Touch devices never fire pointerenter
-			// without an immediate click, so this is effectively
-			// desktop-only by nature.
-			addBtn.addEventListener( 'pointerenter', () => {
-				this.positionTooltip(
-					addBtn,
-					// translators: %s is the admin-page title (e.g., "Posts")
-					sprintf( __( 'Open new %s' ), item.title ),
-				);
-				this.tooltip.classList.add( 'wp-desktop-dock__tooltip--visible' );
-			} );
-			addBtn.addEventListener( 'pointerleave', ( e: PointerEvent ) => {
-				const next = e.relatedTarget as Node | null;
-				if ( next && tile.contains( next ) ) {
-					// Restore the bind-time tooltip text — filtered
-					// once via {@link HOOKS.DOCK_TILE_TOOLTIP}, stored
-					// on the dataset by `bindTooltipFiltered`.
-					const restored = tile.dataset.dockTooltip ?? item.title;
-					this.positionTooltip( tile, restored );
-					return;
-				}
-				this.tooltip.classList.remove( 'wp-desktop-dock__tooltip--visible' );
-			} );
-
-			tile.appendChild( addBtn );
-		}
-
 		this.bindTooltipFiltered( tile, item.title, ctx );
+
+		// Every dock tile gets the hover-peek when its window is open.
+		// Multi-capable tiles fan out one card per open instance + a
+		// Ghost Card that spawns a fresh instance. Singleton tiles
+		// (Plugins, Appearance, Tools, Settings, plus any plugin page
+		// not flagged `multi`) show a single focus card with no Ghost
+		// Card — there's nothing meaningful about "open another
+		// Settings."
+		//
+		// `baseId` MUST be the URL-derived slug — that's the key the
+		// window-manager stores instances under. Passing the raw
+		// `item.id` (admin-menu slug like `edit.php`) would look up
+		// `edit.php` in a manager that filed the window under
+		// `edit-php`, finding nothing.
+		const baseId = this.deriveWindowId( item.url );
+		const teardown = attachDockPeek( {
+			tile,
+			item: {
+				id: item.id,
+				title: item.title,
+				icon: item.icon,
+				url: item.url,
+			},
+			getInstances: () => {
+				if ( item.multi ) {
+					return this.windowManager.getAllByBaseId( baseId );
+				}
+				// Singleton: one window per baseId. `getById` is the
+				// canonical lookup, but a window opened via
+				// `manager.open({ id, baseId })` is keyed by the
+				// id — which equals baseId for singletons. We try
+				// both to be safe.
+				const single =
+					this.windowManager.getById( baseId ) ||
+					this.windowManager.getById( item.id );
+				return single ? [ single ] : [];
+			},
+			enableGhost: !! item.multi,
+			windowManager: this.windowManager,
+			getOrientation: () => this.orientation,
+			openNew: () => this.openNewInstance( item ),
+			suppressTooltip: ( on: boolean ) => {
+				if ( on ) {
+					this.tooltip.classList.remove(
+						'wp-desktop-dock__tooltip--visible',
+					);
+				}
+			},
+		} );
+		this.peekTeardowns.set( item.id, teardown );
 
 		return applyFilters< HTMLElement >(
 			HOOKS.DOCK_TILE_ELEMENT,
@@ -1238,6 +1283,10 @@ export class Dock {
 			window.clearTimeout( handle );
 		}
 		this.attentionTimers.clear();
+		for ( const teardown of this.peekTeardowns.values() ) {
+			teardown();
+		}
+		this.peekTeardowns.clear();
 		this.tooltip.remove();
 		while ( this.container.firstChild ) {
 			this.container.removeChild( this.container.firstChild );
@@ -1289,15 +1338,6 @@ export class Dock {
 
 			tile.classList.toggle( 'wp-desktop-dock__item--active', isOpen );
 			tile.classList.toggle( 'wp-desktop-dock__item--focused', isFocused );
-
-			if ( item.multi ) {
-				const addBtn = tile.querySelector<HTMLElement>(
-					'.wp-desktop-dock__item-new',
-				);
-				if ( addBtn ) {
-					addBtn.hidden = instances.length === 0;
-				}
-			}
 		}
 
 		// System items — active dot driven by the caller's predicate. No

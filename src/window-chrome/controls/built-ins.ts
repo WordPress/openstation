@@ -1,6 +1,13 @@
 /**
  * Built-in window controls — minimize, maximize, fullscreen,
- * detach, reload, close.
+ * close.
+ *
+ * `core/detach` (Open in browser tab) and `core/reload` used to live
+ * here but moved into the title-bar three-dots menu in 0.6.2 — those
+ * actions are infrequent enough that they didn't earn permanent real
+ * estate alongside minimize / maximize / close. The wiring lives in
+ * `src/window/dom.ts` (menu-item construction) and
+ * `src/window/index.ts` (click → `win.detach()` / `win.reload()`).
  *
  * Each built-in registers as a `WindowControlDef` with a stable
  * `core/*` id, the same icon + label the hardcoded title bar used,
@@ -18,8 +25,6 @@
 
 import { __ } from '../../i18n';
 import { registerWindowControl } from './registry';
-
-import type { Window as DesktopWindow } from '../../window';
 
 /**
  * Register the six built-in title-bar controls. Idempotent — calling
@@ -65,34 +70,6 @@ export function registerBuiltInControls(): void {
 		match: () => true,
 		onClick: ( win ) => {
 			win.toggleFullscreen();
-		},
-	} );
-
-	registerWindowControl( {
-		id: 'core/detach',
-		label: __( 'Detach to new tab' ),
-		icon: 'detach',
-		placement: 'controls',
-		order: 40,
-		core: true,
-		// Native windows have no admin URL to hand off to a classic tab.
-		match: ( win: DesktopWindow ) => ! win.config.native,
-		onClick: ( win ) => {
-			win.detach();
-		},
-	} );
-
-	registerWindowControl( {
-		id: 'core/reload',
-		label: __( 'Reload' ),
-		icon: 'reload',
-		placement: 'controls',
-		order: 45,
-		core: true,
-		// Native windows own their DOM directly — no iframe to reload.
-		match: ( win: DesktopWindow ) => ! win.config.native,
-		onClick: ( win ) => {
-			win.reload();
 		},
 	} );
 

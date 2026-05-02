@@ -501,7 +501,7 @@ add_filter( 'desktop_mode_dock_item', function ( $item, $slug ) {
 
 ### `desktop_mode_dock_item_multi` — Stable
 
-Controls whether a dock item supports multiple simultaneous windows. Multi-capable pages expose a "+" chip on the dock icon and an "Open another" action in the window's title-bar menu; singletons always focus the existing window when re-opened.
+Controls whether a dock item supports multiple simultaneous windows. Multi-capable pages expose a hover-peek popover on the dock icon (one card per open instance + a Ghost Card that spawns a new instance) and an "Open another" action in the window's title-bar menu; singletons always focus the existing window when re-opened.
 
 Built-in defaults: `edit.php`, `edit-tags.php`, `upload.php`, `users.php`, and `edit-comments.php` are multi; everything else is singleton. The base filename is matched against the list, so every CPT (`edit.php?post_type=page`) and every taxonomy inherits the same rule as its parent admin file.
 

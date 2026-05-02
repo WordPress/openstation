@@ -59,6 +59,12 @@ function desktop_mode_register_assets() {
 		$version
 	);
 	wp_register_style(
+		'wp-desktop-dock-peek',
+		DESKTOP_MODE_URL . 'assets/css/dock-peek.css',
+		array( 'wp-desktop-dock' ),
+		$version
+	);
+	wp_register_style(
 		'wp-desktop-chromeless',
 		DESKTOP_MODE_URL . 'assets/css/chromeless.css',
 		array( 'wp-desktop' ),

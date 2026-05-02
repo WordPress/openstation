@@ -734,6 +734,60 @@ export const HOOKS = {
 	 * @since 0.18.0
 	 */
 	DOCK_TILE_TOOLTIP: 'wp-desktop.dock.tile-tooltip',
+	/**
+	 * Filter, resolves the body content of a single hover-peek card.
+	 * Runs once per card build (i.e., on every show of the peek for
+	 * a multi-instance dock tile that has ≥1 open window). Lets a
+	 * plugin render a custom thumbnail, status block, or any other
+	 * markup inside the card in place of (or alongside) the default
+	 * mini-window styling.
+	 *
+	 * Signature:
+	 *   ( body: HTMLElement, detail: DockPeekCardContext ) => HTMLElement
+	 *
+	 * Where `body` is the `<span class="wp-desktop-dock-peek__card-body">`
+	 * element that the peek would otherwise populate with ghosted
+	 * content lines. The filter may:
+	 *   - Mutate `body` in place (e.g., append a custom child) and
+	 *     return it.
+	 *   - Empty `body` and append plugin-owned children.
+	 *   - Return an entirely different element to replace `body`.
+	 *
+	 * `detail.window` is the live `Window` instance the card represents
+	 * — plugins can read `window.config`, call `window.getCurrentUrl()`,
+	 * subscribe to lifecycle events, etc. `detail.item` is the dock
+	 * item descriptor (id / title / icon / url).
+	 *
+	 * The filter is invoked under the `applyFilters` namespace
+	 * `wp-desktop.dock.peek-card-content`.
+	 *
+	 * @since 0.6.2
+	 */
+	DOCK_PEEK_CARD_CONTENT: 'wp-desktop.dock.peek-card-content',
+	/**
+	 * Filter, runs once per peek card right before it's appended to
+	 * the popover. Receives the fully-built default card (with its
+	 * mini-window chrome already populated) and can return either
+	 * the same node, a mutated version, or an entirely different
+	 * element to replace the card outright. Use this when the
+	 * `peek-card-content` body filter isn't enough — e.g., when a
+	 * plugin wants to swap the whole card chrome (custom titlebar,
+	 * different shape) or wrap the card in a third-party component.
+	 *
+	 * Signature:
+	 *   ( card: HTMLElement, detail: DockPeekCardContext ) => HTMLElement
+	 *
+	 * If a plugin returns a brand-new node, it is responsible for
+	 * preserving anything the peek relies on:
+	 *   - The `wp-desktop-dock-peek__card` class (used by the
+	 *     fan-out animation timing + hover styles).
+	 *   - A `click` handler if the card should still focus the
+	 *     window. The default click handler lives on the original
+	 *     node — replacing the node loses it.
+	 *
+	 * @since 0.6.2
+	 */
+	DOCK_PEEK_CARD_ELEMENT: 'wp-desktop.dock.peek-card-element',
 
 	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.

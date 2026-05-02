@@ -405,7 +405,40 @@ document.addEventListener( 'wp-desktop-init', () => {
 
 Calling `open()` with an id (or `baseId`) that's already on screen focuses the existing window and restores it if minimized.
 
-**Multi-instance windows.** When `multi: true` is passed, the window gets an extra actions menu in its title bar (leading edge, before the icon) whose "Open another" item calls `openNew()`. `openNew()` always creates a fresh window — even when one with the same `baseId` is already open — assigning a suffixed id (`${baseId}-2`, `${baseId}-3`, …) so every instance can be tracked independently while the dock still groups them under the same icon.
+**Title-bar actions menu (iframe windows).** Every iframe-backed window renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
+
+- **"Open on startup"** — checkable; toggles this window as the user's default-window preference.
+- **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
+- **"Open in new window"** — opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
+
+**Multi-instance windows.** When `multi: true` is passed, the window gets the "Open another" item described above. `openNew()` always creates a fresh window — even when one with the same `baseId` is already open — assigning a suffixed id (`${baseId}-2`, `${baseId}-3`, …) so every instance can be tracked independently while the dock still groups them under the same icon.
+
+**Dock hover-peek.** Multi-capable dock tiles render a hover-reveal *peek* popover instead of the legacy "+" chip. Hovering a multi tile that has at least one open instance fans out a stack of cards next to the tile (works on left, right, and bottom dock orientations):
+
+- **Instance cards** — one per currently open window of this dock item, styled as miniature windows: faux titlebar with traffic-light dots, the page icon, the live window title (titlebar background uses `--wp-desktop-titlebar-bg-focused` so the mini-window matches the real window's chrome), plus a hash-tinted body. **Hovering an instance card raises that window to front** ("scrub through windows" — Mission Control / Aero Peek). **Clicking** focuses the window through `document.startViewTransition()` so the card morphs into the window position.
+- **Ghost Card** — the trailing card with a dashed outline and a slow breathing pulse. Clicking it calls `windowManager.openNew()` for this tile, also animated through `startViewTransition()` (graceful fade fallback otherwise).
+
+The popover caps at `min(80vh, 480px)` and **scrolls internally** when more cards exist than fit. After mount, JS measures and clamps the popover position so it never overflows the viewport edges (top/bottom/sides).
+
+The peek is mouse-only — touch and pen pointers fall back to plain tap-to-focus / tap-to-open. It also suppresses itself for singleton tiles (no Ghost Card is meaningful) and for multi tiles with zero open instances (a plain click already does the only useful thing). The icon itself springs up + magnifies on hover for tactile feedback even when the peek isn't shown. `prefers-reduced-motion` disables every animation.
+
+**Customizing peek cards.** Two filters let plugins reshape what each card looks like:
+
+- `wp-desktop.dock.peek-card-content` — receives the default body element (`<span class="wp-desktop-dock-peek__card-body">`) and a `{ window, item }` context. Return a different element to replace just the body — perfect for rendering a real thumbnail, a status block, a chart, or anything else inside the card while keeping the default mini-window chrome (titlebar with dots + icon + title). When a plugin returns a non-default body, the peek adds a `--custom` modifier class so the default tinted background and ghost-line padding drop out, giving the plugin a clean canvas.
+- `wp-desktop.dock.peek-card-element` — receives the fully-built default card and the same `{ window, item }` context. Return a different element to replace the **whole card** (chrome included). Plugins that take this path are responsible for preserving the `wp-desktop-dock-peek__card` class (the fan-out animation keys off it) and for re-wiring the click handler if focus-on-click should still work. Use `peek-card-content` when you only need to swap the body; reach for `peek-card-element` when you need to control titlebar + body together.
+
+```javascript
+window.wp.hooks.addFilter(
+    'wp-desktop.dock.peek-card-content',
+    'my-plugin/thumbnail',
+    ( body, { window: win } ) => {
+        const img = document.createElement( 'img' );
+        img.src = `/wp-json/my-plugin/v1/thumbnail/${ win.id }`;
+        img.alt = win.config.title;
+        return img;
+    }
+);
+```
 
 ```javascript
 // Open a second Posts list alongside the first.
@@ -2611,7 +2644,7 @@ interface DockItem {
     url:      string;        // admin URL the tile opens
     badge:    number;        // numeric badge; 0 = no badge
     submenu:  { title: string; url: string }[];
-    multi:    boolean;       // multi-instance "+" chip eligibility
+    multi:    boolean;       // hover-peek + Ghost Card eligibility
     isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
 }
 ```

@@ -508,6 +508,23 @@ export class WindowManager {
 				multi: true,
 			} );
 		};
+		// "Open in new window" — like open-another, but seeds the new
+		// window with the source's *current* URL (post in-window
+		// navigation) instead of the original landing URL. Lets a user
+		// keep the page they're looking at while peeling a fresh copy
+		// off the same window.
+		win.onOpenInNewWindow = ( w: Window ) => {
+			const currentUrl = w.getCurrentUrl();
+			this.openNew( {
+				id: w.config.baseId || w.id,
+				baseId: w.config.baseId || w.id,
+				url: currentUrl || w.config.url || '',
+				title: w.config.title,
+				icon: w.config.icon,
+				submenu: w.config.submenu,
+				multi: true,
+			} );
+		};
 		// "Open on startup" toggles the user's default-window
 		// preference to point at this window's current URL — or
 		// disables it entirely when the window is already the default.

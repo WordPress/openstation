@@ -291,6 +291,14 @@ export class Window {
 	public onOpenAnother: ( ( win: Window ) => void ) | null = null;
 
 	/**
+	 * Invoked when the title-bar menu's "Open in new window" item is
+	 * clicked. Like `onOpenAnother`, but the manager opens the new
+	 * window at the *current* iframe URL (post-navigation), not the
+	 * original page URL.
+	 */
+	public onOpenInNewWindow: ( ( win: Window ) => void ) | null = null;
+
+	/**
 	 * Invoked when the title-bar menu's "Open on startup" item is
 	 * toggled. The shell wires this to the public
 	 * `wp.desktop.setDefaultWindow()` call, which writes the user's
@@ -810,6 +818,41 @@ export class Window {
 					e.stopPropagation();
 					closeActionsMenu( this );
 					this.onOpenAnother?.( this );
+				} );
+			}
+			const openInNew = menuPanel.querySelector(
+				'.wp-desktop-window__menu-item--open-in-new-window',
+			);
+			if ( openInNew ) {
+				openInNew.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+					e.stopPropagation();
+					closeActionsMenu( this );
+					this.onOpenInNewWindow?.( this );
+				} );
+			}
+			// "Reload" + "Open in browser tab" moved here from the
+			// title-bar controls cluster in 0.6.2. Both call straight
+			// into the existing `Window` API — no new manager wiring
+			// needed. Click closes the menu first so the iframe
+			// reload doesn't compete with a still-painted popover.
+			const reload = menuPanel.querySelector(
+				'.wp-desktop-window__menu-item--reload',
+			);
+			if ( reload ) {
+				reload.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+					e.stopPropagation();
+					closeActionsMenu( this );
+					this.reload();
+				} );
+			}
+			const openExternal = menuPanel.querySelector(
+				'.wp-desktop-window__menu-item--open-external',
+			);
+			if ( openExternal ) {
+				openExternal.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+					e.stopPropagation();
+					closeActionsMenu( this );
+					this.detach();
 				} );
 			}
 			// "Open on startup" — checkable menu item. Hydrate its

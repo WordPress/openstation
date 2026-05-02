@@ -208,4 +208,53 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 			menuPanel.querySelector( '.wp-desktop-window__menu-item--open-another' ),
 		).not.toBeNull();
 	} );
+
+	test( '"Open in new window" item renders for every iframe window', () => {
+		// Singleton (non-multi) windows still get this item — the
+		// distinction from "Open another" is that this seeds the new
+		// window with the *current* URL, so it makes sense even for
+		// pages that aren't formally multi-instance.
+		const win = manager.open( {
+			id: 'edit-comments.php',
+			url: 'http://example.test/wp-admin/edit-comments.php',
+			title: 'Comments',
+			icon: 'dashicons-admin-comments',
+			multi: false,
+		} );
+		const menuPanel = win.element.querySelector( '.wp-desktop-window__menu-panel' )!;
+		const item = menuPanel.querySelector(
+			'.wp-desktop-window__menu-item--open-in-new-window',
+		);
+		expect( item ).not.toBeNull();
+		expect( item!.getAttribute( 'role' ) ).toBe( 'menuitem' );
+	} );
+
+	test( '"Open in new window" opens a sibling at the current iframe URL', () => {
+		const win = manager.open( {
+			id: 'edit.php',
+			url: 'http://example.test/wp-admin/edit.php',
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			multi: true,
+		} );
+
+		// Stub `getCurrentUrl()` to simulate the user having navigated
+		// in-window from the listing into editing a specific post.
+		const navigatedUrl = 'http://example.test/wp-admin/post.php?post=42&action=edit';
+		win.getCurrentUrl = () => navigatedUrl;
+
+		expect( manager.getAll().length ).toBe( 1 );
+		win.onOpenInNewWindow!( win );
+
+		const all = manager.getAll();
+		expect( all.length ).toBe( 2 );
+		const sibling = all.find( ( w ) => w !== win )!;
+		expect( sibling ).toBeDefined();
+		// New window inherits the source's baseId so the dock still
+		// groups instances under one icon, but its url is the *current*
+		// (post-navigation) URL — not the original landing URL.
+		expect( sibling.config.baseId ).toBe( 'edit.php' );
+		expect( sibling.config.url ).toBe( navigatedUrl );
+		expect( sibling.id ).not.toBe( win.id );
+	} );
 } );

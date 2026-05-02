@@ -272,6 +272,15 @@ function desktop_mode_portal_entry_url( $user_id ) {
 	$default_window = desktop_mode_get_default_window( $user_id );
 	$fallback       = $default_window['url'];
 
+	// Native marker (e.g. "native:wp-desktop-os-settings") is not a
+	// redirectable URL. The portal MUST forward somewhere — the
+	// redirect happens at HTTP level — so we land on the admin home
+	// and let the shell pick up `defaultWindow.url` from the config
+	// after init and call nativeWindows.openById( <slug> ).
+	if ( is_string( $fallback ) && 0 === strpos( $fallback, 'native:' ) ) {
+		$fallback = admin_url();
+	}
+
 	if ( empty( $session['focused'] ) || empty( $session['windows'] ) ) {
 		return $fallback;
 	}
