@@ -93,15 +93,23 @@ export function buildExtensionsSection( ctx: SettingsCtx ): HTMLElement {
 			} ) ) as { extension: MarketplaceExtension };
 
 			if ( state.data && result?.extension ) {
-				const ext = result.extension;
 				const idx = state.data.extensions.findIndex( ( e ) => e.slug === slug );
 				if ( idx >= 0 ) {
-					if ( action === 'delete' && ! ext.installed ) {
-						state.data.extensions[ idx ] = ext;
-					} else {
-						state.data.extensions[ idx ] = ext;
-					}
+					state.data.extensions[ idx ] = result.extension;
 				}
+			}
+
+			// Live-refresh the shell so the new plugin's dock items,
+			// native windows, widgets, etc. appear without a hard
+			// reload. The `/wp-desktop/v1/menu` endpoint polyfills admin
+			// context internally so just-activated plugins register
+			// their hooks before the payload is built.
+			try {
+				await window.wp?.desktop?.refreshMenu?.();
+			} catch {
+				/* Refresh failures degrade gracefully — the user can
+				 * still hard-reload to see the change. Don't surface
+				 * this as an error in the marketplace UI. */
 			}
 		} catch ( err ) {
 			state.error = err instanceof Error ? err.message : String( err );
