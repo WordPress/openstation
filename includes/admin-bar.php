@@ -55,6 +55,29 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		)
 	);
 
+	// "Report a bug" trigger — shown only when desktop mode is active.
+	// Clicking dispatches a `wp-desktop-open-bug-report` document
+	// CustomEvent that the shell listens for and answers by opening the
+	// Bug Report native window. PHP doesn't know the JS side exists; the
+	// event lets us add the button without coupling to any specific
+	// shell module.
+	if ( $is_active ) {
+		$wp_admin_bar->add_node(
+			array(
+				'parent' => 'top-secondary',
+				'id'     => 'desktop-bug-report',
+				'title'  => '<span class="ab-icon dashicons dashicons-buddicons-replies" aria-hidden="true"></span>'
+					. '<span class="ab-label">' . esc_html__( 'Report a bug', 'desktop-mode' ) . '</span>',
+				'href'   => '#',
+				'meta'   => array(
+					'class'    => 'desktop-bug-report-btn',
+					'title'    => __( 'Open the Bug Report window', 'desktop-mode' ),
+					'tabindex' => 0,
+				),
+			)
+		);
+	}
+
 	// AI Assistant trigger — shown when desktop mode is active AND the
 	// current user has AI features configured. Clicking (or pressing
 	// Cmd+K anywhere) opens the spotlight-style AI overlay.
@@ -308,6 +331,27 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-ai-assistant .ab-label {
+				display: none;
+			}
+		}
+
+		/* Bug Report admin-bar button — same dashicons rendering pattern
+		   as the toggle. dashicons-buddicons-replies is a speech bubble
+		   with stylized lines that reads as a comment / report glyph at
+		   admin-bar size, while dashicons-bug is too literal and small. */
+		#wp-admin-bar-desktop-bug-report .ab-icon.dashicons {
+			font: normal 20px/1 dashicons;
+			-webkit-font-smoothing: antialiased;
+			-moz-osx-font-smoothing: grayscale;
+		}
+		#wp-admin-bar-desktop-bug-report .ab-icon.dashicons::before {
+			/* dashicons-buddicons-replies */
+			content: "\f465";
+			top: 2px;
+			position: relative;
+		}
+		@media screen and (max-width: 782px) {
+			#wp-admin-bar-desktop-bug-report .ab-label {
 				display: none;
 			}
 		}

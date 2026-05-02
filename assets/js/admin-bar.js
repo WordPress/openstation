@@ -162,4 +162,15 @@
 			document.dispatchEvent( new CustomEvent( 'wp-desktop-open-ai' ) );
 		} );
 	}
+
+	// Bug Report button — same decoupling pattern as Ask AI. Dispatches
+	// `wp-desktop-open-bug-report`; the shell answers by opening the
+	// Bug Report native window. Wired in `src/desktop.ts`.
+	var bugBtn = document.getElementById( 'wp-admin-bar-desktop-bug-report' );
+	if ( bugBtn ) {
+		bugBtn.addEventListener( 'click', function( e ) {
+			e.preventDefault();
+			document.dispatchEvent( new CustomEvent( 'wp-desktop-open-bug-report' ) );
+		} );
+	}
 } )();
