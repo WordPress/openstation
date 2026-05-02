@@ -480,9 +480,19 @@ function desktop_mode_build_dock_items() {
 				if ( $sub_url === $parent_url ) {
 					continue;
 				}
-				$sub_raw_title = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', $sub_item[0] );
-				$sub_items[]   = array(
-					'title' => trim( wp_strip_all_tags( $sub_raw_title ) ),
+				$sub_raw_title = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $sub_item[0] );
+				$sub_title     = trim( wp_strip_all_tags( $sub_raw_title ) );
+				// Skip entries with no resolvable title. Plugins (e.g.
+				// WooCommerce's `wc-addons` Extensions row) register
+				// `menu_title => null` to hide a row from classic admin's
+				// left menu while keeping the page reachable. Without
+				// this guard the dock renders an empty, label-less tab
+				// that visually duplicates a sibling entry.
+				if ( '' === $sub_title ) {
+					continue;
+				}
+				$sub_items[] = array(
+					'title' => $sub_title,
 					'url'   => $sub_url,
 				);
 			}
@@ -1230,18 +1240,44 @@ function desktop_mode_build_native_windows_payload() {
 /**
  * Converts a menu item slug to a full admin URL.
  *
- * Handles both direct file references (e.g., 'edit.php') and
- * plugin page slugs (e.g., 'admin.php?page=my-plugin').
+ * Handles three slug shapes:
+ *  1. Direct file references (`edit.php`, `upload.php`) — passed
+ *     through `admin_url()` as-is.
+ *  2. Plain plugin page slugs (`my-plugin`) — routed through
+ *     `admin.php?page=<slug>` with the slug `rawurlencode()`d.
+ *  3. Plugin page slugs that embed extra query parameters
+ *     (`wc-admin&path=/customers`) — split on the first `&`, the
+ *     page portion is `rawurlencode()`d, the trailing query is
+ *     reparsed and reassembled with `add_query_arg()` so each
+ *     value is encoded once and the `&` separators are preserved.
+ *
+ * The third shape is unusual but legal — WordPress's
+ * `add_submenu_page()` accepts a slug containing query
+ * parameters and routes them through `admin.php`. WooCommerce
+ * uses this pattern for every wc-admin React route
+ * (`Customers`, `Analytics`, `Marketing`). Without the split
+ * branch the entire string gets `rawurlencode()`d into the
+ * `page` parameter, mangling `&` to `%26` and `=` to `%3D` —
+ * WC's router never sees `path` and the page renders blank.
+ *
+ * Returns an `esc_url_raw()`-sanitized URL — these URLs flow
+ * into the dock JS payload (JSON-encoded, then assigned to
+ * `iframe.src` / `window.location.href`), not into HTML
+ * attributes. Using `esc_url()` would emit `&#038;` for the `&`
+ * separators, which the browser does NOT decode in JS string
+ * contexts — the resulting iframe load would treat `&#038;path`
+ * as a literal query key and miss the `path` parameter, sending
+ * WC's router back to home instead of the requested route.
  *
  * @since 0.1.0
  *
  * @param string $slug The menu item slug or URL.
- * @return string The full admin URL.
+ * @return string The full admin URL, sanitized via `esc_url_raw()`.
  */
 function desktop_mode_menu_item_url( $slug ) {
 	// Already a full URL.
 	if ( str_starts_with( $slug, 'http://' ) || str_starts_with( $slug, 'https://' ) ) {
-		return esc_url( $slug );
+		return esc_url_raw( $slug );
 	}
 
 	// Strip path traversal sequences.
@@ -1249,9 +1285,24 @@ function desktop_mode_menu_item_url( $slug ) {
 
 	// Direct file reference (e.g., 'edit.php', 'upload.php').
 	if ( false !== strpos( $slug, '.php' ) ) {
-		return esc_url( admin_url( $slug ) );
+		return esc_url_raw( admin_url( $slug ) );
 	}
 
-	// Plugin page slug — route through admin.php.
-	return esc_url( admin_url( 'admin.php?page=' . rawurlencode( $slug ) ) );
+	// Plugin page slug with embedded query parameters
+	// (e.g., 'wc-admin&path=/customers'). Split off the extra
+	// query and let `add_query_arg()` rebuild a properly encoded
+	// URL — avoids `rawurlencode()`-ing the `&` and `=`
+	// separators into `%26` / `%3D`.
+	if ( false !== strpos( $slug, '&' ) ) {
+		list( $page_slug, $extras ) = array_pad( explode( '&', $slug, 2 ), 2, '' );
+		$extra_args                 = array();
+		if ( '' !== $extras ) {
+			parse_str( $extras, $extra_args );
+		}
+		$args = array_merge( array( 'page' => $page_slug ), $extra_args );
+		return esc_url_raw( add_query_arg( $args, admin_url( 'admin.php' ) ) );
+	}
+
+	// Plain plugin page slug — route through admin.php.
+	return esc_url_raw( admin_url( 'admin.php?page=' . rawurlencode( $slug ) ) );
 }

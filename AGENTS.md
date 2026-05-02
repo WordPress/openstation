@@ -163,6 +163,24 @@ docs/
 │                               READ BEFORE: changes under src/native-windows/ or
 │                                            wp_register_desktop_window* / window-tab APIs.
 │
+├── plugin-compat-layer.md      Internals: how Desktop Mode adapts third-party plugins
+│                               (WC, Yoast, …) whose CSS/menu shapes assume classic
+│                               admin chrome. Three-tier model — CSS variable rebinds
+│                               → runtime offset scanner → targeted CSS overrides —
+│                               plus dock-side adaptations (URL builder, parent
+│                               fallthrough, empty-title skip).
+│                               UPDATE WHEN: adding/removing a compat shim in
+│                                            chromeless.css, the offset neutralizer in
+│                                            render.php, or a dock-builder adaptation
+│                                            in helpers.php for plugin-specific shapes.
+│                               READ BEFORE: any change to chromeless.css scoped to a
+│                                            specific plugin selector, any addition to
+│                                            desktop_mode_chromeless_offset_neutralizer_script,
+│                                            or any tweak to desktop_mode_menu_item_url
+│                                            / desktop_mode_build_dock_items aimed at
+│                                            handling a third-party menu-registration
+│                                            quirk.
+│
 └── examples/                   Copy-paste recipes — ONE per surface.
     ├── README.md               Index of examples.
     ├── arrange-action.md       UPDATE/READ WHEN: window-arrange behavior or hook changes.

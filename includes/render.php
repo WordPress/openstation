@@ -466,6 +466,79 @@ JS;
 add_action( 'enqueue_block_editor_assets', 'desktop_mode_chromeless_editor_preferences' );
 
 /**
+ * Neutralizes hardcoded admin-bar offsets on positioned elements
+ * inside chromeless iframes.
+ *
+ * Many plugins compile their CSS with the admin-bar height baked in
+ * as a literal pixel value rather than referencing
+ * `var(--wp-admin--admin-bar--height)`. WooCommerce's
+ * `.woocommerce-layout__header` is the canonical case — it ships as
+ * `top: 32px` (or `46px` on small screens) because the SCSS source
+ * uses build-time interpolation (`#{$header-height + $adminbar-height-mobile}`).
+ * A CSS-variable rebind cannot reach these rules because the rules
+ * never read the variable.
+ *
+ * The only generic mitigation is a runtime DOM pass:
+ *
+ *   1. Walk every positioned element (`fixed | sticky | absolute`).
+ *   2. Compare its computed `top` against the set of values that
+ *      reserve admin-bar height (defaults: `32px`, `46px`).
+ *   3. If it matches, override `top` to `0` inline with `!important`.
+ *
+ * The match is exact-pixel — we deliberately don't catch e.g.
+ * `top: 33px` (which is almost certainly intentional and unrelated
+ * to admin-bar geometry). False positives are possible but
+ * unlikely; a plugin would have to use `top: 32px` for a reason
+ * unrelated to the admin bar AND need that exact value to remain
+ * inside chromeless. We've never seen one in the wild, and if a
+ * site hits it, the filter below lets them narrow the scan.
+ *
+ * Scoped via the `wp-desktop-chromeless` body class, runs at
+ * DOMContentLoaded and again at `load` to catch React-mounted
+ * components. No MutationObserver yet — we'll add one if a plugin
+ * surfaces that mounts new offending elements after `load`.
+ *
+ * @since 0.6.1
+ */
+function desktop_mode_chromeless_offset_neutralizer_script() {
+	if ( ! desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+
+	/**
+	 * Filters the set of `top` pixel values that mark a positioned
+	 * element as an admin-bar offset clone.
+	 *
+	 * Defaults match the two admin-bar heights Core ships: `32px`
+	 * for desktop, `46px` for the mobile breakpoint. Sites that
+	 * customize the admin bar height (some accessibility themes
+	 * raise it to 50px) can extend the list.
+	 *
+	 * @since 0.6.1
+	 *
+	 * @param string[] $values Default `[ '32px', '46px' ]`.
+	 */
+	$top_values = apply_filters(
+		'desktop_mode_chromeless_admin_bar_top_values',
+		array( '32px', '46px' )
+	);
+
+	$config = wp_json_encode(
+		array(
+			'tops' => array_values( array_filter( array_map( 'strval', (array) $top_values ) ) ),
+		)
+	);
+	if ( false === $config ) {
+		return;
+	}
+
+	$js = "(function(C){function fix(){if(!document.body||!document.body.classList.contains('wp-desktop-chromeless'))return;var TOPS={};for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}var els=document.querySelectorAll('*');for(var i=0;i<els.length;i++){var el=els[i];var cs=getComputedStyle(el);if(cs.position==='static')continue;if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fix,{once:true});}else{fix();}window.addEventListener('load',fix,{once:true});})({$config});";
+
+	wp_print_inline_script_tag( $js );
+}
+add_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script', 1 );
+
+/**
  * Outputs the chromeless screen-meta bridge script.
  *
  * Detects Screen Options / Help panels in the iframed page and relays

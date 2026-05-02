@@ -195,6 +195,38 @@ class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'Tags', $items[0]['submenu'][0]['title'] );
 	}
 
+	/**
+	 * Plugins register hidden submenu rows by passing `menu_title => null`
+	 * to `add_submenu_page()` — the page stays reachable but classic
+	 * admin's left-menu row has no label. WooCommerce uses this for the
+	 * `wc-addons` Extensions row (it's a duplicate of a labeled
+	 * "Extensions" entry registered separately). Without filtering, the
+	 * dock renders an empty, label-less tab.
+	 */
+	public function test_skips_submenu_items_with_empty_title() {
+		global $menu, $submenu;
+		$menu               = array( $this->make_menu_row( 'WooCommerce', 'manage_options', 'woocommerce' ) );
+		$submenu['woocommerce'] = array(
+			array( 'WooCommerce', 'manage_options', 'woocommerce' ),     // self-link, stripped
+			array( 'Home', 'manage_options', 'wc-admin' ),
+			array( null, 'manage_options', 'wc-addons' ),                 // hidden row
+			array( '', 'manage_options', 'wc-empty-string' ),             // also empty
+			array( '   ', 'manage_options', 'wc-whitespace' ),            // whitespace only
+			array( 'Extensions', 'manage_options', 'wc-addons-shop' ),
+		);
+
+		$items  = desktop_mode_build_dock_items();
+		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
+
+		$this->assertContains( 'Home', $titles );
+		$this->assertContains( 'Extensions', $titles );
+		$this->assertNotContains( '', $titles );
+		$this->assertNotContains( null, $titles );
+		// Verify only the labeled rows survive — the three empty ones
+		// are filtered out and don't ship as ghost tabs.
+		$this->assertCount( 2, $items[0]['submenu'] );
+	}
+
 	public function test_skips_hide_if_no_customize_submenu_items() {
 		global $menu, $submenu;
 		$menu                  = array( $this->make_menu_row( 'Themes', 'edit_theme_options', 'themes.php' ) );

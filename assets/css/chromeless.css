@@ -61,6 +61,39 @@ html.wp-toolbar:has( body.wp-desktop-chromeless ) {
 	padding-inline-start: 0 !important;
 }
 
+/*
+ * WooCommerce sidebar-reservation override.
+ *
+ * `.woocommerce-layout__header` is a `position: fixed` bar WC
+ * mounts on every wc-admin and wc-embedded page. Its width is
+ * compiled from the SCSS source (header/style.scss) as a literal:
+ *
+ *       position: fixed;
+ *       top: 32px;                       // $adminbar-height
+ *       width: calc(100% - 160px);        // reserves classic sidebar
+ *       z-index: 1001;
+ *
+ * The 160px subtraction is the classic admin menu width — WC bakes
+ * it in at build time so the header doesn't overlap the sidebar
+ * in standard admin. Inside chromeless we hide the sidebar, but
+ * the header keeps the reservation — so the header ends 160px
+ * short of the iframe right edge, and `.woocommerce-layout__activity-panel-wrapper`
+ * (`position: absolute; right: 0; top: 100%; transform: translateX(100%)`,
+ * containing block = the fixed header) translates past the
+ * header's right edge, NOT past the iframe's right edge. The
+ * resulting visible strip is exactly 160px wide — the size of the
+ * sidebar gap WC reserved for nothing.
+ *
+ * Reclaim the reservation: pin the header to full iframe width
+ * inside chromeless. The activity panel then translates past the
+ * iframe edge as WC's design intended, the gray strip disappears,
+ * and the header's content uses the full window width. No
+ * transform / overflow / visibility tricks needed.
+ */
+.wp-desktop-chromeless .woocommerce-layout__header {
+	width: 100% !important;
+}
+
 /* ---------------------------------------------------------------
  * Screen Meta (Screen Options / Help panels)
  * The toggle buttons (#screen-meta-links) are hidden because
