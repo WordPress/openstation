@@ -426,7 +426,15 @@ function desktop_mode_build_dock_items() {
 		$icon = desktop_mode_sanitize_dock_icon( $item[6] ?? '' );
 
 		// Build the full URL for the menu item.
-		$url = desktop_mode_menu_item_url( $item[2] );
+		//
+		// `$parent_url` is the slug-derived URL (`admin.php?page=<slug>`
+		// for plugin pages, the file path for Core ones). It's the
+		// reference value the self-link strip below compares against.
+		// The effective `$url` we ship to the shell can be rewritten
+		// further down to the first visible submenu's URL — see the
+		// note after the loop.
+		$parent_url = desktop_mode_menu_item_url( $item[2] );
+		$url        = $parent_url;
 
 		// Build submenu items.
 		//
@@ -445,7 +453,8 @@ function desktop_mode_build_dock_items() {
 		// Detection by URL (post-`desktop_mode_menu_item_url()` normalize)
 		// rather than slug equality covers plugins that register a child
 		// at a different slug pointing at the parent's URL.
-		$sub_items = array();
+		$sub_items             = array();
+		$first_visible_sub_url = null;
 		if ( ! empty( $submenu[ $item[2] ] ) ) {
 			foreach ( $submenu[ $item[2] ] as $sub_item ) {
 				if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
@@ -456,10 +465,19 @@ function desktop_mode_build_dock_items() {
 					continue;
 				}
 				$sub_url = desktop_mode_menu_item_url( $sub_item[2] );
-				// Self-link strip — `$sub_url === $url` covers WP's
-				// auto-prepended entry AND any plugin-registered alias
-				// that happens to land on the parent URL.
-				if ( $sub_url === $url ) {
+				// Capture the first capability-passing submenu URL so
+				// we can use it as the parent's effective URL below
+				// (mirrors `wp-admin/menu-header.php`). Captured BEFORE
+				// the self-link strip so plugins whose first submenu IS
+				// the auto-prepended self-link land on the parent URL
+				// (a no-op rewrite — preserves existing behavior).
+				if ( null === $first_visible_sub_url ) {
+					$first_visible_sub_url = $sub_url;
+				}
+				// Self-link strip — `$sub_url === $parent_url` covers
+				// WP's auto-prepended entry AND any plugin-registered
+				// alias that happens to land on the parent URL.
+				if ( $sub_url === $parent_url ) {
 					continue;
 				}
 				$sub_raw_title = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', $sub_item[0] );
@@ -468,6 +486,19 @@ function desktop_mode_build_dock_items() {
 					'url'   => $sub_url,
 				);
 			}
+		}
+
+		// Mirror `wp-admin/menu-header.php`: when a parent menu has any
+		// visible submenu, classic admin rewrites the parent's
+		// clickable URL to the first submenu's URL. Plugins like
+		// WooCommerce rely on this — their top-level slug
+		// (`woocommerce`) has no working callback and 500s when hit
+		// directly. The real landing page is the first submenu
+		// (`?page=wc-admin` for WC). Without this rewrite the dock
+		// icon points users at a broken URL that classic admin would
+		// never have linked to.
+		if ( null !== $first_visible_sub_url ) {
+			$url = $first_visible_sub_url;
 		}
 
 		$dock_item = array(

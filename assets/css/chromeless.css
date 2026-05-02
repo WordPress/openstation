@@ -37,9 +37,22 @@
  * The class carries a `padding-top: var(--wp-admin--admin-bar--height)`
  * that would leave a 32px (or 46px) dead gap at the top of the iframe.
  * Zero it out inside chromeless iframes.
+ *
+ * We also rebind `--wp-admin--admin-bar--height` (and the derived
+ * `--wp-admin--admin-bar--position-offset` from block-library) to 0px
+ * inside chromeless so plugins that position UI relative to the admin
+ * bar resolve their math against the iframe's actual chrome state.
+ *
+ * WooCommerce's activity-panel wrapper, the block editor's sticky
+ * header, and several others use `top: var(--wp-admin--admin-bar--height)`
+ * to clear the bar. Without this override they reserve a 32px (or 46px
+ * on small screens) gap that no longer exists, producing visible jumps
+ * on first paint and dead space at the top of the content area.
  */
 html.wp-toolbar:has( body.wp-desktop-chromeless ) {
 	padding-top: 0 !important;
+	--wp-admin--admin-bar--height: 0px;
+	--wp-admin--admin-bar--position-offset: 0px;
 }
 
 /* Remove the sidebar gutter on #wpcontent and let the body fill the frame. */
