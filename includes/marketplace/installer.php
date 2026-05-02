@@ -483,7 +483,10 @@ function desktop_mode_marketplace_delete_extension( $slug ) {
 			array( 'status' => 409 )
 		);
 	}
-	require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	// delete_plugins() reaches into request_filesystem_credentials()
+	// (in wp-admin/includes/file.php), so require_upgrader's full
+	// stack — not just plugin.php.
+	desktop_mode_marketplace_require_upgrader();
 	if ( is_plugin_active( $entry['plugin_file'] ) ) {
 		deactivate_plugins( $entry['plugin_file'] );
 	}
