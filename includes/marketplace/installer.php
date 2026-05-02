@@ -188,7 +188,14 @@ function desktop_mode_marketplace_local_zip( $slug ) {
 
 	$src_real = realpath( $src );
 	$prefix_len = strlen( $src_real ) + 1;
-	$skip_pattern = '#(^|/)(\.git|\.DS_Store|node_modules|\.cache|dist)(/|$)#';
+	// Targets true dev junk only. Don't add generic names like `dist`
+	// here — vendored libraries use them for compiled assets that MUST
+	// ship (e.g. phpMyAdmin's `js/dist/navigation.js` renders the left
+	// nav tree). The package-extensions.sh CI path uses `git ls-files`
+	// which respects gitignore; this PHP path is more permissive,
+	// erring toward "include it" since the local-dev install is meant
+	// to mirror what a dev's working tree looks like.
+	$skip_pattern = '#(^|/)(\.git|\.DS_Store|node_modules|\.cache)(/|$)#';
 
 	$iter = new RecursiveIteratorIterator(
 		new RecursiveDirectoryIterator( $src_real, FilesystemIterator::SKIP_DOTS ),
