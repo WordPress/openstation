@@ -110,6 +110,16 @@ function desktop_mode_bootstrap_admin_menu_for_rest() {
 		return;
 	}
 
+	// `wp-admin/menu.php` and its includes assume they're loaded at
+	// the global scope and use `$menu` / `$submenu` / etc. without
+	// `global` declarations. When we require them from inside this
+	// function, those would silently be local variables — at sort
+	// time `$menu` is null and `uksort()` fatals. Bind the globals
+	// explicitly here so the included files mutate the real
+	// $GLOBALS['menu'] that downstream payload-builders read.
+	// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+	global $menu, $submenu, $_wp_real_parent_file, $_wp_submenu_nopriv, $_wp_menu_nopriv, $menu_order, $default_menu_order, $compat_methods;
+
 	// Polyfill core admin-context constants when this code runs outside
 	// of a true admin request (e.g. the portal handler bootstrapping the
 	// menu before WP has initialised admin context). Each is guarded by

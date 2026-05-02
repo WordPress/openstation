@@ -109,6 +109,14 @@ export class OsSettings implements SettingsCtx {
 	private tabRegistryUnsubscribe: ( () => void ) | null = null;
 
 	/**
+	 * Most-recent active settings tab id, captured from
+	 * `wpd-tab-change`. Used to keep the user on whatever tab they
+	 * picked when a registry mutation forces the panel to re-render
+	 * (e.g. after a marketplace install / activate).
+	 */
+	private activeTabId: string | null = null;
+
+	/**
 	 * Subscribers to OS Settings state changes — third-party tabs that
 	 * need to react when the user edits AI key / accent / etc. in an
 	 * adjacent built-in tab. Fired from {@link save}.
@@ -377,9 +385,29 @@ export class OsSettings implements SettingsCtx {
 
 		rows.sort( ( a, b ) => a.order - b.order );
 
+		// Preserve the active tab across re-renders triggered by the
+		// settings-tab registry (e.g. when a marketplace activation
+		// fires a payload refresh that mutates the registry). Without
+		// this, every refreshMenu() snaps the user back to the
+		// Appearance tab mid-action.
+		//
+		// `<wpd-tabs>` keeps the live selected value on the JS property,
+		// not the attribute — `getAttribute('value')` would always
+		// return the initial value, regardless of what the user picked.
+		const previousTabs = body.querySelector( 'wpd-tabs' ) as
+			| ( HTMLElement & { value?: string } )
+			| null;
+		const previousValue =
+			this.activeTabId ??
+			previousTabs?.value ??
+			previousTabs?.getAttribute( 'value' ) ??
+			'appearance';
+		const activeRowExists = rows.some( ( r ) => r.id === previousValue );
+		const initialTab = activeRowExists ? previousValue : 'appearance';
+
 		render(
 			html`
-				<wpd-tabs value="appearance" label=${ __( 'Settings sections' ) }>
+				<wpd-tabs value=${ initialTab } label=${ __( 'Settings sections' ) }>
 					${ rows.map( ( r ) => r.tab ) }
 				</wpd-tabs>
 				${ rows.map( ( r ) => r.panel ) }
@@ -399,6 +427,22 @@ export class OsSettings implements SettingsCtx {
 				row.mount( body );
 			}
 		}
+
+		// Track the active tab id so a registry-driven re-render can
+		// land the user back on it. Bound on the freshly-rendered
+		// `<wpd-tabs>` host — `lit` reuses the DOM node across
+		// renders, but the listener idempotently overwrites
+		// `activeTabId` so duplicates are harmless.
+		const tabsHost = body.querySelector( 'wpd-tabs' );
+		if ( tabsHost ) {
+			tabsHost.addEventListener( 'wpd-tab-change', ( e: Event ) => {
+				const detail = ( e as CustomEvent ).detail as { value?: string };
+				if ( detail?.value ) {
+					this.activeTabId = detail.value;
+				}
+			} );
+		}
+		this.activeTabId = initialTab;
 
 		// Re-render when the registry changes so a plugin that loads
 		// *after* the OS Settings window opens (via the server-sync
