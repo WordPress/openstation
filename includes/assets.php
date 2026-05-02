@@ -79,6 +79,13 @@ function desktop_mode_register_assets() {
 	);
 
 	wp_register_style(
+		'wp-desktop-bug-report',
+		DESKTOP_MODE_URL . 'assets/css/bug-report.css',
+		array( 'wp-desktop-variables' ),
+		$version
+	);
+
+	wp_register_style(
 		'wp-desktop-code-editor',
 		DESKTOP_MODE_URL . 'assets/css/code-editor.css',
 		array( 'wp-desktop-variables', 'dashicons' ),

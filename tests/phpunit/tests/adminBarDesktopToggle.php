@@ -33,7 +33,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 		wp_register_script( 'admin-bar', false );
 		// Dequeue desktop styles/scripts from previous tests so each case
 		// observes a clean enqueue state.
-		foreach ( array( 'wp-desktop', 'wp-desktop-windows', 'wp-desktop-dock', 'wp-desktop-chromeless' ) as $handle ) {
+		foreach ( array( 'wp-desktop', 'wp-desktop-windows', 'wp-desktop-dock', 'wp-desktop-dock-peek', 'wp-desktop-chromeless' ) as $handle ) {
 			wp_dequeue_style( $handle );
 			wp_dequeue_script( $handle );
 		}

@@ -120,6 +120,10 @@ import {
 } from './broadcast';
 import { startRecycleBinBadge, _currentRecycleBinBadge } from './recycle-bin/badge';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
+import {
+	BUG_REPORT_WINDOW_ID,
+	renderBugReport,
+} from './bug-report';
 import { showToast, type ToastOptions } from './toast';
 import { renderKeyedList, clearKeyedList, type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
@@ -1566,6 +1570,60 @@ function init(): void {
 			minWidth: 560,
 			minHeight: 480,
 		} );
+	}
+
+	/**
+	 * Open (or focus) the Bug Report native window. Routed through
+	 * `manager.open` so the admin-bar button, the dock system tile,
+	 * and any future widget all reach the same window instance.
+	 */
+	function openBugReport(): void {
+		manager.open( {
+			id: BUG_REPORT_WINDOW_ID,
+			baseId: BUG_REPORT_WINDOW_ID,
+			url: `#${ BUG_REPORT_WINDOW_ID }`,
+			title: 'Report a bug',
+			icon: 'dashicons-buddicons-replies',
+			native: true,
+			render: ( body ) => renderBugReport( body ),
+			width: 560,
+			height: 620,
+			minWidth: 420,
+			minHeight: 480,
+		} );
+	}
+
+	// Admin-bar "Report a bug" button. Inline JS in
+	// `assets/js/admin-bar.js` dispatches the event; the shell
+	// answers here, decoupled from the early-running admin-bar IIFE.
+	document.addEventListener( 'wp-desktop-open-bug-report', () => {
+		openBugReport();
+	} );
+
+	// Dock system tile — sits next to OS Settings on the primary
+	// rail. Tracked by the layout dispatcher so it survives a layout
+	// rebuild (Classic ↔ Unified ↔ Spatial).
+	if ( layoutDispatcher ) {
+		layoutDispatcher.appendSystemTile(
+			{
+				id: BUG_REPORT_WINDOW_ID,
+				title: 'Report a bug',
+				icon: 'dashicons-buddicons-replies',
+				isOpen: () => {
+					const win = manager.getById( BUG_REPORT_WINDOW_ID );
+					if ( ! win ) {
+						return false;
+					}
+					return (
+						( win.config.desktopId ||
+							manager.getActiveDesktopId() ) ===
+						manager.getActiveDesktopId()
+					);
+				},
+				onOpen: openBugReport,
+			},
+			'core',
+		);
 	}
 	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
 

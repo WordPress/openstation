@@ -96,6 +96,7 @@ function desktop_mode_enqueue_assets() {
 	wp_enqueue_style( 'wp-desktop-dock' );
 	wp_enqueue_style( 'wp-desktop-dock-peek' );
 	wp_enqueue_style( 'wp-desktop-ai-assistant' );
+	wp_enqueue_style( 'wp-desktop-bug-report' );
 
 	// JS.
 	wp_enqueue_script( 'wp-desktop' );
