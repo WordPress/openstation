@@ -566,8 +566,12 @@
 .wpdm-routines__viewport-content {
 	position: relative;
 	transform-origin: 0 0;
-	will-change: transform;
 	z-index: 1;
+	/* No `will-change: transform` — promoting this element to its
+	   own GPU layer (which `will-change` does) caches the content
+	   as a texture and any zoom samples that texture. Without the
+	   hint the browser re-rasterises the layout at the new zoom
+	   each tick, keeping text and 1px borders crisp. */
 }
 
 .wpdm-routines__viewport-toolbar {

@@ -1444,7 +1444,8 @@
     const state2 = { pan: { x: 0, y: 0 }, zoom: 1 };
     const listeners = /* @__PURE__ */ new Set();
     const apply = () => {
-      content.style.transform = `translate3d(${state2.pan.x}px, ${state2.pan.y}px, 0) scale(${state2.zoom})`;
+      content.style.zoom = String(state2.zoom);
+      content.style.transform = `translate(${state2.pan.x / state2.zoom}px, ${state2.pan.y / state2.zoom}px)`;
       toolbar.label.textContent = `${Math.round(state2.zoom * 100)}%`;
       listeners.forEach((cb) => cb());
     };

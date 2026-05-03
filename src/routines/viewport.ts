@@ -79,7 +79,20 @@ export function mountViewport( host: HTMLElement ): ViewportHandle {
 	const listeners = new Set< () => void >(); // eslint-disable-line
 
 	const apply = (): void => {
-		content.style.transform = `translate3d(${ state.pan.x }px, ${ state.pan.y }px, 0) scale(${ state.zoom })`;
+		// CSS `zoom` (not `transform: scale`) for the size axis —
+		// `transform: scale()` rasterises the element at 1× and
+		// bitmap-stretches the texture, which softens every glyph
+		// of text and every 1px border. `zoom` re-lays-out the
+		// content; the browser re-rasterises text at its true
+		// on-screen size, keeping the cards perfectly sharp at
+		// any zoom level.
+		//
+		// Pan stays as `transform: translate` — but in zoomed-
+		// coordinate space, so we divide by zoom (because `zoom`
+		// is applied first conceptually, then transform operates
+		// inside the zoomed box).
+		content.style.zoom = String( state.zoom );
+		content.style.transform = `translate(${ state.pan.x / state.zoom }px, ${ state.pan.y / state.zoom }px)`;
 		toolbar.label.textContent = `${ Math.round( state.zoom * 100 ) }%`;
 		listeners.forEach( ( cb ) => cb() );
 	};
