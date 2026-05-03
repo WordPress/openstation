@@ -148,9 +148,17 @@ function wpdm_routine_rest_from_prompt( $request ) {
 function wpdm_routine_ai_generate( $api_key, $prompt, $user_id ) {
 	$catalog = wpdm_routine_ai_build_catalog( $user_id );
 	$schema  = wpdm_routine_ai_def_schema();
-	$model   = (string) apply_filters(
+	// Generation is harder than classification — the model has to
+	// pick the right trigger out of dozens, structure nested
+	// if/then/else branches, and emit JSON-encoded args strings
+	// without dropping placeholders. Bump the default to `mini`
+	// for this path; the classify step stays on `nano` (cheap,
+	// fast, single-enum output). Filterable as always:
+	// `add_filter( 'desktop_mode_ai_model', fn( $m, $ctx ) =>
+	// $ctx === 'routines' ? 'gpt-5.4' : $m, 10, 2 );`
+	$model = (string) apply_filters(
 		'desktop_mode_ai_model',
-		defined( 'DESKTOP_MODE_AI_DEFAULT_MODEL' ) ? DESKTOP_MODE_AI_DEFAULT_MODEL : 'gpt-5.4-nano',
+		'gpt-5.4-mini',
 		'routines'
 	);
 
