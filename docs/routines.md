@@ -303,4 +303,9 @@ Keyboard shortcut: **Cmd/Ctrl+K** focuses the composer from anywhere in the rout
 
 ## Roadmap
 
-- **Phase 4** — webhook trigger (HMAC-signed REST endpoint), templates gallery + JSON import/export, sub-routines, Action Scheduler integration for scheduled / long-wait routines.
+Phase 4 candidates and beyond live in their own contributor-facing
+doc — three tracks (Integrations / Polish / Sharing) with file
+pointers, gotchas, and cost estimates so anyone can pick a feature
+and ship it.
+
+→ [Routines roadmap & contributor guide](./routines-roadmap.md)
