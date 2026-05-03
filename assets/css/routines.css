@@ -11,6 +11,20 @@
 .wpdm-routines {
 	display: grid;
 	grid-template-columns: 280px 1fr;
+	/* `grid-template-rows: 1fr` is the load-bearing piece —
+	   without it the implicit row is `auto` and sizes to the
+	   children's content height, not the container's. The
+	   container itself has `height: 100%` from the native
+	   window, but with `auto` rows that height is wasted: rows
+	   take what they need and any 1fr row INSIDE a child grid
+	   has no parent height to inherit. Visible symptom: the
+	   editor collapses to its content; the JSON textarea (deep
+	   in a flex chain) starts at rows=2 because every ancestor
+	   in turn had `height: 100%` resolving against an undefined
+	   parent. Setting `1fr` here makes the row fill the
+	   container; that height propagates through main → editor →
+	   pane → view-body → textarea, all the way down. */
+	grid-template-rows: 1fr;
 	height: 100%;
 	min-height: 0;
 	background: var( --wpd-window-bg, #fff );
@@ -169,7 +183,13 @@
 		auto                /* action bar (Save/Test/Run/Delete)                  */
 		auto;               /* output (last run summary, transient)              */
 	gap: 14px;
-	height: 100%;
+	/* `flex: 1 1 auto` (NOT `height: 100%`) — main is a flex
+	   column container; children with `height: 100%` resolve
+	   inconsistently across browsers when the parent is flex
+	   without an explicit height. `flex: 1 1 auto` + `min-height:
+	   0` is the canonical pattern and behaves the same on
+	   Chrome / Safari / Firefox. */
+	flex: 1 1 auto;
 	min-height: 0;
 }
 
