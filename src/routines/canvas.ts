@@ -41,6 +41,7 @@ import type {
 	RoutineRun,
 	RoutineStep,
 } from './types';
+import { mountViewport, type ViewportHandle } from './viewport';
 
 export interface CanvasContext {
 	def: RoutineDef;
@@ -77,6 +78,13 @@ export async function mountCanvas(
 	} );
 	host.append( stage, inspectorSlot );
 
+	// Pan / zoom viewport — wraps the Pixi canvas + cards in a
+	// transformed container. Both layers scale + translate together
+	// so connectors stay perfectly aligned with their cards at any
+	// zoom level. The toolbar (Fit / Reset / +/-) renders inside
+	// the stage at the bottom-right, fixed-position relative to it.
+	let viewport: ViewportHandle | null = null;
+
 	let inspectorTarget: InspectorTarget | null = null;
 	const setInspector = ( target: InspectorTarget | null ): void => {
 		inspectorTarget = target;
@@ -104,9 +112,11 @@ export async function mountCanvas(
 		inspectorSlot.append( panel );
 	};
 
+	viewport = mountViewport( stage );
+
 	let pixi: PixiLayerHandle | null = null;
 	try {
-		pixi = await mountPixiLayer( stage, ctx.pluginUrl );
+		pixi = await mountPixiLayer( viewport.content, ctx.pluginUrl );
 	} catch ( err ) {
 		// PixiJS load failed — the canvas still works as a pure DOM
 		// pipeline. We surface a one-time hint so the user can hit F5
@@ -120,7 +130,7 @@ export async function mountCanvas(
 	}
 
 	const cardLayer = el( 'div', { class: 'wpdm-routines__cards' } );
-	stage.append( cardLayer );
+	viewport.content.append( cardLayer );
 
 	// Shared anchor list — written by `rerender()`, re-read by the
 	// ResizeObserver to avoid a full structural rebuild on every
@@ -237,25 +247,85 @@ export async function mountCanvas(
 	};
 
 	const pushAnchorsToPixi = (): void => {
-		const stageRect = stage.getBoundingClientRect();
+		// Pixi lives inside viewport.content, which has a CSS
+		// transform: scale + translate. Pixi's WebGL coord system
+		// matches viewport.content's UNTRANSFORMED layout space, so
+		// we measure each card relative to content's top-left and
+		// divide by zoom to undo the transform.
+		if ( ! viewport ) {
+			return;
+		}
+		const contentRect = viewport.content.getBoundingClientRect();
+		const zoom = viewport.getState().zoom || 1;
 		const anchors: CardAnchor[] = trackedAnchors.map( ( t ) => {
 			const r = t.el.getBoundingClientRect();
 			return {
 				id: t.id,
-				x: r.left - stageRect.left,
-				y: r.top - stageRect.top,
-				width: r.width,
-				height: r.height,
+				x: ( r.left - contentRect.left ) / zoom,
+				y: ( r.top - contentRect.top ) / zoom,
+				width: r.width / zoom,
+				height: r.height / zoom,
 				kind: t.kind,
 				parentId: t.parentId,
 				state: 'idle',
 			};
 		} );
-		pixi?.resize( stageRect.width, cardLayer.scrollHeight );
+		pixi?.resize(
+			viewport.content.clientWidth || cardLayer.scrollWidth,
+			viewport.content.clientHeight || cardLayer.scrollHeight,
+		);
 		pixi?.setAnchors( anchors );
 	};
 
 	rerender();
+
+	// "Hover-to-trace" — when the autocomplete (or any other UI
+	// element) emits `wpdm-routines-highlight` with a step id /
+	// payload path / "trigger" sentinel, glow the source card on
+	// the canvas + scroll it into view. Lets the user follow a
+	// `{{vars.foo}}` reference back to where it came from without
+	// breaking their typing flow.
+	const applyHighlight = ( source: string | null ): void => {
+		cardLayer
+			.querySelectorAll( '.is-highlighted' )
+			.forEach( ( n ) => n.classList.remove( 'is-highlighted' ) );
+		if ( ! source ) {
+			return;
+		}
+		let targetId: string | null = null;
+		if ( source.startsWith( 'payload' ) ) {
+			targetId = 'trigger';
+		} else if ( source.startsWith( 'vars.' ) ) {
+			const stepId = source.slice( 'vars.'.length ).split( '.' )[ 0 ];
+			const found = trackedAnchors.find(
+				( t ) => t.kind === 'step' && t.el.dataset.stepId === stepId,
+			);
+			targetId = found?.id ?? null;
+		}
+		if ( ! targetId ) {
+			return;
+		}
+		const tracked = trackedAnchors.find( ( t ) => t.id === targetId );
+		if ( ! tracked ) {
+			return;
+		}
+		tracked.el.classList.add( 'is-highlighted' );
+		const r = tracked.el.getBoundingClientRect();
+		const sr = stage.getBoundingClientRect();
+		if ( r.top < sr.top || r.bottom > sr.bottom ) {
+			tracked.el.scrollIntoView( {
+				behavior: 'smooth',
+				block: 'center',
+				inline: 'nearest',
+			} );
+		}
+		pixi?.pulse( targetId, 'active' );
+	};
+	host.addEventListener( 'wpdm-routines-highlight', ( ev ) => {
+		const detail = ( ev as CustomEvent< { source: string | null } > )
+			.detail;
+		applyHighlight( detail?.source ?? null );
+	} );
 
 	// ResizeObserver re-reads anchor positions when the host size
 	// changes (window maximize / split / mobile rotation). The DOM
@@ -265,6 +335,9 @@ export async function mountCanvas(
 		pushAnchorsToPixi();
 	} );
 	ro.observe( stage );
+
+	// Re-paint Pixi anchors as the user pans / zooms.
+	const offViewportChange = viewport.onChange( () => pushAnchorsToPixi() );
 
 	return {
 		rerender,
@@ -285,6 +358,7 @@ export async function mountCanvas(
 		},
 		destroy: () => {
 			ro.disconnect();
+			offViewportChange();
 			pixi?.destroy();
 		},
 	};

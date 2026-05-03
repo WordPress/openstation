@@ -192,6 +192,25 @@ function render(
 			ev.preventDefault();
 			pickHandler( s );
 		} );
+		// Hover-to-trace — bubble a `wpdm-routines-highlight` event
+		// up the tree so the canvas can glow the source card on
+		// the graph and scroll it into view. Mouseleave clears.
+		li.addEventListener( 'mouseenter', () => {
+			input.dispatchEvent(
+				new CustomEvent( 'wpdm-routines-highlight', {
+					bubbles: true,
+					detail: { source: s.path },
+				} ),
+			);
+		} );
+		li.addEventListener( 'mouseleave', () => {
+			input.dispatchEvent(
+				new CustomEvent( 'wpdm-routines-highlight', {
+					bubbles: true,
+					detail: { source: null },
+				} ),
+			);
+		} );
 		state.popover!.append( li );
 	} );
 }

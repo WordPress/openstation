@@ -170,6 +170,22 @@
         ev.preventDefault();
         pickHandler(s);
       });
+      li.addEventListener("mouseenter", () => {
+        input.dispatchEvent(
+          new CustomEvent("wpdm-routines-highlight", {
+            bubbles: true,
+            detail: { source: s.path }
+          })
+        );
+      });
+      li.addEventListener("mouseleave", () => {
+        input.dispatchEvent(
+          new CustomEvent("wpdm-routines-highlight", {
+            bubbles: true,
+            detail: { source: null }
+          })
+        );
+      });
       state2.popover.append(li);
     });
   }
@@ -1401,6 +1417,177 @@
       card.append(cancel);
     });
   }
+  const MIN_ZOOM = 0.3;
+  const MAX_ZOOM = 2.5;
+  const WHEEL_ZOOM_FACTOR = 15e-4;
+  function mountViewport(host) {
+    host.classList.add("wpdm-routines__viewport-host");
+    const root = el$1("div", { class: "wpdm-routines__viewport" });
+    const content = el$1("div", { class: "wpdm-routines__viewport-content" });
+    root.append(content);
+    const toolbar = buildToolbar();
+    host.append(toolbar.node, root);
+    const state2 = { pan: { x: 0, y: 0 }, zoom: 1 };
+    const listeners = /* @__PURE__ */ new Set();
+    const apply = () => {
+      content.style.transform = `translate3d(${state2.pan.x}px, ${state2.pan.y}px, 0) scale(${state2.zoom})`;
+      toolbar.label.textContent = `${Math.round(state2.zoom * 100)}%`;
+      listeners.forEach((cb) => cb());
+    };
+    const setZoom = (next, focal) => {
+      const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, next));
+      if (focal) {
+        const ratio = clamped / state2.zoom;
+        state2.pan.x = focal.x - (focal.x - state2.pan.x) * ratio;
+        state2.pan.y = focal.y - (focal.y - state2.pan.y) * ratio;
+      }
+      state2.zoom = clamped;
+      apply();
+    };
+    const resetView = () => {
+      state2.pan = { x: 0, y: 0 };
+      state2.zoom = 1;
+      apply();
+    };
+    const fitToContent = () => {
+      const prev = state2.zoom;
+      state2.zoom = 1;
+      state2.pan = { x: 0, y: 0 };
+      content.style.transform = "";
+      const contentRect = content.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const margin = 24;
+      const fitX = (rootRect.width - margin * 2) / contentRect.width;
+      const fitY = (rootRect.height - margin * 2) / contentRect.height;
+      state2.zoom = Math.max(MIN_ZOOM, Math.min(1, Math.min(fitX, fitY)));
+      const scaledW = contentRect.width * state2.zoom;
+      const scaledH = contentRect.height * state2.zoom;
+      state2.pan = {
+        x: (rootRect.width - scaledW) / 2,
+        y: (rootRect.height - scaledH) / 2
+      };
+      state2.zoom = state2.zoom || prev || 1;
+      apply();
+    };
+    root.addEventListener(
+      "wheel",
+      (ev) => {
+        if (!(ev.ctrlKey || ev.metaKey)) {
+          return;
+        }
+        ev.preventDefault();
+        const rect = root.getBoundingClientRect();
+        const focal = {
+          x: ev.clientX - rect.left,
+          y: ev.clientY - rect.top
+        };
+        const next = state2.zoom * Math.exp(-ev.deltaY * WHEEL_ZOOM_FACTOR);
+        setZoom(next, focal);
+      },
+      { passive: false }
+    );
+    let dragging = null;
+    root.addEventListener("pointerdown", (ev) => {
+      if (ev.target !== root && ev.target !== content) {
+        return;
+      }
+      if (ev.button !== 0 && ev.button !== 1) {
+        return;
+      }
+      dragging = {
+        pointerId: ev.pointerId,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        panX: state2.pan.x,
+        panY: state2.pan.y
+      };
+      root.setPointerCapture(ev.pointerId);
+      root.classList.add("is-panning");
+    });
+    root.addEventListener("pointermove", (ev) => {
+      if (!dragging || ev.pointerId !== dragging.pointerId) {
+        return;
+      }
+      state2.pan.x = dragging.panX + (ev.clientX - dragging.startX);
+      state2.pan.y = dragging.panY + (ev.clientY - dragging.startY);
+      apply();
+    });
+    const endDrag = (ev) => {
+      if (!dragging || ev.pointerId !== dragging.pointerId) {
+        return;
+      }
+      root.releasePointerCapture(ev.pointerId);
+      root.classList.remove("is-panning");
+      dragging = null;
+    };
+    root.addEventListener("pointerup", endDrag);
+    root.addEventListener("pointercancel", endDrag);
+    root.tabIndex = 0;
+    root.addEventListener("keydown", (ev) => {
+      if (!(ev.ctrlKey || ev.metaKey)) {
+        return;
+      }
+      if (ev.key === "0") {
+        ev.preventDefault();
+        resetView();
+      } else if (ev.key === "+" || ev.key === "=") {
+        ev.preventDefault();
+        setZoom(state2.zoom * 1.2);
+      } else if (ev.key === "-") {
+        ev.preventDefault();
+        setZoom(state2.zoom / 1.2);
+      }
+    });
+    toolbar.zoomOut.addEventListener("click", () => {
+      setZoom(state2.zoom / 1.2);
+    });
+    toolbar.zoomIn.addEventListener("click", () => {
+      setZoom(state2.zoom * 1.2);
+    });
+    toolbar.reset.addEventListener("click", () => resetView());
+    toolbar.fit.addEventListener("click", () => fitToContent());
+    apply();
+    return {
+      root,
+      content,
+      getState: () => state2,
+      setZoom,
+      resetView,
+      fitToContent,
+      onChange: (cb) => {
+        listeners.add(cb);
+        return () => listeners.delete(cb);
+      }
+    };
+  }
+  function buildToolbar() {
+    const node = el$1("div", { class: "wpdm-routines__viewport-toolbar" });
+    const zoomOut = el$1(
+      "button",
+      { class: "wpdm-routines__viewport-btn", type: "button", title: "Zoom out" },
+      ["−"]
+    );
+    const label = el$1("span", { class: "wpdm-routines__viewport-label" });
+    label.textContent = "100%";
+    const zoomIn = el$1(
+      "button",
+      { class: "wpdm-routines__viewport-btn", type: "button", title: "Zoom in" },
+      ["+"]
+    );
+    const sep = el$1("span", { class: "wpdm-routines__viewport-sep" });
+    const fit = el$1(
+      "button",
+      { class: "wpdm-routines__viewport-btn", type: "button", title: "Fit to screen" },
+      ["Fit"]
+    );
+    const reset = el$1(
+      "button",
+      { class: "wpdm-routines__viewport-btn", type: "button", title: "Reset view" },
+      ["Reset"]
+    );
+    node.append(zoomOut, label, zoomIn, sep, fit, reset);
+    return { node, zoomOut, zoomIn, reset, fit, label };
+  }
   async function mountCanvas(host, ctx) {
     host.classList.add("wpdm-routines__canvas-host");
     const stage = el$1("div", { class: "wpdm-routines__canvas-stage" });
@@ -1408,6 +1595,7 @@
       class: "wpdm-routines__canvas-inspector"
     });
     host.append(stage, inspectorSlot);
+    let viewport = null;
     let inspectorTarget = null;
     const setInspector = (target) => {
       inspectorTarget = target;
@@ -1433,9 +1621,10 @@
       });
       inspectorSlot.append(panel);
     };
+    viewport = mountViewport(stage);
     let pixi = null;
     try {
-      pixi = await mountPixiLayer(stage, ctx.pluginUrl);
+      pixi = await mountPixiLayer(viewport.content, ctx.pluginUrl);
     } catch (err) {
       const hint = el$1(
         "p",
@@ -1445,7 +1634,7 @@
       host.append(hint);
     }
     const cardLayer = el$1("div", { class: "wpdm-routines__cards" });
-    stage.append(cardLayer);
+    viewport.content.append(cardLayer);
     let trackedAnchors = [];
     const rerender = () => {
       cardLayer.replaceChildren();
@@ -1501,28 +1690,74 @@
       pushAnchorsToPixi();
     };
     const pushAnchorsToPixi = () => {
-      const stageRect = stage.getBoundingClientRect();
+      if (!viewport) {
+        return;
+      }
+      const contentRect = viewport.content.getBoundingClientRect();
+      const zoom = viewport.getState().zoom || 1;
       const anchors = trackedAnchors.map((t) => {
         const r = t.el.getBoundingClientRect();
         return {
           id: t.id,
-          x: r.left - stageRect.left,
-          y: r.top - stageRect.top,
-          width: r.width,
-          height: r.height,
+          x: (r.left - contentRect.left) / zoom,
+          y: (r.top - contentRect.top) / zoom,
+          width: r.width / zoom,
+          height: r.height / zoom,
           kind: t.kind,
           parentId: t.parentId,
           state: "idle"
         };
       });
-      pixi?.resize(stageRect.width, cardLayer.scrollHeight);
+      pixi?.resize(
+        viewport.content.clientWidth || cardLayer.scrollWidth,
+        viewport.content.clientHeight || cardLayer.scrollHeight
+      );
       pixi?.setAnchors(anchors);
     };
     rerender();
+    const applyHighlight = (source) => {
+      cardLayer.querySelectorAll(".is-highlighted").forEach((n) => n.classList.remove("is-highlighted"));
+      if (!source) {
+        return;
+      }
+      let targetId = null;
+      if (source.startsWith("payload")) {
+        targetId = "trigger";
+      } else if (source.startsWith("vars.")) {
+        const stepId = source.slice("vars.".length).split(".")[0];
+        const found = trackedAnchors.find(
+          (t) => t.kind === "step" && t.el.dataset.stepId === stepId
+        );
+        targetId = found?.id ?? null;
+      }
+      if (!targetId) {
+        return;
+      }
+      const tracked = trackedAnchors.find((t) => t.id === targetId);
+      if (!tracked) {
+        return;
+      }
+      tracked.el.classList.add("is-highlighted");
+      const r = tracked.el.getBoundingClientRect();
+      const sr = stage.getBoundingClientRect();
+      if (r.top < sr.top || r.bottom > sr.bottom) {
+        tracked.el.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest"
+        });
+      }
+      pixi?.pulse(targetId, "active");
+    };
+    host.addEventListener("wpdm-routines-highlight", (ev) => {
+      const detail = ev.detail;
+      applyHighlight(detail?.source ?? null);
+    });
     const ro = new ResizeObserver(() => {
       pushAnchorsToPixi();
     });
     ro.observe(stage);
+    const offViewportChange = viewport.onChange(() => pushAnchorsToPixi());
     return {
       rerender,
       playRun: (log) => {
@@ -1538,6 +1773,7 @@
       },
       destroy: () => {
         ro.disconnect();
+        offViewportChange();
         pixi?.destroy();
       }
     };

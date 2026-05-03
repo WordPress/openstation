@@ -489,6 +489,97 @@
 	min-height: 480px;
 }
 
+/* Pan / zoom viewport — wraps Pixi canvas + cards in a single
+   transformable element. The toolbar floats over the stage at
+   bottom-right. */
+
+.wpdm-routines__viewport-host {
+	position: relative;
+	overflow: auto;
+	min-height: 480px;
+	display: flex;
+}
+
+.wpdm-routines__viewport {
+	position: relative;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 480px;
+	overflow: visible;
+	outline: 0;
+	cursor: grab;
+}
+
+.wpdm-routines__viewport.is-panning {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.wpdm-routines__viewport-content {
+	transform-origin: 0 0;
+	will-change: transform;
+}
+
+.wpdm-routines__viewport-toolbar {
+	position: absolute;
+	right: 14px;
+	bottom: 14px;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	background: rgba( 255, 255, 255, 0.92 );
+	border: 1px solid var( --wpd-window-border, #d4d4d8 );
+	border-radius: 999px;
+	padding: 4px 8px;
+	box-shadow: 0 6px 18px rgba( 0, 0, 0, 0.12 );
+	font-size: 12px;
+	backdrop-filter: blur( 6px );
+}
+
+.wpdm-routines__viewport-btn {
+	min-width: 28px;
+	height: 26px;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 999px;
+	background: transparent;
+	color: #1d2327;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.wpdm-routines__viewport-btn:hover {
+	background: rgba( 0, 0, 0, 0.06 );
+}
+
+.wpdm-routines__viewport-label {
+	min-width: 44px;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	color: #50575e;
+}
+
+.wpdm-routines__viewport-sep {
+	display: inline-block;
+	width: 1px;
+	height: 16px;
+	margin: 0 4px;
+	background: var( --wpd-window-border, #d4d4d8 );
+}
+
+/* Hover-to-trace — the source card glows when the user hovers
+   the matching variable in the autocomplete (or anywhere else
+   that emits `wpdm-routines-highlight`). */
+
+.wpdm-routines__card.is-highlighted {
+	border-color: var( --wpd-accent, #2271b1 );
+	box-shadow: 0 0 0 3px rgba( 34, 113, 177, 0.2 ),
+		0 12px 28px rgba( 0, 0, 0, 0.18 );
+	transform: translateY( -2px );
+}
+
 .wpdm-routines__cards {
 	position: relative;
 	min-height: 480px;
