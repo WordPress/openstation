@@ -1154,18 +1154,37 @@
     }
     const dashOffset = t / 14 % 16;
     for (const a of anchors) {
-      if (!a.parentId) {
-        continue;
+      if (a.parentId) {
+        const parent = byId.get(a.parentId);
+        if (parent) {
+          drawBezier(
+            connectors,
+            parent.x + parent.width / 2,
+            parent.y + parent.height,
+            a.x + a.width / 2,
+            a.y,
+            dashOffset,
+            edgeColour(a)
+          );
+        }
       }
-      const parent = byId.get(a.parentId);
-      if (!parent) {
-        continue;
+      if (a.mergeFromIds) {
+        for (const id of a.mergeFromIds) {
+          const src = byId.get(id);
+          if (!src) {
+            continue;
+          }
+          drawBezier(
+            connectors,
+            src.x + src.width / 2,
+            src.y + src.height,
+            a.x + a.width / 2,
+            a.y,
+            dashOffset,
+            10265519
+          );
+        }
       }
-      const x1 = parent.x + parent.width / 2;
-      const y1 = parent.y + parent.height;
-      const x2 = a.x + a.width / 2;
-      const y2 = a.y;
-      drawBezier(connectors, x1, y1, x2, y2, dashOffset, edgeColour(a));
     }
   }
   function edgeColour(a) {
@@ -1863,7 +1882,7 @@
         kind: "conditions",
         parentId: "trigger"
       });
-      walkSteps(
+      const walkResult = walkSteps(
         ctx,
         ctx.def.steps,
         [],
@@ -1874,17 +1893,22 @@
         () => rerender(),
         host
       );
-      if (cardLayer.dataset.endsWithIf === "1") {
-        cardLayer.append(renderMergeBanner());
-      }
-      const addNode = renderAddStepButton(ctx, [], host, () => rerender(), "root");
+      const addNode = renderAddStepButton(
+        ctx,
+        [],
+        host,
+        () => rerender(),
+        "root"
+      );
       cardLayer.append(addNode);
       const lastStepEntry = [...tracked].reverse().find((t) => t.kind === "step");
+      const trailingHasMerge = !!walkResult.mergeFromIds;
       tracked.push({
         id: "add-root",
         el: addNode,
         kind: "add",
-        parentId: lastStepEntry?.id ?? "conditions"
+        parentId: trailingHasMerge ? "" : lastStepEntry?.id ?? "conditions",
+        mergeFromIds: walkResult.mergeFromIds
       });
       trackedAnchors = tracked;
       pushAnchorsToPixi();
@@ -1906,6 +1930,7 @@
           height: r.height,
           kind: t.kind,
           parentId: t.parentId,
+          mergeFromIds: t.mergeFromIds,
           state: "idle"
         };
       });
@@ -2145,21 +2170,20 @@
   }
   function walkSteps(ctx, steps, pathPrefix, parentAnchor, host, tracked, setInspector, rerender, rootHost) {
     let prev = parentAnchor;
-    let prevWasIf = false;
+    let pendingMerge;
     steps.forEach((step, i) => {
       const path = [...pathPrefix, i];
       const stepAnchorId = `step-${pathToString(path)}`;
-      if (prevWasIf) {
-        host.append(renderMergeBanner());
-      }
       const node = renderStepCard(ctx, step, path, setInspector, rerender);
       host.append(node);
       tracked.push({
         id: stepAnchorId,
         el: node,
         kind: "step",
-        parentId: prev
+        parentId: prev,
+        mergeFromIds: pendingMerge
       });
+      pendingMerge = void 0;
       prev = stepAnchorId;
       if (step.kind === "if") {
         const branchesRow = el$1("div", {
@@ -2196,6 +2220,12 @@
           rerender
         );
         thenCol.append(addThen);
+        const thenTailId = `${stepAnchorId}-then-tail`;
+        tracked.push({
+          id: thenTailId,
+          el: addThen,
+          kind: "add"
+        });
         const elseCol = el$1("div", {
           class: "wpdm-routines__branch-col"
         });
@@ -2226,18 +2256,18 @@
           rerender
         );
         elseCol.append(addElse);
+        const elseTailId = `${stepAnchorId}-else-tail`;
+        tracked.push({
+          id: elseTailId,
+          el: addElse,
+          kind: "add"
+        });
         branchesRow.append(thenCol, elseCol);
         prev = "";
-        prevWasIf = true;
-      } else {
-        prevWasIf = false;
+        pendingMerge = [thenTailId, elseTailId];
       }
     });
-    if (prevWasIf) {
-      host.dataset.endsWithIf = "1";
-    } else {
-      delete host.dataset.endsWithIf;
-    }
+    return { mergeFromIds: pendingMerge };
   }
   function renderBranchHeader(kind) {
     const node = el$1("div", {
@@ -2246,17 +2276,6 @@
     const label = el$1("span", { class: "wpdm-routines__branch-label" });
     label.textContent = kind.toUpperCase();
     node.append(label);
-    return node;
-  }
-  function renderMergeBanner() {
-    const node = el$1("div", { class: "wpdm-routines__merge" });
-    const left = el$1("span", { class: "wpdm-routines__merge-arrow" });
-    left.textContent = "↘";
-    const label = el$1("span", { class: "wpdm-routines__merge-label" });
-    label.textContent = "Both branches merge — continuing outer flow";
-    const right = el$1("span", { class: "wpdm-routines__merge-arrow" });
-    right.textContent = "↙";
-    node.append(left, label, right);
     return node;
   }
   function iconFor(step) {

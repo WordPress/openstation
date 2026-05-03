@@ -144,12 +144,7 @@ export async function mountCanvas(
 	// ResizeObserver to avoid a full structural rebuild on every
 	// resize event. Same array reference, different bounding rects
 	// each tick.
-	let trackedAnchors: Array< {
-		id: string;
-		el: HTMLElement;
-		kind: CardAnchor[ 'kind' ];
-		parentId?: string;
-	} > = [];
+	let trackedAnchors: Tracked[] = [];
 
 	/**
 	 * Layout strategy: STOP HAND-COMPUTING COORDINATES.
@@ -182,12 +177,7 @@ export async function mountCanvas(
 		// Tracks the ordered list of anchored elements so we can do
 		// a single `getBoundingClientRect()` pass after the DOM has
 		// settled and feed Pixi authoritative coordinates.
-		const tracked: Array< {
-			id: string;
-			el: HTMLElement;
-			kind: CardAnchor[ 'kind' ];
-			parentId?: string;
-		} > = [];
+		const tracked: Tracked[] = [];
 
 		// Trigger card.
 		const triggerNode = renderTriggerCard(
@@ -219,10 +209,12 @@ export async function mountCanvas(
 			parentId: 'trigger',
 		} );
 
-		// Steps — recursive walk handles if/then/else as nested flex
-		// rows. The walker appends into whichever container the
-		// caller passes (root cardLayer, or a branch column).
-		walkSteps(
+		// Steps — recursive walk handles if/then/else as nested
+		// flex rows. The walker returns any pending merge sources
+		// (branch-tail anchor ids) when the LAST root step is an
+		// if-step; that's what the trailing add-step needs to
+		// render its incoming merge connectors.
+		const walkResult = walkSteps(
 			ctx,
 			ctx.def.steps,
 			[],
@@ -234,29 +226,30 @@ export async function mountCanvas(
 			host,
 		);
 
-		// Trailing "+ Add step" button.
-		// If the last walked step was an if-step, drop a merge
-		// banner BEFORE the trailing root add-step button — same
-		// reason as for post-if real steps. The walker stashes
-		// the signal on the host as a data attribute.
-		if ( cardLayer.dataset.endsWithIf === '1' ) {
-			cardLayer.append( renderMergeBanner() );
-		}
-
-		// Root variant — visually distinct from per-branch
-		// "+ Add step" buttons inside an if. Adds a step at the
-		// outer flow level ("after the if finishes, then…"); the
-		// dotted divider + relabel make this unambiguous.
-		const addNode = renderAddStepButton( ctx, [], host, () => rerender(), 'root' );
+		// Trailing root "+ Step after this" — receives merge
+		// connectors from each branch's tail when the last root
+		// step is an if (i.e. the walker returned `mergeFromIds`).
+		// No dashed divider; the connector lines do all the work.
+		const addNode = renderAddStepButton(
+			ctx,
+			[],
+			host,
+			() => rerender(),
+			'root',
+		);
 		cardLayer.append( addNode );
 		const lastStepEntry = [ ...tracked ]
 			.reverse()
 			.find( ( t ) => t.kind === 'step' );
+		const trailingHasMerge = !! walkResult.mergeFromIds;
 		tracked.push( {
 			id: 'add-root',
 			el: addNode,
 			kind: 'add',
-			parentId: lastStepEntry?.id ?? 'conditions',
+			parentId: trailingHasMerge
+				? ''
+				: lastStepEntry?.id ?? 'conditions',
+			mergeFromIds: walkResult.mergeFromIds,
 		} );
 
 		// Hand the tracked list off to the ResizeObserver path so it
@@ -317,6 +310,7 @@ export async function mountCanvas(
 				height: r.height,
 				kind: t.kind,
 				parentId: t.parentId,
+				mergeFromIds: t.mergeFromIds,
 				state: 'idle',
 			};
 		} );
@@ -643,6 +637,7 @@ interface Tracked {
 	el: HTMLElement;
 	kind: CardAnchor[ 'kind' ];
 	parentId?: string;
+	mergeFromIds?: string[];
 }
 
 function walkSteps(
@@ -655,21 +650,17 @@ function walkSteps(
 	setInspector: ( t: InspectorTarget ) => void,
 	rerender: () => void,
 	rootHost: HTMLElement,
-): void {
+): { mergeFromIds?: string[] } {
 	let prev = parentAnchor;
-	let prevWasIf = false;
+	// `pendingMerge` carries incoming connector sources from a
+	// just-walked if-step's branch tails into the NEXT step we
+	// render — that's how the merge visually reads as "branches
+	// rejoin the outer flow here".
+	let pendingMerge: string[] | undefined;
 
 	steps.forEach( ( step, i ) => {
 		const path = [ ...pathPrefix, i ];
 		const stepAnchorId = `step-${ pathToString( path ) }`;
-		// Insert a merge banner before any step that follows an
-		// `if` step. Without it the post-branch step lands in the
-		// centre of the canvas — visually identical to a "third
-		// column" between the THEN and ELSE branches above. The
-		// banner makes the outer-flow continuation explicit.
-		if ( prevWasIf ) {
-			host.append( renderMergeBanner() );
-		}
 		const node = renderStepCard( ctx, step, path, setInspector, rerender );
 		host.append( node );
 		tracked.push( {
@@ -677,7 +668,9 @@ function walkSteps(
 			el: node,
 			kind: 'step',
 			parentId: prev,
+			mergeFromIds: pendingMerge,
 		} );
+		pendingMerge = undefined;
 		prev = stepAnchorId;
 
 		if ( step.kind === 'if' ) {
@@ -718,6 +711,15 @@ function walkSteps(
 				rerender,
 			);
 			thenCol.append( addThen );
+			// Track each branch's add-step button as the BRANCH
+			// TAIL — that's where the merge connectors originate
+			// when the outer flow continues after the if.
+			const thenTailId = `${ stepAnchorId }-then-tail`;
+			tracked.push( {
+				id: thenTailId,
+				el: addThen,
+				kind: 'add',
+			} );
 
 			const elseCol = el( 'div', {
 				class: 'wpdm-routines__branch-col',
@@ -749,33 +751,27 @@ function walkSteps(
 				rerender,
 			);
 			elseCol.append( addElse );
+			const elseTailId = `${ stepAnchorId }-else-tail`;
+			tracked.push( {
+				id: elseTailId,
+				el: addElse,
+				kind: 'add',
+			} );
 
 			branchesRow.append( thenCol, elseCol );
-			// After a branch, the next step has NO direct connector
-			// to the if-step (drawing one routes a bezier through
-			// the gutter between THEN and ELSE → reads as a
-			// phantom third path).
-			//
-			// The merge banner inserted at the next step start
-			// supplies the visual "branches converge here" cue
-			// that the connector used to (poorly) provide.
+			// After a branch, the next step has NO direct
+			// connector to the if-step itself — that would route
+			// a line through the gutter between THEN and ELSE
+			// and read as a phantom third path. Instead we mark
+			// the next step (or the trailing root add-step) as
+			// receiving connectors from EACH branch's tail —
+			// that's the visual "merge".
 			prev = '';
-			prevWasIf = true;
-		} else {
-			prevWasIf = false;
+			pendingMerge = [ thenTailId, elseTailId ];
 		}
 	} );
 
-	// Stash on the host so the trailing "+ Step after this" button
-	// (added by the caller after the walker returns) knows whether
-	// to render a merge banner before itself. A simple data
-	// attribute is the cheapest way to thread the signal back up
-	// without changing the walker signature.
-	if ( prevWasIf ) {
-		host.dataset.endsWithIf = '1';
-	} else {
-		delete host.dataset.endsWithIf;
-	}
+	return { mergeFromIds: pendingMerge };
 }
 
 function renderBranchHeader( kind: 'then' | 'else' ): HTMLElement {
@@ -785,26 +781,6 @@ function renderBranchHeader( kind: 'then' | 'else' ): HTMLElement {
 	const label = el( 'span', { class: 'wpdm-routines__branch-label' } );
 	label.textContent = kind.toUpperCase();
 	node.append( label );
-	return node;
-}
-
-/**
- * Visual merge cue — placed between an `if` block's branches and
- * any root-level step that follows. Without it, post-branch steps
- * appear in the centre of the canvas (cardLayer is align-center)
- * and read as a phantom third column. The merge banner makes it
- * unambiguous: branches end here, the OUTER flow continues
- * downward.
- */
-function renderMergeBanner(): HTMLElement {
-	const node = el( 'div', { class: 'wpdm-routines__merge' } );
-	const left = el( 'span', { class: 'wpdm-routines__merge-arrow' } );
-	left.textContent = '↘';
-	const label = el( 'span', { class: 'wpdm-routines__merge-label' } );
-	label.textContent = 'Both branches merge — continuing outer flow';
-	const right = el( 'span', { class: 'wpdm-routines__merge-arrow' } );
-	right.textContent = '↙';
-	node.append( left, label, right );
 	return node;
 }
 

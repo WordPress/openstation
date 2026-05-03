@@ -848,14 +848,13 @@
 	flex: 0 0 auto;
 }
 
-/* Root-level "+ Step after this" — visually separated from the
-   per-branch add-step buttons inside an `if` block by a dotted
-   divider above it. Makes it unambiguous that this button adds
-   a step at the OUTER flow level, not inside a branch. */
+/* Root-level "+ Step after this" — visually distinct from per-
+   branch buttons inside an `if` block via the relabel + accent
+   colour. The merge connector lines drawn by Pixi from each
+   branch's tail communicate the structural "branches converge
+   here" without needing a separator line. */
 .wpdm-routines__add--root {
 	width: 200px;
-	padding-top: 18px;
-	border-top: 1px dashed var( --wpd-window-border, #c3c4c7 );
 }
 
 .wpdm-routines__add-btn--root {
@@ -936,28 +935,6 @@
 	border: 1px solid rgba( 168, 85, 247, 0.4 );
 }
 
-/* Merge banner — a horizontal strip placed between an `if` block's
-   branches and the next root-level step. Visually distinct enough
-   that nobody mistakes it for a card or a column header. */
-.wpdm-routines__merge {
-	display: inline-flex;
-	align-items: center;
-	gap: 10px;
-	padding: 6px 16px;
-	border-radius: 999px;
-	background: rgba( 0, 0, 0, 0.04 );
-	color: #50575e;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	flex: 0 0 auto;
-}
-
-.wpdm-routines__merge-arrow {
-	font-size: 14px;
-	color: var( --wpd-accent, #2271b1 );
-}
 
 .wpdm-routines__pixi-hint {
 	position: absolute;

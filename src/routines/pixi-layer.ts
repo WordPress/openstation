@@ -48,6 +48,15 @@ export interface CardAnchor {
 	height: number;
 	kind: 'trigger' | 'conditions' | 'step' | 'add' | 'branch-then' | 'branch-else';
 	parentId?: string;
+	/**
+	 * Extra incoming connector sources beyond the single
+	 * `parentId`. Used for an `if` block's merge: when both
+	 * branches end and the outer flow continues, the post-if step
+	 * (or the trailing root add-step) receives one connector
+	 * from each branch's tail. Drawn alongside the regular
+	 * single-parent connector.
+	 */
+	mergeFromIds?: string[];
 	state?: 'idle' | 'active' | 'success' | 'error';
 }
 
@@ -361,18 +370,41 @@ function drawConnectors( state: State ): void {
 	const dashOffset = ( t / 14 ) % 16;
 
 	for ( const a of anchors ) {
-		if ( ! a.parentId ) {
-			continue;
+		if ( a.parentId ) {
+			const parent = byId.get( a.parentId );
+			if ( parent ) {
+				drawBezier(
+					connectors,
+					parent.x + parent.width / 2,
+					parent.y + parent.height,
+					a.x + a.width / 2,
+					a.y,
+					dashOffset,
+					edgeColour( a ),
+				);
+			}
 		}
-		const parent = byId.get( a.parentId );
-		if ( ! parent ) {
-			continue;
+		if ( a.mergeFromIds ) {
+			// Each branch's tail draws an incoming connector to
+			// this anchor (the "merge" — both branches converge).
+			// Use a soft grey so the merge reads as a junction
+			// rather than another flow line.
+			for ( const id of a.mergeFromIds ) {
+				const src = byId.get( id );
+				if ( ! src ) {
+					continue;
+				}
+				drawBezier(
+					connectors,
+					src.x + src.width / 2,
+					src.y + src.height,
+					a.x + a.width / 2,
+					a.y,
+					dashOffset,
+					0x9ca3af,
+				);
+			}
 		}
-		const x1 = parent.x + parent.width / 2;
-		const y1 = parent.y + parent.height;
-		const x2 = a.x + a.width / 2;
-		const y2 = a.y;
-		drawBezier( connectors, x1, y1, x2, y2, dashOffset, edgeColour( a ) );
 	}
 }
 
