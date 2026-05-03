@@ -2669,7 +2669,35 @@
         alert(describeError(err));
       }
     });
-    panel.append(header, viewBody, validation, bar, out, history);
+    const tabs = el("div", { class: "wpdm-routines__editor-tabs", role: "tablist" });
+    const designerTab = el("button", {
+      class: "wpdm-routines__editor-tab is-active",
+      type: "button",
+      role: "tab"
+    }, ["Designer"]);
+    const runsTab = el("button", {
+      class: "wpdm-routines__editor-tab",
+      type: "button",
+      role: "tab"
+    }, ["Recent runs"]);
+    tabs.append(designerTab, runsTab);
+    const designerPane = el("div", { class: "wpdm-routines__pane" });
+    const runsPane = el("div", { class: "wpdm-routines__pane" });
+    runsPane.hidden = true;
+    designerPane.append(viewBody);
+    runsPane.append(history);
+    const setTab = (next) => {
+      designerTab.classList.toggle("is-active", next === "designer");
+      runsTab.classList.toggle("is-active", next === "runs");
+      designerPane.hidden = next !== "designer";
+      runsPane.hidden = next !== "runs";
+    };
+    designerTab.addEventListener("click", () => setTab("designer"));
+    runsTab.addEventListener("click", () => {
+      setTab("runs");
+      void refreshHistory(routine.id, historyList);
+    });
+    panel.append(header, tabs, designerPane, runsPane, validation, bar, out);
     renderView();
     void refreshHistory(routine.id, historyList);
     return panel;

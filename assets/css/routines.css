@@ -146,31 +146,86 @@
 	flex-direction: column;
 }
 
-/* Editor: grid layout — canvas takes the 1fr row, every other
-   section is auto-sized, so action bar + history are pinned to
-   the bottom and always visible without scrolling the main column. */
+/* Editor: grid layout — header + tabs + active pane (1fr) +
+   validation + action bar + output. The tabbed pane gets all
+   available vertical space so the canvas stretches to fill, and
+   the Recent runs list also gets the same generous area instead
+   of being capped at 140px below the action bar. */
 .wpdm-routines__editor {
 	display: grid;
 	grid-template-rows:
 		auto    /* header (title / enabled / view toggle)            */
-		1fr     /* view body (canvas or JSON textarea)               */
+		auto    /* tabs (Designer / Recent runs)                     */
+		1fr     /* active pane (designer or runs)                    */
 		auto    /* validation                                         */
 		auto    /* action bar (Save/Test/Run/Delete)                  */
-		auto    /* output (last run summary)                          */
-		auto;   /* history (capped, scrolls internally if needed)    */
+		auto;   /* output (last run summary, transient)              */
 	gap: 14px;
 	height: 100%;
 	min-height: 0;
 }
 
+.wpdm-routines__editor-tabs {
+	display: flex;
+	gap: 4px;
+	border-block-end: 1px solid var( --wpd-window-border, #e0e0e0 );
+}
+
+.wpdm-routines__editor-tab {
+	padding: 8px 14px;
+	border: 0;
+	background: transparent;
+	color: #50575e;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	border-block-end: 2px solid transparent;
+	margin-block-end: -1px;
+}
+
+.wpdm-routines__editor-tab.is-active {
+	color: var( --wpd-accent, #2271b1 );
+	border-block-end-color: var( --wpd-accent, #2271b1 );
+}
+
+.wpdm-routines__pane {
+	min-height: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.wpdm-routines__pane[ hidden ] {
+	display: none;
+}
+
 .wpdm-routines__view-body {
 	min-height: 0;
 	overflow: hidden;
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
 }
 
+/* Recent runs list now lives in its own tab — give it room to
+   breathe and a clean dense list look instead of the cramped
+   140px panel under the action bar. */
 .wpdm-routines__history {
-	max-height: 140px;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+	flex: 1 1 auto;
+}
+
+.wpdm-routines__history h4 {
+	margin: 0 0 8px 0;
+}
+
+.wpdm-routines__history-list {
+	min-height: 0;
 	overflow-y: auto;
+	flex: 1 1 auto;
 }
 
 .wpdm-routines__empty {
@@ -225,6 +280,8 @@
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	min-height: 0;
+	flex: 1 1 auto;
 }
 
 .wpdm-routines__json-label {
@@ -232,11 +289,13 @@
 	color: #50575e;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
+	flex: 0 0 auto;
 }
 
 .wpdm-routines__json {
 	width: 100%;
-	min-height: 280px;
+	min-height: 0;
+	flex: 1 1 auto;
 	font-family: ui-monospace, SFMono-Regular, "Cascadia Code", monospace;
 	font-size: 12px;
 	line-height: 1.5;
@@ -245,7 +304,8 @@
 	border-radius: 6px;
 	background: var( --wpd-window-bg, #fff );
 	color: inherit;
-	resize: vertical;
+	box-sizing: border-box;
+	resize: none; /* the parent grid handles sizing */
 }
 
 .wpdm-routines__validation {

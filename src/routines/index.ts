@@ -453,7 +453,44 @@ function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 		}
 	} );
 
-	panel.append( header, viewBody, validation, bar, out, history );
+	// Top-level tabs: Designer (canvas / JSON) vs Recent runs.
+	// The action bar stays outside the tabs so Save / Test / Run /
+	// Delete are reachable from either tab without context-switching.
+	const tabs = el( 'div', { class: 'wpdm-routines__editor-tabs', role: 'tablist' } );
+	const designerTab = el( 'button', {
+		class: 'wpdm-routines__editor-tab is-active',
+		type: 'button',
+		role: 'tab',
+	}, [ 'Designer' ] );
+	const runsTab = el( 'button', {
+		class: 'wpdm-routines__editor-tab',
+		type: 'button',
+		role: 'tab',
+	}, [ 'Recent runs' ] );
+	tabs.append( designerTab, runsTab );
+
+	const designerPane = el( 'div', { class: 'wpdm-routines__pane' } );
+	const runsPane = el( 'div', { class: 'wpdm-routines__pane' } );
+	runsPane.hidden = true;
+
+	designerPane.append( viewBody );
+	runsPane.append( history );
+
+	const setTab = ( next: 'designer' | 'runs' ): void => {
+		designerTab.classList.toggle( 'is-active', next === 'designer' );
+		runsTab.classList.toggle( 'is-active', next === 'runs' );
+		designerPane.hidden = next !== 'designer';
+		runsPane.hidden = next !== 'runs';
+	};
+	designerTab.addEventListener( 'click', () => setTab( 'designer' ) );
+	runsTab.addEventListener( 'click', () => {
+		setTab( 'runs' );
+		// Refresh on every open so the user sees the latest runs
+		// without having to reload the whole window.
+		void refreshHistory( routine.id, historyList );
+	} );
+
+	panel.append( header, tabs, designerPane, runsPane, validation, bar, out );
 	renderView();
 
 	void refreshHistory( routine.id, historyList );
