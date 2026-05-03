@@ -61,6 +61,13 @@ const TARGETS = {
 		fileBase: 'recycle-bin',
 		iifeName: 'wpDesktopRecycleBin',
 	},
+	// Routines — visual automation. P1 ships a list view + JSON editor;
+	// the visual canvas lands in P2 inside the same bundle.
+	routines: {
+		entry:    'src/routines/index.ts',
+		fileBase: 'routines',
+		iifeName: 'wpDesktopRoutines',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {
