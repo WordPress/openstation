@@ -342,32 +342,178 @@
   }
   function conditionRow(cond, ctx, onRemove) {
     const row = el$1("div", { class: "wpdm-routines__condition" });
-    const left = textField(String(cond.left ?? ""), (v) => {
-      cond.left = v;
-      ctx.onChange();
-    });
-    attachAutocomplete(left, () => suggestionsFor(ctx));
-    const opSel = operatorSelect(ctx.catalog.operators, cond.op, (v) => {
-      cond.op = v;
-      ctx.onChange();
-    });
-    const right = textField(String(cond.right ?? ""), (v) => {
-      cond.right = v;
-      ctx.onChange();
-    });
-    attachAutocomplete(right, () => suggestionsFor(ctx));
     const remove = el$1(
       "button",
       {
-        class: "wpdm-routines__icon-btn",
+        class: "wpdm-routines__icon-btn wpdm-routines__condition-remove",
         type: "button",
         title: "Remove condition"
       },
       ["×"]
     );
     remove.addEventListener("click", onRemove);
-    row.append(left, opSel, right, remove);
+    row.append(remove);
+    row.append(
+      labelledValueField("Left", String(cond.left ?? ""), ctx, (v) => {
+        cond.left = v;
+        ctx.onChange();
+      }),
+      formRow(
+        "Operator",
+        operatorSelect(ctx.catalog.operators, cond.op, (v) => {
+          cond.op = v;
+          ctx.onChange();
+        })
+      ),
+      labelledValueField(
+        "Right",
+        String(cond.right ?? ""),
+        ctx,
+        (v) => {
+          cond.right = v;
+          ctx.onChange();
+        }
+      )
+    );
     return row;
+  }
+  function labelledValueField(label, initial, ctx, onInput) {
+    const wrap = el$1("div", { class: "wpdm-routines__form-row" });
+    const lab = el$1("label", { class: "wpdm-routines__form-label" });
+    lab.textContent = label;
+    wrap.append(lab);
+    const inputWrap = el$1("div", { class: "wpdm-routines__value-input" });
+    const input = textField(initial, onInput);
+    attachAutocomplete(input, () => suggestionsFor(ctx));
+    const picker = buildVarPickerButton(input, ctx);
+    inputWrap.append(input, picker);
+    wrap.append(inputWrap);
+    return wrap;
+  }
+  function buildVarPickerButton(input, ctx) {
+    const btn = el$1("button", {
+      class: "wpdm-routines__var-picker-btn",
+      type: "button",
+      title: "Pick a variable"
+    });
+    btn.textContent = "{x}";
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      openVarPickerPopover(btn, input, ctx);
+    });
+    return btn;
+  }
+  function openVarPickerPopover(anchor, input, ctx) {
+    document.querySelectorAll(".wpdm-routines__var-popover").forEach((n) => n.remove());
+    const list = suggestionsFor(ctx);
+    if (list.length === 0) {
+      return;
+    }
+    const pop = el$1("div", { class: "wpdm-routines__var-popover" });
+    const groups = /* @__PURE__ */ new Map();
+    const labels = {
+      payload: "Trigger payload",
+      vars: "Upstream step results",
+      site: "Site",
+      user: "User",
+      custom: "Other"
+    };
+    for (const s of list) {
+      const arr = groups.get(s.source) ?? [];
+      arr.push(s);
+      groups.set(s.source, arr);
+    }
+    const order = [
+      "payload",
+      "vars",
+      "site",
+      "user",
+      "custom"
+    ];
+    for (const key of order) {
+      const items = groups.get(key);
+      if (!items || items.length === 0) {
+        continue;
+      }
+      const heading = el$1("h5", { class: "wpdm-routines__var-popover-h" });
+      heading.textContent = labels[key];
+      pop.append(heading);
+      for (const s of items) {
+        const item = el$1("button", {
+          class: "wpdm-routines__var-popover-item",
+          type: "button"
+        });
+        const path = el$1("span", {
+          class: "wpdm-routines__var-popover-path"
+        });
+        path.textContent = s.path;
+        item.append(path);
+        if (s.type) {
+          const ty = el$1("span", {
+            class: "wpdm-routines__var-popover-type"
+          });
+          ty.textContent = s.type;
+          item.append(ty);
+        }
+        if (s.description) {
+          const desc = el$1("span", {
+            class: "wpdm-routines__var-popover-desc"
+          });
+          desc.textContent = s.description;
+          item.append(desc);
+        }
+        item.addEventListener("mouseenter", () => {
+          input.dispatchEvent(
+            new CustomEvent("wpdm-routines-highlight", {
+              bubbles: true,
+              detail: { source: s.path }
+            })
+          );
+        });
+        item.addEventListener("mouseleave", () => {
+          input.dispatchEvent(
+            new CustomEvent("wpdm-routines-highlight", {
+              bubbles: true,
+              detail: { source: null }
+            })
+          );
+        });
+        item.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          input.value = `{{${s.path}}}`;
+          input.dispatchEvent(
+            new Event("input", { bubbles: true })
+          );
+          close();
+          input.focus();
+        });
+        pop.append(item);
+      }
+    }
+    const ar = anchor.getBoundingClientRect();
+    pop.style.top = `${ar.bottom + 4}px`;
+    pop.style.left = `${ar.left}px`;
+    document.body.append(pop);
+    const close = () => {
+      pop.remove();
+      document.removeEventListener("pointerdown", onOutside, true);
+      document.removeEventListener("keydown", onKey);
+    };
+    const onOutside = (ev) => {
+      if (!pop.contains(ev.target)) {
+        close();
+      }
+    };
+    const onKey = (ev) => {
+      if (ev.key === "Escape") {
+        close();
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener("pointerdown", onOutside, true);
+      document.addEventListener("keydown", onKey);
+    }, 0);
   }
   function renderStepEditor(ctx, step) {
     const wrap = el$1("div", { class: "wpdm-routines__form" });
@@ -566,18 +712,11 @@
       step.condition = { left: "", op: "eq", right: "" };
     }
     const cond = step.condition;
-    const leftEl = textField(String(cond.left ?? ""), (v) => {
-      cond.left = v;
-      ctx.onChange();
-    });
-    attachAutocomplete(leftEl, () => suggestionsFor(ctx));
-    const rightEl = textField(String(cond.right ?? ""), (v) => {
-      cond.right = v;
-      ctx.onChange();
-    });
-    attachAutocomplete(rightEl, () => suggestionsFor(ctx));
     wrap.append(
-      formRow("Left", leftEl),
+      labelledValueField("Left", String(cond.left ?? ""), ctx, (v) => {
+        cond.left = v;
+        ctx.onChange();
+      }),
       formRow(
         "Operator",
         operatorSelect(ctx.catalog.operators, cond.op, (v) => {
@@ -585,7 +724,10 @@
           ctx.onChange();
         })
       ),
-      formRow("Right", rightEl),
+      labelledValueField("Right", String(cond.right ?? ""), ctx, (v) => {
+        cond.right = v;
+        ctx.onChange();
+      }),
       el$1("p", { class: "wpdm-routines__hint" }, [
         "Edit `then` and `else` branches by clicking their cards on the canvas."
       ])
@@ -1732,7 +1874,7 @@
         () => rerender(),
         host
       );
-      const addNode = renderAddStepButton(ctx, [], host, () => rerender());
+      const addNode = renderAddStepButton(ctx, [], host, () => rerender(), "root");
       cardLayer.append(addNode);
       const lastStepEntry = [...tracked].reverse().find((t) => t.kind === "step");
       tracked.push({
@@ -1914,13 +2056,18 @@
     node.addEventListener("click", onInspect);
     return node;
   }
-  function renderAddStepButton(ctx, pathPrefix, host, rerender) {
-    const node = el$1("div", { class: "wpdm-routines__add" });
+  function renderAddStepButton(ctx, pathPrefix, host, rerender, variant = "branch") {
+    const node = el$1("div", {
+      class: "wpdm-routines__add" + (variant === "root" ? " wpdm-routines__add--root" : "")
+    });
     const btn = el$1(
       "button",
-      { class: "wpdm-routines__add-btn", type: "button" }
+      {
+        class: "wpdm-routines__add-btn" + (variant === "root" ? " wpdm-routines__add-btn--root" : ""),
+        type: "button"
+      }
     );
-    btn.append("+ Add step");
+    btn.append(variant === "root" ? "+ Step after this" : "+ Add step");
     btn.addEventListener("click", async () => {
       const picked = await pickStep(host.parentElement || host, ctx.catalog);
       if (!picked) {

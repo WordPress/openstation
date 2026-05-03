@@ -210,33 +210,243 @@ function conditionRow(
 	ctx: InspectorContext,
 	onRemove: () => void,
 ): HTMLElement {
+	// Three-row layout (Left / Operator / Right) instead of one
+	// horizontal row — at 280–360px panel widths the squeezed
+	// horizontal version is cramped, and the vertical version
+	// gives space for the variable-picker button without crowding
+	// the value input.
 	const row = el( 'div', { class: 'wpdm-routines__condition' } );
-	const left = textField( String( cond.left ?? '' ), ( v ) => {
-		cond.left = v;
-		ctx.onChange();
-	} );
-	attachAutocomplete( left, () => suggestionsFor( ctx ) );
-	const opSel = operatorSelect( ctx.catalog.operators, cond.op, ( v ) => {
-		cond.op = v;
-		ctx.onChange();
-	} );
-	const right = textField( String( cond.right ?? '' ), ( v ) => {
-		cond.right = v;
-		ctx.onChange();
-	} );
-	attachAutocomplete( right, () => suggestionsFor( ctx ) );
+
 	const remove = el(
 		'button',
 		{
-			class: 'wpdm-routines__icon-btn',
+			class:
+				'wpdm-routines__icon-btn wpdm-routines__condition-remove',
 			type: 'button',
 			title: 'Remove condition',
 		},
 		[ '×' ],
 	);
 	remove.addEventListener( 'click', onRemove );
-	row.append( left, opSel, right, remove );
+	row.append( remove );
+
+	row.append(
+		labelledValueField( 'Left', String( cond.left ?? '' ), ctx, ( v ) => {
+			cond.left = v;
+			ctx.onChange();
+		} ),
+		formRow(
+			'Operator',
+			operatorSelect( ctx.catalog.operators, cond.op, ( v ) => {
+				cond.op = v;
+				ctx.onChange();
+			} ),
+		),
+		labelledValueField(
+			'Right',
+			String( cond.right ?? '' ),
+			ctx,
+			( v ) => {
+				cond.right = v;
+				ctx.onChange();
+			},
+		),
+	);
+
 	return row;
+}
+
+/**
+ * A value field with an inline "Variables" picker — the input
+ * accepts free-form text + `{{placeholder}}` syntax with caret-
+ * triggered autocomplete, but a button next to it opens a
+ * popover listing every available variable (payload paths,
+ * upstream step results, site/user globals) so users don't have
+ * to know about the `{{ }}` syntax to discover what's there.
+ *
+ * @internal
+ */
+function labelledValueField(
+	label: string,
+	initial: string,
+	ctx: InspectorContext,
+	onInput: ( v: string ) => void,
+): HTMLElement {
+	const wrap = el( 'div', { class: 'wpdm-routines__form-row' } );
+	const lab = el( 'label', { class: 'wpdm-routines__form-label' } );
+	lab.textContent = label;
+	wrap.append( lab );
+
+	const inputWrap = el( 'div', { class: 'wpdm-routines__value-input' } );
+	const input = textField( initial, onInput );
+	attachAutocomplete( input, () => suggestionsFor( ctx ) );
+	const picker = buildVarPickerButton( input, ctx );
+	inputWrap.append( input, picker );
+	wrap.append( inputWrap );
+	return wrap;
+}
+
+/**
+ * "{x}" button that opens a popover of every available variable.
+ * Replaces the input value with `{{path}}` on selection — most
+ * condition operands are single placeholders, so a full replace
+ * is the right default. (For mixed text the user can still
+ * type `{{` directly to invoke the inline autocomplete and
+ * insert at the caret instead.)
+ *
+ * @internal
+ */
+function buildVarPickerButton(
+	input: HTMLInputElement,
+	ctx: InspectorContext,
+): HTMLButtonElement {
+	const btn = el( 'button', {
+		class: 'wpdm-routines__var-picker-btn',
+		type: 'button',
+		title: 'Pick a variable',
+	} ) as HTMLButtonElement;
+	btn.textContent = '{x}';
+	btn.addEventListener( 'click', ( ev ) => {
+		ev.preventDefault();
+		ev.stopPropagation();
+		openVarPickerPopover( btn, input, ctx );
+	} );
+	return btn;
+}
+
+/**
+ * Render a popover anchored to `anchor`, listing every
+ * suggestion grouped by source. Click an entry → replace the
+ * input's value with `{{path}}` and dispatch `input` so the
+ * routine def updates. Clicking outside closes.
+ *
+ * @internal
+ */
+function openVarPickerPopover(
+	anchor: HTMLElement,
+	input: HTMLInputElement,
+	ctx: InspectorContext,
+): void {
+	// Single popover at a time — close any existing first.
+	document
+		.querySelectorAll( '.wpdm-routines__var-popover' )
+		.forEach( ( n ) => n.remove() );
+
+	const list = suggestionsFor( ctx );
+	if ( list.length === 0 ) {
+		return;
+	}
+
+	const pop = el( 'div', { class: 'wpdm-routines__var-popover' } );
+	const groups = new Map< string, typeof list >();
+	const labels: Record< string, string > = {
+		payload: 'Trigger payload',
+		vars: 'Upstream step results',
+		site: 'Site',
+		user: 'User',
+		custom: 'Other',
+	};
+	for ( const s of list ) {
+		const arr = groups.get( s.source ) ?? [];
+		arr.push( s );
+		groups.set( s.source, arr );
+	}
+	const order: Array< keyof typeof labels > = [
+		'payload',
+		'vars',
+		'site',
+		'user',
+		'custom',
+	];
+	for ( const key of order ) {
+		const items = groups.get( key );
+		if ( ! items || items.length === 0 ) {
+			continue;
+		}
+		const heading = el( 'h5', { class: 'wpdm-routines__var-popover-h' } );
+		heading.textContent = labels[ key ];
+		pop.append( heading );
+		for ( const s of items ) {
+			const item = el( 'button', {
+				class: 'wpdm-routines__var-popover-item',
+				type: 'button',
+			} );
+			const path = el( 'span', {
+				class: 'wpdm-routines__var-popover-path',
+			} );
+			path.textContent = s.path;
+			item.append( path );
+			if ( s.type ) {
+				const ty = el( 'span', {
+					class: 'wpdm-routines__var-popover-type',
+				} );
+				ty.textContent = s.type;
+				item.append( ty );
+			}
+			if ( s.description ) {
+				const desc = el( 'span', {
+					class: 'wpdm-routines__var-popover-desc',
+				} );
+				desc.textContent = s.description;
+				item.append( desc );
+			}
+			// Hover-to-trace — same as autocomplete: glow the
+			// source card on the canvas.
+			item.addEventListener( 'mouseenter', () => {
+				input.dispatchEvent(
+					new CustomEvent( 'wpdm-routines-highlight', {
+						bubbles: true,
+						detail: { source: s.path },
+					} ),
+				);
+			} );
+			item.addEventListener( 'mouseleave', () => {
+				input.dispatchEvent(
+					new CustomEvent( 'wpdm-routines-highlight', {
+						bubbles: true,
+						detail: { source: null },
+					} ),
+				);
+			} );
+			item.addEventListener( 'click', ( ev ) => {
+				ev.preventDefault();
+				input.value = `{{${ s.path }}}`;
+				input.dispatchEvent(
+					new Event( 'input', { bubbles: true } ),
+				);
+				close();
+				input.focus();
+			} );
+			pop.append( item );
+		}
+	}
+
+	const ar = anchor.getBoundingClientRect();
+	pop.style.top = `${ ar.bottom + 4 }px`;
+	pop.style.left = `${ ar.left }px`;
+	document.body.append( pop );
+
+	const close = (): void => {
+		pop.remove();
+		document.removeEventListener( 'pointerdown', onOutside, true );
+		document.removeEventListener( 'keydown', onKey );
+	};
+	const onOutside = ( ev: PointerEvent ): void => {
+		if ( ! pop.contains( ev.target as Node ) ) {
+			close();
+		}
+	};
+	const onKey = ( ev: KeyboardEvent ): void => {
+		if ( ev.key === 'Escape' ) {
+			close();
+		}
+	};
+	// Defer adding the outside listener so the click that opened
+	// the popover doesn't immediately close it.
+	setTimeout( () => {
+		document.addEventListener( 'pointerdown', onOutside, true );
+		document.addEventListener( 'keydown', onKey );
+	}, 0 );
 }
 
 // ---- Step editors ----------------------------------------------------
@@ -458,18 +668,11 @@ function ifFields( ctx: InspectorContext, step: RoutineStep ): HTMLElement {
 		step.condition = { left: '', op: 'eq', right: '' };
 	}
 	const cond = step.condition;
-	const leftEl = textField( String( cond.left ?? '' ), ( v ) => {
-		cond.left = v;
-		ctx.onChange();
-	} );
-	attachAutocomplete( leftEl, () => suggestionsFor( ctx ) );
-	const rightEl = textField( String( cond.right ?? '' ), ( v ) => {
-		cond.right = v;
-		ctx.onChange();
-	} );
-	attachAutocomplete( rightEl, () => suggestionsFor( ctx ) );
 	wrap.append(
-		formRow( 'Left', leftEl ),
+		labelledValueField( 'Left', String( cond.left ?? '' ), ctx, ( v ) => {
+			cond.left = v;
+			ctx.onChange();
+		} ),
 		formRow(
 			'Operator',
 			operatorSelect( ctx.catalog.operators, cond.op, ( v ) => {
@@ -477,7 +680,10 @@ function ifFields( ctx: InspectorContext, step: RoutineStep ): HTMLElement {
 				ctx.onChange();
 			} ),
 		),
-		formRow( 'Right', rightEl ),
+		labelledValueField( 'Right', String( cond.right ?? '' ), ctx, ( v ) => {
+			cond.right = v;
+			ctx.onChange();
+		} ),
 		el( 'p', { class: 'wpdm-routines__hint' }, [
 			'Edit `then` and `else` branches by clicking their cards on the canvas.',
 		] ),

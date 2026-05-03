@@ -235,7 +235,11 @@ export async function mountCanvas(
 		);
 
 		// Trailing "+ Add step" button.
-		const addNode = renderAddStepButton( ctx, [], host, () => rerender() );
+		// Root variant — visually distinct from per-branch
+		// "+ Add step" buttons inside an if. Adds a step at the
+		// outer flow level ("after the if finishes, then…"); the
+		// dotted divider + relabel make this unambiguous.
+		const addNode = renderAddStepButton( ctx, [], host, () => rerender(), 'root' );
 		cardLayer.append( addNode );
 		const lastStepEntry = [ ...tracked ]
 			.reverse()
@@ -522,13 +526,25 @@ function renderAddStepButton(
 	pathPrefix: number[],
 	host: HTMLElement,
 	rerender: () => void,
+	variant: 'root' | 'branch' = 'branch',
 ): HTMLElement {
-	const node = el( 'div', { class: 'wpdm-routines__add' } );
+	const node = el( 'div', {
+		class:
+			'wpdm-routines__add' +
+			( variant === 'root' ? ' wpdm-routines__add--root' : '' ),
+	} );
 	const btn = el(
 		'button',
-		{ class: 'wpdm-routines__add-btn', type: 'button' },
+		{
+			class:
+				'wpdm-routines__add-btn' +
+				( variant === 'root'
+					? ' wpdm-routines__add-btn--root'
+					: '' ),
+			type: 'button',
+		},
 	);
-	btn.append( '+ Add step' );
+	btn.append( variant === 'root' ? '+ Step after this' : '+ Add step' );
 	btn.addEventListener( 'click', async () => {
 		const picked = await pickStep( host.parentElement || host, ctx.catalog );
 		if ( ! picked ) {

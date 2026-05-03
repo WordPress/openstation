@@ -848,6 +848,28 @@
 	flex: 0 0 auto;
 }
 
+/* Root-level "+ Step after this" — visually separated from the
+   per-branch add-step buttons inside an `if` block by a dotted
+   divider above it. Makes it unambiguous that this button adds
+   a step at the OUTER flow level, not inside a branch. */
+.wpdm-routines__add--root {
+	width: 200px;
+	padding-top: 18px;
+	border-top: 1px dashed var( --wpd-window-border, #c3c4c7 );
+}
+
+.wpdm-routines__add-btn--root {
+	background: rgba( 34, 113, 177, 0.06 );
+	border-color: rgba( 34, 113, 177, 0.4 );
+	color: var( --wpd-accent, #2271b1 );
+}
+
+.wpdm-routines__add-btn--root:hover {
+	background: var( --wpd-accent, #2271b1 );
+	border-color: var( --wpd-accent, #2271b1 );
+	color: #fff;
+}
+
 .wpdm-routines__add-btn {
 	width: 100%;
 	padding: 8px 12px;
@@ -1062,11 +1084,113 @@
 	border-radius: 3px;
 }
 
+/* Condition row — three stacked sections (Left / Operator / Right)
+   instead of one cramped horizontal row. The remove button floats
+   in the top-right corner. */
 .wpdm-routines__condition {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	background: #f6f7f7;
+	border-radius: 8px;
+}
+
+.wpdm-routines__condition-remove {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+}
+
+.wpdm-routines__value-input {
+	display: flex;
+	gap: 4px;
+	align-items: stretch;
+}
+
+.wpdm-routines__value-input .wpdm-routines__input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.wpdm-routines__var-picker-btn {
+	flex: 0 0 auto;
+	padding: 0 10px;
+	border-radius: 6px;
+	border: 1px solid var( --wpd-window-border, #c3c4c7 );
+	background: #fff;
+	font-family: ui-monospace, monospace;
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --wpd-accent, #2271b1 );
+	cursor: pointer;
+}
+
+.wpdm-routines__var-picker-btn:hover {
+	background: var( --wpd-accent, #2271b1 );
+	color: #fff;
+}
+
+/* Variable picker popover — appended to body so it floats above
+   every other layer (canvas, inspector, modal). */
+.wpdm-routines__var-popover {
+	position: fixed;
+	z-index: 1000;
+	min-width: 280px;
+	max-width: 360px;
+	max-height: 360px;
+	overflow-y: auto;
+	background: #fff;
+	border: 1px solid var( --wpd-window-border, #d4d4d8 );
+	border-radius: 10px;
+	box-shadow: 0 16px 36px rgba( 0, 0, 0, 0.18 );
+	padding: 6px;
+}
+
+.wpdm-routines__var-popover-h {
+	margin: 6px 8px 4px 8px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #50575e;
+}
+
+.wpdm-routines__var-popover-item {
 	display: grid;
-	grid-template-columns: 1fr auto 1fr auto;
-	gap: 6px;
-	align-items: center;
+	grid-template-columns: 1fr auto;
+	gap: 6px 8px;
+	width: 100%;
+	padding: 6px 10px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	text-align: start;
+	cursor: pointer;
+	font-size: 12px;
+	color: #1d2327;
+}
+
+.wpdm-routines__var-popover-item:hover {
+	background: rgba( 34, 113, 177, 0.08 );
+}
+
+.wpdm-routines__var-popover-path {
+	font-family: ui-monospace, monospace;
+	font-weight: 600;
+}
+
+.wpdm-routines__var-popover-type {
+	font-family: ui-monospace, monospace;
+	font-size: 10px;
+	color: #50575e;
+}
+
+.wpdm-routines__var-popover-desc {
+	grid-column: 1 / -1;
+	font-size: 11px;
+	color: #50575e;
 }
 
 .wpdm-routines__hint {
