@@ -8,24 +8,36 @@
  * @since 0.22.0
  */
 
+/* The native-window body element is a flex CHILD of the window
+   chrome (`.wp-desktop-window__body { flex: 1 }`) — it has a real
+   height. But it's not a flex CONTAINER itself, so its child's
+   `height: 100%` resolves against `auto` content-height, not
+   against that real flex-allocated height. OS Settings hits the
+   same trap and solves it by switching the body to a flex column
+   when its content is present; we do the same.
+
+   Without this rule, every layout fix downstream (root grid row
+   tracks, editor grid 1fr, view-body flex chain) is fighting
+   against a parent that doesn't actually pass its height
+   through — the JSON textarea and the canvas both collapse to
+   their content. */
+.wp-desktop-window__body:has( .wpdm-routines ),
+.wp-desktop-window__body--native:has( .wpdm-routines ) {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
 .wpdm-routines {
 	display: grid;
 	grid-template-columns: 280px 1fr;
-	/* `grid-template-rows: 1fr` is the load-bearing piece —
-	   without it the implicit row is `auto` and sizes to the
-	   children's content height, not the container's. The
-	   container itself has `height: 100%` from the native
-	   window, but with `auto` rows that height is wasted: rows
-	   take what they need and any 1fr row INSIDE a child grid
-	   has no parent height to inherit. Visible symptom: the
-	   editor collapses to its content; the JSON textarea (deep
-	   in a flex chain) starts at rows=2 because every ancestor
-	   in turn had `height: 100%` resolving against an undefined
-	   parent. Setting `1fr` here makes the row fill the
-	   container; that height propagates through main → editor →
-	   pane → view-body → textarea, all the way down. */
 	grid-template-rows: 1fr;
-	height: 100%;
+	/* `flex: 1 1 auto` (paired with the body rule above) gives
+	   us the actual window height to grid against. The previous
+	   `height: 100%` resolved to `auto` because the body wasn't
+	   a flex container — `auto` content-height was the only
+	   thing 100% could refer to. */
+	flex: 1 1 auto;
 	min-height: 0;
 	background: var( --wpd-window-bg, #fff );
 	color: var( --wpd-window-fg, #1d2327 );
