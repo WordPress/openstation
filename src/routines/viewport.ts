@@ -120,49 +120,82 @@ export function mountViewport( host: HTMLElement ): ViewportHandle {
 	};
 
 	const fitToContent = (): void => {
-		// Measure at zoom=1, then compute the scale that fits the
-		// content into the viewport with a small margin. We have
-		// to reset BOTH `zoom` and `transform` on the content
-		// before measuring — otherwise `getBoundingClientRect()`
-		// returns the previously-zoomed dimensions and the fit
-		// calculation drifts (the symptom: clicking Fit jumps to a
-		// different "wrong" percentage every time, never settles).
+		// Measure at zoom=1 — reset BOTH `zoom` AND `transform` and
+		// force a layout flush before reading. Without this the
+		// post-zoom dimensions feed back in and the fit ratio
+		// drifts on every click.
 		content.style.zoom = '1';
 		content.style.transform = '';
-		// Force layout — the next read picks up the post-reset
-		// dimensions, not a stale layout cache.
 		void content.offsetHeight;
 
-		// Use `scrollWidth/Height` on the cards container, NOT
-		// `getBoundingClientRect()` on `content`. The cardLayer is
-		// the actual content extent; `content` itself can have
-		// extra layout (padding, position context) that throws the
-		// fit math off.
-		const cards = content.querySelector< HTMLElement >(
-			'.wpdm-routines__cards',
+		// Don't measure `cards.scrollWidth` — the cards container
+		// is a flex column with `align-items: center` so it always
+		// fills the viewport width, even when the visible cards
+		// are 280px wide. Measuring the container makes X
+		// centering a no-op.
+		//
+		// Instead: walk every visible card / branch-head / add
+		// button and compute their TIGHT bounding box in content-
+		// local space. Center on THAT box.
+		const cardEls = content.querySelectorAll< HTMLElement >(
+			'.wpdm-routines__card, .wpdm-routines__branch-head, .wpdm-routines__add',
 		);
-		const naturalW = cards?.scrollWidth || content.scrollWidth || 1;
-		const naturalH = cards?.scrollHeight || content.scrollHeight || 1;
+		if ( cardEls.length === 0 ) {
+			resetView();
+			return;
+		}
+
+		const contentRect = content.getBoundingClientRect();
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		cardEls.forEach( ( elNode ) => {
+			const r = elNode.getBoundingClientRect();
+			const x = r.left - contentRect.left;
+			const y = r.top - contentRect.top;
+			if ( x < minX ) {
+				minX = x;
+			}
+			if ( y < minY ) {
+				minY = y;
+			}
+			if ( x + r.width > maxX ) {
+				maxX = x + r.width;
+			}
+			if ( y + r.height > maxY ) {
+				maxY = y + r.height;
+			}
+		} );
+		if ( ! Number.isFinite( minX ) ) {
+			resetView();
+			return;
+		}
+
+		const bboxW = maxX - minX;
+		const bboxH = maxY - minY;
+		const bboxCx = ( minX + maxX ) / 2;
+		const bboxCy = ( minY + maxY ) / 2;
 
 		const rootRect = root.getBoundingClientRect();
 		const margin = 24;
-		const fitX = ( rootRect.width - margin * 2 ) / naturalW;
-		const fitY = ( rootRect.height - margin * 2 ) / naturalH;
-
-		// Don't auto-zoom past 100% — Fit means "show me everything",
-		// not "magnify a tiny routine to fill the window".
+		const fitX = ( rootRect.width - margin * 2 ) / bboxW;
+		const fitY = ( rootRect.height - margin * 2 ) / bboxH;
+		// Don't auto-zoom past 100% — Fit means "show everything",
+		// not "magnify a small routine to fill the canvas".
 		const fit = Math.max(
 			MIN_ZOOM,
 			Math.min( 1, Math.min( fitX, fitY ) ),
 		);
 		state.zoom = fit;
 
-		// Centre the (now-zoomed) content in the viewport.
-		const scaledW = naturalW * fit;
-		const scaledH = naturalH * fit;
+		// Centre the bbox CENTRE on the viewport centre.
+		// Screen position of a content-local point (px, py):
+		//   screen = pan + zoom * point
+		// We want: pan + fit * bboxC = rootRect / 2
 		state.pan = {
-			x: ( rootRect.width - scaledW ) / 2,
-			y: ( rootRect.height - scaledH ) / 2,
+			x: rootRect.width / 2 - fit * bboxCx,
+			y: rootRect.height / 2 - fit * bboxCy,
 		};
 		apply();
 	};

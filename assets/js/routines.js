@@ -1468,25 +1468,55 @@
       content.style.zoom = "1";
       content.style.transform = "";
       void content.offsetHeight;
-      const cards = content.querySelector(
-        ".wpdm-routines__cards"
+      const cardEls = content.querySelectorAll(
+        ".wpdm-routines__card, .wpdm-routines__branch-head, .wpdm-routines__add"
       );
-      const naturalW = cards?.scrollWidth || content.scrollWidth || 1;
-      const naturalH = cards?.scrollHeight || content.scrollHeight || 1;
+      if (cardEls.length === 0) {
+        resetView();
+        return;
+      }
+      const contentRect = content.getBoundingClientRect();
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      cardEls.forEach((elNode) => {
+        const r = elNode.getBoundingClientRect();
+        const x = r.left - contentRect.left;
+        const y = r.top - contentRect.top;
+        if (x < minX) {
+          minX = x;
+        }
+        if (y < minY) {
+          minY = y;
+        }
+        if (x + r.width > maxX) {
+          maxX = x + r.width;
+        }
+        if (y + r.height > maxY) {
+          maxY = y + r.height;
+        }
+      });
+      if (!Number.isFinite(minX)) {
+        resetView();
+        return;
+      }
+      const bboxW = maxX - minX;
+      const bboxH = maxY - minY;
+      const bboxCx = (minX + maxX) / 2;
+      const bboxCy = (minY + maxY) / 2;
       const rootRect = root.getBoundingClientRect();
       const margin = 24;
-      const fitX = (rootRect.width - margin * 2) / naturalW;
-      const fitY = (rootRect.height - margin * 2) / naturalH;
+      const fitX = (rootRect.width - margin * 2) / bboxW;
+      const fitY = (rootRect.height - margin * 2) / bboxH;
       const fit = Math.max(
         MIN_ZOOM,
         Math.min(1, Math.min(fitX, fitY))
       );
       state2.zoom = fit;
-      const scaledW = naturalW * fit;
-      const scaledH = naturalH * fit;
       state2.pan = {
-        x: (rootRect.width - scaledW) / 2,
-        y: (rootRect.height - scaledH) / 2
+        x: rootRect.width / 2 - fit * bboxCx,
+        y: rootRect.height / 2 - fit * bboxCy
       };
       apply();
     };
