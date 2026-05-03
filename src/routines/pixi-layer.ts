@@ -100,10 +100,25 @@ export async function mountPixiLayer(
 		autoDensity: true,
 		width: Math.max( 1, host.clientWidth ),
 		height: Math.max( 1, host.clientHeight ),
+		// Disable Pixi's EventSystem entirely — the layer is purely
+		// presentational. Without this, Pixi v8 attaches pointer +
+		// wheel listeners to the canvas (and document) that swallow
+		// drag-to-move, click-to-focus, and double-click-to-maximize
+		// gestures the host Desktop window relies on.
+		eventMode: 'none',
+		eventFeatures: {
+			move: false,
+			globalMove: false,
+			click: false,
+			wheel: false,
+		},
 	} );
+	app.stage.eventMode = 'none';
+	app.stage.interactiveChildren = false;
+
 	const canvas = app.canvas as HTMLCanvasElement;
 	canvas.style.cssText =
-		'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+		'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none;';
 	host.prepend( canvas );
 
 	const bg = new PIXI.Graphics();

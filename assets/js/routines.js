@@ -784,10 +784,24 @@
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
       width: Math.max(1, host.clientWidth),
-      height: Math.max(1, host.clientHeight)
+      height: Math.max(1, host.clientHeight),
+      // Disable Pixi's EventSystem entirely — the layer is purely
+      // presentational. Without this, Pixi v8 attaches pointer +
+      // wheel listeners to the canvas (and document) that swallow
+      // drag-to-move, click-to-focus, and double-click-to-maximize
+      // gestures the host Desktop window relies on.
+      eventMode: "none",
+      eventFeatures: {
+        move: false,
+        globalMove: false,
+        click: false,
+        wheel: false
+      }
     });
+    app.stage.eventMode = "none";
+    app.stage.interactiveChildren = false;
     const canvas = app.canvas;
-    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;";
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none;";
     host.prepend(canvas);
     const bg = new PIXI.Graphics();
     const connectors = new PIXI.Graphics();
@@ -1436,19 +1450,24 @@
     }
     const cardLayer = el$1("div", { class: "wpdm-routines__cards" });
     stage.append(cardLayer);
+    const placeAndMeasure = (node, x, y, width) => {
+      node.style.left = `${x}px`;
+      node.style.top = `${y}px`;
+      if (width) {
+        node.style.width = `${width}px`;
+      }
+      cardLayer.append(node);
+      return node.offsetHeight || 0;
+    };
     const rerender = () => {
       cardLayer.replaceChildren();
       const anchors = [];
-      const stageRect = { width: stage.clientWidth || 720, height: 0 };
-      const centerX = (stageRect.width - CARD_WIDTH) / 2;
+      const stageWidth = stage.clientWidth || 720;
+      const centerX = (stageWidth - CARD_WIDTH) / 2;
       let y = SECTION_GAP_Y;
-      const triggerEntry = renderTriggerCard(
+      const triggerNode = renderTriggerCard(
         ctx,
-        centerX,
-        y,
-        () => {
-          setInspector({ kind: "trigger" });
-        },
+        () => setInspector({ kind: "trigger" }),
         async () => {
           const picked = await pickTrigger(host, ctx.catalog);
           if (picked) {
@@ -1460,34 +1479,32 @@
           }
         }
       );
-      cardLayer.append(triggerEntry.node);
+      const triggerHeight = placeAndMeasure(triggerNode, centerX, y, CARD_WIDTH);
       anchors.push({
         id: "trigger",
         x: centerX,
         y,
         width: CARD_WIDTH,
-        height: triggerEntry.height,
+        height: triggerHeight,
         kind: "trigger",
         state: "idle"
       });
-      y += triggerEntry.height + SECTION_GAP_Y;
-      const condEntry = renderConditionsCard(
+      y += triggerHeight + SECTION_GAP_Y;
+      const condNode = renderConditionsCard(
         ctx,
-        centerX,
-        y,
         () => setInspector({ kind: "condition" })
       );
-      cardLayer.append(condEntry.node);
+      const condHeight = placeAndMeasure(condNode, centerX, y, CARD_WIDTH);
       anchors.push({
         id: "conditions",
         x: centerX,
         y,
         width: CARD_WIDTH,
-        height: condEntry.height,
+        height: condHeight,
         kind: "conditions",
         parentId: "trigger"
       });
-      y += condEntry.height + SECTION_GAP_Y;
+      y += condHeight + SECTION_GAP_Y;
       const stepWalk = walkSteps(
         ctx,
         ctx.def.steps,
@@ -1497,34 +1514,46 @@
         "conditions",
         cardLayer,
         anchors,
-        setInspector
+        setInspector,
+        placeAndMeasure,
+        () => rerender(),
+        host
       );
       y = stepWalk.y;
-      const addNode = renderAddStepButton(ctx, centerX, y, [], cardLayer, () => rerender());
-      cardLayer.append(addNode.node);
+      const addNode = renderAddStepButton(
+        ctx,
+        [],
+        host,
+        () => rerender()
+      );
+      const addX = centerX + CARD_WIDTH / 2 - 80;
+      const addHeight = placeAndMeasure(addNode, addX, y, 160);
       anchors.push({
         id: "add-root",
-        x: centerX + CARD_WIDTH / 2 - 80,
+        x: addX,
         y,
         width: 160,
-        height: addNode.height,
+        height: addHeight,
         kind: "add",
         parentId: previousAnchorId(anchors)
       });
-      y += addNode.height + SECTION_GAP_Y;
-      stageRect.height = y + 20;
-      stage.style.minHeight = `${stageRect.height}px`;
-      cardLayer.style.height = `${stageRect.height}px`;
-      pixi?.resize(stageRect.width, stageRect.height);
+      y += addHeight + SECTION_GAP_Y;
+      const totalHeight = y + 20;
+      stage.style.minHeight = `${totalHeight}px`;
+      cardLayer.style.height = `${totalHeight}px`;
+      pixi?.resize(stageWidth, totalHeight);
       pixi?.setAnchors(anchors);
     };
     rerender();
-    host.addEventListener("wpdm-routines-rerender", () => rerender());
+    let lastWidth = stage.clientWidth || 720;
     const ro = new ResizeObserver(() => {
       const w = stage.clientWidth || 720;
       const h = parseInt(stage.style.minHeight || "0", 10) || stage.clientHeight;
       pixi?.resize(w, h);
-      rerender();
+      if (w !== lastWidth) {
+        lastWidth = w;
+        rerender();
+      }
     });
     ro.observe(stage);
     return {
@@ -1546,14 +1575,13 @@
       }
     };
   }
-  function renderTriggerCard(ctx, x, y, onInspect, onChange) {
+  function renderTriggerCard(ctx, onInspect, onChange) {
     const declared = ctx.catalog.triggers.find(
       (t) => t.id === ctx.def.trigger.id
     );
     const node = el$1("article", {
       class: "wpdm-routines__card wpdm-routines__card--trigger"
     });
-    positionCard(node, x, y);
     const head = el$1("header", { class: "wpdm-routines__card-head" });
     const icon = el$1("span", {
       class: `dashicons ${declared?.icon || "dashicons-flag"}`
@@ -1592,18 +1620,14 @@
     bar.append(editBtn, changeBtn);
     node.append(bar);
     node.addEventListener("click", onInspect);
-    const height = estimateCardHeight(declared?.label ? 1 : 1);
-    return { node, height };
+    return node;
   }
-  function renderConditionsCard(ctx, x, y, onInspect) {
+  function renderConditionsCard(ctx, onInspect) {
     const node = el$1("article", {
       class: "wpdm-routines__card wpdm-routines__card--conditions"
     });
-    positionCard(node, x, y);
     const head = el$1("header", { class: "wpdm-routines__card-head" });
-    const icon = el$1("span", {
-      class: "dashicons dashicons-filter"
-    });
+    const icon = el$1("span", { class: "dashicons dashicons-filter" });
     icon.setAttribute("aria-hidden", "true");
     const titleWrap = el$1("div", { class: "wpdm-routines__card-title-wrap" });
     const eyebrow = el$1("span", { class: "wpdm-routines__card-eyebrow" });
@@ -1625,13 +1649,10 @@
       node.append(list);
     }
     node.addEventListener("click", onInspect);
-    const height = estimateCardHeight(1 + ctx.def.conditions.length * 0.5);
-    return { node, height };
+    return node;
   }
-  function renderAddStepButton(ctx, x, y, pathPrefix, host, rerender) {
+  function renderAddStepButton(ctx, pathPrefix, host, rerender) {
     const node = el$1("div", { class: "wpdm-routines__add" });
-    const cx = x + CARD_WIDTH / 2 - 80;
-    node.style.cssText = `left:${cx}px;top:${y}px;width:160px;`;
     const btn = el$1(
       "button",
       { class: "wpdm-routines__add-btn", type: "button" }
@@ -1658,14 +1679,13 @@
       rerender();
     });
     node.append(btn);
-    return { node, height: 44 };
+    return node;
   }
-  function renderStepCard(ctx, step, path, x, y, onInspect, rerender) {
+  function renderStepCard(ctx, step, path, onInspect, rerender) {
     const node = el$1("article", {
       class: `wpdm-routines__card wpdm-routines__card--step wpdm-routines__card--${step.kind}`,
       dataset: { stepId: step.id || "" }
     });
-    positionCard(node, x, y);
     const head = el$1("header", { class: "wpdm-routines__card-head" });
     const icon = el$1("span", { class: `dashicons ${iconFor(step)}` });
     icon.setAttribute("aria-hidden", "true");
@@ -1708,147 +1728,126 @@
       "click",
       () => onInspect({ kind: "step", stepPath: path, step })
     );
-    const height = estimateCardHeight(
-      summary ? 1.5 : 1,
-      step.kind === "if" ? 1.4 : 1
-    );
-    return { node, height };
+    return node;
   }
-  function walkSteps(ctx, steps, pathPrefix, centerX, startY, parentAnchor, host, anchors, setInspector) {
+  function walkSteps(ctx, steps, pathPrefix, centerX, startY, parentAnchor, cardLayer, anchors, setInspector, place, rerender, host) {
     let y = startY;
     let prev = parentAnchor;
     steps.forEach((step, i) => {
       const path = [...pathPrefix, i];
       const stepAnchorId = `step-${pathToString(path)}`;
-      const card = renderStepCard(
-        ctx,
-        step,
-        path,
-        centerX,
-        y,
-        setInspector,
-        () => walkRebuild(ctx, host)
-      );
-      host.append(card.node);
+      const node = renderStepCard(ctx, step, path, setInspector, rerender);
+      const h = place(node, centerX, y, CARD_WIDTH);
       anchors.push({
         id: stepAnchorId,
         x: centerX,
         y,
         width: CARD_WIDTH,
-        height: card.height,
+        height: h,
         kind: "step",
         parentId: prev
       });
-      y += card.height + CARD_GAP_Y;
+      y += h + CARD_GAP_Y;
       prev = stepAnchorId;
       if (step.kind === "if") {
         const halfWidth = CARD_WIDTH;
         const thenX = centerX - halfWidth / 2 - BRANCH_GAP_X / 2;
         const elseX = centerX + halfWidth / 2 + BRANCH_GAP_X / 2;
-        const thenHead = renderBranchHeader(
-          "then",
-          thenX,
-          y
-        );
-        host.append(thenHead.node);
+        const thenHead = renderBranchHeader("then");
+        const thenHeadH = place(thenHead, thenX, y, CARD_WIDTH);
         const thenAnchor = `${stepAnchorId}-then`;
         anchors.push({
           id: thenAnchor,
           x: thenX,
           y,
           width: CARD_WIDTH,
-          height: thenHead.height,
+          height: thenHeadH,
           kind: "branch-then",
           parentId: stepAnchorId
         });
-        const elseHead = renderBranchHeader("else", elseX, y);
-        host.append(elseHead.node);
+        const elseHead = renderBranchHeader("else");
+        const elseHeadH = place(elseHead, elseX, y, CARD_WIDTH);
         const elseAnchor = `${stepAnchorId}-else`;
         anchors.push({
           id: elseAnchor,
           x: elseX,
           y,
           width: CARD_WIDTH,
-          height: elseHead.height,
+          height: elseHeadH,
           kind: "branch-else",
           parentId: stepAnchorId
         });
-        const yThen = y + thenHead.height + CARD_GAP_Y;
-        const yElse = y + elseHead.height + CARD_GAP_Y;
+        const yThen = y + thenHeadH + CARD_GAP_Y;
+        const yElse = y + elseHeadH + CARD_GAP_Y;
         const thenWalk = walkSteps(
           ctx,
           step.then ?? [],
-          [
-            ...path,
-            /* sentinel for `then` */
-            -1
-          ],
+          [...path, -1],
           thenX,
           yThen,
           thenAnchor,
-          host,
+          cardLayer,
           anchors,
-          setInspector
+          setInspector,
+          place,
+          rerender,
+          host
         );
         const elseWalk = walkSteps(
           ctx,
           step.else ?? [],
-          [
-            ...path,
-            /* sentinel for `else` */
-            -2
-          ],
+          [...path, -2],
           elseX,
           yElse,
           elseAnchor,
-          host,
+          cardLayer,
           anchors,
-          setInspector
+          setInspector,
+          place,
+          rerender,
+          host
         );
         const addThen = renderAddStepButton(
           ctx,
-          thenX,
-          thenWalk.y,
           [...path, -1],
           host,
-          () => walkRebuild(ctx, host)
+          rerender
         );
-        host.append(addThen.node);
+        const addThenH = place(
+          addThen,
+          thenX + CARD_WIDTH / 2 - 80,
+          thenWalk.y,
+          160
+        );
         const addElse = renderAddStepButton(
           ctx,
-          elseX,
-          elseWalk.y,
           [...path, -2],
           host,
-          () => walkRebuild(ctx, host)
+          rerender
         );
-        host.append(addElse.node);
-        y = Math.max(thenWalk.y, elseWalk.y) + addThen.height + SECTION_GAP_Y;
+        const addElseH = place(
+          addElse,
+          elseX + CARD_WIDTH / 2 - 80,
+          elseWalk.y,
+          160
+        );
+        y = Math.max(
+          thenWalk.y + addThenH,
+          elseWalk.y + addElseH
+        ) + SECTION_GAP_Y;
         prev = stepAnchorId;
       }
     });
     return { y };
   }
-  function walkRebuild(ctx, host) {
-    host.dispatchEvent(
-      new CustomEvent("wpdm-routines-rerender", { bubbles: true })
-    );
-  }
-  function renderBranchHeader(kind, x, y) {
+  function renderBranchHeader(kind) {
     const node = el$1("div", {
       class: `wpdm-routines__branch-head wpdm-routines__branch-head--${kind}`
     });
-    positionCard(node, x, y);
     const label = el$1("span", { class: "wpdm-routines__branch-label" });
     label.textContent = kind.toUpperCase();
     node.append(label);
-    return { node, height: 36 };
-  }
-  function positionCard(node, x, y) {
-    node.style.cssText = `left:${x}px;top:${y}px;width:${CARD_WIDTH}px;`;
-  }
-  function estimateCardHeight(textLines, multiplier = 1) {
-    return Math.round(96 + (textLines - 1) * 22 + (multiplier - 1) * 28);
+    return node;
   }
   function iconFor(step) {
     switch (step.kind) {
