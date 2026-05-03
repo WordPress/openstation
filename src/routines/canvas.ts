@@ -11,10 +11,18 @@
  *     drifting dot grid, and the run-time animation (a packet of
  *     light tracing the flow with particle bursts on each step).
  *
- * Layout is top-down by index. `if` steps split into a two-column
- * indented sub-pipeline (then / else). Cards are absolutely
- * positioned so Pixi can read their geometry from the same DOMRect
- * the browser uses — no double-source-of-truth.
+ * Layout: cards live in NORMAL FLOW inside a flexbox column. The
+ * browser handles every height / spacing concern; we never hand-
+ * compute y coordinates. Branches are a flexbox row of two columns
+ * inside the if-step's container — `then` and `else` are themselves
+ * flex columns. After each rerender we make a single
+ * `getBoundingClientRect()` pass to feed Pixi the real screen
+ * positions in stage-local coordinates.
+ *
+ * Why no absolute positioning: the previous attempt (estimate, then
+ * measure-and-place) overlapped cards as soon as content grew (a
+ * third meta line, a long title, a custom template). Flex flow is
+ * bulletproof against any of that.
  *
  * @since 0.22.0
  */
@@ -44,11 +52,6 @@ export interface CanvasContext {
 		steps_log: RoutineRun[ 'steps_log' ];
 	} | null >;
 }
-
-const CARD_WIDTH = 280;
-const CARD_GAP_Y = 28;
-const SECTION_GAP_Y = 36;
-const BRANCH_GAP_X = 36;
 
 /**
  * Mount a canvas inside `host`. Returns a handle the editor uses to
@@ -119,44 +122,54 @@ export async function mountCanvas(
 	const cardLayer = el( 'div', { class: 'wpdm-routines__cards' } );
 	stage.append( cardLayer );
 
-	/**
-	 * Append `node` at `(x, y)`, force layout to settle, then read
-	 * the rendered height back. The returned height is the SOURCE
-	 * OF TRUTH the next-card layout uses — never trust the
-	 * estimate that came back from the renderer.
-	 *
-	 * Reading `offsetHeight` is a synchronous layout flush. We do
-	 * that intentionally because the next card's `top` depends on
-	 * the previous card's actual rendered size, and there's no
-	 * cheaper way to get a real number.
-	 */
-	const placeAndMeasure = (
-		node: HTMLElement,
-		x: number,
-		y: number,
-		width: number,
-	): number => {
-		node.style.left = `${ x }px`;
-		node.style.top = `${ y }px`;
-		if ( width ) {
-			node.style.width = `${ width }px`;
-		}
-		cardLayer.append( node );
-		// Force layout. Triggers a single reflow per card, which is
-		// fine for the typical routine size (<50 cards). If this
-		// becomes a bottleneck the fix is two-pass layout: append all
-		// in flow mode, batch-measure with `getBoundingClientRect`,
-		// then flip to absolute.
-		return node.offsetHeight || 0;
-	};
+	// Shared anchor list — written by `rerender()`, re-read by the
+	// ResizeObserver to avoid a full structural rebuild on every
+	// resize event. Same array reference, different bounding rects
+	// each tick.
+	let trackedAnchors: Array< {
+		id: string;
+		el: HTMLElement;
+		kind: CardAnchor[ 'kind' ];
+		parentId?: string;
+	} > = [];
 
+	/**
+	 * Layout strategy: STOP HAND-COMPUTING COORDINATES.
+	 *
+	 * Earlier passes tried to estimate or measure card heights and
+	 * absolutely position each card at a hand-computed `(x, y)`.
+	 * Both ways were brittle — estimates lied, measurements
+	 * occasionally returned 0 or stale values during web-component
+	 * upgrade, and any change to padding / line-wrap / shadow
+	 * silently broke the math.
+	 *
+	 * Phase 2 final approach: cards live in NORMAL FLOW inside a
+	 * flexbox column. The browser does what it's good at — laying
+	 * content out top-to-bottom with no overlap, ever. After every
+	 * rerender we read each card's `getBoundingClientRect()` once
+	 * and feed those coordinates (in stage-local space) to the
+	 * Pixi layer for connector + halo drawing.
+	 *
+	 * Branches are a flexbox row with two columns; the `then` and
+	 * `else` step lists are themselves flex columns inside. CSS
+	 * handles every height / spacing concern.
+	 *
+	 * Result: cards never overlap regardless of content. Adding a
+	 * meta line, growing a title, swapping a built-in for a custom
+	 * template — all flow naturally.
+	 */
 	const rerender = (): void => {
 		cardLayer.replaceChildren();
-		const anchors: CardAnchor[] = [];
-		const stageWidth = stage.clientWidth || 720;
-		const centerX = ( stageWidth - CARD_WIDTH ) / 2;
 
-		let y = SECTION_GAP_Y;
+		// Tracks the ordered list of anchored elements so we can do
+		// a single `getBoundingClientRect()` pass after the DOM has
+		// settled and feed Pixi authoritative coordinates.
+		const tracked: Array< {
+			id: string;
+			el: HTMLElement;
+			kind: CardAnchor[ 'kind' ];
+			parentId?: string;
+		} > = [];
 
 		// Trigger card.
 		const triggerNode = renderTriggerCard(
@@ -173,101 +186,83 @@ export async function mountCanvas(
 				}
 			},
 		);
-		const triggerHeight = placeAndMeasure( triggerNode, centerX, y, CARD_WIDTH );
-		anchors.push( {
-			id: 'trigger',
-			x: centerX,
-			y,
-			width: CARD_WIDTH,
-			height: triggerHeight,
-			kind: 'trigger',
-			state: 'idle',
-		} );
-		y += triggerHeight + SECTION_GAP_Y;
+		cardLayer.append( triggerNode );
+		tracked.push( { id: 'trigger', el: triggerNode, kind: 'trigger' } );
 
 		// Conditions gate.
 		const condNode = renderConditionsCard( ctx, () =>
 			setInspector( { kind: 'condition' } ),
 		);
-		const condHeight = placeAndMeasure( condNode, centerX, y, CARD_WIDTH );
-		anchors.push( {
+		cardLayer.append( condNode );
+		tracked.push( {
 			id: 'conditions',
-			x: centerX,
-			y,
-			width: CARD_WIDTH,
-			height: condHeight,
+			el: condNode,
 			kind: 'conditions',
 			parentId: 'trigger',
 		} );
-		y += condHeight + SECTION_GAP_Y;
 
-		// Steps — recursive walk for if-branches. Receives the same
-		// `placeAndMeasure` so every nested card also uses real
-		// rendered heights instead of estimates.
-		const stepWalk = walkSteps(
+		// Steps — recursive walk handles if/then/else as nested flex
+		// rows. The walker appends into whichever container the
+		// caller passes (root cardLayer, or a branch column).
+		walkSteps(
 			ctx,
 			ctx.def.steps,
 			[],
-			centerX,
-			y,
 			'conditions',
 			cardLayer,
-			anchors,
+			tracked,
 			setInspector,
-			placeAndMeasure,
 			() => rerender(),
 			host,
 		);
-		y = stepWalk.y;
 
 		// Trailing "+ Add step" button.
-		const addNode = renderAddStepButton(
-			ctx,
-			[],
-			host,
-			() => rerender(),
-		);
-		const addX = centerX + CARD_WIDTH / 2 - 80;
-		const addHeight = placeAndMeasure( addNode, addX, y, 160 );
-		anchors.push( {
+		const addNode = renderAddStepButton( ctx, [], host, () => rerender() );
+		cardLayer.append( addNode );
+		const lastStepEntry = [ ...tracked ]
+			.reverse()
+			.find( ( t ) => t.kind === 'step' );
+		tracked.push( {
 			id: 'add-root',
-			x: addX,
-			y,
-			width: 160,
-			height: addHeight,
+			el: addNode,
 			kind: 'add',
-			parentId: previousAnchorId( anchors ),
+			parentId: lastStepEntry?.id ?? 'conditions',
 		} );
-		y += addHeight + SECTION_GAP_Y;
 
-		const totalHeight = y + 20;
-		stage.style.minHeight = `${ totalHeight }px`;
-		cardLayer.style.height = `${ totalHeight }px`;
+		// Hand the tracked list off to the ResizeObserver path so it
+		// can refresh anchor positions on resize without rebuilding.
+		trackedAnchors = tracked;
 
-		pixi?.resize( stageWidth, totalHeight );
+		pushAnchorsToPixi();
+	};
+
+	const pushAnchorsToPixi = (): void => {
+		const stageRect = stage.getBoundingClientRect();
+		const anchors: CardAnchor[] = trackedAnchors.map( ( t ) => {
+			const r = t.el.getBoundingClientRect();
+			return {
+				id: t.id,
+				x: r.left - stageRect.left,
+				y: r.top - stageRect.top,
+				width: r.width,
+				height: r.height,
+				kind: t.kind,
+				parentId: t.parentId,
+				state: 'idle',
+			};
+		} );
+		pixi?.resize( stageRect.width, cardLayer.scrollHeight );
 		pixi?.setAnchors( anchors );
 	};
 
 	rerender();
 
-	// ResizeObserver is the source of the "all windows broken"
-	// regression. `rerender()` mutates `stage.style.minHeight`,
-	// which mutates the observed element's size, which fires the
-	// observer, which calls rerender again — infinite loop blocking
-	// the main thread, every other window in the shell can't
-	// receive clicks. The fix: only rerender when the WIDTH changes
-	// (centring depends on it). Height changes are self-driven and
-	// don't need a re-layout.
-	let lastWidth = stage.clientWidth || 720;
+	// ResizeObserver re-reads anchor positions when the host size
+	// changes (window maximize / split / mobile rotation). The DOM
+	// tree hasn't changed — only positions — so we don't rerender;
+	// we just push fresh bounding rects to Pixi.
 	const ro = new ResizeObserver( () => {
-		const w = stage.clientWidth || 720;
-		const h =
-			parseInt( stage.style.minHeight || '0', 10 ) || stage.clientHeight;
-		pixi?.resize( w, h );
-		if ( w !== lastWidth ) {
-			lastWidth = w;
-			rerender();
-		}
+		pushAnchorsToPixi();
 	} );
 	ro.observe( stage );
 
@@ -493,153 +488,115 @@ function renderStepCard(
 
 // ---- Walker ----------------------------------------------------------
 
-interface WalkResult {
-	y: number;
+interface Tracked {
+	id: string;
+	el: HTMLElement;
+	kind: CardAnchor[ 'kind' ];
+	parentId?: string;
 }
-
-type PlaceFn = (
-	node: HTMLElement,
-	x: number,
-	y: number,
-	width: number,
-) => number;
 
 function walkSteps(
 	ctx: CanvasContext,
 	steps: RoutineStep[],
 	pathPrefix: number[],
-	centerX: number,
-	startY: number,
 	parentAnchor: string,
-	cardLayer: HTMLElement,
-	anchors: CardAnchor[],
-	setInspector: ( t: InspectorTarget ) => void,
-	place: PlaceFn,
-	rerender: () => void,
 	host: HTMLElement,
-): WalkResult {
-	let y = startY;
+	tracked: Tracked[],
+	setInspector: ( t: InspectorTarget ) => void,
+	rerender: () => void,
+	rootHost: HTMLElement,
+): void {
 	let prev = parentAnchor;
 
 	steps.forEach( ( step, i ) => {
 		const path = [ ...pathPrefix, i ];
 		const stepAnchorId = `step-${ pathToString( path ) }`;
 		const node = renderStepCard( ctx, step, path, setInspector, rerender );
-		const h = place( node, centerX, y, CARD_WIDTH );
-		anchors.push( {
+		host.append( node );
+		tracked.push( {
 			id: stepAnchorId,
-			x: centerX,
-			y,
-			width: CARD_WIDTH,
-			height: h,
+			el: node,
 			kind: 'step',
 			parentId: prev,
 		} );
-		y += h + CARD_GAP_Y;
 		prev = stepAnchorId;
 
 		if ( step.kind === 'if' ) {
-			// Two columns under the if card. Branch headers + their
-			// own indented step lists with `+ Add step` buttons.
-			const halfWidth = CARD_WIDTH;
-			const thenX = centerX - halfWidth / 2 - BRANCH_GAP_X / 2;
-			const elseX = centerX + halfWidth / 2 + BRANCH_GAP_X / 2;
+			// Branches container: a flex row holding two columns.
+			// CSS handles spacing + responsive wrapping.
+			const branchesRow = el( 'div', {
+				class: 'wpdm-routines__branches',
+			} );
+			host.append( branchesRow );
 
-			const thenHead = renderBranchHeader( 'then' );
-			const thenHeadH = place( thenHead, thenX, y, CARD_WIDTH );
+			const thenCol = el( 'div', {
+				class: 'wpdm-routines__branch-col',
+			} );
 			const thenAnchor = `${ stepAnchorId }-then`;
-			anchors.push( {
+			const thenHead = renderBranchHeader( 'then' );
+			thenCol.append( thenHead );
+			tracked.push( {
 				id: thenAnchor,
-				x: thenX,
-				y,
-				width: CARD_WIDTH,
-				height: thenHeadH,
+				el: thenHead,
 				kind: 'branch-then',
 				parentId: stepAnchorId,
 			} );
-
-			const elseHead = renderBranchHeader( 'else' );
-			const elseHeadH = place( elseHead, elseX, y, CARD_WIDTH );
-			const elseAnchor = `${ stepAnchorId }-else`;
-			anchors.push( {
-				id: elseAnchor,
-				x: elseX,
-				y,
-				width: CARD_WIDTH,
-				height: elseHeadH,
-				kind: 'branch-else',
-				parentId: stepAnchorId,
-			} );
-
-			const yThen = y + thenHeadH + CARD_GAP_Y;
-			const yElse = y + elseHeadH + CARD_GAP_Y;
-
-			const thenWalk = walkSteps(
+			walkSteps(
 				ctx,
 				step.then ?? [],
 				[ ...path, -1 ],
-				thenX,
-				yThen,
 				thenAnchor,
-				cardLayer,
-				anchors,
+				thenCol,
+				tracked,
 				setInspector,
-				place,
 				rerender,
-				host,
+				rootHost,
 			);
-			const elseWalk = walkSteps(
-				ctx,
-				step.else ?? [],
-				[ ...path, -2 ],
-				elseX,
-				yElse,
-				elseAnchor,
-				cardLayer,
-				anchors,
-				setInspector,
-				place,
-				rerender,
-				host,
-			);
-
 			const addThen = renderAddStepButton(
 				ctx,
 				[ ...path, -1 ],
-				host,
+				rootHost,
 				rerender,
 			);
-			const addThenH = place(
-				addThen,
-				thenX + CARD_WIDTH / 2 - 80,
-				thenWalk.y,
-				160,
+			thenCol.append( addThen );
+
+			const elseCol = el( 'div', {
+				class: 'wpdm-routines__branch-col',
+			} );
+			const elseAnchor = `${ stepAnchorId }-else`;
+			const elseHead = renderBranchHeader( 'else' );
+			elseCol.append( elseHead );
+			tracked.push( {
+				id: elseAnchor,
+				el: elseHead,
+				kind: 'branch-else',
+				parentId: stepAnchorId,
+			} );
+			walkSteps(
+				ctx,
+				step.else ?? [],
+				[ ...path, -2 ],
+				elseAnchor,
+				elseCol,
+				tracked,
+				setInspector,
+				rerender,
+				rootHost,
 			);
 			const addElse = renderAddStepButton(
 				ctx,
 				[ ...path, -2 ],
-				host,
+				rootHost,
 				rerender,
 			);
-			const addElseH = place(
-				addElse,
-				elseX + CARD_WIDTH / 2 - 80,
-				elseWalk.y,
-				160,
-			);
+			elseCol.append( addElse );
 
-			y =
-				Math.max(
-					thenWalk.y + addThenH,
-					elseWalk.y + addElseH,
-				) + SECTION_GAP_Y;
+			branchesRow.append( thenCol, elseCol );
 			// After a branch, the next step's parent is the if-card
-			// itself (the branches are visually inside the if).
+			// itself (branches are visually nested inside the if).
 			prev = stepAnchorId;
 		}
 	} );
-
-	return { y };
 }
 
 function renderBranchHeader( kind: 'then' | 'else' ): HTMLElement {
@@ -803,15 +760,6 @@ function pathToString( path: number[] ): string {
 			return String( n );
 		} )
 		.join( '.' );
-}
-
-function previousAnchorId( anchors: CardAnchor[] ): string {
-	for ( let i = anchors.length - 1; i >= 0; i-- ) {
-		if ( anchors[ i ].kind !== 'add' ) {
-			return anchors[ i ].id;
-		}
-	}
-	return 'trigger';
 }
 
 function findStepIndexById(
