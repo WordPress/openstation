@@ -2220,7 +2220,7 @@
         );
         elseCol.append(addElse);
         branchesRow.append(thenCol, elseCol);
-        prev = stepAnchorId;
+        prev = "";
       }
     });
   }

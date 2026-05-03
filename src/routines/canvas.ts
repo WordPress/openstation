@@ -734,9 +734,19 @@ function walkSteps(
 			elseCol.append( addElse );
 
 			branchesRow.append( thenCol, elseCol );
-			// After a branch, the next step's parent is the if-card
-			// itself (branches are visually nested inside the if).
-			prev = stepAnchorId;
+			// After a branch, the next step has NO direct connector
+			// to the if-step. Drawing one routes a bezier through
+			// the gutter between THEN and ELSE columns and reads
+			// as a phantom third path — the user reasonably reports
+			// "why does my if-then-else have three routes?"
+			//
+			// The vertical flex flow already implies "this happens
+			// after the if finishes"; the connector layer doesn't
+			// need to repeat that, and *not* drawing it removes the
+			// false middle path entirely. Convergence cues (small
+			// inward arcs from each branch's tail toward the next
+			// step) render in the Pixi layer when needed.
+			prev = '';
 		}
 	} );
 }
