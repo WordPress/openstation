@@ -212,9 +212,17 @@ function wpdm_routine_walk_steps( $steps, &$context, &$log, $dry_run, $settings 
 			$right = wpdm_routine_resolve( $cond['right'], $context );
 			$pass  = wpdm_routine_compare( $left, $cond['op'], $right );
 			$entry['branch'] = $pass ? 'then' : 'else';
-			$result = wpdm_routine_walk_steps( $pass ? $step['then'] : $step['else'], $context, $log, $dry_run, $settings );
-			$entry['ms'] = (int) round( ( microtime( true ) - $t0 ) * 1000 );
-			$log[]       = $entry;
+			// Push the `if` entry FIRST so the log reads in
+			// chronological execution order — "if went to then,
+			// then set_var ran" rather than "set_var ran (where
+			// from?), then we discovered it was the then branch
+			// of an if". The total `ms` (including children) is
+			// patched in via index after the recursive walk
+			// finishes.
+			$log[]    = $entry;
+			$if_index = count( $log ) - 1;
+			$result   = wpdm_routine_walk_steps( $pass ? $step['then'] : $step['else'], $context, $log, $dry_run, $settings );
+			$log[ $if_index ]['ms'] = (int) round( ( microtime( true ) - $t0 ) * 1000 );
 			if ( is_wp_error( $result ) ) {
 				if ( ! empty( $settings['stop_on_error'] ) ) {
 					return $result;

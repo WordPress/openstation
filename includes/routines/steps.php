@@ -282,8 +282,19 @@ function wpdm_routine_step_log( $args, $context ) {
 	$level   = (string) ( $args['level'] ?? 'info' );
 	$message = (string) ( $args['message'] ?? '' );
 	$prefix  = sprintf( '[wpdm-routine #%d] ', (int) ( $context['routine_id'] ?? 0 ) );
-	// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-	error_log( $prefix . strtoupper( $level ) . ': ' . $message );
+
+	// Suppress the actual error_log write inside the WP test
+	// suite — every routine `log` step otherwise leaks a line to
+	// stderr and pollutes the test runner's output. The step
+	// still returns its payload so the executor's per-step log
+	// captures the message; we just don't double-write it to
+	// the PHP log when no human will read it.
+	$running_in_wp_tests = ( defined( 'WP_TESTS_DOMAIN' ) || defined( 'WP_RUN_CORE_TESTS' ) );
+	if ( ! $running_in_wp_tests ) {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( $prefix . strtoupper( $level ) . ': ' . $message );
+	}
+
 	return array( 'level' => $level, 'message' => $message );
 }
 
