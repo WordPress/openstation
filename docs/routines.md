@@ -1,6 +1,6 @@
 # Routines — visual automation for WordPress
 
-> **Status:** Phase 1 (Stable engine + JSON editor UI). Visual canvas, Record Mode, Listen Mode, and AI "Describe it" land in Phase 2/3.
+> **Status:** Phase 2 (Stable engine, visual canvas + JSON editor, trigger picker, payload-aware variable autocomplete). Record Mode, Listen Mode, and AI "Describe it" land in Phase 3.
 
 Routines are the Desktop Mode answer to *"when X happens on my site, do Y"*. A trigger fires (a comment is posted, a post is published, a custom hook from your plugin), an optional condition gate evaluates, and a chain of typed steps runs.
 
@@ -242,8 +242,38 @@ wp_register_desktop_routine_template( array(
 
 ---
 
+## Visual canvas (Phase 2)
+
+The window opens to a vertical pipeline: trigger card at the top, a conditions gate below, then steps in execution order. `if` steps split into two indented sub-pipelines (then / else) with colour-coded headers. Click any card to open the inspector on the right; click empty rail to dismiss.
+
+The canvas is **hybrid-rendered**:
+
+- **DOM** holds the cards, inputs, textareas, focus ring, and a11y. Form controls have to be native — no compromises on keyboard nav or screen readers.
+- **PixiJS** (loaded lazily from `assets/vendor/pixi.min.js`) draws the connectors, pulsing halos, the drifting dot grid, and the run-flow animation. The library mounts a `<canvas>` underneath the cards; reads anchor positions from the DOM after each rerender; redraws at 60fps.
+
+When the user hits **Test (dry-run)** or **Run now**, a packet of light traces the connector flow from the trigger card through every executed step in sequence, lighting each card with a colour-coded burst (blue→success, red→failure). The animation is tied to the actual step log returned by the engine — the order, the timing, and the success/failure state are all real.
+
+### Variable autocomplete
+
+Every text field that can interpolate placeholders (step args, condition operands, email body, …) carries an inline autocomplete popover. Type `{{` and the suggestion list appears with:
+
+- **`payload.*`** — every key declared in the trigger's `payload_schema` (defaulting to `payload.arg0..argN` when undeclared).
+- **`vars.<step.id>`** — every upstream step's id, available for chaining.
+- **`site.url`, `site.name`, `user.id`** — globals always in scope.
+
+Arrow keys + Tab/Enter pick a suggestion; Escape dismisses.
+
+### JSON escape hatch
+
+A **Visual / JSON** toggle in the editor header swaps the canvas for a JSON textarea. Both modes mutate the same in-memory definition; switching from JSON back to Visual parses the textarea on the way through. Power users can copy/paste a routine definition directly without ever opening the canvas.
+
+### Trigger picker
+
+Tabbed dialog: **Common** (declared triggers grouped by plugin), **By plugin** (third-party-only), **Hook search** (any WordPress action by name + priority), **Broadcast** (cross-window topic listener). The picker covers every reachable trigger in the system; declared triggers get friendly labels and payload schemas, undeclared hooks fall back to positional payload binding without losing functionality.
+
+---
+
 ## Roadmap
 
-- **Phase 2** — visual canvas (drag-drop step cards), trigger picker with Common / By-plugin tabs, variable autocomplete, payload schema introspection, Action Scheduler integration for long-running and scheduled routines.
-- **Phase 3** — Record Mode, Listen Mode, AI "Describe it", dry-run canary ("would have fired N times"), run replay.
+- **Phase 3** — Record Mode, Listen Mode, AI "Describe it", dry-run canary ("would have fired N times"), run replay, drag-to-reorder steps, Action Scheduler integration for long-running and scheduled routines.
 - **Phase 4** — webhook trigger (HMAC-signed REST endpoint), templates gallery + JSON import/export, sub-routines.

@@ -17,7 +17,9 @@
  */
 /* eslint-disable no-alert */
 
+import { mountCanvas, type CanvasHandle } from './canvas';
 import {
+	cfg,
 	createRoutine,
 	deleteRoutine,
 	fetchCatalog,
@@ -38,6 +40,8 @@ import type {
 	RoutineRun,
 	Template,
 } from './types';
+
+type ViewMode = 'visual' | 'json';
 
 const ROOT = '[data-wpdm-routines-root]';
 const LIST = '[data-wpdm-routines-list]';
@@ -201,7 +205,13 @@ function renderEditor( body: HTMLElement ): void {
 function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 	const panel = el( 'section', { class: 'wpdm-routines__editor' } );
 
-	// Header — title, enabled toggle, action buttons.
+	// `currentDef` is the source of truth the canvas mutates and the
+	// JSON editor parses into. Switching modes serialises one
+	// direction; saves persist whichever is currently active.
+	let viewMode: ViewMode = 'visual';
+	let canvasHandle: CanvasHandle | null = null;
+
+	// Header — title, enabled toggle, view-mode toggle.
 	const header = el( 'header', { class: 'wpdm-routines__editor-header' } );
 
 	const titleField = el( 'input', {
@@ -228,26 +238,94 @@ function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 	} );
 	enabledLabel.append( enabledInput, document.createTextNode( ' Enabled' ) );
 
-	header.append( titleField, enabledLabel );
+	const viewToggle = el( 'div', { class: 'wpdm-routines__view-toggle' } );
+	const visualBtn = el( 'button', {
+		class: 'wpdm-routines__view-btn is-active',
+		type: 'button',
+	}, [ 'Visual' ] );
+	const jsonBtn = el( 'button', {
+		class: 'wpdm-routines__view-btn',
+		type: 'button',
+	}, [ 'JSON' ] );
+	viewToggle.append( visualBtn, jsonBtn );
 
-	// JSON editor body.
-	const editorWrap = el( 'div', { class: 'wpdm-routines__json-wrap' } );
-	const editorLabel = el(
-		'label',
-		{ class: 'wpdm-routines__json-label' },
-		[ 'Definition (JSON)' ],
-	);
-	const editor = el( 'textarea', {
+	header.append( titleField, enabledLabel, viewToggle );
+
+	// View body — swapped between canvas and JSON textarea.
+	const viewBody = el( 'div', { class: 'wpdm-routines__view-body' } );
+	const validation = el( 'p', { class: 'wpdm-routines__validation' } );
+	const out = el( 'div', { class: 'wpdm-routines__output' } );
+
+	// JSON textarea — created once, kept as backing source for the
+	// JSON view. The canvas mutates `routine.def` directly so we
+	// re-serialise on every Visual→JSON switch.
+	const jsonEditor = el( 'textarea', {
 		class: 'wpdm-routines__json',
 		spellcheck: false,
 	} ) as HTMLTextAreaElement;
-	editor.value = JSON.stringify( routine.def, null, 2 );
-	editor.addEventListener( 'input', () => {
+	jsonEditor.value = JSON.stringify( routine.def, null, 2 );
+	jsonEditor.addEventListener( 'input', () => {
 		state.dirty = true;
 	} );
-	editorWrap.append( editorLabel, editor );
 
-	const validation = el( 'p', { class: 'wpdm-routines__validation' } );
+	const renderView = (): void => {
+		viewBody.replaceChildren();
+		canvasHandle?.destroy();
+		canvasHandle = null;
+		if ( viewMode === 'visual' ) {
+			void mountCanvas( viewBody, {
+				def: routine.def,
+				catalog: state.catalog!,
+				pluginUrl: cfg().pluginUrl,
+				onChange: () => {
+					state.dirty = true;
+					// Keep the JSON view in sync if the user flips back.
+					jsonEditor.value = JSON.stringify( routine.def, null, 2 );
+				},
+				onTest: async () => null, // canvas is presentational; test happens via the action bar
+			} ).then( ( h ) => {
+				canvasHandle = h;
+			} );
+		} else {
+			const wrap = el( 'div', { class: 'wpdm-routines__json-wrap' } );
+			wrap.append(
+				el(
+					'label',
+					{ class: 'wpdm-routines__json-label' },
+					[ 'Definition (JSON)' ],
+				),
+				jsonEditor,
+			);
+			viewBody.append( wrap );
+		}
+	};
+
+	visualBtn.addEventListener( 'click', () => {
+		if ( viewMode === 'visual' ) {
+			return;
+		}
+		// Parse JSON into routine.def so the canvas opens with the
+		// user's edits.
+		const parsed = parseJson( jsonEditor.value, validation );
+		if ( ! parsed ) {
+			return;
+		}
+		routine.def = parsed as RoutineDef;
+		viewMode = 'visual';
+		visualBtn.classList.add( 'is-active' );
+		jsonBtn.classList.remove( 'is-active' );
+		renderView();
+	} );
+	jsonBtn.addEventListener( 'click', () => {
+		if ( viewMode === 'json' ) {
+			return;
+		}
+		jsonEditor.value = JSON.stringify( routine.def, null, 2 );
+		viewMode = 'json';
+		jsonBtn.classList.add( 'is-active' );
+		visualBtn.classList.remove( 'is-active' );
+		renderView();
+	} );
 
 	// Action bar.
 	const bar = el( 'div', { class: 'wpdm-routines__action-bar' } );
@@ -269,23 +347,38 @@ function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 	}, [ 'Delete' ] );
 	bar.append( saveBtn, testBtn, runBtn, deleteBtn );
 
-	const out = el( 'div', { class: 'wpdm-routines__output' } );
-
 	// Run history.
 	const history = el( 'section', { class: 'wpdm-routines__history' } );
 	const historyTitle = el( 'h4', {}, [ 'Recent runs' ] );
 	const historyList = el( 'div', { class: 'wpdm-routines__history-list' } );
 	history.append( historyTitle, historyList );
 
+	/**
+	 * Sync the in-memory `routine.def` from whichever editor is
+	 * currently visible, so subsequent Save / Test / Run all share
+	 * one source of truth. Returns false (with a validation error
+	 * shown) when JSON mode contains malformed input.
+	 */
+	const syncDefFromEditor = (): boolean => {
+		if ( viewMode === 'json' ) {
+			const parsed = parseJson( jsonEditor.value, validation );
+			if ( ! parsed ) {
+				return false;
+			}
+			routine.def = parsed as RoutineDef;
+		}
+		// Visual mode mutates routine.def directly via canvas.onChange.
+		return true;
+	};
+
 	saveBtn.addEventListener( 'click', async () => {
-		const def = parseJson( editor.value, validation );
-		if ( ! def ) {
+		if ( ! syncDefFromEditor() ) {
 			return;
 		}
 		try {
 			const updated = await updateRoutine( routine.id, {
 				title: titleField.value,
-				def: def as RoutineDef,
+				def: routine.def,
 			} );
 			Object.assign( routine, updated );
 			state.dirty = false;
@@ -300,23 +393,21 @@ function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 	} );
 
 	testBtn.addEventListener( 'click', async () => {
-		const def = parseJson( editor.value, validation );
-		if ( ! def ) {
+		if ( ! syncDefFromEditor() ) {
 			return;
 		}
-		// Build a sample payload from the catalog if available.
 		const trig = state.catalog?.triggers.find(
-			( t ) => t.id === ( def as RoutineDef ).trigger.id,
+			( t ) => t.id === routine.def.trigger.id,
 		);
 		const payload = trig?.sample_payload ?? {};
 		try {
-			// First save (so test runs against the editor's content).
 			await updateRoutine( routine.id, {
 				title: titleField.value,
-				def: def as RoutineDef,
+				def: routine.def,
 			} );
 			const result = await testRoutine( routine.id, payload );
 			renderRunResult( out, result );
+			canvasHandle?.playRun( result.steps_log );
 		} catch ( err ) {
 			out.textContent = describeError( err );
 		}
@@ -337,6 +428,7 @@ function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 		try {
 			const result = await runRoutine( routine.id, payload );
 			renderRunResult( out, result );
+			canvasHandle?.playRun( result.steps_log );
 			void refreshHistory( routine.id, historyList );
 		} catch ( err ) {
 			out.textContent = describeError( err );
@@ -361,7 +453,8 @@ function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 		}
 	} );
 
-	panel.append( header, editorWrap, validation, bar, out, history );
+	panel.append( header, viewBody, validation, bar, out, history );
+	renderView();
 
 	void refreshHistory( routine.id, historyList );
 

@@ -1,5 +1,2027 @@
 (function() {
   "use strict";
+  function el$1(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    const { class: className, dataset, ...rest } = props;
+    if (className) {
+      node.className = className;
+    }
+    if (dataset) {
+      for (const [k, v] of Object.entries(dataset)) {
+        node.dataset[k] = v;
+      }
+    }
+    Object.assign(node, rest);
+    for (const child of children) {
+      node.append(child);
+    }
+    return node;
+  }
+  function openModal(body, title) {
+    const overlay = el$1("div", { class: "wpdm-routines__modal" });
+    const card = el$1("div", { class: "wpdm-routines__modal-card" });
+    const heading = el$1("h3", { class: "wpdm-routines__modal-heading" });
+    heading.textContent = title;
+    card.append(heading);
+    overlay.append(card);
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+    };
+    const onKey = (ev) => {
+      if (ev.key === "Escape") {
+        close();
+      }
+    };
+    overlay.addEventListener("click", (ev) => {
+      if (ev.target === overlay) {
+        close();
+      }
+    });
+    document.addEventListener("keydown", onKey);
+    body.append(overlay);
+    return { card, close };
+  }
+  function groupBy(items, key) {
+    const out = /* @__PURE__ */ new Map();
+    for (const item of items) {
+      const raw = item[String(key)];
+      const k = String(raw ?? "") || "—";
+      const bucket = out.get(k);
+      if (bucket) {
+        bucket.push(item);
+      } else {
+        out.set(k, [item]);
+      }
+    }
+    return out;
+  }
+  function attachAutocomplete(input, suggestionsOf) {
+    const state2 = {
+      popover: null,
+      highlight: 0,
+      suggestions: []
+    };
+    const close = () => {
+      state2.popover?.remove();
+      state2.popover = null;
+      state2.highlight = 0;
+      state2.suggestions = [];
+    };
+    const open = () => {
+      const ctx = activeContext(input);
+      if (!ctx) {
+        close();
+        return;
+      }
+      const all = suggestionsOf();
+      const q = ctx.query.toLowerCase();
+      const filtered = all.filter((s) => {
+        if (!q) {
+          return true;
+        }
+        return s.path.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
+      });
+      state2.suggestions = filtered.slice(0, 12);
+      state2.highlight = 0;
+      render(input, state2, (s) => insert(input, ctx, s, close));
+    };
+    input.addEventListener("input", open);
+    input.addEventListener("click", open);
+    input.addEventListener("keyup", (ev) => {
+      const k = ev.key;
+      if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(k)) {
+        open();
+      }
+    });
+    input.addEventListener("keydown", (e) => {
+      const ev = e;
+      if (!state2.popover || state2.suggestions.length === 0) {
+        return;
+      }
+      if (ev.key === "ArrowDown") {
+        ev.preventDefault();
+        state2.highlight = (state2.highlight + 1) % state2.suggestions.length;
+        repaint(state2);
+      } else if (ev.key === "ArrowUp") {
+        ev.preventDefault();
+        state2.highlight = (state2.highlight - 1 + state2.suggestions.length) % state2.suggestions.length;
+        repaint(state2);
+      } else if (ev.key === "Enter" || ev.key === "Tab") {
+        ev.preventDefault();
+        const ctx = activeContext(input);
+        const pick = state2.suggestions[state2.highlight];
+        if (ctx && pick) {
+          insert(input, ctx, pick, close);
+        }
+      } else if (ev.key === "Escape") {
+        ev.preventDefault();
+        close();
+      }
+    });
+    input.addEventListener("blur", () => {
+      window.setTimeout(close, 120);
+    });
+  }
+  function activeContext(input) {
+    const value = input.value;
+    const caret = input.selectionStart ?? value.length;
+    const before = value.slice(0, caret);
+    const lastOpen = before.lastIndexOf("{{");
+    if (lastOpen < 0) {
+      return null;
+    }
+    const lastClose = before.lastIndexOf("}}");
+    if (lastClose > lastOpen) {
+      return null;
+    }
+    const query = before.slice(lastOpen + 2).replace(/^\s+/, "");
+    const after = value.slice(caret);
+    const closeIdx = after.indexOf("}}");
+    const tokenEnd = closeIdx >= 0 ? caret + closeIdx + 2 : caret;
+    return { tokenStart: lastOpen, tokenEnd, query };
+  }
+  function render(input, state2, pickHandler) {
+    if (state2.suggestions.length === 0) {
+      state2.popover?.remove();
+      state2.popover = null;
+      return;
+    }
+    if (!state2.popover) {
+      state2.popover = el$1("ul", { class: "wpdm-routines__ac" });
+      input.parentElement?.append(state2.popover);
+    }
+    state2.popover.replaceChildren();
+    state2.suggestions.forEach((s, i) => {
+      const li = el$1("li", {
+        class: "wpdm-routines__ac-item" + (i === state2.highlight ? " is-active" : "")
+      });
+      const path = el$1("span", { class: "wpdm-routines__ac-path" });
+      path.textContent = s.path;
+      const type = el$1("span", { class: "wpdm-routines__ac-type" });
+      type.textContent = s.type;
+      li.append(path, type);
+      if (s.description) {
+        const desc = el$1("span", { class: "wpdm-routines__ac-desc" });
+        desc.textContent = s.description;
+        li.append(desc);
+      }
+      li.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();
+        pickHandler(s);
+      });
+      state2.popover.append(li);
+    });
+  }
+  function repaint(state2) {
+    if (!state2.popover) {
+      return;
+    }
+    const items = state2.popover.children;
+    for (let i = 0; i < items.length; i++) {
+      items[i].classList.toggle("is-active", i === state2.highlight);
+    }
+  }
+  function insert(input, ctx, pick, close) {
+    const before = input.value.slice(0, ctx.tokenStart);
+    const after = input.value.slice(ctx.tokenEnd);
+    const inserted = `{{${pick.path}}}`;
+    input.value = before + inserted + after;
+    const caret = before.length + inserted.length;
+    input.setSelectionRange(caret, caret);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    close();
+    input.focus();
+  }
+  function renderInspector(ctx) {
+    const panel = el$1("aside", { class: "wpdm-routines__inspector" });
+    const header = el$1("header", { class: "wpdm-routines__inspector-head" });
+    const heading = el$1("h3", {});
+    const closeBtn = el$1("button", {
+      class: "wpdm-routines__icon-btn",
+      type: "button",
+      title: "Close"
+    });
+    closeBtn.textContent = "×";
+    closeBtn.addEventListener("click", ctx.onClose);
+    header.append(heading, closeBtn);
+    panel.append(header);
+    const body = el$1("div", { class: "wpdm-routines__inspector-body" });
+    panel.append(body);
+    if (ctx.target.kind === "trigger") {
+      heading.textContent = "Trigger";
+      body.append(renderTriggerEditor(ctx));
+    } else if (ctx.target.kind === "condition") {
+      heading.textContent = "Top-level condition";
+      body.append(renderConditionsEditor(ctx));
+    } else if (ctx.target.step) {
+      heading.textContent = stepHeading(ctx.target.step);
+      body.append(renderStepEditor(ctx, ctx.target.step));
+    }
+    return panel;
+  }
+  function stepHeading(step) {
+    const kindLabel = {
+      command: "Command",
+      ai_tool: "AI tool",
+      action: "Action",
+      email: "Email",
+      http: "HTTP request",
+      log: "Log",
+      wait: "Wait",
+      if: "Branch (if / else)",
+      stop: "Stop",
+      set_var: "Set variable"
+    };
+    return kindLabel[step.kind] + (step.id ? ` — ${step.id}` : "");
+  }
+  function renderTriggerEditor(ctx) {
+    const wrap = el$1("div", { class: "wpdm-routines__form" });
+    const declared = ctx.catalog.triggers.find(
+      (t) => t.id === ctx.def.trigger.id
+    );
+    wrap.append(
+      formRow("Trigger", readOnly(ctx.def.trigger.id)),
+      formRow("Kind", readOnly(ctx.def.trigger.kind)),
+      formRow(
+        "Priority",
+        numberField(String(ctx.def.trigger.priority), (v) => {
+          ctx.def.trigger.priority = parseInt(v, 10) || 10;
+          ctx.onChange();
+        })
+      )
+    );
+    if (declared) {
+      const schemaKeys = Object.keys(declared.payload_schema || {});
+      if (schemaKeys.length > 0) {
+        const schemaSection = el$1("section", {
+          class: "wpdm-routines__schema"
+        });
+        const h = el$1("h4", {});
+        h.textContent = "Available variables";
+        schemaSection.append(h);
+        const list = el$1("ul", { class: "wpdm-routines__schema-list" });
+        for (const path of schemaKeys) {
+          const entry = declared.payload_schema[path];
+          const li = el$1("li", {});
+          const code = el$1("code", {});
+          code.textContent = `{{payload.${path}}}`;
+          li.append(code);
+          if (entry?.description) {
+            li.append(" — ", entry.description);
+          }
+          if (entry?.type) {
+            li.append(` (${entry.type})`);
+          }
+          list.append(li);
+        }
+        schemaSection.append(list);
+        wrap.append(schemaSection);
+      }
+    } else {
+      const note = el$1("p", { class: "wpdm-routines__hint" }, [
+        "This trigger is not declared by any plugin. Variable autocomplete uses positional `{{payload.arg0}}`, `{{payload.arg1}}`, … fallbacks."
+      ]);
+      wrap.append(note);
+    }
+    return wrap;
+  }
+  function renderConditionsEditor(ctx) {
+    const wrap = el$1("div", { class: "wpdm-routines__form" });
+    const intro = el$1("p", { class: "wpdm-routines__hint" }, [
+      "Top-level conditions ALL must pass for the steps to run. Use them as a coarse filter; per-step branching belongs in `if` steps."
+    ]);
+    wrap.append(intro);
+    const list = el$1("div", { class: "wpdm-routines__conditions-list" });
+    const repaint2 = () => {
+      list.replaceChildren();
+      ctx.def.conditions.forEach((cond, i) => {
+        list.append(
+          conditionRow(
+            cond,
+            ctx,
+            () => {
+              ctx.def.conditions.splice(i, 1);
+              ctx.onChange();
+              repaint2();
+            }
+          )
+        );
+      });
+    };
+    repaint2();
+    wrap.append(list);
+    const addBtn = el$1(
+      "button",
+      { class: "wpdm-routines__btn", type: "button" },
+      ["+ Add condition"]
+    );
+    addBtn.addEventListener("click", () => {
+      ctx.def.conditions.push({ left: "", op: "eq", right: "" });
+      ctx.onChange();
+      repaint2();
+    });
+    wrap.append(addBtn);
+    return wrap;
+  }
+  function conditionRow(cond, ctx, onRemove) {
+    const row = el$1("div", { class: "wpdm-routines__condition" });
+    const left = textField(String(cond.left ?? ""), (v) => {
+      cond.left = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(left, () => suggestionsFor(ctx));
+    const opSel = operatorSelect(ctx.catalog.operators, cond.op, (v) => {
+      cond.op = v;
+      ctx.onChange();
+    });
+    const right = textField(String(cond.right ?? ""), (v) => {
+      cond.right = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(right, () => suggestionsFor(ctx));
+    const remove = el$1(
+      "button",
+      {
+        class: "wpdm-routines__icon-btn",
+        type: "button",
+        title: "Remove condition"
+      },
+      ["×"]
+    );
+    remove.addEventListener("click", onRemove);
+    row.append(left, opSel, right, remove);
+    return row;
+  }
+  function renderStepEditor(ctx, step) {
+    const wrap = el$1("div", { class: "wpdm-routines__form" });
+    wrap.append(
+      formRow(
+        "Step ID",
+        textField(step.id, (v) => {
+          step.id = v;
+          ctx.onChange();
+        }),
+        "Optional — used to reference this step's result via {{vars.<id>}}."
+      )
+    );
+    switch (step.kind) {
+      case "log":
+        wrap.append(logFields(ctx, step));
+        break;
+      case "email":
+        wrap.append(emailFields(ctx, step));
+        break;
+      case "http":
+        wrap.append(httpFields(ctx, step));
+        break;
+      case "wait":
+        wrap.append(waitFields(ctx, step));
+        break;
+      case "set_var":
+        wrap.append(setVarFields(ctx, step));
+        break;
+      case "stop":
+        wrap.append(stopFields(ctx, step));
+        break;
+      case "if":
+        wrap.append(ifFields(ctx, step));
+        break;
+      case "action":
+      case "ai_tool":
+      case "command":
+        wrap.append(dynamicArgsFields(ctx, step));
+        break;
+    }
+    return wrap;
+  }
+  function logFields(ctx, step) {
+    const wrap = el$1("div", {});
+    const args = step.args;
+    wrap.append(
+      formRow(
+        "Level",
+        selectField(
+          ["info", "warning", "error"],
+          args.level || "info",
+          (v) => {
+            args.level = v;
+            ctx.onChange();
+          }
+        )
+      )
+    );
+    const ta = textareaField(
+      args.message || "",
+      (v) => {
+        args.message = v;
+        ctx.onChange();
+      }
+    );
+    attachAutocomplete(ta, () => suggestionsFor(ctx));
+    wrap.append(formRow("Message", ta));
+    return wrap;
+  }
+  function emailFields(ctx, step) {
+    const wrap = el$1("div", {});
+    const args = step.args;
+    const toEl = textField(args.to || "", (v) => {
+      args.to = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(toEl, () => suggestionsFor(ctx));
+    const subEl = textField(args.subject || "", (v) => {
+      args.subject = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(subEl, () => suggestionsFor(ctx));
+    const bodyEl = textareaField(args.body || "", (v) => {
+      args.body = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(bodyEl, () => suggestionsFor(ctx));
+    wrap.append(
+      formRow("To", toEl, "Defaults to admin email when blank."),
+      formRow("Subject", subEl),
+      formRow("Body", bodyEl)
+    );
+    return wrap;
+  }
+  function httpFields(ctx, step) {
+    const wrap = el$1("div", {});
+    const args = step.args;
+    const urlEl = textField(String(args.url || ""), (v) => {
+      args.url = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(urlEl, () => suggestionsFor(ctx));
+    const bodyEl = textareaField(
+      typeof args.body === "string" ? args.body : JSON.stringify(args.body ?? ""),
+      (v) => {
+        try {
+          args.body = JSON.parse(v);
+        } catch {
+          args.body = v;
+        }
+        ctx.onChange();
+      }
+    );
+    attachAutocomplete(bodyEl, () => suggestionsFor(ctx));
+    wrap.append(
+      formRow(
+        "URL",
+        urlEl,
+        "Host must be in `wp_desktop_routine_http_allowlist` (default: empty)."
+      ),
+      formRow(
+        "Method",
+        selectField(
+          ["GET", "POST", "PUT", "PATCH", "DELETE"],
+          String(args.method || "GET").toUpperCase(),
+          (v) => {
+            args.method = v;
+            ctx.onChange();
+          }
+        )
+      ),
+      formRow("Body", bodyEl, "JSON or raw string.")
+    );
+    return wrap;
+  }
+  function waitFields(ctx, step) {
+    const args = step.args;
+    const wrap = el$1("div", {});
+    wrap.append(
+      formRow(
+        "Seconds",
+        numberField(
+          String(args.seconds ?? 1),
+          (v) => {
+            args.seconds = Math.max(0, Math.min(5, parseInt(v, 10) || 0));
+            ctx.onChange();
+          }
+        ),
+        "Capped at 5 seconds. Longer waits land in Phase 3 via Action Scheduler."
+      )
+    );
+    return wrap;
+  }
+  function setVarFields(ctx, step) {
+    const args = step.args;
+    const wrap = el$1("div", {});
+    wrap.append(
+      formRow(
+        "Name",
+        textField(args.name || "", (v) => {
+          args.name = v;
+          ctx.onChange();
+        })
+      )
+    );
+    const valEl = textField(
+      typeof args.value === "string" ? args.value : JSON.stringify(args.value ?? ""),
+      (v) => {
+        try {
+          args.value = JSON.parse(v);
+        } catch {
+          args.value = v;
+        }
+        ctx.onChange();
+      }
+    );
+    attachAutocomplete(valEl, () => suggestionsFor(ctx));
+    wrap.append(formRow("Value", valEl));
+    return wrap;
+  }
+  function stopFields(ctx, step) {
+    const args = step.args;
+    const wrap = el$1("div", {});
+    const reasonEl = textField(args.reason || "", (v) => {
+      args.reason = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(reasonEl, () => suggestionsFor(ctx));
+    wrap.append(formRow("Reason", reasonEl));
+    return wrap;
+  }
+  function ifFields(ctx, step) {
+    const wrap = el$1("div", {});
+    if (!step.condition) {
+      step.condition = { left: "", op: "eq", right: "" };
+    }
+    const cond = step.condition;
+    const leftEl = textField(String(cond.left ?? ""), (v) => {
+      cond.left = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(leftEl, () => suggestionsFor(ctx));
+    const rightEl = textField(String(cond.right ?? ""), (v) => {
+      cond.right = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(rightEl, () => suggestionsFor(ctx));
+    wrap.append(
+      formRow("Left", leftEl),
+      formRow(
+        "Operator",
+        operatorSelect(ctx.catalog.operators, cond.op, (v) => {
+          cond.op = v;
+          ctx.onChange();
+        })
+      ),
+      formRow("Right", rightEl),
+      el$1("p", { class: "wpdm-routines__hint" }, [
+        "Edit `then` and `else` branches by clicking their cards on the canvas."
+      ])
+    );
+    return wrap;
+  }
+  function dynamicArgsFields(ctx, step) {
+    const wrap = el$1("div", {});
+    let schema = null;
+    if (step.kind === "action") {
+      const found = ctx.catalog.actions.find((a) => a.id === step.id);
+      schema = found?.args_schema || null;
+    } else if (step.kind === "ai_tool") {
+      const found = ctx.catalog.ai_tools.find((t) => t.name === step.id);
+      const params = found?.parameters;
+      schema = params?.properties || null;
+    }
+    const args = step.args;
+    if (!schema || Object.keys(schema).length === 0) {
+      const ta = textareaField(JSON.stringify(args, null, 2), (v) => {
+        try {
+          step.args = JSON.parse(v);
+          ctx.onChange();
+        } catch {
+        }
+      });
+      attachAutocomplete(ta, () => suggestionsFor(ctx));
+      wrap.append(formRow("Args (JSON)", ta));
+      return wrap;
+    }
+    for (const key of Object.keys(schema)) {
+      const desc = schema[key] || {};
+      const cur = args[key];
+      let initial = "";
+      if (cur !== void 0 && cur !== null) {
+        initial = typeof cur === "string" ? cur : JSON.stringify(cur);
+      }
+      const input = textField(initial, (v) => {
+        if (desc.type === "integer" || desc.type === "number") {
+          const n = parseFloat(v);
+          args[key] = Number.isFinite(n) ? n : v;
+        } else {
+          args[key] = v;
+        }
+        ctx.onChange();
+      });
+      attachAutocomplete(input, () => suggestionsFor(ctx));
+      wrap.append(
+        formRow(key, input, desc.description || `Type: ${desc.type || "string"}`)
+      );
+    }
+    return wrap;
+  }
+  function formRow(label, control, hint) {
+    const row = el$1("div", { class: "wpdm-routines__form-row" });
+    const lab = el$1("label", { class: "wpdm-routines__form-label" });
+    lab.textContent = label;
+    row.append(lab, control);
+    if (hint) {
+      const h = el$1("p", { class: "wpdm-routines__form-hint" });
+      h.textContent = hint;
+      row.append(h);
+    }
+    return row;
+  }
+  function textField(value, onChange) {
+    const input = el$1("input", {
+      class: "wpdm-routines__input",
+      type: "text",
+      value
+    });
+    input.addEventListener("input", () => onChange(input.value));
+    return input;
+  }
+  function numberField(value, onChange) {
+    const input = el$1("input", {
+      class: "wpdm-routines__input",
+      type: "number",
+      value
+    });
+    input.addEventListener("input", () => onChange(input.value));
+    return input;
+  }
+  function textareaField(value, onChange) {
+    const ta = el$1("textarea", {
+      class: "wpdm-routines__textarea",
+      spellcheck: false
+    });
+    ta.value = value;
+    ta.addEventListener("input", () => onChange(ta.value));
+    return ta;
+  }
+  function selectField(options, value, onChange) {
+    const sel = el$1("select", { class: "wpdm-routines__input" });
+    for (const opt of options) {
+      const o = el$1("option", { value: opt });
+      o.textContent = opt;
+      if (opt === value) {
+        o.selected = true;
+      }
+      sel.append(o);
+    }
+    sel.addEventListener("change", () => onChange(sel.value));
+    return sel;
+  }
+  function operatorSelect(operators, value, onChange) {
+    const sel = el$1("select", { class: "wpdm-routines__input" });
+    for (const op of operators) {
+      const o = el$1("option", { value: op });
+      o.textContent = op;
+      if (op === value) {
+        o.selected = true;
+      }
+      sel.append(o);
+    }
+    sel.addEventListener("change", () => onChange(sel.value));
+    return sel;
+  }
+  function readOnly(value) {
+    const span = el$1("span", { class: "wpdm-routines__readonly" });
+    span.textContent = value;
+    return span;
+  }
+  function suggestionsFor(ctx) {
+    const out = [];
+    out.push(
+      { path: "site.url", type: "string", description: "Site URL", source: "site" },
+      { path: "site.name", type: "string", description: "Site name", source: "site" },
+      { path: "user.id", type: "integer", description: "Run-as user id", source: "user" }
+    );
+    const declared = ctx.catalog.triggers.find(
+      (t) => t.id === ctx.def.trigger.id
+    );
+    if (declared && declared.payload_schema) {
+      for (const [path, raw] of Object.entries(declared.payload_schema)) {
+        const d = raw || {};
+        out.push({
+          path: "payload." + path,
+          type: d.type || "unknown",
+          description: d.description || "",
+          source: "payload"
+        });
+      }
+    } else {
+      for (let i = 0; i < 4; i++) {
+        out.push({
+          path: `payload.arg${i}`,
+          type: "unknown",
+          description: "Positional hook arg",
+          source: "payload"
+        });
+      }
+    }
+    const upstream = collectStepIds(ctx.def.steps, ctx.target.stepPath);
+    for (const id of upstream) {
+      out.push({
+        path: `vars.${id}`,
+        type: "unknown",
+        description: "Result of an upstream step",
+        source: "vars"
+      });
+    }
+    return out;
+  }
+  function collectStepIds(steps, stopAt) {
+    const out = [];
+    const walk = (list, path) => {
+      for (let i = 0; i < list.length; i++) {
+        const here = [...path, i];
+        if (stopAt && pathStartsWith(stopAt, here)) {
+          return;
+        }
+        const step = list[i];
+        if (step.id) {
+          out.push(step.id);
+        }
+        if (step.kind === "if") {
+          if (step.then) {
+            walk(step.then, [...here, 0]);
+          }
+          if (step.else) {
+            walk(step.else, [...here, 1]);
+          }
+        }
+      }
+    };
+    walk(steps, []);
+    return out;
+  }
+  function pathStartsWith(a, prefix) {
+    if (prefix.length > a.length) {
+      return false;
+    }
+    for (let i = 0; i < prefix.length; i++) {
+      if (a[i] !== prefix[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  async function mountPixiLayer(host, pluginUrl) {
+    await ensurePixiLoaded(pluginUrl);
+    const PIXI = window.PIXI;
+    if (!PIXI) {
+      throw new Error("PixiJS failed to load.");
+    }
+    const app = new PIXI.Application();
+    await app.init({
+      background: "transparent",
+      backgroundAlpha: 0,
+      antialias: true,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true,
+      width: Math.max(1, host.clientWidth),
+      height: Math.max(1, host.clientHeight)
+    });
+    const canvas = app.canvas;
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;";
+    host.prepend(canvas);
+    const bg = new PIXI.Graphics();
+    const connectors = new PIXI.Graphics();
+    const halos = new PIXI.Graphics();
+    const overlay = new PIXI.Graphics();
+    app.stage.addChild(bg, halos, connectors, overlay);
+    const state2 = {
+      app,
+      bg,
+      connectors,
+      halos,
+      overlay,
+      anchors: [],
+      t: 0
+    };
+    const burstParticles = [];
+    const flowPackets = [];
+    app.ticker.add((ticker) => {
+      state2.t += ticker.deltaMS;
+      drawBackground(state2);
+      drawHalos(state2);
+      drawConnectors(state2);
+      drawOverlay(state2, burstParticles, flowPackets, ticker.deltaMS);
+    });
+    return {
+      setAnchors: (anchors) => {
+        state2.anchors = anchors;
+      },
+      resize: (w, h) => {
+        app.renderer.resize(Math.max(1, w), Math.max(1, h));
+      },
+      pulse: (anchorId, kind) => {
+        const a = state2.anchors.find((x) => x.id === anchorId);
+        if (!a) {
+          return;
+        }
+        let colour = 2257329;
+        if (kind === "success") {
+          colour = 1096065;
+        } else if (kind === "error") {
+          colour = 15680580;
+        }
+        emitBurst(burstParticles, a.x + a.width / 2, a.y + a.height / 2, colour);
+      },
+      playRun: (sequence) => {
+        const centres = [];
+        const trigger = state2.anchors.find((a) => a.kind === "trigger");
+        if (trigger) {
+          centres.push({
+            id: trigger.id,
+            x: trigger.x + trigger.width / 2,
+            y: trigger.y + trigger.height / 2,
+            ok: true
+          });
+        }
+        for (const entry of sequence) {
+          const a = state2.anchors.find((x) => x.id === entry.id);
+          if (a) {
+            centres.push({
+              id: a.id,
+              x: a.x + a.width / 2,
+              y: a.y + a.height / 2,
+              ok: entry.ok
+            });
+          }
+        }
+        for (let i = 1; i < centres.length; i++) {
+          flowPackets.push({
+            from: centres[i - 1],
+            to: centres[i],
+            t: 0,
+            duration: 240 + i * 80,
+            delay: i * 220,
+            ok: centres[i].ok,
+            emitted: false
+          });
+        }
+      },
+      destroy: () => {
+        app.destroy(true, { children: true, texture: true });
+      }
+    };
+  }
+  let pixiPromise = null;
+  function ensurePixiLoaded(pluginUrl) {
+    if (window.PIXI) {
+      return Promise.resolve();
+    }
+    if (pixiPromise) {
+      return pixiPromise;
+    }
+    const url = `${pluginUrl}/assets/vendor/pixi.min.js`;
+    pixiPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector(
+        `script[src="${url}"]`
+      );
+      if (existing) {
+        if (window.PIXI) {
+          resolve();
+          return;
+        }
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener(
+          "error",
+          () => reject(new Error("pixi.min.js failed to load."))
+        );
+        return;
+      }
+      const tag = document.createElement("script");
+      tag.src = url;
+      tag.async = true;
+      tag.onload = () => resolve();
+      tag.onerror = () => reject(new Error("pixi.min.js failed to load."));
+      document.head.append(tag);
+    });
+    return pixiPromise;
+  }
+  function drawBackground(state2) {
+    const { bg, app, t } = state2;
+    bg.clear();
+    const w = app.renderer.width / (window.devicePixelRatio || 1);
+    const h = app.renderer.height / (window.devicePixelRatio || 1);
+    const drift = t / 80 % 24;
+    const spacing = 24;
+    const rows = Math.ceil(h / spacing) + 2;
+    const cols = Math.ceil(w / spacing) + 2;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = c * spacing - drift;
+        const y = r * spacing - drift;
+        bg.circle(x, y, 1);
+      }
+    }
+    bg.fill({ color: 0, alpha: 0.04 });
+  }
+  function drawHalos(state2) {
+    const { halos, anchors, t } = state2;
+    halos.clear();
+    for (const a of anchors) {
+      if (a.kind === "add") {
+        continue;
+      }
+      const cx = a.x + a.width / 2;
+      const cy = a.y + a.height / 2;
+      const radius = Math.max(a.width, a.height) * 0.55;
+      const speed = a.kind === "trigger" ? 1.1 : 0.6;
+      const pulse = 0.5 + 0.5 * Math.sin(t / 1e3 * speed);
+      const alpha = 0.04 + pulse * 0.05;
+      const colour = haloColour(a);
+      halos.circle(cx, cy, radius * (1 + pulse * 0.06));
+      halos.fill({ color: colour, alpha });
+    }
+  }
+  function haloColour(a) {
+    if (a.state === "success") {
+      return 1096065;
+    }
+    if (a.state === "error") {
+      return 15680580;
+    }
+    if (a.kind === "trigger") {
+      return 2257329;
+    }
+    if (a.kind === "conditions") {
+      return 16096779;
+    }
+    if (a.kind === "branch-then") {
+      return 1096065;
+    }
+    if (a.kind === "branch-else") {
+      return 11032055;
+    }
+    return 7041664;
+  }
+  function drawConnectors(state2) {
+    const { connectors, anchors, t } = state2;
+    connectors.clear();
+    const byId = /* @__PURE__ */ new Map();
+    for (const a of anchors) {
+      byId.set(a.id, a);
+    }
+    const dashOffset = t / 14 % 16;
+    for (const a of anchors) {
+      if (!a.parentId) {
+        continue;
+      }
+      const parent = byId.get(a.parentId);
+      if (!parent) {
+        continue;
+      }
+      const x1 = parent.x + parent.width / 2;
+      const y1 = parent.y + parent.height;
+      const x2 = a.x + a.width / 2;
+      const y2 = a.y;
+      drawBezier(connectors, x1, y1, x2, y2, dashOffset, edgeColour(a));
+    }
+  }
+  function edgeColour(a) {
+    if (a.kind === "branch-then") {
+      return 1096065;
+    }
+    if (a.kind === "branch-else") {
+      return 11032055;
+    }
+    return 10265519;
+  }
+  function drawBezier(g, x1, y1, x2, y2, dashOffset, colour) {
+    const dy = y2 - y1;
+    const cx1 = x1;
+    const cy1 = y1 + dy * 0.45;
+    const cx2 = x2;
+    const cy2 = y2 - dy * 0.45;
+    const segments = 24;
+    const dash = 8;
+    const gap = 8;
+    const step = 1 / segments;
+    let lastX = x1;
+    let lastY = y1;
+    let acc = -dashOffset;
+    for (let i = 1; i <= segments; i++) {
+      const t = i * step;
+      const px = cubic(x1, cx1, cx2, x2, t);
+      const py = cubic(y1, cy1, cy2, y2, t);
+      const segLen = Math.hypot(px - lastX, py - lastY);
+      let remaining = segLen;
+      let cursorX = lastX;
+      let cursorY = lastY;
+      const dx = (px - lastX) / segLen || 0;
+      const dyn = (py - lastY) / segLen || 0;
+      while (remaining > 0) {
+        const phase = (acc % (dash + gap) + (dash + gap)) % (dash + gap);
+        const inDash = phase < dash;
+        const room = inDash ? dash - phase : dash + gap - phase;
+        const advance = Math.min(room, remaining);
+        if (inDash) {
+          const nx = cursorX + dx * advance;
+          const ny = cursorY + dyn * advance;
+          g.moveTo(cursorX, cursorY);
+          g.lineTo(nx, ny);
+        }
+        cursorX += dx * advance;
+        cursorY += dyn * advance;
+        acc += advance;
+        remaining -= advance;
+      }
+      lastX = px;
+      lastY = py;
+    }
+    g.stroke({ color: colour, alpha: 0.7, width: 2 });
+  }
+  function cubic(a, b, c, d, t) {
+    const u = 1 - t;
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+  }
+  function drawOverlay(state2, bursts, packets, dt) {
+    const { overlay } = state2;
+    overlay.clear();
+    for (let i = packets.length - 1; i >= 0; i--) {
+      const p = packets[i];
+      if (p.delay > 0) {
+        p.delay -= dt;
+        continue;
+      }
+      p.t += dt;
+      const k = Math.min(1, p.t / p.duration);
+      const ease = easeInOut(k);
+      const px = p.from.x + (p.to.x - p.from.x) * ease;
+      const py = p.from.y + (p.to.y - p.from.y) * ease;
+      const colour = p.ok ? 6333946 : 15680580;
+      overlay.circle(px, py, 6).fill({ color: colour, alpha: 0.85 });
+      overlay.circle(px, py, 12).fill({ color: colour, alpha: 0.25 });
+      if (k >= 1 && !p.emitted) {
+        emitBurst(bursts, p.to.x, p.to.y, colour);
+        p.emitted = true;
+      }
+      if (k >= 1) {
+        packets.splice(i, 1);
+      }
+    }
+    for (let i = bursts.length - 1; i >= 0; i--) {
+      const part = bursts[i];
+      part.x += part.vx;
+      part.y += part.vy;
+      part.vx *= 0.94;
+      part.vy *= 0.94;
+      part.vy += 0.05;
+      part.life += dt;
+      const lifeT = Math.min(1, part.life / part.maxLife);
+      const alpha = 0.85 * (1 - lifeT);
+      const radius = 3 * (1 - lifeT * 0.5);
+      overlay.circle(part.x, part.y, radius).fill({ color: part.colour, alpha });
+      if (lifeT >= 1) {
+        bursts.splice(i, 1);
+      }
+    }
+  }
+  function easeInOut(t) {
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  }
+  function emitBurst(out, cx, cy, colour) {
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+      const angle = i / count * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 2.5;
+      out.push({
+        x: cx,
+        y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0,
+        maxLife: 600 + Math.random() * 200,
+        colour
+      });
+    }
+  }
+  function pickTrigger(body, catalog) {
+    return new Promise((resolve) => {
+      const { card, close } = openModal(body, "Pick a trigger");
+      card.classList.add("wpdm-routines__modal-card--wide");
+      const tabs = el$1("div", { class: "wpdm-routines__tabs" });
+      const panel = el$1("div", { class: "wpdm-routines__tab-panel" });
+      let activeTab = "common";
+      const tabDefs = [
+        { id: "common", label: "Common" },
+        { id: "by-plugin", label: "By plugin" },
+        { id: "hook", label: "Hook search" },
+        { id: "broadcast", label: "Broadcast" }
+      ];
+      const renderTab = () => {
+        panel.replaceChildren();
+        if (activeTab === "common") {
+          renderCommon(panel, catalog.triggers, (t) => {
+            close();
+            resolve({
+              kind: t.kind,
+              id: t.id,
+              priority: t.priority,
+              declared: t
+            });
+          });
+        } else if (activeTab === "by-plugin") {
+          renderByPlugin(panel, catalog.triggers, (t) => {
+            close();
+            resolve({
+              kind: t.kind,
+              id: t.id,
+              priority: t.priority,
+              declared: t
+            });
+          });
+        } else if (activeTab === "hook") {
+          renderHookSearch(panel, (t) => {
+            close();
+            resolve(t);
+          });
+        } else {
+          renderBroadcast(panel, (t) => {
+            close();
+            resolve(t);
+          });
+        }
+      };
+      for (const def of tabDefs) {
+        const btn = el$1("button", {
+          class: "wpdm-routines__tab" + (def.id === activeTab ? " is-active" : ""),
+          type: "button"
+        });
+        btn.textContent = def.label;
+        btn.addEventListener("click", () => {
+          activeTab = def.id;
+          for (const child of tabs.children) {
+            child.classList.toggle(
+              "is-active",
+              child === btn
+            );
+          }
+          renderTab();
+        });
+        tabs.append(btn);
+      }
+      card.append(tabs, panel);
+      renderTab();
+      const cancel = el$1(
+        "button",
+        { class: "wpdm-routines__btn", type: "button" },
+        ["Cancel"]
+      );
+      cancel.addEventListener("click", () => {
+        close();
+        resolve(null);
+      });
+      card.append(cancel);
+    });
+  }
+  function renderCommon(host, triggers, onPick) {
+    const hooks = triggers.filter((t) => t.kind === "hook");
+    if (hooks.length === 0) {
+      host.append(
+        el$1("p", { class: "wpdm-routines__empty-text" }, [
+          "No declared triggers yet — try Hook search to use any WordPress action by name."
+        ])
+      );
+      return;
+    }
+    const groups = groupBy(hooks, "group");
+    for (const [group, list] of groups) {
+      const section = el$1("section", { class: "wpdm-routines__picker-group" });
+      const heading = el$1("h4", {});
+      heading.textContent = group || "Other";
+      section.append(heading);
+      for (const t of list) {
+        section.append(triggerCard(t, onPick));
+      }
+      host.append(section);
+    }
+  }
+  function renderByPlugin(host, triggers, onPick) {
+    const builtIn = /* @__PURE__ */ new Set(["Content", "Comments", "Users", "Site"]);
+    const pluginTriggers = triggers.filter(
+      (t) => t.group && !builtIn.has(t.group)
+    );
+    if (pluginTriggers.length === 0) {
+      host.append(
+        el$1("p", { class: "wpdm-routines__empty-text" }, [
+          "No plugin-declared triggers found. Plugin authors register them with `wp_register_desktop_routine_trigger()`."
+        ])
+      );
+      return;
+    }
+    renderCommon(host, pluginTriggers, onPick);
+  }
+  function renderHookSearch(host, onPick) {
+    host.append(
+      el$1("p", { class: "wpdm-routines__hint" }, [
+        "Type any WordPress action name (e.g. `save_post`, `wp_login`). The routine will fire whenever that action runs."
+      ])
+    );
+    const input = el$1("input", {
+      class: "wpdm-routines__hook-input",
+      type: "text",
+      placeholder: "hook_name"
+    });
+    const priority = el$1("input", {
+      class: "wpdm-routines__hook-priority",
+      type: "number",
+      value: "10"
+    });
+    const useBtn = el$1(
+      "button",
+      { class: "wpdm-routines__btn wpdm-routines__btn--primary", type: "button" },
+      ["Use this hook"]
+    );
+    useBtn.addEventListener("click", () => {
+      const id = input.value.trim();
+      if (!id) {
+        input.focus();
+        return;
+      }
+      onPick({
+        kind: "hook",
+        id,
+        priority: parseInt(priority.value, 10) || 10
+      });
+    });
+    const row = el$1("div", { class: "wpdm-routines__hook-row" });
+    row.append(
+      el$1("label", {}, ["Hook", input]),
+      el$1("label", {}, ["Priority", priority]),
+      useBtn
+    );
+    host.append(row);
+  }
+  function renderBroadcast(host, onPick) {
+    host.append(
+      el$1("p", { class: "wpdm-routines__hint" }, [
+        "Listen for a Desktop Mode broadcast topic — `wp-desktop.<domain>.changed`, `<plugin>/<event>`, etc. Topics fire across windows in real time."
+      ])
+    );
+    const input = el$1("input", {
+      class: "wpdm-routines__hook-input",
+      type: "text",
+      placeholder: "wp-desktop.post.changed"
+    });
+    const useBtn = el$1(
+      "button",
+      { class: "wpdm-routines__btn wpdm-routines__btn--primary", type: "button" },
+      ["Use this topic"]
+    );
+    useBtn.addEventListener("click", () => {
+      const id = input.value.trim();
+      if (!id) {
+        input.focus();
+        return;
+      }
+      onPick({ kind: "broadcast", id, priority: 10 });
+    });
+    const row = el$1("div", { class: "wpdm-routines__hook-row" });
+    row.append(el$1("label", {}, ["Topic", input]), useBtn);
+    host.append(row);
+  }
+  function triggerCard(t, onPick) {
+    const card = el$1("button", {
+      class: "wpdm-routines__picker-card",
+      type: "button"
+    });
+    const icon = el$1("span", {
+      class: `dashicons ${t.icon || "dashicons-flag"}`
+    });
+    icon.setAttribute("aria-hidden", "true");
+    const main = el$1("span", { class: "wpdm-routines__picker-card-main" });
+    const title = el$1("span", { class: "wpdm-routines__picker-card-title" });
+    title.textContent = t.label;
+    const meta = el$1("span", { class: "wpdm-routines__picker-card-meta" });
+    meta.textContent = `${t.id} • ${Object.keys(t.payload_schema || {}).length} fields`;
+    main.append(title, meta);
+    card.append(icon, main);
+    card.addEventListener("click", () => onPick(t));
+    return card;
+  }
+  function pickStep(body, catalog) {
+    return new Promise((resolve) => {
+      const { card, close } = openModal(body, "Add a step");
+      card.classList.add("wpdm-routines__modal-card--wide");
+      const builtIn = [
+        { kind: "log", id: "", label: "Log a message" },
+        { kind: "email", id: "", label: "Send email" },
+        { kind: "http", id: "", label: "HTTP request" },
+        { kind: "wait", id: "", label: "Wait" },
+        { kind: "set_var", id: "", label: "Set a variable" },
+        { kind: "if", id: "", label: "If / then / else" },
+        { kind: "stop", id: "", label: "Stop the routine" }
+      ];
+      const sections = [
+        { title: "Built-in steps", steps: builtIn },
+        {
+          title: "Plugin actions",
+          steps: catalog.actions.map((a) => ({
+            kind: "action",
+            id: a.id,
+            label: a.label
+          }))
+        },
+        {
+          title: "AI tools",
+          steps: catalog.ai_tools.map((t) => ({
+            kind: "ai_tool",
+            id: t.name,
+            label: t.description || t.name
+          }))
+        }
+      ];
+      for (const section of sections) {
+        if (section.steps.length === 0) {
+          continue;
+        }
+        const wrap = el$1("section", {
+          class: "wpdm-routines__picker-group"
+        });
+        const h = el$1("h4", {});
+        h.textContent = section.title;
+        wrap.append(h);
+        for (const step of section.steps) {
+          const stepCard = el$1("button", {
+            class: "wpdm-routines__picker-card",
+            type: "button"
+          });
+          const main = el$1("span", {
+            class: "wpdm-routines__picker-card-main"
+          });
+          const title = el$1("span", {
+            class: "wpdm-routines__picker-card-title"
+          });
+          title.textContent = step.label;
+          const meta = el$1("span", {
+            class: "wpdm-routines__picker-card-meta"
+          });
+          meta.textContent = step.kind + (step.id ? ` • ${step.id}` : "");
+          main.append(title, meta);
+          stepCard.append(main);
+          stepCard.addEventListener("click", () => {
+            close();
+            resolve(step);
+          });
+          wrap.append(stepCard);
+        }
+        card.append(wrap);
+      }
+      const cancel = el$1(
+        "button",
+        { class: "wpdm-routines__btn", type: "button" },
+        ["Cancel"]
+      );
+      cancel.addEventListener("click", () => {
+        close();
+        resolve(null);
+      });
+      card.append(cancel);
+    });
+  }
+  const CARD_WIDTH = 280;
+  const CARD_GAP_Y = 28;
+  const SECTION_GAP_Y = 36;
+  const BRANCH_GAP_X = 36;
+  async function mountCanvas(host, ctx) {
+    host.classList.add("wpdm-routines__canvas-host");
+    const stage = el$1("div", { class: "wpdm-routines__canvas-stage" });
+    const inspectorSlot = el$1("aside", {
+      class: "wpdm-routines__canvas-inspector"
+    });
+    host.append(stage, inspectorSlot);
+    let inspectorTarget = null;
+    const setInspector = (target) => {
+      inspectorTarget = target;
+      paintInspector();
+    };
+    const closeInspector = () => setInspector(null);
+    const paintInspector = () => {
+      inspectorSlot.replaceChildren();
+      if (!inspectorTarget) {
+        inspectorSlot.classList.remove("is-open");
+        return;
+      }
+      inspectorSlot.classList.add("is-open");
+      const panel = renderInspector({
+        def: ctx.def,
+        catalog: ctx.catalog,
+        target: inspectorTarget,
+        onChange: () => {
+          ctx.onChange();
+          rerender();
+        },
+        onClose: closeInspector
+      });
+      inspectorSlot.append(panel);
+    };
+    let pixi = null;
+    try {
+      pixi = await mountPixiLayer(stage, ctx.pluginUrl);
+    } catch (err) {
+      const hint = el$1(
+        "p",
+        { class: "wpdm-routines__pixi-hint" },
+        ["Visual effects unavailable (PixiJS failed to load)."]
+      );
+      host.append(hint);
+    }
+    const cardLayer = el$1("div", { class: "wpdm-routines__cards" });
+    stage.append(cardLayer);
+    const rerender = () => {
+      cardLayer.replaceChildren();
+      const anchors = [];
+      const stageRect = { width: stage.clientWidth || 720, height: 0 };
+      const centerX = (stageRect.width - CARD_WIDTH) / 2;
+      let y = SECTION_GAP_Y;
+      const triggerEntry = renderTriggerCard(
+        ctx,
+        centerX,
+        y,
+        () => {
+          setInspector({ kind: "trigger" });
+        },
+        async () => {
+          const picked = await pickTrigger(host, ctx.catalog);
+          if (picked) {
+            ctx.def.trigger.kind = picked.kind;
+            ctx.def.trigger.id = picked.id;
+            ctx.def.trigger.priority = picked.priority;
+            ctx.onChange();
+            rerender();
+          }
+        }
+      );
+      cardLayer.append(triggerEntry.node);
+      anchors.push({
+        id: "trigger",
+        x: centerX,
+        y,
+        width: CARD_WIDTH,
+        height: triggerEntry.height,
+        kind: "trigger",
+        state: "idle"
+      });
+      y += triggerEntry.height + SECTION_GAP_Y;
+      const condEntry = renderConditionsCard(
+        ctx,
+        centerX,
+        y,
+        () => setInspector({ kind: "condition" })
+      );
+      cardLayer.append(condEntry.node);
+      anchors.push({
+        id: "conditions",
+        x: centerX,
+        y,
+        width: CARD_WIDTH,
+        height: condEntry.height,
+        kind: "conditions",
+        parentId: "trigger"
+      });
+      y += condEntry.height + SECTION_GAP_Y;
+      const stepWalk = walkSteps(
+        ctx,
+        ctx.def.steps,
+        [],
+        centerX,
+        y,
+        "conditions",
+        cardLayer,
+        anchors,
+        setInspector
+      );
+      y = stepWalk.y;
+      const addNode = renderAddStepButton(ctx, centerX, y, [], cardLayer, () => rerender());
+      cardLayer.append(addNode.node);
+      anchors.push({
+        id: "add-root",
+        x: centerX + CARD_WIDTH / 2 - 80,
+        y,
+        width: 160,
+        height: addNode.height,
+        kind: "add",
+        parentId: previousAnchorId(anchors)
+      });
+      y += addNode.height + SECTION_GAP_Y;
+      stageRect.height = y + 20;
+      stage.style.minHeight = `${stageRect.height}px`;
+      cardLayer.style.height = `${stageRect.height}px`;
+      pixi?.resize(stageRect.width, stageRect.height);
+      pixi?.setAnchors(anchors);
+    };
+    rerender();
+    host.addEventListener("wpdm-routines-rerender", () => rerender());
+    const ro = new ResizeObserver(() => {
+      const w = stage.clientWidth || 720;
+      const h = parseInt(stage.style.minHeight || "0", 10) || stage.clientHeight;
+      pixi?.resize(w, h);
+      rerender();
+    });
+    ro.observe(stage);
+    return {
+      rerender,
+      playRun: (log) => {
+        if (!pixi) {
+          return;
+        }
+        const sequence = log.map((entry, i) => ({
+          id: entry.id && entry.id !== "" ? `step-${findStepIndexById(ctx.def.steps, entry.id, []) ?? i}` : `step-${i}`,
+          ok: entry.ok,
+          ms: entry.ms
+        }));
+        pixi.playRun(sequence);
+      },
+      destroy: () => {
+        ro.disconnect();
+        pixi?.destroy();
+      }
+    };
+  }
+  function renderTriggerCard(ctx, x, y, onInspect, onChange) {
+    const declared = ctx.catalog.triggers.find(
+      (t) => t.id === ctx.def.trigger.id
+    );
+    const node = el$1("article", {
+      class: "wpdm-routines__card wpdm-routines__card--trigger"
+    });
+    positionCard(node, x, y);
+    const head = el$1("header", { class: "wpdm-routines__card-head" });
+    const icon = el$1("span", {
+      class: `dashicons ${declared?.icon || "dashicons-flag"}`
+    });
+    icon.setAttribute("aria-hidden", "true");
+    const titleWrap = el$1("div", { class: "wpdm-routines__card-title-wrap" });
+    const eyebrow = el$1("span", { class: "wpdm-routines__card-eyebrow" });
+    eyebrow.textContent = "Trigger";
+    const title = el$1("h3", { class: "wpdm-routines__card-title" });
+    title.textContent = declared?.label || ctx.def.trigger.id || "Pick a trigger";
+    titleWrap.append(eyebrow, title);
+    head.append(icon, titleWrap);
+    node.append(head);
+    const meta = el$1("p", { class: "wpdm-routines__card-meta" });
+    meta.textContent = `${ctx.def.trigger.kind} • ${ctx.def.trigger.id || "—"} • priority ${ctx.def.trigger.priority}`;
+    node.append(meta);
+    const bar = el$1("div", { class: "wpdm-routines__card-bar" });
+    const editBtn = el$1(
+      "button",
+      { class: "wpdm-routines__card-btn", type: "button" },
+      ["Inspect"]
+    );
+    editBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      onInspect();
+    });
+    const changeBtn = el$1(
+      "button",
+      { class: "wpdm-routines__card-btn", type: "button" },
+      ["Change trigger"]
+    );
+    changeBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      onChange();
+    });
+    bar.append(editBtn, changeBtn);
+    node.append(bar);
+    node.addEventListener("click", onInspect);
+    const height = estimateCardHeight(declared?.label ? 1 : 1);
+    return { node, height };
+  }
+  function renderConditionsCard(ctx, x, y, onInspect) {
+    const node = el$1("article", {
+      class: "wpdm-routines__card wpdm-routines__card--conditions"
+    });
+    positionCard(node, x, y);
+    const head = el$1("header", { class: "wpdm-routines__card-head" });
+    const icon = el$1("span", {
+      class: "dashicons dashicons-filter"
+    });
+    icon.setAttribute("aria-hidden", "true");
+    const titleWrap = el$1("div", { class: "wpdm-routines__card-title-wrap" });
+    const eyebrow = el$1("span", { class: "wpdm-routines__card-eyebrow" });
+    eyebrow.textContent = "Gate";
+    const title = el$1("h3", { class: "wpdm-routines__card-title" });
+    title.textContent = ctx.def.conditions.length ? `If ${ctx.def.conditions.length} condition${ctx.def.conditions.length === 1 ? "" : "s"} pass` : "No conditions — runs every time";
+    titleWrap.append(eyebrow, title);
+    head.append(icon, titleWrap);
+    node.append(head);
+    if (ctx.def.conditions.length > 0) {
+      const list = el$1("ul", { class: "wpdm-routines__cond-list" });
+      for (const cond of ctx.def.conditions) {
+        const li = el$1("li", {});
+        const code = el$1("code", {});
+        code.textContent = `${String(cond.left)} ${cond.op} ${String(cond.right)}`;
+        li.append(code);
+        list.append(li);
+      }
+      node.append(list);
+    }
+    node.addEventListener("click", onInspect);
+    const height = estimateCardHeight(1 + ctx.def.conditions.length * 0.5);
+    return { node, height };
+  }
+  function renderAddStepButton(ctx, x, y, pathPrefix, host, rerender) {
+    const node = el$1("div", { class: "wpdm-routines__add" });
+    const cx = x + CARD_WIDTH / 2 - 80;
+    node.style.cssText = `left:${cx}px;top:${y}px;width:160px;`;
+    const btn = el$1(
+      "button",
+      { class: "wpdm-routines__add-btn", type: "button" }
+    );
+    btn.append("+ Add step");
+    btn.addEventListener("click", async () => {
+      const picked = await pickStep(host.parentElement || host, ctx.catalog);
+      if (!picked) {
+        return;
+      }
+      const step = {
+        kind: picked.kind,
+        id: picked.id,
+        args: defaultArgsFor(picked.kind)
+      };
+      if (picked.kind === "if") {
+        step.condition = { left: "", op: "eq", right: "" };
+        step.then = [];
+        step.else = [];
+      }
+      const target = resolveStepList(ctx.def.steps, pathPrefix);
+      target.push(step);
+      ctx.onChange();
+      rerender();
+    });
+    node.append(btn);
+    return { node, height: 44 };
+  }
+  function renderStepCard(ctx, step, path, x, y, onInspect, rerender) {
+    const node = el$1("article", {
+      class: `wpdm-routines__card wpdm-routines__card--step wpdm-routines__card--${step.kind}`,
+      dataset: { stepId: step.id || "" }
+    });
+    positionCard(node, x, y);
+    const head = el$1("header", { class: "wpdm-routines__card-head" });
+    const icon = el$1("span", { class: `dashicons ${iconFor(step)}` });
+    icon.setAttribute("aria-hidden", "true");
+    const titleWrap = el$1("div", { class: "wpdm-routines__card-title-wrap" });
+    const eyebrow = el$1("span", { class: "wpdm-routines__card-eyebrow" });
+    eyebrow.textContent = step.kind.replace("_", " ");
+    const title = el$1("h3", { class: "wpdm-routines__card-title" });
+    title.textContent = stepTitle(step, ctx);
+    titleWrap.append(eyebrow, title);
+    head.append(icon, titleWrap);
+    node.append(head);
+    const summary = stepSummary(step);
+    if (summary) {
+      const meta = el$1("p", { class: "wpdm-routines__card-meta" });
+      meta.textContent = summary;
+      node.append(meta);
+    }
+    const bar = el$1("div", { class: "wpdm-routines__card-bar" });
+    const removeBtn = el$1(
+      "button",
+      {
+        class: "wpdm-routines__card-btn wpdm-routines__card-btn--danger",
+        type: "button"
+      },
+      ["Remove"]
+    );
+    removeBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const list = resolveStepList(
+        ctx.def.steps,
+        path.slice(0, path.length - 1)
+      );
+      list.splice(path[path.length - 1], 1);
+      ctx.onChange();
+      rerender();
+    });
+    bar.append(removeBtn);
+    node.append(bar);
+    node.addEventListener(
+      "click",
+      () => onInspect({ kind: "step", stepPath: path, step })
+    );
+    const height = estimateCardHeight(
+      summary ? 1.5 : 1,
+      step.kind === "if" ? 1.4 : 1
+    );
+    return { node, height };
+  }
+  function walkSteps(ctx, steps, pathPrefix, centerX, startY, parentAnchor, host, anchors, setInspector) {
+    let y = startY;
+    let prev = parentAnchor;
+    steps.forEach((step, i) => {
+      const path = [...pathPrefix, i];
+      const stepAnchorId = `step-${pathToString(path)}`;
+      const card = renderStepCard(
+        ctx,
+        step,
+        path,
+        centerX,
+        y,
+        setInspector,
+        () => walkRebuild(ctx, host)
+      );
+      host.append(card.node);
+      anchors.push({
+        id: stepAnchorId,
+        x: centerX,
+        y,
+        width: CARD_WIDTH,
+        height: card.height,
+        kind: "step",
+        parentId: prev
+      });
+      y += card.height + CARD_GAP_Y;
+      prev = stepAnchorId;
+      if (step.kind === "if") {
+        const halfWidth = CARD_WIDTH;
+        const thenX = centerX - halfWidth / 2 - BRANCH_GAP_X / 2;
+        const elseX = centerX + halfWidth / 2 + BRANCH_GAP_X / 2;
+        const thenHead = renderBranchHeader(
+          "then",
+          thenX,
+          y
+        );
+        host.append(thenHead.node);
+        const thenAnchor = `${stepAnchorId}-then`;
+        anchors.push({
+          id: thenAnchor,
+          x: thenX,
+          y,
+          width: CARD_WIDTH,
+          height: thenHead.height,
+          kind: "branch-then",
+          parentId: stepAnchorId
+        });
+        const elseHead = renderBranchHeader("else", elseX, y);
+        host.append(elseHead.node);
+        const elseAnchor = `${stepAnchorId}-else`;
+        anchors.push({
+          id: elseAnchor,
+          x: elseX,
+          y,
+          width: CARD_WIDTH,
+          height: elseHead.height,
+          kind: "branch-else",
+          parentId: stepAnchorId
+        });
+        const yThen = y + thenHead.height + CARD_GAP_Y;
+        const yElse = y + elseHead.height + CARD_GAP_Y;
+        const thenWalk = walkSteps(
+          ctx,
+          step.then ?? [],
+          [
+            ...path,
+            /* sentinel for `then` */
+            -1
+          ],
+          thenX,
+          yThen,
+          thenAnchor,
+          host,
+          anchors,
+          setInspector
+        );
+        const elseWalk = walkSteps(
+          ctx,
+          step.else ?? [],
+          [
+            ...path,
+            /* sentinel for `else` */
+            -2
+          ],
+          elseX,
+          yElse,
+          elseAnchor,
+          host,
+          anchors,
+          setInspector
+        );
+        const addThen = renderAddStepButton(
+          ctx,
+          thenX,
+          thenWalk.y,
+          [...path, -1],
+          host,
+          () => walkRebuild(ctx, host)
+        );
+        host.append(addThen.node);
+        const addElse = renderAddStepButton(
+          ctx,
+          elseX,
+          elseWalk.y,
+          [...path, -2],
+          host,
+          () => walkRebuild(ctx, host)
+        );
+        host.append(addElse.node);
+        y = Math.max(thenWalk.y, elseWalk.y) + addThen.height + SECTION_GAP_Y;
+        prev = stepAnchorId;
+      }
+    });
+    return { y };
+  }
+  function walkRebuild(ctx, host) {
+    host.dispatchEvent(
+      new CustomEvent("wpdm-routines-rerender", { bubbles: true })
+    );
+  }
+  function renderBranchHeader(kind, x, y) {
+    const node = el$1("div", {
+      class: `wpdm-routines__branch-head wpdm-routines__branch-head--${kind}`
+    });
+    positionCard(node, x, y);
+    const label = el$1("span", { class: "wpdm-routines__branch-label" });
+    label.textContent = kind.toUpperCase();
+    node.append(label);
+    return { node, height: 36 };
+  }
+  function positionCard(node, x, y) {
+    node.style.cssText = `left:${x}px;top:${y}px;width:${CARD_WIDTH}px;`;
+  }
+  function estimateCardHeight(textLines, multiplier = 1) {
+    return Math.round(96 + (textLines - 1) * 22 + (multiplier - 1) * 28);
+  }
+  function iconFor(step) {
+    switch (step.kind) {
+      case "log":
+        return "dashicons-text";
+      case "email":
+        return "dashicons-email";
+      case "http":
+        return "dashicons-cloud";
+      case "wait":
+        return "dashicons-clock";
+      case "set_var":
+        return "dashicons-tag";
+      case "stop":
+        return "dashicons-no";
+      case "if":
+        return "dashicons-randomize";
+      case "action":
+        return "dashicons-controls-play";
+      case "ai_tool":
+        return "dashicons-superhero";
+      case "command":
+        return "dashicons-arrow-right-alt";
+    }
+    return "dashicons-marker";
+  }
+  function stepTitle(step, ctx) {
+    if (step.kind === "action") {
+      const a = ctx.catalog.actions.find((x) => x.id === step.id);
+      return a?.label || step.id || "Action";
+    }
+    if (step.kind === "ai_tool") {
+      return step.id || "AI tool";
+    }
+    if (step.kind === "command") {
+      return step.id || "Command";
+    }
+    if (step.kind === "if") {
+      return "If / then / else";
+    }
+    if (step.kind === "log") {
+      return "Log message";
+    }
+    if (step.kind === "email") {
+      return "Send email";
+    }
+    if (step.kind === "http") {
+      return "HTTP request";
+    }
+    if (step.kind === "wait") {
+      return "Wait";
+    }
+    if (step.kind === "set_var") {
+      return "Set variable";
+    }
+    if (step.kind === "stop") {
+      return "Stop";
+    }
+    return step.kind;
+  }
+  function stepSummary(step) {
+    const args = step.args;
+    if (step.kind === "log") {
+      return String(args.message || "").slice(0, 80);
+    }
+    if (step.kind === "email") {
+      return `${args.to || "admin"} — ${String(args.subject || "").slice(0, 60)}`;
+    }
+    if (step.kind === "http") {
+      return `${String(args.method || "GET").toUpperCase()} ${String(args.url || "").slice(0, 60)}`;
+    }
+    if (step.kind === "wait") {
+      return `${args.seconds ?? 1}s`;
+    }
+    if (step.kind === "if" && step.condition) {
+      return `${String(step.condition.left)} ${step.condition.op} ${String(step.condition.right)}`;
+    }
+    if (step.kind === "set_var") {
+      return `${args.name} = ${JSON.stringify(args.value)}`;
+    }
+    if (step.kind === "stop") {
+      return String(args.reason || "");
+    }
+    if (step.kind === "action" || step.kind === "ai_tool") {
+      return Object.keys(args).slice(0, 3).join(", ");
+    }
+    return "";
+  }
+  function defaultArgsFor(kind) {
+    switch (kind) {
+      case "log":
+        return { level: "info", message: "" };
+      case "email":
+        return { to: "", subject: "", body: "" };
+      case "http":
+        return { method: "GET", url: "", body: "" };
+      case "wait":
+        return { seconds: 1 };
+      case "set_var":
+        return { name: "", value: "" };
+      case "stop":
+        return { reason: "" };
+      case "if":
+        return {};
+    }
+    return {};
+  }
+  function resolveStepList(root, path) {
+    let cur = root;
+    for (let i = 0; i < path.length; i++) {
+      const idx = path[i];
+      if (idx === -1) {
+        const parent = cur[path[i - 1]];
+        cur = parent?.then ?? [];
+        continue;
+      }
+      if (idx === -2) {
+        const parent = cur[path[i - 1]];
+        cur = parent?.else ?? [];
+        continue;
+      }
+      if (i === path.length - 1) {
+        return cur;
+      }
+    }
+    return cur;
+  }
+  function pathToString(path) {
+    return path.map((n) => {
+      if (n === -1) {
+        return "T";
+      }
+      if (n === -2) {
+        return "E";
+      }
+      return String(n);
+    }).join(".");
+  }
+  function previousAnchorId(anchors) {
+    for (let i = anchors.length - 1; i >= 0; i--) {
+      if (anchors[i].kind !== "add") {
+        return anchors[i].id;
+      }
+    }
+    return "trigger";
+  }
+  function findStepIndexById(steps, id, path) {
+    for (let i = 0; i < steps.length; i++) {
+      const here = [...path, i];
+      if (steps[i].id === id) {
+        return pathToString(here);
+      }
+      if (steps[i].kind === "if") {
+        const inThen = findStepIndexById(
+          steps[i].then ?? [],
+          id,
+          [...here, -1]
+        );
+        if (inThen) {
+          return inThen;
+        }
+        const inElse = findStepIndexById(
+          steps[i].else ?? [],
+          id,
+          [...here, -2]
+        );
+        if (inElse) {
+          return inElse;
+        }
+      }
+    }
+    return null;
+  }
   class RestError extends Error {
     constructor(status, code, message) {
       super(message);
@@ -210,6 +2232,8 @@
   }
   function buildEditorPanel(body, routine) {
     const panel = el("section", { class: "wpdm-routines__editor" });
+    let viewMode = "visual";
+    let canvasHandle = null;
     const header = el("header", { class: "wpdm-routines__editor-header" });
     const titleField = el("input", {
       class: "wpdm-routines__title-field",
@@ -233,23 +2257,83 @@
       }
     });
     enabledLabel.append(enabledInput, document.createTextNode(" Enabled"));
-    header.append(titleField, enabledLabel);
-    const editorWrap = el("div", { class: "wpdm-routines__json-wrap" });
-    const editorLabel = el(
-      "label",
-      { class: "wpdm-routines__json-label" },
-      ["Definition (JSON)"]
-    );
-    const editor = el("textarea", {
+    const viewToggle = el("div", { class: "wpdm-routines__view-toggle" });
+    const visualBtn = el("button", {
+      class: "wpdm-routines__view-btn is-active",
+      type: "button"
+    }, ["Visual"]);
+    const jsonBtn = el("button", {
+      class: "wpdm-routines__view-btn",
+      type: "button"
+    }, ["JSON"]);
+    viewToggle.append(visualBtn, jsonBtn);
+    header.append(titleField, enabledLabel, viewToggle);
+    const viewBody = el("div", { class: "wpdm-routines__view-body" });
+    const validation = el("p", { class: "wpdm-routines__validation" });
+    const out = el("div", { class: "wpdm-routines__output" });
+    const jsonEditor = el("textarea", {
       class: "wpdm-routines__json",
       spellcheck: false
     });
-    editor.value = JSON.stringify(routine.def, null, 2);
-    editor.addEventListener("input", () => {
+    jsonEditor.value = JSON.stringify(routine.def, null, 2);
+    jsonEditor.addEventListener("input", () => {
       state.dirty = true;
     });
-    editorWrap.append(editorLabel, editor);
-    const validation = el("p", { class: "wpdm-routines__validation" });
+    const renderView = () => {
+      viewBody.replaceChildren();
+      canvasHandle?.destroy();
+      canvasHandle = null;
+      if (viewMode === "visual") {
+        void mountCanvas(viewBody, {
+          def: routine.def,
+          catalog: state.catalog,
+          pluginUrl: cfg().pluginUrl,
+          onChange: () => {
+            state.dirty = true;
+            jsonEditor.value = JSON.stringify(routine.def, null, 2);
+          },
+          onTest: async () => null
+          // canvas is presentational; test happens via the action bar
+        }).then((h) => {
+          canvasHandle = h;
+        });
+      } else {
+        const wrap = el("div", { class: "wpdm-routines__json-wrap" });
+        wrap.append(
+          el(
+            "label",
+            { class: "wpdm-routines__json-label" },
+            ["Definition (JSON)"]
+          ),
+          jsonEditor
+        );
+        viewBody.append(wrap);
+      }
+    };
+    visualBtn.addEventListener("click", () => {
+      if (viewMode === "visual") {
+        return;
+      }
+      const parsed = parseJson(jsonEditor.value, validation);
+      if (!parsed) {
+        return;
+      }
+      routine.def = parsed;
+      viewMode = "visual";
+      visualBtn.classList.add("is-active");
+      jsonBtn.classList.remove("is-active");
+      renderView();
+    });
+    jsonBtn.addEventListener("click", () => {
+      if (viewMode === "json") {
+        return;
+      }
+      jsonEditor.value = JSON.stringify(routine.def, null, 2);
+      viewMode = "json";
+      jsonBtn.classList.add("is-active");
+      visualBtn.classList.remove("is-active");
+      renderView();
+    });
     const bar = el("div", { class: "wpdm-routines__action-bar" });
     const saveBtn = el("button", {
       class: "wpdm-routines__btn wpdm-routines__btn--primary",
@@ -268,20 +2352,28 @@
       type: "button"
     }, ["Delete"]);
     bar.append(saveBtn, testBtn, runBtn, deleteBtn);
-    const out = el("div", { class: "wpdm-routines__output" });
     const history = el("section", { class: "wpdm-routines__history" });
     const historyTitle = el("h4", {}, ["Recent runs"]);
     const historyList = el("div", { class: "wpdm-routines__history-list" });
     history.append(historyTitle, historyList);
+    const syncDefFromEditor = () => {
+      if (viewMode === "json") {
+        const parsed = parseJson(jsonEditor.value, validation);
+        if (!parsed) {
+          return false;
+        }
+        routine.def = parsed;
+      }
+      return true;
+    };
     saveBtn.addEventListener("click", async () => {
-      const def = parseJson(editor.value, validation);
-      if (!def) {
+      if (!syncDefFromEditor()) {
         return;
       }
       try {
         const updated = await updateRoutine(routine.id, {
           title: titleField.value,
-          def
+          def: routine.def
         });
         Object.assign(routine, updated);
         state.dirty = false;
@@ -294,21 +2386,21 @@
       }
     });
     testBtn.addEventListener("click", async () => {
-      const def = parseJson(editor.value, validation);
-      if (!def) {
+      if (!syncDefFromEditor()) {
         return;
       }
       const trig = state.catalog?.triggers.find(
-        (t) => t.id === def.trigger.id
+        (t) => t.id === routine.def.trigger.id
       );
       const payload = trig?.sample_payload ?? {};
       try {
         await updateRoutine(routine.id, {
           title: titleField.value,
-          def
+          def: routine.def
         });
         const result = await testRoutine(routine.id, payload);
         renderRunResult(out, result);
+        canvasHandle?.playRun(result.steps_log);
       } catch (err) {
         out.textContent = describeError(err);
       }
@@ -326,6 +2418,7 @@
       try {
         const result = await runRoutine(routine.id, payload);
         renderRunResult(out, result);
+        canvasHandle?.playRun(result.steps_log);
         void refreshHistory(routine.id, historyList);
       } catch (err) {
         out.textContent = describeError(err);
@@ -348,7 +2441,8 @@
         alert(describeError(err));
       }
     });
-    panel.append(header, editorWrap, validation, bar, out, history);
+    panel.append(header, viewBody, validation, bar, out, history);
+    renderView();
     void refreshHistory(routine.id, historyList);
     return panel;
   }

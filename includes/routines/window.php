@@ -145,11 +145,15 @@ function wpdm_routines_localize_config() {
 		'wp-desktop-routines',
 		'wpDesktopRoutinesConfig',
 		array(
-			'restNonce'  => wp_create_nonce( 'wp_rest' ),
-			'rootUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/routines' ) ),
-			'catalogUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/routines/catalog' ) ),
-			'templatesUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/routines/templates' ) ),
+			'restNonce'       => wp_create_nonce( 'wp_rest' ),
+			'rootUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/routines' ) ),
+			'catalogUrl'      => esc_url_raw( rest_url( 'wp-desktop/v1/routines/catalog' ) ),
+			'templatesUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/routines/templates' ) ),
 			'fromTemplateUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/routines/from-template' ) ),
+			// Plugin base URL — handed to the canvas so the Pixi
+			// vendor script (`assets/vendor/pixi.min.js`) can be
+			// located without the bundle hardcoding a path.
+			'pluginUrl'       => esc_url_raw( rtrim( DESKTOP_MODE_URL, '/' ) ),
 		)
 	);
 	wp_enqueue_style( 'wp-desktop-routines' );

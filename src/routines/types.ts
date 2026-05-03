@@ -155,6 +155,7 @@ declare global {
 			catalogUrl: string;
 			templatesUrl: string;
 			fromTemplateUrl: string;
+			pluginUrl: string;
 		};
 		wpDesktopNativeWindows?: Record<
 			string,

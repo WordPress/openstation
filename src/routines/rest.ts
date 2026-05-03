@@ -26,7 +26,7 @@ export class RestError extends Error {
 	}
 }
 
-function cfg() {
+export function cfg() {
 	const c = window.wpDesktopRoutinesConfig;
 	if ( ! c ) {
 		throw new RestError( 0, 'no_config', 'Routines config missing.' );
