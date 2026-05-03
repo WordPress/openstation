@@ -235,6 +235,14 @@ export async function mountCanvas(
 		);
 
 		// Trailing "+ Add step" button.
+		// If the last walked step was an if-step, drop a merge
+		// banner BEFORE the trailing root add-step button — same
+		// reason as for post-if real steps. The walker stashes
+		// the signal on the host as a data attribute.
+		if ( cardLayer.dataset.endsWithIf === '1' ) {
+			cardLayer.append( renderMergeBanner() );
+		}
+
 		// Root variant — visually distinct from per-branch
 		// "+ Add step" buttons inside an if. Adds a step at the
 		// outer flow level ("after the if finishes, then…"); the
@@ -649,10 +657,19 @@ function walkSteps(
 	rootHost: HTMLElement,
 ): void {
 	let prev = parentAnchor;
+	let prevWasIf = false;
 
 	steps.forEach( ( step, i ) => {
 		const path = [ ...pathPrefix, i ];
 		const stepAnchorId = `step-${ pathToString( path ) }`;
+		// Insert a merge banner before any step that follows an
+		// `if` step. Without it the post-branch step lands in the
+		// centre of the canvas — visually identical to a "third
+		// column" between the THEN and ELSE branches above. The
+		// banner makes the outer-flow continuation explicit.
+		if ( prevWasIf ) {
+			host.append( renderMergeBanner() );
+		}
 		const node = renderStepCard( ctx, step, path, setInspector, rerender );
 		host.append( node );
 		tracked.push( {
@@ -735,20 +752,30 @@ function walkSteps(
 
 			branchesRow.append( thenCol, elseCol );
 			// After a branch, the next step has NO direct connector
-			// to the if-step. Drawing one routes a bezier through
-			// the gutter between THEN and ELSE columns and reads
-			// as a phantom third path — the user reasonably reports
-			// "why does my if-then-else have three routes?"
+			// to the if-step (drawing one routes a bezier through
+			// the gutter between THEN and ELSE → reads as a
+			// phantom third path).
 			//
-			// The vertical flex flow already implies "this happens
-			// after the if finishes"; the connector layer doesn't
-			// need to repeat that, and *not* drawing it removes the
-			// false middle path entirely. Convergence cues (small
-			// inward arcs from each branch's tail toward the next
-			// step) render in the Pixi layer when needed.
+			// The merge banner inserted at the next step start
+			// supplies the visual "branches converge here" cue
+			// that the connector used to (poorly) provide.
 			prev = '';
+			prevWasIf = true;
+		} else {
+			prevWasIf = false;
 		}
 	} );
+
+	// Stash on the host so the trailing "+ Step after this" button
+	// (added by the caller after the walker returns) knows whether
+	// to render a merge banner before itself. A simple data
+	// attribute is the cheapest way to thread the signal back up
+	// without changing the walker signature.
+	if ( prevWasIf ) {
+		host.dataset.endsWithIf = '1';
+	} else {
+		delete host.dataset.endsWithIf;
+	}
 }
 
 function renderBranchHeader( kind: 'then' | 'else' ): HTMLElement {
@@ -758,6 +785,26 @@ function renderBranchHeader( kind: 'then' | 'else' ): HTMLElement {
 	const label = el( 'span', { class: 'wpdm-routines__branch-label' } );
 	label.textContent = kind.toUpperCase();
 	node.append( label );
+	return node;
+}
+
+/**
+ * Visual merge cue — placed between an `if` block's branches and
+ * any root-level step that follows. Without it, post-branch steps
+ * appear in the centre of the canvas (cardLayer is align-center)
+ * and read as a phantom third column. The merge banner makes it
+ * unambiguous: branches end here, the OUTER flow continues
+ * downward.
+ */
+function renderMergeBanner(): HTMLElement {
+	const node = el( 'div', { class: 'wpdm-routines__merge' } );
+	const left = el( 'span', { class: 'wpdm-routines__merge-arrow' } );
+	left.textContent = '↘';
+	const label = el( 'span', { class: 'wpdm-routines__merge-label' } );
+	label.textContent = 'Both branches merge — continuing outer flow';
+	const right = el( 'span', { class: 'wpdm-routines__merge-arrow' } );
+	right.textContent = '↙';
+	node.append( left, label, right );
 	return node;
 }
 

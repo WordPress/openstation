@@ -936,6 +936,29 @@
 	border: 1px solid rgba( 168, 85, 247, 0.4 );
 }
 
+/* Merge banner — a horizontal strip placed between an `if` block's
+   branches and the next root-level step. Visually distinct enough
+   that nobody mistakes it for a card or a column header. */
+.wpdm-routines__merge {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 16px;
+	border-radius: 999px;
+	background: rgba( 0, 0, 0, 0.04 );
+	color: #50575e;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	flex: 0 0 auto;
+}
+
+.wpdm-routines__merge-arrow {
+	font-size: 14px;
+	color: var( --wpd-accent, #2271b1 );
+}
+
 .wpdm-routines__pixi-hint {
 	position: absolute;
 	right: 14px;

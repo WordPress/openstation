@@ -1874,6 +1874,9 @@
         () => rerender(),
         host
       );
+      if (cardLayer.dataset.endsWithIf === "1") {
+        cardLayer.append(renderMergeBanner());
+      }
       const addNode = renderAddStepButton(ctx, [], host, () => rerender(), "root");
       cardLayer.append(addNode);
       const lastStepEntry = [...tracked].reverse().find((t) => t.kind === "step");
@@ -2142,9 +2145,13 @@
   }
   function walkSteps(ctx, steps, pathPrefix, parentAnchor, host, tracked, setInspector, rerender, rootHost) {
     let prev = parentAnchor;
+    let prevWasIf = false;
     steps.forEach((step, i) => {
       const path = [...pathPrefix, i];
       const stepAnchorId = `step-${pathToString(path)}`;
+      if (prevWasIf) {
+        host.append(renderMergeBanner());
+      }
       const node = renderStepCard(ctx, step, path, setInspector, rerender);
       host.append(node);
       tracked.push({
@@ -2221,8 +2228,16 @@
         elseCol.append(addElse);
         branchesRow.append(thenCol, elseCol);
         prev = "";
+        prevWasIf = true;
+      } else {
+        prevWasIf = false;
       }
     });
+    if (prevWasIf) {
+      host.dataset.endsWithIf = "1";
+    } else {
+      delete host.dataset.endsWithIf;
+    }
   }
   function renderBranchHeader(kind) {
     const node = el$1("div", {
@@ -2231,6 +2246,17 @@
     const label = el$1("span", { class: "wpdm-routines__branch-label" });
     label.textContent = kind.toUpperCase();
     node.append(label);
+    return node;
+  }
+  function renderMergeBanner() {
+    const node = el$1("div", { class: "wpdm-routines__merge" });
+    const left = el$1("span", { class: "wpdm-routines__merge-arrow" });
+    left.textContent = "↘";
+    const label = el$1("span", { class: "wpdm-routines__merge-label" });
+    label.textContent = "Both branches merge — continuing outer flow";
+    const right = el$1("span", { class: "wpdm-routines__merge-arrow" });
+    right.textContent = "↙";
+    node.append(left, label, right);
     return node;
   }
   function iconFor(step) {
