@@ -18,6 +18,7 @@
 /* eslint-disable no-alert */
 
 import { mountCanvas, type CanvasHandle } from './canvas';
+import { buildComposer } from './composer';
 import {
 	cfg,
 	createRoutine,
@@ -473,8 +474,36 @@ function buildEditorPanel( body: HTMLElement, routine: Routine ): HTMLElement {
 	const runsPane = el( 'div', { class: 'wpdm-routines__pane' } );
 	runsPane.hidden = true;
 
-	designerPane.append( viewBody );
+	// AI "Describe it" composer — sits at the top of the Designer
+	// pane. Generated routine def replaces routine.def in place;
+	// the canvas's onChange path picks it up and rerenders.
+	const composer = buildComposer( {
+		onGenerated: ( def ) => {
+			routine.def = def;
+			state.dirty = true;
+			// Force the canvas to remount with the new def.
+			renderView();
+			// Keep JSON view in sync so toggling shows the new def.
+			jsonEditor.value = JSON.stringify( routine.def, null, 2 );
+			validation.className = 'wpdm-routines__validation is-success';
+			validation.textContent =
+				'AI generated a routine — review on the canvas, then Save.';
+		},
+	} );
+
+	designerPane.append( composer.root, viewBody );
 	runsPane.append( history );
+
+	// Cmd/Ctrl+K from anywhere in the editor focuses the composer.
+	panel.addEventListener( 'keydown', ( ev ) => {
+		const e = ev as KeyboardEvent;
+		if ( ( e.metaKey || e.ctrlKey ) && e.key.toLowerCase() === 'k' ) {
+			e.preventDefault();
+			// Make sure we're on Designer first.
+			designerTab.click();
+			composer.focus();
+		}
+	} );
 
 	const setTab = ( next: 'designer' | 'runs' ): void => {
 		designerTab.classList.toggle( 'is-active', next === 'designer' );

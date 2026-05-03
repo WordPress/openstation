@@ -1,6 +1,6 @@
 # Routines — visual automation for WordPress
 
-> **Status:** Phase 2 (Stable engine, visual canvas + JSON editor, trigger picker, payload-aware variable autocomplete). Record Mode, Listen Mode, and AI "Describe it" land in Phase 3.
+> **Status:** Phase 3 (Stable engine, visual canvas + JSON editor, trigger picker, payload-aware variable autocomplete, **AI "Describe it"**). Record Mode and Listen Mode are deferred — `from-prompt` covers the killer-feature use case.
 
 Routines are the Desktop Mode answer to *"when X happens on my site, do Y"*. A trigger fires (a comment is posted, a post is published, a custom hook from your plugin), an optional condition gate evaluates, and a chain of typed steps runs.
 
@@ -273,7 +273,34 @@ Tabbed dialog: **Common** (declared triggers grouped by plugin), **By plugin** (
 
 ---
 
+## AI "Describe it" (Phase 3)
+
+A composer at the top of the Designer pane: type a natural-language description of what you want and the AI generates a fully-validated routine.
+
+**How it works:**
+
+1. The user types `"When a comment with 'casino' arrives, trash it and email me."`
+2. The plugin sends `POST /wp-desktop/v1/routines/from-prompt { prompt }` to its server
+3. The server builds a system prompt embedding the **catalog** (every registered trigger + action + AI tool the current user is allowed to see) so the model picks valid identifiers
+4. OpenAI's Responses API is called with **structured output** — `text.format = json_schema, strict: true` — guaranteeing the response conforms to the routine schema. No regex-parsing of model output, no retry loops.
+5. The response is **revalidated server-side** via `wpdm_routine_validate_def` (defence in depth) before reaching the client
+6. The client replaces `routine.def` in place; the canvas rerenders; the user reviews and Saves
+
+Keyboard shortcut: **Cmd/Ctrl+K** focuses the composer from anywhere in the routines window. **Cmd/Ctrl+Enter** submits.
+
+**Filters:**
+
+- `wp_desktop_routine_ai_prompt` (string, array $catalog, string $prompt) — mutate the system prompt (e.g. add site-specific tone or restrict actions).
+- `desktop_mode_ai_model` — model name (shared with the AI Copilot).
+
+**Action:**
+
+- `wp_desktop_routine_ai_generated` ($validated, $prompt, $user_id) — fired after successful generation.
+
+**Permissions:** `manage_options` + AI must be enabled for the user (OS Settings → AI). Generation is admin-only by design — it produces routines that mutate site state.
+
+---
+
 ## Roadmap
 
-- **Phase 3** — Record Mode, Listen Mode, AI "Describe it", dry-run canary ("would have fired N times"), run replay, drag-to-reorder steps, Action Scheduler integration for long-running and scheduled routines.
-- **Phase 4** — webhook trigger (HMAC-signed REST endpoint), templates gallery + JSON import/export, sub-routines.
+- **Phase 4** — webhook trigger (HMAC-signed REST endpoint), templates gallery + JSON import/export, sub-routines, Action Scheduler integration for scheduled / long-wait routines.

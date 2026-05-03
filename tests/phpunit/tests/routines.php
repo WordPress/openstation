@@ -447,6 +447,182 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 		$this->assertSame( 'Good', $entry['title'] );
 	}
 
+	// ---- AI generation ---------------------------------------------------
+
+	/**
+	 * @covers ::wpdm_routine_ai_def_schema
+	 */
+	public function test_ai_schema_exposes_strict_shape_with_required_fields() {
+		$schema = wpdm_routine_ai_def_schema();
+		$this->assertSame( 'object', $schema['type'] );
+		$this->assertFalse( $schema['additionalProperties'] );
+		$this->assertContains( 'trigger', $schema['required'] );
+		$this->assertContains( 'steps', $schema['required'] );
+		$this->assertContains( 'run_as', $schema['required'] );
+		// run_as is enum-restricted to author/system.
+		$this->assertSame(
+			array( 'author', 'system' ),
+			$schema['properties']['run_as']['enum']
+		);
+		// Steps reference the recursive Step definition.
+		$this->assertSame( '#/$defs/Step', $schema['properties']['steps']['items']['$ref'] );
+		// Step's `kind` enum matches the validator's known kinds.
+		$this->assertSame(
+			wpdm_routine_known_step_kinds(),
+			$schema['$defs']['Step']['properties']['kind']['enum']
+		);
+	}
+
+	/**
+	 * @covers ::wpdm_routine_ai_extract_json
+	 */
+	public function test_ai_extract_json_handles_output_text_shorthand() {
+		$result = wpdm_routine_ai_extract_json(
+			array( 'output_text' => '{"version":1,"trigger":{"kind":"hook","id":"publish_post"}}' )
+		);
+		$this->assertIsArray( $result );
+		$this->assertSame( 1, $result['version'] );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_ai_extract_json
+	 */
+	public function test_ai_extract_json_walks_nested_output_blocks() {
+		$result = wpdm_routine_ai_extract_json(
+			array(
+				'output' => array(
+					array(
+						'content' => array(
+							array(
+								'type' => 'output_text',
+								'text' => '{"x":1}',
+							),
+						),
+					),
+				),
+			)
+		);
+		$this->assertSame( array( 'x' => 1 ), $result );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_ai_extract_json
+	 */
+	public function test_ai_extract_json_errors_on_missing_text() {
+		$result = wpdm_routine_ai_extract_json( array( 'output' => array() ) );
+		$this->assertWPError( $result );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_ai_extract_json
+	 */
+	public function test_ai_extract_json_errors_on_malformed() {
+		$result = wpdm_routine_ai_extract_json(
+			array( 'output_text' => 'not json' )
+		);
+		$this->assertWPError( $result );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_ai_build_catalog
+	 */
+	public function test_ai_catalog_contains_seeded_triggers_and_actions() {
+		$catalog = wpdm_routine_ai_build_catalog( self::$admin_id );
+		$trigger_ids = array_column( $catalog['triggers'], 'id' );
+		$this->assertContains( 'publish_post', $trigger_ids );
+		$this->assertContains( 'wp_login', $trigger_ids );
+		$this->assertContains( 'wp_login_failed', $trigger_ids );
+
+		$action_ids = array_column( $catalog['actions'], 'id' );
+		$this->assertContains( 'wpdm.comment.trash', $action_ids );
+		$this->assertContains( 'wpdm.post.publish', $action_ids );
+		$this->assertContains( 'wpdm.broadcast', $action_ids );
+		$this->assertContains( 'wpdm.user.update_role', $action_ids );
+	}
+
+	// ---- New built-in actions --------------------------------------------
+
+	/**
+	 * @covers ::wpdm_routine_action_post_publish
+	 */
+	public function test_action_post_publish_sets_status() {
+		wp_set_current_user( self::$admin_id );
+		$post_id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
+		$result  = wpdm_routine_action_post_publish(
+			array( 'post_id' => $post_id ),
+			array( 'run_as_user_id' => self::$admin_id )
+		);
+		$this->assertIsArray( $result );
+		$this->assertSame( 'publish', get_post_status( $post_id ) );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_action_comment_approve
+	 */
+	public function test_action_comment_approve_moves_pending_to_approved() {
+		wp_set_current_user( self::$admin_id );
+		$post_id    = self::factory()->post->create();
+		$comment_id = self::factory()->comment->create(
+			array( 'comment_post_ID' => $post_id, 'comment_approved' => 0 )
+		);
+		$result = wpdm_routine_action_comment_approve(
+			array( 'comment_id' => $comment_id ),
+			array()
+		);
+		$this->assertTrue( $result['approved'] );
+		$this->assertSame( '1', get_comment( $comment_id )->comment_approved );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_action_user_update_role
+	 */
+	public function test_action_user_update_role_replaces_role() {
+		wp_set_current_user( self::$admin_id );
+		$result = wpdm_routine_action_user_update_role(
+			array( 'user_id' => self::$author_id, 'role' => 'editor' ),
+			array()
+		);
+		$this->assertSame( 'editor', $result['role'] );
+		$user = get_user_by( 'id', self::$author_id );
+		$this->assertContains( 'editor', $user->roles );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_action_broadcast
+	 */
+	public function test_action_broadcast_fires_meta_action() {
+		$received = array();
+		add_action(
+			'wp_desktop_broadcast_received',
+			function ( $topic, $payload ) use ( &$received ) {
+				$received[] = array( 'topic' => $topic, 'payload' => $payload );
+			},
+			10,
+			2
+		);
+		$result = wpdm_routine_action_broadcast(
+			array( 'topic' => 'test/event', 'payload' => array( 'foo' => 'bar' ) ),
+			array()
+		);
+		remove_all_filters( 'wp_desktop_broadcast_received' );
+		$this->assertSame( 'test/event', $result['topic'] );
+		$this->assertSame( 'test/event', $received[0]['topic'] );
+		$this->assertSame( array( 'foo' => 'bar' ), $received[0]['payload'] );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_action_option_update
+	 */
+	public function test_action_option_update_writes_option() {
+		wp_set_current_user( self::$admin_id );
+		$result = wpdm_routine_action_option_update(
+			array( 'option' => 'wpdm_test_option', 'value' => 'hello' ),
+			array()
+		);
+		$this->assertSame( 'wpdm_test_option', $result['option'] );
+		$this->assertSame( 'hello', get_option( 'wpdm_test_option' ) );
+	}
+
 	/**
 	 * @covers ::wpdm_routine_action_comment_trash
 	 */

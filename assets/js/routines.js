@@ -2528,11 +2528,91 @@
   function fetchTemplates() {
     return request(cfg().templatesUrl);
   }
+  function generateFromPrompt(prompt) {
+    return request(`${cfg().rootUrl}/from-prompt`, {
+      method: "POST",
+      body: JSON.stringify({ prompt })
+    });
+  }
   function installTemplate(templateId, title) {
     return request(cfg().fromTemplateUrl, {
       method: "POST",
       body: JSON.stringify({ template_id: templateId, title })
     });
+  }
+  function buildComposer(ctx) {
+    const root = el$1("section", { class: "wpdm-routines__composer" });
+    const sparkle = el$1("span", { class: "wpdm-routines__composer-icon" });
+    sparkle.textContent = "✨";
+    const input = el$1("textarea", {
+      class: "wpdm-routines__composer-input",
+      spellcheck: true,
+      placeholder: `Describe the routine you want — e.g. "When a comment with 'casino' arrives, trash it and email me."  (Cmd/Ctrl+Enter to generate)`,
+      rows: 2
+    });
+    const generateBtn = el$1("button", {
+      class: "wpdm-routines__composer-btn",
+      type: "button"
+    });
+    generateBtn.textContent = "Generate";
+    const status = el$1("span", { class: "wpdm-routines__composer-status" });
+    root.append(sparkle, input, generateBtn, status);
+    let busy = false;
+    const submit = async () => {
+      if (busy) {
+        return;
+      }
+      const prompt = input.value.trim();
+      if (!prompt) {
+        input.focus();
+        return;
+      }
+      busy = true;
+      generateBtn.disabled = true;
+      generateBtn.textContent = "Generating…";
+      status.className = "wpdm-routines__composer-status";
+      status.textContent = "";
+      root.classList.add("is-busy");
+      try {
+        const result = await generateFromPrompt(prompt);
+        ctx.onGenerated(result.def, {
+          model: result.used_model,
+          latencyMs: result.latency_ms
+        });
+        status.className = "wpdm-routines__composer-status is-success";
+        status.textContent = `Generated in ${result.latency_ms}ms — review and Save when ready.`;
+        input.value = "";
+      } catch (err) {
+        status.className = "wpdm-routines__composer-status is-error";
+        status.textContent = describeError$1(err);
+      } finally {
+        busy = false;
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Generate";
+        root.classList.remove("is-busy");
+      }
+    };
+    generateBtn.addEventListener("click", () => void submit());
+    input.addEventListener("keydown", (ev) => {
+      const e = ev;
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        void submit();
+      }
+    });
+    return {
+      root,
+      focus: () => input.focus()
+    };
+  }
+  function describeError$1(err) {
+    if (err instanceof RestError) {
+      return `${err.code} — ${err.message}`;
+    }
+    if (err instanceof Error) {
+      return err.message;
+    }
+    return String(err);
   }
   const ROOT = "[data-wpdm-routines-root]";
   const LIST = "[data-wpdm-routines-list]";
@@ -2876,8 +2956,26 @@
     const designerPane = el("div", { class: "wpdm-routines__pane" });
     const runsPane = el("div", { class: "wpdm-routines__pane" });
     runsPane.hidden = true;
-    designerPane.append(viewBody);
+    const composer = buildComposer({
+      onGenerated: (def) => {
+        routine.def = def;
+        state.dirty = true;
+        renderView();
+        jsonEditor.value = JSON.stringify(routine.def, null, 2);
+        validation.className = "wpdm-routines__validation is-success";
+        validation.textContent = "AI generated a routine — review on the canvas, then Save.";
+      }
+    });
+    designerPane.append(composer.root, viewBody);
     runsPane.append(history);
+    panel.addEventListener("keydown", (ev) => {
+      const e = ev;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        designerTab.click();
+        composer.focus();
+      }
+    });
     const setTab = (next) => {
       designerTab.classList.toggle("is-active", next === "designer");
       runsTab.classList.toggle("is-active", next === "runs");

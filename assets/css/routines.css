@@ -523,6 +523,90 @@
 	align-self: flex-start;
 }
 
+/* AI "Describe it" composer — inline strip above the canvas.
+   Plain-language → routine via OpenAI structured output. */
+
+.wpdm-routines__composer {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	gap: 10px;
+	align-items: center;
+	padding: 10px 14px;
+	border: 1px solid var( --wpd-window-border, #d4d4d8 );
+	border-radius: 12px;
+	background: linear-gradient( 135deg, rgba( 34, 113, 177, 0.04 ), rgba( 168, 85, 247, 0.04 ) );
+	margin-block-end: 10px;
+	flex: 0 0 auto;
+}
+
+.wpdm-routines__composer.is-busy {
+	background: rgba( 0, 0, 0, 0.03 );
+}
+
+.wpdm-routines__composer-icon {
+	font-size: 18px;
+	line-height: 1;
+}
+
+.wpdm-routines__composer-input {
+	width: 100%;
+	min-width: 0;
+	border: 0;
+	background: transparent;
+	resize: none;
+	font-family: inherit;
+	font-size: 13px;
+	line-height: 1.45;
+	color: #1d2327;
+	padding: 4px 0;
+	outline: 0;
+}
+
+.wpdm-routines__composer-input::placeholder {
+	color: #6b7280;
+}
+
+.wpdm-routines__composer-btn {
+	padding: 8px 16px;
+	border: 0;
+	border-radius: 999px;
+	background: var( --wpd-accent, #2271b1 );
+	color: #fff;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.wpdm-routines__composer-btn:hover:not( :disabled ) {
+	filter: brightness( 1.05 );
+}
+
+.wpdm-routines__composer-btn:disabled {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+.wpdm-routines__composer-status {
+	grid-column: 1 / -1;
+	font-size: 11px;
+	color: #50575e;
+	min-height: 14px;
+}
+
+.wpdm-routines__composer-status.is-success {
+	color: #008a20;
+}
+
+.wpdm-routines__composer-status.is-error {
+	color: #d63638;
+}
+
+.wpdm-routines__composer-status:empty {
+	display: none;
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Phase 2 — visual canvas
    Hybrid layout: DOM cards above a Pixi WebGL layer drawing

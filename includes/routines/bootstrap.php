@@ -57,6 +57,7 @@ require_once __DIR__ . '/executor.php';
 require_once __DIR__ . '/triggers.php';
 require_once __DIR__ . '/seed.php';
 require_once __DIR__ . '/rest.php';
+require_once __DIR__ . '/ai-generate.php';
 require_once __DIR__ . '/window.php';
 
 /**

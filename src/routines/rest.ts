@@ -145,6 +145,15 @@ export function fetchTemplates(): Promise< { items: Template[] } > {
 	return request( cfg().templatesUrl );
 }
 
+export function generateFromPrompt(
+	prompt: string,
+): Promise< { def: import( './types' ).RoutineDef; used_model: string; latency_ms: number } > {
+	return request( `${ cfg().rootUrl }/from-prompt`, {
+		method: 'POST',
+		body: JSON.stringify( { prompt } ),
+	} );
+}
+
 export function installTemplate(
 	templateId: string,
 	title?: string,
