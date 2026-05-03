@@ -246,6 +246,20 @@ export async function mountCanvas(
 		pushAnchorsToPixi();
 	};
 
+	// Rate-limit `pixi.resize` to actual dimension changes. The
+	// inspector slide-in transitions `grid-template-columns` over
+	// 220ms; ResizeObserver fires every animation frame during that
+	// transition, and a `renderer.resize()` call on every tick
+	// clears the WebGL backing buffer for one frame on most drivers
+	// — read by the user as a flicker on every halo + connector.
+	// The canvas's CSS already stretches the `<canvas>` element to
+	// fill its container (`width:100%; height:100%`), so visual
+	// coverage stays correct during the transition; only the
+	// internal pixel-buffer size needs to keep up, and only when
+	// it actually changes.
+	let lastResizeW = 0;
+	let lastResizeH = 0;
+
 	const pushAnchorsToPixi = (): void => {
 		// Pixi lives inside viewport.content, which has a CSS
 		// transform: scale + translate. Pixi's WebGL coord system
@@ -270,10 +284,18 @@ export async function mountCanvas(
 				state: 'idle',
 			};
 		} );
-		pixi?.resize(
+
+		const w = Math.round(
 			viewport.content.clientWidth || cardLayer.scrollWidth,
+		);
+		const h = Math.round(
 			viewport.content.clientHeight || cardLayer.scrollHeight,
 		);
+		if ( w !== lastResizeW || h !== lastResizeH ) {
+			lastResizeW = w;
+			lastResizeH = h;
+			pixi?.resize( w, h );
+		}
 		pixi?.setAnchors( anchors );
 	};
 

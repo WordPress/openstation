@@ -1689,6 +1689,8 @@
       trackedAnchors = tracked;
       pushAnchorsToPixi();
     };
+    let lastResizeW = 0;
+    let lastResizeH = 0;
     const pushAnchorsToPixi = () => {
       if (!viewport) {
         return;
@@ -1708,10 +1710,17 @@
           state: "idle"
         };
       });
-      pixi?.resize(
-        viewport.content.clientWidth || cardLayer.scrollWidth,
+      const w = Math.round(
+        viewport.content.clientWidth || cardLayer.scrollWidth
+      );
+      const h = Math.round(
         viewport.content.clientHeight || cardLayer.scrollHeight
       );
+      if (w !== lastResizeW || h !== lastResizeH) {
+        lastResizeW = w;
+        lastResizeH = h;
+        pixi?.resize(w, h);
+      }
       pixi?.setAnchors(anchors);
     };
     rerender();
