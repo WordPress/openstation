@@ -114,11 +114,20 @@ function wpdm_routines_register_assets() {
 	$dev = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG );
 	$src = $dev ? 'assets/js/routines.js' : 'assets/js/routines.min.js';
 
+	// `filemtime` (not the plugin-wide version) for the routines
+	// JS + CSS — these iterate faster than the plugin version
+	// while Phase 2/3 lands and a stale browser cache silently
+	// serves the previous build of an absolutely-positioned card
+	// layout (or any other in-flight refactor) on top of new
+	// markup. Same pattern recycle-bin uses for its CSS.
+	$js_path  = DESKTOP_MODE_DIR . $src;
+	$css_path = DESKTOP_MODE_DIR . 'assets/css/routines.css';
+
 	wp_register_script(
 		'wp-desktop-routines',
 		DESKTOP_MODE_URL . $src,
 		array( 'wp-desktop' ),
-		DESKTOP_MODE_VERSION,
+		file_exists( $js_path ) ? (string) filemtime( $js_path ) : DESKTOP_MODE_VERSION,
 		true
 	);
 
@@ -126,7 +135,7 @@ function wpdm_routines_register_assets() {
 		'wp-desktop-routines',
 		DESKTOP_MODE_URL . 'assets/css/routines.css',
 		array(),
-		DESKTOP_MODE_VERSION
+		file_exists( $css_path ) ? (string) filemtime( $css_path ) : DESKTOP_MODE_VERSION
 	);
 }
 add_action( 'init', 'wpdm_routines_register_assets', 15 );
