@@ -150,16 +150,24 @@
    validation + action bar + output. The tabbed pane gets all
    available vertical space so the canvas stretches to fill, and
    the Recent runs list also gets the same generous area instead
-   of being capped at 140px below the action bar. */
+   of being capped at 140px below the action bar.
+
+   `minmax(0, 1fr)` (NOT plain `1fr`) on the active-pane row —
+   plain `1fr` is shorthand for `minmax(auto, 1fr)`, where the
+   `auto` lower bound = min-content of the children. That
+   prevents nested flex chains (view-body → json-wrap →
+   textarea) from claiming the full distributed height, so the
+   JSON textarea collapses to its rows=2 default. The explicit
+   0 minimum lets the row shrink so the flex chain can grow. */
 .wpdm-routines__editor {
 	display: grid;
 	grid-template-rows:
-		auto    /* header (title / enabled / view toggle)            */
-		auto    /* tabs (Designer / Recent runs)                     */
-		1fr     /* active pane (designer or runs)                    */
-		auto    /* validation                                         */
-		auto    /* action bar (Save/Test/Run/Delete)                  */
-		auto;   /* output (last run summary, transient)              */
+		auto                /* header (title / enabled / view toggle)            */
+		auto                /* tabs (Designer / Recent runs)                     */
+		minmax( 0, 1fr )    /* active pane (designer or runs)                    */
+		auto                /* validation                                         */
+		auto                /* action bar (Save/Test/Run/Delete)                  */
+		auto;               /* output (last run summary, transient)              */
 	gap: 14px;
 	height: 100%;
 	min-height: 0;
