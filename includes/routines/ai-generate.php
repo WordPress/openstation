@@ -210,6 +210,11 @@ function wpdm_routine_ai_generate( $api_key, $prompt, $user_id ) {
 		return $json;
 	}
 
+	// Decode the AI-emitted shape into the validator's native
+	// shape: `step.args` arrives as a JSON string (strict-mode
+	// constraint — see schema doc), turn it back into an array.
+	$json = wpdm_routine_ai_postprocess_def( $json );
+
 	$validated = wpdm_routine_validate_def( $json );
 	if ( is_wp_error( $validated ) ) {
 		// Surface the validation error with the raw def so
@@ -316,6 +321,8 @@ function wpdm_routine_ai_build_instructions( array $catalog ) {
 	$lines[] = '  - Default `settings.timeout_ms` to 5000, `settings.stop_on_error` to true. `rate_limit.max` to 0 (no limit) unless the user asks.';
 	$lines[] = '  - Steps that produce values useful downstream should set a short `id` (snake_case). Reference them via `vars.<id>`.';
 	$lines[] = '  - Built-in step kinds: log, email, http, wait, set_var, stop, if, action, ai_tool, command. The `if` kind requires `condition`, `then`, `else`. `then` and `else` are step arrays; both must be present (use `[]` for empty).';
+	$lines[] = '  - `step.args` is a JSON-ENCODED STRING (the schema requires it). Example: `"args": "{\\"message\\": \\"hi {{payload.name}}\\"}"`. Use `"{}"` for steps that take no args. The server will JSON-parse it.';
+	$lines[] = '  - For non-`if` steps, still emit `condition`, `then`, `else` placeholders (the schema requires them). Use `{"left": "", "op": "eq", "right": ""}` and empty arrays.';
 	$lines[] = '  - The `http` step\'s host MUST be in the site\'s allowlist; if the user asks for an outbound webhook, include the step but warn them in `log` that the site admin must allow the host.';
 	$lines[] = '';
 	$lines[] = 'AVAILABLE TRIGGERS (id — label — group — kind):';
@@ -423,14 +430,32 @@ function wpdm_routine_ai_extract_json( array $response ) {
 }
 
 /**
- * The JSON schema fed to OpenAI's `text.format.json_schema`.
+ * JSON schema fed to OpenAI's `text.format.json_schema` (strict).
  *
- * Strict-mode requires every property in `properties` to also
- * appear in `required`, and `additionalProperties: false`. The
- * trade-off: any field the schema doesn't list won't survive
- * the model's output. We list every field our validator
- * accepts; defaults are filled in by `wpdm_routine_validate_def`
- * after the fact.
+ * **Strict-mode constraints we have to honour:**
+ *
+ *   - Every property listed in `properties` MUST also appear in
+ *     `required`. (No optional fields.)
+ *   - Every object MUST have `additionalProperties: false`. No
+ *     free-form maps with arbitrary keys.
+ *   - `type` cannot be a union of disparate types like
+ *     `["string", "number", "boolean"]`. The only union strict
+ *     accepts is `["X", "null"]` for nullability.
+ *   - No `format`, `if/then/else`, `not`. (Schema-level if/else,
+ *     not the routine's. Our `if` step kind is fine — it's
+ *     application-level, not schema-level.)
+ *
+ * **Two design adaptations** dictated by those rules:
+ *
+ *   - `step.args` is a JSON-encoded STRING the model emits, then
+ *     `wpdm_routine_ai_postprocess_def()` json_decodes it before
+ *     the validator runs. This keeps args' real structure (an
+ *     object whose shape varies per step kind) reachable without
+ *     listing every possible arg key in the schema.
+ *   - `condition.left` / `condition.right` are strings only —
+ *     we'd love `string|number|boolean` but strict refuses. The
+ *     PHP comparator already coerces numeric strings, so this
+ *     loses nothing.
  *
  * @since 0.22.0
  *
@@ -445,14 +470,18 @@ function wpdm_routine_ai_def_schema() {
 		'additionalProperties' => false,
 		'required'             => array( 'left', 'op', 'right' ),
 		'properties'           => array(
-			'left'  => array( 'type' => array( 'string', 'number', 'boolean' ) ),
+			'left'  => array(
+				'type'        => 'string',
+				'description' => 'Left operand. Use `{{payload.…}}` / `{{vars.…}}` placeholders or a literal value as a string.',
+			),
 			'op'    => array( 'type' => 'string', 'enum' => $operators ),
-			'right' => array( 'type' => array( 'string', 'number', 'boolean' ) ),
+			'right' => array(
+				'type'        => 'string',
+				'description' => 'Right operand. Use a literal as a string; numbers and booleans are coerced server-side.',
+			),
 		),
 	);
 
-	// Step schema is recursive (if/then/else carry step lists).
-	// JSON Schema $ref handles the recursion; we name it "Step".
 	$step_ref = array( '$ref' => '#/$defs/Step' );
 
 	return array(
@@ -514,19 +543,18 @@ function wpdm_routine_ai_def_schema() {
 				'properties'           => array(
 					'kind'      => array( 'type' => 'string', 'enum' => $kinds ),
 					'id'        => array( 'type' => 'string' ),
-					// Args: free-form. JSON-schema-strict doesn't
-					// allow truly free objects, so we type-loosen
-					// to a flat string/number/boolean record. The
-					// validator on the PHP side casts as needed.
+					// Args as a JSON-encoded string. The server
+					// json_decodes it before validation; the model
+					// thus has full freedom to express any shape
+					// of args without us having to enumerate every
+					// arg key in the schema.
 					'args'      => array(
-						'type'                 => 'object',
-						'additionalProperties' => array(
-							'type' => array( 'string', 'number', 'boolean', 'null' ),
-						),
+						'type'        => 'string',
+						'description' => 'A JSON-encoded object of step arguments. Example: `{"to": "{{payload.user.email}}", "subject": "Hi"}`. The empty case is `{}`.',
 					),
-					// `condition` is required by strict mode but
-					// only meaningful for `kind: if`. For other
-					// kinds the model emits a placeholder.
+					// Required by strict mode but only meaningful
+					// for `kind: if`. For other kinds the model
+					// still emits the placeholder shape.
 					'condition' => $condition,
 					'then'      => array(
 						'type'  => 'array',
@@ -540,4 +568,56 @@ function wpdm_routine_ai_def_schema() {
 			),
 		),
 	);
+}
+
+/**
+ * Translate the AI-emitted shape into the validator's native
+ * shape. Currently a single transform: each `step.args` arrives
+ * as a JSON-encoded string (strict-mode constraint — see schema
+ * doc) and gets json_decoded back into an associative array.
+ *
+ * Recursive — applies to `if` step branches too.
+ *
+ * @since 0.22.0
+ *
+ * @param mixed $def Raw decoded def from the AI.
+ * @return mixed Same def with args fields decoded.
+ */
+function wpdm_routine_ai_postprocess_def( $def ) {
+	if ( ! is_array( $def ) ) {
+		return $def;
+	}
+	if ( isset( $def['steps'] ) && is_array( $def['steps'] ) ) {
+		$def['steps'] = wpdm_routine_ai_decode_step_args( $def['steps'] );
+	}
+	return $def;
+}
+
+/**
+ * @since 0.22.0
+ * @internal
+ *
+ * @param array $steps Array of step entries to walk.
+ * @return array
+ */
+function wpdm_routine_ai_decode_step_args( array $steps ) {
+	$out = array();
+	foreach ( $steps as $step ) {
+		if ( ! is_array( $step ) ) {
+			$out[] = $step;
+			continue;
+		}
+		if ( isset( $step['args'] ) && is_string( $step['args'] ) ) {
+			$decoded = json_decode( $step['args'], true );
+			$step['args'] = is_array( $decoded ) ? $decoded : array();
+		}
+		if ( isset( $step['then'] ) && is_array( $step['then'] ) ) {
+			$step['then'] = wpdm_routine_ai_decode_step_args( $step['then'] );
+		}
+		if ( isset( $step['else'] ) && is_array( $step['else'] ) ) {
+			$step['else'] = wpdm_routine_ai_decode_step_args( $step['else'] );
+		}
+		$out[] = $step;
+	}
+	return $out;
 }

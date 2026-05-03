@@ -514,6 +514,66 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::wpdm_routine_ai_postprocess_def
+	 */
+	public function test_ai_postprocess_decodes_step_args_strings() {
+		$raw = array(
+			'version' => 1,
+			'steps'   => array(
+				array(
+					'kind' => 'log',
+					'id'   => '',
+					// AI emits args as a JSON-encoded string —
+					// strict-mode constraint.
+					'args' => '{"message":"hi","level":"info"}',
+				),
+				array(
+					'kind' => 'if',
+					'id'   => '',
+					'args' => '{}',
+					'condition' => array( 'left' => '1', 'op' => 'eq', 'right' => '1' ),
+					'then' => array(
+						array(
+							'kind' => 'log',
+							'id'   => '',
+							'args' => '{"message":"branch"}',
+						),
+					),
+					'else' => array(),
+				),
+			),
+		);
+		$out = wpdm_routine_ai_postprocess_def( $raw );
+		$this->assertSame(
+			array( 'message' => 'hi', 'level' => 'info' ),
+			$out['steps'][0]['args']
+		);
+		$this->assertSame( array(), $out['steps'][1]['args'] );
+		$this->assertSame(
+			array( 'message' => 'branch' ),
+			$out['steps'][1]['then'][0]['args']
+		);
+	}
+
+	/**
+	 * @covers ::wpdm_routine_ai_postprocess_def
+	 */
+	public function test_ai_postprocess_falls_back_on_invalid_json_args() {
+		$out = wpdm_routine_ai_postprocess_def(
+			array(
+				'steps' => array(
+					array(
+						'kind' => 'log',
+						'id'   => '',
+						'args' => 'not valid json',
+					),
+				),
+			)
+		);
+		$this->assertSame( array(), $out['steps'][0]['args'] );
+	}
+
+	/**
 	 * @covers ::wpdm_routine_ai_extract_json
 	 */
 	public function test_ai_extract_json_errors_on_malformed() {
