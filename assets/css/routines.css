@@ -233,6 +233,7 @@
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
+	height: 100%;
 }
 
 .wpdm-routines__pane[ hidden ] {
