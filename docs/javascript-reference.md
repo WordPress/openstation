@@ -508,7 +508,7 @@ wp.desktop.activity.subscribe( 'wp-desktop/open-requested', ( { windowId, source
 Conventional `source` values: `'dock'`, `'taskbar'`, `'icon'`, `'shortcut'`, `'palette'`, `'api'` (default when omitted). Custom strings are fine — pick one that matches the surface the user clicked.
 
 ```javascript
-// Open the Code editor.
+// Open the Code editor (requires the desktop-mode-code-editor extension).
 wp.desktop.openWindow( 'wpdc-editor' );
 
 // Cross-plugin: surface a sister plugin's monitoring dashboard.
@@ -516,6 +516,8 @@ if ( ! wp.desktop.openWindow( 'alcazaba-monitor' ) ) {
     // Sibling plugin isn't active — handle gracefully.
 }
 ```
+
+The Code editor ships as the standalone **Desktop Mode — Code Editor** extension; `wpdc-editor` only resolves when that plugin is active.
 
 For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`wp-desktop-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
 

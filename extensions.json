@@ -1,6 +1,14 @@
 {
 	"extensions": [
 		{
+			"slug": "desktop-mode-code-editor",
+			"name": "Code Editor",
+			"short_description": "Monaco-backed code editor as a native Desktop Mode window. Browse and edit files inside wp-content with PHP IntelliSense, capability- and DISALLOW_FILE_EDIT-gated.",
+			"icon": null,
+			"homepage": "https://github.com/WordPress/desktop-mode/tree/trunk/extensions/desktop-mode-code-editor",
+			"environments": ["local", "development", "staging", "production"]
+		},
+		{
 			"slug": "desktop-mode-cron-manager",
 			"name": "Cron Manager",
 			"short_description": "Browse, edit, delete, and run WP-Cron events from a native Desktop Mode window.",
