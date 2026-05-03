@@ -53,7 +53,21 @@ export interface CardAnchor {
 
 export interface PixiLayerHandle {
 	setAnchors: ( anchors: CardAnchor[] ) => void;
+	/**
+	 * Resize the renderer's pixel buffer. Triggers an immediate
+	 * synchronous redraw so the canvas never sits empty between
+	 * a `clear()` and the next ticker frame — that one-frame gap
+	 * is what reads as a "blink" during inspector slide-in.
+	 */
 	resize: ( width: number, height: number ) => void;
+	/**
+	 * Apply a viewport pan + zoom transform to the world layer
+	 * (halos, connectors, overlay). The renderer stays at native
+	 * pixel resolution; the transform is applied at the
+	 * scene-graph level, so paths re-rasterise sharp at any zoom
+	 * — zero bilinear pixelation.
+	 */
+	setTransform: ( zoom: number, panX: number, panY: number ) => void;
 	pulse: ( anchorId: string, kind: 'success' | 'error' | 'active' ) => void;
 	playRun: ( sequence: Array< { id: string; ok: boolean; ms: number } > ) => void;
 	destroy: () => void;
@@ -62,6 +76,7 @@ export interface PixiLayerHandle {
 interface State {
 	app: Application;
 	bg: Graphics;
+	world: import( 'pixi.js' ).Container;
 	connectors: Graphics;
 	halos: Graphics;
 	overlay: Graphics;
@@ -121,15 +136,24 @@ export async function mountPixiLayer(
 		'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none;';
 	host.prepend( canvas );
 
+	// Two-layer scene graph:
+	//   - bg lives in the UNTRANSFORMED root stage so the dot grid
+	//     covers the full canvas regardless of zoom.
+	//   - world holds halos / connectors / overlay; its scale +
+	//     position track the viewport's pan + zoom, so everything
+	//     drawn into it stays vector-sharp at any zoom level.
 	const bg = new PIXI.Graphics();
+	const world = new PIXI.Container();
 	const connectors = new PIXI.Graphics();
 	const halos = new PIXI.Graphics();
 	const overlay = new PIXI.Graphics();
-	app.stage.addChild( bg, halos, connectors, overlay );
+	world.addChild( halos, connectors, overlay );
+	app.stage.addChild( bg, world );
 
 	const state: State = {
 		app,
 		bg,
+		world,
 		connectors,
 		halos,
 		overlay,
@@ -154,6 +178,19 @@ export async function mountPixiLayer(
 		},
 		resize: ( w, h ) => {
 			app.renderer.resize( Math.max( 1, w ), Math.max( 1, h ) );
+			// Immediate synchronous draw — close the one-frame gap
+			// between framebuffer clear and the ticker's next tick
+			// that produced the visible "blink" on inspector
+			// open/close.
+			drawBackground( state );
+			drawHalos( state );
+			drawConnectors( state );
+			drawOverlay( state, burstParticles, flowPackets, 0 );
+			app.renderer.render( app.stage );
+		},
+		setTransform: ( zoom, panX, panY ) => {
+			world.scale.set( zoom );
+			world.position.set( panX, panY );
 		},
 		pulse: ( anchorId, kind ) => {
 			const a = state.anchors.find( ( x ) => x.id === anchorId );

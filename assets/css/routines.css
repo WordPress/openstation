@@ -515,9 +515,18 @@
 	user-select: none;
 }
 
+.wpdm-routines__viewport-pixi {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: 0;
+}
+
 .wpdm-routines__viewport-content {
+	position: relative;
 	transform-origin: 0 0;
 	will-change: transform;
+	z-index: 1;
 }
 
 .wpdm-routines__viewport-toolbar {

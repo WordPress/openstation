@@ -116,7 +116,15 @@ export async function mountCanvas(
 
 	let pixi: PixiLayerHandle | null = null;
 	try {
-		pixi = await mountPixiLayer( viewport.content, ctx.pluginUrl );
+		// Pixi mounts inside `viewport.pixiHost` — a sibling of
+		// `viewport.content`, NOT a child. The host stays at
+		// native viewport pixel resolution while `content` (which
+		// holds the cards) is CSS-transformed for pan/zoom.
+		// Pixi mirrors the same transform via its own scene-graph
+		// (`world.scale`/`world.position`), so connectors / halos
+		// stay vector-sharp at any zoom level instead of being
+		// bitmap-stretched by the parent's CSS scale.
+		pixi = await mountPixiLayer( viewport.pixiHost, ctx.pluginUrl );
 	} catch ( err ) {
 		// PixiJS load failed — the canvas still works as a pure DOM
 		// pipeline. We surface a one-time hint so the user can hit F5
@@ -261,22 +269,38 @@ export async function mountCanvas(
 	let lastResizeH = 0;
 
 	const pushAnchorsToPixi = (): void => {
-		// Pixi lives inside viewport.content, which has a CSS
-		// transform: scale + translate. Pixi's WebGL coord system
-		// matches viewport.content's UNTRANSFORMED layout space, so
-		// we measure each card relative to content's top-left and
-		// divide by zoom to undo the transform.
+		// Anchor coordinates are stored in cardLayer-LOCAL
+		// (untransformed) space. Pixi's `world` layer then applies
+		// the viewport's pan + zoom via `setTransform`, so the
+		// renderer stays at native pixel resolution and paths are
+		// re-rasterised sharp at every zoom level — no bitmap
+		// stretching, no pixelation.
 		if ( ! viewport ) {
 			return;
 		}
-		const contentRect = viewport.content.getBoundingClientRect();
-		const zoom = viewport.getState().zoom || 1;
+		const pixiRect = viewport.pixiHost.getBoundingClientRect();
+		const state = viewport.getState();
+		const zoom = state.zoom || 1;
+		// Anchor (X, Y) is the card's position in pixiHost-local
+		// UNTRANSFORMED space. Pixi's world layer then applies
+		// scale=zoom + position=pan, mapping each anchor back to
+		// the exact screen pixel where its card is drawn:
+		//
+		//   screen_x = pan.x + zoom * anchor.x
+		//            = pan.x + zoom * ( ( card_screen_x - pixi_x - pan.x ) / zoom )
+		//            = card_screen_x - pixi_x   ✓
+		//
+		// The math collapses to "wherever the browser placed the
+		// card", which is exactly what we want — the connectors
+		// follow whatever layout decision flexbox + the CSS
+		// transform combined to produce, with zero arithmetic of
+		// our own that could drift.
 		const anchors: CardAnchor[] = trackedAnchors.map( ( t ) => {
 			const r = t.el.getBoundingClientRect();
 			return {
 				id: t.id,
-				x: ( r.left - contentRect.left ) / zoom,
-				y: ( r.top - contentRect.top ) / zoom,
+				x: ( r.left - pixiRect.left - state.pan.x ) / zoom,
+				y: ( r.top - pixiRect.top - state.pan.y ) / zoom,
 				width: r.width / zoom,
 				height: r.height / zoom,
 				kind: t.kind,
@@ -285,17 +309,18 @@ export async function mountCanvas(
 			};
 		} );
 
-		const w = Math.round(
-			viewport.content.clientWidth || cardLayer.scrollWidth,
-		);
-		const h = Math.round(
-			viewport.content.clientHeight || cardLayer.scrollHeight,
-		);
+		// Pixi canvas covers the entire viewport.pixiHost (which is
+		// itself the size of the visible viewport area, NOT scaled
+		// with the content). So the renderer's pixel buffer matches
+		// native screen resolution — no stretching, no pixelation.
+		const w = Math.round( viewport.pixiHost.clientWidth );
+		const h = Math.round( viewport.pixiHost.clientHeight );
 		if ( w !== lastResizeW || h !== lastResizeH ) {
 			lastResizeW = w;
 			lastResizeH = h;
 			pixi?.resize( w, h );
 		}
+		pixi?.setTransform( zoom, state.pan.x, state.pan.y );
 		pixi?.setAnchors( anchors );
 	};
 

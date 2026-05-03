@@ -820,10 +820,12 @@
     canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none;";
     host.prepend(canvas);
     const bg = new PIXI.Graphics();
+    const world = new PIXI.Container();
     const connectors = new PIXI.Graphics();
     const halos = new PIXI.Graphics();
     const overlay = new PIXI.Graphics();
-    app.stage.addChild(bg, halos, connectors, overlay);
+    world.addChild(halos, connectors, overlay);
+    app.stage.addChild(bg, world);
     const state2 = {
       app,
       bg,
@@ -848,6 +850,15 @@
       },
       resize: (w, h) => {
         app.renderer.resize(Math.max(1, w), Math.max(1, h));
+        drawBackground(state2);
+        drawHalos(state2);
+        drawConnectors(state2);
+        drawOverlay(state2, burstParticles, flowPackets, 0);
+        app.renderer.render(app.stage);
+      },
+      setTransform: (zoom, panX, panY) => {
+        world.scale.set(zoom);
+        world.position.set(panX, panY);
       },
       pulse: (anchorId, kind) => {
         const a = state2.anchors.find((x) => x.id === anchorId);
@@ -1423,8 +1434,11 @@
   function mountViewport(host) {
     host.classList.add("wpdm-routines__viewport-host");
     const root = el$1("div", { class: "wpdm-routines__viewport" });
+    const pixiHost = el$1("div", {
+      class: "wpdm-routines__viewport-pixi"
+    });
     const content = el$1("div", { class: "wpdm-routines__viewport-content" });
-    root.append(content);
+    root.append(pixiHost, content);
     const toolbar = buildToolbar();
     host.append(toolbar.node, root);
     const state2 = { pan: { x: 0, y: 0 }, zoom: 1 };
@@ -1488,7 +1502,10 @@
     );
     let dragging = null;
     root.addEventListener("pointerdown", (ev) => {
-      if (ev.target !== root && ev.target !== content) {
+      const target = ev.target;
+      if (target?.closest(
+        ".wpdm-routines__card, .wpdm-routines__add, button, input, textarea, select, label, [contenteditable], .wpdm-routines__viewport-toolbar"
+      )) {
         return;
       }
       if (ev.button !== 0 && ev.button !== 1) {
@@ -1550,6 +1567,7 @@
     return {
       root,
       content,
+      pixiHost,
       getState: () => state2,
       setZoom,
       resetView,
@@ -1624,7 +1642,7 @@
     viewport = mountViewport(stage);
     let pixi = null;
     try {
-      pixi = await mountPixiLayer(viewport.content, ctx.pluginUrl);
+      pixi = await mountPixiLayer(viewport.pixiHost, ctx.pluginUrl);
     } catch (err) {
       const hint = el$1(
         "p",
@@ -1695,14 +1713,15 @@
       if (!viewport) {
         return;
       }
-      const contentRect = viewport.content.getBoundingClientRect();
-      const zoom = viewport.getState().zoom || 1;
+      const pixiRect = viewport.pixiHost.getBoundingClientRect();
+      const state2 = viewport.getState();
+      const zoom = state2.zoom || 1;
       const anchors = trackedAnchors.map((t) => {
         const r = t.el.getBoundingClientRect();
         return {
           id: t.id,
-          x: (r.left - contentRect.left) / zoom,
-          y: (r.top - contentRect.top) / zoom,
+          x: (r.left - pixiRect.left - state2.pan.x) / zoom,
+          y: (r.top - pixiRect.top - state2.pan.y) / zoom,
           width: r.width / zoom,
           height: r.height / zoom,
           kind: t.kind,
@@ -1710,17 +1729,14 @@
           state: "idle"
         };
       });
-      const w = Math.round(
-        viewport.content.clientWidth || cardLayer.scrollWidth
-      );
-      const h = Math.round(
-        viewport.content.clientHeight || cardLayer.scrollHeight
-      );
+      const w = Math.round(viewport.pixiHost.clientWidth);
+      const h = Math.round(viewport.pixiHost.clientHeight);
       if (w !== lastResizeW || h !== lastResizeH) {
         lastResizeW = w;
         lastResizeH = h;
         pixi?.resize(w, h);
       }
+      pixi?.setTransform(zoom, state2.pan.x, state2.pan.y);
       pixi?.setAnchors(anchors);
     };
     rerender();

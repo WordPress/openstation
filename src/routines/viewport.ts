@@ -33,7 +33,17 @@ export interface ViewportState {
 
 export interface ViewportHandle {
 	root: HTMLElement;
+	/** CSS-transformed container — cards live here. */
 	content: HTMLElement;
+	/**
+	 * Sibling of `content`, untransformed and at native viewport
+	 * resolution. The Pixi canvas mounts here so it never gets
+	 * bitmap-stretched by the parent's CSS transform — Pixi
+	 * applies its own scene-graph transform inside the renderer
+	 * to keep connectors aligned with their CSS-transformed cards
+	 * at any zoom level, vector-perfect with zero pixelation.
+	 */
+	pixiHost: HTMLElement;
 	getState: () => ViewportState;
 	setZoom: ( zoom: number, focal?: { x: number; y: number } ) => void;
 	resetView: () => void;
@@ -55,8 +65,12 @@ export function mountViewport( host: HTMLElement ): ViewportHandle {
 	host.classList.add( 'wpdm-routines__viewport-host' );
 
 	const root = el( 'div', { class: 'wpdm-routines__viewport' } );
+	const pixiHost = el( 'div', {
+		class: 'wpdm-routines__viewport-pixi',
+	} );
 	const content = el( 'div', { class: 'wpdm-routines__viewport-content' } );
-	root.append( content );
+	// pixiHost first so it paints behind content; both at inset:0.
+	root.append( pixiHost, content );
 
 	const toolbar = buildToolbar();
 	host.append( toolbar.node, root );
@@ -146,10 +160,19 @@ export function mountViewport( host: HTMLElement ): ViewportHandle {
 			}
 		| null = null;
 	root.addEventListener( 'pointerdown', ( ev ) => {
-		// Only start panning when the press is on the viewport
-		// background itself, not on a card or button. Cards + their
-		// children stop propagation through their click handlers.
-		if ( ev.target !== root && ev.target !== content ) {
+		// Pan starts when the press is NOT on a card / button /
+		// input / toolbar. Walking up the DOM with `closest()`
+		// covers every empty-area target (cardLayer, branch
+		// columns, branches row, content itself) without an
+		// allowlist of container ids. Cards stop the pan because
+		// their click handlers are the user's "open inspector"
+		// gesture; mixing pan + click is bad UX.
+		const target = ev.target as HTMLElement | null;
+		if (
+			target?.closest(
+				'.wpdm-routines__card, .wpdm-routines__add, button, input, textarea, select, label, [contenteditable], .wpdm-routines__viewport-toolbar',
+			)
+		) {
 			return;
 		}
 		if ( ev.button !== 0 && ev.button !== 1 ) {
@@ -217,6 +240,7 @@ export function mountViewport( host: HTMLElement ): ViewportHandle {
 	return {
 		root,
 		content,
+		pixiHost,
 		getState: () => state,
 		setZoom,
 		resetView,
