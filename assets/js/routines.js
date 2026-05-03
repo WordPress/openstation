@@ -1465,23 +1465,29 @@
       apply();
     };
     const fitToContent = () => {
-      const prev = state2.zoom;
-      state2.zoom = 1;
-      state2.pan = { x: 0, y: 0 };
+      content.style.zoom = "1";
       content.style.transform = "";
-      const contentRect = content.getBoundingClientRect();
+      void content.offsetHeight;
+      const cards = content.querySelector(
+        ".wpdm-routines__cards"
+      );
+      const naturalW = cards?.scrollWidth || content.scrollWidth || 1;
+      const naturalH = cards?.scrollHeight || content.scrollHeight || 1;
       const rootRect = root.getBoundingClientRect();
       const margin = 24;
-      const fitX = (rootRect.width - margin * 2) / contentRect.width;
-      const fitY = (rootRect.height - margin * 2) / contentRect.height;
-      state2.zoom = Math.max(MIN_ZOOM, Math.min(1, Math.min(fitX, fitY)));
-      const scaledW = contentRect.width * state2.zoom;
-      const scaledH = contentRect.height * state2.zoom;
+      const fitX = (rootRect.width - margin * 2) / naturalW;
+      const fitY = (rootRect.height - margin * 2) / naturalH;
+      const fit = Math.max(
+        MIN_ZOOM,
+        Math.min(1, Math.min(fitX, fitY))
+      );
+      state2.zoom = fit;
+      const scaledW = naturalW * fit;
+      const scaledH = naturalH * fit;
       state2.pan = {
         x: (rootRect.width - scaledW) / 2,
         y: (rootRect.height - scaledH) / 2
       };
-      state2.zoom = state2.zoom || prev || 1;
       apply();
     };
     root.addEventListener(

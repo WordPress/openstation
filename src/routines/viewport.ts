@@ -120,26 +120,50 @@ export function mountViewport( host: HTMLElement ): ViewportHandle {
 	};
 
 	const fitToContent = (): void => {
-		// Compute the natural content rect at zoom=1, then scale to
-		// fit the viewport with a small margin.
-		const prev = state.zoom;
-		state.zoom = 1;
-		state.pan = { x: 0, y: 0 };
+		// Measure at zoom=1, then compute the scale that fits the
+		// content into the viewport with a small margin. We have
+		// to reset BOTH `zoom` and `transform` on the content
+		// before measuring — otherwise `getBoundingClientRect()`
+		// returns the previously-zoomed dimensions and the fit
+		// calculation drifts (the symptom: clicking Fit jumps to a
+		// different "wrong" percentage every time, never settles).
+		content.style.zoom = '1';
 		content.style.transform = '';
-		const contentRect = content.getBoundingClientRect();
+		// Force layout — the next read picks up the post-reset
+		// dimensions, not a stale layout cache.
+		void content.offsetHeight;
+
+		// Use `scrollWidth/Height` on the cards container, NOT
+		// `getBoundingClientRect()` on `content`. The cardLayer is
+		// the actual content extent; `content` itself can have
+		// extra layout (padding, position context) that throws the
+		// fit math off.
+		const cards = content.querySelector< HTMLElement >(
+			'.wpdm-routines__cards',
+		);
+		const naturalW = cards?.scrollWidth || content.scrollWidth || 1;
+		const naturalH = cards?.scrollHeight || content.scrollHeight || 1;
+
 		const rootRect = root.getBoundingClientRect();
 		const margin = 24;
-		const fitX = ( rootRect.width - margin * 2 ) / contentRect.width;
-		const fitY = ( rootRect.height - margin * 2 ) / contentRect.height;
-		state.zoom = Math.max( MIN_ZOOM, Math.min( 1, Math.min( fitX, fitY ) ) );
-		// Centre the content in the viewport.
-		const scaledW = contentRect.width * state.zoom;
-		const scaledH = contentRect.height * state.zoom;
+		const fitX = ( rootRect.width - margin * 2 ) / naturalW;
+		const fitY = ( rootRect.height - margin * 2 ) / naturalH;
+
+		// Don't auto-zoom past 100% — Fit means "show me everything",
+		// not "magnify a tiny routine to fill the window".
+		const fit = Math.max(
+			MIN_ZOOM,
+			Math.min( 1, Math.min( fitX, fitY ) ),
+		);
+		state.zoom = fit;
+
+		// Centre the (now-zoomed) content in the viewport.
+		const scaledW = naturalW * fit;
+		const scaledH = naturalH * fit;
 		state.pan = {
 			x: ( rootRect.width - scaledW ) / 2,
 			y: ( rootRect.height - scaledH ) / 2,
 		};
-		state.zoom = state.zoom || prev || 1;
 		apply();
 	};
 
