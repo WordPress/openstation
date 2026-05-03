@@ -353,6 +353,51 @@ describe( 'paintWindowControls', () => {
 		).toBe( true );
 	} );
 
+	// Regression: between 0.6.0 and 0.6.2 the renderer bound the
+	// onClick handler to BOTH `click` and `wpd-button-activate`. The
+	// component's internal `<button>` fires a native click that
+	// bubbles `composed: true` up to the host AND dispatches a
+	// follow-up `wpd-button-activate` CustomEvent, so the handler
+	// fired twice per user gesture. Maximize / fullscreen toggled
+	// on then off in one click and silently appeared broken across
+	// every window in the shell.
+	//
+	// The original test (above) only dispatched `wpd-button-activate`
+	// directly, never the native click that the component itself
+	// emits — which is exactly why it didn't catch the regression.
+	// This test simulates both events the way they actually fire in
+	// the browser, and asserts the handler runs exactly ONCE.
+	test( 'click on a control fires the handler exactly once (no double-fire from click + wpd-button-activate)', () => {
+		registerBuiltInControls();
+		const win = fakeWin( 'edit-post' );
+		const host = document.createElement( 'div' );
+		paintWindowControls(
+			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
+			host,
+		);
+		const maximizeBtn = host.querySelector(
+			'.wp-desktop-window__btn--maximize',
+		) as HTMLElement;
+
+		// Sequence the real `<wpd-window-button>` produces on a single
+		// pointer click: native `click` bubbles `composed: true` from
+		// the shadow `<button>` up to the host, then the component
+		// dispatches `wpd-button-activate` from the host.
+		maximizeBtn.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, composed: true } ),
+		);
+		maximizeBtn.dispatchEvent(
+			new CustomEvent( 'wpd-button-activate', {
+				bubbles: true,
+				composed: true,
+			} ),
+		);
+
+		// One user click → one toggleMaximize call. Two would silently
+		// re-toggle, which is what bit us before.
+		expect( win.toggleMaximize ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'plugin can register a control via registerWindowControl and it appears', () => {
 		registerBuiltInControls();
 		registerWindowControl( {

@@ -210,16 +210,18 @@ function buildControlElement(
 					} );
 				}
 			};
-			// wpd-window-button emits `wpd-button-activate` — listen
-			// there to avoid double-firing on raw click + to skip
-			// clicks swallowed by drag tracking.
+			// `wpd-window-button` re-emits every native click as a
+			// `wpd-button-activate` CustomEvent on the host. Listen
+			// there ONLY — the raw `click` ALSO bubbles up
+			// `composed: true` from the shadow `<button>`, so binding
+			// both fires the handler twice per gesture. That double-
+			// fire silently broke maximize / fullscreen for weeks
+			// (toggle-on then toggle-off in one user click).
 			host.addEventListener( 'wpd-button-activate', handler );
-			host.addEventListener( 'click', handler );
 			return {
 				element: host,
 				teardown: () => {
 					host.removeEventListener( 'wpd-button-activate', handler );
-					host.removeEventListener( 'click', handler );
 				},
 			};
 		}
