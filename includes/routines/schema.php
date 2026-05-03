@@ -42,7 +42,24 @@ defined( 'ABSPATH' ) || exit;
  * @return string[]
  */
 function wpdm_routine_known_step_kinds() {
-	return array( 'command', 'ai_tool', 'action', 'email', 'http', 'log', 'wait', 'if', 'stop', 'set_var' );
+	return array(
+		'command',
+		'ai_tool',
+		'action',
+		'email',
+		'http',
+		'log',
+		'wait',
+		'if',
+		'stop',
+		'set_var',
+		// `classify` — AI sorts a piece of text into one of N
+		// user-defined buckets, returns `{ bucket_id, confidence,
+		// reasoning }` for downstream steps to branch on.
+		// Powered by OpenAI structured output (same backbone as
+		// the "Describe it" generator).
+		'classify',
+	);
 }
 
 /**

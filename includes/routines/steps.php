@@ -343,3 +343,216 @@ function wpdm_routine_step_set_var( $args, $context ) {
 function wpdm_routine_step_stop( $args, $context ) {
 	return array( '_stop' => true, 'reason' => (string) ( $args['reason'] ?? '' ) );
 }
+
+/**
+ * Classify step — AI-powered text classification.
+ *
+ * Hands a chunk of text + a list of user-defined buckets to the
+ * OpenAI Responses API with strict structured output, gets back
+ * `{ bucket_id, confidence, reasoning }` for downstream steps.
+ *
+ * Args (all post placeholder-resolution):
+ *
+ *   - `input`   string   The text to classify. `{{payload.…}}` /
+ *                        `{{vars.…}}` placeholders fully resolved
+ *                        before the call.
+ *   - `buckets` array    `[ { id: 'spam', description: 'Spam comments' }, … ]`.
+ *                        At least 2 entries required.
+ *   - `instructions` ?string  Extra system-prompt context (e.g.
+ *                        site domain, audience). Optional.
+ *
+ * Returns `{ bucket_id, confidence, reasoning }` on success; the
+ * routine's downstream steps reference `vars.<step.id>.bucket_id`
+ * to branch on the result.
+ *
+ * Reuses the existing AI Copilot's HTTP layer — works with
+ * whatever model/key the site already configured. Costs a real
+ * API call per fire, so pair with rate limits / conditions
+ * upstream when the trigger is high-volume.
+ *
+ * @since 0.22.0
+ *
+ * @param array $args    Resolved step args.
+ * @param array $context Run context.
+ * @return array|WP_Error
+ */
+function wpdm_routine_step_classify( $args, $context ) {
+	$input = isset( $args['input'] ) ? (string) $args['input'] : '';
+	if ( '' === trim( $input ) ) {
+		return new WP_Error(
+			'wpdm_routine_step_classify_empty_input',
+			'Classify step needs a non-empty `input`.'
+		);
+	}
+
+	$buckets = isset( $args['buckets'] ) && is_array( $args['buckets'] )
+		? $args['buckets']
+		: array();
+	$normalised = array();
+	foreach ( $buckets as $bucket ) {
+		if ( ! is_array( $bucket ) ) {
+			continue;
+		}
+		$id = isset( $bucket['id'] ) ? (string) $bucket['id'] : '';
+		if ( '' === $id || ! preg_match( '/^[a-z0-9_\-]{1,64}$/i', $id ) ) {
+			continue;
+		}
+		$normalised[] = array(
+			'id'          => $id,
+			'description' => isset( $bucket['description'] )
+				? (string) $bucket['description']
+				: '',
+		);
+	}
+	if ( count( $normalised ) < 2 ) {
+		return new WP_Error(
+			'wpdm_routine_step_classify_buckets',
+			'Classify step needs at least 2 buckets, each with a non-empty id.'
+		);
+	}
+
+	$user_id = (int) ( $context['run_as_user_id'] ?? 0 );
+	if (
+		! function_exists( 'desktop_mode_ai_is_enabled' )
+		|| ! desktop_mode_ai_is_enabled( $user_id )
+	) {
+		return new WP_Error(
+			'wpdm_routine_step_classify_ai_disabled',
+			'AI features are not enabled for the run-as user. Enable them in OS Settings → AI.'
+		);
+	}
+	$api_key = (string) desktop_mode_ai_get_api_key( $user_id );
+	if ( '' === $api_key ) {
+		return new WP_Error(
+			'wpdm_routine_step_classify_no_key',
+			'No OpenAI API key configured for the run-as user.'
+		);
+	}
+
+	$bucket_ids = array_column( $normalised, 'id' );
+	$schema     = array(
+		'type'                 => 'object',
+		'additionalProperties' => false,
+		'required'             => array( 'bucket_id', 'confidence', 'reasoning' ),
+		'properties'           => array(
+			'bucket_id'  => array(
+				'type'        => 'string',
+				'enum'        => $bucket_ids,
+				'description' => 'The bucket the input belongs to.',
+			),
+			'confidence' => array(
+				'type'        => 'number',
+				'description' => 'Confidence in the classification, 0.0 to 1.0.',
+			),
+			'reasoning'  => array(
+				'type'        => 'string',
+				'description' => 'One-sentence rationale for the choice.',
+			),
+		),
+	);
+
+	$instructions = wpdm_routine_step_classify_build_instructions( $normalised, $args );
+	$model        = (string) apply_filters(
+		'desktop_mode_ai_model',
+		defined( 'DESKTOP_MODE_AI_DEFAULT_MODEL' )
+			? DESKTOP_MODE_AI_DEFAULT_MODEL
+			: 'gpt-5.4-nano',
+		'classify'
+	);
+
+	$body = array(
+		'model'        => $model,
+		'instructions' => $instructions,
+		'input'        => array(
+			array(
+				'role'    => 'user',
+				'content' => $input,
+			),
+		),
+		'text'         => array(
+			'format' => array(
+				'type'   => 'json_schema',
+				'name'   => 'classification',
+				'strict' => true,
+				'schema' => $schema,
+			),
+		),
+	);
+
+	$response = desktop_mode_ai_do_request( $api_key, $body );
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+
+	$json = wpdm_routine_ai_extract_json( $response );
+	if ( is_wp_error( $json ) ) {
+		return $json;
+	}
+
+	// Defence in depth — strict mode is reliable but not infallible.
+	if (
+		! is_array( $json )
+		|| ! isset( $json['bucket_id'] )
+		|| ! in_array( $json['bucket_id'], $bucket_ids, true )
+	) {
+		return new WP_Error(
+			'wpdm_routine_step_classify_bad_bucket',
+			'Classifier returned an unknown bucket id.',
+			array( 'raw' => $json, 'expected_buckets' => $bucket_ids )
+		);
+	}
+
+	/**
+	 * Fires after a `classify` step completes.
+	 *
+	 * Useful for telemetry / cost tracking — every fire is a paid
+	 * API call.
+	 *
+	 * @since 0.22.0
+	 *
+	 * @param array $result  `{ bucket_id, confidence, reasoning }`.
+	 * @param array $context Run context.
+	 * @param array $args    Resolved step args (input + buckets).
+	 */
+	do_action( 'wp_desktop_routine_step_classify_completed', $json, $context, $args );
+
+	return array(
+		'bucket_id'  => (string) $json['bucket_id'],
+		'confidence' => is_numeric( $json['confidence'] ) ? (float) $json['confidence'] : 0.0,
+		'reasoning'  => (string) ( $json['reasoning'] ?? '' ),
+	);
+}
+
+/**
+ * Build the system instructions for a classify call.
+ *
+ * @since 0.22.0
+ * @internal
+ *
+ * @param array $buckets Normalised buckets.
+ * @param array $args    Step args (for optional `instructions`).
+ * @return string
+ */
+function wpdm_routine_step_classify_build_instructions( array $buckets, array $args ) {
+	$lines = array();
+	$lines[] = 'You are a classifier. Read the user-supplied text and return ONLY a JSON object matching the response schema.';
+	$lines[] = '';
+	$lines[] = 'Buckets:';
+	foreach ( $buckets as $bucket ) {
+		$lines[] = sprintf(
+			'  - %s%s',
+			$bucket['id'],
+			'' !== $bucket['description'] ? ' — ' . $bucket['description'] : ''
+		);
+	}
+	$lines[] = '';
+	$lines[] = 'Pick exactly ONE bucket id. `confidence` is your numeric self-assessment (0.0 = guess, 1.0 = certain). `reasoning` is one sentence explaining the choice.';
+
+	$extra = isset( $args['instructions'] ) ? (string) $args['instructions'] : '';
+	if ( '' !== trim( $extra ) ) {
+		$lines[] = '';
+		$lines[] = 'Additional context from the routine author:';
+		$lines[] = $extra;
+	}
+	return implode( "\n", $lines );
+}

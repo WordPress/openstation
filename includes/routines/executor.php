@@ -292,7 +292,9 @@ function wpdm_routine_walk_steps( $steps, &$context, &$log, $dry_run, $settings 
  * @return mixed Step result or `WP_Error`.
  */
 function wpdm_routine_dispatch_step( $kind, $id, $args, $context, $dry_run ) {
-	if ( $dry_run && in_array( $kind, array( 'email', 'http', 'command', 'ai_tool', 'action' ), true ) ) {
+	// `classify` joins the side-effecting kinds — every fire is a
+	// paid API call, so dry-run skips it like email / http.
+	if ( $dry_run && in_array( $kind, array( 'email', 'http', 'command', 'ai_tool', 'action', 'classify' ), true ) ) {
 		return array( 'dry_run' => true, 'kind' => $kind, 'id' => $id );
 	}
 	switch ( $kind ) {
@@ -308,6 +310,8 @@ function wpdm_routine_dispatch_step( $kind, $id, $args, $context, $dry_run ) {
 			return wpdm_routine_step_set_var( $args, $context );
 		case 'stop':
 			return wpdm_routine_step_stop( $args, $context );
+		case 'classify':
+			return wpdm_routine_step_classify( $args, $context );
 		case 'action':
 			return wpdm_routine_dispatch_action( $id, $args, $context );
 		case 'ai_tool':

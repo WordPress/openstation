@@ -831,6 +831,8 @@ function iconFor( step: RoutineStep ): string {
 			return 'dashicons-superhero';
 		case 'command':
 			return 'dashicons-arrow-right-alt';
+		case 'classify':
+			return 'dashicons-category';
 	}
 	return 'dashicons-marker';
 }
@@ -867,6 +869,9 @@ function stepTitle( step: RoutineStep, ctx: CanvasContext ): string {
 	if ( step.kind === 'stop' ) {
 		return 'Stop';
 	}
+	if ( step.kind === 'classify' ) {
+		return 'Classify with AI';
+	}
 	return step.kind;
 }
 
@@ -886,6 +891,15 @@ function defaultArgsFor( kind: RoutineStep[ 'kind' ] ): Record< string, unknown 
 			return { reason: '' };
 		case 'if':
 			return {};
+		case 'classify':
+			return {
+				input: '',
+				buckets: [
+					{ id: 'spam', description: 'Spam / unwanted' },
+					{ id: 'ham', description: 'Legitimate' },
+				],
+				instructions: '',
+			};
 	}
 	return {};
 }

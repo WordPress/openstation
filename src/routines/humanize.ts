@@ -78,6 +78,18 @@ export function humanizeStepSummary(
 	if ( step.kind === 'stop' ) {
 		return String( args.reason ?? '' );
 	}
+	if ( step.kind === 'classify' ) {
+		const input = humanizeOperand( args.input, catalog, triggerId );
+		const buckets = Array.isArray( args.buckets )
+			? ( args.buckets as Array< { id: string } > )
+				.map( ( b ) => b.id )
+				.filter( Boolean )
+			: [];
+		if ( buckets.length === 0 ) {
+			return `classify ${ input }`;
+		}
+		return `classify ${ input } into ${ buckets.join( ' / ' ) }`;
+	}
 	if ( step.kind === 'action' || step.kind === 'ai_tool' ) {
 		const keys = Object.keys( args );
 		if ( keys.length === 0 ) {

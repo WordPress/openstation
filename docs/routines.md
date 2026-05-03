@@ -79,6 +79,7 @@ The same shape, expressed as JSON, is what the engine actually stores and execut
 | `if`        | Branch on a `condition`. Children at `then` / `else`.             |
 | `set_var`   | Store a value at `vars.<name>` for downstream interpolation.      |
 | `stop`      | Cleanly halt the routine.                                          |
+| `classify`  | AI-powered classification — input + buckets → bucket id, confidence, reasoning. See below. |
 
 ### Operators
 
@@ -270,6 +271,62 @@ A **Visual / JSON** toggle in the editor header swaps the canvas for a JSON text
 ### Trigger picker
 
 Tabbed dialog: **Common** (declared triggers grouped by plugin), **By plugin** (third-party-only), **Hook search** (any WordPress action by name + priority), **Broadcast** (cross-window topic listener). The picker covers every reachable trigger in the system; declared triggers get friendly labels and payload schemas, undeclared hooks fall back to positional payload binding without losing functionality.
+
+---
+
+## Classify step (AI-powered routing)
+
+A step kind that hands a piece of text to OpenAI with a user-defined list of buckets and gets back a structured `{ bucket_id, confidence, reasoning }` for downstream branching.
+
+**Args:**
+
+| Arg | Type | Required | Notes |
+|---|---|---|---|
+| `input` | string | yes | The text to classify. Use `{{payload.…}}` / `{{vars.…}}` placeholders. |
+| `buckets` | `[ { id, description } ]` | yes (≥2) | Bucket ids must match `[a-z0-9_-]{1,64}`; descriptions help the model pick. |
+| `instructions` | string | no | Extra context for the classifier (e.g. "treat brand-name mentions as `important`"). |
+
+**Result** (available downstream as `vars.<step.id>`):
+
+```jsonc
+{
+  "bucket_id":  "spam",
+  "confidence": 0.92,
+  "reasoning":  "Mentions 'casino' and bitcoin-style payouts."
+}
+```
+
+**Typical pattern** — classify, then branch:
+
+```jsonc
+[
+  { "kind": "classify",
+    "id":   "triage",
+    "args": {
+      "input":   "{{payload.comment.content}}",
+      "buckets": [
+        { "id": "spam",   "description": "Spam / promotional / off-topic" },
+        { "id": "ham",    "description": "Legitimate engagement" },
+        { "id": "review", "description": "Borderline — needs a human" }
+      ]
+    } },
+  { "kind": "if",
+    "condition": { "left": "{{vars.triage.bucket_id}}", "op": "eq", "right": "spam" },
+    "then": [ { "kind": "action", "id": "wpdm.comment.spam",
+                "args": { "comment_id": "{{payload.comment_id}}" } } ],
+    "else": [] }
+]
+```
+
+**Cost / safety:**
+
+- Each fire is a paid API call. Pair with **rate limits** in `settings.rate_limit` for high-volume triggers (every comment, every form submission).
+- Reuses the existing AI Copilot key + provider settings (OS Settings → AI). When AI is disabled for the run-as user, the step returns a `WP_Error` instead of silently bypassing the classification.
+- Strict structured output — the model is constrained to one of the bucket ids. We re-validate server-side in case strict mode misbehaves.
+
+**Action:**
+
+- `wp_desktop_routine_step_classify_completed` (`$result, $context, $args`) — fired on every successful classification. Useful for cost telemetry.
 
 ---
 

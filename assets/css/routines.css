@@ -847,6 +847,58 @@
 	border-color: #ec4899;
 }
 
+.wpdm-routines__card--classify {
+	border-color: #8b5cf6;
+	background: linear-gradient( 135deg, #fff, #f5f3ff );
+}
+
+/* Classify-step inspector — bucket-list editor + variable hint. */
+
+.wpdm-routines__buckets {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-block-end: 6px;
+}
+
+.wpdm-routines__bucket-row {
+	display: grid;
+	grid-template-columns: 100px 1fr auto;
+	gap: 6px;
+	align-items: center;
+}
+
+.wpdm-routines__bucket-id {
+	font-family: ui-monospace, monospace;
+	font-size: 12px;
+}
+
+.wpdm-routines__bucket-desc {
+	min-width: 0;
+}
+
+.wpdm-routines__classify-hint {
+	margin-top: 12px;
+	padding: 10px 12px;
+	background: rgba( 139, 92, 246, 0.08 );
+	border-radius: 8px;
+	font-size: 11px;
+}
+
+.wpdm-routines__classify-hint-title {
+	display: block;
+	font-weight: 600;
+	color: #6d28d9;
+	margin-block-end: 6px;
+}
+
+.wpdm-routines__classify-hint ul {
+	margin: 0;
+	padding-inline-start: 16px;
+	font-family: ui-monospace, monospace;
+	color: #1d2327;
+}
+
 .wpdm-routines__card-head {
 	display: flex;
 	gap: 10px;

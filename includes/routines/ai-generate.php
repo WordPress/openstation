@@ -322,6 +322,7 @@ function wpdm_routine_ai_build_instructions( array $catalog ) {
 	$lines[] = '  - Steps that produce values useful downstream should set a short `id` (snake_case). Reference them via `vars.<id>`.';
 	$lines[] = '  - Built-in step kinds: log, email, http, wait, set_var, stop, if, action, ai_tool, command. The `if` kind requires `condition`, `then`, `else`. `then` and `else` are step arrays; both must be present (use `[]` for empty).';
 	$lines[] = '  - `step.args` is a JSON-ENCODED STRING (the schema requires it). Example: `"args": "{\\"message\\": \\"hi {{payload.name}}\\"}"`. Use `"{}"` for steps that take no args. The server will JSON-parse it.';
+	$lines[] = '  - The `classify` step kind sorts a piece of text into one of N user-defined buckets. Args shape: `{"input":"{{payload.comment.content}}","buckets":[{"id":"spam","description":"Spammy / promotional"},{"id":"ham","description":"Legitimate"}],"instructions":""}`. Use it whenever the user asks to "decide / route / categorise" text and then act differently per category. The result is `vars.<step.id>.bucket_id` — branch on it with an `if` step downstream.';
 	$lines[] = '  - For non-`if` steps, still emit `condition`, `then`, `else` placeholders (the schema requires them). Use `{"left": "", "op": "eq", "right": ""}` and empty arrays.';
 	$lines[] = '  - The `http` step\'s host MUST be in the site\'s allowlist; if the user asks for an outbound webhook, include the step but warn them in `log` that the site admin must allow the host.';
 	$lines[] = '';

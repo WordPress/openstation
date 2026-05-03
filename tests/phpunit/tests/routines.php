@@ -447,6 +447,94 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 		$this->assertSame( 'Good', $entry['title'] );
 	}
 
+	// ---- Classify step ---------------------------------------------------
+
+	/**
+	 * @covers ::wpdm_routine_known_step_kinds
+	 */
+	public function test_classify_kind_is_registered() {
+		$this->assertContains( 'classify', wpdm_routine_known_step_kinds() );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_validate_step
+	 */
+	public function test_classify_step_validates() {
+		$result = wpdm_routine_validate_def(
+			array(
+				'trigger' => array( 'kind' => 'hook', 'id' => 'comment_post' ),
+				'steps'   => array(
+					array(
+						'kind' => 'classify',
+						'id'   => 'spam_check',
+						'args' => array(
+							'input'   => '{{payload.comment.content}}',
+							'buckets' => array(
+								array( 'id' => 'spam', 'description' => 'Spam' ),
+								array( 'id' => 'ham', 'description' => 'Legit' ),
+							),
+						),
+					),
+				),
+			)
+		);
+		$this->assertIsArray( $result );
+		$this->assertSame( 'classify', $result['steps'][0]['kind'] );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_step_classify
+	 */
+	public function test_classify_rejects_empty_input() {
+		$result = wpdm_routine_step_classify(
+			array( 'input' => '', 'buckets' => array(
+				array( 'id' => 'a', 'description' => '' ),
+				array( 'id' => 'b', 'description' => '' ),
+			) ),
+			array( 'run_as_user_id' => self::$admin_id )
+		);
+		$this->assertWPError( $result );
+		$this->assertSame( 'wpdm_routine_step_classify_empty_input', $result->get_error_code() );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_step_classify
+	 */
+	public function test_classify_rejects_too_few_buckets() {
+		$result = wpdm_routine_step_classify(
+			array(
+				'input'   => 'something',
+				'buckets' => array(
+					array( 'id' => 'only_one', 'description' => '' ),
+				),
+			),
+			array( 'run_as_user_id' => self::$admin_id )
+		);
+		$this->assertWPError( $result );
+		$this->assertSame( 'wpdm_routine_step_classify_buckets', $result->get_error_code() );
+	}
+
+	/**
+	 * @covers ::wpdm_routine_step_classify
+	 */
+	public function test_classify_drops_buckets_with_invalid_ids() {
+		// Buckets with non-`[a-z0-9_-]` ids are silently filtered;
+		// the step must still surface the "too few" error rather
+		// than calling OpenAI with a bad enum.
+		$result = wpdm_routine_step_classify(
+			array(
+				'input'   => 'foo',
+				'buckets' => array(
+					array( 'id' => 'good', 'description' => '' ),
+					array( 'id' => 'bad id with spaces', 'description' => '' ),
+				),
+			),
+			array( 'run_as_user_id' => self::$admin_id )
+		);
+		$this->assertWPError( $result );
+		$this->assertSame( 'wpdm_routine_step_classify_buckets', $result->get_error_code() );
+	}
+
 	// ---- AI generation ---------------------------------------------------
 
 	/**

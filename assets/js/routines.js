@@ -247,7 +247,8 @@
       wait: "Wait",
       if: "Branch (if / else)",
       stop: "Stop",
-      set_var: "Set variable"
+      set_var: "Set variable",
+      classify: "Classify with AI"
     };
     return kindLabel[step.kind] + (step.id ? ` — ${step.id}` : "");
   }
@@ -549,6 +550,9 @@
       case "if":
         wrap.append(ifFields(ctx, step));
         break;
+      case "classify":
+        wrap.append(classifyFields(ctx, step));
+        break;
       case "action":
       case "ai_tool":
       case "command":
@@ -704,6 +708,119 @@
     });
     attachAutocomplete(reasonEl, () => suggestionsFor(ctx));
     wrap.append(formRow("Reason", reasonEl));
+    return wrap;
+  }
+  function classifyFields(ctx, step) {
+    const wrap = el$1("div", {});
+    const args = step.args;
+    if (!Array.isArray(args.buckets)) {
+      args.buckets = [
+        { id: "spam", description: "Spam / unwanted" },
+        { id: "ham", description: "Legitimate" }
+      ];
+    }
+    const inputEl = textField(args.input || "", (v) => {
+      args.input = v;
+      ctx.onChange();
+    });
+    attachAutocomplete(inputEl, () => suggestionsFor(ctx));
+    const inputRow = el$1("div", { class: "wpdm-routines__form-row" });
+    const inputLab = el$1("label", { class: "wpdm-routines__form-label" });
+    inputLab.textContent = "Text to classify";
+    const inputWrap = el$1("div", { class: "wpdm-routines__value-input" });
+    inputWrap.append(inputEl);
+    inputRow.append(inputLab, inputWrap);
+    const inputHint = el$1("p", { class: "wpdm-routines__form-hint" });
+    inputHint.textContent = "Pick a payload variable (e.g. comment content) or type a literal.";
+    inputRow.append(inputHint);
+    wrap.append(inputRow);
+    const bucketsHeader = el$1("label", { class: "wpdm-routines__form-label" });
+    bucketsHeader.textContent = "Buckets — at least 2";
+    wrap.append(bucketsHeader);
+    const list = el$1("div", { class: "wpdm-routines__buckets" });
+    wrap.append(list);
+    const repaintBuckets = () => {
+      list.replaceChildren();
+      (args.buckets ?? []).forEach((bucket, i) => {
+        const row = el$1("div", { class: "wpdm-routines__bucket-row" });
+        const idIn = el$1("input", {
+          class: "wpdm-routines__input wpdm-routines__bucket-id",
+          type: "text",
+          placeholder: "id",
+          value: bucket.id
+        });
+        idIn.addEventListener("input", () => {
+          bucket.id = idIn.value.toLowerCase().replace(/[^a-z0-9_\-]/g, "_");
+          ctx.onChange();
+        });
+        const descIn = el$1("input", {
+          class: "wpdm-routines__input wpdm-routines__bucket-desc",
+          type: "text",
+          placeholder: "short description (helps the AI choose)",
+          value: bucket.description
+        });
+        descIn.addEventListener("input", () => {
+          bucket.description = descIn.value;
+          ctx.onChange();
+        });
+        const remove = el$1(
+          "button",
+          {
+            class: "wpdm-routines__icon-btn",
+            type: "button",
+            title: "Remove bucket"
+          },
+          ["×"]
+        );
+        remove.addEventListener("click", () => {
+          args.buckets.splice(i, 1);
+          ctx.onChange();
+          repaintBuckets();
+        });
+        row.append(idIn, descIn, remove);
+        list.append(row);
+      });
+    };
+    repaintBuckets();
+    const addBtn = el$1(
+      "button",
+      { class: "wpdm-routines__btn", type: "button" },
+      ["+ Add bucket"]
+    );
+    addBtn.addEventListener("click", () => {
+      args.buckets.push({ id: "", description: "" });
+      ctx.onChange();
+      repaintBuckets();
+    });
+    wrap.append(addBtn);
+    const instructionsEl = textareaField(
+      args.instructions || "",
+      (v) => {
+        args.instructions = v;
+        ctx.onChange();
+      }
+    );
+    wrap.append(
+      formRow(
+        "Extra context (optional)",
+        instructionsEl,
+        'Any extra hints for the classifier — e.g. "treat company-name mentions as `important`".'
+      )
+    );
+    const hintBox = el$1("div", { class: "wpdm-routines__classify-hint" });
+    const hintTitle = el$1("span", {
+      class: "wpdm-routines__classify-hint-title"
+    });
+    hintTitle.textContent = "Use the result downstream:";
+    const hintList = el$1("ul", {});
+    const stepRef = step.id || "<step-id>";
+    hintList.append(
+      el$1("li", {}, [`{{vars.${stepRef}.bucket_id}} — picked bucket`]),
+      el$1("li", {}, [`{{vars.${stepRef}.confidence}} — 0.0–1.0`]),
+      el$1("li", {}, [`{{vars.${stepRef}.reasoning}} — one-sentence rationale`])
+    );
+    hintBox.append(hintTitle, hintList);
+    wrap.append(hintBox);
     return wrap;
   }
   function ifFields(ctx, step) {
@@ -1520,6 +1637,7 @@
         { kind: "wait", id: "", label: "Wait" },
         { kind: "set_var", id: "", label: "Set a variable" },
         { kind: "if", id: "", label: "If / then / else" },
+        { kind: "classify", id: "", label: "Classify with AI" },
         { kind: "stop", id: "", label: "Stop the routine" }
       ];
       const sections = [
@@ -1629,6 +1747,14 @@
     }
     if (step.kind === "stop") {
       return String(args.reason ?? "");
+    }
+    if (step.kind === "classify") {
+      const input = humanizeOperand(args.input, catalog, triggerId);
+      const buckets = Array.isArray(args.buckets) ? args.buckets.map((b) => b.id).filter(Boolean) : [];
+      if (buckets.length === 0) {
+        return `classify ${input}`;
+      }
+      return `classify ${input} into ${buckets.join(" / ")}`;
     }
     if (step.kind === "action" || step.kind === "ai_tool") {
       const keys = Object.keys(args);
@@ -2451,6 +2577,8 @@
         return "dashicons-superhero";
       case "command":
         return "dashicons-arrow-right-alt";
+      case "classify":
+        return "dashicons-category";
     }
     return "dashicons-marker";
   }
@@ -2486,6 +2614,9 @@
     if (step.kind === "stop") {
       return "Stop";
     }
+    if (step.kind === "classify") {
+      return "Classify with AI";
+    }
     return step.kind;
   }
   function defaultArgsFor(kind) {
@@ -2504,6 +2635,15 @@
         return { reason: "" };
       case "if":
         return {};
+      case "classify":
+        return {
+          input: "",
+          buckets: [
+            { id: "spam", description: "Spam / unwanted" },
+            { id: "ham", description: "Legitimate" }
+          ],
+          instructions: ""
+        };
     }
     return {};
   }

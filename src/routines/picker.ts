@@ -310,6 +310,7 @@ export function pickStep(
 			{ kind: 'wait', id: '', label: 'Wait' },
 			{ kind: 'set_var', id: '', label: 'Set a variable' },
 			{ kind: 'if', id: '', label: 'If / then / else' },
+			{ kind: 'classify', id: '', label: 'Classify with AI' },
 			{ kind: 'stop', id: '', label: 'Stop the routine' },
 		];
 

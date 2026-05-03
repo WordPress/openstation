@@ -96,6 +96,7 @@ function stepHeading( step: RoutineStep ): string {
 		if: 'Branch (if / else)',
 		stop: 'Stop',
 		set_var: 'Set variable',
+		classify: 'Classify with AI',
 	};
 	return kindLabel[ step.kind ] + ( step.id ? ` — ${ step.id }` : '' );
 }
@@ -487,6 +488,9 @@ function renderStepEditor( ctx: InspectorContext, step: RoutineStep ): HTMLEleme
 		case 'if':
 			wrap.append( ifFields( ctx, step ) );
 			break;
+		case 'classify':
+			wrap.append( classifyFields( ctx, step ) );
+			break;
 		case 'action':
 		case 'ai_tool':
 		case 'command':
@@ -659,6 +663,151 @@ function stopFields( ctx: InspectorContext, step: RoutineStep ): HTMLElement {
 	} );
 	attachAutocomplete( reasonEl, () => suggestionsFor( ctx ) );
 	wrap.append( formRow( 'Reason', reasonEl ) );
+	return wrap;
+}
+
+/**
+ * Classify-step inspector — bucket-list editor + input + optional
+ * extra instructions. The step's downstream variable shape is
+ * `vars.<step.id>.bucket_id` / `.confidence` / `.reasoning`, so a
+ * helpful hint at the bottom shows the user how to reference it.
+ *
+ * @internal
+ */
+function classifyFields( ctx: InspectorContext, step: RoutineStep ): HTMLElement {
+	const wrap = el( 'div', {} );
+	const args = step.args as {
+		input?: string;
+		buckets?: Array< { id: string; description: string } >;
+		instructions?: string;
+	};
+	if ( ! Array.isArray( args.buckets ) ) {
+		args.buckets = [
+			{ id: 'spam', description: 'Spam / unwanted' },
+			{ id: 'ham', description: 'Legitimate' },
+		];
+	}
+
+	// Input field with the variable picker — typical use is a
+	// `{{payload.comment.content}}` or similar single placeholder.
+	const inputEl = textField( args.input || '', ( v ) => {
+		args.input = v;
+		ctx.onChange();
+	} );
+	attachAutocomplete( inputEl, () => suggestionsFor( ctx ) );
+	const inputRow = el( 'div', { class: 'wpdm-routines__form-row' } );
+	const inputLab = el( 'label', { class: 'wpdm-routines__form-label' } );
+	inputLab.textContent = 'Text to classify';
+	const inputWrap = el( 'div', { class: 'wpdm-routines__value-input' } );
+	inputWrap.append( inputEl );
+	inputRow.append( inputLab, inputWrap );
+	const inputHint = el( 'p', { class: 'wpdm-routines__form-hint' } );
+	inputHint.textContent =
+		'Pick a payload variable (e.g. comment content) or type a literal.';
+	inputRow.append( inputHint );
+	wrap.append( inputRow );
+
+	// Bucket list editor.
+	const bucketsHeader = el( 'label', { class: 'wpdm-routines__form-label' } );
+	bucketsHeader.textContent = 'Buckets — at least 2';
+	wrap.append( bucketsHeader );
+
+	const list = el( 'div', { class: 'wpdm-routines__buckets' } );
+	wrap.append( list );
+
+	const repaintBuckets = (): void => {
+		list.replaceChildren();
+		( args.buckets ?? [] ).forEach( ( bucket, i ) => {
+			const row = el( 'div', { class: 'wpdm-routines__bucket-row' } );
+			const idIn = el( 'input', {
+				class: 'wpdm-routines__input wpdm-routines__bucket-id',
+				type: 'text',
+				placeholder: 'id',
+				value: bucket.id,
+			} ) as HTMLInputElement;
+			idIn.addEventListener( 'input', () => {
+				bucket.id = idIn.value
+					.toLowerCase()
+					.replace( /[^a-z0-9_\-]/g, '_' );
+				ctx.onChange();
+			} );
+			const descIn = el( 'input', {
+				class: 'wpdm-routines__input wpdm-routines__bucket-desc',
+				type: 'text',
+				placeholder: 'short description (helps the AI choose)',
+				value: bucket.description,
+			} ) as HTMLInputElement;
+			descIn.addEventListener( 'input', () => {
+				bucket.description = descIn.value;
+				ctx.onChange();
+			} );
+			const remove = el(
+				'button',
+				{
+					class: 'wpdm-routines__icon-btn',
+					type: 'button',
+					title: 'Remove bucket',
+				},
+				[ '×' ],
+			);
+			remove.addEventListener( 'click', () => {
+				args.buckets!.splice( i, 1 );
+				ctx.onChange();
+				repaintBuckets();
+			} );
+			row.append( idIn, descIn, remove );
+			list.append( row );
+		} );
+	};
+	repaintBuckets();
+
+	const addBtn = el(
+		'button',
+		{ class: 'wpdm-routines__btn', type: 'button' },
+		[ '+ Add bucket' ],
+	);
+	addBtn.addEventListener( 'click', () => {
+		args.buckets!.push( { id: '', description: '' } );
+		ctx.onChange();
+		repaintBuckets();
+	} );
+	wrap.append( addBtn );
+
+	// Optional extra instructions for the classifier — niche
+	// (think "always treat anything mentioning competitors as
+	// urgent") so kept folded into a single textarea.
+	const instructionsEl = textareaField(
+		args.instructions || '',
+		( v ) => {
+			args.instructions = v;
+			ctx.onChange();
+		},
+	);
+	wrap.append(
+		formRow(
+			'Extra context (optional)',
+			instructionsEl,
+			'Any extra hints for the classifier — e.g. "treat company-name mentions as `important`".',
+		),
+	);
+
+	// Variable hint — once the user has set a step id the
+	// downstream tokens become `{{vars.<id>.bucket_id}}` etc.
+	const hintBox = el( 'div', { class: 'wpdm-routines__classify-hint' } );
+	const hintTitle = el( 'span', {
+		class: 'wpdm-routines__classify-hint-title',
+	} );
+	hintTitle.textContent = 'Use the result downstream:';
+	const hintList = el( 'ul', {} );
+	const stepRef = step.id || '<step-id>';
+	hintList.append(
+		el( 'li', {}, [ `{{vars.${ stepRef }.bucket_id}} — picked bucket` ] ),
+		el( 'li', {}, [ `{{vars.${ stepRef }.confidence}} — 0.0–1.0` ] ),
+		el( 'li', {}, [ `{{vars.${ stepRef }.reasoning}} — one-sentence rationale` ] ),
+	);
+	hintBox.append( hintTitle, hintList );
+	wrap.append( hintBox );
+
 	return wrap;
 }
 

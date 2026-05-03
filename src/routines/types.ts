@@ -19,7 +19,8 @@ export type StepKind =
 	| 'wait'
 	| 'if'
 	| 'stop'
-	| 'set_var';
+	| 'set_var'
+	| 'classify';
 
 export type Operator =
 	| 'eq'
