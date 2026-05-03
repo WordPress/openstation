@@ -1714,16 +1714,14 @@
         return;
       }
       const pixiRect = viewport.pixiHost.getBoundingClientRect();
-      const state2 = viewport.getState();
-      const zoom = state2.zoom || 1;
       const anchors = trackedAnchors.map((t) => {
         const r = t.el.getBoundingClientRect();
         return {
           id: t.id,
-          x: (r.left - pixiRect.left - state2.pan.x) / zoom,
-          y: (r.top - pixiRect.top - state2.pan.y) / zoom,
-          width: r.width / zoom,
-          height: r.height / zoom,
+          x: r.left - pixiRect.left,
+          y: r.top - pixiRect.top,
+          width: r.width,
+          height: r.height,
           kind: t.kind,
           parentId: t.parentId,
           state: "idle"
@@ -1736,7 +1734,7 @@
         lastResizeH = h;
         pixi?.resize(w, h);
       }
-      pixi?.setTransform(zoom, state2.pan.x, state2.pan.y);
+      pixi?.setTransform(1, 0, 0);
       pixi?.setAnchors(anchors);
     };
     rerender();

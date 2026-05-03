@@ -279,30 +279,30 @@ export async function mountCanvas(
 			return;
 		}
 		const pixiRect = viewport.pixiHost.getBoundingClientRect();
-		const state = viewport.getState();
-		const zoom = state.zoom || 1;
-		// Anchor (X, Y) is the card's position in pixiHost-local
-		// UNTRANSFORMED space. Pixi's world layer then applies
-		// scale=zoom + position=pan, mapping each anchor back to
-		// the exact screen pixel where its card is drawn:
+		// Anchors are stored in pixiHost-local SCREEN-pixel coords —
+		// i.e. wherever the browser actually painted the card after
+		// every CSS transform settled. We do NOT divide by zoom
+		// here, and Pixi's `world` container does NOT scale.
 		//
-		//   screen_x = pan.x + zoom * anchor.x
-		//            = pan.x + zoom * ( ( card_screen_x - pixi_x - pan.x ) / zoom )
-		//            = card_screen_x - pixi_x   ✓
+		// Why: Pixi v8 tessellates Graphics paths at the radius /
+		// length values you pass to the draw call. A `circle(cx, cy,
+		// 50)` is broken into ~32 segments. If you then GPU-scale
+		// the parent by 2×, those 32 segments stretch to a 100-px
+		// radius — producing octagonal edges that are invisible
+		// under motion (perceptual blur) but very visible in a
+		// static frame.
 		//
-		// The math collapses to "wherever the browser placed the
-		// card", which is exactly what we want — the connectors
-		// follow whatever layout decision flexbox + the CSS
-		// transform combined to produce, with zero arithmetic of
-		// our own that could drift.
+		// By feeding screen-pixel sizes straight to the renderer
+		// each tick, every shape is tessellated at its actual
+		// rendered size. Sharp at every zoom, every state.
 		const anchors: CardAnchor[] = trackedAnchors.map( ( t ) => {
 			const r = t.el.getBoundingClientRect();
 			return {
 				id: t.id,
-				x: ( r.left - pixiRect.left - state.pan.x ) / zoom,
-				y: ( r.top - pixiRect.top - state.pan.y ) / zoom,
-				width: r.width / zoom,
-				height: r.height / zoom,
+				x: r.left - pixiRect.left,
+				y: r.top - pixiRect.top,
+				width: r.width,
+				height: r.height,
 				kind: t.kind,
 				parentId: t.parentId,
 				state: 'idle',
@@ -320,7 +320,12 @@ export async function mountCanvas(
 			lastResizeH = h;
 			pixi?.resize( w, h );
 		}
-		pixi?.setTransform( zoom, state.pan.x, state.pan.y );
+		// World transform stays at identity — the screen-pixel
+		// anchors above already reflect every active CSS transform.
+		// Calling `setTransform(1, 0, 0)` is a no-op in steady state
+		// but documents the contract: the world layer is a
+		// pass-through; everything is screen-space.
+		pixi?.setTransform( 1, 0, 0 );
 		pixi?.setAnchors( anchors );
 	};
 

@@ -134,9 +134,43 @@
 }
 
 .wpdm-routines__main {
-	overflow: auto;
+	/* The editor inside fills this column with a grid that keeps
+	   header / canvas / action-bar / history all visible at once.
+	   No native scroll on the main column — every section either
+	   fits its content or scrolls internally. */
+	overflow: hidden;
 	padding: 18px 22px;
 	min-width: 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Editor: grid layout — canvas takes the 1fr row, every other
+   section is auto-sized, so action bar + history are pinned to
+   the bottom and always visible without scrolling the main column. */
+.wpdm-routines__editor {
+	display: grid;
+	grid-template-rows:
+		auto    /* header (title / enabled / view toggle)            */
+		1fr     /* view body (canvas or JSON textarea)               */
+		auto    /* validation                                         */
+		auto    /* action bar (Save/Test/Run/Delete)                  */
+		auto    /* output (last run summary)                          */
+		auto;   /* history (capped, scrolls internally if needed)    */
+	gap: 14px;
+	height: 100%;
+	min-height: 0;
+}
+
+.wpdm-routines__view-body {
+	min-height: 0;
+	overflow: hidden;
+}
+
+.wpdm-routines__history {
+	max-height: 140px;
+	overflow-y: auto;
 }
 
 .wpdm-routines__empty {
@@ -472,7 +506,8 @@
 	display: grid;
 	grid-template-columns: 1fr 0;
 	transition: grid-template-columns 220ms cubic-bezier( 0.2, 0.8, 0.2, 1 );
-	min-height: 480px;
+	min-height: 0;
+	height: 100%;
 	background: var( --wpd-canvas-bg, #fafafa );
 	border: 1px solid var( --wpd-window-border, #e0e0e0 );
 	border-radius: 10px;
@@ -485,18 +520,23 @@
 
 .wpdm-routines__canvas-stage {
 	position: relative;
-	overflow: auto;
-	min-height: 480px;
+	overflow: hidden;
+	min-height: 0;
 }
 
 /* Pan / zoom viewport — wraps Pixi canvas + cards in a single
    transformable element. The toolbar floats over the stage at
-   bottom-right. */
+   bottom-right.
+
+   No native scrolling here — pan + zoom is the ONLY navigation,
+   Figma-style. That's why the toolbar stays pinned: nothing
+   scrolls underneath it. */
 
 .wpdm-routines__viewport-host {
 	position: relative;
-	overflow: auto;
-	min-height: 480px;
+	overflow: hidden;
+	min-height: 0;
+	height: 100%;
 	display: flex;
 }
 
@@ -504,8 +544,9 @@
 	position: relative;
 	flex: 1 1 auto;
 	min-width: 0;
-	min-height: 480px;
-	overflow: visible;
+	min-height: 0;
+	height: 100%;
+	overflow: hidden;
 	outline: 0;
 	cursor: grab;
 }
