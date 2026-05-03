@@ -1589,6 +1589,134 @@
       card.append(cancel);
     });
   }
+  function humanizeCondition(cond, catalog, triggerId) {
+    if (cond.op === "matches" && typeof cond.right === "string") {
+      const words = extractRegexAlternation(cond.right);
+      if (words) {
+        return `${humanizeOperand(cond.left, catalog, triggerId)} contains any of: ${words.join(", ")}`;
+      }
+    }
+    const left = humanizeOperand(cond.left, catalog, triggerId);
+    const verb = OP_VERB[cond.op] ?? cond.op;
+    if (cond.op === "truthy" || cond.op === "falsy") {
+      return `${left} ${verb}`;
+    }
+    const right = humanizeOperand(cond.right, catalog, triggerId);
+    return `${left} ${verb} ${right}`;
+  }
+  function humanizeStepSummary(step, catalog, triggerId) {
+    const args = step.args ?? {};
+    if (step.kind === "if" && step.condition) {
+      return humanizeCondition(step.condition, catalog, triggerId);
+    }
+    if (step.kind === "log") {
+      const msg = String(args.message ?? "");
+      return msg.length > 80 ? `${msg.slice(0, 80)}…` : msg;
+    }
+    if (step.kind === "email") {
+      const to = humanizeOperand(args.to, catalog, triggerId) || "admin";
+      const subject = String(args.subject ?? "");
+      return `to ${to}${subject ? ` — ${subject.slice(0, 50)}` : ""}`;
+    }
+    if (step.kind === "http") {
+      return `${String(args.method ?? "GET").toUpperCase()} ${String(args.url ?? "").slice(0, 60)}`;
+    }
+    if (step.kind === "wait") {
+      return `${String(args.seconds ?? 1)}s`;
+    }
+    if (step.kind === "set_var") {
+      return `${args.name} = ${JSON.stringify(args.value)}`;
+    }
+    if (step.kind === "stop") {
+      return String(args.reason ?? "");
+    }
+    if (step.kind === "action" || step.kind === "ai_tool") {
+      const keys = Object.keys(args);
+      if (keys.length === 0) {
+        return "";
+      }
+      const first = keys.slice(0, 3).map(
+        (k) => `${k}: ${humanizeOperand(args[k], catalog, triggerId)}`
+      ).join(", ");
+      return first;
+    }
+    return "";
+  }
+  const OP_VERB = {
+    eq: "is",
+    neq: "is not",
+    gt: "is greater than",
+    gte: "is at least",
+    lt: "is less than",
+    lte: "is at most",
+    contains: "contains",
+    starts_with: "starts with",
+    ends_with: "ends with",
+    matches: "matches pattern",
+    in: "is one of",
+    not_in: "is not one of",
+    truthy: "is set",
+    falsy: "is empty"
+  };
+  function humanizeOperand(value, catalog, triggerId) {
+    if (value === null || value === void 0 || value === "") {
+      return "—";
+    }
+    if (typeof value !== "string") {
+      return String(value);
+    }
+    const placeholder = parseSinglePlaceholder(value);
+    if (!placeholder) {
+      return value;
+    }
+    const path = placeholder;
+    if (path.startsWith("payload.")) {
+      const sub = path.slice("payload.".length);
+      return labelForPayloadPath(sub, catalog, triggerId);
+    }
+    if (path.startsWith("vars.")) {
+      return path.slice("vars.".length).replace(/\./g, " › ");
+    }
+    if (path === "site.url") {
+      return "site URL";
+    }
+    if (path === "site.name") {
+      return "site name";
+    }
+    if (path === "user.id") {
+      return "current user ID";
+    }
+    return path;
+  }
+  function labelForPayloadPath(path, catalog, triggerId) {
+    const trigger = catalog.triggers.find((t) => t.id === triggerId);
+    if (trigger) {
+      const schema = trigger.payload_schema;
+      if (schema && schema[path]?.description) {
+        return schema[path].description;
+      }
+    }
+    const segments = path.split(".");
+    const last = segments[segments.length - 1] ?? path;
+    const friendly = last.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+    const head = segments.slice(0, -1).map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join(" ");
+    return (head ? `${head} ${friendly}` : friendly).charAt(0).toUpperCase() + (head ? `${head} ${friendly}` : friendly).slice(1);
+  }
+  function parseSinglePlaceholder(value) {
+    const m = value.match(/^\s*\{\{\s*([a-zA-Z0-9_.\[\]\-]+)\s*\}\}\s*$/);
+    return m ? m[1] : null;
+  }
+  function extractRegexAlternation(regex) {
+    const m = regex.match(/^\/\(?([^/\\]+)\)?\/[a-z]*$/);
+    if (!m) {
+      return null;
+    }
+    const inner = m[1];
+    if (!inner.includes("|")) {
+      return null;
+    }
+    return inner.split("|").map((s) => s.trim()).filter(Boolean);
+  }
   const MIN_ZOOM = 0.3;
   const MAX_ZOOM = 2.5;
   const WHEEL_ZOOM_FACTOR = 15e-4;
@@ -2059,27 +2187,46 @@
     const node = el$1("article", {
       class: "wpdm-routines__card wpdm-routines__card--conditions"
     });
+    const hasConditions = ctx.def.conditions.length > 0;
+    if (!hasConditions) {
+      node.classList.add("is-empty");
+    }
     const head = el$1("header", { class: "wpdm-routines__card-head" });
     const icon = el$1("span", { class: "dashicons dashicons-filter" });
     icon.setAttribute("aria-hidden", "true");
     const titleWrap = el$1("div", { class: "wpdm-routines__card-title-wrap" });
     const eyebrow = el$1("span", { class: "wpdm-routines__card-eyebrow" });
-    eyebrow.textContent = "Gate";
+    eyebrow.textContent = hasConditions ? "Run only if" : "Filter";
     const title = el$1("h3", { class: "wpdm-routines__card-title" });
-    title.textContent = ctx.def.conditions.length ? `If ${ctx.def.conditions.length} condition${ctx.def.conditions.length === 1 ? "" : "s"} pass` : "No conditions — runs every time";
+    if (!hasConditions) {
+      title.textContent = "Runs every time the trigger fires";
+    } else if (ctx.def.conditions.length === 1) {
+      title.textContent = "this is true";
+    } else {
+      title.textContent = "all of these are true";
+    }
     titleWrap.append(eyebrow, title);
     head.append(icon, titleWrap);
     node.append(head);
-    if (ctx.def.conditions.length > 0) {
+    if (hasConditions) {
       const list = el$1("ul", { class: "wpdm-routines__cond-list" });
       for (const cond of ctx.def.conditions) {
-        const li = el$1("li", {});
-        const code = el$1("code", {});
-        code.textContent = `${String(cond.left)} ${cond.op} ${String(cond.right)}`;
-        li.append(code);
+        const li = el$1("li", { class: "wpdm-routines__cond-row" });
+        const dot = el$1("span", { class: "wpdm-routines__cond-dot" });
+        const phrase = el$1("span", { class: "wpdm-routines__cond-phrase" });
+        phrase.textContent = humanizeCondition(
+          cond,
+          ctx.catalog,
+          ctx.def.trigger.id
+        );
+        li.append(dot, phrase);
         list.append(li);
       }
       node.append(list);
+    } else {
+      const hint = el$1("p", { class: "wpdm-routines__cond-hint" });
+      hint.textContent = "Click to add a filter — only let the steps run when conditions match.";
+      node.append(hint);
     }
     node.addEventListener("click", onInspect);
     return node;
@@ -2135,7 +2282,11 @@
     titleWrap.append(eyebrow, title);
     head.append(icon, titleWrap);
     node.append(head);
-    const summary = stepSummary(step);
+    const summary = humanizeStepSummary(
+      step,
+      ctx.catalog,
+      ctx.def.trigger.id
+    );
     if (summary) {
       const meta = el$1("p", { class: "wpdm-routines__card-meta" });
       meta.textContent = summary;
@@ -2336,34 +2487,6 @@
       return "Stop";
     }
     return step.kind;
-  }
-  function stepSummary(step) {
-    const args = step.args;
-    if (step.kind === "log") {
-      return String(args.message || "").slice(0, 80);
-    }
-    if (step.kind === "email") {
-      return `${args.to || "admin"} — ${String(args.subject || "").slice(0, 60)}`;
-    }
-    if (step.kind === "http") {
-      return `${String(args.method || "GET").toUpperCase()} ${String(args.url || "").slice(0, 60)}`;
-    }
-    if (step.kind === "wait") {
-      return `${args.seconds ?? 1}s`;
-    }
-    if (step.kind === "if" && step.condition) {
-      return `${String(step.condition.left)} ${step.condition.op} ${String(step.condition.right)}`;
-    }
-    if (step.kind === "set_var") {
-      return `${args.name} = ${JSON.stringify(args.value)}`;
-    }
-    if (step.kind === "stop") {
-      return String(args.reason || "");
-    }
-    if (step.kind === "action" || step.kind === "ai_tool") {
-      return Object.keys(args).slice(0, 3).join(", ");
-    }
-    return "";
   }
   function defaultArgsFor(kind) {
     switch (kind) {

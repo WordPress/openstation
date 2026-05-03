@@ -41,6 +41,7 @@ import type {
 	RoutineRun,
 	RoutineStep,
 } from './types';
+import { humanizeCondition, humanizeStepSummary } from './humanize';
 import { mountViewport, type ViewportHandle } from './viewport';
 
 export interface CanvasContext {
@@ -493,30 +494,48 @@ function renderConditionsCard(
 	const node = el( 'article', {
 		class: 'wpdm-routines__card wpdm-routines__card--conditions',
 	} );
+	const hasConditions = ctx.def.conditions.length > 0;
+	if ( ! hasConditions ) {
+		node.classList.add( 'is-empty' );
+	}
+
 	const head = el( 'header', { class: 'wpdm-routines__card-head' } );
 	const icon = el( 'span', { class: 'dashicons dashicons-filter' } );
 	icon.setAttribute( 'aria-hidden', 'true' );
 	const titleWrap = el( 'div', { class: 'wpdm-routines__card-title-wrap' } );
 	const eyebrow = el( 'span', { class: 'wpdm-routines__card-eyebrow' } );
-	eyebrow.textContent = 'Gate';
+	eyebrow.textContent = hasConditions ? 'Run only if' : 'Filter';
 	const title = el( 'h3', { class: 'wpdm-routines__card-title' } );
-	title.textContent = ctx.def.conditions.length
-		? `If ${ ctx.def.conditions.length } condition${ ctx.def.conditions.length === 1 ? '' : 's' } pass`
-		: 'No conditions — runs every time';
+	if ( ! hasConditions ) {
+		title.textContent = 'Runs every time the trigger fires';
+	} else if ( ctx.def.conditions.length === 1 ) {
+		title.textContent = 'this is true';
+	} else {
+		title.textContent = 'all of these are true';
+	}
 	titleWrap.append( eyebrow, title );
 	head.append( icon, titleWrap );
 	node.append( head );
 
-	if ( ctx.def.conditions.length > 0 ) {
+	if ( hasConditions ) {
 		const list = el( 'ul', { class: 'wpdm-routines__cond-list' } );
 		for ( const cond of ctx.def.conditions ) {
-			const li = el( 'li', {} );
-			const code = el( 'code', {} );
-			code.textContent = `${ String( cond.left ) } ${ cond.op } ${ String( cond.right ) }`;
-			li.append( code );
+			const li = el( 'li', { class: 'wpdm-routines__cond-row' } );
+			const dot = el( 'span', { class: 'wpdm-routines__cond-dot' } );
+			const phrase = el( 'span', { class: 'wpdm-routines__cond-phrase' } );
+			phrase.textContent = humanizeCondition(
+				cond,
+				ctx.catalog,
+				ctx.def.trigger.id,
+			);
+			li.append( dot, phrase );
 			list.append( li );
 		}
 		node.append( list );
+	} else {
+		const hint = el( 'p', { class: 'wpdm-routines__cond-hint' } );
+		hint.textContent = 'Click to add a filter — only let the steps run when conditions match.';
+		node.append( hint );
 	}
 
 	node.addEventListener( 'click', onInspect );
@@ -595,7 +614,11 @@ function renderStepCard(
 	head.append( icon, titleWrap );
 	node.append( head );
 
-	const summary = stepSummary( step );
+	const summary = humanizeStepSummary(
+		step,
+		ctx.catalog,
+		ctx.def.trigger.id,
+	);
 	if ( summary ) {
 		const meta = el( 'p', { class: 'wpdm-routines__card-meta' } );
 		meta.textContent = summary;
@@ -845,35 +868,6 @@ function stepTitle( step: RoutineStep, ctx: CanvasContext ): string {
 		return 'Stop';
 	}
 	return step.kind;
-}
-
-function stepSummary( step: RoutineStep ): string {
-	const args = step.args as Record< string, unknown >;
-	if ( step.kind === 'log' ) {
-		return String( args.message || '' ).slice( 0, 80 );
-	}
-	if ( step.kind === 'email' ) {
-		return `${ args.to || 'admin' } — ${ String( args.subject || '' ).slice( 0, 60 ) }`;
-	}
-	if ( step.kind === 'http' ) {
-		return `${ String( args.method || 'GET' ).toUpperCase() } ${ String( args.url || '' ).slice( 0, 60 ) }`;
-	}
-	if ( step.kind === 'wait' ) {
-		return `${ args.seconds ?? 1 }s`;
-	}
-	if ( step.kind === 'if' && step.condition ) {
-		return `${ String( step.condition.left ) } ${ step.condition.op } ${ String( step.condition.right ) }`;
-	}
-	if ( step.kind === 'set_var' ) {
-		return `${ args.name } = ${ JSON.stringify( args.value ) }`;
-	}
-	if ( step.kind === 'stop' ) {
-		return String( args.reason || '' );
-	}
-	if ( step.kind === 'action' || step.kind === 'ai_tool' ) {
-		return Object.keys( args ).slice( 0, 3 ).join( ', ' );
-	}
-	return '';
 }
 
 function defaultArgsFor( kind: RoutineStep[ 'kind' ] ): Record< string, unknown > {

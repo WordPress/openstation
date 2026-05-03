@@ -895,10 +895,47 @@
 }
 
 .wpdm-routines__cond-list {
+	margin: 10px 0 0 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.wpdm-routines__cond-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-size: 12px;
+	color: #1d2327;
+	line-height: 1.4;
+}
+
+.wpdm-routines__cond-dot {
+	flex: 0 0 auto;
+	width: 6px;
+	height: 6px;
+	margin-top: 6px;
+	border-radius: 50%;
+	background: #f59e0b;
+}
+
+.wpdm-routines__cond-phrase {
+	flex: 1 1 auto;
+}
+
+.wpdm-routines__cond-hint {
 	margin: 8px 0 0 0;
-	padding-inline-start: 14px;
 	font-size: 11px;
-	font-family: ui-monospace, monospace;
+	color: #6b7280;
+	font-style: italic;
+}
+
+.wpdm-routines__card--conditions.is-empty {
+	background: #fafafa;
+	border-style: solid;
+	border-color: var( --wpd-window-border, #e5e7eb );
 }
 
 .wpdm-routines__card-bar {
