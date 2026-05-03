@@ -1641,6 +1641,46 @@ Actions:
 
 ---
 
+## Routines (since 0.22.0)
+
+> Full architecture: [routines.md](./routines.md). Example: [examples/register-routine-trigger.md](./examples/register-routine-trigger.md).
+
+### Registration
+
+```php
+wp_register_desktop_routine_trigger( $args );  // declare a triggerable hook
+wp_register_desktop_routine_action( $args );   // declare a custom step handler
+wp_register_desktop_routine_template( $args ); // ship a starter recipe
+```
+
+### Filters
+
+| Filter                                  | Default | Purpose                                                     |
+|-----------------------------------------|---------|-------------------------------------------------------------|
+| `wp_desktop_routine_user_can_manage`    | `manage_options` | Gate the manage permission.                          |
+| `wp_desktop_routine_payload`            | bound payload | Last-chance shape adjuster before evaluation.           |
+| `wp_desktop_routine_can_run`            | `true`  | Kill-switch — return false to halt before any step runs.    |
+| `wp_desktop_routine_http_allowlist`     | `[]`    | Outbound HTTP allowlist for the `http` step.                |
+| `wp_desktop_routine_system_user_id`     | lowest-id admin | Pin the user `run_as: "system"` resolves to.        |
+| `wp_desktop_routine_run_retention_days` | `30`    | Run-history retention.                                      |
+| `wp_desktop_routines_template_html`     | default markup | Override the routines window template.               |
+
+### Actions
+
+| Action                                       | Args                                          |
+|----------------------------------------------|-----------------------------------------------|
+| `wp_desktop_routine_trigger_registered`      | `$id, $entry`                                 |
+| `wp_desktop_routine_action_registered`       | `$id, $entry`                                 |
+| `wp_desktop_routine_template_registered`     | `$id, $entry`                                 |
+| `wp_desktop_routine_seeded`                  | —                                             |
+| `wp_desktop_routine_saved`                   | `$id, $def, $enabled`                         |
+| `wp_desktop_routine_deleted`                 | `$id`                                         |
+| `wp_desktop_routine_before_run`              | `$routine, $payload`                          |
+| `wp_desktop_routine_after_run`               | `$routine, $payload, $status, $steps_log`     |
+| `wp_desktop_routine_step_failed`             | `$step, $context, WP_Error`                   |
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

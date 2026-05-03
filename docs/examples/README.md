@@ -41,6 +41,7 @@ defined( 'ABSPATH' ) || exit;
 - [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 - [Extend the Recycle Bin](./recycle-bin.md)
+- [Register a routine trigger](./register-routine-trigger.md)
 - [Pulse a window's icon — `Window.requestAttention()`](./window-request-attention.md)
 - [Render a keyed list without losing clicks — `renderKeyedList()`](./keyed-list.md)
 - [Share state across multi-bundle plugins — `wp.desktop.createSharedStore()`](./shared-store.md)
