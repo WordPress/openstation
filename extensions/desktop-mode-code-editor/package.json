@@ -1,0 +1,20 @@
+{
+	"name": "desktop-mode-code-editor",
+	"version": "0.22.11",
+	"private": true,
+	"description": "Build pipeline for the Desktop Mode Code Editor extension. Compiles src/*.ts into assets/js/code-editor[.min].js and copies the Monaco vendor distributable into assets/vendor/.",
+	"scripts": {
+		"build": "npm run vendor:monaco && npm run build:bundle",
+		"build:bundle": "vite build --mode development && vite build --mode production",
+		"vendor:monaco": "node -e \"const fs=require('fs');fs.rmSync('assets/vendor/monaco-editor',{recursive:true,force:true});fs.cpSync('node_modules/monaco-editor/min','assets/vendor/monaco-editor/min',{recursive:true});fs.cpSync('node_modules/monaco-editor/LICENSE','assets/vendor/monaco-editor/LICENSE');fs.cpSync('node_modules/monaco-editor/ThirdPartyNotices.txt','assets/vendor/monaco-editor/ThirdPartyNotices.txt')\"",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@monaco-editor/loader": "^1.7.0"
+	},
+	"devDependencies": {
+		"monaco-editor": "^0.50.0",
+		"typescript": "^5.5.0",
+		"vite": "^5.4.0"
+	}
+}

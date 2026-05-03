@@ -1,56 +1,27 @@
 <?php
 /**
- * Desktop Mode — WordPress core symbol indexer.
+ * WordPress core symbol indexer for the Code Editor extension.
  *
- * Builds the catalogue Monaco's PHP completion + hover providers
- * query against. Lives in three layers:
+ * Builds the catalogue Monaco's PHP completion + hover providers query
+ * against. Three layers:
  *
- *   - {@see wpdc_get_wp_core_index()}    — public reader. Cached as
- *                                          a transient keyed on the
- *                                          WP version. First call
- *                                          per version takes a few
- *                                          seconds; every later call
- *                                          is microseconds.
- *   - {@see wpdc_build_wp_core_index()}  — the cold-path scan.
- *                                          Reflection over already-
- *                                          declared functions for
- *                                          signatures + PHPDoc;
- *                                          tokenizer over wp-
- *                                          includes / wp-admin for
- *                                          hook (do_action /
- *                                          apply_filters) names +
- *                                          their preceding doc
- *                                          comment.
- *   - {@see wpdc_query_php_symbols()}    — read-side prefix-match +
- *                                          kind-filter the REST
- *                                          handler delegates to.
+ *   - {@see desktop_mode_code_editor_get_wp_core_index()}
+ *   - {@see desktop_mode_code_editor_build_wp_core_index()}
+ *   - {@see desktop_mode_code_editor_query_php_symbols()}
  *
  * Plugin authors can extend the index without forking via the
- * `wpdc_php_index_extra_symbols` filter — return an array shaped
- * like the canonical entries below and they're merged in (workspace
- * symbols, ACF / WooCommerce dictionaries, etc.). Phase 5b's
- * workspace indexer feeds this same filter.
+ * `desktop_mode_code_editor_php_index_extra_symbols` filter — return
+ * an array shaped like the canonical entries below and they're merged
+ * in. The workspace indexer feeds this same filter.
  *
- * Symbol entry shape:
- *
- *   array(
- *       'name'        => 'wp_get_current_user',
- *       'kind'        => 'function' | 'class' | 'action' | 'filter' | 'constant',
- *       'signature'   => 'wp_get_current_user(): WP_User',
- *       'params'      => array( array( 'name' => 'user_id', 'optional' => false, … ) ),
- *       'doc'         => 'Retrieve the current user object.',
- *       'since'       => '4.5.0',
- *       'source'      => 'wp-includes/pluggable.php',
- *   )
- *
- * @package WPDesktopMode
- * @since 0.18.0
+ * @package DesktopModeCodeEditor
+ * @since   0.22.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Transient TTL — index lives until WP updates. 30 days is generous. */
-const WPDC_INDEX_TTL = 30 * DAY_IN_SECONDS;
+const DESKTOP_MODE_CODE_EDITOR_INDEX_TTL = 30 * DAY_IN_SECONDS;
 
 // ---------------------------------------------------------------------------
 // Public reader
@@ -60,30 +31,29 @@ const WPDC_INDEX_TTL = 30 * DAY_IN_SECONDS;
  * Returns the WP core symbol index. Cached as a transient keyed on
  * the WP version.
  *
- * @since 0.18.0
+ * @since 0.22.0
  *
  * @return array{ functions: array<string, array>, hooks: array<string, array> }
  */
-function wpdc_get_wp_core_index() {
-	$cache_key = 'wpdc_php_index_' . get_bloginfo( 'version' );
+function desktop_mode_code_editor_get_wp_core_index() {
+	$cache_key = 'desktop_mode_code_editor_php_index_' . get_bloginfo( 'version' );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && isset( $cached['functions'], $cached['hooks'] ) ) {
 		return $cached;
 	}
 
-	$index = wpdc_build_wp_core_index();
-	set_transient( $cache_key, $index, WPDC_INDEX_TTL );
+	$index = desktop_mode_code_editor_build_wp_core_index();
+	set_transient( $cache_key, $index, DESKTOP_MODE_CODE_EDITOR_INDEX_TTL );
 	return $index;
 }
 
 /**
- * Drop the cached index. Useful on plugin update or when a plugin
- * author is iterating on the indexer itself.
+ * Drop the cached index.
  *
- * @since 0.18.0
+ * @since 0.22.0
  */
-function wpdc_flush_wp_core_index() {
-	delete_transient( 'wpdc_php_index_' . get_bloginfo( 'version' ) );
+function desktop_mode_code_editor_flush_wp_core_index() {
+	delete_transient( 'desktop_mode_code_editor_php_index_' . get_bloginfo( 'version' ) );
 }
 
 // ---------------------------------------------------------------------------
@@ -93,13 +63,13 @@ function wpdc_flush_wp_core_index() {
 /**
  * Build the index from scratch. Slow — call only via the cached reader.
  *
- * @since 0.18.0
+ * @since 0.22.0
  *
  * @return array
  */
-function wpdc_build_wp_core_index() {
-	$functions = wpdc_index_wp_core_functions();
-	$hooks     = wpdc_index_wp_core_hooks();
+function desktop_mode_code_editor_build_wp_core_index() {
+	$functions = desktop_mode_code_editor_index_wp_core_functions();
+	$hooks     = desktop_mode_code_editor_index_wp_core_hooks();
 
 	return array(
 		'functions' => $functions,
@@ -109,23 +79,13 @@ function wpdc_build_wp_core_index() {
 
 /**
  * Index every defined function whose source file lives under
- * `ABSPATH` but outside `WP_CONTENT_DIR` — i.e. WP core, including
- * mu-plugins-loaded core helpers.
+ * `ABSPATH` but outside `WP_CONTENT_DIR`.
  *
- * Reflection gives us:
- *   - parameter list with types + defaults
- *   - the docblock the function ships with (PHPDoc summary + @since
- *     + @param + @return)
- *   - canonical source-file location
- *
- * Functions defined in plugins/themes are excluded — Phase 5b's
- * workspace indexer covers them through a separate path.
- *
- * @since 0.18.0
+ * @since 0.22.0
  *
  * @return array<string, array>
  */
-function wpdc_index_wp_core_functions() {
+function desktop_mode_code_editor_index_wp_core_functions() {
 	$out = array();
 
 	$content_dir = defined( 'WP_CONTENT_DIR' )
@@ -147,7 +107,6 @@ function wpdc_index_wp_core_functions() {
 		}
 		$file_norm = wp_normalize_path( $file );
 
-		// WP core only — under ABSPATH and NOT under wp-content.
 		if ( '' === $abspath || strpos( $file_norm, $abspath . '/' ) !== 0 ) {
 			continue;
 		}
@@ -161,7 +120,7 @@ function wpdc_index_wp_core_functions() {
 				'name'     => $p->getName(),
 				'optional' => $p->isOptional(),
 				'default'  => $p->isDefaultValueAvailable()
-					? wpdc_format_default( $p->getDefaultValue() )
+					? desktop_mode_code_editor_format_default( $p->getDefaultValue() )
 					: null,
 				'variadic' => $p->isVariadic(),
 				'by_ref'   => $p->isPassedByReference(),
@@ -169,15 +128,15 @@ function wpdc_index_wp_core_functions() {
 			);
 		}
 
-		$doc       = $ref->getDocComment() ?: '';
-		$summary   = wpdc_phpdoc_summary( $doc );
-		$since     = wpdc_phpdoc_tag( $doc, 'since' );
-		$return    = wpdc_phpdoc_tag( $doc, 'return' );
+		$doc     = $ref->getDocComment() ?: '';
+		$summary = desktop_mode_code_editor_phpdoc_summary( $doc );
+		$since   = desktop_mode_code_editor_phpdoc_tag( $doc, 'since' );
+		$return  = desktop_mode_code_editor_phpdoc_tag( $doc, 'return' );
 
 		$out[ $name ] = array(
 			'name'      => $name,
 			'kind'      => 'function',
-			'signature' => wpdc_format_signature( $name, $params, $return ),
+			'signature' => desktop_mode_code_editor_format_signature( $name, $params, $return ),
 			'params'    => $params,
 			'doc'       => $summary,
 			'since'     => $since,
@@ -190,37 +149,25 @@ function wpdc_index_wp_core_functions() {
 
 /**
  * Walk wp-includes / wp-admin and pull out every literal-string
- * `do_action` / `apply_filters` call. Records the docblock that
- * preceded the call as the hook's documentation — this is the WP
- * convention (action hooks ship with a leading PHPDoc block giving
- * the description, signature, and since-tag). First occurrence
- * wins on duplicate hook names.
+ * `do_action` / `apply_filters` call.
  *
- * @since 0.18.0
+ * @since 0.22.0
  *
  * @return array<string, array>
  */
-function wpdc_index_wp_core_hooks() {
+function desktop_mode_code_editor_index_wp_core_hooks() {
 	$out = array();
 
 	$dirs       = array();
 	$root_files = array();
 	if ( defined( 'ABSPATH' ) ) {
 		$abs = rtrim( wp_normalize_path( ABSPATH ), '/' );
-		// `wp-includes/` and `wp-admin/` (the latter recursively
-		// includes its `includes/` + `network/` + the top-level
-		// `admin.php` + friends — admin-only hooks like `admin_init`
-		// live there).
 		foreach ( array( 'wp-includes', 'wp-admin' ) as $sub ) {
 			$candidate = $abs . '/' . $sub;
 			if ( is_dir( $candidate ) ) {
 				$dirs[] = $candidate;
 			}
 		}
-		// WP root files. `wp-settings.php` is where canonical actions
-		// like `init`, `wp_loaded`, `admin_init`, `setup_theme`, etc.
-		// fire. Without these the index would miss the load-bearing
-		// hooks every plugin actually subscribes to.
 		foreach (
 			array(
 				'wp-settings.php',
@@ -248,12 +195,12 @@ function wpdc_index_wp_core_hooks() {
 			if ( 'php' !== strtolower( $file->getExtension() ) ) {
 				continue;
 			}
-			wpdc_scan_hooks_in_file( $file->getPathname(), $out );
+			desktop_mode_code_editor_scan_hooks_in_file( $file->getPathname(), $out );
 		}
 	}
 
 	foreach ( $root_files as $file ) {
-		wpdc_scan_hooks_in_file( $file, $out );
+		desktop_mode_code_editor_scan_hooks_in_file( $file, $out );
 	}
 
 	return $out;
@@ -261,17 +208,15 @@ function wpdc_index_wp_core_hooks() {
 
 /**
  * Tokenize a single PHP file and append every literal-string
- * `do_action` / `apply_filters` (and `_ref_array` variants) into
- * `$out`. Mutates `$out` in place to avoid copying a growing
- * dictionary on every file.
+ * `do_action` / `apply_filters` (and `_ref_array` variants) into `$out`.
  *
- * @since 0.18.0
+ * @since 0.22.0
  * @internal
  *
  * @param string $path Absolute path to a PHP file.
  * @param array  $out  Accumulator.
  */
-function wpdc_scan_hooks_in_file( $path, array &$out ) {
+function desktop_mode_code_editor_scan_hooks_in_file( $path, array &$out ) {
 	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$source = @file_get_contents( $path );
 	if ( false === $source ) {
@@ -283,9 +228,9 @@ function wpdc_scan_hooks_in_file( $path, array &$out ) {
 		return;
 	}
 
-	$rel = wpdc_path_relative_to_abspath( $path );
+	$rel = desktop_mode_code_editor_path_relative_to_abspath( $path );
 
-	$count = count( $tokens );
+	$count            = count( $tokens );
 	$last_doc_comment = '';
 
 	for ( $i = 0; $i < $count; $i++ ) {
@@ -294,9 +239,6 @@ function wpdc_scan_hooks_in_file( $path, array &$out ) {
 			$last_doc_comment = $tok[1];
 			continue;
 		}
-		// Non-doc-comment tokens that aren't whitespace reset the
-		// doc-comment tracking — only a docblock IMMEDIATELY before
-		// the call should be associated.
 		if ( is_array( $tok ) && in_array( $tok[0], array( T_WHITESPACE, T_COMMENT ), true ) ) {
 			continue;
 		}
@@ -306,26 +248,25 @@ function wpdc_scan_hooks_in_file( $path, array &$out ) {
 			continue;
 		}
 
-		$name = $tok[1];
-		$kind_for_name = wpdc_hook_kind_for_function_name( $name );
+		$name          = $tok[1];
+		$kind_for_name = desktop_mode_code_editor_hook_kind_for_function_name( $name );
 		if ( null === $kind_for_name ) {
 			$last_doc_comment = '';
 			continue;
 		}
 
-		// Expect `(` then a literal string as the first argument.
-		$next = wpdc_next_significant_token( $tokens, $i + 1 );
+		$next = desktop_mode_code_editor_next_significant_token( $tokens, $i + 1 );
 		if ( null === $next || '(' !== $tokens[ $next ] ) {
 			$last_doc_comment = '';
 			continue;
 		}
-		$arg = wpdc_next_significant_token( $tokens, $next + 1 );
+		$arg = desktop_mode_code_editor_next_significant_token( $tokens, $next + 1 );
 		if ( null === $arg || ! is_array( $tokens[ $arg ] ) || T_CONSTANT_ENCAPSED_STRING !== $tokens[ $arg ][0] ) {
 			$last_doc_comment = '';
 			continue;
 		}
 
-		$hook = wpdc_unquote_string( $tokens[ $arg ][1] );
+		$hook = desktop_mode_code_editor_unquote_string( $tokens[ $arg ][1] );
 		if ( '' === $hook || isset( $out[ $hook ] ) ) {
 			$last_doc_comment = '';
 			continue;
@@ -335,8 +276,8 @@ function wpdc_scan_hooks_in_file( $path, array &$out ) {
 			'name'      => $hook,
 			'kind'      => $kind_for_name,
 			'signature' => $name . "( '" . $hook . "', … )",
-			'doc'       => wpdc_phpdoc_summary( $last_doc_comment ),
-			'since'     => wpdc_phpdoc_tag( $last_doc_comment, 'since' ),
+			'doc'       => desktop_mode_code_editor_phpdoc_summary( $last_doc_comment ),
+			'since'     => desktop_mode_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
 			'source'    => $rel . ':' . ( is_array( $tok ) ? (int) $tok[2] : 0 ),
 		);
 
@@ -345,7 +286,7 @@ function wpdc_scan_hooks_in_file( $path, array &$out ) {
 }
 
 /** Map a function name to its hook kind, or null if it isn't a hook call. */
-function wpdc_hook_kind_for_function_name( $name ) {
+function desktop_mode_code_editor_hook_kind_for_function_name( $name ) {
 	switch ( $name ) {
 		case 'do_action':
 		case 'do_action_ref_array':
@@ -366,7 +307,7 @@ function wpdc_hook_kind_for_function_name( $name ) {
  *
  * @internal
  */
-function wpdc_next_significant_token( array $tokens, $start ) {
+function desktop_mode_code_editor_next_significant_token( array $tokens, $start ) {
 	$count = count( $tokens );
 	for ( $i = $start; $i < $count; $i++ ) {
 		$tok = $tokens[ $i ];
@@ -381,7 +322,7 @@ function wpdc_next_significant_token( array $tokens, $start ) {
 }
 
 /** Strip the surrounding quotes from a `T_CONSTANT_ENCAPSED_STRING` token's lexeme. */
-function wpdc_unquote_string( $lexeme ) {
+function desktop_mode_code_editor_unquote_string( $lexeme ) {
 	$lexeme = (string) $lexeme;
 	if ( strlen( $lexeme ) < 2 ) {
 		return '';
@@ -394,7 +335,7 @@ function wpdc_unquote_string( $lexeme ) {
 }
 
 /** Format a value for display as a default in a parameter list. */
-function wpdc_format_default( $value ) {
+function desktop_mode_code_editor_format_default( $value ) {
 	if ( is_string( $value ) ) {
 		return "'" . $value . "'";
 	}
@@ -411,7 +352,7 @@ function wpdc_format_default( $value ) {
 }
 
 /** Compose a human-readable signature line. */
-function wpdc_format_signature( $name, array $params, $return = null ) {
+function desktop_mode_code_editor_format_signature( $name, array $params, $return = null ) {
 	$parts = array();
 	foreach ( $params as $p ) {
 		$part = '';
@@ -432,8 +373,6 @@ function wpdc_format_signature( $name, array $params, $return = null ) {
 	}
 	$sig = $name . '(' . ( $parts ? ' ' . implode( ', ', $parts ) . ' ' : '' ) . ')';
 	if ( is_string( $return ) && '' !== $return ) {
-		// `@return Type Description` — first whitespace-separated
-		// token is the type. `mixed Description` → `: mixed`.
 		$first = preg_split( '/\s+/', trim( $return ) );
 		if ( $first && '' !== $first[0] ) {
 			$sig .= ': ' . $first[0];
@@ -449,33 +388,30 @@ function wpdc_format_signature( $name, array $params, $return = null ) {
 /**
  * Pull the human-readable summary out of a PHPDoc block.
  *
- * @since 0.18.0
+ * @since 0.22.0
  *
  * @param string $doc Full docblock text including delimiters.
  * @return string
  */
-function wpdc_phpdoc_summary( $doc ) {
+function desktop_mode_code_editor_phpdoc_summary( $doc ) {
 	$doc = (string) $doc;
 	if ( '' === $doc ) {
 		return '';
 	}
 
-	// Strip `/**` / `*/` / leading `*` per line.
-	$doc = preg_replace( '/^\s*\/\*\*/', '', $doc );
-	$doc = preg_replace( '/\*\/\s*$/', '', $doc );
+	$doc   = preg_replace( '/^\s*\/\*\*/', '', $doc );
+	$doc   = preg_replace( '/\*\/\s*$/', '', $doc );
 	$lines = preg_split( '/\r?\n/', $doc );
 	if ( ! is_array( $lines ) ) {
 		return '';
 	}
 	$out = array();
 	foreach ( $lines as $line ) {
-		$line = preg_replace( '/^\s*\*\s?/', '', $line );
+		$line  = preg_replace( '/^\s*\*\s?/', '', $line );
 		$out[] = $line;
 	}
 	$body = trim( implode( "\n", $out ) );
 
-	// First paragraph = summary. Stop at `@tag` lines too — some
-	// WP docblocks lack a blank-line separator before tags.
 	$summary = preg_split( '/(\r?\n\s*\r?\n)|(\r?\n\s*@[a-z]+)/i', $body, 2 );
 	$summary = is_array( $summary ) && ! empty( $summary[0] ) ? $summary[0] : $body;
 	$summary = preg_replace( '/\s+/', ' ', $summary );
@@ -483,16 +419,15 @@ function wpdc_phpdoc_summary( $doc ) {
 }
 
 /**
- * Pull a single `@tag` value out of a PHPDoc block. Returns the
- * first occurrence's value (after the tag, before EOL).
+ * Pull a single `@tag` value out of a PHPDoc block.
  *
- * @since 0.18.0
+ * @since 0.22.0
  *
  * @param string $doc PHPDoc block.
  * @param string $tag Tag name without `@`.
  * @return string
  */
-function wpdc_phpdoc_tag( $doc, $tag ) {
+function desktop_mode_code_editor_phpdoc_tag( $doc, $tag ) {
 	$doc = (string) $doc;
 	$tag = preg_quote( (string) $tag, '/' );
 	if ( '' === $doc ) {
@@ -505,7 +440,7 @@ function wpdc_phpdoc_tag( $doc, $tag ) {
 }
 
 /** Strip ABSPATH from a path; emit forward-slashed relative form. */
-function wpdc_path_relative_to_abspath( $path ) {
+function desktop_mode_code_editor_path_relative_to_abspath( $path ) {
 	if ( ! defined( 'ABSPATH' ) ) {
 		return wp_normalize_path( $path );
 	}
@@ -525,21 +460,18 @@ function wpdc_path_relative_to_abspath( $path ) {
  * Query the index — prefix-match across functions + hooks, optionally
  * filtered by `$kinds`.
  *
- * @since 0.18.0
+ * @since 0.22.0
  *
- * @param string   $prefix Lower-cased identifier prefix the editor's
- *                         user is typing. Empty string returns popular
- *                         results (cap-bounded).
+ * @param string   $prefix Lower-cased identifier prefix.
  * @param string[] $kinds  Subset of {`function`, `action`, `filter`}.
- *                         Empty = all kinds.
  * @param int      $limit  Hard cap on returned matches.
  * @return array[] List of symbol entries.
  */
-function wpdc_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) {
+function desktop_mode_code_editor_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) {
 	$prefix = strtolower( (string) $prefix );
 	$limit  = max( 1, (int) $limit );
 
-	$index = wpdc_get_wp_core_index();
+	$index = desktop_mode_code_editor_get_wp_core_index();
 	$pool  = array();
 
 	if ( empty( $kinds ) || in_array( 'function', $kinds, true ) ) {
@@ -564,16 +496,15 @@ function wpdc_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) 
 
 	/**
 	 * Inject extra symbols (workspace functions, framework
-	 * dictionaries, etc.). Filter receives the FULL pool every
-	 * call — return a (possibly extended) array.
+	 * dictionaries, etc.).
 	 *
-	 * @since 0.18.0
+	 * @since 0.22.0
 	 *
 	 * @param array  $pool   Symbols collected from WP core.
 	 * @param string $prefix The prefix being queried.
 	 * @param array  $kinds  Kind filter.
 	 */
-	$pool = (array) apply_filters( 'wpdc_php_index_extra_symbols', $pool, $prefix, $kinds );
+	$pool = (array) apply_filters( 'desktop_mode_code_editor_php_index_extra_symbols', $pool, $prefix, $kinds );
 
 	$matches = array();
 	foreach ( $pool as $entry ) {
@@ -586,8 +517,6 @@ function wpdc_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) 
 		}
 		$matches[] = $entry;
 		if ( count( $matches ) >= $limit * 4 ) {
-			// Bound the work even before sorting; we sort + slice
-			// to $limit below.
 			break;
 		}
 	}
@@ -603,15 +532,15 @@ function wpdc_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) 
 }
 
 /**
- * Look up a single symbol by exact name. Used by the hover route.
+ * Look up a single symbol by exact name.
  *
- * @since 0.18.0
+ * @since 0.22.0
  *
  * @param string $name
  * @return array|null
  */
-function wpdc_get_php_symbol( $name ) {
-	$index = wpdc_get_wp_core_index();
+function desktop_mode_code_editor_get_php_symbol( $name ) {
+	$index = desktop_mode_code_editor_get_wp_core_index();
 	$name  = (string) $name;
 	if ( isset( $index['functions'][ $name ] ) ) {
 		return $index['functions'][ $name ];
