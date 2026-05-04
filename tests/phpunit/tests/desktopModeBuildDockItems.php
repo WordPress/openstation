@@ -10,7 +10,7 @@
  *
  * @covers ::desktop_mode_build_dock_items
  */
-class Tests_DesktopMode_WpDesktopBuildDockItems extends WP_UnitTestCase {
+class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 
 	protected static $admin_id;
 

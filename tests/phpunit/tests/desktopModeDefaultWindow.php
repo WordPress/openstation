@@ -13,7 +13,7 @@
  * @group desktop-mode
  * @group desktop-mode-default-window
  */
-class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
+class Tests_DesktopMode_DefaultWindow extends WP_UnitTestCase {
 
 	protected static $admin_id;
 

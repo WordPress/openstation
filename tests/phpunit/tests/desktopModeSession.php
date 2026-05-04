@@ -12,7 +12,7 @@
  * @group desktop-mode
  * @group desktop-mode-session
  */
-class Tests_DesktopMode_WpDesktopSession extends WP_UnitTestCase {
+class Tests_DesktopMode_Session extends WP_UnitTestCase {
 
 	protected static $admin_id;
 

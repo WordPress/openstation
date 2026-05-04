@@ -12,7 +12,7 @@
  * @group desktop-mode
  * @group desktop-mode-media-query
  */
-class Tests_DesktopMode_WpMediaQuery extends WP_UnitTestCase {
+class Tests_DesktopMode_MediaQuery extends WP_UnitTestCase {
 
 	protected static $admin_id;
 

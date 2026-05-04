@@ -9,7 +9,7 @@
  *
  * @covers ::desktop_mode_menu_item_url
  */
-class Tests_DesktopMode_WpDesktopMenuItemUrl extends WP_UnitTestCase {
+class Tests_DesktopMode_MenuItemUrl extends WP_UnitTestCase {
 
 	public function test_passes_through_absolute_http_url() {
 		$url = 'http://example.com/foo';

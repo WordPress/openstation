@@ -13,7 +13,7 @@ require_once ABSPATH . 'wp-admin/includes/ajax-actions.php';
  *
  * @covers ::desktop_mode_ajax_save
  */
-class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
+class Tests_DesktopMode_AjaxSave extends WP_Ajax_UnitTestCase {
 
 	public function tear_down() {
 		remove_all_filters( 'desktop_mode_mode_enabled' );

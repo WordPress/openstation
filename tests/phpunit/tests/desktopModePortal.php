@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the `/wp-desktop` portal entry point.
+ * Tests for the `/desktop-mode` portal entry point.
  *
  * Covers URL detection, auto-enabling the user toggle, entry-URL
  * resolution from the saved session, and redirect behavior for
@@ -16,7 +16,7 @@
  * @group desktop-mode
  * @group desktop-mode-portal
  */
-class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
+class Tests_DesktopMode_Portal extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -107,7 +107,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_detects_exact_path() {
-		$_SERVER['REQUEST_URI'] = '/wp-desktop';
+		$_SERVER['REQUEST_URI'] = '/desktop-mode';
 		$this->assertTrue( desktop_mode_is_portal_request() );
 	}
 

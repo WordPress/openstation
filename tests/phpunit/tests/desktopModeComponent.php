@@ -11,7 +11,7 @@
  * @group desktop-mode
  * @group desktop-mode-components
  */
-class Tests_DesktopMode_WpDesktopComponent extends WP_UnitTestCase {
+class Tests_DesktopMode_Component extends WP_UnitTestCase {
 
 	/**
 	 * Capture the component's echo'd output into a string so we can
