@@ -458,6 +458,73 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * Regression: a request URI carrying a percent-encoded slash in a
+	 * query arg (e.g. `plugin=dir%2Ffile.php` on the WP "Activate
+	 * Plugin" link) must survive the redirect to the portal with the
+	 * encoding intact.
+	 *
+	 * `sanitize_text_field` strips every `%XX` sequence as an XSS
+	 * safeguard — fine for plain text, catastrophic for request URIs.
+	 * We use `esc_url_raw` instead, which preserves percent-encoded
+	 * chars while still stripping control sequences.
+	 *
+	 * @covers ::desktop_mode_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_preserves_percent_encoded_slashes() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/plugins.php?action=activate&plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php&_wpnonce=abc123';
+
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertNotNull( $redirect );
+
+		// The captured redirect URL is the portal forward; its `target`
+		// query arg must round-trip with the slash preserved (encoded
+		// either as `%2F` or `%252F` once the wrapper rawurlencode kicks
+		// in — the canonical form is double-encoded). What we MUST NOT
+		// see is the plugin slug collapsed into one token.
+		$this->assertStringNotContainsString(
+			'plugin=desktop-mode-cron-managerdesktop-mode-cron-manager.php',
+			$redirect
+		);
+		$this->assertStringNotContainsString(
+			'plugin%3Ddesktop-mode-cron-managerdesktop-mode-cron-manager.php',
+			$redirect
+		);
+	}
+
+	/**
+	 * Regression: the same percent-encoded slash must survive the
+	 * portal handler's `target` round-trip when a user lands on
+	 * `/wp-desktop/?target=<encoded>`.
+	 *
+	 * @covers ::desktop_mode_handle_portal_request
+	 * @covers ::desktop_mode_sanitize_portal_target
+	 */
+	public function test_portal_target_preserves_percent_encoded_slashes() {
+		wp_set_current_user( self::$admin_id );
+
+		// Simulate what `desktop_mode_redirect_plain_admin_to_portal`
+		// would have produced after capturing an activate URL.
+		$raw_uri              = '/wp-admin/plugins.php?action=activate&plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php&_wpnonce=abc123';
+		$_GET['target']       = $raw_uri;
+		$_SERVER['REQUEST_URI'] = '/wp-desktop/?target=' . rawurlencode( $raw_uri );
+
+		try {
+			$redirect = $this->capture_with( 'desktop_mode_handle_portal_request', null );
+		} finally {
+			unset( $_GET['target'] );
+		}
+
+		$this->assertNotNull( $redirect );
+		$this->assertStringContainsString( 'plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php', $redirect );
+		$this->assertStringContainsString( 'action=activate', $redirect );
+		$this->assertStringContainsString( '_wpnonce=abc123', $redirect );
+	}
+
 	public function test_portal_honors_session_focused_window() {
 		wp_set_current_user( self::$admin_id );
 		$target_path = 'edit.php?post_type=page';

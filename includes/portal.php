@@ -108,7 +108,15 @@ function desktop_mode_handle_portal_request( $wp ) {
 	//   3. Dashboard fallback.
 	$target = '';
 	if ( ! empty( $_GET['target'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$target = desktop_mode_sanitize_portal_target( sanitize_text_field( wp_unslash( $_GET['target'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// `esc_url_raw`, NOT `sanitize_text_field`: the latter strips
+		// every `%XX` percent-encoded sequence from its input as an XSS
+		// safeguard, which mangles request URIs that legitimately carry
+		// encoded slashes (e.g. `plugin=dir%2Ffile.php`). The downstream
+		// `desktop_mode_sanitize_portal_target` validates the URL
+		// rigorously (whitelist against the actual wp-admin directory,
+		// scheme rejection, file_exists gate) so we don't lose any
+		// real safety by skipping `sanitize_text_field` here.
+		$target = desktop_mode_sanitize_portal_target( esc_url_raw( wp_unslash( $_GET['target'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	}
 	if ( '' === $target ) {
 		$target = desktop_mode_portal_entry_url( $user_id );
@@ -138,7 +146,10 @@ function desktop_mode_is_portal_request() {
 		return false;
 	}
 
-	$uri  = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+	// `esc_url_raw` instead of `sanitize_text_field` so percent-encoded
+	// chars in the URI (notably `%2F` from query-arg slashes) survive
+	// long enough for `wp_parse_url` to split path / query correctly.
+	$uri  = esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 	$path = wp_parse_url( $uri, PHP_URL_PATH );
 	if ( ! is_string( $path ) ) {
 		return false;
@@ -233,7 +244,12 @@ function desktop_mode_redirect_plain_admin_to_portal() {
 	// for. The portal handler reads `target`, validates it's same-origin
 	// wp-admin, and uses it as the entry URL.
 	$portal_url = desktop_mode_portal_url();
-	$target     = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+	// `esc_url_raw` instead of `sanitize_text_field`: the latter strips
+	// every `%XX` percent-encoded sequence, which corrupts URIs whose
+	// query string legitimately carries an encoded slash — e.g. WP's
+	// own `plugins.php?action=activate&plugin=dir%2Ffile.php` activate
+	// link. The portal handler will validate this target downstream.
+	$target = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	if ( is_string( $target ) && '' !== $target ) {
 		$portal_url = add_query_arg( 'target', rawurlencode( $target ), $portal_url );
 	}
