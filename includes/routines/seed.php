@@ -717,7 +717,9 @@ function wpdm_routine_register_built_in_actions() {
 			'capability'  => 'edit_posts',
 			'args_schema' => array(
 				'post_id'    => array( 'type' => 'integer', 'required' => true ),
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Argument schema field name, not a DB query.
 				'meta_key'   => array( 'type' => 'string',  'required' => true ),
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Argument schema field name, not a DB query.
 				'meta_value' => array( 'type' => 'string' ),
 			),
 			'handler'     => 'wpdm_routine_action_post_update_meta',
@@ -906,6 +908,7 @@ function wpdm_routine_action_post_update_meta( $args, $context ) {
 	}
 	$value = $args['meta_value'] ?? '';
 	$ok    = update_post_meta( $post_id, $key, $value );
+	// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Result envelope field name, not a DB query.
 	return array( 'post_id' => $post_id, 'meta_key' => $key, 'updated' => (bool) $ok );
 }
 

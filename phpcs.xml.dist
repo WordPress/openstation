@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<ruleset name="Desktop Mode">
+	<description>Coding standards for the Desktop Mode plugin.</description>
+
+	<!--
+		Files this ruleset applies to. Extensions live in this monorepo
+		for development convenience but ship as separate WordPress
+		plugins; they're scanned independently against their own ruleset
+		and excluded here so their text-domains and prefixes don't trip
+		the parent-plugin scan.
+	-->
+	<file>.</file>
+	<exclude-pattern>/extensions/</exclude-pattern>
+	<exclude-pattern>/node_modules/</exclude-pattern>
+	<exclude-pattern>/vendor/</exclude-pattern>
+	<exclude-pattern>/dist/</exclude-pattern>
+	<exclude-pattern>/assets/vendor/</exclude-pattern>
+	<exclude-pattern>/tests/</exclude-pattern>
+
+	<!-- Inherit the WordPress plugin standard. -->
+	<rule ref="WordPress"/>
+
+	<!--
+		Custom prefix allowlist.
+
+		The Plugin Check derives the "valid prefix" from the plugin's
+		slug (`desktop-mode`), and accepts `desktop_mode_*` /
+		`desktop-mode_*` automatically. The codebase has used
+		`wp_desktop_*` since the beginning for hooks, filters,
+		registration functions, and JS-side namespacing — that
+		convention is documented as the public API in
+		`docs/hooks-reference.md` and `docs/javascript-reference.md`.
+
+		Renaming would break every third-party plugin that integrates
+		with us. Whitelist `wp_desktop` here so the parser stops
+		reporting it as missing-prefix, while keeping the safety net for
+		any newly-added unprefixed identifiers.
+
+		`wpdc` is a legacy short prefix used by a few internal
+		identifiers (e.g. `wpdc-recycle-bin` window id); kept for
+		continuity.
+	-->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="desktop_mode"/>
+				<element value="desktop-mode"/>
+				<element value="wp_desktop"/>
+				<element value="wp-desktop"/>
+				<element value="wpdc"/>
+				<element value="WPDM"/>
+				<element value="WP_DESKTOP"/>
+				<element value="DESKTOP_MODE"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Text domain consistency. -->
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="desktop-mode"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- PHP / WP version targets — match plugin headers. -->
+	<config name="testVersion" value="7.4-"/>
+	<config name="minimum_supported_wp_version" value="6.0"/>
+</ruleset>

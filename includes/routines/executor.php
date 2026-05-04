@@ -434,7 +434,10 @@ function wpdm_routine_is_rate_limited( $routine_id, $max, $per_seconds ) {
 	}
 	global $wpdb;
 	$table = wpdm_routine_runs_table();
-	$count = (int) $wpdb->get_var(
+	// Custom routine_runs table; rate-limit check needs a fresh count
+	// every call (caching would defeat the purpose of rate limiting).
+	// $table = $wpdb->prefix + WPDM_ROUTINE_RUNS_TABLE constant — safe.
+	$count = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM $table WHERE routine_id = %d AND started_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL %d SECOND)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			(int) $routine_id,

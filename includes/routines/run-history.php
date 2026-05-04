@@ -104,7 +104,10 @@ function wpdm_routine_record_run( $row ) {
 	$trigger  = isset( $row['trigger_id'] ) ? substr( (string) $row['trigger_id'], 0, 128 ) : '';
 	$error    = isset( $row['error'] ) ? (string) $row['error'] : null;
 
-	$ok = $wpdb->insert(
+	// Custom routine_runs table — no caching layer applies to write
+	// operations on a write-heavy log. Table name is built from
+	// $wpdb->prefix + a hardcoded constant in wpdm_routine_runs_table().
+	$ok = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		wpdm_routine_runs_table(),
 		array(
 			'routine_id'  => $routine_id,
@@ -173,7 +176,11 @@ function wpdm_routine_get_runs( $routine_id, $limit = 50 ) {
 	$routine_id = (int) $routine_id;
 	$limit      = max( 1, min( 500, (int) $limit ) );
 
-	$rows = $wpdb->get_results(
+	// $table is built from $wpdb->prefix + the WPDM_ROUTINE_RUNS_TABLE
+	// constant — both safe; the interpolated identifier cannot be
+	// prepared via %s. Caching skipped: this is a real-time tail of a
+	// runs log; per-call cache invalidation would defeat the purpose.
+	$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$wpdb->prepare(
 			"SELECT id, routine_id, started_at, finished_at, status, duration_ms, trigger_id, payload, steps_log, error
 			 FROM $table WHERE routine_id = %d ORDER BY started_at DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -213,7 +220,8 @@ function wpdm_routine_prune_runs( $days = 30 ) {
 	$days = (int) apply_filters( 'wp_desktop_routine_run_retention_days', $days );
 
 	$table = wpdm_routine_runs_table();
-	$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE started_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL %d DAY)", $days ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	// Same safety + non-cacheability rationale as wpdm_routine_get_runs() above.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE started_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL %d DAY)", $days ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 }
 add_action( 'wpdm_routine_prune_runs_cron', 'wpdm_routine_prune_runs' );
 
