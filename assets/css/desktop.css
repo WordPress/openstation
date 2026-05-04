@@ -721,29 +721,58 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	letter-spacing: 0.02em;
 }
 
-/* Built-in clock widget */
+/* Built-in clock widget — PixiJS analog wall clock. The body becomes
+ * a square stage; the canvas fills it and is centered. The digital
+ * readout under the canvas falls back to plain DOM text so the widget
+ * still reads as a clock if PIXI fails to load. */
 .wp-desktop-widget-clock {
-	text-align: center;
-	/* The time + date are passive glyphs, not content users would
-	 * ever reasonably select — turning it off avoids the accidental-
-	 * highlight mess that happens when a drag starts on the clock. */
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
 	user-select: none;
 	-webkit-user-select: none;
 }
 
-.wp-desktop-widget-clock__time {
-	font-size: 34px;
-	font-weight: 600;
-	line-height: 1.1;
-	font-variant-numeric: tabular-nums;
-	letter-spacing: 0.01em;
+.wp-desktop-widget-clock__stage {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	max-width: 100%;
+	border-radius: 50%;
+	/* The canvas paints the face; this gradient is the safety-net
+	 * background that shows for the few ms before PIXI initialises
+	 * and as a fallback if WebGL is unavailable. */
+	background:
+		radial-gradient( circle at 30% 25%,
+			rgba( 255, 255, 255, 0.12 ) 0%,
+			rgba( 255, 255, 255, 0 ) 55% ),
+		radial-gradient( circle at 50% 50%,
+			rgba( 30, 35, 60, 0.55 ) 0%,
+			rgba( 10, 12, 24, 0.85 ) 70%,
+			rgba( 0, 0, 0, 0.95 ) 100% );
+	box-shadow:
+		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 ),
+		inset 0 8px 32px rgba( 0, 0, 0, 0.45 ),
+		0 12px 36px rgba( 0, 0, 0, 0.35 );
+	overflow: hidden;
+	cursor: crosshair;
 }
 
-.wp-desktop-widget-clock__date {
-	margin-top: 4px;
+.wp-desktop-widget-clock__stage canvas {
+	position: absolute;
+	inset: 0;
+	width: 100% !important;
+	height: 100% !important;
+	display: block;
+}
+
+.wp-desktop-widget-clock__digital {
 	font-size: 13px;
-	color: rgba( 255, 255, 255, 0.75 );
-	letter-spacing: 0.02em;
+	color: rgba( 255, 255, 255, 0.78 );
+	letter-spacing: 0.06em;
+	font-variant-numeric: tabular-nums;
+	text-transform: uppercase;
 }
 
 /* ---------------------------------------------------------------
