@@ -41,7 +41,8 @@
 		"env:stop": "wp-env stop",
 		"env:destroy": "wp-env destroy",
 		"test:php:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode composer install",
-		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist"
+		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist",
+		"check:plugin": "wp-env run cli wp plugin check desktop-mode"
 	},
 	"devDependencies": {
 		"@typescript-eslint/eslint-plugin": "^7.18.0",

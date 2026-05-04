@@ -63,3 +63,20 @@ jobs:
 
       - name: Run PHPUnit
         run: npm run test:php
+
+  plugin-check:
+    name: Plugin Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./
+          exclude-directories: |
+            node_modules
+            tests
+            bin
+            docs
+          ignore-warnings: true

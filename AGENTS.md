@@ -108,6 +108,7 @@ The primitive is also exposed on the public API as `wp.desktop.createSharedStore
 
 - **Read before speculating.** When asked how a mechanism works (refresh flow, hook order, bridge protocol), grep the code first. Hand-waving gets caught.
 - **Don't implement architectural changes unilaterally.** PHP API additions, payload shape changes, and new registry-sync modules are all load-bearing for plugin authors. Propose, get the green light, then code.
+- **Plugin Check** runs in CI as the `plugin-check` job (uses `wordpress/plugin-check-action@v1`, currently `ignore-warnings: true` while we baseline). For local runs: `npm run env:start` then `npm run check:plugin`. Don't add it to a pre-commit hook — needs a live WP/WP-CLI and is too slow per-commit.
 
 ## Developer docs — read before, update after
 
