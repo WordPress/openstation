@@ -79,4 +79,12 @@ jobs:
             tests
             bin
             docs
+            extensions
+          exclude-files: |
+            .gitattributes
+            .eslintignore
+            .eslintrc.cjs
+            .nvmrc
+            .wp-env.json
+            phpcs.xml.dist
           ignore-warnings: true
