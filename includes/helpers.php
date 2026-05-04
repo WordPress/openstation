@@ -815,8 +815,10 @@ function desktop_mode_dock_placement( $menu_slug ) {
  * `'hidden'` are dropped entirely.
  *
  * Extracted out of `includes/render.php` so both the initial PHP
- * localize AND the `/wp-desktop/v1/menu` REST endpoint read from a
- * single source of truth — any drift would desync the live refresh.
+ * localize AND the chromeless bridge's live-refresh emit (including
+ * the hidden-iframe probe spawned by `wp.desktop.refreshMenu()`)
+ * read from a single source of truth — any drift would desync the
+ * live refresh.
  *
  * @since 0.9.0
  *

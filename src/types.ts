@@ -1512,13 +1512,6 @@ export interface DesktopConfig {
 	sessionUrl: string;
 	/** REST endpoint for media uploads (wp/v2/media). */
 	mediaUrl: string;
-	/**
-	 * REST endpoint returning the live admin-menu payload
-	 * (`{ dockItems }`). The shell calls it after the chromeless
-	 * bridge signals `wp-desktop-plugins-changed` so newly-activated
-	 * plugins surface on the dock without a full tab reload.
-	 */
-	menuUrl: string;
 	/** REST endpoint for saving the default-window preference. */
 	defaultWindowUrl: string;
 	/**

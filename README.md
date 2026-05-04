@@ -118,7 +118,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── session.php              default-window.php  components.php
 │   ├── os-settings.php          extended-options.php
 │   ├── accents.php              wallpapers.php      toast-types.php
-│   ├── menu.php                 media-query.php
+│   ├── media-query.php
 │   └── ai-copilot/              # AI assistant (OpenAI client, analysis, search, jobs)
 ├── assets/                # compiled CSS + JS (Vite output; tracked in git)
 │   ├── css/  desktop.css, windows.css, dock.css, chromeless.css, variables.css

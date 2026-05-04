@@ -489,12 +489,17 @@ export interface WpDesktopPublicApi {
 	 */
 	setDefaultWindow: ( url: string | null ) => Promise<void>;
 	/**
-	 * Force a refetch of the live admin-menu split from
-	 * `GET /wp-desktop/v1/menu` and repaint both rails. Invoked
-	 * automatically when a windowed `plugins.php` signals an
-	 * activation / deactivation; plugins that mutate the admin menu
-	 * server-side outside that flow can call this directly to surface
-	 * their changes without a full reload.
+	 * Force a refresh of the live admin-menu split and repaint both
+	 * rails. Invoked automatically when a windowed `plugins.php`
+	 * signals an activation / deactivation; plugins that mutate the
+	 * admin menu server-side outside that flow can call this directly
+	 * to surface their changes without a full reload.
+	 *
+	 * Implemented as a hidden 1×1 iframe pointing at
+	 * `admin.php?wp_desktop=1&desktop_mode_menu_refresh=1` whose
+	 * chromeless bridge postMessages a fresh payload from real admin
+	 * context. Same pipeline as the auto-refresh path, so plugin
+	 * menus that gate on `is_admin()` register correctly.
 	 */
 	refreshMenu: () => Promise<void>;
 	/**
@@ -2926,25 +2931,29 @@ function bindShellLifecycle(): void {
 }
 
 /**
- * Debounce window for live menu refetches. Long enough to coalesce the
- * chromeless bridge's `plugins.php` signal with the iframe's navigation
- * settling, short enough to feel instant to the user.
+ * Hard ceiling on how long `refreshMenu()` waits for its hidden
+ * iframe to emit the `wp-desktop-plugins-changed` payload before
+ * giving up. The probe is a normal admin page load, so the cap is
+ * sized for a slow shared host on first request rather than the
+ * happy path.
  */
-const MENU_REFRESH_DEBOUNCE_MS = 250;
+const MENU_REFRESH_TIMEOUT_MS = 8000;
 
 /**
  * Wire the live menu-refresh pipeline.
  *
- * Listens for `wp-desktop-plugins-changed` postMessages from the
- * chromeless bridge (fired when an iframe lands on `plugins.php`), then
- * debounces + fetches `/wp-desktop/v1/menu` and routes the items
- * through the layout dispatcher (which partitions them across
- * whichever rails are live for the current desktop layout). Also
- * exposes the fetch as a return value so the public API can expose a
- * manual `wp.desktop.refreshMenu()` for plugins that mutate the menu
- * server-side outside the plugins.php flow.
+ * Listens for `wp-desktop-plugins-changed` postMessages and applies
+ * any payload they carry. The chromeless bridge in `render.php`
+ * always emits a payload from real admin context — both for the
+ * implicit case (`plugins.php` etc.) and for the explicit refresh
+ * probe (`?desktop_mode_menu_refresh=1`) — so a single mechanism
+ * handles every refresh.
  *
- * No-ops when `config.menuUrl` isn't present.
+ * Returns a function plugins can call to force a refresh. The
+ * implementation spawns a 1×1 hidden iframe at
+ * `admin.php?wp_desktop=1&desktop_mode_menu_refresh=1`, waits for
+ * the bridge's payload message, then disposes the iframe. Same
+ * pipeline, same correctness guarantees as the auto-refresh path.
  *
  * @param layoutDispatcher Owns the `Dock` instance(s) — receives the
  *                         fresh dock-items list for partitioning.
@@ -2985,9 +2994,6 @@ function bindMenuRefresh(
 		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 	) => void,
 ): () => Promise<void> {
-	// the dock. Extracted into its own module so the message-with-
-	// payload path (no REST) and the manual-refresh path (REST) share
-	// behaviour AND the contract is unit-testable in isolation.
 	const applyPayload = createApplyPayload( {
 		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
 		desktopArea,
@@ -3002,44 +3008,6 @@ function bindMenuRefresh(
 		renderIcons,
 	} );
 
-	const refresh = async (): Promise<void> => {
-		if ( ! config.menuUrl ) {
-			return;
-		}
-		try {
-			const res = await fetch( config.menuUrl, {
-				method: 'GET',
-				credentials: 'same-origin',
-				headers: { 'X-WP-Nonce': config.restNonce },
-			} );
-			if ( ! res.ok ) {
-				return;
-			}
-			const data = ( await res.json() ) as {
-				dockItems?: DesktopConfig[ 'dockItems' ];
-				nativeWindows?: DesktopConfig[ 'nativeWindows' ];
-				serverWidgets?: DesktopConfig[ 'serverWidgets' ];
-				serverWallpapers?: DesktopConfig[ 'serverWallpapers' ];
-				serverCommandScripts?: DesktopConfig[ 'serverCommandScripts' ];
-				serverCommands?: DesktopConfig[ 'serverCommands' ];
-				serverSettingsTabScripts?: DesktopConfig[ 'serverSettingsTabScripts' ];
-				serverSettingsTabs?: DesktopConfig[ 'serverSettingsTabs' ];
-				serverTitleBarButtonScripts?: DesktopConfig[ 'serverTitleBarButtonScripts' ];
-				desktopIcons?: DesktopConfig[ 'desktopIcons' ];
-			};
-			applyPayload( data );
-		} catch ( err ) {
-			/* Network / parse errors — skip this refresh. The next
-			 * signal will retry, and a stale menu degrades gracefully:
-			 * existing tiles still work, just don't reflect the latest
-			 * activation. Monitors may still want to see this, so fire
-			 * a SHELL_ERROR — log to console skipped to keep the DevTools
-			 * surface quiet for the no-op case. */
-			doAction( HOOKS.SHELL_ERROR, { scope: 'menu-refresh', error: err } );
-		}
-	};
-
-	let debounceTimer: number | null = null;
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
 		if ( e.origin !== INITIAL_ORIGIN ) {
 			return;
@@ -3064,33 +3032,85 @@ function bindMenuRefresh(
 			return;
 		}
 
-		// FAST PATH: the chromeless bridge embedded a fresh menu
-		// payload captured from the iframe's real admin context —
-		// plugins that gate `admin_menu` on `is_admin()` at load
-		// time registered normally there. Apply it directly; no
-		// REST roundtrip. This is the primary refresh path after
-		// plugin activation / deactivation.
+		// The chromeless bridge always embeds a fresh menu payload
+		// captured from real admin context — plugins that gate
+		// `admin_menu` on `is_admin()` at load time registered
+		// normally there. Messages without a payload are stale /
+		// out-of-spec and ignored.
 		if ( data.payload ) {
 			applyPayload( data.payload );
-			return;
+		}
+	} );
+
+	const refresh = (): Promise<void> => {
+		if ( ! config.adminUrl ) {
+			return Promise.resolve();
+		}
+		const probeUrl = ( () => {
+			try {
+				const url = new URL( 'admin.php', config.adminUrl );
+				url.searchParams.set( 'wp_desktop', '1' );
+				url.searchParams.set( 'desktop_mode_menu_refresh', '1' );
+				return url.toString();
+			} catch ( _err ) {
+				return null;
+			}
+		} )();
+		if ( ! probeUrl ) {
+			return Promise.resolve();
 		}
 
-		// SLOW PATH: message arrived without a payload (manual
-		// trigger, older bridge, test). Fall back to the REST
-		// endpoint. Not reliable for plugin-menu discovery — many
-		// plugins gate `is_admin()` at load time and never
-		// register in REST context — but safe for core menus.
-		if ( ! config.menuUrl ) {
-			return;
-		}
-		if ( debounceTimer !== null ) {
-			window.clearTimeout( debounceTimer );
-		}
-		debounceTimer = window.setTimeout( () => {
-			debounceTimer = null;
-			void refresh();
-		}, MENU_REFRESH_DEBOUNCE_MS ) as unknown as number;
-	} );
+		return new Promise< void >( ( resolve ) => {
+			const iframe = document.createElement( 'iframe' );
+			// Off-screen + zero-cost: pulled out of the layout flow
+			// entirely so it can't shift content, and styled small
+			// enough that any momentary paint is invisible.
+			iframe.setAttribute( 'aria-hidden', 'true' );
+			iframe.tabIndex = -1;
+			iframe.style.cssText =
+				'position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
+			iframe.src = probeUrl;
+
+			let done = false;
+			const cleanup = (): void => {
+				if ( done ) {
+					return;
+				}
+				done = true;
+				window.clearTimeout( timeoutId );
+				window.removeEventListener( 'message', onMessage );
+				if ( iframe.parentNode ) {
+					iframe.parentNode.removeChild( iframe );
+				}
+				resolve();
+			};
+
+			const onMessage = ( e: MessageEvent ): void => {
+				if ( e.source !== iframe.contentWindow ) {
+					return;
+				}
+				const data = e.data as { type?: string } | null;
+				if ( ! data || data.type !== 'wp-desktop-plugins-changed' ) {
+					return;
+				}
+				// The shell-wide listener registered above will apply
+				// the payload. We just need to know the probe
+				// completed so we can dispose the iframe.
+				cleanup();
+			};
+
+			const timeoutId = window.setTimeout( () => {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'menu-refresh',
+					error: new Error( 'menu refresh probe timed out' ),
+				} );
+				cleanup();
+			}, MENU_REFRESH_TIMEOUT_MS );
+
+			window.addEventListener( 'message', onMessage );
+			document.body.appendChild( iframe );
+		} );
+	};
 
 	return refresh;
 }

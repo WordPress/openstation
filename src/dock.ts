@@ -282,9 +282,10 @@ export class Dock {
 	/**
 	 * Replace the menu-derived tile list with a fresh one, preserving
 	 * any JS-registered system tiles. Used by the live menu-refresh
-	 * path: after a plugin is activated or deactivated, the shell
-	 * refetches the payload from `/wp-desktop/v1/menu` and calls this
-	 * so the dock repaints without a tab reload.
+	 * path: after a plugin is activated or deactivated, the chromeless
+	 * bridge postMessages a fresh payload built from real admin
+	 * context, and the shell calls this so the dock repaints without
+	 * a tab reload.
 	 *
 	 * Old menu tiles are removed from both the DOM and the lookup
 	 * map; new tiles are inserted before the system separator (or

@@ -215,7 +215,6 @@ function desktop_mode_enqueue_assets() {
 	 *     @type array  $session      Saved session (windows, focused, updated).
 	 *     @type string $sessionUrl       REST endpoint for saving the session.
 	 *     @type string $mediaUrl         REST endpoint for media uploads (wp/v2/media).
-	 *     @type string $menuUrl          REST endpoint for fetching the current admin-menu split (live refresh after plugin activation/deactivation).
 	 *     @type string $defaultWindowUrl REST endpoint for saving the default-window preference.
 	 *     @type array  $defaultWindow    { enabled: bool, url: string } — current default-window preference.
 	 *     @type bool   $canUpload        Whether the user holds the `upload_files` capability.
@@ -258,7 +257,6 @@ function desktop_mode_enqueue_assets() {
 			'session'          => desktop_mode_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'wp-desktop/v1/session' ) ),
 			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),
-			'menuUrl'          => esc_url_raw( rest_url( 'wp-desktop/v1/menu' ) ),
 			'defaultWindowUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/default-window' ) ),
 			'defaultWindow'    => desktop_mode_get_default_window( get_current_user_id() ),
 			'canUpload'        => current_user_can( 'upload_files' ),
@@ -578,14 +576,19 @@ function desktop_mode_chromeless_bridge_script() {
 	//
 	// Narrowed to the set of pages whose completion commonly mutates
 	// the admin menu (activation / deactivation / install / theme
-	// switch). Navigating to edit.php or similar doesn't change the
-	// menu so we don't bother sending a payload — the debounce +
+	// switch), plus the explicit `desktop_mode_menu_refresh=1` signal
+	// the shell sets when `wp.desktop.refreshMenu()` spawns a hidden
+	// iframe to harvest a fresh payload from real admin context.
+	// Navigating to edit.php or similar doesn't change the menu so we
+	// don't bother sending a payload otherwise — the debounce +
 	// idempotent replaceItems on the parent side would still make it
 	// safe, just wasteful.
 	$menu_payload_json = 'null';
 	$pagenow           = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
+	$is_refresh_probe  = ! empty( $_GET['desktop_mode_menu_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest, capability-gated by the host admin page.
 	if (
-		in_array(
+		$is_refresh_probe
+		|| in_array(
 			$pagenow,
 			array( 'plugins.php', 'plugin-install.php', 'update.php', 'themes.php' ),
 			true

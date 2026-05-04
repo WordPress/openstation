@@ -556,7 +556,7 @@ add_filter( 'desktop_mode_dock_placement', function ( $placement, $slug ) {
 
 Ordering within the dock is set server-side: core WordPress menus (Dashboard, Posts, Media, Users, Settings, CPTs, taxonomies, …) are sorted before plugin-contributed top-level menus. To fully reorder, use `desktop_mode_dock_items` — it receives the built list and returns a reshaped one.
 
-The live menu-refresh endpoint (`GET /wp-desktop/v1/menu`, fired after plugin activation / deactivation inside a windowed `plugins.php`) runs the same builder, so a filter change takes effect without a full tab reload.
+The live menu-refresh path (chromeless `plugins.php` iframe postMessage, plus the hidden iframe spawned by `wp.desktop.refreshMenu()`) runs the same builder from real admin context, so a filter change takes effect without a full tab reload.
 
 ---
 

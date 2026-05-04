@@ -2951,7 +2951,7 @@ wp.desktop.registerWallpaper( {
 | `ready( cb )` | Experimental *(since 0.17.0)* | **Recommended bootstrap entry point.** Run `cb` after `wp-desktop.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
 | `whenReady( cb )` | Stable | Original name for `ready( cb )` — same behaviour; keep using it if you've already adopted it. |
 | `isReady()` | Stable | Synchronous boolean — has `wp-desktop.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
-| `refreshMenu()` | Stable | Force a refetch of the live admin-menu split. Auto-fired on plugin activation / deactivation. |
+| `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation; manual calls spawn a hidden iframe at `admin.php?wp_desktop=1&desktop_mode_menu_refresh=1` whose chromeless bridge postMessages a fresh payload from real admin context. |
 | `setDefaultWindow( url \| null )` | Stable | Update the user's "open on startup" preference. |
 | `config` | Stable | The `DesktopConfig` that booted the shell |
 
