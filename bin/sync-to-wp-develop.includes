@@ -1,0 +1,16 @@
+# Top-level entries to mirror into the wordpress-develop checkout.
+# This is the inverse of .gitattributes export-ignore — only paths listed
+# here are copied (and watched) by bin/sync-to-wp-develop.sh.
+# One entry per line; blank lines and # comments are ignored.
+
+LICENSE
+README.md
+assets
+desktop-mode.php
+docs
+extensions
+extensions.json
+includes
+languages
+readme.txt
+vendor
