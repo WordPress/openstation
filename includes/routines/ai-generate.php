@@ -178,7 +178,7 @@ function wpdm_routine_ai_generate( $api_key, $prompt, $user_id ) {
 	 * @param string $prompt       User's natural-language prompt.
 	 */
 	$instructions = (string) apply_filters(
-		'wp_desktop_routine_ai_prompt',
+		'desktop_mode_routine_ai_prompt',
 		$instructions,
 		$catalog,
 		$prompt
@@ -243,7 +243,7 @@ function wpdm_routine_ai_generate( $api_key, $prompt, $user_id ) {
 	 * @param string $prompt    Original user prompt.
 	 * @param int    $user_id   Acting user.
 	 */
-	do_action( 'wp_desktop_routine_ai_generated', $validated, $prompt, $user_id );
+	do_action( 'desktop_mode_routine_ai_generated', $validated, $prompt, $user_id );
 
 	return array(
 		'def'   => $validated,

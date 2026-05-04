@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * add_action( 'wp_desktop_shell_assets', function () {
+ * add_action( 'desktop_mode_shell_assets', function () {
  *     wp_register_script(
  *         'orbit-rail',
  *         plugin_dir_url( __FILE__ ) . 'orbit-rail.js',

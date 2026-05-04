@@ -9,11 +9,11 @@
  *
  * The interception is filterable end-to-end:
  *
- *   - `wp_desktop_recycle_bin_should_capture` decides whether a given
+ *   - `desktop_mode_recycle_bin_should_capture` decides whether a given
  *     attachment is captured at all (capability gates, plugin opt-out).
- *   - `wp_desktop_recycle_bin_capture_post_types` controls which post
+ *   - `desktop_mode_recycle_bin_capture_post_types` controls which post
  *     types we listen for in the first place.
- *   - The `wp_desktop_recycle_bin_item_captured` action fires after a
+ *   - The `desktop_mode_recycle_bin_item_captured` action fires after a
  *     successful capture so plugins can mirror the event (audit log,
  *     external storage, etc.).
  *
@@ -48,7 +48,7 @@ function wpdm_recycle_bin_capture_post_types() {
 	 *
 	 * @param string[] $types Post types whose deletions the recycle bin tracks.
 	 */
-	$types = apply_filters( 'wp_desktop_recycle_bin_capture_post_types', $types );
+	$types = apply_filters( 'desktop_mode_recycle_bin_capture_post_types', $types );
 
 	return array_values( array_filter( array_map( 'strval', (array) $types ) ) );
 }
@@ -56,7 +56,7 @@ function wpdm_recycle_bin_capture_post_types() {
 /**
  * Whether the recycle bin should capture a given attachment.
  *
- * Returning `false` from the `wp_desktop_recycle_bin_should_capture`
+ * Returning `false` from the `desktop_mode_recycle_bin_should_capture`
  * filter restores vanilla `wp_delete_attachment()` semantics for that
  * single call — useful for "really delete now" admin flows.
  *
@@ -86,7 +86,7 @@ function wpdm_recycle_bin_should_capture_attachment( $post, $force ) {
 	 * @param bool    $capture Default true.
 	 * @param WP_Post $post    Attachment being deleted.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_should_capture', true, $post );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_should_capture', true, $post );
 }
 
 /**
@@ -186,7 +186,7 @@ function wpdm_recycle_bin_record_capture( $post_id ) {
 	 * @param int    $user_id User id who triggered the capture.
 	 * @param string $now_gmt MySQL-format GMT timestamp.
 	 */
-	do_action( 'wp_desktop_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
+	do_action( 'desktop_mode_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
 }
 
 add_filter( 'pre_delete_attachment', 'wpdm_recycle_bin_intercept_attachment_delete', 10, 3 );
@@ -221,6 +221,6 @@ function wpdm_recycle_bin_on_trash_comment( $comment_id ) {
 	 * @param int    $user_id    User id who triggered the capture.
 	 * @param string $now_gmt    MySQL-format GMT timestamp.
 	 */
-	do_action( 'wp_desktop_recycle_bin_comment_captured', $comment_id, $user_id, $now_gmt );
+	do_action( 'desktop_mode_recycle_bin_comment_captured', $comment_id, $user_id, $now_gmt );
 }
 add_action( 'trashed_comment', 'wpdm_recycle_bin_on_trash_comment', 10, 1 );

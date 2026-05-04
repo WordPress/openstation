@@ -7,7 +7,7 @@
  *   1. **Fast path — chromeless iframe**
  *      Every recycle-bin-relevant action (`wp_trash_post`,
  *      `untrash_post`, `before_delete_post`, plus our four
- *      `wp_desktop_recycle_bin_*` actions) flips a per-request
+ *      `desktop_mode_recycle_bin_*` actions) flips a per-request
  *      static flag. At `admin_footer`, if the request is chromeless
  *      AND the flag is set, we emit a 12-line inline script that
  *      `postMessage`s the parent shell with `type:
@@ -86,7 +86,7 @@ function wpdm_recycle_bin_signal_change() {
 	 *
 	 * @param int $ts Milliseconds-since-epoch timestamp of the change.
 	 */
-	do_action( 'wp_desktop_recycle_bin_signal', $ts );
+	do_action( 'desktop_mode_recycle_bin_signal', $ts );
 }
 
 /**
@@ -181,7 +181,7 @@ function wpdm_recycle_bin_should_emit_footer_signal() {
 	 *                   that only want to ride the "this request
 	 *                   trashed something" signal.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_emit_footer_signal', true );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_emit_footer_signal', true );
 }
 
 /**
@@ -315,7 +315,7 @@ function wpdm_recycle_bin_heartbeat_received( $response, $data ) {
 /**
  * Wire the deletion hooks. We listen for both the WordPress core
  * verbs (`wp_trash_post`, `untrash_post`, `before_delete_post`) and
- * our own `wp_desktop_recycle_bin_*` lifecycle actions — the former
+ * our own `desktop_mode_recycle_bin_*` lifecycle actions — the former
  * catches deletes that bypass our REST endpoints (Quick Edit, REST
  * `DELETE`, WP-CLI, list-table bulk actions); the latter catches
  * the bin's own restore/purge so other tabs see the change.
@@ -356,10 +356,10 @@ function wpdm_recycle_bin_register_realtime_hooks() {
 		wpdm_recycle_bin_signal_change();
 	} );
 
-	add_action( 'wp_desktop_recycle_bin_item_captured', 'wpdm_recycle_bin_signal_change' );
-	add_action( 'wp_desktop_recycle_bin_after_restore', 'wpdm_recycle_bin_signal_change' );
-	add_action( 'wp_desktop_recycle_bin_after_purge', 'wpdm_recycle_bin_signal_change' );
-	add_action( 'wp_desktop_recycle_bin_emptied', 'wpdm_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_item_captured', 'wpdm_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_after_restore', 'wpdm_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_after_purge', 'wpdm_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_emptied', 'wpdm_recycle_bin_signal_change' );
 
 	add_action( 'admin_footer', 'wpdm_recycle_bin_emit_footer_signal', 100 );
 

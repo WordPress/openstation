@@ -7,7 +7,7 @@ The Recycle Bin window (id `wpdm-recycle-bin`) catches deleted attachments into 
 ## Add a custom post type to the bin
 
 ```php
-add_filter( 'wp_desktop_recycle_bin_capture_post_types', function ( $types ) {
+add_filter( 'desktop_mode_recycle_bin_capture_post_types', function ( $types ) {
     $types[] = 'product';
     return $types;
 } );
@@ -18,7 +18,7 @@ That's it — products that go through `wp_trash_post()` will now show up alongs
 ## Audit-log every restore
 
 ```php
-add_action( 'wp_desktop_recycle_bin_after_restore', function ( $post_id ) {
+add_action( 'desktop_mode_recycle_bin_after_restore', function ( $post_id ) {
     $user = wp_get_current_user();
     error_log( sprintf(
         '[recycle-bin] %s restored #%d',
@@ -35,7 +35,7 @@ The matching `..._after_purge` action gives you the post type as the second arg,
 By default the bin shows up for anyone with `edit_posts`. Lock it down to administrators:
 
 ```php
-add_filter( 'wp_desktop_recycle_bin_user_can_use', function () {
+add_filter( 'desktop_mode_recycle_bin_user_can_use', function () {
     return current_user_can( 'manage_options' );
 } );
 ```
@@ -47,7 +47,7 @@ The window + icon registrations are skipped entirely when the gate returns false
 When a plugin needs to permanently delete an attachment without the round-trip through trash:
 
 ```php
-$result = apply_filters( 'wp_desktop_recycle_bin_should_capture', false, $post );
+$result = apply_filters( 'desktop_mode_recycle_bin_should_capture', false, $post );
 // or, more idiomatically, force-delete:
 wp_delete_attachment( $attachment_id, true );
 ```
@@ -76,10 +76,10 @@ wp.hooks.addFilter(
 );
 ```
 
-To populate a brand-new field on the row, mirror it on the PHP side via `wp_desktop_recycle_bin_item`:
+To populate a brand-new field on the row, mirror it on the PHP side via `desktop_mode_recycle_bin_item`:
 
 ```php
-add_filter( 'wp_desktop_recycle_bin_item', function ( $item, $post ) {
+add_filter( 'desktop_mode_recycle_bin_item', function ( $item, $post ) {
     $item[ 'department' ] = (string) get_post_meta( $post->ID, '_dept', true );
     return $item;
 }, 10, 2 );
@@ -90,7 +90,7 @@ add_filter( 'wp_desktop_recycle_bin_item', function ( $item, $post ) {
 If you run a websocket or SSE service alongside WordPress, hook the unified signal so you don't have to subscribe to every delete action individually:
 
 ```php
-add_action( 'wp_desktop_recycle_bin_signal', function ( $ts_ms ) {
+add_action( 'desktop_mode_recycle_bin_signal', function ( $ts_ms ) {
     My_Realtime::publish( 'recycle-bin-changed', [ 'ts' => $ts_ms ] );
 } );
 ```

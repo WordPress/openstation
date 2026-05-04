@@ -9,13 +9,13 @@
  *
  * Public PHP surface (all filterable, all action-emitting):
  *
- *   - `wp_desktop_recycle_bin_capture_post_types`
- *   - `wp_desktop_recycle_bin_should_capture`
- *   - `wp_desktop_recycle_bin_query_args`
- *   - `wp_desktop_recycle_bin_items` / `wp_desktop_recycle_bin_item`
- *   - `wp_desktop_recycle_bin_user_can_view|restore|purge|use`
- *   - `wp_desktop_recycle_bin_window_args` / `..._icon_args`
- *   - `wp_desktop_recycle_bin_template_html`
+ *   - `desktop_mode_recycle_bin_capture_post_types`
+ *   - `desktop_mode_recycle_bin_should_capture`
+ *   - `desktop_mode_recycle_bin_query_args`
+ *   - `desktop_mode_recycle_bin_items` / `desktop_mode_recycle_bin_item`
+ *   - `desktop_mode_recycle_bin_user_can_view|restore|purge|use`
+ *   - `desktop_mode_recycle_bin_window_args` / `..._icon_args`
+ *   - `desktop_mode_recycle_bin_template_html`
  *   - actions: `..._item_captured`, `..._before/after_restore`,
  *              `..._before/after_purge`, `..._emptied`
  *

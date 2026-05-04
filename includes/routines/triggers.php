@@ -8,9 +8,9 @@
  *   - `hook` — direct `add_action` on the named hook with the
  *     declared (or default) priority and accepted_args.
  *   - `broadcast` — listens for the broadcast topic via a thin
- *     `wp_desktop_recycle_bin_signal`-style action emitted by the
+ *     `desktop_mode_recycle_bin_signal`-style action emitted by the
  *     shell's broadcast bridge. We hook a meta-action
- *     `wp_desktop_broadcast_received` that the shell PHP layer
+ *     `desktop_mode_broadcast_received` that the shell PHP layer
  *     emits for each cross-window broadcast.
  *
  * Trigger args are passed through the trigger's `binder` (when
@@ -75,10 +75,10 @@ function wpdm_routine_install_one_trigger( $routine ) {
 
 	if ( 'broadcast' === $kind ) {
 		// Broadcast topics are funneled through a single meta-hook
-		// `wp_desktop_broadcast_received` with `( $topic, $payload )`.
+		// `desktop_mode_broadcast_received` with `( $topic, $payload )`.
 		// We add a wrapper that filters by topic first.
 		add_action(
-			'wp_desktop_broadcast_received',
+			'desktop_mode_broadcast_received',
 			static function ( $topic, $payload ) use ( $trigger_id, $callback ) {
 				if ( $topic === $trigger_id ) {
 					$callback( $payload );
@@ -148,4 +148,4 @@ function wpdm_routine_reinstall_after_save( $routine_id ) {
 	}
 	wpdm_routine_install_one_trigger( $routine );
 }
-add_action( 'wp_desktop_routine_saved', 'wpdm_routine_reinstall_after_save', 10, 1 );
+add_action( 'desktop_mode_routine_saved', 'wpdm_routine_reinstall_after_save', 10, 1 );

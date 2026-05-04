@@ -7,7 +7,7 @@
  * blob. "Trashed" items are exactly the rows with
  * `post_status = 'trash'` for the post types the bin tracks.
  *
- * Every read goes through `wp_desktop_recycle_bin_query_args` so
+ * Every read goes through `desktop_mode_recycle_bin_query_args` so
  * plugins can scope the bin (e.g. show only the current user's
  * trash, or filter by author/role for compliance use cases).
  *
@@ -86,7 +86,7 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 		 * @param array $query_args Args passed to WP_Query.
 		 * @param array $args       Caller-provided args.
 		 */
-		$query_args = apply_filters( 'wp_desktop_recycle_bin_query_args', $query_args, $args );
+		$query_args = apply_filters( 'desktop_mode_recycle_bin_query_args', $query_args, $args );
 
 		$query = new WP_Query( $query_args );
 		foreach ( $query->posts as $post ) {
@@ -111,7 +111,7 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 		/**
 		 * Filter the `WP_Comment_Query` args used to populate the
 		 * recycle bin's comments. Mirror of
-		 * `wp_desktop_recycle_bin_query_args` for comments.
+		 * `desktop_mode_recycle_bin_query_args` for comments.
 		 *
 		 * @since 0.21.0
 		 *
@@ -119,7 +119,7 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 		 * @param array $args         Caller-provided args.
 		 */
 		$comment_args = apply_filters(
-			'wp_desktop_recycle_bin_comment_query_args',
+			'desktop_mode_recycle_bin_comment_query_args',
 			$comment_args,
 			$args
 		);
@@ -165,7 +165,7 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 	 * @param array|null $query Underlying post query, or null for the
 	 *                          merged post+comment shape (since 0.21.0).
 	 */
-	$sliced = apply_filters( 'wp_desktop_recycle_bin_items', $sliced, null );
+	$sliced = apply_filters( 'desktop_mode_recycle_bin_items', $sliced, null );
 
 	return array(
 		'items' => $sliced,
@@ -222,7 +222,7 @@ function wpdm_recycle_bin_count() {
 	 * @param int $post_count    Items in trash from the post-type query.
 	 * @param int $comment_count Items in trash from the comment query.
 	 */
-	return (int) apply_filters( 'wp_desktop_recycle_bin_count', $total, $post_count, $comment_count );
+	return (int) apply_filters( 'desktop_mode_recycle_bin_count', $total, $post_count, $comment_count );
 }
 
 /**
@@ -244,7 +244,7 @@ function wpdm_recycle_bin_comments_enabled() {
 	 *
 	 * @param bool $on Default: current user has `moderate_comments`.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_comments_enabled', $on );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_comments_enabled', $on );
 }
 
 /**
@@ -270,7 +270,7 @@ function wpdm_recycle_bin_user_can_view( $post ) {
 	 * @param bool    $can  Default: edit_post capability check.
 	 * @param WP_Post $post Trashed post.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_user_can_view', $can, $post );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_view', $can, $post );
 }
 
 /**
@@ -293,7 +293,7 @@ function wpdm_recycle_bin_user_can_restore( $post ) {
 	 *                      gate WP itself uses for trash/untrash).
 	 * @param WP_Post $post Trashed post.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_user_can_restore', $can, $post );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_restore', $can, $post );
 }
 
 /**
@@ -315,7 +315,7 @@ function wpdm_recycle_bin_user_can_purge( $post ) {
 	 * @param bool    $can  Default: delete_post capability check.
 	 * @param WP_Post $post Trashed post.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_user_can_purge', $can, $post );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_purge', $can, $post );
 }
 
 /**
@@ -335,7 +335,7 @@ function wpdm_recycle_bin_user_can_view_comment( $comment ) {
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_user_can_view_comment', $can, $comment );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_view_comment', $can, $comment );
 }
 
 /**
@@ -352,7 +352,7 @@ function wpdm_recycle_bin_user_can_restore_comment( $comment ) {
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_user_can_restore_comment', $can, $comment );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_restore_comment', $can, $comment );
 }
 
 /**
@@ -369,7 +369,7 @@ function wpdm_recycle_bin_user_can_purge_comment( $comment ) {
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_user_can_purge_comment', $can, $comment );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_purge_comment', $can, $comment );
 }
 
 /**
@@ -437,7 +437,7 @@ function wpdm_recycle_bin_shape_comment_item( $comment ) {
 	 * @param array      $item    Item shape.
 	 * @param WP_Comment $comment Source comment.
 	 */
-	return (array) apply_filters( 'wp_desktop_recycle_bin_comment_item', $item, $comment );
+	return (array) apply_filters( 'desktop_mode_recycle_bin_comment_item', $item, $comment );
 }
 
 /**
@@ -516,7 +516,7 @@ function wpdm_recycle_bin_shape_item( $post ) {
 	 * @param array   $item Item shape.
 	 * @param WP_Post $post Source post.
 	 */
-	return (array) apply_filters( 'wp_desktop_recycle_bin_item', $item, $post );
+	return (array) apply_filters( 'desktop_mode_recycle_bin_item', $item, $post );
 }
 
 /**
@@ -604,7 +604,7 @@ function wpdm_recycle_bin_restore( $id, $type = '' ) {
 	 * @param int     $id   Post id about to be restored.
 	 * @param WP_Post $post Trashed post object.
 	 */
-	do_action( 'wp_desktop_recycle_bin_before_restore', $id, $post );
+	do_action( 'desktop_mode_recycle_bin_before_restore', $id, $post );
 
 	$ok = wp_untrash_post( $id );
 	if ( ! $ok ) {
@@ -621,7 +621,7 @@ function wpdm_recycle_bin_restore( $id, $type = '' ) {
 	 *
 	 * @param int $id Post id that was restored.
 	 */
-	do_action( 'wp_desktop_recycle_bin_after_restore', $id );
+	do_action( 'desktop_mode_recycle_bin_after_restore', $id );
 
 	return true;
 }
@@ -656,7 +656,7 @@ function wpdm_recycle_bin_restore_comment( $comment_id ) {
 	 * @param int        $comment_id Comment id.
 	 * @param WP_Comment $comment    Trashed comment.
 	 */
-	do_action( 'wp_desktop_recycle_bin_before_restore_comment', $comment_id, $comment );
+	do_action( 'desktop_mode_recycle_bin_before_restore_comment', $comment_id, $comment );
 
 	$ok = wp_untrash_comment( $comment_id );
 	if ( ! $ok ) {
@@ -673,7 +673,7 @@ function wpdm_recycle_bin_restore_comment( $comment_id ) {
 	 *
 	 * @param int $comment_id Comment id.
 	 */
-	do_action( 'wp_desktop_recycle_bin_after_restore_comment', $comment_id );
+	do_action( 'desktop_mode_recycle_bin_after_restore_comment', $comment_id );
 
 	return true;
 }
@@ -713,7 +713,7 @@ function wpdm_recycle_bin_purge( $id, $type = '' ) {
 	 * @param int     $id   Post id about to be deleted.
 	 * @param WP_Post $post Trashed post object.
 	 */
-	do_action( 'wp_desktop_recycle_bin_before_purge', $id, $post );
+	do_action( 'desktop_mode_recycle_bin_before_purge', $id, $post );
 
 	if ( 'attachment' === $post->post_type ) {
 		// Force-delete bypasses our `pre_delete_attachment` interception
@@ -735,7 +735,7 @@ function wpdm_recycle_bin_purge( $id, $type = '' ) {
 	 * @param int    $id   Post id that was purged.
 	 * @param string $type Post type of the purged item.
 	 */
-	do_action( 'wp_desktop_recycle_bin_after_purge', $id, $post->post_type );
+	do_action( 'desktop_mode_recycle_bin_after_purge', $id, $post->post_type );
 
 	return true;
 }
@@ -770,7 +770,7 @@ function wpdm_recycle_bin_purge_comment( $comment_id ) {
 	 * @param int        $comment_id Comment id.
 	 * @param WP_Comment $comment    Trashed comment.
 	 */
-	do_action( 'wp_desktop_recycle_bin_before_purge_comment', $comment_id, $comment );
+	do_action( 'desktop_mode_recycle_bin_before_purge_comment', $comment_id, $comment );
 
 	$result = wp_delete_comment( $comment_id, true );
 
@@ -785,7 +785,7 @@ function wpdm_recycle_bin_purge_comment( $comment_id ) {
 	 *
 	 * @param int $comment_id Comment id.
 	 */
-	do_action( 'wp_desktop_recycle_bin_after_purge_comment', $comment_id );
+	do_action( 'desktop_mode_recycle_bin_after_purge_comment', $comment_id );
 
 	return true;
 }
@@ -828,7 +828,7 @@ function wpdm_recycle_bin_empty() {
 	 * @param int $purged  Items successfully purged in this call.
 	 * @param int $skipped Items skipped (capability or error).
 	 */
-	do_action( 'wp_desktop_recycle_bin_emptied', $purged, $skipped );
+	do_action( 'desktop_mode_recycle_bin_emptied', $purged, $skipped );
 
 	return array(
 		'purged'  => $purged,

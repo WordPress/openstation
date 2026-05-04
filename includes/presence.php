@@ -31,18 +31,18 @@ defined( 'ABSPATH' ) || exit;
  *
  * Filters:
  *
- *   - `wp_desktop_presence_inactive_after` — int seconds. Default 300.
- *   - `wp_desktop_presence_offline_after`  — int seconds. Default 120.
- *   - `wp_desktop_presence_can_track`      — bool, $user_id. Veto.
- *   - `wp_desktop_presence_visible_users`  — int[], $viewer_id.
+ *   - `desktop_mode_presence_inactive_after` — int seconds. Default 300.
+ *   - `desktop_mode_presence_offline_after`  — int seconds. Default 120.
+ *   - `desktop_mode_presence_can_track`      — bool, $user_id. Veto.
+ *   - `desktop_mode_presence_visible_users`  — int[], $viewer_id.
  *                                             Privacy gate for who's
  *                                             surfaced to a given user.
  *
  * Actions:
  *
- *   - `wp_desktop_presence_recorded( $user_id, $record )` — on every
+ *   - `desktop_mode_presence_recorded( $user_id, $record )` — on every
  *     bump.
- *   - `wp_desktop_presence_changed( $user_id, $new, $old )` — on
+ *   - `desktop_mode_presence_changed( $user_id, $new, $old )` — on
  *     state transitions only.
  *
  * REST: `/wp-desktop/v1/presence` (GET snapshot, POST mark active /
@@ -86,11 +86,11 @@ function desktop_mode_presence_get_all() {
  * interacted, not just held a tab open).
  *
  * Pass-through to the option; cheap enough to call every Heartbeat
- * tick. Fires `wp_desktop_presence_recorded` on every call and
- * `wp_desktop_presence_changed` only when the computed status moves
+ * tick. Fires `desktop_mode_presence_recorded` on every call and
+ * `desktop_mode_presence_changed` only when the computed status moves
  * between `online | inactive | offline`.
  *
- * The `wp_desktop_presence_can_track` filter is the per-user opt-out:
+ * The `desktop_mode_presence_can_track` filter is the per-user opt-out:
  * a plugin that hides specific accounts (compliance, "set yourself
  * invisible", etc.) returns false to skip the bump entirely.
  *
@@ -118,7 +118,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 	 * @param bool $can     Default true.
 	 * @param int  $user_id The user being tracked.
 	 */
-	$can = (bool) apply_filters( 'wp_desktop_presence_can_track', true, $user_id );
+	$can = (bool) apply_filters( 'desktop_mode_presence_can_track', true, $user_id );
 	if ( ! $can ) {
 		return false;
 	}
@@ -150,7 +150,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 	 * @param int   $user_id
 	 * @param array $record  { last_seen_ms, last_active_ms }
 	 */
-	do_action( 'wp_desktop_presence_recorded', $user_id, $next );
+	do_action( 'desktop_mode_presence_recorded', $user_id, $next );
 
 	if ( $next_status !== $prev_status ) {
 		/**
@@ -165,7 +165,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 		 * @param string $new_status One of `online | inactive | offline`.
 		 * @param string $old_status One of `online | inactive | offline`.
 		 */
-		do_action( 'wp_desktop_presence_changed', $user_id, $next_status, $prev_status );
+		do_action( 'desktop_mode_presence_changed', $user_id, $next_status, $prev_status );
 	}
 	return true;
 }
@@ -197,7 +197,7 @@ function desktop_mode_presence_status_from_record( $record ) {
 	 *
 	 * @param int $seconds
 	 */
-	$inactive_after = (int) apply_filters( 'wp_desktop_presence_inactive_after', 300 );
+	$inactive_after = (int) apply_filters( 'desktop_mode_presence_inactive_after', 300 );
 
 	/**
 	 * Offline threshold (default 120s = 2 min). Inactive / online
@@ -208,7 +208,7 @@ function desktop_mode_presence_status_from_record( $record ) {
 	 *
 	 * @param int $seconds
 	 */
-	$offline_after = (int) apply_filters( 'wp_desktop_presence_offline_after', 120 );
+	$offline_after = (int) apply_filters( 'desktop_mode_presence_offline_after', 120 );
 
 	if ( $now_ms - $last_seen > $offline_after * 1000 ) {
 		return 'offline';
@@ -278,7 +278,7 @@ function desktop_mode_presence_snapshot( $user_ids = null ) {
  * Filter a list of candidate user ids down to those a given viewer
  * is allowed to see presence for. Defaults to passing the list
  * through unchanged — plugins implementing per-team / per-role
- * privacy boundaries hook `wp_desktop_presence_visible_users`
+ * privacy boundaries hook `desktop_mode_presence_visible_users`
  * (e.g., "subscribers can only see other subscribers' presence").
  *
  * @since 0.5.5
@@ -309,7 +309,7 @@ function desktop_mode_presence_visible_users( $candidate_user_ids, $viewer_id = 
 	 * @param int[] $ids       Candidate user ids.
 	 * @param int   $viewer_id The user requesting visibility.
 	 */
-	return (array) apply_filters( 'wp_desktop_presence_visible_users', $ids, $viewer_id );
+	return (array) apply_filters( 'desktop_mode_presence_visible_users', $ids, $viewer_id );
 }
 
 /**
@@ -335,7 +335,7 @@ function desktop_mode_presence_cron_prune() {
 		update_option( WP_DESKTOP_PRESENCE_OPTION, $pruned, false );
 	}
 }
-add_action( 'wp_desktop_presence_daily_prune', 'desktop_mode_presence_cron_prune' );
+add_action( 'desktop_mode_presence_daily_prune', 'desktop_mode_presence_cron_prune' );
 
 /**
  * Schedule the daily cron once. Idempotent.
@@ -343,8 +343,8 @@ add_action( 'wp_desktop_presence_daily_prune', 'desktop_mode_presence_cron_prune
  * @since 0.5.5
  */
 function desktop_mode_presence_schedule_cron() {
-	if ( ! wp_next_scheduled( 'wp_desktop_presence_daily_prune' ) ) {
-		wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', 'wp_desktop_presence_daily_prune' );
+	if ( ! wp_next_scheduled( 'desktop_mode_presence_daily_prune' ) ) {
+		wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', 'desktop_mode_presence_daily_prune' );
 	}
 }
 add_action( 'init', 'desktop_mode_presence_schedule_cron', 50 );
@@ -359,9 +359,9 @@ add_action( 'init', 'desktop_mode_presence_schedule_cron', 50 );
  * the response so the client store can update without a separate
  * REST round-trip.
  *
- * Triggered by the client opting in via `wp_desktop_presence_active:
+ * Triggered by the client opting in via `desktop_mode_presence_active:
  * true` in the heartbeat-send payload, with optional
- * `wp_desktop_user_active` (mousedown / keydown within the
+ * `desktop_mode_user_active` (mousedown / keydown within the
  * inactive-threshold window).
  *
  * @since 0.5.5
@@ -374,24 +374,24 @@ function desktop_mode_presence_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( empty( $data['wp_desktop_presence_active'] ) ) {
+	if ( empty( $data['desktop_mode_presence_active'] ) ) {
 		return $response;
 	}
 	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
 		return $response;
 	}
 	$user_id     = (int) get_current_user_id();
-	$user_active = ! empty( $data['wp_desktop_user_active'] );
+	$user_active = ! empty( $data['desktop_mode_user_active'] );
 
 	desktop_mode_presence_record( $user_id, $user_active );
 
 	// Snapshot the users this viewer is allowed to see — by default
 	// all tracked users; plugins can narrow via the
-	// `wp_desktop_presence_visible_users` filter.
+	// `desktop_mode_presence_visible_users` filter.
 	$all_ids = array_keys( desktop_mode_presence_get_all() );
 	$visible = desktop_mode_presence_visible_users( $all_ids, $user_id );
 
-	$response['wp_desktop_presence'] = array(
+	$response['desktop_mode_presence'] = array(
 		'snapshot'     => desktop_mode_presence_snapshot( $visible ),
 		'serverTimeMs' => (int) round( microtime( true ) * 1000 ),
 	);
@@ -507,9 +507,9 @@ function desktop_mode_presence_rest_post( WP_REST_Request $request ) {
 		update_option( WP_DESKTOP_PRESENCE_OPTION, $all, false );
 
 		$next_status = desktop_mode_presence_status_from_record( $rec );
-		do_action( 'wp_desktop_presence_recorded', $user_id, $rec );
+		do_action( 'desktop_mode_presence_recorded', $user_id, $rec );
 		if ( $next_status !== $prev_status ) {
-			do_action( 'wp_desktop_presence_changed', $user_id, $next_status, $prev_status );
+			do_action( 'desktop_mode_presence_changed', $user_id, $next_status, $prev_status );
 		}
 	} else {
 		$flag = ( null === $active ) ? true : (bool) $active;

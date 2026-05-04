@@ -51,12 +51,12 @@ Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
 
 - **PHP-declared** things are in the payload: dock, taskbar, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.wpDesktopWallpapers[id]` / `window.wpDesktopWidgets[id]`). The sync reads the def and registers it.
-- **Commands use the same pattern since 0.15.0** via `wp_desktop_register_command_script( $handle )` (primary, minimum-ceremony) or `wp_register_desktop_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate — graceful backwards-compat.
-- **OS Settings tabs use the same pattern since 0.17.0** via `wp_desktop_register_settings_tab_script( $handle )` (primary) or `wp_register_desktop_settings_tab( $args )` (optional — id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, ai=20, extended=30, help=40) are interleaved with the registry in `src/settings/index.ts` `renderPanel()` and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
-- **AI Copilot extensibility (since 0.17.0)** lives on a different axis from the live-refresh payloads — it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus a persistent server-tool registry in `includes/ai-copilot/tools-registry.php`. Two distinct registration surfaces: `wp_register_desktop_ai_tool( $args )` for PHP-dispatched tools (handler runs server-side, capability-gated, never visible to users who lack the cap), and client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `wp_desktop_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `wp_desktop_ai_{search_started,tool_called,search_completed,search_error,tool_registered}` — every call carries a shared `request_id` UUID for trace correlation. `wp.desktop.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side — the server only emits a slug+args intent; the client invokes.
-- **Palettes** (`registerPalette`) are the remaining JS-registered-only gap. No server-side opt-in yet; a new plugin's palette won't appear until F5. Same fix shape as commands if/when needed: `wp_desktop_register_palette_script( $handle )` + payload key + clone the sync module.
+- **Commands use the same pattern since 0.15.0** via `desktop_mode_register_command_script( $handle )` (primary, minimum-ceremony) or `desktop_mode_register_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate — graceful backwards-compat.
+- **OS Settings tabs use the same pattern since 0.17.0** via `desktop_mode_register_settings_tab_script( $handle )` (primary) or `desktop_mode_register_settings_tab( $args )` (optional — id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, ai=20, extended=30, help=40) are interleaved with the registry in `src/settings/index.ts` `renderPanel()` and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
+- **AI Copilot extensibility (since 0.17.0)** lives on a different axis from the live-refresh payloads — it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus a persistent server-tool registry in `includes/ai-copilot/tools-registry.php`. Two distinct registration surfaces: `desktop_mode_register_ai_tool( $args )` for PHP-dispatched tools (handler runs server-side, capability-gated, never visible to users who lack the cap), and client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `desktop_mode_ai_{search_started,tool_called,search_completed,search_error,tool_registered}` — every call carries a shared `request_id` UUID for trace correlation. `wp.desktop.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side — the server only emits a slug+args intent; the client invokes.
+- **Palettes** (`registerPalette`) are the remaining JS-registered-only gap. No server-side opt-in yet; a new plugin's palette won't appear until F5. Same fix shape as commands if/when needed: `desktop_mode_register_palette_script( $handle )` + payload key + clone the sync module.
 
-**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`wp_register_desktop_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `applyPayload()` in `desktop.ts`. Don't invent a different mechanism.
+**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`desktop_mode_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `applyPayload()` in `desktop.ts`. Don't invent a different mechanism.
 
 ## Event-driven framework (since 0.5.5)
 
@@ -76,7 +76,7 @@ Canonical example in-tree: `src/recycle-bin/badge.ts`. Full doc: `docs/event-dri
 
 Presence tracking (`online | inactive | offline`) lives in `includes/presence.php` and `src/presence/index.ts`. Any plugin can read `wp.desktop.presence.*` or `desktop_mode_presence_*()` without depending on a particular feature plugin being installed (chat, collaboration, …).
 
-Storage: `_wp_desktop_presence` option (autoload=false). The WordPress Heartbeat handler in `includes/presence.php` records bumps at priority 5; the framework client (`src/presence/index.ts`) sends `wp_desktop_presence_active: true` + `wp_desktop_user_active: <bool>` on every tick and ingests the snapshot from the response.
+Storage: `_wp_desktop_presence` option (autoload=false). The WordPress Heartbeat handler in `includes/presence.php` records bumps at priority 5; the framework client (`src/presence/index.ts`) sends `desktop_mode_presence_active: true` + `desktop_mode_user_active: <bool>` on every tick and ingests the snapshot from the response.
 
 Public surface — see `docs/javascript-reference.md` (`wp.desktop.presence`), `docs/hooks-reference.md` (filters / actions), and `docs/examples/presence.md` (recipe). Plugins with a faster delivery channel (an SSE stream, a WebSocket) can push updates straight into the framework store via `wp.desktop.presence.applyBatch()`.
 
@@ -161,7 +161,7 @@ docs/
 │                               UPDATE WHEN: the native-window API, tab system, or framework
 │                                            integration story changes.
 │                               READ BEFORE: changes under src/native-windows/ or
-│                                            wp_register_desktop_window* / window-tab APIs.
+│                                            desktop_mode_register_window* / window-tab APIs.
 │
 ├── plugin-compat-layer.md      Internals: how Desktop Mode adapts third-party plugins
 │                               (WC, Yoast, …) whose CSS/menu shapes assume classic
@@ -185,22 +185,22 @@ docs/
     ├── README.md               Index of examples.
     ├── arrange-action.md       UPDATE/READ WHEN: window-arrange behavior or hook changes.
     ├── chromeless-style-override.md
-    │                            UPDATE/READ WHEN: chromeless.css contract or wp_desktop_chromeless_*
+    │                            UPDATE/READ WHEN: chromeless.css contract or desktop_mode_chromeless_*
     │                            hooks change.
     ├── dock-badge.md           UPDATE/READ WHEN: dock item shape / badge rendering changes.
-    ├── gate-by-role.md         UPDATE/READ WHEN: wp_desktop_mode_enabled semantics change.
-    ├── inject-shell-config.md  UPDATE/READ WHEN: wp_desktop_shell_config keys change.
+    ├── gate-by-role.md         UPDATE/READ WHEN: desktop_mode_mode_enabled semantics change.
+    ├── inject-shell-config.md  UPDATE/READ WHEN: desktop_mode_shell_config keys change.
     ├── layout-primitives.md    UPDATE/READ WHEN: <wpd-*> component kit contract changes.
-    ├── native-windows.md       UPDATE/READ WHEN: wp_register_desktop_window() contract changes.
+    ├── native-windows.md       UPDATE/READ WHEN: desktop_mode_register_window() contract changes.
     ├── native-window-with-tabs.md
-    │                            UPDATE/READ WHEN: wp_register_desktop_window_tab() changes.
+    │                            UPDATE/READ WHEN: desktop_mode_register_window_tab() changes.
     ├── react-to-window-events.md
     │                            UPDATE/READ WHEN: window-lifecycle CustomEvent shape changes.
     ├── register-command.md     UPDATE/READ WHEN: command registry API (JS or PHP) changes.
-    ├── register-ai-provider.md  UPDATE/READ WHEN: wp_register_desktop_ai_provider() contract,
+    ├── register-ai-provider.md  UPDATE/READ WHEN: desktop_mode_register_ai_provider() contract,
     │                            provider callback shapes, or active-provider resolution rules change.
     ├── ai-ask.md                UPDATE/READ WHEN: wp.desktop.ai.ask() contract, AI-tool-calling
-    │                            protocol, or wp_register_desktop_ai_tool() signature changes.
+    │                            protocol, or desktop_mode_register_ai_tool() signature changes.
     ├── code-editor-open.md      UPDATE/READ WHEN: wp-desktop-code-open postMessage protocol,
     │                            wp.desktop.openWindow contract, or Cmd/Ctrl+Shift+E shortcut changes.
     ├── connect-to-window.md     UPDATE/READ WHEN: registerTitleBarButton, Window.setHighlight,
@@ -211,13 +211,13 @@ docs/
     │                            or wpd-table-{filter-change,row-click,expand-change} event details.
     ├── spinner.md               UPDATE/READ WHEN: <wpd-spinner> contract changes — preset list,
     │                            attribute names, CSS-variable surface, or accessibility defaults.
-    ├── register-icon.md        UPDATE/READ WHEN: wp_register_desktop_icon() contract changes.
-    ├── register-wallpaper.md   UPDATE/READ WHEN: WallpaperDef or wp_register_desktop_wallpaper() changes.
+    ├── register-icon.md        UPDATE/READ WHEN: desktop_mode_register_icon() contract changes.
+    ├── register-wallpaper.md   UPDATE/READ WHEN: WallpaperDef or desktop_mode_register_wallpaper() changes.
     ├── shared-store.md          UPDATE/READ WHEN: wp.desktop.createSharedStore() contract,
     │                            slot key naming convention, or reset semantics change.
     ├── presence.md              UPDATE/READ WHEN: wp.desktop.presence.* contract,
-    │                            wp_desktop_presence_* filters/actions, or the Heartbeat
-    │                            payload for `wp_desktop_presence` changes.
+    │                            desktop_mode_presence_* filters/actions, or the Heartbeat
+    │                            payload for `desktop_mode_presence` changes.
     ├── window-with-config.md    UPDATE/READ WHEN: the 'config' arg on
     │                            desktop_mode_register_window(), wp.desktop.getWindowConfig(),
     │                            wp.desktop.debug.window(), or the lazy-load extras

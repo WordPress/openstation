@@ -60,7 +60,7 @@ Turn Routines from "WP hook listener" into "Zapier inside WP". Biggest leverage 
 - Verify `X-WPDM-Signature: sha256=<hmac>` header against the routine's secret. Return 403 on mismatch.
 - The handler hands `$_POST` (or `php://input` JSON) to `wpdm_routine_run`.
 - Inspector UI: when trigger kind is `webhook`, show the URL + secret with a "rotate secret" button.
-- Throttle: per-routine rate limit + IP allowlist filter (`wp_desktop_routine_webhook_allowed_ips`).
+- Throttle: per-routine rate limit + IP allowlist filter (`desktop_mode_routine_webhook_allowed_ips`).
 
 **Files:** `schema.php`, new `webhook.php` in `includes/routines/`, REST integration, `inspector.ts` (URL display + rotate), `seed.php` (register webhook trigger so it shows in catalog), tests.
 
@@ -70,14 +70,14 @@ Turn Routines from "WP hook listener" into "Zapier inside WP". Biggest leverage 
 - Some external services send `application/x-www-form-urlencoded` (Stripe), some JSON (Slack), some XML (PayPal). Decode based on `Content-Type` and surface the parsed payload at `payload.body`.
 
 #### A3. Outbound HTTP allowlist UI
-**Why:** Currently `wp_desktop_routine_http_allowlist` requires a `add_filter` PHP edit to add a Slack / Discord webhook host. Users won't do that — they'll write a routine that silently fails or beg an admin.
+**Why:** Currently `desktop_mode_routine_http_allowlist` requires a `add_filter` PHP edit to add a Slack / Discord webhook host. Users won't do that — they'll write a routine that silently fails or beg an admin.
 
 **Cost:** 0.5 day.
 
 **Implementation sketch:**
-- New OS Settings tab section "Routines outbound hosts" (use existing `wp_register_desktop_settings_tab`).
+- New OS Settings tab section "Routines outbound hosts" (use existing `desktop_mode_register_settings_tab`).
 - Stores an array of hosts in `wp_options` (autoload=false).
-- The default `wp_desktop_routine_http_allowlist` filter reads from that option.
+- The default `desktop_mode_routine_http_allowlist` filter reads from that option.
 - Inspector UI on the `http` step: when the URL's host isn't allowed, show a yellow banner + "Add to allowlist" button.
 
 **Files:** new `includes/routines/http-allowlist.php`, settings tab registration, `inspector.ts` (banner + button), `steps.php` (read the option).
@@ -164,7 +164,7 @@ If the bottleneck is "users can't find routines, and authors can't ship them", t
 **Files:** `index.ts` (two buttons + modal), reuses `installTemplate` REST shape.
 
 #### C2. Templates gallery
-**Why:** Currently we ship 3 starter recipes via `wp_register_desktop_routine_template`. A real gallery — searchable, categorised, with previews — would let plugin authors and the community contribute idiomatic routines.
+**Why:** Currently we ship 3 starter recipes via `desktop_mode_register_routine_template`. A real gallery — searchable, categorised, with previews — would let plugin authors and the community contribute idiomatic routines.
 
 **Cost:** 1 day.
 
@@ -172,12 +172,12 @@ If the bottleneck is "users can't find routines, and authors can't ship them", t
 - Existing REST: `GET /wp-desktop/v1/routines/templates` returns registered templates. Already in catalog.
 - Existing modal: a basic "Browse templates" picker in `index.ts`.
 - Upgrade: tabbed by category, search field, preview pane that mounts the canvas in read-only mode for the selected template, "Install" button at the bottom.
-- Plugin authors get more `wp_register_desktop_routine_template` hooks called from their bootstrap.
+- Plugin authors get more `desktop_mode_register_routine_template` hooks called from their bootstrap.
 
 **Files:** `index.ts` (rewrite the templates picker into a real gallery), maybe a new `gallery.ts`.
 
 #### C3. Sub-routines (call routine from routine)
-**Why:** Lets users factor common sequences into reusable named routines. Pair with the existing `wp_desktop_routine_after_run` trigger for chaining.
+**Why:** Lets users factor common sequences into reusable named routines. Pair with the existing `desktop_mode_routine_after_run` trigger for chaining.
 
 **Cost:** 0.5 day.
 
@@ -240,7 +240,7 @@ Sketched at the bottom because they need design conversations, not just implemen
 ## How to NOT start
 
 - **Don't add a feature without a use case.** "Wouldn't it be cool if…" features rot. Each item above has a one-line "Why" — if you can't write one for your idea, scope it down or skip it.
-- **Don't break the public API.** Every `wp_register_desktop_routine_*`, `wpdm_routine_*`, `wp_desktop_routine_*` filter/action is a contract. Backwards-incompatible changes need a major-version bump.
+- **Don't break the public API.** Every `desktop_mode_register_routine_*`, `wpdm_routine_*`, `desktop_mode_routine_*` filter/action is a contract. Backwards-incompatible changes need a major-version bump.
 - **Don't expand the catalog without considering AI impact.** Every new trigger or action lands in the AI generator's system prompt. Too many → context bloat → worse generations. Keep additions justified.
 - **Don't bypass `wpdm_routine_validate_def`.** Every code path that creates or accepts a def must run it. Trust nothing — not user input, not the AI, not your own previous code.
 

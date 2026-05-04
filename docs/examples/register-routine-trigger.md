@@ -13,11 +13,11 @@ You have a hook that fires when something interesting happens in your plugin. De
  */
 
 add_action( 'init', function () {
-    if ( ! function_exists( 'wp_register_desktop_routine_trigger' ) ) {
+    if ( ! function_exists( 'desktop_mode_register_routine_trigger' ) ) {
         return; // Desktop Mode not active — graceful no-op.
     }
 
-    wp_register_desktop_routine_trigger( array(
+    desktop_mode_register_routine_trigger( array(
         'id'             => 'acme_crm_lead_captured',
         'label'          => 'Acme CRM — Lead captured',
         'group'          => 'Acme CRM',
@@ -75,7 +75,7 @@ It still works — the routine listener falls back to positional binding (`paylo
 Ship a recipe alongside so users get a one-click install:
 
 ```php
-wp_register_desktop_routine_template( array(
+desktop_mode_register_routine_template( array(
     'id'          => 'acme-big-lead-alert',
     'title'       => 'Email me on big leads',
     'description' => 'When a lead worth more than $1000 lands, email the admin.',

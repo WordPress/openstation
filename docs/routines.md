@@ -71,7 +71,7 @@ The same shape, expressed as JSON, is what the engine actually stores and execut
 |-------------|-------------------------------------------------------------------|
 | `command`   | Queue a registered slash-command (`wp.desktop.registerCommand`).  |
 | `ai_tool`   | Invoke a registered server-side AI tool.                          |
-| `action`    | Invoke a `wp_register_desktop_routine_action`-registered handler. |
+| `action`    | Invoke a `desktop_mode_register_routine_action`-registered handler. |
 | `email`     | `wp_mail` — args: `to, subject, body, headers`.                   |
 | `http`      | Outbound HTTP — host must be in the allowlist (see Security).     |
 | `log`       | Write to `error_log` and the run history.                         |
@@ -96,9 +96,9 @@ The same shape, expressed as JSON, is what the engine actually stores and execut
 - **Authoring:** gated to `manage_options`. Routines are an admin-only surface.
 - **Execution:** a routine runs as its **author**, not the user whose action triggered the hook. This is the single most important security property — capability checks inside steps and actions reflect *who built the routine*, not *who fired the event*.
 - **`run_as: "system"`:** elevates to a synthetic admin context. Required when a routine must mutate other users' data (e.g. trashing a comment posted by an anonymous user). Visibly badged in the UI.
-- **HTTP allowlist:** the `http` step is gated by `wp_desktop_routine_http_allowlist`. Default is empty — every host must be opted in. Returning `[ '*' ]` opens the floodgates; do not unless you trust every routine author.
+- **HTTP allowlist:** the `http` step is gated by `desktop_mode_routine_http_allowlist`. Default is empty — every host must be opted in. Returning `[ '*' ]` opens the floodgates; do not unless you trust every routine author.
 - **Rate limit:** every routine carries `settings.rate_limit.{max, per_seconds}`. The engine counts recent runs in the runs table before executing.
-- **Run history:** stored in a custom table `{prefix}wpdm_routine_runs`, pruned daily (default 30 days, filterable via `wp_desktop_routine_run_retention_days`).
+- **Run history:** stored in a custom table `{prefix}wpdm_routine_runs`, pruned daily (default 30 days, filterable via `desktop_mode_routine_run_retention_days`).
 
 ---
 
@@ -130,7 +130,7 @@ Three entry points, all loaded automatically by Desktop Mode.
 ### Declare a triggerable hook
 
 ```php
-wp_register_desktop_routine_trigger( array(
+desktop_mode_register_routine_trigger( array(
     'id'             => 'woocommerce_new_order',
     'label'          => 'WooCommerce — Order received',
     'group'          => 'WooCommerce',
@@ -163,7 +163,7 @@ wp_register_desktop_routine_trigger( array(
 Most plugins won't need this — every command and AI tool is automatically usable as a step. Use this when you have a dedicated handler that's neither.
 
 ```php
-wp_register_desktop_routine_action( array(
+desktop_mode_register_routine_action( array(
     'id'         => 'my_plugin.send_slack',
     'label'      => 'Send Slack message',
     'icon'       => 'dashicons-format-chat',
@@ -183,7 +183,7 @@ wp_register_desktop_routine_action( array(
 ### Ship a starter recipe
 
 ```php
-wp_register_desktop_routine_template( array(
+desktop_mode_register_routine_template( array(
     'id'          => 'wc-big-order-alert',
     'title'       => 'Slack me on big WooCommerce orders',
     'description' => 'When an order over $500 lands, ping #sales.',
@@ -221,25 +221,25 @@ wp_register_desktop_routine_template( array(
 
 ### Filters
 
-- `wp_desktop_routine_user_can_manage` (bool $can) — gate the manage permission.
-- `wp_desktop_routine_payload` (array $payload, array $routine) — last-chance shape adjuster before evaluation.
-- `wp_desktop_routine_can_run` (bool $can, array $routine, array $payload) — kill-switch hook. Returning false halts before any step runs.
-- `wp_desktop_routine_http_allowlist` (string[] $hosts) — outbound HTTP allowlist. Default empty.
-- `wp_desktop_routine_system_user_id` (int $admin_id, int $routine_id) — pin the user that `run_as: "system"` resolves to.
-- `wp_desktop_routine_run_retention_days` (int $days) — run-history retention window.
-- `wp_desktop_routines_template_html` (string $html) — replace the window template body.
+- `desktop_mode_routine_user_can_manage` (bool $can) — gate the manage permission.
+- `desktop_mode_routine_payload` (array $payload, array $routine) — last-chance shape adjuster before evaluation.
+- `desktop_mode_routine_can_run` (bool $can, array $routine, array $payload) — kill-switch hook. Returning false halts before any step runs.
+- `desktop_mode_routine_http_allowlist` (string[] $hosts) — outbound HTTP allowlist. Default empty.
+- `desktop_mode_routine_system_user_id` (int $admin_id, int $routine_id) — pin the user that `run_as: "system"` resolves to.
+- `desktop_mode_routine_run_retention_days` (int $days) — run-history retention window.
+- `desktop_mode_routines_template_html` (string $html) — replace the window template body.
 
 ### Actions
 
-- `wp_desktop_routine_trigger_registered` (string $id, array $entry)
-- `wp_desktop_routine_action_registered` (string $id, array $entry)
-- `wp_desktop_routine_template_registered` (string $id, array $entry)
-- `wp_desktop_routine_seeded` — built-in triggers + templates have been registered.
-- `wp_desktop_routine_saved` (int $id, array $def, bool $enabled)
-- `wp_desktop_routine_deleted` (int $id)
-- `wp_desktop_routine_before_run` (array $routine, array $payload)
-- `wp_desktop_routine_after_run` (array $routine, array $payload, string $status, array $steps_log)
-- `wp_desktop_routine_step_failed` (array $step, array $context, WP_Error $error)
+- `desktop_mode_routine_trigger_registered` (string $id, array $entry)
+- `desktop_mode_routine_action_registered` (string $id, array $entry)
+- `desktop_mode_routine_template_registered` (string $id, array $entry)
+- `desktop_mode_routine_seeded` — built-in triggers + templates have been registered.
+- `desktop_mode_routine_saved` (int $id, array $def, bool $enabled)
+- `desktop_mode_routine_deleted` (int $id)
+- `desktop_mode_routine_before_run` (array $routine, array $payload)
+- `desktop_mode_routine_after_run` (array $routine, array $payload, string $status, array $steps_log)
+- `desktop_mode_routine_step_failed` (array $step, array $context, WP_Error $error)
 
 ---
 
@@ -326,7 +326,7 @@ A step kind that hands a piece of text to OpenAI with a user-defined list of buc
 
 **Action:**
 
-- `wp_desktop_routine_step_classify_completed` (`$result, $context, $args`) — fired on every successful classification. Useful for cost telemetry.
+- `desktop_mode_routine_step_classify_completed` (`$result, $context, $args`) — fired on every successful classification. Useful for cost telemetry.
 
 ---
 
@@ -347,12 +347,12 @@ Keyboard shortcut: **Cmd/Ctrl+K** focuses the composer from anywhere in the rout
 
 **Filters:**
 
-- `wp_desktop_routine_ai_prompt` (string, array $catalog, string $prompt) — mutate the system prompt (e.g. add site-specific tone or restrict actions).
+- `desktop_mode_routine_ai_prompt` (string, array $catalog, string $prompt) — mutate the system prompt (e.g. add site-specific tone or restrict actions).
 - `desktop_mode_ai_model` — model name (shared with the AI Copilot).
 
 **Action:**
 
-- `wp_desktop_routine_ai_generated` ($validated, $prompt, $user_id) — fired after successful generation.
+- `desktop_mode_routine_ai_generated` ($validated, $prompt, $user_id) — fired after successful generation.
 
 **Permissions:** `manage_options` + AI must be enabled for the user (OS Settings → AI). Generation is admin-only by design — it produces routines that mutate site state.
 

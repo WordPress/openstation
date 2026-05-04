@@ -4,9 +4,9 @@
  *
  * Three entry points for plugin authors:
  *
- *   - {@see wp_register_desktop_routine_trigger()}
- *   - {@see wp_register_desktop_routine_action()}
- *   - {@see wp_register_desktop_routine_template()}
+ *   - {@see desktop_mode_register_routine_trigger()}
+ *   - {@see desktop_mode_register_routine_action()}
+ *   - {@see desktop_mode_register_routine_template()}
  *
  * All three are validation-fail-fast: invalid input returns a
  * `WP_Error` rather than throwing. Identical shape to the rest of
@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * wp_register_desktop_routine_trigger( array(
+ * desktop_mode_register_routine_trigger( array(
  *     'id'             => 'woocommerce_new_order',
  *     'label'          => 'WooCommerce — Order received',
  *     'group'          => 'WooCommerce',
@@ -55,7 +55,7 @@ defined( 'ABSPATH' ) || exit;
  * @param array $args Trigger spec.
  * @return true|WP_Error
  */
-function wp_register_desktop_routine_trigger( $args ) {
+function desktop_mode_register_routine_trigger( $args ) {
 	$defaults = array(
 		'id'             => '',
 		'label'          => '',
@@ -117,7 +117,7 @@ function wp_register_desktop_routine_trigger( $args ) {
 	 * @param string $id    Trigger id.
 	 * @param array  $entry Stored entry.
 	 */
-	do_action( 'wp_desktop_routine_trigger_registered', $id, $entry );
+	do_action( 'desktop_mode_routine_trigger_registered', $id, $entry );
 
 	return true;
 }
@@ -146,7 +146,7 @@ function wp_register_desktop_routine_trigger( $args ) {
  * }
  * @return true|WP_Error
  */
-function wp_register_desktop_routine_action( $args ) {
+function desktop_mode_register_routine_action( $args ) {
 	$defaults = array(
 		'id'          => '',
 		'label'       => '',
@@ -202,7 +202,7 @@ function wp_register_desktop_routine_action( $args ) {
 	 * @param string $id    Action id.
 	 * @param array  $entry Stored entry.
 	 */
-	do_action( 'wp_desktop_routine_action_registered', $id, $entry );
+	do_action( 'desktop_mode_routine_action_registered', $id, $entry );
 
 	return true;
 }
@@ -222,7 +222,7 @@ function wp_register_desktop_routine_action( $args ) {
  * }
  * @return true|WP_Error
  */
-function wp_register_desktop_routine_template( $args ) {
+function desktop_mode_register_routine_template( $args ) {
 	$defaults = array(
 		'id'          => '',
 		'title'       => '',
@@ -277,7 +277,7 @@ function wp_register_desktop_routine_template( $args ) {
 	 * @param string $id    Template id.
 	 * @param array  $entry Stored entry.
 	 */
-	do_action( 'wp_desktop_routine_template_registered', $id, $entry );
+	do_action( 'desktop_mode_routine_template_registered', $id, $entry );
 
 	return true;
 }

@@ -104,7 +104,7 @@ function wpdm_routine_user_can_manage() {
 	 *
 	 * @param bool $can Default: `manage_options`.
 	 */
-	return (bool) apply_filters( 'wp_desktop_routine_user_can_manage', $can );
+	return (bool) apply_filters( 'desktop_mode_routine_user_can_manage', $can );
 }
 
 /**
@@ -295,7 +295,7 @@ function wpdm_routine_save( $data ) {
 	 * @param array $def     Validated definition.
 	 * @param bool  $enabled Whether the routine is enabled.
 	 */
-	do_action( 'wp_desktop_routine_saved', $id, $validated, $enabled );
+	do_action( 'desktop_mode_routine_saved', $id, $validated, $enabled );
 
 	return (int) $id;
 }
@@ -326,7 +326,7 @@ function wpdm_routine_delete( $id ) {
 	 *
 	 * @param int $id Routine post id.
 	 */
-	do_action( 'wp_desktop_routine_deleted', $id );
+	do_action( 'desktop_mode_routine_deleted', $id );
 
 	return false !== $result;
 }

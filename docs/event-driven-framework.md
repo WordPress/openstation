@@ -295,8 +295,8 @@ field. Errors in any one supplier or subscriber are logged and
 isolated; one bad handler can't strand peers.
 
 The framework's own features are built on top: `presence`
-contributes `wp_desktop_presence_active` + `wp_desktop_user_active`
-and subscribes to `wp_desktop_presence`. Plugins that need a
+contributes `desktop_mode_presence_active` + `desktop_mode_user_active`
+and subscribes to `desktop_mode_presence`. Plugins that need a
 per-tick delivery story (live counts, server-driven badges,
 session keep-alives) plug into the same bus.
 

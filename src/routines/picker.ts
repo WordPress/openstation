@@ -180,7 +180,7 @@ function renderByPlugin(
 	if ( pluginTriggers.length === 0 ) {
 		host.append(
 			el( 'p', { class: 'wpdm-routines__empty-text' }, [
-				'No plugin-declared triggers found. Plugin authors register them with `wp_register_desktop_routine_trigger()`.',
+				'No plugin-declared triggers found. Plugin authors register them with `desktop_mode_register_routine_trigger()`.',
 			] ),
 		);
 		return;

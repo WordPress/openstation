@@ -35,7 +35,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 
 Desktop Mode is built to be extended. Every significant behavior is hookable — add a desktop icon, register a dock item, gate desktop mode by role, react to window events, or register a native window, all from your own plugin with zero patches here.
 
-Comprehensive PHP and JavaScript hook surface, plus stable `wp_register_desktop_*` functions for windows, widgets, wallpapers, icons, window tabs, commands, settings tabs, and AI tools. See the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
+Comprehensive PHP and JavaScript hook surface, plus stable `desktop_mode_register_*` functions for windows, widgets, wallpapers, icons, window tabs, commands, settings tabs, and AI tools. See the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
 
 = External services =
 
@@ -48,7 +48,7 @@ When the AI Copilot is enabled and a user invokes it (via Cmd+K or the slash-com
 * **Why it is sent:** to obtain model completions and tool-call decisions that drive the AI Copilot.
 * **Who provides the service:** OpenAI, L.L.C. — see the [OpenAI Terms of Use](https://openai.com/policies/row-terms-of-use/) and the [OpenAI Privacy Policy](https://openai.com/policies/row-privacy-policy/).
 
-The AI Copilot's provider layer is also extensible: third-party plugins may register additional providers via `wp_register_desktop_ai_provider()`. Those providers may send data to other endpoints; review each plugin's own privacy disclosure separately.
+The AI Copilot's provider layer is also extensible: third-party plugins may register additional providers via `desktop_mode_register_ai_provider()`. Those providers may send data to other endpoints; review each plugin's own privacy disclosure separately.
 
 No other external services are contacted by this plugin.
 
@@ -99,17 +99,17 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 
 = 0.5.1 =
 * Code editor and framework improvements.
-* Enhanced AI provider integration: third-party providers may register through `wp_register_desktop_ai_provider()`.
+* Enhanced AI provider integration: third-party providers may register through `desktop_mode_register_ai_provider()`.
 * Title-bar button registry with icon painting for plugin authors.
-* OS Settings tabs are now extensible via `wp_desktop_register_settings_tab_script()` / `wp_register_desktop_settings_tab()`.
-* AI Copilot extensibility: server-side tool registry (`wp_register_desktop_ai_tool()`) and client-side `wp.desktop.ai.ask()` programmatic entry point.
+* OS Settings tabs are now extensible via `desktop_mode_register_settings_tab_script()` / `desktop_mode_register_settings_tab()`.
+* AI Copilot extensibility: server-side tool registry (`desktop_mode_register_ai_tool()`) and client-side `wp.desktop.ai.ask()` programmatic entry point.
 * UI component kit expansion (~25 `<wpd-*>` web components).
 * Backtick hotkey to cycle window focus.
 * Unified command palettes via the palette registry.
 * OS Settings Help tab.
 
 = 0.5.0 =
-* Command registration APIs (`wp_desktop_register_command_script()` / `wp_register_desktop_command()`) with live install/activate refresh.
+* Command registration APIs (`desktop_mode_register_command_script()` / `desktop_mode_register_command()`) with live install/activate refresh.
 * Media-library enhancement enabled by default, with opt-out.
 * Dock CSS selectors updated; overflow handling improved.
 

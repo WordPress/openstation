@@ -244,7 +244,7 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 
 	const hooks = window.wp?.hooks;
 	if ( hooks && typeof hooks.applyFilters === 'function' ) {
-		// Mirror the PHP `wp_desktop_recycle_bin_columns` extension
+		// Mirror the PHP `desktop_mode_recycle_bin_columns` extension
 		// point on the JS side so plugins can append/replace columns
 		// without forking the bundle.
 		return hooks.applyFilters(

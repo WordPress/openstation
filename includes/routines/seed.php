@@ -36,7 +36,7 @@ function wpdm_routine_register_built_in_seed() {
 	 *
 	 * @since 0.22.0
 	 */
-	do_action( 'wp_desktop_routine_seeded' );
+	do_action( 'desktop_mode_routine_seeded' );
 }
 add_action( 'init', 'wpdm_routine_register_built_in_seed', 6 );
 
@@ -273,7 +273,7 @@ function wpdm_routine_register_built_in_triggers() {
 			'binder'         => 'wpdm_routine_bind_term_args',
 		),
 		array(
-			'id'             => 'wp_desktop_routine_after_run',
+			'id'             => 'desktop_mode_routine_after_run',
 			'label'          => __( 'Another routine finishes', 'desktop-mode' ),
 			'group'          => __( 'Routines', 'desktop-mode' ),
 			'icon'           => 'dashicons-controls-play',
@@ -292,7 +292,7 @@ function wpdm_routine_register_built_in_triggers() {
 	);
 
 	foreach ( $common as $trigger ) {
-		wp_register_desktop_routine_trigger( $trigger );
+		desktop_mode_register_routine_trigger( $trigger );
 	}
 }
 
@@ -542,7 +542,7 @@ function wpdm_routine_bind_after_run_args( $routine, $payload = array(), $status
 function wpdm_routine_register_built_in_templates() {
 	$banned = array( 'casino', 'bitcoin', 'viagra', 'porn' );
 
-	wp_register_desktop_routine_template(
+	desktop_mode_register_routine_template(
 		array(
 			'id'          => 'spam-sentinel',
 			'title'       => __( 'Spam Sentinel', 'desktop-mode' ),
@@ -590,7 +590,7 @@ function wpdm_routine_register_built_in_templates() {
 		)
 	);
 
-	wp_register_desktop_routine_template(
+	desktop_mode_register_routine_template(
 		array(
 			'id'          => 'welcome-wagon',
 			'title'       => __( 'Welcome Wagon', 'desktop-mode' ),
@@ -622,7 +622,7 @@ function wpdm_routine_register_built_in_templates() {
 		)
 	);
 
-	wp_register_desktop_routine_template(
+	desktop_mode_register_routine_template(
 		array(
 			'id'          => 'big-publish-broadcast',
 			'title'       => __( 'Publish Broadcast', 'desktop-mode' ),
@@ -662,7 +662,7 @@ function wpdm_routine_register_built_in_templates() {
  * @since 0.22.0
  */
 function wpdm_routine_register_built_in_actions() {
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.comment.trash',
 			'label'       => __( 'Trash a comment', 'desktop-mode' ),
@@ -677,7 +677,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.post.trash',
 			'label'       => __( 'Trash a post', 'desktop-mode' ),
@@ -692,7 +692,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.post.publish',
 			'label'       => __( 'Publish a post', 'desktop-mode' ),
@@ -707,7 +707,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.post.update_meta',
 			'label'       => __( 'Update post meta', 'desktop-mode' ),
@@ -726,7 +726,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.post.assign_term',
 			'label'       => __( 'Assign a taxonomy term to a post', 'desktop-mode' ),
@@ -744,7 +744,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.comment.approve',
 			'label'       => __( 'Approve a comment', 'desktop-mode' ),
@@ -759,7 +759,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.comment.spam',
 			'label'       => __( 'Mark a comment as spam', 'desktop-mode' ),
@@ -774,7 +774,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.user.update_role',
 			'label'       => __( 'Change a user\'s role', 'desktop-mode' ),
@@ -790,7 +790,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.option.update',
 			'label'       => __( 'Set a WordPress option', 'desktop-mode' ),
@@ -806,7 +806,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.transient.set',
 			'label'       => __( 'Set a transient', 'desktop-mode' ),
@@ -823,7 +823,7 @@ function wpdm_routine_register_built_in_actions() {
 		)
 	);
 
-	wp_register_desktop_routine_action(
+	desktop_mode_register_routine_action(
 		array(
 			'id'          => 'wpdm.broadcast',
 			'label'       => __( 'Emit a desktop broadcast topic', 'desktop-mode' ),
@@ -1014,7 +1014,7 @@ function wpdm_routine_action_broadcast( $args, $context ) {
 	}
 	$payload = isset( $args['payload'] ) && is_array( $args['payload'] ) ? $args['payload'] : array();
 	/**
-	 * The shell's broadcast bridge listens to `wp_desktop_broadcast_received`
+	 * The shell's broadcast bridge listens to `desktop_mode_broadcast_received`
 	 * and relays the topic + payload to every active window.
 	 *
 	 * @since 0.22.0
@@ -1022,6 +1022,6 @@ function wpdm_routine_action_broadcast( $args, $context ) {
 	 * @param string $topic   Broadcast topic.
 	 * @param array  $payload Arbitrary payload.
 	 */
-	do_action( 'wp_desktop_broadcast_received', $topic, $payload );
+	do_action( 'desktop_mode_broadcast_received', $topic, $payload );
 	return array( 'topic' => $topic, 'payload' => $payload );
 }

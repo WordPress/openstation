@@ -8,7 +8,7 @@
  * is populated from the REST list endpoint at render time.
  *
  * Both registrations are filterable via the standard
- * `wp_desktop_recycle_bin_window_args` / `wp_desktop_recycle_bin_icon_args`
+ * `desktop_mode_recycle_bin_window_args` / `desktop_mode_recycle_bin_icon_args`
  * filters so a plugin can swap the icon, change the dimensions, or
  * restrict who sees the bin without touching this file.
  *
@@ -101,7 +101,7 @@ function wpdm_recycle_bin_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	echo apply_filters( 'wp_desktop_recycle_bin_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo apply_filters( 'desktop_mode_recycle_bin_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 /**
@@ -125,7 +125,7 @@ function wpdm_recycle_bin_user_can_use() {
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
-	return (bool) apply_filters( 'wp_desktop_recycle_bin_user_can_use', $can );
+	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_use', $can );
 }
 
 /**
@@ -160,7 +160,7 @@ function wpdm_recycle_bin_register_window() {
 	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'wp_desktop_recycle_bin_window_args', $window_args );
+	$window_args = (array) apply_filters( 'desktop_mode_recycle_bin_window_args', $window_args );
 
 	$registered = desktop_mode_register_window( 'wpdm-recycle-bin', $window_args );
 	if ( is_wp_error( $registered ) ) {
@@ -183,7 +183,7 @@ function wpdm_recycle_bin_register_window() {
 	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
-	$icon_args = (array) apply_filters( 'wp_desktop_recycle_bin_icon_args', $icon_args );
+	$icon_args = (array) apply_filters( 'desktop_mode_recycle_bin_icon_args', $icon_args );
 
 	desktop_mode_register_icon( 'wpdm-recycle-bin', $icon_args );
 }

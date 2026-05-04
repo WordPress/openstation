@@ -22,7 +22,7 @@
  * the same map of `{ status, lastSeenMs, lastActiveMs }` per user.
  *
  * **Wire.** A jQuery-Heartbeat probe sends
- * `wp_desktop_presence_active: true` + `wp_desktop_user_active:
+ * `desktop_mode_presence_active: true` + `desktop_mode_user_active:
  * <bool>` on every tick; the server (`includes/presence.php`)
  * records the bump and returns a snapshot in the response, which
  * lands in the shared store.
@@ -78,7 +78,7 @@ function noteUserActivity(): void {
  * we received and emits a state-change CustomEvent for each user
  * whose status flipped. We don't drop users not in the snapshot
  * (they may simply not be visible to this viewer) — the server
- * controls visibility via `wp_desktop_presence_visible_users`.
+ * controls visibility via `desktop_mode_presence_visible_users`.
  */
 function applySnapshot( block: HeartbeatBlock ): void {
 	if ( ! block || ! block.snapshot ) {
@@ -151,10 +151,10 @@ function applySnapshot( block: HeartbeatBlock ): void {
  * multiple times — only the first call wires anything up.
  *
  * Hooks the WordPress Heartbeat:
- *   - `heartbeat-send` — adds `wp_desktop_presence_active: true` +
- *     `wp_desktop_user_active: <recent input?>` so the server's
+ *   - `heartbeat-send` — adds `desktop_mode_presence_active: true` +
+ *     `desktop_mode_user_active: <recent input?>` so the server's
  *     handler bumps the right slot.
- *   - `heartbeat-tick` — reads `response.wp_desktop_presence` and
+ *   - `heartbeat-tick` — reads `response.desktop_mode_presence` and
  *     applies the snapshot to the shared store.
  *
  * Also subscribes a one-time `pointerdown` / `keydown` listener so
@@ -186,12 +186,12 @@ export function bootPresenceProbe(): void {
 
 	// Route through the framework's shared Heartbeat bus so the
 	// jQuery boilerplate lives in `src/heartbeat.ts` only.
-	heartbeat.contribute( 'wp_desktop_presence_active', () => true );
+	heartbeat.contribute( 'desktop_mode_presence_active', () => true );
 	heartbeat.contribute(
-		'wp_desktop_user_active',
+		'desktop_mode_user_active',
 		() => Date.now() - lastInputMs < ACTIVE_THRESHOLD_MS,
 	);
-	heartbeat.subscribe< HeartbeatBlock >( 'wp_desktop_presence', ( block ) => {
+	heartbeat.subscribe< HeartbeatBlock >( 'desktop_mode_presence', ( block ) => {
 		applySnapshot( block );
 	} );
 }

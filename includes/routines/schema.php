@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  * Step kinds the executor knows how to run.
  *
  * Plugins extend the catalog by registering an action via
- * `wp_register_desktop_routine_action()`; those land in the
+ * `desktop_mode_register_routine_action()`; those land in the
  * `action` kind. The kinds here are *built-ins* — the executor
  * dispatches each by static switch.
  *

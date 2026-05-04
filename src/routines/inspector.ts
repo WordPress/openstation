@@ -587,7 +587,7 @@ function httpFields( ctx: InspectorContext, step: RoutineStep ): HTMLElement {
 		formRow(
 			'URL',
 			urlEl,
-			'Host must be in `wp_desktop_routine_http_allowlist` (default: empty).',
+			'Host must be in `desktop_mode_routine_http_allowlist` (default: empty).',
 		),
 		formRow(
 			'Method',

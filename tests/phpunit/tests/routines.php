@@ -354,9 +354,9 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 			)
 		);
 
-		add_filter( 'wp_desktop_routine_can_run', '__return_false' );
+		add_filter( 'desktop_mode_routine_can_run', '__return_false' );
 		$result = wpdm_routine_run( $id, array(), '' );
-		remove_filter( 'wp_desktop_routine_can_run', '__return_false' );
+		remove_filter( 'desktop_mode_routine_can_run', '__return_false' );
 
 		$this->assertSame( 'skipped', $result['status'] );
 		$this->assertSame( 'gate_denied', $result['error'] );
@@ -380,40 +380,40 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 	 * @covers ::wpdm_routine_step_http
 	 */
 	public function test_http_step_rejects_non_http_scheme() {
-		add_filter( 'wp_desktop_routine_http_allowlist', static fn() => array( '*' ) );
+		add_filter( 'desktop_mode_routine_http_allowlist', static fn() => array( '*' ) );
 		$result = wpdm_routine_step_http(
 			array( 'url' => 'file:///etc/passwd' ),
 			array( 'routine_id' => 0, 'run_as_user_id' => self::$admin_id, 'payload' => array(), 'vars' => array() )
 		);
-		remove_all_filters( 'wp_desktop_routine_http_allowlist' );
+		remove_all_filters( 'desktop_mode_routine_http_allowlist' );
 		$this->assertWPError( $result );
 	}
 
 	// ---- Registration API -------------------------------------------------
 
 	/**
-	 * @covers ::wp_register_desktop_routine_trigger
+	 * @covers ::desktop_mode_register_routine_trigger
 	 */
 	public function test_trigger_registration_validates_id() {
-		$this->assertWPError( wp_register_desktop_routine_trigger( array( 'id' => '', 'label' => 'X' ) ) );
-		$this->assertWPError( wp_register_desktop_routine_trigger( array( 'id' => 'ok', 'label' => '' ) ) );
-		$this->assertTrue( wp_register_desktop_routine_trigger( array( 'id' => 'my_trigger', 'label' => 'Mine' ) ) );
+		$this->assertWPError( desktop_mode_register_routine_trigger( array( 'id' => '', 'label' => 'X' ) ) );
+		$this->assertWPError( desktop_mode_register_routine_trigger( array( 'id' => 'ok', 'label' => '' ) ) );
+		$this->assertTrue( desktop_mode_register_routine_trigger( array( 'id' => 'my_trigger', 'label' => 'Mine' ) ) );
 
 		$entry = wpdm_routine_trigger_registry( 'my_trigger' );
 		$this->assertSame( 'Mine', $entry['label'] );
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_routine_action
+	 * @covers ::desktop_mode_register_routine_action
 	 */
 	public function test_action_registration_requires_handler() {
 		$this->assertWPError(
-			wp_register_desktop_routine_action(
+			desktop_mode_register_routine_action(
 				array( 'id' => 'my.action', 'label' => 'Mine' )
 			)
 		);
 		$this->assertTrue(
-			wp_register_desktop_routine_action(
+			desktop_mode_register_routine_action(
 				array(
 					'id'      => 'my.action',
 					'label'   => 'Mine',
@@ -424,15 +424,15 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::wp_register_desktop_routine_template
+	 * @covers ::desktop_mode_register_routine_template
 	 */
 	public function test_template_registration_validates_def() {
 		$this->assertWPError(
-			wp_register_desktop_routine_template(
+			desktop_mode_register_routine_template(
 				array( 'id' => 'tpl', 'title' => 'X', 'def' => 'not an array' )
 			)
 		);
-		$ok = wp_register_desktop_routine_template(
+		$ok = desktop_mode_register_routine_template(
 			array(
 				'id'    => 'tpl-good',
 				'title' => 'Good',
@@ -741,7 +741,7 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 	public function test_action_broadcast_fires_meta_action() {
 		$received = array();
 		add_action(
-			'wp_desktop_broadcast_received',
+			'desktop_mode_broadcast_received',
 			function ( $topic, $payload ) use ( &$received ) {
 				$received[] = array( 'topic' => $topic, 'payload' => $payload );
 			},
@@ -752,7 +752,7 @@ class Tests_DesktopMode_Routines extends WP_UnitTestCase {
 			array( 'topic' => 'test/event', 'payload' => array( 'foo' => 'bar' ) ),
 			array()
 		);
-		remove_all_filters( 'wp_desktop_broadcast_received' );
+		remove_all_filters( 'desktop_mode_broadcast_received' );
 		$this->assertSame( 'test/event', $result['topic'] );
 		$this->assertSame( 'test/event', $received[0]['topic'] );
 		$this->assertSame( array( 'foo' => 'bar' ), $received[0]['payload'] );

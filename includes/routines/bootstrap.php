@@ -17,11 +17,11 @@
  *
  * **Public PHP surface** (all stable from 0.22.0):
  *
- *   - `wp_register_desktop_routine_trigger( $args )`
- *   - `wp_register_desktop_routine_action( $args )`
- *   - `wp_register_desktop_routine_template( $args )`
- *   - filters: `wp_desktop_routine_payload`, `_can_run`, `_http_allowlist`
- *   - actions: `wp_desktop_routine_before_run`, `_after_run`, `_step_failed`,
+ *   - `desktop_mode_register_routine_trigger( $args )`
+ *   - `desktop_mode_register_routine_action( $args )`
+ *   - `desktop_mode_register_routine_template( $args )`
+ *   - filters: `desktop_mode_routine_payload`, `_can_run`, `_http_allowlist`
+ *   - actions: `desktop_mode_routine_before_run`, `_after_run`, `_step_failed`,
  *              `_trigger_registered`, `_action_registered`,
  *              `_template_registered`, `_seeded`
  *

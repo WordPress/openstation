@@ -35,7 +35,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
 // Surface the user's display name on every presence record so
 // the JS can render names without a follow-up REST call.
-add_filter( 'wp_desktop_shell_config', function ( $config ) {
+add_filter( 'desktop_mode_shell_config', function ( $config ) {
     $names = array();
     foreach ( desktop_mode_presence_get_all() as $uid => $_ ) {
         $u = get_userdata( (int) $uid );
@@ -136,11 +136,11 @@ desktop_mode_presence_snapshot( array( $user_id ) );   // narrowed
 desktop_mode_presence_record( $user_id, $active = true );
 
 // Tune thresholds (seconds).
-add_filter( 'wp_desktop_presence_inactive_after', fn () => 600 );  // 10 min
-add_filter( 'wp_desktop_presence_offline_after',  fn () => 300 );  // 5 min
+add_filter( 'desktop_mode_presence_inactive_after', fn () => 600 );  // 10 min
+add_filter( 'desktop_mode_presence_offline_after',  fn () => 300 );  // 5 min
 
 // Per-user veto.
-add_filter( 'wp_desktop_presence_can_track', function ( $can, $user_id ) {
+add_filter( 'desktop_mode_presence_can_track', function ( $can, $user_id ) {
     if ( get_user_meta( $user_id, 'invisible_mode', true ) ) {
         return false;
     }
@@ -148,7 +148,7 @@ add_filter( 'wp_desktop_presence_can_track', function ( $can, $user_id ) {
 }, 10, 2 );
 
 // Privacy gate — narrow the visible-users set per viewer.
-add_filter( 'wp_desktop_presence_visible_users', function ( $ids, $viewer_id ) {
+add_filter( 'desktop_mode_presence_visible_users', function ( $ids, $viewer_id ) {
     if ( ! user_can( $viewer_id, 'manage_options' ) ) {
         // Non-admins only see other non-admins.
         return array_filter( $ids, fn ( $uid ) => ! user_can( $uid, 'manage_options' ) );
@@ -157,12 +157,12 @@ add_filter( 'wp_desktop_presence_visible_users', function ( $ids, $viewer_id ) {
 }, 10, 2 );
 
 // React to transitions.
-add_action( 'wp_desktop_presence_changed', function ( $user_id, $new, $old ) {
+add_action( 'desktop_mode_presence_changed', function ( $user_id, $new, $old ) {
     error_log( "User {$user_id} went from {$old} to {$new}" );
 }, 10, 3 );
 
 // Per-tick fan-out (every Heartbeat — be cheap here).
-add_action( 'wp_desktop_presence_recorded', function ( $user_id, $record ) {
+add_action( 'desktop_mode_presence_recorded', function ( $user_id, $record ) {
     // …
 }, 10, 2 );
 ```

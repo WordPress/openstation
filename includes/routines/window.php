@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Static skeleton — the `data-wpdm-routines-*` hooks are the
  * mounting contract the JS bundle relies on. Overrideable via
- * `wp_desktop_routines_template_html`.
+ * `desktop_mode_routines_template_html`.
  *
  * @since 0.22.0
  */
@@ -60,7 +60,7 @@ function wpdm_routines_render_template() {
 	 *
 	 * @param string $html Default markup.
 	 */
-	echo apply_filters( 'wp_desktop_routines_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo apply_filters( 'desktop_mode_routines_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 /**

@@ -86,7 +86,7 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 	public function test_changed_action_fires_only_on_transition() {
 		$transitions = array();
 		add_action(
-			'wp_desktop_presence_changed',
+			'desktop_mode_presence_changed',
 			function ( $user_id, $new_status, $old_status ) use ( &$transitions ) {
 				$transitions[] = array( $user_id, $old_status, $new_status );
 			},
@@ -111,7 +111,7 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 	public function test_recorded_action_fires_every_time() {
 		$count = 0;
 		add_action(
-			'wp_desktop_presence_recorded',
+			'desktop_mode_presence_recorded',
 			function () use ( &$count ) {
 				$count++;
 			}
@@ -126,11 +126,11 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_presence_record
 	 */
 	public function test_can_track_filter_vetoes_recording() {
-		add_filter( 'wp_desktop_presence_can_track', '__return_false' );
+		add_filter( 'desktop_mode_presence_can_track', '__return_false' );
 		$ok = desktop_mode_presence_record( self::$admin_id, true );
 		$this->assertFalse( $ok );
 		$this->assertSame( 'offline', desktop_mode_presence_status_for_user( self::$admin_id ) );
-		remove_filter( 'wp_desktop_presence_can_track', '__return_false' );
+		remove_filter( 'desktop_mode_presence_can_track', '__return_false' );
 	}
 
 	/**
@@ -161,7 +161,7 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 	 */
 	public function test_visible_users_filter_can_narrow_the_set() {
 		add_filter(
-			'wp_desktop_presence_visible_users',
+			'desktop_mode_presence_visible_users',
 			function ( $ids, $viewer ) {
 				return array( $ids[0] ?? 0 );
 			},
@@ -170,7 +170,7 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 		);
 		$ids = desktop_mode_presence_visible_users( array( 1, 2, 3 ), self::$admin_id );
 		$this->assertSame( array( 1 ), $ids );
-		remove_all_filters( 'wp_desktop_presence_visible_users' );
+		remove_all_filters( 'desktop_mode_presence_visible_users' );
 	}
 
 	/**

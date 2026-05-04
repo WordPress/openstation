@@ -79,7 +79,7 @@ function wpdm_routine_run( $routine_id, $payload = array(), $trigger_id = '', $d
 		 * @param int $admin_id Default: lowest-id administrator.
 		 * @param int $routine_id
 		 */
-		$admin_id            = (int) apply_filters( 'wp_desktop_routine_system_user_id', $admin_id, $routine_id );
+		$admin_id            = (int) apply_filters( 'desktop_mode_routine_system_user_id', $admin_id, $routine_id );
 		$effective_user_id   = $admin_id > 0 ? $admin_id : $author;
 	} else {
 		$effective_user_id = $author;
@@ -101,7 +101,7 @@ function wpdm_routine_run( $routine_id, $payload = array(), $trigger_id = '', $d
 	 * @param array $payload Payload bound from the trigger.
 	 * @param array $routine Routine row.
 	 */
-	$context['payload'] = (array) apply_filters( 'wp_desktop_routine_payload', $context['payload'], $routine );
+	$context['payload'] = (array) apply_filters( 'desktop_mode_routine_payload', $context['payload'], $routine );
 
 	/**
 	 * Last-chance gate: returning false here halts the routine
@@ -113,7 +113,7 @@ function wpdm_routine_run( $routine_id, $payload = array(), $trigger_id = '', $d
 	 * @param array $routine Routine row.
 	 * @param array $payload Bound payload.
 	 */
-	$can_run = (bool) apply_filters( 'wp_desktop_routine_can_run', true, $routine, $context['payload'] );
+	$can_run = (bool) apply_filters( 'desktop_mode_routine_can_run', true, $routine, $context['payload'] );
 	if ( ! $can_run ) {
 		return wpdm_routine_finalise_run( $routine_id, 'skipped', $start, array(), 'gate_denied', $trigger_id, $context['payload'], $dry_run );
 	}
@@ -147,7 +147,7 @@ function wpdm_routine_run( $routine_id, $payload = array(), $trigger_id = '', $d
 	 * @param array $routine Routine row.
 	 * @param array $payload Bound payload.
 	 */
-	do_action( 'wp_desktop_routine_before_run', $routine, $context['payload'] );
+	do_action( 'desktop_mode_routine_before_run', $routine, $context['payload'] );
 
 	$steps_log = array();
 	$status    = 'success';
@@ -179,7 +179,7 @@ function wpdm_routine_run( $routine_id, $payload = array(), $trigger_id = '', $d
 	 * @param string $status    Final status.
 	 * @param array  $steps_log Per-step log entries.
 	 */
-	do_action( 'wp_desktop_routine_after_run', $routine, $context['payload'], $status, $steps_log );
+	do_action( 'desktop_mode_routine_after_run', $routine, $context['payload'], $status, $steps_log );
 
 	return wpdm_routine_finalise_run( $routine_id, $status, $start, $steps_log, $error, $trigger_id, $context['payload'], $dry_run );
 }
@@ -251,7 +251,7 @@ function wpdm_routine_walk_steps( $steps, &$context, &$log, $dry_run, $settings 
 			 * @param array    $context Run context.
 			 * @param WP_Error $error   Error.
 			 */
-			do_action( 'wp_desktop_routine_step_failed', $step, $context, $result );
+			do_action( 'desktop_mode_routine_step_failed', $step, $context, $result );
 
 			if ( ! empty( $settings['stop_on_error'] ) ) {
 				return $result;
@@ -336,7 +336,7 @@ function wpdm_routine_dispatch_step( $kind, $id, $args, $context, $dry_run ) {
 }
 
 /**
- * Dispatch to a `wp_register_desktop_routine_action`-registered handler.
+ * Dispatch to a `desktop_mode_register_routine_action`-registered handler.
  *
  * @since 0.22.0
  *

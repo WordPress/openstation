@@ -179,7 +179,7 @@ function wpdm_routine_step_email( $args, $context ) {
  *
  * Args: `url`, `method` (GET/POST/PUT/PATCH/DELETE), `headers`, `body`.
  *
- * Outbound host is gated by the `wp_desktop_routine_http_allowlist`
+ * Outbound host is gated by the `desktop_mode_routine_http_allowlist`
  * filter — default empty. A site owner that wants to allow Slack
  * webhooks adds `hooks.slack.com` to the allowlist, and only then
  * will the step succeed.
@@ -212,7 +212,7 @@ function wpdm_routine_step_http( $args, $context ) {
 	 *
 	 * @param string[] $hosts Allowed hosts.
 	 */
-	$allowlist = (array) apply_filters( 'wp_desktop_routine_http_allowlist', array() );
+	$allowlist = (array) apply_filters( 'desktop_mode_routine_http_allowlist', array() );
 	$wide_open = in_array( '*', $allowlist, true );
 	if ( ! $wide_open ) {
 		$ok = false;
@@ -226,7 +226,7 @@ function wpdm_routine_step_http( $args, $context ) {
 		if ( ! $ok ) {
 			return new WP_Error(
 				'wpdm_routine_step_http_host_blocked',
-				sprintf( 'Host `%s` is not in the allowlist. Add it via the wp_desktop_routine_http_allowlist filter.', $host )
+				sprintf( 'Host `%s` is not in the allowlist. Add it via the desktop_mode_routine_http_allowlist filter.', $host )
 			);
 		}
 	}
@@ -525,7 +525,7 @@ function wpdm_routine_step_classify( $args, $context ) {
 	 * @param array $context Run context.
 	 * @param array $args    Resolved step args (input + buckets).
 	 */
-	do_action( 'wp_desktop_routine_step_classify_completed', $json, $context, $args );
+	do_action( 'desktop_mode_routine_step_classify_completed', $json, $context, $args );
 
 	return array(
 		'bucket_id'  => (string) $json['bucket_id'],

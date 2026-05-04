@@ -192,7 +192,7 @@ status didn't change — listeners only see real transitions, so
 "user came online" / "user went away" UIs hook here without
 debouncing themselves.
 
-The viewer-side filter (`wp_desktop_presence_visible_users`) gates
+The viewer-side filter (`desktop_mode_presence_visible_users`) gates
 which users surface in any one viewer's tab — a transition for a
 user the viewer can't see produces no event.
 
@@ -796,7 +796,7 @@ window.wp.desktop.saveSession();
 
 Framework-level presence tracking — who's currently in the desktop-mode WP-Admin and what their state is. Always available, regardless of which feature plugins (chat, collaboration, …) happen to be installed. Useful for any UI that wants to surface who's around: avatar dots, "online now" lists, collaborative cursors, real-time co-editing indicators, etc.
 
-The probe boots automatically on `wp-desktop-init` and piggy-backs the WordPress Heartbeat — every tick (~15 s default in admin) the client sends `wp_desktop_presence_active: true` plus `wp_desktop_user_active: <bool>` (true when the user moused / typed within the last 5 minutes), and the server responds with the visible-users snapshot.
+The probe boots automatically on `wp-desktop-init` and piggy-backs the WordPress Heartbeat — every tick (~15 s default in admin) the client sends `desktop_mode_presence_active: true` plus `desktop_mode_user_active: <bool>` (true when the user moused / typed within the last 5 minutes), and the server responds with the visible-users snapshot.
 
 ```javascript
 // Synchronous lookup for a single user.
@@ -834,13 +834,13 @@ wp.desktop.presence.applyBatch( [
 
 | Status     | Meaning                                                                                     |
 |------------|---------------------------------------------------------------------------------------------|
-| `online`   | Heartbeat within `wp_desktop_presence_offline_after` AND user input within `wp_desktop_presence_inactive_after`. |
-| `inactive` | Heartbeat present, but no input within `wp_desktop_presence_inactive_after` (default 5 min). |
-| `offline`  | No heartbeat in `wp_desktop_presence_offline_after` (default 2 min).                        |
+| `online`   | Heartbeat within `desktop_mode_presence_offline_after` AND user input within `desktop_mode_presence_inactive_after`. |
+| `inactive` | Heartbeat present, but no input within `desktop_mode_presence_inactive_after` (default 5 min). |
+| `offline`  | No heartbeat in `desktop_mode_presence_offline_after` (default 2 min).                        |
 
 **Visibility:**
 
-The server-side `wp_desktop_presence_visible_users` filter gates which users surface to a given viewer. By default everyone tracked is visible to everyone tracked; plugins can narrow (e.g. "subscribers only see other subscribers") without the client knowing.
+The server-side `desktop_mode_presence_visible_users` filter gates which users surface to a given viewer. By default everyone tracked is visible to everyone tracked; plugins can narrow (e.g. "subscribers only see other subscribers") without the client knowing.
 
 **Companion CustomEvent:** [`wp-desktop-presence-changed`](#wp-desktop-presence-changed--stable-since-055) fires once per status transition per user, with a `null` oldStatus on first sighting.
 
@@ -1072,7 +1072,7 @@ const off = wp.desktop.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
 
 **Why this exists.** Without a shared bus, every feature that wants to ride Heartbeat re-binds `jQuery(document).on('heartbeat-send', …)` itself. Three problems: (1) the boilerplate is identical, (2) no plugin can see what other plugins are contributing on the same tick, (3) a thrown error in any handler can strand later handlers on the same event. The bus consolidates the wiring, exposes the typed channel surface, and isolates errors per supplier/subscriber.
 
-**Built-in consumer.** `presence` contributes `wp_desktop_presence_active` + `wp_desktop_user_active` and subscribes to `wp_desktop_presence`. Read [`src/presence/index.ts`](../src/presence/index.ts) for the canonical pattern.
+**Built-in consumer.** `presence` contributes `desktop_mode_presence_active` + `desktop_mode_user_active` and subscribes to `desktop_mode_presence`. Read [`src/presence/index.ts`](../src/presence/index.ts) for the canonical pattern.
 
 ---
 

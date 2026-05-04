@@ -217,7 +217,7 @@ function wpdm_routine_prune_runs( $days = 30 ) {
 	 *
 	 * @param int $days Default 30.
 	 */
-	$days = (int) apply_filters( 'wp_desktop_routine_run_retention_days', $days );
+	$days = (int) apply_filters( 'desktop_mode_routine_run_retention_days', $days );
 
 	$table = wpdm_routine_runs_table();
 	// Same safety + non-cacheability rationale as wpdm_routine_get_runs() above.

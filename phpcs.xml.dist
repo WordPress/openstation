@@ -23,30 +23,18 @@
 	<!--
 		Custom prefix allowlist.
 
-		The Plugin Check derives the "valid prefix" from the plugin's
-		slug (`desktop-mode`), and accepts `desktop_mode_*` /
-		`desktop-mode_*` automatically. The codebase has used
-		`wp_desktop_*` since the beginning for hooks, filters,
-		registration functions, and JS-side namespacing — that
-		convention is documented as the public API in
-		`docs/hooks-reference.md` and `docs/javascript-reference.md`.
-
-		Renaming would break every third-party plugin that integrates
-		with us. Whitelist `wp_desktop` here so the parser stops
-		reporting it as missing-prefix, while keeping the safety net for
-		any newly-added unprefixed identifiers.
-
-		`wpdc` is a legacy short prefix used by a few internal
-		identifiers (e.g. `wpdc-recycle-bin` window id); kept for
-		continuity.
+		The Plugin Check derives the canonical prefix from the plugin
+		slug (`desktop-mode`) — `desktop_mode_*` and `desktop-mode_*`
+		are accepted automatically. We add `wpdc`, `WPDM`, and
+		`WP_DESKTOP` as legacy short forms used by a small set of
+		internal identifiers (constants like `WP_DESKTOP_PRESENCE_OPTION`,
+		window ids like `wpdc-recycle-bin`) — kept for continuity.
 	-->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
 				<element value="desktop_mode"/>
 				<element value="desktop-mode"/>
-				<element value="wp_desktop"/>
-				<element value="wp-desktop"/>
 				<element value="wpdc"/>
 				<element value="WPDM"/>
 				<element value="WP_DESKTOP"/>
