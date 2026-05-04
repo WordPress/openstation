@@ -6,11 +6,11 @@
  * `top` faces, rain splashes off `bottom` faces, leaves settle on
  * horizontal rims. Seeded by the shell for every piece of chrome it
  * knows about — windows, the desktop floor, the dock, widget cards —
- * and filtered through `wp-desktop.wallpaper.surfaces`
+ * and filtered through `desktop-mode.wallpaper.surfaces`
  * so plugins that own floating DOM can contribute their own.
  *
  * Coordinates are in **viewport space** (clientX / clientY) to
- * match what a canvas mounted inside `#wp-desktop-wallpaper` reads
+ * match what a canvas mounted inside `#desktop-mode-wallpaper` reads
  * when it calls `element.getBoundingClientRect()` itself. Wallpapers
  * translate into their own drawing space using the wallpaper
  * element's own rect as the origin.
@@ -60,7 +60,7 @@ export interface WallpaperSurface {
 
 /**
  * Collect the live set of wallpaper surfaces the shell currently
- * knows about, then apply the `wp-desktop.wallpaper.surfaces`
+ * knows about, then apply the `desktop-mode.wallpaper.surfaces`
  * filter so plugins can add / remove entries.
  *
  * Exposed on `wp.desktop.getWallpaperSurfaces()` — wallpapers call
@@ -100,7 +100,7 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 	// as a 1-px-tall rect along the shell's bottom so snow-pile
 	// accumulation logic treats it like any other horizontal
 	// surface rather than a special "viewport floor" branch.
-	const shellEl = document.getElementById( 'wp-desktop-shell' );
+	const shellEl = document.getElementById( 'desktop-mode-shell' );
 	if ( shellEl ) {
 		const r = shellEl.getBoundingClientRect();
 		seed.push( {
@@ -125,7 +125,7 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 	// slanted by gusts) bounce off vertical dock edges; vertically-
 	// falling effects (snow) pile on the top edge of a bottom dock.
 	const dockEls = document.querySelectorAll< HTMLElement >(
-		'.wp-desktop-dock',
+		'.desktop-mode-dock',
 	);
 	let dockIndex = 0;
 	for ( const dockEl of Array.from( dockEls ) ) {
@@ -134,7 +134,7 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 			continue;
 		}
 		const placement =
-			dockEl.getAttribute( 'data-wp-desktop-dock-placement' ) ?? 'bottom';
+			dockEl.getAttribute( 'data-desktop-mode-dock-placement' ) ?? 'bottom';
 		// First dock keeps the canonical `dock:edge` id for backwards
 		// compat with single-rail layouts; subsequent docks suffix.
 		const id = dockIndex === 0 ? 'dock:edge' : `dock:edge:${ dockIndex }`;
@@ -176,7 +176,7 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 	// and tears down cards independently of surface collection and
 	// we don't want to couple the two.
 	const widgetCards = document.querySelectorAll< HTMLElement >(
-		'.wp-desktop-widgets__card',
+		'.desktop-mode-widgets__card',
 	);
 	let widgetIndex = 0;
 	widgetCards.forEach( ( card ) => {

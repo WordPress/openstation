@@ -233,7 +233,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	// `desktop-mode-registry-changed` is the public CustomEvent
 	// plugin authors subscribe to in order to react to peer plugins
 	// being activated/deactivated mid-session. The event name is
-	// project-prefixed (NOT `wp-desktop-*`) per WordPress plugin
+	// project-prefixed (NOT `desktop-mode-*`) per WordPress plugin
 	// reviewer guidelines that reserve `wp-` for Core.
 	describe( 'desktop-mode-registry-changed CustomEvent', () => {
 		function captureEvents(): {
@@ -363,9 +363,9 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 	} {
 		document.body.innerHTML = '';
 		const desktopArea = document.createElement( 'div' );
-		desktopArea.id = 'wp-desktop-area';
+		desktopArea.id = 'desktop-mode-area';
 		const dockEl = document.createElement( 'div' );
-		dockEl.id = 'wp-desktop-dock';
+		dockEl.id = 'desktop-mode-dock';
 		document.body.append( desktopArea, dockEl );
 
 		const manager = {

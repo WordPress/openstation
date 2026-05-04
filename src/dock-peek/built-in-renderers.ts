@@ -7,7 +7,7 @@
  * OS Settings, Recycle Bin — are different: they have a visual
  * identity and a useful piece of state worth surfacing on hover.
  *
- * This module hooks `wp-desktop.dock.peek-card-content` once and,
+ * This module hooks `desktop-mode.dock.peek-card-content` once and,
  * for each known built-in window id, returns a custom body element
  * instead of the default ghosted lines. The renderer set is closed
  * to shell-owned windows; third-party plugins use the public
@@ -22,10 +22,10 @@ import { __ } from '../i18n';
 import type { Window as WPWindow } from '../window';
 
 /** Window id used by the OS Settings native window. Shared with `desktop.ts`. */
-const OS_SETTINGS_ID = 'wp-desktop-os-settings';
+const OS_SETTINGS_ID = 'desktop-mode-os-settings';
 
 /** Window id used by the Recycle Bin native window. Shared with `recycle-bin/badge.ts`. */
-const RECYCLE_BIN_ID = 'wpdm-recycle-bin';
+const RECYCLE_BIN_ID = 'desktop-mode-recycle-bin';
 
 /**
  * Reader for the live recycle-bin count. Delayed-bound at registration
@@ -65,8 +65,8 @@ export function registerBuiltInPeekRenderers( opts: RegisterOpts ): void {
 		return;
 	}
 	wpHooks.addFilter(
-		'wp-desktop.dock.peek-card-content',
-		'wp-desktop-mode/built-in-peek-renderers',
+		'desktop-mode.dock.peek-card-content',
+		'desktop-mode/built-in-peek-renderers',
 		( body: unknown, ctx: unknown ): HTMLElement => {
 			const context = ctx as PeekCardContext;
 			const id = context.window.id;
@@ -94,27 +94,27 @@ export function registerBuiltInPeekRenderers( opts: RegisterOpts ): void {
 function renderOsSettings( _ctx: PeekCardContext ): HTMLElement {
 	const root = document.createElement( 'span' );
 	root.className =
-		'wp-desktop-dock-peek__card-body wp-desktop-dock-peek__card-body--os-settings';
+		'desktop-mode-dock-peek__card-body desktop-mode-dock-peek__card-body--os-settings';
 	root.setAttribute( 'aria-hidden', 'true' );
 
 	const hero = document.createElement( 'span' );
-	hero.className = 'wp-desktop-dock-peek__os-hero dashicons dashicons-admin-generic';
+	hero.className = 'desktop-mode-dock-peek__os-hero dashicons dashicons-admin-generic';
 	root.appendChild( hero );
 
 	const subtitle = document.createElement( 'span' );
-	subtitle.className = 'wp-desktop-dock-peek__os-subtitle';
+	subtitle.className = 'desktop-mode-dock-peek__os-subtitle';
 	subtitle.textContent = __( 'System Preferences' );
 	root.appendChild( subtitle );
 
 	const tabs = document.createElement( 'span' );
-	tabs.className = 'wp-desktop-dock-peek__os-tabs';
+	tabs.className = 'desktop-mode-dock-peek__os-tabs';
 	for ( const cls of [
 		'dashicons-art',
 		'dashicons-admin-customizer',
 		'dashicons-editor-help',
 	] ) {
 		const tab = document.createElement( 'span' );
-		tab.className = `wp-desktop-dock-peek__os-tab dashicons ${ cls }`;
+		tab.className = `desktop-mode-dock-peek__os-tab dashicons ${ cls }`;
 		tabs.appendChild( tab );
 	}
 	root.appendChild( tabs );
@@ -138,28 +138,28 @@ function renderRecycleBin(
 ): HTMLElement {
 	const root = document.createElement( 'span' );
 	root.className =
-		'wp-desktop-dock-peek__card-body wp-desktop-dock-peek__card-body--recycle-bin';
+		'desktop-mode-dock-peek__card-body desktop-mode-dock-peek__card-body--recycle-bin';
 	root.setAttribute( 'aria-hidden', 'true' );
 
 	const count = Math.max( 0, Math.floor( getCount() || 0 ) );
 	root.dataset.empty = count === 0 ? 'true' : 'false';
 
 	const stage = document.createElement( 'span' );
-	stage.className = 'wp-desktop-dock-peek__bin-stage';
+	stage.className = 'desktop-mode-dock-peek__bin-stage';
 
 	// "Stack" — three layered slips representing trashed items.
 	// Hidden when empty; revealed (with a slight stagger) when full.
 	const stack = document.createElement( 'span' );
-	stack.className = 'wp-desktop-dock-peek__bin-stack';
+	stack.className = 'desktop-mode-dock-peek__bin-stack';
 	for ( let i = 0; i < 3; i++ ) {
 		const slip = document.createElement( 'span' );
-		slip.className = 'wp-desktop-dock-peek__bin-slip';
+		slip.className = 'desktop-mode-dock-peek__bin-slip';
 		stack.appendChild( slip );
 	}
 	stage.appendChild( stack );
 
 	const icon = document.createElement( 'span' );
-	icon.className = `wp-desktop-dock-peek__bin-icon dashicons ${
+	icon.className = `desktop-mode-dock-peek__bin-icon dashicons ${
 		count === 0 ? 'dashicons-trash' : 'dashicons-trash'
 	}`;
 	stage.appendChild( icon );
@@ -167,7 +167,7 @@ function renderRecycleBin(
 	root.appendChild( stage );
 
 	const label = document.createElement( 'span' );
-	label.className = 'wp-desktop-dock-peek__bin-label';
+	label.className = 'desktop-mode-dock-peek__bin-label';
 	if ( count === 0 ) {
 		label.textContent = __( 'Recycle Bin — empty' );
 	} else if ( count === 1 ) {

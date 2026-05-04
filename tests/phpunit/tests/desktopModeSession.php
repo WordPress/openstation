@@ -441,14 +441,14 @@ class Tests_DesktopMode_WpDesktopSession extends WP_UnitTestCase {
 				'windows' => array(
 					$this->make_window(
 						array(
-							'url' => admin_url( 'plugins.php?wp_desktop=1&paged=2' ),
+							'url' => admin_url( 'plugins.php?desktop_mode_chromeless=1&paged=2' ),
 						)
 					),
 				),
 			)
 		);
 
-		$this->assertStringNotContainsString( 'wp_desktop=1', $clean['windows'][0]['url'] );
+		$this->assertStringNotContainsString( 'desktop_mode_chromeless=1', $clean['windows'][0]['url'] );
 		$this->assertStringContainsString( 'paged=2', $clean['windows'][0]['url'] );
 	}
 
@@ -584,7 +584,7 @@ class Tests_DesktopMode_WpDesktopSession extends WP_UnitTestCase {
 		rest_get_server();
 
 		$routes = rest_get_server()->get_routes();
-		$this->assertArrayHasKey( '/wp-desktop/v1/session', $routes );
+		$this->assertArrayHasKey( '/desktop-mode/v1/session', $routes );
 	}
 
 	/**
@@ -601,7 +601,7 @@ class Tests_DesktopMode_WpDesktopSession extends WP_UnitTestCase {
 		);
 
 		rest_get_server();
-		$request  = new WP_REST_Request( 'GET', '/wp-desktop/v1/session' );
+		$request  = new WP_REST_Request( 'GET', '/desktop-mode/v1/session' );
 		$response = rest_do_request( $request );
 
 		$this->assertSame( 200, $response->get_status() );
@@ -617,7 +617,7 @@ class Tests_DesktopMode_WpDesktopSession extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		rest_get_server();
 
-		$request = new WP_REST_Request( 'POST', '/wp-desktop/v1/session' );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/session' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body(
 			wp_json_encode(
@@ -649,7 +649,7 @@ class Tests_DesktopMode_WpDesktopSession extends WP_UnitTestCase {
 		);
 
 		rest_get_server();
-		$request  = new WP_REST_Request( 'DELETE', '/wp-desktop/v1/session' );
+		$request  = new WP_REST_Request( 'DELETE', '/desktop-mode/v1/session' );
 		$response = rest_do_request( $request );
 
 		$this->assertSame( 200, $response->get_status() );
@@ -663,7 +663,7 @@ class Tests_DesktopMode_WpDesktopSession extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 		rest_get_server();
 
-		$request = new WP_REST_Request( 'POST', '/wp-desktop/v1/session' );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/session' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( array( 'session' => array( 'windows' => array() ) ) ) );
 

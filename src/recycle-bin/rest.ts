@@ -11,7 +11,7 @@
 
 declare global {
 	interface Window {
-		wpDesktopRecycleBinConfig?: {
+		desktopModeRecycleBinConfig?: {
 			restNonce: string;
 			listUrl: string;
 			restoreUrl: string;
@@ -54,8 +54,8 @@ export interface EmptyResponse {
 	remaining: number;
 }
 
-function config(): NonNullable< Window[ 'wpDesktopRecycleBinConfig' ] > {
-	const cfg = window.wpDesktopRecycleBinConfig;
+function config(): NonNullable< Window[ 'desktopModeRecycleBinConfig' ] > {
+	const cfg = window.desktopModeRecycleBinConfig;
 	if ( ! cfg ) {
 		// Distinguish "consumer error" (bundle loaded somewhere it
 		// shouldn't be) from "integration contract failure" (bundle
@@ -65,7 +65,7 @@ function config(): NonNullable< Window[ 'wpDesktopRecycleBinConfig' ] > {
 		// the lazy-load payload — if a consumer plugin still hits this
 		// error after upgrading, the integration is the place to look.
 		throw new Error(
-			'wpDesktopRecycleBinConfig is missing — config blob did not reach the page. ' +
+			'desktopModeRecycleBinConfig is missing — config blob did not reach the page. ' +
 				'This typically means the recycle-bin script handle was lazy-loaded by ' +
 				'desktop-mode without its `wp_localize_script` data being included in ' +
 				'the payload. See docs/examples/window-with-config.md.',

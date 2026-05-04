@@ -81,7 +81,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	// `dockWidth` as the dock shrinks over the next ~280 ms, and we
 	// lay out as if that animation has already settled so thumbnails
 	// land at their final positions in a single pass.
-	const dockEl = document.getElementById( 'wp-desktop-dock' );
+	const dockEl = document.getElementById( 'desktop-mode-dock' );
 	const dockWidth = dockEl ? dockEl.offsetWidth : 0;
 	const currentRect = mgr._desktop.getBoundingClientRect();
 	const targetRect = new DOMRect(
@@ -91,9 +91,9 @@ export function enterOverview( mgr: WindowManager ): void {
 		currentRect.height,
 	);
 
-	mgr._desktop.classList.add( 'wp-desktop-area--overview' );
-	const shell = document.getElementById( 'wp-desktop-shell' );
-	shell?.classList.add( 'wp-desktop-shell--overview' );
+	mgr._desktop.classList.add( 'desktop-mode-area--overview' );
+	const shell = document.getElementById( 'desktop-mode-shell' );
+	shell?.classList.add( 'desktop-mode-shell--overview' );
 
 	// Build + mount the top bar. Belongs INSIDE the desktop area so
 	// it shares the dim backdrop, but its own clicks are allowed past
@@ -113,7 +113,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	mgr._overviewLabels.clear();
 	for ( const item of layout ) {
 		const el = item.win.element;
-		el.classList.add( 'wp-desktop-window--overview' );
+		el.classList.add( 'desktop-mode-window--overview' );
 		const dx = item.x - el.offsetLeft;
 		const dy = item.y - el.offsetTop;
 		// transform-origin: top left (set in CSS) so translate + scale
@@ -152,7 +152,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	): { id: string; element: HTMLElement } | null => {
 		const target = e.target as HTMLElement | null;
 		const winEl = target?.closest<HTMLElement>(
-			'.wp-desktop-window--overview',
+			'.desktop-mode-window--overview',
 		);
 		if ( winEl ) {
 			return {
@@ -238,7 +238,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	// own handlers to fire.
 	mgr._overviewClickBlocker = ( e: MouseEvent ) => {
 		const target = e.target as HTMLElement | null;
-		if ( target?.closest( '.wp-desktop-overview-top-bar' ) ) {
+		if ( target?.closest( '.desktop-mode-overview-top-bar' ) ) {
 			return;
 		}
 		e.stopPropagation();
@@ -260,7 +260,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	mgr._overviewMouseHandler = ( e: MouseEvent ) => {
 		const target = e.target as HTMLElement | null;
 		const winEl = target?.closest<HTMLElement>(
-			'.wp-desktop-window--overview',
+			'.desktop-mode-window--overview',
 		);
 		const newId = winEl
 			? winEl.id.replace( /^wp-window-/, '' )
@@ -293,10 +293,10 @@ export function enterOverview( mgr: WindowManager ): void {
 /** Build the overview top bar — a tile per virtual desktop plus "+". */
 function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	const bar = document.createElement( 'div' );
-	bar.className = 'wp-desktop-overview-top-bar';
+	bar.className = 'desktop-mode-overview-top-bar';
 
 	const list = document.createElement( 'div' );
-	list.className = 'wp-desktop-overview-top-bar__list';
+	list.className = 'desktop-mode-overview-top-bar__list';
 	bar.appendChild( list );
 
 	for ( const d of mgr._desktops ) {
@@ -307,10 +307,10 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	const addTile = document.createElement( 'button' );
 	addTile.type = 'button';
 	addTile.className =
-		'wp-desktop-overview-top-bar__tile wp-desktop-overview-top-bar__tile--add';
+		'desktop-mode-overview-top-bar__tile desktop-mode-overview-top-bar__tile--add';
 	addTile.setAttribute( 'aria-label', __( 'Add new desktop' ) );
 	addTile.innerHTML =
-		'<span class="wp-desktop-overview-top-bar__tile-plus" aria-hidden="true">+</span>';
+		'<span class="desktop-mode-overview-top-bar__tile-plus" aria-hidden="true">+</span>';
 	addTile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -329,16 +329,16 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	const tile = document.createElement( 'button' );
 	tile.type = 'button';
-	tile.className = 'wp-desktop-overview-top-bar__tile';
+	tile.className = 'desktop-mode-overview-top-bar__tile';
 	tile.dataset.desktopId = d.id;
 	if ( d.id === mgr._activeDesktopId ) {
-		tile.classList.add( 'wp-desktop-overview-top-bar__tile--active' );
+		tile.classList.add( 'desktop-mode-overview-top-bar__tile--active' );
 	}
 	// translators: %s is the desktop label
 	tile.setAttribute( 'aria-label', sprintf( __( 'Switch to %s' ), d.label ) );
 
 	const preview = document.createElement( 'span' );
-	preview.className = 'wp-desktop-overview-top-bar__tile-preview';
+	preview.className = 'desktop-mode-overview-top-bar__tile-preview';
 	// Window-count badge inside the preview area gives users a quick
 	// "what's on this desktop" hint without needing real per-window
 	// thumbnails (a follow-up enhancement). Includes native windows —
@@ -349,14 +349,14 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	).length;
 	if ( count > 0 ) {
 		const badge = document.createElement( 'span' );
-		badge.className = 'wp-desktop-overview-top-bar__tile-count';
+		badge.className = 'desktop-mode-overview-top-bar__tile-count';
 		badge.textContent = String( count );
 		preview.appendChild( badge );
 	}
 	tile.appendChild( preview );
 
 	const label = document.createElement( 'span' );
-	label.className = 'wp-desktop-overview-top-bar__tile-label';
+	label.className = 'desktop-mode-overview-top-bar__tile-label';
 	label.textContent = d.label;
 	tile.appendChild( label );
 
@@ -365,7 +365,7 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	// the button (rather than omitting) so its presence/absence
 	// doesn't reflow the tile.
 	const closeBtn = document.createElement( 'span' );
-	closeBtn.className = 'wp-desktop-overview-top-bar__tile-close';
+	closeBtn.className = 'desktop-mode-overview-top-bar__tile-close';
 	closeBtn.setAttribute( 'role', 'button' );
 	closeBtn.setAttribute( 'tabindex', '0' );
 	// translators: %s is the desktop label
@@ -431,7 +431,7 @@ function exitOverviewToDesktop( mgr: WindowManager, desktopId: string ): void {
  */
 export function createOverviewLabel( item: OverviewLayoutItem ): HTMLElement {
 	const label = document.createElement( 'div' );
-	label.className = 'wp-desktop-overview-label';
+	label.className = 'desktop-mode-overview-label';
 	label.dataset.windowId = item.win.id;
 
 	// Position: horizontally aligned with the thumbnail, sitting just
@@ -448,12 +448,12 @@ export function createOverviewLabel( item: OverviewLayoutItem ): HTMLElement {
 	// construction, but guard against unexpected values.
 	const iconClass = item.win.config.icon || 'dashicons-admin-generic';
 	const icon = document.createElement( 'span' );
-	icon.className = `wp-desktop-overview-label__icon dashicons ${ iconClass }`;
+	icon.className = `desktop-mode-overview-label__icon dashicons ${ iconClass }`;
 	icon.setAttribute( 'aria-hidden', 'true' );
 	label.appendChild( icon );
 
 	const title = document.createElement( 'span' );
-	title.className = 'wp-desktop-overview-label__title';
+	title.className = 'desktop-mode-overview-label__title';
 	title.textContent = item.win.config.title;
 	label.appendChild( title );
 
@@ -462,7 +462,7 @@ export function createOverviewLabel( item: OverviewLayoutItem ): HTMLElement {
 	const tabCount = item.win.getExternalTabCount();
 	if ( tabCount > 0 ) {
 		const meta = document.createElement( 'span' );
-		meta.className = 'wp-desktop-overview-label__meta';
+		meta.className = 'desktop-mode-overview-label__meta';
 		meta.textContent = sprintf(
 			// translators: %d is the number of external sub-tabs open on this window.
 			_n( '· %d open tab', '· %d open tabs', tabCount ),
@@ -500,13 +500,13 @@ export function exitOverview(
 	// home. Previously these were deferred to the end of the window
 	// animation — producing a visible two-phase unwind (windows
 	// first, then dock) that felt sequential. The only class we
-	// DON'T remove yet is `wp-desktop-window--overview` on each
+	// DON'T remove yet is `desktop-mode-window--overview` on each
 	// window: it carries `transform-origin: top left`, needed for
 	// the in-flight transform transition. Yanking it here would
 	// shift the origin to center mid-animation and wobble the path.
-	mgr._desktop.classList.remove( 'wp-desktop-area--overview' );
-	const shell = document.getElementById( 'wp-desktop-shell' );
-	shell?.classList.remove( 'wp-desktop-shell--overview' );
+	mgr._desktop.classList.remove( 'desktop-mode-area--overview' );
+	const shell = document.getElementById( 'desktop-mode-shell' );
+	shell?.classList.remove( 'desktop-mode-shell--overview' );
 
 	// Unselected windows: transform → '' (snaps back to their
 	// pre-overview inline geometry). Selected window (if any):
@@ -533,16 +533,16 @@ export function exitOverview(
 	// Start labels fading immediately — they overshoot the area when
 	// a selected window maximizes, and we don't want them lingering
 	// as the window grows beneath. Opacity transition is CSS-side
-	// (see `.wp-desktop-overview-label--out`).
+	// (see `.desktop-mode-overview-label--out`).
 	for ( const label of mgr._overviewLabels.values() ) {
-		label.classList.add( 'wp-desktop-overview-label--out' );
+		label.classList.add( 'desktop-mode-overview-label--out' );
 	}
 
 	// Top bar fades out in parallel with the windows. Removed fully
 	// when the animation settles (in the setTimeout below).
 	if ( mgr._overviewTopBar ) {
 		mgr._overviewTopBar.classList.add(
-			'wp-desktop-overview-top-bar--out',
+			'desktop-mode-overview-top-bar--out',
 		);
 	}
 
@@ -552,7 +552,7 @@ export function exitOverview(
 	const ANIMATION_MS = 280;
 	window.setTimeout( () => {
 		for ( const w of mgr._stack ) {
-			w.element.classList.remove( 'wp-desktop-window--overview' );
+			w.element.classList.remove( 'desktop-mode-window--overview' );
 		}
 		for ( const label of mgr._overviewLabels.values() ) {
 			label.remove();

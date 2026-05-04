@@ -177,8 +177,8 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_validate_default_window_url
 	 */
 	public function test_validate_accepts_native_marker() {
-		$clean = desktop_mode_validate_default_window_url( 'native:wp-desktop-os-settings' );
-		$this->assertSame( 'native:wp-desktop-os-settings', $clean );
+		$clean = desktop_mode_validate_default_window_url( 'native:desktop-mode-os-settings' );
+		$this->assertSame( 'native:desktop-mode-os-settings', $clean );
 	}
 
 	/**
@@ -204,7 +204,7 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_portal_entry_url
 	 */
 	public function test_portal_entry_url_falls_back_for_native_marker() {
-		desktop_mode_set_default_window( self::$admin_id, 'native:wp-desktop-os-settings' );
+		desktop_mode_set_default_window( self::$admin_id, 'native:desktop-mode-os-settings' );
 
 		$url = desktop_mode_portal_entry_url( self::$admin_id );
 
@@ -219,7 +219,7 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 	public function test_rest_set_default_window_with_url() {
 		wp_set_current_user( self::$admin_id );
 
-		$request = new WP_REST_Request( 'POST', '/wp-desktop/v1/default-window' );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/default-window' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( array( 'url' => admin_url( 'tools.php' ) ) ) );
 
@@ -241,7 +241,7 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		desktop_mode_set_default_window( self::$admin_id, admin_url( 'edit.php' ) );
 
-		$request = new WP_REST_Request( 'POST', '/wp-desktop/v1/default-window' );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/default-window' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( array( 'url' => null ) ) );
 
@@ -261,7 +261,7 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		desktop_mode_set_default_window( self::$admin_id, admin_url( 'edit.php' ) );
 
-		$request = new WP_REST_Request( 'POST', '/wp-desktop/v1/default-window' );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/default-window' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( new stdClass() ) );
 
@@ -280,7 +280,7 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 	public function test_rest_rejects_cross_origin_url() {
 		wp_set_current_user( self::$admin_id );
 
-		$request = new WP_REST_Request( 'POST', '/wp-desktop/v1/default-window' );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/default-window' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body(
 			wp_json_encode( array( 'url' => 'https://attacker.example/wp-admin/edit.php' ) )
@@ -299,7 +299,7 @@ class Tests_DesktopMode_WpDefaultWindow extends WP_UnitTestCase {
 	public function test_rest_rejects_anonymous() {
 		wp_set_current_user( 0 );
 
-		$request = new WP_REST_Request( 'POST', '/wp-desktop/v1/default-window' );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/default-window' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( array( 'url' => admin_url( 'index.php' ) ) ) );
 

@@ -48,7 +48,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * The script's JS side calls `wp.desktop.registerCommand( { … } )` as
  * usual. When a user installs or activates the plugin, the chromeless
- * bridge's `wp-desktop-plugins-changed` payload includes the resolved
+ * bridge's `desktop-mode-plugins-changed` payload includes the resolved
  * script URL; the shell's command-sync module injects the script into
  * the shell page and the new commands appear in the palette without a
  * full reload.

@@ -35,9 +35,9 @@ export class WpdMenu extends Component {
 			{ name: '(default)', description: '<wpd-menu-item> children.' },
 		],
 		cssProps: [
-			{ name: '--wp-desktop-window-bg', description: 'Menu background.' },
-			{ name: '--wp-desktop-window-border', description: 'Menu border.' },
-			{ name: '--wp-desktop-text', description: 'Item text colour.' },
+			{ name: '--desktop-mode-window-bg', description: 'Menu background.' },
+			{ name: '--desktop-mode-window-border', description: 'Menu border.' },
+			{ name: '--desktop-mode-text', description: 'Item text colour.' },
 		],
 		example: html`
 			<wpd-menu>

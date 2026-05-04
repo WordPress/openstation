@@ -59,15 +59,15 @@ export type SystemTileAffinity = 'core' | 'plugin';
 
 /** External wiring the dispatcher needs from the shell boot path. */
 export interface LayoutDispatcherDeps {
-	/** Outermost shell root — receives `data-wp-desktop-layout`. */
+	/** Outermost shell root — receives `data-desktop-mode-layout`. */
 	shellRoot: HTMLElement;
 	/**
-	 * `.wp-desktop-shell__body` flex row that hosts the side dock and
+	 * `.desktop-mode-shell__body` flex row that hosts the side dock and
 	 * the desktop area. The side dock (Classic) is inserted as the
 	 * first child here so its CSS `order: -1` paints it on the left.
 	 */
 	shellBody: HTMLElement;
-	/** Existing `#wp-desktop-dock` element from the PHP shell template. */
+	/** Existing `#desktop-mode-dock` element from the PHP shell template. */
 	bottomDockEl: HTMLElement;
 	desktopArea: HTMLElement;
 	windowManager: WindowManager;
@@ -98,7 +98,7 @@ export interface LayoutDispatcher {
 	 * the OS Settings tile, repaints the wallpaper-icon grid.
 	 *
 	 * Idempotent: passing the current layout is a no-op. Plugins that
-	 * cache `wp.desktop.dock` should listen for `wp-desktop-layout-
+	 * cache `wp.desktop.dock` should listen for `desktop-mode-layout-
 	 * changed` on `document` and refresh their reference.
 	 */
 	setLayout( layout: DesktopLayoutId ): void;
@@ -173,7 +173,7 @@ export interface LayoutDispatcher {
 	destroy(): void;
 }
 
-const SIDE_DOCK_ID = 'wp-desktop-side-dock';
+const SIDE_DOCK_ID = 'desktop-mode-side-dock';
 
 /**
  * Convert a core menu item into the icon-entry shape `renderDesktopIcons`
@@ -247,10 +247,10 @@ export function createLayoutDispatcher(
 		}
 		const el = document.createElement( 'nav' );
 		el.id = SIDE_DOCK_ID;
-		el.className = 'wp-desktop-dock';
+		el.className = 'desktop-mode-dock';
 		el.setAttribute( 'role', 'toolbar' );
 		el.setAttribute( 'aria-label', 'Core admin navigation' );
-		// Insert as the first child of `.wp-desktop-shell__body` so
+		// Insert as the first child of `.desktop-mode-shell__body` so
 		// the existing `order: -1` left-placement CSS paints it on
 		// the leading edge regardless of source order in the markup.
 		deps.shellBody.insertBefore( el, deps.shellBody.firstChild );
@@ -472,11 +472,11 @@ export function createLayoutDispatcher(
 				return;
 			}
 			layout = next;
-			deps.shellRoot.setAttribute( 'data-wp-desktop-layout', next );
+			deps.shellRoot.setAttribute( 'data-desktop-mode-layout', next );
 			buildDocksForCurrentLayout();
 			repaintIcons();
 			document.dispatchEvent(
-				new CustomEvent( 'wp-desktop-layout-changed', {
+				new CustomEvent( 'desktop-mode-layout-changed', {
 					detail: {
 						layout: next,
 						primary: primaryDock,
@@ -541,7 +541,7 @@ export function createLayoutDispatcher(
 	// Initial paint — set the shell attribute, build the docks, and
 	// emit the icon list now so the user lands on a fully-rendered
 	// shell before the first frame.
-	deps.shellRoot.setAttribute( 'data-wp-desktop-layout', layout );
+	deps.shellRoot.setAttribute( 'data-desktop-mode-layout', layout );
 	buildDocksForCurrentLayout();
 	repaintIcons();
 
@@ -560,7 +560,7 @@ export function createLayoutDispatcher(
 		buildDocksForCurrentLayout();
 		repaintIcons();
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-layout-changed', {
+			new CustomEvent( 'desktop-mode-layout-changed', {
 				detail: {
 					layout,
 					primary: primaryDock,

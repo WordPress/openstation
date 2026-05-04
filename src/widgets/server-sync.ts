@@ -6,7 +6,7 @@
  * `desktop_mode_register_widget()`, and this module diffs the shell's
  * current registry against the fresh payload on every live refresh.
  * New entries trigger dynamic script loading so the plugin's mount
- * callback (`window.wpDesktopWidgets[ id ]`) becomes available
+ * callback (`window.desktopModeWidgets[ id ]`) becomes available
  * without reloading the shell; removed entries unregister the def
  * AND unmount any live instance while leaving the user's
  * enablement intact (so re-activating the plugin re-mounts through
@@ -35,7 +35,7 @@ type MountCallback = (
 ) => WidgetTeardown | Promise< WidgetTeardown >;
 
 interface WidgetGlobals {
-	wpDesktopWidgets?: Record< string, MountCallback | undefined >;
+	desktopModeWidgets?: Record< string, MountCallback | undefined >;
 }
 
 export interface WidgetRegistrySyncDeps {
@@ -81,7 +81,7 @@ export function createWidgetRegistrySync(
 
 	const buildDefFromEntry = ( entry: DesktopWidgetServerEntry ): WidgetDef | null => {
 		const globals =
-			( window as unknown as WidgetGlobals ).wpDesktopWidgets || {};
+			( window as unknown as WidgetGlobals ).desktopModeWidgets || {};
 		const mount = globals[ entry.id ];
 		if ( ! mount ) {
 			// Script declared but didn't register a callback — log
@@ -92,7 +92,7 @@ export function createWidgetRegistrySync(
 				scope: 'widget-missing-mount',
 				id: entry.id,
 				error: new Error(
-					`[wp-desktop-mode] No mount callback on window.wpDesktopWidgets["${ entry.id }"]. Plugin script loaded but didn't register. Check the plugin's enqueue + global assignment.`,
+					`[desktop-mode] No mount callback on window.desktopModeWidgets["${ entry.id }"]. Plugin script loaded but didn't register. Check the plugin's enqueue + global assignment.`,
 				),
 			} );
 			return null;

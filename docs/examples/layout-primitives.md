@@ -113,7 +113,7 @@ desktop_mode_register_window( 'converter', array(
 Render callback wires the inputs; the layout is zero hand-rolled CSS:
 
 ```js
-window.wpDesktopNativeWindows.converter = function ( body ) {
+window.desktopModeNativeWindows.converter = function ( body ) {
     const from = body.querySelector( '[data-role="from"]' );
     const to   = body.querySelector( '[data-role="to"]' );
     const amt  = body.querySelector( '[data-role="amount"]' );

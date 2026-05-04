@@ -51,7 +51,7 @@ export interface CustomImage {
 /**
  * AI provider id. Kept as a plain string so new providers can be added
  * without touching the sanitization ladder — the picker is driven by the
- * runtime list in `wpDesktopConfig.aiProviders`, populated by every
+ * runtime list in `desktopModeConfig.aiProviders`, populated by every
  * plugin that calls `desktop_mode_register_ai_provider()`.
  */
 export type AiProviderId = string;
@@ -88,7 +88,7 @@ export interface AiSettings {
 	transport: AiTransportId;
 }
 
-/** Provider entry surfaced via `wpDesktopConfig.aiProviders`. */
+/** Provider entry surfaced via `desktopModeConfig.aiProviders`. */
 export interface AiProviderEntry {
 	id: string;
 	label: string;

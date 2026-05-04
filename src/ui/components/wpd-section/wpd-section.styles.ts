@@ -21,12 +21,12 @@ export const styles = css`
 		margin: 0 0 2px;
 		font-size: 14px;
 		font-weight: 600;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 	}
 	.wpd-section__description {
 		margin: 0 0 14px;
 		font-size: 12px;
-		color: var( --wp-desktop-muted, #646970 );
+		color: var( --desktop-mode-muted, #646970 );
 		line-height: 1.45;
 	}
 	/* Collapse the description node when no text was

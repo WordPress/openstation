@@ -91,17 +91,17 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 						@wpd-checkbox-change=${ onMediaToggle }
 					></wpd-checkbox-label>
 
-					<p class="wp-desktop-ext__hint">
+					<p class="desktop-mode-ext__hint">
 						${ __(
 							'Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.',
 						) }
 					</p>
 
 					${ state.error
-						? html`<p class="wp-desktop-ext__error">${ state.error }</p>`
+						? html`<p class="desktop-mode-ext__error">${ state.error }</p>`
 						: html`` }
 					${ state.saving
-						? html`<p class="wp-desktop-ext__saving">${ __( 'Saving…' ) }</p>`
+						? html`<p class="desktop-mode-ext__saving">${ __( 'Saving…' ) }</p>`
 						: html`` }
 				</wpd-section>
 			`,

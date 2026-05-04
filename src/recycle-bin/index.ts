@@ -2,7 +2,7 @@
  * Desktop Mode — Recycle Bin window.
  *
  * Lazy-loaded by the native-window sync the first time the
- * `wpdm-recycle-bin` window opens. Wires up the toolbar (filter,
+ * `desktop-mode-recycle-bin` window opens. Wires up the toolbar (filter,
  * search, refresh, bulk actions, empty), populates the `<wpd-table>`
  * from the REST list endpoint, and persists nothing locally — every
  * action is a roundtrip + reload so the table never lies about
@@ -38,20 +38,20 @@ type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
+		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
-const ROOT = '[data-wpdm-recycle-bin-root]';
-const FILTER = '[data-wpdm-recycle-bin-filter]';
-const SEARCH = '[data-wpdm-recycle-bin-search]';
-const REFRESH = '[data-wpdm-recycle-bin-refresh]';
-const TABLE = '[data-wpdm-recycle-bin-table]';
-const BULK = '[data-wpdm-recycle-bin-bulk]';
-const COUNT = '[data-wpdm-recycle-bin-count]';
-const RESTORE_SEL = '[data-wpdm-recycle-bin-restore-selected]';
-const PURGE_SEL = '[data-wpdm-recycle-bin-purge-selected]';
-const EMPTY_BTN = '[data-wpdm-recycle-bin-empty]';
+const ROOT = '[data-desktop-mode-recycle-bin-root]';
+const FILTER = '[data-desktop-mode-recycle-bin-filter]';
+const SEARCH = '[data-desktop-mode-recycle-bin-search]';
+const REFRESH = '[data-desktop-mode-recycle-bin-refresh]';
+const TABLE = '[data-desktop-mode-recycle-bin-table]';
+const BULK = '[data-desktop-mode-recycle-bin-bulk]';
+const COUNT = '[data-desktop-mode-recycle-bin-count]';
+const RESTORE_SEL = '[data-desktop-mode-recycle-bin-restore-selected]';
+const PURGE_SEL = '[data-desktop-mode-recycle-bin-purge-selected]';
+const EMPTY_BTN = '[data-desktop-mode-recycle-bin-empty]';
 
 /**
  * Module-scoped row-action delegates. The column descriptors are
@@ -248,7 +248,7 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 		// point on the JS side so plugins can append/replace columns
 		// without forking the bundle.
 		return hooks.applyFilters(
-			'wp_desktop.recycleBin.columns',
+			'desktop_mode.recycleBin.columns',
 			cols,
 		) as WpdTableColumn< RecycleBinItem >[];
 	}
@@ -626,7 +626,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				result.skipped > 0
 					? [ {
 						id: 0,
-						code: 'wpdm_recycle_bin_skipped',
+						code: 'desktop_mode_recycle_bin_skipped',
 						message: sprintf(
 							/* translators: %d: skipped count. */
 							__( '%d item(s) skipped (insufficient permissions).' ),
@@ -704,7 +704,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	// Real-time updates while the window is open. Both the
 	// chromeless-iframe fast path and the heartbeat catch-all path
-	// dispatch `wp-desktop-recycle-bin-changed` on document — we
+	// dispatch `desktop-mode-recycle-bin-changed` on document — we
 	// debounce to coalesce burst events (bulk-trash a folder of 50
 	// images = one repaint).
 	realtime.start();
@@ -725,7 +725,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			void refresh();
 		}, 200 ) as unknown as number;
 	};
-	document.addEventListener( 'wp-desktop-recycle-bin-changed', onExternalChange );
+	document.addEventListener( 'desktop-mode-recycle-bin-changed', onExternalChange );
 
 	// Subscribe to the per-domain broadcast topics — when a post,
 	// page, or attachment is mutated anywhere in the shell (list-
@@ -752,10 +752,10 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			}, 200 ) as unknown as number;
 		};
 		broadcastUnsubs.push(
-			api.subscribe( 'wp-desktop.post.changed', onDomainChanged ),
-			api.subscribe( 'wp-desktop.page.changed', onDomainChanged ),
-			api.subscribe( 'wp-desktop.attachment.changed', onDomainChanged ),
-			api.subscribe( 'wp-desktop.comment.changed', onDomainChanged ),
+			api.subscribe( 'desktop-mode.post.changed', onDomainChanged ),
+			api.subscribe( 'desktop-mode.page.changed', onDomainChanged ),
+			api.subscribe( 'desktop-mode.attachment.changed', onDomainChanged ),
+			api.subscribe( 'desktop-mode.comment.changed', onDomainChanged ),
 		);
 	}
 
@@ -775,12 +775,12 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	// close-X failure we saw. Native events have no such concern.
 	const onWindowClosed = ( e: Event ): void => {
 		const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
-		if ( detail?.windowId !== 'wpdm-recycle-bin' ) {
+		if ( detail?.windowId !== 'desktop-mode-recycle-bin' ) {
 			return;
 		}
 		realtime.stop();
 		document.removeEventListener(
-			'wp-desktop-recycle-bin-changed',
+			'desktop-mode-recycle-bin-changed',
 			onExternalChange,
 		);
 		for ( const unsub of broadcastUnsubs ) {
@@ -801,9 +801,9 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		// closed-window state.
 		currentRowActionRestore = () => {};
 		currentRowActionPurge = () => {};
-		document.removeEventListener( 'wp-desktop-window-closed', onWindowClosed );
+		document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
 	};
-	document.addEventListener( 'wp-desktop-window-closed', onWindowClosed );
+	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
 
 	void refresh();
 }
@@ -824,18 +824,18 @@ function emitDoneEvent(
 ): void {
 	const detail = { kind, ok: ok.length, errors, source: 'local' as const };
 	document.dispatchEvent(
-		new CustomEvent( 'wp-desktop-recycle-bin-changed', { detail } ),
+		new CustomEvent( 'desktop-mode-recycle-bin-changed', { detail } ),
 	);
 
 	const hooks = window.wp?.hooks;
 	if ( hooks && typeof hooks.doAction === 'function' ) {
-		hooks.doAction( 'wp_desktop.recycleBin.changed', detail );
+		hooks.doAction( 'desktop_mode.recycleBin.changed', detail );
 	}
 
 	// Cross-window broadcast — one topic per affected post type so
 	// subscribers only hear about what they care about. A Posts
-	// list iframe doesn't listen for `wp-desktop.attachment.changed`,
-	// the Media Library doesn't listen for `wp-desktop.post.changed`.
+	// list iframe doesn't listen for `desktop-mode.attachment.changed`,
+	// the Media Library doesn't listen for `desktop-mode.post.changed`.
 	// The shell's built-in subscribers reload iframes whose URL
 	// matches a known admin page for that post type; plugins can
 	// register additional URL patterns or subscribe directly for
@@ -850,7 +850,7 @@ function emitDoneEvent(
 			// We carry the full id list rather than splitting
 			// by type — id matching at the subscriber side is
 			// a best-effort filter, not a correctness gate.
-			api.broadcast( `wp-desktop.${ type }.changed`, {
+			api.broadcast( `desktop-mode.${ type }.changed`, {
 				source: 'recycle-bin',
 				action,
 				ids: affectedIds,
@@ -860,11 +860,11 @@ function emitDoneEvent(
 }
 
 const registry =
-	( window.wpDesktopNativeWindows ??
-		( window.wpDesktopNativeWindows = {} ) ) as Record<
+	( window.desktopModeNativeWindows ??
+		( window.desktopModeNativeWindows = {} ) ) as Record<
 		string,
 		RenderCallback | undefined
 	>;
-registry[ 'wpdm-recycle-bin' ] = ( body: HTMLElement ) => {
+registry[ 'desktop-mode-recycle-bin' ] = ( body: HTMLElement ) => {
 	renderRecycleBin( body );
 };

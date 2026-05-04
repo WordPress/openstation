@@ -47,17 +47,17 @@ export function openWidgetPicker( options: OpenPickerOptions ): void {
 	}
 
 	const panel = document.createElement( 'div' );
-	panel.className = 'wp-desktop-widget-picker';
+	panel.className = 'desktop-mode-widget-picker';
 	panel.setAttribute( 'role', 'menu' );
 	panel.setAttribute( 'aria-label', __( 'Add widget' ) );
 
 	const title = document.createElement( 'div' );
-	title.className = 'wp-desktop-widget-picker__title';
+	title.className = 'desktop-mode-widget-picker__title';
 	title.textContent = __( 'Add widget' );
 	panel.appendChild( title );
 
 	const list = document.createElement( 'div' );
-	list.className = 'wp-desktop-widget-picker__list';
+	list.className = 'desktop-mode-widget-picker__list';
 	panel.appendChild( list );
 
 	paintList( list, options );
@@ -111,7 +111,7 @@ export function refreshWidgetPicker(): void {
 		return;
 	}
 	const list = active.panel.querySelector<HTMLElement>(
-		'.wp-desktop-widget-picker__list',
+		'.desktop-mode-widget-picker__list',
 	);
 	if ( list ) {
 		paintList( list, active.options );
@@ -147,7 +147,7 @@ function paintList(
 
 	if ( defs.length === 0 ) {
 		const empty = document.createElement( 'div' );
-		empty.className = 'wp-desktop-widget-picker__empty';
+		empty.className = 'desktop-mode-widget-picker__empty';
 		empty.textContent = __(
 			'No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.',
 		);
@@ -158,11 +158,11 @@ function paintList(
 	for ( const def of defs ) {
 		const entry = document.createElement( 'button' );
 		entry.type = 'button';
-		entry.className = 'wp-desktop-widget-picker__entry';
+		entry.className = 'desktop-mode-widget-picker__entry';
 		const isAdded = enabled.has( def.id );
 		if ( isAdded ) {
 			entry.classList.add(
-				'wp-desktop-widget-picker__entry--added',
+				'desktop-mode-widget-picker__entry--added',
 			);
 			entry.disabled = true;
 			entry.setAttribute( 'aria-disabled', 'true' );
@@ -179,20 +179,20 @@ function paintList(
 		entry.setAttribute( 'aria-label', ariaLabel );
 
 		const icon = document.createElement( 'span' );
-		icon.className = `wp-desktop-widget-picker__entry-icon dashicons ${ def.icon }`;
+		icon.className = `desktop-mode-widget-picker__entry-icon dashicons ${ def.icon }`;
 		icon.setAttribute( 'aria-hidden', 'true' );
 		entry.appendChild( icon );
 
 		const textWrap = document.createElement( 'span' );
-		textWrap.className = 'wp-desktop-widget-picker__entry-text';
+		textWrap.className = 'desktop-mode-widget-picker__entry-text';
 		const label = document.createElement( 'span' );
-		label.className = 'wp-desktop-widget-picker__entry-label';
+		label.className = 'desktop-mode-widget-picker__entry-label';
 		label.textContent = def.label;
 		textWrap.appendChild( label );
 		if ( def.description ) {
 			const desc = document.createElement( 'span' );
 			desc.className =
-				'wp-desktop-widget-picker__entry-description';
+				'desktop-mode-widget-picker__entry-description';
 			desc.textContent = def.description;
 			textWrap.appendChild( desc );
 		}
@@ -200,7 +200,7 @@ function paintList(
 
 		if ( isAdded ) {
 			const status = document.createElement( 'span' );
-			status.className = 'wp-desktop-widget-picker__entry-status';
+			status.className = 'desktop-mode-widget-picker__entry-status';
 			status.textContent = __( 'Added' );
 			entry.appendChild( status );
 		}

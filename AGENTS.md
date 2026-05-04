@@ -1,4 +1,4 @@
-# wp-desktop-mode — local gotchas
+# desktop-mode — local gotchas
 
 Short file. Things I've forgotten or hand-waved before. If it's obvious from reading the code, don't add it here.
 
@@ -14,7 +14,7 @@ bundles today are:
 | `assets/js/desktop[.min].js` | `src/desktop.ts` | `npm run build:desktop` |
 | `assets/js/iframe-bridge[.min].js` | `src/iframe-bridge-standalone.ts` | `npm run build:iframe-bridge` |
 
-`npm run build` runs both. Vite's `WPDM_TARGET` env var (`desktop` /
+`npm run build` runs both. Vite's `DESKTOP_MODE_TARGET` env var (`desktop` /
 `iframe-bridge`) selects the entry — see `vite.config.js`.
 
 Process:
@@ -37,7 +37,7 @@ catch issues there.
 
 ## Live-refresh on plugin install/activate — how it actually works
 
-When the user installs or activates a plugin, the **chromeless bridge** inside the `plugins.php` iframe postMessages `wp-desktop-plugins-changed` to the parent shell with a **payload captured in real admin context** (plugins that gate `admin_menu` on `is_admin()` at load time register correctly there; a REST roundtrip from the shell cannot replicate that, so don't try).
+When the user installs or activates a plugin, the **chromeless bridge** inside the `plugins.php` iframe postMessages `desktop-mode-plugins-changed` to the parent shell with a **payload captured in real admin context** (plugins that gate `admin_menu` on `is_admin()` at load time register correctly there; a REST roundtrip from the shell cannot replicate that, so don't try).
 
 Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
 
@@ -50,7 +50,7 @@ Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
 ```
 
 - **PHP-declared** things are in the payload: dock, taskbar, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
-- For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.wpDesktopWallpapers[id]` / `window.wpDesktopWidgets[id]`). The sync reads the def and registers it.
+- For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.desktopModeWallpapers[id]` / `window.desktopModeWidgets[id]`). The sync reads the def and registers it.
 - **Commands use the same pattern since 0.15.0** via `desktop_mode_register_command_script( $handle )` (primary, minimum-ceremony) or `desktop_mode_register_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate — graceful backwards-compat.
 - **OS Settings tabs use the same pattern since 0.17.0** via `desktop_mode_register_settings_tab_script( $handle )` (primary) or `desktop_mode_register_settings_tab( $args )` (optional — id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, ai=20, extended=30, help=40) are interleaved with the registry in `src/settings/index.ts` `renderPanel()` and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
 - **AI Copilot extensibility (since 0.17.0)** lives on a different axis from the live-refresh payloads — it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus a persistent server-tool registry in `includes/ai-copilot/tools-registry.php`. Two distinct registration surfaces: `desktop_mode_register_ai_tool( $args )` for PHP-dispatched tools (handler runs server-side, capability-gated, never visible to users who lack the cap), and client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `desktop_mode_ai_{search_started,tool_called,search_completed,search_error,tool_registered}` — every call carries a shared `request_id` UUID for trace correlation. `wp.desktop.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side — the server only emits a slug+args intent; the client invokes.
@@ -65,7 +65,7 @@ The framework is a **transport + state provider**, not a UX policy maker. Apps s
 Three layers:
 
 1. **State queries.** `windowManager.getById/isActive`, `presence.getStatus`, `createSharedStore`.
-2. **Window lifecycle events.** Document CustomEvents (`wp-desktop-window-*`) AND hook actions (`HOOKS.WINDOW_*`) for every transition: opened, reopened, focused, blurred, minimized, restored, maximized, unmaximized, fullscreen-entered/exited, closing, closed. Per-window facade: `wp.desktop.onWindow(id, handlers)`.
+2. **Window lifecycle events.** Document CustomEvents (`desktop-mode-window-*`) AND hook actions (`HOOKS.WINDOW_*`) for every transition: opened, reopened, focused, blurred, minimized, restored, maximized, unmaximized, fullscreen-entered/exited, closing, closed. Per-window facade: `wp.desktop.onWindow(id, handlers)`.
 3. **Activity channels.** `wp.desktop.activity.publish/subscribe/filter` with channel naming `<plugin>/<event>` — peer-to-peer state-change broadcasts on the hook bus.
 
 When you're tempted to add a heuristic inside the framework — "do X automatically when Y" — stop and turn it into a hook the app can subscribe to. App owns the policy.
@@ -76,7 +76,7 @@ Canonical example in-tree: `src/recycle-bin/badge.ts`. Full doc: `docs/event-dri
 
 Presence tracking (`online | inactive | offline`) lives in `includes/presence.php` and `src/presence/index.ts`. Any plugin can read `wp.desktop.presence.*` or `desktop_mode_presence_*()` without depending on a particular feature plugin being installed (chat, collaboration, …).
 
-Storage: `_wp_desktop_presence` option (autoload=false). The WordPress Heartbeat handler in `includes/presence.php` records bumps at priority 5; the framework client (`src/presence/index.ts`) sends `desktop_mode_presence_active: true` + `desktop_mode_user_active: <bool>` on every tick and ingests the snapshot from the response.
+Storage: `_desktop_mode_presence` option (autoload=false). The WordPress Heartbeat handler in `includes/presence.php` records bumps at priority 5; the framework client (`src/presence/index.ts`) sends `desktop_mode_presence_active: true` + `desktop_mode_user_active: <bool>` on every tick and ingests the snapshot from the response.
 
 Public surface — see `docs/javascript-reference.md` (`wp.desktop.presence`), `docs/hooks-reference.md` (filters / actions), and `docs/examples/presence.md` (recipe). Plugins with a faster delivery channel (an SSE stream, a WebSocket) can push updates straight into the framework store via `wp.desktop.presence.applyBatch()`.
 
@@ -202,11 +202,11 @@ docs/
     │                            provider callback shapes, or active-provider resolution rules change.
     ├── ai-ask.md                UPDATE/READ WHEN: wp.desktop.ai.ask() contract, AI-tool-calling
     │                            protocol, or desktop_mode_register_ai_tool() signature changes.
-    ├── code-editor-open.md      UPDATE/READ WHEN: wp-desktop-code-open postMessage protocol,
+    ├── code-editor-open.md      UPDATE/READ WHEN: desktop-mode-code-open postMessage protocol,
     │                            wp.desktop.openWindow contract, or Cmd/Ctrl+Shift+E shortcut changes.
     ├── connect-to-window.md     UPDATE/READ WHEN: registerTitleBarButton, Window.setHighlight,
     │                            wp.desktop.connect, or wp.desktop.iframe.* contract changes;
-    │                            wp-desktop-bridge-* postMessage protocol changes.
+    │                            desktop-mode-bridge-* postMessage protocol changes.
     ├── data-table.md            UPDATE/READ WHEN: <wpd-table> contract changes — column descriptor
     │                            shape, filter kinds, sticky-columns/header behavior, sub-table API,
     │                            or wpd-table-{filter-change,row-click,expand-change} event details.

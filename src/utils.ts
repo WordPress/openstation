@@ -10,7 +10,7 @@
  * `post_type` separates Posts from Pages (both are edit.php). `page` is
  * the plugin-routed admin.php entry point. `taxonomy` distinguishes
  * Categories from Tags (both are edit-tags.php). Everything else —
- * pagination, nonces, action-feedback flags, our internal wp_desktop
+ * pagination, nonces, action-feedback flags, our internal desktop_mode_chromeless
  * marker — is considered transient and stripped, so a direct-URL land
  * and a dock click resolve to the same window ID.
  */
@@ -34,7 +34,7 @@ function slugify( path: string ): string {
  *
  * The ID is the admin filename plus any query params that distinguish
  * one admin page from another (see IDENTITY_PARAMS). Transient params —
- * wp_desktop, _wpnonce, paged, message — are discarded so the same
+ * desktop_mode_chromeless, _wpnonce, paged, message — are discarded so the same
  * logical page always maps to the same window, whether reached via
  * direct URL or via the dock.
  *
@@ -99,7 +99,7 @@ export function sanitizeClassName( value: string ): string {
 export function urlMatchKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
-		parsed.searchParams.delete( 'wp_desktop' );
+		parsed.searchParams.delete( 'desktop_mode_chromeless' );
 		parsed.searchParams.delete( 'desktop_mode_portal' );
 		return parsed.pathname.replace( /\/+$/, '' ) + '?' + parsed.searchParams.toString();
 	} catch {

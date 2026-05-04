@@ -22,11 +22,11 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		delete_option( WP_DESKTOP_PRESENCE_OPTION );
+		delete_option( DESKTOP_MODE_PRESENCE_OPTION );
 	}
 
 	public function tear_down() {
-		delete_option( WP_DESKTOP_PRESENCE_OPTION );
+		delete_option( DESKTOP_MODE_PRESENCE_OPTION );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_user_meta( self::$editor_id, 'desktop_mode_mode' );
 		parent::tear_down();
@@ -180,7 +180,7 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 		$now_ms = (int) round( microtime( true ) * 1000 );
 		// Manually seed the option with a fresh + a 30-day-old entry.
 		update_option(
-			WP_DESKTOP_PRESENCE_OPTION,
+			DESKTOP_MODE_PRESENCE_OPTION,
 			array(
 				self::$admin_id  => array(
 					'last_seen_ms'   => $now_ms,

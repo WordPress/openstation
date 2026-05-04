@@ -6,9 +6,9 @@
  *   - `paintWindowControls` populates the cluster with the resolved
  *     buttons, attaches click handlers, and tears them down on
  *     repaint.
- *   - The `wp-desktop.window.chrome.controls` filter mutates the
+ *   - The `desktop-mode.window.chrome.controls` filter mutates the
  *     resolved list per-placement.
- *   - The `wp-desktop.window.chrome.applied` action fires after
+ *   - The `desktop-mode.window.chrome.applied` action fires after
  *     each paint with `layer: 'controls'`.
  *   - Built-in controls (`core/*`) and `appearance.controls.hide`
  *     interact correctly: a plugin can hide `core/close` for one
@@ -171,10 +171,10 @@ describe( 'resolveWindowControls', () => {
 		expect( resolved.controls.map( ( c ) => c.id )[ 0 ] ).toBe( 'plug/star' );
 	} );
 
-	test( 'wp-desktop.window.chrome.controls filter mutates the resolved list', () => {
+	test( 'desktop-mode.window.chrome.controls filter mutates the resolved list', () => {
 		registerBuiltInControls();
 		window.wp!.hooks!.addFilter(
-			'wp-desktop.window.chrome.controls',
+			'desktop-mode.window.chrome.controls',
 			'test/dropper',
 			( ( list: { id: string }[], ctx: { placement: string } ) => {
 				if ( ctx.placement !== 'controls' ) {
@@ -198,7 +198,7 @@ describe( 'paintWindowControls', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const host = document.createElement( 'div' );
-		host.className = 'wp-desktop-window__controls';
+		host.className = 'desktop-mode-window__controls';
 		win.element.appendChild( host );
 
 		paintWindowControls(
@@ -209,9 +209,9 @@ describe( 'paintWindowControls', () => {
 		// minimize / maximize / focus-tab / close — detach + reload
 		// moved to the three-dots menu in 0.6.2.
 		expect( host.children.length ).toBe( 4 );
-		expect( host.querySelector( '.wp-desktop-window__btn--close' ) ).not.toBeNull();
-		expect( host.querySelector( '.wp-desktop-window__btn--minimize' ) ).not.toBeNull();
-		expect( host.querySelector( '.wp-desktop-window__btn--reload' ) ).toBeNull();
+		expect( host.querySelector( '.desktop-mode-window__btn--close' ) ).not.toBeNull();
+		expect( host.querySelector( '.desktop-mode-window__btn--minimize' ) ).not.toBeNull();
+		expect( host.querySelector( '.desktop-mode-window__btn--reload' ) ).toBeNull();
 	} );
 
 	test( 'click on core/close button dispatches win.close()', () => {
@@ -223,7 +223,7 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 		const closeBtn = host.querySelector(
-			'.wp-desktop-window__btn--close',
+			'.desktop-mode-window__btn--close',
 		) as HTMLElement;
 		closeBtn.dispatchEvent(
 			new CustomEvent( 'wpd-button-activate', { bubbles: true } ),
@@ -261,7 +261,7 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 		const firstClose = host.querySelector(
-			'.wp-desktop-window__btn--close',
+			'.desktop-mode-window__btn--close',
 		) as HTMLElement;
 
 		// Repaint — old buttons gone, new buttons in.
@@ -271,7 +271,7 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 		const secondClose = host.querySelector(
-			'.wp-desktop-window__btn--close',
+			'.desktop-mode-window__btn--close',
 		) as HTMLElement;
 		expect( firstClose ).not.toBe( secondClose );
 
@@ -288,11 +288,11 @@ describe( 'paintWindowControls', () => {
 		teardown2();
 	} );
 
-	test( 'fires wp-desktop.window.chrome.applied with layer: controls', () => {
+	test( 'fires desktop-mode.window.chrome.applied with layer: controls', () => {
 		registerBuiltInControls();
 		const layers: string[] = [];
 		window.wp!.hooks!.addAction(
-			'wp-desktop.window.chrome.applied',
+			'desktop-mode.window.chrome.applied',
 			'test/applied',
 			( ( payload: { layer: string } ) => {
 				layers.push( payload.layer );
@@ -330,7 +330,7 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 		const star = host.querySelector(
-			'.wp-desktop-window__btn--plug-star',
+			'.desktop-mode-window__btn--plug-star',
 		) as HTMLElement;
 		expect( star ).not.toBeNull();
 		star.dispatchEvent(
@@ -349,7 +349,7 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 		expect(
-			host.classList.contains( 'wp-desktop-window__controls--left' ),
+			host.classList.contains( 'desktop-mode-window__controls--left' ),
 		).toBe( true );
 	} );
 
@@ -376,7 +376,7 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 		const maximizeBtn = host.querySelector(
-			'.wp-desktop-window__btn--maximize',
+			'.desktop-mode-window__btn--maximize',
 		) as HTMLElement;
 
 		// Sequence the real `<wpd-window-button>` produces on a single
@@ -418,7 +418,7 @@ describe( 'paintWindowControls', () => {
 		);
 		// First button is the order-5 plugin entry, before core/minimize (order 10).
 		expect( ( host.children[ 0 ] as HTMLElement ).className ).toContain(
-			'wp-desktop-window__btn--plug-info',
+			'desktop-mode-window__btn--plug-info',
 		);
 	} );
 } );

@@ -84,7 +84,7 @@ export function createDesktop( mgr: WindowManager ): Desktop {
 
 /**
  * Switch the active desktop. No-op if `id` is already active or
- * doesn't exist. Fires `wp-desktop.desktop.switched` with both the
+ * doesn't exist. Fires `desktop-mode.desktop.switched` with both the
  * leaving and entering desktop ids so plugins can sync per-desktop
  * state (active-desktop-aware indicators, custom widgets, etc.).
  */
@@ -205,7 +205,7 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 		if ( w ) {
 			w.element.style.transform = snap.transform;
 			w.element.style.transition = snap.transition;
-			w.element.classList.remove( 'wp-desktop-window--overview' );
+			w.element.classList.remove( 'desktop-mode-window--overview' );
 		}
 	}
 	for ( const label of mgr._overviewLabels.values() ) {
@@ -251,7 +251,7 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 	);
 	for ( const item of layout ) {
 		const el = item.win.element;
-		el.classList.add( 'wp-desktop-window--overview' );
+		el.classList.add( 'desktop-mode-window--overview' );
 		const dx = item.x - el.offsetLeft;
 		const dy = item.y - el.offsetTop;
 		el.style.transform = `translate(${ dx }px, ${ dy }px) scale(${ item.scale })`;

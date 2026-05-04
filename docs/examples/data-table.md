@@ -30,7 +30,7 @@ That's the entire happy path. Everything below is opt-in.
 `WpdTable` is generic over the row type — narrow it for type-safe `render` and `sortValue` callbacks:
 
 ```ts
-import type { WpdTable, WpdTableColumn } from 'wp-desktop/ui';
+import type { WpdTable, WpdTableColumn } from 'desktop-mode/ui';
 
 interface User extends Record< string, unknown > {
     name: string;
@@ -234,7 +234,7 @@ The slotted content shows whenever `data.length === 0` OR every row got filtered
 `column.render( value, row, index )` returns a string, an `HTMLElement`, or an `html\`\`` template:
 
 ```js
-import { html } from 'wp-desktop/ui';
+import { html } from 'desktop-mode/ui';
 
 table.columns = [
     { key: 'avatar', label: '', width: '32px',

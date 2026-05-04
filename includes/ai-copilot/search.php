@@ -5,7 +5,7 @@
  * Agentic search loop: the user describes something in natural language and
  * the OpenAI agent calls focused tools — search_posts, search_pages,
  * search_comments — choosing the right one based on query semantics. Each
- * tool fetches 10 entities with their _wpdm_ai_analysis meta so the model
+ * tool fetches 10 entities with their _desktop_mode_ai_analysis meta so the model
  * can compare AI-generated summaries to the user's description.
  *
  * Three tools instead of one parameter:
@@ -21,7 +21,7 @@
  * When the budget is exhausted the response includes a `continue` object
  * the client uses to resume from the exact offset that was last searched.
  *
- * REST endpoint: POST /wp-desktop/v1/ai/search
+ * REST endpoint: POST /desktop-mode/v1/ai/search
  *
  * @package WPDesktopMode
  */
@@ -1612,7 +1612,7 @@ Rules:
  */
 function desktop_mode_register_ai_search_rest_route() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/ai/search',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
@@ -1725,7 +1725,7 @@ function desktop_mode_rest_ai_search_permission() {
 }
 
 /**
- * POST /wp-desktop/v1/ai/search
+ * POST /desktop-mode/v1/ai/search
  *
  * @since 0.14.0
  *
@@ -2205,4 +2205,4 @@ function desktop_mode_ai_ajax_search_stream() {
 
 	exit;
 }
-add_action( 'wp_ajax_wpdm_ai_search_stream', 'desktop_mode_ai_ajax_search_stream' );
+add_action( 'wp_ajax_desktop_mode_ai_search_stream', 'desktop_mode_ai_ajax_search_stream' );

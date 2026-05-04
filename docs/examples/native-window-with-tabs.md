@@ -51,7 +51,7 @@ desktop_mode_register_window_tab( 'jorvy', array(
 That's the entire tab-strip wiring. The shell produces this rendered template automatically:
 
 ```html
-<template id="wpdm-native-window-jorvy">
+<template id="desktop-mode-native-window-jorvy">
     <wpd-stack gap="12" style="padding:16px;">
         <wpd-tabs value="main">
             <wpd-tab value="main">Quotes</wpd-tab>
@@ -96,10 +96,10 @@ Deactivate the analytics plugin → the Stats tab disappears on the next window 
 
 ### The single JS render callback still owns behaviour
 
-The shell still calls `window.wpDesktopNativeWindows.jorvy(body)` once per window open — `body` contains the whole auto-generated tab tree. The plugin's JS scopes per-pane work via `body.querySelector`:
+The shell still calls `window.desktopModeNativeWindows.jorvy(body)` once per window open — `body` contains the whole auto-generated tab tree. The plugin's JS scopes per-pane work via `body.querySelector`:
 
 ```js
-window.wpDesktopNativeWindows.jorvy = function ( body ) {
+window.desktopModeNativeWindows.jorvy = function ( body ) {
     const quote = body.querySelector( 'wpd-tabpanel[for="main"] .jorvy__quote' );
     const attr  = body.querySelector( 'wpd-tabpanel[for="main"] .jorvy__attr' );
 
@@ -247,7 +247,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_enqueue_script(
         'two-tab-demo',
         plugin_dir_url( __FILE__ ) . 'two-tab-demo.js',
-        array( 'wp-desktop' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -258,8 +258,8 @@ add_action( 'admin_enqueue_scripts', function () {
 
 ```js
 ( function () {
-    window.wpDesktopNativeWindows = window.wpDesktopNativeWindows || {};
-    window.wpDesktopNativeWindows[ 'two-tab-demo' ] = function ( body ) {
+    window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
+    window.desktopModeNativeWindows[ 'two-tab-demo' ] = function ( body ) {
         // The shell has already rendered tabs + panels from the PHP
         // template. You only write JS for the per-pane behaviour you
         // actually care about — NOT the tab/pane wiring.

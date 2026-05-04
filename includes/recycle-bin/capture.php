@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string[]
  */
-function wpdm_recycle_bin_capture_post_types() {
+function desktop_mode_recycle_bin_capture_post_types() {
 	$types = array( 'post', 'page', 'attachment' );
 
 	/**
@@ -66,14 +66,14 @@ function wpdm_recycle_bin_capture_post_types() {
  * @param bool    $force Whether `wp_delete_attachment( $id, true )` was used.
  * @return bool
  */
-function wpdm_recycle_bin_should_capture_attachment( $post, $force ) {
+function desktop_mode_recycle_bin_should_capture_attachment( $post, $force ) {
 	// Honor explicit force-delete: that's the user (or a plugin) saying
 	// "skip the bin." Same contract as posts.
 	if ( $force ) {
 		return false;
 	}
 
-	if ( ! in_array( 'attachment', wpdm_recycle_bin_capture_post_types(), true ) ) {
+	if ( ! in_array( 'attachment', desktop_mode_recycle_bin_capture_post_types(), true ) ) {
 		return false;
 	}
 
@@ -106,7 +106,7 @@ function wpdm_recycle_bin_should_capture_attachment( $post, $force ) {
  * @param bool    $force  Whether force-delete was requested.
  * @return mixed Non-null short-circuits core deletion.
  */
-function wpdm_recycle_bin_intercept_attachment_delete( $delete, $post, $force ) {
+function desktop_mode_recycle_bin_intercept_attachment_delete( $delete, $post, $force ) {
 	if ( null !== $delete ) {
 		// Another plugin already short-circuited — don't double-handle.
 		return $delete;
@@ -116,7 +116,7 @@ function wpdm_recycle_bin_intercept_attachment_delete( $delete, $post, $force ) 
 		return $delete;
 	}
 
-	if ( ! wpdm_recycle_bin_should_capture_attachment( $post, $force ) ) {
+	if ( ! desktop_mode_recycle_bin_should_capture_attachment( $post, $force ) ) {
 		return $delete;
 	}
 
@@ -127,7 +127,7 @@ function wpdm_recycle_bin_intercept_attachment_delete( $delete, $post, $force ) 
 		return $delete;
 	}
 
-	wpdm_recycle_bin_record_capture( $post->ID );
+	desktop_mode_recycle_bin_record_capture( $post->ID );
 
 	return $trashed;
 }
@@ -144,21 +144,21 @@ function wpdm_recycle_bin_intercept_attachment_delete( $delete, $post, $force ) 
  *
  * @param int $post_id Post being trashed.
  */
-function wpdm_recycle_bin_on_trash_post( $post_id ) {
+function desktop_mode_recycle_bin_on_trash_post( $post_id ) {
 	$post = get_post( $post_id );
 	if ( ! $post ) {
 		return;
 	}
-	if ( ! in_array( $post->post_type, wpdm_recycle_bin_capture_post_types(), true ) ) {
+	if ( ! in_array( $post->post_type, desktop_mode_recycle_bin_capture_post_types(), true ) ) {
 		return;
 	}
-	wpdm_recycle_bin_record_capture( $post_id );
+	desktop_mode_recycle_bin_record_capture( $post_id );
 }
 
 /**
  * Persist who-deleted-what-when metadata for a single item.
  *
- * Stored under `_wpdm_trash_*` postmeta on the trashed post itself —
+ * Stored under `_desktop_mode_trash_*` postmeta on the trashed post itself —
  * survives un-trash naturally because we only consult it while in the
  * bin, and gets cleaned up by core when the post is permanently
  * deleted via the standard postmeta cascade.
@@ -167,12 +167,12 @@ function wpdm_recycle_bin_on_trash_post( $post_id ) {
  *
  * @param int $post_id Post id being captured.
  */
-function wpdm_recycle_bin_record_capture( $post_id ) {
+function desktop_mode_recycle_bin_record_capture( $post_id ) {
 	$user_id = get_current_user_id();
 	$now_gmt = current_time( 'mysql', true );
 
-	update_post_meta( $post_id, '_wpdm_trash_user_id', (int) $user_id );
-	update_post_meta( $post_id, '_wpdm_trash_time_gmt', $now_gmt );
+	update_post_meta( $post_id, '_desktop_mode_trash_user_id', (int) $user_id );
+	update_post_meta( $post_id, '_desktop_mode_trash_time_gmt', $now_gmt );
 
 	/**
 	 * Fires after the recycle bin records a capture.
@@ -189,12 +189,12 @@ function wpdm_recycle_bin_record_capture( $post_id ) {
 	do_action( 'desktop_mode_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
 }
 
-add_filter( 'pre_delete_attachment', 'wpdm_recycle_bin_intercept_attachment_delete', 10, 3 );
-add_action( 'wp_trash_post', 'wpdm_recycle_bin_on_trash_post', 10, 1 );
+add_filter( 'pre_delete_attachment', 'desktop_mode_recycle_bin_intercept_attachment_delete', 10, 3 );
+add_action( 'wp_trash_post', 'desktop_mode_recycle_bin_on_trash_post', 10, 1 );
 
 /**
  * Capture deleted-by metadata for comments — symmetric to
- * `wpdm_recycle_bin_record_capture` but writing to `commentmeta`
+ * `desktop_mode_recycle_bin_record_capture` but writing to `commentmeta`
  * instead of `postmeta`. Comments use `wp_set_comment_status('trash')`
  * which fires `trashed_comment`; we don't need to short-circuit
  * anything (core already routes to a real trash status), just
@@ -204,13 +204,13 @@ add_action( 'wp_trash_post', 'wpdm_recycle_bin_on_trash_post', 10, 1 );
  *
  * @param int $comment_id Comment about to be trashed.
  */
-function wpdm_recycle_bin_on_trash_comment( $comment_id ) {
+function desktop_mode_recycle_bin_on_trash_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	$user_id    = get_current_user_id();
 	$now_gmt    = current_time( 'mysql', true );
 
-	update_comment_meta( $comment_id, '_wpdm_trash_user_id', $user_id );
-	update_comment_meta( $comment_id, '_wpdm_trash_time_gmt', $now_gmt );
+	update_comment_meta( $comment_id, '_desktop_mode_trash_user_id', $user_id );
+	update_comment_meta( $comment_id, '_desktop_mode_trash_time_gmt', $now_gmt );
 
 	/**
 	 * Fires after the recycle bin records a comment capture.
@@ -223,4 +223,4 @@ function wpdm_recycle_bin_on_trash_comment( $comment_id ) {
 	 */
 	do_action( 'desktop_mode_recycle_bin_comment_captured', $comment_id, $user_id, $now_gmt );
 }
-add_action( 'trashed_comment', 'wpdm_recycle_bin_on_trash_comment', 10, 1 );
+add_action( 'trashed_comment', 'desktop_mode_recycle_bin_on_trash_comment', 10, 1 );

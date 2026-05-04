@@ -13,7 +13,7 @@ export const styles = css`
 		font-variant-numeric: tabular-nums;
 		font-weight: 500;
 		letter-spacing: 0.01em;
-		color: var( --wpd-display-fg, var( --wp-desktop-text, #1d2327 ) );
+		color: var( --wpd-display-fg, var( --desktop-mode-text, #1d2327 ) );
 		background: var( --wpd-display-bg, transparent );
 		border-radius: var( --wpd-display-border-radius, 0 );
 		line-height: 1.1;

@@ -105,7 +105,7 @@ export interface WindowConfig {
 	native?: boolean;
 	/**
 	 * Render callback for native windows. Invoked once after the window
-	 * element mounts; receives the `.wp-desktop-window__body` and
+	 * element mounts; receives the `.desktop-mode-window__body` and
 	 * an optional render context whose `window.send` / `window.on`
 	 * are the unified channel-bus API for talking to / from this
 	 * window's content. Ignored when `native` is falsy.
@@ -116,7 +116,7 @@ export interface WindowConfig {
 	 *   - **`desktop_mode_register_window()` (PHP)** — the shell clones
 	 *     the registered `<template>` into the body before the
 	 *     callback fires. Render = enhancement: query mount points,
-	 *     light them up. See `wpDesktopNativeWindows[ id ]`.
+	 *     light them up. See `desktopModeNativeWindows[ id ]`.
 	 *   - **`windowManager.open({ native: true, render })` (raw JS)** —
 	 *     no template plumbing exists at this layer. The body is
 	 *     empty; the callback constructs the DOM directly.
@@ -144,7 +144,7 @@ export interface WindowConfig {
 	 *     based loading) or for re-readying after a refetch
 	 *     triggered by `ctx.window.markLoading()`.
 	 *
-	 * The matching `wp-desktop-window-content-loaded` CustomEvent
+	 * The matching `desktop-mode-window-content-loaded` CustomEvent
 	 * dispatches on `document` and the `WINDOW_CONTENT_LOADED` hook
 	 * fires on the loading → ready transition.
 	 */
@@ -170,7 +170,7 @@ export interface WindowConfig {
 	autofocus?: boolean | string;
 	/**
 	 * Inline callback fired when the window's close animation begins.
-	 * Complements the `wp-desktop.window.closing` hook — the hook is
+	 * Complements the `desktop-mode.window.closing` hook — the hook is
 	 * broadcast to every subscriber, while this callback is scoped
 	 * specifically to this window's caller. Native windows use it to
 	 * tear down subscriptions / timers that don't want to live past
@@ -182,10 +182,10 @@ export interface WindowConfig {
 	 * change (user resize, initial mount, viewport reflow). Native
 	 * windows that paint their own canvas use this to re-measure;
 	 * DOM-based content usually doesn't need it. Delivered width /
-	 * height are the `.wp-desktop-window__body` client dimensions,
+	 * height are the `.desktop-mode-window__body` client dimensions,
 	 * NOT the outer window size (title bar + tab strip are already
 	 * subtracted). Fires alongside the
-	 * `wp-desktop.window.body-resized` hook.
+	 * `desktop-mode.window.body-resized` hook.
 	 */
 	onResize?: ( width: number, height: number ) => void;
 	/**
@@ -493,7 +493,7 @@ export interface NativeWindowIframeContent {
 	 * parent shell, paired with `wp.desktop.send( channel,
 	 * payload )` from inside the iframe. `onMessage` is the raw
 	 * `event.data` firehose, useful only for plugins that already
-	 * speak a non-`wp-desktop-window-*` postMessage protocol.
+	 * speak a non-`desktop-mode-window-*` postMessage protocol.
 	 */
 	onMessage?: ( payload: unknown ) => void;
 }
@@ -569,7 +569,7 @@ export interface NativeRenderContext {
 /**
  * Canonical shape for a single entry displayed in a monitor /
  * observability widget. Any plugin that wants to contribute an
- * entry to monitor widgets applies a `wp-desktop.monitor.entry`
+ * entry to monitor widgets applies a `desktop-mode.monitor.entry`
  * filter returning a mutated `MonitorEntry` or adds one to the
  * aggregated list. By converging every plugin on this shape we
  * avoid the "every monitor widget invents its own schema" fragmentation.
@@ -740,7 +740,7 @@ export interface NativeWindowTabEntry {
  * `desktop_mode_register_widget()` call.
  *
  * The mount callback itself is not serializable; plugins register
- * it on `window.wpDesktopWidgets[ <id> ]` as a `(container, ctx)
+ * it on `window.desktopModeWidgets[ <id> ]` as a `(container, ctx)
  * => teardown` function. The shell pairs that global with the
  * metadata here to build a full `WidgetDef` at registration time.
  *
@@ -784,7 +784,7 @@ export interface DesktopWidgetServerEntry {
  * `desktop_mode_register_wallpaper()` call. Only metadata crosses
  * the wire; the plugin's mount / resolveValue / renderEditor
  * callbacks are announced via
- * `window.wpDesktopWallpapers[ <id> ]` as a full `WallpaperDef`,
+ * `window.desktopModeWallpapers[ <id> ]` as a full `WallpaperDef`,
  * which the shell loads (if the script isn't yet in the tab) and
  * forwards to the normal wallpaper registry.
  *
@@ -1532,7 +1532,7 @@ export interface DesktopConfig {
 	 * Plugin base URL without trailing slash. Used by the shell to
 	 * locate vendor assets (e.g. `${pluginUrl}/assets/vendor/pixi.min.js`)
 	 * and by third-party plugin authors who want to build asset URLs
-	 * relative to the wp-desktop-mode install.
+	 * relative to the desktop-mode install.
 	 */
 	pluginUrl: string;
 	/**
@@ -1546,7 +1546,7 @@ export interface DesktopConfig {
 	iframeBridgeUrl?: string;
 	/** Nonce for the REST endpoint (X-WP-Nonce header). */
 	restNonce: string;
-	/** Canonical `/wp-desktop/` URL — used for history.replaceState. */
+	/** Canonical `/desktop-mode/` URL — used for history.replaceState. */
 	portalUrl: string;
 	/** True when the shell was reached via the portal redirect. */
 	fromPortal: boolean;
@@ -1593,7 +1593,7 @@ export interface DesktopConfig {
 	osSettingsUrl?: string;
 	/**
 	 * REST endpoint for the AI content search.
-	 * Shape: `wp-desktop/v1/ai/search`.
+	 * Shape: `desktop-mode/v1/ai/search`.
 	 * @since 0.14.0
 	 */
 	aiSearchUrl?: string;
@@ -1671,7 +1671,7 @@ export interface ToastTypeDef {
  * captured `url`), and the parent rewrites the selection to open a new
  * desktop window instead of navigating the current iframe out of chromeless
  * mode. Anything else is `action` — the parent proxies execution back
- * into the iframe via `wp-desktop-commands-invoke`.
+ * into the iframe via `desktop-mode-commands-invoke`.
  *
  * @since 0.16.0
  */
@@ -1702,13 +1702,13 @@ export interface HarvestedCommand {
  * Bridge events sent from iframe to parent shell.
  */
 export type BridgeEventFromIframe =
-	| { type: 'wp-desktop-title-change'; title: string }
-	| { type: 'wp-desktop-navigate'; url: string; target: 'self' | 'new' }
-	| { type: 'wp-desktop-notification'; title: string; body: string }
-	| { type: 'wp-desktop-ready' }
-	| { type: 'wp-desktop-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
-	| { type: 'wp-desktop-screen-meta-state'; open: 'screen-options' | 'help' | null }
-	| { type: 'wp-desktop-commands-list'; commands: HarvestedCommand[] }
+	| { type: 'desktop-mode-title-change'; title: string }
+	| { type: 'desktop-mode-navigate'; url: string; target: 'self' | 'new' }
+	| { type: 'desktop-mode-notification'; title: string; body: string }
+	| { type: 'desktop-mode-ready' }
+	| { type: 'desktop-mode-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
+	| { type: 'desktop-mode-screen-meta-state'; open: 'screen-options' | 'help' | null }
+	| { type: 'desktop-mode-commands-list'; commands: HarvestedCommand[] }
 	// -----------------------------------------------------------------
 	// Cross-window connection bridge — extensible pub/sub between any
 	// parent-side caller (e.g. a plugin's title-bar dropdown) and a
@@ -1717,17 +1717,17 @@ export type BridgeEventFromIframe =
 	// `wp.desktop.iframe.publish/subscribe`.
 	// -----------------------------------------------------------------
 	| {
-		type: 'wp-desktop-bridge-handshake-ack';
+		type: 'desktop-mode-bridge-handshake-ack';
 		connectionId: string;
 	}
 	| {
-		type: 'wp-desktop-bridge-publish';
+		type: 'desktop-mode-bridge-publish';
 		connectionId: string;
 		topic: string;
 		payload: unknown;
 	}
 	| {
-		type: 'wp-desktop-bridge-disconnect';
+		type: 'desktop-mode-bridge-disconnect';
 		connectionId: string;
 	};
 
@@ -1735,25 +1735,25 @@ export type BridgeEventFromIframe =
  * Bridge events sent from parent shell to iframe.
  */
 export type BridgeEventToIframe =
-	| { type: 'wp-desktop-focus' }
-	| { type: 'wp-desktop-color-scheme'; scheme: string }
-	| { type: 'wp-desktop-toggle-panel'; panel: 'screen-options' | 'help' }
-	| { type: 'wp-desktop-commands-subscribe' }
-	| { type: 'wp-desktop-commands-unsubscribe' }
-	| { type: 'wp-desktop-commands-invoke'; name: string }
+	| { type: 'desktop-mode-focus' }
+	| { type: 'desktop-mode-color-scheme'; scheme: string }
+	| { type: 'desktop-mode-toggle-panel'; panel: 'screen-options' | 'help' }
+	| { type: 'desktop-mode-commands-subscribe' }
+	| { type: 'desktop-mode-commands-unsubscribe' }
+	| { type: 'desktop-mode-commands-invoke'; name: string }
 	// Connection-bridge messages (parent → iframe).
 	| {
-		type: 'wp-desktop-bridge-handshake';
+		type: 'desktop-mode-bridge-handshake';
 		connectionId: string;
 		topics: string[];
 	}
 	| {
-		type: 'wp-desktop-bridge-publish';
+		type: 'desktop-mode-bridge-publish';
 		connectionId: string;
 		topic: string;
 		payload: unknown;
 	}
 	| {
-		type: 'wp-desktop-bridge-disconnect';
+		type: 'desktop-mode-bridge-disconnect';
 		connectionId: string;
 	};

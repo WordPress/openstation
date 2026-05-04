@@ -10,7 +10,7 @@
  * controls mid-session and the title bar repaints without page
  * reload.
  *
- * Goes through a `wp-desktop.window.chrome.controls` filter on every
+ * Goes through a `desktop-mode.window.chrome.controls` filter on every
  * paint so plugins can mutate the resolved control list without
  * registering anything (handy for cross-cutting decorators).
  *
@@ -34,7 +34,7 @@ import type { WindowControlsConfig } from '../../types';
  *   3. Per-window `appearance.controls.custom` adds inline entries.
  *   4. Per-window `appearance.controls.order` re-sorts the controls
  *      cluster (only — left/right slots stay in registry order).
- *   5. The `wp-desktop.window.chrome.controls` filter runs once per
+ *   5. The `desktop-mode.window.chrome.controls` filter runs once per
  *      placement bucket.
  *
  * @internal
@@ -157,7 +157,7 @@ function applyExplicitOrder(
 /**
  * Build a single control button. Mirrors the legacy
  * `createControlButton` factory in `src/window/dom.ts` so existing
- * CSS selectors (`.wp-desktop-window__btn--minimize`, etc.) still
+ * CSS selectors (`.desktop-mode-window__btn--minimize`, etc.) still
  * match — the variant suffix is derived from the trailing segment of
  * the control id (`core/minimize` → `minimize`).
  */
@@ -167,13 +167,13 @@ function buildControlElement(
 ): { element: HTMLElement; teardown?: () => void } {
 	const host = document.createElement( 'wpd-window-button' );
 	host.setAttribute( 'aria-label', def.label );
-	host.classList.add( 'wp-desktop-window__btn' );
+	host.classList.add( 'desktop-mode-window__btn' );
 
 	// Variant class — `core/close` → `close`, `plug/star` → `plug-star`.
 	// Matches existing CSS hooks for built-ins; plugin custom controls
 	// get a stable class derived from their full id.
 	const variant = legacyVariantFor( def.id );
-	host.classList.add( `wp-desktop-window__btn--${ variant }` );
+	host.classList.add( `desktop-mode-window__btn--${ variant }` );
 	if ( def.id === 'core/close' ) {
 		host.setAttribute( 'danger', '' );
 	}
@@ -231,7 +231,7 @@ function buildControlElement(
 }
 
 /**
- * Variant suffix used for the `wp-desktop-window__btn--*` class.
+ * Variant suffix used for the `desktop-mode-window__btn--*` class.
  * Built-ins keep their trailing segment (`core/close` → `close`) so
  * the existing CSS keeps matching unchanged. Plugin controls use
  * their full id with `/` collapsed to `-`.
@@ -281,7 +281,7 @@ export function paintWindowControls(
 	// `placement: 'left'` — the CSS class flips the order property
 	// in the title-bar grid.
 	controlsHost.classList.toggle(
-		'wp-desktop-window__controls--left',
+		'desktop-mode-window__controls--left',
 		resolved.placement === 'left',
 	);
 

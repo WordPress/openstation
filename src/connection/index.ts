@@ -8,7 +8,7 @@
  *
  * Wire model — iframe windows:
  *
- *   parent shell ─[postMessage]─▶ iframe (wp-desktop-bridge-handshake)
+ *   parent shell ─[postMessage]─▶ iframe (desktop-mode-bridge-handshake)
  *                                            │ chromeless-bridge installs handlers
  *                                            ▼
  *                                       handshake-ack
@@ -141,14 +141,14 @@ export function getSyntheticIframe(
  * single shell instance).
  */
 function nextId(): string {
-	return `wp-desktop-conn-${ ++_connSeq }`;
+	return `desktop-mode-conn-${ ++_connSeq }`;
 }
 
 /**
  * Factory that binds the connect API to the live window manager.
  * Returns the public `connect` function plus an internal
  * `routeIncomingFromIframe` that the iframe-bridge handler calls
- * for every `wp-desktop-bridge-*` message.
+ * for every `desktop-mode-bridge-*` message.
  */
 export function createConnectionBridge( manager: WindowManager ) {
 	const sendToIframe = (
@@ -160,7 +160,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[wp-desktop-mode] connection: postMessage failed',
+					'[desktop-mode] connection: postMessage failed',
 					err,
 				);
 			}
@@ -217,7 +217,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 			while ( queue.length ) {
 				const msg = queue.shift()!;
 				sendToIframe( iframe, {
-					type: 'wp-desktop-bridge-publish',
+					type: 'desktop-mode-bridge-publish',
 					connectionId: id,
 					topic: msg.topic,
 					payload: msg.payload,
@@ -250,7 +250,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 							} catch ( err ) {
 								if ( typeof console !== 'undefined' ) {
 									console.error(
-										'[wp-desktop-mode] connection subscriber threw:',
+										'[desktop-mode] connection subscriber threw:',
 										err,
 									);
 								}
@@ -294,7 +294,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					return;
 				}
 				sendToIframe( iframe, {
-					type: 'wp-desktop-bridge-publish',
+					type: 'desktop-mode-bridge-publish',
 					connectionId: id,
 					topic,
 					payload,
@@ -309,7 +309,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					return;
 				}
 				const msg = data as { type?: string };
-				if ( msg.type === 'wp-desktop-bridge-handshake-ack' ) {
+				if ( msg.type === 'desktop-mode-bridge-handshake-ack' ) {
 					if ( isOpen ) {
 						return;
 					}
@@ -324,7 +324,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					} catch ( err ) {
 						if ( typeof console !== 'undefined' ) {
 							console.error(
-								'[wp-desktop-mode] connection.onOpen threw:',
+								'[desktop-mode] connection.onOpen threw:',
 								err,
 							);
 						}
@@ -332,7 +332,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					flushQueue();
 					return;
 				}
-				if ( msg.type === 'wp-desktop-bridge-publish' ) {
+				if ( msg.type === 'desktop-mode-bridge-publish' ) {
 					const m = data as {
 						topic?: string;
 						payload?: unknown;
@@ -354,7 +354,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 							} catch ( err ) {
 								if ( typeof console !== 'undefined' ) {
 									console.error(
-										'[wp-desktop-mode] connection subscriber threw:',
+										'[desktop-mode] connection subscriber threw:',
 										err,
 									);
 								}
@@ -369,7 +369,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 							} catch ( err ) {
 								if ( typeof console !== 'undefined' ) {
 									console.error(
-										'[wp-desktop-mode] connection wildcard subscriber threw:',
+										'[desktop-mode] connection wildcard subscriber threw:',
 										err,
 									);
 								}
@@ -378,7 +378,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					}
 					return;
 				}
-				if ( msg.type === 'wp-desktop-bridge-disconnect' ) {
+				if ( msg.type === 'desktop-mode-bridge-disconnect' ) {
 					conn._destroy( 'disconnect' );
 				}
 			},
@@ -412,7 +412,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					const iframe = targetIframe();
 					if ( iframe ) {
 						sendToIframe( iframe, {
-							type: 'wp-desktop-bridge-disconnect',
+							type: 'desktop-mode-bridge-disconnect',
 							connectionId: id,
 						} );
 					}
@@ -426,7 +426,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[wp-desktop-mode] connection.onClose threw:',
+							'[desktop-mode] connection.onClose threw:',
 							err,
 						);
 					}
@@ -461,7 +461,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[wp-desktop-mode] connection.onOpen threw:',
+							'[desktop-mode] connection.onOpen threw:',
 							err,
 						);
 					}
@@ -472,13 +472,13 @@ export function createConnectionBridge( manager: WindowManager ) {
 
 		// Send the handshake. Iframes that haven't loaded yet won't
 		// have a `contentWindow`; the chromeless bridge replays
-		// pending handshakes after `wp-desktop-ready` (see
+		// pending handshakes after `desktop-mode-ready` (see
 		// `replayPendingHandshakes` below — wired in `desktop.ts` on
 		// IFRAME_READY).
 		const iframe = targetIframe();
 		if ( iframe ) {
 			sendToIframe( iframe, {
-				type: 'wp-desktop-bridge-handshake',
+				type: 'desktop-mode-bridge-handshake',
 				connectionId: id,
 				topics,
 			} );
@@ -489,7 +489,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 
 	/**
 	 * Called from `iframe-bridge.ts` for every
-	 * `wp-desktop-bridge-*` message. Routes to the right connection
+	 * `desktop-mode-bridge-*` message. Routes to the right connection
 	 * by id; silently drops messages whose connection is gone.
 	 *
 	 * Iframe-initiated connection requests (`requestConnection()`)
@@ -514,14 +514,14 @@ export function createConnectionBridge( manager: WindowManager ) {
 			requestId?: string;
 			topics?: unknown;
 		};
-		if ( typeof msg.type !== 'string' || ! msg.type.startsWith( 'wp-desktop-bridge-' ) ) {
+		if ( typeof msg.type !== 'string' || ! msg.type.startsWith( 'desktop-mode-bridge-' ) ) {
 			return;
 		}
 
 		// Iframe-initiated connection request — open a connection
 		// back to this iframe unless a plugin rejects.
 		if (
-			msg.type === 'wp-desktop-bridge-connection-request' &&
+			msg.type === 'desktop-mode-bridge-connection-request' &&
 			typeof msg.requestId === 'string' &&
 			typeof windowId === 'string' &&
 			windowId !== ''
@@ -568,7 +568,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 		if ( decision === false ) {
 			try {
 				iframe.contentWindow?.postMessage( {
-					type: 'wp-desktop-bridge-connection-ack',
+					type: 'desktop-mode-bridge-connection-ack',
 					requestId,
 					accepted: false,
 					reason: 'rejected',
@@ -585,7 +585,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 
 		try {
 			iframe.contentWindow?.postMessage( {
-				type: 'wp-desktop-bridge-connection-ack',
+				type: 'desktop-mode-bridge-connection-ack',
 				requestId,
 				accepted: true,
 				connectionId: conn.id,
@@ -613,7 +613,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 				continue;
 			}
 			sendToIframe( iframe, {
-				type: 'wp-desktop-bridge-handshake',
+				type: 'desktop-mode-bridge-handshake',
 				connectionId: conn.id,
 				topics: [], // already negotiated client-side; iframe re-uses
 			} );

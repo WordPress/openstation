@@ -38,7 +38,7 @@ import type {
  * @internal
  */
 export const DEFAULT_RENDERER_DOCK = Symbol.for(
-	'wp-desktop-mode/default-dock-rail-renderer/dock',
+	'desktop-mode/default-dock-rail-renderer/dock',
 );
 
 export interface DefaultRendererController extends DockRailController {

@@ -6,7 +6,7 @@
  * dependency graph.
  *
  * Most values are fallbacks. The live set comes from
- * `wpDesktopConfig.accentColors` / `.defaultWallpaper`, populated by
+ * `desktopModeConfig.accentColors` / `.defaultWallpaper`, populated by
  * PHP via `desktop_mode_accent_colors` / `desktop_mode_default_wallpaper`
  * filters. The getters in this file do the `runtime config → fallback`
  * dance so callers never have to branch on "is the config hydrated?"
@@ -16,7 +16,7 @@ import type { AccentColor, DesktopConfig } from '../types';
 import type { OsSettingsState } from './types';
 
 /** localStorage key under which preferences are serialized. */
-export const STORAGE_KEY = 'wp-desktop-os-settings';
+export const STORAGE_KEY = 'desktop-mode-os-settings';
 
 /** Minimum resolution considered "HD" for the wallpaper picker filter. */
 export const HD_MIN_WIDTH = 1920;
@@ -41,7 +41,7 @@ export const DEFAULT_WALLPAPER_ID = 'dark';
  * Built-in accent swatches applied to `--wp-admin-theme-color`.
  *
  * This is the compile-time fallback list used when PHP doesn't hand
- * us a live `accentColors` array in `wpDesktopConfig` — the live list
+ * us a live `accentColors` array in `desktopModeConfig` — the live list
  * is what the picker actually renders. Plugins that want to
  * customise the list should hook `desktop_mode_accent_colors` in PHP,
  * not fork this constant.
@@ -118,7 +118,7 @@ export const DOCK_SIZES = [
 ] as const;
 
 /**
- * Dock-placement options. Drives the `data-wp-desktop-dock-placement`
+ * Dock-placement options. Drives the `data-desktop-mode-dock-placement`
  * attribute that each `Dock` instance writes onto its own root. CSS
  * keys off that attribute to position the rail, flip the tooltip
  * anchor, and adjust the desktop-area inset.
@@ -136,7 +136,7 @@ export const DOCK_PLACEMENTS = [
 
 /**
  * Desktop layout options. User picks one in OS Settings → Appearance;
- * the shell root reflects the choice in `data-wp-desktop-layout` and
+ * the shell root reflects the choice in `data-desktop-mode-layout` and
  * the layout dispatcher rebuilds the dock(s) + desktop icons.
  */
 export const DESKTOP_LAYOUTS = [
@@ -184,7 +184,7 @@ export const AI_TRANSPORTS = [
 /**
  * Hard-coded fallback list — the only provider we know about without
  * reading the runtime registry. {@link getAiProviders} prefers the
- * runtime `wpDesktopConfig.aiProviders` list when present, so adding a
+ * runtime `desktopModeConfig.aiProviders` list when present, so adding a
  * new provider is a pure PHP concern.
  */
 export const AI_PROVIDERS: ReadonlyArray< {
@@ -207,7 +207,7 @@ export const AI_PROVIDERS: ReadonlyArray< {
  *
  * Falls back to {@link AI_PROVIDERS} when the shell config is missing
  * (rare — happens in some test contexts and the very first frame
- * before `wpDesktopConfig` is populated).
+ * before `desktopModeConfig` is populated).
  */
 export function getAiProviders(): ReadonlyArray< {
 	id: string;
@@ -218,7 +218,7 @@ export function getAiProviders(): ReadonlyArray< {
 } > {
 	const cfg = (
 		window as typeof window & {
-			wpDesktopConfig?: {
+			desktopModeConfig?: {
 				aiProviders?: Array< {
 					id: string;
 					label: string;
@@ -229,7 +229,7 @@ export function getAiProviders(): ReadonlyArray< {
 				} >;
 			};
 		}
-	).wpDesktopConfig;
+	).desktopModeConfig;
 
 	const list = cfg?.aiProviders;
 	if ( ! Array.isArray( list ) || list.length === 0 ) {

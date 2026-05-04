@@ -128,7 +128,7 @@ spinner.setAttribute( 'preset', isError ? 'pulse' : 'classic' );
 Need the preset config in JS (e.g. to render a "preset picker" UI)? The exported `WPD_SPINNER_PRESETS` is a frozen record of every config:
 
 ```ts
-import { WPD_SPINNER_PRESETS, type WpdSpinnerPreset } from 'wp-desktop/ui';
+import { WPD_SPINNER_PRESETS, type WpdSpinnerPreset } from 'desktop-mode/ui';
 
 const names: WpdSpinnerPreset[] = Object.keys( WPD_SPINNER_PRESETS ) as WpdSpinnerPreset[];
 console.log( WPD_SPINNER_PRESETS.comet.dots ); // 5

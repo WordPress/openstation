@@ -35,10 +35,10 @@ import {
 } from './helpers/hooks-stub';
 
 const SNAP_HOOKS = [
-	'wp-desktop.snap.zone-pending',
-	'wp-desktop.snap.zone-canceled',
-	'wp-desktop.snap.zone-committed',
-	'wp-desktop.snap.split-filled',
+	'desktop-mode.snap.zone-pending',
+	'desktop-mode.snap.zone-canceled',
+	'desktop-mode.snap.zone-committed',
+	'desktop-mode.snap.split-filled',
 ] as const;
 
 function openConfig( id: string ) {
@@ -121,17 +121,17 @@ describe( 'snap-zones — manager lifecycle', () => {
 
 		// Enter the left zone.
 		updateSnapZoneForDrag( manager, win, 10 );
-		expect( log.some( ( e ) => e.name === 'wp-desktop.snap.zone-pending' ) ).toBe( true );
+		expect( log.some( ( e ) => e.name === 'desktop-mode.snap.zone-pending' ) ).toBe( true );
 
 		// Move to the middle — cancels.
 		updateSnapZoneForDrag( manager, win, 800 );
-		expect( log.some( ( e ) => e.name === 'wp-desktop.snap.zone-canceled' ) ).toBe( true );
+		expect( log.some( ( e ) => e.name === 'desktop-mode.snap.zone-canceled' ) ).toBe( true );
 
 		// Re-enter — pending fires again. Count rather than truthy so
 		// the hysteresis is obvious if we ever add it.
-		const pendingBefore = log.filter( ( e ) => e.name === 'wp-desktop.snap.zone-pending' ).length;
+		const pendingBefore = log.filter( ( e ) => e.name === 'desktop-mode.snap.zone-pending' ).length;
 		updateSnapZoneForDrag( manager, win, 10 );
-		const pendingAfter = log.filter( ( e ) => e.name === 'wp-desktop.snap.zone-pending' ).length;
+		const pendingAfter = log.filter( ( e ) => e.name === 'desktop-mode.snap.zone-pending' ).length;
 		expect( pendingAfter ).toBe( pendingBefore + 1 );
 	} );
 
@@ -141,7 +141,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 		updateSnapZoneForDrag( manager, win, 5 );
 		updateSnapZoneForDrag( manager, win, 10 );
 		updateSnapZoneForDrag( manager, win, 15 );
-		const pending = log.filter( ( e ) => e.name === 'wp-desktop.snap.zone-pending' );
+		const pending = log.filter( ( e ) => e.name === 'desktop-mode.snap.zone-pending' );
 		expect( pending.length ).toBe( 1 );
 	} );
 
@@ -157,9 +157,9 @@ describe( 'snap-zones — manager lifecycle', () => {
 		expect( win.state ).toBe( 'snapped-left' );
 		expect( win.element.style.left ).toBe( '0px' );
 		expect( win.element.style.width ).toBe( '800px' );
-		expect( win.element.classList.contains( 'wp-desktop-window--snapped-left' ) ).toBe( true );
+		expect( win.element.classList.contains( 'desktop-mode-window--snapped-left' ) ).toBe( true );
 
-		const committed = log.find( ( e ) => e.name === 'wp-desktop.snap.zone-committed' );
+		const committed = log.find( ( e ) => e.name === 'desktop-mode.snap.zone-committed' );
 		expect( committed ).toBeDefined();
 		expect(
 			( committed!.args[ 0 ] as { zone: string } ).zone,
@@ -179,7 +179,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 
 		updateSnapZoneForDrag( manager, win, 5 );
 		expect(
-			log.some( ( e ) => e.name === 'wp-desktop.snap.zone-pending' ),
+			log.some( ( e ) => e.name === 'desktop-mode.snap.zone-pending' ),
 		).toBe( false );
 	} );
 
@@ -214,7 +214,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 
 		enterSplitOverview( manager, anchor, 'left' );
 		// Overview class is on the partner (the eligible thumbnail).
-		expect( partner.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( true );
+		expect( partner.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
 
 		// Drive the commit path directly — jsdom can't dispatch
 		// `PointerEvent`s so the integration test goes through the
@@ -224,8 +224,8 @@ describe( 'snap-zones — manager lifecycle', () => {
 		// Partner is now snapped right + has shed the overview
 		// class. That's the bug-regression assertion.
 		expect( partner.state ).toBe( 'snapped-right' );
-		expect( partner.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( false );
-		expect( partner.element.classList.contains( 'wp-desktop-window--snapped-right' ) ).toBe( true );
+		expect( partner.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( false );
+		expect( partner.element.classList.contains( 'desktop-mode-window--snapped-right' ) ).toBe( true );
 
 		// A subsequent focus click on the partner must reach the
 		// focus handler — i.e. the pointerdown listener inside
@@ -263,7 +263,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 		// Class applied synchronously before the first paint — no
 		// wait for the rAF to tick.
 		expect(
-			win.element.classList.contains( 'wp-desktop-window--snapped-left' ),
+			win.element.classList.contains( 'desktop-mode-window--snapped-left' ),
 		).toBe( true );
 
 		// applyInitialState runs in the next rAF; wait for it.
@@ -287,7 +287,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 			initialState: 'snapped-right',
 		} );
 		expect(
-			win.element.classList.contains( 'wp-desktop-window--snapped-right' ),
+			win.element.classList.contains( 'desktop-mode-window--snapped-right' ),
 		).toBe( true );
 		await new Promise( ( r ) => requestAnimationFrame( () => r( undefined ) ) );
 		expect( win.state ).toBe( 'snapped-right' );

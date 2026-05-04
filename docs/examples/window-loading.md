@@ -12,7 +12,7 @@ The overlay is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with
 
 ## Iframe windows — automatic
 
-Iframe windows mark themselves ready when the chromeless bridge posts `wp-desktop-ready`. **You don't write any code.** Just open the window:
+Iframe windows mark themselves ready when the chromeless bridge posts `desktop-mode-ready`. **You don't write any code.** Just open the window:
 
 ```js
 wp.desktop.openWindow( 'edit-post' );
@@ -97,14 +97,14 @@ Both edges fire **CustomEvents** on `document` and **`wp.hooks` actions**. Subsc
 
 ```js
 // CustomEvent — short-and-sweet for one-off subscribers.
-document.addEventListener( 'wp-desktop-window-content-loaded', ( e ) => {
+document.addEventListener( 'desktop-mode-window-content-loaded', ( e ) => {
     if ( e.detail.windowId !== 'my-plugin/inbox' ) return;
     analytics.complete( 'inbox-load' );
 } );
 
 // wp.hooks action — supports priorities + namespaced unsubscribe.
 wp.desktop.hooks.addAction(
-    'wp-desktop.window.content-loaded',
+    'desktop-mode.window.content-loaded',
     'my-plugin/track-load',
     ( { windowId } ) => {
         if ( windowId === 'my-plugin/inbox' ) {
@@ -114,7 +114,7 @@ wp.desktop.hooks.addAction(
 );
 ```
 
-Both `wp-desktop-window-content-loading` and `wp-desktop-window-content-loaded` are **edge-triggered**: idempotent calls don't re-fire. A loading → ready → loading → ready cycle fires `loaded` exactly twice.
+Both `desktop-mode-window-content-loading` and `desktop-mode-window-content-loaded` are **edge-triggered**: idempotent calls don't re-fire. A loading → ready → loading → ready cycle fires `loaded` exactly twice.
 
 ## Customizing the overlay — ship your own loader
 
@@ -160,7 +160,7 @@ loading: {
 },
 ```
 
-`host` is the `.wp-desktop-window__loading` div — already absolutely positioned + centered in the body. Just put your content inside.
+`host` is the `.desktop-mode-window__loading` div — already absolutely positioned + centered in the body. Just put your content inside.
 
 ### Shell-wide — `WINDOW_LOADING_OVERLAY` filter
 
@@ -169,7 +169,7 @@ Best for a theme/skin plugin that wants to override every window's loader at onc
 ```js
 wp.desktop.whenReady( () => {
     wp.desktop.hooks.addFilter(
-        'wp-desktop.window.loading-overlay',
+        'desktop-mode.window.loading-overlay',
         'my-skin/branded-loader',
         ( host, ctx ) => {
             // Retune the default spinner to a different preset/color.
@@ -185,16 +185,16 @@ wp.desktop.whenReady( () => {
 } );
 ```
 
-Filters can also **fully replace** the overlay element. The shell defensively re-adds the `.wp-desktop-window__loading` class so positioning + transition rules still apply:
+Filters can also **fully replace** the overlay element. The shell defensively re-adds the `.desktop-mode-window__loading` class so positioning + transition rules still apply:
 
 ```js
 wp.desktop.hooks.addFilter(
-    'wp-desktop.window.loading-overlay',
+    'desktop-mode.window.loading-overlay',
     'my-skin/wholesale-replacement',
     ( host, ctx ) => {
         const replacement = document.createElement( 'div' );
         replacement.appendChild( buildBrandedLoader() );
-        // The shell re-adds `wp-desktop-window__loading` for you.
+        // The shell re-adds `desktop-mode-window__loading` for you.
         return replacement;
     },
 );
@@ -222,7 +222,7 @@ On page reload the shell rebuilds every restored window during startup — **bef
 ```js
 wp.desktop.whenReady( () => {
     wp.desktop.hooks.addFilter(
-        'wp-desktop.window.loading-overlay',
+        'desktop-mode.window.loading-overlay',
         'my-skin/branded',
         ( host ) => { /* … */ },
     );
@@ -239,7 +239,7 @@ If you need to register the `WINDOW_LOADING_OVERLAY` filter **after** init (a de
 async function activateBrandSkin() {
     const { brandRenderer } = await import( './brand-renderer.js' );
     wp.desktop.hooks.addFilter(
-        'wp-desktop.window.loading-overlay',
+        'desktop-mode.window.loading-overlay',
         'my-skin/lazy-branded',
         brandRenderer,
     );
@@ -256,7 +256,7 @@ Idempotent and cheap — windows that already finished loading are unaffected.
 If you only want to retune the spinner colors / size, the CSS variables work fine — no JS needed:
 
 ```css
-#wp-window-my-plugin-inbox .wp-desktop-window__loading wpd-spinner {
+#wp-window-my-plugin-inbox .desktop-mode-window__loading wpd-spinner {
     --wpd-spinner-color: #6f42c1;
     --wpd-spinner-accent: #fff8e7;
 }
@@ -266,7 +266,7 @@ The overlay has `pointer-events: none` so it never blocks clicks even if it ling
 
 ## See also
 
-- [`wp-desktop-window-content-loading` / `wp-desktop-window-content-loaded` CustomEvents](../javascript-reference.md#wp-desktop-window-content-loading--stable-since-060)
+- [`desktop-mode-window-content-loading` / `desktop-mode-window-content-loaded` CustomEvents](../javascript-reference.md#desktop-mode-window-content-loading--stable-since-060)
 - [`Window.markContentLoading()` / `Window.markContentLoaded()`](../javascript-reference.md#windowmarkcontentloading--windowmarkcontentloaded--stable-since-060)
 - [`<wpd-spinner>` component](./spinner.md)
 - [`HOOKS.WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED`](../hooks-reference.md#window-lifecycle)

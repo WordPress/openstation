@@ -79,12 +79,12 @@ describe( 'devtools.addRequestHeader', () => {
 		clearWindowManagerStub();
 	} );
 
-	test( 'pushes a wp-desktop-instrument-set message with the header', async () => {
+	test( 'pushes a desktop-mode-instrument-set message with the header', async () => {
 		const { dt } = await freshDevtools();
 		const ctx = mountFakeWindow( 'win-a' );
 		dt.devtools.addRequestHeader( 'win-a', 'X-Token', 'abc' );
 		expect( ctx.captures ).toHaveLength( 1 );
-		expect( ctx.captures[ 0 ].type ).toBe( 'wp-desktop-instrument-set' );
+		expect( ctx.captures[ 0 ].type ).toBe( 'desktop-mode-instrument-set' );
 		expect( ctx.captures[ 0 ].headers ).toEqual( { 'X-Token': 'abc' } );
 		expect( ctx.captures[ 0 ].observe ).toBe( false );
 	} );
@@ -123,7 +123,7 @@ describe( 'devtools.addRequestHeader', () => {
 	} );
 
 	test( 'iframe load event re-pushes instrumentation', async () => {
-		// Regression: if the wp-desktop-ready signal isn't emitted
+		// Regression: if the desktop-mode-ready signal isn't emitted
 		// (chromeless bridge doesn't post it today), only the iframe's
 		// native `load` event closes the timing gap. Headers
 		// registered before a manual `iframe.src = newUrl` MUST be
@@ -331,14 +331,14 @@ describe( 'devtools.debug', () => {
 
 	test( 'poll URL composes correctly under ugly permalinks (?rest_route=/)', async () => {
 		// Ugly-permalinks produce restUrl = `<site>/?rest_route=/`.
-		// Naive string concat produces `<site>/?rest_route=/wp-desktop/v1/debug?sessionId=…`
+		// Naive string concat produces `<site>/?rest_route=/desktop-mode/v1/debug?sessionId=…`
 		// — two `?` separators, WordPress routes to the homepage,
 		// JSON.parse blows up. The fix uses `URL` + `searchParams` so
 		// the URL parser folds the second batch of params into the
 		// existing query.
 		( window as unknown as {
-			wpDesktopConfig?: { restUrl?: string; restNonce?: string };
-		} ).wpDesktopConfig = {
+			desktopModeConfig?: { restUrl?: string; restNonce?: string };
+		} ).desktopModeConfig = {
 			restUrl: 'http://example.test/?rest_route=/',
 			restNonce: 'abc',
 		};
@@ -371,7 +371,7 @@ describe( 'devtools.debug', () => {
 			expect( url ).toContain( 'channels%5B%5D=query' );
 		} finally {
 			fetchSpy.mockRestore();
-			delete ( window as unknown as { wpDesktopConfig?: unknown } ).wpDesktopConfig;
+			delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
 		}
 	} );
 
@@ -384,8 +384,8 @@ describe( 'devtools.debug', () => {
 		// bug: subscribe + publish-on-server returned nothing because
 		// the URL omitted channels entirely.
 		( window as unknown as {
-			wpDesktopConfig?: { restUrl?: string; restNonce?: string };
-		} ).wpDesktopConfig = {
+			desktopModeConfig?: { restUrl?: string; restNonce?: string };
+		} ).desktopModeConfig = {
 			restUrl: 'https://example.test/wp-json/',
 			restNonce: 'abc',
 		};
@@ -415,7 +415,7 @@ describe( 'devtools.debug', () => {
 			expect( url ).toContain( 'channels%5B%5D=query' );
 		} finally {
 			fetchSpy.mockRestore();
-			delete ( window as unknown as { wpDesktopConfig?: unknown } ).wpDesktopConfig;
+			delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
 		}
 	} );
 } );

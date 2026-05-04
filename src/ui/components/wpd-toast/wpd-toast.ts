@@ -29,7 +29,7 @@ export class WpdToastContainer extends Component {
 			{ name: '(default)', description: '<wpd-toast> children, stacked vertically.' },
 		],
 		cssProps: [
-			{ name: '--wp-desktop-z-fullscreen', description: 'z-index base — toasts sit above fullscreen windows.' },
+			{ name: '--desktop-mode-z-fullscreen', description: 'z-index base — toasts sit above fullscreen windows.' },
 		],
 		example: html`
 			<wpd-toast-container>

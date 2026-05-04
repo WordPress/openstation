@@ -11,9 +11,9 @@ export const menuStyles = css`
 		display: block;
 		min-width: 220px;
 		padding: 4px;
-		background: var( --wp-desktop-window-bg, #fff );
-		color: var( --wp-desktop-text, #1d2327 );
-		border: 1px solid var( --wp-desktop-window-border, #c3c4c7 );
+		background: var( --desktop-mode-window-bg, #fff );
+		color: var( --desktop-mode-text, #1d2327 );
+		border: 1px solid var( --desktop-mode-window-border, #c3c4c7 );
 		border-radius: 8px;
 		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
 			0 2px 6px rgba( 0, 0, 0, 0.08 );

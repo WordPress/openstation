@@ -138,7 +138,7 @@ export function bootHeartbeatBus(): void {
 		// who hit this on a stripped-down page.
 		// eslint-disable-next-line no-console
 		console.warn(
-			'[wp-desktop/heartbeat] jQuery missing — Heartbeat bus disabled.',
+			'[desktop-mode/heartbeat] jQuery missing — Heartbeat bus disabled.',
 		);
 		return;
 	}
@@ -156,7 +156,7 @@ export function bootHeartbeatBus(): void {
 				// the loop going; log loudly so plugin authors notice.
 				// eslint-disable-next-line no-console
 				console.error(
-					`[wp-desktop/heartbeat] supplier for "${ field }" threw:`,
+					`[desktop-mode/heartbeat] supplier for "${ field }" threw:`,
 					err,
 				);
 			}
@@ -181,7 +181,7 @@ export function bootHeartbeatBus(): void {
 					// subscriber must not interfere with peers.
 					// eslint-disable-next-line no-console
 					console.error(
-						`[wp-desktop/heartbeat] subscriber for "${ field }" threw:`,
+						`[desktop-mode/heartbeat] subscriber for "${ field }" threw:`,
 						err,
 					);
 				}

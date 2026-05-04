@@ -292,7 +292,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
  */
 function desktop_mode_register_os_settings_rest_routes() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/os-settings',
 		array(
 			array(
@@ -328,7 +328,7 @@ function desktop_mode_rest_os_settings_permission() {
 }
 
 /**
- * GET /wp-desktop/v1/os-settings
+ * GET /desktop-mode/v1/os-settings
  *
  * @since 0.14.0
  *
@@ -339,7 +339,7 @@ function desktop_mode_rest_get_os_settings() {
 }
 
 /**
- * POST /wp-desktop/v1/os-settings
+ * POST /desktop-mode/v1/os-settings
  *
  * @since 0.14.0
  *

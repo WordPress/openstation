@@ -18,12 +18,12 @@ import {
 } from './helpers/hooks-stub';
 
 const WIDGET_HOOKS = [
-	'wp-desktop.widget.mounting',
-	'wp-desktop.widget.mounted',
-	'wp-desktop.widget.unmounting',
-	'wp-desktop.widget.mount-failed',
-	'wp-desktop.widget.added',
-	'wp-desktop.widget.removed',
+	'desktop-mode.widget.mounting',
+	'desktop-mode.widget.mounted',
+	'desktop-mode.widget.unmounting',
+	'desktop-mode.widget.mount-failed',
+	'desktop-mode.widget.added',
+	'desktop-mode.widget.removed',
 ] as const;
 
 describe( 'widgets/registry', () => {
@@ -34,7 +34,7 @@ describe( 'widgets/registry', () => {
 		vi.resetModules();
 		// Clear any persisted state between files.
 		try {
-			window.localStorage.removeItem( 'wp-desktop-widgets' );
+			window.localStorage.removeItem( 'desktop-mode-widgets' );
 		} catch {
 			/* jsdom always supports localStorage */
 		}
@@ -85,7 +85,7 @@ describe( 'widgets/registry', () => {
 		expect( registry.get( 'x' )?.label ).toBe( 'Second' );
 	} );
 
-	test( 'plugins can filter the registry via wp-desktop.widgets', async () => {
+	test( 'plugins can filter the registry via desktop-mode.widgets', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		registry.register( {
 			id: 'keep',
@@ -102,7 +102,7 @@ describe( 'widgets/registry', () => {
 			mount: () => () => undefined,
 		} );
 		hooks.addFilter(
-			'wp-desktop.widgets',
+			'desktop-mode.widgets',
 			'test/filter',
 			( list: unknown ) =>
 				( list as Array<{ id: string }> ).filter(
@@ -121,8 +121,8 @@ describe( 'widgets/layer', () => {
 		hooks = installHooksStub();
 		vi.resetModules();
 		try {
-			window.localStorage.removeItem( 'wp-desktop-widgets' );
-			window.localStorage.removeItem( 'wp-desktop-widgets-geometry' );
+			window.localStorage.removeItem( 'desktop-mode-widgets' );
+			window.localStorage.removeItem( 'desktop-mode-widgets-geometry' );
 		} catch {
 			/* jsdom */
 		}
@@ -155,14 +155,14 @@ describe( 'widgets/layer', () => {
 
 		expect( layer.getEnabledIds() ).toEqual( [ 'clock' ] );
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'wp-desktop.widget.mounting' );
-		expect( names ).toContain( 'wp-desktop.widget.mounted' );
-		expect( host.querySelector( '.wp-desktop-widgets__card' ) ).not.toBeNull();
+		expect( names ).toContain( 'desktop-mode.widget.mounting' );
+		expect( names ).toContain( 'desktop-mode.widget.mounted' );
+		expect( host.querySelector( '.desktop-mode-widgets__card' ) ).not.toBeNull();
 		expect( host.textContent ).toContain( 'tick' );
 	} );
 
 	test( 'hydrate preserves an empty saved list (user removed default)', async () => {
-		window.localStorage.setItem( 'wp-desktop-widgets', '[]' );
+		window.localStorage.setItem( 'desktop-mode-widgets', '[]' );
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
 		registry.register( {
@@ -177,7 +177,7 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 
 		expect( layer.getEnabledIds() ).toEqual( [] );
-		expect( host.querySelector( '.wp-desktop-widgets__card' ) ).toBeNull();
+		expect( host.querySelector( '.desktop-mode-widgets__card' ) ).toBeNull();
 	} );
 
 	test( 'add mounts + fires added + persists', async () => {
@@ -202,12 +202,12 @@ describe( 'widgets/layer', () => {
 
 		expect( layer.getEnabledIds() ).toContain( 'stats' );
 		expect(
-			JSON.parse( window.localStorage.getItem( 'wp-desktop-widgets' )! ),
+			JSON.parse( window.localStorage.getItem( 'desktop-mode-widgets' )! ),
 		).toContain( 'stats' );
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'wp-desktop.widget.added' );
-		expect( names ).toContain( 'wp-desktop.widget.mounting' );
-		expect( names ).toContain( 'wp-desktop.widget.mounted' );
+		expect( names ).toContain( 'desktop-mode.widget.added' );
+		expect( names ).toContain( 'desktop-mode.widget.mounting' );
+		expect( names ).toContain( 'desktop-mode.widget.mounted' );
 	} );
 
 	test( 'add is idempotent — calling twice fires only one added + mounts once', async () => {
@@ -229,10 +229,10 @@ describe( 'widgets/layer', () => {
 		layer.add( 'x' );
 
 		const addedCount = log.filter(
-			( e ) => e.name === 'wp-desktop.widget.added',
+			( e ) => e.name === 'desktop-mode.widget.added',
 		).length;
 		const mountedCount = log.filter(
-			( e ) => e.name === 'wp-desktop.widget.mounted',
+			( e ) => e.name === 'desktop-mode.widget.mounted',
 		).length;
 		expect( addedCount ).toBe( 1 );
 		expect( mountedCount ).toBe( 1 );
@@ -262,8 +262,8 @@ describe( 'widgets/layer', () => {
 		expect( teardownFired ).toBe( true );
 		expect( layer.getEnabledIds() ).not.toContain( 'x' );
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'wp-desktop.widget.unmounting' );
-		expect( names ).toContain( 'wp-desktop.widget.removed' );
+		expect( names ).toContain( 'desktop-mode.widget.unmounting' );
+		expect( names ).toContain( 'desktop-mode.widget.removed' );
 	} );
 
 	test( 'async mount rejection fires mount-failed (not mounted)', async () => {
@@ -291,8 +291,8 @@ describe( 'widgets/layer', () => {
 		await Promise.resolve();
 
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'wp-desktop.widget.mount-failed' );
-		expect( names ).not.toContain( 'wp-desktop.widget.mounted' );
+		expect( names ).toContain( 'desktop-mode.widget.mount-failed' );
+		expect( names ).not.toContain( 'desktop-mode.widget.mounted' );
 		errSpy.mockRestore();
 	} );
 
@@ -307,17 +307,17 @@ describe( 'widgets/layer', () => {
 			movable: true,
 			mount: () => () => undefined,
 		} );
-		window.localStorage.setItem( 'wp-desktop-widgets', '[]' );
+		window.localStorage.setItem( 'desktop-mode-widgets', '[]' );
 
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
 		layer.add( 'mov' );
 
-		const card = host.querySelector( '.wp-desktop-widgets__card' );
+		const card = host.querySelector( '.desktop-mode-widgets__card' );
 		expect( card ).not.toBeNull();
-		expect( card!.classList.contains( 'wp-desktop-widgets__card--movable' ) ).toBe( true );
-		expect( card!.querySelector( '.wp-desktop-widgets__chrome' ) ).not.toBeNull();
-		expect( card!.querySelector( '.wp-desktop-widgets__grip' ) ).not.toBeNull();
+		expect( card!.classList.contains( 'desktop-mode-widgets__card--movable' ) ).toBe( true );
+		expect( card!.querySelector( '.desktop-mode-widgets__chrome' ) ).not.toBeNull();
+		expect( card!.querySelector( '.desktop-mode-widgets__grip' ) ).not.toBeNull();
 	} );
 
 	test( 'non-movable widget has no chrome; close sits in the corner', async () => {
@@ -330,18 +330,18 @@ describe( 'widgets/layer', () => {
 			icon: 'dashicons-star-filled',
 			mount: () => () => undefined,
 		} );
-		window.localStorage.setItem( 'wp-desktop-widgets', '[]' );
+		window.localStorage.setItem( 'desktop-mode-widgets', '[]' );
 
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
 		layer.add( 'static' );
 
-		const card = host.querySelector( '.wp-desktop-widgets__card' )!;
-		expect( card.classList.contains( 'wp-desktop-widgets__card--movable' ) ).toBe( false );
-		expect( card.querySelector( '.wp-desktop-widgets__chrome' ) ).toBeNull();
+		const card = host.querySelector( '.desktop-mode-widgets__card' )!;
+		expect( card.classList.contains( 'desktop-mode-widgets__card--movable' ) ).toBe( false );
+		expect( card.querySelector( '.desktop-mode-widgets__chrome' ) ).toBeNull();
 		// Corner-close stays in the DOM with the --corner modifier.
 		expect(
-			card.querySelector( '.wp-desktop-widgets__card-close--corner' ),
+			card.querySelector( '.desktop-mode-widgets__card-close--corner' ),
 		).not.toBeNull();
 	} );
 
@@ -356,15 +356,15 @@ describe( 'widgets/layer', () => {
 			resizable: true,
 			mount: () => () => undefined,
 		} );
-		window.localStorage.setItem( 'wp-desktop-widgets', '[]' );
+		window.localStorage.setItem( 'desktop-mode-widgets', '[]' );
 
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
 		layer.add( 'res' );
 
-		const card = host.querySelector( '.wp-desktop-widgets__card' )!;
-		expect( card.classList.contains( 'wp-desktop-widgets__card--resizable' ) ).toBe( true );
-		expect( card.querySelectorAll( '.wp-desktop-widgets__resize' ).length ).toBe( 8 );
+		const card = host.querySelector( '.desktop-mode-widgets__card' )!;
+		expect( card.classList.contains( 'desktop-mode-widgets__card--resizable' ) ).toBe( true );
+		expect( card.querySelectorAll( '.desktop-mode-widgets__resize' ).length ).toBe( 8 );
 	} );
 
 	test( 'persisted geometry mounts a movable widget floating', async () => {
@@ -378,9 +378,9 @@ describe( 'widgets/layer', () => {
 			movable: true,
 			mount: () => () => undefined,
 		} );
-		window.localStorage.setItem( 'wp-desktop-widgets', '["mov"]' );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["mov"]' );
 		window.localStorage.setItem(
-			'wp-desktop-widgets-geometry',
+			'desktop-mode-widgets-geometry',
 			JSON.stringify( { mov: { x: 50, y: 70, width: 240, height: 120 } } ),
 		);
 
@@ -390,9 +390,9 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 
 		const card = document.body.querySelector<HTMLElement>(
-			'.wp-desktop-widgets__card',
+			'.desktop-mode-widgets__card',
 		)!;
-		expect( card.classList.contains( 'wp-desktop-widgets__card--floating' ) ).toBe( true );
+		expect( card.classList.contains( 'desktop-mode-widgets__card--floating' ) ).toBe( true );
 		expect( card.style.left ).toBe( '50px' );
 		expect( card.style.top ).toBe( '70px' );
 		expect( card.style.width ).toBe( '240px' );
@@ -412,9 +412,9 @@ describe( 'widgets/layer', () => {
 			movable: true,
 			mount: () => () => undefined,
 		} );
-		window.localStorage.setItem( 'wp-desktop-widgets', '["mov"]' );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["mov"]' );
 		window.localStorage.setItem(
-			'wp-desktop-widgets-geometry',
+			'desktop-mode-widgets-geometry',
 			JSON.stringify( { mov: { x: 10, y: 20, width: 200, height: 100 } } ),
 		);
 
@@ -423,7 +423,7 @@ describe( 'widgets/layer', () => {
 		layer.remove( 'mov' );
 
 		const geom = JSON.parse(
-			window.localStorage.getItem( 'wp-desktop-widgets-geometry' ) || '{}',
+			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) || '{}',
 		);
 		expect( geom.mov ).toBeUndefined();
 	} );
@@ -529,7 +529,7 @@ describe( 'widgets/layer', () => {
 
 		expect( teardownCalled ).toBe( true );
 		expect(
-			log.some( ( e ) => e.name === 'wp-desktop.widget.mounted' ),
+			log.some( ( e ) => e.name === 'desktop-mode.widget.mounted' ),
 		).toBe( false );
 	} );
 } );

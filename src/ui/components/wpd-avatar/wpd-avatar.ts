@@ -10,7 +10,7 @@
  * Optional presence dot in the bottom-end corner — `online` /
  * `inactive` / `offline` — colored from the shell theme variables.
  * Set `user-id` to auto-subscribe the dot to the framework's
- * `wp-desktop-presence-changed` events on `document`, so the dot
+ * `desktop-mode-presence-changed` events on `document`, so the dot
  * stays accurate as long as the avatar is mounted.
  *
  * ```html
@@ -45,7 +45,7 @@ export class WpdAvatar extends Component {
 	static help = {
 		title: 'Avatar',
 		summary:
-			'Image-or-initials user tile with an optional presence dot. Falls back to a deterministic-hue letter tile when src is empty. Set user-id to auto-subscribe the dot to wp-desktop-presence-changed.',
+			'Image-or-initials user tile with an optional presence dot. Falls back to a deterministic-hue letter tile when src is empty. Set user-id to auto-subscribe the dot to desktop-mode-presence-changed.',
 		status: 'stable',
 		since: '0.22.0',
 		props: [
@@ -65,7 +65,7 @@ export class WpdAvatar extends Component {
 			{
 				name: 'user-id',
 				type: 'number',
-				description: 'When set AND presence is unset, auto-subscribes to wp-desktop-presence-changed and updates the dot.',
+				description: 'When set AND presence is unset, auto-subscribes to desktop-mode-presence-changed and updates the dot.',
 			},
 		],
 		events: [
@@ -95,7 +95,7 @@ export class WpdAvatar extends Component {
 	disconnectedCallback(): void {
 		if ( this._presenceHandler ) {
 			document.removeEventListener(
-				'wp-desktop-presence-changed',
+				'desktop-mode-presence-changed',
 				this._presenceHandler,
 			);
 			this._presenceHandler = null;
@@ -274,12 +274,12 @@ export class WpdAvatar extends Component {
 				}
 			};
 			document.addEventListener(
-				'wp-desktop-presence-changed',
+				'desktop-mode-presence-changed',
 				this._presenceHandler,
 			);
 		} else if ( ! wantsListener && this._presenceHandler ) {
 			document.removeEventListener(
-				'wp-desktop-presence-changed',
+				'desktop-mode-presence-changed',
 				this._presenceHandler,
 			);
 			this._presenceHandler = null;

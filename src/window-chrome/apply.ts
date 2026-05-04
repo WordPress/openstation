@@ -16,12 +16,12 @@
  * Tokens previously written by the shell are tracked in a
  * WeakMap-keyed bookkeeping store so a re-apply removes stale
  * variables before writing the new ones — otherwise a window that
- * goes from theme-A (with `--wp-desktop-titlebar-bg`) to theme-B
+ * goes from theme-A (with `--desktop-mode-titlebar-bg`) to theme-B
  * (without that token) would keep theme-A's colour, because
  * `setProperty` and `removeProperty` are independent operations.
  *
  * Every applied theme passes through the
- * `wp-desktop.window.chrome.theme` filter, letting plugins augment
+ * `desktop-mode.window.chrome.theme` filter, letting plugins augment
  * or override the resolved tokens without owning a theme
  * registration.
  *
@@ -52,7 +52,7 @@ const applied = new WeakMap< HTMLElement, AppliedThemeRecord >();
  *
  * Returns `{ themeId, tokens }` even when no theme matches — `tokens`
  * is then an empty object and `themeId` is `null`. Always passed
- * through the `wp-desktop.window.chrome.theme` filter so plugins can
+ * through the `desktop-mode.window.chrome.theme` filter so plugins can
  * decorate the result.
  *
  * @internal
@@ -100,7 +100,7 @@ export function resolveActiveTheme(
  * Apply a theme to a window's outer element. Removes any previously-
  * applied tokens before writing the new set so stale variables can't
  * linger across theme changes. Fires the
- * `wp-desktop.window.chrome.theme-changed` action after writing.
+ * `desktop-mode.window.chrome.theme-changed` action after writing.
  *
  * @param win      Target window.
  * @param override Optional appearance override — same shape as

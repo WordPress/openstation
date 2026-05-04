@@ -62,13 +62,13 @@ describe( 'dock icon resolution', () => {
 		const icon = container.querySelector( '.dashicons' );
 		expect( icon ).not.toBeNull();
 		expect( icon?.className ).toContain( 'dashicons-chart-bar' );
-		expect( container.querySelector( '.wp-desktop-dock__item-letter' ) ).toBeNull();
+		expect( container.querySelector( '.desktop-mode-dock__item-letter' ) ).toBeNull();
 	} );
 
 	test( 'inline SVG data URI renders a background-image span', () => {
 		const svg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		const { container } = mountDock( [ makeItem( { icon: `data:image/svg+xml;base64,${ svg }` } ) ] );
-		const icon = container.querySelector< HTMLElement >( '.wp-desktop-dock__item-svg' );
+		const icon = container.querySelector< HTMLElement >( '.desktop-mode-dock__item-svg' );
 		expect( icon ).not.toBeNull();
 		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml;base64,' );
 	} );
@@ -78,7 +78,7 @@ describe( 'dock icon resolution', () => {
 			makeItem( { icon: 'http://localhost/plugin-icon.png' } ),
 		] );
 		const img = container.querySelector< HTMLImageElement >(
-			'img.wp-desktop-dock__item-img',
+			'img.desktop-mode-dock__item-img',
 		);
 		expect( img ).not.toBeNull();
 		expect( img?.src ).toContain( '/plugin-icon.png' );
@@ -87,7 +87,7 @@ describe( 'dock icon resolution', () => {
 	test( 'missing icon falls back to a letter badge from the title', () => {
 		const { container } = mountDock( [ makeItem( { icon: '', title: 'Jetpack' } ) ] );
 		const badge = container.querySelector< HTMLElement >(
-			'.wp-desktop-dock__item-letter',
+			'.desktop-mode-dock__item-letter',
 		);
 		expect( badge ).not.toBeNull();
 		expect( badge?.textContent ).toBe( 'J' );
@@ -99,7 +99,7 @@ describe( 'dock icon resolution', () => {
 	test( "'none' icon falls back to the letter badge", () => {
 		const { container } = mountDock( [ makeItem( { icon: 'none', title: 'WooCommerce' } ) ] );
 		expect(
-			container.querySelector< HTMLElement >( '.wp-desktop-dock__item-letter' )
+			container.querySelector< HTMLElement >( '.desktop-mode-dock__item-letter' )
 				?.textContent,
 		).toBe( 'W' );
 	} );
@@ -107,7 +107,7 @@ describe( 'dock icon resolution', () => {
 	test( "'div' sentinel icon falls back to the letter badge", () => {
 		const { container } = mountDock( [ makeItem( { icon: 'div', title: 'Yoast SEO' } ) ] );
 		expect(
-			container.querySelector< HTMLElement >( '.wp-desktop-dock__item-letter' )
+			container.querySelector< HTMLElement >( '.desktop-mode-dock__item-letter' )
 				?.textContent,
 		).toBe( 'Y' );
 	} );
@@ -119,7 +119,7 @@ describe( 'dock icon resolution', () => {
 			makeItem( { icon: 'data:image/svg+xml;base64,not-b64!', title: 'Queue' } ),
 		] );
 		const badge = container.querySelector< HTMLElement >(
-			'.wp-desktop-dock__item-letter',
+			'.desktop-mode-dock__item-letter',
 		);
 		expect( badge ).not.toBeNull();
 		expect( badge?.textContent ).toBe( 'Q' );
@@ -130,7 +130,7 @@ describe( 'dock icon resolution', () => {
 			makeItem( { icon: '', title: 'über-analytics' } ),
 		] );
 		expect(
-			container.querySelector< HTMLElement >( '.wp-desktop-dock__item-letter' )
+			container.querySelector< HTMLElement >( '.desktop-mode-dock__item-letter' )
 				?.textContent,
 		).toBe( 'Ü' );
 	} );
@@ -138,7 +138,7 @@ describe( 'dock icon resolution', () => {
 	test( 'empty title degrades to ? on the fallback badge', () => {
 		const { container } = mountDock( [ makeItem( { icon: '', title: '   ' } ) ] );
 		expect(
-			container.querySelector< HTMLElement >( '.wp-desktop-dock__item-letter' )
+			container.querySelector< HTMLElement >( '.desktop-mode-dock__item-letter' )
 				?.textContent,
 		).toBe( '?' );
 	} );
@@ -203,13 +203,13 @@ describe( 'Dock.replaceItems', () => {
 			makeItem( { id: 'plugin-a', title: 'Analytics', icon: 'dashicons-chart-bar' } ),
 			makeItem( { id: 'plugin-b', title: 'Backup', icon: 'dashicons-backup' } ),
 		] );
-		expect( container.querySelectorAll( '.wp-desktop-dock__item' ).length ).toBe( 2 );
+		expect( container.querySelectorAll( '.desktop-mode-dock__item' ).length ).toBe( 2 );
 
 		dock.replaceItems( [
 			makeItem( { id: 'plugin-c', title: 'Commerce', icon: 'dashicons-cart' } ),
 		] );
 
-		const tiles = container.querySelectorAll( '.wp-desktop-dock__item' );
+		const tiles = container.querySelectorAll( '.desktop-mode-dock__item' );
 		expect( tiles.length ).toBe( 1 );
 		const slug = ( tiles[ 0 ] as HTMLElement ).dataset.menuSlug;
 		expect( slug ).toBe( 'plugin-c' );
@@ -219,10 +219,10 @@ describe( 'Dock.replaceItems', () => {
 		const { container, dock } = mountDock( [
 			makeItem( { id: 'plugin-a', title: 'Analytics', icon: 'dashicons-chart-bar' } ),
 		] );
-		expect( container.querySelectorAll( '.wp-desktop-dock__item' ).length ).toBe( 1 );
+		expect( container.querySelectorAll( '.desktop-mode-dock__item' ).length ).toBe( 1 );
 
 		dock.replaceItems( [] );
-		expect( container.querySelectorAll( '.wp-desktop-dock__item' ).length ).toBe( 0 );
+		expect( container.querySelectorAll( '.desktop-mode-dock__item' ).length ).toBe( 0 );
 	} );
 
 	test( 'preserves system items across a menu replacement', () => {
@@ -238,27 +238,27 @@ describe( 'Dock.replaceItems', () => {
 
 		// Menu item + separator + system item.
 		expect(
-			container.querySelector( '.wp-desktop-dock__item--system' ),
+			container.querySelector( '.desktop-mode-dock__item--system' ),
 		).not.toBeNull();
-		expect( container.querySelector( '.wp-desktop-dock__separator' ) ).not.toBeNull();
+		expect( container.querySelector( '.desktop-mode-dock__separator' ) ).not.toBeNull();
 
 		dock.replaceItems( [
 			makeItem( { id: 'plugin-c', title: 'Commerce', icon: 'dashicons-cart' } ),
 		] );
 
 		// After replacement: new menu tile + original separator + original system tile.
-		const tiles = container.querySelectorAll( '.wp-desktop-dock__item' );
+		const tiles = container.querySelectorAll( '.desktop-mode-dock__item' );
 		expect( tiles.length ).toBe( 2 ); // 1 menu + 1 system
 		expect(
-			container.querySelector( '.wp-desktop-dock__item--system' ),
+			container.querySelector( '.desktop-mode-dock__item--system' ),
 		).not.toBeNull();
-		expect( container.querySelector( '.wp-desktop-dock__separator' ) ).not.toBeNull();
+		expect( container.querySelector( '.desktop-mode-dock__separator' ) ).not.toBeNull();
 
 		// Menu item must come BEFORE the separator (rendering order).
-		const sep = container.querySelector( '.wp-desktop-dock__separator' );
-		const sys = container.querySelector( '.wp-desktop-dock__item--system' );
+		const sep = container.querySelector( '.desktop-mode-dock__separator' );
+		const sys = container.querySelector( '.desktop-mode-dock__item--system' );
 		const menuTile = container.querySelector(
-			'.wp-desktop-dock__item:not(.wp-desktop-dock__item--system)',
+			'.desktop-mode-dock__item:not(.desktop-mode-dock__item--system)',
 		);
 		expect( sep ).not.toBeNull();
 		expect( sys ).not.toBeNull();
@@ -279,12 +279,12 @@ describe( 'dock orientation tooltip anchor', () => {
 		clearHooksStub();
 		document.body.innerHTML = '';
 		document
-			.querySelectorAll( '.wp-desktop-dock__tooltip' )
+			.querySelectorAll( '.desktop-mode-dock__tooltip' )
 			.forEach( ( el ) => el.remove() );
 	} );
 
 	// The dock no longer carries orientation modifier classes — placement
-	// is driven by `data-wp-desktop-dock-placement` on the shell root and
+	// is driven by `data-desktop-mode-dock-placement` on the shell root and
 	// CSS keys off that. The runtime artifact of orientation is the
 	// tooltip anchor class, which flips so the label sits outside the
 	// rail on whichever edge it hugs.
@@ -294,10 +294,10 @@ describe( 'dock orientation tooltip anchor', () => {
 			[ makeItem( { icon: 'dashicons-admin-post' } ) ],
 			'left',
 		);
-		const tip = document.querySelector( '.wp-desktop-dock__tooltip' );
+		const tip = document.querySelector( '.desktop-mode-dock__tooltip' );
 		expect( tip ).not.toBeNull();
-		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--above' ) ).toBe( false );
-		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--before' ) ).toBe( false );
+		expect( tip?.classList.contains( 'desktop-mode-dock__tooltip--above' ) ).toBe( false );
+		expect( tip?.classList.contains( 'desktop-mode-dock__tooltip--before' ) ).toBe( false );
 	} );
 
 	test( 'right orientation: tooltip carries --before anchor', () => {
@@ -305,8 +305,8 @@ describe( 'dock orientation tooltip anchor', () => {
 			[ makeItem( { icon: 'dashicons-admin-post' } ) ],
 			'right',
 		);
-		const tip = document.querySelector( '.wp-desktop-dock__tooltip' );
-		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--before' ) ).toBe( true );
+		const tip = document.querySelector( '.desktop-mode-dock__tooltip' );
+		expect( tip?.classList.contains( 'desktop-mode-dock__tooltip--before' ) ).toBe( true );
 	} );
 
 	test( 'bottom orientation: tooltip carries --above anchor', () => {
@@ -314,7 +314,7 @@ describe( 'dock orientation tooltip anchor', () => {
 			[ makeItem( { icon: 'dashicons-admin-post' } ) ],
 			'bottom',
 		);
-		const tip = document.querySelector( '.wp-desktop-dock__tooltip' );
-		expect( tip?.classList.contains( 'wp-desktop-dock__tooltip--above' ) ).toBe( true );
+		const tip = document.querySelector( '.desktop-mode-dock__tooltip' );
+		expect( tip?.classList.contains( 'desktop-mode-dock__tooltip--above' ) ).toBe( true );
 	} );
 } );

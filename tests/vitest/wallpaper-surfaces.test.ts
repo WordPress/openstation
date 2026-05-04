@@ -2,11 +2,11 @@
  * Tests for the four wallpaper-plugin-facing additions:
  *
  *   1. `WindowManager.getVisibleRects()` — public geometry accessor.
- *   2. `wp-desktop.window.closing` action — pre-detach hook carrying
+ *   2. `desktop-mode.window.closing` action — pre-detach hook carrying
  *      the live element.
- *   3. `wp-desktop.window.bounds-changed` — rAF-coalesced live
+ *   3. `desktop-mode.window.bounds-changed` — rAF-coalesced live
  *      geometry action during drag/resize.
- *   4. `collectWallpaperSurfaces()` + `wp-desktop.wallpaper.surfaces`
+ *   4. `collectWallpaperSurfaces()` + `desktop-mode.wallpaper.surfaces`
  *      filter.
  *
  * Exercises the shell's public contracts that a canvas wallpaper
@@ -61,7 +61,7 @@ describe( 'WindowManager.getVisibleRects', () => {
 	beforeEach( () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'wp-desktop-area';
+		desktop.id = 'desktop-mode-area';
 		Object.defineProperty( desktop, 'clientWidth', { value: 1600, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		stubRect( desktop, { left: 0, top: 0, width: 1600, height: 900 } );
@@ -118,7 +118,7 @@ describe( 'WindowManager.getVisibleRects', () => {
 	} );
 } );
 
-describe( 'wp-desktop.window.closing', () => {
+describe( 'desktop-mode.window.closing', () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
@@ -126,7 +126,7 @@ describe( 'wp-desktop.window.closing', () => {
 	beforeEach( () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'wp-desktop-area';
+		desktop.id = 'desktop-mode-area';
 		Object.defineProperty( desktop, 'clientWidth', { value: 1600, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		document.body.appendChild( desktop );
@@ -162,12 +162,12 @@ describe( 'wp-desktop.window.closing', () => {
 		expect( closingPayload.element ).toBe( element );
 	} );
 
-	test( 'dispatches wp-desktop-window-closing CustomEvent with live element', () => {
+	test( 'dispatches desktop-mode-window-closing CustomEvent with live element', () => {
 		const w = manager.open( openConfig( 'closing-event' ) );
 		const element = w.element;
 
 		let observed: { windowId: string; element: HTMLElement } | null = null;
-		document.addEventListener( 'wp-desktop-window-closing', ( e: Event ) => {
+		document.addEventListener( 'desktop-mode-window-closing', ( e: Event ) => {
 			observed = ( e as CustomEvent ).detail;
 		}, { once: true } );
 
@@ -178,7 +178,7 @@ describe( 'wp-desktop.window.closing', () => {
 	} );
 } );
 
-describe( 'wp-desktop.wallpaper.surfaces', () => {
+describe( 'desktop-mode.wallpaper.surfaces', () => {
 	let hooks: FakeWpHooks;
 	let shell: HTMLElement;
 	let desktop: HTMLElement;
@@ -190,18 +190,18 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 		// Fake shell — lets collectWallpaperSurfaces find the expected
 		// ids for shell, dock, taskbar, area.
 		shell = document.createElement( 'div' );
-		shell.id = 'wp-desktop-shell';
+		shell.id = 'desktop-mode-shell';
 		stubRect( shell, { left: 0, top: 0, width: 1600, height: 900 } );
 		document.body.appendChild( shell );
 
 		const dock = document.createElement( 'nav' );
-		dock.id = 'wp-desktop-dock';
-		dock.className = 'wp-desktop-dock';
+		dock.id = 'desktop-mode-dock';
+		dock.className = 'desktop-mode-dock';
 		stubRect( dock, { left: 0, top: 0, width: 56, height: 900 } );
 		shell.appendChild( dock );
 
 		desktop = document.createElement( 'div' );
-		desktop.id = 'wp-desktop-area';
+		desktop.id = 'desktop-mode-area';
 		Object.defineProperty( desktop, 'clientWidth', { value: 1544, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		stubRect( desktop, { left: 56, top: 0, width: 1544, height: 900 } );
@@ -255,7 +255,7 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 	} );
 
 	test( 'dock edge face flips with placement attribute', () => {
-		const dockEl = document.getElementById( 'wp-desktop-dock' )!;
+		const dockEl = document.getElementById( 'desktop-mode-dock' )!;
 
 		// Default (no attribute → bottom placement): face 'top'.
 		const bottomFace = collectWallpaperSurfaces( manager ).find(
@@ -264,21 +264,21 @@ describe( 'wp-desktop.wallpaper.surfaces', () => {
 		expect( bottomFace ).toBe( 'top' );
 
 		// Left placement: face 'right' (inside-edge of left rail).
-		dockEl.setAttribute( 'data-wp-desktop-dock-placement', 'left' );
+		dockEl.setAttribute( 'data-desktop-mode-dock-placement', 'left' );
 		const leftFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;
 		expect( leftFace ).toBe( 'right' );
 
 		// Right placement: face 'left' (inside-edge of right rail).
-		dockEl.setAttribute( 'data-wp-desktop-dock-placement', 'right' );
+		dockEl.setAttribute( 'data-desktop-mode-dock-placement', 'right' );
 		const rightFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;
 		expect( rightFace ).toBe( 'left' );
 	} );
 
-	test( 'applies wp-desktop.wallpaper.surfaces filter — plugin can add custom surface', () => {
+	test( 'applies desktop-mode.wallpaper.surfaces filter — plugin can add custom surface', () => {
 		hooks.addFilter(
 			HOOKS.WALLPAPER_SURFACES,
 			'test/extra',

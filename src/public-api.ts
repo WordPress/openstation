@@ -19,15 +19,15 @@
  *     WidgetDef,
  *     WallpaperDef,
  *     WindowConfig,
- *   } from 'wp-desktop-mode';
- *   import { HOOKS } from 'wp-desktop-mode';
+ *   } from 'desktop-mode';
+ *   import { HOOKS } from 'desktop-mode';
  *
  *   wp.desktop.hooks.addAction( HOOKS.WINDOW_OPENED, 'myplugin/track', ( e ) => {
  *     console.log( 'Window opened:', e.windowId );
  *   } );
  *   ```
  *
- * (The `wp-desktop-mode` package name above is aspirational — today
+ * (The `desktop-mode` package name above is aspirational — today
  * plugins are bundled alongside the shell and import relatively. When
  * we publish this as an npm-distributable d.ts bundle, this file is
  * what the `main` field points at.)

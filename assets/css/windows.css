@@ -20,7 +20,7 @@
  *                            enqueue once it stops being coupled to the
  *                            window chrome loading order.
  *
- * The `wp-desktop-windows` script handle registers this file as its
+ * The `desktop-mode-windows` script handle registers this file as its
  * CSS source, so all four sub-sheets ship with a single handle — no
  * changes required to `includes/assets.php` or `includes/render.php`.
  *

@@ -20,18 +20,18 @@ custom tooltips — through these instead of replacing the whole rail.
 
 | Hook | Kind | Signature |
 |---|---|---|
-| `wp-desktop.dock.before-render` | Action | `( ctx: DockRenderContext ) => void` |
-| `wp-desktop.dock.tile-class` | Filter | `( classes: string[], ctx: DockTileContext ) => string[]` |
-| `wp-desktop.dock.tile-element` | Filter | `( el: HTMLElement, ctx: DockTileContext ) => HTMLElement` |
-| `wp-desktop.dock.tile-tooltip` | Filter | `( label: string, ctx: DockTileContext ) => string` |
-| `wp-desktop.dock.tile-rendered` | Action | `( ctx: DockTileContext & { el: HTMLElement } ) => void` |
-| `wp-desktop.dock.after-render` | Action | `( ctx: DockRenderContext ) => void` |
+| `desktop-mode.dock.before-render` | Action | `( ctx: DockRenderContext ) => void` |
+| `desktop-mode.dock.tile-class` | Filter | `( classes: string[], ctx: DockTileContext ) => string[]` |
+| `desktop-mode.dock.tile-element` | Filter | `( el: HTMLElement, ctx: DockTileContext ) => HTMLElement` |
+| `desktop-mode.dock.tile-tooltip` | Filter | `( label: string, ctx: DockTileContext ) => string` |
+| `desktop-mode.dock.tile-rendered` | Action | `( ctx: DockTileContext & { el: HTMLElement } ) => void` |
+| `desktop-mode.dock.after-render` | Action | `( ctx: DockRenderContext ) => void` |
 
 Both context shapes carry `{ rail, orientation, dockId, container }` so a
 single subscriber can disambiguate when two rails coexist (Classic
 layout's left side bar + bottom dock). `dockId` matches the host
-element id — `'wp-desktop-dock'` for the bottom rail,
-`'wp-desktop-side-dock'` for the Classic side rail.
+element id — `'desktop-mode-dock'` for the bottom rail,
+`'desktop-mode-side-dock'` for the Classic side rail.
 
 `DockTileContext` adds `{ item, isSystem }`. When `isSystem` is true the
 item is a `SystemDockItem` (OS Settings, plugin-owned native-window
@@ -44,7 +44,7 @@ own without modifying the menu data.
 
 ```js
 wp.desktop.hooks.addFilter(
-    'wp-desktop.dock.tile-class',
+    'desktop-mode.dock.tile-class',
     'my-plugin/decorate',
     ( classes, ctx ) => {
         if ( ! ctx.isSystem && ctx.item.id === 'edit.php' ) {
@@ -58,21 +58,21 @@ wp.desktop.hooks.addFilter(
 CSS:
 
 ```css
-.my-plugin-glow .wp-desktop-dock__item-primary {
+.my-plugin-glow .desktop-mode-dock__item-primary {
     box-shadow: 0 0 12px rgba( 255, 255, 100, 0.6 );
 }
 ```
 
 ## Wrap a tile in a custom container
 
-Returning a different element from `wp-desktop.dock.tile-element`
+Returning a different element from `desktop-mode.dock.tile-element`
 replaces the tile in the DOM. The shell still finds the original
 `[data-menu-slug]` / `[data-system-id]` descendant for active-state
 and badge updates, so **wrap the tile, don't replace it**.
 
 ```js
 wp.desktop.hooks.addFilter(
-    'wp-desktop.dock.tile-element',
+    'desktop-mode.dock.tile-element',
     'my-plugin/wrap',
     ( el, ctx ) => {
         if ( ctx.isSystem ) {
@@ -94,7 +94,7 @@ entirely.
 
 ```js
 wp.desktop.hooks.addFilter(
-    'wp-desktop.dock.tile-tooltip',
+    'desktop-mode.dock.tile-tooltip',
     'my-plugin/tooltip',
     ( label, ctx ) => {
         if ( ! ctx.isSystem && ctx.item.badge > 0 ) {
@@ -107,12 +107,12 @@ wp.desktop.hooks.addFilter(
 
 ## Animate a tile after it lands in the DOM
 
-`wp-desktop.dock.tile-rendered` fires once per tile after insertion,
+`desktop-mode.dock.tile-rendered` fires once per tile after insertion,
 so computed layout (offsetWidth, getBoundingClientRect) is ready.
 
 ```js
 wp.desktop.hooks.addAction(
-    'wp-desktop.dock.tile-rendered',
+    'desktop-mode.dock.tile-rendered',
     'my-plugin/animate',
     ( { el, item, isSystem } ) => {
         if ( isSystem || ! item.multi ) {
@@ -131,14 +131,14 @@ wp.desktop.hooks.addAction(
 
 ## Bulk decoration after every paint
 
-`wp-desktop.dock.after-render` fires once per pass with the full
+`desktop-mode.dock.after-render` fires once per pass with the full
 tile element map. Use it when a decoration touches multiple tiles or
 needs the post-paint geometry (e.g. measuring the rail's bounding
 rect for a custom indicator).
 
 ```js
 wp.desktop.hooks.addAction(
-    'wp-desktop.dock.after-render',
+    'desktop-mode.dock.after-render',
     'my-plugin/connector',
     ( { tileElements, container } ) => {
         // …draw a connector between two tiles, attach an
@@ -161,7 +161,7 @@ which CSS can't interpolate — the transition snaps. Two paths:
 
 ```js
 wp.desktop.hooks.addAction(
-    'wp-desktop.dock.tile-rendered',
+    'desktop-mode.dock.tile-rendered',
     'my-plugin/lift',
     ( { el } ) => {
         el.style.transition = 'transform 180ms ease';

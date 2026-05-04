@@ -83,7 +83,7 @@ function desktop_mode_save_extended_options( $raw ) {
  */
 function desktop_mode_register_extended_options_rest_routes() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/extended-options',
 		array(
 			array(
@@ -126,7 +126,7 @@ function desktop_mode_rest_extended_options_permission() {
 }
 
 /**
- * GET /wp-desktop/v1/extended-options
+ * GET /desktop-mode/v1/extended-options
  *
  * @since 0.14.0
  *
@@ -137,7 +137,7 @@ function desktop_mode_rest_get_extended_options() {
 }
 
 /**
- * POST /wp-desktop/v1/extended-options
+ * POST /desktop-mode/v1/extended-options
  *
  * @since 0.14.0
  *
@@ -173,7 +173,7 @@ function desktop_mode_enqueue_media_library_enhancement() {
 	}
 
 	wp_enqueue_script(
-		'wpdm-media-library-enhanced',
+		'desktop-mode-media-library-enhanced',
 		DESKTOP_MODE_URL . 'assets/js/media-library-enhanced.js',
 		array(),
 		DESKTOP_MODE_VERSION,

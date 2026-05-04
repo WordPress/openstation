@@ -1,7 +1,7 @@
 /**
  * Desktop-layout section — segmented control (Classic / Unified /
  * Spatial) bound to `state.desktopLayout`. The shell root's
- * `data-wp-desktop-layout` attribute is the single source of truth
+ * `data-desktop-mode-layout` attribute is the single source of truth
  * the layout dispatcher reads to rebuild the dock(s) and (for
  * Spatial) the synthesized desktop icons.
  */

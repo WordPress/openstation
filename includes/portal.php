@@ -1,11 +1,11 @@
 <?php
 /**
- * Desktop Mode — `/wp-desktop` Portal Entry Point.
+ * Desktop Mode — `/desktop-mode` Portal Entry Point.
  *
- * Registers `/wp-desktop` as a shareable URL that behaves like the
+ * Registers `/desktop-mode` as a shareable URL that behaves like the
  * front door of the desktop UI:
  *   1. Logged-out users are bounced through `wp-login.php` with a
- *      redirect back to `/wp-desktop/`.
+ *      redirect back to `/desktop-mode/`.
  *   2. Logged-in users with basic admin-read capability have the
  *      `desktop_mode_mode` user-meta toggle auto-enabled on first visit,
  *      then are forwarded into `wp-admin` at whichever window was
@@ -22,7 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** The URL path that triggers the portal handler. */
-const DESKTOP_MODE_PORTAL_PATH = 'wp-desktop';
+const DESKTOP_MODE_PORTAL_PATH = 'desktop-mode';
 
 /** Query var the admin shell reads to know it was entered via the portal. */
 const DESKTOP_MODE_PORTAL_FLAG = 'desktop_mode_portal';
@@ -36,7 +36,7 @@ const DESKTOP_MODE_PORTAL_FLAG = 'desktop_mode_portal';
 const DESKTOP_MODE_CLASSIC_FLAG = 'desktop_mode_classic';
 
 /**
- * Returns the canonical portal URL, e.g. `https://example.com/wp-desktop/`.
+ * Returns the canonical portal URL, e.g. `https://example.com/desktop-mode/`.
  *
  * @since 0.4.0
  *
@@ -47,7 +47,7 @@ function desktop_mode_portal_url() {
 }
 
 /**
- * Intercepts requests to `/wp-desktop` and forwards them into the admin.
+ * Intercepts requests to `/desktop-mode` and forwards them into the admin.
  *
  * Hooks on `parse_request` — early enough to pre-empt 404 handling but
  * late enough that `is_user_logged_in()` is reliable.
@@ -82,7 +82,7 @@ function desktop_mode_handle_portal_request( $wp ) {
 	$user_id = get_current_user_id();
 
 	/**
-	 * Filters whether visiting the `/wp-desktop` portal should auto-enable
+	 * Filters whether visiting the `/desktop-mode` portal should auto-enable
 	 * desktop mode for the current user.
 	 *
 	 * Default: true — the portal is an explicit opt-in action, so flipping
@@ -123,7 +123,7 @@ function desktop_mode_handle_portal_request( $wp ) {
 	}
 
 	// Flag the forward so the shell can stamp the address bar back to
-	// /wp-desktop/ via history.replaceState once it has loaded.
+	// /desktop-mode/ via history.replaceState once it has loaded.
 	$target = add_query_arg( DESKTOP_MODE_PORTAL_FLAG, '1', $target );
 
 	wp_safe_redirect( $target );
@@ -135,7 +135,7 @@ add_action( 'parse_request', 'desktop_mode_handle_portal_request' );
  * Detects whether the current request is for the portal URL.
  *
  * Strips any query string and trailing slash and compares against
- * `/wp-desktop` relative to the site's home path.
+ * `/desktop-mode` relative to the site's home path.
  *
  * @since 0.4.0
  *
@@ -165,10 +165,10 @@ function desktop_mode_is_portal_request() {
 }
 
 /**
- * Forwards plain `/wp-admin/...` requests to the `/wp-desktop/` portal
+ * Forwards plain `/wp-admin/...` requests to the `/desktop-mode/` portal
  * when the current user has desktop mode enabled.
  *
- * Why: when desktop mode is on, `/wp-desktop/` is meant to be the one
+ * Why: when desktop mode is on, `/desktop-mode/` is meant to be the one
  * canonical address. A user who bookmarks `/wp-admin/plugins.php` or
  * follows an old admin link should still land in the shell, not in
  * vanilla admin with the shell glued over the top. Running through the
@@ -268,7 +268,7 @@ add_action( 'admin_init', 'desktop_mode_redirect_plain_admin_to_portal' );
  * dashboard.
  *
  * The portal navigates the TOP window, not an iframe, so any chromeless
- * `wp_desktop=1` flag baked into the stored URL is stripped — a leftover
+ * `desktop_mode_chromeless=1` flag baked into the stored URL is stripped — a leftover
  * flag would land the user in a standalone chromeless page (no admin
  * bar, no toggle, no way out) instead of the shell.
  *
@@ -288,7 +288,7 @@ function desktop_mode_portal_entry_url( $user_id ) {
 	$default_window = desktop_mode_get_default_window( $user_id );
 	$fallback       = $default_window['url'];
 
-	// Native marker (e.g. "native:wp-desktop-os-settings") is not a
+	// Native marker (e.g. "native:desktop-mode-os-settings") is not a
 	// redirectable URL. The portal MUST forward somewhere — the
 	// redirect happens at HTTP level — so we land on the admin home
 	// and let the shell pick up `defaultWindow.url` from the config
@@ -311,7 +311,7 @@ function desktop_mode_portal_entry_url( $user_id ) {
 		if ( ! desktop_mode_url_is_same_admin( $win['url'] ) ) {
 			return $fallback;
 		}
-		return remove_query_arg( array( 'wp_desktop', DESKTOP_MODE_PORTAL_FLAG ), $win['url'] );
+		return remove_query_arg( array( 'desktop_mode_chromeless', DESKTOP_MODE_PORTAL_FLAG ), $win['url'] );
 	}
 
 	return $fallback;
@@ -326,7 +326,7 @@ function desktop_mode_portal_entry_url( $user_id ) {
  * Everything else returns an empty string so the caller falls back to
  * the saved-session entry URL.
  *
- * Strips `wp_desktop` and the portal flag from the query so the target
+ * Strips `desktop_mode_chromeless` and the portal flag from the query so the target
  * doesn't chain us into a chromeless standalone load or an infinite
  * redirect loop.
  *
@@ -381,7 +381,7 @@ function desktop_mode_sanitize_portal_target( $raw ) {
 
 	if ( is_string( $query ) && '' !== $query ) {
 		parse_str( $query, $args );
-		unset( $args['wp_desktop'], $args[ DESKTOP_MODE_PORTAL_FLAG ], $args['target'] );
+		unset( $args['desktop_mode_chromeless'], $args[ DESKTOP_MODE_PORTAL_FLAG ], $args['target'] );
 		if ( ! empty( $args ) ) {
 			$target = add_query_arg( $args, $target );
 		}

@@ -144,10 +144,10 @@
 		// to the user that a re-upload is about to happen.
 		var style = document.createElement( 'style' );
 		style.textContent =
-			'body.wpdm-dragging-attachment .uploader-window,' +
-			'body.wpdm-dragging-attachment .uploader-window-content,' +
-			'body.wpdm-dragging-attachment .uploader-editor-content,' +
-			'body.wpdm-dragging-attachment .wp-uploader {' +
+			'body.desktop-mode-dragging-attachment .uploader-window,' +
+			'body.desktop-mode-dragging-attachment .uploader-window-content,' +
+			'body.desktop-mode-dragging-attachment .uploader-editor-content,' +
+			'body.desktop-mode-dragging-attachment .wp-uploader {' +
 			'  display: none !important;' +
 			'  pointer-events: none !important;' +
 			'}';
@@ -160,10 +160,10 @@
 	 * @param {HTMLElement} el The .attachment element.
 	 */
 	function enhance( el ) {
-		if ( el.dataset.wpdmDraggable === '1' ) {
+		if ( el.dataset.desktopModeDraggable === '1' ) {
 			return;
 		}
-		el.dataset.wpdmDraggable = '1';
+		el.dataset.desktopModeDraggable = '1';
 		el.setAttribute( 'draggable', 'true' );
 
 		el.addEventListener( 'dragstart', function ( e ) {
@@ -177,7 +177,7 @@
 			// will be stopped at capture phase. Also class the body so
 			// the CSS hides the uploader overlay visually.
 			dragInProgress = true;
-			document.body.classList.add( 'wpdm-dragging-attachment' );
+			document.body.classList.add( 'desktop-mode-dragging-attachment' );
 
 			var model = wp.media.attachment( id );
 			var a = ( model && model.attributes ) ? model.attributes : {};
@@ -246,7 +246,7 @@
 			try {
 				if ( window.parent && window.parent !== window ) {
 					window.parent.postMessage( {
-						type: 'wp-desktop-drag-start',
+						type: 'desktop-mode-drag-start',
 						payload: {
 							id: id,
 							url: url,
@@ -269,12 +269,12 @@
 			// Disarm the uploader block and drop the body class so the
 			// uploader UI works normally again once the drag is over.
 			dragInProgress = false;
-			document.body.classList.remove( 'wpdm-dragging-attachment' );
+			document.body.classList.remove( 'desktop-mode-dragging-attachment' );
 
 			try {
 				if ( window.parent && window.parent !== window ) {
 					window.parent.postMessage(
-						{ type: 'wp-desktop-drag-end' },
+						{ type: 'desktop-mode-drag-end' },
 						window.location.origin
 					);
 				}

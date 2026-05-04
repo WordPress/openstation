@@ -13,16 +13,16 @@
  * Architecture:
  *
  *   Source iframe (Media Library)
- *     │  window.parent.postMessage( wp-desktop-drag-start, payload )
+ *     │  window.parent.postMessage( desktop-mode-drag-start, payload )
  *     ▼
  *   Parent shell (this module)
  *     │  stores `currentPayload`
- *     │  dispatches `wp-desktop.drag.start` / `.end` CustomEvents on
+ *     │  dispatches `desktop-mode.drag.start` / `.end` CustomEvents on
  *     │  document so other shell modules can react (highlight drop
  *     │  zones, dim non-target windows, etc.)
  *     ▲
  *     │  any iframe can postMessage:
- *     │    wp-desktop-drag-payload-request → we reply with the payload
+ *     │    desktop-mode-drag-payload-request → we reply with the payload
  *     ▼
  *   Receiver iframe (e.g. post editor)
  *     uses the payload in its drop handler to insert the media.
@@ -56,8 +56,8 @@ export interface DragBridgeApi {
 
 /** Event names we dispatch on `document`. */
 export const DRAG_BRIDGE_EVENTS = {
-	START: 'wp-desktop-cross-frame-drag-start',
-	END: 'wp-desktop-cross-frame-drag-end',
+	START: 'desktop-mode-cross-frame-drag-start',
+	END: 'desktop-mode-cross-frame-drag-end',
 } as const;
 
 // -----------------------------------------------------------------------
@@ -65,31 +65,31 @@ export const DRAG_BRIDGE_EVENTS = {
 // -----------------------------------------------------------------------
 
 interface StartMsg {
-	type: 'wp-desktop-drag-start';
+	type: 'desktop-mode-drag-start';
 	payload: DragPayload;
 }
 interface EndMsg {
-	type: 'wp-desktop-drag-end';
+	type: 'desktop-mode-drag-end';
 }
 interface PayloadRequestMsg {
-	type: 'wp-desktop-drag-payload-request';
+	type: 'desktop-mode-drag-payload-request';
 }
 
 type InboundMsg = StartMsg | EndMsg | PayloadRequestMsg;
 
 function isStart( m: unknown ): m is StartMsg {
 	return !! m && typeof m === 'object' &&
-		( m as { type?: unknown } ).type === 'wp-desktop-drag-start' &&
+		( m as { type?: unknown } ).type === 'desktop-mode-drag-start' &&
 		!! ( m as { payload?: unknown } ).payload &&
 		typeof ( m as { payload?: unknown } ).payload === 'object';
 }
 function isEnd( m: unknown ): m is EndMsg {
 	return !! m && typeof m === 'object' &&
-		( m as { type?: unknown } ).type === 'wp-desktop-drag-end';
+		( m as { type?: unknown } ).type === 'desktop-mode-drag-end';
 }
 function isPayloadRequest( m: unknown ): m is PayloadRequestMsg {
 	return !! m && typeof m === 'object' &&
-		( m as { type?: unknown } ).type === 'wp-desktop-drag-payload-request';
+		( m as { type?: unknown } ).type === 'desktop-mode-drag-payload-request';
 }
 
 // -----------------------------------------------------------------------
@@ -142,7 +142,7 @@ export class DragBridge implements DragBridgeApi {
 			// reply back to that frame only.
 			try {
 				( e.source as Window ).postMessage(
-					{ type: 'wp-desktop-drag-payload', payload: this._payload },
+					{ type: 'desktop-mode-drag-payload', payload: this._payload },
 					this._origin,
 				);
 			} catch {

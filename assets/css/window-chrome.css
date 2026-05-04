@@ -13,14 +13,14 @@
  */
 
 /* Base window. */
-.wp-desktop-window {
+.desktop-mode-window {
 	/*
 	 * border-box sizing is essential for pixel-perfect maximize.
 	 * `Window.maximize()` sets inline `width = parent.clientWidth`,
 	 * which is the area's inner width. Under content-box sizing, the
 	 * window's 1px border would add 2 extra pixels to the rendered
 	 * element, pushing its right + bottom borders past the
-	 * overflow-hidden boundary of `.wp-desktop-area` and making them
+	 * overflow-hidden boundary of `.desktop-mode-area` and making them
 	 * look clipped/offscreen. With border-box, width/height INCLUDE
 	 * the border, so `width = clientWidth` fits exactly.
 	 *
@@ -34,10 +34,10 @@
 	position: absolute;
 	display: flex;
 	flex-direction: column;
-	background: var(--wp-desktop-window-bg);
-	border: 1px solid var(--wp-desktop-window-border);
-	border-radius: var(--wp-desktop-window-radius);
-	box-shadow: var(--wp-desktop-window-shadow);
+	background: var(--desktop-mode-window-bg);
+	border: 1px solid var(--desktop-mode-window-border);
+	border-radius: var(--desktop-mode-window-radius);
+	box-shadow: var(--desktop-mode-window-shadow);
 	overflow: hidden;
 	min-width: 320px;
 	min-height: 200px;
@@ -64,9 +64,9 @@
  * viewport the whole time. The class is added by
  * `reflowStatefulWindows` and cleared ~140 ms after the last tick.
  */
-.wp-desktop-window--dragging,
-.wp-desktop-window--resizing,
-.wp-desktop-window--reflowing {
+.desktop-mode-window--dragging,
+.desktop-mode-window--resizing,
+.desktop-mode-window--reflowing {
 	transition: none;
 }
 
@@ -79,7 +79,7 @@
  * (90 ms) so the window still feels glued to the cursor — anything
  * longer reads as lag.
  */
-.wp-desktop-window--snap-drag {
+.desktop-mode-window--snap-drag {
 	transition:
 		left 0.09s ease-out,
 		top 0.09s ease-out,
@@ -88,32 +88,32 @@
 }
 
 /* Focused window gets elevated shadow and distinct title bar. */
-.wp-desktop-window--focused {
-	box-shadow: var(--wp-desktop-window-shadow-focused);
+.desktop-mode-window--focused {
+	box-shadow: var(--desktop-mode-window-shadow-focused);
 }
 
 /* Title bar. */
-.wp-desktop-window__titlebar {
+.desktop-mode-window__titlebar {
 	position: relative;
 	display: flex;
 	align-items: center;
-	height: var(--wp-desktop-titlebar-height);
+	height: var(--desktop-mode-titlebar-height);
 	padding: 0 8px;
-	background: var(--wp-desktop-titlebar-bg);
-	color: var(--wp-desktop-titlebar-color);
+	background: var(--desktop-mode-titlebar-bg);
+	color: var(--desktop-mode-titlebar-color);
 	cursor: default;
 	user-select: none;
 	flex-shrink: 0;
 	gap: 8px;
 }
 
-.wp-desktop-window--focused .wp-desktop-window__titlebar {
-	background: var(--wp-desktop-titlebar-bg-focused);
-	color: var(--wp-desktop-titlebar-color-focused);
+.desktop-mode-window--focused .desktop-mode-window__titlebar {
+	background: var(--desktop-mode-titlebar-bg-focused);
+	color: var(--desktop-mode-titlebar-color-focused);
 }
 
 /* Window icon in title bar. */
-.wp-desktop-window__icon {
+.desktop-mode-window__icon {
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
@@ -121,18 +121,18 @@
 }
 
 /* Window title text. */
-.wp-desktop-window__title {
+.desktop-mode-window__title {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: 14px;
 	font-weight: 500;
-	line-height: var(--wp-desktop-titlebar-height);
+	line-height: var(--desktop-mode-titlebar-height);
 }
 
 /* Window control buttons container. */
-.wp-desktop-window__controls {
+.desktop-mode-window__controls {
 	display: flex;
 	gap: 4px;
 	align-items: center;
@@ -157,21 +157,21 @@
  * nested flex.
  *
  * before/after-titlebar slots are flex-column children of
- * `.wp-desktop-window` (siblings of the title bar). They're real
+ * `.desktop-mode-window` (siblings of the title bar). They're real
  * boxes — plugins can paint backgrounds, padding, borders. Empty
  * hosts collapse via `:empty` so they take no space until populated.
  *
  * @since 0.6.0
  */
-.wp-desktop-window__slot--before-icon,
-.wp-desktop-window__slot--icon,
-.wp-desktop-window__slot--after-title,
-.wp-desktop-window__slot--before-controls,
-.wp-desktop-window__slot--after-controls {
+.desktop-mode-window__slot--before-icon,
+.desktop-mode-window__slot--icon,
+.desktop-mode-window__slot--after-title,
+.desktop-mode-window__slot--before-controls,
+.desktop-mode-window__slot--after-controls {
 	display: contents;
 }
 
-.wp-desktop-window__slot--title {
+.desktop-mode-window__slot--title {
 	flex: 1;
 	min-width: 0;
 	display: flex;
@@ -179,14 +179,14 @@
 	overflow: hidden;
 }
 
-.wp-desktop-window__slot--before-titlebar,
-.wp-desktop-window__slot--after-titlebar {
+.desktop-mode-window__slot--before-titlebar,
+.desktop-mode-window__slot--after-titlebar {
 	display: block;
 	flex-shrink: 0;
 }
 
-.wp-desktop-window__slot--before-titlebar:empty,
-.wp-desktop-window__slot--after-titlebar:empty {
+.desktop-mode-window__slot--before-titlebar:empty,
+.desktop-mode-window__slot--after-titlebar:empty {
 	display: none;
 }
 
@@ -210,7 +210,7 @@
  * the boundary. The component reads `--wpd-btn-color`,
  * `--wpd-btn-bg-hover`, etc. and paints accordingly.
  */
-.wp-desktop-window--focused {
+.desktop-mode-window--focused {
 	--wpd-btn-color: rgba( 255, 255, 255, 0.7 );
 	--wpd-btn-color-hover: #fff;
 	--wpd-btn-bg-hover: rgba( 255, 255, 255, 0.18 );
@@ -219,7 +219,7 @@
 	--wpd-btn-danger-hover: #d63638;
 }
 
-.wp-desktop-window:not( .wp-desktop-window--focused ) {
+.desktop-mode-window:not( .desktop-mode-window--focused ) {
 	--wpd-btn-color: rgba( 0, 0, 0, 0.45 );
 	--wpd-btn-color-hover: rgba( 0, 0, 0, 0.85 );
 	--wpd-btn-bg-hover: rgba( 0, 0, 0, 0.08 );
@@ -231,7 +231,7 @@
 /* ---------------------------------------------------------------
  * Title-bar actions menu (leading edge, before icon + title).
  *
- * Trigger is a standard `.wp-desktop-window__btn` — inherits focused /
+ * Trigger is a standard `.desktop-mode-window__btn` — inherits focused /
  * unfocused coloring from the existing control-button rules. The only
  * bespoke rule is margin: it sits at the leading edge so a small trailing
  * gap separates it from the icon without affecting overall title-bar gap.
@@ -249,19 +249,19 @@
  * single clean line always sits between page chrome and window
  * chrome regardless of which combination is visible.
  */
-.wp-desktop-window__titlebar:has(.wp-desktop-window__menu-btn) .wp-desktop-window__screen-meta {
+.desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__screen-meta {
 	margin-inline-end: 0;
 	padding-inline-end: 0;
 	border-inline-end: none;
 }
 
-.wp-desktop-window__titlebar:has(.wp-desktop-window__menu-btn) .wp-desktop-window__controls {
+.desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
 	margin-inline-start: 8px;
 	padding-inline-start: 8px;
 	border-inline-start: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.wp-desktop-window:not(.wp-desktop-window--focused) .wp-desktop-window__titlebar:has(.wp-desktop-window__menu-btn) .wp-desktop-window__controls {
+.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
 	border-inline-start-color: rgba(0, 0, 0, 0.1);
 }
 
@@ -271,9 +271,9 @@
  * outer. Background, border, items, checkbox styling all moved
  * into `<wpd-menu>` / `<wpd-menu-item>`.
  */
-.wp-desktop-window__menu-panel {
+.desktop-mode-window__menu-panel {
 	position: absolute;
-	top: calc( var( --wp-desktop-titlebar-height ) + 2px );
+	top: calc( var( --desktop-mode-titlebar-height ) + 2px );
 	inset-inline-end: 60px;
 	z-index: 2;
 }
@@ -284,7 +284,7 @@
  * the close / maximize / minimize cluster by a subtle divider.
  * Sized to meet WCAG 2.2 target size (24x24 minimum).
  * --------------------------------------------------------------- */
-.wp-desktop-window__screen-meta {
+.desktop-mode-window__screen-meta {
 	display: flex;
 	gap: 4px;
 	align-items: center;
@@ -295,11 +295,11 @@
 }
 
 /* Hide the divider when there are no screen-meta buttons. */
-.wp-desktop-window__screen-meta:empty {
+.desktop-mode-window__screen-meta:empty {
 	display: none;
 }
 
-.wp-desktop-window__meta-btn {
+.desktop-mode-window__meta-btn {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -313,43 +313,43 @@
 	transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.wp-desktop-window__meta-btn .dashicons {
+.desktop-mode-window__meta-btn .dashicons {
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
 }
 
 /* Focused window: meta buttons visible. */
-.wp-desktop-window--focused .wp-desktop-window__meta-btn {
+.desktop-mode-window--focused .desktop-mode-window__meta-btn {
 	color: rgba(255, 255, 255, 0.65);
 }
-.wp-desktop-window--focused .wp-desktop-window__meta-btn:hover {
+.desktop-mode-window--focused .desktop-mode-window__meta-btn:hover {
 	color: #fff;
 	background: rgba(255, 255, 255, 0.18);
 }
-.wp-desktop-window--focused .wp-desktop-window__meta-btn:focus-visible {
+.desktop-mode-window--focused .desktop-mode-window__meta-btn:focus-visible {
 	color: #fff;
 	background: rgba(255, 255, 255, 0.18);
 	outline: 2px solid rgba(255, 255, 255, 0.6);
 	outline-offset: 1px;
 }
-.wp-desktop-window--focused .wp-desktop-window__meta-btn--active {
+.desktop-mode-window--focused .desktop-mode-window__meta-btn--active {
 	color: #fff;
 	background: rgba(255, 255, 255, 0.25);
 }
 
 /* Unfocused window: divider and buttons adapt to light title bar. */
-.wp-desktop-window:not(.wp-desktop-window--focused) .wp-desktop-window__screen-meta {
+.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__screen-meta {
 	border-inline-end-color: rgba(0, 0, 0, 0.1);
 }
-.wp-desktop-window:not(.wp-desktop-window--focused) .wp-desktop-window__meta-btn {
+.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn {
 	color: rgba(0, 0, 0, 0.3);
 }
-.wp-desktop-window:not(.wp-desktop-window--focused) .wp-desktop-window__meta-btn:hover {
+.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn:hover {
 	color: rgba(0, 0, 0, 0.6);
 	background: rgba(0, 0, 0, 0.08);
 }
-.wp-desktop-window:not(.wp-desktop-window--focused) .wp-desktop-window__meta-btn--active {
+.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn--active {
 	color: rgba(0, 0, 0, 0.6);
 	background: rgba(0, 0, 0, 0.12);
 }
@@ -360,13 +360,13 @@
  * new window opens. Horizontally scrollable on narrow windows so the
  * same component works on tablet and mobile shells unchanged.
  * --------------------------------------------------------------- */
-.wp-desktop-window__tabs {
+.desktop-mode-window__tabs {
 	display: flex;
 	flex-shrink: 0;
 	gap: 2px;
 	padding: 0 8px;
-	background: var(--wp-desktop-tabs-bg, #f6f7f7);
-	border-bottom: 1px solid var(--wp-desktop-window-border);
+	background: var(--desktop-mode-tabs-bg, #f6f7f7);
+	border-bottom: 1px solid var(--desktop-mode-window-border);
 	overflow-x: auto;
 	overflow-y: hidden;
 	scrollbar-width: thin;
@@ -403,7 +403,7 @@
  * flex content.
  */
 
-.wp-desktop-window__tab {
+.desktop-mode-window__tab {
 	flex-shrink: 0;
 	display: inline-flex;
 	align-items: center;
@@ -411,7 +411,7 @@
 	padding: 0 12px;
 	border: none;
 	background: transparent;
-	color: var(--wp-desktop-tabs-color, #50575e);
+	color: var(--desktop-mode-tabs-color, #50575e);
 	font: inherit;
 	font-size: 12px;
 	line-height: 1;
@@ -422,17 +422,17 @@
 	transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.wp-desktop-window__tab:hover {
+.desktop-mode-window__tab:hover {
 	color: var(--wp-admin-theme-color, #2271b1);
 	background: rgba(0, 0, 0, 0.03);
 }
 
-.wp-desktop-window__tab:focus-visible {
+.desktop-mode-window__tab:focus-visible {
 	outline: 2px solid var(--wp-admin-theme-color, #2271b1);
 	outline-offset: -2px;
 }
 
-.wp-desktop-window__tab--active {
+.desktop-mode-window__tab--active {
 	color: var(--wp-admin-theme-color, #2271b1);
 	border-bottom-color: var(--wp-admin-theme-color, #2271b1);
 	font-weight: 600;
@@ -445,7 +445,7 @@
  * pain for a11y). The tab's click handler routes chip clicks via
  * the `data-tab-action` dataset attribute.
  */
-.wp-desktop-window__tab--external {
+.desktop-mode-window__tab--external {
 	/* Slightly wider gap between the label and the chip cluster, and
 	 * more breathing room at the trailing edge so the chips aren't
 	 * flush against the tab boundary. */
@@ -453,7 +453,7 @@
 	padding-inline-end: 4px;
 }
 
-.wp-desktop-window__tab-label {
+.desktop-mode-window__tab-label {
 	max-width: 180px;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -468,19 +468,19 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 /* Window body: contains the iframe. */
-.wp-desktop-window__body {
+.desktop-mode-window__body {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
 }
 
 /* Iframe fills the window body. */
-.wp-desktop-window__iframe {
+.desktop-mode-window__iframe {
 	width: 100%;
 	height: 100%;
 	border: none;
 	display: block;
-	background: var(--wp-desktop-window-bg);
+	background: var(--desktop-mode-window-bg);
 	opacity: 1;
 	transition: opacity 0.25s ease;
 }
@@ -502,27 +502,27 @@ wpd-tab-chip + wpd-tab-chip {
  * fast local-dev loads while still covering the slow production
  * iframe boots that motivated it.
  */
-.wp-desktop-window__loading {
+.desktop-mode-window__loading {
 	position: absolute;
 	inset: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	pointer-events: none;
-	background: var(--wp-desktop-window-bg);
+	background: var(--desktop-mode-window-bg);
 	opacity: 0;
 	/* Default (loaded → loading-removed) — fade out immediately. */
 	transition: opacity 0.25s ease;
 	z-index: 1;
 }
 
-.wp-desktop-window__body--loading > .wp-desktop-window__iframe,
-.wp-desktop-window__body--loading > :not(.wp-desktop-window__loading) {
+.desktop-mode-window__body--loading > .desktop-mode-window__iframe,
+.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
 	opacity: 0;
 	transition: opacity 0.25s ease;
 }
 
-.wp-desktop-window__body--loading > .wp-desktop-window__loading {
+.desktop-mode-window__body--loading > .desktop-mode-window__loading {
 	opacity: 1;
 	/* Entry transition with a small delay — loads that finish in
 	 * under ~120ms never paint the spinner, so fast local-dev /
@@ -532,10 +532,10 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-window__iframe,
-	.wp-desktop-window__loading,
-	.wp-desktop-window__body--loading > .wp-desktop-window__iframe,
-	.wp-desktop-window__body--loading > :not(.wp-desktop-window__loading) {
+	.desktop-mode-window__iframe,
+	.desktop-mode-window__loading,
+	.desktop-mode-window__body--loading > .desktop-mode-window__iframe,
+	.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
 		transition: none;
 	}
 }
@@ -547,7 +547,7 @@ wpd-tab-chip + wpd-tab-chip {
  * primary iframe around when added to the DOM; `display: none` on
  * inactive iframes is set inline by the JS.
  */
-.wp-desktop-window__iframe--external {
+.desktop-mode-window__iframe--external {
 	position: absolute;
 	inset: 0;
 }
@@ -558,10 +558,10 @@ wpd-tab-chip + wpd-tab-chip {
  * controls its own scroll; native bodies render real document content
  * that needs the parent to manage overflow.
  */
-.wp-desktop-window__body--native {
+.desktop-mode-window__body--native {
 	overflow: auto;
 	color: #1d2327;
-	background: var(--wp-desktop-window-bg);
+	background: var(--desktop-mode-window-bg);
 }
 
 /*
@@ -595,10 +595,10 @@ wpd-tab-chip + wpd-tab-chip {
  * present, they sit inline next to the title (left slot) or just
  * before the window controls (right slot).
  */
-.wp-desktop-window__custom-buttons {
+.desktop-mode-window__custom-buttons {
 	display: contents;
 }
-.wp-desktop-window__btn--custom {
+.desktop-mode-window__btn--custom {
 	margin: 0 2px;
 }
 /*
@@ -622,7 +622,7 @@ wpd-tab-chip + wpd-tab-chip {
  * a bare `<svg>` would otherwise size to its viewBox or default
  * to 300×150 (the spec default) and overflow the button.
  */
-.wp-desktop-window__btn--custom svg:not( [ width ] ):not( [ height ] ) {
+.desktop-mode-window__btn--custom svg:not( [ width ] ):not( [ height ] ) {
 	width: 18px;
 	height: 18px;
 	display: block;
@@ -632,10 +632,10 @@ wpd-tab-chip + wpd-tab-chip {
  * Custom-chrome marker — hides every framework-shipped titlebar
  * child while a plugin's chrome is mounted.
  *
- * The window gets the `wp-desktop-window--custom-chrome` class the
+ * The window gets the `desktop-mode-window--custom-chrome` class the
  * moment `mountWindowChrome` succeeds (BEFORE the plugin's
  * `render()` runs). Default children carry the
- * `data-wp-desktop-default-chrome` attribute stamped at element-
+ * `data-desktop-mode-default-chrome` attribute stamped at element-
  * creation time. The combination is a load-bearing guarantee:
  * even if the plugin's render() doesn't clear `titlebar.innerHTML`,
  * even if a plugin's destroy() leaks the standard chrome back into
@@ -651,9 +651,9 @@ wpd-tab-chip + wpd-tab-chip {
  * @since 0.18.0
  * ---------------------------------------------------------------- */
 
-.wp-desktop-window--custom-chrome
-	> .wp-desktop-window__titlebar
-	> [ data-wp-desktop-default-chrome ] {
+.desktop-mode-window--custom-chrome
+	> .desktop-mode-window__titlebar
+	> [ data-desktop-mode-default-chrome ] {
 	display: none !important;
 }
 
@@ -671,7 +671,7 @@ wpd-tab-chip + wpd-tab-chip {
  *
  *   2. While the window body is in the `--loading` state (set by
  *      `markContentLoading()` and cleared on the iframe's
- *      `wp-desktop-ready` postMessage), the button is dimmed and
+ *      `desktop-mode-ready` postMessage), the button is dimmed and
  *      non-interactive so a second click can't desync the
  *      chromeless bridge's loading handshake.
  *
@@ -681,8 +681,8 @@ wpd-tab-chip + wpd-tab-chip {
  * fall back to a static dimmed button — feature, not bug.
  * --------------------------------------------------------------- */
 
-.wp-desktop-window:has( .wp-desktop-window__body--loading )
-	.wp-desktop-window__btn--reload {
+.desktop-mode-window:has( .desktop-mode-window__body--loading )
+	.desktop-mode-window__btn--reload {
 	pointer-events: none;
 	opacity: 0.55;
 }
@@ -697,7 +697,7 @@ wpd-tab-chip + wpd-tab-chip {
  * duration is short enough to never block the user but long enough
  * that the deceleration is legible.
  */
-.wp-desktop-window__btn--reload.wp-desktop-window__btn--spinning {
+.desktop-mode-window__btn--reload.desktop-mode-window__btn--spinning {
 	animation: wpd-reload-spin-once 0.6s cubic-bezier( 0.05, 0.7, 0.1, 1 );
 }
 
@@ -711,7 +711,7 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-window__btn--reload.wp-desktop-window__btn--spinning {
+	.desktop-mode-window__btn--reload.desktop-mode-window__btn--spinning {
 		animation: none;
 	}
 }

@@ -538,7 +538,7 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 
 	/**
 	 * The native-windows payload shipped to the shell via
-	 * `wpDesktopConfig.nativeWindows` carries a `tabs` descriptor
+	 * `desktopModeConfig.nativeWindows` carries a `tabs` descriptor
 	 * array so subscribers that want to inspect tabs without
 	 * re-parsing the template HTML can do so.
 	 *

@@ -3,7 +3,7 @@
  *
  * A rail that hosts admin menu tiles plus shell-level system tiles.
  * Placement (left / right / bottom) is reflected on each dock element
- * itself as `data-wp-desktop-dock-placement`; this stylesheet keys
+ * itself as `data-desktop-mode-dock-placement`; this stylesheet keys
  * off that attribute for layout, tooltip anchor, and indicator
  * position. Two instances can coexist (Classic layout: a left side
  * bar with core menus + a bottom dock with plugin menus); each
@@ -17,11 +17,11 @@
  * Shared dock chrome — applies to every placement.
  * ------------------------------------------------------------------ */
 
-.wp-desktop-dock {
+.desktop-mode-dock {
 	display: flex;
 	align-items: center;
-	z-index: var( --wp-desktop-z-dock );
-	background: var( --wp-desktop-dock-bg );
+	z-index: var( --desktop-mode-z-dock );
+	background: var( --desktop-mode-dock-bg );
 	backdrop-filter: blur( 20px );
 	-webkit-backdrop-filter: blur( 20px );
 	flex-shrink: 0;
@@ -35,7 +35,7 @@
 }
 
 /* A single dock tile — icon button (+ optional instance rail below). */
-.wp-desktop-dock__item {
+.desktop-mode-dock__item {
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -45,7 +45,7 @@
 }
 
 /* Primary icon button — opens or focuses the page. */
-.wp-desktop-dock__item-primary {
+.desktop-mode-dock__item-primary {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -61,33 +61,33 @@
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
-.wp-desktop-dock__item-primary:hover {
+.desktop-mode-dock__item-primary:hover {
 	background: rgba( 255, 255, 255, 0.15 );
 	color: #fff;
 	transform: scale( 1.1 );
 }
 
-.wp-desktop-dock__item-primary:active {
+.desktop-mode-dock__item-primary:active {
 	transform: scale( 0.95 );
 }
 
-.wp-desktop-dock__item-primary:focus-visible {
+.desktop-mode-dock__item-primary:focus-visible {
 	outline: 2px solid rgba( 255, 255, 255, 0.7 );
 	outline-offset: 2px;
 }
 
 /* Dashicon inside dock item. */
-.wp-desktop-dock__item .dashicons {
-	font-size: var( --wp-desktop-dock-icon-size, 20px );
-	width: var( --wp-desktop-dock-icon-size, 20px );
-	height: var( --wp-desktop-dock-icon-size, 20px );
+.desktop-mode-dock__item .dashicons {
+	font-size: var( --desktop-mode-dock-icon-size, 20px );
+	width: var( --desktop-mode-dock-icon-size, 20px );
+	height: var( --desktop-mode-dock-icon-size, 20px );
 	line-height: 1;
 }
 
 /* SVG icon (for custom post types with data:image/svg+xml icons). */
-.wp-desktop-dock__item-svg {
-	width: var( --wp-desktop-dock-icon-size, 20px );
-	height: var( --wp-desktop-dock-icon-size, 20px );
+.desktop-mode-dock__item-svg {
+	width: var( --desktop-mode-dock-icon-size, 20px );
+	height: var( --desktop-mode-dock-icon-size, 20px );
 	display: block;
 	fill: currentColor;
 	opacity: 0.7;
@@ -99,7 +99,7 @@
 	transition: opacity 0.15s ease;
 }
 
-.wp-desktop-dock__item-primary:hover .wp-desktop-dock__item-svg {
+.desktop-mode-dock__item-primary:hover .desktop-mode-dock__item-svg {
 	opacity: 1;
 }
 
@@ -108,7 +108,7 @@
  * dashicon / SVG / image URL. Miniature "app placeholder": rounded
  * square tinted with a title-derived hue, first letter centered.
  */
-.wp-desktop-dock__item-letter {
+.desktop-mode-dock__item-letter {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -127,22 +127,22 @@
 		inset 0 -1px 0 rgba( 0, 0, 0, 0.15 );
 }
 
-.wp-desktop-dock__item img.wp-desktop-dock__item-img {
-	width: var( --wp-desktop-dock-icon-size, 20px );
-	height: var( --wp-desktop-dock-icon-size, 20px );
+.desktop-mode-dock__item img.desktop-mode-dock__item-img {
+	width: var( --desktop-mode-dock-icon-size, 20px );
+	height: var( --desktop-mode-dock-icon-size, 20px );
 	display: block;
 	opacity: 0.7;
 	transition: opacity 0.15s ease;
 }
 
-.wp-desktop-dock__item-primary:hover img.wp-desktop-dock__item-img {
+.desktop-mode-dock__item-primary:hover img.desktop-mode-dock__item-img {
 	opacity: 1;
 }
 
 /* "Open another" floating chip — shown on multi-capable tiles that
  * already have ≥1 open instance. Positioned inside each orientation
  * block so the chip hugs the outward edge of the tile. */
-.wp-desktop-dock__item-new {
+.desktop-mode-dock__item-new {
 	position: absolute;
 	display: flex;
 	align-items: center;
@@ -150,7 +150,7 @@
 	width: 20px;
 	height: 20px;
 	padding: 0;
-	border: 2px solid var( --wp-desktop-dock-bg, rgba( 0, 0, 0, 0.4 ) );
+	border: 2px solid var( --desktop-mode-dock-bg, rgba( 0, 0, 0, 0.4 ) );
 	border-radius: 50%;
 	background: var( --wp-admin-theme-color, #2271b1 );
 	color: #fff;
@@ -159,16 +159,16 @@
 	z-index: 1;
 }
 
-.wp-desktop-dock__item-new[hidden] {
+.desktop-mode-dock__item-new[hidden] {
 	display: none;
 }
 
-.wp-desktop-dock__item-new:hover {
+.desktop-mode-dock__item-new:hover {
 	background: #fff;
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.wp-desktop-dock__item-new:focus-visible {
+.desktop-mode-dock__item-new:focus-visible {
 	outline: 2px solid rgba( 255, 255, 255, 0.85 );
 	outline-offset: 2px;
 }
@@ -176,7 +176,7 @@
 /* Notification badge — iOS/macOS-style pill straddling the tile
  * corner. Ring matches the dock bg so it reads as "punched out."
  * Badge positioning is placement-aware via the blocks below. */
-.wp-desktop-dock__badge {
+.desktop-mode-dock__badge {
 	position: absolute;
 	min-width: 16px;
 	height: 16px;
@@ -195,7 +195,7 @@
 	text-align: center;
 	font-variant-numeric: tabular-nums;
 	box-shadow:
-		0 0 0 1.5px var( --wp-desktop-dock-bg, rgba( 0, 0, 0, 0.4 ) ),
+		0 0 0 1.5px var( --desktop-mode-dock-bg, rgba( 0, 0, 0, 0.4 ) ),
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
 	pointer-events: none;
 	transition: transform 0.15s ease;
@@ -203,13 +203,13 @@
 	inset-inline-end: -3px;
 }
 
-.wp-desktop-dock__item:hover .wp-desktop-dock__badge {
+.desktop-mode-dock__item:hover .desktop-mode-dock__badge {
 	transform: scale( 1.05 );
 	top: -4px;
 }
 
 /* System tiles — same footprint as menu tiles, no badges, no rails. */
-.wp-desktop-dock__item--system .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--system .desktop-mode-dock__item-primary {
 	color: rgba( 255, 255, 255, 0.8 );
 }
 
@@ -259,43 +259,43 @@
 	}
 }
 
-.wp-desktop-dock__item--attention-pulse .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary {
 	animation: wpd-dock-attention-pulse 1.4s ease-in-out infinite;
 }
-.wp-desktop-dock__item--attention-shake .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary {
 	animation: wpd-dock-attention-shake 0.8s ease-in-out infinite;
 }
-.wp-desktop-dock__item--attention-bounce .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
 	animation: wpd-dock-attention-bounce 1.2s ease-in-out infinite;
 }
 
 /* Intensity modulates animation duration — strong = faster, more
    urgent; subtle = slower, calmer. */
-.wp-desktop-dock__item--intensity-strong.wp-desktop-dock__item--attention-pulse .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--intensity-strong.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary {
 	animation-duration: 1s;
 }
-.wp-desktop-dock__item--intensity-strong.wp-desktop-dock__item--attention-shake .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--intensity-strong.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary {
 	animation-duration: 0.6s;
 }
-.wp-desktop-dock__item--intensity-strong.wp-desktop-dock__item--attention-bounce .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--intensity-strong.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
 	animation-duration: 0.9s;
 }
-.wp-desktop-dock__item--intensity-subtle.wp-desktop-dock__item--attention-pulse .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--intensity-subtle.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary {
 	animation-duration: 1.8s;
 }
-.wp-desktop-dock__item--intensity-subtle.wp-desktop-dock__item--attention-shake .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--intensity-subtle.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary {
 	animation-duration: 1s;
 }
-.wp-desktop-dock__item--intensity-subtle.wp-desktop-dock__item--attention-bounce .wp-desktop-dock__item-primary {
+.desktop-mode-dock__item--intensity-subtle.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
 	animation-duration: 1.6s;
 }
 
 /* Reduced-motion: kill the animation, replace with a static accent ring
    for the same visual prominence without the movement. */
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-dock__item--attention-pulse .wp-desktop-dock__item-primary,
-	.wp-desktop-dock__item--attention-shake .wp-desktop-dock__item-primary,
-	.wp-desktop-dock__item--attention-bounce .wp-desktop-dock__item-primary {
+	.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary,
+	.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary,
+	.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
 		animation: none;
 		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 		outline-offset: 2px;
@@ -304,7 +304,7 @@
 }
 
 /* Shared tooltip — placement-specific anchor modifiers applied by JS. */
-.wp-desktop-dock__tooltip {
+.desktop-mode-dock__tooltip {
 	position: fixed;
 	padding: 6px 12px;
 	background: rgba( 0, 0, 0, 0.85 );
@@ -315,12 +315,12 @@
 	white-space: nowrap;
 	border-radius: 6px;
 	pointer-events: none;
-	z-index: calc( var( --wp-desktop-z-dock ) + 1 );
+	z-index: calc( var( --desktop-mode-z-dock ) + 1 );
 	opacity: 0;
 	transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.wp-desktop-dock__tooltip--visible {
+.desktop-mode-dock__tooltip--visible {
 	opacity: 1;
 }
 
@@ -329,29 +329,29 @@
  * height along one edge, with items stacked vertically.
  * ------------------------------------------------------------------ */
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ],
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ] {
-	width: var( --wp-desktop-dock-width );
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ],
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] {
+	width: var( --desktop-mode-dock-width );
 	flex-direction: column;
 	padding: 16px 0 12px;
 	gap: 6px;
 }
 
 /* Left: dock is the first flex item in __body (row layout). */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ] {
-	border-inline-end: 1px solid var( --wp-desktop-dock-border );
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ] {
+	border-inline-end: 1px solid var( --desktop-mode-dock-border );
 	order: -1;
 }
 
 /* Right: push the dock to the end of __body and flip the border edge. */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ] {
-	border-inline-start: 1px solid var( --wp-desktop-dock-border );
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] {
+	border-inline-start: 1px solid var( --desktop-mode-dock-border );
 	order: 1;
 }
 
 /* Active-indicator dot — left dock: inside-edge vertical pill. */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__item--active::before {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
+	.desktop-mode-dock__item--active::before {
 	content: "";
 	position: absolute;
 	inset-inline-start: -6px;
@@ -363,16 +363,16 @@
 	background: #fff;
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__item--focused::before {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
+	.desktop-mode-dock__item--focused::before {
 	width: 4px;
 	height: 16px;
 	border-radius: 2px;
 }
 
 /* Right dock: indicator on the opposite edge (inside-facing). */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ]
-	.wp-desktop-dock__item--active::before {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
+	.desktop-mode-dock__item--active::before {
 	content: "";
 	position: absolute;
 	inset-inline-end: -6px;
@@ -384,35 +384,35 @@
 	background: #fff;
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ]
-	.wp-desktop-dock__item--focused::before {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
+	.desktop-mode-dock__item--focused::before {
 	width: 4px;
 	height: 16px;
 	border-radius: 2px;
 }
 
 /* "Open another" chip — left: right of tile; right: left of tile. */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__item-new {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
+	.desktop-mode-dock__item-new {
 	top: 50%;
 	inset-inline-end: -13px;
 	transform: translateY( -50% );
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__item-new:hover {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
+	.desktop-mode-dock__item-new:hover {
 	transform: translateY( -50% ) scale( 1.1 );
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ]
-	.wp-desktop-dock__item-new {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
+	.desktop-mode-dock__item-new {
 	top: 50%;
 	inset-inline-start: -13px;
 	transform: translateY( -50% );
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ]
-	.wp-desktop-dock__item-new:hover {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
+	.desktop-mode-dock__item-new:hover {
 	transform: translateY( -50% ) scale( 1.1 );
 }
 
@@ -421,22 +421,22 @@
  * The `--group` variant is used inline between core and plugin
  * menu tiles; it keeps the hairline styling but drops the auto
  * margin so it sits exactly where it's inserted. */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__separator,
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ]
-	.wp-desktop-dock__separator {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
+	.desktop-mode-dock__separator,
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
+	.desktop-mode-dock__separator {
 	width: 60%;
 	height: 1px;
 	margin: 8px auto 4px;
-	background: var( --wp-desktop-dock-border );
+	background: var( --desktop-mode-dock-border );
 	flex-shrink: 0;
 	margin-top: auto;
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="left" ]
-	.wp-desktop-dock__separator--group,
-.wp-desktop-dock[ data-wp-desktop-dock-placement="right" ]
-	.wp-desktop-dock__separator--group {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
+	.desktop-mode-dock__separator--group,
+.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
+	.desktop-mode-dock__separator--group {
 	margin: 10px auto;
 	background: rgba( 255, 255, 255, 0.22 );
 }
@@ -448,12 +448,12 @@
  * separator becomes the dock's first child and would render as a
  * stray hairline with nothing to divide.
  */
-.wp-desktop-dock__separator:first-child {
+.desktop-mode-dock__separator:first-child {
 	display: none;
 }
 
 /* Tooltip — anchor modifiers are applied directly to the tooltip
- * element (NOT via a descendant selector on `.wp-desktop-dock`)
+ * element (NOT via a descendant selector on `.desktop-mode-dock`)
  * because the tooltip lives in `document.body`. JS writes the
  * absolute `top` / `left` coords; CSS handles the slide-in
  * animation direction per modifier.
@@ -465,22 +465,22 @@
 
 /* Left dock — tooltip slides in from the left by 4px. JS sets
  * `left` to `tile.right + 8px`; the transform animates the entry. */
-.wp-desktop-dock__tooltip--after {
+.desktop-mode-dock__tooltip--after {
 	transform: translateX( -4px );
 }
 
-.wp-desktop-dock__tooltip--after.wp-desktop-dock__tooltip--visible {
+.desktop-mode-dock__tooltip--after.desktop-mode-dock__tooltip--visible {
 	transform: translateX( 0 );
 }
 
-.wp-desktop-dock__tooltip--before {
+.desktop-mode-dock__tooltip--before {
 	/* Right-placed dock — tooltip sits to the left of the tile. JS
 	 * writes the left coord to the tile's left edge; this translate
 	 * pulls the tooltip further left by its own width. */
 	transform: translate( calc( -100% - 8px ), 0 );
 }
 
-.wp-desktop-dock__tooltip--before.wp-desktop-dock__tooltip--visible {
+.desktop-mode-dock__tooltip--before.desktop-mode-dock__tooltip--visible {
 	transform: translate( calc( -100% - 8px ), 0 );
 	opacity: 1;
 }
@@ -491,7 +491,7 @@
  * rather than stealing vertical space from the shell body.
  * ------------------------------------------------------------------ */
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ] {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] {
 	position: absolute;
 	inset-inline-start: 0;
 	inset-inline-end: 0;
@@ -520,8 +520,8 @@
 }
 
 /* Active-indicator dot — below the tile, macOS-style. */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ]
-	.wp-desktop-dock__item--active::before {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
+	.desktop-mode-dock__item--active::before {
 	content: "";
 	position: absolute;
 	inset-inline-start: 50%;
@@ -534,8 +534,8 @@
 	background: #fff;
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ]
-	.wp-desktop-dock__item--focused::before {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
+	.desktop-mode-dock__item--focused::before {
 	width: 16px;
 	height: 4px;
 	border-radius: 2px;
@@ -543,15 +543,15 @@
 
 /* "Open another" chip — floats above the tile's top-right corner so
  * it doesn't collide with neighbouring tiles in the horizontal row. */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ]
-	.wp-desktop-dock__item-new {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
+	.desktop-mode-dock__item-new {
 	top: -6px;
 	inset-inline-end: -6px;
 	transform: none;
 }
 
-.wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ]
-	.wp-desktop-dock__item-new:hover {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
+	.desktop-mode-dock__item-new:hover {
 	transform: scale( 1.1 );
 }
 
@@ -561,8 +561,8 @@
  * core→plugin boundary but drops the auto margin so it sits where
  * inserted. Tighter margin than the auto variant so the two groups
  * read as related rather than completely isolated. */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ]
-	.wp-desktop-dock__separator {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
+	.desktop-mode-dock__separator {
 	width: 1px;
 	/* Fixed height — `60%` collapses against the floating pill's
 	   intrinsic height, leaving the hairline effectively invisible.
@@ -570,7 +570,7 @@
 	height: 28px;
 	margin: auto 4px auto 8px;
 	margin-inline-start: auto;
-	background: var( --wp-desktop-dock-border );
+	background: var( --desktop-mode-dock-border );
 	flex-shrink: 0;
 }
 
@@ -581,8 +581,8 @@
  * begin"), and flanked by extra gap so the boundary reads at a
  * glance rather than disappearing into the dock tint.
  */
-.wp-desktop-dock[ data-wp-desktop-dock-placement="bottom" ]
-	.wp-desktop-dock__separator--group {
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
+	.desktop-mode-dock__separator--group {
 	width: 1px;
 	height: 60%;
 	margin: auto 10px;
@@ -594,12 +594,12 @@
 /* Tooltip — above the hovered tile. JS writes the horizontal center
  * + a top near the tile's top edge; CSS translates the tooltip up by
  * its own height so it clears the tile. */
-.wp-desktop-dock__tooltip--above {
+.desktop-mode-dock__tooltip--above {
 	inset-inline-start: auto;
 	transform: translate( -50%, calc( -100% - 4px ) );
 }
 
-.wp-desktop-dock__tooltip--above.wp-desktop-dock__tooltip--visible {
+.desktop-mode-dock__tooltip--above.desktop-mode-dock__tooltip--visible {
 	transform: translate( -50%, -100% );
 }
 

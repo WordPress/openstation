@@ -36,7 +36,7 @@ defined( 'ABSPATH' ) || exit;
  *     @type int   $total Total matching rows (across pages).
  * }
  */
-function wpdm_recycle_bin_get_items( $args = array() ) {
+function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	$args = wp_parse_args(
 		$args,
 		array(
@@ -59,10 +59,10 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 
 	$wants_post_types = '' === $type || 'comment' !== $type;
 	$wants_comments   = ( '' === $type || 'comment' === $type )
-		&& wpdm_recycle_bin_comments_enabled();
+		&& desktop_mode_recycle_bin_comments_enabled();
 
 	if ( $wants_post_types ) {
-		$post_types = wpdm_recycle_bin_capture_post_types();
+		$post_types = desktop_mode_recycle_bin_capture_post_types();
 		if ( '' !== $type && in_array( $type, $post_types, true ) ) {
 			$post_types = array( $type );
 		}
@@ -90,10 +90,10 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 
 		$query = new WP_Query( $query_args );
 		foreach ( $query->posts as $post ) {
-			if ( ! wpdm_recycle_bin_user_can_view( $post ) ) {
+			if ( ! desktop_mode_recycle_bin_user_can_view( $post ) ) {
 				continue;
 			}
-			$items_posts[] = wpdm_recycle_bin_shape_item( $post );
+			$items_posts[] = desktop_mode_recycle_bin_shape_item( $post );
 		}
 	}
 
@@ -127,10 +127,10 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 		$comments = get_comments( $comment_args );
 		if ( is_array( $comments ) ) {
 			foreach ( $comments as $comment ) {
-				if ( ! wpdm_recycle_bin_user_can_view_comment( $comment ) ) {
+				if ( ! desktop_mode_recycle_bin_user_can_view_comment( $comment ) ) {
 					continue;
 				}
-				$items_comments[] = wpdm_recycle_bin_shape_comment_item( $comment );
+				$items_comments[] = desktop_mode_recycle_bin_shape_comment_item( $comment );
 			}
 		}
 	}
@@ -151,7 +151,7 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
 	// only cares about "how many things are sitting in the bin
 	// right now". A future paginated UI that needs a filtered
 	// count can compute it from `count( $items )` itself.
-	$total = wpdm_recycle_bin_count();
+	$total = desktop_mode_recycle_bin_count();
 
 	$offset = max( 0, ( max( 1, (int) $args['page'] ) - 1 ) * $per_page );
 	$sliced = array_slice( $items, $offset, $per_page );
@@ -177,7 +177,7 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
  * Total number of items in the recycle bin, summed across every
  * tracked source (post types + comments).
  *
- * Cheaper than `wpdm_recycle_bin_get_items()` because it never
+ * Cheaper than `desktop_mode_recycle_bin_get_items()` because it never
  * loads the row data — just the COUNT(*) under the hood. Used by
  * the badge on the dock tile + desktop icon, and by the REST
  * `/count` endpoint subscribers refresh on broadcasts.
@@ -186,8 +186,8 @@ function wpdm_recycle_bin_get_items( $args = array() ) {
  *
  * @return int
  */
-function wpdm_recycle_bin_count() {
-	$post_types = wpdm_recycle_bin_capture_post_types();
+function desktop_mode_recycle_bin_count() {
+	$post_types = desktop_mode_recycle_bin_capture_post_types();
 
 	$post_query = new WP_Query(
 		array(
@@ -202,7 +202,7 @@ function wpdm_recycle_bin_count() {
 	$post_count = (int) $post_query->found_posts;
 
 	$comment_count = 0;
-	if ( wpdm_recycle_bin_comments_enabled() ) {
+	if ( desktop_mode_recycle_bin_comments_enabled() ) {
 		$comment_count = (int) get_comments(
 			array(
 				'status' => 'trash',
@@ -234,7 +234,7 @@ function wpdm_recycle_bin_count() {
  *
  * @return bool
  */
-function wpdm_recycle_bin_comments_enabled() {
+function desktop_mode_recycle_bin_comments_enabled() {
 	$on = current_user_can( 'moderate_comments' );
 
 	/**
@@ -259,7 +259,7 @@ function wpdm_recycle_bin_comments_enabled() {
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function wpdm_recycle_bin_user_can_view( $post ) {
+function desktop_mode_recycle_bin_user_can_view( $post ) {
 	$can = current_user_can( 'edit_post', $post->ID );
 
 	/**
@@ -281,7 +281,7 @@ function wpdm_recycle_bin_user_can_view( $post ) {
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function wpdm_recycle_bin_user_can_restore( $post ) {
+function desktop_mode_recycle_bin_user_can_restore( $post ) {
 	$can = current_user_can( 'delete_post', $post->ID );
 
 	/**
@@ -304,7 +304,7 @@ function wpdm_recycle_bin_user_can_restore( $post ) {
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function wpdm_recycle_bin_user_can_purge( $post ) {
+function desktop_mode_recycle_bin_user_can_purge( $post ) {
 	$can = current_user_can( 'delete_post', $post->ID );
 
 	/**
@@ -327,7 +327,7 @@ function wpdm_recycle_bin_user_can_purge( $post ) {
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
-function wpdm_recycle_bin_user_can_view_comment( $comment ) {
+function desktop_mode_recycle_bin_user_can_view_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
@@ -344,7 +344,7 @@ function wpdm_recycle_bin_user_can_view_comment( $comment ) {
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
-function wpdm_recycle_bin_user_can_restore_comment( $comment ) {
+function desktop_mode_recycle_bin_user_can_restore_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
@@ -361,7 +361,7 @@ function wpdm_recycle_bin_user_can_restore_comment( $comment ) {
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
-function wpdm_recycle_bin_user_can_purge_comment( $comment ) {
+function desktop_mode_recycle_bin_user_can_purge_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
@@ -385,9 +385,9 @@ function wpdm_recycle_bin_user_can_purge_comment( $comment ) {
  * @param WP_Comment $comment Trashed comment.
  * @return array
  */
-function wpdm_recycle_bin_shape_comment_item( $comment ) {
-	$user_id    = (int) get_comment_meta( $comment->comment_ID, '_wpdm_trash_user_id', true );
-	$deleted_at = (string) get_comment_meta( $comment->comment_ID, '_wpdm_trash_time_gmt', true );
+function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
+	$user_id    = (int) get_comment_meta( $comment->comment_ID, '_desktop_mode_trash_user_id', true );
+	$deleted_at = (string) get_comment_meta( $comment->comment_ID, '_desktop_mode_trash_time_gmt', true );
 
 	if ( '' === $deleted_at ) {
 		$deleted_at = (string) $comment->comment_date_gmt;
@@ -424,8 +424,8 @@ function wpdm_recycle_bin_shape_comment_item( $comment ) {
 		'deleted_at'    => $deleted_at,
 		'deleted_by'    => $user_name,
 		'deleted_by_id' => $user_id,
-		'can_restore'   => wpdm_recycle_bin_user_can_restore_comment( $comment ),
-		'can_purge'     => wpdm_recycle_bin_user_can_purge_comment( $comment ),
+		'can_restore'   => desktop_mode_recycle_bin_user_can_restore_comment( $comment ),
+		'can_purge'     => desktop_mode_recycle_bin_user_can_purge_comment( $comment ),
 		'edit_link'     => (string) get_edit_comment_link( $comment->comment_ID ),
 	);
 
@@ -448,9 +448,9 @@ function wpdm_recycle_bin_shape_comment_item( $comment ) {
  * @param WP_Post $post Trashed post.
  * @return array
  */
-function wpdm_recycle_bin_shape_item( $post ) {
-	$user_id    = (int) get_post_meta( $post->ID, '_wpdm_trash_user_id', true );
-	$deleted_at = (string) get_post_meta( $post->ID, '_wpdm_trash_time_gmt', true );
+function desktop_mode_recycle_bin_shape_item( $post ) {
+	$user_id    = (int) get_post_meta( $post->ID, '_desktop_mode_trash_user_id', true );
+	$deleted_at = (string) get_post_meta( $post->ID, '_desktop_mode_trash_time_gmt', true );
 
 	// Fall back to post_modified_gmt — set when wp_trash_post runs and
 	// reasonable for items captured before the recycle bin existed.
@@ -473,7 +473,7 @@ function wpdm_recycle_bin_shape_item( $post ) {
 		if ( is_array( $thumb ) ) {
 			$preview = (string) $thumb[0];
 		}
-		$icon     = wpdm_recycle_bin_icon_for_mime( $mime );
+		$icon     = desktop_mode_recycle_bin_icon_for_mime( $mime );
 		$subtitle = $mime;
 	} elseif ( 'post' === $type ) {
 		$icon     = 'dashicons-admin-post';
@@ -499,8 +499,8 @@ function wpdm_recycle_bin_shape_item( $post ) {
 		'deleted_at'    => $deleted_at,
 		'deleted_by'    => $user_name,
 		'deleted_by_id' => $user_id,
-		'can_restore'   => wpdm_recycle_bin_user_can_restore( $post ),
-		'can_purge'     => wpdm_recycle_bin_user_can_purge( $post ),
+		'can_restore'   => desktop_mode_recycle_bin_user_can_restore( $post ),
+		'can_purge'     => desktop_mode_recycle_bin_user_can_purge( $post ),
 		'edit_link'     => (string) get_edit_post_link( $post->ID, 'raw' ),
 	);
 
@@ -527,7 +527,7 @@ function wpdm_recycle_bin_shape_item( $post ) {
  * @param string $mime Mime type.
  * @return string Dashicon class.
  */
-function wpdm_recycle_bin_icon_for_mime( $mime ) {
+function desktop_mode_recycle_bin_icon_for_mime( $mime ) {
 	if ( '' === $mime ) {
 		return 'dashicons-media-default';
 	}
@@ -579,21 +579,21 @@ function wpdm_recycle_bin_icon_for_mime( $mime ) {
  * @param string $type Entity type — '', 'post', 'page', 'attachment', or 'comment'.
  * @return true|WP_Error
  */
-function wpdm_recycle_bin_restore( $id, $type = '' ) {
+function desktop_mode_recycle_bin_restore( $id, $type = '' ) {
 	$id = (int) $id;
 	if ( 'comment' === $type ) {
-		return wpdm_recycle_bin_restore_comment( $id );
+		return desktop_mode_recycle_bin_restore_comment( $id );
 	}
 
 	$post = get_post( $id );
 	if ( ! $post ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $post->post_status ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! wpdm_recycle_bin_user_can_restore( $post ) ) {
-		return new WP_Error( 'wpdm_recycle_bin_forbidden', __( 'You are not allowed to restore this item.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! desktop_mode_recycle_bin_user_can_restore( $post ) ) {
+		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to restore this item.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -608,11 +608,11 @@ function wpdm_recycle_bin_restore( $id, $type = '' ) {
 
 	$ok = wp_untrash_post( $id );
 	if ( ! $ok ) {
-		return new WP_Error( 'wpdm_recycle_bin_restore_failed', __( 'Failed to restore item.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_restore_failed', __( 'Failed to restore item.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	delete_post_meta( $id, '_wpdm_trash_user_id' );
-	delete_post_meta( $id, '_wpdm_trash_time_gmt' );
+	delete_post_meta( $id, '_desktop_mode_trash_user_id' );
+	delete_post_meta( $id, '_desktop_mode_trash_time_gmt' );
 
 	/**
 	 * Fires after a recycle-bin item is restored.
@@ -634,18 +634,18 @@ function wpdm_recycle_bin_restore( $id, $type = '' ) {
  * @param int $comment_id Comment id.
  * @return true|WP_Error
  */
-function wpdm_recycle_bin_restore_comment( $comment_id ) {
+function desktop_mode_recycle_bin_restore_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	$comment    = get_comment( $comment_id );
 
 	if ( ! $comment ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $comment->comment_approved ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! wpdm_recycle_bin_user_can_restore_comment( $comment ) ) {
-		return new WP_Error( 'wpdm_recycle_bin_forbidden', __( 'You are not allowed to restore this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! desktop_mode_recycle_bin_user_can_restore_comment( $comment ) ) {
+		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to restore this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -660,11 +660,11 @@ function wpdm_recycle_bin_restore_comment( $comment_id ) {
 
 	$ok = wp_untrash_comment( $comment_id );
 	if ( ! $ok ) {
-		return new WP_Error( 'wpdm_recycle_bin_restore_failed', __( 'Failed to restore comment.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_restore_failed', __( 'Failed to restore comment.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	delete_comment_meta( $comment_id, '_wpdm_trash_user_id' );
-	delete_comment_meta( $comment_id, '_wpdm_trash_time_gmt' );
+	delete_comment_meta( $comment_id, '_desktop_mode_trash_user_id' );
+	delete_comment_meta( $comment_id, '_desktop_mode_trash_time_gmt' );
 
 	/**
 	 * Fires after a comment is restored from the recycle bin.
@@ -688,21 +688,21 @@ function wpdm_recycle_bin_restore_comment( $comment_id ) {
  * @param string $type Entity type — '', 'post', 'page', 'attachment', or 'comment'.
  * @return true|WP_Error
  */
-function wpdm_recycle_bin_purge( $id, $type = '' ) {
+function desktop_mode_recycle_bin_purge( $id, $type = '' ) {
 	$id = (int) $id;
 	if ( 'comment' === $type ) {
-		return wpdm_recycle_bin_purge_comment( $id );
+		return desktop_mode_recycle_bin_purge_comment( $id );
 	}
 
 	$post = get_post( $id );
 	if ( ! $post ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $post->post_status ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! wpdm_recycle_bin_user_can_purge( $post ) ) {
-		return new WP_Error( 'wpdm_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this item.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! desktop_mode_recycle_bin_user_can_purge( $post ) ) {
+		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this item.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -724,7 +724,7 @@ function wpdm_recycle_bin_purge( $id, $type = '' ) {
 	}
 
 	if ( ! $result ) {
-		return new WP_Error( 'wpdm_recycle_bin_purge_failed', __( 'Failed to permanently delete item.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_purge_failed', __( 'Failed to permanently delete item.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	/**
@@ -748,18 +748,18 @@ function wpdm_recycle_bin_purge( $id, $type = '' ) {
  * @param int $comment_id Comment id.
  * @return true|WP_Error
  */
-function wpdm_recycle_bin_purge_comment( $comment_id ) {
+function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	$comment    = get_comment( $comment_id );
 
 	if ( ! $comment ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $comment->comment_approved ) {
-		return new WP_Error( 'wpdm_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! wpdm_recycle_bin_user_can_purge_comment( $comment ) ) {
-		return new WP_Error( 'wpdm_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! desktop_mode_recycle_bin_user_can_purge_comment( $comment ) ) {
+		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -775,7 +775,7 @@ function wpdm_recycle_bin_purge_comment( $comment_id ) {
 	$result = wp_delete_comment( $comment_id, true );
 
 	if ( ! $result ) {
-		return new WP_Error( 'wpdm_recycle_bin_purge_failed', __( 'Failed to permanently delete comment.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'desktop_mode_recycle_bin_purge_failed', __( 'Failed to permanently delete comment.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	/**
@@ -800,16 +800,16 @@ function wpdm_recycle_bin_purge_comment( $comment_id ) {
  *
  * @return array { @type int $purged @type int $skipped }
  */
-function wpdm_recycle_bin_empty() {
+function desktop_mode_recycle_bin_empty() {
 	$purged  = 0;
 	$skipped = 0;
 
 	// Loop in chunks — `wp_delete_post()` is cheap individually but
 	// hammering it on a 10k-item bin without yielding back to PHP can
 	// still time out. 200 is plenty for a single REST roundtrip.
-	$batch = wpdm_recycle_bin_get_items( array( 'per_page' => 200, 'page' => 1 ) );
+	$batch = desktop_mode_recycle_bin_get_items( array( 'per_page' => 200, 'page' => 1 ) );
 	foreach ( $batch['items'] as $item ) {
-		$result = wpdm_recycle_bin_purge(
+		$result = desktop_mode_recycle_bin_purge(
 			(int) $item['id'],
 			(string) ( $item['type'] ?? '' )
 		);

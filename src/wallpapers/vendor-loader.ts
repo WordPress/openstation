@@ -88,7 +88,7 @@ export function loadVendorScript(
 		// when re-entering — first caller's extras win, which matches
 		// the URL-keyed memoization above. Same URL → same registered
 		// handle → same extras.
-		const selector = `script[data-wp-desktop-vendor="${ cssEscape( url ) }"]`;
+		const selector = `script[data-desktop-mode-vendor="${ cssEscape( url ) }"]`;
 		const preexisting = document.querySelector<HTMLScriptElement>( selector );
 		if ( preexisting ) {
 			if ( preexisting.dataset.loaded === '1' ) {
@@ -122,7 +122,7 @@ export function loadVendorScript(
 		const script = document.createElement( 'script' );
 		script.src = url;
 		script.async = true;
-		script.dataset.wpDesktopVendor = url;
+		script.dataset.desktopModeVendor = url;
 		script.addEventListener(
 			'load',
 			() => {
@@ -167,7 +167,7 @@ function injectInline( code: string ): void {
 	}
 	const tag = document.createElement( 'script' );
 	tag.textContent = code;
-	tag.dataset.wpDesktopVendorInline = '1';
+	tag.dataset.desktopModeVendorInline = '1';
 	document.head.appendChild( tag );
 }
 

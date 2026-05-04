@@ -34,7 +34,7 @@
  * Events:
  *   - `click` — native; bubbles out of the shadow root as usual.
  *     Reliable because the title-bar drag-handler excludes any
- *     element matching `.wp-desktop-window__btn` — static clicks
+ *     element matching `.desktop-mode-window__btn` — static clicks
  *     (no mouse movement between down and up) land normally.
  *   - `wpd-button-activate` — CustomEvent fired exactly once per
  *     user activation. `bubbles: true; composed: true; cancelable:

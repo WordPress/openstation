@@ -33,7 +33,7 @@ or removed. Listeners attached when a node was first built survive
 every subsequent re-render.
 
 ```ts
-import { renderKeyedList } from 'wp-desktop-mode';
+import { renderKeyedList } from 'desktop-mode';
 
 const host = document.querySelector( '#my-list' )!;
 

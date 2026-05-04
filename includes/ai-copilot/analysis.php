@@ -8,7 +8,7 @@
  *   - Meta read/write helpers so job callbacks never touch meta keys
  *     directly; the key names live in one place.
  *
- * Meta key used for all entity types: `_wpdm_ai_analysis` (prefixed
+ * Meta key used for all entity types: `_desktop_mode_ai_analysis` (prefixed
  * underscore → hidden from the Custom Fields UI by default).
  *
  * @package WPDesktopMode
@@ -17,7 +17,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Meta key used across posts, terms, and comments. */
-const DESKTOP_MODE_AI_META_KEY = '_wpdm_ai_analysis';
+const DESKTOP_MODE_AI_META_KEY = '_desktop_mode_ai_analysis';
 
 /** Max characters of post content / comment text sent to OpenAI. */
 const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
@@ -59,7 +59,7 @@ function desktop_mode_ai_schema_content() {
 	 * Must comply with OpenAI strict JSON Schema rules: every object level
 	 * needs `additionalProperties: false` and all property names listed in
 	 * `required`. Changing the shape here also requires updating any JS or
-	 * PHP code that reads `_wpdm_ai_analysis` meta.
+	 * PHP code that reads `_desktop_mode_ai_analysis` meta.
 	 *
 	 * @since 0.14.0
 	 *

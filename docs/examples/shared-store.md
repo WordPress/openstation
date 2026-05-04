@@ -70,7 +70,7 @@ doesn't exist yet — returns the same store. The thunked
 `src/my-plugin/state.ts` (imported by both bundles):
 
 ```ts
-import type { SharedStore } from 'wp-desktop-mode';
+import type { SharedStore } from 'desktop-mode';
 
 interface MyState {
     selectedId: number | null;

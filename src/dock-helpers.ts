@@ -1,7 +1,7 @@
 /**
  * Composition helpers for custom dock rail renderers.
  *
- * The decoration hooks (`wp-desktop.dock.tile-class`, `tile-element`,
+ * The decoration hooks (`desktop-mode.dock.tile-class`, `tile-element`,
  * `tile-rendered`, `tile-tooltip`, `before-render`, `after-render`)
  * fire from inside the default `Dock` renderer's paint loop. A
  * custom rail renderer that doesn't call them silently breaks
@@ -22,7 +22,7 @@ import type {
 } from './dock';
 
 /**
- * Run the registered `wp-desktop.dock.tile-class` filter against a
+ * Run the registered `desktop-mode.dock.tile-class` filter against a
  * base classNames list. Use this in your renderer's tile-build code
  * so decoration plugins (glow, shake, dim, etc.) work alongside
  * your renderer:
@@ -62,7 +62,7 @@ export function applyTileClasses(
 }
 
 /**
- * Run the registered `wp-desktop.dock.tile-element` filter so a
+ * Run the registered `desktop-mode.dock.tile-element` filter so a
  * decoration plugin can wrap your tile's outer element. Pair with
  * `applyTileClasses` and the `dispatchTileRendered` action below
  * for full hook compatibility.
@@ -93,7 +93,7 @@ export function applyTileElement(
 }
 
 /**
- * Run the registered `wp-desktop.dock.tile-tooltip` filter. Returns
+ * Run the registered `desktop-mode.dock.tile-tooltip` filter. Returns
  * the (possibly mutated, possibly suppressed → empty string) label
  * to display.
  *
@@ -123,7 +123,7 @@ export function applyTileTooltip(
 }
 
 /**
- * Fire `wp-desktop.dock.tile-rendered` after a tile lands in the
+ * Fire `desktop-mode.dock.tile-rendered` after a tile lands in the
  * DOM. Decoration plugins use this for post-insertion measurements
  * (IntersectionObserver, getBoundingClientRect-driven animations).
  *
@@ -149,7 +149,7 @@ export function dispatchTileRendered(
 }
 
 /**
- * Fire `wp-desktop.dock.before-render` and (separately) `after-render`
+ * Fire `desktop-mode.dock.before-render` and (separately) `after-render`
  * around a paint pass. Plugins use these to invalidate cached
  * decoration state and to apply bulk treatments after a sweep.
  *
@@ -168,11 +168,11 @@ export function dispatchAfterRender( ctx: DockRenderContext ): void {
 // ---------------------------------------------------------------
 
 const DEFAULT_DOCK_SELECTOR = [
-	'.wp-desktop-dock',
-	'#wp-desktop-dock',
-	'#wp-desktop-side-dock',
-	'.wp-desktop-dock__tooltip',
-	'.wp-desktop-dock-submenu',
+	'.desktop-mode-dock',
+	'#desktop-mode-dock',
+	'#desktop-mode-side-dock',
+	'.desktop-mode-dock__tooltip',
+	'.desktop-mode-dock-submenu',
 ].join( ',' );
 
 const customSelectors = new Set< string >();

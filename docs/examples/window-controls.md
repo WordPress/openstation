@@ -72,7 +72,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-plugin-controls',
         plugins_url( 'controls.js', __FILE__ ),
-        array( 'wp-desktop' ),
+        array( 'desktop-mode' ),
         '1.0.0', true
     );
     wp_enqueue_script( 'my-plugin-controls' );
@@ -117,15 +117,15 @@ wp.desktop.applyWindowControls( 'my-plugin/dashboard', {
 } );
 ```
 
-Sets the `wp-desktop-window__controls--left` class on the cluster — your CSS theme can react to that for the actual layout flip.
+Sets the `desktop-mode-window__controls--left` class on the cluster — your CSS theme can react to that for the actual layout flip.
 
 ## Recipe 7 — Mutate the resolved list with a filter
 
-When you don't want to register or unregister, use the `wp-desktop.window.chrome.controls` filter to mutate the list at paint time:
+When you don't want to register or unregister, use the `desktop-mode.window.chrome.controls` filter to mutate the list at paint time:
 
 ```js
 wp.hooks.addFilter(
-    'wp-desktop.window.chrome.controls',
+    'desktop-mode.window.chrome.controls',
     'my-plugin/never-close-the-shop',
     ( controls, ctx ) => {
         if ( ctx.placement !== 'controls' ) return controls;
@@ -153,8 +153,8 @@ wp.hooks.addFilter(
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `wp-desktop.window.chrome.controls` | filter | `( controls, { windowId, config, placement } ) => controls` | Mutate the resolved per-placement control list. Stable. |
-| `wp-desktop.window.chrome.applied` | action | `( { windowId, layer } )` | Fires after a paint completes. `layer` is `'controls'` for this layer. Stable. |
+| `desktop-mode.window.chrome.controls` | filter | `( controls, { windowId, config, placement } ) => controls` | Mutate the resolved per-placement control list. Stable. |
+| `desktop-mode.window.chrome.applied` | action | `( { windowId, layer } )` | Fires after a paint completes. `layer` is `'controls'` for this layer. Stable. |
 
 ---
 

@@ -93,13 +93,13 @@ export class IframeCommandBridge {
 
 	/** Wire up the focus / close / message listeners. Idempotent. */
 	public install(): void {
-		document.addEventListener( 'wp-desktop-window-focused', ( e: Event ) => {
+		document.addEventListener( 'desktop-mode-window-focused', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
 			if ( detail && typeof detail.windowId === 'string' ) {
 				this.onFocused( detail.windowId );
 			}
 		} );
-		document.addEventListener( 'wp-desktop-window-closed', ( e: Event ) => {
+		document.addEventListener( 'desktop-mode-window-closed', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
 			if ( detail && typeof detail.windowId === 'string' ) {
 				unregisterByOwner( ownerFor( detail.windowId ) );
@@ -112,9 +112,9 @@ export class IframeCommandBridge {
 		// A minimized window is visually gone — showing its commands
 		// in the palette would confuse the user ("where would that
 		// even run?"). Evict on minimize; on restore, the window
-		// manager fires a fresh `wp-desktop-window-focused` which flows
+		// manager fires a fresh `desktop-mode-window-focused` which flows
 		// through `onFocused` and rebuilds the list.
-		document.addEventListener( 'wp-desktop-window-changed', ( e: Event ) => {
+		document.addEventListener( 'desktop-mode-window-changed', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { windowId?: string; reason?: string; state?: string } > ).detail;
 			if ( ! detail || typeof detail.windowId !== 'string' ) {
 				return;
@@ -146,7 +146,7 @@ export class IframeCommandBridge {
 			// covers the race where onFocused fires before the iframe's
 			// message listener has attached (navigation inside a window,
 			// slow editor boot, etc.).
-			if ( data.type === 'wp-desktop-bridge-ready' ) {
+			if ( data.type === 'desktop-mode-bridge-ready' ) {
 				const win = this.manager.findByIframeSource( e.source );
 				if ( win && win.id === this.subscribedWindowId ) {
 					this.sendSubscribe( win.id );
@@ -154,7 +154,7 @@ export class IframeCommandBridge {
 				return;
 			}
 
-			if ( data.type !== 'wp-desktop-commands-list' ) {
+			if ( data.type !== 'desktop-mode-commands-list' ) {
 				return;
 			}
 			if ( ! Array.isArray( data.commands ) ) {
@@ -193,7 +193,7 @@ export class IframeCommandBridge {
 			if ( prev && prev.iframe && prev.iframe.contentWindow ) {
 				try {
 					prev.iframe.contentWindow.postMessage(
-						{ type: 'wp-desktop-commands-unsubscribe' },
+						{ type: 'desktop-mode-commands-unsubscribe' },
 						window.location.origin,
 					);
 				} catch {
@@ -221,7 +221,7 @@ export class IframeCommandBridge {
 		}
 		try {
 			win.iframe.contentWindow.postMessage(
-				{ type: 'wp-desktop-commands-subscribe' },
+				{ type: 'desktop-mode-commands-subscribe' },
 				window.location.origin,
 			);
 		} catch ( err ) {
@@ -266,7 +266,7 @@ export class IframeCommandBridge {
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[wp-desktop-mode] iframe-bridge: dropping bad command',
+					'[desktop-mode] iframe-bridge: dropping bad command',
 					def,
 					err,
 				);
@@ -298,7 +298,7 @@ export class IframeCommandBridge {
 			}
 			try {
 				win.iframe.contentWindow.postMessage(
-					{ type: 'wp-desktop-commands-invoke', name },
+					{ type: 'desktop-mode-commands-invoke', name },
 					window.location.origin,
 				);
 			} catch {

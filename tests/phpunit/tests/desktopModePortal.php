@@ -32,7 +32,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 			$_SERVER['REQUEST_METHOD'],
 			$_GET[ DESKTOP_MODE_PORTAL_FLAG ],
 			$_GET[ DESKTOP_MODE_CLASSIC_FLAG ],
-			$_GET['wp_desktop']
+			$_GET['desktop_mode_chromeless']
 		);
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_user_meta( self::$admin_id, DESKTOP_MODE_SESSION_META_KEY );
@@ -100,7 +100,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_portal_url
 	 */
 	public function test_portal_url_is_canonical() {
-		$this->assertSame( home_url( '/wp-desktop/' ), desktop_mode_portal_url() );
+		$this->assertSame( home_url( '/desktop-mode/' ), desktop_mode_portal_url() );
 	}
 
 	/**
@@ -115,7 +115,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_detects_trailing_slash() {
-		$_SERVER['REQUEST_URI'] = '/wp-desktop/';
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/';
 		$this->assertTrue( desktop_mode_is_portal_request() );
 	}
 
@@ -123,7 +123,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_ignores_query_string() {
-		$_SERVER['REQUEST_URI'] = '/wp-desktop/?foo=bar';
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/?foo=bar';
 		$this->assertTrue( desktop_mode_is_portal_request() );
 	}
 
@@ -131,7 +131,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_is_portal_request
 	 */
 	public function test_is_portal_request_rejects_subpaths() {
-		$_SERVER['REQUEST_URI'] = '/wp-desktop/foo';
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/foo';
 		$this->assertFalse( desktop_mode_is_portal_request() );
 	}
 
@@ -166,7 +166,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 */
 	public function test_logged_out_user_redirected_to_login() {
 		wp_set_current_user( 0 );
-		$redirect = $this->capture_redirect( '/wp-desktop/' );
+		$redirect = $this->capture_redirect( '/desktop-mode/' );
 
 		$this->assertNotNull( $redirect );
 		$this->assertStringContainsString( 'wp-login.php', $redirect );
@@ -180,7 +180,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( '', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 
-		$this->capture_redirect( '/wp-desktop/' );
+		$this->capture_redirect( '/desktop-mode/' );
 
 		$this->assertSame( '1', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
@@ -190,7 +190,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	 */
 	public function test_portal_redirects_to_admin_with_flag() {
 		wp_set_current_user( self::$admin_id );
-		$redirect = $this->capture_redirect( '/wp-desktop/' );
+		$redirect = $this->capture_redirect( '/desktop-mode/' );
 
 		$this->assertNotNull( $redirect );
 		$this->assertStringStartsWith( admin_url(), $redirect );
@@ -204,7 +204,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'desktop_mode_portal_auto_enable', '__return_false' );
 
-		$this->capture_redirect( '/wp-desktop/' );
+		$this->capture_redirect( '/desktop-mode/' );
 
 		$this->assertSame( '', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
@@ -227,7 +227,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 			2
 		);
 
-		$this->capture_redirect( '/wp-desktop/' );
+		$this->capture_redirect( '/desktop-mode/' );
 
 		$this->assertSame( $expected_id, $received_id );
 	}
@@ -240,7 +240,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$count_before = did_action( 'update_user_meta' );
-		$this->capture_redirect( '/wp-desktop/' );
+		$this->capture_redirect( '/desktop-mode/' );
 
 		// Still '1' — we didn't flip it off and back on.
 		$this->assertSame( '1', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
@@ -255,7 +255,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 
 	/**
 	 * The portal navigates the top window. A focused-window URL carrying
-	 * `wp_desktop=1` (iframe flag) would land the top window in chromeless
+	 * `desktop_mode_chromeless=1` (iframe flag) would land the top window in chromeless
 	 * mode with no admin bar, no toggle, and no way out. Strip it.
 	 *
 	 * @covers ::desktop_mode_portal_entry_url
@@ -267,7 +267,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 				'windows' => array(
 					array(
 						'id'     => 'wp-window-plugins-php',
-						'url'    => admin_url( 'plugins.php?wp_desktop=1&paged=2' ),
+						'url'    => admin_url( 'plugins.php?desktop_mode_chromeless=1&paged=2' ),
 						'title'  => 'Plugins',
 						'icon'   => 'dashicons-admin-plugins',
 						'state'  => 'normal',
@@ -283,7 +283,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 
 		$entry = desktop_mode_portal_entry_url( self::$admin_id );
 
-		$this->assertStringNotContainsString( 'wp_desktop=1', $entry );
+		$this->assertStringNotContainsString( 'desktop_mode_chromeless=1', $entry );
 	}
 
 	/**
@@ -385,7 +385,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
-		$_GET['wp_desktop']        = '1';
+		$_GET['desktop_mode_chromeless']        = '1';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
@@ -499,7 +499,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 	/**
 	 * Regression: the same percent-encoded slash must survive the
 	 * portal handler's `target` round-trip when a user lands on
-	 * `/wp-desktop/?target=<encoded>`.
+	 * `/desktop-mode/?target=<encoded>`.
 	 *
 	 * @covers ::desktop_mode_handle_portal_request
 	 * @covers ::desktop_mode_sanitize_portal_target
@@ -511,7 +511,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 		// would have produced after capturing an activate URL.
 		$raw_uri              = '/wp-admin/plugins.php?action=activate&plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php&_wpnonce=abc123';
 		$_GET['target']       = $raw_uri;
-		$_SERVER['REQUEST_URI'] = '/wp-desktop/?target=' . rawurlencode( $raw_uri );
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/?target=' . rawurlencode( $raw_uri );
 
 		try {
 			$redirect = $this->capture_with( 'desktop_mode_handle_portal_request', null );
@@ -548,7 +548,7 @@ class Tests_DesktopMode_WpDesktopPortal extends WP_UnitTestCase {
 			)
 		);
 
-		$redirect = $this->capture_redirect( '/wp-desktop/' );
+		$redirect = $this->capture_redirect( '/desktop-mode/' );
 
 		$this->assertStringContainsString( 'post_type=page', $redirect );
 		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_FLAG . '=1', $redirect );

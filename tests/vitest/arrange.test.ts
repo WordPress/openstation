@@ -15,10 +15,10 @@ import {
 } from './helpers/hooks-stub';
 
 const ARRANGE_HOOKS = [
-	'wp-desktop.arrange.tile.starting',
-	'wp-desktop.arrange.tile.applied',
-	'wp-desktop.arrange.snap.changed',
-	'wp-desktop.window.unmaximized',
+	'desktop-mode.arrange.tile.starting',
+	'desktop-mode.arrange.tile.applied',
+	'desktop-mode.arrange.snap.changed',
+	'desktop-mode.window.unmaximized',
 ] as const;
 
 function openConfig( id: string ) {
@@ -38,7 +38,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 	beforeEach( () => {
 		hooks = installHooksStub();
 		try {
-			window.localStorage.removeItem( 'wp-desktop-snap-to-grid' );
+			window.localStorage.removeItem( 'desktop-mode-snap-to-grid' );
 		} catch {
 			/* jsdom always supports localStorage; defensive */
 		}
@@ -77,7 +77,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.tile();
 
 		expect(
-			log.some( ( e ) => e.name.startsWith( 'wp-desktop.arrange.tile.' ) ),
+			log.some( ( e ) => e.name.startsWith( 'desktop-mode.arrange.tile.' ) ),
 		).toBe( false );
 	} );
 
@@ -91,7 +91,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'wp-desktop.arrange.tile.applied',
+			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
 		);
 		expect( applied ).toBeDefined();
 		const payload = applied!.args[ 0 ] as {
@@ -114,11 +114,11 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.tile();
 
 		const tileEvents = log.filter( ( e ) =>
-			e.name.startsWith( 'wp-desktop.arrange.tile.' ),
+			e.name.startsWith( 'desktop-mode.arrange.tile.' ),
 		);
 		expect( tileEvents.map( ( e ) => e.name ) ).toEqual( [
-			'wp-desktop.arrange.tile.starting',
-			'wp-desktop.arrange.tile.applied',
+			'desktop-mode.arrange.tile.starting',
+			'desktop-mode.arrange.tile.applied',
 		] );
 	} );
 
@@ -155,11 +155,11 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 
 		expect( manager.isSnapEnabled() ).toBe( true );
 		const evt = log.find(
-			( e ) => e.name === 'wp-desktop.arrange.snap.changed',
+			( e ) => e.name === 'desktop-mode.arrange.snap.changed',
 		);
 		expect( evt ).toBeDefined();
 		expect( ( evt!.args[ 0 ] as { enabled: boolean } ).enabled ).toBe( true );
-		expect( window.localStorage.getItem( 'wp-desktop-snap-to-grid' ) ).toBe( '1' );
+		expect( window.localStorage.getItem( 'desktop-mode-snap-to-grid' ) ).toBe( '1' );
 	} );
 
 	test( 'setSnapEnabled(true) twice is idempotent — no duplicate hook firings', () => {
@@ -169,7 +169,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.setSnapEnabled( true );
 
 		expect(
-			log.some( ( e ) => e.name === 'wp-desktop.arrange.snap.changed' ),
+			log.some( ( e ) => e.name === 'desktop-mode.arrange.snap.changed' ),
 		).toBe( false );
 	} );
 
@@ -207,7 +207,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.open( openConfig( 'd' ) );
 		// Force a 1×4 layout instead of the default 2×2.
 		hooks.addFilter(
-			'wp-desktop.arrange.tile.dimensions',
+			'desktop-mode.arrange.tile.dimensions',
 			'test/force-1x4',
 			() => ( { cols: 1, rows: 4 } ),
 		);
@@ -216,7 +216,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'wp-desktop.arrange.tile.applied',
+			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
 		expect( payload.cols ).toBe( 1 );
@@ -228,7 +228,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.open( openConfig( 'b' ) );
 		let receivedContext: unknown = null;
 		hooks.addFilter(
-			'wp-desktop.arrange.tile.dimensions',
+			'desktop-mode.arrange.tile.dimensions',
 			'test/inspect',
 			( value, ctx ) => {
 				receivedContext = ctx;
@@ -256,7 +256,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		// 1×2 only fits 2 windows; we have 4. Filter return must
 		// be discarded, default 2×2 used.
 		hooks.addFilter(
-			'wp-desktop.arrange.tile.dimensions',
+			'desktop-mode.arrange.tile.dimensions',
 			'test/bad-grid',
 			() => ( { cols: 1, rows: 2 } ),
 		);
@@ -265,7 +265,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'wp-desktop.arrange.tile.applied',
+			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
 		expect( payload.cols ).toBe( 2 );
@@ -276,7 +276,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.open( openConfig( 'a' ) );
 		manager.open( openConfig( 'b' ) );
 		hooks.addFilter(
-			'wp-desktop.arrange.tile.dimensions',
+			'desktop-mode.arrange.tile.dimensions',
 			'test/garbage',
 			() => 'not-a-grid',
 		);
@@ -285,7 +285,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'wp-desktop.arrange.tile.applied',
+			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
 		// Default for 2 windows on landscape is 2×1 (cellAspect 800
@@ -296,7 +296,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 	test( 'snap.cell-size filter overrides the auto-computed grid', () => {
 		manager.setSnapEnabled( true );
 		hooks.addFilter(
-			'wp-desktop.arrange.snap.cell-size',
+			'desktop-mode.arrange.snap.cell-size',
 			'test/force-100',
 			() => ( { cellWidth: 100, cellHeight: 100 } ),
 		);
@@ -310,7 +310,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 	test( 'snap.cell-size filter rejects non-positive values', () => {
 		manager.setSnapEnabled( true );
 		hooks.addFilter(
-			'wp-desktop.arrange.snap.cell-size',
+			'desktop-mode.arrange.snap.cell-size',
 			'test/zero',
 			() => ( { cellWidth: 0, cellHeight: -50 } ),
 		);
@@ -326,7 +326,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager.setSnapEnabled( true );
 		let receivedContext: unknown = null;
 		hooks.addFilter(
-			'wp-desktop.arrange.snap.cell-size',
+			'desktop-mode.arrange.snap.cell-size',
 			'test/inspect',
 			( value, ctx ) => {
 				receivedContext = ctx;
@@ -422,11 +422,11 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', () => {
 		win.maximize();
 		expect( win.state ).toBe( 'maximized' );
 		const log = recordActions( hooks, [
-			'wp-desktop.window.unmaximized',
+			'desktop-mode.window.unmaximized',
 		] );
 
 		const titleBar = win.element.querySelector(
-			'.wp-desktop-window__titlebar',
+			'.desktop-mode-window__titlebar',
 		) as HTMLElement;
 		// jsdom doesn't implement setPointerCapture — stub.
 		titleBar.setPointerCapture =
@@ -456,7 +456,7 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', () => {
 
 		expect( win.state ).toBe( 'normal' );
 		expect(
-			log.some( ( e ) => e.name === 'wp-desktop.window.unmaximized' ),
+			log.some( ( e ) => e.name === 'desktop-mode.window.unmaximized' ),
 		).toBe( true );
 	} );
 } );

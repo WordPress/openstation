@@ -25,18 +25,18 @@ add_action( 'desktop_mode_mode_init', function () {
 ## `logger.js`
 
 ```javascript
-document.addEventListener( 'wp-desktop-init', function () {
+document.addEventListener( 'desktop-mode-init', function () {
     console.log( 'desktop ready' );
 
-    document.addEventListener( 'wp-desktop-window-opened', ( e ) => {
+    document.addEventListener( 'desktop-mode-window-opened', ( e ) => {
         console.log( 'opened', e.detail );
     } );
 
-    document.addEventListener( 'wp-desktop-window-closed', ( e ) => {
+    document.addEventListener( 'desktop-mode-window-closed', ( e ) => {
         console.log( 'closed', e.detail );
     } );
 
-    document.addEventListener( 'wp-desktop-window-focused', ( e ) => {
+    document.addEventListener( 'desktop-mode-window-focused', ( e ) => {
         console.log( 'focused', e.detail );
     } );
 } );
@@ -45,7 +45,7 @@ document.addEventListener( 'wp-desktop-init', function () {
 ## Reacting — open a helper window whenever Posts is focused
 
 ```javascript
-document.addEventListener( 'wp-desktop-window-focused', function ( e ) {
+document.addEventListener( 'desktop-mode-window-focused', function ( e ) {
     if ( e.detail.windowId !== 'wp-window-edit-php' ) {
         return;
     }
@@ -65,8 +65,8 @@ document.addEventListener( 'wp-desktop-window-focused', function ( e ) {
 ## Notes
 
 - Listeners attached on `document` continue to fire as long as desktop mode is up. No cleanup needed unless your plugin deactivates in-place.
-- `wp-desktop-init` is dispatched **once**. If your code loads after it has already fired, attach directly; the `window.wp.desktop` API is already there by then.
-- `wp-desktop-window-changed` is **experimental** and chatty (geometry + state). Prefer the individual `opened`/`closed`/`focused` events for external integrations.
+- `desktop-mode-init` is dispatched **once**. If your code loads after it has already fired, attach directly; the `window.wp.desktop` API is already there by then.
+- `desktop-mode-window-changed` is **experimental** and chatty (geometry + state). Prefer the individual `opened`/`closed`/`focused` events for external integrations.
 
 ## Related
 

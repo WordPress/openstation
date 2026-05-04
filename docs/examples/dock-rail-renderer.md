@@ -388,7 +388,7 @@ with the shipped baseline. No reload required either way.
 
 ## Composability with decoration hooks
 
-The default `Dock` renderer fires the `wp-desktop.dock.tile-class`,
+The default `Dock` renderer fires the `desktop-mode.dock.tile-class`,
 `tile-element`, `tile-tooltip`, `tile-rendered`, `before-render`,
 and `after-render` filters/actions while painting. Custom rail
 renderers SHOULD fire the same hooks at equivalent points so

@@ -4,7 +4,7 @@
  * lives in {@link markWindowContentLoading} /
  * {@link markWindowContentReady} (`src/window-channels.ts`); this
  * module is only the visual side: toggle the
- * `wp-desktop-window__body--loading` modifier, attach / detach
+ * `desktop-mode-window__body--loading` modifier, attach / detach
  * the spinner overlay, and swallow strays from windows that have
  * already torn down.
  *
@@ -26,7 +26,7 @@ import { ensureLoadingOverlay, removeLoadingOverlay } from './dom';
  * Duration of the body-content fade-out before the overlay
  * element is removed from the DOM. Must match the
  * `transition: opacity` duration in
- * `assets/css/window-chrome.css` for `.wp-desktop-window__loading`
+ * `assets/css/window-chrome.css` for `.desktop-mode-window__loading`
  * — overshooting wastes a frame, undershooting yanks the spinner
  * mid-fade.
  *
@@ -85,38 +85,38 @@ export function _resetWindowLoadingTransitionsForTests(): void {
 function _installSubscriptions(): void {
 	addAction(
 		HOOKS.WINDOW_CONTENT_LOADING,
-		'wp-desktop-mode/window-loading-enter',
+		'desktop-mode/window-loading-enter',
 		( e: { windowId?: string } ) => {
 			const el = findWindowElement( e?.windowId ?? '' );
 			if ( ! el ) {
 				return;
 			}
 			const body = el.querySelector< HTMLElement >(
-				':scope .wp-desktop-window__body',
+				':scope .desktop-mode-window__body',
 			);
 			if ( ! body ) {
 				return;
 			}
-			body.classList.add( 'wp-desktop-window__body--loading' );
+			body.classList.add( 'desktop-mode-window__body--loading' );
 			ensureLoadingOverlay( el );
 		},
 	);
 
 	addAction(
 		HOOKS.WINDOW_CONTENT_LOADED,
-		'wp-desktop-mode/window-loading-exit',
+		'desktop-mode/window-loading-exit',
 		( e: { windowId?: string } ) => {
 			const el = findWindowElement( e?.windowId ?? '' );
 			if ( ! el ) {
 				return;
 			}
 			const body = el.querySelector< HTMLElement >(
-				':scope .wp-desktop-window__body',
+				':scope .desktop-mode-window__body',
 			);
 			if ( ! body ) {
 				return;
 			}
-			body.classList.remove( 'wp-desktop-window__body--loading' );
+			body.classList.remove( 'desktop-mode-window__body--loading' );
 			// Defer the overlay removal until the CSS fade-out has
 			// settled. Without this, the overlay disappears on the
 			// same frame the modifier flips off and the spinner
@@ -125,7 +125,7 @@ function _installSubscriptions(): void {
 				// Re-check the DOM — the user might have triggered
 				// `markContentLoading()` again in the interim, in
 				// which case the overlay should stay.
-				if ( ! body.classList.contains( 'wp-desktop-window__body--loading' ) ) {
+				if ( ! body.classList.contains( 'desktop-mode-window__body--loading' ) ) {
 					removeLoadingOverlay( el );
 				}
 			}, FADE_OUT_MS );
@@ -150,7 +150,7 @@ function _installSubscriptions(): void {
 	// registered between then and now.
 	addAction(
 		HOOKS.INIT,
-		'wp-desktop-mode/loading-overlay-init-sweep',
+		'desktop-mode/loading-overlay-init-sweep',
 		() => {
 			// `queueMicrotask` runs AFTER all synchronous addAction
 			// handlers fire (whenReady callbacks registered before
@@ -171,7 +171,7 @@ function _installSubscriptions(): void {
  * import, a plugin loaded post-init, a feature flag flip), so the
  * filter applies to windows that are *still* loading.
  *
- * Idempotent + cheap. Iterates every `.wp-desktop-window__body--loading`
+ * Idempotent + cheap. Iterates every `.desktop-mode-window__body--loading`
  * in the DOM and re-runs `ensureLoadingOverlay`. Windows whose
  * overlays were already torn down by a `markContentLoaded()` call
  * in the meantime are not affected.
@@ -184,14 +184,14 @@ function _installSubscriptions(): void {
  */
 export function repaintLoadingOverlays(): void {
 	const bodies = document.querySelectorAll< HTMLElement >(
-		'.wp-desktop-window__body--loading',
+		'.desktop-mode-window__body--loading',
 	);
 	bodies.forEach( ( body ) => {
-		const windowEl = body.closest< HTMLElement >( '.wp-desktop-window' );
+		const windowEl = body.closest< HTMLElement >( '.desktop-mode-window' );
 		if ( ! windowEl ) {
 			return;
 		}
-		body.querySelector( ':scope .wp-desktop-window__loading' )?.remove();
+		body.querySelector( ':scope .desktop-mode-window__loading' )?.remove();
 		ensureLoadingOverlay( windowEl );
 	} );
 }

@@ -5,7 +5,7 @@
  *     in three shapes (`null`, `{ html }`, `{ render }`).
  *   - Plugin slot registrations match by predicate, paint into the
  *     named slot host, and tear down on re-paint.
- *   - The `wp-desktop.window.chrome.slot` filter receives the host
+ *   - The `desktop-mode.window.chrome.slot` filter receives the host
  *     so cross-cutting decorators can mutate it without owning a
  *     registry entry.
  *   - Default slot content (the icon dashicons span, the title text)
@@ -33,7 +33,7 @@ function buildWindowWithSlots( id: string ): {
 	element: HTMLElement;
 } {
 	const element = document.createElement( 'div' );
-	element.className = 'wp-desktop-window';
+	element.className = 'desktop-mode-window';
 	const slots: WindowSlotName[] = [
 		'before-titlebar',
 		'before-icon',
@@ -47,17 +47,17 @@ function buildWindowWithSlots( id: string ): {
 	for ( const name of slots ) {
 		const host = document.createElement( 'span' );
 		host.dataset.slot = name;
-		host.className = `wp-desktop-window__slot wp-desktop-window__slot--${ name }`;
+		host.className = `desktop-mode-window__slot desktop-mode-window__slot--${ name }`;
 		element.appendChild( host );
 	}
 	// Default content for icon and title (mirrors dom.ts).
 	const iconHost = element.querySelector< HTMLElement >( '[data-slot="icon"]' )!;
 	const iconEl = document.createElement( 'span' );
-	iconEl.className = 'wp-desktop-window__icon dashicons dashicons-admin-generic';
+	iconEl.className = 'desktop-mode-window__icon dashicons dashicons-admin-generic';
 	iconHost.appendChild( iconEl );
 	const titleHost = element.querySelector< HTMLElement >( '[data-slot="title"]' )!;
 	const titleEl = document.createElement( 'span' );
-	titleEl.className = 'wp-desktop-window__title';
+	titleEl.className = 'desktop-mode-window__title';
 	titleEl.textContent = id;
 	titleHost.appendChild( titleEl );
 
@@ -165,13 +165,13 @@ describe( 'paintWindowSlots', () => {
 			'★ ',
 		);
 		// Default title text is still there after the prepend.
-		expect( titleHost.querySelector( '.wp-desktop-window__title' ) ).not.toBeNull();
+		expect( titleHost.querySelector( '.desktop-mode-window__title' ) ).not.toBeNull();
 	} );
 
-	test( 'wp-desktop.window.chrome.slot filter receives the host', () => {
+	test( 'desktop-mode.window.chrome.slot filter receives the host', () => {
 		const seen: string[] = [];
 		window.wp!.hooks!.addFilter(
-			'wp-desktop.window.chrome.slot',
+			'desktop-mode.window.chrome.slot',
 			'test/listener',
 			( ( host: HTMLElement, ctx: { slot: string } ) => {
 				seen.push( ctx.slot );

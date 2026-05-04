@@ -17,9 +17,9 @@ import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 function makeTile( multi: boolean ): HTMLElement {
 	const tile = document.createElement( 'div' );
-	tile.className = 'wp-desktop-dock__item';
+	tile.className = 'desktop-mode-dock__item';
 	if ( multi ) {
-		tile.classList.add( 'wp-desktop-dock__item--multi' );
+		tile.classList.add( 'desktop-mode-dock__item--multi' );
 	}
 	tile.dataset.menuSlug = 'edit.php';
 	tile.dataset.dockTooltip = 'Posts';
@@ -108,7 +108,7 @@ describe( 'dock-peek', () => {
 		attachDockPeek( makeDeps( { tile, getInstances: () => [] } ) );
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.wp-desktop-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
 	} );
 
 	test( 'native-window (system) tile peek shows a thumbnail card without a Ghost Card', () => {
@@ -133,14 +133,14 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		const peek = document.querySelector( '.wp-desktop-dock-peek' );
+		const peek = document.querySelector( '.desktop-mode-dock-peek' );
 		expect( peek ).not.toBeNull();
 		expect(
-			peek!.querySelectorAll( '.wp-desktop-dock-peek__card--instance' )
+			peek!.querySelectorAll( '.desktop-mode-dock-peek__card--instance' )
 				.length,
 		).toBe( 1 );
 		expect(
-			peek!.querySelectorAll( '.wp-desktop-dock-peek__card--ghost' )
+			peek!.querySelectorAll( '.desktop-mode-dock-peek__card--ghost' )
 				.length,
 		).toBe( 0 );
 	} );
@@ -155,7 +155,7 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile, { type: 'touch' } );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.wp-desktop-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
 	} );
 
 	test( 'fans out one card per instance + a trailing Ghost Card', () => {
@@ -170,17 +170,17 @@ describe( 'dock-peek', () => {
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
 
-		const peek = document.querySelector( '.wp-desktop-dock-peek' )!;
+		const peek = document.querySelector( '.desktop-mode-dock-peek' )!;
 		expect( peek ).not.toBeNull();
 		expect(
-			peek.querySelectorAll( '.wp-desktop-dock-peek__card--instance' )
+			peek.querySelectorAll( '.desktop-mode-dock-peek__card--instance' )
 				.length,
 		).toBe( 2 );
 		const ghosts = peek.querySelectorAll(
-			'.wp-desktop-dock-peek__card--ghost',
+			'.desktop-mode-dock-peek__card--ghost',
 		);
 		expect( ghosts.length ).toBe( 1 );
-		const allCards = peek.querySelectorAll( '.wp-desktop-dock-peek__card' );
+		const allCards = peek.querySelectorAll( '.desktop-mode-dock-peek__card' );
 		expect( allCards[ allCards.length - 1 ] ).toBe( ghosts[ 0 ] );
 	} );
 
@@ -201,7 +201,7 @@ describe( 'dock-peek', () => {
 		).wp.hooks;
 
 		wpHooks.addFilter(
-			'wp-desktop.dock.peek-card-content',
+			'desktop-mode.dock.peek-card-content',
 			'test/dock-peek-filter',
 			( body, ctx ) => {
 				const replacement = document.createElement( 'div' );
@@ -224,18 +224,18 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const card = document.querySelector< HTMLElement >(
-			'.wp-desktop-dock-peek__card--instance',
+			'.desktop-mode-dock-peek__card--instance',
 		)!;
 		expect( card.querySelector( '.plugin-owned-thumb' ) ).not.toBeNull();
 		expect( card.querySelector( '.plugin-owned-thumb' )?.getAttribute( 'data-window-id' ) ).toBe( 'edit-php' );
-		expect( card.querySelectorAll( '.wp-desktop-dock-peek__card-line' ).length ).toBe( 0 );
+		expect( card.querySelectorAll( '.desktop-mode-dock-peek__card-line' ).length ).toBe( 0 );
 		const customBody = card.querySelector(
-			'.wp-desktop-dock-peek__card-body--custom',
+			'.desktop-mode-dock-peek__card-body--custom',
 		);
 		expect( customBody ).not.toBeNull();
 
 		wpHooks.removeFilter(
-			'wp-desktop.dock.peek-card-content',
+			'desktop-mode.dock.peek-card-content',
 			'test/dock-peek-filter',
 		);
 	} );
@@ -252,17 +252,17 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const card = document.querySelector< HTMLElement >(
-			'.wp-desktop-dock-peek__card--instance',
+			'.desktop-mode-dock-peek__card--instance',
 		)!;
 		expect(
-			card.querySelectorAll( '.wp-desktop-dock-peek__card-dots i' ).length,
+			card.querySelectorAll( '.desktop-mode-dock-peek__card-dots i' ).length,
 		).toBe( 3 );
 		expect(
-			card.querySelector( '.wp-desktop-dock-peek__card-label' )
+			card.querySelector( '.desktop-mode-dock-peek__card-label' )
 				?.textContent,
 		).toBe( 'All Posts' );
 		expect(
-			card.querySelectorAll( '.wp-desktop-dock-peek__card-line' ).length,
+			card.querySelectorAll( '.desktop-mode-dock-peek__card-line' ).length,
 		).toBe( 3 );
 		expect( card.style.getPropertyValue( '--peek-card-hue' ) ).toMatch(
 			/^\d+$/,
@@ -288,7 +288,7 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const cards = document.querySelectorAll< HTMLElement >(
-			'.wp-desktop-dock-peek__card--instance',
+			'.desktop-mode-dock-peek__card--instance',
 		);
 		pointerEnter( cards[ 1 ] );
 		expect( focus ).toHaveBeenCalledTimes( 1 );
@@ -312,12 +312,12 @@ describe( 'dock-peek', () => {
 		).wp.hooks;
 
 		wpHooks.addFilter(
-			'wp-desktop.dock.peek-card-element',
+			'desktop-mode.dock.peek-card-element',
 			'test/whole-card',
 			() => {
 				const replacement = document.createElement( 'div' );
 				replacement.className =
-					'wp-desktop-dock-peek__card plugin-replaced-card';
+					'desktop-mode-dock-peek__card plugin-replaced-card';
 				return replacement;
 			},
 		);
@@ -336,11 +336,11 @@ describe( 'dock-peek', () => {
 			document.querySelector( '.plugin-replaced-card' ),
 		).not.toBeNull();
 		expect(
-			document.querySelector( '.wp-desktop-dock-peek__card-titlebar' ),
+			document.querySelector( '.desktop-mode-dock-peek__card-titlebar' ),
 		).toBeNull();
 
 		wpHooks.removeFilter(
-			'wp-desktop.dock.peek-card-element',
+			'desktop-mode.dock.peek-card-element',
 			'test/whole-card',
 		);
 	} );
@@ -363,7 +363,7 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const instanceCard = document.querySelector< HTMLElement >(
-			'.wp-desktop-dock-peek__card--instance',
+			'.desktop-mode-dock-peek__card--instance',
 		)!;
 		instanceCard.click();
 		expect( focus ).toHaveBeenCalledTimes( 1 );
@@ -384,7 +384,7 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const ghost = document.querySelector< HTMLElement >(
-			'.wp-desktop-dock-peek__card--ghost',
+			'.desktop-mode-dock-peek__card--ghost',
 		)!;
 		ghost.click();
 		expect( openNew ).toHaveBeenCalledTimes( 1 );
@@ -400,11 +400,11 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.wp-desktop-dock-peek' ) ).not.toBeNull();
+		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).not.toBeNull();
 
 		pointerLeave( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.wp-desktop-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
 	} );
 
 	test( 'teardown function detaches listeners + removes popover', () => {
@@ -417,13 +417,13 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.wp-desktop-dock-peek' ) ).not.toBeNull();
+		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).not.toBeNull();
 
 		detach();
-		expect( document.querySelector( '.wp-desktop-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
 
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.wp-desktop-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
 	} );
 } );

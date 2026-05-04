@@ -32,7 +32,7 @@ import { HOOKS, applyFilters } from '../hooks';
  *
  * @internal
  */
-const WINDOW_CONFIG_KEY = Symbol.for( 'wp-desktop-mode/window-config' );
+const WINDOW_CONFIG_KEY = Symbol.for( 'desktop-mode/window-config' );
 
 type ConfigCarrier = HTMLElement & { [ WINDOW_CONFIG_KEY ]?: WindowConfig };
 
@@ -78,12 +78,12 @@ export function withChromelessParam( url: string ): string | null {
 	if ( parsed.origin !== INITIAL_ORIGIN ) {
 		return null;
 	}
-	parsed.searchParams.set( 'wp_desktop', '1' );
+	parsed.searchParams.set( 'desktop_mode_chromeless', '1' );
 	return parsed.toString();
 }
 
 /**
- * Toggle `wp-desktop-has-fullscreen-window` on `<body>` based on whether
+ * Toggle `desktop-mode-has-fullscreen-window` on `<body>` based on whether
  * any window is currently in fullscreen state.
  *
  * Why a body class: a fullscreen window lives inside the shell, and the
@@ -102,8 +102,8 @@ export function withChromelessParam( url: string ): string | null {
  */
 export function updateFullscreenBodyClass(): void {
 	const hasFullscreen =
-		document.querySelectorAll( '.wp-desktop-window--fullscreen' ).length > 0;
-	document.body.classList.toggle( 'wp-desktop-has-fullscreen-window', hasFullscreen );
+		document.querySelectorAll( '.desktop-mode-window--fullscreen' ).length > 0;
+	document.body.classList.toggle( 'desktop-mode-has-fullscreen-window', hasFullscreen );
 }
 
 /**
@@ -117,7 +117,7 @@ export function updateFullscreenBodyClass(): void {
  */
 function buildDefaultLoadingOverlay(): HTMLElement {
 	const overlay = document.createElement( 'div' );
-	overlay.className = 'wp-desktop-window__loading';
+	overlay.className = 'desktop-mode-window__loading';
 	// `aria-hidden` so screen readers don't announce the spinner —
 	// the window's title bar already has a `role="dialog"` + label,
 	// and the spinner's own `<svg role="img" aria-label="Loading">`
@@ -174,7 +174,7 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[wp-desktop-mode] loading.render threw for "${ config.id }":`,
+					`[desktop-mode] loading.render threw for "${ config.id }":`,
 					err,
 				);
 			}
@@ -193,7 +193,7 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
 	} catch ( err ) {
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				`[wp-desktop-mode] WINDOW_LOADING_OVERLAY filter threw for "${ config.id }":`,
+				`[desktop-mode] WINDOW_LOADING_OVERLAY filter threw for "${ config.id }":`,
 				err,
 			);
 		}
@@ -202,9 +202,9 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
 	// Defensive: a customizer might have stripped the class while
 	// replacing children. Re-add it so the CSS rules that drive
 	// the fade transition + positioning still apply. The class is
-	// what `wp-desktop-window__body--loading` selectors depend on.
-	if ( overlay && ! overlay.classList.contains( 'wp-desktop-window__loading' ) ) {
-		overlay.classList.add( 'wp-desktop-window__loading' );
+	// what `desktop-mode-window__body--loading` selectors depend on.
+	if ( overlay && ! overlay.classList.contains( 'desktop-mode-window__loading' ) ) {
+		overlay.classList.add( 'desktop-mode-window__loading' );
 	}
 	return overlay;
 }
@@ -224,7 +224,7 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
  * @internal
  */
 export function removeLoadingOverlay( windowEl: HTMLElement ): void {
-	const overlay = windowEl.querySelector( ':scope .wp-desktop-window__loading' );
+	const overlay = windowEl.querySelector( ':scope .desktop-mode-window__loading' );
 	overlay?.remove();
 }
 
@@ -246,12 +246,12 @@ export function removeLoadingOverlay( windowEl: HTMLElement ): void {
  */
 export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
 	const body = windowEl.querySelector< HTMLElement >(
-		':scope .wp-desktop-window__body',
+		':scope .desktop-mode-window__body',
 	);
 	if ( ! body ) {
 		return;
 	}
-	const existing = body.querySelector( ':scope .wp-desktop-window__loading' );
+	const existing = body.querySelector( ':scope .desktop-mode-window__loading' );
 	if ( existing ) {
 		return;
 	}
@@ -262,7 +262,7 @@ export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
 /**
  * Build a slot host element. The `data-slot` attribute lets
  * `paintWindowSlots()` target the host by name; the class
- * `wp-desktop-window__slot--<name>` lets CSS hook into specific
+ * `desktop-mode-window__slot--<name>` lets CSS hook into specific
  * slots without parsing data attributes. Empty by default — the
  * shell or plugins fill it via the slot pipeline.
  *
@@ -272,7 +272,7 @@ export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
 function createSlotHost( name: string ): HTMLElement {
 	const host = document.createElement( 'span' );
 	host.className =
-		`wp-desktop-window__slot wp-desktop-window__slot--${ name }`;
+		`desktop-mode-window__slot desktop-mode-window__slot--${ name }`;
 	host.dataset.slot = name;
 	return host;
 }
@@ -293,8 +293,8 @@ export function createControlButton(
 	const btn = document.createElement( 'wpd-window-button' );
 	btn.setAttribute( 'icon', icon );
 	btn.setAttribute( 'aria-label', label );
-	btn.classList.add( 'wp-desktop-window__btn' );
-	btn.classList.add( `wp-desktop-window__btn--${ variant }` );
+	btn.classList.add( 'desktop-mode-window__btn' );
+	btn.classList.add( `desktop-mode-window__btn--${ variant }` );
 	if ( variant === 'close' ) {
 		btn.setAttribute( 'danger', '' );
 	}
@@ -306,9 +306,9 @@ export function createControlButton(
  */
 export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const el = document.createElement( 'div' );
-	el.className = 'wp-desktop-window';
+	el.className = 'desktop-mode-window';
 	if ( config.native ) {
-		el.classList.add( 'wp-desktop-window--native' );
+		el.classList.add( 'desktop-mode-window--native' );
 	}
 	el.id = `wp-window-${ config.id }`;
 	el.setAttribute( 'role', 'dialog' );
@@ -319,7 +319,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	el.style.height = `${ config.height }px`;
 
 	const titleBar = document.createElement( 'div' );
-	titleBar.className = 'wp-desktop-window__titlebar';
+	titleBar.className = 'desktop-mode-window__titlebar';
 
 	// Leading menu button — sits before the icon + title. Rendered for
 	// every window, native or iframe; per-item gating below decides
@@ -343,12 +343,12 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	menuBtn.setAttribute( 'aria-expanded', 'false' );
 	// Keep the legacy classes so the title-bar layout selector that
 	// reshapes around the menu button (see windows.css
-	// `:has(.wp-desktop-window__menu-btn)`) still matches.
-	menuBtn.classList.add( 'wp-desktop-window__btn' );
-	menuBtn.classList.add( 'wp-desktop-window__menu-btn' );
+	// `:has(.desktop-mode-window__menu-btn)`) still matches.
+	menuBtn.classList.add( 'desktop-mode-window__btn' );
+	menuBtn.classList.add( 'desktop-mode-window__menu-btn' );
 
 	const menuPanel = document.createElement( 'wpd-menu' );
-	menuPanel.classList.add( 'wp-desktop-window__menu-panel' );
+	menuPanel.classList.add( 'desktop-mode-window__menu-panel' );
 	menuPanel.hidden = true;
 
 	// "Open on startup" — checkable. Checked state is hydrated in
@@ -360,8 +360,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Legacy classes preserved so settings-refresh code can still
 	// find the item by class during the `default-window-changed`
 	// repaint.
-	startup.classList.add( 'wp-desktop-window__menu-item' );
-	startup.classList.add( 'wp-desktop-window__menu-item--startup' );
+	startup.classList.add( 'desktop-mode-window__menu-item' );
+	startup.classList.add( 'desktop-mode-window__menu-item--startup' );
 	startup.textContent = __( 'Open on startup' );
 	menuPanel.appendChild( startup );
 
@@ -370,9 +370,9 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		openAnother.setAttribute( 'role', 'menuitem' );
 		openAnother.setAttribute( 'value', 'open-another' );
 		openAnother.setAttribute( 'icon', 'dashicons-plus-alt2' );
-		openAnother.classList.add( 'wp-desktop-window__menu-item' );
+		openAnother.classList.add( 'desktop-mode-window__menu-item' );
 		openAnother.classList.add(
-			'wp-desktop-window__menu-item--open-another',
+			'desktop-mode-window__menu-item--open-another',
 		);
 		openAnother.textContent = sprintf(
 			// translators: %s is the window's admin-page name (e.g., "Posts")
@@ -390,8 +390,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		openInNew.setAttribute( 'role', 'menuitem' );
 		openInNew.setAttribute( 'value', 'open-in-new-window' );
 		openInNew.setAttribute( 'icon', 'dashicons-plus-alt' );
-		openInNew.classList.add( 'wp-desktop-window__menu-item' );
-		openInNew.classList.add( 'wp-desktop-window__menu-item--open-in-new-window' );
+		openInNew.classList.add( 'desktop-mode-window__menu-item' );
+		openInNew.classList.add( 'desktop-mode-window__menu-item--open-in-new-window' );
 		openInNew.textContent = __( 'Open in new window' );
 		menuPanel.appendChild( openInNew );
 	}
@@ -404,8 +404,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		reload.setAttribute( 'role', 'menuitem' );
 		reload.setAttribute( 'value', 'reload' );
 		reload.setAttribute( 'icon', 'dashicons-update' );
-		reload.classList.add( 'wp-desktop-window__menu-item' );
-		reload.classList.add( 'wp-desktop-window__menu-item--reload' );
+		reload.classList.add( 'desktop-mode-window__menu-item' );
+		reload.classList.add( 'desktop-mode-window__menu-item--reload' );
 		reload.textContent = __( 'Reload' );
 		menuPanel.appendChild( reload );
 
@@ -417,8 +417,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		openExternal.setAttribute( 'role', 'menuitem' );
 		openExternal.setAttribute( 'value', 'open-external' );
 		openExternal.setAttribute( 'icon', 'dashicons-external' );
-		openExternal.classList.add( 'wp-desktop-window__menu-item' );
-		openExternal.classList.add( 'wp-desktop-window__menu-item--open-external' );
+		openExternal.classList.add( 'desktop-mode-window__menu-item' );
+		openExternal.classList.add( 'desktop-mode-window__menu-item--open-external' );
 		openExternal.textContent = __( 'Open in browser tab' );
 		menuPanel.appendChild( openExternal );
 	}
@@ -434,13 +434,13 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// title-bar visual; the other slots are empty by default.
 	const slotIcon = createSlotHost( 'icon' );
 	const iconEl = document.createElement( 'span' );
-	iconEl.className = `wp-desktop-window__icon dashicons ${ sanitizeClassName( config.icon ) }`;
+	iconEl.className = `desktop-mode-window__icon dashicons ${ sanitizeClassName( config.icon ) }`;
 	iconEl.setAttribute( 'aria-hidden', 'true' );
 	slotIcon.appendChild( iconEl );
 
 	const slotTitle = createSlotHost( 'title' );
 	const titleEl = document.createElement( 'span' );
-	titleEl.className = 'wp-desktop-window__title';
+	titleEl.className = 'desktop-mode-window__title';
 	titleEl.id = `wp-window-title-${ config.id }`;
 	titleEl.textContent = config.title;
 	slotTitle.appendChild( titleEl );
@@ -453,7 +453,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const slotAfterTitlebar = createSlotHost( 'after-titlebar' );
 
 	const controls = document.createElement( 'div' );
-	controls.className = 'wp-desktop-window__controls';
+	controls.className = 'desktop-mode-window__controls';
 	// Cluster is populated by `paintWindowControls()` after the Window
 	// constructor wires up the registry subscription. Built-in
 	// controls (minimize / maximize / focus / detach / close) live in
@@ -463,7 +463,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Screen meta buttons container (populated when iframe reports
 	// available panels).
 	const screenMeta = document.createElement( 'div' );
-	screenMeta.className = 'wp-desktop-window__screen-meta';
+	screenMeta.className = 'desktop-mode-window__screen-meta';
 
 	// Slot containers for plugin-registered title-bar buttons. Filled
 	// by the Window class on construct + on registry change. Empty
@@ -471,10 +471,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// invisible to layout when no plugin has registered for this
 	// window.
 	const customLeft = document.createElement( 'span' );
-	customLeft.className = 'wp-desktop-window__custom-buttons wp-desktop-window__custom-buttons--left';
+	customLeft.className = 'desktop-mode-window__custom-buttons desktop-mode-window__custom-buttons--left';
 
 	const customRight = document.createElement( 'span' );
-	customRight.className = 'wp-desktop-window__custom-buttons wp-desktop-window__custom-buttons--right';
+	customRight.className = 'desktop-mode-window__custom-buttons desktop-mode-window__custom-buttons--right';
 
 	titleBar.appendChild( slotBeforeIcon );
 	titleBar.appendChild( slotIcon );
@@ -506,21 +506,21 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// the attribute back, it's purely a hide-target.
 	for ( const child of Array.from( titleBar.children ) ) {
 		( child as HTMLElement ).setAttribute(
-			'data-wp-desktop-default-chrome',
+			'data-desktop-mode-default-chrome',
 			'',
 		);
 	}
 
 	const body = document.createElement( 'div' );
-	body.className = 'wp-desktop-window__body wp-desktop-window__body--loading';
+	body.className = 'desktop-mode-window__body desktop-mode-window__body--loading';
 
 	// Native windows own the body contents via {@link WindowConfig.render}
 	// — called from the Window constructor after mount. Skip the iframe
 	// plumbing entirely.
 	if ( ! config.native ) {
 		const iframe = document.createElement( 'iframe' );
-		iframe.className = 'wp-desktop-window__iframe';
-		iframe.setAttribute( 'name', `wp-desktop-frame-${ config.id }` );
+		iframe.className = 'desktop-mode-window__iframe';
+		iframe.setAttribute( 'name', `desktop-mode-frame-${ config.id }` );
 
 		// `config.url` is required for iframe windows — enforced at
 		// the type level (it's only marked optional to cover the
@@ -537,7 +537,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// sandboxed / a future code path that strips the script),
 		// the browser's `load` event fires once the document parses
 		// and we still want the spinner to clear. The
-		// `wp-desktop-ready` postMessage from the chromeless bridge
+		// `desktop-mode-ready` postMessage from the chromeless bridge
 		// (handled in `iframe-bridge.ts`) ALSO calls
 		// `markWindowContentReady` — both paths converge on the
 		// idempotent loading → ready transition.
@@ -546,7 +546,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		};
 		iframe.addEventListener( 'load', onIframeLoad );
 	} else {
-		body.classList.add( 'wp-desktop-window__body--native' );
+		body.classList.add( 'desktop-mode-window__body--native' );
 	}
 
 	// Loading overlay — sits above the body content (iframe or native
@@ -577,7 +577,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const resizeHandles: HTMLElement[] = [];
 	for ( const dir of [ 'ne', 'nw', 'se', 'sw' ] as const ) {
 		const h = document.createElement( 'div' );
-		h.className = `wp-desktop-window__resize-handle wp-desktop-window__resize-handle--${ dir }`;
+		h.className = `desktop-mode-window__resize-handle desktop-mode-window__resize-handle--${ dir }`;
 		h.dataset.dir = dir;
 		h.setAttribute( 'aria-hidden', 'true' );
 		resizeHandles.push( h );
@@ -596,7 +596,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// external tabs.
 	if ( ! config.native ) {
 		const tabs = document.createElement( 'nav' );
-		tabs.className = 'wp-desktop-window__tabs';
+		tabs.className = 'desktop-mode-window__tabs';
 		tabs.setAttribute( 'role', 'tablist' );
 		// translators: %s is the window's admin-page title (e.g., "Posts")
 		tabs.setAttribute( 'aria-label', sprintf( __( '%s sub-pages' ), config.title ) );
@@ -620,14 +620,14 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 
 			for ( const sub of seedSubmenu ) {
 				const tab = document.createElement( 'button' );
-				tab.className = 'wp-desktop-window__tab';
+				tab.className = 'desktop-mode-window__tab';
 				tab.dataset.kind = 'submenu';
 				tab.setAttribute( 'type', 'button' );
 				tab.setAttribute( 'role', 'tab' );
 				tab.dataset.url = sub.url;
 				tab.textContent = sub.title;
 				if ( urlMatchKey( sub.url ) === initialKey ) {
-					tab.classList.add( 'wp-desktop-window__tab--active' );
+					tab.classList.add( 'desktop-mode-window__tab--active' );
 					tab.setAttribute( 'aria-selected', 'true' );
 				} else {
 					tab.setAttribute( 'aria-selected', 'false' );

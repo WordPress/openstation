@@ -156,7 +156,7 @@ export function isTextEntryFocus( doc: Document ): boolean {
  * is in a text-entry element so typing `` ` `` into fields still works.
  *
  * The iframe forwarder lives in `includes/render.php`: it postMessages
- * `wp-desktop-window-switch` so presses inside a wp-admin iframe reach
+ * `desktop-mode-window-switch` so presses inside a wp-admin iframe reach
  * this handler even though native keydown events don't cross iframe
  * boundaries. The iframe applies its own text-entry gate before
  * forwarding, so a backtick typed into the block editor or a plain
@@ -194,7 +194,7 @@ export function installWindowSwitcherShortcut( mgr: WindowManager ): void {
 		const data = e.data as
 			| { type?: string; direction?: CycleDirection }
 			| null;
-		if ( ! data || data.type !== 'wp-desktop-window-switch' ) {
+		if ( ! data || data.type !== 'desktop-mode-window-switch' ) {
 			return;
 		}
 		cycleFocus( mgr, data.direction === 'prev' ? 'prev' : 'next' );

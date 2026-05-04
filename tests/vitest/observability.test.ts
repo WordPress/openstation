@@ -5,13 +5,13 @@
  *   - `ctx.storage` namespaced localStorage wrapper.
  *   - `WidgetLayer.ensureMounted( id )` idempotent public entry.
  *   - `HOOKS.IFRAME_ERROR` fired when the bridge relays
- *     `wp-desktop-iframe-error`.
+ *     `desktop-mode-iframe-error`.
  *   - `HOOKS.IFRAME_NETWORK_COMPLETED` fired when the bridge relays
- *     `wp-desktop-iframe-network`.
+ *     `desktop-mode-iframe-network`.
  *   - `HOOKS.SHELL_ERROR` fired alongside the widget / wallpaper mount
  *     failure paths.
  *   - `MonitorEntry` filter round-trip — plugins can mutate / drop
- *     entries via `wp-desktop.monitor.entry`.
+ *     entries via `desktop-mode.monitor.entry`.
  *
  * Exercises real classes (`WidgetLayer`, `handleWindowMessage`,
  * `WindowManager`) against jsdom + the hook-bus stub.
@@ -52,7 +52,7 @@ describe( 'createWidgetStorage', () => {
 
 		// Keys must be namespaced so a sibling widget can't read them
 		// through a coincidentally-matching name.
-		expect( localStorage.getItem( 'wp-desktop.widget.jorvy/quote.count' ) ).toBe( '7' );
+		expect( localStorage.getItem( 'desktop-mode.widget.jorvy/quote.count' ) ).toBe( '7' );
 		expect( localStorage.getItem( 'count' ) ).toBeNull();
 	} );
 
@@ -62,7 +62,7 @@ describe( 'createWidgetStorage', () => {
 
 		// Raw write outside the wrapper simulates a malformed entry;
 		// get should swallow the parse error and return null.
-		localStorage.setItem( 'wp-desktop.widget.x.bad', '{not json' );
+		localStorage.setItem( 'desktop-mode.widget.x.bad', '{not json' );
 		expect( storage.get( 'bad' ) ).toBeNull();
 	} );
 
@@ -124,13 +124,13 @@ describe( 'iframe bridge — IFRAME_ERROR routing', () => {
 		document.body.innerHTML = '';
 	} );
 
-	test( 'routes wp-desktop-iframe-error message to HOOKS.IFRAME_ERROR', () => {
+	test( 'routes desktop-mode-iframe-error message to HOOKS.IFRAME_ERROR', () => {
 		const { win, iframeWindow } = makeFakeWindow( 'posts' );
 		const log = recordActions( hooks, [ HOOKS.IFRAME_ERROR ] );
 
 		const event = new MessageEvent( 'message', {
 			data: {
-				type: 'wp-desktop-iframe-error',
+				type: 'desktop-mode-iframe-error',
 				kind: 'error',
 				message: 'Uncaught TypeError: foo',
 				filename: 'https://site/wp-admin/edit.php',
@@ -162,7 +162,7 @@ describe( 'iframe bridge — IFRAME_ERROR routing', () => {
 
 		handleWindowMessage( win, new MessageEvent( 'message', {
 			data: {
-				type: 'wp-desktop-iframe-error',
+				type: 'desktop-mode-iframe-error',
 				kind: 'unhandledrejection',
 				message: 'boom',
 			},
@@ -172,7 +172,7 @@ describe( 'iframe bridge — IFRAME_ERROR routing', () => {
 
 		handleWindowMessage( win, new MessageEvent( 'message', {
 			data: {
-				type: 'wp-desktop-iframe-error',
+				type: 'desktop-mode-iframe-error',
 				kind: 'wat',
 				message: 'also boom',
 			},
@@ -194,7 +194,7 @@ describe( 'iframe bridge — IFRAME_ERROR routing', () => {
 
 		handleWindowMessage( win, new MessageEvent( 'message', {
 			data: {
-				type: 'wp-desktop-iframe-error',
+				type: 'desktop-mode-iframe-error',
 				kind: 'error',
 				message: 'x',
 			},
@@ -217,13 +217,13 @@ describe( 'iframe bridge — IFRAME_NETWORK_COMPLETED routing', () => {
 		document.body.innerHTML = '';
 	} );
 
-	test( 'routes wp-desktop-iframe-network message with status + duration', () => {
+	test( 'routes desktop-mode-iframe-network message with status + duration', () => {
 		const { win, iframeWindow } = makeFakeWindow( 'edit' );
 		const log = recordActions( hooks, [ HOOKS.IFRAME_NETWORK_COMPLETED ] );
 
 		handleWindowMessage( win, new MessageEvent( 'message', {
 			data: {
-				type: 'wp-desktop-iframe-network',
+				type: 'desktop-mode-iframe-network',
 				method: 'POST',
 				url: '/wp-admin/admin-ajax.php',
 				status: 500,
@@ -256,7 +256,7 @@ describe( 'iframe bridge — IFRAME_NETWORK_COMPLETED routing', () => {
 
 		handleWindowMessage( win, new MessageEvent( 'message', {
 			data: {
-				type: 'wp-desktop-iframe-network',
+				type: 'desktop-mode-iframe-network',
 				method: 'GET',
 				url: '/wp-json/wp/v2/posts',
 				status: 0,
@@ -273,7 +273,7 @@ describe( 'iframe bridge — IFRAME_NETWORK_COMPLETED routing', () => {
 	} );
 } );
 
-describe( 'MonitorEntry + wp-desktop.monitor.entry filter', () => {
+describe( 'MonitorEntry + desktop-mode.monitor.entry filter', () => {
 	let hooks: FakeWpHooks;
 
 	beforeEach( () => {
@@ -359,7 +359,7 @@ describe( 'SHELL_ERROR action fires alongside mount failures', () => {
 		] );
 
 		const host = document.createElement( 'div' );
-		host.id = 'wp-desktop-widgets';
+		host.id = 'desktop-mode-widgets';
 		document.body.appendChild( host );
 		const layer = new WidgetLayer( host, '' );
 		layer.ensureMounted( 'boom' );
@@ -436,7 +436,7 @@ describe( 'widget chrome — drag threshold', () => {
 		} );
 
 		const chrome = frame.card.querySelector< HTMLElement >(
-			'.wp-desktop-widgets__chrome',
+			'.desktop-mode-widgets__chrome',
 		);
 		expect( chrome ).not.toBeNull();
 
@@ -461,10 +461,10 @@ describe( 'widget chrome — drag threshold', () => {
 
 		expect( liberateCount ).toBe( 0 );
 		expect(
-			frame.card.classList.contains( 'wp-desktop-widgets__card--floating' ),
+			frame.card.classList.contains( 'desktop-mode-widgets__card--floating' ),
 		).toBe( false );
 		expect(
-			frame.card.classList.contains( 'wp-desktop-widgets__card--dragging' ),
+			frame.card.classList.contains( 'desktop-mode-widgets__card--dragging' ),
 		).toBe( false );
 
 		frame.dispose();
@@ -516,7 +516,7 @@ describe( 'widget chrome — drag threshold', () => {
 		} );
 
 		const chrome = frame.card.querySelector< HTMLElement >(
-			'.wp-desktop-widgets__chrome',
+			'.desktop-mode-widgets__chrome',
 		);
 		Object.defineProperty( chrome!, 'setPointerCapture', { value: () => undefined } );
 		Object.defineProperty( chrome!, 'releasePointerCapture', { value: () => undefined } );
@@ -537,15 +537,15 @@ describe( 'widget chrome — drag threshold', () => {
 
 		expect( liberateCount ).toBe( 1 );
 		expect(
-			frame.card.classList.contains( 'wp-desktop-widgets__card--floating' ),
+			frame.card.classList.contains( 'desktop-mode-widgets__card--floating' ),
 		).toBe( true );
 		expect(
-			frame.card.classList.contains( 'wp-desktop-widgets__card--dragging' ),
+			frame.card.classList.contains( 'desktop-mode-widgets__card--dragging' ),
 		).toBe( true );
 
 		chrome!.dispatchEvent( pointerEvent( 'pointerup', 210, 200 ) );
 		expect(
-			frame.card.classList.contains( 'wp-desktop-widgets__card--dragging' ),
+			frame.card.classList.contains( 'desktop-mode-widgets__card--dragging' ),
 		).toBe( false );
 
 		frame.dispose();
@@ -598,8 +598,8 @@ describe( 'Dock.appendSystemItem placement', () => {
 		expect( taskSys ).not.toBeNull();
 
 		// Separator renders on BOTH rails when a system item arrives.
-		expect( dockEl.querySelector( '.wp-desktop-dock__separator' ) ).not.toBeNull();
-		expect( taskbarEl.querySelector( '.wp-desktop-dock__separator' ) ).not.toBeNull();
+		expect( dockEl.querySelector( '.desktop-mode-dock__separator' ) ).not.toBeNull();
+		expect( taskbarEl.querySelector( '.desktop-mode-dock__separator' ) ).not.toBeNull();
 	} );
 } );
 
@@ -617,7 +617,7 @@ describe( 'WidgetLayer.ensureMounted', () => {
 	test( 'returns false for an unregistered id', async () => {
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
 		const host = document.createElement( 'div' );
-		host.id = 'wp-desktop-widgets';
+		host.id = 'desktop-mode-widgets';
 		document.body.appendChild( host );
 		const layer = new WidgetLayer( host, '' );
 		expect( layer.ensureMounted( 'really-not-a-widget-id-xyz' ) ).toBe( false );
@@ -637,7 +637,7 @@ describe( 'WidgetLayer.ensureMounted', () => {
 		} );
 
 		const host = document.createElement( 'div' );
-		host.id = 'wp-desktop-widgets';
+		host.id = 'desktop-mode-widgets';
 		document.body.appendChild( host );
 		const layer = new WidgetLayer( host, '' );
 

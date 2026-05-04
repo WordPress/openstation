@@ -9,7 +9,7 @@ becoming user-actionable, an inbound notification from a sister
 plugin.
 
 This API replaces the previous "rely on a `setInterval` that
-manipulates the DOM under `#wp-desktop-dock`" workaround. The badge
+manipulates the DOM under `#desktop-mode-dock`" workaround. The badge
 + attention paths are now first-class.
 
 ## Quick example
@@ -65,18 +65,18 @@ wp.desktop.icons?.clearBadge?.(   'my-plugin-inbox' );
 
 Fan to all three rails — the rail that owns the id paints, the
 others silently no-op. Every applied change publishes
-`wp-desktop/badge-changed` on the activity bus with `rail`
+`desktop-mode/badge-changed` on the activity bus with `rail`
 identifying the surface.
 
 ## Mute (Do Not Disturb) — JS hook
 
 `Window.requestAttention` runs the request through the JS filter
-`wp-desktop.window.attention` first. Return `null` to mute the
+`desktop-mode.window.attention` first. Return `null` to mute the
 request entirely:
 
 ```js
 wp.desktop.hooks.addFilter(
-    'wp-desktop.window.attention',
+    'desktop-mode.window.attention',
     'my-plugin/dnd',
     ( mode, { windowId } ) => {
         if ( windowId === 'my-plugin-inbox' && isDoNotDisturbActive() ) {

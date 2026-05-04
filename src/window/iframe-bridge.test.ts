@@ -1,7 +1,7 @@
 /**
  * Tests for the iframe postMessage handlers that landed in 0.11.0:
- * `wp-desktop-ready`, `wp-desktop-navigate`, and
- * `wp-desktop-notification`. The older handlers (`title-change`,
+ * `desktop-mode-ready`, `desktop-mode-navigate`, and
+ * `desktop-mode-notification`. The older handlers (`title-change`,
  * `focus-request`, etc.) are covered by the cross-module
  * observability tests under `tests/vitest/`.
  */
@@ -46,7 +46,7 @@ function postToWindow(
 	handleWindowMessage( win, event );
 }
 
-describe( 'iframe-bridge: wp-desktop-ready', () => {
+describe( 'iframe-bridge: desktop-mode-ready', () => {
 	let hooks: FakeWpHooks;
 	beforeEach( () => {
 		hooks = installHooksStub();
@@ -63,7 +63,7 @@ describe( 'iframe-bridge: wp-desktop-ready', () => {
 			seen.push( args[ 0 ] as { windowId: string } );
 		} );
 
-		postToWindow( win, { type: 'wp-desktop-ready' } );
+		postToWindow( win, { type: 'desktop-mode-ready' } );
 
 		expect( seen ).toEqual( [ { windowId: 'test-window' } ] );
 	} );
@@ -78,13 +78,13 @@ describe( 'iframe-bridge: wp-desktop-ready', () => {
 		// would correctly stay silent (no transition to surface).
 		markWindowContentLoading( 'test-window' );
 
-		postToWindow( win, { type: 'wp-desktop-ready' } );
+		postToWindow( win, { type: 'desktop-mode-ready' } );
 
 		expect( seen ).toEqual( [ { windowId: 'test-window' } ] );
 	} );
 } );
 
-describe( 'iframe-bridge: wp-desktop-navigate', () => {
+describe( 'iframe-bridge: desktop-mode-navigate', () => {
 	let openSpy: ReturnType< typeof vi.spyOn >;
 
 	beforeEach( () => {
@@ -101,7 +101,7 @@ describe( 'iframe-bridge: wp-desktop-navigate', () => {
 		const target = window.location.origin + '/wp-admin/edit.php';
 
 		postToWindow( win, {
-			type: 'wp-desktop-navigate',
+			type: 'desktop-mode-navigate',
 			url: target,
 			target: 'new',
 		} );
@@ -118,7 +118,7 @@ describe( 'iframe-bridge: wp-desktop-navigate', () => {
 		const target = window.location.origin + '/wp-admin/profile.php';
 
 		postToWindow( win, {
-			type: 'wp-desktop-navigate',
+			type: 'desktop-mode-navigate',
 			url: target,
 			target: 'self',
 		} );
@@ -132,7 +132,7 @@ describe( 'iframe-bridge: wp-desktop-navigate', () => {
 		const originalSrc = win.iframe!.src;
 
 		postToWindow( win, {
-			type: 'wp-desktop-navigate',
+			type: 'desktop-mode-navigate',
 			url: 'https://evil.example.com/wp-admin/edit.php',
 			target: 'self',
 		} );
@@ -146,7 +146,7 @@ describe( 'iframe-bridge: wp-desktop-navigate', () => {
 
 		expect( () => {
 			postToWindow( win, {
-				type: 'wp-desktop-navigate',
+				type: 'desktop-mode-navigate',
 				url: 'http://[invalid',
 				target: 'new',
 			} );
@@ -155,7 +155,7 @@ describe( 'iframe-bridge: wp-desktop-navigate', () => {
 	} );
 } );
 
-describe( 'iframe-bridge: wp-desktop-notification', () => {
+describe( 'iframe-bridge: desktop-mode-notification', () => {
 	beforeEach( () => {
 		installHooksStub();
 	} );
@@ -168,7 +168,7 @@ describe( 'iframe-bridge: wp-desktop-notification', () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
-			type: 'wp-desktop-notification',
+			type: 'desktop-mode-notification',
 			title: 'Saved',
 			body: 'Settings updated',
 		} );
@@ -183,7 +183,7 @@ describe( 'iframe-bridge: wp-desktop-notification', () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
-			type: 'wp-desktop-notification',
+			type: 'desktop-mode-notification',
 			title: 'Only title',
 		} );
 
@@ -196,7 +196,7 @@ describe( 'iframe-bridge: wp-desktop-notification', () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
-			type: 'wp-desktop-notification',
+			type: 'desktop-mode-notification',
 			title: '',
 			body: 'orphan body',
 		} );
@@ -215,7 +215,7 @@ describe( 'iframe-bridge: foreign events', () => {
 
 		postToWindow(
 			win,
-			{ type: 'wp-desktop-title-change', title: 'evil' },
+			{ type: 'desktop-mode-title-change', title: 'evil' },
 			{ origin: 'https://evil.example.com' },
 		);
 

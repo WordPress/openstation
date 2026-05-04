@@ -3,7 +3,7 @@
  * Desktop Mode — AI Copilot bulk re-index endpoint.
  *
  * Finds posts, pages, and comments that have NOT yet been analyzed
- * (i.e. they are missing the `_wpdm_ai_analysis` meta) and schedules
+ * (i.e. they are missing the `_desktop_mode_ai_analysis` meta) and schedules
  * an analysis cron job for each one. Then calls `spawn_cron()` so
  * WordPress triggers the jobs immediately rather than waiting for the
  * next organic page-load.
@@ -18,7 +18,7 @@
  *   - Recovery after the hook was broken (e.g. the wp_doing_autosave bug).
  *   - Bulk re-analysis after changing the AI prompt or model.
  *
- * REST: POST /wp-desktop/v1/ai/reindex
+ * REST: POST /desktop-mode/v1/ai/reindex
  *
  * @package WPDesktopMode
  */
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
  */
 function desktop_mode_register_ai_reindex_rest_route() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/ai/reindex',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
@@ -90,7 +90,7 @@ function desktop_mode_rest_ai_reindex_permission() {
 }
 
 /**
- * POST /wp-desktop/v1/ai/reindex
+ * POST /desktop-mode/v1/ai/reindex
  *
  * Queues analysis jobs for every unindexed entity of the requested types
  * and immediately triggers WP-Cron so jobs start running.

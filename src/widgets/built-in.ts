@@ -26,14 +26,14 @@ const clock: WidgetDef = {
 	},
 	icon: 'dashicons-clock',
 	mount: ( container ) => {
-		container.classList.add( 'wp-desktop-widget-clock' );
+		container.classList.add( 'desktop-mode-widget-clock' );
 
 		const time = document.createElement( 'div' );
-		time.className = 'wp-desktop-widget-clock__time';
+		time.className = 'desktop-mode-widget-clock__time';
 		container.appendChild( time );
 
 		const date = document.createElement( 'div' );
-		date.className = 'wp-desktop-widget-clock__date';
+		date.className = 'desktop-mode-widget-clock__date';
 		container.appendChild( date );
 
 		const render = (): void => {

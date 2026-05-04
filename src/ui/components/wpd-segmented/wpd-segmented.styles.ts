@@ -32,7 +32,7 @@ export const segmentStyles = css`
 		border: 0;
 		font: inherit;
 		font-size: 13px;
-		color: var( --wp-desktop-muted, #646970 );
+		color: var( --desktop-mode-muted, #646970 );
 		cursor: pointer;
 		border-radius: 5px;
 		transition: background-color 0.12s ease, color 0.12s ease;
@@ -42,8 +42,8 @@ export const segmentStyles = css`
 		white-space: nowrap;
 	}
 	:host( [ aria-checked='true' ] ) button {
-		background: var( --wp-desktop-window-bg, #fff );
-		color: var( --wp-desktop-text, #1d2327 );
+		background: var( --desktop-mode-window-bg, #fff );
+		color: var( --desktop-mode-text, #1d2327 );
 		box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.12 );
 		font-weight: 500;
 	}

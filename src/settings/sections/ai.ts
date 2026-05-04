@@ -127,7 +127,7 @@ export function buildAiSection( ctx: SettingsCtx ): HTMLElement {
 							( t ) => html`<wpd-option value=${ t.id }>${ t.label }</wpd-option>`,
 						) }
 					</wpd-select>
-					<p class="wp-desktop-ext__hint">
+					<p class="desktop-mode-ext__hint">
 						${ __( 'How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see "Lost connection to the assistant" errors).' ) }
 					</p>
 				</wpd-section>
@@ -271,10 +271,10 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 					></wpd-text-field>
 
 					${ state.error
-						? html`<p class="wp-desktop-ai-settings__error">${ state.error }</p>`
+						? html`<p class="desktop-mode-ai-settings__error">${ state.error }</p>`
 						: html`` }
 					${ state.saving
-						? html`<p class="wp-desktop-ai-settings__saving">${ __( 'Saving…' ) }</p>`
+						? html`<p class="desktop-mode-ai-settings__saving">${ __( 'Saving…' ) }</p>`
 						: html`` }
 				</wpd-section>
 			`,

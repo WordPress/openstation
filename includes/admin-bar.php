@@ -56,7 +56,7 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 	);
 
 	// "Report a bug" trigger — shown only when desktop mode is active.
-	// Clicking dispatches a `wp-desktop-open-bug-report` document
+	// Clicking dispatches a `desktop-mode-open-bug-report` document
 	// CustomEvent that the shell listens for and answers by opening the
 	// Bug Report native window. PHP doesn't know the JS side exists; the
 	// event lets us add the button without coupling to any specific
@@ -128,7 +128,7 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 				'title'  => esc_html__( 'Cascade', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
-					'class' => 'wpdm-layout-action',
+					'class' => 'desktop-mode-layout-action',
 					'title' => __( 'Lay all windows out from top-left, offset so every title bar stays visible.', 'desktop-mode' ),
 				),
 			)
@@ -140,7 +140,7 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 				'title'  => esc_html__( 'Overview', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
-					'class' => 'wpdm-layout-action',
+					'class' => 'desktop-mode-layout-action',
 					'title' => __( 'Zoom out to see every window at once. Click one to focus it.', 'desktop-mode' ),
 				),
 			)
@@ -154,11 +154,11 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'desktop-layout-menu',
 				'id'     => 'desktop-layout-snap',
-				'title'  => '<span class="wpdm-layout-checkbox" aria-hidden="true">☐</span> '
+				'title'  => '<span class="desktop-mode-layout-checkbox" aria-hidden="true">☐</span> '
 					. esc_html__( 'Snap to grid', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
-					'class' => 'wpdm-layout-snap',
+					'class' => 'desktop-mode-layout-snap',
 					'title' => __( 'Snap windows to a grid while dragging or resizing.', 'desktop-mode' ),
 				),
 			)
@@ -170,7 +170,7 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 				'title'  => esc_html__( 'Tile all windows', 'desktop-mode' ),
 				'href'   => '#',
 				'meta'   => array(
-					'class' => 'wpdm-layout-action',
+					'class' => 'desktop-mode-layout-action',
 					'title' => __( 'Pack every window into an evenly tiled grid that fills the desktop.', 'desktop-mode' ),
 				),
 			)
@@ -181,7 +181,7 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		 * plugins. Each entry becomes an additional node under the
 		 * "Arrange" submenu, rendered with the same styling as the
 		 * built-in Cascade / Overview / Tile items. Clicking a custom
-		 * item dispatches the JS action `wp-desktop.arrange.custom-action`
+		 * item dispatches the JS action `desktop-mode.arrange.custom-action`
 		 * with payload `{ id }` — plugins subscribe via
 		 * `wp.hooks.addAction()` and run their own arrangement logic.
 		 *
@@ -246,7 +246,7 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 						'title'  => esc_html( $item['title'] ),
 						'href'   => '#',
 						'meta'   => array(
-							'class' => 'wpdm-layout-action wpdm-layout-custom',
+							'class' => 'desktop-mode-layout-action desktop-mode-layout-custom',
 							'title' => $item['description'],
 						),
 					)
@@ -379,10 +379,10 @@ function desktop_mode_enqueue_toggle_assets() {
 		   colors). Selectors prefixed with #wpadminbar to win the
 		   admin-bar specificity without !important. */
 		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-sub-wrapper {
-			background: var( --wp-desktop-window-bg, #fff );
+			background: var( --desktop-mode-window-bg, #fff );
 			padding: 4px;
 			min-width: 220px;
-			border: 1px solid var( --wp-desktop-window-border, #c3c4c7 );
+			border: 1px solid var( --desktop-mode-window-border, #c3c4c7 );
 			border-radius: 8px;
 			box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
 				0 2px 6px rgba( 0, 0, 0, 0.08 );
@@ -403,7 +403,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			padding: 6px 10px;
 			font-size: 13px;
 			line-height: 1.3;
-			color: var( --wp-desktop-text, #1d2327 );
+			color: var( --desktop-mode-text, #1d2327 );
 			background: transparent;
 			border-radius: 6px;
 			transition: background-color 0.12s ease, color 0.12s ease;
@@ -418,7 +418,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			background: rgba( 0, 0, 0, 0.06 );
 			color: #000;
 		}
-		#wp-admin-bar-desktop-layout-snap .wpdm-layout-checkbox {
+		#wp-admin-bar-desktop-layout-snap .desktop-mode-layout-checkbox {
 			flex-shrink: 0;
 			display: inline-flex;
 			align-items: center;
@@ -428,7 +428,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			font-size: 14px;
 			line-height: 1;
 		}
-		#wp-admin-bar-desktop-layout-snap[aria-checked="true"] .wpdm-layout-checkbox {
+		#wp-admin-bar-desktop-layout-snap[aria-checked="true"] .desktop-mode-layout-checkbox {
 			color: var( --wp-admin-theme-color, #2271b1 );
 		}
 	';
@@ -444,7 +444,7 @@ function desktop_mode_enqueue_toggle_assets() {
 	// click handler to send `enabled=0` when the user actually wants
 	// to return to the shell.
 	wp_register_script(
-		'wpdm-admin-bar',
+		'desktop-mode-admin-bar',
 		DESKTOP_MODE_URL . 'assets/js/admin-bar.js',
 		array( 'admin-bar' ),
 		DESKTOP_MODE_VERSION,
@@ -455,8 +455,8 @@ function desktop_mode_enqueue_toggle_assets() {
 	// breaks the click handler's `!! cfg.active` check). 'before' runs
 	// before admin-bar.js so the global is ready when the IIFE fires.
 	wp_add_inline_script(
-		'wpdm-admin-bar',
-		'var wpDesktopAdminBar = ' . wp_json_encode(
+		'desktop-mode-admin-bar',
+		'var desktopModeAdminBar = ' . wp_json_encode(
 			array(
 				'nonce'      => wp_create_nonce( 'save-desktop-mode' ),
 				'active'     => desktop_mode_is_enabled() && ! desktop_mode_is_classic_request(),
@@ -467,7 +467,7 @@ function desktop_mode_enqueue_toggle_assets() {
 		) . ';',
 		'before'
 	);
-	wp_enqueue_script( 'wpdm-admin-bar' );
+	wp_enqueue_script( 'desktop-mode-admin-bar' );
 }
 add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_toggle_assets' );
 

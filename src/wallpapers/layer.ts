@@ -1,8 +1,8 @@
 /**
  * Desktop Mode — Wallpaper render layer.
  *
- * Manages the `<div id="wp-desktop-wallpaper">` element the shell
- * markup reserves inside `#wp-desktop-shell`. CSS wallpapers set a
+ * Manages the `<div id="desktop-mode-wallpaper">` element the shell
+ * markup reserves inside `#desktop-mode-shell`. CSS wallpapers set a
  * custom property; canvas wallpapers mount DOM here.
  *
  * The tricky part is the mount/unmount race: a user clicking two
@@ -121,7 +121,7 @@ export class WallpaperLayer {
 			doAction( HOOKS.SHELL_ERROR, { scope: 'wallpaper-teardown', id, error: err } );
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[wp-desktop-mode] Wallpaper "${ id }" teardown threw:`,
+					`[desktop-mode] Wallpaper "${ id }" teardown threw:`,
 					err,
 				);
 			}
@@ -144,13 +144,13 @@ export class WallpaperLayer {
 			? def.resolveValue( createContext( def.id, this.pluginUrl ) )
 			: def.value;
 		if ( typeof value === 'string' ) {
-			this.element.style.setProperty( '--wp-desktop-bg', value );
+			this.element.style.setProperty( '--desktop-mode-bg', value );
 			// Also mirror onto the shell so theming rules that read
 			// the variable from the shell (per-scheme overrides,
 			// dock-pill backgrounds) see the active
 			// value. This matches the pre-registry behavior.
-			const shell = document.getElementById( 'wp-desktop-shell' );
-			shell?.style.setProperty( '--wp-desktop-bg', value );
+			const shell = document.getElementById( 'desktop-mode-shell' );
+			shell?.style.setProperty( '--desktop-mode-bg', value );
 		}
 	}
 
@@ -224,7 +224,7 @@ export class WallpaperLayer {
 		doAction( HOOKS.SHELL_ERROR, { scope: 'wallpaper-mount', id, error: err } );
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				`[wp-desktop-mode] Wallpaper "${ id }" failed to mount:`,
+				`[desktop-mode] Wallpaper "${ id }" failed to mount:`,
 				err,
 			);
 		}

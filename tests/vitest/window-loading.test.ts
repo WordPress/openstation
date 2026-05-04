@@ -74,10 +74,10 @@ describe( 'createWindowElement — loading overlay', () => {
 			width: 800,
 			height: 600,
 		} );
-		const body = el.querySelector( '.wp-desktop-window__body' );
+		const body = el.querySelector( '.desktop-mode-window__body' );
 		expect( body ).not.toBeNull();
-		expect( body!.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe( true );
-		const overlay = el.querySelector( '.wp-desktop-window__loading' );
+		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe( true );
+		const overlay = el.querySelector( '.desktop-mode-window__loading' );
 		expect( overlay ).not.toBeNull();
 		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
 	} );
@@ -94,10 +94,10 @@ describe( 'createWindowElement — loading overlay', () => {
 			width: 400,
 			height: 320,
 		} );
-		const body = el.querySelector( '.wp-desktop-window__body' );
+		const body = el.querySelector( '.desktop-mode-window__body' );
 		expect( body ).not.toBeNull();
-		expect( body!.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe( true );
-		expect( body!.classList.contains( 'wp-desktop-window__body--native' ) ).toBe( true );
+		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe( true );
+		expect( body!.classList.contains( 'desktop-mode-window__body--native' ) ).toBe( true );
 		expect( el.querySelector( 'wpd-spinner' ) ).not.toBeNull();
 	} );
 
@@ -152,7 +152,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		);
 		const eventSpy = vi.fn();
 		document.addEventListener(
-			'wp-desktop-window-content-loading',
+			'desktop-mode-window-content-loading',
 			eventSpy as EventListener,
 		);
 
@@ -164,7 +164,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		expect( detail ).toEqual( { windowId: 'win-1' } );
 
 		document.removeEventListener(
-			'wp-desktop-window-content-loading',
+			'desktop-mode-window-content-loading',
 			eventSpy as EventListener,
 		);
 	} );
@@ -194,7 +194,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		);
 		const eventSpy = vi.fn();
 		document.addEventListener(
-			'wp-desktop-window-content-loaded',
+			'desktop-mode-window-content-loaded',
 			eventSpy as EventListener,
 		);
 
@@ -207,7 +207,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		expect( detail ).toEqual( { windowId: 'win-3' } );
 
 		document.removeEventListener(
-			'wp-desktop-window-content-loaded',
+			'desktop-mode-window-content-loaded',
 			eventSpy as EventListener,
 		);
 	} );
@@ -272,15 +272,15 @@ describe( 'installWindowLoadingTransitions — visual side', () => {
 			title: 'Visual 1',
 		} );
 		const body = document.querySelector(
-			'#wp-window-visual-1 .wp-desktop-window__body',
+			'#wp-window-visual-1 .desktop-mode-window__body',
 		);
-		expect( body!.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
 			true,
 		);
 
 		markWindowContentReady( 'visual-1' );
 
-		expect( body!.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
 			false,
 		);
 	} );
@@ -293,21 +293,21 @@ describe( 'installWindowLoadingTransitions — visual side', () => {
 		} );
 		markWindowContentReady( 'visual-2' );
 		const body = document.querySelector(
-			'#wp-window-visual-2 .wp-desktop-window__body',
+			'#wp-window-visual-2 .desktop-mode-window__body',
 		);
-		expect( body!.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
 			false,
 		);
 
 		markWindowContentLoading( 'visual-2' );
 
-		expect( body!.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
 			true,
 		);
 		// Overlay is still in the DOM at this moment — the
 		// fade-out timer hasn't fired yet (default jsdom timing).
 		// Either way, `ensureLoadingOverlay` paints a fresh one.
-		const overlays = body!.querySelectorAll( '.wp-desktop-window__loading' );
+		const overlays = body!.querySelectorAll( '.desktop-mode-window__loading' );
 		expect( overlays.length ).toBeGreaterThanOrEqual( 1 );
 	} );
 } );
@@ -485,21 +485,21 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', () =>
 		} );
 		// Initial body class — every window starts in loading.
 		const body = win.element.querySelector(
-			'.wp-desktop-window__body',
+			'.desktop-mode-window__body',
 		)!;
-		expect( body.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
 			true,
 		);
 
 		// Manual fade-in.
 		win.markContentLoaded();
-		expect( body.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
 			false,
 		);
 
 		// Manual re-arm.
 		win.markContentLoading();
-		expect( body.classList.contains( 'wp-desktop-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
 			true,
 		);
 	} );
@@ -540,7 +540,7 @@ describe( 'Loading overlay customization', () => {
 			},
 		} );
 		const overlay = win.element.querySelector(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		)!;
 		expect( overlay.querySelector( 'wpd-spinner' ) ).not.toBeNull();
 		expect( overlay.querySelector( '.my-loading-status' )!.textContent ).toBe(
@@ -563,7 +563,7 @@ describe( 'Loading overlay customization', () => {
 			},
 		} );
 		const overlay = win.element.querySelector(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		)!;
 		expect( overlay.querySelector( 'wpd-spinner' ) ).toBeNull();
 		expect( overlay.querySelector( '.my-custom-loader' )!.textContent ).toBe(
@@ -593,7 +593,7 @@ describe( 'Loading overlay customization', () => {
 
 		expect( seenCtx ).toEqual( [ { windowId: 'filtered' } ] );
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		)!;
 		expect( overlay.dataset.skinned ).toBe( 'true' );
 	} );
@@ -617,7 +617,7 @@ describe( 'Loading overlay customization', () => {
 		} );
 
 		const overlay = win.element.querySelector(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		);
 		// Even when a filter returns a totally different element,
 		// the framework re-adds the marker class so CSS positioning
@@ -669,7 +669,7 @@ describe( 'Loading overlay customization', () => {
 		} );
 
 		const overlay = win.element.querySelector(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		);
 		expect( overlay ).not.toBeNull();
 		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
@@ -685,7 +685,7 @@ describe( 'Loading overlay customization', () => {
 			title: 'Late Filter',
 		} );
 		const overlay = () => win.element.querySelector< HTMLElement >(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		)!;
 		expect( overlay().dataset.skinned ).toBeUndefined();
 
@@ -740,7 +740,7 @@ describe( 'Loading overlay customization', () => {
 		await Promise.resolve();
 
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		)!;
 		expect( overlay.dataset.skinned ).toBe( 'f5' );
 	} );
@@ -782,13 +782,13 @@ describe( 'Loading overlay customization', () => {
 		// — we simulate the after-fade state by manually removing.)
 		win.markContentLoaded();
 		win.element
-			.querySelector( '.wp-desktop-window__loading' )
+			.querySelector( '.desktop-mode-window__loading' )
 			?.remove();
 		win.markContentLoading();
 
 		expect( renderCalls ).toBe( 2 );
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.wp-desktop-window__loading',
+			'.desktop-mode-window__loading',
 		)!;
 		expect( overlay.dataset.renderCount ).toBe( '2' );
 	} );

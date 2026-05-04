@@ -31,7 +31,7 @@ export const styles = css`
 		cursor: pointer;
 		border-radius: var( --wpd-key-border-radius, 8px );
 		background: var( --wpd-key-bg, rgba( 0, 0, 0, 0.06 ) );
-		color: var( --wpd-key-fg, var( --wp-desktop-text, #1d2327 ) );
+		color: var( --wpd-key-fg, var( --desktop-mode-text, #1d2327 ) );
 		border: var( --wpd-key-border, 1px solid transparent );
 		transition:
 			transform 0.08s ease,
@@ -53,7 +53,7 @@ export const styles = css`
 	}
 	:host( [ variant='ghost' ] ) button {
 		background: transparent;
-		border: var( --wpd-key-border, 1px solid var( --wp-desktop-border, #c3c4c7 ) );
+		border: var( --wpd-key-border, 1px solid var( --desktop-mode-border, #c3c4c7 ) );
 	}
 	:host( [ variant='danger' ] ) button {
 		background: transparent;

@@ -2,7 +2,7 @@
  * Desktop Mode — WordPress-style hooks bridge.
  *
  * The shell exposes extension points as `@wordpress/hooks` filters and
- * actions under the `wp-desktop.*` namespace. This file is a thin,
+ * actions under the `desktop-mode.*` namespace. This file is a thin,
  * typed wrapper around `window.wp.hooks` — we depend on the standard
  * WordPress `wp-hooks` script handle via {@see includes/assets.php}
  * rather than bundling our own primitive, so third-party plugin
@@ -10,7 +10,7 @@
  *
  * The module throws a readable error if `wp.hooks` is missing: in the
  * WordPress admin the script handle is registered core-side and listed
- * as a dependency of `wp-desktop`, so the failure mode is limited to
+ * as a dependency of `desktop-mode`, so the failure mode is limited to
  * broken manual enqueues or unusual embeds.
  *
  * @since 0.6.0
@@ -71,7 +71,7 @@ function getWpHooks(): WpHooks {
 	const hooks = window.wp?.hooks;
 	if ( ! hooks ) {
 		throw new Error(
-			'[wp-desktop-mode] `window.wp.hooks` is not available. The ' +
+			'[desktop-mode] `window.wp.hooks` is not available. The ' +
 				'plugin declares `wp-hooks` as a script dependency; if ' +
 				'you are seeing this error, verify the enqueue order.',
 		);
@@ -163,20 +163,20 @@ export function rawHooks(): WpHooks {
  */
 export const HOOKS = {
 	/** Action, fires once after shell boot; plugins register here. */
-	INIT: 'wp-desktop.init',
+	INIT: 'desktop-mode.init',
 
 	/** Filter, receives the wallpaper registry array. */
-	WALLPAPERS: 'wp-desktop.wallpapers',
+	WALLPAPERS: 'desktop-mode.wallpapers',
 	/** Action before a canvas wallpaper mounts. */
-	WALLPAPER_MOUNTING: 'wp-desktop.wallpaper.mounting',
+	WALLPAPER_MOUNTING: 'desktop-mode.wallpaper.mounting',
 	/** Action after a canvas wallpaper mounts successfully. */
-	WALLPAPER_MOUNTED: 'wp-desktop.wallpaper.mounted',
+	WALLPAPER_MOUNTED: 'desktop-mode.wallpaper.mounted',
 	/** Action before a canvas wallpaper tears down. */
-	WALLPAPER_UNMOUNTING: 'wp-desktop.wallpaper.unmounting',
+	WALLPAPER_UNMOUNTING: 'desktop-mode.wallpaper.unmounting',
 	/** Action when a canvas wallpaper's mount throws / rejects. */
-	WALLPAPER_MOUNT_FAILED: 'wp-desktop.wallpaper.mount-failed',
+	WALLPAPER_MOUNT_FAILED: 'desktop-mode.wallpaper.mount-failed',
 	/** Action mirroring document.visibilitychange for active canvas wallpapers. */
-	WALLPAPER_VISIBILITY: 'wp-desktop.wallpaper.visibility',
+	WALLPAPER_VISIBILITY: 'desktop-mode.wallpaper.visibility',
 
 	// ------------------------------------------------------------------
 	// Observability — iframe errors, iframe network, shell-side errors,
@@ -205,8 +205,8 @@ export const HOOKS = {
 	 *
 	 * @since 0.11.0
 	 */
-	IFRAME_READY: 'wp-desktop.iframe.ready',
-	IFRAME_ERROR: 'wp-desktop.iframe.error',
+	IFRAME_READY: 'desktop-mode.iframe.ready',
+	IFRAME_ERROR: 'desktop-mode.iframe.error',
 	/**
 	 * Action, fires when a `fetch` or `XMLHttpRequest` inside a
 	 * chromeless iframe completes (success OR failure). Payload: `{
@@ -216,7 +216,7 @@ export const HOOKS = {
 	 * iframe boundary. `status === 0` indicates a network failure with
 	 * no response received.
 	 */
-	IFRAME_NETWORK_COMPLETED: 'wp-desktop.iframe.network-completed',
+	IFRAME_NETWORK_COMPLETED: 'desktop-mode.iframe.network-completed',
 	/**
 	 * Action, fires when one of the shell's own try/catch barriers
 	 * catches an exception. Payload: `{ scope:
@@ -226,14 +226,14 @@ export const HOOKS = {
 	 * `console.error` calls — a monitor widget can surface these as
 	 * first-class entries.
 	 */
-	SHELL_ERROR: 'wp-desktop.shell.error',
+	SHELL_ERROR: 'desktop-mode.shell.error',
 	/**
 	 * Action, fires once per `wp.desktop.broadcast()` call with the
 	 * fully-resolved `{ topic, payload }` detail. Lets plugins log,
 	 * mirror, or augment broadcast traffic without subscribing for
 	 * every individual topic.
 	 */
-	BROADCAST: 'wp-desktop.broadcast',
+	BROADCAST: 'desktop-mode.broadcast',
 	/**
 	 * Filter, applies to a `MonitorEntry` before a monitor widget
 	 * renders it. Plugins can mutate the entry (rewrite the message,
@@ -241,7 +241,7 @@ export const HOOKS = {
 	 * monitor widgets to converge every plugin on the same shape —
 	 * see `MonitorEntry` in `src/types.ts`.
 	 */
-	MONITOR_ENTRY: 'wp-desktop.monitor.entry',
+	MONITOR_ENTRY: 'desktop-mode.monitor.entry',
 	/**
 	 * Filter, applies to the list of "solid" surfaces wallpapers
 	 * should consider for collision / accumulation effects (snow
@@ -257,19 +257,19 @@ export const HOOKS = {
 	 * Each entry is a `WallpaperSurface` — see
 	 * `src/wallpapers/surfaces.ts` for the shape. Rects are in
 	 * viewport coordinates (clientX / clientY), matching what a
-	 * canvas mounted inside `#wp-desktop-wallpaper` reads.
+	 * canvas mounted inside `#desktop-mode-wallpaper` reads.
 	 */
-	WALLPAPER_SURFACES: 'wp-desktop.wallpaper.surfaces',
+	WALLPAPER_SURFACES: 'desktop-mode.wallpaper.surfaces',
 
 	// ------------------------------------------------------------------
 	// Window lifecycle actions. All payloads share a `windowId: string`
 	// field; additional fields are documented per-hook in the JS
-	// reference. These mirror the existing `wp-desktop-window-*`
+	// reference. These mirror the existing `desktop-mode-window-*`
 	// CustomEvents but ship under the hook bus so plugins can use one
 	// idiomatic API for everything the shell emits.
 	// ------------------------------------------------------------------
 	/** Action, fires when a window is added to the stack. */
-	WINDOW_OPENED: 'wp-desktop.window.opened',
+	WINDOW_OPENED: 'desktop-mode.window.opened',
 	/**
 	 * Action, fires when a window's body enters the loading state — at
 	 * construction (every window starts loading) and whenever a plugin
@@ -283,16 +283,16 @@ export const HOOKS = {
 	 * decorating the spinner with a per-window message.
 	 *
 	 * Edge-triggered: idempotent calls don't re-fire. The matching
-	 * `wp-desktop-window-content-loading` CustomEvent dispatches on
+	 * `desktop-mode-window-content-loading` CustomEvent dispatches on
 	 * `document` with the same payload.
 	 *
 	 * @since 0.6.0
 	 */
-	WINDOW_CONTENT_LOADING: 'wp-desktop.window.content-loading',
+	WINDOW_CONTENT_LOADING: 'desktop-mode.window.content-loading',
 	/**
 	 * Action, fires when a window's body content becomes ready — for
 	 * iframe windows the moment the chromeless bridge announces
-	 * `wp-desktop-ready`, for native windows after the user's
+	 * `desktop-mode-ready`, for native windows after the user's
 	 * `render( body )` callback (or its returned promise) resolves, and
 	 * whenever a plugin calls {@link NativeRenderContext.window.markReady}
 	 * or `Window.markContentLoaded()` mid-life. Payload: `{ windowId }`.
@@ -305,12 +305,12 @@ export const HOOKS = {
 	 * transition.
 	 *
 	 * Edge-triggered: only fires on a loading → ready transition.
-	 * The matching `wp-desktop-window-content-loaded` CustomEvent
+	 * The matching `desktop-mode-window-content-loaded` CustomEvent
 	 * dispatches on `document` with the same payload.
 	 *
 	 * @since 0.6.0
 	 */
-	WINDOW_CONTENT_LOADED: 'wp-desktop.window.content-loaded',
+	WINDOW_CONTENT_LOADED: 'desktop-mode.window.content-loaded',
 	/**
 	 * Filter, applied to the loading-overlay HTMLElement just after
 	 * the shell paints its default `<wpd-spinner>` and after any
@@ -335,7 +335,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.6.0
 	 */
-	WINDOW_LOADING_OVERLAY: 'wp-desktop.window.loading-overlay',
+	WINDOW_LOADING_OVERLAY: 'desktop-mode.window.loading-overlay',
 	/**
 	 * Action, fires when `manager.open(...)` is called for a baseId
 	 * whose window already exists on the active desktop. This is the
@@ -352,7 +352,7 @@ export const HOOKS = {
 	 * BEFORE invoking `openWindow` is already in place when this
 	 * fires.
 	 */
-	WINDOW_REOPENED: 'wp-desktop.window.reopened',
+	WINDOW_REOPENED: 'desktop-mode.window.reopened',
 	/**
 	 * Action, fires BEFORE the window's element is detached from the
 	 * DOM but AFTER the manager has already removed it from the stack.
@@ -365,11 +365,11 @@ export const HOOKS = {
 	 * subscribers would otherwise have to re-query the DOM — by then
 	 * the element is gone, so they can't match at all.
 	 */
-	WINDOW_CLOSING: 'wp-desktop.window.closing',
+	WINDOW_CLOSING: 'desktop-mode.window.closing',
 	/** Action, fires when a window is removed from the stack. */
-	WINDOW_CLOSED: 'wp-desktop.window.closed',
+	WINDOW_CLOSED: 'desktop-mode.window.closed',
 	/** Action, fires when focus changes to a different window. */
-	WINDOW_FOCUSED: 'wp-desktop.window.focused',
+	WINDOW_FOCUSED: 'desktop-mode.window.focused',
 	/**
 	 * Action, fires for the window that LOST focus when another
 	 * window takes over. Symmetric counterpart to
@@ -385,19 +385,19 @@ export const HOOKS = {
 	 *
 	 * @since 0.5.5
 	 */
-	WINDOW_BLURRED: 'wp-desktop.window.blurred',
+	WINDOW_BLURRED: 'desktop-mode.window.blurred',
 	/** Action, fires when a window is minimized. */
-	WINDOW_MINIMIZED: 'wp-desktop.window.minimized',
+	WINDOW_MINIMIZED: 'desktop-mode.window.minimized',
 	/** Action, fires when a window is restored from minimized. */
-	WINDOW_RESTORED: 'wp-desktop.window.restored',
+	WINDOW_RESTORED: 'desktop-mode.window.restored',
 	/** Action, fires when a window is maximized (fills desktop area). */
-	WINDOW_MAXIMIZED: 'wp-desktop.window.maximized',
+	WINDOW_MAXIMIZED: 'desktop-mode.window.maximized',
 	/** Action, fires when a window exits maximized state. */
-	WINDOW_UNMAXIMIZED: 'wp-desktop.window.unmaximized',
+	WINDOW_UNMAXIMIZED: 'desktop-mode.window.unmaximized',
 	/** Action, fires when a window enters fullscreen / focus mode. */
-	WINDOW_FULLSCREEN_ENTERED: 'wp-desktop.window.fullscreen-entered',
+	WINDOW_FULLSCREEN_ENTERED: 'desktop-mode.window.fullscreen-entered',
 	/** Action, fires when a window exits fullscreen / focus mode. */
-	WINDOW_FULLSCREEN_EXITED: 'wp-desktop.window.fullscreen-exited',
+	WINDOW_FULLSCREEN_EXITED: 'desktop-mode.window.fullscreen-exited',
 	/**
 	 * Action, fires at most once per animation frame during an
 	 * active drag or resize with the live geometry. Payload: `{
@@ -416,21 +416,21 @@ export const HOOKS = {
 	 * that only want the final position should listen to those
 	 * instead.
 	 */
-	WINDOW_BOUNDS_CHANGED: 'wp-desktop.window.bounds-changed',
+	WINDOW_BOUNDS_CHANGED: 'desktop-mode.window.bounds-changed',
 	/** Action, fires at drag-end with the final `{ x, y }` position. */
-	WINDOW_MOVED: 'wp-desktop.window.moved',
+	WINDOW_MOVED: 'desktop-mode.window.moved',
 	/** Action, fires at resize-end with the final `{ width, height }`. */
-	WINDOW_RESIZED: 'wp-desktop.window.resized',
+	WINDOW_RESIZED: 'desktop-mode.window.resized',
 	/** Action, fires when title-bar drag begins. */
-	WINDOW_DRAG_START: 'wp-desktop.window.drag-start',
+	WINDOW_DRAG_START: 'desktop-mode.window.drag-start',
 	/** Action, fires when title-bar drag ends. Payload mirrors WINDOW_MOVED. */
-	WINDOW_DRAG_END: 'wp-desktop.window.drag-end',
+	WINDOW_DRAG_END: 'desktop-mode.window.drag-end',
 	/** Action, fires when the resize handle is first pressed. */
-	WINDOW_RESIZE_START: 'wp-desktop.window.resize-start',
+	WINDOW_RESIZE_START: 'desktop-mode.window.resize-start',
 	/** Action, fires when resize completes. Payload mirrors WINDOW_RESIZED. */
-	WINDOW_RESIZE_END: 'wp-desktop.window.resize-end',
+	WINDOW_RESIZE_END: 'desktop-mode.window.resize-end',
 	/** Action, fires when the user "detaches" a window to a classic tab. */
-	WINDOW_DETACHED: 'wp-desktop.window.detached',
+	WINDOW_DETACHED: 'desktop-mode.window.detached',
 	/**
 	 * Action, fires when the user clicks the title-bar reload button
 	 * on an iframe-backed window. Payload: `{ windowId: string, url:
@@ -441,9 +441,9 @@ export const HOOKS = {
 	 * surfaces. Native windows do not fire this — they own their
 	 * DOM directly and the reload button doesn't apply.
 	 */
-	WINDOW_RELOADED: 'wp-desktop.window.reloaded',
+	WINDOW_RELOADED: 'desktop-mode.window.reloaded',
 	/** Action, fires when iframe title updates change the window title. */
-	WINDOW_TITLE_CHANGED: 'wp-desktop.window.title-changed',
+	WINDOW_TITLE_CHANGED: 'desktop-mode.window.title-changed',
 	/**
 	 * Action, fires when a window's `setHighlight()` mode changes.
 	 * Payload: `{ windowId: string, mode: 'preview' | 'persistent' | null,
@@ -454,7 +454,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.24.0
 	 */
-	WINDOW_HIGHLIGHT_CHANGED: 'wp-desktop.window.highlight-changed',
+	WINDOW_HIGHLIGHT_CHANGED: 'desktop-mode.window.highlight-changed',
 	/**
 	 * Action, fires when a window's body element's dimensions
 	 * change — mount, user resize, viewport reflow. Payload: `{
@@ -462,7 +462,7 @@ export const HOOKS = {
 	 * dimensions exclude the title bar + tab strip, matching what a
 	 * canvas or layout engine inside the body would measure.
 	 */
-	WINDOW_BODY_RESIZED: 'wp-desktop.window.body-resized',
+	WINDOW_BODY_RESIZED: 'desktop-mode.window.body-resized',
 
 	// ------------------------------------------------------------------
 	// Native-window lifecycle. These fire ONLY for windows constructed
@@ -482,13 +482,13 @@ export const HOOKS = {
 	 * background, decorative chrome) around every native window
 	 * without every plugin re-implementing the pattern.
 	 */
-	NATIVE_WINDOW_BEFORE_RENDER: 'wp-desktop.native-window.before-render',
+	NATIVE_WINDOW_BEFORE_RENDER: 'desktop-mode.native-window.before-render',
 	/**
 	 * Action, fires AFTER a native window's `render( body )` callback
 	 * returns. Payload: `{ windowId, body, config }`. Observability
 	 * hook — analytics / auto-focus / post-render measurement.
 	 */
-	NATIVE_WINDOW_AFTER_RENDER: 'wp-desktop.native-window.after-render',
+	NATIVE_WINDOW_AFTER_RENDER: 'desktop-mode.native-window.after-render',
 	/**
 	 * Filter, applied when a native window is about to start its
 	 * close animation. Return `false` to CANCEL the close — the
@@ -501,7 +501,7 @@ export const HOOKS = {
 	 * mid-flight. Does NOT apply to iframe windows — their close is
 	 * driven by browser navigation patterns the shell doesn't own.
 	 */
-	NATIVE_WINDOW_BEFORE_CLOSE: 'wp-desktop.native-window.before-close',
+	NATIVE_WINDOW_BEFORE_CLOSE: 'desktop-mode.native-window.before-close',
 
 	// ------------------------------------------------------------------
 	// Window-chrome customization framework. Plugins drive per-window
@@ -523,7 +523,7 @@ export const HOOKS = {
 	 *
 	 * Stable since 0.6.0.
 	 */
-	WINDOW_CHROME_THEME: 'wp-desktop.window.chrome.theme',
+	WINDOW_CHROME_THEME: 'desktop-mode.window.chrome.theme',
 	/**
 	 * Filter, applied to the resolved control list for a window.
 	 * Receives `WindowControlDef[]`; context: `{ windowId, config,
@@ -532,7 +532,7 @@ export const HOOKS = {
 	 *
 	 * Stable since 0.6.0.
 	 */
-	WINDOW_CHROME_CONTROLS: 'wp-desktop.window.chrome.controls',
+	WINDOW_CHROME_CONTROLS: 'desktop-mode.window.chrome.controls',
 	/**
 	 * Filter, applied per slot when the chrome paints. Receives the
 	 * slot host element; context: `{ windowId, slot, config }`.
@@ -543,7 +543,7 @@ export const HOOKS = {
 	 *
 	 * Stable since 0.6.0.
 	 */
-	WINDOW_CHROME_SLOT: 'wp-desktop.window.chrome.slot',
+	WINDOW_CHROME_SLOT: 'desktop-mode.window.chrome.slot',
 	/**
 	 * Filter, applied to the chrome id selected for a window.
 	 * Receives the resolved id (defaults to `'core/standard'`);
@@ -553,7 +553,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.6.0
 	 */
-	WINDOW_CHROME_RENDER: 'wp-desktop.window.chrome.render',
+	WINDOW_CHROME_RENDER: 'desktop-mode.window.chrome.render',
 	/**
 	 * Action, fires after a window's chrome has been mounted /
 	 * remounted. Payload: `{ windowId, chromeId }`. Subscribers can
@@ -561,7 +561,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.6.0
 	 */
-	WINDOW_CHROME_APPLIED: 'wp-desktop.window.chrome.applied',
+	WINDOW_CHROME_APPLIED: 'desktop-mode.window.chrome.applied',
 	/**
 	 * Action, fires after a window's theme tokens are applied to its
 	 * outer element. Payload: `{ windowId, themeId, tokens }`. Lets
@@ -569,7 +569,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.6.0
 	 */
-	WINDOW_CHROME_THEME_CHANGED: 'wp-desktop.window.chrome.theme-changed',
+	WINDOW_CHROME_THEME_CHANGED: 'desktop-mode.window.chrome.theme-changed',
 
 	/**
 	 * Action, fires when a user clicks a desktop icon (a shortcut
@@ -582,7 +582,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.11.0
 	 */
-	DESKTOP_ICON_CLICKED: 'wp-desktop.desktop-icon.clicked',
+	DESKTOP_ICON_CLICKED: 'desktop-mode.desktop-icon.clicked',
 	/**
 	 * Action, fires after the wallpaper icon grid is rendered or
 	 * re-rendered. Payload: `{ ids: string[] }` — the ids in the
@@ -605,7 +605,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.21.0
 	 */
-	DESKTOP_ICONS_RENDERED: 'wp-desktop.desktop-icons.rendered',
+	DESKTOP_ICONS_RENDERED: 'desktop-mode.desktop-icons.rendered',
 	/**
 	 * Action, fires whenever the badge count on a desktop icon
 	 * changes. Payload: `{ iconId: string, count: number,
@@ -613,7 +613,7 @@ export const HOOKS = {
 	 * and the dock/taskbar `wpd-dock-item-badge-changed` CustomEvent
 	 * — the icon rail's lifecycle hook for badge transitions.
 	 *
-	 * Mirrors `wp-desktop/badge-changed` on the activity bus with
+	 * Mirrors `desktop-mode/badge-changed` on the activity bus with
 	 * `rail: 'icon'`. Subscribe to whichever surface fits — the
 	 * activity channel composes across rails for global widgets,
 	 * this hook fires only for icon-rail badges with the previous
@@ -621,7 +621,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.24.0
 	 */
-	ICON_BADGE_CHANGED: 'wp-desktop.icon.badge-changed',
+	ICON_BADGE_CHANGED: 'desktop-mode.icon.badge-changed',
 
 	// ------------------------------------------------------------------
 	// Cross-plugin composition.
@@ -635,14 +635,14 @@ export const HOOKS = {
 	 * complete (e.g. hydrate user content that uses these tags)
 	 * subscribe here instead of polling `customElements.get()`.
 	 */
-	COMPONENTS_REGISTERED: 'wp-desktop.components.registered',
+	COMPONENTS_REGISTERED: 'desktop-mode.components.registered',
 	/**
 	 * Action, fires after `wp.desktop.registerSystemTile()` inserts
 	 * a tile into the unified dock. Payload: `{ id: string }`. Useful
 	 * for plugins that want to decorate tiles they didn't register
 	 * themselves — analytics, theming, per-tile badges.
 	 */
-	DOCK_ITEM_APPENDED: 'wp-desktop.dock.item-appended',
+	DOCK_ITEM_APPENDED: 'desktop-mode.dock.item-appended',
 	/**
 	 * Action, fires after a system tile is removed from a rail
 	 * via `Dock.removeSystemItem()` (typically the server-driven
@@ -653,7 +653,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.24.0
 	 */
-	DOCK_ITEM_REMOVED: 'wp-desktop.dock.item-removed',
+	DOCK_ITEM_REMOVED: 'desktop-mode.dock.item-removed',
 
 	// ------------------------------------------------------------------
 	// Dock decoration hooks — render-pipeline filters and actions the
@@ -666,8 +666,8 @@ export const HOOKS = {
 	// Every detail object carries `{ rail, orientation, dockId,
 	// container }` so a single subscriber can disambiguate when two
 	// rails coexist (Classic layout's left side bar + bottom dock).
-	// `dockId` matches the host element's `id` (e.g. `'wp-desktop-dock'`
-	// or `'wp-desktop-side-dock'`) and is the stable
+	// `dockId` matches the host element's `id` (e.g. `'desktop-mode-dock'`
+	// or `'desktop-mode-side-dock'`) and is the stable
 	// disambiguator — `rail` and `orientation` are convenience
 	// projections of where the renderer is painting.
 	// ------------------------------------------------------------------
@@ -681,7 +681,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.18.0
 	 */
-	DOCK_BEFORE_RENDER: 'wp-desktop.dock.before-render',
+	DOCK_BEFORE_RENDER: 'desktop-mode.dock.before-render',
 	/**
 	 * Action, fires once every menu and system tile has landed in
 	 * the DOM for a paint pass. Payload `DockRenderContext` plus a
@@ -691,7 +691,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.18.0
 	 */
-	DOCK_AFTER_RENDER: 'wp-desktop.dock.after-render',
+	DOCK_AFTER_RENDER: 'desktop-mode.dock.after-render',
 	/**
 	 * Filter, runs once per tile while the renderer is composing the
 	 * className list. Plugins may add, remove, or reorder classes.
@@ -700,7 +700,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.18.0
 	 */
-	DOCK_TILE_CLASS: 'wp-desktop.dock.tile-class',
+	DOCK_TILE_CLASS: 'desktop-mode.dock.tile-class',
 	/**
 	 * Filter, runs once per tile after the renderer finishes building
 	 * the element but before it lands in the DOM. Return the same
@@ -715,7 +715,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.18.0
 	 */
-	DOCK_TILE_ELEMENT: 'wp-desktop.dock.tile-element',
+	DOCK_TILE_ELEMENT: 'desktop-mode.dock.tile-element',
 	/**
 	 * Action, fires once per tile after it has been inserted into
 	 * the DOM. Payload `DockTileContext` plus the resolved `el`. Use
@@ -724,7 +724,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.18.0
 	 */
-	DOCK_TILE_RENDERED: 'wp-desktop.dock.tile-rendered',
+	DOCK_TILE_RENDERED: 'desktop-mode.dock.tile-rendered',
 	/**
 	 * Filter, resolves the tooltip text for a tile. Runs once at
 	 * bind time so the dock doesn't re-filter on every pointerenter.
@@ -733,7 +733,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.18.0
 	 */
-	DOCK_TILE_TOOLTIP: 'wp-desktop.dock.tile-tooltip',
+	DOCK_TILE_TOOLTIP: 'desktop-mode.dock.tile-tooltip',
 	/**
 	 * Filter, resolves the body content of a single hover-peek card.
 	 * Runs once per card build (i.e., on every show of the peek for
@@ -745,7 +745,7 @@ export const HOOKS = {
 	 * Signature:
 	 *   ( body: HTMLElement, detail: DockPeekCardContext ) => HTMLElement
 	 *
-	 * Where `body` is the `<span class="wp-desktop-dock-peek__card-body">`
+	 * Where `body` is the `<span class="desktop-mode-dock-peek__card-body">`
 	 * element that the peek would otherwise populate with ghosted
 	 * content lines. The filter may:
 	 *   - Mutate `body` in place (e.g., append a custom child) and
@@ -759,11 +759,11 @@ export const HOOKS = {
 	 * item descriptor (id / title / icon / url).
 	 *
 	 * The filter is invoked under the `applyFilters` namespace
-	 * `wp-desktop.dock.peek-card-content`.
+	 * `desktop-mode.dock.peek-card-content`.
 	 *
 	 * @since 0.6.2
 	 */
-	DOCK_PEEK_CARD_CONTENT: 'wp-desktop.dock.peek-card-content',
+	DOCK_PEEK_CARD_CONTENT: 'desktop-mode.dock.peek-card-content',
 	/**
 	 * Filter, runs once per peek card right before it's appended to
 	 * the popover. Receives the fully-built default card (with its
@@ -779,7 +779,7 @@ export const HOOKS = {
 	 *
 	 * If a plugin returns a brand-new node, it is responsible for
 	 * preserving anything the peek relies on:
-	 *   - The `wp-desktop-dock-peek__card` class (used by the
+	 *   - The `desktop-mode-dock-peek__card` class (used by the
 	 *     fan-out animation timing + hover styles).
 	 *   - A `click` handler if the card should still focus the
 	 *     window. The default click handler lives on the original
@@ -787,7 +787,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.6.2
 	 */
-	DOCK_PEEK_CARD_ELEMENT: 'wp-desktop.dock.peek-card-element',
+	DOCK_PEEK_CARD_ELEMENT: 'desktop-mode.dock.peek-card-element',
 
 	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.
@@ -803,9 +803,9 @@ export const HOOKS = {
 	// ------------------------------------------------------------------
 
 	/** Action, fires before the overview enter animation starts. */
-	OVERVIEW_ENTERING: 'wp-desktop.overview.entering',
+	OVERVIEW_ENTERING: 'desktop-mode.overview.entering',
 	/** Action, fires once the overview enter animation has completed. */
-	OVERVIEW_ENTERED: 'wp-desktop.overview.entered',
+	OVERVIEW_ENTERED: 'desktop-mode.overview.entered',
 	/**
 	 * Action, fires at the start of the overview-exit animation.
 	 * Payload: `{ windowId?: string, reason: 'select' | 'cancel' }` —
@@ -813,24 +813,24 @@ export const HOOKS = {
 	 * 'select'); omitted when the user pressed Escape or clicked
 	 * the backdrop (reason 'cancel').
 	 */
-	OVERVIEW_EXITING: 'wp-desktop.overview.exiting',
+	OVERVIEW_EXITING: 'desktop-mode.overview.exiting',
 	/** Action, fires once the overview-exit animation has settled. */
-	OVERVIEW_EXITED: 'wp-desktop.overview.exited',
+	OVERVIEW_EXITED: 'desktop-mode.overview.exited',
 	/** Action, fires when the cursor enters a thumbnail. Payload `{ windowId }`. */
-	OVERVIEW_WINDOW_HOVER: 'wp-desktop.overview.window-hover',
+	OVERVIEW_WINDOW_HOVER: 'desktop-mode.overview.window-hover',
 	/** Action, fires when the cursor leaves a thumbnail. Payload `{ windowId }`. */
-	OVERVIEW_WINDOW_UNHOVER: 'wp-desktop.overview.window-unhover',
+	OVERVIEW_WINDOW_UNHOVER: 'desktop-mode.overview.window-unhover',
 	/** Action, fires the instant a thumbnail click is registered (before exit + maximize kick in). Payload `{ windowId }`. */
-	OVERVIEW_WINDOW_CLICK: 'wp-desktop.overview.window-click',
+	OVERVIEW_WINDOW_CLICK: 'desktop-mode.overview.window-click',
 
 	/** Action, fires before cascade computes + applies new positions. Payload `{ windowCount }`. */
-	ARRANGE_CASCADE_STARTING: 'wp-desktop.arrange.cascade.starting',
+	ARRANGE_CASCADE_STARTING: 'desktop-mode.arrange.cascade.starting',
 	/** Action, fires after cascade has positioned every window. Payload `{ windowCount }`. */
-	ARRANGE_CASCADE_APPLIED: 'wp-desktop.arrange.cascade.applied',
+	ARRANGE_CASCADE_APPLIED: 'desktop-mode.arrange.cascade.applied',
 	/** Action, fires before tile computes + applies new positions. Payload `{ windowCount, cols, rows }`. */
-	ARRANGE_TILE_STARTING: 'wp-desktop.arrange.tile.starting',
+	ARRANGE_TILE_STARTING: 'desktop-mode.arrange.tile.starting',
 	/** Action, fires after tile has positioned every window. Payload `{ windowCount, cols, rows }`. */
-	ARRANGE_TILE_APPLIED: 'wp-desktop.arrange.tile.applied',
+	ARRANGE_TILE_APPLIED: 'desktop-mode.arrange.tile.applied',
 	/**
 	 * Filter on the tile-grid dimensions chosen by the built-in
 	 * algorithm. Receives `{ cols, rows }` plus a context arg
@@ -840,9 +840,9 @@ export const HOOKS = {
 	 * values are validated — non-positive integers, or a product
 	 * smaller than `windowCount`, fall back to the original.
 	 */
-	ARRANGE_TILE_DIMENSIONS: 'wp-desktop.arrange.tile.dimensions',
+	ARRANGE_TILE_DIMENSIONS: 'desktop-mode.arrange.tile.dimensions',
 	/** Action, fires when snap-to-grid is toggled. Payload `{ enabled }`. */
-	ARRANGE_SNAP_CHANGED: 'wp-desktop.arrange.snap.changed',
+	ARRANGE_SNAP_CHANGED: 'desktop-mode.arrange.snap.changed',
 	/**
 	 * Filter on the snap-grid cell size. Receives
 	 * `{ cellWidth, cellHeight }` plus a context arg
@@ -851,7 +851,7 @@ export const HOOKS = {
 	 * staff aspect, etc. Non-positive returns fall back to the
 	 * original.
 	 */
-	ARRANGE_SNAP_CELL_SIZE: 'wp-desktop.arrange.snap.cell-size',
+	ARRANGE_SNAP_CELL_SIZE: 'desktop-mode.arrange.snap.cell-size',
 	/**
 	 * Action, fires when the user clicks a plugin-registered entry in
 	 * the Arrange admin-bar submenu (items added via the
@@ -859,7 +859,7 @@ export const HOOKS = {
 	 * where `id` is the item's `id` field as registered. Plugins
 	 * subscribe here to run their custom arrangement logic.
 	 */
-	ARRANGE_CUSTOM_ACTION: 'wp-desktop.arrange.custom-action',
+	ARRANGE_CUSTOM_ACTION: 'desktop-mode.arrange.custom-action',
 
 	// ------------------------------------------------------------------
 	// Snap-zones — Windows-style edge snapping with a split-overview
@@ -870,23 +870,23 @@ export const HOOKS = {
 	 * shell shows the target-position preview. Payload
 	 * `{ windowId, zone: 'left' | 'right' }`.
 	 */
-	SNAP_ZONE_PENDING: 'wp-desktop.snap.zone-pending',
+	SNAP_ZONE_PENDING: 'desktop-mode.snap.zone-pending',
 	/**
 	 * Action, fires when the drag cursor leaves the snap zone without
 	 * releasing — the preview disappears. Payload `{ windowId }`.
 	 */
-	SNAP_ZONE_CANCELED: 'wp-desktop.snap.zone-canceled',
+	SNAP_ZONE_CANCELED: 'desktop-mode.snap.zone-canceled',
 	/**
 	 * Action, fires once the window has animated into its snapped
 	 * bounds. Payload `{ windowId, zone: 'left' | 'right' }`.
 	 */
-	SNAP_ZONE_COMMITTED: 'wp-desktop.snap.zone-committed',
+	SNAP_ZONE_COMMITTED: 'desktop-mode.snap.zone-committed',
 	/**
 	 * Action, fires when a user picks a thumbnail from the split
 	 * overview to fill the opposite half. Payload
 	 * `{ windowId, zone: 'left' | 'right' }`.
 	 */
-	SNAP_SPLIT_FILLED: 'wp-desktop.snap.split-filled',
+	SNAP_SPLIT_FILLED: 'desktop-mode.snap.split-filled',
 
 	// ------------------------------------------------------------------
 	// Widgets — the right-side column. Widgets paint above the
@@ -895,19 +895,19 @@ export const HOOKS = {
 	// each paint, mount-failed fires on sync throws / async rejects.
 	// ------------------------------------------------------------------
 	/** Filter, receives the widget registry array. */
-	WIDGETS: 'wp-desktop.widgets',
+	WIDGETS: 'desktop-mode.widgets',
 	/** Action before a widget mounts. Payload `{ id, container, ctx }`. */
-	WIDGET_MOUNTING: 'wp-desktop.widget.mounting',
+	WIDGET_MOUNTING: 'desktop-mode.widget.mounting',
 	/** Action after a widget mounts successfully. Payload `{ id, container, ctx }`. */
-	WIDGET_MOUNTED: 'wp-desktop.widget.mounted',
+	WIDGET_MOUNTED: 'desktop-mode.widget.mounted',
 	/** Action before a widget tears down. Payload `{ id }`. */
-	WIDGET_UNMOUNTING: 'wp-desktop.widget.unmounting',
+	WIDGET_UNMOUNTING: 'desktop-mode.widget.unmounting',
 	/** Action when a widget's mount throws / rejects. Payload `{ id, error }`. */
-	WIDGET_MOUNT_FAILED: 'wp-desktop.widget.mount-failed',
+	WIDGET_MOUNT_FAILED: 'desktop-mode.widget.mount-failed',
 	/** Action when the user adds a widget via the picker. Payload `{ id }`. */
-	WIDGET_ADDED: 'wp-desktop.widget.added',
+	WIDGET_ADDED: 'desktop-mode.widget.added',
 	/** Action when the user removes a widget via the card's × button. Payload `{ id }`. */
-	WIDGET_REMOVED: 'wp-desktop.widget.removed',
+	WIDGET_REMOVED: 'desktop-mode.widget.removed',
 
 	// ------------------------------------------------------------------
 	// Virtual-desktop ("Spaces") lifecycle actions.
@@ -918,18 +918,18 @@ export const HOOKS = {
 	// indicators, or react to the user's workspace context.
 	// ------------------------------------------------------------------
 	/** Action, fires when a new desktop is created. Payload `{ desktopId }`. */
-	DESKTOP_CREATED: 'wp-desktop.desktop.created',
+	DESKTOP_CREATED: 'desktop-mode.desktop.created',
 	/** Action, fires when a desktop is closed. Payload `{ desktopId, migratedTo }`. */
-	DESKTOP_CLOSED: 'wp-desktop.desktop.closed',
+	DESKTOP_CLOSED: 'desktop-mode.desktop.closed',
 	/** Action, fires when the active desktop changes. Payload `{ from, to }`. */
-	DESKTOP_SWITCHED: 'wp-desktop.desktop.switched',
+	DESKTOP_SWITCHED: 'desktop-mode.desktop.switched',
 	/**
 	 * Filter. Returns the id of the "primary" desktop — the one the
 	 * shell treats as canonical for batch operations. Receives the
 	 * default (first desktop's id) and the full `Desktop[]` list.
 	 * @since 0.14.0
 	 */
-	PRIMARY_DESKTOP_ID: 'wp-desktop.primary-desktop-id',
+	PRIMARY_DESKTOP_ID: 'desktop-mode.primary-desktop-id',
 
 	// ------------------------------------------------------------------
 	// Batch window operations.
@@ -940,7 +940,7 @@ export const HOOKS = {
 	 * shell is about to close (after `exceptIds` was applied).
 	 * @since 0.14.0
 	 */
-	WINDOWS_BEFORE_CLOSE_ALL: 'wp-desktop.windows.before-close-all',
+	WINDOWS_BEFORE_CLOSE_ALL: 'desktop-mode.windows.before-close-all',
 	/**
 	 * Filter, runs inside {@link WindowManager.closeAll}. Receives the
 	 * candidate `Window[]` list and returns the (possibly trimmed) list
@@ -949,13 +949,13 @@ export const HOOKS = {
 	 * Returning an empty array cancels the close entirely.
 	 * @since 0.14.0
 	 */
-	WINDOWS_CLOSE_ALL: 'wp-desktop.windows.close-all',
+	WINDOWS_CLOSE_ALL: 'desktop-mode.windows.close-all',
 	/**
 	 * Action, fires after {@link WindowManager.closeAll} has finished.
 	 * Payload `{ closed: number, skipped: Window[] }`.
 	 * @since 0.14.0
 	 */
-	WINDOWS_AFTER_CLOSE_ALL: 'wp-desktop.windows.after-close-all',
+	WINDOWS_AFTER_CLOSE_ALL: 'desktop-mode.windows.after-close-all',
 
 	// ------------------------------------------------------------------
 	// Slash-command lifecycle.
@@ -966,19 +966,19 @@ export const HOOKS = {
 	 * the same shape with `proceed: false` to cancel the run.
 	 * @since 0.14.0
 	 */
-	COMMAND_BEFORE_RUN: 'wp-desktop.command.before-run',
+	COMMAND_BEFORE_RUN: 'desktop-mode.command.before-run',
 	/**
 	 * Action, fires after a command's `run()` resolves successfully.
 	 * Payload `{ slug, args, command, result }`.
 	 * @since 0.14.0
 	 */
-	COMMAND_AFTER_RUN: 'wp-desktop.command.after-run',
+	COMMAND_AFTER_RUN: 'desktop-mode.command.after-run',
 	/**
 	 * Action, fires when a command's `run()` throws. Payload
 	 * `{ slug, args, command, error }`.
 	 * @since 0.14.0
 	 */
-	COMMAND_ERROR: 'wp-desktop.command.error',
+	COMMAND_ERROR: 'desktop-mode.command.error',
 
 	// ------------------------------------------------------------------
 	// Shell-level lifecycle actions.
@@ -989,14 +989,14 @@ export const HOOKS = {
 	 * bounding rect — plugins that render canvas-driven UIs hook here
 	 * to adjust their render surface.
 	 */
-	SHELL_RESIZED: 'wp-desktop.shell.resized',
+	SHELL_RESIZED: 'desktop-mode.shell.resized',
 	/**
 	 * Action mirroring `document.visibilitychange` for the shell as a
 	 * whole. Payload `{ state: 'visible' | 'hidden' }`. Different from
 	 * the wallpaper-specific visibility action in that it fires
 	 * regardless of which wallpaper (if any) is active.
 	 */
-	SHELL_VISIBILITY: 'wp-desktop.shell.visibility',
+	SHELL_VISIBILITY: 'desktop-mode.shell.visibility',
 	/**
 	 * Action — fires when a `wp.desktop.connect()` connection
 	 * completes its iframe handshake. Payload:
@@ -1004,14 +1004,14 @@ export const HOOKS = {
 	 *
 	 * @since 0.17.0
 	 */
-	CONNECTION_OPENED: 'wp-desktop.connection.opened',
+	CONNECTION_OPENED: 'desktop-mode.connection.opened',
 	/**
 	 * Action — fires when a connection tears down. Payload:
 	 * `{ connectionId, reason: 'disconnect' | 'window-closed' | 'navigated' }`.
 	 *
 	 * @since 0.17.0
 	 */
-	CONNECTION_CLOSED: 'wp-desktop.connection.closed',
+	CONNECTION_CLOSED: 'desktop-mode.connection.closed',
 	/**
 	 * Action — fires for every message routed through a connection.
 	 * Payload: `{ connectionId, topic, direction: 'in' | 'out' }`.
@@ -1021,7 +1021,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.17.0
 	 */
-	CONNECTION_MESSAGE: 'wp-desktop.connection.message',
+	CONNECTION_MESSAGE: 'desktop-mode.connection.message',
 	/**
 	 * Filter — fires when an iframe calls
 	 * `wp.desktop.iframe.requestConnection()`. Default value is
@@ -1031,7 +1031,7 @@ export const HOOKS = {
 	 *
 	 * @since 0.18.0
 	 */
-	IFRAME_CONNECTION_REQUEST: 'wp-desktop.iframe.connection-request',
+	IFRAME_CONNECTION_REQUEST: 'desktop-mode.iframe.connection-request',
 } as const;
 
 /**
@@ -1043,7 +1043,7 @@ export const HOOKS = {
 let _whenReadySeq = 0;
 
 /**
- * Convenience: run `cb` after `wp-desktop.init` has fired, either
+ * Convenience: run `cb` after `desktop-mode.init` has fired, either
  * immediately (if it already did) or on the next firing. Mirrors the
  * ergonomics of `jQuery(document).ready()` but for our own init
  * signal — a late-enqueued plugin script doesn't miss the boat.
@@ -1058,13 +1058,13 @@ export function whenReady( cb: () => void ): void {
 		Promise.resolve().then( cb );
 		return;
 	}
-	const ns = `wp-desktop-mode/when-ready-${ ++_whenReadySeq }`;
+	const ns = `desktop-mode/when-ready-${ ++_whenReadySeq }`;
 	addAction( HOOKS.INIT, ns, cb );
 }
 
 /**
  * Synchronous check: has the shell finished initialising? Returns true
- * after `wp-desktop.init` has fired, false before. Useful for plugin
+ * after `desktop-mode.init` has fired, false before. Useful for plugin
  * code that wants to branch without scheduling a callback.
  *
  * ```javascript

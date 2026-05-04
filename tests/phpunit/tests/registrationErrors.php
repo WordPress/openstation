@@ -231,7 +231,7 @@ class Tests_DesktopMode_RegistrationErrors extends WP_UnitTestCase {
 
 	/**
 	 * Canvas wallpapers must declare a script — the JS def (with its
-	 * `mount` callback) lives on `window.wpDesktopWallpapers[ id ]`,
+	 * `mount` callback) lives on `window.desktopModeWallpapers[ id ]`,
 	 * published by that script. CSS wallpapers can omit it.
 	 *
 	 * @covers ::desktop_mode_register_wallpaper

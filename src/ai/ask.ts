@@ -3,7 +3,7 @@
  * AI Copilot, the same endpoint the built-in overlay talks to.
  *
  * Three jobs:
- *   1. POST `/wp-desktop/v1/ai/search` with the user's query plus
+ *   1. POST `/desktop-mode/v1/ai/search` with the user's query plus
  *      whichever extension knobs the caller passed (system prompt
  *      override, command-tool harvest opt-in).
  *   2. Resolve with the server's answer payload — transparent for
@@ -280,7 +280,7 @@ export function createAsk( deps: AskDeps ) {
 		const nonce = config.restNonce ?? '';
 		if ( ! url || ! nonce ) {
 			throw new Error(
-				'[wp-desktop-mode] wp.desktop.ai.ask: aiSearchUrl / restNonce missing from config. AI Copilot may not be enabled.',
+				'[desktop-mode] wp.desktop.ai.ask: aiSearchUrl / restNonce missing from config. AI Copilot may not be enabled.',
 			);
 		}
 		try {
@@ -299,7 +299,7 @@ export function createAsk( deps: AskDeps ) {
 				throw err;
 			}
 			throw new Error(
-				`[wp-desktop-mode] wp.desktop.ai.ask: network error — ${ String(
+				`[desktop-mode] wp.desktop.ai.ask: network error — ${ String(
 					( err as Error )?.message ?? err,
 				) }`,
 			);
@@ -426,7 +426,7 @@ export function createAsk( deps: AskDeps ) {
 				opts.commandContext !== undefined;
 			if ( hasMeaningfulOpts ) {
 				throw new Error(
-					'[wp-desktop-mode] wp.desktop.ai.ask: empty query passed with non-default options — likely a caller bug. Provide a query or call without options.',
+					'[desktop-mode] wp.desktop.ai.ask: empty query passed with non-default options — likely a caller bug. Provide a query or call without options.',
 				);
 			}
 			return {
@@ -466,7 +466,7 @@ export function createAsk( deps: AskDeps ) {
 				.json()
 				.catch( () => ( { message: res.statusText } ) );
 			throw new Error(
-				`[wp-desktop-mode] wp.desktop.ai.ask: HTTP ${ res.status } — ${
+				`[desktop-mode] wp.desktop.ai.ask: HTTP ${ res.status } — ${
 					( detail as { message?: string } ).message ?? res.statusText
 				}`,
 			);

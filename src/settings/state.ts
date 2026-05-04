@@ -2,7 +2,7 @@
  * Persistence + sanitization for `OsSettingsState`.
  *
  * Source-of-truth hierarchy (highest to lowest):
- *   1. Server — `wpDesktopConfig.osSettings` loaded from user meta at
+ *   1. Server — `desktopModeConfig.osSettings` loaded from user meta at
  *      page boot. Wins over localStorage so a setting changed on another
  *      device/browser is honoured on the next page load.
  *   2. localStorage — fast local cache; written on every change for
@@ -46,7 +46,7 @@ import { isHexColor } from './utils';
 
 /**
  * Resolves the initial state. Prefers the server-provided snapshot
- * (`wpDesktopConfig.osSettings`) over the localStorage cache so a
+ * (`desktopModeConfig.osSettings`) over the localStorage cache so a
  * preference changed in another browser shows up on the next page load
  * without the user having to manually refresh.
  *
@@ -81,11 +81,11 @@ export function loadState(): OsSettingsState {
 	return structuredDefaults();
 }
 
-/** Read `wpDesktopConfig.osSettings` from the global config. */
+/** Read `desktopModeConfig.osSettings` from the global config. */
 function _readServerSettings(): Partial<OsSettingsState> | null {
 	const config = ( window as unknown as {
-		wpDesktopConfig?: DesktopConfig;
-	} ).wpDesktopConfig;
+		desktopModeConfig?: DesktopConfig;
+	} ).desktopModeConfig;
 	const raw = config?.osSettings;
 	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
 		return null;
@@ -173,8 +173,8 @@ function _scheduleSyncToServer( state: OsSettingsState ): void {
 
 function _postToServer( state: OsSettingsState ): void {
 	const config = ( window as unknown as {
-		wpDesktopConfig?: DesktopConfig;
-	} ).wpDesktopConfig;
+		desktopModeConfig?: DesktopConfig;
+	} ).desktopModeConfig;
 	const url = config?.osSettingsUrl;
 	const nonce = config?.restNonce;
 	if ( ! url || ! nonce ) {

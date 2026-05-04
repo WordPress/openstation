@@ -24,7 +24,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		unset( $_GET['wp_desktop'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
+		unset( $_GET['desktop_mode_chromeless'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
 		parent::tear_down();
 	}
 
@@ -40,7 +40,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_body_class_adds_active_when_mode_on() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$this->assertStringContainsString( 'wp-desktop-active', desktop_mode_admin_body_classes( '' ) );
+		$this->assertStringContainsString( 'desktop-mode-active', desktop_mode_admin_body_classes( '' ) );
 	}
 
 	/**
@@ -48,12 +48,12 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_body_class_adds_chromeless_when_iframed() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
-		$this->assertStringContainsString( 'wp-desktop-chromeless', desktop_mode_admin_body_classes( '' ) );
+		$_GET['desktop_mode_chromeless'] = '1';
+		$this->assertStringContainsString( 'desktop-mode-chromeless', desktop_mode_admin_body_classes( '' ) );
 	}
 
 	/**
-	 * Per-request classic override must suppress the `wp-desktop-active`
+	 * Per-request classic override must suppress the `desktop-mode-active`
 	 * body class so the classic admin chrome isn't hidden in the detached
 	 * tab — even when the user's account still has desktop mode enabled.
 	 *
@@ -66,7 +66,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 		$classes = desktop_mode_admin_body_classes( 'foo' );
 
 		$this->assertSame( 'foo', $classes );
-		$this->assertStringNotContainsString( 'wp-desktop-active', $classes );
+		$this->assertStringNotContainsString( 'desktop-mode-active', $classes );
 	}
 
 	/**
@@ -77,13 +77,13 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_chromeless_class_wins_over_classic_flag() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop']              = '1';
+		$_GET['desktop_mode_chromeless']              = '1';
 		$_GET[ DESKTOP_MODE_CLASSIC_FLAG ] = '1';
 
 		$classes = desktop_mode_admin_body_classes( '' );
 
-		$this->assertStringContainsString( 'wp-desktop-chromeless', $classes );
-		$this->assertStringNotContainsString( 'wp-desktop-active', $classes );
+		$this->assertStringContainsString( 'desktop-mode-chromeless', $classes );
+		$this->assertStringNotContainsString( 'desktop-mode-active', $classes );
 	}
 
 	/**
@@ -94,11 +94,11 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_chromeless_class_wins_over_active() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 		$classes            = desktop_mode_admin_body_classes( '' );
 
-		$this->assertStringContainsString( 'wp-desktop-chromeless', $classes );
-		$this->assertStringNotContainsString( 'wp-desktop-active', $classes );
+		$this->assertStringContainsString( 'desktop-mode-chromeless', $classes );
+		$this->assertStringNotContainsString( 'desktop-mode-active', $classes );
 	}
 
 	/**
@@ -117,7 +117,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_render_shell_emits_nothing_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		ob_start();
 		desktop_mode_render_shell();
@@ -154,9 +154,9 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 		desktop_mode_render_shell();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'wp-desktop-shell', $output );
-		$this->assertStringContainsString( 'wp-desktop-dock', $output );
-		$this->assertStringContainsString( 'wp-desktop-area', $output );
+		$this->assertStringContainsString( 'desktop-mode-shell', $output );
+		$this->assertStringContainsString( 'desktop-mode-dock', $output );
+		$this->assertStringContainsString( 'desktop-mode-area', $output );
 	}
 
 	/**
@@ -208,7 +208,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_chromeless_detaches_admin_bar_render_action() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		add_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
 		desktop_mode_chromeless_suppress_admin_bar();
@@ -247,13 +247,13 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_bridge_script_emits_postmessage_glue_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		ob_start();
 		desktop_mode_chromeless_bridge_script();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'wp-desktop-screen-meta', $output );
+		$this->assertStringContainsString( 'desktop-mode-screen-meta', $output );
 		$this->assertStringContainsString( 'postMessage', $output );
 	}
 
@@ -265,7 +265,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_bridge_script_emits_link_interceptor_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		ob_start();
 		desktop_mode_chromeless_bridge_script();
@@ -274,7 +274,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'rewriteAdminUrl', $output );
 		$this->assertStringContainsString( "addEventListener( 'click'", $output );
 		$this->assertStringContainsString( "addEventListener( 'submit'", $output );
-		$this->assertStringContainsString( "'wp_desktop'", $output );
+		$this->assertStringContainsString( "'desktop_mode_chromeless'", $output );
 	}
 
 	/**
@@ -342,7 +342,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_editor_preferences_short_circuits_when_not_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		// Note: no $_GET['wp_desktop'] — desktop mode is on, but this is not an iframe.
+		// Note: no $_GET['desktop_mode_chromeless'] — desktop mode is on, but this is not an iframe.
 
 		wp_register_script( 'wp-edit-post', '', array(), '1.0', true );
 
@@ -361,7 +361,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_editor_preferences_enqueues_inline_script_when_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		wp_register_script( 'wp-edit-post', '', array(), '1.0', true );
 
@@ -398,7 +398,7 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	 */
 	public function test_chromeless_after_action_fires_in_iframes() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		$fired = false;
 		add_action(

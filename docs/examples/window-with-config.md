@@ -28,7 +28,7 @@ add_action( 'init', function () {
     wp_register_script(
         'my-plugin-cron',
         plugin_dir_url( __FILE__ ) . 'assets/js/cron.min.js',
-        array( 'wp-i18n', 'wp-desktop' ),
+        array( 'wp-i18n', 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -66,8 +66,8 @@ In the bundle:
         return;
     }
 
-    window.wpDesktopNativeWindows ??= {};
-    window.wpDesktopNativeWindows[ 'my-plugin/cron' ] = ( body ) => {
+    window.desktopModeNativeWindows ??= {};
+    window.desktopModeNativeWindows[ 'my-plugin/cron' ] = ( body ) => {
         const events = await fetch( cfg.eventsUrl, {
             headers: { 'X-WP-Nonce': cfg.restNonce },
         } ).then( ( r ) => r.json() );
@@ -100,7 +100,7 @@ wp.desktop.debug.window( 'my-plugin/cron' )
 
 `loadPath` tells you whether the script came in eagerly via
 `wp_print_scripts` or lazily via `loadVendorScript`. `configPresent`
-reflects whether `window.wpDesktopWindowConfig[ id ]` is set. `extras`
+reflects whether `window.desktopModeWindowConfig[ id ]` is set. `extras`
 counts the inline snippets the shell injected for you.
 
 ## See also

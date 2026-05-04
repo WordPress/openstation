@@ -152,7 +152,7 @@ const ICON_RETURN = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden
 	<polyline points="6,7 3,10 6,13"/>
 </svg>`;
 
-const ICON_SPINNER = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="wp-desktop-ai__spinner-icon">
+const ICON_SPINNER = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="desktop-mode-ai__spinner-icon">
 	<circle cx="10" cy="10" r="7" stroke-opacity="0.25"/>
 	<path d="M10 3 A7 7 0 0 1 17 10" stroke-opacity="1"/>
 </svg>`;
@@ -304,10 +304,10 @@ export class AiAssistant implements AiAssistantApi {
 		this._el = this._buildDOM();
 		document.body.appendChild( this._el );
 
-		this._input = this._el.querySelector( '.wp-desktop-ai__input' )!;
-		this._submitBtn = this._el.querySelector( '.wp-desktop-ai__submit' )!;
-		this._closeBtn = this._el.querySelector( '.wp-desktop-ai__close' )!;
-		this._resultsEl = this._el.querySelector( '.wp-desktop-ai__results' )!;
+		this._input = this._el.querySelector( '.desktop-mode-ai__input' )!;
+		this._submitBtn = this._el.querySelector( '.desktop-mode-ai__submit' )!;
+		this._closeBtn = this._el.querySelector( '.desktop-mode-ai__close' )!;
+		this._resultsEl = this._el.querySelector( '.desktop-mode-ai__results' )!;
 
 		this._bindEvents();
 		this._renderSuggestions();
@@ -420,7 +420,7 @@ export class AiAssistant implements AiAssistantApi {
 	 */
 	public ask: import( './ai/ask' ).AskFn = () => {
 		throw new Error(
-			'[wp-desktop-mode] wp.desktop.ai.ask called before the shell finished booting.',
+			'[desktop-mode] wp.desktop.ai.ask called before the shell finished booting.',
 		);
 	};
 
@@ -473,7 +473,7 @@ export class AiAssistant implements AiAssistantApi {
 		// assistant stays independent of the registry module's import
 		// graph — the shell wires up the real close-others-first
 		// routing in desktop.ts via openPalette.
-		document.addEventListener( 'wp-desktop-open-ai', () => this.open() );
+		document.addEventListener( 'desktop-mode-open-ai', () => this.open() );
 
 		// Close button.
 		this._closeBtn.addEventListener( 'click', () => this.close() );
@@ -628,9 +628,9 @@ export class AiAssistant implements AiAssistantApi {
 		this._resultsEl.addEventListener( 'mousemove', () => {
 			if ( this._keyboardNav ) {
 				this._keyboardNav = false;
-				const list = this._resultsEl.querySelector( '.wp-desktop-ai__cmd-list' );
+				const list = this._resultsEl.querySelector( '.desktop-mode-ai__cmd-list' );
 				if ( list ) {
-					list.classList.remove( 'wp-desktop-ai__cmd-list--kb-nav' );
+					list.classList.remove( 'desktop-mode-ai__cmd-list--kb-nav' );
 				}
 			}
 		} );
@@ -675,7 +675,7 @@ export class AiAssistant implements AiAssistantApi {
 		}
 
 		// ----- before-run filter ----------------------------------------
-		// Plugins can subscribe to wp-desktop.command.before-run and
+		// Plugins can subscribe to desktop-mode.command.before-run and
 		// return `{ proceed: false, reason }` to short-circuit
 		// destructive or gated commands. Useful for capability checks
 		// the command author shouldn't have to repeat in every handler.
@@ -1006,7 +1006,7 @@ export class AiAssistant implements AiAssistantApi {
 
 		if ( matches.length === 0 ) {
 			this._resultsEl.innerHTML = `
-				<div class="wp-desktop-ai__state wp-desktop-ai__state--empty">
+				<div class="desktop-mode-ai__state desktop-mode-ai__state--empty">
 					<span>No commands matching <strong>/${ this._esc( parsed.slug ) }</strong>.</span>
 				</div>
 			`;
@@ -1024,20 +1024,20 @@ export class AiAssistant implements AiAssistantApi {
 				return `
 					<button
 						type="button"
-						class="wp-desktop-ai__cmd-item${ selected }"
+						class="desktop-mode-ai__cmd-item${ selected }"
 						data-slug="${ this._esc( c.slug ) }"
 						data-index="${ i }"
 					>
 						${ c.iconSvg
-							? `<span class="wp-desktop-ai__cmd-icon wp-desktop-ai__cmd-icon--svg" aria-hidden="true">${ c.iconSvg }</span>`
-							: `<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc( c.icon ?? 'dashicons-arrow-right-alt' ) }" aria-hidden="true"></span>` }
-						<span class="wp-desktop-ai__cmd-body">
-							<span class="wp-desktop-ai__cmd-title">
+							? `<span class="desktop-mode-ai__cmd-icon desktop-mode-ai__cmd-icon--svg" aria-hidden="true">${ c.iconSvg }</span>`
+							: `<span class="desktop-mode-ai__cmd-icon dashicons ${ this._esc( c.icon ?? 'dashicons-arrow-right-alt' ) }" aria-hidden="true"></span>` }
+						<span class="desktop-mode-ai__cmd-body">
+							<span class="desktop-mode-ai__cmd-title">
 								${ this._esc( c.label ) }
-								${ c.hint ? `<span class="wp-desktop-ai__cmd-hint">${ this._esc( c.hint ) }</span>` : '' }
+								${ c.hint ? `<span class="desktop-mode-ai__cmd-hint">${ this._esc( c.hint ) }</span>` : '' }
 							</span>
 							${ c.description
-								? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( c.description ) }</span>`
+								? `<span class="desktop-mode-ai__cmd-desc">${ this._esc( c.description ) }</span>`
 								: '' }
 						</span>
 					</button>
@@ -1046,8 +1046,8 @@ export class AiAssistant implements AiAssistantApi {
 			.join( '' );
 
 		this._resultsEl.innerHTML = `
-			<div class="wp-desktop-ai__cmd-list">
-				<p class="wp-desktop-ai__suggestions-label">Commands</p>
+			<div class="desktop-mode-ai__cmd-list">
+				<p class="desktop-mode-ai__suggestions-label">Commands</p>
 				${ items }
 			</div>
 		`;
@@ -1056,7 +1056,7 @@ export class AiAssistant implements AiAssistantApi {
 		// command in, ready for args. If the command takes no args the
 		// user can just press Enter right after.
 		this._resultsEl
-			.querySelectorAll< HTMLButtonElement >( '.wp-desktop-ai__cmd-item' )
+			.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__cmd-item' )
 			.forEach( ( btn ) => {
 				btn.addEventListener( 'click', () => {
 					const slug = btn.dataset.slug ?? '';
@@ -1076,7 +1076,7 @@ export class AiAssistant implements AiAssistantApi {
 					if ( ! Number.isNaN( idx ) ) {
 						this._selectedCommand = idx;
 						this._resultsEl
-							.querySelectorAll( '.wp-desktop-ai__cmd-item' )
+							.querySelectorAll( '.desktop-mode-ai__cmd-item' )
 							.forEach( ( el, i ) => el.classList.toggle( 'is-selected', i === idx ) );
 					}
 				} );
@@ -1130,7 +1130,7 @@ export class AiAssistant implements AiAssistantApi {
 
 			// Wire mouse interactions on the suggestion rows.
 			this._resultsEl
-				.querySelectorAll< HTMLButtonElement >( '.wp-desktop-ai__cmd-suggest-item' )
+				.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__cmd-suggest-item' )
 				.forEach( ( btn ) => {
 					btn.addEventListener( 'click', () => {
 						const idx = parseInt( btn.dataset.index ?? '0', 10 );
@@ -1168,20 +1168,20 @@ export class AiAssistant implements AiAssistantApi {
 	/** Render the command banner used at the top of args-mode. */
 	private _renderCommandHeader( cmd: DesktopCommand, standalone: boolean ): string {
 		return `
-			<div class="wp-desktop-ai__cmd-active">
-				<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
+			<div class="desktop-mode-ai__cmd-active">
+				<span class="desktop-mode-ai__cmd-icon dashicons ${ this._esc(
 					cmd.icon ?? 'dashicons-arrow-right-alt',
 				) }" aria-hidden="true"></span>
-				<div class="wp-desktop-ai__cmd-body">
-					<span class="wp-desktop-ai__cmd-title">
+				<div class="desktop-mode-ai__cmd-body">
+					<span class="desktop-mode-ai__cmd-title">
 						/${ this._esc( cmd.slug ) }
-						${ cmd.hint ? `<span class="wp-desktop-ai__cmd-hint">${ this._esc( cmd.hint ) }</span>` : '' }
+						${ cmd.hint ? `<span class="desktop-mode-ai__cmd-hint">${ this._esc( cmd.hint ) }</span>` : '' }
 					</span>
 					${ cmd.description
-						? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
+						? `<span class="desktop-mode-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
 						: '' }
 					${ standalone
-						? '<span class="wp-desktop-ai__cmd-enter-hint">Press <kbd>↵</kbd> to run</span>'
+						? '<span class="desktop-mode-ai__cmd-enter-hint">Press <kbd>↵</kbd> to run</span>'
 						: '' }
 				</div>
 			</div>
@@ -1192,7 +1192,7 @@ export class AiAssistant implements AiAssistantApi {
 	private _renderSuggestionList( suggestions: CommandSuggestion[] ): string {
 		if ( suggestions.length === 0 ) {
 			return `
-				<div class="wp-desktop-ai__state wp-desktop-ai__state--empty">
+				<div class="desktop-mode-ai__state desktop-mode-ai__state--empty">
 					<span>No suggestions — press <kbd>↵</kbd> to run with the text you typed.</span>
 				</div>
 			`;
@@ -1203,23 +1203,23 @@ export class AiAssistant implements AiAssistantApi {
 				return `
 					<button
 						type="button"
-						class="wp-desktop-ai__cmd-suggest-item${ selected }"
+						class="desktop-mode-ai__cmd-suggest-item${ selected }"
 						data-index="${ i }"
 					>
-						<span class="wp-desktop-ai__cmd-icon dashicons ${ this._esc(
+						<span class="desktop-mode-ai__cmd-icon dashicons ${ this._esc(
 							s.icon ?? 'dashicons-arrow-right-alt',
 						) }" aria-hidden="true"></span>
-						<span class="wp-desktop-ai__cmd-body">
-							<span class="wp-desktop-ai__cmd-suggest-label">${ this._esc( s.label ) }</span>
+						<span class="desktop-mode-ai__cmd-body">
+							<span class="desktop-mode-ai__cmd-suggest-label">${ this._esc( s.label ) }</span>
 							${ s.description
-								? `<span class="wp-desktop-ai__cmd-desc">${ this._esc( s.description ) }</span>`
+								? `<span class="desktop-mode-ai__cmd-desc">${ this._esc( s.description ) }</span>`
 								: '' }
 						</span>
 					</button>
 				`;
 			} )
 			.join( '' );
-		return `<div class="wp-desktop-ai__cmd-suggest-list">${ items }</div>`;
+		return `<div class="desktop-mode-ai__cmd-suggest-list">${ items }</div>`;
 	}
 
 	/**
@@ -1247,16 +1247,16 @@ export class AiAssistant implements AiAssistantApi {
 	 * Also scrolls the newly-selected row into view for long lists.
 	 */
 	private _paintCommandSelection(): void {
-		const items = this._resultsEl.querySelectorAll< HTMLElement >( '.wp-desktop-ai__cmd-item' );
+		const items = this._resultsEl.querySelectorAll< HTMLElement >( '.desktop-mode-ai__cmd-item' );
 		items.forEach( ( el, i ) => {
 			el.classList.toggle( 'is-selected', i === this._selectedCommand );
 		} );
 		// Suppress :hover on the list while keyboard nav is active —
 		// without this the row under the mouse pointer stays styled as
 		// active alongside the new keyboard-selected row.
-		const list = this._resultsEl.querySelector< HTMLElement >( '.wp-desktop-ai__cmd-list' );
+		const list = this._resultsEl.querySelector< HTMLElement >( '.desktop-mode-ai__cmd-list' );
 		if ( list ) {
-			list.classList.toggle( 'wp-desktop-ai__cmd-list--kb-nav', this._keyboardNav );
+			list.classList.toggle( 'desktop-mode-ai__cmd-list--kb-nav', this._keyboardNav );
 		}
 		const active = items[ this._selectedCommand ];
 		if ( active && typeof active.scrollIntoView === 'function' ) {
@@ -1267,7 +1267,7 @@ export class AiAssistant implements AiAssistantApi {
 	/** Flip the is-selected class on the suggestion rows without re-rendering the whole list. */
 	private _paintSuggestionSelection(): void {
 		this._resultsEl
-			.querySelectorAll( '.wp-desktop-ai__cmd-suggest-item' )
+			.querySelectorAll( '.desktop-mode-ai__cmd-suggest-item' )
 			.forEach( ( el, i ) => {
 				el.classList.toggle( 'is-selected', i === this._selectedSuggestion );
 			} );
@@ -1276,11 +1276,11 @@ export class AiAssistant implements AiAssistantApi {
 	private _renderSuggestions(): void {
 		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
-			<div class="wp-desktop-ai__suggestions">
-				<p class="wp-desktop-ai__suggestions-label">${ this._esc( 'Try asking' ) }</p>
-				<div class="wp-desktop-ai__suggestions-list">
+			<div class="desktop-mode-ai__suggestions">
+				<p class="desktop-mode-ai__suggestions-label">${ this._esc( 'Try asking' ) }</p>
+				<div class="desktop-mode-ai__suggestions-list">
 					${ SUGGESTED_PROMPTS.map(
-						( p ) => `<button type="button" class="wp-desktop-ai__suggestion" data-prompt="${ this._esc( p ) }">
+						( p ) => `<button type="button" class="desktop-mode-ai__suggestion" data-prompt="${ this._esc( p ) }">
 							${ this._esc( p ) }
 						</button>`,
 					).join( '' ) }
@@ -1290,7 +1290,7 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Wire suggestion clicks — fill the input and submit.
 		this._resultsEl
-			.querySelectorAll<HTMLButtonElement>( '.wp-desktop-ai__suggestion' )
+			.querySelectorAll<HTMLButtonElement>( '.desktop-mode-ai__suggestion' )
 			.forEach( ( btn ) => {
 				btn.addEventListener( 'click', () => {
 					const prompt = btn.dataset.prompt ?? '';
@@ -1304,7 +1304,7 @@ export class AiAssistant implements AiAssistantApi {
 	private _showThinking( message: string = 'Thinking…' ): void {
 		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
-			<div class="wp-desktop-ai__state wp-desktop-ai__state--thinking">
+			<div class="desktop-mode-ai__state desktop-mode-ai__state--thinking">
 				${ ICON_SPINNER }
 				<span>${ this._esc( message ) }</span>
 			</div>
@@ -1314,7 +1314,7 @@ export class AiAssistant implements AiAssistantApi {
 	private _showError( message: string ): void {
 		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
-			<div class="wp-desktop-ai__state wp-desktop-ai__state--error">
+			<div class="desktop-mode-ai__state desktop-mode-ai__state--error">
 				<span>${ this._esc( message ) }</span>
 			</div>
 		`;
@@ -1327,9 +1327,9 @@ export class AiAssistant implements AiAssistantApi {
 		// answer regardless of answer_type — so the UX always feels like
 		// a reply from the assistant.
 		const messageHtml = `
-			<div class="wp-desktop-ai__bubble">
-				<span class="wp-desktop-ai__bubble-icon">${ ICON_SPARKLE }</span>
-				<div class="wp-desktop-ai__bubble-text">${ renderMarkdown( data.message || '' ) }</div>
+			<div class="desktop-mode-ai__bubble">
+				<span class="desktop-mode-ai__bubble-icon">${ ICON_SPARKLE }</span>
+				<div class="desktop-mode-ai__bubble-text">${ renderMarkdown( data.message || '' ) }</div>
 			</div>
 		`;
 
@@ -1343,7 +1343,7 @@ export class AiAssistant implements AiAssistantApi {
 		// Continue-search hint (only appears after budget exhaustion).
 		if ( data.continue ) {
 			bodyHtml += `
-				<button type="button" class="wp-desktop-ai__continue-btn"
+				<button type="button" class="desktop-mode-ai__continue-btn"
 					data-tool="${ this._esc( data.continue.tool ) }"
 					data-offset="${ data.continue.offset }"
 					data-query="${ this._esc( query ) }">
@@ -1356,7 +1356,7 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Wire entity "Open" button.
 		this._resultsEl.querySelectorAll<HTMLButtonElement>(
-			'.wp-desktop-ai__entity-open',
+			'.desktop-mode-ai__entity-open',
 		).forEach( ( btn ) => {
 			btn.addEventListener( 'click', () => {
 				const url = btn.dataset.url ?? '';
@@ -1370,7 +1370,7 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Wire admin-link clicks.
 		this._resultsEl.querySelectorAll<HTMLButtonElement>(
-			'.wp-desktop-ai__admin-link',
+			'.desktop-mode-ai__admin-link',
 		).forEach( ( btn ) => {
 			btn.addEventListener( 'click', () => {
 				const url = btn.dataset.url ?? '';
@@ -1383,7 +1383,7 @@ export class AiAssistant implements AiAssistantApi {
 		} );
 
 		// Wire continue button.
-		const cont = this._resultsEl.querySelector<HTMLButtonElement>( '.wp-desktop-ai__continue-btn' );
+		const cont = this._resultsEl.querySelector<HTMLButtonElement>( '.desktop-mode-ai__continue-btn' );
 		if ( cont ) {
 			cont.addEventListener( 'click', () => {
 				const tool = cont.dataset.tool ?? null;
@@ -1401,7 +1401,7 @@ export class AiAssistant implements AiAssistantApi {
 			: this._esc( e.title ?? 'Untitled' );
 		const summary = this._esc( e.ai_summary || e.excerpt || '' );
 		const typeLabel = e.type.charAt( 0 ).toUpperCase() + e.type.slice( 1 );
-		const topicChip = e.topic ? `<span class="wp-desktop-ai__entity-topic">${ this._esc( e.topic ) }</span>` : '';
+		const topicChip = e.topic ? `<span class="desktop-mode-ai__entity-topic">${ this._esc( e.topic ) }</span>` : '';
 
 		// Pick a Dashicon for the window icon based on entity type.
 		let icon: string;
@@ -1414,15 +1414,15 @@ export class AiAssistant implements AiAssistantApi {
 		}
 
 		return `
-			<div class="wp-desktop-ai__entity">
-				<div class="wp-desktop-ai__entity-header">
+			<div class="desktop-mode-ai__entity">
+				<div class="desktop-mode-ai__entity-header">
 					${ topicChip }
-					<span class="wp-desktop-ai__entity-type">${ this._esc( typeLabel ) }</span>
+					<span class="desktop-mode-ai__entity-type">${ this._esc( typeLabel ) }</span>
 				</div>
-				<h3 class="wp-desktop-ai__entity-title">${ title }</h3>
-				<p class="wp-desktop-ai__entity-summary">${ summary }</p>
+				<h3 class="desktop-mode-ai__entity-title">${ title }</h3>
+				<p class="desktop-mode-ai__entity-summary">${ summary }</p>
 				<button type="button"
-					class="wp-desktop-ai__entity-open"
+					class="desktop-mode-ai__entity-open"
 					data-url="${ this._esc( e.edit_url ) }"
 					data-title="${ this._esc( e.title ?? e.post_title ?? typeLabel ) }"
 					data-icon="${ icon }">
@@ -1436,20 +1436,20 @@ export class AiAssistant implements AiAssistantApi {
 	private _renderAdminLinks( links: AdminLink[] ): string {
 		const items = links.map( ( link ) => `
 			<button type="button"
-				class="wp-desktop-ai__admin-link"
+				class="desktop-mode-ai__admin-link"
 				data-url="${ this._esc( link.url ) }"
 				data-title="${ this._esc( link.title ) }"
 				data-icon="${ this._esc( link.icon ) }">
-				<span class="wp-desktop-ai__admin-link-icon dashicons ${ this._esc( link.icon ) }" aria-hidden="true"></span>
-				<span class="wp-desktop-ai__admin-link-body">
-					<span class="wp-desktop-ai__admin-link-title">${ this._esc( link.title ) }</span>
-					<span class="wp-desktop-ai__admin-link-desc">${ this._esc( link.description ) }</span>
+				<span class="desktop-mode-ai__admin-link-icon dashicons ${ this._esc( link.icon ) }" aria-hidden="true"></span>
+				<span class="desktop-mode-ai__admin-link-body">
+					<span class="desktop-mode-ai__admin-link-title">${ this._esc( link.title ) }</span>
+					<span class="desktop-mode-ai__admin-link-desc">${ this._esc( link.description ) }</span>
 				</span>
-				<span class="wp-desktop-ai__admin-link-arrow">${ ICON_ARROW }</span>
+				<span class="desktop-mode-ai__admin-link-arrow">${ ICON_ARROW }</span>
 			</button>
 		` ).join( '' );
 
-		return `<div class="wp-desktop-ai__admin-links">${ items }</div>`;
+		return `<div class="desktop-mode-ai__admin-links">${ items }</div>`;
 	}
 
 	/** Minimal HTML escaping for text interpolated into innerHTML. */
@@ -1467,8 +1467,8 @@ export class AiAssistant implements AiAssistantApi {
 
 	private _buildDOM(): HTMLElement {
 		const el = document.createElement( 'div' );
-		el.id = 'wp-desktop-ai-assistant';
-		el.className = 'wp-desktop-ai';
+		el.id = 'desktop-mode-ai-assistant';
+		el.className = 'desktop-mode-ai';
 		el.setAttribute( 'role', 'dialog' );
 		el.setAttribute( 'aria-modal', 'true' );
 		el.setAttribute( 'aria-label', 'AI Assistant' );
@@ -1476,35 +1476,35 @@ export class AiAssistant implements AiAssistantApi {
 		el.setAttribute( 'hidden', '' );
 
 		el.innerHTML = `
-			<div class="wp-desktop-ai__backdrop" aria-hidden="true"></div>
-			<div class="wp-desktop-ai__panel">
-				<div class="wp-desktop-ai__header">
-					<span class="wp-desktop-ai__header-icon">${ ICON_SPARKLE }</span>
-					<span class="wp-desktop-ai__header-label">AI Assistant</span>
-					<button type="button" class="wp-desktop-ai__close" aria-label="Close">
+			<div class="desktop-mode-ai__backdrop" aria-hidden="true"></div>
+			<div class="desktop-mode-ai__panel">
+				<div class="desktop-mode-ai__header">
+					<span class="desktop-mode-ai__header-icon">${ ICON_SPARKLE }</span>
+					<span class="desktop-mode-ai__header-label">AI Assistant</span>
+					<button type="button" class="desktop-mode-ai__close" aria-label="Close">
 						${ ICON_CLOSE }
 					</button>
 				</div>
-				<div class="wp-desktop-ai__input-wrap">
-					<span class="wp-desktop-ai__input-icon">${ ICON_SPARKLE }</span>
+				<div class="desktop-mode-ai__input-wrap">
+					<span class="desktop-mode-ai__input-icon">${ ICON_SPARKLE }</span>
 					<input
-						class="wp-desktop-ai__input"
+						class="desktop-mode-ai__input"
 						type="text"
 						placeholder="How can I help?"
 						autocomplete="off"
 						spellcheck="false"
 						aria-label="Ask the AI assistant"
 					/>
-					<button type="button" class="wp-desktop-ai__submit" aria-label="Send">
+					<button type="button" class="desktop-mode-ai__submit" aria-label="Send">
 						${ ICON_RETURN }
 					</button>
 				</div>
-				<div class="wp-desktop-ai__results" hidden></div>
-				<div class="wp-desktop-ai__footer">
-					<span class="wp-desktop-ai__footer-hint">
+				<div class="desktop-mode-ai__results" hidden></div>
+				<div class="desktop-mode-ai__footer">
+					<span class="desktop-mode-ai__footer-hint">
 						Your assistant for finding content and navigating wp-admin
 					</span>
-					<span class="wp-desktop-ai__footer-keys" aria-hidden="true">
+					<span class="desktop-mode-ai__footer-keys" aria-hidden="true">
 						<kbd>&#8629;</kbd> ask
 					</span>
 				</div>

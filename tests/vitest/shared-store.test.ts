@@ -143,7 +143,7 @@ describe( 'shared-store', () => {
 	} );
 
 	test( 'registers under the framework window slot', () => {
-		const slotKey = '__wpDesktopSharedStores';
+		const slotKey = '__desktopModeSharedStores';
 		// Slot may already exist from earlier tests in this file —
 		// clear and verify the createSharedStore call (re-)creates it.
 		delete ( window as unknown as Record< string, unknown > )[ slotKey ];

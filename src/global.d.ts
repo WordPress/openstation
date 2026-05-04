@@ -3,7 +3,7 @@
  *
  * **For external plugin authors:** include this package in your
  * tsconfig's `compilerOptions.types` array (or add a triple-slash
- * `/// <reference types="wp-desktop-mode" />` to one of your entry
+ * `/// <reference types="desktop-mode" />` to one of your entry
  * files) and `window.wp.desktop` will be typed as `WpDesktopPublicApi`
  * across your project — no per-call casts.
  *
@@ -11,7 +11,7 @@
  * // tsconfig.json
  * {
  *   "compilerOptions": {
- *     "types": [ "wp-desktop-mode" ]
+ *     "types": [ "desktop-mode" ]
  *   }
  * }
  * ```

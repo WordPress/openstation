@@ -92,7 +92,7 @@ wp.desktop.ready( () => {
     // 1. Decoration: glowing classNames on plugin tiles regardless
     //    of which rail renderer is active.
     wp.desktop.hooks.addFilter(
-        'wp-desktop.dock.tile-class',
+        'desktop-mode.dock.tile-class',
         'aurora-dock/glow',
         ( classes, ctx ) => {
             if ( ! ctx.isSystem && ! ctx.item.isCore ) {
@@ -198,7 +198,7 @@ to a specific layer reaches for these instead of DOM scraping. All
 
 ```js
 // Open a known system tile from anywhere — no DOM scraping.
-wp.desktop.getSystemTile( 'wp-desktop-os-settings' )?.onOpen();
+wp.desktop.getSystemTile( 'desktop-mode-os-settings' )?.onOpen();
 
 // Or the dedicated entry point for OS Settings:
 wp.desktop.openOsSettings();

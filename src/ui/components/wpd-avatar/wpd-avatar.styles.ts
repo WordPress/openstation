@@ -26,7 +26,7 @@ export const avatarStyles = css`
 		height: 100%;
 		border-radius: 50%;
 		overflow: hidden;
-		background: var( --wp-desktop-window-bg, #f0f0f1 );
+		background: var( --desktop-mode-window-bg, #f0f0f1 );
 		color: #fff;
 		display: flex;
 		align-items: center;
@@ -57,17 +57,17 @@ export const avatarStyles = css`
 		min-height: 8px;
 		border-radius: 50%;
 		box-sizing: border-box;
-		border: 2px solid var( --wpd-avatar-dot-ring, var( --wp-desktop-window-bg, #fff ) );
+		border: 2px solid var( --wpd-avatar-dot-ring, var( --desktop-mode-window-bg, #fff ) );
 		background: var( --wpd-avatar-dot-color, transparent );
 	}
 
 	.wpd-avatar__dot--online {
-		background: var( --wp-desktop-success, #00a32a );
+		background: var( --desktop-mode-success, #00a32a );
 	}
 	.wpd-avatar__dot--inactive {
-		background: var( --wp-desktop-warning, #dba617 );
+		background: var( --desktop-mode-warning, #dba617 );
 	}
 	.wpd-avatar__dot--offline {
-		background: var( --wp-desktop-muted, #8c8f94 );
+		background: var( --desktop-mode-muted, #8c8f94 );
 	}
 `;

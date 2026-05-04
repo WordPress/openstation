@@ -6,7 +6,7 @@ The framework keeps a running map of who's currently in the
 desktop-mode WP-Admin. Three states — `online`, `inactive`,
 `offline` — derived from the WordPress Heartbeat plus a
 mousedown / keydown listener. Storage is server-side
-(`_wp_desktop_presence` option) so every tab in every browser
+(`_desktop_mode_presence` option) so every tab in every browser
 sees the same map.
 
 This example builds a tiny "Who's online" widget on the desktop
@@ -26,7 +26,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'whos-online-widget',
         plugins_url( 'whos-online.js', __FILE__ ),
-        array( 'wp-desktop' ),
+        array( 'desktop-mode' ),
         '1.0',
         true
     );
@@ -80,7 +80,7 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
 
         // Per-transition CustomEvent when you want one-shot reactions
         // (toast on come-online, sound on go-offline, …).
-        document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+        document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
             const { userId, oldStatus, newStatus } = e.detail;
             if ( oldStatus !== 'online' && newStatus === 'online' ) {
                 console.log( names[ userId ], 'came online' );
@@ -106,7 +106,7 @@ wp.desktop.presence.getEntry( userId );
 const off = wp.desktop.presence.subscribe( ( state ) => { … } );
 
 // Transition-only events.
-document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
     e.detail; // { userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }
 } );
 
@@ -170,8 +170,8 @@ add_action( 'desktop_mode_presence_recorded', function ( $user_id, $record ) {
 ## REST
 
 ```http
-GET  /wp-json/wp-desktop/v1/presence
-POST /wp-json/wp-desktop/v1/presence    body: { active: true }
+GET  /wp-json/desktop-mode/v1/presence
+POST /wp-json/desktop-mode/v1/presence    body: { active: true }
                                          body: { active: false }
                                          body: { inactive: true }   // "set yourself away"
 ```
@@ -179,5 +179,5 @@ POST /wp-json/wp-desktop/v1/presence    body: { active: true }
 ## Related
 
 - [`docs/javascript-reference.md#presence`](../javascript-reference.md#presence--stable-since-055) — full JS API surface.
-- [`docs/javascript-reference.md#wp-desktop-presence-changed`](../javascript-reference.md#wp-desktop-presence-changed--stable-since-055) — transition CustomEvent.
+- [`docs/javascript-reference.md#desktop-mode-presence-changed`](../javascript-reference.md#desktop-mode-presence-changed--stable-since-055) — transition CustomEvent.
 - [`docs/hooks-reference.md`](../hooks-reference.md) — full PHP filter / action signatures.

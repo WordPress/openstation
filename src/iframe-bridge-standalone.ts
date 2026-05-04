@@ -1,7 +1,7 @@
 /**
- * wp-desktop-mode — iframe-side bridge (standalone, enqueueable).
+ * desktop-mode — iframe-side bridge (standalone, enqueueable).
  *
- * Entry point for the `wp-desktop-iframe-bridge` script handle. Any
+ * Entry point for the `desktop-mode-iframe-bridge` script handle. Any
  * same-origin iframe that enqueues this script gets
  * `wp.desktop.iframe.{ publish, subscribe, onConnection,
  * requestConnection }`.
@@ -9,7 +9,7 @@
  * Two ways to load:
  *
  *   1. Enqueue the public handle —
- *      `wp_enqueue_script( 'wp-desktop-iframe-bridge' )`.
+ *      `wp_enqueue_script( 'desktop-mode-iframe-bridge' )`.
  *
  *   2. Set `iframeContent: { bridge: true }` on a native window;
  *      the parent shell auto-injects this bundle via `<script src>`
@@ -18,7 +18,7 @@
  * The chromeless bridge embedded in `includes/render.php` ships its
  * own copy of the same logic inline so chromeless wp-admin pages
  * don't need a separate enqueue. Keep the two in sync — any change
- * here must be mirrored there (search for `wp-desktop-bridge-` in
+ * here must be mirrored there (search for `desktop-mode-bridge-` in
  * `render.php`).
  *
  * Built by Vite to:
@@ -116,7 +116,7 @@ interface IframeWp {
 	 * Per-channel subscribers for the unified window-channel API
 	 * (`wp.desktop.send` / `wp.desktop.on`). Distinct from the
 	 * connection-bridge `subs` map above — this one fires from
-	 * `wp-desktop-window-send` messages the parent posts on
+	 * `desktop-mode-window-send` messages the parent posts on
 	 * `Window.send( channel, payload )`.
 	 */
 	const channelSubs: Record< string, WindowChannelCb[] > = {};
@@ -129,7 +129,7 @@ interface IframeWp {
 		try {
 			window.parent.postMessage(
 				{
-					type: 'wp-desktop-bridge-publish',
+					type: 'desktop-mode-bridge-publish',
 					connectionId,
 					topic,
 					payload,
@@ -159,14 +159,14 @@ interface IframeWp {
 		}
 
 		if (
-			data.type === 'wp-desktop-bridge-handshake' &&
+			data.type === 'desktop-mode-bridge-handshake' &&
 			typeof data.connectionId === 'string'
 		) {
 			if ( connections[ data.connectionId ] ) {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'wp-desktop-bridge-handshake-ack',
+							type: 'desktop-mode-bridge-handshake-ack',
 							connectionId: data.connectionId,
 						},
 						parentOrigin,
@@ -184,7 +184,7 @@ interface IframeWp {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'wp-desktop-bridge-handshake-ack',
+						type: 'desktop-mode-bridge-handshake-ack',
 						connectionId: conn.id,
 					},
 					parentOrigin,
@@ -203,7 +203,7 @@ interface IframeWp {
 		}
 
 		if (
-			data.type === 'wp-desktop-bridge-publish' &&
+			data.type === 'desktop-mode-bridge-publish' &&
 			typeof data.topic === 'string'
 		) {
 			const meta = {
@@ -234,7 +234,7 @@ interface IframeWp {
 		}
 
 		if (
-			data.type === 'wp-desktop-bridge-disconnect' &&
+			data.type === 'desktop-mode-bridge-disconnect' &&
 			typeof data.connectionId === 'string'
 		) {
 			delete connections[ data.connectionId ];
@@ -244,7 +244,7 @@ interface IframeWp {
 		// every `wp.desktop.on( channel, cb )` subscriber for the
 		// matching channel.
 		if (
-			data.type === 'wp-desktop-window-send' &&
+			data.type === 'desktop-mode-window-send' &&
 			typeof ( data as { channel?: unknown } ).channel === 'string'
 		) {
 			const d = data as { channel: string; payload?: unknown };
@@ -334,14 +334,14 @@ interface IframeWp {
 		 *
 		 * Parent-side handler: see `src/connection/index.ts`
 		 * `handleConnectionRequest` + the
-		 * `wp-desktop.iframe.connection-request` filter.
+		 * `desktop-mode.iframe.connection-request` filter.
 		 */
 		chrome: {
 			setTheme( tokens ) {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'wp-desktop-chrome-theme',
+							type: 'desktop-mode-chrome-theme',
 							tokens: tokens ?? {},
 						},
 						parentOrigin,
@@ -354,7 +354,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'wp-desktop-chrome-controls',
+							type: 'desktop-mode-chrome-controls',
 							config: config ?? null,
 						},
 						parentOrigin,
@@ -370,7 +370,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'wp-desktop-chrome-slot',
+							type: 'desktop-mode-chrome-slot',
 							slot: name,
 							html: typeof html === 'string' ? html : '',
 						},
@@ -425,7 +425,7 @@ interface IframeWp {
 					if (
 						! d ||
 						typeof d !== 'object' ||
-						d.type !== 'wp-desktop-bridge-connection-ack' ||
+						d.type !== 'desktop-mode-bridge-connection-ack' ||
 						d.requestId !== requestId
 					) {
 						return;
@@ -459,7 +459,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'wp-desktop-bridge-connection-request',
+							type: 'desktop-mode-bridge-connection-request',
 							requestId,
 							topics,
 						},
@@ -488,7 +488,7 @@ interface IframeWp {
 	 * the same code regardless of which side they're on.
 	 *
 	 * Sending the OTHER way (`wp.desktop.send( channel, payload )`)
-	 * posts a `wp-desktop-window-publish` message up to the parent,
+	 * posts a `desktop-mode-window-publish` message up to the parent,
 	 * where every `Window.on( channel, cb )` subscriber fires.
 	 *
 	 * @since 0.5.5
@@ -501,7 +501,7 @@ interface IframeWp {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'wp-desktop-window-publish',
+						type: 'desktop-mode-window-publish',
 						channel,
 						payload,
 					},
@@ -546,22 +546,22 @@ interface IframeWp {
 	// `#screen-meta-links` block with the Help and Screen Options
 	// buttons. When those exist inside an iframe-windowed admin page,
 	// we want them surfaced in the parent window's title bar — the
-	// shell renders them via the `wp-desktop-screen-meta` postMessage
+	// shell renders them via the `desktop-mode-screen-meta` postMessage
 	// protocol.
 	//
 	// Used to live ONLY in the chromeless inline bridge (gated on
 	// `desktop_mode_is_chromeless_request()`), so any internal navigation
-	// that dropped the `?wp_desktop=1` flag silently lost the title-
+	// that dropped the `?desktop_mode_chromeless=1` flag silently lost the title-
 	// bar icons. This standalone bridge is auto-enqueued on every
 	// admin page, so detection runs regardless. A sentinel global
-	// (`__wpDesktopScreenMetaInstalled`) prevents double-emission
+	// (`__desktopModeScreenMetaInstalled`) prevents double-emission
 	// when the inline bridge also runs on the same response.
 	// -----------------------------------------------------------------
 	const sentinelHost = window as unknown as {
-		__wpDesktopScreenMetaInstalled?: boolean;
+		__desktopModeScreenMetaInstalled?: boolean;
 	};
-	if ( ! sentinelHost.__wpDesktopScreenMetaInstalled ) {
-		sentinelHost.__wpDesktopScreenMetaInstalled = true;
+	if ( ! sentinelHost.__desktopModeScreenMetaInstalled ) {
+		sentinelHost.__desktopModeScreenMetaInstalled = true;
 		installScreenMetaHoist( parentOrigin );
 	}
 
@@ -588,7 +588,7 @@ interface IframeWp {
 
 			try {
 				window.parent.postMessage(
-					{ type: 'wp-desktop-screen-meta', panels },
+					{ type: 'desktop-mode-screen-meta', panels },
 					origin,
 				);
 			} catch {
@@ -614,7 +614,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'wp-desktop-screen-meta-state',
+							type: 'desktop-mode-screen-meta-state',
 							open: getOpenPanel(),
 						},
 						origin,
@@ -682,7 +682,7 @@ interface IframeWp {
 					return;
 				}
 				const d = e.data as { type?: string; panel?: string } | null;
-				if ( ! d || d.type !== 'wp-desktop-toggle-panel' ) {
+				if ( ! d || d.type !== 'desktop-mode-toggle-panel' ) {
 					return;
 				}
 				let target: HTMLElement | null = null;

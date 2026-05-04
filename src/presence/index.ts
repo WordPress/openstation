@@ -18,7 +18,7 @@
  *   - **offline**  — no heartbeat in `_offline_after` seconds.
  *
  * **Storage.** A `createSharedStore` keyed by
- * `'wp-desktop/presence'` so any number of bundles can subscribe to
+ * `'desktop-mode/presence'` so any number of bundles can subscribe to
  * the same map of `{ status, lastSeenMs, lastActiveMs }` per user.
  *
  * **Wire.** A jQuery-Heartbeat probe sends
@@ -53,7 +53,7 @@ interface HeartbeatBlock {
 }
 
 const store: SharedStore< PresenceState > = createSharedStore< PresenceState >(
-	'wp-desktop/presence',
+	'desktop-mode/presence',
 	() => ( { byUser: new Map(), serverTimeMs: 0 } ),
 );
 
@@ -131,16 +131,16 @@ function applySnapshot( block: HeartbeatBlock ): void {
 			lastActiveMs: t.entry.lastActiveMs,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-presence-changed', { detail } ),
+			new CustomEvent( 'desktop-mode-presence-changed', { detail } ),
 		);
 		// Mirror the per-transition event onto activity so plugins
 		// subscribe through the unified API.
-		activity.publish( 'wp-desktop/presence-changed', detail );
+		activity.publish( 'desktop-mode/presence-changed', detail );
 	}
 	// Batch-level activity event — useful for "repaint everything
 	// that depends on presence" subscribers that don't need
 	// per-user granularity.
-	activity.publish( 'wp-desktop/presence-snapshot-applied', {
+	activity.publish( 'desktop-mode/presence-snapshot-applied', {
 		applied: Object.keys( block.snapshot ).length,
 		transitions: transitions.length,
 	} );
@@ -272,7 +272,7 @@ export function _resetPresenceForTests(): void {
  * (presence-driven UI, plugin badges) sees the freshest data
  * without picking between two stores.
  *
- * Fires `wp-desktop-presence-changed` per id whose status moves,
+ * Fires `desktop-mode-presence-changed` per id whose status moves,
  * mirroring the heartbeat-driven path. `lastSeenMs` and
  * `lastActiveMs` are optional — when omitted, the existing
  * timestamps are preserved (the writer doesn't always know them).
@@ -341,11 +341,11 @@ export function applyPresenceBatch(
 			lastActiveMs: t.entry.lastActiveMs,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-presence-changed', { detail } ),
+			new CustomEvent( 'desktop-mode-presence-changed', { detail } ),
 		);
-		activity.publish( 'wp-desktop/presence-changed', detail );
+		activity.publish( 'desktop-mode/presence-changed', detail );
 	}
-	activity.publish( 'wp-desktop/presence-snapshot-applied', {
+	activity.publish( 'desktop-mode/presence-snapshot-applied', {
 		applied: updates.length,
 		transitions: transitions.length,
 	} );

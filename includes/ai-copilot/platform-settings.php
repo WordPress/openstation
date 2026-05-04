@@ -135,7 +135,7 @@ function desktop_mode_ai_save_platform_settings( $raw ) {
  */
 function desktop_mode_register_ai_platform_settings_rest_route() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/ai/platform-settings',
 		array(
 			array(
@@ -178,7 +178,7 @@ function desktop_mode_rest_ai_platform_permission() {
 }
 
 /**
- * GET /wp-desktop/v1/ai/platform-settings
+ * GET /desktop-mode/v1/ai/platform-settings
  *
  * @since 0.14.0
  *
@@ -189,7 +189,7 @@ function desktop_mode_rest_get_ai_platform_settings() {
 }
 
 /**
- * POST /wp-desktop/v1/ai/platform-settings
+ * POST /desktop-mode/v1/ai/platform-settings
  *
  * @since 0.14.0
  *

@@ -7,7 +7,7 @@
  * typically a WebGL/2D canvas driven by PixiJS, Three, or raw APIs).
  *
  * Third-party plugins register wallpapers via `wp.desktop.registerWallpaper`
- * (a convenience on top of the `wp-desktop.wallpapers` filter).
+ * (a convenience on top of the `desktop-mode.wallpapers` filter).
  *
  * @since 0.6.0
  */
@@ -29,7 +29,7 @@ export interface WallpaperContext {
 	/**
 	 * Current document visibility. Canvas wallpapers typically pause
 	 * their tickers when `hidden`; the shell also fires
-	 * `wp-desktop.wallpaper.visibility` on every change.
+	 * `desktop-mode.wallpaper.visibility` on every change.
 	 */
 	visible: boolean;
 	/**
@@ -88,7 +88,7 @@ interface WallpaperDefBase {
 
 /**
  * CSS-background wallpaper. The `value` is written to the
- * `--wp-desktop-bg` custom property when this wallpaper is active.
+ * `--desktop-mode-bg` custom property when this wallpaper is active.
  */
 export interface CssWallpaperDef extends WallpaperDefBase {
 	type: 'css';
@@ -119,7 +119,7 @@ export interface CanvasWallpaperDef extends WallpaperDefBase {
 	 * Declared module dependencies. The shell resolves each id through
 	 * the module registry and ensures every declared module is loaded
 	 * before `mount` fires. Unknown ids fail loudly via the
-	 * `wp-desktop.wallpaper.mount-failed` action so authors don't
+	 * `desktop-mode.wallpaper.mount-failed` action so authors don't
 	 * chase silent non-activations.
 	 *
 	 * Example: `needs: ['pixijs']` — PixiJS is pre-registered by the
@@ -139,7 +139,7 @@ export interface CanvasWallpaperDef extends WallpaperDefBase {
 export type WallpaperDef = CssWallpaperDef | CanvasWallpaperDef;
 
 /**
- * Filter signature: the `wp-desktop.wallpapers` hook receives a
+ * Filter signature: the `desktop-mode.wallpapers` hook receives a
  * readonly array of registered defs and returns (possibly the same,
  * possibly modified) list. Useful for plugins that need to reorder,
  * filter, or replace built-in entries rather than only adding.

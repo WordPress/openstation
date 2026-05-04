@@ -3,12 +3,12 @@
  *
  * Plugin authors that register a widget / wallpaper / module with a
  * malformed def used to see a generic
- * `[wp-desktop-mode] Ignored invalid widget registration: { ... }`
+ * `[desktop-mode] Ignored invalid widget registration: { ... }`
  * warning and have to guess which field failed. These helpers collect
  * per-field errors instead, so the console message tells them exactly
  * what's wrong:
  *
- *   [wp-desktop-mode] Widget registration rejected — fields: id (missing), mount (not a function).
+ *   [desktop-mode] Widget registration rejected — fields: id (missing), mount (not a function).
  *
  * Factored out so every registry validates with the same ergonomics.
  *
@@ -65,7 +65,7 @@ export class RegistrationError extends Error {
 
 	constructor( kind: string, errors: string[], def: unknown ) {
 		super(
-			`[wp-desktop-mode] ${ kind } registration rejected — fields: ` +
+			`[desktop-mode] ${ kind } registration rejected — fields: ` +
 				errors.join( ', ' ) +
 				'.',
 		);
@@ -114,7 +114,7 @@ export function logRegistrationErrors(
 		return;
 	}
 	console.warn(
-		`[wp-desktop-mode] ${ kind } registration rejected — fields: ` +
+		`[desktop-mode] ${ kind } registration rejected — fields: ` +
 			errors.join( ', ' ) +
 			'.',
 		def,

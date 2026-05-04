@@ -4,7 +4,7 @@
  *
  * Persists each user's open desktop windows — URLs, positions, sizes,
  * states, and which window was focused — to user meta so a session can
- * be restored across page loads and, via the `/wp-desktop` portal,
+ * be restored across page loads and, via the `/desktop-mode` portal,
  * across devices. Cross-device viewport adaptation (a window that sat
  * in the far-right corner of a 3440px ultrawide landing sanely on a
  * 1280px laptop) happens client-side on restore.
@@ -295,11 +295,11 @@ function desktop_mode_sanitize_session( $session ) {
 				continue;
 			}
 			// Strip transient/routing flags before storage. The chromeless
-			// `wp_desktop` flag is an iframe-only concern and must never
+			// `desktop_mode_chromeless` flag is an iframe-only concern and must never
 			// end up in a top-level URL (e.g., the portal's entry URL);
 			// the portal and classic flags only live on a single request.
 			$url = remove_query_arg(
-				array( 'wp_desktop', DESKTOP_MODE_PORTAL_FLAG, DESKTOP_MODE_CLASSIC_FLAG ),
+				array( 'desktop_mode_chromeless', DESKTOP_MODE_PORTAL_FLAG, DESKTOP_MODE_CLASSIC_FLAG ),
 				$url
 			);
 
@@ -434,7 +434,7 @@ function desktop_mode_sanitize_session_dimension( $value, $min, $max ) {
  */
 function desktop_mode_register_session_rest_routes() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/session',
 		array(
 			array(
@@ -476,7 +476,7 @@ function desktop_mode_rest_session_permission() {
 }
 
 /**
- * GET /wp-desktop/v1/session — returns the caller's session.
+ * GET /desktop-mode/v1/session — returns the caller's session.
  *
  * @since 0.4.0
  *
@@ -487,7 +487,7 @@ function desktop_mode_rest_get_session() {
 }
 
 /**
- * POST /wp-desktop/v1/session — replaces the caller's session.
+ * POST /desktop-mode/v1/session — replaces the caller's session.
  *
  * @since 0.4.0
  *
@@ -502,7 +502,7 @@ function desktop_mode_rest_save_session( WP_REST_Request $request ) {
 }
 
 /**
- * DELETE /wp-desktop/v1/session — clears the caller's session.
+ * DELETE /desktop-mode/v1/session — clears the caller's session.
  *
  * @since 0.4.0
  *

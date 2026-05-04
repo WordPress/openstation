@@ -69,7 +69,7 @@ export class WpdCheckbox extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--wp-desktop-text', description: 'Label colour.' },
+			{ name: '--desktop-mode-text', description: 'Label colour.' },
 		],
 		example: html`
 			<wpd-stack gap="4">

@@ -82,7 +82,7 @@ function dispatch(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						`[wp-desktop-mode] window-channel subscriber for "${ channel }" threw:`,
+						`[desktop-mode] window-channel subscriber for "${ channel }" threw:`,
 						err,
 					);
 				}
@@ -97,7 +97,7 @@ function dispatch(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						`[wp-desktop-mode] window-channel wildcard subscriber for "${ windowId }" threw:`,
+						`[desktop-mode] window-channel wildcard subscriber for "${ windowId }" threw:`,
 						err,
 					);
 				}
@@ -187,7 +187,7 @@ export function dispatchToNative(
  *  Pre-load send queue — let `Window.send()` be safe to call before
  *  an iframe-backed window finishes loading. The Window class
  *  enqueues here when the target isn't ready; the appropriate ready
- *  signal (`wp-desktop-ready` for real iframes, `iframe.load` for
+ *  signal (`desktop-mode-ready` for real iframes, `iframe.load` for
  *  synthetic ones) calls `markWindowContentReady()` to flush. Pure
  *  native windows always count as ready — there's no async
  *  boundary between `Window.send()` and the render's listeners.
@@ -247,7 +247,7 @@ export function markWindowContentLoading( windowId: string ): void {
 	doAction( HOOKS.WINDOW_CONTENT_LOADING, { windowId } );
 	if ( typeof document !== 'undefined' ) {
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-window-content-loading', {
+			new CustomEvent( 'desktop-mode-window-content-loading', {
 				detail: { windowId },
 			} ),
 		);
@@ -266,7 +266,7 @@ export function markWindowContentLoading( windowId: string ): void {
  *      contract).
  *   2. Visual loading state — edge-triggered. Fires
  *      `WINDOW_CONTENT_LOADED` + the
- *      `wp-desktop-window-content-loaded` CustomEvent only on a
+ *      `desktop-mode-window-content-loaded` CustomEvent only on a
  *      loading → ready transition. A plugin re-arming the spinner
  *      with `markContentLoading` and then calling
  *      `markContentLoaded` again will see a fresh hook fire.
@@ -285,7 +285,7 @@ export function markWindowContentReady( windowId: string ): void {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							`[wp-desktop-mode] flushing queued window-send for "${ m.channel }" threw:`,
+							`[desktop-mode] flushing queued window-send for "${ m.channel }" threw:`,
 							err,
 						);
 					}
@@ -302,7 +302,7 @@ export function markWindowContentReady( windowId: string ): void {
 		doAction( HOOKS.WINDOW_CONTENT_LOADED, { windowId } );
 		if ( typeof document !== 'undefined' ) {
 			document.dispatchEvent(
-				new CustomEvent( 'wp-desktop-window-content-loaded', {
+				new CustomEvent( 'desktop-mode-window-content-loaded', {
 					detail: { windowId },
 				} ),
 			);

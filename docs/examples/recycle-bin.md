@@ -1,6 +1,6 @@
 # Example: extend the Recycle Bin
 
-The Recycle Bin window (id `wpdm-recycle-bin`) catches deleted attachments into the WordPress trash and lists every trashed post / page / media item with restore + permanent-delete actions. It's filterable end-to-end so plugins can add post types, columns, audit logging, or custom capability gates.
+The Recycle Bin window (id `desktop-mode-recycle-bin`) catches deleted attachments into the WordPress trash and lists every trashed post / page / media item with restore + permanent-delete actions. It's filterable end-to-end so plugins can add post types, columns, audit logging, or custom capability gates.
 
 > Status: **Experimental** since 0.19.0. Hook names are stable; the JS column-filter shape may grow.
 
@@ -60,7 +60,7 @@ The JS layer applies a filter to the column descriptor before assignment:
 
 ```js
 wp.hooks.addFilter(
-    'wp_desktop.recycleBin.columns',
+    'desktop_mode.recycleBin.columns',
     'myplugin/owner-column',
     ( cols ) => [
         ...cols,
@@ -102,7 +102,7 @@ The action fires once per request that triggered a delete (coalesced across mult
 The Media Library (or any other window) can re-fetch when items leave/return the trash:
 
 ```js
-document.addEventListener( 'wp-desktop-recycle-bin-changed', ( e ) => {
+document.addEventListener( 'desktop-mode-recycle-bin-changed', ( e ) => {
     const { kind, ok, errors, source } = e.detail;
     // `source` is 'local' | 'chromeless' | 'heartbeat'.
     if ( kind === 'restore' && ok > 0 ) {
@@ -115,7 +115,7 @@ Or via the hook bus:
 
 ```js
 wp.hooks.addAction(
-    'wp_desktop.recycleBin.changed',
+    'desktop_mode.recycleBin.changed',
     'myplugin/refresh-media',
     ( payload ) => myPlugin.refreshMedia( payload ),
 );

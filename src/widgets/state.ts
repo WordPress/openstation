@@ -3,11 +3,11 @@
  *
  * Two separate localStorage records:
  *
- *   - `wp-desktop-widgets`           — ordered list of enabled widget
+ *   - `desktop-mode-widgets`           — ordered list of enabled widget
  *                                      ids (today's format; unchanged
  *                                      so first-run seeding still
  *                                      works).
- *   - `wp-desktop-widgets-geometry`  — per-id `{ x, y, width, height }`
+ *   - `desktop-mode-widgets-geometry`  — per-id `{ x, y, width, height }`
  *                                      for widgets the user has
  *                                      liberated from the column.
  *                                      Missing keys mean "still docked
@@ -21,8 +21,8 @@
 
 import type { WidgetGeometry } from './types';
 
-const IDS_KEY = 'wp-desktop-widgets';
-const GEOMETRY_KEY = 'wp-desktop-widgets-geometry';
+const IDS_KEY = 'desktop-mode-widgets';
+const GEOMETRY_KEY = 'desktop-mode-widgets-geometry';
 
 /**
  * Raw read so callers can distinguish "never saved" (null) from

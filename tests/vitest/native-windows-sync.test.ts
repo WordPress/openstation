@@ -34,9 +34,9 @@ interface Harness {
 function setupHarness(): Harness {
 	document.body.innerHTML = '';
 	const desktopArea = document.createElement( 'div' );
-	desktopArea.id = 'wp-desktop-area';
+	desktopArea.id = 'desktop-mode-area';
 	const dockEl = document.createElement( 'div' );
-	dockEl.id = 'wp-desktop-dock';
+	dockEl.id = 'desktop-mode-dock';
 	document.body.append( desktopArea, dockEl );
 
 	const managerOpen = vi.fn();
@@ -83,7 +83,7 @@ function entry(
 		minWidth: 280,
 		minHeight: 220,
 		autofocus: false,
-		templateId: `wpdm-native-window-${ id }`,
+		templateId: `desktop-mode-native-window-${ id }`,
 		templateHtml: `<div data-id="${ id }">${ id }</div>`,
 		scriptUrl: '',
 		scriptHandle: '',
@@ -213,7 +213,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 			// "is this already there?" guard is global to <head>, so a
 			// stale node would short-circuit injection.
 			document.head
-				.querySelectorAll( 'link[rel="stylesheet"], style[data-wpdm-style-handle]' )
+				.querySelectorAll( 'link[rel="stylesheet"], style[data-desktop-mode-style-handle]' )
 				.forEach( ( n ) => n.remove() );
 		} );
 
@@ -232,7 +232,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 				'link[rel="stylesheet"][href="https://example.test/jorvy.css?ver=1"]',
 			);
 			expect( link ).not.toBeNull();
-			expect( link?.dataset.wpdmStyleHandle ).toBe( 'jorvy-style' );
+			expect( link?.dataset.desktopModeStyleHandle ).toBe( 'jorvy-style' );
 		} );
 
 		test( 're-syncing the same entry does not duplicate the link', async () => {
@@ -264,7 +264,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 			] );
 
 			const style = document.head.querySelector< HTMLStyleElement >(
-				'style[data-wpdm-style-handle="jorvy-style"]',
+				'style[data-desktop-mode-style-handle="jorvy-style"]',
 			);
 			expect( style?.textContent ).toBe( '.jorvy { color: red; }' );
 		} );

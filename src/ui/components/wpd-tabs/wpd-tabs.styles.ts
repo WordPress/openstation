@@ -11,7 +11,7 @@ export const tabsStyles = css`
 		display: flex;
 		gap: 4px;
 		margin-bottom: 10px;
-		border-bottom: 1px solid var( --wp-desktop-border, #dcdcde );
+		border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
 	}
 `;
 
@@ -45,7 +45,7 @@ export const tabStyles = css`
 		padding: 6px 10px;
 		border: none;
 		background: transparent;
-		color: var( --wp-desktop-muted, #50575e );
+		color: var( --desktop-mode-muted, #50575e );
 		font: inherit;
 		font-size: 12px;
 		font-weight: 500;

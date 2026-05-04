@@ -15,7 +15,7 @@ export const containerStyles = css`
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-		z-index: calc( var( --wp-desktop-z-fullscreen, 99999 ) + 10 );
+		z-index: calc( var( --desktop-mode-z-fullscreen, 99999 ) + 10 );
 		pointer-events: none;
 	}
 `;

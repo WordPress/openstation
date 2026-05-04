@@ -60,7 +60,7 @@ class Tests_DesktopMode_WindowChrome extends WP_UnitTestCase {
 				'id'       => $id,
 				'label'    => 'Midnight',
 				'tokens'   => array(
-					'--wp-desktop-titlebar-bg' => '#1a1a2e',
+					'--desktop-mode-titlebar-bg' => '#1a1a2e',
 				),
 				'priority' => 50,
 			)
@@ -69,7 +69,7 @@ class Tests_DesktopMode_WindowChrome extends WP_UnitTestCase {
 		$entry = desktop_mode_window_theme_registry( $id );
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'Midnight', $entry['label'] );
-		$this->assertSame( '#1a1a2e', $entry['tokens']['--wp-desktop-titlebar-bg'] );
+		$this->assertSame( '#1a1a2e', $entry['tokens']['--desktop-mode-titlebar-bg'] );
 		$this->assertSame( 50, $entry['priority'] );
 	}
 
@@ -96,7 +96,7 @@ class Tests_DesktopMode_WindowChrome extends WP_UnitTestCase {
 				'id'     => 'plug/bad-token-' . uniqid(),
 				'tokens' => array(
 					// Missing the leading `--` — must be rejected.
-					'wp-desktop-titlebar-bg' => '#fa0',
+					'desktop-mode-titlebar-bg' => '#fa0',
 				),
 			)
 		);
@@ -113,7 +113,7 @@ class Tests_DesktopMode_WindowChrome extends WP_UnitTestCase {
 		desktop_mode_register_window_theme(
 			array(
 				'id'     => $id,
-				'tokens' => array( '--wp-desktop-titlebar-bg' => '#fa0' ),
+				'tokens' => array( '--desktop-mode-titlebar-bg' => '#fa0' ),
 				'script' => $handle,
 			)
 		);
@@ -148,7 +148,7 @@ class Tests_DesktopMode_WindowChrome extends WP_UnitTestCase {
 			array(
 				'id'       => $id,
 				'label'    => 'Payload',
-				'tokens'   => array( '--wp-desktop-titlebar-bg' => '#0ff' ),
+				'tokens'   => array( '--desktop-mode-titlebar-bg' => '#0ff' ),
 				'priority' => 200,
 			)
 		);
@@ -160,7 +160,7 @@ class Tests_DesktopMode_WindowChrome extends WP_UnitTestCase {
 			}
 		}
 		$this->assertNotNull( $found );
-		$this->assertSame( '#0ff', $found['tokens']['--wp-desktop-titlebar-bg'] );
+		$this->assertSame( '#0ff', $found['tokens']['--desktop-mode-titlebar-bg'] );
 		$this->assertSame( 200, $found['priority'] );
 	}
 

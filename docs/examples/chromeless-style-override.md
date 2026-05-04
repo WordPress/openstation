@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 add_action( 'desktop_mode_chromeless_styles', function () {
     // Only applies to the iframe's chromeless request, not the parent shell.
     wp_add_inline_style(
-        'wp-desktop-chromeless',
+        'desktop-mode-chromeless',
         '
         body.edit-php .wp-list-table { border-radius: 6px; overflow: hidden; }
         body.edit-php .subsubsub { margin-block: 4px 8px; }

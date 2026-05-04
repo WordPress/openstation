@@ -14,8 +14,8 @@ export const styles = css`
 		align-items: center;
 		gap: var( --wpd-badge-gap, 6px );
 		padding: var( --wpd-badge-padding, 2px 8px );
-		font: var( --wpd-badge-font, 500 12px/1.4 var( --wp-desktop-font, system-ui ) );
-		color: var( --wpd-badge-color, var( --wp-desktop-text, #1d2327 ) );
+		font: var( --wpd-badge-font, 500 12px/1.4 var( --desktop-mode-font, system-ui ) );
+		color: var( --wpd-badge-color, var( --desktop-mode-text, #1d2327 ) );
 		background: var( --wpd-badge-bg, rgba( 0, 0, 0, 0.06 ) );
 		border: var( --wpd-badge-border, 1px solid transparent );
 		border-radius: var( --wpd-badge-border-radius, 999px );

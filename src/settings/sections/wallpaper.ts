@@ -141,7 +141,7 @@ export function syncEditorSlot(
 	} catch ( err ) {
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				`[wp-desktop-mode] Wallpaper "${ def.id }" renderEditor threw:`,
+				`[desktop-mode] Wallpaper "${ def.id }" renderEditor threw:`,
 				err,
 			);
 		}
@@ -157,7 +157,7 @@ export function teardownEditor( ctx: SettingsCtx ): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[wp-desktop-mode] Wallpaper editor teardown threw:',
+					'[desktop-mode] Wallpaper editor teardown threw:',
 					err,
 				);
 			}
@@ -175,7 +175,7 @@ export function renderCustomGradientEditor(
 	ctx: SettingsCtx,
 	container: HTMLElement,
 ): WallpaperTeardown {
-	container.classList.add( 'wp-desktop-os-settings__gradient-editor-inner' );
+	container.classList.add( 'desktop-mode-os-settings__gradient-editor-inner' );
 
 	const onFrom = ( e: Event ): void => {
 		ctx.state.customGradient.from = ( e as CustomEvent ).detail.value;
@@ -199,7 +199,7 @@ export function renderCustomGradientEditor(
 	const paint = (): void =>
 		render(
 			html`
-				<div class="wp-desktop-os-settings__gradient-row">
+				<div class="desktop-mode-os-settings__gradient-row">
 					<wpd-color-field
 						variant="block"
 						label=${ __( 'From' ) }
@@ -264,10 +264,10 @@ export function buildWallpaperSection(
 	// plugins receive a plain `HTMLElement` — no templating, just a
 	// container they can own.
 	const editorSlot = document.createElement( 'div' );
-	editorSlot.className = 'wp-desktop-os-settings__editor-slot';
+	editorSlot.className = 'desktop-mode-os-settings__editor-slot';
 	editorSlot.dataset.expanded = 'false';
 	const editorInner = document.createElement( 'div' );
-	editorInner.className = 'wp-desktop-os-settings__editor-slot-inner';
+	editorInner.className = 'desktop-mode-os-settings__editor-slot-inner';
 	editorSlot.appendChild( editorInner );
 
 	const onPick = ( e: Event ): void => {
@@ -295,7 +295,7 @@ export function buildWallpaperSection(
 	) }
 				>
 					<div
-						class="wp-desktop-os-settings__grid wp-desktop-os-settings__grid--wallpapers"
+						class="desktop-mode-os-settings__grid desktop-mode-os-settings__grid--wallpapers"
 						@wpd-pick=${ onPick }
 					>
 						${ registry
@@ -310,7 +310,7 @@ export function buildWallpaperSection(
 									data-wallpaper-id=${ def.id }
 									?selected=${ ctx.state.wallpaper === def.id }
 								>
-									<span class="wp-desktop-os-settings__swatch-label"
+									<span class="desktop-mode-os-settings__swatch-label"
 										>${ def.label }</span
 									>
 								</wpd-swatch>`,
@@ -333,7 +333,7 @@ export function buildWallpaperSection(
 
 	// Live-update when plugins register or unregister wallpapers
 	// mid-session. The server-sync module fires register()/unregister()
-	// when `wp-desktop-plugins-changed` arrives from a plugins.php
+	// when `desktop-mode-plugins-changed` arrives from a plugins.php
 	// iframe; we re-paint so the swatch grid reflects reality without
 	// the user having to close and re-open the settings window.
 	//

@@ -166,7 +166,7 @@ export function registerSettingsTab( tab: DesktopSettingsTab ): void {
 	if ( ! /^[a-z0-9_\-]+$/.test( id ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[wp-desktop-mode] registerSettingsTab: id must be [a-z0-9_-]+, got',
+				'[desktop-mode] registerSettingsTab: id must be [a-z0-9_-]+, got',
 				tab.id,
 			);
 		}
@@ -230,7 +230,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[wp-desktop-mode] settings-tab-registry listener threw:',
+					'[desktop-mode] settings-tab-registry listener threw:',
 					err,
 				);
 			}

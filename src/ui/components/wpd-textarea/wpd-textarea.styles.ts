@@ -11,7 +11,7 @@ export const textareaStyles = css`
 		flex-direction: column;
 		gap: 4px;
 		font-size: 13px;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 		min-width: 0;
 	}
 	:host( [ hidden ] ) {
@@ -20,7 +20,7 @@ export const textareaStyles = css`
 
 	.wpd-textarea__label {
 		font-size: 12px;
-		color: var( --wp-desktop-muted, #646970 );
+		color: var( --desktop-mode-muted, #646970 );
 	}
 
 	textarea {
@@ -30,19 +30,19 @@ export const textareaStyles = css`
 		width: 100%;
 		min-width: 0;
 		padding: 8px 10px;
-		background: var( --wp-desktop-window-bg, #fff );
-		border: 1px solid var( --wp-desktop-border, #dcdcde );
+		background: var( --desktop-mode-window-bg, #fff );
+		border: 1px solid var( --desktop-mode-border, #dcdcde );
 		border-radius: 6px;
 		font: inherit;
 		font-size: 13px;
 		line-height: 1.45;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 		resize: vertical;
 		transition: border-color 0.12s ease, box-shadow 0.12s ease;
 	}
 
 	textarea:hover {
-		border-color: var( --wp-desktop-muted, #8c8f94 );
+		border-color: var( --desktop-mode-muted, #8c8f94 );
 	}
 	textarea:focus-visible {
 		outline: none;

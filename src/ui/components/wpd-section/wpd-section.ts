@@ -47,8 +47,8 @@ export class WpdSection extends Component {
 			{ name: '(default)', description: 'Section body content.' },
 		],
 		cssProps: [
-			{ name: '--wp-desktop-text', description: 'Heading colour.' },
-			{ name: '--wp-desktop-muted', description: 'Description colour.' },
+			{ name: '--desktop-mode-text', description: 'Heading colour.' },
+			{ name: '--desktop-mode-muted', description: 'Description colour.' },
 		],
 		example: html`
 			<wpd-section

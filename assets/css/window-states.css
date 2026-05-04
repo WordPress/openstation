@@ -21,50 +21,50 @@
  * (discoverable by cursor change only) to keep the window chrome
  * clean.
  *
- * Hit-area is `--wp-desktop-resize-size` (20 px by default). The
+ * Hit-area is `--desktop-mode-resize-size` (20 px by default). The
  * handles extend a few pixels OUTSIDE the window edge so a cursor
  * landing just past the border still activates them — matches how
  * native OS windows forgive edge-grabs.
  */
-.wp-desktop-window__resize-handle {
+.desktop-mode-window__resize-handle {
 	position: absolute;
-	width: var(--wp-desktop-resize-size);
-	height: var(--wp-desktop-resize-size);
+	width: var(--desktop-mode-resize-size);
+	height: var(--desktop-mode-resize-size);
 	z-index: 1;
 }
 
-.wp-desktop-window__resize-handle--se {
+.desktop-mode-window__resize-handle--se {
 	right: -3px;
 	bottom: -3px;
 	cursor: nwse-resize;
 	background: linear-gradient(
 		135deg,
 		transparent 30%,
-		var(--wp-desktop-resize-color) 30%,
-		var(--wp-desktop-resize-color) 40%,
+		var(--desktop-mode-resize-color) 30%,
+		var(--desktop-mode-resize-color) 40%,
 		transparent 40%,
 		transparent 55%,
-		var(--wp-desktop-resize-color) 55%,
-		var(--wp-desktop-resize-color) 65%,
+		var(--desktop-mode-resize-color) 55%,
+		var(--desktop-mode-resize-color) 65%,
 		transparent 65%,
 		transparent 80%,
-		var(--wp-desktop-resize-color) 80%
+		var(--desktop-mode-resize-color) 80%
 	);
 }
 
-.wp-desktop-window__resize-handle--sw {
+.desktop-mode-window__resize-handle--sw {
 	left: -3px;
 	bottom: -3px;
 	cursor: nesw-resize;
 }
 
-.wp-desktop-window__resize-handle--ne {
+.desktop-mode-window__resize-handle--ne {
 	right: -3px;
 	top: -3px;
 	cursor: nesw-resize;
 }
 
-.wp-desktop-window__resize-handle--nw {
+.desktop-mode-window__resize-handle--nw {
 	left: -3px;
 	top: -3px;
 	cursor: nwse-resize;
@@ -74,8 +74,8 @@
  * During drag/resize, overlay the iframe to prevent it from
  * capturing pointer events and breaking the drag.
  */
-.wp-desktop-window--dragging .wp-desktop-window__body::after,
-.wp-desktop-window--resizing .wp-desktop-window__body::after {
+.desktop-mode-window--dragging .desktop-mode-window__body::after,
+.desktop-mode-window--resizing .desktop-mode-window__body::after {
 	content: "";
 	position: absolute;
 	inset: 0;
@@ -87,11 +87,11 @@
  * (matching the desktop area) so left/top/width/height can animate.
  * Only cosmetic overrides here.
  */
-.wp-desktop-window--maximized {
+.desktop-mode-window--maximized {
 	border-radius: 0;
 }
 
-.wp-desktop-window--maximized .wp-desktop-window__resize-handle {
+.desktop-mode-window--maximized .desktop-mode-window__resize-handle {
 	display: none;
 }
 
@@ -99,22 +99,22 @@
  * Fullscreen ("focus") state — the window escapes the desktop area and
  * covers the entire viewport, hiding the admin bar and dock behind
  * it. Uses position: fixed so no ancestor overflow clips it, and
- * a z-index above the admin bar (--wp-desktop-z-adminbar). Inline
+ * a z-index above the admin bar (--desktop-mode-z-adminbar). Inline
  * geometry set by toggleMaximize() is overridden with !important because
  * we never want fullscreen to respect a saved x/y/width/height.
  */
-.wp-desktop-window--fullscreen {
+.desktop-mode-window--fullscreen {
 	position: fixed !important;
 	left: 0 !important;
 	top: 0 !important;
 	width: 100vw !important;
 	height: 100vh !important;
-	z-index: var(--wp-desktop-z-fullscreen) !important;
+	z-index: var(--desktop-mode-z-fullscreen) !important;
 	border-radius: 0 !important;
 	border: none;
 }
 
-.wp-desktop-window--fullscreen .wp-desktop-window__resize-handle {
+.desktop-mode-window--fullscreen .desktop-mode-window__resize-handle {
 	display: none;
 }
 
@@ -122,7 +122,7 @@
  * Opening animation — subtle scale-up + fade-in.
  * The class is added on creation and removed after the animation ends.
  */
-@keyframes wp-desktop-window-open {
+@keyframes desktop-mode-window-open {
 	from {
 		opacity: 0;
 		transform: scale(0.92);
@@ -133,8 +133,8 @@
 	}
 }
 
-.wp-desktop-window--opening {
-	animation: wp-desktop-window-open 0.2s ease forwards;
+.desktop-mode-window--opening {
+	animation: desktop-mode-window-open 0.2s ease forwards;
 }
 
 /*
@@ -148,7 +148,7 @@
  * duration so users with prefers-reduced-motion still see the
  * affordance without movement.
  */
-@keyframes wp-desktop-window-shake {
+@keyframes desktop-mode-window-shake {
 	0%, 100% { transform: translateX( 0 ); }
 	8%       { transform: translateX( -10px ); }
 	18%      { transform: translateX( 9px ); }
@@ -160,12 +160,12 @@
 	84%      { transform: translateX( 2px ); }
 }
 
-.wp-desktop-window--shaking {
-	animation: wp-desktop-window-shake 0.6s cubic-bezier( 0.36, 0.07, 0.19, 0.97 ) both;
+.desktop-mode-window--shaking {
+	animation: desktop-mode-window-shake 0.6s cubic-bezier( 0.36, 0.07, 0.19, 0.97 ) both;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-window--shaking {
+	.desktop-mode-window--shaking {
 		animation: none;
 		outline: 3px solid var( --wp-admin-theme-color, #2271b1 );
 		outline-offset: 2px;
@@ -179,7 +179,7 @@
  * CSS transition can animate the change. The window is invisible
  * and non-interactive but stays in the DOM for a smooth restore.
  */
-.wp-desktop-window--minimized {
+.desktop-mode-window--minimized {
 	opacity: 0;
 	transform: scale(0.92) translateY(16px);
 	pointer-events: none;
@@ -190,7 +190,7 @@
  * Closing animation — fade out + slight scale down.
  * The JS waits for transitionend then removes the element.
  */
-.wp-desktop-window--closing {
+.desktop-mode-window--closing {
 	opacity: 0;
 	transform: scale(0.95);
 	pointer-events: none;
@@ -203,10 +203,10 @@
  * (avoids layout jumps from display: none).
  */
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-window {
+	.desktop-mode-window {
 		transition-duration: 0.01ms !important;
 	}
-	.wp-desktop-window--opening {
+	.desktop-mode-window--opening {
 		animation-duration: 0.01ms !important;
 	}
 }
@@ -228,7 +228,7 @@
  * translucent accent-colored rectangle covering the target half, with
  * a bright border so the user sees exactly where the window will land.
  * --------------------------------------------------------------- */
-.wp-desktop-snap-preview {
+.desktop-mode-snap-preview {
 	position: absolute;
 	background: color-mix(
 		in srgb,
@@ -252,7 +252,7 @@
 		height 0.18s cubic-bezier( 0.2, 0, 0.2, 1 );
 }
 
-.wp-desktop-snap-preview--visible {
+.desktop-mode-snap-preview--visible {
 	opacity: 1;
 }
 
@@ -273,8 +273,8 @@
  * window. Flat edges + no shadow gives the two-up feel of a native
  * split view: windows adjacent, no separator.
  */
-.wp-desktop-window--snapped-left,
-.wp-desktop-window--snapped-right {
+.desktop-mode-window--snapped-left,
+.desktop-mode-window--snapped-right {
 	box-shadow: none;
 }
 
@@ -282,18 +282,18 @@
    the focused selector runs at equal specificity, so without this
    rule the focus shadow would re-introduce the seam once the snapped
    window is active. */
-.wp-desktop-window--focused.wp-desktop-window--snapped-left,
-.wp-desktop-window--focused.wp-desktop-window--snapped-right {
+.desktop-mode-window--focused.desktop-mode-window--snapped-left,
+.desktop-mode-window--focused.desktop-mode-window--snapped-right {
 	box-shadow: none;
 }
 
-.wp-desktop-window--snapped-left {
+.desktop-mode-window--snapped-left {
 	/* Inner (right) edge flush; outer corners keep the radius. */
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
 
-.wp-desktop-window--snapped-right {
+.desktop-mode-window--snapped-right {
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
 }
@@ -305,7 +305,7 @@
  * lighter (the anchor window still takes the other half, so we want
  * the picker to feel "peripheral" not "modal").
  */
-.wp-desktop-area--split-overview {
+.desktop-mode-area--split-overview {
 	background-color: rgba( 0, 0, 0, 0.28 );
 	transition: background-color 0.24s ease;
 }

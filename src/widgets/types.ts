@@ -20,7 +20,7 @@ export type WidgetTeardown = () => void;
 /**
  * Namespaced key/value store scoped to the widget id. Available via
  * `ctx.storage` on the execution context passed to `mount`. Backed
- * by `localStorage` under the key `wp-desktop.widget.<id>.<key>` so
+ * by `localStorage` under the key `desktop-mode.widget.<id>.<key>` so
  * two different widgets that both persist a "layout" setting can't
  * collide. All methods are best-effort: a disabled storage engine
  * (private mode, quota exceeded, etc.) makes `set` a silent no-op
@@ -64,11 +64,11 @@ export interface WidgetStorage {
 export interface WidgetContext {
 	/** The widget's own id — handy for data-attribute scoping. */
 	id: string;
-	/** Absolute URL of the wp-desktop-mode plugin (no trailing slash). */
+	/** Absolute URL of the desktop-mode plugin (no trailing slash). */
 	pluginUrl: string;
 	/**
 	 * Per-widget key/value store. Auto-namespaced under
-	 * `wp-desktop.widget.<id>.<key>` in `localStorage` so two
+	 * `desktop-mode.widget.<id>.<key>` in `localStorage` so two
 	 * different widgets can both persist a `preferences` / `layout`
 	 * value without colliding.
 	 */

@@ -45,7 +45,7 @@ function desktop_mode_ajax_save() {
 
 	// Tell the client where to land. Enabling from classic admin forwards
 	// through the portal so the shell takes over and the address bar
-	// collapses to /wp-desktop/. Disabling from the shell jumps to a
+	// collapses to /desktop-mode/. Disabling from the shell jumps to a
 	// plain admin URL — NOT the portal, which would auto-re-enable the
 	// mode via the `desktop_mode_portal_auto_enable` filter and trap the
 	// user in a loop.

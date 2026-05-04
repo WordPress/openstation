@@ -19,7 +19,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-plugin-titlebar',
         plugins_url( 'js/titlebar.js', __FILE__ ),
-        array( 'wp-desktop-mode' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -241,11 +241,11 @@ const conn = await wp.desktop.iframe.requestConnection( {
 // From here, just `publish` like normal.
 ```
 
-Parent-side, plugins can intervene with the `wp-desktop.iframe.connection-request` filter:
+Parent-side, plugins can intervene with the `desktop-mode.iframe.connection-request` filter:
 
 ```javascript
 wp.desktop.hooks.addFilter(
-    'wp-desktop.iframe.connection-request',
+    'desktop-mode.iframe.connection-request',
     'my-plugin/gate',
     ( accept, ctx ) => {
         // ctx = { windowId, requestId, topics }

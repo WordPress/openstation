@@ -36,7 +36,7 @@ import type { WindowManager } from '../window-manager';
  *   - `items` — the menu-derived tile list at boot. Live updates
  *     come through the controller's `replaceItems()`.
  *   - `orientation` — `'left' | 'right' | 'bottom'`. Reflected on
- *     the container's `data-wp-desktop-dock-placement` attribute
+ *     the container's `data-desktop-mode-dock-placement` attribute
  *     by the shell before `mount()` runs.
  *
  * **Routing callbacks** (renderers MUST call these instead of

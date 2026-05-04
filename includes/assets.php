@@ -35,53 +35,53 @@ function desktop_mode_register_assets() {
 
 	// Styles.
 	wp_register_style(
-		'wp-desktop-variables',
+		'desktop-mode-variables',
 		DESKTOP_MODE_URL . 'assets/css/variables.css',
 		array(),
 		$version
 	);
 	wp_register_style(
-		'wp-desktop',
+		'desktop-mode',
 		DESKTOP_MODE_URL . 'assets/css/desktop.css',
-		array( 'wp-desktop-variables' ),
+		array( 'desktop-mode-variables' ),
 		$version
 	);
 	wp_register_style(
-		'wp-desktop-windows',
+		'desktop-mode-windows',
 		DESKTOP_MODE_URL . 'assets/css/windows.css',
-		array( 'wp-desktop-variables', 'dashicons' ),
+		array( 'desktop-mode-variables', 'dashicons' ),
 		$version
 	);
 	wp_register_style(
-		'wp-desktop-dock',
+		'desktop-mode-dock',
 		DESKTOP_MODE_URL . 'assets/css/dock.css',
-		array( 'wp-desktop-variables', 'dashicons' ),
+		array( 'desktop-mode-variables', 'dashicons' ),
 		$version
 	);
 	wp_register_style(
-		'wp-desktop-dock-peek',
+		'desktop-mode-dock-peek',
 		DESKTOP_MODE_URL . 'assets/css/dock-peek.css',
-		array( 'wp-desktop-dock' ),
+		array( 'desktop-mode-dock' ),
 		$version
 	);
 	wp_register_style(
-		'wp-desktop-chromeless',
+		'desktop-mode-chromeless',
 		DESKTOP_MODE_URL . 'assets/css/chromeless.css',
-		array( 'wp-desktop' ),
+		array( 'desktop-mode' ),
 		$version
 	);
 
 	wp_register_style(
-		'wp-desktop-ai-assistant',
+		'desktop-mode-ai-assistant',
 		DESKTOP_MODE_URL . 'assets/css/ai-assistant.css',
-		array( 'wp-desktop-variables' ),
+		array( 'desktop-mode-variables' ),
 		$version
 	);
 
 	wp_register_style(
-		'wp-desktop-bug-report',
+		'desktop-mode-bug-report',
 		DESKTOP_MODE_URL . 'assets/css/bug-report.css',
-		array( 'wp-desktop-variables' ),
+		array( 'desktop-mode-variables' ),
 		$version
 	);
 
@@ -90,9 +90,9 @@ function desktop_mode_register_assets() {
 	// and we never want a stale CSS cache to mask a real fix.
 	$recycle_bin_css = DESKTOP_MODE_DIR . 'assets/css/recycle-bin.css';
 	wp_register_style(
-		'wp-desktop-recycle-bin',
+		'desktop-mode-recycle-bin',
 		DESKTOP_MODE_URL . 'assets/css/recycle-bin.css',
-		array( 'wp-desktop-variables', 'dashicons' ),
+		array( 'desktop-mode-variables', 'dashicons' ),
 		file_exists( $recycle_bin_css ) ? (string) filemtime( $recycle_bin_css ) : $version
 	);
 
@@ -106,7 +106,7 @@ function desktop_mode_register_assets() {
 	// when Gutenberg-adjacent deps pull them in, so we list them
 	// explicitly to guarantee load order.
 	wp_register_script(
-		'wp-desktop',
+		'desktop-mode',
 		DESKTOP_MODE_URL . 'assets/js/desktop' . $suffix . '.js',
 		// `heartbeat` + `jquery` — the recycle-bin badge module
 		// (loaded as part of this bundle) opts into the WordPress
@@ -117,7 +117,7 @@ function desktop_mode_register_assets() {
 		true
 	);
 
-	// `wp-desktop-iframe-bridge` — opt-in iframe-side bridge that
+	// `desktop-mode-iframe-bridge` — opt-in iframe-side bridge that
 	// provides `wp.desktop.iframe.publish/subscribe/onConnection/
 	// requestConnection` to any same-origin iframe that enqueues it.
 	// Same code is also injected inline by the chromeless bridge
@@ -126,20 +126,20 @@ function desktop_mode_register_assets() {
 	// `iframeContent: { bridge: true }`. Plugins targeting their
 	// own iframe pages just enqueue this handle.
 	wp_register_script(
-		'wp-desktop-iframe-bridge',
+		'desktop-mode-iframe-bridge',
 		DESKTOP_MODE_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
 		array(),
 		$built_version( 'assets/js/iframe-bridge' . $suffix . '.js' ),
 		true
 	);
 
-	// `wp-desktop-recycle-bin` — small bundle for the Recycle Bin
+	// `desktop-mode-recycle-bin` — small bundle for the Recycle Bin
 	// native window. Lazy-loaded by the native-window sync the first
 	// time the bin opens; registers a render callback on
-	// `window.wpDesktopNativeWindows['wpdm-recycle-bin']`.
+	// `window.desktopModeNativeWindows['desktop-mode-recycle-bin']`.
 	$recycle_bin_js = DESKTOP_MODE_DIR . 'assets/js/recycle-bin' . $suffix . '.js';
 	wp_register_script(
-		'wp-desktop-recycle-bin',
+		'desktop-mode-recycle-bin',
 		DESKTOP_MODE_URL . 'assets/js/recycle-bin' . $suffix . '.js',
 		// `heartbeat` + `jquery` — the bin opts in to the WordPress
 		// Heartbeat API while its window is open as the catch-all
@@ -151,18 +151,18 @@ function desktop_mode_register_assets() {
 		true
 	);
 	wp_set_script_translations(
-		'wp-desktop-recycle-bin',
+		'desktop-mode-recycle-bin',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);
 
 	// Wire the translation bundle to this script handle. WP looks
-	// for `languages/desktop-mode-{locale}-wp-desktop.json` and
+	// for `languages/desktop-mode-{locale}-desktop-mode.json` and
 	// injects its `locale_data` into `wp.i18n` just before the
 	// script runs — so every `__()` call resolves to the right
 	// language without any runtime fetch.
 	wp_set_script_translations(
-		'wp-desktop',
+		'desktop-mode',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);

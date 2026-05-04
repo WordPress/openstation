@@ -5,7 +5,7 @@
  * isolation. Given the parent shell's mutable `config`, the dock
  * instance, and the per-surface sync callbacks, returns a single
  * `applyPayload( payload )` function that mirrors a fresh
- * `wp-desktop-plugins-changed` payload onto the live shell — adding
+ * `desktop-mode-plugins-changed` payload onto the live shell — adding
  * dock tiles, repainting widgets, registering plugin wallpapers,
  * re-rendering wallpaper-shortcut icons, and so on, all without an F5.
  *
@@ -89,9 +89,9 @@ export interface MenuRefreshDeps {
  * without paying a page reload — the event detail names the registry
  * and the id-based diff against the prior snapshot.
  *
- * Naming: `desktop-mode-*`, NOT `wp-desktop-*`. The `wp-` prefix is
+ * Naming: `desktop-mode-*`, NOT `desktop-mode-*`. The `wp-` prefix is
  * reserved for WordPress Core per plugin reviewer guidelines; existing
- * `wp-desktop-*` events stay for backwards-compat but new public
+ * `desktop-mode-*` events stay for backwards-compat but new public
  * surface uses the project-owned prefix.
  *
  * @since 0.18.1

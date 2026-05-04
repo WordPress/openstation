@@ -63,7 +63,7 @@ function desktop_mode_chromeless_suppress_admin_bar() {
 add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
 
 /**
- * Preserves the `wp_desktop` flag through admin redirects.
+ * Preserves the `desktop_mode_chromeless` flag through admin redirects.
  *
  * A chromeless iframe can be navigated away from chromeless mode by any
  * redirect that drops the query string — `wp_redirect( admin_url( 'edit.php' ) )`
@@ -79,7 +79,7 @@ add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
  * @since 0.1.0
  *
  * @param string $location The redirect URL.
- * @return string The redirect URL, with `wp_desktop=1` appended when applicable.
+ * @return string The redirect URL, with `desktop_mode_chromeless=1` appended when applicable.
  */
 function desktop_mode_chromeless_preserve_redirect( $location ) {
 	if ( empty( $location ) || ! desktop_mode_is_chromeless_request() ) {
@@ -92,11 +92,11 @@ function desktop_mode_chromeless_preserve_redirect( $location ) {
 	}
 
 	// Don't double-append if the URL already carries the flag.
-	if ( false !== strpos( $location, 'wp_desktop=' ) ) {
+	if ( false !== strpos( $location, 'desktop_mode_chromeless=' ) ) {
 		return $location;
 	}
 
-	return add_query_arg( 'wp_desktop', '1', $location );
+	return add_query_arg( 'desktop_mode_chromeless', '1', $location );
 }
 add_filter( 'wp_redirect', 'desktop_mode_chromeless_preserve_redirect', 999 );
 
@@ -150,14 +150,14 @@ function desktop_mode_is_chromeless_request() {
 	if ( ! desktop_mode_is_enabled() ) {
 		// Only allow chromeless mode if the user actually has
 		// desktop mode enabled. Prevents stripping admin chrome via
-		// a bare `?wp_desktop=1` parameter from a logged-out URL.
+		// a bare `?desktop_mode_chromeless=1` parameter from a logged-out URL.
 		return false;
 	}
 
 	// Primary signal — the explicit query flag the parent shell
 	// adds when opening windows.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
-	if ( ! empty( $_GET['wp_desktop'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wp_desktop'] ) ) ) {
+	if ( ! empty( $_GET['desktop_mode_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['desktop_mode_chromeless'] ) ) ) {
 		return true;
 	}
 
@@ -167,7 +167,7 @@ function desktop_mode_is_chromeless_request() {
 	// JavaScript spoofing (the browser sets them itself).
 	//
 	// This catches the failure mode where an internal admin
-	// navigation drops the `?wp_desktop=1` query flag — Gutenberg's
+	// navigation drops the `?desktop_mode_chromeless=1` query flag — Gutenberg's
 	// `window.location` assignments, meta-refresh redirects, or any
 	// link the inline rewriter missed. The user is in an iframe on
 	// the same origin, has desktop mode enabled, so render as
@@ -186,7 +186,7 @@ function desktop_mode_is_chromeless_request() {
 	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
 		/**
 		 * Filter the Sec-Fetch fallback. Return false to require an
-		 * explicit `?wp_desktop=1` flag (matches pre-0.18 behaviour);
+		 * explicit `?desktop_mode_chromeless=1` flag (matches pre-0.18 behaviour);
 		 * useful for environments where a reverse proxy strips the
 		 * `Sec-Fetch-*` headers and they can't be trusted.
 		 *
@@ -1256,11 +1256,11 @@ function desktop_mode_build_native_windows_payload() {
 		// alternative to `wp_localize_script`. We synthesize a localize
 		// snippet so it lands through the same delivery path as native
 		// `wp_localize_script`. The bundle reads
-		// `window.wpDesktopWindowConfig[id]` (or via
+		// `window.desktopModeWindowConfig[id]` (or via
 		// `wp.desktop.getWindowConfig(id)`).
 		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
 			$script_payload['l10n'][] = sprintf(
-				'window.wpDesktopWindowConfig=window.wpDesktopWindowConfig||{};window.wpDesktopWindowConfig[%s]=%s;',
+				'window.desktopModeWindowConfig=window.desktopModeWindowConfig||{};window.desktopModeWindowConfig[%s]=%s;',
 				wp_json_encode( $entry['id'] ),
 				wp_json_encode( $entry['config'] )
 			);
@@ -1305,7 +1305,7 @@ function desktop_mode_build_native_windows_payload() {
 			'minWidth'          => $entry['min_width'],
 			'minHeight'         => $entry['min_height'],
 			'autofocus'         => $entry['autofocus'],
-			'templateId'        => 'wpdm-native-window-' . $entry['id'],
+			'templateId'        => 'desktop-mode-native-window-' . $entry['id'],
 			'templateHtml'      => $template_html,
 			'scriptUrl'         => $script_payload['url'],
 			'scriptHandle'      => $script_handle,

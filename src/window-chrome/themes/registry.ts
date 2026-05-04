@@ -9,7 +9,7 @@
  *
  * Plugin authors use this to colour, soften, or restyle individual
  * windows without having to know anything about the shell's chrome
- * structure. Designers hand off a `tokens` map of `--wp-desktop-*`
+ * structure. Designers hand off a `tokens` map of `--desktop-mode-*`
  * variables and call it a day. Power users still get the slot and
  * control registries for shape changes (Layers 2-3) and the full
  * chrome render escape hatch (Layer 4).
@@ -53,9 +53,9 @@ export interface WindowThemeDef {
 	 *
 	 * ```ts
 	 * tokens: {
-	 *   '--wp-desktop-window-radius': '14px',
-	 *   '--wp-desktop-titlebar-bg': '#1a1a2e',
-	 *   '--wp-desktop-titlebar-color-focused': '#fafafa',
+	 *   '--desktop-mode-window-radius': '14px',
+	 *   '--desktop-mode-titlebar-bg': '#1a1a2e',
+	 *   '--desktop-mode-titlebar-color-focused': '#fafafa',
 	 * }
 	 * ```
 	 */
@@ -214,7 +214,7 @@ export function resolveWindowTheme(
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[wp-desktop-mode] window-theme "${ def.id }" match() threw — skipping`,
+					`[desktop-mode] window-theme "${ def.id }" match() threw — skipping`,
 					err,
 				);
 			}
@@ -246,7 +246,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[wp-desktop-mode] window-theme registry listener threw:',
+					'[desktop-mode] window-theme registry listener threw:',
 					err,
 				);
 			}

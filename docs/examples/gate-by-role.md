@@ -31,7 +31,7 @@ Returning `false` has two effects:
 
 ## Disable the portal auto-enable too
 
-If you always want desktop mode off for a user, also stop the portal from flipping it back on when they happen to visit `/wp-desktop/`:
+If you always want desktop mode off for a user, also stop the portal from flipping it back on when they happen to visit `/desktop-mode/`:
 
 ```php
 add_filter( 'desktop_mode_portal_auto_enable', function ( $auto, $user_id ) {

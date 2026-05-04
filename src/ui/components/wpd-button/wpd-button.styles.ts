@@ -30,10 +30,10 @@ export const styles = css`
 			border-color 0.12s ease;
 		/* Ghost (default) */
 		background: var( --wpd-button-bg, transparent );
-		color: var( --wpd-button-fg, var( --wp-desktop-text, #1d2327 ) );
+		color: var( --wpd-button-fg, var( --desktop-mode-text, #1d2327 ) );
 		border: var(
 			--wpd-button-border,
-			1px solid var( --wp-desktop-border, #c3c4c7 )
+			1px solid var( --desktop-mode-border, #c3c4c7 )
 		);
 	}
 	:host( [ fill-cell ] ) button {
@@ -63,7 +63,7 @@ export const styles = css`
 	 * two-button dialog). */
 	:host( [ variant='secondary' ] ) button {
 		background: var( --wpd-button-bg, rgba( 0, 0, 0, 0.06 ) );
-		color: var( --wpd-button-fg, var( --wp-desktop-text, #1d2327 ) );
+		color: var( --wpd-button-fg, var( --desktop-mode-text, #1d2327 ) );
 		border: var( --wpd-button-border, 1px solid transparent );
 	}
 	:host( [ variant='secondary' ] ) button:hover:not( :disabled ) {

@@ -11,8 +11,8 @@ Browser tab
 │   ├── Dock                 — unified rail (core + plugin menus from $menu)
 │   │                           placement (left / right / bottom) = user pref
 │   └── Desktop area         — wallpaper; hosts windows + desktop icons
-│       ├── Window A         — <iframe src="edit.php?wp_desktop=1">
-│       ├── Window B         — <iframe src="upload.php?wp_desktop=1">
+│       ├── Window A         — <iframe src="edit.php?desktop_mode_chromeless=1">
+│       ├── Window B         — <iframe src="upload.php?desktop_mode_chromeless=1">
 │       └── Window C (native)— <div> with plugin-rendered content
 │
 └── Each iframe renders a chromeless admin page
@@ -21,10 +21,10 @@ Browser tab
 
 ## PHP flow (per request)
 
-1. `admin_init` — portal redirect logic decides whether to keep the request where it is or send the user to `/wp-desktop/`.
-2. `admin_body_class` — the `wp-desktop-active` or `wp-desktop-chromeless` class is appended so CSS and JS can key off it.
+1. `admin_init` — portal redirect logic decides whether to keep the request where it is or send the user to `/desktop-mode/`.
+2. `admin_body_class` — the `desktop-mode-active` or `desktop-mode-chromeless` class is appended so CSS and JS can key off it.
 3. `admin_enqueue_scripts` — CSS and JS are registered on a per-mode basis (shell assets in desktop mode, chromeless overrides in iframes).
-4. `in_admin_header @ 5` — the shell markup is injected right after the admin bar (`<div id="wp-desktop-shell">`).
+4. `in_admin_header @ 5` — the shell markup is injected right after the admin bar (`<div id="desktop-mode-shell">`).
 5. `admin_footer` — the chromeless bridge script is injected inside iframes so they can `postMessage` back to the shell.
 
 Key server-side entry points:
@@ -37,25 +37,25 @@ Key server-side entry points:
 | `includes/admin-bar.php` | Toggle node + inline JS click handler. |
 | `includes/assets.php` | Registers CSS/JS handles on `init`. |
 | `includes/render.php` | Shell markup, chromeless bridge emission, body classes. |
-| `includes/portal.php` | Portal URL (`/wp-desktop/`) and redirect rules. |
+| `includes/portal.php` | Portal URL (`/desktop-mode/`) and redirect rules. |
 | `includes/session.php` | REST endpoints for saving/restoring the per-user window session. |
 
 ## Browser flow
 
-1. `/wp-admin/` loads → portal redirect sends the user to `/wp-desktop/`.
-2. `/wp-desktop/` serves a real admin page (Dashboard by default) with the shell wrapped around it.
+1. `/wp-admin/` loads → portal redirect sends the user to `/desktop-mode/`.
+2. `/desktop-mode/` serves a real admin page (Dashboard by default) with the shell wrapped around it.
 3. The shell's Vite-built TypeScript bundle (`desktop.js` in dev, `desktop.min.js` in prod) initializes:
    - Creates the `WindowManager`.
    - Creates the **layout dispatcher** which owns the dock(s) for the active `desktopLayout` (see [Desktop layout modes](#desktop-layout-modes)).
    - Either restores the saved session (if one exists) **or** opens the current page in a new window.
-   - Wires persistence — debounced `POST /wp-json/wp-desktop-mode/v1/session`.
-4. When a dock icon is clicked, the manager opens a window whose iframe `src` is the admin URL with `?wp_desktop=1` appended.
+   - Wires persistence — debounced `POST /wp-json/desktop-mode/v1/session`.
+4. When a dock icon is clicked, the manager opens a window whose iframe `src` is the admin URL with `?desktop_mode_chromeless=1` appended.
 5. The iframe renders WordPress normally, but the chromeless stylesheet hides the admin bar, side menu, and wp-footer.
 6. The iframe `postMessage`s its title, navigation, and screen-meta state up to the parent.
 
 ## Desktop layout modes
 
-OS Settings → Appearance lets the user pick one of three top-level layouts. The shell root reflects the choice in `data-wp-desktop-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.
+OS Settings → Appearance lets the user pick one of three top-level layouts. The shell root reflects the choice in `data-desktop-mode-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.
 
 | Mode | Default? | Bottom dock | Left side dock (`wp.desktop.sideDock`) | Wallpaper icons |
 |---|---|---|---|---|
@@ -63,9 +63,9 @@ OS Settings → Appearance lets the user pick one of three top-level layouts. Th
 | **Unified** | — *(was the default in 0.17.x)* | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
 | **Spatial** | — | Plugin menus only | — *(no side dock)* | Plugin-registered icons + **synthesized core icons** (one per core menu, prefixed `dock-core:`) |
 
-A user-meta value (`desktopLayout` inside the OS Settings JSON blob, REST-synced via the existing `/wp-json/wp-desktop-mode/v1/os-settings` endpoint) is the persistence layer. The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
+A user-meta value (`desktopLayout` inside the OS Settings JSON blob, REST-synced via the existing `/wp-json/desktop-mode/v1/os-settings` endpoint) is the persistence layer. The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
 
-Listen for `wp-desktop-layout-changed` on `document` to react to a switch in plugin code — the event detail carries the new `layout` string plus current `primary`/`side` `Dock` references.
+Listen for `desktop-mode-layout-changed` on `document` to react to a switch in plugin code — the event detail carries the new `layout` string plus current `primary`/`side` `Dock` references.
 
 ## Dock customization — two registries
 
@@ -91,7 +91,7 @@ Robustness guarantees:
 
 Persistence:
 
-- `dockRailRenderer` lives on `OsSettingsState` (REST-synced to user meta via `/wp-json/wp-desktop-mode/v1/os-settings`). The field takes any `sanitize_key()`-clean string; the JS-side registry resolves at use time and falls back to `'default'` when the named renderer is missing (plugin deactivated, typo). No server-side allow-list — renderers register from JS at runtime.
+- `dockRailRenderer` lives on `OsSettingsState` (REST-synced to user meta via `/wp-json/desktop-mode/v1/os-settings`). The field takes any `sanitize_key()`-clean string; the JS-side registry resolves at use time and falls back to `'default'` when the named renderer is missing (plugin deactivated, typo). No server-side allow-list — renderers register from JS at runtime.
 
 See [`docs/dock-customization.md`](./dock-customization.md) for the plugin-author overview and [`docs/examples/`](./examples/README.md) for full walk-throughs.
 
@@ -107,14 +107,14 @@ Registered via `desktop_mode_register_window()` (PHP) or `wp.desktop.registerWin
 
 Additional tabs can be attached to any native window with `desktop_mode_register_window_tab()` — the first tab is the window's own template, and subsequent registrations (from any plugin) append after it. When two or more tabs exist the shell auto-wraps the render tree in `<wpd-stack>` + `<wpd-tabs>` so plugin authors don't hand-write tabstrip markup.
 
-The shell's own **OS Settings** native window (wallpaper / accent / dock-size / AI config / default-window) is both a shipped feature and the reference implementation. Lifecycle hooks — `wp-desktop.native-window.before-render` (filter), `after-render`, `before-close` — let a plugin decorate or wrap another plugin's render output.
+The shell's own **OS Settings** native window (wallpaper / accent / dock-size / AI config / default-window) is both a shipped feature and the reference implementation. Lifecycle hooks — `desktop-mode.native-window.before-render` (filter), `after-render`, `before-close` — let a plugin decorate or wrap another plugin's render output.
 
 #### Eager vs lazy script load — and what gets injected
 
 The script handle declared in `desktop_mode_register_window( …, [ 'script' => $handle ] )` reaches the shell page through one of two paths:
 
 - **Eager** — `desktop_mode_enqueue_native_window_scripts()` calls `wp_enqueue_script( $handle )` on `admin_enqueue_scripts:20`, so WordPress prints the tag normally through `wp_print_scripts()` along with all `extra` data (localize, inline, translations).
-- **Lazy** — when the shell receives the `nativeWindows` payload mid-session (e.g. after a `wp-desktop-plugins-changed` postMessage from the chromeless `plugins.php` iframe), it appends `<script src="…">` directly via `loadVendorScript( url, extras )`. **This path bypasses `wp_print_scripts()` entirely.**
+- **Lazy** — when the shell receives the `nativeWindows` payload mid-session (e.g. after a `desktop-mode-plugins-changed` postMessage from the chromeless `plugins.php` iframe), it appends `<script src="…">` directly via `loadVendorScript( url, extras )`. **This path bypasses `wp_print_scripts()` entirely.**
 
 Since 0.6.0, the payload builders harvest each registered handle's `extra['data']` (localize), `extra['before']` / `extra['after']` (inline), and `wp_set_script_translations()` snippet into the `nativeWindows[]` entry as `scriptL10n` / `scriptBefore` / `scriptAfter` / `scriptTranslations`. The shell injects them as inline `<script>` tags around the lazy `<script src>` in `wp_print_scripts` order — translations → l10n → before → src → after. So `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations` work transparently on both paths.
 
@@ -126,9 +126,9 @@ Every window lifecycle event — open, close, focus, move, resize, state change 
 
 REST surface:
 
-- `GET  /wp-json/wp-desktop-mode/v1/session` — current user's saved session.
-- `POST /wp-json/wp-desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], focused, updated } }`.
-- `DELETE /wp-json/wp-desktop-mode/v1/session` — clear it.
+- `GET  /wp-json/desktop-mode/v1/session` — current user's saved session.
+- `POST /wp-json/desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], focused, updated } }`.
+- `DELETE /wp-json/desktop-mode/v1/session` — clear it.
 
 All session routes require a valid `X-WP-Nonce` (the standard REST nonce) and the current user to be logged in with capability `read`.
 
@@ -137,7 +137,7 @@ We also extend Core's `/wp/v2/media` endpoint with two opt-in query parameters s
 - `desktop_mode_min_width=<int>`  — only return images at least this many pixels wide.
 - `desktop_mode_min_height=<int>` — only return images at least this many pixels tall.
 
-Both params are purely additive — omitting them keeps the endpoint's default behavior untouched. Implementation lives in `includes/media-query.php`: every new upload gets stamped with two flat numeric post-meta keys (`_wpdm_width`, `_wpdm_height`) via `wp_generate_attachment_metadata` / `wp_update_attachment_metadata`, and the params translate into a `WP_Meta_Query` NUMERIC `>=` clause. Pre-existing attachments are backfilled opportunistically — each filtered REST request stamps up to 50 unstamped images — so a site upgrading into this feature starts seeing real filtered results within a few picker opens rather than requiring a CLI run. Once every image has been stamped, the `desktop_mode_media_dims_backfilled` site option flips to `1` and the sweep query is skipped from then on.
+Both params are purely additive — omitting them keeps the endpoint's default behavior untouched. Implementation lives in `includes/media-query.php`: every new upload gets stamped with two flat numeric post-meta keys (`_desktop_mode_width`, `_desktop_mode_height`) via `wp_generate_attachment_metadata` / `wp_update_attachment_metadata`, and the params translate into a `WP_Meta_Query` NUMERIC `>=` clause. Pre-existing attachments are backfilled opportunistically — each filtered REST request stamps up to 50 unstamped images — so a site upgrading into this feature starts seeing real filtered results within a few picker opens rather than requiring a CLI run. Once every image has been stamped, the `desktop_mode_media_dims_backfilled` site option flips to `1` and the sweep query is skipped from then on.
 
 ## Command palette bridge (Cmd+K, hijacked)
 
@@ -146,17 +146,17 @@ WordPress 6.4+ ships a command palette via `@wordpress/commands` — the one tha
 This is a deliberate hack — there is no public API on `@wordpress/commands` for a parent frame to read and invoke commands from a child iframe. The implementation lives in two places:
 
 - **Iframe side** (`includes/render.php`, chromeless bridge script):
-  1. A capture-phase `keydown` handler `preventDefault`s Cmd/Ctrl+K and posts `wp-desktop-palette-cycle` to the parent. No more "native palette flashes before ours wins the race."
+  1. A capture-phase `keydown` handler `preventDefault`s Cmd/Ctrl+K and posts `desktop-mode-palette-cycle` to the parent. No more "native palette flashes before ours wins the race."
   2. A React component is mounted into a hidden div (via `wp.element.createRoot`). It `useSelect`s `getCommandLoaders(true)` and `getCommands(true)` from `core/commands`; one child component per loader invokes the loader's hook under a legal render context. Results are collected into a ref-based bucket (state would setState-loop — every hook call returns a fresh array reference).
   3. Callbacks are NOT executed to classify navigation commands. `Location.prototype.href` is non-configurable so a sandbox can't intercept `location.href = X` without real navigation — an earlier attempt cascaded into infinite window spawning. We now match `Function.prototype.toString()` against a string-literal regex instead. Computed URLs fall back to `action`.
   4. React icons (`@wordpress/icons` elements) are flattened to SVG markup via `wp.element.renderToString` so they can cross `postMessage`'s structured clone.
   5. A private `__wpdCommandCallbacks` cache, rebuilt every harvest, keeps live references to the loader commands' callbacks. Loader results aren't in `getCommands()` so the invoke path needs its own lookup.
 
 - **Parent side** (`src/commands/iframe-bridge.ts`):
-  1. On `wp-desktop-window-focused`, send `wp-desktop-commands-subscribe` to that window's iframe; evict the previous window's commands tagged with owner `iframe:<windowId>`.
-  2. On `wp-desktop-commands-list`, re-register everything under the new owner. Navigation-kind commands become "open a new desktop window" via `manager.open`; action-kind commands post `wp-desktop-commands-invoke` back to the iframe.
-  3. On `wp-desktop-window-changed` with `state: 'minimized'` for the subscribed window, evict its commands — minimized windows shouldn't contribute to a palette that's supposed to reflect what's actionable right now. The next focus event rehydrates.
-  4. On `wp-desktop-bridge-ready` (handshake posted by the iframe once its listener is attached), re-send subscribe if the iframe matches the currently focused window. Fixes the race where the parent sends subscribe before the iframe script has run.
+  1. On `desktop-mode-window-focused`, send `desktop-mode-commands-subscribe` to that window's iframe; evict the previous window's commands tagged with owner `iframe:<windowId>`.
+  2. On `desktop-mode-commands-list`, re-register everything under the new owner. Navigation-kind commands become "open a new desktop window" via `manager.open`; action-kind commands post `desktop-mode-commands-invoke` back to the iframe.
+  3. On `desktop-mode-window-changed` with `state: 'minimized'` for the subscribed window, evict its commands — minimized windows shouldn't contribute to a palette that's supposed to reflect what's actionable right now. The next focus event rehydrates.
+  4. On `desktop-mode-bridge-ready` (handshake posted by the iframe once its listener is attached), re-send subscribe if the iframe matches the currently focused window. Fixes the race where the parent sends subscribe before the iframe script has run.
 
 Each harvested command is tagged `eager: true` so it surfaces in the palette without requiring the user to type `/`. The palette renders eager commands on empty input; typing `/` switches to the slash-only surface (disjoint from eager — see [JavaScript Reference](./javascript-reference.md#commands)).
 
@@ -167,10 +167,10 @@ Each harvested command is tagged `eager: true` so it surfaces in the palette wit
 ```
 assets/css/
 ├── variables.css    — Custom properties, color-scheme aware.
-├── desktop.css      — Shell layout; hides classic chrome via body.wp-desktop-active.
+├── desktop.css      — Shell layout; hides classic chrome via body.desktop-mode-active.
 ├── windows.css      — Window chrome, animations, states.
 ├── dock.css         — Left-edge dock.
-└── chromeless.css   — Loaded INSIDE iframes; scoped to body.wp-desktop-chromeless.
+└── chromeless.css   — Loaded INSIDE iframes; scoped to body.desktop-mode-chromeless.
 ```
 
 Never edit Core's `common.css` or color scheme files. Everything we need is exposed as a CSS Custom Property in `variables.css`.

@@ -1,4 +1,4 @@
-# Inject data into `wpDesktopConfig`
+# Inject data into `desktopModeConfig`
 
 Add a feature flag + REST endpoint to the shell config so your TypeScript can read it without another `rest_url()` round-trip.
 
@@ -24,8 +24,8 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
 ## Reading from JS
 
 ```javascript
-document.addEventListener( 'wp-desktop-init', () => {
-    const cfg = window.wpDesktopConfig;
+document.addEventListener( 'desktop-mode-init', () => {
+    const cfg = window.desktopModeConfig;
     if ( ! cfg.myFeature?.enabled ) {
         return;
     }
@@ -47,4 +47,4 @@ document.addEventListener( 'wp-desktop-init', () => {
 ## Related
 
 - [Hooks Reference — `desktop_mode_shell_config`](../hooks-reference.md#desktop_mode_shell_config--stable)
-- [JavaScript Reference — `wp-desktop-init`](../javascript-reference.md#wp-desktop-init--stable)
+- [JavaScript Reference — `desktop-mode-init`](../javascript-reference.md#desktop-mode-init--stable)

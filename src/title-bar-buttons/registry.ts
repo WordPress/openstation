@@ -102,7 +102,7 @@ export interface TitleBarButtonDef {
 	 *
 	 * When defined, `onClick` is ignored — your handler binds directly
 	 * to the host. The host already carries the icon, label, and the
-	 * `wp-desktop-window__btn` class; you typically only need to add
+	 * `desktop-mode-window__btn` class; you typically only need to add
 	 * a click listener for a popover anchor.
 	 */
 	render?: ( host: HTMLElement, window: DesktopWindow ) => void;
@@ -253,7 +253,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[wp-desktop-mode] title-bar-button registry listener threw:',
+					'[desktop-mode] title-bar-button registry listener threw:',
 					err,
 				);
 			}

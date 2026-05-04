@@ -26,8 +26,8 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Numeric post-meta keys stamped on every image attachment. */
-const DESKTOP_MODE_META_WIDTH  = '_wpdm_width';
-const DESKTOP_MODE_META_HEIGHT = '_wpdm_height';
+const DESKTOP_MODE_META_WIDTH  = '_desktop_mode_width';
+const DESKTOP_MODE_META_HEIGHT = '_desktop_mode_height';
 
 /** Option key flipped to `1` once every image has been backfilled. */
 const DESKTOP_MODE_BACKFILL_DONE_OPTION = 'desktop_mode_media_dims_backfilled';

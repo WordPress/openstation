@@ -190,16 +190,16 @@ function buildIframeContentRender(
 			if ( cfg.bridge ) {
 				try {
 					const doc = iframe.contentDocument;
-					if ( doc && ! doc.querySelector( 'script[data-wp-desktop-iframe-bridge]' ) ) {
+					if ( doc && ! doc.querySelector( 'script[data-desktop-mode-iframe-bridge]' ) ) {
 						const bridgeUrl = (
 							window as unknown as {
-								wpDesktopConfig?: { iframeBridgeUrl?: string };
+								desktopModeConfig?: { iframeBridgeUrl?: string };
 							}
-						).wpDesktopConfig?.iframeBridgeUrl;
+						).desktopModeConfig?.iframeBridgeUrl;
 						if ( bridgeUrl ) {
 							const s = doc.createElement( 'script' );
 							s.src = bridgeUrl;
-							s.setAttribute( 'data-wp-desktop-iframe-bridge', '1' );
+							s.setAttribute( 'data-desktop-mode-iframe-bridge', '1' );
 							doc.head?.appendChild( s );
 						}
 					}
@@ -223,7 +223,7 @@ function buildIframeContentRender(
 		// foreign caller). Origin is also validated — same-origin
 		// only by default, matching the chromeless bridge.
 		//
-		// Bridge-prefixed messages (`wp-desktop-bridge-*`) are also
+		// Bridge-prefixed messages (`desktop-mode-bridge-*`) are also
 		// forwarded into the connection registry so this iframe can
 		// participate in `wp.desktop.connect()` traffic — the
 		// chromeless bridge's own message listener doesn't see this
@@ -241,18 +241,18 @@ function buildIframeContentRender(
 				data &&
 				typeof data === 'object' &&
 				typeof ( data as { type?: string } ).type === 'string' &&
-				( data as { type: string } ).type.startsWith( 'wp-desktop-bridge-' )
+				( data as { type: string } ).type.startsWith( 'desktop-mode-bridge-' )
 			) {
 				const bridgeRouter = (
 					window as unknown as {
-						__wpDesktopConnectionBridge?: {
+						__desktopModeConnectionBridge?: {
 							routeIncomingFromIframe(
 								d: unknown,
 								fromWindowId?: string,
 							): void;
 						};
 					}
-				).__wpDesktopConnectionBridge;
+				).__desktopModeConnectionBridge;
 				bridgeRouter?.routeIncomingFromIframe( data, windowId );
 			}
 			// Unified window-channel publish from the synthetic iframe.
@@ -263,7 +263,7 @@ function buildIframeContentRender(
 			if (
 				data &&
 				typeof data === 'object' &&
-				( data as { type?: string } ).type === 'wp-desktop-window-publish' &&
+				( data as { type?: string } ).type === 'desktop-mode-window-publish' &&
 				typeof ( data as { channel?: string } ).channel === 'string' &&
 				( data as { channel: string } ).channel !== ''
 			) {
@@ -278,7 +278,7 @@ function buildIframeContentRender(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[wp-desktop-mode] iframeContent.onMessage threw:',
+						'[desktop-mode] iframeContent.onMessage threw:',
 						err,
 					);
 				}
@@ -322,7 +322,7 @@ export function createRegisterWindow(
 		if ( def.iframeContent ) {
 			if ( userRender && typeof console !== 'undefined' ) {
 				console.warn(
-					'[wp-desktop-mode] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
+					'[desktop-mode] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
 				);
 			}
 			render = buildIframeContentRender(
@@ -467,7 +467,7 @@ export function createRegisterWindow(
  * ```
  *
  * Each listener is registered under a deterministic namespace
- * (`wp-desktop-mode/on-window/<id>/<instance>`) so two concurrent
+ * (`desktop-mode/on-window/<id>/<instance>`) so two concurrent
  * `onWindow( 'calc', … )` calls don't clobber each other. The
  * instance counter is module-local.
  *
@@ -504,7 +504,7 @@ export function onWindow(
 	handlers: WindowLifecycleHandlers,
 	options: OnWindowOptions = {},
 ): () => void {
-	const namespace = `wp-desktop-mode/on-window/${ id }/${ ++onWindowInstanceCounter }`;
+	const namespace = `desktop-mode/on-window/${ id }/${ ++onWindowInstanceCounter }`;
 	const persistent = options.persistent === true;
 
 	// Map each handler slot onto the corresponding hook name + a
@@ -586,7 +586,7 @@ export function onWindow(
  * `templateHtml`; ditto for the plugin script via
  * `loadVendorScript( entry.scriptUrl )`. Once the script loads the
  * plugin registers a render callback on
- * `window.wpDesktopNativeWindows[ id ]`, which the shell invokes
+ * `window.desktopModeNativeWindows[ id ]`, which the shell invokes
  * when the tile opens its window.
  *
  * Mutually exclusive with the legacy JS-only path (a plugin calling
@@ -625,7 +625,7 @@ export interface NativeWindowRegistryDeps {
 type RenderCallback = ( body: HTMLElement ) => void | ( () => void );
 
 interface NativeWindowGlobals {
-	wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
+	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
 }
 
 /**
@@ -725,7 +725,7 @@ export function createNativeWindowSync(
 			link.rel = 'stylesheet';
 			link.href = url;
 			if ( entry.styleHandle ) {
-				link.dataset.wpdmStyleHandle = entry.styleHandle;
+				link.dataset.desktopModeStyleHandle = entry.styleHandle;
 			}
 			document.head.appendChild( link );
 		}
@@ -740,7 +740,7 @@ export function createNativeWindowSync(
 				}
 				const style = document.createElement( 'style' );
 				if ( entry.styleHandle ) {
-					style.dataset.wpdmStyleHandle = entry.styleHandle;
+					style.dataset.desktopModeStyleHandle = entry.styleHandle;
 				}
 				style.textContent = css;
 				document.head.appendChild( style );
@@ -778,7 +778,7 @@ export function createNativeWindowSync(
 
 	const openFromEntry = ( entry: NativeWindowServerEntry ): void => {
 		const globalRegistry =
-			( window as unknown as NativeWindowGlobals ).wpDesktopNativeWindows ||
+			( window as unknown as NativeWindowGlobals ).desktopModeNativeWindows ||
 			{};
 		const render = globalRegistry[ entry.id ];
 
@@ -910,7 +910,7 @@ export function createNativeWindowSync(
 		// or "show coachmark on first open" hook this independent
 		// of the WINDOW_OPENED / WINDOW_REOPENED branch the
 		// framework will take next.
-		activity.publish( 'wp-desktop/open-requested', {
+		activity.publish( 'desktop-mode/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
@@ -935,7 +935,7 @@ export function cloneTemplate(
 	}
 	if ( ! tpl ) {
 		throw new Error(
-			`[wp-desktop-mode] cloneTemplate: no <template> found for ${
+			`[desktop-mode] cloneTemplate: no <template> found for ${
 				typeof template === 'string' ? `#${ template }` : '<reference>'
 			}`,
 		);

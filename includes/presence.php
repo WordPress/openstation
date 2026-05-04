@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  *                    user activity within `_inactive_after`.
  *   - **offline**  — no Heartbeat in `_offline_after` (default 120s).
  *
- * Storage is a single autoload=false option (`_wp_desktop_presence`)
+ * Storage is a single autoload=false option (`_desktop_mode_presence`)
  * shaped `array<int user_id, array{ last_seen_ms, last_active_ms }>`.
  * Single-row keeps autoload happy and avoids per-user options.
  *
@@ -45,14 +45,14 @@ defined( 'ABSPATH' ) || exit;
  *   - `desktop_mode_presence_changed( $user_id, $new, $old )` — on
  *     state transitions only.
  *
- * REST: `/wp-desktop/v1/presence` (GET snapshot, POST mark active /
+ * REST: `/desktop-mode/v1/presence` (GET snapshot, POST mark active /
  * inactive).
  *
  * @package WPDesktopMode
  * @since   0.5.5
  */
 
-const WP_DESKTOP_PRESENCE_OPTION = '_wp_desktop_presence';
+const DESKTOP_MODE_PRESENCE_OPTION = '_desktop_mode_presence';
 
 /**
  * Read the entire presence map. Single autoload=false option.
@@ -62,7 +62,7 @@ const WP_DESKTOP_PRESENCE_OPTION = '_wp_desktop_presence';
  * @return array<int,array{last_seen_ms:int,last_active_ms:int}>
  */
 function desktop_mode_presence_get_all() {
-	$raw = get_option( WP_DESKTOP_PRESENCE_OPTION, array() );
+	$raw = get_option( DESKTOP_MODE_PRESENCE_OPTION, array() );
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -136,7 +136,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 		'last_active_ms' => $active ? $now_ms : (int) $prev['last_active_ms'],
 	);
 	$all[ $user_id ] = $next;
-	update_option( WP_DESKTOP_PRESENCE_OPTION, $all, false );
+	update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
 
 	$next_status = desktop_mode_presence_status_from_record( $next );
 
@@ -332,7 +332,7 @@ function desktop_mode_presence_cron_prune() {
 		$pruned[ (int) $uid ] = $record;
 	}
 	if ( count( $pruned ) !== count( $all ) ) {
-		update_option( WP_DESKTOP_PRESENCE_OPTION, $pruned, false );
+		update_option( DESKTOP_MODE_PRESENCE_OPTION, $pruned, false );
 	}
 }
 add_action( 'desktop_mode_presence_daily_prune', 'desktop_mode_presence_cron_prune' );
@@ -430,13 +430,13 @@ function desktop_mode_presence_rest_permission() {
 }
 
 /**
- * Register `/wp-desktop/v1/presence` routes.
+ * Register `/desktop-mode/v1/presence` routes.
  *
  * @since 0.5.5
  */
 function desktop_mode_presence_register_rest_routes() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/presence',
 		array(
 			array(
@@ -459,7 +459,7 @@ function desktop_mode_presence_register_rest_routes() {
 add_action( 'rest_api_init', 'desktop_mode_presence_register_rest_routes' );
 
 /**
- * GET /wp-desktop/v1/presence — current snapshot, narrowed by the
+ * GET /desktop-mode/v1/presence — current snapshot, narrowed by the
  * visibility filter.
  */
 function desktop_mode_presence_rest_get() {
@@ -475,7 +475,7 @@ function desktop_mode_presence_rest_get() {
 }
 
 /**
- * POST /wp-desktop/v1/presence — explicit bump. Body shape:
+ * POST /desktop-mode/v1/presence — explicit bump. Body shape:
  *
  *   - `{ active: true }`   → bump both seen + active timestamps.
  *   - `{ active: false }`  → bump seen only (window in background).
@@ -504,7 +504,7 @@ function desktop_mode_presence_rest_post( WP_REST_Request $request ) {
 		$rec['last_seen_ms']   = (int) round( microtime( true ) * 1000 );
 		$rec['last_active_ms'] = 0;
 		$all[ $user_id ]       = $rec;
-		update_option( WP_DESKTOP_PRESENCE_OPTION, $all, false );
+		update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
 
 		$next_status = desktop_mode_presence_status_from_record( $rec );
 		do_action( 'desktop_mode_presence_recorded', $user_id, $rec );

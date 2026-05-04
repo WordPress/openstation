@@ -33,7 +33,7 @@ import type { Window } from './index';
  */
 export function syncActiveTab( win: Window, currentUrl: string ): void {
 	const submenuTabs = win.element.querySelectorAll<HTMLElement>(
-		'.wp-desktop-window__tab[data-kind="submenu"]',
+		'.desktop-mode-window__tab[data-kind="submenu"]',
 	);
 	if ( ! submenuTabs.length ) {
 		return;
@@ -43,7 +43,7 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	// looking at.
 	if ( win._activeTabId !== 'primary' ) {
 		for ( const tab of submenuTabs ) {
-			tab.classList.remove( 'wp-desktop-window__tab--active' );
+			tab.classList.remove( 'desktop-mode-window__tab--active' );
 			tab.setAttribute( 'aria-selected', 'false' );
 		}
 		return;
@@ -52,7 +52,7 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	for ( const tab of submenuTabs ) {
 		const tabUrl = tab.dataset.url;
 		const isActive = !! tabUrl && urlMatchKey( tabUrl ) === activeKey;
-		tab.classList.toggle( 'wp-desktop-window__tab--active', isActive );
+		tab.classList.toggle( 'desktop-mode-window__tab--active', isActive );
 		tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
 	}
 }
@@ -85,10 +85,10 @@ export function addExternalTab(
 		return;
 	}
 	const tabStrip = win.element.querySelector<HTMLElement>(
-		'.wp-desktop-window__tabs',
+		'.desktop-mode-window__tabs',
 	);
 	const body = win.element.querySelector<HTMLElement>(
-		'.wp-desktop-window__body',
+		'.desktop-mode-window__body',
 	);
 	if ( ! tabStrip || ! body ) {
 		return;
@@ -100,7 +100,7 @@ export function addExternalTab(
 
 	// Build the tab element with label + detach + close chips.
 	const tabEl = document.createElement( 'button' );
-	tabEl.className = 'wp-desktop-window__tab wp-desktop-window__tab--external';
+	tabEl.className = 'desktop-mode-window__tab desktop-mode-window__tab--external';
 	tabEl.dataset.kind = 'external';
 	tabEl.dataset.tabId = tabId;
 	tabEl.setAttribute( 'type', 'button' );
@@ -109,7 +109,7 @@ export function addExternalTab(
 	tabEl.title = url;
 
 	const labelEl = document.createElement( 'span' );
-	labelEl.className = 'wp-desktop-window__tab-label';
+	labelEl.className = 'desktop-mode-window__tab-label';
 	labelEl.textContent = label;
 	tabEl.appendChild( labelEl );
 
@@ -136,7 +136,7 @@ export function addExternalTab(
 	// forms, and same-origin cookies to function. The iframe is
 	// cross-origin anyway so the site can't reach our shell DOM.
 	const iframe = document.createElement( 'iframe' );
-	iframe.className = 'wp-desktop-window__iframe wp-desktop-window__iframe--external';
+	iframe.className = 'desktop-mode-window__iframe desktop-mode-window__iframe--external';
 	iframe.dataset.tabId = tabId;
 	iframe.style.display = 'none';
 	iframe.src = url;
@@ -177,7 +177,7 @@ export function addExternalTab(
 	switchToTab( win, tabId );
 	tabEl.scrollIntoView( { behavior: 'smooth', inline: 'end', block: 'nearest' } );
 	// Trigger the session saver so this tab survives a reload. The
-	// saver subscribes to `wp-desktop-window-changed`, which emitChange
+	// saver subscribes to `desktop-mode-window-changed`, which emitChange
 	// already dispatches for the debounce layer; reuse the 'state'
 	// reason — the tab list is part of window state as far as
 	// persistence is concerned.
@@ -199,7 +199,7 @@ function ensureMainTab( win: Window, tabStrip: HTMLElement ): void {
 		return;
 	}
 	const main = document.createElement( 'button' );
-	main.className = 'wp-desktop-window__tab wp-desktop-window__tab--main wp-desktop-window__tab--active';
+	main.className = 'desktop-mode-window__tab desktop-mode-window__tab--main desktop-mode-window__tab--active';
 	main.dataset.kind = 'main';
 	main.setAttribute( 'type', 'button' );
 	main.setAttribute( 'role', 'tab' );
@@ -231,7 +231,7 @@ export function switchToTab( win: Window, tabId: 'primary' | string ): void {
 
 	// Tab active-state.
 	const tabEls = win.element.querySelectorAll<HTMLElement>(
-		'.wp-desktop-window__tab',
+		'.desktop-mode-window__tab',
 	);
 	tabEls.forEach( ( t ) => {
 		let isActive: boolean;
@@ -247,9 +247,9 @@ export function switchToTab( win: Window, tabId: 'primary' | string ): void {
 			// deactivates all submenu tabs.
 			isActive =
 				tabId === 'primary' &&
-				t.classList.contains( 'wp-desktop-window__tab--active' );
+				t.classList.contains( 'desktop-mode-window__tab--active' );
 		}
-		t.classList.toggle( 'wp-desktop-window__tab--active', isActive );
+		t.classList.toggle( 'desktop-mode-window__tab--active', isActive );
 		t.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
 	} );
 }
@@ -271,7 +271,7 @@ export function closeExternalTab( win: Window, tabId: string ): void {
 	// remove it — returning the window to its pre-external state.
 	if ( win._externalTabs.size === 0 ) {
 		const main = win.element.querySelector(
-			'.wp-desktop-window__tab--main',
+			'.desktop-mode-window__tab--main',
 		);
 		main?.remove();
 	}
@@ -398,7 +398,7 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		return;
 	}
 
-	const tab = target.closest<HTMLElement>( '.wp-desktop-window__tab' );
+	const tab = target.closest<HTMLElement>( '.desktop-mode-window__tab' );
 	if ( ! tab ) {
 		return;
 	}
@@ -420,7 +420,7 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		const next = withChromelessParam( tab.dataset.url );
 		if ( next && win.iframe ) {
 			// Arm the loading overlay before re-pointing the iframe.
-			// The chromeless bridge clears it via `wp-desktop-ready`
+			// The chromeless bridge clears it via `desktop-mode-ready`
 			// once the next page hydrates (and the iframe `load`
 			// event is the floor signal). Without this, in-place
 			// submenu navigation showed no spinner — visible only

@@ -10,7 +10,7 @@
  */
 
 /* Solid backdrop behind the shell. */
-body.wp-desktop-active {
+body.desktop-mode-active {
 	background: #1d2327;
 	overflow: hidden;
 }
@@ -22,12 +22,12 @@ body.wp-desktop-active {
  * target these regions (admin_notices, in_admin_footer, etc.) continue
  * to fire — we just take them out of the visual flow.
  */
-body.wp-desktop-active #adminmenuwrap,
-body.wp-desktop-active #adminmenuback,
-body.wp-desktop-active #wpbody,
-body.wp-desktop-active #wpfooter,
-body.wp-desktop-active .wp-responsive-toggle,
-body.wp-desktop-active #collapse-menu {
+body.desktop-mode-active #adminmenuwrap,
+body.desktop-mode-active #adminmenuback,
+body.desktop-mode-active #wpbody,
+body.desktop-mode-active #wpfooter,
+body.desktop-mode-active .wp-responsive-toggle,
+body.desktop-mode-active #collapse-menu {
 	display: none !important;
 }
 
@@ -41,7 +41,7 @@ body.wp-desktop-active #collapse-menu {
  * the bar hidden (macOS convention). That rule lives below and wins on
  * specificity because it also targets #wpadminbar under a body class.
  */
-body.wp-desktop-active #wpadminbar {
+body.desktop-mode-active #wpadminbar {
 	display: block !important;
 	visibility: visible !important;
 	opacity: 1 !important;
@@ -61,15 +61,15 @@ body.wp-desktop-active #wpadminbar {
  * regions" — visually scruffy on an otherwise tight shell.
  *
  * We size the logo's <li> to match the dock's width and center the
- * W inside, so the two columns share an axis. `--wp-desktop-dock-width`
+ * W inside, so the two columns share an axis. `--desktop-mode-dock-width`
  * is now set on :root (see settings.ts → apply()) so it reaches
- * siblings of #wp-desktop-shell like the admin bar.
+ * siblings of #desktop-mode-shell like the admin bar.
  */
-body.wp-desktop-active #wpadminbar #wp-admin-bar-wp-logo {
-	width: var( --wp-desktop-dock-width, 56px );
+body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo {
+	width: var( --desktop-mode-dock-width, 56px );
 }
 
-body.wp-desktop-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
+body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
 	display: flex !important;
 	align-items: center;
 	justify-content: center;
@@ -81,7 +81,7 @@ body.wp-desktop-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
  * it within the flex cell so varying dock widths don't leave it
  * visually offset.
  */
-body.wp-desktop-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
+body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
 	margin: 0;
 }
 
@@ -91,7 +91,7 @@ body.wp-desktop-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
  * fixed-positioned anyway so this doesn't change the shell's layout, it
  * just prevents a phantom sidebar gutter in any stray visible content.
  */
-body.wp-desktop-active #wpcontent {
+body.desktop-mode-active #wpcontent {
 	margin-inline-start: 0;
 	padding-inline-start: 0;
 }
@@ -101,7 +101,7 @@ body.wp-desktop-active #wpcontent {
  * Uses position: fixed so it's unaffected by any containing-block
  * quirks in #wpwrap/#wpcontent.
  */
-.wp-desktop-shell {
+.desktop-mode-shell {
 	position: fixed;
 	inset-block-start: var(--wp-admin--admin-bar--height, 32px);
 	inset-inline-start: 0;
@@ -110,14 +110,14 @@ body.wp-desktop-active #wpcontent {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	z-index: var(--wp-desktop-z-base);
+	z-index: var(--desktop-mode-z-base);
 }
 
 /*
  * Wallpaper layer — first child of the shell, sits behind the dock
  * and desktop area so a translucent dock shows through to the
  * background (macOS pattern). CSS wallpapers paint via the
- * `--wp-desktop-bg` custom property; canvas wallpapers mount their
+ * `--desktop-mode-bg` custom property; canvas wallpapers mount their
  * own DOM (typically a <canvas>) into this element via JS.
  *
  * z-index: 0 keeps it below the shell body flex row which has no
@@ -125,11 +125,11 @@ body.wp-desktop-active #wpcontent {
  * stacking context via `position: relative`, so the dock + windows
  * always render above the wallpaper regardless of DOM order.
  */
-.wp-desktop-wallpaper {
+.desktop-mode-wallpaper {
 	position: absolute;
 	inset: 0;
 	z-index: 0;
-	background: var(--wp-desktop-bg);
+	background: var(--desktop-mode-bg);
 	overflow: hidden;
 	pointer-events: none;
 }
@@ -140,8 +140,8 @@ body.wp-desktop-active #wpcontent {
  * element. Plugins that genuinely need a clickable wallpaper can
  * override `pointer-events` on their own mounted node.
  */
-.wp-desktop-wallpaper > canvas,
-.wp-desktop-wallpaper > * {
+.desktop-mode-wallpaper > canvas,
+.desktop-mode-wallpaper > * {
 	width: 100%;
 	height: 100%;
 	display: block;
@@ -149,7 +149,7 @@ body.wp-desktop-active #wpcontent {
 
 /* Below 783px WP collapses the admin bar to 46px. */
 @media screen and (max-width: 782px) {
-	.wp-desktop-shell {
+	.desktop-mode-shell {
 		inset-block-start: var(--wp-admin--admin-bar--height, 46px);
 	}
 }
@@ -166,16 +166,16 @@ body.wp-desktop-active #wpcontent {
  * position: fixed at top: 0, so the focus/exit-fullscreen button is
  * still reachable.
  */
-body.wp-desktop-has-fullscreen-window #wpadminbar {
+body.desktop-mode-has-fullscreen-window #wpadminbar {
 	display: none !important;
 }
 
-body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
+body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	inset-block-start: 0;
 }
 
 /* Shell body: contains dock + desktop area side by side. */
-.wp-desktop-shell__body {
+.desktop-mode-shell__body {
 	flex: 1;
 	display: flex;
 	overflow: hidden;
@@ -192,7 +192,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * that every layout (Classic, Unified, Spatial) puts at the bottom
  * — 40px icons + 16px padding + 12px gap below + 8px breathing room.
  */
-.wp-desktop-area {
+.desktop-mode-area {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
@@ -214,7 +214,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * remain clickable.
  * --------------------------------------------------------------- */
 
-.wp-desktop-icons {
+.desktop-mode-icons {
 	position: absolute;
 	inset-block-start: 16px;
 	inset-block-end: 16px;
@@ -251,7 +251,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	overflow: auto;
 }
 
-.wp-desktop-icon {
+.desktop-mode-icon {
 	pointer-events: auto;
 	display: flex;
 	flex-direction: column;
@@ -262,16 +262,16 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	padding: 8px 4px;
 	border: 0;
 	background: transparent;
-	color: var(--wp-desktop-fg, #fff);
+	color: var(--desktop-mode-fg, #fff);
 	cursor: pointer;
 	border-radius: 8px;
 	transition: background-color 0.15s ease;
-	/* Positioning context for `.wp-desktop-icon__badge`. */
+	/* Positioning context for `.desktop-mode-icon__badge`. */
 	position: relative;
 }
 
 /*
- * Icon badge — symmetric to `.wp-desktop-dock__badge` but anchored
+ * Icon badge — symmetric to `.desktop-mode-dock__badge` but anchored
  * to the wallpaper-icon image. Same gradient, same ring, slightly
  * larger so it reads at the longer wallpaper viewing distance.
  * Painted by `wp.desktop.icons.setBadge( id, count )` — see
@@ -281,7 +281,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * positioning, color, and shadow are not — themes or future
  * shell builds may restyle freely.
  */
-.wp-desktop-icon__badge {
+.desktop-mode-icon__badge {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 14px;
@@ -305,17 +305,17 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	pointer-events: none;
 }
 
-.wp-desktop-icon:hover,
-.wp-desktop-icon:focus-visible {
+.desktop-mode-icon:hover,
+.desktop-mode-icon:focus-visible {
 	background: rgba(255, 255, 255, 0.12);
 	outline: none;
 }
 
-.wp-desktop-icon:focus-visible {
+.desktop-mode-icon:focus-visible {
 	box-shadow: 0 0 0 2px var(--wp-admin-theme-color, #2271b1);
 }
 
-.wp-desktop-icon__image {
+.desktop-mode-icon__image {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -325,13 +325,13 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	line-height: 1;
 }
 
-.wp-desktop-icon__image img {
+.desktop-mode-icon__image img {
 	max-width: 48px;
 	max-height: 48px;
 	object-fit: contain;
 }
 
-.wp-desktop-icon__label {
+.desktop-mode-icon__label {
 	font-size: 12px;
 	text-align: center;
 	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
@@ -347,7 +347,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * drag / resize / click-through behaviour is unaffected.
  * --------------------------------------------------------------- */
 
-.wp-desktop-widgets {
+.desktop-mode-widgets {
 	position: absolute;
 	top: 16px;
 	bottom: 16px;
@@ -372,7 +372,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 );
 }
 
-.wp-desktop-area--overview .wp-desktop-widgets {
+.desktop-mode-area--overview .desktop-mode-widgets {
 	opacity: 0;
 	/* Slight slide-off-right so the fade reads as "the column is
 	 * stepping back out of the way" rather than flat-dimming. */
@@ -380,7 +380,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	pointer-events: none;
 }
 
-.wp-desktop-widgets__list {
+.desktop-mode-widgets__list {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -393,7 +393,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * pointer-transparent so a drag that grazes the column's margin
  * falls through to the window beneath.
  */
-.wp-desktop-widgets__card {
+.desktop-mode-widgets__card {
 	position: relative;
 	padding: 0;
 	pointer-events: auto;
@@ -412,19 +412,19 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 		opacity 0.18s ease;
 }
 
-.wp-desktop-widgets__card:hover {
+.desktop-mode-widgets__card:hover {
 	transform: translateX( -2px );
 	box-shadow:
 		0 12px 36px rgba( 0, 0, 0, 0.45 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
 }
 
-.wp-desktop-widgets__card-body {
+.desktop-mode-widgets__card-body {
 	padding: 16px;
 	min-height: 48px;
 }
 
-.wp-desktop-widgets__card-close {
+.desktop-mode-widgets__card-close {
 	position: absolute;
 	top: 6px;
 	inset-inline-end: 6px;
@@ -446,12 +446,12 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 		color 0.15s ease;
 }
 
-.wp-desktop-widgets__card:hover .wp-desktop-widgets__card-close,
-.wp-desktop-widgets__card-close:focus-visible {
+.desktop-mode-widgets__card:hover .desktop-mode-widgets__card-close,
+.desktop-mode-widgets__card-close:focus-visible {
 	opacity: 1;
 }
 
-.wp-desktop-widgets__card-close:hover {
+.desktop-mode-widgets__card-close:hover {
 	background: #d63638;
 	color: #fff;
 }
@@ -463,7 +463,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * remain clickable as normal). Non-movable widgets keep today's
  * corner-× layout unchanged.
  */
-.wp-desktop-widgets__chrome {
+.desktop-mode-widgets__chrome {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -475,11 +475,11 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	touch-action: none;
 }
 
-.wp-desktop-widgets__card--dragging .wp-desktop-widgets__chrome {
+.desktop-mode-widgets__card--dragging .desktop-mode-widgets__chrome {
 	cursor: grabbing;
 }
 
-.wp-desktop-widgets__grip {
+.desktop-mode-widgets__grip {
 	flex-shrink: 0;
 	width: 10px;
 	height: 16px;
@@ -495,11 +495,11 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	transition: opacity 0.12s ease;
 }
 
-.wp-desktop-widgets__card:hover .wp-desktop-widgets__grip {
+.desktop-mode-widgets__card:hover .desktop-mode-widgets__grip {
 	opacity: 0.85;
 }
 
-.wp-desktop-widgets__title {
+.desktop-mode-widgets__title {
 	flex: 1;
 	font-size: 12px;
 	font-weight: 500;
@@ -512,15 +512,15 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 
 /* When the close button sits inside the chrome it's inline, not
    corner-absolute — reset position + always-visible opacity. */
-.wp-desktop-widgets__chrome .wp-desktop-widgets__card-close {
+.desktop-mode-widgets__chrome .desktop-mode-widgets__card-close {
 	position: static;
 	opacity: 0.7;
 	width: 20px;
 	height: 20px;
 }
 
-.wp-desktop-widgets__chrome .wp-desktop-widgets__card-close:hover,
-.wp-desktop-widgets__chrome .wp-desktop-widgets__card-close:focus-visible {
+.desktop-mode-widgets__chrome .desktop-mode-widgets__card-close:hover,
+.desktop-mode-widgets__chrome .desktop-mode-widgets__card-close:focus-visible {
 	opacity: 1;
 }
 
@@ -536,7 +536,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * dimmed by default, full-opacity on hover / focus. Distinct hover
  * color (theme accent, not red) signals "put back" vs. "remove."
  */
-.wp-desktop-widgets__card-redock {
+.desktop-mode-widgets__card-redock {
 	display: none;
 	align-items: center;
 	justify-content: center;
@@ -555,12 +555,12 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 		color 0.15s ease;
 }
 
-.wp-desktop-widgets__card--floating .wp-desktop-widgets__card-redock {
+.desktop-mode-widgets__card--floating .desktop-mode-widgets__card-redock {
 	display: flex;
 }
 
-.wp-desktop-widgets__card-redock:hover,
-.wp-desktop-widgets__card-redock:focus-visible {
+.desktop-mode-widgets__card-redock:hover,
+.desktop-mode-widgets__card-redock:focus-visible {
 	opacity: 1;
 	background: var( --wp-admin-theme-color, #2271b1 );
 	color: #fff;
@@ -571,17 +571,17 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * written by the frame. The hover translate-X effect would fight the
  * user's chosen position, so disable it.
  */
-.wp-desktop-widgets__card--floating {
+.desktop-mode-widgets__card--floating {
 	position: absolute;
 	margin: 0;
 }
 
-.wp-desktop-widgets__card--floating:hover {
+.desktop-mode-widgets__card--floating:hover {
 	transform: none;
 }
 
-.wp-desktop-widgets__card--dragging,
-.wp-desktop-widgets__card--resizing {
+.desktop-mode-widgets__card--dragging,
+.desktop-mode-widgets__card--resizing {
 	transition: none;
 	z-index: 2;
 }
@@ -594,12 +594,12 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * `s` (bottom-edge, height-only) handle at the pointer layer, so we
  * visually hide the mismatched handles via the modifier class.
  */
-.wp-desktop-widgets__resize {
+.desktop-mode-widgets__resize {
 	position: absolute;
 	z-index: 1;
 }
 
-.wp-desktop-widgets__resize--n {
+.desktop-mode-widgets__resize--n {
 	top: -3px;
 	left: 8px;
 	right: 8px;
@@ -607,7 +607,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	cursor: ns-resize;
 }
 
-.wp-desktop-widgets__resize--s {
+.desktop-mode-widgets__resize--s {
 	bottom: -3px;
 	left: 8px;
 	right: 8px;
@@ -615,7 +615,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	cursor: ns-resize;
 }
 
-.wp-desktop-widgets__resize--e {
+.desktop-mode-widgets__resize--e {
 	top: 8px;
 	bottom: 8px;
 	right: -3px;
@@ -623,7 +623,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	cursor: ew-resize;
 }
 
-.wp-desktop-widgets__resize--w {
+.desktop-mode-widgets__resize--w {
 	top: 8px;
 	bottom: 8px;
 	left: -3px;
@@ -631,7 +631,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	cursor: ew-resize;
 }
 
-.wp-desktop-widgets__resize--ne {
+.desktop-mode-widgets__resize--ne {
 	top: -4px;
 	right: -4px;
 	width: 12px;
@@ -639,7 +639,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	cursor: nesw-resize;
 }
 
-.wp-desktop-widgets__resize--nw {
+.desktop-mode-widgets__resize--nw {
 	top: -4px;
 	left: -4px;
 	width: 12px;
@@ -647,7 +647,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	cursor: nwse-resize;
 }
 
-.wp-desktop-widgets__resize--se {
+.desktop-mode-widgets__resize--se {
 	bottom: -4px;
 	right: -4px;
 	width: 12px;
@@ -655,7 +655,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	cursor: nwse-resize;
 }
 
-.wp-desktop-widgets__resize--sw {
+.desktop-mode-widgets__resize--sw {
 	bottom: -4px;
 	left: -4px;
 	width: 12px;
@@ -668,7 +668,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * width stays locked to the column width. Hide the other seven so the
  * cursor doesn't lie about what's interactive.
  */
-.wp-desktop-widgets__card--resizable:not( .wp-desktop-widgets__card--movable ) .wp-desktop-widgets__resize:not( .wp-desktop-widgets__resize--s ) {
+.desktop-mode-widgets__card--resizable:not( .desktop-mode-widgets__card--movable ) .desktop-mode-widgets__resize:not( .desktop-mode-widgets__resize--s ) {
 	display: none;
 }
 
@@ -678,7 +678,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * when the column is otherwise empty so first-run users see a
  * friendly target rather than an empty strip.
  */
-.wp-desktop-widgets__add {
+.desktop-mode-widgets__add {
 	margin-top: auto;
 	padding: 14px 12px;
 	display: flex;
@@ -699,30 +699,30 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 		color 0.15s ease;
 }
 
-.wp-desktop-widgets__add:hover {
+.desktop-mode-widgets__add:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
 	background: rgba( 255, 255, 255, 0.06 );
 	color: #fff;
 }
 
-.wp-desktop-widgets__add:focus-visible {
+.desktop-mode-widgets__add:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.wp-desktop-widgets__add-plus {
+.desktop-mode-widgets__add-plus {
 	font-size: 20px;
 	line-height: 1;
 	font-weight: 200;
 }
 
-.wp-desktop-widgets__add-label {
+.desktop-mode-widgets__add-label {
 	font-size: 13px;
 	letter-spacing: 0.02em;
 }
 
 /* Built-in clock widget */
-.wp-desktop-widget-clock {
+.desktop-mode-widget-clock {
 	text-align: center;
 	/* The time + date are passive glyphs, not content users would
 	 * ever reasonably select — turning it off avoids the accidental-
@@ -731,7 +731,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	-webkit-user-select: none;
 }
 
-.wp-desktop-widget-clock__time {
+.desktop-mode-widget-clock__time {
 	font-size: 34px;
 	font-weight: 600;
 	line-height: 1.1;
@@ -739,7 +739,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	letter-spacing: 0.01em;
 }
 
-.wp-desktop-widget-clock__date {
+.desktop-mode-widget-clock__date {
 	margin-top: 4px;
 	font-size: 13px;
 	color: rgba( 255, 255, 255, 0.75 );
@@ -752,7 +752,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * the desktop-area clip.
  * --------------------------------------------------------------- */
 
-.wp-desktop-widget-picker {
+.desktop-mode-widget-picker {
 	position: fixed;
 	width: 320px;
 	max-height: 60vh;
@@ -766,17 +766,17 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	box-shadow: 0 18px 54px rgba( 0, 0, 0, 0.55 );
 	color: #fff;
 	z-index: 9999;
-	animation: wp-desktop-widget-picker-in 0.14s ease-out;
+	animation: desktop-mode-widget-picker-in 0.14s ease-out;
 }
 
-@keyframes wp-desktop-widget-picker-in {
+@keyframes desktop-mode-widget-picker-in {
 	from {
 		opacity: 0;
 		transform: translateY( 4px );
 	}
 }
 
-.wp-desktop-widget-picker__title {
+.desktop-mode-widget-picker__title {
 	padding: 4px 8px 8px;
 	font-size: 11px;
 	font-weight: 600;
@@ -785,13 +785,13 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	color: rgba( 255, 255, 255, 0.55 );
 }
 
-.wp-desktop-widget-picker__list {
+.desktop-mode-widget-picker__list {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-.wp-desktop-widget-picker__entry {
+.desktop-mode-widget-picker__entry {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -806,21 +806,21 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	transition: background-color 0.12s ease;
 }
 
-.wp-desktop-widget-picker__entry:hover:not( :disabled ) {
+.desktop-mode-widget-picker__entry:hover:not( :disabled ) {
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-.wp-desktop-widget-picker__entry:focus-visible {
+.desktop-mode-widget-picker__entry:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 1px;
 }
 
-.wp-desktop-widget-picker__entry--added {
+.desktop-mode-widget-picker__entry--added {
 	opacity: 0.55;
 	cursor: default;
 }
 
-.wp-desktop-widget-picker__entry-icon {
+.desktop-mode-widget-picker__entry-icon {
 	flex-shrink: 0;
 	font-size: 20px;
 	width: 20px;
@@ -828,7 +828,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	line-height: 1;
 }
 
-.wp-desktop-widget-picker__entry-text {
+.desktop-mode-widget-picker__entry-text {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -836,7 +836,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	min-width: 0;
 }
 
-.wp-desktop-widget-picker__entry-label {
+.desktop-mode-widget-picker__entry-label {
 	font-size: 13px;
 	font-weight: 500;
 	white-space: nowrap;
@@ -844,14 +844,14 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	text-overflow: ellipsis;
 }
 
-.wp-desktop-widget-picker__entry-description {
+.desktop-mode-widget-picker__entry-description {
 	font-size: 11px;
 	color: rgba( 255, 255, 255, 0.6 );
 	line-height: 1.35;
 	white-space: normal;
 }
 
-.wp-desktop-widget-picker__entry-status {
+.desktop-mode-widget-picker__entry-status {
 	flex-shrink: 0;
 	font-size: 11px;
 	color: rgba( 255, 255, 255, 0.5 );
@@ -859,7 +859,7 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
 	letter-spacing: 0.08em;
 }
 
-.wp-desktop-widget-picker__empty {
+.desktop-mode-widget-picker__empty {
 	padding: 12px 8px;
 	font-size: 12px;
 	color: rgba( 255, 255, 255, 0.6 );
@@ -870,10 +870,10 @@ body.wp-desktop-has-fullscreen-window .wp-desktop-shell {
  * Chromeless mode: pages loaded inside iframes.
  * Remove all shell chrome and let content fill the frame.
  */
-.wp-desktop-chromeless {
+.desktop-mode-chromeless {
 	margin: 0;
 	padding: 0;
-	background: var(--wp-desktop-window-bg);
+	background: var(--desktop-mode-window-bg);
 }
 
 /*

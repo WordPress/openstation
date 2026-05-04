@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 - [Window controls — reorder / hide / replace close-min-max](./window-controls.md)
 - [Window slots — replace icon, title, banners above/below the title bar](./window-slot.md)
 - [Custom window chrome — full title-bar replacement (Experimental)](./custom-chrome.md)
-- [Inject data into `wpDesktopConfig`](./inject-shell-config.md)
+- [Inject data into `desktopModeConfig`](./inject-shell-config.md)
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)

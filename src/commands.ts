@@ -81,7 +81,7 @@ export interface CommandContext {
 	 * a `string` or `{ message: string }` from `run()` and the
 	 * assistant overlay / `wp.desktop.ai.ask()` caller will surface
 	 * it as `res.message`. For out-of-band toasts, dispatch
-	 * `wp-desktop.shell.toast` via `wp.desktop.hooks.doAction()`.
+	 * `desktop-mode.shell.toast` via `wp.desktop.hooks.doAction()`.
 	 *
 	 * This field stays typed so command code written today compiles
 	 * against the final API unchanged.
@@ -267,7 +267,7 @@ const listeners = new Set<() => void >();
  *         if (!id) return 'Usage: /turn_on_comments [post id]';
  *         await fetch(`/wp-json/my-plugin/v1/enable-comments/${id}`, {
  *             method: 'POST',
- *             headers: { 'X-WP-Nonce': wpDesktopConfig.restNonce },
+ *             headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
  *         });
  *         ctx.close();
  *         return `Comments enabled on post ${id}.`;
@@ -427,7 +427,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				console.error( '[wp-desktop-mode] command-registry listener threw:', err );
+				console.error( '[desktop-mode] command-registry listener threw:', err );
 			}
 		}
 	}

@@ -32,7 +32,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 ## Current State
 
 - **Per-user opt-in**
-  Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/wp-desktop/` portal URL auto-enables desktop mode for first-time visitors (gated by `desktop_mode_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`desktop_mode_admin_redirect_to_portal`).
+  Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/desktop-mode/` portal URL auto-enables desktop mode for first-time visitors (gated by `desktop_mode_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`desktop_mode_admin_redirect_to_portal`).
 
 - **Desktop shell**
   Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OS Settings — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `desktop_mode_mode_init`, `desktop_mode_shell_before` / `_after`, and the `desktop_mode_shell_config` filter are the main extension points.
@@ -47,7 +47,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Multiple desktops per user, each with its own window set. Overview grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.
 
 - **Arrange & snap**
-  Admin-bar Arrange menu: Cascade, Tile, Overview, Snap to grid. Plugins contribute custom entries via `desktop_mode_arrange_menu_items` and react to clicks via `wp-desktop.arrange.custom-action`. Tile grid dimensions and snap cell size are both filterable.
+  Admin-bar Arrange menu: Cascade, Tile, Overview, Snap to grid. Plugins contribute custom entries via `desktop_mode_arrange_menu_items` and react to clicks via `desktop-mode.arrange.custom-action`. Tile grid dimensions and snap cell size are both filterable.
 
 - **Wallpaper registry**
   Server- and client-side registration (`desktop_mode_register_wallpaper()` / `wp.desktop.registerWallpaper()`). CSS presets + canvas (WebGL/2D) wallpapers with collision-aware surface data (`wp.desktop.getWallpaperSurfaces()`) for snow/rain/physics effects. In-panel `renderEditor` callback for custom controls, shared vendor-module loader (`pixijs` pre-registered).
@@ -59,7 +59,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Wallpaper-layer shortcuts via `desktop_mode_register_icon()` — targets a registered native window or an admin URL.
 
 - **AI Assistant + slash commands**
-  Cmd+K palette backed by an OpenAI agentic loop (search_posts, search_pages, search_comments tools). Admin-configured API key + model picker. Auto-analysis on `save_post` / term / comment save with per-entity prompt filters. `wp.desktop.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `wp-desktop.open-command.items`.
+  Cmd+K palette backed by an OpenAI agentic loop (search_posts, search_pages, search_comments tools). Admin-configured API key + model picker. Auto-analysis on `save_post` / term / comment save with per-entity prompt filters. `wp.desktop.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `desktop-mode.open-command.items`.
 
 - **Palette registry**
   Cmd+K cycles through all registered palettes (`wp.desktop.registerPalette()`) — the AI assistant is palette 0 by default; additional plugin overlays share the shortcut.
@@ -68,13 +68,13 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Media-library attachments drag across iframe boundaries via coordinated postMessage. Site-wide toggle through the Extended Options REST endpoint.
 
 - **Toast notifications**
-  Shell-level toasts rendered via the `<wpd-toast>` component. Plugins register their own tone/icon via the `desktop_mode_toast_types` filter. Iframe pages raise a toast through the `wp-desktop-notification` bridge message — it survives the iframe's own lifecycle.
+  Shell-level toasts rendered via the `<wpd-toast>` component. Plugins register their own tone/icon via the `desktop_mode_toast_types` filter. Iframe pages raise a toast through the `desktop-mode-notification` bridge message — it survives the iframe's own lifecycle.
 
 - **OS Settings**
-  Native-window settings panel: wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, dock size slider, AI platform config, and per-user default-on-startup window. Persisted via `/wp-desktop/v1/os-settings`.
+  Native-window settings panel: wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, dock size slider, AI platform config, and per-user default-on-startup window. Persisted via `/desktop-mode/v1/os-settings`.
 
 - **Session persistence**
-  Full window stack (including desktops, focus, state) is debounce-saved to `/wp-desktop/v1/session` and restored without layout flicker. Viewport-shrink clamping keeps off-screen windows reachable.
+  Full window stack (including desktops, focus, state) is debounce-saved to `/desktop-mode/v1/session` and restored without layout flicker. Viewport-shrink clamping keeps off-screen windows reachable.
 
 - **postMessage bridge**
   Typed messages for title changes, navigation (same-origin validated), focus, color-scheme sync, screen-meta panels (Screen Options / Help), external-link capture, iframe-ready handshake, and observability (`iframe-error`, `iframe-network`).

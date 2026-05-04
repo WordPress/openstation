@@ -10,7 +10,7 @@
  *
  * As of 0.6.0, wallpapers are registry-driven: built-in presets live in
  * `src/wallpapers/built-in.ts`, third-party plugins register via the
- * public `wp.desktop.registerWallpaper()` / `wp-desktop.wallpapers`
+ * public `wp.desktop.registerWallpaper()` / `desktop-mode.wallpapers`
  * filter, and this module is responsible only for
  *
  *   - managing user preference state (current wallpaper id, accent,
@@ -166,7 +166,7 @@ export class OsSettings implements SettingsCtx {
 	 * generation counter; CSS property writes are idempotent.
 	 */
 	public apply(): void {
-		const shell = document.getElementById( 'wp-desktop-shell' );
+		const shell = document.getElementById( 'desktop-mode-shell' );
 		if ( ! shell ) {
 			return;
 		}
@@ -191,15 +191,15 @@ export class OsSettings implements SettingsCtx {
 			DOCK_SIZES.find( ( d ) => d.id === this.state.dockSize ) ?? DOCK_SIZES[ 1 ];
 
 		// Set on <html> rather than the shell so the cascade reaches
-		// siblings of #wp-desktop-shell — specifically the WordPress
-		// admin bar, which needs --wp-desktop-dock-width to size its
+		// siblings of #desktop-mode-shell — specifically the WordPress
+		// admin bar, which needs --desktop-mode-dock-width to size its
 		// leftmost (W-logo) slot in visual alignment with the dock
 		// below it. Shell-scoped variables cascade to shell children
 		// only; :root-scoped variables cascade everywhere.
 		const root = document.documentElement;
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
-		root.style.setProperty( '--wp-desktop-dock-width', `${ dockSize.width }px` );
-		root.style.setProperty( '--wp-desktop-dock-icon-size', `${ dockSize.icon }px` );
+		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
+		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
@@ -209,7 +209,7 @@ export class OsSettings implements SettingsCtx {
 		// state got to this point (init from localStorage, picker
 		// change, reset).
 		shell.setAttribute(
-			'data-wp-desktop-layout',
+			'data-desktop-mode-layout',
 			this.state.desktopLayout,
 		);
 
@@ -233,7 +233,7 @@ export class OsSettings implements SettingsCtx {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[wp-desktop-mode] os-settings listener threw:',
+							'[desktop-mode] os-settings listener threw:',
 							err,
 						);
 					}
@@ -262,7 +262,7 @@ export class OsSettings implements SettingsCtx {
 			this.tabRegistryUnsubscribe = null;
 		}
 
-		body.classList.add( 'wp-desktop-os-settings' );
+		body.classList.add( 'desktop-mode-os-settings' );
 
 		const onReset = (): void => {
 			// Preserve the uploaded image so the user doesn't lose
@@ -303,7 +303,7 @@ export class OsSettings implements SettingsCtx {
 				>`,
 				panel: html`<wpd-tabpanel for="appearance">
 					<wpd-panel>
-						<p class="wp-desktop-os-settings__intro">
+						<p class="desktop-mode-os-settings__intro">
 							${ __(
 								'Personalize your desktop. Changes apply instantly and are saved to this browser.',
 							) }
@@ -375,7 +375,7 @@ export class OsSettings implements SettingsCtx {
 					} catch ( err ) {
 						if ( typeof console !== 'undefined' ) {
 							console.error(
-								'[wp-desktop-mode] settings tab render threw:',
+								'[desktop-mode] settings tab render threw:',
 								tabRef.id,
 								err,
 							);
@@ -414,7 +414,7 @@ export class OsSettings implements SettingsCtx {
 					${ rows.map( ( r ) => r.tab ) }
 				</wpd-tabs>
 				${ rows.map( ( r ) => r.panel ) }
-				<wpd-panel class="wp-desktop-os-settings__footer">
+				<wpd-panel class="desktop-mode-os-settings__footer">
 					<wpd-button variant="ghost" @click=${ onReset }
 						>${ __( 'Reset to defaults' ) }</wpd-button
 					>

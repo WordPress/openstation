@@ -3,7 +3,7 @@
 	if ( ! toggle ) {
 		return;
 	}
-	var cfg = window.wpDesktopAdminBar || {};
+	var cfg = window.desktopModeAdminBar || {};
 	toggle.addEventListener( 'click', function( e ) {
 		e.preventDefault();
 		var isActive = !! cfg.active;
@@ -65,7 +65,7 @@
 
 	function paintSnapCheckbox( enabled ) {
 		var node = document.querySelector(
-			'#wp-admin-bar-desktop-layout-snap .wpdm-layout-checkbox'
+			'#wp-admin-bar-desktop-layout-snap .desktop-mode-layout-checkbox'
 		);
 		if ( ! node ) return;
 		node.textContent = enabled ? '☑' : '☐'; // ☑ / ☐
@@ -98,7 +98,7 @@
 		var t = e.target;
 		if ( ! t || ! t.closest ) return;
 
-		var snapItem = t.closest( '.wpdm-layout-snap' );
+		var snapItem = t.closest( '.desktop-mode-layout-snap' );
 		if ( snapItem ) {
 			// Stop propagation so WP's own "click closes submenu"
 			// chain never fires. preventDefault keeps the `#` href
@@ -113,7 +113,7 @@
 			return;
 		}
 
-		var actionLink = t.closest( '.wpdm-layout-action > .ab-item, .wpdm-layout-action' );
+		var actionLink = t.closest( '.desktop-mode-layout-action > .ab-item, .desktop-mode-layout-action' );
 		if ( ! actionLink ) return;
 		e.preventDefault();
 		var id = actionLink.closest( '[id^="wp-admin-bar-desktop-layout-"]' );
@@ -130,11 +130,11 @@
 			// Plugin-registered custom item. Strip the shared prefix to
 			// recover the `id` the plugin supplied via the PHP filter,
 			// then dispatch the public JS action. Plugins subscribe
-			// via wp.hooks.addAction( 'wp-desktop.arrange.custom-action', ... ).
+			// via wp.hooks.addAction( 'desktop-mode.arrange.custom-action', ... ).
 			var customId = id.id.replace( 'wp-admin-bar-desktop-layout-custom-', '' );
 			var hooks = window.wp && window.wp.hooks;
 			if ( hooks && typeof hooks.doAction === 'function' ) {
-				hooks.doAction( 'wp-desktop.arrange.custom-action', { id: customId } );
+				hooks.doAction( 'desktop-mode.arrange.custom-action', { id: customId } );
 			}
 		}
 		// After running an action, dismiss the submenu so the user
@@ -151,7 +151,7 @@
 		}
 	} );
 
-	// AI Assistant button — dispatches the `wp-desktop-open-ai` event that
+	// AI Assistant button — dispatches the `desktop-mode-open-ai` event that
 	// the AiAssistant class listens for. Using an event instead of a direct
 	// call decouples the admin-bar inline script (which runs early, before
 	// the desktop shell has initialised) from the AiAssistant instance.
@@ -159,18 +159,18 @@
 	if ( aiBtn ) {
 		aiBtn.addEventListener( 'click', function( e ) {
 			e.preventDefault();
-			document.dispatchEvent( new CustomEvent( 'wp-desktop-open-ai' ) );
+			document.dispatchEvent( new CustomEvent( 'desktop-mode-open-ai' ) );
 		} );
 	}
 
 	// Bug Report button — same decoupling pattern as Ask AI. Dispatches
-	// `wp-desktop-open-bug-report`; the shell answers by opening the
+	// `desktop-mode-open-bug-report`; the shell answers by opening the
 	// Bug Report native window. Wired in `src/desktop.ts`.
 	var bugBtn = document.getElementById( 'wp-admin-bar-desktop-bug-report' );
 	if ( bugBtn ) {
 		bugBtn.addEventListener( 'click', function( e ) {
 			e.preventDefault();
-			document.dispatchEvent( new CustomEvent( 'wp-desktop-open-bug-report' ) );
+			document.dispatchEvent( new CustomEvent( 'desktop-mode-open-bug-report' ) );
 		} );
 	}
 } )();

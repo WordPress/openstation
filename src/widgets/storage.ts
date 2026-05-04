@@ -17,12 +17,12 @@ import type { WidgetStorage } from './types';
 
 /**
  * Build a `WidgetStorage` for the given widget id. Keys are
- * prefixed with `wp-desktop.widget.<id>.` so the namespace is
+ * prefixed with `desktop-mode.widget.<id>.` so the namespace is
  * guaranteed unique across widgets, and `clear()` only removes
  * keys under that prefix (never touches siblings).
  */
 export function createWidgetStorage( widgetId: string ): WidgetStorage {
-	const prefix = `wp-desktop.widget.${ widgetId }.`;
+	const prefix = `desktop-mode.widget.${ widgetId }.`;
 
 	const safeGet = ( key: string ): string | null => {
 		try {

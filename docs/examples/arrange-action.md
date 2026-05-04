@@ -2,7 +2,7 @@
 
 Add a button to the admin bar's **Arrange** dropdown that runs your own layout algorithm. The shell ships Cascade / Overview / Snap / Tile; your item sits alongside them with identical styling.
 
-The contract is a PHP filter (to register the menu item) plus a JS action (to run when the user clicks it). The two halves are decoupled — you can ship a plugin that registers the item without a JS callback, and some other code can subscribe to `wp-desktop.arrange.custom-action` independently.
+The contract is a PHP filter (to register the menu item) plus a JS action (to run when the user clicks it). The two halves are decoupled — you can ship a plugin that registers the item without a JS callback, and some other code can subscribe to `desktop-mode.arrange.custom-action` independently.
 
 ## PHP: register the item
 
@@ -23,7 +23,7 @@ add_filter( 'desktop_mode_arrange_menu_items', function ( $items ) {
     return $items;
 } );
 
-// Enqueue your JS on the desktop shell. `wp-desktop` is the shell's
+// Enqueue your JS on the desktop shell. `desktop-mode` is the shell's
 // main script handle; adding it as a dep guarantees `window.wp.desktop`
 // is populated by the time your code runs.
 add_action( 'admin_enqueue_scripts', function () {
@@ -33,7 +33,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_enqueue_script(
         'diagonal-cascade',
         plugin_dir_url( __FILE__ ) . 'diagonal-cascade.js',
-        array( 'wp-desktop', 'wp-hooks' ),
+        array( 'desktop-mode', 'wp-hooks' ),
         '1.0.0',
         true
     );
@@ -47,7 +47,7 @@ add_action( 'admin_enqueue_scripts', function () {
 ( function () {
     wp.desktop.whenReady( function () {
         wp.desktop.hooks.addAction(
-            'wp-desktop.arrange.custom-action',
+            'desktop-mode.arrange.custom-action',
             'diagonal-cascade/apply',
             function ( payload ) {
                 if ( payload.id !== 'diagonal' ) {
@@ -71,7 +71,7 @@ add_action( 'admin_enqueue_scripts', function () {
 ## What you get
 
 - A new "Diagonal cascade" entry in the **Arrange** submenu, styled identically to the built-ins.
-- Clicking it fires `wp-desktop.arrange.custom-action` with `{ id: 'diagonal' }`.
+- Clicking it fires `desktop-mode.arrange.custom-action` with `{ id: 'diagonal' }`.
 - Your subscriber runs the arrangement. Any other plugin can also subscribe (e.g. to play a sound, log analytics, etc.).
 
 ## Using typed hook constants
@@ -79,7 +79,7 @@ add_action( 'admin_enqueue_scripts', function () {
 If your plugin is TS:
 
 ```ts
-import { HOOKS } from 'wp-desktop-mode';
+import { HOOKS } from 'desktop-mode';
 
 wp.desktop.hooks.addAction(
     HOOKS.ARRANGE_CUSTOM_ACTION,
@@ -91,4 +91,4 @@ wp.desktop.hooks.addAction(
 ## Related
 
 - [`desktop_mode_arrange_menu_items` filter](../hooks-reference.md#desktop_mode_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
-- [`wp-desktop.arrange.*` action family](../javascript-reference.md#arrange--snap--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.
+- [`desktop-mode.arrange.*` action family](../javascript-reference.md#arrange--snap--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.

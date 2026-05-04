@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for desktop_mode_chromeless_preserve_redirect() — the wp_redirect
- * filter that re-appends `wp_desktop=1` to same-site admin redirects so
+ * filter that re-appends `desktop_mode_chromeless=1` to same-site admin redirects so
  * chromeless iframes don't "break out" of chromeless mode after a
  * POST-then-redirect flow (e.g., saving a classic-editor post).
  *
@@ -25,13 +25,13 @@ class Tests_WPDesktopChromelessPreserveRedirect extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		unset( $_GET['wp_desktop'] );
+		unset( $_GET['desktop_mode_chromeless'] );
 		parent::tear_down();
 	}
 
 	private function enter_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 	}
 
 	/**
@@ -42,7 +42,7 @@ class Tests_WPDesktopChromelessPreserveRedirect extends WP_UnitTestCase {
 
 		$filtered = desktop_mode_chromeless_preserve_redirect( admin_url( 'edit.php' ) );
 
-		$this->assertStringContainsString( 'wp_desktop=1', $filtered );
+		$this->assertStringContainsString( 'desktop_mode_chromeless=1', $filtered );
 	}
 
 	/**
@@ -71,11 +71,11 @@ class Tests_WPDesktopChromelessPreserveRedirect extends WP_UnitTestCase {
 	public function test_does_not_double_append_when_flag_already_present() {
 		$this->enter_chromeless();
 
-		$location = admin_url( 'edit.php?wp_desktop=1' );
+		$location = admin_url( 'edit.php?desktop_mode_chromeless=1' );
 		$filtered = desktop_mode_chromeless_preserve_redirect( $location );
 
 		$this->assertSame( $location, $filtered );
-		$this->assertSame( 1, substr_count( $filtered, 'wp_desktop=' ) );
+		$this->assertSame( 1, substr_count( $filtered, 'desktop_mode_chromeless=' ) );
 	}
 
 	/**
@@ -100,7 +100,7 @@ class Tests_WPDesktopChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'post=7', $filtered );
 		$this->assertStringContainsString( 'action=edit', $filtered );
 		$this->assertStringContainsString( 'message=1', $filtered );
-		$this->assertStringContainsString( 'wp_desktop=1', $filtered );
+		$this->assertStringContainsString( 'desktop_mode_chromeless=1', $filtered );
 	}
 
 	/**

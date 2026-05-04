@@ -2,10 +2,10 @@
  * Hook-firing tests for {@link WindowManager}.
  *
  * Covers the actions the manager is responsible for emitting:
- *   - wp-desktop.window.opened
- *   - wp-desktop.window.focused
- *   - wp-desktop.window.closed
- *   - wp-desktop.arrange.cascade.starting / applied
+ *   - desktop-mode.window.opened
+ *   - desktop-mode.window.focused
+ *   - desktop-mode.window.closed
+ *   - desktop-mode.arrange.cascade.starting / applied
  *
  * Window-owned hooks (minimized, maximized, fullscreen, title, …)
  * are covered in `window-lifecycle-hooks.test.ts`.
@@ -20,11 +20,11 @@ import {
 } from './helpers/hooks-stub';
 
 const MANAGER_HOOKS = [
-	'wp-desktop.window.opened',
-	'wp-desktop.window.focused',
-	'wp-desktop.window.closed',
-	'wp-desktop.arrange.cascade.starting',
-	'wp-desktop.arrange.cascade.applied',
+	'desktop-mode.window.opened',
+	'desktop-mode.window.focused',
+	'desktop-mode.window.closed',
+	'desktop-mode.arrange.cascade.starting',
+	'desktop-mode.arrange.cascade.applied',
 ] as const;
 
 function openConfig( id: string, overrides: Partial<{ url: string; title: string; icon: string; multi: boolean }> = {} ) {
@@ -45,7 +45,7 @@ describe( 'WindowManager — hook firing', () => {
 	beforeEach( () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'wp-desktop-area';
+		desktop.id = 'desktop-mode-area';
 		// Give the desktop a non-zero bounding box so cascade math
 		// doesn't divide-by-zero or cascade windows into nowhere.
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -83,7 +83,7 @@ describe( 'WindowManager — hook firing', () => {
 
 		manager.open( openConfig( 'posts', { url: 'http://example.test/edit.php', title: 'Posts' } ) );
 
-		const opened = log.find( ( e ) => e.name === 'wp-desktop.window.opened' );
+		const opened = log.find( ( e ) => e.name === 'desktop-mode.window.opened' );
 		expect( opened ).toBeDefined();
 		const payload = opened!.args[ 0 ] as {
 			windowId: string;
@@ -103,8 +103,8 @@ describe( 'WindowManager — hook firing', () => {
 		manager.open( openConfig( 'posts' ) );
 
 		const names = log.map( ( e ) => e.name );
-		const openedIdx = names.indexOf( 'wp-desktop.window.opened' );
-		const focusedIdx = names.indexOf( 'wp-desktop.window.focused' );
+		const openedIdx = names.indexOf( 'desktop-mode.window.opened' );
+		const focusedIdx = names.indexOf( 'desktop-mode.window.focused' );
 		expect( openedIdx ).toBeGreaterThanOrEqual( 0 );
 		expect( focusedIdx ).toBeGreaterThanOrEqual( 0 );
 		// `createWindow` calls `focus()` before emitting `opened`, so
@@ -119,7 +119,7 @@ describe( 'WindowManager — hook firing', () => {
 		manager.open( openConfig( 'pages' ) );
 
 		const focuses = log.filter(
-			( e ) => e.name === 'wp-desktop.window.focused',
+			( e ) => e.name === 'desktop-mode.window.focused',
 		);
 		expect( focuses.length ).toBeGreaterThanOrEqual( 1 );
 		const last = focuses[ focuses.length - 1 ].args[ 0 ] as {
@@ -136,7 +136,7 @@ describe( 'WindowManager — hook firing', () => {
 		manager.focus( b );
 
 		const focuses = log.filter(
-			( e ) => e.name === 'wp-desktop.window.focused',
+			( e ) => e.name === 'desktop-mode.window.focused',
 		);
 		expect( focuses.length ).toBe( 1 );
 		expect(
@@ -150,7 +150,7 @@ describe( 'WindowManager — hook firing', () => {
 
 		win.close();
 
-		const closed = log.find( ( e ) => e.name === 'wp-desktop.window.closed' );
+		const closed = log.find( ( e ) => e.name === 'desktop-mode.window.closed' );
 		expect( closed ).toBeDefined();
 		expect(
 			( closed!.args[ 0 ] as { windowId: string } ).windowId,
@@ -166,7 +166,7 @@ describe( 'WindowManager — hook firing', () => {
 		// manager must NOT synthesize a focused event for a
 		// nonexistent window.
 		const focuses = log.filter(
-			( e ) => e.name === 'wp-desktop.window.focused',
+			( e ) => e.name === 'desktop-mode.window.focused',
 		);
 		expect( focuses ).toHaveLength( 0 );
 	} );
@@ -180,7 +180,7 @@ describe( 'WindowManager — hook firing', () => {
 
 		// `a` wasn't on top; `b` keeps focus — one focused action fires.
 		const focuses = log.filter(
-			( e ) => e.name === 'wp-desktop.window.focused',
+			( e ) => e.name === 'desktop-mode.window.focused',
 		);
 		expect( focuses ).toHaveLength( 1 );
 		expect(
@@ -197,14 +197,14 @@ describe( 'WindowManager — hook firing', () => {
 		manager.cascade();
 
 		const cascadeEvents = log
-			.filter( ( e ) => e.name.startsWith( 'wp-desktop.arrange.cascade.' ) )
+			.filter( ( e ) => e.name.startsWith( 'desktop-mode.arrange.cascade.' ) )
 			.map( ( e ) => ( {
 				name: e.name,
 				payload: e.args[ 0 ] as { windowCount: number },
 			} ) );
 		expect( cascadeEvents.map( ( e ) => e.name ) ).toEqual( [
-			'wp-desktop.arrange.cascade.starting',
-			'wp-desktop.arrange.cascade.applied',
+			'desktop-mode.arrange.cascade.starting',
+			'desktop-mode.arrange.cascade.applied',
 		] );
 		expect( cascadeEvents[ 0 ].payload.windowCount ).toBe( 3 );
 		expect( cascadeEvents[ 1 ].payload.windowCount ).toBe( 3 );
@@ -216,7 +216,7 @@ describe( 'WindowManager — hook firing', () => {
 		manager.cascade();
 
 		const cascadeEvents = log.filter( ( e ) =>
-			e.name.startsWith( 'wp-desktop.arrange.cascade.' ),
+			e.name.startsWith( 'desktop-mode.arrange.cascade.' ),
 		);
 		expect( cascadeEvents ).toHaveLength( 0 );
 	} );

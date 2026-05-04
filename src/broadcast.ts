@@ -10,23 +10,23 @@
  * "I want to talk to *that* window." This module is fan-out:
  * "something happened, anyone who cares about <topic> should
  * react." First use case: the Recycle Bin publishes
- * `wp-desktop.data-changed` whenever it restores or permanently
+ * `desktop-mode.data-changed` whenever it restores or permanently
  * deletes an item, so the Posts list, Media Library, etc. can
  * repaint themselves without polling.
  *
  * Wire model:
  *   - **In-shell delivery:** `document.dispatchEvent` on the
- *     parent document with `CustomEvent( 'wp-desktop-broadcast',
+ *     parent document with `CustomEvent( 'desktop-mode-broadcast',
  *     { detail: { topic, payload } } )`. Cheap, synchronous.
  *   - **To iframes:** the parent walks every open window's
  *     `iframe.contentWindow` and posts `{ type:
- *     'wp-desktop-broadcast', topic, payload }`. Same-origin
+ *     'desktop-mode-broadcast', topic, payload }`. Same-origin
  *     check on the receive side.
  *   - **From iframes:** the chromeless bridge in `render.php`
- *     listens for incoming `wp-desktop-broadcast` messages and
+ *     listens for incoming `desktop-mode-broadcast` messages and
  *     re-dispatches the CustomEvent on the iframe's own
  *     `document`. Iframe-side admin pages subscribe with
- *     `document.addEventListener( 'wp-desktop-broadcast', … )`.
+ *     `document.addEventListener( 'desktop-mode-broadcast', … )`.
  *
  * @public
  * @since 0.21.0
@@ -36,8 +36,8 @@ import { activity } from './activity';
 import { applyFilters, doAction, HOOKS } from './hooks';
 import type { WindowManager } from './window-manager';
 
-const EVENT_NAME = 'wp-desktop-broadcast';
-const POSTMESSAGE_TYPE = 'wp-desktop-broadcast';
+const EVENT_NAME = 'desktop-mode-broadcast';
+const POSTMESSAGE_TYPE = 'desktop-mode-broadcast';
 const ORIGIN = window.location.origin;
 
 export interface BroadcastDetail< T = unknown > {
@@ -73,23 +73,23 @@ export function attachBroadcastBus( manager: WindowManager ): void {
  * subscriber is invoked before this returns; iframes receive the
  * payload one tick later (postMessage is always async).
  *
- * The topic is filterable via `wp-desktop.broadcast.topic` and the
- * payload via `wp-desktop.broadcast.payload`, so plugins can
+ * The topic is filterable via `desktop-mode.broadcast.topic` and the
+ * payload via `desktop-mode.broadcast.payload`, so plugins can
  * mute / rewrite traffic without forking the source.
  *
  * @public
  *
  * @param topic   Slash- or dot-separated identifier (e.g.
- *                `wp-desktop.data-changed`). Subscribers match by
+ *                `desktop-mode.data-changed`). Subscribers match by
  *                exact string OR by the wildcard `'*'`.
  * @param payload Anything structured-clone-safe.
  */
 export function broadcast< T = unknown >( topic: string, payload: T ): void {
 	const filteredTopic = String(
-		applyFilters( 'wp-desktop.broadcast.topic', topic, { payload } ) ?? topic,
+		applyFilters( 'desktop-mode.broadcast.topic', topic, { payload } ) ?? topic,
 	);
 	const filteredPayload = applyFilters(
-		'wp-desktop.broadcast.payload',
+		'desktop-mode.broadcast.payload',
 		payload,
 		{ topic: filteredTopic },
 	) as T;
@@ -153,8 +153,8 @@ export function broadcast< T = unknown >( topic: string, payload: T ): void {
  * re-dispatches incoming broadcasts as the same CustomEvent on
  * the iframe document) — iframe-side admin pages can call this
  * via `wp.desktop.subscribe(...)` if they enqueue
- * `wp-desktop-iframe-bridge`, or they can listen on `document`
- * directly for `wp-desktop-broadcast`.
+ * `desktop-mode-iframe-bridge`, or they can listen on `document`
+ * directly for `desktop-mode-broadcast`.
  *
  * @public
  *

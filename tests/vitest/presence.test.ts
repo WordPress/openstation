@@ -120,12 +120,12 @@ describe( 'presence', () => {
 		off();
 	} );
 
-	test( 'wp-desktop-presence-changed fires on status transitions', async () => {
+	test( 'desktop-mode-presence-changed fires on status transitions', async () => {
 		const handlers = installFakeJQuery();
 		bootHeartbeatBus();
 		bootPresenceProbe();
 		const events: Array< { userId: number; oldStatus: string | null; newStatus: string } > = [];
-		document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+		document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
 			const detail = ( e as CustomEvent ).detail;
 			events.push( {
 				userId: detail.userId,
@@ -212,7 +212,7 @@ describe( 'presence', () => {
 
 	test( 'applyPresenceBatch publishes status transition events', () => {
 		const events: Array< unknown > = [];
-		document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+		document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
 			events.push( ( e as CustomEvent ).detail );
 		} );
 		applyPresenceBatch( [
@@ -229,7 +229,7 @@ describe( 'presence', () => {
 		expect( typeof presenceApi.applyBatch ).toBe( 'function' );
 
 		const events: Array< unknown > = [];
-		document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+		document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
 			events.push( ( e as CustomEvent ).detail );
 		} );
 		presenceApi.applyBatch( [ { userId: 11, status: 'online' } ] );

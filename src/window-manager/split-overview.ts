@@ -65,14 +65,14 @@ export function enterSplitOverview(
 	}
 
 	// Lay out the grid in the opposite-half rect.
-	mgr._desktop.classList.add( 'wp-desktop-area--split-overview' );
+	mgr._desktop.classList.add( 'desktop-mode-area--split-overview' );
 	const rect = oppositeHalfRect( mgr, zone );
 	const layout = computeOverviewLayout( eligible, rect, 0 );
 
 	mgr._splitOverviewLabels.clear();
 	for ( const item of layout ) {
 		const el = item.win.element;
-		el.classList.add( 'wp-desktop-window--overview' );
+		el.classList.add( 'desktop-mode-window--overview' );
 		const dx = item.x - el.offsetLeft;
 		const dy = item.y - el.offsetTop;
 		el.style.transform = `translate(${ dx }px, ${ dy }px) scale(${ item.scale })`;
@@ -95,7 +95,7 @@ export function enterSplitOverview(
 	): { id: string; element: HTMLElement } | null => {
 		const target = e.target as HTMLElement | null;
 		const winEl = target?.closest<HTMLElement>(
-			'.wp-desktop-window--overview',
+			'.desktop-mode-window--overview',
 		);
 		if ( winEl ) {
 			return {
@@ -219,7 +219,7 @@ export function fillOppositeHalfAndExit( mgr: WindowManager, selected: Window ):
 	// `Window.bindEvents` (which skips the focus request when
 	// `--overview` is set) and children are unclickable — the user
 	// sees a window that won't activate.
-	selected.element.classList.remove( 'wp-desktop-window--overview' );
+	selected.element.classList.remove( 'desktop-mode-window--overview' );
 
 	// Run through the shared snap applier so the partner fill uses
 	// the exact same geometry + class + state logic as a live edge
@@ -263,9 +263,9 @@ export function exitSplitOverview( mgr: WindowManager ): void {
 	}
 
 	for ( const label of mgr._splitOverviewLabels.values() ) {
-		label.classList.add( 'wp-desktop-overview-label--out' );
+		label.classList.add( 'desktop-mode-overview-label--out' );
 	}
-	mgr._desktop.classList.remove( 'wp-desktop-area--split-overview' );
+	mgr._desktop.classList.remove( 'desktop-mode-area--split-overview' );
 
 	const ANIMATION_MS = 260;
 	window.setTimeout( () => {
@@ -274,7 +274,7 @@ export function exitSplitOverview( mgr: WindowManager ): void {
 			// snapshot — anchor + newly-snapped partner never had the
 			// class.
 			if ( mgr._splitOverviewSnapshot.has( w.id ) ) {
-				w.element.classList.remove( 'wp-desktop-window--overview' );
+				w.element.classList.remove( 'desktop-mode-window--overview' );
 			}
 		}
 		for ( const label of mgr._splitOverviewLabels.values() ) {

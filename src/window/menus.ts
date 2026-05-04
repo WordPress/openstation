@@ -15,7 +15,7 @@ import type { Window } from './index';
 /** Toggle the title-bar actions menu open/closed. */
 export function toggleActionsMenu( win: Window ): void {
 	const panel = win.element.querySelector(
-		'.wp-desktop-window__menu-panel',
+		'.desktop-mode-window__menu-panel',
 	) as HTMLElement | null;
 	if ( ! panel ) {
 		return;
@@ -36,10 +36,10 @@ export function toggleActionsMenu( win: Window ): void {
  */
 export function openActionsMenu( win: Window ): void {
 	const panel = win.element.querySelector(
-		'.wp-desktop-window__menu-panel',
+		'.desktop-mode-window__menu-panel',
 	) as HTMLElement | null;
 	const btn = win.element.querySelector<HTMLElement>(
-		'.wp-desktop-window__menu-btn',
+		'.desktop-mode-window__menu-btn',
 	);
 	if ( ! panel || ! btn ) {
 		return;
@@ -54,7 +54,7 @@ export function openActionsMenu( win: Window ): void {
 	// that plus any external change (e.g. another window toggled
 	// itself as default) that hasn't propagated yet.
 	const startup = panel.querySelector<HTMLElement>(
-		'.wp-desktop-window__menu-item--startup',
+		'.desktop-mode-window__menu-item--startup',
 	);
 	if ( startup ) {
 		refreshStartupCheckState( win, startup );
@@ -93,10 +93,10 @@ export function openActionsMenu( win: Window ): void {
 /** Close the title-bar actions menu. */
 export function closeActionsMenu( win: Window ): void {
 	const panel = win.element.querySelector(
-		'.wp-desktop-window__menu-panel',
+		'.desktop-mode-window__menu-panel',
 	) as HTMLElement | null;
 	const btn = win.element.querySelector<HTMLElement>(
-		'.wp-desktop-window__menu-btn',
+		'.desktop-mode-window__menu-btn',
 	);
 	if ( panel ) {
 		panel.hidden = true;
@@ -116,7 +116,7 @@ export function closeActionsMenu( win: Window ): void {
 /**
  * Flip the "Open on startup" check state immediately on click so the
  * user sees instant feedback — the REST round-trip confirms shortly
- * after via the `wp-desktop-default-window-changed` event, which
+ * after via the `desktop-mode-default-window-changed` event, which
  * calls `refreshStartupCheckState` with the canonical state. If the
  * REST fails the optimistic flip stays (wrong) until the next menu
  * open, where the canonical check takes over.

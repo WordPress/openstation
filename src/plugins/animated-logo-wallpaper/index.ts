@@ -18,7 +18,7 @@ import { mountScene } from './scene';
 const WALLPAPER_ID = 'wp-animated-logo';
 
 /** Plugin-identity namespace for hook callbacks, per WP convention. */
-const NAMESPACE = 'wp-desktop-mode/animated-logo';
+const NAMESPACE = 'desktop-mode/animated-logo';
 
 /**
  * Swatch preview — rendered in OS Settings before PixiJS is loaded,

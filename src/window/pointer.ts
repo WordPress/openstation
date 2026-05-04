@@ -114,12 +114,12 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 	// buttons were a concept. Defence in depth.
 	const target = e.target as HTMLElement;
 	if (
-		target.closest( '.wp-desktop-window__btn' ) ||
-		target.closest( '.wp-desktop-window__custom-buttons' ) ||
-		target.closest( '.wp-desktop-window__controls' ) ||
-		target.closest( '.wp-desktop-window__screen-meta' ) ||
-		target.closest( '.wp-desktop-window__menu-btn' ) ||
-		target.closest( '.wp-desktop-window__menu-panel' )
+		target.closest( '.desktop-mode-window__btn' ) ||
+		target.closest( '.desktop-mode-window__custom-buttons' ) ||
+		target.closest( '.desktop-mode-window__controls' ) ||
+		target.closest( '.desktop-mode-window__screen-meta' ) ||
+		target.closest( '.desktop-mode-window__menu-btn' ) ||
+		target.closest( '.desktop-mode-window__menu-panel' )
 	) {
 		return;
 	}
@@ -192,11 +192,11 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		// left/top/width/height so drag motion is pixel-accurate.
 		// Added AFTER the un-state geometry jump so the browser
 		// doesn't try to animate the flip from maximized → floating.
-		win.element.classList.add( 'wp-desktop-window--dragging' );
+		win.element.classList.add( 'desktop-mode-window--dragging' );
 		if ( snap.enabled ) {
 			// A shorter transition for snap-drag so cell-to-cell jumps
 			// feel tactile instead of teleporting.
-			win.element.classList.add( 'wp-desktop-window--snap-drag' );
+			win.element.classList.add( 'desktop-mode-window--snap-drag' );
 		}
 
 		win._isDragging = true;
@@ -288,8 +288,8 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 			return;
 		}
 		win._isDragging = false;
-		win.element.classList.remove( 'wp-desktop-window--dragging' );
-		win.element.classList.remove( 'wp-desktop-window--snap-drag' );
+		win.element.classList.remove( 'desktop-mode-window--dragging' );
+		win.element.classList.remove( 'desktop-mode-window--snap-drag' );
 		releaseCapture();
 		detachListeners();
 
@@ -381,9 +381,9 @@ function commitUnstate(
 	cursorY: number,
 ): { left: number; top: number } {
 	win.element.classList.remove(
-		'wp-desktop-window--maximized',
-		'wp-desktop-window--snapped-left',
-		'wp-desktop-window--snapped-right',
+		'desktop-mode-window--maximized',
+		'desktop-mode-window--snapped-left',
+		'desktop-mode-window--snapped-right',
 	);
 	win.element.style.width = `${ params.targetW }px`;
 	win.element.style.height = `${ params.targetH }px`;
@@ -431,7 +431,7 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 	const startTop = win.element.offsetTop;
 
 	handle.setPointerCapture( e.pointerId );
-	win.element.classList.add( 'wp-desktop-window--resizing' );
+	win.element.classList.add( 'desktop-mode-window--resizing' );
 	doAction( HOOKS.WINDOW_RESIZE_START, { windowId: win.id } );
 
 	// Per-session rAF-coalesced bounds emitter — same pattern as
@@ -442,7 +442,7 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 
 	const snap = win.snapConfigProvider?.() ?? { enabled: false, cellWidth: 0, cellHeight: 0 };
 	if ( snap.enabled ) {
-		win.element.classList.add( 'wp-desktop-window--snap-drag' );
+		win.element.classList.add( 'desktop-mode-window--snap-drag' );
 	}
 
 	// Resizing a snapped window breaks the "exactly half" invariant,
@@ -451,8 +451,8 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 	// longer apply to a user-sized window.
 	if ( win.state === 'snapped-left' || win.state === 'snapped-right' ) {
 		win.element.classList.remove(
-			'wp-desktop-window--snapped-left',
-			'wp-desktop-window--snapped-right',
+			'desktop-mode-window--snapped-left',
+			'desktop-mode-window--snapped-right',
 		);
 		win.state = 'normal';
 	}
@@ -488,8 +488,8 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 			return;
 		}
 		win._isResizing = false;
-		win.element.classList.remove( 'wp-desktop-window--resizing' );
-		win.element.classList.remove( 'wp-desktop-window--snap-drag' );
+		win.element.classList.remove( 'desktop-mode-window--resizing' );
+		win.element.classList.remove( 'desktop-mode-window--snap-drag' );
 		handle.removeEventListener( 'pointermove', onResizeMove );
 		handle.removeEventListener( 'pointerup', onResizeEnd );
 		handle.removeEventListener( 'pointercancel', onResizeEnd );

@@ -109,7 +109,7 @@ describe( 'drag auto-unstate', () => {
 		// Put the window in maximized state with saved floating
 		// geometry. Inline styles reflect the maximized bounds.
 		win.state = 'maximized';
-		win.element.classList.add( 'wp-desktop-window--maximized' );
+		win.element.classList.add( 'desktop-mode-window--maximized' );
 		win.element.style.left = '0px';
 		win.element.style.top = '0px';
 		win.element.style.width = '1600px';
@@ -120,7 +120,7 @@ describe( 'drag auto-unstate', () => {
 		// committed yet (threshold-gated).
 		handleDragStart( win, fakePointer( win._titleBar, 1200, 20 ) );
 		// Before the threshold crosses, the window stays maximized.
-		expect( win.element.classList.contains( 'wp-desktop-window--maximized' ) ).toBe( true );
+		expect( win.element.classList.contains( 'desktop-mode-window--maximized' ) ).toBe( true );
 
 		// Move the pointer past the drag threshold so the un-state
 		// commits. The anchor uses the CURRENT cursor position so
@@ -130,8 +130,8 @@ describe( 'drag auto-unstate', () => {
 
 		// --dragging class present (transitions disabled) AND
 		// --maximized class gone (un-state fired).
-		expect( win.element.classList.contains( 'wp-desktop-window--dragging' ) ).toBe( true );
-		expect( win.element.classList.contains( 'wp-desktop-window--maximized' ) ).toBe( false );
+		expect( win.element.classList.contains( 'desktop-mode-window--dragging' ) ).toBe( true );
+		expect( win.element.classList.contains( 'desktop-mode-window--maximized' ) ).toBe( false );
 		// Floating size restored from the saved geometry.
 		expect( win.element.style.width ).toBe( '800px' );
 		expect( win.element.style.height ).toBe( '600px' );
@@ -158,7 +158,7 @@ describe( 'drag auto-unstate', () => {
 		// Put the window in snapped-left state with saved floating
 		// geometry that the snap commit stashed.
 		win.state = 'snapped-left';
-		win.element.classList.add( 'wp-desktop-window--snapped-left' );
+		win.element.classList.add( 'desktop-mode-window--snapped-left' );
 		win.element.style.left = '0px';
 		win.element.style.top = '0px';
 		win.element.style.width = '800px';
@@ -169,9 +169,9 @@ describe( 'drag auto-unstate', () => {
 		fakeMove( win._titleBar, 400, 20, 20, 0 );
 
 		// All state classes cleared; window is floating again.
-		expect( win.element.classList.contains( 'wp-desktop-window--snapped-left' ) ).toBe( false );
-		expect( win.element.classList.contains( 'wp-desktop-window--snapped-right' ) ).toBe( false );
-		expect( win.element.classList.contains( 'wp-desktop-window--dragging' ) ).toBe( true );
+		expect( win.element.classList.contains( 'desktop-mode-window--snapped-left' ) ).toBe( false );
+		expect( win.element.classList.contains( 'desktop-mode-window--snapped-right' ) ).toBe( false );
+		expect( win.element.classList.contains( 'desktop-mode-window--dragging' ) ).toBe( true );
 		expect( win.element.style.width ).toBe( '640px' );
 		expect( win.element.style.height ).toBe( '480px' );
 		expect( win.state ).toBe( 'normal' );
@@ -206,7 +206,7 @@ describe( 'drag auto-unstate', () => {
 		} );
 
 		win.state = 'maximized';
-		win.element.classList.add( 'wp-desktop-window--maximized' );
+		win.element.classList.add( 'desktop-mode-window--maximized' );
 		win.element.style.left = '0px';
 		win.element.style.top = '0px';
 		win.element.style.width = '1544px';
@@ -246,7 +246,7 @@ describe( 'drag auto-unstate', () => {
 		} );
 
 		win.state = 'maximized';
-		win.element.classList.add( 'wp-desktop-window--maximized' );
+		win.element.classList.add( 'desktop-mode-window--maximized' );
 		win.element.style.width = '1600px';
 		win.element.style.height = '900px';
 		win._savedGeometry = null;
@@ -277,7 +277,7 @@ describe( 'drag auto-unstate', () => {
 		} );
 
 		win.state = 'maximized';
-		win.element.classList.add( 'wp-desktop-window--maximized' );
+		win.element.classList.add( 'desktop-mode-window--maximized' );
 		win.element.style.width = '1600px';
 		win.element.style.height = '900px';
 		win._savedGeometry = { x: 40, y: 40, width: 800, height: 600 };
@@ -292,8 +292,8 @@ describe( 'drag auto-unstate', () => {
 		// Window remained maximized the whole time — no state change
 		// fired, no classes removed, no `_isDragging` flip.
 		expect( win.state ).toBe( 'maximized' );
-		expect( win.element.classList.contains( 'wp-desktop-window--maximized' ) ).toBe( true );
-		expect( win.element.classList.contains( 'wp-desktop-window--dragging' ) ).toBe( false );
+		expect( win.element.classList.contains( 'desktop-mode-window--maximized' ) ).toBe( true );
+		expect( win.element.classList.contains( 'desktop-mode-window--dragging' ) ).toBe( false );
 		expect( win._isDragging ).toBe( false );
 		cleanup();
 	} );

@@ -16,7 +16,7 @@ export const styles = css`
 		overflow-y: auto;
 		overflow-x: hidden;
 		font: var( --wpd-log-font, 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace );
-		color: var( --wpd-log-fg, var( --wp-desktop-text, #1d2327 ) );
+		color: var( --wpd-log-fg, var( --desktop-mode-text, #1d2327 ) );
 		background: var( --wpd-log-bg, transparent );
 		border: var( --wpd-log-border, 1px solid rgba( 0, 0, 0, 0.06 ) );
 		border-radius: var( --wpd-log-border-radius, 4px );
@@ -72,7 +72,7 @@ export const styles = css`
 		align-items: center;
 		justify-content: center;
 		padding: 16px;
-		color: var( --wp-desktop-text-muted, #57606a );
+		color: var( --desktop-mode-text-muted, #57606a );
 		font-style: italic;
 	}
 `;

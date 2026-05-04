@@ -33,7 +33,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 		wp_register_script( 'admin-bar', false );
 		// Dequeue desktop styles/scripts from previous tests so each case
 		// observes a clean enqueue state.
-		foreach ( array( 'wp-desktop', 'wp-desktop-windows', 'wp-desktop-dock', 'wp-desktop-dock-peek', 'wp-desktop-chromeless' ) as $handle ) {
+		foreach ( array( 'desktop-mode', 'desktop-mode-windows', 'desktop-mode-dock', 'desktop-mode-dock-peek', 'desktop-mode-chromeless' ) as $handle ) {
 			wp_dequeue_style( $handle );
 			wp_dequeue_script( $handle );
 		}
@@ -43,7 +43,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		remove_all_filters( 'desktop_mode_shell_config' );
 		remove_all_filters( 'desktop_mode_arrange_menu_items' );
-		unset( $_GET['wp_desktop'] );
+		unset( $_GET['desktop_mode_chromeless'] );
 		parent::tear_down();
 	}
 
@@ -150,7 +150,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	/**
 	 * The save-desktop-mode nonce must be reachable from the toggle's
 	 * click handler. Today the config is delivered via wp_localize_script
-	 * on the `wpdm-admin-bar` handle, so we assert the nonce that
+	 * on the `desktop-mode-admin-bar` handle, so we assert the nonce that
 	 * lands in that script's `data` matches wp_create_nonce( 'save-desktop-mode' ).
 	 *
 	 * @covers ::desktop_mode_enqueue_toggle_assets
@@ -160,7 +160,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		desktop_mode_enqueue_toggle_assets();
 
-		$before = wp_scripts()->get_data( 'wpdm-admin-bar', 'before' );
+		$before = wp_scripts()->get_data( 'desktop-mode-admin-bar', 'before' );
 		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
 		$expected_nonce = wp_create_nonce( 'save-desktop-mode' );
 		$this->assertStringContainsString( '"nonce":"' . $expected_nonce . '"', $data );
@@ -171,7 +171,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * string-interpolated. That way a weird nonce, URL, or filter return
 	 * value can never break out of its quotes and inject script.
 	 * wp_localize_script JSON-encodes its argument by definition; this
-	 * test asserts the expected JSON shape lands on the wpdm-admin-bar
+	 * test asserts the expected JSON shape lands on the desktop-mode-admin-bar
 	 * handle so the contract is held end-to-end.
 	 *
 	 * @covers ::desktop_mode_enqueue_toggle_assets
@@ -181,7 +181,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		desktop_mode_enqueue_toggle_assets();
 
-		$before = wp_scripts()->get_data( 'wpdm-admin-bar', 'before' );
+		$before = wp_scripts()->get_data( 'desktop-mode-admin-bar', 'before' );
 		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
 
 		// JSON-shaped properties for every value we inject.
@@ -216,8 +216,8 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		desktop_mode_enqueue_assets();
 
-		$this->assertFalse( wp_style_is( 'wp-desktop', 'enqueued' ) );
-		$this->assertFalse( wp_script_is( 'wp-desktop', 'enqueued' ) );
+		$this->assertFalse( wp_style_is( 'desktop-mode', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'desktop-mode', 'enqueued' ) );
 	}
 
 	/**
@@ -229,10 +229,10 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		desktop_mode_enqueue_assets();
 
-		$this->assertTrue( wp_style_is( 'wp-desktop', 'enqueued' ) );
-		$this->assertTrue( wp_style_is( 'wp-desktop-windows', 'enqueued' ) );
-		$this->assertTrue( wp_style_is( 'wp-desktop-dock', 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'wp-desktop', 'enqueued' ) );
+		$this->assertTrue( wp_style_is( 'desktop-mode', 'enqueued' ) );
+		$this->assertTrue( wp_style_is( 'desktop-mode-windows', 'enqueued' ) );
+		$this->assertTrue( wp_style_is( 'desktop-mode-dock', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'desktop-mode', 'enqueued' ) );
 	}
 
 	/**
@@ -244,14 +244,14 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	public function test_chromeless_request_enqueues_chromeless_style_only() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		desktop_mode_enqueue_assets();
 
-		$this->assertTrue( wp_style_is( 'wp-desktop-chromeless', 'enqueued' ) );
-		$this->assertFalse( wp_style_is( 'wp-desktop-windows', 'enqueued' ) );
-		$this->assertFalse( wp_style_is( 'wp-desktop-dock', 'enqueued' ) );
-		$this->assertFalse( wp_script_is( 'wp-desktop', 'enqueued' ) );
+		$this->assertTrue( wp_style_is( 'desktop-mode-chromeless', 'enqueued' ) );
+		$this->assertFalse( wp_style_is( 'desktop-mode-windows', 'enqueued' ) );
+		$this->assertFalse( wp_style_is( 'desktop-mode-dock', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'desktop-mode', 'enqueued' ) );
 	}
 
 	/**
@@ -263,9 +263,9 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		desktop_mode_enqueue_assets();
 
-		$data = wp_scripts()->get_data( 'wp-desktop', 'data' );
+		$data = wp_scripts()->get_data( 'desktop-mode', 'data' );
 		$this->assertNotEmpty( $data );
-		$this->assertStringContainsString( 'wpDesktopConfig', (string) $data );
+		$this->assertStringContainsString( 'desktopModeConfig', (string) $data );
 		$this->assertStringContainsString( 'dockItems', (string) $data );
 	}
 
@@ -285,7 +285,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		desktop_mode_enqueue_assets();
 
-		$data = (string) wp_scripts()->get_data( 'wp-desktop', 'data' );
+		$data = (string) wp_scripts()->get_data( 'desktop-mode', 'data' );
 		$this->assertStringContainsString( 'Filtered Title', $data );
 	}
 
@@ -322,7 +322,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * `desktop_mode_arrange_menu_items` filter. Each entry becomes an
 	 * admin-bar node under `desktop-layout-menu` with id prefixed by
 	 * `desktop-layout-custom-` — the inline JS routes its click to
-	 * `wp-desktop.arrange.custom-action` with the original slug.
+	 * `desktop-mode.arrange.custom-action` with the original slug.
 	 *
 	 * @covers ::desktop_mode_admin_bar_toggle
 	 */
@@ -347,7 +347,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		$this->assertNotNull( $node );
 		$this->assertSame( 'desktop-layout-menu', $node->parent );
-		$this->assertStringContainsString( 'wpdm-layout-custom', $node->meta['class'] );
+		$this->assertStringContainsString( 'desktop-mode-layout-custom', $node->meta['class'] );
 		$this->assertSame( 'A perfect 45° cascade.', $node->meta['title'] );
 	}
 
@@ -459,6 +459,6 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$js = (string) file_get_contents( $js_path );
 
 		$this->assertStringContainsString( 'wp-admin-bar-desktop-layout-custom-', $js );
-		$this->assertStringContainsString( 'wp-desktop.arrange.custom-action', $js );
+		$this->assertStringContainsString( 'desktop-mode.arrange.custom-action', $js );
 	}
 }

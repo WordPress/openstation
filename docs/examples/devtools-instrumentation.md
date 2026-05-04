@@ -164,7 +164,7 @@ When the URL is the only attribution surface (a window backed by a core admin pa
 
 ## REST endpoint surface
 
-The debug bus exposes a single REST route: `GET /wp-desktop/v1/debug?sessionId=…&since=…&channel=…` (or `channels[]=…&channels[]=…`). Permission: logged-in admin (`manage_options`); override via the `desktop_mode_debug_rest_permission` filter. The `desktop_mode_debug_publish` action fires synchronously on every publish for observability widgets that don't want to round-trip through the poll loop.
+The debug bus exposes a single REST route: `GET /desktop-mode/v1/debug?sessionId=…&since=…&channel=…` (or `channels[]=…&channels[]=…`). Permission: logged-in admin (`manage_options`); override via the `desktop_mode_debug_rest_permission` filter. The `desktop_mode_debug_publish` action fires synchronously on every publish for observability widgets that don't want to round-trip through the poll loop.
 
 ### Talking to the endpoint directly
 
@@ -172,10 +172,10 @@ The debug bus exposes a single REST route: `GET /wp-desktop/v1/debug?sessionId=�
 
 ```js
 const events = await wp.apiFetch( {
-    path: `/wp-desktop/v1/debug?sessionId=${ sid }&channels[]=query&since=${ cursor }`,
+    path: `/desktop-mode/v1/debug?sessionId=${ sid }&channels[]=query&since=${ cursor }`,
 } );
 ```
 
-`wp.apiFetch` handles two things you'd otherwise re-derive: nonce attachment and URL composition under both pretty-permalink (`/wp-json/`) and ugly-permalink (`?rest_route=/`) installs. Hand-built `fetch( restUrl + 'wp-desktop/v1/debug?sessionId=…' )` works on pretty-permalink sites and silently breaks on ugly-permalink sites — the URL ends up with two `?` separators, WordPress routes to the homepage, the response is HTML, and `JSON.parse` throws.
+`wp.apiFetch` handles two things you'd otherwise re-derive: nonce attachment and URL composition under both pretty-permalink (`/wp-json/`) and ugly-permalink (`?rest_route=/`) installs. Hand-built `fetch( restUrl + 'desktop-mode/v1/debug?sessionId=…' )` works on pretty-permalink sites and silently breaks on ugly-permalink sites — the URL ends up with two `?` separators, WordPress routes to the homepage, the response is HTML, and `JSON.parse` throws.
 
 The shell's own poll loop uses WHATWG `URL` + `searchParams` for the same reason — both permalink schemes round-trip cleanly.

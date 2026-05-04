@@ -35,7 +35,7 @@ interface ComponentEntry {
 export function buildHelpSection(): HTMLElement {
 	const entries = collectEntries();
 	const el = document.createElement( 'div' );
-	el.classList.add( 'wp-desktop-os-settings__help' );
+	el.classList.add( 'desktop-mode-os-settings__help' );
 
 	let activeTag = entries[ 0 ]?.tag ?? '';
 
@@ -49,14 +49,14 @@ export function buildHelpSection(): HTMLElement {
 						'Every <wpd-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code.',
 					) }
 				>
-					<p class="wp-desktop-os-settings__help-count">
+					<p class="desktop-mode-os-settings__help-count">
 						${ String( entries.length ) } ${ __( 'components registered.' ) }
 					</p>
 				</wpd-section>
 
-				<div class="wp-desktop-os-settings__help-layout">
+				<div class="desktop-mode-os-settings__help-layout">
 					<nav
-						class="wp-desktop-os-settings__help-nav"
+						class="desktop-mode-os-settings__help-nav"
 						aria-label=${ __( 'Components' ) }
 					>
 						${ entries.map(
@@ -64,7 +64,7 @@ export function buildHelpSection(): HTMLElement {
 								<button
 									type="button"
 									class=${ classNames(
-										'wp-desktop-os-settings__help-nav-item',
+										'desktop-mode-os-settings__help-nav-item',
 										entry.tag === ( active?.tag ?? '' )
 											? 'is-active'
 											: '',
@@ -77,17 +77,17 @@ export function buildHelpSection(): HTMLElement {
 			paint();
 		} }
 								>
-									<span class="wp-desktop-os-settings__help-nav-title"
+									<span class="desktop-mode-os-settings__help-nav-title"
 										>${ entry.title }</span
 									>
-									<span class="wp-desktop-os-settings__help-nav-tag"
+									<span class="desktop-mode-os-settings__help-nav-tag"
 										>&lt;${ entry.tag }&gt;</span
 									>
 								</button>
 							`,
 						) }
 					</nav>
-					<div class="wp-desktop-os-settings__help-detail">
+					<div class="desktop-mode-os-settings__help-detail">
 						${ active ? renderDetail( active ) : renderEmpty() }
 					</div>
 				</div>
@@ -106,36 +106,36 @@ function renderDetail( entry: ComponentEntry ) {
 	const since = help?.since;
 
 	return html`
-		<header class="wp-desktop-os-settings__help-head">
-			<h3 class="wp-desktop-os-settings__help-title">${ entry.title }</h3>
-			<code class="wp-desktop-os-settings__help-code"
+		<header class="desktop-mode-os-settings__help-head">
+			<h3 class="desktop-mode-os-settings__help-title">${ entry.title }</h3>
+			<code class="desktop-mode-os-settings__help-code"
 				>&lt;${ entry.tag }&gt;</code
 			>
 			<span
 				class=${ classNames(
-					'wp-desktop-os-settings__help-badge',
+					'desktop-mode-os-settings__help-badge',
 					`is-${ status }`,
 				) }
 				>${ statusLabel( status ) }</span
 			>
 			${ since
-				? html`<span class="wp-desktop-os-settings__help-since"
+				? html`<span class="desktop-mode-os-settings__help-since"
 						>${ __( 'Since' ) } ${ since }</span
 					>`
 				: html`` }
 		</header>
 
 		${ help?.summary
-			? html`<p class="wp-desktop-os-settings__help-summary">
+			? html`<p class="desktop-mode-os-settings__help-summary">
 					${ help.summary }
 				</p>`
 			: html`` }
 
 		${ help?.example
 			? html`
-					<section class="wp-desktop-os-settings__help-group">
+					<section class="desktop-mode-os-settings__help-group">
 						<h4>${ __( 'Example' ) }</h4>
-						<div class="wp-desktop-os-settings__help-example">
+						<div class="desktop-mode-os-settings__help-example">
 							${ help.example }
 						</div>
 					</section>
@@ -145,7 +145,7 @@ function renderDetail( entry: ComponentEntry ) {
 		${ renderEvents( help ) } ${ renderParts( help ) }
 		${ renderCssProps( help ) }
 		${ ! help
-			? html`<p class="wp-desktop-os-settings__help-note">
+			? html`<p class="desktop-mode-os-settings__help-note">
 					${ __(
 						'This component has no help descriptor yet. Add `static help` to its class for a fuller reference.',
 					) }
@@ -164,9 +164,9 @@ function renderPropsTable( entry: ComponentEntry, help: WpdHelp | null ) {
 	}
 
 	return html`
-		<section class="wp-desktop-os-settings__help-group">
+		<section class="desktop-mode-os-settings__help-group">
 			<h4>${ __( 'Props' ) }</h4>
-			<table class="wp-desktop-os-settings__help-table">
+			<table class="desktop-mode-os-settings__help-table">
 				<thead>
 					<tr>
 						<th>${ __( 'Name' ) }</th>
@@ -213,9 +213,9 @@ function renderSlots( help: WpdHelp | null ) {
 		return html``;
 	}
 	return html`
-		<section class="wp-desktop-os-settings__help-group">
+		<section class="desktop-mode-os-settings__help-group">
 			<h4>${ __( 'Slots' ) }</h4>
-			<ul class="wp-desktop-os-settings__help-list">
+			<ul class="desktop-mode-os-settings__help-list">
 				${ help.slots.map(
 					( s ) => html`
 						<li>
@@ -236,9 +236,9 @@ function renderEvents( help: WpdHelp | null ) {
 		return html``;
 	}
 	return html`
-		<section class="wp-desktop-os-settings__help-group">
+		<section class="desktop-mode-os-settings__help-group">
 			<h4>${ __( 'Events' ) }</h4>
-			<ul class="wp-desktop-os-settings__help-list">
+			<ul class="desktop-mode-os-settings__help-list">
 				${ help.events.map(
 					( e ) => html`
 						<li>
@@ -260,9 +260,9 @@ function renderParts( help: WpdHelp | null ) {
 		return html``;
 	}
 	return html`
-		<section class="wp-desktop-os-settings__help-group">
+		<section class="desktop-mode-os-settings__help-group">
 			<h4>${ __( 'Shadow parts' ) }</h4>
-			<ul class="wp-desktop-os-settings__help-list">
+			<ul class="desktop-mode-os-settings__help-list">
 				${ help.parts.map(
 					( p ) => html`
 						<li>
@@ -281,9 +281,9 @@ function renderCssProps( help: WpdHelp | null ) {
 		return html``;
 	}
 	return html`
-		<section class="wp-desktop-os-settings__help-group">
+		<section class="desktop-mode-os-settings__help-group">
 			<h4>${ __( 'CSS custom properties' ) }</h4>
-			<ul class="wp-desktop-os-settings__help-list">
+			<ul class="desktop-mode-os-settings__help-list">
 				${ help.cssProps.map(
 					( v ) => html`
 						<li>

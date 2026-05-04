@@ -63,7 +63,7 @@ export const stepStyles = css`
 		content: '✓';
 		background: var(
 			--wpd-step-chip-done-bg,
-			var( --wp-desktop-muted, #646970 )
+			var( --desktop-mode-muted, #646970 )
 		);
 	}
 	.wpd-step__body {
@@ -73,7 +73,7 @@ export const stepStyles = css`
 		margin: 0 0 4px;
 		font-size: 14px;
 		font-weight: 600;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 		line-height: 1.3;
 	}
 	.wpd-step__title:empty {

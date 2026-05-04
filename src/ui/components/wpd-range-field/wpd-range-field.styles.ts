@@ -6,7 +6,7 @@ export const styles = css`
 		align-items: center;
 		gap: 10px;
 		font-size: 12px;
-		color: var( --wp-desktop-muted, #646970 );
+		color: var( --desktop-mode-muted, #646970 );
 	}
 	input[ type='range' ] {
 		flex: 1;
@@ -16,6 +16,6 @@ export const styles = css`
 		min-width: 3ch;
 		text-align: end;
 		font-variant-numeric: tabular-nums;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 	}
 `;

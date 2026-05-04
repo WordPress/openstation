@@ -4,7 +4,7 @@ import { css } from '../../core';
  * Button colors flip between "focused" and "unfocused" window
  * title bars. Shadow DOM can't reach the parent window's focus
  * class directly (no cross-boundary selectors in widely-shipped
- * browsers), so the OUTER `.wp-desktop-window[--focused]` CSS
+ * browsers), so the OUTER `.desktop-mode-window[--focused]` CSS
  * sets these custom properties; the shadow DOM reads them via
  * `var()` with sensible fallbacks.
  *

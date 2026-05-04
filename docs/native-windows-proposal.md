@@ -196,11 +196,11 @@ Every native window, regardless of authoring path, sees the same lifecycle event
 | Event | When | Web Component hook | Render callback |
 |---|---|---|---|
 | **mount** | Window opens. | `connectedCallback` | Function is called. |
-| **focus** | Window gains focus. | `wp-desktop-focus` CustomEvent on the element. | `ctx.onFocus( fn )`. |
-| **blur** | Loses focus. | `wp-desktop-blur` CustomEvent. | `ctx.onBlur( fn )`. |
-| **resize** | Geometry changes. | `wp-desktop-resize` CustomEvent with `{ width, height }`. | `ctx.onResize( fn )`. |
-| **hidden** | Window minimized. | `wp-desktop-hidden` CustomEvent. | `ctx.onHidden( fn )`. |
-| **visible** | Window restored. | `wp-desktop-visible` CustomEvent. | `ctx.onVisible( fn )`. |
+| **focus** | Window gains focus. | `desktop-mode-focus` CustomEvent on the element. | `ctx.onFocus( fn )`. |
+| **blur** | Loses focus. | `desktop-mode-blur` CustomEvent. | `ctx.onBlur( fn )`. |
+| **resize** | Geometry changes. | `desktop-mode-resize` CustomEvent with `{ width, height }`. | `ctx.onResize( fn )`. |
+| **hidden** | Window minimized. | `desktop-mode-hidden` CustomEvent. | `ctx.onHidden( fn )`. |
+| **visible** | Window restored. | `desktop-mode-visible` CustomEvent. | `ctx.onVisible( fn )`. |
 | **unmount** | Window closed. | `disconnectedCallback` | Teardown function returned from mount is called. |
 
 The `ctx` object passed to callbacks exposes the read-only window handle, the drag-bridge API (Phase 8), and a `setTitle( string )` shortcut so a native window can rename itself after data loads.
@@ -214,7 +214,7 @@ The `ctx` object passed to callbacks exposes the read-only window handle, the dr
 
 ## Why not just…
 
-**…migrate the shell itself to Web Components?** The shell does imperative work — pointer capture, z-order math, drag coordination, focus trapping — that doesn't benefit from a reactive lifecycle. Shadow DOM would also break the CSS-variable theming (OS Settings flips `--wp-admin-theme-color` on `#wp-desktop-shell` and every descendant inherits it; shadow roots don't inherit that without explicit opt-in per element). Staying vanilla is a feature, not debt.
+**…migrate the shell itself to Web Components?** The shell does imperative work — pointer capture, z-order math, drag coordination, focus trapping — that doesn't benefit from a reactive lifecycle. Shadow DOM would also break the CSS-variable theming (OS Settings flips `--wp-admin-theme-color` on `#desktop-mode-shell` and every descendant inherits it; shadow roots don't inherit that without explicit opt-in per element). Staying vanilla is a feature, not debt.
 
 **…ship a React-first API?** React is already available everywhere in WP, so plugins that want React can use it — inside a Web Component, inside a render callback, inside a dynamic module. Making the shell itself React-first would force every non-React plugin to ship a reconciler they don't need. The DOM is the common denominator; standardize on it.
 

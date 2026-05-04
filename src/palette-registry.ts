@@ -105,7 +105,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				console.error( '[wp-desktop-mode] palette-registry listener threw:', err );
+				console.error( '[desktop-mode] palette-registry listener threw:', err );
 			}
 		}
 	}
@@ -238,7 +238,7 @@ export function installPaletteShortcut(): void {
 			return;
 		}
 		const data = e.data as { type?: string } | null;
-		if ( data && data.type === 'wp-desktop-palette-cycle' ) {
+		if ( data && data.type === 'desktop-mode-palette-cycle' ) {
 			cyclePalettes();
 		}
 	} );

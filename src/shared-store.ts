@@ -31,7 +31,7 @@
  *
  * @example
  * ```ts
- * import { createSharedStore } from 'wp-desktop-mode/shared-store';
+ * import { createSharedStore } from 'desktop-mode/shared-store';
  *
  * interface MyState { counter: number; user: string | null }
  * const store = createSharedStore< MyState >( 'my-plugin/state', () => ( {
@@ -104,7 +104,7 @@ interface InternalRecord< T > {
 /**
  * Window-level slot map. One namespace, many keys.
  */
-const SHARED_STORES_SLOT = '__wpDesktopSharedStores';
+const SHARED_STORES_SLOT = '__desktopModeSharedStores';
 
 interface SharedStoresWindow {
 	[ SHARED_STORES_SLOT ]?: Map< string, InternalRecord< unknown > >;
@@ -185,7 +185,7 @@ export function createSharedStore< T >(
 					// One bad listener shouldn't strand the rest.
 					// eslint-disable-next-line no-console
 					console.error(
-						`[wp-desktop/shared-store:${ key }] subscriber threw:`,
+						`[desktop-mode/shared-store:${ key }] subscriber threw:`,
 						err,
 					);
 				}

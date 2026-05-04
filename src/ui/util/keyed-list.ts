@@ -31,7 +31,7 @@
  * item) but a one-shot render with `appendChild` is simpler.
  *
  * ```ts
- * import { renderKeyedList } from 'wp-desktop-mode';
+ * import { renderKeyedList } from 'desktop-mode';
  *
  * function repaint(): void {
  *   renderKeyedList( host, items, {
@@ -52,8 +52,8 @@
  * @since 0.22.10
  */
 
-const NODE_KEY_PROP = '__wpdmKeyedListKey';
-const NODE_DATA_PROP = '__wpdmKeyedListData';
+const NODE_KEY_PROP = '__desktop_modeKeyedListKey';
+const NODE_DATA_PROP = '__desktop_modeKeyedListData';
 
 export interface KeyedListOptions< T > {
 	/**
@@ -104,13 +104,13 @@ interface HostState {
  * the same module don't share indices.
  */
 function getHostState( host: HTMLElement ): HostState {
-	const cached = ( host as unknown as { __wpdmKeyedList?: HostState } )
-		.__wpdmKeyedList;
+	const cached = ( host as unknown as { __desktop_modeKeyedList?: HostState } )
+		.__desktop_modeKeyedList;
 	if ( cached ) {
 		return cached;
 	}
 	const fresh: HostState = { byKey: new Map() };
-	( host as unknown as { __wpdmKeyedList?: HostState } ).__wpdmKeyedList =
+	( host as unknown as { __desktop_modeKeyedList?: HostState } ).__desktop_modeKeyedList =
 		fresh;
 	return fresh;
 }
@@ -151,7 +151,7 @@ export function renderKeyedList< T >(
 			// surface it loudly but don't bail (the dup overrides).
 			// eslint-disable-next-line no-console
 			console.warn(
-				'[wpdm/keyed-list] duplicate key — only the last item with this key will render:',
+				'[desktop-mode/keyed-list] duplicate key — only the last item with this key will render:',
 				key,
 			);
 		}
@@ -212,8 +212,8 @@ export function renderKeyedList< T >(
  * @public
  */
 export function clearKeyedList( host: HTMLElement ): void {
-	const cached = ( host as unknown as { __wpdmKeyedList?: HostState } )
-		.__wpdmKeyedList;
+	const cached = ( host as unknown as { __desktop_modeKeyedList?: HostState } )
+		.__desktop_modeKeyedList;
 	if ( ! cached ) {
 		return;
 	}
@@ -221,6 +221,6 @@ export function clearKeyedList( host: HTMLElement ): void {
 		entry.el.remove();
 	}
 	cached.byKey.clear();
-	delete ( host as unknown as { __wpdmKeyedList?: HostState } )
-		.__wpdmKeyedList;
+	delete ( host as unknown as { __desktop_modeKeyedList?: HostState } )
+		.__desktop_modeKeyedList;
 }

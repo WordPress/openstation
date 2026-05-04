@@ -16,13 +16,13 @@ wp.desktop.registerWindowChrome( {
     label: 'macOS-style chrome',
     match: ( win ) => true,
     render: ( host, ctx ) => {
-        // host: the outer .wp-desktop-window element. It already
-        //       contains .wp-desktop-window__body and the resize
+        // host: the outer .desktop-mode-window element. It already
+        //       contains .desktop-mode-window__body and the resize
         //       handles — leave those alone.
         // ctx.window — the Window instance.
         // ctx.state  — { title, icon, focused, state } at first paint.
 
-        const titleBar = host.querySelector( '.wp-desktop-window__titlebar' );
+        const titleBar = host.querySelector( '.desktop-mode-window__titlebar' );
         // Replace its contents with whatever DOM you want.
         titleBar.innerHTML = '';
         const close = document.createElement( 'button' );
@@ -47,7 +47,7 @@ wp.desktop.registerWindowChrome( {
 
 `render` MUST return `{ destroy }`; `update` is optional.
 
-The framework keeps the standard `.wp-desktop-window__titlebar` element for you — pointer-down drag is bound on it, and removing/replacing the element entirely would break window dragging. Mutate its children instead.
+The framework keeps the standard `.desktop-mode-window__titlebar` element for you — pointer-down drag is bound on it, and removing/replacing the element entirely would break window dragging. Mutate its children instead.
 
 ---
 
@@ -78,10 +78,10 @@ wp.desktop.applyWindowChrome( 'edit-post', null );
 
 ## What you do NOT control
 
-- The outer `.wp-desktop-window` element
+- The outer `.desktop-mode-window` element
 - The body element + iframe / native render content
 - The 4 corner resize handles
-- The `wp-desktop-window--focused` class toggle (the framework toggles it; you can read it via `ctx.state.focused`)
+- The `desktop-mode-window--focused` class toggle (the framework toggles it; you can read it via `ctx.state.focused`)
 - The position persistence + drag pointer math
 
 ---
@@ -99,8 +99,8 @@ wp.desktop.applyWindowChrome( 'edit-post', null );
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `wp-desktop.window.chrome.render` | filter | `( chromeId, { windowId, config } ) => chromeId` | Mutate the resolved chrome id per window. **Experimental.** |
-| `wp-desktop.window.chrome.applied` | action | `( { windowId, layer, chromeId? } )` | Fires with `layer: 'chrome'` after a successful chrome mount. |
+| `desktop-mode.window.chrome.render` | filter | `( chromeId, { windowId, config } ) => chromeId` | Mutate the resolved chrome id per window. **Experimental.** |
+| `desktop-mode.window.chrome.applied` | action | `( { windowId, layer, chromeId? } )` | Fires with `layer: 'chrome'` after a successful chrome mount. |
 
 ---
 

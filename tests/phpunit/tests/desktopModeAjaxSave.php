@@ -127,7 +127,7 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 	 * disables desktop mode for this user, the AJAX endpoint refuses
 	 * to update the meta.
 	 */
-	public function test_wp_desktop_mode_enabled_filter_blocks_save() {
+	public function test_desktop_mode_mode_enabled_filter_blocks_save() {
 		$this->_setRole( 'administrator' );
 		add_filter( 'desktop_mode_mode_enabled', '__return_false' );
 
@@ -163,7 +163,7 @@ class Tests_DesktopMode_WpAjaxSaveDesktopMode extends WP_Ajax_UnitTestCase {
 	 * The filter receives the user ID so plugins can make role-based
 	 * decisions.
 	 */
-	public function test_wp_desktop_mode_enabled_filter_receives_user_id() {
+	public function test_desktop_mode_mode_enabled_filter_receives_user_id() {
 		$this->_setRole( 'administrator' );
 		$expected_id = get_current_user_id();
 		$received_id = null;

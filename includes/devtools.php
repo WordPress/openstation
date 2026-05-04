@@ -24,7 +24,7 @@
  *      {@see desktop_mode_debug_publish()}.
  *   5. Inspector subscribes via
  *      `wp.desktop.devtools.debug.subscribe( sessionId, channel, cb )`.
- *      The shell polls `GET /wp-desktop/v1/debug` every second and
+ *      The shell polls `GET /desktop-mode/v1/debug` every second and
  *      replays new events to subscribers.
  *
  * Storage: a per-session ring buffer in a transient. Bounded by
@@ -73,7 +73,7 @@ const DESKTOP_MODE_DEBUG_SESSION_TTL = 3600;
  * @return string Transient key safe for `set_transient`.
  */
 function desktop_mode_debug_transient_key( $session_id, $channel ) {
-	return 'wpdm_dbg_' . md5( (string) $session_id . '|' . (string) $channel );
+	return 'desktop_mode_dbg_' . md5( (string) $session_id . '|' . (string) $channel );
 }
 
 /**
@@ -253,7 +253,7 @@ function desktop_mode_debug_drain( $session_id, $since = 0, $channel = null ) {
 }
 
 /**
- * REST: GET /wp-desktop/v1/debug
+ * REST: GET /desktop-mode/v1/debug
  *
  * Returns events newer than `since` for the given session id.
  * Supports both `channel=foo` (single) and `channels[]=foo&channels[]=bar`
@@ -337,7 +337,7 @@ function desktop_mode_rest_debug_permission() {
  */
 function desktop_mode_register_debug_rest_routes() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/debug',
 		array(
 			array(

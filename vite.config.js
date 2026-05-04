@@ -12,7 +12,7 @@
  *     - `assets/js/iframe-bridge.min.js` (production)
  *
  * Which entry the current invocation builds is controlled by the
- * `WPDM_TARGET` env var (`desktop` — default — or `iframe-bridge`).
+ * `DESKTOP_MODE_TARGET` env var (`desktop` — default — or `iframe-bridge`).
  * `npm run build` runs Vite four times (two targets × two modes).
  * `npm run dev` watches and rebuilds the unminified `desktop` bundle
  * only — iframe-bridge changes are rare so a one-shot
@@ -31,35 +31,35 @@ const TARGETS = {
 	desktop: {
 		entry:    'src/desktop.ts',
 		fileBase: 'desktop',
-		// Exports from the entry land on `window.wpDesktop` — a no-op
+		// Exports from the entry land on `window.desktopMode` — a no-op
 		// today (no external consumers) but leaves the door open for
 		// tests or devtools probing.
-		iifeName: 'wpDesktop',
+		iifeName: 'desktopMode',
 	},
 	'iframe-bridge': {
 		entry:    'src/iframe-bridge-standalone.ts',
 		fileBase: 'iframe-bridge',
-		iifeName: 'wpDesktopIframeBridge',
+		iifeName: 'desktopModeIframeBridge',
 	},
 	// Recycle Bin app — a thin bundle that registers a render
-	// callback on `window.wpDesktopNativeWindows['wpdm-recycle-bin']`
+	// callback on `window.desktopModeNativeWindows['desktop-mode-recycle-bin']`
 	// and renders a `<wpd-table>` populated from the REST list. The
 	// `<wpd-*>` elements themselves are defined by the main desktop
 	// bundle, so this module just consumes them.
 	'recycle-bin': {
 		entry:    'src/recycle-bin/index.ts',
 		fileBase: 'recycle-bin',
-		iifeName: 'wpDesktopRecycleBin',
+		iifeName: 'desktopModeRecycleBin',
 	},
 };
 
 export default defineConfig( ( { mode } ) => {
 	const isProd = mode === 'production';
-	const targetKey = process.env.WPDM_TARGET || 'desktop';
+	const targetKey = process.env.DESKTOP_MODE_TARGET || 'desktop';
 	const target = TARGETS[ targetKey ];
 	if ( ! target ) {
 		throw new Error(
-			`vite.config.js: unknown WPDM_TARGET="${ targetKey }". ` +
+			`vite.config.js: unknown DESKTOP_MODE_TARGET="${ targetKey }". ` +
 				`Expected one of: ${ Object.keys( TARGETS ).join( ', ' ) }.`,
 		);
 	}

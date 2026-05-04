@@ -25,7 +25,7 @@ class Tests_WPDesktopClassicPreserveRedirect extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		unset( $_GET['wp_desktop'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
+		unset( $_GET['desktop_mode_chromeless'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
 		parent::tear_down();
 	}
 

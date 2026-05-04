@@ -101,7 +101,7 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 	// 4. Letter-badge fallback. Picks the first two letters of the
 	// title (or the first if the title is one word / one character).
 	const span = document.createElement( 'span' );
-	span.className = `${ className } wp-desktop-icon-letter`.trim();
+	span.className = `${ className } desktop-mode-icon-letter`.trim();
 	span.setAttribute( 'aria-hidden', 'true' );
 	const letters = letterFromTitle( title );
 	span.textContent = letters;

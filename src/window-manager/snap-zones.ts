@@ -111,14 +111,14 @@ export function showSnapPreview( mgr: WindowManager, zone: SnapZone ): void {
 	mgr._snapPendingZone = zone;
 	if ( ! mgr._snapPreviewEl ) {
 		const el = document.createElement( 'div' );
-		el.className = 'wp-desktop-snap-preview';
+		el.className = 'desktop-mode-snap-preview';
 		el.setAttribute( 'aria-hidden', 'true' );
 		mgr._desktop.appendChild( el );
 		mgr._snapPreviewEl = el;
 		// Kick the fade-in: class applied in a microtask so the
 		// opacity transition has a frame to latch onto.
 		Promise.resolve().then( () => {
-			el.classList.add( 'wp-desktop-snap-preview--visible' );
+			el.classList.add( 'desktop-mode-snap-preview--visible' );
 		} );
 	}
 	const b = snapZoneBounds( mgr, zone );
@@ -142,7 +142,7 @@ export function hideSnapPreview( mgr: WindowManager ): void {
 	const el = mgr._snapPreviewEl;
 	mgr._snapPreviewEl = null;
 	mgr._snapPendingZone = null;
-	el.classList.remove( 'wp-desktop-snap-preview--visible' );
+	el.classList.remove( 'desktop-mode-snap-preview--visible' );
 	// Remove after the fade-out transition. Kept separate from
 	// `hidden = true` so a re-enter during the fade can re-use the
 	// element, but simpler to just remove + rebuild on re-arm.

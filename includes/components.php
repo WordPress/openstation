@@ -291,20 +291,20 @@ function desktop_mode_format_css_value( $property, $value ) {
  *      registry so the relevant admin_footer + enqueue hooks fire
  *      only for the current user's desktop-mode shell.
  *   2. On `admin_footer` (shell-side only), emits
- *      `<template id="wpdm-native-window-<id>">` wrapping the
+ *      `<template id="desktop-mode-native-window-<id>">` wrapping the
  *      output of the `template` callback. Each registered window
  *      gets its own template element.
  *   3. On `admin_enqueue_scripts` (shell-side), enqueues the
  *      caller's `script` handle if one was provided. The script
  *      registers a render callback at
- *      `window.wpDesktopNativeWindows[<id>]`. On every window open
+ *      `window.desktopModeNativeWindows[<id>]`. On every window open
  *      the shell clones the registered template into the body and
  *      then invokes the callback — render is enhancement: query
  *      the body for mount points your template declared, light
  *      them up. Without a `script` the cloned template IS the
  *      window; declarative-only plugins need zero JS.
  *   4. Passes a localized config blob to the script
- *      (`wpDesktopNativeWindow_<id>`) carrying the window's
+ *      (`desktopModeNativeWindow_<id>`) carrying the window's
  *      `id`, `title`, `icon`, dimensions, and `placement`. The
  *      script then calls `wp.desktop.registerSystemTile()` +
  *      `wp.desktop.registerWindow()` to wire up the dock tile
@@ -336,7 +336,7 @@ function desktop_mode_format_css_value( $property, $value ) {
  *     @type string   $icon         Dashicons class or URL. Required.
  *     @type callable $template     Echoes the window body markup.
  *                                  Wrapped on `admin_footer` in a
- *                                  `<template id="wpdm-native-window-
+ *                                  `<template id="desktop-mode-native-window-
  *                                  <id>">`; cloned into the window
  *                                  body on every open. The render
  *                                  callback runs against the cloned
@@ -380,7 +380,7 @@ function desktop_mode_format_css_value( $property, $value ) {
  *                                  tag. Read in JS via
  *                                  `wp.desktop.getWindowConfig( $id )`
  *                                  (or directly at
- *                                  `window.wpDesktopWindowConfig[ $id ]`).
+ *                                  `window.desktopModeWindowConfig[ $id ]`).
  *                                  Recommended over `wp_localize_script`
  *                                  for native-window scripts because
  *                                  the lazy-load path bypasses
@@ -548,7 +548,7 @@ function desktop_mode_native_window_registry( $id = '', $entry = null ) {
  *
  * The mount callback still lives in JS — not serializable across
  * the wire. Plugins register it on
- * `window.wpDesktopWidgets[ <id> ]` as a `(container, ctx) =>
+ * `window.desktopModeWidgets[ <id> ]` as a `(container, ctx) =>
  * teardown` function. The shell reads that global once the
  * declared script loads and wraps it into a WidgetDef.
  *
@@ -569,8 +569,8 @@ function desktop_mode_native_window_registry( $id = '', $entry = null ) {
  *
  * ```js
  * // Inside my-plugin-desktop-widgets.js:
- * window.wpDesktopWidgets = window.wpDesktopWidgets || {};
- * window.wpDesktopWidgets[ 'myplugin/stats' ] = function ( container, ctx ) {
+ * window.desktopModeWidgets = window.desktopModeWidgets || {};
+ * window.desktopModeWidgets[ 'myplugin/stats' ] = function ( container, ctx ) {
  *     container.append( buildDOM() );
  *     return function teardown() { };
  * };
@@ -582,7 +582,7 @@ function desktop_mode_native_window_registry( $id = '', $entry = null ) {
  *               correct because `WP_Error` is truthy.
  *
  * @param string $id   Widget id. Must match the key the JS side
- *                     uses on `window.wpDesktopWidgets[ … ]`.
+ *                     uses on `window.desktopModeWidgets[ … ]`.
  * @param array  $args {
  *     @type string   $label          Human-readable picker label. Required.
  *     @type string   $description    Picker subtitle. Default empty.
@@ -757,7 +757,7 @@ function desktop_mode_build_desktop_widgets_payload() {
  * {@see desktop_mode_register_widget()}. The plugin's JS side
  * publishes the full `WallpaperDef` (with mount / resolveValue /
  * renderEditor callbacks as appropriate) on
- * `window.wpDesktopWallpapers[ <id> ]`; the shell loads the
+ * `window.desktopModeWallpapers[ <id> ]`; the shell loads the
  * declared script, reads that global, and registers the def via
  * the normal wallpaper registry. Deactivation unregisters the
  * def and re-applies the current selection (which falls back to
@@ -776,8 +776,8 @@ function desktop_mode_build_desktop_widgets_payload() {
  *
  * ```js
  * // Inside my-plugin-snow-wallpaper.js
- * window.wpDesktopWallpapers = window.wpDesktopWallpapers || {};
- * window.wpDesktopWallpapers[ 'myplugin/snow' ] = {
+ * window.desktopModeWallpapers = window.desktopModeWallpapers || {};
+ * window.desktopModeWallpapers[ 'myplugin/snow' ] = {
  *     id: 'myplugin/snow',
  *     label: 'Snow',
  *     type: 'canvas',
@@ -793,7 +793,7 @@ function desktop_mode_build_desktop_widgets_payload() {
  *               correct because `WP_Error` is truthy.
  *
  * @param string $id   Wallpaper id. For canvas wallpapers this must
- *                     match the `window.wpDesktopWallpapers[<id>]`
+ *                     match the `window.desktopModeWallpapers[<id>]`
  *                     key the plugin's JS publishes.
  * @param array  $args {
  *     @type string   $label        Picker label. Required.
@@ -943,7 +943,7 @@ function desktop_mode_build_desktop_wallpapers_payload() {
 	}
 	/**
 	 * Filters the server-declared wallpaper list before it ships to
-	 * the shell. Mirrors the JS-side `wp-desktop.wallpapers` filter
+	 * the shell. Mirrors the JS-side `desktop-mode.wallpapers` filter
 	 * so plugins can rearrange, hide, or override entries at boot
 	 * without round-tripping through the JS registry.
 	 *
@@ -1711,7 +1711,7 @@ function desktop_mode_enqueue_native_window_scripts() {
 		// Localize the config the JS side reads to register itself.
 		wp_localize_script(
 			$entry['script'],
-			'wpDesktopNativeWindow_' . str_replace( '-', '_', $entry['id'] ),
+			'desktopModeNativeWindow_' . str_replace( '-', '_', $entry['id'] ),
 			array(
 				'id'        => $entry['id'],
 				'title'     => $entry['title'],
@@ -1722,7 +1722,7 @@ function desktop_mode_enqueue_native_window_scripts() {
 				'minHeight' => $entry['min_height'],
 				'placement' => $entry['placement'],
 				'autofocus' => $entry['autofocus'],
-				'templateId' => 'wpdm-native-window-' . $entry['id'],
+				'templateId' => 'desktop-mode-native-window-' . $entry['id'],
 				'tabs'      => array_map(
 					static function ( $tab ) {
 						return array(
@@ -1743,12 +1743,12 @@ function desktop_mode_enqueue_native_window_scripts() {
 		// so the same data is available even when the script is
 		// dynamically injected mid-session. The bundle reads it via
 		// `wp.desktop.getWindowConfig( id )` or directly at
-		// `window.wpDesktopWindowConfig[ id ]`.
+		// `window.desktopModeWindowConfig[ id ]`.
 		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
 			wp_add_inline_script(
 				$entry['script'],
 				sprintf(
-					'window.wpDesktopWindowConfig=window.wpDesktopWindowConfig||{};window.wpDesktopWindowConfig[%s]=%s;',
+					'window.desktopModeWindowConfig=window.desktopModeWindowConfig||{};window.desktopModeWindowConfig[%s]=%s;',
 					wp_json_encode( $entry['id'] ),
 					wp_json_encode( $entry['config'] )
 				),
@@ -1762,7 +1762,7 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_native_window_scripts
 /**
  * Emit a `<template>` tag for every registered native window on
  * `admin_footer` when the shell is active. The JS side resolves
- * these via `document.getElementById( `wpdm-native-window-${id}` )`
+ * these via `document.getElementById( `desktop-mode-native-window-${id}` )`
  * and clones them into each opened window's body.
  *
  * @since 0.10.0
@@ -1784,7 +1784,7 @@ function desktop_mode_render_native_window_templates() {
 			continue;
 		}
 		printf(
-			'<template id="wpdm-native-window-%s">',
+			'<template id="desktop-mode-native-window-%s">',
 			esc_attr( $entry['id'] )
 		);
 		// $html already contains plugin-authored markup (escaped
@@ -1802,9 +1802,9 @@ add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
  * Thin wrapper around `wp_enqueue_script` that pre-wires the correct
  * dependencies so the script:
  *
- *   - Runs AFTER `wp-desktop` (the shell bundle) so `wp.desktop.*` is
+ *   - Runs AFTER `desktop-mode` (the shell bundle) so `wp.desktop.*` is
  *     guaranteed available.
- *   - Runs AFTER `wp-hooks` so `wp.hooks.addAction( 'wp-desktop.init', ... )`
+ *   - Runs AFTER `wp-hooks` so `wp.hooks.addAction( 'desktop-mode.init', ... )`
  *     works without the plugin author having to remember that dep.
  *   - Is only enqueued in the admin (shell only boots there).
  *
@@ -1815,7 +1815,7 @@ add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
  *     wp_enqueue_script(
  *         'my-plugin',
  *         plugins_url( 'my-plugin.js', __FILE__ ),
- *         array( 'wp-desktop', 'wp-hooks' ),
+ *         array( 'desktop-mode', 'wp-hooks' ),
  *         '1.0.0',
  *         true
  *     );
@@ -1840,7 +1840,7 @@ add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
  * @param string          $handle    Script handle.
  * @param string          $src       Full URL of the script, or path relative
  *                                   to the WordPress root directory.
- * @param string[]        $extra_deps Additional dependency handles. `wp-desktop`
+ * @param string[]        $extra_deps Additional dependency handles. `desktop-mode`
  *                                   and `wp-hooks` are always prepended.
  * @param string|bool|null $version  Version string, or `false` for none.
  *                                   Defaults to `DESKTOP_MODE_VERSION` so plugin authors
@@ -1851,7 +1851,7 @@ add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
  */
 function desktop_mode_enqueue_script( $handle, $src, $extra_deps = array(), $version = null, $in_footer = true ) {
 	$deps = array_merge(
-		array( 'wp-desktop', 'wp-hooks' ),
+		array( 'desktop-mode', 'wp-hooks' ),
 		is_array( $extra_deps ) ? $extra_deps : array()
 	);
 

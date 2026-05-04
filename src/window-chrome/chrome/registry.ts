@@ -110,7 +110,7 @@ export interface WindowChromeDef {
 	match: ( window: DesktopWindow ) => boolean;
 	/**
 	 * Render callback. Receives the chrome's host element (the
-	 * `<div class="wp-desktop-window">` outer element with body
+	 * `<div class="desktop-mode-window">` outer element with body
 	 * already created) and a context object. The implementation
 	 * mounts its title-bar DOM into the host, returns a handle whose
 	 * `update()` re-paints on state change and `destroy()` tears
@@ -233,7 +233,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[wp-desktop-mode] window-chrome registry listener threw:',
+					'[desktop-mode] window-chrome registry listener threw:',
 					err,
 				);
 			}

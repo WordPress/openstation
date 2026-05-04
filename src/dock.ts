@@ -2,7 +2,7 @@
  * Desktop Mode — Dock.
  *
  * Renders the icon-only dock on the left edge of the desktop.
- * Icons come from the admin menu data passed via wpDesktopConfig.dockItems.
+ * Icons come from the admin menu data passed via desktopModeConfig.dockItems.
  * The dock always starts with a WordPress logo "Show Desktop" button
  * that minimizes all open windows.
  *
@@ -96,8 +96,8 @@ export type DockOrientation = 'left' | 'right' | 'bottom';
  * (Classic layout's left side bar + bottom dock) without reaching
  * into the DOM.
  *
- * `dockId` is the host element's `id` attribute — `'wp-desktop-dock'`
- * for the bottom rail, `'wp-desktop-side-dock'` for the Classic side
+ * `dockId` is the host element's `id` attribute — `'desktop-mode-dock'`
+ * for the bottom rail, `'desktop-mode-side-dock'` for the Classic side
  * rail. `rail` mirrors `Dock.rail` (`'dock'` or `'taskbar'`) and
  * `orientation` carries the placement.
  *
@@ -158,7 +158,7 @@ export interface DockAttentionOptions {
  * Manages a single dock element, its icons, tooltips, and interaction
  * with the window manager. A dock can render along any of three edges
  * (left, right, or bottom); placement is reflected on the dock
- * element's own `data-wp-desktop-dock-placement` attribute, which CSS
+ * element's own `data-desktop-mode-dock-placement` attribute, which CSS
  * keys off for layout, tooltip anchor, and indicator position. This
  * lets two `Dock` instances coexist in the same shell (used by the
  * Classic desktop layout: a left side bar with core menus + a bottom
@@ -175,7 +175,7 @@ export class Dock {
 	/**
 	 * Routing discriminator stamped onto every event this rail
 	 * publishes. `'left'` orientation carries `'dock'`; `'bottom'`
-	 * carries `'taskbar'`. Lets a single `wp-desktop/badge-changed`
+	 * carries `'taskbar'`. Lets a single `desktop-mode/badge-changed`
 	 * subscriber tell the two visually-distinct rails apart
 	 * without inferring from id space.
 	 */
@@ -244,14 +244,14 @@ export class Dock {
 		this.adminUrl = adminUrl;
 		this.orientation = orientation;
 		this.rail = orientation === 'bottom' ? 'taskbar' : 'dock';
-		this.hooksNamespace = `wp-desktop-mode/dock/${ ++Dock.instanceCounter }`;
+		this.hooksNamespace = `desktop-mode/dock/${ ++Dock.instanceCounter }`;
 
 		// Placement lives on the dock element itself so two instances
 		// (Classic layout's left side bar + bottom dock) can coexist
 		// without their CSS scopes colliding. dock.css reads this
 		// attribute for layout, tooltip anchor, and indicator anchor.
 		this.container.setAttribute(
-			'data-wp-desktop-dock-placement',
+			'data-desktop-mode-dock-placement',
 			orientation,
 		);
 
@@ -259,7 +259,7 @@ export class Dock {
 		// orientation so the tooltip sits outside the dock regardless
 		// of which edge it hugs.
 		this.tooltip = document.createElement( 'div' );
-		this.tooltip.className = 'wp-desktop-dock__tooltip';
+		this.tooltip.className = 'desktop-mode-dock__tooltip';
 		this.tooltip.setAttribute( 'role', 'tooltip' );
 		// Anchor modifier — applied directly to the tooltip element
 		// (not via a descendant selector on the dock) because the
@@ -267,11 +267,11 @@ export class Dock {
 		// reasons. CSS keys off this class for the slide-in animation
 		// direction; `positionTooltip()` writes the absolute coords.
 		if ( orientation === 'bottom' ) {
-			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--above' );
+			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--above' );
 		} else if ( orientation === 'right' ) {
-			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--before' );
+			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--before' );
 		} else {
-			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--after' );
+			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--after' );
 		}
 		document.body.appendChild( this.tooltip );
 
@@ -299,7 +299,7 @@ export class Dock {
 	 */
 	/**
 	 * Update the dock's orientation. Writes the new value to the
-	 * dock element's `data-wp-desktop-dock-placement` attribute (CSS
+	 * dock element's `data-desktop-mode-dock-placement` attribute (CSS
 	 * keys off it for layout) and keeps the tooltip anchor in sync.
 	 *
 	 * In practice, the layout dispatcher in `desktop.ts` rebuilds the
@@ -313,20 +313,20 @@ export class Dock {
 		}
 		this.orientation = orientation;
 		this.container.setAttribute(
-			'data-wp-desktop-dock-placement',
+			'data-desktop-mode-dock-placement',
 			orientation,
 		);
 		this.tooltip.classList.remove(
-			'wp-desktop-dock__tooltip--above',
-			'wp-desktop-dock__tooltip--before',
-			'wp-desktop-dock__tooltip--after',
+			'desktop-mode-dock__tooltip--above',
+			'desktop-mode-dock__tooltip--before',
+			'desktop-mode-dock__tooltip--after',
 		);
 		if ( orientation === 'bottom' ) {
-			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--above' );
+			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--above' );
 		} else if ( orientation === 'right' ) {
-			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--before' );
+			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--before' );
 		} else {
-			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--after' );
+			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--after' );
 		}
 	}
 
@@ -337,7 +337,7 @@ export class Dock {
 		// Also remove any stale group separator from a previous render.
 		this.container
 			.querySelectorAll(
-				'.wp-desktop-dock__separator--group',
+				'.desktop-mode-dock__separator--group',
 			)
 			.forEach( ( el ) => el.remove() );
 		this.itemElements.clear();
@@ -358,7 +358,7 @@ export class Dock {
 				if ( tilesInsertedThisPass > 0 ) {
 					const sep = document.createElement( 'div' );
 					sep.className =
-						'wp-desktop-dock__separator wp-desktop-dock__separator--group';
+						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
 					sep.setAttribute( 'aria-hidden', 'true' );
 					if ( this.systemSeparator ) {
 						this.container.insertBefore( sep, this.systemSeparator );
@@ -385,7 +385,7 @@ export class Dock {
 			const override = this.badgeOverrides.get( item.id );
 			if ( override !== undefined ) {
 				const primary = btn.querySelector< HTMLElement >(
-					'.wp-desktop-dock__item-primary',
+					'.desktop-mode-dock__item-primary',
 				);
 				_applyBadgeNode( primary ?? btn, override );
 			}
@@ -493,14 +493,14 @@ export class Dock {
 		}
 
 		const primary = tile.querySelector< HTMLElement >(
-			'.wp-desktop-dock__item-primary',
+			'.desktop-mode-dock__item-primary',
 		);
 		_applyBadgeNode( primary ?? tile, safe );
 
 		// Single emission point — activity bus. `rail` is the
 		// routing discriminator so a single subscriber can
 		// compose dock + taskbar + icons under one shape.
-		activity.publish( 'wp-desktop/badge-changed', {
+		activity.publish( 'desktop-mode/badge-changed', {
 			itemId,
 			count: safe,
 			rail: this.rail,
@@ -554,21 +554,21 @@ export class Dock {
 
 		// Strip every prior attention class before applying the new one.
 		tile.classList.remove(
-			'wp-desktop-dock__item--attention-pulse',
-			'wp-desktop-dock__item--attention-shake',
-			'wp-desktop-dock__item--attention-bounce',
-			'wp-desktop-dock__item--intensity-subtle',
-			'wp-desktop-dock__item--intensity-normal',
-			'wp-desktop-dock__item--intensity-strong',
+			'desktop-mode-dock__item--attention-pulse',
+			'desktop-mode-dock__item--attention-shake',
+			'desktop-mode-dock__item--attention-bounce',
+			'desktop-mode-dock__item--intensity-subtle',
+			'desktop-mode-dock__item--intensity-normal',
+			'desktop-mode-dock__item--intensity-strong',
 		);
 
 		if ( mode === null ) {
 			return;
 		}
 
-		tile.classList.add( `wp-desktop-dock__item--attention-${ mode }` );
+		tile.classList.add( `desktop-mode-dock__item--attention-${ mode }` );
 		const intensity = opts.intensity ?? 'normal';
-		tile.classList.add( `wp-desktop-dock__item--intensity-${ intensity }` );
+		tile.classList.add( `desktop-mode-dock__item--intensity-${ intensity }` );
 
 		const duration = opts.durationMs ?? 4000;
 		if ( duration > 0 ) {
@@ -608,7 +608,7 @@ export class Dock {
 
 		if ( ! this.systemSeparator ) {
 			this.systemSeparator = document.createElement( 'div' );
-			this.systemSeparator.className = 'wp-desktop-dock__separator';
+			this.systemSeparator.className = 'desktop-mode-dock__separator';
 			this.systemSeparator.setAttribute( 'aria-hidden', 'true' );
 			this.container.appendChild( this.systemSeparator );
 		}
@@ -664,7 +664,7 @@ export class Dock {
 				if ( this.container.childElementCount > 0 ) {
 					const sep = document.createElement( 'div' );
 					sep.className =
-						'wp-desktop-dock__separator wp-desktop-dock__separator--group';
+						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
 					sep.setAttribute( 'aria-hidden', 'true' );
 					this.container.appendChild( sep );
 				}
@@ -703,8 +703,8 @@ export class Dock {
 
 		const tile = document.createElement( 'div' );
 		const baseClasses = [
-			'wp-desktop-dock__item',
-			'wp-desktop-dock__item--system',
+			'desktop-mode-dock__item',
+			'desktop-mode-dock__item--system',
 		];
 		const filteredClasses = applyFilters< string[] >(
 			HOOKS.DOCK_TILE_CLASS,
@@ -715,7 +715,7 @@ export class Dock {
 		tile.dataset.systemId = item.id;
 
 		const primary = document.createElement( 'button' );
-		primary.className = 'wp-desktop-dock__item-primary';
+		primary.className = 'desktop-mode-dock__item-primary';
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
@@ -754,7 +754,7 @@ export class Dock {
 			suppressTooltip: ( on: boolean ) => {
 				if ( on ) {
 					this.tooltip.classList.remove(
-						'wp-desktop-dock__tooltip--visible',
+						'desktop-mode-dock__tooltip--visible',
 					);
 				}
 			},
@@ -785,9 +785,9 @@ export class Dock {
 		};
 
 		const tile = document.createElement( 'div' );
-		const baseClasses = [ 'wp-desktop-dock__item' ];
+		const baseClasses = [ 'desktop-mode-dock__item' ];
 		if ( item.multi ) {
-			baseClasses.push( 'wp-desktop-dock__item--multi' );
+			baseClasses.push( 'desktop-mode-dock__item--multi' );
 		}
 		const filteredClasses = applyFilters< string[] >(
 			HOOKS.DOCK_TILE_CLASS,
@@ -799,7 +799,7 @@ export class Dock {
 
 		// Primary button — the icon body. Focuses existing or opens first.
 		const primary = document.createElement( 'button' );
-		primary.className = 'wp-desktop-dock__item-primary';
+		primary.className = 'desktop-mode-dock__item-primary';
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
@@ -812,7 +812,7 @@ export class Dock {
 			// stretching to three or four digits.
 			const displayCount = item.badge > 99 ? '99+' : String( item.badge );
 			const badge = document.createElement( 'span' );
-			badge.className = 'wp-desktop-dock__badge';
+			badge.className = 'desktop-mode-dock__badge';
 			badge.textContent = displayCount;
 			badge.setAttribute(
 				'aria-label',
@@ -876,7 +876,7 @@ export class Dock {
 			suppressTooltip: ( on: boolean ) => {
 				if ( on ) {
 					this.tooltip.classList.remove(
-						'wp-desktop-dock__tooltip--visible',
+						'desktop-mode-dock__tooltip--visible',
 					);
 				}
 			},
@@ -934,7 +934,7 @@ export class Dock {
 		// 3. http(s) URL — direct image.
 		if ( icon.startsWith( 'http://' ) || icon.startsWith( 'https://' ) ) {
 			const img = document.createElement( 'img' );
-			img.className = 'wp-desktop-dock__item-img';
+			img.className = 'desktop-mode-dock__item-img';
 			img.src = icon;
 			img.alt = '';
 			img.setAttribute( 'aria-hidden', 'true' );
@@ -972,7 +972,7 @@ export class Dock {
 	 */
 	private _makeSvgIcon( bgValue: string ): HTMLElement {
 		const el = document.createElement( 'span' );
-		el.className = 'wp-desktop-dock__item-svg';
+		el.className = 'desktop-mode-dock__item-svg';
 		el.style.backgroundImage = bgValue.startsWith( 'url(' )
 			? bgValue
 			: `url("${ bgValue }")`;
@@ -1039,7 +1039,7 @@ export class Dock {
 		const img = imgWrap.querySelector( 'img' );
 		if ( img && img.src ) {
 			const el = document.createElement( 'img' );
-			el.className = 'wp-desktop-dock__item-img';
+			el.className = 'desktop-mode-dock__item-img';
 			el.src = img.src;
 			el.alt = '';
 			el.setAttribute( 'aria-hidden', 'true' );
@@ -1085,7 +1085,7 @@ export class Dock {
 	 */
 	private createLetterBadge( title: string ): HTMLElement {
 		const el = document.createElement( 'span' );
-		el.className = 'wp-desktop-dock__item-letter';
+		el.className = 'desktop-mode-dock__item-letter';
 		el.setAttribute( 'aria-hidden', 'true' );
 
 		const trimmed = title.trim();
@@ -1139,10 +1139,10 @@ export class Dock {
 		}
 		tile.addEventListener( 'pointerenter', () => {
 			this.positionTooltip( tile, filtered );
-			this.tooltip.classList.add( 'wp-desktop-dock__tooltip--visible' );
+			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--visible' );
 		} );
 		tile.addEventListener( 'pointerleave', () => {
-			this.tooltip.classList.remove( 'wp-desktop-dock__tooltip--visible' );
+			this.tooltip.classList.remove( 'desktop-mode-dock__tooltip--visible' );
 		} );
 	}
 
@@ -1171,7 +1171,7 @@ export class Dock {
 			// 8px gap so it clears the rail's outer border. Vertical
 			// centering computed inline; CSS `--after` modifier
 			// handles only the slide-in animation. (Body-attached
-			// tooltips can't rely on `.wp-desktop-dock[…] .tooltip`
+			// tooltips can't rely on `.desktop-mode-dock[…] .tooltip`
 			// descendant selectors; the position lives in JS.)
 			this.tooltip.style.top = `${ rect.top + rect.height / 2 - 14 }px`;
 			this.tooltip.style.left = `${ rect.right + 8 }px`;
@@ -1230,20 +1230,20 @@ export class Dock {
 	private bindWindowEvents(): void {
 		const refresh = (): void => this.updateActiveStates();
 		this.boundRefresh = refresh;
-		document.addEventListener( 'wp-desktop-window-opened', refresh );
-		document.addEventListener( 'wp-desktop-window-closed', refresh );
-		document.addEventListener( 'wp-desktop-window-focused', refresh );
+		document.addEventListener( 'desktop-mode-window-opened', refresh );
+		document.addEventListener( 'desktop-mode-window-closed', refresh );
+		document.addEventListener( 'desktop-mode-window-focused', refresh );
 		// Desktop switches change which windows count as "open on
 		// the active desktop" even though the stack is unchanged.
 		// Listen via the hook bus so a plugin that manually calls
 		// switchDesktop() also triggers a repaint.
 		window.wp?.hooks?.addAction?.(
-			'wp-desktop.desktop.switched',
+			'desktop-mode.desktop.switched',
 			this.hooksNamespace,
 			refresh,
 		);
 		window.wp?.hooks?.addAction?.(
-			'wp-desktop.desktop.closed',
+			'desktop-mode.desktop.closed',
 			this.hooksNamespace,
 			refresh,
 		);
@@ -1261,23 +1261,23 @@ export class Dock {
 	 */
 	public destroy(): void {
 		document.removeEventListener(
-			'wp-desktop-window-opened',
+			'desktop-mode-window-opened',
 			this.boundRefresh,
 		);
 		document.removeEventListener(
-			'wp-desktop-window-closed',
+			'desktop-mode-window-closed',
 			this.boundRefresh,
 		);
 		document.removeEventListener(
-			'wp-desktop-window-focused',
+			'desktop-mode-window-focused',
 			this.boundRefresh,
 		);
 		window.wp?.hooks?.removeAction?.(
-			'wp-desktop.desktop.switched',
+			'desktop-mode.desktop.switched',
 			this.hooksNamespace,
 		);
 		window.wp?.hooks?.removeAction?.(
-			'wp-desktop.desktop.closed',
+			'desktop-mode.desktop.closed',
 			this.hooksNamespace,
 		);
 		for ( const handle of this.attentionTimers.values() ) {
@@ -1296,7 +1296,7 @@ export class Dock {
 		this.systemItemElements.clear();
 		this.systemItems = [];
 		this.systemSeparator = null;
-		this.container.removeAttribute( 'data-wp-desktop-dock-placement' );
+		this.container.removeAttribute( 'data-desktop-mode-dock-placement' );
 	}
 
 	/**
@@ -1337,8 +1337,8 @@ export class Dock {
 			const isOpen = item.multi ? instances.length > 0 : singleOpen;
 			const isFocused = focusedBaseId === baseId && !! focused && onActiveDesktop( focused );
 
-			tile.classList.toggle( 'wp-desktop-dock__item--active', isOpen );
-			tile.classList.toggle( 'wp-desktop-dock__item--focused', isFocused );
+			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
+			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
 		}
 
 		// System items — active dot driven by the caller's predicate. No
@@ -1351,8 +1351,8 @@ export class Dock {
 			}
 			const isOpen = sys.isOpen ? sys.isOpen() : false;
 			const isFocused = !! focused && focused.id === sys.id;
-			tile.classList.toggle( 'wp-desktop-dock__item--active', isOpen );
-			tile.classList.toggle( 'wp-desktop-dock__item--focused', isFocused );
+			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
+			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
 		}
 	}
 }
@@ -1369,7 +1369,7 @@ export class Dock {
  */
 function _applyBadgeNode( host: HTMLElement, count: number ): void {
 	const existing = host.querySelector< HTMLElement >(
-		':scope > .wp-desktop-dock__badge',
+		':scope > .desktop-mode-dock__badge',
 	);
 	if ( count <= 0 ) {
 		existing?.remove();
@@ -1391,7 +1391,7 @@ function _applyBadgeNode( host: HTMLElement, count: number ): void {
 		return;
 	}
 	const badge = document.createElement( 'span' );
-	badge.className = 'wp-desktop-dock__badge';
+	badge.className = 'desktop-mode-dock__badge';
 	badge.textContent = display;
 	badge.setAttribute(
 		'aria-label',

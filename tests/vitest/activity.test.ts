@@ -54,7 +54,7 @@ describe( 'wp.desktop.activity', () => {
 
 	test( 'filter mutates the value through registered filters', () => {
 		addFilter(
-			'wp-desktop.activity.plugin-x/redact',
+			'desktop-mode.activity.plugin-x/redact',
 			'plugin-x-test',
 			( v: unknown ) => {
 				return ( v as string ).replace( /secret/g, '***' );
@@ -65,7 +65,7 @@ describe( 'wp.desktop.activity', () => {
 			'this is a secret',
 		);
 		expect( out ).toBe( 'this is a ***' );
-		removeFilter( 'wp-desktop.activity.plugin-x/redact', 'plugin-x-test' );
+		removeFilter( 'desktop-mode.activity.plugin-x/redact', 'plugin-x-test' );
 	} );
 
 	test( 'filter falls through when no filters registered', () => {

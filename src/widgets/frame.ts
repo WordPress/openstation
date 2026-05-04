@@ -22,11 +22,11 @@
 import { __, sprintf } from '../i18n';
 import type { WidgetDef, WidgetGeometry } from './types';
 
-const FLOATING_CLASS = 'wp-desktop-widgets__card--floating';
-const MOVABLE_CLASS = 'wp-desktop-widgets__card--movable';
-const RESIZABLE_CLASS = 'wp-desktop-widgets__card--resizable';
-const DRAGGING_CLASS = 'wp-desktop-widgets__card--dragging';
-const RESIZING_CLASS = 'wp-desktop-widgets__card--resizing';
+const FLOATING_CLASS = 'desktop-mode-widgets__card--floating';
+const MOVABLE_CLASS = 'desktop-mode-widgets__card--movable';
+const RESIZABLE_CLASS = 'desktop-mode-widgets__card--resizable';
+const DRAGGING_CLASS = 'desktop-mode-widgets__card--dragging';
+const RESIZING_CLASS = 'desktop-mode-widgets__card--resizing';
 
 /** Safe fallback minimums for widgets that don't declare their own. */
 const DEFAULT_MIN_WIDTH = 160;
@@ -117,7 +117,7 @@ export function buildFrame(
 	handlers: FrameHandlers,
 ): Frame {
 	const card = document.createElement( 'div' );
-	card.className = 'wp-desktop-widgets__card';
+	card.className = 'desktop-mode-widgets__card';
 	card.dataset.widgetId = def.id;
 
 	const movable = def.movable === true;
@@ -138,7 +138,7 @@ export function buildFrame(
 	}
 
 	const body = document.createElement( 'div' );
-	body.className = 'wp-desktop-widgets__card-body';
+	body.className = 'desktop-mode-widgets__card-body';
 	card.appendChild( body );
 
 	// Pre-apply saved geometry if the widget is already floating. The
@@ -159,7 +159,7 @@ export function buildFrame(
 	if ( resizable ) {
 		for ( const dir of allHandleDirs() ) {
 			const handle = document.createElement( 'div' );
-			handle.className = `wp-desktop-widgets__resize wp-desktop-widgets__resize--${ dir }`;
+			handle.className = `desktop-mode-widgets__resize desktop-mode-widgets__resize--${ dir }`;
 			handle.setAttribute( 'aria-hidden', 'true' );
 			handle.dataset.dir = dir;
 			card.appendChild( handle );
@@ -176,7 +176,7 @@ export function buildFrame(
 	let dragCleanup: ( () => void ) | null = null;
 	if ( movable ) {
 		const chrome = card.querySelector<HTMLElement>(
-			'.wp-desktop-widgets__chrome',
+			'.desktop-mode-widgets__chrome',
 		);
 		if ( chrome ) {
 			dragCleanup = attachDrag( card, chrome, def, ctx, handlers, ( next ) => {
@@ -218,17 +218,17 @@ function buildChrome(
 	onRedock: () => void,
 ): HTMLElement {
 	const chrome = document.createElement( 'header' );
-	chrome.className = 'wp-desktop-widgets__chrome';
+	chrome.className = 'desktop-mode-widgets__chrome';
 
 	const grip = document.createElement( 'span' );
-	grip.className = 'wp-desktop-widgets__grip';
+	grip.className = 'desktop-mode-widgets__grip';
 	grip.setAttribute( 'aria-hidden', 'true' );
 	// Six dots in a 2×3 pattern — universal "drag me" affordance,
 	// rendered via CSS background so we ship no extra SVG.
 	chrome.appendChild( grip );
 
 	const title = document.createElement( 'span' );
-	title.className = 'wp-desktop-widgets__title';
+	title.className = 'desktop-mode-widgets__title';
 	title.textContent = def.label;
 	chrome.appendChild( title );
 
@@ -259,7 +259,7 @@ function buildRedockButton(
 ): HTMLButtonElement {
 	const btn = document.createElement( 'button' );
 	btn.type = 'button';
-	btn.className = 'wp-desktop-widgets__card-redock';
+	btn.className = 'desktop-mode-widgets__card-redock';
 	btn.setAttribute(
 		'aria-label',
 		// translators: %s is the widget label (e.g., "Clock")
@@ -288,7 +288,7 @@ function buildCornerClose( def: WidgetDef, onRemove: () => void ): HTMLElement {
 	// Non-movable widgets keep today's top-right floating × — unchanged
 	// from the pre-0.8 layout.
 	const close = buildCloseButton( def, onRemove );
-	close.classList.add( 'wp-desktop-widgets__card-close--corner' );
+	close.classList.add( 'desktop-mode-widgets__card-close--corner' );
 	return close;
 }
 
@@ -298,7 +298,7 @@ function buildCloseButton(
 ): HTMLButtonElement {
 	const close = document.createElement( 'button' );
 	close.type = 'button';
-	close.className = 'wp-desktop-widgets__card-close';
+	close.className = 'desktop-mode-widgets__card-close';
 	// translators: %s is the widget label (e.g., "Clock")
 	close.setAttribute( 'aria-label', sprintf( __( 'Remove %s' ), def.label ) );
 	close.innerHTML =

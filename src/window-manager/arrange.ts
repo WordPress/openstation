@@ -97,7 +97,7 @@ export function cascade( mgr: WindowManager ): void {
 
 	// Persist the new geometry — session saver listens to this.
 	document.dispatchEvent(
-		new CustomEvent( 'wp-desktop-window-changed', {
+		new CustomEvent( 'desktop-mode-window-changed', {
 			detail: { reason: 'cascade' },
 		} ),
 	);
@@ -193,7 +193,7 @@ export function tile( mgr: WindowManager ): void {
 	}
 
 	document.dispatchEvent(
-		new CustomEvent( 'wp-desktop-window-changed', {
+		new CustomEvent( 'desktop-mode-window-changed', {
 			detail: { reason: 'tile' },
 		} ),
 	);

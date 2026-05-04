@@ -4,7 +4,7 @@
  * Initializes the desktop shell, restores the user's session if one
  * exists, opens the current admin page otherwise, wires session
  * persistence to change events, and normalizes the browser URL to
- * `/wp-desktop/` so the address bar shows a single stable location
+ * `/desktop-mode/` so the address bar shows a single stable location
  * regardless of which admin page is open in which window.
  *
  * @since 6.9.0
@@ -189,7 +189,7 @@ import type { Window as DesktopWindow } from './window';
 /* -------------------------------------------------------------------
  * Pre-bootstrap shim — installs `window.wp.desktop` synchronously at
  * module-parse time with a queueing `whenReady` so consumer scripts
- * loaded with `array( 'wp-desktop' )` as their dep don't race the
+ * loaded with `array( 'desktop-mode' )` as their dep don't race the
  * shell's `init()` execution.
  *
  * Why this exists: WordPress only orders the consumer's `<script>`
@@ -261,7 +261,7 @@ let _earlyReady = false;
 }() );
 
 /** Stable id for the OS Settings native window. */
-const OS_SETTINGS_WINDOW_ID = 'wp-desktop-os-settings';
+const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
 
 /**
  * Public surface exposed on `window.wp.desktop`. Third-party plugins
@@ -274,7 +274,7 @@ export interface WpDesktopPublicApi {
 	 * Primary (bottom) dock instance. Present in every layout. May
 	 * be replaced when the user switches `desktopLayout` in OS
 	 * Settings — plugins that cache a reference should listen for
-	 * the `wp-desktop-layout-changed` CustomEvent on `document` and
+	 * the `desktop-mode-layout-changed` CustomEvent on `document` and
 	 * re-fetch from `wp.desktop.dock`.
 	 */
 	dock: Dock | null;
@@ -289,7 +289,7 @@ export interface WpDesktopPublicApi {
 	/**
 	 * Currently-active desktop layout. Mirrors
 	 * `OsSettingsSnapshot.desktopLayout`; the framework writes
-	 * `data-wp-desktop-layout` on the shell root with this value so
+	 * `data-desktop-mode-layout` on the shell root with this value so
 	 * plugins can also key off the attribute via CSS.
 	 *
 	 * @since 0.18.0
@@ -300,11 +300,11 @@ export interface WpDesktopPublicApi {
 	 * dock. Mirrors `Dock.setBadge` exactly:
 	 *
 	 * ```ts
-	 * wp.desktop.icons.setBadge( 'wpdm-messages', 5 );
-	 * wp.desktop.icons.setBadge( 'wpdm-messages', 0 );  // clear
+	 * wp.desktop.icons.setBadge( 'desktop-mode-messages', 5 );
+	 * wp.desktop.icons.setBadge( 'desktop-mode-messages', 0 );  // clear
 	 * ```
 	 *
-	 * Every change publishes `wp-desktop/badge-changed` on the
+	 * Every change publishes `desktop-mode/badge-changed` on the
 	 * activity bus with `rail: 'icon'` (the same channel the dock
 	 * publishes to with `rail: 'dock'`), and fires
 	 * {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
@@ -349,9 +349,9 @@ export interface WpDesktopPublicApi {
 	 * admin and want to branch without probing `document.getElementById`.
 	 */
 	isActive: () => boolean;
-	/** Convenience: register a wallpaper via `wp-desktop.wallpapers` filter. */
+	/** Convenience: register a wallpaper via `desktop-mode.wallpapers` filter. */
 	registerWallpaper: ( def: WallpaperDef ) => void;
-	/** Convenience: register a widget via `wp-desktop.widgets` filter. */
+	/** Convenience: register a widget via `desktop-mode.widgets` filter. */
 	registerWidget: ( def: import( './widgets/types' ).WidgetDef ) => void;
 	/**
 	 * Live reference to the shell's widget layer (or `null` when the
@@ -435,7 +435,7 @@ export interface WpDesktopPublicApi {
 	 * Live list of collision surfaces for wallpaper effects —
 	 * window tops, shell floor, dock edge, widget
 	 * cards, plus anything plugins added via the
-	 * `wp-desktop.wallpaper.surfaces` filter. Rects are in
+	 * `desktop-mode.wallpaper.surfaces` filter. Rects are in
 	 * viewport coordinates. Call each frame (or throttled) from a
 	 * canvas wallpaper to rebuild its collision cache.
 	 */
@@ -447,13 +447,13 @@ export interface WpDesktopPublicApi {
 	registerModule: ( def: ModuleDef ) => void;
 	/** Imperatively load one or more registered modules. Usually unnecessary — canvas wallpapers declare `needs[]` and the shell resolves automatically. */
 	loadModules: ( ids: string[] ) => Promise<void>;
-	/** Run `cb` after `wp-desktop.init` has fired (immediately if already fired). */
+	/** Run `cb` after `desktop-mode.init` has fired (immediately if already fired). */
 	whenReady: ( cb: () => void ) => void;
 	/**
 	 * Short alias of {@link whenReady}. The idiomatic entry point for
 	 * plugin scripts — especially those loaded late by server-sync
 	 * (widgets, wallpapers, commands, settings tabs) after
-	 * `wp-desktop.init` has already fired. Mirrors the ergonomics of
+	 * `desktop-mode.init` has already fired. Mirrors the ergonomics of
 	 * `jQuery( fn )`: the callback runs synchronously (via microtask)
 	 * if the shell is already booted, otherwise queues.
 	 *
@@ -467,7 +467,7 @@ export interface WpDesktopPublicApi {
 	 */
 	ready: ( cb: () => void ) => void;
 	/**
-	 * Synchronously report whether the shell's `wp-desktop.init` action
+	 * Synchronously report whether the shell's `desktop-mode.init` action
 	 * has fired. Lets late-loading plugin code branch between
 	 * "register directly" and "schedule via whenReady" without racing.
 	 *
@@ -484,7 +484,7 @@ export interface WpDesktopPublicApi {
 	 *   an empty desktop on portal entry.
 	 *
 	 * Updates `config.defaultWindow` in place and dispatches the
-	 * `wp-desktop-default-window-changed` CustomEvent on `document`
+	 * `desktop-mode-default-window-changed` CustomEvent on `document`
 	 * so the ⋯-menu checkmarks repaint.
 	 */
 	setDefaultWindow: ( url: string | null ) => Promise<void>;
@@ -496,7 +496,7 @@ export interface WpDesktopPublicApi {
 	 * to surface their changes without a full reload.
 	 *
 	 * Implemented as a hidden 1×1 iframe pointing at
-	 * `admin.php?wp_desktop=1&desktop_mode_menu_refresh=1` whose
+	 * `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1` whose
 	 * chromeless bridge postMessages a fresh payload from real admin
 	 * context. Same pipeline as the auto-refresh path, so plugin
 	 * menus that gate on `is_admin()` register correctly.
@@ -511,7 +511,7 @@ export interface WpDesktopPublicApi {
 	 * AI Assistant spotlight overlay. Open it programmatically with
 	 * `wp.desktop.ai.open()`, or let the global Cmd+K shortcut handle
 	 * it. The admin-bar "Ask AI ⌘K" button dispatches the
-	 * `wp-desktop-open-ai` event on `document`, which the assistant
+	 * `desktop-mode-open-ai` event on `document`, which the assistant
 	 * also listens for — no direct reference needed.
 	 *
 	 * @since 0.14.0
@@ -521,8 +521,8 @@ export interface WpDesktopPublicApi {
 	 * Cross-window drag bridge — the authoritative carrier for
 	 * attachment payloads that cross iframe boundaries (Media Library
 	 * → post editor). Source iframes call `window.parent.postMessage`
-	 * with a `wp-desktop-drag-start` payload; this bridge stores it
-	 * and replies to `wp-desktop-drag-payload-request` messages from
+	 * with a `desktop-mode-drag-start` payload; this bridge stores it
+	 * and replies to `desktop-mode-drag-payload-request` messages from
 	 * receiver iframes during their drop handlers.
 	 *
 	 * @since 0.14.0
@@ -632,7 +632,7 @@ export interface WpDesktopPublicApi {
 	/**
 	 * Snapshot of every JS-registered system tile across both
 	 * rails. Returns `[]` when the layout dispatcher hasn't booted
-	 * yet (rare; only happens before `wp-desktop.init` fires).
+	 * yet (rare; only happens before `desktop-mode.init` fires).
 	 *
 	 * Custom rail renderers use this to compose against the same
 	 * tile set the default renderer paints — e.g., a launcher
@@ -688,7 +688,7 @@ export interface WpDesktopPublicApi {
 		opts: { title: string; className?: string },
 	) => HTMLElement;
 	/**
-	 * Run the registered `wp-desktop.dock.tile-class` filter against
+	 * Run the registered `desktop-mode.dock.tile-class` filter against
 	 * a base classNames list. Custom rail renderers SHOULD use this
 	 * during tile build so decoration plugins compose with any
 	 * renderer the user picks. See `docs/examples/dock-rail-renderer.md`
@@ -698,7 +698,7 @@ export interface WpDesktopPublicApi {
 	 */
 	applyTileClasses: typeof import( './dock-helpers' ).applyTileClasses;
 	/**
-	 * Run the registered `wp-desktop.dock.tile-element` filter so
+	 * Run the registered `desktop-mode.dock.tile-element` filter so
 	 * decoration plugins can wrap a renderer's tile element.
 	 *
 	 * @since 0.18.0
@@ -706,14 +706,14 @@ export interface WpDesktopPublicApi {
 	applyTileElement: typeof import( './dock-helpers' ).applyTileElement;
 	/**
 	 * Resolve the tooltip text for a tile through the registered
-	 * `wp-desktop.dock.tile-tooltip` filter. Empty return suppresses
+	 * `desktop-mode.dock.tile-tooltip` filter. Empty return suppresses
 	 * the tooltip.
 	 *
 	 * @since 0.18.0
 	 */
 	applyTileTooltip: typeof import( './dock-helpers' ).applyTileTooltip;
 	/**
-	 * Fire the `wp-desktop.dock.tile-rendered` action after a tile
+	 * Fire the `desktop-mode.dock.tile-rendered` action after a tile
 	 * lands in the DOM.
 	 *
 	 * @since 0.18.0
@@ -885,7 +885,7 @@ export interface WpDesktopPublicApi {
 	/**
 	 * Cross-window broadcast. Publishes a payload on a topic to
 	 * every window — native or iframe — that has subscribed. The
-	 * canonical built-in topic is `wp-desktop.data-changed`,
+	 * canonical built-in topic is `desktop-mode.data-changed`,
 	 * emitted by the Recycle Bin whenever an item is restored or
 	 * permanently deleted; the shell's default subscriber reloads
 	 * any iframe whose URL matches a known admin page for the
@@ -903,7 +903,7 @@ export interface WpDesktopPublicApi {
 	 * Use `'*'` to receive every payload.
 	 *
 	 * Iframe-side admin pages can subscribe via plain DOM —
-	 * `document.addEventListener( 'wp-desktop-broadcast', cb )` —
+	 * `document.addEventListener( 'desktop-mode-broadcast', cb )` —
 	 * the chromeless bridge re-dispatches every incoming broadcast
 	 * as that CustomEvent.
 	 *
@@ -1006,12 +1006,12 @@ export interface WpDesktopPublicApi {
 	 * offline`). Always available regardless of which feature
 	 * plugins (chat, collaboration, …) happen to be installed.
 	 *
-	 * The probe is started automatically on `wp-desktop.init` and
+	 * The probe is started automatically on `desktop-mode.init` and
 	 * piggy-backs on the WordPress Heartbeat to bump server-side
 	 * presence + receive the visible-users snapshot. Plugins read
 	 * `getStatus(userId)` / `getAll()` for a synchronous snapshot,
 	 * `subscribe(cb)` to react to changes, and listen for
-	 * `wp-desktop-presence-changed` CustomEvents on `document` for
+	 * `desktop-mode-presence-changed` CustomEvents on `document` for
 	 * status transitions (fires once per user per transition,
 	 * never on stable ticks).
 	 *
@@ -1020,7 +1020,7 @@ export interface WpDesktopPublicApi {
 	 * if ( wp.desktop.presence.getStatus( authorId ) === 'online' ) {
 	 *     showOnlineBadge();
 	 * }
-	 * document.addEventListener( 'wp-desktop-presence-changed', ( e ) => {
+	 * document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
 	 *     console.log( e.detail.userId, e.detail.newStatus );
 	 * } );
 	 * ```
@@ -1042,7 +1042,7 @@ export interface WpDesktopPublicApi {
 	 * );
 	 * ```
 	 *
-	 * Channels are routed via `wp-desktop.activity.<channel>` on
+	 * Channels are routed via `desktop-mode.activity.<channel>` on
 	 * the hook bus, so devtools / inspectors can list activity
 	 * traffic as a discrete group.
 	 *
@@ -1075,7 +1075,7 @@ export interface WpDesktopPublicApi {
 	 * was reporting changes (e.g. dismiss inbound-message toasts the
 	 * moment the chat window mounts).
 	 *
-	 * Routes through the `wp-desktop/toast-requested` activity filter
+	 * Routes through the `desktop-mode/toast-requested` activity filter
 	 * before painting; plugins can mutate or cancel the payload.
 	 *
 	 * @since 0.23.0
@@ -1094,7 +1094,7 @@ export interface WpDesktopPublicApi {
 	 * ```js
 	 * wp.desktop.whenReady( () => {
 	 *     wp.desktop.hooks.addFilter(
-	 *         'wp-desktop.window.loading-overlay',
+	 *         'desktop-mode.window.loading-overlay',
 	 *         'my-skin/branded',
 	 *         ( host ) => { ... }
 	 *     );
@@ -1155,7 +1155,7 @@ export interface WpDesktopPublicApi {
 	 * arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`.
 	 * Returns `undefined` when no config was registered for `id`.
 	 *
-	 * Recommended over reading `window.wpDesktopWindowConfig[ id ]`
+	 * Recommended over reading `window.desktopModeWindowConfig[ id ]`
 	 * directly so the storage location can evolve without breaking
 	 * plugin bundles.
 	 *
@@ -1186,7 +1186,7 @@ export interface WpDesktopPublicApi {
 		 *   missing `configPresent` is the historical
 		 *   mid-session-activation bug fixed in 0.6.0.
 		 * - `configPresent` — whether
-		 *   `window.wpDesktopWindowConfig[ id ]` exists.
+		 *   `window.desktopModeWindowConfig[ id ]` exists.
 		 * - `extras` — what the payload supplied for
 		 *   `loadVendorScript` to inject (translations / l10n /
 		 *   before / after counts).
@@ -1209,7 +1209,7 @@ export interface DesktopDebugWindow {
 	/**
 	 * `'eager'` — a `<script>` tag printed by `wp_print_scripts` was
 	 * found in the document for this URL.
-	 * `'lazy'`  — only the shell-injected (`data-wp-desktop-vendor`) tag is present.
+	 * `'lazy'`  — only the shell-injected (`data-desktop-mode-vendor`) tag is present.
 	 * `'unknown'` — neither (script never loaded yet, or the URL is empty).
 	 */
 	loadPath: 'eager' | 'lazy' | 'unknown';
@@ -1225,7 +1225,7 @@ export interface DesktopDebugWindow {
 
 declare global {
 	interface Window {
-		wpDesktopConfig?: DesktopConfig;
+		desktopModeConfig?: DesktopConfig;
 		/**
 		 * Per-window config blobs, one entry per
 		 * `desktop_mode_register_window( $id, [ 'config' => … ] )`.
@@ -1235,7 +1235,7 @@ declare global {
 		 *
 		 * @since 0.6.0
 		 */
-		wpDesktopWindowConfig?: Record< string, unknown >;
+		desktopModeWindowConfig?: Record< string, unknown >;
 	}
 	/**
 	 * Contribute `desktop` to the merged `window.wp` namespace. The
@@ -1299,12 +1299,12 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
  * Initialize Desktop Mode.
  */
 function init(): void {
-	const config = window.wpDesktopConfig;
+	const config = window.desktopModeConfig;
 	if ( ! config ) {
 		return;
 	}
 
-	const desktopArea = document.getElementById( 'wp-desktop-area' );
+	const desktopArea = document.getElementById( 'desktop-mode-area' );
 	if ( ! desktopArea ) {
 		return;
 	}
@@ -1312,11 +1312,11 @@ function init(): void {
 	const manager = new WindowManager( desktopArea );
 
 	// Wallpaper layer + registry. Built-in presets register immediately
-	// (synchronously, before `wp-desktop.init` fires) so the filter chain
+	// (synchronously, before `desktop-mode.init` fires) so the filter chain
 	// third-party plugins hook into already carries the full seed list.
 	// The layer owns the wallpaper DOM element the shell markup reserves
-	// as the first child of `#wp-desktop-shell`.
-	const wallpaperEl = document.getElementById( 'wp-desktop-wallpaper' );
+	// as the first child of `#desktop-mode-shell`.
+	const wallpaperEl = document.getElementById( 'desktop-mode-wallpaper' );
 	const pluginUrl = config.pluginUrl || '';
 	let wallpaperLayer: WallpaperLayer | null = null;
 	if ( wallpaperEl ) {
@@ -1324,14 +1324,14 @@ function init(): void {
 	}
 
 	// Widget layer + registry. Same pattern as wallpapers: register
-	// built-ins synchronously so the `wp-desktop.widgets` filter
+	// built-ins synchronously so the `desktop-mode.widgets` filter
 	// already carries them when plugins hook in, then hydrate the
 	// layer which mounts whichever widgets the user last had on.
-	const widgetsEl = document.getElementById( 'wp-desktop-widgets' );
+	const widgetsEl = document.getElementById( 'desktop-mode-widgets' );
 	let widgetLayer: WidgetLayer | null = null;
 	registerBuiltInWidgets();
 	// Dock rail renderer registry — install the built-in `'default'`
-	// icon-strip renderer before `wp-desktop.init` fires so the
+	// icon-strip renderer before `desktop-mode.init` fires so the
 	// layout dispatcher (constructed below) can resolve it on the
 	// very first paint.
 	installDefaultDockRailRenderer();
@@ -1431,7 +1431,7 @@ function init(): void {
 	// more palettes via wp.desktop.registerPalette and Cmd+K cycles
 	// through them in registration order.
 	registerPalette( {
-		id: 'wp-desktop-ai-assistant',
+		id: 'desktop-mode-ai-assistant',
 		label: 'AI Assistant',
 		open: () => aiAssistant.open(),
 		close: () => aiAssistant.close(),
@@ -1449,12 +1449,12 @@ function init(): void {
 		adminUrl: config.adminUrl,
 	} ).install();
 
-	// Admin-bar "Ask AI" button and programmatic `wp-desktop-open-ai`
+	// Admin-bar "Ask AI" button and programmatic `desktop-mode-open-ai`
 	// dispatches now route through openPaletteOnly so any other plugin
 	// palette that happens to be open is dismissed first — matches the
 	// single-palette-at-a-time invariant the cycle maintains.
-	document.addEventListener( 'wp-desktop-open-ai', () => {
-		openPaletteOnly( 'wp-desktop-ai-assistant' );
+	document.addEventListener( 'desktop-mode-open-ai', () => {
+		openPaletteOnly( 'desktop-mode-ai-assistant' );
 	} );
 
 	// Dock(s) + desktop icons — managed by the layout dispatcher.
@@ -1465,10 +1465,10 @@ function init(): void {
 	// of `Dock` instances on every layout change and exposes a
 	// stable handle the rest of the shell (live menu refresh,
 	// public API) keeps wired to whichever rails are currently live.
-	const bottomDockEl = document.getElementById( 'wp-desktop-dock' );
-	const shellEl = document.getElementById( 'wp-desktop-shell' );
+	const bottomDockEl = document.getElementById( 'desktop-mode-dock' );
+	const shellEl = document.getElementById( 'desktop-mode-shell' );
 	const shellBody = shellEl?.querySelector< HTMLElement >(
-		'.wp-desktop-shell__body',
+		'.desktop-mode-shell__body',
 	);
 	let layoutDispatcher: LayoutDispatcher | null = null;
 
@@ -1489,7 +1489,7 @@ function init(): void {
 	const syncNativeWindows = nativeWindows.sync;
 
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
-		desktopArea.classList.add( 'wp-desktop-area--with-dock' );
+		desktopArea.classList.add( 'desktop-mode-area--with-dock' );
 		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
 		const renderIcons = (
 			icons: import( './types' ).DesktopIconServerEntry[] | undefined,
@@ -1601,7 +1601,7 @@ function init(): void {
 	// Admin-bar "Report a bug" button. Inline JS in
 	// `assets/js/admin-bar.js` dispatches the event; the shell
 	// answers here, decoupled from the early-running admin-bar IIFE.
-	document.addEventListener( 'wp-desktop-open-bug-report', () => {
+	document.addEventListener( 'desktop-mode-open-bug-report', () => {
 		openBugReport();
 	} );
 
@@ -1710,7 +1710,7 @@ function init(): void {
 			};
 			config.defaultWindow = data;
 			document.dispatchEvent(
-				new CustomEvent( 'wp-desktop-default-window-changed', {
+				new CustomEvent( 'desktop-mode-default-window-changed', {
 					detail: data,
 				} ),
 			);
@@ -1718,7 +1718,7 @@ function init(): void {
 			doAction( HOOKS.SHELL_ERROR, { scope: 'default-window-save', error: err } );
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[wp-desktop-mode] Failed to save default window:',
+					'[desktop-mode] Failed to save default window:',
 					err,
 				);
 			}
@@ -1800,7 +1800,7 @@ function init(): void {
 	// the shell adds / removes defs from its registry as plugins
 	// activate / deactivate mid-session, dynamically loading the
 	// plugin's script so the mount callback lands on
-	// `window.wpDesktopWidgets[ id ]` before we build the WidgetDef.
+	// `window.desktopModeWidgets[ id ]` before we build the WidgetDef.
 	const syncServerWidgets = createWidgetRegistrySync( {
 		layer: widgetLayer,
 	} );
@@ -1812,7 +1812,7 @@ function init(): void {
 	// same reasoning. Plugins declare wallpapers via
 	// `desktop_mode_register_wallpaper()`; the shell loads the
 	// plugin's JS, reads the full `WallpaperDef` off
-	// `window.wpDesktopWallpapers[ id ]`, and adds / removes it
+	// `window.desktopModeWallpapers[ id ]`, and adds / removes it
 	// from the registry as activation / deactivation plays out.
 	const syncServerWallpapers = createWallpaperRegistrySync( {
 		osSettings,
@@ -1947,7 +1947,7 @@ function init(): void {
 	const connectionBridge = createConnectionBridge( manager );
 
 	// Cross-window broadcast bus — generic fan-out pub/sub. Built-in
-	// uses today: Recycle Bin publishes `wp-desktop.data-changed`
+	// uses today: Recycle Bin publishes `desktop-mode.data-changed`
 	// when items move in/out of trash; iframes (Posts list, Media
 	// Library, …) and other native windows can react.
 	attachBroadcastBus( manager );
@@ -1960,13 +1960,13 @@ function init(): void {
 	// wires the visual side.
 	installWindowLoadingTransitions();
 
-	// `wp-desktop.shell.toast` action — the documented way for plugins
+	// `desktop-mode.shell.toast` action — the documented way for plugins
 	// to surface a transient notification without importing
 	// `showToast` directly. Payload mirrors the `ToastOptions` type
 	// in `src/toast.ts`.
 	addAction(
-		'wp-desktop.shell.toast',
-		'wp-desktop-mode/shell-toast',
+		'desktop-mode.shell.toast',
+		'desktop-mode/shell-toast',
 		( payload: {
 			message?: string;
 			action?: { label: string; onClick: () => void };
@@ -1986,7 +1986,7 @@ function init(): void {
 	// Recycle-bin count badge — painted on the dock/taskbar tile
 	// + desktop icon as soon as those exist. Initial value comes
 	// from the shell config (`recycleBinCount`); cross-window
-	// `wp-desktop.<type>.changed` broadcasts deliver delta updates
+	// `desktop-mode.<type>.changed` broadcasts deliver delta updates
 	// so the badge stays accurate without an explicit refresh.
 	// `wp_localize_script` coerces every scalar to a string — so
 	// `recycleBinCount: 2` (int) lands here as `'2'` (string).
@@ -2006,14 +2006,14 @@ function init(): void {
 
 	// Register custom dock-peek renderers for shell-owned native
 	// windows (OS Settings, Recycle Bin). Plugins use the
-	// `wp-desktop.dock.peek-card-content` filter directly to surface
+	// `desktop-mode.dock.peek-card-content` filter directly to surface
 	// their own thumbnails — this is just the built-in set so the
 	// in-tree windows look like first-class apps.
 	registerBuiltInPeekRenderers( {
 		getRecycleBinCount: _currentRecycleBinBadge,
 	} );
 
-	// Auto-reload iframes on `wp-desktop.<post_type>.changed` is
+	// Auto-reload iframes on `desktop-mode.<post_type>.changed` is
 	// handled IN THE IFRAME (see the chromeless bridge in
 	// `includes/render.php`). The iframe-side handler does a soft
 	// reload — fetch the current URL, swap `#wpbody-content` —
@@ -2023,17 +2023,17 @@ function init(): void {
 	// react via `wp.desktop.subscribe()`; nothing here.
 	(
 		window as unknown as {
-			__wpDesktopConnectionBridge?: ReturnType< typeof createConnectionBridge >;
+			__desktopModeConnectionBridge?: ReturnType< typeof createConnectionBridge >;
 		}
-	).__wpDesktopConnectionBridge = connectionBridge;
+	).__desktopModeConnectionBridge = connectionBridge;
 	// Tear down connections when their target window closes.
-	addAction( HOOKS.WINDOW_CLOSED, 'wp-desktop-mode/connection-cleanup', ( e: { windowId?: string } ) => {
+	addAction( HOOKS.WINDOW_CLOSED, 'desktop-mode/connection-cleanup', ( e: { windowId?: string } ) => {
 		if ( e?.windowId ) {
 			connectionBridge.onWindowClosed( e.windowId );
 		}
 	} );
 	// Re-arm pending handshakes once an iframe finishes loading.
-	addAction( HOOKS.IFRAME_READY, 'wp-desktop-mode/connection-rearm', ( e: { windowId?: string } ) => {
+	addAction( HOOKS.IFRAME_READY, 'desktop-mode/connection-rearm', ( e: { windowId?: string } ) => {
 		if ( e?.windowId ) {
 			connectionBridge.onIframeReady( e.windowId );
 		}
@@ -2108,14 +2108,14 @@ function init(): void {
 	// in OS Settings, the dispatcher tears down the current dock(s),
 	// rebuilds for the new layout, and (in Spatial) re-emits the
 	// merged wallpaper-icons list. `osSettings.apply()` has already
-	// written `data-wp-desktop-layout` on the shell root by the time
+	// written `data-desktop-mode-layout` on the shell root by the time
 	// this fires.
 	//
 	// The public-API references on `wp.desktop` are mutated in place
 	// so a plugin reading `wp.desktop.dock` after a layout change
 	// gets the current primary rail without an explicit re-fetch.
 	// Plugins that CACHED a reference earlier should listen for
-	// `wp-desktop-layout-changed` to know the value moved.
+	// `desktop-mode-layout-changed` to know the value moved.
 	osSettings.subscribeOsSettings( ( snapshot ) => {
 		if ( ! layoutDispatcher ) {
 			return;
@@ -2140,7 +2140,7 @@ function init(): void {
 		saveSession,
 		hooks: rawHooks(),
 		HOOKS,
-		isActive: () => !! document.getElementById( 'wp-desktop-shell' ),
+		isActive: () => !! document.getElementById( 'desktop-mode-shell' ),
 		registerWallpaper: ( def: WallpaperDef ) => {
 			registry.register( def );
 			// Re-apply so a plugin that registers its own wallpaper and
@@ -2265,14 +2265,14 @@ function init(): void {
 			if ( typeof name !== 'string' || name === '' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					'[wp-desktop] registerNamespace: name must be a non-empty string',
+					'[desktop-mode] registerNamespace: name must be a non-empty string',
 				);
 				return;
 			}
 			if ( ! api || typeof api !== 'object' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[wp-desktop] registerNamespace("${ name }"): api must be an object`,
+					`[desktop-mode] registerNamespace("${ name }"): api must be an object`,
 				);
 				return;
 			}
@@ -2280,7 +2280,7 @@ function init(): void {
 			if ( reserved ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[wp-desktop] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
+					`[desktop-mode] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
 				);
 				return;
 			}
@@ -2289,7 +2289,7 @@ function init(): void {
 		getWindowConfig: < T = Record< string, unknown > >(
 			id: string,
 		): T | undefined => {
-			const store = window.wpDesktopWindowConfig;
+			const store = window.desktopModeWindowConfig;
 			if ( ! store || typeof store !== 'object' ) {
 				return undefined;
 			}
@@ -2309,7 +2309,7 @@ function init(): void {
 				let tagInDom = false;
 				if ( url ) {
 					const lazyTag = document.querySelector(
-						`script[data-wp-desktop-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
+						`script[data-desktop-mode-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
 					);
 					if ( lazyTag ) {
 						loadPath = 'lazy';
@@ -2329,7 +2329,7 @@ function init(): void {
 						}
 					}
 				}
-				const cfgStore = window.wpDesktopWindowConfig;
+				const cfgStore = window.desktopModeWindowConfig;
 				const configPresent = !! (
 					cfgStore &&
 					typeof cfgStore === 'object' &&
@@ -2385,7 +2385,7 @@ function init(): void {
 	// init() calls (the underlying singleton-guards itself).
 	bootPresenceProbe();
 
-	// Fire `wp-desktop.init` — plugins can now register wallpapers
+	// Fire `desktop-mode.init` — plugins can now register wallpapers
 	// and hook other surfaces. Fired AFTER `window.wp.desktop` is
 	// populated so subscribers see the full public API. Subscribers
 	// that later re-apply the wallpaper pick up their own
@@ -2400,7 +2400,7 @@ function init(): void {
 	// API is mounted so the command's `suggest()` / `run()` can read
 	// `wp.desktop.config` + `windowManager`, and BEFORE `HOOKS.INIT`
 	// so plugin subscribers that want to extend via
-	// `wp-desktop.open-command.items` can rely on the command being
+	// `desktop-mode.open-command.items` can rely on the command being
 	// in the registry.
 	registerBuiltInCommands();
 
@@ -2428,7 +2428,7 @@ function init(): void {
 			} );
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
-				console.error( '[wp-desktop-mode] whenReady cb threw:', err );
+				console.error( '[desktop-mode] whenReady cb threw:', err );
 			}
 		}
 	}
@@ -2438,7 +2438,7 @@ function init(): void {
 	// that just registered, this is when it becomes visible.
 	osSettings.apply();
 
-	// Hydrate widgets AFTER `wp-desktop.init` so plugin-registered
+	// Hydrate widgets AFTER `desktop-mode.init` so plugin-registered
 	// defs are in the registry when the user's saved list is
 	// resolved. Hydration is idempotent — safe if it fires twice
 	// (shouldn't, but defensive).
@@ -2454,7 +2454,7 @@ function init(): void {
 	} );
 
 	// Shell-level lifecycle actions — fired once the public API exists
-	// so plugin authors can subscribe from `wp-desktop.init`.
+	// so plugin authors can subscribe from `desktop-mode.init`.
 	bindShellLifecycle();
 
 	// Intercept top-window clicks on /wp-admin/ links so they route into
@@ -2483,7 +2483,7 @@ function init(): void {
 		if ( e.target !== desktopArea ) {
 			return;
 		}
-		if ( desktopArea.classList.contains( 'wp-desktop-area--overview' ) ) {
+		if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
 			return;
 		}
 		// One call instead of an inline loop — keeps the wallpaper
@@ -2494,13 +2494,13 @@ function init(): void {
 		manager.toggleShowDesktop();
 	} );
 
-	// The URL bar is intentionally NOT normalized to /wp-desktop/.
+	// The URL bar is intentionally NOT normalized to /desktop-mode/.
 	// Prior versions did a `history.replaceState(..., config.portalUrl)`
 	// here to unify the address bar around the portal URL — cosmetically
-	// nicer, but every browser reload hit /wp-desktop/, which triggered
+	// nicer, but every browser reload hit /desktop-mode/, which triggered
 	// a portal HTTP redirect to the canonical admin URL, producing a
 	// visible address-bar flash (`/wp-admin/index.php?desktop_mode_portal=1`
-	// → `/wp-desktop/`) on every reload. Leaving the URL as the actual
+	// → `/desktop-mode/`) on every reload. Leaving the URL as the actual
 	// admin URL eliminates the flash and makes reloads instant — the
 	// user sees /wp-admin/... in the address bar in exchange, which is
 	// also more transparent about where the shell is currently hosted.
@@ -2508,7 +2508,7 @@ function init(): void {
 	// to build "home" links can still point at the portal.
 
 	document.dispatchEvent(
-		new CustomEvent( 'wp-desktop-init', {
+		new CustomEvent( 'desktop-mode-init', {
 			detail: { config, restored: hasSession },
 		} ),
 	);
@@ -2671,7 +2671,7 @@ function bindTopWindowLinkInterceptor(
 				// the author can trace it.
 				if ( typeof console !== 'undefined' ) {
 					console.warn(
-						'[wp-desktop-mode] Couldn’t parse href; letting the browser handle the click:',
+						'[desktop-mode] Couldn’t parse href; letting the browser handle the click:',
 						rawHref,
 						err,
 					);
@@ -2692,7 +2692,7 @@ function bindTopWindowLinkInterceptor(
 				// link click on the page.
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[wp-desktop-mode] config.adminUrl is not a valid URL; falling back to /wp-admin/:',
+						'[desktop-mode] config.adminUrl is not a valid URL; falling back to /wp-admin/:',
 						config.adminUrl,
 						err,
 					);
@@ -2886,26 +2886,26 @@ function createSessionSaver( manager: WindowManager, config: DesktopConfig ): ()
 /**
  * Wire the session saver to every window lifecycle event that should
  * end up persisted. Close/focus come from the manager; moved/resized/
- * state come from individual windows via `wp-desktop-window-changed`.
+ * state come from individual windows via `desktop-mode-window-changed`.
  */
 function wireSessionEvents( save: () => void ): void {
-	document.addEventListener( 'wp-desktop-window-opened', save );
-	document.addEventListener( 'wp-desktop-window-closed', save );
-	document.addEventListener( 'wp-desktop-window-focused', save );
-	document.addEventListener( 'wp-desktop-window-changed', save );
+	document.addEventListener( 'desktop-mode-window-opened', save );
+	document.addEventListener( 'desktop-mode-window-closed', save );
+	document.addEventListener( 'desktop-mode-window-focused', save );
+	document.addEventListener( 'desktop-mode-window-changed', save );
 }
 
 /** Debounce window for the shell-resized action. Trailing-edge only. */
 const SHELL_RESIZE_DEBOUNCE_MS = 120;
 
 /**
- * Wire browser-resize and document-visibility into `wp-desktop.shell.*`
+ * Wire browser-resize and document-visibility into `desktop-mode.shell.*`
  * actions. Resize is debounced so a drag-to-resize storm collapses to a
  * single hook fire; visibility is edge-triggered (fires exactly once per
  * state change).
  */
 function bindShellLifecycle(): void {
-	const shellEl = document.getElementById( 'wp-desktop-shell' );
+	const shellEl = document.getElementById( 'desktop-mode-shell' );
 
 	let resizeTimer: number | null = null;
 	const fireShellResize = (): void => {
@@ -2932,7 +2932,7 @@ function bindShellLifecycle(): void {
 
 /**
  * Hard ceiling on how long `refreshMenu()` waits for its hidden
- * iframe to emit the `wp-desktop-plugins-changed` payload before
+ * iframe to emit the `desktop-mode-plugins-changed` payload before
  * giving up. The probe is a normal admin page load, so the cap is
  * sized for a slow shared host on first request rather than the
  * happy path.
@@ -2942,7 +2942,7 @@ const MENU_REFRESH_TIMEOUT_MS = 8000;
 /**
  * Wire the live menu-refresh pipeline.
  *
- * Listens for `wp-desktop-plugins-changed` postMessages and applies
+ * Listens for `desktop-mode-plugins-changed` postMessages and applies
  * any payload they carry. The chromeless bridge in `render.php`
  * always emits a payload from real admin context — both for the
  * implicit case (`plugins.php` etc.) and for the explicit refresh
@@ -2951,7 +2951,7 @@ const MENU_REFRESH_TIMEOUT_MS = 8000;
  *
  * Returns a function plugins can call to force a refresh. The
  * implementation spawns a 1×1 hidden iframe at
- * `admin.php?wp_desktop=1&desktop_mode_menu_refresh=1`, waits for
+ * `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1`, waits for
  * the bridge's payload message, then disposes the iframe. Same
  * pipeline, same correctness guarantees as the auto-refresh path.
  *
@@ -3028,7 +3028,7 @@ function bindMenuRefresh(
 				desktopIcons?: unknown;
 			};
 		} | null;
-		if ( ! data || data.type !== 'wp-desktop-plugins-changed' ) {
+		if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
 			return;
 		}
 
@@ -3049,7 +3049,7 @@ function bindMenuRefresh(
 		const probeUrl = ( () => {
 			try {
 				const url = new URL( 'admin.php', config.adminUrl );
-				url.searchParams.set( 'wp_desktop', '1' );
+				url.searchParams.set( 'desktop_mode_chromeless', '1' );
 				url.searchParams.set( 'desktop_mode_menu_refresh', '1' );
 				return url.toString();
 			} catch ( _err ) {
@@ -3090,7 +3090,7 @@ function bindMenuRefresh(
 					return;
 				}
 				const data = e.data as { type?: string } | null;
-				if ( ! data || data.type !== 'wp-desktop-plugins-changed' ) {
+				if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
 					return;
 				}
 				// The shell-wide listener registered above will apply

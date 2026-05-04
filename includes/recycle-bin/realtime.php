@@ -11,16 +11,16 @@
  *      static flag. At `admin_footer`, if the request is chromeless
  *      AND the flag is set, we emit a 12-line inline script that
  *      `postMessage`s the parent shell with `type:
- *      'wp-desktop-recycle-bin-changed'`. The parent dispatches our
+ *      'desktop-mode-recycle-bin-changed'`. The parent dispatches our
  *      `CustomEvent`, the open window refreshes. Cost: ~zero unless
  *      a delete actually happened in this request.
  *
  *   2. **Catch-all path — Heartbeat**
  *      Every delete also bumps a single autoload=false option
- *      `_wpdm_recycle_bin_change_ts` (a millisecond timestamp).
+ *      `_desktop_mode_recycle_bin_change_ts` (a millisecond timestamp).
  *      The Heartbeat `heartbeat_received` filter checks the client's
  *      last-seen ts — if the option is newer, the response includes
- *      `wpdm_recycle_bin: { changed, ts }`. The bin only subscribes
+ *      `desktop_mode_recycle_bin: { changed, ts }`. The bin only subscribes
  *      while its window is open, so users without the bin open pay
  *      zero. The cost per tick is one cached option read.
  *
@@ -36,7 +36,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const WPDM_RECYCLE_BIN_CHANGE_OPTION = '_wpdm_recycle_bin_change_ts';
+const DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION = '_desktop_mode_recycle_bin_change_ts';
 
 /**
  * Per-request "did this request trigger a recycle-bin change" flag.
@@ -50,7 +50,7 @@ const WPDM_RECYCLE_BIN_CHANGE_OPTION = '_wpdm_recycle_bin_change_ts';
  * @param bool|null $set Set the flag.
  * @return bool
  */
-function wpdm_recycle_bin_request_dirty( $set = null ) {
+function desktop_mode_recycle_bin_request_dirty( $set = null ) {
 	static $dirty = false;
 	if ( null !== $set ) {
 		$dirty = (bool) $set;
@@ -71,10 +71,10 @@ function wpdm_recycle_bin_request_dirty( $set = null ) {
  *
  * @since 0.20.0
  */
-function wpdm_recycle_bin_signal_change() {
+function desktop_mode_recycle_bin_signal_change() {
 	$ts = (int) round( microtime( true ) * 1000 );
-	update_option( WPDM_RECYCLE_BIN_CHANGE_OPTION, $ts, false );
-	wpdm_recycle_bin_request_dirty( true );
+	update_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, $ts, false );
+	desktop_mode_recycle_bin_request_dirty( true );
 
 	/**
 	 * Fires after the recycle bin's "something changed" signal is
@@ -93,7 +93,7 @@ function wpdm_recycle_bin_signal_change() {
  * Wrapper for `wp_trash_post`-style actions that pass `$post_id`.
  *
  * Captures the post id + post type into the per-request changelog
- * so the chromeless footer can emit one `wp-desktop-broadcast`
+ * so the chromeless footer can emit one `desktop-mode-broadcast`
  * postMessage per affected domain (e.g. one for `post`, one for
  * `attachment`, …). Subscribers — the recycle bin window, plus
  * any plugin that registered a domain listener — react.
@@ -103,12 +103,12 @@ function wpdm_recycle_bin_signal_change() {
  * @param int    $post_id Post id being mutated.
  * @param string $action  One of 'trashed', 'untrashed', 'deleted'.
  */
-function wpdm_recycle_bin_signal_change_for_post( $post_id, $action = 'trashed' ) {
+function desktop_mode_recycle_bin_signal_change_for_post( $post_id, $action = 'trashed' ) {
 	$post = get_post( $post_id );
 	if ( $post instanceof WP_Post ) {
-		wpdm_recycle_bin_record_change( (string) $post->post_type, (int) $post_id, (string) $action );
+		desktop_mode_recycle_bin_record_change( (string) $post->post_type, (int) $post_id, (string) $action );
 	}
-	wpdm_recycle_bin_signal_change();
+	desktop_mode_recycle_bin_signal_change();
 }
 
 /**
@@ -125,7 +125,7 @@ function wpdm_recycle_bin_signal_change_for_post( $post_id, $action = 'trashed' 
  * @param string $action    Optional. Verb (trashed/untrashed/deleted).
  * @return array Full changelog when called with no args.
  */
-function wpdm_recycle_bin_record_change( $post_type = '', $post_id = 0, $action = '' ) {
+function desktop_mode_recycle_bin_record_change( $post_type = '', $post_id = 0, $action = '' ) {
 	static $log = array();
 
 	if ( '' === $post_type ) {
@@ -160,7 +160,7 @@ function wpdm_recycle_bin_record_change( $post_type = '', $post_id = 0, $action 
  *
  * @return bool
  */
-function wpdm_recycle_bin_should_emit_footer_signal() {
+function desktop_mode_recycle_bin_should_emit_footer_signal() {
 	if ( ! function_exists( 'desktop_mode_is_chromeless_request' ) ) {
 		return false;
 	}
@@ -175,7 +175,7 @@ function wpdm_recycle_bin_should_emit_footer_signal() {
 	 * @since 0.20.0
 	 *
 	 * @param bool $emit Default true on any chromeless render. The
-	 *                   `wpdm_recycle_bin_request_dirty()` helper
+	 *                   `desktop_mode_recycle_bin_request_dirty()` helper
 	 *                   reports whether THIS request itself mutated
 	 *                   state — useful inside the filter for plugins
 	 *                   that only want to ride the "this request
@@ -195,13 +195,13 @@ function wpdm_recycle_bin_should_emit_footer_signal() {
  *
  * @since 0.20.0
  */
-function wpdm_recycle_bin_emit_footer_signal() {
-	if ( ! wpdm_recycle_bin_should_emit_footer_signal() ) {
+function desktop_mode_recycle_bin_emit_footer_signal() {
+	if ( ! desktop_mode_recycle_bin_should_emit_footer_signal() ) {
 		return;
 	}
 
-	$ts        = (int) get_option( WPDM_RECYCLE_BIN_CHANGE_OPTION, 0 );
-	$changelog = wpdm_recycle_bin_record_change();
+	$ts        = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$changelog = desktop_mode_recycle_bin_record_change();
 
 	if ( $ts <= 0 && empty( $changelog ) ) {
 		// Nothing has ever been trashed via this site — no point
@@ -212,13 +212,13 @@ function wpdm_recycle_bin_emit_footer_signal() {
 	// Per-domain broadcast envelope: one entry per affected
 	// post_type, with verb-keyed id lists. The parent shell's
 	// `installBroadcastReceiver` translates each into a
-	// `wp-desktop.<post_type>.changed` broadcast — the bin (and
+	// `desktop-mode.<post_type>.changed` broadcast — the bin (and
 	// any plugin that subscribes to that exact topic) reacts.
 	$broadcasts = array();
 	foreach ( $changelog as $post_type => $by_action ) {
 		foreach ( $by_action as $action => $ids ) {
 			$broadcasts[] = array(
-				'topic'   => 'wp-desktop.' . $post_type . '.changed',
+				'topic'   => 'desktop-mode.' . $post_type . '.changed',
 				'payload' => array(
 					'source' => 'admin',
 					'action' => (string) $action,
@@ -229,7 +229,7 @@ function wpdm_recycle_bin_emit_footer_signal() {
 	}
 	$broadcasts_json = wp_json_encode( $broadcasts );
 	?>
-	<script id="wpdm-recycle-bin-realtime-signal">
+	<script id="desktop-mode-recycle-bin-realtime-signal">
 		( function () {
 			if ( window.parent === window ) {
 				return;
@@ -238,7 +238,7 @@ function wpdm_recycle_bin_emit_footer_signal() {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'wp-desktop-recycle-bin-changed',
+						type: 'desktop-mode-recycle-bin-changed',
 						ts: <?php echo (int) $ts; ?>,
 						source: 'chromeless'
 					},
@@ -249,7 +249,7 @@ function wpdm_recycle_bin_emit_footer_signal() {
 			/*
 			 * Per-domain broadcast envelopes — one postMessage per
 			 * affected post type. The parent shell's broadcast
-			 * receiver fans these out as `wp-desktop.<type>.changed`
+			 * receiver fans these out as `desktop-mode.<type>.changed`
 			 * subscriptions. Only emitted when the request actually
 			 * mutated something: a no-op chromeless render skips this
 			 * branch entirely.
@@ -258,7 +258,7 @@ function wpdm_recycle_bin_emit_footer_signal() {
 			for ( var i = 0; i < broadcasts.length; i++ ) {
 				try {
 					window.parent.postMessage( {
-						type: 'wp-desktop-broadcast',
+						type: 'desktop-mode-broadcast',
 						topic: broadcasts[ i ].topic,
 						payload: broadcasts[ i ].payload
 					}, origin );
@@ -275,7 +275,7 @@ function wpdm_recycle_bin_emit_footer_signal() {
  *
  * The Heartbeat API runs server-side every 15s (active window),
  * 60s (background tab), or 120s (idle). The bin's tab opts in by
- * sending `wpdm_recycle_bin_seen_ts` in its outgoing data; if the
+ * sending `desktop_mode_recycle_bin_seen_ts` in its outgoing data; if the
  * key is absent we early-return so users without the bin open pay
  * zero per tick.
  *
@@ -285,28 +285,28 @@ function wpdm_recycle_bin_emit_footer_signal() {
  * @param array $data     Client-sent payload.
  * @return array
  */
-function wpdm_recycle_bin_heartbeat_received( $response, $data ) {
+function desktop_mode_recycle_bin_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( ! isset( $data['wpdm_recycle_bin_seen_ts'] ) ) {
+	if ( ! isset( $data['desktop_mode_recycle_bin_seen_ts'] ) ) {
 		return $response;
 	}
-	if ( function_exists( 'wpdm_recycle_bin_user_can_use' ) && ! wpdm_recycle_bin_user_can_use() ) {
+	if ( function_exists( 'desktop_mode_recycle_bin_user_can_use' ) && ! desktop_mode_recycle_bin_user_can_use() ) {
 		return $response;
 	}
 
-	$seen   = (int) $data['wpdm_recycle_bin_seen_ts'];
-	$latest = (int) get_option( WPDM_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$seen   = (int) $data['desktop_mode_recycle_bin_seen_ts'];
+	$latest = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
 
 	// Authoritative count travels on every tick — it's the cheapest
 	// way to keep the dock/icon badge truthful when the bin window
-	// is closed. `wpdm_recycle_bin_count()` is a fast COUNT(*) that
+	// is closed. `desktop_mode_recycle_bin_count()` is a fast COUNT(*) that
 	// hits the same option-cached query each post-status.
-	$response['wpdm_recycle_bin'] = array(
+	$response['desktop_mode_recycle_bin'] = array(
 		'changed' => $latest > $seen,
 		'ts'      => $latest,
-		'count'   => wpdm_recycle_bin_count(),
+		'count'   => desktop_mode_recycle_bin_count(),
 	);
 
 	return $response;
@@ -321,48 +321,48 @@ function wpdm_recycle_bin_heartbeat_received( $response, $data ) {
  * the bin's own restore/purge so other tabs see the change.
  *
  * Hooked together inside one bootstrap to make the wiring auditable
- * — `grep wpdm_recycle_bin_signal_change` finds every emitter.
+ * — `grep desktop_mode_recycle_bin_signal_change` finds every emitter.
  *
  * @since 0.20.0
  */
-function wpdm_recycle_bin_register_realtime_hooks() {
+function desktop_mode_recycle_bin_register_realtime_hooks() {
 	add_action( 'wp_trash_post', function ( $post_id ) {
-		wpdm_recycle_bin_signal_change_for_post( $post_id, 'trashed' );
+		desktop_mode_recycle_bin_signal_change_for_post( $post_id, 'trashed' );
 	} );
 	add_action( 'untrash_post', function ( $post_id ) {
-		wpdm_recycle_bin_signal_change_for_post( $post_id, 'untrashed' );
+		desktop_mode_recycle_bin_signal_change_for_post( $post_id, 'untrashed' );
 	} );
 	add_action( 'before_delete_post', function ( $post_id ) {
-		wpdm_recycle_bin_signal_change_for_post( $post_id, 'deleted' );
+		desktop_mode_recycle_bin_signal_change_for_post( $post_id, 'deleted' );
 	} );
 
 	// Comments use a different verb space — `trashed_comment` /
 	// `untrashed_comment` / `deleted_comment` fire from
 	// `wp_set_comment_status`. Map each into our changelog so the
-	// chromeless footer can broadcast `wp-desktop.comment.changed`
+	// chromeless footer can broadcast `desktop-mode.comment.changed`
 	// to the Comments-list iframe; the bin doesn't capture comments
 	// today, but having the topic available means a third-party
 	// "comment trash" plugin can opt in by hooking the changelog.
 	add_action( 'trashed_comment', function ( $comment_id ) {
-		wpdm_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
-		wpdm_recycle_bin_signal_change();
+		desktop_mode_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
+		desktop_mode_recycle_bin_signal_change();
 	} );
 	add_action( 'untrashed_comment', function ( $comment_id ) {
-		wpdm_recycle_bin_record_change( 'comment', (int) $comment_id, 'untrashed' );
-		wpdm_recycle_bin_signal_change();
+		desktop_mode_recycle_bin_record_change( 'comment', (int) $comment_id, 'untrashed' );
+		desktop_mode_recycle_bin_signal_change();
 	} );
 	add_action( 'deleted_comment', function ( $comment_id ) {
-		wpdm_recycle_bin_record_change( 'comment', (int) $comment_id, 'deleted' );
-		wpdm_recycle_bin_signal_change();
+		desktop_mode_recycle_bin_record_change( 'comment', (int) $comment_id, 'deleted' );
+		desktop_mode_recycle_bin_signal_change();
 	} );
 
-	add_action( 'desktop_mode_recycle_bin_item_captured', 'wpdm_recycle_bin_signal_change' );
-	add_action( 'desktop_mode_recycle_bin_after_restore', 'wpdm_recycle_bin_signal_change' );
-	add_action( 'desktop_mode_recycle_bin_after_purge', 'wpdm_recycle_bin_signal_change' );
-	add_action( 'desktop_mode_recycle_bin_emptied', 'wpdm_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_item_captured', 'desktop_mode_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_after_restore', 'desktop_mode_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_after_purge', 'desktop_mode_recycle_bin_signal_change' );
+	add_action( 'desktop_mode_recycle_bin_emptied', 'desktop_mode_recycle_bin_signal_change' );
 
-	add_action( 'admin_footer', 'wpdm_recycle_bin_emit_footer_signal', 100 );
+	add_action( 'admin_footer', 'desktop_mode_recycle_bin_emit_footer_signal', 100 );
 
-	add_filter( 'heartbeat_received', 'wpdm_recycle_bin_heartbeat_received', 10, 2 );
+	add_filter( 'heartbeat_received', 'desktop_mode_recycle_bin_heartbeat_received', 10, 2 );
 }
-add_action( 'init', 'wpdm_recycle_bin_register_realtime_hooks', 5 );
+add_action( 'init', 'desktop_mode_recycle_bin_register_realtime_hooks', 5 );

@@ -34,14 +34,14 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 		remove_all_filters( 'desktop_mode_mode_enabled' );
 		remove_all_actions( 'desktop_mode_mode_init' );
 		remove_all_actions( 'desktop_mode_chromeless_styles' );
-		unset( $_GET['wp_desktop'] );
+		unset( $_GET['desktop_mode_chromeless'] );
 		parent::tear_down();
 	}
 
 	/**
 	 * @covers ::desktop_mode_build_dock_items
 	 */
-	public function test_wp_desktop_dock_items_filter_receives_array() {
+	public function test_desktop_mode_dock_items_filter_receives_array() {
 		global $menu;
 		$menu = array(
 			array( 'Posts', 'edit_posts', 'edit.php', '', '', 'menu-posts', 'dashicons-admin-post' ),
@@ -65,7 +65,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_build_dock_items
 	 */
-	public function test_wp_desktop_dock_item_filter_receives_item_and_slug() {
+	public function test_desktop_mode_dock_item_filter_receives_item_and_slug() {
 		global $menu;
 		$menu = array(
 			array( 'Posts', 'edit_posts', 'edit.php', '', '', 'menu-posts', 'dashicons-admin-post' ),
@@ -93,7 +93,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_enqueue_assets
 	 */
-	public function test_wp_desktop_shell_config_filter_fires_with_expected_keys() {
+	public function test_desktop_mode_shell_config_filter_fires_with_expected_keys() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$received = null;
@@ -116,7 +116,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_enqueue_assets
 	 */
-	public function test_wp_desktop_mode_init_action_fires_when_assets_enqueue() {
+	public function test_desktop_mode_mode_init_action_fires_when_assets_enqueue() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$fired = false;
@@ -135,7 +135,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_enqueue_assets
 	 */
-	public function test_wp_desktop_mode_init_does_not_fire_when_mode_off() {
+	public function test_desktop_mode_mode_init_does_not_fire_when_mode_off() {
 		$fired = false;
 		add_action(
 			'desktop_mode_mode_init',
@@ -152,9 +152,9 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_enqueue_assets
 	 */
-	public function test_wp_desktop_chromeless_styles_action_fires_on_chromeless_request() {
+	public function test_desktop_mode_chromeless_styles_action_fires_on_chromeless_request() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 
 		$fired = false;
 		add_action(
@@ -172,7 +172,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_enqueue_assets
 	 */
-	public function test_wp_desktop_chromeless_styles_does_not_fire_outside_chromeless() {
+	public function test_desktop_mode_chromeless_styles_does_not_fire_outside_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$fired = false;

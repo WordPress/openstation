@@ -73,14 +73,14 @@ function makeShell(): {
 } {
 	document.body.innerHTML = '';
 	const shellRoot = document.createElement( 'div' );
-	shellRoot.id = 'wp-desktop-shell';
+	shellRoot.id = 'desktop-mode-shell';
 	const shellBody = document.createElement( 'div' );
-	shellBody.className = 'wp-desktop-shell__body';
+	shellBody.className = 'desktop-mode-shell__body';
 	const bottomDockEl = document.createElement( 'nav' );
-	bottomDockEl.id = 'wp-desktop-dock';
-	bottomDockEl.className = 'wp-desktop-dock';
+	bottomDockEl.id = 'desktop-mode-dock';
+	bottomDockEl.className = 'desktop-mode-dock';
 	const desktopArea = document.createElement( 'div' );
-	desktopArea.id = 'wp-desktop-area';
+	desktopArea.id = 'desktop-mode-area';
 	shellBody.append( bottomDockEl, desktopArea );
 	shellRoot.append( shellBody );
 	document.body.append( shellRoot );
@@ -402,7 +402,7 @@ describe( 'dock-rail dispatcher integration', () => {
 		const wp = window.wp!;
 		const onError = vi.fn();
 		wp.hooks.addAction(
-			'wp-desktop.shell.error',
+			'desktop-mode.shell.error',
 			'test/error',
 			onError,
 		);

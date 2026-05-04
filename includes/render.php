@@ -14,8 +14,8 @@ defined( 'ABSPATH' ) || exit;
  * Adds body classes for desktop mode and chromeless iframes.
  *
  * The classes anchor all CSS in the shell and chromeless overrides
- * stylesheets — `.wp-desktop-active` hides classic chrome and reveals
- * the shell, `.wp-desktop-chromeless` reshapes the page inside iframes.
+ * stylesheets — `.desktop-mode-active` hides classic chrome and reveals
+ * the shell, `.desktop-mode-chromeless` reshapes the page inside iframes.
  *
  * @since 0.1.0
  *
@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
  */
 function desktop_mode_admin_body_classes( $classes ) {
 	if ( desktop_mode_is_chromeless_request() ) {
-		return ltrim( $classes . ' wp-desktop-chromeless' );
+		return ltrim( $classes . ' desktop-mode-chromeless' );
 	}
 
 	// Per-request classic override: don't tag the body as desktop-active so
@@ -34,7 +34,7 @@ function desktop_mode_admin_body_classes( $classes ) {
 	}
 
 	if ( desktop_mode_is_enabled() ) {
-		return ltrim( $classes . ' wp-desktop-active' );
+		return ltrim( $classes . ' desktop-mode-active' );
 	}
 
 	return $classes;
@@ -59,26 +59,26 @@ function desktop_mode_enqueue_assets() {
 	// (`window.parent === window`), so it's a no-op on the parent
 	// shell — but cheap insurance against the failure mode the
 	// developer hit: an internal admin navigation drops the
-	// `?wp_desktop=1` flag, the chromeless inline bridge doesn't
+	// `?desktop_mode_chromeless=1` flag, the chromeless inline bridge doesn't
 	// run, and `wp.desktop.iframe` silently disappears. With this
 	// auto-enqueue, the API is universally present for any same-
 	// origin admin page a desktop-mode user opens — chromeless or
 	// accidentally classic.
 	if ( desktop_mode_is_enabled() ) {
-		wp_enqueue_script( 'wp-desktop-iframe-bridge' );
+		wp_enqueue_script( 'desktop-mode-iframe-bridge' );
 	}
 
 	// Chromeless requests (iframes) need chromeless styles and overrides.
 	if ( desktop_mode_is_chromeless_request() ) {
-		wp_enqueue_style( 'wp-desktop' );
-		wp_enqueue_style( 'wp-desktop-chromeless' );
+		wp_enqueue_style( 'desktop-mode' );
+		wp_enqueue_style( 'desktop-mode-chromeless' );
 
 		/**
 		 * Fires when chromeless styles are enqueued inside a desktop mode iframe.
 		 *
 		 * Plugin and theme authors can hook here to enqueue their own CSS
 		 * overrides for legacy pages rendered in chromeless mode. Use the
-		 * `.wp-desktop-chromeless` body class to scope your rules.
+		 * `.desktop-mode-chromeless` body class to scope your rules.
 		 *
 		 * @since 0.1.0
 		 */
@@ -91,15 +91,15 @@ function desktop_mode_enqueue_assets() {
 	}
 
 	// CSS.
-	wp_enqueue_style( 'wp-desktop' );
-	wp_enqueue_style( 'wp-desktop-windows' );
-	wp_enqueue_style( 'wp-desktop-dock' );
-	wp_enqueue_style( 'wp-desktop-dock-peek' );
-	wp_enqueue_style( 'wp-desktop-ai-assistant' );
-	wp_enqueue_style( 'wp-desktop-bug-report' );
+	wp_enqueue_style( 'desktop-mode' );
+	wp_enqueue_style( 'desktop-mode-windows' );
+	wp_enqueue_style( 'desktop-mode-dock' );
+	wp_enqueue_style( 'desktop-mode-dock-peek' );
+	wp_enqueue_style( 'desktop-mode-ai-assistant' );
+	wp_enqueue_style( 'desktop-mode-bug-report' );
 
 	// JS.
-	wp_enqueue_script( 'wp-desktop' );
+	wp_enqueue_script( 'desktop-mode' );
 
 	// Pass configuration to JavaScript.
 	global $title, $pagenow, $parent_file, $menu;
@@ -203,7 +203,7 @@ function desktop_mode_enqueue_assets() {
 	 *     @type array  $dockItems    Dock items derived from the admin menu. Core WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…) are ordered first; plugin-contributed top-level routes (admin.php?page=*) follow. Items hidden via `desktop_mode_dock_placement` are omitted.
 	 *     @type array  $nativeWindows Server-declared native windows (via `desktop_mode_register_window`). Shell registers + syncs tiles based on this list — activation/deactivation is a diff without shell reload.
 	 *     @type array  $serverWidgets Server-declared right-column widgets (via `desktop_mode_register_widget`). Shell syncs the widget registry + dynamically loads plugin scripts so widgets appear in the picker without a shell reload.
-	 *     @type array  $serverWallpapers Server-declared wallpapers (via `desktop_mode_register_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.wpDesktopWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
+	 *     @type array  $serverWallpapers Server-declared wallpapers (via `desktop_mode_register_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.desktopModeWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
 	 *     @type array  $serverCommandScripts Script handles opted-in via `desktop_mode_register_command_script`. Shell injects each URL on activation so commands registered by `wp.desktop.registerCommand` appear in the palette live. Deactivation unregisters any commands whose `owner` matches the departing handle.
 	 *     @type array  $serverCommands   Server-declared command metadata (via `desktop_mode_register_command`). Advisory today — reserved for future pre-registration shims.
 	 *     @type array  $serverSettingsTabScripts Script handles opted-in via `desktop_mode_register_settings_tab_script`. Shell injects each URL on activation so tabs registered by `wp.desktop.registerSettingsTab` appear in the OS Settings window live. Deactivation unregisters tabs attributable to the departing handle.
@@ -220,7 +220,7 @@ function desktop_mode_enqueue_assets() {
 	 *     @type bool   $canUpload        Whether the user holds the `upload_files` capability.
 	 *     @type string $pluginUrl        Plugin base URL (no trailing slash). Used by the shell to locate vendor assets and by plugins to build asset URLs.
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
-	 *     @type string $portalUrl    Canonical `/wp-desktop/` URL.
+	 *     @type string $portalUrl    Canonical `/desktop-mode/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
 	 * }
 	 */
@@ -255,9 +255,9 @@ function desktop_mode_enqueue_assets() {
 			'toastTypes'       => desktop_mode_get_toast_types(),
 			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),
 			'session'          => desktop_mode_get_session( get_current_user_id() ),
-			'sessionUrl'       => esc_url_raw( rest_url( 'wp-desktop/v1/session' ) ),
+			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
 			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),
-			'defaultWindowUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/default-window' ) ),
+			'defaultWindowUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/default-window' ) ),
 			'defaultWindow'    => desktop_mode_get_default_window( get_current_user_id() ),
 			'canUpload'        => current_user_can( 'upload_files' ),
 			'pluginUrl'        => esc_url_raw( untrailingslashit( DESKTOP_MODE_URL ) ),
@@ -268,21 +268,21 @@ function desktop_mode_enqueue_assets() {
 			),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
-			'osSettingsUrl'         => esc_url_raw( rest_url( 'wp-desktop/v1/os-settings' ) ),
-			'aiSearchUrl'           => esc_url_raw( rest_url( 'wp-desktop/v1/ai/search' ) ),
+			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
+			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? desktop_mode_ai_get_platform_settings() : null,
-			'aiPlatformSettingsUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/ai/platform-settings' ) ),
+			'aiPlatformSettingsUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/ai/platform-settings' ) ),
 			'aiProviders'           => desktop_mode_ai_get_providers_for_config(),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
-			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/extended-options' ) ),
+			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
 			'portalUrl'        => esc_url( desktop_mode_portal_url() ),
 			'fromPortal'       => $from_portal,
 		)
 	);
 
-	wp_localize_script( 'wp-desktop', 'wpDesktopConfig', $config );
+	wp_localize_script( 'desktop-mode', 'desktopModeConfig', $config );
 
 	/**
 	 * Fires when desktop mode assets are enqueued.
@@ -299,7 +299,7 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
  * Runs on `in_admin_header` at priority 5 so the shell renders right
  * after the classic admin bar but before the page content. The shell
  * floats above the classic layout via `position: fixed` in CSS; the
- * classic sidebar, body, and footer are hidden with `body.wp-desktop-active`
+ * classic sidebar, body, and footer are hidden with `body.desktop-mode-active`
  * selectors.
  *
  * @since 0.1.0
@@ -322,33 +322,33 @@ function desktop_mode_render_shell() {
 	// frame before swapping.
 	$scheme = sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' );
 	?>
-	<div id="wp-desktop-shell" class="wp-desktop-shell" data-wp-desktop-scheme="<?php echo esc_attr( $scheme ); ?>" role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
+	<div id="desktop-mode-shell" class="desktop-mode-shell" data-desktop-mode-scheme="<?php echo esc_attr( $scheme ); ?>" role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
 		<?php
 		/*
 		 * Wallpaper layer — sits behind both the dock and the desktop
 		 * area so a translucent dock bleeds through to the wallpaper
 		 * (macOS pattern). Canvas-driven wallpapers mount their own
 		 * DOM into this element; static CSS wallpapers just inherit
-		 * the `--wp-desktop-bg` custom property the shell sets at
+		 * the `--desktop-mode-bg` custom property the shell sets at
 		 * boot. Presentational only.
 		 */
 		?>
-		<div id="wp-desktop-wallpaper" class="wp-desktop-wallpaper" aria-hidden="true"></div>
-		<div class="wp-desktop-shell__body">
-			<nav id="wp-desktop-dock" class="wp-desktop-dock" role="toolbar" aria-label="<?php esc_attr_e( 'Admin navigation', 'desktop-mode' ); ?>"></nav>
-			<div id="wp-desktop-area" class="wp-desktop-area wp-desktop-area--with-dock">
+		<div id="desktop-mode-wallpaper" class="desktop-mode-wallpaper" aria-hidden="true"></div>
+		<div class="desktop-mode-shell__body">
+			<nav id="desktop-mode-dock" class="desktop-mode-dock" role="toolbar" aria-label="<?php esc_attr_e( 'Admin navigation', 'desktop-mode' ); ?>"></nav>
+			<div id="desktop-mode-area" class="desktop-mode-area desktop-mode-area--with-dock">
 				<?php
 				/*
 				 * Widget column — paints above the wallpaper but
 				 * beneath windows (z-index 1 vs. windows at 100+).
-				 * Hosted INSIDE `.wp-desktop-area` so scrolling the
+				 * Hosted INSIDE `.desktop-mode-area` so scrolling the
 				 * area (not that we do today) would scroll widgets
 				 * with it, and so the dock naturally frames
 				 * it. Empty on first render — JS (`WidgetLayer`)
 				 * populates it on boot.
 				 */
 				?>
-				<aside id="wp-desktop-widgets" class="wp-desktop-widgets" aria-label="<?php esc_attr_e( 'Widgets', 'desktop-mode' ); ?>"></aside>
+				<aside id="desktop-mode-widgets" class="desktop-mode-widgets" aria-label="<?php esc_attr_e( 'Widgets', 'desktop-mode' ); ?>"></aside>
 			</div>
 		</div>
 	</div>
@@ -368,7 +368,7 @@ add_action( 'in_admin_header', 'desktop_mode_render_shell', 5 );
  *
  * The block editor's fullscreen mode renders a "back to dashboard" button
  * (the "W" logo in the top-left). Clicking it navigates the iframe to
- * `/wp-admin/edit.php` without the `wp_desktop=1` flag, which re-renders
+ * `/wp-admin/edit.php` without the `desktop_mode_chromeless=1` flag, which re-renders
  * the entire classic admin inside the chromeless window.
  *
  * Timing: Core's `initializeEditor()` runs inside a `window.load` handler
@@ -493,7 +493,7 @@ add_action( 'enqueue_block_editor_assets', 'desktop_mode_chromeless_editor_prefe
  * inside chromeless. We've never seen one in the wild, and if a
  * site hits it, the filter below lets them narrow the scan.
  *
- * Scoped via the `wp-desktop-chromeless` body class, runs at
+ * Scoped via the `desktop-mode-chromeless` body class, runs at
  * DOMContentLoaded and again at `load` to catch React-mounted
  * components. No MutationObserver yet — we'll add one if a plugin
  * surfaces that mounts new offending elements after `load`.
@@ -532,7 +532,7 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 		return;
 	}
 
-	$js = "(function(C){function fix(){if(!document.body||!document.body.classList.contains('wp-desktop-chromeless'))return;var TOPS={};for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}var els=document.querySelectorAll('*');for(var i=0;i<els.length;i++){var el=els[i];var cs=getComputedStyle(el);if(cs.position==='static')continue;if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fix,{once:true});}else{fix();}window.addEventListener('load',fix,{once:true});})({$config});";
+	$js = "(function(C){function fix(){if(!document.body||!document.body.classList.contains('desktop-mode-chromeless'))return;var TOPS={};for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}var els=document.querySelectorAll('*');for(var i=0;i<els.length;i++){var el=els[i];var cs=getComputedStyle(el);if(cs.position==='static')continue;if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fix,{once:true});}else{fix();}window.addEventListener('load',fix,{once:true});})({$config});";
 
 	wp_print_inline_script_tag( $js );
 }
@@ -614,8 +614,8 @@ function desktop_mode_chromeless_bridge_script() {
 	if ( ! window.parent || window.parent === window ) {
 		try {
 			var here = new URL( window.location.href );
-			if ( here.searchParams.has( 'wp_desktop' ) ) {
-				here.searchParams.delete( 'wp_desktop' );
+			if ( here.searchParams.has( 'desktop_mode_chromeless' ) ) {
+				here.searchParams.delete( 'desktop_mode_chromeless' );
 				here.searchParams.delete( 'desktop_mode_portal' );
 				window.location.replace( here.toString() );
 			}
@@ -639,11 +639,11 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Two listeners and two wrappers land here:
 	 *
 	 *   - `error` + `unhandledrejection` on window → postMessage
-	 *     `wp-desktop-iframe-error`. Parent dispatches `HOOKS.
+	 *     `desktop-mode-iframe-error`. Parent dispatches `HOOKS.
 	 *     IFRAME_ERROR`.
 	 *   - `fetch` + `XMLHttpRequest` are wrapped so every completed
 	 *     request (including failures) posts
-	 *     `wp-desktop-iframe-network` with `{ method, url, status,
+	 *     `desktop-mode-iframe-network` with `{ method, url, status,
 	 *     duration, failed }`. Parent dispatches `HOOKS.
 	 *     IFRAME_NETWORK_COMPLETED`.
 	 *
@@ -656,7 +656,7 @@ function desktop_mode_chromeless_bridge_script() {
 		window.addEventListener( 'error', function ( e ) {
 			try {
 				window.parent.postMessage( {
-					type: 'wp-desktop-iframe-error',
+					type: 'desktop-mode-iframe-error',
 					kind: 'error',
 					message: e && e.message ? String( e.message ) : '',
 					filename: e && e.filename ? String( e.filename ) : null,
@@ -679,7 +679,7 @@ function desktop_mode_chromeless_bridge_script() {
 					try { message = String( reason ); } catch ( _s ) { message = '[unstringifiable]'; }
 				}
 				window.parent.postMessage( {
-					type: 'wp-desktop-iframe-error',
+					type: 'desktop-mode-iframe-error',
 					kind: 'unhandledrejection',
 					message: message,
 					filename: null,
@@ -691,7 +691,7 @@ function desktop_mode_chromeless_bridge_script() {
 		} );
 
 		// Devtools instrumentation slot — populated by
-		// `wp-desktop-instrument-set` messages from the parent shell.
+		// `desktop-mode-instrument-set` messages from the parent shell.
 		// Mutable: parent overwrites the whole object on every change
 		// (header add/remove, observe toggle).
 		//
@@ -707,7 +707,7 @@ function desktop_mode_chromeless_bridge_script() {
 					return;
 				}
 				var d = ev && ev.data;
-				if ( ! d || typeof d !== 'object' || d.type !== 'wp-desktop-instrument-set' ) {
+				if ( ! d || typeof d !== 'object' || d.type !== 'desktop-mode-instrument-set' ) {
 					return;
 				}
 				window.__wpdInstrument = {
@@ -720,7 +720,7 @@ function desktop_mode_chromeless_bridge_script() {
 		var wpdReportNetwork = function ( method, url, status, duration, failed, extra ) {
 			try {
 				var msg = {
-					type: 'wp-desktop-iframe-network',
+					type: 'desktop-mode-iframe-network',
 					method: String( method || 'GET' ).toUpperCase(),
 					url: String( url || '' ),
 					status: typeof status === 'number' ? status : 0,
@@ -1085,13 +1085,13 @@ function desktop_mode_chromeless_bridge_script() {
 	 *                           plugin + upload-plugin actions).
 	 *   - themes.php          — theme switch (rare but can add menus).
 	 */
-	var __WP_DESKTOP_MENU_PAYLOAD__ = /*__WPDM_MENU_PAYLOAD__*/;
+	var __DESKTOP_MODE_MENU_PAYLOAD__ = /*__DESKTOP_MODE_MENU_PAYLOAD__*/;
 	try {
-		if ( __WP_DESKTOP_MENU_PAYLOAD__ ) {
+		if ( __DESKTOP_MODE_MENU_PAYLOAD__ ) {
 			window.parent.postMessage(
 				{
-					type: 'wp-desktop-plugins-changed',
-					payload: __WP_DESKTOP_MENU_PAYLOAD__
+					type: 'desktop-mode-plugins-changed',
+					payload: __DESKTOP_MODE_MENU_PAYLOAD__
 				},
 				window.location.origin
 			);
@@ -1107,7 +1107,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Link & form interceptor.
 	 *
 	 * Every same-origin wp-admin <a> href and <form> action gets the
-	 * `wp_desktop=1` flag appended so navigation inside the iframe stays
+	 * `desktop_mode_chromeless=1` flag appended so navigation inside the iframe stays
 	 * chromeless. Without this, a stray link to /wp-admin/edit.php (see
 	 * Gutenberg's fullscreen close button, help-tab links, "Return to
 	 * posts" affordances, etc.) re-renders the full classic admin inside
@@ -1121,7 +1121,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 *   - in-page anchors (#)
 	 *   - mailto:, tel:, javascript: schemes
 	 *   - cross-origin URLs
-	 *   - URLs that already carry wp_desktop=
+	 *   - URLs that already carry desktop_mode_chromeless=
 	 */
 	function rewriteAdminUrl( href, base ) {
 		if ( ! href || href.charAt( 0 ) === '#' ) {
@@ -1142,10 +1142,10 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( url.pathname.indexOf( '/wp-admin/' ) === -1 ) {
 			return null;
 		}
-		if ( url.searchParams.has( 'wp_desktop' ) ) {
+		if ( url.searchParams.has( 'desktop_mode_chromeless' ) ) {
 			return null;
 		}
-		url.searchParams.set( 'wp_desktop', '1' );
+		url.searchParams.set( 'desktop_mode_chromeless', '1' );
 		return url.toString();
 	}
 
@@ -1239,7 +1239,7 @@ function desktop_mode_chromeless_bridge_script() {
 				absolute;
 			window.parent.postMessage(
 				{
-					type: 'wp-desktop-external-link',
+					type: 'desktop-mode-external-link',
 					url: absolute,
 					label: label.slice( 0, 80 )
 				},
@@ -1267,7 +1267,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 * boundary — the parent shell's pointerdown / focusin listeners
 	 * never see them, so without this hook the only way to focus an
 	 * iframe window would be clicking its title bar chrome. Post a
-	 * `wp-desktop-focus-request` message on every pointerdown; the
+	 * `desktop-mode-focus-request` message on every pointerdown; the
 	 * parent Window class treats it as an onFocusRequest. Capture
 	 * phase so the signal fires before any stopPropagation inside
 	 * a page's own handlers.
@@ -1275,7 +1275,7 @@ function desktop_mode_chromeless_bridge_script() {
 	document.addEventListener( 'pointerdown', function () {
 		try {
 			window.parent.postMessage(
-				{ type: 'wp-desktop-focus-request' },
+				{ type: 'desktop-mode-focus-request' },
 				window.location.origin
 			);
 		} catch ( err ) {
@@ -1309,7 +1309,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 		try {
 			window.parent.postMessage(
-				{ type: 'wp-desktop-palette-cycle' },
+				{ type: 'desktop-mode-palette-cycle' },
 				window.location.origin
 			);
 		} catch ( err ) { /* cross-origin parent; swallow */ }
@@ -1319,9 +1319,9 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Command harvester — bridges `wp.data.select('core/commands')` to
 	 * the parent shell.
 	 *
-	 * On `wp-desktop-commands-subscribe` from the parent, subscribe to
-	 * the `core/commands` store and post `wp-desktop-commands-list` on
-	 * every change (de-duplicated). On `wp-desktop-commands-invoke`, run
+	 * On `desktop-mode-commands-subscribe` from the parent, subscribe to
+	 * the `core/commands` store and post `desktop-mode-commands-list` on
+	 * every change (de-duplicated). On `desktop-mode-commands-invoke`, run
 	 * the original callback inside this iframe — the parent fires this
 	 * when the user selects a proxied command from the shell palette.
 	 *
@@ -1693,7 +1693,7 @@ function desktop_mode_chromeless_bridge_script() {
 		__wpdCommandsLastPayload = key;
 		try {
 			window.parent.postMessage(
-				{ type: 'wp-desktop-commands-list', commands: list },
+				{ type: 'desktop-mode-commands-list', commands: list },
 				__wpdCommandsOrigin
 			);
 		} catch ( _err ) {
@@ -1802,11 +1802,11 @@ function desktop_mode_chromeless_bridge_script() {
 	window.addEventListener( 'message', function ( e ) {
 		if ( e.origin !== __wpdCommandsOrigin ) return;
 		if ( ! e.data || typeof e.data.type !== 'string' ) return;
-		if ( e.data.type === 'wp-desktop-commands-subscribe' ) {
+		if ( e.data.type === 'desktop-mode-commands-subscribe' ) {
 			__wpdSubscribeCommands();
-		} else if ( e.data.type === 'wp-desktop-commands-unsubscribe' ) {
+		} else if ( e.data.type === 'desktop-mode-commands-unsubscribe' ) {
 			__wpdUnsubscribeCommands();
-		} else if ( e.data.type === 'wp-desktop-commands-invoke' && typeof e.data.name === 'string' ) {
+		} else if ( e.data.type === 'desktop-mode-commands-invoke' && typeof e.data.name === 'string' ) {
 			__wpdInvokeCommand( e.data.name );
 		}
 	} );
@@ -1819,7 +1819,7 @@ function desktop_mode_chromeless_bridge_script() {
 	// though `wp.data.select('core/commands')` is perfectly happy.
 	try {
 		window.parent.postMessage(
-			{ type: 'wp-desktop-bridge-ready' },
+			{ type: 'desktop-mode-bridge-ready' },
 			__wpdCommandsOrigin
 		);
 	} catch ( _err ) {
@@ -1870,7 +1870,7 @@ function desktop_mode_chromeless_bridge_script() {
 		try {
 			window.parent.postMessage(
 				{
-					type:      'wp-desktop-window-switch',
+					type:      'desktop-mode-window-switch',
 					direction: e.shiftKey ? 'prev' : 'next'
 				},
 				window.location.origin
@@ -1881,12 +1881,12 @@ function desktop_mode_chromeless_bridge_script() {
 	// Skip if the standalone iframe-bridge bundle already wired
 	// screen-meta hoisting on this page. Two bridges racing to read
 	// `aria-expanded` and reflect state would double-fire the
-	// `wp-desktop-screen-meta-state` message and flicker the
+	// `desktop-mode-screen-meta-state` message and flicker the
 	// title-bar buttons.
-	if ( window.__wpDesktopScreenMetaInstalled ) {
+	if ( window.__desktopModeScreenMetaInstalled ) {
 		return;
 	}
-	window.__wpDesktopScreenMetaInstalled = true;
+	window.__desktopModeScreenMetaInstalled = true;
 
 	var links = document.getElementById( 'screen-meta-links' );
 	if ( ! links ) {
@@ -1908,7 +1908,7 @@ function desktop_mode_chromeless_bridge_script() {
 	var origin = window.location.origin;
 
 	window.parent.postMessage( {
-		type: 'wp-desktop-screen-meta',
+		type: 'desktop-mode-screen-meta',
 		panels: panels
 	}, origin );
 
@@ -1924,7 +1924,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 	function reportState() {
 		window.parent.postMessage( {
-			type: 'wp-desktop-screen-meta-state',
+			type: 'desktop-mode-screen-meta-state',
 			open: getOpenPanel()
 		}, origin );
 	}
@@ -1972,10 +1972,10 @@ function desktop_mode_chromeless_bridge_script() {
 	 *
 	 * The parent shell publishes broadcasts via
 	 * `wp.desktop.broadcast(topic, payload)` (see `src/broadcast.ts`).
-	 * It posts `{ type: 'wp-desktop-broadcast', topic, payload }` to
+	 * It posts `{ type: 'desktop-mode-broadcast', topic, payload }` to
 	 * every open iframe. Here we re-dispatch that as a CustomEvent
 	 * on the iframe's own document so admin pages can subscribe with
-	 * plain `document.addEventListener( 'wp-desktop-broadcast', cb )`
+	 * plain `document.addEventListener( 'desktop-mode-broadcast', cb )`
 	 * — no extra script handle required.
 	 *
 	 * Iframe-side admin code can also publish UPSTREAM by posting
@@ -1987,11 +1987,11 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( e.origin !== origin ) {
 			return;
 		}
-		if ( ! e.data || e.data.type !== 'wp-desktop-broadcast' ) {
+		if ( ! e.data || e.data.type !== 'desktop-mode-broadcast' ) {
 			return;
 		}
 		try {
-			document.dispatchEvent( new CustomEvent( 'wp-desktop-broadcast', {
+			document.dispatchEvent( new CustomEvent( 'desktop-mode-broadcast', {
 				detail: { topic: e.data.topic, payload: e.data.payload }
 			} ) );
 		} catch ( _err ) { /* old browser without CustomEvent ctor — ignore */ }
@@ -2000,7 +2000,7 @@ function desktop_mode_chromeless_bridge_script() {
 	/* -----------------------------------------------------------------
 	 * Soft-reload — iframe-side default handler.
 	 *
-	 * When a `wp-desktop.<post_type>.changed` broadcast fires AND the
+	 * When a `desktop-mode.<post_type>.changed` broadcast fires AND the
 	 * current iframe is on a known list page for that post type, we
 	 * fetch the current URL and replace the iframe's `#wpbody-content`
 	 * in place. The user sees the new state of the list — restored
@@ -2020,49 +2020,49 @@ function desktop_mode_chromeless_bridge_script() {
 	 * WP list-table JS uses event delegation on `document`/`body`,
 	 * which survives `replaceWith`. If a specific page breaks after
 	 * a swap (e.g. inline-edit double-binding), that page's plugin
-	 * should listen for `wp-desktop-soft-reloaded` and rebind.
+	 * should listen for `desktop-mode-soft-reloaded` and rebind.
 	 * ----------------------------------------------------------------- */
-	var WPDM_SOFT_RELOAD_RULES = [
+	var DESKTOP_MODE_SOFT_RELOAD_RULES = [
 		{
-			topic: 'wp-desktop.post.changed',
+			topic: 'desktop-mode.post.changed',
 			match: function () {
-				if ( ! _wpdmEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
+				if ( ! _desktop_modeEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
 				var t = new URLSearchParams( location.search ).get( 'post_type' );
 				return t === null || t === 'post';
 			}
 		},
 		{
-			topic: 'wp-desktop.page.changed',
+			topic: 'desktop-mode.page.changed',
 			match: function () {
-				if ( ! _wpdmEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
+				if ( ! _desktop_modeEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
 				return new URLSearchParams( location.search ).get( 'post_type' ) === 'page';
 			}
 		},
 		{
-			topic: 'wp-desktop.attachment.changed',
+			topic: 'desktop-mode.attachment.changed',
 			match: function () {
-				return _wpdmEndsWith( location.pathname, '/wp-admin/upload.php' );
+				return _desktop_modeEndsWith( location.pathname, '/wp-admin/upload.php' );
 			}
 		},
 		{
-			topic: 'wp-desktop.comment.changed',
+			topic: 'desktop-mode.comment.changed',
 			match: function () {
-				return _wpdmEndsWith( location.pathname, '/wp-admin/edit-comments.php' );
+				return _desktop_modeEndsWith( location.pathname, '/wp-admin/edit-comments.php' );
 			}
 		}
 	];
 
-	function _wpdmEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
+	function _desktop_modeEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
 
-	var _wpdmSoftReloadInFlight = false;
-	var _wpdmSoftReloadQueued = false;
+	var _desktop_modeSoftReloadInFlight = false;
+	var _desktop_modeSoftReloadQueued = false;
 
-	function _wpdmSoftReload() {
-		if ( _wpdmSoftReloadInFlight ) {
-			_wpdmSoftReloadQueued = true;
+	function _desktop_modeSoftReload() {
+		if ( _desktop_modeSoftReloadInFlight ) {
+			_desktop_modeSoftReloadQueued = true;
 			return;
 		}
-		_wpdmSoftReloadInFlight = true;
+		_desktop_modeSoftReloadInFlight = true;
 		fetch( location.href, {
 			credentials: 'same-origin',
 			cache: 'no-cache',
@@ -2083,7 +2083,7 @@ function desktop_mode_chromeless_bridge_script() {
 			}
 			live.replaceWith( fresh );
 			try {
-				document.dispatchEvent( new CustomEvent( 'wp-desktop-soft-reloaded' ) );
+				document.dispatchEvent( new CustomEvent( 'desktop-mode-soft-reloaded' ) );
 			} catch ( _err ) {}
 			/* Some WP scripts re-init on DOMContentLoaded only — let
 			 * pages opt-in to a re-init by listening to the event
@@ -2094,25 +2094,25 @@ function desktop_mode_chromeless_bridge_script() {
 			 * next manual interaction will refresh state, and the
 			 * next broadcast will retry. */
 			if ( window.console && window.console.warn ) {
-				window.console.warn( '[wp-desktop] soft-reload skipped:', err );
+				window.console.warn( '[desktop-mode] soft-reload skipped:', err );
 			}
 		} ).then( function () {
-			_wpdmSoftReloadInFlight = false;
-			if ( _wpdmSoftReloadQueued ) {
-				_wpdmSoftReloadQueued = false;
-				_wpdmSoftReload();
+			_desktop_modeSoftReloadInFlight = false;
+			if ( _desktop_modeSoftReloadQueued ) {
+				_desktop_modeSoftReloadQueued = false;
+				_desktop_modeSoftReload();
 			}
 		} );
 	}
 
-	document.addEventListener( 'wp-desktop-broadcast', function ( e ) {
+	document.addEventListener( 'desktop-mode-broadcast', function ( e ) {
 		var detail = e.detail || {};
 		var topic = detail.topic;
 		if ( ! topic ) return;
-		for ( var i = 0; i < WPDM_SOFT_RELOAD_RULES.length; i++ ) {
-			var r = WPDM_SOFT_RELOAD_RULES[ i ];
+		for ( var i = 0; i < DESKTOP_MODE_SOFT_RELOAD_RULES.length; i++ ) {
+			var r = DESKTOP_MODE_SOFT_RELOAD_RULES[ i ];
 			if ( r.topic === topic && r.match() ) {
-				_wpdmSoftReload();
+				_desktop_modeSoftReload();
 				return;
 			}
 		}
@@ -2122,7 +2122,7 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( e.origin !== origin ) {
 			return;
 		}
-		if ( ! e.data || e.data.type !== 'wp-desktop-toggle-panel' ) {
+		if ( ! e.data || e.data.type !== 'desktop-mode-toggle-panel' ) {
 			return;
 		}
 		var target = null;
@@ -2164,7 +2164,7 @@ function desktop_mode_chromeless_bridge_script() {
 	function _wpdEmitToParent( connectionId, topic, payload ) {
 		try {
 			window.parent.postMessage( {
-				type: 'wp-desktop-bridge-publish',
+				type: 'desktop-mode-bridge-publish',
 				connectionId: connectionId,
 				topic: topic,
 				payload: payload
@@ -2181,13 +2181,13 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 
-		if ( data.type === 'wp-desktop-bridge-handshake' && typeof data.connectionId === 'string' ) {
+		if ( data.type === 'desktop-mode-bridge-handshake' && typeof data.connectionId === 'string' ) {
 			if ( _wpdConnections[ data.connectionId ] ) {
 				/* Re-handshake on iframe-ready re-arm — no-op besides
 				 * acking again so the parent can resume. */
 				try {
 					window.parent.postMessage( {
-						type: 'wp-desktop-bridge-handshake-ack',
+						type: 'desktop-mode-bridge-handshake-ack',
 						connectionId: data.connectionId
 					}, _wpdParentOrigin );
 				} catch ( _err ) { /* swallow */ }
@@ -2200,7 +2200,7 @@ function desktop_mode_chromeless_bridge_script() {
 			_wpdConnections[ conn.id ] = conn;
 			try {
 				window.parent.postMessage( {
-					type: 'wp-desktop-bridge-handshake-ack',
+					type: 'desktop-mode-bridge-handshake-ack',
 					connectionId: conn.id
 				}, _wpdParentOrigin );
 			} catch ( _err ) { /* swallow */ }
@@ -2215,7 +2215,7 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 
-		if ( data.type === 'wp-desktop-bridge-publish' && typeof data.topic === 'string' ) {
+		if ( data.type === 'desktop-mode-bridge-publish' && typeof data.topic === 'string' ) {
 			var bucket = _wpdSubs[ data.topic ];
 			if ( bucket ) {
 				for ( var j = 0; j < bucket.length; j++ ) {
@@ -2235,7 +2235,7 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 
-		if ( data.type === 'wp-desktop-bridge-disconnect' && typeof data.connectionId === 'string' ) {
+		if ( data.type === 'desktop-mode-bridge-disconnect' && typeof data.connectionId === 'string' ) {
 			delete _wpdConnections[ data.connectionId ];
 			return;
 		}
@@ -2244,7 +2244,7 @@ function desktop_mode_chromeless_bridge_script() {
 		 * every `wp.desktop.on( channel, cb )` subscriber for the
 		 * matching channel — same protocol as
 		 * `assets/js/iframe-bridge.js`. */
-		if ( data.type === 'wp-desktop-window-send' && typeof data.channel === 'string' && data.channel !== '' ) {
+		if ( data.type === 'desktop-mode-window-send' && typeof data.channel === 'string' && data.channel !== '' ) {
 			var meta = { channel: data.channel };
 			var cBucket = _wpdChannelSubs[ data.channel ];
 			if ( cBucket ) {
@@ -2369,7 +2369,7 @@ function desktop_mode_chromeless_bridge_script() {
 					if (
 						! d ||
 						typeof d !== 'object' ||
-						d.type !== 'wp-desktop-bridge-connection-ack' ||
+						d.type !== 'desktop-mode-bridge-connection-ack' ||
 						d.requestId !== requestId
 					) {
 						return;
@@ -2395,7 +2395,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 				try {
 					window.parent.postMessage( {
-						type: 'wp-desktop-bridge-connection-request',
+						type: 'desktop-mode-bridge-connection-request',
 						requestId: requestId,
 						topics: topics
 					}, _wpdParentOrigin );
@@ -2412,7 +2412,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 	/* Unified window-channel API. Mirror of the equivalent block
 	 * in `assets/js/iframe-bridge.js` — keep both in sync. The
-	 * parent shell posts `wp-desktop-window-send` on
+	 * parent shell posts `desktop-mode-window-send` on
 	 * `Window.send( channel, payload )`; iframe-side handlers
 	 * register via `wp.desktop.on( channel, cb )`. Sending the
 	 * other way (`wp.desktop.send`) posts up to the parent where
@@ -2424,7 +2424,7 @@ function desktop_mode_chromeless_bridge_script() {
 			}
 			try {
 				window.parent.postMessage( {
-					type: 'wp-desktop-window-publish',
+					type: 'desktop-mode-window-publish',
 					channel: channel,
 					payload: payload
 				}, _wpdParentOrigin );
@@ -2458,7 +2458,7 @@ JS;
 	// for an additional escape pass. When the page isn't on our
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
-	$js = str_replace( '/*__WPDM_MENU_PAYLOAD__*/', $menu_payload_json, $js );
+	$js = str_replace( '/*__DESKTOP_MODE_MENU_PAYLOAD__*/', $menu_payload_json, $js );
 
 	wp_print_inline_script_tag( $js );
 }

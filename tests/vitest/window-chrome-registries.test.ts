@@ -98,7 +98,7 @@ describe( 'WindowTheme registry', () => {
 	test( 'register stores entry and round-trips through list', () => {
 		registerWindowTheme( {
 			id: 'plug/sunrise',
-			tokens: { '--wp-desktop-titlebar-bg': '#fa0' },
+			tokens: { '--desktop-mode-titlebar-bg': '#fa0' },
 			match: () => true,
 		} );
 		expect( listWindowThemes().map( ( d ) => d.id ) ).toEqual( [
@@ -109,16 +109,16 @@ describe( 'WindowTheme registry', () => {
 	test( 'register replaces an entry with the same id', () => {
 		registerWindowTheme( {
 			id: 'plug/x',
-			tokens: { '--wp-desktop-titlebar-bg': '#000' },
+			tokens: { '--desktop-mode-titlebar-bg': '#000' },
 			match: () => true,
 		} );
 		registerWindowTheme( {
 			id: 'plug/x',
-			tokens: { '--wp-desktop-titlebar-bg': '#fff' },
+			tokens: { '--desktop-mode-titlebar-bg': '#fff' },
 			match: () => true,
 		} );
 		expect( listWindowThemes() ).toHaveLength( 1 );
-		expect( listWindowThemes()[ 0 ].tokens[ '--wp-desktop-titlebar-bg' ] ).toBe(
+		expect( listWindowThemes()[ 0 ].tokens[ '--desktop-mode-titlebar-bg' ] ).toBe(
 			'#fff',
 		);
 	} );
@@ -137,7 +137,7 @@ describe( 'WindowTheme registry', () => {
 		expect( () =>
 			registerWindowTheme( {
 				id: 'plug/y',
-				tokens: { 'wp-desktop-titlebar-bg': '#fa0' },
+				tokens: { 'desktop-mode-titlebar-bg': '#fa0' },
 				match: () => true,
 			} ),
 		).toThrow( RegistrationError );

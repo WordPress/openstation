@@ -2,7 +2,7 @@
  * Desktop Mode — Wallpaper registry.
  *
  * Owns the in-memory list of available wallpapers and applies the
- * `wp-desktop.wallpapers` filter each time callers read it. That
+ * `desktop-mode.wallpapers` filter each time callers read it. That
  * means plugins can both register entries via
  * `wp.desktop.registerWallpaper()` (which internally adds a filter)
  * and reach the raw filter API for more exotic operations — reorder,
@@ -105,7 +105,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[wp-desktop-mode] wallpaper registry listener threw:',
+					'[desktop-mode] wallpaper registry listener threw:',
 					err,
 				);
 			}
@@ -114,7 +114,7 @@ function notify(): void {
 }
 
 /**
- * Produce the current wallpaper list with the `wp-desktop.wallpapers`
+ * Produce the current wallpaper list with the `desktop-mode.wallpapers`
  * filter applied. Plugins that hooked into the filter after load
  * participate automatically; the seed array is copied so filter
  * callbacks can safely mutate their input without corrupting state.
@@ -128,7 +128,7 @@ export function all(): WallpaperDef[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[wp-desktop-mode] `wp-desktop.wallpapers` filter ' +
+				'[desktop-mode] `desktop-mode.wallpapers` filter ' +
 					'returned a non-array; falling back to seed list.',
 			);
 		}

@@ -20,14 +20,14 @@
  *
  * @since 6.9.0
  */
-.wp-desktop-area--overview {
+.desktop-mode-area--overview {
 	/* Darken the backdrop and tint it so windows feel like they're
 	 * floating over a neutral canvas, not the wallpaper. */
 	background-color: rgba( 0, 0, 0, 0.45 );
 	transition: background-color 0.28s ease;
 }
 
-.wp-desktop-window--overview {
+.desktop-mode-window--overview {
 	transform-origin: top left;
 	transition:
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
@@ -53,15 +53,15 @@
  * window's root element receives pointer events; our desktop-level
  * pointerdown/pointerup handlers drive selection from there.
  */
-.wp-desktop-window--overview * {
+.desktop-mode-window--overview * {
 	pointer-events: none;
 }
 
-.wp-desktop-window--overview {
+.desktop-mode-window--overview {
 	pointer-events: auto;
 }
 
-.wp-desktop-window--overview:hover {
+.desktop-mode-window--overview:hover {
 	box-shadow:
 		0 14px 38px rgba( 0, 0, 0, 0.45 ),
 		0 0 0 3px var( --wp-admin-theme-color, #2271b1 );
@@ -76,8 +76,8 @@
  * Safari 15.4, Firefox 121+); older engines miss the dimming but
  * keep the accent-ring affordance, so it degrades gracefully.
  */
-.wp-desktop-area--overview:has( .wp-desktop-window--overview:hover )
-	.wp-desktop-window--overview:not( :hover ) {
+.desktop-mode-area--overview:has( .desktop-mode-window--overview:hover )
+	.desktop-mode-window--overview:not( :hover ) {
 	opacity: 0.5;
 	filter: brightness( 0.75 );
 	transition:
@@ -100,7 +100,7 @@
  * overview, the dock keeps `overflow: visible` from dock.css so
  * per-tile "+ open another" chips can float past the edge.
  */
-.wp-desktop-dock {
+.desktop-mode-dock {
 	transition:
 		width 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
 		min-width 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
@@ -109,7 +109,7 @@
 		opacity 0.22s ease;
 }
 
-.wp-desktop-shell--overview .wp-desktop-dock {
+.desktop-mode-shell--overview .desktop-mode-dock {
 	width: 0;
 	min-width: 0;
 	padding-inline: 0;
@@ -121,7 +121,7 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-dock {
+	.desktop-mode-dock {
 		transition-duration: 0.01ms;
 	}
 }
@@ -138,7 +138,7 @@
  * center-of-thumbnail alignment is handled via the label's
  * own flex + width set in JS to match the scaled thumbnail.
  * --------------------------------------------------------------- */
-.wp-desktop-overview-label {
+.desktop-mode-overview-label {
 	position: absolute;
 	height: 28px;
 	display: flex;
@@ -168,19 +168,19 @@
  * moving first, so labels appear to "catch up" rather than race
  * ahead of their windows.
  */
-.wp-desktop-area--overview .wp-desktop-overview-label {
+.desktop-mode-area--overview .desktop-mode-overview-label {
 	opacity: 1;
 	transform: translateY( 0 );
 }
 
 /* On exit, flip the animation off. */
-.wp-desktop-overview-label--out {
+.desktop-mode-overview-label--out {
 	opacity: 0 !important;
 	transform: translateY( -4px ) !important;
 	transition-delay: 0s !important;
 }
 
-.wp-desktop-overview-label__icon {
+.desktop-mode-overview-label__icon {
 	font-size: 16px;
 	width: 16px;
 	height: 16px;
@@ -189,12 +189,12 @@
 	opacity: 0.9;
 }
 
-.wp-desktop-overview-label__title {
+.desktop-mode-overview-label__title {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.wp-desktop-overview-label__meta {
+.desktop-mode-overview-label__meta {
 	color: rgba( 255, 255, 255, 0.7 );
 	font-weight: 400;
 	flex-shrink: 0;
@@ -207,18 +207,18 @@
  * hovered window and keeps it bright; all other labels fall under
  * the `:has()` rule and dim.
  */
-.wp-desktop-area--overview:has( .wp-desktop-window--overview:hover )
-	.wp-desktop-overview-label {
+.desktop-mode-area--overview:has( .desktop-mode-window--overview:hover )
+	.desktop-mode-overview-label {
 	opacity: 0.45;
 	transform: translateY( 0 );
 }
 
-.wp-desktop-window--overview:hover + .wp-desktop-overview-label {
+.desktop-mode-window--overview:hover + .desktop-mode-overview-label {
 	opacity: 1 !important;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-overview-label {
+	.desktop-mode-overview-label {
 		transition-duration: 0.01ms;
 		transition-delay: 0s;
 	}
@@ -232,8 +232,8 @@
  */
 
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-area--overview,
-	.wp-desktop-window--overview {
+	.desktop-mode-area--overview,
+	.desktop-mode-window--overview {
 		transition-duration: 0.01ms;
 	}
 }
@@ -248,7 +248,7 @@
  * one, and per-tile X buttons close.
  * --------------------------------------------------------------- */
 
-.wp-desktop-overview-top-bar {
+.desktop-mode-overview-top-bar {
 	position: absolute;
 	top: 16px;
 	left: 50%;
@@ -261,18 +261,18 @@
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ) 0.06s;
 }
 
-.wp-desktop-area--overview .wp-desktop-overview-top-bar {
+.desktop-mode-area--overview .desktop-mode-overview-top-bar {
 	opacity: 1;
 	pointer-events: auto;
 }
 
-.wp-desktop-overview-top-bar--out {
+.desktop-mode-overview-top-bar--out {
 	opacity: 0 !important;
 	transform: translateX( -50% ) translateY( -6px ) !important;
 	transition-delay: 0s !important;
 }
 
-.wp-desktop-overview-top-bar__list {
+.desktop-mode-overview-top-bar__list {
 	display: flex;
 	flex-direction: row;
 	align-items: stretch;
@@ -287,7 +287,7 @@
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
 }
 
-.wp-desktop-overview-top-bar__tile {
+.desktop-mode-overview-top-bar__tile {
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -309,22 +309,22 @@
 	font: inherit;
 }
 
-.wp-desktop-overview-top-bar__tile:hover {
+.desktop-mode-overview-top-bar__tile:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-.wp-desktop-overview-top-bar__tile:focus-visible {
+.desktop-mode-overview-top-bar__tile:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.wp-desktop-overview-top-bar__tile--active {
+.desktop-mode-overview-top-bar__tile--active {
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
 }
 
-.wp-desktop-overview-top-bar__tile-preview {
+.desktop-mode-overview-top-bar__tile-preview {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -337,14 +337,14 @@
 	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
 }
 
-.wp-desktop-overview-top-bar__tile-count {
+.desktop-mode-overview-top-bar__tile-count {
 	font-size: 18px;
 	font-weight: 600;
 	color: rgba( 255, 255, 255, 0.7 );
 	letter-spacing: 0.02em;
 }
 
-.wp-desktop-overview-top-bar__tile-label {
+.desktop-mode-overview-top-bar__tile-label {
 	display: block;
 	padding: 6px 10px 8px;
 	text-align: center;
@@ -356,7 +356,7 @@
 	text-overflow: ellipsis;
 }
 
-.wp-desktop-overview-top-bar__tile-close {
+.desktop-mode-overview-top-bar__tile-close {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 4px;
@@ -376,12 +376,12 @@
 		color 0.15s ease;
 }
 
-.wp-desktop-overview-top-bar__tile:hover
-	.wp-desktop-overview-top-bar__tile-close {
+.desktop-mode-overview-top-bar__tile:hover
+	.desktop-mode-overview-top-bar__tile-close {
 	opacity: 1;
 }
 
-.wp-desktop-overview-top-bar__tile-close:hover {
+.desktop-mode-overview-top-bar__tile-close:hover {
 	background: #d63638;
 	color: #fff;
 }
@@ -391,26 +391,26 @@
  * counts both real desktops AND the trailing "+", so "only one
  * desktop" means exactly two tiles in the list.
  */
-.wp-desktop-overview-top-bar__list:has(
-		.wp-desktop-overview-top-bar__tile:not(
-				.wp-desktop-overview-top-bar__tile--add
+.desktop-mode-overview-top-bar__list:has(
+		.desktop-mode-overview-top-bar__tile:not(
+				.desktop-mode-overview-top-bar__tile--add
 			):only-of-type
 	)
-	.wp-desktop-overview-top-bar__tile-close {
+	.desktop-mode-overview-top-bar__tile-close {
 	display: none;
 }
 
-.wp-desktop-overview-top-bar__tile--add {
+.desktop-mode-overview-top-bar__tile--add {
 	width: 60px;
 	background: transparent;
 	border-style: dashed;
 }
 
-.wp-desktop-overview-top-bar__tile--add:hover {
+.desktop-mode-overview-top-bar__tile--add:hover {
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-.wp-desktop-overview-top-bar__tile-plus {
+.desktop-mode-overview-top-bar__tile-plus {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -422,7 +422,7 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.wp-desktop-overview-top-bar {
+	.desktop-mode-overview-top-bar {
 		transition-duration: 0.01ms;
 	}
 }

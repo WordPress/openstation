@@ -31,13 +31,13 @@ add_action( 'init', function () {
         'id'       => 'my-theme/midnight',
         'label'    => __( 'Midnight', 'my-theme' ),
         'tokens'   => array(
-            '--wp-desktop-window-bg'             => '#11131b',
-            '--wp-desktop-window-border'         => '#2d3142',
-            '--wp-desktop-window-radius'         => '14px',
-            '--wp-desktop-titlebar-bg'           => '#1a1a2e',
-            '--wp-desktop-titlebar-bg-focused'   => '#252540',
-            '--wp-desktop-titlebar-color'        => '#a0a0b0',
-            '--wp-desktop-titlebar-color-focused' => '#fafafa',
+            '--desktop-mode-window-bg'             => '#11131b',
+            '--desktop-mode-window-border'         => '#2d3142',
+            '--desktop-mode-window-radius'         => '14px',
+            '--desktop-mode-titlebar-bg'           => '#1a1a2e',
+            '--desktop-mode-titlebar-bg-focused'   => '#252540',
+            '--desktop-mode-titlebar-color'        => '#a0a0b0',
+            '--desktop-mode-titlebar-color-focused' => '#fafafa',
             '--wpd-btn-color'                    => '#fafafa',
             '--wpd-btn-bg-hover'                 => 'rgba(255,255,255,0.08)',
         ),
@@ -65,7 +65,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'gutenberg-neon-theme',
         plugins_url( 'theme.js', __FILE__ ),
-        array( 'wp-desktop' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -82,8 +82,8 @@ wp.desktop.whenReady( () => {
         id:    'gutenberg-neon/post-editor',
         label: 'Neon Post Editor',
         tokens: {
-            '--wp-desktop-titlebar-bg-focused': '#ff00aa',
-            '--wp-desktop-titlebar-color-focused': '#ffffff',
+            '--desktop-mode-titlebar-bg-focused': '#ff00aa',
+            '--desktop-mode-titlebar-color-focused': '#ffffff',
         },
         match: ( win ) => win.config.url?.includes( 'post.php' ) ?? false,
         owner: 'gutenberg-neon-theme', // for live unregister on deactivation
@@ -111,8 +111,8 @@ wp.desktop.registerWindow( {
     appearance: {
         theme: {
             tokens: {
-                '--wp-desktop-titlebar-bg-focused': '#0066cc',
-                '--wp-desktop-titlebar-color-focused': '#ffffff',
+                '--desktop-mode-titlebar-bg-focused': '#0066cc',
+                '--desktop-mode-titlebar-color-focused': '#ffffff',
             },
         },
     },
@@ -134,7 +134,7 @@ appearance: { theme: { themeId: 'my-theme/midnight' } }
 
 ```js
 wp.desktop.applyWindowTheme( 'edit-post', {
-    tokens: { '--wp-desktop-titlebar-bg-focused': '#ff8800' },
+    tokens: { '--desktop-mode-titlebar-bg-focused': '#ff8800' },
 } );
 
 // Or pin a registered theme by id:
@@ -161,15 +161,15 @@ The override is also written into the window's `config.appearance.theme` so subs
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `wp-desktop.window.chrome.theme` | filter | `( tokens, { windowId, themeId, config } ) => tokens` | Mutate the resolved CSS-variable map for any window before it's written to the element. Stable. |
-| `wp-desktop.window.chrome.theme-changed` | action | `( { windowId, themeId, tokens } )` | Fires after each successful apply. Stable. |
+| `desktop-mode.window.chrome.theme` | filter | `( tokens, { windowId, themeId, config } ) => tokens` | Mutate the resolved CSS-variable map for any window before it's written to the element. Stable. |
+| `desktop-mode.window.chrome.theme-changed` | action | `( { windowId, themeId, tokens } )` | Fires after each successful apply. Stable. |
 
 ### Token reference
 
 CSS-variable contract that themes can override: see `assets/css/window-chrome.css` for the canonical list. The most commonly themed:
 
-- `--wp-desktop-window-bg`, `--wp-desktop-window-border`, `--wp-desktop-window-radius`, `--wp-desktop-window-shadow`, `--wp-desktop-window-shadow-focused`
-- `--wp-desktop-titlebar-bg`, `--wp-desktop-titlebar-bg-focused`, `--wp-desktop-titlebar-color`, `--wp-desktop-titlebar-color-focused`, `--wp-desktop-titlebar-height`
+- `--desktop-mode-window-bg`, `--desktop-mode-window-border`, `--desktop-mode-window-radius`, `--desktop-mode-window-shadow`, `--desktop-mode-window-shadow-focused`
+- `--desktop-mode-titlebar-bg`, `--desktop-mode-titlebar-bg-focused`, `--desktop-mode-titlebar-color`, `--desktop-mode-titlebar-color-focused`, `--desktop-mode-titlebar-height`
 - `--wpd-btn-color`, `--wpd-btn-bg-hover`, `--wpd-btn-outline`, `--wpd-btn-danger-hover`
 
 A non-CSS-variable key (one that doesn't start with `--`) is rejected at registration time with a `RegistrationError` — the framework refuses to write anything to the element that isn't a custom property.

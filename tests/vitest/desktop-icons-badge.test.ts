@@ -31,10 +31,10 @@ import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 function makeIcon( overrides: Partial< DesktopIconServerEntry > = {} ): DesktopIconServerEntry {
 	return {
-		id: 'wpdm-messages',
+		id: 'desktop-mode-messages',
 		title: 'Messages',
 		icon: 'dashicons-email',
-		window: 'wpdm-messages',
+		window: 'desktop-mode-messages',
 		url: '',
 		position: 10,
 		...overrides,
@@ -54,7 +54,7 @@ function mountGrid( icons: DesktopIconServerEntry[] ): HTMLElement {
 
 function badgeNode( host: HTMLElement, iconId: string ): HTMLElement | null {
 	return host.querySelector< HTMLElement >(
-		`[data-icon-id="${ iconId }"] > .wp-desktop-icon__badge`,
+		`[data-icon-id="${ iconId }"] > .desktop-mode-icon__badge`,
 	);
 }
 
@@ -71,8 +71,8 @@ describe( 'wp.desktop.icons.setBadge', () => {
 
 	test( 'paints a badge on the matching tile', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'wpdm-messages', 3 );
-		const badge = badgeNode( host, 'wpdm-messages' );
+		setIconBadge( 'desktop-mode-messages', 3 );
+		const badge = badgeNode( host, 'desktop-mode-messages' );
 		expect( badge ).not.toBeNull();
 		expect( badge?.textContent ).toBe( '3' );
 	} );
@@ -80,44 +80,44 @@ describe( 'wp.desktop.icons.setBadge', () => {
 	test( 'is idempotent — same count does not emit twice', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'wp-desktop/badge-changed', cb );
-		setIconBadge( 'wpdm-messages', 5 );
-		setIconBadge( 'wpdm-messages', 5 );
+		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		setIconBadge( 'desktop-mode-messages', 5 );
+		setIconBadge( 'desktop-mode-messages', 5 );
 		expect( cb ).toHaveBeenCalledTimes( 1 );
 		off();
 	} );
 
 	test( '0 clears the badge node', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'wpdm-messages', 4 );
-		expect( badgeNode( host, 'wpdm-messages' ) ).not.toBeNull();
-		clearIconBadge( 'wpdm-messages' );
-		expect( badgeNode( host, 'wpdm-messages' ) ).toBeNull();
+		setIconBadge( 'desktop-mode-messages', 4 );
+		expect( badgeNode( host, 'desktop-mode-messages' ) ).not.toBeNull();
+		clearIconBadge( 'desktop-mode-messages' );
+		expect( badgeNode( host, 'desktop-mode-messages' ) ).toBeNull();
 	} );
 
 	test( '>99 renders as 99+', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'wpdm-messages', 137 );
-		expect( badgeNode( host, 'wpdm-messages' )?.textContent ).toBe( '99+' );
+		setIconBadge( 'desktop-mode-messages', 137 );
+		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '99+' );
 	} );
 
 	test( 'silent no-op when the id is not on the rail', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'wp-desktop/badge-changed', cb );
+		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
 		setIconBadge( 'never-registered', 5 );
 		expect( cb ).not.toHaveBeenCalled();
 		expect( getIconBadge( 'never-registered' ) ).toBe( 0 );
 		off();
 	} );
 
-	test( 'publishes wp-desktop/badge-changed with rail: "icon"', () => {
+	test( 'publishes desktop-mode/badge-changed with rail: "icon"', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'wp-desktop/badge-changed', cb );
-		setIconBadge( 'wpdm-messages', 7 );
+		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		setIconBadge( 'desktop-mode-messages', 7 );
 		expect( cb ).toHaveBeenCalledWith( {
-			itemId: 'wpdm-messages',
+			itemId: 'desktop-mode-messages',
 			count: 7,
 			rail: 'icon',
 		} );
@@ -127,17 +127,17 @@ describe( 'wp.desktop.icons.setBadge', () => {
 	test( 'fires HOOKS.ICON_BADGE_CHANGED with previousCount', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const ns = 'wp-desktop-mode-tests/icon-badge';
+		const ns = 'desktop-mode-tests/icon-badge';
 		addAction( HOOKS.ICON_BADGE_CHANGED, ns, cb );
-		setIconBadge( 'wpdm-messages', 4 );
-		setIconBadge( 'wpdm-messages', 9 );
+		setIconBadge( 'desktop-mode-messages', 4 );
+		setIconBadge( 'desktop-mode-messages', 9 );
 		expect( cb ).toHaveBeenNthCalledWith( 1, {
-			iconId: 'wpdm-messages',
+			iconId: 'desktop-mode-messages',
 			count: 4,
 			previousCount: 0,
 		} );
 		expect( cb ).toHaveBeenNthCalledWith( 2, {
-			iconId: 'wpdm-messages',
+			iconId: 'desktop-mode-messages',
 			count: 9,
 			previousCount: 4,
 		} );
@@ -146,15 +146,15 @@ describe( 'wp.desktop.icons.setBadge', () => {
 
 	test( 'getBadge returns the current count and 0 for unset ids', () => {
 		mountGrid( [ makeIcon() ] );
-		setIconBadge( 'wpdm-messages', 11 );
-		expect( getIconBadge( 'wpdm-messages' ) ).toBe( 11 );
+		setIconBadge( 'desktop-mode-messages', 11 );
+		expect( getIconBadge( 'desktop-mode-messages' ) ).toBe( 11 );
 		expect( getIconBadge( 'never-set' ) ).toBe( 0 );
 	} );
 
 	test( 'badge survives a full grid rebuild', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'wpdm-messages', 6 );
-		expect( badgeNode( host, 'wpdm-messages' )?.textContent ).toBe( '6' );
+		setIconBadge( 'desktop-mode-messages', 6 );
+		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '6' );
 
 		// Plugin activation lands a different icon list — the
 		// fingerprint changes, the renderer rebuilds. Without the
@@ -166,14 +166,14 @@ describe( 'wp.desktop.icons.setBadge', () => {
 			[ makeIcon(), makeIcon( { id: 'other-plugin', title: 'Other' } ) ],
 			{ openWindow: () => true, manager: stubManager },
 		);
-		const survived = badgeNode( host, 'wpdm-messages' );
+		const survived = badgeNode( host, 'desktop-mode-messages' );
 		expect( survived ).not.toBeNull();
 		expect( survived?.textContent ).toBe( '6' );
 	} );
 
 	test( 'rebuild does not paint a badge for icons that never had one', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'wpdm-messages', 2 );
+		setIconBadge( 'desktop-mode-messages', 2 );
 		const stubManager = {} as ConstructorParameters< typeof renderDesktopIcons >[ 2 ][ 'manager' ];
 		renderDesktopIcons(
 			host,
@@ -181,15 +181,15 @@ describe( 'wp.desktop.icons.setBadge', () => {
 			{ openWindow: () => true, manager: stubManager },
 		);
 		expect( badgeNode( host, 'no-badge' ) ).toBeNull();
-		expect( badgeNode( host, 'wpdm-messages' )?.textContent ).toBe( '2' );
+		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '2' );
 	} );
 
 	test( 'negative + fractional counts are clamped to 0 and floored', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'wpdm-messages', 5 );
-		setIconBadge( 'wpdm-messages', -3 );
-		expect( badgeNode( host, 'wpdm-messages' ) ).toBeNull();
-		setIconBadge( 'wpdm-messages', 4.7 );
-		expect( badgeNode( host, 'wpdm-messages' )?.textContent ).toBe( '4' );
+		setIconBadge( 'desktop-mode-messages', 5 );
+		setIconBadge( 'desktop-mode-messages', -3 );
+		expect( badgeNode( host, 'desktop-mode-messages' ) ).toBeNull();
+		setIconBadge( 'desktop-mode-messages', 4.7 );
+		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '4' );
 	} );
 } );

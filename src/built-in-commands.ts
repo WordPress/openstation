@@ -6,7 +6,7 @@
  *
  *   /open [window]  — autocompletes from every dock item plus any
  *                     entry plugins contribute via the
- *                     `wp-desktop.open-command.items` filter. Picking
+ *                     `desktop-mode.open-command.items` filter. Picking
  *                     a suggestion opens the matching window.
  *
  * Keeping this in a separate module from `commands.ts` (which holds the
@@ -31,7 +31,7 @@ import type { DockItemConfig, DesktopConfig } from './types';
 
 /**
  * An openable window surfaced by the `/open` command. Either
- * `wp-desktop.open-command.items` subscribers contribute these, or
+ * `desktop-mode.open-command.items` subscribers contribute these, or
  * the built-in collector derives them from `config.dockItems`.
  */
 export interface OpenableWindow {
@@ -70,12 +70,12 @@ interface WindowManagerLite {
  *
  * Starts with every admin-menu entry the shell already knows about
  * (dock items), then runs it through the
- * `wp-desktop.open-command.items` filter so plugins can prepend,
+ * `desktop-mode.open-command.items` filter so plugins can prepend,
  * append, or replace entries. Example (plugin JS):
  *
  * ```js
  * wp.hooks.addFilter(
- *     'wp-desktop.open-command.items',
+ *     'desktop-mode.open-command.items',
  *     'my-plugin',
  *     ( items ) => [
  *         ...items,
@@ -136,7 +136,7 @@ function collectOpenables(): OpenableWindow[] {
 	}
 
 	const filtered = applyFilters< OpenableWindow[], unknown[] >(
-		'wp-desktop.open-command.items',
+		'desktop-mode.open-command.items',
 		items,
 	);
 	return Array.isArray( filtered ) ? filtered : items;

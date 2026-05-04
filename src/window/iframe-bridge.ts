@@ -45,7 +45,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		return;
 	}
 
-	if ( data.type === 'wp-desktop-title-change' && typeof data.title === 'string' ) {
+	if ( data.type === 'desktop-mode-title-change' && typeof data.title === 'string' ) {
 		win.setTitle( data.title );
 	}
 
@@ -55,29 +55,29 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// registry so `Window.on( channel, cb )` callbacks fire — same
 	// shape as native windows reaching for `windowApi.send()`.
 	if (
-		data.type === 'wp-desktop-window-publish' &&
+		data.type === 'desktop-mode-window-publish' &&
 		typeof data.channel === 'string' &&
 		data.channel !== ''
 	) {
 		dispatchFromWindow( win.id, data.channel, data.payload );
 	}
 
-	// Cross-window connection bridge — route any `wp-desktop-bridge-*`
+	// Cross-window connection bridge — route any `desktop-mode-bridge-*`
 	// message to the parent-side connection registry. The bridge is
 	// installed on `window` by `desktop.ts` so individual Window
 	// instances don't need to know about it; null-check guards
 	// startup ordering (the listener runs before `init()` in tests).
-	if ( typeof data.type === 'string' && data.type.startsWith( 'wp-desktop-bridge-' ) ) {
+	if ( typeof data.type === 'string' && data.type.startsWith( 'desktop-mode-bridge-' ) ) {
 		const bridge = (
 			window as unknown as {
-				__wpDesktopConnectionBridge?: {
+				__desktopModeConnectionBridge?: {
 					routeIncomingFromIframe(
 						msg: unknown,
 						fromWindowId?: string,
 					): void;
 				};
 			}
-		).__wpDesktopConnectionBridge;
+		).__desktopModeConnectionBridge;
 		bridge?.routeIncomingFromIframe( data, win.id );
 	}
 
@@ -87,7 +87,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// "safe to talk to this iframe" signal (the browser's native
 	// `load` event fires BEFORE our bridge attaches, which makes
 	// listener-timing a known footgun otherwise).
-	if ( data.type === 'wp-desktop-ready' ) {
+	if ( data.type === 'desktop-mode-ready' ) {
 		// Bridge announced — anything queued via `Window.send()`
 		// before this point flushes now in FIFO order.
 		markWindowContentReady( win.id );
@@ -102,7 +102,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// before we act on it — cross-origin navigations are silently
 	// refused so the iframe can't break itself out of the shell.
 	if (
-		data.type === 'wp-desktop-navigate' &&
+		data.type === 'desktop-mode-navigate' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -117,7 +117,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// to raise persistent user-visible feedback — a "Settings saved"
 	// toast stays visible even after the iframe closes.
 	if (
-		data.type === 'wp-desktop-notification' &&
+		data.type === 'desktop-mode-notification' &&
 		typeof data.title === 'string' &&
 		data.title !== ''
 	) {
@@ -127,22 +127,22 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		);
 	}
 
-	if ( data.type === 'wp-desktop-focus-request' ) {
+	if ( data.type === 'desktop-mode-focus-request' ) {
 		// Sent from the chromeless bridge on every pointerdown inside
 		// the iframe — covers the "click inside iframe should focus
 		// this window" UX that isn't reachable via parent-side
 		// listeners (the click doesn't cross the browsing-context
 		// boundary).
-		if ( ! win.element.classList.contains( 'wp-desktop-window--overview' ) ) {
+		if ( ! win.element.classList.contains( 'desktop-mode-window--overview' ) ) {
 			win.onFocusRequest?.( win );
 		}
 	}
 
-	if ( data.type === 'wp-desktop-screen-meta' && Array.isArray( data.panels ) ) {
+	if ( data.type === 'desktop-mode-screen-meta' && Array.isArray( data.panels ) ) {
 		addScreenMetaButtons( win, data.panels as string[] );
 	}
 
-	if ( data.type === 'wp-desktop-screen-meta-state' ) {
+	if ( data.type === 'desktop-mode-screen-meta-state' ) {
 		setActiveScreenMetaPanel(
 			win,
 			typeof data.open === 'string' ? data.open : null,
@@ -150,7 +150,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	if (
-		data.type === 'wp-desktop-external-link' &&
+		data.type === 'desktop-mode-external-link' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -161,11 +161,11 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	// Iframe error relay — the chromeless bridge posts
-	// `wp-desktop-iframe-error` from inside the iframe's error +
+	// `desktop-mode-iframe-error` from inside the iframe's error +
 	// unhandledrejection handlers. We annotate with the owning
 	// windowId and dispatch the hook, where monitor widgets pick it
 	// up. Shape matches `HOOKS.IFRAME_ERROR`.
-	if ( data.type === 'wp-desktop-iframe-error' ) {
+	if ( data.type === 'desktop-mode-iframe-error' ) {
 		doAction( HOOKS.IFRAME_ERROR, {
 			windowId: win.id,
 			kind: data.kind === 'unhandledrejection'
@@ -189,7 +189,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// via the bridge. `tokens` is a CSS-variable map; `setAppearanceTheme`
 	// validates inline overrides match the framework's shape.
 	if (
-		data.type === 'wp-desktop-chrome-theme' &&
+		data.type === 'desktop-mode-chrome-theme' &&
 		data.tokens &&
 		typeof data.tokens === 'object'
 	) {
@@ -209,7 +209,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// Layer-2 controls — iframe can reorder / hide / inject controls
 	// for its own window.
 	if (
-		data.type === 'wp-desktop-chrome-controls' &&
+		data.type === 'desktop-mode-chrome-controls' &&
 		data.config &&
 		typeof data.config === 'object'
 	) {
@@ -232,7 +232,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// shell). Plugins that need rich slot markup register a parent-
 	// side `WindowSlotDef.render` callback instead.
 	if (
-		data.type === 'wp-desktop-chrome-slot' &&
+		data.type === 'desktop-mode-chrome-slot' &&
 		typeof data.slot === 'string' &&
 		typeof data.html === 'string'
 	) {
@@ -250,7 +250,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		}
 	}
 
-	if ( data.type === 'wp-desktop-iframe-network' ) {
+	if ( data.type === 'desktop-mode-iframe-network' ) {
 		const networkPayload: Record< string, unknown > = {
 			windowId: win.id,
 			method: typeof data.method === 'string' ? data.method : 'GET',
@@ -274,7 +274,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 }
 
 /**
- * Handle a `wp-desktop-navigate` message.
+ * Handle a `desktop-mode-navigate` message.
  *
  * Validates the URL against the origin snapshot taken at module
  * load, then either opens a new tab (with `noopener,noreferrer`)
@@ -313,7 +313,7 @@ function handleDesktopNavigate(
 }
 
 /**
- * Handle a `wp-desktop-notification` message.
+ * Handle a `desktop-mode-notification` message.
  *
  * The payload lives at the parent-shell level (surviving the
  * iframe's lifecycle), which is the whole reason an iframe reaches
@@ -335,7 +335,7 @@ function handleDesktopNotification( title: string, body: string ): void {
  * each navigation, and different pages expose different panels.
  */
 export function addScreenMetaButtons( win: Window, panels: string[] ): void {
-	const container = win.element.querySelector( '.wp-desktop-window__screen-meta' );
+	const container = win.element.querySelector( '.desktop-mode-window__screen-meta' );
 	if ( ! container ) {
 		return;
 	}
@@ -353,7 +353,7 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
 		}
 
 		const btn = document.createElement( 'button' );
-		btn.className = 'wp-desktop-window__meta-btn';
+		btn.className = 'desktop-mode-window__meta-btn';
 		btn.setAttribute( 'type', 'button' );
 		btn.setAttribute( 'aria-label', cfg.label );
 		btn.setAttribute( 'aria-pressed', 'false' );
@@ -366,7 +366,7 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
 		btn.addEventListener( 'click', ( e: Event ) => {
 			e.stopPropagation();
 			win.iframe?.contentWindow?.postMessage(
-				{ type: 'wp-desktop-toggle-panel', panel },
+				{ type: 'desktop-mode-toggle-panel', panel },
 				INITIAL_ORIGIN,
 			);
 		} );
@@ -380,13 +380,13 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
  * title-bar buttons. At most one button is active at a time.
  */
 export function setActiveScreenMetaPanel( win: Window, panel: string | null ): void {
-	const container = win.element.querySelector( '.wp-desktop-window__screen-meta' );
+	const container = win.element.querySelector( '.desktop-mode-window__screen-meta' );
 	if ( ! container ) {
 		return;
 	}
-	container.querySelectorAll<HTMLElement>( '.wp-desktop-window__meta-btn' ).forEach( ( btn ) => {
+	container.querySelectorAll<HTMLElement>( '.desktop-mode-window__meta-btn' ).forEach( ( btn ) => {
 		const isActive = btn.dataset.panel === panel;
-		btn.classList.toggle( 'wp-desktop-window__meta-btn--active', isActive );
+		btn.classList.toggle( 'desktop-mode-window__meta-btn--active', isActive );
 		btn.setAttribute( 'aria-pressed', isActive ? 'true' : 'false' );
 	} );
 }

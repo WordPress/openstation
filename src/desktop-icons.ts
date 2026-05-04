@@ -10,7 +10,7 @@
  * **Badge surface (since 0.24.0).** The icon rail mirrors the
  * dock + taskbar API exactly: `setBadge( id, count )` is
  * idempotent, `0` clears, `>99` renders `99+`. Every change emits
- * `wp-desktop/badge-changed` with `rail: 'icon'` on the activity
+ * `desktop-mode/badge-changed` with `rail: 'icon'` on the activity
  * bus and {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus, so a
  * plugin author writing one badge wrapper for all three rails
  * sees one consistent shape across every surface.
@@ -72,7 +72,7 @@ export interface DesktopIconRenderDeps {
  *  `DESKTOP_ICONS_RENDERED`.
  * --------------------------------------------------------------- */
 
-const BADGE_CLASS = 'wp-desktop-icon__badge';
+const BADGE_CLASS = 'desktop-mode-icon__badge';
 const _badges = new Map< string, number >();
 
 /**
@@ -104,9 +104,9 @@ function _safeBadge( count: number ): number {
  *
  * On every applied change this fires:
  *
- *   - `wp-desktop/badge-changed` on the activity bus with
+ *   - `desktop-mode/badge-changed` on the activity bus with
  *     `{ itemId, count, rail: 'icon' }`. Subscribe via
- *     `wp.desktop.activity.subscribe( 'wp-desktop/badge-changed', cb )`
+ *     `wp.desktop.activity.subscribe( 'desktop-mode/badge-changed', cb )`
  *     for global notification-center widgets that aggregate
  *     across rails.
  *   - {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
@@ -144,7 +144,7 @@ export function setIconBadge( iconId: string, count: number ): void {
 		_badges.set( iconId, safe );
 	}
 	_paintBadgeNode( tile, safe );
-	activity.publish( 'wp-desktop/badge-changed', {
+	activity.publish( 'desktop-mode/badge-changed', {
 		itemId: iconId,
 		count: safe,
 		rail: 'icon',
@@ -232,7 +232,7 @@ export const iconsApi: IconsApi = {
  * Stable serialisation of the icons-array shape we actually care
  * about. Used to skip rebuilds when the live menu-refresh path
  * fires with an identical payload — chromeless `admin_footer`
- * emits `wp-desktop-plugins-changed` on every iframe paint, so
+ * emits `desktop-mode-plugins-changed` on every iframe paint, so
  * `applyPayload()` was previously rebuilding the icon grid
  * dozens of times during normal use, taking out anything we'd
  * appended (drag handles, custom decorations) each time. Cheap
@@ -273,7 +273,7 @@ let _lastFingerprint = '';
  *
  * @since 0.11.0
  *
- * @param host  Desktop-area element (`#wp-desktop-area`).
+ * @param host  Desktop-area element (`#desktop-mode-area`).
  * @param icons Ordered list from `config.desktopIcons`.
  * @param deps  See {@link DesktopIconRenderDeps}.
  */
@@ -290,12 +290,12 @@ export function renderDesktopIcons(
 	// position shifted) flips the fingerprint and triggers the
 	// full rebuild.
 	const fp = fingerprintIcons( icons );
-	if ( fp === _lastFingerprint && host.querySelector( ':scope > .wp-desktop-icons' ) ) {
+	if ( fp === _lastFingerprint && host.querySelector( ':scope > .desktop-mode-icons' ) ) {
 		return;
 	}
 	_lastFingerprint = fp;
 
-	const existing = host.querySelector( ':scope > .wp-desktop-icons' );
+	const existing = host.querySelector( ':scope > .desktop-mode-icons' );
 	if ( existing ) {
 		existing.remove();
 	}
@@ -304,7 +304,7 @@ export function renderDesktopIcons(
 	}
 
 	const container = document.createElement( 'div' );
-	container.className = 'wp-desktop-icons';
+	container.className = 'desktop-mode-icons';
 	container.setAttribute( 'role', 'list' );
 	container.setAttribute( 'aria-label', __( 'Desktop icons' ) );
 
@@ -349,7 +349,7 @@ function _findIconTile( iconId: string ): HTMLElement | null {
 		return null;
 	}
 	const container = document.querySelector< HTMLElement >(
-		'.wp-desktop-icons',
+		'.desktop-mode-icons',
 	);
 	if ( ! container ) {
 		return null;
@@ -417,7 +417,7 @@ function buildIcon(
 ): HTMLElement {
 	const tile = document.createElement( 'button' );
 	tile.type = 'button';
-	tile.className = 'wp-desktop-icon';
+	tile.className = 'desktop-mode-icon';
 	tile.dataset.iconId = entry.id;
 	tile.setAttribute( 'role', 'listitem' );
 	tile.setAttribute( 'aria-label', entry.title );
@@ -429,16 +429,16 @@ function buildIcon(
 		const img = document.createElement( 'img' );
 		img.src = entry.icon;
 		img.alt = '';
-		icon.className = 'wp-desktop-icon__image';
+		icon.className = 'desktop-mode-icon__image';
 		icon.appendChild( img );
 	} else {
-		icon.className = `wp-desktop-icon__image dashicons ${ sanitizeClassName( entry.icon ) }`;
+		icon.className = `desktop-mode-icon__image dashicons ${ sanitizeClassName( entry.icon ) }`;
 		icon.setAttribute( 'aria-hidden', 'true' );
 	}
 	tile.appendChild( icon );
 
 	const label = document.createElement( 'span' );
-	label.className = 'wp-desktop-icon__label';
+	label.className = 'desktop-mode-icon__label';
 	label.textContent = entry.title;
 	tile.appendChild( label );
 

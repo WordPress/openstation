@@ -415,7 +415,7 @@ export async function mountScene(
 			}
 			// Put the container's inline background back however we
 			// found it — next wallpaper's apply() takes over from
-			// there via `--wp-desktop-bg`.
+			// there via `--desktop-mode-bg`.
 			container.style.background = priorBackground;
 		},
 		setAnimating( playing: boolean ): void {

@@ -13,7 +13,7 @@
  * The split: PHP owns METADATA (id, label, preview, type, script
  * URL). JS owns the CALLBACK surface (mount, resolveValue,
  * renderEditor) because functions don't serialize. Plugins publish
- * a full `WallpaperDef` on `window.wpDesktopWallpapers[ id ]`; the
+ * a full `WallpaperDef` on `window.desktopModeWallpapers[ id ]`; the
  * shell loads the script (if not already in the tab), reads that
  * global, and forwards the def to the standard registry.
  *
@@ -33,7 +33,7 @@ import type { DesktopWallpaperServerEntry } from '../types';
 import type { WallpaperDef } from './types';
 
 interface WallpaperGlobals {
-	wpDesktopWallpapers?: Record< string, WallpaperDef | undefined >;
+	desktopModeWallpapers?: Record< string, WallpaperDef | undefined >;
 }
 
 export interface WallpaperRegistrySyncDeps {
@@ -73,7 +73,7 @@ export function createWallpaperRegistrySync(
 
 	const readDef = ( id: string ): WallpaperDef | null => {
 		const globals =
-			( window as unknown as WallpaperGlobals ).wpDesktopWallpapers || {};
+			( window as unknown as WallpaperGlobals ).desktopModeWallpapers || {};
 		return globals[ id ] ?? null;
 	};
 
@@ -126,7 +126,7 @@ export function createWallpaperRegistrySync(
 				scope: 'wallpaper-missing-def',
 				id: entry.id,
 				error: new Error(
-					`[wp-desktop-mode] No wallpaper def on window.wpDesktopWallpapers["${ entry.id }"]. Script loaded but didn't publish a def — check the plugin's enqueue + global assignment.`,
+					`[desktop-mode] No wallpaper def on window.desktopModeWallpapers["${ entry.id }"]. Script loaded but didn't publish a def — check the plugin's enqueue + global assignment.`,
 				),
 			} );
 			// Don't mark registered; next sync retries in case the

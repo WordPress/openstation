@@ -30,7 +30,7 @@ export function buildCustomImageSection(
 	type TabKey = 'upload' | 'library';
 	const tabDefs: { key: TabKey; label: string; render: () => void }[] = [];
 	const pane = document.createElement( 'div' );
-	pane.className = 'wp-desktop-os-settings__tab-pane';
+	pane.className = 'desktop-mode-os-settings__tab-pane';
 
 	if ( ctx.config.canUpload ) {
 		tabDefs.push( {
@@ -54,8 +54,8 @@ export function buildCustomImageSection(
 	const wrap = document.createElement( 'div' );
 	render(
 		html`
-			<div class="wp-desktop-os-settings__uploader">
-				<h4 class="wp-desktop-os-settings__uploader-heading">
+			<div class="desktop-mode-os-settings__uploader">
+				<h4 class="desktop-mode-os-settings__uploader-heading">
 					${ __( 'Or use your own image' ) }
 				</h4>
 				${ tabDefs.length > 1
@@ -89,7 +89,7 @@ function renderUploadPane(
 	body: HTMLElement,
 ): void {
 	const tile = document.createElement( 'div' );
-	tile.className = 'wp-desktop-os-settings__upload-tile';
+	tile.className = 'desktop-mode-os-settings__upload-tile';
 	tile.dataset.wallpaperId = CUSTOM_IMAGE_ID;
 	tile.setAttribute(
 		'aria-pressed',
@@ -99,7 +99,7 @@ function renderUploadPane(
 	const fileInput = document.createElement( 'input' );
 	fileInput.type = 'file';
 	fileInput.accept = 'image/*';
-	fileInput.className = 'wp-desktop-os-settings__file-input';
+	fileInput.className = 'desktop-mode-os-settings__file-input';
 	fileInput.addEventListener( 'change', () => {
 		const file = fileInput.files?.[ 0 ];
 		if ( file ) {
@@ -118,14 +118,14 @@ function renderUploadTile(
 	fileInput: HTMLInputElement,
 	body: HTMLElement,
 ): void {
-	tile.classList.remove( 'wp-desktop-os-settings__upload-tile--filled' );
-	tile.classList.remove( 'wp-desktop-os-settings__upload-tile--dragover' );
-	tile.classList.remove( 'wp-desktop-os-settings__upload-tile--busy' );
+	tile.classList.remove( 'desktop-mode-os-settings__upload-tile--filled' );
+	tile.classList.remove( 'desktop-mode-os-settings__upload-tile--dragover' );
+	tile.classList.remove( 'desktop-mode-os-settings__upload-tile--busy' );
 	tile.removeAttribute( 'aria-label' );
 
 	const hasImage = !! ctx.state.customImage;
 	if ( hasImage ) {
-		tile.classList.add( 'wp-desktop-os-settings__upload-tile--filled' );
+		tile.classList.add( 'desktop-mode-os-settings__upload-tile--filled' );
 		tile.setAttribute( 'aria-label', __( 'Custom image wallpaper' ) );
 		tile.style.backgroundImage = `url("${ encodeURI( ctx.state.customImage!.url ) }")`;
 	} else {
@@ -154,23 +154,23 @@ function renderUploadTile(
 			? html`
 					<wpd-button
 						variant="danger"
-						class="wp-desktop-os-settings__upload-remove"
+						class="desktop-mode-os-settings__upload-remove"
 						aria-label=${ __( 'Remove custom image' ) }
 						@click=${ onRemove }
 						>${ __( 'Remove' ) }</wpd-button
 					>
 				`
 			: html`
-					<div class="wp-desktop-os-settings__upload-inner">
+					<div class="desktop-mode-os-settings__upload-inner">
 						<span
-							class="wp-desktop-os-settings__upload-plus"
+							class="desktop-mode-os-settings__upload-plus"
 							aria-hidden="true"
 							>+</span
 						>
-						<span class="wp-desktop-os-settings__upload-prompt"
+						<span class="desktop-mode-os-settings__upload-prompt"
 							>${ __( 'Drop an image here, or click to upload' ) }</span
 						>
-						<span class="wp-desktop-os-settings__upload-hint"
+						<span class="desktop-mode-os-settings__upload-hint"
 							>${ __(
 		'JPEG, PNG, or WebP · goes straight to your Media Library',
 	) }</span
@@ -181,7 +181,7 @@ function renderUploadTile(
 	);
 
 	tile.onclick = () => {
-		if ( tile.classList.contains( 'wp-desktop-os-settings__upload-tile--busy' ) ) {
+		if ( tile.classList.contains( 'desktop-mode-os-settings__upload-tile--busy' ) ) {
 			return;
 		}
 		if ( ctx.state.customImage ) {
@@ -193,14 +193,14 @@ function renderUploadTile(
 
 	tile.ondragover = ( e ) => {
 		e.preventDefault();
-		tile.classList.add( 'wp-desktop-os-settings__upload-tile--dragover' );
+		tile.classList.add( 'desktop-mode-os-settings__upload-tile--dragover' );
 	};
 	tile.ondragleave = () => {
-		tile.classList.remove( 'wp-desktop-os-settings__upload-tile--dragover' );
+		tile.classList.remove( 'desktop-mode-os-settings__upload-tile--dragover' );
 	};
 	tile.ondrop = ( e ) => {
 		e.preventDefault();
-		tile.classList.remove( 'wp-desktop-os-settings__upload-tile--dragover' );
+		tile.classList.remove( 'desktop-mode-os-settings__upload-tile--dragover' );
 		const file = e.dataTransfer?.files?.[ 0 ];
 		if ( file ) {
 			void handleImageFile( ctx, file, tile, body );
@@ -219,16 +219,16 @@ async function handleImageFile(
 		return;
 	}
 
-	tile.classList.add( 'wp-desktop-os-settings__upload-tile--busy' );
+	tile.classList.add( 'desktop-mode-os-settings__upload-tile--busy' );
 	render(
-		html`<span class="wp-desktop-os-settings__upload-status"
+		html`<span class="desktop-mode-os-settings__upload-status"
 			>${ __( 'Uploading…' ) }</span
 		>`,
 		tile,
 	);
 
 	const fileInput = tile.parentElement?.querySelector<HTMLInputElement>(
-		'.wp-desktop-os-settings__file-input',
+		'.desktop-mode-os-settings__file-input',
 	);
 
 	try {
@@ -243,7 +243,7 @@ async function handleImageFile(
 		}
 		refreshWallpaperPressedState( ctx, body );
 	} catch ( err ) {
-		tile.classList.remove( 'wp-desktop-os-settings__upload-tile--busy' );
+		tile.classList.remove( 'desktop-mode-os-settings__upload-tile--busy' );
 		if ( fileInput ) {
 			renderUploadTile( ctx, tile, fileInput, body );
 		}
@@ -253,10 +253,10 @@ async function handleImageFile(
 }
 
 function showUploadError( tile: HTMLElement, message: string ): void {
-	let err = tile.querySelector<HTMLElement>( '.wp-desktop-os-settings__upload-error' );
+	let err = tile.querySelector<HTMLElement>( '.desktop-mode-os-settings__upload-error' );
 	if ( ! err ) {
 		err = document.createElement( 'span' );
-		err.className = 'wp-desktop-os-settings__upload-error';
+		err.className = 'desktop-mode-os-settings__upload-error';
 		err.setAttribute( 'role', 'status' );
 		tile.appendChild( err );
 	}
@@ -281,14 +281,14 @@ function renderLibraryPane(
 	const search = document.createElement( 'input' );
 	search.type = 'search';
 	search.placeholder = __( 'Search your media' );
-	search.className = 'wp-desktop-os-settings__library-search';
+	search.className = 'desktop-mode-os-settings__library-search';
 	search.setAttribute( 'aria-label', __( 'Search media' ) );
 
 	const grid = document.createElement( 'div' );
-	grid.className = 'wp-desktop-os-settings__library-grid';
+	grid.className = 'desktop-mode-os-settings__library-grid';
 
 	const meta = document.createElement( 'span' );
-	meta.className = 'wp-desktop-os-settings__library-meta';
+	meta.className = 'desktop-mode-os-settings__library-meta';
 
 	const loadMore = document.createElement( 'wpd-button' );
 	loadMore.setAttribute( 'variant', 'ghost' );
@@ -309,8 +309,8 @@ function renderLibraryPane(
 
 	render(
 		html`
-			<div class="wp-desktop-os-settings__library">
-				<div class="wp-desktop-os-settings__library-toolbar">
+			<div class="desktop-mode-os-settings__library">
+				<div class="desktop-mode-os-settings__library-toolbar">
 					${ search }
 					<wpd-checkbox-label
 						label=${ sprintf(
@@ -324,7 +324,7 @@ function renderLibraryPane(
 					></wpd-checkbox-label>
 				</div>
 				${ grid }
-				<div class="wp-desktop-os-settings__library-footer">
+				<div class="desktop-mode-os-settings__library-footer">
 					${ meta }${ loadMore }
 				</div>
 			</div>
@@ -362,7 +362,7 @@ function renderLibraryPane(
 
 		if ( visible.length === 0 && ! loading ) {
 			render(
-				html`<p class="wp-desktop-os-settings__library-empty">
+				html`<p class="desktop-mode-os-settings__library-empty">
 					${ ctx.state.libraryHdOnly
 		? __(
 			'No HD images found. Try unchecking the filter, or upload a larger image.',
@@ -392,7 +392,7 @@ function renderLibraryPane(
 				html`${ Array.from(
 					{ length: 8 },
 					() => html`<div
-						class="wp-desktop-os-settings__library-tile wp-desktop-os-settings__library-tile--skeleton"
+						class="desktop-mode-os-settings__library-tile desktop-mode-os-settings__library-tile--skeleton"
 					></div>`,
 				) }`,
 				grid,
@@ -412,7 +412,7 @@ function renderLibraryPane(
 			renderGrid();
 		} catch ( err ) {
 			render(
-				html`<p class="wp-desktop-os-settings__library-error">
+				html`<p class="desktop-mode-os-settings__library-error">
 					${ err instanceof Error
 		? sprintf(
 			// translators: %s is the browser-supplied error message.
@@ -507,7 +507,7 @@ function buildLibraryTile(
 				const selected = el.dataset.mediaId === String( item.id );
 				el.setAttribute( 'aria-pressed', selected ? 'true' : 'false' );
 				el.classList.toggle(
-					'wp-desktop-os-settings__library-tile--selected',
+					'desktop-mode-os-settings__library-tile--selected',
 					selected,
 				);
 			} );
@@ -520,8 +520,8 @@ function buildLibraryTile(
 			<button
 				type="button"
 				class=${ isSelected
-		? 'wp-desktop-os-settings__library-tile wp-desktop-os-settings__library-tile--selected'
-		: 'wp-desktop-os-settings__library-tile' }
+		? 'desktop-mode-os-settings__library-tile desktop-mode-os-settings__library-tile--selected'
+		: 'desktop-mode-os-settings__library-tile' }
 				data-media-id=${ String( item.id ) }
 				aria-pressed=${ isSelected ? 'true' : 'false' }
 				aria-label=${ altOrTitle }
@@ -529,7 +529,7 @@ function buildLibraryTile(
 				style=${ `background-image: url("${ encodeURI( thumbUrl ) }")` }
 				@click=${ onClick }
 			>
-				<span class="wp-desktop-os-settings__library-tile-dims"
+				<span class="desktop-mode-os-settings__library-tile-dims"
 					>${ item.media_details.width }×${ item.media_details.height }</span
 				>
 			</button>

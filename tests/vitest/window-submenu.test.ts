@@ -61,28 +61,28 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( win.element.isConnected ).toBe( true );
 
 		// Title bar + iframe body must exist.
-		expect( win.element.querySelector( '.wp-desktop-window__titlebar' ) ).not.toBeNull();
-		expect( win.element.querySelector( '.wp-desktop-window__iframe' ) ).not.toBeNull();
+		expect( win.element.querySelector( '.desktop-mode-window__titlebar' ) ).not.toBeNull();
+		expect( win.element.querySelector( '.desktop-mode-window__iframe' ) ).not.toBeNull();
 
 		// Submenu renders one tab per entry; first is active because
 		// it matches the window's initial URL.
-		const tabs = win.element.querySelectorAll( '.wp-desktop-window__tab' );
+		const tabs = win.element.querySelectorAll( '.desktop-mode-window__tab' );
 		expect( tabs.length ).toBe( 3 );
-		expect( tabs[ 0 ].classList.contains( 'wp-desktop-window__tab--active' ) ).toBe( true );
+		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
 
 		// Title-bar menu panel is present for iframe windows (holds
 		// "Open on startup"); its button only mounts if the panel has
 		// at least one item.
-		const menuBtn = win.element.querySelector( '.wp-desktop-window__menu-btn' );
-		const menuPanel = win.element.querySelector( '.wp-desktop-window__menu-panel' );
+		const menuBtn = win.element.querySelector( '.desktop-mode-window__menu-btn' );
+		const menuPanel = win.element.querySelector( '.desktop-mode-window__menu-panel' );
 		expect( menuBtn ).not.toBeNull();
 		expect( menuPanel ).not.toBeNull();
-		const startup = menuPanel!.querySelector( '.wp-desktop-window__menu-item--startup' );
+		const startup = menuPanel!.querySelector( '.desktop-mode-window__menu-item--startup' );
 		expect( startup ).not.toBeNull();
 
 		// For non-multi pages, "Open another" is absent.
 		expect(
-			menuPanel!.querySelector( '.wp-desktop-window__menu-item--open-another' ),
+			menuPanel!.querySelector( '.desktop-mode-window__menu-item--open-another' ),
 		).toBeNull();
 	} );
 
@@ -105,14 +105,14 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 			],
 		} );
 
-		const tabs = win.element.querySelectorAll< HTMLElement >( '.wp-desktop-window__tab' );
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
 		expect( tabs.length ).toBe( 4 );
 		expect( tabs[ 0 ].textContent ).toBe( 'Posts' );
 		expect( tabs[ 0 ].dataset.url ).toBe( 'http://example.test/wp-admin/edit.php' );
 		expect( tabs[ 0 ].dataset.kind ).toBe( 'submenu' );
 		// First tab is active because its URL matches the iframe's
 		// initial URL.
-		expect( tabs[ 0 ].classList.contains( 'wp-desktop-window__tab--active' ) ).toBe( true );
+		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
 	} );
 
 	test( 'opens + closes a singleton + re-opens without error', () => {
@@ -141,7 +141,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 			],
 		} );
 		expect( second ).toBeDefined();
-		expect( second.element.querySelector( '.wp-desktop-window__iframe' ) ).not.toBeNull();
+		expect( second.element.querySelector( '.desktop-mode-window__iframe' ) ).not.toBeNull();
 	} );
 
 	test( 'opens a fresh singleton instance on each virtual desktop', () => {
@@ -203,9 +203,9 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 				{ title: 'Add New', url: 'http://example.test/wp-admin/post-new.php' },
 			],
 		} );
-		const menuPanel = win.element.querySelector( '.wp-desktop-window__menu-panel' )!;
+		const menuPanel = win.element.querySelector( '.desktop-mode-window__menu-panel' )!;
 		expect(
-			menuPanel.querySelector( '.wp-desktop-window__menu-item--open-another' ),
+			menuPanel.querySelector( '.desktop-mode-window__menu-item--open-another' ),
 		).not.toBeNull();
 	} );
 
@@ -221,9 +221,9 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 			icon: 'dashicons-admin-comments',
 			multi: false,
 		} );
-		const menuPanel = win.element.querySelector( '.wp-desktop-window__menu-panel' )!;
+		const menuPanel = win.element.querySelector( '.desktop-mode-window__menu-panel' )!;
 		const item = menuPanel.querySelector(
-			'.wp-desktop-window__menu-item--open-in-new-window',
+			'.desktop-mode-window__menu-item--open-in-new-window',
 		);
 		expect( item ).not.toBeNull();
 		expect( item!.getAttribute( 'role' ) ).toBe( 'menuitem' );

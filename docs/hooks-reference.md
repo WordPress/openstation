@@ -8,7 +8,7 @@ Every PHP action and filter the plugin fires, with signatures, examples, and **i
 
 If something you need isn't here, open an issue. New hooks are welcome — our rule of thumb: *if a function decides something, wrap it in a filter; if it does something, fire an action around it.*
 
-> **Looking for JavaScript hooks?** The browser-side shell exposes WordPress-style filters and actions via `window.wp.hooks` under the `wp-desktop.*` namespace — including hooks for wallpaper registration, window lifecycle, and the animated logo wallpaper's visibility events. See the [JavaScript Reference](./javascript-reference.md#4-hooks--wp-desktop) for the full catalog.
+> **Looking for JavaScript hooks?** The browser-side shell exposes WordPress-style filters and actions via `window.wp.hooks` under the `desktop-mode.*` namespace — including hooks for wallpaper registration, window lifecycle, and the animated logo wallpaper's visibility events. See the [JavaScript Reference](./javascript-reference.md#4-hooks--desktop-mode) for the full catalog.
 
 ### PHP vs. JS hook parity
 
@@ -17,7 +17,7 @@ The two hook surfaces are **deliberately not mirrored** — they target differen
 - **PHP hooks** (this file) fire on the server: shell mount, chromeless render, dock-items composition, portal / session logic. If you're changing server-rendered state, you want PHP.
 - **JS hooks** (javascript-reference.md) fire in the browser: window lifecycle, drag / resize, overview, arrange actions, wallpaper + widget mount lifecycle, virtual-desktop transitions. If you're reacting to user interaction, you want JS.
 
-A few concepts ARE mirrored (e.g. `desktop_mode_dock_items` PHP filter ↔ `wp-desktop.widgets` JS filter — both shape registries), but most aren't. Don't be surprised if a JS hook has no PHP counterpart or vice versa — that's the design.
+A few concepts ARE mirrored (e.g. `desktop_mode_dock_items` PHP filter ↔ `desktop-mode.widgets` JS filter — both shape registries), but most aren't. Don't be surprised if a JS hook has no PHP counterpart or vice versa — that's the design.
 
 ---
 
@@ -47,7 +47,7 @@ add_action( 'desktop_mode_mode_init', function () {
 ---
 
 ### `desktop_mode_shell_before` — Stable
-Fires just before the shell's opening `<div id="wp-desktop-shell">`. Echo HTML here to prepend sibling markup (e.g. a global announcement banner that sits above the shell).
+Fires just before the shell's opening `<div id="desktop-mode-shell">`. Echo HTML here to prepend sibling markup (e.g. a global announcement banner that sits above the shell).
 
 ```php
 do_action( 'desktop_mode_shell_before' );
@@ -76,7 +76,7 @@ do_action( 'desktop_mode_chromeless_styles' );
 ```php
 add_action( 'desktop_mode_chromeless_styles', function () {
     wp_add_inline_style(
-        'wp-desktop-chromeless',
+        'desktop-mode-chromeless',
         'body.edit-php .subsubsub { margin-top: 4px; }'
     );
 } );
@@ -155,7 +155,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'home-assistant-commands',
         plugins_url( 'js/commands.js', __FILE__ ),
-        array( 'wp-desktop-mode' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -206,7 +206,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-plugin-titlebar',
         plugins_url( 'js/titlebar.js', __FILE__ ),
-        array( 'wp-desktop-mode' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -244,7 +244,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-plugin-settings',
         plugins_url( 'js/settings.js', __FILE__ ),
-        array( 'wp-desktop-mode' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -388,7 +388,7 @@ A `false` return means the user cannot toggle the mode on — the AJAX endpoint 
 
 ### `desktop_mode_shell_config` — Stable
 
-The JS configuration blob injected as `window.wpDesktopConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.
+The JS configuration blob injected as `window.desktopModeConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.
 
 ```php
 apply_filters( 'desktop_mode_shell_config', array $config );
@@ -425,7 +425,7 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
 Read it from JS:
 
 ```javascript
-const cfg = window.wpDesktopConfig;
+const cfg = window.desktopModeConfig;
 if ( cfg.myFeature && cfg.myFeature.enabled ) { /* ... */ }
 ```
 
@@ -581,7 +581,7 @@ array(
 
 Items with missing `id` or `title` are silently dropped — plugins can't accidentally create an unrouteable entry. Ties on `position` preserve registration order.
 
-**Click wiring:** clicking a custom item fires the JS action `wp-desktop.arrange.custom-action` with payload `{ id }`. Subscribe via `wp.hooks.addAction()`:
+**Click wiring:** clicking a custom item fires the JS action `desktop-mode.arrange.custom-action` with payload `{ id }`. Subscribe via `wp.hooks.addAction()`:
 
 ```php
 add_filter( 'desktop_mode_arrange_menu_items', function ( $items ) {
@@ -598,7 +598,7 @@ add_filter( 'desktop_mode_arrange_menu_items', function ( $items ) {
 ```js
 // In your shell-side script (enqueued with `wp-hooks` as a dependency):
 wp.hooks.addAction(
-    'wp-desktop.arrange.custom-action',
+    'desktop-mode.arrange.custom-action',
     'my-ext/diagonal',
     function ( payload ) {
         if ( payload.id !== 'diagonal' ) {
@@ -614,7 +614,7 @@ wp.hooks.addAction(
 
 ### `desktop_mode_portal_auto_enable` — Stable
 
-When a user lands on `/wp-desktop/` without desktop mode enabled, the portal auto-enables it for them by default. Return `false` to require an explicit toggle instead.
+When a user lands on `/desktop-mode/` without desktop mode enabled, the portal auto-enables it for them by default. Return `false` to require an explicit toggle instead.
 
 ```php
 apply_filters( 'desktop_mode_portal_auto_enable', bool $auto_enable, int $user_id );
@@ -630,7 +630,7 @@ add_filter( 'desktop_mode_portal_auto_enable', '__return_false' );
 
 ### `desktop_mode_admin_redirect_to_portal` — Stable
 
-Governs the `admin_init` redirect from classic `/wp-admin/` URLs to `/wp-desktop/` for users with desktop mode on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions).
+Governs the `admin_init` redirect from classic `/wp-admin/` URLs to `/desktop-mode/` for users with desktop mode on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions).
 
 ```php
 apply_filters( 'desktop_mode_admin_redirect_to_portal', bool $redirect, int $user_id );
@@ -715,7 +715,7 @@ add_filter( 'desktop_mode_default_wallpaper', fn () => 'aurora' );
 
 Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `desktop_mode_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
 
-Mirrors the client-side `wp-desktop.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
+Mirrors the client-side `desktop-mode.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
 
 ```php
 apply_filters( 'desktop_mode_wallpapers', array $registry );
@@ -997,7 +997,7 @@ apply_filters( 'desktop_mode_ai_error_log_candidates', array $candidates );
 
 ## AI Copilot extensibility — `/ai/search` (Experimental, since 0.17.0)
 
-Every `POST /wp-desktop/v1/ai/search` call — whether driven by the built-in overlay or by `wp.desktop.ai.ask()` — runs through this layered hook surface. Use it to:
+Every `POST /desktop-mode/v1/ai/search` call — whether driven by the built-in overlay or by `wp.desktop.ai.ask()` — runs through this layered hook surface. Use it to:
 
 - Inject domain context into the system prompt.
 - Add or remove tools the AI can call.
@@ -1196,7 +1196,7 @@ apply_filters( 'desktop_mode_window_excluded_pages', array $excluded );
 apply_filters( 'desktop_mode_dock_style', array $style );      // icon size, gap, blur
 ```
 
-> Dock placement (left / right / bottom) ships as a user preference in OS Settings, persisted via the standard settings REST endpoint. No server-side filter is wired today — a plugin that wants to force a placement can set the user meta directly or post to `/wp-desktop/v1/os-settings`.
+> Dock placement (left / right / bottom) ships as a user preference in OS Settings, persisted via the standard settings REST endpoint. No server-side filter is wired today — a plugin that wants to force a placement can set the user meta directly or post to `/desktop-mode/v1/os-settings`.
 
 ### Desktop area — Phase 4+
 ```php
@@ -1205,7 +1205,7 @@ apply_filters( 'desktop_mode_context_menu', array  $menu_items );
 apply_filters( 'desktop_mode_icon',         array  $icon_config, string $icon_id );
 ```
 
-> `desktop_mode_icons` and `desktop_mode_wallpapers` and the widget registry filter are **shipped** — see their Stable entries above. `desktop_mode_widgets` is not a PHP filter; the JS-side `wp-desktop.widgets` filter is the canonical hook (widgets are declared via `desktop_mode_register_widget()` server-side).
+> `desktop_mode_icons` and `desktop_mode_wallpapers` and the widget registry filter are **shipped** — see their Stable entries above. `desktop_mode_widgets` is not a PHP filter; the JS-side `desktop-mode.widgets` filter is the canonical hook (widgets are declared via `desktop_mode_register_widget()` server-side).
 
 ### Responsive — Phase 5–6
 ```php
@@ -1222,7 +1222,7 @@ apply_filters( 'desktop_mode_native_windows',       array $windows );
 apply_filters( 'desktop_mode_native_window_config', array $window_config, string $window_id );
 ```
 
-> Native windows themselves are **shipped** (0.11.0) — plugins declare them with `desktop_mode_register_window()` and react via the Stable registration actions (`desktop_mode_native_window_registered`) and JS lifecycle hooks (`wp-desktop.native-window.before-render` / `after-render` / `before-close`). The two filter names above are reserved for a future read-only view of the registry and per-window config overrides.
+> Native windows themselves are **shipped** (0.11.0) — plugins declare them with `desktop_mode_register_window()` and react via the Stable registration actions (`desktop_mode_native_window_registered`) and JS lifecycle hooks (`desktop-mode.native-window.before-render` / `after-render` / `before-close`). The two filter names above are reserved for a future read-only view of the registry and per-window config overrides.
 
 ### Drag & Drop — Phase 8
 ```php
@@ -1235,7 +1235,7 @@ apply_filters( 'desktop_mode_drop_accepts',    bool  $accepts, array $payload, s
 ```php
 apply_filters( 'desktop_mode_body_classes', string $classes );
 ```
-Currently the `wp-desktop-active` / `wp-desktop-chromeless` classes are added unfiltered via `admin_body_class`. A named filter is planned.
+Currently the `desktop-mode-active` / `desktop-mode-chromeless` classes are added unfiltered via `admin_body_class`. A named filter is planned.
 
 ---
 
@@ -1335,11 +1335,11 @@ Override the per-(session, channel) ring buffer cap. Default 500.
 
 ### `desktop_mode_debug_channels` — Experimental (filter)
 
-Declare the full set of channels for a given session id. Read by `GET /wp-desktop/v1/debug` when no `channel` / `channels[]` query parameter is present.
+Declare the full set of channels for a given session id. Read by `GET /desktop-mode/v1/debug` when no `channel` / `channels[]` query parameter is present.
 
 ### `desktop_mode_debug_rest_permission` — Experimental (filter)
 
-Override the default `manage_options` permission gate on `GET /wp-desktop/v1/debug`.
+Override the default `manage_options` permission gate on `GET /desktop-mode/v1/debug`.
 
 See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrumentation.md) for the full walkthrough — header contributions, observe mode, debug bus.
 
@@ -1395,7 +1395,7 @@ Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_regist
 
 ### `desktop_mode_recycle_bin_template_html` — Experimental (filter)
 
-The full template body before it's emitted into the native-window template element. Keep the `data-wpdm-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
+The full template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
 
 ### Lifecycle actions
 
@@ -1412,16 +1412,16 @@ do_action( 'desktop_mode_recycle_bin_emptied',        int $purged, int $skipped 
 
 | Method | Route | Purpose |
 |---|---|---|
-| `GET`  | `/wp-desktop/v1/recycle-bin` | List trashed items (`page`, `per_page`, `type`, `search`). |
-| `POST` | `/wp-desktop/v1/recycle-bin/restore` | Restore by id. Body: `{ ids: int[] }`. |
-| `POST` | `/wp-desktop/v1/recycle-bin/purge` | Permanently delete. Body: `{ ids: int[] }`. |
-| `POST` | `/wp-desktop/v1/recycle-bin/empty` | Empty everything the current user can purge. |
+| `GET`  | `/desktop-mode/v1/recycle-bin` | List trashed items (`page`, `per_page`, `type`, `search`). |
+| `POST` | `/desktop-mode/v1/recycle-bin/restore` | Restore by id. Body: `{ ids: int[] }`. |
+| `POST` | `/desktop-mode/v1/recycle-bin/purge` | Permanently delete. Body: `{ ids: int[] }`. |
+| `POST` | `/desktop-mode/v1/recycle-bin/empty` | Empty everything the current user can purge. |
 
 ### JS extension points
 
-- `wp.hooks.applyFilters( 'wp_desktop.recycleBin.columns', cols )` — append/replace `<wpd-table>` columns.
-- `document.addEventListener( 'wp-desktop-recycle-bin-changed', e => …)` — fired after every restore / purge / empty with `{ kind, ok, errors, source }`. `source` is `'local'` (the bin's own action), `'chromeless'` (a delete in another window's iframe), or `'heartbeat'` (a delete elsewhere — other tab, REST, WP-CLI).
-- `wp.hooks.doAction( 'wp_desktop.recycleBin.changed', …)` — same payload, hook-bus form.
+- `wp.hooks.applyFilters( 'desktop_mode.recycleBin.columns', cols )` — append/replace `<wpd-table>` columns.
+- `document.addEventListener( 'desktop-mode-recycle-bin-changed', e => …)` — fired after every restore / purge / empty with `{ kind, ok, errors, source }`. `source` is `'local'` (the bin's own action), `'chromeless'` (a delete in another window's iframe), or `'heartbeat'` (a delete elsewhere — other tab, REST, WP-CLI).
+- `wp.hooks.doAction( 'desktop_mode.recycleBin.changed', …)` — same payload, hook-bus form.
 
 ### Cross-window broadcast
 
@@ -1435,7 +1435,7 @@ so the recycle bin learns instantly when a list-table trashes
 something, and the corresponding list iframe refreshes when the
 bin restores something.
 
-Topic format: **`wp-desktop.<post_type>.changed`** — the literal
+Topic format: **`desktop-mode.<post_type>.changed`** — the literal
 post-type slug (`post`, `page`, `attachment`, `comment`, or any
 CPT). Payload:
 
@@ -1455,10 +1455,10 @@ show. Mappings:
 
 | Topic                              | List page                           |
 |------------------------------------|-------------------------------------|
-| `wp-desktop.post.changed`          | `edit.php` (post type unset / `post`) |
-| `wp-desktop.page.changed`          | `edit.php?post_type=page`           |
-| `wp-desktop.attachment.changed`    | `upload.php`                        |
-| `wp-desktop.comment.changed`       | `edit-comments.php`                 |
+| `desktop-mode.post.changed`          | `edit.php` (post type unset / `post`) |
+| `desktop-mode.page.changed`          | `edit.php?post_type=page`           |
+| `desktop-mode.attachment.changed`    | `upload.php`                        |
+| `desktop-mode.comment.changed`       | `edit-comments.php`                 |
 
 Single-edit pages (`post.php`, `post-new.php`) deliberately have
 **no** soft-reload handler, because replacing their body would
@@ -1467,7 +1467,7 @@ specific behaviour for those pages subscribe to the same topic
 themselves and decide how to react.
 
 After every successful soft-reload the bridge dispatches
-`wp-desktop-soft-reloaded` on the iframe's `document` so plugins
+`desktop-mode-soft-reloaded` on the iframe's `document` so plugins
 that need to re-bind state (e.g. their own custom widgets in the
 list table) have a single signal to listen for.
 
@@ -1475,7 +1475,7 @@ list table) have a single signal to listen for.
 native windows, iframes) can use the bus directly:
 
 ```js
-wp.desktop.subscribe( 'wp-desktop.post.changed', ( payload ) => {
+wp.desktop.subscribe( 'desktop-mode.post.changed', ( payload ) => {
     if ( payload.action === 'untrashed' ) {
         myEditorRedrawSidebar( payload.ids );
     }
@@ -1485,8 +1485,8 @@ wp.desktop.subscribe( 'wp-desktop.post.changed', ( payload ) => {
 Iframe-side admin pages subscribe via plain DOM:
 
 ```js
-document.addEventListener( 'wp-desktop-broadcast', ( e ) => {
-    if ( e.detail.topic !== 'wp-desktop.post.changed' ) return;
+document.addEventListener( 'desktop-mode-broadcast', ( e ) => {
+    if ( e.detail.topic !== 'desktop-mode.post.changed' ) return;
     // your custom handling — fires after the built-in soft reload
 } );
 ```
@@ -1495,8 +1495,8 @@ document.addEventListener( 'wp-desktop-broadcast', ( e ) => {
 
 The bin window updates without polling via two channels:
 
-1. **Chromeless `postMessage` (instant).** Whenever a delete fires inside an iframe-rendered admin page (e.g. "Move to Trash" on `post.php`), `realtime.php` emits an inline footer script that posts `{ type: 'wp-desktop-recycle-bin-changed', ts }` to the parent shell.
-2. **Heartbeat (catch-all, ≤15 s).** A delete also bumps `_wpdm_recycle_bin_change_ts` (autoload=false). While the bin window is open, its tab enqueues `wpdm_recycle_bin_seen_ts` on every Heartbeat tick; the `heartbeat_received` filter answers `{ changed, ts }`. Closed-bin tabs send nothing — zero per-tick cost.
+1. **Chromeless `postMessage` (instant).** Whenever a delete fires inside an iframe-rendered admin page (e.g. "Move to Trash" on `post.php`), `realtime.php` emits an inline footer script that posts `{ type: 'desktop-mode-recycle-bin-changed', ts }` to the parent shell.
+2. **Heartbeat (catch-all, ≤15 s).** A delete also bumps `_desktop_mode_recycle_bin_change_ts` (autoload=false). While the bin window is open, its tab enqueues `desktop_mode_recycle_bin_seen_ts` on every Heartbeat tick; the `heartbeat_received` filter answers `{ changed, ts }`. Closed-bin tabs send nothing — zero per-tick cost.
 
 Hook this to push your own real-time channel (websocket, SSE) without re-listening on every delete action:
 
@@ -1517,7 +1517,7 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 ## Presence
 
 Framework-level presence tracking. Storage in
-`_wp_desktop_presence` (autoload=false, single row keyed by user
+`_desktop_mode_presence` (autoload=false, single row keyed by user
 id). The WordPress Heartbeat carries the bumps + visibility
 snapshot; the JS API at `wp.desktop.presence.*` fans out to
 plugin code. See [`examples/presence.md`](./examples/presence.md)
@@ -1576,8 +1576,8 @@ desktop_mode_presence_visible_users( $ids, $viewer_id );
 
 | Method | Route | Purpose |
 |---|---|---|
-| `GET`  | `/wp-desktop/v1/presence` | Visible-users snapshot for the current viewer. |
-| `POST` | `/wp-desktop/v1/presence` | Bump (`{active:true}`), heartbeat-only (`{active:false}`), or "set yourself away" (`{inactive:true}`). |
+| `GET`  | `/desktop-mode/v1/presence` | Visible-users snapshot for the current viewer. |
+| `POST` | `/desktop-mode/v1/presence` | Bump (`{active:true}`), heartbeat-only (`{active:false}`), or "set yourself away" (`{inactive:true}`). |
 
 ---
 

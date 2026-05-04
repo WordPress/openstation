@@ -53,7 +53,7 @@ Reload the shell; the new icon appears at the end of the dock. Click it and a wi
 The shell dispatches CustomEvents on `document` when windows open, close, focus, or change state:
 
 ```javascript
-document.addEventListener( 'wp-desktop-window-opened', function ( e ) {
+document.addEventListener( 'desktop-mode-window-opened', function ( e ) {
     console.log( 'Opened', e.detail.windowId, e.detail.title );
 } );
 ```

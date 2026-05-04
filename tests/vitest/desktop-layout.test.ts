@@ -5,10 +5,10 @@
  *
  * Pins down the user-visible shape of each layout:
  *
- * - Classic: TWO docks. Left side bar (id `#wp-desktop-side-dock`,
- *   `data-wp-desktop-dock-placement="left"`) holds `isCore` items;
- *   bottom dock (existing `#wp-desktop-dock`,
- *   `data-wp-desktop-dock-placement="bottom"`) holds the rest.
+ * - Classic: TWO docks. Left side bar (id `#desktop-mode-side-dock`,
+ *   `data-desktop-mode-dock-placement="left"`) holds `isCore` items;
+ *   bottom dock (existing `#desktop-mode-dock`,
+ *   `data-desktop-mode-dock-placement="bottom"`) holds the rest.
  * - Unified: ONE dock at the bottom; every menu item lives there.
  * - Spatial: ONE dock at the bottom with non-core items; core items
  *   are synthesized into the desktop-icons list and pushed through
@@ -17,7 +17,7 @@
  *
  * Also pins layout transitions: switching layouts tears down the old
  * docks (no leaked DOM, no leaked side-dock element on switch away
- * from Classic) and emits a `wp-desktop-layout-changed` event so
+ * from Classic) and emits a `desktop-mode-layout-changed` event so
  * plugins that cache `wp.desktop.dock` can refresh their reference.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -80,7 +80,7 @@ const woo = makeItem( {
 } );
 
 const noopTile: SystemDockItem = {
-	id: 'wp-desktop-os-settings',
+	id: 'desktop-mode-os-settings',
 	title: 'OS Settings',
 	icon: 'dashicons-desktop',
 	onOpen: () => {},
@@ -94,20 +94,20 @@ function setupShell(): {
 } {
 	document.body.innerHTML = '';
 	const shellRoot = document.createElement( 'div' );
-	shellRoot.id = 'wp-desktop-shell';
-	shellRoot.className = 'wp-desktop-shell';
+	shellRoot.id = 'desktop-mode-shell';
+	shellRoot.className = 'desktop-mode-shell';
 
 	const shellBody = document.createElement( 'div' );
-	shellBody.className = 'wp-desktop-shell__body';
+	shellBody.className = 'desktop-mode-shell__body';
 	shellRoot.appendChild( shellBody );
 
 	const bottomDockEl = document.createElement( 'nav' );
-	bottomDockEl.id = 'wp-desktop-dock';
-	bottomDockEl.className = 'wp-desktop-dock';
+	bottomDockEl.id = 'desktop-mode-dock';
+	bottomDockEl.className = 'desktop-mode-dock';
 	shellBody.appendChild( bottomDockEl );
 
 	const desktopArea = document.createElement( 'div' );
-	desktopArea.id = 'wp-desktop-area';
+	desktopArea.id = 'desktop-mode-area';
 	shellBody.appendChild( desktopArea );
 
 	document.body.appendChild( shellRoot );
@@ -148,11 +148,11 @@ describe( 'desktop-layout dispatcher', () => {
 		document.body.innerHTML = '';
 	} );
 
-	test( 'writes data-wp-desktop-layout to the shell root on init', () => {
+	test( 'writes data-desktop-mode-layout to the shell root on init', () => {
 		const { deps, shell } = makeDeps();
 		createLayoutDispatcher( deps, 'unified', [ dashboard ], [] );
 		expect(
-			shell.shellRoot.getAttribute( 'data-wp-desktop-layout' ),
+			shell.shellRoot.getAttribute( 'data-desktop-mode-layout' ),
 		).toBe( 'unified' );
 	} );
 
@@ -164,18 +164,18 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, posts, yoast, woo ],
 			[],
 		);
-		const sideDock = document.getElementById( 'wp-desktop-side-dock' );
+		const sideDock = document.getElementById( 'desktop-mode-side-dock' );
 		expect( sideDock ).not.toBeNull();
 		expect(
-			sideDock?.getAttribute( 'data-wp-desktop-dock-placement' ),
+			sideDock?.getAttribute( 'data-desktop-mode-dock-placement' ),
 		).toBe( 'left' );
-		expect( sideDock?.classList.contains( 'wp-desktop-dock' ) ).toBe(
+		expect( sideDock?.classList.contains( 'desktop-mode-dock' ) ).toBe(
 			true,
 		);
 
-		const bottomDock = document.getElementById( 'wp-desktop-dock' );
+		const bottomDock = document.getElementById( 'desktop-mode-dock' );
 		expect(
-			bottomDock?.getAttribute( 'data-wp-desktop-dock-placement' ),
+			bottomDock?.getAttribute( 'data-desktop-mode-dock-placement' ),
 		).toBe( 'bottom' );
 	} );
 
@@ -190,7 +190,7 @@ describe( 'desktop-layout dispatcher', () => {
 
 		const sideTiles = Array.from(
 			document
-				.getElementById( 'wp-desktop-side-dock' )!
+				.getElementById( 'desktop-mode-side-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( sideTiles ).toEqual(
@@ -199,7 +199,7 @@ describe( 'desktop-layout dispatcher', () => {
 
 		const bottomTiles = Array.from(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( bottomTiles ).toEqual(
@@ -216,11 +216,11 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, posts, yoast, woo ],
 			[],
 		);
-		expect( document.getElementById( 'wp-desktop-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
 
 		const bottomTiles = Array.from(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( bottomTiles ).toEqual(
@@ -241,11 +241,11 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, posts, yoast, woo ],
 			[],
 		);
-		expect( document.getElementById( 'wp-desktop-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
 
 		const bottomTiles = Array.from(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( bottomTiles ).toEqual(
@@ -322,10 +322,10 @@ describe( 'desktop-layout dispatcher', () => {
 			[],
 		);
 		expect(
-			document.getElementById( 'wp-desktop-side-dock' ),
+			document.getElementById( 'desktop-mode-side-dock' ),
 		).not.toBeNull();
 		dispatcher.setLayout( 'unified' );
-		expect( document.getElementById( 'wp-desktop-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
 		expect( dispatcher.getSide() ).toBeNull();
 		expect( dispatcher.getPrimary() ).not.toBeNull();
 		expect( dispatcher.getLayout() ).toBe( 'unified' );
@@ -339,10 +339,10 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, yoast ],
 			[],
 		);
-		expect( document.getElementById( 'wp-desktop-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
 		dispatcher.setLayout( 'classic' );
 		expect(
-			document.getElementById( 'wp-desktop-side-dock' ),
+			document.getElementById( 'desktop-mode-side-dock' ),
 		).not.toBeNull();
 		expect( dispatcher.getSide() ).not.toBeNull();
 	} );
@@ -356,15 +356,15 @@ describe( 'desktop-layout dispatcher', () => {
 			[],
 		);
 		const events = vi.fn();
-		document.addEventListener( 'wp-desktop-layout-changed', events );
+		document.addEventListener( 'desktop-mode-layout-changed', events );
 		const sideBefore = dispatcher.getSide();
 		dispatcher.setLayout( 'classic' );
 		expect( events ).not.toHaveBeenCalled();
 		expect( dispatcher.getSide() ).toBe( sideBefore );
-		document.removeEventListener( 'wp-desktop-layout-changed', events );
+		document.removeEventListener( 'desktop-mode-layout-changed', events );
 	} );
 
-	test( 'setLayout: emits wp-desktop-layout-changed with new primary/side', () => {
+	test( 'setLayout: emits desktop-mode-layout-changed with new primary/side', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(
 			deps,
@@ -374,7 +374,7 @@ describe( 'desktop-layout dispatcher', () => {
 		);
 		let detail: { layout: string; primary: unknown; side: unknown } | null = null;
 		document.addEventListener(
-			'wp-desktop-layout-changed',
+			'desktop-mode-layout-changed',
 			( e ) => {
 				detail = ( e as CustomEvent ).detail;
 			},
@@ -399,14 +399,14 @@ describe( 'desktop-layout dispatcher', () => {
 
 		const sideTiles = Array.from(
 			document
-				.getElementById( 'wp-desktop-side-dock' )!
+				.getElementById( 'desktop-mode-side-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( sideTiles ).toEqual( [ 'edit.php' ] );
 
 		const bottomTiles = Array.from(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( bottomTiles ).toEqual( [ 'woocommerce' ] );
@@ -456,12 +456,12 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.appendSystemTile( noopTile, 'core' );
 		expect(
 			document
-				.getElementById( 'wp-desktop-side-dock' )!
+				.getElementById( 'desktop-mode-side-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).toBeNull();
 	} );
@@ -477,7 +477,7 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.appendSystemTile( noopTile, 'core' );
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 	} );
@@ -493,7 +493,7 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.appendSystemTile( noopTile, 'core' );
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 	} );
@@ -509,12 +509,12 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.appendSystemTile( noopTile );
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 		expect(
 			document
-				.getElementById( 'wp-desktop-side-dock' )!
+				.getElementById( 'desktop-mode-side-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).toBeNull();
 	} );
@@ -533,11 +533,11 @@ describe( 'desktop-layout dispatcher', () => {
 		// rebuilt primary (bottom) dock since there's no side rail
 		// in unified.
 		expect(
-			document.getElementById( 'wp-desktop-side-dock' ),
+			document.getElementById( 'desktop-mode-side-dock' ),
 		).toBeNull();
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 	} );
@@ -553,7 +553,7 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.appendSystemTile( noopTile );
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 
@@ -562,7 +562,7 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.setLayout( 'classic' );
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 	} );
@@ -579,7 +579,7 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.removeSystemTile( noopTile.id );
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).toBeNull();
 
@@ -587,7 +587,7 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.setLayout( 'classic' );
 		expect(
 			document
-				.getElementById( 'wp-desktop-dock' )!
+				.getElementById( 'desktop-mode-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).toBeNull();
 	} );
@@ -601,10 +601,10 @@ describe( 'desktop-layout dispatcher', () => {
 			[],
 		);
 		expect(
-			document.getElementById( 'wp-desktop-side-dock' ),
+			document.getElementById( 'desktop-mode-side-dock' ),
 		).not.toBeNull();
 		dispatcher.destroy();
-		expect( document.getElementById( 'wp-desktop-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
 	} );
 } );
 
@@ -614,7 +614,7 @@ describe( 'desktop-layout dispatcher — settings sanitization', () => {
 		const constants = await import( '../../src/settings/constants' );
 		// Drive `_parseRaw` via the public `loadState` path. Set the
 		// global config so the server-snapshot branch fires.
-		( window as unknown as { wpDesktopConfig?: unknown } ).wpDesktopConfig = {
+		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig = {
 			osSettings: {
 				wallpaper: 'dark',
 				accent: 'wp-blue',
@@ -624,7 +624,7 @@ describe( 'desktop-layout dispatcher — settings sanitization', () => {
 		};
 		const state = stateModule.loadState();
 		expect( state.desktopLayout ).toBe( constants.DEFAULTS.desktopLayout );
-		( window as unknown as { wpDesktopConfig?: unknown } ).wpDesktopConfig =
+		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig =
 			undefined;
 	} );
 } );

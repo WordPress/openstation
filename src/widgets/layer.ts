@@ -1,7 +1,7 @@
 /**
  * Desktop Mode — Widget layer.
  *
- * Owns the right-side `#wp-desktop-widgets` column + the floating
+ * Owns the right-side `#desktop-mode-widgets` column + the floating
  * overlay for widgets the user has liberated via drag. Responsibilities:
  *
  *   - Load the enabled-id list + floating-widget geometry from
@@ -73,7 +73,7 @@ export class WidgetLayer {
 	private generation = 0;
 
 	/**
-	 * @param root         The column element (`#wp-desktop-widgets`).
+	 * @param root         The column element (`#desktop-mode-widgets`).
 	 * @param pluginUrl    Absolute plugin URL — passed to widget ctx.
 	 * @param floatingHost Parent for liberated (floating) widgets.
 	 *                     Defaults to the column's parent (the desktop
@@ -92,7 +92,7 @@ export class WidgetLayer {
 		this.floatingHost = floatingHost ?? root.parentElement ?? root;
 
 		this.listEl = document.createElement( 'div' );
-		this.listEl.className = 'wp-desktop-widgets__list';
+		this.listEl.className = 'desktop-mode-widgets__list';
 		this.root.appendChild( this.listEl );
 
 		this.addTile = this.buildAddTile();
@@ -344,7 +344,7 @@ export class WidgetLayer {
 			doAction( HOOKS.SHELL_ERROR, { scope: 'widget-teardown', id, error: err } );
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[wp-desktop-mode] Widget "${ id }" teardown threw:`,
+					`[desktop-mode] Widget "${ id }" teardown threw:`,
 					err,
 				);
 			}
@@ -366,7 +366,7 @@ export class WidgetLayer {
 		doAction( HOOKS.SHELL_ERROR, { scope: 'widget-mount', id, error: err } );
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				`[wp-desktop-mode] Widget "${ id }" failed to mount:`,
+				`[desktop-mode] Widget "${ id }" failed to mount:`,
 				err,
 			);
 		}
@@ -375,14 +375,14 @@ export class WidgetLayer {
 	private buildAddTile(): HTMLButtonElement {
 		const tile = document.createElement( 'button' );
 		tile.type = 'button';
-		tile.className = 'wp-desktop-widgets__add';
+		tile.className = 'desktop-mode-widgets__add';
 		tile.setAttribute( 'aria-label', __( 'Add widget' ) );
 		const plus = document.createElement( 'span' );
-		plus.className = 'wp-desktop-widgets__add-plus';
+		plus.className = 'desktop-mode-widgets__add-plus';
 		plus.setAttribute( 'aria-hidden', 'true' );
 		plus.textContent = '+';
 		const label = document.createElement( 'span' );
-		label.className = 'wp-desktop-widgets__add-label';
+		label.className = 'desktop-mode-widgets__add-label';
 		label.textContent = __( 'Add widget' );
 		tile.appendChild( plus );
 		tile.appendChild( label );
@@ -456,7 +456,7 @@ export class WidgetLayer {
 		// flex-column natural size — no phantom left/top offsets
 		// bleed into column layout.
 		const card = record.frame.card;
-		card.classList.remove( 'wp-desktop-widgets__card--floating' );
+		card.classList.remove( 'desktop-mode-widgets__card--floating' );
 		card.style.left = '';
 		card.style.top = '';
 		card.style.width = '';
@@ -490,7 +490,7 @@ export class WidgetLayer {
 			}
 		}
 		this.root.classList.toggle(
-			'wp-desktop-widgets--has-widgets',
+			'desktop-mode-widgets--has-widgets',
 			docked > 0,
 		);
 	}

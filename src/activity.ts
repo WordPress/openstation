@@ -15,7 +15,7 @@
  *   1. A documented naming convention (`<plugin>/<event>`,
  *      matching `createSharedStore` keys) so plugins don't bikeshed
  *      every new channel name.
- *   2. A predictable hook prefix (`wp-desktop.activity.<channel>`)
+ *   2. A predictable hook prefix (`desktop-mode.activity.<channel>`)
  *      so the devtools "what's firing" panel can list activity
  *      events as a discrete group.
  *   3. Type safety: callers can extend `ActivityChannelMap` in
@@ -23,7 +23,7 @@
  *      typechecks the payload shape.
  *
  * **The pattern.** Apps subscribe to OS lifecycle events
- * (`wp.desktop.onWindow`, `wp-desktop-window-*` CustomEvents) AND
+ * (`wp.desktop.onWindow`, `desktop-mode-window-*` CustomEvents) AND
  * to peer-app activity channels. They query window state when they
  * need to (`windowManager.isActive(id)`) and decide for themselves
  * what to do. The framework is the bus, not the policy.
@@ -42,7 +42,7 @@ import {
  * Type-extension hook for plugin authors. Augment via:
  *
  * ```ts
- * declare module 'wp-desktop-mode/activity' {
+ * declare module 'desktop-mode/activity' {
  *     interface ActivityChannelMap {
  *         'my-plugin/something-happened': { id: number; reason: string };
  *     }
@@ -65,7 +65,7 @@ export interface ActivityChannelMap {
 	 * BEFORE the toast appears in the DOM; subscribers shouldn't
 	 * use this for "show another toast" or you'll loop.
 	 */
-	'wp-desktop/toast-requested': {
+	'desktop-mode/toast-requested': {
 		message: string;
 		action?: { label: string; onClick: () => void };
 		duration?: number;
@@ -78,7 +78,7 @@ export interface ActivityChannelMap {
 	 * for audit / aggregation widgets. Filtering this is a no-op —
 	 * by the time it fires, the toast is on screen.
 	 */
-	'wp-desktop/toast-shown': {
+	'desktop-mode/toast-shown': {
 		message: string;
 		action?: { label: string; onClick: () => void };
 		duration?: number;
@@ -93,7 +93,7 @@ export interface ActivityChannelMap {
 	 * `mode` / `durationMs` / `intensity` to scale the
 	 * animation, or audit.
 	 */
-	'wp-desktop/window-attention-requested': {
+	'desktop-mode/window-attention-requested': {
 		windowId: string;
 		mode: 'pulse' | 'shake' | 'bounce' | null;
 		durationMs?: number;
@@ -113,7 +113,7 @@ export interface ActivityChannelMap {
 	 * compose a unified count without duplicating logic per
 	 * surface.
 	 */
-	'wp-desktop/badge-changed': {
+	'desktop-mode/badge-changed': {
 		itemId: string;
 		count: number;
 		/** Which rail painted the change. */
@@ -131,16 +131,16 @@ export interface ActivityChannelMap {
 	 * Useful for analytics + DND that want "user requested" rather
 	 * than "framework completed".
 	 */
-	'wp-desktop/open-requested': {
+	'desktop-mode/open-requested': {
 		windowId: string;
 		source: string;
 	};
 	/**
 	 * Framework: a user's presence transitioned. Mirrors the
-	 * `wp-desktop-presence-changed` CustomEvent on the activity
+	 * `desktop-mode-presence-changed` CustomEvent on the activity
 	 * bus so plugins can subscribe through the unified API.
 	 */
-	'wp-desktop/presence-changed': {
+	'desktop-mode/presence-changed': {
 		userId: number;
 		oldStatus: 'online' | 'inactive' | 'offline' | null;
 		newStatus: 'online' | 'inactive' | 'offline';
@@ -154,7 +154,7 @@ export interface ActivityChannelMap {
 	 * everything that depends on presence" callers that don't
 	 * need per-user granularity.
 	 */
-	'wp-desktop/presence-snapshot-applied': {
+	'desktop-mode/presence-snapshot-applied': {
 		applied: number;
 		transitions: number;
 	};
@@ -165,7 +165,7 @@ export interface ActivityChannelMap {
 	[ key: `${ string }/${ string }` ]: unknown;
 }
 
-const HOOK_PREFIX = 'wp-desktop.activity.';
+const HOOK_PREFIX = 'desktop-mode.activity.';
 
 function hookName< K extends keyof ActivityChannelMap >( channel: K ): string {
 	return `${ HOOK_PREFIX }${ String( channel ) }`;
@@ -226,7 +226,7 @@ export const activity: ActivityApi = {
 		doAction( hookName( channel ), payload );
 	},
 	subscribe( channel, cb ) {
-		const ns = `wp-desktop-mode/activity-sub/${ ++subscribeSeq }`;
+		const ns = `desktop-mode/activity-sub/${ ++subscribeSeq }`;
 		const hook = hookName( channel );
 		addAction( hook, ns, ( payload: unknown ) =>
 			( cb as ( p: unknown ) => void )( payload ),

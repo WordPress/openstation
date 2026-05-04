@@ -47,7 +47,7 @@ export interface ToastOptions {
 
 /**
  * Toast intent payload routed through the
- * `wp-desktop/toast-requested` filter. Plugins can mutate the
+ * `desktop-mode/toast-requested` filter. Plugins can mutate the
  * fields, set `cancel: true` to suppress the render, or pass
  * through unchanged. Caller-supplied `meta` carries the
  * publishing app's context — useful for filters that want to
@@ -75,7 +75,7 @@ export interface ToastIntent extends ToastOptions {
  * Show a toast. Returns a dismiss callback the caller can invoke
  * early (e.g., when the state the toast was reporting changes).
  *
- * Routes through `wp-desktop/toast-requested` activity filter
+ * Routes through `desktop-mode/toast-requested` activity filter
  * before painting — plugins can register a filter that returns
  * `null` (or sets `cancel: true`) to suppress, or mutates the
  * payload to amplify / quiet the toast. Without a registered
@@ -84,7 +84,7 @@ export interface ToastIntent extends ToastOptions {
  */
 export function showToast( options: ToastOptions ): () => void {
 	const intent: ToastIntent = activity.filter(
-		'wp-desktop/toast-requested',
+		'desktop-mode/toast-requested',
 		{ ...options },
 	) as ToastIntent;
 	if ( ! intent || intent.cancel === true ) {
@@ -137,7 +137,7 @@ export function showToast( options: ToastOptions ): () => void {
 	// telemetry plugins subscribe; the toast renderer doesn't wait
 	// for these handlers (publish is synchronous but consumers
 	// shouldn't lean on that).
-	activity.publish( 'wp-desktop/toast-shown', { ...intent } );
+	activity.publish( 'desktop-mode/toast-shown', { ...intent } );
 
 	return dismiss;
 }

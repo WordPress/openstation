@@ -16,7 +16,7 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		unset( $_GET['wp_desktop'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
+		unset( $_GET['desktop_mode_chromeless'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		parent::tear_down();
 	}
@@ -86,7 +86,7 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	public function test_chromeless_false_when_param_is_not_one() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = 'yes';
+		$_GET['desktop_mode_chromeless'] = 'yes';
 		$this->assertFalse( desktop_mode_is_chromeless_request() );
 	}
 
@@ -94,14 +94,14 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	 * Critical security check: the chromeless query param MUST NOT
 	 * strip admin chrome unless the user actually has desktop mode
 	 * enabled. Otherwise anyone could send a victim a link with
-	 * ?wp_desktop=1 and load admin pages without the navigation.
+	 * ?desktop_mode_chromeless=1 and load admin pages without the navigation.
 	 *
 	 * @covers ::desktop_mode_is_chromeless_request
 	 */
 	public function test_chromeless_false_when_user_has_desktop_mode_off() {
 		wp_set_current_user( self::$admin_id );
 		// Meta intentionally not set.
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 		$this->assertFalse( desktop_mode_is_chromeless_request() );
 	}
 
@@ -110,7 +110,7 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	 */
 	public function test_chromeless_false_for_logged_out_user_with_param() {
 		wp_set_current_user( 0 );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 		$this->assertFalse( desktop_mode_is_chromeless_request() );
 	}
 
@@ -120,7 +120,7 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	public function test_chromeless_true_when_param_set_and_user_opted_in() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 		$this->assertTrue( desktop_mode_is_chromeless_request() );
 	}
 
@@ -130,7 +130,7 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	public function test_show_admin_bar_filter_returns_false_in_chromeless() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 		$this->assertFalse( desktop_mode_chromeless_hide_admin_bar( true ) );
 	}
 
@@ -153,7 +153,7 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	public function test_show_admin_bar_filter_is_wired() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['wp_desktop'] = '1';
+		$_GET['desktop_mode_chromeless'] = '1';
 		$this->assertFalse( apply_filters( 'show_admin_bar', true ) );
 	}
 

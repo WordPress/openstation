@@ -116,10 +116,10 @@ export class WpdTextField extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--wp-desktop-text', description: 'Text colour.' },
-			{ name: '--wp-desktop-muted', description: 'Label + suffix colour.' },
-			{ name: '--wp-desktop-border', description: 'Input outline.' },
-			{ name: '--wp-desktop-window-bg', description: 'Input background.' },
+			{ name: '--desktop-mode-text', description: 'Text colour.' },
+			{ name: '--desktop-mode-muted', description: 'Label + suffix colour.' },
+			{ name: '--desktop-mode-border', description: 'Input outline.' },
+			{ name: '--desktop-mode-window-bg', description: 'Input background.' },
 		],
 		example: html`
 			<wpd-stack gap="8">

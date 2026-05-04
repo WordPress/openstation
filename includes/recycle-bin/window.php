@@ -2,7 +2,7 @@
 /**
  * Desktop Mode — Recycle Bin: window + icon registration.
  *
- * Native window with id `wpdm-recycle-bin`, pinned to the taskbar with a
+ * Native window with id `desktop-mode-recycle-bin`, pinned to the taskbar with a
  * matching wallpaper icon. Like the code editor, the template body is a
  * static skeleton that the JS bundle enhances on first open — the table
  * is populated from the REST list endpoint at render time.
@@ -21,21 +21,21 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Echoes the recycle bin window's template body.
  *
- * The shell wraps this in `<template id="wpdm-native-window-wpdm-recycle-bin">`
+ * The shell wraps this in `<template id="desktop-mode-native-window-desktop-mode-recycle-bin">`
  * and clones it into the window body BEFORE the JS render callback runs.
- * The `data-wpdm-recycle-bin-*` hooks below are the contract the JS
+ * The `data-desktop-mode-recycle-bin-*` hooks below are the contract the JS
  * relies on — keep them intact (or rename via the filter) when
  * customizing the layout.
  *
  * @since 0.19.0
  */
-function wpdm_recycle_bin_render_template() {
+function desktop_mode_recycle_bin_render_template() {
 	ob_start();
 	?>
-	<div class="wpdm-recycle-bin" data-wpdm-recycle-bin-root>
-		<header class="wpdm-recycle-bin__toolbar" data-wpdm-recycle-bin-toolbar>
-			<div class="wpdm-recycle-bin__toolbar-left">
-				<wpd-segmented data-wpdm-recycle-bin-filter>
+	<div class="desktop-mode-recycle-bin" data-desktop-mode-recycle-bin-root>
+		<header class="desktop-mode-recycle-bin__toolbar" data-desktop-mode-recycle-bin-toolbar>
+			<div class="desktop-mode-recycle-bin__toolbar-left">
+				<wpd-segmented data-desktop-mode-recycle-bin-filter>
 					<wpd-segment value="" selected><?php esc_html_e( 'All', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="post"><?php esc_html_e( 'Posts', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="page"><?php esc_html_e( 'Pages', 'desktop-mode' ); ?></wpd-segment>
@@ -43,44 +43,44 @@ function wpdm_recycle_bin_render_template() {
 					<wpd-segment value="comment"><?php esc_html_e( 'Comments', 'desktop-mode' ); ?></wpd-segment>
 				</wpd-segmented>
 				<wpd-text-field
-					data-wpdm-recycle-bin-search
+					data-desktop-mode-recycle-bin-search
 					placeholder="<?php esc_attr_e( 'Search trash…', 'desktop-mode' ); ?>"
 				></wpd-text-field>
 			</div>
-			<div class="wpdm-recycle-bin__toolbar-right" data-wpdm-recycle-bin-bulk hidden>
-				<span class="wpdm-recycle-bin__count" data-wpdm-recycle-bin-count></span>
-				<wpd-button variant="secondary" data-wpdm-recycle-bin-restore-selected>
+			<div class="desktop-mode-recycle-bin__toolbar-right" data-desktop-mode-recycle-bin-bulk hidden>
+				<span class="desktop-mode-recycle-bin__count" data-desktop-mode-recycle-bin-count></span>
+				<wpd-button variant="secondary" data-desktop-mode-recycle-bin-restore-selected>
 					<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>
 					<?php esc_html_e( 'Restore', 'desktop-mode' ); ?>
 				</wpd-button>
-				<wpd-button variant="danger" data-wpdm-recycle-bin-purge-selected>
+				<wpd-button variant="danger" data-desktop-mode-recycle-bin-purge-selected>
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
 					<?php esc_html_e( 'Delete forever', 'desktop-mode' ); ?>
 				</wpd-button>
 			</div>
-			<div class="wpdm-recycle-bin__toolbar-trailing">
-				<wpd-button variant="ghost" data-wpdm-recycle-bin-refresh title="<?php esc_attr_e( 'Refresh', 'desktop-mode' ); ?>">
+			<div class="desktop-mode-recycle-bin__toolbar-trailing">
+				<wpd-button variant="ghost" data-desktop-mode-recycle-bin-refresh title="<?php esc_attr_e( 'Refresh', 'desktop-mode' ); ?>">
 					<span class="dashicons dashicons-update" aria-hidden="true"></span>
 				</wpd-button>
-				<wpd-button variant="danger" data-wpdm-recycle-bin-empty>
+				<wpd-button variant="danger" data-desktop-mode-recycle-bin-empty>
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
 					<?php esc_html_e( 'Empty bin', 'desktop-mode' ); ?>
 				</wpd-button>
 			</div>
 		</header>
-		<div class="wpdm-recycle-bin__body" data-wpdm-recycle-bin-body>
+		<div class="desktop-mode-recycle-bin__body" data-desktop-mode-recycle-bin-body>
 			<wpd-table
-				data-wpdm-recycle-bin-table
+				data-desktop-mode-recycle-bin-table
 				selectable="multi"
 				sticky-header
 				hover
 				striped
 				loading
 			>
-				<div slot="empty" class="wpdm-recycle-bin__empty">
+				<div slot="empty" class="desktop-mode-recycle-bin__empty">
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
 					<p><?php esc_html_e( 'The recycle bin is empty.', 'desktop-mode' ); ?></p>
-					<p class="wpdm-recycle-bin__empty-hint">
+					<p class="desktop-mode-recycle-bin__empty-hint">
 						<?php esc_html_e( 'Deleted posts, pages, and media show up here. Restoring puts them back where they were.', 'desktop-mode' ); ?>
 					</p>
 				</div>
@@ -93,7 +93,7 @@ function wpdm_recycle_bin_render_template() {
 	/**
 	 * Filter the recycle bin window's template HTML.
 	 *
-	 * Keep the `data-wpdm-recycle-bin-*` hooks intact so the JS render
+	 * Keep the `data-desktop-mode-recycle-bin-*` hooks intact so the JS render
 	 * callback can find its mount points, or rename them and update the
 	 * matching constants in `src/recycle-bin/index.ts`.
 	 *
@@ -115,7 +115,7 @@ function wpdm_recycle_bin_render_template() {
  *
  * @return bool
  */
-function wpdm_recycle_bin_user_can_use() {
+function desktop_mode_recycle_bin_user_can_use() {
 	$can = current_user_can( 'edit_posts' );
 
 	/**
@@ -136,16 +136,16 @@ function wpdm_recycle_bin_user_can_use() {
  *
  * @since 0.19.0
  */
-function wpdm_recycle_bin_register_window() {
-	if ( ! wpdm_recycle_bin_user_can_use() ) {
+function desktop_mode_recycle_bin_register_window() {
+	if ( ! desktop_mode_recycle_bin_user_can_use() ) {
 		return;
 	}
 
 	$window_args = array(
 		'title'      => __( 'Recycle Bin', 'desktop-mode' ),
 		'icon'       => 'dashicons-trash',
-		'template'   => 'wpdm_recycle_bin_render_template',
-		'script'     => 'wp-desktop-recycle-bin',
+		'template'   => 'desktop_mode_recycle_bin_render_template',
+		'script'     => 'desktop-mode-recycle-bin',
 		'width'      => 880,
 		'height'     => 560,
 		'min_width'  => 520,
@@ -162,7 +162,7 @@ function wpdm_recycle_bin_register_window() {
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_recycle_bin_window_args', $window_args );
 
-	$registered = desktop_mode_register_window( 'wpdm-recycle-bin', $window_args );
+	$registered = desktop_mode_register_window( 'desktop-mode-recycle-bin', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[desktop-mode] Recycle bin window registration failed: ' . $registered->get_error_message() );
@@ -172,7 +172,7 @@ function wpdm_recycle_bin_register_window() {
 	$icon_args = array(
 		'title'    => __( 'Recycle Bin', 'desktop-mode' ),
 		'icon'     => 'dashicons-trash',
-		'window'   => 'wpdm-recycle-bin',
+		'window'   => 'desktop-mode-recycle-bin',
 		'position' => 80,
 	);
 
@@ -185,39 +185,39 @@ function wpdm_recycle_bin_register_window() {
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_recycle_bin_icon_args', $icon_args );
 
-	desktop_mode_register_icon( 'wpdm-recycle-bin', $icon_args );
+	desktop_mode_register_icon( 'desktop-mode-recycle-bin', $icon_args );
 }
-add_action( 'init', 'wpdm_recycle_bin_register_window', 20 );
+add_action( 'init', 'desktop_mode_recycle_bin_register_window', 20 );
 
 /**
  * Localize REST endpoints for the JS bundle.
  *
  * Same pattern as the code editor: the bundle reads its config off
- * `window.wpDesktopRecycleBinConfig` and never hardcodes URLs.
+ * `window.desktopModeRecycleBinConfig` and never hardcodes URLs.
  *
  * @since 0.19.0
  */
-function wpdm_recycle_bin_localize_config() {
-	if ( ! wpdm_recycle_bin_user_can_use() ) {
+function desktop_mode_recycle_bin_localize_config() {
+	if ( ! desktop_mode_recycle_bin_user_can_use() ) {
 		return;
 	}
 
 	wp_localize_script(
-		'wp-desktop-recycle-bin',
-		'wpDesktopRecycleBinConfig',
+		'desktop-mode-recycle-bin',
+		'desktopModeRecycleBinConfig',
 		array(
 			'restNonce'  => wp_create_nonce( 'wp_rest' ),
-			'listUrl'    => esc_url_raw( rest_url( 'wp-desktop/v1/recycle-bin' ) ),
-			'restoreUrl' => esc_url_raw( rest_url( 'wp-desktop/v1/recycle-bin/restore' ) ),
-			'purgeUrl'   => esc_url_raw( rest_url( 'wp-desktop/v1/recycle-bin/purge' ) ),
-			'emptyUrl'   => esc_url_raw( rest_url( 'wp-desktop/v1/recycle-bin/empty' ) ),
-			'countUrl'   => esc_url_raw( rest_url( 'wp-desktop/v1/recycle-bin/count' ) ),
+			'listUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin' ) ),
+			'restoreUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/restore' ) ),
+			'purgeUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/purge' ) ),
+			'emptyUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/empty' ) ),
+			'countUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) ),
 		)
 	);
 
-	wp_enqueue_style( 'wp-desktop-recycle-bin' );
+	wp_enqueue_style( 'desktop-mode-recycle-bin' );
 }
-add_action( 'admin_enqueue_scripts', 'wpdm_recycle_bin_localize_config', 30 );
+add_action( 'admin_enqueue_scripts', 'desktop_mode_recycle_bin_localize_config', 30 );
 
 /**
  * Inject the initial trash count into the shell config so the
@@ -229,12 +229,12 @@ add_action( 'admin_enqueue_scripts', 'wpdm_recycle_bin_localize_config', 30 );
  * @param array $config Shell config blob.
  * @return array
  */
-function wpdm_recycle_bin_inject_shell_config( $config ) {
+function desktop_mode_recycle_bin_inject_shell_config( $config ) {
 	if ( ! is_array( $config ) ) {
 		return $config;
 	}
-	$config['recycleBinCount']    = wpdm_recycle_bin_count();
-	$config['recycleBinCountUrl'] = esc_url_raw( rest_url( 'wp-desktop/v1/recycle-bin/count' ) );
+	$config['recycleBinCount']    = desktop_mode_recycle_bin_count();
+	$config['recycleBinCountUrl'] = esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) );
 	return $config;
 }
-add_filter( 'desktop_mode_shell_config', 'wpdm_recycle_bin_inject_shell_config', 20 );
+add_filter( 'desktop_mode_shell_config', 'desktop_mode_recycle_bin_inject_shell_config', 20 );

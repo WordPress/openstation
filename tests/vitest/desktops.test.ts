@@ -7,7 +7,7 @@
  *   - window visibility tracks the active desktop
  *   - last-desktop-cannot-be-closed invariant
  *   - migration target picks the left neighbour by default
- *   - the wp-desktop.desktop.* action firings
+ *   - the desktop-mode.desktop.* action firings
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
@@ -19,9 +19,9 @@ import {
 } from './helpers/hooks-stub';
 
 const DESKTOP_HOOKS = [
-	'wp-desktop.desktop.created',
-	'wp-desktop.desktop.closed',
-	'wp-desktop.desktop.switched',
+	'desktop-mode.desktop.created',
+	'desktop-mode.desktop.closed',
+	'desktop-mode.desktop.switched',
 ] as const;
 
 function openConfig( id: string ) {
@@ -89,7 +89,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( created.id ).toBe( 'desktop-2' );
 		expect( created.label ).toBe( 'Desktop 2' );
 
-		const evt = log.find( ( e ) => e.name === 'wp-desktop.desktop.created' );
+		const evt = log.find( ( e ) => e.name === 'desktop-mode.desktop.created' );
 		expect( evt ).toBeDefined();
 		expect(
 			( evt!.args[ 0 ] as { desktopId: string } ).desktopId,
@@ -129,7 +129,7 @@ describe( 'WindowManager — virtual desktops', () => {
 
 		manager.switchDesktop( second.id );
 
-		const evt = log.find( ( e ) => e.name === 'wp-desktop.desktop.switched' );
+		const evt = log.find( ( e ) => e.name === 'desktop-mode.desktop.switched' );
 		expect( evt ).toBeDefined();
 		const payload = evt!.args[ 0 ] as { from: string; to: string };
 		expect( payload.from ).toBe( 'desktop-1' );
@@ -142,7 +142,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		manager.switchDesktop( 'desktop-1' );
 
 		expect(
-			log.some( ( e ) => e.name === 'wp-desktop.desktop.switched' ),
+			log.some( ( e ) => e.name === 'desktop-mode.desktop.switched' ),
 		).toBe( false );
 	} );
 
@@ -152,7 +152,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		manager.switchDesktop( 'nope' );
 
 		expect(
-			log.some( ( e ) => e.name === 'wp-desktop.desktop.switched' ),
+			log.some( ( e ) => e.name === 'desktop-mode.desktop.switched' ),
 		).toBe( false );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
@@ -173,7 +173,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( a.element.style.display ).toBe( '' );
 		expect( b.element.style.display ).toBe( '' );
 
-		const evt = log.find( ( e ) => e.name === 'wp-desktop.desktop.closed' );
+		const evt = log.find( ( e ) => e.name === 'desktop-mode.desktop.closed' );
 		expect( evt ).toBeDefined();
 		const payload = evt!.args[ 0 ] as { desktopId: string; migratedTo: string };
 		expect( payload.desktopId ).toBe( second.id );
@@ -198,7 +198,7 @@ describe( 'WindowManager — virtual desktops', () => {
 
 		expect( manager.getDesktops() ).toHaveLength( 1 );
 		expect(
-			log.some( ( e ) => e.name === 'wp-desktop.desktop.closed' ),
+			log.some( ( e ) => e.name === 'desktop-mode.desktop.closed' ),
 		).toBe( false );
 	} );
 
@@ -229,11 +229,11 @@ describe( 'WindowManager — virtual desktops', () => {
 		manager.enterOverview();
 		const a = manager.getById( 'a' )!;
 		const b = manager.getById( 'b' )!;
-		expect( a.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( true );
-		expect( b.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( true );
+		expect( a.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
+		expect( b.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
 		// `c` is on the inactive desktop — hidden, no overview class.
 		expect( c.element.style.display ).toBe( 'none' );
-		expect( c.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( false );
+		expect( c.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( false );
 
 		// Close the active desktop. Survivor (desktop-2) absorbs a + b
 		// AND becomes active. Since we're in overview, the grid must
@@ -249,9 +249,9 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( a.element.style.display ).toBe( '' );
 		expect( b.element.style.display ).toBe( '' );
 		expect( c.element.style.display ).toBe( '' );
-		expect( a.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( true );
-		expect( b.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( true );
-		expect( c.element.classList.contains( 'wp-desktop-window--overview' ) ).toBe( true );
+		expect( a.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
+		expect( b.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
+		expect( c.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
 	} );
 
 	test( 'snapshot preserves geometry for windows on non-active desktops', () => {

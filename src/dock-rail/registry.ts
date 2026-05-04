@@ -34,22 +34,22 @@ let activeId: string = 'default';
 export function register( renderer: DockRailRenderer ): void {
 	if ( ! renderer || typeof renderer !== 'object' ) {
 		throw new TypeError(
-			'[wp-desktop-mode] registerDockRailRenderer: renderer must be an object.',
+			'[desktop-mode] registerDockRailRenderer: renderer must be an object.',
 		);
 	}
 	if ( typeof renderer.id !== 'string' || ! ID_RE.test( renderer.id ) ) {
 		throw new TypeError(
-			`[wp-desktop-mode] registerDockRailRenderer: id must match /^[a-z0-9_-]+$/, got: ${ String( renderer.id ) }`,
+			`[desktop-mode] registerDockRailRenderer: id must match /^[a-z0-9_-]+$/, got: ${ String( renderer.id ) }`,
 		);
 	}
 	if ( typeof renderer.label !== 'string' || renderer.label === '' ) {
 		throw new TypeError(
-			'[wp-desktop-mode] registerDockRailRenderer: label must be a non-empty string.',
+			'[desktop-mode] registerDockRailRenderer: label must be a non-empty string.',
 		);
 	}
 	if ( typeof renderer.mount !== 'function' ) {
 		throw new TypeError(
-			'[wp-desktop-mode] registerDockRailRenderer: mount must be a function.',
+			'[desktop-mode] registerDockRailRenderer: mount must be a function.',
 		);
 	}
 	if (
@@ -57,7 +57,7 @@ export function register( renderer: DockRailRenderer ): void {
 		renderer.apiVersion !== 1
 	) {
 		throw new TypeError(
-			`[wp-desktop-mode] registerDockRailRenderer: unsupported apiVersion ${ renderer.apiVersion } (this shell speaks v1).`,
+			`[desktop-mode] registerDockRailRenderer: unsupported apiVersion ${ renderer.apiVersion } (this shell speaks v1).`,
 		);
 	}
 	registry.set( renderer.id, renderer );
@@ -167,7 +167,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[wp-desktop-mode] dock-rail-renderer listener threw:',
+					'[desktop-mode] dock-rail-renderer listener threw:',
 					err,
 				);
 			}

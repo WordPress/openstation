@@ -49,7 +49,7 @@ desktop_mode_register_icon( 'jorvy', array(
 ) );
 
 // 3. The render script — declares itself on
-//    `window.wpDesktopNativeWindows[ 'jorvy' ]` so the shell can
+//    `window.desktopModeNativeWindows[ 'jorvy' ]` so the shell can
 //    invoke it when the window opens.
 add_action( 'admin_enqueue_scripts', function () {
     if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
@@ -58,7 +58,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_enqueue_script(
         'jorvy-desktop',
         plugin_dir_url( __FILE__ ) . 'jorvy-desktop.js',
-        array( 'wp-desktop' ),
+        array( 'desktop-mode' ),
         '1.0.0',
         true
     );
@@ -87,8 +87,8 @@ add_action( 'admin_enqueue_scripts', function () {
     ];
     function pick() { return QUOTES[ Math.floor( Math.random() * QUOTES.length ) ]; }
 
-    window.wpDesktopNativeWindows = window.wpDesktopNativeWindows || {};
-    window.wpDesktopNativeWindows.jorvy = function ( body ) {
+    window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
+    window.desktopModeNativeWindows.jorvy = function ( body ) {
         const q = body.querySelector( '.jorvy__quote' );
         const a = body.querySelector( '.jorvy__attr' );
         const render = () => {
@@ -115,7 +115,7 @@ Drops a clickable tile on the wallpaper at the `position` you specify (lower num
 
 ### The render script
 
-Native windows render in JS because a `render( body )` callback can't cross the PHP→client wire. The script declares its render function on `window.wpDesktopNativeWindows[ <id> ]`; the shell invokes it when the window opens and captures the return value as a teardown (interval cleanup, DOM detach, whatever the plugin needs).
+Native windows render in JS because a `render( body )` callback can't cross the PHP→client wire. The script declares its render function on `window.desktopModeNativeWindows[ <id> ]`; the shell invokes it when the window opens and captures the return value as a teardown (interval cleanup, DOM detach, whatever the plugin needs).
 
 **The body comes pre-populated.** Before invoking the callback, the shell clones the registered `template` into the window body — so `body.querySelector( '.jorvy__quote' )` returns the `<p>` declared in the PHP template above, with no manual cloning. Render callbacks are pure enhancement: query the mount points your template declared, light them up. To start from a blank canvas anyway, call `body.replaceChildren()` first.
 

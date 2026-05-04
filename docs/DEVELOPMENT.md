@@ -93,7 +93,7 @@ public _privateField: Map< string, unknown > = new Map();
 
 ## Adding a new hook
 
-1. **Name it.** Convention: `wp-desktop.<domain>.<event>` (JS) or
+1. **Name it.** Convention: `desktop-mode.<domain>.<event>` (JS) or
    `desktop_mode_<domain>_<event>` (PHP). Add the constant to the `HOOKS`
    enum in `src/hooks.ts` with a JSDoc describing payload + timing.
 2. **Fire it.** `doAction( HOOKS.NEW_THING, payload )` for actions or
@@ -123,7 +123,7 @@ interface in `src/desktop.ts`. To add a method:
 - **TS**: strict mode, tabs, `snake_case` for PHP / `camelCase` for JS.
   Prefer `const` over `let`. No `any`; use `unknown` + type-narrow.
 - **CSS**: custom properties for theming. BEM-ish
-  `.wp-desktop-{component}__{element}--{modifier}`.
+  `.desktop-mode-{component}__{element}--{modifier}`.
 - **PHP**: WordPress standards (tabs, Yoda conditions, `snake_case`),
   `defined( 'ABSPATH' ) || exit;` at the top of every file.
 - **Comments**: the "why", not the "what". If a workaround exists for

@@ -29,7 +29,7 @@ export const selectStyles = css`
 		flex-direction: column;
 		gap: 4px;
 		font-size: 13px;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 		min-width: 0;
 	}
 
@@ -39,7 +39,7 @@ export const selectStyles = css`
 
 	.wpd-select__label {
 		font-size: 12px;
-		color: var( --wp-desktop-muted, #646970 );
+		color: var( --desktop-mode-muted, #646970 );
 	}
 
 	.wpd-select__wrap {
@@ -61,7 +61,7 @@ export const selectStyles = css`
 		border-radius: 7px;
 		font: inherit;
 		font-size: 13px;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 		cursor: pointer;
 		transition: background-color 0.12s ease, border-color 0.12s ease,
 			box-shadow 0.12s ease;
@@ -93,7 +93,7 @@ export const selectStyles = css`
 		top: 50%;
 		transform: translateY( -50% );
 		pointer-events: none;
-		color: var( --wp-desktop-muted, #646970 );
+		color: var( --desktop-mode-muted, #646970 );
 		display: inline-block;
 	}
 
@@ -101,7 +101,7 @@ export const selectStyles = css`
 	 * own border transition so the two feel like one affordance. */
 	select:hover ~ .wpd-select__chevron,
 	select:focus-visible ~ .wpd-select__chevron {
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 	}
 `;
 

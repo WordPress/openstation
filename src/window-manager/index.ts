@@ -184,7 +184,7 @@ export class WindowManager {
 
 	/**
 	 * The translucent preview rectangle shown while a snap is armed.
-	 * Lives inside `.wp-desktop-area`.
+	 * Lives inside `.desktop-mode-area`.
 	 * @internal
 	 */
 	public _snapPreviewEl: HTMLElement | null = null;
@@ -234,7 +234,7 @@ export class WindowManager {
 	 *
 	 * We use that signal: listen for `window.blur` on the parent,
 	 * check `document.activeElement` — if it's an iframe, walk up to
-	 * its owning `.wp-desktop-window`, find the matching Window in
+	 * its owning `.desktop-mode-window`, find the matching Window in
 	 * our stack, and focus it. Covers clicks on the primary iframe
 	 * AND any external-tab sub-iframes mounted as descendants of the
 	 * window element.
@@ -251,7 +251,7 @@ export class WindowManager {
 					return;
 				}
 				const winEl = active.closest<HTMLElement>(
-					'.wp-desktop-window',
+					'.desktop-mode-window',
 				);
 				if ( ! winEl ) {
 					return;
@@ -290,7 +290,7 @@ export class WindowManager {
 	 * INCOMING shape change (the shell reshaped us), not an outgoing
 	 * user action worth persisting.
 	 *
-	 * Also toggles `wp-desktop-window--reflowing` so the base
+	 * Also toggles `desktop-mode-window--reflowing` so the base
 	 * left/top/width/height transition doesn't interpolate between
 	 * every ResizeObserver tick — without that, the windows would
 	 * always lag ~250 ms behind a browser edge-drag.
@@ -310,14 +310,14 @@ export class WindowManager {
 				continue;
 			}
 			if ( w.state === 'maximized' ) {
-				w.element.classList.add( 'wp-desktop-window--reflowing' );
+				w.element.classList.add( 'desktop-mode-window--reflowing' );
 				w.element.style.width = `${ parent.clientWidth }px`;
 				w.element.style.height = `${ parent.clientHeight }px`;
 			} else if (
 				w.state === 'snapped-left' ||
 				w.state === 'snapped-right'
 			) {
-				w.element.classList.add( 'wp-desktop-window--reflowing' );
+				w.element.classList.add( 'desktop-mode-window--reflowing' );
 				const halfW = Math.floor( parent.clientWidth / 2 );
 				const height = parent.clientHeight;
 				const left = w.state === 'snapped-left' ? 0 : halfW;
@@ -338,7 +338,7 @@ export class WindowManager {
 		this._reflowRestoreTimer = window.setTimeout( () => {
 			this._reflowRestoreTimer = null;
 			for ( const w of this._stack ) {
-				w.element.classList.remove( 'wp-desktop-window--reflowing' );
+				w.element.classList.remove( 'desktop-mode-window--reflowing' );
 			}
 		}, 140 ) as unknown as number;
 	}
@@ -410,7 +410,7 @@ export class WindowManager {
 			// runs and the seeded state lands on first paint; for
 			// EXISTING windows there was no signal at all that an
 			// open was requested. Plugins were forced to subscribe to
-			// `wp-desktop-window-focused` and infer "open" from
+			// `desktop-mode-window-focused` and infer "open" from
 			// "focus", which double-fires on every alt-tab and never
 			// fires when the window is already focused. The reopen
 			// event is the unambiguous "open requested while already
@@ -422,7 +422,7 @@ export class WindowManager {
 				wasMinimized,
 			};
 			document.dispatchEvent(
-				new CustomEvent( 'wp-desktop-window-reopened', { detail: reopenedDetail } ),
+				new CustomEvent( 'desktop-mode-window-reopened', { detail: reopenedDetail } ),
 			);
 			doAction( HOOKS.WINDOW_REOPENED, reopenedDetail );
 			return existing;
@@ -495,7 +495,7 @@ export class WindowManager {
 			// never rendered on native windows in practice. The
 			// `|| ''` is belt-and-suspenders for TS's perspective on
 			// the now-optional `config.url`: a native window
-			// reaching this path would produce `?wp_desktop=1` on
+			// reaching this path would produce `?desktop_mode_chromeless=1` on
 			// an empty URL, which downstream code handles cleanly
 			// but will never actually fire.
 			this.openNew( {
@@ -575,7 +575,7 @@ export class WindowManager {
 			url: config.url,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-window-opened', { detail: openedDetail } ),
+			new CustomEvent( 'desktop-mode-window-opened', { detail: openedDetail } ),
 		);
 		// Fan out to the hook bus so plugins using wp.hooks.addAction()
 		// stay in their idiomatic API rather than juggling
@@ -639,7 +639,7 @@ export class WindowManager {
 				focusedTo: win.id,
 			};
 			document.dispatchEvent(
-				new CustomEvent( 'wp-desktop-window-blurred', { detail: blurredDetail } ),
+				new CustomEvent( 'desktop-mode-window-blurred', { detail: blurredDetail } ),
 			);
 			doAction( HOOKS.WINDOW_BLURRED, blurredDetail );
 		}
@@ -647,7 +647,7 @@ export class WindowManager {
 		// Dispatch custom event + action for the newly-focused window.
 		const focusedDetail = { windowId: win.id };
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-window-focused', { detail: focusedDetail } ),
+			new CustomEvent( 'desktop-mode-window-focused', { detail: focusedDetail } ),
 		);
 		doAction( HOOKS.WINDOW_FOCUSED, focusedDetail );
 	}
@@ -673,7 +673,7 @@ export class WindowManager {
 		// fade-out starts, which is an unnecessary footgun.
 		const closingDetail = { windowId: win.id, element: win.element };
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-window-closing', { detail: closingDetail } ),
+			new CustomEvent( 'desktop-mode-window-closing', { detail: closingDetail } ),
 		);
 		doAction( HOOKS.WINDOW_CLOSING, closingDetail );
 
@@ -684,7 +684,7 @@ export class WindowManager {
 		// element now have `closing` above.
 		const closedDetail = { windowId: win.id };
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-window-closed', { detail: closedDetail } ),
+			new CustomEvent( 'desktop-mode-window-closed', { detail: closedDetail } ),
 		);
 		doAction( HOOKS.WINDOW_CLOSED, closedDetail );
 	}
@@ -843,7 +843,7 @@ export class WindowManager {
 	 * survivor when an `onlyOnPrimary` mode is requested.
 	 *
 	 * Default: the first desktop in `getDesktops()`. Filterable via
-	 * `wp-desktop.primary-desktop-id` so downstream code that wants a
+	 * `desktop-mode.primary-desktop-id` so downstream code that wants a
 	 * different convention (e.g. a pinned "Inbox" desktop) can override
 	 * without having to fork the manager.
 	 *
@@ -872,11 +872,11 @@ export class WindowManager {
 	 *
 	 * Hook chain:
 	 *
-	 *   1. `wp-desktop.windows.before-close-all` — action. Subscribers
+	 *   1. `desktop-mode.windows.before-close-all` — action. Subscribers
 	 *      can prepare for the wipe (cancel pending saves, dismiss
 	 *      menus, etc.). Detail: `{ candidates: Window[] }`.
 	 *
-	 *   2. `wp-desktop.windows.close-all` — filter. Receives the
+	 *   2. `desktop-mode.windows.close-all` — filter. Receives the
 	 *      candidate Window list and returns the (possibly smaller) list
 	 *      that will actually be closed. Plugins use this to PROTECT
 	 *      specific windows — e.g. keep a draft post window open during
@@ -885,7 +885,7 @@ export class WindowManager {
 	 *
 	 *   3. Each surviving window's `close()` is called.
 	 *
-	 *   4. `wp-desktop.windows.after-close-all` — action. Detail:
+	 *   4. `desktop-mode.windows.after-close-all` — action. Detail:
 	 *      `{ closed: number, skipped: Window[] }`.
 	 *
 	 * @since 0.14.0
@@ -923,7 +923,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[wp-desktop-mode] closeAll: window.close() threw for',
+						'[desktop-mode] closeAll: window.close() threw for',
 						win.id,
 						err,
 					);
@@ -964,7 +964,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[wp-desktop-mode] minimizeAll: window.minimize() threw for',
+						'[desktop-mode] minimizeAll: window.minimize() threw for',
 						win.id,
 						err,
 					);
@@ -1004,7 +1004,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[wp-desktop-mode] restoreFrom: window.restore() threw for',
+						'[desktop-mode] restoreFrom: window.restore() threw for',
 						win.id,
 						err,
 					);
@@ -1083,7 +1083,7 @@ export class WindowManager {
 	 * `element` is the window's outer DOM node.
 	 *
 	 * Intended for wallpaper / overlay plugins that used to scrape
-	 * `document.querySelectorAll('.wp-desktop-window')` + read the
+	 * `document.querySelectorAll('.desktop-mode-window')` + read the
 	 * `--minimized` / `--maximized` modifier classes by name. The
 	 * accessor decouples plugin code from the shell's CSS class
 	 * naming, so a future refactor of modifier prefixes is not an

@@ -1,14 +1,14 @@
 /**
  * Desktop Mode — Recycle Bin window styles.
  *
- * Scoped to `.wpdm-recycle-bin` so the rules can't leak into other
+ * Scoped to `.desktop-mode-recycle-bin` so the rules can't leak into other
  * windows. Layout: a sticky toolbar across the top, then a flex-1
  * body that hosts a `<wpd-table>`. The table is told to size to the
  * body via `--wpd-table-max-height: 100%` so its sticky header
  * engages.
  */
 
-.wpdm-recycle-bin {
+.desktop-mode-recycle-bin {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
@@ -17,7 +17,7 @@
 	color: var( --wpd-text, #1d2327 );
 }
 
-.wpdm-recycle-bin__toolbar {
+.desktop-mode-recycle-bin__toolbar {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -27,9 +27,9 @@
 	background: var( --wpd-surface-elevated, #f6f7f7 );
 }
 
-.wpdm-recycle-bin__toolbar-left,
-.wpdm-recycle-bin__toolbar-right,
-.wpdm-recycle-bin__toolbar-trailing {
+.desktop-mode-recycle-bin__toolbar-left,
+.desktop-mode-recycle-bin__toolbar-right,
+.desktop-mode-recycle-bin__toolbar-trailing {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -42,15 +42,15 @@
  * the expected behaviour so `bulk.hidden = true` from JS
  * actually hides the bulk action group when nothing is selected.
  */
-.wpdm-recycle-bin__toolbar-right[hidden] {
+.desktop-mode-recycle-bin__toolbar-right[hidden] {
 	display: none;
 }
 
-.wpdm-recycle-bin__toolbar-trailing {
+.desktop-mode-recycle-bin__toolbar-trailing {
 	margin-inline-start: auto;
 }
 
-.wpdm-recycle-bin__count {
+.desktop-mode-recycle-bin__count {
 	font-size: 12px;
 	font-weight: 600;
 	color: var( --wpd-text-muted, #50575e );
@@ -58,14 +58,14 @@
 	padding-inline-end: 4px;
 }
 
-.wpdm-recycle-bin__body {
+.desktop-mode-recycle-bin__body {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	padding: 8px 12px 12px;
 }
 
-.wpdm-recycle-bin__body wpd-table {
+.desktop-mode-recycle-bin__body wpd-table {
 	flex: 1 1 auto;
 	--wpd-table-max-height: 100%;
 }
@@ -79,7 +79,7 @@
  * live in the bin window's light-DOM template.
  */
 
-.wpdm-recycle-bin__empty {
+.desktop-mode-recycle-bin__empty {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -89,14 +89,14 @@
 	text-align: center;
 }
 
-.wpdm-recycle-bin__empty .dashicons {
+.desktop-mode-recycle-bin__empty .dashicons {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
 	opacity: 0.6;
 }
 
-.wpdm-recycle-bin__empty-hint {
+.desktop-mode-recycle-bin__empty-hint {
 	font-size: 12px;
 	max-width: 360px;
 }

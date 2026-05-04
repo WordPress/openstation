@@ -34,11 +34,11 @@
  *     publishes via the PHP API; the inspector window subscribes here.
  *
  * The instrumentation message protocol (parent → iframe) is
- * `wp-desktop-instrument-set` with a single `headers` map plus an
+ * `desktop-mode-instrument-set` with a single `headers` map plus an
  * `observe` flag. The iframe-side bridges (the inline chromeless
  * bridge in `includes/render.php` and `iframe-bridge-standalone.ts`)
  * apply it to every captured request — see the
- * `WP_DESKTOP_INSTRUMENT` glue below.
+ * `DESKTOP_MODE_INSTRUMENT` glue below.
  *
  * @since 0.6.0
  */
@@ -237,7 +237,7 @@ function ensureState( windowId: string ): WindowState {
  * chromeless inline bridge resets that slot on every fresh page.
  *
  * The shell's `IFRAME_READY` action is the spec'd path for the
- * same job, but `wp-desktop-ready` isn't actually emitted by the
+ * same job, but `desktop-mode-ready` isn't actually emitted by the
  * chromeless bridge today, so relying on that hook leaves a
  * timing gap. The native `load` event fires unconditionally and
  * is also same-origin-safe to attach to.
@@ -359,7 +359,7 @@ function pushInstrumentation( windowId: string ): void {
 	try {
 		iframe.contentWindow.postMessage(
 			{
-				type: 'wp-desktop-instrument-set',
+				type: 'desktop-mode-instrument-set',
 				headers,
 				observe,
 			},
@@ -378,7 +378,7 @@ function pushInstrumentation( windowId: string ): void {
  * the chromeless bridge resets its mutable state, and our parent-
  * side state is the only place the headers still exist).
  */
-addAction( HOOKS.IFRAME_READY, 'wp-desktop-mode/devtools/replay', ( payload: unknown ) => {
+addAction( HOOKS.IFRAME_READY, 'desktop-mode/devtools/replay', ( payload: unknown ) => {
 	const p = payload as { windowId?: string } | null;
 	if ( p && typeof p.windowId === 'string' && states.has( p.windowId ) ) {
 		pushInstrumentation( p.windowId );
@@ -394,7 +394,7 @@ addAction( HOOKS.IFRAME_READY, 'wp-desktop-mode/devtools/replay', ( payload: unk
  */
 addAction(
 	HOOKS.IFRAME_NETWORK_COMPLETED,
-	'wp-desktop-mode/devtools/dispatch',
+	'desktop-mode/devtools/dispatch',
 	( payload: unknown ) => {
 		const p = payload as RequestObservation | null;
 		if ( ! p || typeof p.windowId !== 'string' ) {
@@ -418,8 +418,8 @@ addAction(
 /* istanbul ignore next — re-exported only for tests / advanced users */
 export function _resetDevtoolsForTests(): void {
 	states.clear();
-	removeAction( HOOKS.IFRAME_READY, 'wp-desktop-mode/devtools/replay' );
-	removeAction( HOOKS.IFRAME_NETWORK_COMPLETED, 'wp-desktop-mode/devtools/dispatch' );
+	removeAction( HOOKS.IFRAME_READY, 'desktop-mode/devtools/replay' );
+	removeAction( HOOKS.IFRAME_NETWORK_COMPLETED, 'desktop-mode/devtools/dispatch' );
 }
 
 // -----------------------------------------------------------------------------
@@ -458,7 +458,7 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 	// this, the drain returns `{ events: [] }` on every poll unless a
 	// `desktop_mode_debug_channels` filter contributor exists — silent
 	// failure that looks like "publishes never arrive".
-	const u = new URL( restUrl + 'wp-desktop/v1/debug', window.location.origin );
+	const u = new URL( restUrl + 'desktop-mode/v1/debug', window.location.origin );
 	u.searchParams.set( 'sessionId', sessionId );
 	u.searchParams.set( 'since', String( sp.cursor ) );
 	for ( const ch of sp.channels.keys() ) {
@@ -508,8 +508,8 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 
 function getRestEndpoint(): { restUrl: string; restNonce: string } | null {
 	const cfg = ( window as unknown as {
-		wpDesktopConfig?: { restUrl?: string; restNonce?: string };
-	} ).wpDesktopConfig;
+		desktopModeConfig?: { restUrl?: string; restNonce?: string };
+	} ).desktopModeConfig;
 	if ( ! cfg || ! cfg.restUrl || ! cfg.restNonce ) {
 		return null;
 	}

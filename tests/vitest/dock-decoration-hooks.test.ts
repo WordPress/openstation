@@ -57,7 +57,7 @@ function mount( items: DockItem[] = [] ): {
 	dock: Dock;
 } {
 	const container = document.createElement( 'nav' );
-	container.id = 'wp-desktop-dock';
+	container.id = 'desktop-mode-dock';
 	document.body.appendChild( container );
 	const dock = new Dock(
 		container,
@@ -96,7 +96,7 @@ describe( 'dock decoration hooks', () => {
 		expect( tile ).not.toBeNull();
 		expect( tile?.classList.contains( 'plugin-decorated' ) ).toBe( true );
 		// Default classes survive — filters must not stomp on the base.
-		expect( tile?.classList.contains( 'wp-desktop-dock__item' ) ).toBe(
+		expect( tile?.classList.contains( 'desktop-mode-dock__item' ) ).toBe(
 			true,
 		);
 	} );
@@ -165,10 +165,10 @@ describe( 'dock decoration hooks', () => {
 		// pick up the `--visible` class.
 		tile?.dispatchEvent( new Event( 'pointerenter' ) );
 		const tooltip = document.querySelector(
-			'.wp-desktop-dock__tooltip',
+			'.desktop-mode-dock__tooltip',
 		);
 		expect(
-			tooltip?.classList.contains( 'wp-desktop-dock__tooltip--visible' ),
+			tooltip?.classList.contains( 'desktop-mode-dock__tooltip--visible' ),
 		).toBe( false );
 	} );
 
@@ -193,7 +193,7 @@ describe( 'dock decoration hooks', () => {
 		expect( after ).toHaveBeenCalledTimes( 1 );
 
 		const beforeCtx = before.mock.calls[ 0 ][ 0 ] as DockRenderContext;
-		expect( beforeCtx.dockId ).toBe( 'wp-desktop-dock' );
+		expect( beforeCtx.dockId ).toBe( 'desktop-mode-dock' );
 		expect( beforeCtx.orientation ).toBe( 'bottom' );
 		expect( beforeCtx.rail ).toBe( 'taskbar' );
 		expect( beforeCtx.items ).toHaveLength( 2 );
@@ -276,18 +276,18 @@ describe( 'dock decoration hooks', () => {
 		);
 
 		const left = document.createElement( 'nav' );
-		left.id = 'wp-desktop-side-dock';
+		left.id = 'desktop-mode-side-dock';
 		document.body.appendChild( left );
 		new Dock( left, makeManager(), [ makeItem() ], '/wp-admin/', 'left' );
 
 		const bottom = document.createElement( 'nav' );
-		bottom.id = 'wp-desktop-dock';
+		bottom.id = 'desktop-mode-dock';
 		document.body.appendChild( bottom );
 		new Dock( bottom, makeManager(), [ makeItem() ], '/wp-admin/', 'bottom' );
 
 		expect( seen ).toEqual( [
-			'wp-desktop-side-dock',
-			'wp-desktop-dock',
+			'desktop-mode-side-dock',
+			'desktop-mode-dock',
 		] );
 	} );
 } );

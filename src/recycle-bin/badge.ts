@@ -7,7 +7,7 @@
  *   - Initial value comes from the shell config
  *     (`config.recycleBinCount`), so the badge is correct on the
  *     first paint, even before the user opens the bin.
- *   - Cross-window broadcasts (`wp-desktop.<type>.changed`) drive
+ *   - Cross-window broadcasts (`desktop-mode.<type>.changed`) drive
  *     delta updates: a `'trashed'` action with N ids increments
  *     by N, an `'untrashed'` / `'deleted'` action decrements.
  *   - Authoritative resets come from the bin window itself
@@ -25,19 +25,19 @@ import { addAction, HOOKS } from '../hooks';
 import { subscribe } from '../broadcast';
 
 /* eslint-disable no-console */
-const LOG_PREFIX = '[wpdm-bin badge]';
+const LOG_PREFIX = '[desktop-mode-bin badge]';
 /**
- * Verbose debug trace — silent unless `localStorage.wpdmBinDebug`
+ * Verbose debug trace — silent unless `localStorage.desktopModeBinDebug`
  * is set. Useful when this thing breaks again: type
- * `localStorage.wpdmBinDebug = '1'` in DevTools, reload, and the
+ * `localStorage.desktopModeBinDebug = '1'` in DevTools, reload, and the
  * full `setRecycleBinBadge` / `paintBadge` / `watchForTargets`
  * trace prints. Cheap when off (one localStorage read per call).
  */
 function log( ...args: unknown[] ): void {
 	// Re-enable verbose tracing by typing
-	// `localStorage.wpdmBinDebug = '1'` in DevTools, then reload.
+	// `localStorage.desktopModeBinDebug = '1'` in DevTools, then reload.
 	try {
-		if ( window.localStorage?.getItem( 'wpdmBinDebug' ) ) {
+		if ( window.localStorage?.getItem( 'desktopModeBinDebug' ) ) {
 			console.info( LOG_PREFIX, ...args );
 		}
 	} catch {
@@ -48,11 +48,11 @@ function warn( ...args: unknown[] ): void {
 	console.warn( LOG_PREFIX, ...args );
 }
 
-const TARGET_ID = 'wpdm-recycle-bin';
+const TARGET_ID = 'desktop-mode-recycle-bin';
 // Heartbeat field. `wp.heartbeat`'s `data` object is delivered as
 // `_POST['data'][ <key> ]` server-side; the key IS the field name
 // our `heartbeat_received` filter reads.
-const HEARTBEAT_FIELD = 'wpdm_recycle_bin_seen_ts';
+const HEARTBEAT_FIELD = 'desktop_mode_recycle_bin_seen_ts';
 
 /**
  * Narrow shape of `wp.desktop` we depend on here. Pulled in via
@@ -170,9 +170,9 @@ function isBinWindowActive(): boolean {
  *   - Initial value: the shell config (`config.recycleBinCount`),
  *     so the badge is correct on the first paint, even before the
  *     user opens the bin.
- *   - Same-tab broadcast deltas (`wp-desktop.<type>.changed`).
+ *   - Same-tab broadcast deltas (`desktop-mode.<type>.changed`).
  *   - Cross-iframe `postMessage` fast path (`type:
- *     'wp-desktop-recycle-bin-changed'`) — fires within ~ms of any
+ *     'desktop-mode-recycle-bin-changed'`) — fires within ~ms of any
  *     chromeless admin request that mutated state.
  *   - Heartbeat catch-all — every tick the server reports the
  *     current count + the latest change-ts. This is the channel
@@ -201,11 +201,11 @@ export function startRecycleBinBadge(
 	// than re-introduce the "badge stuck at 0" bug we just fixed.
 	const initial = Number( initialRaw ) || 0;
 	const cfg = ( window as unknown as {
-		wpDesktopConfig?: Record< string, unknown >;
-	} ).wpDesktopConfig;
+		desktopModeConfig?: Record< string, unknown >;
+	} ).desktopModeConfig;
 	const cfgCount = cfg?.recycleBinCount;
 	const cfgUrl = cfg?.recycleBinCountUrl;
-	const cfgDebug = cfg?.wpdmBinDebug;
+	const cfgDebug = cfg?.desktopModeBinDebug;
 	log( 'startRecycleBinBadge entry', {
 		initial,
 		countUrl,
@@ -229,7 +229,7 @@ export function startRecycleBinBadge(
 		Number.isFinite( cfgCountNum );
 	if ( ! cfgCountIsHealthy ) {
 		warn(
-			'wpDesktopConfig.recycleBinCount is missing — PHP filter `desktop_mode_shell_config` did not deliver. Check your PHP error log for `[wpdm-bin debug]` lines.',
+			'desktopModeConfig.recycleBinCount is missing — PHP filter `desktop_mode_shell_config` did not deliver. Check your PHP error log for `[desktop-mode-bin debug]` lines.',
 			{ cfg },
 		);
 	}
@@ -268,7 +268,7 @@ export function startRecycleBinBadge(
  * value.
  */
 function wireWindowLifecycleSignals(): void {
-	const ns = 'wp-desktop-mode/recycle-bin/badge-lifecycle';
+	const ns = 'desktop-mode/recycle-bin/badge-lifecycle';
 	const repaint = ( payload: unknown ): void => {
 		const detail = payload as { windowId?: string };
 		if ( detail?.windowId !== TARGET_ID ) {
@@ -293,7 +293,7 @@ function wireWindowLifecycleSignals(): void {
 function wireDockTileSignal(): void {
 	addAction(
 		HOOKS.DOCK_ITEM_APPENDED,
-		'wp-desktop-mode/recycle-bin/badge',
+		'desktop-mode/recycle-bin/badge',
 		( payload: { id?: string } ) => {
 			if ( payload?.id === TARGET_ID ) {
 				paintBadge( _current );
@@ -313,7 +313,7 @@ function wireDockTileSignal(): void {
 function wireDesktopIconsSignal(): void {
 	addAction(
 		HOOKS.DESKTOP_ICONS_RENDERED,
-		'wp-desktop-mode/recycle-bin/badge',
+		'desktop-mode/recycle-bin/badge',
 		( payload: { ids?: string[] } ) => {
 			if ( payload?.ids?.includes( TARGET_ID ) ) {
 				paintBadge( _current );
@@ -354,15 +354,15 @@ function wireBroadcastDeltas(): void {
 				break;
 		}
 	};
-	subscribe( 'wp-desktop.post.changed', onDomain );
-	subscribe( 'wp-desktop.page.changed', onDomain );
-	subscribe( 'wp-desktop.attachment.changed', onDomain );
-	subscribe( 'wp-desktop.comment.changed', onDomain );
+	subscribe( 'desktop-mode.post.changed', onDomain );
+	subscribe( 'desktop-mode.page.changed', onDomain );
+	subscribe( 'desktop-mode.attachment.changed', onDomain );
+	subscribe( 'desktop-mode.comment.changed', onDomain );
 }
 
 /**
  * Chromeless-iframe `postMessage` fast path. Every chromeless
- * admin render emits `{ type: 'wp-desktop-recycle-bin-changed',
+ * admin render emits `{ type: 'desktop-mode-recycle-bin-changed',
  * ts }` to the parent shell. We bump our high-water mark and
  * (when we have the URL) refetch the authoritative count.
  *
@@ -379,7 +379,7 @@ function wirePostMessageFastPath(): void {
 			| { type?: string; ts?: number }
 			| null
 			| undefined;
-		if ( ! data || data.type !== 'wp-desktop-recycle-bin-changed' ) {
+		if ( ! data || data.type !== 'desktop-mode-recycle-bin-changed' ) {
 			return;
 		}
 		const ts = typeof data.ts === 'number' ? data.ts : Date.now();
@@ -394,8 +394,8 @@ function wirePostMessageFastPath(): void {
 }
 
 /**
- * Heartbeat probe. Sends `wpdm_recycle_bin_seen_ts` on every
- * outgoing tick; reads `wpdm_recycle_bin: { ts, count }` off the
+ * Heartbeat probe. Sends `desktop_mode_recycle_bin_seen_ts` on every
+ * outgoing tick; reads `desktop_mode_recycle_bin: { ts, count }` off the
  * response. This is the catch-all channel — within 15 s (active
  * tab) or 60 s (background tab) of a mutation anywhere on the
  * site, the badge resyncs to the authoritative count.
@@ -424,13 +424,13 @@ function wireHeartbeatProbe(): void {
 	$( document ).on( 'heartbeat-tick', ( ...args: unknown[] ) => {
 		const response = args[ 1 ] as
 			| {
-				wpdm_recycle_bin?: {
+				desktop_mode_recycle_bin?: {
 					ts?: number;
 					count?: number;
 				};
 			}
 			| undefined;
-		const block = response?.wpdm_recycle_bin;
+		const block = response?.desktop_mode_recycle_bin;
 		log( 'heartbeat-tick', { hasBlock: !! block, block } );
 		if ( ! block ) {
 			return;

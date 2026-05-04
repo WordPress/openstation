@@ -16,7 +16,7 @@ export const styles = css`
 		align-items: center;
 		gap: 6px;
 		font-size: 13px;
-		color: var( --wp-desktop-text, #1d2327 );
+		color: var( --desktop-mode-text, #1d2327 );
 		cursor: pointer;
 	}
 

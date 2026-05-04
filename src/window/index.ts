@@ -353,9 +353,9 @@ export class Window {
 		this.element = createWindowElement( config );
 		this.iframe = config.native
 			? null
-			: ( this.element.querySelector( '.wp-desktop-window__iframe' ) as HTMLIFrameElement );
-		this._titleBar = this.element.querySelector( '.wp-desktop-window__titlebar' ) as HTMLElement;
-		this._titleEl = this.element.querySelector( '.wp-desktop-window__title' ) as HTMLElement;
+			: ( this.element.querySelector( '.desktop-mode-window__iframe' ) as HTMLIFrameElement );
+		this._titleBar = this.element.querySelector( '.desktop-mode-window__titlebar' ) as HTMLElement;
+		this._titleEl = this.element.querySelector( '.desktop-mode-window__title' ) as HTMLElement;
 		this._boundOnMessage = ( e: MessageEvent ) => handleWindowMessage( this, e );
 
 		this.bindEvents();
@@ -435,7 +435,7 @@ export class Window {
 
 		// Body-resize observer — fires inline `onResize( w, h )` +
 		// the `WINDOW_BODY_RESIZED` hook whenever the
-		// `.wp-desktop-window__body` element's dimensions change.
+		// `.desktop-mode-window__body` element's dimensions change.
 		// Measured on the BODY (not the outer window) so subscribers
 		// get the paintable area with title-bar + tab-strip already
 		// subtracted, matching what a canvas inside the body reads.
@@ -453,7 +453,7 @@ export class Window {
 		// has.
 		if ( config.initialState === 'minimized' ) {
 			this.state = 'minimized';
-			this.element.classList.add( 'wp-desktop-window--minimized' );
+			this.element.classList.add( 'desktop-mode-window--minimized' );
 			if ( this.iframe ) {
 				this.iframe.style.visibility = 'hidden';
 			}
@@ -473,15 +473,15 @@ export class Window {
 			config.initialState === 'snapped-right'
 		) {
 			this.element.classList.add(
-				`wp-desktop-window--${ config.initialState }`,
+				`desktop-mode-window--${ config.initialState }`,
 			);
 		}
 
 		// Fresh open (or restored to a visible state). Play the opening
 		// animation, then remove the class.
-		this.element.classList.add( 'wp-desktop-window--opening' );
+		this.element.classList.add( 'desktop-mode-window--opening' );
 		this.element.addEventListener( 'animationend', () => {
-			this.element.classList.remove( 'wp-desktop-window--opening' );
+			this.element.classList.remove( 'desktop-mode-window--opening' );
 		}, { once: true } );
 
 		// Maximized/fullscreen restores go through the class-driven path
@@ -521,7 +521,7 @@ export class Window {
 			return;
 		}
 		const rawBody = this.element.querySelector(
-			'.wp-desktop-window__body',
+			'.desktop-mode-window__body',
 		) as HTMLElement | null;
 		if ( ! rawBody ) {
 			return;
@@ -570,7 +570,7 @@ export class Window {
 				( err ) => {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							`[wp-desktop-mode] native render rejected for "${ this.id }":`,
+							`[desktop-mode] native render rejected for "${ this.id }":`,
 							err,
 						);
 					}
@@ -659,7 +659,7 @@ export class Window {
 	}
 
 	/**
-	 * Dispatch a `wp-desktop-window-changed` event so the session-save
+	 * Dispatch a `desktop-mode-window-changed` event so the session-save
 	 * path can schedule a debounced write.
 	 *
 	 * Called after any state change that should end up persisted: drag
@@ -671,7 +671,7 @@ export class Window {
 	 */
 	public _emitChange( reason: 'moved' | 'resized' | 'state' ): void {
 		document.dispatchEvent(
-			new CustomEvent( 'wp-desktop-window-changed', {
+			new CustomEvent( 'desktop-mode-window-changed', {
 				detail: { windowId: this.id, reason, state: this.state },
 			} ),
 		);
@@ -749,7 +749,7 @@ export class Window {
 		// intend to commit (they might release on a different
 		// thumbnail or the backdrop).
 		this.element.addEventListener( 'pointerdown', () => {
-			if ( this.element.classList.contains( 'wp-desktop-window--overview' ) ) {
+			if ( this.element.classList.contains( 'desktop-mode-window--overview' ) ) {
 				return;
 			}
 			this.onFocusRequest?.( this );
@@ -762,7 +762,7 @@ export class Window {
 		// those are handled by the shell-level window.blur listener
 		// that inspects document.activeElement.
 		this.element.addEventListener( 'focusin', () => {
-			if ( this.element.classList.contains( 'wp-desktop-window--overview' ) ) {
+			if ( this.element.classList.contains( 'desktop-mode-window--overview' ) ) {
 				return;
 			}
 			this.onFocusRequest?.( this );
@@ -778,7 +778,7 @@ export class Window {
 		// handler reads `data-dir` off the target to know which axes
 		// to move during the drag.
 		const resizeHandles = this.element.querySelectorAll<HTMLElement>(
-			'.wp-desktop-window__resize-handle',
+			'.desktop-mode-window__resize-handle',
 		);
 		resizeHandles.forEach( ( handle ) => {
 			handle.addEventListener( 'pointerdown', ( e: PointerEvent ) =>
@@ -796,10 +796,10 @@ export class Window {
 
 		// Title-bar actions menu (iframe windows only).
 		const menuBtn = this.element.querySelector<HTMLElement>(
-			'.wp-desktop-window__menu-btn',
+			'.desktop-mode-window__menu-btn',
 		);
 		const menuPanel = this.element.querySelector<HTMLElement>(
-			'.wp-desktop-window__menu-panel',
+			'.desktop-mode-window__menu-panel',
 		);
 		if ( menuBtn && menuPanel ) {
 			menuBtn.addEventListener( 'click', ( e: Event ) => {
@@ -807,7 +807,7 @@ export class Window {
 				toggleActionsMenu( this );
 			} );
 			const openAnother = menuPanel.querySelector(
-				'.wp-desktop-window__menu-item--open-another',
+				'.desktop-mode-window__menu-item--open-another',
 			);
 			if ( openAnother ) {
 				// `<wpd-menu-item>` emits `wpd-menu-item-click` on
@@ -821,7 +821,7 @@ export class Window {
 				} );
 			}
 			const openInNew = menuPanel.querySelector(
-				'.wp-desktop-window__menu-item--open-in-new-window',
+				'.desktop-mode-window__menu-item--open-in-new-window',
 			);
 			if ( openInNew ) {
 				openInNew.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
@@ -836,7 +836,7 @@ export class Window {
 			// needed. Click closes the menu first so the iframe
 			// reload doesn't compete with a still-painted popover.
 			const reload = menuPanel.querySelector(
-				'.wp-desktop-window__menu-item--reload',
+				'.desktop-mode-window__menu-item--reload',
 			);
 			if ( reload ) {
 				reload.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
@@ -846,7 +846,7 @@ export class Window {
 				} );
 			}
 			const openExternal = menuPanel.querySelector(
-				'.wp-desktop-window__menu-item--open-external',
+				'.desktop-mode-window__menu-item--open-external',
 			);
 			if ( openExternal ) {
 				openExternal.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
@@ -861,7 +861,7 @@ export class Window {
 			// callback is injected by the window manager so we don't
 			// couple the Window class to wp.desktop directly.
 			const startup = menuPanel.querySelector<HTMLElement>(
-				'.wp-desktop-window__menu-item--startup',
+				'.desktop-mode-window__menu-item--startup',
 			);
 			if ( startup ) {
 				refreshStartupCheckState( this, startup );
@@ -888,7 +888,7 @@ export class Window {
 				// menu open, where the canonical state from config
 				// takes over.
 				document.addEventListener(
-					'wp-desktop-default-window-changed',
+					'desktop-mode-default-window-changed',
 					() => {
 						refreshStartupCheckState( this, startup );
 					},
@@ -917,7 +917,7 @@ export class Window {
 		if ( this.iframe ) {
 			const iframe = this.iframe;
 
-			const tabs = this.element.querySelector( '.wp-desktop-window__tabs' );
+			const tabs = this.element.querySelector( '.desktop-mode-window__tabs' );
 			if ( tabs ) {
 				tabs.addEventListener( 'click', ( e: Event ) =>
 					handleTabStripClick( this, e ),
@@ -956,7 +956,7 @@ export class Window {
 
 	/** Mark this window as focused or unfocused. */
 	public setFocused( focused: boolean ): void {
-		this.element.classList.toggle( 'wp-desktop-window--focused', focused );
+		this.element.classList.toggle( 'desktop-mode-window--focused', focused );
 		this._notifyChromeStateChanged();
 	}
 
@@ -979,7 +979,7 @@ export class Window {
 	 */
 	public repaintWindowControls(): void {
 		const controlsHost = this.element.querySelector< HTMLElement >(
-			'.wp-desktop-window__controls',
+			'.desktop-mode-window__controls',
 		);
 		if ( ! controlsHost ) {
 			return;
@@ -1201,11 +1201,11 @@ export class Window {
 		const halfW = Math.floor( parent.clientWidth / 2 );
 		const height = parent.clientHeight;
 		this.element.classList.remove(
-			'wp-desktop-window--maximized',
-			'wp-desktop-window--snapped-left',
-			'wp-desktop-window--snapped-right',
+			'desktop-mode-window--maximized',
+			'desktop-mode-window--snapped-left',
+			'desktop-mode-window--snapped-right',
 		);
-		this.element.classList.add( `wp-desktop-window--snapped-${ zone }` );
+		this.element.classList.add( `desktop-mode-window--snapped-${ zone }` );
 		this.element.style.left = zone === 'left' ? '0px' : `${ halfW }px`;
 		this.element.style.top = '0px';
 		this.element.style.width = `${ halfW }px`;
@@ -1261,18 +1261,18 @@ export class Window {
 
 	/**
 	 * Predicate: is this window currently the focused (top of stack)
-	 * window? Reads the `wp-desktop-window--focused` class the manager
+	 * window? Reads the `desktop-mode-window--focused` class the manager
 	 * toggles in `focus()` so the result matches what's visible.
 	 *
 	 * @since 0.18.0
 	 */
 	public isFocused(): boolean {
-		return this.element.classList.contains( 'wp-desktop-window--focused' );
+		return this.element.classList.contains( 'desktop-mode-window--focused' );
 	}
 
 	public minimize(): void {
 		this.state = 'minimized';
-		this.element.classList.add( 'wp-desktop-window--minimized' );
+		this.element.classList.add( 'desktop-mode-window--minimized' );
 
 		// After the transition completes, hide the iframe to save
 		// resources. Native windows don't have an iframe to hide —
@@ -1299,7 +1299,7 @@ export class Window {
 		}
 
 		const wasMinimized = this.state === 'minimized';
-		this.element.classList.remove( 'wp-desktop-window--minimized' );
+		this.element.classList.remove( 'desktop-mode-window--minimized' );
 		if ( wasMinimized ) {
 			this.state = 'normal';
 		}
@@ -1341,7 +1341,7 @@ export class Window {
 			width: this.element.offsetWidth,
 			height: this.element.offsetHeight,
 		};
-		this.element.classList.add( 'wp-desktop-window--maximized' );
+		this.element.classList.add( 'desktop-mode-window--maximized' );
 		this.element.style.left = '0px';
 		this.element.style.top = '0px';
 		this.element.style.width = `${ parent.clientWidth }px`;
@@ -1362,7 +1362,7 @@ export class Window {
 			// Restore to saved geometry. The maximized class is removed
 			// *after* the next frame so the class-driven border-radius
 			// animates in sync.
-			this.element.classList.remove( 'wp-desktop-window--maximized' );
+			this.element.classList.remove( 'desktop-mode-window--maximized' );
 			if ( this._savedGeometry ) {
 				const restored = this.snapGeometry( this._savedGeometry );
 				this.element.style.left = `${ restored.x }px`;
@@ -1388,7 +1388,7 @@ export class Window {
 				width: this.element.offsetWidth,
 				height: this.element.offsetHeight,
 			};
-			this.element.classList.add( 'wp-desktop-window--maximized' );
+			this.element.classList.add( 'desktop-mode-window--maximized' );
 			this.element.style.left = '0px';
 			this.element.style.top = '0px';
 			this.element.style.width = `${ parent.clientWidth }px`;
@@ -1411,7 +1411,7 @@ export class Window {
 		if ( this.state === 'fullscreen' ) {
 			// Restore whichever state the window was in before
 			// fullscreen.
-			this.element.classList.remove( 'wp-desktop-window--fullscreen' );
+			this.element.classList.remove( 'desktop-mode-window--fullscreen' );
 			if ( this._savedFullscreenState ) {
 				const s = this._savedFullscreenState;
 				this.element.style.left = `${ s.x }px`;
@@ -1419,7 +1419,7 @@ export class Window {
 				this.element.style.width = `${ s.width }px`;
 				this.element.style.height = `${ s.height }px`;
 				this.element.classList.toggle(
-					'wp-desktop-window--maximized',
+					'desktop-mode-window--maximized',
 					s.state === 'maximized',
 				);
 				this.state = s.state;
@@ -1435,7 +1435,7 @@ export class Window {
 				width: this.element.offsetWidth,
 				height: this.element.offsetHeight,
 			};
-			this.element.classList.add( 'wp-desktop-window--fullscreen' );
+			this.element.classList.add( 'desktop-mode-window--fullscreen' );
 			this.state = 'fullscreen';
 		}
 		updateFullscreenBodyClass();
@@ -1455,13 +1455,13 @@ export class Window {
 	 */
 	private updateFocusButtonState(): void {
 		const btn = this.element.querySelector<HTMLButtonElement>(
-			'.wp-desktop-window__btn--focus',
+			'.desktop-mode-window__btn--focus',
 		);
 		if ( ! btn ) {
 			return;
 		}
 		const isFullscreen = this.state === 'fullscreen';
-		btn.classList.toggle( 'wp-desktop-window__btn--active', isFullscreen );
+		btn.classList.toggle( 'desktop-mode-window__btn--active', isFullscreen );
 		btn.setAttribute( 'aria-pressed', isFullscreen ? 'true' : 'false' );
 		btn.setAttribute(
 			'aria-label',
@@ -1473,10 +1473,10 @@ export class Window {
 	 * Open the window's current URL in a new browser tab as classic
 	 * wp-admin.
 	 *
-	 * Strips the chromeless `wp_desktop` flag and the transient
+	 * Strips the chromeless `desktop_mode_chromeless` flag and the transient
 	 * `desktop_mode_portal` flag, and tags the URL with
 	 * `desktop_mode_classic=1` so the server-side admin_init redirect
-	 * (which otherwise forwards plain admin URLs to `/wp-desktop/`)
+	 * (which otherwise forwards plain admin URLs to `/desktop-mode/`)
 	 * lets the request through. The tag only has to survive the first
 	 * request; once the browser renders the page, the user's in-tab
 	 * navigation returns to normal admin flow.
@@ -1495,7 +1495,7 @@ export class Window {
 		if ( url.origin !== INITIAL_ORIGIN ) {
 			return;
 		}
-		url.searchParams.delete( 'wp_desktop' );
+		url.searchParams.delete( 'desktop_mode_chromeless' );
 		url.searchParams.delete( 'desktop_mode_portal' );
 		url.searchParams.set( 'desktop_mode_classic', '1' );
 
@@ -1524,12 +1524,12 @@ export class Window {
 		}
 		// Guard against double-clicks during an in-flight reload — a
 		// second `location.reload()` while the first is still hydrating
-		// can desync the chromeless bridge's `wp-desktop-ready`
+		// can desync the chromeless bridge's `desktop-mode-ready`
 		// handshake. The body's `--loading` class is the upstream
 		// signal set by `markContentLoading()` and cleared on the
-		// next `wp-desktop-ready` postMessage.
-		const body = this.element.querySelector( '.wp-desktop-window__body' );
-		if ( body?.classList.contains( 'wp-desktop-window__body--loading' ) ) {
+		// next `desktop-mode-ready` postMessage.
+		const body = this.element.querySelector( '.desktop-mode-window__body' );
+		if ( body?.classList.contains( 'desktop-mode-window__body--loading' ) ) {
 			return;
 		}
 		// Resolve the target surface and its URL up-front, before any
@@ -1570,7 +1570,7 @@ export class Window {
 			};
 		}
 		// Click feedback first (independent of network latency), then
-		// arm the loading overlay (will be cleared by `wp-desktop-ready`),
+		// arm the loading overlay (will be cleared by `desktop-mode-ready`),
 		// then fire the actual reload, then notify subscribers.
 		this._spinReloadButton();
 		this.markContentLoading();
@@ -1596,18 +1596,18 @@ export class Window {
 	 */
 	private _spinReloadButton(): void {
 		const btn = this.element.querySelector(
-			'.wp-desktop-window__btn--reload',
+			'.desktop-mode-window__btn--reload',
 		);
 		if ( ! ( btn instanceof HTMLElement ) ) {
 			return;
 		}
-		btn.classList.remove( 'wp-desktop-window__btn--spinning' );
+		btn.classList.remove( 'desktop-mode-window__btn--spinning' );
 		void btn.offsetWidth;
-		btn.classList.add( 'wp-desktop-window__btn--spinning' );
+		btn.classList.add( 'desktop-mode-window__btn--spinning' );
 		btn.addEventListener(
 			'animationend',
 			() => {
-				btn.classList.remove( 'wp-desktop-window__btn--spinning' );
+				btn.classList.remove( 'desktop-mode-window__btn--spinning' );
 			},
 			{ once: true },
 		);
@@ -1624,10 +1624,10 @@ export class Window {
 	 */
 	public renderCustomTitleBarButtons(): void {
 		const leftSlot = this.element.querySelector< HTMLElement >(
-			'.wp-desktop-window__custom-buttons--left',
+			'.desktop-mode-window__custom-buttons--left',
 		);
 		const rightSlot = this.element.querySelector< HTMLElement >(
-			'.wp-desktop-window__custom-buttons--right',
+			'.desktop-mode-window__custom-buttons--right',
 		);
 		if ( ! leftSlot || ! rightSlot ) {
 			return;
@@ -1642,8 +1642,8 @@ export class Window {
 				paintTitleBarButtonIcon( host, def.icon );
 				host.setAttribute( 'aria-label', def.label );
 				host.setAttribute( 'title', def.label );
-				host.classList.add( 'wp-desktop-window__btn' );
-				host.classList.add( 'wp-desktop-window__btn--custom' );
+				host.classList.add( 'desktop-mode-window__btn' );
+				host.classList.add( 'desktop-mode-window__btn--custom' );
 				host.dataset.buttonId = def.id;
 				slot.appendChild( host );
 
@@ -1653,7 +1653,7 @@ export class Window {
 					} catch ( err ) {
 						if ( typeof console !== 'undefined' ) {
 							console.error(
-								'[wp-desktop-mode] title-bar-button render threw:',
+								'[desktop-mode] title-bar-button render threw:',
 								def.id,
 								err,
 							);
@@ -1675,7 +1675,7 @@ export class Window {
 						} catch ( err ) {
 							if ( typeof console !== 'undefined' ) {
 								console.error(
-									'[wp-desktop-mode] title-bar-button onClick threw:',
+									'[desktop-mode] title-bar-button onClick threw:',
 									def.id,
 									err,
 								);
@@ -1696,7 +1696,7 @@ export class Window {
 	 * same call regardless of how the window is rendered.
 	 *
 	 * **Iframe windows** (real iframes OR `iframeContent` natives):
-	 * the payload is delivered as `wp-desktop-window-send` via
+	 * the payload is delivered as `desktop-mode-window-send` via
 	 * `postMessage` and surfaces inside the iframe via
 	 * `wp.desktop.on( channel, cb )` (the iframe-bridge installs
 	 * the API on `wp.desktop`). Calls made before the iframe has
@@ -1735,7 +1735,7 @@ export class Window {
 			try {
 				target.contentWindow?.postMessage(
 					{
-						type: 'wp-desktop-window-send',
+						type: 'desktop-mode-window-send',
 						channel,
 						payload,
 					},
@@ -1744,14 +1744,14 @@ export class Window {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[wp-desktop-mode] Window.send: postMessage failed',
+						'[desktop-mode] Window.send: postMessage failed',
 						err,
 					);
 				}
 			}
 		};
 		// Buffer until the iframe announces it's ready. For real
-		// iframes that's `wp-desktop-ready` from the chromeless
+		// iframes that's `desktop-mode-ready` from the chromeless
 		// bridge; for synthetic iframes it's the iframe's `load`
 		// event. Both paths call `markWindowContentReady()` which
 		// flushes the queue in FIFO order.
@@ -1801,13 +1801,13 @@ export class Window {
 	 * resolves.
 	 *
 	 * The shell:
-	 *   - Adds the `wp-desktop-window__body--loading` modifier to
+	 *   - Adds the `desktop-mode-window__body--loading` modifier to
 	 *     the body (CSS fades the content out, fades the overlay
 	 *     in).
 	 *   - Re-attaches the overlay element if it was already torn
 	 *     down by a prior `markContentLoaded` call.
 	 *   - Fires the {@link HOOKS.WINDOW_CONTENT_LOADING} action +
-	 *     dispatches `wp-desktop-window-content-loading` on
+	 *     dispatches `desktop-mode-window-content-loading` on
 	 *     `document` (idempotent — no re-fire when already
 	 *     loading).
 	 *
@@ -1825,7 +1825,7 @@ export class Window {
 	 * overlay element after the transition lands.
 	 *
 	 * Iframe windows mark themselves ready automatically on the
-	 * `wp-desktop-ready` postMessage from the chromeless bridge.
+	 * `desktop-mode-ready` postMessage from the chromeless bridge.
 	 * Native windows mark themselves ready automatically after
 	 * their `render( body )` callback (or its returned `Promise`)
 	 * resolves. Plugins only call this directly when:
@@ -1877,7 +1877,7 @@ export class Window {
 	 *      cleared after `opts.durationMs`. No-op if the window has
 	 *      no rendered chrome.
 	 *
-	 * The mode + opts pass through the `wp-desktop.window.attention`
+	 * The mode + opts pass through the `desktop-mode.window.attention`
 	 * filter first so plugins (or a Do-Not-Disturb preference) can
 	 * mute (`return null`) or modify the request.
 	 *
@@ -1892,13 +1892,13 @@ export class Window {
 		opts: WindowAttentionOptions = {},
 	): void {
 		// Primary policy hook (since 0.5.5): plugins filter
-		// `wp-desktop/window-attention-requested` to cancel
+		// `desktop-mode/window-attention-requested` to cancel
 		// (`cancel: true`) for DND modes / reduced-motion, scale
 		// `durationMs`/`intensity`, or audit. The pre-0.5.5
-		// `wp-desktop.window.attention` filter still runs below
+		// `desktop-mode.window.attention` filter still runs below
 		// for back-compat.
 		const intent = activity.filter(
-			'wp-desktop/window-attention-requested',
+			'desktop-mode/window-attention-requested',
 			{
 				windowId: this.id,
 				mode,
@@ -1927,7 +1927,7 @@ export class Window {
 			WindowAttentionMode,
 			[ { windowId: string; opts: WindowAttentionOptions } ]
 		>(
-			'wp-desktop.window.attention',
+			'desktop-mode.window.attention',
 			intentMode,
 			{ windowId: this.id, opts: intentOpts },
 		);
@@ -1992,13 +1992,13 @@ export class Window {
 	 *
 	 * Reduced-motion fallback: a static accent ring for the same
 	 * duration. Authors who want a different visual can listen on
-	 * the JS filter `wp-desktop.window.shake` and return falsy to mute.
+	 * the JS filter `desktop-mode.window.shake` and return falsy to mute.
 	 *
 	 * @since 0.22.11
 	 */
 	public shake(): void {
 		const filtered = applyFilters< boolean, [ { windowId: string } ] >(
-			'wp-desktop.window.shake',
+			'desktop-mode.window.shake',
 			true,
 			{ windowId: this.id },
 		);
@@ -2006,13 +2006,13 @@ export class Window {
 			return;
 		}
 		const el = this.element;
-		el.classList.remove( 'wp-desktop-window--shaking' );
+		el.classList.remove( 'desktop-mode-window--shaking' );
 		// Force reflow so removing then re-adding the class re-triggers
 		// the animation. Reading `offsetWidth` is the canonical hack.
 		void el.offsetWidth;
-		el.classList.add( 'wp-desktop-window--shaking' );
+		el.classList.add( 'desktop-mode-window--shaking' );
 		const onEnd = (): void => {
-			el.classList.remove( 'wp-desktop-window--shaking' );
+			el.classList.remove( 'desktop-mode-window--shaking' );
 			el.removeEventListener( 'animationend', onEnd );
 		};
 		el.addEventListener( 'animationend', onEnd );
@@ -2150,7 +2150,7 @@ export class Window {
 		// its stack.
 		this.onClose?.( this );
 
-		this.element.classList.add( 'wp-desktop-window--closing' );
+		this.element.classList.add( 'desktop-mode-window--closing' );
 
 		let removed = false;
 		const onDone = (): void => {
@@ -2248,7 +2248,7 @@ export class Window {
 	 */
 	private installBodyResizeObserver(): ResizeObserver | null {
 		const body = this.element.querySelector(
-			'.wp-desktop-window__body',
+			'.desktop-mode-window__body',
 		) as HTMLElement | null;
 		if ( ! body ) {
 			return null;

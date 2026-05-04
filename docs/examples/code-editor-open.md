@@ -10,14 +10,14 @@ Pressing `Cmd+Shift+E` (macOS) / `Ctrl+Shift+E` (Linux/Windows) anywhere on the 
 
 The shortcut is gated by the same `edit_plugins` capability that gates the editor window itself, so users without the cap never get the affordance (the JS bundle isn't enqueued for them).
 
-## `wp-desktop-code-open` postMessage
+## `desktop-mode-code-open` postMessage
 
 Any frame on the desktop — an iframe-based plugin window, a chromeless wp-admin page, the shell itself — can request the editor open at a specific path + line by posting:
 
 ```js
 window.parent.postMessage(
     {
-        type: 'wp-desktop-code-open',
+        type: 'desktop-mode-code-open',
         path: 'plugins/my-plugin/main.php',
         line: 42, // optional, defaults to 1
     },
@@ -43,7 +43,7 @@ document.getElementById('my-view-source').addEventListener('click', (e) => {
     e.preventDefault();
     window.parent.postMessage(
         {
-            type: 'wp-desktop-code-open',
+            type: 'desktop-mode-code-open',
             path: 'plugins/my-plugin/admin/page.php',
             line: 1,
         },
@@ -66,7 +66,7 @@ wp.desktop.registerCommand( {
     run( args ) {
         const [ path, line ] = args.split( ':' );
         window.postMessage(
-            { type: 'wp-desktop-code-open', path, line: parseInt( line, 10 ) || 1 },
+            { type: 'desktop-mode-code-open', path, line: parseInt( line, 10 ) || 1 },
             window.location.origin
         );
     },
@@ -85,7 +85,7 @@ For JS code running in the same realm as the desktop shell (rare — most plugin
 wp.desktop.openWindow( 'wpdc-editor' );
 // then — once you know the editor is ready —
 window.postMessage(
-    { type: 'wp-desktop-code-open', path: '...', line: 12 },
+    { type: 'desktop-mode-code-open', path: '...', line: 12 },
     window.location.origin
 );
 ```

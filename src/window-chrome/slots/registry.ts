@@ -248,7 +248,7 @@ export function slotsForWindow(
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[wp-desktop-mode] window-slot "${ def.id }" match() threw — skipping`,
+					`[desktop-mode] window-slot "${ def.id }" match() threw — skipping`,
 					err,
 				);
 			}
@@ -278,7 +278,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[wp-desktop-mode] window-slot registry listener threw:',
+					'[desktop-mode] window-slot registry listener threw:',
 					err,
 				);
 			}

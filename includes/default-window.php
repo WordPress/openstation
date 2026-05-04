@@ -174,7 +174,7 @@ function desktop_mode_validate_default_window_url( $url ) {
 }
 
 /**
- * REST route: `POST /wp-desktop/v1/default-window`.
+ * REST route: `POST /desktop-mode/v1/default-window`.
  *
  * Body: `{ url: string | null }`. Null disables the default.
  *
@@ -182,7 +182,7 @@ function desktop_mode_validate_default_window_url( $url ) {
  */
 function desktop_mode_register_default_window_routes() {
 	register_rest_route(
-		'wp-desktop/v1',
+		'desktop-mode/v1',
 		'/default-window',
 		array(
 			'methods'             => 'POST',

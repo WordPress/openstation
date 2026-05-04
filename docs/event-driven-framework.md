@@ -33,7 +33,7 @@ hook the app can subscribe to?**
                                        │
                         ┌──────────────┴───────────────────────┐
                         │  Layer 2 — Window lifecycle           │
-                        │  wp-desktop-window-* CustomEvents    │
+                        │  desktop-mode-window-* CustomEvents    │
                         │  wp.hooks WINDOW_* actions           │
                         │  wp.desktop.onWindow( id, handlers ) │
                         ├──────────────────────────────────────┤
@@ -92,13 +92,13 @@ flavour fits.
 
 | CustomEvent | Detail |
 |---|---|
-| `wp-desktop-window-opened`      | `{ windowId, page, title, url }` |
-| `wp-desktop-window-reopened`    | `{ windowId, baseId, wasMinimized }` |
-| `wp-desktop-window-focused`     | `{ windowId }` |
-| `wp-desktop-window-blurred`     | `{ windowId, focusedTo }`  *(since 0.5.5)* |
-| `wp-desktop-window-closing`     | `{ windowId, element }` |
-| `wp-desktop-window-closed`      | `{ windowId }` |
-| `wp-desktop-window-changed`     | `{ windowId, reason, state }` |
+| `desktop-mode-window-opened`      | `{ windowId, page, title, url }` |
+| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized }` |
+| `desktop-mode-window-focused`     | `{ windowId }` |
+| `desktop-mode-window-blurred`     | `{ windowId, focusedTo }`  *(since 0.5.5)* |
+| `desktop-mode-window-closing`     | `{ windowId, element }` |
+| `desktop-mode-window-closed`      | `{ windowId }` |
+| `desktop-mode-window-changed`     | `{ windowId, reason, state }` |
 
 Same payloads on `wp.hooks` actions:
 `HOOKS.WINDOW_OPENED`, `…_FOCUSED`, `…_BLURRED`, `…_CLOSED`,
@@ -179,8 +179,8 @@ wp.desktop.registerWindow( {
 
 **The framework picks the delivery mechanism.** Iframe windows
 go via `postMessage` (the bridge translates `Window.send` to
-`wp-desktop-window-send` and `wp.desktop.send` back up to
-`wp-desktop-window-publish`). Native windows route in-process
+`desktop-mode-window-send` and `wp.desktop.send` back up to
+`desktop-mode-window-publish`). Native windows route in-process
 through the channel bus. Plugin authors **never** branch on
 window type and **never** reach for `postMessage` directly.
 
@@ -231,13 +231,13 @@ const safe = wp.desktop.activity.filter(
 ```
 
 Channels follow the convention `<plugin>/<event>`. The runtime
-routes them through `wp-desktop.activity.<channel>` on the hook
+routes them through `desktop-mode.activity.<channel>` on the hook
 bus, so devtools can list activity traffic as a discrete group.
 Type the payload by augmenting `ActivityChannelMap` in your own
 `.d.ts`:
 
 ```ts
-declare module 'wp-desktop-mode/activity' {
+declare module 'desktop-mode/activity' {
     interface ActivityChannelMap {
         'my-plugin/something-happened': { id: number; reason: string };
     }
@@ -249,19 +249,19 @@ mirrors here so plugins can subscribe through one unified API:
 
 | Channel | Filterable? | When it fires |
 |---|---|---|
-| `wp-desktop/toast-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-show on every `showToast()`. |
-| `wp-desktop/toast-shown` | No (post-render) | After the toast lands in the DOM. |
-| `wp-desktop/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` / `dock.setAttention()`. |
-| `wp-desktop/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` (since 0.24.0) so a single subscriber can compose across surfaces. |
-| `wp-desktop/open-requested` | No | Every `wp.desktop.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
-| `wp-desktop/presence-changed` | No | Every presence transition (mirror of the `wp-desktop-presence-changed` CustomEvent). |
-| `wp-desktop/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
+| `desktop-mode/toast-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-show on every `showToast()`. |
+| `desktop-mode/toast-shown` | No (post-render) | After the toast lands in the DOM. |
+| `desktop-mode/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` / `dock.setAttention()`. |
+| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` (since 0.24.0) so a single subscriber can compose across surfaces. |
+| `desktop-mode/open-requested` | No | Every `wp.desktop.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
+| `desktop-mode/presence-changed` | No | Every presence transition (mirror of the `desktop-mode-presence-changed` CustomEvent). |
+| `desktop-mode/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
 
 **Activity ↔ broadcast mirror.** `wp.desktop.broadcast(topic, payload)`
 publishes both onto the broadcast bus (cross-iframe, cross-tab)
 AND onto the activity bus (in-tab) under the same topic name.
 Use `broadcast` when peers might be in another iframe / tab
-(the recycle bin's `wp-desktop.data-changed` topic is the
+(the recycle bin's `desktop-mode.data-changed` topic is the
 canonical example); use `activity.publish` when you only need
 in-tab fan-out.
 
@@ -375,7 +375,7 @@ need to share state across bundles. Use
 `wp.desktop.createSharedStore('your-plugin/key', …)` — same
 shape, dedupes for free, namespaced.
 
-**Don't** wire a `document.addEventListener('wp-desktop-window-*', …)`
+**Don't** wire a `document.addEventListener('desktop-mode-window-*', …)`
 when `wp.desktop.onWindow(id, handlers)` already does the
 windowId filter for you. Faster to write, easier to type.
 

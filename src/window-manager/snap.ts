@@ -14,7 +14,7 @@ import { isValidCellSize } from './geometry';
 import type { WindowManager } from './index';
 
 /** Storage key for the snap-to-grid preference. */
-export const SNAP_STORAGE_KEY = 'wp-desktop-snap-to-grid';
+export const SNAP_STORAGE_KEY = 'desktop-mode-snap-to-grid';
 
 /** Read the persisted snap-enabled flag from localStorage at boot. */
 export function loadSnapEnabled(): boolean {

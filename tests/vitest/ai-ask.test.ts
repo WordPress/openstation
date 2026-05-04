@@ -22,7 +22,7 @@ import { createAsk } from '../../src/ai/ask';
 import { registerCommand, unregisterCommand } from '../../src/commands';
 
 const CONFIG = {
-	aiSearchUrl: 'https://example.test/wp-json/wp-desktop/v1/ai/search',
+	aiSearchUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/search',
 	restNonce: 'test-nonce',
 };
 

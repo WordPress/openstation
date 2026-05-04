@@ -69,7 +69,7 @@ describe( 'hooks.ts', () => {
 		expect( typeof raw.doAction ).toBe( 'function' );
 	} );
 
-	test( 'whenReady fires immediately if wp-desktop.init has already fired', async () => {
+	test( 'whenReady fires immediately if desktop-mode.init has already fired', async () => {
 		addAction( HOOKS.INIT, 'vitest/seed', () => undefined );
 		doAction( HOOKS.INIT );
 
@@ -82,7 +82,7 @@ describe( 'hooks.ts', () => {
 		expect( fired ).toBe( true );
 	} );
 
-	test( 'whenReady waits for wp-desktop.init when init has not fired', () => {
+	test( 'whenReady waits for desktop-mode.init when init has not fired', () => {
 		let fired = false;
 		whenReady( () => {
 			fired = true;
@@ -98,12 +98,12 @@ describe( 'hooks.ts', () => {
 		// Spot-check a few load-bearing names. A typo here would
 		// silently break every downstream consumer — the constants
 		// exist specifically to keep them in one place.
-		expect( HOOKS.INIT ).toBe( 'wp-desktop.init' );
-		expect( HOOKS.WALLPAPERS ).toBe( 'wp-desktop.wallpapers' );
-		expect( HOOKS.WINDOW_OPENED ).toBe( 'wp-desktop.window.opened' );
-		expect( HOOKS.OVERVIEW_ENTERING ).toBe( 'wp-desktop.overview.entering' );
+		expect( HOOKS.INIT ).toBe( 'desktop-mode.init' );
+		expect( HOOKS.WALLPAPERS ).toBe( 'desktop-mode.wallpapers' );
+		expect( HOOKS.WINDOW_OPENED ).toBe( 'desktop-mode.window.opened' );
+		expect( HOOKS.OVERVIEW_ENTERING ).toBe( 'desktop-mode.overview.entering' );
 		expect( HOOKS.ARRANGE_CASCADE_APPLIED ).toBe(
-			'wp-desktop.arrange.cascade.applied'
+			'desktop-mode.arrange.cascade.applied'
 		);
 	} );
 } );

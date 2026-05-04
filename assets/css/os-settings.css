@@ -10,12 +10,12 @@
  *
  * @since 0.5.0
  */
-.wp-desktop-os-settings {
+.desktop-mode-os-settings {
 	font-size: 13px;
 	line-height: 1.5;
 }
 
-.wp-desktop-os-settings__intro {
+.desktop-mode-os-settings__intro {
 	margin: 0 0 16px;
 	color: #50575e;
 }
@@ -27,7 +27,7 @@
  * per-surface visual choice, not a property of the component
  * itself. Targets the tag so shadow-DOM internals stay private.
  */
-.wp-desktop-os-settings wpd-section {
+.desktop-mode-os-settings wpd-section {
 	display: block;
 	margin: 0 0 20px;
 	padding: 16px 16px 18px;
@@ -41,7 +41,7 @@
  * layout — the panel reflows columns as OS Settings is resized,
  * rather than locking to a fixed 3-across.
  */
-.wp-desktop-os-settings__grid {
+.desktop-mode-os-settings__grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 140px, 1fr ) );
 	gap: 10px;
@@ -54,7 +54,7 @@
  * (so each tile shows meaningful preview area), and the 16:9
  * aspect ratio override. Everything else lives in the component.
  */
-.wp-desktop-os-settings__grid--wallpapers {
+.desktop-mode-os-settings__grid--wallpapers {
 	grid-template-columns: repeat( auto-fill, minmax( 160px, 1fr ) );
 }
 
@@ -67,7 +67,7 @@
  * legible on every preset and respects the tile's visual language
  * (rounded pill shape matches the selected-state corners).
  */
-.wp-desktop-os-settings__swatch-label {
+.desktop-mode-os-settings__swatch-label {
 	display: inline-block;
 	padding: 3px 10px;
 	font-size: 11px;
@@ -90,7 +90,7 @@
  * `__segment` rules moved into those component shadow-DOM
  * stylesheets; nothing at host level needs to override them. */
 
-.wp-desktop-os-settings__footer {
+.desktop-mode-os-settings__footer {
 	display: flex;
 	justify-content: flex-end;
 	margin-top: 12px;
@@ -102,7 +102,7 @@
  * than any outer descendant selector, and overriding it from outside
  * breaks the auto-swap (hidden panels stay visible). The component's
  * own `:host { display: block }` already handles the shown state. */
-.wp-desktop-os-settings wpd-tabs {
+.desktop-mode-os-settings wpd-tabs {
 	display: block;
 }
 
@@ -128,7 +128,7 @@
  * Collapses via the grid-template-rows 0fr → 1fr trick; TS drives
  * the `[data-expanded]` attribute on the slot wrapper.
  */
-.wp-desktop-os-settings__editor-slot {
+.desktop-mode-os-settings__editor-slot {
 	display: grid;
 	grid-template-rows: 0fr;
 	margin-top: 0;
@@ -139,13 +139,13 @@
 		opacity 0.2s ease;
 }
 
-.wp-desktop-os-settings__editor-slot[data-expanded="true"] {
+.desktop-mode-os-settings__editor-slot[data-expanded="true"] {
 	grid-template-rows: 1fr;
 	margin-top: 12px;
 	opacity: 1;
 }
 
-.wp-desktop-os-settings__editor-slot-inner {
+.desktop-mode-os-settings__editor-slot-inner {
 	overflow: hidden;
 	min-height: 0;
 	padding: 12px;
@@ -159,7 +159,7 @@
  * class (vs. scoping to __editor-slot-inner) so a future plugin
  * renderEditor can opt out of these per-control rules.
  */
-.wp-desktop-os-settings__gradient-editor-inner {
+.desktop-mode-os-settings__gradient-editor-inner {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -170,16 +170,16 @@
  * `<wpd-range-field>`. Each field owns its own label / control /
  * readout styling internally; only spacing between fields lives here.
  */
-.wp-desktop-os-settings__gradient-row {
+.desktop-mode-os-settings__gradient-row {
 	display: flex;
 	gap: 16px;
 }
 
-.wp-desktop-os-settings__gradient-row wpd-color-field {
+.desktop-mode-os-settings__gradient-row wpd-color-field {
 	flex: 1;
 }
 
-.wp-desktop-os-settings__gradient-editor-inner wpd-range-field {
+.desktop-mode-os-settings__gradient-editor-inner wpd-range-field {
 	margin-top: 12px;
 }
 
@@ -189,11 +189,11 @@
  * Empty state: dashed border, "+" glyph, drop-and-click zone.
  * Filled state: thumbnail preview that doubles as a wallpaper swatch.
  * --------------------------------------------------------------- */
-.wp-desktop-os-settings__uploader {
+.desktop-mode-os-settings__uploader {
 	margin-top: 16px;
 }
 
-.wp-desktop-os-settings__uploader-heading {
+.desktop-mode-os-settings__uploader-heading {
 	margin: 0 0 6px;
 	font-size: 12px;
 	font-weight: 600;
@@ -202,11 +202,11 @@
 	letter-spacing: 0.04em;
 }
 
-.wp-desktop-os-settings__file-input {
+.desktop-mode-os-settings__file-input {
 	display: none;
 }
 
-.wp-desktop-os-settings__upload-tile {
+.desktop-mode-os-settings__upload-tile {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -224,32 +224,32 @@
 	transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
 
-.wp-desktop-os-settings__upload-tile:hover {
+.desktop-mode-os-settings__upload-tile:hover {
 	border-color: var(--wp-admin-theme-color, #2271b1);
 	color: var(--wp-admin-theme-color, #2271b1);
 }
 
-.wp-desktop-os-settings__upload-tile:focus-within,
-.wp-desktop-os-settings__upload-tile:focus-visible {
+.desktop-mode-os-settings__upload-tile:focus-within,
+.desktop-mode-os-settings__upload-tile:focus-visible {
 	outline: 2px solid var(--wp-admin-theme-color, #2271b1);
 	outline-offset: 2px;
 }
 
-.wp-desktop-os-settings__upload-tile--dragover {
+.desktop-mode-os-settings__upload-tile--dragover {
 	border-style: solid;
 	border-color: var(--wp-admin-theme-color, #2271b1);
 	background-color: rgba(34, 113, 177, 0.06);
 	transform: scale(1.01);
 }
 
-.wp-desktop-os-settings__upload-tile--busy {
+.desktop-mode-os-settings__upload-tile--busy {
 	cursor: progress;
 	opacity: 0.8;
 }
 
 /* Filled state — thumbnail is the whole tile; selection uses the same
  * aria-pressed pattern as the other swatches. */
-.wp-desktop-os-settings__upload-tile--filled {
+.desktop-mode-os-settings__upload-tile--filled {
 	border-style: solid;
 	border-color: transparent;
 	padding: 0;
@@ -257,16 +257,16 @@
 	color: transparent;
 }
 
-.wp-desktop-os-settings__upload-tile--filled:hover {
+.desktop-mode-os-settings__upload-tile--filled:hover {
 	color: transparent;
 }
 
-.wp-desktop-os-settings__upload-tile[aria-pressed="true"] {
+.desktop-mode-os-settings__upload-tile[aria-pressed="true"] {
 	border-color: var(--wp-admin-theme-color, #2271b1);
 	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9) inset;
 }
 
-.wp-desktop-os-settings__upload-inner {
+.desktop-mode-os-settings__upload-inner {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -274,7 +274,7 @@
 	pointer-events: none;
 }
 
-.wp-desktop-os-settings__upload-plus {
+.desktop-mode-os-settings__upload-plus {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -288,27 +288,27 @@
 	color: inherit;
 }
 
-.wp-desktop-os-settings__upload-tile:hover .wp-desktop-os-settings__upload-plus {
+.desktop-mode-os-settings__upload-tile:hover .desktop-mode-os-settings__upload-plus {
 	background: rgba(34, 113, 177, 0.12);
 }
 
-.wp-desktop-os-settings__upload-prompt {
+.desktop-mode-os-settings__upload-prompt {
 	font-size: 13px;
 	font-weight: 500;
 }
 
-.wp-desktop-os-settings__upload-hint {
+.desktop-mode-os-settings__upload-hint {
 	font-size: 11px;
 	color: #8c8f94;
 }
 
-.wp-desktop-os-settings__upload-status {
+.desktop-mode-os-settings__upload-status {
 	font-size: 13px;
 	font-weight: 500;
 	color: #50575e;
 }
 
-.wp-desktop-os-settings__upload-error {
+.desktop-mode-os-settings__upload-error {
 	position: absolute;
 	inset-inline: 10px;
 	bottom: 10px;
@@ -327,7 +327,7 @@
  * with component-owned styling. Only the positioning on the
  * filled tile is caller-specific — stays here.
  */
-.wp-desktop-os-settings__upload-remove {
+.desktop-mode-os-settings__upload-remove {
 	position: absolute;
 	top: 8px;
 	inset-inline-end: 8px;
@@ -337,7 +337,7 @@
  * (src/ui/components/wpd-tabs/). Only the surrounding pane keeps
  * a host-level rule — it's an OS-Settings layout choice, not
  * component-intrinsic. */
-.wp-desktop-os-settings__tab-pane {
+.desktop-mode-os-settings__tab-pane {
 	min-height: 140px;
 }
 
@@ -347,7 +347,7 @@
  * Toolbar (search + HD toggle), responsive thumbnail grid, footer
  * with count + Load more button.
  * --------------------------------------------------------------- */
-.wp-desktop-os-settings__library-toolbar {
+.desktop-mode-os-settings__library-toolbar {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -355,7 +355,7 @@
 	flex-wrap: wrap;
 }
 
-.wp-desktop-os-settings__library-search {
+.desktop-mode-os-settings__library-search {
 	flex: 1;
 	min-width: 180px;
 	padding: 6px 10px;
@@ -367,7 +367,7 @@
 	color: #1d2327;
 }
 
-.wp-desktop-os-settings__library-search:focus {
+.desktop-mode-os-settings__library-search:focus {
 	border-color: var(--wp-admin-theme-color, #2271b1);
 	box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #2271b1);
 	outline: none;
@@ -375,14 +375,14 @@
 
 /* `__library-hd` now renders as `<wpd-checkbox-label>`. */
 
-.wp-desktop-os-settings__library-grid {
+.desktop-mode-os-settings__library-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
 	gap: 8px;
 	min-height: 140px;
 }
 
-.wp-desktop-os-settings__library-tile {
+.desktop-mode-os-settings__library-tile {
 	position: relative;
 	aspect-ratio: 16 / 10;
 	padding: 0;
@@ -397,24 +397,24 @@
 	transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
-.wp-desktop-os-settings__library-tile:hover {
+.desktop-mode-os-settings__library-tile:hover {
 	transform: translateY(-1px);
 	border-color: rgba(34, 113, 177, 0.4);
 }
 
-.wp-desktop-os-settings__library-tile:focus-visible {
+.desktop-mode-os-settings__library-tile:focus-visible {
 	outline: 2px solid var(--wp-admin-theme-color, #2271b1);
 	outline-offset: 2px;
 }
 
-.wp-desktop-os-settings__library-tile--selected,
-.wp-desktop-os-settings__library-tile[aria-pressed="true"] {
+.desktop-mode-os-settings__library-tile--selected,
+.desktop-mode-os-settings__library-tile[aria-pressed="true"] {
 	border-color: var(--wp-admin-theme-color, #2271b1);
 	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9) inset;
 }
 
 /* Dimension badge in the corner — readable over any thumbnail. */
-.wp-desktop-os-settings__library-tile-dims {
+.desktop-mode-os-settings__library-tile-dims {
 	position: absolute;
 	bottom: 4px;
 	inset-inline-end: 4px;
@@ -432,7 +432,7 @@
 
 /* Skeleton tiles during the first-page fetch. Animated subtle pulse
  * so the user perceives progress without us needing a spinner. */
-.wp-desktop-os-settings__library-tile--skeleton {
+.desktop-mode-os-settings__library-tile--skeleton {
 	cursor: default;
 	background: linear-gradient(
 		90deg,
@@ -441,15 +441,15 @@
 		#eef0f1 100%
 	);
 	background-size: 200% 100%;
-	animation: wp-desktop-library-shimmer 1.1s ease-in-out infinite;
+	animation: desktop-mode-library-shimmer 1.1s ease-in-out infinite;
 }
 
-.wp-desktop-os-settings__library-tile--skeleton:hover {
+.desktop-mode-os-settings__library-tile--skeleton:hover {
 	transform: none;
 	border-color: transparent;
 }
 
-@keyframes wp-desktop-library-shimmer {
+@keyframes desktop-mode-library-shimmer {
 	from {
 		background-position: 200% 0;
 	}
@@ -458,8 +458,8 @@
 	}
 }
 
-.wp-desktop-os-settings__library-empty,
-.wp-desktop-os-settings__library-error {
+.desktop-mode-os-settings__library-empty,
+.desktop-mode-os-settings__library-error {
 	grid-column: 1 / -1;
 	margin: 0;
 	padding: 24px 16px;
@@ -468,11 +468,11 @@
 	font-size: 12px;
 }
 
-.wp-desktop-os-settings__library-error {
+.desktop-mode-os-settings__library-error {
 	color: #b32d2e;
 }
 
-.wp-desktop-os-settings__library-footer {
+.desktop-mode-os-settings__library-footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -481,7 +481,7 @@
 	min-height: 24px;
 }
 
-.wp-desktop-os-settings__library-meta {
+.desktop-mode-os-settings__library-meta {
 	color: #8c8f94;
 	font-size: 11px;
 }
@@ -496,26 +496,26 @@
  * a glance rather than spread across each rule.
  * --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-	.wp-desktop-os-settings__editor-slot,
-	.wp-desktop-os-settings__upload-tile,
-	.wp-desktop-os-settings__library-tile,
+	.desktop-mode-os-settings__editor-slot,
+	.desktop-mode-os-settings__upload-tile,
+	.desktop-mode-os-settings__library-tile,
 	wpd-swatch {
 		transition-duration: 0.01ms !important;
 	}
 
-	.wp-desktop-os-settings__library-tile--skeleton {
+	.desktop-mode-os-settings__library-tile--skeleton {
 		animation: none;
 	}
 }
 
 /* AI settings section — error and saving feedback */
-.wp-desktop-ai-settings__error {
+.desktop-mode-ai-settings__error {
 	margin: 6px 0 0;
 	font-size: 12px;
 	color: #d63638;
 }
 
-.wp-desktop-ai-settings__saving {
+.desktop-mode-ai-settings__saving {
 	margin: 6px 0 0;
 	font-size: 12px;
 	color: #646970;
@@ -523,20 +523,20 @@
 }
 
 /* Extended options section — hint paragraph + error/saving states */
-.wp-desktop-ext__hint {
+.desktop-mode-ext__hint {
 	margin: 6px 0 0;
 	font-size: 12px;
 	color: #646970;
 	line-height: 1.5;
 }
 
-.wp-desktop-ext__error {
+.desktop-mode-ext__error {
 	margin: 6px 0 0;
 	font-size: 12px;
 	color: #d63638;
 }
 
-.wp-desktop-ext__saving {
+.desktop-mode-ext__saving {
 	margin: 6px 0 0;
 	font-size: 12px;
 	color: #646970;
@@ -548,25 +548,25 @@
  * (nav + detail) on desktop, stacks naturally on narrow windows via
  * the same container the OS Settings panel lives in.
  */
-.wp-desktop-os-settings__help-count {
+.desktop-mode-os-settings__help-count {
 	margin: 4px 0 0;
 	font-size: 12px;
 	color: #646970;
 }
 
-.wp-desktop-os-settings__help-layout {
+.desktop-mode-os-settings__help-layout {
 	display: grid;
 	grid-template-columns: 200px 1fr;
 	gap: 20px;
 }
 
 @container (max-width: 640px) {
-	.wp-desktop-os-settings__help-layout {
+	.desktop-mode-os-settings__help-layout {
 		grid-template-columns: 1fr;
 	}
 }
 
-.wp-desktop-os-settings__help-nav {
+.desktop-mode-os-settings__help-nav {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -578,7 +578,7 @@
 	border-radius: 8px;
 }
 
-.wp-desktop-os-settings__help-nav-item {
+.desktop-mode-os-settings__help-nav-item {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -594,28 +594,28 @@
 	color: inherit;
 }
 
-.wp-desktop-os-settings__help-nav-item:hover {
+.desktop-mode-os-settings__help-nav-item:hover {
 	background: #fff;
 	border-color: #dcdcde;
 }
 
-.wp-desktop-os-settings__help-nav-item.is-active {
+.desktop-mode-os-settings__help-nav-item.is-active {
 	background: #fff;
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.wp-desktop-os-settings__help-nav-title {
+.desktop-mode-os-settings__help-nav-title {
 	font-weight: 600;
 	font-size: 13px;
 }
 
-.wp-desktop-os-settings__help-nav-tag {
+.desktop-mode-os-settings__help-nav-tag {
 	font-family: Menlo, Consolas, monospace;
 	font-size: 11px;
 	color: #646970;
 }
 
-.wp-desktop-os-settings__help-detail {
+.desktop-mode-os-settings__help-detail {
 	min-width: 0;
 	padding: 16px 18px 18px;
 	background: #f6f7f7;
@@ -623,7 +623,7 @@
 	border-radius: 8px;
 }
 
-.wp-desktop-os-settings__help-head {
+.desktop-mode-os-settings__help-head {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
@@ -631,19 +631,19 @@
 	margin: 0 0 8px;
 }
 
-.wp-desktop-os-settings__help-title {
+.desktop-mode-os-settings__help-title {
 	margin: 0;
 	font-size: 16px;
 	font-weight: 600;
 }
 
-.wp-desktop-os-settings__help-code {
+.desktop-mode-os-settings__help-code {
 	font-family: Menlo, Consolas, monospace;
 	font-size: 12px;
 	color: #646970;
 }
 
-.wp-desktop-os-settings__help-badge {
+.desktop-mode-os-settings__help-badge {
 	padding: 1px 8px;
 	border-radius: 999px;
 	font-size: 11px;
@@ -654,31 +654,31 @@
 	color: #1d2327;
 }
 
-.wp-desktop-os-settings__help-badge.is-experimental {
+.desktop-mode-os-settings__help-badge.is-experimental {
 	background: #fcf9e8;
 	color: #996800;
 }
 
-.wp-desktop-os-settings__help-badge.is-planned {
+.desktop-mode-os-settings__help-badge.is-planned {
 	background: #e1e8ff;
 	color: #123fb3;
 }
 
-.wp-desktop-os-settings__help-since {
+.desktop-mode-os-settings__help-since {
 	font-size: 11px;
 	color: #646970;
 }
 
-.wp-desktop-os-settings__help-summary {
+.desktop-mode-os-settings__help-summary {
 	margin: 0 0 16px;
 	color: #1d2327;
 }
 
-.wp-desktop-os-settings__help-group {
+.desktop-mode-os-settings__help-group {
 	margin: 0 0 16px;
 }
 
-.wp-desktop-os-settings__help-group h4 {
+.desktop-mode-os-settings__help-group h4 {
 	margin: 0 0 8px;
 	font-size: 12px;
 	font-weight: 600;
@@ -687,35 +687,35 @@
 	color: #646970;
 }
 
-.wp-desktop-os-settings__help-example {
+.desktop-mode-os-settings__help-example {
 	padding: 16px;
 	background: #fff;
 	border: 1px dashed #c3c4c7;
 	border-radius: 6px;
 }
 
-.wp-desktop-os-settings__help-table {
+.desktop-mode-os-settings__help-table {
 	width: 100%;
 	border-collapse: collapse;
 	font-size: 12px;
 }
 
-.wp-desktop-os-settings__help-table th,
-.wp-desktop-os-settings__help-table td {
+.desktop-mode-os-settings__help-table th,
+.desktop-mode-os-settings__help-table td {
 	padding: 6px 8px;
 	border-bottom: 1px solid #dcdcde;
 	text-align: start;
 	vertical-align: top;
 }
 
-.wp-desktop-os-settings__help-table th {
+.desktop-mode-os-settings__help-table th {
 	font-weight: 600;
 	color: #646970;
 	background: #fff;
 }
 
-.wp-desktop-os-settings__help-table code,
-.wp-desktop-os-settings__help-list code {
+.desktop-mode-os-settings__help-table code,
+.desktop-mode-os-settings__help-list code {
 	font-family: Menlo, Consolas, monospace;
 	font-size: 11px;
 	padding: 1px 4px;
@@ -724,23 +724,23 @@
 	border-radius: 3px;
 }
 
-.wp-desktop-os-settings__help-list {
+.desktop-mode-os-settings__help-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.wp-desktop-os-settings__help-list li {
+.desktop-mode-os-settings__help-list li {
 	padding: 4px 0;
 	border-bottom: 1px solid #ececee;
 	font-size: 12px;
 }
 
-.wp-desktop-os-settings__help-list li:last-child {
+.desktop-mode-os-settings__help-list li:last-child {
 	border-bottom: 0;
 }
 
-.wp-desktop-os-settings__help-note {
+.desktop-mode-os-settings__help-note {
 	margin: 12px 0 0;
 	padding: 10px 12px;
 	background: #fcf9e8;
@@ -775,13 +775,13 @@
  * `:has()` is supported in every evergreen engine (Chrome 105+,
  * Safari 15.4+, Firefox 121+); fine for an admin-context shell.
  * --------------------------------------------------------------- */
-.wp-desktop-window__body--native:has( .wp-desktop-os-settings ) {
+.desktop-mode-window__body--native:has( .desktop-mode-os-settings ) {
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
 }
 
-.wp-desktop-os-settings {
+.desktop-mode-os-settings {
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -791,12 +791,12 @@
 /* The tab strip + footer must NOT shrink when the active panel
    wants more height. Marking them flex-shrink:0 also keeps them
    pinned visually as the panel below scrolls. */
-.wp-desktop-os-settings > wpd-tabs,
-.wp-desktop-os-settings > .wp-desktop-os-settings__footer {
+.desktop-mode-os-settings > wpd-tabs,
+.desktop-mode-os-settings > .desktop-mode-os-settings__footer {
 	flex: 0 0 auto;
 }
 
-.wp-desktop-os-settings > wpd-tabpanel {
+.desktop-mode-os-settings > wpd-tabpanel {
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
@@ -813,12 +813,12 @@
  * keep rendering when it should be hidden — bleeding the Components
  * UI into every other tab. Pinning the rule to the visible state
  * leaves the hidden state to the shadow-DOM default. */
-.wp-desktop-os-settings > wpd-tabpanel[ for='help' ]:not( [ hidden ] ) {
+.desktop-mode-os-settings > wpd-tabpanel[ for='help' ]:not( [ hidden ] ) {
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
 }
-.wp-desktop-os-settings
+.desktop-mode-os-settings
 	> wpd-tabpanel[ for='help' ]:not( [ hidden ] )
 	> wpd-panel {
 	flex: 1;
@@ -827,7 +827,7 @@
 	flex-direction: column;
 }
 
-.wp-desktop-os-settings__help {
+.desktop-mode-os-settings__help {
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -836,10 +836,10 @@
 }
 /* The intro card (Component library description) shouldn't grow —
    it's content-sized so the grid below gets the remaining height. */
-.wp-desktop-os-settings__help > wpd-section {
+.desktop-mode-os-settings__help > wpd-section {
 	flex: 0 0 auto;
 }
-.wp-desktop-os-settings__help-layout {
+.desktop-mode-os-settings__help-layout {
 	flex: 1;
 	min-height: 0;
 }
@@ -848,8 +848,8 @@
    shrinking in a grid item (default is `auto` which equals content
    height — would defeat the overflow). max-height:100% pins the
    pane to the grid track. */
-.wp-desktop-os-settings__help-nav,
-.wp-desktop-os-settings__help-detail {
+.desktop-mode-os-settings__help-nav,
+.desktop-mode-os-settings__help-detail {
 	min-height: 0;
 	max-height: 100%;
 	overflow-y: auto;

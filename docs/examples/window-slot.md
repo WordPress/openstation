@@ -2,7 +2,7 @@
 
 The title bar is composed of named **slots** — regions plugins can replace, augment, or empty per-window. This is **Layer 3** of the four-layer window-chrome customization framework. See [Window themes](./window-theme.md) for Layer 1 and [Window controls](./window-controls.md) for Layer 2.
 
-The slot host elements live inside the title bar with `data-slot="<name>"` attributes; CSS targets them via `.wp-desktop-window__slot--<name>`.
+The slot host elements live inside the title bar with `data-slot="<name>"` attributes; CSS targets them via `.desktop-mode-window__slot--<name>`.
 
 ## Available slots
 
@@ -68,7 +68,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-decorator',
         plugins_url( 'decorator.js', __FILE__ ),
-        array( 'wp-desktop' ),
+        array( 'desktop-mode' ),
         '1.0.0', true
     );
     wp_enqueue_script( 'my-decorator' );
@@ -144,8 +144,8 @@ wp.desktop.registerWindow( {
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `wp-desktop.window.chrome.slot` | filter | `( host, { windowId, slot, config } ) => host` | Mutate a slot's host element after content settles. Stable. |
-| `wp-desktop.window.chrome.applied` | action | `( { windowId, layer } )` | Fires with `layer: 'slots'` after a paint. Stable. |
+| `desktop-mode.window.chrome.slot` | filter | `( host, { windowId, slot, config } ) => host` | Mutate a slot's host element after content settles. Stable. |
+| `desktop-mode.window.chrome.applied` | action | `( { windowId, layer } )` | Fires with `layer: 'slots'` after a paint. Stable. |
 
 ---
 

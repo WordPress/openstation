@@ -6,7 +6,7 @@
  * Linear's command menu — frosted-glass backdrop, spring-physics panel
  * entrance, large search input, accent-tinted header.
  *
- * z-index 10000 puts this above --wp-desktop-z-adminbar (9991) so the
+ * z-index 10000 puts this above --desktop-mode-z-adminbar (9991) so the
  * overlay truly covers the full viewport. The panel itself is white/light
  * regardless of wallpaper, providing consistent contrast.
  *
@@ -17,7 +17,7 @@
  * Root overlay — full viewport, fades in/out
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai {
+.desktop-mode-ai {
 	position: fixed;
 	inset: 0;
 	z-index: 10000;
@@ -40,11 +40,11 @@
 
 /* [hidden] keeps the element out of the a11y tree between sessions.
    Only removed while the overlay is visually visible (open or animating). */
-.wp-desktop-ai[hidden] {
+.desktop-mode-ai[hidden] {
 	display: none;
 }
 
-.wp-desktop-ai.is-open {
+.desktop-mode-ai.is-open {
 	opacity: 1;
 	pointer-events: auto;
 }
@@ -53,7 +53,7 @@
  * Backdrop — frosted glass
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai__backdrop {
+.desktop-mode-ai__backdrop {
 	position: absolute;
 	inset: 0;
 	background: rgba( 0, 0, 0, 0.36 );
@@ -68,7 +68,7 @@
  * Panel — the visible card
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai__panel {
+.desktop-mode-ai__panel {
 	position: relative; /* sits above the backdrop */
 	width: 100%;
 	max-width: 600px;
@@ -90,7 +90,7 @@
 	will-change: transform;
 }
 
-.wp-desktop-ai.is-open .wp-desktop-ai__panel {
+.desktop-mode-ai.is-open .desktop-mode-ai__panel {
 	transform: scale( 1 ) translateY( 0 );
 }
 
@@ -98,7 +98,7 @@
  * Header — accent-tinted identity strip
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai__header {
+.desktop-mode-ai__header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -113,7 +113,7 @@
 	border-bottom: 1px solid rgba( 0, 0, 0, 0.06 );
 }
 
-.wp-desktop-ai__header-icon {
+.desktop-mode-ai__header-icon {
 	display: flex;
 	align-items: center;
 	color: var( --wp-admin-theme-color, #2271b1 );
@@ -123,7 +123,7 @@
 	);
 }
 
-.wp-desktop-ai__header-label {
+.desktop-mode-ai__header-label {
 	flex: 1;
 	font-size: 11px;
 	font-weight: 700;
@@ -132,13 +132,13 @@
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-/* .wp-desktop-ai__close styles moved to the bottom results section */
+/* .desktop-mode-ai__close styles moved to the bottom results section */
 
 /* ---------------------------------------------------------------------------
  * Input row — the main interaction surface
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai__input-wrap {
+.desktop-mode-ai__input-wrap {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -148,13 +148,13 @@
 	transition: border-color 0.15s ease;
 }
 
-.wp-desktop-ai__input-wrap:has( .wp-desktop-ai__input:focus ) {
+.desktop-mode-ai__input-wrap:has( .desktop-mode-ai__input:focus ) {
 	border-bottom-color: rgba( 0, 0, 0, 0.06 );
 }
 
 /* Input-row sparkle — visible always, tints toward the accent on focus
    so the panel reads as "AI assistant" rather than "search box". */
-.wp-desktop-ai__input-icon {
+.desktop-mode-ai__input-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -163,12 +163,12 @@
 	transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-.wp-desktop-ai__input-wrap:has( .wp-desktop-ai__input:focus ) .wp-desktop-ai__input-icon {
+.desktop-mode-ai__input-wrap:has( .desktop-mode-ai__input:focus ) .desktop-mode-ai__input-icon {
 	opacity: 1;
 	transform: scale( 1.08 );
 }
 
-.wp-desktop-ai__input {
+.desktop-mode-ai__input {
 	flex: 1;
 	min-width: 0;
 	appearance: none;
@@ -182,14 +182,14 @@
 	color: #1d2327;
 }
 
-.wp-desktop-ai__input::placeholder {
+.desktop-mode-ai__input::placeholder {
 	color: #c3c4c7;
 	font-weight: 400;
 }
 
 /* Submit button — hidden until the user types something, then
    springs in via opacity + scale transition. */
-.wp-desktop-ai__submit {
+.desktop-mode-ai__submit {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -210,21 +210,21 @@
 		transform 0.2s cubic-bezier( 0.34, 1.56, 0.64, 1 );
 }
 
-.wp-desktop-ai__submit.has-value {
+.desktop-mode-ai__submit.has-value {
 	opacity: 1;
 	transform: scale( 1 );
 	pointer-events: auto;
 }
 
-.wp-desktop-ai__submit:hover {
+.desktop-mode-ai__submit:hover {
 	filter: brightness( 1.1 );
 }
 
-.wp-desktop-ai__submit:active {
+.desktop-mode-ai__submit:active {
 	transform: scale( 0.92 );
 }
 
-.wp-desktop-ai__submit:focus-visible {
+.desktop-mode-ai__submit:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
@@ -233,7 +233,7 @@
  * Footer — hints and keyboard shortcut legend
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai__footer {
+.desktop-mode-ai__footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -243,12 +243,12 @@
 	border-top: 1px solid rgba( 0, 0, 0, 0.05 );
 }
 
-.wp-desktop-ai__footer-hint {
+.desktop-mode-ai__footer-hint {
 	font-size: 11px;
 	color: #a7aaad;
 }
 
-.wp-desktop-ai__footer-keys {
+.desktop-mode-ai__footer-keys {
 	display: flex;
 	align-items: center;
 	gap: 2px;
@@ -258,7 +258,7 @@
 	flex-shrink: 0;
 }
 
-.wp-desktop-ai__footer-keys kbd {
+.desktop-mode-ai__footer-keys kbd {
 	font-family: inherit;
 	font-size: 10px;
 	padding: 1px 5px;
@@ -272,17 +272,17 @@
  * Admin bar AI button — ⌘K badge + sparkle icon
  * Styles applied via wp_add_inline_style( 'admin-bar', ... ) in PHP.
  * The styles here are for reference; the actual output lives in
- * includes/admin-bar.php :: wpdm_enqueue_toggle_assets().
+ * includes/admin-bar.php :: desktop_mode_enqueue_toggle_assets().
  * ------------------------------------------------------------------------- */
 
 /* (The admin-bar button styles are added inline in PHP to keep them
-    on the admin-bar handle so they load even before wp-desktop.js.) */
+    on the admin-bar handle so they load even before desktop-mode.js.) */
 
 /* ---------------------------------------------------------------------------
  * Close button — × icon, top-right of header
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai__close {
+.desktop-mode-ai__close {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -299,13 +299,13 @@
 	transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
-.wp-desktop-ai__close:hover {
+.desktop-mode-ai__close:hover {
 	background: rgba( 0, 0, 0, 0.09 );
 	border-color: rgba( 0, 0, 0, 0.2 );
 	color: #1d2327;
 }
 
-.wp-desktop-ai__close:focus-visible {
+.desktop-mode-ai__close:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
@@ -317,7 +317,7 @@
  *   • Response      (assistant bubble + entity card | admin links | nothing)
  * ------------------------------------------------------------------------- */
 
-.wp-desktop-ai__results {
+.desktop-mode-ai__results {
 	border-top: 1px solid rgba( 0, 0, 0, 0.06 );
 	max-height: 420px;
 	overflow-y: auto;
@@ -332,7 +332,7 @@
  * Suggestion chips (empty state)
  * ---------------------------------------------------------------- */
 
-.wp-desktop-ai__suggestions-label {
+.desktop-mode-ai__suggestions-label {
 	margin: 0 0 4px;
 	font-size: 11px;
 	font-weight: 600;
@@ -341,13 +341,13 @@
 	color: #8c8f94;
 }
 
-.wp-desktop-ai__suggestions-list {
+.desktop-mode-ai__suggestions-list {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 }
 
-.wp-desktop-ai__suggestion {
+.desktop-mode-ai__suggestion {
 	appearance: none;
 	border: 1px solid rgba( 0, 0, 0, 0.1 );
 	background: rgba( 0, 0, 0, 0.02 );
@@ -360,7 +360,7 @@
 	transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
-.wp-desktop-ai__suggestion:hover {
+.desktop-mode-ai__suggestion:hover {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, rgba( 0, 0, 0, 0.1 ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
@@ -370,7 +370,7 @@
  * Thinking / error state
  * ---------------------------------------------------------------- */
 
-.wp-desktop-ai__state {
+.desktop-mode-ai__state {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -378,17 +378,17 @@
 	color: #646970;
 }
 
-.wp-desktop-ai__state--error {
+.desktop-mode-ai__state--error {
 	color: #d63638;
 	align-items: flex-start;
 }
 
-@keyframes wpdm-spin {
+@keyframes desktop-mode-spin {
 	to { transform: rotate( 360deg ); }
 }
 
-.wp-desktop-ai__spinner-icon {
-	animation: wpdm-spin 0.9s linear infinite;
+.desktop-mode-ai__spinner-icon {
+	animation: desktop-mode-spin 0.9s linear infinite;
 	flex-shrink: 0;
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
@@ -397,13 +397,13 @@
  * Assistant message bubble — prefix for every response
  * ---------------------------------------------------------------- */
 
-.wp-desktop-ai__bubble {
+.desktop-mode-ai__bubble {
 	display: flex;
 	align-items: flex-start;
 	gap: 10px;
 }
 
-.wp-desktop-ai__bubble-icon {
+.desktop-mode-ai__bubble-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -415,7 +415,7 @@
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.wp-desktop-ai__bubble-text {
+.desktop-mode-ai__bubble-text {
 	padding-top: 3px;
 	font-size: 13px;
 	line-height: 1.5;
@@ -429,37 +429,37 @@
    outer paragraphs so single-paragraph replies (the common case)
    don't get top/bottom spacing; list items get the usual disc/decimal
    markers inside a compact indent. */
-.wp-desktop-ai__bubble-text > p,
-.wp-desktop-ai__bubble-text > ul,
-.wp-desktop-ai__bubble-text > ol {
+.desktop-mode-ai__bubble-text > p,
+.desktop-mode-ai__bubble-text > ul,
+.desktop-mode-ai__bubble-text > ol {
 	margin: 0 0 6px;
 }
-.wp-desktop-ai__bubble-text > :last-child {
+.desktop-mode-ai__bubble-text > :last-child {
 	margin-bottom: 0;
 }
-.wp-desktop-ai__bubble-text ul,
-.wp-desktop-ai__bubble-text ol {
+.desktop-mode-ai__bubble-text ul,
+.desktop-mode-ai__bubble-text ol {
 	padding-inline-start: 20px;
 }
-.wp-desktop-ai__bubble-text li {
+.desktop-mode-ai__bubble-text li {
 	margin-bottom: 2px;
 }
-.wp-desktop-ai__bubble-text code {
+.desktop-mode-ai__bubble-text code {
 	background: rgba( 0, 0, 0, 0.05 );
 	padding: 1px 5px;
 	border-radius: 4px;
 	font-family: Menlo, Consolas, monospace;
 	font-size: 11.5px;
 }
-.wp-desktop-ai__bubble-text a {
+.desktop-mode-ai__bubble-text a {
 	color: var( --wp-admin-theme-color, #2271b1 );
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
-.wp-desktop-ai__bubble-text a:hover {
+.desktop-mode-ai__bubble-text a:hover {
 	text-decoration: none;
 }
-.wp-desktop-ai__bubble-text strong {
+.desktop-mode-ai__bubble-text strong {
 	font-weight: 600;
 	color: #1d2327;
 }
@@ -468,7 +468,7 @@
  * Entity card — shown under the bubble when answer_type=entity
  * ---------------------------------------------------------------- */
 
-.wp-desktop-ai__entity {
+.desktop-mode-ai__entity {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -478,14 +478,14 @@
 	border-radius: 10px;
 }
 
-.wp-desktop-ai__entity-header {
+.desktop-mode-ai__entity-header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	flex-wrap: wrap;
 }
 
-.wp-desktop-ai__entity-topic {
+.desktop-mode-ai__entity-topic {
 	display: inline-block;
 	font-size: 10px;
 	font-weight: 600;
@@ -497,7 +497,7 @@
 	border-radius: 999px;
 }
 
-.wp-desktop-ai__entity-type {
+.desktop-mode-ai__entity-type {
 	font-size: 10px;
 	font-weight: 600;
 	text-transform: uppercase;
@@ -505,7 +505,7 @@
 	color: #8c8f94;
 }
 
-.wp-desktop-ai__entity-title {
+.desktop-mode-ai__entity-title {
 	margin: 0;
 	font-size: 14px;
 	font-weight: 600;
@@ -513,7 +513,7 @@
 	line-height: 1.35;
 }
 
-.wp-desktop-ai__entity-summary {
+.desktop-mode-ai__entity-summary {
 	margin: 0;
 	font-size: 12px;
 	line-height: 1.5;
@@ -522,7 +522,7 @@
 
 /* Primary action — opens the entity in a legacy iframe window inside
    the desktop (wp-admin edit URL). */
-.wp-desktop-ai__entity-open {
+.desktop-mode-ai__entity-open {
 	appearance: none;
 	display: inline-flex;
 	align-items: center;
@@ -540,20 +540,20 @@
 	transition: filter 0.1s, transform 0.1s;
 }
 
-.wp-desktop-ai__entity-open:hover {
+.desktop-mode-ai__entity-open:hover {
 	filter: brightness( 1.1 );
 }
 
-.wp-desktop-ai__entity-open:active {
+.desktop-mode-ai__entity-open:active {
 	transform: scale( 0.97 );
 }
 
-.wp-desktop-ai__entity-open:focus-visible {
+.desktop-mode-ai__entity-open:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.wp-desktop-ai__entity-open svg {
+.desktop-mode-ai__entity-open svg {
 	margin-inline-start: 2px;
 }
 
@@ -561,13 +561,13 @@
  * Admin-links list — shown when answer_type=navigation
  * ---------------------------------------------------------------- */
 
-.wp-desktop-ai__admin-links {
+.desktop-mode-ai__admin-links {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 }
 
-.wp-desktop-ai__admin-link {
+.desktop-mode-ai__admin-link {
 	appearance: none;
 	display: flex;
 	align-items: center;
@@ -583,21 +583,21 @@
 	transition: background 0.12s, border-color 0.12s, transform 0.08s;
 }
 
-.wp-desktop-ai__admin-link:hover {
+.desktop-mode-ai__admin-link:hover {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 6%, #fff );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.wp-desktop-ai__admin-link:active {
+.desktop-mode-ai__admin-link:active {
 	transform: scale( 0.99 );
 }
 
-.wp-desktop-ai__admin-link:focus-visible {
+.desktop-mode-ai__admin-link:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.wp-desktop-ai__admin-link-icon {
+.desktop-mode-ai__admin-link-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -610,7 +610,7 @@
 	border-radius: 8px;
 }
 
-.wp-desktop-ai__admin-link-body {
+.desktop-mode-ai__admin-link-body {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
@@ -618,13 +618,13 @@
 	min-width: 0;
 }
 
-.wp-desktop-ai__admin-link-title {
+.desktop-mode-ai__admin-link-title {
 	font-size: 13px;
 	font-weight: 600;
 	color: #1d2327;
 }
 
-.wp-desktop-ai__admin-link-desc {
+.desktop-mode-ai__admin-link-desc {
 	font-size: 11px;
 	color: #646970;
 	line-height: 1.4;
@@ -633,13 +633,13 @@
 	white-space: nowrap;
 }
 
-.wp-desktop-ai__admin-link-arrow {
+.desktop-mode-ai__admin-link-arrow {
 	flex-shrink: 0;
 	color: #c3c4c7;
 	transition: color 0.12s, transform 0.12s;
 }
 
-.wp-desktop-ai__admin-link:hover .wp-desktop-ai__admin-link-arrow {
+.desktop-mode-ai__admin-link:hover .desktop-mode-ai__admin-link-arrow {
 	color: var( --wp-admin-theme-color, #2271b1 );
 	transform: translateX( 2px );
 }
@@ -651,13 +651,13 @@
  * uses a dedicated set of classes so each can evolve independently.
  * ---------------------------------------------------------------- */
 
-.wp-desktop-ai__cmd-list {
+.desktop-mode-ai__cmd-list {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-.wp-desktop-ai__cmd-item {
+.desktop-mode-ai__cmd-item {
 	appearance: none;
 	display: flex;
 	align-items: flex-start;
@@ -674,18 +674,18 @@
 }
 
 /*
- * Single-line rows (no `.wp-desktop-ai__cmd-desc` child) need the
+ * Single-line rows (no `.desktop-mode-ai__cmd-desc` child) need the
  * icon + label baseline-centered instead of top-aligned, otherwise
  * the label floats to the top of the taller icon tile and reads as
  * misaligned. `:has()` is widely supported in evergreen browsers the
  * desktop shell already targets.
  */
-.wp-desktop-ai__cmd-item:not(:has(.wp-desktop-ai__cmd-desc)) {
+.desktop-mode-ai__cmd-item:not(:has(.desktop-mode-ai__cmd-desc)) {
 	align-items: center;
 }
 
-.wp-desktop-ai__cmd-item:hover,
-.wp-desktop-ai__cmd-item.is-selected {
+.desktop-mode-ai__cmd-item:hover,
+.desktop-mode-ai__cmd-item.is-selected {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
@@ -698,21 +698,21 @@
  * from `:hover`. The JS toggles this class on the list container on
  * ArrowUp/Down and clears it on the next real `mousemove`.
  */
-.wp-desktop-ai__cmd-list--kb-nav .wp-desktop-ai__cmd-item:hover {
+.desktop-mode-ai__cmd-list--kb-nav .desktop-mode-ai__cmd-item:hover {
 	background: transparent;
 	border-color: transparent;
 }
-.wp-desktop-ai__cmd-list--kb-nav .wp-desktop-ai__cmd-item.is-selected:hover {
+.desktop-mode-ai__cmd-list--kb-nav .desktop-mode-ai__cmd-item.is-selected:hover {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.wp-desktop-ai__cmd-item:focus-visible {
+.desktop-mode-ai__cmd-item:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.wp-desktop-ai__cmd-icon {
+.desktop-mode-ai__cmd-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -729,7 +729,7 @@
  * Dashicons ship at a 20px baseline; the tile was scaled up but
  * dashicons glyphs need explicit sizing to follow.
  */
-.wp-desktop-ai__cmd-icon.dashicons {
+.desktop-mode-ai__cmd-icon.dashicons {
 	font-size: 22px;
 	width: 36px;
 	height: 36px;
@@ -742,13 +742,13 @@
  * centered inside the tile regardless of the viewBox the source icon
  * shipped with.
  */
-.wp-desktop-ai__cmd-icon--svg svg {
+.desktop-mode-ai__cmd-icon--svg svg {
 	width: 24px;
 	height: 24px;
 	fill: currentColor;
 }
 
-.wp-desktop-ai__cmd-body {
+.desktop-mode-ai__cmd-body {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
@@ -756,7 +756,7 @@
 	min-width: 0;
 }
 
-.wp-desktop-ai__cmd-title {
+.desktop-mode-ai__cmd-title {
 	font-size: 13px;
 	font-weight: 600;
 	color: #1d2327;
@@ -764,14 +764,14 @@
 	letter-spacing: -0.01em;
 }
 
-.wp-desktop-ai__cmd-hint {
+.desktop-mode-ai__cmd-hint {
 	font-weight: 400;
 	color: #8c8f94;
 	font-size: 12px;
 	margin-inline-start: 6px;
 }
 
-.wp-desktop-ai__cmd-desc {
+.desktop-mode-ai__cmd-desc {
 	font-size: 11.5px;
 	color: #646970;
 	line-height: 1.4;
@@ -781,7 +781,7 @@
 
 /* Args mode — a single row showing the locked-in command. Same
    visual language as the list item but with an "Enter to run" hint. */
-.wp-desktop-ai__cmd-active {
+.desktop-mode-ai__cmd-active {
 	display: flex;
 	align-items: flex-start;
 	gap: 10px;
@@ -791,14 +791,14 @@
 	border-radius: 8px;
 }
 
-.wp-desktop-ai__cmd-enter-hint {
+.desktop-mode-ai__cmd-enter-hint {
 	font-size: 11px;
 	color: #646970;
 	margin-top: 2px;
 	font-family: inherit;
 }
 
-.wp-desktop-ai__cmd-enter-hint kbd {
+.desktop-mode-ai__cmd-enter-hint kbd {
 	font-family: inherit;
 	font-size: 10px;
 	padding: 1px 4px;
@@ -812,14 +812,14 @@
    Visually identical to the command picker rows but without the
    border-highlight — the "active" glow already lives on the command
    header directly above. */
-.wp-desktop-ai__cmd-suggest-list {
+.desktop-mode-ai__cmd-suggest-list {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	margin-top: 6px;
 }
 
-.wp-desktop-ai__cmd-suggest-item {
+.desktop-mode-ai__cmd-suggest-item {
 	appearance: none;
 	display: flex;
 	align-items: flex-start;
@@ -835,20 +835,20 @@
 	transition: background 0.1s, border-color 0.1s;
 }
 
-.wp-desktop-ai__cmd-suggest-item:hover,
-.wp-desktop-ai__cmd-suggest-item.is-selected {
+.desktop-mode-ai__cmd-suggest-item:hover,
+.desktop-mode-ai__cmd-suggest-item.is-selected {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.wp-desktop-ai__cmd-suggest-label {
+.desktop-mode-ai__cmd-suggest-label {
 	font-size: 13px;
 	font-weight: 500;
 	color: #1d2327;
 }
 
 /* Empty / "no matches" state for the palette */
-.wp-desktop-ai__state--empty {
+.desktop-mode-ai__state--empty {
 	color: #8c8f94;
 	font-size: 13px;
 }
@@ -857,7 +857,7 @@
  * Continue button (budget-exhausted state)
  * ---------------------------------------------------------------- */
 
-.wp-desktop-ai__continue-btn {
+.desktop-mode-ai__continue-btn {
 	appearance: none;
 	display: inline-flex;
 	align-items: center;
@@ -875,7 +875,7 @@
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
-.wp-desktop-ai__continue-btn:hover {
+.desktop-mode-ai__continue-btn:hover {
 	background: rgba( 0, 0, 0, 0.04 );
 	border-color: rgba( 0, 0, 0, 0.3 );
 	color: #1d2327;

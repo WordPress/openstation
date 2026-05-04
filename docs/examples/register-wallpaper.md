@@ -1,6 +1,6 @@
 # Register a wallpaper
 
-The OS Settings wallpaper picker is registry-driven: every entry in the registry becomes a swatch users can select. Register your own via `wp.desktop.registerWallpaper()` from inside a `wp-desktop.init` action so the public API is guaranteed available.
+The OS Settings wallpaper picker is registry-driven: every entry in the registry becomes a swatch users can select. Register your own via `wp.desktop.registerWallpaper()` from inside a `desktop-mode.init` action so the public API is guaranteed available.
 
 Two types today: **CSS** (a static `background` value) and **canvas** (a plugin-managed DOM subtree, typically a WebGL/2D canvas).
 
@@ -21,7 +21,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_enqueue_script(
         'my-wallpaper',
         plugins_url( 'my-wallpaper.js', __FILE__ ),
-        array( 'wp-desktop' ),   // <- hooks into the shell
+        array( 'desktop-mode' ),   // <- hooks into the shell
         '1.0.0',
         true
     );
@@ -42,7 +42,7 @@ wp.desktop.ready( () => {
 } );
 ```
 
-The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--wp-desktop-bg` and persists the user's selection to `localStorage`.
+The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--desktop-mode-bg` and persists the user's selection to `localStorage`.
 
 ---
 
@@ -78,7 +78,7 @@ wp.desktop.ready( () => {
                 else app.ticker.start();
             };
             wp.hooks.addAction(
-                'wp-desktop.wallpaper.visibility',
+                'desktop-mode.wallpaper.visibility',
                 'my-plugin/particles-visibility',
                 onVisibility
             );
@@ -87,7 +87,7 @@ wp.desktop.ready( () => {
             // switching wallpapers leaks memory.
             return () => {
                 wp.hooks.removeAction(
-                    'wp-desktop.wallpaper.visibility',
+                    'desktop-mode.wallpaper.visibility',
                     'my-plugin/particles-visibility'
                 );
                 app.destroy( true );
@@ -163,12 +163,12 @@ wp.desktop.ready( () => {
 
 ## Removing or reordering built-ins
 
-The `wp-desktop.wallpapers` filter receives the full list — add, remove, or reorder in one shot.
+The `desktop-mode.wallpapers` filter receives the full list — add, remove, or reorder in one shot.
 
 ```javascript
 // Hide the stock 'aurora' preset.
 wp.hooks.addFilter(
-    'wp-desktop.wallpapers',
+    'desktop-mode.wallpapers',
     'my-plugin/hide-aurora',
     ( list ) => list.filter( ( w ) => w.id !== 'aurora' )
 );
@@ -178,5 +178,5 @@ wp.hooks.addFilter(
 
 ## Reference
 
-- [Hooks catalog](../javascript-reference.md#4-hooks--wp-desktop) — every `wp-desktop.*` hook with its payload shape.
+- [Hooks catalog](../javascript-reference.md#4-hooks--desktop-mode) — every `desktop-mode.*` hook with its payload shape.
 - [Wallpaper registration API](../javascript-reference.md#5-wallpaper-registration-api) — full `WallpaperDef` type.

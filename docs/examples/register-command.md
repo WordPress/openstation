@@ -21,7 +21,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_enqueue_script(
         'my-echo',
         plugins_url( 'my-echo.js', __FILE__ ),
-        array( 'wp-desktop' ),   // <- hooks into the shell
+        array( 'desktop-mode' ),   // <- hooks into the shell
         '1.0.0',
         true
     );
@@ -33,7 +33,7 @@ add_action( 'admin_enqueue_scripts', function () {
 ```javascript
 ( function () {
     // Wait until `wp.desktop` is available — the shell script loads
-    // independently of this one, so we use the `wp-desktop.init`
+    // independently of this one, so we use the `desktop-mode.init`
     // action which fires after the public API is mounted.
     wp.desktop.ready( function () {
         wp.desktop.registerCommand( {
@@ -79,7 +79,7 @@ wp.desktop.ready( function () {
                 '/wp-json/my-plugin/v1/enable-comments/' + id,
                 {
                     method:  'POST',
-                    headers: { 'X-WP-Nonce': wpDesktopConfig.restNonce },
+                    headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
                 }
             );
 
@@ -121,11 +121,11 @@ wp.desktop.registerCommand( {
 
 ## Recipe 4 — Extend the built-in `/open` command
 
-The shell ships with one built-in: `/open [window]`, which autocompletes every admin menu entry (dock + taskbar). Plugins that register native windows or custom destinations add themselves to its list via the `wp-desktop.open-command.items` filter:
+The shell ships with one built-in: `/open [window]`, which autocompletes every admin menu entry (dock + taskbar). Plugins that register native windows or custom destinations add themselves to its list via the `desktop-mode.open-command.items` filter:
 
 ```javascript
 wp.hooks.addFilter(
-    'wp-desktop.open-command.items',
+    'desktop-mode.open-command.items',
     'my-plugin/jorvy-in-open',
     function ( items ) {
         return [
@@ -153,8 +153,8 @@ wp.hooks.addFilter(
 The filter runs on every `/open` keystroke, so you can show/hide entries dynamically — e.g. only contribute your entry when the user has a specific capability:
 
 ```javascript
-wp.hooks.addFilter( 'wp-desktop.open-command.items', 'my-plugin/gate', ( items ) => {
-    if ( ! wpDesktopConfig.currentUserIsAdmin ) {
+wp.hooks.addFilter( 'desktop-mode.open-command.items', 'my-plugin/gate', ( items ) => {
+    if ( ! desktopModeConfig.currentUserIsAdmin ) {
         return items;
     }
     return [ ...items, { id: 'admin-tools', label: 'Admin Tools', ... } ];
@@ -177,7 +177,7 @@ wp.desktop.registerCommand( {
     // Suggestions are the static list of installed themes — loaded
     // once at registration time for this example.
     suggest: ( args ) => {
-        const themes = wpDesktopConfig.installedThemes || [];  // hypothetical
+        const themes = desktopModeConfig.installedThemes || [];  // hypothetical
         const q = args.trim().toLowerCase();
         return themes
             .filter( ( t ) => t.name.toLowerCase().includes( q ) )
@@ -192,7 +192,7 @@ wp.desktop.registerCommand( {
     run: async ( slug, ctx ) => {
         await fetch( `/wp-json/my-plugin/v1/switch-theme/${ slug }`, {
             method: 'POST',
-            headers: { 'X-WP-Nonce': wpDesktopConfig.restNonce },
+            headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
         } );
         ctx.close();
         return `Switched to **${ slug }**.`;
@@ -206,7 +206,7 @@ wp.desktop.registerCommand( {
 
 ## Recipe 6 — `/close_all_windows` with confirm + protect-list
 
-A destructive command that uses every plugin point: `ctx.confirm()` for the user prompt, `windowManager.closeAll()` for the batch op, and the `wp-desktop.windows.close-all` filter so any plugin can keep specific windows alive.
+A destructive command that uses every plugin point: `ctx.confirm()` for the user prompt, `windowManager.closeAll()` for the batch op, and the `desktop-mode.windows.close-all` filter so any plugin can keep specific windows alive.
 
 ```javascript
 wp.desktop.ready( function () {
@@ -234,16 +234,16 @@ wp.desktop.ready( function () {
 
 // Optional protect-list — keep the OS Settings window alive.
 wp.hooks.addFilter(
-    'wp-desktop.windows.close-all',
+    'desktop-mode.windows.close-all',
     'my-plugin/keep-os-settings',
-    ( windows ) => windows.filter( ( w ) => w.id !== 'wp-desktop-os-settings' )
+    ( windows ) => windows.filter( ( w ) => w.id !== 'desktop-mode-os-settings' )
 );
 ```
 
 `exceptIds` on the call site does the same thing:
 
 ```javascript
-wp.desktop.windowManager.closeAll( { exceptIds: [ 'wp-desktop-os-settings' ] } );
+wp.desktop.windowManager.closeAll( { exceptIds: [ 'desktop-mode-os-settings' ] } );
 ```
 
 The difference is **scope**: `exceptIds` applies only to one call site; the filter applies to every batch close anywhere on the page.

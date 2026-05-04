@@ -92,9 +92,9 @@ export class WpdSegmented extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--wp-desktop-window-bg', description: 'Pill background.' },
-			{ name: '--wp-desktop-text', description: 'Active label colour.' },
-			{ name: '--wp-desktop-muted', description: 'Inactive label colour.' },
+			{ name: '--desktop-mode-window-bg', description: 'Pill background.' },
+			{ name: '--desktop-mode-text', description: 'Active label colour.' },
+			{ name: '--desktop-mode-muted', description: 'Inactive label colour.' },
 		],
 		example: html`
 			<wpd-segmented value="md" label="Dock size">

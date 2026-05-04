@@ -4,7 +4,7 @@
 
 ## Why this exists
 
-Chromeless iframes (`?wp_desktop=1`) hide the admin bar, sidebar menu, and wp-footer. Most admin pages render correctly without modification. **Some don't** — because the plugin authoring them hardcoded assumptions about classic admin geometry into their CSS or menu registration. We can't ship a fix upstream for every plugin in the directory; instead, we maintain a small, documented **compatibility layer** that adapts the chromeless render to common patterns.
+Chromeless iframes (`?desktop_mode_chromeless=1`) hide the admin bar, sidebar menu, and wp-footer. Most admin pages render correctly without modification. **Some don't** — because the plugin authoring them hardcoded assumptions about classic admin geometry into their CSS or menu registration. We can't ship a fix upstream for every plugin in the directory; instead, we maintain a small, documented **compatibility layer** that adapts the chromeless render to common patterns.
 
 This doc is the contract: what the layer does, why each piece is there, and how to add a new fix when a plugin surfaces a new shape we haven't handled.
 
@@ -14,7 +14,7 @@ We try fixes in this order. Lower-numbered tiers cover broader plugin sets and h
 
 ### Tier 1 — CSS variable rebinds
 
-**File**: `assets/css/chromeless.css` (the rule near the top, scoped to `html.wp-toolbar:has( body.wp-desktop-chromeless )`).
+**File**: `assets/css/chromeless.css` (the rule near the top, scoped to `html.wp-toolbar:has( body.desktop-mode-chromeless )`).
 
 Core defines exactly two layout-related CSS custom properties on `<html>`:
 
@@ -75,7 +75,7 @@ Example shape (from the existing WC entry):
  *
  * Reclaim the reservation: pin to full iframe width.
  */
-.wp-desktop-chromeless .woocommerce-layout__header {
+.desktop-mode-chromeless .woocommerce-layout__header {
     width: 100% !important;
 }
 ```
@@ -123,15 +123,15 @@ Decision tree, in order:
 1. **Does the plugin use `var(...)` to read an admin-chrome dimension?** → Tier 1 already covers it. Verify by inspecting the iframe's computed styles.
 2. **Is the offending CSS rule a `top: <pixel>` on a positioned element, with an admin-bar-height pixel value?** → Tier 2 covers it. Verify the value is in the default set or extend via `desktop_mode_chromeless_admin_bar_top_values`.
 3. **Is the offending CSS rule selector-targetable and self-contained?** → Tier 3 — write a scoped CSS override in `chromeless.css`. Follow the docblock template above.
-4. **Is the breakage in menu data, not CSS?** → Add a dock-side adaptation in `includes/helpers.php` and a PHPUnit test under `tests/phpunit/tests/wpDesktopBuildDockItems.php` (or `wpDesktopMenuItemUrl.php` if it's a URL-builder issue).
+4. **Is the breakage in menu data, not CSS?** → Add a dock-side adaptation in `includes/helpers.php` and a PHPUnit test under `tests/phpunit/tests/desktopModeBuildDockItems.php` (or `desktopModeMenuItemUrl.php` if it's a URL-builder issue).
 5. **Is it none of the above?** Open an issue. Don't escalate to broad fixes (`overflow: hidden` on body, JS-rewriting stylesheets, etc.) without a discussion — those tend to break more than they fix.
 
 ## Test discipline
 
 Every menu-data adaptation gets a PHPUnit test that pins the plugin scenario it addresses. Look at:
 
-- `tests/phpunit/tests/wpDesktopBuildDockItems.php` — `test_parent_url_falls_through_to_first_submenu_when_different`, `test_skips_submenu_items_with_empty_title`, etc.
-- `tests/phpunit/tests/wpDesktopMenuItemUrl.php` — `test_routes_slug_with_embedded_query_params`, `test_routes_slug_with_multiple_embedded_query_params`, etc.
+- `tests/phpunit/tests/desktopModeBuildDockItems.php` — `test_parent_url_falls_through_to_first_submenu_when_different`, `test_skips_submenu_items_with_empty_title`, etc.
+- `tests/phpunit/tests/desktopModeMenuItemUrl.php` — `test_routes_slug_with_embedded_query_params`, `test_routes_slug_with_multiple_embedded_query_params`, etc.
 
 CSS-tier fixes don't have automated tests — they're verified by reloading the relevant plugin's window and inspecting the result. Document the verification steps in the docblock.
 

@@ -87,7 +87,7 @@ export interface WindowControlDef {
 	onClick?: ( window: DesktopWindow, ev: MouseEvent ) => void;
 	/**
 	 * Custom render. Receives the host element and the window. The
-	 * host already carries the icon, label, and `wp-desktop-window__btn`
+	 * host already carries the icon, label, and `desktop-mode-window__btn`
 	 * class; you typically only need to attach event listeners.
 	 */
 	render?: ( host: HTMLElement, window: DesktopWindow ) => void;
@@ -237,7 +237,7 @@ export function controlsForWindow(
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[wp-desktop-mode] window-control "${ def.id }" match() threw — skipping`,
+					`[desktop-mode] window-control "${ def.id }" match() threw — skipping`,
 					err,
 				);
 			}
@@ -274,7 +274,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[wp-desktop-mode] window-control registry listener threw:',
+					'[desktop-mode] window-control registry listener threw:',
 					err,
 				);
 			}
