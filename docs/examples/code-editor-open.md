@@ -1,6 +1,8 @@
 # Open a file in the Code editor (deep-link from any window)
 
-Phase 6 of the Code editor exposes two surfaces for opening a file from elsewhere on the desktop — one for plugin authors writing JavaScript inside an iframe window, one for the user.
+The Code editor ships as the standalone **Desktop Mode — Code Editor** extension (`extensions/desktop-mode-code-editor/`). The deep-link surfaces below only work when that plugin is active alongside Desktop Mode.
+
+The editor exposes two surfaces for opening a file from elsewhere on the desktop — one for plugin authors writing JavaScript inside an iframe window, one for the user.
 
 ## Cmd / Ctrl + Shift + E
 
@@ -27,7 +29,7 @@ Behaviour:
 
 - If the editor window is closed → it opens, then the message is replayed once the editor's render callback has mounted, then it scrolls to the requested line.
 - If the editor is already open → the message goes straight to the in-window listener, which fetches the file, opens (or focuses) a tab, and scrolls to the line.
-- The path is resolved through the editor's normal `wpdc_resolve_path()` safety check — `..` escapes, symlinks pointing outside the workspace, and disallowed extensions all fail closed.
+- The path is resolved through the editor's normal `desktop_mode_code_editor_resolve_path()` safety check — `..` escapes, symlinks pointing outside the workspace, and disallowed extensions all fail closed.
 
 ### Use case: "view source" link in a plugin's admin page
 

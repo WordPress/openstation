@@ -25,8 +25,6 @@ built=(
 	"assets/js/desktop.min.js"
 	"assets/js/iframe-bridge.js"
 	"assets/js/iframe-bridge.min.js"
-	"assets/js/code-editor.js"
-	"assets/js/code-editor.min.js"
 	"assets/js/recycle-bin.js"
 	"assets/js/recycle-bin.min.js"
 )

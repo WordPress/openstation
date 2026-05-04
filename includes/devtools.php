@@ -95,7 +95,7 @@ function desktop_mode_debug_transient_key( $session_id, $channel ) {
 function desktop_mode_debug_session_for_request() {
 	$raw = '';
 	if ( isset( $_SERVER['HTTP_X_WP_DEBUG_SESSION'] ) ) {
-		$raw = (string) wp_unslash( $_SERVER['HTTP_X_WP_DEBUG_SESSION'] );
+		$raw = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_WP_DEBUG_SESSION'] ) );
 	}
 	$raw = trim( $raw );
 	if ( '' === $raw ) {

@@ -85,13 +85,6 @@ function desktop_mode_register_assets() {
 		$version
 	);
 
-	wp_register_style(
-		'wp-desktop-code-editor',
-		DESKTOP_MODE_URL . 'assets/css/code-editor.css',
-		array( 'wp-desktop-variables', 'dashicons' ),
-		$version
-	);
-
 	// `filemtime` instead of the plugin-wide `$version` for the
 	// recycle-bin CSS — this file iterates faster than the bundle
 	// and we never want a stale CSS cache to mask a real fix.
@@ -138,25 +131,6 @@ function desktop_mode_register_assets() {
 		array(),
 		$built_version( 'assets/js/iframe-bridge' . $suffix . '.js' ),
 		true
-	);
-
-	// `wp-desktop-code-editor` — Monaco-backed code editor app. Loaded
-	// lazily by the native-window sync the first time the editor window
-	// opens; registers a render callback on
-	// `window.wpDesktopNativeWindows['wpdc-editor']`. The script itself
-	// is small (file tree + REST glue + Monaco bootstrap shim) — Monaco
-	// is loaded separately at runtime from `assets/vendor/monaco-editor`.
-	wp_register_script(
-		'wp-desktop-code-editor',
-		DESKTOP_MODE_URL . 'assets/js/code-editor' . $suffix . '.js',
-		array( 'wp-i18n' ),
-		$built_version( 'assets/js/code-editor' . $suffix . '.js' ),
-		true
-	);
-	wp_set_script_translations(
-		'wp-desktop-code-editor',
-		'desktop-mode',
-		DESKTOP_MODE_DIR . 'languages'
 	);
 
 	// `wp-desktop-recycle-bin` — small bundle for the Recycle Bin
