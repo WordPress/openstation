@@ -1164,7 +1164,6 @@ function init(): void {
 			aiPlatformSettingsUrl: config.aiPlatformSettingsUrl ?? '',
 			extendedOptions: config.extendedOptions ?? null,
 			extendedOptionsUrl: config.extendedOptionsUrl ?? '',
-			marketplaceUrl: config.marketplaceUrl ?? '',
 		},
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);

@@ -66,7 +66,6 @@ import { buildAiSection } from './sections/ai';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildExtendedSection } from './sections/extended';
-import { buildExtensionsSection } from './sections/extensions';
 import { buildHelpSection } from './sections/help';
 import {
 	buildWallpaperSection,
@@ -112,7 +111,8 @@ export class OsSettings implements SettingsCtx {
 	 * Most-recent active settings tab id, captured from
 	 * `wpd-tab-change`. Used to keep the user on whatever tab they
 	 * picked when a registry mutation forces the panel to re-render
-	 * (e.g. after a marketplace install / activate).
+	 * (e.g. when a third-party plugin live-registers a new settings
+	 * tab via the chromeless plugins-changed bridge).
 	 */
 	private activeTabId: string | null = null;
 
@@ -333,16 +333,6 @@ export class OsSettings implements SettingsCtx {
 					<wpd-panel>${ buildHelpSection() }</wpd-panel>
 				</wpd-tabpanel>`,
 			} );
-			rows.push( {
-				id: 'extensions',
-				order: 50,
-				tab: html`<wpd-tab value="extensions"
-					>${ __( 'Extensions' ) }</wpd-tab
-				>`,
-				panel: html`<wpd-tabpanel for="extensions">
-					<wpd-panel>${ buildExtensionsSection( this ) }</wpd-panel>
-				</wpd-tabpanel>`,
-			} );
 		}
 
 		for ( const tab of externalTabs ) {
@@ -386,10 +376,11 @@ export class OsSettings implements SettingsCtx {
 		rows.sort( ( a, b ) => a.order - b.order );
 
 		// Preserve the active tab across re-renders triggered by the
-		// settings-tab registry (e.g. when a marketplace activation
-		// fires a payload refresh that mutates the registry). Without
-		// this, every refreshMenu() snaps the user back to the
-		// Appearance tab mid-action.
+		// settings-tab registry (e.g. when a third-party plugin live-
+		// registers a settings tab via the chromeless bridge and we
+		// rebuild the strip in response). Without this, every
+		// refreshMenu() snaps the user back to the Appearance tab
+		// mid-action.
 		//
 		// `<wpd-tabs>` keeps the live selected value on the JS property,
 		// not the attribute — `getAttribute('value')` would always

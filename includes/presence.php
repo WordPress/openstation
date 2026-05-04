@@ -1,4 +1,5 @@
 <?php
+defined( 'ABSPATH' ) || exit;
 /**
  * Desktop Mode — framework-level presence.
  *
@@ -50,8 +51,6 @@
  * @package WPDesktopMode
  * @since   0.5.5
  */
-
-defined( 'ABSPATH' ) || exit;
 
 const WP_DESKTOP_PRESENCE_OPTION = '_wp_desktop_presence';
 

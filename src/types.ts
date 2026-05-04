@@ -1591,13 +1591,6 @@ export interface DesktopConfig {
 	 * @since 0.14.0
 	 */
 	extendedOptionsUrl?: string;
-	/**
-	 * Base REST URL for the extensions marketplace, no trailing slash.
-	 * Sub-routes (`/extensions`, `/install`, …) are appended at the call
-	 * site.
-	 * @since 0.6.0
-	 */
-	marketplaceUrl?: string;
 }
 
 /**
