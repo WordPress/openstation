@@ -30,6 +30,7 @@
 /tests/             export-ignore
 /composer.json      export-ignore
 /composer.lock      export-ignore
+/phpcs.xml.dist     export-ignore
 
 # Developer-facing docs (linked from readme.txt → GitHub)
 /docs/              export-ignore
