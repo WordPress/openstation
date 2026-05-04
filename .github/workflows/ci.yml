@@ -70,21 +70,27 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Package release zip
+        run: npm run package
+
+      - name: Unzip release into build dir
+        run: unzip -q desktop-mode.zip -d plugin-check-build
+
       - name: Run Plugin Check
         uses: wordpress/plugin-check-action@v1
         with:
-          build-dir: ./
-          exclude-directories: |
-            node_modules
-            tests
-            bin
-            docs
-            extensions
-          exclude-files: |
-            .gitattributes
-            .eslintignore
-            .eslintrc.cjs
-            .nvmrc
-            .wp-env.json
-            phpcs.xml.dist
+          build-dir: ./plugin-check-build/desktop-mode
           ignore-warnings: true
