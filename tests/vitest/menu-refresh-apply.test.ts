@@ -15,8 +15,14 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
-import { createApplyPayload } from '../../src/menu-refresh-apply';
-import type { MenuRefreshDeps } from '../../src/menu-refresh-apply';
+import {
+	createApplyPayload,
+	REGISTRY_CHANGED_EVENT,
+} from '../../src/menu-refresh-apply';
+import type {
+	MenuRefreshDeps,
+	RegistryChangedDetail,
+} from '../../src/menu-refresh-apply';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { DesktopConfig } from '../../src/types';
 import type { WindowManager } from '../../src/window-manager';
@@ -221,6 +227,107 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 			expect( renderIcons ).not.toHaveBeenCalled();
 			expect( config.desktopIcons ).toBe( prior );
+		} );
+	} );
+
+	// `desktop-mode-registry-changed` is the public CustomEvent
+	// plugin authors subscribe to in order to react to peer plugins
+	// being activated/deactivated mid-session. The event name is
+	// project-prefixed (NOT `wp-desktop-*`) per WordPress plugin
+	// reviewer guidelines that reserve `wp-` for Core.
+	describe( 'desktop-mode-registry-changed CustomEvent', () => {
+		function captureEvents(): {
+			events: RegistryChangedDetail[];
+			cleanup: () => void;
+		} {
+			const events: RegistryChangedDetail[] = [];
+			const handler = ( e: Event ): void => {
+				events.push(
+					( e as CustomEvent< RegistryChangedDetail > ).detail,
+				);
+			};
+			document.addEventListener( REGISTRY_CHANGED_EVENT, handler );
+			return {
+				events,
+				cleanup: () =>
+					document.removeEventListener( REGISTRY_CHANGED_EVENT, handler ),
+			};
+		}
+
+		test( 'fires for native-windows added (plugin activated)', () => {
+			const { deps } = makeDeps();
+			const apply = createApplyPayload( deps );
+			const { events, cleanup } = captureEvents();
+
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				nativeWindows: [ { id: 'jorvy' } ],
+			} );
+
+			cleanup();
+			const nw = events.find( ( e ) => e.registry === 'native-windows' );
+			expect( nw ).toBeDefined();
+			expect( nw?.added ).toEqual( [ 'jorvy' ] );
+			expect( nw?.removed ).toEqual( [] );
+		} );
+
+		test( 'fires for desktop-icons removed (plugin deactivated)', () => {
+			const { deps, config } = makeDeps();
+			config.desktopIcons = [
+				{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
+			] as DesktopConfig[ 'desktopIcons' ];
+			const apply = createApplyPayload( deps );
+			const { events, cleanup } = captureEvents();
+
+			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: [] } );
+
+			cleanup();
+			const di = events.find( ( e ) => e.registry === 'desktop-icons' );
+			expect( di ).toBeDefined();
+			expect( di?.added ).toEqual( [] );
+			expect( di?.removed ).toEqual( [ 'jorvy' ] );
+		} );
+
+		test( 'fires for dock-items diff', () => {
+			const { deps, config } = makeDeps();
+			config.dockItems = [
+				{ id: 'dashboard' },
+				{ id: 'plugins' },
+			] as DesktopConfig[ 'dockItems' ];
+			const apply = createApplyPayload( deps );
+			const { events, cleanup } = captureEvents();
+
+			apply( {
+				dockItems: [
+					{ id: 'dashboard' },
+					{ id: 'jorvy' },
+				] as DesktopConfig[ 'dockItems' ],
+			} );
+
+			cleanup();
+			const dock = events.find( ( e ) => e.registry === 'dock-items' );
+			expect( dock ).toBeDefined();
+			expect( dock?.added ).toEqual( [ 'jorvy' ] );
+			expect( dock?.removed ).toEqual( [ 'plugins' ] );
+		} );
+
+		test( 'no event when ids unchanged (idempotent re-apply)', () => {
+			const { deps, config } = makeDeps();
+			config.nativeWindows = [
+				{ id: 'jorvy' },
+			] as DesktopConfig[ 'nativeWindows' ];
+			const apply = createApplyPayload( deps );
+			const { events, cleanup } = captureEvents();
+
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				nativeWindows: [ { id: 'jorvy' } ],
+			} );
+
+			cleanup();
+			expect(
+				events.filter( ( e ) => e.registry === 'native-windows' ),
+			).toHaveLength( 0 );
 		} );
 	} );
 

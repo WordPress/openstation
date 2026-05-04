@@ -670,6 +670,7 @@ export function createNativeWindowSync(
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
 	const loadedScripts = new Set< string >();
+	const loadedStyles = new Set< string >();
 	// Entry index — `openById` reaches in here when the desktop-icon
 	// or AI-command paths request "open whatever's registered as <id>".
 	// Always reflects the most recent sync.
@@ -694,6 +695,58 @@ export function createNativeWindowSync(
 		tpl.innerHTML = entry.templateHtml;
 		document.body.appendChild( tpl );
 		injectedTemplates.add( entry.templateId );
+	};
+
+	const ensureStyle = ( entry: NativeWindowServerEntry ): void => {
+		const url = entry.styleUrl;
+		if ( ! url || loadedStyles.has( url ) ) {
+			return;
+		}
+		// `wp_print_styles` already ran when the parent shell page was
+		// rendered, but a plugin activated mid-session never got its
+		// `admin_enqueue_scripts` callback hit on this page. Inject the
+		// `<link>` ourselves so the window's CSS lands before the
+		// render callback queries the body for mount points.
+		//
+		// Idempotent on every dimension we care about: tracked by URL
+		// in `loadedStyles`, AND a defensive `head` lookup so a
+		// server-rendered `<link>` (plugin active at boot) is detected
+		// and skipped — same shape as `ensureTemplate`'s guard.
+		// Defensive lookup against `<link>`s the server printed at boot
+		// (plugin active at page load) so we don't duplicate. Escape `\`
+		// and `"` for the attribute selector — the URL is resolved by
+		// PHP `wp_styles()` so any character is fair game.
+		const safeUrl = url.replace( /\\/g, '\\\\' ).replace( /"/g, '\\"' );
+		const existing = document.head.querySelector< HTMLLinkElement >(
+			`link[rel="stylesheet"][href="${ safeUrl }"]`,
+		);
+		if ( ! existing ) {
+			const link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.href = url;
+			if ( entry.styleHandle ) {
+				link.dataset.wpdmStyleHandle = entry.styleHandle;
+			}
+			document.head.appendChild( link );
+		}
+		// Replay `wp_add_inline_style` blobs as a single `<style>` after
+		// the link so the cascade matches what the print pipeline would
+		// have written. One blob per inline string keeps stack traces
+		// useful in DevTools when a rule misbehaves.
+		if ( Array.isArray( entry.styleInline ) ) {
+			for ( const css of entry.styleInline ) {
+				if ( typeof css !== 'string' || css === '' ) {
+					continue;
+				}
+				const style = document.createElement( 'style' );
+				if ( entry.styleHandle ) {
+					style.dataset.wpdmStyleHandle = entry.styleHandle;
+				}
+				style.textContent = css;
+				document.head.appendChild( style );
+			}
+		}
+		loadedStyles.add( url );
 	};
 
 	const ensureScript = async (
@@ -781,12 +834,14 @@ export function createNativeWindowSync(
 			// `wp.desktop.windowManager.open()`. Nothing to
 			// register on the rails.
 			ensureTemplate( entry );
+			ensureStyle( entry );
 			await ensureScript( entry );
 			registered.add( entry.id );
 			return;
 		}
 
 		ensureTemplate( entry );
+		ensureStyle( entry );
 		await ensureScript( entry );
 
 		appendSystemTile( {

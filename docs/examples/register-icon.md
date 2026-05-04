@@ -22,6 +22,13 @@ desktop_mode_register_window( 'jorvy', array(
     'width'    => 320,
     'height'   => 180,
     'script'   => 'jorvy-desktop',
+    // Optional: associate a registered style handle with the window.
+    // The shell injects a `<link rel="stylesheet">` for it on
+    // mid-session activation — without this, a peer plugin activated
+    // from inside an open shell renders its window with no CSS until
+    // the user reloads, because `wp_print_styles` already ran for the
+    // parent shell page. @since 0.18.1
+    'style'    => 'jorvy-desktop',
     'template' => function () {
         ?>
         <div class="jorvy">
@@ -54,6 +61,16 @@ add_action( 'admin_enqueue_scripts', function () {
         array( 'wp-desktop' ),
         '1.0.0',
         true
+    );
+    // Match: register the style handle named in `'style' => …` above.
+    // `wp_register_style` is enough — `desktop_mode_register_window()`
+    // resolves the handle on its own; the shell decides whether to
+    // print it at boot or lazy-inject it mid-session.
+    wp_register_style(
+        'jorvy-desktop',
+        plugin_dir_url( __FILE__ ) . 'jorvy-desktop.css',
+        array(),
+        '1.0.0'
     );
 } );
 ```
