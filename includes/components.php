@@ -1531,6 +1531,199 @@ function desktop_mode_get_native_window_tabs( $window_id ) {
  * @param array $entry Window registry entry.
  * @return string Template body HTML (no outer `<template>` tag).
  */
+/**
+ * Returns the `wp_kses`-shaped allowlist used to escape native-window
+ * `<template>` payloads (and the recycle-bin template) before they're
+ * emitted into the page.
+ *
+ * Templates are inert until JS clones them out of the `<template>`
+ * tag — but Plugin Check still requires escape-on-output. The list
+ * extends `wp_kses_allowed_html( 'post' )` with form controls,
+ * `<wpd-*>` web components, and dashicon spans, plus permissive
+ * `data-*`, `aria-*`, and component-specific attributes. Plugins
+ * registering their own native windows can extend the list via the
+ * `desktop_mode_native_window_allowed_html` filter below.
+ *
+ * @since 0.6.2
+ *
+ * @return array<string,array<string,bool>>
+ */
+function desktop_mode_native_window_allowed_html() {
+	$base = wp_kses_allowed_html( 'post' );
+
+	$global_attrs = array(
+		'id'              => true,
+		'class'           => true,
+		'style'           => true,
+		'title'           => true,
+		'role'            => true,
+		'tabindex'        => true,
+		'hidden'          => true,
+		'slot'            => true,
+		'part'            => true,
+		'lang'            => true,
+		'dir'             => true,
+		'draggable'       => true,
+		'contenteditable' => true,
+		'data-*'          => true,
+		'aria-*'          => true,
+	);
+
+	$form_attrs = array_merge(
+		$global_attrs,
+		array(
+			'name'         => true,
+			'value'        => true,
+			'placeholder' => true,
+			'required'    => true,
+			'disabled'    => true,
+			'readonly'    => true,
+			'checked'     => true,
+			'selected'    => true,
+			'min'         => true,
+			'max'         => true,
+			'step'        => true,
+			'minlength'   => true,
+			'maxlength'   => true,
+			'pattern'     => true,
+			'autocomplete' => true,
+			'autofocus'   => true,
+			'multiple'    => true,
+			'rows'        => true,
+			'cols'        => true,
+			'wrap'        => true,
+			'size'        => true,
+			'for'         => true,
+			'form'        => true,
+			'type'        => true,
+			'accept'      => true,
+			'list'        => true,
+			'src'         => true,
+			'href'        => true,
+			'target'      => true,
+			'rel'         => true,
+			'open'        => true,
+			'variant'     => true,
+		)
+	);
+
+	$wpd_attrs = array_merge(
+		$form_attrs,
+		array(
+			'gap'           => true,
+			'padding'       => true,
+			'align'         => true,
+			'justify'       => true,
+			'direction'     => true,
+			'wrap'          => true,
+			'inset'         => true,
+			'icon'          => true,
+			'tone'          => true,
+			'size'          => true,
+			'shape'         => true,
+			'badge'         => true,
+			'selectable'    => true,
+			'sticky-header' => true,
+			'hover'         => true,
+			'striped'       => true,
+			'loading'       => true,
+			'columns'       => true,
+			'rows'          => true,
+			'sortable'      => true,
+			'expandable'    => true,
+			'preset'        => true,
+			'label'         => true,
+			'description'   => true,
+			'orientation'   => true,
+			'level'         => true,
+			'collapsed'     => true,
+		)
+	);
+
+	// Built-in HTML elements the templates rely on.
+	$extra = array(
+		'form'     => $form_attrs,
+		'fieldset' => $form_attrs,
+		'legend'   => $global_attrs,
+		'label'    => $form_attrs,
+		'input'    => $form_attrs,
+		'select'   => $form_attrs,
+		'option'   => $form_attrs,
+		'optgroup' => $form_attrs,
+		'textarea' => $form_attrs,
+		'button'   => $form_attrs,
+		'output'   => $form_attrs,
+		'datalist' => $global_attrs,
+		'progress' => $form_attrs,
+		'meter'    => $form_attrs,
+		'details'  => $global_attrs,
+		'summary'  => $global_attrs,
+		'dialog'   => $global_attrs,
+		'header'   => $global_attrs,
+		'footer'   => $global_attrs,
+		'main'     => $global_attrs,
+		'nav'      => $global_attrs,
+		'section'  => $global_attrs,
+		'article'  => $global_attrs,
+		'aside'    => $global_attrs,
+		'figure'   => $global_attrs,
+		'figcaption' => $global_attrs,
+		'time'     => array_merge( $global_attrs, array( 'datetime' => true ) ),
+		'mark'     => $global_attrs,
+		'small'    => $global_attrs,
+		'svg'      => array_merge( $global_attrs, array( 'viewbox' => true, 'width' => true, 'height' => true, 'fill' => true, 'stroke' => true, 'xmlns' => true ) ),
+		'path'     => array( 'd' => true, 'fill' => true, 'stroke' => true, 'stroke-width' => true, 'stroke-linecap' => true, 'stroke-linejoin' => true, 'class' => true ),
+		'g'        => array( 'class' => true, 'transform' => true, 'fill' => true ),
+		'circle'   => array( 'cx' => true, 'cy' => true, 'r' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'rect'     => array( 'x' => true, 'y' => true, 'width' => true, 'height' => true, 'rx' => true, 'ry' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'line'     => array( 'x1' => true, 'y1' => true, 'x2' => true, 'y2' => true, 'stroke' => true, 'stroke-width' => true, 'class' => true ),
+		'polyline' => array( 'points' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'polygon'  => array( 'points' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'use'      => array( 'href' => true, 'class' => true ),
+	);
+
+	// `<wpd-*>` web components — every shipped tag plus a permissive
+	// open door for new ones added by plugin templates.
+	$wpd_tags = array(
+		'wpd-stack', 'wpd-cluster', 'wpd-grid', 'wpd-spacer', 'wpd-divider',
+		'wpd-tabs', 'wpd-tab', 'wpd-tabpanel',
+		'wpd-segmented', 'wpd-segment',
+		'wpd-button', 'wpd-icon-button', 'wpd-button-group',
+		'wpd-text-field', 'wpd-textarea', 'wpd-search-field',
+		'wpd-select', 'wpd-checkbox', 'wpd-radio', 'wpd-radio-group',
+		'wpd-switch', 'wpd-slider',
+		'wpd-table', 'wpd-table-column', 'wpd-table-row', 'wpd-table-cell',
+		'wpd-card', 'wpd-list', 'wpd-list-item',
+		'wpd-badge', 'wpd-pill', 'wpd-tag', 'wpd-chip',
+		'wpd-spinner', 'wpd-skeleton', 'wpd-empty-state',
+		'wpd-tooltip', 'wpd-popover', 'wpd-menu', 'wpd-menu-item',
+		'wpd-modal', 'wpd-drawer', 'wpd-toast',
+		'wpd-icon', 'wpd-avatar', 'wpd-heading', 'wpd-text', 'wpd-link',
+		'wpd-banner', 'wpd-alert', 'wpd-callout',
+		'wpd-form-row', 'wpd-form-section', 'wpd-help-text',
+		'wpd-toolbar', 'wpd-toolbar-group',
+	);
+	foreach ( $wpd_tags as $tag ) {
+		$extra[ $tag ] = $wpd_attrs;
+	}
+
+	$allowed = array_merge( $base, $extra );
+
+	/**
+	 * Filters the kses allowlist used when escaping native-window
+	 * `<template>` payloads.
+	 *
+	 * Plugins registering their own native windows can extend the
+	 * list with custom tags or attributes if their templates need
+	 * markup not covered here.
+	 *
+	 * @since 0.6.2
+	 *
+	 * @param array $allowed wp_kses-shaped allowlist.
+	 */
+	return (array) apply_filters( 'desktop_mode_native_window_allowed_html', $allowed );
+}
+
 function desktop_mode_build_native_window_template_html( $entry ) {
 	if ( ! is_array( $entry ) || ! is_callable( $entry['template'] ) ) {
 		return '';
@@ -1787,10 +1980,7 @@ function desktop_mode_render_native_window_templates() {
 			'<template id="desktop-mode-native-window-%s">',
 			esc_attr( $entry['id'] )
 		);
-		// $html already contains plugin-authored markup (escaped
-		// inside the tab wrapping helper; each template callback
-		// is responsible for its own pane content).
-		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo wp_kses( $html, desktop_mode_native_window_allowed_html() );
 		echo '</template>';
 	}
 }

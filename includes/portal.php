@@ -95,7 +95,14 @@ function desktop_mode_handle_portal_request( $wp ) {
 	 */
 	$auto_enable = apply_filters( 'desktop_mode_portal_auto_enable', true, $user_id );
 
-	if ( $auto_enable && '1' !== get_user_meta( $user_id, 'desktop_mode_mode', true ) ) {
+	// CSRF guard: only flip user-meta when the request is a same-origin
+	// top-level navigation. The portal is a GET URL by design (users
+	// follow shared `/wp-desktop/` links), so we can't require a nonce
+	// — but we can require that the navigation originated from the
+	// same site (or a typed/bookmarked URL with no Referer/Sec-Fetch-
+	// Site). Off-origin hits still redirect into admin so shared
+	// links keep working; they just don't silently mutate user-meta.
+	if ( $auto_enable && desktop_mode_portal_is_same_origin_navigation() && '1' !== get_user_meta( $user_id, 'desktop_mode_mode', true ) ) {
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
 	}
 
@@ -130,6 +137,45 @@ function desktop_mode_handle_portal_request( $wp ) {
 	exit;
 }
 add_action( 'parse_request', 'desktop_mode_handle_portal_request' );
+
+/**
+ * Decides whether the current request to the portal can mutate
+ * user-meta safely (same-origin) or should only redirect (cross-
+ * origin, possibly CSRF).
+ *
+ * Logic mirrors the `Sec-Fetch-Site` heuristic browsers use:
+ *
+ *   - `Sec-Fetch-Site: same-origin | same-site | none` → trusted
+ *     (the request originated from this site, or from a typed URL
+ *     / bookmark with no referrer info).
+ *   - `Sec-Fetch-Site: cross-site` → untrusted (a third-party page
+ *     pointed the user at the portal — could be an `<img>` tag).
+ *   - Header missing (older browsers): fall back to `Referer` —
+ *     same host or empty referrer is trusted, anything else isn't.
+ *
+ * @since 0.6.2
+ *
+ * @return bool
+ */
+function desktop_mode_portal_is_same_origin_navigation() {
+	if ( ! empty( $_SERVER['HTTP_SEC_FETCH_SITE'] ) ) {
+		$site = strtolower( sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) ) );
+		return in_array( $site, array( 'same-origin', 'same-site', 'none' ), true );
+	}
+
+	if ( empty( $_SERVER['HTTP_REFERER'] ) ) {
+		return true;
+	}
+
+	$referer_host = wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ), PHP_URL_HOST );
+	$home_host    = wp_parse_url( home_url(), PHP_URL_HOST );
+
+	if ( ! is_string( $referer_host ) || '' === $referer_host ) {
+		return true;
+	}
+
+	return is_string( $home_host ) && strtolower( $referer_host ) === strtolower( $home_host );
+}
 
 /**
  * Detects whether the current request is for the portal URL.

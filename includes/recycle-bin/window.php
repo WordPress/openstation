@@ -101,7 +101,8 @@ function desktop_mode_recycle_bin_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	echo apply_filters( 'desktop_mode_recycle_bin_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	$filtered = (string) apply_filters( 'desktop_mode_recycle_bin_template_html', $html );
+	echo wp_kses( $filtered, desktop_mode_native_window_allowed_html() );
 }
 
 /**
