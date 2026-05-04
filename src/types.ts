@@ -661,6 +661,28 @@ export interface NativeWindowServerEntry {
 	/** `wp.i18n.setLocaleData(…)` snippet from `wp_set_script_translations()`. Injected before everything. @since 0.6.0 */
 	scriptTranslations?: string;
 	/**
+	 * Absolute URL of the plugin's enqueued stylesheet. Shell injects a
+	 * `<link rel="stylesheet">` into `<head>` when this entry appears
+	 * mid-session — closes the gap where the parent shell already
+	 * finished `wp_print_styles` before the plugin was activated, so
+	 * its CSS would otherwise be missing until F5. Empty when the
+	 * plugin declared no `style` arg.
+	 *
+	 * @since 0.18.1
+	 */
+	styleUrl?: string;
+	/** WordPress style handle (informational). @since 0.18.1 */
+	styleHandle?: string;
+	/**
+	 * `wp_add_inline_style( $h, $css )` blobs harvested from the
+	 * registered style handle. Emitted as a `<style>` tag immediately
+	 * after the `<link>` so cascade order matches what
+	 * `WP_Styles::print_inline_style()` would have written.
+	 *
+	 * @since 0.18.1
+	 */
+	styleInline?: string[];
+	/**
 	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
 	 * windows registered via `desktop_mode_register_window()`. Devtools
 	 * read this off `Window.config.ownerHandle` once the window opens.

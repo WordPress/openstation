@@ -1037,6 +1037,80 @@ function desktop_mode_resolve_script_payload( $handle ) {
 }
 
 /**
+ * Resolves a registered style handle to its print-time URL + harvested
+ * inline CSS, the styles-side mirror of
+ * {@see desktop_mode_resolve_script_payload()}.
+ *
+ * Why this exists: when a plugin's native window (or window-chrome
+ * theme/control/slot/chrome) is activated mid-session — i.e. the user
+ * activates the plugin from inside an open desktop shell — the parent
+ * shell page already finished `wp_print_styles`. The plugin's
+ * `admin_enqueue_scripts` callback never ran for it, so its
+ * stylesheet is missing. The shell's lazy-loader fixes that by
+ * injecting a `<link rel="stylesheet">` for every entry whose payload
+ * carries a `styleUrl`.
+ *
+ * Captures both the resolved `src` and any `wp_add_inline_style()`
+ * blobs attached to the handle so the shell can replay the same data
+ * the print pipeline would have written.
+ *
+ * @since 0.18.1
+ *
+ * @param string $handle WP style handle.
+ * @return array{ url:string, inline:string[] } Payload (empty `url` on miss).
+ */
+function desktop_mode_resolve_style_payload( $handle ) {
+	$empty = array(
+		'url'    => '',
+		'inline' => array(),
+	);
+
+	$handle = (string) $handle;
+	if ( '' === $handle ) {
+		return $empty;
+	}
+	$wp_styles = wp_styles();
+	if ( ! $wp_styles || ! isset( $wp_styles->registered[ $handle ] ) ) {
+		return $empty;
+	}
+	$registered = $wp_styles->registered[ $handle ];
+	$src        = is_string( $registered->src ) ? $registered->src : '';
+	if ( '' === $src ) {
+		return $empty;
+	}
+
+	// Normalize relative paths + attach cache-bust ver — same shape as
+	// the script resolver. Keeps the two helpers symmetric so callers
+	// don't have to special-case style vs script payloads.
+	$resolved = $src;
+	if ( 0 === strpos( $resolved, '/' ) && 0 !== strpos( $resolved, '//' ) ) {
+		$resolved = site_url( $resolved );
+	}
+	if ( ! empty( $registered->ver ) ) {
+		$resolved = add_query_arg( 'ver', $registered->ver, $resolved );
+	}
+
+	// `wp_add_inline_style()` blobs land in `extra['after']` — capture
+	// them so the shell can emit a `<style>` tag after the `<link>` to
+	// preserve cascade order with what `WP_Styles::print_inline_style()`
+	// would have written.
+	$inline = array();
+	if ( isset( $registered->extra['after'] ) && is_array( $registered->extra['after'] ) ) {
+		foreach ( $registered->extra['after'] as $code ) {
+			$code = (string) $code;
+			if ( '' !== $code ) {
+				$inline[] = $code;
+			}
+		}
+	}
+
+	return array(
+		'url'    => $resolved,
+		'inline' => $inline,
+	);
+}
+
+/**
  * Fire a `_doing_it_wrong()` notice exactly once per handle per
  * request. Shared by every `desktop_mode_build_desktop_*_scripts_payload()`
  * caller — payload builders run on every shell-config rebuild
@@ -1168,6 +1242,14 @@ function desktop_mode_build_native_windows_payload() {
 		$script_handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
 		$script_payload = desktop_mode_resolve_script_payload( $script_handle );
 
+		// Resolve the optional style handle alongside the script so the
+		// shell's lazy-loader can inject a `<link rel="stylesheet">`
+		// (and any `wp_add_inline_style()` blobs) on mid-session
+		// activation. Empty payload when no handle was declared OR the
+		// handle isn't registered — both treated as "no styles to load."
+		$style_handle  = isset( $entry['style'] ) ? (string) $entry['style'] : '';
+		$style_payload = desktop_mode_resolve_style_payload( $style_handle );
+
 		// `config` arg on `desktop_mode_register_window()` — discoverable
 		// alternative to `wp_localize_script`. We synthesize a localize
 		// snippet so it lands through the same delivery path as native
@@ -1230,6 +1312,9 @@ function desktop_mode_build_native_windows_payload() {
 			'scriptAfter'       => $script_payload['after'],
 			'scriptL10n'        => $script_payload['l10n'],
 			'scriptTranslations' => $script_payload['translations'],
+			'styleUrl'          => $style_payload['url'],
+			'styleHandle'       => $style_handle,
+			'styleInline'       => $style_payload['inline'],
 			'tabs'              => $tab_descriptors,
 		);
 	}

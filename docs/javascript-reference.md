@@ -259,6 +259,46 @@ Will fire when a cross-window drop completes.
 
 ---
 
+### `desktop-mode-registry-changed` — Stable *(since 0.18.1)*
+
+Fires when a server-side registry (dock items, native windows, desktop icons) is mutated by the live-refresh applier — i.e. when the chromeless `plugins.php` iframe `postMessage`s `wp-desktop-plugins-changed` after a peer plugin is activated or deactivated. The shell diffs the new payload against its prior snapshot by `id` and dispatches one event per registry that actually changed. No event fires when the diff is empty.
+
+> **Naming.** This event uses the `desktop-mode-` prefix — NOT `wp-desktop-`. The `wp-` prefix is reserved for WordPress Core per plugin reviewer guidelines. Existing `wp-desktop-*` events stay for backwards-compat; **new public surface uses `desktop-mode-`**.
+
+```javascript
+document.addEventListener( 'desktop-mode-registry-changed', ( e ) => {
+    const { registry, added, removed } = e.detail;
+    if ( registry === 'native-windows' && added.includes( 'jorvy' ) ) {
+        // A peer plugin's native window just appeared mid-session.
+        // Hydrate any state that depends on it being present.
+    }
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    registry: 'dock-items' | 'native-windows' | 'desktop-icons',
+    added:    string[],   // ids present in the new payload but not the prior snapshot
+    removed:  string[],   // ids that were in the prior snapshot but are gone
+}
+```
+
+**When it fires:**
+
+- A user activates a peer plugin via `plugins.php` rendered inside the open shell — `added` lists the new ids.
+- A user deactivates a peer plugin from the same place — `removed` lists the gone ids.
+- An idempotent re-apply (same payload, same ids) does NOT fire the event.
+
+**When it does NOT fire (known gap):**
+
+- Activation outside the open shell (another browser tab, `wp-cli plugin activate`, REST). The broadcast is bound to the chromeless `plugins.php` iframe's load — there is no cross-tab or out-of-band push today. Plugins that need to handle that case can call `wp.desktop.refreshMenu()` themselves on a signal of their own choosing.
+
+The `server*` registries (commands, settings tabs, widgets, wallpapers, …) already publish their own per-registry subscribe APIs — those are the right surface for plugin authors hooking into those layers, not this event.
+
+---
+
 ## 2. `window.wp.desktop` API
 
 Populated after `wp-desktop-init`. Do not access before that event fires.

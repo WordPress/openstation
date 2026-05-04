@@ -410,6 +410,13 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		'icon'             => 'dashicons-admin-generic',
 		'template'         => null,
 		'script'           => '',
+		// Optional WP style handle (registered with `wp_register_style()`).
+		// Resolved at payload-build time so the shell can lazy-inject a
+		// `<link rel="stylesheet">` when a peer plugin is activated
+		// mid-session — without this, the parent shell page already
+		// finished `wp_print_styles` and the plugin's CSS is missing
+		// until F5. @since 0.18.1
+		'style'            => '',
 		'width'            => 520,
 		'height'           => 400,
 		'min_width'        => 280,
@@ -464,6 +471,7 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		'icon'             => (string) $args['icon'],
 		'template'         => $args['template'],
 		'script'           => (string) $args['script'],
+		'style'            => (string) $args['style'],
 		'width'            => (int) $args['width'],
 		'height'           => (int) $args['height'],
 		'min_width'        => (int) $args['min_width'],

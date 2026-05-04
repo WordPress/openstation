@@ -1248,12 +1248,15 @@ $result = desktop_mode_register_window( 'jorvy', array(
     'title'    => 'Jorvy',
     'template' => 'jorvy_render_template',
     'script'   => 'jorvy-render',
+    'style'    => 'jorvy-render', // optional, since 0.18.1
 ) );
 
 if ( is_wp_error( $result ) ) {
     error_log( '[jorvy] registration failed: ' . $result->get_error_code() . ' — ' . $result->get_error_message() );
 }
 ```
+
+> **`style` (since 0.18.1).** Optional `wp_register_style()` handle. The shell resolves it to a `styleUrl` (and any `wp_add_inline_style()` blobs) and lazy-injects a `<link rel="stylesheet">` when the window's plugin is activated mid-session. Without `style`, a peer plugin activated from inside an open shell renders its window with **no CSS** until the user reloads — the parent shell already finished `wp_print_styles` before the plugin existed. If the handle isn't registered, the field is silently dropped (no error, no link); plugins active at boot continue to print through the normal `wp_print_styles` pipeline as before.
 
 ### Backwards compatibility
 
@@ -1638,46 +1641,6 @@ desktop_mode_register_window_chrome( $args );
 Actions:
 - `desktop_mode_window_chrome_script_registered( $handle )`
 - `desktop_mode_window_chrome_registered( $id, $entry )`
-
----
-
-## Routines (since 0.22.0)
-
-> Full architecture: [routines.md](./routines.md). Example: [examples/register-routine-trigger.md](./examples/register-routine-trigger.md).
-
-### Registration
-
-```php
-wp_register_desktop_routine_trigger( $args );  // declare a triggerable hook
-wp_register_desktop_routine_action( $args );   // declare a custom step handler
-wp_register_desktop_routine_template( $args ); // ship a starter recipe
-```
-
-### Filters
-
-| Filter                                  | Default | Purpose                                                     |
-|-----------------------------------------|---------|-------------------------------------------------------------|
-| `wp_desktop_routine_user_can_manage`    | `manage_options` | Gate the manage permission.                          |
-| `wp_desktop_routine_payload`            | bound payload | Last-chance shape adjuster before evaluation.           |
-| `wp_desktop_routine_can_run`            | `true`  | Kill-switch — return false to halt before any step runs.    |
-| `wp_desktop_routine_http_allowlist`     | `[]`    | Outbound HTTP allowlist for the `http` step.                |
-| `wp_desktop_routine_system_user_id`     | lowest-id admin | Pin the user `run_as: "system"` resolves to.        |
-| `wp_desktop_routine_run_retention_days` | `30`    | Run-history retention.                                      |
-| `wp_desktop_routines_template_html`     | default markup | Override the routines window template.               |
-
-### Actions
-
-| Action                                       | Args                                          |
-|----------------------------------------------|-----------------------------------------------|
-| `wp_desktop_routine_trigger_registered`      | `$id, $entry`                                 |
-| `wp_desktop_routine_action_registered`       | `$id, $entry`                                 |
-| `wp_desktop_routine_template_registered`     | `$id, $entry`                                 |
-| `wp_desktop_routine_seeded`                  | —                                             |
-| `wp_desktop_routine_saved`                   | `$id, $def, $enabled`                         |
-| `wp_desktop_routine_deleted`                 | `$id`                                         |
-| `wp_desktop_routine_before_run`              | `$routine, $payload`                          |
-| `wp_desktop_routine_after_run`               | `$routine, $payload, $status, $steps_log`     |
-| `wp_desktop_routine_step_failed`             | `$step, $context, WP_Error`                   |
 
 ---
 

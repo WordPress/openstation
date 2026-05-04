@@ -82,6 +82,83 @@ export interface MenuRefreshDeps {
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 }
 
+/**
+ * Public CustomEvent name dispatched on `document` when a registry is
+ * mutated by the live-refresh applier. Plugin authors subscribe to
+ * react to a peer plugin being activated/deactivated mid-session
+ * without paying a page reload — the event detail names the registry
+ * and the id-based diff against the prior snapshot.
+ *
+ * Naming: `desktop-mode-*`, NOT `wp-desktop-*`. The `wp-` prefix is
+ * reserved for WordPress Core per plugin reviewer guidelines; existing
+ * `wp-desktop-*` events stay for backwards-compat but new public
+ * surface uses the project-owned prefix.
+ *
+ * @since 0.18.1
+ */
+export const REGISTRY_CHANGED_EVENT = 'desktop-mode-registry-changed';
+
+/** Shape of the `desktop-mode-registry-changed` event detail. */
+export interface RegistryChangedDetail {
+	registry:
+		| 'dock-items'
+		| 'native-windows'
+		| 'desktop-icons';
+	added: string[];
+	removed: string[];
+}
+
+function diffIds(
+	prev: ReadonlyArray< { id?: unknown } > | undefined,
+	next: ReadonlyArray< { id?: unknown } >,
+): { added: string[]; removed: string[] } {
+	const prevIds = new Set< string >();
+	if ( Array.isArray( prev ) ) {
+		for ( const item of prev ) {
+			if ( item && typeof item.id === 'string' ) {
+				prevIds.add( item.id );
+			}
+		}
+	}
+	const nextIds = new Set< string >();
+	for ( const item of next ) {
+		if ( item && typeof item.id === 'string' ) {
+			nextIds.add( item.id );
+		}
+	}
+	const added: string[] = [];
+	for ( const id of nextIds ) {
+		if ( ! prevIds.has( id ) ) {
+			added.push( id );
+		}
+	}
+	const removed: string[] = [];
+	for ( const id of prevIds ) {
+		if ( ! nextIds.has( id ) ) {
+			removed.push( id );
+		}
+	}
+	return { added, removed };
+}
+
+function emitRegistryChanged(
+	registry: RegistryChangedDetail[ 'registry' ],
+	prev: ReadonlyArray< { id?: unknown } > | undefined,
+	next: ReadonlyArray< { id?: unknown } >,
+): void {
+	const { added, removed } = diffIds( prev, next );
+	if ( added.length === 0 && removed.length === 0 ) {
+		return;
+	}
+	if ( typeof document === 'undefined' ) {
+		return;
+	}
+	const detail: RegistryChangedDetail = { registry, added, removed };
+	document.dispatchEvent(
+		new CustomEvent( REGISTRY_CHANGED_EVENT, { detail } ),
+	);
+}
+
 export function createApplyPayload(
 	deps: MenuRefreshDeps,
 ): ( payload: MenuRefreshPayload ) => void {
@@ -121,8 +198,14 @@ export function createApplyPayload(
 		if ( ! Array.isArray( dockItems ) || dockItems.length === 0 ) {
 			return;
 		}
+		const prevDockItems = config.dockItems;
 		applyDockItems( dockItems as DesktopConfig[ 'dockItems' ] );
 		config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
+		emitRegistryChanged(
+			'dock-items',
+			prevDockItems as ReadonlyArray< { id?: unknown } > | undefined,
+			dockItems as ReadonlyArray< { id?: unknown } >,
+		);
 
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added
@@ -130,11 +213,17 @@ export function createApplyPayload(
 		// `desktop_mode_register_window`) appear; tiles whose plugin
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
+			const prevNativeWindows = config.nativeWindows;
 			void syncNativeWindows(
 				nativeWindows as NativeWindowServerEntry[],
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];
+			emitRegistryChanged(
+				'native-windows',
+				prevNativeWindows as ReadonlyArray< { id?: unknown } > | undefined,
+				nativeWindows as ReadonlyArray< { id?: unknown } >,
+			);
 		}
 
 		// Widget-registry sync — same lifecycle story for the
@@ -229,9 +318,15 @@ export function createApplyPayload(
 		// `renderIcons` clears the prior container before re-rendering,
 		// so an empty list legitimately wipes the grid.
 		if ( Array.isArray( desktopIcons ) ) {
+			const prevDesktopIcons = config.desktopIcons;
 			renderIcons( desktopIcons as DesktopIconServerEntry[] );
 			config.desktopIcons =
 				desktopIcons as DesktopConfig[ 'desktopIcons' ];
+			emitRegistryChanged(
+				'desktop-icons',
+				prevDesktopIcons as ReadonlyArray< { id?: unknown } > | undefined,
+				desktopIcons as ReadonlyArray< { id?: unknown } >,
+			);
 		}
 	};
 }

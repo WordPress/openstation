@@ -203,6 +203,84 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		expect( tilesIn( h.dockEl ) ).toEqual( [] );
 	} );
 
+	// `styleUrl` lazy injection — closes the gap where a peer plugin
+	// activated mid-session would render its window WITHOUT its CSS
+	// because the parent shell already finished `wp_print_styles`.
+	describe( 'styleUrl lazy injection (since 0.18.1)', () => {
+		beforeEach( () => {
+			// Strip prior <link>/<style> nodes the parent describe's
+			// harness/jsdom may have left in <head>; the lazy-loader's
+			// "is this already there?" guard is global to <head>, so a
+			// stale node would short-circuit injection.
+			document.head
+				.querySelectorAll( 'link[rel="stylesheet"], style[data-wpdm-style-handle]' )
+				.forEach( ( n ) => n.remove() );
+		} );
+
+		test( 'injects a <link rel="stylesheet"> for the entry styleUrl', async () => {
+			const h = setupHarness();
+			const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+			await sync( [
+				entry( 'jorvy', {
+					styleUrl: 'https://example.test/jorvy.css?ver=1',
+					styleHandle: 'jorvy-style',
+				} ),
+			] );
+
+			const link = document.head.querySelector< HTMLLinkElement >(
+				'link[rel="stylesheet"][href="https://example.test/jorvy.css?ver=1"]',
+			);
+			expect( link ).not.toBeNull();
+			expect( link?.dataset.wpdmStyleHandle ).toBe( 'jorvy-style' );
+		} );
+
+		test( 're-syncing the same entry does not duplicate the link', async () => {
+			const h = setupHarness();
+			const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+			const e = entry( 'jorvy', {
+				styleUrl: 'https://example.test/jorvy.css?ver=1',
+			} );
+			await sync( [ e ] );
+			await sync( [ e ] );
+
+			const links = document.head.querySelectorAll(
+				'link[rel="stylesheet"][href="https://example.test/jorvy.css?ver=1"]',
+			);
+			expect( links.length ).toBe( 1 );
+		} );
+
+		test( 'wp_add_inline_style blobs land as <style> tags after the link', async () => {
+			const h = setupHarness();
+			const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+			await sync( [
+				entry( 'jorvy', {
+					styleUrl: 'https://example.test/jorvy.css',
+					styleHandle: 'jorvy-style',
+					styleInline: [ '.jorvy { color: red; }' ],
+				} ),
+			] );
+
+			const style = document.head.querySelector< HTMLStyleElement >(
+				'style[data-wpdm-style-handle="jorvy-style"]',
+			);
+			expect( style?.textContent ).toBe( '.jorvy { color: red; }' );
+		} );
+
+		test( 'no styleUrl: no <link> injected', async () => {
+			const h = setupHarness();
+			const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+			await sync( [ entry( 'plain' ) ] );
+
+			expect(
+				document.head.querySelectorAll( 'link[rel="stylesheet"]' ),
+			).toHaveLength( 0 );
+		} );
+	} );
+
 	test( 'openById opens a registered entry and rejects an unknown id', async () => {
 		const h = setupHarness();
 		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
