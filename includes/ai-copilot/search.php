@@ -2120,7 +2120,7 @@ function desktop_mode_ai_tail_file( $path, $lines ) {
  * @since 0.14.0
  */
 function desktop_mode_ai_ajax_search_stream() {
-	$nonce = isset( $_GET['nonce'] ) ? (string) $_GET['nonce'] : ''; // phpcs:ignore WordPress.Security
+	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
 	if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 		status_header( 403 );
 		exit;

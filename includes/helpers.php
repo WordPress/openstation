@@ -337,10 +337,9 @@ function desktop_mode_url_is_same_admin( $url ) {
  *
  * Returns a `WP_Error` when the input contains path traversal, isn't a
  * bare `.php` filename, or points at a file that doesn't exist in
- * `ABSPATH . 'wp-admin/'`. The existence check is the key guard — a
- * regex-only whitelist would accept `custom_admin_page.php` if a plugin
- * named something that way, but only files that actually ship in
- * wp-admin are safe redirect targets.
+ * a static allowlist of canonical wp-admin top-level filenames. A
+ * regex-only check would accept `custom_admin_page.php` if a plugin
+ * named something that way; the explicit allowlist closes that.
  *
  * @since 0.11.0
  *
@@ -358,19 +357,135 @@ function desktop_mode_resolve_admin_target( $file ) {
 	}
 
 	// Lowercase match mirrors WP's filesystem assumptions on case-
-	// insensitive volumes (macOS, Windows). The actual file_exists
-	// check below is the final arbiter; this regex just pre-filters
-	// clearly bad inputs.
+	// insensitive volumes (macOS, Windows). The allowlist below is
+	// the final arbiter; this regex just pre-filters clearly bad
+	// inputs cheaply.
 	if ( ! preg_match( '/^[a-z0-9_-]+\.php$/i', $file ) ) {
 		return new WP_Error( 'desktop_mode_invalid_target', __( 'Admin target must be a plain .php filename.', 'desktop-mode' ) );
 	}
 
-	$candidate = ABSPATH . 'wp-admin/' . $file;
-	if ( ! file_exists( $candidate ) ) {
+	if ( ! in_array( strtolower( $file ), desktop_mode_admin_target_allowlist(), true ) ) {
 		return new WP_Error( 'desktop_mode_unknown_target', __( 'Admin target does not exist.', 'desktop-mode' ) );
 	}
 
 	return admin_url( $file );
+}
+
+/**
+ * Returns the allowlist of canonical wp-admin top-level filenames
+ * that `desktop_mode_resolve_admin_target()` accepts.
+ *
+ * Hardcoded rather than read from disk so the plugin doesn't depend
+ * on a particular WordPress install layout (and doesn't reference
+ * `ABSPATH` to probe core files). Plugins that ship their own
+ * top-level admin pages (rare) can extend the list via the filter.
+ *
+ * @since 0.6.2
+ *
+ * @return string[] Lowercased filenames including extension.
+ */
+function desktop_mode_admin_target_allowlist() {
+	$files = array(
+		'about.php',
+		'admin-ajax.php',
+		'admin-footer.php',
+		'admin-header.php',
+		'admin-post.php',
+		'admin.php',
+		'async-upload.php',
+		'authorize-application.php',
+		'comment.php',
+		'credits.php',
+		'custom-background.php',
+		'custom-header.php',
+		'customize.php',
+		'edit-comments.php',
+		'edit-form-advanced.php',
+		'edit-form-blocks.php',
+		'edit-form-comment.php',
+		'edit-link-form.php',
+		'edit-tag-form.php',
+		'edit-tags.php',
+		'edit.php',
+		'erase-personal-data.php',
+		'export-personal-data.php',
+		'export.php',
+		'freedoms.php',
+		'import.php',
+		'index.php',
+		'install.php',
+		'link-add.php',
+		'link-manager.php',
+		'link.php',
+		'load-scripts.php',
+		'load-styles.php',
+		'media-new.php',
+		'media-upload.php',
+		'media.php',
+		'menu-header.php',
+		'menu.php',
+		'moderation.php',
+		'ms-admin.php',
+		'ms-delete-site.php',
+		'ms-edit.php',
+		'ms-options.php',
+		'ms-sites.php',
+		'ms-themes.php',
+		'ms-upgrade-network.php',
+		'ms-users.php',
+		'my-sites.php',
+		'nav-menus.php',
+		'network.php',
+		'options-discussion.php',
+		'options-general.php',
+		'options-head.php',
+		'options-media.php',
+		'options-permalink.php',
+		'options-privacy.php',
+		'options-reading.php',
+		'options-writing.php',
+		'options.php',
+		'plugin-editor.php',
+		'plugin-install.php',
+		'plugins.php',
+		'post-new.php',
+		'post.php',
+		'press-this.php',
+		'privacy-policy-guide.php',
+		'privacy.php',
+		'profile.php',
+		'revision.php',
+		'setup-config.php',
+		'site-editor.php',
+		'site-health-info.php',
+		'site-health.php',
+		'sidebar.php',
+		'term.php',
+		'theme-editor.php',
+		'theme-install.php',
+		'themes.php',
+		'tools.php',
+		'update-core.php',
+		'update.php',
+		'upgrade.php',
+		'upload.php',
+		'user-edit.php',
+		'user-new.php',
+		'users.php',
+		'widgets.php',
+	);
+
+	/**
+	 * Filters the wp-admin filename allowlist used when resolving
+	 * portal `target=` query args.
+	 *
+	 * @since 0.6.2
+	 *
+	 * @param string[] $files Default allowlist.
+	 */
+	$files = (array) apply_filters( 'desktop_mode_admin_target_allowlist', $files );
+
+	return array_values( array_unique( array_map( 'strtolower', array_filter( $files, 'is_string' ) ) ) );
 }
 
 /**
