@@ -163,6 +163,64 @@
 		} );
 	}
 
+	// Fullscreen button — toggles browser fullscreen on the document
+	// element so the shell occupies the whole screen with no browser
+	// chrome. The click counts as a user gesture, which is required by
+	// the Fullscreen API. We listen for `fullscreenchange` instead of
+	// flipping state inside the click handler because the user can also
+	// exit via Esc or the OS, and we want the icon/label to stay in sync
+	// in those cases too.
+	var fsBtn = document.getElementById( 'wp-admin-bar-desktop-fullscreen' );
+	if ( fsBtn ) {
+		var fsLink = fsBtn.querySelector( '.ab-item' );
+		var fsLabel = fsBtn.querySelector( '.ab-label' );
+		var fsI18n = ( cfg && cfg.i18n ) || {};
+		function paintFullscreen( on ) {
+			if ( on ) {
+				fsBtn.classList.add( 'is-fullscreen' );
+				if ( fsLabel ) fsLabel.textContent = fsI18n.exitFullscreen || 'Exit fullscreen';
+				if ( fsLink ) fsLink.setAttribute( 'title', fsI18n.exitTitle || 'Exit fullscreen' );
+			} else {
+				fsBtn.classList.remove( 'is-fullscreen' );
+				if ( fsLabel ) fsLabel.textContent = fsI18n.enterFullscreen || 'Fullscreen';
+				if ( fsLink ) fsLink.setAttribute( 'title', fsI18n.enterTitle || 'Enter fullscreen' );
+			}
+		}
+		fsBtn.addEventListener( 'click', function( e ) {
+			e.preventDefault();
+			// `window.top` so the whole tab goes fullscreen even when the
+			// admin bar happens to be rendered inside an iframe (today
+			// it's suppressed there, but a plugin could surface it). Fall
+			// back to the current document if cross-origin blocks access.
+			var doc;
+			try {
+				doc = window.top.document;
+			} catch ( err ) {
+				doc = document;
+			}
+			if ( doc.fullscreenElement ) {
+				if ( doc.exitFullscreen ) {
+					doc.exitFullscreen();
+				}
+			} else if ( doc.documentElement && doc.documentElement.requestFullscreen ) {
+				doc.documentElement.requestFullscreen();
+			}
+		} );
+		// Listen on whichever document we're driving so OS/Esc exits
+		// repaint the button too. Bound on both to cover the iframe edge
+		// case without extra branching.
+		document.addEventListener( 'fullscreenchange', function() {
+			paintFullscreen( !! document.fullscreenElement );
+		} );
+		try {
+			if ( window.top.document !== document ) {
+				window.top.document.addEventListener( 'fullscreenchange', function() {
+					paintFullscreen( !! window.top.document.fullscreenElement );
+				} );
+			}
+		} catch ( err ) {}
+	}
+
 	// Bug Report button — same decoupling pattern as Ask AI. Dispatches
 	// `desktop-mode-open-bug-report`; the shell answers by opening the
 	// Bug Report native window. Wired in `src/desktop.ts`.
