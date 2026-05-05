@@ -164,6 +164,19 @@ docs/
 │                               READ BEFORE: changes under src/native-windows/ or
 │                                            desktop_mode_register_window* / window-tab APIs.
 │
+├── pwa.md                      Architecture: web-app manifest, root-scope service
+│                               worker (narrow fetch handler), install affordance,
+│                               wp.desktop.notify() local notifications. v2 push
+│                               wiring lands later without breaking v1 call sites.
+│                               UPDATE WHEN: caching policy changes, new manifest
+│                                            fields are auto-emitted, the SW scope/
+│                                            registration strategy changes, or the
+│                                            wp.desktop.notify / pwa.* surface gains
+│                                            or loses methods.
+│                               READ BEFORE: any change under includes/pwa.php or
+│                                            src/pwa/, or before bumping the SW
+│                                            cache version key.
+│
 ├── plugin-compat-layer.md      Internals: how Desktop Mode adapts third-party plugins
 │                               (WC, Yoast, …) whose CSS/menu shapes assume classic
 │                               admin chrome. Three-tier model — CSS variable rebinds
@@ -223,7 +236,14 @@ docs/
     │                            desktop_mode_register_window(), wp.desktop.getWindowConfig(),
     │                            wp.desktop.debug.window(), or the lazy-load extras
     │                            harvest contract changes.
-    └── window-lifecycle.md     UPDATE/READ WHEN: window state machine / lifecycle hooks change.
+    ├── window-lifecycle.md     UPDATE/READ WHEN: window state machine / lifecycle hooks change.
+    ├── pwa-install.md           UPDATE/READ WHEN: wp.desktop.pwa.promptInstall(),
+    │                            install-pill UX, or desktop_mode_pwa_manifest filter
+    │                            contract changes.
+    └── notify.md                UPDATE/READ WHEN: wp.desktop.notify() options shape,
+                                 fallback semantics, or
+                                 desktop-mode/notification-{requested,shown}
+                                 channel payloads change.
 ```
 
 **Rules of thumb:**

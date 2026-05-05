@@ -180,6 +180,11 @@ export type { WpDesktopPublicApi } from './desktop';
 
 export type { ToastOptions, ToastIntent } from './toast';
 
+// ----- PWA — install affordance + local notifications -----
+
+export type { NotifyOptions, NotifyIntent } from './pwa';
+export type { PwaConfig, PwaUserState } from './types';
+
 // ----- DOM utilities (keyed-list reconciler) -----
 
 /**

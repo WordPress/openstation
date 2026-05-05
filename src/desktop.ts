@@ -125,6 +125,18 @@ import {
 	renderBugReport,
 } from './bug-report';
 import { showToast, type ToastOptions } from './toast';
+import {
+	bootstrapPwa,
+	notify as pwaNotify,
+	requestNotificationPermission,
+	getNotificationPermission,
+	promptInstall,
+	undismissInstallHint,
+	getPwaState,
+	subscribePwaState,
+	type NotifyOptions,
+} from './pwa';
+import { getInstallTileDef } from './pwa/install';
 import { renderKeyedList, clearKeyedList, type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
@@ -1171,6 +1183,54 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.6.0
 	 */
+	/**
+	 * Show a system notification (or fall back to a toast when
+	 * permission is denied / unsupported). Returns a dismiss
+	 * callback. Routes through `desktop-mode/notification-requested`
+	 * (filterable) and broadcasts on
+	 * `desktop-mode/notification-shown` after rendering. v1 is
+	 * page-scoped local notifications only — phase 4 will extend
+	 * this to Web Push without breaking the call surface.
+	 *
+	 * @since 0.8.0
+	 */
+	notify: ( opts: NotifyOptions ) => () => void;
+	/**
+	 * Programmatic + observational PWA surface. Mirrors the install
+	 * pill the framework renders automatically — plugin authors can
+	 * surface their own "Install as app" button in a settings tab,
+	 * read whether the app is already installed, or watch for the
+	 * dismissal flag flipping.
+	 *
+	 * @since 0.8.0
+	 */
+	pwa: {
+		/**
+		 * Trigger the install prompt. Resolves to the user's
+		 * choice, or `'unavailable'` when the browser hasn't fired
+		 * `beforeinstallprompt` yet (Safari, already installed,
+		 * non-PWA-capable browser).
+		 */
+		promptInstall: () => Promise< 'accepted' | 'dismissed' | 'unavailable' >;
+		/** Reset the install-hint dismissal flag so the pill re-appears. */
+		undismissInstallHint: () => void;
+		/** Snapshot of the per-user PWA state. */
+		getState: () => import( './types' ).PwaUserState;
+		/** Subscribe to state changes. Returns unsubscribe. */
+		subscribe: (
+			cb: ( s: import( './types' ).PwaUserState ) => void,
+		) => () => void;
+		/** Eager permission prompt for notifications. */
+		requestNotificationPermission: () => Promise<
+			'granted' | 'denied' | 'default' | 'unsupported'
+		>;
+		/** Synchronous read of the current permission. */
+		getNotificationPermission: () =>
+			| 'granted'
+			| 'denied'
+			| 'default'
+			| 'unsupported';
+	};
 	debug: {
 		/**
 		 * Snapshot what the shell knows about a registered native
@@ -1292,6 +1352,7 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
 	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
+	'notify', 'pwa',
 	'getWindowConfig', 'debug',
 ] );
 
@@ -1540,6 +1601,20 @@ function init(): void {
 				},
 				onOpen: openOsSettings,
 			},
+			'core',
+		);
+
+		// PWA install tile — sits next to OS Settings on the same
+		// rail (`'core'` affinity) so users see install / settings as
+		// peer shell-owned actions. The tile registers
+		// unconditionally; its onOpen handles the
+		// "browser hasn't decided we're installable yet" path with a
+		// contextual toast rather than disappearing.
+		layoutDispatcher.appendSystemTile(
+			getInstallTileDef(
+				config.pwa?.appName || 'WordPress',
+				showToast,
+			),
 			'core',
 		);
 	}
@@ -2259,6 +2334,15 @@ function init(): void {
 		activity,
 		heartbeat,
 		showToast,
+		notify: pwaNotify,
+		pwa: {
+			promptInstall,
+			undismissInstallHint,
+			getState: getPwaState,
+			subscribe: subscribePwaState,
+			requestNotificationPermission,
+			getNotificationPermission,
+		},
 		renderKeyedList,
 		clearKeyedList,
 		registerNamespace: ( name: string, api: object ) => {
@@ -2403,6 +2487,14 @@ function init(): void {
 	// `desktop-mode.open-command.items` can rely on the command being
 	// in the registry.
 	registerBuiltInCommands();
+
+	// PWA bootstrap — initialise the install pill, register the SW,
+	// and load the per-user dismissal/notifications snapshot. Runs
+	// AFTER the public API is mounted so a plugin's `whenReady`
+	// callback can immediately call `wp.desktop.pwa.*` or the
+	// `wp.desktop.notify` API. No-op when `config.pwa` is absent
+	// (chromeless context, classic admin, older PHP build).
+	bootstrapPwa( config, showToast );
 
 	doAction( HOOKS.INIT, { config } );
 

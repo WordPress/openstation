@@ -3387,6 +3387,56 @@ Each is origin-gated to the parent shell's origin and source-gated to the matchi
 
 ---
 
+## Progressive Web App (since 0.8.0)
+
+`wp.desktop.notify( opts )` is the public surface for local
+notifications. v1 uses the browser `Notification` API directly with a
+toast fallback when permission is denied; v2 will route the same call
+through the SW for push.
+
+```ts
+wp.desktop.notify( {
+    title: 'Build complete',
+    body: '12 files updated.',
+    icon: '/favicon.png',
+    tag: 'my-plugin/build',          // collapse repeat alerts
+    requireInteraction: false,
+    onClick: ( n ) => { window.focus(); n.close(); },
+} ); // returns a dismiss callback
+```
+
+Routes through the activity-bus filter
+`desktop-mode/notification-requested` (return `cancel: true` to
+suppress) and broadcasts on `desktop-mode/notification-shown` after
+rendering.
+
+### `wp.desktop.pwa.*` — programmatic install + permission control
+
+```ts
+wp.desktop.pwa.promptInstall();
+//   Promise<'accepted' | 'dismissed' | 'unavailable'>
+
+wp.desktop.pwa.requestNotificationPermission();
+//   Promise<'granted' | 'denied' | 'default' | 'unsupported'>
+
+wp.desktop.pwa.getNotificationPermission();
+//   'granted' | 'denied' | 'default' | 'unsupported'
+
+wp.desktop.pwa.getState();
+//   { installHintDismissed: boolean, notificationsEnabled: boolean }
+
+const off = wp.desktop.pwa.subscribe( ( s ) => { /* ... */ } );
+
+wp.desktop.pwa.undismissInstallHint();
+//   Re-surface the floating install pill after the user dismissed it.
+```
+
+See [`docs/pwa.md`](./pwa.md) for the full architecture and
+[`docs/examples/pwa-install.md`](./examples/pwa-install.md) /
+[`docs/examples/notify.md`](./examples/notify.md) for recipes.
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.

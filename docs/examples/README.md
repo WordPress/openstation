@@ -45,5 +45,7 @@ defined( 'ABSPATH' ) || exit;
 - [Render a keyed list without losing clicks — `renderKeyedList()`](./keyed-list.md)
 - [Share state across multi-bundle plugins — `wp.desktop.createSharedStore()`](./shared-store.md)
 - [Track who's around — `wp.desktop.presence`](./presence.md)
+- [Surface a custom "Install as App" button](./pwa-install.md)
+- [Send a notification — `wp.desktop.notify()`](./notify.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.
