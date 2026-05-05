@@ -676,6 +676,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 
 		const cols = this._effectiveColumns();
 		const stickyN = this._readStickyColumns();
+		this._lastStickyIndex = this._computeLastStickyIndex( cols, stickyN );
 
 		this._paintColgroup( colgroup, cols );
 		this._paintHead( thead, cols, stickyN );
@@ -1310,6 +1311,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		if ( tbody ) {
 			const cols = this._effectiveColumns();
 			const stickyN = this._readStickyColumns();
+			this._lastStickyIndex = this._computeLastStickyIndex( cols, stickyN );
 			this._paintBody( tbody, cols, stickyN );
 			this._applyStickyOffsets();
 		}
@@ -1489,6 +1491,28 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		return index < stickyN;
 	}
 
+	/**
+	 * The highest column index that resolves to sticky for the current
+	 * column set. -1 when no column is sticky. The "edge" cell — the one
+	 * that gets the visible right divider — is at this index. We compute
+	 * this by scanning rather than reusing `stickyN - 1` because
+	 * `column.sticky = true` can opt a column in past the count, and
+	 * `column.sticky = false` can carve a hole inside the band.
+	 */
+	private _lastStickyIndex = -1;
+	private _computeLastStickyIndex(
+		cols: WpdTableColumn< T >[],
+		stickyN: number,
+	): number {
+		let last = -1;
+		for ( let i = 0; i < cols.length; i++ ) {
+			if ( this._isStickyIndex( i, stickyN, cols[ i ] ) ) {
+				last = i;
+			}
+		}
+		return last;
+	}
+
 	private _applyCellClasses(
 		cell: HTMLElement,
 		col: WpdTableColumn< T >,
@@ -1510,7 +1534,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		const sticky = this._isStickyIndex( index, stickyN, col );
 		if ( sticky ) {
 			cell.classList.add( 'is-sticky' );
-			if ( index === stickyN - 1 ) {
+			if ( index === this._lastStickyIndex ) {
 				cell.classList.add( 'is-sticky-edge' );
 			}
 		}

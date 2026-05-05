@@ -22,6 +22,7 @@ import {
 	buildEditPostUrl,
 	createCategory,
 	createTag,
+	deleteTerm,
 	fetchAllCategories,
 	fetchAuthorOptions,
 	fetchPosts,
@@ -1140,6 +1141,9 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 	picker.setAttribute( 'placeholder', __( 'Search categories…' ) );
 	picker.setAttribute( 'add-label', __( 'Categorize' ) );
 	picker.setAttribute( 'data-noclick', '' );
+	// Register so the term-changed broadcast can push a fresh tree
+	// to this picker when categories are created/edited elsewhere.
+	_activePickers.add( picker );
 
 	// Seed the picker with the row's currently-assigned ids.
 	picker.value = row.categories ?? [];
@@ -1286,6 +1290,57 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 	// middle of [Tech > Web Dev > Frontend] yields [Web Dev,
 	// Frontend], NOT Tech). The drop target merges those ids into
 	// the receiving row's category set.
+
+	picker.addEventListener( 'wpd-categories-delete', async ( e: Event ) => {
+		const detail = ( e as CustomEvent< { id: number; name: string } > )
+			.detail;
+		if ( ! detail || typeof detail.id !== 'number' ) {
+			return;
+		}
+		// Cheap browser confirm — the picker emits the intent, we
+		// own the destructive REST call. WP cascades posts that
+		// previously belonged to the deleted term back to
+		// Uncategorized automatically.
+		// eslint-disable-next-line no-alert
+		const ok = window.confirm(
+			sprintf(
+				/* translators: %s: category name. */
+				__(
+					'Delete the category "%s"? Posts assigned only to it will fall back to Uncategorized.',
+				),
+				detail.name,
+			),
+		);
+		if ( ! ok ) {
+			return;
+		}
+		try {
+			await deleteTerm( 'categories', detail.id );
+			// `deleteTerm` already broadcasts desktop-mode.term.changed,
+			// which clears the cache and pushes the fresh tree to
+			// every live picker. We just need to drop the deleted
+			// id from THIS row's value if it was assigned.
+			if ( cellState.categoryIds.includes( detail.id ) ) {
+				const next = cellState.categoryIds.filter(
+					( id ) => id !== detail.id,
+				);
+				setValue( next );
+				try {
+					await updatePostCategories( row.id, next );
+				} catch ( err ) {
+					// The term IS gone server-side; failing to write
+					// back the post's now-shorter list is recoverable
+					// via the next refresh. Surface so the user knows.
+					showTagError(
+						__( 'Couldn’t update post categories after delete.' ),
+						err,
+					);
+				}
+			}
+		} catch ( err ) {
+			showTagError( __( 'Couldn’t delete category.' ), err );
+		}
+	} );
 
 	picker.addEventListener( 'wpd-chain-segment-dragstart', ( e: Event ) => {
 		const detail = ( e as CustomEvent< {
@@ -1470,6 +1525,47 @@ function getCategoriesTree(): Promise< WpdCategoryItem[] > {
 /** Reset the cache when the posts window closes. */
 function clearCategoryTreeCache(): void {
 	_categoryTreePromise = null;
+}
+
+/**
+ * Live registry of every category picker currently mounted in the
+ * window. Populated by `buildCategoriesCell`; iterated by the
+ * term-changed broadcast handler so newly-created categories show
+ * up in EVERY row's picker (and chain) without a refresh.
+ *
+ * Lazy cleanup — disconnected pickers are removed on the next
+ * iteration via `isConnected`. We don't need a WeakSet because
+ * we explicitly drop dead entries when we walk the set.
+ */
+const _activePickers = new Set< WpdCategoryPicker >();
+
+/**
+ * Re-fetch the category tree from scratch and push it onto every
+ * live picker. Called from the `desktop-mode.term.changed`
+ * subscriber after `clearCategoryTreeCache()`. Without this, a
+ * category created elsewhere (mindmap, terms tab, another tab)
+ * isn't visible in any row's picker — neither in the popover tree
+ * NOR in the cell breadcrumbs — until the user closes and reopens
+ * the posts window. That broke the drag-and-drop case the user
+ * reported: a chip can't be the drag source for a term that
+ * `picker.items` doesn't know about, so freshly-created
+ * categories silently couldn't be dragged.
+ */
+function broadcastFreshCategoryTreeToPickers(): void {
+	void getCategoriesTree()
+		.then( ( tree ) => {
+			for ( const picker of _activePickers ) {
+				if ( picker.isConnected ) {
+					picker.items = tree;
+				} else {
+					_activePickers.delete( picker );
+				}
+			}
+		} )
+		.catch( () => {
+			// Fetch failed — pickers keep their existing items list.
+			// Next picker open will retry via the cache miss path.
+		} );
 }
 
 /**
@@ -2025,12 +2121,20 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		// full tree per window-open (`_categoryTreePromise`); without
 		// invalidation, terms created from the mindmap or terms tab
 		// don't appear when the user reopens a picker for another
-		// post — the user has to F5. Clearing the cache forces the
-		// next picker open to re-fetch.
+		// post — the user has to F5.
+		//
+		// Clearing the cache alone wasn't enough: existing cells had
+		// already set `picker.items` from the stale tree. Their
+		// breadcrumb chains rebuild from `picker.items`, so a
+		// freshly-created category wasn't draggable from any cell
+		// (the chain literally couldn't render a segment for an id
+		// the picker didn't know about). We now also push the fresh
+		// tree to every live picker.
 		const onTermChange = ( payload: unknown ): void => {
 			const detail = payload as { taxonomy?: string } | null;
 			if ( detail?.taxonomy === 'category' ) {
 				clearCategoryTreeCache();
+				broadcastFreshCategoryTreeToPickers();
 			}
 		};
 		broadcastUnsubs.push(

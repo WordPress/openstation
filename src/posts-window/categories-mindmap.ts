@@ -1014,12 +1014,6 @@ export async function mountCategoriesMindmap(
 		chips.delete( id );
 	}
 
-	// Minimum on-screen scale for chip text. When the world is
-	// zoomed out below this, chips counter-scale by `MIN/world.scale`
-	// so the rendered text never gets unreadably small. Above the
-	// threshold the chip just rides the world transform 1:1.
-	const MIN_CHIP_VISUAL = 0.65;
-
 	// Per-frame pass: prune dead chips, position live ones, dim the
 	// unfocused branches when a node is deployed (the "spotlight"
 	// effect), and trigger a relayout if any cached state diverged
@@ -1031,10 +1025,14 @@ export async function mountCategoriesMindmap(
 				destroyChip( id );
 			}
 		}
-		const chipCounterScale = Math.max(
-			1,
-			MIN_CHIP_VISUAL / Math.max( 0.01, world.scale.x ),
-		);
+		// Chips counter-scale exactly 1/world.scale so their on-screen
+		// size stays constant at any zoom level — the text is always
+		// readable whether the user has zoomed all the way out to see
+		// the whole tree or all the way in on a single branch. Same
+		// pattern as Miro/Figma/JamBoard for node labels: spatial info
+		// (positions, sizes of discs/edges) scales with the world,
+		// textual info (names, counts, post titles) does not.
+		const chipCounterScale = 1 / Math.max( 0.01, world.scale.x );
 		const anyFocus = focusId !== null;
 		for ( const node of nodes.values() ) {
 			const chip = ensureChip( node );
@@ -1665,7 +1663,12 @@ export async function mountCategoriesMindmap(
 			text: post.title,
 			style: {
 				fill: 0x1d2327,
-				fontSize: 11,
+				// Matches category chip fontSize so the two read at
+				// the same weight when both are deployed. Base size
+				// is the on-screen size since the post chip's
+				// container counter-scales with `1/world.scale.x`
+				// in `syncChipPositions`.
+				fontSize: 12,
 				fontFamily: FONT_FAMILY,
 				fontWeight: '500',
 			},

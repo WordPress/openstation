@@ -168,6 +168,12 @@ export class WpdCategoryPicker extends Component {
 					'Fires when the user submits the inline create-child input. Consumer is expected to POST to the taxonomy REST endpoint, append the new term to `items`, and (optionally) auto-select it by adding the new id to `value`. Picker shows a per-row spinner while `creating-pending` is set.',
 				detail: '{ name: string; parent: number }',
 			},
+			{
+				name: 'wpd-categories-delete',
+				description:
+					'Fires when the per-row × button is activated. The button only renders on hover/keyboard-focus and is suppressed for the WP Uncategorized fallback. Consumer is responsible for confirmation + REST + invalidating any cached tree (typically broadcasts `desktop-mode.term.changed`).',
+				detail: '{ id: number; name: string }',
+			},
 		],
 		example: html`
 			<wpd-category-picker placeholder="Search categories…"></wpd-category-picker>
@@ -656,6 +662,16 @@ export class WpdCategoryPicker extends Component {
 						: html`<span class="wpd-cat__expander wpd-cat__expander--placeholder" aria-hidden="true">${ _iconCaretRight() }</span>` }
 					<span class="wpd-cat__check" aria-hidden="true">${ _iconCheck() }</span>
 					<span class="wpd-cat__label">${ this._highlight( node.item.name, this._query ) }</span>
+					${ _isUncategorized( node.item )
+						? html``
+						: html`<button
+								type="button"
+								class="wpd-cat__delete"
+								aria-label=${ `Delete ${ node.item.name }` }
+								title=${ `Delete ${ node.item.name }` }
+								@click=${ ( e: MouseEvent ) =>
+									this._onDeleteClick( e, node.item ) }
+							>${ _iconCrossSmall() }</button>` }
 				</div>
 				${ isExpanded && ! _isUncategorized( node.item )
 					? this._renderCreateRow(
@@ -831,9 +847,21 @@ export class WpdCategoryPicker extends Component {
 		for ( const root of roots ) {
 			setDepth( root, 0 );
 		}
-		// Sort siblings alphabetically — predictable list, easy to scan.
+		// Sort siblings alphabetically, but pin the WP "Uncategorized"
+		// fallback to the very top so it's the FIRST entry in the
+		// dialog — it's the implicit default for any uncategorised
+		// post and the most likely thing a user reaches for. The
+		// `_isUncategorized` helper covers id-1 + slug-shaped name
+		// (renamed-default sites still resolve correctly).
 		const sortRecursive = ( nodes: TreeNode[] ): void => {
-			nodes.sort( ( a, b ) => a.item.name.localeCompare( b.item.name ) );
+			nodes.sort( ( a, b ) => {
+				const aUncat = _isUncategorized( a.item );
+				const bUncat = _isUncategorized( b.item );
+				if ( aUncat !== bUncat ) {
+					return aUncat ? -1 : 1;
+				}
+				return a.item.name.localeCompare( b.item.name );
+			} );
 			for ( const n of nodes ) {
 				sortRecursive( n.children );
 			}
@@ -971,6 +999,18 @@ export class WpdCategoryPicker extends Component {
 			? this._value.filter( ( v ) => v !== id )
 			: [ ...this._value, id ];
 		this.emit( 'wpd-categories-change', { value: next } );
+	}
+
+	private _onDeleteClick(
+		e: MouseEvent,
+		item: WpdCategoryItem,
+	): void {
+		// Stop the row's click handler from also firing — the click
+		// landed on the delete button, NOT on the row, so we don't
+		// want to also flip the row's selection state.
+		e.stopPropagation();
+		e.preventDefault();
+		this.emit( 'wpd-categories-delete', { id: item.id, name: item.name } );
 	}
 
 	private _toggleExpand( id: number ): void {
@@ -1224,6 +1264,22 @@ function _iconCheck() {
 			stroke-linejoin="round"
 		>
 			<path d="M2.5 6 L5 8.5 L9.5 4" />
+		</svg>
+	`;
+}
+
+function _iconCrossSmall() {
+	return html`
+		<svg
+			viewBox="0 0 12 12"
+			aria-hidden="true"
+			focusable="false"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+		>
+			<path d="M3 3 L9 9 M9 3 L3 9" />
 		</svg>
 	`;
 }

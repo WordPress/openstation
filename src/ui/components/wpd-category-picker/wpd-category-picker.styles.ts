@@ -459,9 +459,48 @@ export const styles = css`
 
 	.wpd-cat__label {
 		min-width: 0;
+		flex: 1 1 auto;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	/* Per-row delete button. Only visible when the row is hovered
+	 * or keyboard-focused — invisible at rest so the tree reads as
+	 * a flat list of selectable terms, not a "danger surface". The
+	 * button emits wpd-categories-delete; the consumer is
+	 * responsible for confirming + REST. Suppressed for
+	 * Uncategorized in the row template, since core's fallback
+	 * term must not be deletable. */
+	.wpd-cat__delete {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex: 0 0 auto;
+		width: 18px;
+		height: 18px;
+		border: 0;
+		border-radius: 50%;
+		padding: 0;
+		background: transparent;
+		color: var( --wpd-cat-delete-color, #d63638 );
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 0.12s ease, background-color 0.12s ease;
+	}
+	.wpd-cat__row:hover .wpd-cat__delete,
+	.wpd-cat__row[ data-focused='true' ] .wpd-cat__delete,
+	.wpd-cat__delete:focus-visible {
+		opacity: 1;
+	}
+	.wpd-cat__delete:hover,
+	.wpd-cat__delete:focus-visible {
+		background: rgba( 214, 54, 56, 0.12 );
+	}
+	.wpd-cat__delete svg {
+		display: block;
+		width: 10px;
+		height: 10px;
 	}
 
 	/* Search-match highlight inside labels. */

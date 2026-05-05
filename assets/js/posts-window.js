@@ -1053,6 +1053,7 @@ var desktopModePostsWindow = function(exports) {
     picker.setAttribute("placeholder", __("Search categories…"));
     picker.setAttribute("add-label", __("Categorize"));
     picker.setAttribute("data-noclick", "");
+    _activePickers.add(picker);
     picker.value = row.categories ?? [];
     const seedItems = termRecordsOf(row, "category").map(
       (t) => ({ id: t.id, name: t.name, parent: 0 })
@@ -1144,6 +1145,43 @@ var desktopModePostsWindow = function(exports) {
       } catch (err) {
         setValue(previous);
         showTagError(__("Couldn’t update categories."), err);
+      }
+    });
+    picker.addEventListener("wpd-categories-delete", async (e) => {
+      const detail = e.detail;
+      if (!detail || typeof detail.id !== "number") {
+        return;
+      }
+      const ok = window.confirm(
+        sprintf(
+          /* translators: %s: category name. */
+          __(
+            'Delete the category "%s"? Posts assigned only to it will fall back to Uncategorized.'
+          ),
+          detail.name
+        )
+      );
+      if (!ok) {
+        return;
+      }
+      try {
+        await deleteTerm("categories", detail.id);
+        if (cellState.categoryIds.includes(detail.id)) {
+          const next = cellState.categoryIds.filter(
+            (id) => id !== detail.id
+          );
+          setValue(next);
+          try {
+            await updatePostCategories(row.id, next);
+          } catch (err) {
+            showTagError(
+              __("Couldn’t update post categories after delete."),
+              err
+            );
+          }
+        }
+      } catch (err) {
+        showTagError(__("Couldn’t delete category."), err);
       }
     });
     picker.addEventListener("wpd-chain-segment-dragstart", (e) => {
@@ -1292,6 +1330,19 @@ var desktopModePostsWindow = function(exports) {
   }
   function clearCategoryTreeCache() {
     _categoryTreePromise = null;
+  }
+  const _activePickers = /* @__PURE__ */ new Set();
+  function broadcastFreshCategoryTreeToPickers() {
+    void getCategoriesTree().then((tree) => {
+      for (const picker of _activePickers) {
+        if (picker.isConnected) {
+          picker.items = tree;
+        } else {
+          _activePickers.delete(picker);
+        }
+      }
+    }).catch(() => {
+    });
   }
   async function primePickerFromCache(picker) {
     if (!_categoryTreePromise) {
@@ -1695,6 +1746,7 @@ var desktopModePostsWindow = function(exports) {
         const detail = payload;
         if (detail?.taxonomy === "category") {
           clearCategoryTreeCache();
+          broadcastFreshCategoryTreeToPickers();
         }
       };
       broadcastUnsubs.push(
@@ -2431,7 +2483,6 @@ var desktopModePostsWindow = function(exports) {
       chip.container.destroy({ children: true });
       chips.delete(id);
     }
-    const MIN_CHIP_VISUAL = 0.65;
     function syncChipPositions() {
       const activeIds = new Set(nodes.keys());
       for (const id of [...chips.keys()]) {
@@ -2439,10 +2490,7 @@ var desktopModePostsWindow = function(exports) {
           destroyChip(id);
         }
       }
-      const chipCounterScale = Math.max(
-        1,
-        MIN_CHIP_VISUAL / Math.max(0.01, world.scale.x)
-      );
+      const chipCounterScale = 1 / Math.max(0.01, world.scale.x);
       const anyFocus = focusId !== null;
       for (const node of nodes.values()) {
         const chip = ensureChip(node);
@@ -2877,7 +2925,12 @@ var desktopModePostsWindow = function(exports) {
         text: post.title,
         style: {
           fill: 1909543,
-          fontSize: 11,
+          // Matches category chip fontSize so the two read at
+          // the same weight when both are deployed. Base size
+          // is the on-screen size since the post chip's
+          // container counter-scales with `1/world.scale.x`
+          // in `syncChipPositions`.
+          fontSize: 12,
           fontFamily: FONT_FAMILY,
           fontWeight: "500"
         },

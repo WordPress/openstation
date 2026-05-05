@@ -192,15 +192,18 @@ export const styles = css`
 		z-index: 40;
 	}
 
-	/* The last sticky column gets a soft shadow so the scrolling
-	   content visibly slides underneath it. */
+	/* The last sticky column gets a solid divider on its right edge
+	   so the boundary between pinned and scrolling content is always
+	   visible — even when the table isn't scrolled and especially on
+	   light themes. Themed via --wpd-table-sticky-edge so consumers
+	   can override (color, width, style). Border paints as part of
+	   the cell box, so there are no stacking-context surprises. */
 	th.is-sticky-edge,
 	td.is-sticky-edge {
-		box-shadow: 4px 0 6px -4px rgba( 0, 0, 0, 0.18 );
-	}
-	[ dir='rtl' ] th.is-sticky-edge,
-	[ dir='rtl' ] td.is-sticky-edge {
-		box-shadow: -4px 0 6px -4px rgba( 0, 0, 0, 0.18 );
+		border-inline-end: var(
+			--wpd-table-sticky-edge,
+			2px solid var( --wpd-table-border )
+		);
 	}
 
 	/* Per-column alignment + width. */
