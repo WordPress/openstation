@@ -1,0 +1,51 @@
+name: PR Preview Build
+
+# Builds the plugin zip for a PR and uploads it as an artifact, plus a
+# small `pr-meta` artifact carrying the PR number / head SHA. This
+# workflow is fork-safe: it runs with the read-only token GitHub gives
+# `pull_request` runs from forks, so it MUST NOT need any write
+# permissions or secrets. The companion `pr-preview-publish.yml`
+# workflow consumes these artifacts via `workflow_run` and does the
+# release upload + PR comment in the base repo's privileged context.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+          npm run package
+
+      - name: Save PR metadata for the publish workflow
+        run: |
+          mkdir -p ./pr-meta
+          echo "${{ github.event.pull_request.number }}" > ./pr-meta/pr-number
+          echo "${{ github.event.pull_request.head.sha }}" > ./pr-meta/head-sha
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: built-plugin
+          path: desktop-mode.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-meta
+          path: pr-meta/

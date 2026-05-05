@@ -1,0 +1,80 @@
+name: PR Preview Publish
+
+# Companion to `pr-preview-build.yml`. Triggered by `workflow_run` so it
+# runs in the BASE repo's privileged context (full write token, secrets
+# available) even when the originating PR is from a fork — that's the
+# only way to upload a release asset and post the PR comment, since
+# `pull_request` runs from forks get a read-only token.
+#
+# Trust model: this workflow never checks out or executes the PR's
+# code. It only reads `blueprint.json` from the base branch and
+# consumes the already-built zip artifact from the build run. Do NOT
+# add steps here that run untrusted PR code.
+#
+# Note: this file must already exist on the default branch before the
+# `workflow_run` trigger will fire — it won't run for the very first
+# PR in which it's introduced.
+
+on:
+  workflow_run:
+    workflows: ['PR Preview Build']
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download PR metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-meta
+          path: ./pr-meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read PR metadata
+        id: meta
+        run: |
+          echo "pr-number=$(cat ./pr-meta/pr-number)" >> "$GITHUB_OUTPUT"
+          echo "head-sha=$(cat ./pr-meta/head-sha)" >> "$GITHUB_OUTPUT"
+
+      - name: Expose built artifact on a public URL
+        id: expose
+        uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@v2
+        with:
+          artifact-name: 'built-plugin'
+          artifact-filename: 'desktop-mode.zip'
+          pr-number: ${{ steps.meta.outputs.pr-number }}
+          commit-sha: ${{ steps.meta.outputs.head-sha }}
+          artifacts-to-keep: '20'
+          artifact-source-run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Build blueprint
+        uses: actions/github-script@v7
+        id: blueprint
+        env:
+          ARTIFACT_URL: ${{ steps.expose.outputs.artifact-url }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.wordpress-org/blueprints/blueprint.json';
+            const blueprint = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const install = blueprint.steps.find((s) => s.step === 'installPlugin');
+            install.pluginData.url = process.env.ARTIFACT_URL;
+            return JSON.stringify(blueprint);
+          result-encoding: string
+
+      - name: Post preview to PR
+        uses: WordPress/action-wp-playground-pr-preview@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          blueprint: ${{ steps.blueprint.outputs.result }}
+          pr-number: ${{ steps.meta.outputs.pr-number }}
