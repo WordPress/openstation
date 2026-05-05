@@ -55,6 +55,27 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		)
 	);
 
+	// Fullscreen toggle — sits next to "Switch to Classic Admin" so the
+	// shell can occupy the whole screen without browser chrome. Only
+	// makes sense in desktop mode; kept out of classic where it would
+	// just be a redundant browser-fullscreen shortcut.
+	if ( $is_active ) {
+		$wp_admin_bar->add_node(
+			array(
+				'parent' => 'top-secondary',
+				'id'     => 'desktop-fullscreen',
+				'title'  => '<span class="ab-icon dashicons dashicons-fullscreen-alt" aria-hidden="true"></span>'
+					. '<span class="ab-label">' . esc_html__( 'Fullscreen', 'desktop-mode' ) . '</span>',
+				'href'   => '#',
+				'meta'   => array(
+					'class'    => 'desktop-fullscreen-btn',
+					'title'    => __( 'Enter fullscreen', 'desktop-mode' ),
+					'tabindex' => 0,
+				),
+			)
+		);
+	}
+
 	// "Report a bug" trigger — shown only when desktop mode is active.
 	// Clicking dispatches a `desktop-mode-open-bug-report` document
 	// CustomEvent that the shell listens for and answers by opening the
@@ -349,6 +370,31 @@ function desktop_mode_enqueue_toggle_assets() {
 			}
 		}
 
+		/* Fullscreen admin-bar button — same dashicons rendering pattern
+		   as the toggle. Icon swaps between fullscreen-alt (enter) and
+		   fullscreen-exit-alt (exit) via the .is-fullscreen class set by
+		   admin-bar.js on `fullscreenchange`. */
+		#wp-admin-bar-desktop-fullscreen .ab-icon.dashicons {
+			font: normal 20px/1 dashicons;
+			-webkit-font-smoothing: antialiased;
+			-moz-osx-font-smoothing: grayscale;
+		}
+		#wp-admin-bar-desktop-fullscreen .ab-icon.dashicons::before {
+			/* dashicons-fullscreen-alt */
+			content: "\f211";
+			top: 2px;
+			position: relative;
+		}
+		#wp-admin-bar-desktop-fullscreen.is-fullscreen .ab-icon.dashicons::before {
+			/* dashicons-fullscreen-exit-alt */
+			content: "\f212";
+		}
+		@media screen and (max-width: 782px) {
+			#wp-admin-bar-desktop-fullscreen .ab-label {
+				display: none;
+			}
+		}
+
 		/* Bug Report admin-bar button — same dashicons rendering pattern
 		   as the toggle. dashicons-buddicons-replies is a speech bubble
 		   with stylized lines that reads as a comment / report glyph at
@@ -463,6 +509,12 @@ function desktop_mode_enqueue_toggle_assets() {
 				'classicUrl' => esc_url_raw( admin_url() ),
 				'portalUrl'  => esc_url_raw( desktop_mode_portal_url() ),
 				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
+				'i18n'       => array(
+					'enterFullscreen' => __( 'Fullscreen', 'desktop-mode' ),
+					'exitFullscreen'  => __( 'Exit fullscreen', 'desktop-mode' ),
+					'enterTitle'      => __( 'Enter fullscreen', 'desktop-mode' ),
+					'exitTitle'       => __( 'Exit fullscreen', 'desktop-mode' ),
+				),
 			)
 		) . ';',
 		'before'
