@@ -25,6 +25,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { addAction, removeAction, HOOKS } from '../hooks';
 import {
 	createCategory,
 	deleteTerm,
@@ -309,6 +310,15 @@ export async function mountCategoriesMindmap(
 	const postEdgeGfx = new pixi.Graphics();
 	postEdgeLayer.addChild( postEdgeGfx );
 
+	// Hoisted text rasterisation constant — also used by the chip
+	// renderer further down. 4× rasterises every glyph texture at
+	// 4× detail so text stays crisp through the world's full zoom
+	// range (up to 2.5×) AND on Retina/HiDPI displays where the
+	// canvas itself is already pixel-doubled. Higher values cost
+	// GPU memory; 4 is the sweet spot for the largest text we render
+	// (28pt-ish post titles at peak zoom).
+	const CHIP_TEXT_RES = 4;
+
 	// Pager: a single Pixi container holding two arrow buttons + a
 	// page-count text node. Lives on the post layer so it scales with
 	// the world (matches the satellite ring it controls). Showing/
@@ -330,11 +340,12 @@ export async function mountCategoriesMindmap(
 		text: '1 / 1',
 		style: {
 			fill: 0x50575e,
-			fontSize: 12,
+			fontSize: 14,
 			fontFamily:
 				'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 			fontWeight: '600',
 		},
+		resolution: CHIP_TEXT_RES,
 	} );
 	pagerLabel.anchor.set( 0.5 );
 	pagerPrev.eventMode = 'static';
@@ -521,15 +532,23 @@ export async function mountCategoriesMindmap(
 			angle: number,
 			angleSpan: number,
 		): void => {
-			// Root radius. With ONE root, sit it at canvas centre.
-			// With MORE than one, distribute roots on a ring sized
-			// to the count — more roots → bigger ring so nodes don't
-			// crowd each other. Children radii ladder out from there
-			// at 160 px per depth so the tree reads inside-out AND
-			// chips below adjacent same-row discs (parent + first
-			// child sharing an angle) don't overlap horizontally.
-			const rootRing =
+			// Root radius. With ONE root and no centred Uncategorized,
+			// sit the root at canvas centre. With MORE than one root
+			// (or a centred Uncategorized hogging 0,0) distribute the
+			// roots on a ring sized to the count — more roots → bigger
+			// ring so nodes don't crowd each other. Children radii
+			// ladder out from there at 160 px per depth so the tree
+			// reads inside-out AND chips below adjacent same-row discs
+			// (parent + first child sharing an angle) don't overlap
+			// horizontally.
+			const rootRingByCount =
 				roots.length > 1 ? 110 + roots.length * 28 : 0;
+			// When Uncategorized lives at the centre (its default
+			// state — see placeIsolated), force a minimum root ring
+			// so a single root doesn't try to share 0,0 with it.
+			const rootRing = uncategorized
+				? Math.max( rootRingByCount, 180 )
+				: rootRingByCount;
 			const baseRadius =
 				depth === 0 ? rootRing : rootRing + 160 + ( depth - 1 ) * 150;
 			const tx = baseRadius * Math.cos( angle );
@@ -615,18 +634,23 @@ export async function mountCategoriesMindmap(
 			place( root, 0, idx, angle, ( 2 * Math.PI ) / rootCount );
 		} );
 
-		// Uncategorized as an isolated island. Pin it at a fixed
-		// world-space offset (top-right of the canvas) so the tree's
-		// force layout never tugs at it. Same click-to-focus + posts
-		// affordance as every other node.
+		// Uncategorized as the canvas centrepiece. WordPress treats
+		// it as the taxonomy's default fallback — every untagged post
+		// drains into it — so visually parking it at 0,0 reads as
+		// "the home base of the tree". The tree's roots already form
+		// a ring around the centre (rootRing minimum is bumped to 180
+		// when Uncategorized is centred so a single root doesn't try
+		// to share the spot). When the user explicitly reparents
+		// Uncategorized to live under another node, it falls into the
+		// regular `place()` recursion and this branch never runs.
 		if ( uncategorized ) {
 			placeIsolated( uncategorized );
 		}
 	}
 
 	function placeIsolated( term: TermRow ): void {
-		const tx = 360;
-		const ty = -240;
+		const tx = 0;
+		const ty = 0;
 		const radius = nodeRadius( term.count, terms );
 		const color = 0x8c8f94; // neutral grey — visually quiet
 		let node = nodes.get( term.id );
@@ -967,11 +991,8 @@ export async function mountCategoriesMindmap(
 	// --- Pixi chip renderer (in-world, scales smoothly with zoom) ----
 	const FONT_FAMILY =
 		'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-	// Text resolution — 3× rasterises the texture at 3× detail so
-	// glyphs stay crisp through the world's full zoom range
-	// (currently capped at 2.5×). Higher costs more GPU memory; 3
-	// is the sweet spot for 24-pt-and-down chip text.
-	const CHIP_TEXT_RES = 3;
+	// CHIP_TEXT_RES hoisted earlier so the pager (created above this
+	// section) can also opt into the same rasterisation resolution.
 	const CHIP_NAME_MAX_CHARS = 18;
 	const POST_TITLE_MAX_CHARS = 22;
 
@@ -997,7 +1018,7 @@ export async function mountCategoriesMindmap(
 			text: truncateChipName( node.name ),
 			style: {
 				fill: 0x1d2327,
-				fontSize: 12,
+				fontSize: 14,
 				fontFamily: FONT_FAMILY,
 				fontWeight: '600',
 			},
@@ -1012,7 +1033,7 @@ export async function mountCategoriesMindmap(
 			text: String( node.count ),
 			style: {
 				fill: 0xffffff,
-				fontSize: 10,
+				fontSize: 12,
 				fontFamily: FONT_FAMILY,
 				fontWeight: '700',
 			},
@@ -1582,6 +1603,30 @@ export async function mountCategoriesMindmap(
 	// so we frame the graph against the final stable canvas size,
 	// not the pre-flexbox-resolution size that an rAF would catch.
 	let firstFitDone = false;
+	// Debounced "fit when the layout actually settles". Window-
+	// geometry hooks (maximize / unmaximize / resize-end / fullscreen)
+	// fire SYNCHRONOUSLY when the size class changes, but the
+	// underlying CSS transition takes ~200-300ms to actually animate
+	// the box to its new dimensions. fitting in the next rAF reads
+	// stage.getBoundingClientRect() while the transition is barely
+	// underway → fits the OLD size, the canvas paints against an
+	// outdated frame, the user sees the layout perpetually one step
+	// behind. The fix: arm the fit on the hook, then extend the
+	// debounce every time ResizeObserver fires (which it does
+	// repeatedly during the transition). Once the size stops moving
+	// for `FIT_DEBOUNCE_MS`, the actual fit runs against settled
+	// dimensions.
+	const FIT_DEBOUNCE_MS = 80;
+	let fitTimer: number | null = null;
+	function scheduleFit(): void {
+		if ( fitTimer !== null ) {
+			window.clearTimeout( fitTimer );
+		}
+		fitTimer = window.setTimeout( () => {
+			fitTimer = null;
+			fitToView();
+		}, FIT_DEBOUNCE_MS );
+	}
 	function onResize(): void {
 		const r = stage.getBoundingClientRect();
 		app.renderer.resize( r.width, r.height );
@@ -1590,6 +1635,14 @@ export async function mountCategoriesMindmap(
 			firstFitDone = true;
 			fitToView();
 			stage.classList.remove( 'is-loading' );
+		}
+		// If a window-geometry hook armed a fit, this observer fire
+		// is part of the transition that hook described. Reset the
+		// debounce so the fit only lands once the size goes quiet.
+		// Stray reflows from sidebar repaints (which DON'T arm a
+		// fit) are unaffected — fitTimer stays null, no work done.
+		if ( fitTimer !== null ) {
+			scheduleFit();
 		}
 		// Force an immediate render so the freshly-resized canvas
 		// has pixels in it RIGHT NOW. Without this Pixi waits for
@@ -1792,7 +1845,7 @@ export async function mountCategoriesMindmap(
 				// is the on-screen size since the post chip's
 				// container counter-scales with `1/world.scale.x`
 				// in `syncChipPositions`.
-				fontSize: 12,
+				fontSize: 14,
 				fontFamily: FONT_FAMILY,
 				fontWeight: '500',
 			},
@@ -2047,11 +2100,12 @@ export async function mountCategoriesMindmap(
 				text: glyph,
 				style: {
 					fill: disabled ? 0xb0b3b8 : 0x50575e,
-					fontSize: 14,
+					fontSize: 16,
 					fontFamily:
 						'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 					fontWeight: '600',
 				},
+				resolution: CHIP_TEXT_RES,
 			} );
 			t.anchor.set( 0.5 );
 			gfx.addChild( t );
@@ -2572,6 +2626,38 @@ export async function mountCategoriesMindmap(
 
 	recenterBtn.addEventListener( 'click', () => fitToView() );
 
+	// Window-resize-end → recenter the canvas. Listening on the
+	// shell's hook bus instead of the stage's ResizeObserver because
+	// the observer also fires for tiny flexbox reflows triggered by
+	// sidebar repaints (focusing a node), and we don't want those to
+	// rip the user's pan/zoom back to centre. The hooks below fire
+	// once per user-initiated geometry change:
+	//   - WINDOW_RESIZE_END: drag-handle resize ends.
+	//   - WINDOW_MAXIMIZED / WINDOW_UNMAXIMIZED: max / restore.
+	//   - WINDOW_FULLSCREEN_ENTERED / WINDOW_FULLSCREEN_EXITED.
+	// Wrapped in rAF so the stage's new dimensions are guaranteed to
+	// be readable when fitToView measures them. When the canvas is
+	// hidden behind another tab, `fitToView` short-circuits on the
+	// zero-dimension guard already in place, so no special handling
+	// is needed for the inactive-tab case.
+	const HOOK_NS = 'desktop-mode/posts-categories-mindmap';
+	const refitOnGeometryChange = ( payload: unknown ): void => {
+		const p = payload as { windowId?: string };
+		if ( p?.windowId !== 'desktop-mode-posts' ) {
+			return;
+		}
+		// Arm a debounced fit. The transition is just starting;
+		// onResize will keep extending the debounce while it's
+		// running, and the actual fitToView() will run once the
+		// size has stopped moving. See `scheduleFit` above.
+		scheduleFit();
+	};
+	addAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange );
+
 	// Click empty canvas → close focus. Pixi paints into the canvas,
 	// so a click on the focused node, a satellite, the pager arrows,
 	// or any other Pixi-rendered control ALSO fires a DOM `click` on
@@ -2687,8 +2773,17 @@ export async function mountCategoriesMindmap(
 			cancelAnimationFrame( raf );
 			raf = null;
 		}
+		if ( fitTimer !== null ) {
+			window.clearTimeout( fitTimer );
+			fitTimer = null;
+		}
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
+		removeAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS );
+		removeAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS );
+		removeAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS );
+		removeAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS );
+		removeAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS );
 		try {
 			app.destroy( true, { children: true, texture: true } );
 		} catch {

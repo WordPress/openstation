@@ -1909,6 +1909,38 @@ var desktopModePostsWindow = function(exports) {
       console.error("[posts-window] render failed:", err);
     });
   };
+  function getWpHooks() {
+    const hooks = window.wp?.hooks;
+    if (!hooks) {
+      throw new Error(
+        "[desktop-mode] `window.wp.hooks` is not available. The plugin declares `wp-hooks` as a script dependency; if you are seeing this error, verify the enqueue order."
+      );
+    }
+    return hooks;
+  }
+  function addAction(hookName, namespace, callback, priority) {
+    getWpHooks().addAction(
+      hookName,
+      namespace,
+      callback,
+      priority
+    );
+  }
+  function removeAction(hookName, namespace) {
+    return getWpHooks().removeAction(hookName, namespace);
+  }
+  const HOOKS = {
+    /** Action, fires when a window is maximized (fills desktop area). */
+    WINDOW_MAXIMIZED: "desktop-mode.window.maximized",
+    /** Action, fires when a window exits maximized state. */
+    WINDOW_UNMAXIMIZED: "desktop-mode.window.unmaximized",
+    /** Action, fires when a window enters fullscreen / focus mode. */
+    WINDOW_FULLSCREEN_ENTERED: "desktop-mode.window.fullscreen-entered",
+    /** Action, fires when a window exits fullscreen / focus mode. */
+    WINDOW_FULLSCREEN_EXITED: "desktop-mode.window.fullscreen-exited",
+    /** Action, fires when resize completes. Payload mirrors WINDOW_RESIZED. */
+    WINDOW_RESIZE_END: "desktop-mode.window.resize-end"
+  };
   const REPULSION_K = 5500;
   const SPRING_K = 0.05;
   const SPRING_LEN = 130;
@@ -1998,6 +2030,7 @@ var desktopModePostsWindow = function(exports) {
     edgeLayer.addChild(edgeGfx);
     const postEdgeGfx = new pixi.Graphics();
     postEdgeLayer.addChild(postEdgeGfx);
+    const CHIP_TEXT_RES2 = 4;
     const pager = new pixi.Container();
     pager.eventMode = "passive";
     pager.visible = false;
@@ -2008,10 +2041,11 @@ var desktopModePostsWindow = function(exports) {
       text: "1 / 1",
       style: {
         fill: 5265246,
-        fontSize: 12,
+        fontSize: 14,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         fontWeight: "600"
-      }
+      },
+      resolution: CHIP_TEXT_RES2
     });
     pagerLabel.anchor.set(0.5);
     pagerPrev.eventMode = "static";
@@ -2106,7 +2140,8 @@ var desktopModePostsWindow = function(exports) {
       const roots = allRoots.filter((r) => !isUncategorized(r));
       const uncategorized = allRoots.find(isUncategorized);
       const place = (term, depth, rootIdx, angle, angleSpan) => {
-        const rootRing = roots.length > 1 ? 110 + roots.length * 28 : 0;
+        const rootRingByCount = roots.length > 1 ? 110 + roots.length * 28 : 0;
+        const rootRing = uncategorized ? Math.max(rootRingByCount, 180) : rootRingByCount;
         const baseRadius = depth === 0 ? rootRing : rootRing + 160 + (depth - 1) * 150;
         const tx = baseRadius * Math.cos(angle);
         const ty = baseRadius * Math.sin(angle);
@@ -2182,8 +2217,8 @@ var desktopModePostsWindow = function(exports) {
       }
     }
     function placeIsolated(term) {
-      const tx = 360;
-      const ty = -240;
+      const tx = 0;
+      const ty = 0;
       const radius = nodeRadius(term.count, terms);
       const color = 9211796;
       let node = nodes.get(term.id);
@@ -2377,7 +2412,6 @@ var desktopModePostsWindow = function(exports) {
       }
     }
     const FONT_FAMILY2 = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const CHIP_TEXT_RES2 = 3;
     const CHIP_NAME_MAX_CHARS2 = 18;
     const POST_TITLE_MAX_CHARS2 = 22;
     function truncateChipName2(name) {
@@ -2397,7 +2431,7 @@ var desktopModePostsWindow = function(exports) {
         text: truncateChipName2(node.name),
         style: {
           fill: 1909543,
-          fontSize: 12,
+          fontSize: 14,
           fontFamily: FONT_FAMILY2,
           fontWeight: "600"
         },
@@ -2410,7 +2444,7 @@ var desktopModePostsWindow = function(exports) {
         text: String(node.count),
         style: {
           fill: 16777215,
-          fontSize: 10,
+          fontSize: 12,
           fontFamily: FONT_FAMILY2,
           fontWeight: "700"
         },
@@ -2813,6 +2847,17 @@ var desktopModePostsWindow = function(exports) {
     }
     stage.addEventListener("wheel", onWheel, { passive: false });
     let firstFitDone = false;
+    const FIT_DEBOUNCE_MS = 80;
+    let fitTimer = null;
+    function scheduleFit() {
+      if (fitTimer !== null) {
+        window.clearTimeout(fitTimer);
+      }
+      fitTimer = window.setTimeout(() => {
+        fitTimer = null;
+        fitToView();
+      }, FIT_DEBOUNCE_MS);
+    }
     function onResize() {
       const r = stage.getBoundingClientRect();
       app.renderer.resize(r.width, r.height);
@@ -2821,6 +2866,9 @@ var desktopModePostsWindow = function(exports) {
         firstFitDone = true;
         fitToView();
         stage.classList.remove("is-loading");
+      }
+      if (fitTimer !== null) {
+        scheduleFit();
       }
       app.render();
     }
@@ -2962,7 +3010,7 @@ var desktopModePostsWindow = function(exports) {
           // is the on-screen size since the post chip's
           // container counter-scales with `1/world.scale.x`
           // in `syncChipPositions`.
-          fontSize: 12,
+          fontSize: 14,
           fontFamily: FONT_FAMILY2,
           fontWeight: "500"
         },
@@ -3168,10 +3216,11 @@ var desktopModePostsWindow = function(exports) {
           text: glyph,
           style: {
             fill: disabled ? 11580344 : 5265246,
-            fontSize: 14,
+            fontSize: 16,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             fontWeight: "600"
-          }
+          },
+          resolution: CHIP_TEXT_RES2
         });
         t.anchor.set(0.5);
         gfx.addChild(t);
@@ -3578,6 +3627,19 @@ var desktopModePostsWindow = function(exports) {
       targetWorldY = world.y;
     }
     recenterBtn.addEventListener("click", () => fitToView());
+    const HOOK_NS = "desktop-mode/posts-categories-mindmap";
+    const refitOnGeometryChange = (payload) => {
+      const p = payload;
+      if (p?.windowId !== "desktop-mode-posts") {
+        return;
+      }
+      scheduleFit();
+    };
+    addAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange);
     app.canvas.addEventListener("click", (e) => {
       const now = performance.now();
       if (now - lastFocusChange < 250 || now - pixiInteractionAt < 250) {
@@ -3646,8 +3708,17 @@ var desktopModePostsWindow = function(exports) {
         cancelAnimationFrame(raf);
         raf = null;
       }
+      if (fitTimer !== null) {
+        window.clearTimeout(fitTimer);
+        fitTimer = null;
+      }
       ro.disconnect();
       stage.removeEventListener("wheel", onWheel);
+      removeAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS);
+      removeAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS);
+      removeAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS);
+      removeAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS);
+      removeAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS);
       try {
         app.destroy(true, { children: true, texture: true });
       } catch {
@@ -4409,6 +4480,17 @@ var desktopModePostsWindow = function(exports) {
     }
     stage.addEventListener("wheel", onWheel, { passive: false });
     let firstFitDone = false;
+    const FIT_DEBOUNCE_MS = 80;
+    let fitTimer = null;
+    function scheduleFit() {
+      if (fitTimer !== null) {
+        window.clearTimeout(fitTimer);
+      }
+      fitTimer = window.setTimeout(() => {
+        fitTimer = null;
+        fitToView();
+      }, FIT_DEBOUNCE_MS);
+    }
     function onResize() {
       const r = stage.getBoundingClientRect();
       app.renderer.resize(r.width, r.height);
@@ -4417,6 +4499,9 @@ var desktopModePostsWindow = function(exports) {
         firstFitDone = true;
         fitToView();
         stage.classList.remove("is-loading");
+      }
+      if (fitTimer !== null) {
+        scheduleFit();
       }
       app.render();
     }
@@ -5086,6 +5171,19 @@ var desktopModePostsWindow = function(exports) {
       targetWorldY = world.y;
     }
     recenterBtn.addEventListener("click", () => fitToView());
+    const HOOK_NS = "desktop-mode/posts-tags-cloud";
+    const refitOnGeometryChange = (payload) => {
+      const p = payload;
+      if (p?.windowId !== "desktop-mode-posts") {
+        return;
+      }
+      scheduleFit();
+    };
+    addAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange);
+    addAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange);
     reflowBtn.addEventListener("click", () => {
       persistedPositions.clear();
       writePersistedPositions(positionsKey, persistedPositions);
@@ -5189,8 +5287,17 @@ var desktopModePostsWindow = function(exports) {
         cancelAnimationFrame(raf);
         raf = null;
       }
+      if (fitTimer !== null) {
+        window.clearTimeout(fitTimer);
+        fitTimer = null;
+      }
       ro.disconnect();
       stage.removeEventListener("wheel", onWheel);
+      removeAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS);
+      removeAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS);
+      removeAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS);
+      removeAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS);
+      removeAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS);
       try {
         app.destroy(true, { children: true, texture: true });
       } catch {

@@ -112,6 +112,58 @@ describe( '<wpd-text-field>', () => {
 		expect( input.type ).toBe( 'email' );
 	} );
 
+	test( 'type=password renders as type=text with the mask class — Chrome / Edge / Firefox password managers only inspect type=password inputs, so this sidesteps the save / update / autofill prompts entirely', async () => {
+		host.innerHTML = `<wpd-text-field type="password"></wpd-text-field>`;
+		await tick();
+
+		const input = host
+			.querySelector( 'wpd-text-field' )!
+			.shadowRoot!.querySelector( 'input' ) as HTMLInputElement;
+		expect( input.type ).toBe( 'text' );
+		expect( input.classList.contains( 'wpd-text-field__input--masked' ) ).toBe( true );
+	} );
+
+	test( 'type=password autocomplete defaults to new-password (defense-in-depth — kept in case a future caller bypasses the type swap)', async () => {
+		host.innerHTML = `<wpd-text-field type="password"></wpd-text-field>`;
+		await tick();
+
+		const input = host
+			.querySelector( 'wpd-text-field' )!
+			.shadowRoot!.querySelector( 'input' ) as HTMLInputElement;
+		expect( input.getAttribute( 'autocomplete' ) ).toBe( 'new-password' );
+	} );
+
+	test( 'type=password autocomplete=off upgrades to new-password', async () => {
+		host.innerHTML = `<wpd-text-field type="password" autocomplete="off"></wpd-text-field>`;
+		await tick();
+
+		const input = host
+			.querySelector( 'wpd-text-field' )!
+			.shadowRoot!.querySelector( 'input' ) as HTMLInputElement;
+		expect( input.getAttribute( 'autocomplete' ) ).toBe( 'new-password' );
+	} );
+
+	test( 'type=password respects explicit current-password (login flow opt-in)', async () => {
+		host.innerHTML = `<wpd-text-field type="password" autocomplete="current-password"></wpd-text-field>`;
+		await tick();
+
+		const input = host
+			.querySelector( 'wpd-text-field' )!
+			.shadowRoot!.querySelector( 'input' ) as HTMLInputElement;
+		expect( input.getAttribute( 'autocomplete' ) ).toBe( 'current-password' );
+	} );
+
+	test( 'type=text with autocomplete=off forwards verbatim (no upgrade for non-password fields)', async () => {
+		host.innerHTML = `<wpd-text-field type="text" autocomplete="off"></wpd-text-field>`;
+		await tick();
+
+		const input = host
+			.querySelector( 'wpd-text-field' )!
+			.shadowRoot!.querySelector( 'input' ) as HTMLInputElement;
+		expect( input.getAttribute( 'autocomplete' ) ).toBe( 'off' );
+		expect( input.classList.contains( 'wpd-text-field__input--masked' ) ).toBe( false );
+	} );
+
 	test( 'auto-id pulls window + tab + label ancestry', async () => {
 		host.innerHTML = `
 			<div id="wp-window-calc">

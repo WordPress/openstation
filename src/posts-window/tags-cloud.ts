@@ -30,6 +30,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { addAction, removeAction, HOOKS } from '../hooks';
 import {
 	createTag,
 	deleteTerm,
@@ -980,6 +981,28 @@ export async function mountTagsCloud(
 
 	// --- Resize ------------------------------------------------------
 	let firstFitDone = false;
+	// Debounced "fit when the layout actually settles". Window-
+	// geometry hooks (maximize / unmaximize / resize-end / fullscreen)
+	// fire SYNCHRONOUSLY when the size class changes, but the CSS
+	// transition takes ~200-300ms to actually animate the box to its
+	// new dimensions. Reading getBoundingClientRect() in the next
+	// rAF would catch the OLD size; the canvas would render fitted
+	// to that, leaving the user one transition behind. The fix:
+	// arm the fit on the hook, then extend the debounce on every
+	// ResizeObserver fire (which the transition triggers repeatedly).
+	// The actual fitToView() lands once the size goes quiet for
+	// FIT_DEBOUNCE_MS.
+	const FIT_DEBOUNCE_MS = 80;
+	let fitTimer: number | null = null;
+	function scheduleFit(): void {
+		if ( fitTimer !== null ) {
+			window.clearTimeout( fitTimer );
+		}
+		fitTimer = window.setTimeout( () => {
+			fitTimer = null;
+			fitToView();
+		}, FIT_DEBOUNCE_MS );
+	}
 	function onResize(): void {
 		const r = stage.getBoundingClientRect();
 		app.renderer.resize( r.width, r.height );
@@ -988,6 +1011,12 @@ export async function mountTagsCloud(
 			firstFitDone = true;
 			fitToView();
 			stage.classList.remove( 'is-loading' );
+		}
+		// Extend the debounce while the size is still moving. Stray
+		// flexbox reflows from sidebar repaints (which DON'T arm a
+		// fit) are unaffected — fitTimer stays null, no fit runs.
+		if ( fitTimer !== null ) {
+			scheduleFit();
 		}
 		app.render();
 	}
@@ -1756,6 +1785,30 @@ export async function mountTagsCloud(
 
 	recenterBtn.addEventListener( 'click', () => fitToView() );
 
+	// Window-resize-end → recenter the cloud. Same shape as the
+	// Categories mindmap: subscribe to the geometry-change hooks on
+	// the shell's bus, filter by windowId, run fitToView in the next
+	// rAF so the stage's new dimensions are settled. The stage's own
+	// ResizeObserver isn't suitable here because it also fires on
+	// flexbox reflows from sidebar repaints, which would clobber the
+	// user's pan/zoom on every chip click.
+	const HOOK_NS = 'desktop-mode/posts-tags-cloud';
+	const refitOnGeometryChange = ( payload: unknown ): void => {
+		const p = payload as { windowId?: string };
+		if ( p?.windowId !== 'desktop-mode-posts' ) {
+			return;
+		}
+		// Arm a debounced fit. onResize keeps extending the timer
+		// while the transition is in-flight; the actual fit runs
+		// against the settled dimensions. See `scheduleFit` above.
+		scheduleFit();
+	};
+	addAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange );
+	addAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange );
+
 	reflowBtn.addEventListener( 'click', () => {
 		// Wipe persisted positions and rebuild the layout from
 		// scratch. Useful if the user dragged things into chaos and
@@ -1914,8 +1967,17 @@ export async function mountTagsCloud(
 			cancelAnimationFrame( raf );
 			raf = null;
 		}
+		if ( fitTimer !== null ) {
+			window.clearTimeout( fitTimer );
+			fitTimer = null;
+		}
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
+		removeAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS );
+		removeAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS );
+		removeAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS );
+		removeAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS );
+		removeAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS );
 		try {
 			app.destroy( true, { children: true, texture: true } );
 		} catch {
