@@ -383,7 +383,7 @@ var desktopModePostsWindow = function(exports) {
   const HOOK_FILTER_TOOLBAR_TRAILING = "desktop_mode.postsWindow.toolbarTrailing";
   const HOOK_ACTION_OPENED = "desktop_mode.postsWindow.opened";
   const HOOK_ACTION_DATA_LOADED = "desktop_mode.postsWindow.dataLoaded";
-  const SEARCH_DEBOUNCE_MS$1 = 250;
+  const SEARCH_DEBOUNCE_MS = 250;
   const STATUS_LABELS = {
     publish: __("Published"),
     future: __("Scheduled"),
@@ -1426,14 +1426,11 @@ var desktopModePostsWindow = function(exports) {
           );
         }
         if (value === "tags" && tagsHost && !tagsTeardown) {
-          void Promise.resolve().then(() => termsTab).then(({ mountTermsTab: mountTermsTab2 }) => {
-            tagsTeardown = mountTermsTab2(tagsHost, {
-              taxonomy: "tags",
-              singular: __("Tag"),
-              plural: __("Tags"),
-              hierarchical: false
-            });
-          });
+          void Promise.resolve().then(() => tagsCloud).then(
+            async ({ mountTagsCloud: mountTagsCloud2 }) => {
+              tagsTeardown = await mountTagsCloud2(tagsHost);
+            }
+          );
         }
       });
     }
@@ -1616,7 +1613,7 @@ var desktopModePostsWindow = function(exports) {
         view.searchDebounce = window.setTimeout(() => {
           goToFirstPage();
           void refresh();
-        }, SEARCH_DEBOUNCE_MS$1);
+        }, SEARCH_DEBOUNCE_MS);
       }
     );
     body.addEventListener("click", (e) => {
@@ -1917,8 +1914,8 @@ var desktopModePostsWindow = function(exports) {
   const SPRING_LEN = 130;
   const MIN_RADIUS = 22;
   const MAX_RADIUS = 48;
-  const POST_PER_PAGE = 10;
-  const POST_RING_RADIUS = 170;
+  const POST_PER_PAGE$1 = 10;
+  const POST_RING_RADIUS$1 = 170;
   async function mountCategoriesMindmap(host) {
     const api = window.wp?.desktop;
     if (!api || typeof api.loadModules !== "function") {
@@ -2073,8 +2070,8 @@ var desktopModePostsWindow = function(exports) {
     const pinnedTargetBackup = /* @__PURE__ */ new Map();
     let prevView = null;
     let draft = null;
-    const themeHue = readAdminThemeHue();
-    const clusterColor = (idx) => hslToInt((themeHue + idx * 47) % 360, 55, 52);
+    const themeHue = readAdminThemeHue$1();
+    const clusterColor = (idx) => hslToInt$1((themeHue + idx * 47) % 360, 55, 52);
     let terms = [];
     try {
       const all = [];
@@ -2089,9 +2086,9 @@ var desktopModePostsWindow = function(exports) {
       }
       terms = all;
     } catch (err) {
-      showToast(__("Couldn’t load categories:"), err);
+      showToast$1(__("Couldn’t load categories:"), err);
     }
-    const showError = (title, err) => showToast(title, err);
+    const showError = (title, err) => showToast$1(title, err);
     function isUncategorized(term) {
       if (term.isDefault) {
         return true;
@@ -2248,11 +2245,14 @@ var desktopModePostsWindow = function(exports) {
         return { x: px, y: py };
       };
       const STEPS = 32;
-      let visible = true;
+      const phase = opts.dashPhase ?? 0;
+      const stride = Math.max(1, opts.dashStride ?? 1);
       let lastX = x1;
       let lastY = y1;
       for (let i = 1; i <= STEPS; i++) {
         const p = sampleAt(i / STEPS);
+        const groupIdx = Math.floor((i - 1 + phase) / stride);
+        const visible = groupIdx % 2 === 0;
         if (visible) {
           g.moveTo(lastX, lastY);
           g.lineTo(p.x, p.y);
@@ -2260,18 +2260,27 @@ var desktopModePostsWindow = function(exports) {
         }
         lastX = p.x;
         lastY = p.y;
-        visible = !visible;
       }
     }
     function drawNodeDisc(node, highlighted) {
       const g = node.gfx;
       g.clear();
-      if (highlighted) {
-        g.circle(0, 0, node.radius + 8);
-        g.fill({ color: node.color, alpha: 0.18 });
+      const r = node.radius;
+      if (!highlighted) {
+        g.circle(0, 5, r);
+        g.fill({ color: 0, alpha: 0.18 });
       }
-      g.circle(0, 0, node.radius);
+      if (highlighted) {
+        g.circle(0, 0, r + 10);
+        g.fill({ color: node.color, alpha: 0.22 });
+      }
+      g.circle(0, 0, r);
+      g.fill(shadeColor(node.color, -0.18));
+      g.circle(0, -r * 0.1, r * 0.94);
       g.fill(node.color);
+      g.circle(-r * 0.32, -r * 0.42, r * 0.3);
+      g.fill({ color: 16777215, alpha: 0.32 });
+      g.circle(0, 0, r);
       g.stroke({
         color: 16777215,
         width: highlighted ? 3 : 2
@@ -2279,7 +2288,23 @@ var desktopModePostsWindow = function(exports) {
       g.x = node.x;
       g.y = node.y;
       g.zIndex = 10;
-      g.hitArea = new pixi.Circle(0, 0, node.radius + 4);
+      g.hitArea = new pixi.Circle(0, 0, r + 4);
+    }
+    function drawDropTarget(hover, sourceColor) {
+      drawNodeDisc(hover, false);
+      const g = hover.gfx;
+      const t = performance.now();
+      const pulse = Math.sin(t / 280) * 0.5 + 0.5;
+      const ringR = hover.radius + 6 + pulse * 5;
+      g.circle(0, 0, ringR);
+      g.stroke({
+        color: sourceColor,
+        width: 3,
+        alpha: 0.6 + pulse * 0.35
+      });
+      g.circle(0, 0, hover.radius * 0.42);
+      g.fill({ color: sourceColor, alpha: 0.85 });
+      g.hitArea = new pixi.Circle(0, 0, hover.radius + 12);
     }
     function drawEdges() {
       edgeGfx.clear();
@@ -2305,15 +2330,35 @@ var desktopModePostsWindow = function(exports) {
         );
       }
       if (dragNode && dragHover) {
-        drawCurvedEdge(
-          edgeGfx,
-          dragHover.x,
-          dragHover.y,
-          dragNode.x,
-          dragNode.y,
-          dragHover.color,
-          { alpha: 1, width: 2.5 }
-        );
+        const x1 = dragNode.x;
+        const y1 = dragNode.y;
+        const x2 = dragHover.x;
+        const y2 = dragHover.y;
+        const targetColor = dragHover.color;
+        drawCurvedEdge(edgeGfx, x1, y1, x2, y2, targetColor, {
+          alpha: 0.22,
+          width: 9
+        });
+        const dashPhase = Math.floor(performance.now() / 70);
+        drawCurvedEdge(edgeGfx, x1, y1, x2, y2, targetColor, {
+          alpha: 0.95,
+          width: 2.5,
+          dashed: true,
+          dashStride: 2,
+          dashPhase
+        });
+        const pt = performance.now() % 1300 / 1300;
+        const omt = 1 - pt;
+        const dx = x2 - x1;
+        const cp1x = x1 + dx * 0.5;
+        const cp1y = y1;
+        const cp2x = x2 - dx * 0.5;
+        const cp2y = y2;
+        const px = omt * omt * omt * x1 + 3 * omt * omt * pt * cp1x + 3 * omt * pt * pt * cp2x + pt * pt * pt * x2;
+        const py = omt * omt * omt * y1 + 3 * omt * omt * pt * cp1y + 3 * omt * pt * pt * cp2y + pt * pt * pt * y2;
+        edgeGfx.circle(px, py, 5);
+        edgeGfx.fill({ color: 16777215, alpha: 0.95 });
+        edgeGfx.stroke({ color: targetColor, width: 2, alpha: 1 });
       }
       postEdgeGfx.clear();
       if (focusId !== null) {
@@ -2331,12 +2376,12 @@ var desktopModePostsWindow = function(exports) {
         }
       }
     }
-    const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const CHIP_TEXT_RES = 3;
-    const CHIP_NAME_MAX_CHARS = 18;
-    const POST_TITLE_MAX_CHARS = 22;
-    function truncateChipName(name) {
-      return name.length > CHIP_NAME_MAX_CHARS ? name.slice(0, CHIP_NAME_MAX_CHARS - 1) + "…" : name;
+    const FONT_FAMILY2 = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const CHIP_TEXT_RES2 = 3;
+    const CHIP_NAME_MAX_CHARS2 = 18;
+    const POST_TITLE_MAX_CHARS2 = 22;
+    function truncateChipName2(name) {
+      return name.length > CHIP_NAME_MAX_CHARS2 ? name.slice(0, CHIP_NAME_MAX_CHARS2 - 1) + "…" : name;
     }
     function ensureChip(node) {
       const existing = chips.get(node.id);
@@ -2349,14 +2394,14 @@ var desktopModePostsWindow = function(exports) {
       const bg = new pixi.Graphics();
       container.addChild(bg);
       const nameText = new pixi.Text({
-        text: truncateChipName(node.name),
+        text: truncateChipName2(node.name),
         style: {
           fill: 1909543,
           fontSize: 12,
-          fontFamily: FONT_FAMILY,
+          fontFamily: FONT_FAMILY2,
           fontWeight: "600"
         },
-        resolution: CHIP_TEXT_RES
+        resolution: CHIP_TEXT_RES2
       });
       container.addChild(nameText);
       const countBg = new pixi.Graphics();
@@ -2366,10 +2411,10 @@ var desktopModePostsWindow = function(exports) {
         style: {
           fill: 16777215,
           fontSize: 10,
-          fontFamily: FONT_FAMILY,
+          fontFamily: FONT_FAMILY2,
           fontWeight: "700"
         },
-        resolution: CHIP_TEXT_RES
+        resolution: CHIP_TEXT_RES2
       });
       container.addChild(countText);
       const chip = {
@@ -2407,7 +2452,7 @@ var desktopModePostsWindow = function(exports) {
     }
     function layoutChip(chip, node) {
       const focused = focusId === node.id;
-      const displayName = truncateChipName(node.name);
+      const displayName = truncateChipName2(node.name);
       const countStr = String(node.count);
       if (chip.nameText.text !== displayName) {
         chip.nameText.text = displayName;
@@ -2509,7 +2554,7 @@ var desktopModePostsWindow = function(exports) {
         } else {
           node.gfx.alpha = targetAlpha;
         }
-        const displayName = truncateChipName(node.name);
+        const displayName = truncateChipName2(node.name);
         if (chip.cachedName !== displayName || chip.cachedCount !== node.count || chip.cachedFocused !== focused || chip.cachedColor !== node.color) {
           layoutChip(chip, node);
         }
@@ -2615,6 +2660,9 @@ var desktopModePostsWindow = function(exports) {
         p.gfx.y = p.y;
       }
       drawEdges();
+      if (dragNode && dragHover) {
+        drawDropTarget(dragHover, dragNode.color);
+      }
       syncChipPositions();
       raf = requestAnimationFrame(tick);
     }
@@ -2674,23 +2722,7 @@ var desktopModePostsWindow = function(exports) {
           }
           dragHover = hover;
           if (hover && dragNode) {
-            const sourceColor = dragNode.color;
-            const g = hover.gfx;
-            g.clear();
-            g.circle(0, 0, hover.radius + 6);
-            g.stroke({
-              color: sourceColor,
-              width: 3,
-              alpha: 0.95
-            });
-            g.circle(0, 0, hover.radius);
-            g.fill(hover.color);
-            g.stroke({ color: 16777215, width: 2 });
-            g.circle(0, 0, hover.radius * 0.45);
-            g.fill({ color: sourceColor, alpha: 0.85 });
-            g.x = hover.x;
-            g.y = hover.y;
-            g.hitArea = new pixi.Circle(0, 0, hover.radius + 6);
+            drawDropTarget(hover, dragNode.color);
           }
         }
         return;
@@ -2728,7 +2760,7 @@ var desktopModePostsWindow = function(exports) {
           panStart = null;
           return;
         }
-        if (target && target.id !== node.parent && !isAncestor(target.id, node.id)) {
+        if (target && target.id !== node.parent && !isAncestor(node.id, target.id)) {
           try {
             await updateTerm("categories", node.id, {
               parent: target.id
@@ -2809,7 +2841,7 @@ var desktopModePostsWindow = function(exports) {
       return false;
     }
     let lastFocusChange = 0;
-    const SPOTLIGHT_RADIUS = POST_RING_RADIUS + 130;
+    const SPOTLIGHT_RADIUS2 = POST_RING_RADIUS$1 + 130;
     async function focusNode(id) {
       if (focusId === id) {
         closeFocus();
@@ -2830,7 +2862,7 @@ var desktopModePostsWindow = function(exports) {
         }
         const r = stage.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) {
-          const half = POST_RING_RADIUS + 70;
+          const half = POST_RING_RADIUS$1 + 70;
           const sx = r.width * 0.85 / (2 * half);
           const sy = r.height * 0.85 / (2 * half);
           const newScale = Math.max(
@@ -2844,7 +2876,7 @@ var desktopModePostsWindow = function(exports) {
         nudgeAwayFrom = {
           x: focused.x,
           y: focused.y,
-          radius: SPOTLIGHT_RADIUS
+          radius: SPOTLIGHT_RADIUS2
         };
         pinnedTargetBackup.clear();
         for (const n of nodes.values()) {
@@ -2854,11 +2886,11 @@ var desktopModePostsWindow = function(exports) {
           const dx = n.x - focused.x;
           const dy = n.y - focused.y;
           const d = Math.sqrt(dx * dx + dy * dy) || 1;
-          if (d >= SPOTLIGHT_RADIUS + n.radius) {
+          if (d >= SPOTLIGHT_RADIUS2 + n.radius) {
             continue;
           }
           pinnedTargetBackup.set(n.id, { tx: n.tx, ty: n.ty });
-          const push = SPOTLIGHT_RADIUS + n.radius + 20;
+          const push = SPOTLIGHT_RADIUS2 + n.radius + 20;
           n.tx = focused.x + dx / d * push;
           n.ty = focused.y + dy / d * push;
         }
@@ -2931,10 +2963,10 @@ var desktopModePostsWindow = function(exports) {
           // container counter-scales with `1/world.scale.x`
           // in `syncChipPositions`.
           fontSize: 12,
-          fontFamily: FONT_FAMILY,
+          fontFamily: FONT_FAMILY2,
           fontWeight: "500"
         },
-        resolution: CHIP_TEXT_RES
+        resolution: CHIP_TEXT_RES2
       });
       container.addChild(titleText);
       const chip = {
@@ -2968,7 +3000,7 @@ var desktopModePostsWindow = function(exports) {
       return chip;
     }
     function layoutPostChip(chip, post) {
-      const displayTitle = post.title.length > POST_TITLE_MAX_CHARS ? post.title.slice(0, POST_TITLE_MAX_CHARS - 1) + "…" : post.title;
+      const displayTitle = post.title.length > POST_TITLE_MAX_CHARS2 ? post.title.slice(0, POST_TITLE_MAX_CHARS2 - 1) + "…" : post.title;
       if (chip.titleText.text !== displayTitle) {
         chip.titleText.text = displayTitle;
       }
@@ -3018,12 +3050,12 @@ var desktopModePostsWindow = function(exports) {
       const cfg = getConfig();
       const url = new URL(cfg.postsUrl);
       url.searchParams.set("categories", String(focusId));
-      url.searchParams.set("per_page", String(POST_PER_PAGE));
+      url.searchParams.set("per_page", String(POST_PER_PAGE$1));
       url.searchParams.set("page", String(focusPage));
       url.searchParams.set("status", "any");
       url.searchParams.set("_fields", "id,title,status");
       try {
-        const response = await fetchShellJson(url.toString());
+        const response = await fetchShellJson$1(url.toString());
         if (mySeq !== loadSeq || focusId !== myFocusId) {
           return;
         }
@@ -3046,7 +3078,7 @@ var desktopModePostsWindow = function(exports) {
         renderPosts(
           items.map((p) => ({
             id: p.id,
-            title: stripTags(p.title?.rendered || `#${p.id}`),
+            title: stripTags$1(p.title?.rendered || `#${p.id}`),
             editUrl: `${cfg.editPostUrlBase}?post=${p.id}&action=edit`
           }))
         );
@@ -3064,7 +3096,7 @@ var desktopModePostsWindow = function(exports) {
         return;
       }
       const count = items.length;
-      const ringR = POST_RING_RADIUS + Math.max(0, count - 8) * 6;
+      const ringR = POST_RING_RADIUS$1 + Math.max(0, count - 8) * 6;
       items.forEach((item, idx) => {
         const angle = 2 * Math.PI / Math.max(1, count) * idx - Math.PI / 2;
         const tx = center.x + Math.cos(angle) * ringR;
@@ -3115,7 +3147,7 @@ var desktopModePostsWindow = function(exports) {
       pagerLabel.x = 0;
       pagerLabel.y = 0;
       pager.x = center.x;
-      pager.y = center.y + POST_RING_RADIUS + 60;
+      pager.y = center.y + POST_RING_RADIUS$1 + 60;
     }
     function drawPagerButton(gfx, glyph, disabled) {
       gfx.clear();
@@ -3573,7 +3605,7 @@ var desktopModePostsWindow = function(exports) {
         terms.map((t) => t.id).join(",")
       );
       try {
-        const response = await fetchShellJson(url.toString());
+        const response = await fetchShellJson$1(url.toString());
         const map = response.json;
         let dirty = false;
         terms = terms.map((t) => {
@@ -3628,6 +3660,1573 @@ var desktopModePostsWindow = function(exports) {
     const max = Math.max(1, ...all.map((t) => t.count));
     const ratio = Math.sqrt(count / max);
     return MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * ratio;
+  }
+  function readAdminThemeHue$1() {
+    try {
+      const value = getComputedStyle(document.documentElement).getPropertyValue("--wp-admin-theme-color").trim();
+      if (!value) {
+        return 210;
+      }
+      const c = document.createElement("span");
+      c.style.color = value;
+      document.body.appendChild(c);
+      const rgb = getComputedStyle(c).color;
+      c.remove();
+      const m = rgb.match(/\d+/g);
+      if (!m || m.length < 3) {
+        return 210;
+      }
+      return rgbToHue$1(
+        parseInt(m[0], 10),
+        parseInt(m[1], 10),
+        parseInt(m[2], 10)
+      );
+    } catch {
+      return 210;
+    }
+  }
+  function rgbToHue$1(r, g, b) {
+    const rn = r / 255;
+    const gn = g / 255;
+    const bn = b / 255;
+    const max = Math.max(rn, gn, bn);
+    const min = Math.min(rn, gn, bn);
+    const d = max - min;
+    if (d === 0) {
+      return 210;
+    }
+    let h;
+    switch (max) {
+      case rn:
+        h = (gn - bn) / d + (gn < bn ? 6 : 0);
+        break;
+      case gn:
+        h = (bn - rn) / d + 2;
+        break;
+      default:
+        h = (rn - gn) / d + 4;
+        break;
+    }
+    return Math.round(h * 60);
+  }
+  function hslToInt$1(h, s, l) {
+    const sn = s / 100;
+    const ln = l / 100;
+    const c = (1 - Math.abs(2 * ln - 1)) * sn;
+    const hp = h / 60;
+    const x = c * (1 - Math.abs(hp % 2 - 1));
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    if (hp < 1) {
+      r = c;
+      g = x;
+    } else if (hp < 2) {
+      r = x;
+      g = c;
+    } else if (hp < 3) {
+      g = c;
+      b = x;
+    } else if (hp < 4) {
+      g = x;
+      b = c;
+    } else if (hp < 5) {
+      r = x;
+      b = c;
+    } else {
+      r = c;
+      b = x;
+    }
+    const m = ln - c / 2;
+    const ri = Math.round((r + m) * 255);
+    const gi = Math.round((g + m) * 255);
+    const bi = Math.round((b + m) * 255);
+    return ri * 65536 + gi * 256 + bi;
+  }
+  function shadeColor(color, delta) {
+    const r = Math.floor(color / 65536) % 256;
+    const g = Math.floor(color / 256) % 256;
+    const b = color % 256;
+    const adj = (ch) => {
+      return Math.round(ch * (1 + delta));
+    };
+    return adj(r) * 65536 + adj(g) * 256 + adj(b);
+  }
+  function stripTags$1(html) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  }
+  function showToast$1(title, err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    const api = window.wp?.desktop;
+    if (api && typeof api.showToast === "function") {
+      api.showToast({
+        message: `${title} ${reason}`.trim(),
+        duration: 6e3
+      });
+      return;
+    }
+    console.error(title, err);
+  }
+  async function fetchShellJson$1(url) {
+    const cfg = getConfig();
+    const api = window.wp?.desktop;
+    const init = {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        "X-WP-Nonce": cfg.restNonce,
+        Accept: "application/json"
+      }
+    };
+    let response;
+    if (api && typeof api.fetch === "function") {
+      response = await api.fetch(url, init, {
+        windowId: "desktop-mode-posts"
+      });
+    } else {
+      response = await fetch(url, init);
+    }
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const json = await response.json();
+    return { json, headers: response.headers };
+  }
+  const categoriesMindmap = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    mountCategoriesMindmap
+  }, Symbol.toStringTag, { value: "Module" }));
+  const POST_PER_PAGE = 10;
+  const POST_RING_RADIUS = 170;
+  const MIN_FONT_SIZE = 11;
+  const MAX_FONT_SIZE = 28;
+  const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const CHIP_TEXT_RES = 3;
+  const CHIP_NAME_MAX_CHARS = 22;
+  const POST_TITLE_MAX_CHARS = 22;
+  const CHIP_PAD_X = 11;
+  const CHIP_PAD_Y = 6;
+  const CHIP_GAP_HASH = 4;
+  const CHIP_GAP_COUNT = 8;
+  const SPIRAL_PADDING = 14;
+  const SPOTLIGHT_RADIUS = POST_RING_RADIUS + 130;
+  async function mountTagsCloud(host) {
+    const api = window.wp?.desktop;
+    if (!api || typeof api.loadModules !== "function") {
+      host.textContent = __("Tag cloud unavailable: shell modules API missing.");
+      return () => {
+      };
+    }
+    try {
+      await api.loadModules(["pixijs"]);
+    } catch {
+      host.textContent = __("Tag cloud unavailable.");
+      return () => {
+      };
+    }
+    const pixiMaybe = window.PIXI;
+    if (!pixiMaybe) {
+      host.textContent = __("Tag cloud unavailable.");
+      return () => {
+      };
+    }
+    const pixi = pixiMaybe;
+    host.replaceChildren();
+    host.classList.add("wpd-tagcloud");
+    const toolbar = document.createElement("div");
+    toolbar.className = "wpd-tagcloud__toolbar";
+    const addTagBtn = document.createElement("button");
+    addTagBtn.type = "button";
+    addTagBtn.className = "wpd-tagcloud__btn wpd-tagcloud__btn--primary";
+    addTagBtn.innerHTML = '<span class="dashicons dashicons-plus" aria-hidden="true"></span>' + __("Add tag");
+    const recenterBtn = document.createElement("button");
+    recenterBtn.type = "button";
+    recenterBtn.className = "wpd-tagcloud__btn";
+    recenterBtn.innerHTML = '<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>' + __("Recenter");
+    const reflowBtn = document.createElement("button");
+    reflowBtn.type = "button";
+    reflowBtn.className = "wpd-tagcloud__btn";
+    reflowBtn.innerHTML = '<span class="dashicons dashicons-grid-view" aria-hidden="true"></span>' + __("Reflow");
+    reflowBtn.title = __(
+      "Recompute the chip layout from scratch — discards manual repositioning."
+    );
+    const hint = document.createElement("span");
+    hint.className = "wpd-tagcloud__hint";
+    hint.textContent = __(
+      "Click a tag to focus + edit · drag to reposition · wheel to zoom"
+    );
+    toolbar.appendChild(addTagBtn);
+    toolbar.appendChild(recenterBtn);
+    toolbar.appendChild(reflowBtn);
+    toolbar.appendChild(hint);
+    host.appendChild(toolbar);
+    const layout = document.createElement("div");
+    layout.className = "wpd-tagcloud__layout";
+    host.appendChild(layout);
+    const stage = document.createElement("div");
+    stage.className = "wpd-tagcloud__stage";
+    stage.classList.add("is-loading");
+    layout.appendChild(stage);
+    const sidebar = document.createElement("aside");
+    sidebar.className = "wpd-tagcloud__sidebar";
+    layout.appendChild(sidebar);
+    const app = new pixi.Application();
+    await app.init({
+      resizeTo: stage,
+      backgroundAlpha: 0,
+      antialias: true,
+      autoDensity: true,
+      resolution: Math.min(window.devicePixelRatio || 1, 2)
+    });
+    stage.appendChild(app.canvas);
+    app.canvas.classList.add("wpd-tagcloud__canvas");
+    const world = new pixi.Container();
+    world.x = stage.clientWidth / 2;
+    world.y = stage.clientHeight / 2;
+    app.stage.addChild(world);
+    const chipLayer = new pixi.Container();
+    const postEdgeLayer = new pixi.Container();
+    const postLayer = new pixi.Container();
+    const postChipLayer = new pixi.Container();
+    world.addChild(chipLayer);
+    world.addChild(postEdgeLayer);
+    world.addChild(postLayer);
+    world.addChild(postChipLayer);
+    const postEdgeGfx = new pixi.Graphics();
+    postEdgeLayer.addChild(postEdgeGfx);
+    const pager = new pixi.Container();
+    pager.eventMode = "passive";
+    pager.visible = false;
+    postLayer.addChild(pager);
+    const pagerPrev = new pixi.Graphics();
+    const pagerNext = new pixi.Graphics();
+    const pagerLabel = new pixi.Text({
+      text: "1 / 1",
+      style: {
+        fill: 5265246,
+        fontSize: 12,
+        fontFamily: FONT_FAMILY,
+        fontWeight: "600"
+      }
+    });
+    pagerLabel.anchor.set(0.5);
+    pagerPrev.eventMode = "static";
+    pagerPrev.cursor = "pointer";
+    pagerNext.eventMode = "static";
+    pagerNext.cursor = "pointer";
+    pagerPrev.hitArea = new pixi.Circle(0, 0, 16);
+    pagerNext.hitArea = new pixi.Circle(0, 0, 16);
+    pager.addChild(pagerPrev);
+    pager.addChild(pagerLabel);
+    pager.addChild(pagerNext);
+    const stopBubble = (e) => {
+      e.stopPropagation?.();
+      pixiInteractionAt = performance.now();
+    };
+    pagerPrev.on("pointerdown", stopBubble);
+    pagerNext.on("pointerdown", stopBubble);
+    pagerPrev.on("pointertap", (e) => {
+      stopBubble(e);
+      lastFocusChange = performance.now();
+      if (focusPage <= 1) {
+        return;
+      }
+      focusPage--;
+      void loadPostsForFocus();
+    });
+    pagerNext.on("pointertap", (e) => {
+      stopBubble(e);
+      lastFocusChange = performance.now();
+      if (focusPage >= focusTotalPages) {
+        return;
+      }
+      focusPage++;
+      void loadPostsForFocus();
+    });
+    const tags = /* @__PURE__ */ new Map();
+    const postChips = /* @__PURE__ */ new Map();
+    const postNodes = /* @__PURE__ */ new Map();
+    let focusId = null;
+    let focusPage = 1;
+    let focusTotalPages = 1;
+    let loadSeq = 0;
+    let pixiInteractionAt = 0;
+    let dragChip = null;
+    let dragOffset = { x: 0, y: 0 };
+    let dragStart = null;
+    let panActive = false;
+    let panStart = null;
+    let panMovedDist = 0;
+    let raf = null;
+    let lastTick = performance.now();
+    let targetScale = world.scale.x;
+    let targetWorldX = world.x;
+    let targetWorldY = world.y;
+    let nudgeAwayFrom = null;
+    let prevView = null;
+    let lastFocusChange = 0;
+    let draft = null;
+    let terms = [];
+    const positionsKey = computePositionsKey();
+    const persistedPositions = readPersistedPositions(positionsKey);
+    const themeHue = readAdminThemeHue();
+    try {
+      const all = [];
+      let page = 1;
+      while (page <= 5) {
+        const res = await fetchTerms("tags", { page, perPage: 100 });
+        all.push(...res.items);
+        if (page >= res.totalPages) {
+          break;
+        }
+        page++;
+      }
+      terms = all;
+    } catch (err) {
+      showToast(__("Couldn’t load tags:"), err);
+    }
+    const showError = (title, err) => showToast(title, err);
+    function buildCloud() {
+      const liveIds = new Set(terms.map((t) => t.id));
+      for (const [id, box] of tags) {
+        if (!liveIds.has(id)) {
+          chipLayer.removeChild(box.chip.container);
+          box.chip.container.destroy({ children: true });
+          tags.delete(id);
+        }
+      }
+      const maxCount = Math.max(1, ...terms.map((t) => t.count));
+      const fresh = [];
+      for (const term of terms) {
+        const fontSize = fontSizeFor(term.count, maxCount);
+        const hue = tagHue(term.slug || term.name, themeHue);
+        const rotation = tagRotation(term.slug || term.name);
+        const existing = tags.get(term.id);
+        if (existing) {
+          existing.name = term.name;
+          existing.slug = term.slug;
+          existing.description = term.description;
+          existing.count = term.count;
+          existing.fontSize = fontSize;
+          existing.hue = hue;
+          existing.rotation = rotation;
+          layoutChip(existing);
+        } else {
+          const chip = createTagChip(pixi, chipLayer, term, fontSize, hue);
+          const persisted = persistedPositions.get(term.id);
+          const box = {
+            id: term.id,
+            name: term.name,
+            slug: term.slug,
+            description: term.description,
+            count: term.count,
+            fontSize,
+            hue,
+            rotation,
+            x: persisted ? persisted.x : 0,
+            y: persisted ? persisted.y : 0,
+            tx: persisted ? persisted.x : 0,
+            ty: persisted ? persisted.y : 0,
+            width: 0,
+            height: 0,
+            chip
+          };
+          tags.set(term.id, box);
+          layoutChip(box);
+          wireChipPointer(box);
+          if (!persisted) {
+            fresh.push(box);
+          }
+        }
+      }
+      const placed = [];
+      for (const box of tags.values()) {
+        if (!fresh.includes(box)) {
+          placed.push({
+            x: box.tx - box.width / 2,
+            y: box.ty - box.height / 2,
+            w: box.width,
+            h: box.height
+          });
+        }
+      }
+      fresh.sort((a, b) => b.count - a.count);
+      for (const box of fresh) {
+        const slot = findSpiralSlot(box.width, box.height, placed);
+        box.tx = slot.x;
+        box.ty = slot.y;
+        box.x = slot.x;
+        box.y = slot.y;
+        placed.push({
+          x: slot.x - box.width / 2,
+          y: slot.y - box.height / 2,
+          w: box.width,
+          h: box.height
+        });
+      }
+    }
+    function wireChipPointer(box) {
+      const c = box.chip.container;
+      c.on("pointerdown", (e) => {
+        const ev = e;
+        ev.stopPropagation?.();
+        pixiInteractionAt = performance.now();
+        dragChip = box;
+        dragStart = { x: ev.global.x, y: ev.global.y };
+        const local = stageToWorld({ x: ev.global.x, y: ev.global.y });
+        dragOffset = { x: box.x - local.x, y: box.y - local.y };
+      });
+      c.on("pointerover", () => {
+        box.chip.cachedHover = true;
+        paintChip(box);
+      });
+      c.on("pointerout", () => {
+        box.chip.cachedHover = false;
+        paintChip(box);
+      });
+    }
+    function layoutChip(box) {
+      const chip = box.chip;
+      const displayName = truncateChipName(box.name);
+      const countStr = String(box.count);
+      if (chip.nameText.text !== displayName) {
+        chip.nameText.text = displayName;
+      }
+      if (chip.countText.text !== countStr) {
+        chip.countText.text = countStr;
+      }
+      chip.nameText.style.fontSize = box.fontSize;
+      chip.hashText.style.fontSize = box.fontSize;
+      chip.countText.style.fontSize = Math.max(
+        10,
+        Math.round(box.fontSize * 0.55)
+      );
+      chip.cachedName = displayName;
+      chip.cachedCount = box.count;
+      chip.cachedHue = box.hue;
+      const hashW = chip.hashText.width;
+      const nameW = chip.nameText.width;
+      const nameH = chip.nameText.height;
+      const countW = chip.countText.width;
+      const countH = chip.countText.height;
+      const countBadgeW = Math.max(18, countW + 10);
+      const countBadgeH = Math.max(14, countH + 4);
+      const totalW = CHIP_PAD_X + hashW + CHIP_GAP_HASH + nameW + CHIP_GAP_COUNT + countBadgeW + CHIP_PAD_X;
+      const totalH = Math.max(nameH, countBadgeH) + CHIP_PAD_Y * 2;
+      box.width = totalW;
+      box.height = totalH;
+      paintChip(box);
+    }
+    function paintChip(box) {
+      const chip = box.chip;
+      const focused = focusId === box.id;
+      chip.cachedFocused = focused;
+      const totalW = box.width;
+      const totalH = box.height;
+      const left = -totalW / 2;
+      const top = -totalH / 2;
+      const radius = totalH / 2;
+      let fillBg;
+      if (focused) {
+        fillBg = hslToInt(box.hue, 70, 48);
+      } else if (chip.cachedHover) {
+        fillBg = hslToInt(box.hue, 70, 92);
+      } else {
+        fillBg = hslToInt(box.hue, 60, 95);
+      }
+      const borderColor = focused ? hslToInt(box.hue, 70, 38) : hslToInt(box.hue, 50, 70);
+      const textColor = focused ? 16777215 : 1909543;
+      const hashColor = focused ? 16777215 : hslToInt(box.hue, 65, 42);
+      const countBg = focused ? hslToInt(box.hue, 80, 30) : hslToInt(box.hue, 70, 50);
+      chip.shadow.clear();
+      chip.shadow.roundRect(
+        left - 1,
+        top + 3,
+        totalW + 2,
+        totalH + 2,
+        radius + 1
+      );
+      let shadowAlpha = 0.1;
+      if (focused) {
+        shadowAlpha = 0.18;
+      } else if (chip.cachedHover) {
+        shadowAlpha = 0.16;
+      }
+      chip.shadow.fill({
+        color: 0,
+        alpha: shadowAlpha
+      });
+      chip.bg.clear();
+      chip.bg.roundRect(left, top, totalW, totalH, radius);
+      chip.bg.fill(fillBg);
+      chip.bg.stroke({
+        color: borderColor,
+        width: focused ? 2 : 1.25,
+        alpha: focused ? 1 : 0.85
+      });
+      const hashW = chip.hashText.width;
+      const nameW = chip.nameText.width;
+      const nameH = chip.nameText.height;
+      const countW = chip.countText.width;
+      const countH = chip.countText.height;
+      const countBadgeW = Math.max(18, countW + 10);
+      const countBadgeH = Math.max(14, countH + 4);
+      chip.hashText.x = left + CHIP_PAD_X;
+      chip.hashText.y = (totalH - nameH) / 2 + top;
+      chip.hashText.style.fill = hashColor;
+      chip.nameText.x = left + CHIP_PAD_X + hashW + CHIP_GAP_HASH;
+      chip.nameText.y = (totalH - nameH) / 2 + top;
+      chip.nameText.style.fill = textColor;
+      const badgeX = left + CHIP_PAD_X + hashW + CHIP_GAP_HASH + nameW + CHIP_GAP_COUNT;
+      const badgeY = (totalH - countBadgeH) / 2 + top;
+      chip.bg.roundRect(
+        badgeX,
+        badgeY,
+        countBadgeW,
+        countBadgeH,
+        countBadgeH / 2
+      );
+      chip.bg.fill(countBg);
+      chip.countText.x = badgeX + (countBadgeW - countW) / 2;
+      chip.countText.y = badgeY + (countBadgeH - countH) / 2;
+      chip.countText.style.fill = 16777215;
+    }
+    function findSpiralSlot(w, h, placed) {
+      if (placed.length === 0) {
+        return { x: 0, y: 0 };
+      }
+      const padding = SPIRAL_PADDING;
+      let theta = 0;
+      const maxIter = 1e4;
+      for (let i = 0; i < maxIter; i++) {
+        theta += 0.18;
+        const r = theta * 5;
+        const cx = r * Math.cos(theta);
+        const cy = r * Math.sin(theta) * 0.7;
+        const aabb = {
+          x: cx - w / 2 - padding,
+          y: cy - h / 2 - padding,
+          w: w + padding * 2,
+          h: h + padding * 2
+        };
+        let overlap = false;
+        for (const p of placed) {
+          if (aabbIntersect(aabb, p)) {
+            overlap = true;
+            break;
+          }
+        }
+        if (!overlap) {
+          return { x: cx, y: cy };
+        }
+      }
+      return { x: 0, y: (placed.length + 1) * (h + padding) };
+    }
+    function syncChipPositions() {
+      const chipCounterScale = 1 / Math.max(0.01, world.scale.x);
+      const anyFocus = focusId !== null;
+      for (const box of tags.values()) {
+        const c = box.chip.container;
+        c.x = box.x;
+        c.y = box.y;
+        const counter = Math.max(1, chipCounterScale);
+        c.scale.set(counter);
+        c.rotation = box.rotation;
+        const focused = focusId === box.id;
+        const targetAlpha = !anyFocus || focused ? 1 : 0.32;
+        if (Math.abs(c.alpha - targetAlpha) > 5e-3) {
+          c.alpha += (targetAlpha - c.alpha) * 0.18;
+        } else {
+          c.alpha = targetAlpha;
+        }
+      }
+      for (const post of postNodes.values()) {
+        const chip = postChips.get(post.id);
+        if (!chip) {
+          continue;
+        }
+        chip.container.x = post.x;
+        chip.container.y = post.y;
+        chip.container.scale.set(chipCounterScale);
+        if (chip.container.alpha < 1) {
+          chip.container.alpha = Math.min(
+            1,
+            chip.container.alpha + 0.18
+          );
+        }
+      }
+    }
+    function tick() {
+      const now = performance.now();
+      const dt = Math.min(50, now - lastTick);
+      lastTick = now;
+      const ZOOM_EASE = 0.22;
+      const ds = targetScale - world.scale.x;
+      const dwx = targetWorldX - world.x;
+      const dwy = targetWorldY - world.y;
+      if (Math.abs(ds) > 5e-4 || Math.abs(dwx) > 0.5 || Math.abs(dwy) > 0.5) {
+        world.scale.set(world.scale.x + ds * ZOOM_EASE);
+        world.x += dwx * ZOOM_EASE;
+        world.y += dwy * ZOOM_EASE;
+      }
+      for (const box of tags.values()) {
+        if (box === dragChip) {
+          continue;
+        }
+        let tx = box.tx;
+        let ty = box.ty;
+        if (nudgeAwayFrom && box.id !== focusId) {
+          const dx = box.tx - nudgeAwayFrom.x;
+          const dy = box.ty - nudgeAwayFrom.y;
+          const d = Math.sqrt(dx * dx + dy * dy) || 1;
+          const limit = nudgeAwayFrom.radius + Math.max(box.width, box.height) / 2;
+          if (d < limit) {
+            const push = limit + 12;
+            tx = nudgeAwayFrom.x + dx / d * push;
+            ty = nudgeAwayFrom.y + dy / d * push;
+          }
+        }
+        const ease = 1 - Math.exp(-dt * 0.012);
+        box.x += (tx - box.x) * ease;
+        box.y += (ty - box.y) * ease;
+      }
+      for (const p of postNodes.values()) {
+        p.x += (p.tx - p.x) * 0.18;
+        p.y += (p.ty - p.y) * 0.18;
+        p.gfx.x = p.x;
+        p.gfx.y = p.y;
+      }
+      drawPostEdges();
+      syncChipPositions();
+      raf = requestAnimationFrame(tick);
+    }
+    function drawPostEdges() {
+      postEdgeGfx.clear();
+      if (focusId === null) {
+        return;
+      }
+      const center = tags.get(focusId);
+      if (!center) {
+        return;
+      }
+      for (const post of postNodes.values()) {
+        postEdgeGfx.moveTo(center.x, center.y);
+        postEdgeGfx.lineTo(post.x, post.y);
+        postEdgeGfx.stroke({
+          color: hslToInt(center.hue, 60, 50),
+          width: 1,
+          alpha: 0.35
+        });
+      }
+    }
+    function stageToWorld(global) {
+      return {
+        x: (global.x - world.x) / world.scale.x,
+        y: (global.y - world.y) / world.scale.y
+      };
+    }
+    function onStagePointerDown(e) {
+      const ev = e;
+      panActive = true;
+      panStart = { x: ev.global.x, y: ev.global.y };
+      panMovedDist = 0;
+    }
+    function onStagePointerMove(e) {
+      const ev = e;
+      if (dragChip) {
+        const cursorWorld = stageToWorld(ev.global);
+        const nx = cursorWorld.x + dragOffset.x;
+        const ny = cursorWorld.y + dragOffset.y;
+        dragChip.x = nx;
+        dragChip.y = ny;
+        dragChip.tx = nx;
+        dragChip.ty = ny;
+        return;
+      }
+      if (panActive && panStart) {
+        const dx = ev.global.x - panStart.x;
+        const dy = ev.global.y - panStart.y;
+        world.x += dx;
+        world.y += dy;
+        targetWorldX += dx;
+        targetWorldY += dy;
+        panMovedDist += Math.sqrt(dx * dx + dy * dy);
+        panStart = { x: ev.global.x, y: ev.global.y };
+      }
+    }
+    function onStagePointerUp(e) {
+      if (dragChip) {
+        const box = dragChip;
+        const startPos = dragStart;
+        dragChip = null;
+        dragStart = null;
+        let movement = Infinity;
+        const ev = e;
+        if (startPos && ev && ev.global) {
+          const dx = ev.global.x - startPos.x;
+          const dy = ev.global.y - startPos.y;
+          movement = Math.sqrt(dx * dx + dy * dy);
+        }
+        if (movement < 3) {
+          void focusTag(box.id);
+        } else {
+          persistedPositions.set(box.id, { x: box.tx, y: box.ty });
+          writePersistedPositions(positionsKey, persistedPositions);
+        }
+      }
+      panActive = false;
+      panStart = null;
+    }
+    app.stage.eventMode = "static";
+    app.stage.hitArea = new pixi.Rectangle(
+      0,
+      0,
+      stage.clientWidth,
+      stage.clientHeight
+    );
+    app.stage.on("pointerdown", onStagePointerDown);
+    app.stage.on("pointermove", onStagePointerMove);
+    app.stage.on("pointerup", (e) => onStagePointerUp(e));
+    app.stage.on("pointerupoutside", (e) => onStagePointerUp(e));
+    function onWheel(e) {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const prev = targetScale;
+      const next = Math.max(0.3, Math.min(2.5, prev * factor));
+      if (next === prev) {
+        return;
+      }
+      const r = stage.getBoundingClientRect();
+      const sx = e.clientX - r.left;
+      const sy = e.clientY - r.top;
+      const wx = (sx - targetWorldX) / prev;
+      const wy = (sy - targetWorldY) / prev;
+      targetScale = next;
+      targetWorldX = sx - wx * next;
+      targetWorldY = sy - wy * next;
+    }
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    let firstFitDone = false;
+    function onResize() {
+      const r = stage.getBoundingClientRect();
+      app.renderer.resize(r.width, r.height);
+      app.stage.hitArea = new pixi.Rectangle(0, 0, r.width, r.height);
+      if (!firstFitDone && r.width > 0 && r.height > 0) {
+        firstFitDone = true;
+        fitToView();
+        stage.classList.remove("is-loading");
+      }
+      app.render();
+    }
+    const ro = new ResizeObserver(onResize);
+    ro.observe(stage);
+    async function focusTag(id) {
+      if (focusId === id) {
+        closeFocus();
+        return;
+      }
+      const wasFocused = focusId !== null;
+      focusId = id;
+      focusPage = 1;
+      lastFocusChange = performance.now();
+      const focused = tags.get(id);
+      if (focused) {
+        if (!wasFocused) {
+          prevView = {
+            scale: targetScale,
+            x: targetWorldX,
+            y: targetWorldY
+          };
+        }
+        const r = stage.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          const half = POST_RING_RADIUS + 70;
+          const sx = r.width * 0.85 / (2 * half);
+          const sy = r.height * 0.85 / (2 * half);
+          const newScale = Math.max(
+            0.5,
+            Math.min(1.6, Math.min(sx, sy))
+          );
+          targetScale = newScale;
+          targetWorldX = r.width / 2 - focused.x * newScale;
+          targetWorldY = r.height / 2 - focused.y * newScale;
+        }
+        nudgeAwayFrom = {
+          x: focused.x,
+          y: focused.y,
+          radius: SPOTLIGHT_RADIUS
+        };
+      }
+      for (const box of tags.values()) {
+        paintChip(box);
+      }
+      paintSidebar();
+      await loadPostsForFocus();
+    }
+    function closeFocus() {
+      focusId = null;
+      lastFocusChange = performance.now();
+      loadSeq++;
+      nudgeAwayFrom = null;
+      if (prevView) {
+        targetScale = prevView.scale;
+        targetWorldX = prevView.x;
+        targetWorldY = prevView.y;
+        prevView = null;
+      }
+      paintSidebar();
+      clearPosts();
+      for (const box of tags.values()) {
+        paintChip(box);
+      }
+    }
+    function clearPosts() {
+      for (const post of postNodes.values()) {
+        postLayer.removeChild(post.gfx);
+        post.gfx.destroy();
+      }
+      postNodes.clear();
+      for (const chip of postChips.values()) {
+        postChipLayer.removeChild(chip.container);
+        chip.container.destroy({ children: true });
+      }
+      postChips.clear();
+      postEdgeGfx.clear();
+      pager.visible = false;
+    }
+    function ensurePostChip(post) {
+      const existing = postChips.get(post.id);
+      if (existing) {
+        return existing;
+      }
+      const container = new pixi.Container();
+      container.eventMode = "static";
+      container.cursor = "pointer";
+      container.alpha = 0;
+      const bg = new pixi.Graphics();
+      container.addChild(bg);
+      const dot = new pixi.Graphics();
+      container.addChild(dot);
+      const titleText = new pixi.Text({
+        text: post.title,
+        style: {
+          fill: 1909543,
+          fontSize: 12,
+          fontFamily: FONT_FAMILY,
+          fontWeight: "500"
+        },
+        resolution: CHIP_TEXT_RES
+      });
+      container.addChild(titleText);
+      const chip = {
+        container,
+        bg,
+        dot,
+        titleText,
+        width: 0,
+        height: 0,
+        cachedTitle: "",
+        cachedHover: false
+      };
+      postChips.set(post.id, chip);
+      postChipLayer.addChild(container);
+      container.on("pointerdown", (e) => {
+        e.stopPropagation?.();
+        pixiInteractionAt = performance.now();
+      });
+      container.on("pointertap", () => {
+        openInPostsTab(post.id, post.editUrl, post.title);
+      });
+      container.on("pointerover", () => {
+        chip.cachedHover = true;
+        layoutPostChip(chip, post);
+      });
+      container.on("pointerout", () => {
+        chip.cachedHover = false;
+        layoutPostChip(chip, post);
+      });
+      layoutPostChip(chip, post);
+      return chip;
+    }
+    function layoutPostChip(chip, post) {
+      const displayTitle = post.title.length > POST_TITLE_MAX_CHARS ? post.title.slice(0, POST_TITLE_MAX_CHARS - 1) + "…" : post.title;
+      if (chip.titleText.text !== displayTitle) {
+        chip.titleText.text = displayTitle;
+      }
+      chip.cachedTitle = displayTitle;
+      const padX = 9;
+      const padY = 3;
+      const dotR = 4;
+      const gap = 6;
+      const titleW = chip.titleText.width;
+      const titleH = chip.titleText.height;
+      const totalW = padX + dotR * 2 + gap + titleW + padX;
+      const totalH = Math.max(titleH, dotR * 2) + padY * 2;
+      chip.width = totalW;
+      chip.height = totalH;
+      const left = -totalW / 2;
+      const top = -totalH / 2;
+      chip.bg.clear();
+      chip.bg.roundRect(left, top, totalW, totalH, totalH / 2);
+      if (chip.cachedHover) {
+        chip.bg.fill({ color: 16777215, alpha: 1 });
+        chip.bg.stroke({
+          color: post.tone,
+          width: 1.5,
+          alpha: 1
+        });
+      } else {
+        chip.bg.fill({ color: 16777215, alpha: 0.95 });
+        chip.bg.stroke({
+          color: 0,
+          width: 1,
+          alpha: 0.12
+        });
+      }
+      chip.dot.clear();
+      chip.dot.circle(left + padX + dotR, 0, dotR);
+      chip.dot.fill({ color: post.tone, alpha: 0.85 });
+      chip.dot.stroke({ color: 16777215, width: 1 });
+      chip.titleText.x = left + padX + dotR * 2 + gap;
+      chip.titleText.y = -titleH / 2;
+    }
+    async function loadPostsForFocus() {
+      if (focusId === null) {
+        return;
+      }
+      const mySeq = ++loadSeq;
+      const myFocusId = focusId;
+      const cfg = getConfig();
+      const url = new URL(cfg.postsUrl);
+      url.searchParams.set("tags", String(focusId));
+      url.searchParams.set("per_page", String(POST_PER_PAGE));
+      url.searchParams.set("page", String(focusPage));
+      url.searchParams.set("status", "any");
+      url.searchParams.set("_fields", "id,title,status");
+      try {
+        const response = await fetchShellJson(url.toString());
+        if (mySeq !== loadSeq || focusId !== myFocusId) {
+          return;
+        }
+        const items = response.json ?? [];
+        focusTotalPages = Math.max(
+          1,
+          parseInt(response.headers.get("X-WP-TotalPages") ?? "1", 10) || 1
+        );
+        const realTotal = parseInt(response.headers.get("X-WP-Total") ?? "", 10);
+        if (Number.isFinite(realTotal) && focusId !== null) {
+          const box = tags.get(focusId);
+          if (box && box.count !== realTotal) {
+            box.count = realTotal;
+            terms = terms.map(
+              (t) => t.id === box.id ? { ...t, count: realTotal } : t
+            );
+            layoutChip(box);
+          }
+        }
+        renderPosts(
+          items.map((p) => ({
+            id: p.id,
+            title: stripTags(p.title?.rendered || `#${p.id}`),
+            editUrl: `${cfg.editPostUrlBase}?post=${p.id}&action=edit`
+          }))
+        );
+      } catch (err) {
+        showError(__("Couldn’t load posts:"), err);
+      }
+    }
+    function renderPosts(items) {
+      clearPosts();
+      if (focusId === null) {
+        return;
+      }
+      const center = tags.get(focusId);
+      if (!center) {
+        return;
+      }
+      const count = items.length;
+      const ringR = POST_RING_RADIUS + Math.max(0, count - 8) * 6;
+      const tone = hslToInt(center.hue, 70, 48);
+      items.forEach((item, idx) => {
+        const angle = 2 * Math.PI / Math.max(1, count) * idx - Math.PI / 2;
+        const tx = center.x + Math.cos(angle) * ringR;
+        const ty = center.y + Math.sin(angle) * ringR;
+        const gfx = new pixi.Graphics();
+        postLayer.addChild(gfx);
+        const post = {
+          id: item.id,
+          title: item.title,
+          editUrl: item.editUrl,
+          angle,
+          r: ringR,
+          x: center.x,
+          y: center.y,
+          tx,
+          ty,
+          gfx,
+          tone
+        };
+        postNodes.set(item.id, post);
+        ensurePostChip(post);
+      });
+      repaintPager();
+    }
+    function repaintPager() {
+      if (focusId === null || focusTotalPages <= 1) {
+        pager.visible = false;
+        return;
+      }
+      pager.visible = true;
+      const center = tags.get(focusId);
+      if (!center) {
+        pager.visible = false;
+        return;
+      }
+      const prevDisabled = focusPage <= 1;
+      const nextDisabled = focusPage >= focusTotalPages;
+      drawPagerButton(pagerPrev, "◀", prevDisabled);
+      drawPagerButton(pagerNext, "▶", nextDisabled);
+      pagerPrev.cursor = prevDisabled ? "default" : "pointer";
+      pagerNext.cursor = nextDisabled ? "default" : "pointer";
+      pagerLabel.text = `${focusPage} / ${focusTotalPages}`;
+      pagerPrev.x = -38;
+      pagerPrev.y = 0;
+      pagerNext.x = 38;
+      pagerNext.y = 0;
+      pagerLabel.x = 0;
+      pagerLabel.y = 0;
+      pager.x = center.x;
+      pager.y = center.y + POST_RING_RADIUS + 60;
+    }
+    function drawPagerButton(gfx, glyph, disabled) {
+      gfx.clear();
+      gfx.circle(0, 0, 14);
+      gfx.fill({
+        color: disabled ? 15921906 : 16777215,
+        alpha: disabled ? 0.7 : 1
+      });
+      gfx.stroke({
+        color: 0,
+        width: 1,
+        alpha: 0.12
+      });
+      const children = gfx.children;
+      const label = children?.[0] ?? null;
+      if (!label) {
+        const t = new pixi.Text({
+          text: glyph,
+          style: {
+            fill: disabled ? 11580344 : 5265246,
+            fontSize: 14,
+            fontFamily: FONT_FAMILY,
+            fontWeight: "600"
+          }
+        });
+        t.anchor.set(0.5);
+        gfx.addChild(t);
+      } else {
+        label.text = glyph;
+        label.style.fill = disabled ? 11580344 : 5265246;
+      }
+    }
+    function openInPostsTab(_id, editUrl, title) {
+      const wm = api?.windowManager;
+      const derive = api?.deriveWindowId;
+      if (wm && typeof derive === "function") {
+        const id = derive(editUrl);
+        wm.open({
+          id,
+          baseId: id,
+          url: editUrl,
+          title: title ?? editUrl,
+          icon: "dashicons-admin-post"
+        });
+        return;
+      }
+      try {
+        window.open(editUrl, "_blank");
+      } catch {
+        window.location.assign(editUrl);
+      }
+    }
+    function paintDraftSidebar() {
+      const header = document.createElement("div");
+      header.className = "wpd-tagcloud__sidebar-header";
+      const dot = document.createElement("span");
+      dot.className = "wpd-tagcloud__sidebar-dot";
+      dot.style.background = `hsl( ${themeHue}deg 60% 55% )`;
+      const label = document.createElement("code");
+      label.className = "wpd-tagcloud__sidebar-slug";
+      label.textContent = __("New tag");
+      header.appendChild(dot);
+      header.appendChild(label);
+      sidebar.appendChild(header);
+      const nameLabel = document.createElement("label");
+      nameLabel.className = "wpd-tagcloud__sidebar-label";
+      nameLabel.textContent = __("Name");
+      sidebar.appendChild(nameLabel);
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "wpd-tagcloud__editor-name";
+      nameInput.placeholder = __("e.g. featured");
+      sidebar.appendChild(nameInput);
+      requestAnimationFrame(() => nameInput.focus());
+      const descLabel = document.createElement("label");
+      descLabel.className = "wpd-tagcloud__sidebar-label";
+      descLabel.textContent = __("Description");
+      sidebar.appendChild(descLabel);
+      const descInput = document.createElement("textarea");
+      descInput.className = "wpd-tagcloud__editor-desc";
+      descInput.placeholder = __("Description (optional)");
+      descInput.rows = 4;
+      sidebar.appendChild(descInput);
+      const actions = document.createElement("div");
+      actions.className = "wpd-tagcloud__editor-actions";
+      const createBtn = document.createElement("button");
+      createBtn.type = "button";
+      createBtn.className = "wpd-tagcloud__btn wpd-tagcloud__btn--primary";
+      createBtn.textContent = __("Create");
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "wpd-tagcloud__btn wpd-tagcloud__btn--danger";
+      cancelBtn.textContent = __("Cancel");
+      const handleCreate = async () => {
+        const name = nameInput.value.trim();
+        if (!name) {
+          nameInput.focus();
+          return;
+        }
+        createBtn.disabled = true;
+        try {
+          const created = await createTag(name);
+          const next = {
+            id: created.id,
+            name: created.name,
+            slug: created.slug || "",
+            parent: 0,
+            count: 0,
+            description: created.description || "",
+            isDefault: false
+          };
+          if (!terms.some((t) => t.id === next.id)) {
+            terms = terms.concat(next);
+          }
+          const desc = descInput.value.trim();
+          if (desc) {
+            try {
+              const updated = await updateTerm(
+                "tags",
+                created.id,
+                { description: desc }
+              );
+              terms = terms.map(
+                (t) => t.id === updated.id ? {
+                  ...t,
+                  description: updated.description ?? desc
+                } : t
+              );
+            } catch {
+              showError(
+                __("Tag created but description failed:"),
+                null
+              );
+            }
+          }
+          draft = null;
+          buildCloud();
+          focusId = created.id;
+          paintSidebar();
+          await loadPostsForFocus();
+        } catch (err) {
+          createBtn.disabled = false;
+          showError(__("Couldn’t create:"), err);
+        }
+      };
+      createBtn.addEventListener("click", () => {
+        void handleCreate();
+      });
+      cancelBtn.addEventListener("click", () => {
+        draft = null;
+        paintSidebar();
+      });
+      nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void handleCreate();
+        } else if (e.key === "Escape") {
+          draft = null;
+          paintSidebar();
+        }
+      });
+      actions.appendChild(createBtn);
+      actions.appendChild(cancelBtn);
+      sidebar.appendChild(actions);
+    }
+    function paintSidebar() {
+      sidebar.replaceChildren();
+      if (draft !== null) {
+        paintDraftSidebar();
+        return;
+      }
+      if (focusId === null) {
+        const empty = document.createElement("div");
+        empty.className = "wpd-tagcloud__sidebar-empty";
+        const icon = document.createElement("span");
+        icon.className = "dashicons dashicons-tag";
+        icon.setAttribute("aria-hidden", "true");
+        empty.appendChild(icon);
+        const title = document.createElement("h3");
+        title.className = "wpd-tagcloud__sidebar-empty-title";
+        title.textContent = __("No tag selected");
+        empty.appendChild(title);
+        const help = document.createElement("p");
+        help.className = "wpd-tagcloud__sidebar-empty-hint";
+        help.textContent = __(
+          "Click a tag on the cloud to edit it, or click + Add tag to create a new one."
+        );
+        empty.appendChild(help);
+        sidebar.appendChild(empty);
+        return;
+      }
+      const box = tags.get(focusId);
+      if (!box) {
+        focusId = null;
+        paintSidebar();
+        return;
+      }
+      const id = box.id;
+      const header = document.createElement("div");
+      header.className = "wpd-tagcloud__sidebar-header";
+      const dot = document.createElement("span");
+      dot.className = "wpd-tagcloud__sidebar-dot";
+      dot.style.background = `hsl( ${box.hue}deg 60% 55% )`;
+      const term = terms.find((t) => t.id === id);
+      const idLabel = document.createElement("code");
+      idLabel.className = "wpd-tagcloud__sidebar-slug";
+      idLabel.textContent = `#${id}`;
+      header.appendChild(dot);
+      header.appendChild(idLabel);
+      sidebar.appendChild(header);
+      const nameLabel = document.createElement("label");
+      nameLabel.className = "wpd-tagcloud__sidebar-label";
+      nameLabel.textContent = __("Name");
+      sidebar.appendChild(nameLabel);
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "wpd-tagcloud__editor-name";
+      nameInput.value = box.name;
+      nameInput.placeholder = __("Name");
+      sidebar.appendChild(nameInput);
+      const slugLabel = document.createElement("label");
+      slugLabel.className = "wpd-tagcloud__sidebar-label";
+      slugLabel.textContent = __("Slug");
+      sidebar.appendChild(slugLabel);
+      const slugInput = document.createElement("input");
+      slugInput.type = "text";
+      slugInput.className = "wpd-tagcloud__editor-name";
+      slugInput.value = term?.slug || "";
+      slugInput.placeholder = __("auto-from-name");
+      slugInput.spellcheck = false;
+      slugInput.autocapitalize = "off";
+      slugInput.addEventListener("input", () => {
+        const v = slugInput.value;
+        const norm = v.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+        if (v !== norm) {
+          const sel = slugInput.selectionStart ?? norm.length;
+          slugInput.value = norm;
+          slugInput.setSelectionRange(sel, sel);
+        }
+      });
+      sidebar.appendChild(slugInput);
+      const descLabel = document.createElement("label");
+      descLabel.className = "wpd-tagcloud__sidebar-label";
+      descLabel.textContent = __("Description");
+      sidebar.appendChild(descLabel);
+      const descInput = document.createElement("textarea");
+      descInput.className = "wpd-tagcloud__editor-desc";
+      descInput.value = box.description || "";
+      descInput.placeholder = __("Description (optional)");
+      descInput.rows = 4;
+      sidebar.appendChild(descInput);
+      const meta = document.createElement("p");
+      meta.className = "wpd-tagcloud__sidebar-meta";
+      meta.textContent = sprintf(
+        /* translators: %d: post count. */
+        __("%d posts tagged with this."),
+        box.count
+      );
+      sidebar.appendChild(meta);
+      const actions = document.createElement("div");
+      actions.className = "wpd-tagcloud__editor-actions";
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "wpd-tagcloud__btn wpd-tagcloud__btn--primary";
+      saveBtn.textContent = __("Save");
+      saveBtn.addEventListener("click", async () => {
+        const name = nameInput.value.trim();
+        if (!name) {
+          return;
+        }
+        const description = descInput.value;
+        const slugRaw = slugInput.value.trim();
+        const currentSlug = term?.slug ?? "";
+        if (name === box.name && description === (box.description || "") && slugRaw === currentSlug) {
+          return;
+        }
+        const patch = { name, description };
+        if (slugRaw !== currentSlug) {
+          patch.slug = slugRaw;
+        }
+        try {
+          const updated = await updateTerm("tags", box.id, patch);
+          box.name = updated.name;
+          box.description = updated.description;
+          box.slug = updated.slug ?? box.slug;
+          box.hue = tagHue(box.slug || box.name, themeHue);
+          box.rotation = tagRotation(box.slug || box.name);
+          terms = terms.map(
+            (t) => t.id === box.id ? {
+              ...t,
+              name: updated.name,
+              description: updated.description,
+              slug: updated.slug ?? t.slug
+            } : t
+          );
+          layoutChip(box);
+          paintSidebar();
+        } catch (err) {
+          showError(__("Couldn’t save:"), err);
+        }
+      });
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "wpd-tagcloud__btn wpd-tagcloud__btn--danger";
+      delBtn.textContent = __("Delete");
+      let armResetTimer = null;
+      const armDelete = () => {
+        delBtn.textContent = __("Click again to delete");
+        delBtn.classList.add("is-armed");
+        if (armResetTimer !== null) {
+          window.clearTimeout(armResetTimer);
+        }
+        armResetTimer = window.setTimeout(() => {
+          delBtn.textContent = __("Delete");
+          delBtn.classList.remove("is-armed");
+          armResetTimer = null;
+        }, 2500);
+      };
+      delBtn.addEventListener("click", async () => {
+        if (!delBtn.classList.contains("is-armed")) {
+          armDelete();
+          return;
+        }
+        if (armResetTimer !== null) {
+          window.clearTimeout(armResetTimer);
+          armResetTimer = null;
+        }
+        try {
+          await deleteTerm("tags", box.id);
+          terms = terms.filter((t) => t.id !== box.id);
+          persistedPositions.delete(box.id);
+          writePersistedPositions(positionsKey, persistedPositions);
+          focusId = null;
+          clearPosts();
+          buildCloud();
+          paintSidebar();
+        } catch (err) {
+          showError(__("Couldn’t delete:"), err);
+        }
+      });
+      actions.appendChild(saveBtn);
+      actions.appendChild(delBtn);
+      sidebar.appendChild(actions);
+    }
+    function startDraft() {
+      draft = true;
+      paintSidebar();
+    }
+    addTagBtn.addEventListener("click", () => {
+      startDraft();
+    });
+    function fitToView(padding = 90) {
+      const r = stage.getBoundingClientRect();
+      if (tags.size === 0 || r.width === 0 || r.height === 0) {
+        world.x = r.width / 2;
+        world.y = r.height / 2;
+        world.scale.set(1);
+        targetScale = 1;
+        targetWorldX = world.x;
+        targetWorldY = world.y;
+        return;
+      }
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const box of tags.values()) {
+        minX = Math.min(minX, box.tx - box.width / 2);
+        minY = Math.min(minY, box.ty - box.height / 2);
+        maxX = Math.max(maxX, box.tx + box.width / 2);
+        maxY = Math.max(maxY, box.ty + box.height / 2);
+      }
+      const w = Math.max(1, maxX - minX);
+      const h = Math.max(1, maxY - minY);
+      const sx = (r.width - padding * 2) / w;
+      const sy = (r.height - padding * 2) / h;
+      const scale = Math.max(0.2, Math.min(1.5, Math.min(sx, sy)));
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      world.scale.set(scale);
+      world.x = r.width / 2 - cx * scale;
+      world.y = r.height / 2 - cy * scale;
+      targetScale = scale;
+      targetWorldX = world.x;
+      targetWorldY = world.y;
+    }
+    recenterBtn.addEventListener("click", () => fitToView());
+    reflowBtn.addEventListener("click", () => {
+      persistedPositions.clear();
+      writePersistedPositions(positionsKey, persistedPositions);
+      for (const box of tags.values()) {
+        box.tx = 0;
+        box.ty = 0;
+      }
+      const allBoxes = Array.from(tags.values());
+      const placed = [];
+      allBoxes.sort((a, b) => b.count - a.count);
+      for (const box of allBoxes) {
+        const slot = findSpiralSlot(box.width, box.height, placed);
+        box.tx = slot.x;
+        box.ty = slot.y;
+        placed.push({
+          x: slot.x - box.width / 2,
+          y: slot.y - box.height / 2,
+          w: box.width,
+          h: box.height
+        });
+      }
+      fitToView();
+    });
+    app.canvas.addEventListener("click", (e) => {
+      const now = performance.now();
+      if (now - lastFocusChange < 250 || now - pixiInteractionAt < 250) {
+        return;
+      }
+      if (panMovedDist > 4) {
+        return;
+      }
+      const target = e.target;
+      if (target === app.canvas && !dragChip && focusId !== null) {
+        closeFocus();
+      }
+    });
+    async function refreshCountsViaBulk() {
+      if (terms.length === 0) {
+        return;
+      }
+      const cfg = getConfig();
+      const url = new URL(
+        `${cfg.restRoot.replace(/\/$/, "")}/desktop-mode/v1/term-counts`
+      );
+      url.searchParams.set("taxonomy", "post_tag");
+      url.searchParams.set(
+        "ids",
+        terms.map((t) => t.id).join(",")
+      );
+      try {
+        const response = await fetchShellJson(url.toString());
+        const map = response.json;
+        let dirty = false;
+        terms = terms.map((t) => {
+          const fresh = map[String(t.id)];
+          if (typeof fresh === "number" && fresh !== t.count) {
+            dirty = true;
+            const box = tags.get(t.id);
+            if (box) {
+              box.count = fresh;
+            }
+            return { ...t, count: fresh };
+          }
+          return t;
+        });
+        if (dirty) {
+          const maxCount = Math.max(
+            1,
+            ...terms.map((t) => t.count)
+          );
+          for (const t of terms) {
+            const box = tags.get(t.id);
+            if (!box) {
+              continue;
+            }
+            box.count = t.count;
+            box.fontSize = fontSizeFor(t.count, maxCount);
+            layoutChip(box);
+          }
+          if (focusId !== null) {
+            paintSidebar();
+          }
+        }
+      } catch {
+      }
+    }
+    buildCloud();
+    paintSidebar();
+    raf = requestAnimationFrame(tick);
+    void refreshCountsViaBulk();
+    if (terms.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "wpd-tagcloud__empty";
+      empty.textContent = __(
+        'No tags yet. Click "Add tag" to start building the cloud.'
+      );
+      stage.appendChild(empty);
+    }
+    return () => {
+      if (raf !== null) {
+        cancelAnimationFrame(raf);
+        raf = null;
+      }
+      ro.disconnect();
+      stage.removeEventListener("wheel", onWheel);
+      try {
+        app.destroy(true, { children: true, texture: true });
+      } catch {
+      }
+      host.replaceChildren();
+      host.classList.remove("wpd-tagcloud");
+    };
+  }
+  function fontSizeFor(count, max) {
+    const ratio = Math.sqrt(count / Math.max(1, max));
+    return Math.round(
+      MIN_FONT_SIZE + (MAX_FONT_SIZE - MIN_FONT_SIZE) * ratio
+    );
+  }
+  function truncateChipName(name) {
+    return name.length > CHIP_NAME_MAX_CHARS ? name.slice(0, CHIP_NAME_MAX_CHARS - 1) + "…" : name;
+  }
+  function aabbIntersect(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+  function slugHash(slug) {
+    let h = 0;
+    for (let i = 0; i < slug.length; i++) {
+      h = (h * 31 + slug.charCodeAt(i)) % 2147483647;
+    }
+    return h;
+  }
+  function tagHue(slug, baseHue) {
+    const h = slugHash(slug);
+    return ((baseHue + h % 256 * 1.4) % 360 + 360) % 360;
+  }
+  function tagRotation(slug) {
+    const h = slugHash(slug);
+    const sign = h % 2 === 0 ? -1 : 1;
+    const mag = Math.floor(h / 2) % 4 * 0.011;
+    return sign * mag;
   }
   function readAdminThemeHue() {
     try {
@@ -3753,587 +5352,114 @@ var desktopModePostsWindow = function(exports) {
     const json = await response.json();
     return { json, headers: response.headers };
   }
-  const categoriesMindmap = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    mountCategoriesMindmap
-  }, Symbol.toStringTag, { value: "Module" }));
-  const SEARCH_DEBOUNCE_MS = 250;
-  function mountTermsTab(host, cfg) {
-    host.replaceChildren();
-    host.classList.add("desktop-mode-posts__terms");
-    const stats = document.createElement("div");
-    stats.className = "desktop-mode-posts__stats";
-    const toolbar = document.createElement("header");
-    toolbar.className = "desktop-mode-posts__terms-toolbar";
-    const searchWrap = document.createElement("div");
-    searchWrap.className = "desktop-mode-posts__terms-search";
-    const searchInput = document.createElement("wpd-text-field");
-    searchInput.setAttribute(
-      "placeholder",
-      sprintf(
-        /* translators: %s: taxonomy plural name (e.g. "categories"). */
-        __("Search %s…"),
-        cfg.plural.toLowerCase()
-      )
-    );
-    searchWrap.appendChild(searchInput);
-    const addRow = document.createElement("form");
-    addRow.className = "desktop-mode-posts__terms-add";
-    addRow.setAttribute("data-noclick", "");
-    const nameField = document.createElement("wpd-text-field");
-    nameField.setAttribute(
-      "placeholder",
-      sprintf(
-        /* translators: %s: taxonomy singular name (e.g. "Category"). */
-        __("New %s name"),
-        cfg.singular.toLowerCase()
-      )
-    );
-    addRow.appendChild(nameField);
-    let parentSelect = null;
-    if (cfg.hierarchical) {
-      parentSelect = document.createElement("select");
-      parentSelect.className = "desktop-mode-posts__terms-parent";
-      parentSelect.setAttribute("aria-label", __("Parent category"));
-      const noneOpt = document.createElement("option");
-      noneOpt.value = "0";
-      noneOpt.textContent = __("— No parent —");
-      parentSelect.appendChild(noneOpt);
-      addRow.appendChild(parentSelect);
+  function computePositionsKey() {
+    try {
+      const host = window.location.host || "unknown";
+      const path = window.location.pathname.replace(/\/?wp-admin\/?.*$/, "");
+      return `wpd-tagcloud-positions:${host}${path}`;
+    } catch {
+      return "wpd-tagcloud-positions:fallback";
     }
-    const addBtn = document.createElement("wpd-button");
-    addBtn.setAttribute("variant", "primary");
-    addBtn.textContent = sprintf(
-      /* translators: %s: taxonomy singular name. */
-      __("Add %s"),
-      cfg.singular.toLowerCase()
-    );
-    addRow.appendChild(addBtn);
-    toolbar.appendChild(searchWrap);
-    toolbar.appendChild(addRow);
-    const table = document.createElement("wpd-table");
-    table.setAttribute("sticky-header", "");
-    table.setAttribute("sticky-columns", "1");
-    table.setAttribute("hover", "");
-    table.setAttribute("striped", "");
-    table.setAttribute("loading", "");
-    const empty = document.createElement("div");
-    empty.setAttribute("slot", "empty");
-    empty.className = "desktop-mode-posts__empty";
-    const emptyIcon = document.createElement("span");
-    emptyIcon.className = "dashicons dashicons-tag";
-    emptyIcon.setAttribute("aria-hidden", "true");
-    empty.appendChild(emptyIcon);
-    const emptyText = document.createElement("p");
-    emptyText.textContent = sprintf(
-      /* translators: %s: taxonomy plural name. */
-      __("No %s yet."),
-      cfg.plural.toLowerCase()
-    );
-    empty.appendChild(emptyText);
-    const emptyHint = document.createElement("p");
-    emptyHint.className = "desktop-mode-posts__empty-hint";
-    emptyHint.textContent = sprintf(
-      /* translators: %s: taxonomy singular name. */
-      __("Add the first %s using the form above."),
-      cfg.singular.toLowerCase()
-    );
-    empty.appendChild(emptyHint);
-    table.appendChild(empty);
-    const pager = document.createElement("footer");
-    pager.className = "desktop-mode-posts__pager";
-    const pagerMeta = document.createElement("div");
-    pagerMeta.className = "desktop-mode-posts__pager-meta";
-    const pageIndicator = document.createElement("span");
-    pageIndicator.textContent = "—";
-    pagerMeta.appendChild(pageIndicator);
-    const pagerNav = document.createElement("div");
-    pagerNav.className = "desktop-mode-posts__pager-nav";
-    const prevBtn = document.createElement("wpd-button");
-    prevBtn.setAttribute("variant", "ghost");
-    prevBtn.setAttribute("disabled", "");
-    prevBtn.innerHTML = `<span class="dashicons dashicons-arrow-left-alt2" aria-hidden="true"></span>${__("Previous")}`;
-    const nextBtn = document.createElement("wpd-button");
-    nextBtn.setAttribute("variant", "ghost");
-    nextBtn.setAttribute("disabled", "");
-    nextBtn.innerHTML = `${__("Next")}<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>`;
-    const perPageLabel = document.createElement("label");
-    perPageLabel.className = "desktop-mode-posts__pager-perpage";
-    perPageLabel.textContent = __("Per page");
-    const perPageSelect = document.createElement("select");
-    for (const v of [25, 50, 100]) {
-      const opt = document.createElement("option");
-      opt.value = String(v);
-      opt.textContent = String(v);
-      if (v === 50) {
-        opt.selected = true;
+  }
+  function readPersistedPositions(key) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        return /* @__PURE__ */ new Map();
       }
-      perPageSelect.appendChild(opt);
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") {
+        return /* @__PURE__ */ new Map();
+      }
+      const out = /* @__PURE__ */ new Map();
+      for (const [k, v] of Object.entries(
+        parsed
+      )) {
+        const id = parseInt(k, 10);
+        if (!Number.isFinite(id)) {
+          continue;
+        }
+        const pos = v;
+        if (typeof pos?.x === "number" && typeof pos?.y === "number") {
+          out.set(id, { x: pos.x, y: pos.y });
+        }
+      }
+      return out;
+    } catch {
+      return /* @__PURE__ */ new Map();
     }
-    perPageLabel.appendChild(perPageSelect);
-    pagerNav.appendChild(prevBtn);
-    pagerNav.appendChild(nextBtn);
-    pagerNav.appendChild(perPageLabel);
-    pager.appendChild(pagerMeta);
-    pager.appendChild(pagerNav);
-    host.appendChild(stats);
-    host.appendChild(toolbar);
-    host.appendChild(table);
-    host.appendChild(pager);
-    const view = {
-      page: 1,
-      perPage: 50,
-      search: "",
-      orderby: "name",
-      order: "asc",
-      searchDebounce: null
-    };
-    const allTermsById = /* @__PURE__ */ new Map();
-    let totalRows = 0;
-    let totalPages = 0;
-    let refreshSeq = 0;
-    const renderStats = () => {
-      stats.replaceChildren();
-      const all = Array.from(allTermsById.values());
-      const used = all.filter((t) => t.count > 0);
-      const empty2 = all.filter((t) => t.count === 0);
-      const top = all.slice().sort((a, b) => b.count - a.count)[0];
-      const totalAssignments = all.reduce((sum, t) => sum + t.count, 0);
-      const cards = [
-        {
-          value: String(totalRows || all.length),
-          label: sprintf(
-            /* translators: %s: taxonomy plural. */
-            __("Total %s"),
-            cfg.plural.toLowerCase()
-          )
-        },
-        {
-          value: String(used.length),
-          label: __("In use"),
-          tone: "accent"
-        },
-        {
-          value: String(empty2.length),
-          label: __("Empty"),
-          tone: empty2.length > 0 ? "warning" : "default"
-        },
-        {
-          value: top ? top.name : "—",
-          label: top ? sprintf(
-            /* translators: %d: post count. */
-            __("Most used (%d posts)"),
-            top.count
-          ) : __("Most used")
-        },
-        {
-          value: String(totalAssignments),
-          label: __("Total assignments")
-        }
-      ];
-      for (const card of cards) {
-        const c = document.createElement("div");
-        c.className = "desktop-mode-posts__stat";
-        if (card.tone && card.tone !== "default") {
-          c.dataset.tone = card.tone;
-        }
-        const v = document.createElement("span");
-        v.className = "desktop-mode-posts__stat-value";
-        v.textContent = card.value;
-        c.appendChild(v);
-        const l = document.createElement("span");
-        l.className = "desktop-mode-posts__stat-label";
-        l.textContent = card.label;
-        c.appendChild(l);
-        stats.appendChild(c);
+  }
+  function writePersistedPositions(key, positions) {
+    try {
+      const obj = {};
+      for (const [id, pos] of positions) {
+        obj[String(id)] = pos;
       }
-    };
-    renderStats();
-    const refreshParentOptions = () => {
-      if (!parentSelect) {
-        return;
-      }
-      const current = parentSelect.value;
-      const byParent = /* @__PURE__ */ new Map();
-      for (const t of allTermsById.values()) {
-        const arr = byParent.get(t.parent) ?? [];
-        arr.push(t);
-        byParent.set(t.parent, arr);
-      }
-      for (const list of byParent.values()) {
-        list.sort((a, b) => a.name.localeCompare(b.name));
-      }
-      const out = [];
-      const walk = (pid, depth) => {
-        for (const term of byParent.get(pid) ?? []) {
-          out.push({
-            id: term.id,
-            label: `${"— ".repeat(depth)}${term.name}`
-          });
-          walk(term.id, depth + 1);
-        }
-      };
-      walk(0, 0);
-      parentSelect.replaceChildren();
-      const noneOpt = document.createElement("option");
-      noneOpt.value = "0";
-      noneOpt.textContent = __("— No parent —");
-      parentSelect.appendChild(noneOpt);
-      for (const item of out) {
-        const opt = document.createElement("option");
-        opt.value = String(item.id);
-        opt.textContent = item.label;
-        parentSelect.appendChild(opt);
-      }
-      parentSelect.value = current || "0";
-    };
-    const buildColumns2 = () => {
-      const cols = [
-        {
-          key: "name",
-          label: __("Name"),
-          sortable: true,
-          sticky: true,
-          minWidth: "220px",
-          render: (_v, row) => buildNameCell(row)
-        },
-        {
-          key: "slug",
-          label: __("Slug"),
-          sortable: true,
-          width: "180px",
-          render: (_v, row) => buildSlugCell(row)
-        },
-        {
-          key: "count",
-          label: __("Posts"),
-          sortable: true,
-          width: "110px",
-          align: "end",
-          render: (_v, row) => buildCountCell(row)
-        },
-        {
-          key: "description",
-          label: __("Description"),
-          minWidth: "220px",
-          render: (_v, row) => buildDescriptionCell(row)
-        },
-        {
-          key: "__actions",
-          label: "",
-          width: "120px",
-          render: (_v, row) => buildActionsCell(row)
-        }
-      ];
-      return cols;
-    };
-    const buildNameCell = (row) => {
-      const wrap = document.createElement("div");
-      wrap.className = "desktop-mode-posts__term-name";
-      if (cfg.hierarchical && row.parent) {
-        let depth = 0;
-        let cur = row.parent;
-        let safety = 12;
-        while (cur && safety-- > 0) {
-          const parent = allTermsById.get(cur);
-          if (!parent) {
-            break;
-          }
-          depth++;
-          cur = parent.parent;
-        }
-        if (depth > 0) {
-          const indent = document.createElement("span");
-          indent.className = "desktop-mode-posts__term-indent";
-          indent.style.width = `${depth * 16}px`;
-          wrap.appendChild(indent);
-          const tee = document.createElement("span");
-          tee.className = "desktop-mode-posts__term-tee";
-          tee.textContent = "└";
-          wrap.appendChild(tee);
-        }
-      }
-      const name = document.createElement("span");
-      name.className = "desktop-mode-posts__term-label";
-      name.textContent = row.name;
-      wrap.appendChild(name);
-      return wrap;
-    };
-    const buildSlugCell = (row) => {
-      const span = document.createElement("code");
-      span.className = "desktop-mode-posts__term-slug";
-      span.textContent = row.slug;
-      return span;
-    };
-    const buildCountCell = (row) => {
-      const wrap = document.createElement("div");
-      wrap.className = "desktop-mode-posts__term-count";
-      const max = Math.max(
-        1,
-        ...Array.from(allTermsById.values()).map((t) => t.count)
-      );
-      const pct = Math.round(row.count / max * 100);
-      const bar = document.createElement("span");
-      bar.className = "desktop-mode-posts__term-bar";
-      bar.style.setProperty("--wpd-term-bar", `${pct}%`);
-      const num = document.createElement("span");
-      num.className = "desktop-mode-posts__term-count-num";
-      num.textContent = String(row.count);
-      wrap.appendChild(bar);
-      wrap.appendChild(num);
-      return wrap;
-    };
-    const buildDescriptionCell = (row) => {
-      const span = document.createElement("span");
-      span.className = "desktop-mode-posts__term-desc";
-      const text = (row.description || "").trim();
-      if (!text) {
-        span.classList.add("is-empty");
-        span.textContent = "—";
-      } else {
-        span.textContent = text;
-      }
-      return span;
-    };
-    const buildActionsCell = (row) => {
-      const wrap = document.createElement("div");
-      wrap.className = "desktop-mode-posts__term-actions";
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.className = "desktop-mode-posts__term-action";
-      editBtn.textContent = __("Edit");
-      editBtn.setAttribute("data-noclick", "");
-      editBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        void promptEdit(row);
-      });
-      wrap.appendChild(editBtn);
-      const delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.className = "desktop-mode-posts__term-action desktop-mode-posts__term-action--danger";
-      delBtn.textContent = __("Delete");
-      delBtn.setAttribute("data-noclick", "");
-      delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        void confirmDelete(row);
-      });
-      wrap.appendChild(delBtn);
-      return wrap;
-    };
-    const showError = (title, err) => {
-      const reason = err instanceof Error ? err.message : String(err);
-      const api = window.wp?.desktop;
-      if (api && typeof api.showToast === "function") {
-        api.showToast({
-          message: `${title} ${reason}`.trim(),
-          duration: 6e3
-        });
-        return;
-      }
-      console.error(title, err);
-    };
-    const promptEdit = async (row) => {
-      const next = window.prompt(
-        sprintf(
-          /* translators: %s: current term name. */
-          __('Rename "%s" to:'),
-          row.name
-        ),
-        row.name
-      );
-      if (next === null) {
-        return;
-      }
-      const trimmed = next.trim();
-      if (trimmed === "" || trimmed === row.name) {
-        return;
-      }
-      try {
-        const updated = await updateTerm(cfg.taxonomy, row.id, {
-          name: trimmed
-        });
-        allTermsById.set(updated.id, updated);
-        refreshParentOptions();
-        renderStats();
-        void refresh();
-      } catch (err) {
-        showError(__("Couldn’t rename:"), err);
-      }
-    };
-    const confirmDelete = async (row) => {
-      const ok = window.confirm(
-        sprintf(
-          /* translators: %s: term name. */
-          __('Delete "%s"? Posts assigned to it will fall through to the default term.'),
-          row.name
-        )
-      );
-      if (!ok) {
-        return;
-      }
-      try {
-        await deleteTerm(cfg.taxonomy, row.id);
-        allTermsById.delete(row.id);
-        refreshParentOptions();
-        renderStats();
-        void refresh();
-      } catch (err) {
-        showError(__("Couldn’t delete:"), err);
-      }
-    };
-    const onAdd = async (e) => {
-      e.preventDefault();
-      const name = (nameField.value ?? "").trim();
-      if (!name) {
-        return;
-      }
-      const parent = parentSelect ? parseInt(parentSelect.value, 10) || 0 : 0;
-      try {
-        const created = cfg.taxonomy === "categories" ? await createCategory(name, parent) : await createTag(name);
-        allTermsById.set(created.id, {
-          id: created.id,
-          name: created.name,
-          slug: created.slug || "",
-          parent: created.parent ?? 0,
-          count: 0,
-          description: "",
-          isDefault: false
-        });
-        nameField.value = "";
-        refreshParentOptions();
-        renderStats();
-        void refresh();
-      } catch (err) {
-        showError(__("Couldn’t add:"), err);
-      }
-    };
-    addRow.addEventListener("submit", onAdd);
-    addBtn.addEventListener("click", (e) => {
-      if (!(e.currentTarget instanceof HTMLButtonElement)) {
-        e.preventDefault();
-        void onAdd(e);
-      }
+      window.localStorage.setItem(key, JSON.stringify(obj));
+    } catch {
+    }
+  }
+  function createTagChip(pixi, chipLayer, term, fontSize, hue) {
+    const container = new pixi.Container();
+    container.eventMode = "static";
+    container.cursor = "pointer";
+    const shadow = new pixi.Graphics();
+    container.addChild(shadow);
+    const bg = new pixi.Graphics();
+    container.addChild(bg);
+    const hashText = new pixi.Text({
+      text: "#",
+      style: {
+        fill: hslToInt(hue, 65, 42),
+        fontSize,
+        fontFamily: FONT_FAMILY,
+        fontWeight: "700"
+      },
+      resolution: CHIP_TEXT_RES
     });
-    const refresh = async () => {
-      refreshSeq++;
-      const seq = refreshSeq;
-      table.loading = "";
-      try {
-        const res = await fetchTerms(cfg.taxonomy, {
-          page: view.page,
-          perPage: view.perPage,
-          search: view.search || void 0,
-          orderby: view.orderby,
-          order: view.order
-        });
-        if (seq !== refreshSeq) {
-          return;
-        }
-        for (const t of res.items) {
-          allTermsById.set(t.id, t);
-        }
-        totalRows = res.total;
-        totalPages = res.totalPages;
-        table.columns = buildColumns2();
-        table.getRowId = (row) => row.id;
-        table.data = res.items;
-        refreshParentOptions();
-        renderStats();
-        repaintPager();
-      } finally {
-        if (seq === refreshSeq) {
-          table.removeAttribute("loading");
-        }
-      }
-    };
-    const repaintPager = () => {
-      pageIndicator.textContent = sprintf(
-        /* translators: 1: current page, 2: total pages, 3: total rows. */
-        __("Page %1$d of %2$d · %3$d total"),
-        view.page,
-        Math.max(1, totalPages),
-        totalRows
-      );
-      if (view.page > 1) {
-        prevBtn.removeAttribute("disabled");
-      } else {
-        prevBtn.setAttribute("disabled", "");
-      }
-      if (view.page < totalPages) {
-        nextBtn.removeAttribute("disabled");
-      } else {
-        nextBtn.setAttribute("disabled", "");
-      }
-    };
-    const onSearch = (e) => {
-      const detail = e.detail;
-      const next = detail?.value ?? "";
-      if (view.searchDebounce !== null) {
-        window.clearTimeout(view.searchDebounce);
-      }
-      view.searchDebounce = window.setTimeout(() => {
-        view.searchDebounce = null;
-        view.search = next.trim();
-        view.page = 1;
-        void refresh();
-      }, SEARCH_DEBOUNCE_MS);
-    };
-    searchInput.addEventListener("wpd-input", onSearch);
-    const onSortChange = (e) => {
-      const detail = e.detail;
-      if (!detail || !detail.sort) {
-        view.orderby = "name";
-        view.order = "asc";
-      } else {
-        const key = detail.sort.key;
-        view.orderby = key ?? "name";
-        view.order = detail.sort.direction;
-      }
-      view.page = 1;
-      void refresh();
-    };
-    table.addEventListener("wpd-table-sort-change", onSortChange);
-    const onPrev = () => {
-      if (view.page <= 1) {
-        return;
-      }
-      view.page--;
-      void refresh();
-    };
-    const onNext = () => {
-      if (view.page >= totalPages) {
-        return;
-      }
-      view.page++;
-      void refresh();
-    };
-    prevBtn.addEventListener("click", onPrev);
-    nextBtn.addEventListener("click", onNext);
-    const onPerPage = () => {
-      view.perPage = parseInt(perPageSelect.value, 10) || 50;
-      view.page = 1;
-      void refresh();
-    };
-    perPageSelect.addEventListener("change", onPerPage);
-    void refresh();
-    return () => {
-      searchInput.removeEventListener("wpd-input", onSearch);
-      table.removeEventListener("wpd-table-sort-change", onSortChange);
-      prevBtn.removeEventListener("click", onPrev);
-      nextBtn.removeEventListener("click", onNext);
-      perPageSelect.removeEventListener("change", onPerPage);
-      addRow.removeEventListener("submit", onAdd);
-      if (view.searchDebounce !== null) {
-        window.clearTimeout(view.searchDebounce);
-        view.searchDebounce = null;
-      }
-      host.replaceChildren();
-      host.classList.remove("desktop-mode-posts__terms");
+    container.addChild(hashText);
+    const nameText = new pixi.Text({
+      text: truncateChipName(term.name),
+      style: {
+        fill: 1909543,
+        fontSize,
+        fontFamily: FONT_FAMILY,
+        fontWeight: "600"
+      },
+      resolution: CHIP_TEXT_RES
+    });
+    container.addChild(nameText);
+    const countText = new pixi.Text({
+      text: String(term.count),
+      style: {
+        fill: 16777215,
+        fontSize: Math.max(10, Math.round(fontSize * 0.55)),
+        fontFamily: FONT_FAMILY,
+        fontWeight: "700"
+      },
+      resolution: CHIP_TEXT_RES
+    });
+    container.addChild(countText);
+    chipLayer.addChild(container);
+    return {
+      container,
+      shadow,
+      bg,
+      hashText,
+      nameText,
+      countText,
+      width: 0,
+      height: 0,
+      cachedName: "",
+      cachedCount: -1,
+      cachedFocused: false,
+      cachedHover: false,
+      cachedHue: -1
     };
   }
-  const termsTab = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  const tagsCloud = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null,
-    mountTermsTab
+    mountTagsCloud
   }, Symbol.toStringTag, { value: "Module" }));
   exports.renderPostsWindow = renderPostsWindow;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });

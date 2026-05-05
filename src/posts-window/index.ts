@@ -1694,14 +1694,16 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 				);
 			}
 			if ( value === 'tags' && tagsHost && ! tagsTeardown ) {
-				void import( './terms-tab' ).then( ( { mountTermsTab } ) => {
-					tagsTeardown = mountTermsTab( tagsHost, {
-						taxonomy: 'tags',
-						singular: __( 'Tag' ),
-						plural: __( 'Tags' ),
-						hierarchical: false,
-					} );
-				} );
+				// Tags = Pixi tag cloud — same shape as the Categories
+				// mindmap (pan/zoom, click to focus + paginated post
+				// fan, sidebar editor) but with a hashtag-pill layout
+				// and no hierarchy. The tag cloud IS the view; no
+				// table fallback. Loads its own term list internally.
+				void import( './tags-cloud' ).then(
+					async ( { mountTagsCloud } ) => {
+						tagsTeardown = await mountTagsCloud( tagsHost );
+					},
+				);
 			}
 		} );
 	}

@@ -468,15 +468,36 @@
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
+	/* Mindmap canvas — dot grid + theme-tinted vignettes. The dot
+	 * grid is the canonical "infinite thinking surface" texture
+	 * (Miro / Obsidian Canvas / Excalidraw all use it); pairs nicely
+	 * with radial trees because the dots give the user a sense of
+	 * pan/zoom motion without dominating the node colors. The two
+	 * offset vignettes add light, atmospheric depth — a touch of
+	 * ambient lighting in the admin theme hue. */
 	background:
 		radial-gradient(
-			circle at 50% 50%,
+			circle,
+			rgba( 0, 0, 0, 0.06 ) 1px,
+			transparent 1.5px
+		) 0 0 / 24px 24px,
+		radial-gradient(
+			ellipse at 28% 22%,
+			color-mix(
+				in srgb,
+				var( --wp-admin-theme-color, #2271b1 ) 8%,
+				transparent
+			),
+			transparent 60%
+		),
+		radial-gradient(
+			ellipse at 78% 80%,
 			color-mix(
 				in srgb,
 				var( --wp-admin-theme-color, #2271b1 ) 5%,
 				transparent
 			),
-			transparent 70%
+			transparent 58%
 		),
 		var( --wpd-surface, #fff );
 }
@@ -741,6 +762,288 @@
 }
 
 .wpd-mindmap__empty {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	color: var( --wpd-text-muted, #50575e );
+	font-size: 13px;
+	font-style: italic;
+	text-align: center;
+	padding: 0 24px;
+}
+
+/* ---------------------------------------------------------------------
+ * Tag cloud (Tags tab)
+ *
+ * Same surface shape as the Categories mindmap — toolbar across the
+ * top, Pixi stage on the left, fixed-width sidebar editor on the right
+ * — but with a hashtag-pill metaphor instead of circles. The Pixi-side
+ * code (`tags-cloud.ts`) paints chips, post satellites, and the pager
+ * directly into the canvas; this stylesheet only owns the chrome
+ * around the canvas (toolbar, sidebar form, empty states).
+ * ------------------------------------------------------------------ */
+.wpd-tagcloud {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	background:
+		repeating-linear-gradient(
+			135deg,
+			transparent 0,
+			transparent 22px,
+			color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 4%, transparent ) 22px,
+			color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 4%, transparent ) 23px
+		),
+		radial-gradient(
+			circle at 30% 20%,
+			color-mix(
+				in srgb,
+				var( --wp-admin-theme-color, #2271b1 ) 6%,
+				transparent
+			),
+			transparent 65%
+		),
+		var( --wpd-surface, #fff );
+}
+
+.wpd-tagcloud__toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: rgba( 255, 255, 255, 0.6 );
+	backdrop-filter: blur( 8px );
+}
+
+.wpd-tagcloud__btn {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 6px;
+	background: transparent;
+	color: var( --wpd-text, #1d2327 );
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease,
+		color 0.12s ease;
+}
+
+.wpd-tagcloud__btn:hover {
+	background: rgba( 0, 0, 0, 0.04 );
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.wpd-tagcloud__btn--primary {
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: #fff;
+	border-color: transparent;
+}
+
+.wpd-tagcloud__btn--primary:hover {
+	filter: brightness( 1.05 );
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: #fff;
+}
+
+.wpd-tagcloud__btn--danger {
+	color: #d63638;
+	border-color: transparent;
+}
+
+.wpd-tagcloud__btn--danger:hover {
+	background: color-mix( in srgb, #d63638 10%, transparent );
+	border-color: color-mix( in srgb, #d63638 35%, transparent );
+}
+
+.wpd-tagcloud__btn--danger.is-armed {
+	background: #d63638;
+	color: #fff;
+	border-color: transparent;
+}
+
+.wpd-tagcloud__hint {
+	flex: 1 1 auto;
+	font-size: 12px;
+	font-style: italic;
+	color: var( --wpd-text-muted, #50575e );
+	text-align: end;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpd-tagcloud__layout {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+}
+
+.wpd-tagcloud__stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+	transition: opacity 200ms ease;
+}
+
+.wpd-tagcloud__stage.is-loading {
+	opacity: 0;
+}
+
+.wpd-tagcloud__sidebar {
+	flex: 0 0 320px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border-inline-start: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --wpd-surface, #fff );
+	color: var( --wpd-text, #1d2327 );
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.wpd-tagcloud__sidebar-empty {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	color: var( --wpd-text-muted, #50575e );
+	text-align: center;
+	padding: 24px 8px;
+}
+
+.wpd-tagcloud__sidebar-empty .dashicons {
+	font-size: 36px;
+	width: 36px;
+	height: 36px;
+	opacity: 0.5;
+}
+
+.wpd-tagcloud__sidebar-empty-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --wpd-text, #1d2327 );
+	margin: 0;
+}
+
+.wpd-tagcloud__sidebar-empty-hint {
+	font-size: 12px;
+	font-style: italic;
+	max-width: 240px;
+	margin: 0;
+}
+
+.wpd-tagcloud__sidebar-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --wpd-text-muted, #50575e );
+}
+
+.wpd-tagcloud__sidebar-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex: 0 0 10px;
+}
+
+.wpd-tagcloud__sidebar-slug {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpd-tagcloud__sidebar-label {
+	font-size: 11px;
+	font-weight: 500;
+	color: var( --wpd-text-muted, #50575e );
+	margin-block-start: 4px;
+}
+
+.wpd-tagcloud__sidebar-meta {
+	font-size: 12px;
+	color: var( --wpd-text-muted, #50575e );
+	padding-block: 4px;
+}
+
+.wpd-tagcloud__canvas {
+	display: block;
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	touch-action: none;
+}
+
+.wpd-tagcloud__editor-name {
+	appearance: none;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	padding: 6px 8px;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+}
+
+.wpd-tagcloud__editor-name:focus,
+.wpd-tagcloud__editor-desc:focus {
+	outline: none;
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 0 0 2px
+		color-mix(
+			in srgb,
+			var( --wp-admin-theme-color, #2271b1 ) 25%,
+			transparent
+		);
+}
+
+.wpd-tagcloud__editor-desc {
+	appearance: none;
+	font: inherit;
+	font-size: 12px;
+	padding: 6px 8px;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+	resize: vertical;
+	min-height: 46px;
+}
+
+.wpd-tagcloud__editor-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.wpd-tagcloud__editor-actions .wpd-tagcloud__btn {
+	flex: 1 1 auto;
+	justify-content: center;
+}
+
+.wpd-tagcloud__empty {
 	position: absolute;
 	inset: 0;
 	display: flex;

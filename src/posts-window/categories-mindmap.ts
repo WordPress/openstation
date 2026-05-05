@@ -685,7 +685,23 @@ export async function mountCategoriesMindmap(
 		x2: number,
 		y2: number,
 		color: number,
-		opts: { dashed?: boolean; alpha?: number; width?: number } = {},
+		opts: {
+			dashed?: boolean;
+			alpha?: number;
+			width?: number;
+			/**
+			 * Integer offset that shifts the visible/invisible
+			 * pattern. Increment per frame to make dashes appear to
+			 * march from (x1, y1) toward (x2, y2). Default 0 = static.
+			 */
+			dashPhase?: number;
+			/**
+			 * Group size — how many bezier samples make up one dash
+			 * (visible OR invisible). 1 = fine alternating dotted
+			 * line (the legacy default), 2 = chunky marching ants.
+			 */
+			dashStride?: number;
+		} = {},
 	): void {
 		const dx = x2 - x1;
 		const cp1x = x1 + dx * 0.5;
@@ -719,11 +735,20 @@ export async function mountCategoriesMindmap(
 			return { x: px, y: py };
 		};
 		const STEPS = 32;
-		let visible = true;
+		const phase = opts.dashPhase ?? 0;
+		const stride = Math.max( 1, opts.dashStride ?? 1 );
 		let lastX = x1;
 		let lastY = y1;
 		for ( let i = 1; i <= STEPS; i++ ) {
 			const p = sampleAt( i / STEPS );
+			// Group consecutive samples by `stride`; visibility flips
+			// every group. With stride=1 phase=0 this matches the old
+			// "every other segment" pattern verbatim. With stride=2 +
+			// a frame-incrementing phase, the visible groups march
+			// along the curve — the marching-ants effect that signals
+			// directional flow.
+			const groupIdx = Math.floor( ( i - 1 + phase ) / stride );
+			const visible = groupIdx % 2 === 0;
 			if ( visible ) {
 				g.moveTo( lastX, lastY );
 				g.lineTo( p.x, p.y );
@@ -731,19 +756,48 @@ export async function mountCategoriesMindmap(
 			}
 			lastX = p.x;
 			lastY = p.y;
-			visible = ! visible;
 		}
 	}
 
 	function drawNodeDisc( node: MindNode, highlighted: boolean ): void {
 		const g = node.gfx;
 		g.clear();
-		if ( highlighted ) {
-			g.circle( 0, 0, node.radius + 8 );
-			g.fill( { color: node.color, alpha: 0.18 } );
+		const r = node.radius;
+		// 1. Soft drop shadow — sells the disc as a physical object
+		//    floating above the canvas. Offset down + a touch larger;
+		//    keep alpha low so the shadow reads as ambient occlusion,
+		//    not a heavy outline. Skipped on focus because the halo
+		//    below already takes the "lifted" role.
+		if ( ! highlighted ) {
+			g.circle( 0, 5, r );
+			g.fill( { color: 0x000000, alpha: 0.18 } );
 		}
-		g.circle( 0, 0, node.radius );
+		// 2. Halo (focused only) — same as before but a bit wider so
+		//    it reads through the new spherical shading.
+		if ( highlighted ) {
+			g.circle( 0, 0, r + 10 );
+			g.fill( { color: node.color, alpha: 0.22 } );
+		}
+		// 3. Bottom rim — full-radius disc in a darker shade of the
+		//    cluster colour. Paints first so the lighter top cap
+		//    (drawn below) leaves a sliver visible at the bottom,
+		//    creating the "lit-from-above sphere" reading.
+		g.circle( 0, 0, r );
+		g.fill( shadeColor( node.color, -0.18 ) );
+		// 4. Light cap — the actual cluster colour, drawn slightly
+		//    smaller and offset upward so the rim from step 3 peeks
+		//    out at the bottom edge.
+		g.circle( 0, -r * 0.1, r * 0.94 );
 		g.fill( node.color );
+		// 5. Specular highlight — a small soft white blob in the
+		//    upper-left quadrant. The tiny gloss is what flips the
+		//    reading from "flat dot" to "polished sphere".
+		g.circle( -r * 0.32, -r * 0.42, r * 0.3 );
+		g.fill( { color: 0xffffff, alpha: 0.32 } );
+		// 6. White stroke around the outer edge. Re-define the disc
+		//    shape so the stroke commits cleanly against the full
+		//    circle (Pixi 8 strokes the most-recently-defined path).
+		g.circle( 0, 0, r );
 		g.stroke( {
 			color: 0xffffff,
 			width: highlighted ? 3 : 2,
@@ -753,11 +807,47 @@ export async function mountCategoriesMindmap(
 		g.zIndex = 10;
 		// Explicit circular hit area — without it, Pixi 8 falls back
 		// to the bounding box of the drawn primitives, which on a
-		// Graphics with both a halo + a disc is slightly larger than
-		// the disc and DEFINITELY not circular. Setting an exact
-		// circle makes the click feel precise (you don't accidentally
-		// click a node when you wanted to click empty canvas).
-		g.hitArea = new pixi.Circle( 0, 0, node.radius + 4 );
+		// Graphics with multiple layered circles + a halo is bigger
+		// than the disc and not circular. Setting an exact circle
+		// makes the click feel precise (you don't accidentally click
+		// a node when you wanted to click empty canvas).
+		g.hitArea = new pixi.Circle( 0, 0, r + 4 );
+	}
+
+	/**
+	 * Decorate `hover` (the current drop target while reparenting)
+	 * with a pulsing outer ring + inner accent dot. Both painted in
+	 * the dragged node's cluster colour so the user reads the link
+	 * "this <source family> is moving here". The pulse re-runs every
+	 * frame from `tick()`, so the ring breathes for as long as the
+	 * cursor stays over a valid drop target.
+	 */
+	function drawDropTarget( hover: MindNode, sourceColor: number ): void {
+		// Standard layered disc first (clears + paints the regular
+		// look), then add the drop-indicator overlay on top.
+		drawNodeDisc( hover, false );
+		const g = hover.gfx;
+		const t = performance.now();
+		// Sin-driven 0..1 oscillation — period ≈ 1.76s. Amplitude is
+		// applied to both ring radius (so it visibly breathes) and
+		// stroke alpha (so it brightens at peak), reinforcing the
+		// "alive" reading.
+		const pulse = Math.sin( t / 280 ) * 0.5 + 0.5;
+		const ringR = hover.radius + 6 + pulse * 5;
+		g.circle( 0, 0, ringR );
+		g.stroke( {
+			color: sourceColor,
+			width: 3,
+			alpha: 0.6 + pulse * 0.35,
+		} );
+		// Inner accent dot — also in source colour. Stays a constant
+		// size so it doesn't fight the ring for visual emphasis.
+		g.circle( 0, 0, hover.radius * 0.42 );
+		g.fill( { color: sourceColor, alpha: 0.85 } );
+		// Expand hit-area to match the maximum ring radius so the
+		// drop target keeps catching pointer events even at the peak
+		// of the pulse cycle.
+		g.hitArea = new pixi.Circle( 0, 0, hover.radius + 12 );
 	}
 
 	function drawEdges(): void {
@@ -799,17 +889,60 @@ export async function mountCategoriesMindmap(
 					: { alpha: 0.5 * dimMul },
 			);
 		}
-		// Preview edge to the drop target while reparenting.
+		// Preview edge to the drop target while reparenting. Three
+		// stacked layers give the line real presence:
+		//   1. A wide soft glow underneath.
+		//   2. A flowing dashed line on top — marching from the
+		//      dragged node toward the target, so the user reads the
+		//      direction of attachment.
+		//   3. A small bright pulse traveling along the bezier — the
+		//      "energy" cue that says "connection forming".
 		if ( dragNode && dragHover ) {
-			drawCurvedEdge(
-				edgeGfx,
-				dragHover.x,
-				dragHover.y,
-				dragNode.x,
-				dragNode.y,
-				dragHover.color,
-				{ alpha: 1, width: 2.5 },
-			);
+			const x1 = dragNode.x;
+			const y1 = dragNode.y;
+			const x2 = dragHover.x;
+			const y2 = dragHover.y;
+			const targetColor = dragHover.color;
+			// 1. Glow underlay — wide, low-alpha, solid.
+			drawCurvedEdge( edgeGfx, x1, y1, x2, y2, targetColor, {
+				alpha: 0.22,
+				width: 9,
+			} );
+			// 2. Flowing dashed line. dashPhase advances ~14×/sec
+			//    (every 70ms); with stride=2 that's a lively but not
+			//    frantic march speed.
+			const dashPhase = Math.floor( performance.now() / 70 );
+			drawCurvedEdge( edgeGfx, x1, y1, x2, y2, targetColor, {
+				alpha: 0.95,
+				width: 2.5,
+				dashed: true,
+				dashStride: 2,
+				dashPhase,
+			} );
+			// 3. Traveling pulse — 1.3-second loop along the bezier.
+			//    Rendered as a small white-filled disc with the
+			//    target colour as a stroke ring, so it pops on any
+			//    background.
+			const pt = ( performance.now() % 1300 ) / 1300;
+			const omt = 1 - pt;
+			const dx = x2 - x1;
+			const cp1x = x1 + dx * 0.5;
+			const cp1y = y1;
+			const cp2x = x2 - dx * 0.5;
+			const cp2y = y2;
+			const px =
+				omt * omt * omt * x1 +
+				3 * omt * omt * pt * cp1x +
+				3 * omt * pt * pt * cp2x +
+				pt * pt * pt * x2;
+			const py =
+				omt * omt * omt * y1 +
+				3 * omt * omt * pt * cp1y +
+				3 * omt * pt * pt * cp2y +
+				pt * pt * pt * y2;
+			edgeGfx.circle( px, py, 5 );
+			edgeGfx.fill( { color: 0xffffff, alpha: 0.95 } );
+			edgeGfx.stroke( { color: targetColor, width: 2, alpha: 1 } );
 		}
 		// (drawCurvedEdge defined below)
 
@@ -1215,6 +1348,14 @@ export async function mountCategoriesMindmap(
 			p.gfx.y = p.y;
 		}
 		drawEdges();
+		// Pulse the drop-target ring every frame while a drag is
+		// over a valid target. drawDropTarget redraws the disc + the
+		// breathing ring; without this re-call the ring would stay
+		// frozen at whatever phase it was in when pointermove last
+		// fired.
+		if ( dragNode && dragHover ) {
+			drawDropTarget( dragHover, dragNode.color );
+		}
 		syncChipPositions();
 		raf = requestAnimationFrame( tick );
 	}
@@ -1289,33 +1430,7 @@ export async function mountCategoriesMindmap(
 				}
 				dragHover = hover;
 				if ( hover && dragNode ) {
-					// Outer "drop indicator" ring uses the DRAGGED
-					// node's cluster colour — visually says
-					// "<source's family> is going to live under
-					// this target". Way clearer than a generic
-					// orange because the user's eyes already
-					// associate that hue with the source.
-					const sourceColor = dragNode.color;
-					const g = hover.gfx;
-					g.clear();
-					g.circle( 0, 0, hover.radius + 6 );
-					g.stroke( {
-						color: sourceColor,
-						width: 3,
-						alpha: 0.95,
-					} );
-					g.circle( 0, 0, hover.radius );
-					g.fill( hover.color );
-					g.stroke( { color: 0xffffff, width: 2 } );
-					// Tiny inner accent (also in the source colour)
-					// so the "merge into this branch" reading is
-					// reinforced even when the disc + outer ring
-					// hues are too similar to read at a glance.
-					g.circle( 0, 0, hover.radius * 0.45 );
-					g.fill( { color: sourceColor, alpha: 0.85 } );
-					g.x = hover.x;
-					g.y = hover.y;
-					g.hitArea = new pixi.Circle( 0, 0, hover.radius + 6 );
+					drawDropTarget( hover, dragNode.color );
 				}
 			}
 			return;
@@ -1363,10 +1478,19 @@ export async function mountCategoriesMindmap(
 				panStart = null;
 				return;
 			}
+			// Cycle prevention: a reparent makes `node.parent = target`,
+			// so the only configuration that creates a cycle is when
+			// `target` is currently a descendant of `node` —
+			// equivalently, when `node` is an ancestor of `target`.
+			// Blocking on the inverse (target being an ancestor of
+			// node) is wrong: that's a legitimate skip-level move
+			// the user can't otherwise express. Example: in
+			// A > B > C, dragging C onto A correctly removes the
+			// intermediate B and re-parents C directly under A.
 			if (
 				target &&
 				target.id !== node.parent &&
-				! isAncestor( target.id, node.id )
+				! isAncestor( node.id, target.id )
 			) {
 				try {
 					await updateTerm( 'categories', node.id, {
@@ -2670,6 +2794,29 @@ function hslToInt( h: number, s: number, l: number ): number {
 	const gi = Math.round( ( g + m ) * 255 );
 	const bi = Math.round( ( b + m ) * 255 );
 	return ri * 0x10000 + gi * 0x100 + bi;
+}
+
+/**
+ * Lighten or darken a 0xRRGGBB colour. `delta` in (-1, +1):
+ * negative darkens (multiplies each channel toward 0), positive
+ * lightens (interpolates each channel toward 255). Used by the disc
+ * renderer to produce the bottom rim (-0.18) without a separate
+ * Pixi gradient texture.
+ *
+ * No bitwise ops — the project's lint rule bans `>>` / `&` / `|`,
+ * so channel extraction goes through Math.floor + modulo.
+ */
+function shadeColor( color: number, delta: number ): number {
+	const r = Math.floor( color / 0x10000 ) % 256;
+	const g = Math.floor( color / 0x100 ) % 256;
+	const b = color % 256;
+	const adj = ( ch: number ): number => {
+		if ( delta >= 0 ) {
+			return Math.round( ch + ( 255 - ch ) * delta );
+		}
+		return Math.round( ch * ( 1 + delta ) );
+	};
+	return adj( r ) * 0x10000 + adj( g ) * 0x100 + adj( b );
 }
 
 function stripTags( html: string ): string {
