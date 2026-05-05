@@ -358,10 +358,16 @@ function desktop_mode_pwa_serve_service_worker() {
 
 	// Stamp the SW with the build's mtime so the byte-equality check
 	// the browser runs on the 24h refresh notices a real change. Tiny
-	// inline comment, no payload bloat.
+	// inline comment, no payload bloat. `printf` with `%d` is the
+	// safe form here — phpcs treats the format specifier as escaped
+	// output, and `$mtime` is already cast to int above.
 	$mtime = (int) filemtime( $path );
-	echo "/* desktop-mode SW build: {$mtime} */\n";
-	echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped — JS bytes from disk.
+	printf( "/* desktop-mode SW build: %d */\n", $mtime );
+	// `$body` is the SW JavaScript bundle read off disk — escaping
+	// would corrupt the script. Suppress the sniff with the standard
+	// `--` separator (an em-dash silently fails to satisfy phpcs).
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JS bytes from disk.
+	echo $body;
 }
 
 /**
