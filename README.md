@@ -171,7 +171,7 @@ npm install
 
 The plugin uses **[Vite](https://vitejs.dev/)** in library mode. esbuild handles transpile and minify, so builds finish in ~70 ms per bundle.
 
-**Full build** — produces both bundles:
+**Full build** — produces every bundle (`npm run build:desktop`, `:iframe-bridge`, `:recycle-bin`, `:posts-window`):
 
 ```bash
 npm run build
@@ -179,8 +179,10 @@ npm run build
 
 Writes:
 
-- `assets/js/desktop.js` — unminified IIFE, loaded when `SCRIPT_DEBUG` is `true`.
-- `assets/js/desktop.min.js` — esbuild-minified IIFE, loaded otherwise.
+- `assets/js/desktop.js` / `.min.js` — main shell bundle (loaded based on `SCRIPT_DEBUG`).
+- `assets/js/iframe-bridge.js` / `.min.js` — opt-in bridge that gives any same-origin iframe access to `wp.desktop.iframe.*`.
+- `assets/js/recycle-bin.js` / `.min.js` — Recycle Bin native window.
+- `assets/js/posts-window.js` / `.min.js` — Native Posts window (the `<wpd-table>` replacement for the `edit.php` iframe; opt-in per user via OS Settings → Features).
 
 **Development watch** — auto-recompiles the unminified bundle on save:
 

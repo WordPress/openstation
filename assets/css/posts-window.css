@@ -1,0 +1,183 @@
+/**
+ * Desktop Mode — Native Posts window styles.
+ *
+ * Scoped to `.desktop-mode-posts` so the rules can't leak into other
+ * windows. Layout: a toolbar across the top, a flex-1 body that hosts
+ * a `<wpd-table>`, and a footer pager at the bottom. The table is
+ * told to size to the body via `--wpd-table-max-height: 100%` so
+ * sticky-header engages without an outer scrollbar.
+ *
+ * Cell-content styles are NOT here — they're inlined in
+ * `src/posts-window/index.ts` because `<wpd-table>` renders into its
+ * own shadow DOM and document stylesheets do not cross that boundary.
+ *
+ * @since 0.8.0
+ */
+
+.desktop-mode-posts {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: var( --wpd-surface, #fff );
+	color: var( --wpd-text, #1d2327 );
+}
+
+/* --- Toolbar --------------------------------------------------------- */
+
+.desktop-mode-posts__toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --wpd-surface-elevated, #f6f7f7 );
+}
+
+.desktop-mode-posts__toolbar-left,
+.desktop-mode-posts__toolbar-right,
+.desktop-mode-posts__toolbar-trailing {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/*
+ * Honour the `hidden` attribute. UA stylesheet sets
+ * `[hidden] { display: none }` but our explicit `display: flex`
+ * above wins on specificity, so we restore the hide behaviour
+ * for `bulkBar.hidden = true` from JS.
+ */
+.desktop-mode-posts__toolbar-right[hidden] {
+	display: none;
+}
+
+.desktop-mode-posts__toolbar-trailing {
+	margin-inline-start: auto;
+}
+
+.desktop-mode-posts__count {
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --wpd-text-muted, #50575e );
+	font-variant-numeric: tabular-nums;
+	padding-inline-end: 4px;
+}
+
+/* --- Body ------------------------------------------------------------ */
+
+.desktop-mode-posts__body {
+	flex: 1 1 auto;
+	/*
+	 * `min-width: 0` is the load-bearing piece — without it, the
+	 * flex item's intrinsic width (the table's column-sum) becomes
+	 * its hard minimum, which pushes the table past the window's
+	 * right edge and turns the WHOLE WINDOW into a horizontal
+	 * scroller. With `min-width: 0`, the flex item shrinks to the
+	 * available space and the table's own `.scroll` container
+	 * picks up the horizontal overflow internally.
+	 */
+	min-width: 0;
+	min-height: 0;
+	display: flex;
+	padding: 8px 12px;
+}
+
+.desktop-mode-posts__body wpd-table {
+	flex: 1 1 auto;
+	min-width: 0;
+	--wpd-table-max-height: 100%;
+}
+
+/* --- Empty state ----------------------------------------------------- */
+
+.desktop-mode-posts__empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 48px 24px;
+	color: var( --wpd-text-muted, #50575e );
+	text-align: center;
+}
+
+.desktop-mode-posts__empty .dashicons {
+	font-size: 40px;
+	width: 40px;
+	height: 40px;
+	color: var( --wpd-text-muted, #a7aaad );
+}
+
+.desktop-mode-posts__empty p {
+	margin: 0;
+}
+
+.desktop-mode-posts__empty-hint {
+	font-size: 13px;
+	color: var( --wpd-text-muted, #646970 );
+}
+
+/* --- Footer / pager -------------------------------------------------- */
+
+.desktop-mode-posts__pager {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --wpd-surface-elevated, #f6f7f7 );
+	font-size: 13px;
+}
+
+.desktop-mode-posts__pager-meta {
+	color: var( --wpd-text-muted, #50575e );
+	font-variant-numeric: tabular-nums;
+}
+
+.desktop-mode-posts__pager-nav {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.desktop-mode-posts__pager-perpage {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var( --wpd-text-muted, #50575e );
+	font-size: 12px;
+	margin-inline-start: 8px;
+}
+
+.desktop-mode-posts__pager-perpage select {
+	padding: 4px 6px;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 4px;
+	background: var( --wpd-surface, #fff );
+	color: var( --wpd-text, #1d2327 );
+	font: inherit;
+}
+
+/* Title-bar ⋯ menu — "Show columns" sub-section.
+ * Section label is a small caps separator above the column toggles.
+ * The toggles are real <wpd-menu-item role="menuitemcheckbox"> nodes,
+ * so they pick up the menu's existing styling automatically. */
+.desktop-mode-posts-window__menu-columns {
+	margin-top: 4px;
+	padding: 6px 12px 2px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --wpd-text-muted, #50575e );
+	border-top: 1px solid var( --wpd-border, #dcdcde );
+	pointer-events: none;
+}
+
+/* Filter cell uses the framework's `<wpd-multiselect>` — no
+ * post-specific styles needed here. The component lives inside the
+ * <th> and renders its popover into <body> so the dropdown escapes
+ * the table's overflow chain. */

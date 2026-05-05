@@ -95,6 +95,13 @@
 /* Title bar. */
 .desktop-mode-window__titlebar {
 	position: relative;
+	/* Promote the titlebar into its own stacking context above the
+	 * body. Without this, the body (which comes later in source order
+	 * and inherits z-auto) wins document-order overlap battles —
+	 * notably any sticky-positioned content inside the body (e.g. the
+	 * native Posts table's sticky header at z-index 20–40) would
+	 * paint over the titlebar's ⋯ menu popover. */
+	z-index: 21;
 	display: flex;
 	align-items: center;
 	height: var(--desktop-mode-titlebar-height);
@@ -118,6 +125,26 @@
 	width: 18px;
 	height: 18px;
 	flex-shrink: 0;
+}
+
+/* Activity indicator slot — sits between the icon and the title.
+ * Reserves a fixed width so the indicator's blink animation can't
+ * shift the title text horizontally. The inner `<wpd-save-status>`
+ * paints a 12px modem-style dot (always visible, accent-colored).
+ *
+ * `--wp-admin-theme-color` is forwarded as `color` on the host so
+ * the inner shadow-DOM stylesheet's `currentColor` references
+ * (used in the box-shadow glow) resolve to the live accent. */
+.desktop-mode-window__activity {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	margin-inline-start: 6px;
+	margin-inline-end: 4px;
+	color: var(--wp-admin-theme-color, #2271b1);
 }
 
 /* Window title text. */

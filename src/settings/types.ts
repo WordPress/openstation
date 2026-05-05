@@ -121,6 +121,25 @@ export interface OsSettingsState {
 	 */
 	libraryHdOnly: boolean;
 	ai: AiSettings;
+	/**
+	 * Per-user opt-in for the native Posts window. When true, clicking
+	 * the Posts dock tile opens the `<wpd-table>`-driven native window
+	 * instead of the chromeless `edit.php` iframe. Default off so
+	 * existing muscle memory is preserved on upgrade.
+	 *
+	 * @since 0.8.0
+	 */
+	nativePostsEnabled: boolean;
+	/**
+	 * Per-user list of column keys hidden in the native Posts window.
+	 * Stored as the column `key` strings (`'author'`, `'categories'`,
+	 * `'tags'`, `'date'`, plus any plugin-added column keys). The
+	 * sticky `'title'` column is always visible — toggling it is
+	 * blocked at the UI layer. Default empty (all columns visible).
+	 *
+	 * @since 0.8.0
+	 */
+	nativePostsHiddenColumns: string[];
 }
 
 /**

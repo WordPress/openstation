@@ -17,6 +17,11 @@ import {
 	repaintLoadingOverlays,
 } from './window/loading';
 import { Dock, type DockItem, type SystemDockItem } from './dock';
+import {
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+	tryNativeUrlRemap,
+} from './native-url-remap';
 import { renderIcon } from './icon';
 import {
 	applyTileClasses,
@@ -47,6 +52,7 @@ import {
 	unregisterSettingsTab,
 	listSettingsTabs,
 	type DesktopSettingsTab,
+	type OsSettingsSnapshot,
 } from './settings/registry';
 import {
 	registerTitleBarButton,
@@ -400,6 +406,39 @@ export interface WpDesktopPublicApi {
 	 */
 	openWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
+	 * Wrapper around native `fetch()` that attributes the request to
+	 * a desktop window's activity indicator. While the fetch is in
+	 * flight the window's title-bar dot blinks like a modem activity
+	 * LED; on success it flashes "saved", on failure "couldn't save"
+	 * (with the error as a tooltip).
+	 *
+	 * Identical signature to `fetch()` plus one extra options object:
+	 *
+	 *   - `windowId?: string` — explicit attribution. Wins over
+	 *     `window` when both are passed.
+	 *   - `window?: Window`   — direct reference to a `Window`
+	 *     instance. Use when you have the handle in scope.
+	 *   - `silent?: boolean`  — track but do NOT pulse the indicator.
+	 *     Reserved for background polls (heartbeat, presence) that
+	 *     shouldn't blink the title bar every tick.
+	 *
+	 * Default attribution: the focused window at call time. So
+	 * `wp.desktop.fetch( '/wp-json/myapi/v1/save', { method: 'POST' } )`
+	 * inside a click handler "just works" — the click focused the
+	 * window, the fetch attributes to it, the title bar pulses.
+	 *
+	 * Returns the same Response Promise as native `fetch()`. Errors
+	 * propagate unchanged (the indicator just adds a "failed" pulse
+	 * before the rejection bubbles up).
+	 *
+	 * @since 0.8.0
+	 */
+	fetch: (
+		input: RequestInfo | URL,
+		requestInit?: RequestInit,
+		opts?: { windowId?: string; window?: DesktopWindow; silent?: boolean },
+	) => Promise< Response >;
+	/**
 	 * Clone a `<template>` element's contents into a fresh
 	 * `DocumentFragment`. Convenience wrapper — accepts either the
 	 * element's DOM id or the element itself. Throws if the
@@ -610,6 +649,43 @@ export interface WpDesktopPublicApi {
 	 * @since 0.18.0
 	 */
 	openOsSettings: () => void;
+	/**
+	 * Read the current OS Settings snapshot. Mirrors the same shape
+	 * any settings tab sees via its `ctx.getOsSettings()`. Use this
+	 * from a feature plugin (or a feature window) when you need to
+	 * key behaviour off a per-user preference (e.g. the native Posts
+	 * window reads `nativePostsHiddenColumns` from here to filter the
+	 * `<wpd-table>` columns).
+	 *
+	 * @since 0.8.0
+	 */
+	getOsSettings: () => OsSettingsSnapshot;
+	/**
+	 * Subscribe to OS Settings changes. The callback fires every time
+	 * the user toggles a setting (or a third-party tab calls
+	 * `updateOsSettings`). Returns an unsubscribe function. Mirrors
+	 * the existing settings-tab `ctx.subscribeOsSettings` API.
+	 *
+	 * @since 0.8.0
+	 */
+	subscribeOsSettings: (
+		cb: ( snapshot: OsSettingsSnapshot ) => void,
+	) => () => void;
+	/**
+	 * Patch the OS Settings state and persist (debounced REST sync +
+	 * localStorage write + subscriber notification). Only the keys
+	 * present on the public `OsSettingsSnapshot` are honored; unknown
+	 * keys are ignored. Save lifecycle events (`'saving'` /
+	 * `'success'` / `'failed'`) fire on `document` as
+	 * `desktop-mode-os-settings-save-lifecycle`, same as a built-in
+	 * tab's save.
+	 *
+	 * @since 0.8.0
+	 */
+	updateOsSettings: (
+		patch: Partial< OsSettingsSnapshot >,
+		opts?: { windowId?: string },
+	) => void;
 	/**
 	 * Derive a stable window id from an admin URL — the same id the
 	 * default rail renderer uses when it opens a tile. Matches the
@@ -1271,7 +1347,8 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'unregisterCommand', 'listCommands', 'registerSettingsTab',
 	'unregisterSettingsTab', 'listSettingsTabs',
 	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
-	'openOsSettings', 'deriveWindowId',
+	'openOsSettings', 'getOsSettings', 'subscribeOsSettings', 'updateOsSettings',
+	'deriveWindowId',
 	'listSystemTiles', 'getSystemTile', 'getMenuItems',
 	'renderIcon',
 	'applyTileClasses', 'applyTileElement', 'applyTileTooltip',
@@ -1293,6 +1370,7 @@ const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
 	'getWindowConfig', 'debug',
+	'fetch',
 ] );
 
 /**
@@ -1487,6 +1565,37 @@ function init(): void {
 		desktopArea,
 	} );
 	const syncNativeWindows = nativeWindows.sync;
+
+	// Bind the URL → native-window remap registry now that both the OS
+	// Settings snapshot and the native-window opener exist. Built-in
+	// remaps register themselves below; future native replacements
+	// (Pages, Media, Users) drop in with a single
+	// `registerNativeUrlRemap({ ... })` call here — no Dock or
+	// dispatcher changes needed.
+	bindNativeUrlRemap( {
+		getSnapshot: () => osSettings.getOsSettingsSnapshot(),
+		openById: ( id ) => nativeWindows.openById( id ),
+		adminUrl: config.adminUrl,
+	} );
+
+	// Native Posts window (replaces `edit.php` when the user opts in
+	// via OS Settings → Features). Matches the bare Posts admin URL
+	// AND `?post_type=post` (some hosts/plugins canonicalise the
+	// query string differently). Pages / CPTs are intentionally NOT
+	// claimed here — they get their own remap when their windows
+	// ship.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-posts',
+		nativeWindowId: 'desktop-mode-posts',
+		matches: ( _url, parsed ) => {
+			if ( ! parsed.pathname.endsWith( '/edit.php' ) ) {
+				return false;
+			}
+			const postType = parsed.searchParams.get( 'post_type' );
+			return ! postType || postType === 'post';
+		},
+		enabled: ( snapshot ) => snapshot.nativePostsEnabled === true,
+	} );
 
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'desktop-mode-area--with-dock' );
@@ -2163,6 +2272,8 @@ function init(): void {
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
 		openWindow: nativeWindows.openById,
+		fetch: ( input, requestInit, opts ) =>
+			trackedFetch( manager, input, requestInit, opts ),
 		repaintLoadingOverlays,
 		cloneTemplate,
 		onWindow,
@@ -2190,6 +2301,50 @@ function init(): void {
 		unregisterDockRailRenderer,
 		listDockRailRenderers,
 		openOsSettings,
+		getOsSettings: () => osSettings.getOsSettingsSnapshot(),
+		subscribeOsSettings: ( cb: ( snapshot: OsSettingsSnapshot ) => void ) =>
+			osSettings.subscribeOsSettings( cb ),
+		updateOsSettings: (
+			patch: Partial< OsSettingsSnapshot >,
+			opts: { windowId?: string } = {},
+		) => {
+			// Whitelist only the public-snapshot keys so a typo'd field
+			// can't bloat the persisted state. The setters mutate the
+			// underlying private OsSettingsState, then `save()` runs
+			// the debounced REST sync + localStorage write + notifies
+			// every subscriber.
+			if ( typeof patch.wallpaper === 'string' ) {
+				osSettings.state.wallpaper = patch.wallpaper;
+			}
+			if ( typeof patch.accent === 'string' ) {
+				osSettings.state.accent =
+					patch.accent as typeof osSettings.state.accent;
+			}
+			if ( typeof patch.dockSize === 'string' ) {
+				osSettings.state.dockSize =
+					patch.dockSize as typeof osSettings.state.dockSize;
+			}
+			if ( typeof patch.desktopLayout === 'string' ) {
+				osSettings.state.desktopLayout =
+					patch.desktopLayout as typeof osSettings.state.desktopLayout;
+			}
+			if ( typeof patch.dockRailRenderer === 'string' ) {
+				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
+			}
+			if ( patch.ai && typeof patch.ai === 'object' ) {
+				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
+			}
+			if ( typeof patch.nativePostsEnabled === 'boolean' ) {
+				osSettings.state.nativePostsEnabled = patch.nativePostsEnabled;
+			}
+			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
+				osSettings.state.nativePostsHiddenColumns =
+					patch.nativePostsHiddenColumns
+						.filter( ( v ): v is string => typeof v === 'string' && v !== '' )
+						.slice( 0, 32 );
+			}
+			osSettings.save( opts );
+		},
 		deriveWindowId: ( url: string, overrideAdminUrl?: string ) =>
 			deriveWindowId( url, overrideAdminUrl ?? config.adminUrl ),
 		listSystemTiles: () => layoutDispatcher?.listSystemTiles() ?? [],
@@ -2593,9 +2748,72 @@ function restoreSession(
 }
 
 /**
+ * `wp.desktop.fetch` — wraps native `fetch()` with per-window
+ * activity attribution. Same shape as `fetch()` plus a third opts
+ * arg for explicit attribution / silencing.
+ *
+ * Resolution order for "which window's title bar pulses":
+ *   1. `opts.window`   — explicit Window reference.
+ *   2. `opts.windowId` — id looked up via `manager.getById`.
+ *   3. focused window  — `manager.getFocused()`.
+ *
+ * `opts.silent: true` skips the indicator entirely (used internally
+ * by background polls — heartbeat, presence, recycle-bin count).
+ *
+ * Returns the same Response Promise the native fetch would have, so
+ * callers can `.then(r => r.json())` / `await` / catch unchanged.
+ *
+ * Wired into the public API as `wp.desktop.fetch`.
+ *
+ * @internal
+ */
+function trackedFetch(
+	manager: WindowManager,
+	input: RequestInfo | URL,
+	requestInit?: RequestInit,
+	opts?: {
+		windowId?: string;
+		window?: DesktopWindow;
+		silent?: boolean;
+	},
+): Promise< Response > {
+	const promise = window.fetch( input, requestInit );
+	if ( opts?.silent ) {
+		return promise;
+	}
+	let target: DesktopWindow | null | undefined = opts?.window;
+	if ( ! target && opts?.windowId ) {
+		target = manager.getById( opts.windowId ) ?? null;
+	}
+	if ( ! target ) {
+		target = manager.getFocused();
+	}
+	if ( target && typeof target.trackActivity === 'function' ) {
+		// Track but don't replace the original promise — we want
+		// callers to receive identical resolution semantics. The
+		// `trackActivity` helper attaches its own `.then`/`catch`
+		// without consuming the rejection (it re-throws), so we can
+		// fire-and-forget here and return the underlying promise.
+		void target.trackActivity( promise ).catch( () => {
+			/* swallow — caller's await sees the rejection */
+		} );
+	}
+	return promise;
+}
+
+/**
  * Opens the current admin page in a fresh window — the "no saved session" path.
+ *
+ * Honours the native URL-remap registry so a portal deep-link to a page
+ * with a registered native replacement (Posts → `edit.php`, etc.)
+ * opens the native window when the user has opted in. Falls through
+ * to the standard iframe path on no-match.
  */
 function openCurrentPage( manager: WindowManager, config: DesktopConfig ): void {
+	if ( tryNativeUrlRemap( config.currentPage ) ) {
+		return;
+	}
+
 	const windowId = deriveWindowId( config.currentPage, config.adminUrl );
 	const dockEntry = findDockEntryForUrl( config.currentPage, config );
 
@@ -2720,6 +2938,14 @@ function bindTopWindowLinkInterceptor(
 
 			e.preventDefault();
 			e.stopPropagation();
+
+			// Native URL remap — same path the dock click consults.
+			// Any /wp-admin/edit.php anchor in the shell (admin-bar
+			// "Posts", a custom dashboard widget link, etc.) routes
+			// to the native Posts window when the user is opted in.
+			if ( tryNativeUrlRemap( url.href ) ) {
+				return;
+			}
 
 			const windowId = deriveWindowId( url.href, config.adminUrl );
 			const dockEntry = findDockEntryForUrl( url.href, config );

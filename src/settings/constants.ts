@@ -165,6 +165,8 @@ export const DEFAULTS: OsSettingsState = {
 		apiKeys: {},
 		transport: 'off',
 	},
+	nativePostsEnabled: false,
+	nativePostsHiddenColumns: [],
 };
 
 /**

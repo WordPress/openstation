@@ -14,7 +14,21 @@
  * marker — is considered transient and stripped, so a direct-URL land
  * and a dock click resolve to the same window ID.
  */
-const IDENTITY_PARAMS: readonly string[] = [ 'post_type', 'page', 'taxonomy' ];
+const IDENTITY_PARAMS: readonly string[] = [
+	'post_type',
+	'page',
+	'taxonomy',
+	// WooCommerce (and other React-app-style plugins) register
+	// SEPARATE top-level admin menus that all share `?page=wc-admin`
+	// and only differ by `path` (e.g. `path=/analytics/overview`,
+	// `path=/marketing`). Without `path` in the identity set, every
+	// such menu collapses to the same window id — opening any one of
+	// them lights up the dock indicator for ALL of them. WC's
+	// /admin/path query is the most prominent example today; future
+	// plugins that route inside `admin.php?page=` via a custom param
+	// can either piggyback on `path` or grow this list.
+	'path',
+];
 
 /**
  * Collapse a URL path (plus its significant query params) into a clean

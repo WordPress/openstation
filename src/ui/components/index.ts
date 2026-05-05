@@ -16,6 +16,7 @@ export { WpdSwatch } from './wpd-swatch/wpd-swatch';
 export { WpdSwatchGrid } from './wpd-swatch-grid/wpd-swatch-grid';
 export { WpdSegmented, WpdSegment } from './wpd-segmented/wpd-segmented';
 export { WpdSelect, WpdOption } from './wpd-select/wpd-select';
+export { WpdMultiselect } from './wpd-multiselect/wpd-multiselect';
 export { WpdColorField } from './wpd-color-field/wpd-color-field';
 export { WpdRangeField } from './wpd-range-field/wpd-range-field';
 export { WpdTextField } from './wpd-text-field/wpd-text-field';
@@ -63,6 +64,20 @@ export { WpdRelativeTime } from './wpd-relative-time/wpd-relative-time';
 export { WpdAvatar } from './wpd-avatar/wpd-avatar';
 export type { WpdAvatarPresence } from './wpd-avatar/wpd-avatar';
 export { WpdTextarea } from './wpd-textarea/wpd-textarea';
+export { WpdChip } from './wpd-chip/wpd-chip';
+export type { WpdChipTone, WpdChipSize } from './wpd-chip/wpd-chip';
+export { WpdTagInput } from './wpd-tag-input/wpd-tag-input';
+export type { WpdTagItem } from './wpd-tag-input/wpd-tag-input';
+export { WpdSaveStatus } from './wpd-save-status/wpd-save-status';
+export type {
+	WpdSaveStatusPhase,
+	WpdSaveStatusMode,
+	WpdSaveStatusLifecycleDetail,
+} from './wpd-save-status/wpd-save-status';
+export { WpdCategoryPicker } from './wpd-category-picker/wpd-category-picker';
+export type { WpdCategoryItem } from './wpd-category-picker/wpd-category-picker';
+export { WpdCrumbChain } from './wpd-crumb-chain/wpd-crumb-chain';
+export type { WpdCrumbSegment } from './wpd-crumb-chain/wpd-crumb-chain';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -78,6 +93,7 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-segment',
 	'wpd-select',
 	'wpd-option',
+	'wpd-multiselect',
 	'wpd-color-field',
 	'wpd-range-field',
 	'wpd-text-field',
@@ -113,4 +129,9 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-relative-time',
 	'wpd-avatar',
 	'wpd-textarea',
+	'wpd-chip',
+	'wpd-tag-input',
+	'wpd-save-status',
+	'wpd-category-picker',
+	'wpd-crumb-chain',
 ] as const;

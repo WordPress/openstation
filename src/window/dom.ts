@@ -476,8 +476,25 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const customRight = document.createElement( 'span' );
 	customRight.className = 'desktop-mode-window__custom-buttons desktop-mode-window__custom-buttons--right';
 
+	// Per-window activity indicator — sits between the icon and the
+	// title so it reads as "this window is doing something" without
+	// stealing the icon's role as window identity. Reserves a fixed
+	// width even when idle so its appearance/disappearance never
+	// causes layout shift on the title row. Wired up in
+	// `Window.markActivity()` / `Window.trackActivity()`; populated
+	// automatically by `wp.desktop.fetch()`.
+	const activityHost = document.createElement( 'span' );
+	activityHost.className = 'desktop-mode-window__activity';
+	const activityStatus = document.createElement( 'wpd-save-status' );
+	activityStatus.setAttribute( 'mode', 'dot' );
+	activityStatus.setAttribute( 'animation', 'modem' );
+	activityStatus.setAttribute( 'phase', 'idle' );
+	activityStatus.setAttribute( 'data-desktop-mode-activity-indicator', '' );
+	activityHost.appendChild( activityStatus );
+
 	titleBar.appendChild( slotBeforeIcon );
 	titleBar.appendChild( slotIcon );
+	titleBar.appendChild( activityHost );
 	titleBar.appendChild( slotTitle );
 	titleBar.appendChild( slotAfterTitle );
 	titleBar.appendChild( customLeft );

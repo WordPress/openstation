@@ -1514,6 +1514,109 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ---
 
+## Native Posts window
+
+`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe behind a per-user opt-in toggle (**OS Settings → Features → Use the native Posts window**, persisted as `OsSettingsState.nativePostsEnabled`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+
+### `desktop_mode_posts_window_user_can_use` — Stable *(filter, since 0.8.0)*
+
+The two-condition gate: `edit_posts` AND the user has flipped the opt-in. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
+
+```php
+apply_filters( 'desktop_mode_posts_window_user_can_use', bool $can, int $user_id );
+```
+
+Use cases:
+- Force the window on for everyone on a managed install.
+- Restrict to `edit_others_posts` on a multi-author site so contributors stay on the iframe.
+- Per-user A/B rollouts driven by an external flag store.
+
+### `desktop_mode_posts_window_args` — Experimental *(filter, since 0.8.0)*
+
+Args passed to `desktop_mode_register_window( 'desktop-mode-posts', … )`. Customize the title / icon / dimensions, or extend the `config` blob with extra REST URLs the bundle should know about.
+
+```php
+apply_filters( 'desktop_mode_posts_window_args', array $args );
+```
+
+### `desktop_mode_posts_window_template_html` — Experimental *(filter, since 0.8.0)*
+
+The full template body before it's `wp_kses`'d into the native-window template element. Keep the `data-desktop-mode-posts-*` hooks intact so the JS bundle can find its mount points (search input, status segmented, table, bulk bar, pager).
+
+```php
+apply_filters( 'desktop_mode_posts_window_template_html', string $html );
+```
+
+### `desktop_mode_posts_window_query_args` — Experimental *(filter, since 0.8.0)*
+
+Default outbound REST query args the bundle merges into every `/wp/v2/posts` request. Drop in `'post_type' => 'product'` to point the window at a CPT, or extend `_fields` to ship more columns. The bundle merges page / per_page / search / status / sort args on top.
+
+```php
+apply_filters( 'desktop_mode_posts_window_query_args', array $args );
+```
+
+Default args:
+
+```php
+[
+    '_embed'  => 'author,wp:term,wp:featuredmedia',
+    '_fields' => 'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,_links,_embedded',
+]
+```
+
+### JS extension points
+
+Every JS hook below is also documented on `wp.hooks` so plugins can register with priorities + namespaces. Filter signatures match `wp.hooks.applyFilters( name, default, ...args )`.
+
+| Hook | Type | Default | Args / Detail |
+|---|---|---|---|
+| `desktop_mode.postsWindow.columns` | filter | built-in 5 columns | `WpdTableColumn< PostListItem >[]` — append, replace, or remove cells. |
+| `desktop_mode.postsWindow.statusSegments` | filter | All / Published / Drafts / Pending / Scheduled / Trash | `StatusSegment[]` — `{ value, label }` pairs. `value` is sent verbatim as `?status=…`; use `''` for "All" (the bundle remaps to `?status=any`). |
+| `desktop_mode.postsWindow.bulkActions` | filter | one entry: "Move to trash" | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. Filter out by id to remove. |
+| `desktop_mode.postsWindow.toolbarTrailing` | filter | `[]` | `HTMLElement[]` rendered before Refresh + Add New. Receives the live `PostsWindowContext` as the second arg. |
+| `desktop_mode.postsWindow.opened` | action | — | `( ctx: PostsWindowContext )` — fired after the first paint with a populated table. |
+| `desktop_mode.postsWindow.dataLoaded` | action | — | `( payload: { items, total, totalPages, page } )` — fired after every successful refresh. |
+
+`PostsWindowContext`: `{ body, table, refresh(), getSelectedIds(), getSelectedRows(), getCurrentParams() }` — see [`src/posts-window/types.ts`](../src/posts-window/types.ts) for the full TypeScript surface.
+
+### CustomEvents (same payloads as the hook-bus actions)
+
+```js
+document.addEventListener( 'desktop-mode-posts-window-opened',      e => /* e.detail = PostsWindowContext */ );
+document.addEventListener( 'desktop-mode-posts-window-data-loaded', e => /* e.detail = { items, total, totalPages, page } */ );
+```
+
+### Cross-window broadcast
+
+```js
+wp.desktop.broadcast( 'desktop-mode.post.changed', {
+    source: 'posts-window',
+    action: 'trashed',
+    ids: number[],
+} );
+```
+
+Fired after every bulk trash. The recycle bin and any other listener are cross-window subscribers via `wp.desktop.subscribe`.
+
+### URL → native-window remap registry
+
+Centralized in `src/native-url-remap.ts`. Every code path that opens an admin URL (dock click, portal deep-link, `<a href="/wp-admin/…">` anywhere in the shell) consults `tryNativeUrlRemap()` before falling back to the iframe. Future native windows (Pages, Media, Users) register themselves with one line:
+
+```js
+wp.desktop.registerNativeUrlRemap( {           // public API in 0.9.0; internal today
+    id: 'myplugin-pages',
+    nativeWindowId: 'myplugin-pages',
+    matches: ( _url, parsed ) =>
+        parsed.pathname.endsWith( '/edit.php' ) &&
+        parsed.searchParams.get( 'post_type' ) === 'page',
+    enabled: ( settings ) => settings.nativePagesEnabled === true,
+} );
+```
+
+Returning `false` from `enabled` (or `matches`) lets the click fall through. An `openById( nativeWindowId )` call that reports the window isn't registered for the current user (cap-gated, opt-in-gated) also falls through — the registry walks on to the next entry, then to the iframe path.
+
+---
+
 ## Presence
 
 Framework-level presence tracking. Storage in

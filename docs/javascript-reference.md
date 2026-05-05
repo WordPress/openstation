@@ -630,6 +630,88 @@ For programmatic deep-linking into the **Code editor** specifically (open + jump
 
 ---
 
+### `wp.desktop.fetch( input, init?, opts? )` — Experimental *(since 0.8.0)*
+
+Drop-in wrapper around the global `fetch()` that lights up the target window's title-bar **modem activity dot** while the request is in flight. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+
+```js
+// In any window's render callback / event handler:
+const res = await wp.desktop.fetch( '/wp-json/myplugin/v1/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+    body: JSON.stringify( payload ),
+} );
+```
+
+That's the whole pattern. The dot blinks for the duration of the round-trip, flashes green on `2xx` and red on failure (with the `Error.message` exposed as the dot's tooltip), then settles back to the always-on idle ring. **No CSS, no per-window plumbing, no DOM.**
+
+#### Arguments
+
+| Arg | Type | Description |
+|---|---|---|
+| `input` | `RequestInfo \| URL` | Same as native `fetch`. |
+| `init` | `RequestInit?` | Same as native `fetch`. |
+| `opts` | `{ windowId?: string; window?: Window; silent?: boolean }?` | Attribution + opt-out. |
+
+`opts` is the only addition. Resolution order for "which window's title bar pulses":
+
+1. **`opts.window`** — explicit `Window` reference. Use when you have the handle in scope (e.g. inside a render callback that received `ctx.window`).
+2. **`opts.windowId`** — id looked up via `wp.desktop.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `desktop_mode_register_window( '…' )`).
+3. **focused window** — `manager.getFocused()`. Default. So inside a click handler, the click already focused the window and the fetch attributes to it without any extra wiring.
+
+`opts.silent: true` skips the indicator entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't blink the title bar every tick. The fetch is otherwise identical.
+
+#### Why it works
+
+Internally, `wp.desktop.fetch` calls `Window.trackActivity( promise )` on the resolved target. The window enforces a **minimum saving-display time of 1.8s** so even a 50ms fetch shows a full modem-blink cycle before flashing green — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settles on the **last** one (and inherits the **last error** if any failed), matching the user's "is anything still happening?" mental model.
+
+#### Migration tip
+
+You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't show a title-bar pulse. Adopt `wp.desktop.fetch` per call where the indicator is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
+
+#### Source
+
+`src/desktop.ts` `trackedFetch`. The component the dot is rendered with is [`<wpd-save-status>`](#wpd-save-status--experimental-since-080) — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
+
+See also [`examples/window-activity.md`](./examples/window-activity.md) for end-to-end recipes.
+
+---
+
+### `Window.trackActivity( promise )` — Experimental *(since 0.8.0)*
+
+The lower-level primitive `wp.desktop.fetch()` is built on. Call it directly when you have a Promise from a non-fetch source — a `postMessage` handshake, an IndexedDB transaction, a `BroadcastChannel` round-trip, a long client-side computation wrapped in `requestAnimationFrame` chains.
+
+```js
+const win = wp.desktop.windowManager.getById( 'my-plugin/inbox' );
+await win.trackActivity( indexedDbWrite( record ) );
+```
+
+Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.8s saving-display floor** still applies — so even a 100ms IDB write shows a full modem cycle.
+
+### `Window.markActivity( phase, opts? )` — Experimental *(since 0.8.0)*
+
+Manual escape hatch when the activity isn't a single Promise. Phases:
+
+- `'idle'`    — clear. Indicator resets to the always-on green ring.
+- `'pending'` / `'saving'` — modem-blink with a soft glow. Stays in this phase until you transition out.
+- `'saved'`   — brief green flash. Auto-clears to `idle` after ~2.2s.
+- `'failed'`  — red dot. `opts.error` becomes the host's `title` attribute (and so the native browser tooltip on hover). Auto-clears after ~6s.
+
+```js
+win.markActivity( 'saving' );
+streamingSubscriber.on( 'data', () => {
+    /* … */
+} );
+streamingSubscriber.on( 'end', () => win.markActivity( 'saved' ) );
+streamingSubscriber.on( 'error', ( err ) => {
+    win.markActivity( 'failed', { error: err.message } );
+} );
+```
+
+Idempotent. Setting the same phase twice is a no-op except for resetting the auto-clear timer.
+
+---
+
 ### `wp.desktop.getWindowConfig( id )` — Stable *(since 0.6.0)*
 
 Read the bundle-bound config blob shipped via the `'config'` arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.

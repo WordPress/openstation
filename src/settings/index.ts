@@ -55,7 +55,12 @@ import {
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
-import { loadState, saveState } from './state';
+import {
+	loadState,
+	saveState,
+	setLastConfirmedState,
+	type OsSettingsSaveLifecycleDetail,
+} from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
 import type {
 	OsSettingsConfig,
@@ -67,6 +72,7 @@ import { buildAiSection } from './sections/ai';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildExtendedSection } from './sections/extended';
+import { buildFeaturesSection } from './sections/features';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
 import { buildHelpSection } from './sections/help';
 import {
@@ -134,6 +140,8 @@ export class OsSettings implements SettingsCtx {
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
 			ai: { ...this.state.ai },
+			nativePostsEnabled: this.state.nativePostsEnabled,
+			nativePostsHiddenColumns: this.state.nativePostsHiddenColumns.slice(),
 		};
 	}
 
@@ -146,10 +154,47 @@ export class OsSettings implements SettingsCtx {
 		};
 	}
 
+	/**
+	 * Last `body` element a `renderPanel()` call mounted into. Tracked
+	 * so the save-failure rollback handler can re-render the panel
+	 * without the caller having to plumb the body through.
+	 *
+	 * Cleared when the body becomes detached (window closed) so a
+	 * stale handler can't paint into a dead DOM tree.
+	 */
+	private _lastRenderedBody: HTMLElement | null = null;
+
 	constructor( config: OsSettingsConfig, layer: WallpaperLayer ) {
 		this.config = config;
 		this.layer = layer;
 		this.state = loadState();
+
+		// Prime the rollback baseline so the FIRST failed save still
+		// has a snapshot to revert to. The boot state came from user
+		// meta and is by definition server-confirmed.
+		setLastConfirmedState( this.state );
+
+		// Auto-rollback on save failure — restore the in-memory state
+		// to the last server-confirmed snapshot AND re-render the
+		// panel so the controls visually revert. Without this, the
+		// optimistic UI lies: the user toggles a setting offline, the
+		// save fails, and the toggle stays in its (incorrect) flipped
+		// position until a manual reload reconciles with the server.
+		document.addEventListener(
+			'desktop-mode-os-settings-save-lifecycle',
+			( e: Event ) => {
+				const detail = ( e as CustomEvent< OsSettingsSaveLifecycleDetail > )
+					.detail;
+				if ( ! detail || detail.phase !== 'failed' || ! detail.rolledBackTo ) {
+					return;
+				}
+				this.state = detail.rolledBackTo;
+				this.apply();
+				if ( this._lastRenderedBody?.isConnected ) {
+					this.renderPanel( this._lastRenderedBody );
+				}
+			},
+		);
 
 		// Built-in dynamic wallpapers — registered here rather than in
 		// `built-in.ts` because their `resolveValue` and `renderEditor`
@@ -222,8 +267,8 @@ export class OsSettings implements SettingsCtx {
 		setActiveDockRailRenderer( this.state.dockRailRenderer );
 	}
 
-	public save(): void {
-		saveState( this.state );
+	public save( opts: { windowId?: string } = {} ): void {
+		saveState( this.state, opts );
 		if ( this.osSettingsListeners.size > 0 ) {
 			const snapshot = this.getOsSettingsSnapshot();
 			const listeners = Array.from( this.osSettingsListeners );
@@ -250,6 +295,10 @@ export class OsSettings implements SettingsCtx {
 	 * window open — closing and re-opening renders a fresh tree.
 	 */
 	public renderPanel( body: HTMLElement ): void {
+		// Track the body so the save-failure rollback handler can
+		// re-render after restoring the last-confirmed state.
+		this._lastRenderedBody = body;
+
 		// Tear down any editor mounted by a previous render — closing
 		// the OS Settings window doesn't necessarily fire our teardown
 		// path, so we do it defensively here.
@@ -322,6 +371,16 @@ export class OsSettings implements SettingsCtx {
 				tab: html`<wpd-tab value="ai">${ __( 'AI Settings' ) }</wpd-tab>`,
 				panel: html`<wpd-tabpanel for="ai">
 					<wpd-panel>${ buildAiSection( this ) }</wpd-panel>
+				</wpd-tabpanel>`,
+			},
+			{
+				id: 'features',
+				order: 25,
+				tab: html`<wpd-tab value="features"
+					>${ __( 'Features' ) }</wpd-tab
+				>`,
+				panel: html`<wpd-tabpanel for="features">
+					<wpd-panel>${ buildFeaturesSection( this ) }</wpd-panel>
 				</wpd-tabpanel>`,
 			},
 		];
@@ -422,6 +481,10 @@ export class OsSettings implements SettingsCtx {
 			`,
 			body,
 		);
+		// Save feedback lives on the OS Settings window's title-bar
+		// activity dot — the always-on modem light next to the icon.
+		// No section-level or footer indicator: one canonical
+		// affordance per window, no duplication across the panel.
 
 		// Mount external tab content after the tabpanels are in the
 		// DOM so their hosts can be queried.

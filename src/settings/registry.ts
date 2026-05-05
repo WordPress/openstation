@@ -62,6 +62,22 @@ export interface OsSettingsSnapshot {
 		 */
 		transport: 'sse' | 'off';
 	};
+	/**
+	 * Per-user opt-in for the native Posts window. When true, clicking
+	 * the Posts dock tile opens the `<wpd-table>`-driven native window
+	 * instead of the chromeless `edit.php` iframe. Default off.
+	 *
+	 * @since 0.8.0
+	 */
+	nativePostsEnabled: boolean;
+	/**
+	 * Per-user list of column keys hidden in the native Posts window.
+	 * Mirrors the underlying `OsSettingsState.nativePostsHiddenColumns`.
+	 * Empty array means every column is visible.
+	 *
+	 * @since 0.8.0
+	 */
+	nativePostsHiddenColumns: string[];
 }
 
 export interface SettingsTabRenderCtx {

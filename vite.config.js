@@ -51,6 +51,16 @@ const TARGETS = {
 		fileBase: 'recycle-bin',
 		iifeName: 'desktopModeRecycleBin',
 	},
+	// Native Posts window — `<wpd-table>`-driven replacement for the
+	// chromeless `edit.php` iframe, opt-in per user via OS Settings →
+	// Features. Same shape as recycle-bin: registers a render
+	// callback on `window.desktopModeNativeWindows['desktop-mode-posts']`
+	// and consumes the `<wpd-*>` tags defined by the main bundle.
+	'posts-window': {
+		entry:    'src/posts-window/index.ts',
+		fileBase: 'posts-window',
+		iifeName: 'desktopModePostsWindow',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {
