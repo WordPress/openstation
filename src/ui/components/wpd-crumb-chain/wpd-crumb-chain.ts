@@ -67,7 +67,7 @@ export class WpdCrumbChain extends Component {
 				name: 'removable',
 				type: 'boolean attribute',
 				description:
-					'Show an × on the last segment. Click / activate emits `wpd-chain-remove`.',
+					'Show an × on every segment. Activating it emits `wpd-chain-remove` with the clicked segment + index — consumers cascade the removal down the chain (segment + descendants).',
 			},
 			{
 				name: 'disabled',
@@ -80,7 +80,7 @@ export class WpdCrumbChain extends Component {
 			{
 				name: 'wpd-chain-remove',
 				description:
-					'Fires when × on the last segment is activated. Detail carries the leaf segment + its array index for the consumer to act on.',
+					'Fires when × on ANY segment is activated. Detail carries the clicked segment + its index. Consumers typically delete the segment AND every descendant in the chain (mirrors the drag semantic, where the same gesture would carry the same set of ids).',
 				detail: '{ index: number; id?: number | string; segment: WpdCrumbSegment }',
 			},
 			{

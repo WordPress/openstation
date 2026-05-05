@@ -468,26 +468,43 @@ export class WpdCategoryPicker extends Component {
 		disabled: boolean,
 	) {
 		const removable = ! readonly && ! disabled;
-		// Chain-LOCAL removal. Each chip stands for ONE classification
-		// path; clicking × on any segment says "remove this path".
-		// We always deselect the chain's LEAF (its deepest selected
-		// term) — regardless of which segment was clicked — so the
-		// chain dissolves while every shared ancestor stays in
-		// _value. Sibling chains that share that ancestor render
-		// unchanged because their own leaves are still selected.
+		// Chain-LOCAL removal. Clicking × on a segment removes THAT
+		// segment AND every descendant of it within the chain — every
+		// segment shown in the chain is a SELECTED term (unselected
+		// ancestors are filtered out by `_buildChains`), so this is
+		// the same "branch" that the user can drag elsewhere via
+		// `wpd-chain-segment-dragstart`.
 		//
-		// Concretely, with _value = [Parent, Grand1, Grand2] producing
+		// Examples (× clicks):
+		//   [a → b]  click × on b  →  remove [b]                ⇒  chain gone
+		//   [a → b]  click × on a  →  remove [a, b]             ⇒  chain gone
+		//   [a → b → c]  click × on b  →  remove [b, c]         ⇒  chain becomes [a]
+		//
+		// Sibling chains that share an ancestor stay independent —
+		// e.g. with _value = [Parent, Grand1, Grand2] producing
 		// chips [Parent → Grand1] and [Parent → Grand2]: clicking ×
-		// on "Parent" in chip 1 removes only Grand1 — Parent stays
-		// selected and chip 2 keeps showing [Parent → Grand2].
-		//
-		// If the user wants to drop just an ancestor (e.g. unselect
-		// Parent itself), they uncheck it from the picker — the chip
-		// × is intentionally a "delete this chain" verb, not a
-		// per-segment surgical edit.
+		// on Parent in chip 1 removes [Parent, Grand1] from _value;
+		// chip 2's chain rebuilds with Parent unselected, so its
+		// rendered chain becomes the single segment [Grand2].
 		const onRemove = ( e: Event ): void => {
 			e.stopPropagation();
-			const next = this._value.filter( ( id ) => id !== chain.id );
+			const detail = ( e as CustomEvent< { index?: number } > ).detail;
+			const startIdx =
+				typeof detail?.index === 'number'
+					? detail.index
+					: chain.segments.length - 1;
+			const idsToRemove = new Set< number >();
+			for ( const seg of chain.segments.slice( startIdx ) ) {
+				if ( typeof seg.id === 'number' ) {
+					idsToRemove.add( seg.id );
+				}
+			}
+			const next = this._value.filter(
+				( id ) => ! idsToRemove.has( id ),
+			);
+			if ( next.length === this._value.length ) {
+				return;
+			}
 			this.emit( 'wpd-categories-change', { value: next } );
 		};
 		// Setting properties on a custom element can't be done
