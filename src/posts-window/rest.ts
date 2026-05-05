@@ -394,6 +394,7 @@ export async function createTag( name: string ): Promise< TagTerm > {
 			method: 'POST',
 			body: JSON.stringify( { name } ),
 		} );
+		broadcastTermChange( 'post_tag', 'created', data.id );
 		return data;
 	} catch ( err ) {
 		// Core returns a `term_exists` error with the existing id in
@@ -589,14 +590,23 @@ export async function fetchTagOptions(
 export async function createCategory(
 	name: string,
 	parent: number = 0,
+	opts: { slug?: string; description?: string } = {},
 ): Promise< CategoryTerm > {
 	const cfg = getConfig();
 	const url = `${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/categories`;
+	const body: Record< string, unknown > = { name, parent };
+	if ( opts.slug ) {
+		body.slug = opts.slug;
+	}
+	if ( opts.description ) {
+		body.description = opts.description;
+	}
 	try {
 		const { data } = await request< CategoryTerm >( url, {
 			method: 'POST',
-			body: JSON.stringify( { name, parent } ),
+			body: JSON.stringify( body ),
 		} );
+		broadcastTermChange( 'category', 'created', data.id );
 		return data;
 	} catch ( err ) {
 		const message = err instanceof Error ? err.message : String( err );
@@ -619,6 +629,42 @@ export async function createCategory(
 }
 
 /**
+ * Notify other parts of the shell that a term was created, updated
+ * or deleted. Subscribers (e.g. the post-row category picker, which
+ * caches the full tree per window-open) clear their caches so they
+ * pick up the change without needing F5.
+ *
+ * Channel: `desktop-mode.term.changed`. Payload:
+ * `{ taxonomy: 'category' | 'post_tag', action, id }`.
+ */
+function broadcastTermChange(
+	taxonomy: 'category' | 'post_tag',
+	action: 'created' | 'updated' | 'deleted',
+	id: number,
+): void {
+	const api = (
+		window as unknown as {
+			wp?: {
+				desktop?: {
+					broadcast?: (
+						channel: string,
+						payload: unknown,
+					) => void;
+				};
+			};
+		}
+	).wp?.desktop;
+	if ( api && typeof api.broadcast === 'function' ) {
+		api.broadcast( 'desktop-mode.term.changed', {
+			source: 'posts-window',
+			taxonomy,
+			action,
+			id,
+		} );
+	}
+}
+
+/**
  * Replace a post's category set. WordPress auto-applies
  * "Uncategorized" server-side when the array is empty, so we don't
  * need to send the term explicitly — passing `[]` is the canonical
@@ -637,4 +683,174 @@ export async function updatePostCategories(
 		body: JSON.stringify( { categories: categoryIds } ),
 	} );
 	return data;
+}
+
+// ---------------------------------------------------------------------------
+// Term management (Categories + Tags tabs)
+// ---------------------------------------------------------------------------
+
+/**
+ * Common shape for both categories and tags as displayed in the term-
+ * management tabs. The `parent` field is `0` for tags (flat taxonomy)
+ * and the parent term id for categories.
+ *
+ * @since 0.8.0
+ */
+export interface TermRow {
+	id: number;
+	name: string;
+	slug: string;
+	parent: number;
+	count: number;
+	description: string;
+	/**
+	 * Whether this term is the taxonomy's default fallback (e.g.
+	 * Uncategorized for category; populated server-side via the
+	 * `desktop_mode_is_default` REST field). `false` when the field
+	 * isn't surfaced (older PHP build) or the term isn't the default.
+	 */
+	isDefault: boolean;
+	// Index signature so `<wpd-table>`'s row constraint
+	// (`Record<string, unknown>`) is satisfied — the table never
+	// reads beyond the declared keys, but the type-level constraint
+	// is structural.
+	[ key: string ]: unknown;
+}
+
+export interface TermsListPage {
+	items: TermRow[];
+	total: number;
+	totalPages: number;
+}
+
+export interface TermsListParams {
+	page?: number;
+	perPage?: number;
+	search?: string;
+	orderby?: 'name' | 'count' | 'slug' | 'description';
+	order?: 'asc' | 'desc';
+	parent?: number;
+}
+
+/**
+ * Page fetcher for either categories or tags. Returns the bare term
+ * shape we render in the table (id/name/slug/parent/count/description)
+ * plus the X-WP-Total / X-WP-TotalPages totals so the pager + stats
+ * strip can show real numbers without re-counting.
+ *
+ * @since 0.8.0
+ */
+export async function fetchTerms(
+	taxonomy: 'categories' | 'tags',
+	params: TermsListParams = {},
+): Promise< TermsListPage > {
+	const cfg = getConfig();
+	const url = new URL(
+		`${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/${ taxonomy }`,
+	);
+	url.searchParams.set( 'per_page', String( params.perPage ?? 50 ) );
+	url.searchParams.set( 'page', String( params.page ?? 1 ) );
+	url.searchParams.set(
+		'_fields',
+		'id,name,slug,parent,count,description,desktop_mode_count,desktop_mode_is_default',
+	);
+	url.searchParams.set( 'orderby', params.orderby ?? 'name' );
+	url.searchParams.set( 'order', params.order ?? 'asc' );
+	if ( params.search ) {
+		url.searchParams.set( 'search', params.search );
+	}
+	if ( typeof params.parent === 'number' && params.parent >= 0 ) {
+		url.searchParams.set( 'parent', String( params.parent ) );
+	}
+	const { data, headers } = await request< Array< Partial< TermRow > > >(
+		url.toString(),
+		{ method: 'GET' },
+	);
+	const items: TermRow[] = Array.isArray( data )
+		? data.map( ( t ) => {
+			// Prefer the any-status count (includes drafts + pending)
+			// when the server emits it; fall back to core's `count`
+			// for older PHP builds that predate the custom field.
+			const anyCount = ( t as { desktop_mode_count?: number } )
+				.desktop_mode_count;
+			const isDefault = ( t as { desktop_mode_is_default?: boolean } )
+				.desktop_mode_is_default === true;
+			return {
+				id: ( t.id as number ) ?? 0,
+				name: ( t.name as string ) ?? '',
+				slug: ( t.slug as string ) ?? '',
+				parent: ( t.parent as number ) ?? 0,
+				count:
+					typeof anyCount === 'number'
+						? anyCount
+						: ( t.count as number ) ?? 0,
+				description: ( t.description as string ) ?? '',
+				isDefault,
+			};
+		} )
+		: [];
+	return {
+		items,
+		total: parseInt( headers.get( 'X-WP-Total' ) ?? '0', 10 ) || 0,
+		totalPages: parseInt( headers.get( 'X-WP-TotalPages' ) ?? '0', 10 ) || 0,
+	};
+}
+
+/**
+ * Update a term — rename, change slug, change parent (categories only),
+ * or rewrite description. Pass only the fields the user changed; core
+ * preserves untouched fields.
+ *
+ * @since 0.8.0
+ */
+export async function updateTerm(
+	taxonomy: 'categories' | 'tags',
+	id: number,
+	patch: Partial< Pick< TermRow, 'name' | 'slug' | 'description' | 'parent' > >,
+): Promise< TermRow > {
+	const cfg = getConfig();
+	const url = `${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/${ taxonomy }/${ id }`;
+	const { data } = await request< Partial< TermRow > >( url, {
+		method: 'POST',
+		body: JSON.stringify( patch ),
+	} );
+	broadcastTermChange(
+		taxonomy === 'categories' ? 'category' : 'post_tag',
+		'updated',
+		id,
+	);
+	return {
+		id: data.id ?? id,
+		name: data.name ?? '',
+		slug: data.slug ?? '',
+		parent: data.parent ?? 0,
+		count: data.count ?? 0,
+		description: data.description ?? '',
+		isDefault: ( data.isDefault as boolean | undefined ) ?? false,
+	};
+}
+
+/**
+ * Force-delete a term. Matches WP core behavior: posts assigned to a
+ * deleted category fall through to the "Uncategorized" default
+ * automatically (taxonomy default term wiring); tags just disappear
+ * from their assigned posts.
+ *
+ * @since 0.8.0
+ */
+export async function deleteTerm(
+	taxonomy: 'categories' | 'tags',
+	id: number,
+): Promise< void > {
+	const cfg = getConfig();
+	const url = new URL(
+		`${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/${ taxonomy }/${ id }`,
+	);
+	url.searchParams.set( 'force', 'true' );
+	await request( url.toString(), { method: 'DELETE' } );
+	broadcastTermChange(
+		taxonomy === 'categories' ? 'category' : 'post_tag',
+		'deleted',
+		id,
+	);
 }

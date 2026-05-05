@@ -69,10 +69,24 @@ export const styles = css`
 		font-weight: 500;
 		letter-spacing: 0.01em;
 		white-space: nowrap;
+		/* "grab" advertises the drag affordance — segments are HTML5
+		 * draggable, and the consumer (e.g. posts-window category
+		 * cell) listens for the wpd-chain-segment-dragstart event to
+		 * ship the source segment + its descendants. */
+		cursor: grab;
 		transition: filter 0.15s ease, transform 0.15s ease, background-color 0.12s ease;
+	}
+	.wpd-crumb:active {
+		cursor: grabbing;
 	}
 	.wpd-crumb:hover {
 		filter: brightness( 1.06 );
+	}
+	/* The × inside the leaf is a click target, not a drag handle —
+	 * keep the pointer cursor and let draggable=false on the button
+	 * itself stop the drag from initiating there. */
+	.wpd-crumb__remove {
+		cursor: pointer;
 	}
 
 	/*

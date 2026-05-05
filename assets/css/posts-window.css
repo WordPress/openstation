@@ -181,3 +181,575 @@
  * post-specific styles needed here. The component lives inside the
  * <th> and renders its popover into <body> so the dropdown escapes
  * the table's overflow chain. */
+
+/* ---------------------------------------------------------------
+ * Categories + Tags tabs.
+ *
+ * Reimagined replacement for legacy `edit-tags.php`. Layout (top to
+ * bottom): horizontal stats strip → search + add-row toolbar →
+ * `<wpd-table>` → pager. The stats strip is the value-add over the
+ * legacy view — at-a-glance counts the user previously had to hunt
+ * for. */
+/* Tabs strip — auto-height; only the active panel below grows. */
+.desktop-mode-posts__tabs {
+	flex: 0 0 auto;
+}
+
+/* Sibling panels under the same flex column. The hidden ones are
+ * UA-display:none via the `[hidden]` attribute; the visible one
+ * stretches to fill the remaining height. */
+.desktop-mode-posts__panel {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.desktop-mode-posts__panel[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-posts__terms-host,
+.desktop-mode-posts__terms {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+}
+
+.desktop-mode-posts__stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 140px, 1fr ) );
+	gap: 8px;
+	padding: 12px 14px 0;
+}
+
+.desktop-mode-posts__stat {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 10px 14px;
+	background: var( --wpd-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-radius: 8px;
+}
+
+.desktop-mode-posts__stat[ data-tone='accent' ] {
+	border-color: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) 45%,
+		transparent
+	);
+}
+
+.desktop-mode-posts__stat[ data-tone='warning' ] {
+	border-color: color-mix( in srgb, #d63638 45%, transparent );
+}
+
+.desktop-mode-posts__stat-value {
+	font-size: 18px;
+	font-weight: 700;
+	color: var( --wpd-text, #1d2327 );
+	line-height: 1.2;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-posts__stat[ data-tone='accent' ] .desktop-mode-posts__stat-value {
+	color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.desktop-mode-posts__stat[ data-tone='warning' ] .desktop-mode-posts__stat-value {
+	color: #d63638;
+}
+
+.desktop-mode-posts__stat-label {
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --wpd-text-muted, #50575e );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-posts__terms-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 14px;
+	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.desktop-mode-posts__terms-search {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.desktop-mode-posts__terms-search wpd-text-field {
+	width: 100%;
+}
+
+.desktop-mode-posts__terms-add {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1 1 auto;
+	min-width: 0;
+	justify-content: flex-end;
+}
+
+.desktop-mode-posts__terms-add wpd-text-field {
+	flex: 1 1 200px;
+	min-width: 0;
+}
+
+.desktop-mode-posts__terms-parent {
+	padding: 6px 8px;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 4px;
+	background: var( --wpd-surface, #fff );
+	color: var( --wpd-text, #1d2327 );
+	font: inherit;
+	font-size: 13px;
+	max-width: 180px;
+}
+
+.desktop-mode-posts__terms wpd-table {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	margin: 0 14px;
+	--wpd-table-max-height: 100%;
+}
+
+.desktop-mode-posts__term-name {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.desktop-mode-posts__term-indent {
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.desktop-mode-posts__term-tee {
+	color: var( --wpd-text-muted, #8c8f94 );
+	font-size: 13px;
+	flex-shrink: 0;
+}
+
+.desktop-mode-posts__term-label {
+	font-weight: 500;
+	color: var( --wpd-text, #1d2327 );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-posts__term-slug {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: rgba( 0, 0, 0, 0.05 );
+	color: var( --wpd-text-muted, #50575e );
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-size: 11px;
+}
+
+.desktop-mode-posts__term-count {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.desktop-mode-posts__term-bar {
+	flex: 1 1 auto;
+	height: 4px;
+	min-width: 24px;
+	background: rgba( 0, 0, 0, 0.06 );
+	border-radius: 999px;
+	position: relative;
+	overflow: hidden;
+}
+
+.desktop-mode-posts__term-bar::before {
+	content: '';
+	position: absolute;
+	inset-inline-start: 0;
+	top: 0;
+	bottom: 0;
+	width: var( --wpd-term-bar, 0% );
+	background: var( --wp-admin-theme-color, #2271b1 );
+	border-radius: 999px;
+	transition: width 0.2s ease;
+}
+
+.desktop-mode-posts__term-count-num {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	color: var( --wpd-text, #1d2327 );
+	min-width: 2ch;
+	text-align: end;
+}
+
+.desktop-mode-posts__term-desc {
+	color: var( --wpd-text-muted, #50575e );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	display: inline-block;
+	max-width: 100%;
+}
+
+.desktop-mode-posts__term-desc.is-empty {
+	color: var( --wpd-text-disabled, #c3c4c7 );
+	font-style: italic;
+}
+
+.desktop-mode-posts__term-actions {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.desktop-mode-posts__term-action {
+	appearance: none;
+	padding: 3px 8px;
+	font: inherit;
+	font-size: 11px;
+	font-weight: 500;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: transparent;
+	color: var( --wp-admin-theme-color, #2271b1 );
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.desktop-mode-posts__term-action:hover {
+	background: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) 10%,
+		transparent
+	);
+	border-color: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) 35%,
+		transparent
+	);
+}
+
+.desktop-mode-posts__term-action--danger {
+	color: #d63638;
+}
+
+.desktop-mode-posts__term-action--danger:hover {
+	background: color-mix( in srgb, #d63638 10%, transparent );
+	border-color: color-mix( in srgb, #d63638 35%, transparent );
+}
+
+/* ---------------------------------------------------------------
+ * Categories tab — Pixi mindmap (the only Categories view).
+ *
+ * Hybrid render: Pixi canvas paints circles + edges, an HTML overlay
+ * paints labels + count badges + the inline editor + post mini-cards.
+ * The overlay keeps text crisp at any zoom; the canvas keeps the
+ * graph hardware-accelerated. */
+.wpd-mindmap {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	background:
+		radial-gradient(
+			circle at 50% 50%,
+			color-mix(
+				in srgb,
+				var( --wp-admin-theme-color, #2271b1 ) 5%,
+				transparent
+			),
+			transparent 70%
+		),
+		var( --wpd-surface, #fff );
+}
+
+.wpd-mindmap__toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: rgba( 255, 255, 255, 0.6 );
+	backdrop-filter: blur( 8px );
+}
+
+.wpd-mindmap__btn {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 6px;
+	background: transparent;
+	color: var( --wpd-text, #1d2327 );
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease,
+		color 0.12s ease;
+}
+
+.wpd-mindmap__btn:hover {
+	background: rgba( 0, 0, 0, 0.04 );
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.wpd-mindmap__btn--primary {
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: #fff;
+	border-color: transparent;
+}
+
+.wpd-mindmap__btn--primary:hover {
+	filter: brightness( 1.05 );
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: #fff;
+}
+
+.wpd-mindmap__btn--secondary {
+	background: rgba( 0, 0, 0, 0.04 );
+}
+
+.wpd-mindmap__btn--danger {
+	color: #d63638;
+	border-color: transparent;
+}
+
+.wpd-mindmap__btn--danger:hover {
+	background: color-mix( in srgb, #d63638 10%, transparent );
+	border-color: color-mix( in srgb, #d63638 35%, transparent );
+}
+
+.wpd-mindmap__btn--danger.is-armed {
+	background: #d63638;
+	color: #fff;
+	border-color: transparent;
+}
+
+.wpd-mindmap__hint {
+	flex: 1 1 auto;
+	font-size: 12px;
+	font-style: italic;
+	color: var( --wpd-text-muted, #50575e );
+	text-align: end;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Two-column layout: Pixi stage on the left, fixed sidebar on the
+ * right. The sidebar always renders — empty-state copy when no node
+ * is focused, full editor form otherwise — so the editing surface
+ * never covers the post nodes. */
+.wpd-mindmap__layout {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+}
+
+.wpd-mindmap__stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+	/* Fade in once the very first `fitToView()` has run — without
+	 * this the canvas briefly paints its tree at the unfitted
+	 * default transform on the frame between mount and the first
+	 * rAF, which the user saw as a flash. */
+	transition: opacity 200ms ease;
+}
+
+.wpd-mindmap__stage.is-loading {
+	opacity: 0;
+}
+
+.wpd-mindmap__sidebar {
+	flex: 0 0 320px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border-inline-start: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --wpd-surface, #fff );
+	color: var( --wpd-text, #1d2327 );
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.wpd-mindmap__sidebar-empty {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	color: var( --wpd-text-muted, #50575e );
+	text-align: center;
+	padding: 24px 8px;
+}
+
+.wpd-mindmap__sidebar-empty .dashicons {
+	font-size: 36px;
+	width: 36px;
+	height: 36px;
+	opacity: 0.5;
+}
+
+.wpd-mindmap__sidebar-empty-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --wpd-text, #1d2327 );
+}
+
+.wpd-mindmap__sidebar-empty-hint {
+	font-size: 12px;
+	font-style: italic;
+	max-width: 220px;
+}
+
+.wpd-mindmap__sidebar-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --wpd-text-muted, #50575e );
+}
+
+.wpd-mindmap__sidebar-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex: 0 0 10px;
+}
+
+.wpd-mindmap__sidebar-slug {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpd-mindmap__sidebar-label {
+	font-size: 11px;
+	font-weight: 500;
+	color: var( --wpd-text-muted, #50575e );
+	margin-block-start: 4px;
+}
+
+.wpd-mindmap__sidebar-meta {
+	font-size: 12px;
+	color: var( --wpd-text-muted, #50575e );
+	padding-block: 4px;
+}
+
+.wpd-mindmap__canvas {
+	display: block;
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	touch-action: none;
+}
+
+/* Spotlight: dim the world container while a node is deployed so
+ * the focused branch reads as the foreground. Implemented as a
+ * filter on the canvas itself because category and post chips are
+ * Pixi nodes inside the canvas — there is no longer an HTML overlay
+ * we can selectively dim. The canvas keeps full alpha so the
+ * focused-node + post fan stay vivid; only the discs/chips outside
+ * the focus area look muted via the slight desaturation in JS
+ * (drawEdges + chip-color logic dim non-focused branches). */
+
+/* Editor lives in the sidebar — no longer a floating popover, so no
+ * positioning, shadow or backdrop. Just a vertical stack of inputs +
+ * actions. (Kept the class so the form's children still hit the
+ * existing input/button styles below.) */
+.wpd-mindmap__editor {
+	display: contents;
+}
+
+.wpd-mindmap__editor-name {
+	appearance: none;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	padding: 6px 8px;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+}
+
+.wpd-mindmap__editor-name:focus,
+.wpd-mindmap__editor-desc:focus {
+	outline: none;
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 0 0 2px
+		color-mix(
+			in srgb,
+			var( --wp-admin-theme-color, #2271b1 ) 25%,
+			transparent
+		);
+}
+
+.wpd-mindmap__editor-desc {
+	appearance: none;
+	font: inherit;
+	font-size: 12px;
+	padding: 6px 8px;
+	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+	resize: vertical;
+	min-height: 46px;
+}
+
+.wpd-mindmap__editor-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.wpd-mindmap__editor-actions .wpd-mindmap__btn {
+	flex: 1 1 auto;
+	justify-content: center;
+}
+
+.wpd-mindmap__empty {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	color: var( --wpd-text-muted, #50575e );
+	font-size: 13px;
+	font-style: italic;
+	text-align: center;
+	padding: 0 24px;
+}

@@ -329,20 +329,41 @@ function findOwningTabs( panel: HTMLElement ): WpdTabs | null {
 }
 
 /**
- * Toggle `hidden` on each `<wpd-tabpanel>` sibling based on whether
- * its `for` attribute matches `value`. Called from `<wpd-tabs>`'s
- * render + from each `<wpd-tabpanel>`'s connect hook so late-added
- * panels pick up the current active tab immediately.
+ * Toggle `hidden` on each `<wpd-tabpanel>` based on whether its
+ * `for` attribute matches `value`. Called from `<wpd-tabs>`'s render
+ * + from each `<wpd-tabpanel>`'s connect hook so late-added panels
+ * pick up the current active tab immediately.
+ *
+ * Two layouts are supported:
+ *   1. **Siblings** (the documented canonical shape) — panels live
+ *      under the same parent as the tabs strip.
+ *   2. **Nested** — panels live INSIDE the `<wpd-tabs>` element. This
+ *      reads more naturally for plugin authors used to other tab
+ *      libraries (Material, Bootstrap) where panels group with the
+ *      strip; honouring it avoids "all panels visible at once" bugs
+ *      when a caller follows their muscle memory.
+ *
+ * Both shapes are walked; a `Set` de-duplicates the rare case where
+ * a panel matches both selectors.
  *
  * @internal
  */
 function syncTabpanels( tabs: HTMLElement, value: string | null ): void {
+	const panels = new Set< Element >();
 	const parent = tabs.parentElement;
-	if ( ! parent ) {
-		return;
+	if ( parent ) {
+		for ( const p of Array.from(
+			parent.querySelectorAll( ':scope > wpd-tabpanel' ),
+		) ) {
+			panels.add( p );
+		}
 	}
-	const panels = parent.querySelectorAll( ':scope > wpd-tabpanel' );
-	for ( const panel of Array.from( panels ) ) {
+	for ( const p of Array.from(
+		tabs.querySelectorAll( ':scope > wpd-tabpanel' ),
+	) ) {
+		panels.add( p );
+	}
+	for ( const panel of panels ) {
 		const pfor = panel.getAttribute( 'for' );
 		const active = pfor !== null && pfor === value;
 		if ( active ) {

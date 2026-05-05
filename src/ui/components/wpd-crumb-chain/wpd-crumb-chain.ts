@@ -89,6 +89,13 @@ export class WpdCrumbChain extends Component {
 					'Fires when ANY segment is clicked. Useful for navigation drills (click "Tech" to filter to Tech).',
 				detail: '{ index: number; id?: number | string; segment: WpdCrumbSegment }',
 			},
+			{
+				name: 'wpd-chain-segment-dragstart',
+				description:
+					'Fires when a drag begins from any segment OTHER than the × remove button. Detail carries the segments from the drag-source to the leaf so consumers can ship ids for "this branch" — a drag from the middle segment moves the segment + every descendant in the chain.',
+				detail:
+					'{ index: number; id?: number | string; segment: WpdCrumbSegment; segments: WpdCrumbSegment[]; dragEvent: DragEvent }',
+			},
 		],
 		example: html`
 			<wpd-crumb-chain id="example-chain" removable></wpd-crumb-chain>
@@ -132,8 +139,11 @@ export class WpdCrumbChain extends Component {
 							class=${ `wpd-crumb wpd-crumb--${ variant }` }
 							style=${ styleStr }
 							title=${ seg.name }
+							draggable="true"
 							@click=${ ( e: MouseEvent ) =>
 								this._onSegmentClick( e, idx, seg ) }
+							@dragstart=${ ( e: DragEvent ) =>
+								this._onSegmentDragStart( e, idx, seg ) }
 						>
 							<span class="wpd-crumb__label">${ seg.name }</span>
 							${ removable
@@ -142,6 +152,7 @@ export class WpdCrumbChain extends Component {
 											type="button"
 											class="wpd-crumb__remove"
 											aria-label=${ `Remove ${ seg.name }` }
+											draggable="false"
 											@click=${ ( e: MouseEvent ) =>
 												this._onRemove( e, idx, seg ) }
 										>${ _iconCross() }</button>
@@ -152,6 +163,56 @@ export class WpdCrumbChain extends Component {
 				} ) }
 			</div>
 		`;
+	}
+
+	private _onSegmentDragStart(
+		e: DragEvent,
+		index: number,
+		segment: WpdCrumbSegment,
+	): void {
+		// Drag from the × button must remain a "remove the leaf"
+		// click — never start a drag. Bailing here AND marking the
+		// button `draggable="false"` keeps the gesture working even
+		// if a future browser starts honoring drag from non-draggable
+		// children of draggable parents.
+		const target = e.target as HTMLElement | null;
+		if ( target?.closest( '.wpd-crumb__remove' ) ) {
+			e.preventDefault();
+			return;
+		}
+		const dragSegments = this._segments.slice( index );
+		// Custom drag image: render the source segment + every
+		// descendant to its right as their own little chevron chain.
+		// The native default drag image is a snapshot of the single
+		// grabbed segment, which doesn't communicate that the whole
+		// branch is moving. setDragImage captures synchronously, so
+		// the ghost element must already be on-screen with its real
+		// pixels — we attach to body offscreen, snapshot, and remove
+		// on the next animation frame.
+		if ( e.dataTransfer ) {
+			const ghost = buildDragGhost( dragSegments );
+			document.body.appendChild( ghost );
+			// Anchor the snapshot near the grab point so the ghost
+			// doesn't lurch when the drag begins.
+			const rect = (
+				e.currentTarget as HTMLElement | null
+			)?.getBoundingClientRect();
+			const offsetX = rect ? Math.min( 30, rect.width / 2 ) : 16;
+			const offsetY = rect ? Math.min( 16, rect.height / 2 ) : 12;
+			e.dataTransfer.setDragImage( ghost, offsetX, offsetY );
+			requestAnimationFrame( () => ghost.remove() );
+		}
+		// Drag carries the segment AT the source PLUS every descendant
+		// to its right — so dragging the middle of [a > b > c] hands
+		// the consumer [b, c]. The consumer fills `dataTransfer` with
+		// whatever payload makes sense for its taxonomy.
+		this.emit( 'wpd-chain-segment-dragstart', {
+			index,
+			id: segment.id,
+			segment,
+			segments: dragSegments,
+			dragEvent: e,
+		} );
 	}
 
 	private _onSegmentClick(
@@ -181,6 +242,81 @@ export class WpdCrumbChain extends Component {
 	}
 }
 defineComponent( 'wpd-crumb-chain', WpdCrumbChain );
+
+/**
+ * Vanilla DOM render of a segment list, styled to match the chain's
+ * shadow-DOM appearance. Used as the drag image so the user sees
+ * the source segment + its descendants moving together — not just
+ * the single grabbed pill. Inlined CSS because shadow-DOM
+ * stylesheets don't apply to elements outside the shadow tree, and
+ * `setDragImage` captures synchronously so we can't wait for a
+ * `<wpd-crumb-chain>` clone to render on its microtask.
+ */
+const DRAG_GHOST_CHEVRON = 10;
+function buildDragGhost( segments: readonly WpdCrumbSegment[] ): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.style.cssText = [
+		'display: inline-flex',
+		'align-items: stretch',
+		'border-radius: 999px',
+		'overflow: hidden',
+		'filter: drop-shadow( 0 1px 2px rgba( 0, 0, 0, 0.18 ) )',
+		'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+		'font-size: 12px',
+		'line-height: 1',
+		'font-weight: 500',
+		// Position offscreen but rendered — display:none / visibility:
+		// hidden produce a blank drag-image snapshot.
+		'position: fixed',
+		'top: -10000px',
+		'left: -10000px',
+		'pointer-events: none',
+		'z-index: 2147483647',
+	].join( '; ' );
+	const total = segments.length;
+	segments.forEach( ( seg, idx ) => {
+		const span = document.createElement( 'span' );
+		const bg = seg.color ?? 'rgba( 0, 0, 0, 0.08 )';
+		const fg = pickForegroundColor( bg );
+		const variant = pickVariant( idx, total );
+		const styleParts: string[] = [
+			'display: inline-flex',
+			'align-items: center',
+			'justify-content: center',
+			'min-height: 22px',
+			`background: ${ bg }`,
+			`color: ${ fg }`,
+			'white-space: nowrap',
+			'box-sizing: border-box',
+			'letter-spacing: 0.01em',
+		];
+		const c = DRAG_GHOST_CHEVRON;
+		if ( variant === 'solo' ) {
+			styleParts.push( 'padding: 2px 12px', 'border-radius: 999px' );
+		} else if ( variant === 'first' ) {
+			styleParts.push(
+				'padding: 2px 22px 2px 12px',
+				`clip-path: polygon( 0 0, calc( 100% - ${ c }px ) 0, 100% 50%, calc( 100% - ${ c }px ) 100%, 0 100% )`,
+			);
+		} else if ( variant === 'middle' ) {
+			styleParts.push(
+				'padding: 2px 22px',
+				`margin-inline-start: -${ c }px`,
+				`clip-path: polygon( ${ c }px 0, calc( 100% - ${ c }px ) 0, 100% 50%, calc( 100% - ${ c }px ) 100%, ${ c }px 100%, 0 50% )`,
+			);
+		} else {
+			styleParts.push(
+				'padding: 2px 14px 2px 22px',
+				`margin-inline-start: -${ c }px`,
+				`clip-path: polygon( ${ c }px 0, 100% 0, 100% 100%, ${ c }px 100%, 0 50% )`,
+			);
+		}
+		span.style.cssText = styleParts.join( '; ' );
+		span.textContent = seg.name;
+		wrap.appendChild( span );
+	} );
+	return wrap;
+}
 
 function pickVariant(
 	index: number,

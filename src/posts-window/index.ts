@@ -1130,8 +1130,9 @@ function showTagError( title: string, err: unknown ): void {
  */
 function buildCategoriesCell( row: PostListItem ): HTMLElement {
 	const wrap = document.createElement( 'span' );
+	wrap.className = 'wpd-cat-cell-dropzone';
 	wrap.style.cssText =
-		'display:inline-flex;align-items:center;width:100%;min-width:0;';
+		'display:inline-flex;align-items:center;width:100%;min-width:0;border-radius:6px;transition:background-color 0.12s ease, box-shadow 0.12s ease;';
 
 	const picker = document.createElement(
 		'wpd-category-picker',
@@ -1279,6 +1280,166 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 		}
 	} );
 
+	// --- Drag-and-drop: ship a breadcrumb chain to another row -------
+	// Drag from any segment OTHER than the × button picks up the
+	// segment + its descendants in the chain (so a drag from the
+	// middle of [Tech > Web Dev > Frontend] yields [Web Dev,
+	// Frontend], NOT Tech). The drop target merges those ids into
+	// the receiving row's category set.
+
+	picker.addEventListener( 'wpd-chain-segment-dragstart', ( e: Event ) => {
+		const detail = ( e as CustomEvent< {
+			segments: Array< { id?: number | string } >;
+			dragEvent: DragEvent;
+		} > ).detail;
+		if ( ! detail || ! detail.dragEvent || ! detail.dragEvent.dataTransfer ) {
+			return;
+		}
+		const ids: number[] = [];
+		for ( const seg of detail.segments ) {
+			if ( typeof seg.id === 'number' ) {
+				ids.push( seg.id );
+			}
+		}
+		if ( ids.length === 0 ) {
+			return;
+		}
+		const dt = detail.dragEvent.dataTransfer;
+		dt.setData(
+			'application/x-desktop-mode-categories',
+			JSON.stringify( {
+				ids,
+				source: 'posts-window',
+				sourcePostId: row.id,
+			} ),
+		);
+		// Fallback so debug consumers (drag into the URL bar, into a
+		// text editor, etc.) get something legible.
+		dt.setData( 'text/plain', ids.join( ',' ) );
+		dt.effectAllowed = 'copy';
+	} );
+
+	// Drop-target plumbing on the cell wrapper. We use an enter-
+	// counter to dodge the classic "dragleave fires when entering
+	// every child" gotcha — the highlight stays put until the
+	// pointer is genuinely outside the cell.
+	let dropEnterCount = 0;
+	const setDropTargetActive = ( on: boolean ): void => {
+		// Inlined because the cell renders inside <wpd-table>'s shadow
+		// DOM, which document stylesheets can't reach. Tinted in the
+		// admin theme color via `--wp-admin-theme-color` with a fallback.
+		if ( on ) {
+			wrap.style.backgroundColor =
+				'color-mix(in srgb, var(--wp-admin-theme-color, #2271b1) 12%, transparent)';
+			wrap.style.boxShadow =
+				'inset 0 0 0 2px var(--wp-admin-theme-color, #2271b1)';
+		} else {
+			wrap.style.backgroundColor = '';
+			wrap.style.boxShadow = '';
+		}
+	};
+	const acceptsCategoriesDrag = ( e: DragEvent ): boolean => {
+		const types = e.dataTransfer?.types;
+		if ( ! types ) {
+			return false;
+		}
+		// `types` is a DOMStringList in some engines; spread + includes
+		// works against both DOMStringList and string[].
+		return Array.from( types ).includes(
+			'application/x-desktop-mode-categories',
+		);
+	};
+	wrap.addEventListener( 'dragenter', ( e: DragEvent ) => {
+		if ( ! acceptsCategoriesDrag( e ) ) {
+			return;
+		}
+		e.preventDefault();
+		dropEnterCount++;
+		setDropTargetActive( true );
+	} );
+	wrap.addEventListener( 'dragover', ( e: DragEvent ) => {
+		if ( ! acceptsCategoriesDrag( e ) ) {
+			return;
+		}
+		e.preventDefault();
+		if ( e.dataTransfer ) {
+			e.dataTransfer.dropEffect = 'copy';
+		}
+	} );
+	wrap.addEventListener( 'dragleave', () => {
+		if ( dropEnterCount > 0 ) {
+			dropEnterCount--;
+		}
+		if ( dropEnterCount === 0 ) {
+			setDropTargetActive( false );
+		}
+	} );
+	wrap.addEventListener( 'drop', async ( e: DragEvent ) => {
+		dropEnterCount = 0;
+		setDropTargetActive( false );
+		if ( ! acceptsCategoriesDrag( e ) ) {
+			return;
+		}
+		e.preventDefault();
+		const json = e.dataTransfer?.getData(
+			'application/x-desktop-mode-categories',
+		);
+		if ( ! json ) {
+			return;
+		}
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse( json );
+		} catch {
+			return;
+		}
+		const payload = parsed as
+			| { ids?: unknown; sourcePostId?: number }
+			| null;
+		if ( ! payload || ! Array.isArray( payload.ids ) ) {
+			return;
+		}
+		const incoming: number[] = [];
+		for ( const v of payload.ids ) {
+			if ( typeof v === 'number' && Number.isFinite( v ) ) {
+				incoming.push( v );
+			}
+		}
+		if ( incoming.length === 0 ) {
+			return;
+		}
+		// No-op if user dropped on the same row they dragged from
+		// (avoids a redundant REST round-trip).
+		if (
+			payload.sourcePostId === row.id &&
+			incoming.every( ( id ) => cellState.categoryIds.includes( id ) )
+		) {
+			return;
+		}
+		const merged = Array.from(
+			new Set( [ ...cellState.categoryIds, ...incoming ] ),
+		);
+		if ( merged.length === cellState.categoryIds.length ) {
+			return; // nothing actually new
+		}
+		const previous = cellState.categoryIds.slice();
+		setValue( merged );
+		try {
+			await updatePostCategories( row.id, merged );
+			const api = window.wp?.desktop;
+			if ( api && typeof api.broadcast === 'function' ) {
+				api.broadcast( 'desktop-mode.post.changed', {
+					source: 'posts-window',
+					action: 'categorized',
+					ids: [ row.id ],
+				} );
+			}
+		} catch ( err ) {
+			setValue( previous );
+			showTagError( __( 'Couldn’t add category.' ), err );
+		}
+	} );
+
 	wrap.appendChild( picker );
 	return wrap;
 }
@@ -1409,6 +1570,44 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 	const table = body.querySelector< WpdTable< PostListItem > >( TABLE );
 	if ( ! root || ! table ) {
 		return;
+	}
+
+	// Term-management tabs (Categories + Tags) — lazy-mounted on first
+	// activation so cold-load of the Posts window never pays for them
+	// when the user just wants to scan the post list.
+	const catsHost = body.querySelector< HTMLElement >(
+		'[data-desktop-mode-posts-cats-host]',
+	);
+	const tagsHost = body.querySelector< HTMLElement >(
+		'[data-desktop-mode-posts-tags-host]',
+	);
+	let catsTeardown: ( () => void ) | null = null;
+	let tagsTeardown: ( () => void ) | null = null;
+	const tabsEl = body.querySelector( '.desktop-mode-posts__tabs' );
+	if ( tabsEl ) {
+		tabsEl.addEventListener( 'wpd-tab-change', ( e: Event ) => {
+			const detail = ( e as CustomEvent< { value: string } > ).detail;
+			const value = detail?.value;
+			// Categories = Pixi mindmap. The mind-map IS the view; no
+			// table fallback. Loads its own term list internally.
+			if ( value === 'categories' && catsHost && ! catsTeardown ) {
+				void import( './categories-mindmap' ).then(
+					async ( { mountCategoriesMindmap } ) => {
+						catsTeardown = await mountCategoriesMindmap( catsHost );
+					},
+				);
+			}
+			if ( value === 'tags' && tagsHost && ! tagsTeardown ) {
+				void import( './terms-tab' ).then( ( { mountTermsTab } ) => {
+					tagsTeardown = mountTermsTab( tagsHost, {
+						taxonomy: 'tags',
+						singular: __( 'Tag' ),
+						plural: __( 'Tags' ),
+						hierarchical: false,
+					} );
+				} );
+			}
+		} );
 	}
 
 	const cfg = getConfig();
@@ -1822,6 +2021,24 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		broadcastUnsubs.push(
 			window.wp.desktop.subscribe( 'desktop-mode.post.changed', onChange ),
 		);
+		// Term-change subscription. The category picker caches the
+		// full tree per window-open (`_categoryTreePromise`); without
+		// invalidation, terms created from the mindmap or terms tab
+		// don't appear when the user reopens a picker for another
+		// post — the user has to F5. Clearing the cache forces the
+		// next picker open to re-fetch.
+		const onTermChange = ( payload: unknown ): void => {
+			const detail = payload as { taxonomy?: string } | null;
+			if ( detail?.taxonomy === 'category' ) {
+				clearCategoryTreeCache();
+			}
+		};
+		broadcastUnsubs.push(
+			window.wp.desktop.subscribe(
+				'desktop-mode.term.changed',
+				onTermChange,
+			),
+		);
 	}
 
 	// --- Column visibility (kebab "Show columns" sub-section) -----------
@@ -1935,6 +2152,10 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		broadcastUnsubs.length = 0;
 		teardownKebabColumns?.dispose();
 		unsubOsSettings?.();
+		catsTeardown?.();
+		catsTeardown = null;
+		tagsTeardown?.();
+		tagsTeardown = null;
 		if ( view.searchDebounce !== null ) {
 			window.clearTimeout( view.searchDebounce );
 			view.searchDebounce = null;
