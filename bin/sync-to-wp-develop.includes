@@ -1,0 +1,10 @@
+# Top-level entries to mirror into the wordpress-develop checkout.
+# Runtime-only: just what the plugin needs to load and run. Docs,
+# license, and readme files are skipped — they aren't needed in a
+# local dev checkout.
+# One entry per line; blank lines and # comments are ignored.
+
+assets
+desktop-mode.php
+includes
+languages
