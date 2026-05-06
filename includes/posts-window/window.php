@@ -428,21 +428,23 @@ function desktop_mode_posts_window_term_counts_callback( $request ) {
 	}
 	$id_placeholders   = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 	$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
-	$sql = $wpdb->prepare(
-		"SELECT tt.term_id, COUNT(p.ID) AS cnt
-		 FROM {$wpdb->term_taxonomy} tt
-		 LEFT JOIN {$wpdb->term_relationships} tr
-		   ON tr.term_taxonomy_id = tt.term_taxonomy_id
-		 LEFT JOIN {$wpdb->posts} p
-		   ON p.ID = tr.object_id
-		   AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
-		   AND p.post_type IN ( $type_placeholders )
-		 WHERE tt.taxonomy = %s
-		 AND tt.term_id IN ( $id_placeholders )
-		 GROUP BY tt.term_id",
-		array_merge( $object_types, array( $taxonomy ), $ids )
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT tt.term_id, COUNT(p.ID) AS cnt
+			 FROM {$wpdb->term_taxonomy} tt
+			 LEFT JOIN {$wpdb->term_relationships} tr
+			   ON tr.term_taxonomy_id = tt.term_taxonomy_id
+			 LEFT JOIN {$wpdb->posts} p
+			   ON p.ID = tr.object_id
+			   AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
+			   AND p.post_type IN ( $type_placeholders )
+			 WHERE tt.taxonomy = %s
+			 AND tt.term_id IN ( $id_placeholders )
+			 GROUP BY tt.term_id",
+			array_merge( $object_types, array( $taxonomy ), $ids )
+		),
+		ARRAY_A
 	);
-	$rows = $wpdb->get_results( $sql, ARRAY_A );
 	$out  = array();
 	foreach ( (array) $rows as $row ) {
 		$out[ (string) (int) $row['term_id'] ] = (int) $row['cnt'];
