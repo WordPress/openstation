@@ -19,6 +19,7 @@
 
 import { __, sprintf } from '../i18n';
 import { setRecycleBinBadge } from './badge';
+import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';
 import {
 	emptyBin,
@@ -603,6 +604,67 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		await refresh();
 	};
 
+	const emptyButton = root.querySelector< HTMLElement >( EMPTY_BTN );
+
+	// Wrap the existing trailing text node in a span so we can swap
+	// the label during the empty loop without wiping the leading icon.
+	// The PHP template emits `<wpd-button><span dashicon/> Empty bin</wpd-button>`;
+	// the trailing text node is the last child after the icon span.
+	let emptyButtonLabelEl: HTMLSpanElement | null = null;
+	let emptyButtonOriginalLabel = '';
+	if ( emptyButton ) {
+		const trailingText = Array.from( emptyButton.childNodes ).find(
+			( n ): n is Text =>
+				n.nodeType === Node.TEXT_NODE &&
+				( n.textContent ?? '' ).trim() !== '',
+		);
+		emptyButtonOriginalLabel = ( trailingText?.textContent ?? '' ).trim();
+		emptyButtonLabelEl = document.createElement( 'span' );
+		emptyButtonLabelEl.setAttribute(
+			'data-desktop-mode-recycle-bin-empty-label',
+			'',
+		);
+		emptyButtonLabelEl.textContent = emptyButtonOriginalLabel;
+		if ( trailingText ) {
+			trailingText.replaceWith( emptyButtonLabelEl );
+		} else {
+			emptyButton.appendChild( emptyButtonLabelEl );
+		}
+	}
+
+	/**
+	 * Update the Empty bin button to reflect in-progress emptying.
+	 *
+	 * `<wpd-button>` slots its children; we only swap the label span
+	 * (created above) so the leading dashicon and any other slotted
+	 * markup survive intact.
+	 */
+	const setEmptyButtonState = (
+		mode: 'idle' | 'progress' | 'starting',
+		purged = 0,
+		total = 0,
+	): void => {
+		if ( ! emptyButton || ! emptyButtonLabelEl ) {
+			return;
+		}
+		if ( mode === 'idle' ) {
+			emptyButton.removeAttribute( 'disabled' );
+			emptyButton.removeAttribute( 'aria-busy' );
+			emptyButtonLabelEl.textContent = emptyButtonOriginalLabel;
+			return;
+		}
+		emptyButton.setAttribute( 'disabled', '' );
+		emptyButton.setAttribute( 'aria-busy', 'true' );
+		emptyButtonLabelEl.textContent = mode === 'starting' || total === 0
+			? __( 'Emptying…' )
+			: sprintf(
+				/* translators: 1: items purged so far, 2: items in bin when emptying began. */
+				__( 'Emptying… %1$d of %2$d' ),
+				purged,
+				total,
+			);
+	};
+
 	const handleEmpty = async (): Promise< void > => {
 		// eslint-disable-next-line no-alert
 		const ok = window.confirm(
@@ -618,19 +680,30 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		const allTypes = Array.from(
 			new Set( ( table.data ?? [] ).map( ( r ) => r.type ) ),
 		);
+
+		// The server caps each call at a chunk size (default 200) to
+		// avoid PHP timeouts. The loop driver iterates until the bin
+		// is empty (or no progress is possible because every leftover
+		// item is capability-blocked).
+		setEmptyButtonState( 'starting' );
 		try {
-			const result = await emptyBin();
+			const loop = await runEmptyLoop( {
+				emptyBin,
+				onProgress: ( { purged, initialTotal } ) =>
+					setEmptyButtonState( 'progress', purged, initialTotal ),
+			} );
+
 			emitDoneEvent(
 				'empty',
-				new Array( result.purged ).fill( 0 ),
-				result.skipped > 0
+				new Array( loop.purged ).fill( 0 ),
+				loop.skipped > 0
 					? [ {
 						id: 0,
 						code: 'desktop_mode_recycle_bin_skipped',
 						message: sprintf(
 							/* translators: %d: skipped count. */
 							__( '%d item(s) skipped (insufficient permissions).' ),
-							result.skipped,
+							loop.skipped,
 						),
 					} ]
 					: [],
@@ -639,6 +712,8 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			);
 		} catch ( err ) {
 			console.error( '[recycle-bin] empty failed', err );
+		} finally {
+			setEmptyButtonState( 'idle' );
 		}
 		await refresh();
 	};

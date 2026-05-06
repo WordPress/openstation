@@ -1397,6 +1397,14 @@ Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_regist
 
 The full template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
 
+### `desktop_mode_recycle_bin_empty_chunk_size` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_recycle_bin_empty_chunk_size', int $chunk_size );
+```
+
+Per-call cap on `desktop_mode_recycle_bin_empty()` — protects against PHP `max_execution_time` on huge bins. Default `200`. The client iterates while `remaining > 0`, so raising this just means fewer roundtrips per "Empty bin" click. Lower it on shared hosts with tight execution budgets; raise it on dedicated servers handling 10k+ item bins.
+
 ### Lifecycle actions
 
 ```php
