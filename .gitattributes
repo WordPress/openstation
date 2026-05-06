@@ -1,8 +1,11 @@
-# Files excluded from `git archive` (and therefore from the plugin ZIP
-# produced by bin/package.sh). Runtime code, CSS, images, vendored libs,
-# language files, LICENSE, README.md, and readme.txt are NOT listed here
-# and ship in the ZIP. Dev tooling, build config, source TS, tests, and
-# developer docs are excluded.
+# Defense-in-depth deny-list applied by `git archive`.
+#
+# The primary mechanism for deciding what ships in the plugin zip is
+# the explicit allow-list at the top of bin/package.sh — only the
+# top-level paths named there are passed to `git archive`. The rules
+# below stay as a second layer in case someone runs `git archive HEAD`
+# directly, or in case a tracked file inside an allow-listed directory
+# (e.g. assets/) should still be excluded from a release.
 
 # Dotfiles / dev tooling
 /.github/           export-ignore
