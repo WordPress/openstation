@@ -27,6 +27,8 @@ export { WpdToast, WpdToastContainer } from './wpd-toast/wpd-toast';
 export { WpdTabs, WpdTab, WpdTabPanel } from './wpd-tabs/wpd-tabs';
 export { WpdWindowButton } from './wpd-window-button/wpd-window-button';
 export { WpdMenu, WpdMenuItem } from './wpd-menu/wpd-menu';
+export { WpdContextMenu, WpdContextMenuOption } from './wpd-context-menu/wpd-context-menu';
+export { WpdConfirmDialog, wpdConfirm } from './wpd-confirm-dialog/wpd-confirm-dialog';
 export { WpdTabChip } from './wpd-tab-chip/wpd-tab-chip';
 export { WpdStack } from './wpd-stack/wpd-stack';
 export { WpdCluster } from './wpd-cluster/wpd-cluster';
@@ -108,6 +110,9 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-window-button',
 	'wpd-menu',
 	'wpd-menu-item',
+	'wpd-context-menu',
+	'wpd-context-menu-option',
+	'wpd-confirm-dialog',
 	'wpd-tab-chip',
 	'wpd-stack',
 	'wpd-cluster',

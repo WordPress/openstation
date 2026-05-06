@@ -32,6 +32,7 @@ import {
 	type CommandEntity,
 } from '../commands';
 import type { DesktopConfig } from '../types';
+import { trackedFetch } from '../tracked-fetch';
 
 export interface AskOptions {
 	/** AbortSignal for cancellation. Propagates to the underlying `fetch`. */
@@ -284,16 +285,20 @@ export function createAsk( deps: AskDeps ) {
 			);
 		}
 		try {
-			return await fetch( url, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': nonce,
+			return await trackedFetch(
+				url,
+				{
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': nonce,
+					},
+					body: JSON.stringify( body ),
+					signal,
 				},
-				body: JSON.stringify( body ),
-				signal,
-			} );
+				{ source: 'desktop-mode/ai-ask' },
+			);
 		} catch ( err ) {
 			if ( isAbortError( err ) ) {
 				throw err;

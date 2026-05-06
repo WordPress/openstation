@@ -130,6 +130,109 @@ Fires after `desktop_mode_register_icon()` successfully stores a desktop shortcu
 
 ---
 
+### `desktop_mode_file_type_registered` — Experimental (since 0.9.0)
+
+Fires after `desktop_mode_register_file_type()` successfully stores a desktop file type (used by the Files-on-the-Desktop system — see [files-on-desktop.md](./files-on-desktop.md)). Does NOT fire on `WP_Error`.
+
+```php
+do_action( 'desktop_mode_file_type_registered', string $type, array $entry );
+```
+
+`$entry` keys: `type`, `label`, `class`, `script`, `sort`.
+
+---
+
+### Files-on-the-Desktop store actions — Experimental (since 0.9.0)
+
+Fired by the placement / folder store when rows are written. Subscribers see the canonical row arrays from the custom tables (see [files-on-desktop.md](./files-on-desktop.md)).
+
+```php
+do_action( 'desktop_mode_file_placed',   int $id, array $row );
+do_action( 'desktop_mode_file_moved',    int $id, array $next, array $prev );
+do_action( 'desktop_mode_file_unplaced', int $id, array $row );
+
+do_action( 'desktop_mode_folder_created', int $id, array $row );
+do_action( 'desktop_mode_folder_updated', int $id, array $next, array $prev );
+do_action( 'desktop_mode_folder_shared',  int $id, array $next, array $prev ); // share_mode or share_meta changed
+do_action( 'desktop_mode_folder_deleted', int $id, array $row );
+
+do_action( 'desktop_mode_files_schema_installed', string $version );
+do_action( 'desktop_mode_files_daily_prune' );
+```
+
+Filters:
+
+```php
+apply_filters( 'desktop_mode_files_can_place', bool $can, int $user_id, string $type, string $ref );
+apply_filters( 'desktop_mode_files_query_args', array $args, int $user_id, int $parent_id );
+apply_filters( 'desktop_mode_files_share_modes', string[] $modes );
+apply_filters( 'desktop_mode_files_visible_folders', array $folders, int $viewer_id );
+```
+
+---
+
+### `desktop_mode_file_opener_registered` — Experimental (since 0.9.0)
+
+Fires after `desktop_mode_register_file_opener()` successfully stores a file opener (used by the Files-on-the-Desktop association layer — see [files-on-desktop.md](./files-on-desktop.md)). Does NOT fire on `WP_Error`.
+
+```php
+do_action( 'desktop_mode_file_opener_registered', string $id, array $entry );
+```
+
+`$entry` keys: `id`, `label`, `types`, `is_default`, `sort`, `script`.
+
+---
+
+### `desktop_mode_register_file_opener( $id, $args )` — Experimental (PHP function, since 0.9.0)
+
+Registers a file opener — the desktop-OS equivalent of a default-app association. PHP-side metadata only; the actual handler that opens the URL / native window / runs JS lives on the JS side via `wp.desktop.files.registerOpener()`.
+
+```php
+desktop_mode_register_file_opener( 'classic-editor', array(
+    'label'      => __( 'Classic Editor', 'classic-editor' ),
+    'types'      => array( 'post' ),
+    'is_default' => false,
+    'sort'       => 20,
+) );
+```
+
+| Arg | Type | Default | Notes |
+|---|---|---|---|
+| `label` | `string` | required | Picker label. |
+| `types` | `string[]` | required | File-type slugs this opener handles. |
+| `is_default` | `bool` | `false` | Ship-time default for its types. |
+| `sort` | `int` | `100` | Sort order in pickers. |
+| `script` | `string` | `''` | Optional JS handle the shell loads on activation. |
+| `capabilities` | `string[]` | `[]` | All caps must match. |
+
+Return: `true` on success, `WP_Error` otherwise. Error codes: `desktop_mode_missing_id`, `desktop_mode_missing_label`, `desktop_mode_missing_types`, `desktop_mode_capability_denied`.
+
+---
+
+### `desktop_mode_register_file_type( $type, $args )` — Experimental (PHP function, since 0.9.0)
+
+Registers a `Desktop_Mode_File` subclass against the desktop file-type registry. The seven built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`) register through this same surface.
+
+```php
+desktop_mode_register_file_type( 'jorvy-quote', array(
+    'label' => __( 'Marvel quote', 'jorvy' ),
+    'class' => 'Jorvy_Quote_File', // must extend Desktop_Mode_File
+    'sort'  => 200,
+) );
+```
+
+| Arg | Type | Default | Notes |
+|---|---|---|---|
+| `label` | `string` | required | Picker label. |
+| `class` | `string` | required | FQCN of a `Desktop_Mode_File` subclass. |
+| `script` | `string` | `''` | Optional handle for the JS-side mirror class. |
+| `sort` | `int` | `100` | Sort order in pickers. |
+| `capabilities` | `string[]` | `[]` | All caps must match the current user. |
+
+Return: `true` on success, `WP_Error` otherwise. Error codes: `desktop_mode_missing_id`, `desktop_mode_missing_label`, `desktop_mode_invalid_class`, `desktop_mode_capability_denied`.
+
+---
+
 ### `desktop_mode_command_script_registered` — Stable
 
 Fires after `desktop_mode_register_command_script()` stores a command-palette script handle. Also fires when `desktop_mode_register_command()` implicitly registers its `script` argument.
@@ -362,6 +465,68 @@ do_action( 'desktop_mode_prepare_window', string $page, array $args );
 ---
 
 ## Filters
+
+### `desktop_mode_file_types` — Experimental (since 0.9.0)
+
+Filters the file-type registry used by the Files-on-the-Desktop system. Plugins can hide built-ins or swap a class out at runtime. Keyed by type slug; the `class` field of an entry must remain a `Desktop_Mode_File` subclass FQCN.
+
+```php
+apply_filters( 'desktop_mode_file_types', array $registry );
+```
+
+---
+
+### `desktop_mode_file_serialize` — Experimental (since 0.9.0)
+
+Last-mile mutation point for the JS-bound shape produced by `Desktop_Mode_File::serialize()`. Plugins use this to attach badges, override labels, or splice in custom render hints without subclassing.
+
+```php
+apply_filters( 'desktop_mode_file_serialize', array $shape, Desktop_Mode_File $file );
+```
+
+**Example — attach a "draft" badge to draft posts:**
+
+```php
+add_filter( 'desktop_mode_file_serialize', function ( $shape, $file ) {
+    if ( $file instanceof Desktop_Mode_Post_File && 'draft' === ( $shape['status'] ?? '' ) ) {
+        $shape['badge'] = __( 'Draft', 'my-plugin' );
+    }
+    return $shape;
+}, 10, 2 );
+```
+
+---
+
+### `desktop_mode_file_openers` — Experimental (since 0.9.0)
+
+Filters the file-opener registry. Plugins can hide built-ins, swap labels, or rearrange sort order. Keyed by opener id.
+
+```php
+apply_filters( 'desktop_mode_file_openers', array $registry );
+```
+
+---
+
+### `desktop_mode_resolve_file_opener` — Experimental (since 0.9.0)
+
+Override the resolution chain at `desktop_mode_resolve_file_opener_id()` time. Useful for forced role-based associations.
+
+```php
+apply_filters( 'desktop_mode_resolve_file_opener', string $opener_id, string $type, int $user_id );
+```
+
+**Example — force the Classic Editor for a specific role:**
+
+```php
+add_filter( 'desktop_mode_resolve_file_opener', function ( $opener_id, $type, $user_id ) {
+    if ( 'post' === $type && user_can( $user_id, 'editor' ) ) {
+        return 'classic-editor';
+    }
+    return $opener_id;
+}, 10, 3 );
+```
+
+---
 
 ### `desktop_mode_mode_enabled` — Stable
 

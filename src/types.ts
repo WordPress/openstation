@@ -1506,6 +1506,82 @@ export interface DesktopConfig {
 	 * @since 0.11.0
 	 */
 	desktopIcons?: DesktopIconServerEntry[];
+	/**
+	 * Server-declared file types (from `desktop_mode_register_file_type()`).
+	 * Plugin-registered file types arrive here so the JS-side
+	 * registry can mirror the metadata (label, sort) without
+	 * requiring a JS file ride along.
+	 *
+	 * @since 0.9.0
+	 */
+	serverFileTypes?: Array< {
+		id: string;
+		label: string;
+		sort: number;
+		scriptUrl: string;
+		scriptHandle: string;
+		scriptBefore: string[];
+		scriptAfter: string[];
+		scriptL10n: Record< string, string >;
+		scriptTranslations: string;
+	} >;
+	/**
+	 * Server-declared file openers (from
+	 * `desktop_mode_register_file_opener()`). PHP ships metadata
+	 * only — the JS bundle that registers the opener carries the
+	 * executable handler. The OS Settings → File Associations tab
+	 * (Phase 5) renders pickers from this list.
+	 *
+	 * @since 0.9.0
+	 */
+	serverFileOpeners?: Array< {
+		id: string;
+		label: string;
+		types: string[];
+		isDefault: boolean;
+		sort: number;
+		scriptUrl: string;
+		scriptHandle: string;
+		scriptBefore: string[];
+		scriptAfter: string[];
+		scriptL10n: Record< string, string >;
+		scriptTranslations: string;
+	} >;
+	/**
+	 * The current user's `{ type => openerId }` association map
+	 * (from the `desktop_mode_file_associations` user meta). Empty
+	 * when no overrides set; the JS opener resolver falls back to
+	 * defaults for missing entries.
+	 *
+	 * @since 0.9.0
+	 */
+	userFileAssociations?: Record< string, string >;
+	/**
+	 * Base REST URL for the Files-on-the-Desktop endpoints
+	 * (`/desktop-mode/v1/files`). Trailing path appended by
+	 * the JS client (`/placements`, `/folders`, `/associations`).
+	 *
+	 * @since 0.9.0
+	 */
+	filesUrl?: string;
+	/**
+	 * PHP-shipped wallpaper context-menu items. Each entry has
+	 * `id`, `label`, optional `icon`/`sort`/`disabled`, and an
+	 * optional `callbackId` resolved by a JS-side bundle's
+	 * `serverCallbacks` map. Plugins that ship neither still
+	 * receive a `desktop-mode.wallpaper-context-menu.activated`
+	 * action they can subscribe to.
+	 *
+	 * @since 0.9.0
+	 */
+	serverWallpaperMenuItems?: Array< {
+		id: string;
+		label: string;
+		icon?: string;
+		sort?: number;
+		disabled?: boolean;
+		callbackId?: string;
+	} >;
 	/** Previously saved session (may be empty on first run). */
 	session: Session;
 	/** REST endpoint for reading/writing the session. */

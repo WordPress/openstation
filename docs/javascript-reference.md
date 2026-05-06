@@ -3519,6 +3519,122 @@ See [`docs/pwa.md`](./pwa.md) for the full architecture and
 
 ---
 
+## `wp.desktop.files` — the Files-on-the-Desktop registry *(Experimental, since 0.9.0)*
+
+Mirror of the PHP file-type registry on the JS side. Plugin authors use it to register custom file types and to resolve serialized shapes into `DesktopFile` instances at render time. The full surface, motivation, and PHP side are documented in [files-on-desktop.md](./files-on-desktop.md).
+
+```ts
+interface DesktopFileShape {
+    type: string;
+    ref: string;
+    title: string;
+    icon: string;
+    previewUrl: string;
+    exists: boolean;
+    [ key: string ]: unknown; // subclass-specific extras
+}
+
+interface DesktopFileTypeDef {
+    type: string;
+    label: string;
+    sort: number;
+    DesktopFile?: new ( shape: DesktopFileShape ) => DesktopFile;
+}
+
+abstract class DesktopFile {
+    readonly shape: DesktopFileShape;
+    abstract type(): string;
+    title(): string;       // defaults to shape.title
+    icon(): string;        // defaults to shape.icon
+    previewUrl(): string;  // defaults to shape.previewUrl
+    ref(): string;
+    exists(): boolean;
+}
+
+interface FilesApi {
+    DesktopFile: typeof DesktopFile;
+    registerType( def: DesktopFileTypeDef ): void;
+    unregisterType( type: string ): void;
+    getType( type: string ): DesktopFileTypeDef | null;
+    getTypes(): DesktopFileTypeDef[];
+    resolve( shape: DesktopFileShape ): DesktopFile;
+    subscribe( cb: () => void ): () => void;
+}
+```
+
+The seven built-in types (`folder`, `post`, `attachment`, `user`, `term`, `comment`, `bookmark`) register themselves on bundle boot. Late registrations win — registering the same slug twice overwrites the entry. When a `DesktopFile` subclass isn't registered for a slug, `resolve()` falls back to a `DefaultDesktopFile` that just exposes the shape verbatim — so a placement for a deactivated plugin still renders something.
+
+### `desktop-mode.files.types` filter
+
+```ts
+applyFilters( 'desktop-mode.files.types', list: DesktopFileTypeDef[] ): DesktopFileTypeDef[];
+```
+
+Plugins reorder, hide, or swap entries here.
+
+### `desktop-mode.files.type-registered` / `type-unregistered` actions
+
+```ts
+doAction( 'desktop-mode.files.type-registered', type: string, def: DesktopFileTypeDef );
+doAction( 'desktop-mode.files.type-unregistered', type: string );
+```
+
+### Openers — file-association layer *(since 0.9.0)*
+
+```ts
+type OpenerHandler =
+    | { kind: 'url'; url: ( file: DesktopFile ) => string | Promise< string >; windowId?: ( file ) => string; title?: ( file ) => string }
+    | { kind: 'window'; windowId: string; config?: ( file: DesktopFile ) => unknown }
+    | { kind: 'js'; open: ( file: DesktopFile ) => void | Promise< void > };
+
+interface FileOpenerDef {
+    id: string;
+    label: string;
+    types: string[];
+    isDefault?: boolean;
+    sort?: number;
+    handler: OpenerHandler;
+}
+```
+
+Methods on `wp.desktop.files`:
+
+```ts
+registerOpener( def: FileOpenerDef ): void;
+unregisterOpener( id: string ): void;
+getOpener( id: string ): FileOpenerDef | null;
+getOpeners(): FileOpenerDef[];
+getOpenersForType( type: string ): FileOpenerDef[];
+resolveOpener( type: string ): FileOpenerDef | null;
+subscribeOpeners( cb: () => void ): () => void;
+getUserAssociations(): Record< string, string >;
+open( file: DesktopFile ): Promise< boolean >;
+```
+
+Resolution chain inside `resolveOpener`: user override (read from `userFileAssociations` in the shell config) → `isDefault` opener → first match → `null`. The result passes through the `desktop-mode.files.resolve-opener` filter.
+
+`open( file )` invokes the resolved opener's handler:
+- `kind: 'url'` → opens a chromeless iframe via `wp.desktop.windowManager.open`.
+- `kind: 'window'` → opens a registered native window via `wp.desktop.openWindow`.
+- `kind: 'js'` → runs the plugin's free-form callback.
+
+Lifecycle actions fired during `open()`:
+
+```ts
+doAction( 'desktop-mode.files.opening', { file: DesktopFile, openerId: string } );
+doAction( 'desktop-mode.files.opened',  { file, openerId, kind: 'url' | 'window' | 'js' } );
+doAction( 'desktop-mode.files.open-failed', { reason: 'no-opener' | 'handler-threw', type, ref, openerId?, error? } );
+```
+
+Filter for the registry list:
+
+```ts
+applyFilters( 'desktop-mode.files.openers', FileOpenerDef[] ): FileOpenerDef[];
+applyFilters( 'desktop-mode.files.resolve-opener', FileOpenerDef | null, type: string ): FileOpenerDef | null;
+```
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.

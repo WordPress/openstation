@@ -458,6 +458,7 @@ async function refetchCount(): Promise< void > {
 	}
 	log( 'refetchCount: hitting', _countUrl );
 	try {
+		// eslint-disable-next-line no-restricted-syntax -- background heartbeat-driven badge refresh; intentionally silent (no spinner) since the user didn't initiate it.
 		const response = await fetch( _countUrl, {
 			credentials: 'same-origin',
 			headers: { Accept: 'application/json' },

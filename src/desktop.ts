@@ -190,6 +190,7 @@ import {
 import * as widgetRegistry from './widgets/registry';
 import { createWidgetRegistrySync } from './widgets/server-sync';
 import { WPD_COMPONENT_TAGS } from './ui/components';
+import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import {
 	registerModule,
 	loadModules,
@@ -197,6 +198,24 @@ import {
 } from './modules/registry';
 import type { WallpaperDef } from './wallpapers/types';
 import './plugins';
+import {
+	filesApi,
+	filesRest,
+	installOpenDeps as installFilesOpenDeps,
+	setUserAssociations as setFilesUserAssociations,
+	type FilesApi,
+} from './desktop-files';
+import { mountFilesLayer } from './desktop-files/layer';
+import { startFilesHeartbeat } from './desktop-files/heartbeat';
+import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
+import {
+	buildMenuItems as buildWallpaperMenuItems,
+	closeWallpaperMenu,
+	isWallpaperMenuOpen,
+	openWallpaperMenu,
+	type ServerWallpaperMenuItem,
+} from './desktop-files/wallpaper-menu';
+import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import type {
 	DesktopConfig,
 	NativeWindowDef,
@@ -343,6 +362,37 @@ export interface WpDesktopPublicApi {
 	 * @since 0.24.0
 	 */
 	icons: IconsApi;
+	/**
+	 * Files-on-the-desktop registry. Plugin authors register custom
+	 * file types via `wp.desktop.files.registerType`, resolve a
+	 * serialized shape into a `DesktopFile` instance via
+	 * `wp.desktop.files.resolve`, and read the full type list via
+	 * `wp.desktop.files.getTypes`. Higher phases extend this surface
+	 * with the opener registry (`open`, `registerOpener`), the
+	 * placement REST client, and the `FilesLayer` mount helpers.
+	 *
+	 * @since 0.9.0
+	 */
+	files: FilesApi;
+	/**
+	 * Promise-returning Yes/No prompt. Drop-in replacement for
+	 * `window.confirm()` that uses the framework's
+	 * `<wpd-confirm-dialog>` so the prompt matches the rest of
+	 * the desktop visually.
+	 *
+	 * ```ts
+	 * if ( await wp.desktop.confirm( {
+	 *     title: 'Delete?',
+	 *     message: 'Cannot undo.',
+	 *     danger: true,
+	 * } ) ) {
+	 *     // …
+	 * }
+	 * ```
+	 *
+	 * @since 0.9.0
+	 */
+	confirm: ( options: import( './ui/components/wpd-confirm-dialog/wpd-confirm-dialog' ).WpdConfirmOptions ) => Promise< boolean >;
 	saveSession: () => void;
 	/** Raw `@wordpress/hooks` bridge. Alias of `window.wp.hooks`. */
 	hooks: WpHooks;
@@ -1550,10 +1600,7 @@ function init(): void {
 					} );
 				},
 				confirm: ( msg ) =>
-					Promise.resolve(
-						// eslint-disable-next-line no-alert
-						typeof window.confirm === 'function' ? window.confirm( msg ) : true,
-					),
+					wpdConfirm( { message: msg } ),
 			} ),
 		} ),
 	);
@@ -1876,15 +1923,20 @@ function init(): void {
 	// the check state repaints live without an OS Settings reopen.
 	const setDefaultWindow = async ( url: string | null ): Promise<void> => {
 		try {
-			const response = await fetch( config.defaultWindowUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': config.restNonce,
+			const response = await trackedFetch(
+				manager,
+				config.defaultWindowUrl,
+				{
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': config.restNonce,
+					},
+					body: JSON.stringify( { url } ),
 				},
-				body: JSON.stringify( { url } ),
-			} );
+				{ source: 'desktop-mode/default-window' },
+			);
 			if ( ! response.ok ) {
 				throw new Error( `HTTP ${ response.status }` );
 			}
@@ -2321,6 +2373,8 @@ function init(): void {
 		desktopLayout:
 			osSettings.getOsSettingsSnapshot().desktopLayout,
 		icons: iconsApi,
+		files: filesApi,
+		confirm: wpdConfirm,
 		saveSession,
 		hooks: rawHooks(),
 		HOOKS,
@@ -2617,6 +2671,38 @@ function init(): void {
 	// if init() ever fires again.
 	bootHeartbeatBus();
 
+	// Files-on-the-Desktop: hand the open() dispatcher real
+	// dependencies and seed the per-user associations from the
+	// shell config. Done here so the manager is fully wired and
+	// the public API is already on `window.wp.desktop`.
+	installFilesOpenDeps( {
+		openUrl: ( { id, url, title, icon } ) =>
+			!! manager.open( { id, baseId: id, url, title, icon } ),
+		openNativeWindow: ( id ) => nativeWindows.openById( id ),
+		deriveWindowId: ( url: string ) => deriveWindowId( url, config.adminUrl ),
+	} );
+	setFilesUserAssociations(
+		( config.userFileAssociations as Record< string, string > | undefined ) ?? {},
+	);
+	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
+		filesRest.installRestDeps( {
+			baseUrl: config.filesUrl,
+			nonce: config.restNonce,
+		} );
+		// Mount the root files layer on the desktop area. Hydrates
+		// from REST on first paint; subsequent paints come from
+		// the shared store. Skipped when the area DOM element
+		// isn't in the page (headless tests, classic admin).
+		const rootHost = document.getElementById( 'desktop-mode-area' );
+		if ( rootHost ) {
+			mountFilesLayer( rootHost, 0 );
+		}
+	}
+
+	// Wire the Files-on-the-Desktop Heartbeat sync. Idempotent —
+	// safe to call again on a re-init.
+	startFilesHeartbeat();
+
 	// Boot the framework presence probe — always runs in desktop
 	// mode, regardless of whether the chat feature is enabled. The
 	// probe wires Heartbeat send/tick listeners that bump server
@@ -2726,6 +2812,58 @@ function init(): void {
 	// backdrop. The guard checks the live class on `desktopArea`
 	// because overview can be entered/exited repeatedly — a captured
 	// boolean snapshot would go stale.
+	/**
+	 * Re-tile every placement at the desktop root in the order
+	 * returned by `transform`. Used by both Clean up (identity
+	 * transform) and Sort by * (sort transforms).
+	 */
+	const relayoutRoot = (
+		transform: (
+			arr: import( './desktop-files/rest' ).RestPlacementShape[],
+		) => import( './desktop-files/rest' ).RestPlacementShape[],
+	): void => {
+		const root = filesApi.store.getState().placementsByFolder.get( 0 ) ?? [];
+		const ordered = transform( root );
+		// Column-major fill: top-to-bottom within a column, then to
+		// the next column. Number of rows comes from the desktop
+		// area's measured height so columns wrap cleanly.
+		const rowsPerCol = Math.max(
+			1,
+			Math.floor( ( desktopArea.clientHeight - 16 ) / 110 ),
+		);
+		const occupied = new Set< string >();
+		let i = 0;
+		for ( const p of ordered ) {
+			const cell = snapToEmptyCell(
+				16 + Math.floor( i / rowsPerCol ) * 96,
+				16 + ( i % rowsPerCol ) * 110,
+				occupied,
+				desktopArea,
+			);
+			occupied.add( `${ cell.col },${ cell.row }` );
+			i++;
+			if ( p.x === cell.x && p.y === cell.y ) {
+				continue;
+			}
+			filesApi.store.upsertPlacement( {
+				...p,
+				x: cell.x,
+				y: cell.y,
+				sortOrder: i,
+			} );
+			void filesRest
+				.updatePlacement( p.id, {
+					x: cell.x,
+					y: cell.y,
+					sortOrder: i,
+				} )
+				.catch( ( err: unknown ) => {
+					// eslint-disable-next-line no-console
+					console.error( '[desktop-mode] relayout persist failed', err );
+				} );
+		}
+	};
+
 	desktopArea.addEventListener( 'click', ( e: MouseEvent ) => {
 		if ( e.target !== desktopArea ) {
 			return;
@@ -2733,12 +2871,93 @@ function init(): void {
 		if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
 			return;
 		}
-		// One call instead of an inline loop — keeps the wallpaper
-		// click and the public `windowManager.toggleShowDesktop()`
-		// API in lock-step (plugins building expand/collapse UIs
-		// that mimic the gesture get the same focus / restore-order
-		// behaviour the shell uses).
-		manager.toggleShowDesktop();
+		// Phase 4: empty-wallpaper click toggles the context menu
+		// (Create folder / Show desktop / OS Settings / Wallpapers).
+		// Second click on the wallpaper closes the open menu instead
+		// of stacking — the menu's outside-click dismisser is told
+		// to ignore the desktop area, so the toggle check below is
+		// what decides.
+		if ( isWallpaperMenuOpen() ) {
+			closeWallpaperMenu();
+			return;
+		}
+		// Capture the click coordinates so a folder created from this
+		// menu lands where the user clicked, not at (0, 0).
+		const dropClient = { x: e.clientX, y: e.clientY };
+		const items = buildWallpaperMenuItems( {
+			createFolder: () => {
+				openCreateFolderDialog( {
+					onSubmit: async ( name ) => {
+						const folder = await filesRest.createFolder( { name } );
+						// Translate viewport → desktop-area local
+						// coords, then snap to the nearest empty
+						// grid cell so the new folder lands aligned.
+						const rect = desktopArea.getBoundingClientRect();
+						const rawX = Math.max( 0, dropClient.x - rect.left );
+						const rawY = Math.max( 0, dropClient.y - rect.top );
+						const occupied = buildOccupiedSet(
+							filesApi.store.getState().placementsByFolder.get( 0 ) ?? [],
+						);
+						const cell = snapToEmptyCell( rawX, rawY, occupied, desktopArea );
+						const placement = await filesRest.createPlacement( {
+							type: 'folder',
+							ref: String( folder.id ),
+							parentId: 0,
+							x: cell.x,
+							y: cell.y,
+						} );
+						filesApi.store.upsertFolder( folder );
+						filesApi.store.upsertPlacement( placement );
+					},
+				} );
+			},
+			toggleShowDesktop: () => manager.toggleShowDesktop(),
+			openOsSettings: () => openOsSettings(),
+			openWallpapers: () => openOsSettings(),
+			sortIcons: ( mode ) =>
+				relayoutRoot( ( arr ) => {
+					const sorted = arr.slice();
+					switch ( mode ) {
+						case 'name-asc':
+							sorted.sort( ( a, b ) =>
+								a.file.title.localeCompare( b.file.title ),
+							);
+							break;
+						case 'name-desc':
+							sorted.sort( ( a, b ) =>
+								b.file.title.localeCompare( a.file.title ),
+							);
+							break;
+						case 'date-asc':
+							sorted.sort( ( a, b ) => a.updatedAtMs - b.updatedAtMs );
+							break;
+						case 'date-desc':
+							sorted.sort( ( a, b ) => b.updatedAtMs - a.updatedAtMs );
+							break;
+					}
+					return sorted;
+				} ),
+			labels: {
+				createFolder: 'New folder',
+				showDesktop: 'Show desktop',
+				osSettings: 'OS Settings',
+				wallpapers: 'Wallpapers',
+				sortHeading: 'Sort by',
+				sortNameAsc: 'Name (A → Z)',
+				sortNameDesc: 'Name (Z → A)',
+				sortDateAsc: 'Date (oldest first)',
+				sortDateDesc: 'Date (newest first)',
+			},
+			serverItems: ( config.serverWallpaperMenuItems as
+				| ServerWallpaperMenuItem[]
+				| undefined ) ?? [],
+		} );
+		openWallpaperMenu(
+			document.body,
+			{ x: e.clientX, y: e.clientY },
+			items,
+			{ excludeOutsideTarget: desktopArea },
+		);
 	} );
 
 	// The URL bar is intentionally NOT normalized to /desktop-mode/.
@@ -2867,8 +3086,15 @@ function trackedFetch(
 		windowId?: string;
 		window?: DesktopWindow;
 		silent?: boolean;
+		/**
+		 * Free-form attribution tag carried through to the activity
+		 * bus (e.g. `'desktop-mode/files'`). Plugins building debug
+		 * widgets can group requests by this label.
+		 */
+		source?: string;
 	},
 ): Promise< Response > {
+	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.desktop.fetch`; it's the one legitimate place to call the raw global.
 	const promise = window.fetch( input, requestInit );
 	if ( opts?.silent ) {
 		return promise;
@@ -3127,7 +3353,10 @@ function createSessionSaver( manager: WindowManager, config: DesktopConfig ): ()
 		const payload = manager.snapshot();
 		inFlight = true;
 		try {
-			await fetch( config.sessionUrl, {
+			// Session save is a debounced background ping — silent
+			// so the user doesn't see a spinner every time they
+			// move a window.
+			await trackedFetch( manager, config.sessionUrl, {
 				method: 'POST',
 				credentials: 'same-origin',
 				headers: {
@@ -3137,7 +3366,7 @@ function createSessionSaver( manager: WindowManager, config: DesktopConfig ): ()
 				body: JSON.stringify( { session: payload } ),
 				// Best-effort: we don't block the UI on persistence.
 				keepalive: true,
-			} );
+			}, { silent: true } );
 		} catch ( err ) {
 			/* Network error is non-fatal — next change triggers another save.
 			 * Still worth surfacing to monitor widgets so a connectivity

@@ -11,6 +11,7 @@
 import { HD_MIN_HEIGHT, HD_MIN_WIDTH, MEDIA_PER_PAGE } from './constants';
 import type { MediaItem, OsSettingsConfig } from './types';
 import { isUsableImage, sanitizeFilename } from './utils';
+import { trackedFetch } from '../tracked-fetch';
 
 export async function fetchMediaPage(
 	config: OsSettingsConfig,
@@ -36,10 +37,14 @@ export async function fetchMediaPage(
 		url.searchParams.set( 'desktop_mode_min_height', String( HD_MIN_HEIGHT ) );
 	}
 
-	const response = await fetch( url.toString(), {
-		credentials: 'same-origin',
-		headers: { 'X-WP-Nonce': config.restNonce },
-	} );
+	const response = await trackedFetch(
+		url.toString(),
+		{
+			credentials: 'same-origin',
+			headers: { 'X-WP-Nonce': config.restNonce },
+		},
+		{ source: 'desktop-mode/settings/media' },
+	);
 
 	if ( ! response.ok ) {
 		let message = `HTTP ${ response.status }`;
@@ -64,16 +69,20 @@ export async function uploadImage(
 	config: OsSettingsConfig,
 	file: File,
 ): Promise<{ id: number; url: string }> {
-	const response = await fetch( config.mediaUrl, {
-		method: 'POST',
-		credentials: 'same-origin',
-		headers: {
-			'X-WP-Nonce': config.restNonce,
-			'Content-Type': file.type,
-			'Content-Disposition': `attachment; filename="${ sanitizeFilename( file.name ) }"`,
+	const response = await trackedFetch(
+		config.mediaUrl,
+		{
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': config.restNonce,
+				'Content-Type': file.type,
+				'Content-Disposition': `attachment; filename="${ sanitizeFilename( file.name ) }"`,
+			},
+			body: file,
 		},
-		body: file,
-	} );
+		{ source: 'desktop-mode/settings/media-upload' },
+	);
 
 	if ( ! response.ok ) {
 		let message = `Upload failed (HTTP ${ response.status }).`;

@@ -19,6 +19,8 @@
  */
 
 import { HOOKS, doAction, applyFilters } from './hooks';
+import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { trackedFetch } from './tracked-fetch';
 import {
 	filterCommands,
 	findCommand,
@@ -741,15 +743,16 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	/**
-	 * Default `ctx.confirm()` — uses the browser's native confirm
-	 * dialog. Combined message + details into one string because
-	 * window.confirm() only takes one. The shell can swap a custom
-	 * dialog in later (the Promise<boolean> contract is stable).
+	 * Default `ctx.confirm()` — uses the framework `<wpd-confirm-dialog>`
+	 * so the prompt matches the rest of the desktop visually. Plugins
+	 * can swap in their own implementation; the Promise<boolean>
+	 * contract is stable.
 	 */
 	private _confirm( message: string, details?: string ): Promise< boolean > {
-		const text = details ? `${ message }\n\n${ details }` : message;
-		// eslint-disable-next-line no-alert -- default impl uses the native dialog; the shell can swap in a custom one via the stable Promise<boolean> contract.
-		return Promise.resolve( window.confirm( text ) );
+		return wpdConfirm( {
+			title: details ? message : undefined,
+			message: details ?? message,
+		} );
 	}
 
 	/**
@@ -914,14 +917,18 @@ export class AiAssistant implements AiAssistantApi {
 				body.start_offset = startOffset;
 			}
 
-			const res = await fetch( this._aiSearchUrl, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': this._restNonce,
+			const res = await trackedFetch(
+				this._aiSearchUrl,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': this._restNonce,
+					},
+					body: JSON.stringify( body ),
 				},
-				body: JSON.stringify( body ),
-			} );
+				{ source: 'desktop-mode/ai-search' },
+			);
 
 			if ( ! res.ok ) {
 				const err = await res.json().catch( () => ( {} ) );

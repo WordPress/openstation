@@ -53,6 +53,10 @@ function desktop_mode_recycle_bin_render_template() {
 					<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>
 					<?php esc_html_e( 'Restore', 'desktop-mode' ); ?>
 				</wpd-button>
+				<wpd-button variant="secondary" data-desktop-mode-recycle-bin-pin-to-desktop>
+					<span class="dashicons dashicons-desktop" aria-hidden="true"></span>
+					<?php esc_html_e( 'Pin to desktop', 'desktop-mode' ); ?>
+				</wpd-button>
 				<wpd-button variant="danger" data-desktop-mode-recycle-bin-purge-selected>
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
 					<?php esc_html_e( 'Delete forever', 'desktop-mode' ); ?>

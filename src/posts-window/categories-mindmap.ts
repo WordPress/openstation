@@ -25,6 +25,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { trackedFetch } from '../tracked-fetch';
 import {
 	createCategory,
 	deleteTerm,
@@ -3037,7 +3038,6 @@ interface ShellJsonResponse {
 
 async function fetchShellJson( url: string ): Promise< ShellJsonResponse > {
 	const cfg = getConfig();
-	const api = window.wp?.desktop;
 	const init: RequestInit = {
 		method: 'GET',
 		credentials: 'same-origin',
@@ -3046,14 +3046,9 @@ async function fetchShellJson( url: string ): Promise< ShellJsonResponse > {
 			Accept: 'application/json',
 		},
 	};
-	let response: Response;
-	if ( api && typeof api.fetch === 'function' ) {
-		response = await api.fetch( url, init, {
-			windowId: 'desktop-mode-posts',
-		} );
-	} else {
-		response = await fetch( url, init );
-	}
+	const response = await trackedFetch( url, init, {
+		windowId: 'desktop-mode-posts',
+	} );
 	if ( ! response.ok ) {
 		throw new Error( `${ response.status } ${ response.statusText }` );
 	}

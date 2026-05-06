@@ -42,6 +42,50 @@ declare global {
 	}
 }
 
+/**
+ * Map a recycle-bin row's `type` (post/page/CPT/attachment/comment)
+ * to the Files-on-the-Desktop file-type slug. Used by the
+ * "Pin to desktop" toolbar action.
+ */
+/**
+ * Bridge to `wp.desktop.confirm` (the main bundle's
+ * `<wpd-confirm-dialog>` wrapper). The recycle-bin script lists
+ * `desktop-mode` as a dependency, so the global is always set by
+ * the time this code runs.
+ */
+interface ConfirmOptions {
+	title?: string;
+	message: string;
+	confirmLabel?: string;
+	cancelLabel?: string;
+	danger?: boolean;
+}
+function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
+	const fn = ( window.wp as { desktop?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } } | undefined )
+		?.desktop?.confirm;
+	if ( typeof fn !== 'function' ) {
+		return Promise.reject(
+			new Error(
+				'[desktop-mode] wp.desktop.confirm is missing — the main desktop bundle must load before the recycle-bin script.',
+			),
+		);
+	}
+	return fn( options );
+}
+
+export function mapRecycleTypeToFileType( recycleType: string ): string {
+	if ( recycleType === 'attachment' ) {
+		return 'attachment';
+	}
+	if ( recycleType === 'comment' ) {
+		return 'comment';
+	}
+	// Every public post type collapses into the 'post' file type;
+	// the desktop tile reads `postType` from the serialized shape
+	// for label / icon if it wants to differentiate.
+	return 'post';
+}
+
 const ROOT = '[data-desktop-mode-recycle-bin-root]';
 const FILTER = '[data-desktop-mode-recycle-bin-filter]';
 const SEARCH = '[data-desktop-mode-recycle-bin-search]';
@@ -50,6 +94,7 @@ const TABLE = '[data-desktop-mode-recycle-bin-table]';
 const BULK = '[data-desktop-mode-recycle-bin-bulk]';
 const COUNT = '[data-desktop-mode-recycle-bin-count]';
 const RESTORE_SEL = '[data-desktop-mode-recycle-bin-restore-selected]';
+const PIN_TO_DESKTOP = '[data-desktop-mode-recycle-bin-pin-to-desktop]';
 const PURGE_SEL = '[data-desktop-mode-recycle-bin-purge-selected]';
 const EMPTY_BTN = '[data-desktop-mode-recycle-bin-empty]';
 
@@ -575,20 +620,73 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		await refresh();
 	};
 
+	const handlePinToDesktop = async (
+		refs: RecycleBinItemRef[],
+	): Promise< void > => {
+		if ( refs.length === 0 ) {
+			return;
+		}
+		// First, restore the items so they exist again at their
+		// canonical post/comment id. Then place each on the
+		// desktop at staggered coordinates near the top-left so
+		// the user sees them all without overlap.
+		const types = Array.from( new Set( refs.map( ( r ) => r.type ) ) );
+		try {
+			const restored = await restoreItems( refs );
+			const filesApi = ( window.wp as { desktop?: { files?: { rest?: { createPlacement: ( payload: unknown ) => Promise< unknown > } } } } | undefined )
+				?.desktop?.files?.rest;
+			if ( filesApi ) {
+				let i = 0;
+				for ( const ref of refs ) {
+					if ( ! restored.ok.includes( ref.id ) ) {
+						continue;
+					}
+					const desktopType = mapRecycleTypeToFileType( ref.type );
+					if ( ! desktopType ) {
+						continue;
+					}
+					try {
+						// Match the grid in src/desktop-files/grid.ts
+						// (padding 16 + col 96 + row 110, column-major
+						// fill). The math is duplicated because this
+						// bundle is a separate vite target and can't
+						// reach into the desktop bundle's internals.
+						await filesApi.createPlacement( {
+							type: desktopType,
+							ref: String( ref.id ),
+							x: 16 + ( i % 5 ) * 96,
+							y: 16 + Math.floor( i / 5 ) * 110,
+						} );
+					} catch ( err ) {
+						console.error( '[recycle-bin] pin-to-desktop placement failed', err );
+					}
+					i += 1;
+				}
+			}
+			emitDoneEvent( 'restore', restored.ok, restored.errors, types, restored.ok );
+		} catch ( err ) {
+			console.error( '[recycle-bin] pin-to-desktop failed', err );
+		}
+		table.clearSelection();
+		await refresh();
+	};
+
 	const handlePurge = async (
 		refs: RecycleBinItemRef[],
 	): Promise< void > => {
 		if ( refs.length === 0 ) {
 			return;
 		}
-		// eslint-disable-next-line no-alert
-		const ok = window.confirm(
-			sprintf(
+		const ok = await wpdConfirmGlobal( {
+			title: __( 'Delete forever?' ),
+			message: sprintf(
 				/* translators: %d: row count. */
 				__( 'Permanently delete %d item(s)? This cannot be undone.' ),
 				refs.length,
 			),
-		);
+			confirmLabel: __( 'Delete forever' ),
+			danger: true,
+		} );
 		if ( ! ok ) {
 			return;
 		}
@@ -604,12 +702,14 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	const handleEmpty = async (): Promise< void > => {
-		// eslint-disable-next-line no-alert
-		const ok = window.confirm(
-			__(
+		const ok = await wpdConfirmGlobal( {
+			title: __( 'Empty bin?' ),
+			message: __(
 				'Empty the recycle bin? Every item visible in the current view will be permanently deleted.',
 			),
-		);
+			confirmLabel: __( 'Empty bin' ),
+			danger: true,
+		} );
 		if ( ! ok ) {
 			return;
 		}
@@ -682,6 +782,10 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		}
 		if ( target.closest( RESTORE_SEL ) ) {
 			void handleRestore( collectSelectedItems() );
+			return;
+		}
+		if ( target.closest( PIN_TO_DESKTOP ) ) {
+			void handlePinToDesktop( collectSelectedItems() );
 			return;
 		}
 		if ( target.closest( PURGE_SEL ) ) {

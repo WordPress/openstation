@@ -73,6 +73,32 @@ declare global {
 	}
 }
 
+/**
+ * Bridge to `wp.desktop.confirm` (the main bundle's
+ * `<wpd-confirm-dialog>` wrapper). The posts-window script lists
+ * `desktop-mode` as a dependency so the global is always set by
+ * the time this code runs.
+ */
+interface ConfirmOptions {
+	title?: string;
+	message: string;
+	confirmLabel?: string;
+	cancelLabel?: string;
+	danger?: boolean;
+}
+function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
+	const fn = ( window.wp as { desktop?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } } | undefined )
+		?.desktop?.confirm;
+	if ( typeof fn !== 'function' ) {
+		return Promise.reject(
+			new Error(
+				'[desktop-mode] wp.desktop.confirm is missing — the main desktop bundle must load before the posts-window script.',
+			),
+		);
+	}
+	return fn( options );
+}
+
 const ROOT = '[data-desktop-mode-posts-root]';
 const STATUS = '[data-desktop-mode-posts-status]';
 const SEARCH = '[data-desktop-mode-posts-search]';
@@ -1297,20 +1323,22 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 		if ( ! detail || typeof detail.id !== 'number' ) {
 			return;
 		}
-		// Cheap browser confirm — the picker emits the intent, we
-		// own the destructive REST call. WP cascades posts that
-		// previously belonged to the deleted term back to
-		// Uncategorized automatically.
-		// eslint-disable-next-line no-alert
-		const ok = window.confirm(
-			sprintf(
+		// Confirm via the framework's `<wpd-confirm-dialog>`
+		// (proxied through `wp.desktop.confirm`). WP cascades
+		// posts that previously belonged to the deleted term
+		// back to Uncategorized automatically.
+		const ok = await wpdConfirmGlobal( {
+			title: __( 'Delete category?' ),
+			message: sprintf(
 				/* translators: %s: category name. */
 				__(
 					'Delete the category "%s"? Posts assigned only to it will fall back to Uncategorized.',
 				),
 				detail.name,
 			),
-		);
+			confirmLabel: __( 'Delete' ),
+			danger: true,
+		} );
 		if ( ! ok ) {
 			return;
 		}
@@ -2075,14 +2103,14 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 			return;
 		}
 		if ( action.confirm ) {
-			// eslint-disable-next-line no-alert
-			const ok = window.confirm(
-				sprintf(
+			const ok = await wpdConfirmGlobal( {
+				message: sprintf(
 					/* translators: %d: row count. */
 					action.confirm,
 					ids.length,
 				),
-			);
+				danger: true,
+			} );
 			if ( ! ok ) {
 				return;
 			}

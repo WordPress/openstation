@@ -15,6 +15,13 @@ var desktopModePostsWindow = function(exports) {
     let i = 0;
     return format.replace(/%[sd]/g, () => String(args[i++] ?? ""));
   }
+  function trackedFetch(input, init, opts = {}) {
+    const fn = window.wp?.desktop?.fetch;
+    if (typeof fn === "function") {
+      return fn(input, init, opts);
+    }
+    return fetch(input, init);
+  }
   const WINDOW_ID = "desktop-mode-posts";
   function getConfig() {
     const store = window.desktopModeWindowConfig;
@@ -27,11 +34,7 @@ var desktopModePostsWindow = function(exports) {
     return cfg;
   }
   function shellFetch(input, init) {
-    const api = window.wp?.desktop;
-    if (api && typeof api.fetch === "function") {
-      return api.fetch(input, init, { windowId: "desktop-mode-posts" });
-    }
-    return fetch(input, init);
+    return trackedFetch(input, init, { windowId: "desktop-mode-posts" });
   }
   async function request(url, init = {}) {
     const cfg = getConfig();
@@ -360,6 +363,17 @@ var desktopModePostsWindow = function(exports) {
       "deleted",
       id
     );
+  }
+  function wpdConfirmGlobal(options) {
+    const fn = window.wp?.desktop?.confirm;
+    if (typeof fn !== "function") {
+      return Promise.reject(
+        new Error(
+          "[desktop-mode] wp.desktop.confirm is missing — the main desktop bundle must load before the posts-window script."
+        )
+      );
+    }
+    return fn(options);
   }
   const ROOT = "[data-desktop-mode-posts-root]";
   const STATUS = "[data-desktop-mode-posts-status]";
@@ -1150,15 +1164,18 @@ var desktopModePostsWindow = function(exports) {
       if (!detail || typeof detail.id !== "number") {
         return;
       }
-      const ok = window.confirm(
-        sprintf(
+      const ok = await wpdConfirmGlobal({
+        title: __("Delete category?"),
+        message: sprintf(
           /* translators: %s: category name. */
           __(
             'Delete the category "%s"? Posts assigned only to it will fall back to Uncategorized.'
           ),
           detail.name
-        )
-      );
+        ),
+        confirmLabel: __("Delete"),
+        danger: true
+      });
       if (!ok) {
         return;
       }
@@ -1700,13 +1717,14 @@ var desktopModePostsWindow = function(exports) {
         return;
       }
       if (action.confirm) {
-        const ok = window.confirm(
-          sprintf(
+        const ok = await wpdConfirmGlobal({
+          message: sprintf(
             /* translators: %d: row count. */
             action.confirm,
             ids.length
-          )
-        );
+          ),
+          danger: true
+        });
         if (!ok) {
           return;
         }
@@ -3853,7 +3871,6 @@ var desktopModePostsWindow = function(exports) {
   }
   async function fetchShellJson$1(url) {
     const cfg = getConfig();
-    const api = window.wp?.desktop;
     const init = {
       method: "GET",
       credentials: "same-origin",
@@ -3862,14 +3879,9 @@ var desktopModePostsWindow = function(exports) {
         Accept: "application/json"
       }
     };
-    let response;
-    if (api && typeof api.fetch === "function") {
-      response = await api.fetch(url, init, {
-        windowId: "desktop-mode-posts"
-      });
-    } else {
-      response = await fetch(url, init);
-    }
+    const response = await trackedFetch(url, init, {
+      windowId: "desktop-mode-posts"
+    });
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }
@@ -5491,7 +5503,6 @@ var desktopModePostsWindow = function(exports) {
   }
   async function fetchShellJson(url) {
     const cfg = getConfig();
-    const api = window.wp?.desktop;
     const init = {
       method: "GET",
       credentials: "same-origin",
@@ -5500,14 +5511,9 @@ var desktopModePostsWindow = function(exports) {
         Accept: "application/json"
       }
     };
-    let response;
-    if (api && typeof api.fetch === "function") {
-      response = await api.fetch(url, init, {
-        windowId: "desktop-mode-posts"
-      });
-    } else {
-      response = await fetch(url, init);
-    }
+    const response = await trackedFetch(url, init, {
+      windowId: "desktop-mode-posts"
+    });
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }

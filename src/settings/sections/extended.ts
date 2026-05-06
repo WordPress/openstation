@@ -13,6 +13,7 @@
 
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
+import { trackedFetch } from '../../tracked-fetch';
 import type { SettingsCtx } from '../types';
 
 interface ExtendedState {
@@ -41,18 +42,22 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 
 		try {
-			const res = await fetch( extendedOptionsUrl, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': restNonce,
-				},
-				body: JSON.stringify( {
-					options: {
-						media_library_enhanced: state.media_library_enhanced,
+			const res = await trackedFetch(
+				extendedOptionsUrl,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': restNonce,
 					},
-				} ),
-			} );
+					body: JSON.stringify( {
+						options: {
+							media_library_enhanced: state.media_library_enhanced,
+						},
+					} ),
+				},
+				{ source: 'desktop-mode/settings/extended' },
+			);
 
 			if ( ! res.ok ) {
 				const err = await res.json().catch( () => ( {} ) ) as { message?: string };

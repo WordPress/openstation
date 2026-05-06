@@ -237,6 +237,7 @@ function isStaticAssetPath( pathname: string ): boolean {
 async function staleWhileRevalidate( req: Request ): Promise< Response > {
 	const cache = await caches.open( RUNTIME_CACHE );
 	const cached = await cache.match( req );
+	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available; raw fetch is the API.
 	const network = fetch( req )
 		.then( ( res ) => {
 			if ( res && res.status === 200 ) {
@@ -261,6 +262,7 @@ async function networkFirstWithOfflineFallback(
 	req: Request,
 ): Promise< Response > {
 	try {
+		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available.
 		const fresh = await fetch( req );
 		return fresh;
 	} catch {

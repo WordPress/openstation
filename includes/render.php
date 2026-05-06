@@ -97,6 +97,7 @@ function desktop_mode_enqueue_assets() {
 	wp_enqueue_style( 'desktop-mode-dock-peek' );
 	wp_enqueue_style( 'desktop-mode-ai-assistant' );
 	wp_enqueue_style( 'desktop-mode-bug-report' );
+	wp_enqueue_style( 'desktop-mode-files' );
 
 	// JS.
 	wp_enqueue_script( 'desktop-mode' );
@@ -177,6 +178,22 @@ function desktop_mode_enqueue_assets() {
 		? $menu_payload['desktopIcons']
 		: array();
 
+	// Files-on-the-Desktop payload (Phase 0+1). Plugin-registered
+	// file types and openers ship as metadata only; the JS side
+	// holds the executable handlers and resolves on double-click.
+	$server_file_types        = function_exists( 'desktop_mode_build_file_types_payload' )
+		? desktop_mode_build_file_types_payload()
+		: array();
+	$server_file_openers      = function_exists( 'desktop_mode_build_file_openers_payload' )
+		? desktop_mode_build_file_openers_payload()
+		: array();
+	$user_file_associations   = function_exists( 'desktop_mode_get_user_file_associations' )
+		? desktop_mode_get_user_file_associations( get_current_user_id() )
+		: array();
+	$server_wallpaper_menu_items = function_exists( 'desktop_mode_build_wallpaper_menu_items' )
+		? desktop_mode_build_wallpaper_menu_items()
+		: array();
+
 	// Build the current page URL from $pagenow + $_GET. Strip the portal
 	// marker so the derived window ID matches what the dock would produce
 	// for the same page — otherwise auto-opening the entry window and
@@ -251,6 +268,11 @@ function desktop_mode_enqueue_assets() {
 			'serverWindowChromeScripts' => $server_window_chrome_scripts,
 			'serverWindowChromes'       => $server_window_chromes,
 			'desktopIcons'     => $desktop_icons,
+			'serverFileTypes'        => $server_file_types,
+			'serverFileOpeners'      => $server_file_openers,
+			'userFileAssociations'   => $user_file_associations,
+			'filesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/files' ) ),
+			'serverWallpaperMenuItems' => $server_wallpaper_menu_items,
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),
 			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),

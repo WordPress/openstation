@@ -1,15 +1,18 @@
 /**
  * Native Posts window — REST glue.
  *
- * Thin wrapper around `fetch()` that talks to core's `/wp/v2/posts`
- * endpoint with the WP REST nonce attached. The list endpoint is the
- * canonical paginated source — `X-WP-Total` and `X-WP-TotalPages`
- * response headers give us the total row count and last page number
- * without a separate count query.
+ * Thin wrapper around the framework `trackedFetch` that talks to
+ * core's `/wp/v2/posts` endpoint with the WP REST nonce attached.
+ * The list endpoint is the canonical paginated source —
+ * `X-WP-Total` and `X-WP-TotalPages` response headers give us the
+ * total row count and last page number without a separate count
+ * query.
  *
  * @public
  * @since 0.8.0
  */
+
+import { trackedFetch } from '../tracked-fetch';
 
 declare global {
 	interface Window {
@@ -153,11 +156,7 @@ interface RequestResult< T > {
  * @internal
  */
 function shellFetch( input: RequestInfo, init?: RequestInit ): Promise< Response > {
-	const api = window.wp?.desktop;
-	if ( api && typeof api.fetch === 'function' ) {
-		return api.fetch( input, init, { windowId: 'desktop-mode-posts' } );
-	}
-	return fetch( input, init );
+	return trackedFetch( input, init, { windowId: 'desktop-mode-posts' } );
 }
 
 async function request< T >(

@@ -46,5 +46,6 @@ require_once DESKTOP_MODE_DIR . 'includes/extended-options.php';
 require_once DESKTOP_MODE_DIR . 'includes/devtools.php';
 require_once DESKTOP_MODE_DIR . 'includes/ai-copilot/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/recycle-bin/bootstrap.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/posts-window/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/pwa.php';
