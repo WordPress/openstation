@@ -71,6 +71,7 @@ import { buildAccentSection } from './sections/accent';
 import { buildAiSection } from './sections/ai';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
+import { buildExitSection } from './sections/exit';
 import { buildExtendedSection } from './sections/extended';
 import { buildFeaturesSection } from './sections/features';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
@@ -362,6 +363,7 @@ export class OsSettings implements SettingsCtx {
 						${ buildDesktopLayoutSection( this ) }
 						${ buildDockSizeSection( this ) }
 						${ buildDockRailRendererSection( this ) }
+						${ buildExitSection() }
 					</wpd-panel>
 				</wpd-tabpanel>`,
 			},
