@@ -62,3 +62,15 @@ jobs:
             --generate-notes \
             "${flags[@]}" \
             desktop-mode.zip
+
+      - name: Unpack zip for wp.org deploy
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: unzip -q desktop-mode.zip -d build/
+
+      - name: Deploy to WordPress.org
+        if: ${{ !contains(github.ref_name, '-') }}
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          BUILD_DIR: ./build/desktop-mode
