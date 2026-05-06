@@ -15,3 +15,7 @@
 /assets/js/recycle-bin.min.js
 
 .DS_Store
+
+# Default output file of macOS/BSD `script(1)` — a terminal session
+# recorder. Easy to commit by accident with `git add .`.
+/typescript
