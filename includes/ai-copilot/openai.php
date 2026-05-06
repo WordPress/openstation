@@ -52,6 +52,18 @@ function desktop_mode_ai_do_request( $api_key, array $body ) {
 		return new WP_Error( 'desktop_mode_ai_encode', 'Failed to JSON-encode request body.' );
 	}
 
+	// Narrowly-scoped execution-time bump: this is the ONE function
+	// that performs the slow OpenAI HTTP round-trip. The HTTP timeout
+	// (`DESKTOP_MODE_AI_REQUEST_TIMEOUT`, currently 30 s) equals PHP's
+	// default `max_execution_time`, so a near-timeout response could
+	// be killed by PHP before `wp_remote_post()` returns. The bump
+	// only applies to the request that reaches this line — every
+	// other code path runs under the host's normal limit. The `@`
+	// suppresses the warning on hosts where `set_time_limit()` is
+	// disabled in `disable_functions`; the request still proceeds
+	// under whatever limit the host enforces.
+	@set_time_limit( 120 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+
 	$http = wp_remote_post(
 		DESKTOP_MODE_AI_OPENAI_ENDPOINT,
 		array(
