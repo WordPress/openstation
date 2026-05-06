@@ -8,18 +8,56 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Checks whether the current user has desktop mode enabled.
+ * Checks whether a user has desktop mode enabled.
+ *
+ * Two gates, both must pass:
+ *
+ * 1. The user's `desktop_mode_mode` user-meta is `'1'` (the per-user
+ *    opt-in toggle the admin-bar button writes via the AJAX endpoint).
+ * 2. The `desktop_mode_mode_enabled` filter returns truthy for that user.
+ *
+ * Centralising the filter check here means render-time gates (chromeless
+ * detection, payload generation, REST permission callbacks) can rely on
+ * a single helper instead of every call site re-running the filter.
+ * A user whose meta is `'1'` but whose filter denies them is treated as
+ * not-enabled everywhere, which is the documented contract of the
+ * filter — see docs/examples/gate-by-role.md.
  *
  * @since 0.1.0
+ * @since 0.7.3 Honors the `desktop_mode_mode_enabled` filter; accepts an
+ *              optional `$user_id` argument (default: current user).
  *
- * @return bool True if the current user has desktop mode active.
+ * @param int $user_id Optional. User ID to check. Defaults to the
+ *                     current user.
+ * @return bool True if the user has desktop mode active.
  */
-function desktop_mode_is_enabled() {
-	if ( ! is_user_logged_in() ) {
+function desktop_mode_is_enabled( $user_id = 0 ) {
+	$user_id = (int) $user_id;
+	if ( $user_id <= 0 ) {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+		$user_id = get_current_user_id();
+	}
+
+	if ( '1' !== (string) get_user_meta( $user_id, 'desktop_mode_mode', true ) ) {
 		return false;
 	}
 
-	return '1' === get_user_meta( get_current_user_id(), 'desktop_mode_mode', true );
+	/**
+	 * Filters whether desktop mode is available for this user.
+	 *
+	 * See `docs/hooks-reference.md` (`desktop_mode_mode_enabled`) for the
+	 * full contract. Returning `false` here makes the helper return
+	 * `false` for the user even when their meta is set, which propagates
+	 * to every render-time gate that consults the helper.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param bool $enabled Whether desktop mode is enabled. Default true.
+	 * @param int  $user_id The user ID being checked.
+	 */
+	return (bool) apply_filters( 'desktop_mode_mode_enabled', true, $user_id );
 }
 
 /**

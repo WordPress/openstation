@@ -365,7 +365,7 @@ do_action( 'desktop_mode_prepare_window', string $page, array $args );
 
 ### `desktop_mode_mode_enabled` — Stable
 
-Gates whether desktop mode can be activated (or stay active) for a given user. The AJAX save endpoint consults this after the nonce check.
+Gates whether desktop mode can be activated (or stay active) for a given user. The central helper `desktop_mode_is_enabled()` consults this filter after the user-meta check, so render-time gates (chromeless detection, payload generation, REST permission callbacks, the admin-bar toggle, the portal entry, the AJAX save endpoint) all honor a `false` return.
 
 ```php
 apply_filters( 'desktop_mode_mode_enabled', bool $enabled, int $user_id );
@@ -382,7 +382,12 @@ add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
 }, 10, 2 );
 ```
 
-A `false` return means the user cannot toggle the mode on — the AJAX endpoint returns `desktop_mode_disabled`.
+A `false` return has two effects:
+
+1. The AJAX save endpoint refuses to flip the user meta to `'1'` (it returns `desktop_mode_disabled`).
+2. `desktop_mode_is_enabled()` returns `false` for that user even when their existing meta is `'1'`. Every render-time gate that consults the helper (and there are many — see `includes/render.php`, `includes/components.php`, `includes/recycle-bin/rest.php`, `includes/pwa.php`, `includes/presence.php`, `includes/admin-bar.php`) treats the user as not-enabled.
+
+Since 0.7.3 the helper itself runs the filter; earlier versions only ran it inside the AJAX save and portal entry, so a user whose meta was already `'1'` could still see chromeless renders and shell payloads even when a filter denied them.
 
 ---
 

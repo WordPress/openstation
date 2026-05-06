@@ -18,6 +18,7 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	public function tear_down() {
 		unset( $_GET['desktop_mode_chromeless'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+		remove_all_filters( 'desktop_mode_mode_enabled' );
 		parent::tear_down();
 	}
 
@@ -69,6 +70,90 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '0' );
 		$this->assertFalse( desktop_mode_is_enabled() );
+	}
+
+	/**
+	 * The `desktop_mode_mode_enabled` filter is the documented surface for
+	 * gating which users get desktop mode. A filter returning false MUST
+	 * override a positive meta value so render-time gates that consult
+	 * the helper (chromeless detection, payload generation, REST permission
+	 * callbacks) all see the user as not-enabled.
+	 *
+	 * @covers ::desktop_mode_is_enabled
+	 */
+	public function test_filter_returning_false_overrides_positive_meta() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		add_filter( 'desktop_mode_mode_enabled', '__return_false' );
+
+		$this->assertFalse( desktop_mode_is_enabled() );
+	}
+
+	/**
+	 * Filter returning true alongside positive meta is the happy path —
+	 * helper returns true. Default filter wiring already returns the
+	 * passed-in `$enabled` (true), so this case verifies that an
+	 * explicit `__return_true` doesn't break anything either.
+	 *
+	 * @covers ::desktop_mode_is_enabled
+	 */
+	public function test_filter_returning_true_with_positive_meta() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		add_filter( 'desktop_mode_mode_enabled', '__return_true' );
+
+		$this->assertTrue( desktop_mode_is_enabled() );
+	}
+
+	/**
+	 * Meta is the first gate — the filter never gets a chance to flip a
+	 * not-opted-in user on. A filter returning true with no meta still
+	 * leaves the user as not-enabled.
+	 *
+	 * @covers ::desktop_mode_is_enabled
+	 */
+	public function test_filter_cannot_enable_without_meta() {
+		wp_set_current_user( self::$admin_id );
+		// Meta intentionally not set.
+		add_filter( 'desktop_mode_mode_enabled', '__return_true' );
+
+		$this->assertFalse( desktop_mode_is_enabled() );
+	}
+
+	/**
+	 * Filter must receive the correct `$user_id`. When called without
+	 * arguments, the helper resolves to the current user; when called
+	 * with an explicit user id, that id is forwarded to the filter.
+	 *
+	 * @covers ::desktop_mode_is_enabled
+	 */
+	public function test_filter_receives_user_id() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$received = null;
+		add_filter(
+			'desktop_mode_mode_enabled',
+			function ( $enabled, $user_id ) use ( &$received ) {
+				$received = $user_id;
+				return $enabled;
+			},
+			10,
+			2
+		);
+
+		desktop_mode_is_enabled();
+		$this->assertSame( (int) self::$admin_id, (int) $received );
+
+		// Explicit user id wins over the current-user fallback.
+		$other_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		update_user_meta( $other_id, 'desktop_mode_mode', '1' );
+
+		$received = null;
+		desktop_mode_is_enabled( $other_id );
+		$this->assertSame( (int) $other_id, (int) $received );
 	}
 
 	/**
