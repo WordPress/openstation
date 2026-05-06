@@ -70,6 +70,9 @@ jobs:
       - name: Deploy to WordPress.org
         if: ${{ !contains(github.ref_name, '-') }}
         uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          # TODO: revert to a real run before merging — see PR description.
+          dry-run: true
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
