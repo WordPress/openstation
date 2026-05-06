@@ -87,6 +87,42 @@ export interface ActivityChannelMap {
 		cancel?: boolean;
 	};
 	/**
+	 * Framework: `wp.desktop.notify()` was called. Filter to cancel
+	 * (`cancel: true`), mutate fields, or audit before the
+	 * Notification surface (or its toast fallback) is rendered.
+	 *
+	 * @since 0.8.0
+	 */
+	'desktop-mode/notification-requested': {
+		title: string;
+		body?: string;
+		icon?: string;
+		tag?: string;
+		requireInteraction?: boolean;
+		source?: string;
+		meta?: Record< string, unknown >;
+		cancel?: boolean;
+	};
+	/**
+	 * Framework: a notification was rendered (real Notification or
+	 * toast fallback). `fallback: 'toast'` flags the degraded path
+	 * so analytics can distinguish "user has notifications muted"
+	 * from "user explicitly hides nothing." `fallback: null` means
+	 * a real OS-level notification went up.
+	 *
+	 * @since 0.8.0
+	 */
+	'desktop-mode/notification-shown': {
+		title: string;
+		body?: string;
+		icon?: string;
+		tag?: string;
+		requireInteraction?: boolean;
+		source?: string;
+		meta?: Record< string, unknown >;
+		fallback: 'toast' | null;
+	};
+	/**
 	 * Framework: a window's `requestAttention` (or
 	 * `Dock.setAttention`) was called. Filter to cancel
 	 * (`cancel: true`) for DND modes / reduced-motion, mutate

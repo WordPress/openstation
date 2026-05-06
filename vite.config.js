@@ -61,6 +61,16 @@ const TARGETS = {
 		fileBase: 'posts-window',
 		iifeName: 'desktopModePostsWindow',
 	},
+	// Service worker — own bundle so it can be served from a stable
+	// path with the `Service-Worker-Allowed: /` header. The IIFE
+	// wrapper is harmless inside a SW context: top-level
+	// `self.addEventListener` calls happen synchronously when the
+	// IIFE runs, which is exactly what the SW spec wants.
+	'pwa-sw': {
+		entry:    'src/pwa/sw.ts',
+		fileBase: 'sw',
+		iifeName: 'desktopModeServiceWorker',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

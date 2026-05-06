@@ -4,15 +4,13 @@
 /dist/
 /tests/phpunit/.phpunit.result.cache
 
-# Vite build output — regenerate locally with `npm run build`.
-# One pair per target in vite.config.js. Hand-written JS in assets/js/
-# (admin-bar.js, media-library-enhanced.js) is intentionally tracked.
-/assets/js/desktop.js
-/assets/js/desktop.min.js
-/assets/js/iframe-bridge.js
-/assets/js/iframe-bridge.min.js
-/assets/js/recycle-bin.js
-/assets/js/recycle-bin.min.js
+# Vite build output under assets/js/ — regenerate locally with `npm run
+# build`. Adding a new bundle in vite.config.js does not require updating
+# this list. Hand-written JS files that should stay tracked are explicitly
+# re-included below.
+/assets/js/*.js
+!/assets/js/admin-bar.js
+!/assets/js/media-library-enhanced.js
 
 .DS_Store
 

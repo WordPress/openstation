@@ -1551,6 +1551,15 @@ export interface DesktopConfig {
 	/** True when the shell was reached via the portal redirect. */
 	fromPortal: boolean;
 	/**
+	 * Progressive-web-app config — endpoint URLs and the per-user
+	 * installable-pill state. Always present in shell-mode requests.
+	 * Optional in the type so older payloads (or chromeless contexts
+	 * that never see this blob) fail soft.
+	 *
+	 * @since 0.8.0
+	 */
+	pwa?: PwaConfig;
+	/**
 	 * Accent swatches shown in the OS Settings color picker. Filterable
 	 * server-side via `desktop_mode_accent_colors`. Optional — the TS
 	 * side falls back to a built-in default list when this is missing
@@ -1634,6 +1643,40 @@ export interface DesktopConfig {
 	 * @since 0.14.0
 	 */
 	extendedOptionsUrl?: string;
+}
+
+/**
+ * Per-user PWA UI state — install-hint dismissal flag and the
+ * notifications-enabled record. Mirrored from the
+ * `/desktop-mode/v1/pwa-state` REST endpoint.
+ *
+ * @since 0.8.0
+ */
+export interface PwaUserState {
+	installHintDismissed: boolean;
+	notificationsEnabled: boolean;
+}
+
+/**
+ * Progressive-web-app config block on `desktopModeConfig.pwa`.
+ *
+ * @since 0.8.0
+ */
+export interface PwaConfig {
+	/** Absolute URL of the web-app manifest. */
+	manifestUrl: string;
+	/** Absolute URL of the service worker. */
+	swUrl: string;
+	/** REST URL for `GET` / `POST` of {@link PwaUserState}. */
+	stateUrl: string;
+	/** Initial per-user state. */
+	state: PwaUserState;
+	/**
+	 * Mirrors the manifest's `name` — the human-readable site name
+	 * used by the install pill so the CTA reads "Install <site>"
+	 * rather than the current page title.
+	 */
+	appName: string;
 }
 
 /**

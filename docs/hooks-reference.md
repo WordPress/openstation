@@ -1747,6 +1747,54 @@ Actions:
 
 ---
 
+## Progressive Web App (since 0.8.0)
+
+### `desktop_mode_pwa_manifest` — Stable (filter)
+
+Filters the web-app manifest payload before it's encoded and served at
+`/desktop-mode/manifest.webmanifest`. Mutate icons, name, theme color,
+or add `shortcuts`. Returning a non-array silently disables the
+manifest.
+
+```php
+add_filter( 'desktop_mode_pwa_manifest', static function ( array $manifest ) {
+    $manifest['theme_color'] = '#7e22ce';
+    $manifest['shortcuts']   = [
+        [
+            'name' => 'New Post',
+            'url'  => '/wp-admin/post-new.php',
+        ],
+    ];
+    return $manifest;
+} );
+```
+
+### PHP helpers — Stable
+
+```php
+desktop_mode_pwa_manifest_url();
+desktop_mode_pwa_sw_url();
+desktop_mode_pwa_get_user_state( $user_id = 0 );
+desktop_mode_pwa_update_user_state( array $patch, $user_id = 0 );
+```
+
+`desktop_mode_pwa_get_user_state` returns
+`array{ installHintDismissed: bool, notificationsEnabled: bool }`.
+
+### REST endpoints — Stable
+
+- `GET  /wp-json/desktop-mode/v1/pwa-state`
+- `POST /wp-json/desktop-mode/v1/pwa-state` — body
+  `{ installHintDismissed?: bool, notificationsEnabled?: bool }`.
+
+Both require `read` capability and a valid `X-WP-Nonce`.
+
+See [`docs/pwa.md`](./pwa.md) for the full architecture and
+[`docs/examples/pwa-install.md`](./examples/pwa-install.md) /
+[`docs/examples/notify.md`](./examples/notify.md) for recipes.
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

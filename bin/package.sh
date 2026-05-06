@@ -47,21 +47,17 @@ for path in "${include[@]}"; do
 	fi
 done
 
-built=(
-	"assets/js/desktop.js"
-	"assets/js/desktop.min.js"
-	"assets/js/iframe-bridge.js"
-	"assets/js/iframe-bridge.min.js"
-	"assets/js/recycle-bin.js"
-	"assets/js/recycle-bin.min.js"
-)
+# Vite build output: every gitignored .js under assets/js/. Listed by
+# `git ls-files --others --ignored --exclude-standard`, which only
+# returns files that exist on disk — so a missing build is detected as
+# "no files found", not as a stale hard-coded list. Adding a new bundle
+# in vite.config.js does not require updating this script.
+mapfile -t built < <(git ls-files --others --ignored --exclude-standard -- 'assets/js/*.js')
 
-for file in "${built[@]}"; do
-	if [[ ! -f "$file" ]]; then
-		echo "error: $file is missing — run 'npm run build' first." >&2
-		exit 1
-	fi
-done
+if (( ${#built[@]} == 0 )); then
+	echo "error: no built JS found under assets/js/ — run 'npm run build' first." >&2
+	exit 1
+fi
 
 git archive --worktree-attributes --prefix="$prefix/" HEAD -- "${include[@]}" | tar -x -C "$tmp"
 
