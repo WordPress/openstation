@@ -43,6 +43,7 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		remove_all_filters( 'desktop_mode_shell_config' );
 		remove_all_filters( 'desktop_mode_arrange_menu_items' );
+		remove_all_filters( 'desktop_mode_mode_enabled' );
 		unset( $_GET['desktop_mode_chromeless'] );
 		parent::tear_down();
 	}
@@ -114,6 +115,83 @@ class Tests_DesktopMode_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Desktop Mode', $node->title );
 		$this->assertSame( '', $node->meta['class'] );
+	}
+
+	/**
+	 * Discovery affordance — issue #98. A fresh admin (no
+	 * `desktop_mode_mode` meta set) MUST see the "Switch to Desktop
+	 * Mode" entry; otherwise the only entry point is the
+	 * `/desktop-mode/` portal URL the user has to already know.
+	 *
+	 * @covers ::desktop_mode_admin_bar_toggle
+	 */
+	public function test_toggle_renders_for_fresh_admin_without_meta() {
+		wp_set_current_user( self::$admin_id );
+		// No user meta set — the default state for a freshly-activated
+		// plugin.
+		$this->assertSame( '', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
+
+		$bar  = $this->build_admin_bar();
+		$node = $bar->get_node( 'desktop-mode-toggle' );
+
+		$this->assertNotNull( $node, 'Fresh admin should see the discovery toggle.' );
+		$this->assertStringContainsString( 'Desktop Mode', $node->title );
+	}
+
+	/**
+	 * The toggle is gated on `desktop_mode_mode_enabled` so plugins that
+	 * disable the feature for a role (e.g. contributors) don't surface a
+	 * button that would do nothing. Mirrors the AJAX endpoint's gate.
+	 *
+	 * @covers ::desktop_mode_admin_bar_toggle
+	 */
+	public function test_toggle_hidden_when_mode_enabled_filter_returns_false() {
+		wp_set_current_user( self::$admin_id );
+		add_filter( 'desktop_mode_mode_enabled', '__return_false' );
+
+		$bar = $this->build_admin_bar();
+		$this->assertNull( $bar->get_node( 'desktop-mode-toggle' ) );
+	}
+
+	/**
+	 * Carve-out: a user already in desktop mode keeps the toggle even
+	 * when the gate filter would deny them. Without this, a plugin that
+	 * flips `desktop_mode_mode_enabled` to false mid-session would trap
+	 * the user in the shell with no UI affordance to leave.
+	 *
+	 * @covers ::desktop_mode_admin_bar_toggle
+	 */
+	public function test_toggle_renders_for_active_user_even_when_filter_denies() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		add_filter( 'desktop_mode_mode_enabled', '__return_false' );
+
+		$bar  = $this->build_admin_bar();
+		$node = $bar->get_node( 'desktop-mode-toggle' );
+
+		$this->assertNotNull( $node );
+		$this->assertStringContainsString( 'Classic Admin', $node->title );
+	}
+
+	/**
+	 * Subscribers on sites that revoked `read` from admin can't flip
+	 * the toggle (the AJAX endpoint refuses), so we also hide the
+	 * affordance from them. Belt-and-braces — most installs grant
+	 * `read` to every admin-visible role, but the gate matches the
+	 * AJAX side so the two never disagree.
+	 *
+	 * @covers ::desktop_mode_admin_bar_toggle
+	 */
+	public function test_toggle_hidden_for_user_without_read_cap() {
+		$factory = self::factory();
+		$user_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+		// Revoke `read` so the cap check fails.
+		$user = get_userdata( $user_id );
+		$user->remove_cap( 'read' );
+		wp_set_current_user( $user_id );
+
+		$bar = $this->build_admin_bar();
+		$this->assertNull( $bar->get_node( 'desktop-mode-toggle' ) );
 	}
 
 	/**

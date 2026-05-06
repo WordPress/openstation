@@ -27,7 +27,9 @@ add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
 Returning `false` has two effects:
 
 1. The **AJAX save** endpoint refuses to flip the user meta to `'1'` (it returns `desktop_mode_disabled`).
-2. Any existing `'1'` value is ignored — `desktop_mode_is_enabled()` returns `false` for this user.
+2. The **admin-bar "Switch to Desktop Mode"** discovery toggle is hidden for users whose desktop mode is currently off — they don't see a button that would do nothing.
+
+Users who *already* have desktop mode enabled (`desktop_mode_mode` user-meta is `'1'`) keep seeing the toggle so they can always switch back to classic admin, even if the filter flips to `false` mid-session.
 
 ## Disable the portal auto-enable too
 

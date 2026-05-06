@@ -365,7 +365,7 @@ do_action( 'desktop_mode_prepare_window', string $page, array $args );
 
 ### `desktop_mode_mode_enabled` — Stable
 
-Gates whether desktop mode can be activated (or stay active) for a given user. The AJAX save endpoint consults this after the nonce check.
+Gates whether desktop mode can be activated (or stay active) for a given user. The AJAX save endpoint consults this after the nonce check; the admin-bar discovery toggle consults it before rendering so users who can't enable the feature don't see a button that does nothing.
 
 ```php
 apply_filters( 'desktop_mode_mode_enabled', bool $enabled, int $user_id );
@@ -382,7 +382,12 @@ add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
 }, 10, 2 );
 ```
 
-A `false` return means the user cannot toggle the mode on — the AJAX endpoint returns `desktop_mode_disabled`.
+A `false` return has these effects:
+
+- The AJAX `save-desktop-mode` endpoint refuses to flip the user's preference and returns `desktop_mode_disabled`.
+- The "Switch to Desktop Mode" admin-bar entry is hidden for users whose desktop mode is currently off.
+
+Users who already have desktop mode active (`desktop_mode_mode = '1'`) still see the admin-bar entry so they can switch back to classic admin — otherwise a filter flipped to `false` mid-session would trap them in the shell with no exit affordance.
 
 ---
 

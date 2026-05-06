@@ -25,6 +25,34 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		return;
 	}
 
+	// Discovery affordance: render the toggle for any user who could
+	// actually use desktop mode, regardless of whether their
+	// `desktop_mode_mode` user meta is set yet. Without this, a freshly-
+	// activated plugin offers no on-screen path into the shell — the
+	// only entry point would be the `/desktop-mode/` portal URL, which
+	// the user has to already know.
+	//
+	// Cap + filter mirror the AJAX `save-desktop-mode` endpoint and the
+	// `/desktop-mode/` portal: `read` is the minimum cap every admin-
+	// visible role carries, and `desktop_mode_mode_enabled` is the
+	// documented surface plugins use to gate the feature by role
+	// (see docs/examples/gate-by-role.md). A user who fails either gate
+	// can't flip the toggle anyway — surfacing it to them would render
+	// a button that does nothing.
+	//
+	// Users who already have desktop mode enabled still see the toggle
+	// even if a later filter would gate them out — so they can always
+	// switch back to classic admin. Without this carve-out a plugin
+	// that flips `desktop_mode_mode_enabled` to false mid-session would
+	// trap users in the shell with no UI affordance to leave.
+	$user_id  = get_current_user_id();
+	$can_use  = desktop_mode_is_enabled()
+		|| ( current_user_can( 'read' )
+			&& (bool) apply_filters( 'desktop_mode_mode_enabled', true, $user_id ) );
+	if ( ! $can_use ) {
+		return;
+	}
+
 	// "Active" means "the user is *currently viewing* desktop mode",
 	// not "the preference is enabled in user meta." These diverge on
 	// requests carrying the per-request classic override
@@ -288,6 +316,17 @@ add_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle', 190 );
  */
 function desktop_mode_enqueue_toggle_assets() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
+		return;
+	}
+
+	// Mirror the gate inside `desktop_mode_admin_bar_toggle()` — no point
+	// shipping the CSS + click handler to a user who'd never see the
+	// toggle node anyway.
+	$user_id = get_current_user_id();
+	$can_use = desktop_mode_is_enabled()
+		|| ( current_user_can( 'read' )
+			&& (bool) apply_filters( 'desktop_mode_mode_enabled', true, $user_id ) );
+	if ( ! $can_use ) {
 		return;
 	}
 
