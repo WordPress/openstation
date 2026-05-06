@@ -134,6 +134,12 @@ export interface WpdTableColumn< T = Record< string, unknown > > {
 	 * to update it. The same `wpd-table-filter-change` event fires
 	 * regardless of which filter shape produced the change.
 	 *
+	 * `filterRender` columns are NOT filtered client-side — their
+	 * value is opaque to the table (could be a comma-joined id
+	 * list, JSON, anything). The consumer owns filtering: typically
+	 * by listening to `wpd-table-filter-change` and re-querying the
+	 * server, or by reassigning `data` with already-filtered rows.
+	 *
 	 * @since 0.8.0
 	 */
 	filterRender?: (
@@ -299,6 +305,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		cssProps: [
 			{ name: '--wpd-table-bg' },
 			{ name: '--wpd-table-border' },
+			{ name: '--wpd-table-column-border' },
 			{ name: '--wpd-table-header-bg' },
 			{ name: '--wpd-table-row-hover' },
 			{ name: '--wpd-table-stripe' },
@@ -827,14 +834,27 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		cols: WpdTableColumn< T >[],
 		stickyN: number,
 	): void {
-		thead.replaceChildren();
-
-		const headerRow = document.createElement( 'tr' );
-		headerRow.setAttribute( 'part', 'header-row' );
+		// Header row is rebuilt every paint (sort indicators change with
+		// the cycle). The filter row is preserved across paints — its
+		// `<th>` cells host live state (text input caret, mounted
+		// `filterRender` controls like `<wpd-multiselect>` whose popover
+		// would `_closePopover()` on `disconnectedCallback` if we tore
+		// down the row). We swap the header in place and only touch the
+		// filter row's cells when the column set changes.
+		const newHeaderRow = document.createElement( 'tr' );
+		newHeaderRow.setAttribute( 'part', 'header-row' );
 		for ( let i = 0; i < cols.length; i++ ) {
-			headerRow.appendChild( this._buildHeaderCell( cols[ i ], i, stickyN ) );
+			newHeaderRow.appendChild( this._buildHeaderCell( cols[ i ], i, stickyN ) );
 		}
-		thead.appendChild( headerRow );
+
+		const existingHeader = thead.querySelector< HTMLTableRowElement >(
+			':scope > tr[part="header-row"]',
+		);
+		if ( existingHeader ) {
+			thead.replaceChild( newHeaderRow, existingHeader );
+		} else {
+			thead.insertBefore( newHeaderRow, thead.firstChild );
+		}
 
 		// Render the filter row if ANY column requests one — either via
 		// the legacy `filter` flag, or via an explicit `filterOptions`
@@ -846,14 +866,51 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 				Array.isArray( c.filterOptions ) ||
 				typeof c.filterRender === 'function',
 		);
+		let existingFilter = thead.querySelector< HTMLTableRowElement >(
+			':scope > tr.filter-row',
+		);
+
 		if ( hasFilter ) {
-			const filterRow = document.createElement( 'tr' );
-			filterRow.classList.add( 'filter-row' );
-			filterRow.setAttribute( 'part', 'filter-row' );
+			// `_buildFilterCell` returns the cached `<th>` when the
+			// column's filter kind hasn't changed, so mounted controls
+			// (popovers, inputs with focus) are reused.
+			const cells: HTMLTableCellElement[] = [];
 			for ( let i = 0; i < cols.length; i++ ) {
-				filterRow.appendChild( this._buildFilterCell( cols[ i ], i, stickyN ) );
+				cells.push( this._buildFilterCell( cols[ i ], i, stickyN ) );
 			}
-			thead.appendChild( filterRow );
+			if ( ! existingFilter ) {
+				existingFilter = document.createElement( 'tr' );
+				existingFilter.classList.add( 'filter-row' );
+				existingFilter.setAttribute( 'part', 'filter-row' );
+				thead.appendChild( existingFilter );
+			}
+			const current = Array.from( existingFilter.children );
+			let same = current.length === cells.length;
+			if ( same ) {
+				for ( let i = 0; i < cells.length; i++ ) {
+					if ( current[ i ] !== cells[ i ] ) {
+						same = false;
+						break;
+					}
+				}
+			}
+			if ( ! same ) {
+				// Move the wanted cells into place (appending an
+				// already-attached element reparents without firing
+				// disconnectedCallback). Drop any stragglers from
+				// removed columns afterwards.
+				const wanted = new Set< Element >( cells );
+				for ( const cell of cells ) {
+					existingFilter.appendChild( cell );
+				}
+				for ( const child of Array.from( existingFilter.children ) ) {
+					if ( ! wanted.has( child ) ) {
+						existingFilter.removeChild( child );
+					}
+				}
+			}
+		} else if ( existingFilter ) {
+			existingFilter.remove();
 		}
 	}
 
@@ -1381,6 +1438,14 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			let pass = true;
 			for ( const key of active ) {
 				const col = this._columns.find( ( c ) => c.key === key );
+				// `filterRender` columns own their filter shape — value
+				// is opaque to the table (commonly a comma-joined id list
+				// for a multi-select). The consumer filters via the
+				// server or by reassigning `data`; we must not re-filter
+				// here or we drop legitimate rows.
+				if ( col && typeof col.filterRender === 'function' ) {
+					continue;
+				}
 				const filter = this._filters[ key ] ?? '';
 				const cell = ( row as Record< string, unknown > )[ key ];
 				const cellStr = cell === null || cell === undefined ? '' : String( cell );

@@ -87,21 +87,19 @@ var desktopModePostsWindow = function(exports) {
     if (params.order) {
       url.searchParams.set("order", params.order);
     }
-    const joinIds = (v) => Array.isArray(v) ? v.filter((n) => Number.isFinite(n) && n > 0).join(",") : String(v);
-    if (params.author) {
-      const v = joinIds(params.author);
-      if (v) {
-        url.searchParams.set("author", v);
-      }
-    }
-    if (params.tag) {
-      const v = joinIds(params.tag);
-      if (v) {
-        url.searchParams.set("tags", v);
-        if (Array.isArray(params.tag) && params.tag.length > 1) {
-          url.searchParams.set("desktop_mode_tags_match", "all");
+    const appendIds = (key, v) => {
+      const list = Array.isArray(v) ? v : [v];
+      for (const id of list) {
+        if (Number.isFinite(id) && id > 0) {
+          url.searchParams.append(`${key}[]`, String(id));
         }
       }
+    };
+    if (params.author) {
+      appendIds("author", params.author);
+    }
+    if (params.tag) {
+      appendIds("tags", params.tag);
     }
     const { data, headers } = await request(url.toString(), {
       method: "GET"
@@ -1909,38 +1907,6 @@ var desktopModePostsWindow = function(exports) {
       console.error("[posts-window] render failed:", err);
     });
   };
-  function getWpHooks() {
-    const hooks = window.wp?.hooks;
-    if (!hooks) {
-      throw new Error(
-        "[desktop-mode] `window.wp.hooks` is not available. The plugin declares `wp-hooks` as a script dependency; if you are seeing this error, verify the enqueue order."
-      );
-    }
-    return hooks;
-  }
-  function addAction(hookName, namespace, callback, priority) {
-    getWpHooks().addAction(
-      hookName,
-      namespace,
-      callback,
-      priority
-    );
-  }
-  function removeAction(hookName, namespace) {
-    return getWpHooks().removeAction(hookName, namespace);
-  }
-  const HOOKS = {
-    /** Action, fires when a window is maximized (fills desktop area). */
-    WINDOW_MAXIMIZED: "desktop-mode.window.maximized",
-    /** Action, fires when a window exits maximized state. */
-    WINDOW_UNMAXIMIZED: "desktop-mode.window.unmaximized",
-    /** Action, fires when a window enters fullscreen / focus mode. */
-    WINDOW_FULLSCREEN_ENTERED: "desktop-mode.window.fullscreen-entered",
-    /** Action, fires when a window exits fullscreen / focus mode. */
-    WINDOW_FULLSCREEN_EXITED: "desktop-mode.window.fullscreen-exited",
-    /** Action, fires when resize completes. Payload mirrors WINDOW_RESIZED. */
-    WINDOW_RESIZE_END: "desktop-mode.window.resize-end"
-  };
   const REPULSION_K = 5500;
   const SPRING_K = 0.05;
   const SPRING_LEN = 130;
@@ -2141,7 +2107,7 @@ var desktopModePostsWindow = function(exports) {
       const uncategorized = allRoots.find(isUncategorized);
       const place = (term, depth, rootIdx, angle, angleSpan) => {
         const rootRingByCount = roots.length > 1 ? 110 + roots.length * 28 : 0;
-        const rootRing = uncategorized ? Math.max(rootRingByCount, 180) : rootRingByCount;
+        const rootRing = uncategorized ? Math.max(rootRingByCount, 140) : rootRingByCount;
         const baseRadius = depth === 0 ? rootRing : rootRing + 160 + (depth - 1) * 150;
         const tx = baseRadius * Math.cos(angle);
         const ty = baseRadius * Math.sin(angle);
@@ -2311,14 +2277,15 @@ var desktopModePostsWindow = function(exports) {
       }
       g.circle(0, 0, r);
       g.fill(shadeColor(node.color, -0.18));
-      g.circle(0, -r * 0.1, r * 0.94);
+      g.circle(0, -r * 0.06, r * 0.94);
       g.fill(node.color);
       g.circle(-r * 0.32, -r * 0.42, r * 0.3);
       g.fill({ color: 16777215, alpha: 0.32 });
       g.circle(0, 0, r);
       g.stroke({
         color: 16777215,
-        width: highlighted ? 3 : 2
+        width: highlighted ? 3 : 2,
+        alignment: 0
       });
       g.x = node.x;
       g.y = node.y;
@@ -2830,10 +2797,11 @@ var desktopModePostsWindow = function(exports) {
     app.stage.on("pointerupoutside", (e) => void onStagePointerUp(e));
     function onWheel(e) {
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const SENSITIVITY = 8e-4;
+      const factor = Math.exp(-e.deltaY * SENSITIVITY);
       const prev = targetScale;
       const next = Math.max(0.3, Math.min(2.5, prev * factor));
-      if (next === prev) {
+      if (Math.abs(next - prev) < 5e-4) {
         return;
       }
       const r = stage.getBoundingClientRect();
@@ -2847,29 +2815,36 @@ var desktopModePostsWindow = function(exports) {
     }
     stage.addEventListener("wheel", onWheel, { passive: false });
     let firstFitDone = false;
-    const FIT_DEBOUNCE_MS = 80;
-    let fitTimer = null;
-    function scheduleFit() {
-      if (fitTimer !== null) {
-        window.clearTimeout(fitTimer);
-      }
-      fitTimer = window.setTimeout(() => {
-        fitTimer = null;
-        fitToView();
-      }, FIT_DEBOUNCE_MS);
-    }
+    let settledW = 0;
+    let settledH = 0;
+    const SETTLE_THRESHOLD_PX = 24;
+    const SETTLE_DEBOUNCE_MS = 80;
+    let settleTimer = null;
     function onResize() {
       const r = stage.getBoundingClientRect();
       app.renderer.resize(r.width, r.height);
       app.stage.hitArea = new pixi.Rectangle(0, 0, r.width, r.height);
       if (!firstFitDone && r.width > 0 && r.height > 0) {
         firstFitDone = true;
+        settledW = r.width;
+        settledH = r.height;
         fitToView();
         stage.classList.remove("is-loading");
       }
-      if (fitTimer !== null) {
-        scheduleFit();
+      if (settleTimer !== null) {
+        window.clearTimeout(settleTimer);
       }
+      settleTimer = window.setTimeout(() => {
+        settleTimer = null;
+        const cur = stage.getBoundingClientRect();
+        const dw = Math.abs(cur.width - settledW);
+        const dh = Math.abs(cur.height - settledH);
+        if (dw >= SETTLE_THRESHOLD_PX || dh >= SETTLE_THRESHOLD_PX) {
+          settledW = cur.width;
+          settledH = cur.height;
+          recenterCamera();
+        }
+      }, SETTLE_DEBOUNCE_MS);
       app.render();
     }
     const ro = new ResizeObserver(onResize);
@@ -3035,6 +3010,7 @@ var desktopModePostsWindow = function(exports) {
       });
       container.on("pointertap", () => {
         openInPostsTab(post.id, post.editUrl, post.title);
+        closeFocus();
       });
       container.on("pointerover", () => {
         chip.cachedHover = true;
@@ -3089,12 +3065,34 @@ var desktopModePostsWindow = function(exports) {
       chip.titleText.x = left + padX + dotR * 2 + gap;
       chip.titleText.y = -titleH / 2;
     }
+    const POSTS_CACHE_TTL_MS = 6e4;
+    const postsCache = /* @__PURE__ */ new Map();
+    function applyPostsResult(entry, focusedNodeId) {
+      focusTotalPages = entry.totalPages;
+      if (Number.isFinite(entry.realTotal)) {
+        const node = nodes.get(focusedNodeId);
+        if (node && node.count !== entry.realTotal) {
+          node.count = entry.realTotal;
+          terms = terms.map(
+            (t) => t.id === node.id ? { ...t, count: entry.realTotal } : t
+          );
+          layoutChip(ensureChip(node), node);
+        }
+      }
+      renderPosts(entry.items);
+    }
     async function loadPostsForFocus() {
       if (focusId === null) {
         return;
       }
       const mySeq = ++loadSeq;
       const myFocusId = focusId;
+      const cacheKey2 = `${focusId}:${focusPage}`;
+      const cached = postsCache.get(cacheKey2);
+      if (cached && performance.now() - cached.fetchedAt < POSTS_CACHE_TTL_MS) {
+        applyPostsResult(cached, myFocusId);
+        return;
+      }
       const cfg = getConfig();
       const url = new URL(cfg.postsUrl);
       url.searchParams.set("categories", String(focusId));
@@ -3107,29 +3105,26 @@ var desktopModePostsWindow = function(exports) {
         if (mySeq !== loadSeq || focusId !== myFocusId) {
           return;
         }
-        const items = response.json ?? [];
-        focusTotalPages = Math.max(
+        const raw = response.json ?? [];
+        const totalPages = Math.max(
           1,
           parseInt(response.headers.get("X-WP-TotalPages") ?? "1", 10) || 1
         );
-        const realTotal = parseInt(response.headers.get("X-WP-Total") ?? "", 10);
-        if (Number.isFinite(realTotal) && focusId !== null) {
-          const node = nodes.get(focusId);
-          if (node && node.count !== realTotal) {
-            node.count = realTotal;
-            terms = terms.map(
-              (t) => t.id === node.id ? { ...t, count: realTotal } : t
-            );
-            layoutChip(ensureChip(node), node);
-          }
-        }
-        renderPosts(
-          items.map((p) => ({
-            id: p.id,
-            title: stripTags$1(p.title?.rendered || `#${p.id}`),
-            editUrl: `${cfg.editPostUrlBase}?post=${p.id}&action=edit`
-          }))
-        );
+        const realTotalParsed = parseInt(response.headers.get("X-WP-Total") ?? "", 10);
+        const realTotal = Number.isFinite(realTotalParsed) ? realTotalParsed : -1;
+        const items = raw.map((p) => ({
+          id: p.id,
+          title: stripTags$1(p.title?.rendered || `#${p.id}`),
+          editUrl: `${cfg.editPostUrlBase}?post=${p.id}&action=edit`
+        }));
+        const entry = {
+          items,
+          totalPages,
+          realTotal,
+          fetchedAt: performance.now()
+        };
+        postsCache.set(cacheKey2, entry);
+        applyPostsResult(entry, myFocusId);
       } catch (err) {
         showError(__("Couldn’t load posts:"), err);
       }
@@ -3232,6 +3227,10 @@ var desktopModePostsWindow = function(exports) {
     function openInPostsTab(_id, editUrl, title) {
       const wm = api?.windowManager;
       const derive = api?.deriveWindowId;
+      const postsWin = wm && typeof wm.getById === "function" ? wm.getById("desktop-mode-posts") : void 0;
+      if (postsWin && typeof postsWin.isFullscreen === "function" && typeof postsWin.toggleFullscreen === "function" && postsWin.isFullscreen()) {
+        postsWin.toggleFullscreen();
+      }
       if (wm && typeof derive === "function") {
         const id = derive(editUrl);
         wm.open({
@@ -3589,15 +3588,21 @@ var desktopModePostsWindow = function(exports) {
     addRootBtn.addEventListener("click", () => {
       startDraft(0);
     });
-    function fitToView(padding = 90) {
+    function fitToView(opts = {}) {
+      const padding = opts.padding ?? 90;
+      const animate = opts.animate ?? false;
       const r = stage.getBoundingClientRect();
       if (nodes.size === 0 || r.width === 0 || r.height === 0) {
-        world.x = r.width / 2;
-        world.y = r.height / 2;
-        world.scale.set(1);
+        const cx2 = r.width / 2;
+        const cy2 = r.height / 2;
         targetScale = 1;
-        targetWorldX = world.x;
-        targetWorldY = world.y;
+        targetWorldX = cx2;
+        targetWorldY = cy2;
+        if (!animate) {
+          world.x = cx2;
+          world.y = cy2;
+          world.scale.set(1);
+        }
         return;
       }
       let minX = Infinity;
@@ -3619,27 +3624,38 @@ var desktopModePostsWindow = function(exports) {
       const scale = Math.max(0.2, Math.min(1.5, Math.min(sx, sy)));
       const cx = (minX + maxX) / 2;
       const cy = (minY + maxY) / 2;
-      world.scale.set(scale);
-      world.x = r.width / 2 - cx * scale;
-      world.y = r.height / 2 - cy * scale;
+      const newWorldX = r.width / 2 - cx * scale;
+      const newWorldY = r.height / 2 - cy * scale;
       targetScale = scale;
-      targetWorldX = world.x;
-      targetWorldY = world.y;
-    }
-    recenterBtn.addEventListener("click", () => fitToView());
-    const HOOK_NS = "desktop-mode/posts-categories-mindmap";
-    const refitOnGeometryChange = (payload) => {
-      const p = payload;
-      if (p?.windowId !== "desktop-mode-posts") {
-        return;
+      targetWorldX = newWorldX;
+      targetWorldY = newWorldY;
+      if (!animate) {
+        world.scale.set(scale);
+        world.x = newWorldX;
+        world.y = newWorldY;
       }
-      scheduleFit();
-    };
-    addAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange);
+    }
+    function recenterCamera() {
+      if (focusId !== null) {
+        const focused = nodes.get(focusId);
+        const r = stage.getBoundingClientRect();
+        if (focused && r.width > 0 && r.height > 0) {
+          const half = POST_RING_RADIUS$1 + 70;
+          const sx = r.width * 0.85 / (2 * half);
+          const sy = r.height * 0.85 / (2 * half);
+          const newScale = Math.max(
+            0.5,
+            Math.min(1.6, Math.min(sx, sy))
+          );
+          targetScale = newScale;
+          targetWorldX = r.width / 2 - focused.x * newScale;
+          targetWorldY = r.height / 2 - focused.y * newScale;
+          return;
+        }
+      }
+      fitToView({ animate: true });
+    }
+    recenterBtn.addEventListener("click", () => recenterCamera());
     app.canvas.addEventListener("click", (e) => {
       const now = performance.now();
       if (now - lastFocusChange < 250 || now - pixiInteractionAt < 250) {
@@ -3685,7 +3701,7 @@ var desktopModePostsWindow = function(exports) {
         });
         if (dirty) {
           buildTree();
-          fitToView();
+          fitToView({ animate: true });
         }
       } catch {
       }
@@ -3708,17 +3724,12 @@ var desktopModePostsWindow = function(exports) {
         cancelAnimationFrame(raf);
         raf = null;
       }
-      if (fitTimer !== null) {
-        window.clearTimeout(fitTimer);
-        fitTimer = null;
+      if (settleTimer !== null) {
+        window.clearTimeout(settleTimer);
+        settleTimer = null;
       }
       ro.disconnect();
       stage.removeEventListener("wheel", onWheel);
-      removeAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS);
-      removeAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS);
-      removeAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS);
-      removeAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS);
-      removeAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS);
       try {
         app.destroy(true, { children: true, texture: true });
       } catch {
@@ -3961,8 +3972,8 @@ var desktopModePostsWindow = function(exports) {
     const postEdgeLayer = new pixi.Container();
     const postLayer = new pixi.Container();
     const postChipLayer = new pixi.Container();
-    world.addChild(chipLayer);
     world.addChild(postEdgeLayer);
+    world.addChild(chipLayer);
     world.addChild(postLayer);
     world.addChild(postChipLayer);
     const postEdgeGfx = new pixi.Graphics();
@@ -4463,10 +4474,11 @@ var desktopModePostsWindow = function(exports) {
     app.stage.on("pointerupoutside", (e) => onStagePointerUp(e));
     function onWheel(e) {
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const SENSITIVITY = 8e-4;
+      const factor = Math.exp(-e.deltaY * SENSITIVITY);
       const prev = targetScale;
       const next = Math.max(0.3, Math.min(2.5, prev * factor));
-      if (next === prev) {
+      if (Math.abs(next - prev) < 5e-4) {
         return;
       }
       const r = stage.getBoundingClientRect();
@@ -4480,29 +4492,36 @@ var desktopModePostsWindow = function(exports) {
     }
     stage.addEventListener("wheel", onWheel, { passive: false });
     let firstFitDone = false;
-    const FIT_DEBOUNCE_MS = 80;
-    let fitTimer = null;
-    function scheduleFit() {
-      if (fitTimer !== null) {
-        window.clearTimeout(fitTimer);
-      }
-      fitTimer = window.setTimeout(() => {
-        fitTimer = null;
-        fitToView();
-      }, FIT_DEBOUNCE_MS);
-    }
+    let settledW = 0;
+    let settledH = 0;
+    const SETTLE_THRESHOLD_PX = 24;
+    const SETTLE_DEBOUNCE_MS = 80;
+    let settleTimer = null;
     function onResize() {
       const r = stage.getBoundingClientRect();
       app.renderer.resize(r.width, r.height);
       app.stage.hitArea = new pixi.Rectangle(0, 0, r.width, r.height);
       if (!firstFitDone && r.width > 0 && r.height > 0) {
         firstFitDone = true;
+        settledW = r.width;
+        settledH = r.height;
         fitToView();
         stage.classList.remove("is-loading");
       }
-      if (fitTimer !== null) {
-        scheduleFit();
+      if (settleTimer !== null) {
+        window.clearTimeout(settleTimer);
       }
+      settleTimer = window.setTimeout(() => {
+        settleTimer = null;
+        const cur = stage.getBoundingClientRect();
+        const dw = Math.abs(cur.width - settledW);
+        const dh = Math.abs(cur.height - settledH);
+        if (dw >= SETTLE_THRESHOLD_PX || dh >= SETTLE_THRESHOLD_PX) {
+          settledW = cur.width;
+          settledH = cur.height;
+          recenterCamera();
+        }
+      }, SETTLE_DEBOUNCE_MS);
       app.render();
     }
     const ro = new ResizeObserver(onResize);
@@ -4623,6 +4642,7 @@ var desktopModePostsWindow = function(exports) {
       });
       container.on("pointertap", () => {
         openInPostsTab(post.id, post.editUrl, post.title);
+        closeFocus();
       });
       container.on("pointerover", () => {
         chip.cachedHover = true;
@@ -4677,12 +4697,34 @@ var desktopModePostsWindow = function(exports) {
       chip.titleText.x = left + padX + dotR * 2 + gap;
       chip.titleText.y = -titleH / 2;
     }
+    const POSTS_CACHE_TTL_MS = 6e4;
+    const postsCache = /* @__PURE__ */ new Map();
+    function applyPostsResult(entry, focusedTagId) {
+      focusTotalPages = entry.totalPages;
+      if (Number.isFinite(entry.realTotal)) {
+        const box = tags.get(focusedTagId);
+        if (box && box.count !== entry.realTotal) {
+          box.count = entry.realTotal;
+          terms = terms.map(
+            (t) => t.id === box.id ? { ...t, count: entry.realTotal } : t
+          );
+          layoutChip(box);
+        }
+      }
+      renderPosts(entry.items);
+    }
     async function loadPostsForFocus() {
       if (focusId === null) {
         return;
       }
       const mySeq = ++loadSeq;
       const myFocusId = focusId;
+      const cacheKey2 = `${focusId}:${focusPage}`;
+      const cached = postsCache.get(cacheKey2);
+      if (cached && performance.now() - cached.fetchedAt < POSTS_CACHE_TTL_MS) {
+        applyPostsResult(cached, myFocusId);
+        return;
+      }
       const cfg = getConfig();
       const url = new URL(cfg.postsUrl);
       url.searchParams.set("tags", String(focusId));
@@ -4695,29 +4737,26 @@ var desktopModePostsWindow = function(exports) {
         if (mySeq !== loadSeq || focusId !== myFocusId) {
           return;
         }
-        const items = response.json ?? [];
-        focusTotalPages = Math.max(
+        const raw = response.json ?? [];
+        const totalPages = Math.max(
           1,
           parseInt(response.headers.get("X-WP-TotalPages") ?? "1", 10) || 1
         );
-        const realTotal = parseInt(response.headers.get("X-WP-Total") ?? "", 10);
-        if (Number.isFinite(realTotal) && focusId !== null) {
-          const box = tags.get(focusId);
-          if (box && box.count !== realTotal) {
-            box.count = realTotal;
-            terms = terms.map(
-              (t) => t.id === box.id ? { ...t, count: realTotal } : t
-            );
-            layoutChip(box);
-          }
-        }
-        renderPosts(
-          items.map((p) => ({
-            id: p.id,
-            title: stripTags(p.title?.rendered || `#${p.id}`),
-            editUrl: `${cfg.editPostUrlBase}?post=${p.id}&action=edit`
-          }))
-        );
+        const realTotalParsed = parseInt(response.headers.get("X-WP-Total") ?? "", 10);
+        const realTotal = Number.isFinite(realTotalParsed) ? realTotalParsed : -1;
+        const items = raw.map((p) => ({
+          id: p.id,
+          title: stripTags(p.title?.rendered || `#${p.id}`),
+          editUrl: `${cfg.editPostUrlBase}?post=${p.id}&action=edit`
+        }));
+        const entry = {
+          items,
+          totalPages,
+          realTotal,
+          fetchedAt: performance.now()
+        };
+        postsCache.set(cacheKey2, entry);
+        applyPostsResult(entry, myFocusId);
       } catch (err) {
         showError(__("Couldn’t load posts:"), err);
       }
@@ -4819,6 +4858,10 @@ var desktopModePostsWindow = function(exports) {
     function openInPostsTab(_id, editUrl, title) {
       const wm = api?.windowManager;
       const derive = api?.deriveWindowId;
+      const postsWin = wm && typeof wm.getById === "function" ? wm.getById("desktop-mode-posts") : void 0;
+      if (postsWin && typeof postsWin.isFullscreen === "function" && typeof postsWin.toggleFullscreen === "function" && postsWin.isFullscreen()) {
+        postsWin.toggleFullscreen();
+      }
       if (wm && typeof derive === "function") {
         const id = derive(editUrl);
         wm.open({
@@ -5135,15 +5178,21 @@ var desktopModePostsWindow = function(exports) {
     addTagBtn.addEventListener("click", () => {
       startDraft();
     });
-    function fitToView(padding = 90) {
+    function fitToView(opts = {}) {
+      const padding = opts.padding ?? 90;
+      const animate = opts.animate ?? false;
       const r = stage.getBoundingClientRect();
       if (tags.size === 0 || r.width === 0 || r.height === 0) {
-        world.x = r.width / 2;
-        world.y = r.height / 2;
-        world.scale.set(1);
+        const cx2 = r.width / 2;
+        const cy2 = r.height / 2;
         targetScale = 1;
-        targetWorldX = world.x;
-        targetWorldY = world.y;
+        targetWorldX = cx2;
+        targetWorldY = cy2;
+        if (!animate) {
+          world.x = cx2;
+          world.y = cy2;
+          world.scale.set(1);
+        }
         return;
       }
       let minX = Infinity;
@@ -5163,27 +5212,38 @@ var desktopModePostsWindow = function(exports) {
       const scale = Math.max(0.2, Math.min(1.5, Math.min(sx, sy)));
       const cx = (minX + maxX) / 2;
       const cy = (minY + maxY) / 2;
-      world.scale.set(scale);
-      world.x = r.width / 2 - cx * scale;
-      world.y = r.height / 2 - cy * scale;
+      const newWorldX = r.width / 2 - cx * scale;
+      const newWorldY = r.height / 2 - cy * scale;
       targetScale = scale;
-      targetWorldX = world.x;
-      targetWorldY = world.y;
-    }
-    recenterBtn.addEventListener("click", () => fitToView());
-    const HOOK_NS = "desktop-mode/posts-tags-cloud";
-    const refitOnGeometryChange = (payload) => {
-      const p = payload;
-      if (p?.windowId !== "desktop-mode-posts") {
-        return;
+      targetWorldX = newWorldX;
+      targetWorldY = newWorldY;
+      if (!animate) {
+        world.scale.set(scale);
+        world.x = newWorldX;
+        world.y = newWorldY;
       }
-      scheduleFit();
-    };
-    addAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange);
-    addAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange);
+    }
+    function recenterCamera() {
+      if (focusId !== null) {
+        const focused = tags.get(focusId);
+        const r = stage.getBoundingClientRect();
+        if (focused && r.width > 0 && r.height > 0) {
+          const half = POST_RING_RADIUS + 70;
+          const sx = r.width * 0.85 / (2 * half);
+          const sy = r.height * 0.85 / (2 * half);
+          const newScale = Math.max(
+            0.5,
+            Math.min(1.6, Math.min(sx, sy))
+          );
+          targetScale = newScale;
+          targetWorldX = r.width / 2 - focused.x * newScale;
+          targetWorldY = r.height / 2 - focused.y * newScale;
+          return;
+        }
+      }
+      fitToView({ animate: true });
+    }
+    recenterBtn.addEventListener("click", () => recenterCamera());
     reflowBtn.addEventListener("click", () => {
       persistedPositions.clear();
       writePersistedPositions(positionsKey, persistedPositions);
@@ -5205,7 +5265,7 @@ var desktopModePostsWindow = function(exports) {
           h: box.height
         });
       }
-      fitToView();
+      fitToView({ animate: true });
     });
     app.canvas.addEventListener("click", (e) => {
       const now = performance.now();
@@ -5287,17 +5347,12 @@ var desktopModePostsWindow = function(exports) {
         cancelAnimationFrame(raf);
         raf = null;
       }
-      if (fitTimer !== null) {
-        window.clearTimeout(fitTimer);
-        fitTimer = null;
+      if (settleTimer !== null) {
+        window.clearTimeout(settleTimer);
+        settleTimer = null;
       }
       ro.disconnect();
       stage.removeEventListener("wheel", onWheel);
-      removeAction(HOOKS.WINDOW_RESIZE_END, HOOK_NS);
-      removeAction(HOOKS.WINDOW_MAXIMIZED, HOOK_NS);
-      removeAction(HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS);
-      removeAction(HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS);
-      removeAction(HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS);
       try {
         app.destroy(true, { children: true, texture: true });
       } catch {

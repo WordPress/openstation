@@ -248,31 +248,28 @@ export async function fetchPosts(
 	if ( params.order ) {
 		url.searchParams.set( 'order', params.order );
 	}
-	const joinIds = ( v: number | number[] ): string =>
-		Array.isArray( v )
-			? v.filter( ( n ) => Number.isFinite( n ) && n > 0 ).join( ',' )
-			: String( v );
-	if ( params.author ) {
-		const v = joinIds( params.author );
-		if ( v ) {
-			url.searchParams.set( 'author', v );
-		}
-	}
-	if ( params.tag ) {
-		const v = joinIds( params.tag );
-		if ( v ) {
-			url.searchParams.set( 'tags', v );
-			// AND semantics across multiple tags — the user wants
-			// posts that have EVERY listed tag, not the WP REST
-			// default of any-of. We piggy-back on a custom flag the
-			// posts-window's PHP filter (`rest_post_query`) reads to
-			// flip the resolved tax_query operator from `IN` to
-			// `AND`. Single-tag values are unaffected (AND with one
-			// element is identical to IN).
-			if ( Array.isArray( params.tag ) && params.tag.length > 1 ) {
-				url.searchParams.set( 'desktop_mode_tags_match', 'all' );
+	// Both `author` and `tags` REST params are registered as arrays
+	// of integers. We send them as `author[]=1&author[]=2` (and
+	// `tags[]=...`) — PHP's `parse_str` handles bracketed array
+	// notation unambiguously, whereas comma-separated values can be
+	// interpreted as a single string by some hosts / security
+	// modules / REST middleware that don't run the schema-aware
+	// `rest_sanitize_value_from_schema` splitter. Result: WP_Query
+	// gets `author__in` / `tag__in` arrays, which are union (OR)
+	// semantics — "posts whose author / tag is ANY of these".
+	const appendIds = ( key: string, v: number | number[] ): void => {
+		const list = Array.isArray( v ) ? v : [ v ];
+		for ( const id of list ) {
+			if ( Number.isFinite( id ) && id > 0 ) {
+				url.searchParams.append( `${ key }[]`, String( id ) );
 			}
 		}
+	};
+	if ( params.author ) {
+		appendIds( 'author', params.author );
+	}
+	if ( params.tag ) {
+		appendIds( 'tags', params.tag );
 	}
 
 	const { data, headers } = await request< PostListItem[] >( url.toString(), {

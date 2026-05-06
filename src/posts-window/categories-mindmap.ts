@@ -25,7 +25,6 @@
  */
 
 import { __, sprintf } from '../i18n';
-import { addAction, removeAction, HOOKS } from '../hooks';
 import {
 	createCategory,
 	deleteTerm,
@@ -74,7 +73,7 @@ interface PixiGraphics extends PixiContainer {
 		y: number,
 	): PixiGraphics;
 	lineTo( x: number, y: number ): PixiGraphics;
-	stroke( style: { color: number; width: number; alpha?: number } ): PixiGraphics;
+	stroke( style: { color: number; width: number; alpha?: number; alignment?: number } ): PixiGraphics;
 	fill( style: { color: number; alpha?: number } | number ): PixiGraphics;
 }
 interface PixiApp {
@@ -546,8 +545,12 @@ export async function mountCategoriesMindmap(
 			// When Uncategorized lives at the centre (its default
 			// state — see placeIsolated), force a minimum root ring
 			// so a single root doesn't try to share 0,0 with it.
+			// 140 leaves an Uncategorized disc (max radius 48) and
+			// each root disc (max radius 48) with a comfortable ~44px
+			// gap, while keeping the tree visually compact — anything
+			// larger spreads the branches out more than feels right.
 			const rootRing = uncategorized
-				? Math.max( rootRingByCount, 180 )
+				? Math.max( rootRingByCount, 140 )
 				: rootRingByCount;
 			const baseRadius =
 				depth === 0 ? rootRing : rootRing + 160 + ( depth - 1 ) * 150;
@@ -811,7 +814,7 @@ export async function mountCategoriesMindmap(
 		// 4. Light cap — the actual cluster colour, drawn slightly
 		//    smaller and offset upward so the rim from step 3 peeks
 		//    out at the bottom edge.
-		g.circle( 0, -r * 0.1, r * 0.94 );
+		g.circle( 0, -r * 0.06, r * 0.94 );
 		g.fill( node.color );
 		// 5. Specular highlight — a small soft white blob in the
 		//    upper-left quadrant. The tiny gloss is what flips the
@@ -825,6 +828,7 @@ export async function mountCategoriesMindmap(
 		g.stroke( {
 			color: 0xffffff,
 			width: highlighted ? 3 : 2,
+			alignment: 0,
 		} );
 		g.x = node.x;
 		g.y = node.y;
@@ -1559,15 +1563,27 @@ export async function mountCategoriesMindmap(
 	// scroll wheel tick.
 	function onWheel( e: WheelEvent ): void {
 		e.preventDefault();
-		const factor = e.deltaY < 0 ? 1.1 : 0.9;
-		// Compose against the TARGET, not the live scale. Stacking
-		// wheel ticks against the live (mid-ease) value would damp
-		// the zoom on rapid scroll because each tick multiplies a
-		// not-yet-arrived scale, eating effective range. Targeting
-		// the target keeps every tick worth its full 1.1× / 0.9×.
+		// Exponential zoom — multiplier scales smoothly with the
+		// wheel delta. Two reasons for the curve over a flat 1.1× /
+		// 0.9×:
+		//   1. Trackpads emit MANY small-deltaY events per gesture
+		//      (often ~3-15 units), so a flat 10% per event made
+		//      every flick of the trackpad feel like a 50%+ jump.
+		//   2. Mouse wheels emit fewer larger-deltaY events (~100
+		//      units per detent), so the same multiplier worked
+		//      fine — but tuning for either device alone hurt the
+		//      other.
+		// `Math.exp( -delta * k )` self-adapts: 100-unit detent
+		// → ~1.083× (8.3%, softer than the old 1.1×); 10-unit
+		// trackpad nudge → ~1.008× (barely a frame). Cumulative
+		// gestures still reach the full zoom range (0.3–2.5×) — they
+		// just take more events to get there, which IS the
+		// "smoother" the user asked for.
+		const SENSITIVITY = 0.0008;
+		const factor = Math.exp( -e.deltaY * SENSITIVITY );
 		const prev = targetScale;
 		const next = Math.max( 0.3, Math.min( 2.5, prev * factor ) );
-		if ( next === prev ) {
+		if ( Math.abs( next - prev ) < 0.0005 ) {
 			return;
 		}
 		const r = stage.getBoundingClientRect();
@@ -1603,47 +1619,53 @@ export async function mountCategoriesMindmap(
 	// so we frame the graph against the final stable canvas size,
 	// not the pre-flexbox-resolution size that an rAF would catch.
 	let firstFitDone = false;
-	// Debounced "fit when the layout actually settles". Window-
-	// geometry hooks (maximize / unmaximize / resize-end / fullscreen)
-	// fire SYNCHRONOUSLY when the size class changes, but the
-	// underlying CSS transition takes ~200-300ms to actually animate
-	// the box to its new dimensions. fitting in the next rAF reads
-	// stage.getBoundingClientRect() while the transition is barely
-	// underway → fits the OLD size, the canvas paints against an
-	// outdated frame, the user sees the layout perpetually one step
-	// behind. The fix: arm the fit on the hook, then extend the
-	// debounce every time ResizeObserver fires (which it does
-	// repeatedly during the transition). Once the size stops moving
-	// for `FIT_DEBOUNCE_MS`, the actual fit runs against settled
-	// dimensions.
-	const FIT_DEBOUNCE_MS = 80;
-	let fitTimer: number | null = null;
-	function scheduleFit(): void {
-		if ( fitTimer !== null ) {
-			window.clearTimeout( fitTimer );
-		}
-		fitTimer = window.setTimeout( () => {
-			fitTimer = null;
-			fitToView();
-		}, FIT_DEBOUNCE_MS );
-	}
+	// Single mechanism for "refit when the canvas actually changes
+	// size". We watch the stage; on every observed change we reset
+	// an 80ms debounce; when dimensions go quiet we refit IF the
+	// cumulative delta since the last settled state exceeds
+	// SETTLE_THRESHOLD_PX. That filter is the whole trick:
+	//   - Maximize / restore / fullscreen / browser resize / snap
+	//     zones all move the stage by hundreds of pixels → fit.
+	//   - Drag-resize handle (continuous storm of fires while the
+	//     pointer is held) → debounce extends until release → fit.
+	//   - Sidebar repaints from focusing a node cause sub-pixel
+	//     reflows of 0–2px → below threshold → ignored.
+	// No hook subscriptions, no payload filtering, no per-cause
+	// branching. The DOM is the source of truth — whatever caused
+	// the size change, the observer sees it.
+	let settledW = 0;
+	let settledH = 0;
+	const SETTLE_THRESHOLD_PX = 24;
+	const SETTLE_DEBOUNCE_MS = 80;
+	let settleTimer: number | null = null;
 	function onResize(): void {
 		const r = stage.getBoundingClientRect();
 		app.renderer.resize( r.width, r.height );
 		app.stage.hitArea = new pixi.Rectangle( 0, 0, r.width, r.height );
 		if ( ! firstFitDone && r.width > 0 && r.height > 0 ) {
 			firstFitDone = true;
+			settledW = r.width;
+			settledH = r.height;
 			fitToView();
 			stage.classList.remove( 'is-loading' );
 		}
-		// If a window-geometry hook armed a fit, this observer fire
-		// is part of the transition that hook described. Reset the
-		// debounce so the fit only lands once the size goes quiet.
-		// Stray reflows from sidebar repaints (which DON'T arm a
-		// fit) are unaffected — fitTimer stays null, no work done.
-		if ( fitTimer !== null ) {
-			scheduleFit();
+		if ( settleTimer !== null ) {
+			window.clearTimeout( settleTimer );
 		}
+		settleTimer = window.setTimeout( () => {
+			settleTimer = null;
+			const cur = stage.getBoundingClientRect();
+			const dw = Math.abs( cur.width - settledW );
+			const dh = Math.abs( cur.height - settledH );
+			if (
+				dw >= SETTLE_THRESHOLD_PX ||
+				dh >= SETTLE_THRESHOLD_PX
+			) {
+				settledW = cur.width;
+				settledH = cur.height;
+				recenterCamera();
+			}
+		}, SETTLE_DEBOUNCE_MS );
 		// Force an immediate render so the freshly-resized canvas
 		// has pixels in it RIGHT NOW. Without this Pixi waits for
 		// the next ticker frame, and a continuous window-resize
@@ -1871,7 +1893,16 @@ export async function mountCategoriesMindmap(
 			pixiInteractionAt = performance.now();
 		} );
 		container.on( 'pointertap', () => {
+			// Open the post in a new shell window AND exit focus
+			// mode in the same gesture. Without the closeFocus the
+			// canvas stays zoomed in on the focused node — when the
+			// user finishes editing and returns to the Posts window
+			// they can't see the rest of the tree until they manually
+			// click empty canvas. Closing focus here turns "click a
+			// satellite post" into a clean transition: open the post,
+			// release the camera back to the full tree view.
 			openInPostsTab( post.id, post.editUrl, post.title );
+			closeFocus();
 		} );
 		container.on( 'pointerover', () => {
 			chip.cachedHover = true;
@@ -1937,6 +1968,45 @@ export async function mountCategoriesMindmap(
 		chip.titleText.y = -titleH / 2;
 	}
 
+	// Per-(termId, page) cache for the satellite post fan. First click
+	// on a node fetches; subsequent clicks within POSTS_CACHE_TTL_MS
+	// re-render from cache with no network round-trip — paging back
+	// and forth between two nodes feels instant. TTL guards against
+	// staleness if the user leaves the window open for a while; on
+	// expiry the next click re-fetches.
+	interface PostsCacheEntry {
+		items: Array< { id: number; title: string; editUrl: string } >;
+		totalPages: number;
+		realTotal: number;
+		fetchedAt: number;
+	}
+	const POSTS_CACHE_TTL_MS = 60_000;
+	const postsCache = new Map< string, PostsCacheEntry >();
+
+	function applyPostsResult(
+		entry: PostsCacheEntry,
+		focusedNodeId: number,
+	): void {
+		focusTotalPages = entry.totalPages;
+		// Reconcile the node's count against the authoritative
+		// X-WP-Total even on cache hits — the cached value reflects
+		// what the server said at fetch time, which is the most
+		// reliable signal we have for the badge.
+		if ( Number.isFinite( entry.realTotal ) ) {
+			const node = nodes.get( focusedNodeId );
+			if ( node && node.count !== entry.realTotal ) {
+				node.count = entry.realTotal;
+				terms = terms.map( ( t ) =>
+					t.id === node.id
+						? { ...t, count: entry.realTotal }
+						: t,
+				);
+				layoutChip( ensureChip( node ), node );
+			}
+		}
+		renderPosts( entry.items );
+	}
+
 	async function loadPostsForFocus(): Promise< void > {
 		if ( focusId === null ) {
 			return;
@@ -1946,6 +2016,12 @@ export async function mountCategoriesMindmap(
 		// is no longer current.
 		const mySeq = ++loadSeq;
 		const myFocusId = focusId;
+		const cacheKey = `${ focusId }:${ focusPage }`;
+		const cached = postsCache.get( cacheKey );
+		if ( cached && performance.now() - cached.fetchedAt < POSTS_CACHE_TTL_MS ) {
+			applyPostsResult( cached, myFocusId );
+			return;
+		}
 		const cfg = getConfig();
 		const url = new URL( cfg.postsUrl );
 		url.searchParams.set( 'categories', String( focusId ) );
@@ -1958,11 +2034,11 @@ export async function mountCategoriesMindmap(
 			if ( mySeq !== loadSeq || focusId !== myFocusId ) {
 				return;
 			}
-			const items = ( response.json as Array< {
+			const raw = ( response.json as Array< {
 				id: number;
 				title?: { rendered?: string };
 			} > ) ?? [];
-			focusTotalPages = Math.max(
+			const totalPages = Math.max(
 				1,
 				parseInt( response.headers.get( 'X-WP-TotalPages' ) ?? '1', 10 ) || 1,
 			);
@@ -1971,30 +2047,25 @@ export async function mountCategoriesMindmap(
 			// term's pre-aggregated `count` is stale or wrong (the
 			// REST term endpoint sometimes lags drafts/pending under
 			// custom-status setups), this is the number the user
-			// expects to see on the node label. Update node.count
-			// AND the cached terms list so the displayed badge tracks
-			// reality across re-renders.
-			const realTotal =
+			// expects to see on the node label.
+			const realTotalParsed =
 				parseInt( response.headers.get( 'X-WP-Total' ) ?? '', 10 );
-			if ( Number.isFinite( realTotal ) && focusId !== null ) {
-				const node = nodes.get( focusId );
-				if ( node && node.count !== realTotal ) {
-					node.count = realTotal;
-					terms = terms.map( ( t ) =>
-						t.id === node.id
-							? { ...t, count: realTotal }
-							: t,
-					);
-					layoutChip( ensureChip( node ), node );
-				}
-			}
-			renderPosts(
-				items.map( ( p ) => ( {
-					id: p.id,
-					title: stripTags( p.title?.rendered || `#${ p.id }` ),
-					editUrl: `${ cfg.editPostUrlBase }?post=${ p.id }&action=edit`,
-				} ) ),
-			);
+			const realTotal = Number.isFinite( realTotalParsed )
+				? realTotalParsed
+				: -1;
+			const items = raw.map( ( p ) => ( {
+				id: p.id,
+				title: stripTags( p.title?.rendered || `#${ p.id }` ),
+				editUrl: `${ cfg.editPostUrlBase }?post=${ p.id }&action=edit`,
+			} ) );
+			const entry: PostsCacheEntry = {
+				items,
+				totalPages,
+				realTotal,
+				fetchedAt: performance.now(),
+			};
+			postsCache.set( cacheKey, entry );
+			applyPostsResult( entry, myFocusId );
 		} catch ( err ) {
 			showError( __( 'Couldn’t load posts:' ), err );
 		}
@@ -2124,6 +2195,24 @@ export async function mountCategoriesMindmap(
 		// shell that exposes them.
 		const wm = api?.windowManager;
 		const derive = api?.deriveWindowId;
+		// If the Posts window is currently in fullscreen ("focus")
+		// mode, the new post window opens with a normal z-index and
+		// is hidden behind the fullscreen z-stack — the user clicks
+		// a post and nothing visibly happens. Exit fullscreen first
+		// so the freshly-opened window lands somewhere visible.
+		const postsWin =
+			wm && typeof ( wm as { getById?: ( id: string ) => unknown } ).getById === 'function'
+				? ( wm as { getById: ( id: string ) => { isFullscreen?: () => boolean; toggleFullscreen?: () => void } | undefined } )
+					.getById( 'desktop-mode-posts' )
+				: undefined;
+		if (
+			postsWin &&
+			typeof postsWin.isFullscreen === 'function' &&
+			typeof postsWin.toggleFullscreen === 'function' &&
+			postsWin.isFullscreen()
+		) {
+			postsWin.toggleFullscreen();
+		}
 		if ( wm && typeof derive === 'function' ) {
 			const id = derive( editUrl );
 			wm.open( {
@@ -2571,20 +2660,26 @@ export async function mountCategoriesMindmap(
 		startDraft( 0 );
 	} );
 
-	function fitToView( padding = 90 ): void {
+	function fitToView( opts: { padding?: number; animate?: boolean } = {} ): void {
 		// Bounding box of every node's TARGET position (not current —
 		// the user might trigger fit while nodes are mid-ease).
 		// We extend the bbox vertically to include the label row that
 		// sits below each disc, so labels don't get clipped at the
 		// canvas edge after fit.
+		const padding = opts.padding ?? 90;
+		const animate = opts.animate ?? false;
 		const r = stage.getBoundingClientRect();
 		if ( nodes.size === 0 || r.width === 0 || r.height === 0 ) {
-			world.x = r.width / 2;
-			world.y = r.height / 2;
-			world.scale.set( 1 );
+			const cx = r.width / 2;
+			const cy = r.height / 2;
 			targetScale = 1;
-			targetWorldX = world.x;
-			targetWorldY = world.y;
+			targetWorldX = cx;
+			targetWorldY = cy;
+			if ( ! animate ) {
+				world.x = cx;
+				world.y = cy;
+				world.scale.set( 1 );
+			}
 			return;
 		}
 		let minX = Infinity;
@@ -2613,50 +2708,55 @@ export async function mountCategoriesMindmap(
 		const scale = Math.max( 0.2, Math.min( 1.5, Math.min( sx, sy ) ) );
 		const cx = ( minX + maxX ) / 2;
 		const cy = ( minY + maxY ) / 2;
-		world.scale.set( scale );
-		world.x = r.width / 2 - cx * scale;
-		world.y = r.height / 2 - cy * scale;
-		// Sync smooth-zoom targets so the per-frame easing in tick()
-		// doesn't immediately yank the world back toward whatever
-		// the previous targets were.
+		// Always update the targets — the tick() loop's smooth-zoom
+		// easing reads from these every frame. When `animate` is
+		// false (first-mount snap, internal callers that need an
+		// instant fit), we ALSO write the live world transform so
+		// nothing visibly moves; when `animate` is true, only the
+		// targets change and the per-frame ease in tick() interpolates
+		// the world toward them over ~5-6 frames (~80-100ms).
+		const newWorldX = r.width / 2 - cx * scale;
+		const newWorldY = r.height / 2 - cy * scale;
 		targetScale = scale;
-		targetWorldX = world.x;
-		targetWorldY = world.y;
+		targetWorldX = newWorldX;
+		targetWorldY = newWorldY;
+		if ( ! animate ) {
+			world.scale.set( scale );
+			world.x = newWorldX;
+			world.y = newWorldY;
+		}
 	}
 
-	recenterBtn.addEventListener( 'click', () => fitToView() );
-
-	// Window-resize-end → recenter the canvas. Listening on the
-	// shell's hook bus instead of the stage's ResizeObserver because
-	// the observer also fires for tiny flexbox reflows triggered by
-	// sidebar repaints (focusing a node), and we don't want those to
-	// rip the user's pan/zoom back to centre. The hooks below fire
-	// once per user-initiated geometry change:
-	//   - WINDOW_RESIZE_END: drag-handle resize ends.
-	//   - WINDOW_MAXIMIZED / WINDOW_UNMAXIMIZED: max / restore.
-	//   - WINDOW_FULLSCREEN_ENTERED / WINDOW_FULLSCREEN_EXITED.
-	// Wrapped in rAF so the stage's new dimensions are guaranteed to
-	// be readable when fitToView measures them. When the canvas is
-	// hidden behind another tab, `fitToView` short-circuits on the
-	// zero-dimension guard already in place, so no special handling
-	// is needed for the inactive-tab case.
-	const HOOK_NS = 'desktop-mode/posts-categories-mindmap';
-	const refitOnGeometryChange = ( payload: unknown ): void => {
-		const p = payload as { windowId?: string };
-		if ( p?.windowId !== 'desktop-mode-posts' ) {
-			return;
+	/**
+	 * Recompute the camera framing for the current state. Focus-aware:
+	 * if a node is focused, frames the focused node + its post fan
+	 * (the same calc focusNode uses); otherwise frames the whole
+	 * tree. Always animates — meant for after-the-fact recenter
+	 * triggers (resize-end, recenter button) where snapping would
+	 * feel jarring.
+	 */
+	function recenterCamera(): void {
+		if ( focusId !== null ) {
+			const focused = nodes.get( focusId );
+			const r = stage.getBoundingClientRect();
+			if ( focused && r.width > 0 && r.height > 0 ) {
+				const half = POST_RING_RADIUS + 70;
+				const sx = ( r.width * 0.85 ) / ( 2 * half );
+				const sy = ( r.height * 0.85 ) / ( 2 * half );
+				const newScale = Math.max(
+					0.5,
+					Math.min( 1.6, Math.min( sx, sy ) ),
+				);
+				targetScale = newScale;
+				targetWorldX = r.width / 2 - focused.x * newScale;
+				targetWorldY = r.height / 2 - focused.y * newScale;
+				return;
+			}
 		}
-		// Arm a debounced fit. The transition is just starting;
-		// onResize will keep extending the debounce while it's
-		// running, and the actual fitToView() will run once the
-		// size has stopped moving. See `scheduleFit` above.
-		scheduleFit();
-	};
-	addAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange );
+		fitToView( { animate: true } );
+	}
+
+	recenterBtn.addEventListener( 'click', () => recenterCamera() );
 
 	// Click empty canvas → close focus. Pixi paints into the canvas,
 	// so a click on the focused node, a satellite, the pager arrows,
@@ -2724,10 +2824,11 @@ export async function mountCategoriesMindmap(
 			// Bigger / smaller bubbles after a count update — radii
 			// are derived from `Math.sqrt( count / max )`, so any
 			// change ripples through every node's radius. Rebuild the
-			// tree to refresh radii + label-row positions.
+			// tree to refresh radii + label-row positions, then
+			// animate the camera to the new framing.
 			if ( dirty ) {
 				buildTree();
-				fitToView();
+				fitToView( { animate: true } );
 			}
 		} catch {
 			// Silent — we already have whatever count the term-list
@@ -2773,17 +2874,12 @@ export async function mountCategoriesMindmap(
 			cancelAnimationFrame( raf );
 			raf = null;
 		}
-		if ( fitTimer !== null ) {
-			window.clearTimeout( fitTimer );
-			fitTimer = null;
+		if ( settleTimer !== null ) {
+			window.clearTimeout( settleTimer );
+			settleTimer = null;
 		}
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
-		removeAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS );
-		removeAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS );
-		removeAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS );
-		removeAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS );
-		removeAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS );
 		try {
 			app.destroy( true, { children: true, texture: true } );
 		} catch {

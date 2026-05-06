@@ -30,7 +30,6 @@
  */
 
 import { __, sprintf } from '../i18n';
-import { addAction, removeAction, HOOKS } from '../hooks';
 import {
 	createTag,
 	deleteTerm,
@@ -306,8 +305,9 @@ export async function mountTagsCloud(
 	app.stage.addChild( world );
 
 	// Layer order (back to front):
-	//   chipLayer        → tag pills
 	//   postEdgeLayer    → faint radial lines from focused chip to posts
+	//   chipLayer        → tag pills (above the lines so a focused
+	//                      chip's connectors visibly pass behind it)
 	//   postLayer        → invisible post markers (kept for compat)
 	//   postChipLayer    → post pill chips (the visible satellites)
 	//   pagerLayer       → ◀ N / M ▶ controls under the post fan
@@ -315,8 +315,8 @@ export async function mountTagsCloud(
 	const postEdgeLayer = new pixi.Container();
 	const postLayer = new pixi.Container();
 	const postChipLayer = new pixi.Container();
-	world.addChild( chipLayer );
 	world.addChild( postEdgeLayer );
+	world.addChild( chipLayer );
 	world.addChild( postLayer );
 	world.addChild( postChipLayer );
 
@@ -962,10 +962,18 @@ export async function mountTagsCloud(
 
 	function onWheel( e: WheelEvent ): void {
 		e.preventDefault();
-		const factor = e.deltaY < 0 ? 1.1 : 0.9;
+		// Exponential zoom — see the matching block in
+		// categories-mindmap.ts for full rationale. Briefly: a flat
+		// 10% multiplier per event was harsh on trackpads (which
+		// emit many small-delta events per gesture) and tolerable
+		// on mice (one big-delta event per detent). Math.exp scales
+		// the multiplier with the wheel delta so both devices
+		// converge to a smooth feel.
+		const SENSITIVITY = 0.0008;
+		const factor = Math.exp( -e.deltaY * SENSITIVITY );
 		const prev = targetScale;
 		const next = Math.max( 0.3, Math.min( 2.5, prev * factor ) );
-		if ( next === prev ) {
+		if ( Math.abs( next - prev ) < 0.0005 ) {
 			return;
 		}
 		const r = stage.getBoundingClientRect();
@@ -981,43 +989,47 @@ export async function mountTagsCloud(
 
 	// --- Resize ------------------------------------------------------
 	let firstFitDone = false;
-	// Debounced "fit when the layout actually settles". Window-
-	// geometry hooks (maximize / unmaximize / resize-end / fullscreen)
-	// fire SYNCHRONOUSLY when the size class changes, but the CSS
-	// transition takes ~200-300ms to actually animate the box to its
-	// new dimensions. Reading getBoundingClientRect() in the next
-	// rAF would catch the OLD size; the canvas would render fitted
-	// to that, leaving the user one transition behind. The fix:
-	// arm the fit on the hook, then extend the debounce on every
-	// ResizeObserver fire (which the transition triggers repeatedly).
-	// The actual fitToView() lands once the size goes quiet for
-	// FIT_DEBOUNCE_MS.
-	const FIT_DEBOUNCE_MS = 80;
-	let fitTimer: number | null = null;
-	function scheduleFit(): void {
-		if ( fitTimer !== null ) {
-			window.clearTimeout( fitTimer );
-		}
-		fitTimer = window.setTimeout( () => {
-			fitTimer = null;
-			fitToView();
-		}, FIT_DEBOUNCE_MS );
-	}
+	// Single mechanism for "refit when the canvas actually changes
+	// size" — see the matching block in categories-mindmap.ts for
+	// the rationale. Briefly: ResizeObserver is the only signal
+	// universal across every resize path (title-bar maximize, drag-
+	// resize, snap, browser resize, fullscreen, future paths…); a
+	// 24px significance threshold separates real resizes from sub-
+	// pixel sidebar reflows; an 80ms debounce waits for the CSS
+	// transition to settle before fitting.
+	let settledW = 0;
+	let settledH = 0;
+	const SETTLE_THRESHOLD_PX = 24;
+	const SETTLE_DEBOUNCE_MS = 80;
+	let settleTimer: number | null = null;
 	function onResize(): void {
 		const r = stage.getBoundingClientRect();
 		app.renderer.resize( r.width, r.height );
 		app.stage.hitArea = new pixi.Rectangle( 0, 0, r.width, r.height );
 		if ( ! firstFitDone && r.width > 0 && r.height > 0 ) {
 			firstFitDone = true;
+			settledW = r.width;
+			settledH = r.height;
 			fitToView();
 			stage.classList.remove( 'is-loading' );
 		}
-		// Extend the debounce while the size is still moving. Stray
-		// flexbox reflows from sidebar repaints (which DON'T arm a
-		// fit) are unaffected — fitTimer stays null, no fit runs.
-		if ( fitTimer !== null ) {
-			scheduleFit();
+		if ( settleTimer !== null ) {
+			window.clearTimeout( settleTimer );
 		}
+		settleTimer = window.setTimeout( () => {
+			settleTimer = null;
+			const cur = stage.getBoundingClientRect();
+			const dw = Math.abs( cur.width - settledW );
+			const dh = Math.abs( cur.height - settledH );
+			if (
+				dw >= SETTLE_THRESHOLD_PX ||
+				dh >= SETTLE_THRESHOLD_PX
+			) {
+				settledW = cur.width;
+				settledH = cur.height;
+				recenterCamera();
+			}
+		}, SETTLE_DEBOUNCE_MS );
 		app.render();
 	}
 	const ro = new ResizeObserver( onResize );
@@ -1151,7 +1163,16 @@ export async function mountTagsCloud(
 			pixiInteractionAt = performance.now();
 		} );
 		container.on( 'pointertap', () => {
+			// Open the post in a new shell window AND exit focus mode
+			// in the same gesture. Without the closeFocus the canvas
+			// stays zoomed-in on the spotlit chip — when the user
+			// finishes editing and returns to the Posts window, they
+			// can't see the rest of the cloud until they manually
+			// click empty canvas. Closing focus here makes "click a
+			// satellite post" a clean transition: open the post,
+			// release the camera back to the full cloud view.
 			openInPostsTab( post.id, post.editUrl, post.title );
+			closeFocus();
 		} );
 		container.on( 'pointerover', () => {
 			chip.cachedHover = true;
@@ -1215,12 +1236,51 @@ export async function mountTagsCloud(
 		chip.titleText.y = -titleH / 2;
 	}
 
+	// Per-(tagId, page) cache for the satellite post fan. See the
+	// matching block in categories-mindmap.ts for rationale: first
+	// click fetches, subsequent clicks within POSTS_CACHE_TTL_MS hit
+	// the cache and render synchronously.
+	interface PostsCacheEntry {
+		items: Array< { id: number; title: string; editUrl: string } >;
+		totalPages: number;
+		realTotal: number;
+		fetchedAt: number;
+	}
+	const POSTS_CACHE_TTL_MS = 60_000;
+	const postsCache = new Map< string, PostsCacheEntry >();
+
+	function applyPostsResult(
+		entry: PostsCacheEntry,
+		focusedTagId: number,
+	): void {
+		focusTotalPages = entry.totalPages;
+		if ( Number.isFinite( entry.realTotal ) ) {
+			const box = tags.get( focusedTagId );
+			if ( box && box.count !== entry.realTotal ) {
+				box.count = entry.realTotal;
+				terms = terms.map( ( t ) =>
+					t.id === box.id
+						? { ...t, count: entry.realTotal }
+						: t,
+				);
+				layoutChip( box );
+			}
+		}
+		renderPosts( entry.items );
+	}
+
 	async function loadPostsForFocus(): Promise< void > {
 		if ( focusId === null ) {
 			return;
 		}
 		const mySeq = ++loadSeq;
 		const myFocusId = focusId;
+		const cacheKey = `${ focusId }:${ focusPage }`;
+		const cached = postsCache.get( cacheKey );
+		if ( cached && performance.now() - cached.fetchedAt < POSTS_CACHE_TTL_MS ) {
+			applyPostsResult( cached, myFocusId );
+			return;
+		}
 		const cfg = getConfig();
 		const url = new URL( cfg.postsUrl );
 		url.searchParams.set( 'tags', String( focusId ) );
@@ -1233,12 +1293,12 @@ export async function mountTagsCloud(
 			if ( mySeq !== loadSeq || focusId !== myFocusId ) {
 				return;
 			}
-			const items =
+			const raw =
 				( response.json as Array< {
 					id: number;
 					title?: { rendered?: string };
 				} > ) ?? [];
-			focusTotalPages = Math.max(
+			const totalPages = Math.max(
 				1,
 				parseInt( response.headers.get( 'X-WP-TotalPages' ) ?? '1', 10 ) || 1,
 			);
@@ -1246,25 +1306,24 @@ export async function mountTagsCloud(
 			// runs — keeps the chip badge honest when the term-list
 			// REST count is stale (drafts/pending under custom-status
 			// plugins, REST cache layers).
-			const realTotal =
+			const realTotalParsed =
 				parseInt( response.headers.get( 'X-WP-Total' ) ?? '', 10 );
-			if ( Number.isFinite( realTotal ) && focusId !== null ) {
-				const box = tags.get( focusId );
-				if ( box && box.count !== realTotal ) {
-					box.count = realTotal;
-					terms = terms.map( ( t ) =>
-						t.id === box.id ? { ...t, count: realTotal } : t,
-					);
-					layoutChip( box );
-				}
-			}
-			renderPosts(
-				items.map( ( p ) => ( {
-					id: p.id,
-					title: stripTags( p.title?.rendered || `#${ p.id }` ),
-					editUrl: `${ cfg.editPostUrlBase }?post=${ p.id }&action=edit`,
-				} ) ),
-			);
+			const realTotal = Number.isFinite( realTotalParsed )
+				? realTotalParsed
+				: -1;
+			const items = raw.map( ( p ) => ( {
+				id: p.id,
+				title: stripTags( p.title?.rendered || `#${ p.id }` ),
+				editUrl: `${ cfg.editPostUrlBase }?post=${ p.id }&action=edit`,
+			} ) );
+			const entry: PostsCacheEntry = {
+				items,
+				totalPages,
+				realTotal,
+				fetchedAt: performance.now(),
+			};
+			postsCache.set( cacheKey, entry );
+			applyPostsResult( entry, myFocusId );
 		} catch ( err ) {
 			showError( __( 'Couldn’t load posts:' ), err );
 		}
@@ -1383,6 +1442,23 @@ export async function mountTagsCloud(
 	): void {
 		const wm = api?.windowManager;
 		const derive = api?.deriveWindowId;
+		// If the Posts window is in fullscreen ("focus") mode, the
+		// new post window opens with a normal z-index and would be
+		// hidden behind the fullscreen z-stack. Exit fullscreen
+		// first so the user actually sees the post they clicked.
+		const postsWin =
+			wm && typeof ( wm as { getById?: ( id: string ) => unknown } ).getById === 'function'
+				? ( wm as { getById: ( id: string ) => { isFullscreen?: () => boolean; toggleFullscreen?: () => void } | undefined } )
+					.getById( 'desktop-mode-posts' )
+				: undefined;
+		if (
+			postsWin &&
+			typeof postsWin.isFullscreen === 'function' &&
+			typeof postsWin.toggleFullscreen === 'function' &&
+			postsWin.isFullscreen()
+		) {
+			postsWin.toggleFullscreen();
+		}
 		if ( wm && typeof derive === 'function' ) {
 			const id = derive( editUrl );
 			wm.open( {
@@ -1747,15 +1823,25 @@ export async function mountTagsCloud(
 		startDraft();
 	} );
 
-	function fitToView( padding = 90 ): void {
+	function fitToView( opts: { padding?: number; animate?: boolean } = {} ): void {
+		// `animate=false` snaps the live world transform; `animate=true`
+		// only updates the targets and lets the per-frame easing in
+		// tick() interpolate smoothly. See the matching block in
+		// categories-mindmap.ts for full rationale.
+		const padding = opts.padding ?? 90;
+		const animate = opts.animate ?? false;
 		const r = stage.getBoundingClientRect();
 		if ( tags.size === 0 || r.width === 0 || r.height === 0 ) {
-			world.x = r.width / 2;
-			world.y = r.height / 2;
-			world.scale.set( 1 );
+			const cx = r.width / 2;
+			const cy = r.height / 2;
 			targetScale = 1;
-			targetWorldX = world.x;
-			targetWorldY = world.y;
+			targetWorldX = cx;
+			targetWorldY = cy;
+			if ( ! animate ) {
+				world.x = cx;
+				world.y = cy;
+				world.scale.set( 1 );
+			}
 			return;
 		}
 		let minX = Infinity;
@@ -1775,39 +1861,46 @@ export async function mountTagsCloud(
 		const scale = Math.max( 0.2, Math.min( 1.5, Math.min( sx, sy ) ) );
 		const cx = ( minX + maxX ) / 2;
 		const cy = ( minY + maxY ) / 2;
-		world.scale.set( scale );
-		world.x = r.width / 2 - cx * scale;
-		world.y = r.height / 2 - cy * scale;
+		const newWorldX = r.width / 2 - cx * scale;
+		const newWorldY = r.height / 2 - cy * scale;
 		targetScale = scale;
-		targetWorldX = world.x;
-		targetWorldY = world.y;
+		targetWorldX = newWorldX;
+		targetWorldY = newWorldY;
+		if ( ! animate ) {
+			world.scale.set( scale );
+			world.x = newWorldX;
+			world.y = newWorldY;
+		}
 	}
 
-	recenterBtn.addEventListener( 'click', () => fitToView() );
-
-	// Window-resize-end → recenter the cloud. Same shape as the
-	// Categories mindmap: subscribe to the geometry-change hooks on
-	// the shell's bus, filter by windowId, run fitToView in the next
-	// rAF so the stage's new dimensions are settled. The stage's own
-	// ResizeObserver isn't suitable here because it also fires on
-	// flexbox reflows from sidebar repaints, which would clobber the
-	// user's pan/zoom on every chip click.
-	const HOOK_NS = 'desktop-mode/posts-tags-cloud';
-	const refitOnGeometryChange = ( payload: unknown ): void => {
-		const p = payload as { windowId?: string };
-		if ( p?.windowId !== 'desktop-mode-posts' ) {
-			return;
+	/**
+	 * Focus-aware recenter — frames the focused chip + post fan when
+	 * one is active, otherwise frames the whole cloud. Always
+	 * animates; called from the resize-end settle and the recenter
+	 * button.
+	 */
+	function recenterCamera(): void {
+		if ( focusId !== null ) {
+			const focused = tags.get( focusId );
+			const r = stage.getBoundingClientRect();
+			if ( focused && r.width > 0 && r.height > 0 ) {
+				const half = POST_RING_RADIUS + 70;
+				const sx = ( r.width * 0.85 ) / ( 2 * half );
+				const sy = ( r.height * 0.85 ) / ( 2 * half );
+				const newScale = Math.max(
+					0.5,
+					Math.min( 1.6, Math.min( sx, sy ) ),
+				);
+				targetScale = newScale;
+				targetWorldX = r.width / 2 - focused.x * newScale;
+				targetWorldY = r.height / 2 - focused.y * newScale;
+				return;
+			}
 		}
-		// Arm a debounced fit. onResize keeps extending the timer
-		// while the transition is in-flight; the actual fit runs
-		// against the settled dimensions. See `scheduleFit` above.
-		scheduleFit();
-	};
-	addAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS, refitOnGeometryChange );
-	addAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS, refitOnGeometryChange );
+		fitToView( { animate: true } );
+	}
+
+	recenterBtn.addEventListener( 'click', () => recenterCamera() );
 
 	reflowBtn.addEventListener( 'click', () => {
 		// Wipe persisted positions and rebuild the layout from
@@ -1836,7 +1929,10 @@ export async function mountTagsCloud(
 				h: box.height,
 			} );
 		}
-		fitToView();
+		// Smooth zoom-out as the cloud rearranges. Chips ease into
+		// their new spiral positions in tick(); the camera animates
+		// to the new framing in lockstep.
+		fitToView( { animate: true } );
 	} );
 
 	// Click empty canvas → close focus. Pixi paints into the canvas,
@@ -1967,17 +2063,12 @@ export async function mountTagsCloud(
 			cancelAnimationFrame( raf );
 			raf = null;
 		}
-		if ( fitTimer !== null ) {
-			window.clearTimeout( fitTimer );
-			fitTimer = null;
+		if ( settleTimer !== null ) {
+			window.clearTimeout( settleTimer );
+			settleTimer = null;
 		}
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
-		removeAction( HOOKS.WINDOW_RESIZE_END, HOOK_NS );
-		removeAction( HOOKS.WINDOW_MAXIMIZED, HOOK_NS );
-		removeAction( HOOKS.WINDOW_UNMAXIMIZED, HOOK_NS );
-		removeAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, HOOK_NS );
-		removeAction( HOOKS.WINDOW_FULLSCREEN_EXITED, HOOK_NS );
 		try {
 			app.destroy( true, { children: true, texture: true } );
 		} catch {

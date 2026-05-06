@@ -43,6 +43,13 @@ export const styles = css`
 		   --wpd-table-bg directly to opt out of the surface chain. */
 		--wpd-table-bg: var( --wpd-surface, #fff );
 		--wpd-table-border: var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+		/* Column dividers when [bordered] is set. Defaults darker
+		 * than --wpd-table-border because row separators read fine
+		 * at low contrast (the eye scans top-to-bottom and the gap
+		 * between rows is enough), but column separators need to
+		 * actively SAY "this column ends here" to the user. Override
+		 * to match --wpd-table-border for the original ghosted look. */
+		--wpd-table-column-border: var( --wpd-border-strong, rgba( 0, 0, 0, 0.14 ) );
 		--wpd-table-header-bg: var( --wpd-surface-elevated, #f6f7f7 );
 		/* Translucent overlays — these are LAYERED, never replaced
 		   into a base background. Keep them rgba so they compose
@@ -140,7 +147,7 @@ export const styles = css`
 
 	:host( [ bordered ] ) thead th,
 	:host( [ bordered ] ) tbody td {
-		border-inline-end: 1px solid var( --wpd-table-border );
+		border-inline-end: 1px solid var( --wpd-table-column-border );
 	}
 	:host( [ bordered ] ) thead th:last-child,
 	:host( [ bordered ] ) tbody td:last-child {

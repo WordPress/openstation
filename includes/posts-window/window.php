@@ -81,6 +81,7 @@ function desktop_mode_posts_window_render_template() {
 						sticky-columns="1"
 						hover
 						striped
+						bordered
 						loading
 					>
 						<div slot="empty" class="desktop-mode-posts__empty">
