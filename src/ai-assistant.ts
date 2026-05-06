@@ -228,12 +228,20 @@ interface ContinueHint {
 // Minimal shape of the window manager we use — avoids pulling full types.
 interface WindowManagerLite {
 	open( cfg: {
-		id?: string;
+		id: string;
 		url: string;
 		title: string;
 		icon?: string;
 		native?: boolean;
 	} ): unknown;
+}
+
+// Subset of `wp.desktop.*` we read at runtime. Both `windowManager` and
+// `deriveWindowId` ship together (initialised by the shell bundle's
+// `setupDesktopMode()`), so when one is present the other is too.
+interface DesktopShellLite {
+	windowManager?: WindowManagerLite;
+	deriveWindowId?: ( url: string, adminUrl?: string ) => string;
 }
 
 // ---------------------------------------------------------------------------
@@ -944,22 +952,36 @@ export class AiAssistant implements AiAssistantApi {
 	// new browser tab, so the admin experience stays inside the desktop.
 	// ------------------------------------------------------------------
 
-	private _getWindowManager(): WindowManagerLite | null {
-		const wm = ( window as unknown as {
-			wp?: { desktop?: { windowManager?: WindowManagerLite } };
-		} ).wp?.desktop?.windowManager;
-		return wm ?? null;
+	private _getDesktopShell(): DesktopShellLite | null {
+		const shell = ( window as unknown as {
+			wp?: { desktop?: DesktopShellLite };
+		} ).wp?.desktop;
+		return shell ?? null;
 	}
 
 	private _openInLegacyWindow( url: string, title: string, icon?: string ): void {
-		const wm = this._getWindowManager();
-		if ( ! wm ) {
+		const shell = this._getDesktopShell();
+		if ( ! shell || ! shell.windowManager ) {
 			// Graceful fallback — if the shell isn't initialised yet,
 			// just open in a new tab rather than silently doing nothing.
 			window.open( url, '_blank', 'noopener' );
 			return;
 		}
-		wm.open( { url, title, icon: icon ?? 'dashicons-admin-generic' } );
+		// `windowManager.open()` requires a non-empty `id`. Use the
+		// shell's own URL→id helper so the window we open coalesces
+		// with any existing window pointing at the same admin page
+		// (matches what clicking the dock would do). Fall back to a
+		// URL-derived synthetic id when the helper isn't exposed —
+		// older shells, or contrived test environments.
+		const id = shell.deriveWindowId
+			? shell.deriveWindowId( url )
+			: 'desktop-mode-ai-' + url.replace( /[^a-z0-9]+/gi, '-' ).slice( 0, 80 );
+		shell.windowManager.open( {
+			id,
+			url,
+			title,
+			icon: icon ?? 'dashicons-admin-generic',
+		} );
 		this.close();
 	}
 
