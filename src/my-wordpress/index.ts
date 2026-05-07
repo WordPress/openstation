@@ -28,6 +28,7 @@ import {
 import {
 	buildEditUrl,
 	fetchAttachedMedia,
+	fetchCommentStats,
 	fetchComments,
 	fetchEntityDetail,
 	fetchEntityList,
@@ -39,6 +40,7 @@ import {
 	fetchTerms,
 	fetchUser,
 	fetchUserStats,
+	type CommentStats,
 	type TermStats,
 	type UserStats,
 	getConfig,
@@ -1710,24 +1712,298 @@ function commentToView( c: RelatedComment ): SubItemView {
 		icon: 'dashicons-admin-comments',
 		label: author,
 		date: c.date,
-		preview: () => {
-			const wrap = document.createElement( 'div' );
-			wrap.className = 'desktop-mode-my-wordpress__article';
-			const h = document.createElement( 'h2' );
-			h.className = 'desktop-mode-my-wordpress__article-title';
-			h.textContent = author;
-			wrap.appendChild( h );
-			const meta = document.createElement( 'p' );
-			meta.className = 'desktop-mode-my-wordpress__article-meta';
-			meta.textContent = `${ formatDate( c.date ) } · ${ c.status }`;
-			wrap.appendChild( meta );
-			const body = document.createElement( 'div' );
-			body.className = 'desktop-mode-my-wordpress__article-content';
-			body.innerHTML = c.content.rendered;
-			wrap.appendChild( body );
-			return wrap;
-		},
+		preview: async () => renderCommentDossier( c ),
 	};
+}
+
+/**
+ * Right-pane dossier for a single comment. Header is the author
+ * card (avatar + name + status badge + activity count), then the
+ * comment body, then context — parent post link with author chip,
+ * reply-to-quote when this is a thread reply, sibling replies if
+ * any. Single round-trip to `/desktop-mode/v1/comment-stats/<id>`.
+ */
+async function renderCommentDossier(
+	c: RelatedComment,
+): Promise< HTMLElement > {
+	let stats: CommentStats | null = null;
+	try {
+		stats = await fetchCommentStats( c.id );
+	} catch {
+		stats = null;
+	}
+
+	const wrap = document.createElement( 'div' );
+	wrap.className =
+		'desktop-mode-my-wordpress__article desktop-mode-my-wordpress__comment';
+
+	if ( ! stats ) {
+		// Fall back to the listing payload — at least we have the
+		// content + status from the original comments fetch.
+		appendCommentHeader( wrap, {
+			authorName: c.author_name || __( 'Anonymous', 'desktop-mode' ),
+			avatarUrl: c.author_avatar_urls
+				? pickAvatar( c.author_avatar_urls ) ?? ''
+				: '',
+			authorLink: '',
+			authorWebsite: '',
+			status: c.status || 'approved',
+			date: c.date,
+			editLink: '',
+			totalApproved: 0,
+		} );
+		const body = document.createElement( 'div' );
+		body.className =
+			'desktop-mode-my-wordpress__article-content desktop-mode-my-wordpress__comment-body';
+		body.innerHTML = c.content.rendered;
+		wrap.appendChild( body );
+		return wrap;
+	}
+
+	const { author, comment, post, parent, replies } = stats;
+
+	appendCommentHeader( wrap, {
+		authorName:
+			author.displayName ||
+			author.name ||
+			__( 'Anonymous', 'desktop-mode' ),
+		avatarUrl: author.avatarUrl,
+		authorLink: author.profileLink ?? '',
+		authorWebsite: author.url ?? '',
+		status: comment.status,
+		date: comment.date,
+		editLink: comment.editLink,
+		totalApproved: author.totalApprovedComments,
+	} );
+
+	// Parent comment quote (when this is a reply).
+	if ( parent ) {
+		const quote = document.createElement( 'blockquote' );
+		quote.className = 'desktop-mode-my-wordpress__comment-quote';
+		const lead = document.createElement( 'div' );
+		lead.className = 'desktop-mode-my-wordpress__comment-quote-lead';
+		lead.textContent = sprintf(
+			// translators: %s is the parent comment's author name.
+			__( 'In reply to %s', 'desktop-mode' ),
+			parent.authorName,
+		);
+		quote.appendChild( lead );
+		const excerpt = document.createElement( 'p' );
+		excerpt.textContent = parent.excerpt || '';
+		quote.appendChild( excerpt );
+		wrap.appendChild( quote );
+	}
+
+	// The comment body itself.
+	const body = document.createElement( 'div' );
+	body.className =
+		'desktop-mode-my-wordpress__article-content desktop-mode-my-wordpress__comment-body';
+	// `comment.rendered` is run server-side through the standard
+	// `comment_text` filter chain, which is the same trust model
+	// the public site uses to render comments.
+	body.innerHTML = comment.rendered;
+	wrap.appendChild( body );
+
+	// Parent post card.
+	if ( post ) {
+		const section = document.createElement( 'section' );
+		section.className = 'desktop-mode-my-wordpress__user-section';
+		const h = document.createElement( 'h3' );
+		h.textContent = __( 'On post', 'desktop-mode' );
+		section.appendChild( h );
+		const card = document.createElement( 'div' );
+		card.className = 'desktop-mode-my-wordpress__comment-post';
+		const titleEl = document.createElement( 'a' );
+		titleEl.className = 'desktop-mode-my-wordpress__comment-post-title';
+		titleEl.href = post.link;
+		titleEl.target = '_blank';
+		titleEl.rel = 'noopener noreferrer';
+		titleEl.textContent = post.title || `#${ post.id }`;
+		card.appendChild( titleEl );
+		const meta = document.createElement( 'div' );
+		meta.className = 'desktop-mode-my-wordpress__comment-post-meta';
+		const parts: string[] = [];
+		parts.push( formatDate( post.date ) );
+		if ( post.author?.name ) {
+			parts.push( post.author.name );
+		}
+		if ( post.status && post.status !== 'publish' ) {
+			parts.push( post.status );
+		}
+		meta.textContent = parts.join( ' · ' );
+		card.appendChild( meta );
+		section.appendChild( card );
+		wrap.appendChild( section );
+	}
+
+	// Replies thread.
+	if ( replies.length > 0 ) {
+		const section = document.createElement( 'section' );
+		section.className = 'desktop-mode-my-wordpress__user-section';
+		const h = document.createElement( 'h3' );
+		h.textContent = sprintf(
+			// translators: %d is the number of direct replies to a comment.
+			_n( 'Reply (%d)', 'Replies (%d)', replies.length ),
+			replies.length,
+		);
+		section.appendChild( h );
+		const list = document.createElement( 'ul' );
+		list.className = 'desktop-mode-my-wordpress__comment-replies';
+		for ( const r of replies ) {
+			const li = document.createElement( 'li' );
+			li.className = 'desktop-mode-my-wordpress__comment-reply';
+			if ( r.avatarUrl ) {
+				const img = document.createElement( 'img' );
+				img.src = r.avatarUrl;
+				img.alt = '';
+				img.className =
+					'desktop-mode-my-wordpress__comment-reply-avatar';
+				li.appendChild( img );
+			}
+			const txt = document.createElement( 'div' );
+			txt.className = 'desktop-mode-my-wordpress__comment-reply-text';
+			const head = document.createElement( 'div' );
+			head.className = 'desktop-mode-my-wordpress__comment-reply-head';
+			const who = document.createElement( 'span' );
+			who.className = 'desktop-mode-my-wordpress__comment-reply-name';
+			who.textContent = r.authorName || __( 'Anonymous', 'desktop-mode' );
+			head.appendChild( who );
+			const when = document.createElement( 'span' );
+			when.className = 'desktop-mode-my-wordpress__comment-reply-when';
+			when.textContent = formatDate( r.date );
+			head.appendChild( when );
+			txt.appendChild( head );
+			const ex = document.createElement( 'p' );
+			ex.className = 'desktop-mode-my-wordpress__comment-reply-excerpt';
+			ex.textContent = r.excerpt || '';
+			txt.appendChild( ex );
+			li.appendChild( txt );
+			list.appendChild( li );
+		}
+		section.appendChild( list );
+		wrap.appendChild( section );
+	}
+
+	// Moderation/forensic strip — only shown to users with
+	// `moderate_comments` (the server doesn't ship these otherwise).
+	if ( comment.ip || comment.userAgent ) {
+		const dl = document.createElement( 'dl' );
+		dl.className = 'desktop-mode-my-wordpress__user-milestones';
+		if ( comment.ip ) {
+			const dt = document.createElement( 'dt' );
+			dt.textContent = __( 'IP', 'desktop-mode' );
+			dl.appendChild( dt );
+			const dd = document.createElement( 'dd' );
+			dd.textContent = comment.ip;
+			dl.appendChild( dd );
+		}
+		if ( comment.userAgent ) {
+			const dt = document.createElement( 'dt' );
+			dt.textContent = __( 'User agent', 'desktop-mode' );
+			dl.appendChild( dt );
+			const dd = document.createElement( 'dd' );
+			dd.textContent = comment.userAgent;
+			dl.appendChild( dd );
+		}
+		wrap.appendChild( dl );
+	}
+
+	return wrap;
+}
+
+function appendCommentHeader(
+	host: HTMLElement,
+	header: {
+		authorName: string;
+		avatarUrl: string;
+		authorLink: string;
+		authorWebsite: string;
+		status: string;
+		date: string;
+		editLink: string;
+		totalApproved: number;
+	},
+): void {
+	const wrap = document.createElement( 'header' );
+	wrap.className = 'desktop-mode-my-wordpress__user-header';
+
+	if ( header.avatarUrl ) {
+		const img = document.createElement( 'img' );
+		img.src = header.avatarUrl;
+		img.alt = '';
+		img.className = 'desktop-mode-my-wordpress__user-avatar';
+		wrap.appendChild( img );
+	}
+
+	const right = document.createElement( 'div' );
+	right.className = 'desktop-mode-my-wordpress__user-headline';
+
+	const h = document.createElement( 'h2' );
+	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.textContent = header.authorName;
+	right.appendChild( h );
+
+	const badges = document.createElement( 'div' );
+	badges.className = 'desktop-mode-my-wordpress__user-roles';
+	const status = document.createElement( 'span' );
+	status.className =
+		'desktop-mode-my-wordpress__user-role desktop-mode-my-wordpress__comment-status--' +
+		( header.status || 'approved' );
+	status.textContent = header.status || 'approved';
+	badges.appendChild( status );
+	const dateBadge = document.createElement( 'span' );
+	dateBadge.className =
+		'desktop-mode-my-wordpress__user-role desktop-mode-my-wordpress__comment-date-badge';
+	dateBadge.textContent = formatDate( header.date );
+	badges.appendChild( dateBadge );
+	if ( header.totalApproved > 1 ) {
+		const totalBadge = document.createElement( 'span' );
+		totalBadge.className = 'desktop-mode-my-wordpress__user-role';
+		totalBadge.textContent = sprintf(
+			// translators: %d is a comment count for a particular author.
+			_n(
+				'%d comment site-wide',
+				'%d comments site-wide',
+				header.totalApproved,
+			),
+			header.totalApproved,
+		);
+		badges.appendChild( totalBadge );
+	}
+	right.appendChild( badges );
+
+	const links = document.createElement( 'div' );
+	links.className = 'desktop-mode-my-wordpress__user-links';
+	if ( header.authorLink ) {
+		const a = document.createElement( 'a' );
+		a.href = header.authorLink;
+		a.target = '_blank';
+		a.rel = 'noopener noreferrer';
+		a.textContent = __( 'Author archive', 'desktop-mode' );
+		links.appendChild( a );
+	}
+	if ( header.authorWebsite ) {
+		const a = document.createElement( 'a' );
+		a.href = header.authorWebsite;
+		a.target = '_blank';
+		a.rel = 'noopener noreferrer';
+		a.textContent = __( 'Website', 'desktop-mode' );
+		links.appendChild( a );
+	}
+	if ( header.editLink ) {
+		const a = document.createElement( 'a' );
+		a.href = header.editLink;
+		a.target = '_blank';
+		a.rel = 'noopener noreferrer';
+		a.textContent = __( 'Moderate', 'desktop-mode' );
+		links.appendChild( a );
+	}
+	if ( links.childElementCount > 0 ) {
+		right.appendChild( links );
+	}
+
+	wrap.appendChild( right );
+	host.appendChild( wrap );
 }
 
 function userToView( u: RelatedUser ): SubItemView {

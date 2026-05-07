@@ -443,6 +443,75 @@ export function fetchTermStats(
 	);
 }
 
+/**
+ * Aggregated comment dossier — matches the
+ * `/desktop-mode/v1/comment-stats/<id>` endpoint shape.
+ *
+ * @public
+ * @since 0.8.0
+ */
+export interface CommentStats {
+	comment: {
+		id: number;
+		parent: number;
+		date: string;
+		status: string;
+		rendered: string;
+		rendered_raw: string;
+		editLink: string;
+		type?: string;
+		ip?: string;
+		userAgent?: string;
+		karma?: number;
+	};
+	author: {
+		name: string;
+		url: string;
+		avatarUrl: string;
+		userId: number;
+		email?: string;
+		displayName?: string;
+		profileLink?: string;
+		totalApprovedComments: number;
+	};
+	post: {
+		id: number;
+		title: string;
+		link: string;
+		editLink: string;
+		status: string;
+		type: string;
+		date: string;
+		author: {
+			id: number;
+			name: string;
+			avatarUrl: string;
+		} | null;
+	} | null;
+	parent: {
+		id: number;
+		authorName: string;
+		date: string;
+		excerpt: string;
+	} | null;
+	replies: Array< {
+		id: number;
+		authorName: string;
+		avatarUrl: string;
+		date: string;
+		excerpt: string;
+		status: string;
+	} >;
+}
+
+export function fetchCommentStats(
+	id: number,
+): Promise< CommentStats > {
+	return getJson< CommentStats >(
+		buildUrl( `desktop-mode/v1/comment-stats/${ id }` ),
+	);
+}
+
 export function fetchUser( id: number ): Promise< RelatedUser > {
 	return getJson< RelatedUser >(
 		buildUrl( `wp/v2/users/${ id }?context=edit&_fields=id,name,slug,description,avatar_urls,link` ),

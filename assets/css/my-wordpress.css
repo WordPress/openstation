@@ -827,3 +827,157 @@
 	font-size: 11px;
 	color: var( --desktop-mode-muted, #50575e );
 }
+
+/* ---------------------------------------------------------------
+ * Comment dossier — header (avatar + name + status / date / count
+ * badges + author archive / website / moderate links), optional
+ * "in reply to" quote, the comment body, parent-post card,
+ * direct-reply thread, and a moderation strip (IP + user agent)
+ * for users with moderate_comments.
+ * --------------------------------------------------------------- */
+
+.desktop-mode-my-wordpress__comment-status--approved {
+	background: rgba( 34, 113, 177, 0.12 );
+	color: #135e96;
+}
+
+.desktop-mode-my-wordpress__comment-status--pending {
+	background: rgba( 217, 119, 6, 0.16 );
+	color: #b45309;
+}
+
+.desktop-mode-my-wordpress__comment-status--spam {
+	background: rgba( 179, 45, 46, 0.14 );
+	color: #b32d2e;
+}
+
+.desktop-mode-my-wordpress__comment-status--trash {
+	background: rgba( 0, 0, 0, 0.08 );
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__comment-date-badge {
+	background: transparent;
+	color: var( --desktop-mode-muted, #50575e );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+/* "In reply to ..." quote shown above the comment body when this
+ * is a thread reply. */
+.desktop-mode-my-wordpress__comment-quote {
+	margin: 0 0 16px;
+	padding: 10px 14px;
+	border-left: 3px solid var( --wp-admin-theme-color, #2271b1 );
+	background: rgba( 34, 113, 177, 0.06 );
+	border-radius: 0 6px 6px 0;
+	font-size: 13px;
+}
+
+.desktop-mode-my-wordpress__comment-quote-lead {
+	font-size: 11px;
+	font-weight: 600;
+	color: var( --desktop-mode-muted, #50575e );
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-bottom: 4px;
+}
+
+.desktop-mode-my-wordpress__comment-quote p {
+	margin: 0;
+	color: var( --desktop-mode-fg, #1d2327 );
+}
+
+/* Comment body — same style as article-content but with a soft
+ * card background so it reads as the focal element. */
+.desktop-mode-my-wordpress__comment-body {
+	padding: 14px 16px;
+	background: rgba( 0, 0, 0, 0.03 );
+	border-radius: 8px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+/* Parent-post card under the comment body. */
+.desktop-mode-my-wordpress__comment-post {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 14px;
+	border-radius: 8px;
+	background: rgba( 0, 0, 0, 0.04 );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__comment-post-title {
+	font-weight: 600;
+	color: var( --desktop-mode-link, #2271b1 );
+	text-decoration: none;
+}
+
+.desktop-mode-my-wordpress__comment-post-title:hover {
+	text-decoration: underline;
+}
+
+.desktop-mode-my-wordpress__comment-post-meta {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+/* Replies list. */
+.desktop-mode-my-wordpress__comment-replies {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.desktop-mode-my-wordpress__comment-reply {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: rgba( 0, 0, 0, 0.02 );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__comment-reply-avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.desktop-mode-my-wordpress__comment-reply-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.desktop-mode-my-wordpress__comment-reply-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.desktop-mode-my-wordpress__comment-reply-name {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.desktop-mode-my-wordpress__comment-reply-when {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+.desktop-mode-my-wordpress__comment-reply-excerpt {
+	margin: 0;
+	font-size: 13px;
+	color: var( --desktop-mode-fg, #1d2327 );
+	line-height: 1.45;
+}
