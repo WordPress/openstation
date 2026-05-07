@@ -32,6 +32,7 @@ import {
 	registerDockSelector,
 } from './dock-helpers';
 import { OsSettings } from './settings';
+import { getExitDesktopModeTileDef } from './exit-desktop-mode';
 import { deriveWindowId, urlMatchKey } from './utils';
 import {
 	HOOKS,
@@ -1811,6 +1812,16 @@ function init(): void {
 				},
 				onOpen: openBugReport,
 			},
+			'core',
+		);
+
+		// Exit Desktop Mode tile — last on the core rail so users have
+		// a discoverable in-shell way out, complementing the admin-bar
+		// "Switch to Classic Admin" toggle. Reuses the existing
+		// save-desktop-mode AJAX endpoint via the
+		// `window.desktopModeAdminBar` global; no new PHP surface.
+		layoutDispatcher.appendSystemTile(
+			getExitDesktopModeTileDef(),
 			'core',
 		);
 	}
