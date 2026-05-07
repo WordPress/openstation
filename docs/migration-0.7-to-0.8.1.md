@@ -19,7 +19,7 @@ Renames keep the old name alive as a deprecation shim (PHP via
 | 3 | Bridge-protocol consolidation (`@protocol/window-messages`, `@protocol/guards`, `@protocol/version`) | ✅ landed |
 | 4 | Public API home (`@api`) + deprecation alias helper | ✅ landed |
 | 5 | Boot decomposition — split `src/desktop.ts` into `src/boot/*` + `src/api/facade.ts` | 🚧 in progress (10 modules landed: 8 boot + facade + deprecated; init() body still needs decomposition) |
-| 6 | PHP slicing — split `helpers.php`, `render.php`, `components.php`; centralize REST routes | 🚧 in progress (helpers.php split done — 1,609 → 153 LOC; render/components/REST pending) |
+| 6 | PHP slicing — split `helpers.php`, `render.php`, `components.php`; centralize REST routes | 🚧 in progress (helpers.php / components.php / render.php splits all landed — 6,235 LOC reduced to 558; 573 PHPUnit tests still green; REST + ai-copilot/search.php pending) |
 | 7 | Window-system rename + heavy-window decomposition | 🚧 planned |
 | 8 | Layout SSOT, `WpdBase`, extension base, types package | 🚧 planned |
 | 9 | Documentation lockstep | 🚧 planned |

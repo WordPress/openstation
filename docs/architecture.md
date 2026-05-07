@@ -20,8 +20,10 @@ locations remain authoritative.
 | Public API barrel (0.8.1 home) + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable since 0.8.1 |
 | Boot decomposition — `origin.ts`, `geometry.ts`, `session.ts`, `session-saver.ts`, `tracked-fetch.ts`, `link-interceptor.ts`, `menu-refresh.ts`, `shell-lifecycle.ts` | `src/boot/*` | Partial — desktop.ts down from 3,695 → 3,034 LOC; init() decomposition pending |
 | Window-system rename (`src/window/`, `src/window-manager/`, `src/window-chrome/` → `src/window-system/*`) | planned | Planned |
-| `helpers.php` slicing — `core/{routing,payload,registry-factory}.php` | `includes/core/*.php` | Partial — helpers.php 1,609 → 153 LOC |
-| `render.php` / `components.php` slicing | planned `includes/{render,registries,rest}/` | Planned |
+| `helpers.php` slicing — `core/{routing,payload,registry-factory}.php` | `includes/core/*.php` | Stable since 0.8.1 — helpers.php 1,609 → 153 LOC |
+| `components.php` slicing — 5 registries under `includes/registries/` (native-windows, window-tabs, icons, wallpapers, widgets) | `includes/registries/*.php` | Stable since 0.8.1 — components.php 2,101 → 376 LOC |
+| `render.php` slicing — 5 files under `includes/render/` (body-classes, assets, shell, chromeless-bridge, classic-link-interceptor) | `includes/render/*.php` | Stable since 0.8.1 — render.php 2,525 → 29-LOC umbrella |
+| REST-route centralization under `includes/rest/`, `ai-copilot/search.php` split | planned | Planned |
 | Heavy native-window decomposition (posts-window / my-wordpress / recycle-bin into `model.ts` / `ui.ts` / `commands.ts`) | planned `src/features/<name>/` | Planned |
 | `WpdBase` web-component class + tokens | planned `src/ui/core/{WpdBase,tokens}.ts` | Planned |
 | Extension base library | planned `extensions/base/` | Planned |
