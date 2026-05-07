@@ -1826,62 +1826,15 @@ export interface HarvestedCommand {
 	url?: string;
 }
 
-/**
- * Bridge events sent from iframe to parent shell.
- */
-export type BridgeEventFromIframe =
-	| { type: 'desktop-mode-title-change'; title: string }
-	| { type: 'desktop-mode-navigate'; url: string; target: 'self' | 'new' }
-	| { type: 'desktop-mode-notification'; title: string; body: string }
-	| { type: 'desktop-mode-ready' }
-	| { type: 'desktop-mode-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
-	| { type: 'desktop-mode-screen-meta-state'; open: 'screen-options' | 'help' | null }
-	| { type: 'desktop-mode-commands-list'; commands: HarvestedCommand[] }
-	// -----------------------------------------------------------------
-	// Cross-window connection bridge — extensible pub/sub between any
-	// parent-side caller (e.g. a plugin's title-bar dropdown) and a
-	// chromeless iframe. The shell only routes; topic semantics are
-	// plugin-defined. See `wp.desktop.connect()` and
-	// `wp.desktop.iframe.publish/subscribe`.
-	// -----------------------------------------------------------------
-	| {
-		type: 'desktop-mode-bridge-handshake-ack';
-		connectionId: string;
-	}
-	| {
-		type: 'desktop-mode-bridge-publish';
-		connectionId: string;
-		topic: string;
-		payload: unknown;
-	}
-	| {
-		type: 'desktop-mode-bridge-disconnect';
-		connectionId: string;
-	};
-
-/**
- * Bridge events sent from parent shell to iframe.
- */
-export type BridgeEventToIframe =
-	| { type: 'desktop-mode-focus' }
-	| { type: 'desktop-mode-color-scheme'; scheme: string }
-	| { type: 'desktop-mode-toggle-panel'; panel: 'screen-options' | 'help' }
-	| { type: 'desktop-mode-commands-subscribe' }
-	| { type: 'desktop-mode-commands-unsubscribe' }
-	| { type: 'desktop-mode-commands-invoke'; name: string }
-	// Connection-bridge messages (parent → iframe).
-	| {
-		type: 'desktop-mode-bridge-handshake';
-		connectionId: string;
-		topics: string[];
-	}
-	| {
-		type: 'desktop-mode-bridge-publish';
-		connectionId: string;
-		topic: string;
-		payload: unknown;
-	}
-	| {
-		type: 'desktop-mode-bridge-disconnect';
-		connectionId: string;
-	};
+// -----------------------------------------------------------------------------
+// Bridge events — moved to `src/protocol/window-messages.ts` in 1.0.
+// Re-exported here for backwards compatibility; new code should
+// import from `@protocol/window-messages` (or via `@protocol/guards`
+// for the `isBridgeEvent` / `assertBridgeEventType` helpers).
+// -----------------------------------------------------------------------------
+export type {
+	BridgeEvent,
+	BridgeEventFromIframe,
+	BridgeEventToIframe,
+	BridgeEventType,
+} from './protocol/window-messages';
