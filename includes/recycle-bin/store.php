@@ -867,18 +867,48 @@ function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
  * Honors the same capability gate as a single purge — items the user
  * can't permanently delete are skipped (not silently dropped).
  *
+ * Processes at most one chunk per call. The cap protects against PHP
+ * timeouts on large bins; the client iterates while `remaining > 0`
+ * (and bails when `remaining === skipped`, i.e. nothing the user can
+ * purge is left). Site owners with longer execution budgets can tune
+ * the chunk size via the `desktop_mode_recycle_bin_empty_chunk_size`
+ * filter.
+ *
  * @since 0.19.0
  *
- * @return array { @type int $purged @type int $skipped }
+ * @return array {
+ *     @type int $purged    Items successfully purged in this call.
+ *     @type int $skipped   Items skipped (capability or error).
+ *     @type int $remaining Items still in the bin after this call (across pages).
+ * }
  */
 function desktop_mode_recycle_bin_empty() {
 	$purged  = 0;
 	$skipped = 0;
 
+	/**
+	 * Filter the per-call chunk size for the empty-bin loop.
+	 *
+	 * `desktop_mode_recycle_bin_empty()` only purges this many items
+	 * per invocation. The client iterates while `remaining > 0`. The
+	 * default (200) is conservative for shared hosts; sites with
+	 * generous PHP execution limits can raise it to make emptying a
+	 * large bin take fewer roundtrips.
+	 *
+	 * @since 0.21.1
+	 *
+	 * @param int $chunk_size Items processed per call. Default 200.
+	 */
+	$chunk_size = (int) apply_filters( 'desktop_mode_recycle_bin_empty_chunk_size', 200 );
+	if ( $chunk_size < 1 ) {
+		$chunk_size = 1;
+	}
+
 	// Loop in chunks — `wp_delete_post()` is cheap individually but
 	// hammering it on a 10k-item bin without yielding back to PHP can
-	// still time out. 200 is plenty for a single REST roundtrip.
-	$batch = desktop_mode_recycle_bin_get_items( array( 'per_page' => 200, 'page' => 1 ) );
+	// still time out. The client re-invokes us until `remaining` hits
+	// zero (or stalls at `skipped`).
+	$batch = desktop_mode_recycle_bin_get_items( array( 'per_page' => $chunk_size, 'page' => 1 ) );
 	foreach ( $batch['items'] as $item ) {
 		$result = desktop_mode_recycle_bin_purge(
 			(int) $item['id'],
@@ -902,8 +932,8 @@ function desktop_mode_recycle_bin_empty() {
 	do_action( 'desktop_mode_recycle_bin_emptied', $purged, $skipped );
 
 	return array(
-		'purged'  => $purged,
-		'skipped' => $skipped,
+		'purged'    => $purged,
+		'skipped'   => $skipped,
 		'remaining' => max( 0, $batch['total'] - $purged ),
 	);
 }

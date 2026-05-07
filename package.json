@@ -1,6 +1,6 @@
 {
 	"name": "desktop-mode",
-	"version": "0.8.0",
+	"version": "0.7.2",
 	"private": true,
 	"type": "module",
 	"description": "WordPress admin as a desktop OS — draggable, resizable windows on a desktop with a dock.",
@@ -45,7 +45,8 @@
 		"env:destroy": "wp-env destroy",
 		"test:php:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode composer install",
 		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist",
-		"check:plugin": "wp-env run cli wp plugin check desktop-mode"
+		"check:plugin": "wp-env run cli wp plugin check desktop-mode",
+		"build:i18n": "bin/build-i18n.sh"
 	},
 	"devDependencies": {
 		"@typescript-eslint/eslint-plugin": "^7.18.0",

@@ -130,6 +130,33 @@ interface in `src/desktop.ts`. To add a method:
   a browser quirk or a subtle invariant, note it inline. Otherwise
   let the code speak.
 
+## i18n
+
+Strings flow through three files per locale in `languages/`:
+
+- `desktop-mode.pot` — extracted from PHP and TS sources. Regenerate with
+  `wp i18n make-pot . languages/desktop-mode.pot --include='src/*.ts'`
+  (the `--include` is the bit that picks up TypeScript callers of
+  `__()`, `_x()`, etc.).
+- `desktop-mode-{locale}.po` / `.mo` — translator output, one pair per
+  shipped locale.
+- `desktop-mode-{locale}-{handle}.json` — JS translation bundles.
+  WordPress's `wp_set_script_translations()` looks up these files by
+  the script handle, NOT by source-file hash, because we pass a path
+  argument from `includes/assets.php`. Today the only handle with a
+  populated bundle is `desktop-mode` (the main shell); see
+  `bin/build-i18n.sh` for the handle to source-prefix map.
+
+Build the JSON bundles with:
+
+```bash
+npm run build:i18n
+```
+
+Re-run this after editing any PO file. The script invokes `wp i18n
+make-json --extensions=ts` under the hood and merges the per-source
+JSONs into one file per script handle.
+
 ## Where things are tested
 
 - **Vitest** — `tests/vitest/*.test.ts` + colocated

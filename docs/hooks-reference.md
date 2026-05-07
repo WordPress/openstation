@@ -565,7 +565,7 @@ add_filter( 'desktop_mode_resolve_file_opener', function ( $opener_id, $type, $u
 
 ### `desktop_mode_mode_enabled` — Stable
 
-Gates whether desktop mode can be activated (or stay active) for a given user. The AJAX save endpoint consults this after the nonce check.
+Gates whether desktop mode can be activated (or stay active) for a given user. The central helper `desktop_mode_is_enabled()` consults this filter after the user-meta check, so render-time gates (chromeless detection, payload generation, REST permission callbacks, the admin-bar toggle, the portal entry, the AJAX save endpoint) all honor a `false` return.
 
 ```php
 apply_filters( 'desktop_mode_mode_enabled', bool $enabled, int $user_id );
@@ -582,7 +582,10 @@ add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
 }, 10, 2 );
 ```
 
-A `false` return means the user cannot toggle the mode on — the AJAX endpoint returns `desktop_mode_disabled`.
+A `false` return has two effects:
+
+1. The AJAX save endpoint refuses to flip the user meta to `'1'` (it returns `desktop_mode_disabled`).
+2. `desktop_mode_is_enabled()` returns `false` for that user even when their existing meta is `'1'`. Every render-time gate that consults the helper (and there are many — see `includes/render.php`, `includes/components.php`, `includes/recycle-bin/rest.php`, `includes/pwa.php`, `includes/presence.php`, `includes/admin-bar.php`) treats the user as not-enabled.
 
 ---
 
@@ -1596,6 +1599,14 @@ Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_regist
 ### `desktop_mode_recycle_bin_template_html` — Experimental (filter)
 
 The full template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
+
+### `desktop_mode_recycle_bin_empty_chunk_size` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_recycle_bin_empty_chunk_size', int $chunk_size );
+```
+
+Per-call cap on `desktop_mode_recycle_bin_empty()` — protects against PHP `max_execution_time` on huge bins. Default `200`. The client iterates while `remaining > 0`, so raising this just means fewer roundtrips per "Empty bin" click. Lower it on shared hosts with tight execution budgets; raise it on dedicated servers handling 10k+ item bins.
 
 ### Lifecycle actions
 

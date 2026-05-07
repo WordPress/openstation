@@ -1,0 +1,269 @@
+{
+    "translation-revision-date": "2026-04-19 20:42+0200",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "es_ES",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "%d posts in this category.": [
+                ""
+            ],
+            "%d posts tagged with this.": [
+                ""
+            ],
+            "%d selected": [
+                ""
+            ],
+            "(no excerpt)": [
+                ""
+            ],
+            "(no title)": [
+                ""
+            ],
+            "+ Child": [
+                ""
+            ],
+            "Add New Post": [
+                "Añadir nuevo escritorio"
+            ],
+            "Add root category": [
+                ""
+            ],
+            "Add tag": [
+                "Añadir %s"
+            ],
+            "Add tag…": [
+                ""
+            ],
+            "All authors": [
+                ""
+            ],
+            "All tags": [
+                ""
+            ],
+            "Author": [
+                ""
+            ],
+            "Cancel": [
+                ""
+            ],
+            "Categorize": [
+                ""
+            ],
+            "Click a node on the mindmap to edit its name, description, and posts.": [
+                ""
+            ],
+            "Click a node to focus + edit · drag onto another to reparent · wheel to zoom": [
+                ""
+            ],
+            "Click a tag on the cloud to edit it, or click + Add tag to create a new one.": [
+                ""
+            ],
+            "Click a tag to focus + edit · drag to reposition · wheel to zoom": [
+                ""
+            ],
+            "Click again to delete": [
+                ""
+            ],
+            "Couldn’t add category.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t add tag \"%s\".": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t assign new category.": [
+                ""
+            ],
+            "Couldn’t create category.": [
+                ""
+            ],
+            "Couldn’t create:": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t delete category.": [
+                ""
+            ],
+            "Couldn’t delete:": [
+                ""
+            ],
+            "Couldn’t load categories:": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load posts:": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load tags:": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t remove tag \"%s\".": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t reparent:": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t save:": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t update categories.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t update post categories after delete.": [
+                ""
+            ],
+            "Create": [
+                ""
+            ],
+            "Date": [
+                ""
+            ],
+            "Delete": [
+                ""
+            ],
+            "Delete the category \"%s\"? Posts assigned only to it will fall back to Uncategorized.": [
+                ""
+            ],
+            "Description": [
+                ""
+            ],
+            "Description (optional)": [
+                ""
+            ],
+            "Draft": [
+                ""
+            ],
+            "Drafts": [
+                ""
+            ],
+            "Excerpt": [
+                ""
+            ],
+            "Filter by author": [
+                ""
+            ],
+            "Filter by tag": [
+                ""
+            ],
+            "Make root": [
+                ""
+            ],
+            "Mindmap unavailable.": [
+                ""
+            ],
+            "Mindmap unavailable: shell modules API missing.": [
+                ""
+            ],
+            "Move %d post(s) to the trash?": [
+                ""
+            ],
+            "Move to trash": [
+                ""
+            ],
+            "Name": [
+                ""
+            ],
+            "New child of %s": [
+                ""
+            ],
+            "New root category": [
+                ""
+            ],
+            "New tag": [
+                ""
+            ],
+            "No category selected": [
+                ""
+            ],
+            "No custom categories yet. Click \"Add root category\" to start branching.": [
+                ""
+            ],
+            "No posts": [
+                ""
+            ],
+            "No tag selected": [
+                ""
+            ],
+            "No tags yet. Click \"Add tag\" to start building the cloud.": [
+                ""
+            ],
+            "Page %1$d of %2$d · %3$d posts": [
+                ""
+            ],
+            "Pending": [
+                ""
+            ],
+            "Private": [
+                ""
+            ],
+            "Promote this category to a top-level root (no parent).": [
+                ""
+            ],
+            "Published": [
+                ""
+            ],
+            "Recenter": [
+                ""
+            ],
+            "Recompute the chip layout from scratch — discards manual repositioning.": [
+                ""
+            ],
+            "Reflow": [
+                ""
+            ],
+            "Reparent failed:": [
+                "Error al subir."
+            ],
+            "Save": [
+                ""
+            ],
+            "Scheduled": [
+                ""
+            ],
+            "Search categories…": [
+                ""
+            ],
+            "Show columns": [
+                ""
+            ],
+            "Slug": [
+                ""
+            ],
+            "Tag": [
+                ""
+            ],
+            "Tag cloud unavailable.": [
+                ""
+            ],
+            "Tag cloud unavailable: shell modules API missing.": [
+                ""
+            ],
+            "Tag created but description failed:": [
+                ""
+            ],
+            "Title": [
+                ""
+            ],
+            "Trash": [
+                ""
+            ],
+            "Unknown": [
+                ""
+            ],
+            "auto-from-name": [
+                ""
+            ],
+            "e.g. Recipes": [
+                ""
+            ],
+            "e.g. featured": [
+                ""
+            ],
+            "modified": [
+                ""
+            ]
+        }
+    }
+}
