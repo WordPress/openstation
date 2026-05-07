@@ -64,7 +64,11 @@
 	padding: 8px 4px;
 	border: 0;
 	background: transparent;
-	color: var(--desktop-mode-fg, #fff);
+	/* Tile foreground driven by `--desktop-mode-tile-fg` so any
+	 * light-on-dark surface (folder window, My WordPress preview)
+	 * can retint tiles by overriding the variable in its scope —
+	 * no per-surface selectors needed here. */
+	color: var( --desktop-mode-tile-fg, var( --desktop-mode-fg, #fff ) );
 	cursor: pointer;
 	border-radius: 8px;
 	transition: background-color 0.15s ease, transform 0.05s linear;
@@ -75,12 +79,16 @@
 
 .desktop-mode-file-tile:hover,
 .desktop-mode-file-tile:focus-visible {
-	background: rgba( 255, 255, 255, 0.12 );
+	background: var(
+		--desktop-mode-tile-hover-bg,
+		rgba( 255, 255, 255, 0.12 )
+	);
 	outline: none;
 }
 
 .desktop-mode-file-tile:focus-visible {
-	box-shadow: 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 0 0 2px
+		var( --desktop-mode-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
 .desktop-mode-file-tile--dragging {
@@ -96,6 +104,56 @@
 .desktop-mode-file-tile--pinned {
 	cursor: pointer;
 	touch-action: auto;
+}
+
+/* Folder tile is the drop target during a cross-window shortcut
+ * drag — the user dragged a post tile out of My WordPress and is
+ * hovering over a folder. Bright outline + a subtle scale so the
+ * folder reads as "yes, drop here." @since 0.8.0 */
+.desktop-mode-file-tile--drop-target {
+	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: -4px;
+	background: rgba( 34, 113, 177, 0.15 );
+	transform: scale( 1.04 );
+	z-index: 5;
+}
+
+/* Shortcut overlay — small arrow badge in the BOTTOM-RIGHT corner
+ * of the icon visual on any tile that's a reference to an external
+ * entity (post, attachment, comment, user, term — anything that
+ * ISN'T a folder or a plugin shortcut). Mirrors the macOS / Windows
+ * convention of an arrow decoration on alias/shortcut icons.
+ *
+ * The geometry: tile is 88px wide with `padding: 8px 4px`. The icon
+ * visual is 48×48 centered horizontally, so the icon's bottom-right
+ * corner lands at roughly (68, 56) from the tile's top-left. The
+ * 18×18 arrow circle is anchored just inside that corner so it
+ * reads as part of the icon, not floating off in space.
+ *
+ * @since 0.8.0
+ */
+.desktop-mode-file-tile[ data-file-type="post" ]::after,
+.desktop-mode-file-tile[ data-file-type="attachment" ]::after,
+.desktop-mode-file-tile[ data-file-type="comment" ]::after,
+.desktop-mode-file-tile[ data-file-type="user" ]::after,
+.desktop-mode-file-tile[ data-file-type="term" ]::after {
+	content: "↗";
+	position: absolute;
+	right: 14px;
+	top: 44px;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: var( --desktop-mode-tile-shortcut-bg, rgba( 0, 0, 0, 0.65 ) );
+	color: var( --desktop-mode-tile-shortcut-fg, #fff );
+	font-size: 11px;
+	line-height: 18px;
+	text-align: center;
+	box-shadow: var(
+		--desktop-mode-tile-shortcut-shadow,
+		0 1px 3px rgba( 0, 0, 0, 0.5 )
+	);
+	pointer-events: none;
 }
 
 /*
@@ -154,9 +212,131 @@
 .desktop-mode-folder-window {
 	position: relative;
 	min-height: 200px;
-	background: rgba( 0, 0, 0, 0.05 );
+	/* Same window background recipe as My WordPress — defaults to
+	 * the standard window bg (#fff) and themable per-window. */
+	background: var(
+		--desktop-mode-folder-window-bg,
+		var( --desktop-mode-window-bg, #fff )
+	);
+	color: var( --desktop-mode-fg-on-light, #1d2327 );
 	display: flex;
 	flex-direction: column;
+	/* Light-on-dark context: the folder window opens inside a
+	 * standard window chrome whose body is white-ish. Retint the
+	 * tile color tokens here so dashicons + labels read against
+	 * a light background. Plugins / themes can override these
+	 * same variables at any scope to retint further. */
+	--desktop-mode-tile-fg: var( --desktop-mode-fg-on-light, #1d2327 );
+	--desktop-mode-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
+	--desktop-mode-tile-hover-bg: rgba( 0, 0, 0, 0.06 );
+}
+
+/* Folder window's bottom status bar — paint with the same light-
+ * context treatment My WordPress uses (transparent bg, soft border,
+ * muted dark text). Without this, the wallpaper-targeted defaults
+ * (`background: rgba(0,0,0,0.18); color: white`) would show as a
+ * dark band against the white window bg. */
+.desktop-mode-folder-window .desktop-mode-folder-status-bar {
+	border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: transparent;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-folder-window
+	.desktop-mode-folder-status-bar
+	button.desktop-mode-folder-status-bar__segment:hover {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+/* Generic breadcrumb header — any surface that grows a navigation
+ * stack (folder window, My WordPress folder, future drill-down
+ * windows) renders one of these via `renderBreadcrumbs` from
+ * `src/desktop-files/breadcrumbs.ts`. Visual vocabulary: small
+ * icon-only Back button on the left, `›`-separated crumb buttons,
+ * current segment is bold + non-interactive.
+ *
+ * @since 0.8.0
+ */
+.desktop-mode-breadcrumbs {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: transparent;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-breadcrumbs__back {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	border-radius: 4px;
+	cursor: pointer;
+	color: inherit;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-breadcrumbs__back:hover:not(:disabled),
+.desktop-mode-breadcrumbs__back:focus-visible:not(:disabled) {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+	outline: none;
+}
+
+.desktop-mode-breadcrumbs__back:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.desktop-mode-breadcrumbs__back .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	line-height: 1;
+}
+
+.desktop-mode-breadcrumbs__crumbs {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-breadcrumbs__crumb {
+	border: 0;
+	background: transparent;
+	color: var( --desktop-mode-link, #2271b1 );
+	cursor: pointer;
+	padding: 2px 4px;
+	border-radius: 4px;
+	font: inherit;
+}
+
+.desktop-mode-breadcrumbs__crumb:hover {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+.desktop-mode-breadcrumbs__crumb--current {
+	color: var( --desktop-mode-fg-on-light, #1d2327 );
+	cursor: default;
+	font-weight: 600;
+}
+
+.desktop-mode-breadcrumbs__crumb--current:hover {
+	background: transparent;
+}
+
+.desktop-mode-breadcrumbs__sep {
+	color: var( --desktop-mode-muted, #787c82 );
 }
 
 .desktop-mode-folder-window__layer {
@@ -164,6 +344,45 @@
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
+}
+
+/* Two-pane shell — left: tile canvas, right: preview pane that
+ * reflects the currently-selected tile. Same model as the My
+ * WordPress two-pane view so the UX is unified.
+ *
+ * @since 0.8.0 */
+.desktop-mode-folder-window__split {
+	display: grid;
+	grid-template-columns: minmax( 240px, 60% ) minmax( 0, 1fr );
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.desktop-mode-folder-window__preview {
+	overflow-y: auto;
+	min-width: 0;
+	background: var( --desktop-mode-window-bg, #fff );
+	border-inline-start: 1px solid var( --desktop-mode-border, #dcdcde );
+	color: var( --desktop-mode-fg-on-light, #1d2327 );
+}
+
+/* Selected file tile — light-blue accent on the wallpaper, soft
+ * accent inside light-context windows. Variable-driven so plugins
+ * can retune. */
+.desktop-mode-file-tile--selected,
+.desktop-mode-file-tile--selected:hover {
+	background: var(
+		--desktop-mode-tile-selected-bg,
+		rgba( 34, 113, 177, 0.18 )
+	);
+	box-shadow: inset 0 0 0 1px
+		var( --desktop-mode-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+}
+
+/* Inside a folder window the selected highlight should read on
+ * white. */
+.desktop-mode-folder-window {
+	--desktop-mode-tile-selected-bg: rgba( 34, 113, 177, 0.12 );
 }
 
 .desktop-mode-folder-status-bar {

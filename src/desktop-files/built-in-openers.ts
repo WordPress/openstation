@@ -21,6 +21,19 @@ import { registerOpener } from './openers';
 import type { DesktopFile } from './file';
 import { mountFilesLayer } from './layer';
 import { mountFolderStatusBar } from './folder-status-bar';
+import { attachIconCanvasMenu } from '../icon-canvas/menu';
+import {
+	renderBreadcrumbs,
+	type BreadcrumbSegment,
+} from './breadcrumbs';
+import { openCreateFolderDialog } from './create-folder-dialog';
+import { rest as filesRest, store as filesStoreApi } from './layer-deps';
+import {
+	buildOccupiedSet,
+	GRID_PADDING,
+	snapToEmptyCell,
+} from './grid';
+import { renderPlacementPreview, renderPreviewEmpty } from './preview';
 
 interface ConfigShape {
 	adminUrl?: string;
@@ -130,15 +143,243 @@ export function registerBuiltInFileOpeners(): void {
 					render: ( body: HTMLElement ) => {
 						body.replaceChildren();
 						body.classList.add( 'desktop-mode-folder-window' );
-						const layerHost = document.createElement( 'div' );
-						layerHost.className = 'desktop-mode-folder-window__layer';
-						body.appendChild( layerHost );
-						mountFilesLayer( layerHost, folderId );
-						// Status bar lives at the bottom of the body.
-						// Plugins extend it via the
-						// `desktop-mode.files.folder-window.status-bar`
-						// filter. See `mountFolderStatusBar`.
-						mountFolderStatusBar( body, folderId );
+
+						// Route stack — breadcrumb history within
+						// this single window. Opening a sub-folder
+						// pushes; clicking Back pops. Each entry
+						// owns its own FilesLayer + status bar mount;
+						// transitioning between routes disposes the
+						// previous mount cleanly.
+						interface FolderRoute {
+							folderId: number;
+							title: string;
+						}
+						const routes: FolderRoute[] = [
+							{ folderId, title: file.title() },
+						];
+						let currentDispose: ( () => void ) | null = null;
+
+						// Persistent chrome — breadcrumb header (always
+						// visible), split body (rebuilt on navigation),
+						// status bar (rebuilt on navigation). The
+						// breadcrumb DOM is owned by the shared
+						// `renderBreadcrumbs` helper so the folder
+						// window paints pixel-identical chrome to
+						// every other drill-down surface (My
+						// WordPress, future detail dossiers, …).
+						const breadcrumbsHost = document.createElement( 'header' );
+						body.appendChild( breadcrumbsHost );
+
+						const bodyHost = document.createElement( 'div' );
+						bodyHost.style.cssText =
+							'flex:1 1 auto;min-height:0;display:flex;flex-direction:column;';
+						body.appendChild( bodyHost );
+
+						const paintBreadcrumbs = (): void => {
+							const segments: BreadcrumbSegment[] = routes.map(
+								( route, idx ) => {
+									const isCurrent = idx === routes.length - 1;
+									if ( isCurrent ) {
+										return { label: route.title };
+									}
+									return {
+										label: route.title,
+										onClick: () => {
+											routes.length = idx + 1;
+											mountCurrent();
+										},
+									};
+								},
+							);
+							renderBreadcrumbs( breadcrumbsHost, segments, {
+								onBack: () => {
+									if ( routes.length <= 1 ) {
+										return;
+									}
+									routes.pop();
+									mountCurrent();
+								},
+								backDisabled: routes.length <= 1,
+							} );
+						};
+
+						/**
+						 * Build the body for the current top-of-stack
+						 * route. Disposes the previous mount, paints
+						 * the two-pane shell + status bar, returns
+						 * a teardown the next navigation will call.
+						 */
+						const mountCurrent = (): void => {
+							currentDispose?.();
+							currentDispose = null;
+							bodyHost.replaceChildren();
+
+							// Two-pane layout — left: tile grid, right:
+							// preview pane that reacts to tile selection.
+							// Same UX as My WordPress so the experience
+							// is unified across folder surfaces.
+							const split = document.createElement( 'div' );
+							split.className =
+								'desktop-mode-folder-window__split';
+							bodyHost.appendChild( split );
+
+							const layerHost = document.createElement( 'div' );
+							layerHost.className =
+								'desktop-mode-folder-window__layer';
+							split.appendChild( layerHost );
+
+							const previewPane = document.createElement( 'div' );
+							previewPane.className =
+								'desktop-mode-folder-window__preview';
+							previewPane.appendChild( renderPreviewEmpty() );
+							split.appendChild( previewPane );
+
+							const route = routes[ routes.length - 1 ];
+							const layer = mountFilesLayer(
+								layerHost,
+								route.folderId,
+							);
+							const offSelection = layer.onSelectionChange(
+								( placement ) => {
+									if ( ! placement ) {
+										previewPane.replaceChildren(
+											renderPreviewEmpty(),
+										);
+										return;
+									}
+									renderPlacementPreview(
+										placement,
+										previewPane,
+									);
+								},
+							);
+
+							// In-place sub-folder navigation — when
+							// the user double-clicks a folder tile
+							// inside this window, push it onto the
+							// breadcrumb stack instead of opening a
+							// brand-new window. Listen at the layer
+							// container so we see the dblclick before
+							// the file-tile's default handler bubbles
+							// up to `openFile`.
+							const dblClickHandler = ( e: Event ) => {
+								if ( ! ( e.target instanceof Element ) ) {
+									return;
+								}
+								const tile = e.target.closest< HTMLElement >(
+									'.desktop-mode-file-tile',
+								);
+								if ( ! tile ) {
+									return;
+								}
+								if ( tile.dataset.fileType !== 'folder' ) {
+									return;
+								}
+								const subId = parseInt(
+									tile.dataset.fileRef ?? '',
+									10,
+								);
+								if ( ! subId ) {
+									return;
+								}
+								// Pre-empt the default open handler.
+								e.preventDefault();
+								e.stopPropagation();
+								const subTitle =
+									tile.querySelector< HTMLElement >(
+										'.desktop-mode-file-tile__label',
+									)?.textContent ?? `#${ subId }`;
+								routes.push( {
+									folderId: subId,
+									title: subTitle,
+								} );
+								mountCurrent();
+							};
+							layerHost.addEventListener(
+								'dblclick',
+								dblClickHandler,
+								true,
+							);
+
+							// Same Sort By menu My WordPress uses — one
+							// `<wpd-context-menu>` recipe across every
+							// icon canvas in the shell. The folder
+							// window also adds "New folder" as an
+							// extra entry so users can create sub-
+							// folders directly inside the active
+							// folder, matching the wallpaper's CMO.
+							const menu = attachIconCanvasMenu( layerHost, {
+								scope: `desktop-mode-folder:${ route.folderId }`,
+								onSort: ( mode ) => layer.sort( mode ),
+								extraItems: [
+									{
+										id: 'new-folder',
+										label: 'New folder',
+										icon: 'dashicons-portfolio',
+										sort: 5,
+										onClick: () => {
+											openCreateFolderDialog( {
+												onSubmit: async ( name ) => {
+													const folder =
+														await filesRest.createFolder( {
+															name,
+														} );
+													const peers =
+														filesStoreApi
+															.getState()
+															.placementsByFolder.get(
+																route.folderId,
+															) ?? [];
+													const occupied =
+														buildOccupiedSet( peers );
+													const cell = snapToEmptyCell(
+														GRID_PADDING,
+														GRID_PADDING,
+														occupied,
+														layerHost,
+													);
+													const placement =
+														await filesRest.createPlacement( {
+															type: 'folder',
+															ref: String( folder.id ),
+															parentId: route.folderId,
+															x: cell.x,
+															y: cell.y,
+														} );
+													filesStoreApi.upsertFolder( folder );
+													filesStoreApi.upsertPlacement(
+														placement,
+													);
+												},
+											} );
+										},
+									},
+								],
+							} );
+
+							// Status bar — re-mount per route so it
+							// reflects the active folder's contents.
+							const status = mountFolderStatusBar(
+								bodyHost,
+								route.folderId,
+							);
+
+							currentDispose = (): void => {
+								offSelection();
+								menu.dispose();
+								status.dispose();
+								layerHost.removeEventListener(
+									'dblclick',
+									dblClickHandler,
+									true,
+								);
+								layer.dispose();
+							};
+
+							paintBreadcrumbs();
+						};
+
+						mountCurrent();
 					},
 					width: 720,
 					height: 480,

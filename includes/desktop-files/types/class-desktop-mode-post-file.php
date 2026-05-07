@@ -31,7 +31,11 @@ class Desktop_Mode_Post_File extends Desktop_Mode_File {
 		if ( ! $post ) {
 			return __( '(missing post)', 'desktop-mode' );
 		}
-		return wp_strip_all_tags( get_the_title( $post ) );
+		$title = wp_strip_all_tags( get_the_title( $post ) );
+		// Auto-drafts and brand-new posts often have empty titles.
+		// Surface a placeholder so the tile shows something readable
+		// instead of an icon with no label under it.
+		return '' !== $title ? $title : __( '(no title)', 'desktop-mode' );
 	}
 
 	public function icon(): string {

@@ -105,19 +105,7 @@ function desktop_mode_my_wordpress_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-		<header class="desktop-mode-my-wordpress__breadcrumbs" data-desktop-mode-my-wordpress-breadcrumbs>
-			<button
-				type="button"
-				class="desktop-mode-my-wordpress__back"
-				data-desktop-mode-my-wordpress-back
-				disabled
-				aria-label="<?php esc_attr_e( 'Back', 'desktop-mode' ); ?>"
-				title="<?php esc_attr_e( 'Back', 'desktop-mode' ); ?>"
-			>
-				<span class="dashicons dashicons-arrow-left-alt2" aria-hidden="true"></span>
-			</button>
-			<nav class="desktop-mode-my-wordpress__crumbs" data-desktop-mode-my-wordpress-crumbs aria-label="<?php esc_attr_e( 'Breadcrumb', 'desktop-mode' ); ?>"></nav>
-		</header>
+		<header data-desktop-mode-my-wordpress-breadcrumbs></header>
 		<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
 			<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden>
 				<wpd-spinner></wpd-spinner>

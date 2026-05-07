@@ -29,6 +29,14 @@
 		--desktop-mode-my-wordpress-bg,
 		var( --desktop-mode-window-bg, #fff )
 	);
+	/* Light-context tile color tokens — same recipe as the folder
+	 * window. Tiles inside My WordPress paint dark-on-light. */
+	--desktop-mode-tile-fg: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	--desktop-mode-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
+	--desktop-mode-tile-hover-bg: var(
+		--desktop-mode-hover,
+		rgba( 0, 0, 0, 0.06 )
+	);
 }
 
 /* Pinned-icon visual cue — used by `desktop-mode-icon--pinned` (the
@@ -40,89 +48,9 @@
 	cursor: pointer;
 }
 
-/* ----- Breadcrumb header ----- */
-
-.desktop-mode-my-wordpress__breadcrumbs {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 6px 10px;
-	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
-	background: transparent;
-	flex: 0 0 auto;
-}
-
-.desktop-mode-my-wordpress__back {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 26px;
-	height: 26px;
-	padding: 0;
-	border: 0;
-	background: transparent;
-	border-radius: 4px;
-	cursor: pointer;
-	color: inherit;
-	flex: 0 0 auto;
-}
-
-.desktop-mode-my-wordpress__back:hover:not(:disabled),
-.desktop-mode-my-wordpress__back:focus-visible:not(:disabled) {
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
-	outline: none;
-}
-
-.desktop-mode-my-wordpress__back:disabled {
-	opacity: 0.35;
-	cursor: default;
-}
-
-.desktop-mode-my-wordpress__back .dashicons {
-	font-size: 18px;
-	width: 18px;
-	height: 18px;
-	line-height: 1;
-}
-
-.desktop-mode-my-wordpress__crumbs {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 13px;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.desktop-mode-my-wordpress__crumb {
-	border: 0;
-	background: transparent;
-	color: var( --desktop-mode-link, #2271b1 );
-	cursor: pointer;
-	padding: 2px 4px;
-	border-radius: 4px;
-	font: inherit;
-}
-
-.desktop-mode-my-wordpress__crumb:hover {
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
-}
-
-.desktop-mode-my-wordpress__crumb--current {
-	color: var( --desktop-mode-fg, #1d2327 );
-	cursor: default;
-	font-weight: 600;
-}
-
-.desktop-mode-my-wordpress__crumb--current:hover {
-	background: transparent;
-}
-
-.desktop-mode-my-wordpress__crumb-sep {
-	color: var( --desktop-mode-muted, #787c82 );
-}
+/* Breadcrumb header chrome — owned by the shared
+ * `.desktop-mode-breadcrumbs` rules in `desktop-files.css`. No
+ * per-surface duplication. */
 
 /* ----- Body host ----- */
 
@@ -184,22 +112,17 @@
  * structure are inherited from `.desktop-mode-file-tile`.
  */
 .desktop-mode-my-wordpress .desktop-mode-file-tile {
-	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
-	/* Keep the wallpaper's `position: absolute` so each tile lives
-	 * at the (left, top) the layout helper assigns. The canvas above
-	 * provides the positioning context. */
-	/* Drop the wallpaper's `transition: transform` — it hints at
+	/* Color + hover come from `--desktop-mode-tile-*` — see the
+	 * scope-level variable overrides on `.desktop-mode-my-wordpress`
+	 * above. We only override structural / animation bits here.
+	 *
+	 * Drop the wallpaper's `transition: transform` — it hints at
 	 * GPU compositing in Chrome, and the moment the layer is
 	 * composited the label rasterizes against fractional device
 	 * pixels (sub-pixel blur on HiDPI). We don't animate transform
 	 * here, so the transition is dead code anyway. */
 	transition: background-color 0.15s ease;
 	transform: none;
-}
-
-.desktop-mode-my-wordpress .desktop-mode-file-tile:hover,
-.desktop-mode-my-wordpress .desktop-mode-file-tile:focus-visible {
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
 }
 
 /* Selection highlight on the post/page tile. */

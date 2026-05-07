@@ -25,6 +25,11 @@ import {
 	renderStatusBarSegments,
 	type StatusBarSegment,
 } from '../desktop-files/folder-status-bar';
+import { setShortcutDragPayload } from '../desktop-files/drag-shortcut';
+import {
+	renderBreadcrumbs,
+	type BreadcrumbSegment,
+} from '../desktop-files/breadcrumbs';
 import {
 	buildEditUrl,
 	fetchAttachedMedia,
@@ -73,8 +78,7 @@ declare global {
 const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 const ROOT_SEL = '[data-desktop-mode-my-wordpress-root]';
-const BACK_SEL = '[data-desktop-mode-my-wordpress-back]';
-const CRUMBS_SEL = '[data-desktop-mode-my-wordpress-crumbs]';
+const BREADCRUMBS_SEL = '[data-desktop-mode-my-wordpress-breadcrumbs]';
 const BODY_SEL = '[data-desktop-mode-my-wordpress-body]';
 const STATUS_SEL = '[data-desktop-mode-my-wordpress-status]';
 
@@ -163,8 +167,7 @@ interface RenderState {
 	route: Route;
 	body: HTMLElement;
 	root: HTMLElement;
-	backBtn: HTMLElement;
-	crumbs: HTMLElement;
+	breadcrumbs: HTMLElement;
 	statusBar: HTMLElement;
 	teardown: Array< () => void >;
 }
@@ -279,83 +282,72 @@ function clearTeardown( state: RenderState ): void {
 }
 
 function updateBreadcrumbs( state: RenderState ): void {
-	const { route, backBtn, crumbs } = state;
-	crumbs.replaceChildren();
+	const { route } = state;
 
-	const segments: Array< {
-		label: string;
-		target: Route | null;
-	} > = [];
-	segments.push( {
-		label: __( 'My WordPress', 'desktop-mode' ),
-		target: route.kind === 'root' ? null : { kind: 'root' },
-	} );
+	// Build the segment list, then defer to the shared
+	// `renderBreadcrumbs` helper. Same chrome the folder window
+	// uses — we don't own the breadcrumb DOM anymore, so a tweak
+	// to the visual lands in one place.
+	const segments: BreadcrumbSegment[] = [];
+	const isRoot = route.kind === 'root';
+	segments.push(
+		isRoot
+			? { label: __( 'My WordPress', 'desktop-mode' ) }
+			: {
+				label: __( 'My WordPress', 'desktop-mode' ),
+				onClick: () => navigate( state, { kind: 'root' } ),
+			},
+	);
 
 	if ( route.kind !== 'root' ) {
 		const entity = getEntity( route.entityId );
-		segments.push( {
-			label: entity ? entity.label : route.entityId,
-			target:
-				route.kind === 'list'
-					? null
-					: { kind: 'list', entityId: route.entityId },
-		} );
+		const label = entity ? entity.label : route.entityId;
+		segments.push(
+			route.kind === 'list'
+				? { label }
+				: {
+					label,
+					onClick: () =>
+						navigate( state, {
+							kind: 'list',
+							entityId: route.entityId,
+						} ),
+				},
+		);
 	}
+
 	if ( route.kind === 'detail' || route.kind === 'sub-list' ) {
-		segments.push( {
-			label: route.postTitle,
-			target:
-				route.kind === 'detail'
-					? null
-					: {
-						kind: 'detail',
-						entityId: route.entityId,
-						postId: route.postId,
-						postTitle: route.postTitle,
-					},
-		} );
+		const postTitle = route.postTitle;
+		const entityId = route.entityId;
+		const postId = route.postId;
+		segments.push(
+			route.kind === 'detail'
+				? { label: postTitle }
+				: {
+					label: postTitle,
+					onClick: () =>
+						navigate( state, {
+							kind: 'detail',
+							entityId,
+							postId,
+							postTitle,
+						} ),
+				},
+		);
 	}
 	if ( route.kind === 'sub-list' ) {
-		segments.push( {
-			label: subRelationLabel( route.relation ),
-			target: null,
-		} );
+		segments.push( { label: subRelationLabel( route.relation ) } );
 	}
 
-	segments.forEach( ( seg, idx ) => {
-		if ( idx > 0 ) {
-			const sep = document.createElement( 'span' );
-			sep.className = 'desktop-mode-my-wordpress__crumb-sep';
-			sep.setAttribute( 'aria-hidden', 'true' );
-			sep.textContent = '›';
-			crumbs.appendChild( sep );
-		}
-		if ( seg.target === null ) {
-			const here = document.createElement( 'span' );
-			here.className =
-				'desktop-mode-my-wordpress__crumb desktop-mode-my-wordpress__crumb--current';
-			here.setAttribute( 'aria-current', 'page' );
-			here.textContent = seg.label;
-			crumbs.appendChild( here );
-			return;
-		}
-		const btn = document.createElement( 'button' );
-		btn.type = 'button';
-		btn.className = 'desktop-mode-my-wordpress__crumb';
-		btn.textContent = seg.label;
-		btn.addEventListener( 'click', () => {
-			if ( seg.target ) {
-				navigate( state, seg.target );
+	renderBreadcrumbs( state.breadcrumbs, segments, {
+		onBack: () => {
+			if ( state.route.kind === 'root' ) {
+				return;
 			}
-		} );
-		crumbs.appendChild( btn );
+			navigate( state, parentRoute( state.route ) );
+		},
+		backDisabled: isRoot,
 	} );
-
-	if ( route.kind === 'root' ) {
-		backBtn.setAttribute( 'disabled', '' );
-	} else {
-		backBtn.removeAttribute( 'disabled' );
-	}
 }
 
 function subRelationLabel( relation: SubRelation ): string {
@@ -751,6 +743,30 @@ function buildEntityTile(
 		label: titleText,
 	} );
 	tile.dataset.entryId = String( item.id );
+
+	// Make the tile a native HTML5 drag source so the user can
+	// drag it out of the My WordPress window and drop it on the
+	// wallpaper, on a folder icon, or inside an open folder
+	// window — the desktop FilesLayer reads the payload and files
+	// a `post`-type placement (a shortcut) at the drop target.
+	// Internal rearrange is still disabled (single click selects,
+	// double click opens) — only the cross-window drag-out fires.
+	tile.draggable = true;
+	tile.addEventListener( 'dragstart', ( e: DragEvent ) => {
+		hideTooltip();
+		if ( ! e.dataTransfer ) {
+			return;
+		}
+		setShortcutDragPayload( e.dataTransfer, {
+			type: 'post',
+			ref: String( item.id ),
+			title: titleText,
+			icon: entity.icon,
+		} );
+		// Browser uses the drag source as the default ghost — that
+		// already looks right (the tile follows the cursor with a
+		// subtle alpha). No setDragImage override needed.
+	} );
 
 	// If another user is editing right now, surface that on the
 	// tile itself (overlay lock badge + class for styling) so the
@@ -3681,16 +3697,33 @@ function attachTileDrag(
 	tile.addEventListener( 'pointercancel', onPointerEnd );
 }
 
+/**
+ * Live `RenderState` for the currently-mounted My WordPress
+ * window, or `null` when it isn't open. Captured in `renderInto`
+ * and cleared on close — used by the public
+ * `wp.desktop.myWordpress.openDetail()` API so any other shell
+ * surface (folder window CMO, plugin code) can route the My
+ * WordPress window directly into a post's detail dossier without
+ * duplicating the per-relation rendering.
+ */
+let activeState: RenderState | null = null;
+/**
+ * Pending route applied on next `renderInto`. When the My WordPress
+ * window isn't open yet, `openDetail()` opens it AND queues a
+ * navigation here; the freshly-mounted state pulls + clears the
+ * queue.
+ */
+let pendingRoute: Route | null = null;
+
 function renderInto( body: HTMLElement ): void {
 	const root = body.querySelector< HTMLElement >( ROOT_SEL );
 	if ( ! root ) {
 		return;
 	}
-	const backBtn = root.querySelector< HTMLElement >( BACK_SEL );
-	const crumbs = root.querySelector< HTMLElement >( CRUMBS_SEL );
+	const breadcrumbsHost = root.querySelector< HTMLElement >( BREADCRUMBS_SEL );
 	const bodyHost = root.querySelector< HTMLElement >( BODY_SEL );
 	const statusHost = root.querySelector< HTMLElement >( STATUS_SEL );
-	if ( ! backBtn || ! crumbs || ! bodyHost || ! statusHost ) {
+	if ( ! breadcrumbsHost || ! bodyHost || ! statusHost ) {
 		return;
 	}
 
@@ -3698,18 +3731,15 @@ function renderInto( body: HTMLElement ): void {
 		route: { kind: 'root' },
 		body: bodyHost,
 		root,
-		backBtn,
-		crumbs,
+		breadcrumbs: breadcrumbsHost,
 		statusBar: statusHost,
 		teardown: [],
 	};
+	activeState = state;
 
-	backBtn.addEventListener( 'click', () => {
-		if ( state.route.kind === 'root' ) {
-			return;
-		}
-		navigate( state, parentRoute( state.route ) );
-	} );
+	// Back button + crumb-click handlers are wired by the shared
+	// breadcrumb helper inside `updateBreadcrumbs` — no per-element
+	// listener wiring here anymore.
 
 	// Tear down on close.
 	const closeHandler = ( e: Event ) => {
@@ -3717,13 +3747,20 @@ function renderInto( body: HTMLElement ): void {
 		if ( detail?.windowId === WINDOW_ID ) {
 			clearTeardown( state );
 			closeAnyTileMenu();
+			if ( activeState === state ) {
+				activeState = null;
+			}
 			document.removeEventListener( 'desktop-mode-window-closed', closeHandler );
 		}
 	};
 	document.addEventListener( 'desktop-mode-window-closed', closeHandler );
 	state.teardown.push( () => closeAnyTileMenu() );
 
-	navigate( state, { kind: 'root' } );
+	// If the consumer opened the window via `openDetail` while it
+	// was closed, the queued route is the actual destination.
+	const initialRoute = pendingRoute ?? { kind: 'root' };
+	pendingRoute = null;
+	navigate( state, initialRoute );
 }
 
 const callback: RenderCallback = ( body ) => {
@@ -3737,3 +3774,67 @@ const callback: RenderCallback = ( body ) => {
 
 window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
 window.desktopModeNativeWindows[ WINDOW_ID ] = callback;
+
+/* ------------------------------------------------------------------ *
+ *  Public API — `wp.desktop.myWordpress.openDetail( … )`.
+ *
+ *  Routes the My WordPress window directly into a post's detail
+ *  dossier (Author / Comments / Tags / Categories / Attached
+ *  media / Revisions). Any other shell surface — folder window
+ *  tile CMO, plugin code, the AI Copilot — calls this single
+ *  entry point so the dossier rendering lives in EXACTLY ONE
+ *  place. No duplication.
+ *
+ *  Idempotent on re-call: if the window is already open we just
+ *  navigate the live state; otherwise we open it and queue the
+ *  navigation for the freshly-mounted state.
+ *
+ *  @public
+ *  @since 0.8.0
+ * ------------------------------------------------------------------ */
+
+interface OpenDetailArgs {
+	entityId: string;
+	postId: number;
+	postTitle: string;
+}
+
+function openDetail( args: OpenDetailArgs ): void {
+	const route: Route = {
+		kind: 'detail',
+		entityId: args.entityId,
+		postId: args.postId,
+		postTitle: args.postTitle,
+	};
+	if ( activeState ) {
+		navigate( activeState, route );
+		return;
+	}
+	pendingRoute = route;
+	const desktop = (
+		window.wp as
+			| {
+					desktop?: {
+						openWindow?: (
+							id: string,
+							opts?: { source?: string },
+						) => boolean;
+					};
+			}
+			| undefined
+	)?.desktop;
+	desktop?.openWindow?.( WINDOW_ID, { source: 'my-wordpress/open-detail' } );
+}
+
+interface MyWordpressApi {
+	openDetail: ( args: OpenDetailArgs ) => void;
+}
+
+const desktopGlobal = (
+	window.wp as
+		| { desktop?: Record< string, unknown > & { myWordpress?: MyWordpressApi } }
+		| undefined
+)?.desktop;
+if ( desktopGlobal ) {
+	desktopGlobal.myWordpress = { openDetail };
+}

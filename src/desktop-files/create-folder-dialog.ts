@@ -29,6 +29,28 @@ export interface CreateFolderDialogOptions {
 	onSubmit: ( name: string ) => Promise< unknown > | unknown;
 	/** Optional cancel callback. */
 	onCancel?: () => void;
+	/**
+	 * Heading copy for the dialog. Defaults to `'New folder'`.
+	 * Pass a different string when reusing the dialog for rename
+	 * flows so screen readers and the visible heading match.
+	 *
+	 * @since 0.8.0
+	 */
+	title?: string;
+	/**
+	 * Label above the input. Defaults to `'Folder name'`.
+	 *
+	 * @since 0.8.0
+	 */
+	label?: string;
+	/**
+	 * Primary button copy. Defaults to `'Create'`. Use `'Rename'`
+	 * (or any verb that reads correctly with the new title) when
+	 * the dialog is acting as a rename modal.
+	 *
+	 * @since 0.8.0
+	 */
+	submitLabel?: string;
 }
 
 let active: HTMLElement | null = null;
@@ -83,13 +105,13 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	const title = document.createElement( 'h2' );
 	title.id = `${ ROOT_CLASS }-title`;
 	title.className = `${ ROOT_CLASS }__title`;
-	title.textContent = 'New folder';
+	title.textContent = options.title ?? 'New folder';
 	dialog.appendChild( title );
 
 	const label = document.createElement( 'label' );
 	label.className = `${ ROOT_CLASS }__label`;
 	label.htmlFor = `${ ROOT_CLASS }-input`;
-	label.textContent = 'Folder name';
+	label.textContent = options.label ?? 'Folder name';
 	dialog.appendChild( label );
 
 	const input = document.createElement( 'input' );
@@ -118,7 +140,7 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	const submit = document.createElement( 'button' );
 	submit.type = 'button';
 	submit.className = `${ ROOT_CLASS }__btn ${ ROOT_CLASS }__btn--primary`;
-	submit.textContent = 'Create';
+	submit.textContent = options.submitLabel ?? 'Create';
 
 	actions.appendChild( cancel );
 	actions.appendChild( submit );

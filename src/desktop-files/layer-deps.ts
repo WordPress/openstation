@@ -16,6 +16,7 @@ export {
 	removePlacement,
 	setFolderPlacements,
 	subscribeFilesStore,
+	upsertFolder,
 	upsertPlacement,
 } from './store';
 
@@ -25,6 +26,7 @@ import {
 	removePlacement,
 	setFolderPlacements,
 	subscribeFilesStore,
+	upsertFolder,
 	upsertPlacement,
 } from './store';
 
@@ -33,6 +35,7 @@ export const store = {
 	subscribe: subscribeFilesStore,
 	setFolderPlacements,
 	upsertPlacement,
+	upsertFolder,
 	removePlacement,
 	removeFolder,
 };
