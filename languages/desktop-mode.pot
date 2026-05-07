@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Desktop Mode 0.7.0\n"
+"Project-Id-Version: Desktop Mode 0.7.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/alcazaba-plugin\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-05-05T11:01:22+00:00\n"
+"POT-Creation-Date: 2026-05-06T18:02:51+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: desktop-mode\n"
@@ -71,60 +71,72 @@ msgstr ""
 msgid "Switch to Desktop Mode"
 msgstr ""
 
-#: includes/admin-bar.php:70
+#: includes/admin-bar.php:68 includes/admin-bar.php:513
+msgid "Fullscreen"
+msgstr ""
+
+#: includes/admin-bar.php:72 includes/admin-bar.php:515
+msgid "Enter fullscreen"
+msgstr ""
+
+#: includes/admin-bar.php:91
 msgid "Report a bug"
 msgstr ""
 
-#: includes/admin-bar.php:74
+#: includes/admin-bar.php:95
 msgid "Open the Bug Report window"
 msgstr ""
 
-#: includes/admin-bar.php:94
+#: includes/admin-bar.php:115
 msgid "Ask AI"
 msgstr ""
 
-#: includes/admin-bar.php:98
+#: includes/admin-bar.php:119
 msgid "Open AI Assistant (Cmd+K)"
 msgstr ""
 
-#: includes/admin-bar.php:116
+#: includes/admin-bar.php:137
 msgid "Arrange"
 msgstr ""
 
-#: includes/admin-bar.php:119
+#: includes/admin-bar.php:140
 msgid "Arrange windows"
 msgstr ""
 
-#: includes/admin-bar.php:128
+#: includes/admin-bar.php:149
 msgid "Cascade"
 msgstr ""
 
-#: includes/admin-bar.php:132
+#: includes/admin-bar.php:153
 msgid "Lay all windows out from top-left, offset so every title bar stays visible."
 msgstr ""
 
-#: includes/admin-bar.php:140
+#: includes/admin-bar.php:161
 msgid "Overview"
 msgstr ""
 
-#: includes/admin-bar.php:144
+#: includes/admin-bar.php:165
 msgid "Zoom out to see every window at once. Click one to focus it."
 msgstr ""
 
-#: includes/admin-bar.php:158
+#: includes/admin-bar.php:179
 msgid "Snap to grid"
 msgstr ""
 
-#: includes/admin-bar.php:162
+#: includes/admin-bar.php:183
 msgid "Snap windows to a grid while dragging or resizing."
 msgstr ""
 
-#: includes/admin-bar.php:170
+#: includes/admin-bar.php:191
 msgid "Tile all windows"
 msgstr ""
 
-#: includes/admin-bar.php:174
+#: includes/admin-bar.php:195
 msgid "Pack every window into an evenly tiled grid that fills the desktop."
+msgstr ""
+
+#: includes/admin-bar.php:514 includes/admin-bar.php:516
+msgid "Exit fullscreen"
 msgstr ""
 
 #: includes/ai-copilot/tools-registry.php:97
@@ -327,42 +339,64 @@ msgstr ""
 msgid "Sorry, you are not allowed to access the WordPress desktop."
 msgstr ""
 
-#: includes/posts-window/window.php:43
+#: includes/posts-window/window.php:33
+msgid "All posts"
+msgstr ""
+
+#: includes/posts-window/window.php:34
+msgid "Categories"
+msgstr ""
+
+#: includes/posts-window/window.php:35
+msgid "Tags"
+msgstr ""
+
+#: includes/posts-window/window.php:50
 msgid "Search posts…"
 msgstr ""
 
-#: includes/posts-window/window.php:60
-#: includes/recycle-bin/window.php:62
+#: includes/posts-window/window.php:67 includes/recycle-bin/window.php:62
 msgid "Refresh"
 msgstr ""
 
-#: includes/posts-window/window.php:65
+#: includes/posts-window/window.php:72
 msgid "Add New"
 msgstr ""
 
-#: includes/posts-window/window.php:81
+#: includes/posts-window/window.php:89
 msgid "No posts found."
 msgstr ""
 
-#: includes/posts-window/window.php:83
+#: includes/posts-window/window.php:91
 msgid "Try a different search or change the status filter."
 msgstr ""
 
-#: includes/posts-window/window.php:95
+#: includes/posts-window/window.php:103
 msgid "Previous"
 msgstr ""
 
-#: includes/posts-window/window.php:98
+#: includes/posts-window/window.php:106
 msgid "Next"
 msgstr ""
 
-#: includes/posts-window/window.php:102
+#: includes/posts-window/window.php:110
 msgid "Per page"
 msgstr ""
 
-#: includes/posts-window/window.php:160
-#: includes/recycle-bin/window.php:40
+#: includes/posts-window/window.php:177 includes/recycle-bin/window.php:40
 msgid "Posts"
+msgstr ""
+
+#: includes/posts-window/window.php:324
+msgid "Number of non-trashed posts (any status) in this term."
+msgstr ""
+
+#: includes/posts-window/window.php:342
+msgid "Whether this term is the taxonomy's default (fallback) term."
+msgstr ""
+
+#: includes/posts-window/window.php:398
+msgid "Unknown taxonomy."
 msgstr ""
 
 #: includes/presence.php:418
@@ -371,6 +405,12 @@ msgstr ""
 
 #: includes/presence.php:425
 msgid "Desktop mode is not enabled for your account."
+msgstr ""
+
+#. translators: %s: site name
+#: includes/pwa.php:215
+#, php-format
+msgid "%s — installed as a desktop app."
 msgstr ""
 
 #: includes/recycle-bin/rest.php:148
@@ -391,13 +431,11 @@ msgstr ""
 msgid "%1$s on %2$s"
 msgstr ""
 
-#: includes/recycle-bin/store.php:590
-#: includes/recycle-bin/store.php:699
+#: includes/recycle-bin/store.php:590 includes/recycle-bin/store.php:699
 msgid "Item not found."
 msgstr ""
 
-#: includes/recycle-bin/store.php:593
-#: includes/recycle-bin/store.php:702
+#: includes/recycle-bin/store.php:593 includes/recycle-bin/store.php:702
 msgid "Item is not in the trash."
 msgstr ""
 
@@ -409,13 +447,11 @@ msgstr ""
 msgid "Failed to restore item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:642
-#: includes/recycle-bin/store.php:756
+#: includes/recycle-bin/store.php:642 includes/recycle-bin/store.php:756
 msgid "Comment not found."
 msgstr ""
 
-#: includes/recycle-bin/store.php:645
-#: includes/recycle-bin/store.php:759
+#: includes/recycle-bin/store.php:645 includes/recycle-bin/store.php:759
 msgid "Comment is not in the trash."
 msgstr ""
 
@@ -483,20 +519,19 @@ msgstr ""
 msgid "Deleted posts, pages, and media show up here. Restoring puts them back where they were."
 msgstr ""
 
-#: includes/recycle-bin/window.php:146
-#: includes/recycle-bin/window.php:174
+#: includes/recycle-bin/window.php:146 includes/recycle-bin/window.php:174
 msgid "Recycle Bin"
 msgstr ""
 
-#: includes/render.php:325
+#: includes/render.php:338
 msgid "Desktop shell"
 msgstr ""
 
-#: includes/render.php:338
+#: includes/render.php:351
 msgid "Admin navigation"
 msgstr ""
 
-#: includes/render.php:351
+#: includes/render.php:364
 msgid "Widgets"
 msgstr ""
 
@@ -602,4 +637,1088 @@ msgstr ""
 
 #: includes/window-chrome.php:822
 msgid "Window chrome registration requires a non-empty `id`."
+msgstr ""
+
+#: src/settings/sections/help.ts:47
+msgid "Component library"
+msgstr ""
+
+#: src/settings/sections/help.ts:49
+msgid "Every <wpd-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code."
+msgstr ""
+
+#: src/settings/sections/help.ts:53
+msgid "components registered."
+msgstr ""
+
+#: src/settings/sections/help.ts:60 src/settings/index.ts:402
+msgid "Components"
+msgstr ""
+
+#: src/settings/sections/help.ts:123
+msgid "Since"
+msgstr ""
+
+#: src/settings/sections/help.ts:137
+msgid "Example"
+msgstr ""
+
+#: src/settings/sections/help.ts:150
+msgid "This component has no help descriptor yet. Add `static help` to its class for a fuller reference."
+msgstr ""
+
+#: src/settings/sections/help.ts:168
+msgid "Props"
+msgstr ""
+
+#: src/settings/sections/help.ts:172 src/posts-window/tags-cloud.ts:1496
+#: src/posts-window/tags-cloud.ts:1665 src/posts-window/tags-cloud.ts:1671
+#: src/posts-window/categories-mindmap.ts:2265
+#: src/posts-window/categories-mindmap.ts:2446
+#: src/posts-window/categories-mindmap.ts:2452
+msgid "Name"
+msgstr ""
+
+#: src/settings/sections/help.ts:173 src/bug-report/index.ts:128
+#: src/recycle-bin/index.ts:180
+msgid "Type"
+msgstr ""
+
+#: src/settings/sections/help.ts:174 src/settings/labels.ts:42
+msgid "Default"
+msgstr ""
+
+#: src/settings/sections/help.ts:175 src/posts-window/tags-cloud.ts:1507
+#: src/posts-window/tags-cloud.ts:1698
+#: src/posts-window/categories-mindmap.ts:2299
+#: src/posts-window/categories-mindmap.ts:2485
+msgid "Description"
+msgstr ""
+
+#: src/settings/sections/help.ts:198
+msgid "Undocumented — declared via static props."
+msgstr ""
+
+#: src/settings/sections/help.ts:217
+msgid "Slots"
+msgstr ""
+
+#: src/settings/sections/help.ts:240
+msgid "Events"
+msgstr ""
+
+#: src/settings/sections/help.ts:264
+msgid "Shadow parts"
+msgstr ""
+
+#: src/settings/sections/help.ts:285
+msgid "CSS custom properties"
+msgstr ""
+
+#: src/settings/sections/help.ts:293
+msgid "default"
+msgstr ""
+
+#: src/settings/sections/help.ts:307
+msgid "No components registered."
+msgstr ""
+
+#: src/settings/sections/help.ts:337
+msgid "Experimental"
+msgstr ""
+
+#: src/settings/sections/help.ts:339
+msgid "Planned"
+msgstr ""
+
+#: src/settings/sections/help.ts:342
+msgid "Stable"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:38
+msgid "Upload new"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:44
+msgid "Media Library"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:59
+msgid "Or use your own image"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:64
+msgid "Image source"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:129
+msgid "Custom image wallpaper"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:133
+msgid "Upload a wallpaper image"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:158
+msgid "Remove custom image"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:160
+msgid "Remove"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:171
+msgid "Drop an image here, or click to upload"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:175
+msgid "JPEG, PNG, or WebP · goes straight to your Media Library"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:218
+msgid "That file isn’t an image."
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:225
+msgid "Uploading…"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:250
+msgid "Upload failed."
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:283
+msgid "Search your media"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:285
+msgid "Search media"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:295
+msgid "Load more"
+msgstr ""
+
+#. translators: %1$d is the HD minimum width in px, %2$d is the minimum height.
+#: src/settings/sections/custom-image.ts:318
+#, javascript-format
+msgid "Only HD (≥%1$d×%2$d)"
+msgstr ""
+
+#. translators: %d is the number of media items currently visible.
+#: src/settings/sections/custom-image.ts:339
+#, javascript-format
+msgid "Showing %d"
+msgstr ""
+
+#. translators: %d is the number of images filtered out by the HD toggle.
+#: src/settings/sections/custom-image.ts:344
+#, javascript-format
+msgid "%d hidden by HD filter"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:368
+msgid "No HD images found. Try unchecking the filter, or upload a larger image."
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:370
+msgid "No images in your Media Library yet."
+msgstr ""
+
+#. translators: %s is the browser-supplied error message.
+#: src/settings/sections/custom-image.ts:419
+#, javascript-format
+msgid "Couldn’t load your media: %s"
+msgstr ""
+
+#: src/settings/sections/custom-image.ts:422
+msgid "Couldn’t load your media."
+msgstr ""
+
+#: src/settings/sections/dock-rail-renderer.ts:54
+#: src/settings/sections/dock-rail-renderer.ts:61
+msgid "Dock style"
+msgstr ""
+
+#: src/settings/sections/dock-rail-renderer.ts:56
+msgid "How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer."
+msgstr ""
+
+#: src/settings/sections/desktop-layout.ts:35
+#: src/settings/sections/desktop-layout.ts:42
+msgid "Desktop layout"
+msgstr ""
+
+#: src/settings/sections/features.ts:39 src/settings/index.ts:380
+msgid "Features"
+msgstr ""
+
+#: src/settings/sections/features.ts:41
+msgid "Opt in to Desktop Mode behaviors that aren’t on by default. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved."
+msgstr ""
+
+#: src/settings/sections/features.ts:45
+msgid "Use the native Posts window"
+msgstr ""
+
+#: src/settings/sections/features.ts:51
+msgid "Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Click Posts in the dock to open it. Toggle off to return to the classic experience."
+msgstr ""
+
+#: src/settings/sections/ai.ts:80
+msgid "API key"
+msgstr ""
+
+#: src/settings/sections/ai.ts:85
+msgid "AI integration"
+msgstr ""
+
+#: src/settings/sections/ai.ts:87
+msgid "A platform-wide AI key is configured. You can optionally set a personal key below to override it."
+msgstr ""
+
+#: src/settings/sections/ai.ts:88
+msgid "Connect an AI provider to power assistive features across the desktop."
+msgstr ""
+
+#: src/settings/sections/ai.ts:91
+msgid "Enable AI features"
+msgstr ""
+
+#: src/settings/sections/ai.ts:97 src/settings/sections/ai.ts:250
+msgid "Provider"
+msgstr ""
+
+#: src/settings/sections/ai.ts:113
+msgid "Using platform key — enter to override"
+msgstr ""
+
+#: src/settings/sections/ai.ts:114 src/settings/sections/ai.ts:265
+msgid "sk-…"
+msgstr ""
+
+#: src/settings/sections/ai.ts:121
+msgid "Live progress updates"
+msgstr ""
+
+#: src/settings/sections/ai.ts:131
+msgid "How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see \"Lost connection to the assistant\" errors)."
+msgstr ""
+
+#: src/settings/sections/ai.ts:207 src/settings/sections/extended.ts:67
+msgid "Network error — check your connection."
+msgstr ""
+
+#: src/settings/sections/ai.ts:240
+msgid "Global settings"
+msgstr ""
+
+#: src/settings/sections/ai.ts:241
+msgid "Platform-wide AI configuration. Applies to all users and to background jobs (cron, WP-CLI, anonymous comments). Individual users can override with their own key above."
+msgstr ""
+
+#: src/settings/sections/ai.ts:244
+msgid "Enable AI for all users"
+msgstr ""
+
+#: src/settings/sections/ai.ts:261
+msgid "Platform API key"
+msgstr ""
+
+#: src/settings/sections/ai.ts:277 src/settings/sections/extended.ts:104
+msgid "Saving…"
+msgstr ""
+
+#: src/settings/sections/extended.ts:83
+msgid "Extended options"
+msgstr ""
+
+#: src/settings/sections/extended.ts:85
+msgid "Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect."
+msgstr ""
+
+#: src/settings/sections/extended.ts:89
+msgid "Enable drag-and-drop in the Media Library"
+msgstr ""
+
+#: src/settings/sections/extended.ts:96
+msgid "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know."
+msgstr ""
+
+#: src/settings/sections/accent.ts:37 src/settings/sections/accent.ts:41
+msgid "Accent color"
+msgstr ""
+
+#: src/settings/sections/accent.ts:38
+msgid "Used in focused window title bars, buttons, and focus rings."
+msgstr ""
+
+#: src/settings/sections/wallpaper.ts:35
+msgid "Custom gradient"
+msgstr ""
+
+#: src/settings/sections/wallpaper.ts:57
+msgid "Custom image"
+msgstr ""
+
+#: src/settings/sections/wallpaper.ts:205
+msgid "From"
+msgstr ""
+
+#: src/settings/sections/wallpaper.ts:211
+msgid "To"
+msgstr ""
+
+#: src/settings/sections/wallpaper.ts:217
+msgid "Angle"
+msgstr ""
+
+#: src/settings/sections/wallpaper.ts:292
+msgid "Wallpaper"
+msgstr ""
+
+#: src/settings/sections/wallpaper.ts:294
+msgid "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image."
+msgstr ""
+
+#: src/settings/sections/dock-size.ts:34 src/settings/sections/dock-size.ts:39
+msgid "Dock size"
+msgstr ""
+
+#: src/settings/sections/dock-size.ts:35
+msgid "Width of the dock and size of its icons."
+msgstr ""
+
+#: src/settings/index.ts:351
+msgid "Appearance"
+msgstr ""
+
+#: src/settings/index.ts:357
+msgid "Personalize your desktop. Changes apply instantly and are saved to this browser."
+msgstr ""
+
+#: src/settings/index.ts:371
+msgid "AI Settings"
+msgstr ""
+
+#: src/settings/index.ts:393
+msgid "Extended Options"
+msgstr ""
+
+#: src/settings/index.ts:472
+msgid "Settings sections"
+msgstr ""
+
+#: src/settings/index.ts:478
+msgid "Reset to defaults"
+msgstr ""
+
+#: src/settings/labels.ts:40
+msgid "Compact"
+msgstr ""
+
+#: src/settings/labels.ts:44
+msgid "Large"
+msgstr ""
+
+#: src/settings/labels.ts:56
+msgid "Bottom"
+msgstr ""
+
+#: src/settings/labels.ts:58
+msgid "Left"
+msgstr ""
+
+#: src/settings/labels.ts:60
+msgid "Right"
+msgstr ""
+
+#: src/settings/labels.ts:72
+msgid "Classic"
+msgstr ""
+
+#: src/settings/labels.ts:74
+msgid "Unified"
+msgstr ""
+
+#: src/settings/labels.ts:76
+msgid "Spatial"
+msgstr ""
+
+#: src/settings/labels.ts:88
+msgid "Side bar with the core admin menus, plus a bottom dock for plugin apps."
+msgstr ""
+
+#: src/settings/labels.ts:92
+msgid "Single bottom dock holding every menu — core and plugin apps share one rail."
+msgstr ""
+
+#: src/settings/labels.ts:96
+msgid "Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper."
+msgstr ""
+
+#: src/window-chrome/controls/built-ins.ts:39
+msgid "Minimize"
+msgstr ""
+
+#: src/window-chrome/controls/built-ins.ts:52
+msgid "Maximize"
+msgstr ""
+
+#: src/window-chrome/controls/built-ins.ts:78
+msgid "Close"
+msgstr ""
+
+#: src/dock-peek/built-in-renderers.ts:106
+msgid "System Preferences"
+msgstr ""
+
+#: src/dock-peek/built-in-renderers.ts:172
+msgid "Recycle Bin — empty"
+msgstr ""
+
+#: src/dock-peek/built-in-renderers.ts:174
+msgid "1 item"
+msgstr ""
+
+#. translators: %s is the dock item's admin-page title (e.g., "Posts")
+#: src/dock-peek/index.ts:230
+#, javascript-format
+msgid "%s — open windows"
+msgstr ""
+
+#. translators: %s is the admin-page title (e.g., "Posts")
+#: src/dock-peek/index.ts:457
+#, javascript-format
+msgid "New %s"
+msgstr ""
+
+#: src/desktop-icons.ts:309
+msgid "Desktop icons"
+msgstr ""
+
+#. translators: %d is the number of pending items in a desktop-icon badge.
+#. translators: %d is the number of pending items in a dock badge.
+#: src/desktop-icons.ts:382 src/dock.ts:1456 src/dock.ts:1469
+#, javascript-format
+msgid "%d notification"
+msgid_plural "%d notifications"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/window-manager/overview.ts:311
+msgid "Add new desktop"
+msgstr ""
+
+#. translators: %s is the desktop label
+#: src/window-manager/overview.ts:338
+#, javascript-format
+msgid "Switch to %s"
+msgstr ""
+
+#. translators: %s is the desktop label
+#: src/window-manager/overview.ts:372
+#, javascript-format
+msgid "Close %s"
+msgstr ""
+
+#. translators: %d is the number of external sub-tabs open on this window.
+#: src/window-manager/overview.ts:468
+#, javascript-format
+msgid "· %d open tab"
+msgid_plural "· %d open tabs"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d is the desktop number (e.g., "Desktop 2")
+#: src/window-manager/desktops.ts:78
+#, javascript-format
+msgid "Desktop %d"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:222
+msgid "Tag cloud unavailable: shell modules API missing."
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:228 src/posts-window/tags-cloud.ts:233
+msgid "Tag cloud unavailable."
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:249
+msgid "Add tag"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:255
+#: src/posts-window/categories-mindmap.ts:234
+msgid "Recenter"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:261
+msgid "Reflow"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:263
+msgid "Recompute the chip layout from scratch — discards manual repositioning."
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:268
+msgid "Click a tag to focus + edit · drag to reposition · wheel to zoom"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:435
+msgid "Couldn’t load tags:"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1328
+#: src/posts-window/categories-mindmap.ts:2070
+msgid "Couldn’t load posts:"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1489
+msgid "New tag"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1501
+msgid "e.g. featured"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1511 src/posts-window/tags-cloud.ts:1703
+#: src/posts-window/categories-mindmap.ts:2303
+#: src/posts-window/categories-mindmap.ts:2490
+msgid "Description (optional)"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1521
+#: src/posts-window/categories-mindmap.ts:2313
+msgid "Create"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1526
+#: src/posts-window/categories-mindmap.ts:2321
+msgid "Cancel"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1578
+msgid "Tag created but description failed:"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1590
+#: src/posts-window/categories-mindmap.ts:2362
+msgid "Couldn’t create:"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1631
+msgid "No tag selected"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1636
+msgid "Click a tag on the cloud to edit it, or click + Add tag to create a new one."
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1676
+#: src/posts-window/categories-mindmap.ts:2278
+#: src/posts-window/categories-mindmap.ts:2457
+msgid "Slug"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1682
+#: src/posts-window/categories-mindmap.ts:2283
+#: src/posts-window/categories-mindmap.ts:2463
+msgid "auto-from-name"
+msgstr ""
+
+#. translators: %d: post count.
+#: src/posts-window/tags-cloud.ts:1711
+#, javascript-format
+msgid "%d posts tagged with this."
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1722
+#: src/posts-window/categories-mindmap.ts:2546
+msgid "Save"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1768
+#: src/posts-window/categories-mindmap.ts:2594
+msgid "Couldn’t save:"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1775 src/posts-window/tags-cloud.ts:1784
+#: src/posts-window/categories-mindmap.ts:2601
+#: src/posts-window/categories-mindmap.ts:2610
+msgid "Delete"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1778
+#: src/posts-window/categories-mindmap.ts:2604
+msgid "Click again to delete"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:1808
+#: src/posts-window/categories-mindmap.ts:2632
+msgid "Couldn’t delete:"
+msgstr ""
+
+#: src/posts-window/tags-cloud.ts:2055
+msgid "No tags yet. Click \"Add tag\" to start building the cloud."
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:197
+msgid "Mindmap unavailable: shell modules API missing."
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:203
+#: src/posts-window/categories-mindmap.ts:208
+msgid "Mindmap unavailable."
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:228
+msgid "Add root category"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:238
+msgid "Click a node to focus + edit · drag onto another to reparent · wheel to zoom"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:488
+msgid "Couldn’t load categories:"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:1530
+msgid "Reparent failed:"
+msgstr ""
+
+#. translators: %s: parent category name.
+#: src/posts-window/categories-mindmap.ts:2255
+#, javascript-format
+msgid "New child of %s"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2258
+msgid "New root category"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2270
+msgid "e.g. Recipes"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2411
+msgid "No category selected"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2415
+msgid "Click a node on the mindmap to edit its name, description, and posts."
+msgstr ""
+
+#. translators: %d: post count.
+#: src/posts-window/categories-mindmap.ts:2498
+#, javascript-format
+msgid "%d posts in this category."
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2509
+msgid "+ Child"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2524
+msgid "Make root"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2526
+msgid "Promote this category to a top-level root (no parent)."
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2538
+msgid "Couldn’t reparent:"
+msgstr ""
+
+#: src/posts-window/categories-mindmap.ts:2866
+msgid "No custom categories yet. Click \"Add root category\" to start branching."
+msgstr ""
+
+#: src/posts-window/index.ts:101 src/posts-window/index.ts:655
+msgid "Published"
+msgstr ""
+
+#: src/posts-window/index.ts:102 src/posts-window/index.ts:658
+msgid "Scheduled"
+msgstr ""
+
+#: src/posts-window/index.ts:103
+msgid "Draft"
+msgstr ""
+
+#: src/posts-window/index.ts:104 src/posts-window/index.ts:657
+msgid "Pending"
+msgstr ""
+
+#: src/posts-window/index.ts:105
+msgid "Private"
+msgstr ""
+
+#: src/posts-window/index.ts:106 src/posts-window/index.ts:659
+msgid "Trash"
+msgstr ""
+
+#: src/posts-window/index.ts:165
+msgid "Unknown"
+msgstr ""
+
+#: src/posts-window/index.ts:343 src/bug-report/index.ts:67
+#: src/recycle-bin/index.ts:151
+msgid "Title"
+msgstr ""
+
+#: src/posts-window/index.ts:351
+msgid "Author"
+msgstr ""
+
+#: src/posts-window/index.ts:356
+msgid "All authors"
+msgstr ""
+
+#: src/posts-window/index.ts:357
+msgid "Filter by author"
+msgstr ""
+
+#: src/posts-window/index.ts:385
+msgid "All tags"
+msgstr ""
+
+#: src/posts-window/index.ts:386
+msgid "Filter by tag"
+msgstr ""
+
+#: src/posts-window/index.ts:397
+msgid "Date"
+msgstr ""
+
+#: src/posts-window/index.ts:574
+msgid "Show columns"
+msgstr ""
+
+#: src/posts-window/index.ts:656
+msgid "Drafts"
+msgstr ""
+
+#: src/posts-window/index.ts:674
+msgid "Move to trash"
+msgstr ""
+
+#. translators: %d: row count.
+#: src/posts-window/index.ts:678
+#, javascript-format
+msgid "Move %d post(s) to the trash?"
+msgstr ""
+
+#: src/posts-window/index.ts:790
+msgid "(no title)"
+msgstr ""
+
+#: src/posts-window/index.ts:894
+msgid "Add tag…"
+msgstr ""
+
+#: src/posts-window/index.ts:895
+msgid "Tag"
+msgstr ""
+
+#. translators: %s: tag label
+#: src/posts-window/index.ts:1042
+#, javascript-format
+msgid "Couldn’t add tag \"%s\"."
+msgstr ""
+
+#. translators: %s: tag label
+#: src/posts-window/index.ts:1087
+#, javascript-format
+msgid "Couldn’t remove tag \"%s\"."
+msgstr ""
+
+#: src/posts-window/index.ts:1141
+msgid "Search categories…"
+msgstr ""
+
+#: src/posts-window/index.ts:1142
+msgid "Categorize"
+msgstr ""
+
+#: src/posts-window/index.ts:1248
+msgid "Couldn’t assign new category."
+msgstr ""
+
+#: src/posts-window/index.ts:1255
+msgid "Couldn’t create category."
+msgstr ""
+
+#: src/posts-window/index.ts:1283
+msgid "Couldn’t update categories."
+msgstr ""
+
+#: src/posts-window/index.ts:1309
+#, javascript-format
+msgid "Delete the category \"%s\"? Posts assigned only to it will fall back to Uncategorized."
+msgstr ""
+
+#: src/posts-window/index.ts:1335
+msgid "Couldn’t update post categories after delete."
+msgstr ""
+
+#: src/posts-window/index.ts:1341
+msgid "Couldn’t delete category."
+msgstr ""
+
+#: src/posts-window/index.ts:1494
+msgid "Couldn’t add category."
+msgstr ""
+
+#: src/posts-window/index.ts:1596
+msgid "modified"
+msgstr ""
+
+#: src/posts-window/index.ts:1626
+msgid "Excerpt"
+msgstr ""
+
+#: src/posts-window/index.ts:1637 src/posts-window/index.ts:1639
+msgid "(no excerpt)"
+msgstr ""
+
+#: src/posts-window/index.ts:1788
+msgid "No posts"
+msgstr ""
+
+#. translators: 1: current page, 2: total pages, 3: total posts.
+#: src/posts-window/index.ts:1792
+#, javascript-format
+msgid "Page %1$d of %2$d · %3$d posts"
+msgstr ""
+
+#. translators: %d: selected row count.
+#: src/posts-window/index.ts:1819 src/recycle-bin/index.ts:538
+#, javascript-format
+msgid "%d selected"
+msgstr ""
+
+#: src/posts-window/index.ts:1966
+msgid "Add New Post"
+msgstr ""
+
+#. translators: %d is the number of pending updates / items.
+#: src/dock.ts:846
+#, javascript-format
+msgid "%d update"
+msgid_plural "%d updates"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/window/dom.ts:138
+msgid "Loading window content"
+msgstr ""
+
+#: src/window/dom.ts:341
+msgid "Window actions"
+msgstr ""
+
+#: src/window/dom.ts:365
+msgid "Open on startup"
+msgstr ""
+
+#. translators: %s is the window's admin-page name (e.g., "Posts")
+#: src/window/dom.ts:379
+#, javascript-format
+msgid "Open another %s"
+msgstr ""
+
+#: src/window/dom.ts:395
+msgid "Open in new window"
+msgstr ""
+
+#: src/window/dom.ts:409
+msgid "Reload"
+msgstr ""
+
+#: src/window/dom.ts:422
+msgid "Open in browser tab"
+msgstr ""
+
+#. translators: %s is the window's admin-page title (e.g., "Posts")
+#: src/window/dom.ts:619
+#, javascript-format
+msgid "%s sub-pages"
+msgstr ""
+
+#: src/window/tabs.ts:120 src/window/tabs.ts:121
+msgid "Open in a new browser tab"
+msgstr ""
+
+#: src/window/tabs.ts:128 src/window/tabs.ts:129
+msgid "Close tab"
+msgstr ""
+
+#: src/window/tabs.ts:324
+#, javascript-format
+msgid "Opened \"%s\" in a new browser tab — this site doesnt allow embedding."
+msgstr ""
+
+#: src/window/tabs.ts:329
+msgid "Open"
+msgstr ""
+
+#. translators: %s: site name
+#: src/pwa/install.ts:162
+#, javascript-format
+msgid "Installed %s as an app."
+msgstr ""
+
+#. translators: %s: site name
+#: src/pwa/install.ts:188
+#, javascript-format
+msgid "Install %s as an app"
+msgstr ""
+
+#: src/pwa/install.ts:220
+msgid "Install cancelled."
+msgstr ""
+
+#: src/pwa/install.ts:239
+#, javascript-format
+msgid "%s is already installed. Open it from your apps menu or home screen."
+msgstr ""
+
+#: src/pwa/install.ts:249
+msgid "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser."
+msgstr ""
+
+#: src/bug-report/index.ts:62
+msgid "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit."
+msgstr ""
+
+#: src/bug-report/index.ts:68
+msgid "A short summary"
+msgstr ""
+
+#: src/bug-report/index.ts:71
+msgid "What happened? What did you expect?"
+msgstr ""
+
+#: src/bug-report/index.ts:72
+msgid "Describe the issue or the feature you have in mind."
+msgstr ""
+
+#: src/bug-report/index.ts:76
+msgid "Steps to reproduce (bug only)"
+msgstr ""
+
+#: src/bug-report/index.ts:77
+msgid "One step per line"
+msgstr ""
+
+#: src/bug-report/index.ts:90
+msgid "Open issue on GitHub"
+msgstr ""
+
+#: src/bug-report/index.ts:95
+msgid "You will review and submit on GitHub."
+msgstr ""
+
+#: src/bug-report/index.ts:108
+msgid "Title and description are both required."
+msgstr ""
+
+#: src/bug-report/index.ts:136
+msgid "Bug"
+msgstr ""
+
+#: src/bug-report/index.ts:137
+msgid "Feature request"
+msgstr ""
+
+#: src/bug-report/index.ts:138
+msgid "Question"
+msgstr ""
+
+#: src/bug-report/index.ts:226
+msgid "Environment included with the report"
+msgstr ""
+
+#: src/widgets/layer.ts:379 src/widgets/layer.ts:386 src/widgets/picker.ts:52
+#: src/widgets/picker.ts:56
+msgid "Add widget"
+msgstr ""
+
+#. translators: %s is the widget label (e.g., "Clock")
+#: src/widgets/frame.ts:266
+#, javascript-format
+msgid "Dock %s back to widget column"
+msgstr ""
+
+#. translators: %s is the widget label (e.g., "Clock")
+#: src/widgets/frame.ts:303
+#, javascript-format
+msgid "Remove %s"
+msgstr ""
+
+#: src/widgets/picker.ts:152
+msgid "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API."
+msgstr ""
+
+#. translators: %s is the widget label
+#: src/widgets/picker.ts:174
+#, javascript-format
+msgid "%s (already added)"
+msgstr ""
+
+#. translators: %s is the widget label
+#: src/widgets/picker.ts:177
+#, javascript-format
+msgid "Add %s"
+msgstr ""
+
+#: src/widgets/picker.ts:204
+msgid "Added"
+msgstr ""
+
+#: src/widgets/built-in.ts:22
+msgid "Clock"
+msgstr ""
+
+#: src/widgets/built-in.ts:25
+msgid "Local time and date, refreshed every second."
+msgstr ""
+
+#: src/recycle-bin/index.ts:188
+msgid "Deleted"
+msgstr ""
+
+#: src/recycle-bin/index.ts:203
+msgid "By"
+msgstr ""
+
+#: src/recycle-bin/index.ts:261
+msgid "Post"
+msgstr ""
+
+#: src/recycle-bin/index.ts:263
+msgid "Page"
+msgstr ""
+
+#: src/recycle-bin/index.ts:267
+msgid "Comment"
+msgstr ""
+
+#. translators: %d: row count.
+#: src/recycle-bin/index.ts:588
+#, javascript-format
+msgid "Permanently delete %d item(s)? This cannot be undone."
+msgstr ""
+
+#: src/recycle-bin/index.ts:610
+msgid "Empty the recycle bin? Every item visible in the current view will be permanently deleted."
+msgstr ""
+
+#. translators: %d: skipped count.
+#: src/recycle-bin/index.ts:632
+#, javascript-format
+msgid "%d item(s) skipped (insufficient permissions)."
 msgstr ""
