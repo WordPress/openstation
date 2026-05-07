@@ -39,6 +39,15 @@ export interface PostsWindowConfig {
 	defaultPerPage: number;
 	/** Default outbound query args (e.g. `_fields`, `_embed`, `post_type`). */
 	queryArgs: Record< string, string >;
+	/**
+	 * Boot-time snapshot of whether the user has already dismissed the
+	 * Posts intro dialog. When false, the bundle shows the dialog the
+	 * first time the window opens and POSTs to {@link introUrl} on
+	 * dismiss.
+	 */
+	introSeen: boolean;
+	/** REST URL for `POST /desktop-mode/v1/intros/seen`. */
+	introUrl: string;
 }
 
 /**

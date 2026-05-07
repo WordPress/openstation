@@ -18,6 +18,8 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { trackedFetch } from '../tracked-fetch';
+import { showPostsIntroDialog } from './intro-dialog';
 import {
 	buildEditPostUrl,
 	createCategory,
@@ -97,6 +99,87 @@ function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
 		);
 	}
 	return fn( options );
+}
+
+/**
+ * Posts-window first-open intro. Mirrors the seen-intros surface in
+ * `includes/seen-intros.php`: gated on `config.introSeen`, marks
+ * itself seen on dismiss via `POST config.introUrl`. Runs once per
+ * user — OS Settings → Features exposes a "Reset what's-new dialogs"
+ * button that wipes the list so it appears again from scratch.
+ *
+ * Posts is the first ported native app, so the copy explicitly
+ * points at the OS Settings escape hatch. Future ported apps drop
+ * that line.
+ */
+const POSTS_INTRO_SLUG = 'posts';
+let postsIntroShown = false;
+function maybeShowPostsIntro(): void {
+	if ( postsIntroShown ) {
+		return;
+	}
+	let cfg: ReturnType< typeof getConfig >;
+	try {
+		cfg = getConfig();
+	} catch {
+		return;
+	}
+	if ( cfg.introSeen ) {
+		return;
+	}
+	postsIntroShown = true;
+
+	void showPostsIntroDialog().then( ( result ) => {
+		// Escape / backdrop click resolve `'cancel'` and explicitly
+		// MUST NOT mark the intro seen — that's the testing escape
+		// hatch so we can iterate on the dialog without resetting
+		// OS Settings between runs. Also reset the in-session guard
+		// so opening the window again re-shows the dialog.
+		if ( result === 'cancel' ) {
+			postsIntroShown = false;
+			return;
+		}
+		void markPostsIntroSeen( cfg );
+		if ( result === 'settings' ) {
+			openOsSettingsFeatures();
+		}
+	} ).catch( () => {
+		// Dialog mount failed; keep gating off so a re-open can retry.
+		postsIntroShown = false;
+	} );
+}
+
+async function markPostsIntroSeen(
+	cfg: ReturnType< typeof getConfig >,
+): Promise< void > {
+	if ( ! cfg.introUrl ) {
+		return;
+	}
+	try {
+		await trackedFetch(
+			cfg.introUrl,
+			{
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': cfg.restNonce,
+				},
+				body: JSON.stringify( { slug: POSTS_INTRO_SLUG } ),
+			},
+			{ windowId: 'desktop-mode-posts', source: 'posts-window/intro' },
+		);
+		// Mirror the server change locally so a re-open inside the
+		// same shell session doesn't re-fire the dialog.
+		( cfg as { introSeen: boolean } ).introSeen = true;
+	} catch {
+		// Swallow — the worst case is showing the intro one more time.
+	}
+}
+
+function openOsSettingsFeatures(): void {
+	const api = ( window.wp as { desktop?: { openOsSettings?: () => void } } | undefined )?.desktop;
+	api?.openOsSettings?.();
 }
 
 const ROOT = '[data-desktop-mode-posts-root]';
@@ -1749,6 +1832,8 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 	if ( ! root || ! table ) {
 		return;
 	}
+
+	maybeShowPostsIntro();
 
 	// Term-management tabs (Categories + Tags) — lazy-mounted on first
 	// activation so cold-load of the Posts window never pays for them

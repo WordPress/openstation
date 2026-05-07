@@ -29,6 +29,7 @@ require_once DESKTOP_MODE_DIR . 'includes/admin-bar.php';
 require_once DESKTOP_MODE_DIR . 'includes/session.php';
 require_once DESKTOP_MODE_DIR . 'includes/presence.php';
 require_once DESKTOP_MODE_DIR . 'includes/os-settings.php';
+require_once DESKTOP_MODE_DIR . 'includes/seen-intros.php';
 require_once DESKTOP_MODE_DIR . 'includes/portal.php';
 require_once DESKTOP_MODE_DIR . 'includes/default-window.php';
 require_once DESKTOP_MODE_DIR . 'includes/media-query.php';

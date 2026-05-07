@@ -19,8 +19,14 @@
  */
 
 import { __ } from '../../i18n';
+import { trackedFetch } from '../../tracked-fetch';
 import { html, render } from '../../ui/core';
 import type { SettingsCtx } from '../types';
+
+interface ShellConfigSnapshot {
+	seenIntrosUrl?: string;
+	restNonce?: string;
+}
 
 export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 	const wrapper = document.createElement( 'div' );
@@ -29,6 +35,38 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.nativePostsEnabled = checked;
 		ctx.save();
+		paint();
+	};
+
+	let resetting = false;
+	const onResetIntros = async (): Promise< void > => {
+		if ( resetting ) {
+			return;
+		}
+		const cfg = ( window as unknown as {
+			desktopModeConfig?: ShellConfigSnapshot;
+		} ).desktopModeConfig;
+		if ( ! cfg?.seenIntrosUrl ) {
+			return;
+		}
+		resetting = true;
+		paint();
+		try {
+			await trackedFetch(
+				cfg.seenIntrosUrl,
+				{
+					method: 'DELETE',
+					credentials: 'same-origin',
+					headers: {
+						'X-WP-Nonce': cfg.restNonce ?? '',
+					},
+				},
+				{ source: 'os-settings/reset-intros' },
+			);
+		} catch {
+			// Non-fatal — surface in console; UI just stays put.
+		}
+		resetting = false;
 		paint();
 	};
 
@@ -51,6 +89,22 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 							'Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.',
 						) }
 					</p>
+					<div class="desktop-mode-features__row">
+						<wpd-button
+							variant="secondary"
+							?disabled=${ resetting }
+							@click=${ onResetIntros }
+						>
+							${ resetting
+								? __( 'Resetting…' )
+								: __( 'Reset what’s-new dialogs' ) }
+						</wpd-button>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Re-shows the one-time introduction dialog the next time you open each redesigned native window.',
+							) }
+						</p>
+					</div>
 				</wpd-section>
 			`,
 			wrapper,

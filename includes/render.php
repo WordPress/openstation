@@ -239,6 +239,8 @@ function desktop_mode_enqueue_assets() {
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
 	 *     @type string $portalUrl    Canonical `/desktop-mode/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
+	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
+	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
 	 * }
 	 */
 	$config = apply_filters(
@@ -291,6 +293,8 @@ function desktop_mode_enqueue_assets() {
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
+			'seenIntros'            => desktop_mode_get_seen_intros( get_current_user_id() ),
+			'seenIntrosUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros' ) ),
 			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? desktop_mode_ai_get_platform_settings() : null,
