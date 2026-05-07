@@ -14,22 +14,15 @@ import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import {
 	installWindowLoadingTransitions,
-	repaintLoadingOverlays,
 } from './window/loading';
 import { Dock, type DockItem, type SystemDockItem } from './dock';
 import {
 	bindNativeUrlRemap,
 	registerNativeUrlRemap,
 } from './native-url-remap';
-import { renderIcon } from './icon';
-import {
-	applyTileClasses,
-	applyTileElement,
-	applyTileTooltip,
-	dispatchTileRendered,
-	isDockElement,
-	registerDockSelector,
-} from './dock-helpers';
+// Tile-decoration helpers and the dock-selector registry live in
+// `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
+// in this bundle since 0.8.1.
 import { OsSettings } from './settings';
 import { getExitDesktopModeTileDef } from './exit-desktop-mode';
 import { deriveWindowId, urlMatchKey } from './utils';
@@ -37,57 +30,35 @@ import {
 	HOOKS,
 	addAction,
 	doAction,
-	rawHooks,
-	whenReady,
-	isReady,
 	type WpHooks,
 } from './hooks';
-import * as registry from './wallpapers/registry';
 import { WallpaperLayer } from './wallpapers/layer';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createCommandRegistrySync } from './commands/server-sync';
 import { createSettingsTabRegistrySync } from './settings/server-sync';
 import {
-	registerSettingsTab,
-	unregisterSettingsTab,
-	listSettingsTabs,
 	type DesktopSettingsTab,
 	type OsSettingsSnapshot,
 } from './settings/registry';
 import {
-	registerTitleBarButton,
-	unregisterTitleBarButton,
-	listTitleBarButtons,
 	type TitleBarButtonDef,
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
 import {
-	registerWindowTheme,
-	unregisterWindowTheme,
-	listWindowThemes,
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
 import { createWindowThemeRegistrySync } from './window-chrome/themes/server-sync';
 import {
-	registerWindowControl,
-	unregisterWindowControl,
-	listWindowControls,
 	type WindowControlDef,
 } from './window-chrome/controls/registry';
 import { registerBuiltInControls } from './window-chrome/controls/built-ins';
 import { createWindowControlRegistrySync } from './window-chrome/controls/server-sync';
 import {
-	registerWindowSlot,
-	unregisterWindowSlot,
-	listWindowSlots,
 	type WindowSlotDef,
 } from './window-chrome/slots/registry';
 import { createWindowSlotRegistrySync } from './window-chrome/slots/server-sync';
 import {
-	registerWindowChrome,
-	unregisterWindowChrome,
-	listWindowChromes,
 	type WindowChromeDef,
 } from './window-chrome/chrome/registry';
 import { createWindowChromeRegistrySync } from './window-chrome/chrome/server-sync';
@@ -97,17 +68,14 @@ import {
 	type ConnectOptions,
 } from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
-import { loadVendorScript, type ScriptExtras } from './wallpapers/vendor-loader';
+import { type ScriptExtras } from './wallpapers/vendor-loader';
 import {
-	collectWallpaperSurfaces,
 	type WallpaperSurface,
 } from './wallpapers/surfaces';
 import { WidgetLayer } from './widgets/layer';
 import {
-	cloneTemplate,
 	createNativeWindowSync,
 	createRegisterWindow,
-	onWindow,
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
@@ -120,9 +88,7 @@ import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import {
 	attachBroadcastBus,
-	broadcast,
 	installBroadcastReceiver,
-	subscribe,
 } from './broadcast';
 import { startRecycleBinBadge, _currentRecycleBinBadge } from './recycle-bin/badge';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
@@ -133,48 +99,35 @@ import {
 import { showToast, type ToastOptions } from './toast';
 import {
 	bootstrapPwa,
-	notify as pwaNotify,
-	requestNotificationPermission,
-	getNotificationPermission,
-	promptInstall,
-	undismissInstallHint,
-	getPwaState,
-	subscribePwaState,
 	type NotifyOptions,
 } from './pwa';
 import { getInstallTileDef } from './pwa/install';
-import { renderKeyedList, clearKeyedList, type KeyedListOptions } from './ui/util/keyed-list';
+import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
-	registerCommand,
-	unregisterCommand,
-	listCommands,
 	type DesktopCommand,
 } from './commands';
 import { registerBuiltInCommands } from './built-in-commands';
 import {
 	registerPalette,
-	unregisterPalette,
-	listPalettes,
 	openPaletteOnly,
 	installPaletteShortcut,
 	type Palette,
 } from './palette-registry';
-import { devtools } from './devtools';
-import { createSharedStore, type SharedStore } from './shared-store';
+import { type SharedStore } from './shared-store';
 import {
 	bootPresenceProbe,
-	presenceApi,
 	type PresenceApi,
 } from './presence';
-import { activity, type ActivityApi } from './activity';
-import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
+import { type ActivityApi } from './activity';
+import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { openCurrentPage, restoreSession } from './boot/session';
 import { createSessionSaver } from './boot/session-saver';
 import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
 import { trackedFetch } from './boot/tracked-fetch';
+import { buildPublicApi, installPublicApi } from './api/facade';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
 // boot-time consumer reaches the same captured value — see the import
@@ -182,20 +135,15 @@ import { trackedFetch } from './boot/tracked-fetch';
 import { registerBuiltInWidgets } from './widgets/built-in';
 import {
 	installDefaultDockRailRenderer,
-	listDockRailRenderers,
-	registerDockRailRenderer,
-	unregisterDockRailRenderer,
 	type DockRailRenderer,
 } from './dock-rail';
-import * as widgetRegistry from './widgets/registry';
 import { createWidgetRegistrySync } from './widgets/server-sync';
 import { WPD_COMPONENT_TAGS } from './ui/components';
-import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import {
 	registerModule,
-	loadModules,
 	type ModuleDef,
 } from './modules/registry';
+import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import type { WallpaperDef } from './wallpapers/types';
 import './plugins';
 import {
@@ -1436,50 +1384,10 @@ declare global {
 // `SESSION_SAVE_DEBOUNCE_MS` lives with the saver in
 // `src/boot/session-saver.ts` since 0.8.1.
 
-/**
- * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
- * to overwrite. Source-of-truth for the reserved-names list — kept
- * in sync with the {@link WpDesktopPublicApi} interface above. A
- * runtime check lives in the registerNamespace wiring inside
- * `init()`; this snapshot lets the warning fire even before any
- * built-in slot has been assigned (e.g. if a plugin races init).
- */
-const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
-	'windowManager', 'dock', 'taskbar', 'icons', 'saveSession', 'hooks', 'HOOKS',
-	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer',
-	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
-	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
-	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
-	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
-	'unregisterCommand', 'listCommands', 'registerSettingsTab',
-	'unregisterSettingsTab', 'listSettingsTabs',
-	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
-	'openOsSettings', 'getOsSettings', 'subscribeOsSettings', 'updateOsSettings',
-	'deriveWindowId',
-	'listSystemTiles', 'getSystemTile', 'getMenuItems',
-	'renderIcon',
-	'applyTileClasses', 'applyTileElement', 'applyTileTooltip',
-	'dispatchTileRendered',
-	'isDockElement', 'registerDockSelector',
-	'registerTitleBarButton',
-	'unregisterTitleBarButton', 'listTitleBarButtons',
-	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
-	'applyWindowTheme',
-	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
-	'applyWindowControls',
-	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
-	'applyWindowSlot',
-	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
-	'applyWindowChrome',
-	'connect',
-	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
-	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
-	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
-	'clearKeyedList', 'registerNamespace',
-	'notify', 'pwa',
-	'getWindowConfig', 'debug',
-	'fetch',
-] );
+// `RESERVED_NAMESPACE_KEYS` lives with the facade in
+// `src/api/facade.ts` since 0.8.1 — that's the one place that owns
+// the wp.desktop.* assembly, and the allowlist needs to stay in
+// sync with it.
 
 /**
  * Initialize Desktop Mode.
@@ -2369,308 +2277,33 @@ function init(): void {
 		desktopApi.desktopLayout = snapshot.desktopLayout;
 	} );
 
-	// Expose the public API on `window.wp.desktop`. The `hooks` field
-	// aliases `window.wp.hooks` so plugins have one idiomatic entry
-	// point for both the window manager and the filter/action bus.
-	window.wp = window.wp || {};
-	const desktopApi: WpDesktopPublicApi = {
-		windowManager: manager,
+	// The wp.desktop.* assembly was extracted to `src/api/facade.ts`
+	// in 0.8.1 — `buildPublicApi(deps)` returns the same WpDesktopPublicApi
+	// shape this block used to declare inline; `installPublicApi(api)`
+	// does the merge-onto-shim that the block used to do at the end.
+	// Behavior is identical; tests touching `wp.desktop.*` keep
+	// passing unchanged.
+	const desktopApi: WpDesktopPublicApi = buildPublicApi( {
+		manager,
 		dock,
-		sideDock: layoutDispatcher?.getSide() ?? null,
-		desktopLayout:
-			osSettings.getOsSettingsSnapshot().desktopLayout,
-		icons: iconsApi,
-		files: filesApi,
-		confirm: wpdConfirm,
+		layoutDispatcher,
+		osSettings,
+		iconsApi,
+		filesApi,
 		saveSession,
-		hooks: rawHooks(),
-		HOOKS,
-		isActive: () => !! document.getElementById( 'desktop-mode-shell' ),
-		registerWallpaper: ( def: WallpaperDef ) => {
-			registry.register( def );
-			// Re-apply so a plugin that registers its own wallpaper and
-			// sets the user's selection to it in the same breath sees an
-			// immediate repaint rather than having to wait for the next
-			// OS Settings open.
-			osSettings.apply();
-		},
-		registerWidget: ( def ) => {
-			widgetRegistry.register( def );
-			// No re-paint needed here: the layer only mounts IDs the
-			// user explicitly enabled, so adding a new def just makes
-			// it available in the next picker open. Plugins wanting
-			// to force a widget on can call
-			// `wp.desktop.widgetLayer.add(id)` / `ensureMounted(id)` —
-			// exposed below.
-		},
 		widgetLayer,
-		loadVendorScript,
-		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
-		openWindow: nativeWindows.openById,
-		fetch: ( input, requestInit, opts ) =>
-			trackedFetch( manager, input, requestInit, opts ),
-		repaintLoadingOverlays,
-		cloneTemplate,
-		onWindow,
-		registerSystemTile: ( item ) => {
-			placeSystemTile( item );
-			doAction( HOOKS.DOCK_ITEM_APPENDED, { id: item.id } );
-		},
-		registerModule,
-		loadModules,
-		whenReady,
-		ready: whenReady,
-		isReady,
+		openWindowById: nativeWindows.openById,
+		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,
-		config,
-		ai: aiAssistant,
-		dragBridge,
-		registerCommand,
-		unregisterCommand,
-		listCommands,
-		registerSettingsTab,
-		unregisterSettingsTab,
-		listSettingsTabs,
-		registerDockRailRenderer,
-		unregisterDockRailRenderer,
-		listDockRailRenderers,
 		openOsSettings,
-		getOsSettings: () => osSettings.getOsSettingsSnapshot(),
-		subscribeOsSettings: ( cb: ( snapshot: OsSettingsSnapshot ) => void ) =>
-			osSettings.subscribeOsSettings( cb ),
-		updateOsSettings: (
-			patch: Partial< OsSettingsSnapshot >,
-			opts: { windowId?: string } = {},
-		) => {
-			// Whitelist only the public-snapshot keys so a typo'd field
-			// can't bloat the persisted state. The setters mutate the
-			// underlying private OsSettingsState, then `save()` runs
-			// the debounced REST sync + localStorage write + notifies
-			// every subscriber.
-			if ( typeof patch.wallpaper === 'string' ) {
-				osSettings.state.wallpaper = patch.wallpaper;
-			}
-			if ( typeof patch.accent === 'string' ) {
-				osSettings.state.accent =
-					patch.accent as typeof osSettings.state.accent;
-			}
-			if ( typeof patch.dockSize === 'string' ) {
-				osSettings.state.dockSize =
-					patch.dockSize as typeof osSettings.state.dockSize;
-			}
-			if ( typeof patch.desktopLayout === 'string' ) {
-				osSettings.state.desktopLayout =
-					patch.desktopLayout as typeof osSettings.state.desktopLayout;
-			}
-			if ( typeof patch.dockRailRenderer === 'string' ) {
-				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
-			}
-			if ( patch.ai && typeof patch.ai === 'object' ) {
-				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
-			}
-			if ( typeof patch.nativePostsEnabled === 'boolean' ) {
-				osSettings.state.nativePostsEnabled = patch.nativePostsEnabled;
-			}
-			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
-				osSettings.state.nativePostsHiddenColumns =
-					patch.nativePostsHiddenColumns
-						.filter( ( v ): v is string => typeof v === 'string' && v !== '' )
-						.slice( 0, 32 );
-			}
-			osSettings.save( opts );
-		},
-		deriveWindowId: ( url: string, overrideAdminUrl?: string ) =>
-			deriveWindowId( url, overrideAdminUrl ?? config.adminUrl ),
-		listSystemTiles: () => layoutDispatcher?.listSystemTiles() ?? [],
-		getSystemTile: ( id: string ) =>
-			layoutDispatcher?.getSystemTile( id ) ?? null,
-		getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
-		renderIcon,
-		applyTileClasses,
-		applyTileElement,
-		applyTileTooltip,
-		dispatchTileRendered,
-		isDockElement,
-		registerDockSelector,
-		registerTitleBarButton,
-		unregisterTitleBarButton,
-		listTitleBarButtons,
-		registerWindowTheme,
-		unregisterWindowTheme,
-		listWindowThemes,
-		applyWindowTheme: ( windowId, override ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceTheme( override );
-		},
-		registerWindowControl,
-		unregisterWindowControl,
-		listWindowControls,
-		applyWindowControls: ( windowId, override ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceControls( override );
-		},
-		registerWindowSlot,
-		unregisterWindowSlot,
-		listWindowSlots,
-		applyWindowSlot: ( windowId, slot, slotConfig ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceSlot( slot, slotConfig );
-		},
-		registerWindowChrome,
-		unregisterWindowChrome,
-		listWindowChromes,
-		applyWindowChrome: ( windowId, chromeId ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceChrome( chromeId );
-		},
+		aiAssistant,
+		dragBridge,
 		connect: connectionBridge.connect,
-		broadcast,
-		subscribe,
-		registerPalette,
-		unregisterPalette,
-		listPalettes,
-		openPalette: openPaletteOnly,
-		devtools,
-		createSharedStore,
-		presence: presenceApi,
-		activity,
-		heartbeat,
-		showToast,
-		notify: pwaNotify,
-		pwa: {
-			promptInstall,
-			undismissInstallHint,
-			getState: getPwaState,
-			subscribe: subscribePwaState,
-			requestNotificationPermission,
-			getNotificationPermission,
-		},
-		renderKeyedList,
-		clearKeyedList,
-		registerNamespace: ( name: string, api: object ) => {
-			if ( typeof name !== 'string' || name === '' ) {
-				// eslint-disable-next-line no-console
-				console.warn(
-					'[desktop-mode] registerNamespace: name must be a non-empty string',
-				);
-				return;
-			}
-			if ( ! api || typeof api !== 'object' ) {
-				// eslint-disable-next-line no-console
-				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): api must be an object`,
-				);
-				return;
-			}
-			const reserved = RESERVED_NAMESPACE_KEYS.has( name );
-			if ( reserved ) {
-				// eslint-disable-next-line no-console
-				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
-				);
-				return;
-			}
-			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
-		},
-		getWindowConfig: < T = Record< string, unknown > >(
-			id: string,
-		): T | undefined => {
-			const store = window.desktopModeWindowConfig;
-			if ( ! store || typeof store !== 'object' ) {
-				return undefined;
-			}
-			const value = ( store as Record< string, unknown > )[ id ];
-			return value === undefined ? undefined : ( value as T );
-		},
-		debug: {
-			window: ( id: string ): DesktopDebugWindow | null => {
-				const entry = ( config.nativeWindows ?? [] ).find(
-					( e ) => e.id === id,
-				);
-				if ( ! entry ) {
-					return null;
-				}
-				const url = entry.scriptUrl || '';
-				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';
-				let tagInDom = false;
-				if ( url ) {
-					const lazyTag = document.querySelector(
-						`script[data-desktop-mode-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
-					);
-					if ( lazyTag ) {
-						loadPath = 'lazy';
-						tagInDom = true;
-					} else {
-						// Match a non-lazy `<script src>` whose URL
-						// equals our resolved URL (with or without the
-						// `?ver=` query).
-						const eagerTag = Array.from(
-							document.querySelectorAll< HTMLScriptElement >(
-								'script[src]',
-							),
-						).find( ( s ) => s.src === url );
-						if ( eagerTag ) {
-							loadPath = 'eager';
-							tagInDom = true;
-						}
-					}
-				}
-				const cfgStore = window.desktopModeWindowConfig;
-				const configPresent = !! (
-					cfgStore &&
-					typeof cfgStore === 'object' &&
-					Object.prototype.hasOwnProperty.call( cfgStore, id )
-				);
-				return {
-					id,
-					scriptHandle: entry.scriptHandle || '',
-					scriptUrl: url,
-					loadPath,
-					tagInDom,
-					configPresent,
-					extras: {
-						hasTranslations: !! entry.scriptTranslations,
-						l10nCount: ( entry.scriptL10n ?? [] ).length,
-						beforeCount: ( entry.scriptBefore ?? [] ).length,
-						afterCount: ( entry.scriptAfter ?? [] ).length,
-					},
-				};
-			},
-		},
-	};
-	// Merge the full API onto the early-shim object (NOT reassign
-	// the slot — the shim's `whenReady` closes over `_earlyReadyQueue`,
-	// and reassigning would orphan the queue from the bootstrap's
-	// drain below). Object.assign overwrites `whenReady`/`ready`/
-	// `isReady` with the canonical versions from `src/hooks.ts`.
-	if ( ! window.wp ) {
-		window.wp = {};
-	}
-	if ( ! window.wp.desktop ) {
-		// Shim wasn't installed (degraded path — should never
-		// happen in production because the IIFE at the top of
-		// this module runs before `init()`). Set the slot directly.
-		window.wp.desktop = desktopApi;
-	} else {
-		Object.assign(
-			window.wp.desktop as unknown as Record< string, unknown >,
-			desktopApi as unknown as Record< string, unknown >,
-		);
-	}
+		config,
+	} );
+	installPublicApi( desktopApi );
 
 	// Wire the cross-feature Heartbeat bus before any consumer
 	// (presence, recycle bin, third-party plugins) registers a
