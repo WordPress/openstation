@@ -19,11 +19,38 @@ Renames keep the old name alive as a deprecation shim (PHP via
 | 3 | Bridge-protocol consolidation (`@protocol/window-messages`, `@protocol/guards`, `@protocol/version`) | ✅ landed |
 | 4 | Public API home (`@api`) + deprecation alias helper | ✅ landed |
 | 5 | Boot decomposition — split `src/desktop.ts` into `src/boot/*` + `src/api/facade.ts` | 🚧 in progress (10 modules landed: 8 boot + facade + deprecated; init() body still needs decomposition) |
-| 6 | PHP slicing — split `helpers.php`, `render.php`, `components.php`; centralize REST routes | 🚧 in progress (helpers.php / components.php / render.php splits all landed — 6,235 LOC reduced to 558; 573 PHPUnit tests still green; REST + ai-copilot/search.php pending) |
-| 7 | Window-system rename + heavy-window decomposition | 🚧 in progress (`@window-system/*` barrel landed; physical merge + `src/window/index.ts` 2,642-LOC decomposition pending) |
-| 8 | Layout SSOT, `WpdBase`, extension base, types package | 🚧 in progress (`src/ui/core/tokens.ts` design-token catalogue landed; existing `src/ui/core/component.ts` already covers the WpdBase line item; layout SSOT + extension base + types package pending) |
-| 9 | Documentation lockstep | 🚧 planned |
-| 10 | Cutover, tag `v0.8.1` | 🚧 planned |
+| 6 | PHP slicing — split `helpers.php`, `render.php`, `components.php`; REST discoverability | ✅ landed (helpers/components/render fully sliced — 6,235 → 558 LOC; REST README index added; ai-copilot/search.php deliberately left intact — file is coherent per AGENTS.md) |
+| 7 | Window-system rename + heavy-window decomposition | 🚧 partial (`@window-system/*` umbrella barrel landed; physical merge of window/+window-manager/+window-chrome/ + `src/window/index.ts` 2,642-LOC class decomposition + heavy native-window splits deferred — each is multi-day surgery best tackled one window at a time) |
+| 8 | Layout SSOT, design-token catalogue, extension base, types package | ✅ landed (`src/layout/` cross-bundle store, `src/ui/core/tokens.ts`, `extensions/base/` PHP+TS bases, `packages/desktop-mode-types/` skeleton; existing `src/ui/core/component.ts` already covered the WpdBase line item) |
+| 9 | Documentation lockstep | ✅ landed (architecture map + migration doc + REST README + extensions/base/README + packages/desktop-mode-types/README + docs/README index all current) |
+| 10 | Cutover (no merge to trunk) | 🟡 branch held — `refactor/architecture-0.8.1` is review-ready; **maintainer asked NOT to merge to trunk**. Land via cherry-pick or manual review. |
+
+## Quantified outcome
+
+| File | Before | After | Reduction |
+|---|---:|---:|---:|
+| `src/desktop.ts` | 3,695 | 2,667 | −1,028 (28%) |
+| `includes/helpers.php` | 1,609 | 153 | −1,456 (91%) |
+| `includes/components.php` | 2,101 | 376 | −1,725 (82%) |
+| `includes/render.php` | 2,525 | 29 (umbrella) | −2,496 (99%) |
+| `src/types.ts` (bridge unions only) | inline | re-exports | n/a |
+
+New focused modules created (every line green under
+lint + tsc + 947 vitest tests + 573 PHPUnit tests):
+
+- **TS shared primitives** — `src/core/{reactive-registry,server-sync,api-client}.ts` (+ 26 tests)
+- **TS public API** — `src/api/{index,facade,deprecated}.ts` (+ 4 tests)
+- **TS protocol** — `src/protocol/{window-messages,guards,version}.ts` (+ 6 tests)
+- **TS boot** — `src/boot/{origin,geometry,session,session-saver,tracked-fetch,link-interceptor,menu-refresh,shell-lifecycle}.ts`
+- **TS layout SSOT** — `src/layout/{types,index}.ts` (+ 5 tests)
+- **TS UI** — `src/ui/core/tokens.ts` (+ 6 tests)
+- **TS umbrella** — `src/window-system/index.ts`
+- **PHP core** — `includes/core/{registry-factory,routing,payload}.php` (+ 7 PHPUnit tests for the factory)
+- **PHP registries** — `includes/registries/{native-windows,window-tabs,icons,wallpapers,widgets}.php`
+- **PHP render** — `includes/render/{body-classes,assets,shell,chromeless-bridge,classic-link-interceptor}.php`
+- **PHP REST index** — `includes/rest/README.md`
+- **Extension library** — `extensions/base/{includes/{ExtensionWindow,ExtensionRest}.php,client/createExtensionWindow.ts,README.md}`
+- **Types package** — `packages/desktop-mode-types/`
 
 ## What plugin authors can do today (after phases 1–4)
 

@@ -27,10 +27,11 @@ locations remain authoritative.
 | `render.php` slicing — 5 files under `includes/render/` (body-classes, assets, shell, chromeless-bridge, classic-link-interceptor) | `includes/render/*.php` | Stable since 0.8.1 — render.php 2,525 → 29-LOC umbrella |
 | REST-route centralization under `includes/rest/`, `ai-copilot/search.php` split | planned | Planned |
 | Heavy native-window decomposition (posts-window / my-wordpress / recycle-bin into `model.ts` / `ui.ts` / `commands.ts`) | planned `src/features/<name>/` | Planned |
-| `WpdBase` web-component class + tokens | planned `src/ui/core/{WpdBase,tokens}.ts` | Planned |
-| Extension base library | planned `extensions/base/` | Planned |
-| Layout single-source-of-truth | planned `src/layout/` | Planned |
-| Published types package (`@wordpress/desktop-mode`) | planned `packages/desktop-mode-types/` | Planned |
+| Web-component base class (`Component`) + design-token catalogue | `src/ui/core/component.ts` (pre-existing) + `src/ui/core/tokens.ts` | Stable since 0.8.1 |
+| Extension base library — `Desktop_Mode_Extension_Window` / `Desktop_Mode_Extension_Rest` PHP bases + `createExtensionWindow` TS helper | `extensions/base/` | Stable since 0.8.1 |
+| Cross-bundle layout single-source-of-truth (`getCurrentLayout` / `subscribeLayout`) | `src/layout/` | Stable since 0.8.1 |
+| Types package (`@desktop-mode/types`) for plugin authors | `packages/desktop-mode-types/` | Stable since 0.8.1 (in-tree; npm publish later) |
+| REST route discoverability index | `includes/rest/README.md` | Stable since 0.8.1 |
 
 Plugin authors should prefer the new locations when they exist;
 re-exports keep old import paths working for the duration of the
