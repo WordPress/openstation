@@ -33,10 +33,13 @@ import {
 	fetchEntityList,
 	fetchEntityTotal,
 	fetchMediaByIds,
+	fetchRevision,
 	fetchRevisions,
+	fetchTermStats,
 	fetchTerms,
 	fetchUser,
 	fetchUserStats,
+	type TermStats,
 	type UserStats,
 	getConfig,
 	getEntity,
@@ -44,6 +47,7 @@ import {
 	type RelatedComment,
 	type RelatedMedia,
 	type RelatedRevision,
+	type RelatedRevisionDetail,
 	type RelatedTerm,
 	type RelatedUser,
 } from './rest';
@@ -1686,7 +1690,15 @@ async function loadSubItems(
 	}
 	if ( relation === 'revisions' ) {
 		const revs = await fetchRevisions( entity, postId );
-		return revs.map( revisionToView );
+		// Revisions only make sense in chronological order — newest
+		// first by default. The user can still re-sort via the
+		// canvas Sort By menu if they want alphabetic / oldest first.
+		const ordered = revs.slice().sort( ( a, b ) => {
+			const ta = Date.parse( a.modified || a.date || '' );
+			const tb = Date.parse( b.modified || b.date || '' );
+			return tb - ta;
+		} );
+		return ordered.map( ( r ) => revisionToView( r, entity, postId ) );
 	}
 	return [];
 }
@@ -2173,34 +2185,325 @@ function termToView( t: RelatedTerm ): SubItemView {
 		icon: t.taxonomy === 'post_tag' ? 'dashicons-tag' : 'dashicons-category',
 		label: t.name,
 		date: new Date( 0 ).toISOString(),
-		preview: () => {
-			const wrap = document.createElement( 'div' );
-			wrap.className = 'desktop-mode-my-wordpress__article';
-			const h = document.createElement( 'h2' );
-			h.className = 'desktop-mode-my-wordpress__article-title';
-			h.textContent = t.name;
-			wrap.appendChild( h );
-			const meta = document.createElement( 'p' );
-			meta.className = 'desktop-mode-my-wordpress__article-meta';
-			meta.textContent =
-				typeof t.count === 'number'
-					? sprintf(
-						// translators: 1: taxonomy slug, 2: term post count.
-						__( '%1$s · %2$d posts', 'desktop-mode' ),
-						t.taxonomy,
-						t.count,
-					)
-					: t.taxonomy;
-			wrap.appendChild( meta );
-			if ( t.description ) {
-				const body = document.createElement( 'div' );
-				body.className = 'desktop-mode-my-wordpress__article-content';
-				body.innerHTML = t.description;
-				wrap.appendChild( body );
-			}
-			return wrap;
-		},
+		preview: async () => renderTermDossier( t ),
 	};
+}
+
+/**
+ * Right-pane dossier for a term (category / tag): same WOW
+ * treatment as the user dossier — header with badge + count, stat
+ * cards (Posts / Comments / Distinct authors), 12-month activity
+ * sparkline, milestones, recent posts (with author avatars), top
+ * authors as cards, and co-occurring terms as chips. Source of
+ * truth is the new `desktop_mode/v1/term-stats/<tax>/<id>`
+ * endpoint — single round-trip per selection.
+ */
+async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
+	let stats: TermStats | null = null;
+	try {
+		stats = await fetchTermStats( t.taxonomy, t.id );
+	} catch {
+		stats = null;
+	}
+
+	const wrap = document.createElement( 'div' );
+	wrap.className =
+		'desktop-mode-my-wordpress__article desktop-mode-my-wordpress__term';
+
+	if ( ! stats ) {
+		// Permission denied / unknown taxonomy — fall back to the
+		// compact REST term record.
+		appendTermHeader( wrap, {
+			name: t.name,
+			taxonomyLabel: t.taxonomy,
+			isTag: t.taxonomy === 'post_tag',
+			count: t.count ?? 0,
+			link: t.link ?? '',
+			parentName: '',
+		} );
+		if ( t.description ) {
+			const body = document.createElement( 'div' );
+			body.className = 'desktop-mode-my-wordpress__user-bio';
+			body.innerHTML = t.description;
+			wrap.appendChild( body );
+		}
+		return wrap;
+	}
+
+	const { profile, counts, recent, topAuthors, coTerms, milestones, activity } =
+		stats;
+
+	appendTermHeader( wrap, {
+		name: profile.name,
+		taxonomyLabel: profile.taxonomyLabel || profile.taxonomy,
+		isTag: profile.taxonomy === 'post_tag',
+		count: profile.storedCount,
+		link: profile.link,
+		parentName: profile.parentName ?? '',
+	} );
+
+	if ( profile.description ) {
+		const bio = document.createElement( 'div' );
+		bio.className = 'desktop-mode-my-wordpress__user-bio';
+		bio.innerHTML = profile.description;
+		wrap.appendChild( bio );
+	}
+
+	// Stat cards.
+	const cards = document.createElement( 'div' );
+	cards.className = 'desktop-mode-my-wordpress__user-stats';
+	cards.appendChild(
+		buildStatCard(
+			counts.posts.total.toLocaleString(),
+			__( 'Posts', 'desktop-mode' ),
+			counts.posts.publish > 0
+				? sprintf(
+					// translators: %d is a published-post count.
+					__( '%d published', 'desktop-mode' ),
+					counts.posts.publish,
+				)
+				: '',
+		),
+	);
+	cards.appendChild(
+		buildStatCard(
+			counts.commentsReceived.toLocaleString(),
+			__( 'Comments', 'desktop-mode' ),
+			'',
+		),
+	);
+	cards.appendChild(
+		buildStatCard(
+			counts.distinctAuthors.toLocaleString(),
+			__( 'Authors', 'desktop-mode' ),
+			counts.distinctAuthors === 1
+				? __( 'one contributor', 'desktop-mode' )
+				: '',
+		),
+	);
+	wrap.appendChild( cards );
+
+	// 12-month activity sparkline (reused from the user dossier).
+	const spark = buildActivitySparkline( activity );
+	if ( spark ) {
+		wrap.appendChild( spark );
+	}
+
+	// Milestones.
+	const milestoneRow = buildTermMilestonesRow( milestones );
+	if ( milestoneRow ) {
+		wrap.appendChild( milestoneRow );
+	}
+
+	// Top authors row — cards with avatar + name + count.
+	if ( topAuthors.length > 0 ) {
+		const section = document.createElement( 'section' );
+		section.className = 'desktop-mode-my-wordpress__user-section';
+		const h = document.createElement( 'h3' );
+		h.textContent = __( 'Top contributors', 'desktop-mode' );
+		section.appendChild( h );
+		const grid = document.createElement( 'div' );
+		grid.className = 'desktop-mode-my-wordpress__term-authors';
+		for ( const a of topAuthors ) {
+			const card = document.createElement( 'div' );
+			card.className = 'desktop-mode-my-wordpress__term-author';
+			if ( a.userAvatarUrl ) {
+				const img = document.createElement( 'img' );
+				img.src = a.userAvatarUrl;
+				img.alt = '';
+				img.className = 'desktop-mode-my-wordpress__term-author-avatar';
+				card.appendChild( img );
+			}
+			const text = document.createElement( 'div' );
+			text.className = 'desktop-mode-my-wordpress__term-author-text';
+			const name = document.createElement( 'span' );
+			name.className = 'desktop-mode-my-wordpress__term-author-name';
+			name.textContent = a.userName;
+			text.appendChild( name );
+			const count = document.createElement( 'span' );
+			count.className = 'desktop-mode-my-wordpress__term-author-count';
+			count.textContent = sprintf(
+				// translators: %d is a post count.
+				_n( '%d post', '%d posts', a.count ),
+				a.count,
+			);
+			text.appendChild( count );
+			card.appendChild( text );
+			grid.appendChild( card );
+		}
+		section.appendChild( grid );
+		wrap.appendChild( section );
+	}
+
+	// Recent posts in this term — reuse user-dossier styling, add
+	// inline author avatar.
+	if ( recent.length > 0 ) {
+		const section = document.createElement( 'section' );
+		section.className = 'desktop-mode-my-wordpress__user-section';
+		const h = document.createElement( 'h3' );
+		h.textContent = __( 'Recent posts', 'desktop-mode' );
+		section.appendChild( h );
+		const ul = document.createElement( 'ul' );
+		ul.className = 'desktop-mode-my-wordpress__user-recent';
+		for ( const r of recent ) {
+			const li = document.createElement( 'li' );
+			const a = document.createElement( 'a' );
+			a.href = r.link;
+			a.target = '_blank';
+			a.rel = 'noopener noreferrer';
+			a.textContent = r.title || `#${ r.id }`;
+			li.appendChild( a );
+			const meta = document.createElement( 'span' );
+			meta.className = 'desktop-mode-my-wordpress__user-recent-meta';
+			meta.textContent = `${ formatDate( r.date ) } · ${ r.status }${
+				r.author?.name ? ' · ' + r.author.name : ''
+			}`;
+			li.appendChild( meta );
+			ul.appendChild( li );
+		}
+		section.appendChild( ul );
+		wrap.appendChild( section );
+	}
+
+	// Co-occurring terms ("Often paired with…") — chips.
+	if ( coTerms.length > 0 ) {
+		const section = document.createElement( 'section' );
+		section.className = 'desktop-mode-my-wordpress__user-section';
+		const h = document.createElement( 'h3' );
+		h.textContent =
+			profile.taxonomy === 'post_tag'
+				? __( 'Often paired tags', 'desktop-mode' )
+				: __( 'Often paired categories', 'desktop-mode' );
+		section.appendChild( h );
+		const chips = document.createElement( 'div' );
+		chips.className = 'desktop-mode-my-wordpress__user-chips';
+		for ( const co of coTerms ) {
+			const chip = document.createElement( 'span' );
+			chip.className =
+				'desktop-mode-my-wordpress__user-chip ' +
+				( profile.taxonomy === 'post_tag'
+					? 'desktop-mode-my-wordpress__user-chip--tag'
+					: 'desktop-mode-my-wordpress__user-chip--category' );
+			const name = document.createElement( 'span' );
+			name.textContent = co.name;
+			chip.appendChild( name );
+			const count = document.createElement( 'span' );
+			count.className = 'desktop-mode-my-wordpress__user-chip-count';
+			count.textContent = String( co.count );
+			chip.appendChild( count );
+			chips.appendChild( chip );
+		}
+		section.appendChild( chips );
+		wrap.appendChild( section );
+	}
+
+	return wrap;
+}
+
+function appendTermHeader(
+	host: HTMLElement,
+	header: {
+		name: string;
+		taxonomyLabel: string;
+		isTag: boolean;
+		count: number;
+		link: string;
+		parentName: string;
+	},
+): void {
+	const wrap = document.createElement( 'header' );
+	wrap.className = 'desktop-mode-my-wordpress__term-header';
+
+	const iconHost = document.createElement( 'span' );
+	iconHost.className =
+		'desktop-mode-my-wordpress__term-icon ' +
+		( header.isTag
+			? 'desktop-mode-my-wordpress__term-icon--tag'
+			: 'desktop-mode-my-wordpress__term-icon--category' );
+	const iconGlyph = document.createElement( 'span' );
+	iconGlyph.style.cssText =
+		'font-family:dashicons;font-size:32px;line-height:1;display:inline-block;';
+	// dashicons "tag" () for post_tag, "category" () for category.
+	iconGlyph.textContent = header.isTag ? '' : '';
+	iconHost.appendChild( iconGlyph );
+	wrap.appendChild( iconHost );
+
+	const right = document.createElement( 'div' );
+	right.className = 'desktop-mode-my-wordpress__user-headline';
+
+	const h = document.createElement( 'h2' );
+	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.textContent = header.name;
+	right.appendChild( h );
+
+	const meta = document.createElement( 'div' );
+	meta.className = 'desktop-mode-my-wordpress__user-roles';
+	const taxBadge = document.createElement( 'span' );
+	taxBadge.className =
+		'desktop-mode-my-wordpress__user-role ' +
+		( header.isTag
+			? 'desktop-mode-my-wordpress__user-role--tag'
+			: 'desktop-mode-my-wordpress__user-role--category' );
+	taxBadge.textContent = header.taxonomyLabel;
+	meta.appendChild( taxBadge );
+	if ( header.parentName ) {
+		const parent = document.createElement( 'span' );
+		parent.className = 'desktop-mode-my-wordpress__user-role';
+		parent.textContent = sprintf(
+			// translators: %s is the name of the parent category.
+			__( 'in %s', 'desktop-mode' ),
+			header.parentName,
+		);
+		meta.appendChild( parent );
+	}
+	right.appendChild( meta );
+
+	if ( header.link ) {
+		const links = document.createElement( 'div' );
+		links.className = 'desktop-mode-my-wordpress__user-links';
+		const a = document.createElement( 'a' );
+		a.href = header.link;
+		a.target = '_blank';
+		a.rel = 'noopener noreferrer';
+		a.textContent = __( 'View archive', 'desktop-mode' );
+		links.appendChild( a );
+		right.appendChild( links );
+	}
+
+	wrap.appendChild( right );
+	host.appendChild( wrap );
+}
+
+function buildTermMilestonesRow(
+	milestones: TermStats[ 'milestones' ],
+): HTMLElement | null {
+	const items: Array< { label: string; value: string } > = [];
+	if ( milestones.firstPosted ) {
+		items.push( {
+			label: __( 'First post', 'desktop-mode' ),
+			value: formatYearMonth( milestones.firstPosted ),
+		} );
+	}
+	if ( milestones.lastPosted ) {
+		items.push( {
+			label: __( 'Last post', 'desktop-mode' ),
+			value: formatYearMonth( milestones.lastPosted ),
+		} );
+	}
+	if ( items.length === 0 ) {
+		return null;
+	}
+	const dl = document.createElement( 'dl' );
+	dl.className = 'desktop-mode-my-wordpress__user-milestones';
+	for ( const item of items ) {
+		const dt = document.createElement( 'dt' );
+		dt.textContent = item.label;
+		dl.appendChild( dt );
+		const dd = document.createElement( 'dd' );
+		dd.textContent = item.value;
+		dl.appendChild( dd );
+	}
+	return dl;
 }
 
 function mediaToView( m: RelatedMedia ): SubItemView {
@@ -2246,28 +2549,68 @@ function mediaToView( m: RelatedMedia ): SubItemView {
 	};
 }
 
-function revisionToView( r: RelatedRevision ): SubItemView {
+function revisionToView(
+	r: RelatedRevision,
+	entity: MyWordPressEntity,
+	postId: number,
+): SubItemView {
 	const label = stripTags( r.title?.rendered ?? '' ) || formatDate( r.date );
 	return {
 		id: `revision:${ r.id }`,
 		icon: 'dashicons-backup',
 		label,
 		date: r.modified || r.date,
-		preview: () => {
-			const wrap = document.createElement( 'div' );
+		preview: async () => {
+			// Lazy-fetch the full revision so the rendered HTML is
+			// only pulled when the user actually selects it. Listing
+			// stays cheap (title + dates).
+			let detail: RelatedRevisionDetail | null = null;
+			try {
+				detail = await fetchRevision( entity, postId, r.id );
+			} catch {
+				detail = null;
+			}
+
+			const wrap = document.createElement( 'article' );
 			wrap.className = 'desktop-mode-my-wordpress__article';
+
 			const h = document.createElement( 'h2' );
 			h.className = 'desktop-mode-my-wordpress__article-title';
-			h.textContent = label;
+			h.textContent =
+				stripTags( detail?.title?.rendered ?? r.title?.rendered ?? '' ) ||
+				label;
 			wrap.appendChild( h );
+
 			const meta = document.createElement( 'p' );
 			meta.className = 'desktop-mode-my-wordpress__article-meta';
 			meta.textContent = sprintf(
 				// translators: %s is a formatted date.
 				__( 'Saved %s', 'desktop-mode' ),
-				formatDate( r.modified || r.date ),
+				formatDate( detail?.modified || detail?.date || r.modified || r.date ),
 			);
 			wrap.appendChild( meta );
+
+			const html = detail?.content?.rendered ?? '';
+			if ( html ) {
+				const content = document.createElement( 'div' );
+				content.className =
+					'desktop-mode-my-wordpress__article-content';
+				// `content.rendered` is sanitised server-side by
+				// core's `the_content` pipeline before it reaches
+				// the REST response.
+				content.innerHTML = html;
+				wrap.appendChild( content );
+			} else {
+				const empty = document.createElement( 'p' );
+				empty.className = 'desktop-mode-my-wordpress__article-meta';
+				empty.textContent = detail
+					? __( 'This revision has no rendered content.', 'desktop-mode' )
+					: __(
+						'Couldn’t load the revision content. You may not have permission to view it.',
+						'desktop-mode',
+					);
+				wrap.appendChild( empty );
+			}
 			return wrap;
 		},
 	};

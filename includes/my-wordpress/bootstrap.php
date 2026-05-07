@@ -17,3 +17,4 @@ require_once __DIR__ . '/assets.php';
 require_once __DIR__ . '/window.php';
 require_once __DIR__ . '/lock.php';
 require_once __DIR__ . '/user-stats.php';
+require_once __DIR__ . '/term-stats.php';

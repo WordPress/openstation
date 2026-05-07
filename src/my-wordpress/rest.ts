@@ -273,6 +273,20 @@ export interface RelatedRevision {
 	title?: { rendered: string };
 }
 
+/**
+ * Single-revision detail. Loaded lazily when the user selects a
+ * revision tile in the right preview pane — keeps the listing
+ * fetch lightweight (no content per row) while still letting the
+ * pane show the rendered HTML of just-this-revision.
+ *
+ * @public
+ * @since 0.8.0
+ */
+export interface RelatedRevisionDetail extends RelatedRevision {
+	content?: { rendered: string };
+	excerpt?: { rendered: string };
+}
+
 async function getJson< T >( url: string ): Promise< T > {
 	const cfg = getConfig();
 	const response = await shellFetch( url, {
@@ -355,6 +369,80 @@ export function fetchUserStats( id: number ): Promise< UserStats > {
 	return getJson< UserStats >( buildUrl( `desktop-mode/v1/user-stats/${ id }` ) );
 }
 
+/**
+ * Aggregated category / tag dossier — matches the shape the
+ * `desktop_mode/v1/term-stats/<taxonomy>/<id>` endpoint returns.
+ *
+ * @public
+ * @since 0.8.0
+ */
+export interface TermStats {
+	profile: {
+		id: number;
+		name: string;
+		slug: string;
+		taxonomy: string;
+		taxonomyLabel: string;
+		description: string;
+		link: string;
+		parent: number;
+		parentName?: string;
+		storedCount: number;
+	};
+	counts: {
+		posts: {
+			publish: number;
+			draft: number;
+			pending: number;
+			private: number;
+			future: number;
+			total: number;
+		};
+		commentsReceived: number;
+		distinctAuthors: number;
+	};
+	recent: Array< {
+		id: number;
+		title: string;
+		date: string;
+		status: string;
+		type: string;
+		link: string;
+		author: {
+			id: number;
+			name: string;
+			avatarUrl: string;
+		} | null;
+	} >;
+	topAuthors: Array< {
+		userId: number;
+		userName: string;
+		userAvatarUrl: string;
+		count: number;
+	} >;
+	coTerms: Array< {
+		id: number;
+		name: string;
+		slug: string;
+		count: number;
+	} >;
+	activity: Array< { ym: string; count: number } >;
+	milestones: {
+		firstPosted: string | null;
+		lastPosted: string | null;
+	};
+}
+
+export function fetchTermStats(
+	taxonomy: string,
+	id: number,
+): Promise< TermStats > {
+	const slug = taxonomy.replace( /[^a-zA-Z0-9_-]/g, '' );
+	return getJson< TermStats >(
+		buildUrl( `desktop-mode/v1/term-stats/${ slug }/${ id }` ),
+	);
+}
+
 export function fetchUser( id: number ): Promise< RelatedUser > {
 	return getJson< RelatedUser >(
 		buildUrl( `wp/v2/users/${ id }?context=edit&_fields=id,name,slug,description,avatar_urls,link` ),
@@ -435,6 +523,26 @@ export function fetchRevisions(
 	return getJson< RelatedRevision[] >(
 		buildUrl(
 			`${ entity.restPath }/${ postId }/revisions?_fields=id,date,modified,author,title`,
+		),
+	);
+}
+
+/**
+ * Fetch a single revision with rendered content. Lazy — only
+ * called when the user selects a revision tile in the sub-list.
+ * The listing fetch above stays cheap (title + date only).
+ *
+ * @public
+ * @since 0.8.0
+ */
+export function fetchRevision(
+	entity: MyWordPressEntity,
+	postId: number,
+	revisionId: number,
+): Promise< RelatedRevisionDetail > {
+	return getJson< RelatedRevisionDetail >(
+		buildUrl(
+			`${ entity.restPath }/${ postId }/revisions/${ revisionId }?_fields=id,date,modified,author,title,content,excerpt`,
 		),
 	);
 }

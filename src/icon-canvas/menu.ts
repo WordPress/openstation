@@ -284,15 +284,16 @@ function openMenu(
 			if ( isInsideMenu( e.target ) ) {
 				return;
 			}
-			// Let the owning canvas handle its own clicks so the
-			// open → close → open toggle works. Anywhere ELSE
-			// (other windows, the wallpaper, another window's
-			// canvas) closes the menu like normal.
-			if (
-				activeCanvas &&
-				e.target instanceof Node &&
-				activeCanvas.contains( e.target )
-			) {
+			// Special case: a click on the canvas's OWN background
+			// (not on a tile, not on a foreground descendant). The
+			// canvas-bg toggle in `bindBackgroundActivate` is the
+			// canonical close path for that gesture; bailing here
+			// lets the open → close → open cycle work without the
+			// dismisser racing the toggle. Tile clicks (target is
+			// a child element, not the canvas itself) fall through
+			// to `closeMenu()` below — the menu should NOT linger
+			// while the user interacts with another tile.
+			if ( activeCanvas && e.target === activeCanvas ) {
 				return;
 			}
 			closeMenu();

@@ -736,3 +736,94 @@
 	color: var( --wp-admin-theme-color, #2271b1 );
 	font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------
+ * Term dossier — same skeleton as the user dossier (header, stat
+ * cards, sparkline, milestones, recent list, chips) plus a few
+ * term-specific bits below: a colored taxonomy icon medallion in
+ * the header, role badge variants for category vs tag, and a
+ * "Top contributors" grid that pairs an author avatar with a
+ * post count.
+ * --------------------------------------------------------------- */
+
+.desktop-mode-my-wordpress__term-header {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.desktop-mode-my-wordpress__term-icon {
+	width: 64px;
+	height: 64px;
+	border-radius: 12px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	color: #fff;
+}
+
+.desktop-mode-my-wordpress__term-icon--category {
+	background: linear-gradient( 135deg, #2271b1 0%, #135e96 100% );
+	box-shadow: 0 4px 12px rgba( 34, 113, 177, 0.32 );
+}
+
+.desktop-mode-my-wordpress__term-icon--tag {
+	background: linear-gradient( 135deg, #7c3aed 0%, #5b21b6 100% );
+	box-shadow: 0 4px 12px rgba( 124, 58, 237, 0.32 );
+}
+
+.desktop-mode-my-wordpress__user-role--category {
+	background: rgba( 34, 113, 177, 0.12 );
+	color: #135e96;
+}
+
+.desktop-mode-my-wordpress__user-role--tag {
+	background: rgba( 124, 58, 237, 0.12 );
+	color: #6d28d9;
+}
+
+/* Top contributors row — paired avatar + name + post count. */
+.desktop-mode-my-wordpress__term-authors {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 180px, 1fr ) );
+	gap: 8px;
+}
+
+.desktop-mode-my-wordpress__term-author {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border-radius: 8px;
+	background: rgba( 0, 0, 0, 0.03 );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__term-author-avatar {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.desktop-mode-my-wordpress__term-author-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.desktop-mode-my-wordpress__term-author-name {
+	font-weight: 600;
+	font-size: 13px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-my-wordpress__term-author-count {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #50575e );
+}
