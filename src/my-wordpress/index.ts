@@ -627,6 +627,22 @@ function renderEntityList(
 	};
 	repaintListStatus();
 
+	/**
+	 * True when the sentinel sits within the scroller's visible
+	 * rect (plus the same 200px slack the IntersectionObserver
+	 * applies). Used to chain `loadMore()` calls after each page
+	 * settles — `IntersectionObserver` only fires on transitions
+	 * of `isIntersecting`, so when page 1 lands but the sentinel
+	 * was already in view (small entity counts, big window),
+	 * nothing transitions and the observer never re-pulls.
+	 */
+	const sentinelIsVisible = (): boolean => {
+		const sr = sentinel.getBoundingClientRect();
+		const rr = left.getBoundingClientRect();
+		const slack = 200;
+		return sr.top < rr.bottom + slack && sr.bottom > rr.top - slack;
+	};
+
 	const loadMore = async () => {
 		if ( ctx.loading || ctx.done ) {
 			return;
@@ -666,6 +682,18 @@ function renderEntityList(
 			ctx.done = true;
 		} finally {
 			ctx.loading = false;
+		}
+		// Chain — keep pulling pages while the sentinel is still
+		// within the rootMargin slack and there's more to load.
+		// Wrapped in `requestAnimationFrame` so the layout has
+		// settled with the freshly-appended tiles before we
+		// measure the sentinel's position.
+		if ( ! ctx.done ) {
+			requestAnimationFrame( () => {
+				if ( sentinelIsVisible() ) {
+					void loadMore();
+				}
+			} );
 		}
 	};
 
