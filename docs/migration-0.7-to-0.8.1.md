@@ -20,8 +20,8 @@ Renames keep the old name alive as a deprecation shim (PHP via
 | 4 | Public API home (`@api`) + deprecation alias helper | ✅ landed |
 | 5 | Boot decomposition — split `src/desktop.ts` into `src/boot/*` + `src/api/facade.ts` | 🚧 in progress (10 modules landed: 8 boot + facade + deprecated; init() body still needs decomposition) |
 | 6 | PHP slicing — split `helpers.php`, `render.php`, `components.php`; centralize REST routes | 🚧 in progress (helpers.php / components.php / render.php splits all landed — 6,235 LOC reduced to 558; 573 PHPUnit tests still green; REST + ai-copilot/search.php pending) |
-| 7 | Window-system rename + heavy-window decomposition | 🚧 planned |
-| 8 | Layout SSOT, `WpdBase`, extension base, types package | 🚧 planned |
+| 7 | Window-system rename + heavy-window decomposition | 🚧 in progress (`@window-system/*` barrel landed; physical merge + `src/window/index.ts` 2,642-LOC decomposition pending) |
+| 8 | Layout SSOT, `WpdBase`, extension base, types package | 🚧 in progress (`src/ui/core/tokens.ts` design-token catalogue landed; existing `src/ui/core/component.ts` already covers the WpdBase line item; layout SSOT + extension base + types package pending) |
 | 9 | Documentation lockstep | 🚧 planned |
 | 10 | Cutover, tag `v0.8.1` | 🚧 planned |
 

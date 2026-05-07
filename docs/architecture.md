@@ -18,7 +18,9 @@ locations remain authoritative.
 | PHP registry factory | `includes/core/registry-factory.php` | Stable since 0.8.1 |
 | Bridge protocol (typed messages + guards + version) | `src/protocol/{window-messages,guards,version}.ts` | Stable since 0.8.1 |
 | Public API barrel (0.8.1 home) + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable since 0.8.1 |
-| Boot decomposition — `origin.ts`, `geometry.ts`, `session.ts`, `session-saver.ts`, `tracked-fetch.ts`, `link-interceptor.ts`, `menu-refresh.ts`, `shell-lifecycle.ts` | `src/boot/*` | Partial — desktop.ts down from 3,695 → 3,034 LOC; init() decomposition pending |
+| Boot decomposition — `origin.ts`, `geometry.ts`, `session.ts`, `session-saver.ts`, `tracked-fetch.ts`, `link-interceptor.ts`, `menu-refresh.ts`, `shell-lifecycle.ts`, plus `src/api/facade.ts` (`buildPublicApi` + `installPublicApi`) | `src/boot/*` + `src/api/facade.ts` | Stable since 0.8.1 — desktop.ts 3,695 → 2,667 LOC; init() body still owns its own setup but the facade and 9 boot helpers are extracted |
+| `src/window-system/` umbrella barrel re-exporting window/ + window-manager/ + window-chrome/ | `src/window-system/index.ts` | Stable since 0.8.1 — additive; legacy paths still resolve |
+| `src/ui/core/tokens.ts` — typed `--wpd-*` design-token namespace + `readToken` / `setToken` helpers | `src/ui/core/tokens.ts` | Stable since 0.8.1 |
 | Window-system rename (`src/window/`, `src/window-manager/`, `src/window-chrome/` → `src/window-system/*`) | planned | Planned |
 | `helpers.php` slicing — `core/{routing,payload,registry-factory}.php` | `includes/core/*.php` | Stable since 0.8.1 — helpers.php 1,609 → 153 LOC |
 | `components.php` slicing — 5 registries under `includes/registries/` (native-windows, window-tabs, icons, wallpapers, widgets) | `includes/registries/*.php` | Stable since 0.8.1 — components.php 2,101 → 376 LOC |
