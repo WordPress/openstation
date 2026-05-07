@@ -18,7 +18,7 @@ Renames keep the old name alive as a deprecation shim (PHP via
 | 2 | Shared primitives (`@core/reactive-registry`, `@core/server-sync`, `@core/api-client`, PHP registry factory) | ✅ landed |
 | 3 | Bridge-protocol consolidation (`@protocol/window-messages`, `@protocol/guards`, `@protocol/version`) | ✅ landed |
 | 4 | Public API home (`@api`) + deprecation alias helper | ✅ landed |
-| 5 | Boot decomposition — split `src/desktop.ts` into `src/boot/*` | 🚧 planned |
+| 5 | Boot decomposition — split `src/desktop.ts` into `src/boot/*` | 🚧 in progress (8 of ~12 modules landed; init() decomposition pending) |
 | 6 | PHP slicing — split `includes/render.php`, `components.php`, `helpers.php`; centralize REST routes | 🚧 planned |
 | 7 | Window-system rename + heavy-window decomposition | 🚧 planned |
 | 8 | Layout SSOT, `WpdBase`, extension base, types package | 🚧 planned |

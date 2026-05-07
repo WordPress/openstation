@@ -18,7 +18,7 @@ locations remain authoritative.
 | PHP registry factory | `includes/core/registry-factory.php` | Stable since 0.8.1 |
 | Bridge protocol (typed messages + guards + version) | `src/protocol/{window-messages,guards,version}.ts` | Stable since 0.8.1 |
 | Public API barrel (0.8.1 home) + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable since 0.8.1 |
-| Boot decomposition (`desktop.ts` → `src/boot/*`) | planned `src/boot/` | Planned |
+| Boot decomposition — `origin.ts`, `geometry.ts`, `session.ts`, `session-saver.ts`, `tracked-fetch.ts`, `link-interceptor.ts`, `menu-refresh.ts`, `shell-lifecycle.ts` | `src/boot/*` | Partial — desktop.ts down from 3,695 → 3,034 LOC; init() decomposition pending |
 | Window-system rename (`src/window/`, `src/window-manager/`, `src/window-chrome/` → `src/window-system/*`) | planned | Planned |
 | `includes/render.php` / `components.php` / `helpers.php` slicing | planned `includes/{render,registries,core,rest}/` | Planned |
 | Heavy native-window decomposition (posts-window / my-wordpress / recycle-bin into `model.ts` / `ui.ts` / `commands.ts`) | planned `src/features/<name>/` | Planned |
