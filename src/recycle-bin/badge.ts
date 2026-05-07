@@ -23,6 +23,7 @@
 
 import { addAction, HOOKS } from '../hooks';
 import { subscribe } from '../broadcast';
+import { createSharedStore } from '../shared-store';
 
 /* eslint-disable no-console */
 const LOG_PREFIX = '[desktop-mode-bin badge]';
@@ -75,15 +76,38 @@ function getDesktopApi(): WpDesktopBadgeRails | undefined {
 		.wp?.desktop;
 }
 
-let _current = 0;
-// High-water mark for "did anything change since I last asked".
-// Bumped from heartbeat responses + chromeless-iframe postMessages.
-// Initialised to `Date.now()` on `start()` so a delete that
-// happened before the page loaded doesn't replay through the
-// fast-path subscriber on first paint.
-let _seenTs = 0;
-let _started = false;
-let _countUrl = '';
+/**
+ * State shared across every bundle that imports this module.
+ *
+ * Routed through `createSharedStore` because both the always-on
+ * shell bundle (`desktop.js`) and the lazy bin window bundle
+ * (`recycle-bin.js`) import this file. Plain module-level `let`s
+ * would compile into each bundle separately, so the bin window
+ * setting `current = 0` after Empty bin would never reach the
+ * shell bundle's lifecycle handlers — they'd repaint the dock
+ * tile from their own stale copy on close. See
+ * `AGENTS.md` ➜ "Cross-bundle state".
+ */
+interface BadgeState {
+	current: number;
+	// High-water mark for "did anything change since I last asked".
+	// Bumped from heartbeat responses + chromeless-iframe
+	// postMessages. Initialised to `Date.now()` on `start()` so a
+	// delete that happened before the page loaded doesn't replay
+	// through the fast-path subscriber on first paint.
+	seenTs: number;
+	started: boolean;
+	countUrl: string;
+}
+const store = createSharedStore< BadgeState >(
+	'desktop-mode/recycle-bin/badge',
+	() => ( {
+		current: 0,
+		seenTs: 0,
+		started: false,
+		countUrl: '',
+	} ),
+);
 
 /**
  * Set the bin's badge to an absolute count. Idempotent: the same
@@ -95,8 +119,8 @@ let _countUrl = '';
  */
 export function setRecycleBinBadge( next: number ): void {
 	const safe = Math.max( 0, Math.floor( next ) );
-	const prev = _current;
-	_current = safe;
+	const prev = store.state.current;
+	store.state.current = safe;
 	log( 'setRecycleBinBadge', { prev, next: safe } );
 	paintBadge( safe );
 }
@@ -113,7 +137,7 @@ export function setRecycleBinBadge( next: number ): void {
  * @param delta Signed integer; clamped at zero.
  */
 export function adjustRecycleBinBadge( delta: number ): void {
-	setRecycleBinBadge( _current + delta );
+	setRecycleBinBadge( store.state.current + delta );
 }
 
 /**
@@ -122,7 +146,7 @@ export function adjustRecycleBinBadge( delta: number ): void {
  * @internal
  */
 export function _currentRecycleBinBadge(): number {
-	return _current;
+	return store.state.current;
 }
 
 /**
@@ -135,7 +159,7 @@ export function _currentRecycleBinBadge(): number {
  * Honours the framework "show 0 when my window is active" UX
  * policy: when the user is currently looking at the bin window,
  * the badge renders as 0 so we don't double-signal. The internal
- * `_current` count is preserved either way; closing or
+ * `store.state.current` count is preserved either way; closing or
  * minimising the window restores the visible badge on the next
  * lifecycle event (see {@link wireWindowLifecycleSignals}).
  *
@@ -209,7 +233,7 @@ export function startRecycleBinBadge(
 	log( 'startRecycleBinBadge entry', {
 		initial,
 		countUrl,
-		alreadyStarted: _started,
+		alreadyStarted: store.state.started,
 		cfgCount,
 		cfgUrl,
 		cfgDebug,
@@ -233,13 +257,13 @@ export function startRecycleBinBadge(
 			{ cfg },
 		);
 	}
-	if ( _started ) {
+	if ( store.state.started ) {
 		setRecycleBinBadge( initial );
 		return;
 	}
-	_started = true;
-	_countUrl = countUrl;
-	_seenTs = Date.now();
+	store.state.started = true;
+	store.state.countUrl = countUrl;
+	store.state.seenTs = Date.now();
 	setRecycleBinBadge( initial );
 
 	// Both targets render asynchronously after init: the dock
@@ -264,7 +288,7 @@ export function startRecycleBinBadge(
  * `wp.desktop.windowManager.isActive()` and renders 0 while the
  * user is looking at the window, so transitions need to trigger
  * a re-paint to apply or undo that suppression. Internal count
- * (`_current`) doesn't change here — only the rendered DOM
+ * (`store.state.current`) doesn't change here — only the rendered DOM
  * value.
  */
 function wireWindowLifecycleSignals(): void {
@@ -274,7 +298,7 @@ function wireWindowLifecycleSignals(): void {
 		if ( detail?.windowId !== TARGET_ID ) {
 			return;
 		}
-		paintBadge( _current );
+		paintBadge( store.state.current );
 	};
 	addAction( HOOKS.WINDOW_OPENED, ns, repaint );
 	addAction( HOOKS.WINDOW_FOCUSED, ns, repaint );
@@ -296,7 +320,7 @@ function wireDockTileSignal(): void {
 		'desktop-mode/recycle-bin/badge',
 		( payload: { id?: string } ) => {
 			if ( payload?.id === TARGET_ID ) {
-				paintBadge( _current );
+				paintBadge( store.state.current );
 			}
 		},
 	);
@@ -316,7 +340,7 @@ function wireDesktopIconsSignal(): void {
 		'desktop-mode/recycle-bin/badge',
 		( payload: { ids?: string[] } ) => {
 			if ( payload?.ids?.includes( TARGET_ID ) ) {
-				paintBadge( _current );
+				paintBadge( store.state.current );
 			}
 		},
 	);
@@ -383,12 +407,12 @@ function wirePostMessageFastPath(): void {
 			return;
 		}
 		const ts = typeof data.ts === 'number' ? data.ts : Date.now();
-		if ( ts <= _seenTs ) {
-			log( 'postMessage skipped (ts <= seenTs)', { ts, seenTs: _seenTs } );
+		if ( ts <= store.state.seenTs ) {
+			log( 'postMessage skipped (ts <= seenTs)', { ts, seenTs: store.state.seenTs } );
 			return;
 		}
-		log( 'postMessage triggers refetch', { ts, prevSeenTs: _seenTs } );
-		_seenTs = ts;
+		log( 'postMessage triggers refetch', { ts, prevSeenTs: store.state.seenTs } );
+		store.state.seenTs = ts;
 		void refetchCount();
 	} );
 }
@@ -418,7 +442,7 @@ function wireHeartbeatProbe(): void {
 	$( document ).on( 'heartbeat-send', ( ...args: unknown[] ) => {
 		const data = args[ 1 ] as Record< string, unknown > | undefined;
 		if ( data ) {
-			data[ HEARTBEAT_FIELD ] = _seenTs;
+			data[ HEARTBEAT_FIELD ] = store.state.seenTs;
 		}
 	} );
 	$( document ).on( 'heartbeat-tick', ( ...args: unknown[] ) => {
@@ -435,8 +459,8 @@ function wireHeartbeatProbe(): void {
 		if ( ! block ) {
 			return;
 		}
-		if ( typeof block.ts === 'number' && block.ts > _seenTs ) {
-			_seenTs = block.ts;
+		if ( typeof block.ts === 'number' && block.ts > store.state.seenTs ) {
+			store.state.seenTs = block.ts;
 		}
 		if ( typeof block.count === 'number' ) {
 			setRecycleBinBadge( block.count );
@@ -452,13 +476,13 @@ function wireHeartbeatProbe(): void {
  * URL), the heartbeat path will resync within the next tick.
  */
 async function refetchCount(): Promise< void > {
-	if ( ! _countUrl ) {
+	if ( ! store.state.countUrl ) {
 		log( 'refetchCount: no countUrl, skip' );
 		return;
 	}
-	log( 'refetchCount: hitting', _countUrl );
+	log( 'refetchCount: hitting', store.state.countUrl );
 	try {
-		const response = await fetch( _countUrl, {
+		const response = await fetch( store.state.countUrl, {
 			credentials: 'same-origin',
 			headers: { Accept: 'application/json' },
 		} );

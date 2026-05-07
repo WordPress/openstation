@@ -710,6 +710,14 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				allTypes,
 				[],
 			);
+
+			// Optimistic badge zero: emitDoneEvent + refresh() both
+			// reconcile via REST round-trips, so without this the badge
+			// shows the pre-empty count for ~hundreds of ms after the
+			// bin is empty. refresh() below sets the authoritative value.
+			if ( loop.stoppedBecause === 'empty' ) {
+				setRecycleBinBadge( 0 );
+			}
 		} catch ( err ) {
 			console.error( '[recycle-bin] empty failed', err );
 		} finally {
