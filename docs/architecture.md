@@ -2,6 +2,38 @@
 
 A high-level tour, mostly so hook reference + examples make sense.
 
+## Architecture 1.0 layout (in progress)
+
+The plugin is mid-way through a structural refactor that splits the
+historical god-modules (`src/desktop.ts`, `includes/render.php`,
+`includes/components.php`, `includes/helpers.php`) into layered
+folders with explicit boundaries. Foundations have landed; the
+heavy splits ship in subsequent phases. Until they do, the legacy
+locations remain authoritative.
+
+| Layer | Location | Status |
+|---|---|---|
+| `tsconfig` path aliases (`@core/*`, `@api/*`, `@protocol/*`, `@ui/*`, `@layout/*`, `@boot/*`, `@features/*`, `@window-system/*`) | `tsconfig.json` + `vite.config.js` + `vitest.config.ts` | Stable since 1.0.0 |
+| Generic reactive registry + server-sync + REST client primitives | `src/core/{reactive-registry,server-sync,api-client}.ts` | Stable since 1.0.0 |
+| PHP registry factory | `includes/core/registry-factory.php` | Stable since 1.0.0 |
+| Bridge protocol (typed messages + guards + version) | `src/protocol/{window-messages,guards,version}.ts` | Stable since 1.0.0 |
+| Public API barrel (1.0 home) + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable since 1.0.0 |
+| Boot decomposition (`desktop.ts` → `src/boot/*`) | planned `src/boot/` | Planned |
+| Window-system rename (`src/window/`, `src/window-manager/`, `src/window-chrome/` → `src/window-system/*`) | planned | Planned |
+| `includes/render.php` / `components.php` / `helpers.php` slicing | planned `includes/{render,registries,core,rest}/` | Planned |
+| Heavy native-window decomposition (posts-window / my-wordpress / recycle-bin into `model.ts` / `ui.ts` / `commands.ts`) | planned `src/features/<name>/` | Planned |
+| `WpdBase` web-component class + tokens | planned `src/ui/core/{WpdBase,tokens}.ts` | Planned |
+| Extension base library | planned `extensions/base/` | Planned |
+| Layout single-source-of-truth | planned `src/layout/` | Planned |
+| Published types package (`@wordpress/desktop-mode`) | planned `packages/desktop-mode-types/` | Planned |
+
+Plugin authors should prefer the new locations when they exist;
+re-exports keep old import paths working for the duration of the
+1.x line. Renames that have nowhere to forward to ship with
+deprecation shims (PHP via `_doing_it_wrong`, JS via
+`installDeprecatedAlias` from `@api/deprecated`) — no name in the
+public surface disappears silently.
+
 ## The big picture
 
 ```
