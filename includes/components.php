@@ -1148,10 +1148,38 @@ function desktop_mode_desktop_icon_registry( $id = '', $entry = null ) {
 	if ( '' === (string) $id ) {
 		return $store;
 	}
+	// Sentinel write: passing the literal string `__unset__` removes
+	// the entry. Used by `desktop_mode_unregister_icon()` and by
+	// PHPUnit teardowns; lets us clear test-only registrations
+	// without exposing the static `$store` directly.
+	if ( '__unset__' === $entry ) {
+		unset( $store[ $id ] );
+		return null;
+	}
 	if ( null !== $entry ) {
 		$store[ $id ] = $entry;
 	}
 	return isset( $store[ $id ] ) ? $store[ $id ] : null;
+}
+
+/**
+ * Remove a previously registered desktop icon from the static
+ * registry. Mirror of `desktop_mode_register_icon()` — handy for
+ * plugins that register icons conditionally and need to drop them
+ * mid-request, and for PHPUnit teardowns that shouldn't leak
+ * registrations into other tests.
+ *
+ * @since 0.8.0
+ *
+ * @param string $id Icon id passed to `desktop_mode_register_icon()`.
+ * @return void
+ */
+function desktop_mode_unregister_icon( $id ) {
+	$id = sanitize_key( (string) $id );
+	if ( '' === $id ) {
+		return;
+	}
+	desktop_mode_desktop_icon_registry( $id, '__unset__' );
 }
 
 /**

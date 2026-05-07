@@ -3,12 +3,12 @@
  * Tests for the native Posts window's PHP registration + permission
  * gate.
  *
- * The two-condition gate (`edit_posts` AND opt-in) is the only thing
- * keeping the iframe path safe as the default for users who haven't
- * opted in. A regression that flips either half wide-open ships a
- * confusing UX (admins who never visited OS Settings suddenly
- * landing in a different Posts experience) — these tests catch
- * exactly that.
+ * The two-condition gate (`edit_posts` AND opt-out flag NOT set to
+ * `false`) keeps the iframe path reachable for users who explicitly
+ * opted out, while leaving the native experience on for everyone
+ * else by default. A regression that flips the gate the wrong way
+ * ships a confusing UX (an editor who turned the toggle off
+ * suddenly back in the native window) — these tests catch that.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -97,24 +97,27 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
+	 * Native Posts is opt-OUT — admins (any user with `edit_posts`)
+	 * are in by default. Toggling the OS Settings flag off is what
+	 * closes the gate.
+	 *
 	 * @covers ::desktop_mode_posts_window_user_can_use
 	 */
-	public function test_gate_closed_by_default_for_admins() {
+	public function test_gate_open_by_default_for_admins() {
 		wp_set_current_user( $this->admin_id );
-		// Admin has the cap but has not opted in — gate should be closed.
-		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
+		$this->assertTrue( desktop_mode_posts_window_user_can_use() );
 	}
 
 	/**
 	 * @covers ::desktop_mode_posts_window_user_can_use
 	 */
-	public function test_gate_open_when_admin_opts_in() {
+	public function test_gate_closes_when_admin_opts_out() {
 		wp_set_current_user( $this->admin_id );
 		desktop_mode_save_os_settings(
 			$this->admin_id,
-			array( 'nativePostsEnabled' => true )
+			array( 'nativePostsEnabled' => false )
 		);
-		$this->assertTrue( desktop_mode_posts_window_user_can_use() );
+		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
 	}
 
 	/**
@@ -156,14 +159,17 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 
 	/**
 	 * Filter must be respected so a managed install (or an integration
-	 * test) can force the window on without forcing every user to flip
-	 * the OS Settings toggle.
+	 * test) can override the gate one way or the other.
 	 *
 	 * @covers ::desktop_mode_posts_window_user_can_use
 	 */
 	public function test_filter_can_force_gate_open() {
 		wp_set_current_user( $this->editor_id );
-		// No opt-in set — default would be closed.
+		desktop_mode_save_os_settings(
+			$this->editor_id,
+			array( 'nativePostsEnabled' => false )
+		);
+		// Editor opted out — default would be closed.
 		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
 
 		add_filter( 'desktop_mode_posts_window_user_can_use', '__return_true' );

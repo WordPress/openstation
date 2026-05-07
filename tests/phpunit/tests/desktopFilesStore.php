@@ -36,6 +36,12 @@ class Tests_DesktopMode_FilesStore extends WP_UnitTestCase {
 		}
 		remove_all_filters( 'desktop_mode_icons' );
 		remove_all_filters( 'desktop_mode_files_can_place' );
+		// Static icon registry is process-scoped — clear any
+		// test-local registrations so they don't leak into other
+		// tests' auto-place expectations.
+		if ( function_exists( 'desktop_mode_unregister_icon' ) ) {
+			desktop_mode_unregister_icon( 'unified-test' );
+		}
 		parent::tear_down();
 	}
 
@@ -257,17 +263,18 @@ class Tests_DesktopMode_FilesStore extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_files_auto_place_orphans
 	 */
 	public function test_registered_shortcut_gets_auto_placed_on_first_hydrate() {
-		// Inject a virtual icon via the `desktop_mode_icons`
-		// filter so the static icon registry stays clean across
-		// tests (set_up's tear_down calls `remove_all_filters`).
-		add_filter( 'desktop_mode_icons', function ( $reg ) {
-			$reg['unified-test'] = array(
-				'id'    => 'unified-test',
-				'title' => 'Unified',
-				'icon'  => 'dashicons-star-filled',
-			);
-			return $reg;
-		} );
+		// Register through the canonical PHP API. The shortcut
+		// file class's `can_read()` reads from the static
+		// registry (`desktop_mode_desktop_icon_registry`), so a
+		// filter-only injection wouldn't pass the place() gate.
+		desktop_mode_register_icon( 'unified-test', array(
+			'title'  => 'Unified',
+			'icon'   => 'dashicons-star-filled',
+			// `desktop_mode_register_icon()` requires either a
+			// `window` or a `url` target — this is a synthetic
+			// test-only window id that doesn't need to exist.
+			'window' => 'unified-test-window',
+		) );
 
 		$placed = desktop_mode_files_auto_place_orphans( self::$admin_id );
 		$this->assertGreaterThan( 0, $placed );
