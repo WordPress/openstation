@@ -64,7 +64,7 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	// the WP-core post / comment queries when one of those is the
 	// active filter, otherwise trashed posts leak into the
 	// "Shortcuts" / "Folders" tabs.
-	$files_types      = array( 'placement', 'shortcut', 'folder' );
+	$files_types      = array( 'desktop', 'placement', 'shortcut', 'folder' );
 	$is_files_filter  = in_array( $type, $files_types, true );
 	$wants_post_types = '' === $type
 		|| ( 'comment' !== $type && ! $is_files_filter );
@@ -151,15 +151,37 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	// `folder` types route to the desktop-files trash module on
 	// restore / purge (see `desktop_mode_recycle_bin_handle_files_*`).
 	$items_files = array();
+	// Map UI filter → set of `type` values to keep from the
+	// files-on-desktop helper. The "Shortcuts" segment in the bin
+	// UI now covers both registered icons (`shortcut`) AND user
+	// folders (`folder`) — restore + purge dispatch still routes
+	// each row by its individual type, so the merge is purely
+	// visual.
+	// "Desktop" is the unified bucket — every files-on-the-desktop
+	// trash row regardless of internal type (shortcut / folder /
+	// placement). Per-row dispatch on restore + purge still uses
+	// the row's distinct `type` so the merge is purely visual.
+	$wanted_files_types = array();
+	switch ( $type ) {
+		case '':
+		case 'desktop':
+			$wanted_files_types = array( 'shortcut', 'folder', 'placement' );
+			break;
+		case 'shortcut':
+		case 'placement':
+		case 'folder':
+			$wanted_files_types = array( $type );
+			break;
+	}
 	if (
-		( '' === $type || 'placement' === $type || 'shortcut' === $type || 'folder' === $type )
+		! empty( $wanted_files_types )
 		&& function_exists( 'desktop_mode_files_list_trashed_for_recycle_bin' )
 	) {
 		$file_items = desktop_mode_files_list_trashed_for_recycle_bin(
 			get_current_user_id()
 		);
 		foreach ( (array) $file_items as $item ) {
-			if ( '' !== $type && $item['type'] !== $type ) {
+			if ( ! in_array( (string) $item['type'], $wanted_files_types, true ) ) {
 				continue;
 			}
 			$items_files[] = $item;

@@ -194,6 +194,169 @@ function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
 }
 
 /* ================================================================== *
+ *  Ancestry snapshot + resurrection.
+ *
+ *  When a placement is soft-trashed we capture every folder in
+ *  its parent chain into a JSON blob on `placements.trashed_meta`.
+ *  Restoring later walks that chain top-down: folders that are
+ *  still alive are reused, trashed folders cascade-restore, and
+ *  hard-deleted folders are recreated (with new ids; the chain is
+ *  rewritten as it walks). The placement comes back at the same
+ *  visual position inside the (possibly resurrected) parent.
+ * ================================================================== */
+
+/**
+ * Walk up `$parent_id` through the folders + placements tables and
+ * return the parent chain root-first.
+ *
+ * Each entry shape:
+ *
+ *     array(
+ *         'folder_id'           => int,
+ *         'folder_name'         => string,
+ *         'folder_share_mode'   => string,
+ *         'folder_share_meta'   => array|null,
+ *         'folder_owner_id'     => int,
+ *         'placement_parent_id' => int, // parent of this folder's placement
+ *         'placement_x'         => int,
+ *         'placement_y'         => int,
+ *     )
+ *
+ * Returns `[]` for a root-level placement (`$parent_id === 0`).
+ *
+ * @since 0.8.0
+ *
+ * @param int $parent_id Immediate parent folder id.
+ * @return array<int, array<string, mixed>>
+ */
+function desktop_mode_files_capture_ancestry( $parent_id ) {
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+	$chain  = array();
+	$cursor = (int) $parent_id;
+	$guard  = 0; // depth-bound — defends against accidental cycles.
+	while ( $cursor > 0 && $guard < 32 ) {
+		++$guard;
+		$folder = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$tables['folders']} WHERE id = %d",
+				$cursor
+			),
+			ARRAY_A
+		);
+		if ( ! $folder ) {
+			break;
+		}
+		// The folder's "where I sit on the desktop tree" lives on
+		// its placement row. Pick any active or trashed placement
+		// of this folder — we just need its parent_id + (x, y).
+		$placement = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT parent_id, x, y FROM {$tables['placements']}
+				WHERE file_type = 'folder' AND file_ref = %s
+				ORDER BY id ASC LIMIT 1",
+				(string) $folder['id']
+			),
+			ARRAY_A
+		);
+		$share_meta_raw = isset( $folder['share_meta'] ) ? (string) $folder['share_meta'] : '';
+		$share_meta     = '' !== $share_meta_raw ? json_decode( $share_meta_raw, true ) : null;
+		$entry = array(
+			'folder_id'           => (int) $folder['id'],
+			'folder_name'         => (string) $folder['name'],
+			'folder_share_mode'   => (string) $folder['share_mode'],
+			'folder_share_meta'   => is_array( $share_meta ) ? $share_meta : null,
+			'folder_owner_id'     => (int) $folder['owner_id'],
+			'placement_parent_id' => $placement ? (int) $placement['parent_id'] : 0,
+			'placement_x'         => $placement ? (int) $placement['x'] : 0,
+			'placement_y'         => $placement ? (int) $placement['y'] : 0,
+		);
+		array_unshift( $chain, $entry ); // root-first.
+		$cursor = $entry['placement_parent_id'];
+	}
+	return $chain;
+}
+
+/**
+ * Walk an ancestry snapshot top-down and return the resolved
+ * leaf folder id — every missing or trashed folder along the way
+ * is resurrected. The map of `original_id => resolved_id` lets
+ * downstream entries rewrite their `placement_parent_id` so a
+ * deeper folder lands inside the correct (possibly recreated)
+ * parent.
+ *
+ * @since 0.8.0
+ *
+ * @param int   $user_id  Acting user (used as owner for any
+ *                        recreated folder).
+ * @param array $ancestry Root-first chain captured at trash time.
+ * @return int Resolved leaf parent id (0 when the placement was
+ *             at desktop root).
+ */
+function desktop_mode_files_resurrect_ancestry( $user_id, $ancestry ) {
+	if ( empty( $ancestry ) ) {
+		return 0;
+	}
+	$user_id  = (int) $user_id;
+	$id_map   = array(); // original_id => resolved_id.
+	$resolved = 0;
+	foreach ( $ancestry as $entry ) {
+		$orig_id  = (int) $entry['folder_id'];
+		$orig_par = (int) $entry['placement_parent_id'];
+		// Rewrite: if our snapshot's recorded parent was ALSO an
+		// ancestor we recreated, use the new id.
+		$resolved_parent = isset( $id_map[ $orig_par ] )
+			? (int) $id_map[ $orig_par ]
+			: $orig_par;
+
+		$folder = desktop_mode_files_get_folder( $orig_id, true );
+		if ( $folder ) {
+			// Folder still exists. If trashed, restore it (cascade
+			// brings back its own children that were trashed via
+			// folder cascade).
+			if ( ! empty( $folder['trashed_at_ms'] ) ) {
+				desktop_mode_files_restore_folder( $user_id, $orig_id );
+			}
+			$id_map[ $orig_id ] = $orig_id;
+			$resolved           = $orig_id;
+			continue;
+		}
+
+		// Folder is gone — recreate it and place it under the
+		// resolved parent. Owner falls back to the acting user
+		// when the original owner can't be inferred (shared-
+		// folder edge case Phase 6 will revisit).
+		$owner_id = (int) ( $entry['folder_owner_id'] ?: $user_id );
+		$new_id   = desktop_mode_files_create_folder( $owner_id, array(
+			'name'       => (string) $entry['folder_name'],
+			'share_mode' => (string) $entry['folder_share_mode'],
+			'share_meta' => $entry['folder_share_meta'],
+		) );
+		if ( is_wp_error( $new_id ) ) {
+			// Fall back to root — restoring at the wrong place is
+			// strictly better than failing the restore outright.
+			$resolved = $resolved_parent;
+			$id_map[ $orig_id ] = $resolved;
+			continue;
+		}
+		// Place the recreated folder where the snapshot says.
+		desktop_mode_files_place(
+			$user_id,
+			$resolved_parent,
+			'folder',
+			(string) $new_id,
+			array(
+				'x' => (int) $entry['placement_x'],
+				'y' => (int) $entry['placement_y'],
+			)
+		);
+		$id_map[ $orig_id ] = (int) $new_id;
+		$resolved           = (int) $new_id;
+	}
+	return $resolved;
+}
+
+/* ================================================================== *
  *  Placement: trash / restore / purge.
  * ================================================================== */
 
@@ -252,16 +415,19 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	 */
 	do_action( 'desktop_mode_files_before_trash_placement', $placement_id, $user_id, $row );
 
-	$now = desktop_mode_files_now_ms();
+	$now      = desktop_mode_files_now_ms();
+	$ancestry = desktop_mode_files_capture_ancestry( (int) $row['parent_id'] );
+	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
 	$wpdb->update(
 		$tables['placements'],
 		array(
 			'trashed_at_ms' => $now,
 			'trashed_by'    => $user_id,
+			'trashed_meta'  => $meta,
 			'updated_at_ms' => $now,
 		),
 		array( 'id' => $placement_id ),
-		array( '%d', '%d', '%d' ),
+		array( '%d', '%d', '%s', '%d' ),
 		array( '%d' )
 	);
 
@@ -318,22 +484,37 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 		);
 	}
 
-	// If the parent folder is itself trashed, refuse — the user
-	// must restore the parent first. Prevents zombie placements.
-	$parent_id = (int) $row['parent_id'];
-	if ( $parent_id > 0 ) {
-		$parent_trashed = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$tables['folders']} WHERE id = %d AND trashed_at_ms IS NOT NULL",
-				$parent_id
-			)
-		);
-		if ( $parent_trashed > 0 ) {
-			return new WP_Error(
-				'desktop_mode_files_parent_trashed',
-				__( 'Restore the parent folder first.', 'desktop-mode' ),
-				array( 'status' => 409 )
-			);
+	// Resolve the parent folder. Three branches:
+	//   - parent is alive  → reuse the same id
+	//   - parent is trashed → cascade-restore it (and rest of the
+	//                         chain) before placing the leaf
+	//   - parent is gone    → walk the captured ancestry and
+	//                         recreate every missing folder in
+	//                         the chain
+	$original_parent_id = (int) $row['parent_id'];
+	$resolved_parent_id = $original_parent_id;
+	if ( $original_parent_id > 0 ) {
+		$parent_alive = desktop_mode_files_get_folder( $original_parent_id, true );
+		if ( $parent_alive ) {
+			if ( ! empty( $parent_alive['trashed_at_ms'] ) ) {
+				// Cascade restore — reach into the snapshot the
+				// folder itself stored at trash time so any chain
+				// above it is also resurrected.
+				$folder_restore = desktop_mode_files_restore_folder( $user_id, $original_parent_id );
+				if ( is_wp_error( $folder_restore ) ) {
+					return $folder_restore;
+				}
+			}
+			$resolved_parent_id = $original_parent_id;
+		} else {
+			// Hard-deleted parent — read the ancestry snapshot we
+			// stored at trash time and resurrect the chain.
+			$meta_raw = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
+			$decoded  = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
+			$ancestry = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
+				? $decoded['ancestry']
+				: array();
+			$resolved_parent_id = desktop_mode_files_resurrect_ancestry( $user_id, $ancestry );
 		}
 	}
 
@@ -351,13 +532,15 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 	$wpdb->update(
 		$tables['placements'],
 		array(
+			'parent_id'          => $resolved_parent_id,
 			'trashed_at_ms'      => null,
 			'trashed_by'         => null,
 			'trashed_via_folder' => null,
+			'trashed_meta'       => null,
 			'updated_at_ms'      => desktop_mode_files_now_ms(),
 		),
 		array( 'id' => $placement_id ),
-		array( null, null, null, '%d' ),
+		array( '%d', null, null, null, null, '%d' ),
 		array( '%d' )
 	);
 
@@ -486,33 +669,61 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	do_action( 'desktop_mode_files_before_trash_folder', $folder_id, $user_id, $row );
 
 	$now = desktop_mode_files_now_ms();
+	// Capture the folder's own placement-chain ancestry so a future
+	// restore can resurrect any parent folders that got hard-deleted
+	// while this one was sitting in trash.
+	$folder_placement = $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT parent_id FROM {$tables['placements']}
+			WHERE file_type = 'folder' AND file_ref = %s
+			ORDER BY id ASC LIMIT 1",
+			(string) $folder_id
+		),
+		ARRAY_A
+	);
+	$folder_ancestry = $folder_placement
+		? desktop_mode_files_capture_ancestry( (int) $folder_placement['parent_id'] )
+		: array();
+	$folder_meta = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
+
 	// Trash the folder row.
 	$wpdb->update(
 		$tables['folders'],
 		array(
 			'trashed_at_ms' => $now,
 			'trashed_by'    => $user_id,
+			'trashed_meta'  => $folder_meta,
 			'updated_at_ms' => $now,
 		),
 		array( 'id' => $folder_id ),
-		array( '%d', '%d', '%d' ),
+		array( '%d', '%d', '%s', '%d' ),
 		array( '%d' )
 	);
 	// Cascade to child placements that are still active. Mark
 	// `trashed_via_folder` so the restore knows which children to
 	// resurrect. Already-trashed children keep their state.
+	//
+	// Each child also gets its own ancestry snapshot so restoring
+	// just one child later (after the parent folder was hard-
+	// deleted) can still recreate the chain — same shape as a
+	// direct trash. Captured per-row because every child shares
+	// the same parent chain, so we compute once.
+	$ancestry = desktop_mode_files_capture_ancestry( $folder_id );
+	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
 	$wpdb->query(
 		$wpdb->prepare(
 			"UPDATE {$tables['placements']}
 			SET trashed_at_ms = %d,
 				trashed_by = %d,
 				trashed_via_folder = %d,
+				trashed_meta = %s,
 				updated_at_ms = %d
 			WHERE parent_id = %d
 				AND trashed_at_ms IS NULL",
 			$now,
 			$user_id,
 			$folder_id,
+			$meta,
 			$now,
 			$folder_id
 		)
@@ -615,12 +826,51 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 		array(
 			'trashed_at_ms' => null,
 			'trashed_by'    => null,
+			'trashed_meta'  => null,
 			'updated_at_ms' => $now,
 		),
 		array( 'id' => $folder_id ),
-		array( null, null, '%d' ),
+		array( null, null, null, '%d' ),
 		array( '%d' )
 	);
+	// If the folder's own placement points at a parent_id that's
+	// been hard-deleted in the meantime, resurrect the chain from
+	// the snapshot taken at trash time.
+	$meta_raw = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
+	$decoded  = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
+	$ancestry = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
+		? $decoded['ancestry']
+		: array();
+	if ( ! empty( $ancestry ) ) {
+		$folder_placement_row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, parent_id FROM {$tables['placements']}
+				WHERE file_type = 'folder' AND file_ref = %s
+				ORDER BY id ASC LIMIT 1",
+				(string) $folder_id
+			),
+			ARRAY_A
+		);
+		if ( $folder_placement_row ) {
+			$origin_parent = (int) $folder_placement_row['parent_id'];
+			$alive         = $origin_parent > 0
+				? desktop_mode_files_get_folder( $origin_parent, true )
+				: null;
+			if ( $origin_parent > 0 && ! $alive ) {
+				$resolved = desktop_mode_files_resurrect_ancestry( $user_id, $ancestry );
+				$wpdb->update(
+					$tables['placements'],
+					array(
+						'parent_id'     => $resolved,
+						'updated_at_ms' => $now,
+					),
+					array( 'id' => (int) $folder_placement_row['id'] ),
+					array( '%d', '%d' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
 	// Restore placements that this folder's trash had cascaded.
 	$wpdb->query(
 		$wpdb->prepare(
@@ -628,6 +878,7 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 			SET trashed_at_ms = NULL,
 				trashed_by = NULL,
 				trashed_via_folder = NULL,
+				trashed_meta = NULL,
 				updated_at_ms = %d
 			WHERE trashed_via_folder = %d",
 			$now,

@@ -32,7 +32,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '5' );
+define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '6' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
@@ -89,6 +89,7 @@ function desktop_mode_files_install_schema() {
 		trashed_at_ms BIGINT UNSIGNED NULL,
 		trashed_by BIGINT UNSIGNED NULL,
 		trashed_via_folder BIGINT UNSIGNED NULL,
+		trashed_meta LONGTEXT NULL,
 		PRIMARY KEY  (id),
 		KEY user_parent (user_id, parent_id),
 		KEY type_ref (file_type, file_ref),
@@ -105,6 +106,7 @@ function desktop_mode_files_install_schema() {
 		updated_at_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
 		trashed_at_ms BIGINT UNSIGNED NULL,
 		trashed_by BIGINT UNSIGNED NULL,
+		trashed_meta LONGTEXT NULL,
 		PRIMARY KEY  (id),
 		KEY owner_id (owner_id),
 		KEY share_mode (share_mode),
@@ -191,8 +193,13 @@ function desktop_mode_files_ensure_trash_columns() {
 	$ensure( $tables['placements'], 'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['placements'], 'trashed_by',         'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['placements'], 'trashed_via_folder', 'BIGINT UNSIGNED NULL' );
+	// v6: ancestry snapshot — JSON capturing every folder in the
+	// parent chain at trash time so a restore can resurrect the
+	// chain even when a folder was hard-deleted in the meantime.
+	$ensure( $tables['placements'], 'trashed_meta',       'LONGTEXT NULL' );
 	$ensure( $tables['folders'],    'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['folders'],    'trashed_by',         'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['folders'],    'trashed_meta',       'LONGTEXT NULL' );
 }
 
 /**

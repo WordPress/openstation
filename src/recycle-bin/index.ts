@@ -154,7 +154,7 @@ function itemsFingerprint( items: RecycleBinItem[] ): string {
 
 /** Per-window state. Re-created on every render() call. */
 interface BinState {
-	filter: '' | 'post' | 'page' | 'attachment' | 'comment' | 'placement' | 'shortcut' | 'folder';
+	filter: '' | 'post' | 'page' | 'attachment' | 'comment' | 'desktop' | 'placement' | 'shortcut' | 'folder';
 	search: string;
 	searchDebounce: number | null;
 }

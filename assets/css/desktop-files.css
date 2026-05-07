@@ -594,3 +594,13 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	-webkit-box-orient: vertical;
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.5 );
 }
+
+/*
+ * Inside a folder window the surrounding background is the
+ * window chrome (light/neutral), not the dark wallpaper — so the
+ * legibility shadow that helps on the desktop turns into a soft
+ * halo that makes the label look unsharp. Drop the shadow there.
+ */
+.desktop-mode-folder-window .desktop-mode-file-tile__label {
+	text-shadow: none;
+}
