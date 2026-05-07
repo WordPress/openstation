@@ -154,7 +154,7 @@ function itemsFingerprint( items: RecycleBinItem[] ): string {
 
 /** Per-window state. Re-created on every render() call. */
 interface BinState {
-	filter: '' | 'post' | 'page' | 'attachment' | 'comment';
+	filter: '' | 'post' | 'page' | 'attachment' | 'comment' | 'placement' | 'shortcut' | 'folder';
 	search: string;
 	searchDebounce: number | null;
 }
@@ -838,6 +838,9 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			api.subscribe( 'desktop-mode.page.changed', onDomainChanged ),
 			api.subscribe( 'desktop-mode.attachment.changed', onDomainChanged ),
 			api.subscribe( 'desktop-mode.comment.changed', onDomainChanged ),
+			api.subscribe( 'desktop-mode.placement.changed', onDomainChanged ),
+			api.subscribe( 'desktop-mode.shortcut.changed', onDomainChanged ),
+			api.subscribe( 'desktop-mode.folder.changed', onDomainChanged ),
 		);
 	}
 

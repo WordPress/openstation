@@ -198,11 +198,26 @@ function desktop_mode_files_rest_update_placement( WP_REST_Request $req ) {
  * DELETE /placements/<id>
  */
 function desktop_mode_files_rest_delete_placement( WP_REST_Request $req ) {
-	$ok = desktop_mode_files_remove( (int) $req['id'], get_current_user_id() );
+	$id      = (int) $req['id'];
+	$user_id = get_current_user_id();
+	// `force=1` query param permanently deletes (purges the row).
+	// Default DELETE soft-trashes — the row lands in the recycle
+	// bin and the user can restore. Same convention WP core REST
+	// uses on every other resource.
+	$force = '1' === (string) $req->get_param( 'force' )
+		|| true === $req->get_param( 'force' );
+	$ok    = $force
+		? desktop_mode_files_purge_placement( $user_id, $id )
+		: desktop_mode_files_trash_placement( $user_id, $id );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
-	return rest_ensure_response( array( 'deleted' => true ) );
+	return rest_ensure_response(
+		array(
+			'deleted' => true,
+			'force'   => $force,
+		)
+	);
 }
 
 /**
@@ -258,11 +273,26 @@ function desktop_mode_files_rest_update_folder( WP_REST_Request $req ) {
  * DELETE /folders/<id>
  */
 function desktop_mode_files_rest_delete_folder( WP_REST_Request $req ) {
-	$ok = desktop_mode_files_delete_folder( (int) $req['id'], get_current_user_id() );
+	$id      = (int) $req['id'];
+	$user_id = get_current_user_id();
+	$force   = '1' === (string) $req->get_param( 'force' )
+		|| true === $req->get_param( 'force' );
+	// Default DELETE soft-trashes the folder + cascades to child
+	// placements (see `desktop_mode_files_trash_folder`). `force=1`
+	// permanently deletes both the folder row AND every child
+	// placement that was trashed via the cascade.
+	$ok = $force
+		? desktop_mode_files_purge_folder( $user_id, $id )
+		: desktop_mode_files_trash_folder( $user_id, $id );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
-	return rest_ensure_response( array( 'deleted' => true ) );
+	return rest_ensure_response(
+		array(
+			'deleted' => true,
+			'force'   => $force,
+		)
+	);
 }
 
 /**

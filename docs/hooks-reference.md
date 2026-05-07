@@ -158,6 +158,24 @@ do_action( 'desktop_mode_folder_deleted', int $id, array $row );
 
 do_action( 'desktop_mode_files_schema_installed', string $version );
 do_action( 'desktop_mode_files_daily_prune' );
+
+// Soft-trash lifecycle (since 0.8.0). Fires for every state
+// transition — placements and folders both. Trashing a folder
+// cascades to its child placements; the per-child action fires
+// before/after the cascade write.
+do_action( 'desktop_mode_files_before_trash_placement',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_trash_placement',    int $id, int $user_id );
+do_action( 'desktop_mode_files_before_restore_placement', int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_restore_placement',  int $id, int $user_id );
+do_action( 'desktop_mode_files_before_purge_placement',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_purge_placement',    int $id, int $user_id );
+
+do_action( 'desktop_mode_files_before_trash_folder',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_trash_folder',    int $id, int $user_id );
+do_action( 'desktop_mode_files_before_restore_folder', int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_restore_folder',  int $id, int $user_id );
+do_action( 'desktop_mode_files_before_purge_folder',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_purge_folder',    int $id, int $user_id );
 ```
 
 Filters:
@@ -167,7 +185,24 @@ apply_filters( 'desktop_mode_files_can_place', bool $can, int $user_id, string $
 apply_filters( 'desktop_mode_files_query_args', array $args, int $user_id, int $parent_id );
 apply_filters( 'desktop_mode_files_share_modes', string[] $modes );
 apply_filters( 'desktop_mode_files_visible_folders', array $folders, int $viewer_id );
+
+// Capability gates for soft-trash / restore / purge (since 0.8.0).
+// Default behavior is "owner of the row". Plugins can broaden
+// (e.g. let editors restore other authors' shortcuts) or tighten.
+apply_filters( 'desktop_mode_files_user_can_trash_placement',   bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_restore_placement', bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_purge_placement',   bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_trash_folder',      bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_restore_folder',    bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_purge_folder',      bool $can, int $user_id, array $row );
 ```
+
+The recycle-bin REST list / restore / purge dispatch the new
+`placement` and `folder` types into the functions above
+automatically (`desktop_mode_recycle_bin_restore` /
+`desktop_mode_recycle_bin_purge` route by `$type`). The
+`desktop_mode_recycle_bin_count` filter signature gained a fourth
+arg in 0.8.0: `int $files_count`.
 
 ---
 

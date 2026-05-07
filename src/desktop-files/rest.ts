@@ -155,6 +155,42 @@ export function deletePlacement( id: number ): Promise< { deleted: true } > {
 	return call< { deleted: true } >( `/placements/${ id }`, { method: 'DELETE' } );
 }
 
+/**
+ * Restore a soft-trashed placement (or folder) via the
+ * recycle-bin REST endpoint. The `type` field routes to the
+ * correct trash module on the server side
+ * (`desktop_mode_files_restore_placement` /
+ * `desktop_mode_files_restore_folder`).
+ */
+export async function restoreTrashedItem(
+	id: number,
+	type: 'placement' | 'folder',
+): Promise< { ok: number[]; errors: unknown[] } > {
+	const { baseUrl, nonce } = ensureDeps();
+	// `baseUrl` ends with `/desktop-mode/v1/files`; swap the last
+	// segment for `/recycle-bin/restore` to reach the bin's bulk
+	// restore endpoint without a second config.
+	const root = baseUrl.replace( /\/files\/?$/, '' );
+	const url = `${ root }/recycle-bin/restore`;
+	const res = await trackedFetch(
+		url,
+		{
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': nonce,
+			},
+			credentials: 'same-origin',
+			body: JSON.stringify( { items: [ { id, type } ] } ),
+		},
+		{ source: 'desktop-mode/files' },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `[desktop-mode] restore ${ res.status }` );
+	}
+	return ( await res.json() ) as { ok: number[]; errors: unknown[] };
+}
+
 // ---------------------------------------------------------------------------
 // Folders
 // ---------------------------------------------------------------------------

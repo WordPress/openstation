@@ -147,9 +147,14 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 			$where_parts[] = $wpdb->prepare( "parent_id IN ($placeholders)", $visible_folder_ids );
 		}
 		$where_sql = '(' . implode( ' OR ', $where_parts ) . ')';
+		// Active placements only — trashed rows leave the visible
+		// surface via the `removed.placements` channel a few lines
+		// down, NOT as upserts. Without this filter a heartbeat tick
+		// fired right after a soft-trash would resurrect the tile in
+		// the client store.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$tables['placements']} WHERE $where_sql AND updated_at_ms > %d ORDER BY updated_at_ms ASC LIMIT %d",
+				"SELECT * FROM {$tables['placements']} WHERE $where_sql AND updated_at_ms > %d AND trashed_at_ms IS NULL ORDER BY updated_at_ms ASC LIMIT %d",
 				$placements_version,
 				$cap
 			),
@@ -187,6 +192,42 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 		} else {
 			$removed['placements'][] = (int) $row['ref_id'];
 		}
+	}
+
+	// 4) Soft-trash events. Tombstones only fire on hard delete, so
+	//    a trashed placement / folder would otherwise stay in the
+	//    client store between F5s. Surface every row whose
+	//    `trashed_at_ms` is fresher than the client's high-water
+	//    mark as a `removed.*` entry. Restoring (clearing
+	//    `trashed_at_ms`) bumps `updated_at_ms` and the row will
+	//    flow back through `placements` / `folders` upserts above.
+	$trashed_placements = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT id FROM {$tables['placements']}
+			WHERE trashed_at_ms IS NOT NULL
+				AND trashed_at_ms > %d
+			ORDER BY trashed_at_ms ASC
+			LIMIT %d",
+			$placements_version,
+			$cap
+		)
+	);
+	foreach ( (array) $trashed_placements as $id ) {
+		$removed['placements'][] = (int) $id;
+	}
+	$trashed_folders = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT id FROM {$tables['folders']}
+			WHERE trashed_at_ms IS NOT NULL
+				AND trashed_at_ms > %d
+			ORDER BY trashed_at_ms ASC
+			LIMIT %d",
+			$placements_version,
+			$cap
+		)
+	);
+	foreach ( (array) $trashed_folders as $id ) {
+		$removed['folders'][] = (int) $id;
 	}
 
 	return array(

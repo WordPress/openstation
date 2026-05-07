@@ -33,6 +33,7 @@ require_once DESKTOP_MODE_DIR . 'includes/desktop-files/built-in-openers.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/schema.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/store.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/folders-store.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/trash.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/rest.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/wallpaper-menu.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/sharing.php';

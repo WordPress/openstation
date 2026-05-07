@@ -875,10 +875,130 @@ function findDropTarget(
 /**
  * Wire right-click → context menu on a tile. Items vary by file
  * type — folders get a "Delete folder" that wipes the underlying
- * folder row plus its placements; non-folders get "Remove from
- * desktop" that drops only the placement (the entity stays
+ * folder row plus its placements; non-folders get "Move to
+ * Trash" that drops only the placement (the entity stays
  * intact — that's the file-references-not-copies contract).
  */
+
+/**
+ * Surface a toast for soft-trashed items with an Undo affordance.
+ * Used by both placement and folder trash flows so the message
+ * shape stays consistent.
+ */
+/**
+ * Broadcast a "this kind of thing changed in trash state" event so
+ * cross-window listeners (recycle-bin, badge counters, …) can
+ * refresh without waiting for the next Heartbeat tick. Mirrors the
+ * per-domain channels the bin subscribes to for posts / comments.
+ */
+function broadcastFilesChange( kind: 'placement' | 'shortcut' | 'folder' ): void {
+	const api = ( window as { wp?: { desktop?: { broadcast?: ( topic: string, payload: unknown ) => void } } } )
+		.wp?.desktop;
+	api?.broadcast?.( `desktop-mode.${ kind }.changed`, { reason: 'trash' } );
+}
+
+function showTrashedToast(
+	message: string,
+	onUndo: () => void,
+): void {
+	const api = ( window as { wp?: { desktop?: { showToast?: ( opts: unknown ) => void } } } )
+		.wp?.desktop;
+	if ( ! api?.showToast ) {
+		return;
+	}
+	api.showToast( {
+		message,
+		duration: 6000,
+		action: {
+			label: 'Undo',
+			onClick: onUndo,
+		},
+	} );
+}
+
+/**
+ * Soft-trash a placement with optimistic local eviction + an
+ * Undo toast. Rollback on REST failure re-hydrates the parent
+ * folder so the store catches up with whatever the server thinks.
+ */
+async function trashPlacementWithUndo(
+	placement: RestPlacementShape,
+): Promise< void > {
+	const placementId = placement.id;
+	const parentId = placement.parentId;
+	const title = placement.file?.title ?? 'Item';
+	const kind: 'placement' | 'shortcut' =
+		placement.file?.type === 'shortcut' ? 'shortcut' : 'placement';
+	filesStoreApi.removePlacement( placementId );
+	try {
+		await rest.deletePlacement( placementId );
+		broadcastFilesChange( kind );
+		showTrashedToast(
+			`"${ title }" moved to Trash`,
+			async () => {
+				try {
+					await rest.restoreTrashedItem( placementId, 'placement' );
+					const res = await rest.listPlacements( parentId );
+					filesStoreApi.setFolderPlacements( parentId, res.placements );
+					broadcastFilesChange( kind );
+				} catch ( err ) {
+					// eslint-disable-next-line no-console
+					console.error( '[desktop-mode] restore failed:', err );
+				}
+			},
+		);
+	} catch ( err ) {
+		// eslint-disable-next-line no-console
+		console.error( '[desktop-mode] deletePlacement failed:', err );
+		void rest.listPlacements( parentId ).then( ( res ) => {
+			filesStoreApi.setFolderPlacements( parentId, res.placements );
+		} );
+	}
+}
+
+/**
+ * Soft-trash a folder placement. Cascades server-side to every
+ * child placement; Undo restores the folder + its cascaded
+ * children in one round-trip via the recycle-bin endpoint.
+ */
+async function trashFolderWithUndo(
+	placement: RestPlacementShape,
+): Promise< void > {
+	const folderId = parseInt( placement.file.ref, 10 );
+	if ( ! folderId ) {
+		return;
+	}
+	const placementId = placement.id;
+	const parentId = placement.parentId;
+	const title = placement.file?.title ?? 'Folder';
+	filesStoreApi.removePlacement( placementId );
+	filesStoreApi.removeFolder( folderId );
+	try {
+		await rest.deleteFolder( folderId );
+		broadcastFilesChange( 'folder' );
+		showTrashedToast(
+			`"${ title }" moved to Trash`,
+			async () => {
+				try {
+					await rest.restoreTrashedItem( folderId, 'folder' );
+					const res = await rest.listPlacements( parentId );
+					filesStoreApi.setFolderPlacements( parentId, res.placements );
+					broadcastFilesChange( 'folder' );
+				} catch ( err ) {
+					// eslint-disable-next-line no-console
+					console.error( '[desktop-mode] restore folder failed:', err );
+				}
+			},
+		);
+	} catch ( err ) {
+		// eslint-disable-next-line no-console
+		console.error( '[desktop-mode] deleteFolder failed:', err );
+		void rest.listPlacements( parentId ).then( ( res ) => {
+			filesStoreApi.setFolderPlacements( parentId, res.placements );
+		} );
+	}
+}
+
 function attachContextMenu(
 	tile: HTMLElement,
 	placement: RestPlacementShape,
@@ -1027,54 +1147,20 @@ function attachContextMenu(
 			} );
 			items.push( {
 				id: 'delete-folder',
-				label: 'Delete folder',
+				label: 'Move folder to Trash',
 				icon: 'dashicons-trash',
 				sort: 90,
 				danger: true,
-				onClick: async () => {
-					const folderId = parseInt( placement.file.ref, 10 );
-					if ( ! folderId ) {
-						return;
-					}
-					// Optimistic local eviction: remove the placement
-					// and the folder row from the store right away so
-					// the tile disappears without waiting on the
-					// network. Any rollback on REST failure restores
-					// it via the catch branch.
-					filesStoreApi.removePlacement( placement.id );
-					filesStoreApi.removeFolder( folderId );
-					try {
-						await rest.deleteFolder( folderId );
-					} catch ( err ) {
-						// eslint-disable-next-line no-console
-						console.error( '[desktop-mode] deleteFolder failed:', err );
-						// Best-effort rollback: re-fetch the root so the
-						// store catches up with reality.
-						void rest.listPlacements( 0 ).then( ( res ) => {
-							filesStoreApi.setFolderPlacements( 0, res.placements );
-						} );
-					}
-				},
+				onClick: () => trashFolderWithUndo( placement ),
 			} );
 		} else {
 			items.push( {
 				id: 'remove',
-				label: 'Remove from desktop',
-				icon: 'dashicons-no-alt',
+				label: 'Move to Trash',
+				icon: 'dashicons-trash',
 				sort: 90,
 				danger: true,
-				onClick: async () => {
-					filesStoreApi.removePlacement( placement.id );
-					try {
-						await rest.deletePlacement( placement.id );
-					} catch ( err ) {
-						// eslint-disable-next-line no-console
-						console.error( '[desktop-mode] deletePlacement failed:', err );
-						void rest.listPlacements( placement.parentId ).then( ( res ) => {
-							filesStoreApi.setFolderPlacements( placement.parentId, res.placements );
-						} );
-					}
-				},
+				onClick: () => trashPlacementWithUndo( placement ),
 			} );
 		}
 		openTileMenu( { x: e.clientX, y: e.clientY }, { placement, items } );

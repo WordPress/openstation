@@ -32,7 +32,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '1' );
+define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '5' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
@@ -66,6 +66,15 @@ function desktop_mode_files_install_schema() {
 	$tables           = desktop_mode_files_table_names();
 	$charset_collate  = $wpdb->get_charset_collate();
 
+	// Schema v2 (since 0.8.0): adds trash columns to both placements
+	// and folders so deleted shortcuts and folders land in the
+	// recycle bin instead of vanishing. `trashed_at_ms` is the
+	// epoch-ms timestamp of the trash event (NULL = active).
+	// `trashed_by` records the user that fired it (for permission
+	// checks on restore). `trashed_via_folder` on placements is the
+	// id of the folder whose trash cascaded the placement, so a
+	// folder restore knows exactly which children to bring back —
+	// precise round-trip with no time-window heuristics.
 	$placements_sql = "CREATE TABLE {$tables['placements']} (
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 		user_id BIGINT UNSIGNED NOT NULL,
@@ -77,10 +86,14 @@ function desktop_mode_files_install_schema() {
 		sort_order INT NOT NULL DEFAULT 0,
 		updated_at_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
 		meta LONGTEXT NULL,
+		trashed_at_ms BIGINT UNSIGNED NULL,
+		trashed_by BIGINT UNSIGNED NULL,
+		trashed_via_folder BIGINT UNSIGNED NULL,
 		PRIMARY KEY  (id),
 		KEY user_parent (user_id, parent_id),
 		KEY type_ref (file_type, file_ref),
-		KEY updated_at_ms (updated_at_ms)
+		KEY updated_at_ms (updated_at_ms),
+		KEY trashed_at_ms (trashed_at_ms)
 	) $charset_collate;";
 
 	$folders_sql = "CREATE TABLE {$tables['folders']} (
@@ -90,10 +103,13 @@ function desktop_mode_files_install_schema() {
 		share_mode VARCHAR(16) NOT NULL DEFAULT 'private',
 		share_meta LONGTEXT NULL,
 		updated_at_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
+		trashed_at_ms BIGINT UNSIGNED NULL,
+		trashed_by BIGINT UNSIGNED NULL,
 		PRIMARY KEY  (id),
 		KEY owner_id (owner_id),
 		KEY share_mode (share_mode),
-		KEY updated_at_ms (updated_at_ms)
+		KEY updated_at_ms (updated_at_ms),
+		KEY trashed_at_ms (trashed_at_ms)
 	) $charset_collate;";
 
 	$tombstones_sql = "CREATE TABLE {$tables['tombstones']} (
@@ -109,6 +125,27 @@ function desktop_mode_files_install_schema() {
 	dbDelta( $folders_sql );
 	dbDelta( $tombstones_sql );
 
+	// dbDelta has well-documented quirks with `NULL`-only columns
+	// (no DEFAULT) — under some MySQL/MariaDB combos it silently
+	// skips the ADD COLUMN. Verify the v2 trash columns are
+	// physically present and ALTER them in directly when not.
+	desktop_mode_files_ensure_trash_columns();
+
+	// v4: clean up duplicate placements created by sessions that
+	// hit the auto-orphan-placer while the v2 trash columns were
+	// missing — every `WHERE trashed_at_ms IS NULL` precheck
+	// returned empty, so each pageload re-inserted every
+	// registered shortcut. Collapse runs of identical
+	// `(user_id, parent_id, file_type, file_ref)` rows down to the
+	// lowest id.
+	desktop_mode_files_dedupe_placements();
+
+	// v5: enforce uniqueness at the DB level so a future bug
+	// (or a racing pair of REST requests) can never re-create
+	// the duplicate shortcuts again. Must run AFTER dedupe —
+	// adding a unique key against duplicate rows would fail.
+	desktop_mode_files_ensure_unique_placement_index();
+
 	update_option( DESKTOP_MODE_FILES_SCHEMA_OPTION, DESKTOP_MODE_FILES_SCHEMA_VERSION );
 
 	/**
@@ -119,6 +156,113 @@ function desktop_mode_files_install_schema() {
 	 * @param string $version The version that was installed.
 	 */
 	do_action( 'desktop_mode_files_schema_installed', DESKTOP_MODE_FILES_SCHEMA_VERSION );
+}
+
+/**
+ * Belt-and-suspenders verifier for the v2 trash columns. Reads
+ * `INFORMATION_SCHEMA.COLUMNS` for the placements + folders tables
+ * and `ALTER`s in any column dbDelta missed. Idempotent: each
+ * `ALTER` only fires when the column is not already there.
+ *
+ * @since 0.8.0
+ * @internal
+ */
+function desktop_mode_files_ensure_trash_columns() {
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+
+	$ensure = static function ( $table, $column, $definition ) use ( $wpdb ) {
+		$exists = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE()
+					AND TABLE_NAME = %s
+					AND COLUMN_NAME = %s",
+				$table,
+				$column
+			)
+		);
+		if ( 0 === $exists ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
+		}
+	};
+
+	$ensure( $tables['placements'], 'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['placements'], 'trashed_by',         'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['placements'], 'trashed_via_folder', 'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['folders'],    'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['folders'],    'trashed_by',         'BIGINT UNSIGNED NULL' );
+}
+
+/**
+ * Collapse duplicate `(user_id, parent_id, file_type, file_ref)`
+ * placement rows down to the lowest id, deleting the rest. Only
+ * meaningful for `file_type IN ('shortcut','folder')` — those are
+ * the types where two rows for the same ref are redundant. Other
+ * types (post / page / attachment / …) might legitimately appear
+ * twice on the same desktop, so the dedupe leaves them alone.
+ *
+ * @since 0.8.0
+ * @internal
+ */
+function desktop_mode_files_dedupe_placements() {
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+	$tbl    = $tables['placements'];
+	// Self-join keeps the minimum id per (user_id, parent_id,
+	// file_type, file_ref) and deletes everything else. Restricted
+	// to shortcut + folder placements, where duplicates are never
+	// intentional.
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	$wpdb->query(
+		"DELETE p1 FROM `{$tbl}` p1
+		INNER JOIN `{$tbl}` p2
+			ON p1.user_id   = p2.user_id
+			AND p1.parent_id = p2.parent_id
+			AND p1.file_type = p2.file_type
+			AND p1.file_ref  = p2.file_ref
+			AND p1.id        > p2.id
+		WHERE p1.file_type IN ( 'shortcut', 'folder' )"
+	);
+}
+
+/**
+ * Add a UNIQUE index on
+ * `(user_id, parent_id, file_type, file_ref)` to make duplicate
+ * placements physically impossible. Skipped when the index is
+ * already present.
+ *
+ * Note: `file_ref` is `VARCHAR(255)` — combined with the three
+ * other columns this fits comfortably under MySQL's 3072-byte
+ * InnoDB index-key limit on `utf8mb4`.
+ *
+ * @since 0.8.0
+ * @internal
+ */
+function desktop_mode_files_ensure_unique_placement_index() {
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+	$tbl    = $tables['placements'];
+
+	$exists = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME   = %s
+				AND INDEX_NAME   = %s",
+			$tbl,
+			'placement_unique'
+		)
+	);
+	if ( 0 === $exists ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			"ALTER TABLE `{$tbl}`
+			ADD UNIQUE KEY `placement_unique`
+				(user_id, parent_id, file_type, file_ref)"
+		);
+	}
 }
 
 /**
@@ -136,6 +280,12 @@ function desktop_mode_files_maybe_install_schema() {
 	desktop_mode_files_install_schema();
 }
 add_action( 'admin_init', 'desktop_mode_files_maybe_install_schema' );
+// REST + front-end requests never fire `admin_init` — without these
+// hooks a session that hits a REST endpoint before any admin page
+// load would query the placements / folders tables before the v2
+// trash columns exist, throwing wpdb errors and blanking the desktop.
+add_action( 'rest_api_init', 'desktop_mode_files_maybe_install_schema' );
+add_action( 'init', 'desktop_mode_files_maybe_install_schema', 1 );
 register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_files_install_schema' );
 
 /**

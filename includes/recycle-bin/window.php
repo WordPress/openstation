@@ -41,6 +41,9 @@ function desktop_mode_recycle_bin_render_template() {
 					<wpd-segment value="page"><?php esc_html_e( 'Pages', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="attachment"><?php esc_html_e( 'Media', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="comment"><?php esc_html_e( 'Comments', 'desktop-mode' ); ?></wpd-segment>
+					<wpd-segment value="shortcut"><?php esc_html_e( 'Shortcuts', 'desktop-mode' ); ?></wpd-segment>
+					<wpd-segment value="placement"><?php esc_html_e( 'Files', 'desktop-mode' ); ?></wpd-segment>
+					<wpd-segment value="folder"><?php esc_html_e( 'Folders', 'desktop-mode' ); ?></wpd-segment>
 				</wpd-segmented>
 				<wpd-text-field
 					data-desktop-mode-recycle-bin-search

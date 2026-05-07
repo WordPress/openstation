@@ -292,9 +292,15 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 	 */
 	$args = (array) apply_filters( 'desktop_mode_files_query_args', $args, $user_id, $parent_id );
 
+	// Active queries always exclude trashed rows. Recycle-bin
+	// callers reach for the dedicated trash store.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']} WHERE user_id = %d AND parent_id = %d ORDER BY sort_order ASC, id ASC",
+			"SELECT * FROM {$tables['placements']}
+			WHERE user_id = %d
+				AND parent_id = %d
+				AND trashed_at_ms IS NULL
+			ORDER BY sort_order ASC, id ASC",
 			(int) $args['user_id'],
 			(int) $args['parent_id']
 		),
@@ -354,13 +360,19 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 
 	$tables = desktop_mode_files_table_names();
 
-	// 1) Owned folders without any placement.
+	// 1) Owned folders without any placement. Skip trashed folders
+	// and trashed placement rows so a recycled folder doesn't get
+	// auto-placed back on the desktop on next hydrate.
 	$folder_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT f.id FROM {$tables['folders']} f
 				LEFT JOIN {$tables['placements']} p
-					ON p.file_type = 'folder' AND p.file_ref = CAST( f.id AS CHAR )
-				WHERE f.owner_id = %d AND p.id IS NULL",
+					ON p.file_type = 'folder'
+					AND p.file_ref = CAST( f.id AS CHAR )
+					AND p.trashed_at_ms IS NULL
+				WHERE f.owner_id = %d
+					AND f.trashed_at_ms IS NULL
+					AND p.id IS NULL",
 			$user_id
 		),
 		ARRAY_A
@@ -386,7 +398,11 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 		$args           = array_merge( array( $user_id ), $registered_ids );
 		$placed_ids     = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT file_ref FROM {$tables['placements']} WHERE user_id = %d AND file_type = 'shortcut' AND file_ref IN ($placeholders)",
+				"SELECT file_ref FROM {$tables['placements']}
+				WHERE user_id = %d
+					AND file_type = 'shortcut'
+					AND trashed_at_ms IS NULL
+					AND file_ref IN ($placeholders)",
 				$args
 			)
 		);
@@ -408,7 +424,10 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 	// (padding 16 + col 96 + row 110).
 	$existing = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT x, y FROM {$tables['placements']} WHERE user_id = %d AND parent_id = 0",
+			"SELECT x, y FROM {$tables['placements']}
+			WHERE user_id = %d
+				AND parent_id = 0
+				AND trashed_at_ms IS NULL",
 			$user_id
 		),
 		ARRAY_A

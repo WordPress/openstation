@@ -253,7 +253,7 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
  * @param int $folder_id Folder id.
  * @return array|null
  */
-function desktop_mode_files_get_folder( $folder_id ) {
+function desktop_mode_files_get_folder( $folder_id, $include_trashed = false ) {
 	global $wpdb;
 	$tables = desktop_mode_files_table_names();
 	$row    = $wpdb->get_row(
@@ -261,6 +261,11 @@ function desktop_mode_files_get_folder( $folder_id ) {
 		ARRAY_A
 	);
 	if ( ! $row ) {
+		return null;
+	}
+	// Trashed folders are invisible to active code paths by
+	// default — recycle-bin callers pass `true` to opt in.
+	if ( ! $include_trashed && ! empty( $row['trashed_at_ms'] ) ) {
 		return null;
 	}
 	return desktop_mode_files_normalize_folder_row( $row );
@@ -285,7 +290,11 @@ function desktop_mode_files_get_visible_folders( $user_id ) {
 
 	$tables = desktop_mode_files_table_names();
 	$rows   = $wpdb->get_results(
-		$wpdb->prepare( "SELECT * FROM {$tables['folders']} WHERE owner_id = %d", $user_id ),
+		$wpdb->prepare(
+			"SELECT * FROM {$tables['folders']}
+			WHERE owner_id = %d AND trashed_at_ms IS NULL",
+			$user_id
+		),
 		ARRAY_A
 	);
 	$out = array();
