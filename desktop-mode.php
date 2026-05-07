@@ -22,6 +22,9 @@ define( 'DESKTOP_MODE_FILE', __FILE__ );
 define( 'DESKTOP_MODE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
 
+// Foundation primitives — must load before anything that consumes them.
+require_once DESKTOP_MODE_DIR . 'includes/core/registry-factory.php';
+
 require_once DESKTOP_MODE_DIR . 'includes/helpers.php';
 require_once DESKTOP_MODE_DIR . 'includes/ajax.php';
 require_once DESKTOP_MODE_DIR . 'includes/assets.php';

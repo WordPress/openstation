@@ -22,6 +22,16 @@
 export interface TrackedFetchOpts {
 	windowId?: string;
 	source?: string;
+	/**
+	 * Track but suppress the activity-bus pulse. Use for genuinely
+	 * background pings the user did not initiate (session save,
+	 * badge polls). The runtime accepts this field on
+	 * `wp.desktop.fetch`; declared here so the typed wrapper can
+	 * forward it without needing per-feature widening.
+	 *
+	 * @since 1.0.0
+	 */
+	silent?: boolean;
 }
 
 export function trackedFetch(
