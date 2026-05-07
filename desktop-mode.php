@@ -33,6 +33,11 @@ require_once DESKTOP_MODE_DIR . 'includes/core/registry-factory.php';
 require_once DESKTOP_MODE_DIR . 'includes/core/routing.php';
 
 require_once DESKTOP_MODE_DIR . 'includes/helpers.php';
+
+// Dock + payload assembly. Loaded right after helpers.php so the
+// foundational `desktop_mode_is_enabled()` etc. exist by the time
+// any payload function is invoked at hook-fire time.
+require_once DESKTOP_MODE_DIR . 'includes/core/payload.php';
 require_once DESKTOP_MODE_DIR . 'includes/ajax.php';
 require_once DESKTOP_MODE_DIR . 'includes/assets.php';
 require_once DESKTOP_MODE_DIR . 'includes/admin-bar.php';
