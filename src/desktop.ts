@@ -172,7 +172,9 @@ import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { openCurrentPage, restoreSession } from './boot/session';
+import { createSessionSaver } from './boot/session-saver';
 import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
+import { trackedFetch } from './boot/tracked-fetch';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
 // boot-time consumer reaches the same captured value — see the import
@@ -1431,7 +1433,8 @@ declare global {
 }
 
 /** Debounce window for session writes. 500 ms is short enough to feel immediate and long enough to coalesce drag/resize storms. */
-const SESSION_SAVE_DEBOUNCE_MS = 500;
+// `SESSION_SAVE_DEBOUNCE_MS` lives with the saver in
+// `src/boot/session-saver.ts` since 0.8.1.
 
 /**
  * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
@@ -2999,66 +3002,7 @@ function init(): void {
 // `src/boot/session.ts` in 0.8.1 — see the imports near the top of
 // this file. This is the architecture-0.8.1 phase-5 split.
 
-/**
- * `wp.desktop.fetch` — wraps native `fetch()` with per-window
- * activity attribution. Same shape as `fetch()` plus a third opts
- * arg for explicit attribution / silencing.
- *
- * Resolution order for "which window's title bar pulses":
- *   1. `opts.window`   — explicit Window reference.
- *   2. `opts.windowId` — id looked up via `manager.getById`.
- *   3. focused window  — `manager.getFocused()`.
- *
- * `opts.silent: true` skips the indicator entirely (used internally
- * by background polls — heartbeat, presence, recycle-bin count).
- *
- * Returns the same Response Promise the native fetch would have, so
- * callers can `.then(r => r.json())` / `await` / catch unchanged.
- *
- * Wired into the public API as `wp.desktop.fetch`.
- *
- * @internal
- */
-function trackedFetch(
-	manager: WindowManager,
-	input: RequestInfo | URL,
-	requestInit?: RequestInit,
-	opts?: {
-		windowId?: string;
-		window?: DesktopWindow;
-		silent?: boolean;
-		/**
-		 * Free-form attribution tag carried through to the activity
-		 * bus (e.g. `'desktop-mode/files'`). Plugins building debug
-		 * widgets can group requests by this label.
-		 */
-		source?: string;
-	},
-): Promise< Response > {
-	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.desktop.fetch`; it's the one legitimate place to call the raw global.
-	const promise = window.fetch( input, requestInit );
-	if ( opts?.silent ) {
-		return promise;
-	}
-	let target: DesktopWindow | null | undefined = opts?.window;
-	if ( ! target && opts?.windowId ) {
-		target = manager.getById( opts.windowId ) ?? null;
-	}
-	if ( ! target ) {
-		target = manager.getFocused();
-	}
-	if ( target && typeof target.trackActivity === 'function' ) {
-		// Track but don't replace the original promise — we want
-		// callers to receive identical resolution semantics. The
-		// `trackActivity` helper attaches its own `.then`/`catch`
-		// without consuming the rejection (it re-throws), so we can
-		// fire-and-forget here and return the underlying promise.
-		void target.trackActivity( promise ).catch( () => {
-			/* swallow — caller's await sees the rejection */
-		} );
-	}
-	return promise;
-}
+// `trackedFetch` was moved to `src/boot/tracked-fetch.ts` in 0.8.1.
 
 // `openCurrentPage` lives in `src/boot/session.ts` since 0.8.1.
 
@@ -3068,98 +3012,8 @@ function trackedFetch(
 // `findDockEntryForUrl` and `clampGeometryToViewport` were moved
 // to `src/boot/geometry.ts` in 0.8.1.
 
-/**
- * Creates the debounced+immediate session saver. Returns a single
- * function that schedules a debounced REST write on each call. Also
- * exposed on `wp.desktop.saveSession()` for plugins that want to flush.
- */
-function createSessionSaver( manager: WindowManager, config: DesktopConfig ): () => void {
-	let debounceTimer: number | null = null;
-	let inFlight = false;
-
-	const doSave = async (): Promise<void> => {
-		if ( inFlight ) {
-			return;
-		}
-		const payload = manager.snapshot();
-		inFlight = true;
-		try {
-			// Session save is a debounced background ping — silent
-			// so the user doesn't see a spinner every time they
-			// move a window.
-			await trackedFetch( manager, config.sessionUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': config.restNonce,
-				},
-				body: JSON.stringify( { session: payload } ),
-				// Best-effort: we don't block the UI on persistence.
-				keepalive: true,
-			}, { silent: true } );
-		} catch ( err ) {
-			/* Network error is non-fatal — next change triggers another save.
-			 * Still worth surfacing to monitor widgets so a connectivity
-			 * regression doesn't go silent under the session-beacon path. */
-			doAction( HOOKS.SHELL_ERROR, { scope: 'session-save', error: err } );
-		} finally {
-			inFlight = false;
-		}
-	};
-
-	const flushImmediately = (): void => {
-		if ( debounceTimer !== null ) {
-			clearTimeout( debounceTimer );
-			debounceTimer = null;
-		}
-		// Use sendBeacon for unload-time saves where fetch may not
-		// complete. WP REST's cookie-auth middleware reads the nonce
-		// from `$_REQUEST` (URL query string + form-encoded body),
-		// NOT from JSON bodies — so to satisfy auth we append the
-		// nonce to the URL as a query param. Without this, the
-		// beacon arrives but WP returns 403 before our handler runs,
-		// and the session on disk stays at its pre-close state.
-		// Symptom: close a window, reload fast, window reappears.
-		const payload = manager.snapshot();
-		const body = new Blob(
-			[ JSON.stringify( { session: payload } ) ],
-			{ type: 'application/json' },
-		);
-		const beaconUrl =
-			config.sessionUrl +
-			( config.sessionUrl.includes( '?' ) ? '&' : '?' ) +
-			'_wpnonce=' +
-			encodeURIComponent( config.restNonce );
-		if ( navigator.sendBeacon && navigator.sendBeacon( beaconUrl, body ) ) {
-			return;
-		}
-		void doSave();
-	};
-
-	const schedule = (): void => {
-		if ( debounceTimer !== null ) {
-			clearTimeout( debounceTimer );
-		}
-		debounceTimer = window.setTimeout( () => {
-			debounceTimer = null;
-			void doSave();
-		}, SESSION_SAVE_DEBOUNCE_MS ) as unknown as number;
-	};
-
-	// pagehide is the reliable unload signal across browsers (mobile Safari
-	// in particular never fires beforeunload in the BFCache case).
-	window.addEventListener( 'pagehide', flushImmediately );
-	// Hidden tabs might never fire pagehide if the user switches away and
-	// kills the browser — save opportunistically on visibility change too.
-	document.addEventListener( 'visibilitychange', () => {
-		if ( document.visibilityState === 'hidden' ) {
-			flushImmediately();
-		}
-	} );
-
-	return schedule;
-}
+// `createSessionSaver` (and the SESSION_SAVE_DEBOUNCE_MS constant) was
+// moved to `src/boot/session-saver.ts` in 0.8.1.
 
 // `wireSessionEvents` and `bindShellLifecycle` were moved to
 // `src/boot/shell-lifecycle.ts` in 0.8.1.
