@@ -50,6 +50,8 @@ require_once DESKTOP_MODE_DIR . 'includes/default-window.php';
 require_once DESKTOP_MODE_DIR . 'includes/media-query.php';
 require_once DESKTOP_MODE_DIR . 'includes/accents.php';
 require_once DESKTOP_MODE_DIR . 'includes/toast-types.php';
+require_once DESKTOP_MODE_DIR . 'includes/registries/native-windows.php';
+require_once DESKTOP_MODE_DIR . 'includes/registries/window-tabs.php';
 require_once DESKTOP_MODE_DIR . 'includes/registries/icons.php';
 require_once DESKTOP_MODE_DIR . 'includes/registries/wallpapers.php';
 require_once DESKTOP_MODE_DIR . 'includes/registries/widgets.php';

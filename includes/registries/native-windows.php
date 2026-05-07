@@ -1,0 +1,715 @@
+<?php
+/**
+ * Desktop Mode — Native windows registry.
+ *
+ * The largest of the five components.php registries — owns:
+ *
+ *   - `desktop_mode_register_window()` — plugin-author API
+ *   - `desktop_mode_native_window_registry()` — internal store
+ *   - `desktop_mode_native_window_allowed_html()` — wp_kses
+ *     allowlist for `<template>` payloads
+ *   - `desktop_mode_build_native_window_template_html()` —
+ *     wraps the registered template callback in tabs markup
+ *     when the window has multiple registered tabs
+ *   - `desktop_mode_enqueue_native_window_scripts()` — enqueue
+ *     hook that ships every registered window's script handle
+ *   - `desktop_mode_render_native_window_templates()` — renders
+ *     the `<template>` elements the shell clones
+ *
+ * Extracted from `components.php` during the architecture-0.8.1
+ * PHP slicing (phase 6). The window-tabs registry that builds on
+ * top of this lives in `includes/registries/window-tabs.php`.
+ *
+ * @package Desktop_Mode
+ * @since   0.8.1
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Register a PHP-owned native desktop window with one call.
+ *
+ * Under the hood this:
+ *
+ *   1. Captures the $args and stores them on a module-level
+ *      registry so the relevant admin_footer + enqueue hooks fire
+ *      only for the current user's desktop-mode shell.
+ *   2. On `admin_footer` (shell-side only), emits
+ *      `<template id="desktop-mode-native-window-<id>">` wrapping the
+ *      output of the `template` callback. Each registered window
+ *      gets its own template element.
+ *   3. On `admin_enqueue_scripts` (shell-side), enqueues the
+ *      caller's `script` handle if one was provided. The script
+ *      registers a render callback at
+ *      `window.desktopModeNativeWindows[<id>]`. On every window open
+ *      the shell clones the registered template into the body and
+ *      then invokes the callback — render is enhancement: query
+ *      the body for mount points your template declared, light
+ *      them up. Without a `script` the cloned template IS the
+ *      window; declarative-only plugins need zero JS.
+ *   4. Passes a localized config blob to the script
+ *      (`desktopModeNativeWindow_<id>`) carrying the window's
+ *      `id`, `title`, `icon`, dimensions, and `placement`. The
+ *      script then calls `wp.desktop.registerSystemTile()` +
+ *      `wp.desktop.registerWindow()` to wire up the dock tile
+ *      and the open-on-click behaviour.
+ *
+ * Plugins write the template callback + the render callback on
+ * the JS side; everything else is shell plumbing. Capability gate
+ * honours WP admin conventions: any `capabilities` entries must
+ * ALL match for the window to register.
+ *
+ * Note on scope: the shell doesn't auto-open windows server-side
+ * — `registerWindow` declares availability, not presence. Users
+ * click the registered tile (or your plugin calls
+ * `wp.desktop.windowManager.open()` programmatically) to surface
+ * the window.
+ *
+ * @since 0.10.0
+ * @since 0.11.0 Returns `WP_Error` on validation failure instead of
+ *               silent `false`. Legacy `if ( $result )` callers remain
+ *               correct because `WP_Error` is truthy; new code should
+ *               prefer `is_wp_error( $result )` for diagnostics.
+ *
+ * @param string $id   Doubles as window id + dock-tile id. Must
+ *                     be a kebab-case-ish slug.
+ * @param array  $args {
+ *     Window registration options.
+ *
+ *     @type string   $title        Window + tooltip title. Required.
+ *     @type string   $icon         Dashicons class or URL. Required.
+ *     @type callable $template     Echoes the window body markup.
+ *                                  Wrapped on `admin_footer` in a
+ *                                  `<template id="desktop-mode-native-window-
+ *                                  <id>">`; cloned into the window
+ *                                  body on every open. The render
+ *                                  callback runs against the cloned
+ *                                  body, so mount points declared in
+ *                                  the template are guaranteed to be
+ *                                  present.
+ *     @type string   $script       Registered script handle that
+ *                                  owns the JS render callback.
+ *                                  Optional — omit for a purely
+ *                                  declarative window whose body is
+ *                                  exactly the cloned template.
+ *     @type int      $width        Initial width (px). Default 520.
+ *     @type int      $height       Initial height (px). Default 400.
+ *     @type int      $min_width    Minimum width (px). Default 280.
+ *     @type int      $min_height   Minimum height (px). Default 220.
+ *     @type string   $placement    'dock' | 'none'. Default 'dock'.
+ *                                  'none' skips the tile (plugin
+ *                                  opens the window programmatically).
+ *     @type string[] $capabilities User capabilities that gate the
+ *                                  registration. ANY miss returns
+ *                                  `WP_Error desktop_mode_capability_denied`.
+ *     @type bool|string $autofocus Passed verbatim to
+ *                                  `NativeWindowDef.autofocus`.
+ *     @type string   $main_tab_label Label for the "main" tab that
+ *                                  displays the window's own
+ *                                  `template` output. Only rendered
+ *                                  when at least one additional
+ *                                  tab is registered via
+ *                                  {@see desktop_mode_register_window_tab()}.
+ *                                  Defaults to the window's `title`.
+ *     @type int      $main_tab_padding Padding (in px) applied to the
+ *                                  auto-generated tab-wrap around
+ *                                  the window body. Only applies
+ *                                  when additional tabs are
+ *                                  registered. Default 16. Pass 0
+ *                                  for edge-to-edge content.
+ *                                  Filterable at runtime via
+ *                                  `desktop_mode_native_window_tab_wrap_padding`.
+ *     @type array    $config       Arbitrary serializable data to ship
+ *                                  to the bundle alongside the script
+ *                                  tag. Read in JS via
+ *                                  `wp.desktop.getWindowConfig( $id )`
+ *                                  (or directly at
+ *                                  `window.desktopModeWindowConfig[ $id ]`).
+ *                                  Recommended over `wp_localize_script`
+ *                                  for native-window scripts because
+ *                                  the lazy-load path bypasses
+ *                                  `wp_print_scripts` — passing config
+ *                                  through this arg guarantees delivery
+ *                                  on both eager AND lazy paths
+ *                                  (mid-session activation). Use this
+ *                                  for REST URLs, nonces, capability
+ *                                  flags, anything session-bound. Empty
+ *                                  array (default) ships nothing.
+ * }
+ * @return true|WP_Error `true` on success; `WP_Error` when any
+ *                       required arg is missing/invalid or a
+ *                       declared capability is unmet.
+ */
+function desktop_mode_register_window( $id, $args = array() ) {
+	$id = sanitize_key( (string) $id );
+	if ( '' === $id ) {
+		return desktop_mode_registration_error(
+			'desktop_mode_missing_id',
+			__( 'Native window id is required and must be a valid slug.', 'desktop-mode' )
+		);
+	}
+
+	$defaults = array(
+		'title'            => '',
+		'icon'             => 'dashicons-admin-generic',
+		'template'         => null,
+		'script'           => '',
+		// Optional WP style handle (registered with `wp_register_style()`).
+		// Resolved at payload-build time so the shell can lazy-inject a
+		// `<link rel="stylesheet">` when a peer plugin is activated
+		// mid-session — without this, the parent shell page already
+		// finished `wp_print_styles` and the plugin's CSS is missing
+		// until F5. @since 0.18.1
+		'style'            => '',
+		'width'            => 520,
+		'height'           => 400,
+		'min_width'        => 280,
+		'min_height'       => 220,
+		'placement'        => 'dock',
+		'capabilities'     => array(),
+		'autofocus'        => false,
+		'main_tab_label'   => '',
+		'main_tab_padding' => '',
+		'config'           => array(),
+	);
+	$args = wp_parse_args( $args, $defaults );
+
+	// Capability gate — ALL listed caps must match. Fail closed.
+	foreach ( (array) $args['capabilities'] as $cap ) {
+		if ( ! current_user_can( (string) $cap ) ) {
+			return desktop_mode_registration_error(
+				'desktop_mode_capability_denied',
+				sprintf(
+					/* translators: %s: capability slug. */
+					__( 'Current user lacks the %s capability required to register this native window.', 'desktop-mode' ),
+					(string) $cap
+				),
+				array( 'capability' => (string) $cap, 'id' => $id )
+			);
+		}
+	}
+
+	// Required fields.
+	if ( '' === (string) $args['title'] ) {
+		return desktop_mode_registration_error(
+			'desktop_mode_missing_title',
+			__( 'Native window registration requires a non-empty `title`.', 'desktop-mode' ),
+			array( 'id' => $id )
+		);
+	}
+	if ( ! is_callable( $args['template'] ) ) {
+		return desktop_mode_registration_error(
+			'desktop_mode_invalid_template',
+			__( 'Native window registration requires a callable `template` that echoes the template body.', 'desktop-mode' ),
+			array( 'id' => $id )
+		);
+	}
+
+	$placement = in_array( $args['placement'], array( 'dock', 'none' ), true )
+		? $args['placement']
+		: 'dock';
+
+	$entry = array(
+		'id'               => $id,
+		'title'            => (string) $args['title'],
+		'icon'             => (string) $args['icon'],
+		'template'         => $args['template'],
+		'script'           => (string) $args['script'],
+		'style'            => (string) $args['style'],
+		'width'            => (int) $args['width'],
+		'height'           => (int) $args['height'],
+		'min_width'        => (int) $args['min_width'],
+		'min_height'       => (int) $args['min_height'],
+		'placement'        => $placement,
+		'autofocus'        => $args['autofocus'],
+		'main_tab_label'   => (string) $args['main_tab_label'],
+		// Stored as-is (string or int). `desktop_mode_build_native_window_template_html`
+		// coerces to int and falls back to 16 when absent.
+		'main_tab_padding' => $args['main_tab_padding'],
+		// Bundle-bound config delivered through the same path as
+		// `wp_localize_script` `extra['data']` — see the `config` doc
+		// in this function's `$args` block and `desktop_mode_resolve_script_payload()`
+		// for how it lands on the wire.
+		'config'           => is_array( $args['config'] ) ? $args['config'] : array(),
+	);
+	desktop_mode_native_window_registry( $id, $entry );
+
+	/**
+	 * Fires after a native desktop window is successfully registered.
+	 *
+	 * Lets plugins react to registrations made by other plugins —
+	 * e.g. a widget that auto-opens when a given window registers,
+	 * or analytics tracking of which windows the current install
+	 * exposes. Does NOT fire when `desktop_mode_register_window()`
+	 * returns a `WP_Error`.
+	 *
+	 * @since 0.11.0
+	 *
+	 * @param string $id    The window id.
+	 * @param array  $entry The stored registry entry (id, title,
+	 *                      icon, template callback, script handle,
+	 *                      size defaults, placement, autofocus).
+	 */
+	do_action( 'desktop_mode_native_window_registered', $id, $entry );
+
+	return true;
+}
+
+/**
+ * Internal module-level registry for native windows registered
+ * via {@see desktop_mode_register_window()}. Passing a second
+ * argument stores the entry; passing only the id returns the
+ * stored value (or null). Kept small and side-effect-free so
+ * tests can introspect.
+ *
+ * @since 0.10.0
+ * @internal
+ *
+ * @param string     $id    Window id.
+ * @param array|null $entry Entry to store, or null to just read.
+ * @return array|null Either the stored entry or the full registry
+ *                    (when id is empty).
+ */
+function desktop_mode_native_window_registry( $id = '', $entry = null ) {
+	static $store = array();
+
+	if ( '' === (string) $id ) {
+		return $store;
+	}
+	if ( null !== $entry ) {
+		$store[ $id ] = $entry;
+	}
+	return isset( $store[ $id ] ) ? $store[ $id ] : null;
+}
+
+
+/**
+ * Render a native window's template HTML to a string, wrapping
+ * with tabs when the window has at least one additional tab
+ * registered. Shared by `desktop_mode_render_native_window_templates()`
+ * (which emits the live `<template>` element) and
+ * `desktop_mode_build_native_windows_payload()` (which captures the same
+ * string for the shell config so mid-session activation can inject
+ * the template without a reload).
+ *
+ * Single-tab windows (no additional tabs registered) render the
+ * same flat body they always did — backwards-compatible with
+ * every existing caller.
+ *
+ * @since 0.11.0
+ *
+ * @param array $entry Window registry entry.
+ * @return string Template body HTML (no outer `<template>` tag).
+ */
+/**
+ * Returns the `wp_kses`-shaped allowlist used to escape native-window
+ * `<template>` payloads (and the recycle-bin template) before they're
+ * emitted into the page.
+ *
+ * Templates are inert until JS clones them out of the `<template>`
+ * tag — but Plugin Check still requires escape-on-output. The list
+ * extends `wp_kses_allowed_html( 'post' )` with form controls,
+ * `<wpd-*>` web components, and dashicon spans, plus permissive
+ * `data-*`, `aria-*`, and component-specific attributes. Plugins
+ * registering their own native windows can extend the list via the
+ * `desktop_mode_native_window_allowed_html` filter below.
+ *
+ * @since 0.6.2
+ *
+ * @return array<string,array<string,bool>>
+ */
+function desktop_mode_native_window_allowed_html() {
+	$base = wp_kses_allowed_html( 'post' );
+
+	$global_attrs = array(
+		'id'              => true,
+		'class'           => true,
+		'style'           => true,
+		'title'           => true,
+		'role'            => true,
+		'tabindex'        => true,
+		'hidden'          => true,
+		'slot'            => true,
+		'part'            => true,
+		'lang'            => true,
+		'dir'             => true,
+		'draggable'       => true,
+		'contenteditable' => true,
+		'data-*'          => true,
+		'aria-*'          => true,
+	);
+
+	$form_attrs = array_merge(
+		$global_attrs,
+		array(
+			'name'         => true,
+			'value'        => true,
+			'placeholder' => true,
+			'required'    => true,
+			'disabled'    => true,
+			'readonly'    => true,
+			'checked'     => true,
+			'selected'    => true,
+			'min'         => true,
+			'max'         => true,
+			'step'        => true,
+			'minlength'   => true,
+			'maxlength'   => true,
+			'pattern'     => true,
+			'autocomplete' => true,
+			'autofocus'   => true,
+			'multiple'    => true,
+			'rows'        => true,
+			'cols'        => true,
+			'wrap'        => true,
+			'size'        => true,
+			'for'         => true,
+			'form'        => true,
+			'type'        => true,
+			'accept'      => true,
+			'list'        => true,
+			'src'         => true,
+			'href'        => true,
+			'target'      => true,
+			'rel'         => true,
+			'open'        => true,
+			'variant'     => true,
+		)
+	);
+
+	$wpd_attrs = array_merge(
+		$form_attrs,
+		array(
+			'gap'           => true,
+			'padding'       => true,
+			'align'         => true,
+			'justify'       => true,
+			'direction'     => true,
+			'wrap'          => true,
+			'inset'         => true,
+			'icon'          => true,
+			'tone'          => true,
+			'size'          => true,
+			'shape'         => true,
+			'badge'         => true,
+			'selectable'    => true,
+			'sticky-header' => true,
+			'sticky-columns' => true,
+			'hover'         => true,
+			'striped'       => true,
+			'bordered'      => true,
+			'compact'       => true,
+			'loading'       => true,
+			'loading-rows'  => true,
+			'columns'       => true,
+			'rows'          => true,
+			'sortable'      => true,
+			'expandable'    => true,
+			'preset'        => true,
+			'label'         => true,
+			'description'   => true,
+			'orientation'   => true,
+			'level'         => true,
+			'collapsed'     => true,
+		)
+	);
+
+	// Built-in HTML elements the templates rely on.
+	$extra = array(
+		'form'     => $form_attrs,
+		'fieldset' => $form_attrs,
+		'legend'   => $global_attrs,
+		'label'    => $form_attrs,
+		'input'    => $form_attrs,
+		'select'   => $form_attrs,
+		'option'   => $form_attrs,
+		'optgroup' => $form_attrs,
+		'textarea' => $form_attrs,
+		'button'   => $form_attrs,
+		'output'   => $form_attrs,
+		'datalist' => $global_attrs,
+		'progress' => $form_attrs,
+		'meter'    => $form_attrs,
+		'details'  => $global_attrs,
+		'summary'  => $global_attrs,
+		'dialog'   => $global_attrs,
+		'header'   => $global_attrs,
+		'footer'   => $global_attrs,
+		'main'     => $global_attrs,
+		'nav'      => $global_attrs,
+		'section'  => $global_attrs,
+		'article'  => $global_attrs,
+		'aside'    => $global_attrs,
+		'figure'   => $global_attrs,
+		'figcaption' => $global_attrs,
+		'time'     => array_merge( $global_attrs, array( 'datetime' => true ) ),
+		'mark'     => $global_attrs,
+		'small'    => $global_attrs,
+		'svg'      => array_merge( $global_attrs, array( 'viewbox' => true, 'width' => true, 'height' => true, 'fill' => true, 'stroke' => true, 'xmlns' => true ) ),
+		'path'     => array( 'd' => true, 'fill' => true, 'stroke' => true, 'stroke-width' => true, 'stroke-linecap' => true, 'stroke-linejoin' => true, 'class' => true ),
+		'g'        => array( 'class' => true, 'transform' => true, 'fill' => true ),
+		'circle'   => array( 'cx' => true, 'cy' => true, 'r' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'rect'     => array( 'x' => true, 'y' => true, 'width' => true, 'height' => true, 'rx' => true, 'ry' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'line'     => array( 'x1' => true, 'y1' => true, 'x2' => true, 'y2' => true, 'stroke' => true, 'stroke-width' => true, 'class' => true ),
+		'polyline' => array( 'points' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'polygon'  => array( 'points' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
+		'use'      => array( 'href' => true, 'class' => true ),
+	);
+
+	// `<wpd-*>` web components — every shipped tag plus a permissive
+	// open door for new ones added by plugin templates.
+	$wpd_tags = array(
+		'wpd-stack', 'wpd-cluster', 'wpd-grid', 'wpd-spacer', 'wpd-divider',
+		'wpd-tabs', 'wpd-tab', 'wpd-tabpanel',
+		'wpd-segmented', 'wpd-segment',
+		'wpd-button', 'wpd-icon-button', 'wpd-button-group',
+		'wpd-text-field', 'wpd-textarea', 'wpd-search-field',
+		'wpd-select', 'wpd-checkbox', 'wpd-radio', 'wpd-radio-group',
+		'wpd-switch', 'wpd-slider',
+		'wpd-table', 'wpd-table-column', 'wpd-table-row', 'wpd-table-cell',
+		'wpd-card', 'wpd-list', 'wpd-list-item',
+		'wpd-badge', 'wpd-pill', 'wpd-tag', 'wpd-chip',
+		'wpd-spinner', 'wpd-skeleton', 'wpd-empty-state',
+		'wpd-tooltip', 'wpd-popover', 'wpd-menu', 'wpd-menu-item',
+		'wpd-modal', 'wpd-drawer', 'wpd-toast',
+		'wpd-icon', 'wpd-avatar', 'wpd-heading', 'wpd-text', 'wpd-link',
+		'wpd-banner', 'wpd-alert', 'wpd-callout',
+		'wpd-form-row', 'wpd-form-section', 'wpd-help-text',
+		'wpd-toolbar', 'wpd-toolbar-group',
+	);
+	foreach ( $wpd_tags as $tag ) {
+		$extra[ $tag ] = $wpd_attrs;
+	}
+
+	$allowed = array_merge( $base, $extra );
+
+	/**
+	 * Filters the kses allowlist used when escaping native-window
+	 * `<template>` payloads.
+	 *
+	 * Plugins registering their own native windows can extend the
+	 * list with custom tags or attributes if their templates need
+	 * markup not covered here.
+	 *
+	 * @since 0.6.2
+	 *
+	 * @param array $allowed wp_kses-shaped allowlist.
+	 */
+	return (array) apply_filters( 'desktop_mode_native_window_allowed_html', $allowed );
+}
+
+function desktop_mode_build_native_window_template_html( $entry ) {
+	if ( ! is_array( $entry ) || ! is_callable( $entry['template'] ) ) {
+		return '';
+	}
+
+	$tabs = desktop_mode_get_native_window_tabs( $entry['id'] );
+	$has_extras = count( $tabs ) > 1;
+
+	// Fast path — single-pane window, no wrapping.
+	if ( ! $has_extras ) {
+		ob_start();
+		call_user_func( $entry['template'] );
+		return (string) ob_get_clean();
+	}
+
+	// Multi-tab window — wrap in <wpd-stack> + <wpd-tabs> + one
+	// <wpd-tabpanel> per tab. The default active tab is the main
+	// one (the window's own template). Plugin authors still get to
+	// declare their own tab-change side effects via the
+	// `wpd-tab-change` event bubbled by <wpd-tabs>.
+	//
+	// The wrap's padding is plugin-controllable two ways:
+	//   1. `main_tab_padding` arg on `desktop_mode_register_window` —
+	//      a per-window override. `0` opts into edge-to-edge
+	//      content.
+	//   2. `desktop_mode_native_window_tab_wrap_padding` filter for
+	//      late-bound overrides (e.g. a theme that wants every
+	//      tabbed window to adopt a narrower inset).
+	// Default stays 16px so existing plugins don't shift.
+	$default_padding = isset( $entry['main_tab_padding'] )
+		&& '' !== (string) $entry['main_tab_padding']
+		? (int) $entry['main_tab_padding']
+		: 16;
+	/**
+	 * Filters the padding (in px) applied to the auto-generated
+	 * tab wrap around a native window's template body. The shell
+	 * emits the wrap as `<wpd-stack padding="N">`; the CSS-as-
+	 * attribute pipeline at the client translates that to
+	 * `style.padding`.
+	 *
+	 * Return `0` for edge-to-edge content. Negative values are
+	 * clamped to 0.
+	 *
+	 * @since 0.13.0
+	 *
+	 * @param int    $padding   Default padding in px.
+	 * @param string $window_id The native window id.
+	 */
+	$padding = (int) apply_filters(
+		'desktop_mode_native_window_tab_wrap_padding',
+		$default_padding,
+		(string) $entry['id']
+	);
+	if ( $padding < 0 ) {
+		$padding = 0;
+	}
+
+	$buffer  = sprintf(
+		'<wpd-stack gap="12" padding="%d">',
+		$padding
+	);
+	$buffer .= '<wpd-tabs value="' . esc_attr( DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB ) . '">';
+	foreach ( $tabs as $tab ) {
+		$buffer .= sprintf(
+			'<wpd-tab value="%s">%s</wpd-tab>',
+			esc_attr( $tab['value'] ),
+			esc_html( $tab['label'] )
+		);
+	}
+	$buffer .= '</wpd-tabs>';
+
+	// Stamp `hidden` on every non-active panel directly in the
+	// emitted HTML. The client-side `<wpd-tabs>` syncs panel
+	// visibility on `value` changes, but its initial sync runs
+	// inside a microtask — and panel siblings may not have upgraded
+	// in time on first paint. Setting the attribute server-side
+	// makes first paint correct regardless of upgrade order; the JS
+	// keeps owning subsequent transitions.
+	foreach ( $tabs as $tab ) {
+		if ( ! is_callable( $tab['template'] ) ) {
+			continue;
+		}
+		$is_active = DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB === $tab['value'];
+		$buffer   .= sprintf(
+			'<wpd-tabpanel for="%s"%s>',
+			esc_attr( $tab['value'] ),
+			$is_active ? '' : ' hidden'
+		);
+		ob_start();
+		call_user_func( $tab['template'] );
+		$buffer .= (string) ob_get_clean();
+		$buffer .= '</wpd-tabpanel>';
+	}
+
+	$buffer .= '</wpd-stack>';
+	return $buffer;
+}
+
+/**
+ * Enqueue every registered native window's script when the shell
+ * is active. Runs on `admin_enqueue_scripts` alongside the main
+ * shell enqueue so ordering (shell → plugin scripts) is
+ * deterministic.
+ *
+ * @since 0.10.0
+ */
+function desktop_mode_enqueue_native_window_scripts() {
+	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
+		return;
+	}
+	$registry = desktop_mode_native_window_registry();
+	if ( ! is_array( $registry ) ) {
+		return;
+	}
+	foreach ( $registry as $entry ) {
+		// Enqueue per-tab scripts — each tab registration can carry
+		// its own script handle so a tab's JS module stays scoped to
+		// that tab. Main tab uses the window's own `script`; it's
+		// enqueued below alongside the localize call.
+		$tabs = desktop_mode_get_native_window_tabs( $entry['id'] );
+		foreach ( $tabs as $tab ) {
+			if ( $tab['is_main'] || empty( $tab['script'] ) ) {
+				continue;
+			}
+			wp_enqueue_script( $tab['script'] );
+		}
+
+		if ( empty( $entry['script'] ) ) {
+			continue;
+		}
+		wp_enqueue_script( $entry['script'] );
+		// Localize the config the JS side reads to register itself.
+		wp_localize_script(
+			$entry['script'],
+			'desktopModeNativeWindow_' . str_replace( '-', '_', $entry['id'] ),
+			array(
+				'id'        => $entry['id'],
+				'title'     => $entry['title'],
+				'icon'      => $entry['icon'],
+				'width'     => $entry['width'],
+				'height'    => $entry['height'],
+				'minWidth'  => $entry['min_width'],
+				'minHeight' => $entry['min_height'],
+				'placement' => $entry['placement'],
+				'autofocus' => $entry['autofocus'],
+				'templateId' => 'desktop-mode-native-window-' . $entry['id'],
+				'tabs'      => array_map(
+					static function ( $tab ) {
+						return array(
+							'value'  => $tab['value'],
+							'label'  => $tab['label'],
+							'isMain' => $tab['is_main'],
+						);
+					},
+					$tabs
+				),
+			)
+		);
+
+		// Bundle-bound `config` (since 0.6.0). Ships through
+		// `wp_add_inline_script` `'before'` so it lands on the eager
+		// path the same way `wp_localize_script` does, AND through
+		// the lazy-load payload (see `desktop_mode_resolve_script_payload`)
+		// so the same data is available even when the script is
+		// dynamically injected mid-session. The bundle reads it via
+		// `wp.desktop.getWindowConfig( id )` or directly at
+		// `window.desktopModeWindowConfig[ id ]`.
+		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+			wp_add_inline_script(
+				$entry['script'],
+				sprintf(
+					'window.desktopModeWindowConfig=window.desktopModeWindowConfig||{};window.desktopModeWindowConfig[%s]=%s;',
+					wp_json_encode( $entry['id'] ),
+					wp_json_encode( $entry['config'] )
+				),
+				'before'
+			);
+		}
+	}
+}
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_native_window_scripts', 20 );
+
+/**
+ * Emit a `<template>` tag for every registered native window on
+ * `admin_footer` when the shell is active. The JS side resolves
+ * these via `document.getElementById( `desktop-mode-native-window-${id}` )`
+ * and clones them into each opened window's body.
+ *
+ * @since 0.10.0
+ */
+function desktop_mode_render_native_window_templates() {
+	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
+		return;
+	}
+	$registry = desktop_mode_native_window_registry();
+	if ( ! is_array( $registry ) ) {
+		return;
+	}
+	foreach ( $registry as $entry ) {
+		if ( ! is_callable( $entry['template'] ) ) {
+			continue;
+		}
+		$html = desktop_mode_build_native_window_template_html( $entry );
+		if ( '' === $html ) {
+			continue;
+		}
+		printf(
+			'<template id="desktop-mode-native-window-%s">',
+			esc_attr( $entry['id'] )
+		);
+		echo wp_kses( $html, desktop_mode_native_window_allowed_html() );
+		echo '</template>';
+	}
+}
+add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
