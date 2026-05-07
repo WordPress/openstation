@@ -116,7 +116,7 @@ import {
 	createLayoutDispatcher,
 	type LayoutDispatcher,
 } from './desktop-layout';
-import { createApplyPayload } from './menu-refresh-apply';
+// `createApplyPayload` is consumed inside `boot/menu-refresh.ts` since 0.8.1.
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import {
@@ -170,16 +170,15 @@ import {
 } from './presence';
 import { activity, type ActivityApi } from './activity';
 import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
+import { findDockEntryForUrl } from './boot/geometry';
+import { bindMenuRefresh } from './boot/menu-refresh';
+import { INITIAL_ORIGIN } from './boot/origin';
+import { openCurrentPage, restoreSession } from './boot/session';
+import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
 
-/**
- * Origin snapshot taken at shell module load. Every same-origin gate
- * in this file (message listeners, link interception) compares against
- * this value so a plugin script that mutates `window.location` mid-
- * session can't relax the cross-origin guards.
- *
- * @since 0.11.0
- */
-const INITIAL_ORIGIN = window.location.origin;
+// `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
+// boot-time consumer reaches the same captured value — see the import
+// further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
 import {
 	installDefaultDockRailRenderer,
@@ -220,7 +219,6 @@ import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import type {
 	DesktopConfig,
 	NativeWindowDef,
-	SessionWindow,
 } from './types';
 import type { Window as DesktopWindow } from './window';
 
@@ -1437,9 +1435,6 @@ declare global {
 /** Debounce window for session writes. 500 ms is short enough to feel immediate and long enough to coalesce drag/resize storms. */
 const SESSION_SAVE_DEBOUNCE_MS = 500;
 
-/** Minimum margin between the restored window and the desktop edges when clamping. */
-const VIEWPORT_CLAMP_MARGIN = 12;
-
 /**
  * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
  * to overwrite. Source-of-truth for the reserved-names list — kept
@@ -2337,7 +2332,7 @@ function init(): void {
 	// Wired BEFORE the `window.wp.desktop` assignment so the returned
 	// refresh function is available to expose in the public API in
 	// the same statement.
-	const refreshMenu = bindMenuRefresh(
+	const refreshMenu = bindMenuRefresh( {
 		layoutDispatcher,
 		desktopArea,
 		config,
@@ -2349,7 +2344,7 @@ function init(): void {
 		syncServerTitleBarButtons,
 		syncServerDockRailRenderers,
 		renderIcons,
-	);
+	} );
 
 	// Live desktop-layout sync: when the user picks a new layout
 	// in OS Settings, the dispatcher tears down the current dock(s),
@@ -3002,83 +2997,9 @@ function init(): void {
 	);
 }
 
-/**
- * Restores windows from a saved session into the manager.
- *
- * Each window's geometry is clamped to fit the current desktop area
- * before construction — so a layout captured on an ultrawide display
- * lands sanely on a laptop. Stacking order follows the session order
- * (earliest-opened first, focused id brought to the top at the end).
- */
-function restoreSession(
-	manager: WindowManager,
-	config: DesktopConfig,
-	desktopArea: HTMLElement,
-): void {
-	const rect = desktopArea.getBoundingClientRect();
-
-	// Seed desktops + active id BEFORE recreating windows. Windows
-	// pass `desktopId` from the session through to their config; the
-	// manager honours that exactly as long as the desktop already
-	// exists in the registry, otherwise it falls back to the active
-	// desktop. Establishing the registry first preserves the user's
-	// per-desktop window grouping across reloads.
-	if ( Array.isArray( config.session.desktops ) && config.session.desktops.length > 0 ) {
-		manager.seedDesktops(
-			config.session.desktops,
-			config.session.activeDesktop || config.session.desktops[ 0 ].id,
-		);
-	}
-
-	for ( const win of config.session.windows ) {
-		const clamped = clampGeometryToViewport( win, rect );
-		const dockEntry = findDockEntryForUrl( win.url, config );
-
-		const opened = manager.open( {
-			id: win.id,
-			baseId: win.baseId || win.id,
-			desktopId: win.desktopId,
-			multi: !! dockEntry?.multi,
-			url: win.url,
-			title: win.title,
-			icon: win.icon || 'dashicons-admin-generic',
-			x: clamped.x,
-			y: clamped.y,
-			width: clamped.width,
-			height: clamped.height,
-			initialState: win.state,
-			submenu: dockEntry?.submenu,
-		} );
-
-		// Rehydrate any external sub-tabs the user had open on this
-		// window at save time. Each becomes a fresh closeable tab with
-		// its own iframe, ordered left-to-right in the order they
-		// were added originally.
-		if ( Array.isArray( win.externalTabs ) ) {
-			for ( const ext of win.externalTabs ) {
-				if ( ext && typeof ext.url === 'string' && ext.url !== '' ) {
-					opened.addExternalTab(
-						ext.url,
-						typeof ext.label === 'string' && ext.label !== ''
-							? ext.label
-							: ext.url,
-					);
-				}
-			}
-		}
-	}
-
-	// Restore focus to whichever window the user left focused. If that id
-	// is no longer around (e.g., the saved focus pointed at a window we
-	// failed to reconstruct), `getById` returns undefined and we leave
-	// the default — topmost-of-stack — focus in place.
-	if ( config.session.focused ) {
-		const focused = manager.getById( config.session.focused );
-		if ( focused ) {
-			manager.focus( focused );
-		}
-	}
-}
+// `restoreSession` and `openCurrentPage` were moved to
+// `src/boot/session.ts` in 0.8.1 — see the imports near the top of
+// this file. This is the architecture-0.8.1 phase-5 split.
 
 /**
  * `wp.desktop.fetch` — wraps native `fetch()` with per-window
@@ -3141,32 +3062,7 @@ function trackedFetch(
 	return promise;
 }
 
-/**
- * Opens the current admin page in a fresh window — the "no saved session" path.
- *
- * Honours the native URL-remap registry so a portal deep-link to a page
- * with a registered native replacement (Posts → `edit.php`, etc.)
- * opens the native window when the user has opted in. Falls through
- * to the standard iframe path on no-match.
- */
-function openCurrentPage( manager: WindowManager, config: DesktopConfig ): void {
-	if ( tryNativeUrlRemap( config.currentPage ) ) {
-		return;
-	}
-
-	const windowId = deriveWindowId( config.currentPage, config.adminUrl );
-	const dockEntry = findDockEntryForUrl( config.currentPage, config );
-
-	manager.open( {
-		id: windowId,
-		baseId: windowId,
-		multi: !! dockEntry?.multi,
-		url: config.currentPage,
-		title: config.currentTitle,
-		icon: config.currentIcon,
-		submenu: dockEntry?.submenu,
-	} );
-}
+// `openCurrentPage` lives in `src/boot/session.ts` since 0.8.1.
 
 /**
  * Intercepts clicks on `/wp-admin/` anchors in the top window and opens
@@ -3314,50 +3210,10 @@ function bindTopWindowLinkInterceptor(
  * submenu tabs rendered — and so the parent's `multi` flag threads
  * through to the window chrome.
  */
-function findDockEntryForUrl(
-	url: string,
-	config: DesktopConfig,
-): DesktopConfig[ 'dockItems' ][ number ] | undefined {
-	const windowId = deriveWindowId( url, config.adminUrl );
-	return ( config.dockItems || [] ).find(
-		( i ) =>
-			deriveWindowId( i.url, config.adminUrl ) === windowId ||
-			( i.submenu || [] ).some(
-				( s ) => deriveWindowId( s.url, config.adminUrl ) === windowId,
-			),
-	);
-}
-
-/**
- * Clamp a persisted window's geometry to fit inside the current desktop
- * area, preserving the window's aspect ratio when the saved size exceeds
- * the area. Handles the ultrawide-to-laptop transition gracefully:
- *
- *   - A window that sat at x=2800 on a 3440px desktop gets pulled back
- *     onto the smaller viewport.
- *   - A window bigger than the viewport is scaled down, not cropped.
- *   - Negative positions (shouldn't happen but defend anyway) become 0.
- *
- * Returns a plain geometry object — caller applies it to the WindowConfig.
- */
-function clampGeometryToViewport(
-	win: SessionWindow,
-	rect: DOMRect,
-): { x: number; y: number; width: number; height: number } {
-	const maxW = Math.max( 200, rect.width - VIEWPORT_CLAMP_MARGIN * 2 );
-	const maxH = Math.max( 200, rect.height - VIEWPORT_CLAMP_MARGIN * 2 );
-
-	const width = Math.min( win.width, maxW );
-	const height = Math.min( win.height, maxH );
-
-	const maxX = Math.max( 0, rect.width - width - VIEWPORT_CLAMP_MARGIN );
-	const maxY = Math.max( 0, rect.height - height - VIEWPORT_CLAMP_MARGIN );
-
-	const x = Math.max( VIEWPORT_CLAMP_MARGIN, Math.min( win.x, maxX ) );
-	const y = Math.max( VIEWPORT_CLAMP_MARGIN, Math.min( win.y, maxY ) );
-
-	return { x, y, width, height };
-}
+// `findDockEntryForUrl` and `clampGeometryToViewport` were moved to
+// `src/boot/geometry.ts` in 0.8.1. They're re-imported below; the
+// originals lived here until phase 5 of the architecture-0.8.1 boot
+// decomposition.
 
 /**
  * Creates the debounced+immediate session saver. Returns a single
@@ -3452,237 +3308,11 @@ function createSessionSaver( manager: WindowManager, config: DesktopConfig ): ()
 	return schedule;
 }
 
-/**
- * Wire the session saver to every window lifecycle event that should
- * end up persisted. Close/focus come from the manager; moved/resized/
- * state come from individual windows via `desktop-mode-window-changed`.
- */
-function wireSessionEvents( save: () => void ): void {
-	document.addEventListener( 'desktop-mode-window-opened', save );
-	document.addEventListener( 'desktop-mode-window-closed', save );
-	document.addEventListener( 'desktop-mode-window-focused', save );
-	document.addEventListener( 'desktop-mode-window-changed', save );
-}
+// `wireSessionEvents` and `bindShellLifecycle` were moved to
+// `src/boot/shell-lifecycle.ts` in 0.8.1.
 
-/** Debounce window for the shell-resized action. Trailing-edge only. */
-const SHELL_RESIZE_DEBOUNCE_MS = 120;
-
-/**
- * Wire browser-resize and document-visibility into `desktop-mode.shell.*`
- * actions. Resize is debounced so a drag-to-resize storm collapses to a
- * single hook fire; visibility is edge-triggered (fires exactly once per
- * state change).
- */
-function bindShellLifecycle(): void {
-	const shellEl = document.getElementById( 'desktop-mode-shell' );
-
-	let resizeTimer: number | null = null;
-	const fireShellResize = (): void => {
-		resizeTimer = null;
-		const rect = shellEl ? shellEl.getBoundingClientRect() : null;
-		doAction( HOOKS.SHELL_RESIZED, {
-			width: rect ? Math.round( rect.width ) : window.innerWidth,
-			height: rect ? Math.round( rect.height ) : window.innerHeight,
-		} );
-	};
-	window.addEventListener( 'resize', () => {
-		if ( resizeTimer !== null ) {
-			window.clearTimeout( resizeTimer );
-		}
-		resizeTimer = window.setTimeout( fireShellResize, SHELL_RESIZE_DEBOUNCE_MS ) as unknown as number;
-	} );
-
-	document.addEventListener( 'visibilitychange', () => {
-		doAction( HOOKS.SHELL_VISIBILITY, {
-			state: document.hidden ? 'hidden' : 'visible',
-		} );
-	} );
-}
-
-/**
- * Hard ceiling on how long `refreshMenu()` waits for its hidden
- * iframe to emit the `desktop-mode-plugins-changed` payload before
- * giving up. The probe is a normal admin page load, so the cap is
- * sized for a slow shared host on first request rather than the
- * happy path.
- */
-const MENU_REFRESH_TIMEOUT_MS = 8000;
-
-/**
- * Wire the live menu-refresh pipeline.
- *
- * Listens for `desktop-mode-plugins-changed` postMessages and applies
- * any payload they carry. The chromeless bridge in `render.php`
- * always emits a payload from real admin context — both for the
- * implicit case (`plugins.php` etc.) and for the explicit refresh
- * probe (`?desktop_mode_menu_refresh=1`) — so a single mechanism
- * handles every refresh.
- *
- * Returns a function plugins can call to force a refresh. The
- * implementation spawns a 1×1 hidden iframe at
- * `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1`, waits for
- * the bridge's payload message, then disposes the iframe. Same
- * pipeline, same correctness guarantees as the auto-refresh path.
- *
- * @param layoutDispatcher Owns the `Dock` instance(s) — receives the
- *                         fresh dock-items list for partitioning.
- * @param desktopArea      Desktop area element — wears live-refresh
- *                         classes the applier may toggle.
- * @param config           Boot config; `dockItems` is mutated in place
- *                         after each successful refresh.
- * @return An async function plugins can call to force a refresh.
- */
-function bindMenuRefresh(
-	layoutDispatcher: LayoutDispatcher | null,
-	desktopArea: HTMLElement,
-	config: DesktopConfig,
-	syncNativeWindows: (
-		list: import( './types' ).NativeWindowServerEntry[],
-	) => Promise< void >,
-	syncServerWidgets: (
-		list: import( './types' ).DesktopWidgetServerEntry[],
-	) => Promise< void >,
-	syncServerWallpapers: (
-		list: import( './types' ).DesktopWallpaperServerEntry[],
-	) => Promise< void >,
-	syncServerCommands: (
-		scripts: import( './types' ).DesktopCommandScriptServerEntry[],
-		commands?: import( './types' ).DesktopCommandServerEntry[],
-	) => Promise< void >,
-	syncServerSettingsTabs: (
-		scripts: import( './types' ).DesktopSettingsTabScriptServerEntry[],
-		tabs?: import( './types' ).DesktopSettingsTabServerEntry[],
-	) => Promise< void >,
-	syncServerTitleBarButtons: (
-		scripts: import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
-	) => Promise< void >,
-	syncServerDockRailRenderers: (
-		scripts: import( './types' ).DesktopDockRailRendererScriptServerEntry[],
-	) => Promise< void >,
-	renderIcons: (
-		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
-	) => void,
-): () => Promise<void> {
-	const applyPayload = createApplyPayload( {
-		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
-		desktopArea,
-		config,
-		syncNativeWindows,
-		syncServerWidgets,
-		syncServerWallpapers,
-		syncServerCommands,
-		syncServerSettingsTabs,
-		syncServerTitleBarButtons,
-		syncServerDockRailRenderers,
-		renderIcons,
-	} );
-
-	window.addEventListener( 'message', ( e: MessageEvent ) => {
-		if ( e.origin !== INITIAL_ORIGIN ) {
-			return;
-		}
-		const data = e.data as {
-			type?: string;
-			payload?: {
-				dockItems?: unknown;
-				nativeWindows?: unknown;
-				serverWidgets?: unknown;
-				serverWallpapers?: unknown;
-				serverCommandScripts?: unknown;
-				serverCommands?: unknown;
-				serverSettingsTabScripts?: unknown;
-				serverSettingsTabs?: unknown;
-				serverDockRailRendererScripts?: unknown;
-				serverTitleBarButtonScripts?: unknown;
-				desktopIcons?: unknown;
-			};
-		} | null;
-		if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
-			return;
-		}
-
-		// The chromeless bridge always embeds a fresh menu payload
-		// captured from real admin context — plugins that gate
-		// `admin_menu` on `is_admin()` at load time registered
-		// normally there. Messages without a payload are stale /
-		// out-of-spec and ignored.
-		if ( data.payload ) {
-			applyPayload( data.payload );
-		}
-	} );
-
-	const refresh = (): Promise<void> => {
-		if ( ! config.adminUrl ) {
-			return Promise.resolve();
-		}
-		const probeUrl = ( () => {
-			try {
-				const url = new URL( 'admin.php', config.adminUrl );
-				url.searchParams.set( 'desktop_mode_chromeless', '1' );
-				url.searchParams.set( 'desktop_mode_menu_refresh', '1' );
-				return url.toString();
-			} catch ( _err ) {
-				return null;
-			}
-		} )();
-		if ( ! probeUrl ) {
-			return Promise.resolve();
-		}
-
-		return new Promise< void >( ( resolve ) => {
-			const iframe = document.createElement( 'iframe' );
-			// Off-screen + zero-cost: pulled out of the layout flow
-			// entirely so it can't shift content, and styled small
-			// enough that any momentary paint is invisible.
-			iframe.setAttribute( 'aria-hidden', 'true' );
-			iframe.tabIndex = -1;
-			iframe.style.cssText =
-				'position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
-			iframe.src = probeUrl;
-
-			let done = false;
-			const cleanup = (): void => {
-				if ( done ) {
-					return;
-				}
-				done = true;
-				window.clearTimeout( timeoutId );
-				window.removeEventListener( 'message', onMessage );
-				if ( iframe.parentNode ) {
-					iframe.parentNode.removeChild( iframe );
-				}
-				resolve();
-			};
-
-			const onMessage = ( e: MessageEvent ): void => {
-				if ( e.source !== iframe.contentWindow ) {
-					return;
-				}
-				const data = e.data as { type?: string } | null;
-				if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
-					return;
-				}
-				// The shell-wide listener registered above will apply
-				// the payload. We just need to know the probe
-				// completed so we can dispose the iframe.
-				cleanup();
-			};
-
-			const timeoutId = window.setTimeout( () => {
-				doAction( HOOKS.SHELL_ERROR, {
-					scope: 'menu-refresh',
-					error: new Error( 'menu refresh probe timed out' ),
-				} );
-				cleanup();
-			}, MENU_REFRESH_TIMEOUT_MS );
-
-			window.addEventListener( 'message', onMessage );
-			document.body.appendChild( iframe );
-		} );
-	};
-
-	return refresh;
-}
+// `bindMenuRefresh` and `MENU_REFRESH_TIMEOUT_MS` were moved to
+// `src/boot/menu-refresh.ts` in 0.8.1.
 
 // Initialize when DOM is ready.
 if ( document.readyState === 'loading' ) {
@@ -3691,5 +3321,7 @@ if ( document.readyState === 'loading' ) {
 	init();
 }
 
-// Re-export so the bundle can be tested without tight coupling.
-export { clampGeometryToViewport };
+// Backwards-compat re-export — `clampGeometryToViewport` was inlined here
+// before 0.8.1 and tests imported it from this module. New code should
+// reach for `@boot/geometry` directly.
+export { clampGeometryToViewport } from './boot/geometry';
