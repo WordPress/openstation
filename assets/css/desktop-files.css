@@ -229,6 +229,13 @@
 	--desktop-mode-tile-fg: var( --desktop-mode-fg-on-light, #1d2327 );
 	--desktop-mode-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
 	--desktop-mode-tile-hover-bg: rgba( 0, 0, 0, 0.06 );
+	/* Light-context label rendering — share the same recipe with
+	 * every other light-bg tile surface (My WordPress, future
+	 * windows). One set of tokens, no per-surface duplication. */
+	--desktop-mode-tile-label-shadow: none;
+	--desktop-mode-tile-label-weight: 500;
+	--desktop-mode-tile-label-smoothing: antialiased;
+	--desktop-mode-tile-label-color: var( --desktop-mode-fg-on-light, #1d2327 );
 }
 
 /* Folder window's bottom status bar — paint with the same light-
@@ -582,6 +589,13 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	opacity: 0.7;
 }
 
+/*
+ * Single label rule for every tile, regardless of host surface.
+ * Visual properties read from `--desktop-mode-tile-label-*`
+ * tokens — defined in `variables.css` for the dark wallpaper and
+ * rebound by any light-context scope (folder window, My
+ * WordPress, …) so all surfaces share one source of truth.
+ */
 .desktop-mode-file-tile__label {
 	font-size: 12px;
 	line-height: 1.2;
@@ -592,24 +606,9 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
-	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.5 );
-}
-
-/*
- * Inside a folder window the surrounding background is the
- * window chrome (light/neutral), not the dark wallpaper — so the
- * legibility shadow that helps on the desktop turns into a soft
- * halo that makes the label look unsharp. Drop the shadow there.
- */
-.desktop-mode-folder-window .desktop-mode-file-tile__label {
-	/* Drop the legibility shadow that helps on the dark wallpaper —
-	 * inside the white-ish folder window it just smears the glyph
-	 * edges. Also force standard antialiasing + an explicit weight
-	 * so 12px labels render with the same crispness as other UI
-	 * text instead of looking softer than the surrounding chrome. */
-	text-shadow: none;
-	-webkit-font-smoothing: antialiased;
+	color: var( --desktop-mode-tile-label-color, var( --desktop-mode-tile-fg, #fff ) );
+	font-weight: var( --desktop-mode-tile-label-weight, 400 );
+	text-shadow: var( --desktop-mode-tile-label-shadow, 0 1px 2px rgba( 0, 0, 0, 0.5 ) );
+	-webkit-font-smoothing: var( --desktop-mode-tile-label-smoothing, auto );
 	-moz-osx-font-smoothing: grayscale;
-	font-weight: 500;
-	color: var( --desktop-mode-fg-on-light, #1d2327 );
 }

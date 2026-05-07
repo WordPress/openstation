@@ -75,6 +75,23 @@
 	--desktop-mode-tile-shortcut-fg: #fff;
 	--desktop-mode-tile-shortcut-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 
+	/*
+	 * Label rendering tokens. Defaults match the dark wallpaper:
+	 * a soft drop-shadow boosts legibility against the gradient,
+	 * regular weight, default antialiasing.
+	 *
+	 * Light-context surfaces (folder windows, My WordPress, any
+	 * future window with a light body) rebind these in their own
+	 * scope so tile labels render with the same crispness as the
+	 * surrounding chrome — no per-surface duplicate rules.
+	 *
+	 * @since 0.8.0
+	 */
+	--desktop-mode-tile-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+	--desktop-mode-tile-label-weight: 400;
+	--desktop-mode-tile-label-smoothing: auto;
+	--desktop-mode-tile-label-color: var(--desktop-mode-tile-fg);
+
 	/* Z-index layers */
 	--desktop-mode-z-base: 100;
 	--desktop-mode-z-dock: 200;

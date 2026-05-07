@@ -37,6 +37,14 @@
 		--desktop-mode-hover,
 		rgba( 0, 0, 0, 0.06 )
 	);
+	/* Light-context label rendering — same recipe as the folder
+	 * window. Defined as tokens in `variables.css`; the single
+	 * `.desktop-mode-file-tile__label` rule reads them for every
+	 * surface. */
+	--desktop-mode-tile-label-shadow: none;
+	--desktop-mode-tile-label-weight: 500;
+	--desktop-mode-tile-label-smoothing: antialiased;
+	--desktop-mode-tile-label-color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
 }
 
 /* Pinned-icon visual cue — used by `desktop-mode-icon--pinned` (the
