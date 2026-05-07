@@ -33,6 +33,104 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Checks whether the current request is a chromeless request.
+ *
+ * Chromeless requests are admin pages loaded inside desktop-mode
+ * windows (iframes). They render only the page content without
+ * the admin shell (sidebar, admin bar, footer).
+ *
+ * @since 0.1.0
+ *
+ * @return bool True if this is a chromeless (iframe) request.
+ */
+function desktop_mode_is_chromeless_request() {
+	if ( ! desktop_mode_is_enabled() ) {
+		// Only allow chromeless mode if the user actually has
+		// desktop mode enabled. Prevents stripping admin chrome via
+		// a bare `?desktop_mode_chromeless=1` parameter from a
+		// logged-out URL.
+		return false;
+	}
+
+	// Primary signal — the explicit query flag the parent shell
+	// adds when opening windows.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
+	if ( ! empty( $_GET['desktop_mode_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['desktop_mode_chromeless'] ) ) ) {
+		return true;
+	}
+
+	// Fallback signal — the request is a same-origin iframe load.
+	// Modern browsers (Chrome 80+, Firefox 90+, Safari 16.4+) send
+	// the `Sec-Fetch-*` headers reliably, and they are immune to
+	// JavaScript spoofing (the browser sets them itself).
+	//
+	// This catches the failure mode where an internal admin
+	// navigation drops the `?desktop_mode_chromeless=1` query flag —
+	// Gutenberg's `window.location` assignments, meta-refresh
+	// redirects, or any link the inline rewriter missed. The user
+	// is in an iframe on the same origin, has desktop mode enabled,
+	// so render as chromeless.
+	//
+	// `Sec-Fetch-Site: same-origin` is the cross-origin guard so a
+	// foreign site that iframes the wp-admin page can't trick us
+	// into stripping the chrome — the user agent reports the
+	// embedding context honestly.
+	$fetch_dest = isset( $_SERVER['HTTP_SEC_FETCH_DEST'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_DEST'] ) )
+		: '';
+	$fetch_site = isset( $_SERVER['HTTP_SEC_FETCH_SITE'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) )
+		: '';
+	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
+		/**
+		 * Filter the Sec-Fetch fallback. Return false to require an
+		 * explicit `?desktop_mode_chromeless=1` flag (matches
+		 * pre-0.18 behaviour); useful for environments where a
+		 * reverse proxy strips the `Sec-Fetch-*` headers and they
+		 * can't be trusted.
+		 *
+		 * @since 0.18.0
+		 *
+		 * @param bool $allow Default true.
+		 */
+		return (bool) apply_filters( 'desktop_mode_chromeless_sec_fetch_fallback', true );
+	}
+
+	return false;
+}
+
+/**
+ * Checks whether the current request carries the "classic
+ * override" flag.
+ *
+ * The window-chrome "Detach" action opens an admin page in a new
+ * browser tab with `?desktop_mode_classic=1` so the user can view
+ * that one page outside the desktop shell without disabling
+ * desktop mode account-wide. The flag is a per-request override:
+ * `desktop_mode_is_enabled()` still returns true (the user's
+ * preference hasn't changed), but the shell, shell assets, and
+ * body class are skipped for this request so the classic admin
+ * renders normally.
+ *
+ * Keep this separate from `desktop_mode_is_enabled()` so the
+ * admin-bar toggle in the detached tab correctly reflects the
+ * account state — letting the user disable desktop mode entirely
+ * from the tab if they want to.
+ *
+ * @since 0.4.0
+ *
+ * @return bool True if the request carries `?desktop_mode_classic=1`.
+ */
+function desktop_mode_is_classic_request() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
+	if ( empty( $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] ) ) {
+		return false;
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
+	return '1' === sanitize_text_field( wp_unslash( $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] ) );
+}
+
+/**
  * Disables the admin bar on chromeless (iframe) requests.
  *
  * Hooked on the `show_admin_bar` filter so the front-end bar path
