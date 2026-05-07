@@ -1,6 +1,6 @@
-# Migration: 0.x → 1.0
+# Migration: 0.7 → 0.8.1
 
-Architecture 1.0 reorganizes the plugin's internals around explicit
+Architecture 0.8.1 reorganizes the plugin's internals around explicit
 layers and reusable primitives. The work lands across multiple
 phases; this document tracks what each phase changes for plugin
 authors.
@@ -8,7 +8,7 @@ authors.
 The promise: **no name in the public surface disappears silently.**
 Renames keep the old name alive as a deprecation shim (PHP via
 `_doing_it_wrong`, JS via `installDeprecatedAlias` from
-`@api/deprecated`) for the entire 1.x line.
+`@api/deprecated`) for the entire 0.8.x line.
 
 ## At-a-glance status
 
@@ -23,7 +23,7 @@ Renames keep the old name alive as a deprecation shim (PHP via
 | 7 | Window-system rename + heavy-window decomposition | 🚧 planned |
 | 8 | Layout SSOT, `WpdBase`, extension base, types package | 🚧 planned |
 | 9 | Documentation lockstep | 🚧 planned |
-| 10 | Cutover, tag `v1.0.0` | 🚧 planned |
+| 10 | Cutover, tag `v0.8.1` | 🚧 planned |
 
 ## What plugin authors can do today (after phases 1–4)
 
@@ -141,13 +141,13 @@ private state — no globals, no naming collisions.
 The following surface names will be renamed during the remaining
 phases. Each rename ships a one-shot deprecation warning that
 forwards to the canonical name; the legacy form keeps working for
-the entire 1.x line.
+the entire 0.8.x line.
 
 _(table populated as each rename lands)_
 
 ## Reporting issues
 
 If a name you depend on disappears or behaves differently without
-a deprecation warning during 1.x, that's a bug — file an issue
+a deprecation warning during 0.8.x, that's a bug — file an issue
 against this repo with the import path or hook name and a
 reproduction.

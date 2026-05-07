@@ -29,7 +29,7 @@ export interface TrackedFetchOpts {
 	 * `wp.desktop.fetch`; declared here so the typed wrapper can
 	 * forward it without needing per-feature widening.
 	 *
-	 * @since 1.0.0
+	 * @since 0.8.1
 	 */
 	silent?: boolean;
 }

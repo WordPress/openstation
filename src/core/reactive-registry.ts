@@ -28,7 +28,7 @@
  * callers. The wallpapers registry is the canonical example of
  * that composition shape.
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 
 import { createSharedStore } from '../shared-store';

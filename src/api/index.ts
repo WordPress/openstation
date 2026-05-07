@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Public API barrel (architecture-1.0 location).
+ * Desktop Mode — Public API barrel (architecture-0.8.1 location).
  *
  * The canonical home of the public API for plugin authors going
  * forward. Re-exports the historical `src/public-api.ts` types
@@ -13,7 +13,7 @@
  * Until then, the runtime assembly continues to live in
  * `src/desktop.ts`.
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 
 export * from '../public-api';

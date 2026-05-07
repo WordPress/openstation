@@ -2,7 +2,7 @@
  * Window-bridge postMessage protocol — typed message catalogue for
  * traffic between the parent shell and a chromeless iframe.
  *
- * **Why this lives here.** Before architecture-1.0 these unions
+ * **Why this lives here.** Before architecture-0.8.1 these unions
  * lived inline in `src/types.ts` (~1,860 LOC of mixed shape
  * definitions). Consumers across the codebase grep'd for the
  * literal `data?.type === 'desktop-mode-…'` strings to recognize
@@ -19,7 +19,7 @@
  * imports keep working; nothing on the public type surface
  * changes. New code should import from `@protocol/window-messages`.
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 
 import type { HarvestedCommand } from '../types';

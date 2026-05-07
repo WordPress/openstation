@@ -1,7 +1,7 @@
 /**
  * Deprecation helpers for the public API.
  *
- * The architecture-1.0 refactor renames a handful of legacy
+ * The architecture-0.8.1 refactor renames a handful of legacy
  * surfaces (`wpdm_*` PHP hooks → `desktop_mode_*`, the occasional
  * stray `wp.desktop.fooLegacy()` JS method) to bring everything
  * under one prefix. We promised plugin authors that no existing
@@ -13,7 +13,7 @@
  * This module owns the JS side of those shims. The PHP side is
  * `includes/deprecated.php` (added in phase 6).
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 
 const warned = new Set< string >();
@@ -34,7 +34,7 @@ const warned = new Set< string >();
  * @param hint    Optional extra hint shown after the rename
  *                pointer (e.g. `"will be removed in 2.0"`).
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 export function installDeprecatedAlias(
 	target: Record< string, unknown >,

@@ -19,7 +19,7 @@
  * response caching. Those are feature concerns; if you need them,
  * wrap a returned client.
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 
 import { trackedFetch, type TrackedFetchOpts } from '../tracked-fetch';

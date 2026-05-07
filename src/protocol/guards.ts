@@ -13,7 +13,7 @@
  *   - One assertion path (`assertBridgeEventType`) for handlers
  *     that demand a specific variant.
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 
 import {

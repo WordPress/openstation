@@ -15,7 +15,7 @@
  * Returns a teardown function. Errors are caught and logged;
  * the registry stays usable.
  *
- * @since 1.0.0
+ * @since 0.8.1
  */
 
 import { trackedFetch } from '../tracked-fetch';

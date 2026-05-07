@@ -2,7 +2,7 @@
 
 A high-level tour, mostly so hook reference + examples make sense.
 
-## Architecture 1.0 layout (in progress)
+## Architecture 0.8.1 layout (in progress)
 
 The plugin is mid-way through a structural refactor that splits the
 historical god-modules (`src/desktop.ts`, `includes/render.php`,
@@ -13,11 +13,11 @@ locations remain authoritative.
 
 | Layer | Location | Status |
 |---|---|---|
-| `tsconfig` path aliases (`@core/*`, `@api/*`, `@protocol/*`, `@ui/*`, `@layout/*`, `@boot/*`, `@features/*`, `@window-system/*`) | `tsconfig.json` + `vite.config.js` + `vitest.config.ts` | Stable since 1.0.0 |
-| Generic reactive registry + server-sync + REST client primitives | `src/core/{reactive-registry,server-sync,api-client}.ts` | Stable since 1.0.0 |
-| PHP registry factory | `includes/core/registry-factory.php` | Stable since 1.0.0 |
-| Bridge protocol (typed messages + guards + version) | `src/protocol/{window-messages,guards,version}.ts` | Stable since 1.0.0 |
-| Public API barrel (1.0 home) + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable since 1.0.0 |
+| `tsconfig` path aliases (`@core/*`, `@api/*`, `@protocol/*`, `@ui/*`, `@layout/*`, `@boot/*`, `@features/*`, `@window-system/*`) | `tsconfig.json` + `vite.config.js` + `vitest.config.ts` | Stable since 0.8.1 |
+| Generic reactive registry + server-sync + REST client primitives | `src/core/{reactive-registry,server-sync,api-client}.ts` | Stable since 0.8.1 |
+| PHP registry factory | `includes/core/registry-factory.php` | Stable since 0.8.1 |
+| Bridge protocol (typed messages + guards + version) | `src/protocol/{window-messages,guards,version}.ts` | Stable since 0.8.1 |
+| Public API barrel (0.8.1 home) + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable since 0.8.1 |
 | Boot decomposition (`desktop.ts` → `src/boot/*`) | planned `src/boot/` | Planned |
 | Window-system rename (`src/window/`, `src/window-manager/`, `src/window-chrome/` → `src/window-system/*`) | planned | Planned |
 | `includes/render.php` / `components.php` / `helpers.php` slicing | planned `includes/{render,registries,core,rest}/` | Planned |
@@ -29,7 +29,7 @@ locations remain authoritative.
 
 Plugin authors should prefer the new locations when they exist;
 re-exports keep old import paths working for the duration of the
-1.x line. Renames that have nowhere to forward to ship with
+0.8.x line. Renames that have nowhere to forward to ship with
 deprecation shims (PHP via `_doing_it_wrong`, JS via
 `installDeprecatedAlias` from `@api/deprecated`) — no name in the
 public surface disappears silently.
