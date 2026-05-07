@@ -128,6 +128,7 @@ import { createSessionSaver } from './boot/session-saver';
 import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
 import { trackedFetch } from './boot/tracked-fetch';
 import { buildPublicApi, installPublicApi } from './api/facade';
+import { setCurrentLayout } from './layout';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
 // boot-time consumer reaches the same captured value — see the import
@@ -2275,7 +2276,15 @@ function init(): void {
 		desktopApi.dock = layoutDispatcher.getPrimary();
 		desktopApi.sideDock = layoutDispatcher.getSide();
 		desktopApi.desktopLayout = snapshot.desktopLayout;
+		// Cross-bundle SSOT publish — feature bundles + third-party
+		// plugins that imported `@layout` see the change without
+		// having to thread the OsSettings snapshot through.
+		setCurrentLayout( snapshot.desktopLayout );
 	} );
+
+	// Initial publish so any consumer that reads `getCurrentLayout()`
+	// before the first OS Settings change sees the right value.
+	setCurrentLayout( osSettings.getOsSettingsSnapshot().desktopLayout );
 
 	// The wp.desktop.* assembly was extracted to `src/api/facade.ts`
 	// in 0.8.1 — `buildPublicApi(deps)` returns the same WpDesktopPublicApi
