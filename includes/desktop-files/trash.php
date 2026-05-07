@@ -418,7 +418,7 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	$now      = desktop_mode_files_now_ms();
 	$ancestry = desktop_mode_files_capture_ancestry( (int) $row['parent_id'] );
 	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
-	$wpdb->update(
+	$result   = $wpdb->update(
 		$tables['placements'],
 		array(
 			'trashed_at_ms' => $now,
@@ -430,6 +430,20 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 		array( '%d', '%d', '%s', '%d' ),
 		array( '%d' )
 	);
+	// `$wpdb->update` returns `false` on schema mismatch (e.g. the
+	// migration didn't add the column the function writes to). The
+	// REST layer would otherwise translate the silent no-op into a
+	// 200 OK and the UI would show "moved to trash" with nothing
+	// actually trashed.
+	if ( false === $result ) {
+		return new WP_Error(
+			'desktop_mode_files_trash_failed',
+			isset( $wpdb->last_error ) && $wpdb->last_error
+				? (string) $wpdb->last_error
+				: __( 'Failed to write trash row.', 'desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
 
 	/**
 	 * Fires after a placement is trashed.
@@ -687,7 +701,7 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	$folder_meta = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
 
 	// Trash the folder row.
-	$wpdb->update(
+	$folder_update = $wpdb->update(
 		$tables['folders'],
 		array(
 			'trashed_at_ms' => $now,
@@ -699,6 +713,15 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 		array( '%d', '%d', '%s', '%d' ),
 		array( '%d' )
 	);
+	if ( false === $folder_update ) {
+		return new WP_Error(
+			'desktop_mode_files_trash_failed',
+			isset( $wpdb->last_error ) && $wpdb->last_error
+				? (string) $wpdb->last_error
+				: __( 'Failed to trash folder.', 'desktop-mode' ),
+			array( 'status' => 500 )
+		);
+	}
 	// Cascade to child placements that are still active. Mark
 	// `trashed_via_folder` so the restore knows which children to
 	// resurrect. Already-trashed children keep their state.

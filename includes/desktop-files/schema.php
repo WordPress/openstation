@@ -32,7 +32,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '6' );
+define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '7' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
