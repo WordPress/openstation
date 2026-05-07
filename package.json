@@ -36,6 +36,7 @@
 		"vendor:pixi": "node -e \"require('fs').cpSync('node_modules/pixi.js/dist/pixi.min.js', 'assets/vendor/pixi.min.js')\"",
 		"lint": "eslint 'src/**/*.ts'",
 		"lint:fix": "eslint 'src/**/*.ts' --fix",
+		"typecheck": "tsc --noEmit",
 		"package": "bin/package.sh",
 		"test": "npm run test:js",
 		"test:js": "vitest run",

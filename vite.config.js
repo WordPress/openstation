@@ -93,6 +93,19 @@ export default defineConfig( ( { mode } ) => {
 	}
 
 	return {
+		resolve: {
+			alias: {
+				'@/':              resolve( __dirname, 'src/' ) + '/',
+				'@api/':           resolve( __dirname, 'src/api/' ) + '/',
+				'@boot/':          resolve( __dirname, 'src/boot/' ) + '/',
+				'@core/':          resolve( __dirname, 'src/core/' ) + '/',
+				'@features/':      resolve( __dirname, 'src/features/' ) + '/',
+				'@layout/':        resolve( __dirname, 'src/layout/' ) + '/',
+				'@protocol/':      resolve( __dirname, 'src/protocol/' ) + '/',
+				'@ui/':            resolve( __dirname, 'src/ui/' ) + '/',
+				'@window-system/': resolve( __dirname, 'src/window-system/' ) + '/',
+			},
+		},
 		build: {
 			outDir: 'assets/js',
 			// Every run writes into the same dir — don't let later runs
