@@ -602,5 +602,14 @@ button.desktop-mode-folder-status-bar__segment:hover {
  * halo that makes the label look unsharp. Drop the shadow there.
  */
 .desktop-mode-folder-window .desktop-mode-file-tile__label {
+	/* Drop the legibility shadow that helps on the dark wallpaper —
+	 * inside the white-ish folder window it just smears the glyph
+	 * edges. Also force standard antialiasing + an explicit weight
+	 * so 12px labels render with the same crispness as other UI
+	 * text instead of looking softer than the surrounding chrome. */
 	text-shadow: none;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	font-weight: 500;
+	color: var( --desktop-mode-fg-on-light, #1d2327 );
 }
