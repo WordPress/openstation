@@ -115,4 +115,56 @@ class Tests_WPDesktopChromelessPreserveRedirect extends WP_UnitTestCase {
 			has_filter( 'wp_redirect', 'desktop_mode_chromeless_preserve_redirect' )
 		);
 	}
+
+	/**
+	 * Regression: `user-new.php` redirects with `wp_redirect( 'users.php?...' )`
+	 * — a relative URL. The earlier `strpos( $location, '/wp-admin/' )`
+	 * check skipped these and the iframe ended up loading the next page
+	 * without `desktop_mode_chromeless=1`, which painted the full desktop
+	 * shell inside the window. The relative-target branch in
+	 * `desktop_mode_is_admin_redirect_target()` must catch it whenever
+	 * `is_admin()` is true.
+	 *
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_is_admin_redirect_target
+	 */
+	public function test_appends_flag_to_relative_admin_redirect_in_chromeless() {
+		set_current_screen( 'user-new' );
+		$this->enter_chromeless();
+
+		$filtered = desktop_mode_chromeless_preserve_redirect( 'users.php?update=add&id=42' );
+
+		$this->assertStringContainsString( 'desktop_mode_chromeless=1', $filtered );
+		$this->assertStringContainsString( 'update=add', $filtered );
+		$this->assertStringContainsString( 'id=42', $filtered );
+	}
+
+	/**
+	 * Absolute-path admin URLs (without scheme/host) get the flag too —
+	 * `wp_redirect( '/wp-admin/users.php' )` is rare but legal.
+	 *
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_is_admin_redirect_target
+	 */
+	public function test_appends_flag_to_absolute_path_admin_redirect() {
+		$this->enter_chromeless();
+
+		$filtered = desktop_mode_chromeless_preserve_redirect( '/wp-admin/users.php?update=add' );
+
+		$this->assertStringContainsString( 'desktop_mode_chromeless=1', $filtered );
+	}
+
+	/**
+	 * An external host is left alone — login → SSO providers, OAuth
+	 * callbacks etc. shouldn't get our query flag tattooed on them.
+	 *
+	 * @covers ::desktop_mode_chromeless_preserve_redirect
+	 * @covers ::desktop_mode_is_admin_redirect_target
+	 */
+	public function test_leaves_external_redirect_alone() {
+		$this->enter_chromeless();
+
+		$location = 'https://accounts.example.com/oauth/authorize?client_id=foo';
+		$this->assertSame( $location, desktop_mode_chromeless_preserve_redirect( $location ) );
+	}
 }

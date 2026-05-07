@@ -36,7 +36,9 @@
 import { applyFilters } from '../hooks';
 import { getFilesState, subscribeFilesStore } from './store';
 
-const ROOT_CLASS = 'desktop-mode-folder-status-bar';
+export const STATUS_BAR_CLASS = 'desktop-mode-folder-status-bar';
+
+const ROOT_CLASS = STATUS_BAR_CLASS;
 
 export interface StatusBarSegment {
 	id: string;
@@ -109,6 +111,22 @@ function computeSegments( ctx: StatusBarContext ): StatusBarSegment[] {
 		ctx,
 	);
 	return Array.isArray( filtered ) ? filtered : builtIns;
+}
+
+/**
+ * Public renderer that any icon-canvas surface can call to paint
+ * status-bar segments using the same DOM + CSS as the folder window.
+ * The host element should already carry `STATUS_BAR_CLASS` (or be
+ * styled compatibly).
+ *
+ * @public
+ * @since 0.8.0
+ */
+export function renderStatusBarSegments(
+	bar: HTMLElement,
+	segments: StatusBarSegment[],
+): void {
+	render( bar, segments );
 }
 
 function render( bar: HTMLElement, segments: StatusBarSegment[] ): void {

@@ -27,6 +27,18 @@
 	display: none;
 }
 
+/*
+ * Drop-target highlight — the `data-files-drop-active` attribute
+ * is set on the FilesLayer host (desktop area or folder window
+ * body) while a `<wpd-drag-handle>` payload is being dragged
+ * over it. Subtle dashed outline so it reads as "you can drop
+ * here" without overwhelming the wallpaper.
+ */
+[ data-files-drop-active ] {
+	outline: 2px dashed var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: -6px;
+}
+
 .desktop-mode-files-layer {
 	position: absolute;
 	inset: 0;
@@ -75,6 +87,15 @@
 	opacity: 0.85;
 	cursor: grabbing;
 	z-index: 10;
+}
+
+/* Pinned tiles (registered via `desktop_mode_register_icon( …,
+ * [ 'pinned' => true ] )`) anchor to a fixed slot and never wire
+ * up drag handlers. Switch the cursor so the affordance matches
+ * the (lack of) interaction. @since 0.8.0 */
+.desktop-mode-file-tile--pinned {
+	cursor: pointer;
+	touch-action: auto;
 }
 
 /*

@@ -79,11 +79,13 @@ function desktop_mode_default_os_settings() {
 			'apiKeys'   => array(), // Per-provider keys: { [provider_id]: string }.
 			'transport' => 'off',   // Live-progress transport: 'sse' | 'off'. Default off — see DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS.
 		),
-		// Per-user opt-in for the native Posts window. When true, clicking
-		// the Posts dock tile opens the `<wpd-table>`-driven native window
-		// instead of the chromeless `edit.php` iframe. Default off so
-		// existing muscle memory survives an upgrade.
-		'nativePostsEnabled'       => false,
+		// Per-user opt-OUT for the native Posts window. When true,
+		// clicking the Posts dock tile opens the `<wpd-table>`-driven
+		// native window instead of the chromeless `edit.php` iframe.
+		// Default ON as of 0.8.0 — the native UI is the canonical
+		// Desktop Mode Posts experience; users can flip it off to fall
+		// back to the classic iframe.
+		'nativePostsEnabled'       => true,
 		// Per-user list of column keys hidden in the native Posts
 		// window (e.g. array( 'author', 'tags' )). Empty array means
 		// every column is visible. The sticky 'title' column is always

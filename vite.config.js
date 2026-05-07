@@ -61,6 +61,14 @@ const TARGETS = {
 		fileBase: 'posts-window',
 		iifeName: 'desktopModePostsWindow',
 	},
+	// "My WordPress" file-explorer window — registers a render
+	// callback on `window.desktopModeNativeWindows['desktop-mode-my-wordpress']`
+	// and reuses the `<wpd-*>` tags defined by the main desktop bundle.
+	'my-wordpress': {
+		entry:    'src/my-wordpress/index.ts',
+		fileBase: 'my-wordpress',
+		iifeName: 'desktopModeMyWordpress',
+	},
 	// Service worker — own bundle so it can be served from a stable
 	// path with the `Service-Worker-Allowed: /` header. The IIFE
 	// wrapper is harmless inside a SW context: top-level

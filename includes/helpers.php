@@ -86,8 +86,7 @@ function desktop_mode_chromeless_preserve_redirect( $location ) {
 		return $location;
 	}
 
-	// Only rewrite redirects that land inside wp-admin.
-	if ( false === strpos( $location, '/wp-admin/' ) ) {
+	if ( ! desktop_mode_is_admin_redirect_target( $location ) ) {
 		return $location;
 	}
 
@@ -123,7 +122,7 @@ function desktop_mode_classic_preserve_redirect( $location ) {
 		return $location;
 	}
 
-	if ( false === strpos( $location, '/wp-admin/' ) ) {
+	if ( ! desktop_mode_is_admin_redirect_target( $location ) ) {
 		return $location;
 	}
 
@@ -132,6 +131,70 @@ function desktop_mode_classic_preserve_redirect( $location ) {
 	}
 
 	return add_query_arg( DESKTOP_MODE_CLASSIC_FLAG, '1', $location );
+}
+
+/**
+ * Whether `$location` is a redirect target that lands inside wp-admin
+ * on the current site. Handles all four shapes WP core actually emits:
+ *
+ *   - Absolute, same-host:    `https://example.com/wp-admin/users.php?...`
+ *   - Absolute path:          `/wp-admin/users.php?...`
+ *   - Relative to wp-admin:   `users.php?update=add&id=42` (used by
+ *                              `user-new.php`, `edit-tags.php`, and
+ *                              quite a few other core admin scripts)
+ *   - Same-host without path: `?paged=2`
+ *
+ * Off-site redirects (login → external SSO, e.g.) and frontend
+ * redirects (`/`, `/?p=42`) return false so we never paint our query
+ * flag on URLs that don't run our admin code.
+ *
+ * @since 0.8.0
+ *
+ * @internal
+ *
+ * @param string $location Raw redirect URL handed to `wp_redirect`.
+ * @return bool
+ */
+function desktop_mode_is_admin_redirect_target( $location ) {
+	$location = (string) $location;
+	if ( '' === $location ) {
+		return false;
+	}
+
+	$parts = wp_parse_url( $location );
+	if ( false === $parts ) {
+		return false;
+	}
+
+	// External host? Bail — we don't own that page.
+	if ( ! empty( $parts['host'] ) ) {
+		$site_host = wp_parse_url( site_url(), PHP_URL_HOST );
+		if ( $site_host && 0 !== strcasecmp( (string) $parts['host'], (string) $site_host ) ) {
+			return false;
+		}
+	}
+
+	$path = isset( $parts['path'] ) ? (string) $parts['path'] : '';
+
+	// Absolute path (URL-with-host or leading-slash variant).
+	if ( '' !== $path ) {
+		// `/wp-admin/foo.php` — definitive admin target.
+		if ( false !== strpos( $path, '/wp-admin/' ) ) {
+			return true;
+		}
+		// Absolute path NOT into wp-admin (e.g. `/`, `/wp-login.php`,
+		// `/wp-json/...`). Frontend or login flow — leave alone.
+		if ( '/' === $path[ 0 ] ) {
+			return false;
+		}
+	}
+
+	// Relative URL (or pure query string). Only safe to treat as an
+	// admin target when the redirect was issued from inside wp-admin
+	// — that's where wp_redirect( 'users.php?...' ) actually resolves
+	// to /wp-admin/users.php?... at the browser. is_admin() is the
+	// canonical signal.
+	return is_admin();
 }
 add_filter( 'wp_redirect', 'desktop_mode_classic_preserve_redirect', 999 );
 

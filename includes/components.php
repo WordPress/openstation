@@ -1022,6 +1022,12 @@ function desktop_mode_build_desktop_wallpapers_payload() {
  *                                  Mutually exclusive with `window`.
  *     @type int      $position     Sort order; lower renders earlier
  *                                  (top-left on the grid). Default 100.
+ *     @type bool     $pinned       When `true`, the icon renders before
+ *                                  any unpinned icon regardless of
+ *                                  `position`, and is never user-
+ *                                  draggable. Reserved for built-in
+ *                                  shortcuts like "My WordPress".
+ *                                  Default `false`. @since 0.8.0
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
  *                                  `WP_Error desktop_mode_capability_denied`.
@@ -1043,6 +1049,7 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 		'window'       => '',
 		'url'          => '',
 		'position'     => 100,
+		'pinned'       => false,
 		'capabilities' => array(),
 	);
 	$args = wp_parse_args( $args, $defaults );
@@ -1106,6 +1113,7 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 		'window'   => $window,
 		'url'      => $url,
 		'position' => (int) $args['position'],
+		'pinned'   => (bool) $args['pinned'],
 	);
 	desktop_mode_desktop_icon_registry( $id, $entry );
 
@@ -1189,11 +1197,17 @@ function desktop_mode_build_desktop_icons_payload() {
 			'window'   => isset( $entry['window'] ) ? (string) $entry['window'] : '',
 			'url'      => isset( $entry['url'] ) ? (string) $entry['url'] : '',
 			'position' => isset( $entry['position'] ) ? (int) $entry['position'] : 100,
+			'pinned'   => ! empty( $entry['pinned'] ),
 		);
 	}
 
-	// Stable sort by position; ties break on insertion order.
+	// Pinned icons first; then by position. Ties break on insertion order.
 	usort( $out, static function ( $a, $b ) {
+		$ap = ! empty( $a['pinned'] ) ? 0 : 1;
+		$bp = ! empty( $b['pinned'] ) ? 0 : 1;
+		if ( $ap !== $bp ) {
+			return $ap - $bp;
+		}
 		if ( $a['position'] === $b['position'] ) {
 			return 0;
 		}

@@ -15,6 +15,7 @@ import { showToast } from '../toast';
 import { addExternalTab } from './tabs';
 import type { Window } from './index';
 import { dispatchFromWindow, markWindowContentReady } from '../window-channels';
+import { tryNativeUrlRemap } from '../native-url-remap';
 
 /**
  * Origin snapshot taken once at module load. Any subsequent mutation
@@ -111,6 +112,29 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 			data.url,
 			data.target === 'new' ? 'new' : 'self',
 		);
+	}
+
+	// Best-effort native-window remap on link clicks inside chromeless
+	// iframes. The chromeless bridge posts this for every admin-internal
+	// link click. When the URL maps to a native window (e.g. `edit.php`
+	// → native Posts when the user has the opt-in on, or `users.php` →
+	// the future native Users window), we open the native window AND
+	// close the source iframe. The iframe's natural click was already
+	// in flight when this fires — closing the window destroys the
+	// iframe before any visible navigation paint, which is exactly
+	// what users want when they click "Exit editor" on a locked-post
+	// takeover dialog: don't dump them into classic edit.php inside
+	// the editor window.
+	//
+	// Remap miss → no-op; the iframe finishes its natural navigation.
+	if (
+		data.type === 'desktop-mode-iframe-admin-link' &&
+		typeof data.url === 'string' &&
+		data.url !== ''
+	) {
+		if ( tryNativeUrlRemap( data.url ) ) {
+			win.close();
+		}
 	}
 
 	// Iframe-initiated toast. Plugin pages inside iframes use this

@@ -29,7 +29,13 @@ import { buildTile, setTilePosition, TILE_CLASS } from './file-tile';
 import { openTileMenu, type TileMenuItem } from './tile-menu';
 import { openFile } from './open';
 import { resolve as resolveFileType } from './registry';
-import { buildOccupiedSet, pointToCell, snapToEmptyCell } from './grid';
+import {
+	buildOccupiedSet,
+	cellKey,
+	cellToPos,
+	pointToCell,
+	snapToEmptyCell,
+} from './grid';
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
 
@@ -65,7 +71,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	let lastFingerprint = '';
 
 	const repaint = ( state: FilesState ): void => {
-		const list = state.placementsByFolder.get( folderId ) ?? [];
+		const raw = state.placementsByFolder.get( folderId ) ?? [];
+		// Pinned tiles always render first so their slots are
+		// stable and other tiles never appear above them.
+		const list = raw.slice().sort( ( a, b ) => {
+			const ap = isPinned( a ) ? 0 : 1;
+			const bp = isPinned( b ) ? 0 : 1;
+			return ap - bp;
+		} );
 		const fp = fingerprint( list );
 		if ( fp === lastFingerprint ) {
 			return;
@@ -75,8 +88,79 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		// Wholesale rebuild — simplest correct strategy. Plugins that
 		// want stable decorations re-attach via `tile-rendered`.
 		container.replaceChildren();
+
+		// Pinned tiles (registered with `pinned: true` —
+		// `desktop_mode_register_icon`) anchor to a fixed slot and
+		// drop the drag wiring entirely. Today the only pinned
+		// surface is the framework "My WordPress" shortcut, but the
+		// flag is generic so anything that should never move can
+		// opt in.
+		// Reserve column 0, top-down, for pinned tiles. Their
+		// server-stored (x, y) is ignored — the visual slot is
+		// purely a function of their pinned-order index.
+		const pinnedSlots = new Map< number, { x: number; y: number } >();
+		const occupiedCells = new Set< string >();
+		let pinnedIdx = 0;
+		for ( const placement of list ) {
+			if ( ! isPinned( placement ) ) {
+				continue;
+			}
+			const slot = cellToPos( 0, pinnedIdx );
+			pinnedSlots.set( placement.id, { x: slot.x, y: slot.y } );
+			occupiedCells.add( cellKey( slot.col, slot.row ) );
+			pinnedIdx += 1;
+		}
+
+		// Pre-compute display cells for non-pinned tiles, evicting
+		// any whose stored coords land on a pinned slot. Pre-existing
+		// data from before pinned shortcuts existed (e.g. Recycle Bin
+		// already living at (0, 0)) would otherwise overlap visually
+		// with the new anchored "My WordPress" tile. Process in
+		// stored-position order so pre-pinned tiles keep their
+		// relative ordering when displaced.
+		const displaced = new Map<
+			number,
+			{ x: number; y: number }
+		>();
+		for ( const placement of list ) {
+			if ( pinnedSlots.has( placement.id ) ) {
+				continue;
+			}
+			const target = pointToCell( placement.x, placement.y );
+			const key = cellKey( target.col, target.row );
+			if ( ! occupiedCells.has( key ) ) {
+				occupiedCells.add( key );
+				continue;
+			}
+			// Stored cell is taken (by a pinned tile or an already-
+			// displaced peer). Snap to the next free cell.
+			const free = snapToEmptyCell(
+				placement.x,
+				placement.y,
+				occupiedCells,
+				host,
+			);
+			occupiedCells.add( cellKey( free.col, free.row ) );
+			displaced.set( placement.id, { x: free.x, y: free.y } );
+		}
+
 		for ( const placement of list ) {
 			const tile = buildTile( placement, folderId );
+			const pinnedSlot = pinnedSlots.get( placement.id );
+			if ( pinnedSlot ) {
+				setTilePosition( tile, pinnedSlot.x, pinnedSlot.y );
+				tile.classList.add( `${ TILE_CLASS }--pinned` );
+				tile.setAttribute( 'aria-roledescription', 'pinned shortcut' );
+				// No drag wiring; right-click context menu is still
+				// useful (Open / Cleanup / etc.).
+				attachContextMenu( tile, placement );
+				container.appendChild( tile );
+				continue;
+			}
+			const moved = displaced.get( placement.id );
+			if ( moved ) {
+				setTilePosition( tile, moved.x, moved.y );
+			}
 			attachDragHandlers( tile, placement, folderId );
 			attachContextMenu( tile, placement );
 			container.appendChild( tile );
@@ -127,10 +211,19 @@ function fingerprint( list: readonly RestPlacementShape[] ): string {
 	const parts: string[] = [];
 	for ( const p of list ) {
 		parts.push(
-			`${ p.id }:${ p.parentId }:${ p.x }:${ p.y }:${ p.sortOrder }:${ p.updatedAtMs }:${ p.file.type }:${ p.file.ref }:${ p.file.title }:${ p.file.icon }`,
+			`${ p.id }:${ p.parentId }:${ p.x }:${ p.y }:${ p.sortOrder }:${ p.updatedAtMs }:${ p.file.type }:${ p.file.ref }:${ p.file.title }:${ p.file.icon }:${ isPinned( p ) ? 1 : 0 }`,
 		);
 	}
 	return parts.join( '|' );
+}
+
+/**
+ * Whether a placement is pinned (anchored, non-draggable). The flag
+ * is carried through the file payload from
+ * `desktop_mode_register_icon( …, [ 'pinned' => true ] )`.
+ */
+function isPinned( placement: RestPlacementShape ): boolean {
+	return Boolean( placement.file.pinned );
 }
 
 /**
@@ -151,14 +244,22 @@ function attachDragHandlers(
 		if ( e.button !== 0 ) {
 			return;
 		}
+		// Read the tile's CURRENT visible position from the inline
+		// styles, not the placement's server-stored (x, y). They
+		// diverge when the layer has displaced this tile to dodge
+		// a pinned slot — using `placement.x` would snap the tile
+		// back to its stored coords on the first pointermove
+		// (the "drag jumps to the My WordPress slot" bug).
+		const visibleX = parseFloat( tile.style.left ) || placement.x;
+		const visibleY = parseFloat( tile.style.top ) || placement.y;
 		drag = {
 			pointerId: e.pointerId,
 			tile,
 			placementId: placement.id,
 			startX: e.clientX,
 			startY: e.clientY,
-			originX: placement.x,
-			originY: placement.y,
+			originX: visibleX,
+			originY: visibleY,
 		};
 		tile.setPointerCapture( e.pointerId );
 		tile.classList.add( `${ TILE_CLASS }--dragging` );

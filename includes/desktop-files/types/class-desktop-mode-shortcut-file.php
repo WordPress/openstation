@@ -64,6 +64,10 @@ class Desktop_Mode_Shortcut_File extends Desktop_Mode_File {
 		// native window id) or `url` is set; never both.
 		$shape['shortcutWindow'] = $entry ? (string) $entry['window'] : '';
 		$shape['shortcutUrl']    = $entry ? (string) $entry['url'] : '';
+		// Surface the `pinned` flag through the placement payload so
+		// the FilesLayer can anchor the tile to the top-left and skip
+		// drag wiring. @since 0.8.0
+		$shape['pinned'] = $entry ? ! empty( $entry['pinned'] ) : false;
 		return $shape;
 	}
 

@@ -163,71 +163,58 @@ interface BinState {
 function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 	const cols: WpdTableColumn< RecycleBinItem >[] = [
 		{
-			key: 'preview',
-			label: '',
-			width: '52px',
-			render: ( _v, row ) => {
-				// Custom cell renders land inside `<wpd-table>`'s
-				// shadow DOM, so the global Dashicons stylesheet
-				// doesn't reach them. We show an actual thumbnail
-				// when there is one, otherwise leave the cell
-				// empty — the type column already communicates
-				// "post / page / media" in text.
-				if (
-					row.preview &&
-					row.type === 'attachment' &&
-					row.mime.startsWith( 'image/' )
-				) {
-					const img = document.createElement( 'img' );
-					img.src = row.preview;
-					img.alt = '';
-					img.loading = 'lazy';
-					img.style.cssText =
-						'width:36px;height:36px;border-radius:4px;object-fit:cover;display:block;';
-					return img;
-				}
-				const empty = document.createElement( 'span' );
-				empty.style.cssText = 'display:inline-block;width:36px;height:36px;';
-				return empty;
-			},
-		},
-		{
 			key: 'title',
 			label: __( 'Title' ),
 			sortable: true,
 			filter: 'text',
 			render: ( _v, row ) => {
-				// Two-line title cell. All visual styles inline so
-				// we don't depend on outer CSS reaching past the
-				// `<wpd-table>` shadow boundary.
-				const cell = document.createElement( 'span' );
-				cell.style.cssText =
+				// One-cell layout: optional thumbnail (image
+				// attachments only) sits inline at the start, then
+				// the two-line title/subtitle stack. Posts, pages,
+				// comments get the full title width since they have
+				// nothing to show on the left — no reserved gap.
+				const wrap = document.createElement( 'span' );
+				wrap.style.cssText =
+					'display:flex;align-items:center;gap:10px;min-width:0;';
+
+				const showsThumb =
+					row.preview &&
+					row.type === 'attachment' &&
+					row.mime.startsWith( 'image/' );
+				if ( showsThumb ) {
+					const img = document.createElement( 'img' );
+					img.src = row.preview;
+					img.alt = '';
+					img.loading = 'lazy';
+					img.style.cssText =
+						'width:36px;height:36px;border-radius:4px;object-fit:cover;display:block;flex-shrink:0;';
+					wrap.appendChild( img );
+				}
+
+				const stack = document.createElement( 'span' );
+				stack.style.cssText =
 					'display:flex;flex-direction:column;gap:2px;min-width:0;';
 				const title = document.createElement( 'span' );
 				title.style.cssText =
 					'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
 				title.textContent = row.title;
 				title.title = row.title;
-				cell.appendChild( title );
+				stack.appendChild( title );
 				if ( row.subtitle ) {
 					const sub = document.createElement( 'span' );
 					sub.style.cssText =
 						'font-size:12px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
 					sub.textContent = row.subtitle;
 					sub.title = row.subtitle;
-					cell.appendChild( sub );
+					stack.appendChild( sub );
 				}
-				return cell;
+				wrap.appendChild( stack );
+				return wrap;
 			},
 		},
-		{
-			key: 'type',
-			label: __( 'Type' ),
-			sortable: true,
-			filter: 'select',
-			width: '120px',
-			render: ( _v, row ) => labelForType( row.type ),
-		},
+		// No explicit Type column — the title + the toolbar's type
+		// filter tabs already convey the entity kind, and an extra
+		// column inflates the row visually for no signal gain.
 		{
 			key: 'deleted_at',
 			label: __( 'Deleted' ),
@@ -298,21 +285,6 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 		) as WpdTableColumn< RecycleBinItem >[];
 	}
 	return cols;
-}
-
-function labelForType( type: string ): string {
-	switch ( type ) {
-		case 'post':
-			return __( 'Post' );
-		case 'page':
-			return __( 'Page' );
-		case 'attachment':
-			return __( 'Media' );
-		case 'comment':
-			return __( 'Comment' );
-		default:
-			return type;
-	}
 }
 
 interface RowButtonOptions {
@@ -468,6 +440,12 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	table.columns = buildColumns();
 	table.getRowId = ( row ) => row.id;
+	// No `fileTypeForRow` here on purpose: trashed items are
+	// for restoring, not for pinning to the desktop. The Pin to
+	// Desktop toolbar action still covers the rare "I want both
+	// at once" path. `<wpd-table>`'s drag-handle surface is
+	// reserved for tables where dragging IS the primary
+	// affordance (e.g. plugin-authored picker UIs).
 
 	// If we have a cached snapshot from a previous open, paint it
 	// synchronously — the user sees the data they expect on

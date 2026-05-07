@@ -829,6 +829,41 @@ var desktopModePostsWindow = function(exports) {
       });
     });
     titleRow.appendChild(link);
+    const lock = row.desktop_mode_lock ?? null;
+    if (lock) {
+      const lockBadge = document.createElement("span");
+      lockBadge.style.cssText = [
+        "display:inline-flex",
+        "align-items:center",
+        "gap:4px",
+        "padding:2px 8px",
+        "border-radius:10px",
+        "font-size:11px",
+        "font-weight:600",
+        "background:rgba(179, 45, 46, 0.1)",
+        "color:#b32d2e",
+        "white-space:nowrap",
+        "flex-shrink:0"
+      ].join(";");
+      const lockIcon = document.createElement("span");
+      lockIcon.setAttribute("aria-hidden", "true");
+      lockIcon.style.cssText = [
+        "font-family:dashicons",
+        "font-size:14px",
+        "line-height:1",
+        "display:inline-block",
+        "speak:none",
+        "-webkit-font-smoothing:antialiased"
+      ].join(";");
+      lockIcon.textContent = "";
+      lockBadge.appendChild(lockIcon);
+      const lockText = document.createElement("span");
+      lockText.textContent = lock.userName;
+      lockBadge.appendChild(lockText);
+      const tipFmt = __("%s is currently editing", "desktop-mode");
+      lockBadge.title = sprintf(tipFmt, lock.userName);
+      titleRow.appendChild(lockBadge);
+    }
     if (row.status && row.status !== "publish") {
       const badge = document.createElement("span");
       const colors = statusBadgeColor(row.status);

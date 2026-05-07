@@ -38,7 +38,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 				<wpd-section
 					heading=${ __( 'Features' ) }
 					description=${ __(
-						'Opt in to Desktop Mode behaviors that aren’t on by default. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.',
+						'Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.',
 					) }
 				>
 					<wpd-checkbox-label
@@ -48,7 +48,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 					></wpd-checkbox-label>
 					<p class="desktop-mode-features__hint">
 						${ __(
-							'Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Click Posts in the dock to open it. Toggle off to return to the classic experience.',
+							'Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.',
 						) }
 					</p>
 				</wpd-section>

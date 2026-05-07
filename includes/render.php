@@ -398,109 +398,6 @@ function desktop_mode_render_shell() {
 add_action( 'in_admin_header', 'desktop_mode_render_shell', 5 );
 
 /**
- * Forces Gutenberg out of fullscreen mode and dismisses welcome guides
- * inside chromeless iframes.
- *
- * The block editor's fullscreen mode renders a "back to dashboard" button
- * (the "W" logo in the top-left). Clicking it navigates the iframe to
- * `/wp-admin/edit.php` without the `desktop_mode_chromeless=1` flag, which re-renders
- * the entire classic admin inside the chromeless window.
- *
- * Timing: Core's `initializeEditor()` runs inside a `window.load` handler
- * emitted by `edit-form-blocks.php` and synchronously calls
- * `setPersistenceLayer()` on the `core/preferences` store. That swap
- * produces the first state update the store ever emits — earlier defaults
- * come from the registered reducer at module-load time and don't reach
- * subscribers. So we scope a `wp.data.subscribe` to `core/preferences`,
- * wait for the first notification, and apply our overrides then. No
- * timers, no polling — the store tells us exactly when it's safe to write.
- *
- * A previous iteration swapped the persistence layer for a no-op at
- * module-load time. That silenced user dismissals during the window
- * before `initializeEditor()` ran, breaking "Got it" persistence for the
- * welcome guide. Don't do that.
- *
- * Belt-and-suspenders: `chromeless.css` hides the fullscreen close button
- * and welcome modal so there's no visible flash between window open and
- * our overrides firing.
- *
- * @since 0.1.0
- */
-function desktop_mode_chromeless_editor_preferences() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
-		return;
-	}
-
-	$script = <<<'JS'
-( function () {
-	if ( ! window.wp || ! wp.data || typeof wp.data.subscribe !== 'function' ) {
-		return;
-	}
-
-	// Minimize writes: each set() triggers a debounced REST persist, so we
-	// only flip values that are currently truthy. Skipping no-ops avoids
-	// re-saving the user's meta on every chromeless load.
-	//
-	// Note: we intentionally do NOT touch `fullscreenMode`. Gutenberg's
-	// non-fullscreen layout hardcodes top: 32px / left: 160px on
-	// .interface-interface-skeleton to reserve space for the admin bar and
-	// sidebar — both of which we've hidden — producing visible gaps inside
-	// chromeless windows. Leaving fullscreenMode at its default (true)
-	// makes the skeleton fill the viewport naturally. The W logo that
-	// fullscreen surfaces is hidden via chromeless.css.
-	var OVERRIDES = [
-		[ 'core/edit-post', 'welcomeGuide' ],
-		[ 'core/edit-post', 'welcomeGuideTemplate' ],
-		[ 'core/edit-site', 'welcomeGuide' ],
-		[ 'core/edit-site', 'welcomeGuideStyles' ],
-		[ 'core/edit-site', 'welcomeGuidePage' ],
-		[ 'core/edit-site', 'welcomeGuideTemplate' ],
-		[ 'core/edit-widgets', 'welcomeGuide' ]
-	];
-
-	function applyOverrides() {
-		var select = wp.data.select( 'core/preferences' );
-		var prefs  = wp.data.dispatch( 'core/preferences' );
-		if ( ! select || ! prefs || typeof prefs.set !== 'function' ) {
-			return;
-		}
-		for ( var i = 0; i < OVERRIDES.length; i++ ) {
-			var scope = OVERRIDES[ i ][ 0 ];
-			var key   = OVERRIDES[ i ][ 1 ];
-			try {
-				if ( select.get( scope, key ) ) {
-					prefs.set( scope, key, false );
-				}
-			} catch ( e ) {}
-		}
-	}
-
-	// initializeEditor() runs inside a window.load handler and calls
-	// setPersistenceLayer() on the preferences store. That call emits the
-	// first state update the store ever sends to subscribers — which is
-	// exactly the moment it's safe for us to write. Subscribe scoped to
-	// this store, fire once, unsubscribe.
-	var fired  = false;
-	var unsub  = wp.data.subscribe( function () {
-		if ( fired ) {
-			return;
-		}
-		fired = true;
-		unsub();
-		applyOverrides();
-	}, 'core/preferences' );
-} )();
-JS;
-
-	// Attach after whichever editor package is loaded on this screen.
-	// wp_add_inline_script silently no-ops for handles that aren't registered.
-	wp_add_inline_script( 'wp-edit-post', $script, 'after' );
-	wp_add_inline_script( 'wp-edit-site', $script, 'after' );
-	wp_add_inline_script( 'wp-edit-widgets', $script, 'after' );
-}
-add_action( 'enqueue_block_editor_assets', 'desktop_mode_chromeless_editor_preferences' );
-
-/**
  * Neutralizes hardcoded admin-bar offsets on positioned elements
  * inside chromeless iframes.
  *
@@ -1247,6 +1144,33 @@ function desktop_mode_chromeless_bridge_script() {
 			var rewritten = rewriteAdminUrl( href, window.location.href );
 			if ( rewritten ) {
 				link.setAttribute( 'href', rewritten );
+			}
+			/*
+			 * Tell the parent shell about the click so it can run
+			 * the URL through the native-window remap registry.
+			 * When a remap hits (e.g. `edit.php` with the user's
+			 * native-Posts opt-in on), the parent opens the native
+			 * window and closes this iframe — which is the only
+			 * sensible answer to "Exit editor" / "Back to posts"
+			 * links inside a locked-post takeover dialog. When no
+			 * remap hits, the iframe's natural navigation proceeds.
+			 *
+			 * Best-effort: we still let the click proceed, so on
+			 * remap-miss the iframe loads the link as before. On
+			 * remap-hit the iframe gets torn down (window close)
+			 * before the navigation paints, so the brief in-flight
+			 * load is invisible.
+			 */
+			try {
+				var absolute = new URL( rewritten || href, window.location.href ).toString();
+				window.parent.postMessage(
+					{ type: 'desktop-mode-iframe-admin-link', url: absolute },
+					window.location.origin
+				);
+			} catch ( bridgeErr ) {
+				/* Same-origin postMessage to the same window can only fail in
+				 * a sandbox we don't support — swallow rather than block the
+				 * click. */
 			}
 			return;
 		}

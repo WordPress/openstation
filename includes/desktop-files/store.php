@@ -434,8 +434,8 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 	};
 
 	$placed = 0;
-	$emit   = function ( $type, $ref ) use ( $user_id, $find_next, &$placed ) {
-		list( $col, $row ) = $find_next();
+	$emit_at = function ( $type, $ref, $col, $row ) use ( $user_id, &$occupied, &$placed ) {
+		$occupied[ "$col,$row" ] = true;
 		$result = desktop_mode_files_place(
 			$user_id,
 			0,
@@ -450,12 +450,45 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 			$placed++;
 		}
 	};
+	$emit_next = function ( $type, $ref ) use ( $find_next, $emit_at ) {
+		list( $col, $row ) = $find_next();
+		$emit_at( $type, $ref, $col, $row );
+	};
+
+	// Pinned shortcuts get reserved top-left slots. Anchored to
+	// column 0 (x=16) so the JS layer's pinned-slot math
+	// (`GRID_PADDING + n*GRID_CELL_H`) lines up with the row the
+	// server picks. Mark the slot occupied BEFORE other orphans
+	// flow in so a draggable tile never lands on top of the
+	// anchored "My WordPress" icon.
+	$pinned_ids = array();
+	foreach ( $shortcut_ids as $id ) {
+		$entry = is_array( $registry ) && isset( $registry[ $id ] ) ? $registry[ $id ] : null;
+		if ( is_array( $entry ) && ! empty( $entry['pinned'] ) ) {
+			$pinned_ids[] = $id;
+		}
+	}
+	$pinned_set = array_flip( $pinned_ids );
+	$pinned_idx = 0;
+	foreach ( $pinned_ids as $id ) {
+		// Force the slot at (col=0, row=$pinned_idx). Any pre-
+		// existing occupant on that slot is left alone — the layer
+		// re-renders the pinned tile on top via the
+		// client-side override anyway, but a future cleanup pass
+		// can compact the column.
+		$occupied[ "0,$pinned_idx" ] = true;
+		$emit_at( 'shortcut', $id, 0, $pinned_idx );
+		$pinned_idx++;
+	}
 
 	foreach ( $folder_rows as $row ) {
-		$emit( 'folder', $row['id'] );
+		$emit_next( 'folder', $row['id'] );
 	}
 	foreach ( $shortcut_ids as $id ) {
-		$emit( 'shortcut', $id );
+		if ( isset( $pinned_set[ $id ] ) ) {
+			continue;
+		}
+		$emit_next( 'shortcut', $id );
 	}
 	return $placed;
 }

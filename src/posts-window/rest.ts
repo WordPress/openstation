@@ -41,6 +41,23 @@ export interface PostsWindowConfig {
 	queryArgs: Record< string, string >;
 }
 
+/**
+ * Active edit-lock holder for a row, surfaced via the
+ * `desktop_mode_lock` REST field registered in
+ * `includes/my-wordpress/lock.php`. `null` when the row isn't
+ * locked, when the requester lacks edit caps, or when the
+ * requester is the lock holder.
+ *
+ * @since 0.8.0
+ */
+export interface PostListItemLock {
+	userId: number;
+	userName: string;
+	userAvatarUrl: string;
+	/** ISO-8601 timestamp of the lock heartbeat. */
+	time: string;
+}
+
 export interface PostListItem {
 	id: number;
 	title: { rendered: string };
@@ -54,6 +71,7 @@ export interface PostListItem {
 	tags: number[];
 	comment_status: 'open' | 'closed';
 	excerpt?: { rendered: string; protected?: boolean };
+	desktop_mode_lock?: PostListItemLock | null;
 	_embedded?: {
 		author?: Array< {
 			id: number;

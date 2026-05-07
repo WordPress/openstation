@@ -1681,11 +1681,11 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe behind a per-user opt-in toggle (**OS Settings → Features → Use the native Posts window**, persisted as `OsSettingsState.nativePostsEnabled`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-OUT as of 0.8.0** — fresh installs land on it; users can flip it off via **OS Settings → Features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `true`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
 
 ### `desktop_mode_posts_window_user_can_use` — Stable *(filter, since 0.8.0)*
 
-The two-condition gate: `edit_posts` AND the user has flipped the opt-in. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
+The two-condition gate: `edit_posts` AND the user hasn't toggled the opt-out. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
 
 ```php
 apply_filters( 'desktop_mode_posts_window_user_can_use', bool $can, int $user_id );
@@ -1779,6 +1779,43 @@ wp.desktop.registerNativeUrlRemap( {           // public API in 0.9.0; internal 
 ```
 
 Returning `false` from `enabled` (or `matches`) lets the click fall through. An `openById( nativeWindowId )` call that reports the window isn't registered for the current user (cap-gated, opt-in-gated) also falls through — the registry walks on to the next entry, then to the iframe path.
+
+---
+
+## My WordPress (since 0.8.0)
+
+A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Phase 1 ships Posts and Pages; the entity list is filterable so plugin authors can extend it without forking the bundle.
+
+### `desktop_mode_my_wordpress_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_user_can_use', bool $can ): bool
+```
+
+Gates icon registration and window registration in one shot. Default `current_user_can( 'edit_posts' )`. Return `false` to hide the entry point for a role; return `true` to opt a role back in.
+
+### `desktop_mode_my_wordpress_window_args` / `desktop_mode_my_wordpress_icon_args` — Experimental (filter)
+
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for My WordPress — useful to change dimensions, swap the dashicon, or remove the `pinned` flag so the icon participates in the normal sort order.
+
+### `desktop_mode_my_wordpress_entities` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_entities', array[] $entities ): array[]
+```
+
+The list of entity types rendered as folder tiles in the window's root view. Each entry must declare:
+
+- `id` — slug, used in the route hash and tile `data-entity-id`.
+- `label` — human-readable folder name.
+- `icon` — Dashicons class.
+- `restPath` — appended to `restRoot` (e.g. `wp/v2/posts`, `wp/v2/comments`).
+
+Phase 1 ships only `posts` and `pages`. The filter exists today so a plugin author can pre-stage Comments / Users / Tags / Categories without waiting for Phase 2 to land — the bundle treats every entry uniformly.
+
+### `desktop_mode_my_wordpress_template_html` — Experimental (filter)
+
+The static template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-my-wordpress-*` data hooks intact so the JS bundle can find its mount points.
 
 ---
 

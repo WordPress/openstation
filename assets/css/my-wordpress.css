@@ -1,0 +1,738 @@
+/**
+ * My WordPress — window-local layout.
+ *
+ * Two-pane file-explorer for browsing WordPress entities. Mirrors the
+ * Recycle Bin and Posts window CSS conventions (`desktop-mode-*`
+ * BEM-ish prefix, container-relative geometry, theming via the
+ * desktop-mode-variables CSS custom properties).
+ *
+ * @since 0.8.0
+ */
+
+.desktop-mode-my-wordpress {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	font-family: var(
+		--desktop-mode-font,
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+	);
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	/* Window background — separate from the wallpaper bg so the
+	 * folder window reads as a real OS window even when the desktop
+	 * gradient is dark. Themes / plugins can override
+	 * `--desktop-mode-my-wordpress-bg` to repaint just this surface
+	 * without touching every other window. */
+	background: var(
+		--desktop-mode-my-wordpress-bg,
+		var( --desktop-mode-window-bg, #fff )
+	);
+}
+
+/* Pinned-icon visual cue — used by `desktop-mode-icon--pinned` (the
+ * generic flag added in 0.8.0). The icon-rail itself owns the
+ * non-draggable invariant; this rule just removes the grab affordance
+ * if the framework ever attaches one in a later phase.
+ */
+.desktop-mode-icon--pinned {
+	cursor: pointer;
+}
+
+/* ----- Breadcrumb header ----- */
+
+.desktop-mode-my-wordpress__breadcrumbs {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: transparent;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-my-wordpress__back {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	border-radius: 4px;
+	cursor: pointer;
+	color: inherit;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-my-wordpress__back:hover:not(:disabled),
+.desktop-mode-my-wordpress__back:focus-visible:not(:disabled) {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+	outline: none;
+}
+
+.desktop-mode-my-wordpress__back:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.desktop-mode-my-wordpress__back .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	line-height: 1;
+}
+
+.desktop-mode-my-wordpress__crumbs {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-my-wordpress__crumb {
+	border: 0;
+	background: transparent;
+	color: var( --desktop-mode-link, #2271b1 );
+	cursor: pointer;
+	padding: 2px 4px;
+	border-radius: 4px;
+	font: inherit;
+}
+
+.desktop-mode-my-wordpress__crumb:hover {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+.desktop-mode-my-wordpress__crumb--current {
+	color: var( --desktop-mode-fg, #1d2327 );
+	cursor: default;
+	font-weight: 600;
+}
+
+.desktop-mode-my-wordpress__crumb--current:hover {
+	background: transparent;
+}
+
+.desktop-mode-my-wordpress__crumb-sep {
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+/* ----- Body host ----- */
+
+.desktop-mode-my-wordpress__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+	position: relative;
+}
+
+/* Reuse the file-system folder window's status-bar element
+ * (`.desktop-mode-folder-status-bar`) so segments render with the
+ * exact same DOM the file-system uses — but retone it for the
+ * white window background. The dark default (white-on-dark) reads
+ * as invisible against `--desktop-mode-window-bg`. */
+.desktop-mode-my-wordpress > .desktop-mode-folder-status-bar {
+	border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: transparent;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress
+	> .desktop-mode-folder-status-bar
+	button.desktop-mode-folder-status-bar__segment:hover {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+/* ----- Tile canvas (root + entity list) -----
+ *
+ * Both views use the SAME tile element (`.desktop-mode-file-tile`)
+ * the wallpaper uses, so visuals stay 1:1 with the desktop. The
+ * canvas is `position: relative`; tiles are absolute-positioned and
+ * draggable — same interaction pattern as the wallpaper, just
+ * scoped to the window. Positions persist per-window in
+ * `localStorage` (see `createTileLayout` in src/my-wordpress).
+ */
+
+.desktop-mode-my-wordpress__canvas {
+	position: relative;
+	min-height: 100%;
+	box-sizing: border-box;
+	/* Note — DO NOT add `overflow: auto` here. Scroll is owned by
+	 * the surrounding pane (`__list` for entity views, `__body` for
+	 * the root view via `__grid` below). A second scroller here
+	 * would steal the wheel from the outer pane and break the
+	 * IntersectionObserver-based infinite scroll. */
+}
+
+.desktop-mode-my-wordpress__grid {
+	height: 100%;
+	overflow-y: scroll;
+}
+
+/* Override the wallpaper file-tile palette for in-window context.
+ * On the wallpaper the file tile sits on a dark gradient and uses
+ * white text + a 12% white hover — both of which would be invisible
+ * on a white window background. Inside My WordPress we re-tone the
+ * same element to read on light surfaces. The dimensions / tile
+ * structure are inherited from `.desktop-mode-file-tile`.
+ */
+.desktop-mode-my-wordpress .desktop-mode-file-tile {
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	/* Keep the wallpaper's `position: absolute` so each tile lives
+	 * at the (left, top) the layout helper assigns. The canvas above
+	 * provides the positioning context. */
+	/* Drop the wallpaper's `transition: transform` — it hints at
+	 * GPU compositing in Chrome, and the moment the layer is
+	 * composited the label rasterizes against fractional device
+	 * pixels (sub-pixel blur on HiDPI). We don't animate transform
+	 * here, so the transition is dead code anyway. */
+	transition: background-color 0.15s ease;
+	transform: none;
+}
+
+.desktop-mode-my-wordpress .desktop-mode-file-tile:hover,
+.desktop-mode-my-wordpress .desktop-mode-file-tile:focus-visible {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+/* Selection highlight on the post/page tile. */
+.desktop-mode-my-wordpress__tile--selected.desktop-mode-file-tile,
+.desktop-mode-my-wordpress__tile--selected.desktop-mode-file-tile:hover {
+	background: var( --desktop-mode-selected, rgba( 34, 113, 177, 0.12 ) );
+}
+
+/* Lock state — another user is currently editing this post. We dim
+ * the tile a touch and overlay a small dashicon-lock badge on the
+ * top-right of the icon. The whole tile stays clickable; the lock
+ * is just a visual heads-up so the user knows the takeover dialog
+ * is coming if they double-click. */
+.desktop-mode-my-wordpress__tile--locked {
+	opacity: 0.85;
+}
+
+.desktop-mode-my-wordpress__tile-lock {
+	position: absolute;
+	top: 4px;
+	inset-inline-end: 14px;
+	width: 18px;
+	height: 18px;
+	font-size: 12px;
+	line-height: 18px;
+	text-align: center;
+	border-radius: 50%;
+	background: var( --desktop-mode-danger, #b32d2e );
+	color: #fff;
+	box-shadow:
+		0 0 0 1.5px rgba( 0, 0, 0, 0.4 ),
+		0 1px 3px rgba( 0, 0, 0, 0.35 );
+	pointer-events: none;
+}
+
+/* Tooltip lock banner — shown above the excerpt when present. */
+.desktop-mode-my-wordpress__tooltip-lock {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 8px;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background: rgba( 179, 45, 46, 0.08 );
+	color: var( --desktop-mode-danger, #b32d2e );
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.desktop-mode-my-wordpress__tooltip-lock .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+}
+
+/* Plain two-line clamp without `-webkit-line-clamp`. The webkit
+ * variant promotes the label to its own composited layer, which on
+ * HiDPI screens snaps text to fractional device pixels and renders
+ * blurry. `max-height: 2 × line-height` + `overflow: hidden` looks
+ * the same and stays sharp.
+ */
+.desktop-mode-my-wordpress__tile .desktop-mode-file-tile__label {
+	font-size: 12px;
+	line-height: 1.3;
+	max-height: calc( 1.3em * 2 );
+	text-align: center;
+	overflow: hidden;
+	max-width: 100%;
+	word-break: break-word;
+}
+
+/* ----- Entity list: two-pane split ----- */
+
+.desktop-mode-my-wordpress__split {
+	display: grid;
+	grid-template-columns: minmax( 240px, 60% ) minmax( 0, 1fr );
+	height: 100%;
+	min-height: 0;
+}
+
+.desktop-mode-my-wordpress__list {
+	overflow-y: scroll;
+	border-inline-end: 1px solid var( --desktop-mode-border, #dcdcde );
+	min-width: 0;
+}
+
+/* Always-visible scrollbar styling for the icon canvases. macOS
+ * defaults to overlay scrollbars that hide until a wheel/scroll
+ * event — fine for documents but actively confusing on a tile
+ * canvas where the user can't tell whether more icons live below
+ * or to the right. We force the scrollbar to render at all times
+ * via `::-webkit-scrollbar` (works in WebKit / Blink / Edge), and
+ * the explicit `scrollbar-width: thin` covers Firefox. */
+.desktop-mode-my-wordpress__list,
+.desktop-mode-my-wordpress__grid {
+	scrollbar-width: thin;
+	scrollbar-color: rgba( 0, 0, 0, 0.25 ) transparent;
+}
+
+.desktop-mode-my-wordpress__list::-webkit-scrollbar,
+.desktop-mode-my-wordpress__grid::-webkit-scrollbar {
+	width: 12px;
+	height: 12px;
+}
+
+.desktop-mode-my-wordpress__list::-webkit-scrollbar-thumb,
+.desktop-mode-my-wordpress__grid::-webkit-scrollbar-thumb {
+	background: rgba( 0, 0, 0, 0.25 );
+	border-radius: 6px;
+	border: 3px solid transparent;
+	background-clip: padding-box;
+}
+
+.desktop-mode-my-wordpress__list::-webkit-scrollbar-thumb:hover,
+.desktop-mode-my-wordpress__grid::-webkit-scrollbar-thumb:hover {
+	background: rgba( 0, 0, 0, 0.4 );
+	background-clip: padding-box;
+}
+
+.desktop-mode-my-wordpress__list::-webkit-scrollbar-track,
+.desktop-mode-my-wordpress__grid::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.desktop-mode-my-wordpress__sentinel {
+	height: 1px;
+}
+
+.desktop-mode-my-wordpress__spinner {
+	display: flex;
+	justify-content: center;
+	padding: 16px;
+}
+
+.desktop-mode-my-wordpress__spinner--first {
+	padding: 32px;
+}
+
+/* ----- Right pane: preview ----- */
+
+.desktop-mode-my-wordpress__preview {
+	overflow: auto;
+	min-width: 0;
+	background: transparent;
+}
+
+.desktop-mode-my-wordpress__preview-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var( --desktop-mode-muted, #787c82 );
+	font-size: 13px;
+	padding: 24px;
+	text-align: center;
+}
+
+.desktop-mode-my-wordpress__preview-loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	min-height: 320px;
+	padding: 32px;
+	box-sizing: border-box;
+}
+
+.desktop-mode-my-wordpress__article {
+	padding: 24px 32px;
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+.desktop-mode-my-wordpress__article-title {
+	font-size: 22px;
+	margin: 0 0 8px;
+	line-height: 1.3;
+}
+
+.desktop-mode-my-wordpress__article-meta {
+	margin: 0 0 16px;
+	color: var( --desktop-mode-muted, #50575e );
+	font-size: 12px;
+}
+
+.desktop-mode-my-wordpress__article-hero {
+	width: 100%;
+	height: auto;
+	border-radius: 6px;
+	margin-bottom: 16px;
+	display: block;
+}
+
+.desktop-mode-my-wordpress__article-content {
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.desktop-mode-my-wordpress__article-content img {
+	max-width: 100%;
+	height: auto;
+}
+
+.desktop-mode-my-wordpress__article-footer {
+	margin-top: 24px;
+	padding-top: 16px;
+	border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ----- Empty / error states ----- */
+
+.desktop-mode-my-wordpress__empty,
+.desktop-mode-my-wordpress__error {
+	padding: 32px 24px;
+	text-align: center;
+	color: var( --desktop-mode-muted, #787c82 );
+	font-size: 13px;
+}
+
+.desktop-mode-my-wordpress__error {
+	color: var( --desktop-mode-danger, #b32d2e );
+}
+
+/* ----- Hover tooltip (floats over body) ----- */
+
+.desktop-mode-my-wordpress__tooltip {
+	position: fixed;
+	z-index: 100000;
+	max-width: 320px;
+	background: var( --desktop-mode-surface, #fff );
+	color: var( --desktop-mode-fg, #1d2327 );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+	padding: 12px;
+	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.18 );
+	font-size: 12px;
+	pointer-events: none;
+}
+
+.desktop-mode-my-wordpress__tooltip-title {
+	font-weight: 600;
+	margin-bottom: 6px;
+	font-size: 13px;
+}
+
+.desktop-mode-my-wordpress__tooltip-thumb {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	border-radius: 4px;
+	margin: 6px 0;
+}
+
+.desktop-mode-my-wordpress__tooltip-excerpt {
+	margin: 0;
+	color: var( --desktop-mode-muted, #50575e );
+	line-height: 1.4;
+}
+
+/* ----- Context menu host ----- */
+
+.desktop-mode-my-wordpress__menu {
+	position: fixed;
+	z-index: 100001;
+}
+
+/* ---------------------------------------------------------------
+ * User dossier — right-pane preview when a person is selected.
+ * Header (avatar + name + roles + links), bio, stat cards row,
+ * 12-month activity sparkline, milestones, recent posts, top
+ * categories. Designed to fit comfortably on a 360px-wide pane
+ * but to stretch nicely up to ~720px before the line-length stops
+ * helping readability.
+ * --------------------------------------------------------------- */
+
+.desktop-mode-my-wordpress__user {
+	max-width: 720px;
+}
+
+.desktop-mode-my-wordpress__user-header {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	margin-bottom: 16px;
+}
+
+.desktop-mode-my-wordpress__user-avatar {
+	width: 96px;
+	height: 96px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.12 );
+}
+
+.desktop-mode-my-wordpress__user-headline {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.desktop-mode-my-wordpress__user
+	.desktop-mode-my-wordpress__article-title {
+	margin: 0 0 4px;
+}
+
+.desktop-mode-my-wordpress__user-roles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 6px;
+}
+
+.desktop-mode-my-wordpress__user-role {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	background: rgba( 34, 113, 177, 0.12 );
+	color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.desktop-mode-my-wordpress__user-links {
+	display: flex;
+	gap: 12px;
+	font-size: 12px;
+}
+
+.desktop-mode-my-wordpress__user-links a {
+	color: var( --desktop-mode-link, #2271b1 );
+	text-decoration: none;
+}
+
+.desktop-mode-my-wordpress__user-links a:hover {
+	text-decoration: underline;
+}
+
+.desktop-mode-my-wordpress__user-bio {
+	font-size: 14px;
+	line-height: 1.5;
+	color: var( --desktop-mode-fg, #1d2327 );
+	margin: 0 0 16px;
+	padding-left: 12px;
+	border-left: 3px solid var( --desktop-mode-border, #dcdcde );
+}
+
+/* ----- Stat cards row ----- */
+
+.desktop-mode-my-wordpress__user-stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 120px, 1fr ) );
+	gap: 8px;
+	margin-bottom: 20px;
+}
+
+.desktop-mode-my-wordpress__user-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 12px 14px;
+	border-radius: 8px;
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.04 ) );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__user-stat-value {
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.1;
+	color: var( --wp-admin-theme-color, #2271b1 );
+	font-variant-numeric: tabular-nums;
+}
+
+.desktop-mode-my-wordpress__user-stat-label {
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.desktop-mode-my-wordpress__user-stat-caption {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+/* ----- 12-month activity sparkline ----- */
+
+.desktop-mode-my-wordpress__user-section {
+	margin-bottom: 20px;
+}
+
+.desktop-mode-my-wordpress__user-section h3 {
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --desktop-mode-muted, #50575e );
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin: 0 0 8px;
+}
+
+.desktop-mode-my-wordpress__user-spark-chart {
+	display: grid;
+	grid-template-columns: repeat( 12, 1fr );
+	gap: 4px;
+	height: 80px;
+	align-items: end;
+	padding: 6px 0;
+}
+
+.desktop-mode-my-wordpress__user-spark-col {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: flex-end;
+	gap: 4px;
+	height: 100%;
+	min-height: 0;
+}
+
+.desktop-mode-my-wordpress__user-spark-bar {
+	background: linear-gradient(
+		180deg,
+		var( --wp-admin-theme-color, #2271b1 ) 0%,
+		rgba( 34, 113, 177, 0.55 ) 100%
+	);
+	border-radius: 3px 3px 0 0;
+	min-height: 2px;
+	transition: height 0.3s ease;
+}
+
+.desktop-mode-my-wordpress__user-spark-bar--empty {
+	background: var( --desktop-mode-border, #dcdcde );
+	min-height: 2px;
+	height: 2px !important;
+}
+
+.desktop-mode-my-wordpress__user-spark-label {
+	font-size: 10px;
+	text-align: center;
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+/* ----- Milestones ----- */
+
+.desktop-mode-my-wordpress__user-milestones {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 140px, 1fr ) );
+	gap: 12px;
+	margin: 0 0 20px;
+}
+
+.desktop-mode-my-wordpress__user-milestones dt {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #50575e );
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-bottom: 2px;
+}
+
+.desktop-mode-my-wordpress__user-milestones dd {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0;
+}
+
+/* ----- Recent posts list ----- */
+
+.desktop-mode-my-wordpress__user-recent {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-my-wordpress__user-recent li {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: rgba( 0, 0, 0, 0.02 );
+}
+
+.desktop-mode-my-wordpress__user-recent a {
+	font-weight: 600;
+	color: var( --desktop-mode-link, #2271b1 );
+	text-decoration: none;
+}
+
+.desktop-mode-my-wordpress__user-recent a:hover {
+	text-decoration: underline;
+}
+
+.desktop-mode-my-wordpress__user-recent-meta {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+/* ----- Top categories chips ----- */
+
+.desktop-mode-my-wordpress__user-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.desktop-mode-my-wordpress__user-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	background: rgba( 0, 0, 0, 0.05 );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__user-chip--tag {
+	background: rgba( 124, 58, 237, 0.08 );
+	border-color: rgba( 124, 58, 237, 0.25 );
+}
+
+.desktop-mode-my-wordpress__user-chip-count {
+	font-weight: 700;
+	color: var( --wp-admin-theme-color, #2271b1 );
+	font-variant-numeric: tabular-nums;
+}

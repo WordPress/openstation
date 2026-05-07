@@ -32,7 +32,7 @@ import {
 	registerDockSelector,
 } from './dock-helpers';
 import { OsSettings } from './settings';
-import { deriveWindowId, urlMatchKey } from './utils';
+import { bindBackgroundActivate, deriveWindowId, urlMatchKey } from './utils';
 import {
 	HOOKS,
 	addAction,
@@ -2864,101 +2864,105 @@ function init(): void {
 		}
 	};
 
-	desktopArea.addEventListener( 'click', ( e: MouseEvent ) => {
-		if ( e.target !== desktopArea ) {
-			return;
-		}
-		if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
-			return;
-		}
-		// Phase 4: empty-wallpaper click toggles the context menu
-		// (Create folder / Show desktop / OS Settings / Wallpapers).
-		// Second click on the wallpaper closes the open menu instead
-		// of stacking — the menu's outside-click dismisser is told
-		// to ignore the desktop area, so the toggle check below is
-		// what decides.
-		if ( isWallpaperMenuOpen() ) {
-			closeWallpaperMenu();
-			return;
-		}
-		// Capture the click coordinates so a folder created from this
-		// menu lands where the user clicked, not at (0, 0).
-		const dropClient = { x: e.clientX, y: e.clientY };
-		const items = buildWallpaperMenuItems( {
-			createFolder: () => {
-				openCreateFolderDialog( {
-					onSubmit: async ( name ) => {
-						const folder = await filesRest.createFolder( { name } );
-						// Translate viewport → desktop-area local
-						// coords, then snap to the nearest empty
-						// grid cell so the new folder lands aligned.
-						const rect = desktopArea.getBoundingClientRect();
-						const rawX = Math.max( 0, dropClient.x - rect.left );
-						const rawY = Math.max( 0, dropClient.y - rect.top );
-						const occupied = buildOccupiedSet(
-							filesApi.store.getState().placementsByFolder.get( 0 ) ?? [],
-						);
-						const cell = snapToEmptyCell( rawX, rawY, occupied, desktopArea );
-						const placement = await filesRest.createPlacement( {
-							type: 'folder',
-							ref: String( folder.id ),
-							parentId: 0,
-							x: cell.x,
-							y: cell.y,
-						} );
-						filesApi.store.upsertFolder( folder );
-						filesApi.store.upsertPlacement( placement );
-					},
-				} );
-			},
-			toggleShowDesktop: () => manager.toggleShowDesktop(),
-			openOsSettings: () => openOsSettings(),
-			openWallpapers: () => openOsSettings(),
-			sortIcons: ( mode ) =>
-				relayoutRoot( ( arr ) => {
-					const sorted = arr.slice();
-					switch ( mode ) {
-						case 'name-asc':
-							sorted.sort( ( a, b ) =>
-								a.file.title.localeCompare( b.file.title ),
+	// `bindBackgroundActivate` requires pointerdown AND pointerup to
+	// land on the wallpaper itself. Previous `click`-based wiring
+	// would fire when the user pointer-downed on a tile, dragged
+	// onto the wallpaper, and released — the synthesized click then
+	// targets the wallpaper (the common ancestor) and the CMO would
+	// pop up unexpectedly. The pointer-tracking helper sidesteps
+	// that race entirely.
+	bindBackgroundActivate(
+		desktopArea,
+		( target ) => target === desktopArea,
+		( clientX, clientY ) => {
+			if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
+				return;
+			}
+			// Empty-wallpaper click toggles the context menu
+			// (Create folder / Show desktop / OS Settings / Wallpapers).
+			if ( isWallpaperMenuOpen() ) {
+				closeWallpaperMenu();
+				return;
+			}
+			// Capture the click coordinates so a folder created from
+			// this menu lands where the user clicked, not at (0, 0).
+			const dropClient = { x: clientX, y: clientY };
+			const items = buildWallpaperMenuItems( {
+				createFolder: () => {
+					openCreateFolderDialog( {
+						onSubmit: async ( name ) => {
+							const folder = await filesRest.createFolder( { name } );
+							// Translate viewport → desktop-area local
+							// coords, then snap to the nearest empty
+							// grid cell so the new folder lands aligned.
+							const rect = desktopArea.getBoundingClientRect();
+							const rawX = Math.max( 0, dropClient.x - rect.left );
+							const rawY = Math.max( 0, dropClient.y - rect.top );
+							const occupied = buildOccupiedSet(
+								filesApi.store.getState().placementsByFolder.get( 0 ) ?? [],
 							);
-							break;
-						case 'name-desc':
-							sorted.sort( ( a, b ) =>
-								b.file.title.localeCompare( a.file.title ),
-							);
-							break;
-						case 'date-asc':
-							sorted.sort( ( a, b ) => a.updatedAtMs - b.updatedAtMs );
-							break;
-						case 'date-desc':
-							sorted.sort( ( a, b ) => b.updatedAtMs - a.updatedAtMs );
-							break;
-					}
-					return sorted;
-				} ),
-			labels: {
-				createFolder: 'New folder',
-				showDesktop: 'Show desktop',
-				osSettings: 'OS Settings',
-				wallpapers: 'Wallpapers',
-				sortHeading: 'Sort by',
-				sortNameAsc: 'Name (A → Z)',
-				sortNameDesc: 'Name (Z → A)',
-				sortDateAsc: 'Date (oldest first)',
-				sortDateDesc: 'Date (newest first)',
-			},
-			serverItems: ( config.serverWallpaperMenuItems as
+							const cell = snapToEmptyCell( rawX, rawY, occupied, desktopArea );
+							const placement = await filesRest.createPlacement( {
+								type: 'folder',
+								ref: String( folder.id ),
+								parentId: 0,
+								x: cell.x,
+								y: cell.y,
+							} );
+							filesApi.store.upsertFolder( folder );
+							filesApi.store.upsertPlacement( placement );
+						},
+					} );
+				},
+				toggleShowDesktop: () => manager.toggleShowDesktop(),
+				openOsSettings: () => openOsSettings(),
+				openWallpapers: () => openOsSettings(),
+				sortIcons: ( mode ) =>
+					relayoutRoot( ( arr ) => {
+						const sorted = arr.slice();
+						switch ( mode ) {
+							case 'name-asc':
+								sorted.sort( ( a, b ) =>
+									a.file.title.localeCompare( b.file.title ),
+								);
+								break;
+							case 'name-desc':
+								sorted.sort( ( a, b ) =>
+									b.file.title.localeCompare( a.file.title ),
+								);
+								break;
+							case 'date-asc':
+								sorted.sort( ( a, b ) => a.updatedAtMs - b.updatedAtMs );
+								break;
+							case 'date-desc':
+								sorted.sort( ( a, b ) => b.updatedAtMs - a.updatedAtMs );
+								break;
+						}
+						return sorted;
+					} ),
+				labels: {
+					createFolder: 'New folder',
+					showDesktop: 'Show desktop',
+					osSettings: 'OS Settings',
+					wallpapers: 'Wallpapers',
+					sortHeading: 'Sort by',
+					sortNameAsc: 'Name (A → Z)',
+					sortNameDesc: 'Name (Z → A)',
+					sortDateAsc: 'Date (oldest first)',
+					sortDateDesc: 'Date (newest first)',
+				},
+				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]
 				| undefined ) ?? [],
-		} );
-		openWallpaperMenu(
-			document.body,
-			{ x: e.clientX, y: e.clientY },
-			items,
-			{ excludeOutsideTarget: desktopArea },
-		);
-	} );
+			} );
+			openWallpaperMenu(
+				document.body,
+				{ x: clientX, y: clientY },
+				items,
+				{ excludeOutsideTarget: desktopArea },
+			);
+		},
+	);
 
 	// The URL bar is intentionally NOT normalized to /desktop-mode/.
 	// Prior versions did a `history.replaceState(..., config.portalUrl)`

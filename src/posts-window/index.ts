@@ -834,6 +834,60 @@ function buildTitleCell( row: PostListItem ): HTMLElement {
 	} );
 	titleRow.appendChild( link );
 
+	// Lock badge — another user is editing this row right now. Read
+	// the `desktop_mode_lock` REST field surfaced by My WordPress'
+	// `lock.php`. Same affordance the My WordPress folder window
+	// uses, scoped to the table-row context (smaller, alongside the
+	// status badge instead of overlaying the icon).
+	const lock = row.desktop_mode_lock ?? null;
+	if ( lock ) {
+		const lockBadge = document.createElement( 'span' );
+		lockBadge.style.cssText = [
+			'display:inline-flex',
+			'align-items:center',
+			'gap:4px',
+			'padding:2px 8px',
+			'border-radius:10px',
+			'font-size:11px',
+			'font-weight:600',
+			'background:rgba(179, 45, 46, 0.1)',
+			'color:#b32d2e',
+			'white-space:nowrap',
+			'flex-shrink:0',
+		].join( ';' );
+		const lockIcon = document.createElement( 'span' );
+		lockIcon.setAttribute( 'aria-hidden', 'true' );
+		// `<wpd-table>` cells live inside shadow DOM. Document-level
+		// CSS rules — `.dashicons { font-family: dashicons }` and
+		// `.dashicons-lock:before { content: "\f160" }` — DO NOT pierce
+		// that boundary, so the standard `class="dashicons dashicons-lock"`
+		// recipe paints an empty box. The dashicons `@font-face` is
+		// global (font faces are document-wide), so we sidestep by
+		// setting font-family inline AND emitting the glyph character
+		// directly as text content. Same visual, no CSS-encapsulation
+		// surprise.
+		lockIcon.style.cssText = [
+			'font-family:dashicons',
+			'font-size:14px',
+			'line-height:1',
+			'display:inline-block',
+			'speak:none',
+			'-webkit-font-smoothing:antialiased',
+		].join( ';' );
+		// Dashicons "lock" glyph (codepoint U+F160). Kept as an escape
+		// so the source file doesn't depend on a Private-Use-Area
+		// character round-tripping through editors and version control.
+		lockIcon.textContent = '';
+		lockBadge.appendChild( lockIcon );
+		const lockText = document.createElement( 'span' );
+		lockText.textContent = lock.userName;
+		lockBadge.appendChild( lockText );
+		// translators: %s is the user name currently editing the post.
+		const tipFmt = __( '%s is currently editing', 'desktop-mode' );
+		lockBadge.title = sprintf( tipFmt, lock.userName );
+		titleRow.appendChild( lockBadge );
+	}
+
 	if ( row.status && row.status !== 'publish' ) {
 		const badge = document.createElement( 'span' );
 		const colors = statusBadgeColor( row.status );

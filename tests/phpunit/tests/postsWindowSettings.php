@@ -17,14 +17,19 @@
 class Tests_DesktopMode_PostsWindowSettings extends WP_UnitTestCase {
 
 	/**
+	 * As of 0.8.0 the native Posts window is the default — fresh
+	 * installs should land on it, with the legacy iframe available
+	 * as an opt-OUT. This guards against an accidental flip back to
+	 * opt-in semantics.
+	 *
 	 * @covers ::desktop_mode_default_os_settings
 	 */
 	public function test_default_includes_native_posts_enabled() {
 		$defaults = desktop_mode_default_os_settings();
 		$this->assertArrayHasKey( 'nativePostsEnabled', $defaults );
-		$this->assertFalse(
+		$this->assertTrue(
 			$defaults['nativePostsEnabled'],
-			'`nativePostsEnabled` defaults off so the iframe path stays the destination of the Posts dock tile until the user explicitly opts in.'
+			'`nativePostsEnabled` defaults ON: the native Posts window is the canonical Desktop Mode experience; users explicitly toggle it OFF to fall back to the classic iframe.'
 		);
 	}
 
@@ -80,7 +85,10 @@ class Tests_DesktopMode_PostsWindowSettings extends WP_UnitTestCase {
 		$clean = desktop_mode_sanitize_os_settings(
 			array( 'wallpaper' => 'dark' )
 		);
-		$this->assertFalse( $clean['nativePostsEnabled'] );
+		$this->assertTrue(
+			$clean['nativePostsEnabled'],
+			'Missing field should fall back to the default — opt-OUT means the default is ON.'
+		);
 	}
 
 	/**

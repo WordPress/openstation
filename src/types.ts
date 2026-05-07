@@ -1209,6 +1209,15 @@ export interface DesktopIconServerEntry {
 	url: string;
 	/** Sort order; lower renders first. */
 	position: number;
+	/**
+	 * System icon flag. Pinned icons render before any unpinned icon
+	 * regardless of `position` and are not user-draggable. Used for
+	 * built-in shortcuts like "My WordPress" that should always sit
+	 * in the same place. Default `false`.
+	 *
+	 * @since 0.8.0
+	 */
+	pinned?: boolean;
 }
 
 /**
