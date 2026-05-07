@@ -27,7 +27,6 @@
 
 import { applyFilters } from '../hooks';
 import { __ } from '../i18n';
-import { bindBackgroundActivate } from '../utils';
 
 export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 
@@ -102,35 +101,25 @@ export function attachIconCanvasMenu(
 ): AttachedHandle {
 	const openOnBg = deps.openOnBackgroundClick !== false;
 
+	// `openOnBackgroundClick` was the legacy left-click toggle; we
+	// keep the parameter for API stability but no longer wire a
+	// left-click handler — the CMO is right-click only now.
+	void openOnBg;
+
 	const onContextMenu = ( e: MouseEvent ) => {
 		if ( isInsideTile( e.target ) || isInsideMenu( e.target ) ) {
 			return;
 		}
+		// Suppress the native browser context menu and surface ours.
 		e.preventDefault();
 		toggle( e.clientX, e.clientY );
 	};
 
-	const isBackground = ( target: EventTarget | null ): boolean => {
-		if ( ! ( target instanceof Node ) ) {
-			return false;
-		}
-		if ( isInsideTile( target ) || isInsideMenu( target ) ) {
-			return false;
-		}
-		return true;
-	};
-
-	const bgActivate = openOnBg
-		? bindBackgroundActivate( canvas, isBackground, ( x, y ) => {
-			toggle( x, y );
-		} )
-		: null;
-
 	const toggle = ( x: number, y: number ) => {
 		// Cycle: open → close → open. If the menu is already open
-		// from THIS canvas, the click closes it and we stop. If
-		// it's open from a different canvas, close that one first
-		// and reopen anchored here.
+		// from THIS canvas, the right-click closes it and we stop.
+		// If it's open from a different canvas, close that one
+		// first and reopen anchored here.
 		if ( activeCanvas === canvas && activeMenu ) {
 			closeMenu();
 			return;
@@ -150,7 +139,6 @@ export function attachIconCanvasMenu(
 	return {
 		dispose: () => {
 			canvas.removeEventListener( 'contextmenu', onContextMenu );
-			bgActivate?.dispose();
 			closeMenu();
 		},
 	};
@@ -284,18 +272,10 @@ function openMenu(
 			if ( isInsideMenu( e.target ) ) {
 				return;
 			}
-			// Special case: a click on the canvas's OWN background
-			// (not on a tile, not on a foreground descendant). The
-			// canvas-bg toggle in `bindBackgroundActivate` is the
-			// canonical close path for that gesture; bailing here
-			// lets the open → close → open cycle work without the
-			// dismisser racing the toggle. Tile clicks (target is
-			// a child element, not the canvas itself) fall through
-			// to `closeMenu()` below — the menu should NOT linger
-			// while the user interacts with another tile.
-			if ( activeCanvas && e.target === activeCanvas ) {
-				return;
-			}
+			// Any click outside the menu closes it — including
+			// clicks on the canvas's own background. Right-click
+			// reopens via the `contextmenu` handler above; left-
+			// clicking the bg should always dismiss.
 			closeMenu();
 		};
 		escHandler = ( e: KeyboardEvent ) => {

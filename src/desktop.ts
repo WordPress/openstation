@@ -33,7 +33,7 @@ import {
 } from './dock-helpers';
 import { OsSettings } from './settings';
 import { getExitDesktopModeTileDef } from './exit-desktop-mode';
-import { bindBackgroundActivate, deriveWindowId, urlMatchKey } from './utils';
+import { deriveWindowId, urlMatchKey } from './utils';
 import {
 	HOOKS,
 	addAction,
@@ -2875,22 +2875,27 @@ function init(): void {
 		}
 	};
 
-	// `bindBackgroundActivate` requires pointerdown AND pointerup to
-	// land on the wallpaper itself. Previous `click`-based wiring
-	// would fire when the user pointer-downed on a tile, dragged
-	// onto the wallpaper, and released — the synthesized click then
-	// targets the wallpaper (the common ancestor) and the CMO would
-	// pop up unexpectedly. The pointer-tracking helper sidesteps
-	// that race entirely.
-	bindBackgroundActivate(
-		desktopArea,
-		( target ) => target === desktopArea,
-		( clientX, clientY ) => {
+	// Wallpaper context menu — RIGHT-click only. `contextmenu` is
+	// the only opener; left-clicks on the bg either dismiss the
+	// menu (handled inside `openWallpaperMenu`) or do nothing.
+	// `e.preventDefault()` suppresses the native browser CMO so we
+	// always show ours.
+	desktopArea.addEventListener( 'contextmenu', ( e: MouseEvent ) => {
+		// Skip when the right-click landed on a tile / inner widget
+		// rather than the bare wallpaper — those surfaces own their
+		// own context menus.
+		if ( e.target !== desktopArea ) {
+			return;
+		}
+		e.preventDefault();
+		const clientX = e.clientX;
+		const clientY = e.clientY;
+		( () => {
 			if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
 				return;
 			}
-			// Empty-wallpaper click toggles the context menu
-			// (Create folder / Show desktop / OS Settings / Wallpapers).
+			// Right-click toggles: open if closed, close if already
+			// open from the wallpaper.
 			if ( isWallpaperMenuOpen() ) {
 				closeWallpaperMenu();
 				return;
@@ -2966,14 +2971,16 @@ function init(): void {
 				| ServerWallpaperMenuItem[]
 				| undefined ) ?? [],
 			} );
+			// No `excludeOutsideTarget` — with right-click-only
+			// activation, a left-click on the wallpaper should
+			// dismiss the menu (no toggle race to protect against).
 			openWallpaperMenu(
 				document.body,
 				{ x: clientX, y: clientY },
 				items,
-				{ excludeOutsideTarget: desktopArea },
 			);
-		},
-	);
+		} )();
+	} );
 
 	// The URL bar is intentionally NOT normalized to /desktop-mode/.
 	// Prior versions did a `history.replaceState(..., config.portalUrl)`

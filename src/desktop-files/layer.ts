@@ -741,6 +741,36 @@ function attachDragHandlers(
 		tile.classList.add( `${ TILE_CLASS }--dragging` );
 	};
 
+	let hoveredTrash: HTMLElement | null = null;
+	const updateTrashHover = ( clientX: number, clientY: number ): void => {
+		// Pointer-capture routes the events to the tile, but
+		// `elementFromPoint` still reports the actual visual stack
+		// — perfect for "is the user currently over a drop zone?".
+		// We highlight `[data-desktop-mode-recycle-bin-root]` (the
+		// only cross-window drop target today) so the user gets a
+		// visual cue that releasing here will trash the tile.
+		const el = document.elementFromPoint( clientX, clientY );
+		const next = el instanceof Element
+			? el.closest< HTMLElement >( '[data-desktop-mode-recycle-bin-root]' )
+			: null;
+		if ( next === hoveredTrash ) {
+			return;
+		}
+		if ( hoveredTrash ) {
+			hoveredTrash.removeAttribute( 'data-desktop-mode-trash-drop-active' );
+		}
+		if ( next ) {
+			next.setAttribute( 'data-desktop-mode-trash-drop-active', '' );
+		}
+		hoveredTrash = next;
+	};
+	const clearTrashHover = (): void => {
+		if ( hoveredTrash ) {
+			hoveredTrash.removeAttribute( 'data-desktop-mode-trash-drop-active' );
+			hoveredTrash = null;
+		}
+	};
+
 	const onPointerMove = ( e: PointerEvent ): void => {
 		if ( ! drag || drag.pointerId !== e.pointerId ) {
 			return;
@@ -748,6 +778,7 @@ function attachDragHandlers(
 		const dx = e.clientX - drag.startX;
 		const dy = e.clientY - drag.startY;
 		setTilePosition( tile, drag.originX + dx, drag.originY + dy );
+		updateTrashHover( e.clientX, e.clientY );
 	};
 
 	const onPointerEnd = ( e: PointerEvent ): void => {
@@ -755,6 +786,7 @@ function attachDragHandlers(
 			return;
 		}
 		tile.classList.remove( `${ TILE_CLASS }--dragging` );
+		clearTrashHover();
 		try {
 			tile.releasePointerCapture( e.pointerId );
 		} catch {
@@ -771,6 +803,28 @@ function attachDragHandlers(
 		if ( ! moved ) {
 			// Treat as a click — let the dblclick handler in the tile
 			// builder fire if the user intended that.
+			return;
+		}
+
+		// Cross-window drop targets — these live OUTSIDE the
+		// canvas (e.g. the Recycle Bin native window) and the
+		// pointer-event drag never fires `drop` on them. Hit-test
+		// the cursor's actual element via `elementFromPoint` and
+		// route the gesture before falling through to the canvas
+		// snap. Same hook surface as future drop targets (folder
+		// browsers, share dialogs) — declare a marker attribute
+		// (`data-desktop-mode-shortcut-drop-target="<kind>"`) on
+		// the receiving native window's body and we route here.
+		const dropEl = document.elementFromPoint( e.clientX, e.clientY );
+		const trashTarget = dropEl instanceof Element
+			? dropEl.closest< HTMLElement >( '[data-desktop-mode-recycle-bin-root]' )
+			: null;
+		if ( trashTarget ) {
+			// Snap the tile back optimistically so the user doesn't
+			// see it floating in the wrong cell, then soft-trash via
+			// the existing helper (handles the Undo toast + cross-
+			// window broadcast).
+			void trashPlacementWithUndo( placement );
 			return;
 		}
 

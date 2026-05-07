@@ -2148,6 +2148,21 @@ var desktopModePostsWindow = function(exports) {
       }
       return term.id === 1 || term.slug === "uncategorized" || term.name.toLowerCase() === "uncategorized";
     }
+    function syncEmptyHint() {
+      const existing = stage.querySelector(".wpd-mindmap__empty");
+      if (terms.length <= 1) {
+        if (!existing) {
+          const empty = document.createElement("div");
+          empty.className = "wpd-mindmap__empty";
+          empty.textContent = __(
+            'No custom categories yet. Click "Add root category" to start branching.'
+          );
+          stage.appendChild(empty);
+        }
+      } else if (existing) {
+        existing.remove();
+      }
+    }
     function buildTree() {
       const childMap = /* @__PURE__ */ new Map();
       for (const t of terms) {
@@ -2234,6 +2249,7 @@ var desktopModePostsWindow = function(exports) {
       if (uncategorized) {
         placeIsolated(uncategorized);
       }
+      syncEmptyHint();
     }
     function placeIsolated(term) {
       const tx = 0;
@@ -3764,14 +3780,6 @@ var desktopModePostsWindow = function(exports) {
     preSettlePhysics(80);
     raf = requestAnimationFrame(tick);
     void refreshCountsViaBulk();
-    if (terms.length <= 1) {
-      const empty = document.createElement("div");
-      empty.className = "wpd-mindmap__empty";
-      empty.textContent = __(
-        'No custom categories yet. Click "Add root category" to start branching.'
-      );
-      stage.appendChild(empty);
-    }
     return () => {
       if (raf !== null) {
         cancelAnimationFrame(raf);
