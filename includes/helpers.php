@@ -24,8 +24,6 @@ defined( 'ABSPATH' ) || exit;
  * filter — see docs/examples/gate-by-role.md.
  *
  * @since 0.1.0
- * @since 0.7.3 Honors the `desktop_mode_mode_enabled` filter; accepts an
- *              optional `$user_id` argument (default: current user).
  *
  * @param int $user_id Optional. User ID to check. Defaults to the
  *                     current user.

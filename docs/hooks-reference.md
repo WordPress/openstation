@@ -387,8 +387,6 @@ A `false` return has two effects:
 1. The AJAX save endpoint refuses to flip the user meta to `'1'` (it returns `desktop_mode_disabled`).
 2. `desktop_mode_is_enabled()` returns `false` for that user even when their existing meta is `'1'`. Every render-time gate that consults the helper (and there are many — see `includes/render.php`, `includes/components.php`, `includes/recycle-bin/rest.php`, `includes/pwa.php`, `includes/presence.php`, `includes/admin-bar.php`) treats the user as not-enabled.
 
-Since 0.7.3 the helper itself runs the filter; earlier versions only ran it inside the AJAX save and portal entry, so a user whose meta was already `'1'` could still see chromeless renders and shell payloads even when a filter denied them.
-
 ---
 
 ### `desktop_mode_shell_config` — Stable

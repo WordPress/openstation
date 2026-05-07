@@ -97,9 +97,6 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 
 == Changelog ==
 
-= 0.7.3 =
-* `desktop_mode_is_enabled()` now honors the `desktop_mode_mode_enabled` filter. Render-time gates that consult the helper (chromeless detection, shell payloads, the recycle-bin REST callback, presence, PWA, the admin-bar toggle) now see filter denials. Behavior change: a user whose `desktop_mode_mode` user-meta was previously set to `'1'` but who is now denied by the filter will be treated as not-enabled. To preserve the pre-0.7.3 leaky behavior, leave the filter off and gate at the AJAX save / portal entry only by clearing user meta directly.
-
 = 0.5.1 =
 * Code editor and framework improvements.
 * Enhanced AI provider integration: third-party providers may register through `desktop_mode_register_ai_provider()`.
