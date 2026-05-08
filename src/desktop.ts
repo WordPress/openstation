@@ -102,7 +102,7 @@ import {
 	bootstrapPwa,
 	type NotifyOptions,
 } from './pwa';
-import { getInstallTileDef } from './pwa/install';
+import { getInstallTileDef, isStandaloneDisplay } from './pwa/install';
 import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
@@ -1736,17 +1736,22 @@ function init(): void {
 
 		// PWA install tile — sits next to OS Settings on the same
 		// rail (`'core'` affinity) so users see install / settings as
-		// peer shell-owned actions. The tile registers
-		// unconditionally; its onOpen handles the
-		// "browser hasn't decided we're installable yet" path with a
-		// contextual toast rather than disappearing.
-		layoutDispatcher.appendSystemTile(
-			getInstallTileDef(
-				config.pwa?.appName || 'WordPress',
-				showToast,
-			),
-			'core',
-		);
+		// peer shell-owned actions. Skipped entirely when the shell
+		// itself is already running inside the installed PWA window
+		// (`display-mode: standalone`) — there's nothing to install
+		// from there, and a perpetually-no-op icon is just noise.
+		// Browsers' window mode is fixed at boot, so a single check
+		// here is sufficient — there's no transition during a
+		// session that would change the answer.
+		if ( ! isStandaloneDisplay() ) {
+			layoutDispatcher.appendSystemTile(
+				getInstallTileDef(
+					config.pwa?.appName || 'WordPress',
+					showToast,
+				),
+				'core',
+			);
+		}
 	}
 
 	/**
