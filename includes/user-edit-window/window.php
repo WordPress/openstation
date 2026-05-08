@@ -72,25 +72,20 @@ function desktop_mode_user_edit_window_render_template() {
  */
 function desktop_mode_user_edit_window_color_schemes() {
 	$out = array();
-	// Defensive: `register_admin_color_schemes` lives in
-	// wp-admin/includes/admin.php and assumes admin context. On
-	// `init` (which fires for every request including the front
-	// end via REST) we may not be there yet, and pulling in the
-	// whole admin include just to read the colour map is a
-	// non-trivial side effect. Only attempt the registration when
-	// we're already in admin AND the function is available; fall
-	// back to a minimal "fresh" entry on the front end so the
-	// window still registers.
-	if ( is_admin() ) {
-		if ( ! function_exists( 'register_admin_color_schemes' ) ) {
-			$admin_inc = ABSPATH . 'wp-admin/includes/admin.php';
-			if ( is_readable( $admin_inc ) ) {
-				require_once $admin_inc;
-			}
+	// Always pull in `wp-admin/includes/admin.php` if needed so the
+	// admin colour scheme registry is available — the user-edit
+	// window may render via REST (where `is_admin()` returns false
+	// but `current_user_can( 'edit_user', … )` is the real gate).
+	// The include is guarded by `is_readable` so a stripped-down
+	// install without admin/ on disk still degrades gracefully.
+	if ( ! function_exists( 'register_admin_color_schemes' ) ) {
+		$admin_inc = ABSPATH . 'wp-admin/includes/admin.php';
+		if ( is_readable( $admin_inc ) ) {
+			require_once $admin_inc;
 		}
-		if ( function_exists( 'register_admin_color_schemes' ) ) {
-			register_admin_color_schemes();
-		}
+	}
+	if ( function_exists( 'register_admin_color_schemes' ) ) {
+		register_admin_color_schemes();
 	}
 	global $_wp_admin_css_colors;
 	if ( is_array( $_wp_admin_css_colors ) ) {
