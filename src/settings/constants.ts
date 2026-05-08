@@ -171,6 +171,9 @@ export const DEFAULTS: OsSettingsState = {
 	// `edit.php` iframe, but the new default is "use the native UI."
 	nativePostsEnabled: true,
 	nativePostsHiddenColumns: [],
+	// Same opt-out posture as Posts — fresh installs land on the
+	// native Pages window, users can flip back to the iframe.
+	nativePagesEnabled: true,
 };
 
 /**

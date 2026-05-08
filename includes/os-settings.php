@@ -91,6 +91,10 @@ function desktop_mode_default_os_settings() {
 		// every column is visible. The sticky 'title' column is always
 		// shown — the UI prevents toggling it.
 		'nativePostsHiddenColumns' => array(),
+		// Per-user opt-OUT for the native Pages window. Same posture as
+		// nativePostsEnabled — defaults ON, users can flip off to keep
+		// the classic `edit.php?post_type=page` iframe.
+		'nativePagesEnabled'       => true,
 	);
 }
 
@@ -307,6 +311,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		$native_posts_hidden_columns = array_slice( array_values( array_unique( $native_posts_hidden_columns ) ), 0, 32 );
 	}
 
+	$native_pages_enabled = isset( $raw['nativePagesEnabled'] )
+		? (bool) $raw['nativePagesEnabled']
+		: $defaults['nativePagesEnabled'];
+
 	return array(
 		'wallpaper'                => $wallpaper,
 		'accent'                   => $accent,
@@ -319,6 +327,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'ai'                       => $ai,
 		'nativePostsEnabled'       => $native_posts_enabled,
 		'nativePostsHiddenColumns' => $native_posts_hidden_columns,
+		'nativePagesEnabled'       => $native_pages_enabled,
 	);
 }
 

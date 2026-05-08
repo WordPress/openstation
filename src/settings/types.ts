@@ -140,6 +140,16 @@ export interface OsSettingsState {
 	 * @since 0.8.0
 	 */
 	nativePostsHiddenColumns: string[];
+	/**
+	 * Per-user opt-in for the native Pages window. When true, clicking
+	 * the Pages dock tile (or any link to `edit.php?post_type=page`)
+	 * opens the `<wpd-table>`-driven native window instead of the
+	 * chromeless iframe. Defaults on — see the matching default in
+	 * `constants.ts`.
+	 *
+	 * @since 0.18.0
+	 */
+	nativePagesEnabled: boolean;
 }
 
 /**

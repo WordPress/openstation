@@ -21,6 +21,50 @@ declare global {
 }
 
 export interface PostsWindowConfig {
+	/**
+	 * Window mode — `'posts'` (default) or `'pages'`. Drives JS-side
+	 * branches: which intro dialog to show, whether to bind taxonomy
+	 * tabs, the column set, and the {@link introSlug} default. Absent
+	 * on Posts-window configs registered before 0.18 (treated as
+	 * `'posts'`).
+	 *
+	 * @since 0.18.0
+	 */
+	mode?: 'posts' | 'pages';
+	/**
+	 * Intro-dialog slug — `'posts'` for the canonical Posts window,
+	 * `'pages'` for the Pages window, plus any plugin-introduced
+	 * variant. Falls back to `mode` (or `'posts'` if `mode` is also
+	 * absent) so legacy Posts configs keep working unchanged.
+	 *
+	 * @since 0.18.0
+	 */
+	introSlug?: string;
+	/**
+	 * Page id assigned as the static front page (`page_on_front`),
+	 * or `0` when the site uses the latest-posts homepage. Pages-mode
+	 * only — the title cell paints a "Front page" badge on the row
+	 * matching this id.
+	 *
+	 * @since 0.18.0
+	 */
+	frontPageId?: number;
+	/**
+	 * Page id assigned as the blog-posts page (`page_for_posts`), or
+	 * `0` when unset. Same pattern as {@link frontPageId}.
+	 *
+	 * @since 0.18.0
+	 */
+	postsPageId?: number;
+	/**
+	 * `{ slug: label }` map for the active theme's registered page
+	 * templates. The Template column reads this to paint friendly
+	 * names instead of raw filenames. Falls back to the slug when a
+	 * theme registers a template the table doesn't yet know.
+	 *
+	 * @since 0.18.0
+	 */
+	pageTemplates?: Record< string, string >;
 	/** Base REST URL — used to derive sibling endpoints (`/wp/v2/users`, …). */
 	restRoot: string;
 	/** Nonce for `X-WP-Nonce`. */
@@ -78,6 +122,40 @@ export interface PostListItem {
 	author: number;
 	categories: number[];
 	tags: number[];
+	/**
+	 * Parent post id. `0` for top-level rows. Pages are hierarchical
+	 * and surface this via `/wp/v2/pages`; the Posts collection always
+	 * returns `0`. Optional so legacy callers don't need to add the
+	 * field to their `_fields` whitelist.
+	 *
+	 * @since 0.18.0
+	 */
+	parent?: number;
+	/**
+	 * `menu_order` field (also primarily used by Pages). Optional for
+	 * the same reason as {@link parent}.
+	 *
+	 * @since 0.18.0
+	 */
+	menu_order?: number;
+	/** URL-friendly slug. Optional — Posts callers may not include it. */
+	slug?: string;
+	/** Public permalink (front-end view URL). */
+	link?: string;
+	/**
+	 * Page-template slug (`'page-fullwidth.php'`, …) or `''` for the
+	 * default. Surfaced on `/wp/v2/pages`; absent on `/wp/v2/posts`.
+	 */
+	template?: string;
+	/**
+	 * Comments count for this row, surfaced via the
+	 * `desktop_mode_comment_count` REST field registered in
+	 * `includes/pages-window/window.php`. Absent for callers that
+	 * don't include the field in `_fields`.
+	 *
+	 * @since 0.18.0
+	 */
+	desktop_mode_comment_count?: number;
 	comment_status: 'open' | 'closed';
 	excerpt?: { rendered: string; protected?: boolean };
 	desktop_mode_lock?: PostListItemLock | null;
@@ -140,7 +218,37 @@ export interface TrashResult {
 	error?: string;
 }
 
-const WINDOW_ID = 'desktop-mode-posts';
+/**
+ * Default window id this module reads its config from. Mutated by
+ * {@link setActiveWindowId} when the shared bundle is rendering for a
+ * sibling list window (Pages, future CPTs).
+ *
+ * Module-level mutation is acceptable here: each list window's
+ * render-and-fetch flow is short-lived and the registry entries at
+ * the bottom of `index.ts` set the id BEFORE handing control to the
+ * shared render function. The pattern intentionally avoids threading
+ * a windowId argument through every helper at the cost of being
+ * non-reentrant for two list windows opened in the same animation
+ * frame — an edge case that, on closing-and-reopening, is harmless.
+ *
+ * @since 0.18.0
+ */
+let _activeWindowId = 'desktop-mode-posts';
+
+/**
+ * Override the window id `getConfig()` reads. Call before invoking
+ * the render function for a non-Posts list window.
+ *
+ * @since 0.18.0
+ */
+export function setActiveWindowId( id: string ): void {
+	_activeWindowId = id;
+}
+
+/** The window id `getConfig()` is currently bound to. */
+export function getActiveWindowId(): string {
+	return _activeWindowId;
+}
 
 /**
  * Read the localized config blob. The window registers via PHP's
@@ -151,12 +259,12 @@ const WINDOW_ID = 'desktop-mode-posts';
  */
 export function getConfig(): PostsWindowConfig {
 	const store = window.desktopModeWindowConfig;
-	const cfg = store ? ( store[ WINDOW_ID ] as PostsWindowConfig | undefined ) : undefined;
+	const cfg = store ? ( store[ _activeWindowId ] as PostsWindowConfig | undefined ) : undefined;
 	if ( ! cfg ) {
 		throw new Error(
-			'[desktop-mode-posts] config blob is missing — was the window opened ' +
-				'without registration? See `desktop_mode_register_window()` in ' +
-				'`includes/posts-window/window.php`.',
+			`[${ _activeWindowId }] config blob is missing — was the window opened ` +
+				'without registration? See the matching `desktop_mode_register_window()` ' +
+				'call in `includes/{posts,pages}-window/window.php`.',
 		);
 	}
 	return cfg;

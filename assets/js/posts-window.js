@@ -1025,13 +1025,19 @@ var desktopModePostsWindow = function(exports) {
       }
     };
   }
-  const WINDOW_ID = "desktop-mode-posts";
+  let _activeWindowId = "desktop-mode-posts";
+  function setActiveWindowId(id) {
+    _activeWindowId = id;
+  }
+  function getActiveWindowId() {
+    return _activeWindowId;
+  }
   function getConfig() {
     const store = window.desktopModeWindowConfig;
-    const cfg = store ? store[WINDOW_ID] : void 0;
+    const cfg = store ? store[_activeWindowId] : void 0;
     if (!cfg) {
       throw new Error(
-        "[desktop-mode-posts] config blob is missing — was the window opened without registration? See `desktop_mode_register_window()` in `includes/posts-window/window.php`."
+        `[${_activeWindowId}] config blob is missing — was the window opened without registration? See the matching \`desktop_mode_register_window()\` call in \`includes/{posts,pages}-window/window.php\`.`
       );
     }
     return cfg;
@@ -1378,36 +1384,39 @@ var desktopModePostsWindow = function(exports) {
     }
     return fn(options);
   }
-  const POSTS_INTRO_SLUG = "posts";
-  let postsIntroShown = false;
-  function maybeShowPostsIntro() {
-    if (postsIntroShown) {
-      return;
-    }
+  const _introShown = /* @__PURE__ */ Object.create(null);
+  function maybeShowIntro() {
     let cfg;
     try {
       cfg = getConfig();
     } catch {
       return;
     }
+    const slug = cfg.introSlug || cfg.mode || "posts";
+    if (_introShown[slug]) {
+      return;
+    }
     if (cfg.introSeen) {
       return;
     }
-    postsIntroShown = true;
-    void showPostsIntroDialog().then((result) => {
+    _introShown[slug] = true;
+    const dialogPromise = slug === "pages" ? Promise.resolve().then(() => pagesIntroDialog).then(
+      (m) => m.showPagesIntroDialog()
+    ) : showPostsIntroDialog();
+    void dialogPromise.then((result) => {
       if (result === "cancel") {
-        postsIntroShown = false;
+        _introShown[slug] = false;
         return;
       }
-      void markPostsIntroSeen(cfg);
+      void markIntroSeen(cfg, slug);
       if (result === "settings") {
         openOsSettingsFeatures();
       }
     }).catch(() => {
-      postsIntroShown = false;
+      _introShown[slug] = false;
     });
   }
-  async function markPostsIntroSeen(cfg) {
+  async function markIntroSeen(cfg, slug) {
     if (!cfg.introUrl) {
       return;
     }
@@ -1421,9 +1430,12 @@ var desktopModePostsWindow = function(exports) {
             "Content-Type": "application/json",
             "X-WP-Nonce": cfg.restNonce
           },
-          body: JSON.stringify({ slug: POSTS_INTRO_SLUG })
+          body: JSON.stringify({ slug })
         },
-        { windowId: "desktop-mode-posts", source: "posts-window/intro" }
+        {
+          windowId: getActiveWindowId(),
+          source: `${slug}-window/intro`
+        }
       );
       cfg.introSeen = true;
     } catch {
@@ -1565,25 +1577,84 @@ var desktopModePostsWindow = function(exports) {
     );
   }
   function _buildBaseColumns(cache, filterData) {
-    return [
-      {
-        key: "title",
-        label: __("Title"),
-        sortable: true,
-        sticky: true,
-        render: (_v, row) => memoCell(cache, row.id, "title", () => buildTitleCell(row))
-      },
-      {
-        key: "author",
-        label: __("Author"),
-        sortable: true,
+    let mode = "posts";
+    try {
+      const cfg = getConfig();
+      if (cfg.mode === "pages") {
+        mode = "pages";
+      }
+    } catch {
+    }
+    const titleCol = {
+      key: "title",
+      label: __("Title"),
+      sortable: true,
+      sticky: true,
+      render: (_v, row) => memoCell(cache, row.id, "title", () => buildTitleCell(row))
+    };
+    const authorCol = {
+      key: "author",
+      label: __("Author"),
+      sortable: true,
+      width: "180px",
+      filterRender: (host, ctx) => renderMultiSelectFilter(host, ctx, filterData.authors, {
+        label: __("All authors"),
+        ariaLabel: __("Filter by author")
+      }),
+      render: (_v, row) => memoCell(cache, row.id, "author", () => buildAuthorCell(row))
+    };
+    const dateCol = {
+      key: "date",
+      label: __("Date"),
+      sortable: true,
+      width: "170px",
+      sortValue: (row) => Date.parse(row.date_gmt + "Z") || 0,
+      render: (_v, row) => memoCell(cache, row.id, "date", () => buildDateCell(row))
+    };
+    if (mode === "pages") {
+      const parentCol = {
+        key: "parent",
+        label: __("Parent"),
+        width: "200px",
+        render: (_v, row) => memoCell(cache, row.id, "parent", () => buildParentCell(row))
+      };
+      const templateCol = {
+        key: "template",
+        label: __("Template"),
         width: "180px",
-        filterRender: (host, ctx) => renderMultiSelectFilter(host, ctx, filterData.authors, {
-          label: __("All authors"),
-          ariaLabel: __("Filter by author")
-        }),
-        render: (_v, row) => memoCell(cache, row.id, "author", () => buildAuthorCell(row))
-      },
+        render: (_v, row) => memoCell(cache, row.id, "template", () => buildTemplateCell(row))
+      };
+      const slugCol = {
+        key: "slug",
+        label: __("Slug"),
+        width: "200px",
+        render: (_v, row) => memoCell(cache, row.id, "slug", () => buildSlugCell(row))
+      };
+      const commentsCol = {
+        key: "comments",
+        label: __("Comments"),
+        width: "110px",
+        sortValue: (row) => typeof row.desktop_mode_comment_count === "number" ? row.desktop_mode_comment_count : 0,
+        render: (_v, row) => memoCell(
+          cache,
+          row.id,
+          "comments",
+          () => buildCommentsCell(row)
+        )
+      };
+      return [
+        titleCol,
+        authorCol,
+        parentCol,
+        templateCol,
+        slugCol,
+        commentsCol,
+        dateCol
+      ];
+    }
+    return [
+      titleCol,
+      authorCol,
       {
         key: "categories",
         label: __("Categories"),
@@ -1597,11 +1668,11 @@ var desktopModePostsWindow = function(exports) {
       },
       {
         key: "tags",
-        label: __("Tags"),
         // Drop the fixed width so the column flexes with the
         // available space; pin a minimum that comfortably holds
         // ~4 chips on one line so the cell doesn't collapse the
         // tags into a vertical stack on narrow tables.
+        label: __("Tags"),
         minWidth: "360px",
         filterRender: (host, ctx) => renderMultiSelectFilter(
           host,
@@ -1617,15 +1688,132 @@ var desktopModePostsWindow = function(exports) {
         ),
         render: (_v, row) => memoCell(cache, row.id, "tags", () => buildTagsCell(row))
       },
-      {
-        key: "date",
-        label: __("Date"),
-        sortable: true,
-        width: "170px",
-        sortValue: (row) => Date.parse(row.date_gmt + "Z") || 0,
-        render: (_v, row) => memoCell(cache, row.id, "date", () => buildDateCell(row))
-      }
+      dateCol
     ];
+  }
+  const _parentTitleByPageRoster = /* @__PURE__ */ new Map();
+  function buildParentCell(row) {
+    const cell = document.createElement("span");
+    cell.className = "desktop-mode-posts__parent";
+    const pid = typeof row.parent === "number" ? row.parent : 0;
+    if (pid === 0) {
+      cell.classList.add("desktop-mode-posts__parent--top");
+      cell.textContent = "—";
+      cell.setAttribute("aria-label", __("Top-level page"));
+      return cell;
+    }
+    cell.classList.add("desktop-mode-posts__parent--child");
+    const titleFromRoster = _parentTitleByPageRoster.get(pid);
+    if (titleFromRoster) {
+      cell.textContent = `↳ ${titleFromRoster}`;
+    } else {
+      cell.textContent = sprintf(__("↳ #%d"), pid);
+    }
+    return cell;
+  }
+  function refreshParentTitleRoster(rows) {
+    _parentTitleByPageRoster.clear();
+    for (const row of rows) {
+      _parentTitleByPageRoster.set(row.id, decodeTitle(row.title.rendered));
+    }
+  }
+  function buildTemplateCell(row) {
+    const cell = document.createElement("span");
+    cell.className = "desktop-mode-posts__template";
+    const slug = typeof row.template === "string" ? row.template : "";
+    let label = slug;
+    try {
+      const cfg = getConfig();
+      const map = cfg.pageTemplates ?? {};
+      label = map[slug] ?? (slug === "" ? __("Default template") : slug);
+    } catch {
+      label = slug === "" ? __("Default template") : slug;
+    }
+    cell.textContent = label;
+    if (slug !== "") {
+      cell.title = slug;
+    }
+    return cell;
+  }
+  function buildSlugCell(row) {
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "desktop-mode-posts__slug";
+    const slug = typeof row.slug === "string" ? row.slug : "";
+    cell.textContent = slug || "—";
+    cell.disabled = slug === "";
+    cell.title = slug ? __("Click to copy slug") : "";
+    Object.assign(cell.style, {
+      appearance: "none",
+      background: "transparent",
+      border: "none",
+      padding: "2px 6px",
+      font: "inherit",
+      color: "inherit",
+      cursor: slug ? "copy" : "default",
+      textAlign: "left",
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+      fontSize: "12px",
+      borderRadius: "4px",
+      maxWidth: "100%",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    });
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!slug) {
+        return;
+      }
+      void navigator.clipboard?.writeText(slug).then(() => {
+        cell.textContent = __("Copied!");
+        cell.style.color = "var(--wp-admin-theme-color, #2271b1)";
+        setTimeout(() => {
+          cell.textContent = slug;
+          cell.style.color = "";
+        }, 1200);
+      }).catch(() => {
+      });
+    });
+    return cell;
+  }
+  function buildCommentsCell(row) {
+    const cell = document.createElement("span");
+    cell.className = "desktop-mode-posts__comments";
+    Object.assign(cell.style, {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+      fontVariantNumeric: "tabular-nums"
+    });
+    const count = typeof row.desktop_mode_comment_count === "number" ? row.desktop_mode_comment_count : null;
+    if (count === null) {
+      cell.textContent = "—";
+      cell.style.color = "var(--wp-admin-theme-fg-muted, #8c8f94)";
+      return cell;
+    }
+    const icon = document.createElement("span");
+    icon.className = "dashicons dashicons-admin-comments";
+    icon.setAttribute("aria-hidden", "true");
+    Object.assign(icon.style, {
+      fontSize: "16px",
+      width: "16px",
+      height: "16px",
+      color: count > 0 ? "var(--wp-admin-theme-color, #2271b1)" : "var(--wp-admin-theme-fg-muted, #8c8f94)"
+    });
+    const label = document.createElement("span");
+    label.textContent = String(count);
+    if (count === 0) {
+      label.style.color = "var(--wp-admin-theme-fg-muted, #8c8f94)";
+    }
+    cell.appendChild(icon);
+    cell.appendChild(label);
+    cell.setAttribute(
+      "aria-label",
+      // translators: %d is the comment count for a row.
+      `${sprintf(__("%d comments"), count)}`
+    );
+    return cell;
   }
   function renderMultiSelectFilter(host, ctx, all, opts) {
     const HOST_KEY = "wpdPostsFilterMounted";
@@ -1922,6 +2110,34 @@ var desktopModePostsWindow = function(exports) {
       lockBadge.title = sprintf(tipFmt, lock.userName);
       titleRow.appendChild(lockBadge);
     }
+    let cfgForBadges = null;
+    try {
+      cfgForBadges = getConfig();
+    } catch {
+      cfgForBadges = null;
+    }
+    if (cfgForBadges && cfgForBadges.mode === "pages") {
+      if (typeof cfgForBadges.frontPageId === "number" && cfgForBadges.frontPageId === row.id) {
+        titleRow.appendChild(
+          buildAssignmentBadge(
+            __("Front page"),
+            "dashicons-admin-home",
+            "#0a4b78",
+            "rgba(34,113,177,0.12)"
+          )
+        );
+      }
+      if (typeof cfgForBadges.postsPageId === "number" && cfgForBadges.postsPageId === row.id) {
+        titleRow.appendChild(
+          buildAssignmentBadge(
+            __("Posts page"),
+            "dashicons-admin-post",
+            "#5b3aa0",
+            "rgba(91,58,160,0.12)"
+          )
+        );
+      }
+    }
     if (row.status && row.status !== "publish") {
       const badge = document.createElement("span");
       const colors = statusBadgeColor(row.status);
@@ -1942,8 +2158,56 @@ var desktopModePostsWindow = function(exports) {
       ].join(";");
       titleRow.appendChild(badge);
     }
+    if (cfgForBadges?.mode === "pages" && typeof row.link === "string" && row.link && row.status === "publish") {
+      const view = document.createElement("a");
+      view.href = row.link;
+      view.target = "_blank";
+      view.rel = "noreferrer noopener";
+      view.textContent = __("View");
+      view.title = row.link;
+      view.setAttribute("data-noclick", "");
+      view.style.cssText = [
+        "font-size:11px",
+        "color:var(--wp-admin-theme-color, #2271b1)",
+        "text-decoration:none",
+        "flex-shrink:0"
+      ].join(";");
+      view.addEventListener("click", (e) => e.stopPropagation());
+      view.addEventListener("mouseenter", () => {
+        view.style.textDecoration = "underline";
+      });
+      view.addEventListener("mouseleave", () => {
+        view.style.textDecoration = "none";
+      });
+      titleRow.appendChild(view);
+    }
     cell.appendChild(titleRow);
     return cell;
+  }
+  function buildAssignmentBadge(label, dashicon, fg, bg) {
+    const badge = document.createElement("span");
+    badge.style.cssText = [
+      "display:inline-flex",
+      "align-items:center",
+      "gap:4px",
+      "padding:2px 8px",
+      "border-radius:10px",
+      "font-size:11px",
+      "font-weight:600",
+      `background:${bg}`,
+      `color:${fg}`,
+      "white-space:nowrap",
+      "flex-shrink:0"
+    ].join(";");
+    const icon = document.createElement("span");
+    icon.className = `dashicons ${dashicon}`;
+    icon.setAttribute("aria-hidden", "true");
+    icon.style.cssText = "font-size:13px;width:13px;height:13px;line-height:1;";
+    const text = document.createElement("span");
+    text.textContent = label;
+    badge.appendChild(icon);
+    badge.appendChild(text);
+    return badge;
   }
   function buildAuthorCell(row) {
     const a = authorOf(row);
@@ -2513,7 +2777,7 @@ var desktopModePostsWindow = function(exports) {
     if (!root || !table) {
       return;
     }
-    maybeShowPostsIntro();
+    maybeShowIntro();
     const catsHost = body.querySelector(
       "[data-desktop-mode-posts-cats-host]"
     );
@@ -2661,6 +2925,7 @@ var desktopModePostsWindow = function(exports) {
           return;
         }
         cellCache.clear();
+        refreshParentTitleRoster(result.items);
         table.data = result.items;
         totalRows = result.total;
         totalPages = result.totalPages;
@@ -3015,10 +3280,186 @@ var desktopModePostsWindow = function(exports) {
   }
   const registry = window.desktopModeNativeWindows ?? (window.desktopModeNativeWindows = {});
   registry["desktop-mode-posts"] = (body) => {
+    setActiveWindowId("desktop-mode-posts");
     return renderPostsWindow(body).catch((err) => {
       console.error("[posts-window] render failed:", err);
     });
   };
+  registry["desktop-mode-pages"] = (body) => {
+    setActiveWindowId("desktop-mode-pages");
+    return renderPostsWindow(body).catch((err) => {
+      console.error("[pages-window] render failed:", err);
+    });
+  };
+  async function showPagesIntroDialog() {
+    return new Promise((resolve) => {
+      const backdrop = document.createElement("div");
+      backdrop.className = "desktop-mode-pages-intro__backdrop";
+      backdrop.setAttribute("role", "presentation");
+      Object.assign(backdrop.style, {
+        position: "fixed",
+        inset: "0",
+        background: "color-mix(in srgb, var(--wp-admin-theme-color, #1d2327) 60%, transparent)",
+        backdropFilter: "blur(2px)",
+        zIndex: "100000",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px"
+      });
+      const dialog = document.createElement("div");
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute("aria-labelledby", "desktop-mode-pages-intro-title");
+      dialog.className = "desktop-mode-pages-intro";
+      Object.assign(dialog.style, {
+        background: "var(--wp-admin-theme-bg, #fff)",
+        color: "var(--wp-admin-theme-fg, #1d2327)",
+        borderRadius: "14px",
+        boxShadow: "0 24px 60px rgba(0,0,0,.28)",
+        maxWidth: "520px",
+        width: "100%",
+        maxHeight: "90vh",
+        overflow: "auto",
+        padding: "28px 32px 24px",
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+      });
+      dialog.innerHTML = renderDialogMarkup();
+      backdrop.appendChild(dialog);
+      document.body.appendChild(backdrop);
+      const primaryBtn = dialog.querySelector(
+        '[data-action="confirm"]'
+      );
+      const settingsBtn = dialog.querySelector(
+        '[data-action="settings"]'
+      );
+      primaryBtn?.focus();
+      let resolved = false;
+      const cleanup = (result) => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        document.removeEventListener("keydown", onKey, true);
+        backdrop.remove();
+        resolve(result);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          cleanup("cancel");
+        }
+      };
+      document.addEventListener("keydown", onKey, true);
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) {
+          cleanup("cancel");
+        }
+      });
+      primaryBtn?.addEventListener("click", () => cleanup("confirm"));
+      settingsBtn?.addEventListener("click", () => cleanup("settings"));
+    });
+  }
+  function renderDialogMarkup() {
+    const title = __("Welcome to the new Pages window");
+    const lede = __(
+      "You're looking at the redesigned Pages list — same data you already manage, with a UX tuned for how Desktop Mode wants you to work."
+    );
+    const highlights = [
+      __("Sticky header and sticky title column so long lists stay readable as you scroll."),
+      __('Front page and Posts page badges right on the title — no more "wait, which one is the homepage?".'),
+      __("Page Template column so you can spot which template each page uses at a glance."),
+      __("Slug column with one-click copy — perfect when configuring redirects or sharing canonical URLs."),
+      __("Comments column, Parent column, View link, lock indicator, multi-select bulk actions, inline search, status segments. All in one screen, no reloads.")
+    ];
+    const li = (arr) => arr.map(
+      (s) => `<li><span class="dot" aria-hidden="true"></span>${escapeHtml(s)}</li>`
+    ).join("");
+    return `
+		<style>
+			.desktop-mode-pages-intro h2 {
+				margin: 0 0 8px;
+				font-size: 22px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+			}
+			.desktop-mode-pages-intro p.lede {
+				margin: 0 0 20px;
+				color: var(--wp-admin-theme-fg-muted, #50575e);
+				font-size: 14px;
+				line-height: 1.5;
+			}
+			.desktop-mode-pages-intro__list {
+				list-style: none;
+				margin: 0 0 22px;
+				padding: 0;
+				font-size: 14px;
+				line-height: 1.5;
+			}
+			.desktop-mode-pages-intro__list li {
+				display: flex;
+				align-items: flex-start;
+				gap: 10px;
+				padding: 6px 0;
+			}
+			.desktop-mode-pages-intro__list .dot {
+				flex: 0 0 auto;
+				width: 6px;
+				height: 6px;
+				margin-top: 9px;
+				border-radius: 50%;
+				background: var(--wp-admin-theme-color, #2271b1);
+			}
+			.desktop-mode-pages-intro__footer {
+				display: flex;
+				justify-content: flex-end;
+				gap: 8px;
+				margin-top: 8px;
+			}
+			.desktop-mode-pages-intro__footer button {
+				appearance: none;
+				border: 1px solid var(--wp-admin-theme-border, #dcdcde);
+				background: var(--wp-admin-theme-bg, #fff);
+				color: inherit;
+				padding: 8px 14px;
+				border-radius: 6px;
+				font-size: 13px;
+				cursor: pointer;
+			}
+			.desktop-mode-pages-intro__footer button.primary {
+				border-color: var(--wp-admin-theme-color, #2271b1);
+				background: var(--wp-admin-theme-color, #2271b1);
+				color: #fff;
+				font-weight: 500;
+			}
+			.desktop-mode-pages-intro__footer button:hover { filter: brightness(1.05); }
+			.desktop-mode-pages-intro__footer button:focus-visible {
+				outline: 2px solid var(--wp-admin-theme-color, #2271b1);
+				outline-offset: 2px;
+			}
+		</style>
+		<h2 id="desktop-mode-pages-intro-title">${escapeHtml(title)}</h2>
+		<p class="lede">${escapeHtml(lede)}</p>
+		<ul class="desktop-mode-pages-intro__list">${li(highlights)}</ul>
+		<div class="desktop-mode-pages-intro__footer">
+			<button type="button" data-action="settings">${escapeHtml(
+      __("Take me to settings")
+    )}</button>
+			<button type="button" class="primary" data-action="confirm">${escapeHtml(
+      __("Got it")
+    )}</button>
+		</div>
+	`;
+  }
+  function escapeHtml(s) {
+    const t = document.createElement("div");
+    t.textContent = s;
+    return t.innerHTML;
+  }
+  const pagesIntroDialog = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    showPagesIntroDialog
+  }, Symbol.toStringTag, { value: "Module" }));
   const REPULSION_K = 5500;
   const SPRING_K = 0.05;
   const SPRING_LEN = 130;

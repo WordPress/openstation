@@ -38,6 +38,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onNativePagesToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.nativePagesEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
 	let resetting = false;
 	const onResetIntros = async (): Promise< void > => {
 		if ( resetting ) {
@@ -87,6 +94,16 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 					<p class="desktop-mode-features__hint">
 						${ __(
 							'Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.',
+						) }
+					</p>
+					<wpd-checkbox-label
+						label=${ __( 'Use the native Pages window' ) }
+						?checked=${ ctx.state.nativePagesEnabled }
+						@wpd-checkbox-change=${ onNativePagesToggle }
+					></wpd-checkbox-label>
+					<p class="desktop-mode-features__hint">
+						${ __(
+							'Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.',
 						) }
 					</p>
 					<div class="desktop-mode-features__row">

@@ -140,6 +140,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			// more than any plausible column count.
 				.slice( 0, 32 )
 			: DEFAULTS.nativePostsHiddenColumns.slice(),
+		nativePagesEnabled:
+			typeof parsed.nativePagesEnabled === 'boolean'
+				? parsed.nativePagesEnabled
+				: DEFAULTS.nativePagesEnabled,
 	};
 }
 

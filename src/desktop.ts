@@ -1663,6 +1663,22 @@ function init(): void {
 		enabled: ( snapshot ) => snapshot.nativePostsEnabled === true,
 	} );
 
+	// Native Pages window — same shape as the Posts remap, scoped to
+	// `?post_type=page` only. Other CPTs continue to fall through to
+	// the chromeless iframe path until they grow their own native
+	// window registration.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-pages',
+		nativeWindowId: 'desktop-mode-pages',
+		matches: ( _url, parsed ) => {
+			if ( ! parsed.pathname.endsWith( '/edit.php' ) ) {
+				return false;
+			}
+			return parsed.searchParams.get( 'post_type' ) === 'page';
+		},
+		enabled: ( snapshot ) => snapshot.nativePagesEnabled === true,
+	} );
+
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'desktop-mode-area--with-dock' );
 		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
