@@ -25,6 +25,12 @@
 
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './wpd-icon.styles';
+import { primeOnLoad, resolveDashicon } from './dashicons-map';
+
+// Prime the dashicons codepoint cache the moment the module
+// loads. Idempotent across components — every consumer can call
+// this freely.
+primeOnLoad();
 
 export class WpdIcon extends Component {
 	static props = [ 'name', 'size' ] as const;
@@ -75,10 +81,29 @@ export class WpdIcon extends Component {
 			this.style.setProperty( '--wpd-icon-size', `${ size }px` );
 		}
 
-		// The inner span carries the dashicons class so WP's font
-		// rendering picks it up naturally. aria-hidden because the
-		// glyph is presentational — callers needing an accessible
-		// label wrap the icon in a button/link with its own aria.
+		// Resolve the codepoint upfront. Inside shadow DOM (the
+		// component's own shadow root, plus any nested `<wpd-table>`
+		// cell etc.) the document-level `.dashicons-foo:before
+		// { content: "\fXXX" }` rule doesn't apply, so the classic
+		// class-only recipe paints an empty box. Emitting the glyph
+		// as text content with `font-family: dashicons` from the
+		// component's shadow CSS works everywhere.
+		const char = resolveDashicon( slug );
+
+		// aria-hidden because the glyph is presentational —
+		// callers needing an accessible label wrap the icon in a
+		// button/link with its own aria.
+		if ( char ) {
+			return html`<span
+				class="wpd-icon__glyph wpd-icon__glyph--char dashicons dashicons-${ slug }"
+				aria-hidden="true"
+			>${ char }</span>`;
+		}
+		// Fallback to the class-only recipe — works in light DOM,
+		// degrades gracefully (visible-but-empty) when the
+		// codepoint resolver hasn't seen the dashicons stylesheet
+		// yet. The next render after `DOMContentLoaded` will pick
+		// up the cached map and switch to the char-rendering path.
 		return html`<span
 			class="wpd-icon__glyph dashicons dashicons-${ slug }"
 			aria-hidden="true"

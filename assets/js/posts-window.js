@@ -1025,6 +1025,86 @@ var desktopModePostsWindow = function(exports) {
       }
     };
   }
+  let _mountsPromise = null;
+  function loadMounts() {
+    if (!_mountsPromise) {
+      _mountsPromise = Promise.resolve().then(() => userEditRender);
+    }
+    return _mountsPromise;
+  }
+  class WpdUserProfile extends HTMLElement {
+    constructor() {
+      super(...arguments);
+      this._initialized = false;
+      this._mountedFor = null;
+    }
+    static get observedAttributes() {
+      return ["user-id"];
+    }
+    connectedCallback() {
+      if (!this._initialized) {
+        this._initialized = true;
+        this._renderShell();
+      }
+      void this._mountIfNeeded();
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+      if (name !== "user-id" || oldValue === newValue) {
+        return;
+      }
+      if (this._initialized) {
+        void this._mountIfNeeded();
+      }
+    }
+    /**
+     * Build the layout shell (sidebar + main column + activity
+     * region). Same class names as the inline Profile tab in the
+     * Users window so the existing posts-window.css rules style
+     * both contexts identically.
+     */
+    _renderShell() {
+      this.classList.add("desktop-mode-user-profile");
+      this.innerHTML = `
+			<div class="desktop-mode-users__edit-layout" data-wpd-user-profile-layout>
+				<aside class="desktop-mode-users__edit-aside" data-wpd-user-profile-aside></aside>
+				<main class="desktop-mode-users__edit-main">
+					<div data-wpd-user-profile-form></div>
+					<div class="desktop-mode-users__edit-activity" data-wpd-user-profile-activity></div>
+				</main>
+			</div>
+		`;
+    }
+    async _mountIfNeeded() {
+      const userIdAttr = this.getAttribute("user-id");
+      const userId = userIdAttr ? parseInt(userIdAttr, 10) : 0;
+      if (!Number.isFinite(userId) || userId <= 0) {
+        return;
+      }
+      if (userId === this._mountedFor) {
+        return;
+      }
+      this._mountedFor = userId;
+      const formHost = this.querySelector(
+        "[data-wpd-user-profile-form]"
+      );
+      const asideHost = this.querySelector(
+        "[data-wpd-user-profile-aside]"
+      );
+      const activityHost = this.querySelector(
+        "[data-wpd-user-profile-activity]"
+      );
+      if (!formHost || !asideHost || !activityHost) {
+        return;
+      }
+      const mounts = await loadMounts();
+      void mounts.mountProfileFormAt(formHost, userId);
+      void mounts.mountProfileAsideAt(asideHost, userId, false);
+      void mounts.mountProfileActivityAt(activityHost, userId, false);
+    }
+  }
+  if (typeof customElements !== "undefined" && !customElements.get("wpd-user-profile")) {
+    customElements.define("wpd-user-profile", WpdUserProfile);
+  }
   let _activeWindowId = "desktop-mode-posts";
   function setActiveWindowId(id) {
     _activeWindowId = id;
@@ -1042,12 +1122,12 @@ var desktopModePostsWindow = function(exports) {
     }
     return cfg;
   }
-  function shellFetch(input, init) {
+  function shellFetch$2(input, init) {
     return trackedFetch(input, init, { windowId: "desktop-mode-posts" });
   }
   async function request(url, init = {}) {
     const cfg = getConfig();
-    const response = await shellFetch(url, {
+    const response = await shellFetch$2(url, {
       ...init,
       credentials: "same-origin",
       headers: {
@@ -1373,7 +1453,7 @@ var desktopModePostsWindow = function(exports) {
       id
     );
   }
-  function wpdConfirmGlobal(options) {
+  function wpdConfirmGlobal$1(options) {
     const fn = window.wp?.desktop?.confirm;
     if (typeof fn !== "function") {
       return Promise.reject(
@@ -1445,27 +1525,27 @@ var desktopModePostsWindow = function(exports) {
     const api = window.wp?.desktop;
     api?.openOsSettings?.();
   }
-  const ROOT = "[data-desktop-mode-posts-root]";
-  const STATUS = "[data-desktop-mode-posts-status]";
-  const SEARCH = "[data-desktop-mode-posts-search]";
-  const REFRESH = "[data-desktop-mode-posts-refresh]";
-  const NEW_BTN = "[data-desktop-mode-posts-new]";
-  const TABLE = "[data-desktop-mode-posts-table]";
-  const BULK = "[data-desktop-mode-posts-bulk]";
-  const COUNT = "[data-desktop-mode-posts-count]";
-  const PAGE_INDICATOR = "[data-desktop-mode-posts-page-indicator]";
-  const PREV = "[data-desktop-mode-posts-prev]";
-  const NEXT = "[data-desktop-mode-posts-next]";
-  const PER_PAGE = "[data-desktop-mode-posts-per-page]";
+  const ROOT$1 = "[data-desktop-mode-posts-root]";
+  const STATUS$1 = "[data-desktop-mode-posts-status]";
+  const SEARCH$1 = "[data-desktop-mode-posts-search]";
+  const REFRESH$1 = "[data-desktop-mode-posts-refresh]";
+  const NEW_BTN$1 = "[data-desktop-mode-posts-new]";
+  const TABLE$1 = "[data-desktop-mode-posts-table]";
+  const BULK$1 = "[data-desktop-mode-posts-bulk]";
+  const COUNT$1 = "[data-desktop-mode-posts-count]";
+  const PAGE_INDICATOR$1 = "[data-desktop-mode-posts-page-indicator]";
+  const PREV$1 = "[data-desktop-mode-posts-prev]";
+  const NEXT$1 = "[data-desktop-mode-posts-next]";
+  const PER_PAGE$1 = "[data-desktop-mode-posts-per-page]";
   const TOOLBAR_TRAILING_EXTRAS = "[data-desktop-mode-posts-toolbar-extras]";
-  const BULK_ACTIONS_HOST = "[data-desktop-mode-posts-bulk-actions]";
+  const BULK_ACTIONS_HOST$1 = "[data-desktop-mode-posts-bulk-actions]";
   const HOOK_FILTER_COLUMNS = "desktop_mode.postsWindow.columns";
   const HOOK_FILTER_STATUS_SEGMENTS = "desktop_mode.postsWindow.statusSegments";
   const HOOK_FILTER_BULK_ACTIONS = "desktop_mode.postsWindow.bulkActions";
   const HOOK_FILTER_TOOLBAR_TRAILING = "desktop_mode.postsWindow.toolbarTrailing";
   const HOOK_ACTION_OPENED = "desktop_mode.postsWindow.opened";
   const HOOK_ACTION_DATA_LOADED = "desktop_mode.postsWindow.dataLoaded";
-  const SEARCH_DEBOUNCE_MS = 250;
+  const SEARCH_DEBOUNCE_MS$1 = 250;
   const STATUS_LABELS = {
     publish: __("Published"),
     future: __("Scheduled"),
@@ -1566,7 +1646,7 @@ var desktopModePostsWindow = function(exports) {
       cols
     ) : cols;
   }
-  function buildColumns(cache, filterData = EMPTY_FILTER_DATA) {
+  function buildColumns$1(cache, filterData = EMPTY_FILTER_DATA) {
     const all = buildAllColumns(cache, filterData);
     const hidden = getHiddenColumns();
     if (hidden.size === 0) {
@@ -1947,7 +2027,7 @@ var desktopModePostsWindow = function(exports) {
       }
     };
   }
-  function defaultStatusSegments() {
+  function defaultStatusSegments$1() {
     return [
       { value: "", label: __("All") },
       { value: "publish", label: __("Published") },
@@ -2014,7 +2094,7 @@ var desktopModePostsWindow = function(exports) {
   }
   function resolveStatusSegments() {
     const hooks = window.wp?.hooks;
-    const defaults = defaultStatusSegments();
+    const defaults = defaultStatusSegments$1();
     if (!hooks || typeof hooks.applyFilters !== "function") {
       return defaults;
     }
@@ -2521,7 +2601,7 @@ var desktopModePostsWindow = function(exports) {
       if (!detail || typeof detail.id !== "number") {
         return;
       }
-      const ok = await wpdConfirmGlobal({
+      const ok = await wpdConfirmGlobal$1({
         title: __("Delete category?"),
         message: sprintf(
           /* translators: %s: category name. */
@@ -2772,8 +2852,8 @@ var desktopModePostsWindow = function(exports) {
     return wrap;
   }
   async function renderPostsWindow(body) {
-    const root = body.querySelector(ROOT);
-    const table = body.querySelector(TABLE);
+    const root = body.querySelector(ROOT$1);
+    const table = body.querySelector(TABLE$1);
     if (!root || !table) {
       return;
     }
@@ -2821,27 +2901,27 @@ var desktopModePostsWindow = function(exports) {
     };
     const cellCache = /* @__PURE__ */ new Map();
     const filterData = { authors: [], tags: [] };
-    table.columns = buildColumns(cellCache, filterData);
+    table.columns = buildColumns$1(cellCache, filterData);
     table.getRowId = (row) => row.id;
     table.subTable = (row) => buildSubRow(row);
     table.sort = { key: "date", direction: "desc" };
     let totalPages = 0;
     let totalRows = 0;
     let refreshSeq = 0;
-    const perPageEl = root.querySelector(PER_PAGE);
+    const perPageEl = root.querySelector(PER_PAGE$1);
     if (perPageEl) {
       perPageEl.value = String(view.perPage);
     }
-    const indicator = root.querySelector(PAGE_INDICATOR);
-    const prevBtn = root.querySelector(PREV);
-    const nextBtn = root.querySelector(NEXT);
-    const bulkBar = root.querySelector(BULK);
-    const countEl = root.querySelector(COUNT);
-    const bulkActionsHost = root.querySelector(BULK_ACTIONS_HOST);
+    const indicator = root.querySelector(PAGE_INDICATOR$1);
+    const prevBtn = root.querySelector(PREV$1);
+    const nextBtn = root.querySelector(NEXT$1);
+    const bulkBar = root.querySelector(BULK$1);
+    const countEl = root.querySelector(COUNT$1);
+    const bulkActionsHost = root.querySelector(BULK_ACTIONS_HOST$1);
     const trailingExtras = root.querySelector(
       TOOLBAR_TRAILING_EXTRAS
     );
-    const statusHost = root.querySelector(STATUS);
+    const statusHost = root.querySelector(STATUS$1);
     const statusSegments = resolveStatusSegments();
     if (statusHost) {
       statusHost.replaceChildren();
@@ -2970,13 +3050,13 @@ var desktopModePostsWindow = function(exports) {
         view.page = 1;
       }
     };
-    root.querySelector(STATUS)?.addEventListener("wpd-pick", (e) => {
+    root.querySelector(STATUS$1)?.addEventListener("wpd-pick", (e) => {
       const value = e.detail?.value ?? "";
       view.status = value;
       goToFirstPage();
       void refresh();
     });
-    root.querySelector(SEARCH)?.addEventListener(
+    root.querySelector(SEARCH$1)?.addEventListener(
       "wpd-input-change",
       (e) => {
         const value = e.detail?.value ?? "";
@@ -2987,7 +3067,7 @@ var desktopModePostsWindow = function(exports) {
         view.searchDebounce = window.setTimeout(() => {
           goToFirstPage();
           void refresh();
-        }, SEARCH_DEBOUNCE_MS);
+        }, SEARCH_DEBOUNCE_MS$1);
       }
     );
     body.addEventListener("click", (e) => {
@@ -2995,25 +3075,25 @@ var desktopModePostsWindow = function(exports) {
       if (!target) {
         return;
       }
-      if (target.closest(REFRESH)) {
+      if (target.closest(REFRESH$1)) {
         void refresh();
         return;
       }
-      if (target.closest(NEW_BTN)) {
+      if (target.closest(NEW_BTN$1)) {
         openAdminUrl(cfg.newPostUrl, {
           title: __("Add New Post"),
           icon: "dashicons-admin-post"
         });
         return;
       }
-      if (target.closest(PREV)) {
+      if (target.closest(PREV$1)) {
         if (view.page > 1) {
           view.page -= 1;
           void refresh();
         }
         return;
       }
-      if (target.closest(NEXT)) {
+      if (target.closest(NEXT$1)) {
         if (view.page < totalPages) {
           view.page += 1;
           void refresh();
@@ -3076,7 +3156,7 @@ var desktopModePostsWindow = function(exports) {
         return;
       }
       if (action.confirm) {
-        const ok = await wpdConfirmGlobal({
+        const ok = await wpdConfirmGlobal$1({
           message: sprintf(
             /* translators: %d: row count. */
             action.confirm,
@@ -3130,7 +3210,7 @@ var desktopModePostsWindow = function(exports) {
     }
     const repaintColumns = () => {
       cellCache.clear();
-      table.columns = buildColumns(cellCache, filterData);
+      table.columns = buildColumns$1(cellCache, filterData);
     };
     void fetchAuthorOptions().then((authors) => {
       filterData.authors = authors;
@@ -3291,6 +3371,1356 @@ var desktopModePostsWindow = function(exports) {
       console.error("[pages-window] render failed:", err);
     });
   };
+  registry["desktop-mode-users"] = (body) => {
+    setActiveWindowId("desktop-mode-users");
+    return Promise.resolve().then(() => usersRender).then((m) => m.renderUsersWindow(body)).catch((err) => {
+      console.error("[users-window] render failed:", err);
+    });
+  };
+  registry["desktop-mode-user-edit"] = (body) => {
+    setActiveWindowId("desktop-mode-user-edit");
+    const profile = body.querySelector(
+      "wpd-user-profile[data-wpd-user-profile-host]"
+    );
+    if (!profile) {
+      return;
+    }
+    void Promise.resolve().then(() => userEditTarget).then((target) => {
+      const pending = target.readUserEditTarget();
+      let userId = pending.userId && pending.userId > 0 ? pending.userId : 0;
+      if (userId <= 0) {
+        try {
+          userId = window.desktopModeWindowConfig?.["desktop-mode-user-edit"]?.currentUserId ?? 0;
+        } catch {
+          userId = 0;
+        }
+      }
+      if (userId > 0) {
+        profile.setAttribute("user-id", String(userId));
+      }
+      target.clearUserEditTarget();
+      target.subscribeUserEditTarget((next) => {
+        if (next.userId && next.userId > 0 && next.userId !== userId) {
+          userId = next.userId;
+          profile.setAttribute("user-id", String(userId));
+          target.clearUserEditTarget();
+        }
+      });
+    });
+  };
+  function shellFetch$1(input, init, source) {
+    return trackedFetch(input, init, {
+      windowId: getActiveWindowId(),
+      source: source ?? "user-edit-window/rest"
+    });
+  }
+  async function fetchUser(id) {
+    const cfg = getConfig();
+    const base = cfg.usersUrl ?? `${cfg.restRoot}wp/v2/users`;
+    const url = `${base}/${id}?context=edit`;
+    const res = await shellFetch$1(
+      url,
+      {
+        method: "GET",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "X-WP-Nonce": cfg.restNonce
+        }
+      },
+      "user-edit-window/load"
+    );
+    if (!res.ok) {
+      throw new Error(`[user-edit] load failed: ${res.status}`);
+    }
+    return await res.json();
+  }
+  async function saveUser(id, patch) {
+    const cfg = getConfig();
+    const base = cfg.usersUrl ?? `${cfg.restRoot}wp/v2/users`;
+    const res = await shellFetch$1(
+      `${base}/${id}?context=edit`,
+      {
+        method: "POST",
+        // PUT == POST for WP REST when X-HTTP-Method-Override is unsupported.
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": cfg.restNonce,
+          "X-HTTP-Method-Override": "PUT"
+        },
+        body: JSON.stringify(patch)
+      },
+      "user-edit-window/save"
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const fieldErrors = {};
+      const params = data.data?.params;
+      if (params && typeof params === "object") {
+        for (const [k, v] of Object.entries(params)) {
+          fieldErrors[k] = String(v);
+        }
+      }
+      return {
+        ok: false,
+        error: data.code ?? `http_${res.status}`,
+        message: data.message,
+        fieldErrors
+      };
+    }
+    const user = await res.json();
+    return { ok: true, user };
+  }
+  async function fetchInsights(id, opts = {}) {
+    const cfg = getConfig();
+    const base = cfg.insightsUrlBase ?? `${cfg.restRoot}desktop-mode/v1/users/`;
+    const url = new URL(`${base}${id}/insights`);
+    if (opts.fresh) {
+      url.searchParams.set("fresh", "1");
+    }
+    const res = await shellFetch$1(
+      url.toString(),
+      {
+        method: "GET",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "X-WP-Nonce": cfg.restNonce
+        }
+      },
+      "user-edit-window/insights"
+    );
+    if (!res.ok) {
+      throw new Error(`[user-edit] insights failed: ${res.status}`);
+    }
+    return await res.json();
+  }
+  function notifyToast$1(body, kind = "info") {
+    const api = window.wp?.desktop;
+    if (api?.notify) {
+      api.notify({ body, kind });
+      return;
+    }
+    console.info("[user-edit-window]", body);
+  }
+  async function mountProfileFormAt(host, userId) {
+    return loadAndMountProfile(host, userId);
+  }
+  async function mountProfileAsideAt(host, userId, fresh) {
+    return renderInsightsAside(host, userId, fresh);
+  }
+  async function mountProfileActivityAt(host, userId, fresh) {
+    return renderInsightsActivity(host, userId, fresh);
+  }
+  async function loadAndMountProfile(host, userId) {
+    host.replaceChildren();
+    const skeleton = document.createElement("div");
+    skeleton.className = "desktop-mode-user-edit__skeleton";
+    skeleton.style.cssText = "display:flex;align-items:center;justify-content:center;padding:48px;color:var(--desktop-mode-muted, #50575e);font-size:13px;";
+    skeleton.textContent = __("Loading profile…");
+    host.appendChild(skeleton);
+    let user;
+    try {
+      user = await fetchUser(userId);
+    } catch (err) {
+      host.replaceChildren();
+      const msg = document.createElement("p");
+      msg.style.cssText = "padding:32px;color:#b32d2e;font-size:13px;text-align:center;";
+      msg.textContent = sprintf(
+        // translators: %s is an error message.
+        __("Could not load profile (%s)."),
+        String(err.message ?? err)
+      );
+      host.appendChild(msg);
+      throw err;
+    }
+    host.replaceChildren();
+    mountProfileForm(host, user, userId);
+    return user;
+  }
+  function mountProfileForm(host, user, userId) {
+    const cfg = getConfig();
+    const wrap = document.createElement("div");
+    wrap.className = "desktop-mode-user-edit__profile";
+    const form = document.createElement("wpd-form");
+    form.setAttribute("submit-label", __("Save changes"));
+    form.setAttribute("reset-label", __("Revert"));
+    form.setAttribute("columns", "auto");
+    const header = document.createElement("div");
+    header.setAttribute("slot", "header");
+    header.appendChild(buildProfileHeader(user));
+    form.appendChild(header);
+    form.appendChild(textField("username", __("Username"), user.username, {
+      readonly: true
+    }));
+    form.appendChild(textField("first_name", __("First name"), user.first_name));
+    form.appendChild(textField("last_name", __("Last name"), user.last_name));
+    form.appendChild(
+      textField("nickname", __("Nickname"), user.nickname ?? "", {
+        required: true,
+        fullWidth: false
+      })
+    );
+    const displaySelect = document.createElement("wpd-select");
+    displaySelect.setAttribute("name", "name");
+    displaySelect.setAttribute("label", __("Display name publicly as"));
+    displaySelect.items = displayNameCandidates(user);
+    displaySelect.value = user.name;
+    form.appendChild(displaySelect);
+    form.appendChild(
+      textField("email", __("Email (required)"), user.email, {
+        required: true,
+        type: "email"
+      })
+    );
+    form.appendChild(textField("url", __("Website"), user.url, { type: "url" }));
+    const contactMethods = cfg.contactMethods ?? {};
+    for (const [slug, label] of Object.entries(contactMethods)) {
+      const value = typeof user.meta === "object" && user.meta !== null ? String(
+        user.meta[slug] ?? ""
+      ) : "";
+      form.appendChild(
+        textField(`meta.${slug}`, label, value, {
+          dataset: { meta: slug }
+        })
+      );
+    }
+    const bio = document.createElement("wpd-textarea");
+    bio.setAttribute("name", "description");
+    bio.setAttribute("label", __("Biographical info"));
+    bio.setAttribute(
+      "placeholder",
+      __("Share a little about yourself — visible on author archives.")
+    );
+    bio.setAttribute("rows", "4");
+    bio.setAttribute("full-width", "");
+    bio.value = user.description;
+    bio.setAttribute("value", user.description);
+    form.appendChild(bio);
+    const localeSelect = document.createElement("wpd-select");
+    localeSelect.setAttribute("name", "locale");
+    localeSelect.setAttribute("label", __("Language"));
+    const locales = cfg.locales ?? { "": __("Site default") };
+    localeSelect.items = Object.entries(locales).map(([value, label]) => ({
+      value,
+      label
+    }));
+    localeSelect.value = String(user.locale ?? "");
+    form.appendChild(localeSelect);
+    const isSelfEdit = userId === (cfg.currentUserId ?? 0);
+    if (!isSelfEdit) {
+      const roleSelect = document.createElement("wpd-select");
+      roleSelect.setAttribute("name", "roles[0]");
+      roleSelect.setAttribute("label", __("Role"));
+      const allRoles = cfg.allRoles ?? {};
+      roleSelect.items = Object.entries(allRoles).map(([value, label]) => ({
+        value,
+        label
+      }));
+      const currentRole = Array.isArray(user.roles) ? user.roles[0] ?? "" : "";
+      roleSelect.value = currentRole;
+      form.appendChild(roleSelect);
+    }
+    if (isSelfEdit) {
+      const optsHeading = document.createElement("h3");
+      optsHeading.setAttribute("full-width", "");
+      optsHeading.textContent = __("Personal options");
+      optsHeading.style.cssText = "margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);";
+      form.appendChild(optsHeading);
+      const meta = user.meta ?? {};
+      const richEditing = String(meta.rich_editing ?? "") !== "false";
+      const syntaxHighlighting = String(meta.syntax_highlighting ?? "") !== "false";
+      const commentShortcuts = String(meta.comment_shortcuts ?? "false") === "true";
+      const adminBarFront = String(meta.show_admin_bar_front ?? "true") !== "false";
+      form.appendChild(
+        checkboxField(
+          "meta.rich_editing",
+          __("Disable the visual editor when writing"),
+          !richEditing,
+          { trueValue: "false", falseValue: "true", fullWidth: true }
+        )
+      );
+      form.appendChild(
+        checkboxField(
+          "meta.syntax_highlighting",
+          __("Disable syntax highlighting when editing code"),
+          !syntaxHighlighting,
+          { trueValue: "false", falseValue: "true", fullWidth: true }
+        )
+      );
+      form.appendChild(
+        checkboxField(
+          "meta.comment_shortcuts",
+          __("Enable keyboard shortcuts for comment moderation"),
+          commentShortcuts,
+          { trueValue: "true", falseValue: "false", fullWidth: true }
+        )
+      );
+      form.appendChild(
+        checkboxField(
+          "meta.show_admin_bar_front",
+          __("Show toolbar when viewing site"),
+          adminBarFront,
+          { trueValue: "true", falseValue: "false", fullWidth: true }
+        )
+      );
+      const colorSchemes = cfg.colorSchemes ?? {};
+      const currentScheme = String(meta.admin_color ?? "fresh");
+      form.appendChild(
+        buildAdminColorPicker(colorSchemes, currentScheme)
+      );
+    }
+    const pwdHeading = document.createElement("h3");
+    pwdHeading.setAttribute("full-width", "");
+    pwdHeading.textContent = __("Account management");
+    pwdHeading.style.cssText = "margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);";
+    form.appendChild(pwdHeading);
+    const pwdRow = document.createElement("div");
+    pwdRow.setAttribute("full-width", "");
+    pwdRow.style.cssText = "display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;";
+    const pwd = document.createElement("wpd-text-field");
+    pwd.setAttribute("name", "password");
+    pwd.setAttribute("type", "password");
+    pwd.setAttribute("reveal", "");
+    pwd.setAttribute("label", __("New password"));
+    pwd.setAttribute(
+      "placeholder",
+      __("Leave blank to keep the current password.")
+    );
+    pwd.setAttribute("autocomplete", "new-password");
+    pwd.style.flex = "1 1 280px";
+    pwdRow.appendChild(pwd);
+    const genBtn = document.createElement("wpd-button");
+    genBtn.setAttribute("variant", "ghost");
+    genBtn.setAttribute("type", "button");
+    const genIcon = document.createElement("wpd-icon");
+    genIcon.setAttribute("name", "randomize");
+    genIcon.setAttribute("size", "14");
+    genBtn.appendChild(genIcon);
+    genBtn.appendChild(document.createTextNode(__("Generate strong")));
+    genBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const next = generateStrongPassword$1(18);
+      pwd.value = next;
+      pwd.setAttribute("value", next);
+      const pwdConfirmEl = form.querySelector(
+        'wpd-text-field[name="password_confirm"]'
+      );
+      if (pwdConfirmEl) {
+        pwdConfirmEl.value = next;
+        pwdConfirmEl.setAttribute("value", next);
+      }
+      void navigator.clipboard?.writeText(next).catch(() => {
+      });
+      notifyToast$1(__("Password generated and copied to clipboard."), "success");
+    });
+    pwdRow.appendChild(genBtn);
+    form.appendChild(pwdRow);
+    const pwdConfirm = document.createElement("wpd-text-field");
+    pwdConfirm.setAttribute("name", "password_confirm");
+    pwdConfirm.setAttribute("type", "password");
+    pwdConfirm.setAttribute("reveal", "");
+    pwdConfirm.setAttribute("label", __("Confirm new password"));
+    pwdConfirm.setAttribute(
+      "placeholder",
+      __("Type the new password again.")
+    );
+    pwdConfirm.setAttribute("autocomplete", "new-password");
+    pwdConfirm.setAttribute("full-width", "");
+    form.appendChild(pwdConfirm);
+    form.appendChild(
+      buildSessionsRow(userId, isSelfEdit)
+    );
+    form.appendChild(buildAppPasswordsRow(userId));
+    if (!isSelfEdit && cfg.isMultisite && user.meta?.is_super_admin !== void 0) {
+      form.appendChild(
+        checkboxField(
+          "meta.is_super_admin",
+          __("Grant super admin privileges for the network"),
+          Boolean(
+            user.meta?.is_super_admin
+          ),
+          { trueValue: "true", falseValue: "false", fullWidth: true }
+        )
+      );
+    }
+    let pending = false;
+    form.addEventListener("wpd-form-submit", (e) => {
+      const detail = e.detail;
+      void onSubmit(detail.values);
+    });
+    const onSubmit = async (values) => {
+      if (pending) {
+        return;
+      }
+      pending = true;
+      form.setBusy(true);
+      form.clearErrors();
+      const patch = {
+        first_name: values.first_name,
+        last_name: values.last_name,
+        nickname: values.nickname,
+        name: values.name,
+        email: values.email,
+        url: values.url,
+        description: values.description,
+        locale: values.locale ?? ""
+      };
+      if (typeof values.password === "string" && values.password !== "") {
+        const confirm = String(values.password_confirm ?? "");
+        if (confirm !== values.password) {
+          form.setError(__("The two password fields do not match."));
+          form.setFieldInvalid("password_confirm");
+          pending = false;
+          form.setBusy(false);
+          return;
+        }
+        patch.password = values.password;
+      }
+      if (typeof values["roles[0]"] === "string" && values["roles[0]"]) {
+        patch.roles = [values["roles[0]"]];
+      }
+      const meta = {};
+      for (const [k, v] of Object.entries(values)) {
+        if (k.startsWith("meta.")) {
+          meta[k.slice(5)] = v;
+        }
+      }
+      if (Object.keys(meta).length > 0) {
+        patch.meta = meta;
+      }
+      const result = await saveUser(userId, patch);
+      pending = false;
+      form.setBusy(false);
+      if (!result.ok) {
+        const summary = result.message ?? mapErrorCode(result.error) ?? __("Save failed.");
+        form.setError(summary);
+        notifyToast$1(summary, "error");
+        if (result.fieldErrors) {
+          for (const field of Object.keys(result.fieldErrors)) {
+            form.setFieldInvalid(field);
+          }
+        }
+        console.warn("[user-edit] save failed", {
+          code: result.error,
+          message: result.message
+        });
+        return;
+      }
+      notifyToast$1(__("Profile saved."), "success");
+      pwd.value = "";
+      pwd.setAttribute("value", "");
+      pwdConfirm.value = "";
+      pwdConfirm.setAttribute("value", "");
+    };
+    wrap.appendChild(form);
+    host.appendChild(wrap);
+  }
+  function buildProfileHeader(user) {
+    const wrap = document.createElement("div");
+    wrap.className = "desktop-mode-user-edit__header";
+    wrap.style.cssText = "display:flex;align-items:center;gap:16px;margin:0 0 12px;";
+    const avatar = document.createElement("img");
+    const avatars = user.avatar_urls ?? {};
+    avatar.src = avatars["96"] ?? avatars["48"] ?? "";
+    avatar.alt = "";
+    avatar.style.cssText = "width:64px;height:64px;border-radius:50%;flex-shrink:0;";
+    wrap.appendChild(avatar);
+    const text = document.createElement("div");
+    text.style.cssText = "min-width:0;display:flex;flex-direction:column;gap:4px;";
+    const name = document.createElement("div");
+    name.style.cssText = "font-size:18px;font-weight:600;letter-spacing:-0.01em;";
+    name.textContent = user.name || user.username || `#${user.id}`;
+    text.appendChild(name);
+    const sub = document.createElement("div");
+    sub.style.cssText = "display:flex;align-items:center;gap:6px;font-size:12px;color:var(--desktop-mode-muted, #50575e);flex-wrap:wrap;";
+    const handle = document.createElement("span");
+    handle.textContent = `@${user.username}`;
+    sub.appendChild(handle);
+    const dot = document.createElement("span");
+    dot.textContent = "·";
+    dot.setAttribute("aria-hidden", "true");
+    sub.appendChild(dot);
+    const roleStr = Array.isArray(user.roles) ? user.roles.join(", ") : "";
+    const roleSpan = document.createElement("span");
+    roleSpan.textContent = roleStr || __("No role");
+    sub.appendChild(roleSpan);
+    text.appendChild(sub);
+    wrap.appendChild(text);
+    return wrap;
+  }
+  async function loadInsightsInto(host, userId, fresh) {
+    host.replaceChildren();
+    const skeleton = document.createElement("div");
+    skeleton.style.cssText = "display:flex;align-items:center;justify-content:center;padding:32px;color:var(--desktop-mode-muted, #50575e);font-size:13px;";
+    skeleton.textContent = __("Loading insights…");
+    host.appendChild(skeleton);
+    try {
+      return await fetchInsights(userId, { fresh });
+    } catch (err) {
+      host.replaceChildren();
+      const msg = document.createElement("p");
+      msg.style.cssText = "padding:24px;color:#b32d2e;font-size:13px;text-align:center;";
+      msg.textContent = sprintf(
+        // translators: %s is an error message.
+        __("Could not load insights (%s)."),
+        String(err.message ?? err)
+      );
+      host.appendChild(msg);
+      return null;
+    }
+  }
+  async function renderInsightsAside(host, userId, fresh) {
+    const data = await loadInsightsInto(host, userId, fresh);
+    if (!data) {
+      return;
+    }
+    host.replaceChildren();
+    host.appendChild(buildAsideSummary(data));
+    host.appendChild(buildAsideStatGrid(data));
+    host.appendChild(buildContentSparkline(data));
+  }
+  async function renderInsightsActivity(host, userId, fresh) {
+    const data = await loadInsightsInto(host, userId, fresh);
+    if (!data) {
+      return;
+    }
+    host.replaceChildren();
+    const wrap = document.createElement("div");
+    wrap.className = "desktop-mode-user-edit__activity";
+    const heading = document.createElement("h3");
+    heading.textContent = __("Recent activity");
+    heading.style.cssText = "margin:24px 0 12px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);";
+    wrap.appendChild(heading);
+    wrap.appendChild(buildRecentLists(data));
+    wrap.appendChild(buildSecurityPanel(data));
+    host.appendChild(wrap);
+  }
+  function buildAsideSummary(data) {
+    const card = document.createElement("div");
+    card.style.cssText = [
+      "display:flex",
+      "flex-direction:column",
+      "align-items:center",
+      "text-align:center",
+      "gap:6px",
+      "padding:16px",
+      "border:1px solid var(--desktop-mode-border, #dcdcde)",
+      "border-radius:12px",
+      "background:var(--wp-admin-theme-bg-elevated, #f6f7f7)"
+    ].join(";");
+    const avatar = document.createElement("img");
+    avatar.src = data.avatarUrl;
+    avatar.alt = "";
+    avatar.style.cssText = "width:72px;height:72px;border-radius:50%;flex-shrink:0;";
+    card.appendChild(avatar);
+    const name = document.createElement("div");
+    name.style.cssText = "font-size:15px;font-weight:600;letter-spacing:-0.01em;";
+    name.textContent = data.displayName || `#${data.userId}`;
+    card.appendChild(name);
+    const roles = document.createElement("div");
+    roles.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;justify-content:center;";
+    for (const role of data.roles) {
+      const chip = document.createElement("span");
+      chip.textContent = role;
+      chip.style.cssText = [
+        "display:inline-flex",
+        "padding:2px 8px",
+        "border-radius:10px",
+        "background:rgba(34,113,177,0.10)",
+        "color:#0a4b78",
+        "font-size:11px",
+        "font-weight:600"
+      ].join(";");
+      roles.appendChild(chip);
+    }
+    if (data.roles.length === 0) {
+      const noRole = document.createElement("span");
+      noRole.textContent = __("No role");
+      noRole.style.cssText = "font-size:11px;color:var(--desktop-mode-muted, #8c8f94);";
+      roles.appendChild(noRole);
+    }
+    card.appendChild(roles);
+    const completeness = data.profileCompleteness;
+    if (completeness && completeness.total > 0) {
+      const cwrap = document.createElement("div");
+      cwrap.style.cssText = "display:flex;flex-direction:column;gap:4px;width:100%;margin-top:6px;";
+      const top = document.createElement("div");
+      top.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--desktop-mode-muted, #50575e);";
+      const lbl = document.createElement("span");
+      lbl.textContent = __("Profile completeness");
+      const pct = document.createElement("span");
+      pct.style.cssText = "font-variant-numeric:tabular-nums;font-weight:600;";
+      pct.textContent = `${completeness.percent}%`;
+      top.appendChild(lbl);
+      top.appendChild(pct);
+      cwrap.appendChild(top);
+      const track = document.createElement("div");
+      track.style.cssText = [
+        "height:4px",
+        "border-radius:999px",
+        "background:rgba(0,0,0,0.06)",
+        "position:relative",
+        "overflow:hidden"
+      ].join(";");
+      const bar = document.createElement("div");
+      bar.style.cssText = [
+        "position:absolute",
+        "inset:0",
+        `width:${completeness.percent}%`,
+        "background:var(--wp-admin-theme-color, #2271b1)",
+        "transition:width 360ms ease"
+      ].join(";");
+      track.appendChild(bar);
+      cwrap.appendChild(track);
+      card.appendChild(cwrap);
+    }
+    return card;
+  }
+  function buildAsideStatGrid(data) {
+    const grid = document.createElement("div");
+    grid.style.cssText = [
+      "display:grid",
+      "grid-template-columns:1fr 1fr",
+      "gap:8px",
+      "margin-top:12px"
+    ].join(";");
+    const tile = (label, value, sub) => {
+      const card = document.createElement("div");
+      card.style.cssText = [
+        "border:1px solid var(--desktop-mode-border, #dcdcde)",
+        "border-radius:8px",
+        "padding:8px 10px",
+        "display:flex",
+        "flex-direction:column",
+        "gap:1px",
+        "min-width:0"
+      ].join(";");
+      const lbl = document.createElement("div");
+      lbl.style.cssText = "font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);font-weight:600;";
+      lbl.textContent = label;
+      const val = document.createElement("div");
+      val.style.cssText = "font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;";
+      val.textContent = value;
+      card.appendChild(lbl);
+      card.appendChild(val);
+      if (sub) {
+        const subEl = document.createElement("div");
+        subEl.style.cssText = "font-size:10px;color:var(--desktop-mode-muted, #8c8f94);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        subEl.title = sub;
+        subEl.textContent = sub;
+        card.appendChild(subEl);
+      }
+      return card;
+    };
+    const stats = data.stats;
+    grid.appendChild(
+      tile(
+        __("Posts"),
+        String(stats.posts),
+        // translators: %d is a count of pages.
+        stats.pages > 0 ? sprintf(__("+ %d pages"), stats.pages) : void 0
+      )
+    );
+    let commentsSub;
+    if (stats.commentsReceived > 0) {
+      commentsSub = sprintf(
+        // translators: %d is a count of received comments.
+        __("%d received"),
+        stats.commentsReceived
+      );
+    }
+    grid.appendChild(
+      tile(__("Comments"), String(stats.commentsAuthored), commentsSub)
+    );
+    grid.appendChild(
+      tile(
+        __("Last login"),
+        stats.lastLoginAt ? relativeTime$1(stats.lastLoginAt) : __("Never"),
+        stats.lastLoginAt ? new Date(stats.lastLoginAt * 1e3).toLocaleDateString() : void 0
+      )
+    );
+    let memberValue = "—";
+    if (stats.daysSinceRegistration !== null) {
+      memberValue = sprintf(
+        // translators: %d is a number of days.
+        __("%d days"),
+        stats.daysSinceRegistration
+      );
+    }
+    grid.appendChild(
+      tile(
+        __("Member"),
+        memberValue,
+        stats.registeredAt ? new Date(stats.registeredAt * 1e3).toLocaleDateString() : void 0
+      )
+    );
+    return grid;
+  }
+  function buildContentSparkline(data) {
+    const wrap = document.createElement("div");
+    wrap.style.cssText = [
+      "border:1px solid var(--desktop-mode-border, #dcdcde)",
+      "border-radius:10px",
+      "padding:14px 16px",
+      "margin:0 0 22px"
+    ].join(";");
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px;";
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:13px;font-weight:600;";
+    title.textContent = __("Posts published — last 12 months");
+    head.appendChild(title);
+    const total = data.contentByMonth.reduce((s, m) => s + m.count, 0);
+    const sub = document.createElement("div");
+    sub.style.cssText = "font-size:11px;color:var(--desktop-mode-muted, #50575e);";
+    sub.textContent = sprintf(
+      // translators: %d is a count of posts.
+      __("%d total"),
+      total
+    );
+    head.appendChild(sub);
+    wrap.appendChild(head);
+    if (data.contentByMonth.length === 0) {
+      const empty = document.createElement("p");
+      empty.style.cssText = "margin:0;color:var(--desktop-mode-muted, #50575e);font-size:12px;";
+      empty.textContent = __("No activity in the last 12 months.");
+      wrap.appendChild(empty);
+      return wrap;
+    }
+    const max = Math.max(1, ...data.contentByMonth.map((m) => m.count));
+    const bars = document.createElement("div");
+    bars.style.cssText = [
+      "display:grid",
+      `grid-template-columns:repeat(${data.contentByMonth.length}, 1fr)`,
+      "gap:4px",
+      "align-items:end",
+      "height:60px"
+    ].join(";");
+    for (const month of data.contentByMonth) {
+      const col = document.createElement("div");
+      col.style.cssText = "display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;";
+      const bar = document.createElement("div");
+      const heightPct = Math.round(month.count / max * 100);
+      bar.style.cssText = [
+        "width:100%",
+        `height:${Math.max(3, heightPct)}%`,
+        "background:var(--wp-admin-theme-color, #2271b1)",
+        month.count === 0 ? "opacity:0.18" : "opacity:1",
+        "border-radius:3px 3px 0 0",
+        "transition:height 360ms ease"
+      ].join(";");
+      bar.title = sprintf(
+        // translators: %1$s is a YYYY-MM month, %2$d is post count.
+        __("%1$s — %2$d posts"),
+        month.month,
+        month.count
+      );
+      col.appendChild(bar);
+      wrap.appendChild(col);
+      bars.appendChild(col);
+    }
+    wrap.appendChild(bars);
+    const labels = document.createElement("div");
+    labels.style.cssText = [
+      "display:grid",
+      `grid-template-columns:repeat(${data.contentByMonth.length}, 1fr)`,
+      "gap:4px",
+      "margin-top:4px",
+      "font-size:10px",
+      "color:var(--desktop-mode-muted, #8c8f94)",
+      "text-align:center"
+    ].join(";");
+    for (const month of data.contentByMonth) {
+      const span = document.createElement("span");
+      const parts = month.month.split("-");
+      span.textContent = parts.length === 2 ? parts[1] : month.month;
+      labels.appendChild(span);
+    }
+    wrap.appendChild(labels);
+    return wrap;
+  }
+  function buildRecentLists(data) {
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin:0 0 22px;";
+    wrap.appendChild(
+      buildRecentList(
+        __("Recent posts"),
+        __("No recent posts."),
+        data.recentPosts.map((p) => ({
+          primary: p.title,
+          secondary: relativeFromIso(p.dateGmt),
+          tag: p.status !== "publish" ? p.status : null,
+          badge: p.commentCount > 0 ? sprintf(
+            // translators: %d is a count of comments.
+            __("%d 💬"),
+            p.commentCount
+          ) : null
+        }))
+      )
+    );
+    wrap.appendChild(
+      buildRecentList(
+        __("Recent comments"),
+        __("No recent comments."),
+        data.recentComments.map((c) => {
+          const when = relativeFromIso(c.dateGmt);
+          return {
+            primary: c.excerpt || __("(empty comment)"),
+            secondary: c.postTitle ? `${__("on")} "${c.postTitle}" · ${when}` : when,
+            tag: c.approved ? null : __("pending"),
+            badge: null
+          };
+        })
+      )
+    );
+    return wrap;
+  }
+  function buildRecentList(title, emptyText, items) {
+    const card = document.createElement("div");
+    card.style.cssText = [
+      "border:1px solid var(--desktop-mode-border, #dcdcde)",
+      "border-radius:10px",
+      "padding:14px 16px",
+      "min-width:0"
+    ].join(";");
+    const head = document.createElement("div");
+    head.style.cssText = "font-size:13px;font-weight:600;margin:0 0 10px;";
+    head.textContent = title;
+    card.appendChild(head);
+    if (items.length === 0) {
+      const empty = document.createElement("p");
+      empty.style.cssText = "margin:0;color:var(--desktop-mode-muted, #50575e);font-size:12px;";
+      empty.textContent = emptyText;
+      card.appendChild(empty);
+      return card;
+    }
+    const list = document.createElement("ul");
+    list.style.cssText = "list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;";
+    for (const item of items) {
+      const li = document.createElement("li");
+      li.style.cssText = "min-width:0;";
+      const top = document.createElement("div");
+      top.style.cssText = "display:flex;align-items:baseline;gap:6px;min-width:0;";
+      const primary = document.createElement("span");
+      primary.style.cssText = "font-size:13px;line-height:1.35;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+      primary.textContent = item.primary;
+      primary.title = item.primary;
+      top.appendChild(primary);
+      if (item.tag) {
+        const tag = document.createElement("span");
+        tag.style.cssText = "font-size:10px;text-transform:uppercase;letter-spacing:0.04em;background:rgba(0,0,0,0.06);padding:1px 6px;border-radius:8px;flex-shrink:0;";
+        tag.textContent = item.tag;
+        top.appendChild(tag);
+      }
+      if (item.badge) {
+        const badge = document.createElement("span");
+        badge.style.cssText = "font-size:11px;color:var(--desktop-mode-muted, #50575e);flex-shrink:0;";
+        badge.textContent = item.badge;
+        top.appendChild(badge);
+      }
+      li.appendChild(top);
+      const sub = document.createElement("div");
+      sub.style.cssText = "font-size:11px;color:var(--desktop-mode-muted, #8c8f94);";
+      sub.textContent = item.secondary;
+      li.appendChild(sub);
+      list.appendChild(li);
+    }
+    card.appendChild(list);
+    return card;
+  }
+  function buildSecurityPanel(data) {
+    const card = document.createElement("div");
+    card.style.cssText = [
+      "border:1px solid var(--desktop-mode-border, #dcdcde)",
+      "border-radius:10px",
+      "padding:14px 16px"
+    ].join(";");
+    const head = document.createElement("div");
+    head.style.cssText = "font-size:13px;font-weight:600;margin:0 0 10px;";
+    head.textContent = __("Active sessions & app access");
+    card.appendChild(head);
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;";
+    const sessionTile = document.createElement("div");
+    sessionTile.style.cssText = "display:flex;flex-direction:column;gap:2px;font-size:12px;";
+    const sessionLabel = document.createElement("div");
+    sessionLabel.style.cssText = "color:var(--desktop-mode-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;";
+    sessionLabel.textContent = __("Active sessions");
+    const sessionValue = document.createElement("div");
+    sessionValue.style.cssText = "font-size:18px;font-weight:600;";
+    sessionValue.textContent = String(data.sessions.length);
+    const sessionSub = document.createElement("div");
+    sessionSub.style.cssText = "color:var(--desktop-mode-muted, #8c8f94);";
+    const currentCount = data.sessions.filter((s) => s.current).length;
+    sessionSub.textContent = currentCount > 0 ? __("Includes the current device.") : __("Logged in across multiple devices.");
+    sessionTile.appendChild(sessionLabel);
+    sessionTile.appendChild(sessionValue);
+    sessionTile.appendChild(sessionSub);
+    grid.appendChild(sessionTile);
+    const appTile = document.createElement("div");
+    appTile.style.cssText = "display:flex;flex-direction:column;gap:2px;font-size:12px;";
+    const appLabel = document.createElement("div");
+    appLabel.style.cssText = "color:var(--desktop-mode-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;";
+    appLabel.textContent = __("Application passwords");
+    const appValue = document.createElement("div");
+    appValue.style.cssText = "font-size:18px;font-weight:600;";
+    appValue.textContent = String(data.applicationPasswords.total);
+    const appSub = document.createElement("div");
+    appSub.style.cssText = "color:var(--desktop-mode-muted, #8c8f94);";
+    if (data.applicationPasswords.lastUsedAt && data.applicationPasswords.lastUsedName) {
+      appSub.textContent = sprintf(
+        // translators: %1$s is the app password name, %2$s is a relative time.
+        __('"%1$s" last used %2$s'),
+        data.applicationPasswords.lastUsedName,
+        relativeTime$1(data.applicationPasswords.lastUsedAt)
+      );
+    } else {
+      appSub.textContent = data.applicationPasswords.total ? __("No recent use.") : __("No app passwords issued yet.");
+    }
+    appTile.appendChild(appLabel);
+    appTile.appendChild(appValue);
+    appTile.appendChild(appSub);
+    grid.appendChild(appTile);
+    card.appendChild(grid);
+    return card;
+  }
+  function textField(formName, label, value, opts = {}) {
+    const el = document.createElement("wpd-text-field");
+    el.setAttribute("name", formName);
+    el.setAttribute("label", label);
+    el.setAttribute("value", value);
+    el.value = value;
+    if (opts.required) {
+      el.setAttribute("required", "");
+    }
+    if (opts.readonly) {
+      el.setAttribute("readonly", "");
+    }
+    if (opts.type) {
+      el.setAttribute("type", opts.type);
+    }
+    if (opts.fullWidth !== false && opts.fullWidth) {
+      el.setAttribute("full-width", "");
+    }
+    if (opts.dataset) {
+      for (const [k, v] of Object.entries(opts.dataset)) {
+        el.dataset[k] = v;
+      }
+    }
+    return el;
+  }
+  function displayNameCandidates(user) {
+    const candidates = /* @__PURE__ */ new Set();
+    const add = (s) => {
+      const t = s.trim();
+      if (t !== "") {
+        candidates.add(t);
+      }
+    };
+    add(user.username);
+    add(user.nickname ?? "");
+    add(user.first_name);
+    add(user.last_name);
+    if (user.first_name || user.last_name) {
+      add(`${user.first_name} ${user.last_name}`.trim());
+      add(`${user.last_name} ${user.first_name}`.trim());
+    }
+    if (user.name) {
+      add(user.name);
+    }
+    return Array.from(candidates).map((name) => ({
+      value: name,
+      label: name
+    }));
+  }
+  function relativeFromIso(iso) {
+    const ms = msFromIso(iso);
+    if (!Number.isFinite(ms)) {
+      return "—";
+    }
+    return relativeTime$1(Math.floor(ms / 1e3));
+  }
+  function relativeTime$1(ts) {
+    if (!Number.isFinite(ts)) {
+      return "—";
+    }
+    const now = Math.floor(Date.now() / 1e3);
+    const delta = now - ts;
+    if (delta < 60) {
+      return __("just now");
+    }
+    if (delta < 3600) {
+      return sprintf(__("%d min ago"), Math.floor(delta / 60));
+    }
+    if (delta < 86400) {
+      return sprintf(__("%d h ago"), Math.floor(delta / 3600));
+    }
+    if (delta < 86400 * 30) {
+      return sprintf(__("%d d ago"), Math.floor(delta / 86400));
+    }
+    if (delta < 86400 * 365) {
+      return sprintf(__("%d mo ago"), Math.floor(delta / (86400 * 30)));
+    }
+    return sprintf(__("%d y ago"), Math.floor(delta / (86400 * 365)));
+  }
+  function msFromIso(iso) {
+    if (!iso) {
+      return NaN;
+    }
+    if (iso.startsWith("0000-00-00")) {
+      return NaN;
+    }
+    let normalized = iso;
+    if (normalized.includes(" ")) {
+      normalized = normalized.replace(" ", "T");
+    }
+    if (!/Z$/.test(normalized) && !/[+-]\d{2}:?\d{2}$/.test(normalized)) {
+      normalized += "Z";
+    }
+    const parsed = Date.parse(normalized);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }
+  function generateStrongPassword$1(length) {
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lower = "abcdefghjkmnpqrstuvwxyz";
+    const digits = "23456789";
+    const symbols = "!@#$%^&*-_=+";
+    const all = upper + lower + digits + symbols;
+    const buf = new Uint32Array(length);
+    crypto.getRandomValues(buf);
+    let out = "";
+    for (let i = 0; i < length; i += 1) {
+      out += all[buf[i] % all.length];
+    }
+    return out;
+  }
+  function mapErrorCode(code) {
+    switch (code) {
+      case "rest_user_invalid_email":
+      case "invalid_email":
+        return __("Email address is not valid.");
+      case "rest_user_email_exists":
+      case "existing_user_email":
+        return __("That email is already in use.");
+      case "rest_user_invalid_role":
+        return __("You are not allowed to assign that role.");
+      default:
+        return null;
+    }
+  }
+  function buildAdminColorPicker(schemes, current) {
+    const wrap = document.createElement("div");
+    wrap.setAttribute("full-width", "");
+    wrap.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+    const label = document.createElement("span");
+    label.style.cssText = "font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);font-weight:600;";
+    label.textContent = __("Admin colour scheme");
+    wrap.appendChild(label);
+    const hidden = document.createElement("wpd-text-field");
+    hidden.setAttribute("name", "meta.admin_color");
+    hidden.setAttribute("value", current);
+    hidden.value = current;
+    hidden.style.display = "none";
+    wrap.appendChild(hidden);
+    const grid = document.createElement("div");
+    grid.style.cssText = [
+      "display:grid",
+      "grid-template-columns:repeat(auto-fill, minmax(140px, 1fr))",
+      "gap:8px"
+    ].join(";");
+    wrap.appendChild(grid);
+    let selected = current;
+    const updateSelected = (slug) => {
+      selected = slug;
+      hidden.value = slug;
+      hidden.setAttribute("value", slug);
+      for (const t of Array.from(grid.children)) {
+        const tile = t;
+        const v = tile.dataset.scheme;
+        tile.style.borderColor = v === slug ? "var(--wp-admin-theme-color, #2271b1)" : "var(--desktop-mode-border, #dcdcde)";
+        tile.style.boxShadow = v === slug ? "0 0 0 1px var(--wp-admin-theme-color, #2271b1) inset" : "none";
+        tile.setAttribute("aria-checked", v === slug ? "true" : "false");
+      }
+    };
+    for (const [slug, info] of Object.entries(schemes)) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.setAttribute("role", "radio");
+      tile.setAttribute("aria-checked", slug === selected ? "true" : "false");
+      tile.dataset.scheme = slug;
+      tile.style.cssText = [
+        "appearance:none",
+        "border:1px solid var(--desktop-mode-border, #dcdcde)",
+        "background:var(--wp-admin-theme-bg, #fff)",
+        "color:inherit",
+        "border-radius:8px",
+        "padding:10px 10px 8px",
+        "cursor:pointer",
+        "display:flex",
+        "flex-direction:column",
+        "gap:6px",
+        "text-align:left",
+        "min-width:0",
+        "transition:border-color 120ms ease, box-shadow 120ms ease"
+      ].join(";");
+      const swatchRow = document.createElement("span");
+      swatchRow.style.cssText = "display:flex;height:18px;border-radius:4px;overflow:hidden;border:1px solid rgba(0,0,0,0.06);";
+      const colors = (info.colors ?? []).slice(0, 4);
+      if (colors.length === 0) {
+        colors.push("#dcdcde", "#dcdcde", "#dcdcde");
+      }
+      for (const color of colors) {
+        const swatch = document.createElement("span");
+        swatch.style.cssText = `flex:1 1 auto;background:${color};`;
+        swatchRow.appendChild(swatch);
+      }
+      tile.appendChild(swatchRow);
+      const name = document.createElement("span");
+      name.style.cssText = "font-size:12px;font-weight:500;";
+      name.textContent = info.name;
+      tile.appendChild(name);
+      tile.addEventListener("click", () => updateSelected(slug));
+      grid.appendChild(tile);
+    }
+    updateSelected(selected);
+    return wrap;
+  }
+  function checkboxField(name, label, checked, opts = {}) {
+    const trueValue = opts.trueValue ?? "true";
+    const falseValue = opts.falseValue ?? "false";
+    const wrap = document.createElement("span");
+    if (opts.fullWidth) {
+      wrap.setAttribute("full-width", "");
+    }
+    const cb = document.createElement("wpd-checkbox-label");
+    cb.setAttribute("label", label);
+    cb.setAttribute("name", name);
+    cb.setAttribute("value", checked ? trueValue : falseValue);
+    cb.value = checked ? trueValue : falseValue;
+    if (checked) {
+      cb.setAttribute("checked", "");
+    }
+    cb.addEventListener("wpd-checkbox-change", (e) => {
+      const detail = e.detail;
+      const v = detail?.checked ? trueValue : falseValue;
+      cb.value = v;
+      cb.setAttribute("value", v);
+    });
+    wrap.appendChild(cb);
+    return wrap;
+  }
+  function buildSessionsRow(userId, isSelfEdit) {
+    const wrap = document.createElement("div");
+    wrap.setAttribute("full-width", "");
+    wrap.style.cssText = "display:flex;align-items:center;gap:12px;flex-wrap:wrap;";
+    const label = document.createElement("span");
+    label.style.cssText = "font-size:13px;color:var(--desktop-mode-fg, inherit);";
+    label.textContent = __("Active sessions");
+    wrap.appendChild(label);
+    const btn = document.createElement("wpd-button");
+    btn.setAttribute("variant", "ghost");
+    btn.setAttribute("type", "button");
+    btn.textContent = isSelfEdit ? __("Log out everywhere else") : __("Log this user out everywhere");
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      try {
+        const cfg = getConfig();
+        const base = cfg.insightsUrlBase ?? `${cfg.restRoot}desktop-mode/v1/users/`;
+        const res = await trackedFetch(
+          `${base}${userId}/destroy-sessions`,
+          {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-WP-Nonce": cfg.restNonce
+            },
+            body: JSON.stringify({
+              scope: isSelfEdit ? "others" : "all"
+            })
+          },
+          { source: "user-edit-window/destroy-sessions" }
+        );
+        if (!res.ok) {
+          throw new Error(`http_${res.status}`);
+        }
+        notifyToast$1(__("Sessions destroyed."), "success");
+      } catch (err) {
+        notifyToast$1(
+          sprintf(
+            // translators: %s is an error message.
+            __("Could not destroy sessions (%s)."),
+            String(err.message ?? err)
+          ),
+          "error"
+        );
+      }
+    });
+    wrap.appendChild(btn);
+    return wrap;
+  }
+  function buildAppPasswordsRow(userId) {
+    const wrap = document.createElement("div");
+    wrap.setAttribute("full-width", "");
+    wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;border:1px solid var(--desktop-mode-border, #dcdcde);border-radius:8px;padding:12px 14px;";
+    const heading = document.createElement("div");
+    heading.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;";
+    const headLabel = document.createElement("span");
+    headLabel.textContent = __("Application passwords");
+    headLabel.style.cssText = "font-size:13px;font-weight:600;";
+    heading.appendChild(headLabel);
+    wrap.appendChild(heading);
+    const cfg = getConfig();
+    const base = cfg.insightsUrlBase ?? `${cfg.restRoot}desktop-mode/v1/users/`;
+    const list = document.createElement("ul");
+    list.style.cssText = "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;";
+    wrap.appendChild(list);
+    const createRow = document.createElement("div");
+    createRow.style.cssText = "display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:6px;";
+    const nameInput = document.createElement("wpd-text-field");
+    nameInput.setAttribute("label", __("New application password name"));
+    nameInput.setAttribute(
+      "placeholder",
+      __("e.g. iPhone, WP-CLI, Backup tool")
+    );
+    nameInput.style.flex = "1 1 220px";
+    createRow.appendChild(nameInput);
+    const createBtn = document.createElement("wpd-button");
+    createBtn.setAttribute("variant", "primary");
+    createBtn.setAttribute("type", "button");
+    createBtn.textContent = __("Create");
+    createRow.appendChild(createBtn);
+    wrap.appendChild(createRow);
+    const renderItems = (items) => {
+      list.replaceChildren();
+      if (items.length === 0) {
+        const empty = document.createElement("li");
+        empty.style.cssText = "font-size:12px;color:var(--desktop-mode-muted, #50575e);";
+        empty.textContent = __("No application passwords issued yet.");
+        list.appendChild(empty);
+        return;
+      }
+      for (const item of items) {
+        const row = document.createElement("li");
+        row.style.cssText = "display:flex;align-items:center;gap:8px;font-size:12px;";
+        const nameSpan = document.createElement("span");
+        nameSpan.style.cssText = "flex:1 1 auto;font-weight:500;";
+        nameSpan.textContent = item.name;
+        row.appendChild(nameSpan);
+        const meta = document.createElement("span");
+        meta.style.cssText = "color:var(--desktop-mode-muted, #8c8f94);";
+        meta.textContent = item.last_used ? sprintf(
+          // translators: %s is a relative time.
+          __("last used %s"),
+          relativeTime$1(item.last_used)
+        ) : __("never used");
+        row.appendChild(meta);
+        const revoke = document.createElement("wpd-button");
+        revoke.setAttribute("variant", "ghost");
+        revoke.setAttribute("type", "button");
+        revoke.textContent = __("Revoke");
+        revoke.addEventListener("click", async (e) => {
+          e.preventDefault();
+          try {
+            const res = await trackedFetch(
+              `${base}${userId}/application-passwords/${item.uuid}`,
+              {
+                method: "DELETE",
+                credentials: "same-origin",
+                headers: { "X-WP-Nonce": cfg.restNonce }
+              },
+              { source: "user-edit-window/app-pw-revoke" }
+            );
+            if (!res.ok) {
+              throw new Error(`http_${res.status}`);
+            }
+            row.remove();
+            notifyToast$1(__("Application password revoked."), "success");
+          } catch (err) {
+            notifyToast$1(
+              String(err.message ?? err),
+              "error"
+            );
+          }
+        });
+        row.appendChild(revoke);
+        list.appendChild(row);
+      }
+    };
+    const refresh = async () => {
+      try {
+        const res = await trackedFetch(
+          `${base}${userId}/application-passwords`,
+          {
+            credentials: "same-origin",
+            headers: { "X-WP-Nonce": cfg.restNonce }
+          },
+          { source: "user-edit-window/app-pw-list", silent: true }
+        );
+        if (!res.ok) {
+          return;
+        }
+        const data = await res.json();
+        renderItems(data.items ?? []);
+      } catch {
+      }
+    };
+    void refresh();
+    createBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const name = String(nameInput.value ?? "").trim();
+      if (!name) {
+        notifyToast$1(__("Application password name is required."), "error");
+        return;
+      }
+      try {
+        const res = await trackedFetch(
+          `${base}${userId}/application-passwords`,
+          {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-WP-Nonce": cfg.restNonce
+            },
+            body: JSON.stringify({ name })
+          },
+          { source: "user-edit-window/app-pw-create" }
+        );
+        if (!res.ok) {
+          throw new Error(`http_${res.status}`);
+        }
+        const data = await res.json();
+        notifyToast$1(
+          sprintf(
+            // translators: %s is an application password.
+            __("Created. Copy the password now: %s"),
+            data.password
+          ),
+          "success"
+        );
+        void navigator.clipboard?.writeText(data.password).catch(() => {
+        });
+        nameInput.value = "";
+        nameInput.setAttribute("value", "");
+        void refresh();
+      } catch (err) {
+        notifyToast$1(
+          String(err.message ?? err),
+          "error"
+        );
+      }
+    });
+    return wrap;
+  }
+  const userEditRender = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    mountProfileActivityAt,
+    mountProfileAsideAt,
+    mountProfileFormAt
+  }, Symbol.toStringTag, { value: "Module" }));
   async function showPagesIntroDialog() {
     return new Promise((resolve) => {
       const backdrop = document.createElement("div");
@@ -3324,7 +4754,7 @@ var desktopModePostsWindow = function(exports) {
         padding: "28px 32px 24px",
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
       });
-      dialog.innerHTML = renderDialogMarkup();
+      dialog.innerHTML = renderDialogMarkup$1();
       backdrop.appendChild(dialog);
       document.body.appendChild(backdrop);
       const primaryBtn = dialog.querySelector(
@@ -3360,7 +4790,7 @@ var desktopModePostsWindow = function(exports) {
       settingsBtn?.addEventListener("click", () => cleanup("settings"));
     });
   }
-  function renderDialogMarkup() {
+  function renderDialogMarkup$1() {
     const title = __("Welcome to the new Pages window");
     const lede = __(
       "You're looking at the redesigned Pages list — same data you already manage, with a UX tuned for how Desktop Mode wants you to work."
@@ -3373,7 +4803,7 @@ var desktopModePostsWindow = function(exports) {
       __("Comments column, Parent column, View link, lock indicator, multi-select bulk actions, inline search, status segments. All in one screen, no reloads.")
     ];
     const li = (arr) => arr.map(
-      (s) => `<li><span class="dot" aria-hidden="true"></span>${escapeHtml(s)}</li>`
+      (s) => `<li><span class="dot" aria-hidden="true"></span>${escapeHtml$1(s)}</li>`
     ).join("");
     return `
 		<style>
@@ -3438,20 +4868,20 @@ var desktopModePostsWindow = function(exports) {
 				outline-offset: 2px;
 			}
 		</style>
-		<h2 id="desktop-mode-pages-intro-title">${escapeHtml(title)}</h2>
-		<p class="lede">${escapeHtml(lede)}</p>
+		<h2 id="desktop-mode-pages-intro-title">${escapeHtml$1(title)}</h2>
+		<p class="lede">${escapeHtml$1(lede)}</p>
 		<ul class="desktop-mode-pages-intro__list">${li(highlights)}</ul>
 		<div class="desktop-mode-pages-intro__footer">
-			<button type="button" data-action="settings">${escapeHtml(
+			<button type="button" data-action="settings">${escapeHtml$1(
       __("Take me to settings")
     )}</button>
-			<button type="button" class="primary" data-action="confirm">${escapeHtml(
+			<button type="button" class="primary" data-action="confirm">${escapeHtml$1(
       __("Got it")
     )}</button>
 		</div>
 	`;
   }
-  function escapeHtml(s) {
+  function escapeHtml$1(s) {
     const t = document.createElement("div");
     t.textContent = s;
     return t.innerHTML;
@@ -7171,6 +8601,1486 @@ var desktopModePostsWindow = function(exports) {
   const tagsCloud = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null,
     mountTagsCloud
+  }, Symbol.toStringTag, { value: "Module" }));
+  function shellFetch(input, init, options) {
+    return trackedFetch(input, init, {
+      windowId: getActiveWindowId(),
+      source: options?.source ?? "users-window/rest",
+      silent: options?.silent
+    });
+  }
+  async function fetchUsers(params) {
+    const cfg = getConfig();
+    const url = new URL(cfg.postsUrl);
+    for (const [key, value] of Object.entries(cfg.queryArgs ?? {})) {
+      if (typeof value === "string" && value !== "") {
+        url.searchParams.set(key, value);
+      }
+    }
+    url.searchParams.set("page", String(Math.max(1, params.page)));
+    url.searchParams.set("per_page", String(Math.max(1, params.perPage)));
+    if (params.search) {
+      url.searchParams.set("search", params.search);
+    }
+    if (params.roles && params.roles.length > 0) {
+      for (const r of params.roles) {
+        url.searchParams.append("roles", r);
+      }
+    }
+    if (params.orderby) {
+      url.searchParams.set("orderby", params.orderby);
+    }
+    if (params.order) {
+      url.searchParams.set("order", params.order);
+    }
+    const init = {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "X-WP-Nonce": cfg.restNonce
+      }
+    };
+    const res = await shellFetch(url.toString(), init, {
+      source: "users-window/list"
+    });
+    if (!res.ok) {
+      throw new Error(`[users-window] list fetch failed: ${res.status}`);
+    }
+    const items = await res.json();
+    const total = parseInt(res.headers.get("X-WP-Total") ?? "0", 10);
+    const totalPages = parseInt(
+      res.headers.get("X-WP-TotalPages") ?? "0",
+      10
+    );
+    return { items, total, totalPages };
+  }
+  async function bulkSetRole(ids, role) {
+    const cfg = getConfig();
+    const url = cfg.bulkRoleUrl ?? `${cfg.restRoot}desktop-mode/v1/users/bulk-role`;
+    const res = await shellFetch(
+      url,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": cfg.restNonce
+        },
+        body: JSON.stringify({ ids, role })
+      },
+      { source: "users-window/bulk-role" }
+    );
+    if (!res.ok) {
+      throw new Error(`[users-window] bulk-role failed: ${res.status}`);
+    }
+    return await res.json();
+  }
+  async function sendPasswordReset(id) {
+    const cfg = getConfig();
+    const base = cfg.sendResetUrlBase ?? `${cfg.restRoot}desktop-mode/v1/users/`;
+    const res = await shellFetch(
+      `${base}${id}/send-password-reset`,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": cfg.restNonce
+        }
+      },
+      { source: "users-window/send-password-reset" }
+    );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return {
+        ok: false,
+        error: typeof body.code === "string" ? body.code : `http_${res.status}`
+      };
+    }
+    const data = await res.json();
+    return { ok: data.ok === true, email: data.email };
+  }
+  async function resendWelcome(id) {
+    const cfg = getConfig();
+    const base = cfg.sendResetUrlBase ?? `${cfg.restRoot}desktop-mode/v1/users/`;
+    const res = await shellFetch(
+      `${base}${id}/resend-welcome`,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": cfg.restNonce
+        }
+      },
+      { source: "users-window/resend-welcome" }
+    );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return {
+        ok: false,
+        error: typeof body.code === "string" ? body.code : `http_${res.status}`
+      };
+    }
+    const data = await res.json();
+    return { ok: data.ok === true, email: data.email };
+  }
+  async function createUser(body) {
+    const cfg = getConfig();
+    const url = cfg.createUserUrl ?? `${cfg.restRoot}desktop-mode/v1/users`;
+    const res = await shellFetch(
+      url,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": cfg.restNonce
+        },
+        body: JSON.stringify(body)
+      },
+      { source: "users-window/create" }
+    );
+    if (!res.ok) {
+      const data2 = await res.json().catch(() => ({}));
+      const code = data2.code;
+      const message = data2.message;
+      return {
+        ok: false,
+        error: typeof code === "string" ? code : `http_${res.status}`,
+        message: typeof message === "string" ? message : void 0
+      };
+    }
+    const data = await res.json();
+    return {
+      ok: data.ok === true,
+      user_id: data.user_id,
+      email: data.email
+    };
+  }
+  async function showUsersIntroDialog() {
+    return new Promise((resolve) => {
+      const backdrop = document.createElement("div");
+      backdrop.className = "desktop-mode-users-intro__backdrop";
+      backdrop.setAttribute("role", "presentation");
+      Object.assign(backdrop.style, {
+        position: "fixed",
+        inset: "0",
+        background: "color-mix(in srgb, var(--wp-admin-theme-color, #1d2327) 60%, transparent)",
+        backdropFilter: "blur(2px)",
+        zIndex: "100000",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px"
+      });
+      const dialog = document.createElement("div");
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute(
+        "aria-labelledby",
+        "desktop-mode-users-intro-title"
+      );
+      dialog.className = "desktop-mode-users-intro";
+      Object.assign(dialog.style, {
+        background: "var(--wp-admin-theme-bg, #fff)",
+        color: "var(--wp-admin-theme-fg, #1d2327)",
+        borderRadius: "14px",
+        boxShadow: "0 24px 60px rgba(0,0,0,.28)",
+        maxWidth: "520px",
+        width: "100%",
+        maxHeight: "90vh",
+        overflow: "auto",
+        padding: "28px 32px 24px",
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+      });
+      dialog.innerHTML = renderDialogMarkup();
+      backdrop.appendChild(dialog);
+      document.body.appendChild(backdrop);
+      const primaryBtn = dialog.querySelector(
+        '[data-action="confirm"]'
+      );
+      const settingsBtn = dialog.querySelector(
+        '[data-action="settings"]'
+      );
+      primaryBtn?.focus();
+      let resolved = false;
+      const cleanup = (result) => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        document.removeEventListener("keydown", onKey, true);
+        backdrop.remove();
+        resolve(result);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          cleanup("cancel");
+        }
+      };
+      document.addEventListener("keydown", onKey, true);
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) {
+          cleanup("cancel");
+        }
+      });
+      primaryBtn?.addEventListener("click", () => cleanup("confirm"));
+      settingsBtn?.addEventListener("click", () => cleanup("settings"));
+    });
+  }
+  function renderDialogMarkup() {
+    const title = __("Welcome to the new Users window");
+    const lede = __(
+      "Same data you already manage, with the polish the Users list has been waiting for."
+    );
+    const highlights = [
+      __("Live online indicator on every row — see who is around right now."),
+      __("Last-login column so you finally know who is actually using the site."),
+      __("Bulk role change with strict role-permission enforcement — never accidentally promote anyone above your own level."),
+      __("One-click password reset and resend-welcome buttons, with sensible rate-limiting."),
+      __("Click-to-copy email and a long-overdue search that matches name, username, AND email."),
+      __("Per-user content stats: posts, pages, comments at a glance.")
+    ];
+    const li = (arr) => arr.map(
+      (s) => `<li><span class="dot" aria-hidden="true"></span>${escapeHtml(s)}</li>`
+    ).join("");
+    return `
+		<style>
+			.desktop-mode-users-intro h2 {
+				margin: 0 0 8px;
+				font-size: 22px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+			}
+			.desktop-mode-users-intro p.lede {
+				margin: 0 0 20px;
+				color: var(--wp-admin-theme-fg-muted, #50575e);
+				font-size: 14px;
+				line-height: 1.5;
+			}
+			.desktop-mode-users-intro__list {
+				list-style: none;
+				margin: 0 0 22px;
+				padding: 0;
+				font-size: 14px;
+				line-height: 1.5;
+			}
+			.desktop-mode-users-intro__list li {
+				display: flex;
+				align-items: flex-start;
+				gap: 10px;
+				padding: 6px 0;
+			}
+			.desktop-mode-users-intro__list .dot {
+				flex: 0 0 auto;
+				width: 6px;
+				height: 6px;
+				margin-top: 9px;
+				border-radius: 50%;
+				background: var(--wp-admin-theme-color, #2271b1);
+			}
+			.desktop-mode-users-intro__footer {
+				display: flex;
+				justify-content: flex-end;
+				gap: 8px;
+				margin-top: 8px;
+			}
+			.desktop-mode-users-intro__footer button {
+				appearance: none;
+				border: 1px solid var(--wp-admin-theme-border, #dcdcde);
+				background: var(--wp-admin-theme-bg, #fff);
+				color: inherit;
+				padding: 8px 14px;
+				border-radius: 6px;
+				font-size: 13px;
+				cursor: pointer;
+			}
+			.desktop-mode-users-intro__footer button.primary {
+				border-color: var(--wp-admin-theme-color, #2271b1);
+				background: var(--wp-admin-theme-color, #2271b1);
+				color: #fff;
+				font-weight: 500;
+			}
+			.desktop-mode-users-intro__footer button:hover { filter: brightness(1.05); }
+			.desktop-mode-users-intro__footer button:focus-visible {
+				outline: 2px solid var(--wp-admin-theme-color, #2271b1);
+				outline-offset: 2px;
+			}
+		</style>
+		<h2 id="desktop-mode-users-intro-title">${escapeHtml(title)}</h2>
+		<p class="lede">${escapeHtml(lede)}</p>
+		<ul class="desktop-mode-users-intro__list">${li(highlights)}</ul>
+		<div class="desktop-mode-users-intro__footer">
+			<button type="button" data-action="settings">${escapeHtml(
+      __("Take me to settings")
+    )}</button>
+			<button type="button" class="primary" data-action="confirm">${escapeHtml(
+      __("Got it")
+    )}</button>
+		</div>
+	`;
+  }
+  function escapeHtml(s) {
+    const t = document.createElement("div");
+    t.textContent = s;
+    return t.innerHTML;
+  }
+  function wpdConfirmGlobal(options) {
+    const w = window;
+    const fn = w.wp?.desktop?.confirm;
+    if (typeof fn !== "function") {
+      return Promise.resolve(window.confirm(options.message));
+    }
+    return fn(options);
+  }
+  function notifyToast(body, opts = {}) {
+    const w = window;
+    const api = w.wp?.desktop;
+    if (api?.notify) {
+      api.notify({ body, kind: opts.kind });
+      return;
+    }
+    console.info("[users-window]", body);
+  }
+  async function openUserEditWindow(userId) {
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return;
+    }
+    const target = await Promise.resolve().then(() => userEditTarget);
+    target.setUserEditTarget(userId);
+    console.info(
+      "[users-window] opening user-edit window for user",
+      userId
+    );
+    const w = window;
+    const fn = w.wp?.desktop?.openWindow;
+    if (typeof fn !== "function") {
+      console.error(
+        "[users-window] wp.desktop.openWindow is missing — desktop shell may not be ready."
+      );
+      notifyToast(
+        __("Could not open profile window — desktop shell unavailable."),
+        { kind: "error" }
+      );
+      return;
+    }
+    const opened = fn("desktop-mode-user-edit", {
+      source: "users-window/row-click"
+    });
+    if (!opened) {
+      console.error(
+        '[users-window] openWindow("desktop-mode-user-edit") returned false — window not registered server-side. Check includes/user-edit-window/window.php.'
+      );
+      notifyToast(
+        __("Profile window not registered — see console."),
+        { kind: "error" }
+      );
+    }
+  }
+  const ROOT = "[data-desktop-mode-posts-root]";
+  const STATUS = "[data-desktop-mode-posts-status]";
+  const SEARCH = "[data-desktop-mode-posts-search]";
+  const REFRESH = "[data-desktop-mode-posts-refresh]";
+  const NEW_BTN = "[data-desktop-mode-posts-new]";
+  const TABLE = "[data-desktop-mode-posts-table]";
+  const BULK = "[data-desktop-mode-posts-bulk]";
+  const COUNT = "[data-desktop-mode-posts-count]";
+  const PAGE_INDICATOR = "[data-desktop-mode-posts-page-indicator]";
+  const PREV = "[data-desktop-mode-posts-prev]";
+  const NEXT = "[data-desktop-mode-posts-next]";
+  const PER_PAGE = "[data-desktop-mode-posts-per-page]";
+  const BULK_ACTIONS_HOST = "[data-desktop-mode-posts-bulk-actions]";
+  const SEARCH_DEBOUNCE_MS = 250;
+  function userCellKey(id, key) {
+    return `${id}::${key}`;
+  }
+  function memoUserCell(cache, id, key, build) {
+    const k = userCellKey(id, key);
+    const cached = cache.get(k);
+    if (cached) {
+      return cached;
+    }
+    const node = build();
+    cache.set(k, node);
+    return node;
+  }
+  const _usersIntroShown = { v: false };
+  function maybeShowUsersIntro() {
+    if (_usersIntroShown.v) {
+      return;
+    }
+    let cfg;
+    try {
+      cfg = getConfig();
+    } catch {
+      return;
+    }
+    if (cfg.introSeen) {
+      return;
+    }
+    _usersIntroShown.v = true;
+    void showUsersIntroDialog().then((result) => {
+      if (result === "cancel") {
+        _usersIntroShown.v = false;
+        return;
+      }
+      void markUsersIntroSeen(cfg);
+      if (result === "settings") {
+        const w = window;
+        w.wp?.desktop?.openOsSettings?.();
+      }
+    }).catch(() => {
+      _usersIntroShown.v = false;
+    });
+  }
+  async function markUsersIntroSeen(cfg) {
+    if (!cfg.introUrl) {
+      return;
+    }
+    try {
+      await trackedFetch(
+        cfg.introUrl,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-WP-Nonce": cfg.restNonce
+          },
+          body: JSON.stringify({ slug: "users" })
+        },
+        {
+          windowId: getActiveWindowId(),
+          source: "users-window/intro"
+        }
+      );
+      cfg.introSeen = true;
+    } catch {
+    }
+  }
+  function buildIdentityCell(row) {
+    const cell = document.createElement("span");
+    cell.style.cssText = "display:flex;align-items:center;gap:10px;min-width:0;";
+    const avatar = document.createElement("img");
+    const avatars = row.avatar_urls ?? {};
+    avatar.src = avatars["48"] ?? avatars["96"] ?? avatars["24"] ?? "";
+    avatar.alt = "";
+    avatar.loading = "eager";
+    avatar.decoding = "sync";
+    avatar.style.cssText = "width:32px;height:32px;border-radius:50%;flex-shrink:0;";
+    cell.appendChild(avatar);
+    const presence = row.desktop_mode_presence ?? "offline";
+    const dot = document.createElement("span");
+    let presenceLabel = __("Offline");
+    let presenceColor = "#8c8f94";
+    if (presence === "online") {
+      presenceLabel = __("Online now");
+      presenceColor = "#1d6f42";
+    } else if (presence === "inactive") {
+      presenceLabel = __("Idle");
+      presenceColor = "#d4a017";
+    }
+    dot.title = presenceLabel;
+    dot.setAttribute("aria-label", presenceLabel);
+    dot.style.cssText = [
+      "display:inline-block",
+      "width:8px",
+      "height:8px",
+      "border-radius:50%",
+      "flex-shrink:0",
+      `background:${presenceColor}`
+    ].join(";");
+    cell.appendChild(dot);
+    const text = document.createElement("span");
+    text.style.cssText = "display:flex;flex-direction:column;min-width:0;line-height:1.25;";
+    const nameRow = document.createElement("span");
+    const name = document.createElement("a");
+    const cfg = getConfig();
+    name.href = `${cfg.editPostUrlBase}?user_id=${row.id}`;
+    name.textContent = row.name || `#${row.id}`;
+    name.title = name.textContent;
+    name.setAttribute("data-noclick", "");
+    name.style.cssText = "font-weight:600;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;";
+    name.addEventListener("mouseenter", () => {
+      name.style.textDecoration = "underline";
+    });
+    name.addEventListener("mouseleave", () => {
+      name.style.textDecoration = "none";
+    });
+    name.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void openUserEditWindow(row.id);
+    });
+    nameRow.appendChild(name);
+    text.appendChild(nameRow);
+    if (row.slug) {
+      const sub = document.createElement("span");
+      sub.textContent = `@${row.slug}`;
+      sub.style.cssText = "font-size:11px;color:var(--wp-admin-theme-fg-muted, #8c8f94);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;";
+      text.appendChild(sub);
+    }
+    cell.appendChild(text);
+    return cell;
+  }
+  function buildEmailCell(row) {
+    const cell = document.createElement("button");
+    cell.type = "button";
+    const email = typeof row.email === "string" ? row.email : "";
+    cell.textContent = email || "—";
+    cell.disabled = email === "";
+    cell.title = email ? __("Click to copy email") : "";
+    Object.assign(cell.style, {
+      appearance: "none",
+      background: "transparent",
+      border: "none",
+      padding: "2px 6px",
+      font: "inherit",
+      color: "inherit",
+      cursor: email ? "copy" : "default",
+      textAlign: "left",
+      fontSize: "13px",
+      borderRadius: "4px",
+      maxWidth: "100%",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    });
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!email) {
+        return;
+      }
+      void navigator.clipboard?.writeText(email).then(() => {
+        const orig = cell.textContent;
+        cell.textContent = __("Copied!");
+        cell.style.color = "var(--wp-admin-theme-color, #2271b1)";
+        setTimeout(() => {
+          cell.textContent = orig;
+          cell.style.color = "";
+        }, 1200);
+      }).catch(() => {
+      });
+    });
+    return cell;
+  }
+  function buildRoleCell(row) {
+    const cell = document.createElement("span");
+    cell.style.cssText = "display:inline-flex;flex-wrap:wrap;gap:4px;min-width:0;";
+    const roles = Array.isArray(row.roles) ? row.roles : [];
+    let labels = {};
+    try {
+      labels = getConfig().allRoles ?? {};
+    } catch {
+      labels = {};
+    }
+    if (roles.length === 0) {
+      const none = document.createElement("span");
+      none.textContent = __("No role");
+      none.style.cssText = "color:var(--wp-admin-theme-fg-muted, #8c8f94);font-style:italic;";
+      cell.appendChild(none);
+      return cell;
+    }
+    for (const slug of roles) {
+      const chip = document.createElement("span");
+      chip.textContent = labels[slug] ?? slug;
+      chip.style.cssText = [
+        "display:inline-flex",
+        "align-items:center",
+        "padding:2px 8px",
+        "border-radius:10px",
+        "font-size:11px",
+        "font-weight:600",
+        "background:rgba(34,113,177,0.10)",
+        "color:#0a4b78",
+        "white-space:nowrap"
+      ].join(";");
+      cell.appendChild(chip);
+    }
+    return cell;
+  }
+  function buildStatsCell(row) {
+    const stats = row.desktop_mode_user_stats ?? {
+      posts: 0,
+      pages: 0,
+      comments: 0
+    };
+    const cell = document.createElement("span");
+    cell.style.cssText = "display:inline-flex;align-items:center;gap:10px;font-size:12px;font-variant-numeric:tabular-nums;";
+    const mk = (dashicon, count, label) => {
+      const span = document.createElement("span");
+      span.style.cssText = "display:inline-flex;align-items:center;gap:3px;";
+      span.title = label;
+      const ic = document.createElement("wpd-icon");
+      ic.setAttribute("name", dashicon);
+      ic.setAttribute("size", "14");
+      ic.style.color = "var(--wp-admin-theme-fg-muted, #8c8f94)";
+      span.appendChild(ic);
+      const txt = document.createElement("span");
+      txt.textContent = String(count);
+      if (count === 0) {
+        txt.style.color = "var(--wp-admin-theme-fg-muted, #8c8f94)";
+      }
+      span.appendChild(txt);
+      return span;
+    };
+    cell.appendChild(mk("admin-post", stats.posts, __("Posts")));
+    cell.appendChild(mk("admin-page", stats.pages, __("Pages")));
+    cell.appendChild(
+      mk("admin-comments", stats.comments, __("Comments"))
+    );
+    return cell;
+  }
+  function relativeTime(ts) {
+    const now = Math.floor(Date.now() / 1e3);
+    const delta = now - ts;
+    if (delta < 60) {
+      return __("just now");
+    }
+    if (delta < 3600) {
+      const m = Math.floor(delta / 60);
+      return sprintf(__("%d min ago"), m);
+    }
+    if (delta < 86400) {
+      const h = Math.floor(delta / 3600);
+      return sprintf(__("%d h ago"), h);
+    }
+    if (delta < 86400 * 30) {
+      const d = Math.floor(delta / 86400);
+      return sprintf(__("%d d ago"), d);
+    }
+    if (delta < 86400 * 365) {
+      const mo = Math.floor(delta / (86400 * 30));
+      return sprintf(__("%d mo ago"), mo);
+    }
+    const y = Math.floor(delta / (86400 * 365));
+    return sprintf(__("%d y ago"), y);
+  }
+  function buildLastLoginCell(row) {
+    const cell = document.createElement("span");
+    cell.style.cssText = "font-size:13px;font-variant-numeric:tabular-nums;";
+    const ts = row.desktop_mode_last_login;
+    if (!ts || typeof ts !== "number") {
+      cell.textContent = __("Never");
+      cell.style.color = "var(--wp-admin-theme-fg-muted, #8c8f94)";
+      return cell;
+    }
+    cell.textContent = relativeTime(ts);
+    const dt = new Date(ts * 1e3);
+    cell.title = dt.toLocaleString();
+    return cell;
+  }
+  function buildRegisteredCell(row) {
+    const cell = document.createElement("span");
+    cell.style.cssText = "font-size:13px;font-variant-numeric:tabular-nums;";
+    const raw = typeof row.registered_date === "string" ? row.registered_date : "";
+    if (!raw) {
+      cell.textContent = "—";
+      cell.style.color = "var(--wp-admin-theme-fg-muted, #8c8f94)";
+      return cell;
+    }
+    const ts = Math.floor(Date.parse(raw + "Z") / 1e3);
+    if (!Number.isFinite(ts)) {
+      cell.textContent = raw;
+      return cell;
+    }
+    cell.textContent = relativeTime(ts);
+    cell.title = new Date(ts * 1e3).toLocaleString();
+    return cell;
+  }
+  function buildActionsCell(row) {
+    const cell = document.createElement("span");
+    cell.style.cssText = "display:inline-flex;gap:4px;align-items:center;";
+    let canEditViewer = false;
+    try {
+      canEditViewer = getConfig().canEdit === true;
+    } catch {
+      canEditViewer = false;
+    }
+    const canEditRow = row.desktop_mode_can_edit === true;
+    if (!canEditViewer || !canEditRow) {
+      cell.textContent = "—";
+      cell.style.color = "var(--wp-admin-theme-fg-muted, #8c8f94)";
+      return cell;
+    }
+    const mk = (label, dashicon, fn) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.title = label;
+      btn.setAttribute("aria-label", label);
+      Object.assign(btn.style, {
+        appearance: "none",
+        border: "1px solid var(--wp-admin-theme-border, #dcdcde)",
+        background: "var(--wp-admin-theme-bg, #fff)",
+        color: "inherit",
+        padding: "4px 6px",
+        borderRadius: "4px",
+        cursor: "pointer",
+        lineHeight: "1"
+      });
+      const ic = document.createElement("wpd-icon");
+      ic.setAttribute("name", dashicon);
+      ic.setAttribute("size", "14");
+      btn.appendChild(ic);
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fn();
+      });
+      return btn;
+    };
+    cell.appendChild(
+      mk(
+        __("Send password reset"),
+        "email-alt",
+        async () => {
+          const ok = await wpdConfirmGlobal({
+            title: __("Send password reset email?"),
+            message: sprintf(
+              // translators: %s is a user name.
+              __("WordPress will email %s a password-reset link."),
+              row.name
+            ),
+            confirmLabel: __("Send reset email")
+          });
+          if (!ok) {
+            return;
+          }
+          const result = await sendPasswordReset(row.id);
+          if (result.ok) {
+            notifyToast(
+              sprintf(
+                // translators: %s is the user's email address.
+                __("Reset email sent to %s."),
+                result.email ?? row.email ?? ""
+              ),
+              { kind: "success" }
+            );
+          } else {
+            notifyToast(
+              sprintf(
+                // translators: %s is an error code.
+                __("Could not send reset email (%s)."),
+                result.error ?? "unknown"
+              ),
+              { kind: "error" }
+            );
+          }
+        }
+      )
+    );
+    cell.appendChild(
+      mk(
+        __("Resend welcome email"),
+        "megaphone",
+        async () => {
+          const ok = await wpdConfirmGlobal({
+            title: __("Resend welcome email?"),
+            message: sprintf(
+              // translators: %s is a user name.
+              __(
+                "WordPress will resend the original welcome email to %s."
+              ),
+              row.name
+            ),
+            confirmLabel: __("Resend")
+          });
+          if (!ok) {
+            return;
+          }
+          const result = await resendWelcome(row.id);
+          if (result.ok) {
+            notifyToast(
+              sprintf(
+                // translators: %s is the user's email address.
+                __("Welcome email resent to %s."),
+                result.email ?? row.email ?? ""
+              ),
+              { kind: "success" }
+            );
+          } else {
+            notifyToast(
+              sprintf(
+                // translators: %s is an error code.
+                __("Could not resend welcome (%s)."),
+                result.error ?? "unknown"
+              ),
+              { kind: "error" }
+            );
+          }
+        }
+      )
+    );
+    return cell;
+  }
+  function buildColumns(cache) {
+    const cols = [
+      {
+        key: "identity",
+        label: __("Name"),
+        sortable: false,
+        sticky: true,
+        minWidth: "260px",
+        render: (_v, row) => memoUserCell(
+          cache,
+          row.id,
+          "identity",
+          () => buildIdentityCell(row)
+        )
+      },
+      {
+        key: "email",
+        label: __("Email"),
+        minWidth: "220px",
+        render: (_v, row) => memoUserCell(cache, row.id, "email", () => buildEmailCell(row))
+      },
+      {
+        key: "role",
+        label: __("Role"),
+        width: "180px",
+        render: (_v, row) => memoUserCell(cache, row.id, "role", () => buildRoleCell(row))
+      },
+      {
+        key: "stats",
+        label: __("Content"),
+        width: "160px",
+        sortValue: (row) => {
+          const s = row.desktop_mode_user_stats;
+          return s ? s.posts + s.pages + s.comments : 0;
+        },
+        render: (_v, row) => memoUserCell(cache, row.id, "stats", () => buildStatsCell(row))
+      },
+      {
+        key: "last_login",
+        label: __("Last login"),
+        width: "140px",
+        sortable: false,
+        sortValue: (row) => typeof row.desktop_mode_last_login === "number" ? row.desktop_mode_last_login : 0,
+        render: (_v, row) => memoUserCell(
+          cache,
+          row.id,
+          "last_login",
+          () => buildLastLoginCell(row)
+        )
+      },
+      {
+        key: "registered",
+        label: __("Registered"),
+        width: "140px",
+        sortable: true,
+        render: (_v, row) => memoUserCell(
+          cache,
+          row.id,
+          "registered",
+          () => buildRegisteredCell(row)
+        )
+      }
+    ];
+    let canEdit = false;
+    try {
+      canEdit = getConfig().canEdit === true;
+    } catch {
+      canEdit = false;
+    }
+    if (canEdit) {
+      cols.push({
+        key: "actions",
+        label: __("Actions"),
+        width: "110px",
+        sortable: false,
+        render: (_v, row) => (
+          // Actions cell is intentionally NOT memoized — its closure
+          // captures `row` and the row payload changes between
+          // fetches. Cheap to rebuild, fewer surprises.
+          buildActionsCell(row)
+        )
+      });
+    }
+    return cols;
+  }
+  function defaultStatusSegments() {
+    return [
+      { value: "", label: __("All") },
+      { value: "online", label: __("Online") },
+      { value: "recent", label: __("Active 30d") },
+      { value: "never", label: __("Never logged in") }
+    ];
+  }
+  function applyClientStatusFilter(rows, status) {
+    if (!status) {
+      return rows;
+    }
+    if (status === "online") {
+      return rows.filter((r) => r.desktop_mode_presence === "online");
+    }
+    if (status === "recent") {
+      const now = Math.floor(Date.now() / 1e3);
+      return rows.filter((r) => {
+        const ts = r.desktop_mode_last_login;
+        return typeof ts === "number" && ts > 0 && now - ts < 86400 * 30;
+      });
+    }
+    if (status === "never") {
+      return rows.filter(
+        (r) => !r.desktop_mode_last_login || typeof r.desktop_mode_last_login !== "number"
+      );
+    }
+    return rows;
+  }
+  async function renderUsersWindow(body) {
+    const root = body.querySelector(ROOT);
+    const table = body.querySelector(TABLE);
+    if (!root || !table) {
+      return;
+    }
+    table.addEventListener("wpd-table-row-click", (e) => {
+      const detail = e.detail;
+      const id = detail?.row?.id;
+      if (typeof id !== "number" || id <= 0) {
+        return;
+      }
+      void openUserEditWindow(id);
+    });
+    maybeShowUsersIntro();
+    const cfg = getConfig();
+    const view = {
+      page: 1,
+      perPage: Math.max(1, cfg.defaultPerPage || 20),
+      search: "",
+      status: "",
+      orderby: "name",
+      order: "asc",
+      roles: [],
+      searchDebounce: null
+    };
+    const cellCache = /* @__PURE__ */ new Map();
+    table.columns = buildColumns(cellCache);
+    table.getRowId = (row) => row.id;
+    table.sort = { key: "name", direction: "asc" };
+    if (!cfg.canEdit && !cfg.canPromote && !cfg.canDelete) {
+      table.removeAttribute("selectable");
+    }
+    let totalPages = 0;
+    let totalRows = 0;
+    let refreshSeq = 0;
+    const perPageEl = root.querySelector(PER_PAGE);
+    if (perPageEl) {
+      perPageEl.value = String(view.perPage);
+    }
+    const indicator = root.querySelector(PAGE_INDICATOR);
+    const prevBtn = root.querySelector(PREV);
+    const nextBtn = root.querySelector(NEXT);
+    const bulkBar = root.querySelector(BULK);
+    const countEl = root.querySelector(COUNT);
+    const bulkActionsHost = root.querySelector(BULK_ACTIONS_HOST);
+    const statusHost = root.querySelector(STATUS);
+    if (statusHost) {
+      statusHost.replaceChildren();
+      for (const seg of defaultStatusSegments()) {
+        const el = document.createElement("wpd-segment");
+        el.setAttribute("value", seg.value);
+        el.textContent = seg.label;
+        statusHost.appendChild(el);
+      }
+      statusHost.addEventListener("wpd-segmented-change", (e) => {
+        const detail = e.detail;
+        view.status = detail?.value ?? "";
+        view.page = 1;
+        void refresh();
+      });
+    }
+    const searchEl = root.querySelector(SEARCH);
+    if (searchEl) {
+      searchEl.addEventListener("input", () => {
+        if (view.searchDebounce !== null) {
+          clearTimeout(view.searchDebounce);
+        }
+        view.searchDebounce = window.setTimeout(() => {
+          view.search = searchEl.value.trim();
+          view.page = 1;
+          void refresh();
+        }, SEARCH_DEBOUNCE_MS);
+      });
+    }
+    const refreshBtn = root.querySelector(REFRESH);
+    refreshBtn?.addEventListener("click", () => {
+      void refresh();
+    });
+    const newBtn = root.querySelector(NEW_BTN);
+    if (newBtn) {
+      if (!cfg.canCreate) {
+        newBtn.style.display = "none";
+      } else {
+        newBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          const tabs = body.querySelector(
+            "[data-desktop-mode-users-tabs]"
+          );
+          if (!tabs) {
+            return;
+          }
+          tabs.value = "add-new";
+          tabs.setAttribute("value", "add-new");
+        });
+      }
+    }
+    perPageEl?.addEventListener("change", () => {
+      const n = parseInt(perPageEl.value, 10);
+      if (Number.isFinite(n) && n > 0) {
+        view.perPage = n;
+        view.page = 1;
+        void refresh();
+      }
+    });
+    const renderBulkBar = () => {
+      if (!bulkBar || !bulkActionsHost) {
+        return;
+      }
+      const sel = table.selection;
+      const ids = sel ? Array.from(sel) : [];
+      if (ids.length === 0) {
+        bulkBar.hidden = true;
+        return;
+      }
+      bulkBar.hidden = false;
+      if (countEl) {
+        countEl.textContent = sprintf(
+          // translators: %d is a count of selected users.
+          __("%d selected"),
+          ids.length
+        );
+      }
+      bulkActionsHost.replaceChildren();
+      const assignable = cfg.assignableRoles ?? {};
+      const assignableKeys = Object.keys(assignable);
+      if (cfg.canPromote && assignableKeys.length > 0) {
+        const wrap = document.createElement("span");
+        wrap.style.cssText = "display:inline-flex;align-items:center;gap:6px;";
+        const roleDropdown = document.createElement("select");
+        Object.assign(roleDropdown.style, {
+          padding: "4px 8px",
+          borderRadius: "4px",
+          border: "1px solid var(--wp-admin-theme-border, #dcdcde)",
+          background: "var(--wp-admin-theme-bg, #fff)",
+          color: "inherit",
+          font: "inherit",
+          fontSize: "13px"
+        });
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = __("Set role to…");
+        roleDropdown.appendChild(placeholder);
+        for (const slug of assignableKeys) {
+          const opt = document.createElement("option");
+          opt.value = slug;
+          opt.textContent = assignable[slug];
+          roleDropdown.appendChild(opt);
+        }
+        const apply = document.createElement("wpd-button");
+        apply.setAttribute("variant", "primary");
+        apply.textContent = __("Apply");
+        apply.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const role = roleDropdown.value;
+          if (!role) {
+            return;
+          }
+          const ok = await wpdConfirmGlobal({
+            title: __("Change role for selected users?"),
+            message: sprintf(
+              // translators: %1$d is a user count, %2$s is a role label.
+              __("Set %1$d user(s)' role to %2$s?"),
+              ids.length,
+              assignable[role]
+            ),
+            confirmLabel: __("Set role")
+          });
+          if (!ok) {
+            return;
+          }
+          const out = await bulkSetRole(ids, role).catch((err) => {
+            notifyToast(
+              String(err.message ?? err),
+              { kind: "error" }
+            );
+            return null;
+          });
+          if (!out) {
+            return;
+          }
+          const successes = Object.values(out.results).filter(
+            (r) => r.ok
+          ).length;
+          const failures = ids.length - successes;
+          if (successes > 0) {
+            notifyToast(
+              sprintf(
+                // translators: %1$d users updated, %2$d failed.
+                __("Role updated for %1$d user(s) (%2$d skipped)."),
+                successes,
+                failures
+              ),
+              { kind: failures > 0 ? "info" : "success" }
+            );
+          } else {
+            notifyToast(__("No users updated."), { kind: "error" });
+          }
+          void refresh();
+        });
+        wrap.appendChild(roleDropdown);
+        wrap.appendChild(apply);
+        bulkActionsHost.appendChild(wrap);
+      }
+    };
+    table.addEventListener("wpd-table-selection-change", renderBulkBar);
+    prevBtn?.addEventListener("click", () => {
+      if (view.page > 1) {
+        view.page -= 1;
+        void refresh();
+      }
+    });
+    nextBtn?.addEventListener("click", () => {
+      if (view.page < totalPages) {
+        view.page += 1;
+        void refresh();
+      }
+    });
+    const updatePager = () => {
+      if (indicator) {
+        indicator.textContent = sprintf(
+          // translators: %1$d current page, %2$d total pages, %3$d total rows.
+          __("Page %1$d of %2$d · %3$d users"),
+          view.page,
+          Math.max(1, totalPages),
+          totalRows
+        );
+      }
+      if (prevBtn) {
+        prevBtn.disabled = view.page <= 1;
+      }
+      if (nextBtn) {
+        nextBtn.disabled = view.page >= totalPages;
+      }
+    };
+    const buildParams = () => {
+      return {
+        page: view.page,
+        perPage: view.perPage,
+        search: view.search || void 0,
+        roles: view.roles.length > 0 ? view.roles : void 0,
+        orderby: view.orderby,
+        order: view.order
+      };
+    };
+    const refresh = async () => {
+      const mySeq = ++refreshSeq;
+      table.toggleAttribute("loading", true);
+      try {
+        const result = await fetchUsers(buildParams());
+        if (mySeq !== refreshSeq) {
+          return;
+        }
+        if (result.items.length === 0 && view.page > 1 && result.totalPages > 0 && view.page > result.totalPages) {
+          view.page = 1;
+          await refresh();
+          return;
+        }
+        cellCache.clear();
+        const filtered = applyClientStatusFilter(result.items, view.status);
+        table.data = filtered;
+        totalRows = result.total;
+        totalPages = result.totalPages;
+        updatePager();
+        renderBulkBar();
+      } catch (err) {
+        console.error("[users-window] fetch failed:", err);
+        notifyToast(
+          __("Could not load users. Try Refresh."),
+          { kind: "error" }
+        );
+      } finally {
+        table.toggleAttribute("loading", false);
+      }
+    };
+    mountAddUserForm(body, {
+      afterCreate: () => {
+        const tabs = body.querySelector(
+          "[data-desktop-mode-users-tabs]"
+        );
+        if (tabs) {
+          tabs.value = "all";
+          tabs.setAttribute("value", "all");
+        }
+        view.page = 1;
+        void refresh();
+      }
+    });
+    wireProfileSubTab(body);
+    void refresh();
+  }
+  function wireProfileSubTab(body) {
+    const profile = body.querySelector(
+      "wpd-user-profile[data-wpd-user-profile-self]"
+    );
+    if (!profile) {
+      return;
+    }
+    const cfg = getConfig();
+    const viewerId = cfg.currentUserId;
+    if (typeof viewerId === "number" && viewerId > 0) {
+      profile.setAttribute("user-id", String(viewerId));
+    }
+  }
+  function mountAddUserForm(body, opts) {
+    const formNullable = body.querySelector(
+      "[data-desktop-mode-users-add-form]"
+    );
+    if (!formNullable) {
+      return;
+    }
+    const form = formNullable;
+    const cfg = getConfig();
+    const defaultRole = cfg.defaultRole ?? "subscriber";
+    const assignableRoles = cfg.assignableRoles && Object.keys(cfg.assignableRoles).length > 0 ? cfg.assignableRoles : { [defaultRole]: defaultRole };
+    mountSelect(form, "role", __("Role"), assignableRoles, defaultRole);
+    mountSelect(
+      form,
+      "locale",
+      __("Language"),
+      cfg.locales ?? { "": __("Site default") },
+      ""
+    );
+    const generateBtn = form.querySelector(
+      '[data-action="generate-password"]'
+    );
+    generateBtn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pwd = generateStrongPassword(18);
+      const pwdField = form.querySelector(
+        'wpd-text-field[name="password"]'
+      );
+      if (pwdField) {
+        pwdField.value = pwd;
+        pwdField.setAttribute("value", pwd);
+      }
+      void navigator.clipboard?.writeText(pwd).catch(() => {
+      });
+      notifyToast(__("Generated password copied to clipboard."), {
+        kind: "success"
+      });
+    });
+    let pending = false;
+    form.addEventListener("wpd-form-submit", (e) => {
+      const detail = e.detail;
+      void onSubmit(detail.values);
+    });
+    async function onSubmit(values) {
+      if (pending) {
+        return;
+      }
+      pending = true;
+      form.setBusy(true);
+      form.clearErrors();
+      const payload = {
+        username: String(values.username ?? "").trim(),
+        email: String(values.email ?? "").trim(),
+        first_name: optionalString(values.first_name),
+        last_name: optionalString(values.last_name),
+        url: optionalString(values.url),
+        locale: String(values.locale ?? ""),
+        password: optionalString(values.password),
+        role: optionalString(values.role),
+        send_notification: Boolean(values.send_notification)
+      };
+      const result = await createUser(payload);
+      pending = false;
+      form.setBusy(false);
+      if (!result.ok) {
+        handleCreateError(form, result.error, result.message, payload);
+        return;
+      }
+      notifyToast(
+        sprintf(
+          // translators: %s is the user's email address.
+          __("User created — welcome email sent to %s."),
+          result.email ?? payload.email
+        ),
+        { kind: "success" }
+      );
+      opts.afterCreate();
+    }
+  }
+  function mountSelect(form, name, _label, optionsMap, initialValue) {
+    const select = form.querySelector(
+      `wpd-select[name="${name}"]`
+    );
+    if (!select) {
+      return;
+    }
+    const items = Object.entries(optionsMap).map(([value, label]) => ({
+      value,
+      label
+    }));
+    select.items = items;
+    if (initialValue && optionsMap[initialValue] !== void 0) {
+      select.value = initialValue;
+      select.setAttribute("value", initialValue);
+    }
+  }
+  function handleCreateError(form, code, message, payload) {
+    let summary = message;
+    if (!summary) {
+      switch (code) {
+        case "desktop_mode_users_username_exists":
+        case "existing_user_login":
+          summary = __("That username is already in use.");
+          break;
+        case "desktop_mode_users_email_exists":
+        case "existing_user_email":
+          summary = __("That email is already in use.");
+          break;
+        case "desktop_mode_users_username_invalid":
+          summary = __("Username is not valid.");
+          break;
+        case "desktop_mode_users_email_invalid":
+          summary = __("A valid email address is required.");
+          break;
+        case "desktop_mode_users_role_forbidden":
+          summary = __("You are not allowed to assign that role.");
+          break;
+        default:
+          summary = __("Could not create the user.");
+      }
+    }
+    form.setError(summary);
+    if (code === "desktop_mode_users_username_exists" || code === "existing_user_login" || code === "desktop_mode_users_username_invalid") {
+      form.setFieldInvalid("username");
+    }
+    if (code === "desktop_mode_users_email_exists" || code === "existing_user_email" || code === "desktop_mode_users_email_invalid") {
+      form.setFieldInvalid("email");
+    }
+    if (code === "desktop_mode_users_role_forbidden") {
+      form.setFieldInvalid("role");
+    }
+    notifyToast(summary, { kind: "error" });
+    console.warn("[users-window] create failed", { code, payload });
+  }
+  function optionalString(value) {
+    if (typeof value !== "string") {
+      return void 0;
+    }
+    const trimmed = value.trim();
+    return trimmed === "" ? void 0 : trimmed;
+  }
+  function generateStrongPassword(length) {
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lower = "abcdefghjkmnpqrstuvwxyz";
+    const digits = "23456789";
+    const symbols = "!@#$%^&*-_=+";
+    const all = upper + lower + digits + symbols;
+    const buf = new Uint32Array(length);
+    crypto.getRandomValues(buf);
+    let out = "";
+    for (let i = 0; i < length; i += 1) {
+      out += all[buf[i] % all.length];
+    }
+    return out;
+  }
+  const usersRender = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    renderUsersWindow
+  }, Symbol.toStringTag, { value: "Module" }));
+  const _initial = {
+    userId: null,
+    requestedAt: 0,
+    tabRequested: false
+  };
+  let _store = null;
+  function getStore() {
+    if (_store) {
+      return _store;
+    }
+    const w = window;
+    const factory = w.wp?.desktop?.createSharedStore;
+    if (typeof factory !== "function") {
+      return null;
+    }
+    _store = factory(
+      "desktop-mode/user-edit/target",
+      () => ({ ..._initial })
+    );
+    return _store;
+  }
+  function setUserEditTarget(userId) {
+    const store = getStore();
+    if (store) {
+      store.state.userId = userId;
+      store.state.requestedAt = Date.now();
+      store.state.tabRequested = true;
+      store.notify();
+      return;
+    }
+    const w = window;
+    w._wpdUserEditTarget = {
+      userId,
+      requestedAt: Date.now(),
+      tabRequested: true
+    };
+  }
+  function readUserEditTarget() {
+    const store = getStore();
+    if (store) {
+      return { ...store.state };
+    }
+    const w = window;
+    return w._wpdUserEditTarget ?? { ..._initial };
+  }
+  function clearUserEditTarget() {
+    const store = getStore();
+    if (store) {
+      store.state.userId = null;
+      store.state.requestedAt = 0;
+      store.state.tabRequested = false;
+      store.notify();
+    }
+    const w = window;
+    if (w._wpdUserEditTarget) {
+      w._wpdUserEditTarget = {
+        userId: null,
+        requestedAt: 0,
+        tabRequested: false
+      };
+    }
+  }
+  function setUserEditTabRequested(requested) {
+    const store = getStore();
+    if (store) {
+      store.state.tabRequested = requested;
+      store.notify();
+      return;
+    }
+    const w = window;
+    const prev = w._wpdUserEditTarget ?? { ..._initial };
+    w._wpdUserEditTarget = { ...prev, tabRequested: requested };
+  }
+  function subscribeUserEditTarget(cb) {
+    const store = getStore();
+    if (!store) {
+      return () => {
+      };
+    }
+    return store.subscribe((state) => cb({ ...state }));
+  }
+  const userEditTarget = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    clearUserEditTarget,
+    readUserEditTarget,
+    setUserEditTabRequested,
+    setUserEditTarget,
+    subscribeUserEditTarget
   }, Symbol.toStringTag, { value: "Module" }));
   exports.renderPostsWindow = renderPostsWindow;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });

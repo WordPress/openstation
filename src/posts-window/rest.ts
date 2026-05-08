@@ -30,7 +30,7 @@ export interface PostsWindowConfig {
 	 *
 	 * @since 0.18.0
 	 */
-	mode?: 'posts' | 'pages';
+	mode?: 'posts' | 'pages' | 'users';
 	/**
 	 * Intro-dialog slug — `'posts'` for the canonical Posts window,
 	 * `'pages'` for the Pages window, plus any plugin-introduced
@@ -65,6 +65,34 @@ export interface PostsWindowConfig {
 	 * @since 0.18.0
 	 */
 	pageTemplates?: Record< string, string >;
+	// ─── Users window only ───────────────────────────────────────────
+	/** Viewer can `edit_users`. UI-side flag; server re-checks. */
+	canEdit?: boolean;
+	/** Viewer can `promote_users` (i.e. show role-change menu). */
+	canPromote?: boolean;
+	/** Viewer can `create_users` (show "Add new"). */
+	canCreate?: boolean;
+	/** Viewer can `delete_users` / `remove_users` (show bulk-delete). */
+	canDelete?: boolean;
+	/** True on multisite (changes the bulk-delete semantics). */
+	isMultisite?: boolean;
+	/** `{ slug: label }` for roles the viewer can assign (role-change menu). */
+	assignableRoles?: Record< string, string >;
+	/** `{ slug: label }` for every role on the install (role filter). */
+	allRoles?: Record< string, string >;
+	/** REST URLs for the Users-window mutation endpoints. */
+	bulkRoleUrl?: string;
+	bulkDeleteUrl?: string;
+	/** Base URL for `/users/<id>/{send-password-reset,resend-welcome}` — id appended client-side. */
+	sendResetUrlBase?: string;
+	/** REST URL for `POST /desktop-mode/v1/users` (create). */
+	createUserUrl?: string;
+	/** Available locales: `{ slug: label }`. Empty slug = site default. */
+	locales?: Record< string, string >;
+	/** Site locale string (e.g. `en_US`) — surfaced for the form's default-locale label. */
+	siteLocale?: string;
+	/** `default_role` option — used as the fallback when none chosen. */
+	defaultRole?: string;
 	/** Base REST URL — used to derive sibling endpoints (`/wp/v2/users`, …). */
 	restRoot: string;
 	/** Nonce for `X-WP-Nonce`. */

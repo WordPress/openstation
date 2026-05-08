@@ -20,6 +20,10 @@
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { showPostsIntroDialog } from './intro-dialog';
+// Side-effect import — registers `<wpd-user-profile>` so any
+// template in this bundle can drop the tag and get the full
+// profile UI mounted automatically.
+import './wpd-user-profile';
 import {
 	buildEditPostUrl,
 	createCategory,
@@ -2986,3 +2990,72 @@ registry[ 'desktop-mode-pages' ] = ( body: HTMLElement ) => {
 		console.error( '[pages-window] render failed:', err );
 	} ) as unknown as void;
 };
+
+// Users window — different REST shape (`/wp/v2/users`), different
+// columns, different bulk actions. Lives in its own renderer
+// (`./users-render`) rather than wedging a third branch into
+// `renderPostsWindow` — keeps the post-row code path untouched.
+registry[ 'desktop-mode-users' ] = ( body: HTMLElement ) => {
+	setActiveWindowId( 'desktop-mode-users' );
+	return import( './users-render' )
+		.then( ( m ) => m.renderUsersWindow( body ) )
+		.catch( ( err ) => {
+			// eslint-disable-next-line no-console
+			console.error( '[users-window] render failed:', err );
+		} ) as unknown as void;
+};
+
+// User Edit window — singleton native window opened by row
+// clicks in the Users table (or the URL remap for `user-edit.php
+// ?user_id=N` / `profile.php`). The template is just a
+// `<wpd-user-profile>` element; this render shell resolves the
+// target user id from the shared store (with a fallback to the
+// viewer's own id) and sets the `user-id` attribute on the
+// component. Subsequent target changes flip the same attribute,
+// triggering an in-place re-mount.
+registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
+	setActiveWindowId( 'desktop-mode-user-edit' );
+	const profile = body.querySelector(
+		'wpd-user-profile[data-wpd-user-profile-host]',
+	) as HTMLElement | null;
+	if ( ! profile ) {
+		return;
+	}
+	void import( './user-edit-target' ).then( ( target ) => {
+		const pending = target.readUserEditTarget();
+		let userId = pending.userId && pending.userId > 0 ? pending.userId : 0;
+		if ( userId <= 0 ) {
+			try {
+				userId =
+					( window as unknown as {
+						desktopModeWindowConfig?: Record<
+							string,
+							{ currentUserId?: number }
+						>;
+					} ).desktopModeWindowConfig?.[ 'desktop-mode-user-edit' ]
+						?.currentUserId ?? 0;
+			} catch {
+				userId = 0;
+			}
+		}
+		if ( userId > 0 ) {
+			profile.setAttribute( 'user-id', String( userId ) );
+		}
+		target.clearUserEditTarget();
+
+		// Already-open window + new target → swap user-id; the
+		// component handles the in-place re-mount.
+		target.subscribeUserEditTarget( ( next ) => {
+			if (
+				next.userId &&
+				next.userId > 0 &&
+				next.userId !== userId
+			) {
+				userId = next.userId;
+				profile.setAttribute( 'user-id', String( userId ) );
+				target.clearUserEditTarget();
+			}
+		} );
+	} );
+};
+
