@@ -1024,20 +1024,48 @@ function desktop_mode_menu_item_url( $slug ) {
 	}
 
 	// Plugin page slug with embedded query parameters
-	// (e.g., 'wc-admin&path=/customers'). Split off the extra
-	// query and let `add_query_arg()` rebuild a properly encoded
-	// URL — avoids `rawurlencode()`-ing the `&` and `=`
-	// separators into `%26` / `%3D`.
+	// (e.g., 'wc-admin&path=/customers'). Split the page slug from
+	// the trailing args; we'll resolve the page slug below and
+	// layer the args back on at the end. This avoids the naive
+	// `rawurlencode()` packing the `&` separator into `%26`.
+	$extra_args = array();
 	if ( false !== strpos( $slug, '&' ) ) {
-		list( $page_slug, $extras ) = array_pad( explode( '&', $slug, 2 ), 2, '' );
-		$extra_args                 = array();
-		if ( '' !== $extras ) {
-			parse_str( $extras, $extra_args );
+		list( $slug, $tail ) = array_pad( explode( '&', $slug, 2 ), 2, '' );
+		if ( '' !== $tail ) {
+			parse_str( $tail, $extra_args );
 		}
-		$args = array_merge( array( 'page' => $page_slug ), $extra_args );
-		return esc_url_raw( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 	}
 
-	// Plain plugin page slug — route through admin.php.
-	return esc_url_raw( admin_url( 'admin.php?page=' . rawurlencode( $slug ) ) );
+	// Plain page slug — defer to WordPress's canonical resolver.
+	//
+	// `$_parent_pages` is the same global `menu_page_url()` reads;
+	// we mirror its 4-line decision tree directly so we can return
+	// a `esc_url_raw`-style raw URL (the `menu_page_url()` helper
+	// runs its result through `esc_url()`, which entity-encodes the
+	// `&` separators we need to keep raw for the downstream
+	// `add_query_arg()` and the JS slug compare).
+	//
+	// Resolution rules, identical to core:
+	//   1. Slug registered under a `.php` parent that itself isn't
+	//      a parent (Tools → `tools.php?page=…`, Settings →
+	//      `options-general.php?page=…`).
+	//   2. Slug registered as a top-level menu, OR under a slug-
+	//      based parent (WC: `woocommerce` → `admin.php?page=…`).
+	//   3. Slug not registered at all → fall back to `admin.php`
+	//      so the URL still targets a real dispatcher (matches the
+	//      pre-resolver behavior callers depended on).
+	global $_parent_pages;
+	$host = 'admin.php?page=' . rawurlencode( $slug );
+	if ( isset( $_parent_pages[ $slug ] ) ) {
+		$parent_slug = $_parent_pages[ $slug ];
+		if ( $parent_slug && ! isset( $_parent_pages[ $parent_slug ] ) ) {
+			$host = add_query_arg( 'page', $slug, $parent_slug );
+		}
+	}
+
+	$url = admin_url( $host );
+	if ( ! empty( $extra_args ) ) {
+		$url = add_query_arg( $extra_args, $url );
+	}
+	return esc_url_raw( $url );
 }

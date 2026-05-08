@@ -777,25 +777,54 @@ function desktop_mode_chromeless_bridge_script() {
 				link.setAttribute( 'href', rewritten );
 			}
 			/*
-			 * Tell the parent shell about the click so it can run
-			 * the URL through the native-window remap registry.
-			 * When a remap hits (e.g. `edit.php` with the user's
-			 * native-Posts opt-in on), the parent opens the native
-			 * window and closes this iframe — which is the only
-			 * sensible answer to "Exit editor" / "Back to posts"
-			 * links inside a locked-post takeover dialog. When no
-			 * remap hits, the iframe's natural navigation proceeds.
+			 * Hand admin-internal navigation to the parent shell.
 			 *
-			 * Best-effort: we still let the click proceed, so on
-			 * remap-miss the iframe loads the link as before. On
-			 * remap-hit the iframe gets torn down (window close)
-			 * before the navigation paints, so the brief in-flight
-			 * load is invisible.
+			 * The parent decides what to do with each click:
+			 *
+			 *   - Native-window remap hits (e.g. `edit.php` while the
+			 *     user has the native Posts opt-in on) → parent opens
+			 *     the native window and closes THIS iframe.
+			 *   - Same-page nav (pagination, filtering on the same
+			 *     `edit.php?post_type=page` screen, etc.) → parent
+			 *     drives the iframe's `location.assign()` so the
+			 *     in-place navigation matches the user's intent.
+			 *   - Cross-page nav (e.g. clicking "Posts" from inside
+			 *     the Pages window) → parent opens a new window for
+			 *     the destination and leaves THIS iframe untouched,
+			 *     so the user keeps both contexts.
+			 *
+			 * We `preventDefault()` so the iframe never starts a
+			 * navigation the parent might want to suppress; otherwise
+			 * cross-page clicks would trash the source window before
+			 * the parent had a chance to react. Modifier-key clicks
+			 * (cmd/ctrl/shift/alt, middle-click) are already filtered
+			 * upstream so the browser's native "open in new tab" path
+			 * still works.
 			 */
+			e.preventDefault();
 			try {
 				var absolute = new URL( rewritten || href, window.location.href ).toString();
+				/*
+				 * Ship the link's visible text along with the URL so
+				 * the parent can title a freshly-opened window with
+				 * something the user recognises ("Scheduler") instead
+				 * of the URL slug ("tools-php-page-scheduler") when
+				 * the destination has no dock tile to copy a title
+				 * from. The iframe itself never auto-emits a
+				 * title-change, so without this hint the slug-as-
+				 * title fallback would persist for the lifetime of
+				 * the new window.
+				 */
+				var adminLabel = ( link.textContent || '' ).trim() ||
+					link.getAttribute( 'title' ) ||
+					link.getAttribute( 'aria-label' ) ||
+					'';
 				window.parent.postMessage(
-					{ type: 'desktop-mode-iframe-admin-link', url: absolute },
+					{
+						type: 'desktop-mode-iframe-admin-link',
+						url: absolute,
+						label: adminLabel.slice( 0, 80 )
+					},
 					window.location.origin
 				);
 			} catch ( bridgeErr ) {

@@ -20,6 +20,7 @@ import {
 	bindNativeUrlRemap,
 	registerNativeUrlRemap,
 } from './native-url-remap';
+import { bindAdminLinkDispatch } from './window/iframe-bridge';
 // Tile-decoration helpers and the dock-selector registry live in
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
 // in this bundle since 0.8.1.
@@ -1590,6 +1591,57 @@ function init(): void {
 		getSnapshot: () => osSettings.getOsSettingsSnapshot(),
 		openById: ( id ) => nativeWindows.openById( id ),
 		adminUrl: config.adminUrl,
+	} );
+
+	// Cross-page admin-link dispatcher (since 0.8.2). The chromeless
+	// bridge `preventDefault`s every admin-internal click and posts
+	// `desktop-mode-iframe-admin-link` to us; this binding tells the
+	// bridge how to compute slugs, find a destination's title/icon
+	// from the dock, and open windows. The lookup falls back to the
+	// boot dockItems snapshot before the layout dispatcher exists,
+	// so clicks that race the dispatcher's first paint still resolve
+	// to a sensible window title.
+	const findDockEntryForUrl = (
+		url: string,
+	): import( './window/iframe-bridge' ).AdminLinkDockEntry | null => {
+		const targetSlug = deriveWindowId( url, config.adminUrl );
+		const items = layoutDispatcher
+			? layoutDispatcher.getMenuItems()
+			: ( config.dockItems ?? [] );
+		for ( const item of items ) {
+			if ( deriveWindowId( item.url, config.adminUrl ) === targetSlug ) {
+				return {
+					title: item.title,
+					icon: item.icon,
+					submenu: item.submenu,
+					multi: item.multi,
+				};
+			}
+			for ( const sub of item.submenu ?? [] ) {
+				if (
+					deriveWindowId( sub.url, config.adminUrl ) === targetSlug
+				) {
+					return {
+						title: sub.title,
+						// Sub-menu entries inherit the parent tile's
+						// icon — that's the dock's own convention and
+						// avoids painting a generic glyph on a window
+						// the user knows by its parent's identity.
+						icon: item.icon,
+						multi: item.multi,
+					};
+				}
+			}
+		}
+		return null;
+	};
+	bindAdminLinkDispatch( {
+		adminUrl: config.adminUrl,
+		deriveSlug: ( url ) => deriveWindowId( url, config.adminUrl ),
+		openWindow: ( windowConfig ) => {
+			manager.open( windowConfig );
+		},
+		findDockEntry: findDockEntryForUrl,
 	} );
 
 	// Native Posts window (replaces `edit.php` when the user opts in

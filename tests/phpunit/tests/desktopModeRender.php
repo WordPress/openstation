@@ -278,6 +278,37 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Cross-page admin-link routing depends on the chromeless bridge
+	 * preventing the iframe's natural navigation; the parent shell
+	 * decides between same-page in-iframe nav and a fresh window. If
+	 * the bridge ever stops calling preventDefault on admin links,
+	 * cross-page clicks would trash the source iframe before the
+	 * parent could react.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_prevents_default_on_admin_links() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// Pin the admin-branch shape: the prevent-default must sit
+		// inside the `kind === 'admin'` block, paired with the
+		// admin-link postMessage. A regression that drops the
+		// prevent-default would still emit the message, so we assert
+		// both substrings are present.
+		$this->assertStringContainsString( "kind === 'admin'", $output );
+		$this->assertStringContainsString( 'desktop-mode-iframe-admin-link', $output );
+		$this->assertMatchesRegularExpression(
+			"/kind === 'admin'.*?e\\.preventDefault\\(\\).*?desktop-mode-iframe-admin-link/s",
+			$output
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_emits_nothing_without_flag() {

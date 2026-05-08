@@ -98,6 +98,101 @@ class Tests_DesktopMode_MenuItemUrl extends WP_UnitTestCase {
 		$this->assertSame( 'year', $args['period'] );
 	}
 
+	/**
+	 * Submenus registered under a `.php` parent (Tools, Settings,
+	 * Appearance, etc.) get linked by classic admin as
+	 * `parent.php?page=<slug>`, not `admin.php?page=<slug>`. The
+	 * resolver mirrors `menu_page_url()`'s read of `$_parent_pages`
+	 * so dockItems URLs match what WordPress actually renders in
+	 * the iframe — the prerequisite for the link router's slug-
+	 * equality lookup to match Tools→Scheduled Actions,
+	 * Settings→Permalinks, etc.
+	 *
+	 * Tests pin `$_parent_pages` directly: that's the same global
+	 * `add_submenu_page()` populates and `menu_page_url()` reads.
+	 * Going through `add_submenu_page()` would couple the test to
+	 * the runner's current-user cap, which isn't the surface under
+	 * test.
+	 */
+	public function test_routes_submenu_slug_through_php_parent() {
+		global $_parent_pages;
+		$_parent_pages['scheduler'] = 'tools.php';
+
+		$this->assertSame(
+			esc_url_raw( admin_url( 'tools.php?page=scheduler' ) ),
+			desktop_mode_menu_item_url( 'scheduler' )
+		);
+
+		unset( $_parent_pages['scheduler'] );
+	}
+
+	public function test_routes_submenu_slug_through_php_parent_with_embedded_query() {
+		global $_parent_pages;
+		$_parent_pages['scheduler'] = 'tools.php';
+
+		$result = desktop_mode_menu_item_url( 'scheduler&status=past-due' );
+
+		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
+		$this->assertSame( 'scheduler', $args['page'] );
+		$this->assertSame( 'past-due', $args['status'] );
+		$this->assertStringContainsString( 'tools.php', $result );
+
+		unset( $_parent_pages['scheduler'] );
+	}
+
+	/**
+	 * Submenus registered under a slug-based parent (WooCommerce's
+	 * `wc-admin` under `woocommerce`) collapse to `admin.php?page=…`
+	 * — the same fallback `menu_page_url()` lands on. Validates the
+	 * resolver doesn't accidentally route through a phantom
+	 * `woocommerce.php`.
+	 */
+	public function test_routes_submenu_slug_under_slug_parent_through_admin_php() {
+		global $_parent_pages;
+		$_parent_pages['woocommerce'] = 'woocommerce';
+		$_parent_pages['wc-admin']    = 'woocommerce';
+
+		$this->assertSame(
+			esc_url_raw( admin_url( 'admin.php?page=wc-admin' ) ),
+			desktop_mode_menu_item_url( 'wc-admin' )
+		);
+
+		unset( $_parent_pages['woocommerce'], $_parent_pages['wc-admin'] );
+	}
+
+	/**
+	 * Top-level slug menus (registered with `add_menu_page()`)
+	 * record themselves as their own parent — `$_parent_pages[$slug]
+	 * = $slug`. Core's resolver collapses these to
+	 * `admin.php?page=…`; mirror that exactly.
+	 */
+	public function test_routes_top_level_slug_through_admin_php() {
+		global $_parent_pages;
+		$_parent_pages['my-top-level'] = 'my-top-level';
+
+		$this->assertSame(
+			esc_url_raw( admin_url( 'admin.php?page=my-top-level' ) ),
+			desktop_mode_menu_item_url( 'my-top-level' )
+		);
+
+		unset( $_parent_pages['my-top-level'] );
+	}
+
+	/**
+	 * Unregistered slug → fall back to `admin.php?page=…`. Slugs
+	 * land here when a plugin populates `$submenu` directly without
+	 * routing through `add_submenu_page()` (rare but seen in older
+	 * plugins). Returning a valid `admin.php` URL keeps the dock
+	 * functional even on those quirky registrations.
+	 */
+	public function test_falls_back_to_admin_php_for_unregistered_slug() {
+		// No `$_parent_pages` entry — no fixture set up.
+		$this->assertSame(
+			esc_url_raw( admin_url( 'admin.php?page=unhooked' ) ),
+			desktop_mode_menu_item_url( 'unhooked' )
+		);
+	}
+
 	public function test_embedded_query_param_with_only_key() {
 		// Trailing `&` with no value — must not crash, must still
 		// produce a valid `?page=…` URL.
