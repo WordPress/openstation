@@ -41,6 +41,7 @@ function desktop_mode_recycle_bin_render_template() {
 					<wpd-segment value="page"><?php esc_html_e( 'Pages', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="attachment"><?php esc_html_e( 'Media', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="comment"><?php esc_html_e( 'Comments', 'desktop-mode' ); ?></wpd-segment>
+					<wpd-segment value="desktop"><?php esc_html_e( 'Desktop', 'desktop-mode' ); ?></wpd-segment>
 				</wpd-segmented>
 				<wpd-text-field
 					data-desktop-mode-recycle-bin-search
@@ -52,6 +53,10 @@ function desktop_mode_recycle_bin_render_template() {
 				<wpd-button variant="secondary" data-desktop-mode-recycle-bin-restore-selected>
 					<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>
 					<?php esc_html_e( 'Restore', 'desktop-mode' ); ?>
+				</wpd-button>
+				<wpd-button variant="secondary" data-desktop-mode-recycle-bin-pin-to-desktop>
+					<span class="dashicons dashicons-desktop" aria-hidden="true"></span>
+					<?php esc_html_e( 'Pin to desktop', 'desktop-mode' ); ?>
 				</wpd-button>
 				<wpd-button variant="danger" data-desktop-mode-recycle-bin-purge-selected>
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>

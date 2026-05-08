@@ -261,6 +261,52 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Pinned icons render before any unpinned icon regardless of
+	 * `position`. Verifies both the registry round-trip and the
+	 * payload-builder sort order.
+	 *
+	 * @covers ::desktop_mode_register_icon
+	 * @covers ::desktop_mode_build_desktop_icons_payload
+	 */
+	public function test_pinned_icon_sorts_before_unpinned() {
+		desktop_mode_register_icon( 'unpinned-low', array(
+			'title'    => 'Unpinned Low',
+			'window'   => 'jorvy',
+			'position' => -50, // way below the pinned default
+		) );
+		desktop_mode_register_icon( 'pinned-high', array(
+			'title'    => 'Pinned High',
+			'window'   => 'jorvy',
+			'pinned'   => true,
+			'position' => 999,
+		) );
+
+		// Round-trip the flag through the registry.
+		$entry = desktop_mode_desktop_icon_registry( 'pinned-high' );
+		$this->assertTrue( $entry['pinned'] );
+
+		// Default is unpinned.
+		$entry = desktop_mode_desktop_icon_registry( 'unpinned-low' );
+		$this->assertFalse( $entry['pinned'] );
+
+		// Payload puts pinned first regardless of position.
+		$payload    = desktop_mode_build_desktop_icons_payload();
+		$pinned_idx = null;
+		$unpinned_idx = null;
+		foreach ( $payload as $idx => $row ) {
+			if ( 'pinned-high' === $row['id'] ) {
+				$pinned_idx = $idx;
+			}
+			if ( 'unpinned-low' === $row['id'] ) {
+				$unpinned_idx = $idx;
+			}
+		}
+		$this->assertNotNull( $pinned_idx );
+		$this->assertNotNull( $unpinned_idx );
+		$this->assertLessThan( $unpinned_idx, $pinned_idx );
+	}
+
+	/**
 	 * @covers ::desktop_mode_build_desktop_icons_payload
 	 */
 	public function test_filter_can_remove_icon() {

@@ -100,3 +100,46 @@
 	font-size: 12px;
 	max-width: 360px;
 }
+
+/*
+ * Drop-target highlight for cross-window drag-to-trash. Set when
+ * the desktop drag handler hit-tests the cursor over the bin's
+ * root via `data-desktop-mode-trash-drop-active`. Returns to
+ * normal on pointer-up or when the cursor leaves the window.
+ */
+.desktop-mode-recycle-bin[ data-desktop-mode-trash-drop-active ] {
+	position: relative;
+	box-shadow: inset 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
+	transition: box-shadow 80ms ease;
+}
+
+.desktop-mode-recycle-bin[ data-desktop-mode-trash-drop-active ]::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) 8%,
+		transparent
+	);
+	z-index: 1;
+}
+
+.desktop-mode-recycle-bin[ data-desktop-mode-trash-drop-active ]::after {
+	content: '🗑  Drop to move to Trash';
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate( -50%, -50% );
+	padding: 10px 18px;
+	border-radius: 999px;
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: #fff;
+	font-weight: 600;
+	font-size: 13px;
+	letter-spacing: 0.2px;
+	box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 );
+	pointer-events: none;
+	z-index: 2;
+}

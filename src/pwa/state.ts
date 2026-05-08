@@ -64,6 +64,7 @@ export function updatePwaState( patch: Partial< PwaUserState > ): PwaUserState {
 	const body = JSON.stringify( patch );
 	const nonce = readRestNonce();
 
+	// eslint-disable-next-line no-restricted-syntax -- fire-and-forget PWA install state ping; intentionally invisible (no spinner) since the user didn't initiate it.
 	void fetch( _config.stateUrl, {
 		method: 'POST',
 		credentials: 'same-origin',

@@ -39,6 +39,7 @@ import type {
 	OsSettingsState,
 } from './types';
 import { isHexColor } from './utils';
+import { trackedFetch } from '../tracked-fetch';
 
 // -----------------------------------------------------------------------
 // Load
@@ -139,6 +140,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			// more than any plausible column count.
 				.slice( 0, 32 )
 			: DEFAULTS.nativePostsHiddenColumns.slice(),
+		nativePagesEnabled:
+			typeof parsed.nativePagesEnabled === 'boolean'
+				? parsed.nativePagesEnabled
+				: DEFAULTS.nativePagesEnabled,
 	};
 }
 
@@ -268,37 +273,20 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 	// preserves the original behaviour for saves coming from inside
 	// the OS Settings panel itself, while letting any other window
 	// (Posts column toggles, future native windows that mutate OS
-	// state) attribute their own activity. Falls back to native
-	// `fetch` in non-shell hosts (tests, very old shells).
-	const api = ( window as unknown as {
-		wp?: {
-			desktop?: {
-				fetch?: (
-					input: RequestInfo | URL,
-					init?: RequestInit,
-					opts?: { windowId?: string; silent?: boolean },
-				) => Promise< Response >;
-			};
-		};
-	} ).wp?.desktop;
+	// state) attribute their own activity.
 	const attributedWindowId = windowId || 'desktop-mode-os-settings';
-	const doFetch =
-		api && typeof api.fetch === 'function'
-			? ( input: RequestInfo | URL, init: RequestInit ) =>
-					api.fetch!( input, init, {
-						windowId: attributedWindowId,
-					} )
-			: ( input: RequestInfo | URL, init: RequestInit ) =>
-				fetch( input, init );
-
-	doFetch( url, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-WP-Nonce': nonce,
+	trackedFetch(
+		url,
+		{
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': nonce,
+			},
+			body: JSON.stringify( { settings: state } ),
 		},
-		body: JSON.stringify( { settings: state } ),
-	} )
+		{ windowId: attributedWindowId },
+	)
 		.then( ( res ) => {
 			if ( ! res.ok ) {
 				throw new Error( `${ res.status } ${ res.statusText }` );

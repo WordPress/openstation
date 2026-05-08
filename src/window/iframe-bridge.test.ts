@@ -6,7 +6,7 @@
  * observability tests under `tests/vitest/`.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { handleWindowMessage } from './iframe-bridge';
+import { bindAdminLinkDispatch, handleWindowMessage } from './iframe-bridge';
 import { HOOKS } from '../hooks';
 import type { Window } from './index';
 import {
@@ -202,6 +202,195 @@ describe( 'iframe-bridge: desktop-mode-notification', () => {
 		} );
 
 		expect( document.querySelector( 'wpd-toast' ) ).toBeNull();
+	} );
+} );
+
+describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
+	type DispatchDeps = Parameters< typeof bindAdminLinkDispatch >[ 0 ];
+
+	const adminUrl = window.location.origin + '/wp-admin/';
+
+	function bindFakeDispatcher( overrides: Partial< NonNullable< DispatchDeps > > = {} ) {
+		const openWindow = vi.fn();
+		const findDockEntry = vi.fn().mockReturnValue( null );
+		const deps: NonNullable< DispatchDeps > = {
+			adminUrl,
+			deriveSlug: ( url ) => {
+				const parsed = new URL( url, adminUrl );
+				const path = parsed.pathname.replace( /.*\/wp-admin\//, '' ).replace( /\.php$/, '-php' );
+				const postType = parsed.searchParams.get( 'post_type' );
+				return postType ? `${ path }-post-type-${ postType }` : path;
+			},
+			openWindow,
+			findDockEntry,
+			...overrides,
+		};
+		bindAdminLinkDispatch( deps );
+		return { openWindow, findDockEntry };
+	}
+
+	function mockAdminWindow( opts: { id: string; baseId?: string } ): {
+		win: Window;
+		assignSpy: ReturnType< typeof vi.fn >;
+	} {
+		const iframe = document.createElement( 'iframe' );
+		document.body.appendChild( iframe );
+		const assignSpy = vi.fn();
+		// JSDOM's `Location.assign` is non-configurable, so swap the
+		// whole `contentWindow` for a stub we control. The bridge
+		// only reads `contentWindow.location.assign` — no other
+		// surface needs to round-trip.
+		const fakeContentWindow = { location: { assign: assignSpy } };
+		Object.defineProperty( iframe, 'contentWindow', {
+			value: fakeContentWindow,
+			configurable: true,
+		} );
+		const element = document.createElement( 'div' );
+		const win = {
+			id: opts.id,
+			element,
+			iframe,
+			config: { baseId: opts.baseId ?? opts.id },
+			onFocusRequest: null,
+			setTitle: vi.fn(),
+			close: vi.fn(),
+		} as unknown as Window;
+		return { win, assignSpy };
+	}
+
+	beforeEach( () => {
+		installHooksStub();
+	} );
+	afterEach( () => {
+		bindAdminLinkDispatch( null );
+		document.querySelectorAll( 'iframe' ).forEach( ( el ) => el.remove() );
+		clearHooksStub();
+	} );
+
+	test( 'same-slug click drives the source iframe via location.assign', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'edit-php-post-type-page',
+		} );
+
+		const target =
+			window.location.origin + '/wp-admin/edit.php?post_type=page&paged=2';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'different-slug click opens a fresh window and leaves the source intact', () => {
+		const { openWindow, findDockEntry } = bindFakeDispatcher();
+		findDockEntry.mockReturnValue( {
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			submenu: [],
+			multi: true,
+		} );
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'edit-php-post-type-page',
+		} );
+
+		const target =
+			window.location.origin + '/wp-admin/edit.php?post_type=post';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( openWindow.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+			id: 'edit-php-post-type-post',
+			baseId: 'edit-php-post-type-post',
+			url: target,
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			multi: true,
+		} );
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'different-slug click without a dock entry uses the link label as title', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win } = mockAdminWindow( { id: 'edit-php-post-type-page' } );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/options-general.php?page=some-plugin';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+			label: 'Scheduler',
+		} );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		const arg = openWindow.mock.calls[ 0 ][ 0 ];
+		expect( arg.icon ).toBe( 'dashicons-admin-generic' );
+		expect( arg.title ).toBe( 'Scheduler' );
+	} );
+
+	test( 'different-slug click without dock entry or label falls back to slug', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win } = mockAdminWindow( { id: 'edit-php-post-type-page' } );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/options-general.php?page=some-plugin';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		const arg = openWindow.mock.calls[ 0 ][ 0 ];
+		expect( arg.title ).toBe( arg.id );
+	} );
+
+	test( 'dock entry title beats the link label', () => {
+		const { openWindow, findDockEntry } = bindFakeDispatcher();
+		findDockEntry.mockReturnValue( {
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			submenu: [],
+			multi: true,
+		} );
+		const { win } = mockAdminWindow( { id: 'edit-php-post-type-page' } );
+
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: window.location.origin + '/wp-admin/edit.php?post_type=post',
+			label: 'All the posts',
+		} );
+
+		expect( openWindow.mock.calls[ 0 ][ 0 ].title ).toBe( 'Posts' );
+	} );
+
+	test( 'cross-origin URL is silently refused', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'edit-php-post-type-page',
+		} );
+
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: 'https://evil.example.com/wp-admin/edit.php',
+		} );
+
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( assignSpy ).not.toHaveBeenCalled();
+	} );
+
+	test( 'unbound deps drops the click without crashing', () => {
+		// No bindFakeDispatcher() — leave deps null.
+		const { win } = mockAdminWindow( { id: 'edit-php-post-type-page' } );
+
+		expect( () => {
+			postToWindow( win, {
+				type: 'desktop-mode-iframe-admin-link',
+				url: window.location.origin + '/wp-admin/upload.php',
+			} );
+		} ).not.toThrow();
 	} );
 } );
 

@@ -190,24 +190,23 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * affordance so users never try to click "back to dashboard" inside
  * what looks like a self-contained window.
  *
- * The welcome guide modal is hidden because a freshly-opened window
- * doesn't need an orientation tour, and its focus trap can fight the
- * desktop shell's keyboard flow. Our preferences override also flips
- * the `welcomeGuide` flag off at the data layer after initializeEditor()
- * runs — this CSS just covers the brief window before that fires.
- *
  * The site editor's equivalent navigation affordances (site hub toggle,
  * "back to dashboard" link) get the same treatment.
+ *
+ * The welcome guide is intentionally NOT hidden anymore. Earlier
+ * iterations both CSS-hid the dialog AND flipped `core/edit-post:
+ * welcomeGuide` to `false` at the data layer on every chromeless
+ * mount — but Gutenberg already persists the user's "Get started"
+ * dismissal to user meta the moment they close it, so the override
+ * was permanently stealing the one-time orientation tour from every
+ * user who never got to see it. Modal's focus trap is Tab-only and
+ * doesn't fight the shell. Let it run. (See git history for the
+ * removed `desktop_mode_chromeless_editor_preferences` override.)
  * --------------------------------------------------------------- */
 .desktop-mode-chromeless .edit-post-fullscreen-mode-close,
 .desktop-mode-chromeless .edit-site-navigation-link,
 .desktop-mode-chromeless .edit-site-site-hub,
 .desktop-mode-chromeless .edit-site-site-hub__toggle {
-	display: none !important;
-}
-
-.desktop-mode-chromeless .edit-post-welcome-guide,
-.desktop-mode-chromeless .editor-welcome-guide {
 	display: none !important;
 }
 

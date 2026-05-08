@@ -265,8 +265,19 @@ export const styles = css`
 	.expander:hover {
 		background: rgba( 0, 0, 0, 0.06 );
 	}
-	.col-expander {
-		width: 32px;
+	/*
+	 * System columns (expander + select) zero out horizontal cell
+	 * padding so their fixed-width control isn't clipped by the
+	 * default 12px side padding. The column WIDTH below is sized
+	 * to leave a few px of visible gap around the control once
+	 * text-align centers it.
+	 */
+	td.col-expander,
+	th.col-expander {
+		width: 36px;
+		min-width: 36px;
+		padding-left: 0;
+		padding-right: 0;
 		text-align: center;
 	}
 
@@ -321,8 +332,12 @@ export const styles = css`
 	/* Selection. color-mix produces an opaque tint from theme +
 	   base, so sticky selected cells stay opaque without needing a
 	   layered overlay. */
-	.col-select {
-		width: 36px;
+	td.col-select,
+	th.col-select {
+		width: 40px;
+		min-width: 40px;
+		padding-left: 0;
+		padding-right: 0;
 		text-align: center;
 	}
 	.select-all-checkbox,

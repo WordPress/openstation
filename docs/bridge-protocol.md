@@ -115,6 +115,24 @@ A native window registered via `wp.desktop.registerWindow({ iframeContent })` is
    - Forwards every message (bridge or not) to `cfg.onMessage?.()` so plugins that want raw access still get it.
 4. On window close, the cleanup chain (passed through `onClose`) calls `unregisterSynth()` so closed windows don't leak.
 
+## Admin link routing inside chromeless iframes
+
+The chromeless bridge intercepts every same-origin `<a href="/wp-admin/…">` click inside an iframe and lets the parent shell decide where the navigation should actually land. The decision lives in the parent because the iframe doesn't know the shell's window slug rules (which query params are identity-bearing, which URLs are remapped to a native window, which already-open window owns the destination, and so on).
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-iframe-admin-link` | iframe → parent | `{ url }` | Posted from the chromeless bridge's link interceptor for every admin-internal click that survived the modifier-key / target / download filters. The bridge `preventDefault`s the click first; the parent owns the navigation. |
+
+Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispatch` in `desktop.ts`):
+
+1. **Native-window remap** — the URL goes through `tryNativeUrlRemap`. On a hit the parent opens the native window and closes the source iframe so the brief in-flight nav never paints.
+2. **Same-slug click** — `deriveWindowId(url, adminUrl)` matches the source window's `baseId`. The parent calls `iframe.contentWindow.location.assign(url)`, which navigates the iframe in place AND adds a session-history entry. Pagination, list filtering, and per-window tab strips ride this path.
+3. **Cross-slug click** — slug differs from the source. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry (or fallbacks when no dock tile owns the destination). The source iframe is left untouched, so the user keeps both contexts.
+
+Modifier-key clicks (cmd / ctrl / shift / alt, middle-click, `target="_blank"`, `target` other than `_self`, `download` attribute) short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab path runs unchanged.
+
+Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `desktop_mode_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `desktop-mode-iframe-admin-form-submit` message.
+
 ## Public hooks
 
 | Hook | Kind | Status | Payload |

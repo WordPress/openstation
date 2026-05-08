@@ -11,6 +11,18 @@
 		"isolatedModules": true,
 		"allowSyntheticDefaultImports": true,
 		"sourceMap": true,
+		"baseUrl": ".",
+		"paths": {
+			"@/*":               [ "src/*" ],
+			"@api/*":            [ "src/api/*" ],
+			"@boot/*":           [ "src/boot/*" ],
+			"@core/*":           [ "src/core/*" ],
+			"@features/*":       [ "src/features/*" ],
+			"@layout/*":         [ "src/layout/*" ],
+			"@protocol/*":       [ "src/protocol/*" ],
+			"@ui/*":             [ "src/ui/*" ],
+			"@window-system/*":  [ "src/window-system/*" ]
+		},
 		"lib": [ "es2020", "dom", "dom.iterable" ]
 	},
 	"include": [ "src/**/*.ts" ]

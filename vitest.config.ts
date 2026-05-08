@@ -11,8 +11,22 @@
  * shell, so we're testing what actually ships.
  */
 import { defineConfig } from 'vitest/config';
+import { resolve } from 'node:path';
 
 export default defineConfig( {
+	resolve: {
+		alias: {
+			'@/':              resolve( __dirname, 'src/' ) + '/',
+			'@api/':           resolve( __dirname, 'src/api/' ) + '/',
+			'@boot/':          resolve( __dirname, 'src/boot/' ) + '/',
+			'@core/':          resolve( __dirname, 'src/core/' ) + '/',
+			'@features/':      resolve( __dirname, 'src/features/' ) + '/',
+			'@layout/':        resolve( __dirname, 'src/layout/' ) + '/',
+			'@protocol/':      resolve( __dirname, 'src/protocol/' ) + '/',
+			'@ui/':            resolve( __dirname, 'src/ui/' ) + '/',
+			'@window-system/': resolve( __dirname, 'src/window-system/' ) + '/',
+		},
+	},
 	test: {
 		environment: 'jsdom',
 		globals: false,

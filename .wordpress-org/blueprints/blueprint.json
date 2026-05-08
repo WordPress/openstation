@@ -1,5 +1,5 @@
 {
-  "landingPage": "/wp-admin/",
+  "landingPage": "/desktop-mode/",
   "steps": [
     {
       "step": "login",

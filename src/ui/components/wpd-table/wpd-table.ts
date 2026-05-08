@@ -1611,7 +1611,14 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			out.push( {
 				key: SELECT_KEY,
 				label: '',
-				width: '36px',
+				// The descriptor width is painted onto a `<col>`
+				// element and is the authoritative column-width
+				// source in table-layout: auto — CSS `td { width }`
+				// is ignored once `<col>` has a value. Pair with
+				// the matching `td.col-select` rule (zero
+				// `padding-inline`, `text-align: center`) so the
+				// checkbox sits with breathing room on both sides.
+				width: '40px',
 				align: 'center',
 			} );
 		}
@@ -1619,7 +1626,10 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			out.push( {
 				key: EXPANDER_KEY,
 				label: '',
-				width: '32px',
+				// Same contract as col-select. 36px column +
+				// 20px button + zero padding centers the chevron
+				// with ~8px on each side.
+				width: '36px',
 				align: 'center',
 			} );
 		}

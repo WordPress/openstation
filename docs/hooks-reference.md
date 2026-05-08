@@ -130,6 +130,144 @@ Fires after `desktop_mode_register_icon()` successfully stores a desktop shortcu
 
 ---
 
+### `desktop_mode_file_type_registered` — Experimental (since 0.9.0)
+
+Fires after `desktop_mode_register_file_type()` successfully stores a desktop file type (used by the Files-on-the-Desktop system — see [files-on-desktop.md](./files-on-desktop.md)). Does NOT fire on `WP_Error`.
+
+```php
+do_action( 'desktop_mode_file_type_registered', string $type, array $entry );
+```
+
+`$entry` keys: `type`, `label`, `class`, `script`, `sort`.
+
+---
+
+### Files-on-the-Desktop store actions — Experimental (since 0.9.0)
+
+Fired by the placement / folder store when rows are written. Subscribers see the canonical row arrays from the custom tables (see [files-on-desktop.md](./files-on-desktop.md)).
+
+```php
+do_action( 'desktop_mode_file_placed',   int $id, array $row );
+do_action( 'desktop_mode_file_moved',    int $id, array $next, array $prev );
+do_action( 'desktop_mode_file_unplaced', int $id, array $row );
+
+do_action( 'desktop_mode_folder_created', int $id, array $row );
+do_action( 'desktop_mode_folder_updated', int $id, array $next, array $prev );
+do_action( 'desktop_mode_folder_shared',  int $id, array $next, array $prev ); // share_mode or share_meta changed
+do_action( 'desktop_mode_folder_deleted', int $id, array $row );
+
+do_action( 'desktop_mode_files_schema_installed', string $version );
+do_action( 'desktop_mode_files_daily_prune' );
+
+// Soft-trash lifecycle (since 0.8.0). Fires for every state
+// transition — placements and folders both. Trashing a folder
+// cascades to its child placements; the per-child action fires
+// before/after the cascade write.
+do_action( 'desktop_mode_files_before_trash_placement',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_trash_placement',    int $id, int $user_id );
+do_action( 'desktop_mode_files_before_restore_placement', int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_restore_placement',  int $id, int $user_id );
+do_action( 'desktop_mode_files_before_purge_placement',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_purge_placement',    int $id, int $user_id );
+
+do_action( 'desktop_mode_files_before_trash_folder',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_trash_folder',    int $id, int $user_id );
+do_action( 'desktop_mode_files_before_restore_folder', int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_restore_folder',  int $id, int $user_id );
+do_action( 'desktop_mode_files_before_purge_folder',   int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_purge_folder',    int $id, int $user_id );
+```
+
+Filters:
+
+```php
+apply_filters( 'desktop_mode_files_can_place', bool $can, int $user_id, string $type, string $ref );
+apply_filters( 'desktop_mode_files_query_args', array $args, int $user_id, int $parent_id );
+apply_filters( 'desktop_mode_files_share_modes', string[] $modes );
+apply_filters( 'desktop_mode_files_visible_folders', array $folders, int $viewer_id );
+
+// Capability gates for soft-trash / restore / purge (since 0.8.0).
+// Default behavior is "owner of the row". Plugins can broaden
+// (e.g. let editors restore other authors' shortcuts) or tighten.
+apply_filters( 'desktop_mode_files_user_can_trash_placement',   bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_restore_placement', bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_purge_placement',   bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_trash_folder',      bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_restore_folder',    bool $can, int $user_id, array $row );
+apply_filters( 'desktop_mode_files_user_can_purge_folder',      bool $can, int $user_id, array $row );
+```
+
+The recycle-bin REST list / restore / purge dispatch the new
+`placement` and `folder` types into the functions above
+automatically (`desktop_mode_recycle_bin_restore` /
+`desktop_mode_recycle_bin_purge` route by `$type`). The
+`desktop_mode_recycle_bin_count` filter signature gained a fourth
+arg in 0.8.0: `int $files_count`.
+
+---
+
+### `desktop_mode_file_opener_registered` — Experimental (since 0.9.0)
+
+Fires after `desktop_mode_register_file_opener()` successfully stores a file opener (used by the Files-on-the-Desktop association layer — see [files-on-desktop.md](./files-on-desktop.md)). Does NOT fire on `WP_Error`.
+
+```php
+do_action( 'desktop_mode_file_opener_registered', string $id, array $entry );
+```
+
+`$entry` keys: `id`, `label`, `types`, `is_default`, `sort`, `script`.
+
+---
+
+### `desktop_mode_register_file_opener( $id, $args )` — Experimental (PHP function, since 0.9.0)
+
+Registers a file opener — the desktop-OS equivalent of a default-app association. PHP-side metadata only; the actual handler that opens the URL / native window / runs JS lives on the JS side via `wp.desktop.files.registerOpener()`.
+
+```php
+desktop_mode_register_file_opener( 'classic-editor', array(
+    'label'      => __( 'Classic Editor', 'classic-editor' ),
+    'types'      => array( 'post' ),
+    'is_default' => false,
+    'sort'       => 20,
+) );
+```
+
+| Arg | Type | Default | Notes |
+|---|---|---|---|
+| `label` | `string` | required | Picker label. |
+| `types` | `string[]` | required | File-type slugs this opener handles. |
+| `is_default` | `bool` | `false` | Ship-time default for its types. |
+| `sort` | `int` | `100` | Sort order in pickers. |
+| `script` | `string` | `''` | Optional JS handle the shell loads on activation. |
+| `capabilities` | `string[]` | `[]` | All caps must match. |
+
+Return: `true` on success, `WP_Error` otherwise. Error codes: `desktop_mode_missing_id`, `desktop_mode_missing_label`, `desktop_mode_missing_types`, `desktop_mode_capability_denied`.
+
+---
+
+### `desktop_mode_register_file_type( $type, $args )` — Experimental (PHP function, since 0.9.0)
+
+Registers a `Desktop_Mode_File` subclass against the desktop file-type registry. The seven built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`) register through this same surface.
+
+```php
+desktop_mode_register_file_type( 'jorvy-quote', array(
+    'label' => __( 'Marvel quote', 'jorvy' ),
+    'class' => 'Jorvy_Quote_File', // must extend Desktop_Mode_File
+    'sort'  => 200,
+) );
+```
+
+| Arg | Type | Default | Notes |
+|---|---|---|---|
+| `label` | `string` | required | Picker label. |
+| `class` | `string` | required | FQCN of a `Desktop_Mode_File` subclass. |
+| `script` | `string` | `''` | Optional handle for the JS-side mirror class. |
+| `sort` | `int` | `100` | Sort order in pickers. |
+| `capabilities` | `string[]` | `[]` | All caps must match the current user. |
+
+Return: `true` on success, `WP_Error` otherwise. Error codes: `desktop_mode_missing_id`, `desktop_mode_missing_label`, `desktop_mode_invalid_class`, `desktop_mode_capability_denied`.
+
+---
+
 ### `desktop_mode_command_script_registered` — Stable
 
 Fires after `desktop_mode_register_command_script()` stores a command-palette script handle. Also fires when `desktop_mode_register_command()` implicitly registers its `script` argument.
@@ -363,9 +501,71 @@ do_action( 'desktop_mode_prepare_window', string $page, array $args );
 
 ## Filters
 
+### `desktop_mode_file_types` — Experimental (since 0.9.0)
+
+Filters the file-type registry used by the Files-on-the-Desktop system. Plugins can hide built-ins or swap a class out at runtime. Keyed by type slug; the `class` field of an entry must remain a `Desktop_Mode_File` subclass FQCN.
+
+```php
+apply_filters( 'desktop_mode_file_types', array $registry );
+```
+
+---
+
+### `desktop_mode_file_serialize` — Experimental (since 0.9.0)
+
+Last-mile mutation point for the JS-bound shape produced by `Desktop_Mode_File::serialize()`. Plugins use this to attach badges, override labels, or splice in custom render hints without subclassing.
+
+```php
+apply_filters( 'desktop_mode_file_serialize', array $shape, Desktop_Mode_File $file );
+```
+
+**Example — attach a "draft" badge to draft posts:**
+
+```php
+add_filter( 'desktop_mode_file_serialize', function ( $shape, $file ) {
+    if ( $file instanceof Desktop_Mode_Post_File && 'draft' === ( $shape['status'] ?? '' ) ) {
+        $shape['badge'] = __( 'Draft', 'my-plugin' );
+    }
+    return $shape;
+}, 10, 2 );
+```
+
+---
+
+### `desktop_mode_file_openers` — Experimental (since 0.9.0)
+
+Filters the file-opener registry. Plugins can hide built-ins, swap labels, or rearrange sort order. Keyed by opener id.
+
+```php
+apply_filters( 'desktop_mode_file_openers', array $registry );
+```
+
+---
+
+### `desktop_mode_resolve_file_opener` — Experimental (since 0.9.0)
+
+Override the resolution chain at `desktop_mode_resolve_file_opener_id()` time. Useful for forced role-based associations.
+
+```php
+apply_filters( 'desktop_mode_resolve_file_opener', string $opener_id, string $type, int $user_id );
+```
+
+**Example — force the Classic Editor for a specific role:**
+
+```php
+add_filter( 'desktop_mode_resolve_file_opener', function ( $opener_id, $type, $user_id ) {
+    if ( 'post' === $type && user_can( $user_id, 'editor' ) ) {
+        return 'classic-editor';
+    }
+    return $opener_id;
+}, 10, 3 );
+```
+
+---
+
 ### `desktop_mode_mode_enabled` — Stable
 
-Gates whether desktop mode can be activated (or stay active) for a given user. The AJAX save endpoint consults this after the nonce check.
+Gates whether desktop mode can be activated (or stay active) for a given user. The central helper `desktop_mode_is_enabled()` consults this filter after the user-meta check, so render-time gates (chromeless detection, payload generation, REST permission callbacks, the admin-bar toggle, the portal entry, the AJAX save endpoint) all honor a `false` return.
 
 ```php
 apply_filters( 'desktop_mode_mode_enabled', bool $enabled, int $user_id );
@@ -382,7 +582,10 @@ add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
 }, 10, 2 );
 ```
 
-A `false` return means the user cannot toggle the mode on — the AJAX endpoint returns `desktop_mode_disabled`.
+A `false` return has two effects:
+
+1. The AJAX save endpoint refuses to flip the user meta to `'1'` (it returns `desktop_mode_disabled`).
+2. `desktop_mode_is_enabled()` returns `false` for that user even when their existing meta is `'1'`. Every render-time gate that consults the helper (and there are many — see `includes/render.php`, `includes/components.php`, `includes/recycle-bin/rest.php`, `includes/pwa.php`, `includes/presence.php`, `includes/admin-bar.php`) treats the user as not-enabled.
 
 ---
 
@@ -1397,6 +1600,14 @@ Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_regist
 
 The full template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
 
+### `desktop_mode_recycle_bin_empty_chunk_size` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_recycle_bin_empty_chunk_size', int $chunk_size );
+```
+
+Per-call cap on `desktop_mode_recycle_bin_empty()` — protects against PHP `max_execution_time` on huge bins. Default `200`. The client iterates while `remaining > 0`, so raising this just means fewer roundtrips per "Empty bin" click. Lower it on shared hosts with tight execution budgets; raise it on dedicated servers handling 10k+ item bins.
+
 ### Lifecycle actions
 
 ```php
@@ -1516,11 +1727,11 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe behind a per-user opt-in toggle (**OS Settings → Features → Use the native Posts window**, persisted as `OsSettingsState.nativePostsEnabled`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-OUT as of 0.8.0** — fresh installs land on it; users can flip it off via **OS Settings → Features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `true`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
 
 ### `desktop_mode_posts_window_user_can_use` — Stable *(filter, since 0.8.0)*
 
-The two-condition gate: `edit_posts` AND the user has flipped the opt-in. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
+The two-condition gate: `edit_posts` AND the user hasn't toggled the opt-out. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
 
 ```php
 apply_filters( 'desktop_mode_posts_window_user_can_use', bool $can, int $user_id );
@@ -1614,6 +1825,43 @@ wp.desktop.registerNativeUrlRemap( {           // public API in 0.9.0; internal 
 ```
 
 Returning `false` from `enabled` (or `matches`) lets the click fall through. An `openById( nativeWindowId )` call that reports the window isn't registered for the current user (cap-gated, opt-in-gated) also falls through — the registry walks on to the next entry, then to the iframe path.
+
+---
+
+## My WordPress (since 0.8.0)
+
+A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Phase 1 ships Posts and Pages; the entity list is filterable so plugin authors can extend it without forking the bundle.
+
+### `desktop_mode_my_wordpress_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_user_can_use', bool $can ): bool
+```
+
+Gates icon registration and window registration in one shot. Default `current_user_can( 'edit_posts' )`. Return `false` to hide the entry point for a role; return `true` to opt a role back in.
+
+### `desktop_mode_my_wordpress_window_args` / `desktop_mode_my_wordpress_icon_args` — Experimental (filter)
+
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for My WordPress — useful to change dimensions, swap the dashicon, or remove the `pinned` flag so the icon participates in the normal sort order.
+
+### `desktop_mode_my_wordpress_entities` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_entities', array[] $entities ): array[]
+```
+
+The list of entity types rendered as folder tiles in the window's root view. Each entry must declare:
+
+- `id` — slug, used in the route hash and tile `data-entity-id`.
+- `label` — human-readable folder name.
+- `icon` — Dashicons class.
+- `restPath` — appended to `restRoot` (e.g. `wp/v2/posts`, `wp/v2/comments`).
+
+Phase 1 ships only `posts` and `pages`. The filter exists today so a plugin author can pre-stage Comments / Users / Tags / Categories without waiting for Phase 2 to land — the bundle treats every entry uniformly.
+
+### `desktop_mode_my_wordpress_template_html` — Experimental (filter)
+
+The static template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-my-wordpress-*` data hooks intact so the JS bundle can find its mount points.
 
 ---
 

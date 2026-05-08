@@ -18,6 +18,8 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { trackedFetch } from '../tracked-fetch';
+import { showPostsIntroDialog } from './intro-dialog';
 import {
 	buildEditPostUrl,
 	createCategory,
@@ -27,8 +29,10 @@ import {
 	fetchAuthorOptions,
 	fetchPosts,
 	fetchTagOptions,
+	getActiveWindowId,
 	getConfig,
 	searchTags,
+	setActiveWindowId,
 	trashPost,
 	updatePostCategories,
 	updatePostTags,
@@ -71,6 +75,131 @@ declare global {
 	interface Window {
 		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
+}
+
+/**
+ * Bridge to `wp.desktop.confirm` (the main bundle's
+ * `<wpd-confirm-dialog>` wrapper). The posts-window script lists
+ * `desktop-mode` as a dependency so the global is always set by
+ * the time this code runs.
+ */
+interface ConfirmOptions {
+	title?: string;
+	message: string;
+	confirmLabel?: string;
+	cancelLabel?: string;
+	danger?: boolean;
+}
+function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
+	const fn = ( window.wp as { desktop?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } } | undefined )
+		?.desktop?.confirm;
+	if ( typeof fn !== 'function' ) {
+		return Promise.reject(
+			new Error(
+				'[desktop-mode] wp.desktop.confirm is missing — the main desktop bundle must load before the posts-window script.',
+			),
+		);
+	}
+	return fn( options );
+}
+
+/**
+ * Posts-window first-open intro. Mirrors the seen-intros surface in
+ * `includes/seen-intros.php`: gated on `config.introSeen`, marks
+ * itself seen on dismiss via `POST config.introUrl`. Runs once per
+ * user — OS Settings → Features exposes a "Reset what's-new dialogs"
+ * button that wipes the list so it appears again from scratch.
+ *
+ * Posts is the first ported native app, so the copy explicitly
+ * points at the OS Settings escape hatch. Future ported apps drop
+ * that line.
+ */
+/**
+ * Per-window-mode intro tracker — `'posts'` and `'pages'` each gate
+ * independently so opening one window doesn't suppress the other's
+ * first-open dialog.
+ */
+const _introShown: Record< string, boolean > = Object.create( null );
+
+function maybeShowIntro(): void {
+	let cfg: ReturnType< typeof getConfig >;
+	try {
+		cfg = getConfig();
+	} catch {
+		return;
+	}
+	const slug = cfg.introSlug || cfg.mode || 'posts';
+	if ( _introShown[ slug ] ) {
+		return;
+	}
+	if ( cfg.introSeen ) {
+		return;
+	}
+	_introShown[ slug ] = true;
+
+	const dialogPromise =
+		slug === 'pages'
+			? import( './pages-intro-dialog' ).then( ( m ) =>
+				m.showPagesIntroDialog(),
+			)
+			: showPostsIntroDialog();
+
+	void dialogPromise
+		.then( ( result ) => {
+			// Escape / backdrop click resolve `'cancel'` and explicitly
+			// MUST NOT mark the intro seen — that's the testing escape
+			// hatch so we can iterate on the dialog without resetting
+			// OS Settings between runs.
+			if ( result === 'cancel' ) {
+				_introShown[ slug ] = false;
+				return;
+			}
+			void markIntroSeen( cfg, slug );
+			if ( result === 'settings' ) {
+				openOsSettingsFeatures();
+			}
+		} )
+		.catch( () => {
+			// Dialog mount failed; keep gating off so a re-open can retry.
+			_introShown[ slug ] = false;
+		} );
+}
+
+async function markIntroSeen(
+	cfg: ReturnType< typeof getConfig >,
+	slug: string,
+): Promise< void > {
+	if ( ! cfg.introUrl ) {
+		return;
+	}
+	try {
+		await trackedFetch(
+			cfg.introUrl,
+			{
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': cfg.restNonce,
+				},
+				body: JSON.stringify( { slug } ),
+			},
+			{
+				windowId: getActiveWindowId(),
+				source: `${ slug }-window/intro`,
+			},
+		);
+		// Mirror the server change locally so a re-open inside the
+		// same shell session doesn't re-fire the dialog.
+		( cfg as { introSeen: boolean } ).introSeen = true;
+	} catch {
+		// Swallow — the worst case is showing the intro one more time.
+	}
+}
+
+function openOsSettingsFeatures(): void {
+	const api = ( window.wp as { desktop?: { openOsSettings?: () => void } } | undefined )?.desktop;
+	api?.openOsSettings?.();
 }
 
 const ROOT = '[data-desktop-mode-posts-root]';
@@ -337,28 +466,102 @@ function _buildBaseColumns(
 	cache: CellCache,
 	filterData: ColumnFilterData,
 ): WpdTableColumn< PostListItem >[] {
-	return [
-		{
-			key: 'title',
-			label: __( 'Title' ),
-			sortable: true,
-			sticky: true,
+	// `mode` lets us swap the taxonomy columns out for hierarchical
+	// pages without the column hook bus knowing the difference.
+	// Plugins that filter `desktop_mode.postsWindow.columns` see the
+	// already-mode-appropriate base list and append/replace from there.
+	let mode: 'posts' | 'pages' = 'posts';
+	try {
+		const cfg = getConfig();
+		if ( cfg.mode === 'pages' ) {
+			mode = 'pages';
+		}
+	} catch {
+		// Pre-render code paths (the kebab column-toggle menu mounts
+		// from the table descriptor before render) might call this
+		// before a config is available — fall back to posts mode.
+	}
+
+	const titleCol: WpdTableColumn< PostListItem > = {
+		key: 'title',
+		label: __( 'Title' ),
+		sortable: true,
+		sticky: true,
+		render: ( _v, row ) =>
+			memoCell( cache, row.id, 'title', () => buildTitleCell( row ) ),
+	};
+	const authorCol: WpdTableColumn< PostListItem > = {
+		key: 'author',
+		label: __( 'Author' ),
+		sortable: true,
+		width: '180px',
+		filterRender: ( host, ctx ) =>
+			renderMultiSelectFilter( host, ctx, filterData.authors, {
+				label: __( 'All authors' ),
+				ariaLabel: __( 'Filter by author' ),
+			} ),
+		render: ( _v, row ) =>
+			memoCell( cache, row.id, 'author', () => buildAuthorCell( row ) ),
+	};
+	const dateCol: WpdTableColumn< PostListItem > = {
+		key: 'date',
+		label: __( 'Date' ),
+		sortable: true,
+		width: '170px',
+		sortValue: ( row ) => Date.parse( row.date_gmt + 'Z' ) || 0,
+		render: ( _v, row ) =>
+			memoCell( cache, row.id, 'date', () => buildDateCell( row ) ),
+	};
+
+	if ( mode === 'pages' ) {
+		const parentCol: WpdTableColumn< PostListItem > = {
+			key: 'parent',
+			label: __( 'Parent' ),
+			width: '200px',
 			render: ( _v, row ) =>
-				memoCell( cache, row.id, 'title', () => buildTitleCell( row ) ),
-		},
-		{
-			key: 'author',
-			label: __( 'Author' ),
-			sortable: true,
+				memoCell( cache, row.id, 'parent', () => buildParentCell( row ) ),
+		};
+		const templateCol: WpdTableColumn< PostListItem > = {
+			key: 'template',
+			label: __( 'Template' ),
 			width: '180px',
-			filterRender: ( host, ctx ) =>
-				renderMultiSelectFilter( host, ctx, filterData.authors, {
-					label: __( 'All authors' ),
-					ariaLabel: __( 'Filter by author' ),
-				} ),
 			render: ( _v, row ) =>
-				memoCell( cache, row.id, 'author', () => buildAuthorCell( row ) ),
-		},
+				memoCell( cache, row.id, 'template', () => buildTemplateCell( row ) ),
+		};
+		const slugCol: WpdTableColumn< PostListItem > = {
+			key: 'slug',
+			label: __( 'Slug' ),
+			width: '200px',
+			render: ( _v, row ) =>
+				memoCell( cache, row.id, 'slug', () => buildSlugCell( row ) ),
+		};
+		const commentsCol: WpdTableColumn< PostListItem > = {
+			key: 'comments',
+			label: __( 'Comments' ),
+			width: '110px',
+			sortValue: ( row ) =>
+				typeof row.desktop_mode_comment_count === 'number'
+					? row.desktop_mode_comment_count
+					: 0,
+			render: ( _v, row ) =>
+				memoCell( cache, row.id, 'comments', () =>
+					buildCommentsCell( row ),
+				),
+		};
+		return [
+			titleCol,
+			authorCol,
+			parentCol,
+			templateCol,
+			slugCol,
+			commentsCol,
+			dateCol,
+		];
+	}
+
+	return [
+		titleCol,
+		authorCol,
 		{
 			key: 'categories',
 			label: __( 'Categories' ),
@@ -370,11 +573,11 @@ function _buildBaseColumns(
 		},
 		{
 			key: 'tags',
-			label: __( 'Tags' ),
 			// Drop the fixed width so the column flexes with the
 			// available space; pin a minimum that comfortably holds
 			// ~4 chips on one line so the cell doesn't collapse the
 			// tags into a vertical stack on narrow tables.
+			label: __( 'Tags' ),
 			minWidth: '360px',
 			filterRender: ( host, ctx ) =>
 				renderMultiSelectFilter(
@@ -392,16 +595,206 @@ function _buildBaseColumns(
 			render: ( _v, row ) =>
 				memoCell( cache, row.id, 'tags', () => buildTagsCell( row ) ),
 		},
-		{
-			key: 'date',
-			label: __( 'Date' ),
-			sortable: true,
-			width: '170px',
-			sortValue: ( row ) => Date.parse( row.date_gmt + 'Z' ) || 0,
-			render: ( _v, row ) =>
-				memoCell( cache, row.id, 'date', () => buildDateCell( row ) ),
-		},
+		dateCol,
 	];
+}
+
+/**
+ * Cache of in-page parent titles, populated from the current page's
+ * row roster on every refresh. Pages outside this page (cross-page
+ * parents) display their numeric id with a small "Parent #42" label
+ * — acceptable for v1; a small batched-include fetch can lift this
+ * to full-title resolution later.
+ *
+ * @since 0.18.0
+ */
+const _parentTitleByPageRoster: Map< number, string > = new Map();
+
+/**
+ * Build the Parent cell for a Pages-window row. Top-level pages
+ * (`parent === 0`) render an em-dash — like core's classic list.
+ * Otherwise we render the parent's title (if known) or a fallback
+ * numeric label.
+ *
+ * @since 0.18.0
+ */
+function buildParentCell( row: PostListItem ): HTMLElement {
+	const cell = document.createElement( 'span' );
+	cell.className = 'desktop-mode-posts__parent';
+	const pid = typeof row.parent === 'number' ? row.parent : 0;
+	if ( pid === 0 ) {
+		cell.classList.add( 'desktop-mode-posts__parent--top' );
+		cell.textContent = '—';
+		cell.setAttribute( 'aria-label', __( 'Top-level page' ) );
+		return cell;
+	}
+	cell.classList.add( 'desktop-mode-posts__parent--child' );
+	const titleFromRoster = _parentTitleByPageRoster.get( pid );
+	if ( titleFromRoster ) {
+		cell.textContent = `↳ ${ titleFromRoster }`;
+	} else {
+		// translators: %d is the numeric id of a parent page whose title isn't on the current page roster.
+		cell.textContent = sprintf( __( '↳ #%d' ), pid );
+	}
+	return cell;
+}
+
+/**
+ * Refresh the in-page parent-title roster from the current page's
+ * row list. Called by the render flow after every fetch — the
+ * `<wpd-table>` repaints cells from cache, and the parent cell's
+ * `textContent` reflects the freshly-known titles on the next
+ * memoized rebuild (cell cache is wiped per refresh).
+ *
+ * @since 0.18.0
+ */
+function refreshParentTitleRoster( rows: PostListItem[] ): void {
+	_parentTitleByPageRoster.clear();
+	for ( const row of rows ) {
+		_parentTitleByPageRoster.set( row.id, decodeTitle( row.title.rendered ) );
+	}
+}
+
+/**
+ * Build the Template cell — surfaces the human label for the page's
+ * registered template, or "Default template" for the empty slug.
+ * Falls back to the raw slug when the active theme registers a
+ * template the config blob doesn't carry a label for, so users see
+ * SOMETHING rather than a blank cell.
+ *
+ * @since 0.18.0
+ */
+function buildTemplateCell( row: PostListItem ): HTMLElement {
+	const cell = document.createElement( 'span' );
+	cell.className = 'desktop-mode-posts__template';
+	const slug = typeof row.template === 'string' ? row.template : '';
+	let label = slug;
+	try {
+		const cfg = getConfig();
+		const map = cfg.pageTemplates ?? {};
+		label = map[ slug ] ?? ( slug === '' ? __( 'Default template' ) : slug );
+	} catch {
+		label = slug === '' ? __( 'Default template' ) : slug;
+	}
+	cell.textContent = label;
+	if ( slug !== '' ) {
+		cell.title = slug;
+	}
+	return cell;
+}
+
+/**
+ * Build the Slug cell — renders the URL slug with a click-to-copy
+ * affordance. Common pain in the classic Pages list when configuring
+ * redirects or sharing canonical URLs; one click puts the slug on
+ * the clipboard.
+ *
+ * @since 0.18.0
+ */
+function buildSlugCell( row: PostListItem ): HTMLElement {
+	const cell = document.createElement( 'button' );
+	cell.type = 'button';
+	cell.className = 'desktop-mode-posts__slug';
+	const slug = typeof row.slug === 'string' ? row.slug : '';
+	cell.textContent = slug || '—';
+	cell.disabled = slug === '';
+	cell.title = slug ? __( 'Click to copy slug' ) : '';
+	Object.assign( cell.style, {
+		appearance: 'none',
+		background: 'transparent',
+		border: 'none',
+		padding: '2px 6px',
+		font: 'inherit',
+		color: 'inherit',
+		cursor: slug ? 'copy' : 'default',
+		textAlign: 'left',
+		fontFamily:
+			'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+		fontSize: '12px',
+		borderRadius: '4px',
+		maxWidth: '100%',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap',
+	} as Partial< CSSStyleDeclaration > );
+	cell.addEventListener( 'click', ( e ) => {
+		e.stopPropagation();
+		if ( ! slug ) {
+			return;
+		}
+		void navigator.clipboard
+			?.writeText( slug )
+			.then( () => {
+				cell.textContent = __( 'Copied!' );
+				cell.style.color = 'var(--wp-admin-theme-color, #2271b1)';
+				setTimeout( () => {
+					cell.textContent = slug;
+					cell.style.color = '';
+				}, 1200 );
+			} )
+			.catch( () => {
+				/* clipboard blocked; no-op */
+			} );
+	} );
+	return cell;
+}
+
+/**
+ * Build the Comments cell — surfaces `desktop_mode_comment_count`
+ * from the REST field with a small icon. Top-asked parity feature
+ * with the classic Pages list. Renders "—" when the field is
+ * absent (e.g. a plugin-restricted query).
+ *
+ * @since 0.18.0
+ */
+function buildCommentsCell( row: PostListItem ): HTMLElement {
+	const cell = document.createElement( 'span' );
+	cell.className = 'desktop-mode-posts__comments';
+	Object.assign( cell.style, {
+		display: 'inline-flex',
+		alignItems: 'center',
+		gap: '6px',
+		fontVariantNumeric: 'tabular-nums',
+	} as Partial< CSSStyleDeclaration > );
+
+	const count =
+		typeof row.desktop_mode_comment_count === 'number'
+			? row.desktop_mode_comment_count
+			: null;
+
+	if ( count === null ) {
+		cell.textContent = '—';
+		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		return cell;
+	}
+
+	const icon = document.createElement( 'span' );
+	icon.className = 'dashicons dashicons-admin-comments';
+	icon.setAttribute( 'aria-hidden', 'true' );
+	Object.assign( icon.style, {
+		fontSize: '16px',
+		width: '16px',
+		height: '16px',
+		color:
+			count > 0
+				? 'var(--wp-admin-theme-color, #2271b1)'
+				: 'var(--wp-admin-theme-fg-muted, #8c8f94)',
+	} as Partial< CSSStyleDeclaration > );
+
+	const label = document.createElement( 'span' );
+	label.textContent = String( count );
+	if ( count === 0 ) {
+		label.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+	}
+
+	cell.appendChild( icon );
+	cell.appendChild( label );
+	cell.setAttribute(
+		'aria-label',
+		// translators: %d is the comment count for a row.
+		`${ sprintf( __( '%d comments' ), count ) }`,
+	);
+	return cell;
 }
 
 /**
@@ -808,6 +1201,99 @@ function buildTitleCell( row: PostListItem ): HTMLElement {
 	} );
 	titleRow.appendChild( link );
 
+	// Lock badge — another user is editing this row right now. Read
+	// the `desktop_mode_lock` REST field surfaced by My WordPress'
+	// `lock.php`. Same affordance the My WordPress folder window
+	// uses, scoped to the table-row context (smaller, alongside the
+	// status badge instead of overlaying the icon).
+	const lock = row.desktop_mode_lock ?? null;
+	if ( lock ) {
+		const lockBadge = document.createElement( 'span' );
+		lockBadge.style.cssText = [
+			'display:inline-flex',
+			'align-items:center',
+			'gap:4px',
+			'padding:2px 8px',
+			'border-radius:10px',
+			'font-size:11px',
+			'font-weight:600',
+			'background:rgba(179, 45, 46, 0.1)',
+			'color:#b32d2e',
+			'white-space:nowrap',
+			'flex-shrink:0',
+		].join( ';' );
+		const lockIcon = document.createElement( 'span' );
+		lockIcon.setAttribute( 'aria-hidden', 'true' );
+		// `<wpd-table>` cells live inside shadow DOM. Document-level
+		// CSS rules — `.dashicons { font-family: dashicons }` and
+		// `.dashicons-lock:before { content: "\f160" }` — DO NOT pierce
+		// that boundary, so the standard `class="dashicons dashicons-lock"`
+		// recipe paints an empty box. The dashicons `@font-face` is
+		// global (font faces are document-wide), so we sidestep by
+		// setting font-family inline AND emitting the glyph character
+		// directly as text content. Same visual, no CSS-encapsulation
+		// surprise.
+		lockIcon.style.cssText = [
+			'font-family:dashicons',
+			'font-size:14px',
+			'line-height:1',
+			'display:inline-block',
+			'speak:none',
+			'-webkit-font-smoothing:antialiased',
+		].join( ';' );
+		// Dashicons "lock" glyph (codepoint U+F160). Kept as an escape
+		// so the source file doesn't depend on a Private-Use-Area
+		// character round-tripping through editors and version control.
+		lockIcon.textContent = '';
+		lockBadge.appendChild( lockIcon );
+		const lockText = document.createElement( 'span' );
+		lockText.textContent = lock.userName;
+		lockBadge.appendChild( lockText );
+		// translators: %s is the user name currently editing the post.
+		const tipFmt = __( '%s is currently editing', 'desktop-mode' );
+		lockBadge.title = sprintf( tipFmt, lock.userName );
+		titleRow.appendChild( lockBadge );
+	}
+
+	// Pages mode: paint "Front page" / "Posts page" badges when the
+	// row matches the reading-page assignments. Answers the most-asked
+	// classic-list pain — "which page is set as the homepage?" —
+	// without making the user crack open Settings → Reading.
+	let cfgForBadges: ReturnType< typeof getConfig > | null = null;
+	try {
+		cfgForBadges = getConfig();
+	} catch {
+		cfgForBadges = null;
+	}
+	if ( cfgForBadges && cfgForBadges.mode === 'pages' ) {
+		if (
+			typeof cfgForBadges.frontPageId === 'number' &&
+			cfgForBadges.frontPageId === row.id
+		) {
+			titleRow.appendChild(
+				buildAssignmentBadge(
+					__( 'Front page' ),
+					'dashicons-admin-home',
+					'#0a4b78',
+					'rgba(34,113,177,0.12)',
+				),
+			);
+		}
+		if (
+			typeof cfgForBadges.postsPageId === 'number' &&
+			cfgForBadges.postsPageId === row.id
+		) {
+			titleRow.appendChild(
+				buildAssignmentBadge(
+					__( 'Posts page' ),
+					'dashicons-admin-post',
+					'#5b3aa0',
+					'rgba(91,58,160,0.12)',
+				),
+			);
+		}
+	}
+
 	if ( row.status && row.status !== 'publish' ) {
 		const badge = document.createElement( 'span' );
 		const colors = statusBadgeColor( row.status );
@@ -829,8 +1315,77 @@ function buildTitleCell( row: PostListItem ): HTMLElement {
 		titleRow.appendChild( badge );
 	}
 
+	// Pages mode: small "View" link to the public URL — opens in a
+	// new tab so the user keeps the table state. Surfaces a feature
+	// the classic list buries inside a hover-row-actions strip.
+	if (
+		cfgForBadges?.mode === 'pages' &&
+		typeof row.link === 'string' &&
+		row.link &&
+		row.status === 'publish'
+	) {
+		const view = document.createElement( 'a' );
+		view.href = row.link;
+		view.target = '_blank';
+		view.rel = 'noreferrer noopener';
+		view.textContent = __( 'View' );
+		view.title = row.link;
+		view.setAttribute( 'data-noclick', '' );
+		view.style.cssText = [
+			'font-size:11px',
+			'color:var(--wp-admin-theme-color, #2271b1)',
+			'text-decoration:none',
+			'flex-shrink:0',
+		].join( ';' );
+		view.addEventListener( 'click', ( e ) => e.stopPropagation() );
+		view.addEventListener( 'mouseenter', () => {
+			view.style.textDecoration = 'underline';
+		} );
+		view.addEventListener( 'mouseleave', () => {
+			view.style.textDecoration = 'none';
+		} );
+		titleRow.appendChild( view );
+	}
+
 	cell.appendChild( titleRow );
 	return cell;
+}
+
+/**
+ * Render a small inline assignment badge (Front page / Posts page).
+ *
+ * @since 0.18.0
+ */
+function buildAssignmentBadge(
+	label: string,
+	dashicon: string,
+	fg: string,
+	bg: string,
+): HTMLElement {
+	const badge = document.createElement( 'span' );
+	badge.style.cssText = [
+		'display:inline-flex',
+		'align-items:center',
+		'gap:4px',
+		'padding:2px 8px',
+		'border-radius:10px',
+		'font-size:11px',
+		'font-weight:600',
+		`background:${ bg }`,
+		`color:${ fg }`,
+		'white-space:nowrap',
+		'flex-shrink:0',
+	].join( ';' );
+	const icon = document.createElement( 'span' );
+	icon.className = `dashicons ${ dashicon }`;
+	icon.setAttribute( 'aria-hidden', 'true' );
+	icon.style.cssText =
+		'font-size:13px;width:13px;height:13px;line-height:1;';
+	const text = document.createElement( 'span' );
+	text.textContent = label;
+	badge.appendChild( icon );
+	badge.appendChild( text );
+	return badge;
 }
 
 function buildAuthorCell( row: PostListItem ): HTMLElement {
@@ -1297,20 +1852,22 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 		if ( ! detail || typeof detail.id !== 'number' ) {
 			return;
 		}
-		// Cheap browser confirm — the picker emits the intent, we
-		// own the destructive REST call. WP cascades posts that
-		// previously belonged to the deleted term back to
-		// Uncategorized automatically.
-		// eslint-disable-next-line no-alert
-		const ok = window.confirm(
-			sprintf(
+		// Confirm via the framework's `<wpd-confirm-dialog>`
+		// (proxied through `wp.desktop.confirm`). WP cascades
+		// posts that previously belonged to the deleted term
+		// back to Uncategorized automatically.
+		const ok = await wpdConfirmGlobal( {
+			title: __( 'Delete category?' ),
+			message: sprintf(
 				/* translators: %s: category name. */
 				__(
 					'Delete the category "%s"? Posts assigned only to it will fall back to Uncategorized.',
 				),
 				detail.name,
 			),
-		);
+			confirmLabel: __( 'Delete' ),
+			danger: true,
+		} );
 		if ( ! ok ) {
 			return;
 		}
@@ -1668,6 +2225,8 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		return;
 	}
 
+	maybeShowIntro();
+
 	// Term-management tabs (Categories + Tags) — lazy-mounted on first
 	// activation so cold-load of the Posts window never pays for them
 	// when the user just wants to scan the post list.
@@ -1876,6 +2435,10 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 			// pass through here, which is exactly what makes the
 			// cache useful.
 			cellCache.clear();
+			// In Pages mode the Parent cell resolves parent titles
+			// from the in-page roster — refresh it BEFORE assigning
+			// `table.data` so the first paint already has names.
+			refreshParentTitleRoster( result.items );
 			table.data = result.items;
 			totalRows = result.total;
 			totalPages = result.totalPages;
@@ -2075,14 +2638,14 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 			return;
 		}
 		if ( action.confirm ) {
-			// eslint-disable-next-line no-alert
-			const ok = window.confirm(
-				sprintf(
+			const ok = await wpdConfirmGlobal( {
+				message: sprintf(
 					/* translators: %d: row count. */
 					action.confirm,
 					ids.length,
 				),
-			);
+				danger: true,
+			} );
 			if ( ! ok ) {
 				return;
 			}
@@ -2402,11 +2965,24 @@ const registry = ( window.desktopModeNativeWindows ??
 // `(body) => void`, but TypeScript allows void-typed callbacks to
 // return any value; the runtime contract is what matters here.
 registry[ 'desktop-mode-posts' ] = ( body: HTMLElement ) => {
+	setActiveWindowId( 'desktop-mode-posts' );
 	// Cast through `unknown` so the Record's `void`-returning member
 	// type still accepts the Promise without forcing every consumer
 	// (recycle-bin et al.) to widen their declaration.
 	return renderPostsWindow( body ).catch( ( err ) => {
 		// eslint-disable-next-line no-console
 		console.error( '[posts-window] render failed:', err );
+	} ) as unknown as void;
+};
+
+// Pages window — same render path with the active window id swapped
+// so `getConfig()` reads the Pages config blob. Mode-driven branches
+// inside `renderPostsWindow` (column set, intro slug, taxonomy-tab
+// binding) gate the post-type-specific behavior.
+registry[ 'desktop-mode-pages' ] = ( body: HTMLElement ) => {
+	setActiveWindowId( 'desktop-mode-pages' );
+	return renderPostsWindow( body ).catch( ( err ) => {
+		// eslint-disable-next-line no-console
+		console.error( '[pages-window] render failed:', err );
 	} ) as unknown as void;
 };

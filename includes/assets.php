@@ -107,6 +107,18 @@ function desktop_mode_register_assets() {
 		file_exists( $posts_window_css ) ? (string) filemtime( $posts_window_css ) : $version
 	);
 
+	// Files-on-the-Desktop tile + layer styles. `filemtime` for the
+	// same reason as the recycle-bin / posts-window CSS: this file
+	// iterates faster than the plugin version, and a stale cache
+	// would mask a real fix.
+	$desktop_files_css = DESKTOP_MODE_DIR . 'assets/css/desktop-files.css';
+	wp_register_style(
+		'desktop-mode-files',
+		DESKTOP_MODE_URL . 'assets/css/desktop-files.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $desktop_files_css ) ? (string) filemtime( $desktop_files_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action

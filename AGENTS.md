@@ -2,6 +2,62 @@
 
 Short file. Things I've forgotten or hand-waved before. If it's obvious from reading the code, don't add it here.
 
+## 🧱 Use `wpd-*` components, not raw HTML controls
+
+**Default to the `<wpd-*>` web component for any UI element that has one.** They live in `src/ui/components/<name>/` and are tag-listed in `src/ui/components/index.ts` — that file is the index of what already exists. Pick from there before reaching for raw `<button>`, `<input>`, `<select>`, dialogs, menus, toasts, etc. The components carry the framework's keyboard-nav, focus-management, theming-token, and accessibility plumbing for free; raw HTML doesn't.
+
+Concrete checklist when adding UI:
+
+1. Look at `src/ui/components/index.ts`. If the component you need is there, use it.
+2. If it isn't but the shape is generic (a kind of dialog, picker, menu, status indicator that any future feature could reuse), **build it as a new `<wpd-*>` component** — folder under `src/ui/components/<name>/` with `<name>.ts` (Web Component class), `<name>.styles.ts` (shadow-DOM CSS), and `<name>.test.ts`. Register it in `src/ui/components/index.ts`. Document it via the `static help` block on the class. Reference it in `docs/components-reference.md` if it's user-facing.
+3. Only fall back to bespoke DOM construction when the surface is feature-specific (a tile renderer that knows about placement metadata, a menu-flyout positioning rig).
+
+The `<wpd-context-menu>` / `<wpd-context-menu-option>` and `<wpd-confirm-dialog>` pair are good examples — they replaced ~200 LOC of duplicated DOM construction across the wallpaper menu, the tile context menu, the create-folder dialog, and the recycle-bin/posts-window confirm prompts.
+
+## 🌐 Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`
+
+**Every HTTP call from the shell must route through the framework helper** so the request feeds the active window's loading spinner + the activity bus. Two equivalent entry points:
+
+- **In-bundle** (any `src/**/*.ts` that ends up in the main `desktop.min.js` or any feature bundle): `import { trackedFetch } from '<…>/tracked-fetch'`. The helper finds `wp.desktop.fetch` at runtime.
+- **Plugin-side / external scripts**: `await window.wp.desktop.fetch( url, init, { source: 'my-plugin/foo' } )`.
+
+Shape:
+
+```ts
+trackedFetch(
+    input: RequestInfo,
+    init?: RequestInit,
+    opts?: { windowId?: string; source?: string; silent?: boolean },
+): Promise< Response >;
+```
+
+Pass `windowId` to attribute the request to a specific native window (so its spinner shows). Pass `source` as a free-form tag (`'desktop-mode/files'`, `'desktop-mode/recycle-bin'`) for the activity bus + debug widgets. Pass `silent: true` for genuinely background pings the user didn't initiate (session save, badge polling).
+
+ESLint enforces this — raw `fetch( … )` and `window.fetch( … )` calls fail lint with the message pointing at this helper. The only legitimate exceptions are documented inline with `// eslint-disable-next-line no-restricted-syntax -- <reason>`:
+
+- The `trackedFetch` wrapper itself (the boot-time fallback before `wp.desktop` exists).
+- The PWA service worker (`src/pwa/sw.ts` — different context, no `wp.desktop` global).
+- Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`, `src/recycle-bin/badge.ts`).
+
+## 💬 Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`
+
+The framework ships a `<wpd-confirm-dialog>` component and a Promise-returning wrapper:
+
+```ts
+import { wpdConfirm } from '<…>/ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+
+if ( await wpdConfirm( {
+    title: 'Delete forever?',
+    message: 'Cannot be undone.',
+    confirmLabel: 'Delete',
+    danger: true,
+} ) ) {
+    // …
+}
+```
+
+External bundles call `window.wp.desktop.confirm(...)` (same shape). ESLint rejects `window.confirm`, `window.alert`, `window.prompt` — see the rule message for the suggested replacement (a toast, a `<wpd-confirm-dialog>`, or a custom modal built with `<wpd-text-field>`).
+
 ## ⛔ Source-of-truth rule: NEVER hand-edit JS in `assets/js/`
 
 **`assets/js/*.js` is build output. Treat it as if it were `dist/`.**

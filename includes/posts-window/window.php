@@ -199,6 +199,11 @@ function desktop_mode_posts_window_register_window() {
 			'currentUserId'    => (int) get_current_user_id(),
 			'defaultPerPage'   => 20,
 			'queryArgs'        => desktop_mode_posts_window_default_query_args(),
+			// First-open intro dialog wiring — see `includes/seen-intros.php`.
+			// `introSeen` is the boot-time snapshot; the bundle marks the
+			// intro seen via `introUrl` after the user dismisses the dialog.
+			'introSeen'        => desktop_mode_has_seen_intro( get_current_user_id(), 'posts' ),
+			'introUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 		),
 	);
 
@@ -237,8 +242,13 @@ function desktop_mode_posts_window_default_query_args() {
 		// into `_embedded`, so the table can render avatars, term
 		// chips, and thumbnails without N extra round-trips per row.
 		'_embed' => 'author,wp:term,wp:featuredmedia',
+		// `desktop_mode_lock` is the REST field registered by My WordPress'
+		// `lock.php` on every public post type — it tells us whether
+		// another user is currently editing the row. Surfacing it on the
+		// native Posts table means the title cell can paint a small lock
+		// icon without an extra fetch.
 		'_fields' =>
-			'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,_links,_embedded',
+			'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,desktop_mode_lock,_links,_embedded',
 	);
 
 	/**

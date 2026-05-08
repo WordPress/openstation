@@ -25,6 +25,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { trackedFetch } from '../tracked-fetch';
 import {
 	createCategory,
 	deleteTerm,
@@ -508,6 +509,28 @@ export async function mountCategoriesMindmap(
 		);
 	}
 
+	function syncEmptyHint(): void {
+		// "No custom categories yet" lives outside the pixi canvas
+		// (a plain `<div>` over the stage). Add it when the only
+		// term is Uncategorized; remove it the moment a real
+		// category lands. Called after every `buildTree()` so the
+		// banner state matches the current `terms` snapshot
+		// without an F5.
+		const existing = stage.querySelector< HTMLElement >( '.wpd-mindmap__empty' );
+		if ( terms.length <= 1 ) {
+			if ( ! existing ) {
+				const empty = document.createElement( 'div' );
+				empty.className = 'wpd-mindmap__empty';
+				empty.textContent = __(
+					'No custom categories yet. Click "Add root category" to start branching.',
+				);
+				stage.appendChild( empty );
+			}
+		} else if ( existing ) {
+			existing.remove();
+		}
+	}
+
 	function buildTree(): void {
 		// Compute target positions via radial walk; the tick loop
 		// eases nodes into them so re-layout reads as smooth motion.
@@ -649,6 +672,11 @@ export async function mountCategoriesMindmap(
 		if ( uncategorized ) {
 			placeIsolated( uncategorized );
 		}
+		// Show / hide the "No custom categories yet" hint based on
+		// the current term count. Called every time the tree
+		// rebuilds (add / delete / rename) so the banner stays in
+		// sync without an F5.
+		syncEmptyHint();
 	}
 
 	function placeIsolated( term: TermRow ): void {
@@ -2858,15 +2886,10 @@ export async function mountCategoriesMindmap(
 	// background; the tree is interactive immediately.
 	void refreshCountsViaBulk();
 
-	// Empty-state hint when no categories exist (besides the default).
-	if ( terms.length <= 1 ) {
-		const empty = document.createElement( 'div' );
-		empty.className = 'wpd-mindmap__empty';
-		empty.textContent = __(
-			'No custom categories yet. Click "Add root category" to start branching.',
-		);
-		stage.appendChild( empty );
-	}
+	// Empty-state hint is now driven by `syncEmptyHint()` inside
+	// `buildTree()` — it both adds the banner on bootstrap when
+	// only Uncategorized exists AND removes it the moment a new
+	// root category is created (no F5 needed).
 
 	// --- Teardown -----------------------------------------------------
 	return () => {
@@ -3037,7 +3060,6 @@ interface ShellJsonResponse {
 
 async function fetchShellJson( url: string ): Promise< ShellJsonResponse > {
 	const cfg = getConfig();
-	const api = window.wp?.desktop;
 	const init: RequestInit = {
 		method: 'GET',
 		credentials: 'same-origin',
@@ -3046,14 +3068,9 @@ async function fetchShellJson( url: string ): Promise< ShellJsonResponse > {
 			Accept: 'application/json',
 		},
 	};
-	let response: Response;
-	if ( api && typeof api.fetch === 'function' ) {
-		response = await api.fetch( url, init, {
-			windowId: 'desktop-mode-posts',
-		} );
-	} else {
-		response = await fetch( url, init );
-	}
+	const response = await trackedFetch( url, init, {
+		windowId: 'desktop-mode-posts',
+	} );
 	if ( ! response.ok ) {
 		throw new Error( `${ response.status } ${ response.statusText }` );
 	}

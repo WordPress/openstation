@@ -165,8 +165,15 @@ export const DEFAULTS: OsSettingsState = {
 		apiKeys: {},
 		transport: 'off',
 	},
-	nativePostsEnabled: false,
+	// Opt-out as of 0.8.0. Fresh installs land on the native Posts
+	// window — same screen the rest of desktop mode is built for. A
+	// user can still flip this off to fall back to the chromeless
+	// `edit.php` iframe, but the new default is "use the native UI."
+	nativePostsEnabled: true,
 	nativePostsHiddenColumns: [],
+	// Same opt-out posture as Posts — fresh installs land on the
+	// native Pages window, users can flip back to the iframe.
+	nativePagesEnabled: true,
 };
 
 /**

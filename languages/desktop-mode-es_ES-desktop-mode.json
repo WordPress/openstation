@@ -12,6 +12,9 @@
             "%d hidden by HD filter": [
                 "%d ocultas por el filtro HD"
             ],
+            "%d notification": [
+                ""
+            ],
             "%d update": [
                 "%d actualización",
                 "%d actualizaciones"
@@ -19,8 +22,32 @@
             "%s (already added)": [
                 "%s (ya añadido)"
             ],
+            "%s is already installed. Open it from your apps menu or home screen.": [
+                ""
+            ],
             "%s sub-pages": [
                 "Subpáginas de %s"
+            ],
+            "%s — open windows": [
+                ""
+            ],
+            "1 item": [
+                ""
+            ],
+            "A platform-wide AI key is configured. You can optionally set a personal key below to override it.": [
+                ""
+            ],
+            "A short summary": [
+                ""
+            ],
+            "AI Settings": [
+                ""
+            ],
+            "AI integration": [
+                "Navegación del administrador"
+            ],
+            "API key": [
+                ""
             ],
             "Accent color": [
                 "Color de acento"
@@ -37,14 +64,26 @@
             "Added": [
                 "Añadido"
             ],
-            "Amber": [
-                "Ámbar"
-            ],
             "Angle": [
                 "Ángulo"
             ],
-            "Aurora": [
-                "Aurora"
+            "Appearance": [
+                ""
+            ],
+            "Bottom": [
+                ""
+            ],
+            "Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper.": [
+                ""
+            ],
+            "Bug": [
+                ""
+            ],
+            "CSS custom properties": [
+                ""
+            ],
+            "Classic": [
+                ""
             ],
             "Clock": [
                 "Reloj"
@@ -60,6 +99,15 @@
             ],
             "Compact": [
                 "Compacta"
+            ],
+            "Component library": [
+                ""
+            ],
+            "Components": [
+                ""
+            ],
+            "Connect an AI provider to power assistive features across the desktop.": [
+                ""
             ],
             "Couldn’t load your media.": [
                 "No se pudieron cargar tus medios."
@@ -79,41 +127,98 @@
             "Default": [
                 "Predeterminada"
             ],
+            "Describe the issue or the feature you have in mind.": [
+                ""
+            ],
+            "Description": [
+                ""
+            ],
             "Desktop %d": [
                 "Escritorio %d"
             ],
-            "Desktop 1": [
+            "Desktop icons": [
                 "Escritorio 1"
             ],
-            "Detach to new tab": [
-                "Abrir en una pestaña nueva"
+            "Desktop layout": [
+                "Escritorio 1"
+            ],
+            "Dock %s back to widget column": [
+                ""
             ],
             "Dock size": [
+                "Tamaño del dock"
+            ],
+            "Dock style": [
                 "Tamaño del dock"
             ],
             "Drop an image here, or click to upload": [
                 "Suelta una imagen aquí, o haz clic para subir"
             ],
-            "Emerald": [
-                "Esmeralda"
+            "Enable AI features": [
+                ""
             ],
-            "Enter fullscreen": [
-                "Entrar en pantalla completa"
+            "Enable AI for all users": [
+                ""
             ],
-            "Exit fullscreen": [
-                "Salir de pantalla completa"
+            "Enable drag-and-drop in the Media Library": [
+                ""
             ],
-            "Forest": [
-                "Bosque"
+            "Environment included with the report": [
+                ""
+            ],
+            "Events": [
+                ""
+            ],
+            "Every <wpd-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code.": [
+                ""
+            ],
+            "Example": [
+                ""
+            ],
+            "Experimental": [
+                ""
+            ],
+            "Extended Options": [
+                ""
+            ],
+            "Extended options": [
+                ""
+            ],
+            "Feature request": [
+                ""
+            ],
+            "Features": [
+                ""
+            ],
+            "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
+                ""
             ],
             "From": [
                 "Desde"
             ],
-            "Graphite": [
-                "Grafito"
+            "Global settings": [
+                ""
             ],
-            "Indigo": [
-                "Índigo"
+            "How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see \"Lost connection to the assistant\" errors).": [
+                ""
+            ],
+            "How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer.": [
+                ""
+            ],
+            "Image source": [
+                ""
+            ],
+            "Install %s as an app": [
+                ""
+            ],
+            "Install cancelled.": [
+                ""
+            ],
+            "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
+                ""
+            ],
+            "Installed %s as an app.": [
+                ""
             ],
             "JPEG, PNG, or WebP · goes straight to your Media Library": [
                 "JPEG, PNG o WebP · va directo a tu biblioteca de medios"
@@ -121,11 +226,23 @@
             "Large": [
                 "Grande"
             ],
+            "Left": [
+                ""
+            ],
+            "Live progress updates": [
+                ""
+            ],
             "Load more": [
                 "Cargar más"
             ],
+            "Loading window content": [
+                ""
+            ],
             "Local time and date, refreshed every second.": [
                 "Hora y fecha locales, se actualiza cada segundo."
+            ],
+            "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
+                ""
             ],
             "Maximize": [
                 "Maximizar"
@@ -136,17 +253,29 @@
             "Minimize": [
                 "Minimizar"
             ],
-            "Mono": [
-                "Monocromo"
+            "Name": [
+                ""
+            ],
+            "Network error — check your connection.": [
+                ""
+            ],
+            "New %s": [
+                ""
             ],
             "No HD images found. Try unchecking the filter, or upload a larger image.": [
                 "No se encontraron imágenes HD. Prueba a desactivar el filtro o sube una imagen más grande."
+            ],
+            "No components registered.": [
+                ""
             ],
             "No images in your Media Library yet.": [
                 "Aún no hay imágenes en tu biblioteca de medios."
             ],
             "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.": [
                 "No hay widgets disponibles. Activa un plugin que registre alguno, o consulta la documentación de la API registerWidget."
+            ],
+            "One step per line": [
+                ""
             ],
             "Only HD (≥%1$d×%2$d)": [
                 "Solo HD (≥%1$d×%2$d)"
@@ -160,20 +289,53 @@
             "Open in a new browser tab": [
                 "Abrir en una nueva pestaña del navegador"
             ],
-            "Open new %s": [
-                "Abrir nueva ventana de %s"
+            "Open in browser tab": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open in new window": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open issue on GitHub": [
+                ""
             ],
             "Open on startup": [
                 "Abrir al iniciar"
             ],
-            "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
+            "Opened \"%s\" in a new browser tab — this site doesnt allow embedding.": [
                 "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
+            ],
+            "Opt in to Desktop Mode behaviors that aren’t on by default. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
+                ""
             ],
             "Or use your own image": [
                 "O usa tu propia imagen"
             ],
             "Personalize your desktop. Changes apply instantly and are saved to this browser.": [
                 "Personaliza tu escritorio. Los cambios se aplican al instante y se guardan en este navegador."
+            ],
+            "Planned": [
+                ""
+            ],
+            "Platform API key": [
+                ""
+            ],
+            "Platform-wide AI configuration. Applies to all users and to background jobs (cron, WP-CLI, anonymous comments). Individual users can override with their own key above.": [
+                ""
+            ],
+            "Props": [
+                ""
+            ],
+            "Provider": [
+                ""
+            ],
+            "Question": [
+                ""
+            ],
+            "Recycle Bin — empty": [
+                ""
+            ],
+            "Reload": [
+                ""
             ],
             "Remove": [
                 "Eliminar"
@@ -184,11 +346,17 @@
             "Remove custom image": [
                 "Eliminar imagen personalizada"
             ],
+            "Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Click Posts in the dock to open it. Toggle off to return to the classic experience.": [
+                ""
+            ],
             "Reset to defaults": [
                 "Restablecer valores predeterminados"
             ],
-            "Rose": [
-                "Rosa"
+            "Right": [
+                ""
+            ],
+            "Saving…": [
+                "Subiendo…"
             ],
             "Search media": [
                 "Buscar medios"
@@ -196,17 +364,44 @@
             "Search your media": [
                 "Busca en tus medios"
             ],
+            "Settings sections": [
+                ""
+            ],
+            "Shadow parts": [
+                ""
+            ],
             "Showing %d": [
                 "Mostrando %d"
             ],
-            "Sunset": [
-                "Atardecer"
+            "Side bar with the core admin menus, plus a bottom dock for plugin apps.": [
+                ""
+            ],
+            "Since": [
+                ""
+            ],
+            "Single bottom dock holding every menu — core and plugin apps share one rail.": [
+                ""
+            ],
+            "Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.": [
+                ""
+            ],
+            "Slots": [
+                ""
+            ],
+            "Spatial": [
+                ""
+            ],
+            "Stable": [
+                ""
+            ],
+            "Steps to reproduce (bug only)": [
+                ""
             ],
             "Switch to %s": [
                 "Cambiar a %s"
             ],
-            "Teal": [
-                "Verde azulado"
+            "System Preferences": [
+                ""
             ],
             "That file isn’t an image.": [
                 "Ese archivo no es una imagen."
@@ -214,8 +409,26 @@
             "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.": [
                 "El fondo tras tus ventanas. Elige un preestablecido, mezcla tu propio gradiente o suelta una imagen."
             ],
+            "This component has no help descriptor yet. Add `static help` to its class for a fuller reference.": [
+                ""
+            ],
+            "Title": [
+                ""
+            ],
+            "Title and description are both required.": [
+                ""
+            ],
             "To": [
                 "Hasta"
+            ],
+            "Type": [
+                ""
+            ],
+            "Undocumented — declared via static props.": [
+                ""
+            ],
+            "Unified": [
+                ""
             ],
             "Upload a wallpaper image": [
                 "Subir una imagen de fondo"
@@ -229,11 +442,20 @@
             "Uploading…": [
                 "Subiendo…"
             ],
+            "Use the native Posts window": [
+                ""
+            ],
             "Used in focused window title bars, buttons, and focus rings.": [
                 "Usado en barras de título enfocadas, botones y anillos de foco."
             ],
+            "Using platform key — enter to override": [
+                ""
+            ],
             "Wallpaper": [
                 "Fondo de pantalla"
+            ],
+            "What happened? What did you expect?": [
+                ""
             ],
             "Width of the dock and size of its icons.": [
                 "Anchura del dock y tamaño de sus iconos."
@@ -241,8 +463,17 @@
             "Window actions": [
                 "Acciones de ventana"
             ],
-            "WordPress Blue": [
-                "Azul WordPress"
+            "You will review and submit on GitHub.": [
+                ""
+            ],
+            "components registered.": [
+                ""
+            ],
+            "default": [
+                "Predeterminada"
+            ],
+            "sk-…": [
+                ""
             ],
             "· %d open tab": [
                 "· %d pestaña abierta",

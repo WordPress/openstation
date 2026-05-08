@@ -29,6 +29,56 @@ import type { PwaConfig } from '../types';
 
 let _registration: ServiceWorkerRegistration | null = null;
 let _registrationFailed = false;
+let _controllerChangeBound = false;
+let _reloadingForSwUpdate = false;
+
+/**
+ * Wire up the auto-reload on SW takeover. Two scenarios distinguished:
+ *
+ *   - **Cold start** — page loaded with NO prior SW controller, then
+ *     just registered + activated one. No reload: the bundle was
+ *     fetched directly from the network (the SW couldn't have
+ *     intercepted requests it didn't yet exist for), so it's already
+ *     fresh. Reloading here would be a gratuitous flicker on every
+ *     first PWA open.
+ *
+ *   - **Deploy mid-session** — page was already controlled by an
+ *     older SW, the new SW just activated and replaced it. Reload
+ *     once so subsequent fetches go through the new SW (which is
+ *     network-first for JS) and the freshly-deployed bundle takes
+ *     effect immediately.
+ *
+ * The discriminator is `navigator.serviceWorker.controller` at bind
+ * time: truthy → already controlled (any future controllerchange is
+ * a deploy); falsy → cold start (the upcoming controllerchange is
+ * the first activation, no reload needed).
+ *
+ * Idempotent — guarded by `_controllerChangeBound` /
+ * `_reloadingForSwUpdate` so a second controllerchange event (rare,
+ * but spec-permitted) doesn't loop.
+ */
+function bindControllerChangeReload(): void {
+	if ( _controllerChangeBound ) {
+		return;
+	}
+	_controllerChangeBound = true;
+	const hadInitialController = !! navigator.serviceWorker.controller;
+	navigator.serviceWorker.addEventListener( 'controllerchange', () => {
+		if ( ! hadInitialController ) {
+			// Cold start — first-ever SW activation for this page.
+			// Bundle is already fresh; no reload.
+			return;
+		}
+		if ( _reloadingForSwUpdate ) {
+			return;
+		}
+		_reloadingForSwUpdate = true;
+		// One-frame delay so any in-flight UI work has a chance to
+		// settle before the navigation. Not strictly required, but
+		// avoids a class of "click → reload races input" surprises.
+		setTimeout( () => window.location.reload(), 0 );
+	} );
+}
 
 /**
  * Register the service worker. No-op outside browsers, on insecure
@@ -84,6 +134,10 @@ export async function registerServiceWorker(
 			scope: '/',
 			updateViaCache: 'none',
 		} );
+		// Auto-reload when the new SW takes control. Bound only after a
+		// successful registration so we never reload a page that has no
+		// SW relationship in the first place.
+		bindControllerChangeReload();
 		return _registration;
 	} catch ( err ) {
 		_registrationFailed = true;
@@ -106,4 +160,6 @@ export function getServiceWorkerRegistration(): ServiceWorkerRegistration | null
 export function _resetSwRegistration(): void {
 	_registration = null;
 	_registrationFailed = false;
+	_controllerChangeBound = false;
+	_reloadingForSwUpdate = false;
 }

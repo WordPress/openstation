@@ -113,6 +113,44 @@ module.exports = {
 			ignoredNodes: [ 'TemplateLiteral *' ],
 			SwitchCase: 1,
 		} ],
+		// Steer authors away from raw browser globals that bypass
+		// the framework. Use `wp.desktop.fetch` / `trackedFetch`
+		// instead of `fetch()` so requests feed the loading
+		// spinner + activity bus. Use `wp.desktop.confirm` /
+		// `wpdConfirm()` instead of `window.confirm()` /
+		// `window.prompt()` / `window.alert()` so prompts use
+		// `<wpd-confirm-dialog>` and match the rest of the desktop
+		// visually. Sites that genuinely need the raw global —
+		// service worker, the framework wrapper itself, last-resort
+		// fallbacks — can opt out with an inline `eslint-disable`.
+		'no-restricted-syntax': [
+			'error',
+			{
+				selector: 'CallExpression[callee.name="fetch"]',
+				message:
+					'Use the framework fetch (`wp.desktop.fetch` or the `trackedFetch` helper from `src/tracked-fetch.ts`) so the request feeds the loading spinner + activity bus. If you really need the raw global, opt out with `// eslint-disable-next-line no-restricted-syntax` and a comment explaining why.',
+			},
+			{
+				selector: 'MemberExpression[object.name="window"][property.name="fetch"]',
+				message:
+					'Use `wp.desktop.fetch` / `trackedFetch` instead of `window.fetch` so the request feeds the loading spinner + activity bus.',
+			},
+			{
+				selector: 'CallExpression[callee.object.name="window"][callee.property.name="confirm"]',
+				message:
+					'Use `wp.desktop.confirm` (or `wpdConfirm()`) — the framework `<wpd-confirm-dialog>` — instead of `window.confirm()` so the prompt matches the rest of the desktop visually.',
+			},
+			{
+				selector: 'CallExpression[callee.object.name="window"][callee.property.name="alert"]',
+				message:
+					'Use a toast (`wp.desktop.toasts`) or `wp.desktop.confirm` instead of `window.alert()` so users get framework-styled feedback.',
+			},
+			{
+				selector: 'CallExpression[callee.object.name="window"][callee.property.name="prompt"]',
+				message:
+					'Build a small `<wpd-confirm-dialog>`-style modal with a `<wpd-text-field>` instead of `window.prompt()`.',
+			},
+		],
 	},
 	overrides: [
 		{
