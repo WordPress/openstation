@@ -73,6 +73,44 @@ describe( 'dock icon resolution', () => {
 		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml;base64,' );
 	} );
 
+	test( 'raw CSS url(...) value renders a background-image span (live-activation harvest path)', () => {
+		// includes/render/chromeless-bridge.php harvests the iframe's
+		// computed `::before { background-image }` for plugins whose
+		// menu icon is registered via CSS (icon = 'none'/'div'). The
+		// harvested value is a raw `url(...)` string and must reach the
+		// dock without going through a data-URI re-encode.
+		const { container } = mountDock( [
+			makeItem( {
+				icon: 'url("data:image/svg+xml;base64,PHN2Zy8+")',
+				title: 'All in One WP Migration',
+			} ),
+		] );
+		const icon = container.querySelector< HTMLElement >(
+			'.desktop-mode-dock__item-svg',
+		);
+		expect( icon ).not.toBeNull();
+		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml;base64,' );
+		// And it must NOT have collapsed to the gear or a letter badge.
+		expect( container.querySelector( '.desktop-mode-dock__item-letter' ) ).toBeNull();
+		expect(
+			container.querySelector( '.dashicons-admin-generic' ),
+		).toBeNull();
+	} );
+
+	test( 'raw CSS url(...) accepts a URL-encoded SVG data URI', () => {
+		// The harvest also needs to round-trip non-base64 data URIs
+		// (some plugins use `data:image/svg+xml,<percent-encoded>` in
+		// their CSS). _makeSvgIcon takes the value verbatim, so this
+		// branch is just a fidelity check.
+		const url = 'url("data:image/svg+xml,%3Csvg/%3E")';
+		const { container } = mountDock( [ makeItem( { icon: url } ) ] );
+		const icon = container.querySelector< HTMLElement >(
+			'.desktop-mode-dock__item-svg',
+		);
+		expect( icon ).not.toBeNull();
+		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml,' );
+	} );
+
 	test( 'http URL renders an <img>', () => {
 		const { container } = mountDock( [
 			makeItem( { icon: 'http://localhost/plugin-icon.png' } ),

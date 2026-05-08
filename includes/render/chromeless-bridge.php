@@ -649,6 +649,100 @@ function desktop_mode_chromeless_bridge_script() {
 	 *   - themes.php          — theme switch (rare but can add menus).
 	 */
 	var __DESKTOP_MODE_MENU_PAYLOAD__ = /*__DESKTOP_MODE_MENU_PAYLOAD__*/;
+	/*
+	 * Icon harvest from the iframe's authoritative #adminmenu.
+	 *
+	 * The server-side payload only knows what the plugin set on
+	 * $menu[$i][6]. Plugins that register their icon with 'none' /
+	 * 'div' and paint it via a CSS rule on `#adminmenu .menu-icon-X`
+	 * (All in One WP Migration, plus a long tail of older plugins)
+	 * end up serialized with the gear fallback.
+	 *
+	 * On a regular page load the parent shell's resolveIcon() falls
+	 * back to the parent's hidden #adminmenu DOM and reads the icon
+	 * from there — but on a live activation the parent's #adminmenu
+	 * is stale (it was rendered before the plugin existed). This
+	 * iframe just rendered plugins.php in real admin context, so its
+	 * own #adminmenu DOM IS authoritative; harvest each menu item's
+	 * resolved icon here and patch the dockItems before postMessage.
+	 */
+	try {
+		if (
+			__DESKTOP_MODE_MENU_PAYLOAD__
+			&& Array.isArray( __DESKTOP_MODE_MENU_PAYLOAD__.dockItems )
+		) {
+			var __wpdAdminMenu = document.getElementById( 'adminmenu' );
+			if ( __wpdAdminMenu ) {
+				var __wpdHarvest = {};
+				var __wpdLinks = __wpdAdminMenu.querySelectorAll( 'li.menu-top > a' );
+				for ( var __wpdLi = 0; __wpdLi < __wpdLinks.length; __wpdLi++ ) {
+					var __wpdLink = __wpdLinks[ __wpdLi ];
+					var __wpdKey;
+					try {
+						var __wpdU = new URL( __wpdLink.href || '', window.location.href );
+						__wpdKey = ( __wpdU.pathname.split( '/' ).pop() || '' ) + __wpdU.search;
+					} catch ( __wpdE1 ) { continue; }
+					if ( ! __wpdKey ) { continue; }
+					var __wpdImgWrap = __wpdLink.querySelector( '.wp-menu-image' );
+					if ( ! __wpdImgWrap ) { continue; }
+
+					/* (a) <img src> nested inside .wp-menu-image */
+					var __wpdImg = __wpdImgWrap.querySelector( 'img' );
+					if ( __wpdImg && __wpdImg.src ) {
+						__wpdHarvest[ __wpdKey ] = __wpdImg.src;
+						continue;
+					}
+
+					/* (b) dashicon class on the wrap div itself */
+					var __wpdDash = ( __wpdImgWrap.className || '' ).match( /\bdashicons-[\w-]+\b/ );
+					if (
+						__wpdDash
+						&& __wpdDash[ 0 ] !== 'dashicons-before'
+						&& __wpdDash[ 0 ] !== 'dashicons-admin-generic'
+					) {
+						__wpdHarvest[ __wpdKey ] = __wpdDash[ 0 ];
+						continue;
+					}
+
+					/* (c) ::before background-image — pass the raw
+					 * `url(...)` CSS value through; the parent's
+					 * resolveIcon can hand it straight to _makeSvgIcon
+					 * regardless of whether it's base64-encoded SVG,
+					 * URL-encoded SVG, or a plain http(s) URL. */
+					try {
+						var __wpdBefore = window.getComputedStyle( __wpdImgWrap, '::before' );
+						var __wpdBg = __wpdBefore && __wpdBefore.backgroundImage;
+						if ( __wpdBg && __wpdBg !== 'none' && __wpdBg.indexOf( 'url("")' ) === -1 ) {
+							__wpdHarvest[ __wpdKey ] = __wpdBg;
+							continue;
+						}
+						/* (d) background on the wrap itself */
+						var __wpdWrapBg = window.getComputedStyle( __wpdImgWrap ).backgroundImage;
+						if ( __wpdWrapBg && __wpdWrapBg !== 'none' && __wpdWrapBg.indexOf( 'url("")' ) === -1 ) {
+							__wpdHarvest[ __wpdKey ] = __wpdWrapBg;
+						}
+					} catch ( __wpdE2 ) { /* getComputedStyle may throw on detached nodes */ }
+				}
+
+				var __wpdItems = __DESKTOP_MODE_MENU_PAYLOAD__.dockItems;
+				for ( var __wpdDi = 0; __wpdDi < __wpdItems.length; __wpdDi++ ) {
+					var __wpdItem = __wpdItems[ __wpdDi ];
+					if ( ! __wpdItem || __wpdItem.icon !== 'dashicons-admin-generic' ) { continue; }
+					if ( typeof __wpdItem.url !== 'string' || ! __wpdItem.url ) { continue; }
+					try {
+						var __wpdItemU = new URL( __wpdItem.url, window.location.href );
+						var __wpdItemKey = ( __wpdItemU.pathname.split( '/' ).pop() || '' ) + __wpdItemU.search;
+						if ( __wpdHarvest[ __wpdItemKey ] ) {
+							__wpdItem.icon = __wpdHarvest[ __wpdItemKey ];
+						}
+					} catch ( __wpdE3 ) { /* malformed url — leave icon alone */ }
+				}
+			}
+		}
+	} catch ( __wpdHarvestErr ) {
+		/* Harvest is best-effort; on any failure we still ship the
+		 * server-built payload, which is exactly the pre-fix behavior. */
+	}
 	try {
 		if ( __DESKTOP_MODE_MENU_PAYLOAD__ ) {
 			window.parent.postMessage(

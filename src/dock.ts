@@ -968,6 +968,17 @@ export class Dock {
 			// Malformed — skip this case and try native-menu extraction.
 		}
 
+		// 3a. Raw CSS `url(...)` value — only the live-activation icon
+		//     harvest in includes/render/chromeless-bridge.php produces
+		//     this shape. It hands us the iframe's computed
+		//     `::before { background-image }` verbatim so we can paint it
+		//     identically to how F5 would (via _extractNativeMenuIcon's
+		//     shape-c branch), without losing fidelity through a data-URI
+		//     re-encode. Server-built icons never take this branch.
+		if ( icon.startsWith( 'url(' ) ) {
+			return this._makeSvgIcon( icon );
+		}
+
 		// 3. http(s) URL — direct image.
 		if ( icon.startsWith( 'http://' ) || icon.startsWith( 'https://' ) ) {
 			const img = document.createElement( 'img' );
