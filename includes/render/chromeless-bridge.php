@@ -2052,3 +2052,4 @@ JS;
 
 	wp_print_inline_script_tag( $js );
 }
+add_action( 'admin_footer', 'desktop_mode_chromeless_bridge_script' );
