@@ -212,6 +212,7 @@ function desktop_mode_enqueue_assets() {
 	 *     @type array  $defaultWindow    { enabled: bool, url: string } — current default-window preference.
 	 *     @type bool   $canUpload        Whether the user holds the `upload_files` capability.
 	 *     @type string $pluginUrl        Plugin base URL (no trailing slash). Used by the shell to locate vendor assets and by plugins to build asset URLs.
+	 *     @type string $pluginVersion    Plugin semver string. Surfaced in the OS Settings → About tab; plugins can read it to gate features by version.
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
 	 *     @type string $portalUrl    Canonical `/desktop-mode/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
@@ -261,6 +262,7 @@ function desktop_mode_enqueue_assets() {
 			'defaultWindow'    => desktop_mode_get_default_window( get_current_user_id() ),
 			'canUpload'        => current_user_can( 'upload_files' ),
 			'pluginUrl'        => esc_url_raw( untrailingslashit( DESKTOP_MODE_URL ) ),
+			'pluginVersion'    => DESKTOP_MODE_VERSION,
 			'iframeBridgeUrl'  => esc_url_raw(
 				DESKTOP_MODE_URL . 'assets/js/iframe-bridge'
 				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )

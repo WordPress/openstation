@@ -978,3 +978,62 @@
 	flex: 0 0 auto;
 	margin-inline-start: auto;
 }
+
+/*
+ * About tab — full-tabpanel PixiJS canvas. Every credit string and
+ * the AUTOMATTIC logotype (formed by particles) render inside Pixi
+ * itself; this stylesheet only sizes the host so the canvas fills
+ * the available height + width without any HTML chrome around it.
+ *
+ * The chain is: tabpanel → wpd-panel → .about (flex column) →
+ * .about-stage-host (the canvas mounts here). Each link sets
+ * `flex: 1; min-height: 0;` so the canvas inherits the tabpanel's
+ * full inner height instead of hugging an intrinsic minimum.
+ *
+ * @since 0.8.0
+ */
+.desktop-mode-os-settings
+	> wpd-tabpanel[ for='about' ]:not( [ hidden ] ) {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.desktop-mode-os-settings
+	> wpd-tabpanel[ for='about' ]:not( [ hidden ] )
+	> wpd-panel {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.desktop-mode-os-settings__about {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	/* Edge-to-edge — no border-radius / box-shadow framing — so the
+	 * canvas (and the logotype centred inside it) consume the entire
+	 * tabpanel surface. The gradient is just the colour-of-last-resort
+	 * underneath while Pixi initialises; once the canvas is rendering
+	 * it covers every pixel of this element anyway. */
+	background: linear-gradient( 180deg, #060a1c 0%, #0c1733 100% );
+	overflow: hidden;
+}
+
+.desktop-mode-os-settings__about-stage-host {
+	flex: 1;
+	min-height: 0;
+	width: 100%;
+	overflow: hidden;
+	cursor: crosshair;
+}
+
+.desktop-mode-os-settings__about-stage-host canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+

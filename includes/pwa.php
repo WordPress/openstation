@@ -356,15 +356,26 @@ function desktop_mode_pwa_serve_service_worker() {
 	header( 'Cache-Control: no-cache, must-revalidate' );
 	header( 'X-Content-Type-Options: nosniff' );
 
-	// Stamp the SW with the build's mtime so the byte-equality check
-	// the browser runs on the 24h refresh notices a real change. Tiny
-	// inline comment, no payload bloat. Wrapped in `absint()` because
-	// the WordPress.Security.EscapeOutput sniff doesn't follow the
-	// `(int)` cast at the assignment site — only the immediate
-	// printf argument matters to it. `absint()` is on the auto-
-	// recognised escape list.
-	$mtime = absint( filemtime( $path ) );
-	printf( "/* desktop-mode SW build: %s */\n", absint( $mtime ) );
+	// Stamp the SW with a CONTENT HASH so the browser's byte-equality
+	// check on update notices a *real* change.
+	//
+	// Earlier versions stamped with the file's `filemtime()`. Problem:
+	// `npm run build` rewrites `sw.min.js` on every run, bumping its
+	// mtime even when the SW source is byte-identical. Each rebuild
+	// produced a different stamp → different SW response → browser
+	// installed a "new" SW → `controllerchange` fired → the
+	// `bindControllerChangeReload` hook in `src/pwa/sw-register.ts`
+	// auto-reloaded the page. The user observed a "phantom reload"
+	// 2–3s after every `npm run build`, even when only an unrelated
+	// bundle (e.g. `desktop.min.js`) had changed.
+	//
+	// A content hash collapses identical bodies onto identical stamps
+	// — only a *real* change in `src/pwa/sw.ts` triggers the SW
+	// update / reload pipeline. `md5` is plenty for an integrity
+	// stamp here (no security implications) and short enough that the
+	// inline comment stays under one line.
+	$stamp = substr( md5( $body ), 0, 16 );
+	printf( "/* desktop-mode SW build: %s */\n", esc_html( $stamp ) );
 	// `$body` is the SW JavaScript bundle read off disk — escaping
 	// would corrupt the script. Suppress the sniff with the standard
 	// `--` separator (an em-dash silently fails to satisfy phpcs).

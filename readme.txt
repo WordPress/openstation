@@ -1,20 +1,20 @@
 === Desktop Mode ===
-Contributors: allterraindeveloper, epeicher
+Contributors: automattic, allterraindeveloper, epeicher
 Tags: desktop, admin, ui, productivity, ai
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 0.8.0
+Stable tag: 0.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Reimagines the WordPress admin as a desktop OS — draggable, resizable, minimizable windows on a desktop, with a dock. Purely opt-in per user.
+Reimagines the WordPress admin as a desktop OS — draggable, resizable, minimizable windows on a desktop, with a dock. Purely opt-in per user. Made by Automattic.
 
 == Description ==
 
 Desktop Mode renders /wp-admin as a desktop operating system. Admin screens open as draggable, resizable, minimizable windows on a desktop, with a left-edge dock built from the admin menu. The classic admin stays untouched for everyone else, and deactivating the plugin restores vanilla Core exactly.
 
-Zero Core patches. Every feature is wired through public WordPress hooks.
+Built and maintained by [Automattic](https://automattic.com) — the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr. Zero Core patches: every feature is wired through public WordPress hooks.
 
 = Highlights =
 
@@ -95,7 +95,25 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 4. Custom wallpapers and widgets registered by a plugin.
 5. The Arrange menu — Cascade, Tile, Overview, Snap to grid.
 
+== Credits ==
+
+Desktop Mode is brought to you by [Automattic](https://automattic.com). The plugin is open source under GPLv2-or-later; contributions are welcome on [GitHub](https://github.com/WordPress/desktop-mode).
+
+= Third-party libraries =
+
+The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:
+
+* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, and built-in canvas wallpapers (e.g. the animated WordPress logo). PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+
 == Changelog ==
+
+= 0.8.1 =
+* Framework rework and stability improvements — significant internals refactor, smoother window lifecycle, and more reliable bridging between iframe and native windows.
+* Drag and drop reworked end-to-end: calmer pointer behavior, more accurate hit-testing, and reliable handoff across windows.
+* Posts, Pages, and Users now open as native desktop windows — direct DOM rendering inside the shell instead of an iframe, faster open, instant interaction, and UI tailored to the windowing model.
+* New Content Graph tool — an interactive map of how your content links together. Pan, zoom, and focus a node to explore its neighborhood.
+* Cross-page admin link routing in the chromeless bridge so links across the admin stay inside the desktop shell.
+* Many bug fixes across the admin bar, Fullscreen toggle, resize handles over iframes, real-time icon refresh on plugin activation, and the PWA shell.
 
 = 0.5.1 =
 * Code editor and framework improvements.
@@ -116,6 +134,9 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 See the [GitHub releases page](https://github.com/WordPress/desktop-mode/releases) for the full history.
 
 == Upgrade Notice ==
+
+= 0.8.1 =
+Framework and stability rework, reworked drag and drop, native Posts/Pages/Users windows, and a new Content Graph tool. Backwards-compatible.
 
 = 0.5.1 =
 Adds AI Copilot extensibility (server-side tools, multi-provider support) and a title-bar button registry. Backwards-compatible.

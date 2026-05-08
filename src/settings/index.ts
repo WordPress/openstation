@@ -67,6 +67,7 @@ import type {
 	OsSettingsState,
 	SettingsCtx,
 } from './types';
+import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
 import { buildAiSection } from './sections/ai';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
@@ -407,6 +408,24 @@ export class OsSettings implements SettingsCtx {
 				</wpd-tabpanel>`,
 			} );
 		}
+
+		// About — credits + the interactive Pixi particle scene. Pinned
+		// to the very end of the tab strip with a sentinel order
+		// (`Number.MAX_SAFE_INTEGER`) so it stays last regardless of
+		// any third-party tabs registered through the settings-tab
+		// registry (which default to `order: 100`). The visual moment
+		// belongs at the end of the settings tour. Visible to every
+		// user, not just admins; `padding="0"` so the dark stage
+		// extends to the tabpanel edge without the wpd-panel's
+		// default 16px frame.
+		rows.push( {
+			id: 'about',
+			order: Number.MAX_SAFE_INTEGER,
+			tab: html`<wpd-tab value="about">${ __( 'About' ) }</wpd-tab>`,
+			panel: html`<wpd-tabpanel for="about">
+				<wpd-panel padding="0">${ buildAboutSection() }</wpd-panel>
+			</wpd-tabpanel>`,
+		} );
 
 		for ( const tab of externalTabs ) {
 			const tabId = `ext-${ tab.id }`;
