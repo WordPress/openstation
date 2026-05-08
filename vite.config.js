@@ -69,6 +69,16 @@ const TARGETS = {
 		fileBase: 'my-wordpress',
 		iifeName: 'desktopModeMyWordpress',
 	},
+	// Content Graph — PixiJS-driven force-directed map of every post
+	// and page (and any opt-in public CPT) wired together by their
+	// internal hyperlinks. Lazy-loads PixiJS via the same module
+	// registry the wallpapers + posts-window mindmap use. Registers a
+	// render callback on `window.desktopModeNativeWindows['desktop-mode-content-graph']`.
+	'content-graph': {
+		entry:    'src/content-graph/index.ts',
+		fileBase: 'content-graph',
+		iifeName: 'desktopModeContentGraph',
+	},
 	// Service worker — own bundle so it can be served from a stable
 	// path with the `Service-Worker-Allowed: /` header. The IIFE
 	// wrapper is harmless inside a SW context: top-level

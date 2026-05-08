@@ -1,0 +1,896 @@
+/**
+ * Desktop Mode — Content Graph window styles.
+ *
+ * Scoped to `.desktop-mode-content-graph`. Reads `desktop-mode-variables`
+ * tokens so the chrome adapts to the active theme.
+ *
+ * @since 0.8.2
+ */
+
+.desktop-mode-content-graph {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	background: var( --wpd-surface, #f7f8fb );
+	color: var( --wpd-text, #1a1f2b );
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ---------- Toolbar ------------------------------------------------- */
+
+.desktop-mode-content-graph__toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --wpd-border, #e2e6ec );
+	background: var( --wpd-surface-2, #fff );
+	flex-wrap: wrap;
+}
+
+.desktop-mode-content-graph__filters {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.desktop-mode-content-graph__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 10px;
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 999px;
+	background: transparent;
+	color: var( --wpd-text-muted, #5a6473 );
+	font-size: 12px;
+	cursor: pointer;
+	transition: background 0.12s ease, border-color 0.12s ease,
+		color 0.12s ease;
+}
+
+.desktop-mode-content-graph__chip:hover {
+	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
+	color: var( --wpd-text, #1a1f2b );
+}
+
+.desktop-mode-content-graph__chip.is-active {
+	border-color: var( --wpd-accent, #2c6be5 );
+	background: var( --wpd-accent-soft, rgba( 44, 107, 229, 0.12 ) );
+	color: var( --wpd-accent-strong, #1f4ea8 );
+}
+
+.desktop-mode-content-graph__chip .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	line-height: 14px;
+}
+
+.desktop-mode-content-graph__chip-count {
+	font-variant-numeric: tabular-nums;
+	font-size: 11px;
+	background: var( --wpd-surface, #f1f3f7 );
+	padding: 1px 6px;
+	border-radius: 999px;
+}
+
+.desktop-mode-content-graph__chip.is-active .desktop-mode-content-graph__chip-count {
+	background: rgba( 255, 255, 255, 0.7 );
+}
+
+.desktop-mode-content-graph__search {
+	position: relative;
+	flex: 1;
+	min-width: 220px;
+	max-width: 320px;
+}
+
+.desktop-mode-content-graph__search-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+	font-size: 13px;
+}
+
+.desktop-mode-content-graph__search-input:focus {
+	outline: none;
+	border-color: var( --wpd-accent, #2c6be5 );
+	box-shadow: 0 0 0 3px var( --wpd-accent-soft, rgba( 44, 107, 229, 0.18 ) );
+}
+
+.desktop-mode-content-graph__search-results {
+	position: absolute;
+	top: calc( 100% + 4px );
+	left: 0;
+	right: 0;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	background: var( --wpd-surface-2, #fff );
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 8px;
+	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
+	z-index: 10;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.desktop-mode-content-graph__search-result {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 10px;
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	color: inherit;
+	cursor: pointer;
+	text-align: left;
+	font-size: 13px;
+}
+
+.desktop-mode-content-graph__search-result:hover {
+	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
+}
+
+.desktop-mode-content-graph__search-title {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-content-graph__search-type {
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.desktop-mode-content-graph__actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-left: auto;
+}
+
+.desktop-mode-content-graph__btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 10px;
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 6px;
+	background: var( --wpd-surface-2, #fff );
+	color: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.desktop-mode-content-graph__btn:hover {
+	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
+	border-color: var( --wpd-accent, #2c6be5 );
+}
+
+.desktop-mode-content-graph__btn .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	line-height: 14px;
+}
+
+.desktop-mode-content-graph__toolbar-status {
+	margin-left: 8px;
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Body layout (stage + side panel) ----------------------- */
+
+.desktop-mode-content-graph__body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+/* ---------- Stage --------------------------------------------------- */
+
+.desktop-mode-content-graph__stage {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	/*
+	 * Three layers, painted bottom-up:
+	 *   1. The theme surface fills the canvas (so PixiJS, which uses
+	 *      `backgroundAlpha: 0`, lets it bleed through).
+	 *   2. Two soft theme-tinted radial vignettes give the canvas a
+	 *      sense of depth without competing with the graph itself.
+	 *   3. A 24x24 dot grid at low alpha gives a subtle "graph paper"
+	 *      texture, mirroring the categories-mindmap reference.
+	 */
+	background:
+		radial-gradient(
+			circle,
+			rgba( 0, 0, 0, 0.06 ) 1px,
+			transparent 1.5px
+		) 0 0 / 24px 24px,
+		radial-gradient(
+			ellipse at 28% 22%,
+			rgba( 79, 139, 243, 0.08 ),
+			transparent 60%
+		),
+		radial-gradient(
+			ellipse at 78% 80%,
+			rgba( 176, 102, 215, 0.06 ),
+			transparent 58%
+		),
+		var( --wpd-surface, #f7f8fb );
+}
+
+.desktop-mode-content-graph__canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.desktop-mode-content-graph__loading {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba( 247, 248, 251, 0.7 );
+	pointer-events: none;
+	z-index: 2;
+}
+
+.desktop-mode-content-graph__loading[ hidden ] {
+	display: none;
+}
+
+/* ---------- Right side panel: breadcrumb --------------------------- */
+
+.desktop-mode-content-graph__panel-breadcrumb {
+	display: flex;
+	align-items: center;
+	padding: 8px 14px 0;
+	min-height: 32px;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-back {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: transparent;
+	border: 0;
+	padding: 4px 8px 4px 4px;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var( --wpd-text-muted, #6b7280 );
+	font-size: 12px;
+	font-weight: 500;
+	max-width: 100%;
+	min-width: 0;
+	text-align: left;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-back:hover {
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
+	color: var( --wpd-text, #1a1f2b );
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-arrow {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	line-height: 16px;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+
+/* ---------- Right side panel --------------------------------------- */
+
+.desktop-mode-content-graph__panel {
+	width: 320px;
+	flex-shrink: 0;
+	border-left: 1px solid var( --wpd-border, #e2e6ec );
+	background: var( --wpd-surface-2, #fff );
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.desktop-mode-content-graph__panel[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-frame {
+	/*
+	 * Without these rules the body's `flex: 1; overflow-y: auto`
+	 * has nothing to constrain it — the body just grows to fit its
+	 * dossier content and the action buttons get clipped at the
+	 * bottom of the panel. Make the frame a flex column itself so
+	 * the body is forced to share the panel's height with the
+	 * breadcrumb and head, then scrolls the overflow.
+	 */
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.desktop-mode-content-graph__panel-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 14px 16px 10px;
+	border-bottom: 1px solid var( --wpd-border, #eef0f4 );
+}
+
+.desktop-mode-content-graph__panel-title-wrap {
+	flex: 1;
+	min-width: 0;
+}
+
+.desktop-mode-content-graph__panel-title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
+.desktop-mode-content-graph__panel-meta {
+	margin: 4px 0 0;
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.desktop-mode-content-graph__panel-close {
+	background: transparent;
+	border: 0;
+	color: var( --wpd-text-muted, #6b7280 );
+	cursor: pointer;
+	padding: 2px;
+	border-radius: 4px;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-close:hover {
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
+	color: inherit;
+}
+
+.desktop-mode-content-graph__panel-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 14px 16px 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.desktop-mode-content-graph__panel-section-label {
+	display: block;
+	font-size: 10px;
+	font-weight: 600;
+	color: var( --wpd-text-muted, #6b7280 );
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	margin-bottom: 4px;
+}
+
+.desktop-mode-content-graph__panel-author {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-content-graph__panel-author[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-author-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.desktop-mode-content-graph__panel-avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-author-name {
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.desktop-mode-content-graph__panel-dates {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.desktop-mode-content-graph__panel-dates[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-date-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.desktop-mode-content-graph__panel-date-value {
+	font-size: 12px;
+	color: var( --wpd-text, #1a1f2b );
+	font-variant-numeric: tabular-nums;
+}
+
+.desktop-mode-content-graph__panel-stats {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 80px, 1fr ) );
+	gap: 4px;
+	background: var( --wpd-surface, #f7f8fb );
+	border: 1px solid var( --wpd-border, #eef0f4 );
+	border-radius: 8px;
+	padding: 8px;
+}
+
+.desktop-mode-content-graph__panel-stats[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-stat {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+}
+
+.desktop-mode-content-graph__panel-stat-num {
+	font-size: 16px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var( --wpd-text, #1a1f2b );
+}
+
+.desktop-mode-content-graph__panel-stat-label {
+	font-size: 10px;
+	color: var( --wpd-text-muted, #6b7280 );
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.desktop-mode-content-graph__panel-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-content-graph__panel-actions[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-actions .desktop-mode-content-graph__btn {
+	width: 100%;
+	justify-content: center;
+}
+
+.desktop-mode-content-graph__btn--primary {
+	border-color: var( --wpd-accent, #2c6be5 );
+	background: var( --wpd-accent, #2c6be5 );
+	color: #fff;
+}
+
+.desktop-mode-content-graph__btn--primary:hover {
+	background: var( --wpd-accent-strong, #1f4ea8 );
+	border-color: var( --wpd-accent-strong, #1f4ea8 );
+}
+
+.desktop-mode-content-graph__panel-loading {
+	display: flex;
+	justify-content: center;
+	padding: 24px 0;
+}
+
+.desktop-mode-content-graph__panel-loading[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-empty {
+	margin: 0;
+	font-size: 12px;
+	color: var( --wpd-text-muted, #6b7280 );
+	font-style: italic;
+}
+
+.desktop-mode-content-graph__panel-empty[ hidden ] {
+	display: none;
+}
+
+/* ---------- Contextual detail views (user / term / comment) -------- */
+
+.desktop-mode-content-graph__panel-detail-section {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-content-graph__panel-detail-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.desktop-mode-content-graph__panel-detail-avatar--lg {
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-handle {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-handle strong {
+	font-size: 14px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.desktop-mode-content-graph__panel-detail-handle span {
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-content-graph__panel-detail-prose {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --wpd-text, #1a1f2b );
+}
+
+.desktop-mode-content-graph__panel-detail-link {
+	font-size: 12px;
+	color: var( --wpd-accent, #2c6be5 );
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	display: inline-block;
+	max-width: 100%;
+}
+
+.desktop-mode-content-graph__panel-detail-link:hover {
+	text-decoration: underline;
+}
+
+.desktop-mode-content-graph__panel-detail-html {
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --wpd-text, #1a1f2b );
+	background: var( --wpd-surface, #f7f8fb );
+	border: 1px solid var( --wpd-border, #eef0f4 );
+	border-radius: 6px;
+	padding: 10px 12px;
+	overflow-wrap: anywhere;
+}
+
+.desktop-mode-content-graph__panel-detail-html p:first-child {
+	margin-top: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-html p:last-child {
+	margin-bottom: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-quote {
+	margin: 0;
+	padding: 10px 12px;
+	border-left: 3px solid var( --wpd-border, #d8dde4 );
+	background: var( --wpd-surface, #f7f8fb );
+	border-radius: 0 6px 6px 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-content-graph__panel-detail-quote strong {
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.desktop-mode-content-graph__panel-detail-quote span {
+	font-size: 12px;
+	color: var( --wpd-text-muted, #4b5563 );
+}
+
+.desktop-mode-content-graph__panel-detail-thumb {
+	display: flex;
+	justify-content: center;
+	background: var( --wpd-surface, #f7f8fb );
+	border: 1px solid var( --wpd-border, #eef0f4 );
+	border-radius: 8px;
+	padding: 8px;
+	max-height: 240px;
+	overflow: hidden;
+}
+
+.desktop-mode-content-graph__panel-detail-thumb img {
+	max-width: 100%;
+	max-height: 220px;
+	object-fit: contain;
+	border-radius: 4px;
+}
+
+.desktop-mode-content-graph__panel-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.desktop-mode-content-graph__panel-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	font-size: 11px;
+	font-weight: 500;
+	border-radius: 999px;
+	background: var( --wpd-surface, #f1f3f7 );
+	color: var( --wpd-text-muted, #4b5563 );
+	border: 1px solid var( --wpd-border, #e2e6ec );
+}
+
+.desktop-mode-content-graph__panel-badge--blue {
+	background: rgba( 44, 107, 229, 0.12 );
+	color: #1f4ea8;
+	border-color: rgba( 44, 107, 229, 0.35 );
+}
+
+.desktop-mode-content-graph__panel-badge--green {
+	background: rgba( 44, 169, 122, 0.14 );
+	color: #1f7754;
+	border-color: rgba( 44, 169, 122, 0.35 );
+}
+
+.desktop-mode-content-graph__panel-badge--amber {
+	background: rgba( 232, 137, 58, 0.16 );
+	color: #8a5012;
+	border-color: rgba( 232, 137, 58, 0.35 );
+}
+
+.desktop-mode-content-graph__panel-inline-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-content-graph__panel-inline-meta-row {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.desktop-mode-content-graph__panel-inline-meta-row .desktop-mode-content-graph__panel-section-label {
+	flex: 0 0 auto;
+	margin-bottom: 0;
+}
+
+.desktop-mode-content-graph__panel-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.desktop-mode-content-graph__panel-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 9px;
+	font-size: 12px;
+	border-radius: 999px;
+	background: var( --wpd-surface, #f1f3f7 );
+	border: 1px solid var( --wpd-border, #e2e6ec );
+}
+
+.desktop-mode-content-graph__panel-chip-count {
+	font-variant-numeric: tabular-nums;
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-author-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.desktop-mode-content-graph__panel-author-list-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.desktop-mode-content-graph__panel-author-list-row .desktop-mode-content-graph__panel-avatar {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-author-list-row .desktop-mode-content-graph__panel-author-name {
+	flex: 1 1 auto;
+	font-size: 13px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-content-graph__panel-milestones {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-content-graph__panel-milestone-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.desktop-mode-content-graph__panel-milestone-key {
+	font-size: 12px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-replies {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.desktop-mode-content-graph__panel-reply {
+	background: var( --wpd-surface, #f7f8fb );
+	border: 1px solid var( --wpd-border, #eef0f4 );
+	border-radius: 6px;
+	padding: 8px 10px;
+}
+
+.desktop-mode-content-graph__panel-reply header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.desktop-mode-content-graph__panel-reply header strong {
+	font-size: 12px;
+}
+
+.desktop-mode-content-graph__panel-reply header span {
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-reply p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.45;
+	color: var( --wpd-text-muted, #4b5563 );
+}
+
+.desktop-mode-content-graph__panel-detail-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 0;
+	font-size: 12px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-stat-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+@media ( max-width: 760px ) {
+	.desktop-mode-content-graph__panel {
+		position: absolute;
+		inset: auto 0 0 0;
+		width: 100%;
+		max-height: 60%;
+		border-left: 0;
+		border-top: 1px solid var( --wpd-border, #e2e6ec );
+		box-shadow: 0 -8px 24px rgba( 17, 24, 39, 0.08 );
+		z-index: 4;
+	}
+}
+
+/* ---------- Satellite tooltip -------------------------------------- */
+
+.desktop-mode-content-graph__tooltip {
+	position: absolute;
+	z-index: 5;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-width: 240px;
+	padding: 6px 10px;
+	background: var( --wpd-surface-2, #1a1f2b );
+	color: #fff;
+	border-radius: 6px;
+	box-shadow: 0 4px 14px rgba( 17, 24, 39, 0.18 );
+	font-size: 12px;
+	pointer-events: none;
+}
+
+.desktop-mode-content-graph__tooltip[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__tooltip strong {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-content-graph__tooltip span {
+	font-size: 11px;
+	opacity: 0.85;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

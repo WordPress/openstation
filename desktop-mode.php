@@ -73,4 +73,5 @@ require_once DESKTOP_MODE_DIR . 'includes/pages-window/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/users-window/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/user-edit-window/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/my-wordpress/bootstrap.php';
+require_once DESKTOP_MODE_DIR . 'includes/content-graph/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/pwa.php';
