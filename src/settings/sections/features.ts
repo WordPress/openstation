@@ -45,6 +45,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onNativeUsersToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.nativeUsersEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
 	let resetting = false;
 	const onResetIntros = async (): Promise< void > => {
 		if ( resetting ) {
@@ -104,6 +111,16 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 					<p class="desktop-mode-features__hint">
 						${ __(
 							'Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.',
+						) }
+					</p>
+					<wpd-checkbox-label
+						label=${ __( 'Use the native Users window' ) }
+						?checked=${ ctx.state.nativeUsersEnabled }
+						@wpd-checkbox-change=${ onNativeUsersToggle }
+					></wpd-checkbox-label>
+					<p class="desktop-mode-features__hint">
+						${ __(
+							'A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.',
 						) }
 					</p>
 					<div class="desktop-mode-features__row">

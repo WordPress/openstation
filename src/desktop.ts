@@ -1683,6 +1683,59 @@ function init(): void {
 		enabled: ( snapshot ) => snapshot.nativePagesEnabled === true,
 	} );
 
+	// Native Users window — opens on `users.php` only (the list
+	// screen). Per-user edit screens are claimed by the User Edit
+	// remap below.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-users',
+		nativeWindowId: 'desktop-mode-users',
+		matches: ( _url, parsed ) => parsed.pathname.endsWith( '/users.php' ),
+		enabled: ( snapshot ) => snapshot.nativeUsersEnabled === true,
+	} );
+
+	// Native User Edit window — claims `user-edit.php?user_id=N`
+	// AND `profile.php` (the viewer's own profile shortcut). Sets
+	// the target user id via the shared-store helper before the
+	// shell calls openById; the render callback reads it back to
+	// know which user to load. Same opt-in flag as the Users list
+	// — if you turned that off, you presumably want the classic
+	// edit screen too.
+	// `user-edit.php?user_id=N` and `profile.php` open the
+	// dedicated **`desktop-mode-user-edit`** native window. The
+	// Users-list window has its OWN built-in Profile tab pinned to
+	// the viewer; this remap is for the per-user profile flow.
+	// `onMatch` stashes the target user id in the shared store so
+	// the user-edit render callback knows which user to load.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-user-edit',
+		nativeWindowId: 'desktop-mode-user-edit',
+		matches: ( _url, parsed ) => {
+			const path = parsed.pathname;
+			if ( path.endsWith( '/profile.php' ) ) {
+				return true;
+			}
+			if ( path.endsWith( '/user-edit.php' ) ) {
+				return parsed.searchParams.has( 'user_id' );
+			}
+			return false;
+		},
+		enabled: ( snapshot ) => snapshot.nativeUsersEnabled === true,
+		onMatch: ( _url, parsed ) => {
+			const userId = parseInt(
+				parsed.searchParams.get( 'user_id' ) ?? '0',
+				10,
+			);
+			if ( userId > 0 ) {
+				void import( './posts-window/user-edit-target' ).then( ( m ) => {
+					m.setUserEditTarget( userId );
+				} );
+			}
+			// `profile.php` with no user_id falls through to the
+			// render callback's `currentUserId` fallback — no need
+			// to set a target.
+		},
+	} );
+
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'desktop-mode-area--with-dock' );
 		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;

@@ -337,6 +337,12 @@ function desktop_mode_native_window_allowed_html() {
 		'contenteditable' => true,
 		'data-*'          => true,
 		'aria-*'          => true,
+		// `full-width` is a layout-level flag honoured by
+		// `<wpd-form>` (and any future wpd-* container that opts in
+		// to row-spanning slotted children). Lives in the global
+		// allowlist so a plain `<div full-width>` wrapper isn't
+		// stripped by kses on its way through the template.
+		'full-width'      => true,
 	);
 
 	$form_attrs = array_merge(
@@ -411,6 +417,16 @@ function desktop_mode_native_window_allowed_html() {
 			'orientation'   => true,
 			'level'         => true,
 			'collapsed'     => true,
+			// `<wpd-form>` props + the `full-width` row span flag
+			// honoured by the form's slotted-child layout rule.
+			'submit-label'  => true,
+			'reset-label'   => true,
+			'busy'          => true,
+			'error'         => true,
+			'min-column'    => true,
+			'show-reset'    => true,
+			'reveal'        => true,
+			'full-width'    => true,
 		)
 	);
 
@@ -464,7 +480,8 @@ function desktop_mode_native_window_allowed_html() {
 		'wpd-segmented', 'wpd-segment',
 		'wpd-button', 'wpd-icon-button', 'wpd-button-group',
 		'wpd-text-field', 'wpd-textarea', 'wpd-search-field',
-		'wpd-select', 'wpd-checkbox', 'wpd-radio', 'wpd-radio-group',
+		'wpd-select', 'wpd-option', 'wpd-checkbox', 'wpd-checkbox-label',
+		'wpd-radio', 'wpd-radio-group', 'wpd-form',
 		'wpd-switch', 'wpd-slider',
 		'wpd-table', 'wpd-table-column', 'wpd-table-row', 'wpd-table-cell',
 		'wpd-card', 'wpd-list', 'wpd-list-item',
@@ -483,6 +500,23 @@ function desktop_mode_native_window_allowed_html() {
 
 	$allowed = array_merge( $base, $extra );
 
+	// Promote the framework's global attrs (`slot`, `part`,
+	// `full-width`, `data-*`, `aria-*`, …) to EVERY allowed tag —
+	// otherwise plain wrappers like `<div slot="header">` lose
+	// their `slot` attribute on the way through kses and get
+	// projected into the default slot instead of the named one.
+	// Caught by inspection when the Add User form's header
+	// rendered as a fields-grid cell instead of a banner above
+	// the fields. `array_merge( + )` with a kses-true value
+	// (boolean `true`) is harmless for tags whose entries are
+	// just `true` rather than an attrs map — array_merge skips
+	// non-array values.
+	foreach ( $allowed as $tag => $attrs ) {
+		if ( is_array( $attrs ) ) {
+			$allowed[ $tag ] = array_merge( $attrs, $global_attrs );
+		}
+	}
+
 	/**
 	 * Filters the kses allowlist used when escaping native-window
 	 * `<template>` payloads.
@@ -496,6 +530,50 @@ function desktop_mode_native_window_allowed_html() {
 	 * @param array $allowed wp_kses-shaped allowlist.
 	 */
 	return (array) apply_filters( 'desktop_mode_native_window_allowed_html', $allowed );
+}
+
+/**
+ * Run `wp_kses` on a native-window template body with the framework
+ * allowlist, **auto-extending the allowlist with every `<wpd-*>` tag
+ * the template actually uses.**
+ *
+ * The pain this fixes: each shipped `<wpd-*>` component had to be
+ * manually added to the `$wpd_tags` list above, and the failure mode
+ * of forgetting it was silent — kses would strip the tag, the
+ * template would render as a sea of unparented children, and you'd
+ * spend an afternoon working out why "the form has no buttons."
+ *
+ * Plugin authors registering a new component now only need to
+ * `defineComponent('wpd-foo', WpdFoo)` on the JS side and use
+ * `<wpd-foo>` in their template — this helper finds the tag at
+ * render time, tags it onto the allowlist with the standard
+ * permissive attrs, and runs kses with the extended list.
+ *
+ * Every callsite in the framework that previously did the
+ * `wp_kses( $html, desktop_mode_native_window_allowed_html() )`
+ * dance can call this instead and get tag-discovery for free.
+ *
+ * @since 0.18.0
+ *
+ * @param string $html Template HTML to sanitize.
+ * @return string Sanitized HTML.
+ */
+function desktop_mode_kses_native_window_template( $html ) {
+	$allowed = desktop_mode_native_window_allowed_html();
+
+	if ( preg_match_all( '/<(wpd-[a-z][a-z0-9-]*)\b/i', (string) $html, $matches ) ) {
+		$unique = array_unique( array_map( 'strtolower', $matches[1] ) );
+		$wpd_attrs = isset( $allowed['wpd-button'] )
+			? $allowed['wpd-button']
+			: array();
+		foreach ( $unique as $tag ) {
+			if ( ! isset( $allowed[ $tag ] ) ) {
+				$allowed[ $tag ] = $wpd_attrs;
+			}
+		}
+	}
+
+	return wp_kses( (string) $html, $allowed );
 }
 
 function desktop_mode_build_native_window_template_html( $entry ) {
@@ -708,7 +786,11 @@ function desktop_mode_render_native_window_templates() {
 			'<template id="desktop-mode-native-window-%s">',
 			esc_attr( $entry['id'] )
 		);
-		echo wp_kses( $html, desktop_mode_native_window_allowed_html() );
+		// `desktop_mode_kses_native_window_template()` auto-extends
+		// the allowlist with any `<wpd-*>` tag the template carries
+		// — so plugin authors never have to remember to register
+		// their custom component tags in the kses list.
+		echo desktop_mode_kses_native_window_template( $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 		echo '</template>';
 	}
 }

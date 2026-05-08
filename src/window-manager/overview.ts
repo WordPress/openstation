@@ -77,17 +77,38 @@ export function enterOverview( mgr: WindowManager ): void {
 	// Target rect for the layout. `computeOverviewLayout` expects
 	// area-relative coordinates (same space as `offsetLeft` /
 	// `offsetTop`), so left + top are 0. Width accounts for the
-	// dock's imminent collapse: the area is about to grow by
-	// `dockWidth` as the dock shrinks over the next ~280 ms, and we
-	// lay out as if that animation has already settled so thumbnails
-	// land at their final positions in a single pass.
-	const dockEl = document.getElementById( 'desktop-mode-dock' );
-	const dockWidth = dockEl ? dockEl.offsetWidth : 0;
+	// dock rails' imminent collapse: every horizontally-placed
+	// dock element (`#desktop-mode-dock` when bottom-placed
+	// doesn't affect width; `#desktop-mode-side-dock` AND any
+	// bottom dock placed left/right via the layout dispatcher do)
+	// is about to shrink to width 0 over the next ~280 ms, and we
+	// lay out as if the animation has already settled so
+	// thumbnails land at their final positions in a single pass.
+	//
+	// Sum every visible `.desktop-mode-dock` whose CURRENT bounding
+	// rect overlaps the desktop area's vertical extent — those are
+	// the rails actually consuming horizontal space right now.
+	// Bottom-placed docks (full-width, sitting below the desktop
+	// area) won't overlap the area's vertical extent except at
+	// their top-edge fringe, so they're correctly excluded.
 	const currentRect = mgr._desktop.getBoundingClientRect();
+	const docks = Array.from(
+		document.querySelectorAll< HTMLElement >( '.desktop-mode-dock' ),
+	);
+	let reclaimedWidth = 0;
+	for ( const d of docks ) {
+		const r = d.getBoundingClientRect();
+		const verticallyOverlaps =
+			r.bottom > currentRect.top && r.top < currentRect.bottom;
+		const isHorizontalRail = r.height > r.width;
+		if ( verticallyOverlaps && isHorizontalRail ) {
+			reclaimedWidth += r.width;
+		}
+	}
 	const targetRect = new DOMRect(
 		0,
 		0,
-		currentRect.width + dockWidth,
+		currentRect.width + reclaimedWidth,
 		currentRect.height,
 	);
 

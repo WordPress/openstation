@@ -109,15 +109,41 @@
 		opacity 0.22s ease;
 }
 
-.desktop-mode-shell--overview .desktop-mode-dock {
-	width: 0;
-	min-width: 0;
-	padding-inline: 0;
-	padding-block: 0;
+/*
+ * Collapse EVERY dock (bottom + side rails, Classic / Unified /
+ * Spatial layouts alike) when overview is active.
+ *
+ * The placement-specific width rules in dock.css —
+ * `.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
+ *  { width: var( --desktop-mode-dock-width ); }` — share equal
+ * specificity with `.desktop-mode-shell--overview .desktop-mode-dock`
+ * (two classes / class+attr) and load LATER in the cascade, so
+ * without `!important` the side rail keeps its placement width
+ * and stays visible during overview. The bottom dock happens to
+ * lack a placement-attr-keyed width override so it collapsed
+ * fine; the side rail did not — caught by the regression
+ * screenshot.
+ *
+ * `!important` is the right tool here: this rule is a transient,
+ * mode-scoped override (overview screen only) of a layout-mode
+ * default, and we want it to win unconditionally.
+ */
+.desktop-mode-shell--overview .desktop-mode-dock,
+.desktop-mode-shell--overview #desktop-mode-side-dock {
+	width: 0 !important;
+	min-width: 0 !important;
+	padding-inline: 0 !important;
+	padding-block: 0 !important;
 	transform: translateX( -16px );
 	opacity: 0;
 	overflow: hidden;
 	pointer-events: none;
+	transition:
+		width 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
+		min-width 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
+		padding 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
+		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
+		opacity 0.22s ease;
 }
 
 @media ( prefers-reduced-motion: reduce ) {

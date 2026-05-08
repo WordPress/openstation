@@ -86,6 +86,14 @@ export interface OsSettingsSnapshot {
 	 * @since 0.18.0
 	 */
 	nativePagesEnabled: boolean;
+	/**
+	 * Per-user opt-in for the native Users window. Same posture as
+	 * {@link nativePagesEnabled} — UI-side gate; the window itself is
+	 * cap-gated on the server. Default on.
+	 *
+	 * @since 0.18.0
+	 */
+	nativeUsersEnabled: boolean;
 }
 
 export interface SettingsTabRenderCtx {

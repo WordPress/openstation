@@ -70,6 +70,7 @@ export { WpdChip } from './wpd-chip/wpd-chip';
 export type { WpdChipTone, WpdChipSize } from './wpd-chip/wpd-chip';
 export { WpdTagInput } from './wpd-tag-input/wpd-tag-input';
 export type { WpdTagItem } from './wpd-tag-input/wpd-tag-input';
+export { WpdForm } from './wpd-form/wpd-form';
 export { WpdSaveStatus } from './wpd-save-status/wpd-save-status';
 export type {
 	WpdSaveStatusPhase,
@@ -136,6 +137,7 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-textarea',
 	'wpd-chip',
 	'wpd-tag-input',
+	'wpd-form',
 	'wpd-save-status',
 	'wpd-category-picker',
 	'wpd-crumb-chain',

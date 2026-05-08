@@ -174,6 +174,11 @@ export const DEFAULTS: OsSettingsState = {
 	// Same opt-out posture as Posts — fresh installs land on the
 	// native Pages window, users can flip back to the iframe.
 	nativePagesEnabled: true,
+	// Native Users window — same opt-out posture. Capability-gated
+	// server-side (the window is only registered for users with
+	// `list_users`), so flipping this off only affects the small set
+	// of users who can see the Users tile in the first place.
+	nativeUsersEnabled: true,
 };
 
 /**
