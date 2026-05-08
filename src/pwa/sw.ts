@@ -90,7 +90,7 @@ interface SWGlobal {
 // concise.
 const sw = globalThis as unknown as SWGlobal;
 
-const VERSION = '0.8.0-pwa-1';
+const VERSION = '0.8.0-pwa-2';
 const STATIC_CACHE = `desktop-mode-static-${ VERSION }`;
 const RUNTIME_CACHE = `desktop-mode-runtime-${ VERSION }`;
 const OFFLINE_URL = '/desktop-mode/?offline=1';
@@ -150,6 +150,20 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		'/wp-content/plugins/desktop-mode/',
 	);
 	if ( ! isPortal && ! isAdmin && ! isPluginAsset ) {
+		return;
+	}
+
+	if ( isPluginAsset && isJsAssetPath( url.pathname ) ) {
+		// JS bundles change per deploy — `network-first` ensures
+		// online users see the latest code immediately, with no
+		// stale-revalidate window where a freshly-pushed fix is
+		// invisible until the next reload. The cache is still
+		// populated as a fallback for offline use. The previous
+		// stale-while-revalidate strategy caused PR #121's
+		// "install icon hidden in standalone" fix to require a
+		// manual refresh inside the PWA window, because the first
+		// post-deploy navigation served the cached pre-fix bundle.
+		event.respondWith( networkFirstForAsset( req ) );
 		return;
 	}
 
@@ -229,9 +243,38 @@ function pluginAssetBase(): string {
 }
 
 function isStaticAssetPath( pathname: string ): boolean {
-	return /\.(css|js|png|jpg|jpeg|svg|webp|woff2?|ttf|gif|ico)$/i.test(
+	return /\.(css|png|jpg|jpeg|svg|webp|woff2?|ttf|gif|ico)$/i.test(
 		pathname,
 	);
+}
+
+function isJsAssetPath( pathname: string ): boolean {
+	return /\.js$/i.test( pathname );
+}
+
+/**
+ * Network-first with cache fallback. Used for JS bundles so a fresh
+ * deploy reaches online users on the very next page load instead of
+ * waiting for stale-while-revalidate to catch up. The cache still
+ * gets populated so offline users see the most-recent successful
+ * fetch.
+ */
+async function networkFirstForAsset( req: Request ): Promise< Response > {
+	const cache = await caches.open( RUNTIME_CACHE );
+	try {
+		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available; raw fetch is the API.
+		const fresh = await fetch( req );
+		if ( fresh && fresh.status === 200 ) {
+			cache.put( req, fresh.clone() ).catch( () => undefined );
+		}
+		return fresh;
+	} catch {
+		const cached = await cache.match( req );
+		if ( cached ) {
+			return cached;
+		}
+		return new Response( '', { status: 504 } );
+	}
 }
 
 async function staleWhileRevalidate( req: Request ): Promise< Response > {
