@@ -3,23 +3,25 @@
  *
  * On node focus, this module fans the focused post's relationship
  * payload out around it as orbiting satellites. Each satellite is a
- * differently-shaped Pixi `Container` that:
+ * Pixi `Container` with a colour-tinted disc + a dashicon glyph (the
+ * same icons WP admin uses for users / categories / comments / media /
+ * revisions, so the visual reads as "WordPress" not "ad-hoc shapes").
  *
- *   - Carries an `openUrl` target (admin URL for the underlying entity).
+ * Behaviour:
  *   - Animates outward from the focused node's centre on entrance.
- *   - Highlights on hover and shows a DOM tooltip with its label + meta.
- *   - On click, opens its admin URL via `wp.desktop.openUrl`.
- *
- * The satellite layer is parented to the same `world` container as the
- * graph itself so it pans + zooms with the rest of the canvas. Each
- * `setFocused()` call clears the prior fan synchronously, so there's
- * no in-flight animation racing the next focus.
+ *   - Hover highlight + DOM tooltip with label and meta.
+ *   - On click, calls `onClick(ref)` — the host then routes the click
+ *     to the contextual side panel (showUser / showTerm / etc.) rather
+ *     than navigating away.
+ *   - Connector lines re-paint each animation tick so they track the
+ *     focused node as it moves with the simulation.
  *
  * @public
  * @since 0.8.2
  */
 
 import { __, sprintf } from '../i18n';
+import { resolveDashicon } from '../ui/components/wpd-icon/dashicons-map';
 import type {
 	PixiContainer,
 	PixiGraphics,
@@ -28,9 +30,55 @@ import type {
 } from './pixi-types';
 import type { GraphNode, PostDetail } from './types';
 
-type Kind = 'user' | 'term' | 'comment' | 'media' | 'revision';
+/**
+ * Discriminated union — every satellite knows its own kind PLUS the
+ * entity id needed to fetch its detail panel.
+ */
+export type SatelliteRef =
+	| {
+			kind: 'user';
+			userId: number;
+			label: string;
+			meta: string;
+			avatar?: string;
+	}
+	| {
+			kind: 'term';
+			termId: number;
+			taxonomy: string;
+			label: string;
+			meta: string;
+	}
+	| {
+			kind: 'comment';
+			commentId: number;
+			label: string;
+			meta: string;
+	}
+	| {
+			kind: 'media';
+			mediaId: number;
+			label: string;
+			meta: string;
+			thumb?: string;
+	}
+	| {
+			kind: 'revision';
+			revisionId: number;
+			parentId: number;
+			label: string;
+			meta: string;
+	};
 
-const KIND_COLOR: Record< Kind, number > = {
+export type SatelliteOnClick = ( ref: SatelliteRef ) => void;
+
+/**
+ * Lookup invoked by the scene on construction; given a post-type
+ * slug, returns the dashicon name to render (e.g. `'admin-post'`).
+ */
+export type PostTypeIconLookup = ( slug: string ) => string;
+
+const KIND_COLOR: Record< SatelliteRef[ 'kind' ], number > = {
 	user: 0x3a6df0,
 	term: 0x2ca97a,
 	comment: 0xe8893a,
@@ -38,27 +86,23 @@ const KIND_COLOR: Record< Kind, number > = {
 	revision: 0x6b7785,
 };
 
-interface SatelliteRef {
-	kind: Kind;
-	label: string;
-	meta: string;
-	url: string;
-}
+const KIND_DASHICON: Record< SatelliteRef[ 'kind' ], string > = {
+	user: 'admin-users',
+	term: 'tag',
+	comment: 'admin-comments',
+	media: 'admin-media',
+	revision: 'backup',
+};
 
 interface SatelliteView {
 	ref: SatelliteRef;
 	container: PixiContainer;
-	gfx: PixiGraphics;
+	disc: PixiGraphics;
+	icon: PixiText;
 	label: PixiText;
 	targetX: number;
 	targetY: number;
 }
-
-export type SatelliteOpenUrl = ( args: {
-	url: string;
-	title: string;
-	icon: string;
-} ) => void;
 
 export class SatelliteLayer {
 	private linkLayer: PixiContainer;
@@ -72,11 +116,9 @@ export class SatelliteLayer {
 	constructor(
 		private pixi: PixiNamespace,
 		private world: PixiContainer,
-		private openUrl: SatelliteOpenUrl,
+		private onClick: SatelliteOnClick,
 		private hostEl: HTMLElement,
 	) {
-		// Link layer sits BELOW the satellite chips so the line tucks
-		// under the shape's edge instead of slicing through it.
 		this.linkLayer = new pixi.Container();
 		this.linkGfx = new pixi.Graphics();
 		this.linkLayer.addChild( this.linkGfx );
@@ -99,11 +141,6 @@ export class SatelliteLayer {
 		this.hideTooltip();
 	}
 
-	/**
-	 * Re-draw the connector lines from the focused node to every
-	 * satellite. The scene calls this on every animation tick so the
-	 * lines track the focused node as it moves with the simulation.
-	 */
 	drawLinks(): void {
 		this.linkGfx.clear();
 		if ( ! this.focused || this.views.length === 0 ) {
@@ -129,11 +166,12 @@ export class SatelliteLayer {
 		}
 
 		const baseR = focused.radius;
-		// Ring radius scales with count so adjacent satellites are ~24px
-		// apart along the arc (an arc of 2πR / N).
-		const ringR = Math.max( 80, baseR + 64 + ( refs.length * 24 ) / ( 2 * Math.PI ) );
+		const ringR = Math.max(
+			90,
+			baseR + 70 + ( refs.length * 26 ) / ( 2 * Math.PI ),
+		);
 
-		const startAngle = -Math.PI / 2; // 12 o'clock
+		const startAngle = -Math.PI / 2;
 		const slice = ( 2 * Math.PI ) / refs.length;
 
 		refs.forEach( ( ref, i ) => {
@@ -161,32 +199,32 @@ export class SatelliteLayer {
 		this.hoverEl.remove();
 	}
 
-	/**
-	 * Flatten a `PostDetail` into a deterministic list of satellites.
-	 * Caps each section so a noisy post doesn't produce 100+ orbits.
-	 */
 	private flattenDetail( detail: PostDetail ): SatelliteRef[] {
 		const out: SatelliteRef[] = [];
 
 		if ( detail.author ) {
 			out.push( {
 				kind: 'user',
+				userId: detail.author.id,
 				label: detail.author.name,
 				meta: __( 'Author' ),
-				url: detail.author.edit_url,
+				avatar: detail.author.avatar,
 			} );
 		}
 		for ( const u of detail.contributors.slice( 0, 8 ) ) {
 			out.push( {
 				kind: 'user',
+				userId: u.id,
 				label: u.name,
 				meta: __( 'Contributor' ),
-				url: u.edit_url,
+				avatar: u.avatar,
 			} );
 		}
 		for ( const t of detail.categories.slice( 0, 12 ) ) {
 			out.push( {
 				kind: 'term',
+				termId: t.id,
+				taxonomy: t.taxonomy,
 				label: t.name,
 				meta: sprintf(
 					/* translators: 1: taxonomy label (e.g. Category, Tag). 2: post count for the term. */
@@ -194,31 +232,32 @@ export class SatelliteLayer {
 					t.tax_label,
 					t.count,
 				),
-				url: t.edit_url,
 			} );
 		}
 		for ( const c of detail.comments.slice( 0, 8 ) ) {
 			out.push( {
 				kind: 'comment',
+				commentId: c.id,
 				label: c.author,
 				meta: c.excerpt || formatDate( c.date ),
-				url: c.edit_url,
 			} );
 		}
 		for ( const m of detail.attached_media.slice( 0, 12 ) ) {
 			out.push( {
 				kind: 'media',
+				mediaId: m.id,
 				label: m.title,
 				meta: m.mime,
-				url: m.edit_url,
+				thumb: m.thumb,
 			} );
 		}
 		for ( const r of detail.revisions.slice( 0, 8 ) ) {
 			out.push( {
 				kind: 'revision',
+				revisionId: r.id,
+				parentId: detail.post.id,
 				label: r.author?.name ?? __( 'Revision' ),
 				meta: formatDate( r.date ),
-				url: r.edit_url,
 			} );
 		}
 		return out;
@@ -235,18 +274,32 @@ export class SatelliteLayer {
 		container.alpha = 0;
 		container.eventMode = 'static';
 		container.cursor = 'pointer';
-		// Explicit hit area so satellites are easy to grab regardless of
-		// shape geometry. Includes the label slot below the chip so a
-		// user clicking the text still triggers the satellite.
 		container.hitArea = {
 			contains: ( x: number, y: number ) => {
 				return x >= -16 && x <= 16 && y >= -14 && y <= 28;
 			},
 		};
 
-		const gfx = new this.pixi.Graphics();
-		this.drawShape( gfx, ref.kind );
-		container.addChild( gfx );
+		const disc = new this.pixi.Graphics();
+		const fill = KIND_COLOR[ ref.kind ];
+		disc.circle( 0, 0, 12 ).fill( { color: fill, alpha: 0.95 } )
+			.stroke( { color: 0xffffff, width: 1.5, alpha: 1 } );
+		container.addChild( disc );
+
+		const iconChar = resolveDashicon( KIND_DASHICON[ ref.kind ] );
+		const icon = new this.pixi.Text( {
+			text: iconChar ?? '?',
+			style: {
+				fontFamily: iconChar ? 'dashicons' : 'sans-serif',
+				fontSize: 13,
+				fill: 0xffffff,
+			},
+			resolution: 2,
+			anchor: { x: 0.5, y: 0.5 },
+		} );
+		icon.x = 0;
+		icon.y = 0;
+		container.addChild( icon );
 
 		const labelText = truncate( ref.label || '—', 28 );
 		const label = new this.pixi.Text( {
@@ -262,12 +315,12 @@ export class SatelliteLayer {
 			anchor: { x: 0.5, y: 0 },
 		} );
 		label.x = 0;
-		label.y = 12;
+		label.y = 14;
 		label.alpha = 0.9;
 		container.addChild( label );
 
 		container.on( 'pointerover', ( evt: unknown ) => {
-			gfx.alpha = 1;
+			disc.alpha = 1;
 			const e = evt as { global?: { x: number; y: number } };
 			this.showTooltip( ref, e.global );
 		} );
@@ -276,20 +329,14 @@ export class SatelliteLayer {
 			this.showTooltip( ref, e.global );
 		} );
 		container.on( 'pointerout', () => {
-			gfx.alpha = 0.95;
+			disc.alpha = 0.95;
 			this.hideTooltip();
 		} );
 		container.on( 'pointertap', ( evt: unknown ) => {
 			const e = evt as { stopPropagation?: () => void };
 			e.stopPropagation?.();
-			if ( ! ref.url ) {
-				return;
-			}
-			this.openUrl( {
-				url: ref.url,
-				title: ref.label || ref.meta,
-				icon: iconForKind( ref.kind ),
-			} );
+			this.hideTooltip();
+			this.onClick( ref );
 		} );
 
 		this.layer.addChild( container );
@@ -297,52 +344,12 @@ export class SatelliteLayer {
 		return {
 			ref,
 			container,
-			gfx,
+			disc,
+			icon,
 			label,
 			targetX: startX,
 			targetY: startY,
 		};
-	}
-
-	private drawShape( gfx: PixiGraphics, kind: Kind ): void {
-		const fill = KIND_COLOR[ kind ];
-		const stroke = 0xffffff;
-		gfx.alpha = 0.95;
-		switch ( kind ) {
-			case 'user':
-				gfx.circle( 0, 0, 8 ).fill( { color: fill, alpha: 0.95 } )
-					.stroke( { color: stroke, width: 1.5, alpha: 1 } );
-				break;
-			case 'term':
-				gfx.roundRect( -10, -7, 20, 14, 4 )
-					.fill( { color: fill, alpha: 0.95 } )
-					.stroke( { color: stroke, width: 1.5, alpha: 1 } );
-				break;
-			case 'comment': {
-				// Speech-bubble: roundRect with a small triangular tail.
-				gfx.roundRect( -11, -7, 22, 12, 5 )
-					.fill( { color: fill, alpha: 0.95 } )
-					.stroke( { color: stroke, width: 1.2, alpha: 1 } );
-				gfx.moveTo( -3, 5 ).lineTo( 0, 9 ).lineTo( 3, 5 )
-					.lineTo( -3, 5 ).fill( { color: fill, alpha: 0.95 } );
-				break;
-			}
-			case 'media':
-				gfx.roundRect( -8, -8, 16, 16, 2 )
-					.fill( { color: fill, alpha: 0.95 } )
-					.stroke( { color: stroke, width: 1.5, alpha: 1 } );
-				break;
-			case 'revision':
-				// Diamond (rotated square).
-				gfx.moveTo( 0, -9 )
-					.lineTo( 9, 0 )
-					.lineTo( 0, 9 )
-					.lineTo( -9, 0 )
-					.lineTo( 0, -9 )
-					.fill( { color: fill, alpha: 0.95 } )
-					.stroke( { color: stroke, width: 1.5, alpha: 1 } );
-				break;
-		}
 	}
 
 	private animateIn(): void {
@@ -363,8 +370,6 @@ export class SatelliteLayer {
 				v.container.y = s.y + ( v.targetY - s.y ) * k;
 				v.container.alpha = k;
 			}
-			// Lines re-paint each animation tick so they grow with the
-			// satellites instead of jumping straight to their final length.
 			this.drawLinks();
 			if ( t < 1 ) {
 				this.rafId = requestAnimationFrame( frame );
@@ -402,16 +407,6 @@ function truncate( text: string, max: number ): string {
 		return text;
 	}
 	return text.slice( 0, max - 1 ).trimEnd() + '…';
-}
-
-function iconForKind( kind: Kind ): string {
-	switch ( kind ) {
-		case 'user': return 'dashicons-admin-users';
-		case 'term': return 'dashicons-tag';
-		case 'comment': return 'dashicons-admin-comments';
-		case 'media': return 'dashicons-admin-media';
-		case 'revision': return 'dashicons-backup';
-	}
 }
 
 function formatDate( iso: string ): string {

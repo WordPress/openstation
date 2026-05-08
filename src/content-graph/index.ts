@@ -21,6 +21,7 @@ import { fetchGraph, fetchPostDetail, fetchPostTypes, getConfig } from './rest';
 import { renderToolbar } from './toolbar';
 import { renderPanel } from './panel';
 import { GraphScene } from './scene';
+import type { SatelliteRef } from './satellites';
 import type { DesktopApiLike } from './pixi-types';
 import type { GraphNode } from './types';
 
@@ -30,19 +31,6 @@ declare global {
 	interface Window {
 		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
-}
-
-interface DesktopApiUrlOpener {
-	windowManager?: {
-		open: ( args: {
-			id?: string;
-			baseId?: string;
-			url: string;
-			title: string;
-			icon?: string;
-		} ) => unknown;
-	};
-	deriveWindowId?: ( url: string ) => string;
 }
 
 const WINDOW_ID = 'desktop-mode-content-graph';
@@ -76,30 +64,6 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 
 	const desktopApi = ( window.wp as { desktop?: DesktopApiLike } | undefined )
 		?.desktop ?? {};
-	const desktopUrl = (
-		( window.wp as { desktop?: DesktopApiUrlOpener } | undefined )?.desktop ??
-		{}
-	) as DesktopApiUrlOpener;
-
-	const openUrl = ( args: {
-		url: string;
-		title: string;
-		icon: string;
-	} ): void => {
-		// Same pattern as posts-window's openAdminUrl: derive a stable
-		// id from the URL so satellite navigations don't open duplicate
-		// chromeless windows.
-		if ( ! desktopUrl.windowManager || ! desktopUrl.deriveWindowId ) {
-			window.location.href = args.url;
-			return;
-		}
-		const id = desktopUrl.deriveWindowId( args.url );
-		desktopUrl.windowManager.open( {
-			id,
-			baseId: id,
-			...args,
-		} );
-	};
 
 	let activeTypes: string[] = cfg.postTypes.map( ( t ) => t.slug );
 	let scene: GraphScene | null = null;
@@ -113,12 +77,35 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		loading.hidden = ! show;
 	};
 
-	const panel = renderPanel( panelHost, {
+	const panel = renderPanel( panelHost, cfg, {
 		onClose: () => {
 			panel.hide();
 			scene?.clearFocus();
 		},
 	} );
+
+	// Satellite click → contextual panel view (NOT a navigation away).
+	// The panel reuses the data already fetched for the post detail; no
+	// extra REST round-trip per click.
+	const handleSatelliteClick = ( ref: SatelliteRef ): void => {
+		switch ( ref.kind ) {
+			case 'user':
+				panel.showUser( ref.userId );
+				break;
+			case 'term':
+				panel.showTerm( ref.termId, ref.taxonomy );
+				break;
+			case 'comment':
+				panel.showComment( ref.commentId );
+				break;
+			case 'media':
+				panel.showMedia( ref.mediaId );
+				break;
+			case 'revision':
+				panel.showRevision( ref.revisionId );
+				break;
+		}
+	};
 
 	const focusNode = ( node: GraphNode ): void => {
 		scene?.focusNode( node.id );
@@ -216,7 +203,8 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 				scene?.clearFocus();
 			},
 		},
-		openUrl,
+		handleSatelliteClick,
+		cfg.postTypes,
 	);
 
 	try {

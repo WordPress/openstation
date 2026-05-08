@@ -211,11 +211,32 @@
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
+	/*
+	 * Three layers, painted bottom-up:
+	 *   1. The theme surface fills the canvas (so PixiJS, which uses
+	 *      `backgroundAlpha: 0`, lets it bleed through).
+	 *   2. Two soft theme-tinted radial vignettes give the canvas a
+	 *      sense of depth without competing with the graph itself.
+	 *   3. A 24x24 dot grid at low alpha gives a subtle "graph paper"
+	 *      texture, mirroring the categories-mindmap reference.
+	 */
 	background:
-		radial-gradient( circle at 30% 30%, rgba( 79, 139, 243, 0.06 ), transparent 60% ),
-		radial-gradient( circle at 70% 70%, rgba( 176, 102, 215, 0.04 ), transparent 60% ),
+		radial-gradient(
+			circle,
+			rgba( 0, 0, 0, 0.06 ) 1px,
+			transparent 1.5px
+		) 0 0 / 24px 24px,
+		radial-gradient(
+			ellipse at 28% 22%,
+			rgba( 79, 139, 243, 0.08 ),
+			transparent 60%
+		),
+		radial-gradient(
+			ellipse at 78% 80%,
+			rgba( 176, 102, 215, 0.06 ),
+			transparent 58%
+		),
 		var( --wpd-surface, #f7f8fb );
-	background-size: 100% 100%;
 }
 
 .desktop-mode-content-graph__canvas {

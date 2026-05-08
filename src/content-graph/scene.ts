@@ -5,20 +5,27 @@
  * transform), and the four child layers:
  *
  *   1. `edgeLayer`      — line per `GraphEdge` (very thin, low alpha).
- *   2. `nodeLayer`      — small `Graphics` disc per `GraphNode`.
+ *   2. `nodeLayer`      — small `Graphics` halo + dashicon glyph per
+ *      `GraphNode`. The glyph IS the node, sized by degree.
  *   3. `labelLayer`     — text label per node, culled when zoomed out.
- *   4. `satelliteLayer` — the `SatelliteLayer` instance fanning out
+ *   4. `satelliteLayer` — `SatelliteLayer` instance fanning out
  *      relationship satellites around the focused node (see
  *      `satellites.ts`).
  *
- * Visual policy: deliberately Obsidian-flavoured — small dark dots,
- * pale 1px edges, labels carry the visual weight at mid-zoom. The
- * focused node + its 1-hop neighbourhood is highlighted in blue so
- * the explored region pops without resorting to per-type colours that
- * dominate the canvas.
+ * Camera model: smooth target-then-ease, mirroring the `categories-
+ * mindmap` reference. Wheel events update `targetScale` / `targetX` /
+ * `targetY` exponentially with a sensitivity of 0.0008 per pixel; the
+ * tick loop eases the live `world.scale` / `world.x` / `world.y`
+ * toward the targets each frame so zoom and recenter feel continuous
+ * rather than stepped.
+ *
+ * Visual policy: dashicon glyph nodes (matching WP admin), dot-grid
+ * background (CSS), Obsidian-style sparse mid-zoom layout. Focused
+ * node + 1-hop neighbourhood pop in blue; the focused node is
+ * *pinned* during focus so it doesn't drift around under the camera.
  *
  * Interactions:
- *   - **Wheel** zooms with the cursor as the focal point.
+ *   - **Wheel** smoothly zooms with the cursor as the focal point.
  *   - **Drag empty canvas** pans the world.
  *   - **Drag a node** pins it to the cursor and reheats the sim.
  *   - **Click a node** emits `onNodeClick`. The host fetches detail and
@@ -29,6 +36,7 @@
  * @since 0.8.2
  */
 
+import { resolveDashicon } from '../ui/components/wpd-icon/dashicons-map';
 import {
 	getPixi,
 	type DesktopApiLike,
@@ -39,12 +47,17 @@ import {
 	type PixiText,
 } from './pixi-types';
 import { ForceSim } from './sim';
-import { SatelliteLayer, type SatelliteOpenUrl } from './satellites';
+import {
+	SatelliteLayer,
+	type SatelliteOnClick,
+	type PostTypeIconLookup,
+} from './satellites';
 import type {
 	GraphEdge,
 	GraphNode,
 	GraphPayload,
 	PostDetail,
+	PostTypeDescriptor,
 } from './types';
 
 const NODE_FILL = 0x4b5563;
@@ -53,6 +66,15 @@ const NODE_FILL_NEIGHBOUR = 0x4f8bf3;
 const EDGE_BASE = 0x9aa6b6;
 const EDGE_HOT = 0x2c6be5;
 
+const ZOOM_MIN = 0.15;
+const ZOOM_MAX = 4;
+const ZOOM_SENSITIVITY = 0.0008;
+const CAMERA_EASE = 0.18;
+// A tiny snap distance below which we skip easing (avoids the camera
+// "buzzing" around the target by sub-pixel amounts forever).
+const CAMERA_EPSILON = 0.001;
+const RESIZE_RECENTER_THRESHOLD = 24;
+
 export interface SceneCallbacks {
 	onNodeClick?: ( node: GraphNode ) => void;
 	onBackgroundClick?: () => void;
@@ -60,8 +82,11 @@ export interface SceneCallbacks {
 
 interface NodeView {
 	node: GraphNode;
-	gfx: PixiGraphics;
+	container: PixiContainer;
+	halo: PixiGraphics;
+	icon: PixiText;
 	label: PixiText;
+	iconCharCode: string | null;
 }
 
 interface EdgeView {
@@ -88,28 +113,40 @@ export class GraphScene {
 	private dragOffset = { x: 0, y: 0 };
 	private isPanning = false;
 	private panStart = { x: 0, y: 0, wx: 0, wy: 0 };
-	// Pixi's federated pointer events fire on top of the same DOM
-	// pointerdown/pointerup that our canvas-level pan logic listens to.
-	// When the user clicks a node, BOTH the node handler and the
-	// background-click handler would fire, the second one immediately
-	// clearing the focus the first one set. This flag suppresses the
-	// background path when a node is the actual click target.
 	private nodeClickActive = false;
 	private destroyed = false;
 	private tickerCb: ( ( t: { deltaTime: number } ) => void ) | null = null;
 	private resizeObserver: ResizeObserver | null = null;
+	private lastResizeWidth = 0;
+	private lastResizeHeight = 0;
+	// Camera target system — wheel + focus + fitToView write here, the
+	// tick loop eases the actual world.x / world.y / world.scale toward
+	// these targets each frame.
+	private targetScale = 1;
+	private targetX = 0;
+	private targetY = 0;
 	private host: HTMLElement;
 	private callbacks: SceneCallbacks;
-	private openUrl: SatelliteOpenUrl;
+	private onSatelliteClick: SatelliteOnClick;
+	private postTypeIcon: PostTypeIconLookup;
 
 	constructor(
 		host: HTMLElement,
 		callbacks: SceneCallbacks,
-		openUrl: SatelliteOpenUrl,
+		onSatelliteClick: SatelliteOnClick,
+		postTypes: PostTypeDescriptor[],
 	) {
 		this.host = host;
 		this.callbacks = callbacks;
-		this.openUrl = openUrl;
+		this.onSatelliteClick = onSatelliteClick;
+		const map = new Map< string, string >();
+		for ( const t of postTypes ) {
+			map.set( t.slug, normalizeDashiconName( t.icon ) );
+		}
+		// Always seeded so unknown CPTs without a registered menu_icon
+		// still pick up a sensible default.
+		this.postTypeIcon = ( slug ) =>
+			map.get( slug ) ?? defaultIconForPostType( slug );
 	}
 
 	async mount( api: DesktopApiLike ): Promise< void > {
@@ -121,6 +158,20 @@ export class GraphScene {
 			throw new Error( 'PIXI namespace missing after loadModules.' );
 		}
 		this.pixi = pixi;
+
+		// Pre-load the dashicons font so Pixi.Text nodes render as
+		// glyphs instead of empty boxes on first paint. The font is
+		// already declared in WP admin via `dashicons.css`'s @font-face;
+		// we just need to force the browser to actually fetch it before
+		// we ask Pixi to rasterize text against it.
+		if ( typeof document !== 'undefined' && document.fonts ) {
+			try {
+				await document.fonts.load( '16px dashicons' );
+			} catch {
+				// Best-effort; if it fails, glyphs may render as boxes
+				// momentarily — they pop in once the font lands.
+			}
+		}
 
 		const app = new pixi.Application();
 		await app.init( {
@@ -137,6 +188,10 @@ export class GraphScene {
 		this.world = new pixi.Container();
 		this.world.x = this.host.clientWidth / 2;
 		this.world.y = this.host.clientHeight / 2;
+		this.world.scale.set( 1 );
+		this.targetX = this.world.x;
+		this.targetY = this.world.y;
+		this.targetScale = 1;
 		app.stage.addChild( this.world );
 
 		this.edgeLayer = new pixi.Container();
@@ -147,7 +202,7 @@ export class GraphScene {
 		this.satellites = new SatelliteLayer(
 			pixi,
 			this.world,
-			this.openUrl,
+			this.onSatelliteClick,
 			this.host,
 		);
 
@@ -160,8 +215,6 @@ export class GraphScene {
 	}
 
 	setData( payload: GraphPayload ): void {
-		// Build live nodes preserving positions for ids that already
-		// exist so a filter-bar change doesn't snap things around.
 		const prev = new Map< number, GraphNode >();
 		for ( const n of this.nodes ) {
 			prev.set( n.id, n );
@@ -170,11 +223,6 @@ export class GraphScene {
 		const nodes: GraphNode[] = payload.nodes.map( ( p ) => {
 			const old = prev.get( p.id );
 			const angle = Math.random() * Math.PI * 2;
-			// Initial spread roughly matches the final equilibrium
-			// radius so springs and repulsion barely have to work to
-			// settle. Wider would mean longer travel; tighter would
-			// mean huge initial repulsion forces from densely-packed
-			// neighbours.
 			const r = 150 + Math.random() * 250;
 			return {
 				...p,
@@ -204,24 +252,14 @@ export class GraphScene {
 			t.degree++;
 			edges.push( { from: f, to: t } );
 		}
-		// Obsidian-style sizing: sqrt growth, capped, so a hub is
-		// noticeably bigger but never dominates. The minimum (5px) keeps
-		// isolated nodes legible at fitToView; the max (16px) makes a
-		// well-connected hub stand out at any zoom level.
 		for ( const n of nodes ) {
-			n.radius = 5 + Math.min( 11, Math.sqrt( n.degree ) * 3 );
+			n.radius = 8 + Math.min( 8, Math.sqrt( n.degree ) * 2.4 );
 		}
 
 		this.nodes = nodes;
 		this.edges = edges;
 		this.rebuildSprites();
 		this.sim = new ForceSim( nodes, edges );
-		// Initial layout: very gentle alpha (0.15) and no random kick.
-		// Combined with the integrator's per-step velocity clamp this
-		// means the opening animation can never travel more than ~2px
-		// per frame regardless of how densely packed the random initial
-		// positions happened to be. Calm exhale into shape, not a
-		// rebalance.
 		this.sim.reheat( 0.15, false );
 	}
 
@@ -239,15 +277,34 @@ export class GraphScene {
 		}
 
 		for ( const n of this.nodes ) {
-			const gfx = new this.pixi.Graphics();
-			gfx.eventMode = 'static';
-			gfx.cursor = 'pointer';
-			// Hit area scales with the visual radius but always stays at
-			// least 16px so dots are easy to click even at the wide
-			// default zoom. Origin = node center.
-			gfx.hitArea = new this.pixi.Circle( 0, 0, Math.max( 16, n.radius + 6 ) );
-			this.bindNodeInput( gfx, n );
-			this.nodeLayer.addChild( gfx );
+			const container = new this.pixi.Container();
+			container.eventMode = 'static';
+			container.cursor = 'pointer';
+			container.hitArea = new this.pixi.Circle(
+				0,
+				0,
+				Math.max( 18, n.radius + 8 ),
+			);
+			this.bindNodeInput( container, n );
+			this.nodeLayer.addChild( container );
+
+			const halo = new this.pixi.Graphics();
+			container.addChild( halo );
+
+			const iconChar = resolveDashicon(
+				this.postTypeIcon( n.type ),
+			);
+			const icon = new this.pixi.Text( {
+				text: iconChar ?? '●', // black circle fallback
+				style: {
+					fontFamily: iconChar ? 'dashicons' : 'sans-serif',
+					fontSize: 2 * n.radius,
+					fill: NODE_FILL,
+				},
+				resolution: 2,
+				anchor: { x: 0.5, y: 0.5 },
+			} );
+			container.addChild( icon );
 
 			const label = new this.pixi.Text( {
 				text: this.truncate( n.title || `#${ n.id }`, 32 ),
@@ -264,7 +321,14 @@ export class GraphScene {
 			label.alpha = 0.85;
 			this.labelLayer.addChild( label );
 
-			this.nodeViews.set( n.id, { node: n, gfx, label } );
+			this.nodeViews.set( n.id, {
+				node: n,
+				container,
+				halo,
+				icon,
+				label,
+				iconCharCode: iconChar,
+			} );
 		}
 	}
 
@@ -275,7 +339,7 @@ export class GraphScene {
 		return text.slice( 0, max - 1 ).trimEnd() + '…';
 	}
 
-	private bindNodeInput( gfx: PixiGraphics, node: GraphNode ): void {
+	private bindNodeInput( gfx: PixiContainer, node: GraphNode ): void {
 		let isDragging = false;
 		let downAt = { x: 0, y: 0 };
 		gfx.on( 'pointerdown', ( evt: unknown ) => {
@@ -291,8 +355,6 @@ export class GraphScene {
 			node.pinned = true;
 			const w = this.toWorld( e.global.x, e.global.y );
 			this.dragOffset = { x: node.x - w.x, y: node.y - w.y };
-			// Wake the simulation up so the surrounding nodes
-			// visibly respond as the user drags this one.
 			this.sim?.reheat( 1 );
 		} );
 		gfx.on( 'pointerover', () => {
@@ -312,15 +374,18 @@ export class GraphScene {
 			const moved = dx * dx + dy * dy > 9;
 			if ( ! moved && ! isDragging ) {
 				this.callbacks.onNodeClick?.( node );
+			} else {
+				// Genuine drag — un-pin so the sim can re-equilibrate
+				// around the new position. Click that escalated into
+				// focusNode keeps the node pinned (focusNode pins it
+				// itself).
+				node.pinned = this.focusedId === node.id;
 			}
-			node.pinned = false;
 			this.dragNode = null;
-			// Strong reheat so the dropped node settles back into the
-			// layout instead of leaving a frozen hole.
 			this.sim?.reheat( 0.8 );
 		} );
 		gfx.on( 'pointerupoutside', () => {
-			node.pinned = false;
+			node.pinned = this.focusedId === node.id;
 			this.dragNode = null;
 		} );
 		gfx.on( 'globalpointermove', ( evt: unknown ) => {
@@ -334,8 +399,6 @@ export class GraphScene {
 			node.vx = 0;
 			node.vy = 0;
 			isDragging = true;
-			// Keep the sim hot while the user actively drags so neighbour
-			// nodes follow the spring + repulsion forces frame-by-frame.
 			this.sim?.reheat( 1 );
 		} );
 	}
@@ -345,17 +408,23 @@ export class GraphScene {
 			'wheel',
 			( ev: WheelEvent ) => {
 				ev.preventDefault();
-				const factor = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
-				const before = this.toWorld( ev.offsetX, ev.offsetY );
-				const next = Math.max(
-					0.15,
-					Math.min( 4, this.world.scale.x * factor ),
+				// Smooth, exponential zoom with cursor-anchored framing.
+				// Compose against the *target* (not the live world) so
+				// rapid wheel ticks chain correctly while the camera is
+				// still easing toward a previous target.
+				const factor = Math.exp( -ev.deltaY * ZOOM_SENSITIVITY );
+				const nextScale = Math.max(
+					ZOOM_MIN,
+					Math.min( ZOOM_MAX, this.targetScale * factor ),
 				);
-				this.world.scale.set( next );
-				const after = this.toWorld( ev.offsetX, ev.offsetY );
-				this.world.x += ( after.x - before.x ) * this.world.scale.x;
-				this.world.y += ( after.y - before.y ) * this.world.scale.y;
-				this.draw();
+				const rect = canvas.getBoundingClientRect();
+				const lx = ev.clientX - rect.left;
+				const ly = ev.clientY - rect.top;
+				const beforeWorldX = ( lx - this.targetX ) / this.targetScale;
+				const beforeWorldY = ( ly - this.targetY ) / this.targetScale;
+				this.targetScale = nextScale;
+				this.targetX = lx - beforeWorldX * nextScale;
+				this.targetY = ly - beforeWorldY * nextScale;
 			},
 			{ passive: false },
 		);
@@ -364,12 +433,6 @@ export class GraphScene {
 			if ( ev.target !== canvas ) {
 				return;
 			}
-			// Pixi's federated `pointerdown` runs synchronously inside the
-			// native event dispatch (Pixi listens on the canvas itself), so
-			// by the time we get here `nodeClickActive` already reflects
-			// whether a node is the actual target. If it is, abandon pan
-			// setup entirely — otherwise the world would pan WHILE the
-			// user drags a node, fighting the drag.
 			if ( this.nodeClickActive ) {
 				return;
 			}
@@ -382,21 +445,19 @@ export class GraphScene {
 			};
 		} );
 		window.addEventListener( 'pointermove', ( ev: PointerEvent ) => {
-			// Defense-in-depth: even if `nodeClickActive` was set after the
-			// native pointerdown ran (unlikely with current Pixi v8, but the
-			// listener-ordering contract isn't documented), bail here too.
 			if ( ! this.isPanning || this.nodeClickActive ) {
 				return;
 			}
-			this.world.x = this.panStart.wx + ( ev.clientX - this.panStart.x );
-			this.world.y = this.panStart.wy + ( ev.clientY - this.panStart.y );
-			this.draw();
+			// Direct pan: write both live and target so the camera doesn't
+			// lurch back toward an old target after the user releases.
+			const newX = this.panStart.wx + ( ev.clientX - this.panStart.x );
+			const newY = this.panStart.wy + ( ev.clientY - this.panStart.y );
+			this.world.x = newX;
+			this.world.y = newY;
+			this.targetX = newX;
+			this.targetY = newY;
 		} );
 		window.addEventListener( 'pointerup', ( ev: PointerEvent ) => {
-			// ALWAYS clear `nodeClickActive` first, before any early-
-			// return. If a node click didn't escalate into a pan we'd
-			// otherwise leave the flag stuck `true` forever, which then
-			// blocks every subsequent empty-canvas pan attempt.
 			const nodeWasTarget = this.nodeClickActive;
 			this.nodeClickActive = false;
 			if ( ! this.isPanning ) {
@@ -412,12 +473,33 @@ export class GraphScene {
 	}
 
 	private bindResize(): void {
+		this.lastResizeWidth = this.host.clientWidth;
+		this.lastResizeHeight = this.host.clientHeight;
 		this.resizeObserver = new ResizeObserver( () => {
-			this.app.renderer.resize(
-				this.host.clientWidth,
-				this.host.clientHeight,
-			);
-			this.draw();
+			const w = this.host.clientWidth;
+			const h = this.host.clientHeight;
+			this.app.renderer.resize( w, h );
+			// Render synchronously so the freshly-resized canvas has
+			// pixels NOW. Without this the WebGL drawingBuffer briefly
+			// composites as white before the next ticker frame paints —
+			// that's the "white flash" the reviewer flagged.
+			try {
+				this.app.render();
+			} catch {
+				// Pixi sometimes throws on race during teardown.
+			}
+			// Sub-pixel sidebar reflows (panel open/close, scroll
+			// adjustments) shouldn't trigger camera repositioning. Only
+			// genuine window resizes pass the threshold.
+			const dw = Math.abs( w - this.lastResizeWidth );
+			const dh = Math.abs( h - this.lastResizeHeight );
+			if (
+				dw >= RESIZE_RECENTER_THRESHOLD ||
+				dh >= RESIZE_RECENTER_THRESHOLD
+			) {
+				this.lastResizeWidth = w;
+				this.lastResizeHeight = h;
+			}
 		} );
 		this.resizeObserver.observe( this.host );
 	}
@@ -440,11 +522,29 @@ export class GraphScene {
 			return;
 		}
 		this.sim?.step( delta );
+		// Ease the camera toward its targets each frame. dt-aware so
+		// the feel stays consistent across frame-rate dips. Snap when
+		// we're within sub-pixel distance to avoid the buzz.
+		const k = 1 - Math.pow( 1 - CAMERA_EASE, delta );
+		const ds = this.targetScale - this.world.scale.x;
+		if ( Math.abs( ds ) < CAMERA_EPSILON ) {
+			this.world.scale.set( this.targetScale );
+		} else {
+			this.world.scale.set( this.world.scale.x + ds * k );
+		}
+		const dxc = this.targetX - this.world.x;
+		const dyc = this.targetY - this.world.y;
+		if ( Math.abs( dxc ) < CAMERA_EPSILON ) {
+			this.world.x = this.targetX;
+		} else {
+			this.world.x += dxc * k;
+		}
+		if ( Math.abs( dyc ) < CAMERA_EPSILON ) {
+			this.world.y = this.targetY;
+		} else {
+			this.world.y += dyc * k;
+		}
 		this.draw();
-		// Satellites are children of the world container so they pan +
-		// zoom for free, but the connector lines need a fresh moveTo /
-		// lineTo each tick because the focused node moves as the sim
-		// settles. Cheap: one Graphics.clear() + N strokes.
 		this.satellites?.drawLinks();
 	}
 
@@ -490,23 +590,19 @@ export class GraphScene {
 		}
 
 		const inverseScale = 1 / this.world.scale.x;
-		// Hide labels at the wide zoom levels the initial fitToView lands
-		// on, so a dense graph reads as Obsidian-style dots first; labels
-		// reveal as the user zooms in. The focusNode camera move always
-		// pulls the user past this threshold (see `focusNode()`).
 		const showLabels = this.world.scale.x > 0.85;
 		for ( const v of this.nodeViews.values() ) {
-			const { node, gfx, label } = v;
-			gfx.clear();
+			const { node, container, halo, icon, label } = v;
 			const isFocus = node.id === focusId;
 			const isHover = node.id === hoverId;
 			const isNeighbour =
 				focusId !== null && focusNeighbours.has( node.id );
 			const inFocus = focusId === null || isNeighbour;
-			const baseAlpha = inFocus ? 1 : 0.18;
+			const baseAlpha = inFocus ? 1 : 0.25;
 
-			gfx.x = node.x;
-			gfx.y = node.y;
+			container.x = node.x;
+			container.y = node.y;
+			container.alpha = baseAlpha;
 
 			let fill = NODE_FILL;
 			if ( isFocus ) {
@@ -515,19 +611,19 @@ export class GraphScene {
 				fill = NODE_FILL_NEIGHBOUR;
 			}
 
+			halo.clear();
 			if ( isFocus || isHover ) {
-				gfx.circle( 0, 0, node.radius + 4 ).fill( {
+				halo.circle( 0, 0, node.radius + 8 ).fill( {
 					color: fill,
-					alpha: 0.16,
+					alpha: 0.18,
 				} );
 			}
-			gfx.circle( 0, 0, node.radius ).fill( {
-				color: fill,
-				alpha: baseAlpha,
-			} );
+
+			icon.style.fill = fill;
+			icon.style.fontSize = 2 * node.radius;
 
 			label.x = node.x;
-			label.y = node.y + node.radius + 3;
+			label.y = node.y + node.radius + 4;
 			label.scale.set( inverseScale );
 			let labelAlpha = 0;
 			if ( showLabels ) {
@@ -544,35 +640,30 @@ export class GraphScene {
 	}
 
 	focusNode( id: number ): void {
+		// Unpin previous focus (if any) so the cluster can move freely.
+		if ( this.focusedId !== null ) {
+			const prev = this.nodeViews.get( this.focusedId );
+			if ( prev ) {
+				prev.node.pinned = false;
+			}
+		}
 		this.focusedId = id;
-		// Reheat hard so the layout keeps breathing while the user
-		// inspects the panel. Without this the sim is usually well
-		// past its alpha-cooldown by the time you click and the graph
-		// appears frozen.
 		this.sim?.reheat( 1 );
 		const view = this.nodeViews.get( id );
 		if ( view ) {
+			// Pin the focused node so it doesn't drift around under
+			// the camera while the user is reading the panel — this is
+			// the "constantly trying to recenter itself" symptom the
+			// reviewer flagged. The 1-hop neighbours still float; the
+			// pinned node anchors the visual frame.
+			view.node.pinned = true;
+			view.node.vx = 0;
+			view.node.vy = 0;
 			const target = view.node;
-			// Zoom to a comfortable level so labels become legible AND
-			// satellites land at human-readable size. Don't zoom OUT if
-			// the user already zoomed in further than this.
-			const targetScale = Math.max( this.world.scale.x, 1.6 );
-			const fromScale = this.world.scale.x;
-			const fromX = this.world.x;
-			const fromY = this.world.y;
-			const toX = this.host.clientWidth / 2 - target.x * targetScale;
-			const toY = this.host.clientHeight / 2 - target.y * targetScale;
-			animateValues(
-				{ x: fromX, y: fromY, s: fromScale },
-				{ x: toX, y: toY, s: targetScale },
-				300,
-				( v ) => {
-					this.world.x = v.x;
-					this.world.y = v.y;
-					this.world.scale.set( v.s );
-					this.draw();
-				},
-			);
+			const newScale = Math.max( this.targetScale, 1.6 );
+			this.targetScale = newScale;
+			this.targetX = this.host.clientWidth / 2 - target.x * newScale;
+			this.targetY = this.host.clientHeight / 2 - target.y * newScale;
 		}
 		this.draw();
 	}
@@ -591,27 +682,22 @@ export class GraphScene {
 			return;
 		}
 		this.satellites.setFocused( node, detail );
-		// Keep the sim hot so the focused node and its neighbours visibly
-		// react to the satellite ring forming around them, instead of
-		// looking like a static snapshot.
 		this.sim?.reheat( 0.9 );
 	}
 
-	/**
-	 * Public reheat for the toolbar button. Bumps alpha AND adds a
-	 * random velocity kick (handled inside `sim.reheat()`), so the
-	 * cluster visibly resettles even from a fully-cooled state.
-	 */
 	reheat( value = 1 ): void {
 		this.sim?.reheat( value );
 	}
 
 	clearFocus(): void {
+		if ( this.focusedId !== null ) {
+			const view = this.nodeViews.get( this.focusedId );
+			if ( view ) {
+				view.node.pinned = false;
+			}
+		}
 		this.focusedId = null;
 		this.satellites?.clear();
-		// Closing the panel should make the layout feel "alive" again —
-		// reheat the simulation so the cluster gently re-settles
-		// (especially after dragging a node), instead of staying frozen.
 		this.sim?.reheat( 0.7 );
 		this.draw();
 	}
@@ -647,17 +733,16 @@ export class GraphScene {
 			}
 		}
 		const padding = 100;
-		const w = ( maxX - minX ) + padding * 2;
-		const h = ( maxY - minY ) + padding * 2;
+		const w = maxX - minX + padding * 2;
+		const h = maxY - minY + padding * 2;
 		const sx = this.host.clientWidth / w;
 		const sy = this.host.clientHeight / h;
-		const s = Math.max( 0.15, Math.min( 1.5, Math.min( sx, sy ) ) );
-		this.world.scale.set( s );
+		const s = Math.max( ZOOM_MIN, Math.min( 1.5, Math.min( sx, sy ) ) );
 		const cx = ( minX + maxX ) / 2;
 		const cy = ( minY + maxY ) / 2;
-		this.world.x = this.host.clientWidth / 2 - cx * s;
-		this.world.y = this.host.clientHeight / 2 - cy * s;
-		this.draw();
+		this.targetScale = s;
+		this.targetX = this.host.clientWidth / 2 - cx * s;
+		this.targetY = this.host.clientHeight / 2 - cy * s;
 	}
 
 	destroy(): void {
@@ -678,27 +763,30 @@ export class GraphScene {
 	}
 }
 
-function animateValues(
-	from: { x: number; y: number; s: number },
-	to: { x: number; y: number; s: number },
-	durationMs: number,
-	step: ( v: { x: number; y: number; s: number } ) => void,
-): void {
-	const t0 = performance.now();
-	const dx = to.x - from.x;
-	const dy = to.y - from.y;
-	const ds = to.s - from.s;
-	function frame( now: number ) {
-		const t = Math.min( 1, ( now - t0 ) / durationMs );
-		const k = 1 - Math.pow( 1 - t, 3 );
-		step( {
-			x: from.x + dx * k,
-			y: from.y + dy * k,
-			s: from.s + ds * k,
-		} );
-		if ( t < 1 ) {
-			requestAnimationFrame( frame );
-		}
+/**
+ * Strip a leading `dashicons-` prefix and reject http(s) URL icons
+ * (those are theme-supplied images, not part of the dashicons font).
+ * Returns a sensible default if the input doesn't match a dashicon.
+ */
+function normalizeDashiconName( raw: string ): string {
+	if ( typeof raw !== 'string' || raw === '' ) {
+		return 'admin-generic';
 	}
-	requestAnimationFrame( frame );
+	if ( raw.startsWith( 'http://' ) || raw.startsWith( 'https://' ) ) {
+		return 'admin-generic';
+	}
+	return raw.replace( /^dashicons-/, '' );
+}
+
+function defaultIconForPostType( slug: string ): string {
+	switch ( slug ) {
+		case 'post':
+			return 'admin-post';
+		case 'page':
+			return 'admin-page';
+		case 'attachment':
+			return 'admin-media';
+		default:
+			return 'admin-generic';
+	}
 }
