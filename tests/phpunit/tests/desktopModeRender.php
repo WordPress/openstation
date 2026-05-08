@@ -322,6 +322,32 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The bridge script carries the link/form interceptor that keeps
+	 * iframe navigations chromeless. If the function isn't actually
+	 * hooked to admin_footer, the first click on any /wp-admin/ link
+	 * inside an iframe re-renders the full desktop shell inside the
+	 * iframe (inception bug). Calling the function directly in the
+	 * other tests doesn't prove WordPress will call it — only this
+	 * has_action check does.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_chromeless_bridge_is_wired_on_admin_footer() {
+		$this->assertNotFalse(
+			has_action( 'admin_footer', 'desktop_mode_chromeless_bridge_script' )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_chromeless_offset_neutralizer_script
+	 */
+	public function test_chromeless_offset_neutralizer_is_wired_on_admin_head() {
+		$this->assertNotFalse(
+			has_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script' )
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_chromeless_bridge_script
 	 */
 	public function test_chromeless_after_action_fires_in_iframes() {
