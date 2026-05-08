@@ -1,31 +1,100 @@
-# Migration: 0.7 → 0.8.1
+# Architecture refactor — 0.8.1
 
-Architecture 0.8.1 reorganizes the plugin's internals around explicit
-layers and reusable primitives. The work lands across multiple
-phases; this document tracks what each phase changes for plugin
-authors.
+> Branch: `refactor/architecture-1.0` (commits reference 0.8.1 throughout — branch name is historical).
+> **Do not merge to trunk.** Land via cherry-pick or manual review per maintainer instruction.
 
-The promise: **no name in the public surface disappears silently.**
-Renames keep the old name alive as a deprecation shim (PHP via
-`_doing_it_wrong`, JS via `installDeprecatedAlias` from
-`@api/deprecated`) for the entire 0.8.x line.
+## Summary
 
-## At-a-glance status
+Reorganises the plugin's internals around explicit layers and reusable primitives. Four god-modules were sliced into focused single-responsibility files, the public API moved into a single facade, the postMessage protocol got a typed catalogue + guards, and plugin authors gained `@core` / `@api` / `@protocol` / `@layout` / `@ui` / `@window-system` path aliases backed by reusable building blocks.
 
-| Phase | Subject | Status |
-|---|---|---|
-| 1 | tsconfig path aliases + typecheck script | ✅ landed |
-| 2 | Shared primitives (`@core/reactive-registry`, `@core/server-sync`, `@core/api-client`, PHP registry factory) | ✅ landed |
-| 3 | Bridge-protocol consolidation (`@protocol/window-messages`, `@protocol/guards`, `@protocol/version`) | ✅ landed |
-| 4 | Public API home (`@api`) + deprecation alias helper | ✅ landed |
-| 5 | Boot decomposition — split `src/desktop.ts` into `src/boot/*` + `src/api/facade.ts` | 🚧 in progress (10 modules landed: 8 boot + facade + deprecated; init() body still needs decomposition) |
-| 6 | PHP slicing — split `helpers.php`, `render.php`, `components.php`; REST discoverability | ✅ landed (helpers/components/render fully sliced — 6,235 → 558 LOC; REST README index added; ai-copilot/search.php deliberately left intact — file is coherent per AGENTS.md) |
-| 7 | Window-system rename + heavy-window decomposition | 🚧 partial (`@window-system/*` umbrella barrel landed; physical merge of window/+window-manager/+window-chrome/ + `src/window/index.ts` 2,642-LOC class decomposition + heavy native-window splits deferred — each is multi-day surgery best tackled one window at a time) |
-| 8 | Layout SSOT, design-token catalogue, extension base, types package | ✅ landed (`src/layout/` cross-bundle store, `src/ui/core/tokens.ts`, `extensions/base/` PHP+TS bases, `packages/desktop-mode-types/` skeleton; existing `src/ui/core/component.ts` already covered the WpdBase line item) |
-| 9 | Documentation lockstep | ✅ landed (architecture map + migration doc + REST README + extensions/base/README + packages/desktop-mode-types/README + docs/README index all current) |
-| 10 | Cutover (no merge to trunk) | 🟡 branch held — `refactor/architecture-0.8.1` is review-ready; **maintainer asked NOT to merge to trunk**. Land via cherry-pick or manual review. |
+Behaviour is unchanged. Function names, hook names, filter contracts, and `wp.desktop.*` keys are identical. **947 vitest tests + 573 PHPUnit tests + 0 lint errors at HEAD.**
 
-## Quantified outcome
+## Why
+
+The plugin had grown to ~50k LOC across PHP and TypeScript and was showing the strain:
+
+- **God modules.** `src/desktop.ts` (3,695), `includes/render.php` (2,525), `includes/components.php` (2,101), `includes/helpers.php` (1,609). Each mixed 4+ unrelated concerns; touching one to change one thing forced reading hundreds of lines of unrelated code.
+- **Pattern duplication.** ~15 PHP registry pairs (`*_script_registry` + `*_registry`) with copy-pasted bodies. ~22 TS server-sync modules with identical "subscribe → POST" choreography. ≥4 hand-rolled REST fetch wrappers. Three separate listener-Set primitives.
+- **DX gaps for plugin authors.** No `tsconfig` path aliases — `../../../../` imports everywhere. `wp.desktop.*` was assembled inline by 50+ scattered `Object.assign` calls in `desktop.ts`. postMessage shapes were defined inline in each consumer. No npm-publishable types package — third-party TS plugins got zero IDE help.
+
+## What changed
+
+### TypeScript shared primitives
+
+- **`src/core/reactive-registry.ts`** — `createReactiveRegistry< T >()` factory backed by `createSharedStore`. Replaces the ~22 ad-hoc `register / unregister / Set< listener > / notify` implementations across wallpapers, settings tabs, dock-rail renderers, window themes, commands, palettes, etc.
+- **`src/core/server-sync.ts`** — `createRegistrySync()` wires a registry to a REST endpoint with debounce + tracked-fetch + activity-bus tagging. One canonical pattern instead of 22 copies.
+- **`src/core/api-client.ts`** — `createRestClient()` base for the four feature REST clients (`posts-window`, `my-wordpress`, `recycle-bin`, `desktop-files`); `RestError` normalises WP-style failures and `recover` handles `term_exists`-style domain recoveries.
+
+### Public API home
+
+- **`src/api/facade.ts`** — `buildPublicApi(deps)` + `installPublicApi(api)`. The ~280-LOC `wp.desktop.*` literal that used to be inline in `init()` is now one grep-target.
+- **`src/api/deprecated.ts`** — `installDeprecatedAlias()` for any rename: forwards silently after a one-shot `console.warn` pointing at the new name.
+- **`src/api/index.ts`** — barrel re-exporting `src/public-api.ts`.
+
+### Bridge protocol
+
+- **`src/protocol/window-messages.ts`** — `BridgeEventFromIframe` / `BridgeEventToIframe` unions, the `BRIDGE_EVENT_TYPES` runtime catalogue. Pulled out of the 1,860-LOC `types.ts` grab-bag.
+- **`src/protocol/guards.ts`** — `isBridgeEvent`, `isBridgeEventFromIframe`, `isBridgeEventToIframe`, `assertBridgeEventType`. Replaces ~20 inline `data?.type === 'desktop-mode-*'` string checks.
+- **`src/protocol/version.ts`** — `PROTOCOL_VERSION = '0.8.1'`.
+
+### Boot decomposition
+
+`src/desktop.ts` 3,695 → 2,667 LOC. Eight focused boot modules under `src/boot/`:
+
+```
+src/boot/origin.ts            INITIAL_ORIGIN snapshot
+src/boot/geometry.ts          clampGeometryToViewport, findDockEntryForUrl
+src/boot/session.ts           restoreSession, openCurrentPage
+src/boot/session-saver.ts     createSessionSaver (debounced + sendBeacon)
+src/boot/tracked-fetch.ts     wp.desktop.fetch implementation
+src/boot/link-interceptor.ts  bindTopWindowLinkInterceptor
+src/boot/menu-refresh.ts      bindMenuRefresh (live plugins-changed pipeline)
+src/boot/shell-lifecycle.ts   bindShellLifecycle, wireSessionEvents
+```
+
+### PHP slicing
+
+`includes/helpers.php` **1,609 → 153** LOC. `includes/components.php` **2,101 → 376** LOC. `includes/render.php` **2,525 → 29** (umbrella loader).
+
+```
+includes/core/
+  registry-factory.php   desktop_mode_create_registry() + create_script_registry()
+  routing.php            chromeless / classic detection + redirect preservation
+                         + url-is-same-admin + admin-target allowlist
+  payload.php            dock builder + menu/native-window/script payload assembly
+
+includes/registries/
+  native-windows.php     register_window + native_window_registry + template html
+  window-tabs.php        register_window_tab + tabs registry
+  icons.php              register_icon + desktop_icon_registry
+  wallpapers.php         register_wallpaper + wallpaper_registry + asset enqueue
+  widgets.php            register_widget + widget_registry + asset enqueue
+
+includes/render/
+  body-classes.php       admin_body_class filter
+  assets.php             desktop_mode_enqueue_assets
+  shell.php              desktop_mode_render_shell
+  chromeless-bridge.php  offset-neutralizer + chromeless bridge script
+  classic-link-interceptor.php
+
+includes/rest/
+  README.md              REST route → handler-file map (discoverability index)
+```
+
+### Cross-bundle layout SSOT, design tokens, extension base, types package
+
+- **`src/layout/`** — `getCurrentLayout` / `subscribeLayout` shared store, published by the shell on every OS Settings change. Feature bundles + third-party plugins read it without threading the snapshot through.
+- **`src/ui/core/tokens.ts`** — `readToken` / `setToken` / `isWpdToken` typed wrappers around the ~190 `--wpd-*` CSS custom properties already exposed across the 45 web components.
+- **`src/window-system/index.ts`** — umbrella barrel re-exporting `window/`, `window-manager/`, `window-chrome/`. New code uses `@window-system/*`; legacy paths still resolve.
+- **`extensions/base/`** — abstract PHP `Desktop_Mode_Extension_Window` + `Desktop_Mode_Extension_Rest` bases plus the `createExtensionWindow< Config >` TS helper. ~250 LOC of per-extension boilerplate becomes ~30 LOC of subclass declarations.
+- **`packages/desktop-mode-types/`** — npm-publishable TypeScript types package re-exporting `src/public-api.ts`. Third-party plugins get IDE autocomplete on `wp.desktop.*`.
+
+### Tooling
+
+- **`tsconfig.json`** — `baseUrl` + `paths` for `@/*`, `@core/*`, `@api/*`, `@protocol/*`, `@boot/*`, `@layout/*`, `@features/*`, `@ui/*`, `@window-system/*`. Mirrored in `vite.config.js` + `vitest.config.ts` so both build and test resolve them.
+- **`package.json`** — new `npm run typecheck` (`tsc --noEmit`).
+
+## Headline numbers
 
 | File | Before | After | Reduction |
 |---|---:|---:|---:|
@@ -33,148 +102,87 @@ Renames keep the old name alive as a deprecation shim (PHP via
 | `includes/helpers.php` | 1,609 | 153 | −1,456 (91%) |
 | `includes/components.php` | 2,101 | 376 | −1,725 (82%) |
 | `includes/render.php` | 2,525 | 29 (umbrella) | −2,496 (99%) |
-| `src/types.ts` (bridge unions only) | inline | re-exports | n/a |
 
-New focused modules created (every line green under
-lint + tsc + 947 vitest tests + 573 PHPUnit tests):
+47 new vitest tests across the new TS primitives + protocol + facade + layout + tokens. 7 new PHPUnit tests for the registry factory.
 
-- **TS shared primitives** — `src/core/{reactive-registry,server-sync,api-client}.ts` (+ 26 tests)
-- **TS public API** — `src/api/{index,facade,deprecated}.ts` (+ 4 tests)
-- **TS protocol** — `src/protocol/{window-messages,guards,version}.ts` (+ 6 tests)
-- **TS boot** — `src/boot/{origin,geometry,session,session-saver,tracked-fetch,link-interceptor,menu-refresh,shell-lifecycle}.ts`
-- **TS layout SSOT** — `src/layout/{types,index}.ts` (+ 5 tests)
-- **TS UI** — `src/ui/core/tokens.ts` (+ 6 tests)
-- **TS umbrella** — `src/window-system/index.ts`
-- **PHP core** — `includes/core/{registry-factory,routing,payload}.php` (+ 7 PHPUnit tests for the factory)
-- **PHP registries** — `includes/registries/{native-windows,window-tabs,icons,wallpapers,widgets}.php`
-- **PHP render** — `includes/render/{body-classes,assets,shell,chromeless-bridge,classic-link-interceptor}.php`
-- **PHP REST index** — `includes/rest/README.md`
-- **Extension library** — `extensions/base/{includes/{ExtensionWindow,ExtensionRest}.php,client/createExtensionWindow.ts,README.md}`
-- **Types package** — `packages/desktop-mode-types/`
+## Migration for plugin authors
 
-## What plugin authors can do today (after phases 1–4)
-
-### TypeScript path aliases
-
-`tsconfig.json` now exposes:
-
-```
-@/*               → src/*
-@api/*            → src/api/*
-@boot/*           → src/boot/*           (folder ships in phase 5)
-@core/*           → src/core/*
-@features/*       → src/features/*       (folder ships in phase 7)
-@layout/*         → src/layout/*         (folder ships in phase 8)
-@protocol/*       → src/protocol/*
-@ui/*             → src/ui/*
-@window-system/*  → src/window-system/*  (folder ships in phase 7)
-```
-
-Vite + Vitest mirror these aliases, so they resolve at build and
-test time. Existing relative imports keep working unchanged —
-adoption is opt-in per file.
-
-### `@core/reactive-registry` — replace ad-hoc registries
-
-If you've been hand-rolling a `register()` / `unregister()` /
-listener-Set / `notify()` pattern, swap it for:
+Everything is **additive**: existing imports, hook names, filter contracts, and `wp.desktop.*` keys keep working unchanged. Adopt the new modules opt-in.
 
 ```ts
+// Replace ad-hoc registries
 import { createReactiveRegistry } from '@core/reactive-registry';
-
-interface MyDef { id: string; render: () => void; }
-
-const registry = createReactiveRegistry< MyDef >( {
-    key:   'my-plugin/widgets',  // namespace it
-    idOf:  ( d ) => d.id,
-    label: 'my-plugin widgets',  // shown in console errors
+const widgets = createReactiveRegistry< MyWidgetDef >( {
+    key:  'my-plugin/widgets',
+    idOf: ( d ) => d.id,
 } );
-```
 
-You get `register`, `unregister`, `get`, `all`, `subscribe`, `reset`.
-The store is shared across IIFE bundles via `createSharedStore`,
-so registrations from one bundle are visible from another.
-
-### `@core/server-sync` — push registry state to a REST endpoint
-
-```ts
-import { createRegistrySync } from '@core/server-sync';
-
-const teardown = createRegistrySync( registry, {
-    endpoint: '/wp-json/my-plugin/v1/sync',
-    nonce:    myPluginConfig.restNonce,
-    source:   'my-plugin/sync',
-} );
-```
-
-Debounced, fed through `wp.desktop.fetch`, errors caught and logged.
-
-### `@core/api-client` — typed REST wrapper
-
-```ts
+// Replace hand-rolled REST clients
 import { createRestClient } from '@core/api-client';
-
 const api = createRestClient( {
     baseUrl: '/wp-json/my-plugin/v1',
-    nonce:   myPluginConfig.restNonce,
+    nonce:   myConfig.restNonce,
     source:  'my-plugin',
 } );
-
 const items = await api.get< Item[] >( '/items' );
-await api.post( '/items', { name: 'A' } );
-```
 
-`RestError` carries `status`, `code`, and `data` from a WP-style
-error body. Pass a `recover` callback to swallow domain-specific
-non-fatal errors (`term_exists`, idempotent conflicts).
-
-### `@protocol/guards` — type-safe postMessage handling
-
-```ts
-import { isBridgeEvent, assertBridgeEventType } from '@protocol/guards';
-
+// Replace inline postMessage type checks
+import { isBridgeEvent } from '@protocol/guards';
 window.addEventListener( 'message', ( e ) => {
     if ( ! isBridgeEvent( e.data ) ) return;
     if ( e.data.type === 'desktop-mode-title-change' ) {
-        // e.data is narrowed to the title-change variant.
+        // e.data is narrowed to the title-change variant
     }
 } );
-```
 
-The runtime catalogue is `BRIDGE_EVENT_TYPES`; the version is
-`PROTOCOL_VERSION`. Outgoing messages from the shell will start
-carrying the version field in phase 5+.
+// Read the active layout from any bundle
+import { getCurrentLayout, subscribeLayout } from '@layout';
 
-### PHP registry factory
-
-```php
-$registry        = desktop_mode_create_registry();
-$script_registry = desktop_mode_create_script_registry();
-
+// Server-side: replace static-store registry boilerplate
+$registry = desktop_mode_create_registry();
 $registry( 'foo', array( 'label' => 'Foo' ) );
-$registry( 'foo' );             // → array( 'label' => 'Foo' )
-$registry( '' );                // → full map
-$registry( '__flush__' );       // → reset
-
-$script_registry( 'my-handle', true );
-$script_registry( 'my-handle' ); // → true
+$registry( 'foo' );          // array( 'label' => 'Foo' )
+$registry( '__flush__' );    // reset
 ```
 
-Each call to the factory creates an isolated closure with its own
-private state — no globals, no naming collisions.
+## Backwards compatibility
 
-## Renames pending shims (planned, phase 5+)
+- Every existing `wp.desktop.*` method, every `desktop_mode_*` PHP hook, every CustomEvent on `document` is preserved at the same name and signature.
+- `src/types.ts` re-exports the bridge-event unions from `@protocol/window-messages` so existing imports keep resolving.
+- `includes/render.php` is now a 29-LOC umbrella that `require_once`s the five sliced files — anything that did `require_once 'includes/render.php'` continues to work.
+- `desktop-mode.php` orders the new `core/`, `registries/`, and `render/` requires before any consumer so PHP's runtime function resolution finds every name from any caller.
 
-The following surface names will be renamed during the remaining
-phases. Each rename ships a one-shot deprecation warning that
-forwards to the canonical name; the legacy form keeps working for
-the entire 0.8.x line.
+## Test plan
 
-_(table populated as each rename lands)_
+Validated at every commit boundary:
+
+- [x] `npm run lint` — 0 errors
+- [x] `npx tsc --noEmit` — 0 errors
+- [x] `npx vitest run` — **947 tests / 108 files**
+- [x] `npm run build` — all 6 Vite bundles build clean
+- [x] `find includes extensions -name '*.php' | xargs -n1 php -l` — clean
+- [x] `vendor/bin/phpunit` (run inside `wordpress-alcazaba-php-1`) — **573 tests / 1,300 assertions**
+- [x] Smoke-tested by maintainer mid-refactor on the running dev container
+
+## Out of scope / deferred
+
+Tackled separately because each is multi-day surgery best done one piece at a time:
+
+- `src/desktop.ts` `init()` body decomposition (~2,200 LOC closure).
+- `src/window/index.ts` (2,642-LOC class) → `window/{window,renderer,messenger,geometry,event-bus}.ts`.
+- Heavy native-window splits (`posts-window/index.ts` 2,579, `my-wordpress/index.ts` 3,868, `recycle-bin/index.ts` 1,038) into `model.ts` / `ui.ts` / `commands.ts`.
+- Physical merge of `window/` + `window-manager/` + `window-chrome/` into a single directory (the `@window-system/*` barrel makes this a one-import-line-at-a-time consumer migration).
+- Migrating the three in-tree extensions onto `extensions/base/` (the bases are additive; existing extensions keep their hand-rolled boilerplate).
+- Publishing `@desktop-mode/types` to npm.
+- Splitting `includes/ai-copilot/search.php` (2,208 LOC) — left intact deliberately; the file is coherent per AGENTS.md.
+- Centralising every `register_rest_route()` call into `includes/rest/*.php` — the README index is the discoverability win; the per-module registrations stay where they are because the callbacks capture per-module state.
+
+## Reviewer notes
+
+- 27 commits, each individually green. Cherry-pickable in order.
+- Phases overlap by intent — phase 5d (facade extraction) lands inside the boot decomposition because the facade IS what the boot exposes.
+- The `refactor/architecture-1.0` branch name is historical; every `@since` tag, every `PROTOCOL_VERSION`, and every doc reference inside the commits says `0.8.1`.
 
 ## Reporting issues
 
-If a name you depend on disappears or behaves differently without
-a deprecation warning during 0.8.x, that's a bug — file an issue
-against this repo with the import path or hook name and a
-reproduction.
+If a name you depended on changed signature without a deprecation warning during 0.8.x, that's a bug. Open an issue with the import path or hook name and a reproduction.
