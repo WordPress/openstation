@@ -41,9 +41,13 @@ defined( 'ABSPATH' ) || exit;
 - [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 - [Extend the Recycle Bin](./recycle-bin.md)
+- [Native Posts window — default-on, remap registry, hooks](./native-posts.md)
+- [Window activity & the modem dot — `wp.desktop.fetch`, `Window.trackActivity`](./window-activity.md)
 - [Pulse a window's icon — `Window.requestAttention()`](./window-request-attention.md)
 - [Render a keyed list without losing clicks — `renderKeyedList()`](./keyed-list.md)
 - [Share state across multi-bundle plugins — `wp.desktop.createSharedStore()`](./shared-store.md)
 - [Track who's around — `wp.desktop.presence`](./presence.md)
+- [Surface a custom "Install as App" button](./pwa-install.md)
+- [Send a notification — `wp.desktop.notify()`](./notify.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.

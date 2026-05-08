@@ -151,11 +151,30 @@ export class WpdTextField extends Component {
 			( this as unknown as { disabled: string | null } ).disabled !== null;
 		const readonly =
 			( this as unknown as { readonly: string | null } ).readonly !== null;
-		const autocomplete =
-			( this as unknown as { autocomplete: string | null } ).autocomplete ||
-			'off';
+		const declaredAutocomplete = ( this as unknown as {
+			autocomplete: string | null;
+		} ).autocomplete;
 		const declaredType =
 			( this as unknown as { type: string | null } ).type || 'text';
+		// Chrome (and Edge / Brave / other Chromium) ignore
+		// `autocomplete="off"` on `<input type="password">` — their
+		// password-manager heuristic always offers to save anything
+		// the user types into a masked field, even outside a form.
+		// `autocomplete="new-password"` IS honoured: it's the spec
+		// signal for "this isn't a sign-in field" and skips both the
+		// autofill prompt and the "save password?" toast.
+		//
+		// We surface this for password fields where the caller didn't
+		// declare an autocomplete value, OR explicitly passed `off`
+		// (signal of "no autocomplete"). Callers that genuinely want
+		// stored credential autofill — e.g. a future login form —
+		// pass `autocomplete="current-password"` and we forward it
+		// untouched.
+		const isPassword = declaredType === 'password';
+		let autocomplete = declaredAutocomplete || 'off';
+		if ( isPassword && ( ! declaredAutocomplete || autocomplete === 'off' ) ) {
+			autocomplete = 'new-password';
+		}
 		const maxLength = ( this as unknown as { maxlength: string | null } )
 			.maxlength;
 		const minLength = ( this as unknown as { minlength: string | null } )
@@ -171,14 +190,39 @@ export class WpdTextField extends Component {
 		const reveal =
 			( this as unknown as { reveal: string | null } ).reveal !== null;
 
-		// When the reveal toggle is active and the user clicked "show",
-		// switch the input to text so the characters are visible.
-		const effectiveType =
-			reveal && this._revealed ? 'text' : declaredType;
+		// "Password" is a UI MODE (visually mask the value), not a
+		// credential field. We always render the underlying control as
+		// `type="text"` and apply CSS-based masking — Chrome / Edge /
+		// Firefox password managers only inspect `<input type="password">`
+		// to decide whether to offer save / update / autofill, so by
+		// presenting a plain text input we sidestep the entire heuristic
+		// even when the user has saved a password for the site already.
+		// (The autocomplete="new-password" upgrade above is kept as a
+		// belt-and-braces guard in case a future caller forces type=password
+		// directly — which today no consumer does.)
+		const isPasswordIntent = declaredType === 'password';
+		const isMasked = isPasswordIntent && ! ( reveal && this._revealed );
+		// Effective input type: password fields always render as
+		// type="text" (mask is CSS-only — see styles); other types
+		// flip to "text" only when the reveal toggle is engaged for a
+		// non-password reveal (currently no consumer, kept for parity
+		// with the prior reveal contract); otherwise the declared
+		// type passes through.
+		let effectiveType: string;
+		if ( isPasswordIntent ) {
+			effectiveType = 'text';
+		} else if ( reveal && this._revealed ) {
+			effectiveType = 'text';
+		} else {
+			effectiveType = declaredType;
+		}
 
 		const rowClass = reveal
 			? 'wpd-text-field__row wpd-text-field__row--has-reveal'
 			: 'wpd-text-field__row';
+		const inputClass = isMasked
+			? 'wpd-text-field__input wpd-text-field__input--masked'
+			: 'wpd-text-field__input';
 
 		// Shadow-DOM <label for=…> pairing. `this.id` is populated
 		// by ensureAutoId on connect (or by the caller's own id).
@@ -197,6 +241,7 @@ export class WpdTextField extends Component {
 			<span class=${ rowClass }>
 				<input
 					id=${ inputId }
+					class=${ inputClass }
 					type=${ effectiveType }
 					.value=${ value }
 					placeholder=${ placeholder }

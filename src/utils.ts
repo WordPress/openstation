@@ -14,7 +14,21 @@
  * marker — is considered transient and stripped, so a direct-URL land
  * and a dock click resolve to the same window ID.
  */
-const IDENTITY_PARAMS: readonly string[] = [ 'post_type', 'page', 'taxonomy' ];
+const IDENTITY_PARAMS: readonly string[] = [
+	'post_type',
+	'page',
+	'taxonomy',
+	// WooCommerce (and other React-app-style plugins) register
+	// SEPARATE top-level admin menus that all share `?page=wc-admin`
+	// and only differ by `path` (e.g. `path=/analytics/overview`,
+	// `path=/marketing`). Without `path` in the identity set, every
+	// such menu collapses to the same window id — opening any one of
+	// them lights up the dock indicator for ALL of them. WC's
+	// /admin/path query is the most prominent example today; future
+	// plugins that route inside `admin.php?page=` via a custom param
+	// can either piggyback on `path` or grow this list.
+	'path',
+];
 
 /**
  * Collapse a URL path (plus its significant query params) into a clean
@@ -186,4 +200,109 @@ export function sanitizeIconSvg( svg: string ): string {
 	}
 
 	return root.outerHTML;
+}
+
+/* ----------------------------------------------------------------- *
+ *  bindBackgroundActivate — "click on the bg, but only if pointer
+ *  down AND pointer up land on the same background element."
+ *
+ *  Browsers fire the synthesized `click` event on the deepest common
+ *  ancestor of `pointerdown.target` and `pointerup.target`. So a
+ *  user who pointer-downs on a tile and pointer-ups on the wallpaper
+ *  triggers a `click` whose target is the wallpaper — opening the
+ *  wallpaper context menu even though the user was clearly trying
+ *  to drag the tile.
+ *
+ *  This helper sidesteps the `click` event entirely and tracks the
+ *  pointerdown / pointerup pair manually. The activation only fires
+ *  when:
+ *
+ *    - Both pointerdown and pointerup land on an element that the
+ *      `isBackground` predicate accepts (returns `true`).
+ *    - The element receiving pointerdown is the SAME element that
+ *      receives pointerup.
+ *    - The pointer button is primary (left).
+ *
+ *  Used by every "click on the wallpaper" / "click on the canvas
+ *  bg" interaction in the shell — wallpaper context menu, icon-
+ *  canvas context menu, future selection-rectangle starts.
+ * ----------------------------------------------------------------- */
+
+/**
+ * Result of calling {@link bindBackgroundActivate}. Call `dispose()`
+ * on window close so the listeners don't leak past the host.
+ *
+ * @public
+ * @since 0.8.0
+ */
+export interface BackgroundActivateHandle {
+	dispose: () => void;
+}
+
+/**
+ * Subscribe to "primary-click on the host's own background" events,
+ * with a strict pointerdown / pointerup co-location requirement.
+ * See the comment block above for the why.
+ *
+ * @public
+ * @since 0.8.0
+ *
+ * @param host         Element to attach listeners to. Typically the
+ *                     wallpaper / canvas itself.
+ * @param isBackground Predicate that decides whether a given
+ *                     pointer target counts as "the background"
+ *                     (vs. a tile, the menu, or any other foreground
+ *                     descendant). Receives the raw `EventTarget` —
+ *                     return `false` for anything that isn't bg.
+ * @param onActivate   Fired when both pointerdown and pointerup land
+ *                     on the same background element. Receives the
+ *                     viewport coords of the pointerup, so callers
+ *                     can position a context menu under the cursor.
+ * @return Handle with `dispose()`.
+ */
+export function bindBackgroundActivate(
+	host: HTMLElement,
+	isBackground: ( target: EventTarget | null ) => boolean,
+	onActivate: ( x: number, y: number ) => void,
+): BackgroundActivateHandle {
+	let armed: EventTarget | null = null;
+
+	const onPointerDown = ( e: PointerEvent ) => {
+		if ( e.button !== 0 ) {
+			armed = null;
+			return;
+		}
+		armed = isBackground( e.target ) ? e.target : null;
+	};
+
+	const onPointerUp = ( e: PointerEvent ) => {
+		const target = armed;
+		armed = null;
+		if ( e.button !== 0 || ! target ) {
+			return;
+		}
+		if ( e.target !== target ) {
+			return;
+		}
+		if ( ! isBackground( e.target ) ) {
+			return;
+		}
+		onActivate( e.clientX, e.clientY );
+	};
+
+	const onPointerCancel = () => {
+		armed = null;
+	};
+
+	host.addEventListener( 'pointerdown', onPointerDown );
+	host.addEventListener( 'pointerup', onPointerUp );
+	host.addEventListener( 'pointercancel', onPointerCancel );
+
+	return {
+		dispose() {
+			host.removeEventListener( 'pointerdown', onPointerDown );
+			host.removeEventListener( 'pointerup', onPointerUp );
+			host.removeEventListener( 'pointercancel', onPointerCancel );
+		},
+	};
 }

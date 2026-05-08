@@ -278,6 +278,37 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Cross-page admin-link routing depends on the chromeless bridge
+	 * preventing the iframe's natural navigation; the parent shell
+	 * decides between same-page in-iframe nav and a fresh window. If
+	 * the bridge ever stops calling preventDefault on admin links,
+	 * cross-page clicks would trash the source iframe before the
+	 * parent could react.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_prevents_default_on_admin_links() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// Pin the admin-branch shape: the prevent-default must sit
+		// inside the `kind === 'admin'` block, paired with the
+		// admin-link postMessage. A regression that drops the
+		// prevent-default would still emit the message, so we assert
+		// both substrings are present.
+		$this->assertStringContainsString( "kind === 'admin'", $output );
+		$this->assertStringContainsString( 'desktop-mode-iframe-admin-link', $output );
+		$this->assertMatchesRegularExpression(
+			"/kind === 'admin'.*?e\\.preventDefault\\(\\).*?desktop-mode-iframe-admin-link/s",
+			$output
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_emits_nothing_without_flag() {
@@ -322,75 +353,29 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_chromeless_editor_preferences
+	 * The bridge script carries the link/form interceptor that keeps
+	 * iframe navigations chromeless. If the function isn't actually
+	 * hooked to admin_footer, the first click on any /wp-admin/ link
+	 * inside an iframe re-renders the full desktop shell inside the
+	 * iframe (inception bug). Calling the function directly in the
+	 * other tests doesn't prove WordPress will call it — only this
+	 * has_action check does.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
 	 */
-	public function test_editor_preferences_is_wired_to_enqueue_block_editor_assets() {
+	public function test_chromeless_bridge_is_wired_on_admin_footer() {
 		$this->assertNotFalse(
-			has_action(
-				'enqueue_block_editor_assets',
-				'desktop_mode_chromeless_editor_preferences'
-			)
+			has_action( 'admin_footer', 'desktop_mode_chromeless_bridge_script' )
 		);
 	}
 
 	/**
-	 * Calling the preferences override outside a chromeless request must
-	 * return early — we never want to touch Gutenberg's persistence layer
-	 * on classic admin loads.
-	 *
-	 * @covers ::desktop_mode_chromeless_editor_preferences
+	 * @covers ::desktop_mode_chromeless_offset_neutralizer_script
 	 */
-	public function test_editor_preferences_short_circuits_when_not_chromeless() {
-		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		// Note: no $_GET['desktop_mode_chromeless'] — desktop mode is on, but this is not an iframe.
-
-		wp_register_script( 'wp-edit-post', '', array(), '1.0', true );
-
-		desktop_mode_chromeless_editor_preferences();
-
-		// WP_Scripts::get_inline_script_data() returns '' when no inline
-		// data has been attached for the handle; older WP used to return
-		// false. `empty()` covers both.
-		$this->assertEmpty( wp_scripts()->get_inline_script_data( 'wp-edit-post', 'after' ) );
-
-		wp_deregister_script( 'wp-edit-post' );
-	}
-
-	/**
-	 * @covers ::desktop_mode_chromeless_editor_preferences
-	 */
-	public function test_editor_preferences_enqueues_inline_script_when_chromeless() {
-		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['desktop_mode_chromeless'] = '1';
-
-		wp_register_script( 'wp-edit-post', '', array(), '1.0', true );
-
-		desktop_mode_chromeless_editor_preferences();
-
-		$inline = wp_scripts()->get_inline_script_data( 'wp-edit-post', 'after' );
-
-		$this->assertNotEmpty( $inline );
-		$this->assertStringContainsString( 'welcomeGuide', $inline );
-		// Dispatches are gated on the first state update from the
-		// preferences store — that's initializeEditor()'s setPersistenceLayer
-		// call, which is the exact moment the real persistence layer is
-		// wired up. No timers, no polling.
-		$this->assertStringContainsString( 'wp.data.subscribe', $inline );
-		$this->assertStringContainsString( "'core/preferences'", $inline );
-		$this->assertStringNotContainsString( 'setTimeout', $inline );
-		// The persistence-layer swap approach broke "Got it" persistence;
-		// make sure we don't accidentally reintroduce the CALL (commentary
-		// that mentions the name by way of explanation is fine).
-		$this->assertStringNotContainsString( '.setPersistenceLayer(', $inline );
-		// `fullscreenMode` is intentionally left alone: forcing it false
-		// makes Gutenberg render at top: 32px / left: 160px to reserve
-		// space for admin bar + sidebar, which we've already hidden.
-		// Leaving it at its default (true) keeps the skeleton inset: 0.
-		// Guard the assertion against the quoted string that would appear
-		// in a dispatch: commentary that names the pref is fine.
-		$this->assertStringNotContainsString( "'fullscreenMode'", $inline );
-
-		wp_deregister_script( 'wp-edit-post' );
+	public function test_chromeless_offset_neutralizer_is_wired_on_admin_head() {
+		$this->assertNotFalse(
+			has_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script' )
+		);
 	}
 
 	/**

@@ -51,6 +51,47 @@
 	--desktop-mode-dock-bg: rgba(0, 0, 0, 0.4);
 	--desktop-mode-dock-border: rgba(255, 255, 255, 0.08);
 
+	/*
+	 * File tiles — anywhere a `.desktop-mode-file-tile` (or sibling
+	 * canvas tile) renders. The defaults below match the wallpaper
+	 * (dark gradient → white text + soft white hover). Light-on-dark
+	 * surfaces override these in their own scope, e.g.:
+	 *
+	 *   .desktop-mode-folder-window {
+	 *       --desktop-mode-tile-fg: #1d2327;
+	 *       --desktop-mode-tile-hover-bg: rgba(0, 0, 0, 0.06);
+	 *   }
+	 *
+	 * Plugin authors can override any of these in their own theme
+	 * to retint tiles globally without touching the rules below.
+	 *
+	 * @since 0.8.0
+	 */
+	--desktop-mode-tile-fg: var(--desktop-mode-fg, #fff);
+	--desktop-mode-tile-fg-muted: rgba(255, 255, 255, 0.7);
+	--desktop-mode-tile-hover-bg: rgba(255, 255, 255, 0.12);
+	--desktop-mode-tile-focus-ring: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-tile-shortcut-bg: rgba(0, 0, 0, 0.65);
+	--desktop-mode-tile-shortcut-fg: #fff;
+	--desktop-mode-tile-shortcut-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+
+	/*
+	 * Label rendering tokens. Defaults match the dark wallpaper:
+	 * a soft drop-shadow boosts legibility against the gradient,
+	 * regular weight, default antialiasing.
+	 *
+	 * Light-context surfaces (folder windows, My WordPress, any
+	 * future window with a light body) rebind these in their own
+	 * scope so tile labels render with the same crispness as the
+	 * surrounding chrome — no per-surface duplicate rules.
+	 *
+	 * @since 0.8.0
+	 */
+	--desktop-mode-tile-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+	--desktop-mode-tile-label-weight: 400;
+	--desktop-mode-tile-label-smoothing: auto;
+	--desktop-mode-tile-label-color: var(--desktop-mode-tile-fg);
+
 	/* Z-index layers */
 	--desktop-mode-z-base: 100;
 	--desktop-mode-z-dock: 200;

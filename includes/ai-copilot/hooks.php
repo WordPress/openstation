@@ -72,14 +72,16 @@ function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
 			// function; in other SAPIs (CLI, Apache mod_php) it is
 			// not available and we proceed without it — the analysis
 			// still runs, it just blocks the request exit briefly.
+			//
+			// The OpenAI HTTP call itself bumps `set_time_limit()`
+			// when (and only when) it is about to fire — see
+			// `desktop_mode_ai_do_request()` in `openai.php`.
+			// Bumping it here would widen the scope to every
+			// scheduled job whether or not it ends up hitting the
+			// remote API, which the WordPress.org plugin review
+			// guidelines discourage.
 			if ( function_exists( 'fastcgi_finish_request' ) ) {
 				fastcgi_finish_request();
-			}
-
-			// Bump execution time so a slow OpenAI response doesn't
-			// hit the default 30 s limit.
-			if ( ! ini_get( 'safe_mode' ) ) { // phpcs:ignore
-				@set_time_limit( 120 ); // phpcs:ignore
 			}
 
 			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- generic dispatcher; caller passes a desktop_mode_* hook name.

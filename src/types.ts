@@ -1209,6 +1209,15 @@ export interface DesktopIconServerEntry {
 	url: string;
 	/** Sort order; lower renders first. */
 	position: number;
+	/**
+	 * System icon flag. Pinned icons render before any unpinned icon
+	 * regardless of `position` and are not user-draggable. Used for
+	 * built-in shortcuts like "My WordPress" that should always sit
+	 * in the same place. Default `false`.
+	 *
+	 * @since 0.8.0
+	 */
+	pinned?: boolean;
 }
 
 /**
@@ -1506,6 +1515,82 @@ export interface DesktopConfig {
 	 * @since 0.11.0
 	 */
 	desktopIcons?: DesktopIconServerEntry[];
+	/**
+	 * Server-declared file types (from `desktop_mode_register_file_type()`).
+	 * Plugin-registered file types arrive here so the JS-side
+	 * registry can mirror the metadata (label, sort) without
+	 * requiring a JS file ride along.
+	 *
+	 * @since 0.9.0
+	 */
+	serverFileTypes?: Array< {
+		id: string;
+		label: string;
+		sort: number;
+		scriptUrl: string;
+		scriptHandle: string;
+		scriptBefore: string[];
+		scriptAfter: string[];
+		scriptL10n: Record< string, string >;
+		scriptTranslations: string;
+	} >;
+	/**
+	 * Server-declared file openers (from
+	 * `desktop_mode_register_file_opener()`). PHP ships metadata
+	 * only — the JS bundle that registers the opener carries the
+	 * executable handler. The OS Settings → File Associations tab
+	 * (Phase 5) renders pickers from this list.
+	 *
+	 * @since 0.9.0
+	 */
+	serverFileOpeners?: Array< {
+		id: string;
+		label: string;
+		types: string[];
+		isDefault: boolean;
+		sort: number;
+		scriptUrl: string;
+		scriptHandle: string;
+		scriptBefore: string[];
+		scriptAfter: string[];
+		scriptL10n: Record< string, string >;
+		scriptTranslations: string;
+	} >;
+	/**
+	 * The current user's `{ type => openerId }` association map
+	 * (from the `desktop_mode_file_associations` user meta). Empty
+	 * when no overrides set; the JS opener resolver falls back to
+	 * defaults for missing entries.
+	 *
+	 * @since 0.9.0
+	 */
+	userFileAssociations?: Record< string, string >;
+	/**
+	 * Base REST URL for the Files-on-the-Desktop endpoints
+	 * (`/desktop-mode/v1/files`). Trailing path appended by
+	 * the JS client (`/placements`, `/folders`, `/associations`).
+	 *
+	 * @since 0.9.0
+	 */
+	filesUrl?: string;
+	/**
+	 * PHP-shipped wallpaper context-menu items. Each entry has
+	 * `id`, `label`, optional `icon`/`sort`/`disabled`, and an
+	 * optional `callbackId` resolved by a JS-side bundle's
+	 * `serverCallbacks` map. Plugins that ship neither still
+	 * receive a `desktop-mode.wallpaper-context-menu.activated`
+	 * action they can subscribe to.
+	 *
+	 * @since 0.9.0
+	 */
+	serverWallpaperMenuItems?: Array< {
+		id: string;
+		label: string;
+		icon?: string;
+		sort?: number;
+		disabled?: boolean;
+		callbackId?: string;
+	} >;
 	/** Previously saved session (may be empty on first run). */
 	session: Session;
 	/** REST endpoint for reading/writing the session. */
@@ -1550,6 +1635,15 @@ export interface DesktopConfig {
 	portalUrl: string;
 	/** True when the shell was reached via the portal redirect. */
 	fromPortal: boolean;
+	/**
+	 * Progressive-web-app config — endpoint URLs and the per-user
+	 * installable-pill state. Always present in shell-mode requests.
+	 * Optional in the type so older payloads (or chromeless contexts
+	 * that never see this blob) fail soft.
+	 *
+	 * @since 0.8.0
+	 */
+	pwa?: PwaConfig;
 	/**
 	 * Accent swatches shown in the OS Settings color picker. Filterable
 	 * server-side via `desktop_mode_accent_colors`. Optional — the TS
@@ -1637,6 +1731,40 @@ export interface DesktopConfig {
 }
 
 /**
+ * Per-user PWA UI state — install-hint dismissal flag and the
+ * notifications-enabled record. Mirrored from the
+ * `/desktop-mode/v1/pwa-state` REST endpoint.
+ *
+ * @since 0.8.0
+ */
+export interface PwaUserState {
+	installHintDismissed: boolean;
+	notificationsEnabled: boolean;
+}
+
+/**
+ * Progressive-web-app config block on `desktopModeConfig.pwa`.
+ *
+ * @since 0.8.0
+ */
+export interface PwaConfig {
+	/** Absolute URL of the web-app manifest. */
+	manifestUrl: string;
+	/** Absolute URL of the service worker. */
+	swUrl: string;
+	/** REST URL for `GET` / `POST` of {@link PwaUserState}. */
+	stateUrl: string;
+	/** Initial per-user state. */
+	state: PwaUserState;
+	/**
+	 * Mirrors the manifest's `name` — the human-readable site name
+	 * used by the install pill so the CTA reads "Install <site>"
+	 * rather than the current page title.
+	 */
+	appName: string;
+}
+
+/**
  * A single entry in the OS Settings accent-color picker.
  *
  * @since 0.11.0
@@ -1698,62 +1826,15 @@ export interface HarvestedCommand {
 	url?: string;
 }
 
-/**
- * Bridge events sent from iframe to parent shell.
- */
-export type BridgeEventFromIframe =
-	| { type: 'desktop-mode-title-change'; title: string }
-	| { type: 'desktop-mode-navigate'; url: string; target: 'self' | 'new' }
-	| { type: 'desktop-mode-notification'; title: string; body: string }
-	| { type: 'desktop-mode-ready' }
-	| { type: 'desktop-mode-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
-	| { type: 'desktop-mode-screen-meta-state'; open: 'screen-options' | 'help' | null }
-	| { type: 'desktop-mode-commands-list'; commands: HarvestedCommand[] }
-	// -----------------------------------------------------------------
-	// Cross-window connection bridge — extensible pub/sub between any
-	// parent-side caller (e.g. a plugin's title-bar dropdown) and a
-	// chromeless iframe. The shell only routes; topic semantics are
-	// plugin-defined. See `wp.desktop.connect()` and
-	// `wp.desktop.iframe.publish/subscribe`.
-	// -----------------------------------------------------------------
-	| {
-		type: 'desktop-mode-bridge-handshake-ack';
-		connectionId: string;
-	}
-	| {
-		type: 'desktop-mode-bridge-publish';
-		connectionId: string;
-		topic: string;
-		payload: unknown;
-	}
-	| {
-		type: 'desktop-mode-bridge-disconnect';
-		connectionId: string;
-	};
-
-/**
- * Bridge events sent from parent shell to iframe.
- */
-export type BridgeEventToIframe =
-	| { type: 'desktop-mode-focus' }
-	| { type: 'desktop-mode-color-scheme'; scheme: string }
-	| { type: 'desktop-mode-toggle-panel'; panel: 'screen-options' | 'help' }
-	| { type: 'desktop-mode-commands-subscribe' }
-	| { type: 'desktop-mode-commands-unsubscribe' }
-	| { type: 'desktop-mode-commands-invoke'; name: string }
-	// Connection-bridge messages (parent → iframe).
-	| {
-		type: 'desktop-mode-bridge-handshake';
-		connectionId: string;
-		topics: string[];
-	}
-	| {
-		type: 'desktop-mode-bridge-publish';
-		connectionId: string;
-		topic: string;
-		payload: unknown;
-	}
-	| {
-		type: 'desktop-mode-bridge-disconnect';
-		connectionId: string;
-	};
+// -----------------------------------------------------------------------------
+// Bridge events — moved to `src/protocol/window-messages.ts` in 1.0.
+// Re-exported here for backwards compatibility; new code should
+// import from `@protocol/window-messages` (or via `@protocol/guards`
+// for the `isBridgeEvent` / `assertBridgeEventType` helpers).
+// -----------------------------------------------------------------------------
+export type {
+	BridgeEvent,
+	BridgeEventFromIframe,
+	BridgeEventToIframe,
+	BridgeEventType,
+} from './protocol/window-messages';

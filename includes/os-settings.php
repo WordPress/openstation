@@ -79,6 +79,22 @@ function desktop_mode_default_os_settings() {
 			'apiKeys'   => array(), // Per-provider keys: { [provider_id]: string }.
 			'transport' => 'off',   // Live-progress transport: 'sse' | 'off'. Default off — see DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS.
 		),
+		// Per-user opt-OUT for the native Posts window. When true,
+		// clicking the Posts dock tile opens the `<wpd-table>`-driven
+		// native window instead of the chromeless `edit.php` iframe.
+		// Default ON as of 0.8.0 — the native UI is the canonical
+		// Desktop Mode Posts experience; users can flip it off to fall
+		// back to the classic iframe.
+		'nativePostsEnabled'       => true,
+		// Per-user list of column keys hidden in the native Posts
+		// window (e.g. array( 'author', 'tags' )). Empty array means
+		// every column is visible. The sticky 'title' column is always
+		// shown — the UI prevents toggling it.
+		'nativePostsHiddenColumns' => array(),
+		// Per-user opt-OUT for the native Pages window. Same posture as
+		// nativePostsEnabled — defaults ON, users can flip off to keep
+		// the classic `edit.php?post_type=page` iframe.
+		'nativePagesEnabled'       => true,
 	);
 }
 
@@ -272,16 +288,46 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		}
 	}
 
+	$native_posts_enabled = isset( $raw['nativePostsEnabled'] )
+		? (bool) $raw['nativePostsEnabled']
+		: $defaults['nativePostsEnabled'];
+
+	$native_posts_hidden_columns = $defaults['nativePostsHiddenColumns'];
+	if ( isset( $raw['nativePostsHiddenColumns'] ) && is_array( $raw['nativePostsHiddenColumns'] ) ) {
+		$native_posts_hidden_columns = array();
+		foreach ( $raw['nativePostsHiddenColumns'] as $col ) {
+			if ( ! is_string( $col ) || '' === $col ) {
+				continue;
+			}
+			$slug = sanitize_key( $col );
+			if ( '' === $slug ) {
+				continue;
+			}
+			$native_posts_hidden_columns[] = $slug;
+		}
+		// Cap to a sane upper bound — far more than any plausible
+		// column count, but blocks a malicious payload from bloating
+		// user meta indefinitely.
+		$native_posts_hidden_columns = array_slice( array_values( array_unique( $native_posts_hidden_columns ) ), 0, 32 );
+	}
+
+	$native_pages_enabled = isset( $raw['nativePagesEnabled'] )
+		? (bool) $raw['nativePagesEnabled']
+		: $defaults['nativePagesEnabled'];
+
 	return array(
-		'wallpaper'        => $wallpaper,
-		'accent'           => $accent,
-		'dockSize'         => $dock_size,
-		'desktopLayout'    => $desktop_layout,
-		'dockRailRenderer' => $dock_rail_renderer,
-		'customGradient'   => $custom_gradient,
-		'customImage'      => $custom_image,
-		'libraryHdOnly'    => $library_hd_only,
-		'ai'               => $ai,
+		'wallpaper'                => $wallpaper,
+		'accent'                   => $accent,
+		'dockSize'                 => $dock_size,
+		'desktopLayout'            => $desktop_layout,
+		'dockRailRenderer'         => $dock_rail_renderer,
+		'customGradient'           => $custom_gradient,
+		'customImage'              => $custom_image,
+		'libraryHdOnly'            => $library_hd_only,
+		'ai'                       => $ai,
+		'nativePostsEnabled'       => $native_posts_enabled,
+		'nativePostsHiddenColumns' => $native_posts_hidden_columns,
+		'nativePagesEnabled'       => $native_pages_enabled,
 	);
 }
 

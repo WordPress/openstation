@@ -2,6 +2,44 @@
 
 A high-level tour, mostly so hook reference + examples make sense.
 
+## Architecture 0.8.1 layout (in progress)
+
+The plugin is mid-way through a structural refactor that splits the
+historical god-modules (`src/desktop.ts`, `includes/render.php`,
+`includes/components.php`, `includes/helpers.php`) into layered
+folders with explicit boundaries. Foundations have landed; the
+heavy splits ship in subsequent phases. Until they do, the legacy
+locations remain authoritative.
+
+| Layer | Location | Status |
+|---|---|---|
+| `tsconfig` path aliases (`@core/*`, `@api/*`, `@protocol/*`, `@ui/*`, `@layout/*`, `@boot/*`, `@features/*`, `@window-system/*`) | `tsconfig.json` + `vite.config.js` + `vitest.config.ts` | Stable since 0.8.1 |
+| Generic reactive registry + server-sync + REST client primitives | `src/core/{reactive-registry,server-sync,api-client}.ts` | Stable since 0.8.1 |
+| PHP registry factory | `includes/core/registry-factory.php` | Stable since 0.8.1 |
+| Bridge protocol (typed messages + guards + version) | `src/protocol/{window-messages,guards,version}.ts` | Stable since 0.8.1 |
+| Public API barrel (0.8.1 home) + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable since 0.8.1 |
+| Boot decomposition — `origin.ts`, `geometry.ts`, `session.ts`, `session-saver.ts`, `tracked-fetch.ts`, `link-interceptor.ts`, `menu-refresh.ts`, `shell-lifecycle.ts`, plus `src/api/facade.ts` (`buildPublicApi` + `installPublicApi`) | `src/boot/*` + `src/api/facade.ts` | Stable since 0.8.1 — desktop.ts 3,695 → 2,667 LOC; init() body still owns its own setup but the facade and 9 boot helpers are extracted |
+| `src/window-system/` umbrella barrel re-exporting window/ + window-manager/ + window-chrome/ | `src/window-system/index.ts` | Stable since 0.8.1 — additive; legacy paths still resolve |
+| `src/ui/core/tokens.ts` — typed `--wpd-*` design-token namespace + `readToken` / `setToken` helpers | `src/ui/core/tokens.ts` | Stable since 0.8.1 |
+| Window-system rename (`src/window/`, `src/window-manager/`, `src/window-chrome/` → `src/window-system/*`) | planned | Planned |
+| `helpers.php` slicing — `core/{routing,payload,registry-factory}.php` | `includes/core/*.php` | Stable since 0.8.1 — helpers.php 1,609 → 153 LOC |
+| `components.php` slicing — 5 registries under `includes/registries/` (native-windows, window-tabs, icons, wallpapers, widgets) | `includes/registries/*.php` | Stable since 0.8.1 — components.php 2,101 → 376 LOC |
+| `render.php` slicing — 5 files under `includes/render/` (body-classes, assets, shell, chromeless-bridge, classic-link-interceptor) | `includes/render/*.php` | Stable since 0.8.1 — render.php 2,525 → 29-LOC umbrella |
+| REST-route centralization under `includes/rest/`, `ai-copilot/search.php` split | planned | Planned |
+| Heavy native-window decomposition (posts-window / my-wordpress / recycle-bin into `model.ts` / `ui.ts` / `commands.ts`) | planned `src/features/<name>/` | Planned |
+| Web-component base class (`Component`) + design-token catalogue | `src/ui/core/component.ts` (pre-existing) + `src/ui/core/tokens.ts` | Stable since 0.8.1 |
+| Extension base library — `Desktop_Mode_Extension_Window` / `Desktop_Mode_Extension_Rest` PHP bases + `createExtensionWindow` TS helper | `extensions/base/` | Stable since 0.8.1 |
+| Cross-bundle layout single-source-of-truth (`getCurrentLayout` / `subscribeLayout`) | `src/layout/` | Stable since 0.8.1 |
+| Types package (`@desktop-mode/types`) for plugin authors | `packages/desktop-mode-types/` | Stable since 0.8.1 (in-tree; npm publish later) |
+| REST route discoverability index | `includes/rest/README.md` | Stable since 0.8.1 |
+
+Plugin authors should prefer the new locations when they exist;
+re-exports keep old import paths working for the duration of the
+0.8.x line. Renames that have nowhere to forward to ship with
+deprecation shims (PHP via `_doing_it_wrong`, JS via
+`installDeprecatedAlias` from `@api/deprecated`) — no name in the
+public surface disappears silently.
+
 ## The big picture
 
 ```

@@ -1,0 +1,535 @@
+<?php
+/**
+ * Desktop Mode — Progressive Web App support.
+ *
+ * Lets users install the WordPress site as a desktop / mobile app from
+ * the desktop-mode shell. Three concerns live here:
+ *
+ *   1. Web app manifest at `/desktop-mode/manifest.webmanifest` —
+ *      served via `parse_request` like the portal URL, no rewrite-rule
+ *      registration. Site name, theme color, and icons assembled from
+ *      the WordPress Site Icon (when set) with a wp-logo fallback. The
+ *      `desktop_mode_pwa_manifest` filter lets plugins mutate any
+ *      field before encoding.
+ *
+ *   2. Service worker at `/desktop-mode/sw.js`, served with the
+ *      explicit `Service-Worker-Allowed: /` header so a single SW can
+ *      scope across `/desktop-mode/` AND `/wp-admin/` (their common
+ *      ancestor is `/`). The plugin lives at
+ *      `/wp-content/plugins/desktop-mode/`, which is NOT a parent of
+ *      `/wp-admin/`, so wp-content-served SWs cannot reach admin pages.
+ *      PHP delivery sidesteps that constraint cleanly.
+ *
+ *   3. Two REST routes scoped to the current user:
+ *        - `GET/POST /desktop-mode/v1/pwa-state` — dismissal pref for
+ *          the install hint, plus notification permission record.
+ *        - (future) `POST /desktop-mode/v1/push-subscription` — Web
+ *          Push subscription storage. Stub left here in a comment as
+ *          a hint for the v2 push PR.
+ *
+ * @package WPDesktopMode
+ * @since   0.8.0
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * URL fragment for the manifest endpoint, joined onto the portal path.
+ *
+ * Kept as a constant so the JS-side script localisation and the
+ * `parse_request` matcher cannot drift apart.
+ *
+ * @since 0.8.0
+ */
+const DESKTOP_MODE_PWA_MANIFEST_FRAGMENT = 'manifest.webmanifest';
+
+/**
+ * URL fragment for the service worker.
+ *
+ * @since 0.8.0
+ */
+const DESKTOP_MODE_PWA_SW_FRAGMENT = 'sw.js';
+
+/**
+ * User-meta key — JSON blob persisting per-user PWA UI state.
+ *
+ * Today: `installHintDismissed` (bool), `notificationsEnabled` (bool).
+ * Future: `pushSubscription` (object) when phase 4 lands.
+ *
+ * @since 0.8.0
+ */
+const DESKTOP_MODE_PWA_USER_META = 'desktop_mode_pwa_state';
+
+/**
+ * Builds the absolute manifest URL.
+ *
+ * @since 0.8.0
+ *
+ * @return string
+ */
+function desktop_mode_pwa_manifest_url() {
+	return desktop_mode_portal_url() . DESKTOP_MODE_PWA_MANIFEST_FRAGMENT;
+}
+
+/**
+ * Builds the absolute service-worker URL.
+ *
+ * @since 0.8.0
+ *
+ * @return string
+ */
+function desktop_mode_pwa_sw_url() {
+	return desktop_mode_portal_url() . DESKTOP_MODE_PWA_SW_FRAGMENT;
+}
+
+/**
+ * Detects which PWA endpoint the current request is targeting, if any.
+ *
+ * Mirrors `desktop_mode_is_portal_request()`'s strategy: read the
+ * unparsed REQUEST_URI rather than relying on rewrite-rule resolution.
+ *
+ * @since 0.8.0
+ *
+ * @return string Empty string when not a PWA endpoint, otherwise one
+ *                of `'manifest'` | `'sw'`.
+ */
+function desktop_mode_pwa_endpoint_kind() {
+	$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	if ( ! is_string( $uri ) || '' === $uri ) {
+		return '';
+	}
+	$path = (string) wp_parse_url( $uri, PHP_URL_PATH );
+	if ( '' === $path ) {
+		return '';
+	}
+	$portal = '/' . trim( DESKTOP_MODE_PORTAL_PATH, '/' ) . '/';
+	if ( $path === $portal . DESKTOP_MODE_PWA_MANIFEST_FRAGMENT ) {
+		return 'manifest';
+	}
+	if ( $path === $portal . DESKTOP_MODE_PWA_SW_FRAGMENT ) {
+		return 'sw';
+	}
+	return '';
+}
+
+/**
+ * Intercepts the manifest and SW endpoints, emitting the response body.
+ *
+ * Hooks at the same `parse_request` priority as the portal handler so
+ * we beat 404 logic but the request environment (auth state, options
+ * cache, etc.) is fully bootstrapped.
+ *
+ * Both endpoints are intentionally **public** (no `is_user_logged_in`
+ * guard). The manifest is loaded by the browser BEFORE login when a
+ * user revisits the install URL; the SW is fetched by the browser
+ * with no cookies on update checks. Both reveal only data already
+ * surfaced by the front-end (site name, blog icon, plugin version).
+ *
+ * @since 0.8.0
+ *
+ * @param WP $wp Current WordPress environment instance (unused).
+ */
+function desktop_mode_pwa_handle_request( $wp ) {
+	unset( $wp );
+
+	$kind = desktop_mode_pwa_endpoint_kind();
+	if ( '' === $kind ) {
+		return;
+	}
+
+	if ( 'manifest' === $kind ) {
+		desktop_mode_pwa_serve_manifest();
+		exit;
+	}
+
+	if ( 'sw' === $kind ) {
+		desktop_mode_pwa_serve_service_worker();
+		exit;
+	}
+}
+add_action( 'parse_request', 'desktop_mode_pwa_handle_request' );
+
+/**
+ * Builds the manifest array, applies the `desktop_mode_pwa_manifest`
+ * filter, encodes as JSON and prints it.
+ *
+ * @since 0.8.0
+ */
+function desktop_mode_pwa_serve_manifest() {
+	$manifest = desktop_mode_pwa_build_manifest();
+
+	/**
+	 * Filters the web-app manifest payload before encoding.
+	 *
+	 * Common edits: replace the icon list with site-specific artwork,
+	 * add `shortcuts` so the OS-level app menu offers
+	 * deep-link entries, change `display` to `'fullscreen'`. Returning
+	 * a non-array silently disables the manifest — no PHP warning, but
+	 * the browser will fail the install criterion.
+	 *
+	 * @since 0.8.0
+	 *
+	 * @param array $manifest Manifest associative array.
+	 */
+	$manifest = apply_filters( 'desktop_mode_pwa_manifest', $manifest );
+
+	if ( ! is_array( $manifest ) ) {
+		status_header( 500 );
+		return;
+	}
+
+	header( 'Content-Type: application/manifest+json; charset=utf-8' );
+	// 5-minute browser cache so a site-icon swap propagates quickly,
+	// but the network isn't hit on every shell load.
+	header( 'Cache-Control: public, max-age=300' );
+	echo wp_json_encode( $manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+}
+
+/**
+ * Assembles the default manifest fields.
+ *
+ * @since 0.8.0
+ *
+ * @return array
+ */
+function desktop_mode_pwa_build_manifest() {
+	$site_name = get_bloginfo( 'name' );
+	if ( '' === $site_name ) {
+		$site_name = 'WordPress';
+	}
+	$short_name = wp_html_excerpt( $site_name, 12, '' );
+	if ( '' === $short_name ) {
+		$short_name = $site_name;
+	}
+
+	$start_url = desktop_mode_portal_url();
+	$scope     = '/';
+
+	$manifest_url = desktop_mode_pwa_manifest_url();
+
+	return array(
+		'name'                 => $site_name,
+		'short_name'           => $short_name,
+		'description'          => sprintf(
+			/* translators: %s: site name */
+			__( '%s — installed as a desktop app.', 'desktop-mode' ),
+			$site_name
+		),
+		'start_url'            => $start_url,
+		'scope'                => $scope,
+		'id'                   => $start_url,
+		'display'              => 'standalone',
+		'display_override'     => array( 'standalone', 'minimal-ui' ),
+		'orientation'          => 'any',
+		// Match the shell's default surface colour. Filter to override
+		// per-site without redefining the whole manifest.
+		'theme_color'          => '#1d2327',
+		'background_color'     => '#1d2327',
+		'lang'                 => get_bloginfo( 'language' ),
+		'dir'                  => is_rtl() ? 'rtl' : 'ltr',
+		'icons'                => desktop_mode_pwa_default_icons(),
+		// Self-reference under `related_applications` so
+		// `navigator.getInstalledRelatedApps()` (Chrome / Edge) returns
+		// a hit when this PWA is installed in the current profile.
+		// `prefer_related_applications: false` keeps the install prompt
+		// pointed at this site itself (not redirected to a related
+		// native app). Without these two fields, a regular browser tab
+		// has no way to detect "already installed in this profile" —
+		// `display-mode: standalone` is only true inside the PWA
+		// window. The detection is what powers the dock-tile click
+		// handler's "X is already installed" toast.
+		'related_applications' => array(
+			array(
+				'platform' => 'webapp',
+				'url'      => $manifest_url,
+				'id'       => $start_url,
+			),
+		),
+		'prefer_related_applications' => false,
+	);
+}
+
+/**
+ * Resolves the default icon set.
+ *
+ * Priority:
+ *   1. WordPress Site Icon (`Settings → General → Site Icon`) — yields
+ *      multiple PNG sizes via `get_site_icon_url()`. Authoritative
+ *      when the operator has uploaded a brand mark for their site.
+ *   2. Plugin-bundled icons under `assets/pwa/` — the official
+ *      desktop-mode brand mark (the same artwork shown on the
+ *      WordPress.org plugin directory listing). Sizes 128 / 192 /
+ *      256 / 512 cover everything from notification badges to splash
+ *      screens.
+ *
+ * Purpose is `'any'` rather than `'any maskable'` — the brand icon
+ * has rounded corners + transparent padding that Android's adaptive
+ * mask would crop into. Plugins shipping a full-bleed maskable
+ * variant should replace the array via `desktop_mode_pwa_manifest`.
+ *
+ * @since 0.8.0
+ *
+ * @return array<int, array<string, string>>
+ */
+function desktop_mode_pwa_default_icons() {
+	$icons = array();
+
+	$site_icon_id = (int) get_option( 'site_icon' );
+	if ( $site_icon_id > 0 ) {
+		// `get_site_icon_url()` resolves to a registered intermediate
+		// size. List the canonical PWA sizes (192/512) explicitly so
+		// Chrome's installability heuristic finds an entry whose
+		// `sizes` field matches the returned image.
+		foreach ( array( 192, 512 ) as $size ) {
+			$url = get_site_icon_url( $size );
+			if ( is_string( $url ) && '' !== $url ) {
+				$icons[] = array(
+					'src'     => $url,
+					'sizes'   => $size . 'x' . $size,
+					'type'    => 'image/png',
+					'purpose' => 'any',
+				);
+			}
+		}
+	}
+
+	if ( empty( $icons ) ) {
+		foreach ( array( 128, 192, 256, 512 ) as $size ) {
+			$icons[] = array(
+				'src'     => DESKTOP_MODE_URL . "assets/pwa/icon-{$size}.png",
+				'sizes'   => "{$size}x{$size}",
+				'type'    => 'image/png',
+				'purpose' => 'any',
+			);
+		}
+	}
+
+	return $icons;
+}
+
+/**
+ * Serves the service-worker bundle.
+ *
+ * Reads the built `assets/js/sw[.min].js` from disk and streams it back
+ * with the headers a SW needs to be valid:
+ *
+ *   - `Content-Type: application/javascript`
+ *   - `Service-Worker-Allowed: /` — required for `/`-scoped registration
+ *     when the script itself is served from `/desktop-mode/`. Without
+ *     this header the browser rejects the `register()` call with
+ *     `SecurityError: The path of the provided scope ('/') is not
+ *     under the max scope allowed`.
+ *   - `Cache-Control: no-cache, must-revalidate` — the browser already
+ *     re-checks SW scripts on a 24h cycle, but caching the response
+ *     defeats the immediate-update guarantee.
+ *
+ * Falls back to a 503 + log entry when the file is missing (a deploy
+ * that didn't run `npm run build`). Logging gives the operator a
+ * concrete pointer; 503 (vs. 404) tells the browser the SW genuinely
+ * isn't available right now and it should retry later.
+ *
+ * @since 0.8.0
+ */
+function desktop_mode_pwa_serve_service_worker() {
+	$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+	$path   = DESKTOP_MODE_DIR . 'assets/js/sw' . $suffix . '.js';
+
+	if ( ! file_exists( $path ) ) {
+		// Avoid logging in the test environment where vfsStream paths
+		// are expected to fail; only log when ABSPATH is real.
+		if ( function_exists( 'error_log' ) ) {
+			error_log( '[desktop-mode] service worker bundle missing at ' . $path . ' — run `npm run build` to generate it.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+		status_header( 503 );
+		header( 'Cache-Control: no-cache, must-revalidate' );
+		return;
+	}
+
+	$body = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	if ( false === $body ) {
+		status_header( 503 );
+		return;
+	}
+
+	header( 'Content-Type: application/javascript; charset=utf-8' );
+	header( 'Service-Worker-Allowed: /' );
+	header( 'Cache-Control: no-cache, must-revalidate' );
+	header( 'X-Content-Type-Options: nosniff' );
+
+	// Stamp the SW with the build's mtime so the byte-equality check
+	// the browser runs on the 24h refresh notices a real change. Tiny
+	// inline comment, no payload bloat. Wrapped in `absint()` because
+	// the WordPress.Security.EscapeOutput sniff doesn't follow the
+	// `(int)` cast at the assignment site — only the immediate
+	// printf argument matters to it. `absint()` is on the auto-
+	// recognised escape list.
+	$mtime = absint( filemtime( $path ) );
+	printf( "/* desktop-mode SW build: %s */\n", absint( $mtime ) );
+	// `$body` is the SW JavaScript bundle read off disk — escaping
+	// would corrupt the script. Suppress the sniff with the standard
+	// `--` separator (an em-dash silently fails to satisfy phpcs).
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JS bytes from disk.
+	echo $body;
+}
+
+/**
+ * Emits the `<link rel="manifest">` tag and the matching theme-color
+ * meta into the admin `<head>` — only when desktop-mode is the active
+ * surface for this request (no chromeless iframes, no classic admin).
+ *
+ * Without these tags the browser never discovers the manifest and the
+ * "install" criterion silently fails. Putting them in `<head>` (rather
+ * than via `wp_localize_script`'s inline script tag) is what the
+ * spec requires.
+ *
+ * @since 0.8.0
+ */
+function desktop_mode_pwa_render_head_tags() {
+	if ( ! is_admin() || ! is_user_logged_in() ) {
+		return;
+	}
+	if ( desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	if ( ! desktop_mode_is_enabled() || desktop_mode_is_classic_request() ) {
+		return;
+	}
+
+	printf(
+		'<link rel="manifest" href="%s">' . "\n",
+		esc_url( desktop_mode_pwa_manifest_url() )
+	);
+	echo '<meta name="theme-color" content="#1d2327">' . "\n";
+	// `mobile-web-app-capable` is the cross-browser standard;
+	// `apple-mobile-web-app-capable` is the legacy iOS-only spelling
+	// (still required by older Safari versions). Chromium logs a
+	// deprecation warning if only the apple-prefixed form is present.
+	// We emit both so iOS keeps treating the home-screen shortcut as
+	// a standalone app while Chromium stops the warning.
+	echo '<meta name="mobile-web-app-capable" content="yes">' . "\n";
+	echo '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n";
+	echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' . "\n";
+	printf(
+		'<meta name="apple-mobile-web-app-title" content="%s">' . "\n",
+		esc_attr( get_bloginfo( 'name' ) )
+	);
+}
+add_action( 'admin_head', 'desktop_mode_pwa_render_head_tags', 1 );
+
+/**
+ * Reads the per-user PWA UI state.
+ *
+ * @since 0.8.0
+ *
+ * @param int $user_id Defaults to current user.
+ * @return array{installHintDismissed: bool, notificationsEnabled: bool}
+ */
+function desktop_mode_pwa_get_user_state( $user_id = 0 ) {
+	if ( 0 === $user_id ) {
+		$user_id = get_current_user_id();
+	}
+	$raw = get_user_meta( $user_id, DESKTOP_MODE_PWA_USER_META, true );
+	if ( ! is_array( $raw ) ) {
+		$raw = array();
+	}
+	return array(
+		'installHintDismissed' => ! empty( $raw['installHintDismissed'] ),
+		'notificationsEnabled' => ! empty( $raw['notificationsEnabled'] ),
+	);
+}
+
+/**
+ * Writes the per-user PWA UI state, merging with the existing blob so
+ * partial updates from the JS side don't wipe other keys.
+ *
+ * @since 0.8.0
+ *
+ * @param array $patch   Partial state to merge.
+ * @param int   $user_id Defaults to current user.
+ */
+function desktop_mode_pwa_update_user_state( array $patch, $user_id = 0 ) {
+	if ( 0 === $user_id ) {
+		$user_id = get_current_user_id();
+	}
+	$current = desktop_mode_pwa_get_user_state( $user_id );
+	$next    = array_merge( $current, $patch );
+	update_user_meta( $user_id, DESKTOP_MODE_PWA_USER_META, $next );
+}
+
+/**
+ * Registers the `/desktop-mode/v1/pwa-state` REST routes.
+ *
+ * @since 0.8.0
+ */
+function desktop_mode_pwa_register_rest_routes() {
+	register_rest_route(
+		'desktop-mode/v1',
+		'/pwa-state',
+		array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => 'desktop_mode_pwa_rest_get_state',
+				'permission_callback' => 'desktop_mode_pwa_rest_permission',
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => 'desktop_mode_pwa_rest_post_state',
+				'permission_callback' => 'desktop_mode_pwa_rest_permission',
+				'args'                => array(
+					'installHintDismissed' => array(
+						'type'     => 'boolean',
+						'required' => false,
+					),
+					'notificationsEnabled' => array(
+						'type'     => 'boolean',
+						'required' => false,
+					),
+				),
+			),
+		)
+	);
+
+	// Future: register POST /pwa-push-subscription here when phase 4
+	// lands. The state route is intentionally orthogonal so the v1
+	// surface stays stable when push arrives.
+}
+add_action( 'rest_api_init', 'desktop_mode_pwa_register_rest_routes' );
+
+/**
+ * REST permission gate — same shape as the session routes.
+ *
+ * @since 0.8.0
+ */
+function desktop_mode_pwa_rest_permission() {
+	return is_user_logged_in() && current_user_can( 'read' );
+}
+
+/**
+ * GET handler — returns the current user's PWA state.
+ *
+ * @since 0.8.0
+ */
+function desktop_mode_pwa_rest_get_state() {
+	return rest_ensure_response( desktop_mode_pwa_get_user_state() );
+}
+
+/**
+ * POST handler — merges the supplied keys into the user's state.
+ *
+ * @since 0.8.0
+ *
+ * @param WP_REST_Request $request REST request.
+ */
+function desktop_mode_pwa_rest_post_state( $request ) {
+	$patch = array();
+	if ( null !== $request->get_param( 'installHintDismissed' ) ) {
+		$patch['installHintDismissed'] = (bool) $request->get_param( 'installHintDismissed' );
+	}
+	if ( null !== $request->get_param( 'notificationsEnabled' ) ) {
+		$patch['notificationsEnabled'] = (bool) $request->get_param( 'notificationsEnabled' );
+	}
+	if ( ! empty( $patch ) ) {
+		desktop_mode_pwa_update_user_state( $patch );
+	}
+	return rest_ensure_response( desktop_mode_pwa_get_user_state() );
+}

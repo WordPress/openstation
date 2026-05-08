@@ -854,3 +854,127 @@
 	max-height: 100%;
 	overflow-y: auto;
 }
+
+/*
+ * Features section — per-user opt-in toggles.
+ *
+ * Save status pill renders the live OS-settings save lifecycle
+ * (`pending` → `saving` → `saved` / `failed`) so toggling a
+ * per-user feature flag gets immediate, honest feedback instead
+ * of an optimistic flicker.
+ */
+.desktop-mode-features__status-row {
+	min-height: 22px;
+}
+
+/* "Reset what's-new dialogs" row — separates the action from the
+ * native-Posts toggle above and gives breathing room around the
+ * button. `align-items: flex-start` keeps the inline-flex
+ * `<wpd-button>` from stretching full-width inside the column,
+ * and the explicit margin on the button below works around the
+ * fact that flex `gap` doesn't always render visibly when one
+ * neighbour is an inline-flex custom element with zero outer
+ * margin. */
+.desktop-mode-features__row {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+	margin-top: 20px;
+	padding-top: 20px;
+	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.desktop-mode-features__row > wpd-button {
+	display: inline-flex;
+	margin-block: 4px 8px;
+}
+
+.desktop-mode-features__row > .desktop-mode-features__hint {
+	margin: 0;
+}
+
+.desktop-mode-features__hint {
+	margin: 0;
+	font-size: 12px;
+	color: var( --wpd-text-muted, #50575e );
+	line-height: 1.5;
+}
+
+.desktop-mode-features__status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	padding: 2px 10px;
+	border-radius: 999px;
+	white-space: nowrap;
+	transition: opacity 200ms ease;
+}
+
+.desktop-mode-features__status--saving {
+	background: var( --wpd-surface-elevated, #f0f0f1 );
+	color: var( --wpd-text-muted, #50575e );
+}
+
+.desktop-mode-features__status--saved {
+	background: rgba( 30, 132, 73, 0.12 );
+	color: #1d6f42;
+}
+
+.desktop-mode-features__status--saved .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+}
+
+.desktop-mode-features__status--failed {
+	background: rgba( 214, 54, 56, 0.12 );
+	color: #a02622;
+}
+
+.desktop-mode-features__status--failed .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+}
+
+.desktop-mode-features__status-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+	animation: desktop-mode-features-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes desktop-mode-features-pulse {
+	0%, 100% { opacity: 0.35; transform: scale( 0.85 ); }
+	50%      { opacity: 1;    transform: scale( 1 ); }
+}
+
+/*
+ * OS Settings panel header — hosts the global tabs strip and a single
+ * `<wpd-save-status>` indicator that auto-listens to the save
+ * lifecycle. The save status sits on the trailing edge of the header
+ * so it's visible across every tab without competing with section
+ * content.
+ */
+.desktop-mode-os-settings__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 12px;
+}
+
+.desktop-mode-os-settings__header wpd-tabs {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.desktop-mode-os-settings__header wpd-save-status {
+	flex: 0 0 auto;
+	margin-inline-start: auto;
+}

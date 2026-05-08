@@ -87,6 +87,14 @@ import { styles } from './wpd-table.styles';
  * else is optional. Generic over the row type so `render` and
  * `sortValue` get strong types when consumers type the table.
  */
+/** One option in a column's filter dropdown when `filterOptions` is set. */
+export interface WpdTableColumnFilterOption {
+	/** Value emitted in `wpd-table-filter-change.detail.filters[col.key]`. */
+	value: string;
+	/** Visible label in the dropdown. */
+	label: string;
+}
+
 export interface WpdTableColumn< T = Record< string, unknown > > {
 	/** Property on the row to read. Also used as the column id. */
 	key: string;
@@ -97,6 +105,51 @@ export interface WpdTableColumn< T = Record< string, unknown > > {
 	 * `'select'` builds a dropdown from the unique column values.
 	 */
 	filter?: boolean | 'text' | 'select';
+	/**
+	 * Explicit option list for the filter dropdown — overrides the
+	 * default "unique values pulled from the visible rows" behaviour.
+	 * Use this when the column renders an opaque value (e.g. an
+	 * author id whose label is fetched separately) or when the
+	 * server is the filter authority (e.g. a server-paginated table
+	 * that needs the dropdown to list ALL possible values, not just
+	 * the ones on the current page).
+	 *
+	 * Implies `filter: 'select'` — you do NOT also need to set
+	 * `filter` when `filterOptions` is present.
+	 *
+	 * @since 0.8.0
+	 */
+	filterOptions?: WpdTableColumnFilterOption[];
+	/**
+	 * Custom filter renderer. When set, the column owns the entire
+	 * filter cell — the table calls this once per filter-row paint
+	 * to mount the control inside the `<th>` host (the same host is
+	 * reused across paints; the callback may early-return when its
+	 * control is already mounted). Use for richer filters than the
+	 * built-in `<input>` / `<select>` — e.g. multi-select chips, a
+	 * date-range picker, a slider.
+	 *
+	 * The `ctx.value` reflects the column's current filter value
+	 * (whatever was last passed to `setValue`); call `ctx.setValue`
+	 * to update it. The same `wpd-table-filter-change` event fires
+	 * regardless of which filter shape produced the change.
+	 *
+	 * `filterRender` columns are NOT filtered client-side — their
+	 * value is opaque to the table (could be a comma-joined id
+	 * list, JSON, anything). The consumer owns filtering: typically
+	 * by listening to `wpd-table-filter-change` and re-querying the
+	 * server, or by reassigning `data` with already-filtered rows.
+	 *
+	 * @since 0.8.0
+	 */
+	filterRender?: (
+		host: HTMLTableCellElement,
+		ctx: {
+			value: string;
+			setValue: ( next: string ) => void;
+			col: WpdTableColumn< T >;
+		},
+	) => void;
 	/** Make the header click-to-sort (asc → desc → unsorted cycle). */
 	sortable?: boolean;
 	/**
@@ -111,6 +164,16 @@ export interface WpdTableColumn< T = Record< string, unknown > > {
 	align?: 'start' | 'center' | 'end';
 	/** Fixed CSS width — passed straight to `<col style="width">`. */
 	width?: string;
+	/**
+	 * Minimum CSS width — applied to body cells (`<td>`) of this
+	 * column so the column refuses to shrink below the value when
+	 * the table is squeezed horizontally. Mostly useful for cells
+	 * whose contents wrap (chip rows, multi-line previews) where a
+	 * narrow column would force every chip onto its own line.
+	 *
+	 * @since 0.8.0
+	 */
+	minWidth?: string;
 	/** Custom cell renderer. Return a string, Node, or `html\`\``. */
 	render?: ( value: unknown, row: T, index: number ) => string | Node | TemplateResult;
 }
@@ -159,12 +222,12 @@ const SELECT_KEY = '__wpd_select__';
 interface FilterInputCache {
 	/** The wrapper `<th>` cell — kept across paints. */
 	th: HTMLTableCellElement;
-	/** The filter `<input>` or `<select>`. */
-	control: HTMLInputElement | HTMLSelectElement;
+	/** The filter `<input>` or `<select>`. `null` for custom-render columns. */
+	control: HTMLInputElement | HTMLSelectElement | null;
 	/** Last set of options written into a select (sorted, joined). */
 	optionsKey: string;
 	/** Filter kind currently mounted — re-create if it changes. */
-	kind: 'text' | 'select' | 'none';
+	kind: 'text' | 'select' | 'custom' | 'none';
 }
 
 export class WpdTable< T extends Record< string, unknown > = Record< string, unknown > > extends Component {
@@ -242,6 +305,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		cssProps: [
 			{ name: '--wpd-table-bg' },
 			{ name: '--wpd-table-border' },
+			{ name: '--wpd-table-column-border' },
 			{ name: '--wpd-table-header-bg' },
 			{ name: '--wpd-table-row-hover' },
 			{ name: '--wpd-table-stripe' },
@@ -619,6 +683,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 
 		const cols = this._effectiveColumns();
 		const stickyN = this._readStickyColumns();
+		this._lastStickyIndex = this._computeLastStickyIndex( cols, stickyN );
 
 		this._paintColgroup( colgroup, cols );
 		this._paintHead( thead, cols, stickyN );
@@ -769,24 +834,83 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		cols: WpdTableColumn< T >[],
 		stickyN: number,
 	): void {
-		thead.replaceChildren();
-
-		const headerRow = document.createElement( 'tr' );
-		headerRow.setAttribute( 'part', 'header-row' );
+		// Header row is rebuilt every paint (sort indicators change with
+		// the cycle). The filter row is preserved across paints — its
+		// `<th>` cells host live state (text input caret, mounted
+		// `filterRender` controls like `<wpd-multiselect>` whose popover
+		// would `_closePopover()` on `disconnectedCallback` if we tore
+		// down the row). We swap the header in place and only touch the
+		// filter row's cells when the column set changes.
+		const newHeaderRow = document.createElement( 'tr' );
+		newHeaderRow.setAttribute( 'part', 'header-row' );
 		for ( let i = 0; i < cols.length; i++ ) {
-			headerRow.appendChild( this._buildHeaderCell( cols[ i ], i, stickyN ) );
+			newHeaderRow.appendChild( this._buildHeaderCell( cols[ i ], i, stickyN ) );
 		}
-		thead.appendChild( headerRow );
 
-		const hasFilter = cols.some( ( c ) => c.filter );
+		const existingHeader = thead.querySelector< HTMLTableRowElement >(
+			':scope > tr[part="header-row"]',
+		);
+		if ( existingHeader ) {
+			thead.replaceChild( newHeaderRow, existingHeader );
+		} else {
+			thead.insertBefore( newHeaderRow, thead.firstChild );
+		}
+
+		// Render the filter row if ANY column requests one — either via
+		// the legacy `filter` flag, or via an explicit `filterOptions`
+		// list (even if empty — the column's options may still be
+		// loading), or via a `filterRender` callback (custom control).
+		const hasFilter = cols.some(
+			( c ) =>
+				c.filter ||
+				Array.isArray( c.filterOptions ) ||
+				typeof c.filterRender === 'function',
+		);
+		let existingFilter = thead.querySelector< HTMLTableRowElement >(
+			':scope > tr.filter-row',
+		);
+
 		if ( hasFilter ) {
-			const filterRow = document.createElement( 'tr' );
-			filterRow.classList.add( 'filter-row' );
-			filterRow.setAttribute( 'part', 'filter-row' );
+			// `_buildFilterCell` returns the cached `<th>` when the
+			// column's filter kind hasn't changed, so mounted controls
+			// (popovers, inputs with focus) are reused.
+			const cells: HTMLTableCellElement[] = [];
 			for ( let i = 0; i < cols.length; i++ ) {
-				filterRow.appendChild( this._buildFilterCell( cols[ i ], i, stickyN ) );
+				cells.push( this._buildFilterCell( cols[ i ], i, stickyN ) );
 			}
-			thead.appendChild( filterRow );
+			if ( ! existingFilter ) {
+				existingFilter = document.createElement( 'tr' );
+				existingFilter.classList.add( 'filter-row' );
+				existingFilter.setAttribute( 'part', 'filter-row' );
+				thead.appendChild( existingFilter );
+			}
+			const current = Array.from( existingFilter.children );
+			let same = current.length === cells.length;
+			if ( same ) {
+				for ( let i = 0; i < cells.length; i++ ) {
+					if ( current[ i ] !== cells[ i ] ) {
+						same = false;
+						break;
+					}
+				}
+			}
+			if ( ! same ) {
+				// Move the wanted cells into place (appending an
+				// already-attached element reparents without firing
+				// disconnectedCallback). Drop any stragglers from
+				// removed columns afterwards.
+				const wanted = new Set< Element >( cells );
+				for ( const cell of cells ) {
+					existingFilter.appendChild( cell );
+				}
+				for ( const child of Array.from( existingFilter.children ) ) {
+					if ( ! wanted.has( child ) ) {
+						existingFilter.removeChild( child );
+					}
+				}
+			}
+		} else if ( existingFilter ) {
+			existingFilter.remove();
 		}
 	}
 
@@ -799,6 +923,9 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		th.setAttribute( 'scope', 'col' );
 		th.dataset.key = col.key;
 		this._applyCellClasses( th, col, index, stickyN );
+		if ( col.minWidth ) {
+			th.style.minWidth = col.minWidth;
+		}
 
 		if ( col.key === SELECT_KEY ) {
 			const mode = this._readSelectable();
@@ -855,14 +982,18 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		stickyN: number,
 	): HTMLTableCellElement {
 		const cached = this._filterCache.get( col.key );
+		const hasExplicitOptions = Array.isArray( col.filterOptions );
+		const hasCustomRender = typeof col.filterRender === 'function';
 		let desiredKind: FilterInputCache[ 'kind' ];
 		if (
-			! col.filter ||
+			( ! col.filter && ! hasExplicitOptions && ! hasCustomRender ) ||
 			col.key === EXPANDER_KEY ||
 			col.key === SELECT_KEY
 		) {
 			desiredKind = 'none';
-		} else if ( col.filter === 'select' ) {
+		} else if ( hasCustomRender ) {
+			desiredKind = 'custom';
+		} else if ( col.filter === 'select' || hasExplicitOptions ) {
 			desiredKind = 'select';
 		} else {
 			desiredKind = 'text';
@@ -873,8 +1004,8 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			this._applyCellClasses( cached.th, col, index, stickyN );
 			if ( desiredKind === 'select' ) {
 				const select = cached.control as HTMLSelectElement;
-				const opts = this._uniqueValues( col.key );
-				const optsKey = opts.join( '' );
+				const opts = this._resolveFilterOptions( col );
+				const optsKey = opts.map( ( o ) => o.value ).join( '|' );
 				if ( optsKey !== cached.optionsKey ) {
 					this._populateSelect( select, opts, this._filters[ col.key ] ?? '' );
 					cached.optionsKey = optsKey;
@@ -887,6 +1018,12 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 				if ( input.value !== want && input.ownerDocument.activeElement !== input ) {
 					input.value = want;
 				}
+			} else if ( desiredKind === 'custom' && col.filterRender ) {
+				col.filterRender( cached.th, {
+					value: this._filters[ col.key ] ?? '',
+					setValue: ( next ) => this._onFilterChange( col.key, next ),
+					col,
+				} );
 			}
 			return cached.th;
 		}
@@ -897,9 +1034,24 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		if ( desiredKind === 'none' ) {
 			this._filterCache.set( col.key, {
 				th,
-				control: document.createElement( 'input' ),
+				control: null,
 				optionsKey: '',
 				kind: 'none',
+			} );
+			return th;
+		}
+
+		if ( desiredKind === 'custom' && col.filterRender ) {
+			col.filterRender( th, {
+				value: this._filters[ col.key ] ?? '',
+				setValue: ( next ) => this._onFilterChange( col.key, next ),
+				col,
+			} );
+			this._filterCache.set( col.key, {
+				th,
+				control: null,
+				optionsKey: '',
+				kind: 'custom',
 			} );
 			return th;
 		}
@@ -914,9 +1066,9 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 				'aria-label',
 				`Filter ${ col.label ?? col.key }`,
 			);
-			const opts = this._uniqueValues( col.key );
+			const opts = this._resolveFilterOptions( col );
 			this._populateSelect( select, opts, this._filters[ col.key ] ?? '' );
-			optionsKey = opts.join( '' );
+			optionsKey = opts.map( ( o ) => o.value ).join( '|' );
 			select.addEventListener( 'change', () => {
 				this._onFilterChange( col.key, select.value );
 			} );
@@ -946,7 +1098,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 
 	private _populateSelect(
 		select: HTMLSelectElement,
-		options: string[],
+		options: WpdTableColumnFilterOption[],
 		current: string,
 	): void {
 		select.replaceChildren();
@@ -954,16 +1106,36 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		all.value = '';
 		all.textContent = 'All';
 		select.appendChild( all );
-		for ( const v of options ) {
-			const opt = document.createElement( 'option' );
-			opt.value = v;
-			opt.textContent = v;
-			if ( v === current ) {
-				opt.selected = true;
+		for ( const opt of options ) {
+			const el = document.createElement( 'option' );
+			el.value = opt.value;
+			el.textContent = opt.label;
+			if ( opt.value === current ) {
+				el.selected = true;
 			}
-			select.appendChild( opt );
+			select.appendChild( el );
 		}
 		select.value = current;
+	}
+
+	/**
+	 * Resolve the option list for a select-filter column. Explicit
+	 * `filterOptions` win — that's the contract for server-driven
+	 * tables that need the dropdown to list values not present on
+	 * the current page. Without `filterOptions`, fall back to the
+	 * unique row values in the column (legacy behaviour for
+	 * client-side tables).
+	 */
+	private _resolveFilterOptions(
+		col: WpdTableColumn< T >,
+	): WpdTableColumnFilterOption[] {
+		if ( Array.isArray( col.filterOptions ) ) {
+			return col.filterOptions;
+		}
+		return this._uniqueValues( col.key ).map( ( v ) => ( {
+			value: v,
+			label: v,
+		} ) );
 	}
 
 	// ------------------------------------------------------------------
@@ -1072,6 +1244,9 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 	): HTMLTableCellElement {
 		const td = document.createElement( 'td' );
 		this._applyCellClasses( td, col, colIndex, stickyN );
+		if ( col.minWidth ) {
+			td.style.minWidth = col.minWidth;
+		}
 
 		if ( col.key === SELECT_KEY ) {
 			const id = this._getRowId( row, rowIndex );
@@ -1193,6 +1368,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		if ( tbody ) {
 			const cols = this._effectiveColumns();
 			const stickyN = this._readStickyColumns();
+			this._lastStickyIndex = this._computeLastStickyIndex( cols, stickyN );
 			this._paintBody( tbody, cols, stickyN );
 			this._applyStickyOffsets();
 		}
@@ -1262,6 +1438,14 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			let pass = true;
 			for ( const key of active ) {
 				const col = this._columns.find( ( c ) => c.key === key );
+				// `filterRender` columns own their filter shape — value
+				// is opaque to the table (commonly a comma-joined id list
+				// for a multi-select). The consumer filters via the
+				// server or by reassigning `data`; we must not re-filter
+				// here or we drop legitimate rows.
+				if ( col && typeof col.filterRender === 'function' ) {
+					continue;
+				}
 				const filter = this._filters[ key ] ?? '';
 				const cell = ( row as Record< string, unknown > )[ key ];
 				const cellStr = cell === null || cell === undefined ? '' : String( cell );
@@ -1372,6 +1556,28 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		return index < stickyN;
 	}
 
+	/**
+	 * The highest column index that resolves to sticky for the current
+	 * column set. -1 when no column is sticky. The "edge" cell — the one
+	 * that gets the visible right divider — is at this index. We compute
+	 * this by scanning rather than reusing `stickyN - 1` because
+	 * `column.sticky = true` can opt a column in past the count, and
+	 * `column.sticky = false` can carve a hole inside the band.
+	 */
+	private _lastStickyIndex = -1;
+	private _computeLastStickyIndex(
+		cols: WpdTableColumn< T >[],
+		stickyN: number,
+	): number {
+		let last = -1;
+		for ( let i = 0; i < cols.length; i++ ) {
+			if ( this._isStickyIndex( i, stickyN, cols[ i ] ) ) {
+				last = i;
+			}
+		}
+		return last;
+	}
+
 	private _applyCellClasses(
 		cell: HTMLElement,
 		col: WpdTableColumn< T >,
@@ -1393,7 +1599,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		const sticky = this._isStickyIndex( index, stickyN, col );
 		if ( sticky ) {
 			cell.classList.add( 'is-sticky' );
-			if ( index === stickyN - 1 ) {
+			if ( index === this._lastStickyIndex ) {
 				cell.classList.add( 'is-sticky-edge' );
 			}
 		}
@@ -1405,7 +1611,14 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			out.push( {
 				key: SELECT_KEY,
 				label: '',
-				width: '36px',
+				// The descriptor width is painted onto a `<col>`
+				// element and is the authoritative column-width
+				// source in table-layout: auto — CSS `td { width }`
+				// is ignored once `<col>` has a value. Pair with
+				// the matching `td.col-select` rule (zero
+				// `padding-inline`, `text-align: center`) so the
+				// checkbox sits with breathing room on both sides.
+				width: '40px',
 				align: 'center',
 			} );
 		}
@@ -1413,7 +1626,10 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			out.push( {
 				key: EXPANDER_KEY,
 				label: '',
-				width: '32px',
+				// Same contract as col-select. 36px column +
+				// 20px button + zero padding centers the chevron
+				// with ~8px on each side.
+				width: '36px',
 				align: 'center',
 			} );
 		}

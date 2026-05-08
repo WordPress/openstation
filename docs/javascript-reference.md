@@ -630,6 +630,88 @@ For programmatic deep-linking into the **Code editor** specifically (open + jump
 
 ---
 
+### `wp.desktop.fetch( input, init?, opts? )` — Experimental *(since 0.8.0)*
+
+Drop-in wrapper around the global `fetch()` that lights up the target window's title-bar **modem activity dot** while the request is in flight. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+
+```js
+// In any window's render callback / event handler:
+const res = await wp.desktop.fetch( '/wp-json/myplugin/v1/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+    body: JSON.stringify( payload ),
+} );
+```
+
+That's the whole pattern. The dot blinks for the duration of the round-trip, flashes green on `2xx` and red on failure (with the `Error.message` exposed as the dot's tooltip), then settles back to the always-on idle ring. **No CSS, no per-window plumbing, no DOM.**
+
+#### Arguments
+
+| Arg | Type | Description |
+|---|---|---|
+| `input` | `RequestInfo \| URL` | Same as native `fetch`. |
+| `init` | `RequestInit?` | Same as native `fetch`. |
+| `opts` | `{ windowId?: string; window?: Window; silent?: boolean }?` | Attribution + opt-out. |
+
+`opts` is the only addition. Resolution order for "which window's title bar pulses":
+
+1. **`opts.window`** — explicit `Window` reference. Use when you have the handle in scope (e.g. inside a render callback that received `ctx.window`).
+2. **`opts.windowId`** — id looked up via `wp.desktop.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `desktop_mode_register_window( '…' )`).
+3. **focused window** — `manager.getFocused()`. Default. So inside a click handler, the click already focused the window and the fetch attributes to it without any extra wiring.
+
+`opts.silent: true` skips the indicator entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't blink the title bar every tick. The fetch is otherwise identical.
+
+#### Why it works
+
+Internally, `wp.desktop.fetch` calls `Window.trackActivity( promise )` on the resolved target. The window enforces a **minimum saving-display time of 1.8s** so even a 50ms fetch shows a full modem-blink cycle before flashing green — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settles on the **last** one (and inherits the **last error** if any failed), matching the user's "is anything still happening?" mental model.
+
+#### Migration tip
+
+You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't show a title-bar pulse. Adopt `wp.desktop.fetch` per call where the indicator is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
+
+#### Source
+
+`src/desktop.ts` `trackedFetch`. The component the dot is rendered with is [`<wpd-save-status>`](#wpd-save-status--experimental-since-080) — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
+
+See also [`examples/window-activity.md`](./examples/window-activity.md) for end-to-end recipes.
+
+---
+
+### `Window.trackActivity( promise )` — Experimental *(since 0.8.0)*
+
+The lower-level primitive `wp.desktop.fetch()` is built on. Call it directly when you have a Promise from a non-fetch source — a `postMessage` handshake, an IndexedDB transaction, a `BroadcastChannel` round-trip, a long client-side computation wrapped in `requestAnimationFrame` chains.
+
+```js
+const win = wp.desktop.windowManager.getById( 'my-plugin/inbox' );
+await win.trackActivity( indexedDbWrite( record ) );
+```
+
+Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.8s saving-display floor** still applies — so even a 100ms IDB write shows a full modem cycle.
+
+### `Window.markActivity( phase, opts? )` — Experimental *(since 0.8.0)*
+
+Manual escape hatch when the activity isn't a single Promise. Phases:
+
+- `'idle'`    — clear. Indicator resets to the always-on green ring.
+- `'pending'` / `'saving'` — modem-blink with a soft glow. Stays in this phase until you transition out.
+- `'saved'`   — brief green flash. Auto-clears to `idle` after ~2.2s.
+- `'failed'`  — red dot. `opts.error` becomes the host's `title` attribute (and so the native browser tooltip on hover). Auto-clears after ~6s.
+
+```js
+win.markActivity( 'saving' );
+streamingSubscriber.on( 'data', () => {
+    /* … */
+} );
+streamingSubscriber.on( 'end', () => win.markActivity( 'saved' ) );
+streamingSubscriber.on( 'error', ( err ) => {
+    win.markActivity( 'failed', { error: err.message } );
+} );
+```
+
+Idempotent. Setting the same phase twice is a no-op except for resetting the auto-clear timer.
+
+---
+
 ### `wp.desktop.getWindowConfig( id )` — Stable *(since 0.6.0)*
 
 Read the bundle-bound config blob shipped via the `'config'` arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.
@@ -819,6 +901,10 @@ Every applied change publishes on:
 - `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }`.
 
 The rail does NOT auto-suppress badges based on window state — that's a per-app UX policy. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md) for the canonical "show 0 while my window is active" recipe.
+
+#### `DesktopIconServerEntry.pinned` — Stable *(since 0.8.0)*
+
+Server-declared icons (registered via `desktop_mode_register_icon( $id, [ 'pinned' => true ] )`) ship a boolean `pinned` flag in `config.desktopIcons[ n ].pinned`. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as a stable system surface — built-in shortcuts like the **My WordPress** folder use it. Plugins that decorate icons (drag handles, custom menus) should opt out for tiles where `pinned === true`.
 
 ---
 
@@ -3384,6 +3470,172 @@ wp.desktop.iframe.chrome.setSlot( name, html ); // sandboxed via textContent
 ```
 
 Each is origin-gated to the parent shell's origin and source-gated to the matching window's iframe `contentWindow`.
+
+---
+
+## Progressive Web App (since 0.8.0)
+
+`wp.desktop.notify( opts )` is the public surface for local
+notifications. v1 uses the browser `Notification` API directly with a
+toast fallback when permission is denied; v2 will route the same call
+through the SW for push.
+
+```ts
+wp.desktop.notify( {
+    title: 'Build complete',
+    body: '12 files updated.',
+    icon: '/favicon.png',
+    tag: 'my-plugin/build',          // collapse repeat alerts
+    requireInteraction: false,
+    onClick: ( n ) => { window.focus(); n.close(); },
+} ); // returns a dismiss callback
+```
+
+Routes through the activity-bus filter
+`desktop-mode/notification-requested` (return `cancel: true` to
+suppress) and broadcasts on `desktop-mode/notification-shown` after
+rendering.
+
+### `wp.desktop.pwa.*` — programmatic install + permission control
+
+```ts
+wp.desktop.pwa.promptInstall();
+//   Promise<'accepted' | 'dismissed' | 'unavailable'>
+
+wp.desktop.pwa.requestNotificationPermission();
+//   Promise<'granted' | 'denied' | 'default' | 'unsupported'>
+
+wp.desktop.pwa.getNotificationPermission();
+//   'granted' | 'denied' | 'default' | 'unsupported'
+
+wp.desktop.pwa.getState();
+//   { installHintDismissed: boolean, notificationsEnabled: boolean }
+
+const off = wp.desktop.pwa.subscribe( ( s ) => { /* ... */ } );
+
+wp.desktop.pwa.undismissInstallHint();
+//   Re-surface the floating install pill after the user dismissed it.
+```
+
+See [`docs/pwa.md`](./pwa.md) for the full architecture and
+[`docs/examples/pwa-install.md`](./examples/pwa-install.md) /
+[`docs/examples/notify.md`](./examples/notify.md) for recipes.
+
+---
+
+## `wp.desktop.files` — the Files-on-the-Desktop registry *(Experimental, since 0.9.0)*
+
+Mirror of the PHP file-type registry on the JS side. Plugin authors use it to register custom file types and to resolve serialized shapes into `DesktopFile` instances at render time. The full surface, motivation, and PHP side are documented in [files-on-desktop.md](./files-on-desktop.md).
+
+```ts
+interface DesktopFileShape {
+    type: string;
+    ref: string;
+    title: string;
+    icon: string;
+    previewUrl: string;
+    exists: boolean;
+    [ key: string ]: unknown; // subclass-specific extras
+}
+
+interface DesktopFileTypeDef {
+    type: string;
+    label: string;
+    sort: number;
+    DesktopFile?: new ( shape: DesktopFileShape ) => DesktopFile;
+}
+
+abstract class DesktopFile {
+    readonly shape: DesktopFileShape;
+    abstract type(): string;
+    title(): string;       // defaults to shape.title
+    icon(): string;        // defaults to shape.icon
+    previewUrl(): string;  // defaults to shape.previewUrl
+    ref(): string;
+    exists(): boolean;
+}
+
+interface FilesApi {
+    DesktopFile: typeof DesktopFile;
+    registerType( def: DesktopFileTypeDef ): void;
+    unregisterType( type: string ): void;
+    getType( type: string ): DesktopFileTypeDef | null;
+    getTypes(): DesktopFileTypeDef[];
+    resolve( shape: DesktopFileShape ): DesktopFile;
+    subscribe( cb: () => void ): () => void;
+}
+```
+
+The seven built-in types (`folder`, `post`, `attachment`, `user`, `term`, `comment`, `bookmark`) register themselves on bundle boot. Late registrations win — registering the same slug twice overwrites the entry. When a `DesktopFile` subclass isn't registered for a slug, `resolve()` falls back to a `DefaultDesktopFile` that just exposes the shape verbatim — so a placement for a deactivated plugin still renders something.
+
+### `desktop-mode.files.types` filter
+
+```ts
+applyFilters( 'desktop-mode.files.types', list: DesktopFileTypeDef[] ): DesktopFileTypeDef[];
+```
+
+Plugins reorder, hide, or swap entries here.
+
+### `desktop-mode.files.type-registered` / `type-unregistered` actions
+
+```ts
+doAction( 'desktop-mode.files.type-registered', type: string, def: DesktopFileTypeDef );
+doAction( 'desktop-mode.files.type-unregistered', type: string );
+```
+
+### Openers — file-association layer *(since 0.9.0)*
+
+```ts
+type OpenerHandler =
+    | { kind: 'url'; url: ( file: DesktopFile ) => string | Promise< string >; windowId?: ( file ) => string; title?: ( file ) => string }
+    | { kind: 'window'; windowId: string; config?: ( file: DesktopFile ) => unknown }
+    | { kind: 'js'; open: ( file: DesktopFile ) => void | Promise< void > };
+
+interface FileOpenerDef {
+    id: string;
+    label: string;
+    types: string[];
+    isDefault?: boolean;
+    sort?: number;
+    handler: OpenerHandler;
+}
+```
+
+Methods on `wp.desktop.files`:
+
+```ts
+registerOpener( def: FileOpenerDef ): void;
+unregisterOpener( id: string ): void;
+getOpener( id: string ): FileOpenerDef | null;
+getOpeners(): FileOpenerDef[];
+getOpenersForType( type: string ): FileOpenerDef[];
+resolveOpener( type: string ): FileOpenerDef | null;
+subscribeOpeners( cb: () => void ): () => void;
+getUserAssociations(): Record< string, string >;
+open( file: DesktopFile ): Promise< boolean >;
+```
+
+Resolution chain inside `resolveOpener`: user override (read from `userFileAssociations` in the shell config) → `isDefault` opener → first match → `null`. The result passes through the `desktop-mode.files.resolve-opener` filter.
+
+`open( file )` invokes the resolved opener's handler:
+- `kind: 'url'` → opens a chromeless iframe via `wp.desktop.windowManager.open`.
+- `kind: 'window'` → opens a registered native window via `wp.desktop.openWindow`.
+- `kind: 'js'` → runs the plugin's free-form callback.
+
+Lifecycle actions fired during `open()`:
+
+```ts
+doAction( 'desktop-mode.files.opening', { file: DesktopFile, openerId: string } );
+doAction( 'desktop-mode.files.opened',  { file, openerId, kind: 'url' | 'window' | 'js' } );
+doAction( 'desktop-mode.files.open-failed', { reason: 'no-opener' | 'handler-threw', type, ref, openerId?, error? } );
+```
+
+Filter for the registry list:
+
+```ts
+applyFilters( 'desktop-mode.files.openers', FileOpenerDef[] ): FileOpenerDef[];
+applyFilters( 'desktop-mode.files.resolve-opener', FileOpenerDef | null, type: string ): FileOpenerDef | null;
+```
 
 ---
 

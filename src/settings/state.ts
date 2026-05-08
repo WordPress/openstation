@@ -39,6 +39,7 @@ import type {
 	OsSettingsState,
 } from './types';
 import { isHexColor } from './utils';
+import { trackedFetch } from '../tracked-fetch';
 
 // -----------------------------------------------------------------------
 // Load
@@ -127,6 +128,22 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 				? parsed.libraryHdOnly
 				: DEFAULTS.libraryHdOnly,
 		ai: sanitizeAi( parsed.ai ),
+		nativePostsEnabled:
+			typeof parsed.nativePostsEnabled === 'boolean'
+				? parsed.nativePostsEnabled
+				: DEFAULTS.nativePostsEnabled,
+		nativePostsHiddenColumns: Array.isArray( parsed.nativePostsHiddenColumns )
+			? parsed.nativePostsHiddenColumns
+				.filter( ( v ): v is string => typeof v === 'string' && v !== '' )
+			// Cap to a sane upper bound so a corrupted server
+			// payload can't memory-bloat the cell. 32 is far
+			// more than any plausible column count.
+				.slice( 0, 32 )
+			: DEFAULTS.nativePostsHiddenColumns.slice(),
+		nativePagesEnabled:
+			typeof parsed.nativePagesEnabled === 'boolean'
+				? parsed.nativePagesEnabled
+				: DEFAULTS.nativePagesEnabled,
 	};
 }
 
@@ -137,8 +154,52 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 /** Pending debounce handle for the REST sync. */
 let _syncTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Debounce window in ms before a change is flushed to user meta. */
-const SYNC_DEBOUNCE_MS = 1500;
+/**
+ * Debounce window in ms before a change is flushed to user meta.
+ *
+ * Short on purpose: click toggles (the most common pattern) feel
+ * instant, while still merging high-frequency input events (slider
+ * drags, API-key keystrokes) into a single network request. The
+ * earlier 1.5s window made every save feel laggy — the user
+ * toggled a setting and stared at an idle title bar for over a
+ * second before the modem dot kicked in.
+ */
+const SYNC_DEBOUNCE_MS = 250;
+
+/**
+ * Last state the server confirmed it accepted. Used to roll back
+ * the local cache + the in-memory `OsSettings.state` when a save
+ * fails (offline, REST 4xx/5xx, nonce expired). On boot, callers
+ * should prime this via {@link setLastConfirmedState} with the
+ * loaded state — the boot snapshot came from user meta and is by
+ * definition confirmed.
+ */
+let _lastConfirmedState: OsSettingsState | null = null;
+
+/**
+ * Prime the rollback baseline. Called once after `loadState()` so
+ * the FIRST failed save still has somewhere to roll back to.
+ *
+ * @since 0.8.0
+ */
+export function setLastConfirmedState( state: OsSettingsState ): void {
+	_lastConfirmedState = _cloneState( state );
+}
+
+/**
+ * Defensive deep-clone so the baseline doesn't share references
+ * with the live state and accidentally mutate when the live state
+ * is edited next.
+ */
+function _cloneState( state: OsSettingsState ): OsSettingsState {
+	return {
+		...state,
+		customGradient: { ...state.customGradient },
+		customImage: state.customImage ? { ...state.customImage } : null,
+		ai: { ...state.ai, apiKeys: { ...state.ai.apiKeys } },
+		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
+	};
+}
 
 /**
  * Persist state to localStorage and schedule a debounced sync to user
@@ -148,9 +209,12 @@ const SYNC_DEBOUNCE_MS = 1500;
  * The REST call is debounced so rapid changes (dragging sliders, typing
  * an API key) collapse into one network request.
  */
-export function saveState( state: OsSettingsState ): void {
+export function saveState(
+	state: OsSettingsState,
+	opts: { windowId?: string } = {},
+): void {
 	_writeLocalStorage( state );
-	_scheduleSyncToServer( state );
+	_scheduleSyncToServer( state, opts.windowId );
 }
 
 function _writeLocalStorage( state: OsSettingsState ): void {
@@ -161,37 +225,161 @@ function _writeLocalStorage( state: OsSettingsState ): void {
 	}
 }
 
-function _scheduleSyncToServer( state: OsSettingsState ): void {
+function _scheduleSyncToServer(
+	state: OsSettingsState,
+	windowId?: string,
+): void {
 	if ( _syncTimer !== null ) {
 		clearTimeout( _syncTimer );
 	}
+	// Latest call wins for activity attribution. The user's most
+	// recent toggle drives which window's title-bar activity dot
+	// blinks during the in-flight POST.
+	if ( windowId ) {
+		_pendingActivityWindowId = windowId;
+	}
+	_emitSaveLifecycle( 'pending' );
 	_syncTimer = setTimeout( () => {
 		_syncTimer = null;
-		_postToServer( state );
+		const id = _pendingActivityWindowId;
+		_pendingActivityWindowId = null;
+		_postToServer( state, id );
 	}, SYNC_DEBOUNCE_MS );
 }
 
-function _postToServer( state: OsSettingsState ): void {
+let _pendingActivityWindowId: string | null = null;
+
+function _postToServer( state: OsSettingsState, windowId?: string | null ): void {
 	const config = ( window as unknown as {
 		desktopModeConfig?: DesktopConfig;
 	} ).desktopModeConfig;
 	const url = config?.osSettingsUrl;
 	const nonce = config?.restNonce;
 	if ( ! url || ! nonce ) {
+		// No REST endpoint configured — the save lives in localStorage
+		// only. Treat as success so optimistic indicators don't hang
+		// in "saving" forever; we'll re-sync on the next successful
+		// save attempt.
+		_emitSaveLifecycle( 'saved' );
 		return;
 	}
 
-	fetch( url, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-WP-Nonce': nonce,
+	_emitSaveLifecycle( 'saving' );
+	// Prefer `wp.desktop.fetch` so the originating window's title-bar
+	// activity dot blinks while the save is in flight. The
+	// originating window — passed through from the call site that
+	// triggered the most recent debounce-collapsed save — defaults to
+	// 'desktop-mode-os-settings' when no caller claimed it. That
+	// preserves the original behaviour for saves coming from inside
+	// the OS Settings panel itself, while letting any other window
+	// (Posts column toggles, future native windows that mutate OS
+	// state) attribute their own activity.
+	const attributedWindowId = windowId || 'desktop-mode-os-settings';
+	trackedFetch(
+		url,
+		{
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': nonce,
+			},
+			body: JSON.stringify( { settings: state } ),
 		},
-		body: JSON.stringify( { settings: state } ),
-	} ).catch( () => {
-		/* Network failure — the localStorage copy remains intact.
-		 * The next successful save will re-sync. */
-	} );
+		{ windowId: attributedWindowId },
+	)
+		.then( ( res ) => {
+			if ( ! res.ok ) {
+				throw new Error( `${ res.status } ${ res.statusText }` );
+			}
+			// Server accepted — promote this state to the rollback
+			// baseline. Any subsequent save that fails will revert
+			// here, not back to whatever the user typed two minutes
+			// ago.
+			_lastConfirmedState = _cloneState( state );
+			_emitSaveLifecycle( 'saved' );
+		} )
+		.catch( ( err ) => {
+			/* Save failed — REVERT both localStorage and the
+			 * in-memory state to the last server-confirmed snapshot,
+			 * then surface the failure so the OS Settings panel can
+			 * repaint with the rolled-back values.
+			 *
+			 * The emitted snapshot is a FRESH CLONE of
+			 * `_lastConfirmedState`. Without the clone, both
+			 * `this.state` (in OsSettings) and the rollback baseline
+			 * end up pointing at the same object — the user's next
+			 * `ctx.state.X = …` would mutate the baseline, which
+			 * means subsequent rollbacks would "restore" the
+			 * already-mutated state and silently no-op. Rollback
+			 * worked the first time; the second time looked broken.
+			 * Cloning at the emit boundary makes each rollback hand
+			 * out an independent copy.
+			 */
+			if ( _lastConfirmedState ) {
+				_writeLocalStorage( _lastConfirmedState );
+				_emitSaveLifecycle(
+					'failed',
+					err instanceof Error ? err.message : String( err ),
+					_cloneState( _lastConfirmedState ),
+				);
+			} else {
+				_emitSaveLifecycle(
+					'failed',
+					err instanceof Error ? err.message : String( err ),
+				);
+			}
+		} );
+}
+
+/**
+ * Save lifecycle phases:
+ *
+ * - `pending` — a change has been made; the debounced REST sync is
+ *   queued (250 ms window).
+ * - `saving`  — the REST request is in flight.
+ * - `saved`   — the REST request returned OK.
+ * - `failed`  — the REST request errored. Detail carries the message.
+ *
+ * Sections subscribe via the matching CustomEvents to render save
+ * status indicators. The `failed` phase carries the
+ * server-confirmed `rolledBackTo` snapshot — listeners that own
+ * UI keyed off `OsSettingsState` (the OS Settings panel is the
+ * canonical example) replace their state with this snapshot and
+ * re-render so the controls visually revert to the last-confirmed
+ * values, not the optimistic ones the user just attempted.
+ *
+ * @since 0.8.0
+ */
+export type OsSettingsSavePhase = 'pending' | 'saving' | 'saved' | 'failed';
+
+export interface OsSettingsSaveLifecycleDetail {
+	phase: OsSettingsSavePhase;
+	error?: string;
+	/**
+	 * On the `failed` phase, the last server-confirmed snapshot the
+	 * caller should restore to. Absent on success / pending /
+	 * saving phases. May also be absent on `failed` when no save
+	 * has ever succeeded yet (very rare — only on first-load
+	 * failure before a successful baseline exists).
+	 */
+	rolledBackTo?: OsSettingsState;
+}
+
+function _emitSaveLifecycle(
+	phase: OsSettingsSavePhase,
+	error?: string,
+	rolledBackTo?: OsSettingsState | null,
+): void {
+	const detail: OsSettingsSaveLifecycleDetail = { phase };
+	if ( error ) {
+		detail.error = error;
+	}
+	if ( rolledBackTo ) {
+		detail.rolledBackTo = rolledBackTo;
+	}
+	document.dispatchEvent(
+		new CustomEvent( 'desktop-mode-os-settings-save-lifecycle', { detail } ),
+	);
 }
 
 // -----------------------------------------------------------------------

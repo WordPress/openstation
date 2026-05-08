@@ -107,6 +107,29 @@ export const textFieldStyles = css`
 		cursor: not-allowed;
 	}
 
+	/* CSS-only password mask. We render type="password" declarations
+	 * as actual type="text" inputs so Chrome / Edge / Firefox password
+	 * managers never recognise them as credentials (they were ignoring
+	 * autocomplete="new-password" and still offering to save / update
+	 * the password for fields that are really API keys). The dots are
+	 * applied via -webkit-text-security (the original Webkit extension,
+	 * Chromium / Safari support it; Firefox 119+ ships the standard
+	 * text-security). Older Firefox versions fall back to the input's
+	 * letter-spacing trick — wide enough that the user sees the value
+	 * exists but the characters bunch into an unreadable run.
+	 *
+	 * The reveal toggle simply removes this class. */
+	.wpd-text-field__input--masked {
+		-webkit-text-security: disc;
+		text-security: disc;
+	}
+	@supports not ( ( -webkit-text-security: disc ) or ( text-security: disc ) ) {
+		.wpd-text-field__input--masked {
+			font-family: text-security-disc, "password", monospace;
+			letter-spacing: 0.2em;
+		}
+	}
+
 	input:hover {
 		border-color: var( --desktop-mode-muted, #8c8f94 );
 	}

@@ -113,6 +113,22 @@ Declares the native window — its title, icon, initial dimensions, template mar
 
 Drops a clickable tile on the wallpaper at the `position` you specify (lower numbers render top-left). The `window` key must match the id of a registered native window; the alternative is `url` (either a same-origin admin URL that opens as an iframe window, or an off-site URL that opens in a new browser tab). Mutually exclusive.
 
+### Pinning a system icon
+
+Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree **My WordPress** folder.
+
+```php
+desktop_mode_register_icon( 'my-wordpress', array(
+    'title'    => __( 'My WordPress', 'desktop-mode' ),
+    'icon'     => 'dashicons-wordpress',
+    'window'   => 'desktop-mode-my-wordpress',
+    'pinned'   => true,
+    'position' => -1, // sort below pinned siblings if you ever add more
+) );
+```
+
+The flag is intentionally minimal — there is no "lock" persistence layer. Reserve it for shortcuts that are part of the desktop's identity, not user content.
+
 ### The render script
 
 Native windows render in JS because a `render( body )` callback can't cross the PHP→client wire. The script declares its render function on `window.desktopModeNativeWindows[ <id> ]`; the shell invokes it when the window opens and captures the return value as a teardown (interval cleanup, DOM detach, whatever the plugin needs).

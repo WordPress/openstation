@@ -1,13 +1,15 @@
 /**
  * Recycle Bin — REST glue.
  *
- * Thin wrapper around `fetch()` that injects the WP REST nonce, JSON
- * content type, and uniform error handling. Every HTTP call from the
- * window goes through here so credentials/nonce handling stays in one
- * place.
+ * Thin wrapper around the framework `trackedFetch` that injects
+ * the WP REST nonce, JSON content type, and uniform error
+ * handling. Every HTTP call from the window goes through here so
+ * credentials/nonce/loading-state plumbing stays in one place.
  *
  * @since 0.19.0
  */
+
+import { trackedFetch } from '../tracked-fetch';
 
 declare global {
 	interface Window {
@@ -76,16 +78,26 @@ function config(): NonNullable< Window[ 'desktopModeRecycleBinConfig' ] > {
 
 async function request< T >( url: string, init: RequestInit ): Promise< T > {
 	const cfg = config();
-	const response = await fetch( url, {
-		...init,
-		credentials: 'same-origin',
-		headers: {
-			'X-WP-Nonce': cfg.restNonce,
-			Accept: 'application/json',
-			...( init.body ? { 'Content-Type': 'application/json' } : {} ),
-			...( init.headers ?? {} ),
+	// Always route through the framework `wp.desktop.fetch` so the
+	// request feeds the active window's loading spinner + the
+	// activity bus. The recycle-bin bundle is registered as a
+	// dependency of the main `desktop-mode` script handle, which
+	// guarantees the framework helper is on the global before
+	// this code runs — no fallback needed.
+	const response = await trackedFetch(
+		url,
+		{
+			...init,
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': cfg.restNonce,
+				Accept: 'application/json',
+				...( init.body ? { 'Content-Type': 'application/json' } : {} ),
+				...( init.headers ?? {} ),
+			},
 		},
-	} );
+		{ source: 'desktop-mode/recycle-bin' },
+	);
 
 	if ( ! response.ok ) {
 		// Surface WP_Error JSON when present; fall back to the status

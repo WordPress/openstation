@@ -16,6 +16,10 @@ import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
 import { hashTitleToHue } from './ui/util/hash-hue';
 import { attachDockPeek } from './dock-peek';
+import {
+	resolveNativeUrlRemap,
+	tryNativeUrlRemap,
+} from './native-url-remap';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -43,6 +47,25 @@ export interface SystemDockItem {
 	 * has an open window. Drives the active-dot indicator on the tile.
 	 */
 	isOpen?: () => boolean;
+	/**
+	 * Whether this system tile supports multiple open windows. When
+	 * true, the hover-peek surfaces a trailing Ghost Card ("+ open
+	 * another") next to any open instance — matching the menu-tile
+	 * peek's affordance so the dock reads consistently regardless of
+	 * which rail a tile lives on.
+	 *
+	 * @since 0.8.0
+	 */
+	multi?: boolean;
+	/**
+	 * Optional override for the "open another" action when `multi` is
+	 * set. Defaults to {@link onOpen}; native-window tiles whose
+	 * `onOpen` would just focus an already-open singleton supply this
+	 * callback to spawn a fresh instance.
+	 *
+	 * @since 0.8.0
+	 */
+	onOpenNew?: () => void;
 }
 
 /**
@@ -730,11 +753,10 @@ export class Dock {
 		// System items represent native windows (OS Settings, Jorvy,
 		// plugin-registered native windows). When the window is open
 		// the peek shows a thumbnail card matching the live window's
-		// chrome — same as a multi tile, minus the Ghost Card since
-		// system windows are singletons by convention. The instance
-		// lookup is the system-item id directly (system items aren't
-		// URL-derived and the window-manager files them under the id
-		// that `appendSystemItem` was called with).
+		// chrome — same as a menu tile. Ghost Card defaults to off
+		// (most system tiles are singletons by convention) but tiles
+		// that declare `multi: true` opt in, matching the menu-tile
+		// peek's "+ open another" affordance.
 		const teardown = attachDockPeek( {
 			tile,
 			item: {
@@ -747,10 +769,13 @@ export class Dock {
 				const win = this.windowManager.getById( item.id );
 				return win ? [ win ] : [];
 			},
-			enableGhost: false,
+			enableGhost: !! item.multi,
 			windowManager: this.windowManager,
 			getOrientation: () => this.orientation,
-			openNew: () => undefined,
+			openNew: () => {
+				const fn = item.onOpenNew ?? item.onOpen;
+				fn();
+			},
 			suppressTooltip: ( on: boolean ) => {
 				if ( on ) {
 					this.tooltip.classList.remove(
@@ -841,12 +866,16 @@ export class Dock {
 		// Card — there's nothing meaningful about "open another
 		// Settings."
 		//
-		// `baseId` MUST be the URL-derived slug — that's the key the
-		// window-manager stores instances under. Passing the raw
-		// `item.id` (admin-menu slug like `edit.php`) would look up
-		// `edit.php` in a manager that filed the window under
-		// `edit-php`, finding nothing.
-		const baseId = this.deriveWindowId( item.url );
+		// `baseId` MUST be the key the window-manager stores instances
+		// under. For tiles whose URL is currently captured by a
+		// native-window remap (e.g. Posts → `desktop-mode-posts`
+		// under the `nativePostsEnabled` opt-in), that's the native
+		// window id, not the iframe slug. Without the remap-aware
+		// lookup, hovering the Posts tile finds no instances and
+		// the peek card never appears even when the native window
+		// is open.
+		const remappedId = resolveNativeUrlRemap( item.url );
+		const baseId = remappedId ?? this.deriveWindowId( item.url );
 		const teardown = attachDockPeek( {
 			tile,
 			item: {
@@ -869,7 +898,15 @@ export class Dock {
 					this.windowManager.getById( item.id );
 				return single ? [ single ] : [];
 			},
-			enableGhost: !! item.multi,
+			// Ghost Card on EVERY tile, regardless of `multi`. The
+			// affordance reads consistently across the dock — every
+			// hover-peek surfaces a "+ open another <Page>" card. For
+			// multi-capable items, clicking it spawns a fresh
+			// instance. For singletons it falls through to the same
+			// open-or-focus path the tile click takes — usually a
+			// no-op (focuses the existing window) but cheap and
+			// visually consistent.
+			enableGhost: true,
 			windowManager: this.windowManager,
 			getOrientation: () => this.orientation,
 			openNew: () => this.openNewInstance( item ),
@@ -1180,8 +1217,20 @@ export class Dock {
 
 	/**
 	 * Open an admin page in a window (or focus if already open).
+	 *
+	 * Consults the native URL-remap registry first — when an opt-in
+	 * native window has registered itself as the replacement for this
+	 * admin URL (e.g. the native Posts window for `edit.php` when the
+	 * user has flipped `nativePostsEnabled`), the click is rerouted
+	 * to that window and the iframe path is skipped. The dock item
+	 * itself is untouched: same icon, same tooltip, same position —
+	 * only the destination changes.
 	 */
 	private openPage( item: DockItem ): void {
+		if ( tryNativeUrlRemap( item.url ) ) {
+			return;
+		}
+
 		const baseId = this.deriveWindowId( item.url );
 
 		this.windowManager.open( {
@@ -1200,6 +1249,17 @@ export class Dock {
 	 * already open. Invoked by the "+" chip on the dock icon.
 	 */
 	private openNewInstance( item: DockItem ): void {
+		// Honor URL → native-window remaps before spawning a fresh
+		// iframe. Without this, clicking "+ Open new Posts" while
+		// the native Posts opt-in is active would BYPASS the
+		// remap, leaving the user with a phantom edit.php iframe
+		// next to their native Posts window — exactly the kind of
+		// duplicate the remap exists to prevent. For URLs that have
+		// no remap, `tryNativeUrlRemap` returns false and we fall
+		// through to the regular fresh-iframe path.
+		if ( tryNativeUrlRemap( item.url ) ) {
+			return;
+		}
 		const baseId = this.deriveWindowId( item.url );
 
 		this.windowManager.openNew( {
@@ -1325,7 +1385,16 @@ export class Dock {
 				continue;
 			}
 
-			const baseId = this.deriveWindowId( item.url );
+			// When a URL → native-window remap is currently active for
+			// this tile (e.g. the Posts dock tile under the
+			// `nativePostsEnabled` opt-in), the dock should track the
+			// native window's id, NOT the iframe slug derived from the
+			// URL. Otherwise the user opens "Posts" via the dock, the
+			// remap routes to `desktop-mode-posts`, and the dock keeps
+			// looking up `wp-window-edit-php` — finds nothing — and
+			// the tile never lights up.
+			const remappedId = resolveNativeUrlRemap( item.url );
+			const baseId = remappedId ?? this.deriveWindowId( item.url );
 			const instances = item.multi
 				? this.windowManager
 					.getAllByBaseId( baseId )

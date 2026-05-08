@@ -146,6 +146,37 @@ describe( '<wpd-table>', () => {
 		expect( rows.length ).toBe( 2 );
 	} );
 
+	test( 'filterRender columns are not filtered client-side (consumer owns filtering)', async () => {
+		host.innerHTML = `<wpd-table></wpd-table>`;
+		await tick();
+		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
+		table.columns = [
+			{ key: 'name', label: 'Name' },
+			{
+				key: 'role',
+				label: 'Role',
+				filterRender: ( cell ) => {
+					if ( ! cell.querySelector( 'input' ) ) {
+						cell.appendChild( document.createElement( 'input' ) );
+					}
+				},
+			},
+		];
+		table.data = sampleData;
+		await tick();
+
+		// A filter value that wouldn't match any single role string —
+		// this is what a multi-select serializes when ≥2 options are
+		// picked. Without the skip, every row would be filtered out.
+		table.filters = { role: 'admin,user' };
+		await tick();
+
+		const rows = table.shadowRoot!.querySelectorAll(
+			'tbody tr:not(.subtable):not(.empty)',
+		);
+		expect( rows.length ).toBe( sampleData.length );
+	} );
+
 	test( 'sticky-columns adds is-sticky to header + body cells in the band', async () => {
 		host.innerHTML = `<wpd-table sticky-columns="2"></wpd-table>`;
 		await tick();

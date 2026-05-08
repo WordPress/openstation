@@ -19,6 +19,8 @@
  */
 
 import { HOOKS, doAction, applyFilters } from './hooks';
+import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { trackedFetch } from './tracked-fetch';
 import {
 	filterCommands,
 	findCommand,
@@ -228,12 +230,20 @@ interface ContinueHint {
 // Minimal shape of the window manager we use — avoids pulling full types.
 interface WindowManagerLite {
 	open( cfg: {
-		id?: string;
+		id: string;
 		url: string;
 		title: string;
 		icon?: string;
 		native?: boolean;
 	} ): unknown;
+}
+
+// Subset of `wp.desktop.*` we read at runtime. Both `windowManager` and
+// `deriveWindowId` ship together (initialised by the shell bundle's
+// `setupDesktopMode()`), so when one is present the other is too.
+interface DesktopShellLite {
+	windowManager?: WindowManagerLite;
+	deriveWindowId?: ( url: string, adminUrl?: string ) => string;
 }
 
 // ---------------------------------------------------------------------------
@@ -733,15 +743,16 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	/**
-	 * Default `ctx.confirm()` — uses the browser's native confirm
-	 * dialog. Combined message + details into one string because
-	 * window.confirm() only takes one. The shell can swap a custom
-	 * dialog in later (the Promise<boolean> contract is stable).
+	 * Default `ctx.confirm()` — uses the framework `<wpd-confirm-dialog>`
+	 * so the prompt matches the rest of the desktop visually. Plugins
+	 * can swap in their own implementation; the Promise<boolean>
+	 * contract is stable.
 	 */
 	private _confirm( message: string, details?: string ): Promise< boolean > {
-		const text = details ? `${ message }\n\n${ details }` : message;
-		// eslint-disable-next-line no-alert -- default impl uses the native dialog; the shell can swap in a custom one via the stable Promise<boolean> contract.
-		return Promise.resolve( window.confirm( text ) );
+		return wpdConfirm( {
+			title: details ? message : undefined,
+			message: details ?? message,
+		} );
 	}
 
 	/**
@@ -906,14 +917,18 @@ export class AiAssistant implements AiAssistantApi {
 				body.start_offset = startOffset;
 			}
 
-			const res = await fetch( this._aiSearchUrl, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': this._restNonce,
+			const res = await trackedFetch(
+				this._aiSearchUrl,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': this._restNonce,
+					},
+					body: JSON.stringify( body ),
 				},
-				body: JSON.stringify( body ),
-			} );
+				{ source: 'desktop-mode/ai-search' },
+			);
 
 			if ( ! res.ok ) {
 				const err = await res.json().catch( () => ( {} ) );
@@ -944,22 +959,36 @@ export class AiAssistant implements AiAssistantApi {
 	// new browser tab, so the admin experience stays inside the desktop.
 	// ------------------------------------------------------------------
 
-	private _getWindowManager(): WindowManagerLite | null {
-		const wm = ( window as unknown as {
-			wp?: { desktop?: { windowManager?: WindowManagerLite } };
-		} ).wp?.desktop?.windowManager;
-		return wm ?? null;
+	private _getDesktopShell(): DesktopShellLite | null {
+		const shell = ( window as unknown as {
+			wp?: { desktop?: DesktopShellLite };
+		} ).wp?.desktop;
+		return shell ?? null;
 	}
 
 	private _openInLegacyWindow( url: string, title: string, icon?: string ): void {
-		const wm = this._getWindowManager();
-		if ( ! wm ) {
+		const shell = this._getDesktopShell();
+		if ( ! shell || ! shell.windowManager ) {
 			// Graceful fallback — if the shell isn't initialised yet,
 			// just open in a new tab rather than silently doing nothing.
 			window.open( url, '_blank', 'noopener' );
 			return;
 		}
-		wm.open( { url, title, icon: icon ?? 'dashicons-admin-generic' } );
+		// `windowManager.open()` requires a non-empty `id`. Use the
+		// shell's own URL→id helper so the window we open coalesces
+		// with any existing window pointing at the same admin page
+		// (matches what clicking the dock would do). Fall back to a
+		// URL-derived synthetic id when the helper isn't exposed —
+		// older shells, or contrived test environments.
+		const id = shell.deriveWindowId
+			? shell.deriveWindowId( url )
+			: 'desktop-mode-ai-' + url.replace( /[^a-z0-9]+/gi, '-' ).slice( 0, 80 );
+		shell.windowManager.open( {
+			id,
+			url,
+			title,
+			icon: icon ?? 'dashicons-admin-generic',
+		} );
 		this.close();
 	}
 

@@ -96,6 +96,29 @@ function desktop_mode_register_assets() {
 		file_exists( $recycle_bin_css ) ? (string) filemtime( $recycle_bin_css ) : $version
 	);
 
+	// `filemtime` for the native Posts window CSS — same rationale as
+	// the recycle-bin CSS: bundle iterates faster than the plugin
+	// version and stale caches are worse than the cost of a 304.
+	$posts_window_css = DESKTOP_MODE_DIR . 'assets/css/posts-window.css';
+	wp_register_style(
+		'desktop-mode-posts-window',
+		DESKTOP_MODE_URL . 'assets/css/posts-window.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $posts_window_css ) ? (string) filemtime( $posts_window_css ) : $version
+	);
+
+	// Files-on-the-Desktop tile + layer styles. `filemtime` for the
+	// same reason as the recycle-bin / posts-window CSS: this file
+	// iterates faster than the plugin version, and a stale cache
+	// would mask a real fix.
+	$desktop_files_css = DESKTOP_MODE_DIR . 'assets/css/desktop-files.css';
+	wp_register_style(
+		'desktop-mode-files',
+		DESKTOP_MODE_URL . 'assets/css/desktop-files.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $desktop_files_css ) ? (string) filemtime( $desktop_files_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action
@@ -152,6 +175,25 @@ function desktop_mode_register_assets() {
 	);
 	wp_set_script_translations(
 		'desktop-mode-recycle-bin',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-posts-window` — small bundle for the native Posts
+	// window. Lazy-loaded by the native-window sync the first time the
+	// window opens (via the dock-click swap when the user opts in);
+	// registers a render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-posts']`.
+	$posts_window_js = DESKTOP_MODE_DIR . 'assets/js/posts-window' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-posts-window',
+		DESKTOP_MODE_URL . 'assets/js/posts-window' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $posts_window_js ) ? (string) filemtime( $posts_window_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-posts-window',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);

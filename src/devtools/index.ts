@@ -465,6 +465,7 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 		u.searchParams.append( 'channels[]', ch );
 	}
 	const url = u.toString();
+	// eslint-disable-next-line no-restricted-syntax -- background poller; opted out of the loading spinner so devtools polling doesn't visually look like user-initiated activity.
 	fetch( url, {
 		credentials: 'same-origin',
 		headers: { 'X-WP-Nonce': restNonce },

@@ -14,74 +14,52 @@ import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import {
 	installWindowLoadingTransitions,
-	repaintLoadingOverlays,
 } from './window/loading';
 import { Dock, type DockItem, type SystemDockItem } from './dock';
-import { renderIcon } from './icon';
 import {
-	applyTileClasses,
-	applyTileElement,
-	applyTileTooltip,
-	dispatchTileRendered,
-	isDockElement,
-	registerDockSelector,
-} from './dock-helpers';
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+} from './native-url-remap';
+import { bindAdminLinkDispatch } from './window/iframe-bridge';
+// Tile-decoration helpers and the dock-selector registry live in
+// `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
+// in this bundle since 0.8.1.
 import { OsSettings } from './settings';
+import { getExitDesktopModeTileDef } from './exit-desktop-mode';
 import { deriveWindowId, urlMatchKey } from './utils';
 import {
 	HOOKS,
 	addAction,
 	doAction,
-	rawHooks,
-	whenReady,
-	isReady,
 	type WpHooks,
 } from './hooks';
-import * as registry from './wallpapers/registry';
 import { WallpaperLayer } from './wallpapers/layer';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createCommandRegistrySync } from './commands/server-sync';
 import { createSettingsTabRegistrySync } from './settings/server-sync';
 import {
-	registerSettingsTab,
-	unregisterSettingsTab,
-	listSettingsTabs,
 	type DesktopSettingsTab,
+	type OsSettingsSnapshot,
 } from './settings/registry';
 import {
-	registerTitleBarButton,
-	unregisterTitleBarButton,
-	listTitleBarButtons,
 	type TitleBarButtonDef,
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
 import {
-	registerWindowTheme,
-	unregisterWindowTheme,
-	listWindowThemes,
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
 import { createWindowThemeRegistrySync } from './window-chrome/themes/server-sync';
 import {
-	registerWindowControl,
-	unregisterWindowControl,
-	listWindowControls,
 	type WindowControlDef,
 } from './window-chrome/controls/registry';
 import { registerBuiltInControls } from './window-chrome/controls/built-ins';
 import { createWindowControlRegistrySync } from './window-chrome/controls/server-sync';
 import {
-	registerWindowSlot,
-	unregisterWindowSlot,
-	listWindowSlots,
 	type WindowSlotDef,
 } from './window-chrome/slots/registry';
 import { createWindowSlotRegistrySync } from './window-chrome/slots/server-sync';
 import {
-	registerWindowChrome,
-	unregisterWindowChrome,
-	listWindowChromes,
 	type WindowChromeDef,
 } from './window-chrome/chrome/registry';
 import { createWindowChromeRegistrySync } from './window-chrome/chrome/server-sync';
@@ -91,17 +69,14 @@ import {
 	type ConnectOptions,
 } from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
-import { loadVendorScript, type ScriptExtras } from './wallpapers/vendor-loader';
+import { type ScriptExtras } from './wallpapers/vendor-loader';
 import {
-	collectWallpaperSurfaces,
 	type WallpaperSurface,
 } from './wallpapers/surfaces';
 import { WidgetLayer } from './widgets/layer';
 import {
-	cloneTemplate,
 	createNativeWindowSync,
 	createRegisterWindow,
-	onWindow,
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
@@ -109,14 +84,12 @@ import {
 	createLayoutDispatcher,
 	type LayoutDispatcher,
 } from './desktop-layout';
-import { createApplyPayload } from './menu-refresh-apply';
+// `createApplyPayload` is consumed inside `boot/menu-refresh.ts` since 0.8.1.
 import { AiAssistant, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import {
 	attachBroadcastBus,
-	broadcast,
 	installBroadcastReceiver,
-	subscribe,
 } from './broadcast';
 import { startRecycleBinBadge, _currentRecycleBinBadge } from './recycle-bin/badge';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
@@ -125,64 +98,81 @@ import {
 	renderBugReport,
 } from './bug-report';
 import { showToast, type ToastOptions } from './toast';
-import { renderKeyedList, clearKeyedList, type KeyedListOptions } from './ui/util/keyed-list';
+import {
+	bootstrapPwa,
+	type NotifyOptions,
+} from './pwa';
+import {
+	getInstallTileDef,
+	isStandaloneDisplay,
+	isLikelyInstalled,
+} from './pwa/install';
+import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
-	registerCommand,
-	unregisterCommand,
-	listCommands,
 	type DesktopCommand,
 } from './commands';
 import { registerBuiltInCommands } from './built-in-commands';
 import {
 	registerPalette,
-	unregisterPalette,
-	listPalettes,
 	openPaletteOnly,
 	installPaletteShortcut,
 	type Palette,
 } from './palette-registry';
-import { devtools } from './devtools';
-import { createSharedStore, type SharedStore } from './shared-store';
+import { type SharedStore } from './shared-store';
 import {
 	bootPresenceProbe,
-	presenceApi,
 	type PresenceApi,
 } from './presence';
-import { activity, type ActivityApi } from './activity';
-import { bootHeartbeatBus, heartbeat, type HeartbeatBus } from './heartbeat';
+import { type ActivityApi } from './activity';
+import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
+import { bindMenuRefresh } from './boot/menu-refresh';
+import { openCurrentPage, restoreSession } from './boot/session';
+import { createSessionSaver } from './boot/session-saver';
+import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
+import { trackedFetch } from './boot/tracked-fetch';
+import { buildPublicApi, installPublicApi } from './api/facade';
+import { setCurrentLayout } from './layout';
 
-/**
- * Origin snapshot taken at shell module load. Every same-origin gate
- * in this file (message listeners, link interception) compares against
- * this value so a plugin script that mutates `window.location` mid-
- * session can't relax the cross-origin guards.
- *
- * @since 0.11.0
- */
-const INITIAL_ORIGIN = window.location.origin;
+// `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
+// boot-time consumer reaches the same captured value — see the import
+// further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
 import {
 	installDefaultDockRailRenderer,
-	listDockRailRenderers,
-	registerDockRailRenderer,
-	unregisterDockRailRenderer,
 	type DockRailRenderer,
 } from './dock-rail';
-import * as widgetRegistry from './widgets/registry';
 import { createWidgetRegistrySync } from './widgets/server-sync';
 import { WPD_COMPONENT_TAGS } from './ui/components';
 import {
 	registerModule,
-	loadModules,
 	type ModuleDef,
 } from './modules/registry';
+import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import type { WallpaperDef } from './wallpapers/types';
 import './plugins';
+import {
+	filesApi,
+	filesRest,
+	installOpenDeps as installFilesOpenDeps,
+	setUserAssociations as setFilesUserAssociations,
+	type FilesApi,
+} from './desktop-files';
+import { mountFilesLayer } from './desktop-files/layer';
+import { startFilesHeartbeat } from './desktop-files/heartbeat';
+import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
+import {
+	buildMenuItems as buildWallpaperMenuItems,
+	closeWallpaperMenu,
+	isWallpaperMenuOpen,
+	openWallpaperMenu,
+	type ServerWallpaperMenuItem,
+} from './desktop-files/wallpaper-menu';
+import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import type {
 	DesktopConfig,
 	NativeWindowDef,
-	SessionWindow,
 } from './types';
 import type { Window as DesktopWindow } from './window';
 
@@ -325,6 +315,37 @@ export interface WpDesktopPublicApi {
 	 * @since 0.24.0
 	 */
 	icons: IconsApi;
+	/**
+	 * Files-on-the-desktop registry. Plugin authors register custom
+	 * file types via `wp.desktop.files.registerType`, resolve a
+	 * serialized shape into a `DesktopFile` instance via
+	 * `wp.desktop.files.resolve`, and read the full type list via
+	 * `wp.desktop.files.getTypes`. Higher phases extend this surface
+	 * with the opener registry (`open`, `registerOpener`), the
+	 * placement REST client, and the `FilesLayer` mount helpers.
+	 *
+	 * @since 0.9.0
+	 */
+	files: FilesApi;
+	/**
+	 * Promise-returning Yes/No prompt. Drop-in replacement for
+	 * `window.confirm()` that uses the framework's
+	 * `<wpd-confirm-dialog>` so the prompt matches the rest of
+	 * the desktop visually.
+	 *
+	 * ```ts
+	 * if ( await wp.desktop.confirm( {
+	 *     title: 'Delete?',
+	 *     message: 'Cannot undo.',
+	 *     danger: true,
+	 * } ) ) {
+	 *     // …
+	 * }
+	 * ```
+	 *
+	 * @since 0.9.0
+	 */
+	confirm: ( options: import( './ui/components/wpd-confirm-dialog/wpd-confirm-dialog' ).WpdConfirmOptions ) => Promise< boolean >;
 	saveSession: () => void;
 	/** Raw `@wordpress/hooks` bridge. Alias of `window.wp.hooks`. */
 	hooks: WpHooks;
@@ -399,6 +420,39 @@ export interface WpDesktopPublicApi {
 	 * @since 0.18.0
 	 */
 	openWindow: ( id: string, opts?: { source?: string } ) => boolean;
+	/**
+	 * Wrapper around native `fetch()` that attributes the request to
+	 * a desktop window's activity indicator. While the fetch is in
+	 * flight the window's title-bar dot blinks like a modem activity
+	 * LED; on success it flashes "saved", on failure "couldn't save"
+	 * (with the error as a tooltip).
+	 *
+	 * Identical signature to `fetch()` plus one extra options object:
+	 *
+	 *   - `windowId?: string` — explicit attribution. Wins over
+	 *     `window` when both are passed.
+	 *   - `window?: Window`   — direct reference to a `Window`
+	 *     instance. Use when you have the handle in scope.
+	 *   - `silent?: boolean`  — track but do NOT pulse the indicator.
+	 *     Reserved for background polls (heartbeat, presence) that
+	 *     shouldn't blink the title bar every tick.
+	 *
+	 * Default attribution: the focused window at call time. So
+	 * `wp.desktop.fetch( '/wp-json/myapi/v1/save', { method: 'POST' } )`
+	 * inside a click handler "just works" — the click focused the
+	 * window, the fetch attributes to it, the title bar pulses.
+	 *
+	 * Returns the same Response Promise as native `fetch()`. Errors
+	 * propagate unchanged (the indicator just adds a "failed" pulse
+	 * before the rejection bubbles up).
+	 *
+	 * @since 0.8.0
+	 */
+	fetch: (
+		input: RequestInfo | URL,
+		requestInit?: RequestInit,
+		opts?: { windowId?: string; window?: DesktopWindow; silent?: boolean },
+	) => Promise< Response >;
 	/**
 	 * Clone a `<template>` element's contents into a fresh
 	 * `DocumentFragment`. Convenience wrapper — accepts either the
@@ -610,6 +664,43 @@ export interface WpDesktopPublicApi {
 	 * @since 0.18.0
 	 */
 	openOsSettings: () => void;
+	/**
+	 * Read the current OS Settings snapshot. Mirrors the same shape
+	 * any settings tab sees via its `ctx.getOsSettings()`. Use this
+	 * from a feature plugin (or a feature window) when you need to
+	 * key behaviour off a per-user preference (e.g. the native Posts
+	 * window reads `nativePostsHiddenColumns` from here to filter the
+	 * `<wpd-table>` columns).
+	 *
+	 * @since 0.8.0
+	 */
+	getOsSettings: () => OsSettingsSnapshot;
+	/**
+	 * Subscribe to OS Settings changes. The callback fires every time
+	 * the user toggles a setting (or a third-party tab calls
+	 * `updateOsSettings`). Returns an unsubscribe function. Mirrors
+	 * the existing settings-tab `ctx.subscribeOsSettings` API.
+	 *
+	 * @since 0.8.0
+	 */
+	subscribeOsSettings: (
+		cb: ( snapshot: OsSettingsSnapshot ) => void,
+	) => () => void;
+	/**
+	 * Patch the OS Settings state and persist (debounced REST sync +
+	 * localStorage write + subscriber notification). Only the keys
+	 * present on the public `OsSettingsSnapshot` are honored; unknown
+	 * keys are ignored. Save lifecycle events (`'saving'` /
+	 * `'success'` / `'failed'`) fire on `document` as
+	 * `desktop-mode-os-settings-save-lifecycle`, same as a built-in
+	 * tab's save.
+	 *
+	 * @since 0.8.0
+	 */
+	updateOsSettings: (
+		patch: Partial< OsSettingsSnapshot >,
+		opts?: { windowId?: string },
+	) => void;
 	/**
 	 * Derive a stable window id from an admin URL — the same id the
 	 * default rail renderer uses when it opens a tile. Matches the
@@ -1171,6 +1262,54 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.6.0
 	 */
+	/**
+	 * Show a system notification (or fall back to a toast when
+	 * permission is denied / unsupported). Returns a dismiss
+	 * callback. Routes through `desktop-mode/notification-requested`
+	 * (filterable) and broadcasts on
+	 * `desktop-mode/notification-shown` after rendering. v1 is
+	 * page-scoped local notifications only — phase 4 will extend
+	 * this to Web Push without breaking the call surface.
+	 *
+	 * @since 0.8.0
+	 */
+	notify: ( opts: NotifyOptions ) => () => void;
+	/**
+	 * Programmatic + observational PWA surface. Mirrors the install
+	 * pill the framework renders automatically — plugin authors can
+	 * surface their own "Install as app" button in a settings tab,
+	 * read whether the app is already installed, or watch for the
+	 * dismissal flag flipping.
+	 *
+	 * @since 0.8.0
+	 */
+	pwa: {
+		/**
+		 * Trigger the install prompt. Resolves to the user's
+		 * choice, or `'unavailable'` when the browser hasn't fired
+		 * `beforeinstallprompt` yet (Safari, already installed,
+		 * non-PWA-capable browser).
+		 */
+		promptInstall: () => Promise< 'accepted' | 'dismissed' | 'unavailable' >;
+		/** Reset the install-hint dismissal flag so the pill re-appears. */
+		undismissInstallHint: () => void;
+		/** Snapshot of the per-user PWA state. */
+		getState: () => import( './types' ).PwaUserState;
+		/** Subscribe to state changes. Returns unsubscribe. */
+		subscribe: (
+			cb: ( s: import( './types' ).PwaUserState ) => void,
+		) => () => void;
+		/** Eager permission prompt for notifications. */
+		requestNotificationPermission: () => Promise<
+			'granted' | 'denied' | 'default' | 'unsupported'
+		>;
+		/** Synchronous read of the current permission. */
+		getNotificationPermission: () =>
+			| 'granted'
+			| 'denied'
+			| 'default'
+			| 'unsupported';
+	};
 	debug: {
 		/**
 		 * Snapshot what the shell knows about a registered native
@@ -1248,52 +1387,13 @@ declare global {
 }
 
 /** Debounce window for session writes. 500 ms is short enough to feel immediate and long enough to coalesce drag/resize storms. */
-const SESSION_SAVE_DEBOUNCE_MS = 500;
+// `SESSION_SAVE_DEBOUNCE_MS` lives with the saver in
+// `src/boot/session-saver.ts` since 0.8.1.
 
-/** Minimum margin between the restored window and the desktop edges when clamping. */
-const VIEWPORT_CLAMP_MARGIN = 12;
-
-/**
- * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
- * to overwrite. Source-of-truth for the reserved-names list — kept
- * in sync with the {@link WpDesktopPublicApi} interface above. A
- * runtime check lives in the registerNamespace wiring inside
- * `init()`; this snapshot lets the warning fire even before any
- * built-in slot has been assigned (e.g. if a plugin races init).
- */
-const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
-	'windowManager', 'dock', 'taskbar', 'icons', 'saveSession', 'hooks', 'HOOKS',
-	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer',
-	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
-	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
-	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
-	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
-	'unregisterCommand', 'listCommands', 'registerSettingsTab',
-	'unregisterSettingsTab', 'listSettingsTabs',
-	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
-	'openOsSettings', 'deriveWindowId',
-	'listSystemTiles', 'getSystemTile', 'getMenuItems',
-	'renderIcon',
-	'applyTileClasses', 'applyTileElement', 'applyTileTooltip',
-	'dispatchTileRendered',
-	'isDockElement', 'registerDockSelector',
-	'registerTitleBarButton',
-	'unregisterTitleBarButton', 'listTitleBarButtons',
-	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
-	'applyWindowTheme',
-	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
-	'applyWindowControls',
-	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
-	'applyWindowSlot',
-	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
-	'applyWindowChrome',
-	'connect',
-	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
-	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
-	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
-	'clearKeyedList', 'registerNamespace',
-	'getWindowConfig', 'debug',
-] );
+// `RESERVED_NAMESPACE_KEYS` lives with the facade in
+// `src/api/facade.ts` since 0.8.1 — that's the one place that owns
+// the wp.desktop.* assembly, and the allowlist needs to stay in
+// sync with it.
 
 /**
  * Initialize Desktop Mode.
@@ -1411,10 +1511,7 @@ function init(): void {
 					} );
 				},
 				confirm: ( msg ) =>
-					Promise.resolve(
-						// eslint-disable-next-line no-alert
-						typeof window.confirm === 'function' ? window.confirm( msg ) : true,
-					),
+					wpdConfirm( { message: msg } ),
 			} ),
 		} ),
 	);
@@ -1488,6 +1585,104 @@ function init(): void {
 	} );
 	const syncNativeWindows = nativeWindows.sync;
 
+	// Bind the URL → native-window remap registry now that both the OS
+	// Settings snapshot and the native-window opener exist. Built-in
+	// remaps register themselves below; future native replacements
+	// (Pages, Media, Users) drop in with a single
+	// `registerNativeUrlRemap({ ... })` call here — no Dock or
+	// dispatcher changes needed.
+	bindNativeUrlRemap( {
+		getSnapshot: () => osSettings.getOsSettingsSnapshot(),
+		openById: ( id ) => nativeWindows.openById( id ),
+		adminUrl: config.adminUrl,
+	} );
+
+	// Cross-page admin-link dispatcher (since 0.8.2). The chromeless
+	// bridge `preventDefault`s every admin-internal click and posts
+	// `desktop-mode-iframe-admin-link` to us; this binding tells the
+	// bridge how to compute slugs, find a destination's title/icon
+	// from the dock, and open windows. The lookup falls back to the
+	// boot dockItems snapshot before the layout dispatcher exists,
+	// so clicks that race the dispatcher's first paint still resolve
+	// to a sensible window title.
+	const findDockEntryForUrl = (
+		url: string,
+	): import( './window/iframe-bridge' ).AdminLinkDockEntry | null => {
+		const targetSlug = deriveWindowId( url, config.adminUrl );
+		const items = layoutDispatcher
+			? layoutDispatcher.getMenuItems()
+			: ( config.dockItems ?? [] );
+		for ( const item of items ) {
+			if ( deriveWindowId( item.url, config.adminUrl ) === targetSlug ) {
+				return {
+					title: item.title,
+					icon: item.icon,
+					submenu: item.submenu,
+					multi: item.multi,
+				};
+			}
+			for ( const sub of item.submenu ?? [] ) {
+				if (
+					deriveWindowId( sub.url, config.adminUrl ) === targetSlug
+				) {
+					return {
+						title: sub.title,
+						// Sub-menu entries inherit the parent tile's
+						// icon — that's the dock's own convention and
+						// avoids painting a generic glyph on a window
+						// the user knows by its parent's identity.
+						icon: item.icon,
+						multi: item.multi,
+					};
+				}
+			}
+		}
+		return null;
+	};
+	bindAdminLinkDispatch( {
+		adminUrl: config.adminUrl,
+		deriveSlug: ( url ) => deriveWindowId( url, config.adminUrl ),
+		openWindow: ( windowConfig ) => {
+			manager.open( windowConfig );
+		},
+		findDockEntry: findDockEntryForUrl,
+	} );
+
+	// Native Posts window (replaces `edit.php` when the user opts in
+	// via OS Settings → Features). Matches the bare Posts admin URL
+	// AND `?post_type=post` (some hosts/plugins canonicalise the
+	// query string differently). Pages / CPTs are intentionally NOT
+	// claimed here — they get their own remap when their windows
+	// ship.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-posts',
+		nativeWindowId: 'desktop-mode-posts',
+		matches: ( _url, parsed ) => {
+			if ( ! parsed.pathname.endsWith( '/edit.php' ) ) {
+				return false;
+			}
+			const postType = parsed.searchParams.get( 'post_type' );
+			return ! postType || postType === 'post';
+		},
+		enabled: ( snapshot ) => snapshot.nativePostsEnabled === true,
+	} );
+
+	// Native Pages window — same shape as the Posts remap, scoped to
+	// `?post_type=page` only. Other CPTs continue to fall through to
+	// the chromeless iframe path until they grow their own native
+	// window registration.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-pages',
+		nativeWindowId: 'desktop-mode-pages',
+		matches: ( _url, parsed ) => {
+			if ( ! parsed.pathname.endsWith( '/edit.php' ) ) {
+				return false;
+			}
+			return parsed.searchParams.get( 'post_type' ) === 'page';
+		},
+		enabled: ( snapshot ) => snapshot.nativePagesEnabled === true,
+	} );
+
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'desktop-mode-area--with-dock' );
 		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
@@ -1542,6 +1737,58 @@ function init(): void {
 			},
 			'core',
 		);
+
+		// PWA install tile — sits next to OS Settings on the same
+		// rail (`'core'` affinity) so users see install / settings as
+		// peer shell-owned actions. Skipped entirely when the shell
+		// itself is already running inside the installed PWA window
+		// (`display-mode: standalone`) — there's nothing to install
+		// from there, and a perpetually-no-op icon is just noise.
+		//
+		// **Two-phase guard.** Chrome cold-starts a PWA window with
+		// the document briefly reporting `display-mode: browser`
+		// before flipping to standalone. The boot-time check covers
+		// the common case (display mode already settled); the
+		// matchMedia `'change'` listener catches the cold-start race
+		// and removes the tile retroactively when the flip arrives,
+		// so the icon never lingers in the installed PWA.
+		if ( ! isStandaloneDisplay() ) {
+			layoutDispatcher.appendSystemTile(
+				getInstallTileDef(
+					config.pwa?.appName || 'WordPress',
+					showToast,
+				),
+				'core',
+			);
+		}
+		window
+			.matchMedia( '(display-mode: standalone)' )
+			.addEventListener( 'change', ( e ) => {
+				if ( e.matches ) {
+					layoutDispatcher?.removeSystemTile(
+						'desktop-mode-pwa-install',
+					);
+				}
+			} );
+
+		// Async post-boot: if the PWA is already installed in the
+		// current browser profile (Chrome's `Open in app` indicator
+		// in the address bar), drop the install tile from regular
+		// browser tabs too. The synchronous boot-time check only
+		// covers the standalone display case; this handles the
+		// "regular tab where the user has already installed" case
+		// that otherwise leaves a no-op install icon on the dock
+		// and a confusing "already installed" toast on click.
+		// `getInstalledRelatedApps()` is async and Chromium-only,
+		// so this resolves to a no-op on Safari / Firefox where
+		// the tile stays as a fallback.
+		void isLikelyInstalled().then( ( installed ) => {
+			if ( installed ) {
+				layoutDispatcher?.removeSystemTile(
+					'desktop-mode-pwa-install',
+				);
+			}
+		} );
 	}
 
 	/**
@@ -1629,6 +1876,16 @@ function init(): void {
 			},
 			'core',
 		);
+
+		// Exit Desktop Mode tile — last on the core rail so users have
+		// a discoverable in-shell way out, complementing the admin-bar
+		// "Switch to Classic Admin" toggle. Reuses the existing
+		// save-desktop-mode AJAX endpoint via the
+		// `window.desktopModeAdminBar` global; no new PHP surface.
+		layoutDispatcher.appendSystemTile(
+			getExitDesktopModeTileDef(),
+			'core',
+		);
 	}
 	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
 
@@ -1692,15 +1949,20 @@ function init(): void {
 	// the check state repaints live without an OS Settings reopen.
 	const setDefaultWindow = async ( url: string | null ): Promise<void> => {
 		try {
-			const response = await fetch( config.defaultWindowUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': config.restNonce,
+			const response = await trackedFetch(
+				manager,
+				config.defaultWindowUrl,
+				{
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': config.restNonce,
+					},
+					body: JSON.stringify( { url } ),
 				},
-				body: JSON.stringify( { url } ),
-			} );
+				{ source: 'desktop-mode/default-window' },
+			);
 			if ( ! response.ok ) {
 				throw new Error( `HTTP ${ response.status }` );
 			}
@@ -2090,7 +2352,7 @@ function init(): void {
 	// Wired BEFORE the `window.wp.desktop` assignment so the returned
 	// refresh function is available to expose in the public API in
 	// the same statement.
-	const refreshMenu = bindMenuRefresh(
+	const refreshMenu = bindMenuRefresh( {
 		layoutDispatcher,
 		desktopArea,
 		config,
@@ -2102,7 +2364,7 @@ function init(): void {
 		syncServerTitleBarButtons,
 		syncServerDockRailRenderers,
 		renderIcons,
-	);
+	} );
 
 	// Live desktop-layout sync: when the user picks a new layout
 	// in OS Settings, the dispatcher tears down the current dock(s),
@@ -2124,259 +2386,81 @@ function init(): void {
 		desktopApi.dock = layoutDispatcher.getPrimary();
 		desktopApi.sideDock = layoutDispatcher.getSide();
 		desktopApi.desktopLayout = snapshot.desktopLayout;
+		// Cross-bundle SSOT publish — feature bundles + third-party
+		// plugins that imported `@layout` see the change without
+		// having to thread the OsSettings snapshot through.
+		setCurrentLayout( snapshot.desktopLayout );
 	} );
 
-	// Expose the public API on `window.wp.desktop`. The `hooks` field
-	// aliases `window.wp.hooks` so plugins have one idiomatic entry
-	// point for both the window manager and the filter/action bus.
-	window.wp = window.wp || {};
-	const desktopApi: WpDesktopPublicApi = {
-		windowManager: manager,
+	// Initial publish so any consumer that reads `getCurrentLayout()`
+	// before the first OS Settings change sees the right value.
+	setCurrentLayout( osSettings.getOsSettingsSnapshot().desktopLayout );
+
+	// The wp.desktop.* assembly was extracted to `src/api/facade.ts`
+	// in 0.8.1 — `buildPublicApi(deps)` returns the same WpDesktopPublicApi
+	// shape this block used to declare inline; `installPublicApi(api)`
+	// does the merge-onto-shim that the block used to do at the end.
+	// Behavior is identical; tests touching `wp.desktop.*` keep
+	// passing unchanged.
+	const desktopApi: WpDesktopPublicApi = buildPublicApi( {
+		manager,
 		dock,
-		sideDock: layoutDispatcher?.getSide() ?? null,
-		desktopLayout:
-			osSettings.getOsSettingsSnapshot().desktopLayout,
-		icons: iconsApi,
+		layoutDispatcher,
+		osSettings,
+		iconsApi,
+		filesApi,
 		saveSession,
-		hooks: rawHooks(),
-		HOOKS,
-		isActive: () => !! document.getElementById( 'desktop-mode-shell' ),
-		registerWallpaper: ( def: WallpaperDef ) => {
-			registry.register( def );
-			// Re-apply so a plugin that registers its own wallpaper and
-			// sets the user's selection to it in the same breath sees an
-			// immediate repaint rather than having to wait for the next
-			// OS Settings open.
-			osSettings.apply();
-		},
-		registerWidget: ( def ) => {
-			widgetRegistry.register( def );
-			// No re-paint needed here: the layer only mounts IDs the
-			// user explicitly enabled, so adding a new def just makes
-			// it available in the next picker open. Plugins wanting
-			// to force a widget on can call
-			// `wp.desktop.widgetLayer.add(id)` / `ensureMounted(id)` —
-			// exposed below.
-		},
 		widgetLayer,
-		loadVendorScript,
-		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
-		openWindow: nativeWindows.openById,
-		repaintLoadingOverlays,
-		cloneTemplate,
-		onWindow,
-		registerSystemTile: ( item ) => {
-			placeSystemTile( item );
-			doAction( HOOKS.DOCK_ITEM_APPENDED, { id: item.id } );
-		},
-		registerModule,
-		loadModules,
-		whenReady,
-		ready: whenReady,
-		isReady,
+		openWindowById: nativeWindows.openById,
+		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,
-		config,
-		ai: aiAssistant,
-		dragBridge,
-		registerCommand,
-		unregisterCommand,
-		listCommands,
-		registerSettingsTab,
-		unregisterSettingsTab,
-		listSettingsTabs,
-		registerDockRailRenderer,
-		unregisterDockRailRenderer,
-		listDockRailRenderers,
 		openOsSettings,
-		deriveWindowId: ( url: string, overrideAdminUrl?: string ) =>
-			deriveWindowId( url, overrideAdminUrl ?? config.adminUrl ),
-		listSystemTiles: () => layoutDispatcher?.listSystemTiles() ?? [],
-		getSystemTile: ( id: string ) =>
-			layoutDispatcher?.getSystemTile( id ) ?? null,
-		getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
-		renderIcon,
-		applyTileClasses,
-		applyTileElement,
-		applyTileTooltip,
-		dispatchTileRendered,
-		isDockElement,
-		registerDockSelector,
-		registerTitleBarButton,
-		unregisterTitleBarButton,
-		listTitleBarButtons,
-		registerWindowTheme,
-		unregisterWindowTheme,
-		listWindowThemes,
-		applyWindowTheme: ( windowId, override ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceTheme( override );
-		},
-		registerWindowControl,
-		unregisterWindowControl,
-		listWindowControls,
-		applyWindowControls: ( windowId, override ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceControls( override );
-		},
-		registerWindowSlot,
-		unregisterWindowSlot,
-		listWindowSlots,
-		applyWindowSlot: ( windowId, slot, slotConfig ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceSlot( slot, slotConfig );
-		},
-		registerWindowChrome,
-		unregisterWindowChrome,
-		listWindowChromes,
-		applyWindowChrome: ( windowId, chromeId ) => {
-			const win = manager.getById( windowId );
-			if ( ! win ) {
-				return;
-			}
-			win.setAppearanceChrome( chromeId );
-		},
+		aiAssistant,
+		dragBridge,
 		connect: connectionBridge.connect,
-		broadcast,
-		subscribe,
-		registerPalette,
-		unregisterPalette,
-		listPalettes,
-		openPalette: openPaletteOnly,
-		devtools,
-		createSharedStore,
-		presence: presenceApi,
-		activity,
-		heartbeat,
-		showToast,
-		renderKeyedList,
-		clearKeyedList,
-		registerNamespace: ( name: string, api: object ) => {
-			if ( typeof name !== 'string' || name === '' ) {
-				// eslint-disable-next-line no-console
-				console.warn(
-					'[desktop-mode] registerNamespace: name must be a non-empty string',
-				);
-				return;
-			}
-			if ( ! api || typeof api !== 'object' ) {
-				// eslint-disable-next-line no-console
-				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): api must be an object`,
-				);
-				return;
-			}
-			const reserved = RESERVED_NAMESPACE_KEYS.has( name );
-			if ( reserved ) {
-				// eslint-disable-next-line no-console
-				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
-				);
-				return;
-			}
-			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
-		},
-		getWindowConfig: < T = Record< string, unknown > >(
-			id: string,
-		): T | undefined => {
-			const store = window.desktopModeWindowConfig;
-			if ( ! store || typeof store !== 'object' ) {
-				return undefined;
-			}
-			const value = ( store as Record< string, unknown > )[ id ];
-			return value === undefined ? undefined : ( value as T );
-		},
-		debug: {
-			window: ( id: string ): DesktopDebugWindow | null => {
-				const entry = ( config.nativeWindows ?? [] ).find(
-					( e ) => e.id === id,
-				);
-				if ( ! entry ) {
-					return null;
-				}
-				const url = entry.scriptUrl || '';
-				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';
-				let tagInDom = false;
-				if ( url ) {
-					const lazyTag = document.querySelector(
-						`script[data-desktop-mode-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
-					);
-					if ( lazyTag ) {
-						loadPath = 'lazy';
-						tagInDom = true;
-					} else {
-						// Match a non-lazy `<script src>` whose URL
-						// equals our resolved URL (with or without the
-						// `?ver=` query).
-						const eagerTag = Array.from(
-							document.querySelectorAll< HTMLScriptElement >(
-								'script[src]',
-							),
-						).find( ( s ) => s.src === url );
-						if ( eagerTag ) {
-							loadPath = 'eager';
-							tagInDom = true;
-						}
-					}
-				}
-				const cfgStore = window.desktopModeWindowConfig;
-				const configPresent = !! (
-					cfgStore &&
-					typeof cfgStore === 'object' &&
-					Object.prototype.hasOwnProperty.call( cfgStore, id )
-				);
-				return {
-					id,
-					scriptHandle: entry.scriptHandle || '',
-					scriptUrl: url,
-					loadPath,
-					tagInDom,
-					configPresent,
-					extras: {
-						hasTranslations: !! entry.scriptTranslations,
-						l10nCount: ( entry.scriptL10n ?? [] ).length,
-						beforeCount: ( entry.scriptBefore ?? [] ).length,
-						afterCount: ( entry.scriptAfter ?? [] ).length,
-					},
-				};
-			},
-		},
-	};
-	// Merge the full API onto the early-shim object (NOT reassign
-	// the slot — the shim's `whenReady` closes over `_earlyReadyQueue`,
-	// and reassigning would orphan the queue from the bootstrap's
-	// drain below). Object.assign overwrites `whenReady`/`ready`/
-	// `isReady` with the canonical versions from `src/hooks.ts`.
-	if ( ! window.wp ) {
-		window.wp = {};
-	}
-	if ( ! window.wp.desktop ) {
-		// Shim wasn't installed (degraded path — should never
-		// happen in production because the IIFE at the top of
-		// this module runs before `init()`). Set the slot directly.
-		window.wp.desktop = desktopApi;
-	} else {
-		Object.assign(
-			window.wp.desktop as unknown as Record< string, unknown >,
-			desktopApi as unknown as Record< string, unknown >,
-		);
-	}
+		config,
+	} );
+	installPublicApi( desktopApi );
 
 	// Wire the cross-feature Heartbeat bus before any consumer
 	// (presence, recycle bin, third-party plugins) registers a
 	// contributor / subscriber. Idempotent — safe to run twice
 	// if init() ever fires again.
 	bootHeartbeatBus();
+
+	// Files-on-the-Desktop: hand the open() dispatcher real
+	// dependencies and seed the per-user associations from the
+	// shell config. Done here so the manager is fully wired and
+	// the public API is already on `window.wp.desktop`.
+	installFilesOpenDeps( {
+		openUrl: ( { id, url, title, icon } ) =>
+			!! manager.open( { id, baseId: id, url, title, icon } ),
+		openNativeWindow: ( id ) => nativeWindows.openById( id ),
+		deriveWindowId: ( url: string ) => deriveWindowId( url, config.adminUrl ),
+	} );
+	setFilesUserAssociations(
+		( config.userFileAssociations as Record< string, string > | undefined ) ?? {},
+	);
+	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
+		filesRest.installRestDeps( {
+			baseUrl: config.filesUrl,
+			nonce: config.restNonce,
+		} );
+		// Mount the root files layer on the desktop area. Hydrates
+		// from REST on first paint; subsequent paints come from
+		// the shared store. Skipped when the area DOM element
+		// isn't in the page (headless tests, classic admin).
+		const rootHost = document.getElementById( 'desktop-mode-area' );
+		if ( rootHost ) {
+			mountFilesLayer( rootHost, 0 );
+		}
+	}
+
+	// Wire the Files-on-the-Desktop Heartbeat sync. Idempotent —
+	// safe to call again on a re-init.
+	startFilesHeartbeat();
 
 	// Boot the framework presence probe — always runs in desktop
 	// mode, regardless of whether the chat feature is enabled. The
@@ -2403,6 +2487,14 @@ function init(): void {
 	// `desktop-mode.open-command.items` can rely on the command being
 	// in the registry.
 	registerBuiltInCommands();
+
+	// PWA bootstrap — initialise the install pill, register the SW,
+	// and load the per-user dismissal/notifications snapshot. Runs
+	// AFTER the public API is mounted so a plugin's `whenReady`
+	// callback can immediately call `wp.desktop.pwa.*` or the
+	// `wp.desktop.notify` API. No-op when `config.pwa` is absent
+	// (chromeless context, classic admin, older PHP build).
+	bootstrapPwa( config, showToast );
 
 	doAction( HOOKS.INIT, { config } );
 
@@ -2479,19 +2571,163 @@ function init(): void {
 	// backdrop. The guard checks the live class on `desktopArea`
 	// because overview can be entered/exited repeatedly — a captured
 	// boolean snapshot would go stale.
-	desktopArea.addEventListener( 'click', ( e: MouseEvent ) => {
+	/**
+	 * Re-tile every placement at the desktop root in the order
+	 * returned by `transform`. Used by both Clean up (identity
+	 * transform) and Sort by * (sort transforms).
+	 */
+	const relayoutRoot = (
+		transform: (
+			arr: import( './desktop-files/rest' ).RestPlacementShape[],
+		) => import( './desktop-files/rest' ).RestPlacementShape[],
+	): void => {
+		const root = filesApi.store.getState().placementsByFolder.get( 0 ) ?? [];
+		const ordered = transform( root );
+		// Column-major fill: top-to-bottom within a column, then to
+		// the next column. Number of rows comes from the desktop
+		// area's measured height so columns wrap cleanly.
+		const rowsPerCol = Math.max(
+			1,
+			Math.floor( ( desktopArea.clientHeight - 16 ) / 110 ),
+		);
+		const occupied = new Set< string >();
+		let i = 0;
+		for ( const p of ordered ) {
+			const cell = snapToEmptyCell(
+				16 + Math.floor( i / rowsPerCol ) * 96,
+				16 + ( i % rowsPerCol ) * 110,
+				occupied,
+				desktopArea,
+			);
+			occupied.add( `${ cell.col },${ cell.row }` );
+			i++;
+			if ( p.x === cell.x && p.y === cell.y ) {
+				continue;
+			}
+			filesApi.store.upsertPlacement( {
+				...p,
+				x: cell.x,
+				y: cell.y,
+				sortOrder: i,
+			} );
+			void filesRest
+				.updatePlacement( p.id, {
+					x: cell.x,
+					y: cell.y,
+					sortOrder: i,
+				} )
+				.catch( ( err: unknown ) => {
+					// eslint-disable-next-line no-console
+					console.error( '[desktop-mode] relayout persist failed', err );
+				} );
+		}
+	};
+
+	// Wallpaper context menu — RIGHT-click only. `contextmenu` is
+	// the only opener; left-clicks on the bg either dismiss the
+	// menu (handled inside `openWallpaperMenu`) or do nothing.
+	// `e.preventDefault()` suppresses the native browser CMO so we
+	// always show ours.
+	desktopArea.addEventListener( 'contextmenu', ( e: MouseEvent ) => {
+		// Skip when the right-click landed on a tile / inner widget
+		// rather than the bare wallpaper — those surfaces own their
+		// own context menus.
 		if ( e.target !== desktopArea ) {
 			return;
 		}
-		if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
-			return;
-		}
-		// One call instead of an inline loop — keeps the wallpaper
-		// click and the public `windowManager.toggleShowDesktop()`
-		// API in lock-step (plugins building expand/collapse UIs
-		// that mimic the gesture get the same focus / restore-order
-		// behaviour the shell uses).
-		manager.toggleShowDesktop();
+		e.preventDefault();
+		const clientX = e.clientX;
+		const clientY = e.clientY;
+		( () => {
+			if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
+				return;
+			}
+			// Right-click toggles: open if closed, close if already
+			// open from the wallpaper.
+			if ( isWallpaperMenuOpen() ) {
+				closeWallpaperMenu();
+				return;
+			}
+			// Capture the click coordinates so a folder created from
+			// this menu lands where the user clicked, not at (0, 0).
+			const dropClient = { x: clientX, y: clientY };
+			const items = buildWallpaperMenuItems( {
+				createFolder: () => {
+					openCreateFolderDialog( {
+						onSubmit: async ( name ) => {
+							const folder = await filesRest.createFolder( { name } );
+							// Translate viewport → desktop-area local
+							// coords, then snap to the nearest empty
+							// grid cell so the new folder lands aligned.
+							const rect = desktopArea.getBoundingClientRect();
+							const rawX = Math.max( 0, dropClient.x - rect.left );
+							const rawY = Math.max( 0, dropClient.y - rect.top );
+							const occupied = buildOccupiedSet(
+								filesApi.store.getState().placementsByFolder.get( 0 ) ?? [],
+							);
+							const cell = snapToEmptyCell( rawX, rawY, occupied, desktopArea );
+							const placement = await filesRest.createPlacement( {
+								type: 'folder',
+								ref: String( folder.id ),
+								parentId: 0,
+								x: cell.x,
+								y: cell.y,
+							} );
+							filesApi.store.upsertFolder( folder );
+							filesApi.store.upsertPlacement( placement );
+						},
+					} );
+				},
+				toggleShowDesktop: () => manager.toggleShowDesktop(),
+				openOsSettings: () => openOsSettings(),
+				openWallpapers: () => openOsSettings(),
+				sortIcons: ( mode ) =>
+					relayoutRoot( ( arr ) => {
+						const sorted = arr.slice();
+						switch ( mode ) {
+							case 'name-asc':
+								sorted.sort( ( a, b ) =>
+									a.file.title.localeCompare( b.file.title ),
+								);
+								break;
+							case 'name-desc':
+								sorted.sort( ( a, b ) =>
+									b.file.title.localeCompare( a.file.title ),
+								);
+								break;
+							case 'date-asc':
+								sorted.sort( ( a, b ) => a.updatedAtMs - b.updatedAtMs );
+								break;
+							case 'date-desc':
+								sorted.sort( ( a, b ) => b.updatedAtMs - a.updatedAtMs );
+								break;
+						}
+						return sorted;
+					} ),
+				labels: {
+					createFolder: 'New folder',
+					showDesktop: 'Show desktop',
+					osSettings: 'OS Settings',
+					wallpapers: 'Wallpapers',
+					sortHeading: 'Sort by',
+					sortNameAsc: 'Name (A → Z)',
+					sortNameDesc: 'Name (Z → A)',
+					sortDateAsc: 'Date (oldest first)',
+					sortDateDesc: 'Date (newest first)',
+				},
+				serverItems: ( config.serverWallpaperMenuItems as
+				| ServerWallpaperMenuItem[]
+				| undefined ) ?? [],
+			} );
+			// No `excludeOutsideTarget` — with right-click-only
+			// activation, a left-click on the wallpaper should
+			// dismiss the menu (no toggle race to protect against).
+			openWallpaperMenu(
+				document.body,
+				{ x: clientX, y: clientY },
+				items,
+			);
+		} )();
 	} );
 
 	// The URL bar is intentionally NOT normalized to /desktop-mode/.
@@ -2514,606 +2750,28 @@ function init(): void {
 	);
 }
 
-/**
- * Restores windows from a saved session into the manager.
- *
- * Each window's geometry is clamped to fit the current desktop area
- * before construction — so a layout captured on an ultrawide display
- * lands sanely on a laptop. Stacking order follows the session order
- * (earliest-opened first, focused id brought to the top at the end).
- */
-function restoreSession(
-	manager: WindowManager,
-	config: DesktopConfig,
-	desktopArea: HTMLElement,
-): void {
-	const rect = desktopArea.getBoundingClientRect();
+// `restoreSession` and `openCurrentPage` were moved to
+// `src/boot/session.ts` in 0.8.1 — see the imports near the top of
+// this file. This is the architecture-0.8.1 phase-5 split.
 
-	// Seed desktops + active id BEFORE recreating windows. Windows
-	// pass `desktopId` from the session through to their config; the
-	// manager honours that exactly as long as the desktop already
-	// exists in the registry, otherwise it falls back to the active
-	// desktop. Establishing the registry first preserves the user's
-	// per-desktop window grouping across reloads.
-	if ( Array.isArray( config.session.desktops ) && config.session.desktops.length > 0 ) {
-		manager.seedDesktops(
-			config.session.desktops,
-			config.session.activeDesktop || config.session.desktops[ 0 ].id,
-		);
-	}
+// `trackedFetch` was moved to `src/boot/tracked-fetch.ts` in 0.8.1.
 
-	for ( const win of config.session.windows ) {
-		const clamped = clampGeometryToViewport( win, rect );
-		const dockEntry = findDockEntryForUrl( win.url, config );
+// `openCurrentPage` lives in `src/boot/session.ts` since 0.8.1.
 
-		const opened = manager.open( {
-			id: win.id,
-			baseId: win.baseId || win.id,
-			desktopId: win.desktopId,
-			multi: !! dockEntry?.multi,
-			url: win.url,
-			title: win.title,
-			icon: win.icon || 'dashicons-admin-generic',
-			x: clamped.x,
-			y: clamped.y,
-			width: clamped.width,
-			height: clamped.height,
-			initialState: win.state,
-			submenu: dockEntry?.submenu,
-		} );
+// `bindTopWindowLinkInterceptor` was moved to
+// `src/boot/link-interceptor.ts` in 0.8.1.
+//
+// `findDockEntryForUrl` and `clampGeometryToViewport` were moved
+// to `src/boot/geometry.ts` in 0.8.1.
 
-		// Rehydrate any external sub-tabs the user had open on this
-		// window at save time. Each becomes a fresh closeable tab with
-		// its own iframe, ordered left-to-right in the order they
-		// were added originally.
-		if ( Array.isArray( win.externalTabs ) ) {
-			for ( const ext of win.externalTabs ) {
-				if ( ext && typeof ext.url === 'string' && ext.url !== '' ) {
-					opened.addExternalTab(
-						ext.url,
-						typeof ext.label === 'string' && ext.label !== ''
-							? ext.label
-							: ext.url,
-					);
-				}
-			}
-		}
-	}
+// `createSessionSaver` (and the SESSION_SAVE_DEBOUNCE_MS constant) was
+// moved to `src/boot/session-saver.ts` in 0.8.1.
 
-	// Restore focus to whichever window the user left focused. If that id
-	// is no longer around (e.g., the saved focus pointed at a window we
-	// failed to reconstruct), `getById` returns undefined and we leave
-	// the default — topmost-of-stack — focus in place.
-	if ( config.session.focused ) {
-		const focused = manager.getById( config.session.focused );
-		if ( focused ) {
-			manager.focus( focused );
-		}
-	}
-}
+// `wireSessionEvents` and `bindShellLifecycle` were moved to
+// `src/boot/shell-lifecycle.ts` in 0.8.1.
 
-/**
- * Opens the current admin page in a fresh window — the "no saved session" path.
- */
-function openCurrentPage( manager: WindowManager, config: DesktopConfig ): void {
-	const windowId = deriveWindowId( config.currentPage, config.adminUrl );
-	const dockEntry = findDockEntryForUrl( config.currentPage, config );
-
-	manager.open( {
-		id: windowId,
-		baseId: windowId,
-		multi: !! dockEntry?.multi,
-		url: config.currentPage,
-		title: config.currentTitle,
-		icon: config.currentIcon,
-		submenu: dockEntry?.submenu,
-	} );
-}
-
-/**
- * Intercepts clicks on `/wp-admin/` anchors in the top window and opens
- * (or focuses) a matching shell window instead of letting the browser
- * navigate the whole tab.
- *
- * Runs in the capture phase so we beat any handler that calls
- * `stopPropagation` on the bubble phase — the admin bar's own JS, for
- * instance. Handlers that call `preventDefault()` before us (like the
- * desktop-mode toggle, which uses `href="#"`) are respected: we bail on
- * `defaultPrevented` and on anchor links.
- *
- * Iframe content is a separate document realm — clicks inside a window
- * don't bubble up to this listener, so the chromeless iframe's own link
- * rewriter still owns iframe-internal navigation.
- */
-function bindTopWindowLinkInterceptor(
-	manager: WindowManager,
-	config: DesktopConfig,
-): void {
-	document.addEventListener(
-		'click',
-		( e: MouseEvent ) => {
-			if ( e.defaultPrevented ) {
-				return;
-			}
-			if ( e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ) {
-				return;
-			}
-			const target = e.target as Element | null;
-			const link = target && target.closest ? target.closest( 'a[href]' ) : null;
-			if ( ! link ) {
-				return;
-			}
-			const anchor = link as HTMLAnchorElement;
-			const linkTarget = anchor.getAttribute( 'target' );
-			if ( linkTarget && linkTarget !== '' && linkTarget !== '_self' ) {
-				return;
-			}
-			if ( anchor.hasAttribute( 'download' ) ) {
-				return;
-			}
-
-			const rawHref = anchor.getAttribute( 'href' );
-			if ( ! rawHref || rawHref.charAt( 0 ) === '#' ) {
-				return;
-			}
-			if ( /^(mailto:|tel:|javascript:|data:)/i.test( rawHref ) ) {
-				return;
-			}
-
-			let url: URL;
-			try {
-				url = new URL( rawHref, window.location.href );
-			} catch ( err ) {
-				// Malformed href — rare in practice (the browser's own
-				// parser is quite lenient) but if a plugin is generating
-				// broken URLs the only signal today would be "the link
-				// doesn't get intercepted and leaves the shell." Log so
-				// the author can trace it.
-				if ( typeof console !== 'undefined' ) {
-					console.warn(
-						'[desktop-mode] Couldn’t parse href; letting the browser handle the click:',
-						rawHref,
-						err,
-					);
-				}
-				return;
-			}
-
-			if ( url.origin !== INITIAL_ORIGIN ) {
-				return;
-			}
-			let adminPath: string;
-			try {
-				adminPath = new URL( config.adminUrl ).pathname;
-			} catch ( err ) {
-				// Shell boot should have rejected a bad adminUrl, so
-				// reaching this branch means something mutated config
-				// after boot. Log + fall back rather than break every
-				// link click on the page.
-				if ( typeof console !== 'undefined' ) {
-					console.error(
-						'[desktop-mode] config.adminUrl is not a valid URL; falling back to /wp-admin/:',
-						config.adminUrl,
-						err,
-					);
-				}
-				adminPath = '/wp-admin/';
-			}
-			if ( ! url.pathname.startsWith( adminPath ) ) {
-				return;
-			}
-
-			// admin-post.php and admin-ajax.php are endpoints, not pages.
-			// Logout and similar auth routes carry their own redirects and
-			// must be allowed to navigate the tab normally.
-			if ( /\/(admin-post|admin-ajax)\.php$/.test( url.pathname ) ) {
-				return;
-			}
-			if ( url.searchParams.has( 'action' ) && url.searchParams.get( 'action' ) === 'logout' ) {
-				return;
-			}
-			// The Detach-to-classic action explicitly wants a real tab with
-			// classic chrome — don't steal it back into the shell.
-			if ( url.searchParams.has( 'desktop_mode_classic' ) ) {
-				return;
-			}
-
-			e.preventDefault();
-			e.stopPropagation();
-
-			const windowId = deriveWindowId( url.href, config.adminUrl );
-			const dockEntry = findDockEntryForUrl( url.href, config );
-			const fallbackTitle = ( anchor.textContent || '' ).trim() || dockEntry?.title || '';
-
-			manager.open( {
-				id: windowId,
-				baseId: windowId,
-				multi: !! dockEntry?.multi,
-				url: url.href,
-				title: dockEntry?.title || fallbackTitle,
-				icon: dockEntry?.icon || 'dashicons-admin-generic',
-				submenu: dockEntry?.submenu,
-			} );
-		},
-		true,
-	);
-}
-
-/**
- * Finds the dock entry whose URL — or whose submenu's URL — resolves to
- * the same window ID as the given URL.
- *
- * Used on session restore and fresh-page auto-open so a window that
- * lands on a sub-page (e.g. Categories) still gets the parent menu's
- * submenu tabs rendered — and so the parent's `multi` flag threads
- * through to the window chrome.
- */
-function findDockEntryForUrl(
-	url: string,
-	config: DesktopConfig,
-): DesktopConfig[ 'dockItems' ][ number ] | undefined {
-	const windowId = deriveWindowId( url, config.adminUrl );
-	return ( config.dockItems || [] ).find(
-		( i ) =>
-			deriveWindowId( i.url, config.adminUrl ) === windowId ||
-			( i.submenu || [] ).some(
-				( s ) => deriveWindowId( s.url, config.adminUrl ) === windowId,
-			),
-	);
-}
-
-/**
- * Clamp a persisted window's geometry to fit inside the current desktop
- * area, preserving the window's aspect ratio when the saved size exceeds
- * the area. Handles the ultrawide-to-laptop transition gracefully:
- *
- *   - A window that sat at x=2800 on a 3440px desktop gets pulled back
- *     onto the smaller viewport.
- *   - A window bigger than the viewport is scaled down, not cropped.
- *   - Negative positions (shouldn't happen but defend anyway) become 0.
- *
- * Returns a plain geometry object — caller applies it to the WindowConfig.
- */
-function clampGeometryToViewport(
-	win: SessionWindow,
-	rect: DOMRect,
-): { x: number; y: number; width: number; height: number } {
-	const maxW = Math.max( 200, rect.width - VIEWPORT_CLAMP_MARGIN * 2 );
-	const maxH = Math.max( 200, rect.height - VIEWPORT_CLAMP_MARGIN * 2 );
-
-	const width = Math.min( win.width, maxW );
-	const height = Math.min( win.height, maxH );
-
-	const maxX = Math.max( 0, rect.width - width - VIEWPORT_CLAMP_MARGIN );
-	const maxY = Math.max( 0, rect.height - height - VIEWPORT_CLAMP_MARGIN );
-
-	const x = Math.max( VIEWPORT_CLAMP_MARGIN, Math.min( win.x, maxX ) );
-	const y = Math.max( VIEWPORT_CLAMP_MARGIN, Math.min( win.y, maxY ) );
-
-	return { x, y, width, height };
-}
-
-/**
- * Creates the debounced+immediate session saver. Returns a single
- * function that schedules a debounced REST write on each call. Also
- * exposed on `wp.desktop.saveSession()` for plugins that want to flush.
- */
-function createSessionSaver( manager: WindowManager, config: DesktopConfig ): () => void {
-	let debounceTimer: number | null = null;
-	let inFlight = false;
-
-	const doSave = async (): Promise<void> => {
-		if ( inFlight ) {
-			return;
-		}
-		const payload = manager.snapshot();
-		inFlight = true;
-		try {
-			await fetch( config.sessionUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': config.restNonce,
-				},
-				body: JSON.stringify( { session: payload } ),
-				// Best-effort: we don't block the UI on persistence.
-				keepalive: true,
-			} );
-		} catch ( err ) {
-			/* Network error is non-fatal — next change triggers another save.
-			 * Still worth surfacing to monitor widgets so a connectivity
-			 * regression doesn't go silent under the session-beacon path. */
-			doAction( HOOKS.SHELL_ERROR, { scope: 'session-save', error: err } );
-		} finally {
-			inFlight = false;
-		}
-	};
-
-	const flushImmediately = (): void => {
-		if ( debounceTimer !== null ) {
-			clearTimeout( debounceTimer );
-			debounceTimer = null;
-		}
-		// Use sendBeacon for unload-time saves where fetch may not
-		// complete. WP REST's cookie-auth middleware reads the nonce
-		// from `$_REQUEST` (URL query string + form-encoded body),
-		// NOT from JSON bodies — so to satisfy auth we append the
-		// nonce to the URL as a query param. Without this, the
-		// beacon arrives but WP returns 403 before our handler runs,
-		// and the session on disk stays at its pre-close state.
-		// Symptom: close a window, reload fast, window reappears.
-		const payload = manager.snapshot();
-		const body = new Blob(
-			[ JSON.stringify( { session: payload } ) ],
-			{ type: 'application/json' },
-		);
-		const beaconUrl =
-			config.sessionUrl +
-			( config.sessionUrl.includes( '?' ) ? '&' : '?' ) +
-			'_wpnonce=' +
-			encodeURIComponent( config.restNonce );
-		if ( navigator.sendBeacon && navigator.sendBeacon( beaconUrl, body ) ) {
-			return;
-		}
-		void doSave();
-	};
-
-	const schedule = (): void => {
-		if ( debounceTimer !== null ) {
-			clearTimeout( debounceTimer );
-		}
-		debounceTimer = window.setTimeout( () => {
-			debounceTimer = null;
-			void doSave();
-		}, SESSION_SAVE_DEBOUNCE_MS ) as unknown as number;
-	};
-
-	// pagehide is the reliable unload signal across browsers (mobile Safari
-	// in particular never fires beforeunload in the BFCache case).
-	window.addEventListener( 'pagehide', flushImmediately );
-	// Hidden tabs might never fire pagehide if the user switches away and
-	// kills the browser — save opportunistically on visibility change too.
-	document.addEventListener( 'visibilitychange', () => {
-		if ( document.visibilityState === 'hidden' ) {
-			flushImmediately();
-		}
-	} );
-
-	return schedule;
-}
-
-/**
- * Wire the session saver to every window lifecycle event that should
- * end up persisted. Close/focus come from the manager; moved/resized/
- * state come from individual windows via `desktop-mode-window-changed`.
- */
-function wireSessionEvents( save: () => void ): void {
-	document.addEventListener( 'desktop-mode-window-opened', save );
-	document.addEventListener( 'desktop-mode-window-closed', save );
-	document.addEventListener( 'desktop-mode-window-focused', save );
-	document.addEventListener( 'desktop-mode-window-changed', save );
-}
-
-/** Debounce window for the shell-resized action. Trailing-edge only. */
-const SHELL_RESIZE_DEBOUNCE_MS = 120;
-
-/**
- * Wire browser-resize and document-visibility into `desktop-mode.shell.*`
- * actions. Resize is debounced so a drag-to-resize storm collapses to a
- * single hook fire; visibility is edge-triggered (fires exactly once per
- * state change).
- */
-function bindShellLifecycle(): void {
-	const shellEl = document.getElementById( 'desktop-mode-shell' );
-
-	let resizeTimer: number | null = null;
-	const fireShellResize = (): void => {
-		resizeTimer = null;
-		const rect = shellEl ? shellEl.getBoundingClientRect() : null;
-		doAction( HOOKS.SHELL_RESIZED, {
-			width: rect ? Math.round( rect.width ) : window.innerWidth,
-			height: rect ? Math.round( rect.height ) : window.innerHeight,
-		} );
-	};
-	window.addEventListener( 'resize', () => {
-		if ( resizeTimer !== null ) {
-			window.clearTimeout( resizeTimer );
-		}
-		resizeTimer = window.setTimeout( fireShellResize, SHELL_RESIZE_DEBOUNCE_MS ) as unknown as number;
-	} );
-
-	document.addEventListener( 'visibilitychange', () => {
-		doAction( HOOKS.SHELL_VISIBILITY, {
-			state: document.hidden ? 'hidden' : 'visible',
-		} );
-	} );
-}
-
-/**
- * Hard ceiling on how long `refreshMenu()` waits for its hidden
- * iframe to emit the `desktop-mode-plugins-changed` payload before
- * giving up. The probe is a normal admin page load, so the cap is
- * sized for a slow shared host on first request rather than the
- * happy path.
- */
-const MENU_REFRESH_TIMEOUT_MS = 8000;
-
-/**
- * Wire the live menu-refresh pipeline.
- *
- * Listens for `desktop-mode-plugins-changed` postMessages and applies
- * any payload they carry. The chromeless bridge in `render.php`
- * always emits a payload from real admin context — both for the
- * implicit case (`plugins.php` etc.) and for the explicit refresh
- * probe (`?desktop_mode_menu_refresh=1`) — so a single mechanism
- * handles every refresh.
- *
- * Returns a function plugins can call to force a refresh. The
- * implementation spawns a 1×1 hidden iframe at
- * `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1`, waits for
- * the bridge's payload message, then disposes the iframe. Same
- * pipeline, same correctness guarantees as the auto-refresh path.
- *
- * @param layoutDispatcher Owns the `Dock` instance(s) — receives the
- *                         fresh dock-items list for partitioning.
- * @param desktopArea      Desktop area element — wears live-refresh
- *                         classes the applier may toggle.
- * @param config           Boot config; `dockItems` is mutated in place
- *                         after each successful refresh.
- * @return An async function plugins can call to force a refresh.
- */
-function bindMenuRefresh(
-	layoutDispatcher: LayoutDispatcher | null,
-	desktopArea: HTMLElement,
-	config: DesktopConfig,
-	syncNativeWindows: (
-		list: import( './types' ).NativeWindowServerEntry[],
-	) => Promise< void >,
-	syncServerWidgets: (
-		list: import( './types' ).DesktopWidgetServerEntry[],
-	) => Promise< void >,
-	syncServerWallpapers: (
-		list: import( './types' ).DesktopWallpaperServerEntry[],
-	) => Promise< void >,
-	syncServerCommands: (
-		scripts: import( './types' ).DesktopCommandScriptServerEntry[],
-		commands?: import( './types' ).DesktopCommandServerEntry[],
-	) => Promise< void >,
-	syncServerSettingsTabs: (
-		scripts: import( './types' ).DesktopSettingsTabScriptServerEntry[],
-		tabs?: import( './types' ).DesktopSettingsTabServerEntry[],
-	) => Promise< void >,
-	syncServerTitleBarButtons: (
-		scripts: import( './types' ).DesktopTitleBarButtonScriptServerEntry[],
-	) => Promise< void >,
-	syncServerDockRailRenderers: (
-		scripts: import( './types' ).DesktopDockRailRendererScriptServerEntry[],
-	) => Promise< void >,
-	renderIcons: (
-		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
-	) => void,
-): () => Promise<void> {
-	const applyPayload = createApplyPayload( {
-		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
-		desktopArea,
-		config,
-		syncNativeWindows,
-		syncServerWidgets,
-		syncServerWallpapers,
-		syncServerCommands,
-		syncServerSettingsTabs,
-		syncServerTitleBarButtons,
-		syncServerDockRailRenderers,
-		renderIcons,
-	} );
-
-	window.addEventListener( 'message', ( e: MessageEvent ) => {
-		if ( e.origin !== INITIAL_ORIGIN ) {
-			return;
-		}
-		const data = e.data as {
-			type?: string;
-			payload?: {
-				dockItems?: unknown;
-				nativeWindows?: unknown;
-				serverWidgets?: unknown;
-				serverWallpapers?: unknown;
-				serverCommandScripts?: unknown;
-				serverCommands?: unknown;
-				serverSettingsTabScripts?: unknown;
-				serverSettingsTabs?: unknown;
-				serverDockRailRendererScripts?: unknown;
-				serverTitleBarButtonScripts?: unknown;
-				desktopIcons?: unknown;
-			};
-		} | null;
-		if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
-			return;
-		}
-
-		// The chromeless bridge always embeds a fresh menu payload
-		// captured from real admin context — plugins that gate
-		// `admin_menu` on `is_admin()` at load time registered
-		// normally there. Messages without a payload are stale /
-		// out-of-spec and ignored.
-		if ( data.payload ) {
-			applyPayload( data.payload );
-		}
-	} );
-
-	const refresh = (): Promise<void> => {
-		if ( ! config.adminUrl ) {
-			return Promise.resolve();
-		}
-		const probeUrl = ( () => {
-			try {
-				const url = new URL( 'admin.php', config.adminUrl );
-				url.searchParams.set( 'desktop_mode_chromeless', '1' );
-				url.searchParams.set( 'desktop_mode_menu_refresh', '1' );
-				return url.toString();
-			} catch ( _err ) {
-				return null;
-			}
-		} )();
-		if ( ! probeUrl ) {
-			return Promise.resolve();
-		}
-
-		return new Promise< void >( ( resolve ) => {
-			const iframe = document.createElement( 'iframe' );
-			// Off-screen + zero-cost: pulled out of the layout flow
-			// entirely so it can't shift content, and styled small
-			// enough that any momentary paint is invisible.
-			iframe.setAttribute( 'aria-hidden', 'true' );
-			iframe.tabIndex = -1;
-			iframe.style.cssText =
-				'position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
-			iframe.src = probeUrl;
-
-			let done = false;
-			const cleanup = (): void => {
-				if ( done ) {
-					return;
-				}
-				done = true;
-				window.clearTimeout( timeoutId );
-				window.removeEventListener( 'message', onMessage );
-				if ( iframe.parentNode ) {
-					iframe.parentNode.removeChild( iframe );
-				}
-				resolve();
-			};
-
-			const onMessage = ( e: MessageEvent ): void => {
-				if ( e.source !== iframe.contentWindow ) {
-					return;
-				}
-				const data = e.data as { type?: string } | null;
-				if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
-					return;
-				}
-				// The shell-wide listener registered above will apply
-				// the payload. We just need to know the probe
-				// completed so we can dispose the iframe.
-				cleanup();
-			};
-
-			const timeoutId = window.setTimeout( () => {
-				doAction( HOOKS.SHELL_ERROR, {
-					scope: 'menu-refresh',
-					error: new Error( 'menu refresh probe timed out' ),
-				} );
-				cleanup();
-			}, MENU_REFRESH_TIMEOUT_MS );
-
-			window.addEventListener( 'message', onMessage );
-			document.body.appendChild( iframe );
-		} );
-	};
-
-	return refresh;
-}
+// `bindMenuRefresh` and `MENU_REFRESH_TIMEOUT_MS` were moved to
+// `src/boot/menu-refresh.ts` in 0.8.1.
 
 // Initialize when DOM is ready.
 if ( document.readyState === 'loading' ) {
@@ -3122,5 +2780,7 @@ if ( document.readyState === 'loading' ) {
 	init();
 }
 
-// Re-export so the bundle can be tested without tight coupling.
-export { clampGeometryToViewport };
+// Backwards-compat re-export — `clampGeometryToViewport` was inlined here
+// before 0.8.1 and tests imported it from this module. New code should
+// reach for `@boot/geometry` directly.
+export { clampGeometryToViewport } from './boot/geometry';

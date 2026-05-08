@@ -121,6 +121,63 @@ export class Window {
 	public _titleBar: HTMLElement;
 	/** @internal */
 	public _titleEl: HTMLElement;
+
+	/**
+	 * In-flight async operation count. `markActivityStart()` /
+	 * `markActivitySettled()` increment / decrement; the title-bar
+	 * indicator paints `pending` while > 0. Counter (not boolean) so
+	 * concurrent fetches don't fight: two-in-flight + one-settled
+	 * still reads "saving".
+	 *
+	 * @internal
+	 */
+	public _activityCount = 0;
+
+	/**
+	 * Phase of the title-bar activity indicator. Driven by
+	 * `markActivity()` / `trackActivity()` / `wp.desktop.fetch()`.
+	 *
+	 * @internal
+	 */
+	public _activityPhase: 'idle' | 'pending' | 'saving' | 'saved' | 'failed' =
+		'idle';
+
+	/**
+	 * Last error message — surfaced on the indicator's `error`
+	 * attribute (which becomes its `title` tooltip in `dot` mode).
+	 *
+	 * @internal
+	 */
+	public _activityError: string | null = null;
+
+	/**
+	 * Auto-clear timer for `saved` / `failed` phases. The indicator
+	 * fades back to `idle` after a short hold. Cleared and restarted
+	 * on every transition.
+	 *
+	 * @internal
+	 */
+	public _activityClearTimer: number | null = null;
+
+	/**
+	 * Wall-clock timestamp (ms since epoch) of when the most recent
+	 * `saving` phase started. Used to enforce a minimum-display
+	 * duration so the modem-blink animation has time to register
+	 * even when a fetch resolves in <100 ms.
+	 *
+	 * @internal
+	 */
+	public _activitySavingStartedAt = 0;
+
+	/**
+	 * Pending settled-transition timer. When a fetch resolves before
+	 * the minimum-display duration has elapsed, the transition to
+	 * `saved` / `failed` is queued so the dot keeps blinking until
+	 * the animation has had time to be seen.
+	 *
+	 * @internal
+	 */
+	public _activitySettleTimer: number | null = null;
 	/** @internal */
 	public _isDragging = false;
 	/** @internal */
@@ -906,8 +963,21 @@ export class Window {
 			} );
 		}
 
-		// Double-click title bar to toggle maximize.
-		this._titleBar.addEventListener( 'dblclick', () => {
+		// Double-click title bar to toggle maximize. Bail when the
+		// event came from an interactive descendant (control buttons,
+		// the ⋯ kebab itself, kebab menu items, plugin-registered
+		// title-bar buttons, screen-meta buttons) — otherwise a
+		// second-too-quick click on any title-bar button accidentally
+		// maximizes the window.
+		this._titleBar.addEventListener( 'dblclick', ( e: MouseEvent ) => {
+			const target = e.target as Element | null;
+			if (
+				target?.closest(
+					'button, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], wpd-window-button, wpd-menu, wpd-menu-item, .desktop-mode-window__menu-panel, .desktop-mode-window__custom-buttons, input, select, textarea, a',
+				)
+			) {
+				return;
+			}
 			this.toggleMaximize();
 		} );
 
@@ -1845,6 +1915,211 @@ export class Window {
 	}
 
 	/**
+	 * Set the activity indicator's phase explicitly. Most callers
+	 * should prefer {@link trackActivity} (or `wp.desktop.fetch()`
+	 * which calls it internally) — this is the escape hatch for code
+	 * paths that aren't a single Promise (event-listener-driven
+	 * loaders, Heartbeat polls, manual save buttons that want to
+	 * pulse "Saved" without a wrapped fetch).
+	 *
+	 * Phases:
+	 *
+	 *   - `idle`    — clear. Indicator fades out.
+	 *   - `pending` / `saving` — modem-blink while a request is in flight.
+	 *   - `saved`   — green flash; auto-clears to `idle` after ~2.2s.
+	 *   - `failed`  — red dot with `opts.error` as tooltip text;
+	 *                 auto-clears after ~6s.
+	 *
+	 * Idempotent: setting the same phase twice is a no-op except for
+	 * resetting the auto-clear timer.
+	 *
+	 * @since 0.8.0
+	 */
+	public markActivity(
+		phase: 'idle' | 'pending' | 'saving' | 'saved' | 'failed',
+		opts: { error?: string } = {},
+	): void {
+		this._activityPhase = phase;
+		this._activityError = opts.error ?? null;
+		this._paintActivityIndicator();
+	}
+
+	/**
+	 * Track a Promise's lifecycle on this window's activity indicator.
+	 * The dot pulses while the Promise is in flight; on resolve it
+	 * settles to `saved` (green flash); on reject it shows `failed`
+	 * (red, error message tooltip). Returns the Promise unchanged so
+	 * callers can chain.
+	 *
+	 * Multiple concurrent calls are reference-counted: the dot stays
+	 * lit until the LAST tracked Promise settles. The terminal phase
+	 * (`saved` vs `failed`) reflects the LAST settled outcome, so a
+	 * burst of 5 successful fetches followed by 1 error reads
+	 * "failed", which is the right signal — surface the bad news.
+	 *
+	 * Use `wp.desktop.fetch()` for HTTP requests; reach for this
+	 * directly when you have a Promise from a different source
+	 * (postMessage handshake, IndexedDB transaction, …).
+	 *
+	 * @since 0.8.0
+	 */
+	public trackActivity< T >( promise: Promise< T > ): Promise< T > {
+		this._markActivityStart();
+		return promise.then(
+			( value ) => {
+				this._markActivitySettled( true );
+				return value;
+			},
+			( err ) => {
+				const message = err instanceof Error ? err.message : String( err );
+				this._markActivitySettled( false, message );
+				throw err;
+			},
+		);
+	}
+
+	/**
+	 * Minimum time (ms) the indicator stays in the `saving` phase
+	 * after the user-visible activity has been declared. Without
+	 * this, fast fetches (50–200 ms) settle before the modem-blink
+	 * animation has had time to play even one full burst — the user
+	 * sees the dot fill in and immediately flash green, never the
+	 * blink. Holding the phase for ~1.1s guarantees the blink reads
+	 * as "data flowing" before the success/failure flash.
+	 *
+	 * @internal
+	 */
+	public static readonly MIN_SAVING_DISPLAY_MS = 1200;
+
+	/**
+	 * Increment the in-flight counter and paint.
+	 *
+	 * @internal
+	 */
+	public _markActivityStart(): void {
+		this._activityCount++;
+		// A new fetch started while a deferred settle was pending —
+		// cancel that settle (we're back in flight) so the indicator
+		// doesn't briefly drop to "saved" between two rapid calls.
+		if ( this._activitySettleTimer !== null ) {
+			window.clearTimeout( this._activitySettleTimer );
+			this._activitySettleTimer = null;
+		}
+		if ( this._activityCount === 1 ) {
+			this._activityPhase = 'saving';
+			this._activityError = null;
+			this._activitySavingStartedAt = Date.now();
+			this._paintActivityIndicator();
+		}
+	}
+
+	/**
+	 * Decrement the in-flight counter and, when it hits zero,
+	 * transition to `saved` or `failed`. Schedules an auto-clear
+	 * back to `idle`.
+	 *
+	 * Honours `MIN_SAVING_DISPLAY_MS` — when a fetch settles before
+	 * the minimum has elapsed, the transition is deferred so the
+	 * modem-blink animation has time to register visually. Concurrent
+	 * activity that re-starts during the deferral cancels it.
+	 *
+	 * @internal
+	 */
+	public _markActivitySettled( ok: boolean, error?: string ): void {
+		if ( this._activityCount > 0 ) {
+			this._activityCount--;
+		}
+		if ( this._activityCount > 0 ) {
+			// Still in flight — don't transition the phase yet, but
+			// remember the most recent error so it surfaces when the
+			// last in-flight settles.
+			if ( ! ok && error ) {
+				this._activityError = error;
+			}
+			return;
+		}
+
+		// Optionally defer the settle to give the modem-blink time
+		// to play. Calculated from the wall-clock start of the
+		// saving phase, not from this call, so concurrent fetches
+		// that land at different times still respect the floor.
+		const elapsed = Date.now() - this._activitySavingStartedAt;
+		const remaining = Window.MIN_SAVING_DISPLAY_MS - elapsed;
+		if ( remaining > 0 ) {
+			if ( this._activitySettleTimer !== null ) {
+				window.clearTimeout( this._activitySettleTimer );
+			}
+			this._activitySettleTimer = window.setTimeout( () => {
+				this._activitySettleTimer = null;
+				this._finalizeActivitySettle( ok, error );
+			}, remaining ) as unknown as number;
+			return;
+		}
+
+		this._finalizeActivitySettle( ok, error );
+	}
+
+	/**
+	 * Apply the terminal `saved` / `failed` phase and schedule the
+	 * fade back to `idle`. Split out of `_markActivitySettled` so
+	 * the deferred-settle path and the immediate path share one
+	 * implementation.
+	 *
+	 * @internal
+	 */
+	private _finalizeActivitySettle( ok: boolean, error?: string ): void {
+		this._activityPhase = ok && ! this._activityError ? 'saved' : 'failed';
+		if ( ! ok && error ) {
+			this._activityError = error;
+		}
+		this._paintActivityIndicator();
+
+		if ( this._activityClearTimer !== null ) {
+			window.clearTimeout( this._activityClearTimer );
+			this._activityClearTimer = null;
+		}
+
+		// `saved`  — fade back to idle after a brief hold.
+		// `failed` — stay visible. The dot persists in the failed
+		//            state until the next `_markActivityStart()` call
+		//            (i.e. a successful retry) clears it. Auto-clearing
+		//            on a timer would hide the only signal that
+		//            something went wrong, even when the user hasn't
+		//            done anything to address it yet.
+		if ( this._activityPhase === 'saved' ) {
+			this._activityClearTimer = window.setTimeout( () => {
+				this._activityClearTimer = null;
+				this._activityPhase = 'idle';
+				this._activityError = null;
+				this._paintActivityIndicator();
+			}, 2200 ) as unknown as number;
+		}
+	}
+
+	/**
+	 * Push the current activity state onto the title-bar dot.
+	 *
+	 * @internal
+	 */
+	public _paintActivityIndicator(): void {
+		if ( this._isDestroyed ) {
+			return;
+		}
+		const indicator = this._titleBar.querySelector< HTMLElement >(
+			'[data-desktop-mode-activity-indicator]',
+		);
+		if ( ! indicator ) {
+			return;
+		}
+		indicator.setAttribute( 'phase', this._activityPhase );
+		if ( this._activityError ) {
+			indicator.setAttribute( 'error', this._activityError );
+		} else {
+			indicator.removeAttribute( 'error' );
+		}
+	}
+
+	/**
 	 * Toggle a visual highlight on the window. Used by plugins that
 	 * need to point at a window from outside it — e.g. a "connect to"
 	 * dropdown that highlights candidate windows on hover.
@@ -2079,6 +2354,17 @@ export class Window {
 		}
 
 		this._isDestroyed = true;
+
+		// Cancel any pending activity timers so a still-pending
+		// settle / clear doesn't fire after the window has gone away.
+		if ( this._activityClearTimer !== null ) {
+			window.clearTimeout( this._activityClearTimer );
+			this._activityClearTimer = null;
+		}
+		if ( this._activitySettleTimer !== null ) {
+			window.clearTimeout( this._activitySettleTimer );
+			this._activitySettleTimer = null;
+		}
 
 		// Drop the title-bar-button subscription so a closed window
 		// stops repainting on registry changes.

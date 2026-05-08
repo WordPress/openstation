@@ -253,7 +253,7 @@ function fingerprintIcons(
 			( i ) =>
 				`${ i.id }|${ i.title }|${ i.icon }|${ i.window ?? '' }|${
 					i.url ?? ''
-				}|${ i.position ?? 0 }`,
+				}|${ i.position ?? 0 }|${ i.pinned ? 1 : 0 }`,
 		)
 		.join( ';' );
 }
@@ -308,7 +308,16 @@ export function renderDesktopIcons(
 	container.setAttribute( 'role', 'list' );
 	container.setAttribute( 'aria-label', __( 'Desktop icons' ) );
 
-	for ( const entry of icons ) {
+	// Pinned (system) icons always render before unpinned ones,
+	// regardless of `position`. Within each group order is preserved
+	// (the server already sorts by position before this point).
+	const ordered = [ ...icons ].sort( ( a, b ) => {
+		const ap = a.pinned ? 0 : 1;
+		const bp = b.pinned ? 0 : 1;
+		return ap - bp;
+	} );
+
+	for ( const entry of ordered ) {
 		const tile = buildIcon( entry, deps );
 		const stored = _badges.get( entry.id ) ?? 0;
 		if ( stored > 0 ) {
@@ -417,8 +426,13 @@ function buildIcon(
 ): HTMLElement {
 	const tile = document.createElement( 'button' );
 	tile.type = 'button';
-	tile.className = 'desktop-mode-icon';
+	tile.className = entry.pinned
+		? 'desktop-mode-icon desktop-mode-icon--pinned'
+		: 'desktop-mode-icon';
 	tile.dataset.iconId = entry.id;
+	if ( entry.pinned ) {
+		tile.dataset.pinned = '1';
+	}
 	tile.setAttribute( 'role', 'listitem' );
 	tile.setAttribute( 'aria-label', entry.title );
 

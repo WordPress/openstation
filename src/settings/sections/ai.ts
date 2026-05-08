@@ -15,6 +15,7 @@
 
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
+import { trackedFetch } from '../../tracked-fetch';
 import { AI_TRANSPORTS, getAiProviders } from '../constants';
 import type { AiTransportId, SettingsCtx } from '../types';
 
@@ -177,20 +178,24 @@ function _buildGlobalSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 
 		try {
-			const res = await fetch( url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': nonce,
-				},
-				body: JSON.stringify( {
-					settings: {
-						enabled: state.enabled,
-						provider: state.provider,
-						apiKey: state.apiKey,
+			const res = await trackedFetch(
+				url,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': nonce,
 					},
-				} ),
-			} );
+					body: JSON.stringify( {
+						settings: {
+							enabled: state.enabled,
+							provider: state.provider,
+							apiKey: state.apiKey,
+						},
+					} ),
+				},
+				{ source: 'desktop-mode/settings/ai' },
+			);
 
 			if ( ! res.ok ) {
 				const err = await res.json().catch( () => ( {} ) ) as { message?: string };
