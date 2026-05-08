@@ -292,6 +292,30 @@ function desktop_mode_enqueue_toggle_assets() {
 	}
 
 	$css = '
+		#wpadminbar #wp-admin-bar-desktop-mode-toggle > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-layout-menu > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-ai-assistant > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-fullscreen > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-bug-report > .ab-item {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+		#wpadminbar #wp-admin-bar-desktop-mode-toggle .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-fullscreen .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-bug-report .ab-icon {
+			float: none;
+			margin: 0;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 20px;
+			height: 20px;
+		}
+
 		#wp-admin-bar-desktop-mode-toggle .ab-icon.dashicons,
 		#wp-admin-bar-desktop-layout-menu .ab-icon.dashicons {
 			font: normal 20px/1 dashicons;
@@ -300,14 +324,14 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		#wp-admin-bar-desktop-mode-toggle .ab-icon.dashicons::before {
 			content: "\f472";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		#wp-admin-bar-desktop-layout-menu .ab-icon.dashicons::before {
 			/* dashicons-grid-view */
 			content: "\f509";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		#wp-admin-bar-desktop-mode-toggle.desktop-mode-active .ab-icon.dashicons::before {
 			/* Inherit the admin-bar text color so the active state
@@ -334,8 +358,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons::before {
 			content: "\f101";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 			/* See note on desktop-mode-toggle above — inherit so the
 			   icon matches the rest of the admin-bar dashicons
 			   across all WP profile color schemes. */
@@ -382,8 +406,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wp-admin-bar-desktop-fullscreen .ab-icon.dashicons::before {
 			/* dashicons-fullscreen-alt */
 			content: "\f211";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		#wp-admin-bar-desktop-fullscreen.is-fullscreen .ab-icon.dashicons::before {
 			/* dashicons-fullscreen-exit-alt */
@@ -433,8 +457,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wp-admin-bar-desktop-bug-report .ab-icon.dashicons::before {
 			/* dashicons-buddicons-replies */
 			content: "\f465";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-bug-report .ab-label {
