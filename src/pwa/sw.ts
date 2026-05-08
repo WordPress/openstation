@@ -90,7 +90,7 @@ interface SWGlobal {
 // concise.
 const sw = globalThis as unknown as SWGlobal;
 
-const VERSION = '0.8.0-pwa-2';
+const VERSION = '0.8.0-pwa-3';
 const STATIC_CACHE = `desktop-mode-static-${ VERSION }`;
 const RUNTIME_CACHE = `desktop-mode-runtime-${ VERSION }`;
 const OFFLINE_URL = '/desktop-mode/?offline=1';
@@ -258,12 +258,25 @@ function isJsAssetPath( pathname: string ): boolean {
  * waiting for stale-while-revalidate to catch up. The cache still
  * gets populated so offline users see the most-recent successful
  * fetch.
+ *
+ * **`cache: 'reload'` is load-bearing.** Without it, `fetch(req)`
+ * still honours the browser's *HTTP* cache — a separate layer below
+ * the SW. WordPress plugin static assets ship without a
+ * `Cache-Control` header from nginx, so Chrome falls back to
+ * heuristic freshness and may serve a stale bundle from the HTTP
+ * cache without ever hitting the origin. That's how a reinstalled
+ * PWA window kept showing the pre-fix bundle: the freshly-opened
+ * window inherited Chrome's shared HTTP cache from the regular
+ * browser tab that had loaded the old code a minute earlier.
+ * `cache: 'reload'` forces a true network fetch (the fetch spec's
+ * "reload" mode bypasses the HTTP cache on both request and
+ * response paths).
  */
 async function networkFirstForAsset( req: Request ): Promise< Response > {
 	const cache = await caches.open( RUNTIME_CACHE );
 	try {
 		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available; raw fetch is the API.
-		const fresh = await fetch( req );
+		const fresh = await fetch( req.url, { cache: 'reload' } );
 		if ( fresh && fresh.status === 200 ) {
 			cache.put( req, fresh.clone() ).catch( () => undefined );
 		}

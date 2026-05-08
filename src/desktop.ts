@@ -1740,9 +1740,14 @@ function init(): void {
 		// itself is already running inside the installed PWA window
 		// (`display-mode: standalone`) — there's nothing to install
 		// from there, and a perpetually-no-op icon is just noise.
-		// Browsers' window mode is fixed at boot, so a single check
-		// here is sufficient — there's no transition during a
-		// session that would change the answer.
+		//
+		// **Two-phase guard.** Chrome cold-starts a PWA window with
+		// the document briefly reporting `display-mode: browser`
+		// before flipping to standalone. The boot-time check covers
+		// the common case (display mode already settled); the
+		// matchMedia `'change'` listener catches the cold-start race
+		// and removes the tile retroactively when the flip arrives,
+		// so the icon never lingers in the installed PWA.
 		if ( ! isStandaloneDisplay() ) {
 			layoutDispatcher.appendSystemTile(
 				getInstallTileDef(
@@ -1752,6 +1757,15 @@ function init(): void {
 				'core',
 			);
 		}
+		window
+			.matchMedia( '(display-mode: standalone)' )
+			.addEventListener( 'change', ( e ) => {
+				if ( e.matches ) {
+					layoutDispatcher?.removeSystemTile(
+						'desktop-mode-pwa-install',
+					);
+				}
+			} );
 	}
 
 	/**
