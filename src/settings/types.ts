@@ -150,6 +150,18 @@ export interface OsSettingsState {
 	 * @since 0.18.0
 	 */
 	nativePagesEnabled: boolean;
+	/**
+	 * Per-user opt-in for the native Users window. When true, the
+	 * Users dock tile / `users.php` links open the native
+	 * `<wpd-table>` window instead of the classic iframe. Defaults on.
+	 * Capability-gated on the server (the window is only registered
+	 * for users with `list_users`); read-only for `list_users`-only
+	 * users, with mutation actions appearing only when the matching
+	 * `edit_users` / `promote_users` / `delete_users` caps are present.
+	 *
+	 * @since 0.18.0
+	 */
+	nativeUsersEnabled: boolean;
 }
 
 /**

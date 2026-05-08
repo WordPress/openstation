@@ -292,6 +292,30 @@ function desktop_mode_enqueue_toggle_assets() {
 	}
 
 	$css = '
+		#wpadminbar #wp-admin-bar-desktop-mode-toggle > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-layout-menu > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-ai-assistant > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-fullscreen > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-bug-report > .ab-item {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+		#wpadminbar #wp-admin-bar-desktop-mode-toggle .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-fullscreen .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-bug-report .ab-icon {
+			float: none;
+			margin: 0;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 20px;
+			height: 20px;
+		}
+
 		#wp-admin-bar-desktop-mode-toggle .ab-icon.dashicons,
 		#wp-admin-bar-desktop-layout-menu .ab-icon.dashicons {
 			font: normal 20px/1 dashicons;
@@ -300,14 +324,14 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		#wp-admin-bar-desktop-mode-toggle .ab-icon.dashicons::before {
 			content: "\f472";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		#wp-admin-bar-desktop-layout-menu .ab-icon.dashicons::before {
 			/* dashicons-grid-view */
 			content: "\f509";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		#wp-admin-bar-desktop-mode-toggle.desktop-mode-active .ab-icon.dashicons::before {
 			/* Inherit the admin-bar text color so the active state
@@ -334,8 +358,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons::before {
 			content: "\f101";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 			/* See note on desktop-mode-toggle above — inherit so the
 			   icon matches the rest of the admin-bar dashicons
 			   across all WP profile color schemes. */
@@ -382,12 +406,38 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wp-admin-bar-desktop-fullscreen .ab-icon.dashicons::before {
 			/* dashicons-fullscreen-alt */
 			content: "\f211";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		#wp-admin-bar-desktop-fullscreen.is-fullscreen .ab-icon.dashicons::before {
 			/* dashicons-fullscreen-exit-alt */
 			content: "\f212";
+		}
+		/* Defuse the implicit-drag-on-anchor click eater. WP renders
+		   admin-bar items as <a href="#">, which is implicitly
+		   draggable; tiny pointer jitter on click commits to a native
+		   link-drag (the floating "Exit fullscreen / http://…#" ghost
+		   the user sees) and the click handler never runs. admin-bar.js
+		   also sets draggable="false" on the <a>; user-drag: none here
+		   covers the WebKit path where the attribute alone is not
+		   honoured reliably. */
+		#wp-admin-bar-desktop-fullscreen .ab-item,
+		#wp-admin-bar-desktop-fullscreen .ab-item * {
+			-webkit-user-drag: none;
+			user-drag: none;
+			-webkit-user-select: none;
+			user-select: none;
+		}
+		/* Hide admin-bar items that sit closest to the right corner
+		   while in browser fullscreen. The corner is a reveal hot zone
+		   the OS / browser reserve for menu-bar / window-controls,
+		   where pointer events get intercepted before reaching the
+		   page. Hiding these two shifts the Fullscreen toggle further
+		   from the corner so its own click lands. Toggled by a body
+		   class admin-bar.js sets on `fullscreenchange`. */
+		body.desktop-mode-browser-fs #wp-admin-bar-desktop-mode-toggle,
+		body.desktop-mode-browser-fs #wp-admin-bar-desktop-bug-report {
+			display: none;
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-fullscreen .ab-label {
@@ -407,8 +457,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wp-admin-bar-desktop-bug-report .ab-icon.dashicons::before {
 			/* dashicons-buddicons-replies */
 			content: "\f465";
-			top: 2px;
-			position: relative;
+			top: 0;
+			position: static;
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-bug-report .ab-label {

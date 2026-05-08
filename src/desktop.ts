@@ -102,7 +102,11 @@ import {
 	bootstrapPwa,
 	type NotifyOptions,
 } from './pwa';
-import { getInstallTileDef, isStandaloneDisplay } from './pwa/install';
+import {
+	getInstallTileDef,
+	isStandaloneDisplay,
+	isLikelyInstalled,
+} from './pwa/install';
 import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
@@ -1679,6 +1683,59 @@ function init(): void {
 		enabled: ( snapshot ) => snapshot.nativePagesEnabled === true,
 	} );
 
+	// Native Users window — opens on `users.php` only (the list
+	// screen). Per-user edit screens are claimed by the User Edit
+	// remap below.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-users',
+		nativeWindowId: 'desktop-mode-users',
+		matches: ( _url, parsed ) => parsed.pathname.endsWith( '/users.php' ),
+		enabled: ( snapshot ) => snapshot.nativeUsersEnabled === true,
+	} );
+
+	// Native User Edit window — claims `user-edit.php?user_id=N`
+	// AND `profile.php` (the viewer's own profile shortcut). Sets
+	// the target user id via the shared-store helper before the
+	// shell calls openById; the render callback reads it back to
+	// know which user to load. Same opt-in flag as the Users list
+	// — if you turned that off, you presumably want the classic
+	// edit screen too.
+	// `user-edit.php?user_id=N` and `profile.php` open the
+	// dedicated **`desktop-mode-user-edit`** native window. The
+	// Users-list window has its OWN built-in Profile tab pinned to
+	// the viewer; this remap is for the per-user profile flow.
+	// `onMatch` stashes the target user id in the shared store so
+	// the user-edit render callback knows which user to load.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-user-edit',
+		nativeWindowId: 'desktop-mode-user-edit',
+		matches: ( _url, parsed ) => {
+			const path = parsed.pathname;
+			if ( path.endsWith( '/profile.php' ) ) {
+				return true;
+			}
+			if ( path.endsWith( '/user-edit.php' ) ) {
+				return parsed.searchParams.has( 'user_id' );
+			}
+			return false;
+		},
+		enabled: ( snapshot ) => snapshot.nativeUsersEnabled === true,
+		onMatch: ( _url, parsed ) => {
+			const userId = parseInt(
+				parsed.searchParams.get( 'user_id' ) ?? '0',
+				10,
+			);
+			if ( userId > 0 ) {
+				void import( './posts-window/user-edit-target' ).then( ( m ) => {
+					m.setUserEditTarget( userId );
+				} );
+			}
+			// `profile.php` with no user_id falls through to the
+			// render callback's `currentUserId` fallback — no need
+			// to set a target.
+		},
+	} );
+
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'desktop-mode-area--with-dock' );
 		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
@@ -1740,9 +1797,14 @@ function init(): void {
 		// itself is already running inside the installed PWA window
 		// (`display-mode: standalone`) — there's nothing to install
 		// from there, and a perpetually-no-op icon is just noise.
-		// Browsers' window mode is fixed at boot, so a single check
-		// here is sufficient — there's no transition during a
-		// session that would change the answer.
+		//
+		// **Two-phase guard.** Chrome cold-starts a PWA window with
+		// the document briefly reporting `display-mode: browser`
+		// before flipping to standalone. The boot-time check covers
+		// the common case (display mode already settled); the
+		// matchMedia `'change'` listener catches the cold-start race
+		// and removes the tile retroactively when the flip arrives,
+		// so the icon never lingers in the installed PWA.
 		if ( ! isStandaloneDisplay() ) {
 			layoutDispatcher.appendSystemTile(
 				getInstallTileDef(
@@ -1752,6 +1814,34 @@ function init(): void {
 				'core',
 			);
 		}
+		window
+			.matchMedia( '(display-mode: standalone)' )
+			.addEventListener( 'change', ( e ) => {
+				if ( e.matches ) {
+					layoutDispatcher?.removeSystemTile(
+						'desktop-mode-pwa-install',
+					);
+				}
+			} );
+
+		// Async post-boot: if the PWA is already installed in the
+		// current browser profile (Chrome's `Open in app` indicator
+		// in the address bar), drop the install tile from regular
+		// browser tabs too. The synchronous boot-time check only
+		// covers the standalone display case; this handles the
+		// "regular tab where the user has already installed" case
+		// that otherwise leaves a no-op install icon on the dock
+		// and a confusing "already installed" toast on click.
+		// `getInstalledRelatedApps()` is async and Chromium-only,
+		// so this resolves to a no-op on Safari / Firefox where
+		// the tile stays as a fallback.
+		void isLikelyInstalled().then( ( installed ) => {
+			if ( installed ) {
+				layoutDispatcher?.removeSystemTile(
+					'desktop-mode-pwa-install',
+				);
+			}
+		} );
 	}
 
 	/**

@@ -30,7 +30,7 @@
 	position: absolute;
 	width: var(--desktop-mode-resize-size);
 	height: var(--desktop-mode-resize-size);
-	z-index: 1;
+	z-index: 999;
 }
 
 .desktop-mode-window__resize-handle--se {

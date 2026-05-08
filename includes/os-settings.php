@@ -95,6 +95,10 @@ function desktop_mode_default_os_settings() {
 		// nativePostsEnabled — defaults ON, users can flip off to keep
 		// the classic `edit.php?post_type=page` iframe.
 		'nativePagesEnabled'       => true,
+		// Per-user opt-OUT for the native Users window. Defaults ON;
+		// the server-side cap gate (`list_users`) means the toggle
+		// only matters for users who could see the Users tile anyway.
+		'nativeUsersEnabled'       => true,
 	);
 }
 
@@ -315,6 +319,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['nativePagesEnabled']
 		: $defaults['nativePagesEnabled'];
 
+	$native_users_enabled = isset( $raw['nativeUsersEnabled'] )
+		? (bool) $raw['nativeUsersEnabled']
+		: $defaults['nativeUsersEnabled'];
+
 	return array(
 		'wallpaper'                => $wallpaper,
 		'accent'                   => $accent,
@@ -328,6 +336,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePostsEnabled'       => $native_posts_enabled,
 		'nativePostsHiddenColumns' => $native_posts_hidden_columns,
 		'nativePagesEnabled'       => $native_pages_enabled,
+		'nativeUsersEnabled'       => $native_users_enabled,
 	);
 }
 

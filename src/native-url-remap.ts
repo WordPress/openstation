@@ -54,6 +54,18 @@ export interface NativeUrlRemap {
 	 * Default: always enabled.
 	 */
 	enabled?( snapshot: OsSettingsSnapshot ): boolean;
+	/**
+	 * Optional pre-open hook. Fires AFTER `matches()` claims the URL
+	 * and BEFORE the framework calls `openById( nativeWindowId )`.
+	 * Lets a remap thread per-instance state (e.g. the target
+	 * user_id parsed out of the URL) into a shared store the
+	 * window's render callback reads. Synchronous; throwing here
+	 * does NOT block the open — the framework still tries the
+	 * native open and falls back if it fails.
+	 *
+	 * @since 0.18.0
+	 */
+	onMatch?( url: string, parsed: URL ): void;
 }
 
 interface RemapDeps {
@@ -196,6 +208,17 @@ export function tryNativeUrlRemap( url: string ): boolean {
 		}
 		if ( entry.enabled && ! entry.enabled( snapshot ) ) {
 			continue;
+		}
+		if ( entry.onMatch ) {
+			try {
+				entry.onMatch( url, parsed );
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[desktop-mode] URL remap onMatch hook threw for "${ entry.id }":`,
+					err,
+				);
+			}
 		}
 		if ( deps.openById( entry.nativeWindowId ) ) {
 			return true;

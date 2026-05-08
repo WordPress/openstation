@@ -175,7 +175,24 @@
 		var fsLink = fsBtn.querySelector( '.ab-item' );
 		var fsLabel = fsBtn.querySelector( '.ab-label' );
 		var fsI18n = ( cfg && cfg.i18n ) || {};
+		// WP renders admin-bar items as `<a href="#">`, which HTML5
+		// marks implicitly draggable. In browser fullscreen the button
+		// sits at top:0 where cursor reveals (menu bar, exit
+		// affordance) produce enough pointer jitter between mousedown
+		// and mouseup that the browser commits to a native link-drag
+		// instead of a click — the handler never runs and the user
+		// sees a ghost flicker. Opt the element out of native drag so
+		// the click always lands.
+		if ( fsLink ) {
+			fsLink.setAttribute( 'draggable', 'false' );
+		}
 		function paintFullscreen( on ) {
+			// Body class drives the CSS that hides admin-bar items
+			// which sit too close to the screen-corner reveal hot zones
+			// in browser fullscreen — the OS / browser intercept clicks
+			// in those bands. Hiding them shifts the Fullscreen button
+			// further from the right edge so its own click lands.
+			document.body.classList.toggle( 'desktop-mode-browser-fs', !! on );
 			if ( on ) {
 				fsBtn.classList.add( 'is-fullscreen' );
 				if ( fsLabel ) fsLabel.textContent = fsI18n.exitFullscreen || 'Exit fullscreen';

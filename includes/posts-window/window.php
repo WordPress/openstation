@@ -143,11 +143,11 @@ function desktop_mode_posts_window_render_template() {
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_posts_window_template_html', $html );
 
-	$allowed_html = function_exists( 'desktop_mode_native_window_allowed_html' )
-		? desktop_mode_native_window_allowed_html()
-		: wp_kses_allowed_html( 'post' );
-
-	echo wp_kses( $filtered, $allowed_html );
+	if ( function_exists( 'desktop_mode_kses_native_window_template' ) ) {
+		echo desktop_mode_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	} else {
+		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
+	}
 }
 
 /**

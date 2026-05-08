@@ -79,6 +79,36 @@ export interface SharedStore< T > {
 	 */
 	subscribe( cb: ( state: Readonly< T > ) => void ): () => void;
 	/**
+	 * Patch + notify in one call. Sugar over the canonical
+	 * `mutate-then-notify` flow:
+	 *
+	 *   ```ts
+	 *   store.state.foo = 'bar';
+	 *   store.state.baz = 1;
+	 *   store.notify();
+	 *   ```
+	 *
+	 * collapses to:
+	 *
+	 *   ```ts
+	 *   store.setState( { foo: 'bar', baz: 1 } );
+	 *   ```
+	 *
+	 * The classic shape (`state.* = …; notify()`) stays first-class —
+	 * use it when you need conditional / multi-step updates. Use
+	 * `setState` when you have a flat patch and don't want to
+	 * forget the notify (the silent-no-op when you do is the most
+	 * common DX cliff in this API).
+	 *
+	 * Only valid for object-shaped state. Primitive-shaped stores
+	 * still use the `state` setter path.
+	 *
+	 * @since 0.18.0
+	 *
+	 * @param patch Partial state to merge into `state`.
+	 */
+	setState( patch: Partial< T > ): void;
+	/**
 	 * Reset the store to its initial state and clear every
 	 * subscriber. Mainly for tests; production code rarely needs
 	 * it. Calls the original `initialState` thunk again — handy
@@ -196,6 +226,19 @@ export function createSharedStore< T >(
 			return () => {
 				record!.listeners.delete( cb );
 			};
+		},
+		setState( patch: Partial< T > ): void {
+			const cur = record!.state;
+			if ( typeof cur !== 'object' || cur === null ) {
+				// Primitive state — `setState` doesn't apply.
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[desktop-mode/shared-store:${ key }] setState called on a primitive store; use the state setter instead.`,
+				);
+				return;
+			}
+			Object.assign( cur as Record< string, unknown >, patch );
+			handle.notify();
 		},
 		reset(): void {
 			const fresh = record!.rebuild();

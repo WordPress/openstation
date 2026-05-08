@@ -1203,3 +1203,209 @@
 	from { opacity: 0; transform: translateY( 8px ) scale( 0.98 ); }
 	to   { opacity: 1; transform: translateY( 0 )   scale( 1 );    }
 }
+
+/* ─── Native Users window — tabs + Add User panel ────────────────── */
+/*
+ * Lives in the shared posts-window stylesheet because the Users
+ * window enqueues `desktop-mode-posts-window` (single bundle, single
+ * style handle covers both). Scoped to `.desktop-mode-users` so it
+ * never bleeds into the Posts/Pages markup.
+ */
+/*
+ * Tab strip — keep it auto-height (matches the
+ * `.desktop-mode-posts__tabs` rule). Without the `flex: 0 0 auto`
+ * the wpd-tabs element grows to fill the column and the panel
+ * below collapses to zero height — exactly the "no table"
+ * regression the first cut hit.
+ */
+.desktop-mode-users__tabs {
+	flex: 0 0 auto;
+	padding: 0 18px;
+	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+/*
+ * The Add User tab. The PHP template applies this class to the
+ * `<wpd-tabpanel>`. Padding lives on the host so the form's own
+ * footer separator sits flush with the panel edges. `flex: 1 1
+ * auto` matches the All-users panel so the active tab fills the
+ * remaining height and the inactive one is fully `hidden`.
+ */
+.desktop-mode-users__add-panel {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: block;
+	padding: 32px 24px 28px;
+	box-sizing: border-box;
+	overflow-y: auto;
+}
+.desktop-mode-users__add-panel[ hidden ] {
+	display: none;
+}
+
+/*
+ * Center the form at a comfortable reading width. The wpd-form
+ * itself does the column layout — we only do the OUTER centering
+ * here. `min(760px, 100%)` keeps it from blowing past the panel's
+ * edges on narrow windows where the max-width would be moot.
+ */
+.desktop-mode-users__add-panel > wpd-form {
+	display: block;
+	margin-inline: auto;
+	width: min( 760px, 100% );
+}
+
+.desktop-mode-users__add-panel [ slot="header" ] {
+	margin-bottom: 4px;
+}
+.desktop-mode-users__add-panel [ slot="header" ] h2 {
+	margin: 0 0 6px;
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var( --desktop-mode-text, #1d2327 );
+}
+.desktop-mode-users__form-lede {
+	margin: 0 0 8px;
+	color: var( --desktop-mode-muted, #50575e );
+	font-size: 13px;
+	line-height: 1.5;
+}
+.desktop-mode-users__form-pwd-actions {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin-top: -4px;
+}
+.desktop-mode-users__form-hint {
+	margin: 0;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+/*
+ * Narrow-window trim — at < 540px the side padding gets in the way
+ * more than it helps. Same breakpoint the form's own grid uses to
+ * collapse to one column, so the visual cadence stays consistent.
+ */
+@media ( max-width: 540px ) {
+	.desktop-mode-users__add-panel {
+		padding: 20px 14px 16px;
+	}
+	.desktop-mode-users__tabs {
+		padding: 0 12px;
+	}
+}
+
+/*
+ * Profile tab — third tab in the Users window. Same flex
+ * stretch as the .desktop-mode-posts__panel rule: the active
+ * tabpanel fills the remaining height, scrolls its own content,
+ * leaves the tab strip pinned at the top.
+ */
+.desktop-mode-users__edit-panel {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+.desktop-mode-users__edit-panel[ hidden ] {
+	display: none;
+}
+/*
+ * `<wpd-user-profile>` slotted as a tabpanel child needs to fill
+ * the height itself so its internal scroll container takes the
+ * remaining space. Without this the layout grid lives at its
+ * intrinsic height and the user can't reach the bottom of the
+ * form on shorter windows.
+ */
+.desktop-mode-users__edit-panel > wpd-user-profile {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/*
+ * Standalone `desktop-mode-user-edit` window. The native body is
+ * a chromeless host; `<wpd-user-profile>` fills the whole space
+ * and owns its own scroll. Without `min-height: 0` on the chain,
+ * the inner `overflow-y: auto` on the layout grid never gets a
+ * chance to clip and scroll.
+ */
+.desktop-mode-user-edit-window {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+.desktop-mode-user-edit-window > wpd-user-profile {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+/*
+ * The component itself — light-DOM host of the layout. Same
+ * flex semantics so the inner scroll container is the
+ * .desktop-mode-users__edit-layout div.
+ */
+wpd-user-profile {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+wpd-user-profile > .desktop-mode-users__edit-layout {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/*
+ * Sidebar layout — at-a-glance summary on the left, editable
+ * form + activity feed in the main column on the right. A
+ * single CSS container query collapses the two columns to one
+ * stack on narrow widths, where the aside moves above the form
+ * (the user still sees their summary; just scrolls past it
+ * before the form). The Profile form's own wpd-form container
+ * query handles the inner 1↔2 column flip.
+ */
+.desktop-mode-users__edit-layout {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	display: grid;
+	grid-template-columns: 280px minmax( 0, 1fr );
+	gap: 28px;
+	padding: 28px 32px 32px;
+	container-type: inline-size;
+	container-name: wpd-user-edit;
+}
+@container wpd-user-edit ( max-width: 800px ) {
+	.desktop-mode-users__edit-layout {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+}
+.desktop-mode-users__edit-aside {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	position: sticky;
+	top: 0;
+	align-self: start;
+}
+@container wpd-user-edit ( max-width: 800px ) {
+	.desktop-mode-users__edit-aside {
+		position: static;
+	}
+}
+.desktop-mode-users__edit-main {
+	min-width: 0;
+	max-width: 720px;
+	display: flex;
+	flex-direction: column;
+}
+.desktop-mode-users__edit-activity {
+	min-width: 0;
+}
