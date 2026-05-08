@@ -102,7 +102,11 @@ import {
 	bootstrapPwa,
 	type NotifyOptions,
 } from './pwa';
-import { getInstallTileDef, isStandaloneDisplay } from './pwa/install';
+import {
+	getInstallTileDef,
+	isStandaloneDisplay,
+	isLikelyInstalled,
+} from './pwa/install';
 import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
@@ -1766,6 +1770,25 @@ function init(): void {
 					);
 				}
 			} );
+
+		// Async post-boot: if the PWA is already installed in the
+		// current browser profile (Chrome's `Open in app` indicator
+		// in the address bar), drop the install tile from regular
+		// browser tabs too. The synchronous boot-time check only
+		// covers the standalone display case; this handles the
+		// "regular tab where the user has already installed" case
+		// that otherwise leaves a no-op install icon on the dock
+		// and a confusing "already installed" toast on click.
+		// `getInstalledRelatedApps()` is async and Chromium-only,
+		// so this resolves to a no-op on Safari / Firefox where
+		// the tile stays as a fallback.
+		void isLikelyInstalled().then( ( installed ) => {
+			if ( installed ) {
+				layoutDispatcher?.removeSystemTile(
+					'desktop-mode-pwa-install',
+				);
+			}
+		} );
 	}
 
 	/**
