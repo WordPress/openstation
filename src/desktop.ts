@@ -102,7 +102,11 @@ import {
 	bootstrapPwa,
 	type NotifyOptions,
 } from './pwa';
-import { getInstallTileDef } from './pwa/install';
+import {
+	getInstallTileDef,
+	isStandaloneDisplay,
+	isLikelyInstalled,
+} from './pwa/install';
 import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import {
@@ -1789,17 +1793,55 @@ function init(): void {
 
 		// PWA install tile — sits next to OS Settings on the same
 		// rail (`'core'` affinity) so users see install / settings as
-		// peer shell-owned actions. The tile registers
-		// unconditionally; its onOpen handles the
-		// "browser hasn't decided we're installable yet" path with a
-		// contextual toast rather than disappearing.
-		layoutDispatcher.appendSystemTile(
-			getInstallTileDef(
-				config.pwa?.appName || 'WordPress',
-				showToast,
-			),
-			'core',
-		);
+		// peer shell-owned actions. Skipped entirely when the shell
+		// itself is already running inside the installed PWA window
+		// (`display-mode: standalone`) — there's nothing to install
+		// from there, and a perpetually-no-op icon is just noise.
+		//
+		// **Two-phase guard.** Chrome cold-starts a PWA window with
+		// the document briefly reporting `display-mode: browser`
+		// before flipping to standalone. The boot-time check covers
+		// the common case (display mode already settled); the
+		// matchMedia `'change'` listener catches the cold-start race
+		// and removes the tile retroactively when the flip arrives,
+		// so the icon never lingers in the installed PWA.
+		if ( ! isStandaloneDisplay() ) {
+			layoutDispatcher.appendSystemTile(
+				getInstallTileDef(
+					config.pwa?.appName || 'WordPress',
+					showToast,
+				),
+				'core',
+			);
+		}
+		window
+			.matchMedia( '(display-mode: standalone)' )
+			.addEventListener( 'change', ( e ) => {
+				if ( e.matches ) {
+					layoutDispatcher?.removeSystemTile(
+						'desktop-mode-pwa-install',
+					);
+				}
+			} );
+
+		// Async post-boot: if the PWA is already installed in the
+		// current browser profile (Chrome's `Open in app` indicator
+		// in the address bar), drop the install tile from regular
+		// browser tabs too. The synchronous boot-time check only
+		// covers the standalone display case; this handles the
+		// "regular tab where the user has already installed" case
+		// that otherwise leaves a no-op install icon on the dock
+		// and a confusing "already installed" toast on click.
+		// `getInstalledRelatedApps()` is async and Chromium-only,
+		// so this resolves to a no-op on Safari / Firefox where
+		// the tile stays as a fallback.
+		void isLikelyInstalled().then( ( installed ) => {
+			if ( installed ) {
+				layoutDispatcher?.removeSystemTile(
+					'desktop-mode-pwa-install',
+				);
+			}
+		} );
 	}
 
 	/**

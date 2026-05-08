@@ -87,7 +87,7 @@ export function isStandaloneDisplay(): boolean {
  * because it acknowledges the most common cause (already installed)
  * without falsely claiming we know the answer.
  */
-async function isLikelyInstalled(): Promise< boolean > {
+export async function isLikelyInstalled(): Promise< boolean > {
 	if ( isStandaloneDisplay() ) {
 		return true;
 	}
