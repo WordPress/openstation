@@ -45,7 +45,16 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 	tile.style.left = `${ placement.x }px`;
 	tile.style.top = `${ placement.y }px`;
 	tile.setAttribute( 'role', 'listitem' );
-	tile.setAttribute( 'aria-label', file.title() );
+	tile.setAttribute(
+		'aria-label',
+		(
+			placement.meta &&
+			typeof ( placement.meta as { name?: unknown } ).name === 'string' &&
+			( ( placement.meta as { name: string } ).name.trim() !== '' )
+		)
+			? ( placement.meta as { name: string } ).name.trim()
+			: file.title(),
+	);
 	if ( ! placement.file.exists ) {
 		tile.classList.add( `${ TILE_CLASS }--missing` );
 	}
@@ -69,7 +78,15 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 
 	const label = document.createElement( 'span' );
 	label.className = `${ TILE_CLASS }__label`;
-	label.textContent = file.title();
+	// Per-placement name override — set by the wallpaper menu's
+	// "New web link / window" flow so two tiles pointing at the same
+	// URL can carry different labels. Generic enough that any
+	// type/plugin can opt in by writing `meta.name` on the placement.
+	const metaName =
+		placement.meta && typeof ( placement.meta as { name?: unknown } ).name === 'string'
+			? ( placement.meta as { name: string } ).name.trim()
+			: '';
+	label.textContent = metaName !== '' ? metaName : file.title();
 	tile.appendChild( label );
 
 	// Plugin extension point: custom DOM injected at the end of the
@@ -87,7 +104,14 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();
-		void openFile( file );
+		void openFile( file, {
+			placement: {
+				id: placement.id,
+				x: placement.x,
+				y: placement.y,
+				meta: placement.meta,
+			},
+		} );
 	} );
 
 	doAction( 'desktop-mode.files.tile-rendered', { tile, placement } );

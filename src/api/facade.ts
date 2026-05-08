@@ -127,6 +127,7 @@ import type { FilesApi } from '../desktop-files';
 import type { WidgetLayer } from '../widgets/layer';
 import type { AiAssistantApi } from '../ai-assistant';
 import type { DragBridgeApi } from '../drag-bridge';
+import type { DragManagerApi } from '../drag';
 import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
 import type { NativeWindowDef, DesktopConfig } from '../types';
@@ -150,7 +151,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
 	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
-	'refreshMenu', 'config', 'ai', 'dragBridge', 'registerCommand',
+	'refreshMenu', 'config', 'ai', 'dragBridge', 'dragManager', 'registerCommand',
 	'unregisterCommand', 'listCommands', 'registerSettingsTab',
 	'unregisterSettingsTab', 'listSettingsTabs',
 	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
@@ -203,6 +204,7 @@ export interface BuildPublicApiDeps {
 	openOsSettings: () => void;
 	aiAssistant: AiAssistantApi;
 	dragBridge: DragBridgeApi;
+	dragManager: DragManagerApi;
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	config: DesktopConfig;
 }
@@ -235,6 +237,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		openOsSettings,
 		aiAssistant,
 		dragBridge,
+		dragManager,
 		connect,
 		config,
 	} = deps;
@@ -292,6 +295,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		config,
 		ai: aiAssistant,
 		dragBridge,
+		dragManager,
 		registerCommand,
 		unregisterCommand,
 		listCommands,

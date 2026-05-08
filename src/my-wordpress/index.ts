@@ -25,7 +25,21 @@ import {
 	renderStatusBarSegments,
 	type StatusBarSegment,
 } from '../desktop-files/folder-status-bar';
-import { setShortcutDragPayload } from '../desktop-files/drag-shortcut';
+import type { DragManagerApi } from '../drag';
+import type { ShortcutDragData } from '../desktop-files/drag-payloads';
+
+/**
+ * Read the runtime DragManager. Boot order guarantees this exists by
+ * the time this module's tile builders run — the My WordPress window
+ * only mounts after `installPublicApi(desktopApi)` has wired the
+ * manager onto `wp.desktop.dragManager`.
+ */
+function getDragManager(): DragManagerApi | null {
+	const api = (
+		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
+	).wp?.desktop?.dragManager;
+	return api ?? null;
+}
 import {
 	renderBreadcrumbs,
 	type BreadcrumbSegment,
@@ -399,14 +413,13 @@ function renderRoot( state: RenderState ): void {
 			name: entity.label,
 			date: synthDate,
 		} );
-		attachTileDrag( tile, layout, {
-			tileKey,
-			// Folder tiles use Finder-style semantics: single click
-			// selects (visual highlight only — no navigation, so a
-			// fast double-click can't race the tile out of the DOM),
-			// double click navigates.
-			onClick: () => select( tile ),
-		} );
+		// Folder tiles use Finder-style semantics: single click
+		// selects (visual highlight only — no navigation, so a fast
+		// double-click can't race the tile out of the DOM), double
+		// click navigates. No drag-out: folder tiles aren't filed as
+		// shortcuts — only entity tiles are.
+		void tileKey;
+		tile.addEventListener( 'click', () => select( tile ) );
 		tile.addEventListener( 'dblclick', ( e ) => {
 			e.preventDefault();
 			navigate( state, { kind: 'list', entityId: entity.id } );
@@ -772,28 +785,55 @@ function buildEntityTile(
 	} );
 	tile.dataset.entryId = String( item.id );
 
-	// Make the tile a native HTML5 drag source so the user can
-	// drag it out of the My WordPress window and drop it on the
-	// wallpaper, on a folder icon, or inside an open folder
-	// window — the desktop FilesLayer reads the payload and files
-	// a `post`-type placement (a shortcut) at the drop target.
-	// Internal rearrange is still disabled (single click selects,
-	// double click opens) — only the cross-window drag-out fires.
-	tile.draggable = true;
-	tile.addEventListener( 'dragstart', ( e: DragEvent ) => {
-		hideTooltip();
-		if ( ! e.dataTransfer ) {
+	// Drag-out: the user picks up an entity tile and drops it on the
+	// wallpaper, a folder icon, or inside an open folder window. The
+	// desktop FilesLayer's drop targets accept the `'shortcut'` payload
+	// and POST a new placement at the drop coordinates.
+	//
+	// We route through the centralized DragManager rather than HTML5
+	// drag because:
+	//   1. HTML5 drag's `dragstart` fails to fire when an ancestor or
+	//      sibling listener has called `setPointerCapture` on the
+	//      tile — the long-standing "I can lift the tile but no drop
+	//      target sees the payload" bug.
+	//   2. We want a single cancellation path (Escape, blur,
+	//      visibilitychange) for every in-shell drag.
+	//   3. Phase 8's "Lift and Drop" cross-iframe pattern needs
+	//      pointer-event control anyway. Building on it now keeps a
+	//      single mental model.
+	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
+		if ( e.button !== 0 ) {
 			return;
 		}
-		setShortcutDragPayload( e.dataTransfer, {
-			type: 'post',
-			ref: String( item.id ),
-			title: titleText,
-			icon: entity.icon,
+		const dragManager = getDragManager();
+		if ( ! dragManager ) {
+			return;
+		}
+		dragManager.start( {
+			payload: {
+				type: 'shortcut',
+				source: tile,
+				data: {
+					kind: 'post',
+					ref: String( item.id ),
+					title: titleText,
+					icon: entity.icon,
+				} satisfies ShortcutDragData,
+				ghost: {
+					offsetX: e.clientX - tile.getBoundingClientRect().left,
+					offsetY: e.clientY - tile.getBoundingClientRect().top,
+				},
+			},
+			origin: e,
+			onClickOnly: () => {
+				// Sub-threshold gesture — the regular `click` listener
+				// (added below by `attachSelectAndDragHandlers`) handles
+				// selection. Hiding the tooltip here is harmless even
+				// if the click handler also fires; tooltip is gone
+				// either way.
+				hideTooltip();
+			},
 		} );
-		// Browser uses the drag source as the default ghost — that
-		// already looks right (the tile follows the cursor with a
-		// subtle alpha). No setDragImage override needed.
 	} );
 
 	// If another user is editing right now, surface that on the
@@ -848,12 +888,15 @@ function buildEntityTile(
 		name: titleText,
 		date: item.date || new Date( 0 ).toISOString(),
 	} );
-	attachTileDrag( tile, ctx.layout, {
-		tileKey,
-		onClick: () => {
-			selectTile( state, ctx, tile, entity, item.id );
-		},
-		onDragStart: hideTooltip,
+	// Click-to-select. The pointerdown handler above already routes
+	// drags through the DragManager, so a sub-threshold gesture
+	// (pointer-down, no movement, pointer-up) flows naturally:
+	// pointerdown fires manager.start(); manager treats it as a
+	// click on pointerup; the browser dispatches `click`; this
+	// listener selects.
+	void tileKey;
+	tile.addEventListener( 'click', () => {
+		selectTile( state, ctx, tile, entity, item.id );
 	} );
 
 	tile.addEventListener( 'dblclick', ( e ) => {
@@ -1349,16 +1392,13 @@ function renderDetail(
 				name: sub.label,
 				date: sub.synthDate,
 			} );
-			attachTileDrag( tile, layout, {
-				tileKey,
-				// Sub-folder tiles use the same Finder-style
-				// semantics as the root folder tiles: single click
-				// selects (visual only), double click navigates.
-				// Disabled tiles still receive the selection so the
-				// user has a hover/focus affordance, but no dblclick
-				// listener is attached below.
-				onClick: () => select( tile ),
-			} );
+			// Sub-folder tiles use the same Finder-style semantics as
+			// the root folder tiles: single click selects (visual
+			// only), double click navigates. Disabled tiles still
+			// receive the selection so the user has a hover/focus
+			// affordance, but no dblclick listener below.
+			void tileKey;
+			tile.addEventListener( 'click', () => select( tile ) );
 			if ( ! sub.disabled ) {
 				tile.addEventListener( 'dblclick', ( e ) => {
 					e.preventDefault();
@@ -1563,35 +1603,32 @@ function renderSubList(
 				name: item.label,
 				date: item.date,
 			} );
-			attachTileDrag( tile, layout, {
-				tileKey,
-				onClick: () => {
-					if ( selectedTile ) {
-						selectedTile.classList.remove(
-							'desktop-mode-my-wordpress__tile--selected',
-						);
-					}
-					tile.classList.add(
+			tile.addEventListener( 'click', () => {
+				if ( selectedTile ) {
+					selectedTile.classList.remove(
 						'desktop-mode-my-wordpress__tile--selected',
 					);
-					selectedTile = tile;
-					selectedKey = tileKey;
+				}
+				tile.classList.add(
+					'desktop-mode-my-wordpress__tile--selected',
+				);
+				selectedTile = tile;
+				selectedKey = tileKey;
 
-					showPreviewLoading( right );
-					Promise.resolve( item.preview() )
-						.then( ( node ) => {
-							if ( selectedKey !== tileKey ) {
-								return; // Selection moved on.
-							}
-							right.replaceChildren( node );
-						} )
-						.catch( ( err ) => {
-							if ( selectedKey !== tileKey ) {
-								return;
-							}
-							showPreviewError( right, err );
-						} );
-				},
+				showPreviewLoading( right );
+				Promise.resolve( item.preview() )
+					.then( ( node ) => {
+						if ( selectedKey !== tileKey ) {
+							return; // Selection moved on.
+						}
+						right.replaceChildren( node );
+					} )
+					.catch( ( err ) => {
+						if ( selectedKey !== tileKey ) {
+							return;
+						}
+						showPreviewError( right, err );
+					} );
 			} );
 			tiles.appendChild( tile );
 		}
@@ -3215,7 +3252,7 @@ function extractContentMediaIds( html: string ): number[] {
  * applies it to the new one. A second click on the already-selected
  * tile is idempotent.
  *
- * Returns the click handler to wire into `attachTileDrag.onClick`.
+ * Returns the click handler to wire into a tile's `click` listener.
  */
 function createTileSelector(): ( tile: HTMLElement ) => void {
 	let selected: HTMLElement | null = null;
@@ -3623,107 +3660,14 @@ function storageKey( scope: string ): string {
 	return `desktop-mode-my-wordpress:positions:${ scope }`;
 }
 
-interface TileDragOpts {
-	tileKey: string;
-	onClick: () => void;
-	onDragStart?: () => void;
-}
-
-const DRAG_THRESHOLD_PX = 4;
-
-function attachTileDrag(
-	tile: HTMLElement,
-	layout: TileLayout,
-	opts: TileDragOpts,
-): void {
-	let drag: {
-		pointerId: number;
-		startX: number;
-		startY: number;
-		originX: number;
-		originY: number;
-		moved: boolean;
-	} | null = null;
-
-	const onPointerDown = ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const originX = parseFloat( tile.style.left || '0' );
-		const originY = parseFloat( tile.style.top || '0' );
-		drag = {
-			pointerId: e.pointerId,
-			startX: e.clientX,
-			startY: e.clientY,
-			originX,
-			originY,
-			moved: false,
-		};
-		try {
-			tile.setPointerCapture( e.pointerId );
-		} catch {
-			// Older browsers / non-pointer-capture-friendly hosts —
-			// drag still works via document-level listeners below.
-		}
-	};
-
-	const onPointerMove = ( e: PointerEvent ) => {
-		if ( ! drag || drag.pointerId !== e.pointerId ) {
-			return;
-		}
-		const dx = e.clientX - drag.startX;
-		const dy = e.clientY - drag.startY;
-		if (
-			! drag.moved &&
-			Math.abs( dx ) < DRAG_THRESHOLD_PX &&
-			Math.abs( dy ) < DRAG_THRESHOLD_PX
-		) {
-			return;
-		}
-		if ( ! drag.moved ) {
-			drag.moved = true;
-			tile.classList.add( 'desktop-mode-file-tile--dragging' );
-			opts.onDragStart?.();
-		}
-		applyTilePosition( tile, drag.originX + dx, drag.originY + dy );
-	};
-
-	const onPointerEnd = ( e: PointerEvent ) => {
-		if ( ! drag || drag.pointerId !== e.pointerId ) {
-			return;
-		}
-		const wasMoved = drag.moved;
-		try {
-			tile.releasePointerCapture( e.pointerId );
-		} catch {
-			// Already released.
-		}
-		tile.classList.remove( 'desktop-mode-file-tile--dragging' );
-		if ( ! wasMoved ) {
-			drag = null;
-			opts.onClick();
-			return;
-		}
-		// Drag is intentionally NON-rearranging inside My WordPress.
-		// The tile lifts during the drag (visual feedback) but snaps
-		// back to its origin on release — internal cell layout is
-		// auto-flow-only and not user-arrangeable. The drag affordance
-		// stays alive so a future cross-window drag-out (e.g. drag a
-		// post tile onto the wallpaper to create a shortcut) has a
-		// gesture to hook into. For now, no external drop target =
-		// snap back.
-		applyTilePosition( tile, drag.originX, drag.originY );
-		drag = null;
-		// `layout` is preserved in scope for future drag-out wiring.
-		void layout;
-		void opts.tileKey;
-	};
-
-	tile.addEventListener( 'pointerdown', onPointerDown );
-	tile.addEventListener( 'pointermove', onPointerMove );
-	tile.addEventListener( 'pointerup', onPointerEnd );
-	tile.addEventListener( 'pointercancel', onPointerEnd );
-}
+// `attachTileDrag` was a snap-back pointer-event drag with no real
+// rearrange or drag-out function. It existed as a placeholder for
+// future cross-window drag-out, but it set `setPointerCapture` on the
+// tile which BROKE HTML5 `dragstart` detection on the `draggable=true`
+// post tiles — the long-standing "I can lift the tile but no drop
+// target sees it" bug. Removed in 0.18.0; entity tiles now use the
+// centralized DragManager (`pointerdown` -> `dragManager.start()`)
+// for drag-out and a plain `click` listener for selection.
 
 /**
  * Live `RenderState` for the currently-mounted My WordPress

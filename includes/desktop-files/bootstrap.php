@@ -27,6 +27,8 @@ require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-bookmark-file.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-folder-file.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-shortcut-file.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-link-file.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-embed-file.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/built-in-types.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/openers.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/built-in-openers.php';

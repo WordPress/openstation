@@ -113,6 +113,27 @@
 	transition: box-shadow 80ms ease;
 }
 
+/* Dock-icon variant: when the recycle-bin window is closed, the
+ * desktop drag handler highlights the dock tile instead. Same
+ * affordance — outline + faint tint — so the user reads the icon
+ * as a valid drop target without needing to open the window
+ * first. The selector matches the dock tile's `data-system-id`
+ * so this CSS applies wherever the recycle-bin dock entry
+ * renders (left rail, bottom rail, future placements). */
+.desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ][ data-desktop-mode-trash-drop-active ] {
+	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: 2px;
+	border-radius: 12px;
+	background: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) 14%,
+		transparent
+	);
+	transition:
+		outline-color 80ms ease,
+		background 80ms ease;
+}
+
 .desktop-mode-recycle-bin[ data-desktop-mode-trash-drop-active ]::before {
 	content: '';
 	position: absolute;

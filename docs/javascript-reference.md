@@ -241,21 +241,48 @@ document.addEventListener( 'desktop-mode-layout-changed', ( e ) => {
 
 ---
 
-### `desktop-mode-drag-start` — Planned (Phase 8)
-Will fire when a drag operation escalates across window boundaries.
+### Drag-and-drop CustomEvents — Stable *(since 0.18.0)*
 
-```typescript
-{ sourceWindowId: string, payload: { id, url, title, thumbnail } }
+Fired on `document` by `wp.desktop.dragManager` for every in-shell
+drag gesture (file tile, entity tile, plugin-defined sources). All
+share `event.detail.payload` carrying the originating
+`{ type, source, data, ghost? }`.
+
+```javascript
+document.addEventListener( 'desktop-mode.drag.start', ( e ) => {
+    // The drag has crossed the threshold; ghost is mounted.
+    // e.detail.payload — see `DragPayload`.
+} );
+document.addEventListener( 'desktop-mode.drag.move', ( e ) => {
+    // Each pointermove past lift. e.detail.{ payload, clientX, clientY }
+} );
+document.addEventListener( 'desktop-mode.drag.enter', ( e ) => {
+    // Cursor entered an accepting target. e.detail.{ payload, targetId }
+} );
+document.addEventListener( 'desktop-mode.drag.leave', ( e ) => {
+    // Cursor left an accepting target. e.detail.{ payload, targetId }
+} );
+document.addEventListener( 'desktop-mode.drag.rejected', ( e ) => {
+    // Cursor over a registered target whose accept() returned false.
+    // e.detail.{ payload, targetId }
+} );
+document.addEventListener( 'desktop-mode.drag.commit', ( e ) => {
+    // Drop landed; target.onDrop has fired.
+    // e.detail.{ payload, targetId }
+} );
+document.addEventListener( 'desktop-mode.drag.cancel', ( e ) => {
+    // Drag aborted (Escape, blur, no-target, rejected, …).
+    // e.detail.{ payload, reason }
+} );
+document.addEventListener( 'desktop-mode.drag.end', ( e ) => {
+    // Always fires last — pair with .start for symmetric bookkeeping.
+    // e.detail.{ payload, reason }
+} );
 ```
 
----
-
-### `desktop-mode-drop` — Planned (Phase 8)
-Will fire when a cross-window drop completes.
-
-```typescript
-{ sourceWindowId: string, targetWindowId: string, payload: { ... } }
-```
+The cross-iframe `wp-desktop-drag-*` events from `wp.desktop.dragBridge`
+(Media Library payload channel) are a separate, lower-level surface
+and remain Stable since 0.14.0.
 
 ---
 

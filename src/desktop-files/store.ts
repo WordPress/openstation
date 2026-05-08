@@ -67,21 +67,45 @@ export function setFolderPlacements( folderId: number, placements: RestPlacement
 
 /** Insert / replace a single placement (post-create, post-update). */
 export function upsertPlacement( placement: RestPlacementShape, source: 'local' | 'remote' = 'local' ): void {
+	// Guard: a malformed REST response or a caller passing a
+	// stale promise resolution can land here with `null` /
+	// `undefined`. Earlier this would throw inside the bucket
+	// `findIndex` callback (`p.id === placement.id`) and the
+	// caller's catch block would log a confusing
+	// "Cannot read properties of null" trace; the underlying
+	// failure was the upstream call returning nothing useful.
+	// Bail loudly instead so debugging starts at the real cause.
+	if ( ! placement || typeof placement.id !== 'number' ) {
+		// eslint-disable-next-line no-console
+		console.warn(
+			'[desktop-mode] upsertPlacement called with a non-placement value; ignoring.',
+			placement,
+		);
+		return;
+	}
+
 	const store = getFilesStore();
 	const next = new Map( store.state.placementsByFolder );
 
 	// Remove from any existing folder bucket so a parent change
-	// doesn't leave a ghost copy in the previous folder.
+	// doesn't leave a ghost copy in the previous folder. Filter
+	// nulls defensively — a buggy plugin (or an interrupted
+	// optimistic update) could have left a hole that would
+	// otherwise crash the comparison callback.
 	for ( const [ folderId, list ] of next ) {
-		const idx = list.findIndex( ( p ) => p.id === placement.id );
+		const idx = list.findIndex( ( p ) => p && p.id === placement.id );
 		if ( idx >= 0 && folderId !== placement.parentId ) {
-			const copy = list.slice();
-			copy.splice( idx, 1 );
+			const copy = list.filter( Boolean ) as RestPlacementShape[];
+			const removeAt = copy.findIndex( ( p ) => p.id === placement.id );
+			if ( removeAt >= 0 ) {
+				copy.splice( removeAt, 1 );
+			}
 			next.set( folderId, copy );
 		}
 	}
 
-	const target = next.get( placement.parentId )?.slice() ?? [];
+	const rawTarget = next.get( placement.parentId )?.slice() ?? [];
+	const target = rawTarget.filter( Boolean ) as RestPlacementShape[];
 	const idx = target.findIndex( ( p ) => p.id === placement.id );
 	if ( idx >= 0 ) {
 		target[ idx ] = placement;
@@ -101,10 +125,11 @@ export function removePlacement( placementId: number, source: 'local' | 'remote'
 	const next = new Map( store.state.placementsByFolder );
 	let touchedFolder: number | undefined;
 	for ( const [ folderId, list ] of next ) {
-		const idx = list.findIndex( ( p ) => p.id === placementId );
+		const idx = list.findIndex( ( p ) => p && p.id === placementId );
 		if ( idx >= 0 ) {
-			const copy = list.slice();
-			copy.splice( idx, 1 );
+			const copy = ( list.filter( Boolean ) as RestPlacementShape[] ).filter(
+				( p ) => p.id !== placementId,
+			);
 			next.set( folderId, copy );
 			touchedFolder = folderId;
 		}

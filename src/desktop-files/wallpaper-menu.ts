@@ -287,6 +287,34 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 			sort: 10,
 			onClick: () => deps.createFolder(),
 		},
+		// Temporarily hidden — the "New" submenu (web link / embedded
+		// window) is staged code that hasn't shipped yet. Keep the
+		// branch and supporting modules (`url-dialog.ts`,
+		// `embed-window.ts`, `deps.createLink/Embed`, the labels) so
+		// re-enabling is a one-block uncomment.
+		// {
+		// 	id: 'new',
+		// 	label: deps.labels.newHeading,
+		// 	icon: 'dashicons-plus-alt',
+		// 	sort: 12,
+		// 	onClick: () => undefined,
+		// 	children: [
+		// 		{
+		// 			id: 'new-link',
+		// 			label: deps.labels.newLink,
+		// 			icon: 'dashicons-admin-links',
+		// 			sort: 10,
+		// 			onClick: () => deps.createLink(),
+		// 		},
+		// 		{
+		// 			id: 'new-embed',
+		// 			label: deps.labels.newEmbed,
+		// 			icon: 'dashicons-welcome-view-site',
+		// 			sort: 20,
+		// 			onClick: () => deps.createEmbed(),
+		// 		},
+		// 	],
+		// },
 		{
 			id: 'sort-by',
 			label: deps.labels.sortHeading,
@@ -386,6 +414,8 @@ export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 
 export interface WallpaperMenuDeps {
 	createFolder: () => void;
+	createLink: () => void;
+	createEmbed: () => void;
 	toggleShowDesktop: () => void;
 	openOsSettings: () => void;
 	openWallpapers: () => void;
@@ -400,6 +430,9 @@ export interface WallpaperMenuDeps {
 		sortNameDesc: string;
 		sortDateAsc: string;
 		sortDateDesc: string;
+		newHeading: string;
+		newLink: string;
+		newEmbed: string;
 	};
 	serverItems?: ServerWallpaperMenuItem[];
 	serverCallbacks?: Record< string, () => void | Promise< void > >;

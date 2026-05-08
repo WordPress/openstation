@@ -28,10 +28,6 @@ import { rest, store as filesStoreApi } from './layer-deps';
 import { buildTile, setTilePosition, TILE_CLASS } from './file-tile';
 import { openTileMenu, type TileMenuItem } from './tile-menu';
 import { openCreateFolderDialog } from './create-folder-dialog';
-import {
-	hasShortcutPayload,
-	readShortcutPayload,
-} from './drag-shortcut';
 import { openFile } from './open';
 import { resolve as resolveFileType } from './registry';
 import {
@@ -41,11 +37,33 @@ import {
 	GRID_CELL_H,
 	GRID_CELL_W,
 	GRID_PADDING,
+	nextRowMajorCell,
 	pointToCell,
 	snapToEmptyCell,
 } from './grid';
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
+import type { DragManagerApi, DropTarget } from '../drag';
+import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
+import type {
+	DesktopFileDragData,
+	ShortcutDragData,
+} from './drag-payloads';
+
+/**
+ * Read the runtime DragManager. Boot order guarantees this exists by
+ * the time any layer mounts: `desktop.ts` constructs the manager and
+ * exposes it on `wp.desktop.dragManager` BEFORE `mountFilesLayer()`
+ * is called. We re-read each access rather than caching to make
+ * per-test overrides possible (vitest can stub `wp.desktop.dragManager`
+ * before the layer mounts).
+ */
+function getDragManager(): DragManagerApi | null {
+	const api = (
+		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
+	).wp?.desktop?.dragManager;
+	return api ?? null;
+}
 
 const LAYER_CLASS = 'desktop-mode-files-layer';
 
@@ -92,16 +110,6 @@ export interface FilesLayer {
 	 */
 	reflow: () => void;
 	dispose: () => void;
-}
-
-interface DragState {
-	pointerId: number;
-	tile: HTMLElement;
-	placementId: number;
-	startX: number;
-	startY: number;
-	originX: number;
-	originY: number;
 }
 
 /**
@@ -175,6 +183,20 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		// Wholesale rebuild — simplest correct strategy. Plugins that
 		// want stable decorations re-attach via `tile-rendered`.
 		container.replaceChildren();
+		// Folder drop targets are tile-scoped — the previous tile DOM
+		// nodes are detached by `replaceChildren` above. Deregister
+		// before rebuilding so the registry doesn't keep stale
+		// references (registry uses `id`, so a re-register would
+		// overwrite, but deregistering keeps the list tight while
+		// the new tiles are being built).
+		for ( const [ , deregister ] of folderDropDeregisters ) {
+			try {
+				deregister();
+			} catch {
+				// ignore
+			}
+		}
+		folderDropDeregisters.clear();
 
 		// Pinned tiles (registered with `pinned: true` —
 		// `desktop_mode_register_icon`) anchor to a fixed slot and
@@ -238,8 +260,15 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				setTilePosition( tile, pinnedSlot.x, pinnedSlot.y );
 				tile.classList.add( `${ TILE_CLASS }--pinned` );
 				tile.setAttribute( 'aria-roledescription', 'pinned shortcut' );
-				// No drag wiring; right-click context menu is still
-				// useful (Open / Cleanup / etc.).
+				tile.setAttribute( 'aria-disabled', 'true' );
+				// No drag wiring on pinned tiles by design — they
+				// anchor to a fixed slot. We DO wire a pointerdown
+				// handler that flashes a `--bump` class so the user
+				// gets explicit feedback ("this tile is pinned"
+				// instead of silent non-response) plus the title
+				// attribute that surfaces in browser tooltips and
+				// to assistive tech.
+				attachPinnedTileFeedback( tile );
 				attachContextMenu( tile, placement );
 				attachSelectOnClick( tile, placement );
 				container.appendChild( tile );
@@ -249,18 +278,26 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			if ( moved ) {
 				setTilePosition( tile, moved.x, moved.y );
 			}
-			attachDragHandlers( tile, placement, folderId );
+			attachTileDrag( tile, placement, folderId );
 			attachContextMenu( tile, placement );
 			attachSelectOnClick( tile, placement );
 			// Folder tiles also accept drag-out drops — dropping a
 			// post (or any shortcut payload) on a folder icon files
 			// the shortcut INTO that folder rather than next to the
-			// folder on the wallpaper. Stops propagation so the
-			// layer-level drop handler doesn't also fire.
+			// folder on the wallpaper.
 			if ( placement.file.type === 'folder' ) {
 				const targetFolderId = parseInt( placement.file.ref, 10 );
 				if ( targetFolderId > 0 ) {
-					attachFolderDropTarget( tile, targetFolderId );
+					const dragManager = getDragManager();
+					if ( dragManager ) {
+						const deregister = registerFolderDropTarget(
+							dragManager,
+							tile,
+							targetFolderId,
+							folderId,
+						);
+						folderDropDeregisters.set( placement.id, deregister );
+					}
 				}
 			}
 			container.appendChild( tile );
@@ -286,92 +323,112 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		} );
 	};
 
-	// HTML5 drag-and-drop receiver for cross-window shortcut drops.
-	// Source surfaces (e.g. the My WordPress entity-list post tiles)
-	// set `application/x-desktop-mode-shortcut+json` on their
-	// dataTransfer; here we read it on dragover/drop and turn it
-	// into a placement at the drop coordinates. Same protocol works
-	// uniformly on the wallpaper root layer and inside every folder
-	// window — only the `parentId` differs.
-	const onDragOver = ( e: DragEvent ): void => {
-		if ( ! hasShortcutPayload( e ) ) {
-			return;
-		}
-		e.preventDefault();
-		// Stop bubbling — without this, a folder window nested
-		// inside the wallpaper area would also light up the
-		// wallpaper's drop highlight while the user is hovering
-		// inside the folder window body.
-		e.stopPropagation();
-		if ( e.dataTransfer ) {
-			e.dataTransfer.dropEffect = 'copy';
-		}
-		host.setAttribute( 'data-files-drop-active', '' );
+	// Drop target for the layer's host element. Accepts both
+	// `'desktop-file'` payloads (an existing tile being moved into
+	// this folder, or repositioned within it) and `'shortcut'`
+	// payloads (an external entity — post, page, user — being filed
+	// as a new shortcut). The DragManager hit-tests deepest-first,
+	// so a folder tile WITHIN this canvas claims its own region
+	// before the canvas does.
+	const dropTargetDeregisters: Array< () => void > = [];
+	// Per-folder-tile drop registrations — keyed by placement id so a
+	// repaint can deregister stale entries before rebuilding the
+	// container's children.
+	const folderDropDeregisters: Map< number, () => void > = new Map();
+	const canvasDropTarget: DropTarget = {
+		id: `desktop-mode-files-canvas-${ folderId }`,
+		element: host,
+		accept: ( payload ) =>
+			payload.type === 'desktop-file' || payload.type === 'shortcut',
+		onEnter: () => {
+			host.setAttribute( 'data-files-drop-active', '' );
+		},
+		onLeave: () => {
+			host.removeAttribute( 'data-files-drop-active' );
+		},
+		onDrop: ( session, ev ) => {
+			host.removeAttribute( 'data-files-drop-active' );
+			const rect = container.getBoundingClientRect();
+			const rawX = Math.max( 0, ev.clientX - rect.left );
+			const rawY = Math.max( 0, ev.clientY - rect.top );
+			const peers =
+				filesStoreApi.getState().placementsByFolder.get( folderId ) ?? [];
+
+			if ( session.payload.type === 'desktop-file' ) {
+				const data = session.payload.data as unknown as DesktopFileDragData;
+				const occupied = buildOccupiedSet( peers, data.placement.id );
+				const cell = snapToEmptyCell( rawX, rawY, occupied, host );
+				const next: RestPlacementShape = {
+					...data.placement,
+					x: cell.x,
+					y: cell.y,
+					parentId: folderId,
+				};
+				filesStoreApi.upsertPlacement( next );
+				void rest
+					.updatePlacement( data.placement.id, {
+						x: cell.x,
+						y: cell.y,
+						parentId: folderId,
+					} )
+					.then( ( server ) => {
+						filesStoreApi.upsertPlacement( server, 'remote' );
+					} )
+					.catch( ( err ) => {
+						// eslint-disable-next-line no-console
+						console.error(
+							'[desktop-mode] files: drag persist failed',
+							err,
+						);
+						filesStoreApi.upsertPlacement( data.placement );
+					} );
+				return;
+			}
+
+			if ( session.payload.type === 'shortcut' ) {
+				const data = session.payload.data as unknown as ShortcutDragData;
+				// New shortcut — pack row-major (top-left, then across)
+				// so the new tile lands at a visible cell regardless of
+				// where the user released the cursor. Cursor-position
+				// snap is wrong for shortcut creates because users
+				// rarely aim precisely; row-major is the "tidy" outcome.
+				const occupied = buildOccupiedSet( peers );
+				const cell = nextRowMajorCell( occupied, host );
+				void rest
+					.createPlacement( {
+						parentId: folderId,
+						type: data.kind,
+						ref: data.ref,
+						x: cell.x,
+						y: cell.y,
+					} )
+					.then( ( placement ) => {
+						filesStoreApi.upsertPlacement( placement );
+						doAction( 'desktop-mode.files.shortcut-dropped', {
+							folderId,
+							placement,
+						} );
+					} )
+					.catch( ( err: unknown ) => {
+						// eslint-disable-next-line no-console
+						console.error(
+							'[desktop-mode] shortcut drop failed:',
+							err,
+						);
+					} );
+				// `rawX` / `rawY` retained for parity with desktop-file
+				// case logging if a future hook needs the cursor pos.
+				void rawX;
+				void rawY;
+			}
+		},
 	};
-	const onDragLeave = ( e: DragEvent ): void => {
-		// Only clear the highlight when the pointer truly left the
-		// host — a transition between a child and the host fires
-		// dragleave on the host with `relatedTarget` still inside.
-		if (
-			e.relatedTarget instanceof Node &&
-			host.contains( e.relatedTarget )
-		) {
-			return;
-		}
-		host.removeAttribute( 'data-files-drop-active' );
-	};
-	const onDrop = ( e: DragEvent ): void => {
-		host.removeAttribute( 'data-files-drop-active' );
-		const payload = readShortcutPayload( e );
-		if ( ! payload ) {
-			return;
-		}
-		// If the drop target landed on a folder tile, route into
-		// that folder instead of the current canvas. The folder
-		// tile's own `dragover`/`drop` handlers (attached in
-		// `attachFolderDropTarget` below) handle that case and
-		// stopPropagation on drop, so reaching this branch means
-		// the drop was on bare canvas.
-		e.preventDefault();
-		// Stop bubbling — critical for nested layers (folder
-		// window inside the wallpaper). Without this, dropping in
-		// a folder-window body fires the folder layer's `drop` AND
-		// then bubbles to the wallpaper layer's `drop`, producing
-		// a duplicate placement at the wallpaper root.
-		e.stopPropagation();
-		const rect = container.getBoundingClientRect();
-		const rawX = Math.max( 0, e.clientX - rect.left );
-		const rawY = Math.max( 0, e.clientY - rect.top );
-		const peers =
-			filesStoreApi.getState().placementsByFolder.get( folderId ) ?? [];
-		const occupied = buildOccupiedSet( peers );
-		const cell = snapToEmptyCell( rawX, rawY, occupied, host );
-		void rest
-			.createPlacement( {
-				parentId: folderId,
-				type: payload.type,
-				ref: payload.ref,
-				x: cell.x,
-				y: cell.y,
-			} )
-			.then( ( placement ) => {
-				filesStoreApi.upsertPlacement( placement );
-				doAction( 'desktop-mode.files.shortcut-dropped', {
-					folderId,
-					placement,
-				} );
-			} )
-			.catch( ( err: unknown ) => {
-				// eslint-disable-next-line no-console
-				console.error(
-					'[desktop-mode] shortcut drop failed:',
-					err,
-				);
-			} );
-	};
-	host.addEventListener( 'dragover', onDragOver );
-	host.addEventListener( 'dragleave', onDragLeave );
-	host.addEventListener( 'drop', onDrop );
+	const dragManagerForLayer = getDragManager();
+	if ( dragManagerForLayer ) {
+		dropTargetDeregisters.push(
+			dragManagerForLayer.registerDropTarget( canvasDropTarget ),
+		);
+	}
 
 	// Single-click on tile = select; click on bare canvas =
 	// deselect. Same model as macOS Finder / Explorer. Tile clicks
@@ -595,9 +652,22 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			off();
 			resizeObserver?.disconnect();
 			resizeObserver = null;
-			host.removeEventListener( 'dragover', onDragOver );
-			host.removeEventListener( 'dragleave', onDragLeave );
-			host.removeEventListener( 'drop', onDrop );
+			for ( const deregister of dropTargetDeregisters ) {
+				try {
+					deregister();
+				} catch {
+					// ignore
+				}
+			}
+			dropTargetDeregisters.length = 0;
+			for ( const deregister of folderDropDeregisters.values() ) {
+				try {
+					deregister();
+				} catch {
+					// ignore
+				}
+			}
+			folderDropDeregisters.clear();
 			host.removeEventListener( 'click', onCanvasClick );
 			selectionListeners.clear();
 			container.remove();
@@ -633,221 +703,65 @@ function isPinned( placement: RestPlacementShape ): boolean {
 	return Boolean( placement.file.pinned );
 }
 
-function attachFolderDropTarget(
-	tile: HTMLElement,
-	folderId: number,
-): void {
-	const onOver = ( e: DragEvent ) => {
-		if ( ! hasShortcutPayload( e ) ) {
-			return;
-		}
-		e.preventDefault();
-		e.stopPropagation();
-		if ( e.dataTransfer ) {
-			e.dataTransfer.dropEffect = 'copy';
-		}
-		tile.classList.add( `${ TILE_CLASS }--drop-target` );
-	};
-	const onLeave = ( e: DragEvent ) => {
-		if (
-			e.relatedTarget instanceof Node &&
-			tile.contains( e.relatedTarget )
-		) {
-			return;
-		}
-		tile.classList.remove( `${ TILE_CLASS }--drop-target` );
-	};
-	const onDrop = ( e: DragEvent ) => {
-		tile.classList.remove( `${ TILE_CLASS }--drop-target` );
-		const payload = readShortcutPayload( e );
-		if ( ! payload ) {
-			return;
-		}
-		// Stop the layer-level drop from also firing — it would
-		// otherwise file the shortcut on the canvas next to the
-		// folder.
-		e.preventDefault();
-		e.stopPropagation();
-		const peers =
-			filesStoreApi
-				.getState()
-				.placementsByFolder.get( folderId ) ?? [];
-		const occupied = buildOccupiedSet( peers );
-		const cell = snapToEmptyCell( 0, 0, occupied );
-		void rest
-			.createPlacement( {
-				parentId: folderId,
-				type: payload.type,
-				ref: payload.ref,
-				x: cell.x,
-				y: cell.y,
-			} )
-			.then( ( placement ) => {
-				filesStoreApi.upsertPlacement( placement );
-				doAction( 'desktop-mode.files.shortcut-dropped', {
-					folderId,
-					placement,
-				} );
-			} )
-			.catch( ( err: unknown ) => {
-				// eslint-disable-next-line no-console
-				console.error(
-					'[desktop-mode] shortcut drop into folder failed:',
-					err,
-				);
-			} );
-	};
-	tile.addEventListener( 'dragover', onOver );
-	tile.addEventListener( 'dragleave', onLeave );
-	tile.addEventListener( 'drop', onDrop );
-}
-
 /**
- * Attach pointer-based drag handlers. Drag is transform-only
- * during pointermove (so we don't churn the fingerprint cache
- * on every frame); on pointerup we persist via REST and let
- * the store update flip the fingerprint, which triggers one
- * paint at the new resting position.
+ * Register a folder tile as a drop target. Folder tiles claim their
+ * own hit-test region; the DragManager routes the drop here when the
+ * cursor releases over a folder (the registry's deepest-match wins
+ * over the layer-level canvas target). Returns a deregister function
+ * the caller stores so the next repaint can release the registration
+ * before rebuilding the DOM.
  */
-function attachDragHandlers(
+function registerFolderDropTarget(
+	dragManager: DragManagerApi,
 	tile: HTMLElement,
-	placement: RestPlacementShape,
-	folderId: number,
-): void {
-	let drag: DragState | null = null;
-
-	const onPointerDown = ( e: PointerEvent ): void => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		// Read the tile's CURRENT visible position from the inline
-		// styles, not the placement's server-stored (x, y). They
-		// diverge when the layer has displaced this tile to dodge
-		// a pinned slot — using `placement.x` would snap the tile
-		// back to its stored coords on the first pointermove
-		// (the "drag jumps to the My WordPress slot" bug).
-		const visibleX = parseFloat( tile.style.left ) || placement.x;
-		const visibleY = parseFloat( tile.style.top ) || placement.y;
-		drag = {
-			pointerId: e.pointerId,
-			tile,
-			placementId: placement.id,
-			startX: e.clientX,
-			startY: e.clientY,
-			originX: visibleX,
-			originY: visibleY,
-		};
-		tile.setPointerCapture( e.pointerId );
-		tile.classList.add( `${ TILE_CLASS }--dragging` );
-	};
-
-	let hoveredTrash: HTMLElement | null = null;
-	const updateTrashHover = ( clientX: number, clientY: number ): void => {
-		// Pointer-capture routes the events to the tile, but
-		// `elementFromPoint` still reports the actual visual stack
-		// — perfect for "is the user currently over a drop zone?".
-		// We highlight `[data-desktop-mode-recycle-bin-root]` (the
-		// only cross-window drop target today) so the user gets a
-		// visual cue that releasing here will trash the tile.
-		const el = document.elementFromPoint( clientX, clientY );
-		const next = el instanceof Element
-			? el.closest< HTMLElement >( '[data-desktop-mode-recycle-bin-root]' )
-			: null;
-		if ( next === hoveredTrash ) {
-			return;
-		}
-		if ( hoveredTrash ) {
-			hoveredTrash.removeAttribute( 'data-desktop-mode-trash-drop-active' );
-		}
-		if ( next ) {
-			next.setAttribute( 'data-desktop-mode-trash-drop-active', '' );
-		}
-		hoveredTrash = next;
-	};
-	const clearTrashHover = (): void => {
-		if ( hoveredTrash ) {
-			hoveredTrash.removeAttribute( 'data-desktop-mode-trash-drop-active' );
-			hoveredTrash = null;
-		}
-	};
-
-	const onPointerMove = ( e: PointerEvent ): void => {
-		if ( ! drag || drag.pointerId !== e.pointerId ) {
-			return;
-		}
-		const dx = e.clientX - drag.startX;
-		const dy = e.clientY - drag.startY;
-		setTilePosition( tile, drag.originX + dx, drag.originY + dy );
-		updateTrashHover( e.clientX, e.clientY );
-	};
-
-	const onPointerEnd = ( e: PointerEvent ): void => {
-		if ( ! drag || drag.pointerId !== e.pointerId ) {
-			return;
-		}
-		tile.classList.remove( `${ TILE_CLASS }--dragging` );
-		clearTrashHover();
-		try {
-			tile.releasePointerCapture( e.pointerId );
-		} catch {
-			// Already released — ignore.
-		}
-		const dx = e.clientX - drag.startX;
-		const dy = e.clientY - drag.startY;
-		const moved = Math.abs( dx ) > 2 || Math.abs( dy ) > 2;
-		const finalX = drag.originX + dx;
-		const finalY = drag.originY + dy;
-		const placementId = drag.placementId;
-		drag = null;
-
-		if ( ! moved ) {
-			// Treat as a click — let the dblclick handler in the tile
-			// builder fire if the user intended that.
-			return;
-		}
-
-		// Cross-window drop targets — these live OUTSIDE the
-		// canvas (e.g. the Recycle Bin native window) and the
-		// pointer-event drag never fires `drop` on them. Hit-test
-		// the cursor's actual element via `elementFromPoint` and
-		// route the gesture before falling through to the canvas
-		// snap. Same hook surface as future drop targets (folder
-		// browsers, share dialogs) — declare a marker attribute
-		// (`data-desktop-mode-shortcut-drop-target="<kind>"`) on
-		// the receiving native window's body and we route here.
-		const dropEl = document.elementFromPoint( e.clientX, e.clientY );
-		const trashTarget = dropEl instanceof Element
-			? dropEl.closest< HTMLElement >( '[data-desktop-mode-recycle-bin-root]' )
-			: null;
-		if ( trashTarget ) {
-			// Snap the tile back optimistically so the user doesn't
-			// see it floating in the wrong cell, then soft-trash via
-			// the existing helper (handles the Undo toast + cross-
-			// window broadcast).
-			void trashPlacementWithUndo( placement );
-			return;
-		}
-
-		// Determine the target cell + whether the drop landed on
-		// another tile. If the occupier is a folder we move INTO
-		// that folder; if it's anything else we snap to the next
-		// empty cell so tiles never overlap.
-		const peers = filesStoreApi.getState().placementsByFolder.get( folderId ) ?? [];
-
-		const droppedOn = findDropTarget( peers, finalX, finalY, placementId );
-		if ( droppedOn && droppedOn.file.type === 'folder' ) {
-			const newParent = parseInt( droppedOn.file.ref, 10 );
-			if ( newParent ) {
-				// Move the tile out of the current folder bucket
-				// (parent change) — the local store handles the
-				// cross-bucket bookkeeping in `upsertPlacement`.
+	targetFolderId: number,
+	currentFolderId: number,
+): () => void {
+	const target: DropTarget = {
+		id: `desktop-mode-files-folder-${ targetFolderId }-tile-${ tile.dataset.placementId ?? '?' }`,
+		element: tile,
+		accept: ( payload ) => {
+			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
+				return false;
+			}
+			if ( payload.type === 'desktop-file' ) {
+				const data = payload.data as unknown as DesktopFileDragData;
+				// Don't accept a folder dropped onto itself.
+				if (
+					data.placement.file.type === 'folder' &&
+					parseInt( data.placement.file.ref, 10 ) === targetFolderId
+				) {
+					return false;
+				}
+				// No-op move: dropping a tile from folder X onto folder
+				// X's own tile would just round-trip via REST. Reject
+				// so the user gets reject feedback instead of a silent
+				// no-op.
+				if ( data.placement.parentId === targetFolderId ) {
+					return false;
+				}
+			}
+			return true;
+		},
+		onEnter: () => {
+			tile.classList.add( `${ TILE_CLASS }--drop-target` );
+		},
+		onLeave: () => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+		},
+		onDrop: ( session ) => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+			if ( session.payload.type === 'desktop-file' ) {
+				const data = session.payload.data as unknown as DesktopFileDragData;
 				const next: RestPlacementShape = {
-					...placement,
-					parentId: newParent,
+					...data.placement,
+					parentId: targetFolderId,
 				};
 				filesStoreApi.upsertPlacement( next );
 				void rest
-					.updatePlacement( placementId, { parentId: newParent } )
+					.updatePlacement( data.placement.id, {
+						parentId: targetFolderId,
+					} )
 					.then( ( server ) => {
 						filesStoreApi.upsertPlacement( server, 'remote' );
 					} )
@@ -857,73 +771,143 @@ function attachDragHandlers(
 							'[desktop-mode] files: move-into-folder persist failed',
 							err,
 						);
-						// Roll back to the previous parent + position.
-						filesStoreApi.upsertPlacement( placement );
+						filesStoreApi.upsertPlacement( data.placement );
 					} );
 				return;
 			}
-		}
-
-		const occupiedSet = buildOccupiedSet( peers, placementId );
-		// `tile.parentElement` is the layer container; its parent
-		// is the host (desktop area or folder-window body) — that's
-		// the element whose height the snap respects.
-		const host = tile.parentElement?.parentElement ?? null;
-		const cell = snapToEmptyCell( finalX, finalY, occupiedSet, host );
-		const snappedX = cell.x;
-		const snappedY = cell.y;
-
-		// Optimistic store update so the tile stays where it was
-		// dropped even before REST returns.
-		const next: RestPlacementShape = {
-			...placement,
-			x: snappedX,
-			y: snappedY,
-			parentId: folderId,
-		};
-		filesStoreApi.upsertPlacement( next );
-
-		void rest
-			.updatePlacement( placementId, { x: snappedX, y: snappedY } )
-			.then( ( server ) => {
-				filesStoreApi.upsertPlacement( server, 'remote' );
-			} )
-			.catch( ( err ) => {
-				// eslint-disable-next-line no-console
-				console.error( '[desktop-mode] files: drag persist failed', err );
-				// Roll back the optimistic update.
-				filesStoreApi.upsertPlacement( placement );
-			} );
+			if ( session.payload.type === 'shortcut' ) {
+				const data = session.payload.data as unknown as ShortcutDragData;
+				const peers =
+					filesStoreApi
+						.getState()
+						.placementsByFolder.get( targetFolderId ) ?? [];
+				// Row-major pack so newly-filed shortcuts land at the
+				// top of the (likely-not-yet-mounted) folder window.
+				// We can't read the destination folder window's host
+				// width from here, so default to 4 cols inside
+				// `nextRowMajorCell` — sensible for any folder window.
+				const cell = nextRowMajorCell( buildOccupiedSet( peers ) );
+				void rest
+					.createPlacement( {
+						parentId: targetFolderId,
+						type: data.kind,
+						ref: data.ref,
+						x: cell.x,
+						y: cell.y,
+					} )
+					.then( ( placement ) => {
+						filesStoreApi.upsertPlacement( placement );
+						doAction( 'desktop-mode.files.shortcut-dropped', {
+							folderId: targetFolderId,
+							placement,
+						} );
+					} )
+					.catch( ( err: unknown ) => {
+						// eslint-disable-next-line no-console
+						console.error(
+							'[desktop-mode] shortcut drop into folder failed:',
+							err,
+						);
+					} );
+			}
+		},
 	};
-
-	tile.addEventListener( 'pointerdown', onPointerDown );
-	tile.addEventListener( 'pointermove', onPointerMove );
-	tile.addEventListener( 'pointerup', onPointerEnd );
-	tile.addEventListener( 'pointercancel', onPointerEnd );
+	// `currentFolderId` is preserved in the closure so a future
+	// extension (e.g. tracking moves vs. shortcut creations from the
+	// SAME folder) has the parameter ready.
+	void currentFolderId;
+	return dragManager.registerDropTarget( target );
 }
 
 /**
- * Find the placement currently sitting on the cell `(x, y)` maps
- * to (excluding the moving placement). Returns null when the
- * target cell is empty.
+ * Attach the pointer-based drag start handler to a draggable tile.
+ * The DragManager owns everything after `pointerdown`: the document-
+ * level pointermove/up listeners, the ghost element, hit-testing,
+ * cancellation. We just translate the visible position into the
+ * payload `data` so drop targets can compute snap geometry without
+ * a second round-trip through the layer.
+ *
+ * Crucially: we do NOT call `setPointerCapture` here. Pointer capture
+ * redirects subsequent pointer events to the captured element, which
+ * historically broke HTML5 drag-detection on tiles that were also
+ * `draggable=true` (the My WordPress entity-tile bug). The
+ * DragManager's document-level listeners need no capture and pay
+ * nothing for not having one.
  */
-function findDropTarget(
-	peers: RestPlacementShape[],
-	x: number,
-	y: number,
-	excludeId: number,
-): RestPlacementShape | null {
-	const cell = pointToCell( x, y );
-	for ( const p of peers ) {
-		if ( p.id === excludeId ) {
-			continue;
+function attachTileDrag(
+	tile: HTMLElement,
+	placement: RestPlacementShape,
+	folderId: number,
+): void {
+	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
+		if ( e.button !== 0 ) {
+			return;
 		}
-		const c = pointToCell( p.x, p.y );
-		if ( c.col === cell.col && c.row === cell.row ) {
-			return p;
+		const dragManager = getDragManager();
+		if ( ! dragManager ) {
+			// Manager not available (test, headless boot). Fall
+			// through to the click/select handler so the tile is at
+			// least selectable.
+			return;
 		}
-	}
-	return null;
+		// Read the tile's CURRENT visible position from the inline
+		// styles, not the placement's server-stored (x, y). They
+		// diverge when the layer has displaced this tile to dodge
+		// a pinned slot — using `placement.x` would snap the tile
+		// back to its stored coords on the first pointermove (the
+		// "drag jumps to the pinned slot" bug).
+		const visibleX = parseFloat( tile.style.left ) || placement.x;
+		const visibleY = parseFloat( tile.style.top ) || placement.y;
+		const session = dragManager.start( {
+			payload: {
+				type: 'desktop-file',
+				source: tile,
+				data: {
+					placement,
+					sourceFolderId: folderId,
+				} satisfies DesktopFileDragData,
+				ghost: {
+					offsetX: e.clientX - tile.getBoundingClientRect().left,
+					offsetY: e.clientY - tile.getBoundingClientRect().top,
+				},
+			},
+			origin: e,
+			// `onClickOnly` intentionally empty — a tile click is
+			// handled by the dedicated `attachSelectOnClick` listener
+			// below, which fires from the regular `click` event after
+			// a sub-threshold pointerup. The manager won't fire a
+			// `click` itself; the browser does.
+		} );
+		// Preserve a reference for diagnostics — the manager owns
+		// lifecycle past this point.
+		void session;
+		void visibleX;
+		void visibleY;
+	} );
+}
+
+/**
+ * Pinned tiles ("My WordPress", Recycle Bin) anchor to a fixed slot
+ * by design. We don't wire drag, but we DO add a "bumped" cosmetic
+ * affordance on pointerdown so the user gets explicit feedback —
+ * silent non-response feels broken; an animated bump + a tooltip
+ * reads as "this tile is intentionally fixed."
+ */
+function attachPinnedTileFeedback( tile: HTMLElement ): void {
+	tile.title = tile.title || 'Pinned shortcut — anchored to this slot';
+	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
+		if ( e.button !== 0 ) {
+			return;
+		}
+		tile.classList.remove( `${ TILE_CLASS }--bump` );
+		// Force a reflow so re-adding the class restarts the CSS
+		// animation. `void` discards the read.
+		void tile.offsetWidth;
+		tile.classList.add( `${ TILE_CLASS }--bump` );
+	} );
+	tile.addEventListener( 'animationend', () => {
+		tile.classList.remove( `${ TILE_CLASS }--bump` );
+	} );
 }
 
 /**
@@ -933,126 +917,6 @@ function findDropTarget(
  * Trash" that drops only the placement (the entity stays
  * intact — that's the file-references-not-copies contract).
  */
-
-/**
- * Surface a toast for soft-trashed items with an Undo affordance.
- * Used by both placement and folder trash flows so the message
- * shape stays consistent.
- */
-/**
- * Broadcast a "this kind of thing changed in trash state" event so
- * cross-window listeners (recycle-bin, badge counters, …) can
- * refresh without waiting for the next Heartbeat tick. Mirrors the
- * per-domain channels the bin subscribes to for posts / comments.
- */
-function broadcastFilesChange( kind: 'placement' | 'shortcut' | 'folder' ): void {
-	const api = ( window as { wp?: { desktop?: { broadcast?: ( topic: string, payload: unknown ) => void } } } )
-		.wp?.desktop;
-	api?.broadcast?.( `desktop-mode.${ kind }.changed`, { reason: 'trash' } );
-}
-
-function showTrashedToast(
-	message: string,
-	onUndo: () => void,
-): void {
-	const api = ( window as { wp?: { desktop?: { showToast?: ( opts: unknown ) => void } } } )
-		.wp?.desktop;
-	if ( ! api?.showToast ) {
-		return;
-	}
-	api.showToast( {
-		message,
-		duration: 6000,
-		action: {
-			label: 'Undo',
-			onClick: onUndo,
-		},
-	} );
-}
-
-/**
- * Soft-trash a placement with optimistic local eviction + an
- * Undo toast. Rollback on REST failure re-hydrates the parent
- * folder so the store catches up with whatever the server thinks.
- */
-async function trashPlacementWithUndo(
-	placement: RestPlacementShape,
-): Promise< void > {
-	const placementId = placement.id;
-	const parentId = placement.parentId;
-	const title = placement.file?.title ?? 'Item';
-	const kind: 'placement' | 'shortcut' =
-		placement.file?.type === 'shortcut' ? 'shortcut' : 'placement';
-	filesStoreApi.removePlacement( placementId );
-	try {
-		await rest.deletePlacement( placementId );
-		broadcastFilesChange( kind );
-		showTrashedToast(
-			`"${ title }" moved to Trash`,
-			async () => {
-				try {
-					await rest.restoreTrashedItem( placementId, 'placement' );
-					const res = await rest.listPlacements( parentId );
-					filesStoreApi.setFolderPlacements( parentId, res.placements );
-					broadcastFilesChange( kind );
-				} catch ( err ) {
-					// eslint-disable-next-line no-console
-					console.error( '[desktop-mode] restore failed:', err );
-				}
-			},
-		);
-	} catch ( err ) {
-		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] deletePlacement failed:', err );
-		void rest.listPlacements( parentId ).then( ( res ) => {
-			filesStoreApi.setFolderPlacements( parentId, res.placements );
-		} );
-	}
-}
-
-/**
- * Soft-trash a folder placement. Cascades server-side to every
- * child placement; Undo restores the folder + its cascaded
- * children in one round-trip via the recycle-bin endpoint.
- */
-async function trashFolderWithUndo(
-	placement: RestPlacementShape,
-): Promise< void > {
-	const folderId = parseInt( placement.file.ref, 10 );
-	if ( ! folderId ) {
-		return;
-	}
-	const placementId = placement.id;
-	const parentId = placement.parentId;
-	const title = placement.file?.title ?? 'Folder';
-	filesStoreApi.removePlacement( placementId );
-	filesStoreApi.removeFolder( folderId );
-	try {
-		await rest.deleteFolder( folderId );
-		broadcastFilesChange( 'folder' );
-		showTrashedToast(
-			`"${ title }" moved to Trash`,
-			async () => {
-				try {
-					await rest.restoreTrashedItem( folderId, 'folder' );
-					const res = await rest.listPlacements( parentId );
-					filesStoreApi.setFolderPlacements( parentId, res.placements );
-					broadcastFilesChange( 'folder' );
-				} catch ( err ) {
-					// eslint-disable-next-line no-console
-					console.error( '[desktop-mode] restore folder failed:', err );
-				}
-			},
-		);
-	} catch ( err ) {
-		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] deleteFolder failed:', err );
-		void rest.listPlacements( parentId ).then( ( res ) => {
-			filesStoreApi.setFolderPlacements( parentId, res.placements );
-		} );
-	}
-}
-
 function attachContextMenu(
 	tile: HTMLElement,
 	placement: RestPlacementShape,

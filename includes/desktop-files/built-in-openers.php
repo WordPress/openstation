@@ -61,6 +61,18 @@ function desktop_mode_register_builtin_file_openers() {
 			'types' => array( 'bookmark' ),
 			'sort'  => 10,
 		),
+		array(
+			'id'    => 'desktop-mode-link-opener',
+			'label' => __( 'Open in browser', 'desktop-mode' ),
+			'types' => array( 'link' ),
+			'sort'  => 10,
+		),
+		array(
+			'id'    => 'desktop-mode-embed-opener',
+			'label' => __( 'Open as window', 'desktop-mode' ),
+			'types' => array( 'embed' ),
+			'sort'  => 10,
+		),
 	);
 
 	foreach ( $openers as $args ) {

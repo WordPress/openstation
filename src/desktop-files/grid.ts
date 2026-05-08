@@ -95,6 +95,41 @@ export function snapToEmptyCell(
 }
 
 /**
+ * Find the first empty grid cell in row-major order — fills row 0
+ * across all columns first, then row 1, etc. This is the right pack
+ * order for "drop a new shortcut into a folder" because new tiles
+ * land at the TOP of the visible canvas instead of piling down
+ * column 0 (where they may fall below a short folder window's
+ * fold). `cols` defaults to 4 when no host is supplied.
+ *
+ * Different from {@link snapToEmptyCell}, which is column-major and
+ * is the right order for "clean up" / sort. Both share the
+ * `cellKey()` occupancy convention.
+ *
+ * @since 0.18.0
+ */
+export function nextRowMajorCell(
+	occupied: Set< string >,
+	host?: HTMLElement | null,
+): GridPos {
+	const cols = host
+		? Math.max(
+			1,
+			Math.floor( ( host.clientWidth - GRID_PADDING ) / GRID_CELL_W ),
+		)
+		: 4;
+	const maxCols = Math.max( 1, cols );
+	for ( let row = 0; row < 999; row++ ) {
+		for ( let col = 0; col < maxCols; col++ ) {
+			if ( ! occupied.has( cellKey( col, row ) ) ) {
+				return cellToPos( col, row );
+			}
+		}
+	}
+	return cellToPos( 0, 0 );
+}
+
+/**
  * Build the occupied-set from a placement list. Anything that
  * hits a grid cell counts; placements positioned off-grid are
  * still recorded against the cell their corner snaps to so

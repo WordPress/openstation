@@ -70,6 +70,18 @@ function desktop_mode_register_builtin_file_types() {
 			'class' => 'Desktop_Mode_Shortcut_File',
 			'sort'  => 1,
 		),
+		array(
+			'type'  => 'link',
+			'label' => __( 'Web link', 'desktop-mode' ),
+			'class' => 'Desktop_Mode_Link_File',
+			'sort'  => 70,
+		),
+		array(
+			'type'  => 'embed',
+			'label' => __( 'Embedded web window', 'desktop-mode' ),
+			'class' => 'Desktop_Mode_Embed_File',
+			'sort'  => 80,
+		),
 	);
 
 	foreach ( $types as $args ) {

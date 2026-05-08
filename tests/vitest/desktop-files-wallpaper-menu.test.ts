@@ -13,6 +13,8 @@ async function load(): Promise< MenuModule > {
 
 const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpaper-menu' ).WallpaperMenuDeps > = {} ) => ( {
 	createFolder: vi.fn(),
+	createLink: vi.fn(),
+	createEmbed: vi.fn(),
 	toggleShowDesktop: vi.fn(),
 	openOsSettings: vi.fn(),
 	openWallpapers: vi.fn(),
@@ -27,6 +29,9 @@ const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpape
 		sortNameDesc: 'Name (Z → A)',
 		sortDateAsc: 'Date (oldest first)',
 		sortDateDesc: 'Date (newest first)',
+		newHeading: 'New',
+		newLink: 'Web link (open in browser)',
+		newEmbed: 'Embedded window (open in shell)',
 	},
 	...overrides,
 } );
@@ -41,9 +46,12 @@ describe( 'wallpaper context menu', () => {
 		document.body.innerHTML = '';
 	} );
 
-	test( 'buildMenuItems returns the four built-ins in order', async () => {
+	test( 'buildMenuItems returns the built-ins in order', async () => {
 		const { buildMenuItems } = await load();
 		const items = buildMenuItems( stubDeps() );
+		// The "new" submenu (web link / embedded window) is
+		// temporarily hidden in wallpaper-menu.ts; re-add 'new'
+		// (and the children assertion below) when it ships.
 		expect( items.map( ( i ) => i.id ) ).toEqual( [
 			'create-folder',
 			'sort-by',
@@ -51,6 +59,7 @@ describe( 'wallpaper context menu', () => {
 			'os-settings',
 			'wallpapers',
 		] );
+		expect( items.find( ( i ) => i.id === 'new' ) ).toBeUndefined();
 		const sortBy = items.find( ( i ) => i.id === 'sort-by' );
 		expect( sortBy?.children?.map( ( c ) => c.id ) ).toEqual(
 			expect.arrayContaining( [

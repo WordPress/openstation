@@ -1,21 +1,39 @@
 /**
- * Desktop Mode — Cross-window shortcut drag protocol.
+ * Desktop Mode — Cross-window shortcut drag protocol (legacy).
  *
- * A drag source (e.g. the My WordPress entity-list post tiles)
- * sets `application/x-desktop-mode-shortcut+json` on its
- * `dataTransfer` with a `{ type, ref, title, icon }` payload.
- * Drop targets (the FilesLayer on the wallpaper or inside any
- * folder window) read it on `dragover` / `drop` and turn it into
- * a placement at the drop coordinates.
+ * @deprecated since 0.18.0 — superseded by the centralized
+ * {@link DragManagerApi}. The shell no longer wires HTML5
+ * `dragstart` / `drop` for in-shell tile gestures; everything routes
+ * through `wp.desktop.dragManager`. This module remains for
+ * backwards compatibility with third-party plugins that still emit
+ * HTML5 drags with the legacy MIME `application/x-desktop-mode-shortcut+json`,
+ * but new code SHOULD use the manager directly:
  *
- * Native HTML5 drag is the right choice here because it crosses
- * any DOM boundary uniformly — wallpaper, folder windows, future
- * native windows all share the same protocol with no shell-internal
- * plumbing.
+ * ```ts
+ * tile.addEventListener( 'pointerdown', ( e ) => {
+ *     window.wp.desktop.dragManager.start( {
+ *         payload: {
+ *             type: 'shortcut',
+ *             source: tile,
+ *             data: { kind: 'post', ref: String( id ) },
+ *         },
+ *         origin: e,
+ *     } );
+ * } );
+ * ```
  *
- * This module is deliberately tiny and dependency-free so feature
- * bundles (My WordPress, future Posts/Users windows) can import the
- * helper without dragging in the FilesLayer module's full graph.
+ * Why we left HTML5 drag behind:
+ *
+ *   1. `setPointerCapture` (used by tile-rearrange handlers) silently
+ *      breaks HTML5 `dragstart` detection on `draggable=true` elements.
+ *      The browser never fires `dragstart`, so payloads attached to
+ *      `DataTransfer` never reach a drop target. This was the
+ *      long-standing My WordPress entity-tile drag bug.
+ *   2. HTML5 drag has no programmatic cancel. Pressing Escape, alt-
+ *      tabbing, or system modals leave drag state stranded.
+ *   3. The "Lift and Drop" cross-iframe pattern (see architecture.md)
+ *      needs a parent-shell-controlled drag. Pointer-event-driven
+ *      gives us a single mental model.
  *
  * @public
  * @since 0.8.0
@@ -32,10 +50,9 @@ export interface DesktopShortcutDragPayload {
 
 /**
  * Stamp a shortcut payload on a dataTransfer object during a
- * `dragstart`. Sets a `text/plain` fallback so dragging into a
- * plain-text field (notes app, address bar) yields the title rather
- * than `[object Object]`. Marks the drag as `copy` because we never
- * MOVE a tile out of My WordPress — the source survives.
+ * `dragstart`.
+ *
+ * @deprecated since 0.18.0 — use `dragManager.start()` instead.
  */
 export function setShortcutDragPayload(
 	dt: DataTransfer,
@@ -51,9 +68,10 @@ export function setShortcutDragPayload(
 }
 
 /**
- * Whether the drag event carries a shortcut payload. Drop targets
- * use this on `dragover` to decide whether to call
- * `e.preventDefault()` (and so accept the drop).
+ * Whether the drag event carries a shortcut payload.
+ *
+ * @deprecated since 0.18.0 — drop targets register via
+ * `dragManager.registerDropTarget()` and switch on `payload.type`.
  */
 export function hasShortcutPayload( e: DragEvent ): boolean {
 	const types = e.dataTransfer?.types;
@@ -71,6 +89,9 @@ export function hasShortcutPayload( e: DragEvent ): boolean {
 /**
  * Read a shortcut payload from a `drop` event. Returns `null` for
  * malformed / missing data — caller should bail.
+ *
+ * @deprecated since 0.18.0 — drop targets receive the typed payload
+ * directly via `DragSession.payload.data`.
  */
 export function readShortcutPayload(
 	e: DragEvent,

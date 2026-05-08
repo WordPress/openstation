@@ -40,6 +40,7 @@ import {
 import { installOpenDeps, openFile, type OpenDeps } from './open';
 import { registerBuiltInFileTypes } from './built-in-types';
 import { registerBuiltInFileOpeners } from './built-in-openers';
+import { installEmbedPersistence } from './embed-window';
 import { registerFileAssociationsTab } from './settings-tab';
 import * as filesRest from './rest';
 import {
@@ -58,6 +59,7 @@ import type { DesktopFileShape, DesktopFileTypeServerEntry } from './types';
 
 registerBuiltInFileTypes();
 registerBuiltInFileOpeners();
+installEmbedPersistence();
 registerFileAssociationsTab();
 
 /**

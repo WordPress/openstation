@@ -26,7 +26,7 @@ A **file** on the desktop is a `Desktop_Mode_File` subclass adapting one WordPre
 
 A placement is a **reference** to a WordPress entity, not a copy of it. Removing a placement (`DELETE /placements/<id>` or `desktop_mode_files_remove()`) drops the placement row only — the underlying post, user, attachment, comment, or term is **never** touched. Folder deletion cascades placements via tombstones but still leaves referenced entities intact. This is asserted in `Tests_DesktopMode_FilesStore::test_remove_does_not_delete_underlying_entity` and is the core safety contract of the system. Plugins that want a "delete the post too" flow must call `wp_delete_post()` (or equivalent) themselves — the framework will not do it for them.
 
-A **file type** is a slug that points the registry at the right subclass. The seven built-ins are:
+A **file type** is a slug that points the registry at the right subclass. The built-ins are:
 
 | Slug | Class | Reference shape |
 |---|---|---|
@@ -37,6 +37,10 @@ A **file type** is a slug that points the registry at the right subclass. The se
 | `comment` | `Desktop_Mode_Comment_File` | comment id |
 | `folder` | `Desktop_Mode_Folder_File` | folder row id (Phase 2) |
 | `bookmark` | `Desktop_Mode_Bookmark_File` | URL string |
+| `link` | `Desktop_Mode_Link_File` | URL string — opens in a new browser tab |
+| `embed` | `Desktop_Mode_Embed_File` | URL string — opens in an iframe-backed desktop window; geometry persists on `placement.meta.window` |
+
+`link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name` (set by the wallpaper-menu "New" submenu) — the tile renderer prefers it over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
 
 `page` and any custom post type collapse into `post`; `category` and `post_tag` collapse into `term`. UI labels per concrete post type / taxonomy come from the `desktop_mode_file_serialize` filter — there's no need to register a separate type for every CPT.
 
@@ -217,6 +221,8 @@ Three handler kinds:
 | `wp-term-editor` | `term` | `url` | `term.php?taxonomy=…&tag_ID=…` |
 | `wp-comment-editor` | `comment` | `url` | `comment.php?action=editcomment&c=…` |
 | `browser-navigate` | `bookmark` | `js` | `window.open(url, '_blank', 'noopener,noreferrer')` |
+| `desktop-mode-link-opener` | `link` | `js` | `window.open(url, '_blank', 'noopener,noreferrer')` |
+| `desktop-mode-embed-opener` | `embed` | `js` | Opens an iframe-backed window at `url`. Reads `placement.meta.window` for restored geometry, clamps it to the current desktop area, and persists subsequent drag-end / resize-end back to `placement.meta.window` via REST. |
 
 The `folder` type doesn't ship a built-in opener yet — it lands in Phase 3 alongside the folder native window.
 
@@ -348,9 +354,84 @@ A `FilesLayer` is the renderer that mounts on a host element (the `#desktop-mode
 
 The class names and `data-*` attributes are part of the stable contract. The tile is built with `buildTile()` in `src/desktop-files/file-tile.ts`.
 
-### Drag
+### Drag *(reworked in 0.18.0)*
 
-Drag is `PointerEvent`-based with `setPointerCapture`. During pointermove the layer mutates the tile's `style.left` / `style.top` only — no store mutation per frame. On pointerup it optimistically upserts the new position into the store and persists via `PATCH /placements/<id>`. A REST failure rolls back to the previous geometry.
+Drag is owned end-to-end by the centralized `DragManager`
+(`wp.desktop.dragManager`). A tile's `pointerdown` calls
+`dragManager.start({ payload, origin, … })`; the manager attaches its
+own document-level pointermove / pointerup / pointercancel listeners
+and drives the gesture from there. Tiles do NOT call `setPointerCapture`
+— pointer capture is incompatible with HTML5 `dragstart` detection on
+draggable elements (the My WordPress entity-tile drag-out bug, fixed
+in 0.18.0).
+
+Lifecycle:
+
+  1. `pointerdown` → manager session armed (no visual change yet).
+  2. First `pointermove` past 4 px threshold → ghost mounts under the
+     pointer; source tile gets `--dragging` (opacity 0.4).
+  3. Subsequent moves → ghost follows; the registry hit-tests under
+     the cursor; matching drop targets fire `onEnter` / `onLeave`;
+     ghost cursor flips between `copy` / `no-drop`.
+  4. `pointerup` → re-hit-test; an accepting target fires `onDrop`
+     (the FilesLayer's canvas / a folder tile / the Recycle Bin);
+     non-accepting hover ends with `desktop-mode.drag.cancel`
+     (`reason: 'rejected'` or `'no-target'`).
+
+Drop target contract (`wp.desktop.dragManager.registerDropTarget`):
+
+```ts
+const deregister = wp.desktop.dragManager.registerDropTarget( {
+    id: 'my-plugin/dropzone',
+    element: document.querySelector( '#my-zone' ),
+    accept: ( payload ) => payload.type === 'desktop-file',
+    onEnter: ( session ) => { /* visual feedback */ },
+    onLeave: ( session ) => { /* clear feedback */ },
+    onDrop: ( session, ev ) => { /* handle the drop */ },
+} );
+// Later, when the surface unmounts:
+deregister();
+```
+
+Window claim boundary: when the manager's hit-test walks up the DOM
+from `elementFromPoint` and crosses a `.desktop-mode-window` element
+BEFORE finding a registered target, it returns null. This is what
+makes "drop over a Gutenberg admin window" produce reject feedback
+instead of silently routing the drop to the wallpaper underneath. A
+window opts INTO accepting drops by registering a target on its own
+body — the Recycle Bin's `[data-desktop-mode-recycle-bin-root]` is
+the canonical example.
+
+Cancellation: `Escape`, `window.blur`, `document.visibilitychange` to
+hidden, and `pointercancel` all cancel the active session and run a
+single idempotent cleanup (`--dragging`, `--drop-target`,
+`data-desktop-mode-trash-drop-active`, `data-files-drop-active` are
+all stripped from the document). Plugins observing the bus see
+`document` CustomEvents — `desktop-mode.drag.{start,move,enter,leave,
+rejected,commit,cancel,end}`.
+
+For desktop-files specifically, the FilesLayer registers two drop
+targets:
+
+  - The layer host (`#desktop-mode-area` for the wallpaper, the
+    folder window's body for sub-folders) — accepts `'desktop-file'`
+    moves and `'shortcut'` creations. On drop, computes the snapped
+    grid cell and `PATCH`/`POST`s.
+  - Each folder tile — accepts the same payloads but routes them
+    INTO that folder (sets `parentId` on the move, or POSTs a new
+    placement with `parentId = folderId`).
+
+Pinned tiles (registered with `pinned: true` via
+`desktop_mode_register_icon`) skip drag wiring entirely. A pointerdown
+on a pinned tile flashes a `--bump` animation and shows the
+`not-allowed` cursor so the (lack of) interaction reads as
+intentional rather than buggy.
+
+Legacy: HTML5 drag (`setShortcutDragPayload` /
+`hasShortcutPayload` / `readShortcutPayload`) remains exported from
+`drag-shortcut.ts` for plugins that emit cross-window drags via
+`dataTransfer`, but is `@deprecated since 0.18.0`. New code uses the
+manager.
 
 ### Open
 

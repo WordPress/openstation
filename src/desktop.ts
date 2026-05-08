@@ -109,6 +109,7 @@ import {
 } from './pwa/install';
 import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
+import { DragManager, type DragManagerApi } from './drag';
 import {
 	type DesktopCommand,
 } from './commands';
@@ -160,6 +161,7 @@ import {
 	type FilesApi,
 } from './desktop-files';
 import { mountFilesLayer } from './desktop-files/layer';
+import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
 import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
 import {
@@ -170,6 +172,7 @@ import {
 	type ServerWallpaperMenuItem,
 } from './desktop-files/wallpaper-menu';
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
+import { openUrlDialog } from './desktop-files/url-dialog';
 import type {
 	DesktopConfig,
 	NativeWindowDef,
@@ -582,6 +585,21 @@ export interface WpDesktopPublicApi {
 	 * @since 0.14.0
 	 */
 	dragBridge: DragBridgeApi;
+	/**
+	 * Centralized in-shell drag-and-drop manager. Owns every pointer-
+	 * based drag in the parent shell — file tiles on the wallpaper,
+	 * entity tiles inside My WordPress, and any plugin surface that
+	 * registers a draggable element via `dragManager.start()`.
+	 *
+	 * Distinct from {@link dragBridge}: that's a payload channel for
+	 * cross-iframe Media Library drags. This is the gesture driver —
+	 * it owns the pointer events, the ghost element, the drop-target
+	 * registry, and the global cancellation paths (Escape / blur /
+	 * visibilitychange / pointercancel).
+	 *
+	 * @since 0.18.0
+	 */
+	dragManager: DragManagerApi;
 	/**
 	 * Register a slash-command that appears in the Cmd+K palette.
 	 *
@@ -1522,6 +1540,10 @@ function init(): void {
 	// (after shell DOM exists) so any iframe loading afterward sees
 	// a parent that's ready to receive messages.
 	const dragBridge = new DragBridge();
+	// In-shell drag-and-drop manager — owns the pointer-based drag
+	// gestures for file tiles, entity tiles, and plugin-registered
+	// draggable surfaces. Drop targets register via the public API.
+	const dragManager: DragManagerApi = new DragManager();
 
 	// Register the AI Assistant as the first (default) Cmd+K palette
 	// and install the single global shortcut. Other plugins can register
@@ -2472,10 +2494,17 @@ function init(): void {
 		openOsSettings,
 		aiAssistant,
 		dragBridge,
+		dragManager,
 		connect: connectionBridge.connect,
 		config,
 	} );
 	installPublicApi( desktopApi );
+
+	// Now that `wp.desktop.dragManager` is on the window, register
+	// the recycle-bin drop targets (dock icon + window body). The
+	// installer is idempotent — it listens for `DOCK_AFTER_RENDER`
+	// and `WINDOW_OPENED` to (re-)attach when the elements appear.
+	installRecycleBinDropTargets( dragManager );
 
 	// Wire the cross-feature Heartbeat bus before any consumer
 	// (presence, recycle bin, third-party plugins) registers a
@@ -2704,21 +2733,50 @@ function init(): void {
 			// Capture the click coordinates so a folder created from
 			// this menu lands where the user clicked, not at (0, 0).
 			const dropClient = { x: clientX, y: clientY };
+			// Snap the click point to the nearest empty grid cell —
+			// shared between every "new" item the menu spawns
+			// (folder, link, embed) so anything created lands on a
+			// clean cell aligned with the grid.
+			const cellAtClick = (): { x: number; y: number } => {
+				const rect = desktopArea.getBoundingClientRect();
+				const rawX = Math.max( 0, dropClient.x - rect.left );
+				const rawY = Math.max( 0, dropClient.y - rect.top );
+				const occupied = buildOccupiedSet(
+					filesApi.store.getState().placementsByFolder.get( 0 ) ?? [],
+				);
+				return snapToEmptyCell( rawX, rawY, occupied, desktopArea );
+			};
+			const createUrlPlacement = (
+				type: 'link' | 'embed',
+				dialogTitle: string,
+				description: string,
+			): void => {
+				openUrlDialog( {
+					title: dialogTitle,
+					description,
+					nameLabel: 'Name',
+					urlLabel: 'URL',
+					submitLabel: 'Create',
+					onSubmit: async ( { name, url } ) => {
+						const cell = cellAtClick();
+						const placement = await filesRest.createPlacement( {
+							type,
+							ref: url,
+							parentId: 0,
+							x: cell.x,
+							y: cell.y,
+							meta: name ? { name } : undefined,
+						} );
+						filesApi.store.upsertPlacement( placement );
+					},
+				} );
+			};
 			const items = buildWallpaperMenuItems( {
 				createFolder: () => {
 					openCreateFolderDialog( {
 						onSubmit: async ( name ) => {
 							const folder = await filesRest.createFolder( { name } );
-							// Translate viewport → desktop-area local
-							// coords, then snap to the nearest empty
-							// grid cell so the new folder lands aligned.
-							const rect = desktopArea.getBoundingClientRect();
-							const rawX = Math.max( 0, dropClient.x - rect.left );
-							const rawY = Math.max( 0, dropClient.y - rect.top );
-							const occupied = buildOccupiedSet(
-								filesApi.store.getState().placementsByFolder.get( 0 ) ?? [],
-							);
-							const cell = snapToEmptyCell( rawX, rawY, occupied, desktopArea );
+							const cell = cellAtClick();
 							const placement = await filesRest.createPlacement( {
 								type: 'folder',
 								ref: String( folder.id ),
@@ -2731,6 +2789,18 @@ function init(): void {
 						},
 					} );
 				},
+				createLink: () =>
+					createUrlPlacement(
+						'link',
+						'New web link',
+						'Opens the URL in a new browser tab.',
+					),
+				createEmbed: () =>
+					createUrlPlacement(
+						'embed',
+						'New embedded web window',
+						'Opens the URL inside a desktop window.',
+					),
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
 				openWallpapers: () => openOsSettings(),
@@ -2767,6 +2837,9 @@ function init(): void {
 					sortNameDesc: 'Name (Z → A)',
 					sortDateAsc: 'Date (oldest first)',
 					sortDateDesc: 'Date (newest first)',
+					newHeading: 'New',
+					newLink: 'Web link (open in browser)',
+					newEmbed: 'Embedded window (open in shell)',
 				},
 				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]

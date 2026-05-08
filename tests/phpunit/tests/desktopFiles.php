@@ -35,7 +35,7 @@ class Tests_DesktopMode_Files extends WP_UnitTestCase {
 	 */
 	public function test_built_in_types_are_registered() {
 		$types = wp_list_pluck( desktop_mode_get_file_types(), 'type' );
-		foreach ( array( 'post', 'attachment', 'user', 'term', 'comment', 'folder', 'bookmark' ) as $expected ) {
+		foreach ( array( 'post', 'attachment', 'user', 'term', 'comment', 'folder', 'bookmark', 'link', 'embed' ) as $expected ) {
 			$this->assertContains( $expected, $types );
 		}
 	}
@@ -164,6 +164,48 @@ class Tests_DesktopMode_Files extends WP_UnitTestCase {
 	 */
 	public function test_bookmark_file_rejects_javascript_url() {
 		$file = desktop_mode_resolve_file( 'bookmark', 'javascript:alert(1)' );
+		$this->assertFalse( $file->exists() );
+	}
+
+	/**
+	 * @covers Desktop_Mode_Link_File
+	 */
+	public function test_link_file_serializes_url_and_host_title() {
+		$file  = desktop_mode_resolve_file( 'link', 'https://example.com/path' );
+		$shape = $file->serialize();
+		$this->assertSame( 'link', $shape['type'] );
+		$this->assertSame( 'example.com', $shape['title'] );
+		$this->assertSame( 'https://example.com/path', $shape['url'] );
+		$this->assertSame( 'dashicons-admin-links', $shape['icon'] );
+		$this->assertTrue( $shape['exists'] );
+	}
+
+	/**
+	 * @covers Desktop_Mode_Link_File
+	 */
+	public function test_link_file_rejects_javascript_url() {
+		$file = desktop_mode_resolve_file( 'link', 'javascript:alert(1)' );
+		$this->assertFalse( $file->exists() );
+	}
+
+	/**
+	 * @covers Desktop_Mode_Embed_File
+	 */
+	public function test_embed_file_serializes_url_and_host_title() {
+		$file  = desktop_mode_resolve_file( 'embed', 'https://example.com/dashboard' );
+		$shape = $file->serialize();
+		$this->assertSame( 'embed', $shape['type'] );
+		$this->assertSame( 'example.com', $shape['title'] );
+		$this->assertSame( 'https://example.com/dashboard', $shape['url'] );
+		$this->assertSame( 'dashicons-welcome-view-site', $shape['icon'] );
+		$this->assertTrue( $shape['exists'] );
+	}
+
+	/**
+	 * @covers Desktop_Mode_Embed_File
+	 */
+	public function test_embed_file_rejects_empty_ref() {
+		$file = desktop_mode_resolve_file( 'embed', '' );
 		$this->assertFalse( $file->exists() );
 	}
 

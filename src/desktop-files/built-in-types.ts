@@ -27,4 +27,6 @@ export function registerBuiltInFileTypes(): void {
 	registerType( { type: 'term', label: 'Taxonomy term', sort: 40 } );
 	registerType( { type: 'comment', label: 'Comment', sort: 50 } );
 	registerType( { type: 'bookmark', label: 'Bookmark', sort: 60 } );
+	registerType( { type: 'link', label: 'Web link', sort: 70 } );
+	registerType( { type: 'embed', label: 'Embedded web window', sort: 80 } );
 }

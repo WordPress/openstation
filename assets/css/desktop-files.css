@@ -92,18 +92,40 @@
 }
 
 .desktop-mode-file-tile--dragging {
-	opacity: 0.85;
+	/* The DragManager renders a separate ghost element that follows
+	 * the pointer; the SOURCE tile stays in place but is dimmed so
+	 * the user has a stable reference for "this is what I'm
+	 * dragging."
+	 *
+	 * @since 0.18.0
+	 */
+	opacity: 0.4;
 	cursor: grabbing;
-	z-index: 10;
 }
 
-/* Pinned tiles (registered via `desktop_mode_register_icon( …,
- * [ 'pinned' => true ] )`) anchor to a fixed slot and never wire
- * up drag handlers. Switch the cursor so the affordance matches
- * the (lack of) interaction. @since 0.8.0 */
+/* Pinned tiles ("My WordPress", Recycle Bin) anchor to a fixed slot
+ * and DO NOT wire drag. The `not-allowed` cursor signals "this tile
+ * is intentionally fixed" so the user understands the (lack of)
+ * interaction instead of suspecting a bug. The `--bump` keyframe
+ * fires on pointerdown for explicit feedback that the gesture
+ * landed but the tile is anchored.
+ *
+ * @since 0.18.0
+ */
 .desktop-mode-file-tile--pinned {
-	cursor: pointer;
+	cursor: not-allowed;
 	touch-action: auto;
+}
+
+.desktop-mode-file-tile--bump {
+	animation: desktop-mode-file-tile-bump 220ms ease-out;
+}
+
+@keyframes desktop-mode-file-tile-bump {
+	0%   { transform: translate( 0, 0 ); }
+	30%  { transform: translate( 0, -3px ) scale( 1.02 ); }
+	60%  { transform: translate( 0, 1px ) scale( 0.99 ); }
+	100% { transform: translate( 0, 0 ); }
 }
 
 /* Folder tile is the drop target during a cross-window shortcut
@@ -611,4 +633,32 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	text-shadow: var( --desktop-mode-tile-label-shadow, 0 1px 2px rgba( 0, 0, 0, 0.5 ) );
 	-webkit-font-smoothing: var( --desktop-mode-tile-label-smoothing, auto );
 	-moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * DragManager ghost element (the visual that follows the cursor
+ * during a drag). Cloned from the source by `mountGhost()` and
+ * pinned to the body with `position: fixed` + transform-based
+ * movement. `pointer-events: none` ensures the ghost itself
+ * never obscures the drop targets underneath during hit-testing.
+ *
+ * The accept / reject classes are toggled on each hover transition
+ * so the cursor matches the drop semantics: `copy` over an
+ * accepting target, `no-drop` over rejecting (or no) target.
+ *
+ * @since 0.18.0
+ */
+.desktop-mode-drag-ghost {
+	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.45 );
+	border-radius: 6px;
+	opacity: 0.95;
+	transition: none;
+}
+
+.desktop-mode-drag-ghost--accept {
+	cursor: copy;
+}
+
+.desktop-mode-drag-ghost--reject {
+	cursor: no-drop;
 }

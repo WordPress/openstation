@@ -34,6 +34,7 @@ import {
 	snapToEmptyCell,
 } from './grid';
 import { renderPlacementPreview, renderPreviewEmpty } from './preview';
+import { openEmbedWindow } from './embed-window';
 
 interface ConfigShape {
 	adminUrl?: string;
@@ -468,6 +469,38 @@ export function registerBuiltInFileOpeners(): void {
 				// `window.opener` — important since bookmarks
 				// can point anywhere.
 				window.open( url, '_blank', 'noopener,noreferrer' );
+			},
+		},
+	} );
+
+	registerOpener( {
+		id: 'desktop-mode-link-opener',
+		label: 'Open in browser',
+		types: [ 'link' ],
+		isDefault: true,
+		sort: 10,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile ) => {
+				const url = file.ref();
+				if ( ! url ) {
+					return;
+				}
+				window.open( url, '_blank', 'noopener,noreferrer' );
+			},
+		},
+	} );
+
+	registerOpener( {
+		id: 'desktop-mode-embed-opener',
+		label: 'Open as window',
+		types: [ 'embed' ],
+		isDefault: true,
+		sort: 10,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile, ctx ) => {
+				openEmbedWindow( file, ctx );
 			},
 		},
 	} );

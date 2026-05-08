@@ -52,10 +52,30 @@ export interface NativeWindowOpenerHandler {
 	config?: ( file: DesktopFile ) => unknown;
 }
 
+/**
+ * Optional context passed to opener handlers. Provided when the
+ * caller knows which placement triggered the open (e.g. a tile
+ * dblclick); openers that need the placement's `meta` (saved
+ * window geometry, custom names, …) can read it here.
+ */
+export interface OpenerContext {
+	/** The placement that originated the open, when known. */
+	placement?: {
+		id: number;
+		x: number;
+		y: number;
+		meta: Record< string, unknown > | null;
+	};
+}
+
 export interface JsOpenerHandler {
 	kind: 'js';
-	/** Free-form opener — runs in the shell context. */
-	open: ( file: DesktopFile ) => void | Promise< void >;
+	/**
+	 * Free-form opener — runs in the shell context. The `ctx`
+	 * argument is populated when the caller has placement context;
+	 * legacy openers that ignore it keep working.
+	 */
+	open: ( file: DesktopFile, ctx?: OpenerContext ) => void | Promise< void >;
 }
 
 export type OpenerHandler =

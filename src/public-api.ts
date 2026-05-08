@@ -141,6 +141,19 @@ export type { ConnectOptions, WindowConnection } from './connection';
 
 export type { AskFn, AskOptions, AskResult, AskToolCall } from './ai/ask';
 
+// ----- Drag-and-drop manager (in-shell pointer-event drag) -----
+
+export type {
+	CancelReason as DragCancelReason,
+	DragManagerApi,
+	DragPayload,
+	DragSession,
+	DropTarget as DragDropTarget,
+	GhostConfig as DragGhostConfig,
+	StartOpts as DragStartOpts,
+} from './drag';
+export { DRAG_EVENTS, DRAG_THRESHOLD_PX } from './drag';
+
 // ----- DevTools / cross-plugin instrumentation -----
 
 export type {

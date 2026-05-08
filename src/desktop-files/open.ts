@@ -11,7 +11,7 @@
  */
 
 import { doAction } from '../hooks';
-import { resolveOpener } from './openers';
+import { resolveOpener, type OpenerContext } from './openers';
 import type { DesktopFile } from './file';
 
 export interface OpenDeps {
@@ -35,7 +35,10 @@ export function installOpenDeps( next: OpenDeps ): void {
  * when something opened, `false` when no opener could handle the
  * file (caller may surface a "no app" toast).
  */
-export async function openFile( file: DesktopFile ): Promise< boolean > {
+export async function openFile(
+	file: DesktopFile,
+	ctx?: OpenerContext,
+): Promise< boolean > {
 	if ( ! deps ) {
 		// eslint-disable-next-line no-console
 		console.warn(
@@ -79,7 +82,7 @@ export async function openFile( file: DesktopFile ): Promise< boolean > {
 			return opened;
 		}
 		// 'js'.
-		await handler.open( file );
+		await handler.open( file, ctx );
 		doAction( 'desktop-mode.files.opened', { file, openerId: opener.id, kind: 'js' } );
 		return true;
 	} catch ( err ) {
