@@ -389,6 +389,32 @@ function desktop_mode_enqueue_toggle_assets() {
 			/* dashicons-fullscreen-exit-alt */
 			content: "\f212";
 		}
+		/* Defuse the implicit-drag-on-anchor click eater. WP renders
+		   admin-bar items as <a href="#">, which is implicitly
+		   draggable; tiny pointer jitter on click commits to a native
+		   link-drag (the floating "Exit fullscreen / http://…#" ghost
+		   the user sees) and the click handler never runs. admin-bar.js
+		   also sets draggable="false" on the <a>; user-drag: none here
+		   covers the WebKit path where the attribute alone is not
+		   honoured reliably. */
+		#wp-admin-bar-desktop-fullscreen .ab-item,
+		#wp-admin-bar-desktop-fullscreen .ab-item * {
+			-webkit-user-drag: none;
+			user-drag: none;
+			-webkit-user-select: none;
+			user-select: none;
+		}
+		/* Hide admin-bar items that sit closest to the right corner
+		   while in browser fullscreen. The corner is a reveal hot zone
+		   the OS / browser reserve for menu-bar / window-controls,
+		   where pointer events get intercepted before reaching the
+		   page. Hiding these two shifts the Fullscreen toggle further
+		   from the corner so its own click lands. Toggled by a body
+		   class admin-bar.js sets on `fullscreenchange`. */
+		body.desktop-mode-browser-fs #wp-admin-bar-desktop-mode-toggle,
+		body.desktop-mode-browser-fs #wp-admin-bar-desktop-bug-report {
+			display: none;
+		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-fullscreen .ab-label {
 				display: none;
