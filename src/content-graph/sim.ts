@@ -63,6 +63,16 @@ export class ForceSim {
 	public nodes: GraphNode[];
 	public edges: GraphEdge[];
 	public opts: SimOptions;
+	/**
+	 * When set, the position-update step is gated by a smoothstep
+	 * falloff around this point: nodes within `dragInfluenceRadius`
+	 * integrate at full per-frame alpha, nodes beyond it integrate at
+	 * zero. Keeps the visible ripple of a drag local to the dragged
+	 * node's neighborhood instead of cascading through every spring
+	 * chain to the far edge of the graph.
+	 */
+	public dragOrigin: { x: number; y: number } | null = null;
+	public dragInfluenceRadius = 500;
 	private alpha = ALPHA_REHEAT;
 
 	constructor(
@@ -163,6 +173,9 @@ export class ForceSim {
 
 		// Gravity + integrate.
 		const a = this.alpha;
+		const drag = this.dragOrigin;
+		const dragR = this.dragInfluenceRadius;
+		const dragR2 = dragR * dragR;
 		for ( const n of nodes ) {
 			if ( ! n.pinned ) {
 				n.vx -= n.x * gravity;
@@ -183,8 +196,22 @@ export class ForceSim {
 				} else if ( n.vy < -MAX_VELOCITY ) {
 					n.vy = -MAX_VELOCITY;
 				}
-				n.x += n.vx * a * dt;
-				n.y += n.vy * a * dt;
+				let nodeAlpha = a;
+				if ( drag ) {
+					const ddx = n.x - drag.x;
+					const ddy = n.y - drag.y;
+					const dd2 = ddx * ddx + ddy * ddy;
+					if ( dd2 >= dragR2 ) {
+						nodeAlpha = 0;
+					} else {
+						// Smoothstep ramp: full alpha at the drag
+						// origin, easing to zero at the radius edge.
+						const t = 1 - Math.sqrt( dd2 ) / dragR;
+						nodeAlpha *= t * t * ( 3 - 2 * t );
+					}
+				}
+				n.x += n.vx * nodeAlpha * dt;
+				n.y += n.vy * nodeAlpha * dt;
 			}
 		}
 

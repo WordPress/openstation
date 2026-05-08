@@ -12,10 +12,13 @@
 
 import { trackedFetch } from '../tracked-fetch';
 import type {
+	CommentStats,
 	ContentGraphConfig,
 	GraphPayload,
 	PostDetail,
 	PostTypeDescriptor,
+	TermStats,
+	UserStats,
 } from './types';
 
 declare global {
@@ -91,4 +94,61 @@ export async function fetchPostDetail(
 		throw new Error( `post/${ id }: ${ res.status }` );
 	}
 	return ( await res.json() ) as PostDetail;
+}
+
+/**
+ * Reach into My WordPress's pre-computed dossier endpoints. They
+ * already aggregate everything the contextual panel needs (counts,
+ * recent posts, milestones, activity histogram), gated on the same
+ * `is_user_logged_in()` checks we already use. Avoids the need for
+ * content-graph to re-implement the per-entity stats roll-ups.
+ */
+export async function fetchUserStats(
+	cfg: ContentGraphConfig,
+	userId: number,
+): Promise< UserStats > {
+	const res = await trackedFetch(
+		`${ cfg.restRoot }desktop-mode/v1/user-stats/${ userId }`,
+		{ headers: authHeaders( cfg ) },
+		{ source: SOURCE, windowId: WINDOW_ID },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `user-stats/${ userId }: ${ res.status }` );
+	}
+	return ( await res.json() ) as UserStats;
+}
+
+export async function fetchTermStats(
+	cfg: ContentGraphConfig,
+	taxonomy: string,
+	termId: number,
+): Promise< TermStats > {
+	const res = await trackedFetch(
+		`${ cfg.restRoot }desktop-mode/v1/term-stats/${ encodeURIComponent(
+			taxonomy,
+		) }/${ termId }`,
+		{ headers: authHeaders( cfg ) },
+		{ source: SOURCE, windowId: WINDOW_ID },
+	);
+	if ( ! res.ok ) {
+		throw new Error(
+			`term-stats/${ taxonomy }/${ termId }: ${ res.status }`,
+		);
+	}
+	return ( await res.json() ) as TermStats;
+}
+
+export async function fetchCommentStats(
+	cfg: ContentGraphConfig,
+	commentId: number,
+): Promise< CommentStats > {
+	const res = await trackedFetch(
+		`${ cfg.restRoot }desktop-mode/v1/comment-stats/${ commentId }`,
+		{ headers: authHeaders( cfg ) },
+		{ source: SOURCE, windowId: WINDOW_ID },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `comment-stats/${ commentId }: ${ res.status }` );
+	}
+	return ( await res.json() ) as CommentStats;
 }

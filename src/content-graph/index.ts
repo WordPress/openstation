@@ -142,13 +142,6 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			void loadGraph();
 		},
 		onFitToView: () => scene?.fitToView(),
-		onReheat: () => {
-			// Routed through scene.reheat() so it bumps alpha AND adds
-			// the random velocity kick. The previous local-only
-			// velocity injection was a no-op once the sim had cooled
-			// (alpha=0 means `vx * alpha = 0` regardless of vx).
-			scene?.reheat( 1 );
-		},
 		onSearchSelect: ( node: GraphNode ) => focusNode( node ),
 		getNodes: () => scene?.getNodes() ?? [],
 	} );

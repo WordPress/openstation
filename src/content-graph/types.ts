@@ -102,6 +102,131 @@ export interface PostDetail {
 	revisions: RevisionRef[];
 }
 
+export interface UserStats {
+	profile: {
+		id: number;
+		name: string;
+		description: string;
+		link: string;
+		website: string;
+		avatarUrl: string;
+		email?: string;
+		username?: string;
+		registered?: string;
+		roles?: string[];
+		roleLabels?: string[];
+	};
+	counts: {
+		posts: { publish: number; total: number };
+		pages: { publish: number; total: number };
+		commentsReceived: number;
+		commentsLeft: number;
+		cpt: number;
+	};
+	recent: Array< {
+		id: number;
+		title: string;
+		date: string;
+		status: string;
+		type: string;
+		link: string;
+	} >;
+	topTerms: Array< {
+		id: number;
+		name: string;
+		slug: string;
+		taxonomy: string;
+		count: number;
+	} >;
+	activity: Array< { ym: string; count: number } >;
+	milestones: {
+		firstPublished: string | null;
+		lastPublished: string | null;
+	};
+}
+
+export interface TermStats {
+	profile: {
+		id: number;
+		name: string;
+		slug: string;
+		taxonomy: string;
+		taxonomyLabel: string;
+		description: string;
+		link: string;
+		parent: number;
+		parentName?: string;
+		storedCount: number;
+	};
+	counts: {
+		posts: { publish: number; total: number };
+		commentsReceived: number;
+		distinctAuthors: number;
+	};
+	topAuthors: Array< {
+		userId: number;
+		userName: string;
+		userAvatarUrl: string;
+		count: number;
+	} >;
+	coTerms: Array< {
+		id: number;
+		name: string;
+		slug: string;
+		count: number;
+	} >;
+	activity: Array< { ym: string; count: number } >;
+	milestones: {
+		firstPosted: string | null;
+		lastPosted: string | null;
+	};
+}
+
+export interface CommentStats {
+	comment: {
+		id: number;
+		parent: number;
+		date: string;
+		status: string;
+		rendered: string;
+		rendered_raw: string;
+		editLink: string;
+	};
+	author: {
+		name: string;
+		url: string;
+		avatarUrl: string;
+		userId: number;
+		displayName?: string;
+		profileLink?: string;
+		totalApprovedComments: number;
+	};
+	post: {
+		id: number;
+		title: string;
+		link: string;
+		editLink: string;
+		status: string;
+		type: string;
+		date: string;
+		author: { id: number; name: string; avatarUrl: string } | null;
+	} | null;
+	parent: {
+		id: number;
+		authorName: string;
+		date: string;
+		excerpt: string;
+	} | null;
+	replies: Array< {
+		id: number;
+		authorName: string;
+		avatarUrl: string;
+		date: string;
+		excerpt: string;
+		status: string;
+	} >;
+}
+
 export interface ContentGraphConfig {
 	restRoot: string;
 	restNonce: string;

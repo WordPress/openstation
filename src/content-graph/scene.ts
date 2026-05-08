@@ -204,6 +204,9 @@ export class GraphScene {
 			this.world,
 			this.onSatelliteClick,
 			this.host,
+			() => {
+				this.nodeClickActive = true;
+			},
 		);
 
 		this.bindStageInput( app.canvas );
@@ -355,7 +358,10 @@ export class GraphScene {
 			node.pinned = true;
 			const w = this.toWorld( e.global.x, e.global.y );
 			this.dragOffset = { x: node.x - w.x, y: node.y - w.y };
-			this.sim?.reheat( 1 );
+			if ( this.sim ) {
+				this.sim.dragOrigin = { x: node.x, y: node.y };
+				this.sim.reheat( 0.3, false );
+			}
 		} );
 		gfx.on( 'pointerover', () => {
 			this.hoveredId = node.id;
@@ -382,11 +388,17 @@ export class GraphScene {
 				node.pinned = this.focusedId === node.id;
 			}
 			this.dragNode = null;
-			this.sim?.reheat( 0.8 );
+			if ( this.sim ) {
+				this.sim.dragOrigin = null;
+				this.sim.reheat( 0.35, false );
+			}
 		} );
 		gfx.on( 'pointerupoutside', () => {
 			node.pinned = this.focusedId === node.id;
 			this.dragNode = null;
+			if ( this.sim ) {
+				this.sim.dragOrigin = null;
+			}
 		} );
 		gfx.on( 'globalpointermove', ( evt: unknown ) => {
 			if ( this.dragNode !== node ) {
@@ -399,7 +411,10 @@ export class GraphScene {
 			node.vx = 0;
 			node.vy = 0;
 			isDragging = true;
-			this.sim?.reheat( 1 );
+			if ( this.sim ) {
+				this.sim.dragOrigin = { x: node.x, y: node.y };
+				this.sim.reheat( 0.3, false );
+			}
 		} );
 	}
 
@@ -648,14 +663,14 @@ export class GraphScene {
 			}
 		}
 		this.focusedId = id;
-		this.sim?.reheat( 1 );
+		// Deliberately NO reheat here. With the focused node pinned and
+		// the cluster already in equilibrium, reheating would inject a
+		// random velocity into every other node and the whole graph
+		// would visibly jiggle. The reviewer flagged this as "all nodes
+		// move when selecting a node". Camera ease + satellites are
+		// enough animation for the focus moment.
 		const view = this.nodeViews.get( id );
 		if ( view ) {
-			// Pin the focused node so it doesn't drift around under
-			// the camera while the user is reading the panel — this is
-			// the "constantly trying to recenter itself" symptom the
-			// reviewer flagged. The 1-hop neighbours still float; the
-			// pinned node anchors the visual frame.
 			view.node.pinned = true;
 			view.node.vx = 0;
 			view.node.vy = 0;
@@ -682,11 +697,8 @@ export class GraphScene {
 			return;
 		}
 		this.satellites.setFocused( node, detail );
-		this.sim?.reheat( 0.9 );
-	}
-
-	reheat( value = 1 ): void {
-		this.sim?.reheat( value );
+		// No reheat — satellites have their own entrance animation and
+		// reheating here would shake the whole cluster (see focusNode).
 	}
 
 	clearFocus(): void {
@@ -698,7 +710,10 @@ export class GraphScene {
 		}
 		this.focusedId = null;
 		this.satellites?.clear();
-		this.sim?.reheat( 0.7 );
+		// Calm re-settle: keep the integrator alive briefly so the
+		// previously-pinned node can ease back to equilibrium without
+		// a global kick that would jiggle the rest of the cluster.
+		this.sim?.reheat( 0.25, false );
 		this.draw();
 	}
 

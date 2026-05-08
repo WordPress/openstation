@@ -19,7 +19,6 @@ import type { GraphNode, PostTypeDescriptor } from './types';
 export interface ToolbarCallbacks {
 	onTypesChange: ( types: string[] ) => void;
 	onFitToView: () => void;
-	onReheat: () => void;
 	onSearchSelect: ( node: GraphNode ) => void;
 	getNodes: () => GraphNode[];
 }
@@ -135,16 +134,6 @@ export function renderToolbar(
 	fit.title = __( 'Fit graph to view' );
 	fit.addEventListener( 'click', () => callbacks.onFitToView() );
 	actions.appendChild( fit );
-
-	const reheat = document.createElement( 'button' );
-	reheat.type = 'button';
-	reheat.className = 'desktop-mode-content-graph__btn';
-	reheat.innerHTML =
-		'<span class="dashicons dashicons-update" aria-hidden="true"></span>' +
-		`<span>${ escapeHtml( __( 'Reheat' ) ) }</span>`;
-	reheat.title = __( 'Re-run the layout simulation' );
-	reheat.addEventListener( 'click', () => callbacks.onReheat() );
-	actions.appendChild( reheat );
 
 	const status = document.createElement( 'span' );
 	status.className = 'desktop-mode-content-graph__toolbar-status';

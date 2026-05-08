@@ -260,6 +260,56 @@
 	display: none;
 }
 
+/* ---------- Right side panel: breadcrumb --------------------------- */
+
+.desktop-mode-content-graph__panel-breadcrumb {
+	display: flex;
+	align-items: center;
+	padding: 8px 14px 0;
+	min-height: 32px;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-back {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: transparent;
+	border: 0;
+	padding: 4px 8px 4px 4px;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var( --wpd-text-muted, #6b7280 );
+	font-size: 12px;
+	font-weight: 500;
+	max-width: 100%;
+	min-width: 0;
+	text-align: left;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-back:hover {
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
+	color: var( --wpd-text, #1a1f2b );
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-arrow {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	line-height: 16px;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-breadcrumb-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+
 /* ---------- Right side panel --------------------------------------- */
 
 .desktop-mode-content-graph__panel {
@@ -274,6 +324,22 @@
 
 .desktop-mode-content-graph__panel[ hidden ] {
 	display: none;
+}
+
+.desktop-mode-content-graph__panel-frame {
+	/*
+	 * Without these rules the body's `flex: 1; overflow-y: auto`
+	 * has nothing to constrain it — the body just grows to fit its
+	 * dossier content and the action buttons get clipped at the
+	 * bottom of the panel. Make the frame a flex column itself so
+	 * the body is forced to share the panel's height with the
+	 * breadcrumb and head, then scrolls the overflow.
+	 */
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0;
+	min-height: 0;
+	overflow: hidden;
 }
 
 .desktop-mode-content-graph__panel-head {
@@ -472,6 +538,311 @@
 
 .desktop-mode-content-graph__panel-empty[ hidden ] {
 	display: none;
+}
+
+/* ---------- Contextual detail views (user / term / comment) -------- */
+
+.desktop-mode-content-graph__panel-detail-section {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-content-graph__panel-detail-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.desktop-mode-content-graph__panel-detail-avatar--lg {
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-handle {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-handle strong {
+	font-size: 14px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.desktop-mode-content-graph__panel-detail-handle span {
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-content-graph__panel-detail-prose {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --wpd-text, #1a1f2b );
+}
+
+.desktop-mode-content-graph__panel-detail-link {
+	font-size: 12px;
+	color: var( --wpd-accent, #2c6be5 );
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	display: inline-block;
+	max-width: 100%;
+}
+
+.desktop-mode-content-graph__panel-detail-link:hover {
+	text-decoration: underline;
+}
+
+.desktop-mode-content-graph__panel-detail-html {
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --wpd-text, #1a1f2b );
+	background: var( --wpd-surface, #f7f8fb );
+	border: 1px solid var( --wpd-border, #eef0f4 );
+	border-radius: 6px;
+	padding: 10px 12px;
+	overflow-wrap: anywhere;
+}
+
+.desktop-mode-content-graph__panel-detail-html p:first-child {
+	margin-top: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-html p:last-child {
+	margin-bottom: 0;
+}
+
+.desktop-mode-content-graph__panel-detail-quote {
+	margin: 0;
+	padding: 10px 12px;
+	border-left: 3px solid var( --wpd-border, #d8dde4 );
+	background: var( --wpd-surface, #f7f8fb );
+	border-radius: 0 6px 6px 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-content-graph__panel-detail-quote strong {
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.desktop-mode-content-graph__panel-detail-quote span {
+	font-size: 12px;
+	color: var( --wpd-text-muted, #4b5563 );
+}
+
+.desktop-mode-content-graph__panel-detail-thumb {
+	display: flex;
+	justify-content: center;
+	background: var( --wpd-surface, #f7f8fb );
+	border: 1px solid var( --wpd-border, #eef0f4 );
+	border-radius: 8px;
+	padding: 8px;
+	max-height: 240px;
+	overflow: hidden;
+}
+
+.desktop-mode-content-graph__panel-detail-thumb img {
+	max-width: 100%;
+	max-height: 220px;
+	object-fit: contain;
+	border-radius: 4px;
+}
+
+.desktop-mode-content-graph__panel-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.desktop-mode-content-graph__panel-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	font-size: 11px;
+	font-weight: 500;
+	border-radius: 999px;
+	background: var( --wpd-surface, #f1f3f7 );
+	color: var( --wpd-text-muted, #4b5563 );
+	border: 1px solid var( --wpd-border, #e2e6ec );
+}
+
+.desktop-mode-content-graph__panel-badge--blue {
+	background: rgba( 44, 107, 229, 0.12 );
+	color: #1f4ea8;
+	border-color: rgba( 44, 107, 229, 0.35 );
+}
+
+.desktop-mode-content-graph__panel-badge--green {
+	background: rgba( 44, 169, 122, 0.14 );
+	color: #1f7754;
+	border-color: rgba( 44, 169, 122, 0.35 );
+}
+
+.desktop-mode-content-graph__panel-badge--amber {
+	background: rgba( 232, 137, 58, 0.16 );
+	color: #8a5012;
+	border-color: rgba( 232, 137, 58, 0.35 );
+}
+
+.desktop-mode-content-graph__panel-inline-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-content-graph__panel-inline-meta-row {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.desktop-mode-content-graph__panel-inline-meta-row .desktop-mode-content-graph__panel-section-label {
+	flex: 0 0 auto;
+	margin-bottom: 0;
+}
+
+.desktop-mode-content-graph__panel-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.desktop-mode-content-graph__panel-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 9px;
+	font-size: 12px;
+	border-radius: 999px;
+	background: var( --wpd-surface, #f1f3f7 );
+	border: 1px solid var( --wpd-border, #e2e6ec );
+}
+
+.desktop-mode-content-graph__panel-chip-count {
+	font-variant-numeric: tabular-nums;
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-author-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.desktop-mode-content-graph__panel-author-list-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.desktop-mode-content-graph__panel-author-list-row .desktop-mode-content-graph__panel-avatar {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.desktop-mode-content-graph__panel-author-list-row .desktop-mode-content-graph__panel-author-name {
+	flex: 1 1 auto;
+	font-size: 13px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-content-graph__panel-milestones {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-content-graph__panel-milestone-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.desktop-mode-content-graph__panel-milestone-key {
+	font-size: 12px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-replies {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.desktop-mode-content-graph__panel-reply {
+	background: var( --wpd-surface, #f7f8fb );
+	border: 1px solid var( --wpd-border, #eef0f4 );
+	border-radius: 6px;
+	padding: 8px 10px;
+}
+
+.desktop-mode-content-graph__panel-reply header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.desktop-mode-content-graph__panel-reply header strong {
+	font-size: 12px;
+}
+
+.desktop-mode-content-graph__panel-reply header span {
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-reply p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.45;
+	color: var( --wpd-text-muted, #4b5563 );
+}
+
+.desktop-mode-content-graph__panel-detail-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 0;
+	font-size: 12px;
+	color: var( --wpd-text-muted, #6b7280 );
+}
+
+.desktop-mode-content-graph__panel-stat-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
 }
 
 @media ( max-width: 760px ) {

@@ -118,6 +118,12 @@ export class SatelliteLayer {
 		private world: PixiContainer,
 		private onClick: SatelliteOnClick,
 		private hostEl: HTMLElement,
+		// Called on satellite `pointerdown` so the scene can flip its
+		// pixi-click gate. Without this the canvas-level pan handler
+		// fires on the same pointer event, then the matching pointerup
+		// triggers `onBackgroundClick` and closes the panel right after
+		// `panel.show*()` opened the contextual view.
+		private claimPointer: () => void,
 	) {
 		this.linkLayer = new pixi.Container();
 		this.linkGfx = new pixi.Graphics();
@@ -319,6 +325,14 @@ export class SatelliteLayer {
 		label.alpha = 0.9;
 		container.addChild( label );
 
+		container.on( 'pointerdown', ( evt: unknown ) => {
+			const e = evt as { stopPropagation?: () => void };
+			e.stopPropagation?.();
+			// Tell the scene that a pixi-managed element is the click
+			// target. The canvas-level pointerdown listener checks
+			// this and bails out of pan/background-click setup.
+			this.claimPointer();
+		} );
 		container.on( 'pointerover', ( evt: unknown ) => {
 			disc.alpha = 1;
 			const e = evt as { global?: { x: number; y: number } };
