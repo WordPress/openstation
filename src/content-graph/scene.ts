@@ -85,6 +85,8 @@ interface NodeView {
 	container: PixiContainer;
 	halo: PixiGraphics;
 	icon: PixiText;
+	labelBox: PixiContainer;
+	labelBg: PixiGraphics;
 	label: PixiText;
 	iconCharCode: string | null;
 }
@@ -99,6 +101,10 @@ export class GraphScene {
 	private pixi!: PixiNamespace;
 	private world!: PixiContainer;
 	private edgeLayer!: PixiContainer;
+	// Connector spokes from focused node to its satellites — rendered
+	// between edges and nodes so the spoke endpoints sit BEHIND the
+	// focused node disc instead of being painted across it.
+	private spokeLayer!: PixiContainer;
 	private nodeLayer!: PixiContainer;
 	private labelLayer!: PixiContainer;
 	private satellites: SatelliteLayer | null = null;
@@ -195,13 +201,20 @@ export class GraphScene {
 		app.stage.addChild( this.world );
 
 		this.edgeLayer = new pixi.Container();
+		this.spokeLayer = new pixi.Container();
 		this.nodeLayer = new pixi.Container();
 		this.labelLayer = new pixi.Container();
-		this.world.addChild( this.edgeLayer, this.nodeLayer, this.labelLayer );
+		this.world.addChild(
+			this.edgeLayer,
+			this.spokeLayer,
+			this.nodeLayer,
+			this.labelLayer,
+		);
 
 		this.satellites = new SatelliteLayer(
 			pixi,
 			this.world,
+			this.spokeLayer,
 			this.onSatelliteClick,
 			this.host,
 			() => {
@@ -309,6 +322,17 @@ export class GraphScene {
 			} );
 			container.addChild( icon );
 
+			// Wrap each label in a Container so the backing rect, the
+			// text, and the per-node alpha all transform as one unit
+			// when the camera zooms. The backing keeps labels readable
+			// over busy edge tangles + the dot-grid background — the
+			// review feedback flagged unbacked labels as hard to read.
+			const labelBox = new this.pixi.Container();
+			this.labelLayer.addChild( labelBox );
+
+			const labelBg = new this.pixi.Graphics();
+			labelBox.addChild( labelBg );
+
 			const label = new this.pixi.Text( {
 				text: this.truncate( n.title || `#${ n.id }`, 32 ),
 				style: {
@@ -321,14 +345,32 @@ export class GraphScene {
 				resolution: 2,
 				anchor: { x: 0.5, y: 0 },
 			} );
-			label.alpha = 0.85;
-			this.labelLayer.addChild( label );
+			labelBox.addChild( label );
+
+			// Draw the backing once now that the text has measured
+			// itself. Width doesn't change after construction (we
+			// don't mutate label.text after this), so re-painting per
+			// frame would be pure waste.
+			const padX = 5;
+			const padY = 1;
+			const lw = label.width + padX * 2;
+			const lh = label.height + padY * 2;
+			labelBg
+				.roundRect( -lw / 2, -padY, lw, lh, 4 )
+				.fill( { color: 0xffffff, alpha: 0.78 } )
+				.stroke( {
+					color: 0x000000,
+					alpha: 0.06,
+					width: 1,
+				} );
 
 			this.nodeViews.set( n.id, {
 				node: n,
 				container,
 				halo,
 				icon,
+				labelBox,
+				labelBg,
 				label,
 				iconCharCode: iconChar,
 			} );
@@ -605,9 +647,13 @@ export class GraphScene {
 		}
 
 		const inverseScale = 1 / this.world.scale.x;
-		const showLabels = this.world.scale.x > 0.85;
+		// Smooth fade between two zoom thresholds rather than a hard
+		// cutoff. At <= 0.55 labels are invisible; at >= 0.95 they're
+		// fully present; in between the alpha eases via smoothstep so
+		// pinch-zoom doesn't pop them in/out.
+		const zoomFade = smoothstep( 0.55, 0.95, this.world.scale.x );
 		for ( const v of this.nodeViews.values() ) {
-			const { node, container, halo, icon, label } = v;
+			const { node, container, halo, icon, labelBox } = v;
 			const isFocus = node.id === focusId;
 			const isHover = node.id === hoverId;
 			const isNeighbour =
@@ -637,20 +683,19 @@ export class GraphScene {
 			icon.style.fill = fill;
 			icon.style.fontSize = 2 * node.radius;
 
-			label.x = node.x;
-			label.y = node.y + node.radius + 4;
-			label.scale.set( inverseScale );
-			let labelAlpha = 0;
-			if ( showLabels ) {
-				if ( isFocus ) {
-					labelAlpha = 1;
-				} else if ( inFocus ) {
-					labelAlpha = 0.85;
-				} else {
-					labelAlpha = 0.18;
-				}
+			labelBox.x = node.x;
+			labelBox.y = node.y + node.radius + 4;
+			labelBox.scale.set( inverseScale );
+			let baseLabelAlpha: number;
+			if ( isFocus ) {
+				baseLabelAlpha = 1;
+			} else if ( inFocus ) {
+				baseLabelAlpha = 0.92;
+			} else {
+				baseLabelAlpha = 0.32;
 			}
-			label.alpha = labelAlpha;
+			labelBox.alpha = baseLabelAlpha * zoomFade;
+			labelBox.visible = labelBox.alpha > 0.01;
 		}
 	}
 
@@ -715,6 +760,16 @@ export class GraphScene {
 		// a global kick that would jiggle the rest of the cluster.
 		this.sim?.reheat( 0.25, false );
 		this.draw();
+	}
+
+	/**
+	 * Mark a satellite by its synthetic key as selected (e.g. when
+	 * the side panel switches to that satellite's dossier). Pass
+	 * `null` to clear the selection — done when the panel navigates
+	 * back to the post view or closes entirely.
+	 */
+	setSatelliteSelectedKey( key: string | null ): void {
+		this.satellites?.setSelectedKey( key );
 	}
 
 	getNode( id: number ): GraphNode | undefined {
@@ -791,6 +846,17 @@ function normalizeDashiconName( raw: string ): string {
 		return 'admin-generic';
 	}
 	return raw.replace( /^dashicons-/, '' );
+}
+
+function smoothstep( a: number, b: number, x: number ): number {
+	if ( x <= a ) {
+		return 0;
+	}
+	if ( x >= b ) {
+		return 1;
+	}
+	const t = ( x - a ) / ( b - a );
+	return t * t * ( 3 - 2 * t );
 }
 
 function defaultIconForPostType( slug: string ): string {

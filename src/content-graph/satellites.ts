@@ -7,12 +7,25 @@
  * same icons WP admin uses for users / categories / comments / media /
  * revisions, so the visual reads as "WordPress" not "ad-hoc shapes").
  *
+ * Layout: a single ring around the focused node with all satellites
+ * evenly distributed by angle. Refs come from `flattenDetail` already
+ * grouped by kind (author → contributors → terms → comments → media →
+ * revisions), so the ring is visually banded by colour as you walk
+ * around it without having to break it into separate concentric
+ * orbits — that variant produced an off-balance cluster when most
+ * posts have only a couple of satellites per kind.
+ *
  * Behaviour:
  *   - Animates outward from the focused node's centre on entrance.
  *   - Hover highlight + DOM tooltip with label and meta.
  *   - On click, calls `onClick(ref)` — the host then routes the click
  *     to the contextual side panel (showUser / showTerm / etc.) rather
- *     than navigating away.
+ *     than navigating away. The clicked satellite picks up a
+ *     "selected" highlight (thicker stroke + soft halo) so the user
+ *     can see what the panel content corresponds to.
+ *   - Connector spokes from the focused node to each satellite render
+ *     into a layer the scene places BEHIND the node disc (the node
+ *     covers the spoke origin instead of being painted over by it).
  *   - Connector lines re-paint each animation tick so they track the
  *     focused node as it moves with the simulation.
  *
@@ -94,28 +107,53 @@ const KIND_DASHICON: Record< SatelliteRef[ 'kind' ], string > = {
 	revision: 'backup',
 };
 
+/**
+ * Per-icon micro-tweak applied AFTER the anchor-based vertical
+ * correction. The chat-bubble glyph in `admin-comments` sits a touch
+ * higher inside the font box than the others; the tag and revision
+ * glyphs are nicely balanced. Values are world-pixel offsets — keep
+ * them small (<= 1.5).
+ */
+const KIND_ICON_NUDGE: Record< SatelliteRef[ 'kind' ], number > = {
+	user: 0,
+	term: 0,
+	comment: 1,
+	media: 0,
+	revision: 0,
+};
+
+const DISC_RADIUS = 14;
+
 interface SatelliteView {
 	ref: SatelliteRef;
+	key: string;
 	container: PixiContainer;
 	disc: PixiGraphics;
 	icon: PixiText;
 	label: PixiText;
 	targetX: number;
 	targetY: number;
+	selected: boolean;
 }
 
 export class SatelliteLayer {
-	private linkLayer: PixiContainer;
 	private linkGfx: PixiGraphics;
 	private layer: PixiContainer;
 	private views: SatelliteView[] = [];
 	private focused: GraphNode | null = null;
 	private hoverEl: HTMLDivElement;
 	private rafId: number | null = null;
+	private selectedKey: string | null = null;
 
 	constructor(
 		private pixi: PixiNamespace,
-		private world: PixiContainer,
+		// Parent for the satellite icons themselves — drawn ABOVE the
+		// node layer so satellites sit in front of nodes.
+		private satelliteParent: PixiContainer,
+		// Parent for the connector spokes — the scene places this BELOW
+		// the node layer so the spoke endpoints appear to start from
+		// behind the focused node disc rather than pasted over it.
+		private spokeParent: PixiContainer,
 		private onClick: SatelliteOnClick,
 		private hostEl: HTMLElement,
 		// Called on satellite `pointerdown` so the scene can flip its
@@ -125,13 +163,11 @@ export class SatelliteLayer {
 		// `panel.show*()` opened the contextual view.
 		private claimPointer: () => void,
 	) {
-		this.linkLayer = new pixi.Container();
 		this.linkGfx = new pixi.Graphics();
-		this.linkLayer.addChild( this.linkGfx );
-		this.world.addChild( this.linkLayer );
+		this.spokeParent.addChild( this.linkGfx );
 
 		this.layer = new pixi.Container();
-		this.world.addChild( this.layer );
+		this.satelliteParent.addChild( this.layer );
 
 		this.hoverEl = document.createElement( 'div' );
 		this.hoverEl.className = 'desktop-mode-content-graph__tooltip';
@@ -144,6 +180,7 @@ export class SatelliteLayer {
 		this.layer.removeChildren();
 		this.views = [];
 		this.focused = null;
+		this.selectedKey = null;
 		this.hideTooltip();
 	}
 
@@ -159,7 +196,11 @@ export class SatelliteLayer {
 			this.linkGfx
 				.moveTo( fx, fy )
 				.lineTo( v.container.x, v.container.y )
-				.stroke( { color, width: 1.4, alpha: 0.55 } );
+				.stroke( {
+					color,
+					width: v.selected ? 1.8 : 1.4,
+					alpha: v.selected ? 0.85 : 0.5,
+				} );
 		}
 	}
 
@@ -171,10 +212,15 @@ export class SatelliteLayer {
 			return;
 		}
 
+		// Single ring. Radius blends a base offset with the satellite
+		// count so a post with many satellites still has enough
+		// circumference to breathe; a post with few stays tight to
+		// the focused node instead of sprawling to the canvas edge.
 		const baseR = focused.radius;
+		const minSpacing = 36;
 		const ringR = Math.max(
-			90,
-			baseR + 70 + ( refs.length * 26 ) / ( 2 * Math.PI ),
+			baseR + 86,
+			baseR + 70 + ( refs.length * minSpacing ) / ( 2 * Math.PI ),
 		);
 
 		const startAngle = -Math.PI / 2;
@@ -185,13 +231,40 @@ export class SatelliteLayer {
 			const tx = focused.x + Math.cos( angle ) * ringR;
 			const ty = focused.y + Math.sin( angle ) * ringR;
 
-			const view = this.buildSatellite( ref, focused.x, focused.y );
+			const view = this.buildSatellite(
+				ref,
+				focused.x,
+				focused.y,
+			);
 			view.targetX = tx;
 			view.targetY = ty;
 			this.views.push( view );
 		} );
 
 		this.animateIn();
+	}
+
+	/**
+	 * Mark a satellite by its synthetic key (e.g. `user:123`,
+	 * `term:category:42`). Pass `null` to clear. The selected satellite
+	 * gets a thicker stroke + soft halo so the user can see which one
+	 * matches the panel content. Auto-cleared by `clear()` and on a
+	 * fresh `setFocused()`.
+	 */
+	setSelectedKey( key: string | null ): void {
+		if ( this.selectedKey === key ) {
+			return;
+		}
+		this.selectedKey = key;
+		for ( const v of this.views ) {
+			const next = v.key === key;
+			if ( next === v.selected ) {
+				continue;
+			}
+			v.selected = next;
+			this.repaintDisc( v );
+		}
+		this.drawLinks();
 	}
 
 	destroy(): void {
@@ -201,7 +274,7 @@ export class SatelliteLayer {
 		}
 		this.clear();
 		this.layer.destroy( { children: true } );
-		this.linkLayer.destroy( { children: true } );
+		this.linkGfx.destroy();
 		this.hoverEl.remove();
 	}
 
@@ -280,31 +353,40 @@ export class SatelliteLayer {
 		container.alpha = 0;
 		container.eventMode = 'static';
 		container.cursor = 'pointer';
+		const hitR = DISC_RADIUS + 4;
 		container.hitArea = {
 			contains: ( x: number, y: number ) => {
-				return x >= -16 && x <= 16 && y >= -14 && y <= 28;
+				return (
+					x >= -hitR && x <= hitR && y >= -hitR && y <= hitR + 18
+				);
 			},
 		};
 
 		const disc = new this.pixi.Graphics();
-		const fill = KIND_COLOR[ ref.kind ];
-		disc.circle( 0, 0, 12 ).fill( { color: fill, alpha: 0.95 } )
-			.stroke( { color: 0xffffff, width: 1.5, alpha: 1 } );
 		container.addChild( disc );
 
 		const iconChar = resolveDashicon( KIND_DASHICON[ ref.kind ] );
+		// Dashicon glyphs occupy the upper ~70% of their font bounding
+		// box (the bottom is reserved for descender space the icons
+		// never use). A strict `anchor: 0.5` centres the BOUNDING BOX
+		// on the disc, which leaves the visible glyph parked in the
+		// disc's upper half — exactly the "icons not centred" the
+		// reviewer flagged. Pushing the anchor's y to ~0.62 moves the
+		// box's centre slightly above the disc centre, so the visible
+		// glyph lands on it. Per-icon counter-tweak via the
+		// KIND_ICON_NUDGE map below for outliers.
 		const icon = new this.pixi.Text( {
 			text: iconChar ?? '?',
 			style: {
 				fontFamily: iconChar ? 'dashicons' : 'sans-serif',
-				fontSize: 13,
+				fontSize: iconChar ? 18 : 13,
 				fill: 0xffffff,
 			},
 			resolution: 2,
-			anchor: { x: 0.5, y: 0.5 },
+			anchor: { x: 0.5, y: iconChar ? 0.62 : 0.5 },
 		} );
 		icon.x = 0;
-		icon.y = 0;
+		icon.y = KIND_ICON_NUDGE[ ref.kind ] ?? 0;
 		container.addChild( icon );
 
 		const labelText = truncate( ref.label || '—', 28 );
@@ -321,7 +403,7 @@ export class SatelliteLayer {
 			anchor: { x: 0.5, y: 0 },
 		} );
 		label.x = 0;
-		label.y = 14;
+		label.y = DISC_RADIUS + 2;
 		label.alpha = 0.9;
 		container.addChild( label );
 
@@ -350,20 +432,50 @@ export class SatelliteLayer {
 			const e = evt as { stopPropagation?: () => void };
 			e.stopPropagation?.();
 			this.hideTooltip();
+			// Auto-mark this satellite as selected so the visual flips
+			// instantly. The host can refine via `setSelectedKey()` if
+			// it ends up rendering a different view (e.g. fetch
+			// failure), but for the common path this avoids round-trip
+			// flicker.
+			this.setSelectedKey( keyForRef( ref ) );
 			this.onClick( ref );
 		} );
 
 		this.layer.addChild( container );
 
-		return {
+		const view: SatelliteView = {
 			ref,
+			key: keyForRef( ref ),
 			container,
 			disc,
 			icon,
 			label,
 			targetX: startX,
 			targetY: startY,
+			selected: false,
 		};
+		this.repaintDisc( view );
+		return view;
+	}
+
+	private repaintDisc( v: SatelliteView ): void {
+		const fill = KIND_COLOR[ v.ref.kind ];
+		v.disc.clear();
+		if ( v.selected ) {
+			// Soft halo behind the disc so the selected satellite
+			// reads as "active" without yelling colour.
+			v.disc
+				.circle( 0, 0, DISC_RADIUS + 6 )
+				.fill( { color: fill, alpha: 0.18 } );
+		}
+		v.disc
+			.circle( 0, 0, DISC_RADIUS )
+			.fill( { color: fill, alpha: 0.95 } )
+			.stroke( {
+				color: 0xffffff,
+				width: v.selected ? 2.5 : 1.5,
+				alpha: 1,
+			} );
 	}
 
 	private animateIn(): void {
@@ -403,16 +515,41 @@ export class SatelliteLayer {
 			`<strong>${ escapeHtml( ref.label || '—' ) }</strong>` +
 			( ref.meta ? `<span>${ escapeHtml( ref.meta ) }</span>` : '' );
 		if ( global ) {
-			const rect = this.hostEl.getBoundingClientRect();
-			const lx = global.x - rect.left;
-			const ly = global.y - rect.top;
-			this.hoverEl.style.left = `${ lx + 12 }px`;
-			this.hoverEl.style.top = `${ ly + 12 }px`;
+			// Pixi v8's `event.global` is already in the canvas's local
+			// (CSS-pixel) coordinate space. The host element wraps the
+			// canvas with `position: relative` and no padding, so the
+			// canvas-local x/y is identical to the host-local x/y the
+			// tooltip needs. The previous code subtracted
+			// `host.getBoundingClientRect().left/top`, which was a
+			// viewport-coords value — that mismatch is what made the
+			// tooltip drift far from the cursor.
+			this.hoverEl.style.left = `${ global.x + 14 }px`;
+			this.hoverEl.style.top = `${ global.y + 14 }px`;
 		}
 	}
 
 	private hideTooltip(): void {
 		this.hoverEl.hidden = true;
+	}
+}
+
+/**
+ * Stable identity for a satellite — used by `setSelectedKey()` to mark
+ * the visual selected state and by hosts that want to reason about
+ * which satellite a click landed on without holding the ref directly.
+ */
+export function keyForRef( ref: SatelliteRef ): string {
+	switch ( ref.kind ) {
+		case 'user':
+			return `user:${ ref.userId }`;
+		case 'term':
+			return `term:${ ref.taxonomy }:${ ref.termId }`;
+		case 'comment':
+			return `comment:${ ref.commentId }`;
+		case 'media':
+			return `media:${ ref.mediaId }`;
+		case 'revision':
+			return `revision:${ ref.revisionId }`;
 	}
 }
 

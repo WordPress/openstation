@@ -82,6 +82,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			panel.hide();
 			scene?.clearFocus();
 		},
+		// Mirror the panel's visible view onto the satellite layer so
+		// the bubble matching the dossier picks up its selected state
+		// (and clears when the user navigates back to the post view).
+		onViewChange: ( key ) => {
+			scene?.setSatelliteSelectedKey( key );
+		},
 	} );
 
 	// Satellite click → contextual panel view (NOT a navigation away).

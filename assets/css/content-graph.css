@@ -388,11 +388,66 @@
 
 .desktop-mode-content-graph__panel-body {
 	flex: 1;
+	min-height: 0;
+	/*
+	 * The body is now a clipped stage that holds one or two
+	 * absolutely-positioned `__panel-page` children. During an iOS-
+	 * style navigation, the new page slides in over the old; both
+	 * are clipped here so the off-stage portion isn't visible.
+	 */
+	position: relative;
+	overflow: hidden;
+	padding: 0;
+}
+
+.desktop-mode-content-graph__panel-page {
+	position: absolute;
+	inset: 0;
 	overflow-y: auto;
 	padding: 14px 16px 18px;
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
+	background: var( --wpd-surface-2, #fff );
+	/*
+	 * iOS navigation curve — quick out, slow in. 240ms matches
+	 * UIKit's default push/pop duration closely enough for the
+	 * reviewer-flagged "abrupt" feeling to ease.
+	 */
+	transition:
+		transform 240ms cubic-bezier( 0.32, 0.72, 0, 1 ),
+		opacity 200ms ease-out;
+	will-change: transform, opacity;
+}
+
+/*
+ * Forward push: new page enters from the right at full distance, the
+ * outgoing page parallax-slides a fraction of the way to the left.
+ * Back pop: mirrored — new page enters from the left at parallax
+ * distance, current page slides off the right at full distance.
+ */
+.desktop-mode-content-graph__page-from-right {
+	transform: translateX( 100% );
+}
+.desktop-mode-content-graph__page-from-left {
+	transform: translateX( -28% );
+	opacity: 0.55;
+}
+.desktop-mode-content-graph__page-to-right {
+	transform: translateX( 100% );
+	/* Keep the outgoing page above the incoming parallax shadow on
+	 * back so the slide reads as the user "removing" it. */
+	z-index: 2;
+}
+.desktop-mode-content-graph__page-to-left {
+	transform: translateX( -28% );
+	opacity: 0.55;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-content-graph__panel-page {
+		transition: none;
+	}
 }
 
 .desktop-mode-content-graph__panel-section-label {

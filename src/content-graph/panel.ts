@@ -85,6 +85,15 @@ type PanelView =
 
 export interface PanelCallbacks {
 	onClose: () => void;
+	/**
+	 * Called whenever the visible view kind changes — `null` for the
+	 * post view, otherwise a key like `user:42` matching the
+	 * `keyForRef` shape in `satellites.ts`. The host wires this to the
+	 * scene so the satellite layer can mark the corresponding bubble
+	 * as selected (or clear the selection when we navigate back to the
+	 * post view).
+	 */
+	onViewChange?: ( key: string | null ) => void;
 }
 
 export interface PanelHandle {
@@ -153,6 +162,89 @@ export function renderPanel(
 	frame.appendChild( body );
 	host.appendChild( frame );
 
+	// Pages live inside `body`. Each `renderCurrent()` produces a
+	// fresh page DIV; `swapPage` slides it in over the previous one
+	// (iOS-style — forward = new from right, back = new from left).
+	// All `renderXxxView` calls append to `currentPage`, which is
+	// reassigned BEFORE the switch so they target the new page.
+	let currentPage: HTMLDivElement = createPage();
+	body.append( currentPage );
+	let prevViewKind: PanelView[ 'kind' ] | null = null;
+	let pageSeq = 0;
+
+	function createPage(): HTMLDivElement {
+		const p = document.createElement( 'div' );
+		p.className = 'desktop-mode-content-graph__panel-page';
+		return p;
+	}
+
+	const swapPage = (
+		next: HTMLDivElement,
+		direction: 'forward' | 'back' | 'none',
+	): void => {
+		const prev = currentPage;
+		currentPage = next;
+		body.append( next );
+		if ( prev === next || direction === 'none' ) {
+			if ( prev !== next ) {
+				prev.remove();
+			}
+			return;
+		}
+		const enter =
+			direction === 'forward' ? 'page-from-right' : 'page-from-left';
+		const exit =
+			direction === 'forward' ? 'page-to-left' : 'page-to-right';
+		next.classList.add( `desktop-mode-content-graph__${ enter }` );
+		// Force a layout pass so the browser registers the off-screen
+		// position before we strip the modifier and let the transition
+		// run. Without this the new page just appears on screen.
+		void next.offsetWidth;
+		const mySeq = ++pageSeq;
+		requestAnimationFrame( () => {
+			if ( mySeq !== pageSeq ) {
+				return;
+			}
+			next.classList.remove(
+				`desktop-mode-content-graph__${ enter }`,
+			);
+			prev.classList.add(
+				`desktop-mode-content-graph__${ exit }`,
+			);
+		} );
+		let cleaned = false;
+		const cleanup = (): void => {
+			if ( cleaned ) {
+				return;
+			}
+			cleaned = true;
+			prev.removeEventListener( 'transitionend', cleanup );
+			prev.remove();
+		};
+		prev.addEventListener( 'transitionend', cleanup );
+		// Belt-and-braces: if the transition never fires (display:none
+		// race during a panel close, missing CSS), drop the old page
+		// after the worst-case duration so it doesn't pile up.
+		setTimeout( cleanup, 360 );
+	};
+
+	const keyForView = ( v: PanelView ): string | null => {
+		switch ( v.kind ) {
+			case 'post':
+				return null;
+			case 'user':
+				return `user:${ v.user.id }`;
+			case 'term':
+				return `term:${ v.term.taxonomy }:${ v.term.id }`;
+			case 'comment':
+				return `comment:${ v.comment.id }`;
+			case 'media':
+				return `media:${ v.media.id }`;
+			case 'revision':
+				return `revision:${ v.revision.id }`;
+		}
+	};
+
 	const desktopApi = (): DesktopApi => {
 		const wp = ( window.wp ?? {} ) as { desktop?: DesktopApi };
 		return wp.desktop ?? {};
@@ -211,8 +303,12 @@ export function renderPanel(
 
 	const renderCurrent = (): void => {
 		host.hidden = false;
-		body.replaceChildren();
 		renderBreadcrumb();
+
+		// Build a fresh page; flip currentPage so the renderXxx
+		// functions append into the new page, not the outgoing one.
+		const next = createPage();
+		currentPage = next;
 		switch ( currentView.kind ) {
 			case 'post':
 				renderPostView( currentPost );
@@ -233,6 +329,21 @@ export function renderPanel(
 				renderRevisionView( currentView.revision );
 				break;
 		}
+
+		// Direction policy: post → sub-view = forward (slide left,
+		// new in from right); sub → post = back (slide right, new in
+		// from left); sub → sub treated as forward.
+		let direction: 'forward' | 'back' | 'none' = 'none';
+		if ( prevViewKind !== null && prevViewKind !== currentView.kind ) {
+			if ( currentView.kind === 'post' ) {
+				direction = 'back';
+			} else {
+				direction = 'forward';
+			}
+		}
+		swapPage( next, direction );
+		callbacks.onViewChange?.( keyForView( currentView ) );
+		prevViewKind = currentView.kind;
 	};
 
 	// --- POST view -----------------------------------------------------
@@ -246,16 +357,16 @@ export function renderPanel(
 		title.textContent = detail.post.title || `#${ detail.post.id }`;
 		meta.textContent = `${ detail.post.type } · ${ detail.post.status }`;
 
-		body.appendChild( renderAuthorBlock( detail ) );
-		body.appendChild( renderDatesBlock( detail ) );
-		body.appendChild( renderStatsGrid( [
+		currentPage.appendChild( renderAuthorBlock( detail ) );
+		currentPage.appendChild( renderDatesBlock( detail ) );
+		currentPage.appendChild( renderStatsGrid( [
 			{ label: __( 'Contributors' ), value: detail.contributors.length },
 			{ label: __( 'Comments' ), value: detail.comments.length },
 			{ label: __( 'Taxonomies' ), value: detail.categories.length },
 			{ label: __( 'Media' ), value: detail.attached_media.length },
 			{ label: __( 'Revisions' ), value: detail.revisions.length },
 		] ) );
-		body.appendChild( renderPostActionsBlock( detail ) );
+		currentPage.appendChild( renderPostActionsBlock( detail ) );
 	};
 
 	const renderAuthorBlock = ( detail: PostDetail ): HTMLElement => {
@@ -426,11 +537,11 @@ export function renderPanel(
 			`<strong>${ escapeHtml( stats?.profile.name ?? user.name ) }</strong>` +
 			`<span>@${ escapeHtml( user.slug ) }</span>`;
 		head2.appendChild( handleEl );
-		body.appendChild( head2 );
+		currentPage.appendChild( head2 );
 
 		// Roles (if available)
 		if ( stats?.profile.roleLabels?.length ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderBadges(
 					__( 'Roles' ),
 					stats.profile.roleLabels,
@@ -440,12 +551,12 @@ export function renderPanel(
 
 		// Bio + website
 		if ( stats?.profile.description ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderProse( __( 'About' ), stats.profile.description ),
 			);
 		}
 		if ( stats?.profile.website ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderLinkRow(
 					__( 'Website' ),
 					stats.profile.website,
@@ -457,7 +568,7 @@ export function renderPanel(
 		// Counts grid
 		if ( stats ) {
 			const cs = stats.counts;
-			body.appendChild(
+			currentPage.appendChild(
 				renderStatsGrid( [
 					{ label: __( 'Posts' ), value: cs.posts.total },
 					{ label: __( 'Pages' ), value: cs.pages.total },
@@ -476,14 +587,14 @@ export function renderPanel(
 
 		// Top categories / tags
 		if ( stats?.topTerms?.length ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderTopTerms( __( 'Top topics' ), stats.topTerms ),
 			);
 		}
 
 		// Milestones
 		if ( stats ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderMilestones( [
 					{
 						label: __( 'First published' ),
@@ -498,11 +609,11 @@ export function renderPanel(
 		}
 
 		if ( loading ) {
-			body.appendChild( renderLoadingRow() );
+			currentPage.appendChild( renderLoadingRow() );
 		}
 
 		// Action
-		body.appendChild(
+		currentPage.appendChild(
 			renderActionRow( {
 				label: __( 'Open in WordPress' ),
 				icon: 'dashicons-admin-users',
@@ -525,7 +636,7 @@ export function renderPanel(
 
 		// Parent breadcrumb (term hierarchy, not panel breadcrumb)
 		if ( stats?.profile.parentName ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderInlineMeta( [
 					{
 						label: __( 'Parent' ),
@@ -537,14 +648,14 @@ export function renderPanel(
 
 		// Description
 		if ( stats?.profile.description ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderProse( __( 'Description' ), stats.profile.description ),
 			);
 		}
 
 		// Counts
 		if ( stats ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderStatsGrid( [
 					{ label: __( 'Posts' ), value: stats.counts.posts.total },
 					{
@@ -558,7 +669,7 @@ export function renderPanel(
 				] ),
 			);
 		} else {
-			body.appendChild(
+			currentPage.appendChild(
 				renderStatsGrid( [
 					{ label: __( 'Posts' ), value: term.count },
 				] ),
@@ -567,14 +678,14 @@ export function renderPanel(
 
 		// Top authors
 		if ( stats?.topAuthors?.length ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderTopAuthors( __( 'Top authors' ), stats.topAuthors ),
 			);
 		}
 
 		// Co-terms
 		if ( stats?.coTerms?.length ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderTopTerms(
 					__( 'Co-occurring' ),
 					stats.coTerms.map( ( c ) => ( {
@@ -587,7 +698,7 @@ export function renderPanel(
 
 		// Milestones
 		if ( stats ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderMilestones( [
 					{
 						label: __( 'First post' ),
@@ -602,10 +713,10 @@ export function renderPanel(
 		}
 
 		if ( loading ) {
-			body.appendChild( renderLoadingRow() );
+			currentPage.appendChild( renderLoadingRow() );
 		}
 
-		body.appendChild(
+		currentPage.appendChild(
 			renderActionRow( {
 				label: __( 'Open in WordPress' ),
 				icon: 'dashicons-tag',
@@ -647,12 +758,12 @@ export function renderPanel(
 					) } ${ escapeHtml( __( 'comments' ) ) }</span>`
 					: '' );
 			head2.appendChild( handleEl );
-			body.appendChild( head2 );
+			currentPage.appendChild( head2 );
 		}
 
 		// Status badge
 		const status = stats?.comment.status ?? __( '—' );
-		body.appendChild(
+		currentPage.appendChild(
 			renderBadges( __( 'Status' ), [ status ], {
 				accent:
 					status === '1' || status === 'approved' ? 'green' : 'amber',
@@ -674,9 +785,9 @@ export function renderPanel(
 			html.className = 'desktop-mode-content-graph__panel-detail-html';
 			html.innerHTML = content;
 			wrap.appendChild( html );
-			body.appendChild( wrap );
+			currentPage.appendChild( wrap );
 		} else if ( comment.excerpt ) {
-			body.appendChild(
+			currentPage.appendChild(
 				renderProse( __( 'Comment' ), comment.excerpt ),
 			);
 		}
@@ -689,19 +800,19 @@ export function renderPanel(
 			wrap.innerHTML =
 				`<strong>${ escapeHtml( stats.parent.authorName ) }</strong>` +
 				`<span>${ escapeHtml( stats.parent.excerpt ) }</span>`;
-			body.appendChild( wrap );
+			currentPage.appendChild( wrap );
 		}
 
 		// Replies
 		if ( stats?.replies?.length ) {
-			body.appendChild( renderReplies( stats.replies ) );
+			currentPage.appendChild( renderReplies( stats.replies ) );
 		}
 
 		if ( loading ) {
-			body.appendChild( renderLoadingRow() );
+			currentPage.appendChild( renderLoadingRow() );
 		}
 
-		body.appendChild(
+		currentPage.appendChild(
 			renderActionRow( {
 				label: __( 'Open in WordPress' ),
 				icon: 'dashicons-admin-comments',
@@ -725,14 +836,14 @@ export function renderPanel(
 			img.src = media.thumb;
 			img.alt = media.title || '';
 			wrap.appendChild( img );
-			body.appendChild( wrap );
+			currentPage.appendChild( wrap );
 		}
-		body.appendChild(
+		currentPage.appendChild(
 			renderInlineMeta( [
 				{ label: __( 'Type' ), value: media.mime },
 			] ),
 		);
-		body.appendChild(
+		currentPage.appendChild(
 			renderActionRow( {
 				label: __( 'Open in WordPress' ),
 				icon: 'dashicons-admin-media',
@@ -767,14 +878,14 @@ export function renderPanel(
 				`<strong>${ escapeHtml( revision.author.name ) }</strong>` +
 				`<span>@${ escapeHtml( revision.author.slug ) }</span>`;
 			head2.appendChild( handleEl );
-			body.appendChild( head2 );
+			currentPage.appendChild( head2 );
 		}
-		body.appendChild(
+		currentPage.appendChild(
 			renderInlineMeta( [
 				{ label: __( 'Saved' ), value: formatDate( revision.date ) },
 			] ),
 		);
-		body.appendChild(
+		currentPage.appendChild(
 			renderActionRow( {
 				label: __( 'Open revision in WordPress' ),
 				icon: 'dashicons-backup',
@@ -1074,23 +1185,31 @@ export function renderPanel(
 			host.hidden = false;
 			breadcrumbHost.hidden = true;
 			currentView = { kind: 'post' };
+			prevViewKind = null;
 			title.textContent = fallbackTitle ?? `#${ id }`;
 			meta.textContent = __( 'Loading…' );
 			body.replaceChildren();
+			currentPage = createPage();
+			body.append( currentPage );
 			const loading = document.createElement( 'div' );
 			loading.className = 'desktop-mode-content-graph__panel-loading';
 			loading.innerHTML = '<wpd-spinner></wpd-spinner>';
-			body.appendChild( loading );
+			currentPage.appendChild( loading );
+			callbacks.onViewChange?.( null );
 		},
 		setError: ( message: string ) => {
 			host.hidden = false;
 			breadcrumbHost.hidden = true;
 			currentView = { kind: 'post' };
+			prevViewKind = null;
 			body.replaceChildren();
+			currentPage = createPage();
+			body.append( currentPage );
 			const empty = document.createElement( 'p' );
 			empty.className = 'desktop-mode-content-graph__panel-empty';
 			empty.textContent = message;
-			body.appendChild( empty );
+			currentPage.appendChild( empty );
+			callbacks.onViewChange?.( null );
 		},
 		setDetail: ( detail: PostDetail ) => {
 			currentPost = detail;
