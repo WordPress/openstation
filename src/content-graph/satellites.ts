@@ -390,6 +390,15 @@ export class SatelliteLayer {
 		container.addChild( icon );
 
 		const labelText = truncate( ref.label || '—', 28 );
+		// Draw the backing FIRST so it sits beneath the text, then
+		// the text itself. Without the backing, a satellite label that
+		// happens to overlap the focused-node disc or another label
+		// (e.g. "Recipe" landing on top of a neighbour-post label)
+		// becomes near-illegible — the backing pill keeps each
+		// satellite's name readable without competing for attention.
+		const labelBg = new this.pixi.Graphics();
+		container.addChild( labelBg );
+
 		const label = new this.pixi.Text( {
 			text: labelText,
 			style: {
@@ -404,8 +413,20 @@ export class SatelliteLayer {
 		} );
 		label.x = 0;
 		label.y = DISC_RADIUS + 2;
-		label.alpha = 0.9;
 		container.addChild( label );
+
+		// Now that the text has measured itself, paint the backing
+		// pill behind it. Width is fixed for the lifetime of this
+		// satellite (label text doesn't mutate after construction),
+		// so this is a one-time draw, not per-frame.
+		const padX = 6;
+		const padY = 1;
+		const lw = label.width + padX * 2;
+		const lh = label.height + padY * 2;
+		labelBg
+			.roundRect( -lw / 2, label.y - padY, lw, lh, 4 )
+			.fill( { color: 0xffffff, alpha: 0.92 } )
+			.stroke( { color: 0x000000, alpha: 0.08, width: 1 } );
 
 		container.on( 'pointerdown', ( evt: unknown ) => {
 			const e = evt as { stopPropagation?: () => void };
