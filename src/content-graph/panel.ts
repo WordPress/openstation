@@ -115,7 +115,20 @@ export function renderPanel(
 	callbacks: PanelCallbacks,
 ): PanelHandle {
 	host.replaceChildren();
-	host.hidden = true;
+	// Convert the PHP-rendered `hidden` attribute to the class-based
+	// closed state so we can transition open/close. The CSS pins the
+	// initial `[hidden]` paint to no transition, so the page-load
+	// state stays flicker-free; subsequent toggles via the class
+	// pick up the slide.
+	host.hidden = false;
+	host.classList.add( 'desktop-mode-content-graph__panel--closed' );
+
+	const setPanelOpen = ( open: boolean ): void => {
+		host.classList.toggle(
+			'desktop-mode-content-graph__panel--closed',
+			! open,
+		);
+	};
 
 	let currentPost: PostDetail | null = null;
 	let currentView: PanelView = { kind: 'post' };
@@ -179,11 +192,10 @@ export function renderPanel(
 	}
 
 	const swapPage = (
+		prev: HTMLDivElement,
 		next: HTMLDivElement,
 		direction: 'forward' | 'back' | 'none',
 	): void => {
-		const prev = currentPage;
-		currentPage = next;
 		body.append( next );
 		if ( prev === next || direction === 'none' ) {
 			if ( prev !== next ) {
@@ -302,12 +314,17 @@ export function renderPanel(
 	};
 
 	const renderCurrent = (): void => {
-		host.hidden = false;
+		setPanelOpen( true );
 		renderBreadcrumb();
 
-		// Build a fresh page; flip currentPage so the renderXxx
-		// functions append into the new page, not the outgoing one.
+		// Build a fresh page. Capture the OUTGOING page first, then
+		// flip `currentPage` so the renderXxx functions (which read
+		// `currentPage` via closure) append into the new one. The
+		// captured `prev` is what swapPage animates out — without
+		// this snapshot, swapPage saw `currentPage === next` and
+		// short-circuited, which is why the iOS slide never played.
 		const next = createPage();
+		const prev = currentPage;
 		currentPage = next;
 		switch ( currentView.kind ) {
 			case 'post':
@@ -341,7 +358,7 @@ export function renderPanel(
 				direction = 'forward';
 			}
 		}
-		swapPage( next, direction );
+		swapPage( prev, next, direction );
 		callbacks.onViewChange?.( keyForView( currentView ) );
 		prevViewKind = currentView.kind;
 	};
@@ -1182,7 +1199,7 @@ export function renderPanel(
 
 	return {
 		setLoading: ( id: number, fallbackTitle?: string ) => {
-			host.hidden = false;
+			setPanelOpen( true );
 			breadcrumbHost.hidden = true;
 			currentView = { kind: 'post' };
 			prevViewKind = null;
@@ -1198,7 +1215,7 @@ export function renderPanel(
 			callbacks.onViewChange?.( null );
 		},
 		setError: ( message: string ) => {
-			host.hidden = false;
+			setPanelOpen( true );
 			breadcrumbHost.hidden = true;
 			currentView = { kind: 'post' };
 			prevViewKind = null;
@@ -1380,7 +1397,7 @@ export function renderPanel(
 			renderCurrent();
 		},
 		hide: () => {
-			host.hidden = true;
+			setPanelOpen( false );
 		},
 		destroy: () => {
 			host.replaceChildren();

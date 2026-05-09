@@ -320,10 +320,31 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
+	/*
+	 * Subtle slide-in / slide-out when the panel opens or closes —
+	 * the outer container collapses its width while the inner frame
+	 * eases off to the right + fades, so the canvas reclaims the
+	 * space smoothly instead of the panel popping out of layout.
+	 */
+	transition:
+		width 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
+		border-left-width 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
+		opacity 180ms ease-out;
+	will-change: width, opacity;
+}
+
+.desktop-mode-content-graph__panel[ hidden ],
+.desktop-mode-content-graph__panel--closed {
+	width: 0;
+	opacity: 0;
+	pointer-events: none;
+	border-left-width: 0;
 }
 
 .desktop-mode-content-graph__panel[ hidden ] {
-	display: none;
+	/* Initial PHP-rendered state — no transition on the very first
+	 * paint, otherwise the panel briefly slides in on page load. */
+	transition: none;
 }
 
 .desktop-mode-content-graph__panel-frame {
@@ -339,7 +360,26 @@
 	flex-direction: column;
 	flex: 1 1 0;
 	min-height: 0;
+	width: 320px;
 	overflow: hidden;
+	/* Slides + fades alongside the parent's width collapse so the
+	 * panel content visibly leaves to the right when closing. */
+	transition:
+		transform 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
+		opacity 180ms ease-out;
+}
+
+.desktop-mode-content-graph__panel[ hidden ] .desktop-mode-content-graph__panel-frame,
+.desktop-mode-content-graph__panel--closed .desktop-mode-content-graph__panel-frame {
+	transform: translateX( 16% );
+	opacity: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-content-graph__panel,
+	.desktop-mode-content-graph__panel-frame {
+		transition: none;
+	}
 }
 
 .desktop-mode-content-graph__panel-head {
