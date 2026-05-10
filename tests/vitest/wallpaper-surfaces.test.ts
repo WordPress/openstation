@@ -71,7 +71,7 @@ describe( 'WindowManager.getVisibleRects', () => {
 
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();
@@ -212,7 +212,7 @@ describe( 'desktop-mode.wallpaper.surfaces', () => {
 
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		shell.remove();
 		clearHooksStub();

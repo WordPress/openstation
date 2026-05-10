@@ -37,7 +37,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();

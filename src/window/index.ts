@@ -346,6 +346,39 @@ export class Window {
 	public _nativeRenderCtxDispose: ( () => void ) | null = null;
 
 	/**
+	 * Safety-net timer scheduled by `close()` so the window is
+	 * finalised even when `transitionend` never fires (reduced-
+	 * motion, no transition declared). Captured on the instance so
+	 * `_finalizeClose()` can cancel it on the normal path AND so
+	 * `destroy()` can cancel + run finalize synchronously.
+	 *
+	 * @since 0.8.2
+	 * @internal
+	 */
+	public _closeSafetyNetTimer: ReturnType< typeof setTimeout > | null = null;
+
+	/**
+	 * Bound `transitionend` listener installed by `close()` so the
+	 * normal animation path can finalise. Captured so
+	 * `_finalizeClose()` can detach it (the previous closure-only
+	 * shape couldn't be removed if `destroy()` short-circuited).
+	 *
+	 * @since 0.8.2
+	 * @internal
+	 */
+	public _onCloseTransitionEnd: ( ( e: TransitionEvent ) => void ) | null = null;
+
+	/**
+	 * `true` once `_finalizeClose()` has run. Idempotency guard so
+	 * the safety-net timer + the `transitionend` listener + an
+	 * explicit `destroy()` call all converge to a single finalise.
+	 *
+	 * @since 0.8.2
+	 * @internal
+	 */
+	public _isFinalized: boolean = false;
+
+	/**
 	 * Which tab is currently foregrounded: 'primary' or a tab id.
 	 * @internal
 	 */
@@ -2368,7 +2401,10 @@ export class Window {
 		// Iframe windows don't go through this: their close is
 		// typically triggered by the user closing the UI and
 		// cancelling it would be confusing.
-		if ( this.config.native ) {
+		// `_suppressCloseFilter` is set by `destroy()` so a force-
+		// teardown caller (tests, plugin deactivation) bypasses the
+		// veto.
+		if ( this.config.native && ! this._suppressCloseFilter ) {
 			const proceed = applyFilters< boolean, [ { windowId: string; config: WindowConfig } ] >(
 				HOOKS.NATIVE_WINDOW_BEFORE_CLOSE,
 				true,
@@ -2485,90 +2521,165 @@ export class Window {
 
 		this.element.classList.add( 'desktop-mode-window--closing' );
 
-		let removed = false;
-		const onDone = (): void => {
-			if ( removed ) {
-				return;
-			}
-			removed = true;
-
-			// Visible-DOM teardowns deferred from above — run them
-			// here, after the closing animation has faded the window
-			// to opacity 0, so a custom chrome unmounting (or a
-			// plugin slot / control / native body teardown) can't
-			// flash the default chrome through the live pixels
-			// mid-fade. The window leaves the DOM in the next step
-			// regardless; whatever the children look like during
-			// these calls is invisible.
-			if ( this._windowControlsTeardown ) {
-				try {
-					this._windowControlsTeardown();
-				} catch {
-					// see notes in repaintWindowControls.
-				}
-				this._windowControlsTeardown = null;
-			}
-			if ( this._windowSlotsTeardown ) {
-				try {
-					this._windowSlotsTeardown();
-				} catch {
-					// see notes in repaintWindowSlots.
-				}
-				this._windowSlotsTeardown = null;
-			}
-			if ( this._chromeHandle ) {
-				try {
-					this._chromeHandle.destroy();
-				} catch {
-					// Plugin teardown failures shouldn't take the close down.
-				}
-				this._chromeHandle = null;
-			}
-			// Theme CSS-variable wipe — also deferred so the themed
-			// appearance survives the entire fade-out. The element is
-			// about to leave the DOM regardless; the wipe is purely
-			// belt-and-braces against retained references.
-			clearWindowTheme( this );
-			if ( this._nativeRenderTeardown ) {
-				try {
-					this._nativeRenderTeardown();
-				} catch ( err ) {
-					doAction( HOOKS.SHELL_ERROR, {
-						scope: 'native-window-teardown',
-						id: this.id,
-						error: err,
-					} );
-				}
-				this._nativeRenderTeardown = null;
-			}
-
-			window.removeEventListener( 'message', this._boundOnMessage );
-			if ( this._boundOnDocumentPointerDown ) {
-				document.removeEventListener(
-					'pointerdown',
-					this._boundOnDocumentPointerDown,
-					true,
-				);
-			}
-			this.element.remove();
-			// If this was the last fullscreen window, drop the body
-			// class so the admin bar and shell top-offset come back
-			// cleanly.
-			updateFullscreenBodyClass();
-		};
-
-		const onTransitionEnd = ( e: TransitionEvent ): void => {
+		// Wire the normal "animation finished" path. Captured on the
+		// instance so `_finalizeClose()` can detach the listener
+		// regardless of which path triggered finalisation
+		// (transitionend, the safety-net timer, or an explicit
+		// `destroy()` call).
+		this._onCloseTransitionEnd = ( e: TransitionEvent ): void => {
 			if ( e.propertyName === 'opacity' ) {
-				this.element.removeEventListener( 'transitionend', onTransitionEnd );
-				onDone();
+				this._finalizeClose();
 			}
 		};
-		this.element.addEventListener( 'transitionend', onTransitionEnd );
+		this.element.addEventListener( 'transitionend', this._onCloseTransitionEnd );
 
-		// Safety net: if transitionend never fires (reduced-motion or
-		// no transition), remove after a generous timeout so the
-		// element doesn't linger.
-		setTimeout( onDone, 300 );
+		// Safety net: if transitionend never fires (reduced-motion,
+		// no transition declared, or a CSS race), finalise after a
+		// generous timeout so the element doesn't linger. Captured
+		// so the normal path AND `destroy()` can cancel it.
+		this._closeSafetyNetTimer = setTimeout( () => this._finalizeClose(), 300 );
+	}
+
+	/**
+	 * Synchronously tear down a window with no animation. Use in:
+	 *
+	 *  - Test `afterEach` hooks where the suite needs deterministic
+	 *    cleanup before the environment unwinds.
+	 *  - Plugin deactivation flows where the tile is going away
+	 *    immediately and a fade-out would feel wrong.
+	 *  - Forced shutdowns that must bypass the
+	 *    `NATIVE_WINDOW_BEFORE_CLOSE` veto filter (e.g. the user
+	 *    closed a parent that owns this window).
+	 *
+	 * Idempotent: a second `destroy()` call is a no-op once the
+	 * window has finalised. If `close()` had already started the
+	 * animation, `destroy()` cancels the pending timer and runs
+	 * finalise immediately.
+	 *
+	 * @public
+	 * @since 0.8.2
+	 */
+	public destroy(): void {
+		if ( this._isFinalized ) {
+			return;
+		}
+		// If close() hasn't started yet, run its pre-animation work
+		// FIRST (subscription teardowns, hooks, observers, etc.) by
+		// calling close() — but bypass the cancel filter so destroy
+		// is genuinely "force teardown".
+		if ( ! this._isDestroyed ) {
+			this._suppressCloseFilter = true;
+			try {
+				this.close();
+			} finally {
+				this._suppressCloseFilter = false;
+			}
+		}
+		// Animation may have been scheduled — finalise now instead
+		// of waiting for transitionend / the safety-net timer.
+		this._finalizeClose();
+	}
+
+	/**
+	 * Set by `destroy()` to skip the `NATIVE_WINDOW_BEFORE_CLOSE`
+	 * veto filter when re-entering through `close()`. The filter
+	 * is the user's "are you sure?" hook; a force-teardown caller
+	 * (test cleanup, plugin deactivation) explicitly opts out.
+	 *
+	 * @internal
+	 * @since 0.8.2
+	 */
+	private _suppressCloseFilter: boolean = false;
+
+	/**
+	 * Run the post-animation teardown — the work that used to live
+	 * in `close()`'s inner `onDone` closure. Idempotent via
+	 * `_isFinalized`. Cancels the safety-net timer + the
+	 * `transitionend` listener it might have been racing.
+	 *
+	 * @internal
+	 * @since 0.8.2
+	 */
+	private _finalizeClose(): void {
+		if ( this._isFinalized ) {
+			return;
+		}
+		this._isFinalized = true;
+
+		if ( this._closeSafetyNetTimer !== null ) {
+			clearTimeout( this._closeSafetyNetTimer );
+			this._closeSafetyNetTimer = null;
+		}
+		if ( this._onCloseTransitionEnd ) {
+			this.element.removeEventListener(
+				'transitionend',
+				this._onCloseTransitionEnd,
+			);
+			this._onCloseTransitionEnd = null;
+		}
+
+		// Visible-DOM teardowns deferred from `close()`'s pre-animation
+		// block — run them here, after the closing animation has faded
+		// the window to opacity 0, so a custom chrome unmounting (or a
+		// plugin slot / control / native body teardown) can't flash the
+		// default chrome through the live pixels mid-fade. The window
+		// leaves the DOM in the next step regardless; whatever the
+		// children look like during these calls is invisible.
+		if ( this._windowControlsTeardown ) {
+			try {
+				this._windowControlsTeardown();
+			} catch {
+				// see notes in repaintWindowControls.
+			}
+			this._windowControlsTeardown = null;
+		}
+		if ( this._windowSlotsTeardown ) {
+			try {
+				this._windowSlotsTeardown();
+			} catch {
+				// see notes in repaintWindowSlots.
+			}
+			this._windowSlotsTeardown = null;
+		}
+		if ( this._chromeHandle ) {
+			try {
+				this._chromeHandle.destroy();
+			} catch {
+				// Plugin teardown failures shouldn't take the close down.
+			}
+			this._chromeHandle = null;
+		}
+		// Theme CSS-variable wipe — deferred so the themed appearance
+		// survives the entire fade-out. The element is about to leave
+		// the DOM regardless; the wipe is purely belt-and-braces
+		// against retained references.
+		clearWindowTheme( this );
+		if ( this._nativeRenderTeardown ) {
+			try {
+				this._nativeRenderTeardown();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-teardown',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderTeardown = null;
+		}
+
+		window.removeEventListener( 'message', this._boundOnMessage );
+		if ( this._boundOnDocumentPointerDown ) {
+			document.removeEventListener(
+				'pointerdown',
+				this._boundOnDocumentPointerDown,
+				true,
+			);
+		}
+		this.element.remove();
+		// If this was the last fullscreen window, drop the body
+		// class so the admin bar and shell top-offset come back
+		// cleanly.
+		updateFullscreenBodyClass();
 	}
 
 	/**

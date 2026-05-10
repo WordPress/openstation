@@ -48,8 +48,11 @@ describe( 'native-window render ctx', () => {
 	} );
 
 	afterEach( () => {
+		// `destroy()` runs the same cleanup as `close()` but skips
+		// the fade-out animation + the safety-net `setTimeout` that
+		// would otherwise leak past the test environment teardown.
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();
@@ -217,6 +220,60 @@ describe( 'native-window render ctx', () => {
 			height: 200,
 		} );
 		expect( resizeFired ).toBe( 1 );
+	} );
+
+	test( 'destroy() runs cleanup synchronously, idempotent, cancels pending finalize', async () => {
+		const teardownCalls: string[] = [];
+		let signal: AbortSignal | null = null;
+		const win = manager.open( {
+			id: 'destroy-sync',
+			url: '#destroy-sync',
+			title: 'Destroy Sync',
+			native: true,
+			render: ( _body, ctx ) => {
+				signal = ctx!.signal;
+				return () => teardownCalls.push( 'user-teardown' );
+			},
+		} );
+		expect( signal!.aborted ).toBe( false );
+
+		win.destroy();
+
+		// All synchronous: no animation, no deferred timer, no
+		// "wait one tick" required.
+		expect( signal!.aborted ).toBe( true );
+		expect( teardownCalls ).toEqual( [ 'user-teardown' ] );
+		// Element is removed from the DOM.
+		expect( win.element.isConnected ).toBe( false );
+
+		// Idempotent — destroying twice is a no-op, never re-fires teardown.
+		win.destroy();
+		expect( teardownCalls ).toEqual( [ 'user-teardown' ] );
+	} );
+
+	test( 'destroy() after close() cancels the pending safety-net timer + finalize timing race', async () => {
+		const teardownCalls: string[] = [];
+		const win = manager.open( {
+			id: 'destroy-after-close',
+			url: '#destroy-after-close',
+			title: 'Destroy After Close',
+			native: true,
+			render: () => () => teardownCalls.push( 'user-teardown' ) as unknown as void,
+		} );
+
+		// close() schedules the deferred finalize via animation
+		// listener + 300ms safety-net timer.
+		win.close();
+		// Element is still in the DOM (animation hasn't run in jsdom).
+		expect( win.element.isConnected ).toBe( true );
+		expect( teardownCalls ).toEqual( [] );
+
+		// destroy() short-circuits — cancels the pending timer and
+		// finalises immediately. No race between this call and the
+		// 300ms timer firing later.
+		win.destroy();
+		expect( win.element.isConnected ).toBe( false );
+		expect( teardownCalls ).toEqual( [ 'user-teardown' ] );
 	} );
 
 	test( 'top-level markLoading / markReady fire WINDOW_CONTENT_LOADING / WINDOW_CONTENT_LOADED', async () => {

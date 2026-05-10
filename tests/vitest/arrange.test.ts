@@ -65,7 +65,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();
