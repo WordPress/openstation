@@ -147,6 +147,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Exceptions: keep .page-title-action visible where it's the only
  * entry point to a sub-flow:
  *  - plugin-install.php → "Upload Plugin"
+ *  - theme-install.php  → "Upload Theme"
  *
  * themes.php's native "Add Theme" page-title-action used to live
  * here, but the iframe scrolled past it on load (the focus-target
@@ -157,9 +158,16 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * includes/themes-tabs.php), so the in-page button is redundant
  * and stays hidden.
  *
+ * The theme-install.php "Upload Theme" exception is necessary
+ * because the upload form is its own sub-flow with no equivalent
+ * affordance elsewhere in the chromeless shell — without this
+ * rule, users who want to install a .zip theme have no entry
+ * point.
+ *
  * See issue #38.
  */
-.desktop-mode-chromeless.plugin-install-php .wrap > .page-title-action {
+.desktop-mode-chromeless.plugin-install-php .wrap > .page-title-action,
+.desktop-mode-chromeless.theme-install-php .wrap > .page-title-action {
 	display: inline-block;
 	margin-top: 12px;
 }

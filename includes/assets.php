@@ -64,11 +64,17 @@ function desktop_mode_register_assets() {
 		array( 'desktop-mode-dock' ),
 		$version
 	);
+	// `filemtime`-stamped — the chromeless overrides iterate faster
+	// than the plugin-wide version bumps (per-page compat shims and
+	// page-title-action exceptions land in patches), and a stale
+	// cached copy means the user sees yesterday's rules. Without the
+	// stamp, the browser keeps `?ver=0.8.1` valid for the whole
+	// release cycle.
 	wp_register_style(
 		'desktop-mode-chromeless',
 		DESKTOP_MODE_URL . 'assets/css/chromeless.css',
 		array( 'desktop-mode' ),
-		$version
+		$built_version( 'assets/css/chromeless.css' )
 	);
 
 	wp_register_style(
