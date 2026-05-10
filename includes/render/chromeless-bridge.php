@@ -863,6 +863,32 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( link.hasAttribute( 'download' ) ) {
 			return;
 		}
+		/*
+		 * WordPress core's wp-admin/js/updates.js owns the click on these
+		 * AJAX-driven plugin/theme management buttons — it binds in bubble
+		 * phase and calls preventDefault to take over with an in-place
+		 * AJAX install / update / delete (with its own progress spinner
+		 * and inline success/failure UX). Our capture-phase handler would
+		 * preempt it: preventDefault here fires BEFORE updates.js's own,
+		 * the AJAX call never starts, and the postMessage below diverts
+		 * the user to the link's no-JS fallback URL (update.php?action=
+		 * install-plugin&...) opened as a freshly spawned desktop window.
+		 * That fallback technically completes the install server-side,
+		 * but it's a long blocking page-load with no in-place feedback —
+		 * which is what users perceive as "Install Now keeps loading and
+		 * opens a new tab". Skip these classes so updates.js's bubble
+		 * handler runs as core intended.
+		 */
+		if (
+			link.classList.contains( 'install-now' ) ||
+			link.classList.contains( 'update-link' ) ||
+			link.classList.contains( 'update-now' ) ||
+			link.classList.contains( 'delete-plugin' ) ||
+			link.classList.contains( 'delete-theme' ) ||
+			link.classList.contains( 'install-theme' )
+		) {
+			return;
+		}
 		var href = link.getAttribute( 'href' );
 		var kind = classifyLink( href, window.location.href );
 		if ( kind === 'admin' ) {
