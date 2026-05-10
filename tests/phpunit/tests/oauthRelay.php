@@ -358,14 +358,25 @@ class Tests_DesktopMode_OAuthRelay extends WP_UnitTestCase {
 			$body,
 			'Body must be raw HTML, not a JSON-encoded string starting with `"`.'
 		);
-		$this->assertStringNotContainsString(
-			'\\u003c',
-			$body,
-			'Body must not contain JSON-escaped Unicode (would indicate double-serialization).'
-		);
 		$this->assertStringContainsString( 'desktop-mode-oauth-callback', $body );
-		$this->assertStringContainsString( '"ok":true', $body );
 		$this->assertStringContainsString( 'window.opener.postMessage', $body );
+
+		// Payload is embedded as a real JS literal — `"ok":true`,
+		// NOT the HTML-entity-encoded `&quot;ok&quot;:true` shape
+		// that `esc_js` produces. Inside a `<script>` element HTML
+		// entities are NOT decoded by the JS engine, so the entity
+		// form would throw a syntax error and the popup would never
+		// post-message its opener. Pin both directions:
+		$this->assertStringContainsString(
+			'"ok":true',
+			$body,
+			'Payload must be a real JS literal, not HTML-entity-encoded.'
+		);
+		$this->assertStringNotContainsString(
+			'&quot;',
+			$body,
+			'Body must not HTML-entity-encode quotes inside the script block.'
+		);
 	}
 
 	/**

@@ -475,6 +475,19 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
  * can exercise the markup directly without going through a REST
  * dispatch + output-buffer dance.
  *
+ * **Why `wp_json_encode` and not `esc_js` for the inlined values.**
+ * `esc_js` HTML-encodes `"` to `&quot;` — fine for JS embedded
+ * inside an HTML *attribute* (where the parser decodes entities
+ * before the JS engine sees the value), wrong for JS embedded
+ * inside a `<script>` element (where HTML entities are NOT
+ * decoded — the JS engine reads `{&quot;ok&quot;:true}` literally
+ * and throws a syntax error). The canonical safe shape for
+ * embedding JSON in a script block is to drop the value as a
+ * direct JS literal (JSON is a subset of JS) with `JSON_HEX_TAG`
+ * neutralising any `</script>` substrings in string values
+ * (defence-in-depth — our payload values are server-built, but
+ * filters could mutate them).
+ *
  * @since 0.8.2
  * @internal
  *
@@ -482,12 +495,12 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
  * @return string
  */
 function desktop_mode_oauth_build_callback_html( array $payload ) {
-	$json   = wp_json_encode( $payload );
-	$origin = esc_js( site_url() );
-	// `esc_js` produces a string safe inside single-quoted JS — we
-	// embed the JSON literal twice (once in the `payload` declaration
-	// and once in `JSON.parse('…')`).
-	$json_esc = esc_js( (string) $json );
+	// `JSON_HEX_TAG` escapes `<` and `>` as `<` / `>` so a
+	// `</script>` smuggled into any string value can't terminate the
+	// script block early. `JSON_UNESCAPED_SLASHES` keeps URLs
+	// readable in DevTools.
+	$payload_literal = wp_json_encode( $payload, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES );
+	$origin_literal  = wp_json_encode( site_url(), JSON_HEX_TAG | JSON_UNESCAPED_SLASHES );
 
 	return "<!doctype html>
 <html lang=\"en\">
@@ -503,11 +516,10 @@ body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; color: 
 <script>
 ( function () {
     try {
-        var payload = {$json_esc};
         if ( window.opener ) {
             window.opener.postMessage(
-                { type: 'desktop-mode-oauth-callback', payload: JSON.parse( '{$json_esc}' ) },
-                '{$origin}'
+                { type: 'desktop-mode-oauth-callback', payload: {$payload_literal} },
+                {$origin_literal}
             );
         }
     } catch ( e ) {}
