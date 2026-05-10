@@ -256,7 +256,7 @@ describe( 'installWindowLoadingTransitions — visual side', () => {
 	} );
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();
@@ -324,7 +324,7 @@ describe( 'hydrateNative — sync render marks ready on next rAF', () => {
 	} );
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();
@@ -371,7 +371,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', () => {
 	} );
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();
@@ -467,7 +467,7 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', () =>
 	} );
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();
@@ -517,7 +517,7 @@ describe( 'Loading overlay customization', () => {
 	} );
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();

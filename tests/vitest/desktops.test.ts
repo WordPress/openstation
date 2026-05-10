@@ -63,7 +63,7 @@ describe( 'WindowManager — virtual desktops', () => {
 
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktopArea.remove();
 		clearHooksStub();

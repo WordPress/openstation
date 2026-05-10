@@ -564,6 +564,81 @@ export interface NativeRenderContext {
 		 */
 		markReady(): void;
 	};
+
+	/**
+	 * Top-level alias of {@link NativeRenderContext.window.markLoading}.
+	 * Same semantics — provided so render bodies can destructure
+	 * `{ markLoading, markReady, signal, onResize }` without dipping
+	 * into the nested `ctx.window` shape.
+	 *
+	 * @since 0.8.2
+	 */
+	markLoading(): void;
+
+	/**
+	 * Top-level alias of {@link NativeRenderContext.window.markReady}.
+	 *
+	 * @since 0.8.2
+	 */
+	markReady(): void;
+
+	/**
+	 * `AbortSignal` that fires `'abort'` when the window starts
+	 * closing. Pass it to `wp.desktop.fetch( url, { signal } )` (or
+	 * any AbortController-aware API) so in-flight work tears down
+	 * automatically — no manual cleanup, no leaked listeners on
+	 * already-closed windows.
+	 *
+	 * ```ts
+	 * render: async ( body, { signal } ) => {
+	 *     const res = await wp.desktop.fetch( '/wp-json/me/v1/feed', { signal } );
+	 *     if ( signal.aborted ) return;
+	 *     paint( body, await res.json() );
+	 * }
+	 * ```
+	 *
+	 * Aborts on close BEFORE the user's render-returned teardown
+	 * runs, so async paths see the signal flip first.
+	 *
+	 * @since 0.8.2
+	 */
+	signal: AbortSignal;
+
+	/**
+	 * Subscribe to body-resize events scoped to this window. Fires
+	 * on mount, user resize, and viewport reflow. `width` / `height`
+	 * are the inner `.desktop-mode-window__body` client dimensions
+	 * (title bar + tab strip already subtracted). Auto-unsubscribes
+	 * when the window closes; the returned function lets plugins
+	 * detach early.
+	 *
+	 * Identical payload to the {@link WindowConfig.onResize} field
+	 * — that field still works (registration-time setup); this is
+	 * the runtime-time equivalent for callers who want to hook
+	 * lazily from inside the render callback.
+	 *
+	 * @since 0.8.2
+	 */
+	onResize( cb: ( width: number, height: number ) => void ): () => void;
+
+	/**
+	 * Subscribe to "the window was just minimized". The body
+	 * remains in the DOM — plugins typically pause animations,
+	 * intervals, or IntersectionObservers here so they don't burn
+	 * CPU when the user can't see them.
+	 *
+	 * @since 0.8.2
+	 */
+	onHide( cb: () => void ): () => void;
+
+	/**
+	 * Subscribe to "the window was just restored from minimized".
+	 * The mirror of `onHide` — resume animations / poll cycles
+	 * that were paused while hidden.
+	 *
+	 * @since 0.8.2
+	 */
+	onShow( cb: () => void ): () => void;
 }
 
 /**

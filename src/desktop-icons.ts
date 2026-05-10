@@ -37,7 +37,7 @@
 import { activity } from './activity';
 import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
-import { sanitizeClassName } from './utils';
+import { renderIcon } from './icon';
 import type { DesktopIconServerEntry } from './types';
 import type { WindowManager } from './window-manager';
 
@@ -436,19 +436,17 @@ function buildIcon(
 	tile.setAttribute( 'role', 'listitem' );
 	tile.setAttribute( 'aria-label', entry.title );
 
-	const icon = document.createElement( 'span' );
-	if ( entry.icon.startsWith( 'http://' ) || entry.icon.startsWith( 'https://' ) ) {
-		// URL icon — render as an <img> with empty alt (the button's
-		// aria-label describes the target).
-		const img = document.createElement( 'img' );
-		img.src = entry.icon;
-		img.alt = '';
-		icon.className = 'desktop-mode-icon__image';
-		icon.appendChild( img );
-	} else {
-		icon.className = `desktop-mode-icon__image dashicons ${ sanitizeClassName( entry.icon ) }`;
-		icon.setAttribute( 'aria-hidden', 'true' );
-	}
+	// Single canonical dispatch — `renderIcon` handles every shape
+	// `entry.icon` can take: dashicons class, http(s) URL,
+	// `data:image/svg+xml;base64,…` data URI, or letter-badge
+	// fallback for malformed values. Keeps the wallpaper rail
+	// rendering icons identically to the dock instead of falling
+	// through to a broken Dashicons-class glue path for SVG data
+	// URIs (the bug fixed in 0.8.2).
+	const icon = renderIcon( entry.icon, {
+		title: entry.title,
+		className: 'desktop-mode-icon__image',
+	} );
 	tile.appendChild( icon );
 
 	const label = document.createElement( 'span' );

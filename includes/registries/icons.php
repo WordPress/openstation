@@ -52,10 +52,22 @@ defined( 'ABSPATH' ) || exit;
  *     Icon registration options.
  *
  *     @type string   $title        Display label shown under the icon. Required.
- *     @type string   $icon         Dashicons class or http(s) URL to an
- *                                  image asset. Runs through the same
- *                                  sanitizer as dock icons (rejects
- *                                  `data:` / `javascript:` URIs). Required.
+ *     @type string   $icon         Dashicons class (`dashicons-*`), http(s)
+ *                                  URL to an image, or `data:image/svg+xml`
+ *                                  URI (`;base64,` or URL-encoded). Runs
+ *                                  through the same sanitizer as dock icons
+ *                                  — `javascript:` and other `data:` schemes
+ *                                  are rejected. Required unless `icon_svg`
+ *                                  is provided.
+ *     @type string   $icon_svg     Raw SVG markup (e.g. `'<svg …>…</svg>'`).
+ *                                  Convenience shorthand: the framework
+ *                                  base64-encodes it into a `data:image/svg+xml;base64,…`
+ *                                  URI and routes the result through the
+ *                                  same sanitizer as `icon`. Wins over
+ *                                  `icon` when both are supplied. Markup
+ *                                  containing a `<script>` tag is rejected
+ *                                  with `desktop_mode_invalid_icon_svg`.
+ *                                  @since 0.8.2
  *     @type string   $window       Id of a registered native window to
  *                                  open on click. Mutually exclusive
  *                                  with `url`.
@@ -89,6 +101,7 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 	$defaults = array(
 		'title'        => '',
 		'icon'         => 'dashicons-admin-generic',
+		'icon_svg'     => '',
 		'window'       => '',
 		'url'          => '',
 		'position'     => 100,
@@ -96,6 +109,29 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 		'capabilities' => array(),
 	);
 	$args = wp_parse_args( $args, $defaults );
+
+	$svg = trim( (string) $args['icon_svg'] );
+	if ( '' !== $svg ) {
+		// Reject markup that contains a script tag outright. The data
+		// URI is consumed via `<img src=…>` in the browser (which
+		// sandboxes scripts inside SVG), but defence-in-depth catches
+		// callers who paste an SVG harvested from an untrusted source.
+		if ( false !== stripos( $svg, '<script' ) ) {
+			return desktop_mode_registration_error(
+				'desktop_mode_invalid_icon_svg',
+				__( 'Desktop icon `icon_svg` must not contain a <script> tag.', 'desktop-mode' ),
+				array( 'id' => $id )
+			);
+		}
+		if ( 0 !== stripos( ltrim( $svg ), '<svg' ) ) {
+			return desktop_mode_registration_error(
+				'desktop_mode_invalid_icon_svg',
+				__( 'Desktop icon `icon_svg` must start with a <svg> root element.', 'desktop-mode' ),
+				array( 'id' => $id )
+			);
+		}
+		$args['icon'] = 'data:image/svg+xml;base64,' . base64_encode( $svg );
+	}
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {

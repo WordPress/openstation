@@ -160,6 +160,28 @@ The primitive is also exposed on the public API as `wp.desktop.createSharedStore
 
 `is_admin_bar_showing()` short-circuits to `true` in admin context — the `show_admin_bar` filter alone is NOT sufficient inside chromeless iframes. We pair it with `remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 )` on `admin_init`, AND a CSS rule killing the reserved 32px. Do not remove either half.
 
+## Running PHPUnit — DO NOT spin up wp-env
+
+The standalone repo's `npm run test:php` (and `npm run env:start`) call `wp-env`,
+which binds port **8889**. **That port is already taken by the user's running
+Core-checkout dev environment** (`wordpress-*`, started via its
+own `docker-compose.yml`). Starting wp-env races the user's dev container; doing
+it without asking has burned the user before.
+
+**Run plugin PHPUnit inside the existing `wordpress-*` (develop/alcazaba/any matching name) container
+instead.** Core's WP test library is at `/var/www/tests/phpunit/`.
+Set `WP_TESTS_DIR` so the plugin's `bootstrap.php` finds it:
+
+```bash
+docker exec -e WP_TESTS_DIR=/var/www/tests/phpunit wordpress-alcazaba-php-1 \
+  sh -lc "cd /var/www/src/wp-content/plugins/desktop-mode && \
+  ./vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist \
+  [--filter='Tests_DesktopMode_Render']"
+```
+
+If the user has stopped their dev environment, ASK before starting wp-env — do
+not start it on your own.
+
 ## Process reminders to self
 
 - **Read before speculating.** When asked how a mechanism works (refresh flow, hook order, bridge protocol), grep the code first. Hand-waving gets caught.

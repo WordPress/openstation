@@ -112,6 +112,205 @@ const DEFAULT_NATIVE_WIDTH = 520;
 const DEFAULT_NATIVE_HEIGHT = 400;
 
 /**
+ * Module-local counter that keeps every per-window hook subscription
+ * under a unique namespace — avoids collisions when the same id is
+ * opened, closed, and reopened in the same session.
+ */
+let _ctxInstance = 0;
+
+/**
+ * Build the per-render `NativeRenderContext` plus a `dispose` that
+ * unwires every subscription it created and aborts the close-bound
+ * `signal`.
+ *
+ * Both the JS-side `createRegisterWindow` path and the PHP-side
+ * `openFromEntry` path go through this builder, so plugin authors
+ * see the same shape no matter which entry point registered the
+ * window.
+ *
+ * @internal
+ */
+function buildNativeRenderContext( windowId: string ): {
+	ctx: NativeRenderContext;
+	dispose: () => void;
+} {
+	const instance = ++_ctxInstance;
+	const ns = ( label: string ): string =>
+		`desktop-mode/native-render-ctx/${ windowId }/${ instance }/${ label }`;
+
+	const controller = new AbortController();
+	const teardowns: Array< () => void > = [];
+
+	const subscribeWindowed = (
+		hookName: string,
+		label: string,
+		match: ( payload: unknown ) => boolean,
+		invoke: ( payload: unknown ) => void,
+	): ( () => void ) => {
+		const namespace = ns( label );
+		addAction( hookName, namespace, ( payload: unknown ) => {
+			if ( match( payload ) ) {
+				invoke( payload );
+			}
+		} );
+		const off = (): void => {
+			removeAction( hookName, namespace );
+		};
+		teardowns.push( off );
+		return off;
+	};
+
+	const matchByWindowId = ( payload: unknown ): boolean =>
+		!! payload &&
+		typeof payload === 'object' &&
+		( payload as { windowId?: string } ).windowId === windowId;
+
+	const ctx: NativeRenderContext = {
+		window: {
+			send< T = unknown >( channel: string, payload?: T ): void {
+				if ( typeof channel !== 'string' || channel === '' ) {
+					return;
+				}
+				dispatchFromWindow( windowId, channel, payload );
+			},
+			on< T = unknown >(
+				channel: string,
+				cb: (
+					payload: T,
+					meta: { channel: string; windowId: string },
+				) => void,
+			): () => void {
+				if (
+					typeof channel !== 'string' ||
+					channel === '' ||
+					typeof cb !== 'function'
+				) {
+					return () => undefined;
+				}
+				return addNativeSubscriber(
+					windowId,
+					channel,
+					cb as WindowChannelCb,
+				);
+			},
+			markLoading(): void {
+				markWindowContentLoading( windowId );
+			},
+			markReady(): void {
+				markWindowContentReady( windowId );
+			},
+		},
+		markLoading(): void {
+			markWindowContentLoading( windowId );
+		},
+		markReady(): void {
+			markWindowContentReady( windowId );
+		},
+		signal: controller.signal,
+		onResize( cb ) {
+			if ( typeof cb !== 'function' ) {
+				return () => undefined;
+			}
+			return subscribeWindowed(
+				HOOKS.WINDOW_BODY_RESIZED,
+				'on-resize',
+				matchByWindowId,
+				( payload ) => {
+					const { width, height } = payload as {
+						width: number;
+						height: number;
+					};
+					try {
+						cb( width, height );
+					} catch ( err ) {
+						doAction( HOOKS.SHELL_ERROR, {
+							scope: 'native-render-ctx/onResize',
+							id: windowId,
+							error: err,
+						} );
+					}
+				},
+			);
+		},
+		onHide( cb ) {
+			if ( typeof cb !== 'function' ) {
+				return () => undefined;
+			}
+			return subscribeWindowed(
+				HOOKS.WINDOW_MINIMIZED,
+				'on-hide',
+				matchByWindowId,
+				() => {
+					try {
+						cb();
+					} catch ( err ) {
+						doAction( HOOKS.SHELL_ERROR, {
+							scope: 'native-render-ctx/onHide',
+							id: windowId,
+							error: err,
+						} );
+					}
+				},
+			);
+		},
+		onShow( cb ) {
+			if ( typeof cb !== 'function' ) {
+				return () => undefined;
+			}
+			return subscribeWindowed(
+				HOOKS.WINDOW_RESTORED,
+				'on-show',
+				matchByWindowId,
+				() => {
+					try {
+						cb();
+					} catch ( err ) {
+						doAction( HOOKS.SHELL_ERROR, {
+							scope: 'native-render-ctx/onShow',
+							id: windowId,
+							error: err,
+						} );
+					}
+				},
+			);
+		},
+	};
+
+	const dispose = (): void => {
+		// Abort first so any in-flight `fetch( …, { signal } )` sees
+		// the close before the user's render-returned teardown runs.
+		try {
+			controller.abort();
+		} catch {
+			/* AbortController.abort throws on some polyfills — ignore. */
+		}
+		while ( teardowns.length ) {
+			const off = teardowns.pop();
+			try {
+				off?.();
+			} catch {
+				/* swallow — never let one bad listener block the rest */
+			}
+		}
+	};
+
+	return { ctx, dispose };
+}
+
+/**
+ * Public re-export of {@link buildNativeRenderContext} for the
+ * Window class's `hydrateNative()` — the single point inside the
+ * framework that invokes `config.render(body)` for native windows.
+ * Centralising the ctx build there means every code path
+ * (`wp.desktop.registerWindow`, PHP-registered windows, direct
+ * `manager.open({ native: true, render })`) gets the same ctx
+ * shape without each call site re-implementing the wiring.
+ *
+ * @internal
+ */
+export { buildNativeRenderContext as _buildNativeRenderContext };
+
+/**
  * Synthesise a `render( body )` callback that renders an iframe
  * inside the native window's body and manages its lifecycle:
  *
@@ -330,53 +529,16 @@ export function createRegisterWindow(
 				cleanups,
 				def.id,
 			);
-		} else if ( userRender ) {
-			// Wrap the user's render callback so it receives the
-			// unified window API as its second argument. The wrapper
-			// builds a per-call context whose `send` / `on` are
-			// scoped to this window's id, so plugin authors get the
-			// same shape regardless of whether they're rendering an
-			// iframe-content window or a pure-native one.
-			render = ( body: HTMLElement ) => {
-				const ctx: NativeRenderContext = {
-					window: {
-						send< T = unknown >( channel: string, payload?: T ): void {
-							if ( typeof channel !== 'string' || channel === '' ) {
-								return;
-							}
-							dispatchFromWindow( def.id, channel, payload );
-						},
-						on< T = unknown >(
-							channel: string,
-							cb: (
-								payload: T,
-								meta: { channel: string; windowId: string },
-							) => void,
-						): () => void {
-							if (
-								typeof channel !== 'string' ||
-								channel === '' ||
-								typeof cb !== 'function'
-							) {
-								return () => undefined;
-							}
-							return addNativeSubscriber(
-								def.id,
-								channel,
-								cb as WindowChannelCb,
-							);
-						},
-						markLoading(): void {
-							markWindowContentLoading( def.id );
-						},
-						markReady(): void {
-							markWindowContentReady( def.id );
-						},
-					},
-				};
-				return userRender( body, ctx );
-			};
 		}
+		// Note: the ctx-wrapping (channel API + signal + onResize /
+		// onHide / onShow) used to live here as a wrapper around the
+		// user's render. It moved into `Window.hydrateNative()` in
+		// 0.8.2 so EVERY code path that opens a native window —
+		// `wp.desktop.registerWindow`, PHP-registered windows, direct
+		// `manager.open({ native: true, render })` — gets the same
+		// shape without each call site re-implementing the wiring.
+		// `userRender` therefore reaches `manager.open()` unchanged
+		// here; the Window class wraps it at hydration time.
 
 		const userOnClose = def.onClose;
 		const onClose: typeof userOnClose = cleanups.length
@@ -620,9 +782,20 @@ export interface NativeWindowRegistryDeps {
  * classes) and light them up. To start from a blank canvas, call
  * `body.replaceChildren()` first.
  *
+ * The optional second argument is a {@link NativeRenderContext} carrying
+ * window-scoped helpers — `signal` (fires on close), `onResize`,
+ * `onHide`, `onShow`, `markLoading`, `markReady`, plus the nested
+ * `window.send/on` channel API. Existing unary callbacks
+ * (`( body ) => …`) keep working — `ctx` is detected by arity, never
+ * required. *Since 0.8.2 for the ctx arg; the unary form has been the
+ * contract since 0.10.0.*
+ *
  * @public
  */
-type RenderCallback = ( body: HTMLElement ) => void | ( () => void );
+type RenderCallback = (
+	body: HTMLElement,
+	ctx?: NativeRenderContext,
+) => void | ( () => void ) | Promise< void | ( () => void ) >;
 
 interface NativeWindowGlobals {
 	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
@@ -792,14 +965,18 @@ export function createNativeWindowSync(
 		// `cloneTemplate` throws (and console.errors) when the
 		// template element is missing — let it surface; a missing
 		// template is a developer error worth seeing, not silencing.
-		const finalRender: RenderCallback = ( body ) => {
+		//
+		// The `(body, ctx)` shape is built inside `Window.hydrateNative`
+		// — see the note in `createRegisterWindow` above. Legacy unary
+		// callbacks ignore `ctx`; new ones can destructure it.
+		const finalRender: RenderCallback = ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );
 			// Forward the optional teardown returned by the plugin's
 			// render callback so the Window class can invoke it on
 			// close. Without this `return`, the teardown was silently
 			// discarded — plugins had no reliable cleanup hook for
 			// native windows.
-			return render?.( body );
+			return render?.( body, ctx );
 		};
 
 		manager.open( {

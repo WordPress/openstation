@@ -102,7 +102,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();

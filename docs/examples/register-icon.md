@@ -113,6 +113,27 @@ Declares the native window — its title, icon, initial dimensions, template mar
 
 Drops a clickable tile on the wallpaper at the `position` you specify (lower numbers render top-left). The `window` key must match the id of a registered native window; the alternative is `url` (either a same-origin admin URL that opens as an iframe window, or an off-site URL that opens in a new browser tab). Mutually exclusive.
 
+### Picking an icon — four shapes
+
+The `icon` arg accepts three formats. A fourth (`icon_svg`) is a convenience wrapper that produces the third for you.
+
+```php
+// 1. Dashicons class — simplest, best for built-in glyphs.
+'icon' => 'dashicons-star-filled',
+
+// 2. http(s) URL to an image asset — useful for plugin-hosted PNGs / SVGs.
+'icon' => plugin_dir_url( __FILE__ ) . 'assets/jorvy.svg',
+
+// 3. data:image/svg+xml URI — inline SVG, base64 or URL-encoded.
+'icon' => 'data:image/svg+xml;base64,' . base64_encode( '<svg …>…</svg>' ),
+
+// 4. icon_svg shorthand (since 0.8.2) — pass raw SVG and the framework
+//    encodes it for you. Wins over `icon` when both are given.
+'icon_svg' => file_get_contents( __DIR__ . '/assets/jorvy.svg' ),
+```
+
+The shared sanitizer rejects `javascript:` URIs and any non-`image/svg+xml` `data:` scheme. SVG markup with an embedded `<script>` tag is rejected outright when passed via `icon_svg` (defence-in-depth — browsers also sandbox scripts inside `<img src="data:…">` SVGs, but we belt-and-braces). All four forms run through `desktop_mode_sanitize_dock_icon`, so a malformed value silently falls back to `dashicons-admin-generic`.
+
 ### Pinning a system icon
 
 Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree **My WordPress** folder.

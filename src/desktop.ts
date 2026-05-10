@@ -479,6 +479,67 @@ export interface WpDesktopPublicApi {
 		options?: { persistent?: boolean },
 	) => () => void;
 	/**
+	 * Build an infinite-scroll renderer wired to a sentinel-driven
+	 * `IntersectionObserver`, an `AbortController` that cancels
+	 * in-flight pages on `reset()` / `destroy()`, dedup-by-id, and
+	 * cursor pagination. The five pieces every feed-reader plugin
+	 * was reinventing — bundled into one helper.
+	 *
+	 * ```ts
+	 * const list = wp.desktop.createInfiniteList< Post >( {
+	 *     root,
+	 *     fetchPage: async ( cursor, signal ) => {
+	 *         const res  = await wp.desktop.fetch(
+	 *             '/wp-json/myplugin/v1/feed?cursor=' + ( cursor ?? '' ),
+	 *             { signal },
+	 *         );
+	 *         const json = await res.json();
+	 *         return { items: json.items, nextCursor: json.next };
+	 *     },
+	 *     getId:      ( post ) => post.id,
+	 *     renderItem: ( post ) => buildLi( post ),
+	 * } );
+	 * // On filter change: list.reset();
+	 * // On window close: list.destroy();
+	 * ```
+	 *
+	 * See `docs/examples/infinite-list.md` for the full recipe and
+	 * the {@link InfiniteListOptions} reference.
+	 *
+	 * @since 0.8.2
+	 */
+	createInfiniteList: < TItem >(
+		options: import( './infinite-list' ).InfiniteListOptions< TItem >,
+	) => import( './infinite-list' ).InfiniteList;
+	/**
+	 * Start the OAuth relay flow for `service`. The framework owns
+	 * the `state`-nonce + popup + `postMessage` round-trip; the
+	 * plugin only declares the service via PHP
+	 * `desktop_mode_register_oauth_relay( 'tumblr', [...] )` and
+	 * persists the tokens its `on_success` callback receives.
+	 *
+	 * Returns a Promise that resolves with the success payload
+	 * (`{ ok: true, service }`) or rejects with a tagged Error
+	 * whose `cause` is the failure payload (`reason` =
+	 * `'invalid_state' | 'authorize_denied' | 'token_exchange_failed' |
+	 * …`).
+	 *
+	 * ```ts
+	 * try {
+	 *     await wp.desktop.startOAuth( 'tumblr' );
+	 *     toast( 'Connected to Tumblr.' );
+	 * } catch ( err ) {
+	 *     toast( err.message );
+	 * }
+	 * ```
+	 *
+	 * @since 0.8.2
+	 */
+	startOAuth: (
+		service: string,
+		options?: import( './oauth-relay' ).StartOAuthOptions,
+	) => Promise< import( './oauth-relay' ).OAuthCallbackPayload >;
+	/**
 	 * Load a vendor script once, memoized. The optional `extras` bag
 	 * mirrors what `desktop_mode_resolve_script_payload()` harvests
 	 * from a registered handle's `wp_localize_script` /

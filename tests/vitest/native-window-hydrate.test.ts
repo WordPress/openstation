@@ -51,7 +51,7 @@ describe( 'WindowManager — native-window hydration order', () => {
 
 	afterEach( () => {
 		for ( const win of manager.getAll() ) {
-			win.close();
+			win.destroy();
 		}
 		desktop.remove();
 		clearHooksStub();

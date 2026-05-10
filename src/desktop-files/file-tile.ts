@@ -19,6 +19,7 @@
  */
 
 import { applyFilters, doAction } from '../hooks';
+import { renderIcon } from '../icon';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
 import type { RestPlacementShape } from './rest';
@@ -69,9 +70,18 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 		img.className = `${ TILE_CLASS }__preview`;
 		visual.appendChild( img );
 	} else {
-		const icon = document.createElement( 'span' );
-		icon.className = `${ TILE_CLASS }__icon dashicons ${ sanitizeClass( file.icon() ) }`;
-		icon.setAttribute( 'aria-hidden', 'true' );
+		// Single canonical dispatch — `renderIcon` handles every shape
+		// `file.icon()` can take: dashicons class, http(s) URL,
+		// `data:image/svg+xml;base64,…` data URI, or letter-badge
+		// fallback. Pre-0.8.2 the file-tile renderer (like the
+		// wallpaper-icon renderer it shipped alongside) glued every
+		// non-empty value onto a `dashicons` class — file-type icons
+		// declared as URLs or data URIs rendered as broken empty
+		// squares.
+		const icon = renderIcon( file.icon(), {
+			title: file.title(),
+			className: `${ TILE_CLASS }__icon`,
+		} );
 		visual.appendChild( icon );
 	}
 	tile.appendChild( visual );
@@ -126,9 +136,4 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 export function setTilePosition( tile: HTMLElement, x: number, y: number ): void {
 	tile.style.left = `${ x }px`;
 	tile.style.top = `${ y }px`;
-}
-
-/** Strip anything that isn't a valid CSS class character. */
-function sanitizeClass( raw: string ): string {
-	return raw.replace( /[^a-zA-Z0-9_-]/g, '' );
 }

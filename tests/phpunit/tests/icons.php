@@ -178,6 +178,78 @@ class Tests_DesktopMode_Icons extends WP_UnitTestCase {
 	}
 
 	/**
+	 * `icon_svg` shorthand: raw SVG markup is base64-encoded into a
+	 * `data:image/svg+xml;base64,…` URI and stored on `icon`.
+	 *
+	 * @covers ::desktop_mode_register_icon
+	 */
+	public function test_icon_svg_shorthand_encodes_to_data_uri() {
+		$svg    = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>';
+		$result = desktop_mode_register_icon( 'svg-shorthand', array(
+			'title'    => 'SVG Shorthand',
+			'icon_svg' => $svg,
+			'window'   => 'jorvy',
+		) );
+
+		$this->assertTrue( $result );
+		$entry    = desktop_mode_desktop_icon_registry( 'svg-shorthand' );
+		$expected = 'data:image/svg+xml;base64,' . base64_encode( $svg );
+		$this->assertSame( $expected, $entry['icon'] );
+	}
+
+	/**
+	 * `icon_svg` wins over `icon` when both are passed.
+	 *
+	 * @covers ::desktop_mode_register_icon
+	 */
+	public function test_icon_svg_wins_over_icon() {
+		$svg    = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+		$result = desktop_mode_register_icon( 'svg-wins', array(
+			'title'    => 'SVG Wins',
+			'icon'     => 'dashicons-star-filled',
+			'icon_svg' => $svg,
+			'window'   => 'jorvy',
+		) );
+
+		$this->assertTrue( $result );
+		$entry = desktop_mode_desktop_icon_registry( 'svg-wins' );
+		$this->assertStringStartsWith( 'data:image/svg+xml;base64,', $entry['icon'] );
+	}
+
+	/**
+	 * SVG markup containing a <script> tag is rejected outright —
+	 * defence-in-depth on top of the browser's `<img src=…>` SVG sandbox.
+	 *
+	 * @covers ::desktop_mode_register_icon
+	 */
+	public function test_icon_svg_rejects_embedded_script() {
+		$result = desktop_mode_register_icon( 'svg-script', array(
+			'title'    => 'SVG with script',
+			'icon_svg' => '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+			'window'   => 'jorvy',
+		) );
+
+		$this->assertWPError( $result );
+		$this->assertSame( 'desktop_mode_invalid_icon_svg', $result->get_error_code() );
+	}
+
+	/**
+	 * SVG markup that doesn't start with `<svg>` is rejected.
+	 *
+	 * @covers ::desktop_mode_register_icon
+	 */
+	public function test_icon_svg_rejects_non_svg_markup() {
+		$result = desktop_mode_register_icon( 'svg-bogus', array(
+			'title'    => 'Not an SVG',
+			'icon_svg' => '<div>oops</div>',
+			'window'   => 'jorvy',
+		) );
+
+		$this->assertWPError( $result );
+		$this->assertSame( 'desktop_mode_invalid_icon_svg', $result->get_error_code() );
+	}
+
+	/**
 	 * @covers ::desktop_mode_register_icon
 	 */
 	public function test_capability_gate_denies_subscriber() {

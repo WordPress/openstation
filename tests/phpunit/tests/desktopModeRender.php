@@ -309,6 +309,57 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The capture-phase click handler runs BEFORE wp-admin/js/updates.js's
+	 * own bubble-phase handler. If the bridge intercepts and preventDefaults
+	 * a click on `.install-now` / `.update-link` / `.delete-plugin` etc.,
+	 * core's AJAX install/update/delete flow never starts and the user is
+	 * diverted to the no-JS update.php fallback — opened as a freshly
+	 * spawned desktop window that takes seconds to load. Pin the skip list
+	 * so a future refactor doesn't silently bring the regression back.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_skips_wp_core_ajax_update_buttons() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// Each class WP core's wp-admin/js/updates.js binds an AJAX
+		// click handler to. The bridge must early-return on these so
+		// updates.js's bubble handler can run.
+		$ajax_classes = array(
+			'install-now',
+			'update-link',
+			'update-now',
+			'delete-plugin',
+			'delete-theme',
+			'install-theme',
+		);
+		foreach ( $ajax_classes as $class ) {
+			$this->assertStringContainsString(
+				"link.classList.contains( '{$class}' )",
+				$output,
+				"Bridge must skip clicks on .{$class} so wp-admin/js/updates.js can run."
+			);
+		}
+
+		// The skip block must sit BEFORE the `kind === 'admin'`
+		// branch — otherwise we'd preventDefault before the bail.
+		$skip_pos  = strpos( $output, "link.classList.contains( 'install-now' )" );
+		$admin_pos = strpos( $output, "kind === 'admin'" );
+		$this->assertNotFalse( $skip_pos );
+		$this->assertNotFalse( $admin_pos );
+		$this->assertLessThan(
+			$admin_pos,
+			$skip_pos,
+			'AJAX-class skip must run before the admin-link prevent-default block.'
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_emits_nothing_without_flag() {
