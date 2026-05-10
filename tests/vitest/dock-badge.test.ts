@@ -117,6 +117,136 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 	} );
 } );
 
+describe( 'Dock.replaceItems tears down peek attachments', () => {
+	beforeEach( () => {
+		installHooksStub();
+		vi.useFakeTimers();
+	} );
+	afterEach( () => {
+		vi.useRealTimers();
+		clearHooksStub();
+		document.body.innerHTML = '';
+	} );
+
+	function pointerEnter( el: HTMLElement ): void {
+		const evt = new Event( 'pointerenter' );
+		Object.defineProperty( evt, 'pointerType', { value: 'mouse' } );
+		el.dispatchEvent( evt );
+	}
+
+	/**
+	 * Regression: a peek panel (popover attached to `document.body`)
+	 * shown when `replaceItems` runs used to leak — its tile was
+	 * removed but the popover lived on, and a fresh popover for the
+	 * rebuilt tile collided with it on `view-transition-name`. Chrome
+	 * surfaced this as "Unexpected duplicate view-transition-name:
+	 * desktop-mode-peek-card-<id>". `replaceItems` now drains
+	 * `peekTeardowns` for the items being replaced; system tile
+	 * peeks (keyed `system:*`) stay untouched.
+	 */
+	test( 'visible peek popover is removed when replaceItems fires', () => {
+		const win = {
+			id: 'themes-php',
+			config: {
+				title: 'Appearance',
+				icon: 'dashicons-admin-appearance',
+				baseId: 'themes-php',
+			},
+		};
+		const manager = {
+			getFocused: () => null,
+			getAllByBaseId: () => [],
+			getById: ( id: string ) => ( id === 'themes-php' ? win : undefined ),
+			getActiveDesktopId: () => 'default-1',
+		} as unknown as ConstructorParameters< typeof Dock >[ 1 ];
+
+		const container = document.createElement( 'nav' );
+		document.body.appendChild( container );
+		const item: DockItem = {
+			id: 'menu-appearance',
+			title: 'Appearance',
+			icon: 'dashicons-admin-appearance',
+			url: 'http://localhost/wp-admin/themes.php',
+			badge: 0,
+			submenu: [],
+			multi: false,
+		};
+		const dock = new Dock(
+			container,
+			manager,
+			[ item ],
+			'http://localhost/wp-admin/',
+			'left',
+		);
+
+		const tile = container.querySelector< HTMLElement >(
+			'[data-menu-slug="menu-appearance"]',
+		);
+		expect( tile ).not.toBeNull();
+
+		pointerEnter( tile! );
+		vi.advanceTimersByTime( 500 );
+		expect( document.querySelectorAll( '.desktop-mode-dock-peek' ).length ).toBe( 1 );
+
+		// Live menu refresh — would happen on plugin install/activate
+		// or any chromeless `desktop-mode-plugins-changed` postMessage.
+		dock.replaceItems( [ item ] );
+
+		// The orphaned popover must be gone before the rebuilt tile
+		// is allowed to spawn a fresh one. Without the teardown drain
+		// in `replaceItems`, the old popover lingers and a second
+		// peek collides on `view-transition-name`.
+		expect( document.querySelectorAll( '.desktop-mode-dock-peek' ).length ).toBe( 0 );
+	} );
+
+	test( 'after replaceItems, the rebuilt tile shows a fresh peek', () => {
+		const win = {
+			id: 'themes-php',
+			config: {
+				title: 'Appearance',
+				icon: 'dashicons-admin-appearance',
+				baseId: 'themes-php',
+			},
+		};
+		const manager = {
+			getFocused: () => null,
+			getAllByBaseId: () => [],
+			getById: ( id: string ) => ( id === 'themes-php' ? win : undefined ),
+			getActiveDesktopId: () => 'default-1',
+		} as unknown as ConstructorParameters< typeof Dock >[ 1 ];
+
+		const container = document.createElement( 'nav' );
+		document.body.appendChild( container );
+		const item: DockItem = {
+			id: 'menu-appearance',
+			title: 'Appearance',
+			icon: 'dashicons-admin-appearance',
+			url: 'http://localhost/wp-admin/themes.php',
+			badge: 0,
+			submenu: [],
+			multi: false,
+		};
+		const dock = new Dock(
+			container,
+			manager,
+			[ item ],
+			'http://localhost/wp-admin/',
+			'left',
+		);
+
+		dock.replaceItems( [ item ] );
+
+		const tile = container.querySelector< HTMLElement >(
+			'[data-menu-slug="menu-appearance"]',
+		);
+		pointerEnter( tile! );
+		vi.advanceTimersByTime( 500 );
+		// Exactly one peek — not zero (teardown over-drained), not
+		// two (leaked old listener also fired).
+		expect( document.querySelectorAll( '.desktop-mode-dock-peek' ).length ).toBe( 1 );
+	} );
+} );
+
 describe( 'Dock.removeSystemItem fires HOOKS.DOCK_ITEM_REMOVED', () => {
 	beforeEach( () => installHooksStub() );
 	afterEach( () => {

@@ -38,6 +38,16 @@ const INITIAL_ORIGIN = window.location.origin;
 export interface AdminLinkDockEntry {
 	title: string;
 	icon: string;
+	/**
+	 * The parent dock-tile URL — the page the user clicked from. Used
+	 * to seed the new window's `parentUrl` so the in-window
+	 * "back to parent" tab points at the dock landing page even when
+	 * the cross-page link drops the user on a sub-page (e.g. a
+	 * `theme-install.php` link from a Posts editor opens at
+	 * theme-install.php with the parent tab still saying "Appearance").
+	 * Optional — falls back to the destination URL when missing.
+	 */
+	url?: string;
 	submenu?: { title: string; url: string }[];
 	multi?: boolean;
 }
@@ -66,6 +76,7 @@ interface AdminLinkDispatchDeps {
 		id: string;
 		baseId: string;
 		url: string;
+		parentUrl?: string;
 		title: string;
 		icon: string;
 		submenu?: { title: string; url: string }[];
@@ -495,6 +506,7 @@ function handleCrossPageAdminLink(
 		id: targetSlug,
 		baseId: targetSlug,
 		url: absolute,
+		parentUrl: entry?.url ?? absolute,
 		title,
 		icon: entry?.icon ?? 'dashicons-admin-generic',
 		submenu: entry?.submenu,

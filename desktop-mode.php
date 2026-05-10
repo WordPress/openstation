@@ -47,6 +47,7 @@ require_once DESKTOP_MODE_DIR . 'includes/os-settings.php';
 require_once DESKTOP_MODE_DIR . 'includes/seen-intros.php';
 require_once DESKTOP_MODE_DIR . 'includes/portal.php';
 require_once DESKTOP_MODE_DIR . 'includes/default-window.php';
+require_once DESKTOP_MODE_DIR . 'includes/themes-tabs.php';
 require_once DESKTOP_MODE_DIR . 'includes/media-query.php';
 require_once DESKTOP_MODE_DIR . 'includes/accents.php';
 require_once DESKTOP_MODE_DIR . 'includes/toast-types.php';

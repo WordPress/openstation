@@ -157,6 +157,7 @@ export function bindTopWindowLinkInterceptor(
 				baseId: windowId,
 				multi: !! dockEntry?.multi,
 				url: url.href,
+				parentUrl: dockEntry?.url ?? url.href,
 				title: dockEntry?.title || fallbackTitle,
 				icon: dockEntry?.icon || 'dashicons-admin-generic',
 				submenu: dockEntry?.submenu,

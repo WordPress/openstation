@@ -1700,6 +1700,7 @@ function init(): void {
 				return {
 					title: item.title,
 					icon: item.icon,
+					url: item.url,
 					submenu: item.submenu,
 					multi: item.multi,
 				};
@@ -1715,6 +1716,11 @@ function init(): void {
 						// avoids painting a generic glyph on a window
 						// the user knows by its parent's identity.
 						icon: item.icon,
+						// `url` holds the PARENT tile's landing page, so
+						// the new window's synthetic "back to parent"
+						// tab links to the dock URL (themes.php) rather
+						// than to the sub-page itself.
+						url: item.url,
 						multi: item.multi,
 					};
 				}
