@@ -9,6 +9,19 @@ The browser-side contract. Four layers:
 
 Status labels match the [Hooks Reference](./hooks-reference.md): **Stable / Experimental / Planned**.
 
+> **Looking for the full inventory?** [`api-index.md`](./api-index.md) lists every `wp.desktop.*` method, CustomEvent, and `postMessage` type with its current status — one table, one place to grep.
+
+## Must-know APIs
+
+These four cover ~90% of plugin code. Reach for them before anything else:
+
+| API | Use it for | Status |
+|---|---|---|
+| [`wp.desktop.fetch( input, init?, opts? )`](#wpdesktopfetch-input-init-opts---stable-since-080) | **Every HTTP call from a plugin.** Routes through the framework so the active window's title-bar pulse + activity bus light up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** *(since 0.8.0)* |
+| [`wp.desktop.confirm( opts )`](#wpdesktopconfirm--stable-since-090) / [`wpdConfirm()`](#wpdesktopconfirm--stable-since-090) | Modal Yes/No replacement for `window.confirm()`. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** *(since 0.9.0)* |
+| [`wp.desktop.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `desktop-mode` dep. | **Stable** *(since 0.17.0)* |
+| [`wp.desktop.openWindow( id, opts? )`](#wpdesktopopenwindow-id-opts---stable-since-0180) | Open or focus a registered native window by id. Symmetric with `desktop_mode_register_window( $id, … )` PHP-side. | **Stable** *(since 0.18.0)* |
+
 ---
 
 ## 1. CustomEvents
@@ -657,7 +670,7 @@ For programmatic deep-linking into the **Code editor** specifically (open + jump
 
 ---
 
-### `wp.desktop.fetch( input, init?, opts? )` — Experimental *(since 0.8.0)*
+### `wp.desktop.fetch( input, init?, opts? )` — Stable *(since 0.8.0)*
 
 Drop-in wrapper around the global `fetch()` that lights up the target window's title-bar **modem activity dot** while the request is in flight. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
 
@@ -899,9 +912,38 @@ Listen for `desktop-mode-layout-changed` to react to a switch.
 
 ---
 
+### `setBadge` — Stable *(dock 0.22.0; taskbar + icons 0.24.0)*
+
+Three rails — dock, taskbar, wallpaper icons — share the same `setBadge( id, count )` shape. **The id space is unified** (a dock item's `slug`, a system tile's id, or a desktop icon's id), so plugin authors fan a count to every rail without branching to figure out which one happens to host the tile under the user's current layout:
+
+```js
+function setOrdersBadge( count ) {
+    wp.desktop.dock?.setBadge?.(    'my-orders', count );
+    wp.desktop.taskbar?.setBadge?.( 'my-orders', count );
+    wp.desktop.icons?.setBadge?.(   'my-orders', count );
+}
+setOrdersBadge( 7 );
+setOrdersBadge( 0 );  // clear
+```
+
+Three calls; the rail that owns the id paints, the others bow out silently. Each call:
+
+- **Idempotent** — same count twice = no DOM mutation, no re-emit.
+- **`0` clears** — and on the dock + taskbar rails it also drops the client-side override so the server-declared `item.badge` resumes ownership on the next live menu refresh.
+- **`> 99` renders as `99+`**.
+- **Silent no-op when the id isn't on this rail** — keeps the fan-to-all-rails pattern from triple-emitting.
+- **Survives a full grid rebuild** — plugin-set values persist across plugin activations / live menu refreshes.
+
+Every applied change publishes on:
+
+- `desktop-mode/badge-changed` activity channel with `{ itemId, count, rail: 'dock' | 'taskbar' | 'icon' }`.
+- `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }` *(icon rail only)*.
+
+The rails do NOT auto-suppress based on window state — that's per-app UX policy. The canonical "show 0 while my window is active" recipe lives in [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+
 ### `icons` — Stable *(since 0.24.0)*
 
-The wallpaper-icon rail — second badge surface alongside `dock`. Mirrors the dock's `setBadge` shape exactly so plugin authors can fan a count to whichever rail happens to host their tile (also `sideDock` in Classic layout):
+The wallpaper-icon rail. Same `setBadge` shape as `dock` / `taskbar`, plus two read helpers:
 
 ```ts
 interface IconsApi {
@@ -917,17 +959,7 @@ wp.desktop.icons.clearBadge( 'desktop-mode-messages' );
 wp.desktop.icons.getBadge(   'desktop-mode-messages' ); // → 0
 ```
 
-- **Idempotent.** Same count twice = no DOM mutation, no re-emit.
-- **Silent no-op when the id isn't on the rail.** Lets the fan-to-all-rails pattern work without triple-emitting.
-- **Survives a full grid rebuild.** Plugin-set badges persist across plugin activations / live menu refreshes — set once, the renderer re-paints from internal state.
-- **`>99` renders as `99+`**.
-
-Every applied change publishes on:
-
-- `desktop-mode/badge-changed` activity channel with `{ itemId, count, rail: 'icon' }`.
-- `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }`.
-
-The rail does NOT auto-suppress badges based on window state — that's a per-app UX policy. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md) for the canonical "show 0 while my window is active" recipe.
+See [`setBadge`](#setbadge--stable-dock-0220-taskbar--icons-0240) above for the full rules across all three rails.
 
 #### `DesktopIconServerEntry.pinned` — Stable *(since 0.8.0)*
 

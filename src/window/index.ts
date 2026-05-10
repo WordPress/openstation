@@ -36,6 +36,7 @@ import './../ui/components/wpd-window-button/wpd-window-button';
 import './../ui/components/wpd-menu/wpd-menu';
 import './../ui/components/wpd-tab-chip/wpd-tab-chip';
 
+import { _buildNativeRenderContext } from './../native-windows';
 import { createWindowElement, updateFullscreenBodyClass } from './dom';
 import { handleWindowMessage } from './iframe-bridge';
 import {
@@ -332,6 +333,19 @@ export class Window {
 	public _nativeRenderTeardown: ( () => void ) | null = null;
 
 	/**
+	 * Disposer for the framework-built `NativeRenderContext` —
+	 * unwires the per-window hook subscriptions (`onResize`,
+	 * `onHide`, `onShow`) AND aborts the `signal` so in-flight
+	 * `wp.desktop.fetch( …, { signal } )` calls cancel. Runs at
+	 * close BEFORE the user-returned teardown, so async paths see
+	 * the abort first. Set in `hydrateNative()` for native windows.
+	 *
+	 * @since 0.8.2
+	 * @internal
+	 */
+	public _nativeRenderCtxDispose: ( () => void ) | null = null;
+
+	/**
 	 * Which tab is currently foregrounded: 'primary' or a tab id.
 	 * @internal
 	 */
@@ -594,13 +608,25 @@ export class Window {
 			{ windowId: this.id, config: this.config },
 		);
 		const body = filtered instanceof HTMLElement ? filtered : rawBody;
+
+		// Build the per-render `NativeRenderContext` — channel API
+		// (`window.send/on`), `markLoading`/`markReady` (also at the
+		// top level since 0.8.2), `signal` that aborts on close, and
+		// `onResize`/`onHide`/`onShow` subscribers wired to the
+		// per-window hooks. The disposer tears every subscription
+		// down + aborts the controller; we capture it on the
+		// instance so `close()` can fire it before the user-returned
+		// teardown runs.
+		const { ctx, dispose } = _buildNativeRenderContext( this.id );
+		this._nativeRenderCtxDispose = dispose;
+
 		// Capture the optional teardown returned by the render callback
 		// — invoked on `close()` so plugin authors can dispose
 		// listeners, intervals, observers tied to this window's
 		// lifecycle. Without this capture, returns from `render()`
 		// were silently discarded and authors had no reliable
 		// cleanup hook for native windows.
-		const maybeTeardown = this.config.render( body );
+		const maybeTeardown = this.config.render( body, ctx );
 
 		const captureTeardown = ( v: unknown ): void => {
 			if ( typeof v === 'function' ) {
@@ -2407,6 +2433,27 @@ export class Window {
 		if ( this._windowChromesUnsubscribe ) {
 			this._windowChromesUnsubscribe();
 			this._windowChromesUnsubscribe = null;
+		}
+
+		// Abort the framework-built ctx pre-animation so
+		// `ctx.signal` flips to aborted IMMEDIATELY (in-flight
+		// `wp.desktop.fetch( …, { signal } )` requests cancel right
+		// away rather than after the fade-out) and the
+		// `onResize`/`onHide`/`onShow` listeners detach before we
+		// stop firing. The user's render-returned teardown still
+		// runs in `onDone()` below — by which point the ctx is
+		// already quiescent.
+		if ( this._nativeRenderCtxDispose ) {
+			try {
+				this._nativeRenderCtxDispose();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-ctx-dispose',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderCtxDispose = null;
 		}
 
 		// Tear down the body resize observer now rather than on

@@ -47,6 +47,8 @@ import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dial
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { collectWallpaperSurfaces } from '../wallpapers/surfaces';
 import { renderKeyedList, clearKeyedList } from '../ui/util/keyed-list';
+import { createInfiniteList } from '../infinite-list';
+import { startOAuth } from '../oauth-relay';
 import {
 	cloneTemplate,
 	onWindow,
@@ -281,6 +283,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		repaintLoadingOverlays,
 		cloneTemplate,
 		onWindow,
+		createInfiniteList,
+		startOAuth,
 		registerSystemTile: ( item ) => {
 			placeSystemTile( item );
 			doAction( HOOKS.DOCK_ITEM_APPENDED, { id: item.id } );

@@ -48,7 +48,44 @@ add_filter( 'desktop_mode_dock_items', function ( $items ) {
 
 Reload the shell; the new icon appears at the end of the dock. Click it and a window opens with `admin.php?page=my-extension` inside it.
 
-## 4. React to window events (JavaScript)
+## 4. Make HTTP calls — `wp.desktop.fetch`
+
+Every HTTP call from a Desktop Mode plugin should route through the framework helper instead of native `fetch()`. Doing so lights up the active window's title-bar **modem activity dot** for free, attributes the request to the activity bus (so the dev panel + plugin observers see it), and flashes red on failure with the error message exposed as the dot's tooltip.
+
+```javascript
+const res = await wp.desktop.fetch( '/wp-json/myplugin/v1/save', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+    body:    JSON.stringify( payload ),
+} );
+```
+
+Same return type and resolution semantics as native `fetch()`. The third options arg attributes the request:
+
+```javascript
+wp.desktop.fetch( url, init, {
+    windowId: 'my-plugin/inbox',  // attribute to a specific window
+    silent:   true,                // background poll — don't pulse the dot
+} );
+```
+
+For modules compiled into a separate Vite target (a feature bundle, an external plugin), import `trackedFetch` from `tracked-fetch`:
+
+```typescript
+import { trackedFetch } from '<…>/tracked-fetch';
+
+await trackedFetch( '/wp-json/myplugin/v1/save', init, {
+    source: 'my-plugin/save',
+} );
+```
+
+`trackedFetch` finds `wp.desktop.fetch` at runtime and falls back to native `fetch` only during the boot window before the shell exists.
+
+> **Lint enforces this.** Raw `fetch()` and `window.fetch()` calls fail lint. The handful of legitimate exceptions (the wrapper itself, the PWA service worker, genuinely-silent background pollers) are documented inline with `eslint-disable-next-line` comments.
+
+See [`javascript-reference.md`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable-since-080) for the full signature.
+
+## 5. React to window events (JavaScript)
 
 The shell dispatches CustomEvents on `document` when windows open, close, focus, or change state:
 
@@ -74,7 +111,7 @@ add_action( 'desktop_mode_mode_init', function () {
 
 `desktop_mode_mode_init` fires inside the parent shell render — perfect for enqueueing shell-level code.
 
-## 5. Gate by role
+## 6. Gate by role
 
 Block desktop mode for a specific user class:
 
