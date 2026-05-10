@@ -347,9 +347,14 @@ class Tests_DesktopMode_OAuthRelay extends WP_UnitTestCase {
 		$this->assertInstanceOf( 'WP_REST_Response', $response );
 
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
+		// Core's `_oembed_rest_pre_serve_request` is registered on
+		// this filter and signature-requires 4 args; pass the REST
+		// server as the 4th so the chain runs cleanly through every
+		// registered callback.
+		$server = rest_get_server();
 
 		ob_start();
-		$served = apply_filters( 'rest_pre_serve_request', false, $response, $request );
+		$served = apply_filters( 'rest_pre_serve_request', false, $response, $request, $server );
 		$body = ob_get_clean();
 
 		$this->assertTrue( $served, 'Filter must signal it served the response.' );
@@ -395,9 +400,10 @@ class Tests_DesktopMode_OAuthRelay extends WP_UnitTestCase {
 
 		// Different route — filter must pass through cleanly without echoing.
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$server  = rest_get_server();
 
 		ob_start();
-		$served = apply_filters( 'rest_pre_serve_request', false, null, $request );
+		$served = apply_filters( 'rest_pre_serve_request', false, null, $request, $server );
 		$body = ob_get_clean();
 
 		$this->assertFalse( $served, 'Filter must not claim to serve unrelated REST routes.' );
@@ -409,21 +415,39 @@ class Tests_DesktopMode_OAuthRelay extends WP_UnitTestCase {
 	 * request to the same route doesn't replay the previous
 	 * request's payload (the closure captures `$html` per call).
 	 *
+	 * Asserted by behaviour, not by `has_filter` count — core's
+	 * `_oembed_rest_pre_serve_request` is permanently registered on
+	 * this hook, so a count-based check would always be true. The
+	 * right shape: fire twice, assert only the first fire echoes
+	 * our payload.
+	 *
 	 * @covers ::desktop_mode_oauth_render_callback_html
 	 */
 	public function test_render_callback_html_filter_self_removes_after_firing() {
 		desktop_mode_oauth_render_callback_html( array( 'ok' => true, 'service' => 'a' ) );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
+		$server  = rest_get_server();
 
 		ob_start();
-		apply_filters( 'rest_pre_serve_request', false, null, $request );
-		ob_end_clean();
+		$served_first = apply_filters( 'rest_pre_serve_request', false, null, $request, $server );
+		$body_first = ob_get_clean();
+		$this->assertTrue( $served_first );
+		$this->assertStringContainsString( '<!doctype', $body_first );
 
-		// First fire removed the filter — apply again, expect no
-		// listeners attached for this hook.
+		// Second fire of the same hook with the same request must
+		// NOT re-echo our HTML — the filter detached itself after
+		// the first fire.
+		ob_start();
+		$served_second = apply_filters( 'rest_pre_serve_request', false, null, $request, $server );
+		$body_second = ob_get_clean();
 		$this->assertFalse(
-			has_filter( 'rest_pre_serve_request' ),
-			'Filter must remove itself so it cannot replay on the next request.'
+			$served_second,
+			'Filter must not re-serve after self-removal.'
+		);
+		$this->assertStringNotContainsString(
+			'<!doctype',
+			$body_second,
+			'Filter must not re-echo HTML after self-removal — the closure would otherwise replay a stale payload.'
 		);
 	}
 
