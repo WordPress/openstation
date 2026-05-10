@@ -2841,7 +2841,6 @@ function init(): void {
 				return snapToEmptyCell( rawX, rawY, occupied, desktopArea );
 			};
 			const createUrlPlacement = (
-				type: 'link' | 'embed',
 				dialogTitle: string,
 				description: string,
 			): void => {
@@ -2854,7 +2853,7 @@ function init(): void {
 					onSubmit: async ( { name, url } ) => {
 						const cell = cellAtClick();
 						const placement = await filesRest.createPlacement( {
-							type,
+							type: 'link',
 							ref: url,
 							parentId: 0,
 							x: cell.x,
@@ -2883,17 +2882,10 @@ function init(): void {
 						},
 					} );
 				},
-				createLink: () =>
+				createUrl: () =>
 					createUrlPlacement(
-						'link',
-						'New web link',
+						'New URL',
 						'Opens the URL in a new browser tab.',
-					),
-				createEmbed: () =>
-					createUrlPlacement(
-						'embed',
-						'New embedded web window',
-						'Opens the URL inside a desktop window.',
 					),
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
@@ -2931,9 +2923,7 @@ function init(): void {
 					sortNameDesc: 'Name (Z → A)',
 					sortDateAsc: 'Date (oldest first)',
 					sortDateDesc: 'Date (newest first)',
-					newHeading: 'New',
-					newLink: 'Web link (open in browser)',
-					newEmbed: 'Embedded window (open in shell)',
+					newUrl: 'New URL',
 				},
 				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]

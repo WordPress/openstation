@@ -206,6 +206,18 @@
 	border-radius: 4px;
 }
 
+/* `<img>` defaults to `draggable=true`, which lets the browser
+ * start a native HTML5 image-drag from a pointerdown — that
+ * pre-empts the DragManager's pointer-event-driven tile rearrange
+ * and the tile silently refuses to move. The renderer also sets
+ * `draggable="false"` on every `<img>` it produces; this CSS rule
+ * covers anything injected later (plugin filters, decorators)
+ * without having to remember the attribute. */
+.desktop-mode-file-tile img {
+	-webkit-user-drag: none;
+	user-select: none;
+}
+
 /*
  * Wallpaper + tile context menus use `<wpd-context-menu>` and
  * `<wpd-context-menu-option>` (Phase 4 / 0.9.0). Their host-level

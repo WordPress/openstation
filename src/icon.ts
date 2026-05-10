@@ -15,8 +15,11 @@
  *   2. `'data:image/svg+xml;base64,…'` → `<span>` with the SVG as a
  *      CSS background-image (the safe path; SVG-as-background can't
  *      execute scripts).
- *   3. `'http://…' | 'https://…'`  → `<img src=…>`.
- *   4. Anything else (empty / `'none'` / `'div'` / unrecognised)
+ *   3. `'data:image/(png|jpeg|gif|webp|x-icon|…);base64,…'` → `<img>`.
+ *      Used by the favicon resolver to paint a downloaded favicon
+ *      without a network round-trip on render.
+ *   4. `'http://…' | 'https://…'`  → `<img src=…>`.
+ *   5. Anything else (empty / `'none'` / `'div'` / unrecognised)
  *      → letter-badge fallback: a coloured circle with the first
  *      one or two letters of `title`. Color is hashed deterministically
  *      from the title so the same plugin gets the same swatch
@@ -85,20 +88,30 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 		// Malformed — fall through.
 	}
 
-	// 3. http(s) URL — direct image.
+	// 3. Non-SVG image data URI — render as <img>. The format
+	// allowlist + base64 payload check mirrors the SVG branch above
+	// so a malformed value falls through to the letter-badge.
+	if (
+		typeof icon === 'string' &&
+		/^data:image\/(png|jpeg|jpg|gif|webp|x-icon|vnd\.microsoft\.icon);base64,/i.test( icon )
+	) {
+		const commaIdx = icon.indexOf( ',' );
+		const payload = commaIdx >= 0 ? icon.slice( commaIdx + 1 ) : '';
+		if ( /^[A-Za-z0-9+/=]+$/.test( payload ) ) {
+			return makeImgIcon( icon, className );
+		}
+		// Malformed — fall through.
+	}
+
+	// 4. http(s) URL — direct image.
 	if (
 		typeof icon === 'string' &&
 		( icon.startsWith( 'http://' ) || icon.startsWith( 'https://' ) )
 	) {
-		const img = document.createElement( 'img' );
-		img.className = className;
-		img.src = icon;
-		img.alt = '';
-		img.setAttribute( 'aria-hidden', 'true' );
-		return img;
+		return makeImgIcon( icon, className );
 	}
 
-	// 4. Letter-badge fallback. Picks the first two letters of the
+	// 5. Letter-badge fallback. Picks the first two letters of the
 	// title (or the first if the title is one word / one character).
 	const span = document.createElement( 'span' );
 	span.className = `${ className } desktop-mode-icon-letter`.trim();
@@ -114,6 +127,23 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 	span.style.fontWeight = '600';
 	span.style.borderRadius = '4px';
 	return span;
+}
+
+/**
+ * Build an `<img>` for a URL or data URI icon. Sets
+ * `draggable="false"` so the browser's native HTML5 image-drag
+ * doesn't pre-empt pointer-event-driven gestures on the parent
+ * tile (the bug that froze tile-rearrange when a tile rendered a
+ * favicon or any URL/data-URI icon).
+ */
+function makeImgIcon( src: string, className: string ): HTMLImageElement {
+	const img = document.createElement( 'img' );
+	img.className = className;
+	img.src = src;
+	img.alt = '';
+	img.setAttribute( 'aria-hidden', 'true' );
+	img.draggable = false;
+	return img;
 }
 
 function letterFromTitle( title: string ): string {

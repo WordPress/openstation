@@ -13,8 +13,7 @@ async function load(): Promise< MenuModule > {
 
 const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpaper-menu' ).WallpaperMenuDeps > = {} ) => ( {
 	createFolder: vi.fn(),
-	createLink: vi.fn(),
-	createEmbed: vi.fn(),
+	createUrl: vi.fn(),
 	toggleShowDesktop: vi.fn(),
 	openOsSettings: vi.fn(),
 	openWallpapers: vi.fn(),
@@ -29,9 +28,7 @@ const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpape
 		sortNameDesc: 'Name (Z → A)',
 		sortDateAsc: 'Date (oldest first)',
 		sortDateDesc: 'Date (newest first)',
-		newHeading: 'New',
-		newLink: 'Web link (open in browser)',
-		newEmbed: 'Embedded window (open in shell)',
+		newUrl: 'New URL',
 	},
 	...overrides,
 } );
@@ -49,17 +46,18 @@ describe( 'wallpaper context menu', () => {
 	test( 'buildMenuItems returns the built-ins in order', async () => {
 		const { buildMenuItems } = await load();
 		const items = buildMenuItems( stubDeps() );
-		// The "new" submenu (web link / embedded window) is
-		// temporarily hidden in wallpaper-menu.ts; re-add 'new'
-		// (and the children assertion below) when it ships.
 		expect( items.map( ( i ) => i.id ) ).toEqual( [
 			'create-folder',
+			'new-url',
 			'sort-by',
 			'show-desktop',
 			'os-settings',
 			'wallpapers',
 		] );
-		expect( items.find( ( i ) => i.id === 'new' ) ).toBeUndefined();
+		const newUrl = items.find( ( i ) => i.id === 'new-url' );
+		expect( newUrl ).toBeDefined();
+		expect( newUrl?.icon ).toBe( 'dashicons-admin-links' );
+		expect( newUrl?.children ).toBeUndefined();
 		const sortBy = items.find( ( i ) => i.id === 'sort-by' );
 		expect( sortBy?.children?.map( ( c ) => c.id ) ).toEqual(
 			expect.arrayContaining( [
@@ -69,6 +67,17 @@ describe( 'wallpaper context menu', () => {
 				'sort-date-desc',
 			] ),
 		);
+	} );
+
+	test( 'clicking New URL invokes deps.createUrl', async () => {
+		const { openWallpaperMenu, buildMenuItems } = await load();
+		const deps = stubDeps();
+		openWallpaperMenu( document.body, { x: 0, y: 0 }, buildMenuItems( deps ) );
+		document
+			.querySelector< HTMLButtonElement >( '[data-menu-item-id="new-url"]' )!
+			.click();
+		expect( deps.createUrl ).toHaveBeenCalledTimes( 1 );
+		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
 	} );
 
 	test( 'serverItems are merged into the list', async () => {

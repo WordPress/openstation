@@ -563,6 +563,38 @@ add_filter( 'desktop_mode_resolve_file_opener', function ( $opener_id, $type, $u
 
 ---
 
+### `desktop_mode_resolve_favicon` — Stable (since 0.20.0)
+
+Last-mile filter on the favicon data URI returned by `desktop_mode_resolve_favicon()`. The resolver runs inline during `POST /placements` for `link`-type placements: it fetches the page via `wp_safe_remote_get`, walks `<link rel="icon|shortcut icon|apple-touch-icon">`, falls back to `/favicon.ico`, and base64-encodes the bytes into a `data:image/<subtype>;base64,…` URI for the placement's `meta.iconUrl`. The filter lets plugins short-circuit the network round-trips (return a synthetic data URI), force-skip caching (return `null`), or post-process whatever the resolver produced.
+
+```php
+apply_filters( 'desktop_mode_resolve_favicon', ?string $data_uri, string $page_url );
+```
+
+**Example — short-circuit with a cached value from a transient:**
+
+```php
+add_filter( 'desktop_mode_resolve_favicon', function ( $data_uri, $page_url ) {
+    $key    = 'fav_' . md5( $page_url );
+    $cached = get_transient( $key );
+    if ( false !== $cached ) {
+        return $cached === '' ? null : $cached;
+    }
+    if ( null !== $data_uri ) {
+        set_transient( $key, $data_uri, DAY_IN_SECONDS );
+    } else {
+        // Negative-cache for an hour so we don't re-fetch a broken
+        // host on every "New URL" submit.
+        set_transient( $key, '', HOUR_IN_SECONDS );
+    }
+    return $data_uri;
+}, 10, 2 );
+```
+
+The resolver itself catches every error path and returns `null` — never raises. Bodies above 256 KB and HTML pages spoofing image content-types are rejected. SSRF is mitigated by `wp_safe_remote_get`.
+
+---
+
 ### `desktop_mode_mode_enabled` — Stable
 
 Gates whether desktop mode can be activated (or stay active) for a given user. The central helper `desktop_mode_is_enabled()` consults this filter after the user-meta check, so render-time gates (chromeless detection, payload generation, REST permission callbacks, the admin-bar toggle, the portal entry, the AJAX save endpoint) all honor a `false` return.

@@ -156,16 +156,33 @@ function desktop_mode_files_rest_list_placements( WP_REST_Request $req ) {
  * POST /placements
  */
 function desktop_mode_files_rest_create_placement( WP_REST_Request $req ) {
+	$type = (string) $req->get_param( 'type' );
+	$ref  = (string) $req->get_param( 'ref' );
+	$meta = $req->get_param( 'meta' );
+
+	// `link` placements get a server-resolved favicon stuffed onto
+	// `meta.iconUrl` so the tile renderer can paint it without the
+	// browser making a third-party request on every render. Other
+	// types skip the resolver entirely (no extra fetch latency).
+	if ( 'link' === $type && '' !== $ref ) {
+		$icon_data_uri = desktop_mode_resolve_favicon( $ref );
+		if ( is_string( $icon_data_uri ) && '' !== $icon_data_uri ) {
+			$meta_arr             = is_array( $meta ) ? $meta : array();
+			$meta_arr['iconUrl']  = $icon_data_uri;
+			$meta                 = $meta_arr;
+		}
+	}
+
 	$id = desktop_mode_files_place(
 		get_current_user_id(),
 		(int) $req->get_param( 'parentId' ),
-		(string) $req->get_param( 'type' ),
-		(string) $req->get_param( 'ref' ),
+		$type,
+		$ref,
 		array(
 			'x'          => (int) $req->get_param( 'x' ),
 			'y'          => (int) $req->get_param( 'y' ),
 			'sort_order' => (int) $req->get_param( 'sortOrder' ),
-			'meta'       => $req->get_param( 'meta' ),
+			'meta'       => $meta,
 		)
 	);
 	if ( is_wp_error( $id ) ) {
