@@ -678,12 +678,21 @@ Drop-in wrapper around the global `fetch()` that lights up the target window's t
 // In any window's render callback / event handler:
 const res = await wp.desktop.fetch( '/wp-json/myplugin/v1/save', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify( payload ),
 } );
 ```
 
 That's the whole pattern. The dot blinks for the duration of the round-trip, flashes green on `2xx` and red on failure (with the `Error.message` exposed as the dot's tooltip), then settles back to the always-on idle ring. **No CSS, no per-window plumbing, no DOM.**
+
+#### Auto X-WP-Nonce *(since 0.8.2)*
+
+`wp.desktop.fetch` automatically attaches `X-WP-Nonce: desktopModeConfig.restNonce` to **same-origin** requests whose URL targets a WordPress REST endpoint — either pretty-permalink (`/wp-json/...`) or plain-permalink (`?rest_route=...`). Without the header, WordPress's `rest_cookie_check_errors()` demotes the cookie session to anonymous and any capability-gated route returns `401`. You no longer need to remember to attach it by hand.
+
+Rules:
+- **Same-origin only.** Cross-origin requests never receive the header — the nonce is a credential for this site.
+- **Caller wins.** If you pass `headers: { 'X-WP-Nonce': '...' }` (or the input `Request` already carries the header), the framework does not overwrite it.
+- **REST endpoints only.** `admin-ajax.php` and other non-REST URLs are left alone — admin-ajax uses per-action `_wpnonce` parameters, not the `wp_rest` nonce.
 
 #### Arguments
 

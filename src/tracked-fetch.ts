@@ -19,6 +19,8 @@
  * @since 0.9.0
  */
 
+import { injectRestNonce } from './inject-rest-nonce';
+
 export interface TrackedFetchOpts {
 	windowId?: string;
 	source?: string;
@@ -45,6 +47,12 @@ export function trackedFetch(
 	if ( typeof fn === 'function' ) {
 		return fn( input, init, opts );
 	}
+	// Boot fallback: `wp.desktop` hasn't been wired up yet (tests,
+	// very-early-bundle calls, headless paths). Inject the REST
+	// nonce here so behavior stays consistent with the in-shell
+	// path — otherwise an early caller silently loses authentication
+	// on REST endpoints.
+	const finalInit = injectRestNonce( input, init );
 	// eslint-disable-next-line no-restricted-syntax -- this IS the framework-fetch wrapper; the boot fallback before `wp.desktop` exists is the one legitimate use of raw fetch in the codebase.
-	return fetch( input, init );
+	return fetch( input, finalInit );
 }

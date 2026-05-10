@@ -15,12 +15,68 @@ var desktopModePostsWindow = function(exports) {
     let i = 0;
     return format.replace(/%[sd]/g, () => String(args[i++] ?? ""));
   }
+  const NONCE_HEADER = "X-WP-Nonce";
+  function injectRestNonce(input, init) {
+    const nonce = readRestNonce();
+    if (!nonce) {
+      return init;
+    }
+    const url = resolveUrl(input);
+    if (!url || !isSameOriginRestUrl(url)) {
+      return init;
+    }
+    const baseHeaders = init?.headers ?? (typeof Request !== "undefined" && input instanceof Request ? input.headers : void 0);
+    const headers = new Headers(baseHeaders ?? {});
+    if (headers.has(NONCE_HEADER)) {
+      return init;
+    }
+    headers.set(NONCE_HEADER, nonce);
+    return { ...init ?? {}, headers };
+  }
+  function readRestNonce() {
+    if (typeof window === "undefined") {
+      return void 0;
+    }
+    const cfg = window.desktopModeConfig;
+    const value = cfg?.restNonce;
+    return typeof value === "string" && value.length > 0 ? value : void 0;
+  }
+  function resolveUrl(input) {
+    try {
+      const base = typeof window !== "undefined" && window.location ? window.location.href : void 0;
+      if (typeof input === "string") {
+        return new URL(input, base);
+      }
+      if (input instanceof URL) {
+        return input;
+      }
+      if (typeof Request !== "undefined" && input instanceof Request) {
+        return new URL(input.url, base);
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  function isSameOriginRestUrl(url) {
+    if (typeof window === "undefined" || !window.location || url.origin !== window.location.origin) {
+      return false;
+    }
+    if (url.pathname.includes("/wp-json/")) {
+      return true;
+    }
+    if (url.searchParams.has("rest_route")) {
+      return true;
+    }
+    return false;
+  }
   function trackedFetch(input, init, opts = {}) {
     const fn = window.wp?.desktop?.fetch;
     if (typeof fn === "function") {
       return fn(input, init, opts);
     }
-    return fetch(input, init);
+    const finalInit = injectRestNonce(input, init);
+    return fetch(input, finalInit);
   }
   const ROOT_ID = "__root__";
   const PALETTE = [
