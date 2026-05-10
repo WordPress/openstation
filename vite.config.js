@@ -89,6 +89,17 @@ const TARGETS = {
 		fileBase: 'sw',
 		iifeName: 'desktopModeServiceWorker',
 	},
+	// Native Plugins window — replaces the chromeless `plugins.php`
+	// and `plugin-install.php` iframes with a `<wpd-tabs>`-driven
+	// installed list + browse-the-repo gallery + detail flyout. Same
+	// shape as posts-window: registers a render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-plugins']` and
+	// consumes the `<wpd-*>` tags defined by the main desktop bundle.
+	'plugins-window': {
+		entry:    'src/plugins-window/index.ts',
+		fileBase: 'plugins-window',
+		iifeName: 'desktopModePluginsWindow',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

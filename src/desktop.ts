@@ -1819,6 +1819,33 @@ function init(): void {
 		},
 	} );
 
+	// Native Plugins window — claims `plugins.php` (Installed list)
+	// AND `plugin-install.php` (Browse the .org repo). The latter
+	// stashes a `tab: 'browse'` hint so the bundle's first paint
+	// activates the Browse tab. `plugin-editor.php` is intentionally
+	// NOT claimed — it's a code-editor surface that belongs to the
+	// separate code-editor bundle.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-plugins',
+		nativeWindowId: 'desktop-mode-plugins',
+		matches: ( _url, parsed ) => {
+			const path = parsed.pathname;
+			return (
+				path.endsWith( '/plugins.php' ) ||
+				path.endsWith( '/plugin-install.php' )
+			);
+		},
+		enabled: ( snapshot ) => snapshot.nativePluginsEnabled === true,
+		onMatch: ( _url, parsed ) => {
+			const tab = parsed.pathname.endsWith( '/plugin-install.php' )
+				? 'browse'
+				: 'installed';
+			void import( './plugins-window/tab-target' ).then( ( m ) => {
+				m.setPluginsWindowTab( tab );
+			} );
+		},
+	} );
+
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'desktop-mode-area--with-dock' );
 		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;

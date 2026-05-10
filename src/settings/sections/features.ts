@@ -52,6 +52,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onNativePluginsToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.nativePluginsEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
 	let resetting = false;
 	const onResetIntros = async (): Promise< void > => {
 		if ( resetting ) {
@@ -121,6 +128,16 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 					<p class="desktop-mode-features__hint">
 						${ __(
 							'A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.',
+						) }
+					</p>
+					<wpd-checkbox-label
+						label=${ __( 'Use the native Plugins window' ) }
+						?checked=${ ctx.state.nativePluginsEnabled }
+						@wpd-checkbox-change=${ onNativePluginsToggle }
+					></wpd-checkbox-label>
+					<p class="desktop-mode-features__hint">
+						${ __(
+							'A native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it. On by default.',
 						) }
 					</p>
 					<div class="desktop-mode-features__row">

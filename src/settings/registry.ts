@@ -94,6 +94,14 @@ export interface OsSettingsSnapshot {
 	 * @since 0.18.0
 	 */
 	nativeUsersEnabled: boolean;
+	/**
+	 * Per-user opt-in for the native Plugins window. Same posture as
+	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
+	 * cap-gated on the server (`activate_plugins`). Default on.
+	 *
+	 * @since 0.9.0
+	 */
+	nativePluginsEnabled: boolean;
 }
 
 export interface SettingsTabRenderCtx {

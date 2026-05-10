@@ -83,6 +83,7 @@ export { WpdCategoryPicker } from './wpd-category-picker/wpd-category-picker';
 export type { WpdCategoryItem } from './wpd-category-picker/wpd-category-picker';
 export { WpdCrumbChain } from './wpd-crumb-chain/wpd-crumb-chain';
 export type { WpdCrumbSegment } from './wpd-crumb-chain/wpd-crumb-chain';
+export { WpdCard } from './wpd-card/wpd-card';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -144,4 +145,5 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-save-status',
 	'wpd-category-picker',
 	'wpd-crumb-chain',
+	'wpd-card',
 ] as const;

@@ -1828,6 +1828,101 @@ Returning `false` from `enabled` (or `matches`) lets the click fall through. An 
 
 ---
 
+## Native Plugins window (since 0.9.0)
+
+A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-OUT** — fresh installs land on it; users can flip it off via **OS Settings → Features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `true`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+
+Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_desktop_mode_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.desktop.refreshMenu()` so the dock repaints live.
+
+### `desktop_mode_plugins_window_user_can_register` — Stable *(filter, since 0.9.0)*
+
+Cap-only gate (`activate_plugins`) that decides whether the window is registered for this user. Decoupled from the opt-in toggle so flipping the OS-Settings flag mid-session doesn't require an F5.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_user_can_register', bool $can, int $user_id ): bool
+```
+
+### `desktop_mode_plugins_window_user_can_use` — Stable *(filter, since 0.9.0)*
+
+Combined cap-and-opt-in. Returns `true` when the user has `activate_plugins` AND has not flipped `nativePluginsEnabled` to `false`.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_user_can_use', bool $can, int $user_id ): bool
+```
+
+### `desktop_mode_plugins_window_args` — Experimental *(filter, since 0.9.0)*
+
+Last-mile mutation of the args passed to `desktop_mode_register_window( 'desktop-mode-plugins', … )`. Title, icon, default size, config blob — same shape as the Posts/Users window filter.
+
+### `desktop_mode_plugins_window_template_html` — Experimental *(filter, since 0.9.0)*
+
+Filters the rendered template HTML before `wp_kses` runs. Keep `data-desktop-mode-plugins-{root,tabs,installed-host,browse-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
+
+### `desktop_mode_plugins_window_browse_args` — Stable *(filter, since 0.9.0)*
+
+Mutates the args passed to `plugins_api( 'query_plugins', … )` from the `wp_ajax_desktop_mode_plugins_browse` handler.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_browse_args', array $api_args, array $raw_params ): array
+```
+
+`$raw_params` carries the sanitized request: `browse`, `search`, `tag`, `page`, `per_page`. Use this to pin a corporate plugin allow-list, force a specific `tag`, or extend the `fields` payload.
+
+### `desktop_mode_plugins_window_browse_response` — Stable *(filter, since 0.9.0)*
+
+Mutates the wp.org browse response before it's cached + sent to the client. The payload is `{ plugins: array, info: array }`.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_browse_response', array $payload, array $api_args ): array
+```
+
+### `desktop_mode_plugins_window_info_response` — Stable *(filter, since 0.9.0)*
+
+Same pattern for `plugins_api( 'plugin_information', … )`. Lets a plugin amend the description sections, prepend a notice, or splice in an extra screenshot.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_info_response', array $payload, string $slug ): array
+```
+
+### `desktop_mode_plugins_window_review_parser` — Experimental *(filter, since 0.9.0)*
+
+Override the default DOMDocument-based parser for the wp.org reviews page. Return an array of `{ author, stars, excerpt, date, url }` items to short-circuit the default parser. Return `null` to fall through to the built-in DOM parsing.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_review_parser', array|null $items, string $slug ): array|null
+```
+
+The use case: wp.org HTML changes occasionally. A plugin author who maintains a more robust parser (or who has access to a private reviews API) can swap in their own implementation without forking the upstream.
+
+### `desktop_mode_plugins_window_icon_url` — Experimental *(filter, since 0.9.0)*
+
+Filter the resolved wp.org icon URL for an installed plugin row. Return `null` to suppress (forces the placeholder); return a different URL to override (useful for premium plugins shipping a known asset URL).
+
+```php
+apply_filters( 'desktop_mode_plugins_window_icon_url', string|null $url, string $slug, array $row ): string|null
+```
+
+### REST-field decorators on `/wp/v2/plugins` — Stable (since 0.9.0)
+
+Server-injected enrichment fields. The JS reads them on every list paint:
+
+| Field | Shape | What it carries |
+|---|---|---|
+| `desktop_mode_update_available` | `{ available: bool, new_version: string\|null }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. |
+| `desktop_mode_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
+| `desktop_mode_icon_url` | `string\|null` | Best-effort wp.org icon URL derived from the plugin's `textdomain`. Filterable via `desktop_mode_plugins_window_icon_url`. |
+| `desktop_mode_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |
+
+### Actions — Stable (since 0.9.0)
+
+```php
+do_action( 'desktop_mode_plugins_window_installed', string $plugin_file );
+```
+
+Fires after the upload-AJAX handler installs a plugin from an uploaded .zip. `$plugin_file` is the resolved plugin file (e.g. `"akismet/akismet.php"`). Hook this to seed default settings for first-install plugins, send an audit-log entry, or chain a network-wide deploy.
+
+---
+
 ## My WordPress (since 0.8.0)
 
 A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Phase 1 ships Posts and Pages; the entity list is filterable so plugin authors can extend it without forking the bundle.

@@ -107,6 +107,16 @@ function desktop_mode_register_assets() {
 		file_exists( $posts_window_css ) ? (string) filemtime( $posts_window_css ) : $version
 	);
 
+	// Native Plugins window CSS — same `filemtime`-cache-bust posture
+	// as the Posts/Recycle Bin styles.
+	$plugins_window_css = DESKTOP_MODE_DIR . 'assets/css/plugins-window.css';
+	wp_register_style(
+		'desktop-mode-plugins-window',
+		DESKTOP_MODE_URL . 'assets/css/plugins-window.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $plugins_window_css ) ? (string) filemtime( $plugins_window_css ) : $version
+	);
+
 	// Files-on-the-Desktop tile + layer styles. `filemtime` for the
 	// same reason as the recycle-bin / posts-window CSS: this file
 	// iterates faster than the plugin version, and a stale cache
@@ -194,6 +204,25 @@ function desktop_mode_register_assets() {
 	);
 	wp_set_script_translations(
 		'desktop-mode-posts-window',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-plugins-window` — small bundle for the native
+	// Plugins window. Lazy-loaded by the native-window sync the first
+	// time the window opens (via the dock-click swap when the user
+	// opts in); registers a render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-plugins']`.
+	$plugins_window_js = DESKTOP_MODE_DIR . 'assets/js/plugins-window' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-plugins-window',
+		DESKTOP_MODE_URL . 'assets/js/plugins-window' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $plugins_window_js ) ? (string) filemtime( $plugins_window_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-plugins-window',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);

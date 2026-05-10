@@ -145,6 +145,7 @@ export class OsSettings implements SettingsCtx {
 			nativePostsHiddenColumns: this.state.nativePostsHiddenColumns.slice(),
 			nativePagesEnabled: this.state.nativePagesEnabled,
 			nativeUsersEnabled: this.state.nativeUsersEnabled,
+			nativePluginsEnabled: this.state.nativePluginsEnabled,
 		};
 	}
 

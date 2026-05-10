@@ -148,6 +148,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.nativeUsersEnabled === 'boolean'
 				? parsed.nativeUsersEnabled
 				: DEFAULTS.nativeUsersEnabled,
+		nativePluginsEnabled:
+			typeof parsed.nativePluginsEnabled === 'boolean'
+				? parsed.nativePluginsEnabled
+				: DEFAULTS.nativePluginsEnabled,
 	};
 }
 

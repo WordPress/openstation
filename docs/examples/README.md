@@ -44,6 +44,7 @@ defined( 'ABSPATH' ) || exit;
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 - [Extend the Recycle Bin](./recycle-bin.md)
 - [Native Posts window — default-on, remap registry, hooks](./native-posts.md)
+- [Native Plugins window — Browse / Install / Reviews / Drag-to-dock](./plugins-window-extras.md)
 - [Window activity & the modem dot — `wp.desktop.fetch`, `Window.trackActivity`](./window-activity.md)
 - [Pulse a window's icon — `Window.requestAttention()`](./window-request-attention.md)
 - [Render a keyed list without losing clicks — `renderKeyedList()`](./keyed-list.md)
