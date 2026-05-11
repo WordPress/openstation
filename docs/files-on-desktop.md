@@ -412,6 +412,25 @@ all stripped from the document). Plugins observing the bus see
 `document` CustomEvents — `desktop-mode.drag.{start,move,enter,leave,
 rejected,commit,cancel,end}`.
 
+Visual feedback *(strengthened in 0.20.0)*: while a drag is in
+flight the manager sets three attributes on `document.body` so
+shell CSS can coordinate without each surface having to subscribe
+to the CustomEvents:
+
+- `data-desktop-mode-dragging` *(empty value)* — present iff a drag
+  session is lifted.
+- `data-desktop-mode-drag-type` — the `payload.type` slug (e.g.
+  `'shortcut'`, `'desktop-file'`, plugin-defined).
+- `data-desktop-mode-drag-mode` — `'accept'` when the cursor is over
+  an accepting drop target, `'reject'` over a rejecting region,
+  `'neutral'` after the lift before the first hover transition.
+
+In parallel, the framework paints a small "Drop here" / "Can't drop
+here" chip next to the cursor (`.desktop-mode-drag-hint`). Default
+labels are picked from `payload.type`; pass `payload.ghost.hint =
+{ accept, reject, neutral }` to customise (or `{ hidden: true }`
+to opt out for plugin-defined gestures that prefer no chip).
+
 For desktop-files specifically, the FilesLayer registers two drop
 targets:
 

@@ -59,20 +59,33 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'restRoot', $entry['config'] );
 		$this->assertArrayHasKey( 'restNonce', $entry['config'] );
 		$this->assertArrayHasKey( 'editPostUrlBase', $entry['config'] );
+		$this->assertArrayHasKey( 'editUserUrlBase', $entry['config'] );
 		$this->assertSame( 'none', $entry['placement'] );
 	}
 
 	/**
-	 * Phase 1 ships only Posts and Pages. Filter is the planned
-	 * extension point.
+	 * Default entities are Posts, Pages, and Users; the filter is
+	 * the extension point for additional kinds.
 	 *
 	 * @covers ::desktop_mode_my_wordpress_entities
 	 */
-	public function test_default_entities_are_posts_and_pages() {
+	public function test_default_entities_are_posts_pages_and_users() {
 		$entities = desktop_mode_my_wordpress_entities();
 		$ids      = wp_list_pluck( $entities, 'id' );
 		$this->assertContains( 'posts', $ids );
 		$this->assertContains( 'pages', $ids );
+		$this->assertContains( 'users', $ids );
+
+		// Users entity declares `kind: 'user'` so the bundle picks
+		// the user-shaped render path.
+		$by_id = array();
+		foreach ( $entities as $e ) {
+			$by_id[ $e['id'] ] = $e;
+		}
+		$this->assertSame( 'user', $by_id['users']['kind'] );
+		$this->assertSame( 'post', $by_id['posts']['kind'] );
+		$this->assertSame( 'post', $by_id['pages']['kind'] );
+		$this->assertSame( 'wp/v2/users', $by_id['users']['restPath'] );
 	}
 
 	/**

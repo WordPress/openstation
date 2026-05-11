@@ -16,6 +16,68 @@ body.desktop-mode-active {
 }
 
 /*
+ * Cursor policy — default arrow everywhere in desktop mode.
+ *
+ * Per user preference (since 0.20.0): no hand/pointer/grab/grabbing/
+ * copy/no-drop cursors on icons, tiles, dock items, dock peek,
+ * window chrome, or any other clickable surface. The default arrow
+ * is the only "neutral" cursor we render.
+ *
+ * Exceptions:
+ *   - Window + widget resize handles keep their direction-specific
+ *     cursors (ns-resize, ew-resize, nesw-resize, nwse-resize) —
+ *     they're a functional cue, not a hover affordance, and removing
+ *     them would make corner-grabs guesswork.
+ *   - Text inputs / textareas / contenteditable surfaces keep the
+ *     browser-default I-beam.
+ *
+ * `!important` is needed because the specific `cursor: pointer` and
+ * drag-state declarations elsewhere in the codebase have the same or
+ * higher specificity. The resize-handle exceptions use `!important`
+ * for the same reason.
+ *
+ * Shadow-DOM web components (`wpd-*`) define their own cursors
+ * inside their shadow trees; those internal rules win regardless of
+ * what we set on the host. Anything visible on the desktop shell
+ * (light DOM) is covered by this policy.
+ */
+body.desktop-mode-active,
+body.desktop-mode-active * {
+	cursor: default !important;
+}
+
+body.desktop-mode-active input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+body.desktop-mode-active textarea,
+body.desktop-mode-active [contenteditable=""],
+body.desktop-mode-active [contenteditable="true"] {
+	cursor: text !important;
+}
+
+body.desktop-mode-active .desktop-mode-window__resize-handle--se,
+body.desktop-mode-active .desktop-mode-window__resize-handle--nw,
+body.desktop-mode-active .desktop-mode-widgets__resize--se,
+body.desktop-mode-active .desktop-mode-widgets__resize--nw {
+	cursor: nwse-resize !important;
+}
+
+body.desktop-mode-active .desktop-mode-window__resize-handle--sw,
+body.desktop-mode-active .desktop-mode-window__resize-handle--ne,
+body.desktop-mode-active .desktop-mode-widgets__resize--sw,
+body.desktop-mode-active .desktop-mode-widgets__resize--ne {
+	cursor: nesw-resize !important;
+}
+
+body.desktop-mode-active .desktop-mode-widgets__resize--n,
+body.desktop-mode-active .desktop-mode-widgets__resize--s {
+	cursor: ns-resize !important;
+}
+
+body.desktop-mode-active .desktop-mode-widgets__resize--e,
+body.desktop-mode-active .desktop-mode-widgets__resize--w {
+	cursor: ew-resize !important;
+}
+
+/*
  * Hide the classic admin chrome while the shell is active.
  *
  * The markup still exists in the DOM so server-side action hooks that

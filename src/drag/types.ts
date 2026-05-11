@@ -58,6 +58,28 @@ export interface GhostConfig {
 	/** Pointer-to-ghost-origin offset, in CSS px. */
 	offsetX: number;
 	offsetY: number;
+	/**
+	 * Optional "Drop here" / "Can't drop here" chip floated next to
+	 * the ghost — gives the user an explicit textual confirmation of
+	 * whether the current hover region accepts the payload, on top of
+	 * the cursor + colored-outline cues. Defaults to sensible
+	 * messages for the framework payload types (`'shortcut'` /
+	 * `'desktop-file'`); pass `hidden: true` to opt out.
+	 *
+	 * @since 0.20.0
+	 */
+	hint?: GhostHintConfig;
+}
+
+export interface GhostHintConfig {
+	/** Suppress the chip entirely. Defaults to false. */
+	hidden?: boolean;
+	/** Label when the cursor is over an accepting drop target. */
+	accept?: string;
+	/** Label when over a rejecting / non-target region. */
+	reject?: string;
+	/** Label before the cursor has entered any target (idle state). */
+	neutral?: string;
 }
 
 /** Reasons a drag session can end without committing a drop. */

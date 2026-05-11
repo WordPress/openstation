@@ -16,6 +16,9 @@ import type {
 	ListResult,
 	MyWordPressConfig,
 	MyWordPressEntity,
+	UserFootprint,
+	UserListItem,
+	UserListResult,
 } from './types';
 
 declare global {
@@ -179,6 +182,15 @@ async function readErrorMessage(
  * page 1 with `per_page=1` and reads `X-WP-Total` off the response.
  * One round-trip, smallest possible payload (a single id field).
  *
+ * Per-kind tweaks:
+ *
+ *   - `post`-shaped collections include drafts/pending/private in
+ *     the count by passing `status=publish,future,…`.
+ *   - `user`-shaped collections skip `status` (rejected as 400 by
+ *     `/wp/v2/users`) and add `who=authors` as a fallback when the
+ *     viewer doesn't have `list_users` — that's the only way to
+ *     get a non-empty total for non-admin viewers.
+ *
  * @public
  * @since 0.8.0
  */
@@ -186,20 +198,33 @@ export async function fetchEntityTotal(
 	entity: MyWordPressEntity,
 ): Promise< number > {
 	const cfg = getConfig();
-	const url = new URL( buildUrl( entity.restPath ) );
-	url.searchParams.set( 'page', '1' );
-	url.searchParams.set( 'per_page', '1' );
-	url.searchParams.set( '_fields', 'id' );
-	url.searchParams.set( 'status', 'publish,future,draft,pending,private' );
+	const buildRequestUrl = ( withWho: boolean ): string => {
+		const url = new URL( buildUrl( entity.restPath ) );
+		url.searchParams.set( 'page', '1' );
+		url.searchParams.set( 'per_page', '1' );
+		url.searchParams.set( '_fields', 'id' );
+		if ( entity.kind !== 'user' ) {
+			url.searchParams.set( 'status', 'publish,future,draft,pending,private' );
+		} else if ( withWho ) {
+			url.searchParams.set( 'who', 'authors' );
+		}
+		return url.toString();
+	};
 
-	const response = await shellFetch( url.toString(), {
-		method: 'GET',
-		credentials: 'same-origin',
-		headers: {
-			'X-WP-Nonce': cfg.restNonce,
-			Accept: 'application/json',
-		},
-	} );
+	const send = ( target: string ): Promise< Response > =>
+		shellFetch( target, {
+			method: 'GET',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': cfg.restNonce,
+				Accept: 'application/json',
+			},
+		} );
+
+	let response = await send( buildRequestUrl( false ) );
+	if ( response.status === 403 && entity.kind === 'user' ) {
+		response = await send( buildRequestUrl( true ) );
+	}
 	if ( ! response.ok ) {
 		throw new Error( await readErrorMessage( response, 'Failed to count' ) );
 	}
@@ -208,6 +233,109 @@ export async function fetchEntityTotal(
 	const raw = response.headers.get( 'X-WP-Total' );
 	const n = raw ? Number( raw ) : NaN;
 	return Number.isFinite( n ) ? n : 0;
+}
+
+/**
+ * Paged fetch of `/wp/v2/users` rows with the `desktop_mode_summary`
+ * REST field pulled in. Pagination via `X-WP-Total` / `X-WP-TotalPages`
+ * matches the post list shape.
+ *
+ * The endpoint has two distinct access modes:
+ *
+ *   - `context=edit` — returns role + registration data, requires
+ *     `list_users` (admins). 403 for everyone else.
+ *   - `who=authors`  — returns only users who have authored a post,
+ *     without `list_users` (open to authors / editors / etc.). The
+ *     accepted enum for `who` is `'authors'` only; passing any
+ *     other value (including `'all'`) yields a 400.
+ *
+ * We try `context=edit` first and fall back to `who=authors` on a
+ * 403. The `desktop_mode_summary` REST field gates its own private
+ * bits internally, so the fall-through doesn't leak data.
+ *
+ * @public
+ * @since 0.20.0
+ */
+export async function fetchUserList(
+	entity: MyWordPressEntity,
+	params: { page: number; perPage: number },
+): Promise< UserListResult > {
+	const cfg = getConfig();
+	const buildRequestUrl = ( mode: 'edit' | 'authors' ): string => {
+		const url = new URL( buildUrl( entity.restPath ) );
+		url.searchParams.set( 'page', String( params.page ) );
+		url.searchParams.set( 'per_page', String( params.perPage ) );
+		url.searchParams.set(
+			'_fields',
+			'id,name,slug,description,link,avatar_urls,desktop_mode_summary',
+		);
+		url.searchParams.set( 'orderby', 'name' );
+		url.searchParams.set( 'order', 'asc' );
+		if ( mode === 'edit' ) {
+			url.searchParams.set( 'context', 'edit' );
+		} else {
+			url.searchParams.set( 'who', 'authors' );
+		}
+		return url.toString();
+	};
+
+	const send = ( target: string ): Promise< Response > =>
+		shellFetch( target, {
+			method: 'GET',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': cfg.restNonce,
+				Accept: 'application/json',
+			},
+		} );
+
+	let response = await send( buildRequestUrl( 'edit' ) );
+	if ( response.status === 403 ) {
+		response = await send( buildRequestUrl( 'authors' ) );
+	}
+
+	if ( ! response.ok ) {
+		throw new Error( await readErrorMessage( response, 'Failed to load users' ) );
+	}
+
+	const items = ( await response.json() ) as UserListItem[];
+	const total = Number( response.headers.get( 'X-WP-Total' ) ?? items.length );
+	const totalPages = Number(
+		response.headers.get( 'X-WP-TotalPages' ) ?? 1,
+	);
+	return { items, total, totalPages };
+}
+
+/**
+ * Fetch the per-user footprint payload that powers the right-click
+ * "View activity footprint" surface. Single round-trip to
+ * `/desktop-mode/v1/user-footprint/<id>`.
+ *
+ * @public
+ * @since 0.20.0
+ */
+export function fetchUserFootprint(
+	userId: number,
+): Promise< UserFootprint > {
+	return getJson< UserFootprint >(
+		buildUrl( `desktop-mode/v1/user-footprint/${ userId }` ),
+	);
+}
+
+/**
+ * Build the classic admin URL for editing a specific user. Used as
+ * a fallback when the `desktop-mode-user-edit` native window isn't
+ * registered (legacy / disabled sites). Mirrors `buildEditUrl()`
+ * for posts.
+ *
+ * @public
+ * @since 0.20.0
+ */
+export function buildEditUserUrl( id: number ): string {
+	const cfg = getConfig();
+	const base = cfg.editUserUrlBase || cfg.editPostUrlBase;
+	const sep = base.includes( '?' ) ? '&' : '?';
+	return `${ base }${ sep }user_id=${ encodeURIComponent( String( id ) ) }`;
 }
 
 export function buildEditUrl( id: number ): string {

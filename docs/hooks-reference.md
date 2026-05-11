@@ -1957,7 +1957,7 @@ Fires after the upload-AJAX handler installs a plugin from an uploaded .zip. `$p
 
 ## My WordPress (since 0.8.0)
 
-A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Phase 1 ships Posts and Pages; the entity list is filterable so plugin authors can extend it without forking the bundle.
+A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Ships with Posts, Pages, and (since 0.20.0) Users. The entity list is filterable so plugin authors can extend it without forking the bundle.
 
 ### `desktop_mode_my_wordpress_user_can_use` — Experimental (filter)
 
@@ -1983,12 +1983,29 @@ The list of entity types rendered as folder tiles in the window's root view. Eac
 - `label` — human-readable folder name.
 - `icon` — Dashicons class.
 - `restPath` — appended to `restRoot` (e.g. `wp/v2/posts`, `wp/v2/comments`).
+- `kind` *(optional, since 0.20.0)* — `'post'` (default for back-compat) or `'user'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface. Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`.
 
-Phase 1 ships only `posts` and `pages`. The filter exists today so a plugin author can pre-stage Comments / Users / Tags / Categories without waiting for Phase 2 to land — the bundle treats every entry uniformly.
+Defaults ship `posts`, `pages`, and `users`. Plugins can pre-stage Comments / Tags / Categories without waiting for new code in this module — the bundle treats every entry uniformly.
 
 ### `desktop_mode_my_wordpress_template_html` — Experimental (filter)
 
 The static template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-my-wordpress-*` data hooks intact so the JS bundle can find its mount points.
+
+### `desktop_mode_my_wordpress_user_stats` — Experimental (filter, since 0.8.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_user_stats', array $payload, int $user_id ): array
+```
+
+The aggregated per-user dossier payload returned by `GET /desktop-mode/v1/user-stats/<id>` — drives the right-pane preview for a selected user (Author / Contributors sub-folders, and the Users folder root). Plugins can drop additional sections (badges, milestones, contribution streaks) without forking the JS render.
+
+### `desktop_mode_my_wordpress_user_footprint` — Experimental (filter, since 0.20.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_user_footprint', array $payload, int $user_id ): array
+```
+
+The per-user activity-footprint payload returned by `GET /desktop-mode/v1/user-footprint/<id>` — drives the full-body "View activity footprint" surface (right-click on a user tile → footprint). Carries a year of day-by-day activity, weekday + hour-of-day distribution, streak math, recent-events timeline, and totals. Plugins can extend the timeline with their own activity rows (deploys, badges earned, etc.) or replace the streak math with a domain-specific definition.
 
 ---
 

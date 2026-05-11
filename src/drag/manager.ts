@@ -53,6 +53,19 @@ const TARGET_DROP_ACTIVE_CLASS = 'desktop-mode-file-tile--drop-target';
 const TRASH_DROP_ACTIVE_ATTR = 'data-desktop-mode-trash-drop-active';
 const FILES_DROP_ACTIVE_ATTR = 'data-files-drop-active';
 
+/**
+ * Body-level attributes set by the manager while a drag is in flight.
+ * CSS rules across the shell react to these to render coordinated
+ * visual cues (animated outline on the wallpaper, pulse on accepting
+ * folder tiles, etc.) without each surface having to subscribe to the
+ * DragManager's CustomEvents.
+ *
+ * @since 0.20.0
+ */
+const BODY_DRAGGING_ATTR = 'data-desktop-mode-dragging';
+const BODY_DRAG_TYPE_ATTR = 'data-desktop-mode-drag-type';
+const BODY_DRAG_MODE_ATTR = 'data-desktop-mode-drag-mode';
+
 interface InternalSession extends DragSession {
 	_origin: PointerEvent;
 	_pointerId: number;
@@ -215,6 +228,18 @@ export class DragManager implements DragManagerApi {
 		session._lifted = true;
 		session.payload.source.classList.add( SOURCE_DRAGGING_CLASS );
 		session._ghost = mountGhost( session.payload, e.clientX, e.clientY );
+		// Body-level coordination — sets the shell-wide attributes
+		// every other surface can react to. `_updateHover` will flip
+		// the mode attribute as the cursor moves; the cleanup path
+		// scrubs all three.
+		if ( typeof document !== 'undefined' && document.body ) {
+			document.body.setAttribute( BODY_DRAGGING_ATTR, '' );
+			document.body.setAttribute(
+				BODY_DRAG_TYPE_ATTR,
+				String( session.payload.type ),
+			);
+			document.body.setAttribute( BODY_DRAG_MODE_ATTR, 'neutral' );
+		}
 		dispatchOnDocument( DRAG_EVENTS.START, { payload: session.payload } );
 	}
 
@@ -257,19 +282,26 @@ export class DragManager implements DragManagerApi {
 		}
 		session._currentTarget = next.target;
 		session._currentAccepted = next.accepted;
+		let mode: 'accept' | 'reject';
 		if ( next.target ) {
 			if ( next.accepted ) {
 				fireEnter( next.target, session );
 				session._ghost?.setMode( 'accept' );
+				mode = 'accept';
 			} else {
 				session._ghost?.setMode( 'reject' );
 				dispatchOnDocument( DRAG_EVENTS.REJECTED, {
 					payload: session.payload,
 					targetId: next.target.id,
 				} );
+				mode = 'reject';
 			}
 		} else {
 			session._ghost?.setMode( 'reject' );
+			mode = 'reject';
+		}
+		if ( typeof document !== 'undefined' && document.body ) {
+			document.body.setAttribute( BODY_DRAG_MODE_ATTR, mode );
 		}
 	}
 
@@ -345,6 +377,15 @@ export class DragManager implements DragManagerApi {
 		session._ghost = null;
 		session._currentTarget = null;
 		session._currentAccepted = false;
+		// Drop the shell-wide attributes that drive coordinated drop
+		// affordances. Other surfaces watch these via CSS attribute
+		// selectors; leaving them set would freeze every drop indicator
+		// in the "in-flight" state after the drag ended.
+		if ( typeof document !== 'undefined' && document.body ) {
+			document.body.removeAttribute( BODY_DRAGGING_ATTR );
+			document.body.removeAttribute( BODY_DRAG_TYPE_ATTR );
+			document.body.removeAttribute( BODY_DRAG_MODE_ATTR );
+		}
 		// Belt-and-braces: scrub any stale drop-active markers anywhere
 		// in the document. Targets that misbehave by leaving these on
 		// (e.g. a plugin whose onLeave threw) shouldn't pollute the
