@@ -46,16 +46,19 @@ import {
 	type PixiNamespace,
 	type PixiText,
 } from './pixi-types';
-import { ForceSim } from './sim';
+import { ForceSim, type ClusterMembership } from './sim';
 import {
 	SatelliteLayer,
 	type SatelliteOnClick,
 	type PostTypeIconLookup,
 } from './satellites';
 import type {
+	EdgeKind,
+	EdgeKindDescriptor,
 	GraphEdge,
 	GraphNode,
 	GraphPayload,
+	LensId,
 	PostDetail,
 	PostTypeDescriptor,
 } from './types';
@@ -65,6 +68,85 @@ const NODE_FILL_FOCUS = 0x2c6be5;
 const NODE_FILL_NEIGHBOUR = 0x4f8bf3;
 const EDGE_BASE = 0x9aa6b6;
 const EDGE_HOT = 0x2c6be5;
+
+/**
+ * Sentinel cluster key used by `setClusterTaxonomy()` for nodes with
+ * no in-scope memberships in the active clustering taxonomy. Mirrors
+ * the corresponding constant used by `ForceSim`'s attractor force.
+ *
+ * @since 0.9.0
+ */
+const UNCATEGORIZED_KEY = '__uncategorized__';
+
+/**
+ * Per-lens config. Constellation keeps today's force-directed layout
+ * with no clustering; Galaxy adds the cluster attractor and applies
+ * bridge highlighting to edges. Future lenses (Sitemap, Timeline)
+ * drop in by adding a third entry.
+ *
+ * @since 0.9.0
+ */
+interface LensConfig {
+	id: LensId;
+	attractorStrength: number;
+	showClusterLabels: boolean;
+	bridgeHighlighting: boolean;
+	intraDimAlpha: number;
+}
+
+const LENSES: Record< LensId, LensConfig > = {
+	constellation: {
+		id: 'constellation',
+		attractorStrength: 0,
+		showClusterLabels: false,
+		bridgeHighlighting: false,
+		intraDimAlpha: 0.18,
+	},
+	galaxy: {
+		id: 'galaxy',
+		attractorStrength: 0.04,
+		showClusterLabels: true,
+		bridgeHighlighting: true,
+		intraDimAlpha: 0.06,
+	},
+};
+
+/**
+ * Default per-edge-kind visual palette. Mirrors what the server emits
+ * via `desktop_mode_content_graph_edge_kind_descriptors()` so the
+ * scene can render before the orchestrator hands over the
+ * server-provided palette.
+ *
+ * @since 0.9.0
+ */
+const DEFAULT_EDGE_PALETTE: Record< EdgeKind, { color: number; weight: number } > = {
+	link: { color: EDGE_BASE, weight: 0.7 },
+	co_tag: { color: 0x2c6be5, weight: 0.7 },
+	co_author: { color: 0x7c3aed, weight: 0.7 },
+	hierarchy: { color: 0x059669, weight: 0.7 },
+	menu: { color: 0xd97706, weight: 0.7 },
+};
+
+function paletteFromDescriptors(
+	descriptors: EdgeKindDescriptor[] | undefined,
+): Record< EdgeKind, { color: number; weight: number } > {
+	if ( ! descriptors || descriptors.length === 0 ) {
+		return DEFAULT_EDGE_PALETTE;
+	}
+	const out: Record< EdgeKind, { color: number; weight: number } > = {
+		...DEFAULT_EDGE_PALETTE,
+	};
+	for ( const d of descriptors ) {
+		// Color comes in as a CSS hex string ("#rrggbb") from PHP; parse to int.
+		let color = DEFAULT_EDGE_PALETTE[ d.slug ].color;
+		const m = /^#([0-9a-f]{6})$/i.exec( d.color );
+		if ( m ) {
+			color = parseInt( m[ 1 ], 16 );
+		}
+		out[ d.slug ] = { color, weight: d.weight };
+	}
+	return out;
+}
 
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
@@ -100,10 +182,12 @@ export class GraphScene {
 	private world!: PixiContainer;
 	private edgeLayer!: PixiContainer;
 	private nodeLayer!: PixiContainer;
+	private clusterLabelLayer!: PixiContainer;
 	private labelLayer!: PixiContainer;
 	private satellites: SatelliteLayer | null = null;
 	private nodeViews = new Map< number, NodeView >();
 	private edgeViews: EdgeView[] = [];
+	private clusterLabels = new Map< string, PixiText >();
 	private nodes: GraphNode[] = [];
 	private edges: GraphEdge[] = [];
 	private sim: ForceSim | null = null;
@@ -129,6 +213,22 @@ export class GraphScene {
 	private callbacks: SceneCallbacks;
 	private onSatelliteClick: SatelliteOnClick;
 	private postTypeIcon: PostTypeIconLookup;
+	// Lens state.
+	private activeLens: LensConfig = LENSES.constellation;
+	private visibleEdgeKinds: Set< EdgeKind > = new Set( [ 'link' ] );
+	private clusterTaxonomy: string | null = null;
+	private clusterMembership: ClusterMembership | null = null;
+	private edgePalette: Record< EdgeKind, { color: number; weight: number } > =
+		DEFAULT_EDGE_PALETTE;
+	/**
+	 * Optional override for cluster-label rendering. Receives the
+	 * cluster key (`<taxonomy>:<term_id>` or `__uncategorized__`) and
+	 * the live member count, returns the user-facing label string.
+	 * When unset, labels default to `#<term_id> (count)` form.
+	 *
+	 * @since 0.9.0
+	 */
+	private clusterLabelLookup: ( ( key: string, count: number ) => string ) | null = null;
 
 	constructor(
 		host: HTMLElement,
@@ -196,8 +296,14 @@ export class GraphScene {
 
 		this.edgeLayer = new pixi.Container();
 		this.nodeLayer = new pixi.Container();
+		this.clusterLabelLayer = new pixi.Container();
 		this.labelLayer = new pixi.Container();
-		this.world.addChild( this.edgeLayer, this.nodeLayer, this.labelLayer );
+		this.world.addChild(
+			this.edgeLayer,
+			this.nodeLayer,
+			this.clusterLabelLayer,
+			this.labelLayer,
+		);
 
 		this.satellites = new SatelliteLayer(
 			pixi,
@@ -222,6 +328,12 @@ export class GraphScene {
 		for ( const n of this.nodes ) {
 			prev.set( n.id, n );
 		}
+		// Snapshot the focused id BEFORE we rebuild so we can carry
+		// it forward when the focused node still exists in the new
+		// payload (feasibility-2 fix). Camera target is left untouched
+		// across rebuilds; loadGraph()'s lens-switch path explicitly
+		// avoids fitToView()/clearFocus() so this state persists.
+		const previouslyFocusedId = this.focusedId;
 
 		const nodes: GraphNode[] = payload.nodes.map( ( p ) => {
 			const old = prev.get( p.id );
@@ -262,8 +374,147 @@ export class GraphScene {
 		this.nodes = nodes;
 		this.edges = edges;
 		this.rebuildSprites();
-		this.sim = new ForceSim( nodes, edges );
+		this.sim = new ForceSim( nodes, edges, {
+			...this.sim?.opts,
+			repulsion: 26000,
+			springK: 0.04,
+			springLen: 200,
+			gravity: 0.0035,
+			damping: 0.86,
+			attractorStrength: this.activeLens.attractorStrength,
+		} );
+		// Re-apply current cluster membership so the new node set
+		// inherits the active Galaxy clustering without an explicit
+		// setClusterTaxonomy() round-trip from the orchestrator.
+		if ( this.clusterTaxonomy ) {
+			this.recomputeClusterMembership();
+		}
 		this.sim.reheat( 0.15, false );
+
+		// Carry forward focus when the focused node survived the
+		// rebuild. If it didn't, clear focus — but DO NOT call
+		// fitToView(), the camera target stays where the user left it.
+		if (
+			previouslyFocusedId !== null &&
+			byId.has( previouslyFocusedId )
+		) {
+			const view = this.nodeViews.get( previouslyFocusedId );
+			if ( view ) {
+				view.node.pinned = true;
+				this.focusedId = previouslyFocusedId;
+			} else {
+				this.focusedId = null;
+			}
+		} else {
+			this.focusedId = null;
+			this.satellites?.clear();
+		}
+	}
+
+	/**
+	 * Switch the active lens. Mutates the sim's force config in
+	 * place; does NOT remount the Pixi Application or recreate the
+	 * scene graph. Camera target and focused-node state survive the
+	 * switch (per AE4).
+	 *
+	 * @since 0.9.0
+	 */
+	setLens( lensId: LensId ): void {
+		const lens = LENSES[ lensId ];
+		if ( ! lens ) {
+			return;
+		}
+		this.activeLens = lens;
+		if ( this.sim ) {
+			this.sim.setForceConfig( {
+				attractorStrength: lens.attractorStrength,
+			} );
+			this.sim.setClusters(
+				lens.attractorStrength > 0 ? this.clusterMembership : null,
+			);
+			this.sim.reheat( 0.3, false );
+		}
+		this.draw();
+	}
+
+	/**
+	 * Set the taxonomy that drives Galaxy clustering. Recomputes
+	 * per-node membership from the current node set's `terms` field
+	 * and pushes the new map into the sim if Galaxy is active.
+	 *
+	 * @since 0.9.0
+	 */
+	setClusterTaxonomy( taxonomySlug: string | null ): void {
+		this.clusterTaxonomy = taxonomySlug;
+		if ( ! taxonomySlug ) {
+			this.clusterMembership = null;
+		} else {
+			this.recomputeClusterMembership();
+		}
+		if ( this.sim ) {
+			this.sim.setClusters(
+				this.activeLens.attractorStrength > 0
+					? this.clusterMembership
+					: null,
+			);
+			this.sim.reheat( 0.3, false );
+		}
+	}
+
+	/**
+	 * Replace the visible-edge-kinds set. Pure rendering-only state;
+	 * does not refetch.
+	 *
+	 * @since 0.9.0
+	 */
+	setVisibleEdgeKinds( kinds: EdgeKind[] ): void {
+		this.visibleEdgeKinds = new Set( kinds );
+		this.draw();
+	}
+
+	/**
+	 * Override the per-edge-kind visual palette. Typically supplied
+	 * by the orchestrator from `cfg.edgeKinds` so the look-and-feel
+	 * is server-controllable.
+	 *
+	 * @since 0.9.0
+	 */
+	setEdgePalette( descriptors: EdgeKindDescriptor[] | undefined ): void {
+		this.edgePalette = paletteFromDescriptors( descriptors );
+		this.draw();
+	}
+
+	/**
+	 * Override the cluster-label formatter. Orchestrators can plug in
+	 * a lookup that maps cluster keys to human-readable term names.
+	 *
+	 * @since 0.9.0
+	 */
+	setClusterLabelLookup(
+		fn: ( ( key: string, count: number ) => string ) | null,
+	): void {
+		this.clusterLabelLookup = fn;
+	}
+
+	private recomputeClusterMembership(): void {
+		const tax = this.clusterTaxonomy;
+		if ( ! tax ) {
+			this.clusterMembership = null;
+			return;
+		}
+		const m: ClusterMembership = new Map();
+		for ( const n of this.nodes ) {
+			const ids = n.terms?.[ tax ];
+			if ( ids && ids.length > 0 ) {
+				m.set(
+					n.id,
+					ids.map( ( tid ) => `${ tax }:${ tid }` ),
+				);
+			} else {
+				m.set( n.id, [ UNCATEGORIZED_KEY ] );
+			}
+		}
+		this.clusterMembership = m;
 	}
 
 	private rebuildSprites(): void {
@@ -560,6 +811,7 @@ export class GraphScene {
 			this.world.y += dyc * k;
 		}
 		this.draw();
+		this.drawClusterLabels();
 		this.satellites?.drawLinks();
 	}
 
@@ -581,24 +833,60 @@ export class GraphScene {
 		}
 
 		const dimmed = focusId !== null;
+		const lens = this.activeLens;
+		const membership = this.clusterMembership;
 
 		for ( const v of this.edgeViews ) {
 			const { edge, gfx } = v;
 			gfx.clear();
+			// Hide edges of kinds the user has muted via the toolbar.
+			if ( ! this.visibleEdgeKinds.has( edge.kind ) ) {
+				continue;
+			}
 			const isFocusEdge =
 				focusId !== null &&
 				( edge.from.id === focusId || edge.to.id === focusId );
 			const isHoverEdge =
 				hoverId !== null &&
 				( edge.from.id === hoverId || edge.to.id === hoverId );
+
+			// Bridge highlighting (Galaxy only): edges whose endpoints
+			// share at least one cluster key fade to the lens's
+			// intra-cluster dim alpha; edges that cross clusters or
+			// reach into Uncategorized pop at full intensity. Focused
+			// satellites (the focused node's own edges) are exempt
+			// from fading so the existing satellite UX is unchanged.
+			let isIntraCluster = false;
+			if ( lens.bridgeHighlighting && membership && ! isFocusEdge ) {
+				const a = membership.get( edge.from.id );
+				const b = membership.get( edge.to.id );
+				if ( a && b ) {
+					for ( const k of a ) {
+						if ( b.includes( k ) ) {
+							isIntraCluster = true;
+							break;
+						}
+					}
+				}
+			}
+
 			let alpha: number;
 			if ( dimmed ) {
 				alpha = isFocusEdge ? 0.85 : 0.05;
+			} else if ( isIntraCluster ) {
+				alpha = lens.intraDimAlpha;
+			} else if ( isHoverEdge ) {
+				alpha = 0.7;
 			} else {
-				alpha = isHoverEdge ? 0.7 : 0.18;
+				alpha = 0.55;
 			}
-			const color = isFocusEdge || isHoverEdge ? EDGE_HOT : EDGE_BASE;
-			const width = isFocusEdge || isHoverEdge ? 1.2 : 0.7;
+
+			const palette = this.edgePalette[ edge.kind ];
+			const baseColor = palette ? palette.color : EDGE_BASE;
+			const baseWidth = palette ? palette.weight : 0.7;
+			const color =
+				isFocusEdge || isHoverEdge ? EDGE_HOT : baseColor;
+			const width = isFocusEdge || isHoverEdge ? 1.2 : baseWidth;
 			gfx.moveTo( edge.from.x, edge.from.y )
 				.lineTo( edge.to.x, edge.to.y )
 				.stroke( { color, width, alpha } );
@@ -652,6 +940,106 @@ export class GraphScene {
 			}
 			label.alpha = labelAlpha;
 		}
+	}
+
+	private drawClusterLabels(): void {
+		// Only Galaxy renders cluster labels.
+		if ( ! this.activeLens.showClusterLabels || ! this.clusterMembership || ! this.clusterTaxonomy ) {
+			// Clear any leftover labels from a prior lens.
+			if ( this.clusterLabels.size > 0 ) {
+				this.clusterLabelLayer.removeChildren();
+				this.clusterLabels.clear();
+			}
+			return;
+		}
+
+		// Compute live centroids + counts. Skip Uncategorized in the
+		// label set unless it actually has members; empty terms are
+		// hidden by default per R9.
+		const centroids = new Map<
+			string,
+			{ sx: number; sy: number; n: number }
+		>();
+		for ( const n of this.nodes ) {
+			const keys = this.clusterMembership.get( n.id );
+			if ( ! keys ) {
+				continue;
+			}
+			for ( const k of keys ) {
+				const c = centroids.get( k );
+				if ( c ) {
+					c.sx += n.x;
+					c.sy += n.y;
+					c.n += 1;
+				} else {
+					centroids.set( k, { sx: n.x, sy: n.y, n: 1 } );
+				}
+			}
+		}
+
+		// Reuse PixiText nodes by cluster key; create on first appearance,
+		// remove when a cluster has zero members in a subsequent tick.
+		const seen = new Set< string >();
+		const showLabels = this.world.scale.x > 0.6;
+		const inverseScale = 1 / this.world.scale.x;
+		for ( const [ key, c ] of centroids ) {
+			if ( c.n === 0 ) {
+				continue;
+			}
+			seen.add( key );
+			const cx = c.sx / c.n;
+			const cy = c.sy / c.n;
+			const labelText = this.formatClusterLabel( key, c.n );
+			let label = this.clusterLabels.get( key );
+			if ( ! label ) {
+				label = new this.pixi.Text( {
+					text: labelText,
+					style: {
+						fill: 0x111827,
+						fontSize: 12,
+						fontFamily:
+							'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+						fontWeight: '600',
+					},
+					resolution: 2,
+					anchor: { x: 0.5, y: 1 },
+				} );
+				this.clusterLabelLayer.addChild( label );
+				this.clusterLabels.set( key, label );
+			} else if ( label.text !== labelText ) {
+				label.text = labelText;
+			}
+			label.x = cx;
+			label.y = cy - 36;
+			label.scale.set( inverseScale );
+			label.alpha = showLabels ? 0.9 : 0;
+		}
+		// Tear down labels for clusters that disappeared this tick.
+		for ( const [ key, label ] of this.clusterLabels ) {
+			if ( ! seen.has( key ) ) {
+				this.clusterLabelLayer.removeChild( label );
+				try {
+					label.destroy();
+				} catch {
+					// ignore — Pixi sometimes throws on race during teardown.
+				}
+				this.clusterLabels.delete( key );
+			}
+		}
+	}
+
+	private formatClusterLabel( clusterKey: string, count: number ): string {
+		if ( this.clusterLabelLookup ) {
+			return this.clusterLabelLookup( clusterKey, count );
+		}
+		// Default fallback when no lookup is wired up. Cluster key is
+		// `<taxonomy>:<term_id>` (or sentinel `__uncategorized__`).
+		if ( clusterKey === UNCATEGORIZED_KEY ) {
+			return `Uncategorized (${ count })`;
+		}
+		const idx = clusterKey.lastIndexOf( ':' );
+		const tail = idx >= 0 ? clusterKey.slice( idx + 1 ) : clusterKey;
+		return `#${ tail } (${ count })`;
 	}
 
 	focusNode( id: number ): void {
