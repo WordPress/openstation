@@ -16,6 +16,7 @@ import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
 import { hashTitleToHue } from './ui/util/hash-hue';
 import { attachDockPeek } from './dock-peek';
+import { openItemVisibilityMenu } from './item-visibility-menu';
 import {
 	resolveNativeUrlRemap,
 	tryNativeUrlRemap,
@@ -239,6 +240,17 @@ export class Dock {
 	private hooksNamespace: string;
 
 	private static instanceCounter = 0;
+
+	/**
+	 * Module-wide "currently-running drag reset" handle. A drag attaches
+	 * its escape hatches (pointermove/up/cancel/blur/visibility) to
+	 * `document`. If the rail re-renders mid-drag (live menu refresh,
+	 * dispatcher refresh after a settings save), the dragged tile is
+	 * destroyed but its document listeners keep firing on detached DOM —
+	 * blocking the next drag. Every new tile's drag setup calls this
+	 * before attaching its own, guaranteeing only one drag is ever live.
+	 */
+	private static activeDragReset: ( () => void ) | null = null;
 
 	/**
 	 * Build the base context object every dock decoration hook
@@ -680,6 +692,15 @@ export class Dock {
 	 * reordered everything into one class).
 	 */
 	private render(): void {
+		// Cancel any in-flight drag — the dragged tile is about to be
+		// destroyed below. Without this its document-level listeners
+		// keep firing on detached DOM and block the next drag.
+		if ( Dock.activeDragReset ) {
+			const prev = Dock.activeDragReset;
+			Dock.activeDragReset = null;
+			prev();
+		}
+
 		// Tear down peeks from the previous render — each tile is about
 		// to be discarded, so its hover listeners would dangle on a
 		// detached node. Idempotent.
@@ -873,6 +894,20 @@ export class Dock {
 			this.openPage( item );
 		} );
 
+		// Right-click → visibility menu. Mounted on the tile (not the
+		// primary button) so a contextmenu inside the badge or the
+		// future submenu chevron still triggers it.
+		tile.addEventListener( 'contextmenu', ( ev: MouseEvent ) => {
+			ev.preventDefault();
+			openItemVisibilityMenu( {
+				x: ev.clientX,
+				y: ev.clientY,
+				id: item.id,
+				title: item.title,
+				surface: 'dock',
+			} );
+		} );
+
 		tile.appendChild( primary );
 
 		this.bindTooltipFiltered( tile, item.title, ctx );
@@ -939,10 +974,399 @@ export class Dock {
 		} );
 		this.peekTeardowns.set( item.id, teardown );
 
+		this.attachDragReorder( tile, item.id );
+
 		return applyFilters< HTMLElement >(
 			HOOKS.DOCK_TILE_ELEMENT,
 			tile,
 			ctx,
+		);
+	}
+
+	/**
+	 * Drag-to-reorder for menu tiles. Fixed slots — no interpolated
+	 * positioning. While dragging:
+	 *
+	 * 1. Pointer down on the primary button starts a tentative drag.
+	 *    Click handling is preserved by requiring movement past a
+	 *    small threshold before we claim the gesture.
+	 * 2. Once claimed, the tile gets a `--dragging` modifier so CSS
+	 *    can lift it visually. Every `pointermove` checks which other
+	 *    menu tile the cursor is currently over; if it's a different
+	 *    tile, we splice the dragged tile in front of it (so adjacent
+	 *    tiles slide into the vacated slot).
+	 * 3. On `pointerup` we read the resulting DOM order, persist the
+	 *    new id list to `dockOrder` via the public settings writer,
+	 *    and the layout-dispatcher subscriber re-applies. Cancellation
+	 *    (Escape, pointercancel) reverts to the original order.
+	 *
+	 * @since 0.25.0
+	 */
+	private attachDragReorder( tile: HTMLElement, itemId: string ): void {
+		const THRESHOLD = 5; // px the pointer must move before claiming.
+		const FLIP_MS = 200;
+		let active = false;
+		let startX = 0;
+		let startY = 0;
+		let originalOrder: string[] = [];
+		let originalNext: ChildNode | null = null;
+		let pointerId = -1;
+		let originRect: DOMRect | null = null;
+		let justDragged = false;
+		// Defensive guard: belt-and-braces cleanup if listeners are
+		// somehow detached without the gesture completing (browser
+		// hands the pointer to another consumer, devtools pause,
+		// a third-party event swallowed our pointerup). Without
+		// this, the tile stays stuck in `--dragging` and the user
+		// can't grab it again because subsequent pointerdowns think
+		// a gesture is already running.
+		const hardReset = (): void => {
+			active = false;
+			tile.classList.remove( 'desktop-mode-dock__item--dragging' );
+			tile.style.transform = '';
+			tile.style.transition = '';
+			document.removeEventListener( 'pointermove', onMove );
+			document.removeEventListener( 'pointerup', onUp );
+			document.removeEventListener( 'pointercancel', onCancel );
+			document.removeEventListener( 'keydown', onKey, true );
+			window.removeEventListener( 'blur', onBlur );
+			document.removeEventListener( 'visibilitychange', onVisibility );
+			pointerId = -1;
+			originRect = null;
+		};
+
+		const isMenuTile = ( el: Element | null ): el is HTMLElement => {
+			return (
+				!! el &&
+				el instanceof HTMLElement &&
+				el.classList.contains( 'desktop-mode-dock__item' ) &&
+				! el.classList.contains( 'desktop-mode-dock__item--system' ) &&
+				!! el.dataset.menuSlug
+			);
+		};
+
+		const eachSiblingTile = ( fn: ( el: HTMLElement ) => void ): void => {
+			for ( const child of Array.from( this.container.children ) ) {
+				if ( child instanceof HTMLElement && child !== tile && isMenuTile( child ) ) {
+					fn( child );
+				}
+			}
+		};
+
+		const snapshotMenuOrder = (): string[] => {
+			const ids: string[] = [];
+			for ( const child of Array.from( this.container.children ) ) {
+				if ( isMenuTile( child ) ) {
+					ids.push( child.dataset.menuSlug as string );
+				}
+			}
+			return ids;
+		};
+
+		/**
+		 * FLIP — animate siblings from their previous rect to their
+		 * new rect. Snapshot deltas, apply inverse transform with no
+		 * transition, then in the next frame remove the transform so
+		 * the transition CSS carries them home.
+		 */
+		const flipSiblings = (
+			prevRects: Map< Element, DOMRect >,
+		): void => {
+			eachSiblingTile( ( sib ) => {
+				const prev = prevRects.get( sib );
+				if ( ! prev ) {
+					return;
+				}
+				const now = sib.getBoundingClientRect();
+				const dx = prev.left - now.left;
+				const dy = prev.top - now.top;
+				if ( Math.abs( dx ) < 0.5 && Math.abs( dy ) < 0.5 ) {
+					return;
+				}
+				sib.style.transition = 'none';
+				sib.style.transform = `translate(${ dx }px, ${ dy }px)`;
+				// Force layout flush so the transform sticks before
+				// we remove it.
+				void sib.offsetHeight;
+				sib.style.transition = `transform ${ FLIP_MS }ms cubic-bezier(0.2, 0.7, 0.3, 1)`;
+				sib.style.transform = '';
+				const onEnd = (): void => {
+					sib.style.transition = '';
+					sib.style.transform = '';
+					sib.removeEventListener( 'transitionend', onEnd );
+				};
+				sib.addEventListener( 'transitionend', onEnd );
+			} );
+		};
+
+		const onMove = ( ev: PointerEvent ): void => {
+			// Filter to the pointer that initiated this gesture so a
+			// second touch / mouse doesn't accidentally drive it.
+			if ( pointerId !== -1 && ev.pointerId !== pointerId ) {
+				return;
+			}
+			if ( ! active ) {
+				const dx = ev.clientX - startX;
+				const dy = ev.clientY - startY;
+				if ( dx * dx + dy * dy < THRESHOLD * THRESHOLD ) {
+					return;
+				}
+				// Claim the gesture.
+				active = true;
+				originalOrder = snapshotMenuOrder();
+				originalNext = tile.nextSibling;
+				originRect = tile.getBoundingClientRect();
+				tile.classList.add( 'desktop-mode-dock__item--dragging' );
+				// Suppress the hover tooltip & peek for the duration.
+				this.tooltip.classList.remove(
+					'desktop-mode-dock__tooltip--visible',
+				);
+			}
+
+			if ( ! originRect ) {
+				return;
+			}
+
+			// Translate the dragged tile by the cursor delta from its
+			// initial press position so it follows the cursor.
+			const dx = ev.clientX - startX;
+			const dy = ev.clientY - startY;
+			tile.style.transform = `translate(${ dx }px, ${ dy }px)`;
+
+			// Hit-test for a sibling under the cursor. The dragged
+			// tile has CSS `pointer-events: none` so it never returns
+			// itself — the deepest non-dragged element wins.
+			const under = document.elementFromPoint( ev.clientX, ev.clientY );
+			const targetTile = under?.closest(
+				'.desktop-mode-dock__item',
+			) as HTMLElement | null;
+			if ( ! targetTile || targetTile === tile ) {
+				return;
+			}
+			if ( ! isMenuTile( targetTile ) ) {
+				return;
+			}
+
+			// Determine which half of the target the cursor is in.
+			// Bottom (horizontal) docks compare X; side (vertical) docks
+			// compare Y.
+			const rect = targetTile.getBoundingClientRect();
+			let insertBefore: boolean;
+			if ( this.orientation === 'bottom' ) {
+				insertBefore = ev.clientX < rect.left + rect.width / 2;
+			} else {
+				insertBefore = ev.clientY < rect.top + rect.height / 2;
+			}
+
+			// Snapshot the BEFORE rects of every non-dragged sibling so
+			// we can FLIP them once the DOM has been reordered.
+			const prevRects = new Map< Element, DOMRect >();
+			eachSiblingTile( ( sib ) => {
+				prevRects.set( sib, sib.getBoundingClientRect() );
+			} );
+
+			let reordered = false;
+			if ( insertBefore ) {
+				if ( targetTile !== tile.nextSibling ) {
+					this.container.insertBefore( tile, targetTile );
+					reordered = true;
+				}
+			} else if ( targetTile.nextSibling !== tile ) {
+				this.container.insertBefore( tile, targetTile.nextSibling );
+				reordered = true;
+			}
+
+			if ( reordered ) {
+				// The dragged tile's in-flow slot moved. Re-base the
+				// cursor anchor to the centre of the new slot so
+				// subsequent translates stay smooth — without this,
+				// the tile would jump by the slot-width on every
+				// swap. We measure with no transform applied so the
+				// rect reflects the true in-flow position.
+				tile.style.transform = '';
+				const fresh = tile.getBoundingClientRect();
+				startX = fresh.left + fresh.width / 2;
+				startY = fresh.top + fresh.height / 2;
+				tile.style.transform = `translate(${
+					ev.clientX - startX
+				}px, ${ ev.clientY - startY }px)`;
+				flipSiblings( prevRects );
+			}
+		};
+
+		const cleanup = (): void => {
+			tile.classList.remove( 'desktop-mode-dock__item--dragging' );
+			tile.style.transform = '';
+			tile.style.transition = '';
+			document.removeEventListener( 'pointermove', onMove );
+			document.removeEventListener( 'pointerup', onUp );
+			document.removeEventListener( 'pointercancel', onCancel );
+			document.removeEventListener( 'keydown', onKey, true );
+			window.removeEventListener( 'blur', onBlur );
+			document.removeEventListener( 'visibilitychange', onVisibility );
+			pointerId = -1;
+			originRect = null;
+			active = false;
+			if ( Dock.activeDragReset === hardReset ) {
+				Dock.activeDragReset = null;
+			}
+		};
+
+		const animateHome = (): void => {
+			// Snap the dragged tile back to its slot with the same
+			// curve the siblings used — covers the "no swap, user
+			// released" case AND the cancellation case.
+			tile.style.transition = `transform ${ FLIP_MS }ms cubic-bezier(0.2, 0.7, 0.3, 1)`;
+			tile.style.transform = '';
+			const onEnd = (): void => {
+				tile.style.transition = '';
+				tile.removeEventListener( 'transitionend', onEnd );
+			};
+			tile.addEventListener( 'transitionend', onEnd );
+		};
+
+		const persistDockOrder = ( finalOrder: string[] ): void => {
+			void itemId;
+			const api = (
+				window as unknown as {
+					wp?: {
+						desktop?: {
+							getOsSettings?: () => {
+								dockOrder: string[];
+							};
+							updateOsSettings?: ( patch: {
+								dockOrder?: string[];
+							} ) => void;
+						};
+					};
+				}
+			).wp?.desktop;
+			if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
+				return;
+			}
+			const existing = api.getOsSettings().dockOrder;
+			const finalSet = new Set( finalOrder );
+			const merged: string[] = [];
+			let injected = false;
+			for ( const id of existing ) {
+				if ( finalSet.has( id ) ) {
+					if ( ! injected ) {
+						merged.push( ...finalOrder );
+						injected = true;
+					}
+					continue;
+				}
+				merged.push( id );
+			}
+			if ( ! injected ) {
+				merged.push( ...finalOrder );
+			}
+			api.updateOsSettings( { dockOrder: merged } );
+		};
+
+		const onUp = ( ev: PointerEvent ): void => {
+			if ( pointerId !== -1 && ev.pointerId !== pointerId ) {
+				return;
+			}
+			if ( ! active ) {
+				cleanup();
+				return;
+			}
+			justDragged = true;
+			const finalOrder = snapshotMenuOrder();
+			animateHome();
+			cleanup();
+
+			const same =
+				finalOrder.length === originalOrder.length &&
+				finalOrder.every( ( id, i ) => id === originalOrder[ i ] );
+			if ( ! same ) {
+				persistDockOrder( finalOrder );
+			}
+			setTimeout( () => {
+				justDragged = false;
+			}, 200 );
+		};
+
+		const onCancel = ( ev?: PointerEvent ): void => {
+			if ( ev && pointerId !== -1 && ev.pointerId !== pointerId ) {
+				return;
+			}
+			if ( active && originalNext !== undefined ) {
+				const prevRects = new Map< Element, DOMRect >();
+				eachSiblingTile( ( sib ) => {
+					prevRects.set( sib, sib.getBoundingClientRect() );
+				} );
+				this.container.insertBefore( tile, originalNext );
+				flipSiblings( prevRects );
+			}
+			animateHome();
+			cleanup();
+		};
+
+		const onKey = ( ev: KeyboardEvent ): void => {
+			if ( ev.key === 'Escape' ) {
+				onCancel();
+			}
+		};
+
+		// Window/tab losing focus or visibility while a drag is in
+		// flight: cancel cleanly so the tile doesn't get stuck in
+		// `--dragging` when the user comes back. The browser may also
+		// silently drop the pointer capture in these cases.
+		const onBlur = (): void => onCancel();
+		const onVisibility = (): void => {
+			if ( document.visibilityState !== 'visible' ) {
+				onCancel();
+			}
+		};
+
+		tile.addEventListener( 'pointerdown', ( ev: PointerEvent ) => {
+			if ( ev.button !== 0 ) {
+				return;
+			}
+			// Cancel any in-flight drag from a previous tile that may
+			// have been orphaned by a rail rebuild. The module-wide
+			// handle calls the OWNER's hardReset, detaching its
+			// document-level listeners — without this, the orphan's
+			// listeners would race ours and the new gesture would
+			// look "stuck" because two parallel drags fight for the
+			// same pointer.
+			if ( Dock.activeDragReset ) {
+				const prev = Dock.activeDragReset;
+				Dock.activeDragReset = null;
+				prev();
+			}
+			// Also reset our own state in case this same tile's
+			// previous gesture didn't clean up.
+			if ( active || pointerId !== -1 ) {
+				hardReset();
+			}
+			startX = ev.clientX;
+			startY = ev.clientY;
+			pointerId = ev.pointerId;
+			active = false;
+			Dock.activeDragReset = hardReset;
+			document.addEventListener( 'pointermove', onMove );
+			document.addEventListener( 'pointerup', onUp );
+			document.addEventListener( 'pointercancel', onCancel );
+			document.addEventListener( 'keydown', onKey, true );
+			window.addEventListener( 'blur', onBlur );
+			document.addEventListener( 'visibilitychange', onVisibility );
+		} );
+
+		// Block the click that immediately follows a drag — without
+		// this, releasing the pointer on the dragged tile (or any
+		// tile, after a reorder) triggers the open-or-focus handler.
+		tile.addEventListener(
+			'click',
+			( ev: MouseEvent ) => {
+				if ( justDragged ) {
+					ev.preventDefault();
+					ev.stopImmediatePropagation();
+				}
+			},
+			true,
 		);
 	}
 
@@ -1257,6 +1681,51 @@ export class Dock {
 	 * only the destination changes.
 	 */
 	private openPage( item: DockItem ): void {
+		// Synthesized dock tiles (created from desktop icons promoted
+		// to the dock via the user's `itemVisibility` settings)
+		// carry id prefix `dock:<icon-id>`. Their native opener
+		// lives on the original `desktop_mode_register_icon` entry —
+		// `window` for a native-window target, `url` otherwise.
+		// Without this branch the click would derive a window id
+		// from an empty URL and silently no-op.
+		if ( item.id.startsWith( 'dock:' ) ) {
+			const iconId = item.id.slice( 5 );
+			const cfg = ( window as unknown as {
+				desktopModeConfig?: { desktopIcons?: Array< {
+					id: string;
+					window?: string;
+					url?: string;
+					title: string;
+					icon: string;
+				} > };
+			} ).desktopModeConfig;
+			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
+			if ( icon?.window ) {
+				const wp = ( window as unknown as {
+					wp?: { desktop?: { openWindow?: ( id: string ) => unknown } };
+				} ).wp?.desktop;
+				wp?.openWindow?.( icon.window );
+				return;
+			}
+			if ( icon?.url ) {
+				const baseId = this.deriveWindowId( icon.url );
+				this.windowManager.open( {
+					id: baseId,
+					baseId,
+					url: icon.url,
+					parentUrl: icon.url,
+					title: icon.title,
+					icon: icon.icon.startsWith( 'dashicons-' )
+						? icon.icon
+						: 'dashicons-admin-generic',
+					submenu: [],
+					multi: false,
+				} );
+				return;
+			}
+			return;
+		}
+
 		if ( tryNativeUrlRemap( item.url ) ) {
 			return;
 		}

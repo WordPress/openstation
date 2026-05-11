@@ -712,6 +712,52 @@ function isPinned( placement: RestPlacementShape ): boolean {
 }
 
 /**
+ * If `placement` is a synthesized shortcut from a dock-item the user
+ * promoted to the desktop (via OS Settings → Apps & Icons), return
+ * the source dock-item id. Returns `null` for real placements.
+ *
+ * Marker key matches the one written by
+ * `settings/desktop-shortcuts-sync.ts`.
+ */
+function readSynthSource( placement: RestPlacementShape ): string | null {
+	const meta = placement.meta;
+	if ( ! meta || typeof meta !== 'object' ) {
+		return null;
+	}
+	const v = ( meta as Record< string, unknown > ).__synthFromDockItem;
+	return typeof v === 'string' && v !== '' ? v : null;
+}
+
+/**
+ * Hide a dock item the user previously promoted onto the desktop.
+ * Mutates `OsSettingsState.itemVisibility[ dockItemId ]` to `'dock'`
+ * via the public API; the shortcuts-sync subscription removes the
+ * synthetic placement on the next tick.
+ */
+function hidePromotedDockItem( dockItemId: string ): void {
+	const api = (
+		window as unknown as {
+			wp?: {
+				desktop?: {
+					getOsSettings?: () => {
+						itemVisibility: Record< string, string >;
+					};
+					updateOsSettings?: ( patch: {
+						itemVisibility?: Record< string, string >;
+					} ) => void;
+				};
+			};
+		}
+	).wp?.desktop;
+	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
+		return;
+	}
+	const current = api.getOsSettings().itemVisibility ?? {};
+	const next = { ...current, [ dockItemId ]: 'dock' };
+	api.updateOsSettings( { itemVisibility: next } );
+}
+
+/**
  * Register a folder tile as a drop target. Folder tiles claim their
  * own hit-test region; the DragManager routes the drop here when the
  * cursor releases over a folder (the registry's deepest-match wins
@@ -1056,14 +1102,32 @@ function attachContextMenu(
 				onClick: () => trashFolderWithUndo( placement ),
 			} );
 		} else {
-			items.push( {
-				id: 'remove',
-				label: 'Move to Trash',
-				icon: 'dashicons-trash',
-				sort: 90,
-				danger: true,
-				onClick: () => trashPlacementWithUndo( placement ),
-			} );
+			// Synthetic shortcuts (dock items the user promoted to the
+			// desktop via OS Settings → Apps & Icons) aren't real
+			// placements — they're derived from the visibility map and
+			// live only in the in-memory store. Trashing one would
+			// hit a 404 on the REST endpoint. Replace the action with
+			// "Hide from desktop", which updates the visibility back
+			// to 'dock' and the sync module drops the synth tile.
+			const synthFromDockItem = readSynthSource( placement );
+			if ( synthFromDockItem ) {
+				items.push( {
+					id: 'hide-from-desktop',
+					label: 'Hide from desktop',
+					icon: 'dashicons-hidden',
+					sort: 90,
+					onClick: () => hidePromotedDockItem( synthFromDockItem ),
+				} );
+			} else {
+				items.push( {
+					id: 'remove',
+					label: 'Move to Trash',
+					icon: 'dashicons-trash',
+					sort: 90,
+					danger: true,
+					onClick: () => trashPlacementWithUndo( placement ),
+				} );
+			}
 		}
 		openTileMenu( { x: e.clientX, y: e.clientY }, { placement, items } );
 	} );

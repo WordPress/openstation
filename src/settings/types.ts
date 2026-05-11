@@ -175,7 +175,39 @@ export interface OsSettingsState {
 	 * @since 0.9.0
 	 */
 	nativePluginsEnabled: boolean;
+	/**
+	 * Per-item placement preference. Maps an item id (dock-item slug or
+	 * registered desktop-icon id) to one of:
+	 *   - `'both'`    — show on both dock and desktop.
+	 *   - `'dock'`    — show only on the dock.
+	 *   - `'desktop'` — show only on the wallpaper.
+	 *   - `'hidden'`  — hide from every shell surface.
+	 *
+	 * Missing keys mean "no override" — items use whichever rail they
+	 * natively live on. The `'both'` value is never persisted (the
+	 * server drops it on save) so the map stays compact.
+	 *
+	 * @since 0.25.0
+	 */
+	itemVisibility: Record< string, ItemVisibility >;
+	/**
+	 * User-defined dock ordering. Ordered list of item ids. Ids not in
+	 * the list keep their server-supplied position and render appended
+	 * after the listed ones. Unknown ids (deactivated plugin) survive
+	 * the round-trip in case the plugin comes back.
+	 *
+	 * @since 0.25.0
+	 */
+	dockOrder: string[];
 }
+
+/**
+ * Allowed values for {@link OsSettingsState.itemVisibility}. See the
+ * field docblock for semantics.
+ *
+ * @since 0.25.0
+ */
+export type ItemVisibility = 'both' | 'dock' | 'desktop' | 'hidden';
 
 /**
  * Subset of the REST media item we actually use. `_fields` on the

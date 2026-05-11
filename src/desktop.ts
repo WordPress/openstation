@@ -146,6 +146,10 @@ import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
 import { trackedFetch } from './boot/tracked-fetch';
 import { buildPublicApi, installPublicApi } from './api/facade';
 import { setCurrentLayout } from './layout';
+import {
+	installShortcutsSync,
+	syncShortcutsWithVisibility,
+} from './settings/desktop-shortcuts-sync';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
 // boot-time consumer reaches the same captured value — see the import
@@ -1886,6 +1890,13 @@ function init(): void {
 				windowManager: manager,
 				adminUrl: config.adminUrl,
 				renderIcons,
+				getSettings: () => {
+					const snap = osSettings.getOsSettingsSnapshot();
+					return {
+						itemVisibility: snap.itemVisibility,
+						dockOrder: snap.dockOrder,
+					};
+				},
 			},
 			initialLayout,
 			config.dockItems,
@@ -2565,15 +2576,39 @@ function init(): void {
 		if ( ! layoutDispatcher ) {
 			return;
 		}
+		const prevLayout = layoutDispatcher.getLayout();
 		layoutDispatcher.setLayout( snapshot.desktopLayout );
 		desktopApi.dock = layoutDispatcher.getPrimary();
 		desktopApi.sideDock = layoutDispatcher.getSide();
 		desktopApi.desktopLayout = snapshot.desktopLayout;
+		// Always re-apply per-item placement on every settings save.
+		// `setLayout` already rebuilt from scratch when the layout
+		// itself changed (and reads the latest settings while doing
+		// so), so we skip the explicit refresh in that case to avoid
+		// double-rendering. Otherwise, refresh unconditionally — the
+		// snapshot may carry an item-visibility or dock-order change
+		// that callers (settings tab, context menu, drag-to-reorder)
+		// rely on landing live.
+		if ( prevLayout === snapshot.desktopLayout ) {
+			layoutDispatcher.refresh();
+		}
+		// Bring the files-layer placements in line with the new
+		// visibility map — promotes dock items onto the wallpaper
+		// and removes hidden server icons from the grid.
+		syncShortcutsWithVisibility( snapshot.itemVisibility );
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
 		// having to thread the OsSettings snapshot through.
 		setCurrentLayout( snapshot.desktopLayout );
 	} );
+
+	// Install the files-layer reconciler. Runs an initial sync on a
+	// microtask AND on every files-store change so the server's
+	// page-load hydration of registered icons gets filtered through
+	// the visibility map immediately.
+	installShortcutsSync(
+		() => osSettings.getOsSettingsSnapshot().itemVisibility,
+	);
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`
 	// before the first OS Settings change sees the right value.

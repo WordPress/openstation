@@ -184,6 +184,8 @@ export const DEFAULTS: OsSettingsState = {
 	// `activate_plugins` server-side, so flipping this off only
 	// affects users who could see the Plugins tile anyway.
 	nativePluginsEnabled: true,
+	itemVisibility: {},
+	dockOrder: [],
 };
 
 /**

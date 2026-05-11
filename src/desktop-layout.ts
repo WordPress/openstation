@@ -45,7 +45,11 @@ import {
 } from './dock-rail';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
-import type { DesktopLayoutId } from './settings/types';
+import type { DesktopLayoutId, OsSettingsState } from './settings/types';
+import {
+	applyDesktopPlacement,
+	applyDockPlacement,
+} from './settings/item-placement';
 import { doAction, HOOKS } from './hooks';
 
 /**
@@ -78,6 +82,16 @@ export interface LayoutDispatcherDeps {
 	 * synthesized core menu icons (Spatial only).
 	 */
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/**
+	 * Read the current OS-settings snapshot. The dispatcher consults
+	 * this on every partition / repaint so the user's
+	 * `itemVisibility` + `dockOrder` overrides take effect without
+	 * the call site having to thread settings through.
+	 */
+	getSettings?: () => Pick<
+		OsSettingsState,
+		'itemVisibility' | 'dockOrder'
+	>;
 }
 
 /**
@@ -169,6 +183,14 @@ export interface LayoutDispatcher {
 	 * @since 0.18.0
 	 */
 	getMenuItems(): DockItem[];
+	/**
+	 * Re-apply the current OS-settings placement preferences to every
+	 * rail. Called when `itemVisibility` or `dockOrder` changes — both
+	 * the dock contents and the desktop-icons grid may shift.
+	 *
+	 * @since 0.25.0
+	 */
+	refresh(): void;
 	/** Tear down all docks. Called on shell unload (or in tests). */
 	destroy(): void;
 }
@@ -264,10 +286,40 @@ export function createLayoutDispatcher(
 		sideDockEl = null;
 	};
 
+	/**
+	 * Effective dock-item list after applying the user's visibility +
+	 * ordering preferences. Reads server icons so desktop-only items
+	 * the user has promoted to the dock get synthesized into tiles.
+	 */
+	const readSettings = (): Pick<
+		OsSettingsState,
+		'itemVisibility' | 'dockOrder'
+	> => deps.getSettings?.() ?? { itemVisibility: {}, dockOrder: [] };
+
+	const effectiveDockItems = (): DockItem[] => {
+		// System tile ids match the native-window ids the framework
+		// has already mounted on the dock (Recycle Bin's
+		// `placement: 'taskbar'` registration is the canonical
+		// example). Pass them through so applyDockPlacement skips
+		// synthesizing a duplicate when the user picks "Both" for
+		// an icon whose native window is already on the dock.
+		const dockedNativeWindows = new Set< string >();
+		for ( const entry of systemTiles.values() ) {
+			dockedNativeWindows.add( entry.item.id );
+		}
+		return applyDockPlacement(
+			items,
+			serverIcons,
+			readSettings(),
+			dockedNativeWindows,
+		);
+	};
+
 	const partition = (): { core: DockItem[]; plugin: DockItem[] } => {
+		const effective = effectiveDockItems();
 		const core: DockItem[] = [];
 		const plugin: DockItem[] = [];
-		for ( const item of items ) {
+		for ( const item of effective ) {
 			if ( item.isCore ) {
 				core.push( item );
 			} else {
@@ -278,20 +330,42 @@ export function createLayoutDispatcher(
 	};
 
 	const repaintIcons = (): void => {
+		const settings = readSettings();
 		if ( layout !== 'spatial' ) {
-			deps.renderIcons( serverIcons );
+			// Apply visibility to the wallpaper grid — items the user
+			// promoted to the desktop get synthesized; native desktop
+			// icons hidden / dock-only are filtered out.
+			deps.renderIcons(
+				applyDesktopPlacement( serverIcons, items, settings.itemVisibility ),
+			);
 			return;
 		}
-		// Spatial owns the wallpaper as the "core surface": only
-		// synthesized core menu icons render here. Plugin admin
-		// menus already live in the bottom dock; rendering plugin-
-		// registered desktop icons on top would duplicate every
-		// plugin that ships both a top-level menu and a desktop
-		// shortcut. Plugin authors who want a Spatial-mode wallpaper
-		// presence can hook a filter in a follow-up if it comes up.
+		// Spatial owns the wallpaper as the "core surface": synthesized
+		// core menu icons render here. Server-registered plugin
+		// desktop icons are deliberately suppressed — plugin admin
+		// menus live in the bottom dock, and duplicating them on the
+		// wallpaper would create two paths to the same screen. The
+		// only Spatial-mode wallpaper additions beyond core synthesis
+		// are items the user EXPLICITLY promoted via OS Settings (an
+		// `itemVisibility` override on a dock-native item).
 		const { core } = partition();
 		const synthesized = core.map( coreItemToIconEntry );
-		deps.renderIcons( synthesized );
+		const explicitlyPromoted: DesktopIconServerEntry[] = [];
+		let synthIndex = 0;
+		for ( const item of items ) {
+			const placement = settings.itemVisibility[ item.id ];
+			if ( placement === 'desktop' || placement === 'both' ) {
+				explicitlyPromoted.push( {
+					id: `dock:${ item.id }`,
+					title: item.title,
+					icon: item.icon,
+					window: '',
+					url: item.url || '',
+					position: 2000 + synthIndex++,
+				} );
+			}
+		}
+		deps.renderIcons( [ ...synthesized, ...explicitlyPromoted ] );
 	};
 
 	const tearDownDocks = (): void => {
@@ -449,7 +523,7 @@ export function createLayoutDispatcher(
 		} else if ( layout === 'unified' ) {
 			removeSideDockEl();
 			primary = mountRail(
-				buildMountDeps( deps.bottomDockEl, items, 'bottom' ),
+				buildMountDeps( deps.bottomDockEl, effectiveDockItems(), 'bottom' ),
 			);
 			primaryDock = unwrapDefaultDock( primary );
 		} else {
@@ -499,7 +573,7 @@ export function createLayoutDispatcher(
 				side?.replaceItems( core );
 				primary?.replaceItems( plugin );
 			} else if ( layout === 'unified' ) {
-				primary?.replaceItems( items );
+				primary?.replaceItems( effectiveDockItems() );
 			} else {
 				primary?.replaceItems( plugin );
 			}
@@ -539,6 +613,18 @@ export function createLayoutDispatcher(
 		getSystemTile: ( id: string ): SystemDockItem | null =>
 			systemTiles.get( id )?.item ?? null,
 		getMenuItems: () => items.slice(),
+		refresh: (): void => {
+			const { core, plugin } = partition();
+			if ( layout === 'classic' ) {
+				side?.replaceItems( core );
+				primary?.replaceItems( plugin );
+			} else if ( layout === 'unified' ) {
+				primary?.replaceItems( effectiveDockItems() );
+			} else {
+				primary?.replaceItems( plugin );
+			}
+			repaintIcons();
+		},
 		destroy: (): void => {
 			tearDownDocks();
 			removeSideDockEl();

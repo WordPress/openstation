@@ -105,6 +105,19 @@ function desktop_mode_default_os_settings() {
 		// tile anyway. When `false`, the dock click falls back to the
 		// classic `plugins.php` chromeless iframe path.
 		'nativePluginsEnabled'     => true,
+		// Per-item placement preferences. Map of item id (dock-item
+		// slug or registered desktop-icon id) → one of:
+		//   'both'    — show on both dock and desktop.
+		//   'dock'    — show only on the dock; hide from desktop.
+		//   'desktop' — show only on the wallpaper; hide from dock.
+		//   'hidden'  — hide from every shell surface.
+		// Missing keys mean "no override" — items use their native rail.
+		// Sanitized as map<sanitize_key, enum>. Capped at 256 entries.
+		'itemVisibility'           => array(),
+		// Per-user dock ordering. Ordered list of item ids; ids not in
+		// the list keep their server-supplied position appended after
+		// the listed ones. Unknown ids are tolerated.
+		'dockOrder'                => array(),
 	);
 }
 
@@ -333,6 +346,52 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['nativePluginsEnabled']
 		: $defaults['nativePluginsEnabled'];
 
+	// itemVisibility — map<sanitize_key, enum>. Unknown ids are kept
+	// (a deactivated plugin's setting should survive reactivation);
+	// invalid placement values are dropped.
+	$item_visibility = array();
+	if ( isset( $raw['itemVisibility'] ) && is_array( $raw['itemVisibility'] ) ) {
+		$allowed_placements = array( 'both', 'dock', 'desktop', 'hidden' );
+		$count              = 0;
+		foreach ( $raw['itemVisibility'] as $key => $val ) {
+			if ( $count >= 256 ) {
+				break;
+			}
+			if ( ! is_string( $key ) || '' === $key || ! is_string( $val ) ) {
+				continue;
+			}
+			$slug = sanitize_key( $key );
+			if ( '' === $slug ) {
+				continue;
+			}
+			if ( ! in_array( $val, $allowed_placements, true ) ) {
+				continue;
+			}
+			$item_visibility[ $slug ] = $val;
+			++$count;
+		}
+	}
+
+	// dockOrder — ordered list of sanitize_key()-clean ids.
+	$dock_order = array();
+	if ( isset( $raw['dockOrder'] ) && is_array( $raw['dockOrder'] ) ) {
+		$seen = array();
+		foreach ( $raw['dockOrder'] as $id ) {
+			if ( ! is_string( $id ) || '' === $id ) {
+				continue;
+			}
+			$slug = sanitize_key( $id );
+			if ( '' === $slug || isset( $seen[ $slug ] ) ) {
+				continue;
+			}
+			$seen[ $slug ]  = true;
+			$dock_order[]    = $slug;
+			if ( count( $dock_order ) >= 256 ) {
+				break;
+			}
+		}
+	}
+
 	return array(
 		'wallpaper'                => $wallpaper,
 		'accent'                   => $accent,
@@ -348,6 +407,8 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePagesEnabled'       => $native_pages_enabled,
 		'nativeUsersEnabled'       => $native_users_enabled,
 		'nativePluginsEnabled'     => $native_plugins_enabled,
+		'itemVisibility'           => $item_visibility,
+		'dockOrder'                => $dock_order,
 	);
 }
 

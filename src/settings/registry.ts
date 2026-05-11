@@ -102,6 +102,23 @@ export interface OsSettingsSnapshot {
 	 * @since 0.9.0
 	 */
 	nativePluginsEnabled: boolean;
+	/**
+	 * Per-item placement preferences. Map of item id → one of
+	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean
+	 * "use the item's native rail." See
+	 * {@link OsSettingsState.itemVisibility} for full semantics.
+	 *
+	 * @since 0.25.0
+	 */
+	itemVisibility: Record< string, 'both' | 'dock' | 'desktop' | 'hidden' >;
+	/**
+	 * User-defined dock ordering. Ordered list of item ids; ids absent
+	 * from the list render after the listed ones in server-supplied
+	 * order.
+	 *
+	 * @since 0.25.0
+	 */
+	dockOrder: string[];
 }
 
 export interface SettingsTabRenderCtx {

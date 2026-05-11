@@ -604,3 +604,32 @@
 }
 
 
+
+/* Drag-to-reorder (since 0.25.0).
+ *
+ * The dragged tile follows the cursor via inline `transform:
+ * translate()` written from JS. It stays IN flow so flex doesn't
+ * collapse the row — the visual lift is a z-index bump and
+ * `pointer-events: none` so `elementFromPoint` finds siblings
+ * underneath the cursor. Sibling tiles animate via FLIP — the JS
+ * writes inline `transform` + `transition` per leg, so no CSS
+ * transition is declared here (it would race with the per-leg
+ * inline transition). */
+.desktop-mode-dock__item--dragging {
+	pointer-events: none;
+	z-index: 50;
+	opacity: 0.92;
+	cursor: grabbing;
+	will-change: transform;
+	/* Subtle shadow so the dragged tile reads as "lifted" against
+	 * the dock surface it floats above. */
+	filter: drop-shadow( 0 6px 12px rgba( 0, 0, 0, 0.35 ) );
+}
+
+.desktop-mode-dock__item:not( .desktop-mode-dock__item--system ) {
+	cursor: grab;
+}
+
+.desktop-mode-dock__item:not( .desktop-mode-dock__item--system ):active {
+	cursor: grabbing;
+}

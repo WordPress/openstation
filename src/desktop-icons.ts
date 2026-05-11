@@ -38,6 +38,7 @@ import { activity } from './activity';
 import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
 import { renderIcon } from './icon';
+import { openItemVisibilityMenu } from './item-visibility-menu';
 import type { DesktopIconServerEntry } from './types';
 import type { WindowManager } from './window-manager';
 
@@ -461,6 +462,24 @@ function buildIcon(
 			target: entry.window ? 'window' : 'url',
 		} );
 		openTarget( entry, deps );
+	} );
+
+	// Right-click → visibility menu. Skips pinned system icons (e.g.
+	// "My WordPress") which are framework-owned and shouldn't be
+	// user-hideable from the wallpaper.
+	tile.addEventListener( 'contextmenu', ( e: MouseEvent ) => {
+		if ( entry.pinned ) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		openItemVisibilityMenu( {
+			x: e.clientX,
+			y: e.clientY,
+			id: entry.id,
+			title: entry.title,
+			surface: 'desktop',
+		} );
 	} );
 
 	return tile;

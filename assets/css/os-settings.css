@@ -1037,3 +1037,53 @@
 	height: 100%;
 }
 
+
+/* Apps & Icons section (since 0.25.0) — per-item placement chooser. */
+.desktop-mode-apps-icons__list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-apps-icons__row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 4px;
+	border-bottom: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.desktop-mode-apps-icons__row:last-child {
+	border-bottom: 0;
+}
+
+.desktop-mode-apps-icons__identity {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: 1;
+	min-width: 0;
+}
+
+.desktop-mode-apps-icons__icon {
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.desktop-mode-apps-icons__icon.dashicons {
+	font-size: 20px;
+}
+
+.desktop-mode-apps-icons__title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-apps-icons__row wpd-select {
+	min-width: 180px;
+}

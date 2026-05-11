@@ -1,0 +1,238 @@
+/**
+ * Reconcile the user's `itemVisibility` map with the modern
+ * files-layer placements store so dock-only items can be promoted
+ * onto the wallpaper grid and server-registered desktop icons can
+ * be hidden from it.
+ *
+ * Two flows:
+ *
+ * 1. **Promote a dock item to the desktop.** For every admin-menu
+ *    item whose visibility is `'desktop'` or `'both'`, upsert a
+ *    synthetic `shortcut` placement into the files store. The
+ *    placement carries a deterministic negative id (hashed from the
+ *    dock-item id) so re-syncs are idempotent. Position defaults
+ *    to (0, 0) — the layer's `snapToEmptyCell` finds an open slot
+ *    on first paint.
+ *
+ * 2. **Hide a server-registered icon.** For every icon in
+ *    `config.desktopIcons` whose visibility is `'dock'` or
+ *    `'hidden'`, remove the corresponding placement from the files
+ *    store. The server still hydrates it on the next page load —
+ *    this module re-applies on every change, so the icon disappears
+ *    again immediately.
+ *
+ * Synthetic placements aren't persisted via REST; they live only
+ * in the JS store. The source of truth is `itemVisibility`, so
+ * promotion survives reloads even though placement positions don't.
+ * If/when we want true position persistence for promoted items, a
+ * follow-up can swap the in-memory upsert for `createPlacement` +
+ * track the assigned real id in a side-map on the user meta.
+ *
+ * @since 0.25.0
+ */
+
+import { filesApi } from '../desktop-files';
+import type { RestPlacementShape } from '../desktop-files/rest';
+import type { DesktopConfig, DesktopIconServerEntry, DockItemConfig } from '../types';
+import type { ItemVisibility, OsSettingsState } from './types';
+
+/** Marker on `placement.meta` for shortcuts we synthesized. */
+const SYNTH_META_KEY = '__synthFromDockItem';
+
+/** Deterministic negative id from a string. */
+function hashToNegativeId( s: string ): number {
+	// Plain multiplicative hash — no bitwise ops so the result stays
+	// safely within JS's number range without needing >>> coercion.
+	// `Math.abs` + modulo into a positive range, then negate so we
+	// never collide with the REST layer's positive ids.
+	let h = 0;
+	for ( let i = 0; i < s.length; i++ ) {
+		h = ( h * 31 + s.charCodeAt( i ) ) % 0x7fffffff;
+	}
+	return -( h + 1 );
+}
+
+/** Build a synthetic placement representing a promoted dock item. */
+function buildSyntheticPlacement(
+	item: DockItemConfig,
+): RestPlacementShape {
+	return {
+		id: hashToNegativeId( item.id ),
+		parentId: 0,
+		x: 0,
+		y: 0,
+		sortOrder: 9999,
+		updatedAtMs: Date.now(),
+		meta: { [ SYNTH_META_KEY ]: item.id },
+		file: {
+			type: 'shortcut',
+			ref: `dock-promoted:${ item.id }`,
+			title: item.title,
+			icon: item.icon,
+			previewUrl: '',
+			exists: true,
+			// The shortcut opener (built-in-openers.ts) reads these
+			// off the file shape — `shortcutUrl` is what a dock-item
+			// promotion naturally has.
+			shortcutUrl: item.url,
+		},
+	};
+}
+
+/** Read the live dock items (from the dispatcher when available). */
+function readDockItems(): DockItemConfig[] {
+	const api = ( window as unknown as {
+		wp?: {
+			desktop?: {
+				getMenuItems?: () => Array< {
+					id: string;
+					title: string;
+					icon: string;
+					url: string;
+					badge?: number;
+					submenu?: { title: string; url: string }[];
+				} >;
+			};
+		};
+	} ).wp?.desktop;
+	if ( api?.getMenuItems ) {
+		const items = api.getMenuItems();
+		return items.map( ( i ) => ( {
+			id: i.id,
+			title: i.title,
+			icon: i.icon,
+			url: i.url,
+			badge: i.badge ?? 0,
+			submenu: i.submenu ?? [],
+		} ) );
+	}
+	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
+		.desktopModeConfig;
+	return cfg?.dockItems ?? [];
+}
+
+function readServerIcons(): DesktopIconServerEntry[] {
+	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
+		.desktopModeConfig;
+	return cfg?.desktopIcons ?? [];
+}
+
+/** Reentrancy guard so our own store writes don't trigger re-sync. */
+let reentrant = false;
+
+/**
+ * Bring the files store in line with the current
+ * {@link OsSettingsState.itemVisibility} map.
+ */
+export function syncShortcutsWithVisibility(
+	visibility: Record< string, ItemVisibility >,
+): void {
+	if ( reentrant ) {
+		return;
+	}
+	reentrant = true;
+	try {
+		const dockItems = readDockItems();
+		const serverIcons = readServerIcons();
+
+		const state = filesApi.store.getState();
+		const root = state.placementsByFolder.get( 0 ) ?? [];
+
+		// Index current synthetic placements by the source dock-item id.
+		const currentSynth = new Map< string, RestPlacementShape >();
+		for ( const p of root ) {
+			const sourceId = ( p.meta ?? null ) &&
+				typeof p.meta === 'object'
+				? ( p.meta as Record< string, unknown > )[ SYNTH_META_KEY ]
+				: null;
+			if ( typeof sourceId === 'string' ) {
+				currentSynth.set( sourceId, p );
+			}
+		}
+
+		// Index real placements by icon-id ref. Server-registered
+		// shortcuts have `file.ref` equal to the registered icon id
+		// (PHP's serializer writes the icon's own id into the ref
+		// field). Plugin authors creating their own shortcuts via
+		// REST may use other refs — those are ignored here.
+		const realByRef = new Map< string, RestPlacementShape >();
+		const registeredIconIds = new Set< string >(
+			serverIcons.map( ( i ) => i.id ),
+		);
+		for ( const p of root ) {
+			const ref = p?.file?.ref;
+			if ( typeof ref === 'string' && registeredIconIds.has( ref ) ) {
+				realByRef.set( ref, p );
+			}
+		}
+
+		// 1. Promote dock items.
+		const desiredSynth = new Set< string >();
+		for ( const item of dockItems ) {
+			const placement = visibility[ item.id ];
+			if ( placement === 'desktop' || placement === 'both' ) {
+				desiredSynth.add( item.id );
+				if ( ! currentSynth.has( item.id ) ) {
+					filesApi.store.upsertPlacement(
+						buildSyntheticPlacement( item ),
+					);
+				}
+			}
+		}
+		// Remove synthetic placements that are no longer wanted.
+		for ( const [ sourceId, p ] of currentSynth ) {
+			if ( ! desiredSynth.has( sourceId ) ) {
+				filesApi.store.removePlacement( p.id );
+			}
+		}
+
+		// 2. Hide server-registered shortcuts that the user has
+		//    suppressed (placement = 'dock' or 'hidden').
+		for ( const icon of serverIcons ) {
+			const placement = visibility[ icon.id ];
+			if ( placement === 'dock' || placement === 'hidden' ) {
+				const p = realByRef.get( icon.id );
+				if ( p ) {
+					filesApi.store.removePlacement( p.id );
+				}
+			}
+		}
+	} finally {
+		reentrant = false;
+	}
+}
+
+/**
+ * Wire up the live reconciliation. Called once during shell boot.
+ * Re-syncs whenever:
+ *
+ * - The files store changes (server hydration re-injects a hidden
+ *   icon — we drop it again).
+ * - The user updates visibility via OS Settings or the right-click
+ *   menu (handled by an external caller passing the new snapshot).
+ *
+ * Returns a teardown function for tests / hot-reload.
+ */
+export function installShortcutsSync(
+	getVisibility: () => Record< string, ItemVisibility >,
+): () => void {
+	// Initial reconciliation — runs on a microtask so any
+	// just-mounted desktop icons from the server hydration are in
+	// the store before we filter.
+	queueMicrotask( () => syncShortcutsWithVisibility( getVisibility() ) );
+
+	// Re-run on every store change so server-driven hydration
+	// (e.g. a refresh fetching the full placements list) gets
+	// filtered. The reentrancy guard prevents our own writes from
+	// triggering an infinite loop.
+	const off = filesApi.store.subscribe( () => {
+		syncShortcutsWithVisibility( getVisibility() );
+	} );
+
+	return off;
+}
+
+export type OsSettingsVisibility = Pick<
+	OsSettingsState,
+	'itemVisibility'
+>;

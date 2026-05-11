@@ -152,7 +152,62 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.nativePluginsEnabled === 'boolean'
 				? parsed.nativePluginsEnabled
 				: DEFAULTS.nativePluginsEnabled,
+		itemVisibility: sanitizeItemVisibility( parsed.itemVisibility ),
+		dockOrder: sanitizeDockOrder( parsed.dockOrder ),
 	};
+}
+
+function sanitizeItemVisibility(
+	raw: unknown,
+): Record< string, import( './types' ).ItemVisibility > {
+	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
+		return {};
+	}
+	const allowed: ReadonlyArray< import( './types' ).ItemVisibility > = [
+		'both',
+		'dock',
+		'desktop',
+		'hidden',
+	];
+	const out: Record< string, import( './types' ).ItemVisibility > = {};
+	let count = 0;
+	for ( const [ k, v ] of Object.entries( raw as Record< string, unknown > ) ) {
+		if ( count >= 256 ) {
+			break;
+		}
+		if ( typeof k !== 'string' || k === '' ) {
+			continue;
+		}
+		if ( typeof v !== 'string' ) {
+			continue;
+		}
+		const placement = v as import( './types' ).ItemVisibility;
+		if ( ! allowed.includes( placement ) ) {
+			continue;
+		}
+		out[ k ] = placement;
+		count++;
+	}
+	return out;
+}
+
+function sanitizeDockOrder( raw: unknown ): string[] {
+	if ( ! Array.isArray( raw ) ) {
+		return [];
+	}
+	const out: string[] = [];
+	const seen = new Set< string >();
+	for ( const id of raw ) {
+		if ( typeof id !== 'string' || id === '' || seen.has( id ) ) {
+			continue;
+		}
+		seen.add( id );
+		out.push( id );
+		if ( out.length >= 256 ) {
+			break;
+		}
+	}
+	return out;
 }
 
 // -----------------------------------------------------------------------
@@ -206,6 +261,8 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		customImage: state.customImage ? { ...state.customImage } : null,
 		ai: { ...state.ai, apiKeys: { ...state.ai.apiKeys } },
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
+		itemVisibility: { ...state.itemVisibility },
+		dockOrder: state.dockOrder.slice(),
 	};
 }
 

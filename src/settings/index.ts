@@ -70,6 +70,7 @@ import type {
 import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
 import { buildAiSection } from './sections/ai';
+import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildExtendedSection } from './sections/extended';
@@ -146,6 +147,8 @@ export class OsSettings implements SettingsCtx {
 			nativePagesEnabled: this.state.nativePagesEnabled,
 			nativeUsersEnabled: this.state.nativeUsersEnabled,
 			nativePluginsEnabled: this.state.nativePluginsEnabled,
+			itemVisibility: { ...this.state.itemVisibility },
+			dockOrder: this.state.dockOrder.slice(),
 		};
 	}
 
@@ -385,6 +388,16 @@ export class OsSettings implements SettingsCtx {
 				>`,
 				panel: html`<wpd-tabpanel for="features">
 					<wpd-panel>${ buildFeaturesSection( this ) }</wpd-panel>
+				</wpd-tabpanel>`,
+			},
+			{
+				id: 'apps-icons',
+				order: 22,
+				tab: html`<wpd-tab value="apps-icons"
+					>${ __( 'Apps & Icons' ) }</wpd-tab
+				>`,
+				panel: html`<wpd-tabpanel for="apps-icons">
+					<wpd-panel>${ buildAppsIconsSection( this ) }</wpd-panel>
 				</wpd-tabpanel>`,
 			},
 		];

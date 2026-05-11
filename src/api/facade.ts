@@ -364,6 +364,40 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 						)
 						.slice( 0, 32 );
 			}
+			if (
+				patch.itemVisibility &&
+				typeof patch.itemVisibility === 'object'
+			) {
+				const allowed = [ 'both', 'dock', 'desktop', 'hidden' ];
+				const next: Record<
+					string,
+					'both' | 'dock' | 'desktop' | 'hidden'
+				> = {};
+				for ( const [ k, v ] of Object.entries(
+					patch.itemVisibility as Record< string, unknown >,
+				) ) {
+					if ( typeof k !== 'string' || k === '' ) {
+						continue;
+					}
+					if ( typeof v !== 'string' || ! allowed.includes( v ) ) {
+						continue;
+					}
+					next[ k ] = v as
+						| 'both'
+						| 'dock'
+						| 'desktop'
+						| 'hidden';
+				}
+				osSettings.state.itemVisibility = next;
+			}
+			if ( Array.isArray( patch.dockOrder ) ) {
+				osSettings.state.dockOrder = patch.dockOrder
+					.filter(
+						( v ): v is string =>
+							typeof v === 'string' && v !== '',
+					)
+					.slice( 0, 256 );
+			}
 			osSettings.save( opts );
 		},
 		deriveWindowId: ( url: string, overrideAdminUrl?: string ) =>
