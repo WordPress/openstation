@@ -108,28 +108,26 @@ const KIND_DASHICON: Record< SatelliteRef[ 'kind' ], string > = {
 };
 
 /**
- * Per-icon visual-centre offset applied on top of the anchor. Dashicon
- * glyphs are NOT uniformly centred inside their character cell — the
- * speech-bubble in `admin-comments` is drawn in the upper-left with
- * the tail trailing toward the lower-right, so a straight (0.5, 0.5)
- * anchor parks the visible bubble in the disc's upper-left corner.
- * Each kind gets its own (x, y) world-pixel nudge tuned against the
- * rendered output to bring the visible glyph to the disc centre. Keep
- * values small (≤ 3); if you need more you're fighting the font and
- * should swap to a Sprite instead.
+ * Per-icon visual-centre offset applied on top of the `(0.5, 0.5)`
+ * anchor. Pixi.Text measures bbox = ascent + descent for the font; for
+ * dashicons the descent is unused space below the baseline, so the
+ * bbox-centred anchor parks the visible glyph ~ascent/2 above the
+ * world-y=0 line. With `fontSize: 20`, ascent ≈ 17 + descent ≈ 5 →
+ * bbox height ≈ 22 and the glyph centre sits ~3px above bbox centre.
+ * A flat +3 y nudge brings the glyph onto the disc centre for every
+ * kind; the comment glyph gets an additional +2 x nudge because the
+ * speech-bubble bbox is left-loaded (bubble in upper-left, tail
+ * trailing to the lower-right).
  */
 const KIND_ICON_NUDGE: Record<
 	SatelliteRef[ 'kind' ],
 	{ x: number; y: number }
 > = {
-	user: { x: 0, y: 1 },
-	term: { x: 0, y: 0 },
-	// Bubble parked in upper-left of bbox + tail going down-right;
-	// push down + right so the bubble lands on the disc centre and
-	// the tail trails out past the lower-right disc edge.
-	comment: { x: 2, y: 2 },
-	media: { x: 0, y: 1 },
-	revision: { x: 0, y: 1 },
+	user: { x: 0, y: 3 },
+	term: { x: 0, y: 3 },
+	comment: { x: 2, y: 3 },
+	media: { x: 0, y: 3 },
+	revision: { x: 0, y: 3 },
 };
 
 const DISC_RADIUS = 14;
