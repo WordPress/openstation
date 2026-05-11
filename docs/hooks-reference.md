@@ -1992,6 +1992,69 @@ The static template body before it's emitted into the native-window template ele
 
 ---
 
+## Content Graph (since 0.8.2)
+
+A native window that visualises posts / pages / CPTs as a force-directed graph, with internal hyperlinks (and as of 0.9.0 four additional edge kinds: shared terms, shared author, page hierarchy, and nav menu structure) drawn between nodes. Two lenses ship in the box: **Constellation** (current force-directed layout) and **Galaxy** (taxonomy-clustered, with bridge highlighting that fades intra-cluster edges).
+
+### `desktop_mode_content_graph_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_content_graph_user_can_use', bool $can ): bool
+```
+
+Gates icon and window registration. Default `current_user_can( 'edit_posts' )`. Return `false` to hide Content Graph for a role; return `true` to opt a role back in.
+
+### `desktop_mode_content_graph_window_args` / `desktop_mode_content_graph_icon_args` — Experimental (filter)
+
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for Content Graph. Useful to change default dimensions, swap the dashicon, or remove the `pinned` flag so the icon joins normal sort order.
+
+### `desktop_mode_content_graph_post_types` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_content_graph_post_types', array[] $entries ): array[]
+```
+
+Each entry declares `slug`, `label`, and `icon`. Default: every public post type except `attachment`. Removing an entry hides it from the post-type chip row AND excludes it from the graph entirely.
+
+### `desktop_mode_content_graph_template_html` — Experimental (filter)
+
+The static template body before it's emitted into the native-window template element. Keep the `data-desktop-mode-content-graph-*` data hooks intact so the JS bundle can find its mount points.
+
+### `desktop_mode_content_graph_taxonomies` — Experimental (filter, since 0.9.0)
+
+```php
+apply_filters( 'desktop_mode_content_graph_taxonomies', array[] $entries ): array[]
+```
+
+The list of taxonomies offered as Galaxy clustering keys in the toolbar's "Cluster by" dropdown. Each entry declares `slug`, `label`, `hierarchical`, and `post_types`. Default: every public taxonomy. Removing an entry hides it from the dropdown AND from the prefs sanitizer's allow-list (a stored value pointing at a removed taxonomy falls back to the default).
+
+### `desktop_mode_content_graph_edge_kind_descriptors` — Experimental (filter, since 0.9.0)
+
+```php
+apply_filters( 'desktop_mode_content_graph_edge_kind_descriptors', array[] $entries ): array[]
+```
+
+The list of edge kinds offered to the toolbar's edges multi-toggle. Each entry declares `slug`, `label`, `color` (CSS hex, e.g. `#2c6be5`), and `weight`. Default: `link`, `co_tag`, `co_author`, `hierarchy`, `menu`. Removing an entry hides it from the toggle UI but does NOT prevent the server-side build from emitting that kind when an explicit REST query asks for it.
+
+### `desktop_mode_content_graph_terms_truncated` — Experimental (action, since 0.9.0)
+
+```php
+do_action( 'desktop_mode_content_graph_terms_truncated', int $post_id, string $taxonomy, int $original_count )
+```
+
+Fires once per `(post, taxonomy)` tuple whose membership exceeds the per-node 50-term cap (`DESKTOP_MODE_CONTENT_GRAPH_TERMS_PER_TAX_CAP`). The cap is a defensive guard on payload size; this hook lets you log when it fires so you can tell whether real content is being truncated.
+
+### REST endpoints
+
+Under `desktop-mode/v1/content-graph`:
+
+- `GET /post-types` — descriptor list driving the post-type chip row.
+- `GET /nodes?types=post,page&edges=link,co_tag&taxonomies=category` — full `{ nodes, edges, stats }` tuple. The `edges` and `taxonomies` query parameters land in 0.9.0; pre-0.9.0 callers omitting them get only `link` edges and no `terms` field on nodes (backwards-compatible default).
+- `GET /post/<id>` — the side-panel detail bundle for one post.
+- `GET /preferences` / `POST /preferences` — per-user UI prefs (lens, taxonomy, per-lens edges + post-type chips). New in 0.9.0.
+
+---
+
 ## Presence
 
 Framework-level presence tracking. Storage in
