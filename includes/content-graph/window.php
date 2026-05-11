@@ -152,6 +152,9 @@ function desktop_mode_content_graph_register_window() {
 			'editCommentUrl' => esc_url_raw( admin_url( 'comment.php' ) ),
 			'mediaUrl'       => esc_url_raw( admin_url( 'upload.php' ) ),
 			'postTypes'      => desktop_mode_content_graph_post_types(),
+			'taxonomies'     => desktop_mode_content_graph_taxonomies(),
+			'edgeKinds'      => desktop_mode_content_graph_edge_kind_descriptors(),
+			'prefs'          => desktop_mode_content_graph_get_prefs( get_current_user_id() ),
 		),
 	);
 
