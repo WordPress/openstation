@@ -178,6 +178,7 @@ import {
 import { mountFilesLayer } from './desktop-files/layer';
 import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
+import { startFilesRestoreSync } from './desktop-files/restore-sync';
 import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
 import {
 	buildMenuItems as buildWallpaperMenuItems,
@@ -2701,6 +2702,12 @@ function init(): void {
 	// Wire the Files-on-the-Desktop Heartbeat sync. Idempotent —
 	// safe to call again on a re-init.
 	startFilesHeartbeat();
+
+	// Restore-from-bin sync: refetches hydrated folders the moment the
+	// Recycle Bin broadcasts `action: 'untrashed'` so a restored
+	// folder/placement lands back on the desktop without waiting for
+	// the next Heartbeat tick.
+	startFilesRestoreSync();
 
 	// Boot the framework presence probe — always runs in desktop
 	// mode, regardless of whether the chat feature is enabled. The
