@@ -108,18 +108,28 @@ const KIND_DASHICON: Record< SatelliteRef[ 'kind' ], string > = {
 };
 
 /**
- * Per-icon micro-tweak applied AFTER the anchor-based vertical
- * correction. The chat-bubble glyph in `admin-comments` sits a touch
- * higher inside the font box than the others; the tag and revision
- * glyphs are nicely balanced. Values are world-pixel offsets — keep
- * them small (<= 1.5).
+ * Per-icon visual-centre offset applied on top of the anchor. Dashicon
+ * glyphs are NOT uniformly centred inside their character cell — the
+ * speech-bubble in `admin-comments` is drawn in the upper-left with
+ * the tail trailing toward the lower-right, so a straight (0.5, 0.5)
+ * anchor parks the visible bubble in the disc's upper-left corner.
+ * Each kind gets its own (x, y) world-pixel nudge tuned against the
+ * rendered output to bring the visible glyph to the disc centre. Keep
+ * values small (≤ 3); if you need more you're fighting the font and
+ * should swap to a Sprite instead.
  */
-const KIND_ICON_NUDGE: Record< SatelliteRef[ 'kind' ], number > = {
-	user: 0,
-	term: 0,
-	comment: 1,
-	media: 0,
-	revision: 0,
+const KIND_ICON_NUDGE: Record<
+	SatelliteRef[ 'kind' ],
+	{ x: number; y: number }
+> = {
+	user: { x: 0, y: 1 },
+	term: { x: 0, y: 0 },
+	// Bubble parked in upper-left of bbox + tail going down-right;
+	// push down + right so the bubble lands on the disc centre and
+	// the tail trails out past the lower-right disc edge.
+	comment: { x: 2, y: 2 },
+	media: { x: 0, y: 1 },
+	revision: { x: 0, y: 1 },
 };
 
 const DISC_RADIUS = 14;
@@ -366,27 +376,24 @@ export class SatelliteLayer {
 		container.addChild( disc );
 
 		const iconChar = resolveDashicon( KIND_DASHICON[ ref.kind ] );
-		// Dashicon glyphs occupy the upper ~70% of their font bounding
-		// box (the bottom is reserved for descender space the icons
-		// never use). A strict `anchor: 0.5` centres the BOUNDING BOX
-		// on the disc, which leaves the visible glyph parked in the
-		// disc's upper half — exactly the "icons not centred" the
-		// reviewer flagged. Pushing the anchor's y to ~0.62 moves the
-		// box's centre slightly above the disc centre, so the visible
-		// glyph lands on it. Per-icon counter-tweak via the
-		// KIND_ICON_NUDGE map below for outliers.
+		// Bigger glyph + true bbox-centre anchor, then per-kind x/y
+		// nudge in KIND_ICON_NUDGE pushes the visible glyph (not the
+		// bbox) onto the disc centre. The `admin-comments` bubble
+		// needs the largest correction because the speech tail makes
+		// the bbox asymmetric — see the nudge comment above.
 		const icon = new this.pixi.Text( {
 			text: iconChar ?? '?',
 			style: {
 				fontFamily: iconChar ? 'dashicons' : 'sans-serif',
-				fontSize: iconChar ? 18 : 13,
+				fontSize: iconChar ? 20 : 13,
 				fill: 0xffffff,
 			},
 			resolution: 2,
-			anchor: { x: 0.5, y: iconChar ? 0.62 : 0.5 },
+			anchor: { x: 0.5, y: 0.5 },
 		} );
-		icon.x = 0;
-		icon.y = KIND_ICON_NUDGE[ ref.kind ] ?? 0;
+		const nudge = KIND_ICON_NUDGE[ ref.kind ];
+		icon.x = nudge?.x ?? 0;
+		icon.y = nudge?.y ?? 0;
 		container.addChild( icon );
 
 		const labelText = truncate( ref.label || '—', 28 );
