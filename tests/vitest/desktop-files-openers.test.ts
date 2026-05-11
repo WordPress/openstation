@@ -295,4 +295,73 @@ describe( 'desktop-files openers registry', () => {
 			] ),
 		);
 	} );
+
+	test( 'openUrl routes through tryNativeUrlRemap so user shortcuts open the native window', async () => {
+		// Regression: `installFilesOpenDeps.openUrl` used to call
+		// `manager.open` directly, dropping desktop shortcuts into
+		// a chromeless iframe even when a native window (`User Edit`,
+		// `Users`, `Posts`, …) had claimed the URL. The wired
+		// `openUrl` now asks `tryNativeUrlRemap` first; this test
+		// locks that contract in by registering a remap, mounting
+		// the same wrapper desktop.ts builds, and asserting the
+		// fallback `manager.open` is never called.
+		const { openers, open, file } = await load();
+		vi.resetModules();
+		const remap = await import( '../../src/native-url-remap' );
+
+		const openByIdSpy = vi.fn().mockReturnValue( true );
+		remap.bindNativeUrlRemap( {
+			getSnapshot: () =>
+				( { nativeUsersEnabled: true } ) as unknown as Parameters<
+					typeof remap.bindNativeUrlRemap
+				>[ 0 ][ 'getSnapshot' ] extends () => infer R
+					? R
+					: never,
+			openById: openByIdSpy,
+			adminUrl: 'http://example.test/wp-admin/',
+		} );
+		remap.registerNativeUrlRemap( {
+			id: 'desktop-mode-user-edit',
+			nativeWindowId: 'desktop-mode-user-edit',
+			matches: ( _url, parsed ) =>
+				parsed.pathname.endsWith( '/user-edit.php' ) &&
+				parsed.searchParams.has( 'user_id' ),
+			enabled: ( s: { nativeUsersEnabled?: boolean } ) =>
+				s.nativeUsersEnabled === true,
+		} );
+
+		const managerOpenSpy = vi.fn().mockReturnValue( true );
+		const openUrl = ( a: { id: string; url: string; title: string; icon: string } ) => {
+			if ( remap.tryNativeUrlRemap( a.url ) ) {
+				return true;
+			}
+			return managerOpenSpy( { id: a.id, baseId: a.id, ...a } );
+		};
+		open.installOpenDeps( {
+			openUrl,
+			openNativeWindow: () => false,
+			deriveWindowId: ( url: string ) => `derived-${ url }`,
+		} );
+
+		openers.registerOpener( {
+			id: 'wp-user-profile',
+			label: 'User profile',
+			types: [ 'user' ],
+			isDefault: true,
+			handler: {
+				kind: 'url',
+				url: ( f ) =>
+					`http://example.test/wp-admin/user-edit.php?user_id=${ f.ref() }`,
+			},
+		} );
+
+		const opened = await open.openFile( fakeFile( 'user', '42', file ) );
+		expect( opened ).toBe( true );
+		expect( openByIdSpy ).toHaveBeenCalledWith( 'desktop-mode-user-edit' );
+		// CRITICAL: the chromeless iframe fallback must NOT fire when
+		// a native remap claims the URL.
+		expect( managerOpenSpy ).not.toHaveBeenCalled();
+
+		remap._resetNativeUrlRemap();
+	} );
 } );

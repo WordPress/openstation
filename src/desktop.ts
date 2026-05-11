@@ -19,6 +19,7 @@ import { Dock, type DockItem, type SystemDockItem } from './dock';
 import {
 	bindNativeUrlRemap,
 	registerNativeUrlRemap,
+	tryNativeUrlRemap,
 } from './native-url-remap';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 // Tile-decoration helpers and the dock-selector registry live in
@@ -2623,8 +2624,23 @@ function init(): void {
 	// shell config. Done here so the manager is fully wired and
 	// the public API is already on `window.wp.desktop`.
 	installFilesOpenDeps( {
-		openUrl: ( { id, url, title, icon } ) =>
-			!! manager.open( { id, baseId: id, url, title, icon } ),
+		openUrl: ( { id, url, title, icon } ) => {
+			// Same path the in-shell link interceptor takes:
+			// consult the native-URL remap registry FIRST so a
+			// desktop shortcut whose target is an admin URL that
+			// a native window has claimed (`user-edit.php?user_id=N`
+			// → User Edit window, `users.php` → Users window,
+			// `edit.php` → Posts window, …) opens the native
+			// experience instead of an iframe of classic chrome.
+			// Without this, double-clicking a user shortcut on the
+			// desktop dropped users into the old `wp-admin` profile
+			// page even though everything else (admin-bar links,
+			// dock clicks, in-window anchors) routed natively.
+			if ( tryNativeUrlRemap( url ) ) {
+				return true;
+			}
+			return !! manager.open( { id, baseId: id, url, title, icon } );
+		},
 		openNativeWindow: ( id ) => nativeWindows.openById( id ),
 		deriveWindowId: ( url: string ) => deriveWindowId( url, config.adminUrl ),
 	} );
