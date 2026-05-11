@@ -35,6 +35,12 @@ import {
 	type UsersListParams,
 } from './users-rest';
 import { showUsersIntroDialog } from './users-intro-dialog';
+// Static import — see `desktop.ts`'s onMatch comment for why this
+// can't be `await import('./user-edit-target')`. The user-edit
+// window's render callback fires synchronously inside `openWindow`,
+// and any microtask delay here races the read in that callback and
+// loses (the read sees `null` and falls back to the viewer's id).
+import { setUserEditTarget } from './user-edit-target';
 import type {
 	WpdTable,
 	WpdTableColumn,
@@ -93,12 +99,17 @@ function notifyToast(
  * exact failure path when something goes wrong so we can stop
  * playing console-warning whack-a-mole.
  */
-async function openUserEditWindow( userId: number ): Promise< void > {
+function openUserEditWindow( userId: number ): void {
 	if ( ! Number.isFinite( userId ) || userId <= 0 ) {
 		return;
 	}
-	const target = await import( './user-edit-target' );
-	target.setUserEditTarget( userId );
+	// Synchronous — must commit before `wp.desktop.openWindow` runs,
+	// because the user-edit registry callback that reads the target
+	// fires synchronously inside `openWindow` → `manager.open` →
+	// `hydrateNative`. An `await import()` here pushes the write
+	// past the read in microtask order and the form mounts for the
+	// viewer instead of the clicked user.
+	setUserEditTarget( userId );
 
 	// eslint-disable-next-line no-console
 	console.info(

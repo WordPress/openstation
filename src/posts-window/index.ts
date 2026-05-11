@@ -3044,14 +3044,39 @@ registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
 		target.clearUserEditTarget();
 
 		// Already-open window + new target → swap user-id; the
-		// component handles the in-place re-mount.
+		// component handles the in-place re-mount. Re-pin the
+		// active window id back to `desktop-mode-user-edit` before
+		// the re-mount runs, because focusing another window in the
+		// meantime (Posts, Pages, …) may have moved it. Without this
+		// pin, the form's `getConfig()` reads a sibling window's
+		// config blob that lacks `allRoles` / `assignableRoles` and
+		// the role select renders with zero options.
+		//
+		// `profile.isConnected` guard — when the user-edit window is
+		// closed and reopened, the previous open's subscription is
+		// still alive in memory (the shared-store subscriber list
+		// holds the closure). Without the guard, that stale
+		// subscription would fire on the NEXT `setUserEditTarget`
+		// (clicking another row), uselessly `setAttribute` on the
+		// detached profile element AND — fatally — call
+		// `clearUserEditTarget`. The clear ran SYNCHRONOUSLY before
+		// the fresh window's render callback got its async read,
+		// so the read saw `null`, fell back to `cfg.currentUserId`,
+		// and the form mounted for the viewer instead of the
+		// clicked user. Skipping when the profile is no longer in
+		// the document leaves the target intact for the fresh
+		// render to pick up.
 		target.subscribeUserEditTarget( ( next ) => {
+			if ( ! profile.isConnected ) {
+				return;
+			}
 			if (
 				next.userId &&
 				next.userId > 0 &&
 				next.userId !== userId
 			) {
 				userId = next.userId;
+				setActiveWindowId( 'desktop-mode-user-edit' );
 				profile.setAttribute( 'user-id', String( userId ) );
 				target.clearUserEditTarget();
 			}

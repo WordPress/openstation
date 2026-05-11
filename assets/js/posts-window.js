@@ -3456,8 +3456,12 @@ var desktopModePostsWindow = function(exports) {
       }
       target.clearUserEditTarget();
       target.subscribeUserEditTarget((next) => {
+        if (!profile.isConnected) {
+          return;
+        }
         if (next.userId && next.userId > 0 && next.userId !== userId) {
           userId = next.userId;
+          setActiveWindowId("desktop-mode-user-edit");
           profile.setAttribute("user-id", String(userId));
           target.clearUserEditTarget();
         }
@@ -3595,8 +3599,19 @@ var desktopModePostsWindow = function(exports) {
     mountProfileForm(host, user, userId);
     return user;
   }
+  function resolveProfileConfig() {
+    const current = getConfig();
+    const store = window.desktopModeWindowConfig;
+    const userEdit = store?.["desktop-mode-user-edit"];
+    const users = store?.["desktop-mode-users"];
+    return {
+      ...users ?? {},
+      ...userEdit ?? {},
+      ...current
+    };
+  }
   function mountProfileForm(host, user, userId) {
-    const cfg = getConfig();
+    const cfg = resolveProfileConfig();
     const wrap = document.createElement("div");
     wrap.className = "desktop-mode-user-edit__profile";
     const form = document.createElement("wpd-form");
@@ -3665,12 +3680,18 @@ var desktopModePostsWindow = function(exports) {
     localeSelect.value = String(user.locale ?? "");
     form.appendChild(localeSelect);
     const isSelfEdit = userId === (cfg.currentUserId ?? 0);
+    const roleMap = (() => {
+      const assignable = cfg.assignableRoles;
+      if (assignable && Object.keys(assignable).length > 0) {
+        return assignable;
+      }
+      return cfg.allRoles ?? {};
+    })();
     if (!isSelfEdit) {
       const roleSelect = document.createElement("wpd-select");
       roleSelect.setAttribute("name", "roles[0]");
       roleSelect.setAttribute("label", __("Role"));
-      const allRoles = cfg.allRoles ?? {};
-      roleSelect.items = Object.entries(allRoles).map(([value, label]) => ({
+      roleSelect.items = Object.entries(roleMap).map(([value, label]) => ({
         value,
         label
       }));
@@ -3678,7 +3699,7 @@ var desktopModePostsWindow = function(exports) {
       roleSelect.value = currentRole;
       form.appendChild(roleSelect);
     }
-    if (isSelfEdit) {
+    {
       const optsHeading = document.createElement("h3");
       optsHeading.setAttribute("full-width", "");
       optsHeading.textContent = __("Personal options");
@@ -3724,7 +3745,9 @@ var desktopModePostsWindow = function(exports) {
       const colorSchemes = cfg.colorSchemes ?? {};
       const currentScheme = String(meta.admin_color ?? "fresh");
       form.appendChild(
-        buildAdminColorPicker(colorSchemes, currentScheme)
+        buildAdminColorPicker(colorSchemes, currentScheme, {
+          livePreview: isSelfEdit
+        })
       );
     }
     const pwdHeading = document.createElement("h3");
@@ -3869,6 +3892,16 @@ var desktopModePostsWindow = function(exports) {
       pwd.setAttribute("value", "");
       pwdConfirm.value = "";
       pwdConfirm.setAttribute("value", "");
+      if (result.user) {
+        Object.assign(user, result.user);
+        header.replaceChildren(buildProfileHeader(user));
+        const aside = host.ownerDocument?.querySelector(
+          "[data-wpd-user-profile-aside]"
+        );
+        if (aside) {
+          void mountProfileAsideAt(aside, userId, true);
+        }
+      }
     };
     wrap.appendChild(form);
     host.appendChild(wrap);
@@ -4466,7 +4499,34 @@ var desktopModePostsWindow = function(exports) {
         return null;
     }
   }
-  function buildAdminColorPicker(schemes, current) {
+  function applyColorSchemePreview(slug, info) {
+    if (!info.url) {
+      flipBodyClass(slug);
+      return;
+    }
+    let link = document.getElementById(
+      "colors-css"
+    );
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.id = "colors-css";
+      document.head.appendChild(link);
+    }
+    link.href = info.url;
+    flipBodyClass(slug);
+  }
+  function flipBodyClass(slug) {
+    const body = document.body;
+    const next = `admin-color-${slug}`;
+    for (const cls of Array.from(body.classList)) {
+      if (cls.startsWith("admin-color-") && cls !== next) {
+        body.classList.remove(cls);
+      }
+    }
+    body.classList.add(next);
+  }
+  function buildAdminColorPicker(schemes, current, opts = {}) {
     const wrap = document.createElement("div");
     wrap.setAttribute("full-width", "");
     wrap.style.cssText = "display:flex;flex-direction:column;gap:6px;";
@@ -4537,7 +4597,12 @@ var desktopModePostsWindow = function(exports) {
       name.style.cssText = "font-size:12px;font-weight:500;";
       name.textContent = info.name;
       tile.appendChild(name);
-      tile.addEventListener("click", () => updateSelected(slug));
+      tile.addEventListener("click", () => {
+        updateSelected(slug);
+        if (opts.livePreview) {
+          applyColorSchemePreview(slug, info);
+        }
+      });
       grid.appendChild(tile);
     }
     updateSelected(selected);
@@ -8984,6 +9049,95 @@ var desktopModePostsWindow = function(exports) {
     t.textContent = s;
     return t.innerHTML;
   }
+  const _initial = {
+    userId: null,
+    requestedAt: 0,
+    tabRequested: false
+  };
+  let _store = null;
+  function getStore() {
+    if (_store) {
+      return _store;
+    }
+    const w = window;
+    const factory = w.wp?.desktop?.createSharedStore;
+    if (typeof factory !== "function") {
+      return null;
+    }
+    _store = factory(
+      "desktop-mode/user-edit/target",
+      () => ({ ..._initial })
+    );
+    return _store;
+  }
+  function setUserEditTarget(userId) {
+    const store = getStore();
+    if (store) {
+      store.state.userId = userId;
+      store.state.requestedAt = Date.now();
+      store.state.tabRequested = true;
+      store.notify();
+      return;
+    }
+    const w = window;
+    w._wpdUserEditTarget = {
+      userId,
+      requestedAt: Date.now(),
+      tabRequested: true
+    };
+  }
+  function readUserEditTarget() {
+    const store = getStore();
+    if (store) {
+      return { ...store.state };
+    }
+    const w = window;
+    return w._wpdUserEditTarget ?? { ..._initial };
+  }
+  function clearUserEditTarget() {
+    const store = getStore();
+    if (store) {
+      store.state.userId = null;
+      store.state.requestedAt = 0;
+      store.state.tabRequested = false;
+      store.notify();
+    }
+    const w = window;
+    if (w._wpdUserEditTarget) {
+      w._wpdUserEditTarget = {
+        userId: null,
+        requestedAt: 0,
+        tabRequested: false
+      };
+    }
+  }
+  function setUserEditTabRequested(requested) {
+    const store = getStore();
+    if (store) {
+      store.state.tabRequested = requested;
+      store.notify();
+      return;
+    }
+    const w = window;
+    const prev = w._wpdUserEditTarget ?? { ..._initial };
+    w._wpdUserEditTarget = { ...prev, tabRequested: requested };
+  }
+  function subscribeUserEditTarget(cb) {
+    const store = getStore();
+    if (!store) {
+      return () => {
+      };
+    }
+    return store.subscribe((state) => cb({ ...state }));
+  }
+  const userEditTarget = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    clearUserEditTarget,
+    readUserEditTarget,
+    setUserEditTabRequested,
+    setUserEditTarget,
+    subscribeUserEditTarget
+  }, Symbol.toStringTag, { value: "Module" }));
   function wpdConfirmGlobal(options) {
     const w = window;
     const fn = w.wp?.desktop?.confirm;
@@ -9001,12 +9155,11 @@ var desktopModePostsWindow = function(exports) {
     }
     console.info("[users-window]", body);
   }
-  async function openUserEditWindow(userId) {
+  function openUserEditWindow(userId) {
     if (!Number.isFinite(userId) || userId <= 0) {
       return;
     }
-    const target = await Promise.resolve().then(() => userEditTarget);
-    target.setUserEditTarget(userId);
+    setUserEditTarget(userId);
     console.info(
       "[users-window] opening user-edit window for user",
       userId
@@ -10048,95 +10201,6 @@ var desktopModePostsWindow = function(exports) {
   const usersRender = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null,
     renderUsersWindow
-  }, Symbol.toStringTag, { value: "Module" }));
-  const _initial = {
-    userId: null,
-    requestedAt: 0,
-    tabRequested: false
-  };
-  let _store = null;
-  function getStore() {
-    if (_store) {
-      return _store;
-    }
-    const w = window;
-    const factory = w.wp?.desktop?.createSharedStore;
-    if (typeof factory !== "function") {
-      return null;
-    }
-    _store = factory(
-      "desktop-mode/user-edit/target",
-      () => ({ ..._initial })
-    );
-    return _store;
-  }
-  function setUserEditTarget(userId) {
-    const store = getStore();
-    if (store) {
-      store.state.userId = userId;
-      store.state.requestedAt = Date.now();
-      store.state.tabRequested = true;
-      store.notify();
-      return;
-    }
-    const w = window;
-    w._wpdUserEditTarget = {
-      userId,
-      requestedAt: Date.now(),
-      tabRequested: true
-    };
-  }
-  function readUserEditTarget() {
-    const store = getStore();
-    if (store) {
-      return { ...store.state };
-    }
-    const w = window;
-    return w._wpdUserEditTarget ?? { ..._initial };
-  }
-  function clearUserEditTarget() {
-    const store = getStore();
-    if (store) {
-      store.state.userId = null;
-      store.state.requestedAt = 0;
-      store.state.tabRequested = false;
-      store.notify();
-    }
-    const w = window;
-    if (w._wpdUserEditTarget) {
-      w._wpdUserEditTarget = {
-        userId: null,
-        requestedAt: 0,
-        tabRequested: false
-      };
-    }
-  }
-  function setUserEditTabRequested(requested) {
-    const store = getStore();
-    if (store) {
-      store.state.tabRequested = requested;
-      store.notify();
-      return;
-    }
-    const w = window;
-    const prev = w._wpdUserEditTarget ?? { ..._initial };
-    w._wpdUserEditTarget = { ...prev, tabRequested: requested };
-  }
-  function subscribeUserEditTarget(cb) {
-    const store = getStore();
-    if (!store) {
-      return () => {
-      };
-    }
-    return store.subscribe((state) => cb({ ...state }));
-  }
-  const userEditTarget = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    clearUserEditTarget,
-    readUserEditTarget,
-    setUserEditTabRequested,
-    setUserEditTarget,
-    subscribeUserEditTarget
   }, Symbol.toStringTag, { value: "Module" }));
   exports.renderPostsWindow = renderPostsWindow;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });

@@ -27,6 +27,16 @@ import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import { OsSettings } from './settings';
 import { getExitDesktopModeTileDef } from './exit-desktop-mode';
 import { deriveWindowId, urlMatchKey } from './utils';
+// Static import — `setUserEditTarget` MUST run before the user-edit
+// window's render callback reads the target, and the render callback
+// fires synchronously inside `openById` (`manager.open` → `hydrateNative`
+// → render). Going through `void import().then( setUserEditTarget )` added
+// a 2-microtask delay that consistently lost the race in real-world
+// network conditions: the render callback's own `.then` chain queued
+// before the setUserEditTarget chain resolved, `readUserEditTarget`
+// returned `null`, the fallback to `cfg.currentUserId` kicked in, and
+// the form mounted for the viewer instead of the clicked user.
+import { setUserEditTarget as setUserEditTargetSync } from './posts-window/user-edit-target';
 import {
 	HOOKS,
 	addAction,
@@ -1815,9 +1825,11 @@ function init(): void {
 				10,
 			);
 			if ( userId > 0 ) {
-				void import( './posts-window/user-edit-target' ).then( ( m ) => {
-					m.setUserEditTarget( userId );
-				} );
+				// Set synchronously — see import comment above. The
+				// render callback that reads this target fires before
+				// the next microtask flush, so any async path here
+				// races and loses.
+				setUserEditTargetSync( userId );
 			}
 			// `profile.php` with no user_id falls through to the
 			// render callback's `currentUserId` fallback — no need

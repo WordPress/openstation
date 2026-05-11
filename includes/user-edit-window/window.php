@@ -94,6 +94,13 @@ function desktop_mode_user_edit_window_color_schemes() {
 				'name'        => isset( $info->name )
 					? (string) $info->name
 					: (string) $slug,
+				// The colors stylesheet URL — required for the live
+				// preview swap on self-edit. Matches what core's
+				// `wp-admin/js/user-profile.js` reads off the
+				// `.css_url` hidden field per scheme tile.
+				'url'         => isset( $info->url )
+					? esc_url_raw( (string) $info->url )
+					: '',
 				'colors'      => isset( $info->colors )
 					? array_values( (array) $info->colors )
 					: array(),
@@ -148,6 +155,20 @@ function desktop_mode_user_edit_window_register_window() {
 			'currentUserId'    => $viewer_id,
 			'insightsUrlBase'  => esc_url_raw( rest_url( 'desktop-mode/v1/users/' ) ),
 			'editPostUrlBase'  => esc_url_raw( admin_url( 'post.php' ) ),
+			// Capability flag so the JS can hide the role select for
+			// viewers without `promote_users`. Server-side `update_item`
+			// re-checks regardless; this is UX polish.
+			'canPromote'       => current_user_can( 'promote_users' ),
+			// Roles the viewer is allowed to assign — the role select
+			// reads this first and falls back to {@see allRoles} for
+			// older configs. Surfacing only assignable roles in the
+			// dropdown prevents a "pick a role, hit save, get rejected"
+			// loop for viewers with `promote_users` but a narrowed
+			// `editable_roles` filter (e.g. site managers who can't
+			// promote anyone to administrator).
+			'assignableRoles'  => function_exists( 'desktop_mode_users_window_role_label_map' )
+				? desktop_mode_users_window_role_label_map( $viewer_id )
+				: array(),
 			'allRoles'         => function_exists( 'desktop_mode_users_window_all_roles_map' )
 				? desktop_mode_users_window_all_roles_map()
 				: array(),

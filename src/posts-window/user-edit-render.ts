@@ -23,7 +23,7 @@
 
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
-import { getActiveWindowId, getConfig } from './rest';
+import { getActiveWindowId, getConfig, type PostsWindowConfig } from './rest';
 import {
 	fetchInsights,
 	fetchUser,
@@ -166,12 +166,48 @@ async function loadAndMountProfile(
 	return user;
 }
 
+/**
+ * Merged config bag for the user-edit form.
+ *
+ * `getConfig()` keys on the globally-active window id, which can
+ * have drifted to a sibling window (Posts, Pages, …) by the time
+ * the form re-mounts. Sibling configs carry restRoot / restNonce
+ * but lack profile-specific keys: `allRoles`, `assignableRoles`,
+ * `colorSchemes`, `locales`, `contactMethods`, `canPromote`. Without
+ * the fallback, the form renders with empty role + colour-scheme
+ * pickers, no locale options, etc.
+ *
+ * We layer the user-edit window's own blob underneath the live
+ * `getConfig()` so every key has a backstop, and prefer
+ * `desktop-mode-users` when user-edit isn't in the store (which
+ * shouldn't happen in practice but keeps the Users window's
+ * Profile sub-tab self-sufficient).
+ */
+function resolveProfileConfig(): Record< string, unknown > {
+	const current = getConfig() as unknown as Record< string, unknown >;
+	const store = ( window as unknown as {
+		desktopModeWindowConfig?: Record<
+			string,
+			Record< string, unknown >
+		>;
+	} ).desktopModeWindowConfig;
+	const userEdit = store?.[ 'desktop-mode-user-edit' ];
+	const users = store?.[ 'desktop-mode-users' ];
+	return {
+		...( users ?? {} ),
+		...( userEdit ?? {} ),
+		...current,
+	};
+}
+
 function mountProfileForm(
 	host: HTMLElement,
 	user: UserEditRecord,
 	userId: number,
 ): void {
-	const cfg = getConfig();
+	const cfg = resolveProfileConfig() as unknown as PostsWindowConfig & {
+		currentUserId?: number;
+	};
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'desktop-mode-user-edit__profile';
 
@@ -263,23 +299,44 @@ function mountProfileForm(
 	localeSelect.value = String( user.locale ?? '' );
 	form.appendChild( localeSelect );
 
-	// Role select — only shown when the viewer can promote AND
-	// they're editing someone else (admins editing themselves
-	// don't get a role dropdown in core's profile.php either,
-	// because demoting yourself is a footgun).
+	// Role select — only hidden when the viewer is editing
+	// themselves (admins demoting themselves is a footgun; core's
+	// profile.php hides it for the same reason). Capability gating
+	// happens server-side in `update_item_permissions_check`; a
+	// viewer without `promote_users` who tries to assign a role
+	// will get a 403 they can act on. We intentionally do NOT gate
+	// the dropdown on `cfg.canPromote` because a strict gate hides
+	// the control for admins in any config that happens to omit
+	// the flag (older registrations, payloads that lost it through
+	// a filter). Always-render-for-non-self matches the pre-0.18
+	// behavior and is what plugin authors expect.
 	const isSelfEdit = userId === ( cfg.currentUserId ?? 0 );
-	const w = window as unknown as {
-		wp?: { desktop?: { getOsSettings?: () => { nativeUsersEnabled?: boolean } } };
-	};
-	void w; // unused; reserved for future capability flag flow.
+	// Prefer `assignableRoles` (the viewer's `editable_roles`) when
+	// the server sent it — surfacing only roles the viewer can
+	// actually assign closes the "pick a role, hit save, get
+	// rejected" loop. Fall back to `allRoles` so the dropdown still
+	// has options for configs registered before the assignableRoles
+	// field landed. `resolveProfileConfig()` above already merges
+	// the user-edit window's blob underneath the live `cfg`, so
+	// these keys are present even if the active window id has
+	// drifted to a sibling that doesn't carry them.
+	const roleMap: Record< string, string > = ( () => {
+		const assignable = ( cfg as unknown as {
+			assignableRoles?: Record< string, string >;
+		} ).assignableRoles;
+		if ( assignable && Object.keys( assignable ).length > 0 ) {
+			return assignable;
+		}
+		return (
+			( cfg as unknown as { allRoles?: Record< string, string > } )
+				.allRoles ?? {}
+		);
+	} )();
 	if ( ! isSelfEdit ) {
 		const roleSelect = document.createElement( 'wpd-select' ) as WpdSelectElement;
 		roleSelect.setAttribute( 'name', 'roles[0]' );
 		roleSelect.setAttribute( 'label', __( 'Role' ) );
-		const allRoles =
-			( cfg as unknown as { allRoles?: Record< string, string > } )
-				.allRoles ?? {};
-		roleSelect.items = Object.entries( allRoles ).map( ( [ value, label ] ) => ( {
+		roleSelect.items = Object.entries( roleMap ).map( ( [ value, label ] ) => ( {
 			value,
 			label,
 		} ) );
@@ -288,9 +345,17 @@ function mountProfileForm(
 		form.appendChild( roleSelect );
 	}
 
-	// — Personal Options (own profile only) — matches the
-	// `Personal Options` section of `wp-admin/user-edit.php`.
-	if ( isSelfEdit ) {
+	// — Personal Options — matches the `Personal Options` section
+	// of `wp-admin/user-edit.php`. Core renders these for ANY user
+	// the viewer can edit, not just self: the visual editor toggle,
+	// syntax-highlighting toggle, admin-bar-on-front toggle, comment
+	// keyboard shortcuts, AND the admin colour scheme are all stored
+	// as per-user meta. An admin editing user N legitimately sets
+	// N's own preferences, so we surface the same controls in the
+	// native window. Earlier this section was gated on `isSelfEdit`,
+	// which dropped the colour-scheme picker (and the rest) for
+	// every "edit someone else" flow.
+	{
 		const optsHeading = document.createElement( 'h3' );
 		optsHeading.setAttribute( 'full-width', '' );
 		optsHeading.textContent = __( 'Personal options' );
@@ -342,17 +407,27 @@ function mountProfileForm(
 		// the scheme name + 3 swatches (its colour tuple). Selected
 		// scheme is reflected on a hidden `meta.admin_color` field
 		// the form auto-collects, so the wpd-form pipeline picks it
-		// up without special-casing.
+		// up without special-casing. On self-edit, picking a tile
+		// also live-previews the scheme in the shell (matches
+		// `wp-admin/js/user-profile.js`'s `#color-picker .color-option`
+		// handler).
 		const colorSchemes =
 			( cfg as unknown as {
 				colorSchemes?: Record<
 					string,
-					{ name: string; colors: string[] }
+					{
+						name: string;
+						url?: string;
+						colors: string[];
+						icon_colors?: Record< string, string >;
+					}
 				>;
 			} ).colorSchemes ?? {};
 		const currentScheme = String( meta.admin_color ?? 'fresh' );
 		form.appendChild(
-			buildAdminColorPicker( colorSchemes, currentScheme ),
+			buildAdminColorPicker( colorSchemes, currentScheme, {
+				livePreview: isSelfEdit,
+			} ),
 		);
 	}
 
@@ -545,6 +620,23 @@ function mountProfileForm(
 		pwd.setAttribute( 'value', '' );
 		pwdConfirm.value = '';
 		pwdConfirm.setAttribute( 'value', '' );
+
+		// Reflect the server's view of the saved record so the
+		// header chips (display name, role) and the sidebar insights
+		// repaint with the new values. Without this, a successful
+		// role change leaves the chip text stuck on the pre-save
+		// role and reads as "the update didn't take" — even though
+		// the database row is now correct.
+		if ( result.user ) {
+			Object.assign( user, result.user );
+			header.replaceChildren( buildProfileHeader( user ) );
+			const aside = host.ownerDocument?.querySelector< HTMLElement >(
+				'[data-wpd-user-profile-aside]',
+			);
+			if ( aside ) {
+				void mountProfileAsideAt( aside, userId, true );
+			}
+		}
 	};
 
 	wrap.appendChild( form );
@@ -1340,6 +1432,58 @@ void getActiveWindowId;
 
 // ─── Admin colour scheme picker ─────────────────────────────────────
 
+interface ColorSchemeInfo {
+	name: string;
+	url?: string;
+	colors: string[];
+	icon_colors?: Record< string, string >;
+}
+
+/**
+ * Swap the shell's admin-colors stylesheet + body class to live-
+ * preview the picked scheme. Mirrors `wp-admin/js/user-profile.js`'s
+ * `#color-picker .color-option` click handler — but only triggered
+ * when the viewer is editing their OWN profile, since previewing
+ * another user's preferred scheme would silently change the
+ * viewer's chrome until they refresh.
+ *
+ * Finds (or stamps) `<link id="colors-css">` in the parent document
+ * and points it at the scheme's URL. Also swaps `<body>` from
+ * `admin-color-PREV` to `admin-color-NEXT` so any CSS scoped to the
+ * body class re-applies.
+ */
+function applyColorSchemePreview( slug: string, info: ColorSchemeInfo ): void {
+	if ( ! info.url ) {
+		// PHP didn't surface a CSS url for this scheme — nothing we
+		// can swap. Body class still flips so any custom plugin CSS
+		// that keys on `body.admin-color-*` picks up the change.
+		flipBodyClass( slug );
+		return;
+	}
+	let link = document.getElementById(
+		'colors-css',
+	) as HTMLLinkElement | null;
+	if ( ! link ) {
+		link = document.createElement( 'link' );
+		link.rel = 'stylesheet';
+		link.id = 'colors-css';
+		document.head.appendChild( link );
+	}
+	link.href = info.url;
+	flipBodyClass( slug );
+}
+
+function flipBodyClass( slug: string ): void {
+	const body = document.body;
+	const next = `admin-color-${ slug }`;
+	for ( const cls of Array.from( body.classList ) ) {
+		if ( cls.startsWith( 'admin-color-' ) && cls !== next ) {
+			body.classList.remove( cls );
+		}
+	}
+	body.classList.add( next );
+}
+
 /**
  * Radio-grid picker for the WP admin colour schemes. Each tile
  * shows the scheme's display name + a strip of 3 mini swatches
@@ -1347,10 +1491,13 @@ void getActiveWindowId;
  *
  * Emits the chosen slug as a hidden `<wpd-text-field name="meta.admin_color">`
  * so the wpd-form's auto value-collection picks it up unchanged.
+ * Pass `livePreview: true` to flip the shell's stylesheet + body
+ * class on every click (matches core's self-edit behavior).
  */
 function buildAdminColorPicker(
-	schemes: Record< string, { name: string; colors: string[] } >,
+	schemes: Record< string, ColorSchemeInfo >,
 	current: string,
+	opts: { livePreview?: boolean } = {},
 ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'full-width', '' );
@@ -1443,7 +1590,12 @@ function buildAdminColorPicker(
 		name.textContent = info.name;
 		tile.appendChild( name );
 
-		tile.addEventListener( 'click', () => updateSelected( slug ) );
+		tile.addEventListener( 'click', () => {
+			updateSelected( slug );
+			if ( opts.livePreview ) {
+				applyColorSchemePreview( slug, info );
+			}
+		} );
 		grid.appendChild( tile );
 	}
 	updateSelected( selected );
