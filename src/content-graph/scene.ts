@@ -115,7 +115,12 @@ export class GraphScene {
 	private sim: ForceSim | null = null;
 	private focusedId: number | null = null;
 	private hoveredId: number | null = null;
-	private dragNode: GraphNode | null = null;
+	// Node the pointer is currently interacting with (set on
+	// pointerdown, cleared on pointerup/upoutside). Used by every
+	// node's `globalpointermove` handler — which fires regardless of
+	// which node the user pressed — to early-return if this isn't
+	// the press target.
+	private pressedNode: GraphNode | null = null;
 	private dragOffset = { x: 0, y: 0 };
 	private isPanning = false;
 	private panStart = { x: 0, y: 0, wx: 0, wy: 0 };
@@ -276,7 +281,17 @@ export class GraphScene {
 		this.edges = edges;
 		this.rebuildSprites();
 		this.sim = new ForceSim( nodes, edges );
-		this.sim.reheat( 0.15, false );
+		this.sim.reheat( 0.12, false );
+		// Warm-start: spin the integrator before the first frame so
+		// the user opens the window onto a near-settled layout rather
+		// than watching the cluster fly into place. Drawing hasn't
+		// happened yet (no paint until the ticker fires), so these
+		// steps are invisible — they only collapse the period of
+		// chaotic motion that made it hard to click a node before.
+		const warmupSteps = Math.min( 90, 30 + nodes.length );
+		for ( let i = 0; i < warmupSteps; i++ ) {
+			this.sim.step( 1 );
+		}
 	}
 
 	private rebuildSprites(): void {
@@ -385,25 +400,32 @@ export class GraphScene {
 	}
 
 	private bindNodeInput( gfx: PixiContainer, node: GraphNode ): void {
-		let isDragging = false;
 		let downAt = { x: 0, y: 0 };
+		let isDragging = false;
+		// Pointer must travel > 6px to be considered an intentional
+		// drag. Below that the pointer-stream is treated as a click,
+		// even when Pixi emits incidental `globalpointermove` events
+		// between down + up (that incidental flip was the cause of
+		// the "click on a moving node didn't open" bug — now we only
+		// commit to drag after the user actually moves the cursor).
+		const DRAG_THRESHOLD_SQ = 36;
 		gfx.on( 'pointerdown', ( evt: unknown ) => {
 			const e = evt as {
 				global: { x: number; y: number };
 				stopPropagation?: () => void;
 			};
 			e.stopPropagation?.();
-			isDragging = false;
 			downAt = { x: e.global.x, y: e.global.y };
-			this.dragNode = node;
 			this.nodeClickActive = true;
+			this.pressedNode = node;
+			isDragging = false;
+			// Pin so the simulation can't move the node out from
+			// under the user's cursor between down and up. We unpin
+			// on release (unless this is the focused node, which
+			// focusNode pins independently).
 			node.pinned = true;
-			const w = this.toWorld( e.global.x, e.global.y );
-			this.dragOffset = { x: node.x - w.x, y: node.y - w.y };
-			if ( this.sim ) {
-				this.sim.dragOrigin = { x: node.x, y: node.y };
-				this.sim.reheat( 0.3, false );
-			}
+			node.vx = 0;
+			node.vy = 0;
 		} );
 		gfx.on( 'pointerover', () => {
 			this.hoveredId = node.id;
@@ -419,43 +441,65 @@ export class GraphScene {
 			const e = evt as { global: { x: number; y: number } };
 			const dx = e.global.x - downAt.x;
 			const dy = e.global.y - downAt.y;
-			const moved = dx * dx + dy * dy > 9;
-			if ( ! moved && ! isDragging ) {
+			// Generous click tolerance even if `isDragging` never
+			// flipped — the simulation may still be settling and the
+			// cursor may have drifted a few px from the press point.
+			if ( ! isDragging && dx * dx + dy * dy <= 256 ) {
 				this.callbacks.onNodeClick?.( node );
-			} else {
-				// Genuine drag — un-pin so the sim can re-equilibrate
-				// around the new position. Click that escalated into
-				// focusNode keeps the node pinned (focusNode pins it
-				// itself).
-				node.pinned = this.focusedId === node.id;
 			}
-			this.dragNode = null;
+			node.pinned = this.focusedId === node.id;
+			this.pressedNode = null;
 			if ( this.sim ) {
 				this.sim.dragOrigin = null;
-				this.sim.reheat( 0.35, false );
+				if ( isDragging ) {
+					this.sim.reheat( 0.35, false );
+				}
 			}
+			isDragging = false;
 		} );
 		gfx.on( 'pointerupoutside', () => {
 			node.pinned = this.focusedId === node.id;
-			this.dragNode = null;
+			this.pressedNode = null;
 			if ( this.sim ) {
 				this.sim.dragOrigin = null;
 			}
+			isDragging = false;
 		} );
 		gfx.on( 'globalpointermove', ( evt: unknown ) => {
-			if ( this.dragNode !== node ) {
+			// Only the pressed node should react. Without this guard,
+			// other pinned nodes (e.g. the focused one) would also
+			// run the drag-promotion check on every pointer move.
+			if ( this.pressedNode !== node ) {
 				return;
 			}
 			const e = evt as { global: { x: number; y: number } };
+			const dx = e.global.x - downAt.x;
+			const dy = e.global.y - downAt.y;
+			const d2 = dx * dx + dy * dy;
+			if ( ! isDragging ) {
+				if ( d2 < DRAG_THRESHOLD_SQ ) {
+					return;
+				}
+				// Promote: pointer travelled past the threshold, so
+				// this is intentional drag. Capture the world-space
+				// offset between the cursor and the node's current
+				// position so the node "stays put" relative to the
+				// cursor while we drag.
+				isDragging = true;
+				const w = this.toWorld( e.global.x, e.global.y );
+				this.dragOffset = { x: node.x - w.x, y: node.y - w.y };
+				if ( this.sim ) {
+					this.sim.dragOrigin = { x: node.x, y: node.y };
+					this.sim.reheat( 0.3, false );
+				}
+			}
 			const w = this.toWorld( e.global.x, e.global.y );
 			node.x = w.x + this.dragOffset.x;
 			node.y = w.y + this.dragOffset.y;
 			node.vx = 0;
 			node.vy = 0;
-			isDragging = true;
 			if ( this.sim ) {
 				this.sim.dragOrigin = { x: node.x, y: node.y };
-				this.sim.reheat( 0.3, false );
 			}
 		} );
 	}
@@ -623,6 +667,14 @@ export class GraphScene {
 		}
 
 		const dimmed = focusId !== null;
+		// Edges fade in as the user zooms in. At the overview-fit
+		// zoom (~0.45-0.55) the graph reads as a constellation of
+		// nodes; as the user zooms toward 1×, the post-to-post links
+		// crisp up so you can trace connections without having to
+		// hover each node. Same band as the labels — edges + labels
+		// gain prominence together.
+		const edgeZoomFade = smoothstep( 0.45, 1.1, this.world.scale.x );
+		const edgeBaseAlpha = 0.2 + edgeZoomFade * 0.35;
 
 		for ( const v of this.edgeViews ) {
 			const { edge, gfx } = v;
@@ -635,14 +687,53 @@ export class GraphScene {
 				( edge.from.id === hoverId || edge.to.id === hoverId );
 			let alpha: number;
 			if ( dimmed ) {
-				alpha = isFocusEdge ? 0.85 : 0.05;
+				// Focus edges visible at full prominence; non-focus
+				// edges fully hidden (no faint ghost). The line itself
+				// is geometry-trimmed so it starts at the focused
+				// node's halo edge rather than passing through the
+				// disc — see the `lineEndpoints` computation below.
+				alpha = isFocusEdge ? 0.85 : 0;
+			} else if ( isHoverEdge ) {
+				alpha = 0.7;
 			} else {
-				alpha = isHoverEdge ? 0.7 : 0.18;
+				alpha = edgeBaseAlpha;
 			}
 			const color = isFocusEdge || isHoverEdge ? EDGE_HOT : EDGE_BASE;
 			const width = isFocusEdge || isHoverEdge ? 1.2 : 0.7;
-			gfx.moveTo( edge.from.x, edge.from.y )
-				.lineTo( edge.to.x, edge.to.y )
+			// Trim either endpoint when it sits on the focused node so
+			// the visible line stops at the halo's outer edge instead
+			// of running into the disc's centre. The halo radius is
+			// `node.radius + 8` (mirrors the halo paint below).
+			let sx = edge.from.x;
+			let sy = edge.from.y;
+			let ex = edge.to.x;
+			let ey = edge.to.y;
+			if ( focusId !== null ) {
+				if ( edge.from.id === focusId ) {
+					const p = pointOnSegment(
+						edge.from.x,
+						edge.from.y,
+						edge.to.x,
+						edge.to.y,
+						edge.from.radius + 8,
+					);
+					sx = p.x;
+					sy = p.y;
+				}
+				if ( edge.to.id === focusId ) {
+					const p = pointOnSegment(
+						edge.to.x,
+						edge.to.y,
+						edge.from.x,
+						edge.from.y,
+						edge.to.radius + 8,
+					);
+					ex = p.x;
+					ey = p.y;
+				}
+			}
+			gfx.moveTo( sx, sy )
+				.lineTo( ex, ey )
 				.stroke( { color, width, alpha } );
 		}
 
@@ -846,6 +937,29 @@ function normalizeDashiconName( raw: string ): string {
 		return 'admin-generic';
 	}
 	return raw.replace( /^dashicons-/, '' );
+}
+
+/**
+ * Walk `distance` units from `(fromX, fromY)` along the ray that
+ * points at `(toX, toY)`. Used to trim edge / spoke endpoints to the
+ * focused node's halo edge so lines don't visibly run through the
+ * disc.
+ */
+function pointOnSegment(
+	fromX: number,
+	fromY: number,
+	toX: number,
+	toY: number,
+	distance: number,
+): { x: number; y: number } {
+	const dx = toX - fromX;
+	const dy = toY - fromY;
+	const d = Math.sqrt( dx * dx + dy * dy );
+	if ( d === 0 ) {
+		return { x: fromX, y: fromY };
+	}
+	const t = Math.min( distance / d, 1 );
+	return { x: fromX + dx * t, y: fromY + dy * t };
 }
 
 function smoothstep( a: number, b: number, x: number ): number {

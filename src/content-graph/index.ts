@@ -25,6 +25,12 @@ import type { SatelliteRef } from './satellites';
 import type { DesktopApiLike } from './pixi-types';
 import type { GraphNode } from './types';
 
+// The framework's actual signature is wider (`() => void | (() => void) |
+// Promise<…>`) but every feature bundle re-declares it as a narrow
+// `() => void` and global declarations must agree, so keep this in
+// lock-step. The async function below is still valid because TS lets
+// you assign a `Promise<…>`-returning function to a `() => void` type
+// — the framework reads the return value at runtime regardless.
 type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
@@ -247,6 +253,15 @@ const registry =
 		string,
 		RenderCallback | undefined
 	>;
-registry[ WINDOW_ID ] = ( body: HTMLElement ) => {
-	void renderContentGraph( body );
+// Return the render Promise so the framework keeps its W loading
+// overlay up until the graph has actually fetched + painted. Without
+// this `await` we used to see a "double loading" — the framework
+// thought we were done the instant the registry callback returned,
+// hid the overlay, and our own toolbar then briefly showed
+// "Loading graph…" while the REST fetch finished. Bonus: forward the
+// returned `abort` as the framework's teardown so close-time cleanup
+// (Pixi destroy, panel destroy, toolbar destroy) actually fires.
+registry[ WINDOW_ID ] = async ( body: HTMLElement ) => {
+	const state = await renderContentGraph( body );
+	return state.abort;
 };

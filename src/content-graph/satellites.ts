@@ -48,40 +48,40 @@ import type { GraphNode, PostDetail } from './types';
  * entity id needed to fetch its detail panel.
  */
 export type SatelliteRef =
-	| {
-			kind: 'user';
-			userId: number;
-			label: string;
-			meta: string;
-			avatar?: string;
-	}
-	| {
-			kind: 'term';
-			termId: number;
-			taxonomy: string;
-			label: string;
-			meta: string;
-	}
-	| {
-			kind: 'comment';
-			commentId: number;
-			label: string;
-			meta: string;
-	}
-	| {
-			kind: 'media';
-			mediaId: number;
-			label: string;
-			meta: string;
-			thumb?: string;
-	}
-	| {
-			kind: 'revision';
-			revisionId: number;
-			parentId: number;
-			label: string;
-			meta: string;
-	};
+  | {
+      kind: 'user';
+      userId: number;
+      label: string;
+      meta: string;
+      avatar?: string;
+    }
+  | {
+      kind: 'term';
+      termId: number;
+      taxonomy: string;
+      label: string;
+      meta: string;
+    }
+  | {
+      kind: 'comment';
+      commentId: number;
+      label: string;
+      meta: string;
+    }
+  | {
+      kind: 'media';
+      mediaId: number;
+      label: string;
+      meta: string;
+      thumb?: string;
+    }
+  | {
+      kind: 'revision';
+      revisionId: number;
+      parentId: number;
+      label: string;
+      meta: string;
+    };
 
 export type SatelliteOnClick = ( ref: SatelliteRef ) => void;
 
@@ -91,7 +91,7 @@ export type SatelliteOnClick = ( ref: SatelliteRef ) => void;
  */
 export type PostTypeIconLookup = ( slug: string ) => string;
 
-const KIND_COLOR: Record< SatelliteRef[ 'kind' ], number > = {
+const KIND_COLOR: Record<SatelliteRef['kind'], number> = {
 	user: 0x3a6df0,
 	term: 0x2ca97a,
 	comment: 0xe8893a,
@@ -99,7 +99,7 @@ const KIND_COLOR: Record< SatelliteRef[ 'kind' ], number > = {
 	revision: 0x6b7785,
 };
 
-const KIND_DASHICON: Record< SatelliteRef[ 'kind' ], string > = {
+const KIND_DASHICON: Record<SatelliteRef['kind'], string> = {
 	user: 'admin-users',
 	term: 'tag',
 	comment: 'admin-comments',
@@ -125,23 +125,29 @@ const KIND_ICON_NUDGE: Record<
 > = {
 	user: { x: 0, y: 3 },
 	term: { x: 0, y: 3 },
-	comment: { x: 2, y: 3 },
-	media: { x: 0, y: 3 },
+	// The speech-bubble dashicon is intrinsically off-balance — even
+	// after the bbox is centred, the visible bubble drifts toward the
+	// upper-right because the tail-less side carries more glyph mass.
+	// Tuned by eye against the rendered output: pull a bit left, push
+	// a bit down. Don't pile on more correction without re-checking;
+	// what looks centred at one zoom can over-shoot at another.
+	comment: { x: 1, y: 4 },
+	media: { x: -1, y: 1 },
 	revision: { x: 0, y: 3 },
 };
 
 const DISC_RADIUS = 14;
 
 interface SatelliteView {
-	ref: SatelliteRef;
-	key: string;
-	container: PixiContainer;
-	disc: PixiGraphics;
-	icon: PixiText;
-	label: PixiText;
-	targetX: number;
-	targetY: number;
-	selected: boolean;
+  ref: SatelliteRef;
+  key: string;
+  container: PixiContainer;
+  disc: PixiGraphics;
+  icon: PixiText;
+  label: PixiText;
+  targetX: number;
+  targetY: number;
+  selected: boolean;
 }
 
 export class SatelliteLayer {
@@ -154,22 +160,22 @@ export class SatelliteLayer {
 	private selectedKey: string | null = null;
 
 	constructor(
-		private pixi: PixiNamespace,
-		// Parent for the satellite icons themselves — drawn ABOVE the
-		// node layer so satellites sit in front of nodes.
-		private satelliteParent: PixiContainer,
-		// Parent for the connector spokes — the scene places this BELOW
-		// the node layer so the spoke endpoints appear to start from
-		// behind the focused node disc rather than pasted over it.
-		private spokeParent: PixiContainer,
-		private onClick: SatelliteOnClick,
-		private hostEl: HTMLElement,
-		// Called on satellite `pointerdown` so the scene can flip its
-		// pixi-click gate. Without this the canvas-level pan handler
-		// fires on the same pointer event, then the matching pointerup
-		// triggers `onBackgroundClick` and closes the panel right after
-		// `panel.show*()` opened the contextual view.
-		private claimPointer: () => void,
+    private pixi: PixiNamespace,
+    // Parent for the satellite icons themselves — drawn ABOVE the
+    // node layer so satellites sit in front of nodes.
+    private satelliteParent: PixiContainer,
+    // Parent for the connector spokes — the scene places this BELOW
+    // the node layer so the spoke endpoints appear to start from
+    // behind the focused node disc rather than pasted over it.
+    private spokeParent: PixiContainer,
+    private onClick: SatelliteOnClick,
+    private hostEl: HTMLElement,
+    // Called on satellite `pointerdown` so the scene can flip its
+    // pixi-click gate. Without this the canvas-level pan handler
+    // fires on the same pointer event, then the matching pointerup
+    // triggers `onBackgroundClick` and closes the panel right after
+    // `panel.show*()` opened the contextual view.
+    private claimPointer: () => void,
 	) {
 		this.linkGfx = new pixi.Graphics();
 		this.spokeParent.addChild( this.linkGfx );
@@ -197,12 +203,26 @@ export class SatelliteLayer {
 		if ( ! this.focused || this.views.length === 0 ) {
 			return;
 		}
+		// Trim the spoke origin from the focused node's CENTRE to its
+		// halo OUTER EDGE so lines stop at the disc boundary instead
+		// of running through it. The halo radius (`node.radius + 8`)
+		// matches the value the scene paints in `draw()`.
+		const halo = this.focused.radius + 8;
 		const fx = this.focused.x;
 		const fy = this.focused.y;
 		for ( const v of this.views ) {
+			const dx = v.container.x - fx;
+			const dy = v.container.y - fy;
+			const d = Math.sqrt( dx * dx + dy * dy );
+			if ( d <= halo ) {
+				continue;
+			}
+			const t = halo / d;
+			const sx = fx + dx * t;
+			const sy = fy + dy * t;
 			const color = KIND_COLOR[ v.ref.kind ];
 			this.linkGfx
-				.moveTo( fx, fy )
+				.moveTo( sx, sy )
 				.lineTo( v.container.x, v.container.y )
 				.stroke( {
 					color,
@@ -239,11 +259,7 @@ export class SatelliteLayer {
 			const tx = focused.x + Math.cos( angle ) * ringR;
 			const ty = focused.y + Math.sin( angle ) * ringR;
 
-			const view = this.buildSatellite(
-				ref,
-				focused.x,
-				focused.y,
-			);
+			const view = this.buildSatellite( ref, focused.x, focused.y );
 			view.targetX = tx;
 			view.targetY = ty;
 			this.views.push( view );
@@ -364,9 +380,7 @@ export class SatelliteLayer {
 		const hitR = DISC_RADIUS + 4;
 		container.hitArea = {
 			contains: ( x: number, y: number ) => {
-				return (
-					x >= -hitR && x <= hitR && y >= -hitR && y <= hitR + 18
-				);
+				return x >= -hitR && x <= hitR && y >= -hitR && y <= hitR + 18;
 			},
 		};
 
@@ -410,7 +424,7 @@ export class SatelliteLayer {
 				fill: 0x1a1f2b,
 				fontSize: 11,
 				fontFamily:
-					'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 				fontWeight: '500',
 			},
 			resolution: 2,
@@ -490,9 +504,7 @@ export class SatelliteLayer {
 		if ( v.selected ) {
 			// Soft halo behind the disc so the selected satellite
 			// reads as "active" without yelling colour.
-			v.disc
-				.circle( 0, 0, DISC_RADIUS + 6 )
-				.fill( { color: fill, alpha: 0.18 } );
+			v.disc.circle( 0, 0, DISC_RADIUS + 6 ).fill( { color: fill, alpha: 0.18 } );
 		}
 		v.disc
 			.circle( 0, 0, DISC_RADIUS )
@@ -538,8 +550,8 @@ export class SatelliteLayer {
 	): void {
 		this.hoverEl.hidden = false;
 		this.hoverEl.innerHTML =
-			`<strong>${ escapeHtml( ref.label || '—' ) }</strong>` +
-			( ref.meta ? `<span>${ escapeHtml( ref.meta ) }</span>` : '' );
+      `<strong>${ escapeHtml( ref.label || '—' ) }</strong>` +
+      ( ref.meta ? `<span>${ escapeHtml( ref.meta ) }</span>` : '' );
 		if ( global ) {
 			// Pixi v8's `event.global` is already in the canvas's local
 			// (CSS-pixel) coordinate space. The host element wraps the
