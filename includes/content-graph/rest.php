@@ -57,8 +57,18 @@ function desktop_mode_content_graph_register_routes() {
 			'callback'            => 'desktop_mode_content_graph_rest_nodes',
 			'permission_callback' => 'desktop_mode_content_graph_rest_permission',
 			'args'                => array(
-				'types' => array(
+				'types'      => array(
 					'description' => 'Comma-separated list of post type slugs to include.',
+					'type'        => 'string',
+					'default'     => '',
+				),
+				'edges'      => array(
+					'description' => 'Comma-separated list of edge kinds to compute (link, co_tag, co_author, hierarchy, menu). Empty = all kinds.',
+					'type'        => 'string',
+					'default'     => '',
+				),
+				'taxonomies' => array(
+					'description' => 'Comma-separated list of public taxonomy slugs whose memberships should ride along on each node\'s `terms` map.',
 					'type'        => 'string',
 					'default'     => '',
 				),
@@ -122,11 +132,24 @@ function desktop_mode_content_graph_rest_post_types() {
  * @return WP_REST_Response
  */
 function desktop_mode_content_graph_rest_nodes( WP_REST_Request $request ) {
-	$raw   = (string) $request->get_param( 'types' );
-	$types = '' === $raw
+	$raw_types = (string) $request->get_param( 'types' );
+	$types     = '' === $raw_types
 		? wp_list_pluck( desktop_mode_content_graph_post_types(), 'slug' )
-		: array_map( 'trim', explode( ',', $raw ) );
-	return rest_ensure_response( desktop_mode_content_graph_build( (array) $types ) );
+		: array_map( 'trim', explode( ',', $raw_types ) );
+
+	$raw_edges  = (string) $request->get_param( 'edges' );
+	$edge_kinds = '' === $raw_edges
+		? array()
+		: array_map( 'trim', explode( ',', $raw_edges ) );
+
+	$raw_taxes  = (string) $request->get_param( 'taxonomies' );
+	$taxonomies = '' === $raw_taxes
+		? array()
+		: array_map( 'trim', explode( ',', $raw_taxes ) );
+
+	return rest_ensure_response(
+		desktop_mode_content_graph_build( (array) $types, (array) $edge_kinds, (array) $taxonomies )
+	);
 }
 
 /**
