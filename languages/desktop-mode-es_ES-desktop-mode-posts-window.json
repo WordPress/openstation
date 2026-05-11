@@ -9,13 +9,55 @@
                 "lang": "es_ES",
                 "plural-forms": "nplurals=2; plural=(n != 1);"
             },
+            "\"%1$s\" last used %2$s": [
+                ""
+            ],
+            "%1$s — %2$d posts": [
+                ""
+            ],
+            "%d comments": [
+                ""
+            ],
+            "%d d ago": [
+                ""
+            ],
+            "%d days": [
+                ""
+            ],
+            "%d h ago": [
+                ""
+            ],
+            "%d min ago": [
+                "Navegación del administrador"
+            ],
+            "%d mo ago": [
+                ""
+            ],
             "%d posts in this category.": [
                 ""
             ],
             "%d posts tagged with this.": [
                 ""
             ],
+            "%d received": [
+                ""
+            ],
             "%d selected": [
+                ""
+            ],
+            "%d total": [
+                ""
+            ],
+            "%d y ago": [
+                ""
+            ],
+            "%d 💬": [
+                ""
+            ],
+            "%s is currently editing": [
+                ""
+            ],
+            "(empty comment)": [
                 ""
             ],
             "(no excerpt)": [
@@ -24,7 +66,34 @@
             "(no title)": [
                 ""
             ],
+            "+ %d pages": [
+                "Subpáginas de %s"
+            ],
             "+ Child": [
+                ""
+            ],
+            "A new visual editor for Categories and Tags awaits inside — drag, drop, and reorganize your taxonomy in seconds.": [
+                ""
+            ],
+            "A redesigned Posts experience built around how you actually work. Try the new Categories canvas — grab a node and drop it on another to reparent it.": [
+                ""
+            ],
+            "A valid email address is required.": [
+                ""
+            ],
+            "Account management": [
+                ""
+            ],
+            "Actions": [
+                ""
+            ],
+            "Active 30d": [
+                ""
+            ],
+            "Active sessions": [
+                ""
+            ],
+            "Active sessions & app access": [
                 ""
             ],
             "Add New Post": [
@@ -39,19 +108,85 @@
             "Add tag…": [
                 ""
             ],
+            "Admin colour scheme": [
+                ""
+            ],
+            "Album art trends": [
+                ""
+            ],
+            "Album re-listen": [
+                ""
+            ],
+            "All": [
+                ""
+            ],
             "All authors": [
                 ""
             ],
             "All tags": [
                 ""
             ],
+            "Anamorphic notes": [
+                ""
+            ],
+            "Application password name is required.": [
+                ""
+            ],
+            "Application password revoked.": [
+                ""
+            ],
+            "Application passwords": [
+                ""
+            ],
+            "Apply": [
+                ""
+            ],
+            "Astronomy": [
+                ""
+            ],
             "Author": [
+                ""
+            ],
+            "Backyard telescope": [
+                ""
+            ],
+            "Biographical info": [
+                ""
+            ],
+            "Biology": [
+                ""
+            ],
+            "Birding weekend": [
+                ""
+            ],
+            "Bulk role change with strict role-permission enforcement — never accidentally promote anyone above your own level.": [
+                ""
+            ],
+            "Campaign trail": [
                 ""
             ],
             "Cancel": [
                 ""
             ],
+            "Categories": [
+                ""
+            ],
             "Categorize": [
+                ""
+            ],
+            "Cell shapes": [
+                ""
+            ],
+            "Central banks": [
+                ""
+            ],
+            "Change role for selected users?": [
+                ""
+            ],
+            "Cinema": [
+                ""
+            ],
+            "City walks": [
                 ""
             ],
             "Click a node on the mindmap to edit its name, description, and posts.": [
@@ -67,6 +202,63 @@
                 ""
             ],
             "Click again to delete": [
+                ""
+            ],
+            "Click to copy email": [
+                ""
+            ],
+            "Click to copy slug": [
+                ""
+            ],
+            "Click-to-copy email and a long-overdue search that matches name, username, AND email.": [
+                ""
+            ],
+            "Code as method": [
+                ""
+            ],
+            "Coffee shop economics": [
+                ""
+            ],
+            "Comet schedule": [
+                ""
+            ],
+            "Comments": [
+                ""
+            ],
+            "Comments column, Parent column, View link, lock indicator, multi-select bulk actions, inline search, status segments. All in one screen, no reloads.": [
+                ""
+            ],
+            "Confirm new password": [
+                ""
+            ],
+            "Content": [
+                ""
+            ],
+            "Copied!": [
+                ""
+            ],
+            "Could not create the user.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Could not destroy sessions (%s).": [
+                ""
+            ],
+            "Could not load insights (%s).": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load profile (%s).": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load users. Try Refresh.": [
+                ""
+            ],
+            "Could not open profile window — desktop shell unavailable.": [
+                ""
+            ],
+            "Could not resend welcome (%s).": [
+                ""
+            ],
+            "Could not send reset email (%s).": [
                 ""
             ],
             "Couldn’t add category.": [
@@ -117,10 +309,22 @@
             "Create": [
                 ""
             ],
+            "Created. Copy the password now: %s": [
+                ""
+            ],
+            "Culture": [
+                ""
+            ],
             "Date": [
                 ""
             ],
+            "Default template": [
+                "Predeterminada"
+            ],
             "Delete": [
+                ""
+            ],
+            "Delete category?": [
                 ""
             ],
             "Delete the category \"%s\"? Posts assigned only to it will fall back to Uncategorized.": [
@@ -132,13 +336,46 @@
             "Description (optional)": [
                 ""
             ],
+            "Director cut": [
+                ""
+            ],
+            "Disable syntax highlighting when editing code": [
+                ""
+            ],
+            "Disable the visual editor when writing": [
+                ""
+            ],
+            "Display name publicly as": [
+                ""
+            ],
             "Draft": [
                 ""
             ],
             "Drafts": [
                 ""
             ],
+            "Economics": [
+                ""
+            ],
+            "Email": [
+                ""
+            ],
+            "Email (required)": [
+                ""
+            ],
+            "Email address is not valid.": [
+                ""
+            ],
+            "Enable keyboard shortcuts for comment moderation": [
+                ""
+            ],
             "Excerpt": [
+                ""
+            ],
+            "Field portraits": [
+                ""
+            ],
+            "Fieldwork log": [
                 ""
             ],
             "Filter by author": [
@@ -147,7 +384,112 @@
             "Filter by tag": [
                 ""
             ],
+            "First name": [
+                ""
+            ],
+            "Front page": [
+                ""
+            ],
+            "Front page and Posts page badges right on the title — no more \"wait, which one is the homepage?\".": [
+                ""
+            ],
+            "Future-proof tropes": [
+                ""
+            ],
+            "Generate strong": [
+                ""
+            ],
+            "Generated password copied to clipboard.": [
+                ""
+            ],
+            "Got it": [
+                ""
+            ],
+            "Grant super admin privileges for the network": [
+                ""
+            ],
+            "Greenhouse notes": [
+                ""
+            ],
+            "Idle": [
+                ""
+            ],
+            "Includes the current device.": [
+                ""
+            ],
+            "Inflation trail": [
+                ""
+            ],
+            "Lab notebook": [
+                ""
+            ],
+            "Language": [
+                ""
+            ],
+            "Last login": [
+                ""
+            ],
+            "Last name": [
+                ""
+            ],
+            "Last-login column so you finally know who is actually using the site.": [
+                ""
+            ],
+            "Leave blank to keep the current password.": [
+                ""
+            ],
+            "Liner notes": [
+                ""
+            ],
+            "Live online indicator on every row — see who is around right now.": [
+                ""
+            ],
+            "Live this week": [
+                ""
+            ],
+            "Loading insights…": [
+                ""
+            ],
+            "Loading profile…": [
+                "Subiendo…"
+            ],
+            "Local elections": [
+                ""
+            ],
+            "Log out everywhere else": [
+                ""
+            ],
+            "Log this user out everywhere": [
+                ""
+            ],
+            "Logged in across multiple devices.": [
+                ""
+            ],
+            "Lunar tides": [
+                ""
+            ],
+            "Macro recap": [
+                ""
+            ],
             "Make root": [
+                ""
+            ],
+            "Market mood": [
+                ""
+            ],
+            "Markets recap": [
+                ""
+            ],
+            "Member": [
+                "Ámbar"
+            ],
+            "Methodology notes": [
+                ""
+            ],
+            "Microscope diary": [
+                ""
+            ],
+            "Migration map": [
                 ""
             ],
             "Mindmap unavailable.": [
@@ -162,16 +504,46 @@
             "Move to trash": [
                 ""
             ],
+            "Music": [
+                ""
+            ],
             "Name": [
                 ""
             ],
+            "Native species": [
+                ""
+            ],
+            "Never": [
+                ""
+            ],
+            "Never logged in": [
+                ""
+            ],
+            "New application password name": [
+                ""
+            ],
             "New child of %s": [
+                ""
+            ],
+            "New password": [
                 ""
             ],
             "New root category": [
                 ""
             ],
             "New tag": [
+                ""
+            ],
+            "Nickname": [
+                ""
+            ],
+            "No activity in the last 12 months.": [
+                ""
+            ],
+            "No app passwords issued yet.": [
+                ""
+            ],
+            "No application passwords issued yet.": [
                 ""
             ],
             "No category selected": [
@@ -183,25 +555,139 @@
             "No posts": [
                 ""
             ],
+            "No recent comments.": [
+                ""
+            ],
+            "No recent posts.": [
+                ""
+            ],
+            "No recent use.": [
+                ""
+            ],
+            "No role": [
+                ""
+            ],
             "No tag selected": [
                 ""
             ],
             "No tags yet. Click \"Add tag\" to start building the cloud.": [
                 ""
             ],
+            "No users updated.": [
+                ""
+            ],
+            "Numbers I noticed": [
+                ""
+            ],
+            "Offline": [
+                ""
+            ],
+            "One-click password reset and resend-welcome buttons, with sensible rate-limiting.": [
+                ""
+            ],
+            "Online": [
+                ""
+            ],
+            "Online now": [
+                ""
+            ],
+            "Open questions": [
+                ""
+            ],
+            "Open-source orbits": [
+                ""
+            ],
             "Page %1$d of %2$d · %3$d posts": [
+                ""
+            ],
+            "Page %1$d of %2$d · %3$d users": [
+                ""
+            ],
+            "Page Template column so you can spot which template each page uses at a glance.": [
+                ""
+            ],
+            "Pages": [
+                ""
+            ],
+            "Parent": [
+                ""
+            ],
+            "Password generated and copied to clipboard.": [
                 ""
             ],
             "Pending": [
                 ""
             ],
+            "Per-user content stats: posts, pages, comments at a glance.": [
+                ""
+            ],
+            "Personal options": [
+                ""
+            ],
+            "Phase transitions": [
+                ""
+            ],
+            "Physics": [
+                ""
+            ],
+            "Pixel pipelines": [
+                ""
+            ],
+            "Plugins economy": [
+                ""
+            ],
+            "Policy explainer": [
+                ""
+            ],
+            "Politics": [
+                ""
+            ],
+            "Posts": [
+                ""
+            ],
+            "Posts page": [
+                ""
+            ],
+            "Posts published — last 12 months": [
+                ""
+            ],
+            "Prefer the classic Posts list? You can switch back any time from OS Settings → Features.": [
+                ""
+            ],
+            "Pressed leaves": [
+                ""
+            ],
+            "Pricing tactics": [
+                ""
+            ],
             "Private": [
+                ""
+            ],
+            "Profile completeness": [
+                ""
+            ],
+            "Profile saved.": [
+                ""
+            ],
+            "Profile window not registered — see console.": [
                 ""
             ],
             "Promote this category to a top-level root (no parent).": [
                 ""
             ],
             "Published": [
+                ""
+            ],
+            "Reader letters": [
+                ""
+            ],
+            "Recent activity": [
+                ""
+            ],
+            "Recent comments": [
+                ""
+            ],
+            "Recent posts": [
                 ""
             ],
             "Recenter": [
@@ -213,22 +699,118 @@
             "Reflow": [
                 ""
             ],
+            "Registered": [
+                ""
+            ],
             "Reparent failed:": [
                 "Error al subir."
+            ],
+            "Replication study": [
+                ""
+            ],
+            "Resend": [
+                ""
+            ],
+            "Resend welcome email": [
+                ""
+            ],
+            "Resend welcome email?": [
+                ""
+            ],
+            "Reset email sent to %s.": [
+                ""
+            ],
+            "Revert": [
+                ""
+            ],
+            "Revoke": [
+                ""
+            ],
+            "Role": [
+                ""
+            ],
+            "Role updated for %1$d user(s) (%2$d skipped).": [
+                ""
+            ],
+            "Same data you already manage, with the polish the Users list has been waiting for.": [
+                ""
             ],
             "Save": [
                 ""
             ],
+            "Save changes": [
+                ""
+            ],
+            "Save failed.": [
+                "Error al subir."
+            ],
             "Scheduled": [
+                ""
+            ],
+            "Science": [
                 ""
             ],
             "Search categories…": [
                 ""
             ],
+            "Send password reset": [
+                ""
+            ],
+            "Send password reset email?": [
+                ""
+            ],
+            "Send reset email": [
+                ""
+            ],
+            "Sessions destroyed.": [
+                ""
+            ],
+            "Set %1$d user(s)' role to %2$s?": [
+                ""
+            ],
+            "Set on the road": [
+                ""
+            ],
+            "Set role": [
+                ""
+            ],
+            "Set role to…": [
+                ""
+            ],
+            "Share a little about yourself — visible on author archives.": [
+                ""
+            ],
             "Show columns": [
                 ""
             ],
+            "Show toolbar when viewing site": [
+                ""
+            ],
+            "Sim notebooks": [
+                ""
+            ],
+            "Site default": [
+                "Predeterminada"
+            ],
             "Slug": [
+                ""
+            ],
+            "Slug column with one-click copy — perfect when configuring redirects or sharing canonical URLs.": [
+                ""
+            ],
+            "Society": [
+                ""
+            ],
+            "Stage to screen": [
+                ""
+            ],
+            "Sticky header and sticky title column so long lists stay readable as you scroll.": [
+                ""
+            ],
+            "Sunday digest": [
+                ""
+            ],
+            "Sunday playlist": [
                 ""
             ],
             "Tag": [
@@ -243,13 +825,106 @@
             "Tag created but description failed:": [
                 ""
             ],
+            "Tags": [
+                ""
+            ],
+            "Take me to settings": [
+                ""
+            ],
+            "Template": [
+                ""
+            ],
+            "That email is already in use.": [
+                ""
+            ],
+            "That username is already in use.": [
+                ""
+            ],
+            "The two password fields do not match.": [
+                ""
+            ],
+            "Three-act notes": [
+                ""
+            ],
             "Title": [
+                ""
+            ],
+            "Title cards reborn": [
+                ""
+            ],
+            "Top-level page": [
+                ""
+            ],
+            "Town hall notes": [
+                ""
+            ],
+            "Toy models": [
+                ""
+            ],
+            "Tracks at dawn": [
                 ""
             ],
             "Trash": [
                 ""
             ],
+            "Type as identity": [
+                ""
+            ],
+            "Type the new password again.": [
+                ""
+            ],
             "Unknown": [
+                ""
+            ],
+            "User created — welcome email sent to %s.": [
+                ""
+            ],
+            "Username": [
+                ""
+            ],
+            "Username is not valid.": [
+                ""
+            ],
+            "View": [
+                ""
+            ],
+            "Website": [
+                ""
+            ],
+            "Weekly briefing": [
+                ""
+            ],
+            "Welcome email resent to %s.": [
+                ""
+            ],
+            "Welcome to the new Pages window": [
+                ""
+            ],
+            "Welcome to the new Posts": [
+                ""
+            ],
+            "Welcome to the new Users window": [
+                ""
+            ],
+            "What we learned": [
+                ""
+            ],
+            "WordPress at scale": [
+                "Azul WordPress"
+            ],
+            "WordPress will email %s a password-reset link.": [
+                ""
+            ],
+            "WordPress will resend the original welcome email to %s.": [
+                ""
+            ],
+            "Worldbuilding 101": [
+                ""
+            ],
+            "You are not allowed to assign that role.": [
+                "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+            ],
+            "You're looking at the redesigned Pages list — same data you already manage, with a UX tuned for how Desktop Mode wants you to work.": [
                 ""
             ],
             "auto-from-name": [
@@ -261,7 +936,28 @@
             "e.g. featured": [
                 ""
             ],
+            "e.g. iPhone, WP-CLI, Backup tool": [
+                ""
+            ],
+            "just now": [
+                ""
+            ],
+            "last used %s": [
+                ""
+            ],
             "modified": [
+                ""
+            ],
+            "never used": [
+                ""
+            ],
+            "on": [
+                "Monocromo"
+            ],
+            "pending": [
+                ""
+            ],
+            "↳ #%d": [
                 ""
             ]
         }

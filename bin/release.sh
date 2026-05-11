@@ -1,15 +1,46 @@
 #!/usr/bin/env bash
 # End-to-end local release: bump, commit, push, wait for CI, tag, push tag.
 # Idempotent — safe to re-run if a previous attempt failed mid-flow.
+#
+# Flags:
+#   --skip-i18n   Skip the translation-file refresh (extract + build).
+#                 Use for hotfix releases where you do not want
+#                 .pot/.po/.json churn in the bump commit.
 
 set -euo pipefail
 
-if [[ $# -ne 1 ]]; then
-	echo "usage: $0 <version>  (e.g., 0.5.0 or 0.5.0-rc1)" >&2
+skip_i18n=0
+new=""
+for arg in "$@"; do
+	case "$arg" in
+		--skip-i18n)
+			skip_i18n=1
+			;;
+		-h|--help)
+			echo "usage: $0 <version> [--skip-i18n]  (e.g., 0.5.0 or 0.5.0-rc1)"
+			exit 0
+			;;
+		-*)
+			echo "error: unknown flag '$arg'" >&2
+			echo "usage: $0 <version> [--skip-i18n]" >&2
+			exit 1
+			;;
+		*)
+			if [[ -n "$new" ]]; then
+				echo "error: unexpected extra positional argument '$arg'" >&2
+				echo "usage: $0 <version> [--skip-i18n]" >&2
+				exit 1
+			fi
+			new="$arg"
+			;;
+	esac
+done
+
+if [[ -z "$new" ]]; then
+	echo "usage: $0 <version> [--skip-i18n]  (e.g., 0.5.0 or 0.5.0-rc1)" >&2
 	exit 1
 fi
 
-new="$1"
 tag="v$new"
 
 command -v gh >/dev/null || { echo "error: 'gh' CLI required (for CI polling)" >&2; exit 1; }
@@ -63,6 +94,25 @@ stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
 if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" ]]; then
 	echo "All version locations already at $new — skipping bump, resuming at CI wait."
 else
+	# Refresh translation files BEFORE the version bump so any churn
+	# (renumbered #: source refs, fresh POT-Creation-Date, fuzzy
+	# flags, new JSON bundles) ends up in the same commit as the
+	# bump. Running this here also gives a cheap Ctrl-C escape: if
+	# the language-file diff looks wrong, abort now — nothing has
+	# been committed or pushed yet.
+	if [[ "$skip_i18n" == "0" ]]; then
+		echo "Refreshing translation files (npm run i18n)..."
+		npm run --silent i18n
+		if git diff --quiet -- languages/; then
+			echo "  -> no language-file changes."
+		else
+			echo "  -> languages/ updated:"
+			git diff --stat -- languages/
+		fi
+	else
+		echo "Skipping i18n refresh (--skip-i18n)."
+	fi
+
 	./bin/bump-version.sh "$new"
 	if git diff --quiet; then
 		echo "bump-version.sh produced no changes — versions already in sync."

@@ -49,9 +49,12 @@
 		"test:php:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode composer install",
 		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist",
 		"check:plugin": "wp-env run cli wp plugin check desktop-mode",
-		"build:i18n": "bin/build-i18n.sh"
+		"build:i18n": "bin/build-i18n.sh",
+		"extract:i18n": "bin/extract-i18n.sh",
+		"i18n": "npm run extract:i18n && npm run build:i18n"
 	},
 	"devDependencies": {
+		"@automattic/wp-babel-makepot": "^1.2.0",
 		"@typescript-eslint/eslint-plugin": "^7.18.0",
 		"@typescript-eslint/parser": "^7.18.0",
 		"@vitest/ui": "^4.1.4",

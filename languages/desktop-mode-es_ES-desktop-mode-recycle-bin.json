@@ -18,28 +18,37 @@
             "By": [
                 ""
             ],
-            "Comment": [
+            "Delete forever": [
+                ""
+            ],
+            "Delete forever?": [
                 ""
             ],
             "Deleted": [
                 ""
             ],
+            "Empty bin": [
+                ""
+            ],
+            "Empty bin?": [
+                ""
+            ],
             "Empty the recycle bin? Every item visible in the current view will be permanently deleted.": [
                 ""
             ],
-            "Page": [
+            "Emptying…": [
+                "Subiendo…"
+            ],
+            "Emptying… %1$d of %2$d": [
                 ""
             ],
             "Permanently delete %d item(s)? This cannot be undone.": [
                 ""
             ],
-            "Post": [
+            "Restore": [
                 ""
             ],
             "Title": [
-                ""
-            ],
-            "Type": [
                 ""
             ]
         }

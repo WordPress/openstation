@@ -9,35 +9,143 @@
                 "lang": "es_ES",
                 "plural-forms": "nplurals=2; plural=(n != 1);"
             },
+            "%1$d %3$s, %2$d failed.": [
+                ""
+            ],
+            "%1$d nodes · %2$d links": [
+                ""
+            ],
+            "%1$d of %2$d items": [
+                ""
+            ],
+            "%1$d of %2$d users": [
+                ""
+            ],
+            "%1$d plugin(s) %2$s.": [
+                ""
+            ],
+            "%1$d posts · %2$d comments tracked": [
+                ""
+            ],
+            "%1$d posts · %2$d pages": [
+                ""
+            ],
+            "%1$s · %2$d": [
+                ""
+            ],
+            "%1$s · %2$d posts": [
+                ""
+            ],
+            "%1$s · %2$s KB": [
+                ""
+            ],
+            "%1$s — %2$d posts, %3$d comments": [
+                ""
+            ],
+            "%1$s — currently being edited by %2$s": [
+                ""
+            ],
+            "%1$s → %2$s": [
+                ""
+            ],
+            "%d KB": [
+                ""
+            ],
+            "%d comment site-wide": [
+                ""
+            ],
+            "%d day": [
+                ""
+            ],
             "%d hidden by HD filter": [
                 "%d ocultas por el filtro HD"
             ],
             "%d notification": [
                 ""
             ],
+            "%d post": [
+                ""
+            ],
+            "%d post published — their personal record.": [
+                ""
+            ],
+            "%d published": [
+                ""
+            ],
+            "%d selected": [
+                ""
+            ],
             "%d update": [
                 "%d actualización",
                 "%d actualizaciones"
             ],
+            "%d ★": [
+                ""
+            ],
+            "%d+ million active": [
+                ""
+            ],
+            "%d:00": [
+                ""
+            ],
             "%s (already added)": [
                 "%s (ya añadido)"
             ],
+            "%s MB": [
+                ""
+            ],
+            "%s activated.": [
+                ""
+            ],
+            "%s deactivated.": [
+                ""
+            ],
+            "%s deleted.": [
+                ""
+            ],
             "%s is already installed. Open it from your apps menu or home screen.": [
+                ""
+            ],
+            "%s is currently editing": [
                 ""
             ],
             "%s sub-pages": [
                 "Subpáginas de %s"
             ],
+            "%s — activity footprint": [
+                ""
+            ],
             "%s — open windows": [
+                ""
+            ],
+            "%s+ active": [
+                ""
+            ],
+            "(folder)": [
+                ""
+            ],
+            "(no title)": [
                 ""
             ],
             "1 item": [
                 ""
             ],
+            "A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.": [
+                ""
+            ],
+            "A native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it. On by default.": [
+                ""
+            ],
             "A platform-wide AI key is configured. You can optionally set a personal key below to override it.": [
                 ""
             ],
+            "A real gallery on Browse — clean cards with rating, install count, last updated, and a click-anywhere detail flyout. Subtle hover lift, lazy-loaded icons, infinite scroll.": [
+                ""
+            ],
             "A short summary": [
+                ""
+            ],
+            "A year of activity": [
                 ""
             ],
             "AI Settings": [
@@ -49,8 +157,26 @@
             "API key": [
                 ""
             ],
+            "About": [
+                ""
+            ],
             "Accent color": [
                 "Color de acento"
+            ],
+            "Activate": [
+                ""
+            ],
+            "Activating…": [
+                "Subiendo…"
+            ],
+            "Activation failed: %s": [
+                ""
+            ],
+            "Active": [
+                ""
+            ],
+            "Activity (last 12 months)": [
+                ""
             ],
             "Add %s": [
                 "Añadir %s"
@@ -64,10 +190,58 @@
             "Added": [
                 "Añadido"
             ],
+            "All": [
+                ""
+            ],
+            "Also show on desktop": [
+                "Añadir nuevo escritorio"
+            ],
+            "Also show on dock": [
+                ""
+            ],
+            "Amber": [
+                "Ámbar"
+            ],
             "Angle": [
                 "Ángulo"
             ],
+            "Anonymous": [
+                ""
+            ],
             "Appearance": [
+                ""
+            ],
+            "Apps & Icons": [
+                ""
+            ],
+            "Apps & Icons settings…": [
+                ""
+            ],
+            "Attached media": [
+                "Buscar medios"
+            ],
+            "Author": [
+                ""
+            ],
+            "Author archive": [
+                ""
+            ],
+            "Author · %s": [
+                ""
+            ],
+            "Authors": [
+                ""
+            ],
+            "Back": [
+                ""
+            ],
+            "Back to post": [
+                ""
+            ],
+            "Beta": [
+                ""
+            ],
+            "Bookmark": [
                 ""
             ],
             "Bottom": [
@@ -76,10 +250,40 @@
             "Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper.": [
                 ""
             ],
+            "Breadcrumb": [
+                ""
+            ],
             "Bug": [
                 ""
             ],
+            "By hour of day (site time)": [
+                ""
+            ],
+            "By weekday": [
+                ""
+            ],
+            "CPT": [
+                ""
+            ],
             "CSS custom properties": [
+                ""
+            ],
+            "Cancel": [
+                ""
+            ],
+            "Can’t drop here": [
+                ""
+            ],
+            "Categories": [
+                ""
+            ],
+            "Categories · %d": [
+                ""
+            ],
+            "Changelog": [
+                ""
+            ],
+            "Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.": [
                 ""
             ],
             "Classic": [
@@ -94,8 +298,35 @@
             "Close %s": [
                 "Cerrar %s"
             ],
+            "Close panel": [
+                "Cerrar pestaña"
+            ],
+            "Close plugin details": [
+                ""
+            ],
             "Close tab": [
                 "Cerrar pestaña"
+            ],
+            "Co-occurring": [
+                ""
+            ],
+            "Comment": [
+                ""
+            ],
+            "Commented on “%s”": [
+                ""
+            ],
+            "Comments": [
+                ""
+            ],
+            "Comments left": [
+                ""
+            ],
+            "Comments received": [
+                ""
+            ],
+            "Comments · %d": [
+                ""
             ],
             "Compact": [
                 "Compacta"
@@ -109,11 +340,50 @@
             "Connect an AI provider to power assistive features across the desktop.": [
                 ""
             ],
+            "Content Graph container missing.": [
+                ""
+            ],
+            "Contributor": [
+                ""
+            ],
+            "Contributors": [
+                ""
+            ],
+            "Contributors · %d": [
+                ""
+            ],
+            "Could not initialise the graph renderer.": [
+                ""
+            ],
+            "Could not load footprint.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load plugin details.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load plugins: %s": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load post #%d.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load reviews.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load the revision content. You may not have permission to view it.": [
+                ""
+            ],
             "Couldn’t load your media.": [
                 "No se pudieron cargar tus medios."
             ],
             "Couldn’t load your media: %s": [
                 "No se pudieron cargar tus medios: %s"
+            ],
+            "Crafted with curiosity": [
+                ""
+            ],
+            "Current streak": [
+                ""
             ],
             "Custom gradient": [
                 "Gradiente personalizado"
@@ -124,8 +394,26 @@
             "Custom image wallpaper": [
                 "Fondo de imagen personalizada"
             ],
+            "Deactivate": [
+                ""
+            ],
+            "Deactivation failed: %s": [
+                ""
+            ],
             "Default": [
                 "Predeterminada"
+            ],
+            "Delete": [
+                ""
+            ],
+            "Delete failed: %s": [
+                "Error al subir."
+            ],
+            "Delete plugin?": [
+                ""
+            ],
+            "Delete selected plugins?": [
+                ""
             ],
             "Describe the issue or the feature you have in mind.": [
                 ""
@@ -135,6 +423,12 @@
             ],
             "Desktop %d": [
                 "Escritorio %d"
+            ],
+            "Desktop Mode deactivated. Reloading…": [
+                ""
+            ],
+            "Desktop Mode deleted. Reloading…": [
+                ""
             ],
             "Desktop icons": [
                 "Escritorio 1"
@@ -151,8 +445,47 @@
             "Dock style": [
                 "Tamaño del dock"
             ],
+            "Double-click to open.": [
+                ""
+            ],
+            "Drag a .zip onto the window to install — or drag a Browse card straight to the dock to pin a shortcut. The framework drag bridge handles the rest.": [
+                ""
+            ],
+            "Drop a .zip plugin file here, or click to choose a file.": [
+                "Suelta una imagen aquí, o haz clic para subir"
+            ],
             "Drop an image here, or click to upload": [
                 "Suelta una imagen aquí, o haz clic para subir"
+            ],
+            "Drop here": [
+                ""
+            ],
+            "Drop here to create shortcut": [
+                ""
+            ],
+            "Drop here to move": [
+                ""
+            ],
+            "Drop in a folder": [
+                ""
+            ],
+            "Drop on the desktop or a folder": [
+                ""
+            ],
+            "Drop the .zip to install.": [
+                ""
+            ],
+            "Drop your .zip here or click to browse": [
+                "Suelta una imagen aquí, o haz clic para subir"
+            ],
+            "Edit": [
+                ""
+            ],
+            "Edit user": [
+                ""
+            ],
+            "Emerald": [
+                "Esmeralda"
             ],
             "Enable AI features": [
                 ""
@@ -162,6 +495,9 @@
             ],
             "Enable drag-and-drop in the Media Library": [
                 ""
+            ],
+            "Enter fullscreen": [
+                "Entrar en pantalla completa"
             ],
             "Environment included with the report": [
                 ""
@@ -175,7 +511,16 @@
             "Example": [
                 ""
             ],
+            "Exit Desktop Mode": [
+                "Escritorio %d"
+            ],
+            "Exit fullscreen": [
+                "Salir de pantalla completa"
+            ],
             "Experimental": [
+                ""
+            ],
+            "Explore details": [
                 ""
             ],
             "Extended Options": [
@@ -184,13 +529,46 @@
             "Extended options": [
                 ""
             ],
+            "F": [
+                ""
+            ],
+            "FAQ": [
+                ""
+            ],
+            "Failed to load graph.": [
+                ""
+            ],
+            "Favorites": [
+                ""
+            ],
             "Feature request": [
+                ""
+            ],
+            "Featured": [
                 ""
             ],
             "Features": [
                 ""
             ],
+            "Fewer than 10 active": [
+                ""
+            ],
+            "First post": [
+                ""
+            ],
+            "First published": [
+                ""
+            ],
+            "Fit": [
+                ""
+            ],
+            "Fit graph to view": [
+                ""
+            ],
             "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
+                ""
+            ],
+            "Friday": [
                 ""
             ],
             "From": [
@@ -199,13 +577,46 @@
             "Global settings": [
                 ""
             ],
+            "Got it": [
+                ""
+            ],
+            "Hidden": [
+                ""
+            ],
+            "Hide everywhere": [
+                ""
+            ],
+            "Hide from desktop": [
+                "Añadir nuevo escritorio"
+            ],
+            "Hide from dock": [
+                ""
+            ],
             "How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see \"Lost connection to the assistant\" errors).": [
                 ""
             ],
             "How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer.": [
                 ""
             ],
+            "IP": [
+                ""
+            ],
             "Image source": [
+                ""
+            ],
+            "In reply to %s": [
+                ""
+            ],
+            "Inactive": [
+                ""
+            ],
+            "Including today": [
+                ""
+            ],
+            "Indigo": [
+                "Índigo"
+            ],
+            "Install": [
                 ""
             ],
             "Install %s as an app": [
@@ -214,11 +625,23 @@
             "Install cancelled.": [
                 ""
             ],
+            "Install failed: %s": [
+                ""
+            ],
             "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
                 ""
             ],
             "Installed %s as an app.": [
                 ""
+            ],
+            "Installed %s.": [
+                ""
+            ],
+            "Installed %s. Activate it from the Installed tab.": [
+                ""
+            ],
+            "Installing…": [
+                "Subiendo…"
             ],
             "JPEG, PNG, or WebP · goes straight to your Media Library": [
                 "JPEG, PNG o WebP · va directo a tu biblioteca de medios"
@@ -226,7 +649,22 @@
             "Large": [
                 "Grande"
             ],
+            "Last post": [
+                ""
+            ],
+            "Last published": [
+                ""
+            ],
+            "Last published %s": [
+                ""
+            ],
+            "Latest post": [
+                ""
+            ],
             "Left": [
+                ""
+            ],
+            "Less": [
                 ""
             ],
             "Live progress updates": [
@@ -235,11 +673,32 @@
             "Load more": [
                 "Cargar más"
             ],
+            "Loading details…": [
+                "Subiendo…"
+            ],
+            "Loading footprint…": [
+                ""
+            ],
+            "Loading graph…": [
+                "Subiendo…"
+            ],
+            "Loading recent reviews…": [
+                ""
+            ],
             "Loading window content": [
                 ""
             ],
+            "Loading…": [
+                "Subiendo…"
+            ],
             "Local time and date, refreshed every second.": [
                 "Hora y fecha locales, se actualiza cada segundo."
+            ],
+            "Longest streak": [
+                ""
+            ],
+            "M": [
+                ""
             ],
             "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
                 ""
@@ -247,34 +706,166 @@
             "Maximize": [
                 "Maximizar"
             ],
+            "Media": [
+                ""
+            ],
             "Media Library": [
                 "Biblioteca de medios"
+            ],
+            "Member since": [
+                ""
+            ],
+            "Member since %s": [
+                ""
+            ],
+            "Milestones": [
+                ""
             ],
             "Minimize": [
                 "Minimizar"
             ],
+            "Moderate": [
+                ""
+            ],
+            "Modified": [
+                ""
+            ],
+            "Monday": [
+                ""
+            ],
+            "More": [
+                ""
+            ],
+            "Most prolific month": [
+                ""
+            ],
+            "Move \"%s\" to Trash?": [
+                ""
+            ],
+            "Move to Trash": [
+                ""
+            ],
+            "Move your cursor through the swarm · click for a spark": [
+                ""
+            ],
+            "My WordPress": [
+                "Azul WordPress"
+            ],
             "Name": [
+                ""
+            ],
+            "Name (A → Z)": [
+                ""
+            ],
+            "Name (Z → A)": [
+                ""
+            ],
+            "Navigate into": [
                 ""
             ],
             "Network error — check your connection.": [
                 ""
             ],
+            "New": [
+                "Añadir %s"
+            ],
             "New %s": [
+                ""
+            ],
+            "Newest first": [
+                ""
+            ],
+            "No %s yet.": [
                 ""
             ],
             "No HD images found. Try unchecking the filter, or upload a larger image.": [
                 "No se encontraron imágenes HD. Prueba a desactivar el filtro o sube una imagen más grande."
             ],
+            "No activity recorded in the last year.": [
+                ""
+            ],
+            "No activity today": [
+                ""
+            ],
+            "No additional contributors.": [
+                ""
+            ],
+            "No apps registered yet": [
+                ""
+            ],
+            "No author available.": [
+                ""
+            ],
+            "No categories assigned.": [
+                ""
+            ],
+            "No comments on this post yet.": [
+                ""
+            ],
             "No components registered.": [
+                ""
+            ],
+            "No content available.": [
                 ""
             ],
             "No images in your Media Library yet.": [
                 "Aún no hay imágenes en tu biblioteca de medios."
             ],
+            "No media attached to this post.": [
+                ""
+            ],
+            "No plugins match your filters.": [
+                ""
+            ],
+            "No plugins matched.": [
+                ""
+            ],
+            "No ratings yet.": [
+                ""
+            ],
+            "No revisions yet.": [
+                ""
+            ],
+            "No tags assigned.": [
+                ""
+            ],
+            "No users to show.": [
+                ""
+            ],
             "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.": [
                 "No hay widgets disponibles. Activa un plugin que registre alguno, o consulta la documentación de la API registerWidget."
             ],
+            "Nothing to show yet.": [
+                ""
+            ],
+            "Nothing to show.": [
+                ""
+            ],
+            "Often paired categories": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Often paired tags": [
+                ""
+            ],
+            "Oldest first": [
+                ""
+            ],
+            "On both": [
+                ""
+            ],
+            "On post": [
+                ""
+            ],
+            "On the desktop": [
+                "Añadir nuevo escritorio"
+            ],
+            "On the dock": [
+                ""
+            ],
             "One step per line": [
+                ""
+            ],
+            "Only .zip files are accepted.": [
                 ""
             ],
             "Only HD (≥%1$d×%2$d)": [
@@ -286,10 +877,19 @@
             "Open another %s": [
                 "Abrir otra ventana de %s"
             ],
+            "Open in My WordPress": [
+                ""
+            ],
+            "Open in WordPress": [
+                ""
+            ],
             "Open in a new browser tab": [
                 "Abrir en una nueva pestaña del navegador"
             ],
             "Open in browser tab": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open in editor": [
                 "Abrir en una nueva pestaña del navegador"
             ],
             "Open in new window": [
@@ -301,17 +901,50 @@
             "Open on startup": [
                 "Abrir al iniciar"
             ],
-            "Opened \"%s\" in a new browser tab — this site doesnt allow embedding.": [
-                "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
-            ],
-            "Opt in to Desktop Mode behaviors that aren’t on by default. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
+            "Open revision in WordPress": [
                 ""
+            ],
+            "Open the full activity footprint surface for this user.": [
+                ""
+            ],
+            "Open this user’s profile editor in a new window.": [
+                ""
+            ],
+            "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
+                "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
             ],
             "Or use your own image": [
                 "O usa tu propia imagen"
             ],
+            "Overview": [
+                "Vista general"
+            ],
+            "Page %1$d of %2$d": [
+                ""
+            ],
+            "Pages": [
+                ""
+            ],
+            "Parent": [
+                ""
+            ],
+            "Per-row capability flags so the UI hides actions you can't perform — and the server re-validates every mutation, so flags can't be tampered into more permissions.": [
+                ""
+            ],
+            "Permanently delete %d plugin(s)? Their files will be removed from disk. This cannot be undone.": [
+                ""
+            ],
+            "Permanently delete %s? Its files will be removed from disk. This cannot be undone.": [
+                ""
+            ],
             "Personalize your desktop. Changes apply instantly and are saved to this browser.": [
                 "Personaliza tu escritorio. Los cambios se aplican al instante y se guardan en este navegador."
+            ],
+            "Pick a .zip file from your computer, or drop one onto the area below.": [
+                ""
+            ],
+            "Pinned %s to the dock.": [
+                ""
             ],
             "Planned": [
                 ""
@@ -322,16 +955,67 @@
             "Platform-wide AI configuration. Applies to all users and to background jobs (cron, WP-CLI, anonymous comments). Individual users can override with their own key above.": [
                 ""
             ],
+            "Plugin": [
+                ""
+            ],
+            "Plugin shortcut. Double-click to open.": [
+                ""
+            ],
+            "Plugins and the admin menu will appear here once they’re registered.": [
+                ""
+            ],
+            "Plugins window template missing.": [
+                ""
+            ],
+            "Popular": [
+                ""
+            ],
+            "Posts": [
+                ""
+            ],
             "Props": [
                 ""
             ],
             "Provider": [
                 ""
             ],
+            "Published": [
+                ""
+            ],
+            "Publishing rhythm": [
+                ""
+            ],
             "Question": [
                 ""
             ],
+            "Rated %s out of 5": [
+                ""
+            ],
+            "Re-shows the one-time introduction dialog the next time you open each redesigned native window.": [
+                ""
+            ],
+            "Read on WordPress.org ↗": [
+                ""
+            ],
+            "Read reviews on WordPress.org ↗": [
+                ""
+            ],
+            "Recent activity": [
+                ""
+            ],
+            "Recent posts": [
+                ""
+            ],
+            "Recent reviews aren’t available right now. %s": [
+                ""
+            ],
+            "Recommended": [
+                ""
+            ],
             "Recycle Bin — empty": [
+                ""
+            ],
+            "Refresh": [
                 ""
             ],
             "Reload": [
@@ -346,28 +1030,106 @@
             "Remove custom image": [
                 "Eliminar imagen personalizada"
             ],
-            "Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Click Posts in the dock to open it. Toggle off to return to the classic experience.": [
+            "Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.": [
+                ""
+            ],
+            "Replies (%d)": [
+                ""
+            ],
+            "Reply (%d)": [
                 ""
             ],
             "Reset to defaults": [
                 "Restablecer valores predeterminados"
             ],
+            "Reset what’s-new dialogs": [
+                ""
+            ],
+            "Resetting…": [
+                ""
+            ],
+            "Reviews": [
+                "Vista general"
+            ],
+            "Revision": [
+                ""
+            ],
+            "Revisions": [
+                ""
+            ],
             "Right": [
+                ""
+            ],
+            "Roles": [
+                ""
+            ],
+            "Rose": [
+                "Rosa"
+            ],
+            "S": [
+                ""
+            ],
+            "Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.": [
+                ""
+            ],
+            "Saturday": [
+                ""
+            ],
+            "Saved": [
+                ""
+            ],
+            "Saved %s": [
                 ""
             ],
             "Saving…": [
                 "Subiendo…"
             ],
+            "Screenshots": [
+                ""
+            ],
+            "Search WordPress.org…": [
+                ""
+            ],
+            "Search installed plugins…": [
+                ""
+            ],
             "Search media": [
                 "Buscar medios"
             ],
+            "Search nodes…": [
+                ""
+            ],
+            "Search posts and pages in the graph": [
+                ""
+            ],
             "Search your media": [
                 "Busca en tus medios"
+            ],
+            "See author, comments, categories, tags, attached media, and revisions for this entry.": [
+                ""
+            ],
+            "Select a user to see their profile here.": [
+                ""
+            ],
+            "Select an entry to preview it here.": [
+                ""
+            ],
+            "Select an item to preview it here.": [
+                ""
             ],
             "Settings sections": [
                 ""
             ],
             "Shadow parts": [
+                ""
+            ],
+            "Shortcut": [
+                ""
+            ],
+            "Show in": [
+                "Mostrando %d"
+            ],
+            "Show profile": [
                 ""
             ],
             "Showing %d": [
@@ -385,7 +1147,13 @@
             "Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.": [
                 ""
             ],
+            "Size": [
+                ""
+            ],
             "Slots": [
+                ""
+            ],
+            "Sort by": [
                 ""
             ],
             "Spatial": [
@@ -394,7 +1162,13 @@
             "Stable": [
                 ""
             ],
+            "Status": [
+                ""
+            ],
             "Steps to reproduce (bug only)": [
+                ""
+            ],
+            "Sunday": [
                 ""
             ],
             "Switch to %s": [
@@ -403,13 +1177,52 @@
             "System Preferences": [
                 ""
             ],
+            "T": [
+                "Hasta"
+            ],
+            "Tags": [
+                ""
+            ],
+            "Tags · %d": [
+                ""
+            ],
+            "Take me to settings": [
+                ""
+            ],
+            "Taxonomies": [
+                ""
+            ],
+            "Teal": [
+                "Verde azulado"
+            ],
+            "Tested up to WordPress %s": [
+                ""
+            ],
             "That file isn’t an image.": [
                 "Ese archivo no es una imagen."
             ],
             "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.": [
                 "El fondo tras tus ventanas. Elige un preestablecido, mezcla tu propio gradiente o suelta una imagen."
             ],
+            "The detail flyout shows screenshots, the ratings histogram, recent reviews, the changelog and FAQ — all without leaving the window.": [
+                ""
+            ],
+            "The dock repaints LIVE after every install / activate / deactivate / delete. No reload, no stale tile, no \"wait, did that work?\".": [
+                ""
+            ],
+            "The underlying entity is no longer available.": [
+                ""
+            ],
             "This component has no help descriptor yet. Add `static help` to its class for a fuller reference.": [
+                ""
+            ],
+            "This plugin doesn’t ship screenshots.": [
+                ""
+            ],
+            "This revision has no rendered content.": [
+                ""
+            ],
+            "Thursday": [
                 ""
             ],
             "Title": [
@@ -421,7 +1234,34 @@
             "To": [
                 "Hasta"
             ],
+            "Top authors": [
+                ""
+            ],
+            "Top categories & tags": [
+                ""
+            ],
+            "Top contributors": [
+                ""
+            ],
+            "Top topics": [
+                ""
+            ],
+            "Total content": [
+                ""
+            ],
+            "Tuesday": [
+                ""
+            ],
+            "Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
+                ""
+            ],
+            "Two tabs in one window — Installed for managing what you have, Browse for discovering new plugins. No more bouncing between Plugins → Add New → back to Installed.": [
+                ""
+            ],
             "Type": [
+                ""
+            ],
+            "Type: %s": [
                 ""
             ],
             "Undocumented — declared via static props.": [
@@ -430,29 +1270,104 @@
             "Unified": [
                 ""
             ],
+            "Unknown": [
+                ""
+            ],
+            "Unknown entity type.": [
+                ""
+            ],
+            "Unknown error.": [
+                ""
+            ],
+            "Update available": [
+                ""
+            ],
+            "Updated %s": [
+                "Añadir %s"
+            ],
+            "Upload Plugin": [
+                "Subir nueva"
+            ],
+            "Upload a plugin": [
+                "Subir nueva"
+            ],
+            "Upload a plugin .zip": [
+                ""
+            ],
             "Upload a wallpaper image": [
                 "Subir una imagen de fondo"
             ],
             "Upload failed.": [
                 "Error al subir."
             ],
+            "Upload failed: %s": [
+                "Error al subir."
+            ],
             "Upload new": [
                 "Subir nueva"
+            ],
+            "Uploading and installing…": [
+                "Subiendo…"
             ],
             "Uploading…": [
                 "Subiendo…"
             ],
+            "Use the native Pages window": [
+                ""
+            ],
+            "Use the native Plugins window": [
+                ""
+            ],
             "Use the native Posts window": [
+                ""
+            ],
+            "Use the native Users window": [
                 ""
             ],
             "Used in focused window title bars, buttons, and focus rings.": [
                 "Usado en barras de título enfocadas, botones y anillos de foco."
             ],
+            "User agent": [
+                ""
+            ],
             "Using platform key — enter to override": [
+                ""
+            ],
+            "Version": [
+                ""
+            ],
+            "View": [
+                ""
+            ],
+            "View activity footprint": [
+                ""
+            ],
+            "View archive": [
+                ""
+            ],
+            "View author archive": [
+                ""
+            ],
+            "View details for %s": [
+                ""
+            ],
+            "View on WordPress.org ↗": [
+                ""
+            ],
+            "W": [
                 ""
             ],
             "Wallpaper": [
                 "Fondo de pantalla"
+            ],
+            "Website": [
+                ""
+            ],
+            "Wednesday": [
+                ""
+            ],
+            "Welcome to the new Plugins window": [
+                ""
             ],
             "What happened? What did you expect?": [
                 ""
@@ -460,17 +1375,56 @@
             "Width of the dock and size of its icons.": [
                 "Anchura del dock y tamaño de sus iconos."
             ],
+            "Window %1$s → %2$s": [
+                ""
+            ],
             "Window actions": [
                 "Acciones de ventana"
             ],
+            "WordPress Blue": [
+                "Azul WordPress"
+            ],
+            "WordPress Desktop Mode": [
+                "Escritorio %d"
+            ],
+            "You do not have permission to manage plugins.": [
+                ""
+            ],
             "You will review and submit on GitHub.": [
+                ""
+            ],
+            "You're looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how Desktop Mode wants you to work.": [
+                ""
+            ],
+            "activated": [
+                ""
+            ],
+            "an experiment by Automattic": [
+                ""
+            ],
+            "by %s": [
+                ""
+            ],
+            "comments": [
                 ""
             ],
             "components registered.": [
                 ""
             ],
+            "deactivated": [
+                ""
+            ],
             "default": [
                 "Predeterminada"
+            ],
+            "deleted": [
+                ""
+            ],
+            "in %s": [
+                ""
+            ],
+            "one contributor": [
+                ""
             ],
             "sk-…": [
                 ""
@@ -478,6 +1432,12 @@
             "· %d open tab": [
                 "· %d pestaña abierta",
                 "· %d pestañas abiertas"
+            ],
+            "—": [
+                ""
+            ],
+            "→ %s": [
+                ""
             ]
         }
     }

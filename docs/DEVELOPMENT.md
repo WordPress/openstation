@@ -134,10 +134,10 @@ interface in `src/desktop.ts`. To add a method:
 
 Strings flow through three files per locale in `languages/`:
 
-- `desktop-mode.pot` — extracted from PHP and TS sources. Regenerate with
-  `wp i18n make-pot . languages/desktop-mode.pot --include='src/*.ts'`
-  (the `--include` is the bit that picks up TypeScript callers of
-  `__()`, `_x()`, etc.).
+- `desktop-mode.pot` — extracted from PHP and TS sources. Regenerate
+  with `npm run extract:i18n` (wraps `wp i18n make-pot` and then
+  `msgmerge`-es the refreshed POT into every existing
+  `desktop-mode-{locale}.po`).
 - `desktop-mode-{locale}.po` / `.mo` — translator output, one pair per
   shipped locale.
 - `desktop-mode-{locale}-{handle}.json` — JS translation bundles.
@@ -147,15 +147,38 @@ Strings flow through three files per locale in `languages/`:
   populated bundle is `desktop-mode` (the main shell); see
   `bin/build-i18n.sh` for the handle to source-prefix map.
 
-Build the JSON bundles with:
+The two-step pipeline is:
 
 ```bash
-npm run build:i18n
+npm run extract:i18n   # source -> .pot, then msgmerge into every .po
+# (translate the .po files)
+npm run build:i18n     # .po -> per-handle JSON bundles
 ```
 
-Re-run this after editing any PO file. The script invokes `wp i18n
-make-json --extensions=ts` under the hood and merges the per-source
-JSONs into one file per script handle.
+Re-run `extract:i18n` whenever a translatable string is added or
+changed in PHP or TS source. Re-run `build:i18n` whenever a `.po`
+file is updated. `build:i18n` invokes `wp i18n make-json
+--extensions=ts` under the hood and merges the per-source JSONs into
+one file per script handle.
+
+`npm run i18n` is a convenience alias that runs both stages
+back-to-back. Use it when you have just edited translatable strings
+in source and want every artifact refreshed in one shot.
+
+### Release-time refresh
+
+`bin/release.sh` runs `npm run i18n` automatically as the first step
+of a release (before `bump-version.sh`), so the version-bump commit
+also carries the refreshed `.pot`, `.po`, and JSON bundles. The diff
+prints to stdout — if the language-file changes look wrong, Ctrl-C
+before the bump commits anything.
+
+Pass `--skip-i18n` for hotfixes where you do not want translation-
+file churn in the release commit:
+
+```bash
+./bin/release.sh 0.9.1 --skip-i18n
+```
 
 ## Where things are tested
 
