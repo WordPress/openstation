@@ -17,3 +17,10 @@
 # Default output file of macOS/BSD `script(1)` — a terminal session
 # recorder. Easy to commit by accident with `git add .`.
 /typescript
+
+# Playwright CLI
+.playwright-cli/
+
+# Phpactor's per-project config — Zed's PHP language server re-generates
+# this on demand from sensible defaults, so tracking it just creates churn.
+/.phpactor.json

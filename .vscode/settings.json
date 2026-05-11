@@ -1,0 +1,15 @@
+{
+	"eslint.format.enable": true,
+	"[typescript]": {
+		"editor.formatOnSave": true,
+		"editor.defaultFormatter": "dbaeumer.vscode-eslint",
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "explicit"
+		}
+	},
+	"[php]": {
+		"editor.formatOnSave": true,
+		"editor.defaultFormatter": "valeryanm.vscode-phpsab"
+	},
+	"intelephense.format.enable": false
+}

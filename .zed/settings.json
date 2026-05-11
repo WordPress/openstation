@@ -1,0 +1,26 @@
+{
+	"languages": {
+		"TypeScript": {
+			"format_on_save": "on",
+			"formatter": [
+				{
+					"code_action": "source.fixAll.eslint"
+				}
+			]
+		},
+		"PHP": {
+			"format_on_save": "on",
+			"formatter": {
+				"external": {
+					"command": "sh",
+					"arguments": [
+						"-c",
+						"./vendor/bin/phpcbf -q - --stdin-path=\"$1\" || [ $? -eq 1 ]",
+						"sh",
+						"{buffer_path}"
+					]
+				}
+			}
+		}
+	}
+}
