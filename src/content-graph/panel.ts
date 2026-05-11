@@ -50,9 +50,15 @@ interface OpenWindowArgs {
 	icon?: string;
 }
 
+interface DesktopWindow {
+	isFullscreen?: () => boolean;
+	toggleFullscreen?: () => void;
+}
+
 interface DesktopApi {
 	windowManager?: {
 		open: ( args: OpenWindowArgs ) => unknown;
+		getFocused?: () => DesktopWindow | null;
 	};
 	deriveWindowId?: ( url: string ) => string;
 	myWordpress?: {
@@ -266,6 +272,15 @@ export function renderPanel(
 		href: string,
 		labelText: string,
 		icon: string,
+		// Per-entity disambiguator. The framework's `deriveWindowId()`
+		// strips the `post` / `user_id` / `tag_ID` / `item` query
+		// params from the URL when computing the id (they're not in
+		// IDENTITY_PARAMS), so every post-edit url collapses to a
+		// single window id and clicking "Open" on a second post just
+		// focuses the first one's editor. Pass an entity-specific
+		// suffix (e.g. `post-42`, `user-7`) to keep each entity on
+		// its own window. See issue #150.
+		windowKey?: string,
 	): void => {
 		const api = desktopApi();
 		if ( ! api.windowManager || ! api.deriveWindowId || ! href ) {
@@ -274,7 +289,21 @@ export function renderPanel(
 			}
 			return;
 		}
-		const id = api.deriveWindowId( href );
+		// If the currently-focused window is in fullscreen, exit
+		// fullscreen first so the freshly opened window is actually
+		// visible. The framework pins fullscreen windows to
+		// `z-index: 99999 !important`, which overrides the normal
+		// inline z-index the new window receives — without this, the
+		// new window opens "underneath" the fullscreen one and the
+		// user only sees the click do nothing.
+		const focused = api.windowManager.getFocused?.();
+		if ( focused?.isFullscreen?.() ) {
+			focused.toggleFullscreen?.();
+		}
+		let id = api.deriveWindowId( href );
+		if ( windowKey ) {
+			id = `${ id }-${ windowKey }`;
+		}
 		api.windowManager.open( {
 			id,
 			baseId: id,
@@ -506,6 +535,7 @@ export function renderPanel(
 					detail.post.edit_url,
 					detail.post.title,
 					'dashicons-admin-post',
+					`post-${ detail.post.id }`,
 				),
 			);
 			wrap.appendChild( edit );
@@ -520,6 +550,7 @@ export function renderPanel(
 					detail.post.view_url,
 					detail.post.title,
 					'dashicons-admin-post',
+					`post-${ detail.post.id }`,
 				),
 			);
 			wrap.appendChild( view );
@@ -637,6 +668,7 @@ export function renderPanel(
 				href: user.edit_url,
 				title: user.name,
 				primary: true,
+				windowKey: `user-${ user.id }`,
 			} ),
 		);
 	};
@@ -740,6 +772,7 @@ export function renderPanel(
 				href: term.edit_url,
 				title: term.name,
 				primary: true,
+				windowKey: `term-${ term.taxonomy }-${ term.id }`,
 			} ),
 		);
 	};
@@ -836,6 +869,7 @@ export function renderPanel(
 				href: comment.edit_url,
 				title: authorName || __( 'Comment' ),
 				primary: true,
+				windowKey: `comment-${ comment.id }`,
 			} ),
 		);
 	};
@@ -867,6 +901,7 @@ export function renderPanel(
 				href: media.edit_url,
 				title: media.title,
 				primary: true,
+				windowKey: `media-${ media.id }`,
 			} ),
 		);
 	};
@@ -909,6 +944,7 @@ export function renderPanel(
 				href: revision.edit_url,
 				title: __( 'Revision' ),
 				primary: true,
+				windowKey: `revision-${ revision.id }`,
 			} ),
 		);
 	};
@@ -1158,6 +1194,7 @@ export function renderPanel(
 		href: string;
 		title: string;
 		primary?: boolean;
+		windowKey?: string;
 	} ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'desktop-mode-content-graph__panel-actions';
@@ -1171,7 +1208,7 @@ export function renderPanel(
 			primary: opts.primary,
 		} );
 		btn.addEventListener( 'click', () =>
-			openAdminUrl( opts.href, opts.title, opts.icon ),
+			openAdminUrl( opts.href, opts.title, opts.icon, opts.windowKey ),
 		);
 		wrap.appendChild( btn );
 		return wrap;
