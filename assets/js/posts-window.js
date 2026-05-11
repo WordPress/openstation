@@ -4518,6 +4518,7 @@ var desktopModePostsWindow = function(exports) {
   function applyColorSchemePreview(slug, info) {
     if (!info.url) {
       flipBodyClass(slug);
+      flipShellScheme(slug);
       return;
     }
     let link = document.getElementById(
@@ -4531,6 +4532,13 @@ var desktopModePostsWindow = function(exports) {
     }
     link.href = info.url;
     flipBodyClass(slug);
+    flipShellScheme(slug);
+  }
+  function flipShellScheme(slug) {
+    const shell = document.querySelector(".desktop-mode-shell");
+    if (shell) {
+      shell.setAttribute("data-desktop-mode-scheme", slug);
+    }
   }
   function flipBodyClass(slug) {
     const body = document.body;

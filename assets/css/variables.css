@@ -107,67 +107,73 @@
  * Setting the vars on the shell root means any descendant (title bar,
  * dock chip, tab underlines, focus rings) that references them inherits
  * the right hue without further plumbing.
+ *
+ * Title bar bg deliberately differs from the WP admin bar (which uses
+ * each scheme's "base" color) — when the two sit edge-to-edge the
+ * shared hue reads as one slab. We mix base with white (dark schemes)
+ * or black (light schemes) ~15–20% so the titlebar feels related but
+ * clearly distinct.
  */
 
 /* Fresh — default WP blue. */
 .desktop-mode-shell[data-desktop-mode-scheme="fresh"] {
 	--wp-admin-theme-color: #2271b1;
-	--desktop-mode-titlebar-bg-focused: #1d2327;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #1d2327 80%, #fff 20%);
 	--desktop-mode-titlebar-color-focused: #fff;
 }
 
 /* Light — pale sidebar, teal accent. */
 .desktop-mode-shell[data-desktop-mode-scheme="light"] {
 	--wp-admin-theme-color: #04a4cc;
-	--desktop-mode-titlebar-bg-focused: #e5e5e5;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #e5e5e5 85%, #000 15%);
 	--desktop-mode-titlebar-color-focused: #333;
 }
 
 /* Modern — vivid indigo accent, near-black sidebar. */
 .desktop-mode-shell[data-desktop-mode-scheme="modern"] {
 	--wp-admin-theme-color: #3858e9;
-	--desktop-mode-titlebar-bg-focused: #1e1e1e;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #1e1e1e 78%, #fff 22%);
 	--desktop-mode-titlebar-color-focused: #f3f1f1;
 }
 
 /* Blue. */
 .desktop-mode-shell[data-desktop-mode-scheme="blue"] {
 	--wp-admin-theme-color: #096484;
-	--desktop-mode-titlebar-bg-focused: #52accc;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #096484 82%, #fff 18%);
 	--desktop-mode-titlebar-color-focused: #e5f8ff;
 }
 
 /* Coffee. */
 .desktop-mode-shell[data-desktop-mode-scheme="coffee"] {
 	--wp-admin-theme-color: #c7a589;
-	--desktop-mode-titlebar-bg-focused: #59524c;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #46403c 80%, #fff 20%);
 	--desktop-mode-titlebar-color-focused: #ece6f6;
 }
 
 /* Ectoplasm. */
 .desktop-mode-shell[data-desktop-mode-scheme="ectoplasm"] {
 	--wp-admin-theme-color: #a3b745;
-	--desktop-mode-titlebar-bg-focused: #523f6d;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #413256 80%, #fff 20%);
 	--desktop-mode-titlebar-color-focused: #ece6f6;
 }
 
 /* Midnight. */
 .desktop-mode-shell[data-desktop-mode-scheme="midnight"] {
 	--wp-admin-theme-color: #e14d43;
-	--desktop-mode-titlebar-bg-focused: #363b3f;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #25282b 80%, #fff 20%);
 	--desktop-mode-titlebar-color-focused: #f1f2f3;
 }
 
 /* Ocean. */
 .desktop-mode-shell[data-desktop-mode-scheme="ocean"] {
 	--wp-admin-theme-color: #9ebaa0;
-	--desktop-mode-titlebar-bg-focused: #738e96;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #627c83 80%, #fff 20%);
 	--desktop-mode-titlebar-color-focused: #f2fcff;
 }
 
 /* Sunrise. */
 .desktop-mode-shell[data-desktop-mode-scheme="sunrise"] {
 	--wp-admin-theme-color: #dd823b;
-	--desktop-mode-titlebar-bg-focused: #cf4944;
+	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #b43c38 80%, #fff 20%);
 	--desktop-mode-titlebar-color-focused: #f3f1f1;
 }

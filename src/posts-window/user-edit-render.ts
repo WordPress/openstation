@@ -1504,6 +1504,7 @@ function applyColorSchemePreview( slug: string, info: ColorSchemeInfo ): void {
 		// can swap. Body class still flips so any custom plugin CSS
 		// that keys on `body.admin-color-*` picks up the change.
 		flipBodyClass( slug );
+		flipShellScheme( slug );
 		return;
 	}
 	let link = document.getElementById(
@@ -1517,6 +1518,23 @@ function applyColorSchemePreview( slug: string, info: ColorSchemeInfo ): void {
 	}
 	link.href = info.url;
 	flipBodyClass( slug );
+	flipShellScheme( slug );
+}
+
+/**
+ * Retune the desktop shell's per-scheme CSS variables (accent,
+ * titlebar bg, focused titlebar foreground, …) live. variables.css
+ * scopes its overrides to `.desktop-mode-shell[data-desktop-mode-scheme=…]`,
+ * so swapping the attribute is enough to re-apply the whole block.
+ * Without this, only the WP-generated `colors-css` stylesheet (which
+ * the master admin bar reads from) repaints — the rest of the shell
+ * keeps the previous scheme until the next full reload.
+ */
+function flipShellScheme( slug: string ): void {
+	const shell = document.querySelector< HTMLElement >( '.desktop-mode-shell' );
+	if ( shell ) {
+		shell.setAttribute( 'data-desktop-mode-scheme', slug );
+	}
 }
 
 function flipBodyClass( slug: string ): void {
