@@ -92,6 +92,7 @@ export class WpdContextMenuOption extends Component {
 		'danger',
 		'heading',
 		'has-children',
+		'checked',
 	] as const;
 	static styles = [ optionStyles ];
 
@@ -131,6 +132,11 @@ export class WpdContextMenuOption extends Component {
 				name: 'has-children',
 				type: 'boolean attribute',
 				description: 'Renders a trailing chevron to suggest a submenu.',
+			},
+			{
+				name: 'checked',
+				type: 'boolean attribute',
+				description: 'Renders a leading check mark — for radio-style picks inside a submenu (e.g. the active Sort By order).',
 			},
 		],
 		slots: [
@@ -193,13 +199,22 @@ export class WpdContextMenuOption extends Component {
 	protected render() {
 		const icon = this.getAttribute( 'icon' );
 		const hasChildren = this.hasAttribute( 'has-children' );
+		const checked = this.hasAttribute( 'checked' );
+		// Chevron + check are rendered as plain unicode glyphs rather
+		// than dashicons because the dashicons font's `:before` content
+		// rules live in the parent document and don't pierce the
+		// component's shadow root — so a `class="dashicons …"` span
+		// renders empty in this context.
 		return html`
+			${ checked
+				? html`<span class="check" aria-hidden="true">✓</span>`
+				: html`` }
 			${ icon
 				? html`<span class="icon dashicons ${ icon }" aria-hidden="true"></span>`
 				: html`` }
 			<span class="label"><slot></slot></span>
 			${ hasChildren
-				? html`<span class="chevron dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>`
+				? html`<span class="chevron" aria-hidden="true">›</span>`
 				: html`` }
 		`;
 	}

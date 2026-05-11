@@ -365,6 +365,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					parentId: folderId,
 				};
 				filesStoreApi.upsertPlacement( next );
+				// Notify the shell that a tile was placed by the user
+				// (not by Sort By / Clean Up). The desktop root listens
+				// to drop out of auto-arrange mode so the user's manual
+				// position survives the next desktop resize.
+				doAction( 'desktop-mode.files.tile-manually-placed', {
+					folderId,
+					placementId: data.placement.id,
+				} );
 				void rest
 					.updatePlacement( data.placement.id, {
 						x: cell.x,

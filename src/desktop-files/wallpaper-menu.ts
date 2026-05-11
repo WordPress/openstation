@@ -45,6 +45,12 @@ export interface WallpaperMenuItem {
 	 * when `children` is non-empty — the flyout takes over.
 	 */
 	children?: WallpaperMenuItem[];
+	/**
+	 * Render a leading check mark on the option (radio-style — used
+	 * for the active Sort By order). Cosmetic; doesn't change the
+	 * click path.
+	 */
+	checked?: boolean;
 	/** Click handler. Receives the event for `preventDefault` etc. */
 	onClick: ( e: MouseEvent ) => void | Promise< void >;
 }
@@ -206,6 +212,9 @@ export function openWallpaperMenu(
 			if ( child.disabled ) {
 				kopt.setAttribute( 'disabled', '' );
 			}
+			if ( child.checked ) {
+				kopt.setAttribute( 'checked', '' );
+			}
 			kopt.textContent = child.label;
 			kopt.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
 				e.stopPropagation();
@@ -305,24 +314,28 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 					id: 'sort-name-asc',
 					label: deps.labels.sortNameAsc,
 					sort: 10,
+					checked: deps.currentSortMode === 'name-asc',
 					onClick: () => deps.sortIcons( 'name-asc' ),
 				},
 				{
 					id: 'sort-name-desc',
 					label: deps.labels.sortNameDesc,
 					sort: 20,
+					checked: deps.currentSortMode === 'name-desc',
 					onClick: () => deps.sortIcons( 'name-desc' ),
 				},
 				{
 					id: 'sort-date-desc',
 					label: deps.labels.sortDateDesc,
 					sort: 30,
+					checked: deps.currentSortMode === 'date-desc',
 					onClick: () => deps.sortIcons( 'date-desc' ),
 				},
 				{
 					id: 'sort-date-asc',
 					label: deps.labels.sortDateAsc,
 					sort: 40,
+					checked: deps.currentSortMode === 'date-asc',
 					onClick: () => deps.sortIcons( 'date-asc' ),
 				},
 			],
@@ -398,6 +411,13 @@ export interface WallpaperMenuDeps {
 	openOsSettings: () => void;
 	openWallpapers: () => void;
 	sortIcons: ( mode: SortMode ) => void;
+	/**
+	 * Currently-active sort mode, or `null` when the desktop is in
+	 * free-placement mode (the user has dragged tiles manually). The
+	 * matching Sort By submenu entry renders with a leading check
+	 * so users see at a glance which order is auto-arranging.
+	 */
+	currentSortMode?: SortMode | null;
 	labels: {
 		createFolder: string;
 		showDesktop: string;

@@ -181,6 +181,7 @@ import {
 	isWallpaperMenuOpen,
 	openWallpaperMenu,
 	type ServerWallpaperMenuItem,
+	type SortMode as RootSortMode,
 } from './desktop-files/wallpaper-menu';
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import { openUrlDialog } from './desktop-files/url-dialog';
@@ -2777,13 +2778,20 @@ function init(): void {
 	// boolean snapshot would go stale.
 	/**
 	 * Re-tile every placement at the desktop root in the order
-	 * returned by `transform`. Used by both Clean up (identity
-	 * transform) and Sort by * (sort transforms).
+	 * returned by `transform`. Used by Clean up (identity transform),
+	 * Sort by * (sort transforms, persisted), and the auto-arrange
+	 * ResizeObserver (current sort transform, NOT persisted — see
+	 * `rootSortMode` below).
+	 *
+	 * When `persist` is `false` we only mutate the store + DOM (via
+	 * the layer's repaint subscription); REST is left alone so a
+	 * resize storm doesn't fire dozens of writes per tile.
 	 */
 	const relayoutRoot = (
 		transform: (
 			arr: import( './desktop-files/rest' ).RestPlacementShape[],
 		) => import( './desktop-files/rest' ).RestPlacementShape[],
+		persist = true,
 	): void => {
 		const root = filesApi.store.getState().placementsByFolder.get( 0 ) ?? [];
 		const ordered = transform( root );
@@ -2814,6 +2822,9 @@ function init(): void {
 				y: cell.y,
 				sortOrder: i,
 			} );
+			if ( ! persist ) {
+				continue;
+			}
 			void filesRest
 				.updatePlacement( p.id, {
 					x: cell.x,
@@ -2826,6 +2837,111 @@ function init(): void {
 				} );
 		}
 	};
+
+	/**
+	 * Build the placement-list transform for a given sort mode. Same
+	 * sort keys the wallpaper menu offers; extracted so the resize
+	 * observer can re-apply the user's last pick without duplicating
+	 * the comparator logic.
+	 */
+	const rootSortTransform = ( mode: RootSortMode ) => (
+		arr: import( './desktop-files/rest' ).RestPlacementShape[],
+	): import( './desktop-files/rest' ).RestPlacementShape[] => {
+		const sorted = arr.slice();
+		switch ( mode ) {
+			case 'name-asc':
+				sorted.sort( ( a, b ) =>
+					a.file.title.localeCompare( b.file.title ),
+				);
+				break;
+			case 'name-desc':
+				sorted.sort( ( a, b ) =>
+					b.file.title.localeCompare( a.file.title ),
+				);
+				break;
+			case 'date-asc':
+				sorted.sort( ( a, b ) => a.updatedAtMs - b.updatedAtMs );
+				break;
+			case 'date-desc':
+				sorted.sort( ( a, b ) => b.updatedAtMs - a.updatedAtMs );
+				break;
+		}
+		return sorted;
+	};
+
+	// Auto-arrange / "sort by" sticky state. When a user picks Sort
+	// By from the wallpaper menu we remember the mode so subsequent
+	// desktop resizes re-pack the icons into the new column count
+	// (overflowing icons would otherwise stay where they were and
+	// fall off the right/bottom edges as the window shrinks). Cleared
+	// when the user manually drags a tile — manual placement wins,
+	// macOS Finder convention.
+	const ROOT_SORT_MODE_KEY = 'desktop-mode:root-sort-mode';
+	const isRootSortMode = ( v: unknown ): v is RootSortMode =>
+		v === 'name-asc' ||
+		v === 'name-desc' ||
+		v === 'date-asc' ||
+		v === 'date-desc';
+	let rootSortMode: RootSortMode | null = ( () => {
+		try {
+			const raw = window.localStorage.getItem( ROOT_SORT_MODE_KEY );
+			return isRootSortMode( raw ) ? raw : null;
+		} catch {
+			return null;
+		}
+	} )();
+	const setRootSortMode = ( mode: RootSortMode | null ): void => {
+		rootSortMode = mode;
+		try {
+			if ( mode ) {
+				window.localStorage.setItem( ROOT_SORT_MODE_KEY, mode );
+			} else {
+				window.localStorage.removeItem( ROOT_SORT_MODE_KEY );
+			}
+		} catch {
+			// localStorage unavailable (private mode, quota) — keep
+			// the in-memory state and move on.
+		}
+	};
+
+	// Clear auto-arrange when the user manually drags a root tile.
+	// Emitted by `desktop-files/layer.ts` from the canvas drop
+	// handler; folderId 0 = the desktop root.
+	addAction(
+		'desktop-mode.files.tile-manually-placed',
+		'desktop-mode/root-sort-clear',
+		( payload: unknown ) => {
+			const folderId = ( payload as { folderId?: number } | undefined )
+				?.folderId;
+			if ( folderId === 0 ) {
+				setRootSortMode( null );
+			}
+		},
+	);
+
+	// Re-pack icons when the desktop area resizes — but ONLY while
+	// auto-arrange is active. Manual layouts stay untouched. The
+	// non-persisting relayout mutates the store so the layer's
+	// subscription repaints, and avoids a REST writeback storm
+	// during a continuous drag-resize of the browser window.
+	if ( typeof ResizeObserver !== 'undefined' ) {
+		let lastW = desktopArea.clientWidth;
+		let lastH = desktopArea.clientHeight;
+		const ro = new ResizeObserver( () => {
+			if ( ! rootSortMode ) {
+				return;
+			}
+			const w = desktopArea.clientWidth;
+			const h = desktopArea.clientHeight;
+			if ( w === lastW && h === lastH ) {
+				return;
+			}
+			lastW = w;
+			lastH = h;
+			relayoutRoot( rootSortTransform( rootSortMode ), false );
+		} );
+		ro.observe( desktopArea );
+	}
 
 	// Wallpaper context menu — RIGHT-click only. `contextmenu` is
 	// the only opener; left-clicks on the bg either dismiss the
@@ -2918,29 +3034,11 @@ function init(): void {
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
 				openWallpapers: () => openOsSettings(),
-				sortIcons: ( mode ) =>
-					relayoutRoot( ( arr ) => {
-						const sorted = arr.slice();
-						switch ( mode ) {
-							case 'name-asc':
-								sorted.sort( ( a, b ) =>
-									a.file.title.localeCompare( b.file.title ),
-								);
-								break;
-							case 'name-desc':
-								sorted.sort( ( a, b ) =>
-									b.file.title.localeCompare( a.file.title ),
-								);
-								break;
-							case 'date-asc':
-								sorted.sort( ( a, b ) => a.updatedAtMs - b.updatedAtMs );
-								break;
-							case 'date-desc':
-								sorted.sort( ( a, b ) => b.updatedAtMs - a.updatedAtMs );
-								break;
-						}
-						return sorted;
-					} ),
+				sortIcons: ( mode ) => {
+					setRootSortMode( mode );
+					relayoutRoot( rootSortTransform( mode ) );
+				},
+				currentSortMode: rootSortMode,
 				labels: {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',

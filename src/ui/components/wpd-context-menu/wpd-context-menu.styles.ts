@@ -88,7 +88,19 @@ export const optionStyles = css`
 
 	.chevron {
 		margin-inline-start: auto;
-		font-size: 14px;
+		padding-inline-start: 8px;
+		font-size: 16px;
+		line-height: 1;
 		opacity: 0.7;
+	}
+
+	.check {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 14px;
+		font-size: 13px;
+		line-height: 1;
+		opacity: 0.95;
 	}
 `;
