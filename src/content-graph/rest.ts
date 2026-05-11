@@ -14,6 +14,8 @@ import { trackedFetch } from '../tracked-fetch';
 import type {
 	CommentStats,
 	ContentGraphConfig,
+	ContentGraphPrefs,
+	EdgeKind,
 	GraphPayload,
 	PostDetail,
 	PostTypeDescriptor,
@@ -65,10 +67,18 @@ export async function fetchPostTypes(
 export async function fetchGraph(
 	cfg: ContentGraphConfig,
 	types: string[],
+	edgeKinds: EdgeKind[] = [],
+	taxonomies: string[] = [],
 ): Promise< GraphPayload > {
 	const url = new URL( `${ cfg.apiBase }/nodes` );
 	if ( types.length > 0 ) {
 		url.searchParams.set( 'types', types.join( ',' ) );
+	}
+	if ( edgeKinds.length > 0 ) {
+		url.searchParams.set( 'edges', edgeKinds.join( ',' ) );
+	}
+	if ( taxonomies.length > 0 ) {
+		url.searchParams.set( 'taxonomies', taxonomies.join( ',' ) );
 	}
 	const res = await trackedFetch(
 		url.toString(),
@@ -79,6 +89,57 @@ export async function fetchGraph(
 		throw new Error( `nodes: ${ res.status }` );
 	}
 	return ( await res.json() ) as GraphPayload;
+}
+
+/**
+ * GET /content-graph/preferences — fetch the current user's saved
+ * preferences (lens choice, per-lens taxonomy/edges/types). Server
+ * always returns a fully-shaped object even for users with nothing
+ * stored.
+ *
+ * @since 0.9.0
+ */
+export async function fetchPrefs(
+	cfg: ContentGraphConfig,
+): Promise< ContentGraphPrefs > {
+	const res = await trackedFetch(
+		`${ cfg.apiBase }/preferences`,
+		{ headers: authHeaders( cfg ) },
+		{ source: SOURCE, windowId: WINDOW_ID, silent: true },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `preferences: ${ res.status }` );
+	}
+	return ( await res.json() ) as ContentGraphPrefs;
+}
+
+/**
+ * POST /content-graph/preferences — persist a (possibly partial) prefs
+ * patch. Server merges with current stored value, sanitizes, and
+ * returns the merged shape.
+ *
+ * @since 0.9.0
+ */
+export async function savePrefs(
+	cfg: ContentGraphConfig,
+	patch: Partial< ContentGraphPrefs >,
+): Promise< ContentGraphPrefs > {
+	const res = await trackedFetch(
+		`${ cfg.apiBase }/preferences`,
+		{
+			method: 'POST',
+			headers: {
+				...authHeaders( cfg ),
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify( { preferences: patch } ),
+		},
+		{ source: SOURCE, windowId: WINDOW_ID, silent: true },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `preferences POST: ${ res.status }` );
+	}
+	return ( await res.json() ) as ContentGraphPrefs;
 }
 
 export async function fetchPostDetail(

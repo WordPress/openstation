@@ -33,6 +33,15 @@ export interface SimOptions {
 	springLen: number;
 	gravity: number;
 	damping: number;
+	/**
+	 * Strength coefficient for the per-cluster centroid attractor
+	 * force introduced in 0.9.0. `0` disables the force entirely
+	 * (Constellation lens behavior). Galaxy lens sets this nonzero
+	 * via `setForceConfig({ attractorStrength })`.
+	 *
+	 * @since 0.9.0
+	 */
+	attractorStrength: number;
 }
 
 export const DEFAULT_SIM_OPTIONS: SimOptions = {
@@ -48,7 +57,20 @@ export const DEFAULT_SIM_OPTIONS: SimOptions = {
 	springLen: 200,
 	gravity: 0.0035,
 	damping: 0.86,
+	attractorStrength: 0,
 };
+
+/**
+ * A `ClusterMembership` maps each node id to the cluster keys it
+ * belongs to. Multi-membership pulls the node toward each centroid
+ * proportionally; the emergent settle position is the (force-weighted)
+ * average. The reserved key `'__uncategorized__'` is used by
+ * `setClusters()` callers to flag nodes with no in-scope memberships
+ * so they form a single Uncategorized galaxy.
+ *
+ * @since 0.9.0
+ */
+export type ClusterMembership = Map< number, string[] >;
 
 const ALPHA_DECAY = 0.992;
 const ALPHA_MIN = 0.01;
@@ -73,6 +95,15 @@ export class ForceSim {
 	 */
 	public dragOrigin: { x: number; y: number } | null = null;
 	public dragInfluenceRadius = 500;
+	/**
+	 * Per-node cluster membership. `null` disables the cluster-attractor
+	 * force entirely (Constellation lens). When non-null, the
+	 * tick loop derives per-cluster centroids from current member
+	 * positions and pulls each member toward its centroid(s).
+	 *
+	 * @since 0.9.0
+	 */
+	private clusterMembership: ClusterMembership | null = null;
 	private alpha = ALPHA_REHEAT;
 
 	constructor(
@@ -83,6 +114,27 @@ export class ForceSim {
 		this.nodes = nodes;
 		this.edges = edges;
 		this.opts = opts;
+	}
+
+	/**
+	 * Mutate force-config flags in place. Used by the lens-switch path
+	 * (`GraphScene.setLens()`) so transitioning between Constellation
+	 * and Galaxy doesn't require recreating the sim.
+	 *
+	 * @since 0.9.0
+	 */
+	setForceConfig( patch: Partial< SimOptions > ): void {
+		this.opts = { ...this.opts, ...patch };
+	}
+
+	/**
+	 * Replace the cluster membership map (or null it out to disable
+	 * the cluster-attractor force).
+	 *
+	 * @since 0.9.0
+	 */
+	setClusters( membership: ClusterMembership | null ): void {
+		this.clusterMembership = membership;
 	}
 
 	reheat( value = ALPHA_REHEAT, kick = true ): void {
@@ -168,6 +220,65 @@ export class ForceSim {
 			if ( ! e.to.pinned ) {
 				e.to.vx -= fx;
 				e.to.vy -= fy;
+			}
+		}
+
+		// Cluster attractor (Galaxy lens). Computes per-cluster
+		// centroids from current member positions, then pulls each
+		// non-pinned node toward the (equally-weighted) average of
+		// the centroids of clusters it belongs to. Multi-cluster
+		// nodes settle between centroids by emergent force balance.
+		// Disabled when membership is null OR strength is zero.
+		const membership = this.clusterMembership;
+		const attractorStrength = this.opts.attractorStrength;
+		if ( membership && attractorStrength > 0 ) {
+			const centroids = new Map<
+				string,
+				{ sx: number; sy: number; n: number }
+			>();
+			for ( const n of nodes ) {
+				const keys = membership.get( n.id );
+				if ( ! keys ) {
+					continue;
+				}
+				for ( const k of keys ) {
+					const c = centroids.get( k );
+					if ( c ) {
+						c.sx += n.x;
+						c.sy += n.y;
+						c.n += 1;
+					} else {
+						centroids.set( k, { sx: n.x, sy: n.y, n: 1 } );
+					}
+				}
+			}
+			for ( const n of nodes ) {
+				if ( n.pinned ) {
+					continue;
+				}
+				const keys = membership.get( n.id );
+				if ( ! keys || keys.length === 0 ) {
+					continue;
+				}
+				let tx = 0;
+				let ty = 0;
+				let count = 0;
+				for ( const k of keys ) {
+					const c = centroids.get( k );
+					if ( ! c || c.n === 0 ) {
+						continue;
+					}
+					tx += c.sx / c.n;
+					ty += c.sy / c.n;
+					count += 1;
+				}
+				if ( count === 0 ) {
+					continue;
+				}
+				tx /= count;
+				ty /= count;
+				n.vx += ( tx - n.x ) * attractorStrength;
+				n.vy += ( ty - n.y ) * attractorStrength;
 			}
 		}
 

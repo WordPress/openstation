@@ -16,6 +16,28 @@ export interface PostTypeDescriptor {
 	count: number;
 }
 
+/**
+ * Lens identifiers the front end recognises. Mirrors the PHP
+ * `DESKTOP_MODE_CONTENT_GRAPH_LENSES` constant.
+ *
+ * @since 0.9.0
+ */
+export type LensId = 'constellation' | 'galaxy';
+
+/**
+ * Discriminated union of edge kinds the wire protocol can carry.
+ * `link` is the legacy hyperlink edge from `<a href>` extraction; the
+ * other four arrived in 0.9.0 with the multi-lens work.
+ *
+ * @since 0.9.0
+ */
+export type EdgeKind =
+	| 'link'
+	| 'co_tag'
+	| 'co_author'
+	| 'hierarchy'
+	| 'menu';
+
 export interface GraphNodePayload {
 	id: number;
 	type: string;
@@ -23,11 +45,83 @@ export interface GraphNodePayload {
 	status: string;
 	slug: string;
 	edit_url: string;
+	/**
+	 * Per-taxonomy term-id memberships scoped to whatever taxonomies
+	 * the request asked about (the Galaxy clustering taxonomy plus
+	 * any others required by the requested edge kinds, e.g., co-tag
+	 * pulls in all non-clustering public taxonomies).
+	 *
+	 * The map is always present on every node. Nodes with no in-scope
+	 * memberships carry an empty object so consumers do not have to
+	 * branch on undefined.
+	 *
+	 * @since 0.9.0
+	 */
+	terms: Record< string, number[] >;
 }
 
 export interface GraphEdgePayload {
 	from: number;
 	to: number;
+	/**
+	 * Edge kind tag. Existing hyperlink edges carry `'link'`. Added
+	 * 0.9.0 with the multi-lens work; the server always emits this
+	 * field on every edge.
+	 *
+	 * @since 0.9.0
+	 */
+	kind: EdgeKind;
+}
+
+/**
+ * Descriptor for one public taxonomy eligible to drive Galaxy
+ * clustering. Mirrors the PHP `desktop_mode_content_graph_taxonomies`
+ * server output.
+ *
+ * @since 0.9.0
+ */
+export interface TaxonomyDescriptor {
+	slug: string;
+	label: string;
+	hierarchical: boolean;
+	post_types: string[];
+}
+
+/**
+ * Descriptor for one edge kind offered to the toolbar's edges
+ * multi-toggle. Mirrors the PHP
+ * `desktop_mode_content_graph_edge_kind_descriptors` server output.
+ *
+ * @since 0.9.0
+ */
+export interface EdgeKindDescriptor {
+	slug: EdgeKind;
+	label: string;
+	color: string;
+	weight: number;
+}
+
+/**
+ * Per-user preferences mirror of the PHP
+ * `desktop_mode_content_graph_default_prefs()` shape. The server is
+ * the source of truth; this type just describes what the wire
+ * carries.
+ *
+ * @since 0.9.0
+ */
+export interface ContentGraphPrefs {
+	lens: LensId;
+	byLens: {
+		constellation: {
+			types: string[];
+			edges: EdgeKind[];
+		};
+		galaxy: {
+			types: string[];
+			edges: EdgeKind[];
+			taxonomy: string;
+		};
+	};
 }
 
 export interface GraphPayload {
@@ -237,6 +331,12 @@ export interface ContentGraphConfig {
 	editCommentUrl: string;
 	mediaUrl: string;
 	postTypes: PostTypeDescriptor[];
+	/** Public taxonomies offered as Galaxy clustering keys. @since 0.9.0 */
+	taxonomies: TaxonomyDescriptor[];
+	/** Edge-kind catalog offered to the toolbar's edges multi-toggle. @since 0.9.0 */
+	edgeKinds: EdgeKindDescriptor[];
+	/** Initial per-user prefs hydrated server-side to skip a first-paint round-trip. @since 0.9.0 */
+	prefs: ContentGraphPrefs;
 }
 
 /**
@@ -256,4 +356,6 @@ export interface GraphNode extends GraphNodePayload {
 export interface GraphEdge {
 	from: GraphNode;
 	to: GraphNode;
+	/** Edge kind, carried through from the wire payload. @since 0.9.0 */
+	kind: EdgeKind;
 }

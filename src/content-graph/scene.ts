@@ -253,7 +253,7 @@ export class GraphScene {
 			}
 			f.degree++;
 			t.degree++;
-			edges.push( { from: f, to: t } );
+			edges.push( { from: f, to: t, kind: e.kind } );
 		}
 		for ( const n of nodes ) {
 			n.radius = 8 + Math.min( 8, Math.sqrt( n.degree ) * 2.4 );
