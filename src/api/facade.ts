@@ -352,6 +352,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof patch.nativeUsersEnabled === 'boolean' ) {
 				osSettings.state.nativeUsersEnabled = patch.nativeUsersEnabled;
 			}
+			if ( typeof patch.nativePluginsEnabled === 'boolean' ) {
+				osSettings.state.nativePluginsEnabled = patch.nativePluginsEnabled;
+			}
 			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
 				osSettings.state.nativePostsHiddenColumns =
 					patch.nativePostsHiddenColumns

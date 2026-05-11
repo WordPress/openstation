@@ -354,6 +354,25 @@ export class Dock {
 	}
 
 	public replaceItems( items: DockItem[] ): void {
+		// Tear down peek attachments for the OLD menu tiles before
+		// removing them. Without this, `attachDockPeek` listeners stay
+		// armed on detached tiles and (worse) any popover already
+		// appended to `document.body` is orphaned — its `tearDown`
+		// closure becomes unreachable from the dock. A subsequent
+		// peek opening on the freshly-rebuilt tile then renders a
+		// SECOND popover with the same per-window `view-transition-name`
+		// as the leaked one, which Chrome reports as
+		// "Unexpected duplicate view-transition-name". System tile
+		// peeks live in the same map under `system:` keys and aren't
+		// being replaced here, so leave those entries alone.
+		for ( const itemId of this.itemElements.keys() ) {
+			const teardown = this.peekTeardowns.get( itemId );
+			if ( teardown ) {
+				teardown();
+				this.peekTeardowns.delete( itemId );
+			}
+		}
+
 		for ( const el of this.itemElements.values() ) {
 			el.remove();
 		}
@@ -1248,6 +1267,7 @@ export class Dock {
 			id: baseId,
 			baseId,
 			url: item.url,
+			parentUrl: item.url,
 			title: item.title,
 			icon: item.icon.startsWith( 'dashicons-' ) ? item.icon : 'dashicons-admin-generic',
 			submenu: item.submenu,
@@ -1256,27 +1276,24 @@ export class Dock {
 	}
 
 	/**
-	 * Open a brand-new instance of a multi-capable page, even if one is
-	 * already open. Invoked by the "+" chip on the dock icon.
+	 * Open a brand-new instance of a page, even if one is already
+	 * open. Invoked by the "+" ghost card in the dock peek.
+	 *
+	 * The user explicitly asked for "another window of this thing,"
+	 * so we honour the request even when {@link tryNativeUrlRemap}
+	 * would otherwise route the click into a native-window
+	 * singleton. Result: clicking + while a native Posts window is
+	 * open opens a fresh iframe of `edit.php` alongside it. Two
+	 * windows of Posts is the explicit ask — that's what + is for.
 	 */
 	private openNewInstance( item: DockItem ): void {
-		// Honor URL → native-window remaps before spawning a fresh
-		// iframe. Without this, clicking "+ Open new Posts" while
-		// the native Posts opt-in is active would BYPASS the
-		// remap, leaving the user with a phantom edit.php iframe
-		// next to their native Posts window — exactly the kind of
-		// duplicate the remap exists to prevent. For URLs that have
-		// no remap, `tryNativeUrlRemap` returns false and we fall
-		// through to the regular fresh-iframe path.
-		if ( tryNativeUrlRemap( item.url ) ) {
-			return;
-		}
 		const baseId = this.deriveWindowId( item.url );
 
 		this.windowManager.openNew( {
 			id: baseId,
 			baseId,
 			url: item.url,
+			parentUrl: item.url,
 			title: item.title,
 			icon: item.icon.startsWith( 'dashicons-' ) ? item.icon : 'dashicons-admin-generic',
 			submenu: item.submenu,

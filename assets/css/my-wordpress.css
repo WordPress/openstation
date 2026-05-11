@@ -912,3 +912,507 @@
 	color: var( --desktop-mode-fg, #1d2327 );
 	line-height: 1.45;
 }
+
+/* =================================================================== *
+ *  USERS — list tiles + activity footprint surface.
+ *
+ *  The Users folder reuses the same canvas + 96×92 tile grid the
+ *  post tiles use; the user-tile content (avatar circle + label +
+ *  small sub-line) fits inside the cell. The "View activity
+ *  footprint" surface is a full-width body view (no split pane)
+ *  with hero / stats / heatmap / rhythm / timeline.
+ *
+ *  Since 0.20.0.
+ * =================================================================== */
+
+/* User tile — replaces the dashicon glyph with a real avatar */
+.desktop-mode-my-wordpress__tile--user {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 4px;
+	padding: 8px 4px 6px;
+	box-sizing: border-box;
+}
+
+.desktop-mode-my-wordpress__user-tile-avatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	overflow: hidden;
+	background: linear-gradient(
+		135deg,
+		rgba( 34, 113, 177, 0.18 ),
+		rgba( 34, 113, 177, 0.04 )
+	);
+	box-shadow:
+		inset 0 0 0 1px rgba( 0, 0, 0, 0.08 ),
+		0 2px 6px rgba( 0, 0, 0, 0.08 );
+	flex: 0 0 auto;
+}
+
+.desktop-mode-my-wordpress__user-tile-avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.desktop-mode-my-wordpress__user-tile-initials {
+	font-weight: 600;
+	font-size: 14px;
+	letter-spacing: 0.02em;
+	color: var( --wp-admin-theme-color, #2271b1 );
+	text-transform: uppercase;
+}
+
+/* Single-line label for user tiles — we already have a generic
+ * label clamp, but the user variant gets only ONE line so the
+ * sub-line ("Editor · 12 posts") can fit beneath it. */
+.desktop-mode-my-wordpress__tile--user .desktop-mode-file-tile__label {
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.25;
+	max-height: 1.25em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	padding: 0 4px;
+	box-sizing: border-box;
+}
+
+.desktop-mode-my-wordpress__user-tile-sub {
+	font-size: 10px;
+	line-height: 1.2;
+	color: var( --desktop-mode-tile-fg-muted, rgba( 0, 0, 0, 0.55 ) );
+	max-height: 1.2em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	text-align: center;
+	padding: 0 4px;
+	box-sizing: border-box;
+}
+
+/* Selected/hover user tiles inherit the same chrome the post tiles
+ * use — see `.desktop-mode-my-wordpress__tile--selected` above. */
+
+/* ----- Activity footprint — full-width body surface -----
+ *
+ * Opens via the right-click context menu on a user tile (or the
+ * dossier's "View activity footprint" button). Replaces the split
+ * list/preview with a wide canvas so each section gets enough room
+ * to read.
+ */
+
+.desktop-mode-my-wordpress__footprint {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	padding: 24px 28px 32px;
+	max-width: 1080px;
+	margin: 0 auto;
+	box-sizing: border-box;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.desktop-mode-my-wordpress__footprint-section {
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 12px;
+	padding: 18px 20px;
+	background: var(
+		--desktop-mode-my-wordpress-surface,
+		var( --desktop-mode-surface, rgba( 255, 255, 255, 0.6 ) )
+	);
+	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.04 );
+}
+
+.desktop-mode-my-wordpress__footprint-section h3 {
+	margin: 0 0 12px;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+/* ----- Hero ----- */
+
+.desktop-mode-my-wordpress__footprint-hero {
+	display: flex;
+	gap: 20px;
+	align-items: center;
+	padding: 24px;
+	border-radius: 16px;
+	background: linear-gradient(
+		135deg,
+		rgba( 34, 113, 177, 0.10 ) 0%,
+		rgba( 34, 113, 177, 0.02 ) 60%,
+		transparent 100%
+	);
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__footprint-avatar {
+	width: 112px;
+	height: 112px;
+	border-radius: 50%;
+	overflow: hidden;
+	flex: 0 0 auto;
+	box-shadow:
+		inset 0 0 0 2px rgba( 255, 255, 255, 0.8 ),
+		0 6px 24px rgba( 0, 0, 0, 0.14 );
+	background: linear-gradient(
+		135deg,
+		rgba( 34, 113, 177, 0.18 ),
+		rgba( 34, 113, 177, 0.04 )
+	);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.desktop-mode-my-wordpress__footprint-avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.desktop-mode-my-wordpress__footprint-avatar
+	.desktop-mode-my-wordpress__user-tile-initials {
+	font-size: 36px;
+}
+
+.desktop-mode-my-wordpress__footprint-headline {
+	min-width: 0;
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.desktop-mode-my-wordpress__footprint-title {
+	margin: 0;
+	font-size: 28px;
+	line-height: 1.15;
+	font-weight: 700;
+	color: var( --desktop-mode-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__footprint-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+.desktop-mode-my-wordpress__footprint-since {
+	background: rgba( 0, 0, 0, 0.06 );
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+/* ----- Headline stats row (4 cards) ----- */
+
+.desktop-mode-my-wordpress__footprint-stats-row {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
+	gap: 12px;
+	padding: 16px 18px;
+}
+
+.desktop-mode-my-wordpress__footprint-stats-row
+	.desktop-mode-my-wordpress__user-stat {
+	background: var( --desktop-mode-surface, rgba( 255, 255, 255, 0.9 ) );
+	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.04 );
+}
+
+/* ----- Calendar heatmap (GitHub-style) ----- */
+
+.desktop-mode-my-wordpress__footprint-calendar-section {
+	overflow-x: auto;
+}
+
+.desktop-mode-my-wordpress__footprint-calendar {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 760px;
+}
+
+.desktop-mode-my-wordpress__footprint-grid {
+	display: grid;
+	/* 7 rows (Sun..Sat), columns flow horizontally as we append. */
+	grid-template-rows: repeat( 7, 11px );
+	grid-auto-flow: column;
+	grid-auto-columns: 11px;
+	gap: 3px;
+	width: max-content;
+}
+
+.desktop-mode-my-wordpress__footprint-cell {
+	width: 11px;
+	height: 11px;
+	border-radius: 2px;
+	background: var( --desktop-mode-border, #ebedf0 );
+	display: inline-block;
+	transition: transform 0.12s ease;
+}
+
+.desktop-mode-my-wordpress__footprint-cell--pad {
+	background: transparent;
+}
+
+.desktop-mode-my-wordpress__footprint-cell--l0 {
+	background: rgba( 0, 0, 0, 0.06 );
+}
+
+.desktop-mode-my-wordpress__footprint-cell--l1 {
+	background: rgba( 34, 113, 177, 0.25 );
+}
+
+.desktop-mode-my-wordpress__footprint-cell--l2 {
+	background: rgba( 34, 113, 177, 0.5 );
+}
+
+.desktop-mode-my-wordpress__footprint-cell--l3 {
+	background: rgba( 34, 113, 177, 0.75 );
+}
+
+.desktop-mode-my-wordpress__footprint-cell--l4 {
+	background: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.desktop-mode-my-wordpress__footprint-cell:hover {
+	transform: scale( 1.4 );
+	z-index: 1;
+}
+
+.desktop-mode-my-wordpress__footprint-legend {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+	justify-content: flex-end;
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__footprint-legend-label {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #50575e );
+	padding: 0 4px;
+}
+
+/* ----- Rhythm (weekday + hour bar charts) ----- */
+
+.desktop-mode-my-wordpress__footprint-rhythm-grid {
+	display: grid;
+	grid-template-columns: minmax( 0, 1fr ) minmax( 0, 1.7fr );
+	gap: 24px;
+}
+
+@container ( max-width: 720px ) {
+	.desktop-mode-my-wordpress__footprint-rhythm-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.desktop-mode-my-wordpress__footprint-chart-caption {
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+	margin-bottom: 6px;
+}
+
+.desktop-mode-my-wordpress__footprint-bars {
+	display: flex;
+	align-items: end;
+	gap: 4px;
+	height: 100px;
+	padding-bottom: 18px;
+	position: relative;
+}
+
+.desktop-mode-my-wordpress__footprint-bar-col {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: flex-end;
+	gap: 4px;
+	height: 100%;
+	position: relative;
+}
+
+.desktop-mode-my-wordpress__footprint-bar {
+	background: linear-gradient(
+		180deg,
+		var( --wp-admin-theme-color, #2271b1 ) 0%,
+		rgba( 34, 113, 177, 0.55 ) 100%
+	);
+	border-radius: 3px 3px 0 0;
+	min-height: 2px;
+	transition: opacity 0.2s ease;
+}
+
+.desktop-mode-my-wordpress__footprint-bar--empty {
+	background: var( --desktop-mode-border, #dcdcde );
+	height: 2px !important;
+	min-height: 2px;
+}
+
+.desktop-mode-my-wordpress__footprint-bar-label {
+	position: absolute;
+	bottom: -16px;
+	left: 0;
+	right: 0;
+	text-align: center;
+	font-size: 10px;
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+/* ----- Most-prolific-month callout ----- */
+
+.desktop-mode-my-wordpress__footprint-callout {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	align-items: center;
+	text-align: center;
+	padding: 20px 24px;
+	background: linear-gradient(
+		135deg,
+		rgba( 34, 113, 177, 0.10 ),
+		rgba( 34, 113, 177, 0.02 )
+	);
+}
+
+.desktop-mode-my-wordpress__footprint-callout-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var( --desktop-mode-muted, #50575e );
+	font-weight: 600;
+}
+
+.desktop-mode-my-wordpress__footprint-callout-value {
+	margin: 2px 0;
+	font-size: 24px;
+	font-weight: 700;
+	color: var( --desktop-mode-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__footprint-callout-detail {
+	margin: 0;
+	font-size: 13px;
+	color: var( --desktop-mode-muted, #50575e );
+	max-width: 480px;
+}
+
+/* ----- Recent-activity timeline ----- */
+
+.desktop-mode-my-wordpress__footprint-timeline {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.desktop-mode-my-wordpress__footprint-timeline::before {
+	content: '';
+	position: absolute;
+	inset-inline-start: 13px;
+	top: 4px;
+	bottom: 4px;
+	width: 2px;
+	background: var( --desktop-mode-border, #dcdcde );
+	border-radius: 1px;
+}
+
+.desktop-mode-my-wordpress__footprint-event {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	position: relative;
+	padding-inline-start: 36px;
+	min-height: 28px;
+}
+
+.desktop-mode-my-wordpress__footprint-dot {
+	position: absolute;
+	inset-inline-start: 0;
+	top: 0;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: var( --desktop-mode-surface, #fff );
+	border: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.desktop-mode-my-wordpress__footprint-event--comment
+	.desktop-mode-my-wordpress__footprint-dot {
+	border-color: var( --desktop-mode-muted, #787c82 );
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+.desktop-mode-my-wordpress__footprint-dot .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	line-height: 1;
+}
+
+.desktop-mode-my-wordpress__footprint-event-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.desktop-mode-my-wordpress__footprint-event-title {
+	font-weight: 600;
+	font-size: 13px;
+	color: var( --desktop-mode-link, #2271b1 );
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+a.desktop-mode-my-wordpress__footprint-event-title:hover {
+	text-decoration: underline;
+}
+
+.desktop-mode-my-wordpress__footprint-event-meta {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #787c82 );
+}
+
+/* ----- Footer actions ----- */
+
+.desktop-mode-my-wordpress__footprint-footer {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	background: transparent;
+	border-color: transparent;
+	box-shadow: none;
+	padding: 0;
+}

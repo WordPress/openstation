@@ -1700,6 +1700,7 @@ function init(): void {
 				return {
 					title: item.title,
 					icon: item.icon,
+					url: item.url,
 					submenu: item.submenu,
 					multi: item.multi,
 				};
@@ -1715,6 +1716,11 @@ function init(): void {
 						// avoids painting a generic glyph on a window
 						// the user knows by its parent's identity.
 						icon: item.icon,
+						// `url` holds the PARENT tile's landing page, so
+						// the new window's synthetic "back to parent"
+						// tab links to the dock URL (themes.php) rather
+						// than to the sub-page itself.
+						url: item.url,
 						multi: item.multi,
 					};
 				}
@@ -1816,6 +1822,33 @@ function init(): void {
 			// `profile.php` with no user_id falls through to the
 			// render callback's `currentUserId` fallback — no need
 			// to set a target.
+		},
+	} );
+
+	// Native Plugins window — claims `plugins.php` (Installed list)
+	// AND `plugin-install.php` (Browse the .org repo). The latter
+	// stashes a `tab: 'browse'` hint so the bundle's first paint
+	// activates the Browse tab. `plugin-editor.php` is intentionally
+	// NOT claimed — it's a code-editor surface that belongs to the
+	// separate code-editor bundle.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-plugins',
+		nativeWindowId: 'desktop-mode-plugins',
+		matches: ( _url, parsed ) => {
+			const path = parsed.pathname;
+			return (
+				path.endsWith( '/plugins.php' ) ||
+				path.endsWith( '/plugin-install.php' )
+			);
+		},
+		enabled: ( snapshot ) => snapshot.nativePluginsEnabled === true,
+		onMatch: ( _url, parsed ) => {
+			const tab = parsed.pathname.endsWith( '/plugin-install.php' )
+				? 'browse'
+				: 'installed';
+			void import( './plugins-window/tab-target' ).then( ( m ) => {
+				m.setPluginsWindowTab( tab );
+			} );
 		},
 	} );
 
@@ -2808,7 +2841,6 @@ function init(): void {
 				return snapToEmptyCell( rawX, rawY, occupied, desktopArea );
 			};
 			const createUrlPlacement = (
-				type: 'link' | 'embed',
 				dialogTitle: string,
 				description: string,
 			): void => {
@@ -2821,7 +2853,7 @@ function init(): void {
 					onSubmit: async ( { name, url } ) => {
 						const cell = cellAtClick();
 						const placement = await filesRest.createPlacement( {
-							type,
+							type: 'link',
 							ref: url,
 							parentId: 0,
 							x: cell.x,
@@ -2850,17 +2882,10 @@ function init(): void {
 						},
 					} );
 				},
-				createLink: () =>
+				createUrl: () =>
 					createUrlPlacement(
-						'link',
-						'New web link',
+						'New URL',
 						'Opens the URL in a new browser tab.',
-					),
-				createEmbed: () =>
-					createUrlPlacement(
-						'embed',
-						'New embedded web window',
-						'Opens the URL inside a desktop window.',
 					),
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
@@ -2898,9 +2923,7 @@ function init(): void {
 					sortNameDesc: 'Name (Z → A)',
 					sortDateAsc: 'Date (oldest first)',
 					sortDateDesc: 'Date (newest first)',
-					newHeading: 'New',
-					newLink: 'Web link (open in browser)',
-					newEmbed: 'Embedded window (open in shell)',
+					newUrl: 'New URL',
 				},
 				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]

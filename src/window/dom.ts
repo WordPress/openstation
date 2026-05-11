@@ -625,15 +625,31 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 			// auto-prepended self-link from `submenu`, so without this
 			// tab the only way back to the parent listing (e.g. All
 			// Posts from inside Categories) would be to close the window
-			// and reopen it. Skip if a caller-supplied submenu entry
-			// already points at the parent URL (avoids two tabs claiming
-			// the active state on the same key).
+			// and reopen it.
+			//
+			// The synthetic uses `parentUrl` (the dock landing page),
+			// falling back to `url` when the caller didn't pass one.
+			// They diverge when the iframe has been navigated to a
+			// sub-page (or restored from a session that captured one),
+			// e.g. Appearance window currently on `theme-install.php`:
+			// `url = theme-install.php`, `parentUrl = themes.php`.
+			//
+			// Dedup: skip the synthetic if a submenu entry already
+			// points at the *parent* URL. That covers the WooCommerce
+			// shape (parent URL gets rewritten to the first submenu
+			// URL like `wc-admin`, so the first submenu entry already
+			// is the back-to-parent affordance) without false-positively
+			// suppressing it on a session-restored Appearance window
+			// (where the iframe URL `theme-install.php` matches the
+			// "Add Theme" entry but `parentUrl = themes.php` doesn't).
+			const synthUrl = config.parentUrl ?? config.url;
+			const synthKey = urlMatchKey( synthUrl );
 			const parentAlreadyInSubmenu = config.submenu.some(
-				( s ) => urlMatchKey( s.url ) === initialKey,
+				( s ) => urlMatchKey( s.url ) === synthKey,
 			);
 			const seedSubmenu: { title: string; url: string }[] = parentAlreadyInSubmenu
 				? [ ...config.submenu ]
-				: [ { title: config.title, url: config.url }, ...config.submenu ];
+				: [ { title: config.title, url: synthUrl }, ...config.submenu ];
 
 			for ( const sub of seedSubmenu ) {
 				const tab = document.createElement( 'button' );

@@ -30,13 +30,58 @@
 /*
  * Drop-target highlight — the `data-files-drop-active` attribute
  * is set on the FilesLayer host (desktop area or folder window
- * body) while a `<wpd-drag-handle>` payload is being dragged
- * over it. Subtle dashed outline so it reads as "you can drop
- * here" without overwhelming the wallpaper.
+ * body) while a shortcut payload is being dragged over it.
+ *
+ * Marching-ants animation makes the affordance unmissable even
+ * against the busiest wallpaper, and the soft inner glow draws
+ * the eye when the user is "shopping" for a drop target. Both
+ * effects respect prefers-reduced-motion below.
+ *
+ * @since 0.18.0; visuals strengthened in 0.20.0.
  */
+@keyframes desktop-mode-drop-marching-ants {
+	to {
+		background-position: 24px 0, -24px 0, 0 24px, 0 -24px;
+	}
+}
+
 [ data-files-drop-active ] {
-	outline: 2px dashed var( --wp-admin-theme-color, #2271b1 );
-	outline-offset: -6px;
+	position: relative;
+	outline: 3px dashed var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: -8px;
+	background-image:
+		linear-gradient(
+			90deg,
+			rgba( 34, 113, 177, 0.45 ) 50%,
+			transparent 0
+		),
+		linear-gradient(
+			90deg,
+			rgba( 34, 113, 177, 0.45 ) 50%,
+			transparent 0
+		),
+		linear-gradient(
+			0deg,
+			rgba( 34, 113, 177, 0.45 ) 50%,
+			transparent 0
+		),
+		linear-gradient(
+			0deg,
+			rgba( 34, 113, 177, 0.45 ) 50%,
+			transparent 0
+		);
+	background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+	background-size: 12px 3px, 12px 3px, 3px 12px, 3px 12px;
+	background-position: 0 6px, 0 calc( 100% - 6px ), 6px 0, calc( 100% - 6px ) 0;
+	box-shadow: inset 0 0 32px 4px rgba( 34, 113, 177, 0.12 );
+	animation: desktop-mode-drop-marching-ants 0.6s linear infinite;
+	transition: box-shadow 0.18s ease-out;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	[ data-files-drop-active ] {
+		animation: none;
+	}
 }
 
 .desktop-mode-files-layer {
@@ -104,41 +149,123 @@
 }
 
 /* Pinned tiles ("My WordPress", Recycle Bin) anchor to a fixed slot
- * and DO NOT wire drag. The `not-allowed` cursor signals "this tile
- * is intentionally fixed" so the user understands the (lack of)
- * interaction instead of suspecting a bug. The `--bump` keyframe
- * fires on pointerdown for explicit feedback that the gesture
- * landed but the tile is anchored.
+ * and DO NOT wire drag — but they look + behave identically to any
+ * other tile until the user attempts a drag (which silently fails).
+ * No upfront visual cue: feedback now happens at the moment of the
+ * gesture, not before, per @since 0.9.0 design feedback.
  *
- * @since 0.18.0
+ * Default `cursor: pointer` from the base `.desktop-mode-file-tile`
+ * rule covers click-to-open. Touch interactions stay as
+ * `touch-action: auto` so the OS scroll gesture works on top of
+ * the tile.
  */
 .desktop-mode-file-tile--pinned {
-	cursor: not-allowed;
 	touch-action: auto;
 }
 
-.desktop-mode-file-tile--bump {
-	animation: desktop-mode-file-tile-bump 220ms ease-out;
-}
-
-@keyframes desktop-mode-file-tile-bump {
-	0%   { transform: translate( 0, 0 ); }
-	30%  { transform: translate( 0, -3px ) scale( 1.02 ); }
-	60%  { transform: translate( 0, 1px ) scale( 0.99 ); }
-	100% { transform: translate( 0, 0 ); }
-}
-
 /* Folder tile is the drop target during a cross-window shortcut
- * drag — the user dragged a post tile out of My WordPress and is
- * hovering over a folder. Bright outline + a subtle scale so the
- * folder reads as "yes, drop here." @since 0.8.0 */
+ * drag — the user dragged a post / page / user tile out of My
+ * WordPress and is hovering over a folder. Bright outline, soft
+ * pulse, and a slight scale so the folder reads unmistakably as
+ * "yes, drop here." @since 0.8.0; pulse added 0.20.0. */
+@keyframes desktop-mode-drop-target-pulse {
+	0% {
+		box-shadow:
+			0 0 0 0 rgba( 34, 113, 177, 0.5 ),
+			inset 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
+	}
+	100% {
+		box-shadow:
+			0 0 0 8px rgba( 34, 113, 177, 0 ),
+			inset 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
+	}
+}
+
 .desktop-mode-file-tile--drop-target {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: -4px;
-	background: rgba( 34, 113, 177, 0.15 );
-	transform: scale( 1.04 );
+	background: rgba( 34, 113, 177, 0.2 );
+	transform: scale( 1.08 );
 	z-index: 5;
+	animation: desktop-mode-drop-target-pulse 1s ease-out infinite;
+	border-radius: 12px;
 }
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-file-tile--drop-target {
+		animation: none;
+	}
+}
+
+/* Drop-hint chip — floats next to the cursor during a drag and
+ * shows context-aware text ("Drop here to create shortcut",
+ * "Can't drop here", etc.). The chip text is owned by the
+ * ghost module (`src/drag/ghost.ts`); these styles control the
+ * appearance per accept/reject/neutral mode.
+ *
+ * @since 0.20.0
+ */
+.desktop-mode-drag-hint {
+	position: fixed;
+	top: 0;
+	left: 0;
+	padding: 6px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	pointer-events: none;
+	user-select: none;
+	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.22 );
+	background: rgba( 30, 30, 30, 0.85 );
+	color: #fff;
+	z-index: 2147483647;
+	transition:
+		background-color 0.12s ease,
+		color 0.12s ease,
+		transform 0.06s ease-out;
+}
+
+.desktop-mode-drag-hint--neutral {
+	background: rgba( 30, 30, 30, 0.85 );
+	color: #fff;
+}
+
+.desktop-mode-drag-hint--accept {
+	background: #1e8449;
+	color: #fff;
+	box-shadow:
+		0 0 0 2px rgba( 30, 132, 73, 0.25 ),
+		0 6px 18px rgba( 30, 132, 73, 0.3 );
+}
+
+.desktop-mode-drag-hint--accept::before {
+	/* Tiny checkmark chevron prefix so "Drop here" reads as an
+	 * actionable affirmation rather than a passive label. The
+	 * checkmark is a real character (U+2713) so screen readers
+	 * skip past it via the `aria-hidden` on the host chip. */
+	content: '✓ ';
+}
+
+.desktop-mode-drag-hint--reject {
+	background: #b32d2e;
+	color: #fff;
+	box-shadow:
+		0 0 0 2px rgba( 179, 45, 46, 0.25 ),
+		0 6px 18px rgba( 179, 45, 46, 0.3 );
+}
+
+.desktop-mode-drag-hint--reject::before {
+	content: '⊘ ';
+}
+
+/*
+ * No body-level cursor swap during drag — the user prefers the
+ * default arrow cursor regardless of state, so the accept/reject
+ * feedback lives entirely in the hint chip + outline animation.
+ * Don't reintroduce a `cursor: grabbing/copy/no-drop` here.
+ */
 
 /* Shortcut overlay — small arrow badge in the BOTTOM-RIGHT corner
  * of the icon visual on any tile that's a reference to an external
@@ -214,6 +341,18 @@
 	height: 48px;
 	object-fit: cover;
 	border-radius: 4px;
+}
+
+/* `<img>` defaults to `draggable=true`, which lets the browser
+ * start a native HTML5 image-drag from a pointerdown — that
+ * pre-empts the DragManager's pointer-event-driven tile rearrange
+ * and the tile silently refuses to move. The renderer also sets
+ * `draggable="false"` on every `<img>` it produces; this CSS rule
+ * covers anything injected later (plugin filters, decorators)
+ * without having to remember the attribute. */
+.desktop-mode-file-tile img {
+	-webkit-user-drag: none;
+	user-select: none;
 }
 
 /*

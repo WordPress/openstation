@@ -401,6 +401,7 @@ export function createLayoutDispatcher(
 				id: baseId,
 				baseId,
 				url: item.url,
+				parentUrl: item.url,
 				title: item.title,
 				icon: item.icon.startsWith( 'dashicons-' )
 					? item.icon
@@ -414,6 +415,12 @@ export function createLayoutDispatcher(
 				id: deriveWindowId( sub.url, deps.adminUrl ),
 				baseId: deriveWindowId( item.url, deps.adminUrl ),
 				url: sub.url,
+				// Pin the synthetic parent tab to the dock landing
+				// page, not to the sub-page the user picked. Without
+				// this, a submenu-pick (e.g. clicking "Editor" inside
+				// Appearance's submenu popover) would open at
+				// site-editor.php with no way back to themes.php.
+				parentUrl: item.url,
 				title: item.title,
 				icon: item.icon.startsWith( 'dashicons-' )
 					? item.icon

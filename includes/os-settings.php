@@ -99,6 +99,12 @@ function desktop_mode_default_os_settings() {
 		// the server-side cap gate (`list_users`) means the toggle
 		// only matters for users who could see the Users tile anyway.
 		'nativeUsersEnabled'       => true,
+		// Per-user opt-OUT for the native Plugins window. Defaults ON;
+		// the server-side cap gate (`activate_plugins`) means the
+		// toggle only matters for users who could see the Plugins
+		// tile anyway. When `false`, the dock click falls back to the
+		// classic `plugins.php` chromeless iframe path.
+		'nativePluginsEnabled'     => true,
 	);
 }
 
@@ -323,6 +329,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['nativeUsersEnabled']
 		: $defaults['nativeUsersEnabled'];
 
+	$native_plugins_enabled = isset( $raw['nativePluginsEnabled'] )
+		? (bool) $raw['nativePluginsEnabled']
+		: $defaults['nativePluginsEnabled'];
+
 	return array(
 		'wallpaper'                => $wallpaper,
 		'accent'                   => $accent,
@@ -337,6 +347,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePostsHiddenColumns' => $native_posts_hidden_columns,
 		'nativePagesEnabled'       => $native_pages_enabled,
 		'nativeUsersEnabled'       => $native_users_enabled,
+		'nativePluginsEnabled'     => $native_plugins_enabled,
 	);
 }
 

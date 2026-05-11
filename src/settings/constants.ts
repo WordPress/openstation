@@ -179,6 +179,11 @@ export const DEFAULTS: OsSettingsState = {
 	// `list_users`), so flipping this off only affects the small set
 	// of users who can see the Users tile in the first place.
 	nativeUsersEnabled: true,
+	// Native Plugins window — replaces `plugins.php` and
+	// `plugin-install.php`. Same opt-out posture; cap-gated on
+	// `activate_plugins` server-side, so flipping this off only
+	// affects users who could see the Plugins tile anyway.
+	nativePluginsEnabled: true,
 };
 
 /**

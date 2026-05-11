@@ -64,6 +64,24 @@ export interface WindowConfig {
 	 * something unique.
 	 */
 	url?: string;
+	/**
+	 * The dock landing URL — the URL the dock tile points at, which
+	 * may differ from {@link WindowConfig.url} once the iframe has
+	 * navigated to a sub-page. Used to render the synthetic
+	 * "back to parent" tab in the in-window tab strip so it always
+	 * points at the parent landing page, not at whichever sub-page
+	 * the iframe happens to be on at construction time. Optional —
+	 * callers that don't pass it fall back to `url` (the original
+	 * behaviour).
+	 *
+	 * Critical on session restore: the snapshot saves the iframe's
+	 * current URL, so without this hint a window restored on a
+	 * sub-page (e.g. theme-install.php under Appearance) would lose
+	 * its parent tab — the dedup check would see the saved iframe
+	 * URL match the same submenu entry that already represents that
+	 * sub-page.
+	 */
+	parentUrl?: string;
 	/** Window title displayed in the title bar. */
 	title: string;
 	/** Dashicon class for the window icon (e.g., 'dashicons-admin-post'). */

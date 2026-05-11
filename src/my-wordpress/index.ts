@@ -46,6 +46,7 @@ import {
 } from '../desktop-files/breadcrumbs';
 import {
 	buildEditUrl,
+	buildEditUserUrl,
 	fetchAttachedMedia,
 	fetchCommentStats,
 	fetchComments,
@@ -58,6 +59,8 @@ import {
 	fetchTermStats,
 	fetchTerms,
 	fetchUser,
+	fetchUserFootprint,
+	fetchUserList,
 	fetchUserStats,
 	type CommentStats,
 	type TermStats,
@@ -79,6 +82,8 @@ import type {
 	MyWordPressEntity,
 	Route,
 	SubRelation,
+	UserFootprint,
+	UserListItem,
 } from './types';
 
 type RenderCallback = ( body: HTMLElement ) => void;
@@ -246,7 +251,11 @@ function navigate( state: RenderState, route: Route ): void {
 		return;
 	}
 	if ( route.kind === 'list' ) {
-		renderEntityList( state, entity );
+		if ( entity.kind === 'user' ) {
+			renderUserEntityList( state, entity );
+		} else {
+			renderEntityList( state, entity );
+		}
 		return;
 	}
 	if ( route.kind === 'detail' ) {
@@ -261,6 +270,10 @@ function navigate( state: RenderState, route: Route ): void {
 			route.postTitle,
 			route.relation,
 		);
+		return;
+	}
+	if ( route.kind === 'user-footprint' ) {
+		renderUserFootprint( state, entity, route.userId, route.userName );
 	}
 }
 
@@ -279,6 +292,8 @@ function parentRoute( route: Route ): Route {
 				postId: route.postId,
 				postTitle: route.postTitle,
 			};
+		case 'user-footprint':
+			return { kind: 'list', entityId: route.entityId };
 		default:
 			return { kind: 'root' };
 	}
@@ -351,6 +366,15 @@ function updateBreadcrumbs( state: RenderState ): void {
 	}
 	if ( route.kind === 'sub-list' ) {
 		segments.push( { label: subRelationLabel( route.relation ) } );
+	}
+	if ( route.kind === 'user-footprint' ) {
+		segments.push( {
+			label: sprintf(
+				// translators: %s is a user display name.
+				__( '%s — activity footprint', 'desktop-mode' ),
+				route.userName,
+			),
+		} );
 	}
 
 	renderBreadcrumbs( state.breadcrumbs, segments, {
@@ -3198,6 +3222,1415 @@ function showToast( message: string ): void {
 	// Fallback: log it. Better than nothing, never noisy.
 	// eslint-disable-next-line no-console
 	console.info( '[my-wordpress]', message );
+}
+
+/* =================================================================== *
+ *  USERS ENTITY — list, tile, preview, context menu, double-click.
+ *
+ *  The Users folder mirrors the post/page folder shell (two-pane
+ *  split, infinite scroll, status bar, tile canvas) but everything
+ *  inside the tiles + the preview is reshaped around user identity:
+ *  big avatar tiles, role chips, the rich dossier in the right
+ *  pane, and a dedicated "activity footprint" surface that
+ *  replaces the body when the user picks it from the context menu.
+ *
+ *  @since 0.20.0
+ * =================================================================== */
+
+interface UserListContext {
+	page: number;
+	totalPages: number;
+	total: number;
+	loaded: number;
+	loading: boolean;
+	done: boolean;
+	tiles: HTMLElement;
+	sentinel: HTMLElement;
+	preview: HTMLElement;
+	selectedId: number | null;
+	selectedTile: HTMLElement | null;
+	observer: IntersectionObserver | null;
+	layout: TileLayout;
+}
+
+function renderUserEntityList(
+	state: RenderState,
+	entity: MyWordPressEntity,
+): void {
+	const cfg = getConfig();
+	const split = document.createElement( 'div' );
+	split.className = 'desktop-mode-my-wordpress__split';
+
+	const left = document.createElement( 'div' );
+	left.className = 'desktop-mode-my-wordpress__list';
+	const tiles = document.createElement( 'div' );
+	tiles.className =
+		'desktop-mode-my-wordpress__tiles desktop-mode-my-wordpress__canvas desktop-mode-my-wordpress__canvas--users';
+	tiles.setAttribute( 'role', 'list' );
+	left.appendChild( tiles );
+
+	const sentinel = document.createElement( 'div' );
+	sentinel.className = 'desktop-mode-my-wordpress__sentinel';
+	sentinel.setAttribute( 'aria-hidden', 'true' );
+	left.appendChild( sentinel );
+
+	const right = document.createElement( 'div' );
+	right.className = 'desktop-mode-my-wordpress__preview';
+	const previewEmpty = document.createElement( 'div' );
+	previewEmpty.className = 'desktop-mode-my-wordpress__preview-empty';
+	previewEmpty.textContent = __(
+		'Select a user to see their profile here.',
+		'desktop-mode',
+	);
+	right.appendChild( previewEmpty );
+
+	split.appendChild( left );
+	split.appendChild( right );
+	state.body.appendChild( split );
+
+	const tileLayout = createTileLayout( tiles, `entity:${ entity.id }` );
+	const menu = attachIconCanvasMenu( tiles, {
+		scope: `my-wordpress:${ entity.id }`,
+		onSort: ( mode ) => tileLayout.sort( mode ),
+	} );
+	state.teardown.push( () => menu.dispose() );
+
+	const ctx: UserListContext = {
+		page: 0,
+		totalPages: 1,
+		total: 0,
+		loaded: 0,
+		loading: false,
+		done: false,
+		tiles,
+		sentinel,
+		preview: right,
+		selectedId: null,
+		selectedTile: null,
+		observer: null,
+		layout: tileLayout,
+	};
+	state.teardown.push( () => tileLayout.dispose() );
+
+	const repaintListStatus = () => {
+		let itemLabel: string;
+		if ( ctx.total === 0 && ctx.loaded === 0 ) {
+			itemLabel = pluralLabel( 0, 'user', 'users' );
+		} else if ( ctx.total > ctx.loaded && ctx.loaded > 0 ) {
+			itemLabel = sprintf(
+				// translators: 1: visible user count, 2: total user count.
+				__( '%1$d of %2$d users', 'desktop-mode' ),
+				ctx.loaded,
+				ctx.total,
+			);
+		} else {
+			itemLabel = pluralLabel(
+				Math.max( ctx.total, ctx.loaded ),
+				'user',
+				'users',
+			);
+		}
+		const segments: StatusBarSegment[] = [
+			{ id: 'count', label: itemLabel, align: 'start', sort: 10 },
+		];
+		if ( ctx.totalPages > 1 ) {
+			segments.push( {
+				id: 'page',
+				label: sprintf(
+					// translators: 1: current page, 2: total pages.
+					__( 'Page %1$d of %2$d', 'desktop-mode' ),
+					Math.max( ctx.page, 1 ),
+					ctx.totalPages,
+				),
+				align: 'end',
+				sort: 10,
+			} );
+		}
+		paintStatus( state, segments, {
+			view: 'list',
+			entityId: entity.id,
+		} );
+	};
+	repaintListStatus();
+
+	const sentinelIsVisible = (): boolean => {
+		const sr = sentinel.getBoundingClientRect();
+		const rr = left.getBoundingClientRect();
+		const slack = 200;
+		return sr.top < rr.bottom + slack && sr.bottom > rr.top - slack;
+	};
+
+	const loadMore = async () => {
+		if ( ctx.loading || ctx.done ) {
+			return;
+		}
+		ctx.loading = true;
+		const nextPage = ctx.page + 1;
+		const isFirst = nextPage === 1;
+		showSpinner( tiles, isFirst );
+		try {
+			const result = await fetchUserList( entity, {
+				page: nextPage,
+				perPage: cfg.perPage,
+			} );
+			ctx.page = nextPage;
+			ctx.totalPages = result.totalPages;
+			ctx.total = result.total;
+			hideSpinner( tiles );
+			if ( result.items.length === 0 && isFirst ) {
+				renderListEmptyMessage(
+					tiles,
+					__( 'No users to show.', 'desktop-mode' ),
+				);
+				ctx.done = true;
+				repaintListStatus();
+				return;
+			}
+			for ( const item of result.items ) {
+				tiles.appendChild(
+					buildUserTile( state, ctx, entity, item ),
+				);
+				ctx.loaded += 1;
+			}
+			if ( ctx.page >= ctx.totalPages ) {
+				ctx.done = true;
+			}
+			repaintListStatus();
+		} catch ( err ) {
+			hideSpinner( tiles );
+			const msg =
+				err instanceof Error
+					? err.message
+					: __( 'Unknown error.', 'desktop-mode' );
+			renderListError( tiles, msg );
+			ctx.done = true;
+		} finally {
+			ctx.loading = false;
+		}
+		if ( ! ctx.done ) {
+			requestAnimationFrame( () => {
+				if ( sentinelIsVisible() ) {
+					void loadMore();
+				}
+			} );
+		}
+	};
+
+	if ( typeof IntersectionObserver !== 'undefined' ) {
+		ctx.observer = new IntersectionObserver(
+			( entries ) => {
+				for ( const e of entries ) {
+					if ( e.isIntersecting ) {
+						void loadMore();
+					}
+				}
+			},
+			{ root: left, rootMargin: '200px 0px' },
+		);
+		ctx.observer.observe( sentinel );
+		state.teardown.push( () => ctx.observer?.disconnect() );
+	}
+
+	void loadMore();
+}
+
+/**
+ * Build a user tile — same canvas-friendly element as the post tile
+ * but with an avatar image where the post tile shows a dashicon.
+ * The class list keeps `desktop-mode-file-tile` so the existing
+ * selection + canvas pointer plumbing applies unchanged.
+ */
+function buildUserTile(
+	state: RenderState,
+	ctx: UserListContext,
+	entity: MyWordPressEntity,
+	item: UserListItem,
+): HTMLElement {
+	const displayName = item.name || item.slug || `#${ item.id }`;
+
+	const tile = document.createElement( 'button' );
+	tile.type = 'button';
+	tile.className =
+		'desktop-mode-file-tile desktop-mode-my-wordpress__tile desktop-mode-my-wordpress__tile--user';
+	tile.setAttribute( 'role', 'listitem' );
+	tile.dataset.role = 'user';
+	tile.dataset.userId = String( item.id );
+
+	const avatarWrap = document.createElement( 'span' );
+	avatarWrap.className = 'desktop-mode-my-wordpress__user-tile-avatar';
+	avatarWrap.setAttribute( 'aria-hidden', 'true' );
+	const avatarUrl = pickAvatar( item.avatar_urls ) ?? '';
+	if ( avatarUrl ) {
+		const img = document.createElement( 'img' );
+		img.src = avatarUrl;
+		img.alt = '';
+		img.loading = 'lazy';
+		img.decoding = 'async';
+		avatarWrap.appendChild( img );
+	} else {
+		// No avatar — show initials so the tile still has an
+		// identity-shaped visual instead of a hollow ring.
+		const fallback = document.createElement( 'span' );
+		fallback.className = 'desktop-mode-my-wordpress__user-tile-initials';
+		fallback.textContent = initialsOf( displayName );
+		avatarWrap.appendChild( fallback );
+	}
+	tile.appendChild( avatarWrap );
+
+	const label = document.createElement( 'span' );
+	label.className = 'desktop-mode-file-tile__label';
+	label.textContent = displayName;
+	tile.appendChild( label );
+
+	const summary = item.desktop_mode_summary;
+	const postCount = summary?.postCount ?? 0;
+	const roleLabel = ( summary?.roleLabels ?? [] )[ 0 ] ?? '';
+	if ( roleLabel || postCount > 0 ) {
+		const sub = document.createElement( 'span' );
+		sub.className = 'desktop-mode-my-wordpress__user-tile-sub';
+		const parts: string[] = [];
+		if ( roleLabel ) {
+			parts.push( roleLabel );
+		}
+		if ( postCount > 0 ) {
+			parts.push(
+				sprintf(
+					// translators: %d is a count of posts authored.
+					_n( '%d post', '%d posts', postCount ),
+					postCount,
+				),
+			);
+		}
+		sub.textContent = parts.join( ' · ' );
+		tile.appendChild( sub );
+	}
+
+	const tooltip = buildUserTooltip( displayName, item );
+	let tooltipNode: HTMLElement | null = null;
+	const showTooltip = ( ev: MouseEvent ) => {
+		if ( ! tooltipNode ) {
+			tooltipNode = tooltip;
+		}
+		document.body.appendChild( tooltipNode );
+		positionTooltip( tooltipNode, ev );
+	};
+	const moveTooltip = ( ev: MouseEvent ) => {
+		if ( tooltipNode && tooltipNode.isConnected ) {
+			positionTooltip( tooltipNode, ev );
+		}
+	};
+	const hideTooltip = () => {
+		if ( tooltipNode && tooltipNode.isConnected ) {
+			tooltipNode.remove();
+		}
+	};
+	tile.addEventListener( 'mouseenter', showTooltip );
+	tile.addEventListener( 'mousemove', moveTooltip );
+	tile.addEventListener( 'mouseleave', hideTooltip );
+	state.teardown.push( hideTooltip );
+
+	// Drag-out: same gesture the post/page tile uses to drop a
+	// shortcut on the wallpaper / inside a folder window. The
+	// `'user'` file type already has a server-side resolver
+	// (`Desktop_Mode_User_File`) + opener registered, so a drop on
+	// any FilesLayer target POSTs a placement carrying
+	// `kind: 'user', ref: '<id>'` — no extra wiring needed here.
+	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
+		if ( e.button !== 0 ) {
+			return;
+		}
+		const dragManager = getDragManager();
+		if ( ! dragManager ) {
+			return;
+		}
+		dragManager.start( {
+			payload: {
+				type: 'shortcut',
+				source: tile,
+				data: {
+					kind: 'user',
+					ref: String( item.id ),
+					title: displayName,
+					icon: 'dashicons-admin-users',
+				} satisfies ShortcutDragData,
+				ghost: {
+					offsetX: e.clientX - tile.getBoundingClientRect().left,
+					offsetY: e.clientY - tile.getBoundingClientRect().top,
+				},
+			},
+			origin: e,
+			onClickOnly: () => {
+				// Sub-threshold gesture — the `click` listener below
+				// handles selection. Hide the tooltip in case it was
+				// hovering so the click feels snappy.
+				hideTooltip();
+			},
+		} );
+	} );
+
+	const tileKey = `entry:${ item.id }`;
+	ctx.layout.place( tile, tileKey, {
+		name: displayName,
+		// Order users by post count by default — the most active
+		// surface first. Authoring date isn't available per-user,
+		// so we synthesize a date that ranks more-prolific users
+		// earlier when the canvas sort-by-date is selected.
+		date: postCount > 0
+			? new Date( 2100, 0, 1 - postCount ).toISOString()
+			: new Date( 0 ).toISOString(),
+	} );
+
+	tile.addEventListener( 'click', () => {
+		selectUserTile( state, ctx, tile, item );
+	} );
+
+	tile.addEventListener( 'dblclick', ( e ) => {
+		e.preventDefault();
+		hideTooltip();
+		openUserEditWindow( item.id );
+	} );
+
+	tile.addEventListener( 'contextmenu', ( e ) => {
+		e.preventDefault();
+		hideTooltip();
+		openUserTileMenu( state, entity, item, displayName, {
+			x: e.clientX,
+			y: e.clientY,
+		} );
+	} );
+
+	return tile;
+}
+
+function buildUserTooltip(
+	name: string,
+	item: UserListItem,
+): HTMLElement {
+	const tip = document.createElement( 'div' );
+	tip.className = 'desktop-mode-my-wordpress__tooltip';
+	tip.setAttribute( 'role', 'tooltip' );
+
+	const heading = document.createElement( 'div' );
+	heading.className = 'desktop-mode-my-wordpress__tooltip-title';
+	heading.textContent = name;
+	tip.appendChild( heading );
+
+	const summary = item.desktop_mode_summary;
+	const roleLabel = ( summary?.roleLabels ?? [] )[ 0 ];
+	const postCount = summary?.postCount ?? 0;
+	const lastActive = summary?.lastActive ?? '';
+	const lines: string[] = [];
+	if ( roleLabel ) {
+		lines.push( roleLabel );
+	}
+	if ( postCount > 0 ) {
+		lines.push(
+			sprintf(
+				// translators: %d is a count of posts authored by a user.
+				_n( '%d post', '%d posts', postCount ),
+				postCount,
+			),
+		);
+	}
+	if ( lastActive ) {
+		lines.push(
+			sprintf(
+				// translators: %s is a relative or absolute date.
+				__( 'Last published %s', 'desktop-mode' ),
+				formatDate( lastActive ),
+			),
+		);
+	}
+	for ( const ln of lines ) {
+		const p = document.createElement( 'p' );
+		p.className = 'desktop-mode-my-wordpress__tooltip-excerpt';
+		p.textContent = ln;
+		tip.appendChild( p );
+	}
+
+	const bio = ( item.description ?? '' ).trim();
+	if ( bio ) {
+		const p = document.createElement( 'p' );
+		p.className = 'desktop-mode-my-wordpress__tooltip-excerpt';
+		p.textContent =
+			bio.length > 200 ? bio.slice( 0, 197 ) + '…' : bio;
+		tip.appendChild( p );
+	}
+	return tip;
+}
+
+function selectUserTile(
+	state: RenderState,
+	ctx: UserListContext,
+	tile: HTMLElement,
+	item: UserListItem,
+): void {
+	if ( ctx.selectedTile ) {
+		ctx.selectedTile.classList.remove(
+			'desktop-mode-my-wordpress__tile--selected',
+		);
+	}
+	tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+	ctx.selectedTile = tile;
+	ctx.selectedId = item.id;
+	void renderUserPreviewPane( state, ctx, item );
+}
+
+async function renderUserPreviewPane(
+	state: RenderState,
+	ctx: UserListContext,
+	item: UserListItem,
+): Promise< void > {
+	const fallbackName = item.name || item.slug || `#${ item.id }`;
+	const fallbackAvatar = pickAvatar( item.avatar_urls ) ?? '';
+	const userId = item.id;
+
+	showPreviewLoading( ctx.preview );
+
+	let node: HTMLElement;
+	try {
+		node = await renderUserDossier( {
+			userId,
+			fallbackName,
+			fallbackAvatar,
+			fallbackDescription: item.description ?? '',
+		} );
+	} catch ( err ) {
+		if ( ctx.selectedId !== userId ) {
+			return;
+		}
+		showPreviewError( ctx.preview, err );
+		return;
+	}
+
+	if ( ctx.selectedId !== userId ) {
+		return;
+	}
+
+	// Append "open profile" / "view footprint" actions so the
+	// preview pane doubles as the launch point for both deep
+	// actions. The dossier itself doesn't carry these because it's
+	// also reused inside post-detail sub-folders (author / contrib).
+	const footer = document.createElement( 'footer' );
+	footer.className = 'desktop-mode-my-wordpress__article-footer';
+
+	const footprintBtn = document.createElement( 'wpd-button' );
+	footprintBtn.setAttribute( 'variant', 'secondary' );
+	footprintBtn.textContent = __( 'View activity footprint', 'desktop-mode' );
+	footprintBtn.title = __(
+		'Open the full activity footprint surface for this user.',
+		'desktop-mode',
+	);
+	footprintBtn.addEventListener( 'click', () => {
+		navigate( state, {
+			kind: 'user-footprint',
+			entityId: 'users',
+			userId,
+			userName: fallbackName,
+		} );
+	} );
+	footer.appendChild( footprintBtn );
+
+	const editBtn = document.createElement( 'wpd-button' );
+	editBtn.setAttribute( 'variant', 'primary' );
+	editBtn.textContent = __( 'Open profile', 'desktop-mode' );
+	editBtn.title = __(
+		'Open this user’s profile editor in a new window.',
+		'desktop-mode',
+	);
+	editBtn.addEventListener( 'click', () => {
+		openUserEditWindow( userId );
+	} );
+	footer.appendChild( editBtn );
+
+	node.appendChild( footer );
+
+	ctx.preview.replaceChildren( node );
+}
+
+function openUserTileMenu(
+	state: RenderState,
+	entity: MyWordPressEntity,
+	item: UserListItem,
+	name: string,
+	pos: { x: number; y: number },
+): void {
+	closeAnyTileMenu();
+
+	const menu = document.createElement( 'wpd-context-menu' );
+	menu.setAttribute( 'open', '' );
+	menu.classList.add( 'desktop-mode-my-wordpress__menu' );
+	( menu as HTMLElement ).style.left = `${ pos.x }px`;
+	( menu as HTMLElement ).style.top = `${ pos.y }px`;
+
+	const addOption = (
+		id: string,
+		label: string,
+		icon: string,
+	) => {
+		const opt = document.createElement( 'wpd-context-menu-option' );
+		( opt as HTMLElement ).dataset.menuItemId = id;
+		opt.setAttribute( 'value', id );
+		opt.setAttribute( 'icon', sanitizeClass( icon ) );
+		opt.textContent = label;
+		menu.appendChild( opt );
+	};
+
+	addOption(
+		'footprint',
+		__( 'View activity footprint', 'desktop-mode' ),
+		'dashicons-chart-area',
+	);
+	addOption(
+		'open-profile',
+		__( 'Open profile', 'desktop-mode' ),
+		'dashicons-id-alt',
+	);
+	if ( item.link ) {
+		addOption(
+			'author-archive',
+			__( 'View author archive', 'desktop-mode' ),
+			'dashicons-external',
+		);
+	}
+
+	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+		const detail = ( e as CustomEvent< { id: string } > ).detail;
+		closeAnyTileMenu();
+		if ( detail.id === 'footprint' ) {
+			navigate( state, {
+				kind: 'user-footprint',
+				entityId: entity.id,
+				userId: item.id,
+				userName: name,
+			} );
+			return;
+		}
+		if ( detail.id === 'open-profile' ) {
+			openUserEditWindow( item.id );
+			return;
+		}
+		if ( detail.id === 'author-archive' && item.link ) {
+			window.open( item.link, '_blank', 'noopener,noreferrer' );
+		}
+	} );
+
+	document.body.appendChild( menu );
+	const rect = menu.getBoundingClientRect();
+	if ( rect.right > window.innerWidth ) {
+		( menu as HTMLElement ).style.left = `${ Math.max(
+			0,
+			window.innerWidth - rect.width - 8,
+		) }px`;
+	}
+	if ( rect.bottom > window.innerHeight ) {
+		( menu as HTMLElement ).style.top = `${ Math.max(
+			0,
+			window.innerHeight - rect.height - 8,
+		) }px`;
+	}
+
+	queueMicrotask( () => {
+		const onDocPointerDown = ( ev: PointerEvent ) => {
+			const target = ev.target;
+			if ( target instanceof Node && menu.contains( target ) ) {
+				return;
+			}
+			closeAnyTileMenu();
+		};
+		const onDocKey = ( ev: KeyboardEvent ) => {
+			if ( ev.key === 'Escape' ) {
+				closeAnyTileMenu();
+			}
+		};
+		document.addEventListener( 'pointerdown', onDocPointerDown, true );
+		document.addEventListener( 'keydown', onDocKey );
+		menu.addEventListener( 'tile-menu-closed', () => {
+			document.removeEventListener(
+				'pointerdown',
+				onDocPointerDown,
+				true,
+			);
+			document.removeEventListener( 'keydown', onDocKey );
+		} );
+	} );
+}
+
+/**
+ * Open the native `desktop-mode-user-edit` window for a specific
+ * user id. Cross-bundle hand-off uses the same shared-store key
+ * (`desktop-mode/user-edit/target`) the posts-window bundle's
+ * `user-edit-target.ts` reads from — that's the canonical
+ * "which user are we editing" channel.
+ *
+ * Falls back to the classic admin user-edit URL inside an iframe
+ * window when the native window isn't registered (sites that have
+ * trimmed the registration via filter, primarily).
+ */
+function openUserEditWindow( userId: number ): void {
+	if ( ! Number.isFinite( userId ) || userId <= 0 ) {
+		return;
+	}
+
+	interface SharedStoreApi< T > {
+		state: T;
+		notify(): void;
+		subscribe( cb: ( state: T ) => void ): () => void;
+	}
+	interface DesktopFacade {
+		createSharedStore?: < T >(
+			key: string,
+			initial: () => T,
+		) => SharedStoreApi< T >;
+		openWindow?: (
+			id: string,
+			opts?: { source?: string },
+		) => boolean | undefined;
+	}
+	interface UserEditTarget {
+		userId: number | null;
+		requestedAt: number;
+		tabRequested: boolean;
+	}
+
+	const desktop = (
+		window.wp as { desktop?: DesktopFacade } | undefined
+	)?.desktop;
+
+	const createSharedStore = desktop?.createSharedStore;
+	if ( typeof createSharedStore === 'function' ) {
+		const store = createSharedStore< UserEditTarget >(
+			'desktop-mode/user-edit/target',
+			() => ( { userId: null, requestedAt: 0, tabRequested: false } ),
+		);
+		store.state.userId = userId;
+		store.state.requestedAt = Date.now();
+		store.state.tabRequested = true;
+		store.notify();
+	}
+
+	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
+		source: 'my-wordpress/user-tile',
+	} );
+
+	if ( ! opened ) {
+		// Native window not registered — open the classic admin
+		// user-edit page in an iframe window. Same shape as the
+		// post fallback in `openEditor()`.
+		openIframeWindow( {
+			id: `user-edit-${ userId }`,
+			url: buildEditUserUrl( userId ),
+			title: __( 'Edit user', 'desktop-mode' ),
+			icon: 'dashicons-admin-users',
+		} );
+	}
+}
+
+function initialsOf( name: string ): string {
+	const parts = name
+		.trim()
+		.split( /\s+/ )
+		.filter( ( s ) => s.length > 0 );
+	if ( parts.length === 0 ) {
+		return '?';
+	}
+	if ( parts.length === 1 ) {
+		return parts[ 0 ].slice( 0, 2 ).toUpperCase();
+	}
+	return ( parts[ 0 ][ 0 ] + parts[ parts.length - 1 ][ 0 ] ).toUpperCase();
+}
+
+/* ------------------------------------------------------------------ *
+ *  User activity footprint — full-body surface that replaces the
+ *  split list/preview when the user picks "View activity footprint"
+ *  from a user tile's context menu (or the dossier's footer button).
+ *
+ *  Sections:
+ *    1. Hero header  — big avatar, name, role chips, member-since.
+ *    2. Stat strip   — totals + current/longest streak callouts.
+ *    3. Calendar     — 52-week × 7-day GitHub-style heatmap of daily
+ *                       activity (posts + comments folded into a
+ *                       single intensity score).
+ *    4. Rhythm       — weekday distribution + hour-of-day distribution.
+ *    5. Most-prolific month callout.
+ *    6. Recent timeline.
+ *    7. Action footer.
+ *
+ *  All data comes from one round-trip to
+ *  `/desktop-mode/v1/user-footprint/<id>`.
+ * ------------------------------------------------------------------ */
+
+function renderUserFootprint(
+	state: RenderState,
+	entity: MyWordPressEntity,
+	userId: number,
+	userName: string,
+): void {
+	const host = document.createElement( 'div' );
+	host.className = 'desktop-mode-my-wordpress__footprint';
+	state.body.appendChild( host );
+
+	// Spinner while the payload lands.
+	showPreviewLoading( host );
+
+	paintStatus(
+		state,
+		[
+			{
+				id: 'loading',
+				label: __( 'Loading footprint…', 'desktop-mode' ),
+				align: 'start',
+				sort: 10,
+			},
+		],
+		{ view: 'detail', entityId: entity.id, postId: userId },
+	);
+
+	void ( async () => {
+		let payload: UserFootprint;
+		try {
+			payload = await fetchUserFootprint( userId );
+		} catch ( err ) {
+			showPreviewError( host, err );
+			paintStatus(
+				state,
+				[
+					{
+						id: 'error',
+						label: __( 'Could not load footprint.', 'desktop-mode' ),
+						align: 'start',
+						sort: 10,
+					},
+				],
+				{ view: 'detail', entityId: entity.id, postId: userId },
+			);
+			return;
+		}
+
+		// Guard against late arrivals after the user navigated away.
+		if (
+			state.route.kind !== 'user-footprint' ||
+			state.route.userId !== userId
+		) {
+			return;
+		}
+
+		host.replaceChildren();
+		host.appendChild( buildFootprintHero( payload ) );
+		host.appendChild( buildFootprintHeadlineStats( payload ) );
+		host.appendChild( buildFootprintCalendar( payload ) );
+		host.appendChild( buildFootprintRhythm( payload ) );
+		const monthCallout = buildFootprintMonthCallout( payload );
+		if ( monthCallout ) {
+			host.appendChild( monthCallout );
+		}
+		host.appendChild( buildFootprintTimeline( payload ) );
+		host.appendChild(
+			buildFootprintFooter( payload, userId, userName ),
+		);
+
+		paintStatus(
+			state,
+			[
+				{
+					id: 'count',
+					label: sprintf(
+						// translators: 1: post total, 2: comment total.
+						__(
+							'%1$d posts · %2$d comments tracked',
+							'desktop-mode',
+						),
+						payload.totals.posts + payload.totals.pages,
+						payload.totals.comments,
+					),
+					align: 'start',
+					sort: 10,
+				},
+				{
+					id: 'range',
+					label: sprintf(
+						// translators: 1: window-start date, 2: window-end date.
+						__(
+							'Window %1$s → %2$s',
+							'desktop-mode',
+						),
+						formatShortDate( payload.range.from ),
+						formatShortDate( payload.range.to ),
+					),
+					align: 'end',
+					sort: 10,
+				},
+			],
+			{ view: 'detail', entityId: entity.id, postId: userId },
+		);
+	} )();
+}
+
+function buildFootprintHero( payload: UserFootprint ): HTMLElement {
+	const hero = document.createElement( 'header' );
+	hero.className = 'desktop-mode-my-wordpress__footprint-hero';
+
+	const avatar = document.createElement( 'div' );
+	avatar.className = 'desktop-mode-my-wordpress__footprint-avatar';
+	if ( payload.profile.avatarUrl ) {
+		const img = document.createElement( 'img' );
+		img.src = payload.profile.avatarUrl;
+		img.alt = '';
+		avatar.appendChild( img );
+	} else {
+		const span = document.createElement( 'span' );
+		span.className = 'desktop-mode-my-wordpress__user-tile-initials';
+		span.textContent = initialsOf( payload.profile.name );
+		avatar.appendChild( span );
+	}
+	hero.appendChild( avatar );
+
+	const text = document.createElement( 'div' );
+	text.className = 'desktop-mode-my-wordpress__footprint-headline';
+
+	const h = document.createElement( 'h1' );
+	h.className = 'desktop-mode-my-wordpress__footprint-title';
+	h.textContent = payload.profile.name;
+	text.appendChild( h );
+
+	const meta = document.createElement( 'div' );
+	meta.className = 'desktop-mode-my-wordpress__footprint-meta';
+
+	const roles = payload.profile.roleLabels ?? [];
+	for ( const r of roles ) {
+		const chip = document.createElement( 'span' );
+		chip.className = 'desktop-mode-my-wordpress__user-role';
+		chip.textContent = r;
+		meta.appendChild( chip );
+	}
+	if ( payload.profile.registered ) {
+		const since = document.createElement( 'span' );
+		since.className =
+			'desktop-mode-my-wordpress__user-role desktop-mode-my-wordpress__footprint-since';
+		since.textContent = sprintf(
+			// translators: %s is a year-month label like "January 2023".
+			__( 'Member since %s', 'desktop-mode' ),
+			formatYearMonth( payload.profile.registered ),
+		);
+		meta.appendChild( since );
+	}
+	text.appendChild( meta );
+
+	if ( payload.profile.link ) {
+		const links = document.createElement( 'div' );
+		links.className = 'desktop-mode-my-wordpress__user-links';
+		const a = document.createElement( 'a' );
+		a.href = payload.profile.link;
+		a.target = '_blank';
+		a.rel = 'noopener noreferrer';
+		a.textContent = __( 'Author archive', 'desktop-mode' );
+		links.appendChild( a );
+		text.appendChild( links );
+	}
+
+	hero.appendChild( text );
+	return hero;
+}
+
+function buildFootprintHeadlineStats(
+	payload: UserFootprint,
+): HTMLElement {
+	const wrap = document.createElement( 'section' );
+	wrap.className =
+		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-stats-row';
+
+	const totalContent = payload.totals.posts + payload.totals.pages;
+	wrap.appendChild(
+		buildStatCard(
+			totalContent.toLocaleString(),
+			__( 'Total content', 'desktop-mode' ),
+			payload.totals.posts > 0 && payload.totals.pages > 0
+				? sprintf(
+					// translators: 1: post count, 2: page count.
+					__(
+						'%1$d posts · %2$d pages',
+						'desktop-mode',
+					),
+					payload.totals.posts,
+					payload.totals.pages,
+				)
+				: '',
+		),
+	);
+	wrap.appendChild(
+		buildStatCard(
+			payload.totals.comments.toLocaleString(),
+			__( 'Comments left', 'desktop-mode' ),
+			'',
+		),
+	);
+
+	const longestRange = payload.streak.longestRange;
+	const longestCaption =
+		longestRange.from && longestRange.to
+			? sprintf(
+				// translators: 1: start date, 2: end date.
+				__( '%1$s → %2$s', 'desktop-mode' ),
+				formatShortDate( longestRange.from ),
+				formatShortDate( longestRange.to ),
+			)
+			: '';
+	wrap.appendChild(
+		buildStatCard(
+			sprintf(
+				// translators: %d is the length in days of the user's longest publishing streak.
+				_n(
+					'%d day',
+					'%d days',
+					payload.streak.longest,
+				),
+				payload.streak.longest,
+			),
+			__( 'Longest streak', 'desktop-mode' ),
+			longestCaption,
+		),
+	);
+	wrap.appendChild(
+		buildStatCard(
+			sprintf(
+				// translators: %d is the length in days of the user's current active streak.
+				_n( '%d day', '%d days', payload.streak.current ),
+				payload.streak.current,
+			),
+			__( 'Current streak', 'desktop-mode' ),
+			payload.streak.current === 0
+				? __( 'No activity today', 'desktop-mode' )
+				: __( 'Including today', 'desktop-mode' ),
+		),
+	);
+
+	return wrap;
+}
+
+/**
+ * Build the GitHub-style 52-week × 7-day calendar heatmap. Each cell
+ * shades by activity intensity (posts + comments folded into one
+ * score) — we use 5 buckets so the gradient reads at a glance.
+ *
+ * Each cell carries a `title` attribute with the exact date + counts
+ * so the user can hover for the detail; the legend strip below the
+ * grid explains what the colors mean.
+ */
+function buildFootprintCalendar(
+	payload: UserFootprint,
+): HTMLElement {
+	const section = document.createElement( 'section' );
+	section.className =
+		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-calendar-section';
+
+	const h = document.createElement( 'h3' );
+	h.textContent = __( 'A year of activity', 'desktop-mode' );
+	section.appendChild( h );
+
+	const calendar = document.createElement( 'div' );
+	calendar.className = 'desktop-mode-my-wordpress__footprint-calendar';
+
+	// Bucket each day by intensity. Max intensity in the window
+	// drives the scale so a sparse poster's pattern still reads.
+	const maxIntensity = payload.daily.reduce( ( m, d ) => {
+		const v = d.posts + d.comments;
+		return v > m ? v : m;
+	}, 0 );
+	const bucketize = ( v: number ): number => {
+		if ( v <= 0 ) {
+			return 0;
+		}
+		if ( maxIntensity <= 0 ) {
+			return 0;
+		}
+		const ratio = v / maxIntensity;
+		if ( ratio > 0.75 ) {
+			return 4;
+		}
+		if ( ratio > 0.5 ) {
+			return 3;
+		}
+		if ( ratio > 0.25 ) {
+			return 2;
+		}
+		return 1;
+	};
+
+	// Build a `Date` for each entry once.
+	const dates = payload.daily.map( ( d ) => new Date( d.date + 'T00:00:00Z' ) );
+	if ( dates.length === 0 ) {
+		const empty = document.createElement( 'p' );
+		empty.className = 'desktop-mode-my-wordpress__article-meta';
+		empty.textContent = __(
+			'No activity recorded in the last year.',
+			'desktop-mode',
+		);
+		section.appendChild( empty );
+		return section;
+	}
+
+	// Pad the leading week so column 0 starts on Sunday — keeps
+	// the weekday rows aligned the way GitHub does it.
+	const firstDow = dates[ 0 ].getUTCDay(); // 0..6 (Sun..Sat)
+	const grid = document.createElement( 'div' );
+	grid.className = 'desktop-mode-my-wordpress__footprint-grid';
+	for ( let i = 0; i < firstDow; i += 1 ) {
+		const blank = document.createElement( 'span' );
+		blank.className =
+			'desktop-mode-my-wordpress__footprint-cell desktop-mode-my-wordpress__footprint-cell--pad';
+		blank.setAttribute( 'aria-hidden', 'true' );
+		grid.appendChild( blank );
+	}
+	for ( let i = 0; i < payload.daily.length; i += 1 ) {
+		const d = payload.daily[ i ];
+		const intensity = bucketize( d.posts + d.comments );
+		const cell = document.createElement( 'span' );
+		cell.className = `desktop-mode-my-wordpress__footprint-cell desktop-mode-my-wordpress__footprint-cell--l${ intensity }`;
+		cell.title = sprintf(
+			// translators: 1: date, 2: post count, 3: comment count.
+			__(
+				'%1$s — %2$d posts, %3$d comments',
+				'desktop-mode',
+			),
+			formatLongDate( d.date ),
+			d.posts,
+			d.comments,
+		);
+		cell.dataset.date = d.date;
+		grid.appendChild( cell );
+	}
+	calendar.appendChild( grid );
+
+	// Legend.
+	const legend = document.createElement( 'div' );
+	legend.className = 'desktop-mode-my-wordpress__footprint-legend';
+	const less = document.createElement( 'span' );
+	less.className = 'desktop-mode-my-wordpress__footprint-legend-label';
+	less.textContent = __( 'Less', 'desktop-mode' );
+	legend.appendChild( less );
+	for ( let i = 0; i <= 4; i += 1 ) {
+		const sw = document.createElement( 'span' );
+		sw.className = `desktop-mode-my-wordpress__footprint-cell desktop-mode-my-wordpress__footprint-cell--l${ i }`;
+		legend.appendChild( sw );
+	}
+	const more = document.createElement( 'span' );
+	more.className = 'desktop-mode-my-wordpress__footprint-legend-label';
+	more.textContent = __( 'More', 'desktop-mode' );
+	legend.appendChild( more );
+	calendar.appendChild( legend );
+
+	section.appendChild( calendar );
+	return section;
+}
+
+function buildFootprintRhythm( payload: UserFootprint ): HTMLElement {
+	const section = document.createElement( 'section' );
+	section.className =
+		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-rhythm';
+
+	const h = document.createElement( 'h3' );
+	h.textContent = __( 'Publishing rhythm', 'desktop-mode' );
+	section.appendChild( h );
+
+	const grid = document.createElement( 'div' );
+	grid.className = 'desktop-mode-my-wordpress__footprint-rhythm-grid';
+
+	// Weekday chart.
+	const weekdayWrap = document.createElement( 'div' );
+	weekdayWrap.className = 'desktop-mode-my-wordpress__footprint-chart';
+	const weekdayCap = document.createElement( 'div' );
+	weekdayCap.className = 'desktop-mode-my-wordpress__footprint-chart-caption';
+	weekdayCap.textContent = __( 'By weekday', 'desktop-mode' );
+	weekdayWrap.appendChild( weekdayCap );
+	const weekdayLabels = [
+		__( 'S', 'desktop-mode' ),
+		__( 'M', 'desktop-mode' ),
+		__( 'T', 'desktop-mode' ),
+		__( 'W', 'desktop-mode' ),
+		__( 'T', 'desktop-mode' ),
+		__( 'F', 'desktop-mode' ),
+		__( 'S', 'desktop-mode' ),
+	];
+	const weekdayFull = [
+		__( 'Sunday', 'desktop-mode' ),
+		__( 'Monday', 'desktop-mode' ),
+		__( 'Tuesday', 'desktop-mode' ),
+		__( 'Wednesday', 'desktop-mode' ),
+		__( 'Thursday', 'desktop-mode' ),
+		__( 'Friday', 'desktop-mode' ),
+		__( 'Saturday', 'desktop-mode' ),
+	];
+	weekdayWrap.appendChild(
+		buildBarChart( payload.weekday, weekdayLabels, weekdayFull ),
+	);
+	grid.appendChild( weekdayWrap );
+
+	// Hour chart.
+	const hourWrap = document.createElement( 'div' );
+	hourWrap.className = 'desktop-mode-my-wordpress__footprint-chart';
+	const hourCap = document.createElement( 'div' );
+	hourCap.className = 'desktop-mode-my-wordpress__footprint-chart-caption';
+	hourCap.textContent = __( 'By hour of day (site time)', 'desktop-mode' );
+	hourWrap.appendChild( hourCap );
+	const hourLabels = [
+		'0',
+		'',
+		'',
+		'3',
+		'',
+		'',
+		'6',
+		'',
+		'',
+		'9',
+		'',
+		'',
+		'12',
+		'',
+		'',
+		'15',
+		'',
+		'',
+		'18',
+		'',
+		'',
+		'21',
+		'',
+		'',
+	];
+	const hourFull = Array.from( { length: 24 }, ( _, i ) =>
+		sprintf(
+			// translators: %d is an hour of the day (0-23).
+			__( '%d:00', 'desktop-mode' ),
+			i,
+		),
+	);
+	hourWrap.appendChild(
+		buildBarChart( payload.hour, hourLabels, hourFull ),
+	);
+	grid.appendChild( hourWrap );
+
+	section.appendChild( grid );
+	return section;
+}
+
+function buildBarChart(
+	values: number[],
+	labels: string[],
+	titles: string[],
+): HTMLElement {
+	const chart = document.createElement( 'div' );
+	chart.className = 'desktop-mode-my-wordpress__footprint-bars';
+	const max = Math.max( 1, ...values );
+	values.forEach( ( v, i ) => {
+		const col = document.createElement( 'div' );
+		col.className = 'desktop-mode-my-wordpress__footprint-bar-col';
+		const bar = document.createElement( 'div' );
+		bar.className = 'desktop-mode-my-wordpress__footprint-bar';
+		bar.style.height = `${ Math.round( ( v / max ) * 100 ) }%`;
+		bar.title = sprintf(
+			// translators: 1: bucket label, 2: count.
+			__(
+				'%1$s · %2$d',
+				'desktop-mode',
+			),
+			titles[ i ] ?? labels[ i ] ?? String( i ),
+			v,
+		);
+		if ( v === 0 ) {
+			bar.classList.add(
+				'desktop-mode-my-wordpress__footprint-bar--empty',
+			);
+		}
+		col.appendChild( bar );
+		const lbl = document.createElement( 'span' );
+		lbl.className = 'desktop-mode-my-wordpress__footprint-bar-label';
+		lbl.textContent = labels[ i ] ?? '';
+		col.appendChild( lbl );
+		chart.appendChild( col );
+	} );
+	return chart;
+}
+
+function buildFootprintMonthCallout(
+	payload: UserFootprint,
+): HTMLElement | null {
+	const m = payload.totals.mostProlificMonth;
+	if ( ! m ) {
+		return null;
+	}
+	const section = document.createElement( 'section' );
+	section.className =
+		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-callout';
+
+	const label = document.createElement( 'span' );
+	label.className = 'desktop-mode-my-wordpress__footprint-callout-label';
+	label.textContent = __( 'Most prolific month', 'desktop-mode' );
+	section.appendChild( label );
+
+	const value = document.createElement( 'h3' );
+	value.className = 'desktop-mode-my-wordpress__footprint-callout-value';
+	value.textContent = formatYearMonth( m.ym + '-01T00:00:00Z' );
+	section.appendChild( value );
+
+	const detail = document.createElement( 'p' );
+	detail.className = 'desktop-mode-my-wordpress__footprint-callout-detail';
+	detail.textContent = sprintf(
+		// translators: %d is a post count.
+		_n(
+			'%d post published — their personal record.',
+			'%d posts published — their personal record.',
+			m.n,
+		),
+		m.n,
+	);
+	section.appendChild( detail );
+
+	return section;
+}
+
+function buildFootprintTimeline(
+	payload: UserFootprint,
+): HTMLElement {
+	const section = document.createElement( 'section' );
+	section.className =
+		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-timeline-section';
+
+	const h = document.createElement( 'h3' );
+	h.textContent = __( 'Recent activity', 'desktop-mode' );
+	section.appendChild( h );
+
+	if ( payload.timeline.length === 0 ) {
+		const empty = document.createElement( 'p' );
+		empty.className = 'desktop-mode-my-wordpress__article-meta';
+		empty.textContent = __( 'Nothing to show yet.', 'desktop-mode' );
+		section.appendChild( empty );
+		return section;
+	}
+
+	const list = document.createElement( 'ul' );
+	list.className = 'desktop-mode-my-wordpress__footprint-timeline';
+
+	for ( const ev of payload.timeline ) {
+		const li = document.createElement( 'li' );
+		li.className = `desktop-mode-my-wordpress__footprint-event desktop-mode-my-wordpress__footprint-event--${ ev.kind }`;
+
+		const dot = document.createElement( 'span' );
+		dot.className = 'desktop-mode-my-wordpress__footprint-dot';
+		const icon = document.createElement( 'span' );
+		icon.className =
+			'dashicons ' +
+			( ev.kind === 'comment'
+				? 'dashicons-admin-comments'
+				: 'dashicons-admin-post' );
+		icon.setAttribute( 'aria-hidden', 'true' );
+		dot.appendChild( icon );
+		li.appendChild( dot );
+
+		const body = document.createElement( 'div' );
+		body.className = 'desktop-mode-my-wordpress__footprint-event-body';
+
+		const title = ev.title || __( '(no title)', 'desktop-mode' );
+		const titleNode: HTMLElement = ev.link
+			? document.createElement( 'a' )
+			: document.createElement( 'span' );
+		titleNode.className =
+			'desktop-mode-my-wordpress__footprint-event-title';
+		titleNode.textContent =
+			ev.kind === 'comment'
+				? sprintf(
+					// translators: %s is a post title the user commented on.
+					__( 'Commented on “%s”', 'desktop-mode' ),
+					title,
+				)
+				: title;
+		if ( ev.link && titleNode instanceof HTMLAnchorElement ) {
+			titleNode.href = ev.link;
+			titleNode.target = '_blank';
+			titleNode.rel = 'noopener noreferrer';
+		}
+		body.appendChild( titleNode );
+
+		const meta = document.createElement( 'span' );
+		meta.className = 'desktop-mode-my-wordpress__footprint-event-meta';
+		const parts: string[] = [ formatLongDate( ev.date ) ];
+		if ( ev.status && ev.status !== 'publish' && ev.status !== 'approved' ) {
+			parts.push( ev.status );
+		}
+		meta.textContent = parts.join( ' · ' );
+		body.appendChild( meta );
+
+		li.appendChild( body );
+		list.appendChild( li );
+	}
+	section.appendChild( list );
+	return section;
+}
+
+function buildFootprintFooter(
+	payload: UserFootprint,
+	userId: number,
+	userName: string,
+): HTMLElement {
+	const footer = document.createElement( 'footer' );
+	footer.className =
+		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-footer';
+
+	const archiveBtn = document.createElement( 'wpd-button' );
+	archiveBtn.setAttribute( 'variant', 'ghost' );
+	archiveBtn.textContent = __( 'View author archive', 'desktop-mode' );
+	archiveBtn.addEventListener( 'click', () => {
+		if ( payload.profile.link ) {
+			window.open( payload.profile.link, '_blank', 'noopener,noreferrer' );
+		}
+	} );
+	if ( ! payload.profile.link ) {
+		archiveBtn.setAttribute( 'disabled', '' );
+	}
+	footer.appendChild( archiveBtn );
+
+	const editBtn = document.createElement( 'wpd-button' );
+	editBtn.setAttribute( 'variant', 'primary' );
+	editBtn.textContent = __( 'Open profile', 'desktop-mode' );
+	editBtn.addEventListener( 'click', () => {
+		openUserEditWindow( userId );
+	} );
+	footer.appendChild( editBtn );
+
+	// Reserve `userName` for future extension (e.g. "Share this
+	// footprint with…" copy paths) without changing the signature
+	// downstream.
+	void userName;
+	return footer;
+}
+
+function formatShortDate( iso: string ): string {
+	if ( ! iso ) {
+		return '';
+	}
+	try {
+		return new Date( iso ).toLocaleDateString( undefined, {
+			month: 'short',
+			day: 'numeric',
+		} );
+	} catch {
+		return iso;
+	}
+}
+
+function formatLongDate( iso: string ): string {
+	if ( ! iso ) {
+		return '';
+	}
+	try {
+		return new Date( iso ).toLocaleDateString( undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+		} );
+	} catch {
+		return iso;
+	}
 }
 
 function sanitizeClass( raw: string ): string {

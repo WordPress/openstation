@@ -64,6 +64,16 @@ export function restoreSession(
 			desktopId: win.desktopId,
 			multi: !! dockEntry?.multi,
 			url: win.url,
+			// `dockEntry?.url` is the parent menu's landing page —
+			// recover it so the synthetic "back to parent" tab in
+			// the in-window strip points at the dock URL even when
+			// the saved `win.url` is a sub-page (e.g. theme-install.php
+			// under Appearance, or a deep wc-admin route under
+			// WooCommerce). Without this the dedup check in
+			// `dom.ts` sees the iframe URL match a submenu entry
+			// and suppresses the parent tab — losing the only
+			// affordance to navigate back.
+			parentUrl: dockEntry?.url ?? win.url,
 			title: win.title,
 			icon: win.icon || 'dashicons-admin-generic',
 			x: clamped.x,
@@ -132,6 +142,7 @@ export function openCurrentPage(
 		baseId: windowId,
 		multi: !! dockEntry?.multi,
 		url: config.currentPage,
+		parentUrl: dockEntry?.url ?? config.currentPage,
 		title: config.currentTitle,
 		icon: config.currentIcon,
 		submenu: dockEntry?.submenu,

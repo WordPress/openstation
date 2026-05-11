@@ -259,16 +259,16 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			if ( pinnedSlot ) {
 				setTilePosition( tile, pinnedSlot.x, pinnedSlot.y );
 				tile.classList.add( `${ TILE_CLASS }--pinned` );
-				tile.setAttribute( 'aria-roledescription', 'pinned shortcut' );
-				tile.setAttribute( 'aria-disabled', 'true' );
 				// No drag wiring on pinned tiles by design — they
-				// anchor to a fixed slot. We DO wire a pointerdown
-				// handler that flashes a `--bump` class so the user
-				// gets explicit feedback ("this tile is pinned"
-				// instead of silent non-response) plus the title
-				// attribute that surfaces in browser tooltips and
-				// to assistive tech.
-				attachPinnedTileFeedback( tile );
+				// anchor to a fixed slot. We deliberately DO NOT
+				// surface any upfront visual cue (no special cursor,
+				// bump animation, or tooltip): the tile looks +
+				// reacts identically to any other tile, and the
+				// (silent) failure to drag becomes the feedback at
+				// the moment the user attempts it. This was the
+				// 0.9.0 design call — pre-emptive cues read as "this
+				// tile is broken/disabled" even though clicking it
+				// opens the window normally.
 				attachContextMenu( tile, placement );
 				attachSelectOnClick( tile, placement );
 				container.appendChild( tile );
@@ -883,30 +883,6 @@ function attachTileDrag(
 		void session;
 		void visibleX;
 		void visibleY;
-	} );
-}
-
-/**
- * Pinned tiles ("My WordPress", Recycle Bin) anchor to a fixed slot
- * by design. We don't wire drag, but we DO add a "bumped" cosmetic
- * affordance on pointerdown so the user gets explicit feedback —
- * silent non-response feels broken; an animated bump + a tooltip
- * reads as "this tile is intentionally fixed."
- */
-function attachPinnedTileFeedback( tile: HTMLElement ): void {
-	tile.title = tile.title || 'Pinned shortcut — anchored to this slot';
-	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		tile.classList.remove( `${ TILE_CLASS }--bump` );
-		// Force a reflow so re-adding the class restarts the CSS
-		// animation. `void` discards the read.
-		void tile.offsetWidth;
-		tile.classList.add( `${ TILE_CLASS }--bump` );
-	} );
-	tile.addEventListener( 'animationend', () => {
-		tile.classList.remove( `${ TILE_CLASS }--bump` );
 	} );
 }
 

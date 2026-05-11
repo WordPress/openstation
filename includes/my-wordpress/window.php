@@ -48,16 +48,23 @@ function desktop_mode_my_wordpress_user_can_use() {
 }
 
 /**
- * Build the entity list shipped to the bundle. Phase 1 only declares
- * Posts and Pages; the filter exists today so plugin authors can
- * extend the list once Phase 2 wiring lands without a breaking
- * version bump.
+ * Build the entity list shipped to the bundle. Posts, Pages, and —
+ * since 0.20.0 — Users. Future phases add Comments, Tags,
+ * Categories, Themes, and Plugins.
+ *
+ * The optional `kind` field tells the bundle how to render entries
+ * of this entity: `'post'` (default) renders the standard
+ * title/excerpt/featured-image tile and the rendered-HTML preview;
+ * `'user'` renders an avatar + display-name tile and routes to the
+ * user dossier preview. Plugins extending the entity list with a
+ * post-shaped collection can omit the field; user-shaped
+ * collections must set `'user'`.
  *
  * @since 0.8.0
  *
  * @return array[] Each entry is `array( 'id', 'label', 'icon',
- *                 'restPath' )`. `restPath` is appended to the
- *                 `restRoot` config to derive the list URL.
+ *                 'restPath', 'kind' )`. `restPath` is appended to
+ *                 the `restRoot` config to derive the list URL.
  */
 function desktop_mode_my_wordpress_entities() {
 	$entities = array(
@@ -66,12 +73,21 @@ function desktop_mode_my_wordpress_entities() {
 			'label'    => __( 'Posts', 'desktop-mode' ),
 			'icon'     => 'dashicons-admin-post',
 			'restPath' => 'wp/v2/posts',
+			'kind'     => 'post',
 		),
 		array(
 			'id'       => 'pages',
 			'label'    => __( 'Pages', 'desktop-mode' ),
 			'icon'     => 'dashicons-admin-page',
 			'restPath' => 'wp/v2/pages',
+			'kind'     => 'post',
+		),
+		array(
+			'id'       => 'users',
+			'label'    => __( 'Users', 'desktop-mode' ),
+			'icon'     => 'dashicons-admin-users',
+			'restPath' => 'wp/v2/users',
+			'kind'     => 'user',
 		),
 	);
 
@@ -82,10 +98,11 @@ function desktop_mode_my_wordpress_entities() {
 	 * in the bundle on the next render.
 	 *
 	 * **Status: Experimental** — the entity descriptor shape may
-	 * gain fields as Phase 2 lands (Comments, Users, Tags,
+	 * gain fields as new entity kinds land (Comments, Tags,
 	 * Categories, Themes, Plugins). Stable id/label/icon/restPath
 	 * fields will continue to work; new optional fields will not
-	 * break existing consumers.
+	 * break existing consumers. The `kind` field is optional and
+	 * defaults to `'post'` for back-compat.
 	 *
 	 * @since 0.8.0
 	 *
@@ -158,6 +175,7 @@ function desktop_mode_my_wordpress_register_window() {
 			'restRoot'        => esc_url_raw( rest_url() ),
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
+			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'entities'        => desktop_mode_my_wordpress_entities(),
 			'perPage'         => 24,
 		),

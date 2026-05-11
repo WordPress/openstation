@@ -678,12 +678,21 @@ Drop-in wrapper around the global `fetch()` that lights up the target window's t
 // In any window's render callback / event handler:
 const res = await wp.desktop.fetch( '/wp-json/myplugin/v1/save', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify( payload ),
 } );
 ```
 
 That's the whole pattern. The dot blinks for the duration of the round-trip, flashes green on `2xx` and red on failure (with the `Error.message` exposed as the dot's tooltip), then settles back to the always-on idle ring. **No CSS, no per-window plumbing, no DOM.**
+
+#### Auto X-WP-Nonce *(since 0.8.2)*
+
+`wp.desktop.fetch` automatically attaches `X-WP-Nonce: desktopModeConfig.restNonce` to **same-origin** requests whose URL targets a WordPress REST endpoint — either pretty-permalink (`/wp-json/...`) or plain-permalink (`?rest_route=...`). Without the header, WordPress's `rest_cookie_check_errors()` demotes the cookie session to anonymous and any capability-gated route returns `401`. You no longer need to remember to attach it by hand.
+
+Rules:
+- **Same-origin only.** Cross-origin requests never receive the header — the nonce is a credential for this site.
+- **Caller wins.** If you pass `headers: { 'X-WP-Nonce': '...' }` (or the input `Request` already carries the header), the framework does not overwrite it.
+- **REST endpoints only.** `admin-ajax.php` and other non-REST URLs are left alone — admin-ajax uses per-action `_wpnonce` parameters, not the `wp_rest` nonce.
 
 #### Arguments
 
@@ -3695,6 +3704,57 @@ Filter for the registry list:
 applyFilters( 'desktop-mode.files.openers', FileOpenerDef[] ): FileOpenerDef[];
 applyFilters( 'desktop-mode.files.resolve-opener', FileOpenerDef | null, type: string ): FileOpenerDef | null;
 ```
+
+---
+
+## Native Plugins window (since 0.9.0)
+
+The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<wpd-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
+
+### URL routing
+
+Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates the Browse tab. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
+
+### Drag bridge integration
+
+Cards in the Browse gallery call `wp.desktop.dragManager.start({ … })` on pointer-down. The payload is:
+
+```ts
+{
+  type: 'wporg-plugin',
+  source: HTMLElement,
+  data: {
+    slug: string,
+    name: string,
+    iconUrl: string | null,
+    homepage: string,
+    authorName: string,
+    shortDescription: string,
+  },
+  ghost: { offsetX: number, offsetY: number, element: HTMLElement },
+}
+```
+
+The bundle pre-installs a drop target on the dock element that accepts this payload type and calls `wp.desktop.registerSystemTile()` to pin a transient tile pointing at the plugin's wp.org page. **Plugin authors can register their own drop targets** (e.g. on a custom canvas) that filter on `payload.type === 'wporg-plugin'` and react to a card drop with no further coordination.
+
+### Live-refresh
+
+After every install / activate / deactivate / delete the bundle calls `await wp.desktop.refreshMenu()`. That spawns a hidden chromeless iframe to capture the real-admin-context menu payload (handles plugins that gate `admin_menu` on `is_admin()`) — same primitive the chromeless bridge uses. Plugin authors that mutate plugin state from elsewhere should mirror this:
+
+```ts
+await myInstallFlow();
+await window.wp.desktop.refreshMenu();
+```
+
+### Shared state — initial tab hint
+
+```ts
+import { setPluginsWindowTab } from 'desktop-mode/plugins-window/tab-target';
+
+setPluginsWindowTab( 'browse' ); // call BEFORE openById( 'desktop-mode-plugins' )
+```
+
+Backed by `wp.desktop.createSharedStore( 'desktop-mode/plugins-window/tab-target', … )` so multiple bundles see the same value.
 
 ---
 

@@ -116,6 +116,14 @@ Plugins (notably WooCommerce's `wc-addons` Extensions row) register `menu_title 
 
 **Fix**: `desktop_mode_build_dock_items()` skips submenu entries whose cleaned title is empty / null / whitespace.
 
+### Synthetic "Add Theme" tab on the Appearance window
+
+Core does not register `theme-install.php` as a submenu of `themes.php` — classic admin only surfaces it through the in-page "Add Theme" `.page-title-action` button at the top of `themes.php`. Inside chromeless that button scrolls out of view on first paint (the focus-target heuristic on the visible theme grid steals the scroll position), leaving no entry point to the install flow.
+
+**Fix**: `desktop_mode_inject_appearance_tabs()` (in `includes/themes-tabs.php`) hooks `desktop_mode_dock_item` and prepends `{ title: 'Add Theme', url: theme-install.php }` to the Appearance dock item's submenu when the current user has `install_themes`. The chromeless CSS rule that previously kept the page-title-action visible on `themes.php` has been removed (`assets/css/chromeless.css`) so the in-page button stays hidden — the tab is the canonical entry point.
+
+Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
+
 ## Adding a new fix
 
 Decision tree, in order:

@@ -63,22 +63,35 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 	const visual = document.createElement( 'span' );
 	visual.className = `${ TILE_CLASS }__visual`;
 	const previewUrl = file.previewUrl();
+	// Per-placement icon override on `meta.iconUrl` — set by the
+	// favicon resolver for `link` placements, but generic enough
+	// that any plugin can attach a custom icon (URL, data URI) per
+	// placement without subclassing the file type.
+	const metaIconUrl =
+		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
+			? ( placement.meta as { iconUrl: string } ).iconUrl.trim()
+			: '';
 	if ( previewUrl ) {
 		const img = document.createElement( 'img' );
 		img.src = previewUrl;
 		img.alt = '';
 		img.className = `${ TILE_CLASS }__preview`;
+		// `<img>` is `draggable=true` by default — leaving it as
+		// such lets the browser intercept pointerdown with a native
+		// HTML5 image-drag, which silently kills the DragManager's
+		// pointer-event-driven tile rearrange.
+		img.draggable = false;
 		visual.appendChild( img );
 	} else {
 		// Single canonical dispatch — `renderIcon` handles every shape
-		// `file.icon()` can take: dashicons class, http(s) URL,
-		// `data:image/svg+xml;base64,…` data URI, or letter-badge
-		// fallback. Pre-0.8.2 the file-tile renderer (like the
-		// wallpaper-icon renderer it shipped alongside) glued every
-		// non-empty value onto a `dashicons` class — file-type icons
-		// declared as URLs or data URIs rendered as broken empty
-		// squares.
-		const icon = renderIcon( file.icon(), {
+		// the icon can take: dashicons class, http(s) URL,
+		// `data:image/svg+xml;base64,…` or `data:image/png;base64,…`
+		// data URI, or letter-badge fallback. `meta.iconUrl` wins
+		// over `file.icon()` so a per-placement override (e.g. a
+		// resolved favicon) shows in place of the file type's
+		// generic glyph.
+		const iconSource = '' !== metaIconUrl ? metaIconUrl : file.icon();
+		const icon = renderIcon( iconSource, {
 			title: file.title(),
 			className: `${ TILE_CLASS }__icon`,
 		} );

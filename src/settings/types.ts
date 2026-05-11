@@ -162,6 +162,19 @@ export interface OsSettingsState {
 	 * @since 0.18.0
 	 */
 	nativeUsersEnabled: boolean;
+	/**
+	 * Per-user opt-in for the native Plugins window. When true, the
+	 * Plugins dock tile / `plugins.php` / `plugin-install.php` links
+	 * open the native two-tab window (Installed list + wp.org Browse
+	 * gallery) instead of the chromeless iframes. Defaults on.
+	 * Capability-gated on the server (`activate_plugins`); the Browse
+	 * tab is hidden for users without `install_plugins`. The
+	 * `plugin-editor.php` URL is intentionally NOT claimed — it stays
+	 * on the existing code-editor iframe.
+	 *
+	 * @since 0.9.0
+	 */
+	nativePluginsEnabled: boolean;
 }
 
 /**

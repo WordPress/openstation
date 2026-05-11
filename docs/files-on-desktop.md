@@ -40,7 +40,9 @@ A **file type** is a slug that points the registry at the right subclass. The bu
 | `link` | `Desktop_Mode_Link_File` | URL string — opens in a new browser tab |
 | `embed` | `Desktop_Mode_Embed_File` | URL string — opens in an iframe-backed desktop window; geometry persists on `placement.meta.window` |
 
-`link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name` (set by the wallpaper-menu "New" submenu) — the tile renderer prefers it over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
+`link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name` (set by the wallpaper-menu "New URL" entry) — the tile renderer prefers it over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
+
+`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl` (since 0.20.0). The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes; the cap keeps `meta` blobs small. Plugins can short-circuit or override the resolved value via the `desktop_mode_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
 
 `page` and any custom post type collapse into `post`; `category` and `post_tag` collapse into `term`. UI labels per concrete post type / taxonomy come from the `desktop_mode_file_serialize` filter — there's no need to register a separate type for every CPT.
 
@@ -409,6 +411,25 @@ single idempotent cleanup (`--dragging`, `--drop-target`,
 all stripped from the document). Plugins observing the bus see
 `document` CustomEvents — `desktop-mode.drag.{start,move,enter,leave,
 rejected,commit,cancel,end}`.
+
+Visual feedback *(strengthened in 0.20.0)*: while a drag is in
+flight the manager sets three attributes on `document.body` so
+shell CSS can coordinate without each surface having to subscribe
+to the CustomEvents:
+
+- `data-desktop-mode-dragging` *(empty value)* — present iff a drag
+  session is lifted.
+- `data-desktop-mode-drag-type` — the `payload.type` slug (e.g.
+  `'shortcut'`, `'desktop-file'`, plugin-defined).
+- `data-desktop-mode-drag-mode` — `'accept'` when the cursor is over
+  an accepting drop target, `'reject'` over a rejecting region,
+  `'neutral'` after the lift before the first hover transition.
+
+In parallel, the framework paints a small "Drop here" / "Can't drop
+here" chip next to the cursor (`.desktop-mode-drag-hint`). Default
+labels are picked from `payload.type`; pass `payload.ghost.hint =
+{ accept, reject, neutral }` to customise (or `{ hidden: true }`
+to opt out for plugin-defined gestures that prefer no chip).
 
 For desktop-files specifically, the FilesLayer registers two drop
 targets:

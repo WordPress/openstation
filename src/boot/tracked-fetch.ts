@@ -28,6 +28,7 @@
 
 import type { WindowManager } from '../window-manager';
 import type { Window as DesktopWindow } from '../window';
+import { injectRestNonce } from '../inject-rest-nonce';
 
 export interface TrackedFetchImplOpts {
 	windowId?: string;
@@ -50,8 +51,9 @@ export function trackedFetch(
 	requestInit?: RequestInit,
 	opts?: TrackedFetchImplOpts,
 ): Promise< Response > {
+	const finalInit = injectRestNonce( input, requestInit );
 	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.desktop.fetch`; it's the one legitimate place to call the raw global.
-	const promise = window.fetch( input, requestInit );
+	const promise = window.fetch( input, finalInit );
 	if ( opts?.silent ) {
 		return promise;
 	}

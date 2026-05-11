@@ -115,6 +115,95 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
 	} );
 
+	test( 'synthetic parent tab uses parentUrl when iframe is on a sub-page', () => {
+		// Reproduces the F5-on-Add-Theme scenario: session save
+		// captured the iframe URL (theme-install.php), so on restore
+		// the new window opens with `url = theme-install.php` even
+		// though the dock landing is themes.php. Without `parentUrl`,
+		// the dedup check sees the iframe URL match the "Add Theme"
+		// submenu entry and suppresses the synthetic — leaving the
+		// user with no way back to themes.php.
+		const win = manager.open( {
+			id: 'themes-php',
+			url: 'http://example.test/wp-admin/theme-install.php?browse=popular',
+			parentUrl: 'http://example.test/wp-admin/themes.php',
+			title: 'Appearance',
+			icon: 'dashicons-admin-appearance',
+			multi: false,
+			submenu: [
+				{ title: 'Add Theme', url: 'http://example.test/wp-admin/theme-install.php?browse=popular' },
+				{ title: 'Editor', url: 'http://example.test/wp-admin/site-editor.php' },
+			],
+		} );
+
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
+		// Synthetic Appearance + Add Theme + Editor.
+		expect( tabs.length ).toBe( 3 );
+		expect( tabs[ 0 ].textContent ).toBe( 'Appearance' );
+		expect( tabs[ 0 ].dataset.url ).toBe( 'http://example.test/wp-admin/themes.php' );
+		// Add Theme is the active tab because its URL matches the
+		// iframe's current URL (theme-install.php).
+		expect( tabs[ 1 ].textContent ).toBe( 'Add Theme' );
+		expect( tabs[ 1 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
+		// Synthetic Appearance is NOT active — the iframe isn't on
+		// themes.php right now.
+		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( false );
+	} );
+
+	test( 'synthetic parent tab is suppressed when parentUrl already in submenu (WC shape)', () => {
+		// Mirrors WooCommerce: parent dock URL is rewritten to the
+		// first submenu's URL (`wc-admin`) because the top-level slug
+		// has no working callback. The "Home" submenu entry already
+		// IS the back-to-parent affordance — adding a synthetic with
+		// the same URL would render two tabs claiming the same page.
+		const win = manager.open( {
+			id: 'wc-admin',
+			url: 'http://example.test/wp-admin/admin.php?page=wc-orders',
+			parentUrl: 'http://example.test/wp-admin/admin.php?page=wc-admin',
+			title: 'WooCommerce',
+			icon: 'dashicons-cart',
+			multi: false,
+			submenu: [
+				{ title: 'Home', url: 'http://example.test/wp-admin/admin.php?page=wc-admin' },
+				{ title: 'Orders', url: 'http://example.test/wp-admin/admin.php?page=wc-orders' },
+				{ title: 'Products', url: 'http://example.test/wp-admin/edit.php?post_type=product' },
+			],
+		} );
+
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
+		// Just the three submenu entries — no synthetic, since
+		// "Home" already serves as the parent affordance.
+		expect( tabs.length ).toBe( 3 );
+		expect( tabs[ 0 ].textContent ).toBe( 'Home' );
+		// "Orders" is active — that's the iframe's current URL.
+		expect( tabs[ 1 ].textContent ).toBe( 'Orders' );
+		expect( tabs[ 1 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
+	} );
+
+	test( 'parentUrl absent — synthetic logic falls back to url (legacy behaviour)', () => {
+		// Callers that haven't been updated to pass `parentUrl` keep
+		// the original behaviour: synthetic uses `url`, dedup compares
+		// against `url`. If a submenu entry shares `url`, the
+		// synthetic is suppressed — same as before this fix.
+		const win = manager.open( {
+			id: 'edit.php',
+			url: 'http://example.test/wp-admin/edit.php',
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			multi: false,
+			submenu: [
+				{ title: 'All Posts', url: 'http://example.test/wp-admin/edit.php' },
+				{ title: 'Add New', url: 'http://example.test/wp-admin/post-new.php' },
+			],
+		} );
+
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
+		// Two tabs: "All Posts" (which already covers the parent URL)
+		// and "Add New". No synthetic prepended.
+		expect( tabs.length ).toBe( 2 );
+		expect( tabs[ 0 ].textContent ).toBe( 'All Posts' );
+	} );
+
 	test( 'opens + closes a singleton + re-opens without error', () => {
 		const first = manager.open( {
 			id: 'plugins.php',
