@@ -580,11 +580,30 @@ function mountProfileForm(
 		// covers plugin contact methods AND the personal-options
 		// keys (rich_editing, syntax_highlighting, admin_color,
 		// comment_shortcuts, show_admin_bar_front).
+		//
+		// `wpd-form`'s value harvest reads `field.checked` (boolean)
+		// for `<wpd-checkbox-label>`, but core stores the matching
+		// user-meta keys as STRING `'true'` / `'false'`. Sending a
+		// boolean trips the REST schema check (`meta.rich_editing
+		// is not of type string`). The `checkboxField` helper already
+		// keeps the right `trueValue` / `falseValue` string on the
+		// element's `value` attribute, so when the harvested value
+		// is a boolean we look the element up and use its current
+		// `value` attribute instead. Falls back to `String(v)` for
+		// any element we can't find (shouldn't happen, but keeps the
+		// patch shape sound if a name gets typo'd).
 		const meta: Record< string, unknown > = {};
 		for ( const [ k, v ] of Object.entries( values ) ) {
-			if ( k.startsWith( 'meta.' ) ) {
-				meta[ k.slice( 5 ) ] = v;
+			if ( ! k.startsWith( 'meta.' ) ) {
+				continue;
 			}
+			let resolved: unknown = v;
+			if ( typeof v === 'boolean' ) {
+				const field = form.querySelector( `[name="${ k }"]` );
+				const valueAttr = field?.getAttribute( 'value' );
+				resolved = valueAttr ?? String( v );
+			}
+			meta[ k.slice( 5 ) ] = resolved;
 		}
 		if ( Object.keys( meta ).length > 0 ) {
 			patch.meta = meta;

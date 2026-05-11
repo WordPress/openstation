@@ -566,6 +566,139 @@ describe( 'User Edit window — role save flow', () => {
 		clearUserEditTarget();
 	} );
 
+	test( 'meta checkbox values are saved as strings, not booleans (WP REST schema)', async () => {
+		// Regression for `meta.rich_editing is not of type string`:
+		// `wpd-form`'s value harvest returns `field.checked`
+		// (boolean) for `<wpd-checkbox-label>`. WP's user-meta
+		// schema for `rich_editing`, `syntax_highlighting`,
+		// `comment_shortcuts`, `show_admin_bar_front` is `string`
+		// (`'true'` / `'false'`). Save used to ship the boolean,
+		// REST validation rejected the entire patch, and the role
+		// change (which lived in the SAME patch) silently failed.
+		// The fix reads each meta checkbox's `value` attribute when
+		// the harvested value is a boolean.
+		const fetchSpy = vi.fn< typeof fetch >( async ( input, init ) => {
+			const url = String( input );
+			if ( init?.method === 'POST' && url.includes( '/wp/v2/users/2' ) ) {
+				return new Response(
+					JSON.stringify( {
+						id: 2,
+						username: 'peter',
+						roles: [ 'author' ],
+						meta: { rich_editing: 'true' },
+					} ),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					},
+				);
+			}
+			if ( url.includes( '/insights' ) ) {
+				// Post-save aside refresh — mock so it doesn't reject.
+				return new Response(
+					JSON.stringify( {
+						userId: 2,
+						displayName: 'Peter Guila',
+						avatarUrl: '',
+						profileUrl: '',
+						roles: [ 'author' ],
+						capabilitiesCount: 1,
+						profileCompleteness: { filled: 1, total: 5, percent: 20 },
+						stats: {
+							posts: 0,
+							pages: 0,
+							attachments: 0,
+							commentsAuthored: 0,
+							commentsReceived: 0,
+							daysSinceRegistration: 0,
+							lastLoginAt: null,
+							daysSinceLastLogin: null,
+							registeredAt: null,
+						},
+						contentByMonth: [],
+						recentPosts: [],
+						recentComments: [],
+						sessions: [],
+						applicationPasswords: {
+							total: 0,
+							lastUsedAt: null,
+							lastUsedName: null,
+						},
+					} ),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					},
+				);
+			}
+			// Initial fetchUser call.
+			return new Response(
+				JSON.stringify( {
+					id: 2,
+					username: 'peter',
+					name: 'Peter Guila',
+					first_name: 'Peter',
+					last_name: 'Guila',
+					nickname: 'Peter',
+					email: 'p@example.com',
+					url: '',
+					description: '',
+					locale: 'en_US',
+					roles: [ 'editor' ],
+					avatar_urls: {},
+					meta: {
+						rich_editing: 'true',
+						syntax_highlighting: 'true',
+						comment_shortcuts: 'false',
+						show_admin_bar_front: 'true',
+					},
+				} ),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				},
+			);
+		} );
+		( globalThis as unknown as { fetch: typeof fetch } ).fetch =
+			fetchSpy as unknown as typeof fetch;
+
+		const { setActiveWindowId } = await import(
+			'../../src/posts-window/rest'
+		);
+		setActiveWindowId( 'desktop-mode-user-edit' );
+
+		const render = await import( '../../src/posts-window/user-edit-render' );
+		await render.mountProfileFormAt( host, 2 );
+		await tick();
+		await wait( 0 );
+
+		const form = host.querySelector( 'wpd-form' ) as HTMLElement & {
+			submit: () => void;
+		};
+		form.submit();
+		await wait( 30 );
+
+		const postCall = fetchSpy.mock.calls.find(
+			( [ , init ] ) => init?.method === 'POST',
+		);
+		expect( postCall ).toBeDefined();
+		const body = JSON.parse( postCall![ 1 ]!.body as string );
+		expect( body.meta ).toBeDefined();
+		// EVERY meta value must be a string — no booleans allowed.
+		for ( const [ key, value ] of Object.entries( body.meta ) ) {
+			expect(
+				typeof value,
+				`meta.${ key } must be a string, got ${ typeof value }`,
+			).toBe( 'string' );
+		}
+		// And specifically the 4 known personal-option keys are
+		// `'true'` / `'false'` strings.
+		expect( body.meta.rich_editing ).toMatch( /^(true|false)$/ );
+		expect( body.meta.syntax_highlighting ).toMatch( /^(true|false)$/ );
+		expect( body.meta.comment_shortcuts ).toMatch( /^(true|false)$/ );
+		expect( body.meta.show_admin_bar_front ).toMatch( /^(true|false)$/ );
+	} );
+
 	test( 'the role select stays hidden when the viewer is editing themselves', async () => {
 		// Self-edit guard is the ONLY remaining JS-side gate; demoting
 		// yourself out of administrator would lock you out, so we

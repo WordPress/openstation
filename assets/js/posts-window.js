@@ -3862,9 +3862,16 @@ var desktopModePostsWindow = function(exports) {
       }
       const meta = {};
       for (const [k, v] of Object.entries(values)) {
-        if (k.startsWith("meta.")) {
-          meta[k.slice(5)] = v;
+        if (!k.startsWith("meta.")) {
+          continue;
         }
+        let resolved = v;
+        if (typeof v === "boolean") {
+          const field = form.querySelector(`[name="${k}"]`);
+          const valueAttr = field?.getAttribute("value");
+          resolved = valueAttr ?? String(v);
+        }
+        meta[k.slice(5)] = resolved;
       }
       if (Object.keys(meta).length > 0) {
         patch.meta = meta;
