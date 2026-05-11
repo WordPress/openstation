@@ -3558,8 +3558,14 @@ var desktopModePostsWindow = function(exports) {
   }
   function notifyToast$1(body, kind = "info") {
     const api = window.wp?.desktop;
-    if (api?.notify) {
-      api.notify({ body, kind });
+    if (api?.showToast) {
+      let duration;
+      if (kind === "error") {
+        duration = 8e3;
+      } else if (kind === "success") {
+        duration = 5e3;
+      }
+      api.showToast({ message: body, duration });
       return;
     }
     console.info("[user-edit-window]", body);
@@ -3620,7 +3626,8 @@ var desktopModePostsWindow = function(exports) {
     form.setAttribute("columns", "auto");
     const header = document.createElement("div");
     header.setAttribute("slot", "header");
-    header.appendChild(buildProfileHeader(user));
+    let profileHeader = buildProfileHeader(user);
+    header.appendChild(profileHeader);
     form.appendChild(header);
     form.appendChild(textField("username", __("Username"), user.username, {
       readonly: true
@@ -3901,7 +3908,9 @@ var desktopModePostsWindow = function(exports) {
       pwdConfirm.setAttribute("value", "");
       if (result.user) {
         Object.assign(user, result.user);
-        header.replaceChildren(buildProfileHeader(user));
+        const next = buildProfileHeader(user);
+        profileHeader.replaceWith(next);
+        profileHeader = next;
         const aside = host.ownerDocument?.querySelector(
           "[data-wpd-user-profile-aside]"
         );

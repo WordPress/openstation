@@ -699,6 +699,128 @@ describe( 'User Edit window — role save flow', () => {
 		expect( body.meta.show_admin_bar_front ).toMatch( /^(true|false)$/ );
 	} );
 
+	test( 'a successful save routes the confirmation through wp.desktop.showToast', async () => {
+		// The user-edit form surfaces save success via the shell's
+		// own `<wpd-toast-container>` (`wp.desktop.showToast`) — the
+		// same toast affordance every other wpd-component uses. Do
+		// NOT bring back an inline banner: the user explicitly asked
+		// for the unified desktop-level toast.
+		const originalUser = {
+			id: 2,
+			username: 'peter',
+			name: 'Peter Guila',
+			first_name: 'Peter',
+			last_name: 'Guila',
+			nickname: 'Peter',
+			email: 'p@example.com',
+			url: '',
+			description: '',
+			locale: 'en_US',
+			roles: [ 'editor' ],
+			avatar_urls: { '96': 'http://example/avatar.png' },
+			meta: {},
+		};
+		const savedUser = { ...originalUser, roles: [ 'author' ] };
+
+		( globalThis as unknown as { fetch: typeof fetch } ).fetch = ( async (
+			input,
+			init,
+		) => {
+			const url = String( input );
+			if ( init?.method === 'POST' ) {
+				return new Response( JSON.stringify( savedUser ), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				} );
+			}
+			if ( url.includes( '/insights' ) ) {
+				return new Response(
+					JSON.stringify( {
+						userId: 2,
+						displayName: 'Peter Guila',
+						avatarUrl: '',
+						profileUrl: '',
+						roles: [ 'author' ],
+						capabilitiesCount: 1,
+						profileCompleteness: { filled: 1, total: 5, percent: 20 },
+						stats: {
+							posts: 0,
+							pages: 0,
+							attachments: 0,
+							commentsAuthored: 0,
+							commentsReceived: 0,
+							daysSinceRegistration: 0,
+							lastLoginAt: null,
+							daysSinceLastLogin: null,
+							registeredAt: null,
+						},
+						contentByMonth: [],
+						recentPosts: [],
+						recentComments: [],
+						sessions: [],
+						applicationPasswords: {
+							total: 0,
+							lastUsedAt: null,
+							lastUsedName: null,
+						},
+					} ),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					},
+				);
+			}
+			return new Response( JSON.stringify( originalUser ), {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			} );
+		} ) as unknown as typeof fetch;
+
+		// Spy on the shell-level toast API. The user-edit save MUST
+		// route through here — no inline banner, no custom DOM.
+		const showToastSpy = vi.fn( () => () => undefined );
+		( window as unknown as {
+			wp?: {
+				desktop?: { showToast?: ( opts: unknown ) => () => void };
+			};
+		} ).wp = {
+			desktop: { showToast: showToastSpy },
+		};
+
+		const { setActiveWindowId } = await import(
+			'../../src/posts-window/rest'
+		);
+		setActiveWindowId( 'desktop-mode-user-edit' );
+
+		const render = await import( '../../src/posts-window/user-edit-render' );
+		await render.mountProfileFormAt( host, 2 );
+		await tick();
+		await wait( 0 );
+
+		// Before submit: NO inline banner, NO toast call yet.
+		expect(
+			host.querySelector( '.desktop-mode-user-edit__save-banner' ),
+		).toBeNull();
+		expect( showToastSpy ).not.toHaveBeenCalled();
+
+		const form = host.querySelector( 'wpd-form' ) as HTMLElement & {
+			submit: () => void;
+		};
+		form.submit();
+		await wait( 30 );
+
+		// After successful submit: toast fired with the saved-message
+		// shape (`{ message, duration? }`).
+		expect( showToastSpy ).toHaveBeenCalled();
+		const lastCall = showToastSpy.mock.calls.at( -1 );
+		const opts = lastCall![ 0 ] as { message: string; duration?: number };
+		expect( opts.message.toLowerCase() ).toContain( 'saved' );
+		// Inline banner must still NOT exist after save.
+		expect(
+			host.querySelector( '.desktop-mode-user-edit__save-banner' ),
+		).toBeNull();
+	} );
+
 	test( 'the role select stays hidden when the viewer is editing themselves', async () => {
 		// Self-edit guard is the ONLY remaining JS-side gate; demoting
 		// yourself out of administrator would lock you out, so we

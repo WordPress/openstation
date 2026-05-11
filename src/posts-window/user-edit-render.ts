@@ -35,18 +35,37 @@ import {
 // (`users-render.ts:wireProfileSubTab`); this module exposes
 // mount points only.
 
-interface NotifyApi {
-	notify?( o: { body: string; kind?: 'success' | 'error' | 'info' } ): void;
+interface ShellToastApi {
+	showToast?( opts: { message: string; duration?: number } ): () => void;
 }
 
+/**
+ * Surface a transient notice at the desktop level using the
+ * shell's `<wpd-toast-container>` (`wp.desktop.showToast`). The
+ * shell handles stacking + auto-dismiss; we just hand it the
+ * message and an optional duration override. `kind` is accepted
+ * for source compatibility but the underlying toast doesn't yet
+ * carry per-kind styling — leave the door open for it without
+ * forcing every call site to change shape today.
+ */
 function notifyToast(
 	body: string,
 	kind: 'success' | 'error' | 'info' = 'info',
 ): void {
-	const api = ( window as unknown as { wp?: { desktop?: NotifyApi } } ).wp
+	void kind;
+	const api = ( window as unknown as { wp?: { desktop?: ShellToastApi } } ).wp
 		?.desktop;
-	if ( api?.notify ) {
-		api.notify( { body, kind } );
+	if ( api?.showToast ) {
+		// 5s for success, 8s for error so the user has time to
+		// read the failure reason. Pass through the default for
+		// `info` (the shell's own duration).
+		let duration: number | undefined;
+		if ( kind === 'error' ) {
+			duration = 8000;
+		} else if ( kind === 'success' ) {
+			duration = 5000;
+		}
+		api.showToast( { message: body, duration } );
 		return;
 	}
 	// eslint-disable-next-line no-console
@@ -216,10 +235,14 @@ function mountProfileForm(
 	form.setAttribute( 'reset-label', __( 'Revert' ) );
 	form.setAttribute( 'columns', 'auto' );
 
-	// Header — avatar + display name + role chips.
+	// Header — avatar + display name + role chips. Kept in a
+	// dedicated `profileHeader` reference so the post-save refresh
+	// can swap it in place via `replaceWith` rather than wiping the
+	// slot's whole subtree.
 	const header = document.createElement( 'div' );
 	header.setAttribute( 'slot', 'header' );
-	header.appendChild( buildProfileHeader( user ) );
+	let profileHeader = buildProfileHeader( user );
+	header.appendChild( profileHeader );
 	form.appendChild( header );
 
 	// — Identity —
@@ -648,7 +671,11 @@ function mountProfileForm(
 		// the database row is now correct.
 		if ( result.user ) {
 			Object.assign( user, result.user );
-			header.replaceChildren( buildProfileHeader( user ) );
+			// Swap just the profile-header div in place — keeps the
+			// save banner (its sibling) untouched.
+			const next = buildProfileHeader( user );
+			profileHeader.replaceWith( next );
+			profileHeader = next;
 			const aside = host.ownerDocument?.querySelector< HTMLElement >(
 				'[data-wpd-user-profile-aside]',
 			);
