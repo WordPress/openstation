@@ -57,6 +57,24 @@ export interface PluginsWindowConfig {
 	currentUserId: number;
 	introSeen: boolean;
 	introUrl: string;
+	/**
+	 * Desktop Mode's own plugin file path (e.g.
+	 * `"desktop-mode/desktop-mode.php"`) — the same value WordPress
+	 * keys mutations by in `/wp/v2/plugins/{plugin}`. Compare
+	 * against the `InstalledPlugin.plugin` field on a deactivate/
+	 * delete response to detect "user just turned off the shell
+	 * we're running inside" and fall back to a hard reload before
+	 * they touch any stale UI.
+	 */
+	selfPluginFile: string;
+	/**
+	 * Root wp-admin URL (`admin_url()`). Used by the self-deactivate
+	 * exit path to navigate the top frame to the classic Dashboard
+	 * rather than reloading the current URL — the current URL might
+	 * be a deactivated plugin's `?page=…` route that now 403s under
+	 * classic admin.
+	 */
+	adminUrl: string;
 }
 
 /**
@@ -400,4 +418,83 @@ export async function refreshFrameworkMenu(): Promise< void > {
 	} catch {
 		// Best-effort; never throw from a refresh call.
 	}
+}
+
+// ─── Self-deactivation guard ──────────────────────────────────────────
+
+/**
+ * True if `plugin` is the Desktop Mode plugin file itself. Once
+ * Desktop Mode is deactivated/deleted, the shell JS keeps running
+ * in the browser but every shell-routed REST + AJAX call lands on
+ * a "plugin gone" stub — the user is stranded in a UI that can't
+ * do anything. The callers use this to short-circuit into a hard
+ * reload so the user lands back on the classic admin.
+ *
+ * Normalizes both sides by trimming a trailing `.php` — Core's REST
+ * `/wp/v2/plugins` controller returns the `plugin` field as
+ * `substr( $file, 0, -4 )`, whereas `plugin_basename()` (which feeds
+ * the config) keeps the extension. Match either form so an upstream
+ * shape change can't silently re-introduce the bug where the reload
+ * never fires.
+ */
+export function isDesktopModeSelf( pluginFile: string ): boolean {
+	let self = '';
+	try {
+		self = getConfig().selfPluginFile;
+	} catch {
+		return false;
+	}
+	const trim = ( s: string ): string =>
+		s.endsWith( '.php' ) ? s.slice( 0, -4 ) : s;
+	return self !== '' && trim( self ) === trim( pluginFile );
+}
+
+/**
+ * Navigate the top-level window to the classic wp-admin Dashboard
+ * after a brief delay so the user can read the "Desktop Mode
+ * deactivated" toast. Drives navigation against `config.adminUrl`
+ * (the server-localized `admin_url()`) instead of `location.reload()`
+ * because the current URL may be a deactivated plugin's
+ * `admin.php?page=…` route — reloading that lands the user on
+ * "Sorry, you are not allowed to access this page." Going to the
+ * Dashboard is the WordPress-default landing the user expects when
+ * desktop mode is off.
+ *
+ * The top frame is targeted (not just this window) because every
+ * other open desktop-mode window is also iframing into a now-stale
+ * shell context.
+ *
+ * The delay is short enough that the page swap feels like a natural
+ * consequence of the click; long enough for the toast text to be
+ * legible.
+ */
+export function reloadOutOfDesktopMode(): void {
+	const target = window.top ?? window;
+	let dest: string;
+	try {
+		dest = getConfig().adminUrl;
+	} catch {
+		dest = '';
+	}
+	window.setTimeout( () => {
+		if ( dest ) {
+			try {
+				target.location.assign( dest );
+				return;
+			} catch {
+				// Cross-origin top frame — fall through to a local
+				// navigation. The caller has already shown a toast.
+			}
+			window.location.assign( dest );
+			return;
+		}
+		// No admin URL in config (older registration / test harness) —
+		// fall back to a plain reload. Better than getting stuck on
+		// the now-stale shell.
+		try {
+			target.location.reload();
+		} catch {
+			window.location.reload();
+		}
+	}, 800 );
 }

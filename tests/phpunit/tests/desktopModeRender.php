@@ -430,6 +430,62 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The hidden refresh-probe iframe `wp.desktop.refreshMenu()` spawns
+	 * lands on `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1`,
+	 * which Core doesn't fire `admin_footer` for — so the
+	 * admin-footer-hosted bridge never emits its payload. The
+	 * `admin_init @ 99` handler short-circuits that request with the
+	 * payload script directly. Catching the priority here so a refactor
+	 * can't silently move it earlier than `wp-admin/menu.php` (which
+	 * populates `$menu`).
+	 *
+	 * @covers ::desktop_mode_emit_menu_refresh_probe
+	 */
+	public function test_menu_refresh_probe_is_wired_on_admin_init() {
+		$this->assertSame(
+			99,
+			has_action( 'admin_init', 'desktop_mode_emit_menu_refresh_probe' )
+		);
+	}
+
+	/**
+	 * Guard: when the refresh-probe flag isn't on the request, the
+	 * handler must be a silent no-op so it doesn't slip into normal
+	 * admin page loads.
+	 *
+	 * @covers ::desktop_mode_emit_menu_refresh_probe
+	 */
+	public function test_menu_refresh_probe_skips_when_flag_missing() {
+		unset( $_GET['desktop_mode_menu_refresh'] );
+
+		ob_start();
+		desktop_mode_emit_menu_refresh_probe();
+		$output = ob_get_clean();
+
+		$this->assertSame( '', $output );
+	}
+
+	/**
+	 * Guard: chromeless gate. A request with the flag but no
+	 * `desktop_mode_chromeless=1` (and no Sec-Fetch fallback) must NOT
+	 * emit the payload — the flag alone is forgeable from any tab.
+	 *
+	 * @covers ::desktop_mode_emit_menu_refresh_probe
+	 */
+	public function test_menu_refresh_probe_skips_without_chromeless() {
+		unset( $_GET['desktop_mode_chromeless'] );
+		$_GET['desktop_mode_menu_refresh'] = '1';
+
+		ob_start();
+		desktop_mode_emit_menu_refresh_probe();
+		$output = ob_get_clean();
+
+		$this->assertSame( '', $output );
+
+		unset( $_GET['desktop_mode_menu_refresh'] );
+	}
+
+	/**
 	 * @covers ::desktop_mode_chromeless_bridge_script
 	 */
 	public function test_chromeless_after_action_fires_in_iframes() {

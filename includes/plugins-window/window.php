@@ -143,6 +143,27 @@ function desktop_mode_plugins_window_register_window() {
 				? desktop_mode_has_seen_intro( get_current_user_id(), 'plugins' )
 				: true,
 			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
+			// The plugin file path WordPress uses to identify the
+			// Desktop Mode plugin itself in REST mutations
+			// (`/wp/v2/plugins/{plugin}`). The JS uses this to detect
+			// "user just deactivated/deleted us" and reload the page
+			// out of the now-stale desktop shell before they hit any
+			// dead UI.
+			//
+			// Stripped of `.php` to match Core's REST representation —
+			// the `/wp/v2/plugins` controller returns `plugin` as
+			// `substr( $file, 0, -4 )` (see
+			// `wp-includes/rest-api/endpoints/class-wp-rest-plugins-controller.php`).
+			// Comparing the raw `plugin_basename()` against the REST
+			// field always missed by exactly four characters, which
+			// silently skipped the self-deactivate reload.
+			'selfPluginFile'  => substr( plugin_basename( DESKTOP_MODE_FILE ), 0, -4 ),
+			// The wp-admin root URL — the JS navigates here after a
+			// self-deactivate so the user lands on the classic
+			// Dashboard rather than reloading their current URL
+			// (which might be a deactivated plugin's `?page=…` route
+			// that now 403s).
+			'adminUrl'        => esc_url_raw( admin_url() ),
 		),
 	);
 

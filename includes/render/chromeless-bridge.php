@@ -102,6 +102,77 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 add_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script', 1 );
 
 /**
+ * Short-circuit `admin.php?desktop_mode_menu_refresh=1` requests with
+ * a tiny inline-script response that postMessages the current menu
+ * payload to the parent shell.
+ *
+ * The full chromeless bridge is hooked on `admin_footer`, which Core
+ * only fires from `admin-header.php` / `admin-footer.php`. Plain
+ * `admin.php` without `?page=` (or one of the other dispatch paths
+ * in admin.php) never includes the footer — the file just runs the
+ * `load-{$pagenow}` hook in the `else` branch and exits. The full
+ * bridge therefore never emits its payload, and the parent's
+ * `wp.desktop.refreshMenu()` waits out its 8-second timeout for a
+ * message that's never coming. That's the source of "deactivating a
+ * plugin leaves its dock icons behind" — the hidden probe iframe
+ * the shell spawns to harvest the post-mutation menu lands on a
+ * page that doesn't fire admin_footer.
+ *
+ * Hooking here on `admin_init @ 99` runs AFTER `wp-admin/menu.php`
+ * has loaded (which fires `admin_menu` and populates `$menu`) but
+ * BEFORE admin.php's per-page dispatch. We can emit the payload
+ * straight away and short-circuit the rest of admin.php so the probe
+ * resolves in milliseconds instead of timing out.
+ *
+ * No admin-header / admin-footer means no `#adminmenu` DOM, so the
+ * full bridge's CSS-icon harvest doesn't run here. That's an
+ * acceptable trade-off: items whose icons live in `$menu[$i][6]`
+ * (the vast majority) still ship correctly; items that rely on a
+ * CSS `::before` on `#adminmenu .menu-icon-<slug>` fall back to the
+ * default gear icon on a live refresh until the next full page load
+ * — strictly better than today's "dock doesn't update at all."
+ *
+ * @since 0.18.4
+ */
+function desktop_mode_emit_menu_refresh_probe() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest; capability-gated by chromeless gate below.
+	if ( empty( $_GET['desktop_mode_menu_refresh'] ) ) {
+		return;
+	}
+	if ( ! desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	// Only short-circuit the bare `admin.php` probe — for any real
+	// admin page (plugins.php, edit.php, etc.) we still want the full
+	// admin-footer-hosted bridge to fire so the icon harvest runs.
+	$pagenow = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
+	if ( 'admin.php' !== $pagenow ) {
+		return;
+	}
+
+	$payload = desktop_mode_build_menu_payload();
+	$encoded = wp_json_encode( $payload );
+	if ( false === $encoded ) {
+		return;
+	}
+
+	nocache_headers();
+	header( 'Content-Type: text/html; charset=utf-8' );
+
+	// Mirror the full bridge's message shape so the same shell-side
+	// listener consumes both.
+	echo '<!doctype html><html><head><meta charset="utf-8"><title></title></head><body>';
+	echo '<script>';
+	echo '(function(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"desktop-mode-plugins-changed",payload:';
+	echo $encoded; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode produces JSON-safe output.
+	echo '},window.location.origin);}}catch(e){}})();';
+	echo '</script>';
+	echo '</body></html>';
+	exit;
+}
+add_action( 'admin_init', 'desktop_mode_emit_menu_refresh_probe', 99 );
+
+/**
  * Outputs the chromeless screen-meta bridge script.
  *
  * Detects Screen Options / Help panels in the iframed page and relays

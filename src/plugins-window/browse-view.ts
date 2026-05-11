@@ -294,7 +294,15 @@ export function mountBrowseView(
 			cta?.setAttribute( 'disabled', '' );
 			try {
 				await installPluginBySlug( plugin.slug );
-				await refreshFrameworkMenu();
+				// Refresh the installed list first — this REST GET is
+				// what flips the CTA from "Install" to "Activate". The
+				// hidden-iframe menu refresh that follows is for the
+				// dock/taskbar repaint and takes a full admin page
+				// load; running it sequentially before the CTA repaint
+				// was the source of the "Activate button takes time to
+				// display" delay. Fire-and-forget the menu refresh so
+				// the user sees the new CTA the instant the REST list
+				// returns.
 				await refreshInstalled();
 				toast(
 					sprintf(
@@ -304,6 +312,7 @@ export function mountBrowseView(
 					),
 				);
 				repaintCardCta( card, plugin, state.installed, cardCallbacks );
+				void refreshFrameworkMenu();
 			} catch ( err ) {
 				cta?.removeAttribute( 'busy' );
 				cta?.removeAttribute( 'disabled' );
@@ -331,13 +340,15 @@ export function mountBrowseView(
 						updated.name || updated.plugin,
 					),
 				);
-				await refreshFrameworkMenu();
 				const plugin = state.plugins.find(
 					( p ) => p.slug === ( updated.textdomain ?? '' ),
 				);
 				if ( plugin ) {
 					repaintCardCta( card, plugin, state.installed, cardCallbacks );
 				}
+				// Background — dock/taskbar repaint shouldn't gate the
+				// in-card "Active" state flip.
+				void refreshFrameworkMenu();
 			} catch ( err ) {
 				cta?.removeAttribute( 'busy' );
 				cta?.removeAttribute( 'disabled' );

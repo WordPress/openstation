@@ -21,7 +21,9 @@ import {
 	deleteInstalledPlugin,
 	fetchInstalledPlugins,
 	getConfig,
+	isDesktopModeSelf,
 	refreshFrameworkMenu,
+	reloadOutOfDesktopMode,
 } from './rest';
 import type { InstalledPlugin } from './types';
 import type {
@@ -527,7 +529,10 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					row.name || row.plugin,
 				),
 			);
-			await refreshFrameworkMenu();
+			// Background — the table's status badge already flipped via
+			// `mergeRow` above; the menu refresh is a slow hidden-iframe
+			// load that only needs to keep the dock/taskbar in sync.
+			void refreshFrameworkMenu();
 		} catch ( err ) {
 			applyStatusOptimistic( row, previous );
 			toast(
@@ -547,6 +552,22 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		try {
 			const updated = await deactivateInstalledPlugin( row );
 			mergeRow( updated );
+			// Special-case: deactivating Desktop Mode itself leaves the
+			// shell running on top of a now-defunct plugin. Skip the
+			// menu refresh (the chromeless probe lands on a dead plugin
+			// and times out) and just reload the page so the user
+			// lands on the classic admin.
+			if ( isDesktopModeSelf( row.plugin ) ) {
+				toast(
+					__(
+						'Desktop Mode deactivated. Reloading…',
+						'desktop-mode',
+					),
+					2000,
+				);
+				reloadOutOfDesktopMode();
+				return;
+			}
 			toast(
 				sprintf(
 					/* translators: %s: plugin name */
@@ -554,7 +575,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					row.name || row.plugin,
 				),
 			);
-			await refreshFrameworkMenu();
+			void refreshFrameworkMenu();
 		} catch ( err ) {
 			applyStatusOptimistic( row, previous );
 			toast(
@@ -589,6 +610,19 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			await deleteInstalledPlugin( row );
 			state.rows = state.rows.filter( ( r ) => r.plugin !== row.plugin );
 			paintTable();
+			// Same self-deactivate guard — deleting Desktop Mode also
+			// strands the shell on top of a missing plugin.
+			if ( isDesktopModeSelf( row.plugin ) ) {
+				toast(
+					__(
+						'Desktop Mode deleted. Reloading…',
+						'desktop-mode',
+					),
+					2000,
+				);
+				reloadOutOfDesktopMode();
+				return;
+			}
 			toast(
 				sprintf(
 					/* translators: %s: plugin name */
@@ -596,7 +630,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					row.name || row.plugin,
 				),
 			);
-			await refreshFrameworkMenu();
+			void refreshFrameworkMenu();
 		} catch ( err ) {
 			toast(
 				sprintf(
@@ -635,6 +669,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			}
 		}
 		let succeeded = 0;
+		let selfMutated = false;
 		const failures: Array< { row: InstalledPlugin; err: unknown } > = [];
 		for ( const row of rows ) {
 			try {
@@ -646,6 +681,12 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					await deleteInstalledPlugin( row );
 					state.rows = state.rows.filter( ( r ) => r.plugin !== row.plugin );
 				}
+				if (
+					( action === 'deactivate' || action === 'delete' ) &&
+					isDesktopModeSelf( row.plugin )
+				) {
+					selfMutated = true;
+				}
 				succeeded++;
 			} catch ( err ) {
 				failures.push( { row, err } );
@@ -653,7 +694,19 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		}
 		paintTable();
 		table.clearSelection();
-		await refreshFrameworkMenu();
+		// Self-mutation in a bulk: reload before the menu refresh so we
+		// don't waste time on a probe that will time out.
+		if ( selfMutated ) {
+			toast(
+				action === 'delete'
+					? __( 'Desktop Mode deleted. Reloading…', 'desktop-mode' )
+					: __( 'Desktop Mode deactivated. Reloading…', 'desktop-mode' ),
+				2000,
+			);
+			reloadOutOfDesktopMode();
+			return;
+		}
+		void refreshFrameworkMenu();
 		let noun = '';
 		if ( action === 'delete' ) {
 			noun = __( 'deleted', 'desktop-mode' );

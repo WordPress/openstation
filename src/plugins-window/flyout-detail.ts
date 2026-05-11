@@ -24,7 +24,9 @@ import {
 	fetchPluginReviews,
 	getConfig,
 	installPluginBySlug,
+	isDesktopModeSelf,
 	refreshFrameworkMenu,
+	reloadOutOfDesktopMode,
 } from './rest';
 import type {
 	InstalledPlugin,
@@ -619,9 +621,15 @@ function paintFooter(
 					info?.name ?? slug,
 				),
 			);
-			await refreshFrameworkMenu();
+			// Refetch installed list (REST GET) — this is what flips
+			// the footer from "Install" to "Activate". The hidden-
+			// iframe menu refresh that follows is a full admin page
+			// load and used to gate the UI flip behind it. Fire it
+			// in the background so the user sees the new CTA the
+			// instant the REST list returns.
 			await callbacks.onPluginInstalled( result.plugin ?? '', slug );
 			paintFooter( footer, slug, info, callbacks, close );
+			void refreshFrameworkMenu();
 		} catch ( err ) {
 			btn.removeAttribute( 'busy' );
 			btn.removeAttribute( 'disabled' );
@@ -650,8 +658,10 @@ function paintFooter(
 					updated.name || updated.plugin,
 				),
 			);
-			await refreshFrameworkMenu();
 			paintFooter( footer, slug, info, callbacks, close );
+			// Background — the dock/taskbar repaint shouldn't gate the
+			// footer flipping to "Deactivate".
+			void refreshFrameworkMenu();
 		} catch ( err ) {
 			toast(
 				sprintf(
@@ -671,6 +681,17 @@ function paintFooter(
 		try {
 			const updated = await deactivateInstalledPlugin( installed );
 			callbacks.onPluginDeactivated( updated );
+			if ( isDesktopModeSelf( updated.plugin ) ) {
+				toast(
+					__(
+						'Desktop Mode deactivated. Reloading…',
+						'desktop-mode',
+					),
+					2000,
+				);
+				reloadOutOfDesktopMode();
+				return;
+			}
 			toast(
 				sprintf(
 					/* translators: %s: plugin name */
@@ -678,8 +699,8 @@ function paintFooter(
 					updated.name || updated.plugin,
 				),
 			);
-			await refreshFrameworkMenu();
 			paintFooter( footer, slug, info, callbacks, close );
+			void refreshFrameworkMenu();
 		} catch ( err ) {
 			toast(
 				sprintf(
@@ -715,6 +736,17 @@ function paintFooter(
 		try {
 			await deleteInstalledPlugin( installed );
 			callbacks.onPluginDeleted( installed );
+			if ( isDesktopModeSelf( installed.plugin ) ) {
+				toast(
+					__(
+						'Desktop Mode deleted. Reloading…',
+						'desktop-mode',
+					),
+					2000,
+				);
+				reloadOutOfDesktopMode();
+				return;
+			}
 			toast(
 				sprintf(
 					/* translators: %s: plugin name */
@@ -722,8 +754,8 @@ function paintFooter(
 					installed.name || installed.plugin,
 				),
 			);
-			await refreshFrameworkMenu();
 			close();
+			void refreshFrameworkMenu();
 		} catch ( err ) {
 			toast(
 				sprintf(

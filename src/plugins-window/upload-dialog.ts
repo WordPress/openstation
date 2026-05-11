@@ -226,10 +226,14 @@ export function openUploadDialog(
 			);
 			try {
 				const result = await uploadPluginZip( pickedFile );
-				await refreshFrameworkMenu();
 				if ( callbacks.onUploaded ) {
 					callbacks.onUploaded( result );
 				}
+				// Background — the upload UX shows its own success state
+				// and closes itself shortly after; the hidden-iframe menu
+				// refresh is for dock/taskbar sync and doesn't need to
+				// gate that handoff.
+				void refreshFrameworkMenu();
 				showStatus(
 					sprintf(
 						/* translators: %s: plugin file (e.g. akismet/akismet.php) */
