@@ -89,10 +89,38 @@ generate_changelog_draft() {
 		echo "warning: GitHub generate-notes API returned nothing — skipping draft." >&2
 		return 1
 	fi
+	# Transformation pipeline (one awk pass):
+	#  1. Keep only bullet lines, drop "first contribution" boilerplate.
+	#  2. Strip the trailing "by @user in <PR-URL>" suffix.
+	#  3. Strip trailing " (#NNN)" PR refs.
+	#  4. Strip leading "Fix #NNN:" / "Closes #NNN:" / "Resolves #NNN:".
+	#  5. Strip conventional-commit prefixes (type or type(scope) + colon)
+	#     case-insensitively, using a tolower() mirror for matching
+	#     because POSIX awk regex has no case-insensitive flag.
+	#  6. Capitalize the first letter of what remains.
 	local draft
 	draft=$(printf '%s\n' "$raw" | awk '
 		/^\* / && !/made their first contribution/ {
 			sub(/ by @[^ ]+ in https:\/\/[^ ]+$/, "")
+			sub(/[[:space:]]*\(#[0-9]+\)[[:space:]]*$/, "")
+
+			lower = tolower($0)
+			if (match(lower, /^\* (fix(es)?|close[sd]?|resolve[sd]?)[[:space:]]+#[0-9]+:[[:space:]]*/)) {
+				$0 = "* " substr($0, RSTART + RLENGTH)
+				lower = tolower($0)
+			}
+			if (match(lower, /^\* (feat|fix|chore|docs|refactor|perf|test|style|build|ci|revert)(\([^)]+\))?:[[:space:]]+/)) {
+				$0 = "* " substr($0, RSTART + RLENGTH)
+			}
+
+			if (length($0) >= 3) {
+				first = substr($0, 3, 1)
+				upper = toupper(first)
+				if (first != upper) {
+					$0 = substr($0, 1, 2) upper substr($0, 4)
+				}
+			}
+
 			print
 		}
 	')
