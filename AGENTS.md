@@ -160,27 +160,21 @@ The primitive is also exposed on the public API as `wp.desktop.createSharedStore
 
 `is_admin_bar_showing()` short-circuits to `true` in admin context — the `show_admin_bar` filter alone is NOT sufficient inside chromeless iframes. We pair it with `remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 )` on `admin_init`, AND a CSS rule killing the reserved 32px. Do not remove either half.
 
-## Running PHPUnit — DO NOT spin up wp-env
+## Running PHPUnit
 
-The standalone repo's `npm run test:php` (and `npm run env:start`) call `wp-env`,
-which binds port **8889**. **That port is already taken by the user's running
-Core-checkout dev environment** (`wordpress-*`, started via its
-own `docker-compose.yml`). Starting wp-env races the user's dev container; doing
-it without asking has burned the user before.
-
-**Run plugin PHPUnit inside the existing `wordpress-*` (develop/alcazaba/any matching name) container
-instead.** Core's WP test library is at `/var/www/tests/phpunit/`.
-Set `WP_TESTS_DIR` so the plugin's `bootstrap.php` finds it:
+`npm run test:php` runs the suite inside wp-env. `.wp-env.json` remaps the
+dev/tests WP ports to **8890 / 8891** so it coexists with the user's
+Core-checkout dev environment on 8889. CI uses the same script.
 
 ```bash
-docker exec -e WP_TESTS_DIR=/var/www/tests/phpunit wordpress-alcazaba-php-1 \
-  sh -lc "cd /var/www/src/wp-content/plugins/desktop-mode && \
-  ./vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist \
-  [--filter='Tests_DesktopMode_Render']"
+npm run env:start    # idempotent; brings the wp-env stack up if needed
+npm run test:php     # full suite
+npm run test:php -- --filter='Tests_DesktopMode_Render'   # one class
 ```
 
-If the user has stopped their dev environment, ASK before starting wp-env — do
-not start it on your own.
+History: an earlier port collision against `wordpress-develop-wordpress-develop-1`
+(8889) made starting wp-env destructive. The remapped ports remove that
+hazard — wp-env and the Core checkout can both be up at the same time.
 
 ## Process reminders to self
 

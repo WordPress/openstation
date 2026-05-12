@@ -95,9 +95,73 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 		'meta'          => null === $args['meta'] ? null : wp_json_encode( $args['meta'] ),
 	);
 
-	$ok = $wpdb->insert( $tables['placements'], $row, array( '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s' ) );
+	// Silence wpdb's HTML error block around the insert: a unique-key
+	// collision is an expected (and recovered) outcome below, and the
+	// default `WP_DEBUG_DISPLAY` behavior would otherwise prepend a
+	// `<div class="wpdberror">…</div>` to the REST response body and
+	// break `await response.json()` on the client. `$wpdb->last_error`
+	// still holds the message, so genuine DB failures surface via the
+	// `WP_Error` we return when no existing row is found.
+	$prev_suppress = $wpdb->suppress_errors( true );
+	$ok            = $wpdb->insert( $tables['placements'], $row, array( '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s' ) );
+	$wpdb->suppress_errors( $prev_suppress );
 	if ( false === $ok ) {
-		return new WP_Error( 'desktop_mode_files_insert_failed', __( 'Failed to write placement.', 'desktop-mode' ), array( 'status' => 500 ) );
+		// Disambiguate the two cases hidden behind a generic `false`:
+		//   (a) The `placement_unique` index (since 0.8.0) collided
+		//       with an existing row for this (user, parent, type,
+		//       ref). The collider may be active (the orphan placer
+		//       won a race against this caller, or a stale duplicate
+		//       client request) or soft-trashed (the user removed a
+		//       link tile and is now recreating the same URL).
+		//   (b) Any other DB failure — connection, deadlock, bad
+		//       column. The error must surface to the caller as-is.
+		// We treat (a) idempotently: restore if trashed, then apply
+		// the caller's coords / meta so the new placement lands
+		// where the user clicked. Reported as #167.
+		$existing = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$tables['placements']}
+				WHERE user_id = %d
+					AND parent_id = %d
+					AND file_type = %s
+					AND file_ref = %s
+				LIMIT 1",
+				$user_id,
+				max( 0, $parent_id ),
+				$type,
+				$ref
+			),
+			ARRAY_A
+		);
+		if ( ! $existing ) {
+			return new WP_Error( 'desktop_mode_files_insert_failed', __( 'Failed to write placement.', 'desktop-mode' ), array( 'status' => 500 ) );
+		}
+
+		$existing_id = (int) $existing['id'];
+
+		if ( ! empty( $existing['trashed_at_ms'] ) ) {
+			$restore = desktop_mode_files_restore_placement( $user_id, $existing_id );
+			if ( is_wp_error( $restore ) ) {
+				return $restore;
+			}
+		}
+
+		$move = desktop_mode_files_move(
+			$existing_id,
+			$user_id,
+			array(
+				'parent_id'  => max( 0, $parent_id ),
+				'x'          => (int) $args['x'],
+				'y'          => (int) $args['y'],
+				'sort_order' => (int) $args['sort_order'],
+				'meta'       => $args['meta'],
+			)
+		);
+		if ( is_wp_error( $move ) ) {
+			return $move;
+		}
+
+		return $existing_id;
 	}
 	$id = (int) $wpdb->insert_id;
 

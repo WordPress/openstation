@@ -115,65 +115,86 @@
  * clearly distinct.
  */
 
+/*
+ * The focused titlebar colors below are the pre-computed sRGB result
+ * of each scheme's base color mixed with white (dark schemes) or
+ * black (light schemes). We used to write these as
+ * `color-mix(in srgb, …)` calls, but `color-mix()` only shipped in
+ * Chrome 111 — on older Chromium-based browsers the whole declaration
+ * is invalid-at-computed-value-time and the titlebar falls back to
+ * the unfocused light surface, which hides the white control glyphs.
+ * Since the mix inputs are all static there is no behavioral loss
+ * from inlining the resulting hex value.
+ */
+
 /* Fresh — default WP blue. */
 .desktop-mode-shell[data-desktop-mode-scheme="fresh"] {
 	--wp-admin-theme-color: #2271b1;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #1d2327 80%, #fff 20%);
+	/* color-mix(in srgb, #1d2327 80%, #fff 20%) */
+	--desktop-mode-titlebar-bg-focused: #4a4f52;
 	--desktop-mode-titlebar-color-focused: #fff;
 }
 
 /* Light — pale sidebar, teal accent. */
 .desktop-mode-shell[data-desktop-mode-scheme="light"] {
 	--wp-admin-theme-color: #04a4cc;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #e5e5e5 85%, #000 15%);
+	/* color-mix(in srgb, #e5e5e5 85%, #000 15%) */
+	--desktop-mode-titlebar-bg-focused: #c3c3c3;
 	--desktop-mode-titlebar-color-focused: #333;
 }
 
 /* Modern — vivid indigo accent, near-black sidebar. */
 .desktop-mode-shell[data-desktop-mode-scheme="modern"] {
 	--wp-admin-theme-color: #3858e9;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #1e1e1e 78%, #fff 22%);
+	/* color-mix(in srgb, #1e1e1e 78%, #fff 22%) */
+	--desktop-mode-titlebar-bg-focused: #505050;
 	--desktop-mode-titlebar-color-focused: #f3f1f1;
 }
 
 /* Blue. */
 .desktop-mode-shell[data-desktop-mode-scheme="blue"] {
 	--wp-admin-theme-color: #096484;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #096484 82%, #fff 18%);
+	/* color-mix(in srgb, #096484 82%, #fff 18%) */
+	--desktop-mode-titlebar-bg-focused: #35809a;
 	--desktop-mode-titlebar-color-focused: #e5f8ff;
 }
 
 /* Coffee. */
 .desktop-mode-shell[data-desktop-mode-scheme="coffee"] {
 	--wp-admin-theme-color: #c7a589;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #46403c 80%, #fff 20%);
+	/* color-mix(in srgb, #46403c 80%, #fff 20%) */
+	--desktop-mode-titlebar-bg-focused: #6b6663;
 	--desktop-mode-titlebar-color-focused: #ece6f6;
 }
 
 /* Ectoplasm. */
 .desktop-mode-shell[data-desktop-mode-scheme="ectoplasm"] {
 	--wp-admin-theme-color: #a3b745;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #413256 80%, #fff 20%);
+	/* color-mix(in srgb, #413256 80%, #fff 20%) */
+	--desktop-mode-titlebar-bg-focused: #675b78;
 	--desktop-mode-titlebar-color-focused: #ece6f6;
 }
 
 /* Midnight. */
 .desktop-mode-shell[data-desktop-mode-scheme="midnight"] {
 	--wp-admin-theme-color: #e14d43;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #25282b 80%, #fff 20%);
+	/* color-mix(in srgb, #25282b 80%, #fff 20%) */
+	--desktop-mode-titlebar-bg-focused: #515355;
 	--desktop-mode-titlebar-color-focused: #f1f2f3;
 }
 
 /* Ocean. */
 .desktop-mode-shell[data-desktop-mode-scheme="ocean"] {
 	--wp-admin-theme-color: #9ebaa0;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #627c83 80%, #fff 20%);
+	/* color-mix(in srgb, #627c83 80%, #fff 20%) */
+	--desktop-mode-titlebar-bg-focused: #81969c;
 	--desktop-mode-titlebar-color-focused: #f2fcff;
 }
 
 /* Sunrise. */
 .desktop-mode-shell[data-desktop-mode-scheme="sunrise"] {
 	--wp-admin-theme-color: #dd823b;
-	--desktop-mode-titlebar-bg-focused: color-mix(in srgb, #b43c38 80%, #fff 20%);
+	/* color-mix(in srgb, #b43c38 80%, #fff 20%) */
+	--desktop-mode-titlebar-bg-focused: #c36360;
 	--desktop-mode-titlebar-color-focused: #f3f1f1;
 }

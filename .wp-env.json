@@ -2,5 +2,7 @@
 	"core": null,
 	"mappings": {
 		"wp-content/plugins/desktop-mode": "."
-	}
+	},
+	"port": 8890,
+	"testsPort": 8891
 }
