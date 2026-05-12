@@ -42,6 +42,7 @@ import {
 	WpdCrumbChain,
 	type WpdCrumbSegment,
 } from '../wpd-crumb-chain/wpd-crumb-chain';
+import '../wpd-crumb-chain/wpd-crumb-chain';
 // `WpdCrumbChain` is also imported above as a value so the side-
 // effect registration of `<wpd-crumb-chain>` happens at import
 // time — we use the class as a type for `document.createElement`

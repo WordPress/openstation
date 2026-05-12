@@ -52,6 +52,11 @@ import type {
 	WpdTable,
 	WpdTableColumn,
 } from '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-badge/wpd-badge';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-segmented/wpd-segmented';
+import '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-text-field/wpd-text-field';
 
 /** Toast helper, shell-routed when available. */
 function toast( message: string, duration = 3500 ): void {

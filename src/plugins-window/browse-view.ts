@@ -51,6 +51,10 @@ import type {
 	WpOrgBrowsePlugin,
 } from './types';
 import { openUploadDialog } from './upload-dialog';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-card/wpd-card';
+import '../ui/components/wpd-segmented/wpd-segmented';
+import '../ui/components/wpd-text-field/wpd-text-field';
 
 interface BrowseState {
 	filter: BrowseFilter;

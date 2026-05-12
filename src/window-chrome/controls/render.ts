@@ -23,6 +23,7 @@ import { paintTitleBarButtonIcon } from '../../title-bar-buttons/paint-icon';
 
 import type { Window as DesktopWindow } from '../../window';
 import type { WindowControlsConfig } from '../../types';
+import '../../ui/components/wpd-window-button/wpd-window-button';
 
 /**
  * Resolve the control list for a window, partitioned by placement.

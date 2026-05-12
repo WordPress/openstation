@@ -22,6 +22,7 @@ import {
 	registerCustomImageIfPresent,
 	selectWallpaper,
 } from './wallpaper';
+import '../../ui/components/wpd-button/wpd-button';
 
 export function buildCustomImageSection(
 	ctx: SettingsCtx,

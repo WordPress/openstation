@@ -85,6 +85,9 @@ import type {
 	UserFootprint,
 	UserListItem,
 } from './types';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-context-menu/wpd-context-menu';
+import '../ui/components/wpd-spinner/wpd-spinner';
 
 type RenderCallback = ( body: HTMLElement ) => void;
 

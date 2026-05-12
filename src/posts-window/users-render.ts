@@ -42,6 +42,10 @@ import type {
 	WpdTable,
 	WpdTableColumn,
 } from '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-avatar/wpd-avatar';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-icon/wpd-icon';
+import '../ui/components/wpd-segmented/wpd-segmented';
 
 interface ConfirmOptions {
 	title?: string;

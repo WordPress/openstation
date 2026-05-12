@@ -16,6 +16,8 @@
 
 import { __, sprintf } from '../i18n';
 import type { InstalledPlugin, WpOrgBrowsePlugin } from './types';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-card/wpd-card';
 
 /**
  * What the card knows about an installed counterpart, so the CTA can

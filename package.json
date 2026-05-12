@@ -66,6 +66,7 @@
 		"@wordpress/eslint-plugin": "^21.6.0",
 		"eslint": "^8.57.1",
 		"eslint-import-resolver-typescript": "^4.4.4",
+		"eslint-plugin-local-rules": "^3.0.2",
 		"jsdom": "^25.0.1",
 		"rollup-plugin-visualizer": "^7.0.1",
 		"typescript": "5.9.3",

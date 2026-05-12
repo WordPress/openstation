@@ -21,6 +21,7 @@ import { urlMatchKey } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
 import { withChromelessParam } from './dom';
 import type { Window } from './index';
+import '../ui/components/wpd-tab-chip/wpd-tab-chip';
 
 /**
  * Update the active tab to whichever submenu URL matches the iframe's

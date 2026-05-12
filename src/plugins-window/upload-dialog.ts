@@ -15,6 +15,7 @@
 
 import { __, sprintf } from '../i18n';
 import { refreshFrameworkMenu, uploadPluginZip } from './rest';
+import '../ui/components/wpd-button/wpd-button';
 
 interface UploadResult {
 	plugin_file: string;

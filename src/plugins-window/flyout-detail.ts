@@ -33,6 +33,10 @@ import type {
 	WpOrgBrowsePlugin,
 	WpOrgPluginInfo,
 } from './types';
+import '../ui/components/wpd-button/wpd-button';
+// `<wpd-tab>` is registered by the `wpd-tabs` compound module —
+// both elements live in the same component file.
+import '../ui/components/wpd-tabs/wpd-tabs';
 
 interface FlyoutCallbacks {
 	getInstalled: ( slug: string ) => InstalledPlugin | undefined;

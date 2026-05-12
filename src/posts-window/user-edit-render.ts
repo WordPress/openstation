@@ -32,6 +32,14 @@ import {
 	type UserEditRecord,
 	type UserInsightsPayload,
 } from './user-edit-rest';
+import '../ui/components/wpd-avatar/wpd-avatar';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
+import '../ui/components/wpd-form/wpd-form';
+import '../ui/components/wpd-icon/wpd-icon';
+import '../ui/components/wpd-select/wpd-select';
+import '../ui/components/wpd-text-field/wpd-text-field';
+import '../ui/components/wpd-textarea/wpd-textarea';
 
 /**
  * Resolve a {@link UserEditClient} from whichever window happens to

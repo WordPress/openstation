@@ -154,13 +154,32 @@ function stripStaticHelpInProd( enabled ) {
  *   - Disabled in dev so source still maps cleanly during debug.
  */
 function minifyCssTemplates() {
+	// Minify one CSS chunk *between* template interpolations.
+	//
+	// Crucially, we do NOT `.trim()` here — chunks that end right
+	// before a `${…}` slot need to keep their trailing whitespace,
+	// and chunks that start right after a `${…}` slot need to keep
+	// their leading whitespace. Otherwise a literal like
+	//
+	//   calc( 100% - ${ CHEVRON_W } )
+	//
+	// minifies to `calc(100% -${CHEVRON_W} )` and resolves at
+	// runtime to `calc(100% -10px)`, which CSS rejects because `-`
+	// in `calc()` requires whitespace on both sides (without it,
+	// `-10px` parses as a single negative-length token). The
+	// `wpd-crumb-chain` chevron polygon broke exactly this way.
+	//
+	// We still collapse adjacent whitespace and strip it around
+	// punctuation that doesn't care (`{ } : ; , >`), so the
+	// per-chunk minification is unchanged everywhere else. The
+	// leading/trailing whitespace of the WHOLE template gets
+	// trimmed once at the call site.
 	const minifyCssChunk = ( text ) =>
 		text
 			.replace( /\/\*[\s\S]*?\*\//g, '' )
 			.replace( /\s+/g, ' ' )
 			.replace( /\s*([{}:;,>])\s*/g, '$1' )
-			.replace( /;}/g, '}' )
-			.trim();
+			.replace( /;}/g, '}' );
 
 	return {
 		name: 'wp-desktop-mode-minify-css-templates',

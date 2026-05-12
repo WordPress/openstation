@@ -29,6 +29,7 @@ module.exports = {
 		'plugin:@wordpress/eslint-plugin/recommended-with-formatting',
 		'plugin:@typescript-eslint/recommended',
 	],
+	plugins: [ 'local-rules' ],
 	settings: {
 		// WP's JSDoc rules default to assuming every export has full
 		// TSDoc-style typing. For a TS project that's redundant — the
@@ -123,6 +124,30 @@ module.exports = {
 		// visually. Sites that genuinely need the raw global —
 		// service worker, the framework wrapper itself, last-resort
 		// fallbacks — can opt out with an inline `eslint-disable`.
+		// `no-duplicate-imports` (the ESLint core rule) is supposed
+		// to allow side-effect imports alongside named imports from
+		// the same source, but v8.x flags
+		//   import '../ui/components/wpd-foo/wpd-foo';
+		//   import type { WpdFoo } from '../ui/components/wpd-foo/wpd-foo';
+		// as a duplicate — which is exactly the shape our component
+		// registration pattern needs (side-effect to trigger
+		// `defineComponent`, plus `import type` for the type
+		// surface). `@typescript-eslint`'s replacement
+		// (`import/no-duplicates` with `prefer-inline`) isn't on the
+		// dep tree, so we just turn the rule off rather than carry
+		// disable comments on every component leaf-import block.
+		'no-duplicate-imports': 'off',
+		// Local rule — fails when a module calls
+		// `document.createElement( 'wpd-foo' )` without also
+		// side-effect-importing `'…/ui/components/wpd-foo/wpd-foo'`.
+		// Catches the regression class that broke posts / pages /
+		// users / plugins / comments / recycle-bin: a secondary
+		// bundle does `import { WpdFoo } from '…'` purely for the
+		// TS type, esbuild elides the import, the
+		// `defineComponent( 'wpd-foo', WpdFoo )` side-effect never
+		// runs, and `<wpd-foo>` renders as an inert un-upgraded
+		// custom element. See the rule source for details.
+		'local-rules/wpd-component-registration': 'error',
 		'no-restricted-syntax': [
 			'error',
 			{

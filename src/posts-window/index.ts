@@ -8,10 +8,14 @@
  * sorting / filtering, mounts an excerpt + featured-image sub-row,
  * and exposes prev/next + per-page controls in the footer.
  *
- * The `<wpd-*>` web components are defined by the main desktop
- * bundle; this module only consumes them. We avoid any side-effect
- * imports from `src/ui/` so loading this bundle never tries to
- * re-`customElements.define()` an existing tag.
+ * Web-component registrations: the main `desktop.min.js` bundle ships
+ * only the `<wpd-*>` tags it actually constructs itself. Anything
+ * unique to this window — `<wpd-table>`, `<wpd-tag-input>`,
+ * `<wpd-category-picker>`, `<wpd-avatar>`, `<wpd-multiselect>`,
+ * `<wpd-relative-time>`, `<wpd-form>`, `<wpd-textarea>` — registers
+ * itself here via leaf side-effect imports. `defineComponent()` is
+ * idempotent so the imports cost nothing in cases where main also
+ * ships a tag.
  *
  * @public
  * @since 0.8.0
@@ -21,9 +25,18 @@ import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { showPostsIntroDialog } from './intro-dialog';
-// Side-effect import — registers `<wpd-user-profile>` so any
-// template in this bundle can drop the tag and get the full
-// profile UI mounted automatically.
+// Side-effect imports — register the `<wpd-*>` components this
+// bundle constructs that the main shell does not ship. See the
+// header docblock for the rationale.
+import '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-tag-input/wpd-tag-input';
+import '../ui/components/wpd-category-picker/wpd-category-picker';
+import '../ui/components/wpd-avatar/wpd-avatar';
+import '../ui/components/wpd-multiselect/wpd-multiselect';
+import '../ui/components/wpd-relative-time/wpd-relative-time';
+import '../ui/components/wpd-form/wpd-form';
+import '../ui/components/wpd-textarea/wpd-textarea';
+// Posts-specific custom element — adds <wpd-user-profile>.
 import './wpd-user-profile';
 import {
 	createPostsWindowClient,
@@ -55,6 +68,9 @@ import type {
 	WpdTable,
 	WpdTableColumn,
 } from '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-segmented/wpd-segmented';
+import '../ui/components/wpd-menu/wpd-menu';
 
 export type { BulkAction, PostsWindowContext, StatusSegment } from './types';
 

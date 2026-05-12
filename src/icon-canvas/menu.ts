@@ -27,6 +27,7 @@
 
 import { applyFilters } from '../hooks';
 import { __ } from '../i18n';
+import '../ui/components/wpd-context-menu/wpd-context-menu';
 
 export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 

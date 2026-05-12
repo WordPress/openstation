@@ -12,8 +12,10 @@
  * events on `desktop-mode-comments/*` for plugins / widgets / dock
  * badge updates.
  *
- * The `<wpd-*>` web components are defined by the main desktop
- * bundle; this module only consumes them.
+ * Web-component registrations: the main `desktop.min.js` ships only
+ * the `<wpd-*>` tags it constructs itself. This bundle leaf-imports
+ * the additional ones it needs (`<wpd-table>`, `<wpd-avatar>`,
+ * `<wpd-chip>`). `defineComponent()` is idempotent.
  *
  * @public
  * @since 0.19.0
@@ -22,6 +24,11 @@
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
+// Side-effect imports — register the `<wpd-*>` components this
+// bundle constructs that the main shell does not ship.
+import '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-avatar/wpd-avatar';
+import '../ui/components/wpd-chip/wpd-chip';
 import { showCommentsIntroDialog } from './intro-dialog';
 import {
 	bulkModerate,
@@ -47,6 +54,7 @@ import type {
 	WpdTable,
 	WpdTableColumn,
 } from '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-button/wpd-button';
 
 export type { BulkAction, CommentRow, CommentTab, CommentsConfig } from './types';
 

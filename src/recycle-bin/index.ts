@@ -8,16 +8,20 @@
  * action is a roundtrip + reload so the table never lies about
  * server state.
  *
- * The `<wpd-*>` web components are defined by the main desktop
- * bundle; this module only consumes them. We therefore avoid any
- * side-effect imports from `src/ui/` so loading this bundle never
- * tries to re-`customElements.define()` an existing tag.
+ * Web-component registrations: the main `desktop.min.js` ships only
+ * the `<wpd-*>` tags it constructs itself. This bundle leaf-imports
+ * the additional ones it needs (`<wpd-table>`, `<wpd-relative-time>`).
+ * `defineComponent()` is idempotent.
  *
  * @public
  * @since 0.19.0
  */
 
 import { __, sprintf } from '../i18n';
+// Side-effect imports — register the `<wpd-*>` components this
+// bundle constructs that the main shell does not ship.
+import '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-relative-time/wpd-relative-time';
 import { setRecycleBinBadge } from './badge';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';

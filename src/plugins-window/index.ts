@@ -6,10 +6,11 @@
  * (Installed / Browse) and the detail flyout against the template
  * echoed by `desktop_mode_plugins_window_render_template()`.
  *
- * The `<wpd-*>` web components are defined by the main desktop
- * bundle; this module only consumes them. Avoid any side-effect
- * imports from `src/ui/` so loading this bundle never tries to
- * re-`customElements.define()` an existing tag.
+ * Web-component registrations: the main `desktop.min.js` ships only
+ * the `<wpd-*>` tags it constructs itself. This bundle leaf-imports
+ * the additional ones it needs (`<wpd-table>`, `<wpd-card>`,
+ * `<wpd-badge>`). `defineComponent()` is idempotent so re-importing
+ * a tag main also ships is safe (just inert).
  *
  * @public
  * @since 0.9.0
@@ -17,6 +18,11 @@
 
 import { trackedFetch } from '../tracked-fetch';
 import { __ } from '../i18n';
+// Side-effect imports — register the `<wpd-*>` components this
+// bundle constructs that the main shell does not ship.
+import '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-card/wpd-card';
+import '../ui/components/wpd-badge/wpd-badge';
 import { mountBrowseView } from './browse-view';
 import { mountInstalledView } from './installed-view';
 import { getConfig, type PluginsWindowConfig } from './rest';
