@@ -72,12 +72,55 @@ function bindControllerChangeReload(): void {
 		if ( _reloadingForSwUpdate ) {
 			return;
 		}
+		// Throttle reloads to prevent infinite cycles under DevTools'
+		// "Application → Service Workers → Update on reload". That flag
+		// forces an install + activate on every page load even when the
+		// SW bytes are byte-identical, so every reload we trigger here
+		// causes ANOTHER `controllerchange` on the next load, which
+		// triggers another reload, ad infinitum.
+		//
+		// Window: 30s. Real-deploy reloads coalesce across rapid
+		// successive activations; the user picks up the new bundle on
+		// the next reload past the window.
+		if ( wasRecentlyReloadedForSwUpdate() ) {
+			return;
+		}
+		markReloadedForSwUpdate();
 		_reloadingForSwUpdate = true;
 		// One-frame delay so any in-flight UI work has a chance to
 		// settle before the navigation. Not strictly required, but
 		// avoids a class of "click → reload races input" surprises.
 		setTimeout( () => window.location.reload(), 0 );
 	} );
+}
+
+const SW_RELOAD_THROTTLE_KEY = 'wpd-sw-reload-ts';
+const SW_RELOAD_THROTTLE_MS = 30_000;
+
+function wasRecentlyReloadedForSwUpdate(): boolean {
+	try {
+		const raw = sessionStorage.getItem( SW_RELOAD_THROTTLE_KEY );
+		const last = raw ? Number.parseInt( raw, 10 ) : 0;
+		if ( ! Number.isFinite( last ) || last <= 0 ) {
+			return false;
+		}
+		return Date.now() - last < SW_RELOAD_THROTTLE_MS;
+	} catch {
+		// sessionStorage may be unavailable (private mode, blocked
+		// storage). Without it we can't throttle, so default to
+		// "no recent reload" and let the reload fire. The infinite-
+		// loop scenario it guards against requires DevTools, which is
+		// itself unlikely to coincide with storage being blocked.
+		return false;
+	}
+}
+
+function markReloadedForSwUpdate(): void {
+	try {
+		sessionStorage.setItem( SW_RELOAD_THROTTLE_KEY, String( Date.now() ) );
+	} catch {
+		// See `wasRecentlyReloadedForSwUpdate` — swallow.
+	}
 }
 
 /**

@@ -202,8 +202,34 @@ function desktop_mode_pwa_build_manifest() {
 		$short_name = $site_name;
 	}
 
-	$start_url = desktop_mode_portal_url();
-	$scope     = '/';
+	// `start_url` is the actual landing URL after the `/desktop-mode/`
+	// portal redirect — pointing the PWA directly at it lets us narrow
+	// `scope` to `/wp-admin/` without breaking the launch path. The
+	// portal redirect still exists for typed / bookmarked
+	// `/desktop-mode/` visits in regular browser tabs.
+	//
+	// `scope` is `/wp-admin/`, not `/`. The wider `/` scope had two
+	// failure modes that this fixes:
+	//
+	//   - Front-end URLs (e.g. `/2026/05/post-123/`) were considered
+	//     in-scope, so Chrome's "Open in app" link-capturing redirected
+	//     external-link clicks (Comments "In response to" column, etc.)
+	//     into the installed PWA window instead of opening a real
+	//     browser tab. Excluding the front-end from scope makes those
+	//     clicks open in a browser tab as users expect.
+	//   - Every same-origin `<a target="_blank">` from inside the PWA
+	//     opened a NEW standalone PWA window for the same reason. With
+	//     scope narrowed, only `/wp-admin/*` links capture into the
+	//     PWA; everything else escapes to the system browser.
+	//
+	// `id` is held at the previous `/desktop-mode/` value so existing
+	// installs aren't treated as a different app and reset by Chrome
+	// after this change ships.
+	$start_url = admin_url( 'index.php?desktop_mode_portal=1' );
+	$scope     = admin_url( '/', 'relative' );
+	if ( '' === $scope ) {
+		$scope = '/wp-admin/';
+	}
 
 	$manifest_url = desktop_mode_pwa_manifest_url();
 
@@ -217,7 +243,7 @@ function desktop_mode_pwa_build_manifest() {
 		),
 		'start_url'            => $start_url,
 		'scope'                => $scope,
-		'id'                   => $start_url,
+		'id'                   => desktop_mode_portal_url(),
 		'display'              => 'standalone',
 		'display_override'     => array( 'standalone', 'minimal-ui' ),
 		'orientation'          => 'any',
@@ -242,7 +268,7 @@ function desktop_mode_pwa_build_manifest() {
 			array(
 				'platform' => 'webapp',
 				'url'      => $manifest_url,
-				'id'       => $start_url,
+				'id'       => desktop_mode_portal_url(),
 			),
 		),
 		'prefer_related_applications' => false,
