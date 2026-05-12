@@ -162,11 +162,7 @@ describe( 'User Edit window — role save flow', () => {
 		( globalThis as unknown as { fetch: typeof fetch } ).fetch =
 			fetchSpy as unknown as typeof fetch;
 
-		const { setActiveWindowId } = await import(
-			'../../src/posts-window/rest'
-		);
-		setActiveWindowId( 'desktop-mode-user-edit' );
-
+		
 		const render = await import( '../../src/posts-window/user-edit-render' );
 		await render.mountProfileFormAt( host, 2 );
 
@@ -274,11 +270,7 @@ describe( 'User Edit window — role save flow', () => {
 				},
 			) ) as unknown as typeof fetch;
 
-		const { setActiveWindowId } = await import(
-			'../../src/posts-window/rest'
-		);
-		setActiveWindowId( 'desktop-mode-user-edit' );
-
+		
 		const render = await import( '../../src/posts-window/user-edit-render' );
 		await render.mountProfileFormAt( host, 2 );
 		await tick();
@@ -364,13 +356,9 @@ describe( 'User Edit window — role save flow', () => {
 				},
 			) ) as unknown as typeof fetch;
 
-		const { setActiveWindowId } = await import(
-			'../../src/posts-window/rest'
-		);
 		// Active window id is the wrong sibling — the scenario the
 		// user hit when bouncing between Edit User and Posts.
-		setActiveWindowId( 'desktop-mode-posts' );
-
+		
 		const render = await import( '../../src/posts-window/user-edit-render' );
 		await render.mountProfileFormAt( host, 2 );
 		await tick();
@@ -451,11 +439,7 @@ describe( 'User Edit window — role save flow', () => {
 				},
 			) ) as unknown as typeof fetch;
 
-		const { setActiveWindowId } = await import(
-			'../../src/posts-window/rest'
-		);
-		setActiveWindowId( 'desktop-mode-user-edit' );
-
+		
 		const render = await import( '../../src/posts-window/user-edit-render' );
 		// Admin id is 1, target is 2 — editing someone else.
 		await render.mountProfileFormAt( host, 2 );
@@ -662,11 +646,7 @@ describe( 'User Edit window — role save flow', () => {
 		( globalThis as unknown as { fetch: typeof fetch } ).fetch =
 			fetchSpy as unknown as typeof fetch;
 
-		const { setActiveWindowId } = await import(
-			'../../src/posts-window/rest'
-		);
-		setActiveWindowId( 'desktop-mode-user-edit' );
-
+		
 		const render = await import( '../../src/posts-window/user-edit-render' );
 		await render.mountProfileFormAt( host, 2 );
 		await tick();
@@ -787,11 +767,7 @@ describe( 'User Edit window — role save flow', () => {
 			desktop: { showToast: showToastSpy },
 		};
 
-		const { setActiveWindowId } = await import(
-			'../../src/posts-window/rest'
-		);
-		setActiveWindowId( 'desktop-mode-user-edit' );
-
+		
 		const render = await import( '../../src/posts-window/user-edit-render' );
 		await render.mountProfileFormAt( host, 2 );
 		await tick();
@@ -848,11 +824,7 @@ describe( 'User Edit window — role save flow', () => {
 				},
 			) ) as unknown as typeof fetch;
 
-		const { setActiveWindowId } = await import(
-			'../../src/posts-window/rest'
-		);
-		setActiveWindowId( 'desktop-mode-user-edit' );
-
+		
 		const render = await import( '../../src/posts-window/user-edit-render' );
 		// userId === cfg.currentUserId (1) — admin editing themselves.
 		await render.mountProfileFormAt( host, 1 );

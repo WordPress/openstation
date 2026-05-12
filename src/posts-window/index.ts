@@ -26,28 +26,17 @@ import { showPostsIntroDialog } from './intro-dialog';
 // profile UI mounted automatically.
 import './wpd-user-profile';
 import {
-	buildEditPostUrl,
-	createCategory,
-	createTag,
-	deleteTerm,
-	fetchAllCategories,
-	fetchAuthorOptions,
-	fetchPosts,
-	fetchTagOptions,
-	getActiveWindowId,
-	getConfig,
-	searchTags,
-	setActiveWindowId,
-	trashPost,
-	updatePostCategories,
-	updatePostTags,
+	createPostsWindowClient,
 	type AuthorOption,
 	type CategoryTerm,
 	type PostListItem,
 	type PostsListParams,
+	type PostsWindowClient,
+	type PostsWindowConfig,
 	type TagOption,
 	type TagTerm,
 } from './rest';
+import { createUsersWindowClient } from './users-rest';
 import type {
 	BulkAction,
 	PostsWindowContext,
@@ -135,10 +124,10 @@ document.addEventListener( 'desktop-mode-intros-reset', () => {
 	}
 } );
 
-function maybeShowIntro(): void {
-	let cfg: ReturnType< typeof getConfig >;
+function maybeShowIntro( client: PostsWindowClient ): void {
+	let cfg: PostsWindowConfig;
 	try {
-		cfg = getConfig();
+		cfg = client.getConfig();
 	} catch {
 		return;
 	}
@@ -168,7 +157,7 @@ function maybeShowIntro(): void {
 				_introShown[ slug ] = false;
 				return;
 			}
-			void markIntroSeen( cfg, slug );
+			void markIntroSeen( cfg, slug, client );
 			if ( result === 'settings' ) {
 				openOsSettingsFeatures();
 			}
@@ -180,8 +169,9 @@ function maybeShowIntro(): void {
 }
 
 async function markIntroSeen(
-	cfg: ReturnType< typeof getConfig >,
+	cfg: PostsWindowConfig,
 	slug: string,
+	client: PostsWindowClient,
 ): Promise< void > {
 	if ( ! cfg.introUrl ) {
 		return;
@@ -199,7 +189,7 @@ async function markIntroSeen(
 				body: JSON.stringify( { slug } ),
 			},
 			{
-				windowId: getActiveWindowId(),
+				windowId: client.windowId,
 				source: `${ slug }-window/intro`,
 			},
 		);
@@ -441,9 +431,10 @@ const EMPTY_FILTER_DATA: ColumnFilterData = { authors: [], tags: [] };
  */
 function buildAllColumns(
 	cache: CellCache,
+	client: PostsWindowClient,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
 ): WpdTableColumn< PostListItem >[] {
-	const cols = _buildBaseColumns( cache, filterData );
+	const cols = _buildBaseColumns( cache, filterData, client );
 	const hooks = window.wp?.hooks;
 	return hooks && typeof hooks.applyFilters === 'function'
 		? ( hooks.applyFilters(
@@ -461,9 +452,10 @@ function buildAllColumns(
  */
 function buildColumns(
 	cache: CellCache,
+	client: PostsWindowClient,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
 ): WpdTableColumn< PostListItem >[] {
-	const all = buildAllColumns( cache, filterData );
+	const all = buildAllColumns( cache, client, filterData );
 	const hidden = getHiddenColumns();
 	if ( hidden.size === 0 ) {
 		return all;
@@ -479,6 +471,7 @@ function buildColumns(
 function _buildBaseColumns(
 	cache: CellCache,
 	filterData: ColumnFilterData,
+	client: PostsWindowClient,
 ): WpdTableColumn< PostListItem >[] {
 	// `mode` lets us swap the taxonomy columns out for hierarchical
 	// pages without the column hook bus knowing the difference.
@@ -486,7 +479,7 @@ function _buildBaseColumns(
 	// already-mode-appropriate base list and append/replace from there.
 	let mode: 'posts' | 'pages' = 'posts';
 	try {
-		const cfg = getConfig();
+		const cfg = client.getConfig();
 		if ( cfg.mode === 'pages' ) {
 			mode = 'pages';
 		}
@@ -502,7 +495,7 @@ function _buildBaseColumns(
 		sortable: true,
 		sticky: true,
 		render: ( _v, row ) =>
-			memoCell( cache, row.id, 'title', () => buildTitleCell( row ) ),
+			memoCell( cache, row.id, 'title', () => buildTitleCell( row, client ) ),
 	};
 	const authorCol: WpdTableColumn< PostListItem > = {
 		key: 'author',
@@ -540,7 +533,7 @@ function _buildBaseColumns(
 			label: __( 'Template' ),
 			width: '180px',
 			render: ( _v, row ) =>
-				memoCell( cache, row.id, 'template', () => buildTemplateCell( row ) ),
+				memoCell( cache, row.id, 'template', () => buildTemplateCell( row, client ) ),
 		};
 		const slugCol: WpdTableColumn< PostListItem > = {
 			key: 'slug',
@@ -582,7 +575,7 @@ function _buildBaseColumns(
 			width: '260px',
 			render: ( _v, row ) =>
 				memoCell( cache, row.id, 'categories', () =>
-					buildCategoriesCell( row ),
+					buildCategoriesCell( row, client ),
 				),
 		},
 		{
@@ -607,7 +600,7 @@ function _buildBaseColumns(
 					},
 				),
 			render: ( _v, row ) =>
-				memoCell( cache, row.id, 'tags', () => buildTagsCell( row ) ),
+				memoCell( cache, row.id, 'tags', () => buildTagsCell( row, client ) ),
 		},
 		dateCol,
 	];
@@ -678,13 +671,13 @@ function refreshParentTitleRoster( rows: PostListItem[] ): void {
  *
  * @since 0.18.0
  */
-function buildTemplateCell( row: PostListItem ): HTMLElement {
+function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.className = 'desktop-mode-posts__template';
 	const slug = typeof row.template === 'string' ? row.template : '';
 	let label = slug;
 	try {
-		const cfg = getConfig();
+		const cfg = client.getConfig();
 		const map = cfg.pageTemplates ?? {};
 		label = map[ slug ] ?? ( slug === '' ? __( 'Default template' ) : slug );
 	} catch {
@@ -948,6 +941,7 @@ function mountKebabColumnToggles(
 	body: HTMLElement,
 	cache: CellCache,
 	repaintColumns: () => void,
+	client: PostsWindowClient,
 ): { refresh: () => void; dispose: () => void } | null {
 	const winEl = body.closest( '.desktop-mode-window' ) as HTMLElement | null;
 	const panel = winEl?.querySelector(
@@ -967,7 +961,7 @@ function mountKebabColumnToggles(
 		.querySelectorAll( `.${ SECTION_CLASS }, .${ ITEM_CLASS }` )
 		.forEach( ( n ) => n.remove() );
 
-	const allCols = buildAllColumns( cache );
+	const allCols = buildAllColumns( cache, client );
 	const togglable = allCols.filter(
 		( c ) => ! REQUIRED_COLUMN_KEYS.has( c.key ),
 	);
@@ -1074,7 +1068,7 @@ function defaultStatusSegments(): StatusSegment[] {
  * "Move to trash"; remove it (return an empty array, or filter it
  * out by id) for read-only views.
  */
-function defaultBulkActions(): BulkAction[] {
+function defaultBulkActions( client: PostsWindowClient ): BulkAction[] {
 	return [
 		{
 			id: 'trash',
@@ -1095,7 +1089,7 @@ function defaultBulkActions(): BulkAction[] {
 					return;
 				}
 				const results = await Promise.all(
-					trashable.map( ( id ) => trashPost( id ) ),
+					trashable.map( ( id ) => client.trashPost( id ) ),
 				);
 				const errors = results.filter( ( r ) => ! r.ok );
 				if ( errors.length > 0 ) {
@@ -1121,9 +1115,9 @@ function defaultBulkActions(): BulkAction[] {
  * misbehaving filter (returning `null`, throwing) doesn't strand the
  * bulk bar.
  */
-function resolveBulkActions(): BulkAction[] {
+function resolveBulkActions( client: PostsWindowClient ): BulkAction[] {
 	const hooks = window.wp?.hooks;
-	const defaults = defaultBulkActions();
+	const defaults = defaultBulkActions( client );
 	if ( ! hooks || typeof hooks.applyFilters !== 'function' ) {
 		return defaults;
 	}
@@ -1182,7 +1176,7 @@ function resolveToolbarTrailing( ctx: PostsWindowContext ): HTMLElement[] {
 	}
 }
 
-function buildTitleCell( row: PostListItem ): HTMLElement {
+function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText =
 		'display:flex;flex-direction:column;gap:4px;min-width:0;';
@@ -1192,7 +1186,7 @@ function buildTitleCell( row: PostListItem ): HTMLElement {
 		'display:flex;align-items:center;gap:8px;min-width:0;';
 
 	const link = document.createElement( 'a' );
-	link.href = buildEditPostUrl( row.id );
+	link.href = client.buildEditPostUrl( row.id );
 	link.setAttribute( 'data-noclick', '' );
 	const title = decodeTitle( row.title.rendered ) || __( '(no title)' );
 	link.textContent = title;
@@ -1273,9 +1267,9 @@ function buildTitleCell( row: PostListItem ): HTMLElement {
 	// row matches the reading-page assignments. Answers the most-asked
 	// classic-list pain — "which page is set as the homepage?" —
 	// without making the user crack open Settings → Reading.
-	let cfgForBadges: ReturnType< typeof getConfig > | null = null;
+	let cfgForBadges: PostsWindowConfig | null = null;
 	try {
-		cfgForBadges = getConfig();
+		cfgForBadges = client.getConfig();
 	} catch {
 		cfgForBadges = null;
 	}
@@ -1456,7 +1450,7 @@ function buildAuthorCell( row: PostListItem ): HTMLElement {
  *     same `<wpd-tag-input>` instance across selection-only
  *     repaints, so its open state and pending chips don't reset.
  */
-function buildTagsCell( row: PostListItem ): HTMLElement {
+function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.style.cssText =
 		'display:inline-flex;align-items:center;width:100%;min-width:0;';
@@ -1513,7 +1507,7 @@ function buildTagsCell( row: PostListItem ): HTMLElement {
 			const ac = new AbortController();
 			cellState.suggestAbort = ac;
 			try {
-				const matches = await searchTags( query, ac.signal );
+				const matches = await client.searchTags( query, ac.signal );
 				if ( cellState.lastQuery !== query ) {
 					return;
 				}
@@ -1557,7 +1551,7 @@ function buildTagsCell( row: PostListItem ): HTMLElement {
 		try {
 			let resolvedTag: TagTerm | null = null;
 			if ( detail.isNew || typeof detail.tag.id !== 'number' ) {
-				resolvedTag = await createTag( detail.tag.label );
+				resolvedTag = await client.createTag( detail.tag.label );
 			} else {
 				resolvedTag = {
 					id: Number( detail.tag.id ),
@@ -1572,7 +1566,7 @@ function buildTagsCell( row: PostListItem ): HTMLElement {
 					.map( ( t ) => Number( t.id ) ),
 				resolvedTag.id,
 			];
-			await updatePostTags( row.id, desiredIds );
+			await client.updatePostTags( row.id, desiredIds );
 
 			// Reconcile: replace the pending placeholder with the
 			// canonical term, drop the pulse.
@@ -1639,7 +1633,7 @@ function buildTagsCell( row: PostListItem ): HTMLElement {
 				.filter( ( t ) => t.label !== removed.label )
 				.map( ( t ) => Number( t.id ) )
 				.filter( ( n ) => Number.isFinite( n ) );
-			await updatePostTags( row.id, desiredIds );
+			await client.updatePostTags( row.id, desiredIds );
 			setValue(
 				previous.filter( ( t ) => t.label !== removed.label ),
 			);
@@ -1703,7 +1697,7 @@ function showTagError( title: string, err: unknown ): void {
  *   - Errors roll the chip set back to its prior state and surface
  *     a toast via the shell.
  */
-function buildCategoriesCell( row: PostListItem ): HTMLElement {
+function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.className = 'wpd-cat-cell-dropzone';
 	wrap.style.cssText =
@@ -1749,7 +1743,7 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 	// real ancestors. The shared `getCategoriesTree()` promise
 	// dedupes across every row's cell, so 50 rows = ONE round-trip
 	// per window-open.
-	void getCategoriesTree()
+	void getCategoriesTree( client )
 		.then( ( tree ) => {
 			if ( ! picker.isConnected ) {
 				return; // window closed / row scrolled away
@@ -1781,7 +1775,7 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 				return;
 			}
 			try {
-				const created = await createCategory( detail.name, parent );
+				const created = await client.createCategory( detail.name, parent );
 				// Drop the cache so any future picker open re-fetches
 				// the tree (won't include the new term until that
 				// happens, but each picker that's already loaded
@@ -1808,7 +1802,7 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 				picker.endCreating( parent );
 				// Persist the post's new category set.
 				try {
-					await updatePostCategories( row.id, nextValue );
+					await client.updatePostCategories( row.id, nextValue );
 					const api = window.wp?.desktop;
 					if ( api && typeof api.broadcast === 'function' ) {
 						api.broadcast( 'desktop-mode.post.changed', {
@@ -1841,7 +1835,7 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 		setValue( next );
 
 		try {
-			await updatePostCategories( row.id, next );
+			await client.updatePostCategories( row.id, next );
 
 			const api = window.wp?.desktop;
 			if ( api && typeof api.broadcast === 'function' ) {
@@ -1891,7 +1885,7 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 			return;
 		}
 		try {
-			await deleteTerm( 'categories', detail.id );
+			await client.deleteTerm( 'categories', detail.id );
 			// `deleteTerm` already broadcasts desktop-mode.term.changed,
 			// which clears the cache and pushes the fresh tree to
 			// every live picker. We just need to drop the deleted
@@ -1902,7 +1896,7 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 				);
 				setValue( next );
 				try {
-					await updatePostCategories( row.id, next );
+					await client.updatePostCategories( row.id, next );
 				} catch ( err ) {
 					// The term IS gone server-side; failing to write
 					// back the post's now-shorter list is recoverable
@@ -2056,7 +2050,7 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
 		const previous = cellState.categoryIds.slice();
 		setValue( merged );
 		try {
-			await updatePostCategories( row.id, merged );
+			await client.updatePostCategories( row.id, merged );
 			const api = window.wp?.desktop;
 			if ( api && typeof api.broadcast === 'function' ) {
 				api.broadcast( 'desktop-mode.post.changed', {
@@ -2084,9 +2078,9 @@ function buildCategoriesCell( row: PostListItem ): HTMLElement {
  */
 let _categoryTreePromise: Promise< WpdCategoryItem[] > | null = null;
 
-function getCategoriesTree(): Promise< WpdCategoryItem[] > {
+function getCategoriesTree( client: PostsWindowClient ): Promise< WpdCategoryItem[] > {
 	if ( ! _categoryTreePromise ) {
-		_categoryTreePromise = fetchAllCategories().then(
+		_categoryTreePromise = client.fetchAllCategories().then(
 			( terms: CategoryTerm[] ) =>
 				terms.map( ( t ) => ( {
 					id: t.id,
@@ -2127,8 +2121,8 @@ const _activePickers = new Set< WpdCategoryPicker >();
  * `picker.items` doesn't know about, so freshly-created
  * categories silently couldn't be dragged.
  */
-function broadcastFreshCategoryTreeToPickers(): void {
-	void getCategoriesTree()
+function broadcastFreshCategoryTreeToPickers( client: PostsWindowClient ): void {
+	void getCategoriesTree( client )
 		.then( ( tree ) => {
 			for ( const picker of _activePickers ) {
 				if ( picker.isConnected ) {
@@ -2237,14 +2231,17 @@ function buildSubRow( row: PostListItem ): Node {
  * `Window.desktopModeNativeWindows` global type cleanly across both
  * modules.
  */
-export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
+export async function renderPostsWindow(
+	body: HTMLElement,
+	client: PostsWindowClient,
+): Promise< void > {
 	const root = body.querySelector< HTMLElement >( ROOT );
 	const table = body.querySelector< WpdTable< PostListItem > >( TABLE );
 	if ( ! root || ! table ) {
 		return;
 	}
 
-	maybeShowIntro();
+	maybeShowIntro( client );
 
 	// Term-management tabs (Categories + Tags) — lazy-mounted on first
 	// activation so cold-load of the Posts window never pays for them
@@ -2267,7 +2264,7 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 			if ( value === 'categories' && catsHost && ! catsTeardown ) {
 				void import( './categories-mindmap' ).then(
 					async ( { mountCategoriesMindmap } ) => {
-						catsTeardown = await mountCategoriesMindmap( catsHost );
+						catsTeardown = await mountCategoriesMindmap( catsHost, client );
 					},
 				);
 			}
@@ -2279,14 +2276,14 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 				// table fallback. Loads its own term list internally.
 				void import( './tags-cloud' ).then(
 					async ( { mountTagsCloud } ) => {
-						tagsTeardown = await mountTagsCloud( tagsHost );
+						tagsTeardown = await mountTagsCloud( tagsHost, client );
 					},
 				);
 			}
 		} );
 	}
 
-	const cfg = getConfig();
+	const cfg = client.getConfig();
 	const view: ViewState = {
 		page: 1,
 		perPage: Math.max( 1, cfg.defaultPerPage || 20 ),
@@ -2313,7 +2310,7 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 	// tree priming pattern below.
 	const filterData: ColumnFilterData = { authors: [], tags: [] };
 
-	table.columns = buildColumns( cellCache, filterData );
+	table.columns = buildColumns( cellCache, client, filterData );
 	table.getRowId = ( row ) => row.id;
 	table.subTable = ( row ) => buildSubRow( row );
 	table.sort = { key: 'date', direction: 'desc' };
@@ -2429,7 +2426,7 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		const mySeq = ++refreshSeq;
 		table.toggleAttribute( 'loading', true );
 		try {
-			const result = await fetchPosts( buildParams() );
+			const result = await client.fetchPosts( buildParams() );
 			if ( mySeq !== refreshSeq ) {
 				return;
 			}
@@ -2567,7 +2564,7 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 
 	// --- Bulk actions registry ---------------------------------------
 
-	const bulkActions = resolveBulkActions();
+	const bulkActions = resolveBulkActions( client );
 	if ( bulkActionsHost ) {
 		bulkActionsHost.replaceChildren();
 		for ( const action of bulkActions ) {
@@ -2718,7 +2715,7 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 			const detail = payload as { taxonomy?: string } | null;
 			if ( detail?.taxonomy === 'category' ) {
 				clearCategoryTreeCache();
-				broadcastFreshCategoryTreeToPickers();
+				broadcastFreshCategoryTreeToPickers( client );
 			}
 		};
 		broadcastUnsubs.push(
@@ -2738,12 +2735,12 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		// reassign `table.columns` (the table component's own setter
 		// triggers a re-render).
 		cellCache.clear();
-		table.columns = buildColumns( cellCache, filterData );
+		table.columns = buildColumns( cellCache, client, filterData );
 	};
 
 	// Authors load once — sites with >100 active authors are rare
 	// enough that a single REST call covers the dropdown.
-	void fetchAuthorOptions().then( ( authors ) => {
+	void client.fetchAuthorOptions().then( ( authors ) => {
 		filterData.authors = authors;
 		repaintColumns();
 	} );
@@ -2764,7 +2761,7 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		tagFetching = true;
 		try {
 			const next = tagPage + 1;
-			const res = await fetchTagOptions( next, TAG_PAGE_SIZE );
+			const res = await client.fetchTagOptions( next, TAG_PAGE_SIZE );
 			tagPage = next;
 			tagTotalPages = Math.max( tagTotalPages, res.totalPages || next );
 			const seen = new Set( filterData.tags.map( ( t ) => t.id ) );
@@ -2790,6 +2787,7 @@ export async function renderPostsWindow( body: HTMLElement ): Promise< void > {
 		body,
 		cellCache,
 		repaintColumns,
+		client,
 	);
 
 	// Repaint when any OS Settings change lands — covers the user
@@ -2984,23 +2982,23 @@ const registry = ( window.desktopModeNativeWindows ??
 // `(body) => void`, but TypeScript allows void-typed callbacks to
 // return any value; the runtime contract is what matters here.
 registry[ 'desktop-mode-posts' ] = ( body: HTMLElement ) => {
-	setActiveWindowId( 'desktop-mode-posts' );
+	const client = createPostsWindowClient( 'desktop-mode-posts' );
 	// Cast through `unknown` so the Record's `void`-returning member
 	// type still accepts the Promise without forcing every consumer
 	// (recycle-bin et al.) to widen their declaration.
-	return renderPostsWindow( body ).catch( ( err ) => {
+	return renderPostsWindow( body, client ).catch( ( err ) => {
 		// eslint-disable-next-line no-console
 		console.error( '[posts-window] render failed:', err );
 	} ) as unknown as void;
 };
 
-// Pages window — same render path with the active window id swapped
-// so `getConfig()` reads the Pages config blob. Mode-driven branches
-// inside `renderPostsWindow` (column set, intro slug, taxonomy-tab
-// binding) gate the post-type-specific behavior.
+// Pages window — same render path with a Pages-scoped client so
+// `client.getConfig()` reads the Pages config blob. Mode-driven
+// branches inside `renderPostsWindow` (column set, intro slug,
+// taxonomy-tab binding) gate the post-type-specific behavior.
 registry[ 'desktop-mode-pages' ] = ( body: HTMLElement ) => {
-	setActiveWindowId( 'desktop-mode-pages' );
-	return renderPostsWindow( body ).catch( ( err ) => {
+	const client = createPostsWindowClient( 'desktop-mode-pages' );
+	return renderPostsWindow( body, client ).catch( ( err ) => {
 		// eslint-disable-next-line no-console
 		console.error( '[pages-window] render failed:', err );
 	} ) as unknown as void;
@@ -3011,9 +3009,9 @@ registry[ 'desktop-mode-pages' ] = ( body: HTMLElement ) => {
 // (`./users-render`) rather than wedging a third branch into
 // `renderPostsWindow` — keeps the post-row code path untouched.
 registry[ 'desktop-mode-users' ] = ( body: HTMLElement ) => {
-	setActiveWindowId( 'desktop-mode-users' );
+	const client = createUsersWindowClient( 'desktop-mode-users' );
 	return import( './users-render' )
-		.then( ( m ) => m.renderUsersWindow( body ) )
+		.then( ( m ) => m.renderUsersWindow( body, client ) )
 		.catch( ( err ) => {
 			// eslint-disable-next-line no-console
 			console.error( '[users-window] render failed:', err );
@@ -3029,7 +3027,6 @@ registry[ 'desktop-mode-users' ] = ( body: HTMLElement ) => {
 // component. Subsequent target changes flip the same attribute,
 // triggering an in-place re-mount.
 registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
-	setActiveWindowId( 'desktop-mode-user-edit' );
 	const profile = body.querySelector(
 		'wpd-user-profile[data-wpd-user-profile-host]',
 	) as HTMLElement | null;
@@ -3058,29 +3055,6 @@ registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
 		}
 		target.clearUserEditTarget();
 
-		// Already-open window + new target → swap user-id; the
-		// component handles the in-place re-mount. Re-pin the
-		// active window id back to `desktop-mode-user-edit` before
-		// the re-mount runs, because focusing another window in the
-		// meantime (Posts, Pages, …) may have moved it. Without this
-		// pin, the form's `getConfig()` reads a sibling window's
-		// config blob that lacks `allRoles` / `assignableRoles` and
-		// the role select renders with zero options.
-		//
-		// `profile.isConnected` guard — when the user-edit window is
-		// closed and reopened, the previous open's subscription is
-		// still alive in memory (the shared-store subscriber list
-		// holds the closure). Without the guard, that stale
-		// subscription would fire on the NEXT `setUserEditTarget`
-		// (clicking another row), uselessly `setAttribute` on the
-		// detached profile element AND — fatally — call
-		// `clearUserEditTarget`. The clear ran SYNCHRONOUSLY before
-		// the fresh window's render callback got its async read,
-		// so the read saw `null`, fell back to `cfg.currentUserId`,
-		// and the form mounted for the viewer instead of the
-		// clicked user. Skipping when the profile is no longer in
-		// the document leaves the target intact for the fresh
-		// render to pick up.
 		target.subscribeUserEditTarget( ( next ) => {
 			if ( ! profile.isConnected ) {
 				return;
@@ -3091,7 +3065,6 @@ registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
 				next.userId !== userId
 			) {
 				userId = next.userId;
-				setActiveWindowId( 'desktop-mode-user-edit' );
 				profile.setAttribute( 'user-id', String( userId ) );
 				target.clearUserEditTarget();
 			}

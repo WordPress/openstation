@@ -24,14 +24,44 @@
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
-import { getActiveWindowId, getConfig, type PostsWindowConfig } from './rest';
+import { type PostsWindowConfig } from './rest';
 import {
-	fetchInsights,
-	fetchUser,
-	saveUser,
+	createUserEditClient,
+	type UserEditClient,
 	type UserEditRecord,
 	type UserInsightsPayload,
 } from './user-edit-rest';
+
+/**
+ * Resolve a {@link UserEditClient} from whichever window happens to
+ * host the user-edit surface right now.
+ *
+ * `<wpd-user-profile>` mounts in two contexts: the dedicated
+ * `desktop-mode-user-edit` window AND the Users window's Profile
+ * sub-tab (viewer's own profile). Both windows ship a compatible
+ * config blob (`restRoot` / `restNonce` / `usersUrl` /
+ * `insightsUrlBase`), so a fallback chain works without each
+ * caller knowing which window it's running in.
+ *
+ * Prefer the user-edit window's own blob when present so the
+ * spinner attribution lights up the right title bar.
+ */
+function resolveUserEditClient(): UserEditClient {
+	const store = (
+		window as unknown as {
+			desktopModeWindowConfig?: Record< string, unknown >;
+		}
+	).desktopModeWindowConfig;
+	if ( store?.[ 'desktop-mode-user-edit' ] ) {
+		return createUserEditClient( 'desktop-mode-user-edit' );
+	}
+	if ( store?.[ 'desktop-mode-users' ] ) {
+		return createUserEditClient( 'desktop-mode-users' );
+	}
+	// Last-resort — let the client itself throw with the canonical
+	// error message so the call site doesn't have to invent one.
+	return createUserEditClient( 'desktop-mode-user-edit' );
+}
 // `./user-edit-target` is read by the Users-window render shell
 // (`users-render.ts:wireProfileSubTab`); this module exposes
 // mount points only.
@@ -166,7 +196,7 @@ async function loadAndMountProfile(
 
 	let user: UserEditRecord;
 	try {
-		user = await fetchUser( userId );
+		user = await resolveUserEditClient().fetchUser( userId );
 	} catch ( err ) {
 		host.replaceChildren();
 		const msg = document.createElement( 'p' );
@@ -189,22 +219,16 @@ async function loadAndMountProfile(
 /**
  * Merged config bag for the user-edit form.
  *
- * `getConfig()` keys on the globally-active window id, which can
- * have drifted to a sibling window (Posts, Pages, …) by the time
- * the form re-mounts. Sibling configs carry restRoot / restNonce
- * but lack profile-specific keys: `allRoles`, `assignableRoles`,
- * `colorSchemes`, `locales`, `contactMethods`, `canPromote`. Without
- * the fallback, the form renders with empty role + colour-scheme
- * pickers, no locale options, etc.
- *
- * We layer the user-edit window's own blob underneath the live
- * `getConfig()` so every key has a backstop, and prefer
- * `desktop-mode-users` when user-edit isn't in the store (which
- * shouldn't happen in practice but keeps the Users window's
- * Profile sub-tab self-sufficient).
+ * `<wpd-user-profile>` mounts in either the user-edit window or
+ * the Users window's Profile sub-tab. Sibling-window configs
+ * (Posts, Pages, …) carry `restRoot` / `restNonce` but lack
+ * profile-specific keys (`allRoles`, `assignableRoles`,
+ * `colorSchemes`, `locales`, `contactMethods`, `canPromote`).
+ * Merge user-edit on top of users on top of the resolved client
+ * config so every key has a backstop without depending on which
+ * window the component happens to live in.
  */
 function resolveProfileConfig(): Record< string, unknown > {
-	const current = getConfig() as unknown as Record< string, unknown >;
 	const store = ( window as unknown as {
 		desktopModeWindowConfig?: Record<
 			string,
@@ -216,7 +240,6 @@ function resolveProfileConfig(): Record< string, unknown > {
 	return {
 		...( users ?? {} ),
 		...( userEdit ?? {} ),
-		...current,
 	};
 }
 
@@ -633,7 +656,7 @@ function mountProfileForm(
 			patch.meta = meta;
 		}
 
-		const result = await saveUser( userId, patch );
+		const result = await resolveUserEditClient().saveUser( userId, patch );
 
 		pending = false;
 		form.setBusy( false );
@@ -657,6 +680,27 @@ function mountProfileForm(
 		}
 
 		notifyToast( __( 'Profile saved.' ), 'success' );
+
+		// Broadcast so the Users window (and any other live listener)
+		// can refresh its row for this user without an F5. Mirrors the
+		// `desktop-mode.post.changed` pattern used by Posts.
+		const broadcastApi = (
+			window as unknown as {
+				wp?: {
+					desktop?: {
+						broadcast?: (
+							channel: string,
+							payload: unknown,
+						) => void;
+					};
+				};
+			}
+		).wp?.desktop;
+		broadcastApi?.broadcast?.( 'desktop-mode.user.changed', {
+			source: 'user-edit-window',
+			action: 'updated',
+			ids: [ userId ],
+		} );
 		// Clear password fields after a successful change so a Save
 		// after another edit doesn't accidentally re-submit them.
 		pwd.value = '';
@@ -762,7 +806,7 @@ async function loadInsightsInto(
 	skeleton.textContent = __( 'Loading insights…' );
 	host.appendChild( skeleton );
 	try {
-		return await fetchInsights( userId, { fresh } );
+		return await resolveUserEditClient().fetchInsights( userId, { fresh } );
 	} catch ( err ) {
 		host.replaceChildren();
 		const msg = document.createElement( 'p' );
@@ -1482,11 +1526,6 @@ function mapErrorCode( code: string | undefined ): string | null {
 			return null;
 	}
 }
-// `getActiveWindowId` is read inside `shellFetch` upstream; importing
-// it keeps the bundle's tree-shaken graph stable when the user-edit
-// module loads in isolation.
-void getActiveWindowId;
-
 // ─── Admin colour scheme picker ─────────────────────────────────────
 
 interface ColorSchemeInfo {
@@ -1749,7 +1788,7 @@ function buildSessionsRow( userId: number, isSelfEdit: boolean ): HTMLElement {
 	btn.addEventListener( 'click', async ( e ) => {
 		e.preventDefault();
 		try {
-			const cfg = getConfig();
+			const cfg = resolveUserEditClient().getConfig();
 			const base =
 				( cfg as unknown as { insightsUrlBase?: string } )
 					.insightsUrlBase ??
@@ -1816,7 +1855,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 	heading.appendChild( headLabel );
 	wrap.appendChild( heading );
 
-	const cfg = getConfig();
+	const cfg = resolveUserEditClient().getConfig();
 	const base =
 		( cfg as unknown as { insightsUrlBase?: string } ).insightsUrlBase ??
 		`${ cfg.restRoot }desktop-mode/v1/users/`;

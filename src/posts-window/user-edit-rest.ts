@@ -10,7 +10,7 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
-import { getActiveWindowId, getConfig } from './rest';
+import type { PostsWindowConfig } from './rest';
 
 export interface UserEditRecord {
 	id: number;
@@ -84,46 +84,6 @@ export interface UserInsightsPayload {
 	};
 }
 
-function shellFetch(
-	input: RequestInfo,
-	init?: RequestInit,
-	source?: string,
-): Promise< Response > {
-	return trackedFetch( input, init, {
-		windowId: getActiveWindowId(),
-		source: source ?? 'user-edit-window/rest',
-	} );
-}
-
-/**
- * Load the editable user record. `?context=edit` widens the
- * response to include private fields (email, capabilities, locale,
- * meta) that view-context strips.
- */
-export async function fetchUser( id: number ): Promise< UserEditRecord > {
-	const cfg = getConfig();
-	const base =
-		( cfg as unknown as { usersUrl?: string } ).usersUrl ??
-		`${ cfg.restRoot }wp/v2/users`;
-	const url = `${ base }/${ id }?context=edit`;
-	const res = await shellFetch(
-		url,
-		{
-			method: 'GET',
-			credentials: 'same-origin',
-			headers: {
-				Accept: 'application/json',
-				'X-WP-Nonce': cfg.restNonce,
-			},
-		},
-		'user-edit-window/load',
-	);
-	if ( ! res.ok ) {
-		throw new Error( `[user-edit] load failed: ${ res.status }` );
-	}
-	return ( await res.json() ) as UserEditRecord;
-}
-
 export interface UserEditPatch {
 	first_name?: string;
 	last_name?: string;
@@ -148,87 +108,166 @@ export interface UserEditSaveResult {
 }
 
 /**
- * Save edits via `PUT /wp/v2/users/<id>`. Maps common server
- * error codes (`invalid_username`, `existing_user_email`, …) into
- * a `fieldErrors` map keyed by form field name so the form can
- * highlight the offending input.
+ * Per-window User-edit REST client. Returned by
+ * {@link createUserEditClient}.
+ *
+ * @since 0.18.x
  */
-export async function saveUser(
-	id: number,
-	patch: UserEditPatch,
-): Promise< UserEditSaveResult > {
-	const cfg = getConfig();
-	const base =
-		( cfg as unknown as { usersUrl?: string } ).usersUrl ??
-		`${ cfg.restRoot }wp/v2/users`;
-	const res = await shellFetch(
-		`${ base }/${ id }?context=edit`,
-		{
-			method: 'POST', // PUT == POST for WP REST when X-HTTP-Method-Override is unsupported.
-			credentials: 'same-origin',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce': cfg.restNonce,
-				'X-HTTP-Method-Override': 'PUT',
-			},
-			body: JSON.stringify( patch ),
-		},
-		'user-edit-window/save',
-	);
-	if ( ! res.ok ) {
-		const data = ( await res.json().catch( () => ( {} ) ) ) as {
-			code?: string;
-			message?: string;
-			data?: { params?: Record< string, string > };
-		};
-		const fieldErrors: Record< string, string > = {};
-		const params = data.data?.params;
-		if ( params && typeof params === 'object' ) {
-			for ( const [ k, v ] of Object.entries( params ) ) {
-				fieldErrors[ k ] = String( v );
-			}
-		}
-		return {
-			ok: false,
-			error: data.code ?? `http_${ res.status }`,
-			message: data.message,
-			fieldErrors,
-		};
-	}
-	const user = ( await res.json() ) as UserEditRecord;
-	return { ok: true, user };
+export interface UserEditClient {
+	readonly windowId: string;
+	getConfig(): PostsWindowConfig;
+	fetchUser( id: number ): Promise< UserEditRecord >;
+	saveUser(
+		id: number,
+		patch: UserEditPatch,
+	): Promise< UserEditSaveResult >;
+	fetchInsights(
+		id: number,
+		opts?: { fresh?: boolean },
+	): Promise< UserInsightsPayload >;
 }
 
 /**
- * Fetch the insights payload (stats + activity + sessions). When
- * `fresh` is true, bypasses the per-minute server-side cache.
+ * Build a User-edit REST client bound to a single window id.
+ *
+ * @since 0.18.x
  */
-export async function fetchInsights(
-	id: number,
-	opts: { fresh?: boolean } = {},
-): Promise< UserInsightsPayload > {
-	const cfg = getConfig();
-	const base =
-		( cfg as unknown as { insightsUrlBase?: string } ).insightsUrlBase ??
-		`${ cfg.restRoot }desktop-mode/v1/users/`;
-	const url = new URL( `${ base }${ id }/insights` );
-	if ( opts.fresh ) {
-		url.searchParams.set( 'fresh', '1' );
-	}
-	const res = await shellFetch(
-		url.toString(),
-		{
-			method: 'GET',
-			credentials: 'same-origin',
-			headers: {
-				Accept: 'application/json',
-				'X-WP-Nonce': cfg.restNonce,
+export function createUserEditClient(
+	windowId: string = 'desktop-mode-user-edit',
+): UserEditClient {
+	const getConfig = (): PostsWindowConfig => {
+		const store = (
+			window as unknown as {
+				desktopModeWindowConfig?: Record< string, PostsWindowConfig >;
+			}
+		).desktopModeWindowConfig;
+		const cfg = store?.[ windowId ];
+		if ( ! cfg ) {
+			throw new Error(
+				`[${ windowId }] config blob is missing — was the window opened ` +
+					'without registration? See ' +
+					'`includes/user-edit-window/window.php`.',
+			);
+		}
+		return cfg;
+	};
+
+	const shellFetch = (
+		input: RequestInfo,
+		init?: RequestInit,
+		source?: string,
+	): Promise< Response > => {
+		return trackedFetch( input, init, {
+			windowId,
+			source: source ?? 'user-edit-window/rest',
+		} );
+	};
+
+	const fetchUser = async ( id: number ): Promise< UserEditRecord > => {
+		const cfg = getConfig();
+		const base =
+			( cfg as unknown as { usersUrl?: string } ).usersUrl ??
+			`${ cfg.restRoot }wp/v2/users`;
+		const url = `${ base }/${ id }?context=edit`;
+		const res = await shellFetch(
+			url,
+			{
+				method: 'GET',
+				credentials: 'same-origin',
+				headers: {
+					Accept: 'application/json',
+					'X-WP-Nonce': cfg.restNonce,
+				},
 			},
-		},
-		'user-edit-window/insights',
-	);
-	if ( ! res.ok ) {
-		throw new Error( `[user-edit] insights failed: ${ res.status }` );
-	}
-	return ( await res.json() ) as UserInsightsPayload;
+			'user-edit-window/load',
+		);
+		if ( ! res.ok ) {
+			throw new Error( `[user-edit] load failed: ${ res.status }` );
+		}
+		return ( await res.json() ) as UserEditRecord;
+	};
+
+	const saveUser = async (
+		id: number,
+		patch: UserEditPatch,
+	): Promise< UserEditSaveResult > => {
+		const cfg = getConfig();
+		const base =
+			( cfg as unknown as { usersUrl?: string } ).usersUrl ??
+			`${ cfg.restRoot }wp/v2/users`;
+		const res = await shellFetch(
+			`${ base }/${ id }?context=edit`,
+			{
+				method: 'POST', // PUT == POST for WP REST when X-HTTP-Method-Override is unsupported.
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': cfg.restNonce,
+					'X-HTTP-Method-Override': 'PUT',
+				},
+				body: JSON.stringify( patch ),
+			},
+			'user-edit-window/save',
+		);
+		if ( ! res.ok ) {
+			const data = ( await res.json().catch( () => ( {} ) ) ) as {
+				code?: string;
+				message?: string;
+				data?: { params?: Record< string, string > };
+			};
+			const fieldErrors: Record< string, string > = {};
+			const params = data.data?.params;
+			if ( params && typeof params === 'object' ) {
+				for ( const [ k, v ] of Object.entries( params ) ) {
+					fieldErrors[ k ] = String( v );
+				}
+			}
+			return {
+				ok: false,
+				error: data.code ?? `http_${ res.status }`,
+				message: data.message,
+				fieldErrors,
+			};
+		}
+		const user = ( await res.json() ) as UserEditRecord;
+		return { ok: true, user };
+	};
+
+	const fetchInsights = async (
+		id: number,
+		opts: { fresh?: boolean } = {},
+	): Promise< UserInsightsPayload > => {
+		const cfg = getConfig();
+		const base =
+			( cfg as unknown as { insightsUrlBase?: string } )
+				.insightsUrlBase ?? `${ cfg.restRoot }desktop-mode/v1/users/`;
+		const url = new URL( `${ base }${ id }/insights` );
+		if ( opts.fresh ) {
+			url.searchParams.set( 'fresh', '1' );
+		}
+		const res = await shellFetch(
+			url.toString(),
+			{
+				method: 'GET',
+				credentials: 'same-origin',
+				headers: {
+					Accept: 'application/json',
+					'X-WP-Nonce': cfg.restNonce,
+				},
+			},
+			'user-edit-window/insights',
+		);
+		if ( ! res.ok ) {
+			throw new Error( `[user-edit] insights failed: ${ res.status }` );
+		}
+		return ( await res.json() ) as UserInsightsPayload;
+	};
+
+	return {
+		windowId,
+		getConfig,
+		fetchUser,
+		saveUser,
+		fetchInsights,
+	};
 }

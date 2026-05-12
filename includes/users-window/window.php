@@ -375,9 +375,14 @@ function desktop_mode_users_window_default_query_args() {
 			. 'desktop_mode_user_stats,desktop_mode_last_login,desktop_mode_presence,'
 			. 'desktop_mode_can_edit,desktop_mode_assignable_roles',
 		// `who=authors` would hide subscribers — we want the full
-		// list. Default core context is `view`, which is what we
-		// rely on for cap-gated fields.
-		'context'  => 'view',
+		// list. `context=edit` is required because `email`, `roles`,
+		// and `registered_date` are edit-context-only on
+		// `/wp/v2/users`; in `view` they're omitted from the response
+		// entirely (independent of `_fields`), which paints the
+		// table as "No role" / empty email / empty registered date.
+		// The window is already gated on `list_users`, the cap
+		// `context=edit` requires, so this is safe.
+		'context'  => 'edit',
 		'per_page' => 20,
 	);
 
@@ -487,7 +492,7 @@ function desktop_mode_users_window_register_rest_fields() {
 			'schema'       => array(
 				'description' => __( 'Per-user content stats: published post / page / comment counts.', 'desktop-mode' ),
 				'type'        => 'object',
-				'context'     => array( 'view' ),
+				'context'     => array( 'view', 'edit', 'embed' ),
 				'readonly'    => true,
 			),
 		)
@@ -508,7 +513,7 @@ function desktop_mode_users_window_register_rest_fields() {
 			'schema'       => array(
 				'description' => __( 'UTC unix timestamp of this user’s last successful login, or null when never recorded.', 'desktop-mode' ),
 				'type'        => array( 'integer', 'null' ),
-				'context'     => array( 'view' ),
+				'context'     => array( 'view', 'edit', 'embed' ),
 				'readonly'    => true,
 			),
 		)
@@ -529,7 +534,7 @@ function desktop_mode_users_window_register_rest_fields() {
 				'description' => __( 'Live presence status: online / inactive / offline.', 'desktop-mode' ),
 				'type'        => 'string',
 				'enum'        => array( 'online', 'inactive', 'offline' ),
-				'context'     => array( 'view' ),
+				'context'     => array( 'view', 'edit', 'embed' ),
 				'readonly'    => true,
 			),
 		)
@@ -550,7 +555,7 @@ function desktop_mode_users_window_register_rest_fields() {
 			'schema'       => array(
 				'description' => __( 'Whether the requester can edit this user.', 'desktop-mode' ),
 				'type'        => 'boolean',
-				'context'     => array( 'view' ),
+				'context'     => array( 'view', 'edit', 'embed' ),
 				'readonly'    => true,
 			),
 		)
@@ -572,7 +577,7 @@ function desktop_mode_users_window_register_rest_fields() {
 				'description' => __( 'Role slugs the requester can assign to this user.', 'desktop-mode' ),
 				'type'        => 'array',
 				'items'       => array( 'type' => 'string' ),
-				'context'     => array( 'view' ),
+				'context'     => array( 'view', 'edit', 'embed' ),
 				'readonly'    => true,
 			),
 		)

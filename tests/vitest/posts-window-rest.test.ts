@@ -13,12 +13,10 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
-	buildEditPostUrl,
-	fetchPosts,
-	getConfig,
-	trashPost,
+	createPostsWindowClient,
+	type PostsWindowClient,
+	type PostsWindowConfig,
 } from '../../src/posts-window/rest';
-import type { PostsWindowConfig } from '../../src/posts-window/rest';
 
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
@@ -59,8 +57,11 @@ function jsonResponse(
 	} );
 }
 
+let client: PostsWindowClient;
+
 beforeEach( () => {
 	installConfig();
+	client = createPostsWindowClient( 'desktop-mode-posts' );
 } );
 
 afterEach( () => {
@@ -71,11 +72,11 @@ afterEach( () => {
 describe( 'getConfig', () => {
 	test( 'throws a useful error when the config blob is missing', () => {
 		delete window.desktopModeWindowConfig;
-		expect( () => getConfig() ).toThrow( /config blob is missing/ );
+		expect( () => client.getConfig() ).toThrow( /config blob is missing/ );
 	} );
 
 	test( 'returns the config blob for the posts window id', () => {
-		const cfg = getConfig();
+		const cfg = client.getConfig();
 		expect( cfg.postsUrl ).toBe( POSTS_URL );
 		expect( cfg.queryArgs._embed ).toContain( 'author' );
 	} );
@@ -90,7 +91,7 @@ describe( 'fetchPosts', () => {
 			} ) as never,
 		);
 
-		await fetchPosts( {
+		await client.fetchPosts( {
 			page: 2,
 			perPage: 50,
 			search: 'hello',
@@ -127,7 +128,7 @@ describe( 'fetchPosts', () => {
 				'X-WP-TotalPages': '0',
 			} ) as never,
 		);
-		await fetchPosts();
+		await client.fetchPosts();
 		const init = ( fetchMock.mock.calls[ 0 ] as unknown as [ string, RequestInit ] )[ 1 ];
 		const headers = init.headers as Record< string, string >;
 		expect( headers[ 'X-WP-Nonce' ] ).toBe( 'nonce-1' );
@@ -142,7 +143,7 @@ describe( 'fetchPosts', () => {
 			} ) as never,
 		);
 
-		const result = await fetchPosts();
+		const result = await client.fetchPosts();
 		expect( result.items ).toHaveLength( 1 );
 		expect( result.total ).toBe( 237 );
 		expect( result.totalPages ).toBe( 12 );
@@ -152,7 +153,7 @@ describe( 'fetchPosts', () => {
 		vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
 			jsonResponse( [] ) as never,
 		);
-		const result = await fetchPosts();
+		const result = await client.fetchPosts();
 		expect( result.total ).toBe( 0 );
 		expect( result.totalPages ).toBe( 0 );
 	} );
@@ -171,7 +172,7 @@ describe( 'fetchPosts', () => {
 				},
 			) as never,
 		);
-		await expect( fetchPosts() ).rejects.toThrow( /Invalid post status/ );
+		await expect( client.fetchPosts() ).rejects.toThrow( /Invalid post status/ );
 	} );
 
 	test( 'falls back to status line on non-JSON error body', async () => {
@@ -181,14 +182,14 @@ describe( 'fetchPosts', () => {
 				statusText: 'Internal Server Error',
 			} ) as never,
 		);
-		await expect( fetchPosts() ).rejects.toThrow( /500/ );
+		await expect( client.fetchPosts() ).rejects.toThrow( /500/ );
 	} );
 
 	test( 'omits caller params that are falsy (other than status)', async () => {
 		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
 			jsonResponse( [] ) as never,
 		);
-		await fetchPosts( { search: '', status: '' } );
+		await client.fetchPosts( { search: '', status: '' } );
 		const calledUrl = String(
 			( fetchMock.mock.calls[ 0 ] as unknown as [ string ] )[ 0 ],
 		);
@@ -202,7 +203,7 @@ describe( 'fetchPosts', () => {
 		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
 			jsonResponse( [] ) as never,
 		);
-		await fetchPosts();
+		await client.fetchPosts();
 		const calledUrl = String(
 			( fetchMock.mock.calls[ 0 ] as unknown as [ string ] )[ 0 ],
 		);
@@ -213,7 +214,7 @@ describe( 'fetchPosts', () => {
 		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
 			jsonResponse( [] ) as never,
 		);
-		await fetchPosts( { status: 'trash' } );
+		await client.fetchPosts( { status: 'trash' } );
 		const calledUrl = String(
 			( fetchMock.mock.calls[ 0 ] as unknown as [ string ] )[ 0 ],
 		);
@@ -226,7 +227,7 @@ describe( 'trashPost', () => {
 		vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
 			jsonResponse( { id: 42, status: 'trash' } ) as never,
 		);
-		const result = await trashPost( 42 );
+		const result = await client.trashPost( 42 );
 		expect( result.ok ).toBe( true );
 		expect( result.id ).toBe( 42 );
 	} );
@@ -242,7 +243,7 @@ describe( 'trashPost', () => {
 				},
 			) as never,
 		);
-		const result = await trashPost( 42 );
+		const result = await client.trashPost( 42 );
 		expect( result.ok ).toBe( false );
 		expect( result.error ).toMatch( /cannot delete/ );
 	} );
@@ -250,7 +251,7 @@ describe( 'trashPost', () => {
 
 describe( 'buildEditPostUrl', () => {
 	test( 'appends ?post=<id>&action=edit when the base has no query string', () => {
-		expect( buildEditPostUrl( 7 ) ).toBe(
+		expect( client.buildEditPostUrl( 7 ) ).toBe(
 			'http://example.test/wp-admin/post.php?post=7&action=edit',
 		);
 	} );
@@ -259,7 +260,7 @@ describe( 'buildEditPostUrl', () => {
 		installConfig( {
 			editPostUrlBase: 'http://example.test/wp-admin/post.php?lang=en',
 		} );
-		expect( buildEditPostUrl( 7 ) ).toBe(
+		expect( client.buildEditPostUrl( 7 ) ).toBe(
 			'http://example.test/wp-admin/post.php?lang=en&post=7&action=edit',
 		);
 	} );

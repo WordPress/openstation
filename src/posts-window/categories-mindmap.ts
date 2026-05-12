@@ -26,14 +26,7 @@
 
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
-import {
-	createCategory,
-	deleteTerm,
-	fetchTerms,
-	updateTerm,
-	getConfig,
-	type TermRow,
-} from './rest';
+import { type PostsWindowClient, type TermRow } from './rest';
 
 interface PixiPoint {
 	x: number;
@@ -192,6 +185,7 @@ const POST_RING_RADIUS = 170;
  */
 export async function mountCategoriesMindmap(
 	host: HTMLElement,
+	client: PostsWindowClient,
 ): Promise< () => void > {
 	const api = window.wp?.desktop;
 	if ( ! api || typeof api.loadModules !== 'function' ) {
@@ -477,7 +471,7 @@ export async function mountCategoriesMindmap(
 		const all: TermRow[] = [];
 		let page = 1;
 		while ( page <= 5 ) {
-			const res = await fetchTerms( 'categories', { page, perPage: 100 } );
+			const res = await client.fetchTerms( 'categories', { page, perPage: 100 } );
 			all.push( ...res.items );
 			if ( page >= res.totalPages ) {
 				break;
@@ -1546,7 +1540,7 @@ export async function mountCategoriesMindmap(
 				! isAncestor( node.id, target.id )
 			) {
 				try {
-					await updateTerm( 'categories', node.id, {
+					await client.updateTerm( 'categories', node.id, {
 						parent: target.id,
 					} );
 					node.parent = target.id;
@@ -2050,7 +2044,7 @@ export async function mountCategoriesMindmap(
 			applyPostsResult( cached, myFocusId );
 			return;
 		}
-		const cfg = getConfig();
+		const cfg = client.getConfig();
 		const url = new URL( cfg.postsUrl );
 		url.searchParams.set( 'categories', String( focusId ) );
 		url.searchParams.set( 'per_page', String( POST_PER_PAGE ) );
@@ -2058,7 +2052,7 @@ export async function mountCategoriesMindmap(
 		url.searchParams.set( 'status', 'any' );
 		url.searchParams.set( '_fields', 'id,title,status' );
 		try {
-			const response = await fetchShellJson( url.toString() );
+			const response = await fetchShellJson( client, url.toString() );
 			if ( mySeq !== loadSeq || focusId !== myFocusId ) {
 				return;
 			}
@@ -2356,7 +2350,7 @@ export async function mountCategoriesMindmap(
 			}
 			createBtn.disabled = true;
 			try {
-				const created = await createCategory( name, d.parent, {
+				const created = await client.createCategory( name, d.parent, {
 					slug: slugInput.value.trim() || undefined,
 					description: descInput.value || undefined,
 				} );
@@ -2555,7 +2549,7 @@ export async function mountCategoriesMindmap(
 			);
 			makeRootBtn.addEventListener( 'click', async () => {
 				try {
-					await updateTerm( 'categories', node.id, { parent: 0 } );
+					await client.updateTerm( 'categories', node.id, { parent: 0 } );
 					node.parent = 0;
 					terms = terms.map( ( t ) =>
 						t.id === node.id ? { ...t, parent: 0 } : t,
@@ -2599,7 +2593,7 @@ export async function mountCategoriesMindmap(
 				patch.slug = slugRaw;
 			}
 			try {
-				const updated = await updateTerm(
+				const updated = await client.updateTerm(
 					'categories',
 					node.id,
 					patch,
@@ -2650,7 +2644,7 @@ export async function mountCategoriesMindmap(
 				armResetTimer = null;
 			}
 			try {
-				await deleteTerm( 'categories', node.id );
+				await client.deleteTerm( 'categories', node.id );
 				terms = terms.filter( ( t ) => t.id !== node.id );
 				focusId = null;
 				clearPosts();
@@ -2823,7 +2817,7 @@ export async function mountCategoriesMindmap(
 		if ( terms.length === 0 ) {
 			return;
 		}
-		const cfg = getConfig();
+		const cfg = client.getConfig();
 		const url = new URL(
 			`${ cfg.restRoot.replace( /\/$/, '' ) }/desktop-mode/v1/term-counts`,
 		);
@@ -2833,7 +2827,7 @@ export async function mountCategoriesMindmap(
 			terms.map( ( t ) => t.id ).join( ',' ),
 		);
 		try {
-			const response = await fetchShellJson( url.toString() );
+			const response = await fetchShellJson( client, url.toString() );
 			const map = response.json as Record< string, number >;
 			let dirty = false;
 			terms = terms.map( ( t ) => {
@@ -3058,8 +3052,11 @@ interface ShellJsonResponse {
 	headers: Headers;
 }
 
-async function fetchShellJson( url: string ): Promise< ShellJsonResponse > {
-	const cfg = getConfig();
+async function fetchShellJson(
+	client: PostsWindowClient,
+	url: string,
+): Promise< ShellJsonResponse > {
+	const cfg = client.getConfig();
 	const init: RequestInit = {
 		method: 'GET',
 		credentials: 'same-origin',

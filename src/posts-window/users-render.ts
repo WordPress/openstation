@@ -24,16 +24,12 @@
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
-import { getActiveWindowId, getConfig } from './rest';
+import type { PostsWindowConfig } from './rest';
 import {
-	bulkSetRole,
-	createUser,
-	fetchUsers,
-	resendWelcome,
-	sendPasswordReset,
 	type CreateUserBody,
 	type UserListItem,
 	type UsersListParams,
+	type UsersWindowClient,
 } from './users-rest';
 import { showUsersIntroDialog } from './users-intro-dialog';
 // Static import — see `desktop.ts`'s onMatch comment for why this
@@ -213,13 +209,13 @@ function memoUserCell(
 }
 
 const _usersIntroShown = { v: false };
-function maybeShowUsersIntro(): void {
+function maybeShowUsersIntro( client: UsersWindowClient ): void {
 	if ( _usersIntroShown.v ) {
 		return;
 	}
-	let cfg: ReturnType< typeof getConfig >;
+	let cfg: PostsWindowConfig;
 	try {
-		cfg = getConfig();
+		cfg = client.getConfig();
 	} catch {
 		return;
 	}
@@ -233,7 +229,7 @@ function maybeShowUsersIntro(): void {
 				_usersIntroShown.v = false;
 				return;
 			}
-			void markUsersIntroSeen( cfg );
+			void markUsersIntroSeen( client, cfg );
 			if ( result === 'settings' ) {
 				const w = window as unknown as {
 					wp?: { desktop?: { openOsSettings?: () => void } };
@@ -247,7 +243,8 @@ function maybeShowUsersIntro(): void {
 }
 
 async function markUsersIntroSeen(
-	cfg: ReturnType< typeof getConfig >,
+	client: UsersWindowClient,
+	cfg: PostsWindowConfig,
 ): Promise< void > {
 	if ( ! cfg.introUrl ) {
 		return;
@@ -265,7 +262,7 @@ async function markUsersIntroSeen(
 				body: JSON.stringify( { slug: 'users' } ),
 			},
 			{
-				windowId: getActiveWindowId(),
+				windowId: client.windowId,
 				source: 'users-window/intro',
 			},
 		);
@@ -277,7 +274,10 @@ async function markUsersIntroSeen(
 
 // ─── Cell builders ───────────────────────────────────────────────────
 
-function buildIdentityCell( row: UserListItem ): HTMLElement {
+function buildIdentityCell(
+	row: UserListItem,
+	cfg: PostsWindowConfig,
+): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText =
 		'display:flex;align-items:center;gap:10px;min-width:0;';
@@ -311,7 +311,6 @@ function buildIdentityCell( row: UserListItem ): HTMLElement {
 
 	const nameRow = document.createElement( 'span' );
 	const name = document.createElement( 'a' );
-	const cfg = getConfig();
 	name.href = `${ cfg.editPostUrlBase }?user_id=${ row.id }`;
 	name.textContent = row.name || `#${ row.id }`;
 	name.title = name.textContent;
@@ -391,17 +390,15 @@ function buildEmailCell( row: UserListItem ): HTMLElement {
 	return cell;
 }
 
-function buildRoleCell( row: UserListItem ): HTMLElement {
+function buildRoleCell(
+	row: UserListItem,
+	cfg: PostsWindowConfig,
+): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText =
 		'display:inline-flex;flex-wrap:wrap;gap:4px;min-width:0;';
 	const roles = Array.isArray( row.roles ) ? row.roles : [];
-	let labels: Record< string, string > = {};
-	try {
-		labels = getConfig().allRoles ?? {};
-	} catch {
-		labels = {};
-	}
+	const labels: Record< string, string > = cfg.allRoles ?? {};
 	if ( roles.length === 0 ) {
 		const none = document.createElement( 'span' );
 		none.textContent = __( 'No role' );
@@ -528,7 +525,13 @@ function buildRegisteredCell( row: UserListItem ): HTMLElement {
 		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
 		return cell;
 	}
-	const ts = Math.floor( Date.parse( raw + 'Z' ) / 1000 );
+	// `_fields=registered_date` returns the bare WP format
+	// (`YYYY-MM-DDTHH:MM:SS`) in `view` context and an ISO-8601 string
+	// with offset (`…+00:00`) in `edit` context. Only append `Z` when
+	// no timezone suffix is present — otherwise `Date.parse` chokes on
+	// the doubled tz and we'd fall through to the raw string.
+	const hasTz = /[Zz]|[+-]\d{2}:?\d{2}$/.test( raw );
+	const ts = Math.floor( Date.parse( hasTz ? raw : raw + 'Z' ) / 1000 );
 	if ( ! Number.isFinite( ts ) ) {
 		cell.textContent = raw;
 		return cell;
@@ -538,17 +541,16 @@ function buildRegisteredCell( row: UserListItem ): HTMLElement {
 	return cell;
 }
 
-function buildActionsCell( row: UserListItem ): HTMLElement {
+function buildActionsCell(
+	row: UserListItem,
+	cfg: PostsWindowConfig,
+	client: UsersWindowClient,
+): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText =
 		'display:inline-flex;gap:4px;align-items:center;';
 
-	let canEditViewer = false;
-	try {
-		canEditViewer = getConfig().canEdit === true;
-	} catch {
-		canEditViewer = false;
-	}
+	const canEditViewer = cfg.canEdit === true;
 	const canEditRow = row.desktop_mode_can_edit === true;
 	if ( ! canEditViewer || ! canEditRow ) {
 		cell.textContent = '—';
@@ -599,7 +601,7 @@ function buildActionsCell( row: UserListItem ): HTMLElement {
 				if ( ! ok ) {
 					return;
 				}
-				const result = await sendPasswordReset( row.id );
+				const result = await client.sendPasswordReset( row.id );
 				if ( result.ok ) {
 					notifyToast(
 						sprintf(
@@ -641,7 +643,7 @@ function buildActionsCell( row: UserListItem ): HTMLElement {
 				if ( ! ok ) {
 					return;
 				}
-				const result = await resendWelcome( row.id );
+				const result = await client.resendWelcome( row.id );
 				if ( result.ok ) {
 					notifyToast(
 						sprintf(
@@ -669,6 +671,8 @@ function buildActionsCell( row: UserListItem ): HTMLElement {
 
 function buildColumns(
 	cache: UserCellCache,
+	cfg: PostsWindowConfig,
+	client: UsersWindowClient,
 ): WpdTableColumn< UserListItem >[] {
 	const cols: WpdTableColumn< UserListItem >[] = [
 		{
@@ -679,7 +683,7 @@ function buildColumns(
 			minWidth: '260px',
 			render: ( _v, row ) =>
 				memoUserCell( cache, row.id, 'identity', () =>
-					buildIdentityCell( row ),
+					buildIdentityCell( row, cfg ),
 				),
 		},
 		{
@@ -694,7 +698,9 @@ function buildColumns(
 			label: __( 'Role' ),
 			width: '180px',
 			render: ( _v, row ) =>
-				memoUserCell( cache, row.id, 'role', () => buildRoleCell( row ) ),
+				memoUserCell( cache, row.id, 'role', () =>
+					buildRoleCell( row, cfg ),
+				),
 		},
 		{
 			key: 'stats',
@@ -737,13 +743,7 @@ function buildColumns(
 	// edit cap; cell falls back to "—" per-row when the row's
 	// `desktop_mode_can_edit` is false (e.g. self-row, or a higher-
 	// privileged user).
-	let canEdit = false;
-	try {
-		canEdit = getConfig().canEdit === true;
-	} catch {
-		canEdit = false;
-	}
-	if ( canEdit ) {
+	if ( cfg.canEdit === true ) {
 		cols.push( {
 			key: 'actions',
 			label: __( 'Actions' ),
@@ -753,7 +753,7 @@ function buildColumns(
 				// Actions cell is intentionally NOT memoized — its closure
 				// captures `row` and the row payload changes between
 				// fetches. Cheap to rebuild, fewer surprises.
-				buildActionsCell( row ),
+				buildActionsCell( row, cfg, client ),
 		} );
 	}
 
@@ -800,7 +800,10 @@ function applyClientStatusFilter(
 
 // ─── Render entry point ─────────────────────────────────────────────
 
-export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
+export async function renderUsersWindow(
+	body: HTMLElement,
+	client: UsersWindowClient,
+): Promise< void > {
 	const root = body.querySelector< HTMLElement >( ROOT );
 	const table = body.querySelector< WpdTable< UserListItem > >( TABLE );
 	if ( ! root || ! table ) {
@@ -823,9 +826,9 @@ export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
 		void openUserEditWindow( id );
 	} );
 
-	maybeShowUsersIntro();
+	maybeShowUsersIntro( client );
 
-	const cfg = getConfig();
+	const cfg = client.getConfig();
 	const view: ViewState = {
 		page: 1,
 		perPage: Math.max( 1, cfg.defaultPerPage || 20 ),
@@ -839,7 +842,7 @@ export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
 
 	const cellCache: UserCellCache = new Map();
 
-	table.columns = buildColumns( cellCache );
+	table.columns = buildColumns( cellCache, cfg, client );
 	table.getRowId = ( row ) => row.id;
 	table.sort = { key: 'name', direction: 'asc' };
 
@@ -1011,7 +1014,7 @@ export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
 				if ( ! ok ) {
 					return;
 				}
-				const out = await bulkSetRole( ids, role ).catch( ( err ) => {
+				const out = await client.bulkSetRole( ids, role ).catch( ( err ) => {
 					notifyToast(
 						String( ( err as Error ).message ?? err ),
 						{ kind: 'error' },
@@ -1095,7 +1098,7 @@ export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
 		const mySeq = ++refreshSeq;
 		table.toggleAttribute( 'loading', true );
 		try {
-			const result = await fetchUsers( buildParams() );
+			const result = await client.fetchUsers( buildParams() );
 			if ( mySeq !== refreshSeq ) {
 				return;
 			}
@@ -1133,7 +1136,7 @@ export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
 	// Add User form — mounted when the user activates the "add-new"
 	// tab. The form lives in the PHP template; we wire submit /
 	// reset / generate-password / role+locale dropdowns here.
-	mountAddUserForm( body, {
+	mountAddUserForm( body, client, cfg, {
 		afterCreate: () => {
 			// Reset the create form and bounce back to the all-users
 			// tab so the new user shows up in the list.
@@ -1153,7 +1156,96 @@ export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
 	// switch tab → mount edit form flow lives in the same module
 	// as the table itself. Lazy-imports the edit module the first
 	// time a profile is requested.
-	wireProfileSubTab( body );
+	wireProfileSubTab( body, cfg );
+
+	// Live refresh on `desktop-mode.user.changed` — fires when the
+	// User-edit window saves a profile. We patch ONLY the affected
+	// rows in place via `fetchOneUser`; a full `refresh()` would
+	// clear the cell cache, reset scroll, and flicker the table for
+	// every other row that didn't change.
+	const patchUserRow = async ( id: number ): Promise< void > => {
+		try {
+			const updated = await client.fetchOneUser( id );
+			const list = table.data as readonly UserListItem[];
+			const idx = list.findIndex( ( r ) => r.id === id );
+			if ( idx < 0 ) {
+				// User isn't on the current page (filtered/paged out) —
+				// nothing to repaint.
+				return;
+			}
+			if ( ! updated ) {
+				// Row went away (deleted). Drop it locally; a full
+				// pager update would need totalRows decrement, but a
+				// stale missing row is more disruptive than a slightly
+				// off count until the next list fetch.
+				const next = list.slice();
+				next.splice( idx, 1 );
+				table.data = next;
+				return;
+			}
+			// Invalidate cached cells for this id so the table rebuilds
+			// them from the new payload (role chip, email, registered
+			// date, last-login dot, …).
+			for ( const k of Array.from( cellCache.keys() ) ) {
+				if ( k.startsWith( `${ id }::` ) ) {
+					cellCache.delete( k );
+				}
+			}
+			const next = list.slice();
+			next[ idx ] = updated;
+			// Re-apply the active status filter so a row that no longer
+			// matches (e.g. presence flipped offline while "Online" is
+			// selected) doesn't linger.
+			table.data = applyClientStatusFilter( next, view.status );
+		} catch ( err ) {
+			// Non-fatal — log and fall back to a full refresh so the
+			// user doesn't end up looking at a stale row.
+			// eslint-disable-next-line no-console
+			console.warn( '[users-window] row patch failed, falling back to refresh', err );
+			void refresh();
+		}
+	};
+
+	const subscribeApi = (
+		window as unknown as {
+			wp?: {
+				desktop?: {
+					subscribe?: (
+						channel: string,
+						handler: ( payload: unknown ) => void,
+					) => () => void;
+				};
+			};
+		}
+	).wp?.desktop;
+	const unsubscribe = subscribeApi?.subscribe?.(
+		'desktop-mode.user.changed',
+		( payload: unknown ) => {
+			const ids = ( payload as { ids?: unknown } )?.ids;
+			if ( ! Array.isArray( ids ) ) {
+				return;
+			}
+			for ( const raw of ids ) {
+				const id = typeof raw === 'number' ? raw : Number( raw );
+				if ( Number.isFinite( id ) && id > 0 ) {
+					void patchUserRow( id );
+				}
+			}
+		},
+	);
+	if ( unsubscribe ) {
+		document.addEventListener(
+			'desktop-mode-window-closed',
+			( e: Event ) => {
+				const detail = ( e as CustomEvent< { windowId?: string } > )
+					.detail;
+				if ( detail?.windowId === 'desktop-mode-users' ) {
+					unsubscribe();
+				}
+			},
+			{ once: false },
+		);
+	}
 
 	// Initial fetch.
 	void refresh();
@@ -1168,14 +1260,16 @@ export async function renderUsersWindow( body: HTMLElement ): Promise< void > {
  * users opens a separate `desktop-mode-user-edit` window via
  * row click.
  */
-function wireProfileSubTab( body: HTMLElement ): void {
+function wireProfileSubTab(
+	body: HTMLElement,
+	cfg: PostsWindowConfig,
+): void {
 	const profile = body.querySelector(
 		'wpd-user-profile[data-wpd-user-profile-self]',
 	) as HTMLElement | null;
 	if ( ! profile ) {
 		return;
 	}
-	const cfg = getConfig();
 	const viewerId = ( cfg as unknown as { currentUserId?: number } )
 		.currentUserId;
 	if ( typeof viewerId === 'number' && viewerId > 0 ) {
@@ -1223,7 +1317,12 @@ interface WpdFormElement extends HTMLElement {
  *
  * @since 0.18.0
  */
-function mountAddUserForm( body: HTMLElement, opts: AddUserFormOpts ): void {
+function mountAddUserForm(
+	body: HTMLElement,
+	client: UsersWindowClient,
+	cfg: PostsWindowConfig,
+	opts: AddUserFormOpts,
+): void {
 	const formNullable = body.querySelector(
 		'[data-desktop-mode-users-add-form]',
 	) as WpdFormElement | null;
@@ -1235,7 +1334,6 @@ function mountAddUserForm( body: HTMLElement, opts: AddUserFormOpts ): void {
 	// TS losing it across nested function declarations.
 	const form: WpdFormElement = formNullable;
 
-	const cfg = getConfig();
 	const defaultRole = cfg.defaultRole ?? 'subscriber';
 
 	// ── Mount the role + locale `<wpd-select>`s. They're built JS-side
@@ -1306,7 +1404,7 @@ function mountAddUserForm( body: HTMLElement, opts: AddUserFormOpts ): void {
 			send_notification: Boolean( values.send_notification ),
 		};
 
-		const result = await createUser( payload );
+		const result = await client.createUser( payload );
 		pending = false;
 		form.setBusy( false );
 
