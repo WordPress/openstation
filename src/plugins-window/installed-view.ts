@@ -16,9 +16,11 @@
 
 import { __, sprintf } from '../i18n';
 import { broadcast, subscribe } from '../broadcast';
+import { enqueueUpdateJob } from './update-queue';
 import {
 	activateInstalledPlugin,
 	deactivateInstalledPlugin,
+	updateInstalledPlugin,
 	deleteInstalledPlugin,
 	fetchInstalledPlugins,
 	getConfig,
@@ -43,7 +45,7 @@ const SOURCE = 'installed-view';
 interface PluginsChangedPayload {
 	source: string;
 	plugin?: string;
-	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'bulk';
+	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'update' | 'bulk';
 }
 import type { InstalledPlugin } from './types';
 import type {
@@ -88,6 +90,13 @@ interface InstalledViewState {
 	search: string;
 	/** Loading flag for the table skeleton. */
 	loading: boolean;
+	/**
+	 * Set of plugin files currently in the update queue (enqueued or
+	 * in-flight). Mirrors Core's `is-enqueued` row class — used to
+	 * disable the Update button so a user can't double-fire while
+	 * the queue is still draining.
+	 */
+	updating: Set< string >;
 }
 
 /**
@@ -102,6 +111,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		statusFilter: '',
 		search: '',
 		loading: true,
+		updating: new Set< string >(),
 	};
 
 	// ─── Toolbar ────────────────────────────────────────────────────
@@ -118,10 +128,31 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		{ value: 'inactive', label: __( 'Inactive', 'desktop-mode' ) },
 		{ value: 'update', label: __( 'Update available', 'desktop-mode' ) },
 	];
+	// Track the Update-available segment + its count badge so we can
+	// repaint just the badge when rows change, without rebuilding the
+	// whole segmented control (which would lose focus / selection).
+	let updateCountBadge: HTMLElement | null = null;
 	for ( const opt of statusOptions ) {
 		const seg = document.createElement( 'wpd-segment' );
 		seg.setAttribute( 'value', opt.value );
-		seg.textContent = opt.label;
+		if ( opt.value === 'update' ) {
+			// Compose a labeled wrapper + a `<wpd-badge>` count chip.
+			// `<wpd-segment>` slots its children into the light DOM, so
+			// arbitrary HTML inside is fine — same posture other
+			// segmented controls in the codebase use.
+			const label = document.createElement( 'span' );
+			label.textContent = opt.label;
+			seg.appendChild( label );
+			const badge = document.createElement( 'wpd-badge' );
+			badge.setAttribute( 'tone', 'warning' );
+			badge.setAttribute( 'no-dot', '' );
+			badge.style.cssText = 'margin-inline-start:6px;';
+			badge.hidden = true; // shown only when count > 0
+			seg.appendChild( badge );
+			updateCountBadge = badge;
+		} else {
+			seg.textContent = opt.label;
+		}
 		statusFilter.appendChild( seg );
 	}
 	statusFilter.addEventListener( 'wpd-pick', ( ev: Event ) => {
@@ -391,6 +422,45 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			delete: row.status === 'inactive',
 		};
 
+		// Update action — mirrors Core's `wp_plugin_update_row()` inline
+		// "Update now" link. Gated by the global `update_plugins` cap
+		// (Core's same check) and the presence of a `package` URL on the
+		// transient entry; when `available && ! package` we surface the
+		// disabled "Auto-update unavailable" hint Core renders.
+		const update = row.desktop_mode_update_available;
+		if ( getConfig().caps.update && update?.available ) {
+			if ( update.package ) {
+				const updating = state.updating.has( row.plugin );
+				const label = updating
+					? __( 'Updating…', 'desktop-mode' )
+					: sprintf(
+						/* translators: %s: new plugin version (e.g. "1.4.2") */
+						__( 'Update to %s', 'desktop-mode' ),
+						update.new_version ?? '',
+					);
+				const btn = button( label, 'primary' );
+				if ( updating ) {
+					btn.setAttribute( 'disabled', '' );
+					btn.setAttribute( 'aria-busy', 'true' );
+				}
+				btn.addEventListener( 'click', ( e ) => {
+					e.stopPropagation();
+					void runUpdate( row );
+				} );
+				wrap.appendChild( btn );
+			} else {
+				const hint = document.createElement( 'span' );
+				hint.style.cssText =
+					'font-size:0.78em;color:var(--wp-desktop-text-muted,#666);';
+				hint.textContent = __( 'Auto-update unavailable', 'desktop-mode' );
+				hint.title = __(
+					'This plugin does not ship a wp.org download package. Update it manually from its source.',
+					'desktop-mode',
+				);
+				wrap.appendChild( hint );
+			}
+		}
+
 		if ( can.activate ) {
 			const btn = button( __( 'Activate', 'desktop-mode' ), 'primary' );
 			btn.addEventListener( 'click', ( e ) => {
@@ -446,6 +516,28 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 
 		const cfg = getConfig();
 		const selected = state.rows.filter( ( r ) => ids.includes( r.plugin ) );
+
+		if ( cfg.caps.update ) {
+			const updatable = selected.filter(
+				( r ) =>
+					!! r.desktop_mode_update_available?.available &&
+					!! r.desktop_mode_update_available.package,
+			);
+			if ( updatable.length > 0 ) {
+				const btn = button(
+					sprintf(
+						/* translators: %d: number of plugins with pending updates */
+						__( 'Update %d', 'desktop-mode' ),
+						updatable.length,
+					),
+					'primary',
+				);
+				btn.addEventListener( 'click', () => {
+					void runBulk( updatable, 'update' );
+				} );
+				bulkBar.appendChild( btn );
+			}
+		}
 
 		if ( cfg.caps.activate ) {
 			const activatable = selected.filter( ( r ) => r.status === 'inactive' );
@@ -507,6 +599,29 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			table.removeAttribute( 'loading' );
 		}
 		table.data = filterRows( state.rows );
+		paintUpdateCount();
+	}
+
+	/**
+	 * Refresh the "Update available" segment's count badge to reflect
+	 * how many rows in `state.rows` (the full list, NOT the current
+	 * filtered view) currently have a pending update. Hidden when the
+	 * count is zero so the segment falls back to a plain text label.
+	 */
+	function paintUpdateCount(): void {
+		if ( ! updateCountBadge ) {
+			return;
+		}
+		const count = state.rows.filter(
+			( r ) => !! r.desktop_mode_update_available?.available,
+		).length;
+		if ( count > 0 ) {
+			updateCountBadge.textContent = String( count );
+			updateCountBadge.hidden = false;
+		} else {
+			updateCountBadge.hidden = true;
+			updateCountBadge.textContent = '';
+		}
 	}
 
 	function filterRows( rows: InstalledPlugin[] ): InstalledPlugin[] {
@@ -678,9 +793,66 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		}
 	}
 
+	/**
+	 * Update a single plugin via Core's `wp_ajax_update_plugin`
+	 * handler, serialized through the single-flight queue. The queue
+	 * is critical — concurrent runs corrupt the `update_plugins`
+	 * transient (see comment in Core's ajax handler). Marks the row
+	 * "updating" up-front so the button paints disabled while waiting.
+	 */
+	async function runUpdate( row: InstalledPlugin ): Promise< void > {
+		if ( state.updating.has( row.plugin ) ) {
+			return; // already enqueued / in flight
+		}
+		state.updating.add( row.plugin );
+		paintTable();
+		try {
+			const result = await enqueueUpdateJob( () => updateInstalledPlugin( row ) );
+			// Drop the pending-update marker and bump the version
+			// on the row so the table repaints without a refetch.
+			mergeRow( {
+				...row,
+				version: result.newVersion,
+				desktop_mode_update_available: {
+					available: false,
+					new_version: null,
+					package: '',
+					slug: row.desktop_mode_update_available?.slug ?? '',
+				},
+			} as InstalledPlugin );
+			toast(
+				sprintf(
+					/* translators: 1: plugin name, 2: new version */
+					__( '%1$s updated to %2$s.', 'desktop-mode' ),
+					row.name || row.plugin,
+					result.newVersion,
+				),
+			);
+			broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+				source: SOURCE,
+				plugin: row.plugin,
+				action: 'update',
+			} );
+			void refreshFrameworkMenu();
+		} catch ( err ) {
+			toast(
+				sprintf(
+					/* translators: 1: plugin name, 2: error message */
+					__( 'Update of %1$s failed: %2$s', 'desktop-mode' ),
+					row.name || row.plugin,
+					describe( err ),
+				),
+				6000,
+			);
+		} finally {
+			state.updating.delete( row.plugin );
+			paintTable();
+		}
+	}
+
 	async function runBulk(
 		rows: InstalledPlugin[],
-		action: 'activate' | 'deactivate' | 'delete',
+		action: 'activate' | 'deactivate' | 'delete' | 'update',
 	): Promise< void > {
 		if ( rows.length === 0 ) {
 			return;
@@ -715,6 +887,30 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 				} else if ( action === 'delete' ) {
 					await deleteInstalledPlugin( row );
 					state.rows = state.rows.filter( ( r ) => r.plugin !== row.plugin );
+				} else if ( action === 'update' ) {
+					// Route through the single-flight queue so all
+					// rows fan in serially (mirrors Core's behavior;
+					// concurrent `Plugin_Upgrader` runs corrupt the
+					// transient).
+					state.updating.add( row.plugin );
+					paintTable();
+					try {
+						const result = await enqueueUpdateJob( () =>
+							updateInstalledPlugin( row ),
+						);
+						mergeRow( {
+							...row,
+							version: result.newVersion,
+							desktop_mode_update_available: {
+								available: false,
+								new_version: null,
+								package: '',
+								slug: row.desktop_mode_update_available?.slug ?? '',
+							},
+						} as InstalledPlugin );
+					} finally {
+						state.updating.delete( row.plugin );
+					}
 				}
 				if (
 					( action === 'deactivate' || action === 'delete' ) &&
@@ -753,6 +949,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			noun = __( 'deleted', 'desktop-mode' );
 		} else if ( action === 'activate' ) {
 			noun = __( 'activated', 'desktop-mode' );
+		} else if ( action === 'update' ) {
+			noun = __( 'updated', 'desktop-mode' );
 		} else {
 			noun = __( 'deactivated', 'desktop-mode' );
 		}

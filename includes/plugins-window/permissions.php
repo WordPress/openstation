@@ -96,7 +96,7 @@ function desktop_mode_plugins_window_user_can_use( $user_id = null ) {
  * @since 0.9.0
  *
  * @param int|null $user_id Optional.
- * @return array{install:bool,delete:bool,upload:bool,activate:bool}
+ * @return array{install:bool,delete:bool,upload:bool,activate:bool,update:bool}
  */
 function desktop_mode_plugins_window_caps( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
@@ -106,5 +106,11 @@ function desktop_mode_plugins_window_caps( $user_id = null ) {
 		'install'  => $user_id > 0 && user_can( $user_id, 'install_plugins' ),
 		'delete'   => $user_id > 0 && user_can( $user_id, 'delete_plugins' ),
 		'upload'   => $user_id > 0 && user_can( $user_id, 'upload_plugins' ),
+		// Mirrors Core's `current_user_can( 'update_plugins' )` gate on
+		// the inline "Update now" link in `wp_plugin_update_row()` — the
+		// JS uses it to hide the Update action for editors / non-admin
+		// roles even when `desktop_mode_update_available.available` is
+		// true. Server-side, `wp_ajax_update_plugin` re-checks the cap.
+		'update'   => $user_id > 0 && user_can( $user_id, 'update_plugins' ),
 	);
 }
