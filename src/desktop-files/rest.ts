@@ -9,6 +9,7 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
+import { joinRestUrl } from '../rest-url';
 
 export interface RestPlacementShape {
 	id: number;
@@ -89,7 +90,7 @@ function ensureDeps(): FilesRestDeps {
 
 async function call< T >( path: string, init: RequestInit ): Promise< T > {
 	const { baseUrl, nonce } = ensureDeps();
-	const url = `${ baseUrl.replace( /\/$/, '' ) }${ path }`;
+	const url = joinRestUrl( baseUrl, path );
 	const headers = new Headers( init.headers ?? {} );
 	headers.set( 'X-WP-Nonce', nonce );
 	if ( init.body && ! headers.has( 'Content-Type' ) ) {

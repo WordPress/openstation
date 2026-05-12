@@ -20,6 +20,7 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
+import { joinRestUrl } from '../rest-url';
 import type {
 	BrowseFilter,
 	InstalledPlugin,
@@ -266,7 +267,7 @@ async function unpackErrorResponse( response: Response ): Promise< Error > {
  */
 export async function fetchInstalledPlugins(): Promise< InstalledPlugin[] > {
 	const cfg = getConfig();
-	const url = cfg.pluginsUrl + '?context=view&per_page=100';
+	const url = joinRestUrl( cfg.restRoot, 'wp/v2/plugins?context=view&per_page=100' );
 	return restRequest< InstalledPlugin[] >( url, { method: 'GET' } );
 }
 
@@ -290,7 +291,7 @@ async function mutateInstalledPlugin(
 ): Promise< InstalledPlugin > {
 	const cfg = getConfig();
 	return restRequest< InstalledPlugin >(
-		cfg.pluginsUrl + '/' + encodePluginPath( plugin.plugin ),
+		joinRestUrl( cfg.restRoot, `wp/v2/plugins/${ encodePluginPath( plugin.plugin ) }` ),
 		{
 			method: 'PUT',
 			body: JSON.stringify( body ),
@@ -304,7 +305,10 @@ export async function deleteInstalledPlugin(
 ): Promise< void > {
 	const cfg = getConfig();
 	await restRequest< void >(
-		cfg.pluginsUrl + '/' + encodePluginPath( plugin.plugin ) + '?force=true',
+		joinRestUrl(
+			cfg.restRoot,
+			`wp/v2/plugins/${ encodePluginPath( plugin.plugin ) }?force=true`,
+		),
 		{
 			method: 'DELETE',
 			expectJson: false,
