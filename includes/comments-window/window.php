@@ -45,9 +45,14 @@ function desktop_mode_comments_window_render_template() {
 		<?php /* Realtime "N new" pill — the bundle paints inside this. */ ?>
 		<div class="desktop-mode-comments__new-pill" data-desktop-mode-comments-new-pill hidden></div>
 
-		<?php /* Author insights drawer slot — content rendered JS-side. */ ?>
-		<aside class="desktop-mode-comments__drawer" data-desktop-mode-comments-drawer hidden
-			role="complementary" aria-label="<?php esc_attr_e( 'Author insights', 'desktop-mode' ); ?>">
+		<?php /* Author insights flyover — content + open state owned JS-side.
+		         Lives in the DOM permanently so its slide-in transition
+		         has something to animate from. The `data-open` attribute
+		         drives both the backdrop fade and the panel slide. */ ?>
+		<div class="desktop-mode-comments__drawer-backdrop" data-desktop-mode-comments-drawer-backdrop></div>
+		<aside class="desktop-mode-comments__drawer" data-desktop-mode-comments-drawer
+			role="complementary" aria-label="<?php esc_attr_e( 'Author insights', 'desktop-mode' ); ?>"
+			aria-hidden="true">
 		</aside>
 
 		<?php if ( $can_moderate ) : ?>

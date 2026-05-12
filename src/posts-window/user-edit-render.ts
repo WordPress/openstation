@@ -23,6 +23,7 @@
 
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
+import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { getActiveWindowId, getConfig, type PostsWindowConfig } from './rest';
 import {
 	fetchInsights,
@@ -697,12 +698,22 @@ function buildProfileHeader( user: UserEditRecord ): HTMLElement {
 	wrap.style.cssText =
 		'display:flex;align-items:center;gap:16px;margin:0 0 12px;';
 
-	const avatar = document.createElement( 'img' );
+	// `<wpd-avatar>` with the shared Gravatar probe — initials when
+	// the user has no registered avatar, real image otherwise. The
+	// 3D hover lift gives the profile header a touch of physicality.
+	const avatar = document.createElement( 'wpd-avatar' );
+	avatar.setAttribute( 'size', '64' );
+	if ( user.name || user.username ) {
+		avatar.setAttribute( 'name', user.name || user.username || '' );
+	}
+	if ( user.id > 0 ) {
+		avatar.setAttribute( 'user-id', String( user.id ) );
+	}
 	const avatars = user.avatar_urls ?? {};
-	avatar.src = avatars[ '96' ] ?? avatars[ '48' ] ?? '';
-	avatar.alt = '';
-	avatar.style.cssText =
-		'width:64px;height:64px;border-radius:50%;flex-shrink:0;';
+	const rawAvatar = avatars[ '96' ] ?? avatars[ '48' ] ?? '';
+	if ( rawAvatar ) {
+		applyAvatarSrc( avatar, rawAvatar );
+	}
 	wrap.appendChild( avatar );
 
 	const text = document.createElement( 'div' );

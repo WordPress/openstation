@@ -21,6 +21,7 @@
 
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
+import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { showCommentsIntroDialog } from './intro-dialog';
 import {
 	bulkModerate,
@@ -136,20 +137,59 @@ function readConfig(): CommentsConfig | null {
 
 function spamChipFor( row: CommentRow ): HTMLElement {
 	const score = Math.max( 0, Math.min( 100, row.desktop_mode_spam_score ) );
-	const chip = document.createElement( 'span' );
-	chip.className = 'desktop-mode-comments__spam-chip';
-	chip.dataset.score = String( score );
-	let tone = 'low';
+	// Three tones map straight to <wpd-chip>'s shared palette:
+	//   low (0–39)   → positive  (green)
+	//   medium (40–69) → warning (amber)
+	//   high (70–100)  → danger  (red)
+	let tone: 'positive' | 'warning' | 'danger' = 'positive';
 	if ( score >= 70 ) {
-		tone = 'high';
+		tone = 'danger';
 	} else if ( score >= 40 ) {
-		tone = 'medium';
+		tone = 'warning';
 	}
+	const chip = document.createElement( 'wpd-chip' );
+	chip.setAttribute( 'label', String( score ) );
+	chip.setAttribute( 'tone', tone );
+	chip.dataset.score = String( score );
 	chip.dataset.tone = tone;
+	// `<wpd-chip>`'s default layout reserves a 4px `gap` between the
+	// (empty) icon slot and the label — for a single-character score
+	// that visibly off-centers the digit. Zero the gap and bump the
+	// horizontal padding so a 3-digit score (100) and a 1-digit
+	// score (0) both feel evenly weighted. Tabular numerals keep the
+	// width predictable across rows. Also forces a min-width so all
+	// chips line up the same in the column.
+	( chip as HTMLElement ).style.cssText = [
+		'--wpd-chip-gap:0',
+		'--wpd-chip-padding:2px 12px',
+		'--wpd-chip-font-weight:700',
+		'min-inline-size:44px',
+		'justify-content:center',
+		'font-variant-numeric:tabular-nums',
+	].join( ';' );
 	if ( row.desktop_mode_ai_verdict ) {
 		chip.dataset.ai = '1';
+		// AI halo — the only piece <wpd-chip> doesn't ship out of
+		// the box. Layered as an inline boxShadow + dot child so it
+		// survives <wpd-table>'s shadow-DOM rendering.
+		( chip as HTMLElement ).style.boxShadow =
+			'0 0 0 2px rgba(99,102,241,0.5)';
+		( chip as HTMLElement ).style.position = 'relative';
+		( chip as HTMLElement ).style.borderRadius = '999px';
+		const dot = document.createElement( 'span' );
+		dot.style.cssText = [
+			'position:absolute',
+			'top:-3px',
+			'inset-inline-end:-3px',
+			'width:8px',
+			'height:8px',
+			'border-radius:50%',
+			'background:linear-gradient(135deg,#818cf8,#6366f1)',
+			'box-shadow:0 0 0 2px #fff',
+			'pointer-events:none',
+		].join( ';' );
+		chip.appendChild( dot );
 	}
-	chip.textContent = String( score );
 	const notes: string[] = [];
 	if ( row.desktop_mode_akismet === 'true' ) {
 		notes.push( __( 'Akismet flagged this comment as spam.' ) );
@@ -299,17 +339,105 @@ function mountReplyEditor(
 /* Author insights drawer                                                     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Show the drawer flyover. Owns the open/close lifecycle: backdrop
+ * fade-in, panel slide-in, ESC + click-outside-to-close, ARIA state
+ * sync. Idempotent — calling it again while open just re-renders
+ * the contents for the new email (no exit/enter animation between
+ * authors).
+ */
+/**
+ * Resolve (or create) the dim backdrop. The PHP template emits it as
+ * a sibling of the drawer host, but a JS-only reload of the bundle
+ * (without a full admin-page refresh) leaves the user on the old
+ * template that doesn't have it yet — so we self-heal by injecting
+ * the element when missing.
+ */
+function ensureBackdrop( host: HTMLElement ): HTMLElement | null {
+	// Mount on the WINDOW ROOT, not the comments body — that way the
+	// dim wash covers the title bar too. The framework window
+	// element wraps everything (titlebar + body), so a backdrop
+	// pinned with `inset: 0` to the window root produces a single
+	// continuous overlay across the whole window surface. The
+	// template-rendered backdrop (a child of `.desktop-mode-comments`)
+	// is left in place and ignored when present — we always re-anchor
+	// to the window root here.
+	const windowRoot =
+		host.closest< HTMLElement >( '.desktop-mode-window' ) ??
+		host.parentElement;
+	if ( ! windowRoot ) {
+		return null;
+	}
+	let backdrop = windowRoot.querySelector< HTMLElement >(
+		':scope > [data-desktop-mode-comments-drawer-backdrop]',
+	);
+	if ( ! backdrop ) {
+		backdrop = document.createElement( 'div' );
+		backdrop.className = 'desktop-mode-comments__drawer-backdrop';
+		backdrop.setAttribute( 'data-desktop-mode-comments-drawer-backdrop', '' );
+		// First child so the backdrop sits BENEATH the title bar +
+		// body in stacking order. The drawer (rendered inside the
+		// body) still floats above via its own z-index.
+		windowRoot.insertBefore( backdrop, windowRoot.firstChild );
+	}
+	return backdrop;
+}
+
+function closeAuthorDrawer( host: HTMLElement ): void {
+	host.removeAttribute( 'data-open' );
+	host.setAttribute( 'aria-hidden', 'true' );
+	const backdrop = ensureBackdrop( host );
+	backdrop?.removeAttribute( 'data-open' );
+	// Tear down the outside-click + esc listeners attached on open.
+	const tearDown = ( host as unknown as { __teardown?: () => void } )
+		.__teardown;
+	if ( tearDown ) {
+		tearDown();
+		delete ( host as unknown as { __teardown?: () => void } ).__teardown;
+	}
+}
+
 async function openAuthorDrawer(
 	cfg: CommentsConfig,
 	host: HTMLElement,
 	email: string,
 ): Promise< void > {
-	host.hidden = false;
+	const backdrop = ensureBackdrop( host );
+	const wasOpen = host.getAttribute( 'data-open' ) === 'true';
 	host.replaceChildren();
 	const loading = document.createElement( 'p' );
 	loading.className = 'desktop-mode-comments__drawer-loading';
 	loading.textContent = __( 'Loading author insights…' );
 	host.appendChild( loading );
+
+	if ( ! wasOpen ) {
+		// Flip `data-open` on the NEXT frame so the browser commits
+		// the initial pose (off-screen, transparent) BEFORE the
+		// transition target lands. Without the rAF the transition
+		// is skipped — browsers collapse the two states into a
+		// single layout pass.
+		host.setAttribute( 'aria-hidden', 'false' );
+		backdrop?.setAttribute( 'data-open', 'false' );
+		requestAnimationFrame( () => {
+			host.setAttribute( 'data-open', 'true' );
+			backdrop?.setAttribute( 'data-open', 'true' );
+		} );
+
+		// Close on outside-click (the backdrop) + Esc.
+		const onEsc = ( e: KeyboardEvent ): void => {
+			if ( e.key === 'Escape' ) {
+				e.preventDefault();
+				closeAuthorDrawer( host );
+			}
+		};
+		const onBackdropClick = (): void => closeAuthorDrawer( host );
+		document.addEventListener( 'keydown', onEsc );
+		backdrop?.addEventListener( 'click', onBackdropClick );
+		( host as unknown as { __teardown?: () => void } ).__teardown = () => {
+			document.removeEventListener( 'keydown', onEsc );
+			backdrop?.removeEventListener( 'click', onBackdropClick );
+		};
+	}
 
 	let data: AuthorInsights;
 	try {
@@ -328,11 +456,17 @@ async function openAuthorDrawer(
 
 	const header = document.createElement( 'header' );
 	header.className = 'desktop-mode-comments__drawer-header';
-	const avatar = document.createElement( 'img' );
-	avatar.src = data.avatarUrl;
-	avatar.alt = '';
-	avatar.width = 64;
-	avatar.height = 64;
+	const avatar = document.createElement( 'wpd-avatar' );
+	avatar.setAttribute( 'size', '64' );
+	if ( data.userName ) {
+		avatar.setAttribute( 'name', data.userName );
+	}
+	if ( data.avatarUrl ) {
+		applyAvatarSrc( avatar, data.avatarUrl );
+	}
+	if ( data.userId > 0 ) {
+		avatar.setAttribute( 'user-id', String( data.userId ) );
+	}
 	avatar.className = 'desktop-mode-comments__drawer-avatar';
 	const headerText = document.createElement( 'div' );
 	const name = document.createElement( 'h2' );
@@ -388,10 +522,7 @@ async function openAuthorDrawer(
 	closeBtn.type = 'button';
 	closeBtn.className = 'desktop-mode-comments__drawer-close';
 	closeBtn.textContent = __( 'Close' );
-	closeBtn.addEventListener( 'click', () => {
-		host.hidden = true;
-		host.replaceChildren();
-	} );
+	closeBtn.addEventListener( 'click', () => closeAuthorDrawer( host ) );
 	host.appendChild( closeBtn );
 
 	publish( 'desktop-mode-comments/insights-opened', { email: data.email } );
@@ -858,24 +989,49 @@ function buildColumns(
 		minWidth: '180px',
 		render: ( _v, row ) => {
 			const wrap = document.createElement( 'div' );
-			wrap.className = 'desktop-mode-comments__author';
-			const avatar = document.createElement( 'button' );
-			avatar.type = 'button';
-			avatar.className = 'desktop-mode-comments__avatar-btn';
-			avatar.title = __( 'Show author insights' );
-			const url = row.author_avatar_urls?.[ '48' ] ?? '';
-			avatar.innerHTML = url
-				? `<img src="${ url }" alt="" width="32" height="32" />`
-				: '<span class="dashicons dashicons-admin-users" aria-hidden="true"></span>';
-			avatar.addEventListener( 'click', ( e ) => {
+			wrap.style.cssText =
+				'display:flex;gap:10px;align-items:center;min-width:0;';
+
+			const avatar = document.createElement( 'wpd-avatar' );
+			avatar.setAttribute( 'size', '32' );
+			avatar.setAttribute( 'clickable', '' );
+			avatar.setAttribute( 'title', __( 'Show author insights' ) );
+			// Set the NAME up front so initials paint instantly while
+			// the Gravatar HEAD probe is in flight. If the probe
+			// resolves to a real URL the avatar swaps to the image;
+			// if it 404s the initials stay put.
+			if ( row.author_name ) {
+				avatar.setAttribute( 'name', row.author_name );
+			}
+			const rawAvatarUrl = row.author_avatar_urls?.[ '48' ] ?? '';
+			if ( rawAvatarUrl ) {
+				applyAvatarSrc( avatar, rawAvatarUrl );
+			}
+			if ( row.author > 0 ) {
+				avatar.setAttribute( 'user-id', String( row.author ) );
+			}
+			avatar.addEventListener( 'wpd-avatar-click', ( e ) => {
 				e.stopPropagation();
 				void openAuthorDrawer( cfg, drawerEl, row.author_email );
 			} );
+
+			// Cell rendering is inside `<wpd-table>`'s shadow root, so
+			// class-based CSS in the light-DOM `comments-window.css`
+			// stylesheet can't reach in — inline styles do. Matches
+			// the pattern used throughout `src/posts-window/index.ts`.
 			const meta = document.createElement( 'div' );
-			meta.className = 'desktop-mode-comments__author-meta';
+			meta.style.cssText =
+				'display:flex;flex-direction:column;gap:2px;min-width:0;' +
+				'line-height:1.3;';
 			const name = document.createElement( 'strong' );
+			name.style.cssText =
+				'font-weight:600;color:#1d2327;' +
+				'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 			name.textContent = row.author_name || __( 'Anonymous' );
 			const email = document.createElement( 'small' );
+			email.style.cssText =
+				'color:#646970;font-size:12px;' +
+				'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 			email.textContent = row.author_email;
 			meta.append( name, email );
 			wrap.append( avatar, meta );
@@ -1129,12 +1285,12 @@ function updatePager( state: PanelState ): void {
 	const indicator = state.root.querySelector< HTMLElement >(
 		'[data-desktop-mode-comments-page-indicator]',
 	);
-	const prevBtn = state.root.querySelector< HTMLButtonElement >(
+	const prevBtn = state.root.querySelector(
 		'[data-desktop-mode-comments-prev]',
-	);
-	const nextBtn = state.root.querySelector< HTMLButtonElement >(
+	) as ( HTMLElement & { disabled: boolean } ) | null;
+	const nextBtn = state.root.querySelector(
 		'[data-desktop-mode-comments-next]',
-	);
+	) as ( HTMLElement & { disabled: boolean } ) | null;
 	if ( indicator ) {
 		indicator.textContent = sprintf(
 			/* translators: 1: current page, 2: total pages, 3: total rows. */
@@ -1144,6 +1300,12 @@ function updatePager( state: PanelState ): void {
 			state.total,
 		);
 	}
+	// `<wpd-button>`'s `disabled` is a Component-base reflected prop:
+	// assigning `false` removes the attribute via the
+	// HTML-convention reflection rule installed in
+	// `src/ui/core/component.ts`. This is the test surface for that
+	// framework fix — if pagination starts working again, the fix is
+	// solid for every other `<wpd-*>` boolean attribute too.
 	if ( prevBtn ) {
 		prevBtn.disabled = state.page <= 1;
 	}

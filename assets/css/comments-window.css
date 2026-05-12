@@ -368,24 +368,115 @@
 	font-weight: 600;
 }
 
-/* --- Author insights drawer --- */
+/* --- Author insights flyover ---
+ *
+ * Slides in from the inline-end edge of the window body with a
+ * spring transition. The TS side toggles `data-open` on the host
+ * AFTER injecting content so the first paint catches the
+ * pre-open transform, then the next frame flips to `data-open="true"`
+ * and the transition animates the entrance. A semi-opaque backdrop
+ * (`.desktop-mode-comments__drawer-backdrop`) fades in behind the
+ * panel; click-outside closes via a TS listener.
+ */
+.desktop-mode-comments__drawer-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba( 15, 23, 42, 0.36 );
+	-webkit-backdrop-filter: blur( 3px ) saturate( 0.85 );
+	backdrop-filter: blur( 3px ) saturate( 0.85 );
+	/*
+	 * Stacking chain we must beat:
+	 *   - window title bar           (z:21, set by window-chrome.css)
+	 *   - <wpd-table> sticky body    (z:20)
+	 *   - <wpd-table> sticky header  (z:30)
+	 *   - <wpd-table> sticky corner  (z:40)  ← the corner cell of a
+	 *     sticky-header + sticky-column table is the worst offender
+	 *     and was the "stupid header" the dim couldn't cover.
+	 * 50 sits comfortably above every framework surface in the window.
+	 */
+	z-index: 50;
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		opacity 240ms cubic-bezier( 0.2, 0.8, 0.2, 1 ),
+		backdrop-filter 240ms cubic-bezier( 0.2, 0.8, 0.2, 1 );
+}
+.desktop-mode-comments__drawer-backdrop[ data-open='true' ] {
+	opacity: 1;
+	pointer-events: auto;
+}
 
 .desktop-mode-comments__drawer {
 	position: absolute;
-	top: 56px;
-	right: 12px;
-	width: 320px;
-	max-block-size: calc( 100% - 80px );
+	top: 12px;
+	inset-inline-end: 12px;
+	width: 340px;
+	max-block-size: calc( 100% - 24px );
 	overflow: auto;
 	background: var( --wp-desktop-elevated-bg, #fff );
 	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
-	border-radius: 8px;
-	padding: 16px;
-	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.18 );
-	z-index: 20;
+	border-radius: 12px;
+	padding: 18px;
+	box-shadow:
+		0 1px 2px rgba( 0, 0, 0, 0.04 ),
+		0 12px 36px rgba( 0, 0, 0, 0.22 );
+	/*
+	 * Drawer must outrank the dim backdrop (z:50) which itself sits
+	 * above the framework's title bar AND the table's sticky corner
+	 * cell (z:40). 60 gives the flyover a comfortable lead over all.
+	 */
+	z-index: 60;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 14px;
+
+	/* Default pose: parked off-screen to the right, slightly
+	 * scaled down + transparent. The TS side flips `data-open` to
+	 * trigger the transition into place. */
+	transform: translateX( calc( 100% + 24px ) ) scale( 0.96 );
+	opacity: 0;
+	transition:
+		transform 360ms cubic-bezier( 0.22, 1, 0.36, 1 ),
+		opacity 240ms ease-out;
+	will-change: transform, opacity;
+}
+.desktop-mode-comments__drawer[ data-open='true' ] {
+	transform: translateX( 0 ) scale( 1 );
+	opacity: 1;
+}
+
+/* Staggered fade-up for the drawer's inner blocks once it's open.
+ * Each direct child animates in 60ms after the previous one — gives
+ * the flyover a layered "popping in" feel rather than a flat
+ * single-element slide. */
+.desktop-mode-comments__drawer[ data-open='true' ] > * {
+	animation: wpd-comments-drawer-enter 380ms cubic-bezier( 0.22, 1, 0.36, 1 ) both;
+}
+.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 1 ) { animation-delay: 80ms; }
+.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 2 ) { animation-delay: 140ms; }
+.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 3 ) { animation-delay: 200ms; }
+.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 4 ) { animation-delay: 260ms; }
+.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 5 ) { animation-delay: 320ms; }
+
+@keyframes wpd-comments-drawer-enter {
+	from {
+		opacity: 0;
+		transform: translateY( 12px );
+	}
+	to {
+		opacity: 1;
+		transform: translateY( 0 );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-comments__drawer {
+		transition: opacity 120ms;
+		transform: none;
+	}
+	.desktop-mode-comments__drawer[ data-open='true' ] > * {
+		animation: none;
+	}
 }
 
 .desktop-mode-comments__drawer-header {

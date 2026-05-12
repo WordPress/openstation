@@ -78,6 +78,73 @@
     const finalInit = injectRestNonce(input, init);
     return fetch(input, finalInit);
   }
+  const gravatarCache = /* @__PURE__ */ new Map();
+  async function resolveAvatarUrl(raw) {
+    if (!raw) {
+      return null;
+    }
+    let parsed;
+    try {
+      parsed = new URL(raw, window.location.href);
+    } catch {
+      return raw;
+    }
+    if (!/gravatar\.com$/i.test(parsed.hostname)) {
+      return raw;
+    }
+    parsed.searchParams.delete("d");
+    parsed.searchParams.delete("s");
+    const cacheKey = parsed.toString();
+    const cached = gravatarCache.get(cacheKey);
+    if (cached !== void 0) {
+      return cached instanceof Promise ? cached : cached;
+    }
+    const probeUrl = new URL(raw, window.location.href);
+    probeUrl.searchParams.set("d", "blank");
+    const probe = new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(raw);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, 1, 1);
+          const pixel = ctx.getImageData(0, 0, 1, 1).data;
+          resolve(pixel[3] === 0 ? null : raw);
+        } catch {
+          resolve(raw);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = probeUrl.toString();
+    }).then((next) => {
+      gravatarCache.set(cacheKey, next);
+      return next;
+    });
+    gravatarCache.set(cacheKey, probe);
+    return probe;
+  }
+  function applyAvatarSrc(avatar, raw) {
+    if (!raw) {
+      return;
+    }
+    void resolveAvatarUrl(raw).then((url) => {
+      if (!avatar.isConnected) {
+        return;
+      }
+      if (url) {
+        avatar.setAttribute("src", url);
+      } else {
+        avatar.removeAttribute("src");
+      }
+    });
+  }
   const HIGHLIGHTS = [
     {
       icon: "dashicons-yes-alt",
@@ -433,20 +500,44 @@
   }
   function spamChipFor(row) {
     const score = Math.max(0, Math.min(100, row.desktop_mode_spam_score));
-    const chip = document.createElement("span");
-    chip.className = "desktop-mode-comments__spam-chip";
-    chip.dataset.score = String(score);
-    let tone = "low";
+    let tone = "positive";
     if (score >= 70) {
-      tone = "high";
+      tone = "danger";
     } else if (score >= 40) {
-      tone = "medium";
+      tone = "warning";
     }
+    const chip = document.createElement("wpd-chip");
+    chip.setAttribute("label", String(score));
+    chip.setAttribute("tone", tone);
+    chip.dataset.score = String(score);
     chip.dataset.tone = tone;
+    chip.style.cssText = [
+      "--wpd-chip-gap:0",
+      "--wpd-chip-padding:2px 12px",
+      "--wpd-chip-font-weight:700",
+      "min-inline-size:44px",
+      "justify-content:center",
+      "font-variant-numeric:tabular-nums"
+    ].join(";");
     if (row.desktop_mode_ai_verdict) {
       chip.dataset.ai = "1";
+      chip.style.boxShadow = "0 0 0 2px rgba(99,102,241,0.5)";
+      chip.style.position = "relative";
+      chip.style.borderRadius = "999px";
+      const dot = document.createElement("span");
+      dot.style.cssText = [
+        "position:absolute",
+        "top:-3px",
+        "inset-inline-end:-3px",
+        "width:8px",
+        "height:8px",
+        "border-radius:50%",
+        "background:linear-gradient(135deg,#818cf8,#6366f1)",
+        "box-shadow:0 0 0 2px #fff",
+        "pointer-events:none"
+      ].join(";");
+      chip.appendChild(dot);
     }
-    chip.textContent = String(score);
     const notes = [];
     if (row.desktop_mode_akismet === "true") {
       notes.push(__("Akismet flagged this comment as spam."));
@@ -559,13 +650,62 @@
     }
     return mountRichEditor(placeholder);
   }
+  function ensureBackdrop(host) {
+    const windowRoot = host.closest(".desktop-mode-window") ?? host.parentElement;
+    if (!windowRoot) {
+      return null;
+    }
+    let backdrop = windowRoot.querySelector(
+      ":scope > [data-desktop-mode-comments-drawer-backdrop]"
+    );
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.className = "desktop-mode-comments__drawer-backdrop";
+      backdrop.setAttribute("data-desktop-mode-comments-drawer-backdrop", "");
+      windowRoot.insertBefore(backdrop, windowRoot.firstChild);
+    }
+    return backdrop;
+  }
+  function closeAuthorDrawer(host) {
+    host.removeAttribute("data-open");
+    host.setAttribute("aria-hidden", "true");
+    const backdrop = ensureBackdrop(host);
+    backdrop?.removeAttribute("data-open");
+    const tearDown = host.__teardown;
+    if (tearDown) {
+      tearDown();
+      delete host.__teardown;
+    }
+  }
   async function openAuthorDrawer(cfg, host, email) {
-    host.hidden = false;
+    const backdrop = ensureBackdrop(host);
+    const wasOpen = host.getAttribute("data-open") === "true";
     host.replaceChildren();
     const loading = document.createElement("p");
     loading.className = "desktop-mode-comments__drawer-loading";
     loading.textContent = __("Loading author insights…");
     host.appendChild(loading);
+    if (!wasOpen) {
+      host.setAttribute("aria-hidden", "false");
+      backdrop?.setAttribute("data-open", "false");
+      requestAnimationFrame(() => {
+        host.setAttribute("data-open", "true");
+        backdrop?.setAttribute("data-open", "true");
+      });
+      const onEsc = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeAuthorDrawer(host);
+        }
+      };
+      const onBackdropClick = () => closeAuthorDrawer(host);
+      document.addEventListener("keydown", onEsc);
+      backdrop?.addEventListener("click", onBackdropClick);
+      host.__teardown = () => {
+        document.removeEventListener("keydown", onEsc);
+        backdrop?.removeEventListener("click", onBackdropClick);
+      };
+    }
     let data;
     try {
       data = await fetchAuthorInsights(cfg, email);
@@ -580,11 +720,17 @@
     host.replaceChildren();
     const header = document.createElement("header");
     header.className = "desktop-mode-comments__drawer-header";
-    const avatar = document.createElement("img");
-    avatar.src = data.avatarUrl;
-    avatar.alt = "";
-    avatar.width = 64;
-    avatar.height = 64;
+    const avatar = document.createElement("wpd-avatar");
+    avatar.setAttribute("size", "64");
+    if (data.userName) {
+      avatar.setAttribute("name", data.userName);
+    }
+    if (data.avatarUrl) {
+      applyAvatarSrc(avatar, data.avatarUrl);
+    }
+    if (data.userId > 0) {
+      avatar.setAttribute("user-id", String(data.userId));
+    }
     avatar.className = "desktop-mode-comments__drawer-avatar";
     const headerText = document.createElement("div");
     const name = document.createElement("h2");
@@ -637,10 +783,7 @@
     closeBtn.type = "button";
     closeBtn.className = "desktop-mode-comments__drawer-close";
     closeBtn.textContent = __("Close");
-    closeBtn.addEventListener("click", () => {
-      host.hidden = true;
-      host.replaceChildren();
-    });
+    closeBtn.addEventListener("click", () => closeAuthorDrawer(host));
     host.appendChild(closeBtn);
     publish("desktop-mode-comments/insights-opened", { email: data.email });
   }
@@ -1009,22 +1152,32 @@
       minWidth: "180px",
       render: (_v, row) => {
         const wrap = document.createElement("div");
-        wrap.className = "desktop-mode-comments__author";
-        const avatar = document.createElement("button");
-        avatar.type = "button";
-        avatar.className = "desktop-mode-comments__avatar-btn";
-        avatar.title = __("Show author insights");
-        const url = row.author_avatar_urls?.["48"] ?? "";
-        avatar.innerHTML = url ? `<img src="${url}" alt="" width="32" height="32" />` : '<span class="dashicons dashicons-admin-users" aria-hidden="true"></span>';
-        avatar.addEventListener("click", (e) => {
+        wrap.style.cssText = "display:flex;gap:10px;align-items:center;min-width:0;";
+        const avatar = document.createElement("wpd-avatar");
+        avatar.setAttribute("size", "32");
+        avatar.setAttribute("clickable", "");
+        avatar.setAttribute("title", __("Show author insights"));
+        if (row.author_name) {
+          avatar.setAttribute("name", row.author_name);
+        }
+        const rawAvatarUrl = row.author_avatar_urls?.["48"] ?? "";
+        if (rawAvatarUrl) {
+          applyAvatarSrc(avatar, rawAvatarUrl);
+        }
+        if (row.author > 0) {
+          avatar.setAttribute("user-id", String(row.author));
+        }
+        avatar.addEventListener("wpd-avatar-click", (e) => {
           e.stopPropagation();
           void openAuthorDrawer(cfg, drawerEl, row.author_email);
         });
         const meta = document.createElement("div");
-        meta.className = "desktop-mode-comments__author-meta";
+        meta.style.cssText = "display:flex;flex-direction:column;gap:2px;min-width:0;line-height:1.3;";
         const name = document.createElement("strong");
+        name.style.cssText = "font-weight:600;color:#1d2327;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
         name.textContent = row.author_name || __("Anonymous");
         const email = document.createElement("small");
+        email.style.cssText = "color:#646970;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
         email.textContent = row.author_email;
         meta.append(name, email);
         wrap.append(avatar, meta);

@@ -214,10 +214,30 @@ export abstract class Component extends HTMLElement {
 					return this.getAttribute( attr );
 				},
 				set: ( value: unknown ): void => {
-					const str =
-						value === null || value === undefined
-							? null
-							: String( value );
+					// Match HTML's reflection convention: any of
+					// `false` / `null` / `undefined` REMOVES the
+					// attribute. Without this branch
+					// `el.disabled = false` would call
+					// `setAttribute('disabled', 'false')` and the
+					// element would stay disabled — every CSS
+					// `[disabled]` rule and every `hasAttribute`
+					// check would still match, because attribute
+					// presence is what HTML semantics care about,
+					// not its string value.
+					//
+					// `true` reflects as the empty string (mirrors
+					// `<button disabled>` which has no value), and
+					// everything else stringifies as before so
+					// non-boolean props like `variant` / `value`
+					// keep working unchanged.
+					let str: string | null;
+					if ( value === null || value === undefined || value === false ) {
+						str = null;
+					} else if ( value === true ) {
+						str = '';
+					} else {
+						str = String( value );
+					}
 					this._propValues[ prop ] = str;
 					if ( str === null ) {
 						this.removeAttribute( attr );

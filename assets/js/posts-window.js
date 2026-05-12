@@ -78,6 +78,73 @@ var desktopModePostsWindow = function(exports) {
     const finalInit = injectRestNonce(input, init);
     return fetch(input, finalInit);
   }
+  const gravatarCache = /* @__PURE__ */ new Map();
+  async function resolveAvatarUrl(raw) {
+    if (!raw) {
+      return null;
+    }
+    let parsed;
+    try {
+      parsed = new URL(raw, window.location.href);
+    } catch {
+      return raw;
+    }
+    if (!/gravatar\.com$/i.test(parsed.hostname)) {
+      return raw;
+    }
+    parsed.searchParams.delete("d");
+    parsed.searchParams.delete("s");
+    const cacheKey2 = parsed.toString();
+    const cached = gravatarCache.get(cacheKey2);
+    if (cached !== void 0) {
+      return cached instanceof Promise ? cached : cached;
+    }
+    const probeUrl = new URL(raw, window.location.href);
+    probeUrl.searchParams.set("d", "blank");
+    const probe = new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(raw);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, 1, 1);
+          const pixel = ctx.getImageData(0, 0, 1, 1).data;
+          resolve(pixel[3] === 0 ? null : raw);
+        } catch {
+          resolve(raw);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = probeUrl.toString();
+    }).then((next) => {
+      gravatarCache.set(cacheKey2, next);
+      return next;
+    });
+    gravatarCache.set(cacheKey2, probe);
+    return probe;
+  }
+  function applyAvatarSrc(avatar, raw) {
+    if (!raw) {
+      return;
+    }
+    void resolveAvatarUrl(raw).then((url) => {
+      if (!avatar.isConnected) {
+        return;
+      }
+      if (url) {
+        avatar.setAttribute("src", url);
+      } else {
+        avatar.removeAttribute("src");
+      }
+    });
+  }
   const ROOT_ID = "__root__";
   const PALETTE = [
     2257329,
@@ -1521,6 +1588,11 @@ var desktopModePostsWindow = function(exports) {
     return fn(options);
   }
   const _introShown = /* @__PURE__ */ Object.create(null);
+  document.addEventListener("desktop-mode-intros-reset", () => {
+    for (const slug of Object.keys(_introShown)) {
+      _introShown[slug] = false;
+    }
+  });
   function maybeShowIntro() {
     let cfg;
     try {
@@ -2349,15 +2421,18 @@ var desktopModePostsWindow = function(exports) {
     const a = authorOf(row);
     const wrap = document.createElement("span");
     wrap.style.cssText = "display:inline-flex;align-items:center;gap:8px;min-width:0;";
-    if (a.avatar) {
-      const img = document.createElement("img");
-      img.src = a.avatar;
-      img.alt = "";
-      img.loading = "eager";
-      img.decoding = "sync";
-      img.style.cssText = "width:24px;height:24px;border-radius:50%;flex-shrink:0;";
-      wrap.appendChild(img);
+    const avatar = document.createElement("wpd-avatar");
+    avatar.setAttribute("size", "24");
+    if (a.name) {
+      avatar.setAttribute("name", a.name);
     }
+    if (a.id > 0) {
+      avatar.setAttribute("user-id", String(a.id));
+    }
+    if (a.avatar) {
+      applyAvatarSrc(avatar, a.avatar);
+    }
+    wrap.appendChild(avatar);
     const name = document.createElement("span");
     name.textContent = a.name;
     name.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
@@ -3926,11 +4001,19 @@ var desktopModePostsWindow = function(exports) {
     const wrap = document.createElement("div");
     wrap.className = "desktop-mode-user-edit__header";
     wrap.style.cssText = "display:flex;align-items:center;gap:16px;margin:0 0 12px;";
-    const avatar = document.createElement("img");
+    const avatar = document.createElement("wpd-avatar");
+    avatar.setAttribute("size", "64");
+    if (user.name || user.username) {
+      avatar.setAttribute("name", user.name || user.username || "");
+    }
+    if (user.id > 0) {
+      avatar.setAttribute("user-id", String(user.id));
+    }
     const avatars = user.avatar_urls ?? {};
-    avatar.src = avatars["96"] ?? avatars["48"] ?? "";
-    avatar.alt = "";
-    avatar.style.cssText = "width:64px;height:64px;border-radius:50%;flex-shrink:0;";
+    const rawAvatar = avatars["96"] ?? avatars["48"] ?? "";
+    if (rawAvatar) {
+      applyAvatarSrc(avatar, rawAvatar);
+    }
     wrap.appendChild(avatar);
     const text = document.createElement("div");
     text.style.cssText = "min-width:0;display:flex;flex-direction:column;gap:4px;";
@@ -9297,36 +9380,19 @@ var desktopModePostsWindow = function(exports) {
   function buildIdentityCell(row) {
     const cell = document.createElement("span");
     cell.style.cssText = "display:flex;align-items:center;gap:10px;min-width:0;";
-    const avatar = document.createElement("img");
-    const avatars = row.avatar_urls ?? {};
-    avatar.src = avatars["48"] ?? avatars["96"] ?? avatars["24"] ?? "";
-    avatar.alt = "";
-    avatar.loading = "eager";
-    avatar.decoding = "sync";
-    avatar.style.cssText = "width:32px;height:32px;border-radius:50%;flex-shrink:0;";
-    cell.appendChild(avatar);
-    const presence = row.desktop_mode_presence ?? "offline";
-    const dot = document.createElement("span");
-    let presenceLabel = __("Offline");
-    let presenceColor = "#8c8f94";
-    if (presence === "online") {
-      presenceLabel = __("Online now");
-      presenceColor = "#1d6f42";
-    } else if (presence === "inactive") {
-      presenceLabel = __("Idle");
-      presenceColor = "#d4a017";
+    const avatar = document.createElement("wpd-avatar");
+    avatar.setAttribute("size", "32");
+    if (row.name) {
+      avatar.setAttribute("name", row.name);
     }
-    dot.title = presenceLabel;
-    dot.setAttribute("aria-label", presenceLabel);
-    dot.style.cssText = [
-      "display:inline-block",
-      "width:8px",
-      "height:8px",
-      "border-radius:50%",
-      "flex-shrink:0",
-      `background:${presenceColor}`
-    ].join(";");
-    cell.appendChild(dot);
+    const presence = row.desktop_mode_presence ?? "offline";
+    avatar.setAttribute("presence", presence);
+    const avatars = row.avatar_urls ?? {};
+    const rawAvatar = avatars["48"] ?? avatars["96"] ?? avatars["24"] ?? "";
+    if (rawAvatar) {
+      applyAvatarSrc(avatar, rawAvatar);
+    }
+    cell.appendChild(avatar);
     const text = document.createElement("span");
     text.style.cssText = "display:flex;flex-direction:column;min-width:0;line-height:1.25;";
     const nameRow = document.createElement("span");

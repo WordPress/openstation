@@ -1979,7 +1979,14 @@ var desktopMode = function(exports) {
             return this.getAttribute(attr);
           },
           set: (value) => {
-            const str = value === null || value === void 0 ? null : String(value);
+            let str;
+            if (value === null || value === void 0 || value === false) {
+              str = null;
+            } else if (value === true) {
+              str = "";
+            } else {
+              str = String(value);
+            }
             this._propValues[prop] = str;
             if (str === null) {
               this.removeAttribute(attr);
@@ -18092,12 +18099,31 @@ var desktopMode = function(exports) {
 		flex: 0 0 auto;
 		vertical-align: middle;
 		line-height: 0;
+		/*
+		 * 3D perspective lets the tile rotate towards / away from the
+		 * pointer. The value is generous (size × 8) so even small
+		 * avatars feel responsive without distortion at the edges.
+		 */
+		perspective: calc( var( --wpd-avatar-size, 32px ) * 8 );
+		/*
+		 * Pointer-driven CSS custom properties. The TS side updates
+		 * these on pointermove; the styles below consume them. With
+		 * smooth transitions the result is a parallax-style hover
+		 * that "leans" toward the cursor and shines a soft glare
+		 * across the surface.
+		 */
+		--wpd-avatar-tilt-x: 0deg;
+		--wpd-avatar-tilt-y: 0deg;
+		--wpd-avatar-hover: 0;
+		--wpd-avatar-glare-x: 50%;
+		--wpd-avatar-glare-y: 50%;
 	}
 	:host( [ hidden ] ) {
 		display: none;
 	}
 
 	.wpd-avatar__tile {
+		position: relative;
 		width: 100%;
 		height: 100%;
 		border-radius: 50%;
@@ -18107,13 +18133,82 @@ var desktopMode = function(exports) {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-weight: 600;
-		font-size: calc( var( --wpd-avatar-size, 32px ) * 0.42 );
+		font-weight: 700;
+		/*
+		 * Slightly larger glyph — 0.42 left initials looking under-
+		 * filled inside the tile. 0.48 balances the negative space
+		 * without crowding the edge.
+		 */
+		font-size: calc( var( --wpd-avatar-size, 32px ) * 0.48 );
 		line-height: 1;
-		letter-spacing: 0.02em;
+		/*
+		 * Single-character initials have no following glyph to "space
+		 * after", so any positive letter-spacing inflates the
+		 * bounding box without shifting the visible character — that
+		 * made the X look off-centered to the right. Zero out.
+		 */
+		letter-spacing: 0;
 		font-feature-settings: 'tnum' 1;
 		user-select: none;
-		box-shadow: inset 0 0 0 1px rgba( 0, 0, 0, 0.05 );
+		transform-style: preserve-3d;
+		transform:
+			rotateX( var( --wpd-avatar-tilt-x ) )
+			rotateY( var( --wpd-avatar-tilt-y ) )
+			scale( calc( 1 + var( --wpd-avatar-hover ) * 0.07 ) );
+		transition:
+			transform 220ms cubic-bezier( 0.2, 0.8, 0.2, 1 ),
+			box-shadow 220ms cubic-bezier( 0.2, 0.8, 0.2, 1 );
+		box-shadow:
+			inset 0 0 0 1px rgba( 255, 255, 255, calc( 0.18 + 0.22 * var( --wpd-avatar-hover ) ) ),
+			inset 0 0 0 calc( 1px + var( --wpd-avatar-hover ) * 1px )
+				rgba( 0, 0, 0, calc( 0.08 + 0.04 * var( --wpd-avatar-hover ) ) ),
+			0 calc( 1px + var( --wpd-avatar-hover ) * 8px )
+				calc( 6px + var( --wpd-avatar-hover ) * 18px )
+				rgba( 0, 0, 0, calc( 0.08 + 0.18 * var( --wpd-avatar-hover ) ) );
+		/* Glyph "floats" above the surface — a tiny Z translate
+		 * separates it from the glare layer in the 3D scene. */
+	}
+
+	/* Cursor-tracking glare — a soft white radial bloom that follows
+	 * the pointer. mix-blend-mode overlay lets it warm the underlying
+	 * color instead of stamping a flat white on top, so the hue still
+	 * reads through. Opacity is driven by hover so it fades in/out
+	 * with the tilt. */
+	.wpd-avatar__tile::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: 50%;
+		background: radial-gradient(
+			circle at var( --wpd-avatar-glare-x ) var( --wpd-avatar-glare-y ),
+			rgba( 255, 255, 255, 0.55 ) 0%,
+			rgba( 255, 255, 255, 0 ) 55%
+		);
+		opacity: var( --wpd-avatar-hover );
+		mix-blend-mode: overlay;
+		pointer-events: none;
+		transition: opacity 220ms cubic-bezier( 0.2, 0.8, 0.2, 1 );
+	}
+
+	/* Subtle outer halo — a hue-aware ring that swells with hover.
+	 * Sits BEHIND the tile (negative z-index) so the perspective tilt
+	 * doesn't clip it. */
+	.wpd-avatar__tile::before {
+		content: '';
+		position: absolute;
+		inset: calc( var( --wpd-avatar-hover ) * -3px );
+		border-radius: 50%;
+		background: radial-gradient(
+			circle at var( --wpd-avatar-glare-x ) var( --wpd-avatar-glare-y ),
+			rgba( 99, 102, 241, calc( 0.35 * var( --wpd-avatar-hover ) ) ) 0%,
+			rgba( 99, 102, 241, 0 ) 70%
+		);
+		filter: blur( 4px );
+		pointer-events: none;
+		z-index: -1;
+		transition:
+			inset 220ms cubic-bezier( 0.2, 0.8, 0.2, 1 ),
+			background 220ms;
 	}
 
 	.wpd-avatar__tile img {
@@ -18121,6 +18216,9 @@ var desktopMode = function(exports) {
 		height: 100%;
 		object-fit: cover;
 		display: block;
+		/* Lift the image one notch in 3D space so it sits above the
+		 * glare layer's radial bloom. */
+		transform: translateZ( 1px );
 	}
 
 	.wpd-avatar__dot {
@@ -18135,6 +18233,9 @@ var desktopMode = function(exports) {
 		box-sizing: border-box;
 		border: 2px solid var( --wpd-avatar-dot-ring, var( --desktop-mode-window-bg, #fff ) );
 		background: var( --wpd-avatar-dot-color, transparent );
+		/* Keep the dot out of the perspective scene so it stays
+		 * crisply pinned to the bottom-end corner regardless of tilt. */
+		z-index: 2;
 	}
 
 	.wpd-avatar__dot--online {
@@ -18145,6 +18246,21 @@ var desktopMode = function(exports) {
 	}
 	.wpd-avatar__dot--offline {
 		background: var( --desktop-mode-muted, #8c8f94 );
+	}
+
+	/* Respect user preference — disable the tilt + glare entirely
+	 * for users who opt into reduced motion. The hover lift in
+	 * box-shadow is gentle enough to keep; only the heavy motion
+	 * channels get muted. */
+	@media ( prefers-reduced-motion: reduce ) {
+		.wpd-avatar__tile {
+			transform: none;
+			transition: box-shadow 200ms;
+		}
+		.wpd-avatar__tile::after,
+		.wpd-avatar__tile::before {
+			display: none;
+		}
 	}
 `;
   const SIZE_MAP = {
@@ -18160,10 +18276,19 @@ var desktopMode = function(exports) {
       super(...arguments);
       this._presenceHandler = null;
       this._imgFailed = false;
+      this._onPointerMove = null;
+      this._onPointerEnter = null;
+      this._onPointerLeave = null;
+      this._tiltRaf = 0;
+      this._pendingTiltX = "0deg";
+      this._pendingTiltY = "0deg";
+      this._pendingGlareX = "50%";
+      this._pendingGlareY = "50%";
     }
     connectedCallback() {
       super.connectedCallback();
       this._maybeAttachPresenceListener();
+      this._attachHoverEffect();
     }
     disconnectedCallback() {
       if (this._presenceHandler) {
@@ -18173,6 +18298,7 @@ var desktopMode = function(exports) {
         );
         this._presenceHandler = null;
       }
+      this._detachHoverEffect();
     }
     attributeChangedCallback(name, oldValue, newValue) {
       super.attributeChangedCallback(name, oldValue, newValue);
@@ -18278,6 +18404,81 @@ var desktopMode = function(exports) {
         originalEvent: e
       };
       this.emit("wpd-avatar-click", detail);
+    }
+    /**
+     * Wire up the pointer-driven tilt + glare. Listens on the host so
+     * one set of bindings covers both the clickable `<button>` and
+     * the decorative `<div>` rendering branches. The actual math
+     * runs in `_handlePointerMove`; this method just owns the
+     * bind/unbind plumbing.
+     *
+     * Bails entirely when `prefers-reduced-motion: reduce` is set —
+     * the CSS has its own `@media` guard for the visual layer, but
+     * skipping the JS too saves the per-event work for users who
+     * won't benefit from it.
+     */
+    _attachHoverEffect() {
+      const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (reduceMotion) {
+        return;
+      }
+      this._onPointerEnter = () => {
+        this.style.setProperty("--wpd-avatar-hover", "1");
+      };
+      this._onPointerLeave = () => {
+        this.style.setProperty("--wpd-avatar-hover", "0");
+        this._pendingTiltX = "0deg";
+        this._pendingTiltY = "0deg";
+        this._pendingGlareX = "50%";
+        this._pendingGlareY = "50%";
+        this._flushTilt();
+      };
+      this._onPointerMove = (e) => {
+        const rect = this.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          return;
+        }
+        const nx = (e.clientX - rect.left) / rect.width - 0.5;
+        const ny = (e.clientY - rect.top) / rect.height - 0.5;
+        const MAX = 14;
+        this._pendingTiltY = `${(nx * MAX).toFixed(2)}deg`;
+        this._pendingTiltX = `${(-ny * MAX).toFixed(2)}deg`;
+        const gx = Math.max(0, Math.min(100, (nx + 0.5) * 100));
+        const gy = Math.max(0, Math.min(100, (ny + 0.5) * 100));
+        this._pendingGlareX = `${gx.toFixed(1)}%`;
+        this._pendingGlareY = `${gy.toFixed(1)}%`;
+        if (!this._tiltRaf) {
+          this._tiltRaf = requestAnimationFrame(() => this._flushTilt());
+        }
+      };
+      this.addEventListener("pointerenter", this._onPointerEnter);
+      this.addEventListener("pointerleave", this._onPointerLeave);
+      this.addEventListener("pointermove", this._onPointerMove);
+    }
+    _flushTilt() {
+      this._tiltRaf = 0;
+      this.style.setProperty("--wpd-avatar-tilt-x", this._pendingTiltX);
+      this.style.setProperty("--wpd-avatar-tilt-y", this._pendingTiltY);
+      this.style.setProperty("--wpd-avatar-glare-x", this._pendingGlareX);
+      this.style.setProperty("--wpd-avatar-glare-y", this._pendingGlareY);
+    }
+    _detachHoverEffect() {
+      if (this._onPointerMove) {
+        this.removeEventListener("pointermove", this._onPointerMove);
+        this._onPointerMove = null;
+      }
+      if (this._onPointerEnter) {
+        this.removeEventListener("pointerenter", this._onPointerEnter);
+        this._onPointerEnter = null;
+      }
+      if (this._onPointerLeave) {
+        this.removeEventListener("pointerleave", this._onPointerLeave);
+        this._onPointerLeave = null;
+      }
+      if (this._tiltRaf) {
+        cancelAnimationFrame(this._tiltRaf);
+        this._tiltRaf = 0;
+      }
     }
     _maybeAttachPresenceListener() {
       const userId = this._attr("user-id");

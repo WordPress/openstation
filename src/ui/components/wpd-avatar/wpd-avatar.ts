@@ -86,10 +86,24 @@ export class WpdAvatar extends Component {
 
 	private _presenceHandler: ( ( e: Event ) => void ) | null = null;
 	private _imgFailed = false;
+	private _onPointerMove: ( ( e: PointerEvent ) => void ) | null = null;
+	private _onPointerEnter: ( ( e: PointerEvent ) => void ) | null = null;
+	private _onPointerLeave: ( ( e: PointerEvent ) => void ) | null = null;
+	/**
+	 * Rolling RAF id for tilt updates. Pointer events fire faster than
+	 * the browser can paint; coalescing through `requestAnimationFrame`
+	 * collapses bursts into one DOM write per frame.
+	 */
+	private _tiltRaf = 0;
+	private _pendingTiltX = '0deg';
+	private _pendingTiltY = '0deg';
+	private _pendingGlareX = '50%';
+	private _pendingGlareY = '50%';
 
 	connectedCallback(): void {
 		super.connectedCallback();
 		this._maybeAttachPresenceListener();
+		this._attachHoverEffect();
 	}
 
 	disconnectedCallback(): void {
@@ -100,6 +114,7 @@ export class WpdAvatar extends Component {
 			);
 			this._presenceHandler = null;
 		}
+		this._detachHoverEffect();
 	}
 
 	attributeChangedCallback(
@@ -245,6 +260,105 @@ export class WpdAvatar extends Component {
 			originalEvent: e,
 		};
 		this.emit( 'wpd-avatar-click', detail );
+	}
+
+	/**
+	 * Wire up the pointer-driven tilt + glare. Listens on the host so
+	 * one set of bindings covers both the clickable `<button>` and
+	 * the decorative `<div>` rendering branches. The actual math
+	 * runs in `_handlePointerMove`; this method just owns the
+	 * bind/unbind plumbing.
+	 *
+	 * Bails entirely when `prefers-reduced-motion: reduce` is set —
+	 * the CSS has its own `@media` guard for the visual layer, but
+	 * skipping the JS too saves the per-event work for users who
+	 * won't benefit from it.
+	 */
+	private _attachHoverEffect(): void {
+		// Respect the user's motion preference. SSR / non-DOM contexts
+		// don't have `matchMedia`, so guard.
+		const reduceMotion =
+			typeof window !== 'undefined' &&
+			window.matchMedia?.( '(prefers-reduced-motion: reduce)' ).matches;
+		if ( reduceMotion ) {
+			return;
+		}
+
+		this._onPointerEnter = (): void => {
+			this.style.setProperty( '--wpd-avatar-hover', '1' );
+		};
+		this._onPointerLeave = (): void => {
+			this.style.setProperty( '--wpd-avatar-hover', '0' );
+			// Reset the tilt/glare so the next pointer-enter starts from
+			// a neutral pose instead of snapping from wherever the
+			// pointer last hovered.
+			this._pendingTiltX = '0deg';
+			this._pendingTiltY = '0deg';
+			this._pendingGlareX = '50%';
+			this._pendingGlareY = '50%';
+			this._flushTilt();
+		};
+		this._onPointerMove = ( e: PointerEvent ): void => {
+			const rect = this.getBoundingClientRect();
+			if ( rect.width === 0 || rect.height === 0 ) {
+				return;
+			}
+			// Normalize pointer position to [-1, 1] from tile center.
+			const nx = ( e.clientX - rect.left ) / rect.width - 0.5;
+			const ny = ( e.clientY - rect.top ) / rect.height - 0.5;
+
+			// Maximum tilt angle (degrees). 14° feels animated without
+			// looking jittery. Sign: pointer on the right (positive
+			// nx) → right edge tips TOWARD the viewer →
+			// rotateY is +nx * MAX. Pointer above center (negative
+			// ny) → top edge tips toward viewer → rotateX = -ny * MAX.
+			const MAX = 14;
+			this._pendingTiltY = `${ ( nx * MAX ).toFixed( 2 ) }deg`;
+			this._pendingTiltX = `${ ( -ny * MAX ).toFixed( 2 ) }deg`;
+			// Glare follows the pointer position as a percentage of
+			// the tile box. Clamp to [0, 100] so a pointer that
+			// briefly leaves the bounds doesn't push the bloom
+			// off-canvas.
+			const gx = Math.max( 0, Math.min( 100, ( nx + 0.5 ) * 100 ) );
+			const gy = Math.max( 0, Math.min( 100, ( ny + 0.5 ) * 100 ) );
+			this._pendingGlareX = `${ gx.toFixed( 1 ) }%`;
+			this._pendingGlareY = `${ gy.toFixed( 1 ) }%`;
+
+			if ( ! this._tiltRaf ) {
+				this._tiltRaf = requestAnimationFrame( () => this._flushTilt() );
+			}
+		};
+
+		this.addEventListener( 'pointerenter', this._onPointerEnter );
+		this.addEventListener( 'pointerleave', this._onPointerLeave );
+		this.addEventListener( 'pointermove', this._onPointerMove );
+	}
+
+	private _flushTilt(): void {
+		this._tiltRaf = 0;
+		this.style.setProperty( '--wpd-avatar-tilt-x', this._pendingTiltX );
+		this.style.setProperty( '--wpd-avatar-tilt-y', this._pendingTiltY );
+		this.style.setProperty( '--wpd-avatar-glare-x', this._pendingGlareX );
+		this.style.setProperty( '--wpd-avatar-glare-y', this._pendingGlareY );
+	}
+
+	private _detachHoverEffect(): void {
+		if ( this._onPointerMove ) {
+			this.removeEventListener( 'pointermove', this._onPointerMove );
+			this._onPointerMove = null;
+		}
+		if ( this._onPointerEnter ) {
+			this.removeEventListener( 'pointerenter', this._onPointerEnter );
+			this._onPointerEnter = null;
+		}
+		if ( this._onPointerLeave ) {
+			this.removeEventListener( 'pointerleave', this._onPointerLeave );
+			this._onPointerLeave = null;
+		}
+		if ( this._tiltRaf ) {
+			cancelAnimationFrame( this._tiltRaf );
+			this._tiltRaf = 0;
+		}
 	}
 
 	private _maybeAttachPresenceListener(): void {

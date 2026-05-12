@@ -23,6 +23,7 @@
 
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
+import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { getActiveWindowId, getConfig } from './rest';
 import {
 	bulkSetRole,
@@ -281,38 +282,28 @@ function buildIdentityCell( row: UserListItem ): HTMLElement {
 	cell.style.cssText =
 		'display:flex;align-items:center;gap:10px;min-width:0;';
 
-	const avatar = document.createElement( 'img' );
-	const avatars = row.avatar_urls ?? {};
-	avatar.src = avatars[ '48' ] ?? avatars[ '96' ] ?? avatars[ '24' ] ?? '';
-	avatar.alt = '';
-	avatar.loading = 'eager';
-	avatar.decoding = 'sync';
-	avatar.style.cssText =
-		'width:32px;height:32px;border-radius:50%;flex-shrink:0;';
-	cell.appendChild( avatar );
-
-	const presence = row.desktop_mode_presence ?? 'offline';
-	const dot = document.createElement( 'span' );
-	let presenceLabel = __( 'Offline' );
-	let presenceColor = '#8c8f94';
-	if ( presence === 'online' ) {
-		presenceLabel = __( 'Online now' );
-		presenceColor = '#1d6f42';
-	} else if ( presence === 'inactive' ) {
-		presenceLabel = __( 'Idle' );
-		presenceColor = '#d4a017';
+	// `<wpd-avatar>` consolidates the hand-rolled image + presence dot
+	// + initials fallback into one component. The Gravatar probe is
+	// run via the shared `applyAvatarSrc` helper so users without a
+	// registered avatar drop straight to initials.
+	const avatar = document.createElement( 'wpd-avatar' );
+	avatar.setAttribute( 'size', '32' );
+	if ( row.name ) {
+		avatar.setAttribute( 'name', row.name );
 	}
-	dot.title = presenceLabel;
-	dot.setAttribute( 'aria-label', presenceLabel );
-	dot.style.cssText = [
-		'display:inline-block',
-		'width:8px',
-		'height:8px',
-		'border-radius:50%',
-		'flex-shrink:0',
-		`background:${ presenceColor }`,
-	].join( ';' );
-	cell.appendChild( dot );
+	// Presence is authoritative from the REST row (already includes
+	// the per-user heartbeat). Avoid `user-id` auto-subscribe here
+	// since we already have a fresh snapshot — setting both would
+	// race the explicit value against the next heartbeat tick.
+	const presence = row.desktop_mode_presence ?? 'offline';
+	avatar.setAttribute( 'presence', presence );
+	const avatars = row.avatar_urls ?? {};
+	const rawAvatar =
+		avatars[ '48' ] ?? avatars[ '96' ] ?? avatars[ '24' ] ?? '';
+	if ( rawAvatar ) {
+		applyAvatarSrc( avatar, rawAvatar );
+	}
+	cell.appendChild( avatar );
 
 	const text = document.createElement( 'span' );
 	text.style.cssText =
