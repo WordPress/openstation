@@ -1067,6 +1067,18 @@ function desktop_mode_chromeless_bridge_script() {
 		var rewritten = rewriteAdminUrl( action || window.location.href, window.location.href );
 		if ( rewritten ) {
 			form.setAttribute( 'action', rewritten );
+			// For GET forms the browser drops the action URL's query string
+			// when building the submission URL (HTML spec: form data
+			// replaces the query component). Inject a hidden input so the
+			// flag travels through form data instead.
+			if ( ( form.getAttribute( 'method' ) || 'get' ).toLowerCase() === 'get' &&
+				 ! form.querySelector( 'input[name="desktop_mode_chromeless"]' ) ) {
+				var hidden = document.createElement( 'input' );
+				hidden.type  = 'hidden';
+				hidden.name  = 'desktop_mode_chromeless';
+				hidden.value = '1';
+				form.appendChild( hidden );
+			}
 		}
 	}, true );
 
