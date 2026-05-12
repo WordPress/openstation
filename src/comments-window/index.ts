@@ -29,6 +29,12 @@ import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import '../ui/components/wpd-table/wpd-table';
 import '../ui/components/wpd-avatar/wpd-avatar';
 import '../ui/components/wpd-chip/wpd-chip';
+// `<wpd-tabs>` (Pending/All/Spam/Trash/Mine) is emitted by
+// `includes/comments-window/window.php`, never built via
+// `document.createElement` here — so the lint rule that scans
+// `createElement('wpd-*')` doesn't see it. Register the compound
+// class set explicitly so the server-rendered tabs work.
+import '../ui/components/wpd-tabs/wpd-tabs';
 import { showCommentsIntroDialog } from './intro-dialog';
 import {
 	bulkModerate,

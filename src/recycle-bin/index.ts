@@ -22,6 +22,12 @@ import { __, sprintf } from '../i18n';
 // bundle constructs that the main shell does not ship.
 import '../ui/components/wpd-table/wpd-table';
 import '../ui/components/wpd-relative-time/wpd-relative-time';
+// `<wpd-segmented>` (with `<wpd-segment>` children) is the type-filter
+// toolbar emitted by `includes/recycle-bin/window.php`, never built
+// via `document.createElement` here — so the lint rule that scans
+// `createElement('wpd-*')` doesn't see it. Register the compound
+// class set explicitly so the server-rendered toolbar works.
+import '../ui/components/wpd-segmented/wpd-segmented';
 import { setRecycleBinBadge } from './badge';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';

@@ -23,6 +23,12 @@ import { __ } from '../i18n';
 import '../ui/components/wpd-table/wpd-table';
 import '../ui/components/wpd-card/wpd-card';
 import '../ui/components/wpd-badge/wpd-badge';
+// `<wpd-flyout data-desktop-mode-plugins-flyout>` is emitted by the
+// PHP template (`includes/plugins-window/window.php`), never built via
+// `document.createElement` in this bundle — so the per-bundle lint
+// rule that scans `createElement('wpd-*')` doesn't see it. Register
+// the class explicitly so the server-rendered element upgrades.
+import '../ui/components/wpd-flyout/wpd-flyout';
 import { mountBrowseView } from './browse-view';
 import { mountInstalledView } from './installed-view';
 import { getConfig, type PluginsWindowConfig } from './rest';

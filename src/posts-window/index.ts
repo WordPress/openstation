@@ -29,6 +29,12 @@ import { showPostsIntroDialog } from './intro-dialog';
 // bundle constructs that the main shell does not ship. See the
 // header docblock for the rationale.
 import '../ui/components/wpd-table/wpd-table';
+// `<wpd-tabs>` (with `<wpd-tab>` children + `<wpd-tabpanel>` siblings)
+// is emitted by `includes/posts-window/window.php`, never built via
+// `document.createElement` here — so the lint rule that scans
+// `createElement('wpd-*')` doesn't see it. Register the compound
+// class set explicitly so the server-rendered tabs work.
+import '../ui/components/wpd-tabs/wpd-tabs';
 import '../ui/components/wpd-tag-input/wpd-tag-input';
 import '../ui/components/wpd-category-picker/wpd-category-picker';
 import '../ui/components/wpd-avatar/wpd-avatar';
