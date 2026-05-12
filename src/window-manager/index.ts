@@ -491,16 +491,31 @@ export class WindowManager {
 			}
 		};
 		win.onOpenAnother = ( w: Window ) => {
-			// Open-another is iframe-window only — the "+" chip is
-			// never rendered on native windows in practice. The
-			// `|| ''` is belt-and-suspenders for TS's perspective on
-			// the now-optional `config.url`: a native window
-			// reaching this path would produce `?desktop_mode_chromeless=1` on
-			// an empty URL, which downstream code handles cleanly
-			// but will never actually fire.
+			// Native windows: route through the public-API
+			// `openNewWindow( id )` so the registry's template clone
+			// + render callback fire on the fresh body. Without this
+			// branch native windows would fall through to the iframe
+			// `openNew()` path below and end up rendered as a
+			// generic chromeless iframe, losing their custom UI.
+			const baseId = w.config.baseId || w.id;
+			if ( w.config.native ) {
+				const api = ( window as unknown as {
+					wp?: {
+						desktop?: {
+							openNewWindow?: (
+								id: string,
+								opts?: { source?: string },
+							) => boolean;
+						};
+					};
+				} ).wp?.desktop;
+				if ( api?.openNewWindow?.( baseId, { source: 'open-another' } ) ) {
+					return;
+				}
+			}
 			this.openNew( {
-				id: w.config.baseId || w.id,
-				baseId: w.config.baseId || w.id,
+				id: baseId,
+				baseId,
 				url: w.config.url || '',
 				title: w.config.title,
 				icon: w.config.icon,
@@ -514,10 +529,29 @@ export class WindowManager {
 		// keep the page they're looking at while peeling a fresh copy
 		// off the same window.
 		win.onOpenInNewWindow = ( w: Window ) => {
+			// Native windows have no URL state to preserve — peeling
+			// off a fresh copy means spawning a new instance from the
+			// registry, same as `onOpenAnother`.
+			const baseId = w.config.baseId || w.id;
+			if ( w.config.native ) {
+				const api = ( window as unknown as {
+					wp?: {
+						desktop?: {
+							openNewWindow?: (
+								id: string,
+								opts?: { source?: string },
+							) => boolean;
+						};
+					};
+				} ).wp?.desktop;
+				if ( api?.openNewWindow?.( baseId, { source: 'open-in-new-window' } ) ) {
+					return;
+				}
+			}
 			const currentUrl = w.getCurrentUrl();
 			this.openNew( {
-				id: w.config.baseId || w.id,
-				baseId: w.config.baseId || w.id,
+				id: baseId,
+				baseId,
 				url: currentUrl || w.config.url || '',
 				title: w.config.title,
 				icon: w.config.icon,

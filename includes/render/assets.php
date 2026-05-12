@@ -280,6 +280,23 @@ function desktop_mode_enqueue_assets() {
 			'aiProviders'           => desktop_mode_ai_get_providers_for_config(),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
+			// Comments-window AI moderation toggle — surfaced at the
+			// shell level so the OS Settings → Features tab can render
+			// the toggle without depending on the Comments window
+			// being registered for this user. URL is the same
+			// endpoint the comments-window config exposes; state is
+			// `null` for non-admins (the UI hides the row entirely).
+			'commentsAiUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
+			'commentsAi'            => current_user_can( 'manage_options' )
+				? array(
+					'enabled'            => function_exists( 'desktop_mode_comments_ai_is_enabled' )
+						? desktop_mode_comments_ai_is_enabled()
+						: false,
+					'providerConfigured' => function_exists( 'desktop_mode_comments_ai_provider_configured' )
+						? desktop_mode_comments_ai_provider_configured()
+						: false,
+				)
+				: null,
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
 			'portalUrl'        => esc_url( desktop_mode_portal_url() ),
 			'fromPortal'       => $from_portal,

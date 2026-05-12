@@ -1756,8 +1756,26 @@ export class Dock {
 	 * windows of Posts is the explicit ask — that's what + is for.
 	 */
 	private openNewInstance( item: DockItem ): void {
-		const baseId = this.deriveWindowId( item.url );
+		// If the item's URL is claimed by a native-window remap (Posts,
+		// Pages, Users, Comments, Plugins, …), spawn a fresh native
+		// instance via the registry — same path as the regular dock
+		// click, but routed through `openNewById` instead of
+		// `openById` so the next-instance-id logic kicks in.
+		// Without this branch native windows would fall through to the
+		// iframe `openNew()` below and lose their custom render
+		// callback + template, opening a generic chromeless iframe of
+		// the URL instead of a duplicate of the native window.
+		const remappedId = resolveNativeUrlRemap( item.url );
+		if ( remappedId ) {
+			const api = ( window as unknown as {
+				wp?: { desktop?: { openNewWindow?: ( id: string, opts?: { source?: string } ) => boolean } };
+			} ).wp?.desktop;
+			if ( api?.openNewWindow?.( remappedId, { source: 'dock-peek' } ) ) {
+				return;
+			}
+		}
 
+		const baseId = this.deriveWindowId( item.url );
 		this.windowManager.openNew( {
 			id: baseId,
 			baseId,

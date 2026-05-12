@@ -833,6 +833,23 @@ export interface NativeWindowSync {
 	 * callback fires. **Do not duplicate this elsewhere.**
 	 */
 	openById: ( id: string ) => boolean;
+
+	/**
+	 * Spawn a BRAND-NEW instance of a registered native window — even
+	 * when one is already open. Mirrors {@link openById} but routes
+	 * through `manager.openNew()` so the new window gets a fresh
+	 * instance id (`<base>-2`, `<base>-3`, …) and the cloned template
+	 * + render callback fire against the new body.
+	 *
+	 * Used by the dock-peek "+" button and the window menu's "Open
+	 * another" affordance so native windows behave like iframe
+	 * windows do: every "+" yields a duplicate, not a focus-existing.
+	 *
+	 * Returns `false` when the id isn't registered.
+	 *
+	 * @since 0.19.0
+	 */
+	openNewById: ( id: string ) => boolean;
 }
 
 export function createNativeWindowSync(
@@ -998,6 +1015,40 @@ export function createNativeWindowSync(
 		} );
 	};
 
+	/**
+	 * Same shape as {@link openFromEntry} but routes through
+	 * `manager.openNew()` so the next-instance-id logic kicks in. The
+	 * render callback is built fresh per call — every duplicate gets
+	 * its own template clone and its own teardown.
+	 */
+	const openNewFromEntry = ( entry: NativeWindowServerEntry ): void => {
+		const globalRegistry =
+			( window as unknown as NativeWindowGlobals ).desktopModeNativeWindows ||
+			{};
+		const render = globalRegistry[ entry.id ];
+
+		const finalRender: RenderCallback = ( body, ctx ) => {
+			body.appendChild( cloneTemplate( entry.templateId ) );
+			return render?.( body, ctx );
+		};
+
+		manager.openNew( {
+			id: entry.id,
+			baseId: entry.id,
+			native: true,
+			url: `#${ entry.id }`,
+			title: entry.title,
+			icon: entry.icon,
+			width: entry.width,
+			height: entry.height,
+			minWidth: entry.minWidth,
+			minHeight: entry.minHeight,
+			render: finalRender,
+			autofocus: entry.autofocus,
+			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+		} );
+	};
+
 	const registerTile = async (
 		entry: NativeWindowServerEntry,
 	): Promise< void > => {
@@ -1095,7 +1146,23 @@ export function createNativeWindowSync(
 		return true;
 	};
 
-	return { sync, openById };
+	const openNewById = (
+		id: string,
+		opts: { source?: string } = {},
+	): boolean => {
+		const entry = entriesById.get( id );
+		if ( ! entry ) {
+			return false;
+		}
+		activity.publish( 'desktop-mode/open-requested', {
+			windowId: id,
+			source: opts.source ?? 'api',
+		} );
+		openNewFromEntry( entry );
+		return true;
+	};
+
+	return { sync, openById, openNewById };
 }
 
 export function cloneTemplate(

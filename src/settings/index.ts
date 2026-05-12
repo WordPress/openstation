@@ -147,6 +147,7 @@ export class OsSettings implements SettingsCtx {
 			nativePagesEnabled: this.state.nativePagesEnabled,
 			nativeUsersEnabled: this.state.nativeUsersEnabled,
 			nativePluginsEnabled: this.state.nativePluginsEnabled,
+			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
 			itemVisibility: { ...this.state.itemVisibility },
 			dockOrder: this.state.dockOrder.slice(),
 		};

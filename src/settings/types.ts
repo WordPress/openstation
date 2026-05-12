@@ -176,6 +176,16 @@ export interface OsSettingsState {
 	 */
 	nativePluginsEnabled: boolean;
 	/**
+	 * Per-user opt-in for the native Comments window. When true, the
+	 * Comments dock tile / `edit-comments.php` links open the native
+	 * `<wpd-table>`-driven moderation queue instead of the chromeless
+	 * iframe. Defaults on. Capability-gated on the server (`edit_posts`);
+	 * bulk + reply actions further cap-gate inside the bundle.
+	 *
+	 * @since 0.19.0
+	 */
+	nativeCommentsEnabled: boolean;
+	/**
 	 * Per-item placement preference. Maps an item id (dock-item slug or
 	 * registered desktop-icon id) to one of:
 	 *   - `'both'`    — show on both dock and desktop.

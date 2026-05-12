@@ -105,6 +105,10 @@ function desktop_mode_default_os_settings() {
 		// tile anyway. When `false`, the dock click falls back to the
 		// classic `plugins.php` chromeless iframe path.
 		'nativePluginsEnabled'     => true,
+		// Per-user opt-OUT for the native Comments window. Defaults ON;
+		// the server-side cap gate (`edit_posts`) means the toggle only
+		// matters for users who could see the Comments tile anyway.
+		'nativeCommentsEnabled'    => true,
 		// Per-item placement preferences. Map of item id (dock-item
 		// slug or registered desktop-icon id) → one of:
 		//   'both'    — show on both dock and desktop.
@@ -346,6 +350,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['nativePluginsEnabled']
 		: $defaults['nativePluginsEnabled'];
 
+	$native_comments_enabled = isset( $raw['nativeCommentsEnabled'] )
+		? (bool) $raw['nativeCommentsEnabled']
+		: $defaults['nativeCommentsEnabled'];
+
 	// itemVisibility — map<sanitize_key, enum>. Unknown ids are kept
 	// (a deactivated plugin's setting should survive reactivation);
 	// invalid placement values are dropped.
@@ -407,6 +415,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePagesEnabled'       => $native_pages_enabled,
 		'nativeUsersEnabled'       => $native_users_enabled,
 		'nativePluginsEnabled'     => $native_plugins_enabled,
+		'nativeCommentsEnabled'    => $native_comments_enabled,
 		'itemVisibility'           => $item_visibility,
 		'dockOrder'                => $dock_order,
 	);

@@ -25,12 +25,13 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "DESKTOP_MODE_TARGET=iframe-bridge vite build --mode development && DESKTOP_MODE_TARGET=iframe-bridge vite build --mode production",
 		"build:recycle-bin": "DESKTOP_MODE_TARGET=recycle-bin vite build --mode development && DESKTOP_MODE_TARGET=recycle-bin vite build --mode production",
 		"build:posts-window": "DESKTOP_MODE_TARGET=posts-window vite build --mode development && DESKTOP_MODE_TARGET=posts-window vite build --mode production",
 		"build:plugins-window": "DESKTOP_MODE_TARGET=plugins-window vite build --mode development && DESKTOP_MODE_TARGET=plugins-window vite build --mode production",
+		"build:comments-window": "DESKTOP_MODE_TARGET=comments-window vite build --mode development && DESKTOP_MODE_TARGET=comments-window vite build --mode production",
 		"build:my-wordpress": "DESKTOP_MODE_TARGET=my-wordpress vite build --mode development && DESKTOP_MODE_TARGET=my-wordpress vite build --mode production",
 		"build:content-graph": "DESKTOP_MODE_TARGET=content-graph vite build --mode development && DESKTOP_MODE_TARGET=content-graph vite build --mode production",
 		"build:pwa-sw": "DESKTOP_MODE_TARGET=pwa-sw vite build --mode development && DESKTOP_MODE_TARGET=pwa-sw vite build --mode production",

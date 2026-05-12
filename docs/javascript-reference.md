@@ -1227,6 +1227,18 @@ const safeOutgoing = wp.desktop.activity.filter(
 
 **See also:** [`docs/event-driven-framework.md`](./event-driven-framework.md) for the bigger pattern.
 
+**Comments window channels (since 0.19.0)** — the native Comments window publishes on:
+
+- `desktop-mode-comments/approved` — `{ ids: number[]; counts: CommentCounts }`
+- `desktop-mode-comments/unapproved` — same payload shape
+- `desktop-mode-comments/spamd` / `desktop-mode-comments/unspamd` — same
+- `desktop-mode-comments/trashd` / `desktop-mode-comments/untrashd` — same
+- `desktop-mode-comments/replied` — `{ parentId: number; postId: number }`
+- `desktop-mode-comments/edited` — `{ id: number }`
+- `desktop-mode-comments/insights-opened` — `{ email: string }`
+
+Subscribe to drive plugin badges, audit logs, or to refresh widgets that surface pending counts.
+
 ---
 
 ### `heartbeat` — Stable *(since 0.5.5)*

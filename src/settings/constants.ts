@@ -184,6 +184,9 @@ export const DEFAULTS: OsSettingsState = {
 	// `activate_plugins` server-side, so flipping this off only
 	// affects users who could see the Plugins tile anyway.
 	nativePluginsEnabled: true,
+	// Native Comments window — replaces `edit-comments.php`. Same
+	// opt-out posture; cap-gated on `edit_posts` server-side.
+	nativeCommentsEnabled: true,
 	itemVisibility: {},
 	dockOrder: [],
 };

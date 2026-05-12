@@ -3203,6 +3203,29 @@ var desktopMode = function(exports) {
         ownerHandle: entry.ownerHandle || entry.scriptHandle
       });
     };
+    const openNewFromEntry = (entry) => {
+      const globalRegistry = window.desktopModeNativeWindows || {};
+      const render2 = globalRegistry[entry.id];
+      const finalRender = (body, ctx) => {
+        body.appendChild(cloneTemplate(entry.templateId));
+        return render2?.(body, ctx);
+      };
+      manager.openNew({
+        id: entry.id,
+        baseId: entry.id,
+        native: true,
+        url: `#${entry.id}`,
+        title: entry.title,
+        icon: entry.icon,
+        width: entry.width,
+        height: entry.height,
+        minWidth: entry.minWidth,
+        minHeight: entry.minHeight,
+        render: finalRender,
+        autofocus: entry.autofocus,
+        ownerHandle: entry.ownerHandle || entry.scriptHandle
+      });
+    };
     const registerTile = async (entry) => {
       if (registered.has(entry.id)) {
         return;
@@ -3264,7 +3287,19 @@ var desktopMode = function(exports) {
       openFromEntry(entry);
       return true;
     };
-    return { sync, openById };
+    const openNewById = (id, opts = {}) => {
+      const entry = entriesById.get(id);
+      if (!entry) {
+        return false;
+      }
+      activity.publish("desktop-mode/open-requested", {
+        windowId: id,
+        source: opts.source ?? "api"
+      });
+      openNewFromEntry(entry);
+      return true;
+    };
+    return { sync, openById, openNewById };
   }
   function cloneTemplate(template) {
     let tpl = null;
@@ -9437,9 +9472,16 @@ var desktopMode = function(exports) {
         }
       };
       win.onOpenAnother = (w) => {
+        const baseId = w.config.baseId || w.id;
+        if (w.config.native) {
+          const api = window.wp?.desktop;
+          if (api?.openNewWindow?.(baseId, { source: "open-another" })) {
+            return;
+          }
+        }
         this.openNew({
-          id: w.config.baseId || w.id,
-          baseId: w.config.baseId || w.id,
+          id: baseId,
+          baseId,
           url: w.config.url || "",
           title: w.config.title,
           icon: w.config.icon,
@@ -9448,10 +9490,17 @@ var desktopMode = function(exports) {
         });
       };
       win.onOpenInNewWindow = (w) => {
+        const baseId = w.config.baseId || w.id;
+        if (w.config.native) {
+          const api = window.wp?.desktop;
+          if (api?.openNewWindow?.(baseId, { source: "open-in-new-window" })) {
+            return;
+          }
+        }
         const currentUrl = w.getCurrentUrl();
         this.openNew({
-          id: w.config.baseId || w.id,
-          baseId: w.config.baseId || w.id,
+          id: baseId,
+          baseId,
           url: currentUrl || w.config.url || "",
           title: w.config.title,
           icon: w.config.icon,
@@ -23063,6 +23112,9 @@ var desktopMode = function(exports) {
     // `activate_plugins` server-side, so flipping this off only
     // affects users who could see the Plugins tile anyway.
     nativePluginsEnabled: true,
+    // Native Comments window — replaces `edit-comments.php`. Same
+    // opt-out posture; cap-gated on `edit_posts` server-side.
+    nativeCommentsEnabled: true,
     itemVisibility: {},
     dockOrder: []
   };
@@ -23226,6 +23278,7 @@ var desktopMode = function(exports) {
       nativePagesEnabled: typeof parsed.nativePagesEnabled === "boolean" ? parsed.nativePagesEnabled : DEFAULTS.nativePagesEnabled,
       nativeUsersEnabled: typeof parsed.nativeUsersEnabled === "boolean" ? parsed.nativeUsersEnabled : DEFAULTS.nativeUsersEnabled,
       nativePluginsEnabled: typeof parsed.nativePluginsEnabled === "boolean" ? parsed.nativePluginsEnabled : DEFAULTS.nativePluginsEnabled,
+      nativeCommentsEnabled: typeof parsed.nativeCommentsEnabled === "boolean" ? parsed.nativeCommentsEnabled : DEFAULTS.nativeCommentsEnabled,
       itemVisibility: sanitizeItemVisibility(parsed.itemVisibility),
       dockOrder: sanitizeDockOrder(parsed.dockOrder)
     };
@@ -25273,6 +25326,13 @@ var desktopMode = function(exports) {
      * windows of Posts is the explicit ask — that's what + is for.
      */
     openNewInstance(item) {
+      const remappedId = resolveNativeUrlRemap(item.url);
+      if (remappedId) {
+        const api = window.wp?.desktop;
+        if (api?.openNewWindow?.(remappedId, { source: "dock-peek" })) {
+          return;
+        }
+      }
       const baseId = this.deriveWindowId(item.url);
       this.windowManager.openNew({
         id: baseId,
@@ -27021,6 +27081,57 @@ var desktopMode = function(exports) {
       ctx.save();
       paint();
     };
+    const onNativeCommentsToggle = (e) => {
+      const checked = e.detail?.checked === true;
+      ctx.state.nativeCommentsEnabled = checked;
+      ctx.save();
+      paint();
+    };
+    const shellCfg = window.desktopModeConfig;
+    const aiState = {
+      enabled: shellCfg?.commentsAi?.enabled ?? false,
+      providerConfigured: shellCfg?.commentsAi?.providerConfigured ?? false,
+      saving: false
+    };
+    const onCommentsAiToggle = async (e) => {
+      const checked = e.detail?.checked === true;
+      if (!shellCfg?.commentsAiUrl || aiState.saving) {
+        return;
+      }
+      aiState.saving = true;
+      aiState.enabled = checked;
+      paint();
+      try {
+        const response = await trackedFetch$1(
+          shellCfg.commentsAiUrl,
+          {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-WP-Nonce": shellCfg.restNonce ?? ""
+            },
+            body: JSON.stringify({ enabled: checked })
+          },
+          { source: "os-settings/comments-ai" }
+        );
+        if (response.ok) {
+          const json = await response.json();
+          aiState.enabled = json.enabled;
+          aiState.providerConfigured = json.providerConfigured;
+          if (shellCfg.commentsAi) {
+            shellCfg.commentsAi.enabled = json.enabled;
+            shellCfg.commentsAi.providerConfigured = json.providerConfigured;
+          }
+        } else {
+          aiState.enabled = !checked;
+        }
+      } catch {
+        aiState.enabled = !checked;
+      }
+      aiState.saving = false;
+      paint();
+    };
     let resetting = false;
     const onResetIntros = async () => {
       if (resetting) {
@@ -27043,6 +27154,17 @@ var desktopMode = function(exports) {
             }
           },
           { source: "os-settings/reset-intros" }
+        );
+        const store2 = window.desktopModeWindowConfig;
+        if (store2) {
+          Object.values(store2).forEach((entry) => {
+            if (entry && typeof entry === "object") {
+              entry.introSeen = false;
+            }
+          });
+        }
+        document.dispatchEvent(
+          new CustomEvent("desktop-mode-intros-reset")
         );
       } catch {
       }
@@ -27097,6 +27219,31 @@ var desktopMode = function(exports) {
         "A native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it. On by default."
       )}
 					</p>
+					<wpd-checkbox-label
+						label=${__("Use the native Comments window")}
+						?checked=${ctx.state.nativeCommentsEnabled}
+						@wpd-checkbox-change=${onNativeCommentsToggle}
+					></wpd-checkbox-label>
+					<p class="desktop-mode-features__hint">
+						${__(
+        "A redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo). On by default."
+      )}
+					</p>
+					${shellCfg?.commentsAi ? html`
+							<wpd-checkbox-label
+								label=${__("Score new comments with AI")}
+								?checked=${aiState.enabled}
+								?disabled=${aiState.saving || !aiState.providerConfigured}
+								@wpd-checkbox-change=${onCommentsAiToggle}
+							></wpd-checkbox-label>
+							<p class="desktop-mode-features__hint">
+								${aiState.providerConfigured ? __(
+        "When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting."
+      ) : __(
+        "Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival."
+      )}
+							</p>
+						` : ""}
 					<div class="desktop-mode-features__row">
 						<wpd-button
 							variant="secondary"
@@ -28271,6 +28418,7 @@ var desktopMode = function(exports) {
         nativePagesEnabled: this.state.nativePagesEnabled,
         nativeUsersEnabled: this.state.nativeUsersEnabled,
         nativePluginsEnabled: this.state.nativePluginsEnabled,
+        nativeCommentsEnabled: this.state.nativeCommentsEnabled,
         itemVisibility: { ...this.state.itemVisibility },
         dockOrder: this.state.dockOrder.slice()
       };
@@ -36523,6 +36671,7 @@ var desktopMode = function(exports) {
       widgetLayer,
       registerWindow,
       openWindowById,
+      openNewWindowById,
       placeSystemTile,
       setDefaultWindow,
       refreshMenu,
@@ -36557,6 +36706,7 @@ var desktopMode = function(exports) {
       getWallpaperSurfaces: () => collectWallpaperSurfaces(manager),
       registerWindow,
       openWindow: openWindowById,
+      openNewWindow: openNewWindowById,
       fetch: (input, requestInit, opts) => trackedFetch(manager, input, requestInit, opts),
       repaintLoadingOverlays,
       cloneTemplate,
@@ -36620,6 +36770,9 @@ var desktopMode = function(exports) {
         }
         if (typeof patch.nativePluginsEnabled === "boolean") {
           osSettings.state.nativePluginsEnabled = patch.nativePluginsEnabled;
+        }
+        if (typeof patch.nativeCommentsEnabled === "boolean") {
+          osSettings.state.nativeCommentsEnabled = patch.nativeCommentsEnabled;
         }
         if (Array.isArray(patch.nativePostsHiddenColumns)) {
           osSettings.state.nativePostsHiddenColumns = patch.nativePostsHiddenColumns.filter(
@@ -41531,6 +41684,12 @@ var desktopMode = function(exports) {
       }
     });
     registerNativeUrlRemap({
+      id: "desktop-mode-comments",
+      nativeWindowId: "desktop-mode-comments",
+      matches: (_url, parsed) => parsed.pathname.endsWith("/edit-comments.php"),
+      enabled: (snapshot) => snapshot.nativeCommentsEnabled === true
+    });
+    registerNativeUrlRemap({
       id: "desktop-mode-plugins",
       nativeWindowId: "desktop-mode-plugins",
       matches: (_url, parsed) => {
@@ -41889,6 +42048,7 @@ var desktopMode = function(exports) {
       widgetLayer,
       registerWindow,
       openWindowById: nativeWindows.openById,
+      openNewWindowById: nativeWindows.openNewById,
       placeSystemTile,
       setDefaultWindow,
       refreshMenu,

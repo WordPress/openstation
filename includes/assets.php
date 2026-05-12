@@ -123,6 +123,15 @@ function desktop_mode_register_assets() {
 		file_exists( $plugins_window_css ) ? (string) filemtime( $plugins_window_css ) : $version
 	);
 
+	// Native Comments window CSS — same `filemtime` posture.
+	$comments_window_css = DESKTOP_MODE_DIR . 'assets/css/comments-window.css';
+	wp_register_style(
+		'desktop-mode-comments-window',
+		DESKTOP_MODE_URL . 'assets/css/comments-window.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $comments_window_css ) ? (string) filemtime( $comments_window_css ) : $version
+	);
+
 	// Files-on-the-Desktop tile + layer styles. `filemtime` for the
 	// same reason as the recycle-bin / posts-window CSS: this file
 	// iterates faster than the plugin version, and a stale cache
@@ -229,6 +238,25 @@ function desktop_mode_register_assets() {
 	);
 	wp_set_script_translations(
 		'desktop-mode-plugins-window',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-comments-window` — small bundle for the native
+	// Comments window. Lazy-loaded by the native-window sync the first
+	// time the window opens (via the dock-click swap when the user
+	// opts in); registers a render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-comments']`.
+	$comments_window_js = DESKTOP_MODE_DIR . 'assets/js/comments-window' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-comments-window',
+		DESKTOP_MODE_URL . 'assets/js/comments-window' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $comments_window_js ) ? (string) filemtime( $comments_window_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-comments-window',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);

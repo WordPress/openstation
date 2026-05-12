@@ -441,6 +441,18 @@ export interface WpDesktopPublicApi {
 	 */
 	openWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
+	 * Spawn a brand-new instance of a registered native window — even
+	 * when one is already open. Returns `true` when the registry
+	 * matched the id (a fresh window with id `<base>-2` / `-3` / … is
+	 * now mounted), `false` when no native window is registered.
+	 *
+	 * Powers the dock-peek "+" button for native windows so they
+	 * behave like iframe windows do: every "+" yields a duplicate.
+	 *
+	 * @since 0.19.0
+	 */
+	openNewWindow: ( id: string, opts?: { source?: string } ) => boolean;
+	/**
 	 * Wrapper around native `fetch()` that attributes the request to
 	 * a desktop window's activity indicator. While the fetch is in
 	 * flight the window's title-bar dot blinks like a modem activity
@@ -1844,6 +1856,20 @@ function init(): void {
 		},
 	} );
 
+	// Native Comments window — claims `edit-comments.php` for any user
+	// who has opted into the native experience. The comment-edit
+	// screen (`comment.php?action=editcomment&c=N`) still falls through
+	// to the chromeless iframe path — the native window has its own
+	// inline edit affordance and we want the classic deep-edit form
+	// available as a fallback.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-comments',
+		nativeWindowId: 'desktop-mode-comments',
+		matches: ( _url, parsed ) =>
+			parsed.pathname.endsWith( '/edit-comments.php' ),
+		enabled: ( snapshot ) => snapshot.nativeCommentsEnabled === true,
+	} );
+
 	// Native Plugins window — claims `plugins.php` (Installed list)
 	// AND `plugin-install.php` (Browse the .org repo). The latter
 	// stashes a `tab: 'browse'` hint so the bundle's first paint
@@ -2632,6 +2658,7 @@ function init(): void {
 		widgetLayer,
 		registerWindow,
 		openWindowById: nativeWindows.openById,
+		openNewWindowById: nativeWindows.openNewById,
 		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,

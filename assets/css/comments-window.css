@@ -1,0 +1,525 @@
+/*
+ * Native Comments window — base styles.
+ *
+ * Mirrors the structural class set of `posts-window.css` adapted for
+ * the comments surface. Variables come from `variables.css`; this
+ * file just maps them onto the comments-specific markup so the
+ * window picks up theme + color-scheme changes for free.
+ *
+ * @since 0.19.0
+ */
+
+.desktop-mode-comments {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 12px;
+	/*
+	 * `block-size` (not `min-block-size`) — pins the container to the
+	 * window body's exact height so the inner flex column has a fixed
+	 * frame to distribute against. With `min-block-size` the table
+	 * body grew past the frame and pushed the pager off the bottom
+	 * edge of the window. `box-sizing: border-box` keeps the 12px
+	 * padding inside the 100% box.
+	 */
+	box-sizing: border-box;
+	block-size: 100%;
+	inline-size: 100%;
+	overflow: hidden;
+	position: relative;
+	color: var( --wp-desktop-text-color, #1d2327 );
+}
+
+/*
+ * Any element inside the comments window that opts into HTML's
+ * `hidden` attribute is hidden — full stop. Without this rule the
+ * `display: flex` / `display: inline-flex` rules on
+ * `__panel` / `__new-pill` / `__toolbar-right` would win against the
+ * UA stylesheet's `[hidden] { display: none }` (class selector beats
+ * the bare `[hidden]` selector), and EVERY `<wpd-tabpanel>` would
+ * render at once, the realtime "N new" pill would show empty, and
+ * the bulk-action bar would render its `<wpd-button>` placeholders
+ * before any row is selected. Authoritative single override.
+ */
+.desktop-mode-comments [hidden] {
+	display: none !important;
+}
+
+.desktop-mode-comments__tabs {
+	flex: 0 0 auto;
+}
+
+.desktop-mode-comments__panel {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex: 1 1 auto;
+	/*
+	 * `min-block-size: 0` is REQUIRED — flex items default to
+	 * `min-block-size: auto` which is the content-min-size, so a tall
+	 * table inside would prevent this panel from shrinking and push
+	 * the pager out of the parent's frame. Forcing 0 lets the panel
+	 * actually shrink to fit its parent.
+	 */
+	min-block-size: 0;
+	overflow: hidden;
+}
+
+.desktop-mode-comments__toolbar {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.desktop-mode-comments__toolbar-left {
+	flex: 1 1 auto;
+	min-inline-size: 240px;
+}
+
+.desktop-mode-comments__toolbar-right {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.desktop-mode-comments__toolbar-trailing {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.desktop-mode-comments__count {
+	font-weight: 600;
+}
+
+.desktop-mode-comments__bulk-actions {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.desktop-mode-comments__body {
+	flex: 1 1 auto;
+	/*
+	 * Same flex-min-size dance as the panel — needs to be able to
+	 * shrink, otherwise the table's intrinsic height pushes siblings
+	 * (the pager) out of frame.
+	 */
+	min-block-size: 0;
+	display: flex;
+	overflow: hidden;
+}
+
+.desktop-mode-comments__body wpd-table {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	/*
+	 * `sticky-header` requires the table to own its own scroll
+	 * container — without `--wpd-table-max-height` the table grows to
+	 * fit its rows and the header has nothing to stick to. Tie it to
+	 * the body's height so the header pins as soon as the row list
+	 * overflows the panel.
+	 */
+	--wpd-table-max-height: 100%;
+	min-block-size: 0;
+}
+
+.desktop-mode-comments__empty {
+	text-align: center;
+	padding: 40px 20px;
+	color: var( --wp-desktop-muted-text-color, #50575e );
+}
+
+.desktop-mode-comments__empty .dashicons {
+	font-size: 36px;
+	width: 36px;
+	height: 36px;
+}
+
+/* --- Cells --- */
+
+.desktop-mode-comments__author {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+}
+
+.desktop-mode-comments__avatar-btn {
+	border: 0;
+	background: transparent;
+	padding: 0;
+	cursor: pointer;
+	border-radius: 50%;
+}
+
+.desktop-mode-comments__avatar-btn img {
+	border-radius: 50%;
+	display: block;
+}
+
+.desktop-mode-comments__author-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.desktop-mode-comments__author-meta strong {
+	font-weight: 600;
+}
+
+.desktop-mode-comments__author-meta small {
+	color: var( --wp-desktop-muted-text-color, #50575e );
+	font-size: 12px;
+}
+
+.desktop-mode-comments__content {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-comments__content-body {
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
+.desktop-mode-comments__replies-toggle {
+	align-self: flex-start;
+	background: transparent;
+	border: 0;
+	color: var( --wp-desktop-accent, #2271b1 );
+	cursor: pointer;
+	font-size: 12px;
+	padding: 0;
+}
+
+.desktop-mode-comments__replies {
+	margin-block-start: 8px;
+	border-inline-start: 2px solid var( --wp-desktop-border-color, #ddd );
+	padding-inline-start: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-comments__reply-row {
+	font-size: 12.5px;
+	line-height: 1.45;
+}
+
+/* --- Spam chip --- */
+
+.desktop-mode-comments__spam-chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-inline-size: 36px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-weight: 700;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	color: #fff;
+}
+
+.desktop-mode-comments__spam-chip[ data-tone='low' ] {
+	background: #2da44e;
+}
+.desktop-mode-comments__spam-chip[ data-tone='medium' ] {
+	background: #d97706;
+}
+.desktop-mode-comments__spam-chip[ data-tone='high' ] {
+	background: #b91c1c;
+}
+
+/*
+ * Halo ring on chips whose score was informed by an AI verdict —
+ * a subtle outer ring + sparkle glyph differentiate "heuristic-only"
+ * from "AI-scored" without changing the underlying tone color.
+ */
+.desktop-mode-comments__spam-chip[ data-ai='1' ] {
+	box-shadow: 0 0 0 2px rgba( 99, 102, 241, 0.5 );
+	position: relative;
+}
+
+.desktop-mode-comments__spam-chip[ data-ai='1' ]::after {
+	content: '';
+	position: absolute;
+	top: -3px;
+	inset-inline-end: -3px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: linear-gradient( 135deg, #818cf8, #6366f1 );
+	box-shadow: 0 0 0 2px var( --wp-desktop-elevated-bg, #fff );
+}
+
+/* --- Inline reply / edit --- */
+
+.desktop-mode-comments__inline-host {
+	background: var( --wp-desktop-elevated-bg, #f6f7f7 );
+	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	border-radius: 6px;
+	padding: 8px;
+	margin: 4px 0 12px;
+}
+
+.desktop-mode-comments__reply {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-comments__reply-toolbar {
+	display: inline-flex;
+	gap: 2px;
+}
+
+.desktop-mode-comments__reply-tool {
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	padding: 4px 6px;
+	border-radius: 4px;
+}
+
+.desktop-mode-comments__reply-tool:hover {
+	background: var( --wp-desktop-hover-bg, rgba( 0, 0, 0, 0.06 ) );
+}
+
+.desktop-mode-comments__reply-input {
+	min-block-size: 80px;
+	padding: 8px 10px;
+	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	border-radius: 4px;
+	background: var( --wp-desktop-input-bg, #fff );
+	outline: none;
+	font: inherit;
+	width: 100%;
+}
+
+.desktop-mode-comments__reply-input:focus {
+	border-color: var( --wp-desktop-accent, #2271b1 );
+	box-shadow: 0 0 0 2px rgba( 34, 113, 177, 0.18 );
+}
+
+.desktop-mode-comments__reply-input[ contenteditable='true' ]:empty::before {
+	content: attr( data-placeholder );
+	color: var( --wp-desktop-muted-text-color, #757575 );
+}
+
+.desktop-mode-comments__inline-actions {
+	display: flex;
+	gap: 6px;
+	justify-content: flex-end;
+	margin-block-start: 6px;
+}
+
+/* --- Pager --- */
+
+.desktop-mode-comments__pager {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	font-size: 13px;
+	/* Don't let the pager get crushed when the panel runs out of space. */
+	flex: 0 0 auto;
+}
+
+.desktop-mode-comments__pager-nav {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.desktop-mode-comments__pager-perpage {
+	display: inline-flex;
+	gap: 4px;
+	align-items: center;
+}
+
+/* --- Realtime "N new" pill --- */
+
+.desktop-mode-comments__new-pill {
+	position: absolute;
+	top: 56px;
+	left: 50%;
+	transform: translateX( -50% );
+	background: var( --wp-desktop-accent, #2271b1 );
+	color: #fff;
+	border-radius: 999px;
+	padding: 4px 12px;
+	display: inline-flex;
+	gap: 8px;
+	align-items: center;
+	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.18 );
+	z-index: 10;
+}
+
+.desktop-mode-comments__new-pill button {
+	background: rgba( 255, 255, 255, 0.18 );
+	color: #fff;
+	border: 0;
+	border-radius: 999px;
+	padding: 2px 10px;
+	cursor: pointer;
+	font-weight: 600;
+}
+
+/* --- Author insights drawer --- */
+
+.desktop-mode-comments__drawer {
+	position: absolute;
+	top: 56px;
+	right: 12px;
+	width: 320px;
+	max-block-size: calc( 100% - 80px );
+	overflow: auto;
+	background: var( --wp-desktop-elevated-bg, #fff );
+	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	border-radius: 8px;
+	padding: 16px;
+	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.18 );
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.desktop-mode-comments__drawer-header {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+
+.desktop-mode-comments__drawer-avatar {
+	border-radius: 50%;
+}
+
+.desktop-mode-comments__drawer-sub {
+	color: var( --wp-desktop-muted-text-color, #757575 );
+	margin: 0;
+	font-size: 12px;
+}
+
+.desktop-mode-comments__drawer-meter {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-comments__drawer-bar {
+	height: 8px;
+	background: var( --wp-desktop-track-bg, #e6e6e6 );
+	border-radius: 4px;
+	position: relative;
+	overflow: hidden;
+}
+
+.desktop-mode-comments__drawer-bar::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	inline-size: var( --value, 0% );
+	background: var( --wp-desktop-accent, #2271b1 );
+	transition: inline-size 0.4s ease;
+}
+
+.desktop-mode-comments__drawer-stats {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 4px 12px;
+	font-size: 13px;
+}
+
+.desktop-mode-comments__drawer-stats dt {
+	color: var( --wp-desktop-muted-text-color, #757575 );
+}
+
+.desktop-mode-comments__drawer-stats dd {
+	margin: 0;
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+.desktop-mode-comments__drawer-close {
+	margin-block-start: 4px;
+	align-self: flex-end;
+	background: transparent;
+	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	border-radius: 4px;
+	padding: 4px 12px;
+	cursor: pointer;
+}
+
+/* --- Keyboard help dialog --- */
+
+.desktop-mode-comments__shortcuts {
+	position: absolute;
+	inset: 50% 50% auto auto;
+	transform: translate( 50%, -50% );
+	background: var( --wp-desktop-elevated-bg, #fff );
+	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	border-radius: 10px;
+	padding: 20px 28px;
+	box-shadow: 0 18px 50px rgba( 0, 0, 0, 0.28 );
+	z-index: 30;
+	min-inline-size: 320px;
+}
+
+.desktop-mode-comments__shortcuts dl {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 6px 18px;
+	margin: 12px 0 16px;
+}
+
+.desktop-mode-comments__shortcuts dt {
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-weight: 700;
+	background: var( --wp-desktop-track-bg, #f0f0f1 );
+	border-radius: 4px;
+	padding: 1px 8px;
+	justify-self: start;
+}
+
+/* --- Intro dialog cards --- */
+
+.wpd-intro--comments .wpd-intro__grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 220px, 1fr ) );
+	gap: 12px;
+	margin: 16px 0;
+}
+
+.wpd-intro--comments .wpd-intro__card {
+	background: var( --wp-desktop-elevated-bg, #f6f7f7 );
+	border-radius: 8px;
+	padding: 12px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wpd-intro--comments .wpd-intro__card-icon {
+	font-size: 22px;
+	width: 22px;
+	height: 22px;
+	color: var( --wp-desktop-accent, #2271b1 );
+}
+
+.wpd-intro--comments .wpd-intro__card-title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.wpd-intro--comments .wpd-intro__card-body {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var( --wp-desktop-muted-text-color, #50575e );
+}

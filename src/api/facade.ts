@@ -200,6 +200,7 @@ export interface BuildPublicApiDeps {
 	widgetLayer: WidgetLayer | null;
 	registerWindow: ( def: NativeWindowDef ) => DesktopWindow;
 	openWindowById: ( id: string, opts?: { source?: string } ) => boolean;
+	openNewWindowById: ( id: string, opts?: { source?: string } ) => boolean;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;
@@ -233,6 +234,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		widgetLayer,
 		registerWindow,
 		openWindowById,
+		openNewWindowById,
 		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,
@@ -278,6 +280,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
 		openWindow: openWindowById,
+		openNewWindow: openNewWindowById,
 		fetch: ( input, requestInit, opts ) =>
 			trackedFetch( manager, input, requestInit, opts ),
 		repaintLoadingOverlays,
@@ -354,6 +357,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			}
 			if ( typeof patch.nativePluginsEnabled === 'boolean' ) {
 				osSettings.state.nativePluginsEnabled = patch.nativePluginsEnabled;
+			}
+			if ( typeof patch.nativeCommentsEnabled === 'boolean' ) {
+				osSettings.state.nativeCommentsEnabled = patch.nativeCommentsEnabled;
 			}
 			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
 				osSettings.state.nativePostsHiddenColumns =

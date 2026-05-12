@@ -1974,6 +1974,78 @@ Fires after the upload-AJAX handler installs a plugin from an uploaded .zip. `$p
 
 ---
 
+## Native Comments window (since 0.19.0)
+
+Replaces the chromeless `edit-comments.php` iframe with a moderation queue native window: Pending / All / Spam / Trash / Mine tabs, bulk approve / spam / trash with an 8-second undo, inline reply editor, keyboard moderation (`j/k/a/s/d/r/e/u/?`), spam-confidence chip per row, author-insights drawer.
+
+Per-user opt-out via OS Settings → Features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
+
+### `desktop_mode_comments_window_user_can_register` — Stable *(filter, since 0.19.0)*
+
+```php
+apply_filters( 'desktop_mode_comments_window_user_can_register', bool $can, int $user_id ): bool
+```
+
+Whether the window should be registered for `$user_id`. Default: `user_can( $user_id, 'edit_posts' )`.
+
+### `desktop_mode_comments_window_user_can_use` — Stable *(filter, since 0.19.0)*
+
+```php
+apply_filters( 'desktop_mode_comments_window_user_can_use', bool $can, int $user_id ): bool
+```
+
+Combined cap-and-opt-in check. Hooks here override the default ("can register AND the user toggled `nativeCommentsEnabled` on").
+
+### `desktop_mode_comments_window_args` — Experimental *(filter, since 0.19.0)*
+
+```php
+apply_filters( 'desktop_mode_comments_window_args', array $window_args ): array
+```
+
+Filters the args passed to `desktop_mode_register_window()` for the Comments window — title, icon, dimensions, `config` blob. The `config` keys are the bundle's source of truth; treat the shape as Experimental until 0.20.
+
+### `desktop_mode_comments_window_template_html` — Experimental *(filter, since 0.19.0)*
+
+```php
+apply_filters( 'desktop_mode_comments_window_template_html', string $html ): string
+```
+
+Filters the rendered template body. The output is run through `desktop_mode_kses_native_window_template()` after this filter, so unsafe HTML is dropped regardless.
+
+### `desktop_mode_comments_window_query_args` — Experimental *(filter, since 0.19.0)*
+
+```php
+apply_filters( 'desktop_mode_comments_window_query_args', array $args ): array
+```
+
+Filters the outbound `wp/v2/comments` query args the bundle uses for its first list paint. Use to whitelist additional `_fields`, override `per_page`, or scope the default tab.
+
+### `desktop_mode_comments_window_spam_score` — Experimental *(filter, since 0.19.0)*
+
+```php
+apply_filters( 'desktop_mode_comments_window_spam_score', int $score, WP_Comment $comment ): int
+```
+
+Filters the 0–100 spam-confidence score the bundle paints per row. Hook here to plug in an AI-provider fallback when Akismet isn't installed but a Desktop Mode AI provider is configured. Return value is clamped to `0..100`.
+
+### `desktop_mode_comments_window_reply_editor` — Experimental *(filter, since 0.19.0)*
+
+```php
+apply_filters( 'desktop_mode_comments_window_reply_editor', string $editor, int $user_id ): string
+```
+
+Selects the inline-reply editor flavor — `'rich'` (default contenteditable rich editor), `'plain'` (textarea), or `'gutenberg'` (planned — falls back to `'rich'` in 0.19).
+
+### `desktop_mode_comments_window_after_bulk` — Stable *(action, since 0.19.0)*
+
+```php
+do_action( 'desktop_mode_comments_window_after_bulk', string $action, int[] $processed, int[] $skipped );
+```
+
+Fires after `/desktop-mode/v1/comments/bulk` finishes a batch. `$action` is one of `approve|unapprove|spam|unspam|trash|untrash`. `$processed` is the list of ids successfully acted on; `$skipped` is the list that failed a per-target cap or soft error.
+
+---
+
 ## My WordPress (since 0.8.0)
 
 A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Ships with Posts, Pages, and (since 0.20.0) Users. The entity list is filterable so plugin authors can extend it without forking the bundle.

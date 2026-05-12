@@ -103,6 +103,14 @@ export interface OsSettingsSnapshot {
 	 */
 	nativePluginsEnabled: boolean;
 	/**
+	 * Per-user opt-in for the native Comments window. Same posture as
+	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
+	 * cap-gated on the server (`edit_posts`). Default on.
+	 *
+	 * @since 0.19.0
+	 */
+	nativeCommentsEnabled: boolean;
+	/**
 	 * Per-item placement preferences. Map of item id → one of
 	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean
 	 * "use the item's native rail." See

@@ -89,6 +89,18 @@ const TARGETS = {
 		fileBase: 'sw',
 		iifeName: 'desktopModeServiceWorker',
 	},
+	// Native Comments window — replaces the chromeless
+	// `edit-comments.php` iframe with a `<wpd-table>`-driven moderation
+	// queue: Pending/All/Spam/Trash/Mine tabs, bulk + undo,
+	// inline reply, keyboard nav, spam confidence score, author
+	// insights drawer. Same shape as posts-window: registers a
+	// render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-comments']`.
+	'comments-window': {
+		entry:    'src/comments-window/index.ts',
+		fileBase: 'comments-window',
+		iifeName: 'desktopModeCommentsWindow',
+	},
 	// Native Plugins window — replaces the chromeless `plugins.php`
 	// and `plugin-install.php` iframes with a `<wpd-tabs>`-driven
 	// installed list + browse-the-repo gallery + detail flyout. Same

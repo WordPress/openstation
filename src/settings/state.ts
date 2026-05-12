@@ -152,6 +152,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.nativePluginsEnabled === 'boolean'
 				? parsed.nativePluginsEnabled
 				: DEFAULTS.nativePluginsEnabled,
+		nativeCommentsEnabled:
+			typeof parsed.nativeCommentsEnabled === 'boolean'
+				? parsed.nativeCommentsEnabled
+				: DEFAULTS.nativeCommentsEnabled,
 		itemVisibility: sanitizeItemVisibility( parsed.itemVisibility ),
 		dockOrder: sanitizeDockOrder( parsed.dockOrder ),
 	};

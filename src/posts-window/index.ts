@@ -125,6 +125,15 @@ function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
  */
 const _introShown: Record< string, boolean > = Object.create( null );
 
+// "Reset what's-new dialogs" in OS Settings dispatches this event
+// after the DELETE round-trip completes — clear the per-mode cache
+// so the next window-open re-fires the dialog without a page reload.
+document.addEventListener( 'desktop-mode-intros-reset', () => {
+	for ( const slug of Object.keys( _introShown ) ) {
+		_introShown[ slug ] = false;
+	}
+} );
+
 function maybeShowIntro(): void {
 	let cfg: ReturnType< typeof getConfig >;
 	try {
