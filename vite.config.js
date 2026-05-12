@@ -28,6 +28,123 @@ import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
 import { visualizer } from 'rollup-plugin-visualizer';
 
+/**
+ * Minify the contents of `css\`...\`` tagged-template literals.
+ *
+ * Esbuild's JS minifier treats template literals as opaque string
+ * data — it won't touch their content even when that content is CSS.
+ * Every `*.styles.ts` file in `src/ui/components/` defines its
+ * stylesheet inside one of these templates, so its CSS comments and
+ * indentation ship into the bundle byte-for-byte. This transform
+ * runs at the Vite `transform` stage (before esbuild) and rewrites
+ * each `css\`…\`` body with a minimal CSS minifier: strip `/* … *\/`
+ * block comments, collapse runs of whitespace, drop whitespace
+ * adjacent to `{ } : ; , >`.
+ *
+ * Conservative on purpose:
+ *   - Only `.ts` files are inspected.
+ *   - Only tagged templates whose tag is the bare identifier `css`
+ *     are touched (no `someObj.css\`\``, no `customCss\`\``).
+ *   - Interpolation slots (`${…}`) are preserved verbatim — we
+ *     minify the literal segments between them and leave the
+ *     expression text alone.
+ *   - Disabled in dev so source still maps cleanly during debug.
+ */
+function minifyCssTemplates() {
+	const minifyCssChunk = ( text ) =>
+		text
+			.replace( /\/\*[\s\S]*?\*\//g, '' )
+			.replace( /\s+/g, ' ' )
+			.replace( /\s*([{}:;,>])\s*/g, '$1' )
+			.replace( /;}/g, '}' )
+			.trim();
+
+	return {
+		name: 'wp-desktop-mode-minify-css-templates',
+		enforce: 'pre',
+		apply: 'build',
+		transform( code, id ) {
+			if ( ! id.endsWith( '.ts' ) ) {
+				return null;
+			}
+			if ( ! code.includes( 'css`' ) ) {
+				return null;
+			}
+
+			let out = '';
+			let i = 0;
+			let changed = false;
+			while ( i < code.length ) {
+				// Look for the literal `css\`` not preceded by an
+				// identifier character — avoids matching `.css\``,
+				// `myCss\``, etc.
+				const m = code.indexOf( 'css`', i );
+				if ( m < 0 ) {
+					out += code.slice( i );
+					break;
+				}
+				const prev = m === 0 ? '' : code[ m - 1 ];
+				if ( /[A-Za-z0-9_$.]/.test( prev ) ) {
+					// Not the bare `css` tag — keep walking.
+					out += code.slice( i, m + 4 );
+					i = m + 4;
+					continue;
+				}
+				out += code.slice( i, m + 4 ); // up to and including ``css``
+				let j = m + 4;
+				let segStart = j;
+				let interpStart = -1;
+				let interpDepth = 0;
+				let closed = false;
+				while ( j < code.length ) {
+					const ch = code[ j ];
+					if ( interpDepth === 0 ) {
+						if ( ch === '\\' ) {
+							j += 2;
+							continue;
+						}
+						if ( ch === '`' ) {
+							out += minifyCssChunk( code.slice( segStart, j ) );
+							out += '`';
+							i = j + 1;
+							changed = true;
+							closed = true;
+							break;
+						}
+						if ( ch === '$' && code[ j + 1 ] === '{' ) {
+							out += minifyCssChunk( code.slice( segStart, j ) );
+							interpStart = j;
+							interpDepth = 1;
+							j += 2;
+							continue;
+						}
+						j++;
+					} else {
+						if ( ch === '{' ) {
+							interpDepth++;
+						} else if ( ch === '}' ) {
+							interpDepth--;
+							if ( interpDepth === 0 ) {
+								out += code.slice( interpStart, j + 1 );
+								segStart = j + 1;
+								interpStart = -1;
+							}
+						}
+						j++;
+					}
+				}
+				if ( ! closed ) {
+					// Unterminated template (shouldn't happen on valid TS,
+					// but be defensive) — keep the original rest.
+					out += code.slice( m + 4 );
+					i = code.length;
+				}
+			}
+			return changed ? { code: out, map: null } : null;
+		},
+	};
+}
+
 const TARGETS = {
 	desktop: {
 		entry:    'src/desktop.ts',
@@ -178,7 +295,7 @@ export default defineConfig( ( { mode } ) => {
 		: [];
 
 	return {
-		plugins: reportPlugins,
+		plugins: [ minifyCssTemplates(), ...reportPlugins ],
 		resolve: {
 			alias: {
 				'@/':              resolve( __dirname, 'src/' ) + '/',
