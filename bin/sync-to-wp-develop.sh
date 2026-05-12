@@ -174,13 +174,40 @@ build_and_sync
 
 echo "[sync] watching ${#watch_paths[@]} paths under $src — Ctrl-C to stop"
 
-# fswatch excludes (regex against full path):
-# - .DS_Store: Finder noise
-# - /node_modules/: huge + chatty
-fswatch -o \
+# Quiet-period debounce: wait WPDM_SYNC_DEBOUNCE seconds with no
+# further events before rebuilding. Editor atomic-saves emit several
+# FSEvents in a burst, and `npm run build` runs ~14 vite invocations
+# back-to-back (~30-60s), so any edit during the build queues another
+# rebuild even when nothing actually changed. Draining events first
+# coalesces both cases into a single build.
+debounce_secs="${WPDM_SYNC_DEBOUNCE:-2}"
+
+# Path-mode fswatch (no -o) so we can log what changed. Each event is
+# one absolute path per line. The exclude flags below remain in effect.
+fswatch \
 	--exclude='\.DS_Store$' \
 	--exclude='/node_modules/' \
 	--latency 1 \
-	"${watch_paths[@]}" | while read -r _; do
+	"${watch_paths[@]}" | while read -r first_path; do
+	# Drain any follow-on events that arrive within $debounce_secs of
+	# the last one. `read -t` returns non-zero on timeout, which ends
+	# the inner loop. Counter is informational only.
+	changed=( "$first_path" )
+	while IFS= read -r -t "$debounce_secs" extra_path; do
+		changed+=( "$extra_path" )
+	done
+
+	# Strip $src/ prefix for legibility, dedupe, keep the first few.
+	preview=()
+	for p in "${changed[@]}"; do
+		short="${p#$src/}"
+		preview+=( "$short" )
+	done
+	# Bash 3 (macOS default) has no associative arrays — sort | uniq instead.
+	unique_preview=$(printf '%s\n' "${preview[@]}" | sort -u)
+	count=$(printf '%s\n' "$unique_preview" | wc -l | tr -d ' ')
+	first_three=$(printf '%s\n' "$unique_preview" | head -3 | paste -sd, -)
+	echo "[sync] $(date '+%H:%M:%S') ${count} path(s) changed: ${first_three}$([ "$count" -gt 3 ] && echo ', …')"
+
 	build_and_sync || echo "[sync] build/sync failed — waiting for next change"
 done
