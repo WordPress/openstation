@@ -943,9 +943,13 @@ function attachTileDrag(
 /**
  * Wire right-click → context menu on a tile. Items vary by file
  * type — folders get a "Delete folder" that wipes the underlying
- * folder row plus its placements; non-folders get "Move to
- * Trash" that drops only the placement (the entity stays
+ * folder row plus its placements; non-folder user placements get
+ * "Move to Trash" that drops only the placement (the entity stays
  * intact — that's the file-references-not-copies contract).
+ * Plugin-registered icons (file type `'shortcut'`) and synthetic
+ * dock-promotion shortcuts get "Hide from desktop" instead — they
+ * aren't user data, so they're hidden via the visibility map and
+ * restorable from OS Settings → Apps & Icons rather than trashed.
  */
 function attachContextMenu(
 	tile: HTMLElement,
@@ -1102,21 +1106,36 @@ function attachContextMenu(
 				onClick: () => trashFolderWithUndo( placement ),
 			} );
 		} else {
-			// Synthetic shortcuts (dock items the user promoted to the
-			// desktop via OS Settings → Apps & Icons) aren't real
-			// placements — they're derived from the visibility map and
-			// live only in the in-memory store. Trashing one would
-			// hit a 404 on the REST endpoint. Replace the action with
-			// "Hide from desktop", which updates the visibility back
-			// to 'dock' and the sync module drops the synth tile.
+			// Two cases get "Hide from desktop" instead of "Move to
+			// Trash":
+			//
+			//   1. Synthetic shortcuts the user promoted from a dock
+			//      item via OS Settings → Apps & Icons. They aren't
+			//      real placements — they're derived from the
+			//      visibility map and live only in the in-memory store,
+			//      so trashing them would 404 on the REST endpoint.
+			//
+			//   2. Plugin-registered icons (file type `'shortcut'`) —
+			//      Content Graph, Recycle Bin, My WordPress, and any
+			//      icon registered via `desktop_mode_register_icon()`.
+			//      These are framework/plugin shortcuts, not user
+			//      data, and shouldn't be deletable from the wallpaper.
+			//      The user can hide them here and restore via OS
+			//      Settings → Apps & Icons.
+			//
+			// Both write `itemVisibility[ id ] = 'dock'` — the layout
+			// dispatcher's settings subscription drops the desktop tile
+			// on the next tick.
 			const synthFromDockItem = readSynthSource( placement );
-			if ( synthFromDockItem ) {
+			const isRegisteredIcon = placement.file.type === 'shortcut';
+			if ( synthFromDockItem || isRegisteredIcon ) {
+				const hideId = synthFromDockItem ?? placement.file.ref;
 				items.push( {
 					id: 'hide-from-desktop',
 					label: 'Hide from desktop',
 					icon: 'dashicons-hidden',
 					sort: 90,
-					onClick: () => hidePromotedDockItem( synthFromDockItem ),
+					onClick: () => hidePromotedDockItem( hideId ),
 				} );
 			} else {
 				items.push( {
