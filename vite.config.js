@@ -29,6 +29,109 @@ import { resolve } from 'node:path';
 import { visualizer } from 'rollup-plugin-visualizer';
 
 /**
+ * Strip `static help = { … };` blocks from production builds.
+ *
+ * Every `<wpd-*>` component class declares a `static help = { … }`
+ * descriptor — title, summary, props/slots/parts/cssProps tables,
+ * examples, status, since. ~82 kB of plain documentation across the
+ * 47 components in the kit.
+ *
+ * That descriptor has exactly one runtime consumer: the OS Settings
+ * → Help tab (`src/settings/sections/help.ts`), which iterates
+ * `WPD_COMPONENT_TAGS` and renders the metadata. The same module
+ * already handles components without a descriptor — it falls back
+ * to a minimal stub built from `static props`. So in production we
+ * can drop the descriptor from the bundle entirely and the help
+ * screen still works, just without the rich copy.
+ *
+ * Dev builds keep `static help` intact so live exploration and the
+ * component help screen stay fully informative during development.
+ * Production builds get a one-liner: `static help = void 0;`.
+ *
+ * Conservative parser:
+ *   - Only `.ts` files under `src/ui/components/` are inspected.
+ *   - Block must begin with the exact source `\tstatic help = {`
+ *     to avoid false-positives elsewhere.
+ *   - Strings and nested object literals are balanced before the
+ *     replacement; the trailing `;` is consumed if present.
+ */
+function stripStaticHelpInProd( enabled ) {
+	if ( ! enabled ) {
+		return null;
+	}
+	return {
+		name: 'wp-desktop-mode-strip-static-help',
+		enforce: 'pre',
+		apply: 'build',
+		transform( code, id ) {
+			if ( ! id.endsWith( '.ts' ) ) {
+				return null;
+			}
+			if ( ! id.includes( '/src/ui/components/' ) ) {
+				return null;
+			}
+			const marker = 'static help';
+			let start = code.indexOf( marker );
+			if ( start < 0 ) {
+				return null;
+			}
+			const eq = code.indexOf( '=', start );
+			const braceOpen = code.indexOf( '{', eq );
+			if ( eq < 0 || braceOpen < 0 || braceOpen - start > 32 ) {
+				return null;
+			}
+			let depth = 1;
+			let i = braceOpen + 1;
+			while ( i < code.length && depth > 0 ) {
+				const ch = code[ i ];
+				if ( ch === '{' ) {
+					depth++;
+					i++;
+				} else if ( ch === '}' ) {
+					depth--;
+					i++;
+				} else if ( ch === '"' || ch === "'" || ch === '`' ) {
+					const q = ch;
+					i++;
+					while ( i < code.length && code[ i ] !== q ) {
+						if ( code[ i ] === '\\' ) {
+							i += 2;
+						} else {
+							i++;
+						}
+					}
+					i++;
+				} else if ( ch === '/' && code[ i + 1 ] === '/' ) {
+					const nl = code.indexOf( '\n', i );
+					i = nl < 0 ? code.length : nl + 1;
+				} else if ( ch === '/' && code[ i + 1 ] === '*' ) {
+					const end = code.indexOf( '*/', i + 2 );
+					i = end < 0 ? code.length : end + 2;
+				} else {
+					i++;
+				}
+			}
+			// Trailing tokens: optional ` as const` (TypeScript widening
+			// guard some component classes apply to the descriptor) and
+			// the closing `;`. Walk forward until the next `;` or EOL,
+			// whichever comes first — we control the source shape so a
+			// stray `;` inside the descriptor would already have been
+			// consumed by the string/object scanner above.
+			let blockEnd = i;
+			while ( blockEnd < code.length && code[ blockEnd ] !== ';' && code[ blockEnd ] !== '\n' ) {
+				blockEnd++;
+			}
+			if ( code[ blockEnd ] === ';' ) {
+				blockEnd++;
+			}
+			const replacement = 'static help = void 0;';
+			const out = code.slice( 0, start ) + replacement + code.slice( blockEnd );
+			return { code: out, map: null };
+		},
+	};
+}
+
+/**
  * Minify the contents of `css\`...\`` tagged-template literals.
  *
  * Esbuild's JS minifier treats template literals as opaque string
@@ -295,7 +398,11 @@ export default defineConfig( ( { mode } ) => {
 		: [];
 
 	return {
-		plugins: [ minifyCssTemplates(), ...reportPlugins ],
+		plugins: [
+			minifyCssTemplates(),
+			stripStaticHelpInProd( isProd ),
+			...reportPlugins,
+		].filter( Boolean ),
 		resolve: {
 			alias: {
 				'@/':              resolve( __dirname, 'src/' ) + '/',
