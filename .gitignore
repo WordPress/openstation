@@ -4,9 +4,13 @@
 /dist/
 /tests/phpunit/.phpunit.result.cache
 
-# Built JS bundles under assets/js/ are tracked so that installs from
-# trunk / GitHub work without running `npm run build`. Regenerate with
-# `npm run build` and commit the updated artifacts alongside source.
+# Vite build output under assets/js/ — regenerate locally with `npm run
+# build`. Adding a new bundle in vite.config.js does not require updating
+# this list. Hand-written JS files that should stay tracked are explicitly
+# re-included below.
+/assets/js/*.js
+!/assets/js/admin-bar.js
+!/assets/js/media-library-enhanced.js
 
 .DS_Store
 
