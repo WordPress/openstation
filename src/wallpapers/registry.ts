@@ -22,10 +22,50 @@ import {
 	collectRegistrationErrors,
 	throwOnRegistrationErrors,
 } from '../registration-errors';
+import { createSharedStore } from '../shared-store';
 import type { WallpaperDef } from './types';
 
-/** Internal: the seed list every filter sees. Mutated by `register`. */
-const seed: WallpaperDef[] = [];
+/**
+ * Listener fired after every successful `register()` / `unregister()`.
+ * Declared up here (rather than near `subscribe()` further down)
+ * because the shared store's type signature needs it.
+ */
+type RegistryListener = () => void;
+
+/**
+ * Shared store backing the wallpaper registry.
+ *
+ * The seed list AND the subscriber set live here. This is critical
+ * since 0.8.4: the OS Settings panel ships in its own Vite IIFE
+ * bundle (`os-settings-panel[.min].js`), so a plain
+ * `const seed: WallpaperDef[] = []` at module scope would give the
+ * main bundle and the panel bundle each their own copy — main's
+ * server-sync would register the PHP-declared CSS presets (dark /
+ * aurora / sunset / forest / mono) into main's seed, but the panel's
+ * wallpaper picker would iterate the panel's empty seed and render
+ * only whatever the panel itself registered (`custom-gradient`).
+ * Routing through `createSharedStore` makes both bundles share a
+ * single record on `window.__desktopModeSharedStores`.
+ *
+ * Both fields are captured into module-local `seed` / `listeners`
+ * references below. Because `createSharedStore` returns the same
+ * underlying object across bundles, mutating those references
+ * (push / splice / add / delete) propagates to every other bundle
+ * that holds the same shared store handle.
+ */
+interface WallpaperRegistryStore {
+	seed: WallpaperDef[];
+	listeners: Set< RegistryListener >;
+}
+const store = createSharedStore< WallpaperRegistryStore >(
+	'desktop-mode/wallpaper-registry',
+	() => ( {
+		seed: [],
+		listeners: new Set< RegistryListener >(),
+	} ),
+);
+const seed = store.state.seed;
+const listeners = store.state.listeners;
 
 /**
  * Append a wallpaper to the seed list.
@@ -70,9 +110,6 @@ export function unregister( id: string ): void {
 // wallpaper, or when it's deactivated and the registry shrinks. This
 // subscribe() API is how they hear about it.
 // ---------------------------------------------------------------------------
-
-type RegistryListener = () => void;
-const listeners = new Set< RegistryListener >();
 
 /**
  * Subscribe to registry changes. The callback fires after every

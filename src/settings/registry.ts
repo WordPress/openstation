@@ -14,6 +14,8 @@
  * @since 0.17.0
  */
 
+import { createSharedStore } from '../shared-store';
+
 /**
  * Snapshot of the persisted OS Settings state that third-party tabs
  * can read. Intentionally re-declared here (instead of exporting the
@@ -207,8 +209,42 @@ export interface DesktopSettingsTab {
 	render( body: HTMLElement, ctx: SettingsTabRenderCtx ): void;
 }
 
-const registry = new Map< string, DesktopSettingsTab >();
-const listeners = new Set<() => void >();
+/**
+ * Cross-bundle shared backing store for the settings-tab registry.
+ *
+ * The OS Settings panel ships in its own Vite IIFE bundle since
+ * 0.8.4 (`os-settings-panel[.min].js`) and reads from this registry
+ * via `listSettingsTabs()` / `subscribeSettingsTabs()` to interleave
+ * plugin-registered tabs with the built-ins. Meanwhile the main
+ * bundle writes to it from two paths:
+ *
+ *   - `src/settings/server-sync.ts` — diffs PHP-declared tabs and
+ *     calls `registerSettingsTab()` on every plugins-changed
+ *     refresh, so live plugin install/activate surfaces the new tab
+ *     without a reload.
+ *   - `wp.desktop.registerSettingsTab()` — the JS-side public API.
+ *
+ * Without `createSharedStore`, the two bundles each get their own
+ * compiled copy of this module's top-level `Map` + `Set`. Plugin
+ * tabs registered in main never reach the panel, and the panel's
+ * own re-renders never wake main's subscribers. The shared store
+ * pins both fields to one record on
+ * `window.__desktopModeSharedStores` so every bundle sees the same
+ * Map and the same Set.
+ */
+interface SettingsTabRegistryStore {
+	registry: Map< string, DesktopSettingsTab >;
+	listeners: Set< () => void >;
+}
+const store = createSharedStore< SettingsTabRegistryStore >(
+	'desktop-mode/settings-tab-registry',
+	() => ( {
+		registry: new Map< string, DesktopSettingsTab >(),
+		listeners: new Set< () => void >(),
+	} ),
+);
+const registry = store.state.registry;
+const listeners = store.state.listeners;
 
 /**
  * Register (or replace) an OS Settings tab. Id matching is

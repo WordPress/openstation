@@ -261,6 +261,16 @@ export interface OsSettingsConfig {
 	} | null;
 	/** REST endpoint for reading/writing extended options. */
 	extendedOptionsUrl: string;
+	/**
+	 * Fully-qualified URL of the lazy-loaded OS Settings panel
+	 * bundle (`os-settings-panel[.min].js`). The class's stub
+	 * `renderPanel()` `<script>`-injects it on the user's first
+	 * Settings open; the bundle holds every section renderer + the
+	 * `<wpd-*>` components only the panel needs.
+	 *
+	 * @since 0.8.4
+	 */
+	osSettingsPanelBundleUrl?: string;
 }
 
 /**

@@ -385,6 +385,18 @@ const TARGETS = {
 		fileBase: 'about-scene',
 		iifeName: 'desktopModeAboutScene',
 	},
+	// OS Settings panel — the big lazy bundle (Stage 8). Hosts every
+	// section renderer + the `<wpd-*>` components only the panel
+	// uses (color/range field, swatch, swatch-grid, section,
+	// segmented, tabs, panel, empty-state, checkbox-label, button,
+	// select, text-field). Loaded on the user's first Settings open
+	// by the `OsSettings.renderPanel()` stub. Publishes
+	// `window.desktopModeRenderOsSettingsPanel`.
+	'os-settings-panel': {
+		entry:    'src/settings/panel-entry.ts',
+		fileBase: 'os-settings-panel',
+		iifeName: 'desktopModeOsSettingsPanel',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

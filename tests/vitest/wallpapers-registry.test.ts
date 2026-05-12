@@ -8,11 +8,17 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { WallpaperDef } from '../../src/wallpapers/types';
+import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 
 type Registry = typeof import( '../../src/wallpapers/registry' );
 
 async function loadRegistry(): Promise<Registry> {
-	// Reset so the internal `seed` array starts empty each test.
+	// Reset shared-store records first — the wallpaper registry's
+	// seed lives on a `createSharedStore`-backed `window` slot since
+	// 0.8.4 (so the main bundle and the lazy os-settings-panel bundle
+	// share one registry). `vi.resetModules()` alone wouldn't clear
+	// that slot; the dedicated helper does.
+	_resetAllSharedStoresForTests();
 	vi.resetModules();
 	return await import( '../../src/wallpapers/registry' );
 }

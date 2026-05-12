@@ -1812,6 +1812,17 @@ export interface DesktopConfig {
 	 */
 	aboutSceneBundleUrl?: string;
 	/**
+	 * Fully-qualified URL of the lazy-loaded OS Settings panel
+	 * bundle. The main bundle ships a thin `OsSettings.renderPanel`
+	 * stub that `<script>`-injects this on first open. Holds every
+	 * panel section renderer + the ~13 `<wpd-*>` component classes
+	 * that only the panel uses, so nothing about Settings ships in
+	 * `desktop.min.js`.
+	 *
+	 * @since 0.8.4
+	 */
+	osSettingsPanelBundleUrl?: string;
+	/**
 	 * Platform-wide AI settings — only present for admins (null for
 	 * non-admin users so the key is never leaked in the page source).
 	 * @since 0.14.0

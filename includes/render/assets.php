@@ -287,6 +287,17 @@ function desktop_mode_enqueue_assets() {
 				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
 				. '.js?ver=' . DESKTOP_MODE_VERSION
 			),
+			// URL of the OS Settings panel lazy bundle. Injected by
+			// the main bundle's `OsSettings.renderPanel()` stub on
+			// the user's first Settings open. Holds every section
+			// renderer + the `<wpd-*>` components only the panel
+			// uses, so nothing about Settings ships in
+			// `desktop.min.js` for users who never open it.
+			'osSettingsPanelBundleUrl' => esc_url_raw(
+				DESKTOP_MODE_URL . 'assets/js/os-settings-panel'
+				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
+				. '.js?ver=' . DESKTOP_MODE_VERSION
+			),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),

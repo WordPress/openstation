@@ -39,31 +39,10 @@
  * @since 0.5.0
  */
 
-import { __ } from '../i18n';
-import { html, render } from '../ui/core';
-// Side-effect imports — register only the <wpd-*> tags this panel
-// actually uses, so the main bundle doesn't drag in components that
-// only appear inside lazily-loaded window bundles (category-picker,
-// multiselect, tag-input, form, log, flyout, …). Each leaf import
-// runs the corresponding `customElements.define()` exactly once.
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
-import '../ui/components/wpd-color-field/wpd-color-field';
-import '../ui/components/wpd-empty-state/wpd-empty-state';
-import '../ui/components/wpd-panel/wpd-panel';
-import '../ui/components/wpd-range-field/wpd-range-field';
-import '../ui/components/wpd-section/wpd-section';
-import '../ui/components/wpd-segmented/wpd-segmented';
-import '../ui/components/wpd-select/wpd-select';
-import '../ui/components/wpd-swatch/wpd-swatch';
-import '../ui/components/wpd-swatch-grid/wpd-swatch-grid';
-import '../ui/components/wpd-tabs/wpd-tabs';
-import '../ui/components/wpd-text-field/wpd-text-field';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import * as registry from '../wallpapers/registry';
 import {
-	DEFAULTS,
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
 	getAccents,
@@ -81,27 +60,72 @@ import type {
 	OsSettingsState,
 	SettingsCtx,
 } from './types';
-import { buildAboutSection } from './sections/about';
-import { buildAccentSection } from './sections/accent';
-import { buildAiSection } from './sections/ai';
-import { buildAppsIconsSection } from './sections/apps-icons';
-import { buildDesktopLayoutSection } from './sections/desktop-layout';
-import { buildDockSizeSection } from './sections/dock-size';
-import { buildExtendedSection } from './sections/extended';
-import { buildFeaturesSection } from './sections/features';
-import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
-import { buildHelpSection } from './sections/help';
 import {
-	buildWallpaperSection,
 	registerCustomGradient,
 	registerCustomImageIfPresent,
-	teardownEditor,
 } from './sections/wallpaper';
-import { listSettingsTabs, subscribeSettingsTabs } from './registry';
+import type { OsSettingsSnapshot } from './registry';
 
-// eslint-disable-next-line no-duplicate-imports
-import type { DesktopSettingsTab, OsSettingsSnapshot } from './registry';
 export type { OsSettingsConfig };
+
+/**
+ * Lazy-load the `os-settings-panel[.min].js` bundle.
+ *
+ * Idempotent — concurrent callers share a single promise; once the
+ * bundle has registered `window.desktopModeRenderOsSettingsPanel`,
+ * subsequent calls resolve synchronously from the global.
+ */
+let _panelLoadPromise:
+	| Promise< NonNullable< Window[ 'desktopModeRenderOsSettingsPanel' ] > >
+	| null = null;
+function loadOsSettingsPanelBundle(
+	scriptUrl: string,
+): Promise< NonNullable< Window[ 'desktopModeRenderOsSettingsPanel' ] > > {
+	if ( window.desktopModeRenderOsSettingsPanel ) {
+		return Promise.resolve( window.desktopModeRenderOsSettingsPanel );
+	}
+	if ( _panelLoadPromise ) {
+		return _panelLoadPromise;
+	}
+	_panelLoadPromise = new Promise( ( resolve, reject ) => {
+		const existing = document.querySelector< HTMLScriptElement >(
+			'script[data-desktop-mode-os-settings-panel="1"]',
+		);
+		const finish = (): void => {
+			const fn = window.desktopModeRenderOsSettingsPanel;
+			if ( ! fn ) {
+				reject(
+					new Error(
+						'[desktop-mode] os-settings-panel bundle loaded but did not register desktopModeRenderOsSettingsPanel',
+					),
+				);
+				return;
+			}
+			resolve( fn );
+		};
+		if ( existing ) {
+			if ( window.desktopModeRenderOsSettingsPanel ) {
+				finish();
+			} else {
+				existing.addEventListener( 'load', finish );
+				existing.addEventListener( 'error', () =>
+					reject( new Error( 'failed to load os-settings-panel bundle' ) ),
+				);
+			}
+			return;
+		}
+		const s = document.createElement( 'script' );
+		s.src = scriptUrl;
+		s.async = true;
+		s.dataset.desktopModeOsSettingsPanel = '1';
+		s.addEventListener( 'load', finish );
+		s.addEventListener( 'error', () =>
+			reject( new Error( 'failed to load os-settings-panel bundle' ) ),
+		);
+		document.head.appendChild( s );
+	} );
+	return _panelLoadPromise;
+}
 
 /**
  * OS Settings controller.
@@ -128,8 +152,11 @@ export class OsSettings implements SettingsCtx {
 	 * Unsubscribe from the settings-tab registry. Set while a panel is
 	 * mounted; cleared when the panel re-renders or the next render
 	 * takes over.
+	 *
+	 * Public because the lazy panel-render module
+	 * (`src/settings/panel.ts`) reads and writes it across renders.
 	 */
-	private tabRegistryUnsubscribe: ( () => void ) | null = null;
+	public tabRegistryUnsubscribe: ( () => void ) | null = null;
 
 	/**
 	 * Most-recent active settings tab id, captured from
@@ -137,8 +164,10 @@ export class OsSettings implements SettingsCtx {
 	 * picked when a registry mutation forces the panel to re-render
 	 * (e.g. when a third-party plugin live-registers a new settings
 	 * tab via the chromeless plugins-changed bridge).
+	 *
+	 * Public for the same reason as `tabRegistryUnsubscribe` above.
 	 */
-	private activeTabId: string | null = null;
+	public activeTabId: string | null = null;
 
 	/**
 	 * Subscribers to OS Settings state changes — third-party tabs that
@@ -316,278 +345,53 @@ export class OsSettings implements SettingsCtx {
 	 * each to save/apply on change. The panel is a one-shot build per
 	 * window open — closing and re-opening renders a fresh tree.
 	 */
+	/**
+	 * Render the settings panel into the given native-window body.
+	 *
+	 * Lazy since 0.8.4 — the actual rendering logic plus every
+	 * `<wpd-*>` component the panel uses lives in
+	 * `src/settings/panel.ts`, compiled into its own Vite target
+	 * `os-settings-panel[.min].js`. The script is injected on the
+	 * first call below and the matching
+	 * `window.desktopModeRenderOsSettingsPanel( ctx, body )` global
+	 * is then invoked. Subsequent calls (registry-driven re-render,
+	 * save-failure rollback) skip the load and forward immediately.
+	 *
+	 * Why this is a `<script>`-injected sibling bundle rather than
+	 * an in-bundle dynamic import: Vite IIFE lib mode inlines
+	 * `import()` calls, so an in-bundle lazy import would give zero
+	 * byte savings. A separate Vite target is the only mechanism
+	 * that actually shrinks `desktop.min.js`. See the Stage 8
+	 * section of `BUNDLE-SIZE-REPORT.md` for the full picture.
+	 */
 	public renderPanel( body: HTMLElement ): void {
 		// Track the body so the save-failure rollback handler can
 		// re-render after restoring the last-confirmed state.
 		this._lastRenderedBody = body;
 
-		// Tear down any editor mounted by a previous render — closing
-		// the OS Settings window doesn't necessarily fire our teardown
-		// path, so we do it defensively here.
-		teardownEditor( this );
-
-		// Drop any previous registry subscription — we'll resubscribe
-		// below. Without this, every re-render leaks a listener.
-		if ( this.tabRegistryUnsubscribe ) {
-			this.tabRegistryUnsubscribe();
-			this.tabRegistryUnsubscribe = null;
+		const fn = window.desktopModeRenderOsSettingsPanel;
+		if ( fn ) {
+			fn( this, body );
+			return;
 		}
 
-		body.classList.add( 'desktop-mode-os-settings' );
-
-		const onReset = (): void => {
-			// Preserve the uploaded image so the user doesn't lose
-			// their upload just by resetting theme preferences — the
-			// image still lives in Media Library, and it's an easy
-			// re-pick.
-			const preservedImage = this.state.customImage;
-			this.state = { ...DEFAULTS, customImage: preservedImage };
-			this.save();
-			this.apply();
-			this.renderPanel( body );
-		};
-
-		// Interleave third-party tabs with the built-ins by `order`.
-		// Built-in orders match the hardcoded visual sequence so a
-		// plugin registering at `order: 15` slots between Appearance
-		// and AI Settings.
-		const isAdmin = this.config.isAdmin;
-		const externalTabs = listSettingsTabs().filter( ( tab ) =>
-			isTabVisible( tab, isAdmin ),
-		);
-
-		interface TabRow {
-			id: string;
-			order: number;
-			tab: ReturnType< typeof html >;
-			panel: ReturnType< typeof html >;
-			/** For external tabs — invoked after render to mount content. */
-			mount?: ( host: HTMLElement ) => void;
-		}
-
-		const rows: TabRow[] = [
-			{
-				id: 'appearance',
-				order: 10,
-				tab: html`<wpd-tab value="appearance"
-					>${ __( 'Appearance' ) }</wpd-tab
-				>`,
-				panel: html`<wpd-tabpanel for="appearance">
-					<wpd-panel>
-						<p class="desktop-mode-os-settings__intro">
-							${ __(
-								'Personalize your desktop. Changes apply instantly and are saved to this browser.',
-							) }
-						</p>
-						${ buildWallpaperSection( this, body ) }
-						${ buildAccentSection( this ) }
-						${ buildDesktopLayoutSection( this ) }
-						${ buildDockSizeSection( this ) }
-						${ buildDockRailRendererSection( this ) }
-					</wpd-panel>
-				</wpd-tabpanel>`,
-			},
-			{
-				id: 'ai',
-				order: 20,
-				tab: html`<wpd-tab value="ai">${ __( 'AI Settings' ) }</wpd-tab>`,
-				panel: html`<wpd-tabpanel for="ai">
-					<wpd-panel>${ buildAiSection( this ) }</wpd-panel>
-				</wpd-tabpanel>`,
-			},
-			{
-				id: 'features',
-				order: 25,
-				tab: html`<wpd-tab value="features"
-					>${ __( 'Features' ) }</wpd-tab
-				>`,
-				panel: html`<wpd-tabpanel for="features">
-					<wpd-panel>${ buildFeaturesSection( this ) }</wpd-panel>
-				</wpd-tabpanel>`,
-			},
-			{
-				id: 'apps-icons',
-				order: 22,
-				tab: html`<wpd-tab value="apps-icons"
-					>${ __( 'Apps & Icons' ) }</wpd-tab
-				>`,
-				panel: html`<wpd-tabpanel for="apps-icons">
-					<wpd-panel>${ buildAppsIconsSection( this ) }</wpd-panel>
-				</wpd-tabpanel>`,
-			},
-		];
-
-		if ( isAdmin ) {
-			rows.push( {
-				id: 'extended',
-				order: 30,
-				tab: html`<wpd-tab value="extended"
-					>${ __( 'Extended Options' ) }</wpd-tab
-				>`,
-				panel: html`<wpd-tabpanel for="extended">
-					<wpd-panel>${ buildExtendedSection( this ) }</wpd-panel>
-				</wpd-tabpanel>`,
-			} );
-			rows.push( {
-				id: 'help',
-				order: 40,
-				tab: html`<wpd-tab value="help">${ __( 'Components' ) }</wpd-tab>`,
-				panel: html`<wpd-tabpanel for="help">
-					<wpd-panel>${ buildHelpSection() }</wpd-panel>
-				</wpd-tabpanel>`,
-			} );
-		}
-
-		// About — credits + the interactive Pixi particle scene. Pinned
-		// to the very end of the tab strip with a sentinel order
-		// (`Number.MAX_SAFE_INTEGER`) so it stays last regardless of
-		// any third-party tabs registered through the settings-tab
-		// registry (which default to `order: 100`). The visual moment
-		// belongs at the end of the settings tour. Visible to every
-		// user, not just admins; `padding="0"` so the dark stage
-		// extends to the tabpanel edge without the wpd-panel's
-		// default 16px frame.
-		rows.push( {
-			id: 'about',
-			order: Number.MAX_SAFE_INTEGER,
-			tab: html`<wpd-tab value="about">${ __( 'About' ) }</wpd-tab>`,
-			panel: html`<wpd-tabpanel for="about">
-				<wpd-panel padding="0">${ buildAboutSection() }</wpd-panel>
-			</wpd-tabpanel>`,
-		} );
-
-		for ( const tab of externalTabs ) {
-			const tabId = `ext-${ tab.id }`;
-			const hostAttr = `wpd-settings-tab-host-${ tab.id }`;
-			const tabRef = tab;
-			rows.push( {
-				id: tabId,
-				order: tab.order ?? 100,
-				tab: html`<wpd-tab value=${ tabId }>${ tab.label }</wpd-tab>`,
-				panel: html`<wpd-tabpanel for=${ tabId }>
-					<wpd-panel><div data-host=${ hostAttr }></div></wpd-panel>
-				</wpd-tabpanel>`,
-				mount: ( rootBody: HTMLElement ): void => {
-					const host = rootBody.querySelector< HTMLElement >(
-						`[data-host="${ hostAttr }"]`,
+		void loadOsSettingsPanelBundle(
+			this.config.osSettingsPanelBundleUrl ?? '',
+		)
+			.then( ( render ) => {
+				if ( ! body.isConnected ) {
+					return;
+				}
+				render( this, body );
+			} )
+			.catch( ( err ) => {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[desktop-mode] OS Settings panel failed to load:',
+						err,
 					);
-					if ( ! host ) {
-						return;
-					}
-					try {
-						tabRef.render( host, {
-							isAdmin,
-							getOsSettings: () => this.getOsSettingsSnapshot(),
-							subscribeOsSettings: ( cb ) =>
-								this.subscribeOsSettings( cb ),
-						} );
-					} catch ( err ) {
-						if ( typeof console !== 'undefined' ) {
-							console.error(
-								'[desktop-mode] settings tab render threw:',
-								tabRef.id,
-								err,
-							);
-						}
-					}
-				},
-			} );
-		}
-
-		rows.sort( ( a, b ) => a.order - b.order );
-
-		// Preserve the active tab across re-renders triggered by the
-		// settings-tab registry (e.g. when a third-party plugin live-
-		// registers a settings tab via the chromeless bridge and we
-		// rebuild the strip in response). Without this, every
-		// refreshMenu() snaps the user back to the Appearance tab
-		// mid-action.
-		//
-		// `<wpd-tabs>` keeps the live selected value on the JS property,
-		// not the attribute — `getAttribute('value')` would always
-		// return the initial value, regardless of what the user picked.
-		const previousTabs = body.querySelector( 'wpd-tabs' ) as
-			| ( HTMLElement & { value?: string } )
-			| null;
-		const previousValue =
-			this.activeTabId ??
-			previousTabs?.value ??
-			previousTabs?.getAttribute( 'value' ) ??
-			'appearance';
-		const activeRowExists = rows.some( ( r ) => r.id === previousValue );
-		const initialTab = activeRowExists ? previousValue : 'appearance';
-
-		render(
-			html`
-				<wpd-tabs value=${ initialTab } label=${ __( 'Settings sections' ) }>
-					${ rows.map( ( r ) => r.tab ) }
-				</wpd-tabs>
-				${ rows.map( ( r ) => r.panel ) }
-				<wpd-panel class="desktop-mode-os-settings__footer">
-					<wpd-button variant="ghost" @click=${ onReset }
-						>${ __( 'Reset to defaults' ) }</wpd-button
-					>
-				</wpd-panel>
-			`,
-			body,
-		);
-		// Save feedback lives on the OS Settings window's title-bar
-		// activity dot — the always-on modem light next to the icon.
-		// No section-level or footer indicator: one canonical
-		// affordance per window, no duplication across the panel.
-
-		// Mount external tab content after the tabpanels are in the
-		// DOM so their hosts can be queried.
-		for ( const row of rows ) {
-			if ( row.mount ) {
-				row.mount( body );
-			}
-		}
-
-		// Track the active tab id so a registry-driven re-render can
-		// land the user back on it. Bound on the freshly-rendered
-		// `<wpd-tabs>` host — `lit` reuses the DOM node across
-		// renders, but the listener idempotently overwrites
-		// `activeTabId` so duplicates are harmless.
-		const tabsHost = body.querySelector( 'wpd-tabs' );
-		if ( tabsHost ) {
-			tabsHost.addEventListener( 'wpd-tab-change', ( e: Event ) => {
-				const detail = ( e as CustomEvent ).detail as { value?: string };
-				if ( detail?.value ) {
-					this.activeTabId = detail.value;
 				}
 			} );
-		}
-		this.activeTabId = initialTab;
-
-		// Re-render when the registry changes so a plugin that loads
-		// *after* the OS Settings window opens (via the server-sync
-		// script injection) still gets its tab painted live.
-		this.tabRegistryUnsubscribe = subscribeSettingsTabs( () => {
-			// Guard against the window being closed between the
-			// notification and the re-render: if body is detached,
-			// silently drop the subscription.
-			if ( ! body.isConnected ) {
-				if ( this.tabRegistryUnsubscribe ) {
-					this.tabRegistryUnsubscribe();
-					this.tabRegistryUnsubscribe = null;
-				}
-				return;
-			}
-			this.renderPanel( body );
-		} );
 	}
 }
 
-/**
- * Capability → visibility gate. The shell today collapses capability
- * to a simple admin-or-everyone distinction: `manage_options` requires
- * admin; anything else (including empty) is visible to everyone.
- * Widening to real capability checks is a future expansion.
- */
-function isTabVisible( tab: DesktopSettingsTab, isAdmin: boolean ): boolean {
-	if ( tab.capability && tab.capability === 'manage_options' ) {
-		return isAdmin;
-	}
-	return true;
-}

@@ -9,15 +9,41 @@
  * @since 0.18.0
  */
 
+import { createSharedStore } from '../shared-store';
 import type { DockRailRenderer } from './types';
 
-const registry = new Map<string, DockRailRenderer>();
-const listeners = new Set<() => void>();
+/**
+ * Cross-bundle shared backing store. Same rationale as
+ * `src/wallpapers/registry.ts` and `src/settings/registry.ts`: the
+ * lazy OS Settings panel bundle reads dock-rail renderers via
+ * `listDockRailRenderers()` to paint the picker, while main writes
+ * to the registry from `dock-rail/server-sync.ts` (live plugin
+ * register/unregister) and `wp.desktop.registerDockRailRenderer()`.
+ * Without `createSharedStore` the two bundles each carry their own
+ * `Map` and updates from one don't reach the other.
+ *
+ * `activeId` lives in the store too because it's read at render
+ * time by every dock rebuild — keeping it bundle-local would let
+ * the panel's "set active renderer" call write only the panel
+ * bundle's mirror.
+ */
+interface DockRailRegistryStore {
+	registry: Map< string, DockRailRenderer >;
+	listeners: Set< () => void >;
+	activeId: string;
+}
+const store = createSharedStore< DockRailRegistryStore >(
+	'desktop-mode/dock-rail-registry',
+	() => ( {
+		registry: new Map< string, DockRailRenderer >(),
+		listeners: new Set< () => void >(),
+		activeId: 'default',
+	} ),
+);
+const registry = store.state.registry;
+const listeners = store.state.listeners;
 
 const ID_RE = /^[a-z0-9_-]+$/;
-
-/** User's pick in OS Settings → Appearance → Dock style. */
-let activeId: string = 'default';
 
 /**
  * Register (or replace) a rail renderer. Validates the shape and
@@ -119,16 +145,16 @@ export function subscribe( cb: () => void ): () => void {
  * renderer.
  */
 export function setActiveRenderer( id: string ): void {
-	if ( activeId === id ) {
+	if ( store.state.activeId === id ) {
 		return;
 	}
-	activeId = id;
+	store.state.activeId = id;
 	notify();
 }
 
 /** Read the current active id without resolution. Used by the picker. */
 export function getActiveRendererId(): string {
-	return activeId;
+	return store.state.activeId;
 }
 
 /**
@@ -146,7 +172,7 @@ export function getActiveRendererId(): string {
  */
 export function resolveActive(): DockRailRenderer | undefined {
 	return (
-		registry.get( activeId ) ??
+		registry.get( store.state.activeId ) ??
 		registry.get( 'default' ) ??
 		registry.values().next().value
 	);
@@ -156,7 +182,7 @@ export function resolveActive(): DockRailRenderer | undefined {
 export function _resetForTests(): void {
 	registry.clear();
 	listeners.clear();
-	activeId = 'default';
+	store.state.activeId = 'default';
 }
 
 function notify(): void {

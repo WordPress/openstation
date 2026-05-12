@@ -26,8 +26,16 @@ export function customGradientCss( state: OsSettingsState ): string {
 /**
  * Register the custom-gradient wallpaper. Its CSS value is computed on
  * every apply from user state (so live edits through the editor repaint
- * without re-registering), and its renderEditor hosts the color + angle
- * controls.
+ * without re-registering).
+ *
+ * NOTE — no `renderEditor` here on purpose. Keeping this function
+ * free of any reference to the editor closure is what lets Rollup
+ * tree-shake `renderCustomGradientEditor` (and its color-picker /
+ * range-slider transitive deps) out of the main bundle: it survives
+ * only in the lazy OS-Settings-panel bundle, which calls
+ * {@link attachCustomGradientEditor} when it loads to splice the
+ * editor onto the existing registration ("late registrations win"
+ * per `wallpapers/registry.ts`).
  */
 export function registerCustomGradient( ctx: SettingsCtx ): void {
 	registry.register( {
@@ -36,7 +44,24 @@ export function registerCustomGradient( ctx: SettingsCtx ): void {
 		type: 'css',
 		preview: customGradientCss( ctx.state ),
 		resolveValue: () => customGradientCss( ctx.state ),
-		renderEditor: ( container ) => renderCustomGradientEditor( ctx, container ),
+	} );
+}
+
+/**
+ * Re-register the custom-gradient wallpaper WITH its `renderEditor`
+ * callback attached. Called by the OS Settings panel bundle on load,
+ * so the editor's component-heavy code path only ships in that
+ * lazy bundle and never reaches `desktop.min.js`.
+ */
+export function attachCustomGradientEditor( ctx: SettingsCtx ): void {
+	registry.register( {
+		id: CUSTOM_GRADIENT_ID,
+		label: __( 'Custom gradient' ),
+		type: 'css',
+		preview: customGradientCss( ctx.state ),
+		resolveValue: () => customGradientCss( ctx.state ),
+		renderEditor: ( container ) =>
+			renderCustomGradientEditor( ctx, container ),
 	} );
 }
 
