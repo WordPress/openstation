@@ -18,18 +18,27 @@ the single largest module in the shell — ~68 kB of code that
 wallpaper, the dock, and the desktop icons; the user typically
 hasn't asked for a window yet.
 
-0.8.4 ships the `Window` class (and its DOM / pointer / tab /
-chrome helpers) in a separate `assets/js/window-system[.min].js`
+0.8.4 ships the `Window` class (and its DOM / pointer / tab
+helpers) in a separate `assets/js/window-system[.min].js`
 bundle that `desktop.ts` `<script>`-injects in the background
-right after first paint. By the time the user clicks anything,
-the bundle is registered and `manager.open()` resolves on the
-sync fast path. For users who never open a window, the
-~30–35 kB minified / ~10 kB gzipped never downloads.
+right after first paint. The window-chrome components themselves
+(`<wpd-window-button>`, `<wpd-menu>`, `<wpd-tab-chip>`,
+`<wpd-save-status>`, `<wpd-spinner>`) live in a sibling
+`assets/js/shell-overlays[.min].js` bundle that pre-loads on the
+same idle-callback. Both are guaranteed to be ready before
+`manager.open()` constructs the first window — `createWindow()`
+awaits *both* bundles via `Promise.all( … )` internally — so
+plugins never see partially-rendered chrome.
+
+For users who never open a window, the ~30–35 kB minified /
+~10 kB gzipped of `window-system.min.js` never downloads, and the
+chrome components in `shell-overlays.min.js` only matter to other
+surfaces (toasts, context menus) that may not fire either.
 
 Lazy loading means `manager.open()` must wait for the bundle —
 hence `Promise< Window >`. The promise resolves immediately in
-steady state (factory already registered), but the type system
-requires `await` regardless.
+steady state (factory already registered after the post-paint
+preload), but the type system requires `await` regardless.
 
 ---
 
@@ -203,6 +212,25 @@ boot (`restoreSession`, `openCurrentPage`). Plugin code that
 genuinely doesn't care about failure can leave the `void` prefix
 and let the browser log the rejection.
 
+### "bundle loaded but did not register" during development
+
+If you see this exact error in the console while iterating on the
+framework:
+
+```
+Error: [desktop-mode] window-system bundle loaded but did not
+register `window.desktopModeWindowSystem`.
+```
+
+…it almost always means **the browser is serving a cached old
+copy of the lazy bundle**, from before the assignment was added.
+The PHP-emitted URLs use `?ver=<filemtime>` since 0.8.4 so
+on-disk rebuilds invalidate the cache automatically — but a hard
+reload (`Cmd+Shift+R` / `Ctrl+Shift+F5`) clears any in-memory
+copy a previous session may have stuck on. Same fix applies for
+the analogous shell-overlays / ai-assistant / os-settings-panel
+errors.
+
 ---
 
 ## Why not keep the API synchronous via a Window-proxy?
@@ -259,14 +287,22 @@ unlikely but possible if you typo a method).
 | | Pre-0.8.4 | 0.8.4 |
 | - | --------- | ----- |
 | First-paint download (`desktop.min.js`) | 360 kB / 101 kB gz | **307 kB / 88 kB gz** |
-| Lazy `window-system.min.js` (post-paint preload) | — | 65 kB / 17 kB gz |
-| Total bytes if user opens a window | 360 kB | 372 kB |
+| Lazy `window-system.min.js` (post-paint preload) | — | 67 kB / 17 kB gz |
+| Total bytes if user opens a window | 360 kB | 374 kB |
 | Total bytes if user never opens a window | 360 kB | **307 kB** |
 
 A user who enters desktop mode and never opens a window saves
 ~53 kB minified / ~13 kB gzipped. A user who opens a window
-pays the same total bytes, just in two requests that the
-browser fetches in parallel after first paint.
+pays slightly more total bytes (~14 kB minified / ~4 kB gz —
+overhead from the lazy-loader plumbing + per-bundle utility
+duplication), split across two requests the browser fetches in
+parallel after first paint.
+
+`shell-overlays.min.js` (54 kB / 16 kB gz, also lazy-loaded
+after first paint) is shared by toast, confirm-dialog, context-
+menu, and the window-chrome components. It would have downloaded
+anyway the moment a toast or right-click fired, so it doesn't
+materially change the "open a window" cost.
 
 ---
 
@@ -276,4 +312,6 @@ browser fetches in parallel after first paint.
 - Lazy bundle entry: `src/window-system/entry.ts`
 - Cross-bundle factory contract: `src/window-system/types.ts`
 - Pre-load hook in shell boot: `src/desktop.ts` (search for `preloadWindowSystem`)
+- Shared-store contract for chrome registries: `src/window-chrome/{controls,slots,themes,chrome}/registry.ts` + `src/title-bar-buttons/registry.ts` (all back their state on `createSharedStore` since 0.8.4 so the lazy bundle sees the same registry main writes to — see `AGENTS.md` for the underlying primitive)
+- PHP-side lazy-bundle URL helper: `$lazy_bundle_url( … )` in `includes/render/assets.php` (uses `filemtime()` so rebuilds invalidate the browser cache without bumping `DESKTOP_MODE_VERSION`)
 - Migration discussion: see Stage 11 in `BUNDLE-SIZE-REPORT.md`.

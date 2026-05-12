@@ -39,6 +39,27 @@ interface DesktopApiShape {
 }
 
 /**
+ * Resolve once `el` has a non-zero content box. Uses a `ResizeObserver`
+ * to wake up on the first measurable size (covers the `display:none →
+ * block` tab-switch flip) and falls back to a synchronous resolve when
+ * the element is already sized at call time.
+ */
+function waitForSize( el: HTMLElement ): Promise<void> {
+	if ( el.clientWidth > 0 && el.clientHeight > 0 ) {
+		return Promise.resolve();
+	}
+	return new Promise( ( resolve ) => {
+		const observer = new ResizeObserver( () => {
+			if ( el.clientWidth > 0 && el.clientHeight > 0 ) {
+				observer.disconnect();
+				resolve();
+			}
+		} );
+		observer.observe( el );
+	} );
+}
+
+/**
  * Builder — returns the About section element ready to drop into the
  * OS Settings tabpanel. The Pixi mount is deferred until the wrapper
  * is in the DOM (next animation frame), so the section can be safely
@@ -97,6 +118,17 @@ export function buildAboutSection(): HTMLElement {
 			if ( desktopApi?.loadModules ) {
 				await desktopApi.loadModules( [ 'pixijs' ] );
 			}
+			if ( aborted || ! wrapper.isConnected ) {
+				return;
+			}
+			// Wait until the host has a real layout box before letting
+			// Pixi init. About is usually built inside a `display: none`
+			// tabpanel (Appearance is the default tab) — initialising
+			// Pixi against a zero-size container makes its `resizeTo`
+			// fall back to 1×1, and the subsequent `display:none → block`
+			// flip doesn't always trigger a ResizeObserver fire in time,
+			// leaving the scene stuck at a single pixel.
+			await waitForSize( host );
 			if ( aborted || ! wrapper.isConnected ) {
 				return;
 			}
