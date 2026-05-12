@@ -9,6 +9,7 @@
  * @since 0.8.0
  */
 
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type {
 	EntityDetail,
@@ -47,11 +48,7 @@ export function getEntity( id: string ): MyWordPressEntity | undefined {
 }
 
 function buildUrl( path: string ): string {
-	const cfg = getConfig();
-	const base = cfg.restRoot.endsWith( '/' )
-		? cfg.restRoot
-		: cfg.restRoot + '/';
-	return base + path.replace( /^\/+/, '' );
+	return joinRestUrl( getConfig().restRoot, path );
 }
 
 async function shellFetch(

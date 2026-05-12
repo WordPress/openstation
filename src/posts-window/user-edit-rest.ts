@@ -9,6 +9,7 @@
  * @since 0.18.0
  */
 
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type { PostsWindowConfig } from './rest';
 
@@ -167,8 +168,8 @@ export function createUserEditClient(
 		const cfg = getConfig();
 		const base =
 			( cfg as unknown as { usersUrl?: string } ).usersUrl ??
-			`${ cfg.restRoot }wp/v2/users`;
-		const url = `${ base }/${ id }?context=edit`;
+			joinRestUrl( cfg.restRoot, 'wp/v2/users' );
+		const url = joinRestUrl( base, `${ id }?context=edit` );
 		const res = await shellFetch(
 			url,
 			{
@@ -194,9 +195,9 @@ export function createUserEditClient(
 		const cfg = getConfig();
 		const base =
 			( cfg as unknown as { usersUrl?: string } ).usersUrl ??
-			`${ cfg.restRoot }wp/v2/users`;
+			joinRestUrl( cfg.restRoot, 'wp/v2/users' );
 		const res = await shellFetch(
-			`${ base }/${ id }?context=edit`,
+			joinRestUrl( base, `${ id }?context=edit` ),
 			{
 				method: 'POST', // PUT == POST for WP REST when X-HTTP-Method-Override is unsupported.
 				credentials: 'same-origin',
@@ -240,8 +241,8 @@ export function createUserEditClient(
 		const cfg = getConfig();
 		const base =
 			( cfg as unknown as { insightsUrlBase?: string } )
-				.insightsUrlBase ?? `${ cfg.restRoot }desktop-mode/v1/users/`;
-		const url = new URL( `${ base }${ id }/insights` );
+				.insightsUrlBase ?? joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users/' );
+		const url = new URL( joinRestUrl( base, `${ id }/insights` ) );
 		if ( opts.fresh ) {
 			url.searchParams.set( 'fresh', '1' );
 		}

@@ -10,6 +10,7 @@
  * @since 0.18.0
  */
 
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type { PostsWindowConfig } from './rest';
 
@@ -276,7 +277,7 @@ export function createUsersWindowClient(
 		const cfg = getConfig();
 		const url =
 			( cfg as unknown as { bulkRoleUrl?: string } ).bulkRoleUrl ??
-			`${ cfg.restRoot }desktop-mode/v1/users/bulk-role`;
+			joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users/bulk-role' );
 		const res = await shellFetch(
 			url,
 			{
@@ -304,9 +305,9 @@ export function createUsersWindowClient(
 		const cfg = getConfig();
 		const base =
 			( cfg as unknown as { sendResetUrlBase?: string } )
-				.sendResetUrlBase ?? `${ cfg.restRoot }desktop-mode/v1/users/`;
+				.sendResetUrlBase ?? joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users/' );
 		const res = await shellFetch(
-			`${ base }${ id }/send-password-reset`,
+			joinRestUrl( base, `${ id }/send-password-reset` ),
 			{
 				method: 'POST',
 				credentials: 'same-origin',
@@ -335,9 +336,9 @@ export function createUsersWindowClient(
 		const cfg = getConfig();
 		const base =
 			( cfg as unknown as { sendResetUrlBase?: string } )
-				.sendResetUrlBase ?? `${ cfg.restRoot }desktop-mode/v1/users/`;
+				.sendResetUrlBase ?? joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users/' );
 		const res = await shellFetch(
-			`${ base }${ id }/resend-welcome`,
+			joinRestUrl( base, `${ id }/resend-welcome` ),
 			{
 				method: 'POST',
 				credentials: 'same-origin',
@@ -368,7 +369,7 @@ export function createUsersWindowClient(
 		const cfg = getConfig();
 		const url =
 			( cfg as unknown as { createUserUrl?: string } ).createUserUrl ??
-			`${ cfg.restRoot }desktop-mode/v1/users`;
+			joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users' );
 		const res = await shellFetch(
 			url,
 			{
@@ -411,7 +412,7 @@ export function createUsersWindowClient(
 		const cfg = getConfig();
 		const url =
 			( cfg as unknown as { bulkDeleteUrl?: string } ).bulkDeleteUrl ??
-			`${ cfg.restRoot }desktop-mode/v1/users/bulk-delete`;
+			joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users/bulk-delete' );
 		const body: Record< string, unknown > = { ids };
 		if ( typeof reassign === 'number' && reassign > 0 ) {
 			body.reassign = reassign;

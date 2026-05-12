@@ -22,6 +22,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { type PostsWindowConfig } from './rest';
@@ -1792,9 +1793,9 @@ function buildSessionsRow( userId: number, isSelfEdit: boolean ): HTMLElement {
 			const base =
 				( cfg as unknown as { insightsUrlBase?: string } )
 					.insightsUrlBase ??
-				`${ cfg.restRoot }desktop-mode/v1/users/`;
+				joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users/' );
 			const res = await trackedFetch(
-				`${ base }${ userId }/destroy-sessions`,
+				joinRestUrl( base, `${ userId }/destroy-sessions` ),
 				{
 					method: 'POST',
 					credentials: 'same-origin',
@@ -1858,7 +1859,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 	const cfg = resolveUserEditClient().getConfig();
 	const base =
 		( cfg as unknown as { insightsUrlBase?: string } ).insightsUrlBase ??
-		`${ cfg.restRoot }desktop-mode/v1/users/`;
+		joinRestUrl( cfg.restRoot, 'desktop-mode/v1/users/' );
 	const list = document.createElement( 'ul' );
 	list.style.cssText =
 		'list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;';
@@ -1921,13 +1922,13 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 				e.preventDefault();
 				try {
 					const res = await trackedFetch(
-					`${ base }${ userId }/application-passwords/${ item.uuid }`,
-					{
-						method: 'DELETE',
-						credentials: 'same-origin',
-						headers: { 'X-WP-Nonce': cfg.restNonce },
-					},
-					{ source: 'user-edit-window/app-pw-revoke' },
+						joinRestUrl( base, `${ userId }/application-passwords/${ item.uuid }` ),
+						{
+							method: 'DELETE',
+							credentials: 'same-origin',
+							headers: { 'X-WP-Nonce': cfg.restNonce },
+						},
+						{ source: 'user-edit-window/app-pw-revoke' },
 					);
 					if ( ! res.ok ) {
 						throw new Error( `http_${ res.status }` );
@@ -1949,7 +1950,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 	const refresh = async (): Promise< void > => {
 		try {
 			const res = await trackedFetch(
-				`${ base }${ userId }/application-passwords`,
+				joinRestUrl( base, `${ userId }/application-passwords` ),
 				{
 					credentials: 'same-origin',
 					headers: { 'X-WP-Nonce': cfg.restNonce },
@@ -1976,7 +1977,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 		}
 		try {
 			const res = await trackedFetch(
-				`${ base }${ userId }/application-passwords`,
+				joinRestUrl( base, `${ userId }/application-passwords` ),
 				{
 					method: 'POST',
 					credentials: 'same-origin',

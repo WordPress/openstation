@@ -23,6 +23,7 @@
  * @since 0.8.2
  */
 
+import { joinRestUrl } from './rest-url';
 import { trackedFetch } from './tracked-fetch';
 
 export interface StartOAuthOptions {
@@ -74,7 +75,7 @@ export function startOAuth(
 	const restNonce = readRestNonce();
 
 	return trackedFetch(
-		restRoot + 'desktop-mode/v1/oauth/start',
+		joinRestUrl( restRoot, 'desktop-mode/v1/oauth/start' ),
 		{
 			method: 'POST',
 			headers: {

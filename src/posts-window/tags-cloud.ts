@@ -30,6 +30,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { type PostsWindowClient, type TermRow } from './rest';
 
@@ -1969,7 +1970,7 @@ export async function mountTagsCloud(
 		}
 		const cfg = client.getConfig();
 		const url = new URL(
-			`${ cfg.restRoot.replace( /\/$/, '' ) }/desktop-mode/v1/term-counts`,
+			joinRestUrl( cfg.restRoot, 'desktop-mode/v1/term-counts' ),
 		);
 		// Server expects the WP internal taxonomy slug (`post_tag`),
 		// not the REST endpoint base (`tags`) — `get_taxonomy()`

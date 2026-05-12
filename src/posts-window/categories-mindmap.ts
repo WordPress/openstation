@@ -25,6 +25,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { type PostsWindowClient, type TermRow } from './rest';
 
@@ -2819,7 +2820,7 @@ export async function mountCategoriesMindmap(
 		}
 		const cfg = client.getConfig();
 		const url = new URL(
-			`${ cfg.restRoot.replace( /\/$/, '' ) }/desktop-mode/v1/term-counts`,
+			joinRestUrl( cfg.restRoot, 'desktop-mode/v1/term-counts' ),
 		);
 		url.searchParams.set( 'taxonomy', 'category' );
 		url.searchParams.set(

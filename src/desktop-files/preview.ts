@@ -20,6 +20,7 @@
 
 import { applyFilters } from '../hooks';
 import { __, sprintf } from '../i18n';
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type { RestPlacementShape } from './rest';
 
@@ -61,20 +62,16 @@ function readRestRoot(): string {
 	if ( cfg?.restUrl ) {
 		return cfg.restUrl.endsWith( '/' ) ? cfg.restUrl : cfg.restUrl + '/';
 	}
-	if ( cfg?.adminUrl ) {
-		// Fall back to the admin root + the stable wp-json segment.
-		try {
-			const u = new URL( cfg.adminUrl, window.location.origin );
-			return `${ u.origin }/wp-json/`;
-		} catch {
-			// Pass through.
-		}
-	}
+	// Last-ditch fallback used only when the shell config never lands
+	// (e.g., the file-tile renders before `wp.desktop` boots). Assumes
+	// pretty permalinks; plain-permalink sites that hit this path would
+	// 404, but in practice the shell config is always present by the
+	// time a preview is requested.
 	return `${ window.location.origin }/wp-json/`;
 }
 
 function restUrl( path: string ): string {
-	return readRestRoot() + path.replace( /^\/+/, '' );
+	return joinRestUrl( readRestRoot(), path );
 }
 
 /* ------------------------------------------------------------------ *

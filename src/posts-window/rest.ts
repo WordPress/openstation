@@ -26,6 +26,7 @@
  * @since 0.8.0
  */
 
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 
 declare global {
@@ -606,7 +607,7 @@ export function createPostsWindowClient(
 		signal?: AbortSignal,
 	): Promise< TagTerm[] > => {
 		const cfg = getConfig();
-		const url = new URL( `${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/tags` );
+		const url = new URL( joinRestUrl( cfg.restRoot, 'wp/v2/tags' ) );
 		url.searchParams.set( 'per_page', '20' );
 		url.searchParams.set( '_fields', 'id,name,slug,count' );
 		url.searchParams.set( 'orderby', 'count' );
@@ -625,7 +626,7 @@ export function createPostsWindowClient(
 
 	const createTag = async ( name: string ): Promise< TagTerm > => {
 		const cfg = getConfig();
-		const url = `${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/tags`;
+		const url = joinRestUrl( cfg.restRoot, 'wp/v2/tags' );
 		try {
 			const { data } = await request< TagTerm >( url, {
 				method: 'POST',
@@ -668,9 +669,7 @@ export function createPostsWindowClient(
 		signal?: AbortSignal,
 	): Promise< CategoryTerm[] > => {
 		const cfg = getConfig();
-		const url = new URL(
-			`${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/categories`,
-		);
+		const url = new URL( joinRestUrl( cfg.restRoot, 'wp/v2/categories' ) );
 		url.searchParams.set( 'per_page', '100' );
 		url.searchParams.set( '_fields', 'id,name,slug,parent' );
 		url.searchParams.set( 'orderby', 'name' );
@@ -686,9 +685,7 @@ export function createPostsWindowClient(
 		signal?: AbortSignal,
 	): Promise< AuthorOption[] > => {
 		const cfg = getConfig();
-		const url = new URL(
-			`${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/users`,
-		);
+		const url = new URL( joinRestUrl( cfg.restRoot, 'wp/v2/users' ) );
 		url.searchParams.set( 'per_page', '100' );
 		url.searchParams.set( 'who', 'authors' );
 		url.searchParams.set( '_fields', 'id,name' );
@@ -713,7 +710,7 @@ export function createPostsWindowClient(
 		signal?: AbortSignal,
 	): Promise< TagOptionsPage > => {
 		const cfg = getConfig();
-		const url = new URL( `${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/tags` );
+		const url = new URL( joinRestUrl( cfg.restRoot, 'wp/v2/tags' ) );
 		url.searchParams.set( 'per_page', String( Math.max( 1, perPage ) ) );
 		url.searchParams.set( 'page', String( Math.max( 1, page ) ) );
 		url.searchParams.set( '_fields', 'id,name,count' );
@@ -740,7 +737,7 @@ export function createPostsWindowClient(
 		opts: { slug?: string; description?: string } = {},
 	): Promise< CategoryTerm > => {
 		const cfg = getConfig();
-		const url = `${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/categories`;
+		const url = joinRestUrl( cfg.restRoot, 'wp/v2/categories' );
 		const body: Record< string, unknown > = { name, parent };
 		if ( opts.slug ) {
 			body.slug = opts.slug;
@@ -796,9 +793,7 @@ export function createPostsWindowClient(
 		params: TermsListParams = {},
 	): Promise< TermsListPage > => {
 		const cfg = getConfig();
-		const url = new URL(
-			`${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/${ taxonomy }`,
-		);
+		const url = new URL( joinRestUrl( cfg.restRoot, `wp/v2/${ taxonomy }` ) );
 		url.searchParams.set( 'per_page', String( params.perPage ?? 50 ) );
 		url.searchParams.set( 'page', String( params.page ?? 1 ) );
 		url.searchParams.set(
@@ -857,7 +852,7 @@ export function createPostsWindowClient(
 		>,
 	): Promise< TermRow > => {
 		const cfg = getConfig();
-		const url = `${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/${ taxonomy }/${ id }`;
+		const url = joinRestUrl( cfg.restRoot, `wp/v2/${ taxonomy }/${ id }` );
 		const { data } = await request< Partial< TermRow > >( url, {
 			method: 'POST',
 			body: JSON.stringify( patch ),
@@ -884,7 +879,7 @@ export function createPostsWindowClient(
 	): Promise< void > => {
 		const cfg = getConfig();
 		const url = new URL(
-			`${ cfg.restRoot.replace( /\/$/, '' ) }/wp/v2/${ taxonomy }/${ id }`,
+			joinRestUrl( cfg.restRoot, `wp/v2/${ taxonomy }/${ id }` ),
 		);
 		url.searchParams.set( 'force', 'true' );
 		await request( url.toString(), { method: 'DELETE' } );

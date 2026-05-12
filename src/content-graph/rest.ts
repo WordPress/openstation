@@ -10,6 +10,7 @@
  * @since 0.8.2
  */
 
+import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type {
 	CommentStats,
@@ -108,7 +109,7 @@ export async function fetchUserStats(
 	userId: number,
 ): Promise< UserStats > {
 	const res = await trackedFetch(
-		`${ cfg.restRoot }desktop-mode/v1/user-stats/${ userId }`,
+		joinRestUrl( cfg.restRoot, `desktop-mode/v1/user-stats/${ userId }` ),
 		{ headers: authHeaders( cfg ) },
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
@@ -124,9 +125,10 @@ export async function fetchTermStats(
 	termId: number,
 ): Promise< TermStats > {
 	const res = await trackedFetch(
-		`${ cfg.restRoot }desktop-mode/v1/term-stats/${ encodeURIComponent(
-			taxonomy,
-		) }/${ termId }`,
+		joinRestUrl(
+			cfg.restRoot,
+			`desktop-mode/v1/term-stats/${ encodeURIComponent( taxonomy ) }/${ termId }`,
+		),
 		{ headers: authHeaders( cfg ) },
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
@@ -143,7 +145,7 @@ export async function fetchCommentStats(
 	commentId: number,
 ): Promise< CommentStats > {
 	const res = await trackedFetch(
-		`${ cfg.restRoot }desktop-mode/v1/comment-stats/${ commentId }`,
+		joinRestUrl( cfg.restRoot, `desktop-mode/v1/comment-stats/${ commentId }` ),
 		{ headers: authHeaders( cfg ) },
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
