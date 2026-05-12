@@ -3,32 +3,48 @@
 # Idempotent — safe to re-run if a previous attempt failed mid-flow.
 #
 # Flags:
-#   --skip-i18n   Skip the translation-file refresh (extract + build).
-#                 Use for hotfix releases where you do not want
-#                 .pot/.po/.json churn in the bump commit.
+#   --skip-i18n             Skip the translation-file refresh (extract + build).
+#                           Use for hotfix releases where you do not want
+#                           .pot/.po/.json churn in the bump commit.
+#   --skip-changelog        Skip drafting the readme.txt changelog from
+#                           GitHub's auto-generated release notes. Use when
+#                           you've already hand-written the changelog block,
+#                           or for hotfixes with nothing notable to log.
+#   --dry-run-changelog     Print the changelog draft that would be inserted
+#                           into readme.txt, then exit without modifying any
+#                           files or pushing. Useful for previewing the
+#                           draft and the editor pause before a real release.
 
 set -euo pipefail
 
 skip_i18n=0
+skip_changelog=0
+dry_run_changelog=0
 new=""
 for arg in "$@"; do
 	case "$arg" in
 		--skip-i18n)
 			skip_i18n=1
 			;;
+		--skip-changelog)
+			skip_changelog=1
+			;;
+		--dry-run-changelog)
+			dry_run_changelog=1
+			;;
 		-h|--help)
-			echo "usage: $0 <version> [--skip-i18n]  (e.g., 0.5.0 or 0.5.0-rc1)"
+			echo "usage: $0 <version> [--skip-i18n] [--skip-changelog] [--dry-run-changelog]  (e.g., 0.5.0 or 0.5.0-rc1)"
 			exit 0
 			;;
 		-*)
 			echo "error: unknown flag '$arg'" >&2
-			echo "usage: $0 <version> [--skip-i18n]" >&2
+			echo "usage: $0 <version> [--skip-i18n] [--skip-changelog] [--dry-run-changelog]" >&2
 			exit 1
 			;;
 		*)
 			if [[ -n "$new" ]]; then
 				echo "error: unexpected extra positional argument '$arg'" >&2
-				echo "usage: $0 <version> [--skip-i18n]" >&2
+				echo "usage: $0 <version> [--skip-i18n] [--skip-changelog] [--dry-run-changelog]" >&2
 				exit 1
 			fi
 			new="$arg"
@@ -37,7 +53,7 @@ for arg in "$@"; do
 done
 
 if [[ -z "$new" ]]; then
-	echo "usage: $0 <version> [--skip-i18n]  (e.g., 0.5.0 or 0.5.0-rc1)" >&2
+	echo "usage: $0 <version> [--skip-i18n] [--skip-changelog] [--dry-run-changelog]  (e.g., 0.5.0 or 0.5.0-rc1)" >&2
 	exit 1
 fi
 
@@ -47,6 +63,66 @@ command -v gh >/dev/null || { echo "error: 'gh' CLI required (for CI polling)" >
 if ! gh auth status >/dev/null 2>&1; then
 	echo "error: gh CLI is not authenticated. Run:  gh auth login" >&2
 	exit 1
+fi
+
+# Fetches GitHub's auto-generated release notes for the next tag, keeps
+# only bullet lines, strips the trailing "by @user in <PR-URL>" suffix,
+# and drops "first contribution" boilerplate. Echoes the transformed
+# bullets on stdout; echoes a diagnostic on stderr and returns non-zero
+# if there is nothing usable to write.
+generate_changelog_draft() {
+	local target_tag="$1"
+	local prev
+	prev=$(git describe --tags --abbrev=0 2>/dev/null || true)
+	if [[ -z "$prev" ]]; then
+		echo "warning: no previous tag found — skipping changelog draft." >&2
+		return 1
+	fi
+	local repo raw
+	repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+	raw=$(gh api -X POST "repos/$repo/releases/generate-notes" \
+		-f tag_name="$target_tag" \
+		-f previous_tag_name="$prev" \
+		-f target_commitish=trunk \
+		--jq '.body' 2>/dev/null || true)
+	if [[ -z "$raw" ]]; then
+		echo "warning: GitHub generate-notes API returned nothing — skipping draft." >&2
+		return 1
+	fi
+	local draft
+	draft=$(printf '%s\n' "$raw" | awk '
+		/^\* / && !/made their first contribution/ {
+			sub(/ by @[^ ]+ in https:\/\/[^ ]+$/, "")
+			print
+		}
+	')
+	if [[ -z "$draft" ]]; then
+		echo "warning: no bullet items in generated notes — skipping draft." >&2
+		return 1
+	fi
+	printf '%s\n' "$draft"
+}
+
+# --dry-run-changelog short-circuits before any preflight checks so it
+# works from any branch and any working-tree state. Use it to preview
+# the draft + interaction without mutating anything.
+if [[ "$dry_run_changelog" == "1" ]]; then
+	echo "Dry run: previewing changelog draft for $tag (no files will be modified)."
+	echo ""
+	if draft=$(generate_changelog_draft "$tag"); then
+		echo "=========================================================="
+		echo "Would prepend this '= $new =' block to readme.txt:"
+		echo "----------------------------------------------------------"
+		echo "= $new ="
+		printf '%s\n' "$draft"
+		echo "=========================================================="
+		echo ""
+		echo "At this point the real release script would pause with:"
+		echo "  Press Enter to continue, or Ctrl-C to abort..."
+		echo ""
+		echo "Dry run complete. No files changed."
+	fi
+	exit 0
 fi
 
 branch=$(git rev-parse --abbrev-ref HEAD)
@@ -111,6 +187,52 @@ else
 		fi
 	else
 		echo "Skipping i18n refresh (--skip-i18n)."
+	fi
+
+	# Draft the readme.txt changelog block from GitHub's auto-generated
+	# release notes, then pause so the releaser can curate before the
+	# bump commit. Resume-safe: skips if readme.txt already has a
+	# "= $new =" block (from a prior aborted attempt). If the editor
+	# pause is aborted with Ctrl-C, readme.txt will be left modified;
+	# undo with: git checkout readme.txt
+	if [[ "$skip_changelog" == "0" ]]; then
+		if grep -q "^= $new =$" readme.txt; then
+			echo "readme.txt already has a '= $new =' block — skipping changelog draft."
+		else
+			echo "Drafting readme.txt changelog from GitHub notes for $tag..."
+			if draft=$(generate_changelog_draft "$tag"); then
+				draft_file=$(mktemp)
+				printf '%s\n' "$draft" > "$draft_file"
+				tmp=$(mktemp)
+				awk -v ver="$new" -v draft_file="$draft_file" '
+					{ print }
+					!inserted && $0 == "== Changelog ==" {
+						print ""
+						print "= " ver " ="
+						while ((getline line < draft_file) > 0) print line
+						close(draft_file)
+						inserted = 1
+					}
+				' readme.txt > "$tmp"
+				mv "$tmp" readme.txt
+				rm -f "$draft_file"
+
+				echo ""
+				echo "=========================================================="
+				echo "Drafted '= $new =' block in readme.txt:"
+				echo "----------------------------------------------------------"
+				echo "= $new ="
+				printf '%s\n' "$draft"
+				echo "=========================================================="
+				echo ""
+				echo "Review/edit readme.txt now (WordPress.org users see this)."
+				echo "Keep it user-facing: short, plain language, no PR refs."
+				echo "To abort: Ctrl-C, then 'git checkout readme.txt' to undo."
+				read -r -p "Press Enter to continue... " _
+			fi
+		fi
+	else
+		echo "Skipping changelog draft (--skip-changelog)."
 	fi
 
 	./bin/bump-version.sh "$new"
