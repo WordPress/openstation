@@ -9,10 +9,13 @@
  *
  * `post_type` separates Posts from Pages (both are edit.php). `page` is
  * the plugin-routed admin.php entry point. `taxonomy` distinguishes
- * Categories from Tags (both are edit-tags.php). Everything else —
- * pagination, nonces, action-feedback flags, our internal desktop_mode_chromeless
- * marker — is considered transient and stripped, so a direct-URL land
- * and a dock click resolve to the same window ID.
+ * Categories from Tags (both are edit-tags.php). `post` is the post ID
+ * on post.php — different posts must resolve to different windows so
+ * opening a second post from the Posts list doesn't just refocus the
+ * first. Everything else — pagination, nonces, action-feedback flags,
+ * our internal desktop_mode_chromeless marker — is considered transient
+ * and stripped, so a direct-URL land and a dock click resolve to the
+ * same window ID.
  */
 const IDENTITY_PARAMS: readonly string[] = [
 	'post_type',
@@ -28,6 +31,11 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// plugins that route inside `admin.php?page=` via a custom param
 	// can either piggyback on `path` or grow this list.
 	'path',
+	// The post ID on `post.php?post=X&action=edit`. Without this, every
+	// individual post edit URL collapses to `post-php`, so clicking a
+	// second row in the Posts window just refocuses the first post's
+	// window instead of opening the new one.
+	'post',
 ];
 
 /**

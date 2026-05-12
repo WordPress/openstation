@@ -59,6 +59,23 @@ describe( 'utils/deriveWindowId', () => {
 		expect( cats ).not.toBe( tags );
 	} );
 
+	test( 'separates individual post edit URLs by the `post` query arg', () => {
+		// Regression: without `post` in the identity set, every
+		// post.php?post=X&action=edit URL collapses to `post-php`, so
+		// clicking a second post in the Posts window just refocuses
+		// the first post's window.
+		const first = deriveWindowId(
+			`${ ADMIN }post.php?post=123&action=edit`,
+			ADMIN,
+		);
+		const second = deriveWindowId(
+			`${ ADMIN }post.php?post=456&action=edit`,
+			ADMIN,
+		);
+		expect( first ).not.toBe( second );
+		expect( first ).toBe( 'post-php-post-123' );
+	} );
+
 	test( 'separates plugin-routed pages by the `page` query arg', () => {
 		const one = deriveWindowId(
 			`${ ADMIN }admin.php?page=my-plugin`,
