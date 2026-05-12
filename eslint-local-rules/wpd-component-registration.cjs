@@ -82,11 +82,26 @@ const path = require( 'node:path' );
  * @since 0.8.4
  */
 const SHELL_OVERLAYS_TAGS = new Set( [
+	// Stage 9 — action-triggered overlays.
 	'wpd-toast',
 	'wpd-toast-container',
 	'wpd-confirm-dialog',
 	'wpd-context-menu',
 	'wpd-context-menu-option',
+	// Stage 10 — window chrome + folder-dialog components. All
+	// constructed only after the user has triggered some action
+	// (open a window, open a folder, open the rename dialog) so
+	// the shell-overlays preload covers them.
+	'wpd-menu',
+	'wpd-menu-item',
+	'wpd-window-button',
+	'wpd-tab-chip',
+	'wpd-save-status',
+	'wpd-spinner',
+	'wpd-button',
+	'wpd-text-field',
+	'wpd-select',
+	'wpd-option',
 ] );
 
 const TS_TYPE_POSITION_PARENT = new Set( [

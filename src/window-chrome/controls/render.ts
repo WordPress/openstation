@@ -23,7 +23,7 @@ import { paintTitleBarButtonIcon } from '../../title-bar-buttons/paint-icon';
 
 import type { Window as DesktopWindow } from '../../window';
 import type { WindowControlsConfig } from '../../types';
-import '../../ui/components/wpd-window-button/wpd-window-button';
+// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 /**
  * Resolve the control list for a window, partitioned by placement.

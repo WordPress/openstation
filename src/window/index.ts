@@ -30,11 +30,14 @@ import {
 	markWindowContentReady,
 	type WindowChannelCb,
 } from './../window-channels';
-// Register the window-chrome atoms — no named import needed, the
-// side-effect `defineComponent(...)` calls wire them up.
-import './../ui/components/wpd-window-button/wpd-window-button';
-import './../ui/components/wpd-menu/wpd-menu';
-import './../ui/components/wpd-tab-chip/wpd-tab-chip';
+// Window-chrome component classes (`<wpd-window-button>`,
+// `<wpd-menu>` + `<wpd-menu-item>`, `<wpd-tab-chip>`) are no
+// longer leaf-imported here as of 0.8.4: the shell pre-loads them
+// via the `shell-overlays[.min].js` bundle right after first paint
+// (see `src/shell-overlays/loader.ts`). By the time the user opens
+// any window and the constructor runs, the custom-element classes
+// are registered and the chrome upgrades synchronously. Registration
+// inventory lives in `src/shell-overlays/entry.ts`.
 
 import { _buildNativeRenderContext } from './../native-windows';
 import { createWindowElement, updateFullscreenBodyClass } from './dom';

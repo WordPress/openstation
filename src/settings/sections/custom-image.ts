@@ -22,7 +22,12 @@ import {
 	registerCustomImageIfPresent,
 	selectWallpaper,
 } from './wallpaper';
-import '../../ui/components/wpd-button/wpd-button';
+// `<wpd-button>` is pre-registered globally by the lazy
+// `shell-overlays[.min].js` bundle (Stage 10). Leaving this leaf
+// import in place would re-pull the component class into the main
+// bundle's tree (this module is transitively reachable from main
+// via `registerCustomImageIfPresent` in `./wallpaper`), defeating
+// the lazy-load. See `src/shell-overlays/entry.ts`.
 
 export function buildCustomImageSection(
 	ctx: SettingsCtx,

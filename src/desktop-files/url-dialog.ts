@@ -16,7 +16,7 @@
  */
 
 import { applyFilters, doAction } from '../hooks';
-import '../ui/components/wpd-text-field/wpd-text-field';
+// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 const ROOT_CLASS = 'desktop-mode-url-dialog';
 

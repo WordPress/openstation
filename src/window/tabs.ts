@@ -21,7 +21,7 @@ import { urlMatchKey } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
 import { withChromelessParam } from './dom';
 import type { Window } from './index';
-import '../ui/components/wpd-tab-chip/wpd-tab-chip';
+// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 /**
  * Update the active tab to whichever submenu URL matches the iframe's
