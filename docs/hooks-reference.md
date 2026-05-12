@@ -1953,13 +1953,23 @@ Filter the resolved wp.org icon URL for an installed plugin row. Return `null` t
 apply_filters( 'desktop_mode_plugins_window_icon_url', string|null $url, string $slug, array $row ): string|null
 ```
 
+### `desktop_mode_plugins_window_refresh_updates` — Stable *(filter, since 0.18.0)*
+
+Short-circuit the lazy refresh of the `update_plugins` site transient that runs on the first row of every REST plugins collection. Core only refreshes that transient on `load-plugins.php` / `load-update-core.php` / cron — REST is not on that list — so without this hop the Plugins window can show "no updates" while the dock badge (computed off `$menu`) reports pending updates. The refresh inherits Core's own 12h throttle (`_maybe_update_plugins()`), so the steady-state cost is a single transient read per request.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_refresh_updates', bool $refresh ): bool
+```
+
+Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check.
+
 ### REST-field decorators on `/wp/v2/plugins` — Stable (since 0.9.0)
 
 Server-injected enrichment fields. The JS reads them on every list paint:
 
 | Field | Shape | What it carries |
 |---|---|---|
-| `desktop_mode_update_available` | `{ available: bool, new_version: string\|null }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. |
+| `desktop_mode_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. Since 0.18.0 the transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `desktop_mode_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
 | `desktop_mode_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
 | `desktop_mode_icon_url` | `string\|null` | Best-effort wp.org icon URL derived from the plugin's `textdomain`. Filterable via `desktop_mode_plugins_window_icon_url`. |
 | `desktop_mode_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |

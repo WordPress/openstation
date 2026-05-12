@@ -54,6 +54,12 @@ export interface PluginsWindowConfig {
 		install: boolean;
 		delete: boolean;
 		upload: boolean;
+		/**
+		 * `current_user_can( 'update_plugins' )`. Mirrors Core's gate on
+		 * the inline "Update now" link — when false the JS hides the
+		 * Update action even for rows with a pending update.
+		 */
+		update: boolean;
 	};
 	currentUserId: number;
 	introSeen: boolean;
@@ -328,6 +334,72 @@ export async function deleteInstalledPlugin(
  */
 function encodePluginPath( plugin: string ): string {
 	return plugin.split( '/' ).map( encodeURIComponent ).join( '/' );
+}
+
+/**
+ * Update success envelope as returned by Core's `wp_ajax_update_plugin`
+ * (see `wp-admin/includes/ajax-actions.php::wp_ajax_update_plugin`).
+ * The handler `wp_send_json_success( $status )` payload is forwarded
+ * verbatim — the version fields are pre-prefixed with "Version ", so
+ * we expose the raw values here and let the caller format.
+ */
+export interface UpdatePluginResult {
+	update: 'plugin';
+	slug: string;
+	oldVersion: string;
+	newVersion: string;
+	plugin: string;
+	pluginName: string;
+	debug?: string[];
+}
+
+/**
+ * Trigger Core's `wp_ajax_update_plugin` handler — the exact same
+ * endpoint the classic Plugins screen's "Update now" link hits via
+ * `wp.updates.updatePlugin()`. We reuse it verbatim rather than
+ * reimplementing `Plugin_Upgrader` (which lives in admin-only
+ * includes and would tank Plugin Check).
+ *
+ * The handler validates `current_user_can( 'update_plugins' )`, calls
+ * `wp_update_plugins()` to refresh the transient, and runs the
+ * upgrader. On success returns `{ update, slug, oldVersion, newVersion,
+ * plugin, pluginName }`; on failure throws with the server's
+ * `errorMessage` and an `errorCode` attached.
+ *
+ * Note: the underlying upgrader holds a transient-level lock, so
+ * concurrent runs can clobber each other's `update_plugins` transient
+ * (see Core's comment in `wp_ajax_update_plugin`). Callers MUST route
+ * through `enqueueUpdateJob` to serialize.
+ *
+ * @public
+ * @since 0.18.0
+ */
+export async function updateInstalledPlugin(
+	plugin: InstalledPlugin,
+): Promise< UpdatePluginResult > {
+	// Core's `update-plugin` handler keys into the `update_plugins`
+	// transient with the FULL filename (`foo/foo.php`), but Core's REST
+	// controller strips the `.php` extension when populating the
+	// `plugin` field — so the value we received from `/wp/v2/plugins`
+	// is one `.php` short of what the upgrader needs. Re-append before
+	// firing, otherwise `Plugin_Upgrader::bulk_upgrade()` falls through
+	// to the "already at latest version" branch (the transient lookup
+	// misses on the stripped key). Mirrors the same fix we apply
+	// server-side in `desktop_mode_plugins_window_row_plugin_file()`.
+	const pluginFile = plugin.plugin.endsWith( '.php' )
+		? plugin.plugin
+		: plugin.plugin + '.php';
+	return ajaxRequest< UpdatePluginResult >(
+		'update-plugin',
+		{
+			plugin: pluginFile,
+			slug:
+				plugin.desktop_mode_update_available?.slug ||
+				plugin.textdomain ||
+				plugin.plugin.split( '/' )[ 0 ],
+		},
+		{ nonceField: '_ajax_nonce', nonceValue: getConfig().updatesNonce },
+	);
 }
 
 // ─── Browse / Info / Reviews (admin-ajax) ─────────────────────────────

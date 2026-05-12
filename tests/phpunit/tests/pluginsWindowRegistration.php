@@ -256,15 +256,161 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 */
 	public function test_update_available_field_reports_false_when_no_update() {
 		// Force a clean state — the test bootstrap may have populated
-		// the transient with whatever the install last fetched.
+		// the transient with whatever the install last fetched. Stamp
+		// `last_checked` to now so the lazy refresh helper short-
+		// circuits (we don't want a wp.org HTTP call from the test
+		// suite).
 		set_site_transient(
 			'update_plugins',
-			(object) array( 'response' => array() )
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+			)
 		);
 		$row = array( 'plugin' => 'never/installed.php' );
 		$out = desktop_mode_plugins_window_field_update_available( $row );
 		$this->assertFalse( $out['available'] );
 		$this->assertNull( $out['new_version'] );
+	}
+
+	/**
+	 * Regression: when the `update_plugins` transient HAS an entry
+	 * for the row, the decorator must report `available: true` plus
+	 * the available version — this is what feeds the "Update
+	 * available" filter and the inline Update action.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_update_available
+	 */
+	public function test_update_available_field_reports_true_when_transient_has_entry() {
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(
+					// Transients key plugin files by their FULL path
+					// including the `.php` extension.
+					'hello-dolly/hello.php' => (object) array(
+						'new_version' => '99.0.0',
+						'package'     => 'https://downloads.wordpress.org/plugin/hello-dolly.99.0.0.zip',
+						'slug'        => 'hello-dolly',
+					),
+				),
+			)
+		);
+		// Core's REST controller strips the `.php` extension from the
+		// `plugin` field — this row mirrors what we actually receive.
+		// Asserting on this shape guards against future regressions of
+		// the "transient lookup misses because of the `.php` strip" bug.
+		$row = array( 'plugin' => 'hello-dolly/hello' );
+		$out = desktop_mode_plugins_window_field_update_available( $row );
+		$this->assertTrue( $out['available'] );
+		$this->assertSame( '99.0.0', $out['new_version'] );
+		$this->assertSame(
+			'https://downloads.wordpress.org/plugin/hello-dolly.99.0.0.zip',
+			$out['package'],
+			'`package` is the download URL the JS gates the Update button on.'
+		);
+		$this->assertSame( 'hello-dolly', $out['slug'] );
+	}
+
+	/**
+	 * Plugins without a `package` URL (premium / private hosts) should
+	 * still be flagged `available: true`, but the empty `package`
+	 * signals to the JS to surface the "Auto-update unavailable" hint
+	 * rather than the "Update now" button — mirrors Core's own
+	 * fallback in `wp_plugin_update_row()`.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_update_available
+	 */
+	public function test_update_available_field_handles_missing_package() {
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(
+					'premium/premium.php' => (object) array(
+						'new_version' => '2.0',
+						// no `package` — premium plugin without a wp.org zip.
+					),
+				),
+			)
+		);
+		$row = array( 'plugin' => 'premium/premium' );
+		$out = desktop_mode_plugins_window_field_update_available( $row );
+		$this->assertTrue( $out['available'] );
+		$this->assertSame( '2.0', $out['new_version'] );
+		$this->assertSame( '', $out['package'] );
+	}
+
+	/**
+	 * The Plugins-window caps surface must expose the `update_plugins`
+	 * cap so the JS can hide / show the Update action without
+	 * re-deriving caps client-side. Server still re-validates every
+	 * update through `wp_ajax_update_plugin`.
+	 *
+	 * @covers ::desktop_mode_plugins_window_caps
+	 */
+	public function test_caps_surface_includes_update_for_admins() {
+		wp_set_current_user( $this->admin_id );
+		$caps = desktop_mode_plugins_window_caps();
+		$this->assertArrayHasKey( 'update', $caps );
+		$this->assertTrue( $caps['update'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_plugins_window_caps
+	 */
+	public function test_caps_surface_denies_update_for_editor() {
+		wp_set_current_user( $this->editor_id );
+		$caps = desktop_mode_plugins_window_caps();
+		$this->assertFalse( $caps['update'] );
+	}
+
+	/**
+	 * The lazy refresh helper must respect Core's 12h throttle: when
+	 * the transient was checked under 12h ago, it must NOT clobber
+	 * the cached snapshot (otherwise every REST hit could chain a
+	 * wp.org HTTPS round-trip).
+	 *
+	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 */
+	public function test_maybe_refresh_respects_12h_throttle() {
+		$snapshot = (object) array(
+			'last_checked' => time() - 60, // 1 minute ago.
+			'response'     => array( 'foo/foo.php' => (object) array( 'new_version' => '2.0' ) ),
+		);
+		set_site_transient( 'update_plugins', $snapshot );
+
+		desktop_mode_plugins_window_maybe_refresh_update_transient();
+
+		$after = get_site_transient( 'update_plugins' );
+		$this->assertEquals( $snapshot, $after, 'Fresh transient should not be refreshed.' );
+	}
+
+	/**
+	 * The `desktop_mode_plugins_window_refresh_updates` filter must
+	 * be able to opt a site out of the lazy refresh entirely — even
+	 * when the cached snapshot is well over 12h old.
+	 *
+	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 */
+	public function test_maybe_refresh_filter_can_opt_out() {
+		$snapshot = (object) array(
+			'last_checked' => time() - DAY_IN_SECONDS, // way past 12h.
+			'response'     => array(),
+		);
+		set_site_transient( 'update_plugins', $snapshot );
+
+		add_filter( 'desktop_mode_plugins_window_refresh_updates', '__return_false' );
+		desktop_mode_plugins_window_maybe_refresh_update_transient();
+		remove_filter( 'desktop_mode_plugins_window_refresh_updates', '__return_false' );
+
+		$after = get_site_transient( 'update_plugins' );
+		$this->assertEquals(
+			$snapshot,
+			$after,
+			'Filter returning false should skip the refresh and leave the stale snapshot untouched.'
+		);
 	}
 
 	/**

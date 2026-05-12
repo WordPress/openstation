@@ -45,12 +45,26 @@ export interface InstalledPlugin {
 	// ─── REST-field decorators added in `includes/plugins-window/rest-fields.php` ───
 
 	/**
-	 * `{ available, new_version }` — true if a wp.org update is
-	 * pending. Read from the `update_plugins` site transient.
+	 * Pending wp.org update for this row, derived from the
+	 * `update_plugins` site transient.
+	 *
+	 * - `available` — there's a newer version in the transient.
+	 * - `new_version` — the version the upgrader would install.
+	 * - `package` — download URL for the new .zip. Empty when the
+	 *               plugin doesn't ship a wp.org package (premium /
+	 *               private hosts); JS uses this the same way Core's
+	 *               `wp_plugin_update_row()` does — present means
+	 *               "Update now" link, empty means "Automatic update
+	 *               is unavailable for this plugin" copy.
+	 * - `slug` — the wp.org slug as the transient carries it. Mostly
+	 *            informational; the `update-plugin` AJAX action derives
+	 *            the slug from `plugin` itself.
 	 */
 	desktop_mode_update_available?: {
 		available: boolean;
 		new_version: string | null;
+		package: string;
+		slug: string;
 	};
 	/**
 	 * Per-row capability flags so the JS doesn't re-derive caps. The
