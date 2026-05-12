@@ -146,7 +146,9 @@ if [[ "$dry_run_changelog" == "1" ]]; then
 		echo "=========================================================="
 		echo ""
 		echo "At this point the real release script would pause with:"
-		echo "  Press Enter to continue, or Ctrl-C to abort..."
+		echo "  Please update readme.txt if needed, save, and press Enter when done."
+		echo "  (Ctrl-C to abort, then 'git checkout readme.txt' to undo.)"
+		echo "  Press Enter when done..."
 		echo ""
 		echo "Dry run complete. No files changed."
 	fi
@@ -253,10 +255,10 @@ else
 				printf '%s\n' "$draft"
 				echo "=========================================================="
 				echo ""
-				echo "Review/edit readme.txt now (WordPress.org users see this)."
-				echo "Keep it user-facing: short, plain language, no PR refs."
-				echo "To abort: Ctrl-C, then 'git checkout readme.txt' to undo."
-				read -r -p "Press Enter to continue... " _
+				echo "Please update readme.txt if needed, save, and press Enter when done."
+				echo "(WordPress.org users see this — keep it user-facing.)"
+				echo "(Ctrl-C to abort, then 'git checkout readme.txt' to undo.)"
+				read -r -p "Press Enter when done... " _
 			fi
 		fi
 	else
