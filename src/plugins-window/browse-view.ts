@@ -14,12 +14,27 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { broadcast, subscribe } from '../broadcast';
 import {
 	buildCard,
 	repaintCardCta,
 	type CardCallbacks,
 	type InstalledIndex,
 } from './card';
+
+/**
+ * Cross-view sync topic for the Plugins window. See
+ * `installed-view.ts` for the contract.
+ *
+ * @internal
+ */
+const PLUGINS_CHANGED_TOPIC = 'desktop-mode.plugin.changed';
+const SOURCE = 'browse-view';
+interface PluginsChangedPayload {
+	source: string;
+	plugin?: string;
+	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'bulk';
+}
 import { installPluginDropTargets, makeCardDraggable } from './card-drag';
 import { openDetailFlyout } from './flyout-detail';
 import {
@@ -145,6 +160,22 @@ export function mountBrowseView(
 		right.appendChild( upload );
 	}
 
+	// Refresh button — re-fetch the current filter / search result
+	// set from wp.org and the installed-state cache. Matches the
+	// affordance on the Installed tab so the surface is symmetric;
+	// also useful when wp.org's cached response lags the user's
+	// just-uploaded plugin.
+	const refreshButton = document.createElement( 'wpd-button' );
+	refreshButton.setAttribute( 'variant', 'ghost' );
+	refreshButton.setAttribute( 'title', __( 'Refresh', 'desktop-mode' ) );
+	refreshButton.innerHTML =
+		'<span class="dashicons dashicons-update" aria-hidden="true"></span>';
+	refreshButton.addEventListener( 'click', () => {
+		void refreshInstalled();
+		void resetAndLoad();
+	} );
+	right.appendChild( refreshButton );
+
 	toolbar.append( left, right );
 
 	// ─── Gallery ────────────────────────────────────────────────────
@@ -250,6 +281,11 @@ export function mountBrowseView(
 					if ( card && plugin ) {
 						repaintCardCta( card, plugin, state.installed, cardCallbacks );
 					}
+					broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+						source: SOURCE,
+						plugin: pluginFile ?? slug2,
+						action: 'install',
+					} );
 					if ( pluginFile ) {
 						// eslint-disable-next-line no-console
 						console.log( '[plugins-window] installed', pluginFile );
@@ -264,6 +300,11 @@ export function mountBrowseView(
 					if ( card && plugin ) {
 						repaintCardCta( card, plugin, state.installed, cardCallbacks );
 					}
+					broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+						source: SOURCE,
+						plugin: updated.plugin,
+						action: 'activate',
+					} );
 				},
 				onPluginDeactivated: ( updated ) => {
 					state.installed.set( indexKeyFor( updated ), updated );
@@ -274,6 +315,11 @@ export function mountBrowseView(
 					if ( card && plugin ) {
 						repaintCardCta( card, plugin, state.installed, cardCallbacks );
 					}
+					broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+						source: SOURCE,
+						plugin: updated.plugin,
+						action: 'deactivate',
+					} );
 				},
 				onPluginDeleted: ( deleted ) => {
 					const key = indexKeyFor( deleted );
@@ -285,6 +331,11 @@ export function mountBrowseView(
 					if ( card && plugin ) {
 						repaintCardCta( card, plugin, state.installed, cardCallbacks );
 					}
+					broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+						source: SOURCE,
+						plugin: deleted.plugin,
+						action: 'delete',
+					} );
 				},
 			} );
 		},
@@ -316,6 +367,11 @@ export function mountBrowseView(
 					),
 				);
 				repaintCardCta( card, plugin, state.installed, cardCallbacks );
+				broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+					source: SOURCE,
+					plugin: plugin.slug,
+					action: 'install',
+				} );
 				void refreshFrameworkMenu();
 			} catch ( err ) {
 				cta?.removeAttribute( 'busy' );
@@ -357,6 +413,11 @@ export function mountBrowseView(
 				if ( plugin ) {
 					repaintCardCta( card, plugin, state.installed, cardCallbacks );
 				}
+				broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+					source: SOURCE,
+					plugin: updated.plugin,
+					action: 'activate',
+				} );
 				// Background — dock/taskbar repaint shouldn't gate the
 				// in-card "Active" state flip.
 				void refreshFrameworkMenu();
@@ -548,7 +609,23 @@ export function mountBrowseView(
 		status.textContent = '';
 	}
 
+	// Cross-view sync: when the Installed tab activates / deactivates
+	// / deletes a plugin, refresh our installed-state cache so card
+	// CTAs flip without the user having to switch tabs and back.
+	// Self-emitted broadcasts are skipped — our own card callbacks
+	// already updated the local map and repainted the affected card.
+	const unsubscribePluginsChanged = subscribe< PluginsChangedPayload >(
+		PLUGINS_CHANGED_TOPIC,
+		( payload ) => {
+			if ( payload?.source === SOURCE ) {
+				return;
+			}
+			void refreshInstalled();
+		},
+	);
+
 	return () => {
+		unsubscribePluginsChanged();
 		observer.disconnect();
 		bodyEl.removeEventListener( 'dragenter', onDragEnter );
 		bodyEl.removeEventListener( 'dragleave', onDragLeave );

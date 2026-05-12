@@ -15,6 +15,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { broadcast, subscribe } from '../broadcast';
 import {
 	activateInstalledPlugin,
 	deactivateInstalledPlugin,
@@ -25,6 +26,25 @@ import {
 	refreshFrameworkMenu,
 	reloadOutOfDesktopMode,
 } from './rest';
+
+/**
+ * Cross-view sync topic for the Plugins window.
+ *
+ * Emitted whenever one view (Installed / Browse) mutates plugin
+ * state, so the other view re-fetches and re-paints rather than
+ * showing a stale snapshot. The `source` field lets each view
+ * skip self-emitted broadcasts (its mutation handler already
+ * updated local state optimistically).
+ *
+ * @internal
+ */
+const PLUGINS_CHANGED_TOPIC = 'desktop-mode.plugin.changed';
+const SOURCE = 'installed-view';
+interface PluginsChangedPayload {
+	source: string;
+	plugin?: string;
+	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'bulk';
+}
 import type { InstalledPlugin } from './types';
 import type {
 	WpdTable,
@@ -529,6 +549,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					row.name || row.plugin,
 				),
 			);
+			broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+				source: SOURCE,
+				plugin: row.plugin,
+				action: 'activate',
+			} );
 			// Background — the table's status badge already flipped via
 			// `mergeRow` above; the menu refresh is a slow hidden-iframe
 			// load that only needs to keep the dock/taskbar in sync.
@@ -575,6 +600,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					row.name || row.plugin,
 				),
 			);
+			broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+				source: SOURCE,
+				plugin: row.plugin,
+				action: 'deactivate',
+			} );
 			void refreshFrameworkMenu();
 		} catch ( err ) {
 			applyStatusOptimistic( row, previous );
@@ -630,6 +660,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					row.name || row.plugin,
 				),
 			);
+			broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+				source: SOURCE,
+				plugin: row.plugin,
+				action: 'delete',
+			} );
 			void refreshFrameworkMenu();
 		} catch ( err ) {
 			toast(
@@ -706,6 +741,12 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			reloadOutOfDesktopMode();
 			return;
 		}
+		if ( succeeded > 0 ) {
+			broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+				source: SOURCE,
+				action: 'bulk',
+			} );
+		}
 		void refreshFrameworkMenu();
 		let noun = '';
 		if ( action === 'delete' ) {
@@ -751,7 +792,23 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		paintTable();
 	}
 
+	// Cross-view sync: when the Browse tab installs/activates a
+	// plugin, refresh the installed list so the row reflects the
+	// new state without the user having to switch tabs and back.
+	// Self-emitted broadcasts are skipped — our mutation handlers
+	// already painted the new state.
+	const unsubscribePluginsChanged = subscribe< PluginsChangedPayload >(
+		PLUGINS_CHANGED_TOPIC,
+		( payload ) => {
+			if ( payload?.source === SOURCE ) {
+				return;
+			}
+			void reload();
+		},
+	);
+
 	return () => {
+		unsubscribePluginsChanged();
 		table.removeEventListener( 'wpd-table-selection-change', selectionListener );
 		host.replaceChildren();
 	};

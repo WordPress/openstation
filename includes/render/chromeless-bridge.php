@@ -237,6 +237,7 @@ function desktop_mode_chromeless_bridge_script() {
 	// Emit via wp_print_inline_script_tag so CSP nonces and `<script>`
 	// attribute hygiene go through Core rather than being hand-rolled.
 	$js = <<<'JS'
+//# sourceURL=desktop-mode-chromeless-bridge.js
 ( function() {
 	// Escape hatch: a chromeless page is only meant to live inside a
 	// desktop-mode window iframe. If the top window IS this page, the
@@ -370,6 +371,61 @@ function desktop_mode_chromeless_bridge_script() {
 					}
 				}
 				window.parent.postMessage( msg, window.location.origin );
+			} catch ( _err ) { /* swallow */ }
+		};
+
+		// Helper — when an admin-side request returns 401/403 the
+		// session is most likely toast. Don't wait up to 60s for the
+		// next heartbeat tick to surface core's auth-check modal —
+		// force an immediate tick. `wp.heartbeat.connectNow()` is
+		// safe to call repeatedly; we still debounce to avoid storms
+		// when many requests fail at once. Same-origin gate keeps us
+		// out of third-party 403s. The URL gate avoids looping on
+		// heartbeat itself (heartbeat shouldn't 403 — but if it does
+		// the recursive connectNow would not help anyway).
+		var wpdAuthCheckCooldownUntil = 0;
+		var wpdMaybeForceAuthCheck = function ( status, url ) {
+			if ( status !== 401 && status !== 403 ) {
+				return;
+			}
+			var urlStr = String( url || '' );
+			if ( ! urlStr ) {
+				return;
+			}
+			// Cross-origin URLs aren't ours to interpret.
+			try {
+				var resolved = new URL( urlStr, window.location.href );
+				if ( resolved.origin !== window.location.origin ) {
+					return;
+				}
+				// Skip heartbeat to avoid recursion. Skip wp-login
+				// because the login iframe itself returns 4xx during
+				// the auth handshake and we don't want to retrigger.
+				if (
+					resolved.pathname.indexOf( '/wp-admin/admin-ajax.php' ) !== -1
+					&& /(?:^|&|\?)action=heartbeat(?:&|$)/.test( resolved.search )
+				) {
+					return;
+				}
+				if ( resolved.pathname.indexOf( '/wp-login.php' ) !== -1 ) {
+					return;
+				}
+			} catch ( _err ) {
+				return;
+			}
+			var now = Date.now();
+			if ( now < wpdAuthCheckCooldownUntil ) {
+				return;
+			}
+			wpdAuthCheckCooldownUntil = now + 5000;
+			try {
+				if (
+					window.wp
+					&& window.wp.heartbeat
+					&& typeof window.wp.heartbeat.connectNow === 'function'
+				) {
+					window.wp.heartbeat.connectNow();
+				}
 			} catch ( _err ) { /* swallow */ }
 		};
 
@@ -517,6 +573,7 @@ function desktop_mode_chromeless_bridge_script() {
 							} catch ( _hErr ) { /* swallow */ }
 						}
 						wpdReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
+						wpdMaybeForceAuthCheck( res.status, url );
 						return res;
 					},
 					function ( err ) {
@@ -616,6 +673,7 @@ function desktop_mode_chromeless_bridge_script() {
 						xhr.status === 0 || xhr.status >= 400,
 						extra
 					);
+					wpdMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl );
 				};
 				try {
 					xhr.addEventListener( 'loadend', fire );
@@ -2260,6 +2318,65 @@ function desktop_mode_chromeless_bridge_script() {
 			};
 		};
 	}
+
+	/* -----------------------------------------------------------------
+	 * Stale-nonce recovery after wp-auth-check re-authentication.
+	 *
+	 * When the user's session expires while a chromeless window is
+	 * open, core's `wp-auth-check.js` shows its login iframe inside
+	 * this page. After re-auth the auth cookie is fresh — but every
+	 * per-page nonce cached in JS globals
+	 * (`_wpUpdatesSettings.ajax_nonce`, `commonL10n.nonce`, Gutenberg's
+	 * `wpApiSettings.nonce`, etc.) was minted under the OLD nonce-tick
+	 * and is now rejected by `check_ajax_referer`. WP reports that as
+	 * "Cookie check failed" on the next plugin Install / Activate /
+	 * Update click, which is misleading: the cookie is fine; the
+	 * nonce is stale.
+	 *
+	 * Fix: watch jQuery's `heartbeat-tick`. If we ever see
+	 * `wp-auth-check: false` (the modal trigger) and then later see
+	 * the same field flip back to `true`, the user re-authed
+	 * mid-session and every cached nonce in this iframe is stale —
+	 * reload so they regenerate from the fresh session.
+	 *
+	 * Per-iframe scope is intentional: each chromeless iframe carries
+	 * its own jQuery + heartbeat stack and its own nonce caches.
+	 * Siblings recover on their own next tick. We don't broadcast a
+	 * reload to peers because the parent shell may still be running
+	 * core's confirm() prompts and we don't want to surprise-reload
+	 * windows with unsaved state.
+	 *
+	 * If jQuery never loads on this page (rare — most admin screens
+	 * pull it for heartbeat already), this block is a no-op.
+	 * ----------------------------------------------------------------- */
+	( function _wpdInstallAuthCheckRecovery() {
+		var attached = false;
+		var sawLoggedOut = false;
+		function attach() {
+			if ( attached || ! window.jQuery ) {
+				return;
+			}
+			attached = true;
+			window.jQuery( document ).on( 'heartbeat-tick.wpdAuthRecover', function ( ev, data ) {
+				if ( ! data || typeof data !== 'object' || ! ( 'wp-auth-check' in data ) ) {
+					return;
+				}
+				if ( data[ 'wp-auth-check' ] === false ) {
+					sawLoggedOut = true;
+					return;
+				}
+				if ( sawLoggedOut && data[ 'wp-auth-check' ] === true ) {
+					sawLoggedOut = false;
+					try { window.location.reload(); } catch ( _err ) { /* swallow */ }
+				}
+			} );
+		}
+		attach();
+		if ( document.readyState === 'loading' ) {
+			document.addEventListener( 'DOMContentLoaded', attach, { once: true } );
+		}
+		window.addEventListener( 'load', attach, { once: true } );
+	} )();
 } )();
 JS;
 
