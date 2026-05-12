@@ -20,11 +20,11 @@ import { HOOKS, doAction } from '../../src/hooks';
 import type { NativeRenderContext } from '../../src/types';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
-describe( 'native-window render ctx', () => {
+describe( 'native-window render ctx', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -47,7 +47,7 @@ describe( 'native-window render ctx', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		// `destroy()` runs the same cleanup as `close()` but skips
 		// the fade-out animation + the safety-net `setTimeout` that
 		// would otherwise leak past the test environment teardown.
@@ -58,9 +58,9 @@ describe( 'native-window render ctx', () => {
 		clearHooksStub();
 	} );
 
-	test( 'render receives a ctx as second arg with the documented shape', () => {
+	test( 'render receives a ctx as second arg with the documented shape', async () => {
 		let captured: NativeRenderContext | null = null;
-		manager.open( {
+		await manager.open( {
 			id: 'ctx-shape',
 			url: '#ctx-shape',
 			title: 'Shape',
@@ -84,9 +84,9 @@ describe( 'native-window render ctx', () => {
 		expect( c.signal.aborted ).toBe( false );
 	} );
 
-	test( 'legacy unary render still works (no ctx, no breakage)', () => {
+	test( 'legacy unary render still works (no ctx, no breakage)', async () => {
 		let renderRan = false;
-		manager.open( {
+		await manager.open( {
 			id: 'unary',
 			url: '#unary',
 			title: 'Unary',
@@ -99,9 +99,9 @@ describe( 'native-window render ctx', () => {
 		expect( renderRan ).toBe( true );
 	} );
 
-	test( 'ctx.signal aborts when the window closes', () => {
+	test( 'ctx.signal aborts when the window closes', async () => {
 		let signal: AbortSignal | null = null;
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'signal-test',
 			url: '#signal-test',
 			title: 'Signal',
@@ -115,9 +115,9 @@ describe( 'native-window render ctx', () => {
 		expect( signal!.aborted ).toBe( true );
 	} );
 
-	test( 'ctx.onResize fires for matching windowId only, with body dimensions', () => {
+	test( 'ctx.onResize fires for matching windowId only, with body dimensions', async () => {
 		const got: Array< { w: number; h: number } > = [];
-		manager.open( {
+		await manager.open( {
 			id: 'resize-test',
 			url: '#resize-test',
 			title: 'Resize',
@@ -144,10 +144,10 @@ describe( 'native-window render ctx', () => {
 		expect( got ).toEqual( [ { w: 800, h: 600 } ] );
 	} );
 
-	test( 'ctx.onHide / ctx.onShow fire on the matching lifecycle hooks', () => {
+	test( 'ctx.onHide / ctx.onShow fire on the matching lifecycle hooks', async () => {
 		let hideCount = 0;
 		let showCount = 0;
-		manager.open( {
+		await manager.open( {
 			id: 'hide-show',
 			url: '#hide-show',
 			title: 'Hide / Show',
@@ -170,9 +170,9 @@ describe( 'native-window render ctx', () => {
 		expect( hideCount ).toBe( 1 );
 	} );
 
-	test( 'returned unsubscribe handle from ctx.onResize detaches the listener', () => {
+	test( 'returned unsubscribe handle from ctx.onResize detaches the listener', async () => {
 		const got: Array< number > = [];
-		manager.open( {
+		await manager.open( {
 			id: 'unsub',
 			url: '#unsub',
 			title: 'Unsub',
@@ -191,9 +191,9 @@ describe( 'native-window render ctx', () => {
 		expect( got ).toEqual( [] );
 	} );
 
-	test( 'closing the window detaches ctx subscriptions even if user did not unsubscribe', () => {
+	test( 'closing the window detaches ctx subscriptions even if user did not unsubscribe', async () => {
 		let resizeFired = 0;
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'auto-detach',
 			url: '#auto-detach',
 			title: 'Auto Detach',
@@ -225,7 +225,7 @@ describe( 'native-window render ctx', () => {
 	test( 'destroy() runs cleanup synchronously, idempotent, cancels pending finalize', async () => {
 		const teardownCalls: string[] = [];
 		let signal: AbortSignal | null = null;
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'destroy-sync',
 			url: '#destroy-sync',
 			title: 'Destroy Sync',
@@ -253,7 +253,7 @@ describe( 'native-window render ctx', () => {
 
 	test( 'destroy() after close() cancels the pending safety-net timer + finalize timing race', async () => {
 		const teardownCalls: string[] = [];
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'destroy-after-close',
 			url: '#destroy-after-close',
 			title: 'Destroy After Close',
@@ -278,7 +278,7 @@ describe( 'native-window render ctx', () => {
 
 	test( 'top-level markLoading / markReady fire WINDOW_CONTENT_LOADING / WINDOW_CONTENT_LOADED', async () => {
 		let captured: NativeRenderContext | null = null;
-		manager.open( {
+		await manager.open( {
 			id: 'mark',
 			url: '#mark',
 			title: 'Mark',

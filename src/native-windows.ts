@@ -508,8 +508,8 @@ function buildIframeContentRender(
  */
 export function createRegisterWindow(
 	manager: WindowManager,
-): ( def: NativeWindowDef ) => DesktopWindow {
-	return ( def: NativeWindowDef ) => {
+): ( def: NativeWindowDef ) => Promise< DesktopWindow > {
+	return async ( def: NativeWindowDef ) => {
 		// `iframeContent` shorthand — the shell synthesises a render
 		// callback that builds an iframe + handles the load /
 		// postMessage / source-check lifecycle. Plugins that need a
@@ -558,7 +558,7 @@ export function createRegisterWindow(
 		// existing instance on its own. We still normalise the config
 		// so a re-open call doesn't leak the caller's unset size
 		// fields into the eventually-opened instance.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: def.id,
 			baseId: def.baseId || def.id,
 			native: true,
@@ -996,7 +996,7 @@ export function createNativeWindowSync(
 			return render?.( body, ctx );
 		};
 
-		manager.open( {
+		void manager.open( {
 			id: entry.id,
 			baseId: entry.id,
 			native: true,
@@ -1032,7 +1032,7 @@ export function createNativeWindowSync(
 			return render?.( body, ctx );
 		};
 
-		manager.openNew( {
+		void manager.openNew( {
 			id: entry.id,
 			baseId: entry.id,
 			native: true,

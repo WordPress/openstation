@@ -64,31 +64,31 @@ function mockDesktopRect(): DOMRect {
 	} as DOMRect;
 }
 
-describe( 'snap-zones — pure math', () => {
-	test( 'detectSnapZone returns left near the left edge', () => {
+describe( 'snap-zones — pure math', async () => {
+	test( 'detectSnapZone returns left near the left edge', async () => {
 		expect( detectSnapZone( 0, mockDesktopRect() ) ).toBe( 'left' );
 		expect( detectSnapZone( SNAP_EDGE_THRESHOLD, mockDesktopRect() ) ).toBe( 'left' );
 		expect( detectSnapZone( SNAP_EDGE_THRESHOLD + 1, mockDesktopRect() ) ).toBeNull();
 	} );
 
-	test( 'detectSnapZone returns right near the right edge', () => {
+	test( 'detectSnapZone returns right near the right edge', async () => {
 		expect( detectSnapZone( 1600, mockDesktopRect() ) ).toBe( 'right' );
 		expect( detectSnapZone( 1600 - SNAP_EDGE_THRESHOLD, mockDesktopRect() ) ).toBe( 'right' );
 		expect( detectSnapZone( 1600 - SNAP_EDGE_THRESHOLD - 1, mockDesktopRect() ) ).toBeNull();
 	} );
 
-	test( 'detectSnapZone returns null in the middle', () => {
+	test( 'detectSnapZone returns null in the middle', async () => {
 		expect( detectSnapZone( 800, mockDesktopRect() ) ).toBeNull();
 		expect( detectSnapZone( 500, mockDesktopRect() ) ).toBeNull();
 	} );
 } );
 
-describe( 'snap-zones — manager lifecycle', () => {
+describe( 'snap-zones — manager lifecycle', async () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -100,7 +100,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -108,15 +108,15 @@ describe( 'snap-zones — manager lifecycle', () => {
 		clearHooksStub();
 	} );
 
-	test( 'snapZoneBounds gives exactly half the desktop area per zone', () => {
+	test( 'snapZoneBounds gives exactly half the desktop area per zone', async () => {
 		const left = snapZoneBounds( manager, 'left' );
 		const right = snapZoneBounds( manager, 'right' );
 		expect( left ).toEqual( { x: 0, y: 0, width: 800, height: 900 } );
 		expect( right ).toEqual( { x: 800, y: 0, width: 800, height: 900 } );
 	} );
 
-	test( 'updateSnapZoneForDrag fires pending when entering and canceled when leaving', () => {
-		const win = manager.open( openConfig( 'a' ) );
+	test( 'updateSnapZoneForDrag fires pending when entering and canceled when leaving', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
 		const log = recordActions( hooks, SNAP_HOOKS );
 
 		// Enter the left zone.
@@ -135,8 +135,8 @@ describe( 'snap-zones — manager lifecycle', () => {
 		expect( pendingAfter ).toBe( pendingBefore + 1 );
 	} );
 
-	test( 'updateSnapZoneForDrag is idempotent within the same zone', () => {
-		const win = manager.open( openConfig( 'a' ) );
+	test( 'updateSnapZoneForDrag is idempotent within the same zone', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
 		const log = recordActions( hooks, SNAP_HOOKS );
 		updateSnapZoneForDrag( manager, win, 5 );
 		updateSnapZoneForDrag( manager, win, 10 );
@@ -145,8 +145,8 @@ describe( 'snap-zones — manager lifecycle', () => {
 		expect( pending.length ).toBe( 1 );
 	} );
 
-	test( 'commitSnapIfPending writes target bounds + flips state + fires committed', () => {
-		const win = manager.open( openConfig( 'a' ) );
+	test( 'commitSnapIfPending writes target bounds + flips state + fires committed', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
 		// Arm the left zone.
 		updateSnapZoneForDrag( manager, win, 5 );
 		const log = recordActions( hooks, SNAP_HOOKS );
@@ -166,14 +166,14 @@ describe( 'snap-zones — manager lifecycle', () => {
 		).toBe( 'left' );
 	} );
 
-	test( 'commitSnapIfPending returns false when no zone is armed', () => {
-		const win = manager.open( openConfig( 'a' ) );
+	test( 'commitSnapIfPending returns false when no zone is armed', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
 		expect( commitSnapIfPending( manager, win ) ).toBe( false );
 	} );
 
-	test( 'second drag while split-overview is active does NOT re-arm snap', () => {
+	test( 'second drag while split-overview is active does NOT re-arm snap', async () => {
 		// Simulate the picker being up.
-		const win = manager.open( openConfig( 'a' ) );
+		const win = await manager.open( openConfig( 'a' ) );
 		manager._splitOverviewActive = true;
 		const log = recordActions( hooks, SNAP_HOOKS );
 
@@ -183,8 +183,8 @@ describe( 'snap-zones — manager lifecycle', () => {
 		).toBe( false );
 	} );
 
-	test( 'commit picks up zone from the most-recent updateSnapZoneForDrag', () => {
-		const win = manager.open( openConfig( 'a' ) );
+	test( 'commit picks up zone from the most-recent updateSnapZoneForDrag', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
 		updateSnapZoneForDrag( manager, win, 5 ); // left
 		updateSnapZoneForDrag( manager, win, 1595 ); // right
 		commitSnapIfPending( manager, win );
@@ -192,15 +192,15 @@ describe( 'snap-zones — manager lifecycle', () => {
 		expect( win.element.style.left ).toBe( '800px' );
 	} );
 
-	test( 'picked partner is re-clickable after the fill (no lingering --overview class)', () => {
+	test( 'picked partner is re-clickable after the fill (no lingering --overview class)', async () => {
 		// Regression: after picking a thumbnail in the split
 		// overview, the fill path left the `--overview` CSS class on
 		// the picked window. That class pointer-events:none-s all
 		// children AND makes the window's own pointerdown handler
 		// early-return before firing onFocusRequest — so subsequent
 		// clicks silently failed.
-		const anchor = manager.open( openConfig( 'anchor' ) );
-		const partner = manager.open( openConfig( 'partner' ) );
+		const anchor = await manager.open( openConfig( 'anchor' ) );
+		const partner = await manager.open( openConfig( 'partner' ) );
 		// Stub offsetWidth/Height so computeOverviewLayout produces
 		// finite numbers (jsdom has no layout engine).
 		for ( const w of [ anchor, partner ] ) {
@@ -250,7 +250,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 		// `--snapped-*` was never re-applied on restore. Border
 		// radius stayed rounded on all 4 corners and the inner edge
 		// read as a seam.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'a',
 			url: 'http://example.test/wp-admin/edit.php',
 			title: 'Editor',
@@ -279,7 +279,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 	} );
 
 	test( 'snapped-right restore lands on the right half with the right class', async () => {
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'b',
 			url: 'http://example.test/wp-admin/upload.php',
 			title: 'Media',
@@ -295,7 +295,7 @@ describe( 'snap-zones — manager lifecycle', () => {
 		expect( win.element.style.width ).toBe( '800px' );
 	} );
 
-	test( 'oppositeHalfRect returns area-relative coords so thumbnails land in the right half', () => {
+	test( 'oppositeHalfRect returns area-relative coords so thumbnails land in the right half', async () => {
 		// Regression: before, oppositeHalfRect returned viewport-relative
 		// coords. computeOverviewLayout ignored rect.left, so thumbnails
 		// landed at x≈40 (left half) no matter what zone was requested.
@@ -312,8 +312,8 @@ describe( 'snap-zones — manager lifecycle', () => {
 		// thumbnail's x must fall in [halfW, width]. jsdom doesn't
 		// compute layout, so seed the windows with non-zero offsets
 		// first (otherwise the scale divisions would yield NaN).
-		const w1 = manager.open( openConfig( 'a' ) );
-		const w2 = manager.open( openConfig( 'b' ) );
+		const w1 = await manager.open( openConfig( 'a' ) );
+		const w2 = await manager.open( openConfig( 'b' ) );
 		for ( const w of [ w1, w2 ] ) {
 			Object.defineProperty( w.element, 'offsetWidth', { value: 800, configurable: true } );
 			Object.defineProperty( w.element, 'offsetHeight', { value: 600, configurable: true } );

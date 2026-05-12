@@ -1776,7 +1776,7 @@ export class Dock {
 		}
 
 		const baseId = this.deriveWindowId( item.url );
-		this.windowManager.openNew( {
+		void this.windowManager.openNew( {
 			id: baseId,
 			baseId,
 			url: item.url,

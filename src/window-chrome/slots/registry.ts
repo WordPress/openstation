@@ -23,6 +23,7 @@
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';
+import { createSharedStore } from '../../shared-store';
 
 import type { Window as DesktopWindow } from '../../window';
 
@@ -127,8 +128,25 @@ export interface WindowSlotDef {
 	owner?: string;
 }
 
-const registry = new Map< string, WindowSlotDef >();
-const listeners = new Set<() => void >();
+/**
+ * Cross-bundle shared backing store. The lazy
+ * `window-system[.min].js` bundle constructs/reads from this
+ * registry while main writes to it via `registerBuiltIn*` and
+ * `wp.desktop.register*` — each bundle would otherwise see its
+ * own empty copy. See `AGENTS.md` ("Cross-bundle state") and
+ * the Stage-8 callout in `BUNDLE-SIZE-REPORT.md` for the
+ * pattern.
+ */
+interface RegistryStore {
+	registry: Map< string, WindowSlotDef >;
+	listeners: Set< () => void >;
+}
+const store = createSharedStore< RegistryStore >(
+	'desktop-mode/window-slots-registry',
+	() => ( { registry: new Map(), listeners: new Set() } ),
+);
+const registry = store.state.registry;
+const listeners = store.state.listeners;
 
 const WINDOW_SLOT_ID = /^[a-z0-9_/-]+$/;
 

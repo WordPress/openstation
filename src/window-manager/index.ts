@@ -30,7 +30,15 @@ import type {
 	VisibleWindowRect,
 	WindowConfig,
 } from '../types';
-import { Window } from '../window';
+import type { Window } from '../window';
+import {
+	ensureWindowSystemLoaded,
+	windowSystemBundleUrl,
+} from '../window-system/loader';
+import {
+	ensureShellOverlaysLoaded,
+	shellOverlaysBundleUrl,
+} from '../shell-overlays/loader';
 
 import {
 	applyDesktopVisibility,
@@ -357,7 +365,9 @@ export class WindowManager {
 	 * To force a brand-new instance alongside an existing one, use
 	 * {@link openNew}.
 	 */
-	public open( config: Partial<WindowConfig> & { id: string; url: string; title: string } ): Window {
+	public async open(
+		config: Partial<WindowConfig> & { id: string; url: string; title: string },
+	): Promise< Window > {
 		// Defensive boundary check — a previously-loose contract
 		// silently produced a hung iframe when callers passed a URL
 		// string instead of a config object (`url: undefined`,
@@ -443,7 +453,9 @@ export class WindowManager {
 	 * Open a brand-new window even if one is already open for this
 	 * page. Only makes sense for pages flagged `multi`.
 	 */
-	public openNew( config: Partial<WindowConfig> & { id: string; url: string; title: string } ): Window {
+	public async openNew(
+		config: Partial<WindowConfig> & { id: string; url: string; title: string },
+	): Promise< Window > {
 		const baseId = config.baseId || config.id;
 		const nextId = this.nextInstanceId( baseId );
 		return this.createWindow( { ...config, id: nextId, baseId } );
@@ -453,9 +465,9 @@ export class WindowManager {
 	 * Build and mount a window element. Common tail shared by
 	 * `open()` and `openNew()`.
 	 */
-	private createWindow(
+	private async createWindow(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string; baseId?: string },
-	): Window {
+	): Promise< Window > {
 		const desktopRect = this._desktop.getBoundingClientRect();
 		const defaultWidth = Math.min( Math.round( desktopRect.width * 0.8 ), 1200 );
 		const defaultHeight = Math.min( Math.round( desktopRect.height * 0.8 ), 800 );
@@ -480,7 +492,32 @@ export class WindowManager {
 
 		this.cascadeIndex++;
 
-		const win = new Window( fullConfig );
+		// Construct a `Window` only once BOTH lazy bundles are
+		// available:
+		//
+		//   1. `window-system[.min].js` — the `Window` class
+		//      itself + its DOM / pointer / tab helpers.
+		//   2. `shell-overlays[.min].js` — the window-chrome
+		//      component classes (`<wpd-window-button>`,
+		//      `<wpd-menu>`, `<wpd-tab-chip>`, `<wpd-save-status>`,
+		//      `<wpd-spinner>`). Without these the constructor's
+		//      `createElement( 'wpd-window-button' )` calls
+		//      return un-upgraded elements with empty shadow DOMs
+		//      — the title bar's minimize / maximize / close
+		//      icons would be invisible until the overlays
+		//      bundle finally lands.
+		//
+		// Awaiting both in parallel adds no latency in steady
+		// state (the post-first-paint preloads already finished
+		// when the user clicks). The guard exists for the rare
+		// case where the click races the preloads — session
+		// restore at boot, or a plugin opening a window
+		// programmatically right after init.
+		const [ system ] = await Promise.all( [
+			ensureWindowSystemLoaded( windowSystemBundleUrl() ),
+			ensureShellOverlaysLoaded( shellOverlaysBundleUrl() ),
+		] );
+		const win = system.createWindow( fullConfig );
 
 		win.onFocusRequest = ( w: Window ) => this.focus( w );
 		win.onClose = ( w: Window ) => this.remove( w );
@@ -513,7 +550,7 @@ export class WindowManager {
 					return;
 				}
 			}
-			this.openNew( {
+			void this.openNew( {
 				id: baseId,
 				baseId,
 				url: w.config.url || '',
@@ -549,7 +586,7 @@ export class WindowManager {
 				}
 			}
 			const currentUrl = w.getCurrentUrl();
-			this.openNew( {
+			void this.openNew( {
 				id: baseId,
 				baseId,
 				url: currentUrl || w.config.url || '',

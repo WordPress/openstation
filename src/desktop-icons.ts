@@ -510,7 +510,7 @@ function openTarget(
 				return;
 			}
 			// Same-origin admin URL — open as an iframe window.
-			deps.manager.open( {
+			void deps.manager.open( {
 				id: `desktop-icon-${ entry.id }`,
 				url: parsed.toString(),
 				title: entry.title,

@@ -167,6 +167,7 @@ import {
 } from './modules/registry';
 import { wpdConfirm } from './wpd-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
+import { preloadWindowSystem } from './window-system/loader';
 import type { WallpaperDef } from './wallpapers/types';
 // Built-in plugins used to be side-effect-imported from `./plugins`.
 // As of 0.8.4 each built-in plugin ships as its own lazy-loaded
@@ -431,7 +432,7 @@ export interface WpDesktopPublicApi {
 	 * ... })` calls: plugins declare only what they care about, and
 	 * the shell fills in the boilerplate.
 	 */
-	registerWindow: ( def: NativeWindowDef ) => DesktopWindow;
+	registerWindow: ( def: NativeWindowDef ) => Promise< DesktopWindow >;
 	/**
 	 * Open (or focus) a server-registered native window by id —
 	 * the same path the dock click + wallpaper-icon click go
@@ -1776,7 +1777,7 @@ function init(): void {
 		adminUrl: config.adminUrl,
 		deriveSlug: ( url ) => deriveWindowId( url, config.adminUrl ),
 		openWindow: ( windowConfig ) => {
-			manager.open( windowConfig );
+			void manager.open( windowConfig );
 		},
 		findDockEntry: findDockEntryForUrl,
 	} );
@@ -2045,7 +2046,7 @@ function init(): void {
 	 * @since 0.18.0
 	 */
 	function openOsSettings(): void {
-		manager.open( {
+		void manager.open( {
 			id: OS_SETTINGS_WINDOW_ID,
 			baseId: OS_SETTINGS_WINDOW_ID,
 			url: '#os-settings',
@@ -2066,7 +2067,7 @@ function init(): void {
 	 * and any future widget all reach the same window instance.
 	 */
 	function openBugReport(): void {
-		manager.open( {
+		void manager.open( {
 			id: BUG_REPORT_WINDOW_ID,
 			baseId: BUG_REPORT_WINDOW_ID,
 			url: `#${ BUG_REPORT_WINDOW_ID }`,
@@ -2161,7 +2162,18 @@ function init(): void {
 	//      with the user's chosen startup.
 	const hasSession = !! ( config.session && config.session.windows && config.session.windows.length > 0 );
 	if ( hasSession ) {
-		restoreSession( manager, config, desktopArea );
+		// Fire-and-forget: the boot path doesn't need to wait for
+		// session restore to complete before proceeding with the
+		// rest of setup. Windows appear asynchronously as the lazy
+		// `window-system[.min].js` bundle resolves and each
+		// `manager.open(...)` finishes. Restore errors are logged
+		// rather than surfaced — a broken session shouldn't strand
+		// the desktop.
+		void restoreSession( manager, config, desktopArea ).catch( ( err ) => {
+			if ( typeof console !== 'undefined' ) {
+				console.error( '[desktop-mode] session restore failed:', err );
+			}
+		} );
 	}
 	const defaultEnabled = config.defaultWindow?.enabled !== false;
 	const defaultUrlEarly = config.defaultWindow?.url ?? '';
@@ -2172,7 +2184,11 @@ function init(): void {
 		config.fromPortal &&
 		( hasSession || ! defaultEnabled || isNativeDefault );
 	if ( ! suppressAutoOpen ) {
-		openCurrentPage( manager, config );
+		void openCurrentPage( manager, config ).catch( ( err ) => {
+			if ( typeof console !== 'undefined' ) {
+				console.error( '[desktop-mode] openCurrentPage failed:', err );
+			}
+		} );
 	}
 
 	// Persistence.
@@ -2718,7 +2734,15 @@ function init(): void {
 			if ( tryNativeUrlRemap( url ) ) {
 				return true;
 			}
-			return !! manager.open( { id, baseId: id, url, title, icon } );
+			// Fire-and-forget: `installFilesOpenDeps` expects a sync
+			// boolean meaning "did we accept the open intent?". The
+			// open dispatch is intent-only — the lazy
+			// `window-system[.min].js` bundle finishes constructing
+			// the actual `<Window>` asynchronously. We return `true`
+			// to signal acceptance; failures inside the lazy path
+			// surface via the manager's normal error channels.
+			void manager.open( { id, baseId: id, url, title, icon } );
+			return true;
 		},
 		openNativeWindow: ( id ) => nativeWindows.openById( id ),
 		deriveWindowId: ( url: string ) => deriveWindowId( url, config.adminUrl ),
@@ -2795,6 +2819,15 @@ function init(): void {
 	// "after first paint" timing.
 	const overlayPreload = (): void => {
 		preloadShellOverlays( config.shellOverlaysBundleUrl ?? '' );
+		// Window system (Stage 11) — preload alongside the
+		// overlays. By the time the user clicks an icon and
+		// `windowManager.open()` runs, the lazy bundle is
+		// registered and `createWindow()`'s `await` resolves on
+		// the sync fast path. Session-restore and openCurrentPage
+		// race the preload, but both are explicit `await
+		// manager.open(...)` paths so they just wait an extra
+		// frame.
+		preloadWindowSystem( config.windowSystemBundleUrl ?? '' );
 	};
 	if ( typeof window.requestIdleCallback === 'function' ) {
 		window.requestIdleCallback( overlayPreload, { timeout: 1500 } );

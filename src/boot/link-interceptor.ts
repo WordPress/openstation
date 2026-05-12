@@ -152,7 +152,7 @@ export function bindTopWindowLinkInterceptor(
 			const fallbackTitle =
 				( anchor.textContent || '' ).trim() || dockEntry?.title || '';
 
-			manager.open( {
+			void manager.open( {
 				id: windowId,
 				baseId: windowId,
 				multi: !! dockEntry?.multi,

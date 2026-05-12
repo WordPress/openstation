@@ -37,12 +37,12 @@ function fakeFile( type: string, ref: string, file: FileModule ): InstanceType< 
 	);
 }
 
-describe( 'desktop-files openers registry', () => {
-	beforeEach( () => {
+describe( 'desktop-files openers registry', async () => {
+	beforeEach( async () => {
 		installHooksStub();
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		clearHooksStub();
 	} );
 

@@ -22,11 +22,11 @@ import '../../src/ui/components/wpd-select/wpd-select';
 
 const tick = (): Promise<void> => Promise.resolve();
 
-describe( 'WindowManager — native-window hydration order', () => {
+describe( 'WindowManager — native-window hydration order', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -49,7 +49,7 @@ describe( 'WindowManager — native-window hydration order', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -57,11 +57,11 @@ describe( 'WindowManager — native-window hydration order', () => {
 		clearHooksStub();
 	} );
 
-	test( 'render body is already connected to the document when the callback fires', () => {
+	test( 'render body is already connected to the document when the callback fires', async () => {
 		let isConnectedAtRenderTime = false;
 		let isDesktopAncestorAtRenderTime = false;
 
-		manager.open( {
+		await manager.open( {
 			id: 'probe',
 			url: '#probe',
 			title: 'Probe',
@@ -83,7 +83,7 @@ describe( 'WindowManager — native-window hydration order', () => {
 			items: ReadonlyArray<{ value: string; label: string }>;
 		} ) | null = null;
 
-		manager.open( {
+		await manager.open( {
 			id: 'picker',
 			url: '#picker',
 			title: 'Picker',
@@ -119,8 +119,8 @@ describe( 'WindowManager — native-window hydration order', () => {
 		expect( native.options.length ).toBe( 2 );
 	} );
 
-	test( 'iframe windows still open normally (hydrateNative is a no-op for them)', () => {
-		const win = manager.open( {
+	test( 'iframe windows still open normally (hydrateNative is a no-op for them)', async () => {
+		const win = await manager.open( {
 			id: 'iframe-window',
 			url: 'http://example.test/wp-admin/edit.php',
 			title: 'Posts',

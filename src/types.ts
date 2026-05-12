@@ -1834,6 +1834,15 @@ export interface DesktopConfig {
 	 */
 	shellOverlaysBundleUrl?: string;
 	/**
+	 * Fully-qualified URL of the lazy window-system bundle (Stage
+	 * 11). The `Window` class + its DOM / pointer / tab / chrome
+	 * helpers live here; the main bundle's `WindowManager.open()`
+	 * (now async) `<script>`-injects this on demand.
+	 *
+	 * @since 0.8.4
+	 */
+	windowSystemBundleUrl?: string;
+	/**
 	 * Platform-wide AI settings — only present for admins (null for
 	 * non-admin users so the key is never leaked in the page source).
 	 * @since 0.14.0

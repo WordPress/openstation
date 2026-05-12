@@ -8,11 +8,11 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { WindowManager } from '../../src/window-manager';
 
-describe( 'WindowManager — opening a window with a submenu', () => {
+describe( 'WindowManager — opening a window with a submenu', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -35,7 +35,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -43,8 +43,8 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		clearHooksStub();
 	} );
 
-	test( 'opens a singleton page with a submenu + renders submenu tabs', () => {
-		const win = manager.open( {
+	test( 'opens a singleton page with a submenu + renders submenu tabs', async () => {
+		const win = await manager.open( {
 			id: 'plugins.php',
 			url: 'http://example.test/wp-admin/plugins.php',
 			title: 'Plugins',
@@ -86,13 +86,13 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		).toBeNull();
 	} );
 
-	test( 'prepends a synthetic parent tab when submenu omits the self-link', () => {
+	test( 'prepends a synthetic parent tab when submenu omits the self-link', async () => {
 		// `helpers.php` strips WP's auto-prepended self-link (the entry
 		// whose URL matches the parent's). Without an explicit "back to
 		// parent" tab, a user navigating from Posts → Categories has no
 		// way back to the listing short of closing + reopening the
 		// window. The synthetic tab fills that gap.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'edit.php',
 			url: 'http://example.test/wp-admin/edit.php',
 			title: 'Posts',
@@ -115,7 +115,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
 	} );
 
-	test( 'synthetic parent tab uses parentUrl when iframe is on a sub-page', () => {
+	test( 'synthetic parent tab uses parentUrl when iframe is on a sub-page', async () => {
 		// Reproduces the F5-on-Add-Theme scenario: session save
 		// captured the iframe URL (theme-install.php), so on restore
 		// the new window opens with `url = theme-install.php` even
@@ -123,7 +123,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		// the dedup check sees the iframe URL match the "Add Theme"
 		// submenu entry and suppresses the synthetic — leaving the
 		// user with no way back to themes.php.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'themes-php',
 			url: 'http://example.test/wp-admin/theme-install.php?browse=popular',
 			parentUrl: 'http://example.test/wp-admin/themes.php',
@@ -150,13 +150,13 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( false );
 	} );
 
-	test( 'synthetic parent tab is suppressed when parentUrl already in submenu (WC shape)', () => {
+	test( 'synthetic parent tab is suppressed when parentUrl already in submenu (WC shape)', async () => {
 		// Mirrors WooCommerce: parent dock URL is rewritten to the
 		// first submenu's URL (`wc-admin`) because the top-level slug
 		// has no working callback. The "Home" submenu entry already
 		// IS the back-to-parent affordance — adding a synthetic with
 		// the same URL would render two tabs claiming the same page.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'wc-admin',
 			url: 'http://example.test/wp-admin/admin.php?page=wc-orders',
 			parentUrl: 'http://example.test/wp-admin/admin.php?page=wc-admin',
@@ -180,12 +180,12 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( tabs[ 1 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
 	} );
 
-	test( 'parentUrl absent — synthetic logic falls back to url (legacy behaviour)', () => {
+	test( 'parentUrl absent — synthetic logic falls back to url (legacy behaviour)', async () => {
 		// Callers that haven't been updated to pass `parentUrl` keep
 		// the original behaviour: synthetic uses `url`, dedup compares
 		// against `url`. If a submenu entry shares `url`, the
 		// synthetic is suppressed — same as before this fix.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'edit.php',
 			url: 'http://example.test/wp-admin/edit.php',
 			title: 'Posts',
@@ -204,8 +204,8 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( tabs[ 0 ].textContent ).toBe( 'All Posts' );
 	} );
 
-	test( 'opens + closes a singleton + re-opens without error', () => {
-		const first = manager.open( {
+	test( 'opens + closes a singleton + re-opens without error', async () => {
+		const first = await manager.open( {
 			id: 'plugins.php',
 			url: 'http://example.test/wp-admin/plugins.php',
 			title: 'Plugins',
@@ -219,7 +219,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		// Animation triggers a 300 ms setTimeout; in jsdom the element
 		// stays briefly. Forcing a second open should focus the same
 		// baseId or create a fresh instance — either is fine.
-		const second = manager.open( {
+		const second = await manager.open( {
 			id: 'plugins.php',
 			url: 'http://example.test/wp-admin/plugins.php',
 			title: 'Plugins',
@@ -233,7 +233,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( second.element.querySelector( '.desktop-mode-window__iframe' ) ).not.toBeNull();
 	} );
 
-	test( 'opens a fresh singleton instance on each virtual desktop', () => {
+	test( 'opens a fresh singleton instance on each virtual desktop', async () => {
 		// Regression: opening Plugins on Desktop 1 and then clicking
 		// Plugins on Desktop 2 used to silently do nothing — `open()`
 		// found the Desktop 1 instance by baseId, focused it (on
@@ -253,7 +253,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		};
 
 		// Open on Desktop 1.
-		const first = manager.open( baseCfg );
+		const first = await manager.open( baseCfg );
 		expect( first.config.desktopId ).toBe( 'desktop-1' );
 
 		// Create + switch to Desktop 2.
@@ -261,7 +261,7 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		manager.switchDesktop( second.id );
 
 		// Click Plugins again on Desktop 2.
-		const secondInstance = manager.open( baseCfg );
+		const secondInstance = await manager.open( baseCfg );
 
 		// A *distinct* Window object — the Desktop 1 instance isn't
 		// quietly focused behind the scenes.
@@ -275,13 +275,13 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		// Switching back to Desktop 1 and re-clicking focuses the
 		// *original* (not the Desktop 2 copy).
 		manager.switchDesktop( 'desktop-1' );
-		const thirdClick = manager.open( baseCfg );
+		const thirdClick = await manager.open( baseCfg );
 		expect( thirdClick ).toBe( first );
 		expect( manager.getAll().length ).toBe( 2 );
 	} );
 
-	test( 'opens a multi-capable page + renders Open another', () => {
-		const win = manager.open( {
+	test( 'opens a multi-capable page + renders Open another', async () => {
+		const win = await manager.open( {
 			id: 'edit.php',
 			url: 'http://example.test/wp-admin/edit.php',
 			title: 'Posts',
@@ -298,12 +298,12 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		).not.toBeNull();
 	} );
 
-	test( '"Open in new window" item renders for every iframe window', () => {
+	test( '"Open in new window" item renders for every iframe window', async () => {
 		// Singleton (non-multi) windows still get this item — the
 		// distinction from "Open another" is that this seeds the new
 		// window with the *current* URL, so it makes sense even for
 		// pages that aren't formally multi-instance.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'edit-comments.php',
 			url: 'http://example.test/wp-admin/edit-comments.php',
 			title: 'Comments',
@@ -318,8 +318,8 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 		expect( item!.getAttribute( 'role' ) ).toBe( 'menuitem' );
 	} );
 
-	test( '"Open in new window" opens a sibling at the current iframe URL', () => {
-		const win = manager.open( {
+	test( '"Open in new window" opens a sibling at the current iframe URL', async () => {
+		const win = await manager.open( {
 			id: 'edit.php',
 			url: 'http://example.test/wp-admin/edit.php',
 			title: 'Posts',
@@ -334,6 +334,17 @@ describe( 'WindowManager — opening a window with a submenu', () => {
 
 		expect( manager.getAll().length ).toBe( 1 );
 		win.onOpenInNewWindow!( win );
+		// `onOpenInNewWindow`'s `void this.openNew( … )` is
+		// fire-and-forget since 0.8.4 (window-system + shell-
+		// overlays are both lazy-loaded). The `openNew()` body
+		// awaits `Promise.all( [ ensureWindowSystemLoaded( '' ),
+		// ensureShellOverlaysLoaded( '' ) ] )` — both resolve
+		// synchronously in tests (factory pre-registered), but
+		// settling the `Promise.all` plus the surrounding await
+		// chain needs a few microtask flushes. Two awaits is
+		// plenty.
+		await Promise.resolve();
+		await Promise.resolve();
 
 		const all = manager.getAll();
 		expect( all.length ).toBe( 2 );

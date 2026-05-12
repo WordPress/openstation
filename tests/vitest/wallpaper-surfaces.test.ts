@@ -53,12 +53,12 @@ function stubRect( el: HTMLElement, r: Partial<DOMRect> ): void {
 	} );
 }
 
-describe( 'WindowManager.getVisibleRects', () => {
+describe( 'WindowManager.getVisibleRects', async () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
 		desktop.id = 'desktop-mode-area';
@@ -69,7 +69,7 @@ describe( 'WindowManager.getVisibleRects', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -78,9 +78,9 @@ describe( 'WindowManager.getVisibleRects', () => {
 		vi.useRealTimers();
 	} );
 
-	test( 'returns one entry per open window with rect + state + element', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		const b = manager.open( openConfig( 'b' ) );
+	test( 'returns one entry per open window with rect + state + element', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
 
 		const rects = manager.getVisibleRects();
 		expect( rects ).toHaveLength( 2 );
@@ -96,16 +96,16 @@ describe( 'WindowManager.getVisibleRects', () => {
 		expect( rectB?.element ).toBe( b.element );
 	} );
 
-	test( 'reflects the updated state after minimize()', () => {
-		const w = manager.open( openConfig( 'a' ) );
+	test( 'reflects the updated state after minimize()', async () => {
+		const w = await manager.open( openConfig( 'a' ) );
 		w.minimize();
 		const rects = manager.getVisibleRects();
 		expect( rects[ 0 ].state ).toBe( 'minimized' );
 	} );
 
-	test( 'drops windows that have been closed', () => {
-		const w = manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'drops windows that have been closed', async () => {
+		const w = await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		w.close();
 		const ids = manager.getVisibleRects().map( ( r ) => r.windowId );
 		expect( ids ).not.toContain( 'a' );
@@ -113,17 +113,17 @@ describe( 'WindowManager.getVisibleRects', () => {
 	} );
 
 	// Suppress an unused-variable lint in the beforeEach above.
-	test( 'hooks stub is reachable', () => {
+	test( 'hooks stub is reachable', async () => {
 		expect( typeof hooks.doAction ).toBe( 'function' );
 	} );
 } );
 
-describe( 'desktop-mode.window.closing', () => {
+describe( 'desktop-mode.window.closing', async () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
 		desktop.id = 'desktop-mode-area';
@@ -133,18 +133,18 @@ describe( 'desktop-mode.window.closing', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		desktop.remove();
 		clearHooksStub();
 	} );
 
-	test( 'fires with { windowId, element } BEFORE window.closed', () => {
+	test( 'fires with { windowId, element } BEFORE window.closed', async () => {
 		const log = recordActions( hooks, [
 			HOOKS.WINDOW_CLOSING,
 			HOOKS.WINDOW_CLOSED,
 		] );
 
-		const w = manager.open( openConfig( 'gonna-close' ) );
+		const w = await manager.open( openConfig( 'gonna-close' ) );
 		const element = w.element;
 		w.close();
 
@@ -162,8 +162,8 @@ describe( 'desktop-mode.window.closing', () => {
 		expect( closingPayload.element ).toBe( element );
 	} );
 
-	test( 'dispatches desktop-mode-window-closing CustomEvent with live element', () => {
-		const w = manager.open( openConfig( 'closing-event' ) );
+	test( 'dispatches desktop-mode-window-closing CustomEvent with live element', async () => {
+		const w = await manager.open( openConfig( 'closing-event' ) );
 		const element = w.element;
 
 		let observed: { windowId: string; element: HTMLElement } | null = null;
@@ -178,13 +178,13 @@ describe( 'desktop-mode.window.closing', () => {
 	} );
 } );
 
-describe( 'desktop-mode.wallpaper.surfaces', () => {
+describe( 'desktop-mode.wallpaper.surfaces', async () => {
 	let hooks: FakeWpHooks;
 	let shell: HTMLElement;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 
 		// Fake shell — lets collectWallpaperSurfaces find the expected
@@ -210,7 +210,7 @@ describe( 'desktop-mode.wallpaper.surfaces', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -218,8 +218,8 @@ describe( 'desktop-mode.wallpaper.surfaces', () => {
 		clearHooksStub();
 	} );
 
-	test( 'seeds window tops + shell floor + dock edge', () => {
-		const w = manager.open( openConfig( 'w1' ) );
+	test( 'seeds window tops + shell floor + dock edge', async () => {
+		const w = await manager.open( openConfig( 'w1' ) );
 		stubRect( w.element, { left: 200, top: 100, width: 800, height: 600 } );
 		// Non-null offsetParent so the surface collector doesn't treat
 		// the window as hidden.
@@ -241,8 +241,8 @@ describe( 'desktop-mode.wallpaper.surfaces', () => {
 		expect( window1.rect.width ).toBe( 800 );
 	} );
 
-	test( 'excludes minimized windows', () => {
-		const w = manager.open( openConfig( 'min-win' ) );
+	test( 'excludes minimized windows', async () => {
+		const w = await manager.open( openConfig( 'min-win' ) );
 		stubRect( w.element, { left: 10, top: 10, width: 400, height: 300 } );
 		Object.defineProperty( w.element, 'offsetParent', {
 			configurable: true,
@@ -254,7 +254,7 @@ describe( 'desktop-mode.wallpaper.surfaces', () => {
 		expect( surfaces.map( ( s ) => s.id ) ).not.toContain( 'window:min-win' );
 	} );
 
-	test( 'dock edge face flips with placement attribute', () => {
+	test( 'dock edge face flips with placement attribute', async () => {
 		const dockEl = document.getElementById( 'desktop-mode-dock' )!;
 
 		// Default (no attribute → bottom placement): face 'top'.
@@ -278,7 +278,7 @@ describe( 'desktop-mode.wallpaper.surfaces', () => {
 		expect( rightFace ).toBe( 'left' );
 	} );
 
-	test( 'applies desktop-mode.wallpaper.surfaces filter — plugin can add custom surface', () => {
+	test( 'applies desktop-mode.wallpaper.surfaces filter — plugin can add custom surface', async () => {
 		hooks.addFilter(
 			HOOKS.WALLPAPER_SURFACES,
 			'test/extra',
@@ -299,7 +299,7 @@ describe( 'desktop-mode.wallpaper.surfaces', () => {
 		expect( surfaces.find( ( s ) => s.id === 'myplugin:picker' ) ).toBeDefined();
 	} );
 
-	test( 'falls back to seed if filter returns non-array', () => {
+	test( 'falls back to seed if filter returns non-array', async () => {
 		hooks.addFilter(
 			HOOKS.WALLPAPER_SURFACES,
 			'test/broken',

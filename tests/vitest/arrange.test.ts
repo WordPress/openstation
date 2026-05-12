@@ -30,12 +30,12 @@ function openConfig( id: string ) {
 	};
 }
 
-describe( 'WindowManager — Arrange (tile + snap)', () => {
+describe( 'WindowManager — Arrange (tile + snap)', async () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		try {
 			window.localStorage.removeItem( 'desktop-mode-snap-to-grid' );
@@ -63,7 +63,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -71,7 +71,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		clearHooksStub();
 	} );
 
-	test( 'tile() with no windows fires nothing', () => {
+	test( 'tile() with no windows fires nothing', async () => {
 		const log = recordActions( hooks, ARRANGE_HOOKS );
 
 		manager.tile();
@@ -81,11 +81,11 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		).toBe( false );
 	} );
 
-	test( 'tile() with 4 windows on a landscape area picks 2x2', () => {
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
-		manager.open( openConfig( 'c' ) );
-		manager.open( openConfig( 'd' ) );
+	test( 'tile() with 4 windows on a landscape area picks 2x2', async () => {
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
+		await manager.open( openConfig( 'c' ) );
+		await manager.open( openConfig( 'd' ) );
 		const log = recordActions( hooks, ARRANGE_HOOKS );
 
 		manager.tile();
@@ -106,9 +106,9 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( payload.rows ).toBe( 2 );
 	} );
 
-	test( 'tile() emits starting before applied', () => {
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'tile() emits starting before applied', async () => {
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		const log = recordActions( hooks, ARRANGE_HOOKS );
 
 		manager.tile();
@@ -122,9 +122,9 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		] );
 	} );
 
-	test( 'tile() un-maximizes any maximized windows before laying out', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'tile() un-maximizes any maximized windows before laying out', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		a.maximize();
 		expect( a.state ).toBe( 'maximized' );
 
@@ -133,9 +133,9 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( a.state ).toBe( 'normal' );
 	} );
 
-	test( 'tile() restores minimized windows so they participate in the grid', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'tile() restores minimized windows so they participate in the grid', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		a.minimize();
 		expect( a.state ).toBe( 'minimized' );
 
@@ -144,11 +144,11 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( a.state ).toBe( 'normal' );
 	} );
 
-	test( 'isSnapEnabled defaults to false', () => {
+	test( 'isSnapEnabled defaults to false', async () => {
 		expect( manager.isSnapEnabled() ).toBe( false );
 	} );
 
-	test( 'setSnapEnabled(true) toggles on, fires snap.changed, persists', () => {
+	test( 'setSnapEnabled(true) toggles on, fires snap.changed, persists', async () => {
 		const log = recordActions( hooks, ARRANGE_HOOKS );
 
 		manager.setSnapEnabled( true );
@@ -162,7 +162,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( window.localStorage.getItem( 'desktop-mode-snap-to-grid' ) ).toBe( '1' );
 	} );
 
-	test( 'setSnapEnabled(true) twice is idempotent — no duplicate hook firings', () => {
+	test( 'setSnapEnabled(true) twice is idempotent — no duplicate hook firings', async () => {
 		manager.setSnapEnabled( true );
 		const log = recordActions( hooks, ARRANGE_HOOKS );
 
@@ -173,12 +173,12 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		).toBe( false );
 	} );
 
-	test( 'getSnapConfig returns disabled when snap is off', () => {
+	test( 'getSnapConfig returns disabled when snap is off', async () => {
 		const cfg = manager.getSnapConfig();
 		expect( cfg.enabled ).toBe( false );
 	} );
 
-	test( 'getSnapConfig returns sensible cell sizes when on', () => {
+	test( 'getSnapConfig returns sensible cell sizes when on', async () => {
 		manager.setSnapEnabled( true );
 
 		const cfg = manager.getSnapConfig();
@@ -192,19 +192,19 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( cfg.cellHeight ).toBeLessThan( 400 );
 	} );
 
-	test( 'snap config provider is wired on each new window', () => {
-		const win = manager.open( openConfig( 'a' ) );
+	test( 'snap config provider is wired on each new window', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
 
 		expect( typeof win.snapConfigProvider ).toBe( 'function' );
 		const cfg = win.snapConfigProvider!();
 		expect( cfg.enabled ).toBe( false );
 	} );
 
-	test( 'tile.dimensions filter overrides the algorithmic grid', () => {
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
-		manager.open( openConfig( 'c' ) );
-		manager.open( openConfig( 'd' ) );
+	test( 'tile.dimensions filter overrides the algorithmic grid', async () => {
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
+		await manager.open( openConfig( 'c' ) );
+		await manager.open( openConfig( 'd' ) );
 		// Force a 1×4 layout instead of the default 2×2.
 		hooks.addFilter(
 			'desktop-mode.arrange.tile.dimensions',
@@ -223,9 +223,9 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( payload.rows ).toBe( 4 );
 	} );
 
-	test( 'tile.dimensions filter context exposes window count + area size', () => {
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'tile.dimensions filter context exposes window count + area size', async () => {
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		let receivedContext: unknown = null;
 		hooks.addFilter(
 			'desktop-mode.arrange.tile.dimensions',
@@ -248,11 +248,11 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( ctx.areaHeight ).toBe( 900 );
 	} );
 
-	test( 'tile.dimensions filter rejects an under-sized grid', () => {
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
-		manager.open( openConfig( 'c' ) );
-		manager.open( openConfig( 'd' ) );
+	test( 'tile.dimensions filter rejects an under-sized grid', async () => {
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
+		await manager.open( openConfig( 'c' ) );
+		await manager.open( openConfig( 'd' ) );
 		// 1×2 only fits 2 windows; we have 4. Filter return must
 		// be discarded, default 2×2 used.
 		hooks.addFilter(
@@ -272,9 +272,9 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( payload.rows ).toBe( 2 );
 	} );
 
-	test( 'tile.dimensions filter rejects malformed shapes', () => {
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'tile.dimensions filter rejects malformed shapes', async () => {
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		hooks.addFilter(
 			'desktop-mode.arrange.tile.dimensions',
 			'test/garbage',
@@ -293,7 +293,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( payload.cols * payload.rows ).toBeGreaterThanOrEqual( 2 );
 	} );
 
-	test( 'snap.cell-size filter overrides the auto-computed grid', () => {
+	test( 'snap.cell-size filter overrides the auto-computed grid', async () => {
 		manager.setSnapEnabled( true );
 		hooks.addFilter(
 			'desktop-mode.arrange.snap.cell-size',
@@ -307,7 +307,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( cfg.cellHeight ).toBe( 100 );
 	} );
 
-	test( 'snap.cell-size filter rejects non-positive values', () => {
+	test( 'snap.cell-size filter rejects non-positive values', async () => {
 		manager.setSnapEnabled( true );
 		hooks.addFilter(
 			'desktop-mode.arrange.snap.cell-size',
@@ -322,7 +322,7 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( cfg.cellHeight ).toBeGreaterThan( 0 );
 	} );
 
-	test( 'snap.cell-size filter context exposes area dimensions', () => {
+	test( 'snap.cell-size filter context exposes area dimensions', async () => {
 		manager.setSnapEnabled( true );
 		let receivedContext: unknown = null;
 		hooks.addFilter(
@@ -344,8 +344,8 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 		expect( ctx.areaHeight ).toBe( 900 );
 	} );
 
-	test( 'un-maximize with snap on rounds restored geometry to grid cells', () => {
-		const win = manager.open( openConfig( 'a' ) );
+	test( 'un-maximize with snap on rounds restored geometry to grid cells', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
 		// Force an obviously non-grid saved geometry by maximizing
 		// while snap was OFF. The pre-maximize position is the
 		// constructor's default cascade slot (40, 40, ~1280×720),
@@ -386,12 +386,12 @@ describe( 'WindowManager — Arrange (tile + snap)', () => {
 	} );
 } );
 
-describe( 'Window — drag of a maximized window auto-unmaximizes', () => {
+describe( 'Window — drag of a maximized window auto-unmaximizes', async () => {
 	let hooks: FakeWpHooks;
 	let parent: HTMLElement;
 	let win: Window;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		parent = document.createElement( 'div' );
 		Object.defineProperty( parent, 'clientWidth', { value: 1600, configurable: true } );
@@ -412,13 +412,13 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', () => {
 		parent.appendChild( win.element );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		win.close();
 		parent.remove();
 		clearHooksStub();
 	} );
 
-	test( 'drag start on a maximized window restores normal state + fires unmaximized', () => {
+	test( 'drag start on a maximized window restores normal state + fires unmaximized', async () => {
 		win.maximize();
 		expect( win.state ).toBe( 'maximized' );
 		const log = recordActions( hooks, [

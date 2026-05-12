@@ -170,6 +170,31 @@ function desktop_mode_enqueue_assets() {
 		? desktop_mode_build_wallpaper_menu_items()
 		: array();
 
+	// Lazy-bundle URL builder. Each lazy-loaded bundle (AI Assistant,
+	// About-scene, OS Settings panel, shell-overlays, window-system)
+	// is `<script>`-injected by the main bundle on demand — they don't
+	// go through `wp_register_script`, so they don't pick up WordPress's
+	// usual `?ver=<filemtime>` cache-buster. Without one, the browser
+	// happily serves a stale cached copy across plugin updates that
+	// don't bump `DESKTOP_MODE_VERSION`, and the main bundle's loader
+	// fires a `<script>`-loaded event for a file that's missing the
+	// fresh `window.desktopMode*` factory the new code expects.
+	//
+	// Mirror the `$built_version( … )` helper in `includes/assets.php`:
+	// prefer the on-disk mtime of the actual file, fall back to the
+	// plugin version when the file is missing (dev environments where
+	// the bundle hasn't been built yet).
+	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$lazy_bundle_url = static function ( $base ) use ( $suffix ) {
+		$path = DESKTOP_MODE_DIR . 'assets/js/' . $base . $suffix . '.js';
+		$ver  = file_exists( $path )
+			? (string) filemtime( $path )
+			: DESKTOP_MODE_VERSION;
+		return esc_url_raw(
+			DESKTOP_MODE_URL . 'assets/js/' . $base . $suffix . '.js?ver=' . $ver
+		);
+	};
+
 	// Build the current page URL from $pagenow + $_GET. Strip the portal
 	// marker so the derived window ID matches what the dock would produce
 	// for the same page — otherwise auto-opening the entry window and
@@ -263,50 +288,38 @@ function desktop_mode_enqueue_assets() {
 			'canUpload'        => current_user_can( 'upload_files' ),
 			'pluginUrl'        => esc_url_raw( untrailingslashit( DESKTOP_MODE_URL ) ),
 			'pluginVersion'    => DESKTOP_MODE_VERSION,
-			'iframeBridgeUrl'  => esc_url_raw(
-				DESKTOP_MODE_URL . 'assets/js/iframe-bridge'
-				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
-				. '.js?ver=' . DESKTOP_MODE_VERSION
-			),
+			'iframeBridgeUrl'  => $lazy_bundle_url( 'iframe-bridge' ),
 			// URL of the AI Assistant lazy bundle. The main bundle
 			// ships a stub matching the public `wp.desktop.ai` API; the
 			// stub `<script>`-injects this URL the first time the user
 			// opens the assistant. Picking `.js` vs `.min.js` here keeps
 			// the SCRIPT_DEBUG gate server-side, matching iframeBridgeUrl.
-			'aiAssistantBundleUrl' => esc_url_raw(
-				DESKTOP_MODE_URL . 'assets/js/ai-assistant'
-				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
-				. '.js?ver=' . DESKTOP_MODE_VERSION
-			),
+			'aiAssistantBundleUrl' => $lazy_bundle_url( 'ai-assistant' ),
 			// URL of the About-scene lazy bundle. The OS Settings →
 			// About tab loads this on first mount; ~25 kB PixiJS
 			// particle scene that would otherwise ship in the main
 			// bundle for every shell load.
-			'aboutSceneBundleUrl' => esc_url_raw(
-				DESKTOP_MODE_URL . 'assets/js/about-scene'
-				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
-				. '.js?ver=' . DESKTOP_MODE_VERSION
-			),
+			'aboutSceneBundleUrl' => $lazy_bundle_url( 'about-scene' ),
 			// URL of the OS Settings panel lazy bundle. Injected by
 			// the main bundle's `OsSettings.renderPanel()` stub on
 			// the user's first Settings open. Holds every section
 			// renderer + the `<wpd-*>` components only the panel
 			// uses, so nothing about Settings ships in
 			// `desktop.min.js` for users who never open it.
-			'osSettingsPanelBundleUrl' => esc_url_raw(
-				DESKTOP_MODE_URL . 'assets/js/os-settings-panel'
-				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
-				. '.js?ver=' . DESKTOP_MODE_VERSION
-			),
+			'osSettingsPanelBundleUrl' => $lazy_bundle_url( 'os-settings-panel' ),
 			// URL of the shell-overlays lazy bundle. Pre-loaded by
 			// the main bundle after first paint so action-triggered
 			// overlays (toast, confirm dialog, context menus) feel
 			// instant the first time they fire.
-			'shellOverlaysBundleUrl' => esc_url_raw(
-				DESKTOP_MODE_URL . 'assets/js/shell-overlays'
-				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
-				. '.js?ver=' . DESKTOP_MODE_VERSION
-			),
+			'shellOverlaysBundleUrl' => $lazy_bundle_url( 'shell-overlays' ),
+			// URL of the lazy window-system bundle (Stage 11).
+			// Holds the `Window` class and its DOM / pointer / tab /
+			// chrome helpers — the single largest module in the pre-
+			// 0.8.4 main bundle. Loaded on first `windowManager.open()`
+			// / `openNew()` call (both async since 0.8.4); pre-loaded
+			// by the shell after first paint when no session is being
+			// restored and no `openCurrentPage` will fire.
+			'windowSystemBundleUrl' => $lazy_bundle_url( 'window-system' ),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),

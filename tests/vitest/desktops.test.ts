@@ -33,12 +33,12 @@ function openConfig( id: string ) {
 	};
 }
 
-describe( 'WindowManager — virtual desktops', () => {
+describe( 'WindowManager — virtual desktops', async () => {
 	let hooks: FakeWpHooks;
 	let desktopArea: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktopArea = document.createElement( 'div' );
 		Object.defineProperty( desktopArea, 'getBoundingClientRect', {
@@ -61,7 +61,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		manager = new WindowManager( desktopArea );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -69,7 +69,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		clearHooksStub();
 	} );
 
-	test( 'starts with a single default desktop named "Desktop 1"', () => {
+	test( 'starts with a single default desktop named "Desktop 1"', async () => {
 		const list = manager.getDesktops();
 		expect( list ).toHaveLength( 1 );
 		expect( list[ 0 ].id ).toBe( 'desktop-1' );
@@ -77,7 +77,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
 
-	test( 'createDesktop appends + fires desktop.created with the new id', () => {
+	test( 'createDesktop appends + fires desktop.created with the new id', async () => {
 		const log = recordActions( hooks, DESKTOP_HOOKS );
 
 		const created = manager.createDesktop();
@@ -96,21 +96,21 @@ describe( 'WindowManager — virtual desktops', () => {
 		).toBe( created.id );
 	} );
 
-	test( 'newly opened windows join the currently active desktop', () => {
-		const a = manager.open( openConfig( 'a' ) );
+	test( 'newly opened windows join the currently active desktop', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
-		const b = manager.open( openConfig( 'b' ) );
+		const b = await manager.open( openConfig( 'b' ) );
 
 		expect( a.config.desktopId ).toBe( 'desktop-1' );
 		expect( b.config.desktopId ).toBe( second.id );
 	} );
 
-	test( 'switchDesktop hides previous desktop windows + shows new ones', () => {
-		const a = manager.open( openConfig( 'a' ) );
+	test( 'switchDesktop hides previous desktop windows + shows new ones', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
-		const b = manager.open( openConfig( 'b' ) );
+		const b = await manager.open( openConfig( 'b' ) );
 
 		// On desktop-2 now: a hidden, b shown.
 		expect( a.element.style.display ).toBe( 'none' );
@@ -123,7 +123,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( b.element.style.display ).toBe( 'none' );
 	} );
 
-	test( 'switchDesktop fires desktop.switched with from + to ids', () => {
+	test( 'switchDesktop fires desktop.switched with from + to ids', async () => {
 		const second = manager.createDesktop();
 		const log = recordActions( hooks, DESKTOP_HOOKS );
 
@@ -136,7 +136,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( payload.to ).toBe( second.id );
 	} );
 
-	test( 'switchDesktop is a no-op when target is already active', () => {
+	test( 'switchDesktop is a no-op when target is already active', async () => {
 		const log = recordActions( hooks, DESKTOP_HOOKS );
 
 		manager.switchDesktop( 'desktop-1' );
@@ -146,7 +146,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		).toBe( false );
 	} );
 
-	test( 'switchDesktop ignores unknown ids', () => {
+	test( 'switchDesktop ignores unknown ids', async () => {
 		const log = recordActions( hooks, DESKTOP_HOOKS );
 
 		manager.switchDesktop( 'nope' );
@@ -157,11 +157,11 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
 
-	test( 'closeDesktop migrates windows to the left-neighbour and fires .closed', () => {
-		const a = manager.open( openConfig( 'a' ) );
+	test( 'closeDesktop migrates windows to the left-neighbour and fires .closed', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
-		const b = manager.open( openConfig( 'b' ) );
+		const b = await manager.open( openConfig( 'b' ) );
 		const log = recordActions( hooks, DESKTOP_HOOKS );
 
 		manager.closeDesktop( second.id );
@@ -180,9 +180,9 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( payload.migratedTo ).toBe( 'desktop-1' );
 	} );
 
-	test( 'closing the leftmost desktop migrates to the right-neighbour', () => {
+	test( 'closing the leftmost desktop migrates to the right-neighbour', async () => {
 		const second = manager.createDesktop();
-		const a = manager.open( openConfig( 'a' ) );
+		const a = await manager.open( openConfig( 'a' ) );
 		manager.switchDesktop( second.id );
 
 		manager.closeDesktop( 'desktop-1' );
@@ -191,7 +191,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
 	} );
 
-	test( 'cannot close the last remaining desktop', () => {
+	test( 'cannot close the last remaining desktop', async () => {
 		const log = recordActions( hooks, DESKTOP_HOOKS );
 
 		manager.closeDesktop( 'desktop-1' );
@@ -202,7 +202,7 @@ describe( 'WindowManager — virtual desktops', () => {
 		).toBe( false );
 	} );
 
-	test( 'closing a non-active desktop does not change the active id', () => {
+	test( 'closing a non-active desktop does not change the active id', async () => {
 		manager.createDesktop(); // desktop-2
 		const third = manager.createDesktop(); // desktop-3
 		// Active is still desktop-1.
@@ -216,13 +216,13 @@ describe( 'WindowManager — virtual desktops', () => {
 		] );
 	} );
 
-	test( 'closing the active desktop while in overview re-lays out the survivor', () => {
+	test( 'closing the active desktop while in overview re-lays out the survivor', async () => {
 		// Set up: two windows on D1 (active), one on D2.
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
-		const c = manager.open( openConfig( 'c' ) );
+		const c = await manager.open( openConfig( 'c' ) );
 		manager.switchDesktop( 'desktop-1' );
 
 		// Enter overview — D1 windows pick up the --overview class.
@@ -254,13 +254,13 @@ describe( 'WindowManager — virtual desktops', () => {
 		expect( c.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
 	} );
 
-	test( 'snapshot preserves geometry for windows on non-active desktops', () => {
+	test( 'snapshot preserves geometry for windows on non-active desktops', async () => {
 		// Regression: when a window sits on a hidden (display: none)
 		// desktop, `offsetLeft/Top/Width/Height` all return 0 because
 		// the element isn't laid out. Snapshot must fall back to the
 		// inline style strings so a hard reload restores the user's
 		// saved position instead of "defaults at 0,0".
-		const a = manager.open( openConfig( 'a' ) );
+		const a = await manager.open( openConfig( 'a' ) );
 		// Stamp known geometry on the active desktop's window.
 		a.element.style.left = '180px';
 		a.element.style.top = '120px';

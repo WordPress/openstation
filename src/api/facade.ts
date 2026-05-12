@@ -198,7 +198,7 @@ export interface BuildPublicApiDeps {
 	filesApi: FilesApi;
 	saveSession: () => void;
 	widgetLayer: WidgetLayer | null;
-	registerWindow: ( def: NativeWindowDef ) => DesktopWindow;
+	registerWindow: ( def: NativeWindowDef ) => Promise< DesktopWindow >;
 	openWindowById: ( id: string, opts?: { source?: string } ) => boolean;
 	openNewWindowById: ( id: string, opts?: { source?: string } ) => boolean;
 	placeSystemTile: ( item: SystemDockItem ) => void;

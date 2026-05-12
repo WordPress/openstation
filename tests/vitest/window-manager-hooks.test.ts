@@ -37,12 +37,12 @@ function openConfig( id: string, overrides: Partial<{ url: string; title: string
 	};
 }
 
-describe( 'WindowManager — hook firing', () => {
+describe( 'WindowManager — hook firing', async () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
 		desktop.id = 'desktop-mode-area';
@@ -70,7 +70,7 @@ describe( 'WindowManager — hook firing', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -78,10 +78,10 @@ describe( 'WindowManager — hook firing', () => {
 		clearHooksStub();
 	} );
 
-	test( 'open() fires window.opened with { windowId, page, title, url }', () => {
+	test( 'open() fires window.opened with { windowId, page, title, url }', async () => {
 		const log = recordActions( hooks, MANAGER_HOOKS );
 
-		manager.open( openConfig( 'posts', { url: 'http://example.test/edit.php', title: 'Posts' } ) );
+		await manager.open( openConfig( 'posts', { url: 'http://example.test/edit.php', title: 'Posts' } ) );
 
 		const opened = log.find( ( e ) => e.name === 'desktop-mode.window.opened' );
 		expect( opened ).toBeDefined();
@@ -97,10 +97,10 @@ describe( 'WindowManager — hook firing', () => {
 		expect( payload.page ).toBe( 'http://example.test/edit.php' );
 	} );
 
-	test( 'open() fires window.focused right after opened', () => {
+	test( 'open() fires window.focused right after opened', async () => {
 		const log = recordActions( hooks, MANAGER_HOOKS );
 
-		manager.open( openConfig( 'posts' ) );
+		await manager.open( openConfig( 'posts' ) );
 
 		const names = log.map( ( e ) => e.name );
 		const openedIdx = names.indexOf( 'desktop-mode.window.opened' );
@@ -113,10 +113,10 @@ describe( 'WindowManager — hook firing', () => {
 		expect( focusedIdx ).not.toBe( -1 );
 	} );
 
-	test( 'opening a second window re-fires focused with the new id', () => {
-		manager.open( openConfig( 'posts' ) );
+	test( 'opening a second window re-fires focused with the new id', async () => {
+		await manager.open( openConfig( 'posts' ) );
 		const log = recordActions( hooks, MANAGER_HOOKS );
-		manager.open( openConfig( 'pages' ) );
+		await manager.open( openConfig( 'pages' ) );
 
 		const focuses = log.filter(
 			( e ) => e.name === 'desktop-mode.window.focused',
@@ -128,9 +128,9 @@ describe( 'WindowManager — hook firing', () => {
 		expect( last.windowId ).toBe( 'pages' );
 	} );
 
-	test( 'focus() re-fires window.focused for an existing window', () => {
-		manager.open( openConfig( 'a' ) );
-		const b = manager.open( openConfig( 'b' ) );
+	test( 'focus() re-fires window.focused for an existing window', async () => {
+		await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
 		const log = recordActions( hooks, MANAGER_HOOKS );
 
 		manager.focus( b );
@@ -144,8 +144,8 @@ describe( 'WindowManager — hook firing', () => {
 		).toBe( 'b' );
 	} );
 
-	test( 'window.close() fires window.closed via the manager', () => {
-		const win = manager.open( openConfig( 'tools' ) );
+	test( 'window.close() fires window.closed via the manager', async () => {
+		const win = await manager.open( openConfig( 'tools' ) );
 		const log = recordActions( hooks, MANAGER_HOOKS );
 
 		win.close();
@@ -157,8 +157,8 @@ describe( 'WindowManager — hook firing', () => {
 		).toBe( 'tools' );
 	} );
 
-	test( 'closing the last window does NOT fire a trailing focused', () => {
-		const win = manager.open( openConfig( 'solo' ) );
+	test( 'closing the last window does NOT fire a trailing focused', async () => {
+		const win = await manager.open( openConfig( 'solo' ) );
 		const log = recordActions( hooks, MANAGER_HOOKS );
 		win.close();
 
@@ -171,9 +171,9 @@ describe( 'WindowManager — hook firing', () => {
 		expect( focuses ).toHaveLength( 0 );
 	} );
 
-	test( 'closing a non-top window focuses the survivor', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'closing a non-top window focuses the survivor', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		const log = recordActions( hooks, MANAGER_HOOKS );
 
 		a.close();
@@ -188,10 +188,10 @@ describe( 'WindowManager — hook firing', () => {
 		).toBe( 'b' );
 	} );
 
-	test( 'cascade() fires starting then applied with windowCount', () => {
-		manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
-		manager.open( openConfig( 'c' ) );
+	test( 'cascade() fires starting then applied with windowCount', async () => {
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
+		await manager.open( openConfig( 'c' ) );
 		const log = recordActions( hooks, MANAGER_HOOKS );
 
 		manager.cascade();
@@ -210,7 +210,7 @@ describe( 'WindowManager — hook firing', () => {
 		expect( cascadeEvents[ 1 ].payload.windowCount ).toBe( 3 );
 	} );
 
-	test( 'cascade() with no windows fires neither hook', () => {
+	test( 'cascade() with no windows fires neither hook', async () => {
 		const log = recordActions( hooks, MANAGER_HOOKS );
 
 		manager.cascade();

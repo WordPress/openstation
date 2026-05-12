@@ -408,6 +408,20 @@ const TARGETS = {
 		fileBase: 'shell-overlays',
 		iifeName: 'desktopModeShellOverlays',
 	},
+	// Window system (Stage 11) — the `Window` class + DOM / pointer
+	// / tab / chrome helpers. Largest single module in the pre-0.8.4
+	// main bundle (~68 kB pre-min just for `window/index.ts`).
+	// Loaded on demand by the first call to
+	// `WindowManager.open()` / `openNew()` — both async since
+	// 0.8.4. Publishes `window.desktopModeWindowSystem`. Pre-loaded
+	// by `desktop.ts` after first paint via
+	// `preloadWindowSystem( … )` so any "user clicks the first icon"
+	// click typically lands on the sync fast path.
+	'window-system': {
+		entry:    'src/window-system/entry.ts',
+		fileBase: 'window-system',
+		iifeName: 'desktopModeWindowSystemBundle',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

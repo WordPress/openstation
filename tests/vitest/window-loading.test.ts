@@ -54,16 +54,16 @@ function makeDesktop(): HTMLElement {
 	return desktop;
 }
 
-describe( 'createWindowElement — loading overlay', () => {
-	beforeEach( () => {
+describe( 'createWindowElement — loading overlay', async () => {
+	beforeEach( async () => {
 		installHooksStub();
 	} );
-	afterEach( () => {
+	afterEach( async () => {
 		clearHooksStub();
 		_resetWindowChannelsForTests();
 	} );
 
-	test( 'iframe windows mount with the spinner overlay + loading modifier', () => {
+	test( 'iframe windows mount with the spinner overlay + loading modifier', async () => {
 		const el = createWindowElement( {
 			id: 'probe-iframe',
 			url: '#probe-iframe',
@@ -82,7 +82,7 @@ describe( 'createWindowElement — loading overlay', () => {
 		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
 	} );
 
-	test( 'native windows mount with the same overlay', () => {
+	test( 'native windows mount with the same overlay', async () => {
 		const el = createWindowElement( {
 			id: 'probe-native',
 			title: 'Probe',
@@ -101,7 +101,7 @@ describe( 'createWindowElement — loading overlay', () => {
 		expect( el.querySelector( 'wpd-spinner' ) ).not.toBeNull();
 	} );
 
-	test( 'construction marks the window as loading', () => {
+	test( 'construction marks the window as loading', async () => {
 		createWindowElement( {
 			id: 'probe-loading',
 			url: '#probe-loading',
@@ -115,7 +115,7 @@ describe( 'createWindowElement — loading overlay', () => {
 		expect( isWindowContentLoading( 'probe-loading' ) ).toBe( true );
 	} );
 
-	test( 'spinner uses the responsive size attribute', () => {
+	test( 'spinner uses the responsive size attribute', async () => {
 		const el = createWindowElement( {
 			id: 'probe-size',
 			url: '#probe-size',
@@ -131,17 +131,17 @@ describe( 'createWindowElement — loading overlay', () => {
 	} );
 } );
 
-describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () => {
+describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', async () => {
 	let hooks: FakeWpHooks;
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 	} );
-	afterEach( () => {
+	afterEach( async () => {
 		clearHooksStub();
 		_resetWindowChannelsForTests();
 	} );
 
-	test( 'markWindowContentLoading fires WINDOW_CONTENT_LOADING action + CustomEvent', () => {
+	test( 'markWindowContentLoading fires WINDOW_CONTENT_LOADING action + CustomEvent', async () => {
 		const seen: Array< { windowId: string } > = [];
 		hooks.addAction(
 			HOOKS.WINDOW_CONTENT_LOADING,
@@ -169,7 +169,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		);
 	} );
 
-	test( 'markWindowContentLoading is edge-triggered — second call is a no-op', () => {
+	test( 'markWindowContentLoading is edge-triggered — second call is a no-op', async () => {
 		const seen: Array< { windowId: string } > = [];
 		hooks.addAction(
 			HOOKS.WINDOW_CONTENT_LOADING,
@@ -183,7 +183,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		expect( seen ).toHaveLength( 1 );
 	} );
 
-	test( 'markWindowContentReady fires WINDOW_CONTENT_LOADED on loading → ready transition', () => {
+	test( 'markWindowContentReady fires WINDOW_CONTENT_LOADED on loading → ready transition', async () => {
 		const seen: Array< { windowId: string } > = [];
 		hooks.addAction(
 			HOOKS.WINDOW_CONTENT_LOADED,
@@ -212,7 +212,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		);
 	} );
 
-	test( 'markWindowContentReady is a no-op when the window is not in loading state', () => {
+	test( 'markWindowContentReady is a no-op when the window is not in loading state', async () => {
 		const seen: Array< { windowId: string } > = [];
 		hooks.addAction(
 			HOOKS.WINDOW_CONTENT_LOADED,
@@ -227,7 +227,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 		expect( seen ).toEqual( [] );
 	} );
 
-	test( 'loading → ready → loading → ready fires LOADED twice', () => {
+	test( 'loading → ready → loading → ready fires LOADED twice', async () => {
 		const seen: Array< { windowId: string } > = [];
 		hooks.addAction(
 			HOOKS.WINDOW_CONTENT_LOADED,
@@ -244,17 +244,17 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', () =
 	} );
 } );
 
-describe( 'installWindowLoadingTransitions — visual side', () => {
+describe( 'installWindowLoadingTransitions — visual side', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = makeDesktop();
 		manager = new WindowManager( desktop );
 		installWindowLoadingTransitions();
 	} );
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -265,8 +265,8 @@ describe( 'installWindowLoadingTransitions — visual side', () => {
 		vi.useRealTimers();
 	} );
 
-	test( 'WINDOW_CONTENT_LOADED removes the body --loading modifier', () => {
-		manager.open( {
+	test( 'WINDOW_CONTENT_LOADED removes the body --loading modifier', async () => {
+		await manager.open( {
 			id: 'visual-1',
 			url: '#visual-1',
 			title: 'Visual 1',
@@ -285,8 +285,8 @@ describe( 'installWindowLoadingTransitions — visual side', () => {
 		);
 	} );
 
-	test( 'markContentLoading after ready re-arms the overlay + class', () => {
-		manager.open( {
+	test( 'markContentLoading after ready re-arms the overlay + class', async () => {
+		await manager.open( {
 			id: 'visual-2',
 			url: '#visual-2',
 			title: 'Visual 2',
@@ -312,17 +312,17 @@ describe( 'installWindowLoadingTransitions — visual side', () => {
 	} );
 } );
 
-describe( 'hydrateNative — sync render marks ready on next rAF', () => {
+describe( 'hydrateNative — sync render marks ready on next rAF', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = makeDesktop();
 		manager = new WindowManager( desktop );
 		installWindowLoadingTransitions();
 	} );
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -342,7 +342,7 @@ describe( 'hydrateNative — sync render marks ready on next rAF', () => {
 			},
 		);
 
-		manager.open( {
+		await manager.open( {
 			id: 'sync-render',
 			url: '#sync-render',
 			title: 'Sync',
@@ -359,17 +359,17 @@ describe( 'hydrateNative — sync render marks ready on next rAF', () => {
 	} );
 } );
 
-describe( 'hydrateNative — Promise-returning render defers ready', () => {
+describe( 'hydrateNative — Promise-returning render defers ready', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = makeDesktop();
 		manager = new WindowManager( desktop );
 		installWindowLoadingTransitions();
 	} );
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -394,7 +394,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', () => {
 			resolveFetch = r;
 		} );
 
-		manager.open( {
+		await manager.open( {
 			id: 'async-render',
 			url: '#async-render',
 			title: 'Async',
@@ -432,7 +432,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', () => {
 		// rejection path so the test output stays clean.
 		const errSpy = vi.spyOn( console, 'error' ).mockImplementation( () => undefined );
 
-		manager.open( {
+		await manager.open( {
 			id: 'reject-render',
 			url: '#reject-render',
 			title: 'Reject',
@@ -449,7 +449,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', () => {
 	} );
 } );
 
-describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', () => {
+describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async () => {
 	// `ctx.window.markLoading/markReady` are only wired in the
 	// `wp.desktop.registerWindow` path (createRegisterWindow). The
 	// raw `manager.open` path tested above doesn't receive them —
@@ -459,13 +459,13 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', () =>
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = makeDesktop();
 		manager = new WindowManager( desktop );
 		installWindowLoadingTransitions();
 	} );
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -475,8 +475,8 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', () =>
 		_resetWindowLoadingTransitionsForTests();
 	} );
 
-	test( 'Window.markContentLoading + markContentLoaded toggle the loading state', () => {
-		const win = manager.open( {
+	test( 'Window.markContentLoading + markContentLoaded toggle the loading state', async () => {
+		const win = await manager.open( {
 			id: 'toggle',
 			url: '#toggle',
 			title: 'Toggle',
@@ -505,17 +505,17 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', () =>
 	} );
 } );
 
-describe( 'Loading overlay customization', () => {
+describe( 'Loading overlay customization', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		installHooksStub();
 		desktop = makeDesktop();
 		manager = new WindowManager( desktop );
 		installWindowLoadingTransitions();
 	} );
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -525,8 +525,8 @@ describe( 'Loading overlay customization', () => {
 		_resetWindowLoadingTransitionsForTests();
 	} );
 
-	test( 'config.loading.render mutates the default overlay in-place', () => {
-		const win = manager.open( {
+	test( 'config.loading.render mutates the default overlay in-place', async () => {
+		const win = await manager.open( {
 			id: 'branded',
 			url: '#branded',
 			title: 'Branded',
@@ -548,8 +548,8 @@ describe( 'Loading overlay customization', () => {
 		);
 	} );
 
-	test( 'config.loading.render can replace contents wholesale', () => {
-		const win = manager.open( {
+	test( 'config.loading.render can replace contents wholesale', async () => {
+		const win = await manager.open( {
 			id: 'replace',
 			url: '#replace',
 			title: 'Replace',
@@ -571,7 +571,7 @@ describe( 'Loading overlay customization', () => {
 		);
 	} );
 
-	test( 'WINDOW_LOADING_OVERLAY filter receives the host + ctx', () => {
+	test( 'WINDOW_LOADING_OVERLAY filter receives the host + ctx', async () => {
 		const seenCtx: Array< { windowId: string } > = [];
 		( window.wp!.hooks! ).addFilter(
 			HOOKS.WINDOW_LOADING_OVERLAY,
@@ -585,7 +585,7 @@ describe( 'Loading overlay customization', () => {
 			},
 		);
 
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'filtered',
 			url: '#filtered',
 			title: 'Filtered',
@@ -598,7 +598,7 @@ describe( 'Loading overlay customization', () => {
 		expect( overlay.dataset.skinned ).toBe( 'true' );
 	} );
 
-	test( 'WINDOW_LOADING_OVERLAY filter can replace the entire overlay element', () => {
+	test( 'WINDOW_LOADING_OVERLAY filter can replace the entire overlay element', async () => {
 		( window.wp!.hooks! ).addFilter(
 			HOOKS.WINDOW_LOADING_OVERLAY,
 			'test/wholesale',
@@ -610,7 +610,7 @@ describe( 'Loading overlay customization', () => {
 			},
 		);
 
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'wholesale',
 			url: '#wholesale',
 			title: 'Wholesale',
@@ -627,7 +627,7 @@ describe( 'Loading overlay customization', () => {
 		expect( overlay!.textContent ).toBe( 'CUSTOM' );
 	} );
 
-	test( 'config.loading.render runs BEFORE the global filter', () => {
+	test( 'config.loading.render runs BEFORE the global filter', async () => {
 		const order: string[] = [];
 		( window.wp!.hooks! ).addFilter(
 			HOOKS.WINDOW_LOADING_OVERLAY,
@@ -638,7 +638,7 @@ describe( 'Loading overlay customization', () => {
 			},
 		);
 
-		manager.open( {
+		await manager.open( {
 			id: 'order',
 			url: '#order',
 			title: 'Order',
@@ -652,12 +652,12 @@ describe( 'Loading overlay customization', () => {
 		expect( order ).toEqual( [ 'inline', 'filter' ] );
 	} );
 
-	test( 'a buggy config.loading.render is caught — overlay still paints', () => {
+	test( 'a buggy config.loading.render is caught — overlay still paints', async () => {
 		const errSpy = vi
 			.spyOn( console, 'error' )
 			.mockImplementation( () => undefined );
 
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'bug-inline',
 			url: '#bug-inline',
 			title: 'Bug',
@@ -676,10 +676,10 @@ describe( 'Loading overlay customization', () => {
 		errSpy.mockRestore();
 	} );
 
-	test( 'repaintLoadingOverlays() applies a late-registered filter to currently-loading windows', () => {
+	test( 'repaintLoadingOverlays() applies a late-registered filter to currently-loading windows', async () => {
 		// First open the window WITHOUT a registered filter — the
 		// overlay paints with default content.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'late-filter',
 			url: '#late-filter',
 			title: 'Late Filter',
@@ -715,7 +715,7 @@ describe( 'Loading overlay customization', () => {
 		// Construct the window first — simulates the F5 / session-
 		// restore order where windows exist before plugins register
 		// their filters.
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 'f5-restore',
 			url: '#f5-restore',
 			title: 'F5 Restore',
@@ -745,8 +745,8 @@ describe( 'Loading overlay customization', () => {
 		expect( overlay.dataset.skinned ).toBe( 'f5' );
 	} );
 
-	test( 'repaintLoadingOverlays() is a no-op for windows already loaded', () => {
-		const win = manager.open( {
+	test( 'repaintLoadingOverlays() is a no-op for windows already loaded', async () => {
+		const win = await manager.open( {
 			id: 'already-loaded',
 			url: '#already-loaded',
 			title: 'Already Loaded',
@@ -758,9 +758,9 @@ describe( 'Loading overlay customization', () => {
 		expect( () => repaintLoadingOverlays() ).not.toThrow();
 	} );
 
-	test( 'markContentLoading re-arm re-applies config.loading.render', () => {
+	test( 'markContentLoading re-arm re-applies config.loading.render', async () => {
 		let renderCalls = 0;
-		const win = manager.open( {
+		const win = await manager.open( {
 			id: 're-arm',
 			url: '#re-arm',
 			title: 'Re-arm',

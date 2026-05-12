@@ -31,11 +31,11 @@ import type { DesktopConfig } from '../types';
  *
  * @since 0.8.1 (extracted from desktop.ts)
  */
-export function restoreSession(
+export async function restoreSession(
 	manager: WindowManager,
 	config: DesktopConfig,
 	desktopArea: HTMLElement,
-): void {
+): Promise< void > {
 	const rect = desktopArea.getBoundingClientRect();
 
 	// Seed desktops + active id BEFORE recreating windows. Windows
@@ -58,7 +58,7 @@ export function restoreSession(
 		const clamped = clampGeometryToViewport( win, rect );
 		const dockEntry = findDockEntryForUrl( win.url, config );
 
-		const opened = manager.open( {
+		const opened = await manager.open( {
 			id: win.id,
 			baseId: win.baseId || win.id,
 			desktopId: win.desktopId,
@@ -126,10 +126,10 @@ export function restoreSession(
  *
  * @since 0.8.1 (extracted from desktop.ts)
  */
-export function openCurrentPage(
+export async function openCurrentPage(
 	manager: WindowManager,
 	config: DesktopConfig,
-): void {
+): Promise< void > {
 	if ( tryNativeUrlRemap( config.currentPage ) ) {
 		return;
 	}
@@ -137,7 +137,7 @@ export function openCurrentPage(
 	const windowId = deriveWindowId( config.currentPage, config.adminUrl );
 	const dockEntry = findDockEntryForUrl( config.currentPage, config );
 
-	manager.open( {
+	await manager.open( {
 		id: windowId,
 		baseId: windowId,
 		multi: !! dockEntry?.multi,

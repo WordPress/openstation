@@ -24,12 +24,12 @@ function openConfig( id: string ) {
 	};
 }
 
-describe( 'WindowManager — window switcher (cycleFocus)', () => {
+describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
-	beforeEach( () => {
+	beforeEach( async () => {
 		hooks = installHooksStub();
 		void hooks;
 		desktop = document.createElement( 'div' );
@@ -45,7 +45,7 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 		manager = new WindowManager( desktop );
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -53,19 +53,19 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 		clearHooksStub();
 	} );
 
-	test( 'no-op with fewer than two windows', () => {
+	test( 'no-op with fewer than two windows', async () => {
 		cycleFocus( manager, 'next' );
 		expect( manager.getFocused() ).toBeUndefined();
 
-		const only = manager.open( openConfig( 'a' ) );
+		const only = await manager.open( openConfig( 'a' ) );
 		cycleFocus( manager, 'next' );
 		expect( manager.getFocused() ).toBe( only );
 	} );
 
-	test( 'next cycles forward through DOM order and wraps', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		const b = manager.open( openConfig( 'b' ) );
-		const c = manager.open( openConfig( 'c' ) );
+	test( 'next cycles forward through DOM order and wraps', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		const c = await manager.open( openConfig( 'c' ) );
 		expect( manager.getFocused() ).toBe( c );
 
 		cycleFocus( manager, 'next' );
@@ -78,10 +78,10 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 		expect( manager.getFocused() ).toBe( c );
 	} );
 
-	test( 'prev cycles backward through DOM order and wraps', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		const b = manager.open( openConfig( 'b' ) );
-		const c = manager.open( openConfig( 'c' ) );
+	test( 'prev cycles backward through DOM order and wraps', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		const c = await manager.open( openConfig( 'c' ) );
 		expect( manager.getFocused() ).toBe( c );
 
 		cycleFocus( manager, 'prev' );
@@ -94,9 +94,9 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 		expect( manager.getFocused() ).toBe( c );
 	} );
 
-	test( 'restores a minimized target on the way in', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		manager.open( openConfig( 'b' ) );
+	test( 'restores a minimized target on the way in', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 		a.minimize();
 		expect( a.state ).toBe( 'minimized' );
 
@@ -106,9 +106,9 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 		expect( manager.getFocused() ).toBe( a );
 	} );
 
-	test( 'no-op while overview mode is active', () => {
-		const a = manager.open( openConfig( 'a' ) );
-		const b = manager.open( openConfig( 'b' ) );
+	test( 'no-op while overview mode is active', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
 		expect( manager.getFocused() ).toBe( b );
 
 		manager._overviewActive = true;
@@ -120,7 +120,7 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 		expect( manager.getFocused() ).toBe( a );
 	} );
 
-	describe( 'isTextEntryFocus gate', () => {
+	describe( 'isTextEntryFocus gate', async () => {
 		let transient: HTMLElement[] = [];
 
 		function mount<T extends HTMLElement>( el: T ): T {
@@ -129,14 +129,14 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 			return el;
 		}
 
-		afterEach( () => {
+		afterEach( async () => {
 			for ( const el of transient ) {
 				el.remove();
 			}
 			transient = [];
 		} );
 
-		test( 'returns true when a nested iframe is focused (Gutenberg case)', () => {
+		test( 'returns true when a nested iframe is focused (Gutenberg case)', async () => {
 			const iframe = mount( document.createElement( 'iframe' ) );
 			iframe.tabIndex = 0;
 			iframe.focus();
@@ -144,27 +144,27 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 			expect( isTextEntryFocus( document ) ).toBe( true );
 		} );
 
-		test( 'returns true when a TEXTAREA is focused', () => {
+		test( 'returns true when a TEXTAREA is focused', async () => {
 			const ta = mount( document.createElement( 'textarea' ) );
 			ta.focus();
 			expect( isTextEntryFocus( document ) ).toBe( true );
 		} );
 
-		test( 'returns true when a text INPUT is focused', () => {
+		test( 'returns true when a text INPUT is focused', async () => {
 			const input = mount( document.createElement( 'input' ) );
 			input.type = 'text';
 			input.focus();
 			expect( isTextEntryFocus( document ) ).toBe( true );
 		} );
 
-		test( 'returns false when a button INPUT is focused', () => {
+		test( 'returns false when a button INPUT is focused', async () => {
 			const input = mount( document.createElement( 'input' ) );
 			input.type = 'button';
 			input.focus();
 			expect( isTextEntryFocus( document ) ).toBe( false );
 		} );
 
-		test( 'returns true when a contenteditable DIV is focused', () => {
+		test( 'returns true when a contenteditable DIV is focused', async () => {
 			const div = mount( document.createElement( 'div' ) );
 			div.setAttribute( 'contenteditable', 'true' );
 			div.tabIndex = 0;
@@ -172,7 +172,7 @@ describe( 'WindowManager — window switcher (cycleFocus)', () => {
 			expect( isTextEntryFocus( document ) ).toBe( true );
 		} );
 
-		test( 'returns false when a plain button is focused', () => {
+		test( 'returns false when a plain button is focused', async () => {
 			const btn = mount( document.createElement( 'button' ) );
 			btn.focus();
 			expect( isTextEntryFocus( document ) ).toBe( false );

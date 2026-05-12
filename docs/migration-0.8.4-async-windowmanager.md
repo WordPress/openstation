@@ -1,0 +1,279 @@
+# Migration — `windowManager.open()` is async in 0.8.4
+
+> **TL;DR.** `wp.desktop.windowManager.open( cfg )`,
+> `wp.desktop.windowManager.openNew( cfg )`, and
+> `wp.desktop.registerWindow( def )` now return `Promise< Window >`
+> instead of `Window`. Add `await` (or `.then(...)`) on every call
+> site that uses the returned `Window`. Calls that already discard
+> the return value need no change in behavior, but should prefix
+> with `void` (or `await`) to silence "floating promise" lints.
+
+---
+
+## Why the change
+
+Before 0.8.4, the `Window` class lived in `desktop.min.js`. It was
+the single largest module in the shell — ~68 kB of code that
+**never runs at first paint**. Opening desktop mode shows just the
+wallpaper, the dock, and the desktop icons; the user typically
+hasn't asked for a window yet.
+
+0.8.4 ships the `Window` class (and its DOM / pointer / tab /
+chrome helpers) in a separate `assets/js/window-system[.min].js`
+bundle that `desktop.ts` `<script>`-injects in the background
+right after first paint. By the time the user clicks anything,
+the bundle is registered and `manager.open()` resolves on the
+sync fast path. For users who never open a window, the
+~30–35 kB minified / ~10 kB gzipped never downloads.
+
+Lazy loading means `manager.open()` must wait for the bundle —
+hence `Promise< Window >`. The promise resolves immediately in
+steady state (factory already registered), but the type system
+requires `await` regardless.
+
+---
+
+## What changed
+
+### Affected API
+
+| Surface | Pre-0.8.4 | 0.8.4 |
+| ------- | --------- | ----- |
+| `wp.desktop.windowManager.open( cfg )` | returns `Window` | returns `Promise< Window >` |
+| `wp.desktop.windowManager.openNew( cfg )` | returns `Window` | returns `Promise< Window >` |
+| `wp.desktop.registerWindow( def )` | returns `Window` | returns `Promise< Window >` |
+
+### Unchanged API
+
+These keep their pre-0.8.4 signatures:
+
+- `wp.desktop.openWindow( id, opts? )` — still returns `boolean`. Semantics: "did the shell accept the open intent?" The actual window opens asynchronously; this hasn't changed observable behaviour for plugins.
+- `wp.desktop.openNewWindow( id, opts? )` — same.
+- `wp.desktop.windowManager.getById( id )` — still synchronous, still returns `Window | undefined`.
+- `wp.desktop.windowManager.getWindows()` — still synchronous, still returns `Window[]`.
+- `wp.desktop.windowManager.focus( win )` — still synchronous; you already have a `Window` reference.
+- Every method on a `Window` instance (`win.focus()`, `win.close()`, `win.minimize()`, etc.) — unchanged.
+
+---
+
+## Migration patterns
+
+### Pattern A — you used the return value
+
+**Before:**
+
+```ts
+const win = wp.desktop.windowManager.open( {
+    id: 'my-window',
+    url: '/wp-admin/edit.php',
+    title: 'Posts',
+} );
+win.focus();
+```
+
+**After:**
+
+```ts
+const win = await wp.desktop.windowManager.open( {
+    id: 'my-window',
+    url: '/wp-admin/edit.php',
+    title: 'Posts',
+} );
+win.focus();
+```
+
+The enclosing function must be `async`. If it can't be (e.g. an
+event handler that can't await), use `.then( … )`:
+
+```ts
+wp.desktop.windowManager
+    .open( { id, url, title } )
+    .then( ( win ) => win.focus() );
+```
+
+### Pattern B — you discarded the return value
+
+**Before:**
+
+```ts
+wp.desktop.windowManager.open( { id, url, title } );
+```
+
+**After:**
+
+```ts
+void wp.desktop.windowManager.open( { id, url, title } );
+```
+
+The runtime behaviour is identical — the window opens
+asynchronously, you don't care about the result. The `void`
+prefix silences ESLint's "floating promise" rule on stricter
+configs. You can also use `await` if your function is already
+async.
+
+### Pattern C — you registered a native window
+
+**Before:**
+
+```ts
+const win = wp.desktop.registerWindow( {
+    id: 'my-plugin/dashboard',
+    title: 'My Dashboard',
+    icon: 'dashicons-chart-bar',
+    render: ( body ) => mount( body ),
+} );
+```
+
+**After:**
+
+```ts
+const win = await wp.desktop.registerWindow( {
+    id: 'my-plugin/dashboard',
+    title: 'My Dashboard',
+    icon: 'dashicons-chart-bar',
+    render: ( body ) => mount( body ),
+} );
+```
+
+If you don't use the returned `Window`, prefix with `void` as in
+Pattern B. The `render` callback already runs asynchronously
+(after the window's DOM is constructed) so its semantics don't
+change.
+
+### Pattern D — you checked the boolean result of `openWindow`
+
+**No change needed.**
+
+```ts
+const opened = wp.desktop.openWindow( 'my-window' );
+if ( ! opened ) {
+    showFallbackUi();
+}
+```
+
+`wp.desktop.openWindow` still returns `boolean` — `true` when
+the shell accepted the open intent (the id is registered),
+`false` when it didn't (e.g. the id isn't known). The actual
+window opens asynchronously under the hood; the boolean has
+always been about *acceptance*, not *visibility*.
+
+### Pattern E — you used `windowManager.open()` from a top-level
+script (no enclosing function)
+
+If you can't add `await` because you're in module-top-level
+code without `<script type="module">`, wrap in an IIFE:
+
+```ts
+( async () => {
+    const win = await wp.desktop.windowManager.open( cfg );
+    win.focus();
+} )();
+```
+
+Or use `.then( … )` as in Pattern A.
+
+---
+
+## What about the rejection case?
+
+`manager.open( … )` rejects if the lazy bundle can't be loaded
+(network failure on `<script>` fetch, mis-configured deploy
+with no bundle URL, …). Real-world failure rate is very low —
+the bundle is on the same origin, served by the plugin itself,
+and the preload after first paint catches network blips before
+the user clicks.
+
+Defensive handling:
+
+```ts
+try {
+    const win = await wp.desktop.windowManager.open( cfg );
+    win.focus();
+} catch ( err ) {
+    console.error( '[my-plugin] failed to open window:', err );
+    showFallbackUi();
+}
+```
+
+For fire-and-forget calls (`void manager.open( … )`), the
+rejection becomes an unhandled-promise rejection logged to the
+console. The shell's `desktop.ts` boot path adds its own
+`.catch( … )` on the rare cases where it dispatches open from
+boot (`restoreSession`, `openCurrentPage`). Plugin code that
+genuinely doesn't care about failure can leave the `void` prefix
+and let the browser log the rejection.
+
+---
+
+## Why not keep the API synchronous via a Window-proxy?
+
+A `Proxy`-wrapped `Window` that queued calls until the real
+instance resolved was the alternative. We considered it and
+chose the breaking change instead because:
+
+1. **The proxy can't satisfy synchronous return values.** Code
+   like `if ( manager.open( cfg ).fullscreen ) { … }` reads a
+   property — the proxy can't return the right value until the
+   real Window is materialised.
+2. **The proxy hides the lazy load from authors.** Plugin
+   authors who hit a subtle bug with property reads would have
+   to know that `Window` is a proxy. The async signature makes
+   the lazy boundary explicit — "this returns a promise; the
+   load might take a moment."
+3. **`Promise<Window>` is the idiom every modern JavaScript
+   surface uses for resource-deferred returns** (`fetch`,
+   dynamic `import()`, `await import()`). The shape is
+   familiar; the proxy isn't.
+
+The trade-off: every plugin that calls `manager.open()` /
+`openNew()` / `registerWindow()` needs a one-line update.
+
+---
+
+## CI / lint catches
+
+The Stage-7 ESLint rule (`local-rules/wpd-component-registration`)
+doesn't catch missing `await` on its own. To enforce the
+migration across a plugin codebase, enable the standard
+TypeScript-ESLint rules:
+
+```jsonc
+// .eslintrc / eslint.config.js
+{
+    "rules": {
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/await-thenable": "error"
+    }
+}
+```
+
+`no-floating-promises` flags every un-awaited `manager.open( … )`
+call; you either add `await` or `void`. `await-thenable` catches
+the inverse (awaiting something that isn't a thenable —
+unlikely but possible if you typo a method).
+
+---
+
+## Bundle-size impact
+
+| | Pre-0.8.4 | 0.8.4 |
+| - | --------- | ----- |
+| First-paint download (`desktop.min.js`) | 360 kB / 101 kB gz | **307 kB / 88 kB gz** |
+| Lazy `window-system.min.js` (post-paint preload) | — | 65 kB / 17 kB gz |
+| Total bytes if user opens a window | 360 kB | 372 kB |
+| Total bytes if user never opens a window | 360 kB | **307 kB** |
+
+A user who enters desktop mode and never opens a window saves
+~53 kB minified / ~13 kB gzipped. A user who opens a window
+pays the same total bytes, just in two requests that the
+browser fetches in parallel after first paint.
+
+---
+
+## Reference
+
+- Loader implementation: `src/window-system/loader.ts`
+- Lazy bundle entry: `src/window-system/entry.ts`
+- Cross-bundle factory contract: `src/window-system/types.ts`
+- Pre-load hook in shell boot: `src/desktop.ts` (search for `preloadWindowSystem`)
+- Migration discussion: see Stage 11 in `BUNDLE-SIZE-REPORT.md`.
