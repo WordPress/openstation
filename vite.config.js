@@ -397,6 +397,17 @@ const TARGETS = {
 		fileBase: 'os-settings-panel',
 		iifeName: 'desktopModeOsSettingsPanel',
 	},
+	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
+	// Components for action-triggered overlays that aren't constructed
+	// at first paint. Preloaded by main after first paint via
+	// `preloadShellOverlays( … )` so the first toast / wpdConfirm /
+	// right-click feels instant. Side-effect-only bundle: each leaf
+	// import runs its `defineComponent( … )` call at top level.
+	'shell-overlays': {
+		entry:    'src/shell-overlays/entry.ts',
+		fileBase: 'shell-overlays',
+		iifeName: 'desktopModeShellOverlays',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

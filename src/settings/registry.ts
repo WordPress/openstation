@@ -240,7 +240,7 @@ const store = createSharedStore< SettingsTabRegistryStore >(
 	'desktop-mode/settings-tab-registry',
 	() => ( {
 		registry: new Map< string, DesktopSettingsTab >(),
-		listeners: new Set< () => void >(),
+		listeners: new Set<() => void >(),
 	} ),
 );
 const registry = store.state.registry;

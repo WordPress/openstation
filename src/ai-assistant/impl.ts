@@ -19,7 +19,7 @@
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { wpdConfirm } from '../wpd-confirm';
 import { trackedFetch } from '../tracked-fetch';
 import {
 	filterCommands,

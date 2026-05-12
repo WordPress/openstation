@@ -1823,6 +1823,17 @@ export interface DesktopConfig {
 	 */
 	osSettingsPanelBundleUrl?: string;
 	/**
+	 * Fully-qualified URL of the lazy-loaded shell-overlays bundle.
+	 * Holds `<wpd-toast>`, `<wpd-confirm-dialog>`,
+	 * `<wpd-context-menu>` and their siblings — components only
+	 * needed for triggered actions (toast.show, wpdConfirm,
+	 * right-click). Main pre-loads this after first paint so the
+	 * first user trigger feels instant.
+	 *
+	 * @since 0.8.4
+	 */
+	shellOverlaysBundleUrl?: string;
+	/**
 	 * Platform-wide AI settings — only present for admins (null for
 	 * non-admin users so the key is never leaked in the page source).
 	 * @since 0.14.0

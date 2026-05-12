@@ -298,6 +298,15 @@ function desktop_mode_enqueue_assets() {
 				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
 				. '.js?ver=' . DESKTOP_MODE_VERSION
 			),
+			// URL of the shell-overlays lazy bundle. Pre-loaded by
+			// the main bundle after first paint so action-triggered
+			// overlays (toast, confirm dialog, context menus) feel
+			// instant the first time they fire.
+			'shellOverlaysBundleUrl' => esc_url_raw(
+				DESKTOP_MODE_URL . 'assets/js/shell-overlays'
+				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
+				. '.js?ver=' . DESKTOP_MODE_VERSION
+			),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),

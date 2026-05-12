@@ -43,7 +43,7 @@ import { activity } from '../activity';
 import { heartbeat } from '../heartbeat';
 import { presenceApi } from '../presence';
 import { createSharedStore } from '../shared-store';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { wpdConfirm } from '../wpd-confirm';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { collectWallpaperSurfaces } from '../wallpapers/surfaces';
 import { renderKeyedList, clearKeyedList } from '../ui/util/keyed-list';

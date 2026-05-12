@@ -27,7 +27,7 @@
 
 import { applyFilters } from '../hooks';
 import { __ } from '../i18n';
-import '../ui/components/wpd-context-menu/wpd-context-menu';
+import { openWithShellOverlays } from '../shell-overlays/loader';
 
 export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 
@@ -116,6 +116,7 @@ export function attachIconCanvasMenu(
 		toggle( e.clientX, e.clientY );
 	};
 
+	let toggleGen = 0;
 	const toggle = ( x: number, y: number ) => {
 		// Cycle: open → close → open. If the menu is already open
 		// from THIS canvas, the right-click closes it and we stop.
@@ -132,7 +133,16 @@ export function attachIconCanvasMenu(
 			deps.scope,
 		);
 		const finalItems = Array.isArray( filtered ) ? filtered : items;
-		openMenu( finalItems, { x, y }, canvas );
+		// Lazy-load the `<wpd-context-menu>` class from the shell-
+		// overlays bundle before constructing. In steady state the
+		// bundle is preloaded after first paint so this resolves
+		// immediately; the generation check just drops a stale
+		// right-click that fires while a later one is in flight.
+		const myGen = ++toggleGen;
+		openWithShellOverlays(
+			() => myGen === toggleGen,
+			() => openMenu( finalItems, { x, y }, canvas ),
+		);
 	};
 
 	canvas.addEventListener( 'contextmenu', onContextMenu );

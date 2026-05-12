@@ -23,7 +23,7 @@
  */
 
 import { __ } from './i18n';
-import './ui/components/wpd-context-menu/wpd-context-menu';
+import { openWithShellOverlays } from './shell-overlays/loader';
 import { canonicalItemId } from './settings/item-placement';
 import type { ItemVisibility } from './settings/types';
 import type { OsSettingsSnapshot } from './settings/registry';
@@ -83,10 +83,37 @@ export interface OpenItemVisibilityMenuOpts {
 }
 
 /**
+ * Generation counter to drop superseded menu-open calls. Bumped on
+ * every public `openItemVisibilityMenu` call; the lazy `.then`
+ * handler checks the captured generation against the current one
+ * and bails if a newer open has come in while the shell-overlays
+ * bundle was loading. (In steady state the bundle is preloaded
+ * after first paint, so the `.then` is synchronous-ish and this
+ * predicate always passes.)
+ */
+let openGeneration = 0;
+
+/**
  * Open the visibility menu next to the user's cursor. Idempotent —
  * a second call closes the previous menu before opening a fresh one.
+ *
+ * Construction is deferred behind `openWithShellOverlays` so the
+ * `<wpd-context-menu>` / `<wpd-context-menu-option>` classes ship
+ * in the lazy `shell-overlays[.min].js` bundle rather than in
+ * `desktop.min.js`.
  */
 export function openItemVisibilityMenu(
+	opts: OpenItemVisibilityMenuOpts,
+): void {
+	closeMenu();
+	const myGen = ++openGeneration;
+	openWithShellOverlays(
+		() => myGen === openGeneration,
+		() => openItemVisibilityMenuImmediate( opts ),
+	);
+}
+
+function openItemVisibilityMenuImmediate(
 	opts: OpenItemVisibilityMenuOpts,
 ): void {
 	closeMenu();

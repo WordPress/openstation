@@ -9,15 +9,19 @@
  * over time (save failures, shortcut reminders, etc.).
  *
  * Rendering lives in the `<wpd-toast-container>` + `<wpd-toast>`
- * web components under `src/ui/components/wpd-toast/`. This file
- * owns only the public `showToast()` API + the lifecycle (fade
- * in / stay / fade out / remove).
+ * web components under `src/ui/components/wpd-toast/`. As of
+ * 0.8.4 those classes ship in the lazy `shell-overlays[.min].js`
+ * bundle, not in main — `desktop.ts` pre-loads that bundle after
+ * first paint, and this file's `showToast()` awaits the loader
+ * before constructing the elements. The public API stays
+ * synchronous (still returns a dismiss callback) so callers don't
+ * change.
  *
  * @since 0.7.0
  */
 
 import { activity } from './activity';
-import './ui/components/wpd-toast/wpd-toast';
+import { openWithShellOverlays } from './shell-overlays/loader';
 
 /** Default how-long-it-stays duration in ms. */
 const DEFAULT_DURATION_MS = 4000;
@@ -91,6 +95,37 @@ export function showToast( options: ToastOptions ): () => void {
 		return () => undefined;
 	}
 
+	// The toast element classes live in the lazy
+	// `shell-overlays[.min].js` bundle. The shell pre-loads it
+	// after first paint so in steady state this path is
+	// synchronous (via `openWithShellOverlays`'s fast path). If
+	// `showToast()` fires before the preload completes (rare —
+	// boot-time callers), the actual render is deferred behind
+	// the load and `dismissRequested` honours an early dismiss.
+	let dismissRequested = false;
+	let realDismiss: ( () => void ) | null = null;
+
+	openWithShellOverlays(
+		() => ! dismissRequested,
+		() => {
+			realDismiss = renderToast( intent );
+		},
+	);
+
+	return () => {
+		dismissRequested = true;
+		if ( realDismiss ) {
+			realDismiss();
+		}
+	};
+}
+
+/**
+ * Construct + mount the toast element. Pre-condition: the
+ * `<wpd-toast>` / `<wpd-toast-container>` custom elements are
+ * already registered (the lazy bundle has loaded).
+ */
+function renderToast( intent: ToastIntent ): () => void {
 	const container = ensureContainer();
 	const toast = document.createElement( 'wpd-toast' );
 	toast.textContent = intent.message;

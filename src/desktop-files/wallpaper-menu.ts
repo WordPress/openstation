@@ -17,7 +17,7 @@
 import { applyFilters, doAction } from '../hooks';
 // Side-effect import: registers `<wpd-context-menu>` +
 // `<wpd-context-menu-option>` so the menu DOM upgrades.
-import '../ui/components/wpd-context-menu/wpd-context-menu';
+import { openWithShellOverlays } from '../shell-overlays/loader';
 import { attachDismissable } from './dismissable';
 
 /** Public shape of a menu item. Plugins build these via the filter. */
@@ -87,8 +87,19 @@ export function isWallpaperMenuOpen(): boolean {
 }
 
 /**
+ * Generation counter to drop superseded openWallpaperMenu calls
+ * that come in while the shell-overlays bundle is still loading
+ * (only relevant on the first menu open before the post-first-
+ * paint preload has landed).
+ */
+let openGeneration = 0;
+
+/**
  * Build and show the menu at viewport coordinates `{ x, y }`.
  * The menu is dismissed on outside click or on Escape.
+ *
+ * Construction is deferred behind the shell-overlays loader so
+ * the `<wpd-context-menu>` class ships in the lazy bundle.
  */
 export function openWallpaperMenu(
 	host: HTMLElement,
@@ -97,7 +108,19 @@ export function openWallpaperMenu(
 	options: OpenWallpaperMenuOptions = {},
 ): void {
 	closeWallpaperMenu();
+	const myGen = ++openGeneration;
+	openWithShellOverlays(
+		() => myGen === openGeneration,
+		() => openWallpaperMenuImmediate( host, pos, items, options ),
+	);
+}
 
+function openWallpaperMenuImmediate(
+	host: HTMLElement,
+	pos: { x: number; y: number },
+	items: WallpaperMenuItem[],
+	options: OpenWallpaperMenuOptions = {},
+): void {
 	if ( items.length === 0 ) {
 		return;
 	}

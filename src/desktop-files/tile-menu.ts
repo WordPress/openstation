@@ -13,7 +13,7 @@
  */
 
 import { applyFilters, doAction } from '../hooks';
-import '../ui/components/wpd-context-menu/wpd-context-menu';
+import { openWithShellOverlays } from '../shell-overlays/loader';
 import { attachDismissable } from './dismissable';
 import type { RestPlacementShape } from './rest';
 
@@ -50,13 +50,31 @@ export interface OpenTileMenuOptions {
 	items: TileMenuItem[];
 }
 
-/** Open the tile context menu at viewport coordinates. */
+let openGeneration = 0;
+
+/**
+ * Open the tile context menu at viewport coordinates.
+ *
+ * Construction is deferred behind the shell-overlays loader so the
+ * `<wpd-context-menu>` / `<wpd-context-menu-option>` classes ship
+ * in the lazy bundle rather than `desktop.min.js`.
+ */
 export function openTileMenu(
+	pos: { x: number; y: number },
+	opts: OpenTileMenuOptions,
+): void {
+	closeTileMenu();
+	const myGen = ++openGeneration;
+	openWithShellOverlays(
+		() => myGen === openGeneration,
+		() => openTileMenuImmediate( pos, opts ),
+	);
+}
+
+function openTileMenuImmediate(
 	pos: { x: number; y: number },
 	{ placement, items }: OpenTileMenuOptions,
 ): void {
-	closeTileMenu();
-
 	const list = applyFilters< TileMenuItem[], [ RestPlacementShape ] >(
 		'desktop-mode.files.tile-menu',
 		items.slice(),

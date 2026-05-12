@@ -165,7 +165,8 @@ import {
 	registerModule,
 	type ModuleDef,
 } from './modules/registry';
-import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { wpdConfirm } from './wpd-confirm';
+import { preloadShellOverlays } from './shell-overlays/loader';
 import type { WallpaperDef } from './wallpapers/types';
 // Built-in plugins used to be side-effect-imported from `./plugins`.
 // As of 0.8.4 each built-in plugin ships as its own lazy-loaded
@@ -2783,6 +2784,23 @@ function init(): void {
 	// `wp.desktop.notify` API. No-op when `config.pwa` is absent
 	// (chromeless context, classic admin, older PHP build).
 	bootstrapPwa( config, showToast );
+
+	// Pre-load the shell-overlays bundle (toast + confirm-dialog +
+	// context-menu component classes) in the background once we're
+	// past the boot path. By the time the user fires their first
+	// `showToast()` / `wpdConfirm()` / right-click, the components
+	// are already registered and the overlay opens with no
+	// perceptible latency. Idle-callback when available, falls back
+	// to a 0ms timer so even non-supporting browsers get the
+	// "after first paint" timing.
+	const overlayPreload = (): void => {
+		preloadShellOverlays( config.shellOverlaysBundleUrl ?? '' );
+	};
+	if ( typeof window.requestIdleCallback === 'function' ) {
+		window.requestIdleCallback( overlayPreload, { timeout: 1500 } );
+	} else {
+		window.setTimeout( overlayPreload, 0 );
+	}
 
 	doAction( HOOKS.INIT, { config } );
 

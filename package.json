@@ -25,7 +25,7 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "DESKTOP_MODE_TARGET=iframe-bridge vite build --mode development && DESKTOP_MODE_TARGET=iframe-bridge vite build --mode production",
 		"build:recycle-bin": "DESKTOP_MODE_TARGET=recycle-bin vite build --mode development && DESKTOP_MODE_TARGET=recycle-bin vite build --mode production",
@@ -38,6 +38,7 @@
 		"build:animated-logo-wallpaper": "DESKTOP_MODE_TARGET=animated-logo-wallpaper vite build --mode development && DESKTOP_MODE_TARGET=animated-logo-wallpaper vite build --mode production",
 		"build:about-scene": "DESKTOP_MODE_TARGET=about-scene vite build --mode development && DESKTOP_MODE_TARGET=about-scene vite build --mode production",
 		"build:os-settings-panel": "DESKTOP_MODE_TARGET=os-settings-panel vite build --mode development && DESKTOP_MODE_TARGET=os-settings-panel vite build --mode production",
+		"build:shell-overlays": "DESKTOP_MODE_TARGET=shell-overlays vite build --mode development && DESKTOP_MODE_TARGET=shell-overlays vite build --mode production",
 		"build:pwa-sw": "DESKTOP_MODE_TARGET=pwa-sw vite build --mode development && DESKTOP_MODE_TARGET=pwa-sw vite build --mode production",
 		"dev": "vite build --mode development --watch",
 		"vendor:pixi": "node -e \"require('fs').cpSync('node_modules/pixi.js/dist/pixi.min.js', 'assets/vendor/pixi.min.js')\"",

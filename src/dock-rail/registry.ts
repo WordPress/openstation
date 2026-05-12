@@ -36,7 +36,7 @@ const store = createSharedStore< DockRailRegistryStore >(
 	'desktop-mode/dock-rail-registry',
 	() => ( {
 		registry: new Map< string, DockRailRenderer >(),
-		listeners: new Set< () => void >(),
+		listeners: new Set<() => void >(),
 		activeId: 'default',
 	} ),
 );

@@ -66,6 +66,29 @@
 const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 
+/**
+ * Tags whose component class lives in the lazy
+ * `shell-overlays[.min].js` bundle and is registered globally
+ * after `desktop.ts`'s post-first-paint preload.
+ *
+ * Any file that constructs one of these tags is expected to
+ * `await openWithShellOverlays( … )` (or otherwise gate on
+ * `ensureShellOverlaysLoaded()`) before the `createElement` call.
+ * The rule doesn't enforce that gating today — it just accepts
+ * the construction because the registration is guaranteed by
+ * boot's preload, not by a per-file leaf import. Keep this list
+ * in sync with `src/shell-overlays/entry.ts`.
+ *
+ * @since 0.8.4
+ */
+const SHELL_OVERLAYS_TAGS = new Set( [
+	'wpd-toast',
+	'wpd-toast-container',
+	'wpd-confirm-dialog',
+	'wpd-context-menu',
+	'wpd-context-menu-option',
+] );
+
 const TS_TYPE_POSITION_PARENT = new Set( [
 	'TSTypeReference',
 	'TSTypeQuery',
@@ -236,6 +259,10 @@ module.exports = {
 				if ( ! first || first.type !== 'Literal' ) return;
 				const tag = first.value;
 				if ( typeof tag !== 'string' || ! tag.startsWith( 'wpd-' ) ) return;
+				// Tags shipped in the lazy `shell-overlays[.min].js`
+				// bundle and pre-registered globally at boot — the
+				// per-file leaf-import contract doesn't apply here.
+				if ( SHELL_OVERLAYS_TAGS.has( tag ) ) return;
 				if ( ! tagsConstructed.has( tag ) ) {
 					tagsConstructed.set( tag, node );
 				}
