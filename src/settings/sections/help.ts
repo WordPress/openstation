@@ -18,7 +18,7 @@
 
 import { __ } from '../../i18n';
 import { html, render, type WpdHelp } from '../../ui/core';
-import { WPD_COMPONENT_TAGS } from '../../ui/components';
+import { WPD_COMPONENT_TAGS } from '../../ui/components/tags';
 
 type CtorWithHelp = CustomElementConstructor & {
 	help?: WpdHelp;

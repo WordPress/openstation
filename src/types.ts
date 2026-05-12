@@ -1792,6 +1792,26 @@ export interface DesktopConfig {
 	 */
 	aiSearchStreamUrl?: string;
 	/**
+	 * Fully-qualified URL of the lazy-loaded AI Assistant bundle —
+	 * the script `<script>`-injected by the main-bundle stub on the
+	 * user's first invocation. PHP picks `.js` vs `.min.js` based on
+	 * `SCRIPT_DEBUG` and appends `?ver=DESKTOP_MODE_VERSION` for
+	 * cache busting.
+	 *
+	 * @since 0.8.4
+	 */
+	aiAssistantBundleUrl?: string;
+	/**
+	 * Fully-qualified URL of the lazy-loaded About-scene bundle —
+	 * the script `<script>`-injected by the main-bundle loader the
+	 * first time the user opens OS Settings → About. Hosts a single
+	 * 25 kB PixiJS particle scene; never reached unless the user
+	 * navigates to that tab.
+	 *
+	 * @since 0.8.4
+	 */
+	aboutSceneBundleUrl?: string;
+	/**
 	 * Platform-wide AI settings — only present for admins (null for
 	 * non-admin users so the key is never leaked in the page source).
 	 * @since 0.14.0

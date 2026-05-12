@@ -268,6 +268,25 @@ function desktop_mode_enqueue_assets() {
 				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
 				. '.js?ver=' . DESKTOP_MODE_VERSION
 			),
+			// URL of the AI Assistant lazy bundle. The main bundle
+			// ships a stub matching the public `wp.desktop.ai` API; the
+			// stub `<script>`-injects this URL the first time the user
+			// opens the assistant. Picking `.js` vs `.min.js` here keeps
+			// the SCRIPT_DEBUG gate server-side, matching iframeBridgeUrl.
+			'aiAssistantBundleUrl' => esc_url_raw(
+				DESKTOP_MODE_URL . 'assets/js/ai-assistant'
+				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
+				. '.js?ver=' . DESKTOP_MODE_VERSION
+			),
+			// URL of the About-scene lazy bundle. The OS Settings →
+			// About tab loads this on first mount; ~25 kB PixiJS
+			// particle scene that would otherwise ship in the main
+			// bundle for every shell load.
+			'aboutSceneBundleUrl' => esc_url_raw(
+				DESKTOP_MODE_URL . 'assets/js/about-scene'
+				. ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' )
+				. '.js?ver=' . DESKTOP_MODE_VERSION
+			),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),

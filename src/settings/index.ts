@@ -41,10 +41,26 @@
 
 import { __ } from '../i18n';
 import { html, render } from '../ui/core';
-// Side-effect import — registers every <wpd-*> tag with the
-// customElements registry so the sections below can just create the
-// tags in JS and trust they'll upgrade on connection.
-import '../ui/components';
+// Side-effect imports — register only the <wpd-*> tags this panel
+// actually uses, so the main bundle doesn't drag in components that
+// only appear inside lazily-loaded window bundles (category-picker,
+// multiselect, tag-input, form, log, flyout, …). Each leaf import
+// runs the corresponding `customElements.define()` exactly once.
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
+import '../ui/components/wpd-color-field/wpd-color-field';
+import '../ui/components/wpd-empty-state/wpd-empty-state';
+import '../ui/components/wpd-panel/wpd-panel';
+import '../ui/components/wpd-range-field/wpd-range-field';
+import '../ui/components/wpd-save-status/wpd-save-status';
+import '../ui/components/wpd-section/wpd-section';
+import '../ui/components/wpd-segmented/wpd-segmented';
+import '../ui/components/wpd-select/wpd-select';
+import '../ui/components/wpd-swatch/wpd-swatch';
+import '../ui/components/wpd-swatch-grid/wpd-swatch-grid';
+import '../ui/components/wpd-tabs/wpd-tabs';
+import '../ui/components/wpd-table/wpd-table';
+import '../ui/components/wpd-text-field/wpd-text-field';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import * as registry from '../wallpapers/registry';

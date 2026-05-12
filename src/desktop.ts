@@ -96,7 +96,7 @@ import {
 	type LayoutDispatcher,
 } from './desktop-layout';
 // `createApplyPayload` is consumed inside `boot/menu-refresh.ts` since 0.8.1.
-import { AiAssistant, type AiAssistantApi } from './ai-assistant';
+import { AiAssistantStub, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import {
 	attachBroadcastBus,
@@ -160,14 +160,20 @@ import {
 	type DockRailRenderer,
 } from './dock-rail';
 import { createWidgetRegistrySync } from './widgets/server-sync';
-import { WPD_COMPONENT_TAGS } from './ui/components';
+import { WPD_COMPONENT_TAGS } from './ui/components/tags';
 import {
 	registerModule,
 	type ModuleDef,
 } from './modules/registry';
 import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import type { WallpaperDef } from './wallpapers/types';
-import './plugins';
+// Built-in plugins used to be side-effect-imported from `./plugins`.
+// As of 0.8.4 each built-in plugin ships as its own lazy-loaded
+// bundle and is registered through the same server-side
+// `desktop_mode_register_wallpaper()` / `desktop_mode_register_*()` APIs
+// third-party plugins use, so the shell no longer pulls them into
+// `desktop.min.js`. See `includes/wallpapers.php` for the animated
+// WP logo wallpaper's registration.
 import {
 	filesApi,
 	filesRest,
@@ -1576,19 +1582,26 @@ function init(): void {
 	);
 	osSettings.apply();
 
-	// AI Assistant — mounts the spotlight overlay onto document.body and
-	// wires the global Cmd+K shortcut. aiSearchUrl comes from PHP config;
-	// falls back to an empty string when AI is not configured (the search
-	// will return a 403 from the permission gate and show an error).
-	const aiAssistant = new AiAssistant( {
-		aiSearchUrl: config.aiSearchUrl ?? '',
-		aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
-		restNonce: config.restNonce,
-		// Transport picker lives in OS Settings → AI Settings. Read live
-		// (not captured at construction) so a change applies on the next
-		// search without a page reload.
-		getTransport: () => osSettings.getOsSettingsSnapshot().ai.transport,
-	} );
+	// AI Assistant — main bundle ships a tiny stub matching the same
+	// AiAssistantApi contract. The 38 kB implementation lives in its
+	// own `ai-assistant[.min].js` bundle and is `<script>`-injected on
+	// the user's first invocation, so first-paint pays nothing for it.
+	// aiSearchUrl comes from PHP config; falls back to an empty string
+	// when AI is not configured (the search will return a 403 from the
+	// permission gate and show an error). aiAssistantBundleUrl is
+	// always emitted by PHP — never empty when the shell is loaded.
+	const aiAssistant = new AiAssistantStub(
+		{
+			aiSearchUrl: config.aiSearchUrl ?? '',
+			aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
+			restNonce: config.restNonce,
+			// Transport picker lives in OS Settings → AI Settings. Read
+			// live (not captured at construction) so a change applies on
+			// the next search without a page reload.
+			getTransport: () => osSettings.getOsSettingsSnapshot().ai.transport,
+		},
+		config.aiAssistantBundleUrl ?? '',
+	);
 
 	// Late-bind the programmatic `ask` entry point. Passing `config`
 	// through a getter (rather than capturing at construction time)

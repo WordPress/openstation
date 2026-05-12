@@ -23,11 +23,15 @@
 
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
-import { mountAboutScene, type AboutScene } from './about-scene';
+import {
+	mountAboutSceneLazy,
+	type AboutScene,
+} from './about-scene-loader';
 
 interface DesktopGlobalShape {
 	pluginUrl?: string;
 	pluginVersion?: string;
+	aboutSceneBundleUrl?: string;
 }
 
 interface DesktopApiShape {
@@ -51,6 +55,7 @@ export function buildAboutSection(): HTMLElement {
 	).desktopModeConfig ?? {};
 	const pluginUrl = config.pluginUrl ?? '';
 	const version = config.pluginVersion ?? '';
+	const aboutSceneBundleUrl = config.aboutSceneBundleUrl ?? '';
 
 	const desktopApi = ( window.wp as { desktop?: DesktopApiShape } | undefined )
 		?.desktop;
@@ -95,22 +100,25 @@ export function buildAboutSection(): HTMLElement {
 			if ( aborted || ! wrapper.isConnected ) {
 				return;
 			}
-			const built = await mountAboutScene( {
-				container: host,
-				logoUrl: `${ pluginUrl }/assets/images/automattic-logotype-color.png`,
-				prefersReducedMotion:
-					typeof window.matchMedia === 'function' &&
-					window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches,
-				labels: {
-					eyebrow: __( 'WordPress Desktop Mode' ),
-					title: __( 'Crafted with curiosity' ),
-					byline: __( 'an experiment by Automattic' ),
-					version: version
-						? `${ __( 'Version' ) } ${ version }`
-						: '',
-					hint: __( 'Move your cursor through the swarm · click for a spark' ),
+			const built = await mountAboutSceneLazy(
+				{
+					container: host,
+					logoUrl: `${ pluginUrl }/assets/images/automattic-logotype-color.png`,
+					prefersReducedMotion:
+						typeof window.matchMedia === 'function' &&
+						window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches,
+					labels: {
+						eyebrow: __( 'WordPress Desktop Mode' ),
+						title: __( 'Crafted with curiosity' ),
+						byline: __( 'an experiment by Automattic' ),
+						version: version
+							? `${ __( 'Version' ) } ${ version }`
+							: '',
+						hint: __( 'Move your cursor through the swarm · click for a spark' ),
+					},
 				},
-			} );
+				aboutSceneBundleUrl,
+			);
 			if ( aborted || ! wrapper.isConnected ) {
 				built.destroy();
 				return;

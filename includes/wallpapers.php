@@ -63,5 +63,18 @@ function desktop_mode_register_builtin_wallpapers() {
 			'type'    => 'css',
 		) );
 	}
+
+	// Animated WordPress Logo — built-in PixiJS canvas wallpaper.
+	// Moved out of `desktop.min.js` in 0.8.4. Same registration
+	// surface third-party canvas wallpapers use: `script` is an
+	// enqueued handle (registered in `includes/assets.php`); the
+	// shell's wallpaper sync injects its URL when the wallpaper
+	// def is needed (selected, or shown in the OS Settings picker).
+	desktop_mode_register_wallpaper( 'wp-animated-logo', array(
+		'label'   => __( 'Animated WordPress Logo', 'desktop-mode' ),
+		'preview' => 'radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0b0f25 100%)',
+		'type'    => 'canvas',
+		'script'  => 'desktop-mode-animated-logo-wallpaper',
+	) );
 }
 add_action( 'init', 'desktop_mode_register_builtin_wallpapers', 5 );

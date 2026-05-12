@@ -20,6 +20,7 @@ import {
 	setUserAssociations,
 } from './openers';
 import { getTypes } from './registry';
+import '../ui/components/wpd-select/wpd-select';
 
 const TAB_ID = 'desktop-mode-file-associations';
 

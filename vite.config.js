@@ -26,6 +26,7 @@
 
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const TARGETS = {
 	desktop: {
@@ -112,6 +113,39 @@ const TARGETS = {
 		fileBase: 'plugins-window',
 		iifeName: 'desktopModePluginsWindow',
 	},
+	// AI Assistant — moved out of the main bundle in 0.8.4. The
+	// main `desktop[.min].js` bundle ships a tiny `AiAssistantStub`
+	// matching the public `wp.desktop.ai` contract; this bundle
+	// holds the 38 kB implementation and is `<script>`-injected by
+	// the stub on the user's first invocation. Publishes
+	// `window.desktopModeCreateAiAssistant`.
+	'ai-assistant': {
+		entry:    'src/ai-assistant/entry.ts',
+		fileBase: 'ai-assistant',
+		iifeName: 'desktopModeAiAssistant',
+	},
+	// Animated WP Logo wallpaper — built-in canvas wallpaper moved
+	// out of the main bundle in 0.8.4. PHP registers the wallpaper
+	// via `desktop_mode_register_wallpaper()` with a `script` handle;
+	// the shell's wallpaper sync loads this bundle only when the
+	// user selects (or hovers in OS Settings) the wallpaper. The
+	// bundle's only side effect is publishing the `WallpaperDef` on
+	// `window.desktopModeWallpapers['wp-animated-logo']`.
+	'animated-logo-wallpaper': {
+		entry:    'src/plugins/animated-logo-wallpaper/index.ts',
+		fileBase: 'animated-logo-wallpaper',
+		iifeName: 'desktopModeAnimatedLogoWallpaper',
+	},
+	// About-scene — the PixiJS particle scene rendered inside OS
+	// Settings → About. ~25 kB of code that only ever runs after the
+	// user explicitly opens that tab. Loaded by the main-bundle
+	// `about-scene-loader.ts` on first mount; publishes
+	// `window.desktopModeMountAboutScene`.
+	'about-scene': {
+		entry:    'src/settings/sections/about-scene-entry.ts',
+		fileBase: 'about-scene',
+		iifeName: 'desktopModeAboutScene',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {
@@ -125,7 +159,26 @@ export default defineConfig( ( { mode } ) => {
 		);
 	}
 
+	// Bundle treemap: `BUNDLE_REPORT=1 npm run build:desktop` writes an
+	// HTML treemap next to the bundle so we can see which modules are
+	// pulling weight. Off by default — has zero impact on shipped code.
+	const wantReport = process.env.BUNDLE_REPORT === '1' && isProd;
+	const reportPlugins = wantReport
+		? [
+			visualizer( {
+				filename: `assets/js/${ target.fileBase }.report.html`,
+				template: 'treemap',
+				gzipSize: true,
+				brotliSize: false,
+				sourcemap: false,
+				emitFile: false,
+				open: false,
+			} ),
+		]
+		: [];
+
 	return {
+		plugins: reportPlugins,
 		resolve: {
 			alias: {
 				'@/':              resolve( __dirname, 'src/' ) + '/',

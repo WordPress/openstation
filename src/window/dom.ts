@@ -17,6 +17,9 @@ import { __, sprintf } from '../i18n';
 // idempotent, so importing here is safe even if a downstream entry
 // imported the spinner first.
 import '../ui/components/wpd-spinner/wpd-spinner';
+import '../ui/components/wpd-save-status/wpd-save-status';
+import '../ui/components/wpd-menu/wpd-menu';
+import '../ui/components/wpd-window-button/wpd-window-button';
 import {
 	markWindowContentLoading,
 	markWindowContentReady,

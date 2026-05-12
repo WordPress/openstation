@@ -18,9 +18,9 @@
  * @since 0.14.0
  */
 
-import { HOOKS, doAction, applyFilters } from './hooks';
-import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
-import { trackedFetch } from './tracked-fetch';
+import { HOOKS, doAction, applyFilters } from '../hooks';
+import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { trackedFetch } from '../tracked-fetch';
 import {
 	filterCommands,
 	findCommand,
@@ -31,7 +31,7 @@ import {
 	type CommandResult,
 	type CommandSuggestion,
 	type DesktopCommand,
-} from './commands';
+} from '../commands';
 
 // ---------------------------------------------------------------------------
 // Minimal Markdown renderer
@@ -167,23 +167,9 @@ const ICON_ARROW = `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden=
 // Types
 // ---------------------------------------------------------------------------
 
-export interface AiAssistantApi {
-	open(): void;
-	close(): void;
-	toggle(): void;
-	readonly isOpen: boolean;
-	/**
-	 * Programmatic access to the AI Copilot — same endpoint the
-	 * overlay uses. See {@link AskFn}.
-	 *
-	 * Wired in `desktop.ts`, not in the class constructor, so the
-	 * `ask` function can close over the live shell config / window
-	 * manager without `AiAssistant` growing those dependencies.
-	 *
-	 * @since 0.17.0
-	 */
-	ask: import( './ai/ask' ).AskFn;
-}
+export type { AiAssistantApi, AiAssistantConfig } from './types';
+import type { AiAssistantApi, AiAssistantConfig } from './types';
+import type { AskFn } from '../ai/ask';
 
 type AnswerType = 'entity' | 'navigation' | 'chat';
 
@@ -300,12 +286,7 @@ export class AiAssistant implements AiAssistantApi {
 	/** Monotonic counter to discard stale async suggest() results. */
 	private _suggestToken = 0;
 
-	constructor( config: {
-		aiSearchUrl: string;
-		aiSearchStreamUrl: string;
-		restNonce: string;
-		getTransport?: () => 'sse' | 'off';
-	} ) {
+	constructor( config: AiAssistantConfig ) {
 		this._aiSearchUrl = config.aiSearchUrl;
 		this._aiSearchStreamUrl = config.aiSearchStreamUrl;
 		this._restNonce = config.restNonce;
@@ -428,14 +409,14 @@ export class AiAssistant implements AiAssistantApi {
 	 *
 	 * @since 0.17.0
 	 */
-	public ask: import( './ai/ask' ).AskFn = () => {
+	public ask: AskFn = () => {
 		throw new Error(
 			'[desktop-mode] wp.desktop.ai.ask called before the shell finished booting.',
 		);
 	};
 
 	/** Late-binding helper used by `desktop.ts`. Not part of the public API. */
-	public attachAsk( fn: import( './ai/ask' ).AskFn ): void {
+	public attachAsk( fn: AskFn ): void {
 		this.ask = fn;
 	}
 

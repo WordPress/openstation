@@ -25,7 +25,7 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:about-scene && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "DESKTOP_MODE_TARGET=iframe-bridge vite build --mode development && DESKTOP_MODE_TARGET=iframe-bridge vite build --mode production",
 		"build:recycle-bin": "DESKTOP_MODE_TARGET=recycle-bin vite build --mode development && DESKTOP_MODE_TARGET=recycle-bin vite build --mode production",
@@ -34,6 +34,9 @@
 		"build:comments-window": "DESKTOP_MODE_TARGET=comments-window vite build --mode development && DESKTOP_MODE_TARGET=comments-window vite build --mode production",
 		"build:my-wordpress": "DESKTOP_MODE_TARGET=my-wordpress vite build --mode development && DESKTOP_MODE_TARGET=my-wordpress vite build --mode production",
 		"build:content-graph": "DESKTOP_MODE_TARGET=content-graph vite build --mode development && DESKTOP_MODE_TARGET=content-graph vite build --mode production",
+		"build:ai-assistant": "DESKTOP_MODE_TARGET=ai-assistant vite build --mode development && DESKTOP_MODE_TARGET=ai-assistant vite build --mode production",
+		"build:animated-logo-wallpaper": "DESKTOP_MODE_TARGET=animated-logo-wallpaper vite build --mode development && DESKTOP_MODE_TARGET=animated-logo-wallpaper vite build --mode production",
+		"build:about-scene": "DESKTOP_MODE_TARGET=about-scene vite build --mode development && DESKTOP_MODE_TARGET=about-scene vite build --mode production",
 		"build:pwa-sw": "DESKTOP_MODE_TARGET=pwa-sw vite build --mode development && DESKTOP_MODE_TARGET=pwa-sw vite build --mode production",
 		"dev": "vite build --mode development --watch",
 		"vendor:pixi": "node -e \"require('fs').cpSync('node_modules/pixi.js/dist/pixi.min.js', 'assets/vendor/pixi.min.js')\"",
@@ -64,6 +67,7 @@
 		"eslint": "^8.57.1",
 		"eslint-import-resolver-typescript": "^4.4.4",
 		"jsdom": "^25.0.1",
+		"rollup-plugin-visualizer": "^7.0.1",
 		"typescript": "5.9.3",
 		"vite": "^5.4.10",
 		"vitest": "^4.1.4"

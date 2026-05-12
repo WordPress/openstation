@@ -56,7 +56,7 @@ export interface AboutLabels {
 	hint: string;
 }
 
-interface SceneOptions {
+export interface SceneOptions {
 	container: HTMLElement;
 	logoUrl: string;
 	prefersReducedMotion: boolean;

@@ -261,6 +261,41 @@ function desktop_mode_register_assets() {
 		DESKTOP_MODE_DIR . 'languages'
 	);
 
+	// `desktop-mode-animated-logo-wallpaper` — built-in PixiJS canvas
+	// wallpaper, moved out of `desktop.min.js` in 0.8.4. The wallpaper
+	// `server-sync` loads this handle when the user selects the
+	// `wp-animated-logo` wallpaper (or opens OS Settings → Wallpaper
+	// and the picker pulls every registered canvas def in). The
+	// bundle's only side effect is publishing the `WallpaperDef` on
+	// `window.desktopModeWallpapers['wp-animated-logo']`.
+	$animated_logo_js = DESKTOP_MODE_DIR . 'assets/js/animated-logo-wallpaper' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-animated-logo-wallpaper',
+		DESKTOP_MODE_URL . 'assets/js/animated-logo-wallpaper' . $suffix . '.js',
+		array( 'wp-hooks' ),
+		file_exists( $animated_logo_js ) ? (string) filemtime( $animated_logo_js ) : $version,
+		true
+	);
+
+	// `desktop-mode-ai-assistant` — AI Copilot spotlight overlay,
+	// moved out of `desktop.min.js` in 0.8.4. The main bundle ships a
+	// stub matching the public `wp.desktop.ai` contract; the stub
+	// `<script>`-injects this handle the first time the user opens
+	// the assistant (Cmd+K or admin-bar button).
+	$ai_assistant_js = DESKTOP_MODE_DIR . 'assets/js/ai-assistant' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-ai-assistant',
+		DESKTOP_MODE_URL . 'assets/js/ai-assistant' . $suffix . '.js',
+		array( 'wp-hooks', 'wp-i18n' ),
+		file_exists( $ai_assistant_js ) ? (string) filemtime( $ai_assistant_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-ai-assistant',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
 	// Wire the translation bundle to this script handle. WP looks
 	// for `languages/desktop-mode-{locale}-desktop-mode.json` and
 	// injects its `locale_data` into `wp.i18n` just before the

@@ -23,6 +23,8 @@ import { __, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type { RestPlacementShape } from './rest';
+import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-spinner/wpd-spinner';
 
 interface FetchInit extends RequestInit {
 	silent?: boolean;
