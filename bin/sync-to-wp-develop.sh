@@ -23,11 +23,63 @@ set -euo pipefail
 # how the script was invoked — handy when running from a git worktree.
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 src=$(cd "$script_dir/.." && pwd -P)
-# Destination resolves to $WPDM_SYNC_DEST when set, otherwise the
-# canonical wordpress-develop checkout at ~/github/wordpress-develop.
-# Override per-worktree with `WPDM_SYNC_DEST=/path/to/plugin ./sync-...`.
-dest="${WPDM_SYNC_DEST:-$HOME/github/wordpress-develop/src/wp-content/plugins/desktop-mode}"
 includes_file="$script_dir/sync-to-wp-develop.includes"
+
+# Destination resolution order (first hit wins):
+#
+#   1. `WPDM_SYNC_DEST=/path/to/plugin` env var. Use verbatim. Lets a
+#      developer pin a specific worktree regardless of what Docker
+#      thinks.
+#   2. Auto-detect from a running Docker container: look for any
+#      container with a mount whose Destination is exactly `/var/www`
+#      (the wordpress-develop docker-compose convention — wp-env uses
+#      `/var/www/html` so it's automatically excluded), and verify
+#      the host-side Source has a `src/wp-content/plugins/` directory.
+#      Append `desktop-mode` to land at the plugin folder.
+#   3. Fallback: `$HOME/github/wordpress-develop/src/wp-content/plugins/desktop-mode`.
+#      Preserves the historical default for the case where Docker
+#      isn't running yet but the checkout is in the canonical place.
+#
+# Goal: another developer with their wordpress-develop checkout at
+# `~/repos/wordpress-develop` (or anywhere else) gets the right
+# destination as long as their dev container is up. No PR-tracked
+# config or per-developer overrides required.
+default_dest_via_docker() {
+	command -v docker >/dev/null 2>&1 || return 1
+	docker info >/dev/null 2>&1 || return 1
+
+	local cid host_src
+	while IFS= read -r cid; do
+		[[ -z "$cid" ]] && continue
+		host_src=$(docker inspect --format \
+			'{{range .Mounts}}{{if eq .Destination "/var/www"}}{{println .Source}}{{end}}{{end}}' \
+			"$cid" 2>/dev/null | head -n1)
+		[[ -n "$host_src" ]] || continue
+		# Sanity-check: the source path should look like a wordpress-
+		# develop checkout (has `src/wp-content/plugins/` and the
+		# WP test config sample). Both `wordpress-develop-*` services
+		# (cli, php, nginx, mysql) match — we pick whichever one
+		# `docker ps` returns first.
+		if [[ -d "$host_src/src/wp-content/plugins" && -f "$host_src/wp-tests-config-sample.php" ]]; then
+			printf '%s\n' "$host_src/src/wp-content/plugins/desktop-mode"
+			return 0
+		fi
+	done < <(docker ps --format '{{.ID}}')
+	return 1
+}
+
+if [[ -n "${WPDM_SYNC_DEST:-}" ]]; then
+	dest="$WPDM_SYNC_DEST"
+	echo "[sync] dest from WPDM_SYNC_DEST: $dest"
+elif dest_auto=$(default_dest_via_docker); then
+	dest="$dest_auto"
+	echo "[sync] dest auto-detected from running container: $dest"
+else
+	dest="$HOME/github/wordpress-develop/src/wp-content/plugins/desktop-mode"
+	echo "[sync] dest fallback default: $dest"
+	echo "[sync]   (no running wordpress-develop container found —"
+	echo "[sync]    set WPDM_SYNC_DEST to override, or start the container)"
+fi
 
 parent_plugins_dir=$(dirname "$dest")
 if [[ ! -d "$parent_plugins_dir" ]]; then
