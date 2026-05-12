@@ -172,7 +172,21 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		return;
 	}
 
-	if ( req.mode === 'navigate' ) {
+	if ( req.mode === 'navigate' && req.destination === 'document' ) {
+		// Only intercept TOP-LEVEL navigations. Iframe navigations
+		// (`req.destination === 'iframe'`) pass through directly to
+		// the browser. If the SW called `fetch( req )` for an iframe
+		// load, Chrome would forward the request with
+		// `Sec-Fetch-Dest: empty` instead of `iframe`, and the
+		// server-side Sec-Fetch fallback in
+		// `desktop_mode_is_chromeless_request()` would fail to
+		// detect the chromeless context. The plain-admin → portal
+		// redirect would then fire inside a chromeless iframe,
+		// rendering the entire desktop shell inside an existing
+		// window (the "screen on screen" bug from issue #171).
+		// Iframe-targeted offline fallback is not useful anyway —
+		// the user-facing offline page is the desktop shell, which
+		// is the top-level navigation.
 		event.respondWith( networkFirstWithOfflineFallback( req ) );
 	}
 
