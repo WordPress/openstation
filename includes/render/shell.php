@@ -96,14 +96,26 @@ add_action( 'in_admin_header', 'desktop_mode_render_shell', 5 );
  * user re-authenticates inside *its own* sub-iframe — re-auth
  * happening anywhere else (a chromeless iframe inside our shell,
  * another browser tab, the classic admin in another window) leaves
- * the parent shell stuck behind an orphaned backdrop that no
- * F5 / Cmd-R can clear in practice because the script re-attaches
- * on every page load and the modal is already in DOM.
+ * the parent shell stuck behind an orphaned backdrop.
  *
- * Fix: subscribe to `heartbeat-tick` here and, on `false → true`,
- * dismiss the wrap manually — same pattern as the per-iframe
- * recovery, but the parent doesn't need to reload (it doesn't
- * hold per-page WP nonces; iframes do).
+ * Beyond the backdrop, the bigger problem is that **WordPress
+ * nonces are tied to the user's session token**, and re-auth mints
+ * a fresh token. Every nonce the parent shell cached at page load
+ * (`wp.desktop.config.restNonce`, plus whatever third-party
+ * registries/widgets pulled in) was generated against the old
+ * token and is now silently rejected by `wp_verify_nonce()` /
+ * `check_ajax_referer()` — even though the auth cookie itself is
+ * valid. WP reports that as "Cookie check failed", which is
+ * misleading; the cookie is the only thing still working.
+ *
+ * Fix: on `wp-auth-check: false → true`, do a hard reload of the
+ * parent. The chromeless iframes already self-reload via their
+ * own bridge-side handler, but the parent is the only place where
+ * stale shell-wide nonces live, and there is no in-place API to
+ * swap every cached nonce across every loaded bundle + every
+ * plugin. The session-saver's `pagehide` flush writes the latest
+ * window snapshot before unload, so window positions / open
+ * windows are preserved across the reload.
  *
  * @since 0.18.5
  */
@@ -210,19 +222,108 @@ function desktop_mode_parent_auth_check_recovery_script() {
 		};
 	}
 
-	function dismissAuthCheckOverlay() {
+	function recoverFromReauth() {
+		// Strip the overlay first so the user sees the shell come
+		// back to life *before* the reload starts, instead of
+		// looking at a frozen dark backdrop while the network
+		// stalls. The reload guarantees nonces refresh.
 		try {
 			var wrap = document.getElementById( 'wp-auth-check-wrap' );
 			if ( wrap && wrap.parentNode ) {
 				wrap.parentNode.removeChild( wrap );
 			}
-			// Core toggles these to lock scrolling + signal the
-			// "show" state; strip them both so the shell becomes
-			// interactive again.
 			document.documentElement.classList.remove( 'wp-auth-check-show' );
 			document.body.classList.remove( 'modal-open' );
 		} catch ( _err ) { /* DOM gone — nothing useful to do */ }
+
+		// Reload every open iframe BEFORE the parent reload. Two
+		// reasons:
+		//
+		// 1. Each iframe is also showing core's wp-auth-check
+		//    modal (each one runs its own heartbeat). Without
+		//    this, those modals linger until each iframe's own
+		//    next heartbeat tick (up to 60s) — visible as a
+		//    "frozen iframe with a login modal" while the rest of
+		//    the shell is interactive again.
+		//
+		// 2. If an iframe was bounced to `wp-login.php` because it
+		//    made a server request while logged-out, the
+		//    session-saver may have captured that URL. The parent
+		//    reload would restore the iframe AT wp-login.php
+		//    instead of at the original admin page. Telling each
+		//    iframe to `location.reload()` directly makes the
+		//    browser walk its history back through the login
+		//    bounce now that cookies are fresh — the iframe lands
+		//    on the page it was originally on.
+		//
+		// Same-origin only (cross-origin iframes wouldn't be ours
+		// anyway).
+		try {
+			var frames = document.querySelectorAll( 'iframe' );
+			for ( var i = 0; i < frames.length; i++ ) {
+				try {
+					// Cross-origin access throws — caught + ignored.
+					var fw = frames[ i ].contentWindow;
+					if ( fw && fw.location && typeof fw.location.reload === 'function' ) {
+						fw.location.reload();
+					}
+				} catch ( _crossOrigin ) { /* not ours */ }
+			}
+		} catch ( _err ) { /* swallow */ }
+
+		// Hard reload — the only reliable way to refresh every
+		// nonce baked into JS globals across every loaded bundle.
+		// Small delay lets the session-saver's `pagehide` write
+		// the current window snapshot AND gives the
+		// `wp-auth-check-iframe` from core a chance to relay the
+		// success postMessage out (some plugins listen for that).
+		try {
+			window.setTimeout( function () {
+				try {
+					window.location.reload();
+				} catch ( _err ) { /* swallow */ }
+			}, 250 );
+		} catch ( _err ) {
+			try { window.location.reload(); } catch ( _e ) {}
+		}
 	}
+	// Cross-iframe nudge. The chromeless bridge inside each iframe
+	// posts `desktop-mode-reauth-detected` the instant its own
+	// heartbeat sees `wp-auth-check: false → true`. Without this
+	// the parent has to wait for ITS heartbeat to tick (15s active,
+	// up to 60s idle) before recoverFromReauth fires — during which
+	// every REST call from the shell keeps returning 401 with the
+	// stale shell-wide nonce. With this, the parent's recovery
+	// starts within a frame of the iframe seeing the new cookie.
+	try {
+		window.addEventListener( 'message', function ( ev ) {
+			if ( ev.origin !== window.location.origin ) {
+				return;
+			}
+			if ( ! ev.data || typeof ev.data !== 'object' ) {
+				return;
+			}
+			if ( ev.data.type !== 'desktop-mode-reauth-detected' ) {
+				return;
+			}
+			// Recovery is idempotent (the reload-of-everything path
+			// can only fire once before the page is gone), but
+			// gate on `sawLoggedOut` anyway so a stray message
+			// from a misbehaving iframe doesn't reload the shell
+			// during a normal session.
+			if ( sawLoggedOut ) {
+				sawLoggedOut = false;
+				recoverFromReauth();
+			} else {
+				// Even if we never noticed the logout ourselves,
+				// the iframe did. Trust it and recover — the
+				// stale-nonce gap is real even when the parent
+				// dodged the auth-check modal entirely.
+				recoverFromReauth();
+			}
+		} );
+	} catch ( _err ) { /* swallow */ }
+
 	function attach() {
 		if ( ! window.jQuery ) {
 			return false;
@@ -237,7 +338,7 @@ function desktop_mode_parent_auth_check_recovery_script() {
 			}
 			if ( sawLoggedOut && data[ 'wp-auth-check' ] === true ) {
 				sawLoggedOut = false;
-				dismissAuthCheckOverlay();
+				recoverFromReauth();
 			}
 		} );
 		return true;

@@ -2367,6 +2367,20 @@ function desktop_mode_chromeless_bridge_script() {
 				}
 				if ( sawLoggedOut && data[ 'wp-auth-check' ] === true ) {
 					sawLoggedOut = false;
+					// Tell the parent shell BEFORE we reload so it
+					// doesn't have to wait for its own heartbeat
+					// tick (up to 60s on an idle shell) to discover
+					// the cookie is fresh. Parent runs its full
+					// recovery path on receipt — overlay teardown,
+					// iframe reload sweep, then a hard reload.
+					try {
+						if ( window.parent && window.parent !== window ) {
+							window.parent.postMessage(
+								{ type: 'desktop-mode-reauth-detected' },
+								window.location.origin
+							);
+						}
+					} catch ( _err ) { /* parent gone */ }
 					try { window.location.reload(); } catch ( _err ) { /* swallow */ }
 				}
 			} );
