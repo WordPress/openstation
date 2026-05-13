@@ -21,7 +21,16 @@ type CommandsModule = typeof import( '../../src/commands' );
 
 async function load(): Promise< CommandsModule > {
 	vi.resetModules();
-	return await import( '../../src/commands' );
+	const mod = await import( '../../src/commands' );
+	// The registry now lives in a `createSharedStore` slot on `window`
+	// so the desktop + ai-assistant bundles share it at runtime.
+	// `vi.resetModules()` clears the module graph but not the global
+	// slot, so without this loop commands from a previous test leak
+	// into the next. Drain the registry between loads.
+	for ( const cmd of mod.listCommands() ) {
+		mod.unregisterCommand( cmd.slug );
+	}
+	return mod;
 }
 
 describe( 'commands.ts — 0.16.0 additions', () => {

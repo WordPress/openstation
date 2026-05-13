@@ -245,8 +245,36 @@ export interface DesktopCommand {
  */
 const COMMAND_SLUG = /^[a-z0-9_/-]+$/;
 
-const registry = new Map< string, DesktopCommand >();
-const listeners = new Set<() => void >();
+// Cross-bundle shared state — see `docs/examples/shared-store.md`.
+// Each Desktop Mode feature ships as its own Vite IIFE bundle; without
+// the shared store, the `desktop` bundle and the `ai-assistant` bundle
+// each get their own compiled copy of this module and therefore their
+// own `registry` Map. The shell harvester registers commands into the
+// desktop bundle's registry, the AI Assistant palette reads from its
+// own registry — and finds nothing. Routing through `createSharedStore`
+// guarantees both bundles operate on the same Map / listener set.
+//
+// We capture `state.registry` / `state.listeners` once at module init.
+// Those references never change after the first call (the shared store
+// only re-creates state on explicit `reset()`), so the rest of this
+// file keeps using plain `registry.set/get/delete` and `listeners.add/
+// delete` as before.
+import { createSharedStore } from './shared-store';
+
+interface CommandRegistryState {
+	registry: Map< string, DesktopCommand >;
+	listeners: Set<() => void >;
+}
+
+const commandRegistryStore = createSharedStore< CommandRegistryState >(
+	'desktop-mode/commands-registry',
+	() => ( {
+		registry: new Map< string, DesktopCommand >(),
+		listeners: new Set<() => void >(),
+	} ),
+);
+const registry = commandRegistryStore.state.registry;
+const listeners = commandRegistryStore.state.listeners;
 
 /**
  * Register (or replace) a command. Slug matching is case-insensitive;

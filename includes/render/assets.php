@@ -78,6 +78,53 @@ function desktop_mode_enqueue_assets() {
 	// JS.
 	wp_enqueue_script( 'desktop-mode' );
 
+	// `wp_enqueue_command_palette_assets()` (WP 6.9+) enqueues the
+	// `wp-commands` store package, the `wp-core-commands` script that
+	// registers the WordPress-wide baseline (Add new post, Manage
+	// plugins, Switch theme, Browse patterns, …) AND — critically —
+	// the inline `wp.coreCommands.initializeCommandPalette( … )` call
+	// that actually populates the `core/commands` data store with the
+	// admin-menu commands. Without that inline init, the script loads
+	// but the store stays empty and `src/commands/shell-harvester.ts`
+	// finds nothing to publish.
+	//
+	// WP normally only calls this on screens that opt in to the native
+	// palette; the shell needs it on every admin URL it might wrap.
+	// `function_exists` guard for pre-6.9 sites — the harvester gracefully
+	// no-ops when the store is missing.
+	if ( function_exists( 'wp_enqueue_command_palette_assets' ) ) {
+		// `wp_enqueue_command_palette_assets()` calls
+		// `array_key_exists( $menu_slug, $submenu )` without guarding
+		// the global, so an unset `$submenu` (test contexts, edge-case
+		// admin requests where the menu wasn't built yet) blows up
+		// with a TypeError. Initialize defensively before calling.
+		global $menu, $submenu;
+		if ( ! isset( $submenu ) || ! is_array( $submenu ) ) {
+			$submenu = array();
+		}
+		if ( ! isset( $menu ) || ! is_array( $menu ) ) {
+			$menu = array();
+		}
+		wp_enqueue_command_palette_assets();
+
+		// Expose the same menu-commands array WP serializes into
+		// `wp.coreCommands.initializeCommandPalette(...)` on a window
+		// slot the shell harvester can read. Built in PHP from `$menu`
+		// / `$submenu` here (we already guarded that they're arrays
+		// above), then injected as a `before` inline on our own bundle
+		// — that runs synchronously before `desktop.min.js` boots the
+		// shell harvester, so the lookup is guaranteed populated by
+		// the time `src/commands/shell-harvester.ts` classifies any
+		// command. Decoupled from WP's command-palette mount timing
+		// (which fires from a core-registered hook we can't reorder).
+		$menu_map = desktop_mode_build_command_menu_map();
+		wp_add_inline_script(
+			'desktop-mode',
+			'window.__desktopModeMenuCommands = ' . wp_json_encode( $menu_map ) . ';',
+			'before'
+		);
+	}
+
 	// Pass configuration to JavaScript.
 	global $title, $pagenow, $parent_file, $menu;
 
@@ -381,3 +428,123 @@ function desktop_mode_enqueue_assets() {
 	do_action( 'desktop_mode_mode_init' );
 }
 add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
+
+/**
+ * Build the admin-menu command map (name → URL) and expose it on
+ * `window.__desktopModeMenuCommands`. The shell command harvester
+ * (`src/commands/shell-harvester.ts`) reads this slot to resolve URLs
+ * for "Go to: …" commands whose JS callbacks
+ * (`document.location = menuCommand.url`) close over a variable URL
+ * we can't extract from source. Without this map those commands
+ * either get skipped (no URL recoverable) or — if the location
+ * shadow misses — navigate the SHELL out of desktop mode.
+ *
+ * Mirrors what WordPress core's `wp_enqueue_command_palette_assets()`
+ * builds for `wp.coreCommands.initializeCommandPalette(...)`. We
+ * duplicate the logic here (instead of monkey-patching the JS init
+ * which is timing-sensitive — WP registers its hook during core load,
+ * so it always emits its inline before any plugin-added inline on the
+ * same handle) and ship the result through `wp_add_inline_script` on
+ * our own bundle handle. That decouples us entirely from WP's command-
+ * palette mount timing.
+ *
+ * @since 0.8.4
+ *
+ * @global array $menu
+ * @global array $submenu
+ * @return array<int, array{label:string, url:string, name:string}>
+ */
+function desktop_mode_build_command_menu_map() {
+	global $menu, $submenu;
+	if ( ! is_array( $menu ) ) {
+		return array();
+	}
+	$out = array();
+
+	$extract_root_text = static function ( $label ) {
+		if ( '' === $label || ! is_string( $label ) ) {
+			return '';
+		}
+		if ( class_exists( 'WP_HTML_Tag_Processor' ) ) {
+			$processor = new WP_HTML_Tag_Processor( $label );
+			$text      = '';
+			$depth     = 0;
+			while ( $processor->next_token() ) {
+				$token_type = $processor->get_token_type();
+				if ( '#text' === $token_type && 0 === $depth ) {
+					$text .= $processor->get_modifiable_text();
+				}
+				if ( '#tag' === $token_type ) {
+					if ( $processor->is_tag_closer() ) {
+						if ( $depth > 0 ) {
+							--$depth;
+						}
+						continue;
+					}
+					$name = $processor->get_tag();
+					if ( $name && ! ( class_exists( 'WP_HTML_Processor' ) && WP_HTML_Processor::is_void( $name ) ) ) {
+						++$depth;
+					}
+				}
+			}
+			return trim( $text );
+		}
+		return trim( wp_strip_all_tags( $label ) );
+	};
+
+	foreach ( $menu as $menu_item ) {
+		if ( empty( $menu_item[0] ) || ! is_string( $menu_item[0] ) ) {
+			continue;
+		}
+		if ( ! empty( $menu_item[1] ) && ! current_user_can( $menu_item[1] ) ) {
+			continue;
+		}
+		$menu_label = $extract_root_text( $menu_item[0] );
+		$menu_slug  = $menu_item[2];
+		$menu_url   = '';
+		if ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) {
+			$menu_url = $menu_slug;
+		} elseif ( ! empty( menu_page_url( $menu_slug, false ) ) ) {
+			$menu_url = menu_page_url( $menu_slug, false );
+		}
+		if ( '' !== $menu_url ) {
+			$out[] = array(
+				'label' => $menu_label,
+				'url'   => $menu_url,
+				'name'  => $menu_slug,
+			);
+		}
+		if ( ! empty( $submenu ) && is_array( $submenu ) && array_key_exists( $menu_slug, $submenu ) ) {
+			foreach ( $submenu[ $menu_slug ] as $submenu_item ) {
+				if ( empty( $submenu_item[0] ) ) {
+					continue;
+				}
+				if ( ! empty( $submenu_item[1] ) && ! current_user_can( $submenu_item[1] ) ) {
+					continue;
+				}
+				$submenu_label = $extract_root_text( $submenu_item[0] );
+				$submenu_slug  = $submenu_item[2];
+				$submenu_url   = '';
+				if ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) {
+					$submenu_url = $submenu_slug;
+				} elseif ( ! empty( menu_page_url( $submenu_slug, false ) ) ) {
+					$submenu_url = menu_page_url( $submenu_slug, false );
+				}
+				if ( '' === $submenu_url ) {
+					continue;
+				}
+				$out[] = array(
+					'label' => sprintf(
+						/* translators: 1: parent menu label, 2: submenu label */
+						__( '%1$s > %2$s' ),
+						$menu_label,
+						$submenu_label
+					),
+					'url'   => $submenu_url,
+					'name'  => $menu_slug . '-' . $submenu_item[2],
+				);
+			}
+		}
+	}
+	return $out;
+}

@@ -28,6 +28,7 @@ import {
 	unregisterByOwner,
 	type DesktopCommand,
 } from './../commands';
+import { tryNativeUrlRemap } from './../native-url-remap';
 import type { HarvestedCommand } from './../types';
 import type { WindowManager } from './../window-manager';
 import { deriveWindowId, sanitizeIconSvg } from './../utils';
@@ -281,6 +282,12 @@ export class IframeCommandBridge {
 	): DesktopCommand[ 'run' ] {
 		return ( _args, ctx ) => {
 			ctx.close();
+			// Honor native URL remaps (e.g. Posts → native Posts
+			// window) the same way the shell harvester does — see
+			// `src/commands/shell-harvester.ts` for the rationale.
+			if ( tryNativeUrlRemap( url ) ) {
+				return;
+			}
 			const id = deriveWindowId( url, this.adminUrl );
 			this.manager.open( { id, baseId: id, url, title, icon } );
 		};

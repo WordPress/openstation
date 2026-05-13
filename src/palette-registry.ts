@@ -212,6 +212,17 @@ export function installPaletteShortcut(): void {
 
 	// Parent-document keydown — catches Cmd+K when focus is on the shell
 	// itself (admin bar, dock, wallpaper, anywhere outside an iframe).
+	//
+	// `stopImmediatePropagation` is critical: WP's
+	// `wp_enqueue_command_palette_assets` (force-enqueued in
+	// `includes/render/assets.php` so the `core/commands` data store
+	// is populated for our harvester) also mounts `<CommandMenu>` on
+	// the shell and binds its own global Cmd+K shortcut via Mousetrap.
+	// Without stopping immediate propagation, BOTH palettes open and
+	// the user can pick from WP's — whose admin-nav callbacks do
+	// `document.location = url` and unload the shell out of desktop
+	// mode. Kill WP's listener at the capture stage so only ours
+	// ever sees the keystroke.
 	document.addEventListener(
 		'keydown',
 		( e: KeyboardEvent ) => {
@@ -222,6 +233,7 @@ export function installPaletteShortcut(): void {
 				return;
 			}
 			e.preventDefault();
+			e.stopImmediatePropagation();
 			cyclePalettes();
 		},
 		true,

@@ -343,12 +343,15 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.value = '';
 		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
-		// Show any commands flagged `eager` immediately — today that's
-		// everything harvested from the focused window's
-		// `core/commands` store via the iframe bridge (block editor
-		// actions, pattern commands, feature toggles). Slash-only
-		// commands stay hidden until the user types `/`. If nothing
-		// eager is registered, fall back to the AI suggestions surface.
+		// Empty input on open: surface the *contextual* commands
+		// (Gutenberg's Duplicate / Add before / pattern actions,
+		// editor toggles harvested from the focused iframe). Those
+		// are what the user is most likely reaching for in the
+		// current context. If nothing contextual is available
+		// (native window focused, or no iframe at all), fall back
+		// to the AI suggestions surface so plain typing submits to
+		// the AI. The shell baseline ("Go to: Posts" etc.) is
+		// intentionally NOT here — it's reachable via `/<query>`.
 		if ( listEagerCommands().length > 0 ) {
 			this._renderCommandMode();
 		} else {
@@ -598,7 +601,7 @@ export class AiAssistant implements AiAssistantApi {
 			if ( this._input.value.startsWith( '/' ) ) {
 				this._renderCommandMode();
 			} else if ( ! hasValue ) {
-				// Empty input: eager command list if any are
+				// Empty input: eager (contextual) commands if any are
 				// registered, otherwise the AI suggestions surface.
 				if ( listEagerCommands().length > 0 ) {
 					this._renderCommandMode();
@@ -692,7 +695,21 @@ export class AiAssistant implements AiAssistantApi {
 		this._showThinking( `Running /${ cmd.slug }…` );
 
 		const ctx: CommandContext = {
-			close: () => this.close(),
+			// Command-initiated close: skip the previousFocus restore.
+			// The command is responsible for any focus management
+			// (e.g. iframe-bridge.runProxy calls `manager.focus(target)`
+			// immediately after `ctx.close()`). The default restore
+			// fires on the close-transition's `transitionend` ~300ms
+			// later, which would otherwise yank focus back to whatever
+			// element was active before the palette opened — typically
+			// an element inside a sibling window's iframe — dragging
+			// that sibling window to the front and undoing the
+			// command's focus choice. User-initiated closes (Escape,
+			// click outside) still restore previousFocus as before.
+			close: () => {
+				this._previousFocus = null;
+				this.close();
+			},
 			openInWindow: ( url, title, icon ) => this._openInLegacyWindow( url, title, icon ),
 			confirm: ( msg, details ) => this._confirm( msg, details ),
 		};
@@ -999,15 +1016,16 @@ export class AiAssistant implements AiAssistantApi {
 			// Fall through to picking mode when the slug doesn't match.
 		}
 
-		// Picking mode. The `eager` flag splits the registry into two
-		// disjoint surfaces:
-		//   - Empty input (not even `/` typed): eager commands only
-		//     (contextual block actions / editor toggles harvested
-		//     from the focused iframe).
-		//   - `/` typed (or `/<query>`): slash-only commands. Eager
-		//     commands are intentionally hidden here — the user has
-		//     announced "I'm looking for a tool to invoke" and mixing
-		//     context-dependent actions into that list is noise.
+		// Picking mode splits the registry into two disjoint surfaces:
+		//   - Empty input: eager (contextual) commands only — Gutenberg
+		//     block actions, pattern shortcuts, editor toggles, etc.
+		//     The non-eager baseline ("Go to: Posts") is intentionally
+		//     hidden here so the empty palette stays a small,
+		//     context-relevant list.
+		//   - `/<query>`: slash-only commands (non-eager). Eager
+		//     commands are excluded here — the user has announced
+		//     "I'm looking for a tool to invoke" and mixing in
+		//     contextual actions is noise.
 		const eagerPicking = parsed.isCommand === false && this._input.value === '';
 		const filtered = eagerPicking
 			? listEagerCommands()

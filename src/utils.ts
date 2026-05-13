@@ -36,6 +36,14 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// second row in the Posts window just refocuses the first post's
 	// window instead of opening the new one.
 	'post',
+	// Site-editor entity path: `site-editor.php?p=/wp_template_part/
+	// twentytwentyfive//footer-columns`. Each template / template
+	// part / pattern / navigation entity is a distinct "page" from
+	// the user's perspective — picking "Header" after "Footer column"
+	// should open a new window, not refocus the existing footer one.
+	// Without `p` in identity, every site-editor URL collapses to
+	// `site-editor-php` and the second pick is a no-op.
+	'p',
 ];
 
 /**

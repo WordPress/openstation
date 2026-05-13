@@ -81,6 +81,7 @@ import {
 	type ConnectOptions,
 } from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
+import { ShellCommandHarvester } from './commands/shell-harvester';
 import { type ScriptExtras } from './wallpapers/vendor-loader';
 import {
 	type WallpaperSurface,
@@ -1724,6 +1725,19 @@ function init(): void {
 	// commands in the shell palette. Navigation commands rewrite to open
 	// a new desktop window; actions proxy back into the iframe.
 	new IframeCommandBridge( {
+		manager,
+		adminUrl: config.adminUrl,
+	} ).install();
+
+	// Shell-side baseline harvester — pulls the WordPress-wide command
+	// set (Add new post, Manage plugins, Switch theme, Browse patterns,
+	// …) from `core/commands` running in the shell's own runtime and
+	// registers them under `owner: 'global'`. Without this the palette
+	// only shows commands from the focused iframe — native windows
+	// (Posts, Files, Plugins, Comments) contribute none, so the user
+	// would never see the WP baseline while one of those is focused.
+	// Re-harvests automatically on `desktop-mode-plugins-changed`.
+	new ShellCommandHarvester( {
 		manager,
 		adminUrl: config.adminUrl,
 	} ).install();

@@ -942,3 +942,20 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * Chromeless #wpbody-content, #adminmenuwrap, #wpfooter overrides are in
  * chromeless.css to keep all legacy page tweaks in one place.
  */
+
+/*
+ * Hide WordPress core's built-in command palette (`@wordpress/commands`).
+ * Desktop mode force-enqueues `wp_enqueue_command_palette_assets()` so
+ * the `core/commands` data store is populated for our shell harvester
+ * (see `src/commands/shell-harvester.ts`); the side effect is that WP
+ * also mounts its own `<CommandPalette>` to the document body. We
+ * already block its Cmd+K handler in `src/palette-registry.ts`, but if
+ * a third-party script opens it programmatically (`wp.data.dispatch(
+ * 'core/commands' ).open()`), the dialog would float over the desktop
+ * with admin-menu navigation callbacks whose `document.location = url`
+ * would unload the shell. Keep it permanently hidden.
+ */
+.commands-command-menu,
+.commands-command-menu__overlay {
+	display: none !important;
+}
