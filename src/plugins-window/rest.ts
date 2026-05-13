@@ -212,7 +212,18 @@ async function readJsonOrThrow( response: Response ): Promise< unknown > {
 		);
 	}
 	if ( ! response.ok ) {
-		throw extractAjaxError( json, response.status );
+		// admin-ajax handlers wrap errors as `wp_send_json_error( $err )`
+		// → `{ success: false, data: { code, message, … } }`. The inner
+		// `data` is what carries the code/message — pass it through so
+		// `extractAjaxError()` actually finds them on a non-OK response.
+		const errPayload =
+			typeof json === 'object' &&
+			json !== null &&
+			'success' in json &&
+			( json as { success?: unknown } ).success === false
+				? ( json as { data?: unknown } ).data
+				: json;
+		throw extractAjaxError( errPayload, response.status );
 	}
 	return json;
 }
@@ -457,17 +468,29 @@ export async function installPluginBySlug( slug: string ): Promise< {
 	);
 }
 
-/**
- * Upload + install a .zip via our `wp_ajax_desktop_mode_plugins_upload`
- * action.
- */
-export async function uploadPluginZip( file: File ): Promise< {
+export interface UploadPluginResult {
 	plugin_file: string;
+	plugin_name: string;
+	plugin_version: string;
 	status: 'inactive';
 	messages: string[];
-} > {
+}
+
+/**
+ * Upload + install a .zip via our `wp_ajax_desktop_mode_plugins_upload`
+ * action. Pass `overwrite: true` to instruct the upgrader to replace
+ * an existing plugin directory — used by the dialog's confirm flow
+ * after the server has returned a `folder_exists` 409.
+ */
+export async function uploadPluginZip(
+	file: File,
+	options: { overwrite?: boolean } = {},
+): Promise< UploadPluginResult > {
 	const data = new FormData();
 	data.set( 'pluginzip', file );
+	if ( options.overwrite ) {
+		data.set( 'overwrite', '1' );
+	}
 	return ajaxUpload( 'desktop_mode_plugins_upload', data );
 }
 

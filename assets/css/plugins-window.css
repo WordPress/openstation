@@ -918,6 +918,19 @@
 	margin-block-start: 14px;
 }
 
+.desktop-mode-plugins__upload-success-heading {
+	margin: 4px 0 6px;
+	font-size: 1rem;
+	color: rgb( 25, 120, 65 );
+}
+
+.desktop-mode-plugins__upload-success-detail {
+	margin: 0 0 6px;
+	color: var( --wpd-fg, #333 );
+	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-size: 0.9em;
+}
+
 /* ─── Window-level .zip drop overlay ────────────────────────────── */
 
 .desktop-mode-plugins__window-drop {

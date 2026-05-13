@@ -690,9 +690,55 @@ function desktop_mode_plugins_window_ajax_upload() {
 		return;
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified above via desktop_mode_plugins_window_ajax_guard().
+	$overwrite = ! empty( $_POST['overwrite'] );
+
 	$skin     = new WP_Ajax_Upgrader_Skin();
 	$upgrader = new Plugin_Upgrader( $skin );
-	$result   = $upgrader->install( $tmp_name );
+	$result   = $upgrader->install(
+		$tmp_name,
+		array( 'overwrite_package' => $overwrite )
+	);
+
+	// Treat "destination folder exists" specially when the caller did
+	// NOT explicitly ask to overwrite — return a 409 with enough
+	// context for the client to prompt the user and re-submit with
+	// `overwrite=1`. WP_Ajax_Upgrader_Skin parks the error on
+	// `$skin->result`; older paths and `Plugin_Upgrader::install()`
+	// itself can also surface it via `$result` directly or by
+	// returning `false`, so check all three. Mirrors Core's classic
+	// `update.php?action=upload-plugin` confirm flow without the
+	// full upload-and-rerun-from-disk dance.
+	$folder_exists = false;
+	if ( ! $overwrite ) {
+		if ( is_wp_error( $skin->result ) && 'folder_exists' === $skin->result->get_error_code() ) {
+			$folder_exists = true;
+		} elseif ( is_wp_error( $result ) && 'folder_exists' === $result->get_error_code() ) {
+			$folder_exists = true;
+		} elseif ( false === $result || null === $result ) {
+			// `Plugin_Upgrader::install()` returns `false` when the
+			// destination already exists and overwrite isn't allowed.
+			// We can't get the destination path from the result, but
+			// the upgrader emitted the same `folder_exists` skin
+			// error en route (caught above) — this branch is a
+			// belt-and-braces fallback.
+			$folder_exists = true;
+		}
+	}
+
+	if ( $folder_exists ) {
+		desktop_mode_plugins_window_ajax_error(
+			new WP_Error(
+				'folder_exists',
+				__(
+					'A plugin with the same folder name is already installed. Replace it to continue.',
+					'desktop-mode'
+				),
+				array( 'status' => 409 )
+			)
+		);
+		return;
+	}
 
 	if ( is_wp_error( $skin->result ) ) {
 		desktop_mode_plugins_window_ajax_error( $skin->result );
@@ -707,13 +753,11 @@ function desktop_mode_plugins_window_ajax_upload() {
 		return;
 	}
 	if ( false === $result || null === $result ) {
-		// `Plugin_Upgrader::install()` returns `false` when the
-		// destination already exists and overwrite isn't allowed.
 		desktop_mode_plugins_window_ajax_error(
 			new WP_Error(
 				'desktop_mode_plugins_install_failed',
-				__( 'Plugin install failed. The destination folder may already exist.', 'desktop-mode' ),
-				array( 'status' => 409 )
+				__( 'Plugin install failed.', 'desktop-mode' ),
+				array( 'status' => 500 )
 			)
 		);
 		return;
@@ -731,11 +775,32 @@ function desktop_mode_plugins_window_ajax_upload() {
 	 */
 	do_action( 'desktop_mode_plugins_window_installed', $plugin_file );
 
+	// Read the just-installed plugin's headers so the client can show
+	// a name / version on the post-install Activate panel without a
+	// follow-up round-trip. `get_plugin_data()` reads the file
+	// directly — cheap, and the file is already warm in disk cache
+	// from the upgrader.
+	$plugin_name    = '';
+	$plugin_version = '';
+	if ( '' !== $plugin_file ) {
+		if ( ! function_exists( 'get_plugin_data' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$abs_plugin_file = WP_PLUGIN_DIR . '/' . $plugin_file;
+		if ( file_exists( $abs_plugin_file ) ) {
+			$data           = get_plugin_data( $abs_plugin_file, false, false );
+			$plugin_name    = isset( $data['Name'] ) ? (string) $data['Name'] : '';
+			$plugin_version = isset( $data['Version'] ) ? (string) $data['Version'] : '';
+		}
+	}
+
 	wp_send_json_success(
 		array(
-			'plugin_file' => (string) $plugin_file,
-			'status'      => 'inactive',
-			'messages'    => $skin->get_upgrade_messages(),
+			'plugin_file'    => (string) $plugin_file,
+			'plugin_name'    => $plugin_name,
+			'plugin_version' => $plugin_version,
+			'status'         => 'inactive',
+			'messages'       => $skin->get_upgrade_messages(),
 		)
 	);
 }

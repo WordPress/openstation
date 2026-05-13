@@ -236,9 +236,11 @@ describe( 'uploadPluginZip', () => {
 	test( 'POSTs multipart with our window nonce + the file under `pluginzip`', async () => {
 		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
 			ajaxOkResponse( {
-				plugin_file: 'akismet/akismet.php',
-				status:      'inactive',
-				messages:    [],
+				plugin_file:    'akismet/akismet.php',
+				plugin_name:    'Akismet',
+				plugin_version: '5.7',
+				status:         'inactive',
+				messages:       [],
 			} ) as never,
 		);
 		const file = new File(
@@ -255,5 +257,56 @@ describe( 'uploadPluginZip', () => {
 		const submitted = data.get( 'pluginzip' );
 		expect( submitted ).toBeInstanceOf( File );
 		expect( ( submitted as File ).name ).toBe( 'akismet.zip' );
+		// `overwrite` is omitted on the initial attempt — only set
+		// after the user confirms the overwrite prompt.
+		expect( data.get( 'overwrite' ) ).toBeNull();
+	} );
+
+	test( 'passes `overwrite=1` when called with { overwrite: true }', async () => {
+		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
+			ajaxOkResponse( {
+				plugin_file:    'akismet/akismet.php',
+				plugin_name:    'Akismet',
+				plugin_version: '5.7',
+				status:         'inactive',
+				messages:       [],
+			} ) as never,
+		);
+		const file = new File(
+			[ 'PK\x03\x04dummy zip bytes' ],
+			'akismet.zip',
+			{ type: 'application/zip' },
+		);
+		await uploadPluginZip( file, { overwrite: true } );
+		const init = fetchMock.mock.calls[ 0 ]![ 1 ] as RequestInit;
+		const data = init.body as FormData;
+		expect( data.get( 'overwrite' ) ).toBe( '1' );
+	} );
+
+	test( 'surfaces server `folder_exists` error with status code', async () => {
+		vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
+			new Response(
+				JSON.stringify( {
+					success: false,
+					data:    {
+						code:    'folder_exists',
+						message: 'A plugin with the same folder name is already installed. Replace it to continue.',
+					},
+				} ),
+				{
+					status:  409,
+					headers: { 'Content-Type': 'application/json' },
+				},
+			) as never,
+		);
+		const file = new File(
+			[ 'PK\x03\x04dummy zip bytes' ],
+			'akismet.zip',
+			{ type: 'application/zip' },
+		);
+		await expect( uploadPluginZip( file ) ).rejects.toMatchObject( {
+			code:    'folder_exists',
+			status:  409,
+		} );
 	} );
 } );

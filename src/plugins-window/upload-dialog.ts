@@ -14,17 +14,48 @@
  */
 
 import { __, sprintf } from '../i18n';
-import { refreshFrameworkMenu, uploadPluginZip } from './rest';
+import {
+	activateInstalledPlugin,
+	refreshFrameworkMenu,
+	uploadPluginZip,
+	type UploadPluginResult,
+} from './rest';
+// `wpdConfirm` and `showToast` here MUST come from the main-bundle-safe
+// shims (`../wpd-confirm`, `../toast`) — they construct the elements via
+// `document.createElement()` after lazy-loading the shell-overlays
+// bundle. Importing the component module directly
+// (`../ui/components/wpd-confirm-dialog/wpd-confirm-dialog`) would
+// inline `wpd-confirm-dialog`'s `defineComponent()` into the main
+// bundle. That's the canary tag the shell-overlays loader uses to
+// detect whether the bundle is loaded — registering it from the main
+// bundle short-circuits the loader, and the OTHER components in
+// shell-overlays (notably `wpd-window-button`, which renders the
+// titlebar Minimize / Maximize / Close icons) never get defined. The
+// result is visually intact-looking window controls with zero icons.
+import { wpdConfirm } from '../wpd-confirm';
+import { showToast } from '../toast';
+import { broadcast } from '../broadcast';
 import '../ui/components/wpd-button/wpd-button';
 
-interface UploadResult {
-	plugin_file: string;
-	status: 'inactive';
-	messages: string[];
+/**
+ * Cross-view sync topic for the Plugins window. The Installed +
+ * Browse views subscribe and re-fetch on every payload so they
+ * never show a stale snapshot — see `installed-view.ts` and
+ * `browse-view.ts`. The upload dialog publishes here too so a
+ * fresh install / activate from the dialog is reflected on both
+ * tabs without the user needing to hit Refresh.
+ */
+const PLUGINS_CHANGED_TOPIC = 'desktop-mode.plugin.changed';
+const PLUGINS_CHANGED_SOURCE = 'upload-dialog';
+interface PluginsChangedPayload {
+	source: string;
+	plugin?: string;
+	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'bulk';
 }
 
 export interface UploadCallbacks {
-	onUploaded?: ( result: UploadResult ) => void;
+	onUploaded?: ( result: UploadPluginResult ) => void;
+	onActivated?: ( pluginFile: string ) => void;
 }
 
 /**
@@ -35,7 +66,7 @@ export function openUploadDialog(
 	host: HTMLElement,
 	prefilled: File | null,
 	callbacks: UploadCallbacks = {},
-): Promise< UploadResult | null > {
+): Promise< UploadPluginResult | null > {
 	return new Promise( ( resolve ) => {
 		const overlay = document.createElement( 'div' );
 		overlay.className = 'desktop-mode-plugins__upload-overlay';
@@ -175,7 +206,7 @@ export function openUploadDialog(
 			}
 		} );
 
-		const close = ( result: UploadResult | null ): void => {
+		const close = ( result: UploadPluginResult | null ): void => {
 			document.removeEventListener( 'keydown', onKey );
 			overlay.remove();
 			resolve( result );
@@ -213,7 +244,7 @@ export function openUploadDialog(
 			setFile( prefilled );
 		}
 
-		async function runUpload(): Promise< void > {
+		async function runUpload( overwrite = false ): Promise< void > {
 			if ( ! pickedFile ) {
 				return;
 			}
@@ -222,32 +253,67 @@ export function openUploadDialog(
 			submitBtn.setAttribute( 'disabled', '' );
 			cancelBtn.setAttribute( 'disabled', '' );
 			showStatus(
-				__( 'Uploading and installing…', 'desktop-mode' ),
+				overwrite
+					? __( 'Replacing existing plugin…', 'desktop-mode' )
+					: __( 'Uploading and installing…', 'desktop-mode' ),
 				'info',
 			);
 			try {
-				const result = await uploadPluginZip( pickedFile );
+				const result = await uploadPluginZip( pickedFile, { overwrite } );
 				if ( callbacks.onUploaded ) {
 					callbacks.onUploaded( result );
 				}
-				// Background — the upload UX shows its own success state
-				// and closes itself shortly after; the hidden-iframe menu
-				// refresh is for dock/taskbar sync and doesn't need to
-				// gate that handoff.
+				// Tell every other view (Installed tab, anything else
+				// listening) that the plugin set just changed — they
+				// re-fetch and re-render, so the new row appears
+				// without the user needing to hit Refresh.
+				broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+					source: PLUGINS_CHANGED_SOURCE,
+					plugin: result.plugin_file,
+					action: 'install',
+				} );
+				// Hidden-iframe menu refresh keeps the dock/taskbar in
+				// sync if the new plugin registered an admin menu (the
+				// activate path also triggers one; firing here too is
+				// idempotent and lets the user see new tiles even if
+				// they Close without activating).
 				void refreshFrameworkMenu();
-				showStatus(
-					sprintf(
-						/* translators: %s: plugin file (e.g. akismet/akismet.php) */
-						__( 'Installed %s. Activate it from the Installed tab.', 'desktop-mode' ),
-						result.plugin_file,
-					),
-					'success',
-				);
-				// Brief celebratory pause so the user reads the success
-				// message; then close. Skipped during tests where the
-				// jsdom timer doesn't realistically run.
-				window.setTimeout( () => close( result ), 1200 );
+				showSuccessPanel( result );
 			} catch ( err ) {
+				const errStatus = ( err as Error & { status?: number } ).status;
+				const errCode = ( err as Error & { code?: string } ).code;
+				if (
+					! overwrite &&
+					( errStatus === 409 || errCode === 'folder_exists' )
+				) {
+					// Server refused because the destination folder
+					// exists. Ask the user, then retry with overwrite.
+					uploading = false;
+					submitBtn.removeAttribute( 'busy' );
+					submitBtn.removeAttribute( 'disabled' );
+					cancelBtn.removeAttribute( 'disabled' );
+					showStatus(
+						__(
+							'A plugin with the same folder name is already installed.',
+							'desktop-mode',
+						),
+						'info',
+					);
+					const ok = await wpdConfirm( {
+						title: __( 'Replace existing plugin?', 'desktop-mode' ),
+						message: __(
+							'A plugin with the same folder name is already installed. Replacing it overwrites the installed files. Any local edits to the plugin will be lost. The plugin will keep its activation state.',
+							'desktop-mode',
+						),
+						confirmLabel: __( 'Replace', 'desktop-mode' ),
+						cancelLabel: __( 'Cancel', 'desktop-mode' ),
+						danger: true,
+					} );
+					if ( ok ) {
+						await runUpload( true );
+					}
+					return;
+				}
 				uploading = false;
 				submitBtn.removeAttribute( 'busy' );
 				submitBtn.removeAttribute( 'disabled' );
@@ -263,6 +329,146 @@ export function openUploadDialog(
 					'error',
 				);
 			}
+		}
+
+		/**
+		 * Replace the picker + Install/Cancel footer with a post-install
+		 * action panel — plugin name + version, an Activate button, and
+		 * a Close button. Mirrors WP Core's classic
+		 * `update.php?action=upload-plugin` "Plugin installed
+		 * successfully → Activate Plugin" UX, scoped to this dialog so
+		 * no window navigation is required.
+		 */
+		function showSuccessPanel( result: UploadPluginResult ): void {
+			// The upload itself is settled; clear the in-flight guard so
+			// the new Activate / Close buttons aren't immediately
+			// short-circuited by it.
+			uploading = false;
+			// Tear down the picker so it can't be re-fired and the
+			// success state is unambiguous.
+			dropZone.remove();
+			input.remove();
+			actions.remove();
+			status.hidden = true;
+
+			const successHeading = document.createElement( 'h3' );
+			successHeading.className = 'desktop-mode-plugins__upload-success-heading';
+			successHeading.textContent = __(
+				'Plugin installed successfully.',
+				'desktop-mode',
+			);
+
+			const detail = document.createElement( 'p' );
+			detail.className = 'desktop-mode-plugins__upload-success-detail';
+			const name = result.plugin_name || result.plugin_file;
+			detail.textContent = result.plugin_version
+				? sprintf(
+					/* translators: 1: plugin name 2: plugin version */
+					__( '%1$s %2$s', 'desktop-mode' ),
+					name,
+					result.plugin_version,
+				)
+				: name;
+
+			const successActions = document.createElement( 'div' );
+			successActions.className = 'desktop-mode-plugins__upload-actions';
+			const closeBtn = document.createElement( 'wpd-button' );
+			closeBtn.setAttribute( 'variant', 'ghost' );
+			closeBtn.textContent = __( 'Close', 'desktop-mode' );
+			const activateBtn = document.createElement( 'wpd-button' );
+			activateBtn.setAttribute( 'variant', 'primary' );
+			activateBtn.textContent = __( 'Activate Plugin', 'desktop-mode' );
+			successActions.append( closeBtn, activateBtn );
+
+			card.append( successHeading, detail, successActions );
+
+			closeBtn.addEventListener( 'click', () => {
+				if ( uploading ) {
+					return;
+				}
+				close( result );
+			} );
+
+			activateBtn.addEventListener( 'click', () => {
+				if ( uploading ) {
+					return;
+				}
+				void runActivate();
+			} );
+
+			async function runActivate(): Promise< void > {
+				uploading = true;
+				activateBtn.setAttribute( 'busy', '' );
+				activateBtn.setAttribute( 'disabled', '' );
+				closeBtn.setAttribute( 'disabled', '' );
+				try {
+					// `/wp/v2/plugins/{plugin}` keys off the
+					// extensionless plugin slug. The upload handler
+					// returns the full `foo/foo.php`; strip the `.php`
+					// to match Core's REST shape.
+					const pluginFile = result.plugin_file.endsWith( '.php' )
+						? result.plugin_file.slice( 0, -4 )
+						: result.plugin_file;
+					const updated = await activateInstalledPlugin( {
+						plugin: pluginFile,
+						status: 'inactive',
+					} as Parameters< typeof activateInstalledPlugin >[ 0 ] );
+					if ( callbacks.onActivated ) {
+						callbacks.onActivated( result.plugin_file );
+					}
+					void refreshFrameworkMenu();
+					// Notify both tabs so the row flips to "Active" and
+					// any cached state on either side refetches.
+					broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+						source: PLUGINS_CHANGED_SOURCE,
+						plugin: updated.plugin,
+						action: 'activate',
+					} );
+					// Toast is best-effort, in case the user has
+					// dragged the dialog out of view; the in-dialog
+					// "activated" panel below is the primary signal.
+					showToast( {
+						message: sprintf(
+							/* translators: %s: plugin name */
+							__( '%s activated.', 'desktop-mode' ),
+							name,
+						),
+					} );
+					// Swap the post-install panel for an explicit
+					// activated state. Lets the user read confirmation
+					// and dismiss on their own schedule — matching the
+					// post-install panel's interaction model.
+					uploading = false;
+					successHeading.textContent = __(
+						'Plugin activated.',
+						'desktop-mode',
+					);
+					activateBtn.remove();
+					closeBtn.removeAttribute( 'disabled' );
+					closeBtn.setAttribute( 'variant', 'primary' );
+					closeBtn.textContent = __( 'Done', 'desktop-mode' );
+					closeBtn.focus?.();
+				} catch ( err ) {
+					uploading = false;
+					activateBtn.removeAttribute( 'busy' );
+					activateBtn.removeAttribute( 'disabled' );
+					closeBtn.removeAttribute( 'disabled' );
+					const message =
+						err instanceof Error ? err.message : String( err );
+					status.hidden = false;
+					status.dataset.tone = 'error';
+					status.textContent = sprintf(
+						/* translators: %s: error message from the activate handler */
+						__( 'Activate failed: %s', 'desktop-mode' ),
+						message,
+					);
+					card.appendChild( status );
+				}
+			}
+
+			// Move keyboard focus to the primary action so the user
+			// can confirm with Enter.
+			window.setTimeout( () => activateBtn.focus?.(), 16 );
 		}
 
 		function showStatus(
