@@ -4,9 +4,7 @@ A WordPress plugin that reimagines `/wp-admin` as a desktop operating system. Ad
 
 Zero Core patches. Every feature is wired through public WordPress hooks.
 
-<a href="https://playground.wordpress.net?blueprint-url=https://raw.githubusercontent.com/WordPress/desktop-mode/refs/heads/trunk/.wordpress-org/blueprints/blueprint.json">
-  <img src="https://raw.githubusercontent.com/WordPress/action-wp-playground-pr-preview/v2/assets/playground-preview-button.svg" alt="Playground Demo Link" width="180">
-</a>
+[![Active Installs](https://img.shields.io/wordpress/plugin/installs/desktop-mode?logo=wordpress&logoColor=%23fff&label=Active%20Installs&labelColor=%2323282D&color=%2323282D)](https://wordpress.org/plugins/desktop-mode/) [![Playground Demo Link](https://img.shields.io/wordpress/plugin/v/desktop-mode?logo=wordpress&logoColor=%23fff&label=Playground%20Demo&labelColor=%233858e9&color=%233858e9)](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/desktop-mode/refs/heads/trunk/.wordpress-org/blueprints/blueprint.json) [![Studio Demo Link](https://img.shields.io/wordpress/plugin/v/desktop-mode?logo=wordpress&logoColor=%23fff&label=Open%20in%20WordPress%20Studio&labelColor=%2323282D&color=%2323282D)](https://wp.com/open?deep_link=add-site%3Fblueprint_url%3Dhttps%253A%252F%252Fraw.githubusercontent.com%252FWordPress%252Fdesktop-mode%252Frefs%252Fheads%252Ftrunk%252F.wordpress-org%252Fblueprints%252Fblueprint.json)
 
 ## Demo
 
