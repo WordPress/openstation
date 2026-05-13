@@ -1570,6 +1570,61 @@ window.wp.desktop.listCommands().forEach( ( c ) => console.log( `/${ c.slug } �
 
 ---
 
+### `registerDestructiveAdminAction( entry )` — Stable  *(since 0.8.4)*
+
+Mark a wp-admin URL pattern as a **destructive (redirect-back) action** so a click on that URL navigates the *source* iframe in place instead of opening a new window. The same UX vanilla wp-admin gives for Trash / Untrash / Delete row actions — the row disappears, the list refreshes with an "Undo" notice on the same screen.
+
+Built-ins are pinned with no opt-in: Core's `trash`, `untrash`, `delete` on posts plus the comment-moderation set (`spamcomment`, `unspamcomment`, `trashcomment`, `untrashcomment`, `deletecomment`, `approvecomment`, `unapprovecomment`). Register a predicate for any plugin-specific equivalent.
+
+```javascript
+const unregister = window.wp.desktop.registerDestructiveAdminAction( {
+    id: 'woocommerce/trash-order',
+    matches: ( _url, parsed ) =>
+        parsed.pathname.endsWith( '/admin.php' ) &&
+        parsed.searchParams.get( 'page' ) === 'wc-orders' &&
+        parsed.searchParams.get( 'action' ) === 'trash' &&
+        parsed.searchParams.has( '_wpnonce' ),
+} );
+```
+
+**Entry shape:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Globally-unique, recommended `<plugin>/<action-slug>`. Re-registering the same id replaces the prior entry. |
+| `matches` | `( url: string, parsed: URL ) => boolean` | Predicate. Receives the raw URL string + a parsed URL object (the dispatcher parses once and shares). Return `true` to claim the URL. Predicates SHOULD also check for nonce presence — a URL with the action name but no nonce won't perform a side-effect on the server, and the in-place reload would be wasted. |
+
+**Returns:** an unregister function. Calling it removes the entry by id. `unregisterDestructiveAdminAction( id )` does the same.
+
+**When not to register:**
+- Built-ins are already covered — no need for `trash` / `untrash` / `delete` on Core post types.
+- Actions that genuinely *navigate* to a different screen (Edit, Settings deep links) should NOT be marked destructive — let them open a new window.
+- Bulk-action POSTs handled via `<form>` submission are out of scope (forms don't go through this dispatcher).
+
+**Cross-bundle:** the registry routes through `wp.desktop.createSharedStore`. A `register…` call from a plugin's own Vite IIFE is visible to the dispatcher (which runs inside the shell's `window-system` bundle). See `AGENTS.md` § "Cross-bundle state".
+
+---
+
+### `unregisterDestructiveAdminAction( id )` — Stable  *(since 0.8.4)*
+
+Remove a previously registered predicate. Idempotent — no-op when the id is unknown.
+
+```javascript
+window.wp.desktop.unregisterDestructiveAdminAction( 'woocommerce/trash-order' );
+```
+
+---
+
+### `listDestructiveAdminActions()` — Stable  *(since 0.8.4)*
+
+Snapshot (defensive copy) of every plugin-registered destructive-admin-action predicate. Built-in Core whitelist entries are NOT included — they're not registry entries.
+
+```javascript
+window.wp.desktop.listDestructiveAdminActions().forEach( ( e ) => console.log( e.id ) );
+```
+
+---
+
 ### `wp.desktop.ai.ask( query, opts? )` — Experimental  *(since 0.17.0)*
 
 Programmatic access to the AI Copilot — same endpoint the built-in overlay talks to. Resolves to an `AskResult`; rejects on network errors, HTTP failures, or abort.

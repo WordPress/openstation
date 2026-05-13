@@ -27,6 +27,7 @@
  */
 
 import type { OsSettingsSnapshot } from './settings/registry';
+import { createSharedStore } from './shared-store';
 
 /**
  * A single URL → native-window remap.
@@ -74,8 +75,24 @@ interface RemapDeps {
 	adminUrl: string;
 }
 
-const remaps: NativeUrlRemap[] = [];
-let deps: RemapDeps | null = null;
+// Routed through `createSharedStore` so the registry registered from
+// the MAIN `desktop.ts` bundle is visible to the WINDOW-SYSTEM bundle
+// that owns the `Window` class (`handleWindowMessage` calls
+// `tryNativeUrlRemap` from inside the window-system bundle). A plain
+// module-level array here would give each bundle its own private
+// copy: `registerNativeUrlRemap()` in main would push into one array,
+// `tryNativeUrlRemap()` in window-system would walk a different empty
+// one, and every cross-page admin-link click that should remap to a
+// native window would silently fall through. See `AGENTS.md`
+// § "Cross-bundle state — `wp.desktop.createSharedStore`".
+interface RemapRegistryState {
+	remaps: NativeUrlRemap[];
+	deps: RemapDeps | null;
+}
+const remapStore = createSharedStore< RemapRegistryState >(
+	'desktop-mode/native-url-remap',
+	() => ( { remaps: [], deps: null } ),
+);
 
 /**
  * Wire the registry to the live shell — called once from `desktop.ts`
@@ -84,7 +101,7 @@ let deps: RemapDeps | null = null;
  * @internal
  */
 export function bindNativeUrlRemap( bound: RemapDeps ): void {
-	deps = bound;
+	remapStore.state.deps = bound;
 }
 
 /**
@@ -108,6 +125,7 @@ export function registerNativeUrlRemap( entry: NativeUrlRemap ): () => void {
 
 	// Replace any existing entry with the same id — mirrors WordPress's
 	// `register_*` semantics so a hot-reloaded bundle doesn't double up.
+	const remaps = remapStore.state.remaps;
 	const existingIdx = remaps.findIndex( ( r ) => r.id === entry.id );
 	if ( existingIdx >= 0 ) {
 		remaps.splice( existingIdx, 1 );
@@ -121,6 +139,7 @@ export function registerNativeUrlRemap( entry: NativeUrlRemap ): () => void {
  * Remove a remap by id.
  */
 export function unregisterNativeUrlRemap( id: string ): void {
+	const remaps = remapStore.state.remaps;
 	const i = remaps.findIndex( ( r ) => r.id === id );
 	if ( i >= 0 ) {
 		remaps.splice( i, 1 );
@@ -134,7 +153,7 @@ export function unregisterNativeUrlRemap( id: string ): void {
  * @internal
  */
 export function listNativeUrlRemaps(): NativeUrlRemap[] {
-	return remaps.slice();
+	return remapStore.state.remaps.slice();
 }
 
 /**
@@ -154,6 +173,7 @@ export function listNativeUrlRemaps(): NativeUrlRemap[] {
  * @return Native window id the URL maps to, or `null`.
  */
 export function resolveNativeUrlRemap( url: string ): string | null {
+	const { deps, remaps } = remapStore.state;
 	if ( ! deps || ! url ) {
 		return null;
 	}
@@ -191,6 +211,7 @@ export function resolveNativeUrlRemap( url: string ): string | null {
  * @return Whether the URL was remapped to a native window.
  */
 export function tryNativeUrlRemap( url: string ): boolean {
+	const { deps, remaps } = remapStore.state;
 	if ( ! deps || ! url ) {
 		return false;
 	}
@@ -234,6 +255,6 @@ export function tryNativeUrlRemap( url: string ): boolean {
  * @internal
  */
 export function _resetNativeUrlRemap(): void {
-	remaps.length = 0;
-	deps = null;
+	remapStore.state.remaps.length = 0;
+	remapStore.state.deps = null;
 }

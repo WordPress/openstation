@@ -16,6 +16,8 @@ import { addExternalTab } from './tabs';
 import type { Window } from './index';
 import { dispatchFromWindow, markWindowContentReady } from '../window-channels';
 import { tryNativeUrlRemap } from '../native-url-remap';
+import { createSharedStore } from '../shared-store';
+import { matchDestructiveAdminAction } from '../destructive-admin-actions';
 
 /**
  * Origin snapshot taken once at module load. Any subsequent mutation
@@ -91,7 +93,22 @@ interface AdminLinkDispatchDeps {
 	findDockEntry( url: string ): AdminLinkDockEntry | null;
 }
 
-let adminLinkDeps: AdminLinkDispatchDeps | null = null;
+// Routed through `createSharedStore` so the deps set by the MAIN
+// `desktop.ts` bundle are visible to the WINDOW-SYSTEM bundle that
+// owns the `Window` class (and therefore actually runs
+// `handleWindowMessage`). A plain module-level `let` here would give
+// each bundle its own private copy: `bindAdminLinkDispatch()` would
+// set the main bundle's copy while `handleWindowMessage` reads the
+// window-system bundle's still-null copy, and every cross-page admin-
+// link click would silently no-op. See `AGENTS.md` § "Cross-bundle
+// state — `wp.desktop.createSharedStore`".
+interface AdminLinkDepsState {
+	deps: AdminLinkDispatchDeps | null;
+}
+const adminLinkDepsStore = createSharedStore< AdminLinkDepsState >(
+	'desktop-mode/admin-link-deps',
+	() => ( { deps: null } ),
+);
 
 /**
  * Wire the cross-page admin-link dispatcher. Called once from
@@ -103,7 +120,7 @@ let adminLinkDeps: AdminLinkDispatchDeps | null = null;
 export function bindAdminLinkDispatch(
 	deps: AdminLinkDispatchDeps | null,
 ): void {
-	adminLinkDeps = deps;
+	adminLinkDepsStore.state.deps = deps;
 }
 
 /**
@@ -223,12 +240,13 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
+		const deps = adminLinkDepsStore.state.deps;
 		if ( tryNativeUrlRemap( data.url ) ) {
 			win.close();
-		} else if ( adminLinkDeps ) {
+		} else if ( deps ) {
 			const linkLabel =
 				typeof data.label === 'string' ? data.label : '';
-			handleCrossPageAdminLink( win, data.url, linkLabel, adminLinkDeps );
+			handleCrossPageAdminLink( win, data.url, linkLabel, deps );
 		}
 	}
 
@@ -443,6 +461,153 @@ function handleDesktopNavigate(
  * readers announce the page change). Setting `iframe.src` from the
  * parent overwrites the current entry instead.
  */
+/**
+ * Core wp-admin URL `action=` values that perform a side-effect on
+ * the server and redirect back to the source list page (Trash,
+ * Untrash, Delete on posts; the equivalents on comments).
+ *
+ * These are intentionally NOT cross-page navigations even when the
+ * URL's slug differs from the source window's: vanilla wp-admin
+ * handles them in the current tab — the user clicks Trash on a row,
+ * the list refreshes with the "1 post moved to the Trash. Undo."
+ * notice. Opening a fresh window would leave the source list stale
+ * AND land the user on the action's redirect target (which depends
+ * on Referer in ways that don't survive a fresh iframe; see the
+ * `_wp_http_referer` shim further down for the safety-net
+ * mitigation).
+ *
+ * Whitelist, not blanket "any `_wpnonce`": URLs like
+ * `update-core.php?action=upgrade-core&_wpnonce=…` carry a nonce
+ * but ARE genuine cross-page navigations the user wants in a window.
+ *
+ * Extension point: plugins register their own predicates via
+ * `wp.desktop.registerDestructiveAdminAction({ id, matches })` —
+ * see `src/destructive-admin-actions.ts`. Built-in Core action
+ * names are pinned in this set for zero-config behavior; the
+ * plugin registry is consulted AFTER the built-in check.
+ */
+const DESTRUCTIVE_ADMIN_ACTIONS: ReadonlySet< string > = new Set( [
+	// wp-admin/post.php
+	'trash',
+	'untrash',
+	'delete',
+	// wp-admin/comment.php
+	'spam',
+	'unspam',
+	'spamcomment',
+	'unspamcomment',
+	'trashcomment',
+	'untrashcomment',
+	'deletecomment',
+	'approvecomment',
+	'unapprovecomment',
+] );
+
+/**
+ * True when a URL is a redirect-back side-effect (Trash, Untrash,
+ * Delete on posts/comments). Used to short-circuit
+ * {@link handleCrossPageAdminLink} into the same-page branch so the
+ * source iframe is the one that performs the action — its natural
+ * Referer header then carries the source URL, and WP redirects
+ * straight back to the list with the success notice.
+ */
+function isDestructiveActionUrl( url: URL ): boolean {
+	const action = url.searchParams.get( 'action' );
+	if ( action && DESTRUCTIVE_ADMIN_ACTIONS.has( action ) ) {
+		// A standalone `?action=trash` with no nonce won't actually
+		// trash anything (WP rejects it with `check_admin_referer`);
+		// the nonce check is also a useful disambiguator from action
+		// names a plugin might overload for non-destructive flows.
+		if (
+			url.searchParams.has( '_wpnonce' ) ||
+			url.searchParams.has( '_wp_nonce' )
+		) {
+			return true;
+		}
+	}
+	// Plugin-registered predicates (the extension point). Walked
+	// AFTER the built-in whitelist so the common case is one map
+	// lookup; predicates only run for URLs Core didn't already
+	// claim. The registry is shared across bundles via
+	// `createSharedStore`, so a plugin's `registerDestructiveAdminAction`
+	// call from its own bundle reaches the dispatcher running in
+	// the `window-system` bundle.
+	return matchDestructiveAdminAction( url.toString(), url ) !== null;
+}
+
+/**
+ * Stamp `_wp_http_referer=<source-page>` onto an admin URL so WP's
+ * referer-driven redirects (`wp_get_referer()` in trash/untrash/
+ * delete handlers, in form-post `redirect_post_location`, in plugin
+ * actions that send the user "back" after a side-effect) resolve to
+ * the page the user clicked FROM, not whatever URL the browser's
+ * `Referer` header happens to carry.
+ *
+ * Why this hint is necessary in both navigation paths:
+ *
+ *   - **New-window opens** — a freshly-created iframe has no prior
+ *     in-frame history, so the browser uses the embedder's URL as
+ *     `Referer`. WP then redirects post-trash to the desktop shell
+ *     URL (often the portal-stamped Dashboard).
+ *
+ *   - **Same-iframe `location.assign`** — the iframe DOES have a
+ *     prior URL, but real-world `Referrer-Policy` headers (WP and
+ *     many hosts set `strict-origin-when-cross-origin` or stricter)
+ *     can downgrade the `Referer` to just the origin, dropping the
+ *     `/wp-admin/edit.php?…` path WP needs. The post-trash redirect
+ *     then falls into the `wp_get_referer()` fallback branches that
+ *     end at Dashboard.
+ *
+ * `_wp_http_referer` is the same hint WP itself threads through
+ * forms via `wp_nonce_field()`; `wp_get_referer()` checks
+ * `$_REQUEST['_wp_http_referer']` BEFORE the raw header, so the
+ * param wins. Harmless on non-action navigations.
+ *
+ * Returns the URL unchanged when the caller already supplied a
+ * referer (we never overwrite), when the source URL is unreadable,
+ * or when the source resolves to a different origin (defensive — a
+ * mis-attributed referer is worse than none).
+ */
+function stampSourceReferer( url: URL, win: Window ): URL {
+	if ( url.searchParams.has( '_wp_http_referer' ) ) {
+		return url;
+	}
+	let sourceHref = '';
+	try {
+		sourceHref = win.iframe?.contentWindow?.location.href ?? '';
+	} catch {
+		// Cross-origin or torn-down iframe — fall through.
+	}
+	if ( ! sourceHref ) {
+		sourceHref = win.config.url || '';
+	}
+	if ( ! sourceHref ) {
+		return url;
+	}
+	try {
+		const sourceUrl = new URL( sourceHref, INITIAL_ORIGIN );
+		if ( sourceUrl.origin !== INITIAL_ORIGIN ) {
+			return url;
+		}
+		const out = new URL( url.href );
+		// Strip the chromeless flag from the hint: `wp_get_referer()`
+		// passes the result downstream to logic that builds the
+		// next redirect, and a chromeless-flagged referer would loop
+		// the flag into places it doesn't belong. The post-redirect
+		// preserve filter (`desktop_mode_chromeless_preserve_redirect`)
+		// reattaches the flag where needed.
+		const cleaned = new URL( sourceUrl.href );
+		cleaned.searchParams.delete( 'desktop_mode_chromeless' );
+		out.searchParams.set(
+			'_wp_http_referer',
+			cleaned.pathname + ( cleaned.search ? cleaned.search : '' ),
+		);
+		return out;
+	} catch {
+		return url;
+	}
+}
+
 function handleCrossPageAdminLink(
 	win: Window,
 	rawUrl: string,
@@ -462,6 +627,42 @@ function handleCrossPageAdminLink(
 
 	const targetSlug = deps.deriveSlug( absolute );
 	const sourceSlug = win.config.baseId || win.id;
+
+	// Destructive row actions (Trash, Untrash, Delete on posts;
+	// spam / approve / trash on comments) navigate the SOURCE iframe
+	// in place regardless of slug, matching vanilla wp-admin's
+	// "click Trash → row disappears + Undo notice on the same list"
+	// behavior. Slug-based cross-page open-a-new-window logic isn't
+	// meaningful here: the URL's slug is whichever
+	// `post.php?post=N&action=trash` it happens to be, but the
+	// landing page after WP's 302 is the list the user already has
+	// open — the in-place branch reaches that exact state.
+	if ( targetSlug !== sourceSlug && isDestructiveActionUrl( url ) ) {
+		// Inject `_wp_http_referer` so WP's trash/untrash/delete
+		// handlers resolve `wp_get_referer()` to the source page
+		// regardless of what the browser's `Referer` header carries
+		// (real-world `Referrer-Policy` headers downgrade the
+		// header to just the origin, dropping the path WP needs).
+		// Without this, the post-action redirect lands wherever WP's
+		// fallback chooses — commonly the Dashboard, since the
+		// origin-only referer matches neither `post.php` nor
+		// `post-new.php` and WP's "back to the list" branch then
+		// substitutes `admin_url('edit.php')` only when the referer
+		// IS empty / IS post.php; everything else passes through
+		// and gets `trashed=1&ids=N` appended to the wrong URL.
+		const trashUrl = stampSourceReferer( url, win );
+		const inner = win.iframe?.contentWindow;
+		if ( inner ) {
+			try {
+				inner.location.assign( trashUrl.href );
+			} catch {
+				if ( win.iframe ) {
+					win.iframe.src = trashUrl.href;
+				}
+			}
+		}
+		return;
+	}
 
 	if ( targetSlug === sourceSlug ) {
 		const inner = win.iframe?.contentWindow;
@@ -502,10 +703,16 @@ function handleCrossPageAdminLink(
 	const trimmedLabel = linkLabel.trim();
 	const title =
 		entry?.title || ( trimmedLabel !== '' ? trimmedLabel : targetSlug );
+
+	// Forward source page as `_wp_http_referer` — see
+	// {@link stampSourceReferer} for the rationale (same shim the
+	// in-place destructive-action branch uses).
+	const urlWithReferer = stampSourceReferer( url, win );
+
 	deps.openWindow( {
 		id: targetSlug,
 		baseId: targetSlug,
-		url: absolute,
+		url: urlWithReferer.toString(),
 		parentUrl: entry?.url ?? absolute,
 		title,
 		icon: entry?.icon ?? 'dashicons-admin-generic',

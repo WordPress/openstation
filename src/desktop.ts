@@ -22,6 +22,7 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
+import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
 // in this bundle since 0.8.1.
@@ -723,6 +724,57 @@ export interface WpDesktopPublicApi {
 	unregisterCommand: ( slug: string ) => void;
 	/** Snapshot of all currently registered commands. @since 0.14.0 */
 	listCommands: () => DesktopCommand[];
+	/**
+	 * Register a predicate that classifies an admin URL as a
+	 * "destructive admin action" — i.e. a click that should navigate
+	 * the SOURCE iframe in place (vanilla wp-admin's "row disappears
+	 * + Undo notice on the same list" UX) instead of opening a new
+	 * window.
+	 *
+	 * Built-ins covered with no opt-in: Core's `trash`, `untrash`,
+	 * `delete` on posts and the comment-moderation set
+	 * (`spamcomment`, `trashcomment`, etc.). Plugin authors with a
+	 * custom redirect-back action register a predicate so their
+	 * URL stays in place too.
+	 *
+	 * ```js
+	 * const unregister = wp.desktop.registerDestructiveAdminAction( {
+	 *     id: 'woocommerce/trash-order',
+	 *     matches: ( _url, parsed ) =>
+	 *         parsed.pathname.endsWith( '/admin.php' ) &&
+	 *         parsed.searchParams.get( 'page' ) === 'wc-orders' &&
+	 *         parsed.searchParams.get( 'action' ) === 'trash' &&
+	 *         parsed.searchParams.has( '_wpnonce' ),
+	 * } );
+	 * ```
+	 *
+	 * Predicates SHOULD assert nonce presence — a URL with the
+	 * action name but no nonce won't perform a side-effect on the
+	 * server, and the in-place nav would just be a wasted reload.
+	 *
+	 * Returns an unregister function. Calling
+	 * `unregisterDestructiveAdminAction( id )` does the same.
+	 *
+	 * @since 0.8.4
+	 */
+	registerDestructiveAdminAction: (
+		entry: DestructiveAdminActionEntry,
+	) => () => void;
+	/**
+	 * Remove a previously registered destructive-admin-action
+	 * predicate. No-op when the id is unknown.
+	 *
+	 * @since 0.8.4
+	 */
+	unregisterDestructiveAdminAction: ( id: string ) => void;
+	/**
+	 * Snapshot of every plugin-registered destructive-admin-action
+	 * predicate. Built-ins (`trash`, `untrash`, `delete`, …) are
+	 * NOT included — they have no `id` and aren't registry entries.
+	 *
+	 * @since 0.8.4
+	 */
+	listDestructiveAdminActions: () => DestructiveAdminActionEntry[];
 	/**
 	 * Register a tab in the OS Settings window.
 	 *
