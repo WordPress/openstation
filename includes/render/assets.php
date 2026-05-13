@@ -536,7 +536,7 @@ function desktop_mode_build_command_menu_map() {
 				$out[] = array(
 					'label' => sprintf(
 						/* translators: 1: parent menu label, 2: submenu label */
-						__( '%1$s > %2$s' ),
+						__( '%1$s > %2$s', 'desktop-mode' ),
 						$menu_label,
 						$submenu_label
 					),
