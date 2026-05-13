@@ -7,6 +7,10 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { bindAdminLinkDispatch, handleWindowMessage } from './iframe-bridge';
+import {
+	_resetDestructiveAdminActionsForTests,
+	registerDestructiveAdminAction,
+} from '../destructive-admin-actions';
 import { HOOKS } from '../hooks';
 import type { Window } from './index';
 import {
@@ -379,6 +383,251 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 
 		expect( openWindow ).not.toHaveBeenCalled();
 		expect( assignSpy ).not.toHaveBeenCalled();
+	} );
+
+	test( 'destructive action (trash) navigates the source iframe in place, not a new window', () => {
+		// Vanilla wp-admin treats Trash / Untrash / Delete row
+		// actions as in-place: the list refreshes with the
+		// "1 post moved to the Trash. Undo." notice. Reproducing
+		// that here keeps the source list authoritative (avoids
+		// a stale row) AND lets WP's `wp_get_referer()` resolve
+		// to the source page (Referer is the iframe's current
+		// URL during `location.assign`, not the parent shell's).
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&desktop_mode_chromeless=1';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'destructive action without a nonce still opens a new window', () => {
+		// `?action=trash` with no `_wpnonce` is meaningless to WP
+		// (`check_admin_referer` would reject it). The action-name
+		// match alone isn't a reliable signal — a plugin could
+		// reuse the word for a non-destructive flow. The nonce
+		// presence is the actual disambiguator.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/post.php?post=42&action=trash';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( assignSpy ).not.toHaveBeenCalled();
+	} );
+
+	test( 'Edit row action (no nonce) opens a new window — destructive whitelist does not over-claim', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/post.php?post=42&action=edit';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( assignSpy ).not.toHaveBeenCalled();
+	} );
+
+	test( 'plugin-registered destructive predicate keeps cross-page URL in place', () => {
+		// The extension point: an action name OUTSIDE the built-in
+		// whitelist gets in-place behavior because a plugin
+		// registered a predicate for it.
+		_resetDestructiveAdminActionsForTests();
+		registerDestructiveAdminAction( {
+			id: 'test/woo-trash-order',
+			matches: ( _url, parsed ) =>
+				parsed.pathname.endsWith( '/admin.php' ) &&
+				parsed.searchParams.get( 'page' ) === 'wc-orders' &&
+				parsed.searchParams.get( 'action' ) === 'trash' &&
+				parsed.searchParams.has( '_wpnonce' ),
+		} );
+
+		try {
+			const { openWindow } = bindFakeDispatcher();
+			const { win, assignSpy } = mockAdminWindow( {
+				id: 'admin-php-page-wc-orders',
+			} );
+			( win.config as unknown as { url: string } ).url =
+				window.location.origin + '/wp-admin/admin.php?page=wc-orders';
+
+			const target =
+				window.location.origin +
+				'/wp-admin/admin.php?page=wc-orders&action=trash&order=99&_wpnonce=woo';
+			postToWindow( win, {
+				type: 'desktop-mode-iframe-admin-link',
+				url: target,
+			} );
+
+			expect( openWindow ).not.toHaveBeenCalled();
+			expect( assignSpy ).toHaveBeenCalledTimes( 1 );
+			const navigated = new URL( String( assignSpy.mock.calls[ 0 ][ 0 ] ) );
+			// Still goes through `stampSourceReferer` for the same
+			// Referrer-Policy reasons as built-in destructive actions.
+			expect( navigated.searchParams.get( '_wp_http_referer' ) ).toBe(
+				'/wp-admin/admin.php?page=wc-orders',
+			);
+			expect( navigated.searchParams.get( 'action' ) ).toBe( 'trash' );
+		} finally {
+			_resetDestructiveAdminActionsForTests();
+		}
+	} );
+
+	test( 'plugin-registered predicate that returns false leaves the URL on the cross-page path', () => {
+		_resetDestructiveAdminActionsForTests();
+		registerDestructiveAdminAction( {
+			id: 'test/never-matches',
+			matches: () => false,
+		} );
+
+		try {
+			const { openWindow } = bindFakeDispatcher();
+			const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+
+			const target =
+				window.location.origin +
+				'/wp-admin/admin.php?page=foo&action=export&_wpnonce=zzz';
+			postToWindow( win, {
+				type: 'desktop-mode-iframe-admin-link',
+				url: target,
+			} );
+
+			expect( openWindow ).toHaveBeenCalledTimes( 1 );
+			expect( assignSpy ).not.toHaveBeenCalled();
+		} finally {
+			_resetDestructiveAdminActionsForTests();
+		}
+	} );
+
+	test( 'comment moderation action (spam) navigates in place', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-comments-php' } );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/comment.php?action=spamcomment&c=99&_wpnonce=xyz';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+	} );
+
+	test( 'cross-page open stamps `_wp_http_referer` from the source window URL', () => {
+		// Safety-net regression: even with the destructive-action
+		// short-circuit in place, plugin-specific side-effect URLs
+		// that DON'T match the whitelist will still open a new
+		// window — and there a fresh iframe has no prior in-frame
+		// navigation, so the browser's `Referer` header on the
+		// destination request is the desktop shell's URL. Threading
+		// `_wp_http_referer` makes `wp_get_referer()` resolve to the
+		// page the user clicked from, preventing post-action
+		// redirects from bouncing to whatever URL the shell page
+		// happens to be on.
+		const { openWindow } = bindFakeDispatcher();
+		const { win } = mockAdminWindow( { id: 'edit-php' } );
+		( win.config as unknown as { url: string } ).url =
+			window.location.origin + '/wp-admin/edit.php?desktop_mode_chromeless=1';
+
+		// Cross-page URL with a nonce but an action name OUTSIDE
+		// the destructive whitelist — represents a plugin's custom
+		// side-effect link.
+		const target =
+			window.location.origin +
+			'/wp-admin/admin.php?page=my-plugin&action=custom-export&_wpnonce=abc';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
+		const parsed = new URL( openedUrl );
+		// The `desktop_mode_chromeless` flag is stripped from the
+		// referer hint — `wp_get_referer()` consumers pass the
+		// result downstream into further redirects, and a
+		// chromeless-flagged referer would loop the flag into URLs
+		// that shouldn't carry it. The post-redirect preserve
+		// filter (server-side) reattaches it where needed.
+		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
+			'/wp-admin/edit.php',
+		);
+		// Original action params survive the rewrite.
+		expect( parsed.searchParams.get( 'action' ) ).toBe( 'custom-export' );
+		expect( parsed.searchParams.get( 'page' ) ).toBe( 'my-plugin' );
+	} );
+
+	test( 'destructive action in-place navigation stamps `_wp_http_referer`', () => {
+		// Real-world `Referrer-Policy` headers can downgrade the
+		// browser's `Referer` to just the origin, dropping the path
+		// WP needs to redirect back to the list. The explicit hint
+		// makes the destination resolution deterministic.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+		( win.config as unknown as { url: string } ).url =
+			window.location.origin + '/wp-admin/edit.php?desktop_mode_chromeless=1';
+
+		const target =
+			window.location.origin +
+			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&desktop_mode_chromeless=1';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( assignSpy ).toHaveBeenCalledTimes( 1 );
+		const navigatedTo = String( assignSpy.mock.calls[ 0 ][ 0 ] );
+		const parsed = new URL( navigatedTo );
+		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
+			'/wp-admin/edit.php',
+		);
+		// Action params survive the rewrite.
+		expect( parsed.searchParams.get( 'action' ) ).toBe( 'trash' );
+		expect( parsed.searchParams.get( 'post' ) ).toBe( '42' );
+		expect( parsed.searchParams.get( '_wpnonce' ) ).toBe( 'abc' );
+	} );
+
+	test( 'cross-page open does not double-stamp an existing `_wp_http_referer`', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win } = mockAdminWindow( { id: 'edit-php' } );
+		( win.config as unknown as { url: string } ).url =
+			window.location.origin + '/wp-admin/edit.php';
+
+		const target =
+			window.location.origin +
+			'/wp-admin/post.php?post=42&action=trash&_wp_http_referer=%2Fwp-admin%2Fcustom.php';
+		postToWindow( win, {
+			type: 'desktop-mode-iframe-admin-link',
+			url: target,
+		} );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
+		const parsed = new URL( openedUrl );
+		// Caller-supplied referer wins — we don't overwrite.
+		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
+			'/wp-admin/custom.php',
+		);
 	} );
 
 	test( 'unbound deps drops the click without crashing', () => {

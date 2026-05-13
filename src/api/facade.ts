@@ -63,6 +63,11 @@ import {
 	unregisterCommand,
 } from '../commands';
 import {
+	listDestructiveAdminActions,
+	registerDestructiveAdminAction,
+	unregisterDestructiveAdminAction,
+} from '../destructive-admin-actions';
+import {
 	listSettingsTabs,
 	registerSettingsTab,
 	unregisterSettingsTab,
@@ -154,7 +159,10 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'dragManager', 'registerCommand',
-	'unregisterCommand', 'listCommands', 'registerSettingsTab',
+	'unregisterCommand', 'listCommands',
+	'registerDestructiveAdminAction', 'unregisterDestructiveAdminAction',
+	'listDestructiveAdminActions',
+	'registerSettingsTab',
 	'unregisterSettingsTab', 'listSettingsTabs',
 	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
 	'openOsSettings', 'getOsSettings', 'subscribeOsSettings', 'updateOsSettings',
@@ -306,6 +314,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerCommand,
 		unregisterCommand,
 		listCommands,
+		registerDestructiveAdminAction,
+		unregisterDestructiveAdminAction,
+		listDestructiveAdminActions,
 		registerSettingsTab,
 		unregisterSettingsTab,
 		listSettingsTabs,
