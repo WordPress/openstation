@@ -80,16 +80,17 @@ Key server-side entry points:
 
 ## Browser flow
 
-1. `/wp-admin/` loads → portal redirect sends the user to `/desktop-mode/`.
-2. `/desktop-mode/` serves a real admin page (Dashboard by default) with the shell wrapped around it.
-3. The shell's Vite-built TypeScript bundle (`desktop.js` in dev, `desktop.min.js` in prod) initializes:
+1. `/wp-admin/...` loads → the portal redirect on `admin_init` bounces the request through `/desktop-mode/?target=<original-url>`.
+2. `/desktop-mode/` (with or without `target`) forwards back into wp-admin tagged with `desktop_mode_portal=1`. When the redirect resolved from a `target` (user-supplied intent — admin-bar link, bookmark, etc.) the URL also carries `desktop_mode_portal_intent=1`. Both flags are stripped from `currentPage` before the shell sees it; the booleans `fromPortal` / `fromPortalIntent` ride along in the shell config so the boot flow can distinguish "portal stamped this URL" from "user actually asked for it."
+3. The landing page renders with the shell wrapped around it (Dashboard by default; the user's saved focused window, the default-window preference, or the `target` URL otherwise).
+4. The shell's Vite-built TypeScript bundle (`desktop.js` in dev, `desktop.min.js` in prod) initializes:
    - Creates the `WindowManager`.
    - Creates the **layout dispatcher** which owns the dock(s) for the active `desktopLayout` (see [Desktop layout modes](#desktop-layout-modes)).
-   - Either restores the saved session (if one exists) **or** opens the current page in a new window.
+   - Restores the saved session (if one exists). Then `shouldAutoOpenCurrentPage()` (see `src/boot/auto-open.ts`) decides whether to ALSO open `currentPage`. The decision: open when `fromPortal=false` (direct nav) **or** `fromPortalIntent=true` (portal redirected here from a user-clicked link). Suppress on bare portal entries that landed via the default-window / session-focused fallback so a restored stack isn't disturbed.
    - Wires persistence — debounced `POST /wp-json/desktop-mode/v1/session`.
-4. When a dock icon is clicked, the manager opens a window whose iframe `src` is the admin URL with `?desktop_mode_chromeless=1` appended.
-5. The iframe renders WordPress normally, but the chromeless stylesheet hides the admin bar, side menu, and wp-footer.
-6. The iframe `postMessage`s its title, navigation, and screen-meta state up to the parent.
+5. When a dock icon is clicked, the manager opens a window whose iframe `src` is the admin URL with `?desktop_mode_chromeless=1` appended.
+6. The iframe renders WordPress normally, but the chromeless stylesheet hides the admin bar, side menu, and wp-footer.
+7. The iframe `postMessage`s its title, navigation, and screen-meta state up to the parent.
 
 ## Desktop layout modes
 

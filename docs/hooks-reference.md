@@ -652,15 +652,17 @@ apply_filters( 'desktop_mode_shell_config', array $config );
 
 ```php
 array(
-    'currentPage'    => string,   // e.g. 'http://localhost:8889/wp-admin/'
-    'currentTitle'   => string,   // human title of the current page
-    'currentIcon'    => string,   // dashicons-* class
-    'adminUrl'       => string,   // admin_url()
-    'portalUrl'      => string,   // desktop_mode_portal_url()
-    'sessionUrl'     => string,   // REST session URL
-    'restNonce'      => string,   // X-WP-Nonce
-    'dockItems'      => array[],  // see desktop_mode_dock_items
-    'session'        => array,    // prior session snapshot or empty
+    'currentPage'      => string,   // e.g. 'http://localhost:8889/wp-admin/'
+    'currentTitle'     => string,   // human title of the current page
+    'currentIcon'      => string,   // dashicons-* class
+    'adminUrl'         => string,   // admin_url()
+    'portalUrl'        => string,   // desktop_mode_portal_url()
+    'sessionUrl'       => string,   // REST session URL
+    'restNonce'        => string,   // X-WP-Nonce
+    'dockItems'        => array[],  // see desktop_mode_dock_items
+    'session'          => array,    // prior session snapshot or empty
+    'fromPortal'       => bool,     // request was forwarded by the /desktop-mode/ portal
+    'fromPortalIntent' => bool,     // portal forward resolved from a user-supplied `target` URL — the user expressed navigation intent toward `currentPage`, not just a bare `/desktop-mode/` visit. Since 0.8.4.
 )
 ```
 

@@ -28,6 +28,18 @@ const DESKTOP_MODE_PORTAL_PATH = 'desktop-mode';
 const DESKTOP_MODE_PORTAL_FLAG = 'desktop_mode_portal';
 
 /**
+ * Query var set on portal redirects whose landing page came from an
+ * explicit `?target=…` URL the user (or a redirect chain originating
+ * from a click) provided — as opposed to the portal picking the
+ * session's focused window or the default-window fallback.
+ *
+ * The shell uses this to distinguish "user expressed navigation intent
+ * toward this URL" (open it) from "portal had to forward somewhere"
+ * (don't disturb the restored session).
+ */
+const DESKTOP_MODE_PORTAL_INTENT_FLAG = 'desktop_mode_portal_intent';
+
+/**
  * Query var set by the window-title-bar "Detach" action. Tells the
  * admin_init redirect to skip portal forwarding for this request so the
  * user can view the page as classic wp-admin in a new tab even when
@@ -113,7 +125,8 @@ function desktop_mode_handle_portal_request( $wp ) {
 	//      specific admin page (e.g. profile.php).
 	//   2. Last-focused window from the saved session.
 	//   3. Dashboard fallback.
-	$target = '';
+	$target      = '';
+	$has_intent  = false;
 	if ( ! empty( $_GET['target'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		// `esc_url_raw`, NOT `sanitize_text_field`: the latter strips
 		// every `%XX` percent-encoded sequence from its input as an XSS
@@ -124,6 +137,9 @@ function desktop_mode_handle_portal_request( $wp ) {
 		// scheme rejection, file_exists gate) so we don't lose any
 		// real safety by skipping `sanitize_text_field` here.
 		$target = desktop_mode_sanitize_portal_target( esc_url_raw( wp_unslash( $_GET['target'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( '' !== $target ) {
+			$has_intent = true;
+		}
 	}
 	if ( '' === $target ) {
 		$target = desktop_mode_portal_entry_url( $user_id );
@@ -132,6 +148,15 @@ function desktop_mode_handle_portal_request( $wp ) {
 	// Flag the forward so the shell can stamp the address bar back to
 	// /desktop-mode/ via history.replaceState once it has loaded.
 	$target = add_query_arg( DESKTOP_MODE_PORTAL_FLAG, '1', $target );
+
+	// Second flag: the redirect resolved from an explicit `target`, so
+	// the shell should treat the resulting `currentPage` as user
+	// intent and auto-open it on top of the restored session. Without
+	// this, a bare `/desktop-mode/` visit and a portal-redirected
+	// admin-bar click would be indistinguishable downstream.
+	if ( $has_intent ) {
+		$target = add_query_arg( DESKTOP_MODE_PORTAL_INTENT_FLAG, '1', $target );
+	}
 
 	wp_safe_redirect( $target );
 	exit;
@@ -427,7 +452,7 @@ function desktop_mode_sanitize_portal_target( $raw ) {
 
 	if ( is_string( $query ) && '' !== $query ) {
 		parse_str( $query, $args );
-		unset( $args['desktop_mode_chromeless'], $args[ DESKTOP_MODE_PORTAL_FLAG ], $args['target'] );
+		unset( $args['desktop_mode_chromeless'], $args[ DESKTOP_MODE_PORTAL_FLAG ], $args[ DESKTOP_MODE_PORTAL_INTENT_FLAG ], $args['target'] );
 		if ( ! empty( $args ) ) {
 			$target = add_query_arg( $args, $target );
 		}

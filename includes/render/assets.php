@@ -196,14 +196,15 @@ function desktop_mode_enqueue_assets() {
 	};
 
 	// Build the current page URL from $pagenow + $_GET. Strip the portal
-	// marker so the derived window ID matches what the dock would produce
+	// markers so the derived window ID matches what the dock would produce
 	// for the same page — otherwise auto-opening the entry window and
 	// clicking the same dock icon would create a duplicate.
 	$current_query = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	unset( $current_query[ DESKTOP_MODE_PORTAL_FLAG ] );
+	unset( $current_query[ DESKTOP_MODE_PORTAL_FLAG ], $current_query[ DESKTOP_MODE_PORTAL_INTENT_FLAG ] );
 	$current_page = admin_url( $pagenow ) . ( ! empty( $current_query ) ? '?' . http_build_query( $current_query ) : '' );
 
-	$from_portal = ! empty( $_GET[ DESKTOP_MODE_PORTAL_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$from_portal        = ! empty( $_GET[ DESKTOP_MODE_PORTAL_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$from_portal_intent = ! empty( $_GET[ DESKTOP_MODE_PORTAL_INTENT_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 	/**
 	 * Filters the desktop shell configuration passed to JavaScript.
@@ -241,6 +242,7 @@ function desktop_mode_enqueue_assets() {
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
 	 *     @type string $portalUrl    Canonical `/desktop-mode/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
+	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/desktop-mode/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
 	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
 	 * }
@@ -352,6 +354,7 @@ function desktop_mode_enqueue_assets() {
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
 			'portalUrl'        => esc_url( desktop_mode_portal_url() ),
 			'fromPortal'       => $from_portal,
+			'fromPortalIntent' => $from_portal_intent,
 			'pwa'              => array(
 				'manifestUrl' => esc_url_raw( desktop_mode_pwa_manifest_url() ),
 				'swUrl'       => esc_url_raw( desktop_mode_pwa_sw_url() ),

@@ -1729,6 +1729,25 @@ export interface DesktopConfig {
 	/** True when the shell was reached via the portal redirect. */
 	fromPortal: boolean;
 	/**
+	 * True when the portal redirect resolved from an explicit `?target=…`
+	 * URL — i.e. the user expressed navigation intent toward the current
+	 * page (clicked an admin-bar "Edit Post" link, followed a bookmark
+	 * to `/wp-admin/plugins.php`, etc.) rather than landing on
+	 * `/desktop-mode/` bare.
+	 *
+	 * The boot flow uses this to decide whether to honour
+	 * `currentPage` as a window to auto-open: `fromPortal` alone says
+	 * "the portal stamped the URL," only `fromPortalIntent` says "the
+	 * user actually asked for this page."
+	 *
+	 * Optional in the type so older payloads (pre-bug-fix shells) fail
+	 * soft to `undefined` / falsy — keeping the previous (session-
+	 * suppress) behaviour for callers that never see the new flag.
+	 *
+	 * @since 0.8.4
+	 */
+	fromPortalIntent?: boolean;
+	/**
 	 * Progressive-web-app config — endpoint URLs and the per-user
 	 * installable-pill state. Always present in shell-mode requests.
 	 * Optional in the type so older payloads (or chromeless contexts

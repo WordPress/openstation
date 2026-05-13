@@ -34,7 +34,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 		remove_all_filters( 'desktop_mode_mode_enabled' );
 		remove_all_actions( 'desktop_mode_mode_init' );
 		remove_all_actions( 'desktop_mode_chromeless_styles' );
-		unset( $_GET['desktop_mode_chromeless'] );
+		unset( $_GET['desktop_mode_chromeless'], $_GET[ DESKTOP_MODE_PORTAL_FLAG ], $_GET[ DESKTOP_MODE_PORTAL_INTENT_FLAG ] );
 		parent::tear_down();
 	}
 
@@ -108,9 +108,72 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 		desktop_mode_enqueue_assets();
 
 		$this->assertIsArray( $received );
-		foreach ( array( 'currentPage', 'currentTitle', 'currentIcon', 'adminUrl', 'colorScheme', 'dockItems' ) as $key ) {
+		foreach ( array( 'currentPage', 'currentTitle', 'currentIcon', 'adminUrl', 'colorScheme', 'dockItems', 'fromPortal', 'fromPortalIntent' ) as $key ) {
 			$this->assertArrayHasKey( $key, $received, "Config missing key: $key" );
 		}
+	}
+
+	/**
+	 * The shell config surfaces `fromPortalIntent` mirroring the
+	 * `desktop_mode_portal_intent` query flag, and strips it out of
+	 * `currentPage` so the URL-derived window id matches the dock's.
+	 *
+	 * @covers ::desktop_mode_enqueue_assets
+	 */
+	public function test_desktop_mode_shell_config_surfaces_portal_intent_flag() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET[ DESKTOP_MODE_PORTAL_FLAG ]        = '1';
+		$_GET[ DESKTOP_MODE_PORTAL_INTENT_FLAG ] = '1';
+		$_GET['post']                            = '104';
+		$_GET['action']                          = 'edit';
+
+		$received = null;
+		add_filter(
+			'desktop_mode_shell_config',
+			function ( $config ) use ( &$received ) {
+				$received = $config;
+				return $config;
+			}
+		);
+
+		try {
+			desktop_mode_enqueue_assets();
+		} finally {
+			unset( $_GET['post'], $_GET['action'] );
+		}
+
+		$this->assertIsArray( $received );
+		$this->assertTrue( $received['fromPortal'] );
+		$this->assertTrue( $received['fromPortalIntent'] );
+		$this->assertStringNotContainsString( DESKTOP_MODE_PORTAL_FLAG, $received['currentPage'] );
+		$this->assertStringNotContainsString( DESKTOP_MODE_PORTAL_INTENT_FLAG, $received['currentPage'] );
+	}
+
+	/**
+	 * Bare portal entry — `fromPortal=true`, but no intent flag — must
+	 * surface `fromPortalIntent=false` so the boot flow leaves the
+	 * restored session alone.
+	 *
+	 * @covers ::desktop_mode_enqueue_assets
+	 */
+	public function test_desktop_mode_shell_config_intent_flag_defaults_false() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET[ DESKTOP_MODE_PORTAL_FLAG ] = '1';
+
+		$received = null;
+		add_filter(
+			'desktop_mode_shell_config',
+			function ( $config ) use ( &$received ) {
+				$received = $config;
+				return $config;
+			}
+		);
+
+		desktop_mode_enqueue_assets();
+
+		$this->assertIsArray( $received );
+		$this->assertTrue( $received['fromPortal'] );
+		$this->assertFalse( $received['fromPortalIntent'] );
 	}
 
 	/**

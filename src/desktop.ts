@@ -141,6 +141,7 @@ import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { openCurrentPage, restoreSession } from './boot/session';
+import { shouldAutoOpenCurrentPage } from './boot/auto-open';
 import { createSessionSaver } from './boot/session-saver';
 import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
 import { trackedFetch } from './boot/tracked-fetch';
@@ -2135,24 +2136,37 @@ function init(): void {
 	);
 
 	// Bootstrap: restore session (if any), then decide whether to also
-	// auto-open the current admin URL. The rules compose three signals:
+	// auto-open the current admin URL. The rules compose four signals:
 	//
 	//   1. `fromPortal=false`     → user navigated to a specific admin
-	//      URL (e.g. /wp-admin/edit.php). Always honor that navigation
-	//      by opening the page; direct URLs are intent.
+	//      URL directly (no portal redirect). Always honor — direct
+	//      URLs are intent.
 	//
 	//   2. `fromPortal=true`
-	//      + session exists       → user is returning to their saved
-	//      stack. Respect the stack verbatim — don't force Dashboard
-	//      (or any other default) back in. Matches their last state.
+	//      + `fromPortalIntent=true`
+	//                              → the portal redirected here, but it
+	//      did so because the user followed a link to a specific
+	//      admin page (the `desktop_mode_redirect_plain_admin_to_portal`
+	//      → `?target=…` round-trip). Honor the URL regardless of
+	//      saved-session state; the page they asked for opens on top
+	//      of the restored stack.
 	//
 	//   3. `fromPortal=true`
+	//      + `fromPortalIntent=false`
+	//      + session exists       → bare `/desktop-mode/` visit with a
+	//      saved stack. Portal picked the last-focused window or the
+	//      default; session restore already covers it. Don't double-
+	//      open and don't force a default back into a custom stack.
+	//
+	//   4. `fromPortal=true`
+	//      + `fromPortalIntent=false`
 	//      + session empty
 	//      + defaultWindow.enabled=false
 	//                              → user explicitly turned off the
 	//      default window. Show them an empty desktop. No auto-open.
 	//
-	//   4. `fromPortal=true`
+	//   5. `fromPortal=true`
+	//      + `fromPortalIntent=false`
 	//      + session empty
 	//      + defaultWindow.enabled=true
 	//                              → first visit or clean slate, and
@@ -2180,10 +2194,13 @@ function init(): void {
 	const isNativeDefault =
 		typeof defaultUrlEarly === 'string' &&
 		defaultUrlEarly.startsWith( 'native:' );
-	const suppressAutoOpen =
-		config.fromPortal &&
-		( hasSession || ! defaultEnabled || isNativeDefault );
-	if ( ! suppressAutoOpen ) {
+	if ( shouldAutoOpenCurrentPage( {
+		fromPortal: config.fromPortal,
+		fromPortalIntent: config.fromPortalIntent,
+		hasSession,
+		defaultEnabled,
+		isNativeDefault,
+	} ) ) {
 		void openCurrentPage( manager, config ).catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
 				console.error( '[desktop-mode] openCurrentPage failed:', err );
@@ -2277,6 +2294,7 @@ function init(): void {
 	if (
 		config.defaultWindow?.enabled &&
 		config.fromPortal &&
+		! config.fromPortalIntent &&
 		! hasSession &&
 		isNativeDefault
 	) {

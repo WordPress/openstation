@@ -31,6 +31,7 @@ class Tests_DesktopMode_Portal extends WP_UnitTestCase {
 			$_SERVER['REQUEST_URI'],
 			$_SERVER['REQUEST_METHOD'],
 			$_GET[ DESKTOP_MODE_PORTAL_FLAG ],
+			$_GET[ DESKTOP_MODE_PORTAL_INTENT_FLAG ],
 			$_GET[ DESKTOP_MODE_CLASSIC_FLAG ],
 			$_GET['desktop_mode_chromeless']
 		);
@@ -552,5 +553,109 @@ class Tests_DesktopMode_Portal extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'post_type=page', $redirect );
 		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_FLAG . '=1', $redirect );
+	}
+
+	/**
+	 * Bare `/desktop-mode/` visits — no `?target=` — must NOT carry the
+	 * portal-intent flag. The shell uses its absence as the signal that
+	 * the portal picked the landing page itself (default window /
+	 * session-focused), so a restored session shouldn't be disturbed.
+	 *
+	 * @covers ::desktop_mode_handle_portal_request
+	 */
+	public function test_portal_bare_visit_omits_intent_flag() {
+		wp_set_current_user( self::$admin_id );
+
+		$redirect = $this->capture_redirect( '/desktop-mode/' );
+
+		$this->assertNotNull( $redirect );
+		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringNotContainsString( DESKTOP_MODE_PORTAL_INTENT_FLAG . '=1', $redirect );
+	}
+
+	/**
+	 * Regression for the "Edit Post" admin-bar click from the front end:
+	 * `/wp-admin/post.php?post=…&action=edit` → portal redirect →
+	 * `/wp-admin/post.php?…&desktop_mode_portal=1&desktop_mode_portal_intent=1`.
+	 * Without the intent flag the shell would suppress the auto-open
+	 * whenever the user has a saved session, swallowing their click.
+	 *
+	 * @covers ::desktop_mode_handle_portal_request
+	 */
+	public function test_portal_target_redirect_carries_intent_flag() {
+		wp_set_current_user( self::$admin_id );
+		$raw_uri                = '/wp-admin/post.php?post=104&action=edit';
+		$_GET['target']         = $raw_uri;
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/?target=' . rawurlencode( $raw_uri );
+
+		try {
+			$redirect = $this->capture_with( 'desktop_mode_handle_portal_request', null );
+		} finally {
+			unset( $_GET['target'] );
+		}
+
+		$this->assertNotNull( $redirect );
+		$this->assertStringContainsString( 'post.php', $redirect );
+		$this->assertStringContainsString( 'post=104', $redirect );
+		$this->assertStringContainsString( 'action=edit', $redirect );
+		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_INTENT_FLAG . '=1', $redirect );
+	}
+
+	/**
+	 * If `?target=` is supplied but the URL fails the wp-admin
+	 * whitelist (off-site, missing file, etc.), the portal falls back
+	 * to the session/default landing — which is portal-picked, not
+	 * user intent. The intent flag must NOT survive that fallback.
+	 *
+	 * @covers ::desktop_mode_handle_portal_request
+	 */
+	public function test_portal_invalid_target_does_not_set_intent_flag() {
+		wp_set_current_user( self::$admin_id );
+		$_GET['target']         = '/somewhere-not-admin/foo.php';
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/?target=' . rawurlencode( '/somewhere-not-admin/foo.php' );
+
+		try {
+			$redirect = $this->capture_with( 'desktop_mode_handle_portal_request', null );
+		} finally {
+			unset( $_GET['target'] );
+		}
+
+		$this->assertNotNull( $redirect );
+		$this->assertStringContainsString( DESKTOP_MODE_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringNotContainsString( DESKTOP_MODE_PORTAL_INTENT_FLAG . '=1', $redirect );
+	}
+
+	/**
+	 * The intent flag must not leak into the derived `currentPage`
+	 * passed to the shell. Otherwise the window id derived from the URL
+	 * would diverge from the dock's id for the same admin page, and
+	 * clicking the dock icon for an already-auto-opened page would
+	 * spawn a duplicate window.
+	 *
+	 * @covers ::desktop_mode_handle_portal_request
+	 * @covers ::desktop_mode_sanitize_portal_target
+	 */
+	public function test_portal_target_with_existing_intent_flag_is_normalised() {
+		wp_set_current_user( self::$admin_id );
+		// User crafts (or a bookmark embeds) a target whose query string
+		// already carries the intent marker. The sanitizer drops the
+		// duplicate so we don't end up with `…intent=1&…intent=1`.
+		$raw_uri                = '/wp-admin/edit.php?post_type=page&' . DESKTOP_MODE_PORTAL_INTENT_FLAG . '=1';
+		$_GET['target']         = $raw_uri;
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/?target=' . rawurlencode( $raw_uri );
+
+		try {
+			$redirect = $this->capture_with( 'desktop_mode_handle_portal_request', null );
+		} finally {
+			unset( $_GET['target'] );
+		}
+
+		$this->assertNotNull( $redirect );
+		// Exactly one occurrence of the intent flag in the final URL.
+		$this->assertSame(
+			1,
+			substr_count( $redirect, DESKTOP_MODE_PORTAL_INTENT_FLAG . '=1' )
+		);
 	}
 }
