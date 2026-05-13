@@ -163,6 +163,7 @@ import {
 } from './dock-rail';
 import { createWidgetRegistrySync } from './widgets/server-sync';
 import { WPD_COMPONENT_TAGS } from './ui/components/tags';
+import { startMissingImportWarner } from './ui/components/missing-import-warner';
 import {
 	registerModule,
 	type ModuleDef,
@@ -3312,6 +3313,10 @@ function init(): void {
 
 // `bindMenuRefresh` and `MENU_REFRESH_TIMEOUT_MS` were moved to
 // `src/boot/menu-refresh.ts` in 0.8.1.
+
+// Start the missing-import warner before anything else so the very
+// first DOM construction is observed. Idempotent and side-effect-only.
+startMissingImportWarner();
 
 // Initialize when DOM is ready.
 if ( document.readyState === 'loading' ) {

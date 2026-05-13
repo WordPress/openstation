@@ -32,10 +32,54 @@ interface ComponentEntry {
 	props: readonly string[];
 }
 
+/**
+ * Module-level guard so the "intentional demo" console banner is
+ * logged exactly once per page lifetime, no matter how many times
+ * the Components tab is opened or repainted.
+ */
+let demoBannerLogged = false;
+
+function logDemoBanner(): void {
+	if ( demoBannerLogged ) {
+		return;
+	}
+	demoBannerLogged = true;
+
+	const headingStyle = [
+		'background: #ffb400',
+		'color: #1a1a1a',
+		'font-weight: 700',
+		'font-size: 12px',
+		'padding: 4px 8px',
+		'border-radius: 3px',
+	].join( ';' );
+	const bodyStyle = [
+		'color: #b25c00',
+		'font-weight: 500',
+	].join( ';' );
+
+	// eslint-disable-next-line no-console
+	console.log(
+		'%c⚠ wp.desktop — INTENTIONAL DEMO%c\n' +
+			'The next three console.error entries are fired ON PURPOSE by the\n' +
+			'OS Settings → Components tab to demonstrate the <wpd-*> missing-\n' +
+			'import warner. They are not real bugs.\n\n' +
+			'  1. <wpd-example-console-fail-due-to-unregistered-component>\n' +
+			'  2. <wpd-buton>   (typo of <wpd-button>)\n' +
+			'  3. <wpd-totally-made-up-thing>\n\n' +
+			'Source: src/settings/sections/help.ts — the "Missing-import\n' +
+			'warner — live demo" section. Remove that section in your fork\n' +
+			'if you want a quieter Components tab.',
+		headingStyle,
+		bodyStyle,
+	);
+}
+
 export function buildHelpSection(): HTMLElement {
 	const entries = collectEntries();
 	const el = document.createElement( 'div' );
 	el.classList.add( 'desktop-mode-os-settings__help' );
+	logDemoBanner();
 
 	let activeTag = entries[ 0 ]?.tag ?? '';
 
@@ -52,6 +96,37 @@ export function buildHelpSection(): HTMLElement {
 					<p class="desktop-mode-os-settings__help-count">
 						${ String( entries.length ) } ${ __( 'components registered.' ) }
 					</p>
+				</wpd-section>
+
+				<wpd-section
+					heading=${ __( 'Missing-import warner — live demo' ) }
+					description=${ __(
+						'The three <wpd-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with "did you mean", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.',
+					) }
+				>
+					<div
+						class="desktop-mode-os-settings__help-warner-demo"
+						aria-hidden="true"
+						style="position:absolute;width:0;height:0;overflow:hidden;clip:rect(0 0 0 0);"
+					>
+						<!--
+							Case 1 — invented name, nothing close in the registry.
+							Triggers the "no component by that name exists" branch.
+						-->
+						<wpd-example-console-fail-due-to-unregistered-component></wpd-example-console-fail-due-to-unregistered-component>
+
+						<!--
+							Case 2 — typo within Levenshtein distance of a real tag.
+							Triggers the "Did you mean <wpd-button>?" branch.
+						-->
+						<wpd-buton></wpd-buton>
+
+						<!--
+							Case 3 — looks plausible but is not in the registry.
+							Triggers the unknown-tag branch with no suggestion.
+						-->
+						<wpd-totally-made-up-thing></wpd-totally-made-up-thing>
+					</div>
 				</wpd-section>
 
 				<div class="desktop-mode-os-settings__help-layout">
