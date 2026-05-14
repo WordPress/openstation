@@ -97,6 +97,59 @@ export function mapRecycleTypeToFileType( recycleType: string ): string {
 	return 'post';
 }
 
+/**
+ * Inline-styled background tints for the type badge. Lives in JS
+ * because `<wpd-table>` renders its body into a shadow DOM that
+ * blocks document stylesheets — every visual property has to come
+ * from inline `style.*` assignments. The palette is intentionally
+ * desaturated so badges read as metadata, not as primary content.
+ * Unknown types fall through to `_default`.
+ */
+const TYPE_BADGE_COLORS: Record< string, { bg: string; fg: string } > = {
+	post: { bg: '#dbe9fe', fg: '#1d4ed8' },
+	page: { bg: '#e0f2fe', fg: '#075985' },
+	attachment: { bg: '#fef3c7', fg: '#92400e' },
+	comment: { bg: '#dcfce7', fg: '#166534' },
+	_default: { bg: '#e5e7eb', fg: '#374151' },
+};
+
+function humanizeType( slug: string ): string {
+	if ( ! slug ) {
+		return '';
+	}
+	return slug
+		.replace( /[_-]+/g, ' ' )
+		.replace( /\b\w/g, ( c ) => c.toUpperCase() );
+}
+
+function makeTypeBadge( row: RecycleBinItem ): HTMLElement {
+	const label =
+		row.type_label && row.type_label.length > 0
+			? row.type_label
+			: humanizeType( row.type );
+	const colors =
+		TYPE_BADGE_COLORS[ row.type ] ?? TYPE_BADGE_COLORS._default;
+	const badge = document.createElement( 'span' );
+	badge.setAttribute( 'data-desktop-mode-recycle-bin-type-badge', row.type );
+	badge.textContent = label;
+	badge.style.cssText = [
+		'display: inline-flex',
+		'align-items: center',
+		'flex-shrink: 0',
+		'padding: 2px 8px',
+		'border-radius: 999px',
+		'font-size: 11px',
+		'font-weight: 600',
+		'line-height: 1.4',
+		'letter-spacing: 0.2px',
+		'text-transform: uppercase',
+		'white-space: nowrap',
+		'background: ' + colors.bg,
+		'color: ' + colors.fg,
+	].join( ';' );
+	return badge;
+}
+
 const ROOT = '[data-desktop-mode-recycle-bin-root]';
 const FILTER = '[data-desktop-mode-recycle-bin-filter]';
 const SEARCH = '[data-desktop-mode-recycle-bin-search]';
@@ -181,9 +234,12 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 			render: ( _v, row ) => {
 				// One-cell layout: optional thumbnail (image
 				// attachments only) sits inline at the start, then
-				// the two-line title/subtitle stack. Posts, pages,
-				// comments get the full title width since they have
-				// nothing to show on the left — no reserved gap.
+				// the two-line title/subtitle stack. A small type
+				// badge sits inline before the title so each row
+				// answers "what kind of thing is this?" without a
+				// dedicated column. Posts, pages, comments get the
+				// full title width since they have nothing to show
+				// on the left — no reserved gap.
 				const wrap = document.createElement( 'span' );
 				wrap.style.cssText =
 					'display:flex;align-items:center;gap:10px;min-width:0;';
@@ -205,12 +261,17 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 				const stack = document.createElement( 'span' );
 				stack.style.cssText =
 					'display:flex;flex-direction:column;gap:2px;min-width:0;';
+				const titleRow = document.createElement( 'span' );
+				titleRow.style.cssText =
+					'display:flex;align-items:center;gap:8px;min-width:0;';
+				titleRow.appendChild( makeTypeBadge( row ) );
 				const title = document.createElement( 'span' );
 				title.style.cssText =
 					'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
 				title.textContent = row.title;
 				title.title = row.title;
-				stack.appendChild( title );
+				titleRow.appendChild( title );
+				stack.appendChild( titleRow );
 				if ( row.subtitle ) {
 					const sub = document.createElement( 'span' );
 					sub.style.cssText =
@@ -223,9 +284,10 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 				return wrap;
 			},
 		},
-		// No explicit Type column — the title + the toolbar's type
-		// filter tabs already convey the entity kind, and an extra
-		// column inflates the row visually for no signal gain.
+		// No explicit Type column — the inline type badge in the
+		// title cell and the toolbar's type filter tabs already
+		// convey the entity kind, and an extra column inflates the
+		// row visually for no signal gain.
 		{
 			key: 'deleted_at',
 			label: __( 'Deleted' ),
