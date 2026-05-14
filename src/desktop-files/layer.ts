@@ -110,6 +110,23 @@ export interface FilesLayer {
 	 * @since 0.8.0
 	 */
 	reflow: () => void;
+	/**
+	 * Resolves once this folder's initial REST hydration has settled
+	 * (either the placements list returned and was upserted into the
+	 * store, OR the folder was already hydrated from a previous mount
+	 * and no REST call was needed).
+	 *
+	 * Boot path uses this to defer revealing the desktop area until
+	 * the icon set is final, so the user doesn't see a brief paint
+	 * with only server-side wallpaper icons (then a re-paint a frame
+	 * later when REST returns the folders + placements). Never
+	 * rejects — REST failure is reported via `console.error` from the
+	 * mount path and the promise still resolves so the caller's
+	 * reveal-after-hydrate isn't stranded forever.
+	 *
+	 * @since 0.18.x
+	 */
+	readonly hydrated: Promise< void >;
 	dispose: () => void;
 }
 
@@ -479,7 +496,15 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	repaint( filesStoreApi.getState() );
 	const off = filesStoreApi.subscribe( repaint );
 
-	// Hydrate from REST if we haven't seen this folder yet.
+	// Hydrate from REST if we haven't seen this folder yet. Resolves
+	// the `hydrated` promise so the boot path can hold off revealing
+	// the desktop until the placements list has landed in the store
+	// — avoids the "wallpaper icons paint first, folders/posts a
+	// frame later" staircase the user sees on F5.
+	let resolveHydrated: () => void = () => undefined;
+	const hydrated = new Promise< void >( ( resolve ) => {
+		resolveHydrated = resolve;
+	} );
 	if ( ! filesStoreApi.getState().hydratedFolders.has( folderId ) ) {
 		void rest
 			.listPlacements( folderId )
@@ -489,7 +514,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			.catch( ( err ) => {
 				// eslint-disable-next-line no-console
 				console.error( '[desktop-mode] files: failed to hydrate folder', folderId, err );
+			} )
+			.finally( () => {
+				resolveHydrated();
 			} );
+	} else {
+		// Already hydrated — resolve on the next microtask so the
+		// caller's `.then` runs after the synchronous repaint above.
+		queueMicrotask( resolveHydrated );
 	}
 
 	/**
@@ -665,6 +697,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		},
 		sort,
 		reflow,
+		hydrated,
 		dispose() {
 			off();
 			resizeObserver?.disconnect();

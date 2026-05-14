@@ -2846,7 +2846,39 @@ function init(): void {
 		// isn't in the page (headless tests, classic admin).
 		const rootHost = document.getElementById( 'desktop-mode-area' );
 		if ( rootHost ) {
-			mountFilesLayer( rootHost, 0 );
+			// Boot reveal gate. The `desktop-mode-area--booting`
+			// class is ADDED BY PHP on the shell template (see
+			// `includes/render/shell.php`) so the area is invisible
+			// from the very first paint — before this JS even runs.
+			// Without the PHP-side gate, the layout dispatcher's
+			// `repaintIcons()` would paint server wallpaper icons
+			// into a visible area for a frame or two before we got
+			// a chance to add the class here, producing the
+			// "plugins flash first, then everything blinks in"
+			// staircase.
+			//
+			// Our job here is to REMOVE the class once the root
+			// layer's REST hydration settles, so the area fades back
+			// in on the next frame with everything in place. 2 s
+			// safety timeout in case the REST call hangs — we'd
+			// rather show a partial paint than a permanently-blank
+			// shell. The CSS itself also has a 3 s fallback
+			// animation that reveals the area unconditionally, so
+			// even a total JS failure can't strand the user.
+			const layerHandle = mountFilesLayer( rootHost, 0 );
+			const reveal = (): void => {
+				if ( ! desktopArea.classList.contains( 'desktop-mode-area--booting' ) ) {
+					return;
+				}
+				requestAnimationFrame( () => {
+					desktopArea.classList.remove( 'desktop-mode-area--booting' );
+				} );
+			};
+			const safetyTimer = setTimeout( reveal, 2000 );
+			void layerHandle.hydrated.then( () => {
+				clearTimeout( safetyTimer );
+				reveal();
+			} );
 		}
 	}
 

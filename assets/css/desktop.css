@@ -260,6 +260,61 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	overflow: hidden;
 	background: transparent;
 	padding-bottom: 80px;
+	transition: opacity 180ms ease;
+}
+
+/*
+ * Boot reveal gate.
+ *
+ * On F5 the shell paints in stages: the dispatcher's
+ * `repaintIcons()` lands the server-rendered wallpaper icons
+ * synchronously from `desktopModeConfig.desktopIcons`, then the
+ * files-layer mounts and momentarily renders an empty bucket while
+ * REST `listPlacements(0)` is in flight, then folders/posts/links
+ * slot in on the next paint. The user reads that as "plugins show
+ * first, then everything blinks and the rest arrives."
+ *
+ * The `--booting` modifier is applied BY PHP (see
+ * `includes/render/shell.php`) on the initial HTML so the area
+ * starts invisible BEFORE any JS runs — otherwise the dispatcher
+ * gets to paint the wallpaper icons into a visible area first and
+ * the user sees them flash before our gate kicks in.
+ *
+ * `desktop.ts` removes the class inside a `requestAnimationFrame`
+ * after the root files-layer's `hydrated` promise resolves (with a
+ * 2 s JS safety timeout). The opacity transition declared on
+ * `.desktop-mode-area` smooths the reveal.
+ *
+ * The fallback animation is a resilience layer for the case where
+ * the shell JS never runs (network error mid-load, ad-blocker
+ * tearing down a bundle, …). The animation holds the area
+ * invisible for 2.7 s then flips it to opacity 1; the
+ * `animation-fill-mode: forwards` keeps the revealed state held
+ * after the animation ends. In the normal case JS removes the
+ * class long before 2.7 s and the animation is discarded.
+ *
+ * `pointer-events: none` while booting prevents a stray click on
+ * the still-hidden surface from triggering Show-Desktop or opening
+ * a tile that's about to reposition once REST returns.
+ *
+ * @since 0.18.x
+ */
+.desktop-mode-area--booting {
+	opacity: 0;
+	pointer-events: none;
+	animation: desktop-mode-area-boot-fallback 3s forwards;
+}
+
+@keyframes desktop-mode-area-boot-fallback {
+	0%,
+	90% {
+		opacity: 0;
+		pointer-events: none;
+	}
+	100% {
+		opacity: 1;
+		pointer-events: auto;
+	}
 }
 
 /* ---------------------------------------------------------------

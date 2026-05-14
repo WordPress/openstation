@@ -60,7 +60,7 @@ function desktop_mode_render_shell() {
 		<div id="desktop-mode-wallpaper" class="desktop-mode-wallpaper" aria-hidden="true"></div>
 		<div class="desktop-mode-shell__body">
 			<nav id="desktop-mode-dock" class="desktop-mode-dock" role="toolbar" aria-label="<?php esc_attr_e( 'Admin navigation', 'desktop-mode' ); ?>"></nav>
-			<div id="desktop-mode-area" class="desktop-mode-area desktop-mode-area--with-dock">
+			<div id="desktop-mode-area" class="desktop-mode-area desktop-mode-area--with-dock desktop-mode-area--booting">
 				<?php
 				/*
 				 * Widget column — paints above the wallpaper but
