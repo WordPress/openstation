@@ -156,6 +156,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.nativeCommentsEnabled === 'boolean'
 				? parsed.nativeCommentsEnabled
 				: DEFAULTS.nativeCommentsEnabled,
+		showDesktopOnWallpaperClick:
+			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
+				? parsed.showDesktopOnWallpaperClick
+				: DEFAULTS.showDesktopOnWallpaperClick,
 		itemVisibility: sanitizeItemVisibility( parsed.itemVisibility ),
 		dockOrder: sanitizeDockOrder( parsed.dockOrder ),
 	};

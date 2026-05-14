@@ -186,6 +186,14 @@ export interface OsSettingsState {
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
+	 * When true, left-clicking the empty wallpaper triggers the
+	 * "Show desktop" toggle (macOS-style) and the matching entry is
+	 * hidden from the wallpaper context menu. When false (default),
+	 * the entry stays in the context menu and left clicks on the
+	 * wallpaper do nothing. Per-user.
+	 */
+	showDesktopOnWallpaperClick: boolean;
+	/**
 	 * Per-item placement preference. Maps an item id (dock-item slug or
 	 * registered desktop-icon id) to one of:
 	 *   - `'both'`    — show on both dock and desktop.

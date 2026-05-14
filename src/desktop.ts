@@ -3162,6 +3162,35 @@ function init(): void {
 		ro.observe( desktopArea );
 	}
 
+	// Wallpaper LEFT-click → "Show desktop" toggle, gated behind the
+	// per-user OS Setting (Features tab → "Show desktop when clicking
+	// the wallpaper"). Off by default — the toggle lives in the
+	// wallpaper context menu instead. When on, we mirror the macOS
+	// gesture and the matching menu entry is suppressed (see the
+	// `includeShowDesktop` flag passed to the menu builder below).
+	desktopArea.addEventListener( 'click', ( e: MouseEvent ) => {
+		if ( ! osSettings.state.showDesktopOnWallpaperClick ) {
+			return;
+		}
+		// Only the bare wallpaper — clicks on a tile, widget, or any
+		// inner surface bubble up but shouldn't trigger the toggle.
+		if ( e.target !== desktopArea ) {
+			return;
+		}
+		// Suppress while overview is active — overview has its own
+		// pointer surface and would mis-fire on the synthesized click.
+		if ( desktopArea.classList.contains( 'desktop-mode-area--overview' ) ) {
+			return;
+		}
+		// If the context menu is currently open, swallow this click so
+		// it just dismisses the menu (handled by the menu's own
+		// outside-click listener) without also toggling Show Desktop.
+		if ( isWallpaperMenuOpen() ) {
+			return;
+		}
+		manager.toggleShowDesktop();
+	} );
+
 	// Wallpaper context menu — RIGHT-click only. `contextmenu` is
 	// the only opener; left-clicks on the bg either dismiss the
 	// menu (handled inside `openWallpaperMenu`) or do nothing.
@@ -3258,6 +3287,8 @@ function init(): void {
 					relayoutRoot( rootSortTransform( mode ) );
 				},
 				currentSortMode: rootSortMode,
+				includeShowDesktop:
+					! osSettings.state.showDesktopOnWallpaperClick,
 				labels: {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',

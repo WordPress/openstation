@@ -187,6 +187,7 @@ export const DEFAULTS: OsSettingsState = {
 	// Native Comments window — replaces `edit-comments.php`. Same
 	// opt-out posture; cap-gated on `edit_posts` server-side.
 	nativeCommentsEnabled: true,
+	showDesktopOnWallpaperClick: false,
 	itemVisibility: {},
 	dockOrder: [],
 };
