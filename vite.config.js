@@ -422,6 +422,18 @@ const TARGETS = {
 		fileBase: 'window-system',
 		iifeName: 'desktopModeWindowSystemBundle',
 	},
+	// Heartbeat widget — built-in PixiJS widget moved out of the
+	// main bundle in 0.18.0. Same registration shape third-party
+	// widgets use: PHP declares it via `desktop_mode_register_widget()`
+	// with the `desktop-mode-heartbeat-widget` script handle; the
+	// shell's widgets server-sync loads the bundle on demand. The
+	// bundle ships JS + a co-located `styles.css` chunk so widget
+	// chrome stays out of the main `desktop.css`.
+	'widget-heartbeat': {
+		entry:    'src/plugins/heartbeat-widget/index.ts',
+		fileBase: 'widget-heartbeat',
+		iifeName: 'desktopModeHeartbeatWidget',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {
@@ -493,6 +505,24 @@ export default defineConfig( ( { mode } ) => {
 					isProd
 						? `${ target.fileBase }.min.js`
 						: `${ target.fileBase }.js`,
+			},
+			rollupOptions: {
+				output: {
+					// Vite's lib mode defaults `style.css` for bundled CSS.
+					// Rename to match the target's fileBase so a widget
+					// bundle and its co-located CSS share a name —
+					// `widget-heartbeat[.min].css` next to the JS,
+					// matching what `wp_register_style()` looks for in
+					// `includes/widgets/heartbeat.php`.
+					assetFileNames: ( asset ) => {
+						if ( asset.name && asset.name.endsWith( '.css' ) ) {
+							return isProd
+								? `${ target.fileBase }.min.css`
+								: `${ target.fileBase }.css`;
+						}
+						return '[name].[hash][extname]';
+					},
+				},
 			},
 		},
 	};

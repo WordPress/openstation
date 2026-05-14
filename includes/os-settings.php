@@ -85,6 +85,12 @@ function desktop_mode_default_os_settings() {
 		// Default ON as of 0.8.0 — the native UI is the canonical
 		// Desktop Mode Posts experience; users can flip it off to fall
 		// back to the classic iframe.
+		// Per-user override of the WordPress Heartbeat interval, in
+		// seconds. 60s matches Core's "idle" default; values below
+		// 15 force a lower `minimalInterval` too. See
+		// `desktop_mode_apply_heartbeat_rate_setting` for the
+		// `heartbeat_settings` filter that applies this.
+		'heartbeatRate'            => 60,
 		'nativePostsEnabled'       => true,
 		// Per-user list of column keys hidden in the native Posts
 		// window (e.g. array( 'author', 'tags' )). Empty array means
@@ -321,6 +327,23 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		}
 	}
 
+	// Heartbeat rate — one of the four allowed values. The PHP
+	// filter `desktop_mode_apply_heartbeat_rate_setting` reads
+	// this and passes it through to `heartbeat_settings` so
+	// WordPress Core itself reduces the interval on the next page
+	// load. 5 s is intentionally excluded: Core's
+	// `minimalInterval` floor clamps anything below 15 back up to
+	// 15 unless every upstream filter cooperates, and the gain
+	// over 15 s is marginal.
+	$allowed_heartbeat_rates = array( 15, 30, 45, 60 );
+	$heartbeat_rate          = $defaults['heartbeatRate'];
+	if ( isset( $raw['heartbeatRate'] ) && is_numeric( $raw['heartbeatRate'] ) ) {
+		$candidate = (int) $raw['heartbeatRate'];
+		if ( in_array( $candidate, $allowed_heartbeat_rates, true ) ) {
+			$heartbeat_rate = $candidate;
+		}
+	}
+
 	$native_posts_enabled = isset( $raw['nativePostsEnabled'] )
 		? (bool) $raw['nativePostsEnabled']
 		: $defaults['nativePostsEnabled'];
@@ -420,6 +443,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'customImage'              => $custom_image,
 		'libraryHdOnly'            => $library_hd_only,
 		'ai'                       => $ai,
+		'heartbeatRate'            => $heartbeat_rate,
 		'nativePostsEnabled'       => $native_posts_enabled,
 		'nativePostsHiddenColumns' => $native_posts_hidden_columns,
 		'nativePagesEnabled'       => $native_pages_enabled,
@@ -499,3 +523,40 @@ function desktop_mode_rest_save_os_settings( WP_REST_Request $request ) {
 	desktop_mode_save_os_settings( $user_id, $payload );
 	return rest_ensure_response( desktop_mode_get_os_settings( $user_id ) );
 }
+
+/**
+ * Apply the per-user Heartbeat-rate preference to the
+ * `heartbeat_settings` Core filter. WordPress reads these settings
+ * once at page load to size both the initial AJAX interval and the
+ * floor (`minimalInterval`) that prevents JS from speeding things
+ * up. We mirror both so a 5-second rate actually fires every five
+ * seconds (Core's default floor is 15).
+ *
+ * Only applies to users with Desktop Mode enabled — non-desktop
+ * sessions keep Core's defaults. Anonymous requests skip too.
+ *
+ * @since 0.18.0
+ *
+ * @param array $settings Filtered Heartbeat settings.
+ * @return array
+ */
+function desktop_mode_apply_heartbeat_rate_setting( $settings ) {
+	if ( ! is_array( $settings ) ) {
+		$settings = array();
+	}
+	$user_id = get_current_user_id();
+	if ( $user_id <= 0 ) {
+		return $settings;
+	}
+	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled( $user_id ) ) {
+		return $settings;
+	}
+	$os   = desktop_mode_get_os_settings( $user_id );
+	$rate = isset( $os['heartbeatRate'] ) ? (int) $os['heartbeatRate'] : 0;
+	if ( ! in_array( $rate, array( 15, 30, 45, 60 ), true ) ) {
+		return $settings;
+	}
+	$settings['interval'] = $rate;
+	return $settings;
+}
+add_filter( 'heartbeat_settings', 'desktop_mode_apply_heartbeat_rate_setting' );

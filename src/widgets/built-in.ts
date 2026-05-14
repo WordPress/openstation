@@ -79,4 +79,9 @@ const clock: WidgetDef = {
  */
 export function registerBuiltInWidgets(): void {
 	registry.register( clock );
+	// Heartbeat widget moved out of the main bundle in 0.18.0.
+	// PHP registers it via `desktop_mode_register_widget()`
+	// with the `desktop-mode-heartbeat-widget` script handle —
+	// the shell's widgets server-sync loads the bundle on
+	// demand. See `includes/widgets/heartbeat.php`.
 }

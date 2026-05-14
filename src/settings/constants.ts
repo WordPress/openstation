@@ -169,6 +169,7 @@ export const DEFAULTS: OsSettingsState = {
 	// window — same screen the rest of desktop mode is built for. A
 	// user can still flip this off to fall back to the chromeless
 	// `edit.php` iframe, but the new default is "use the native UI."
+	heartbeatRate: 60,
 	nativePostsEnabled: true,
 	nativePostsHiddenColumns: [],
 	// Same opt-out posture as Posts — fresh installs land on the

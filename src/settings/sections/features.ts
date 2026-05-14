@@ -43,6 +43,28 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onHeartbeatRateChange = ( e: Event ): void => {
+		const raw = ( e as CustomEvent ).detail?.value;
+		const next = Number( raw );
+		if ( ! [ 15, 30, 45, 60 ].includes( next ) ) {
+			return;
+		}
+		ctx.state.heartbeatRate = next as 15 | 30 | 45 | 60;
+		ctx.save();
+		// Tell WordPress to use the closest matching speed bucket
+		// right now — Core only accepts 'standard' / 'slow' (15 / 60).
+		// Exact 30 / 45 take effect on the next page load via the
+		// `heartbeat_settings` PHP filter.
+		try {
+			const wp = ( window as unknown as { wp?: { heartbeat?: { interval?: ( speed: string ) => void } } } ).wp;
+			const speed = next >= 60 ? 'slow' : 'standard';
+			wp?.heartbeat?.interval?.( speed );
+		} catch ( _e ) {
+			// non-fatal — server filter still applies on reload
+		}
+		paint();
+	};
+
 	const onNativePagesToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.nativePagesEnabled = checked;
@@ -288,6 +310,27 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						<p class="desktop-mode-features__hint">
 							${ __(
 								'macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching "Show desktop" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<label class="desktop-mode-features__select-label">
+							<span class="desktop-mode-features__select-title">${ __(
+								'WordPress Heartbeat rate',
+							) }</span>
+							<wpd-select
+								value=${ String( ctx.state.heartbeatRate ) }
+								@wpd-pick=${ onHeartbeatRateChange }
+							>
+								<wpd-option value="15">${ __( 'Fast — 15s (not recommended)' ) }</wpd-option>
+								<wpd-option value="30">${ __( 'Medium — 30s' ) }</wpd-option>
+								<wpd-option value="45">${ __( 'Slow — 45s' ) }</wpd-option>
+								<wpd-option value="60">${ __( 'Very slow — 60s (default)' ) }</wpd-option>
+							</wpd-select>
+						</label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately.',
 							) }
 						</p>
 					</div>

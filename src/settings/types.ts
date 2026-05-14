@@ -129,6 +129,22 @@ export interface OsSettingsState {
 	 *
 	 * @since 0.8.0
 	 */
+	/**
+	 * Per-user override of the WordPress Heartbeat rate, in
+	 * seconds. Applied via the `heartbeat_settings` PHP filter
+	 * on every page load. Allowed values: 15 (fast — Core's
+	 * "active" default, NOT recommended for general use because
+	 * it triples server load vs. the 60 s default), 30 (medium),
+	 * 45 (slow), 60 (very slow — default; Core's "idle" speed).
+	 *
+	 * 5 s isn't offered: WordPress's `minimalInterval` floor
+	 * clamps anything below 15 back up to 15 unless every
+	 * intermediate filter cooperates, and the perceived benefit
+	 * over 15 s is negligible.
+	 *
+	 * @since 0.18.0
+	 */
+	heartbeatRate: 15 | 30 | 45 | 60;
 	nativePostsEnabled: boolean;
 	/**
 	 * Per-user list of column keys hidden in the native Posts window.

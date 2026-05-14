@@ -379,9 +379,16 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			}
 		}
 
-		// Footer.
+		// Footer. The wrapper itself is the flex container that
+		// spaces its buttons — relying on the modal's shadow-DOM
+		// slot styles doesn't reliably propagate `gap` to the
+		// slotted children across browsers.
 		const footer = document.createElement( 'div' );
 		footer.setAttribute( 'slot', 'footer' );
+		footer.style.display = 'flex';
+		footer.style.justifyContent = 'flex-end';
+		footer.style.gap = '10px';
+		footer.style.flexWrap = 'wrap';
 		const doneBtn = document.createElement( 'wpd-button' );
 		doneBtn.setAttribute( 'variant', 'secondary' );
 		doneBtn.textContent = 'Done';
@@ -465,6 +472,13 @@ export function openPendingInviteModal( invite: {
 
 		const footer = document.createElement( 'div' );
 		footer.setAttribute( 'slot', 'footer' );
+		// Light-DOM flex on the footer wrapper — the most reliable
+		// way to space the slotted buttons. Shadow-DOM slot styles
+		// don't always propagate `gap` to children across browsers.
+		footer.style.display = 'flex';
+		footer.style.justifyContent = 'flex-end';
+		footer.style.gap = '10px';
+		footer.style.flexWrap = 'wrap';
 
 		const laterBtn = document.createElement( 'wpd-button' );
 		laterBtn.setAttribute( 'variant', 'secondary' );
