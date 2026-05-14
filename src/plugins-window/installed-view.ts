@@ -17,6 +17,7 @@
 import { __, sprintf } from '../i18n';
 import { broadcast, subscribe } from '../broadcast';
 import { enqueueUpdateJob } from './update-queue';
+import { buildInstalledDetail } from './installed-detail';
 import {
 	activateInstalledPlugin,
 	deactivateInstalledPlugin,
@@ -215,6 +216,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	table.setAttribute( 'striped', '' );
 	table.setAttribute( 'bordered', '' );
 	table.setAttribute( 'loading', '' );
+	// Marker the stylesheet hooks for the row-cursor cue.
+	table.setAttribute( 'data-installed-rows', '' );
 
 	const empty = document.createElement( 'div' );
 	empty.setAttribute( 'slot', 'empty' );
@@ -230,6 +233,27 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		row.plugin || String( index );
 	table.getRowId = getRowId;
 	table.columns = buildColumns();
+
+	// Expandable row: every plugin gets a sub-row that renders a
+	// rich detail panel (description, metadata, lazy-loaded wp.org
+	// sections when the plugin ships from the directory).
+	table.subTable = ( row: InstalledPlugin ): Node => buildInstalledDetail( row );
+
+	// Make the Plugin name cell click-to-expand. The action buttons
+	// in the trailing column carry `data-noclick` so they stay
+	// independent of this toggle.
+	table.addEventListener( 'wpd-table-row-click', ( ev: Event ) => {
+		const detail = ( ev as CustomEvent< { row: InstalledPlugin; index: number } > )
+			.detail;
+		if ( ! detail ) {
+			return;
+		}
+		if ( table.isExpanded( detail.index ) ) {
+			table.collapse( detail.index );
+		} else {
+			table.expand( detail.index );
+		}
+	} );
 
 	tableWrap.appendChild( table );
 
