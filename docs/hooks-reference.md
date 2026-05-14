@@ -1955,15 +1955,15 @@ Filter the resolved wp.org icon URL for an installed plugin row. Return `null` t
 apply_filters( 'desktop_mode_plugins_window_icon_url', string|null $url, string $slug, array $row ): string|null
 ```
 
-### `desktop_mode_plugins_window_refresh_updates` — Stable *(filter, since 0.18.0)*
+### `desktop_mode_plugins_window_refresh_updates` — Stable *(filter, since 0.18.0; `$force` argument added 0.8.5)*
 
 Short-circuit the lazy refresh of the `update_plugins` site transient that runs on the first row of every REST plugins collection. Core only refreshes that transient on `load-plugins.php` / `load-update-core.php` / cron — REST is not on that list — so without this hop the Plugins window can show "no updates" while the dock badge (computed off `$menu`) reports pending updates. The refresh inherits Core's own 12h throttle (`_maybe_update_plugins()`), so the steady-state cost is a single transient read per request.
 
 ```php
-apply_filters( 'desktop_mode_plugins_window_refresh_updates', bool $refresh ): bool
+apply_filters( 'desktop_mode_plugins_window_refresh_updates', bool $refresh, bool $force ): bool
 ```
 
-Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check.
+Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (when the in-window Refresh button passes `?desktop_mode_force_refresh=1`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
 
 ### REST-field decorators on `/wp/v2/plugins` — Stable (since 0.9.0)
 
@@ -1971,7 +1971,7 @@ Server-injected enrichment fields. The JS reads them on every list paint:
 
 | Field | Shape | What it carries |
 |---|---|---|
-| `desktop_mode_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. Since 0.18.0 the transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `desktop_mode_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
+| `desktop_mode_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. Since 0.18.0 the transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `desktop_mode_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. Since 0.8.5 the in-window Refresh button can bypass the 12h throttle by adding `?desktop_mode_force_refresh=1` to the REST request — Core's `wp_clean_plugins_cache( true )` then deletes the transient and fans out to api.wordpress.org, mirroring what classic `plugins.php` does on load. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
 | `desktop_mode_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
 | `desktop_mode_icon_url` | `string\|null` | Best-effort wp.org icon URL derived from the plugin's `textdomain`. Filterable via `desktop_mode_plugins_window_icon_url`. |
 | `desktop_mode_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |

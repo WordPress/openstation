@@ -138,22 +138,39 @@ function desktop_mode_plugins_window_row_plugin_file( $row ) {
  * static so they don't pay the transient-read overhead per row.
  *
  * @since 0.18.0
+ * @since 0.8.5 Accepts a `$force` flag — set by the in-window Refresh
+ *               button via `?desktop_mode_force_refresh=1`. Bypasses
+ *               the 12h throttle and runs `wp_clean_plugins_cache( true )`
+ *               so the next read sees a fresh wp.org snapshot. Without
+ *               this escape hatch the Refresh button was misleading:
+ *               within 12h of the last check it returned the same
+ *               cached "no updates" result Core had stored, while
+ *               classic admin's `plugins.php` (which always calls
+ *               `wp_clean_plugins_cache( true )`) showed pending updates.
+ *
+ * @param bool $force When true, delete the transient and force a fresh
+ *                    wp.org check regardless of the 12h throttle.
  */
-function desktop_mode_plugins_window_maybe_refresh_update_transient() {
+function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = false ) {
 	/**
 	 * Short-circuit the lazy refresh of the `update_plugins` transient.
 	 *
 	 * Return `false` to skip the refresh — useful for hosts that run
 	 * their own update orchestration (managed WordPress, internal
 	 * mirrors) and don't want every REST hit to the plugins endpoint
-	 * to potentially trigger a wp.org check.
+	 * to potentially trigger a wp.org check. The filter also gates the
+	 * explicit force-refresh path so hosts that block wp.org calls
+	 * outright keep that posture even when the user clicks Refresh.
 	 *
 	 * @since 0.18.0
+	 * @since 0.8.5 `$force` parameter added so filter callbacks can
+	 *               distinguish opportunistic refreshes from explicit
+	 *               user-initiated ones.
 	 *
-	 * @param bool $refresh Whether to call `wp_update_plugins()`
-	 *                     when the transient is older than 12h.
+	 * @param bool $refresh Whether to call `wp_update_plugins()`.
+	 * @param bool $force   Whether the caller asked to bypass the throttle.
 	 */
-	if ( ! apply_filters( 'desktop_mode_plugins_window_refresh_updates', true ) ) {
+	if ( ! apply_filters( 'desktop_mode_plugins_window_refresh_updates', true, $force ) ) {
 		return;
 	}
 
@@ -161,6 +178,27 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient() {
 		// `wp-includes/update.php` is normally autoloaded on every
 		// request; guard anyway so an unusual bootstrap (mu-plugin
 		// CLI harness, stripped-down REST runtime) doesn't fatal.
+		return;
+	}
+
+	if ( $force ) {
+		// Explicit user-initiated refresh — bypass the throttle.
+		// Two steps:
+		//   1. Delete the `update_plugins` site transient (and the
+		//      `plugins` cache group) via `wp_clean_plugins_cache()`,
+		//      OR fall back to `delete_site_transient()` directly when
+		//      the admin-side helper isn't loaded.
+		//   2. Call `wp_update_plugins()` to repopulate the transient
+		//      with a fresh wp.org snapshot. Without step 2 the field
+		//      callback reads `false` for the rest of this request and
+		//      every row reports "no updates" — that's the exact
+		//      regression from the first cut of this fix (GH#202).
+		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
+			wp_clean_plugins_cache( true );
+		} else {
+			delete_site_transient( 'update_plugins' );
+		}
+		wp_update_plugins();
 		return;
 	}
 
@@ -176,6 +214,32 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient() {
 	}
 
 	wp_update_plugins();
+}
+
+/**
+ * Detect whether the current REST request asked for an explicit
+ * `update_plugins` refresh via `?desktop_mode_force_refresh=1`.
+ *
+ * The flag is set by the in-window Refresh button (see
+ * `fetchInstalledPlugins({ force: true })` in `src/plugins-window/rest.ts`)
+ * and read from the query string on the way through Core's REST
+ * dispatcher. Querystring is the canonical channel — the value is an
+ * idempotent "use the slow path" hint, not a state-changing action,
+ * so no additional nonce is required beyond REST's standard
+ * `X-WP-Nonce` cookie-auth check.
+ *
+ * @since 0.8.5
+ *
+ * @return bool True when the request asked for a force-refresh.
+ */
+function desktop_mode_plugins_window_force_refresh_requested() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only hint flag; REST auth is enforced separately.
+	if ( ! isset( $_GET['desktop_mode_force_refresh'] ) ) {
+		return false;
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only hint flag; REST auth is enforced separately.
+	$value = sanitize_text_field( wp_unslash( (string) $_GET['desktop_mode_force_refresh'] ) );
+	return '1' === $value || 'true' === $value;
 }
 
 /**
@@ -200,11 +264,17 @@ function desktop_mode_plugins_window_field_update_available( $row ) {
 	// Prime the transient once per request before reading it —
 	// otherwise REST callers see a stale/empty snapshot relative to
 	// the classic Plugins screen and the dock update badge. Static
-	// guard keeps the transient read off the hot per-row path.
+	// guard keeps the transient read off the hot per-row path. When
+	// the request carries `?desktop_mode_force_refresh=1` we always
+	// take the slow path so the in-window Refresh button can actually
+	// pull a fresh wp.org snapshot (the original throttle made it a
+	// no-op within 12h of the last check — see GH#202).
 	static $primed = false;
 	if ( ! $primed ) {
 		$primed = true;
-		desktop_mode_plugins_window_maybe_refresh_update_transient();
+		desktop_mode_plugins_window_maybe_refresh_update_transient(
+			desktop_mode_plugins_window_force_refresh_requested()
+		);
 	}
 
 	// `update_plugins` is the canonical site-wide cache of pending

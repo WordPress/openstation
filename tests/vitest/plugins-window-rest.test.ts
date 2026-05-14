@@ -131,6 +131,24 @@ describe( 'fetchInstalledPlugins', () => {
 			/Sorry, you can/,
 		);
 	} );
+
+	test( 'appends ?desktop_mode_force_refresh=1 when force is true', async () => {
+		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
+			jsonResponse( [] ) as never,
+		);
+		await fetchInstalledPlugins( { force: true } );
+		const [ url ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
+		expect( url ).toContain( 'desktop_mode_force_refresh=1' );
+	} );
+
+	test( 'omits the force flag by default', async () => {
+		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
+			jsonResponse( [] ) as never,
+		);
+		await fetchInstalledPlugins();
+		const [ url ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
+		expect( url ).not.toContain( 'desktop_mode_force_refresh' );
+	} );
 } );
 
 describe( 'activate / deactivate / delete', () => {

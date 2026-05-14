@@ -244,11 +244,23 @@ function unwrapAjaxEnvelope< T >( json: unknown, status: number ): T {
 
 function extractAjaxError( data: unknown, status: number ): Error {
 	if ( typeof data === 'object' && data !== null ) {
-		const obj = data as { message?: string; errorMessage?: string; code?: string };
-		const msg = obj.message ?? obj.errorMessage ?? obj.code;
+		const obj = data as {
+			message?: string;
+			errorMessage?: string;
+			code?: string;
+			errorCode?: string;
+		};
+		const msg = obj.message ?? obj.errorMessage ?? obj.code ?? obj.errorCode;
 		if ( typeof msg === 'string' && msg !== '' ) {
 			const err = new Error( msg );
-			( err as Error & { code?: string; status?: number } ).code = obj.code;
+			// Core's ajax handlers split on the field name: `WP_Error`-wrapped
+			// errors come through as `code`, but `wp_ajax_update_plugin` (and
+			// friends) hand-rolls the envelope and ships `errorCode`. Fall
+			// back to either so callers like `runUpdate()` can detect the
+			// `'up_to_date'` soft-success signal without caring which
+			// handler produced it.
+			( err as Error & { code?: string; status?: number } ).code =
+				obj.code ?? obj.errorCode;
 			( err as Error & { code?: string; status?: number } ).status = status;
 			return err;
 		}
@@ -281,10 +293,21 @@ async function unpackErrorResponse( response: Response ): Promise< Error > {
  * `/wp/v2/plugins` doesn't paginate (the install can't realistically
  * have more than a few hundred), so we request `per_page=100` to
  * collapse the typical install into a single round-trip.
+ *
+ * Pass `{ force: true }` to bypass the server-side 12h `update_plugins`
+ * throttle. The Refresh button uses this — without the flag, repeated
+ * clicks within 12h of Core's last check return the same cached
+ * "no updates" snapshot (GH#202).
  */
-export async function fetchInstalledPlugins(): Promise< InstalledPlugin[] > {
+export async function fetchInstalledPlugins( opts: {
+	force?: boolean;
+} = {} ): Promise< InstalledPlugin[] > {
 	const cfg = getConfig();
-	const url = joinRestUrl( cfg.restRoot, 'wp/v2/plugins?context=view&per_page=100' );
+	const params = new URLSearchParams( { context: 'view', per_page: '100' } );
+	if ( opts.force ) {
+		params.set( 'desktop_mode_force_refresh', '1' );
+	}
+	const url = joinRestUrl( cfg.restRoot, `wp/v2/plugins?${ params.toString() }` );
 	return restRequest< InstalledPlugin[] >( url, { method: 'GET' } );
 }
 

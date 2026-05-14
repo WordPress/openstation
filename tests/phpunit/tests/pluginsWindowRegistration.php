@@ -459,4 +459,154 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertSame( 'https://cdn.example.com/custom.png', $url );
 		remove_all_filters( 'desktop_mode_plugins_window_icon_url' );
 	}
+
+	// ----------------------------------------------------------------
+	// Force-refresh query-string detector — GH#202.
+	// ----------------------------------------------------------------
+
+	/**
+	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 */
+	public function test_force_refresh_detector_returns_false_when_param_absent() {
+		unset( $_GET['desktop_mode_force_refresh'] );
+		$this->assertFalse( desktop_mode_plugins_window_force_refresh_requested() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 */
+	public function test_force_refresh_detector_accepts_one() {
+		$_GET['desktop_mode_force_refresh'] = '1';
+		try {
+			$this->assertTrue( desktop_mode_plugins_window_force_refresh_requested() );
+		} finally {
+			unset( $_GET['desktop_mode_force_refresh'] );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 */
+	public function test_force_refresh_detector_accepts_true() {
+		$_GET['desktop_mode_force_refresh'] = 'true';
+		try {
+			$this->assertTrue( desktop_mode_plugins_window_force_refresh_requested() );
+		} finally {
+			unset( $_GET['desktop_mode_force_refresh'] );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 */
+	public function test_force_refresh_detector_rejects_other_values() {
+		$_GET['desktop_mode_force_refresh'] = '0';
+		try {
+			$this->assertFalse( desktop_mode_plugins_window_force_refresh_requested() );
+		} finally {
+			unset( $_GET['desktop_mode_force_refresh'] );
+		}
+	}
+
+	/**
+	 * The opportunistic prime path respects the 12h `last_checked`
+	 * throttle (mirrors `_maybe_update_plugins()`), but the explicit
+	 * force path must always invalidate the transient so the next
+	 * read fans out to api.wordpress.org.
+	 *
+	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 */
+	public function test_force_refresh_deletes_the_update_plugins_transient_and_calls_wp_update_plugins() {
+		// Seed a fresh-looking transient — under normal posture the
+		// throttle would skip the refresh entirely.
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'checked'      => array(),
+			)
+		);
+
+		// Block real wp.org calls during the force path so the test
+		// doesn't depend on outbound HTTP. Counting hits to
+		// `pre_http_request` is also how we assert that
+		// `wp_update_plugins()` actually ran (it's the only path
+		// inside the force branch that issues an outbound request).
+		$http_attempts = 0;
+		$blocker       = static function () use ( &$http_attempts ) {
+			++$http_attempts;
+			// Returning a WP_Error keeps wp_update_plugins from writing
+			// the transient back, so we can prove the delete step ran.
+			return new WP_Error( 'http_blocked', 'blocked in tests' );
+		};
+		add_filter( 'pre_http_request', $blocker );
+		try {
+			desktop_mode_plugins_window_maybe_refresh_update_transient( true );
+		} finally {
+			remove_filter( 'pre_http_request', $blocker );
+		}
+
+		$this->assertGreaterThan(
+			0,
+			$http_attempts,
+			'Force path must call wp_update_plugins() (an outbound api.wordpress.org request).'
+		);
+
+		// The cached "no updates" snapshot must be gone. Core may write
+		// back a minimal `{ last_checked }` stub after a failed wp.org
+		// call to throttle retries — that's fine; what matters is that
+		// the stale `response` map is no longer there for the field
+		// callback to read.
+		$after = get_site_transient( 'update_plugins' );
+		if ( is_object( $after ) ) {
+			$this->assertEmpty(
+				(array) ( $after->response ?? array() ),
+				'Force path must clear the cached `response` map.'
+			);
+		} else {
+			$this->assertFalse( $after );
+		}
+	}
+
+	/**
+	 * Hosts that opt out of wp.org checks via the filter must stay
+	 * opted out even on the explicit force path.
+	 *
+	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 */
+	public function test_force_refresh_respects_short_circuit_filter() {
+		$initial = (object) array(
+			'last_checked' => time() - DAY_IN_SECONDS, // would normally trigger refresh
+			'response'     => array(),
+			'checked'      => array(),
+		);
+		set_site_transient( 'update_plugins', $initial );
+
+		$saw_force = null;
+		add_filter(
+			'desktop_mode_plugins_window_refresh_updates',
+			static function ( $refresh, $force ) use ( &$saw_force ) {
+				$saw_force = $force;
+				return false;
+			},
+			10,
+			2
+		);
+
+		try {
+			desktop_mode_plugins_window_maybe_refresh_update_transient( true );
+		} finally {
+			remove_all_filters( 'desktop_mode_plugins_window_refresh_updates' );
+		}
+
+		$this->assertTrue( $saw_force, 'Filter must receive the force flag.' );
+		// Compare by value — `get_site_transient` re-hydrates the option
+		// into a new stdClass instance, so identity comparison is wrong.
+		$this->assertEquals(
+			$initial,
+			get_site_transient( 'update_plugins' ),
+			'Filter must be able to suppress even the force-refresh path.'
+		);
+	}
 }

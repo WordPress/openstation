@@ -198,7 +198,16 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	refreshButton.innerHTML =
 		'<span class="dashicons dashicons-update" aria-hidden="true"></span>';
 	refreshButton.addEventListener( 'click', () => {
-		void reload();
+		// User-initiated refresh — force a fresh wp.org check
+		// server-side (bypass the 12h `update_plugins` throttle) and
+		// also kick the framework menu refresh so the Plugins dock
+		// badge re-paints from the same fresh snapshot. Without the
+		// dock refresh, the in-window list and the dock-icon count
+		// could drift apart after a manual click — see GH#202.
+		void ( async () => {
+			await reload( { force: true } );
+			void refreshFrameworkMenu();
+		} )();
 	} );
 	trailing.appendChild( refreshButton );
 
@@ -577,11 +586,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		}
 	}
 
-	async function reload(): Promise< void > {
+	async function reload( opts: { force?: boolean } = {} ): Promise< void > {
 		state.loading = true;
 		table.setAttribute( 'loading', '' );
 		try {
-			state.rows = await fetchInstalledPlugins();
+			state.rows = await fetchInstalledPlugins( opts );
 		} catch ( err ) {
 			toast(
 				sprintf(
@@ -840,15 +849,86 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			} );
 			void refreshFrameworkMenu();
 		} catch ( err ) {
-			toast(
-				sprintf(
-					/* translators: 1: plugin name, 2: error message */
-					__( 'Update of %1$s failed: %2$s', 'desktop-mode' ),
-					row.name || row.plugin,
-					describe( err ),
-				),
-				6000,
-			);
+			// Detect Core's "plugin is already at the latest version"
+			// signal. Core's `wp_ajax_update_plugin` only emits
+			// `errorCode` for `WP_Error`-shaped failures — the
+			// up-to-date branch (line 4685 of ajax-actions.php) sets
+			// only `errorMessage`, the translated string
+			// `__( 'The plugin is at the latest version.' )` from the
+			// `default` textdomain. So we detect on either signal:
+			//   1. `errorCode === 'up_to_date'` (future-proof — if Core
+			//      ever ships the code, we already match).
+			//   2. The translated `errorMessage` equals Core's own
+			//      string in the user's locale (the current shipping
+			//      behavior). `wp.i18n.__` against the `default`
+			//      textdomain returns the same translation Core used
+			//      server-side, so the comparison is locale-correct.
+			// This happens in two real-world scenarios:
+			//   - A prior update succeeded server-side but the client
+			//     didn't see the success envelope (network hiccup, the
+			//     iframe-bridge / shellFetch race the user hit in
+			//     GH#202). The next click reaches Core's transient
+			//     check, which now says "nothing to do".
+			//   - Benign double-clicks within the same window.
+			// Either way the truth is "the row IS up to date" — so
+			// converge the UI to that reality instead of leaving the
+			// stale "Update available" button + scary "failed" toast.
+			const errCode = ( err as { code?: string } )?.code;
+			const errMessage = ( err as { message?: string } )?.message;
+			const coreUpToDateMessage =
+				window.wp?.i18n?.__?.( 'The plugin is at the latest version.' );
+			const isUpToDate =
+				errCode === 'up_to_date' ||
+				( !! coreUpToDateMessage && errMessage === coreUpToDateMessage );
+
+			if ( isUpToDate ) {
+				mergeRow( {
+					...row,
+					desktop_mode_update_available: {
+						available: false,
+						new_version: null,
+						package: '',
+						slug: row.desktop_mode_update_available?.slug ?? '',
+					},
+				} as InstalledPlugin );
+				toast(
+					sprintf(
+						/* translators: %s: plugin name */
+						__( '%s is already up to date.', 'desktop-mode' ),
+						row.name || row.plugin,
+					),
+				);
+				broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+					source: SOURCE,
+					plugin: row.plugin,
+					action: 'update',
+				} );
+			} else {
+				toast(
+					sprintf(
+						/* translators: 1: plugin name, 2: error message */
+						__( 'Update of %1$s failed: %2$s', 'desktop-mode' ),
+						row.name || row.plugin,
+						describe( err ),
+					),
+					6000,
+				);
+				// Reconcile from the server — covers the case where the
+				// upgrader committed the install on disk but the client
+				// promise rejected (timeout, dropped connection, parse
+				// error). Without this, the row stays stuck on "Update
+				// available" even though the on-disk version is fresh,
+				// which is the exact GH#202 symptom.
+				void reload();
+			}
+			// Always refresh the dock badge after an update attempt,
+			// regardless of branch. Core's `wp_ajax_update_plugin` calls
+			// `wp_update_plugins()` up front, which may mutate the
+			// `update_plugins` transient even when the upgrade itself
+			// errors out — so the badge count can change even on
+			// failure. Without this, the badge could lag behind the
+			// in-window state until the user manually clicked Refresh.
+			void refreshFrameworkMenu();
 		} finally {
 			state.updating.delete( row.plugin );
 			paintTable();
