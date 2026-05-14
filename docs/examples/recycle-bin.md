@@ -62,6 +62,8 @@ define( 'MEDIA_TRASH', true );
 
 Once set, deleting from the Media library routes the attachment through the WP trash and the Recycle Bin window surfaces it automatically (`attachment` is already in the default `desktop_mode_recycle_bin_capture_post_types` list). The constant has to live in `wp-config.php` because Core locks it before any plugin loads.
 
+The Recycle Bin toolbar reflects this gate visually: the **Media** filter segment is hidden unless `MEDIA_TRASH` is on, so users on the default WP setup don't see a tab that can never have rows under it.
+
 ## Add a custom column to the table
 
 The JS layer applies a filter to the column descriptor before assignment:
