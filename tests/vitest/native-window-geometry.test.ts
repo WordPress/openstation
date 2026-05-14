@@ -15,6 +15,8 @@ import {
 	NATIVE_GEOMETRY_STORAGE_KEY,
 	loadNativeWindowGeometry,
 	saveNativeWindowGeometry,
+	saveNativeWindowPosition,
+	setNativeWindowSavedState,
 } from '../../src/window-manager/native-window-geometry';
 
 describe( 'native-window-geometry', () => {
@@ -130,6 +132,180 @@ describe( 'native-window-geometry', () => {
 		expect( loadNativeWindowGeometry( 'app-69' ) ).toEqual( {
 			width: 869,
 			height: 600,
+		} );
+	} );
+
+	describe( 'saved window position', () => {
+		test( 'save then load round-trips x and y alongside size', () => {
+			saveNativeWindowGeometry( 'demo', { width: 800, height: 600 } );
+			saveNativeWindowPosition( 'demo', { x: 240, y: 120 } );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 800,
+				height: 600,
+				x: 240,
+				y: 120,
+			} );
+		} );
+
+		test( 'saveNativeWindowPosition is a no-op when no prior entry exists', () => {
+			saveNativeWindowPosition( 'demo', { x: 240, y: 120 } );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toBeNull();
+		} );
+
+		test( 'saveNativeWindowPosition rounds to whole pixels', () => {
+			saveNativeWindowGeometry( 'demo', { width: 800, height: 600 } );
+			saveNativeWindowPosition( 'demo', { x: 240.7, y: 120.2 } );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 800,
+				height: 600,
+				x: 241,
+				y: 120,
+			} );
+		} );
+
+		test( 'saveNativeWindowPosition rejects negative or non-finite values', () => {
+			saveNativeWindowGeometry( 'demo', { width: 800, height: 600 } );
+
+			saveNativeWindowPosition( 'demo', { x: -10, y: 120 } );
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 800,
+				height: 600,
+			} );
+
+			saveNativeWindowPosition( 'demo', { x: NaN, y: 0 } );
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 800,
+				height: 600,
+			} );
+		} );
+
+		test( 'saveNativeWindowGeometry preserves a previously-saved position', () => {
+			saveNativeWindowGeometry( 'demo', { width: 800, height: 600 } );
+			saveNativeWindowPosition( 'demo', { x: 240, y: 120 } );
+
+			saveNativeWindowGeometry( 'demo', { width: 1500, height: 900 } );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+				x: 240,
+				y: 120,
+			} );
+		} );
+
+		test( 'setNativeWindowSavedState preserves a previously-saved position', () => {
+			saveNativeWindowGeometry( 'demo', { width: 800, height: 600 } );
+			saveNativeWindowPosition( 'demo', { x: 240, y: 120 } );
+
+			setNativeWindowSavedState( 'demo', 'maximized' );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 800,
+				height: 600,
+				x: 240,
+				y: 120,
+				state: 'maximized',
+			} );
+		} );
+
+		test( 'loadNativeWindowGeometry drops malformed position values', () => {
+			window.localStorage.setItem(
+				NATIVE_GEOMETRY_STORAGE_KEY,
+				JSON.stringify( {
+					demo: {
+						width: 800,
+						height: 600,
+						x: 'left',
+						y: 120,
+					},
+				} ),
+			);
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 800,
+				height: 600,
+			} );
+		} );
+	} );
+
+	describe( 'saved window state', () => {
+		test( 'setNativeWindowSavedState seeds a new entry from defaults', () => {
+			setNativeWindowSavedState( 'demo', 'maximized', {
+				width: 520,
+				height: 400,
+			} );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 520,
+				height: 400,
+				state: 'maximized',
+			} );
+		} );
+
+		test( 'setNativeWindowSavedState without defaults is a no-op when nothing is stored yet', () => {
+			setNativeWindowSavedState( 'demo', 'maximized' );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toBeNull();
+		} );
+
+		test( 'setNativeWindowSavedState layers state on an existing size without changing it', () => {
+			saveNativeWindowGeometry( 'demo', { width: 1500, height: 900 } );
+
+			setNativeWindowSavedState( 'demo', 'maximized' );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+				state: 'maximized',
+			} );
+		} );
+
+		test( 'setNativeWindowSavedState(null) clears the state but keeps the size', () => {
+			saveNativeWindowGeometry( 'demo', { width: 1500, height: 900 } );
+			setNativeWindowSavedState( 'demo', 'maximized' );
+
+			setNativeWindowSavedState( 'demo', null );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+			} );
+		} );
+
+		test( 'saveNativeWindowGeometry preserves the previously-saved state', () => {
+			setNativeWindowSavedState( 'demo', 'maximized', {
+				width: 520,
+				height: 400,
+			} );
+
+			saveNativeWindowGeometry( 'demo', { width: 1500, height: 900 } );
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+				state: 'maximized',
+			} );
+		} );
+
+		test( 'loadNativeWindowGeometry drops unknown state values', () => {
+			window.localStorage.setItem(
+				NATIVE_GEOMETRY_STORAGE_KEY,
+				JSON.stringify( {
+					demo: {
+						width: 1500,
+						height: 900,
+						state: 'rotated-3d', // unsupported
+					},
+				} ),
+			);
+
+			expect( loadNativeWindowGeometry( 'demo' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+			} );
 		} );
 	} );
 

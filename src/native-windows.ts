@@ -32,6 +32,8 @@ import { registerSyntheticIframe } from './connection';
 import {
 	loadNativeWindowGeometry,
 	saveNativeWindowGeometry,
+	saveNativeWindowPosition,
+	setNativeWindowSavedState,
 } from './window-manager/native-window-geometry';
 import type { SystemDockItem } from './dock';
 import type {
@@ -877,6 +879,12 @@ export function createNativeWindowSync(
 	 * a stale entry from a wider-minimum version of a plugin can't
 	 * open the window smaller than the plugin currently allows.
 	 *
+	 * Maximized state is replayed in `WindowManager.createWindow`
+	 * (via `initialState: 'maximized'`) — not here. That keeps the
+	 * replay path uniform between native and classic windows. The
+	 * caller can suppress it by passing an explicit `initialState`
+	 * on the `manager.open` call.
+	 *
 	 * @since 0.8.5
 	 */
 	const resolveSizeForEntry = (
@@ -1024,6 +1032,9 @@ export function createNativeWindowSync(
 
 		const size = resolveSizeForEntry( entry );
 
+		// Leave `x` / `y` unset so `WindowManager.createWindow` can
+		// apply the user's last saved position (or cascade on first
+		// open). An explicit `0, 0` would short-circuit that.
 		void manager.open( {
 			id: entry.id,
 			baseId: entry.id,
@@ -1031,8 +1042,6 @@ export function createNativeWindowSync(
 			url: `#${ entry.id }`,
 			title: entry.title,
 			icon: entry.icon,
-			x: 0,
-			y: 0,
 			width: size.width,
 			height: size.height,
 			minWidth: entry.minWidth,
@@ -1060,6 +1069,12 @@ export function createNativeWindowSync(
 			return render?.( body, ctx );
 		};
 
+		// Duplicate instances always open floating — the remembered
+		// maximize preference applies to the primary window only.
+		// Passing an explicit `initialState: 'normal'` suppresses the
+		// `WindowManager.createWindow` saved-state replay (which
+		// would otherwise spawn the duplicate in the maximized state
+		// the user set on the primary).
 		const size = resolveSizeForEntry( entry );
 
 		void manager.openNew( {
@@ -1073,6 +1088,7 @@ export function createNativeWindowSync(
 			height: size.height,
 			minWidth: entry.minWidth,
 			minHeight: entry.minHeight,
+			initialState: 'normal',
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
@@ -1192,16 +1208,19 @@ export function createNativeWindowSync(
 		return true;
 	};
 
-	// Persist the user's manually-resized size for native windows so
-	// the next open lands at the same dimensions instead of the
-	// plugin-author defaults. WINDOW_RESIZE_END only fires from the
-	// pointer-drag resize handler, so programmatic re-tiles
-	// (arrange.ts / snap-zones.ts) don't poison the persisted size.
+	// Persist the user's manually-resized size for EVERY window
+	// (native and classic iframe-backed alike) so the next fresh
+	// open lands at the same dimensions instead of the defaults.
+	// WINDOW_RESIZE_END only fires from the pointer-drag resize
+	// handler, so programmatic re-tiles (arrange.ts / snap-zones.ts)
+	// don't poison the persisted size.
 	//
 	// Skipped for non-normal states: a snap-zone tile (left half,
 	// quarter, …) isn't the user saying "this is my preferred size",
 	// it's a temporary layout intent. Restoring those on next open
-	// would defeat the purpose.
+	// would defeat the purpose. Maximized + fullscreen resizes are
+	// also skipped here; the WINDOW_MAXIMIZED listener below records
+	// the maximize *intent* separately from the floating size.
 	addAction(
 		HOOKS.WINDOW_RESIZE_END,
 		'desktop-mode-native-window-geometry',
@@ -1220,7 +1239,7 @@ export function createNativeWindowSync(
 				return;
 			}
 			const win = manager.getById( windowId );
-			if ( ! win || ! win.config.native ) {
+			if ( ! win ) {
 				return;
 			}
 			if ( win.state !== 'normal' ) {
@@ -1228,6 +1247,107 @@ export function createNativeWindowSync(
 			}
 			const baseId = win.config.baseId || win.id;
 			saveNativeWindowGeometry( baseId, { width, height } );
+			// A top-left / top / left handle drag also moves the
+			// window, so capture the post-resize x/y too. The
+			// resize-end payload only carries width / height; read
+			// position directly off the element. Defensive guard
+			// for tests that mock the Window without a real element.
+			if ( win.element ) {
+				saveNativeWindowPosition( baseId, {
+					x: win.element.offsetLeft,
+					y: win.element.offsetTop,
+				} );
+			}
+		},
+	);
+
+	// Persist the user's drag position so the window reopens where
+	// they last left it. WINDOW_DRAG_END fires once per pointer-up
+	// at the end of a title-bar drag — same gating as resize-end:
+	// only the normal floating state counts, so an in-progress snap
+	// (state=snapped-left, dragged to commit the half-screen tile)
+	// doesn't poison the stored position.
+	//
+	// We write BOTH size + position here. The size is the window's
+	// current floating dimensions even if the user never manually
+	// resized; without this seed call, `saveNativeWindowPosition`
+	// would have no prior entry to layer position onto for users
+	// who open-drag-close without ever resizing.
+	addAction(
+		HOOKS.WINDOW_DRAG_END,
+		'desktop-mode-native-window-geometry',
+		( payload: unknown ) => {
+			const windowId = ( payload as { windowId?: string } | null )?.windowId;
+			if ( ! windowId ) {
+				return;
+			}
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			if ( win.state !== 'normal' ) {
+				return;
+			}
+			if ( ! win.element ) {
+				return;
+			}
+			const baseId = win.config.baseId || win.id;
+			saveNativeWindowGeometry( baseId, {
+				width: win.element.offsetWidth,
+				height: win.element.offsetHeight,
+			} );
+			saveNativeWindowPosition( baseId, {
+				x: win.element.offsetLeft,
+				y: win.element.offsetTop,
+			} );
+		},
+	);
+
+	// Persist the user's maximized intent for every window. The
+	// floating width / height stored separately by the resize-end
+	// handler stays untouched — it's still what un-maximize restores
+	// to.
+	//
+	// When the user maximizes a window they never resized, seed the
+	// floating size from the entry defaults (for native windows in
+	// the registry) or the current window snapshot's pre-maximize
+	// geometry — whichever is available. Without a seed the
+	// store has no width/height to anchor the maximize-on-reopen.
+	addAction(
+		HOOKS.WINDOW_MAXIMIZED,
+		'desktop-mode-native-window-geometry',
+		( payload: unknown ) => {
+			const windowId = ( payload as { windowId?: string } | null )?.windowId;
+			if ( ! windowId ) {
+				return;
+			}
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			const baseId = win.config.baseId || win.id;
+			const entry = entriesById.get( baseId );
+			const defaults = entry
+				? { width: entry.width, height: entry.height }
+				: { width: win.config.width, height: win.config.height };
+			setNativeWindowSavedState( baseId, 'maximized', defaults );
+		},
+	);
+
+	addAction(
+		HOOKS.WINDOW_UNMAXIMIZED,
+		'desktop-mode-native-window-geometry',
+		( payload: unknown ) => {
+			const windowId = ( payload as { windowId?: string } | null )?.windowId;
+			if ( ! windowId ) {
+				return;
+			}
+			const win = manager.getById( windowId );
+			if ( ! win ) {
+				return;
+			}
+			const baseId = win.config.baseId || win.id;
+			setNativeWindowSavedState( baseId, null );
 		},
 	);
 
