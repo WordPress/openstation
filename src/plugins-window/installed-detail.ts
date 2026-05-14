@@ -17,6 +17,7 @@
 import { __, sprintf } from '../i18n';
 import { buildStarCluster } from './card';
 import { fetchPluginInfo, fetchPluginReviews } from './rest';
+import { attachIconFallback } from './icon-fallback';
 import type {
 	InstalledPlugin,
 	PluginReview,
@@ -174,11 +175,10 @@ function buildHero( row: InstalledPlugin, _slug: string ): HTMLElement {
 	const iconUrl = row.desktop_mode_icon_url;
 	if ( iconUrl ) {
 		const img = document.createElement( 'img' );
-		img.src = iconUrl;
 		img.alt = '';
 		img.loading = 'lazy';
 		img.decoding = 'async';
-		img.addEventListener( 'error', () => {
+		img.src = attachIconFallback( img, iconUrl, () => {
 			iconTile.replaceChildren( buildFallbackGlyph() );
 		} );
 		iconTile.appendChild( img );
@@ -1203,9 +1203,22 @@ function deriveSlug( row: InstalledPlugin ): string {
 	if ( ! row.desktop_mode_icon_url ) {
 		return '';
 	}
+	// `update_plugins` transient carries the canonical wp.org slug
+	// when the plugin has a pending update — prefer it.
 	const fromUpdate = row.desktop_mode_update_available?.slug;
 	if ( fromUpdate ) {
 		return fromUpdate;
+	}
+	// Folder name is the wp.org repo slug for nearly every installed
+	// plugin on the directory. Textdomain only matches for a minority,
+	// so it's the last-resort fallback (single-file plugins where the
+	// folder is `.`).
+	const file = typeof row.plugin === 'string' ? row.plugin : '';
+	if ( file ) {
+		const slash = file.indexOf( '/' );
+		if ( slash > 0 ) {
+			return file.slice( 0, slash );
+		}
 	}
 	if ( row.textdomain ) {
 		return String( row.textdomain );

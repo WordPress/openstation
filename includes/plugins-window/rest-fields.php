@@ -292,14 +292,23 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
 /**
  * `desktop_mode_icon_url` callback.
  *
- * Derives a wp.org icon URL from the plugin's slug. We prefer the
- * SVG (`icon.svg`), fall back to the 256×256 PNG, and finally the
- * 128×128 PNG. We don't HEAD-check the URL — the JS card has an
- * `onerror` fallback to a `<wpd-icon name="dashicons-admin-plugins">`
- * placeholder, so a 404 here costs nothing.
+ * Derives a wp.org icon URL from the plugin's repo slug, which is the
+ * plugin's **folder name** (`dirname( plugin_file )`) — not its text
+ * domain. The two coincide for some plugins, but most ship a textdomain
+ * shorter or differently-suffixed than their .org slug (`woocommerce`
+ * vs textdomain `woo`, `wordpress-seo` vs `yoast-seo`, …). Keying off
+ * the folder is what wp.org's own /assets/ URLs use, so it matches
+ * the broadest set of plugins. Falls back to `textdomain` for
+ * single-file plugins (where `dirname()` returns `.`).
  *
- * Plugins not on the .org repo (premium, internal, single-site) get
- * `null` and the JS falls straight to the placeholder.
+ * We don't HEAD-check the URL — the JS card walks a candidate chain
+ * (SVG → 256 PNG → 128 PNG) on `<img>` error, then drops to a
+ * `<wpd-icon name="dashicons-admin-plugins">` placeholder. A 404 here
+ * costs nothing.
+ *
+ * Plugins not on the .org repo (premium, internal, single-site) will
+ * still produce a URL (we can't tell from REST data alone), and the JS
+ * onerror chain reaches the placeholder after the candidates 404.
  *
  * @since 0.9.0
  *
@@ -307,11 +316,16 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
  * @return string|null
  */
 function desktop_mode_plugins_window_field_icon_url( $row ) {
-	// Core's controller exposes the directory slug under `textdomain`
-	// for .org plugins (same as the wp.org repo slug). Empty when the
-	// plugin doesn't ship a Text Domain header — fine, we just return
-	// null and the placeholder paints.
-	$slug = isset( $row['textdomain'] ) ? (string) $row['textdomain'] : '';
+	$plugin_file = desktop_mode_plugins_window_row_plugin_file( $row );
+	$folder      = '' !== $plugin_file ? dirname( $plugin_file ) : '';
+	$slug        = ( '' !== $folder && '.' !== $folder ) ? $folder : '';
+
+	if ( '' === $slug ) {
+		// Single-file plugin (e.g. hello.php at the plugins root) —
+		// no folder slug, so fall back to the text domain.
+		$slug = isset( $row['textdomain'] ) ? (string) $row['textdomain'] : '';
+	}
+
 	$slug = sanitize_key( $slug );
 	if ( '' === $slug ) {
 		return null;
@@ -324,10 +338,16 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
 	 * Return a different URL to override the wp.org default — useful
 	 * for custom CDN art or premium plugins shipping a known asset URL.
 	 *
+	 * The JS receiver walks a candidate chain on `<img>` error,
+	 * swapping `icon.svg` → `icon-256x256.png` → `icon-128x128.png`
+	 * when the returned URL is the wp.org `ps.w.org` default. Custom
+	 * URLs bypass the chain (one shot, then placeholder).
+	 *
 	 * @since 0.9.0
 	 *
-	 * @param string|null $url  Default URL (wp.org SVG by slug).
-	 * @param string      $slug Plugin slug.
+	 * @param string|null $url  Default URL (wp.org SVG by folder slug).
+	 * @param string      $slug Plugin slug (folder name, or textdomain
+	 *                          for single-file plugins).
 	 * @param array       $row  Core REST plugin row.
 	 */
 	return apply_filters(

@@ -18,6 +18,7 @@ import { __, sprintf } from '../i18n';
 import { broadcast, subscribe } from '../broadcast';
 import { enqueueUpdateJob } from './update-queue';
 import { buildInstalledDetail } from './installed-detail';
+import { attachIconFallback } from './icon-fallback';
 import {
 	activateInstalledPlugin,
 	deactivateInstalledPlugin,
@@ -333,14 +334,13 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		const url = row.desktop_mode_icon_url;
 		if ( url ) {
 			const img = document.createElement( 'img' );
-			img.src = url;
 			img.alt = '';
 			img.loading = 'lazy';
 			img.decoding = 'async';
 			img.style.cssText =
 				'width:100%;height:100%;max-width:100%;max-height:100%;' +
 				'object-fit:contain;display:block;';
-			img.addEventListener( 'error', () => {
+			img.src = attachIconFallback( img, url, () => {
 				icon.replaceChildren( buildFallbackIcon() );
 			} );
 			icon.appendChild( img );
