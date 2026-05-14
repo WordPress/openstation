@@ -17,6 +17,8 @@
 import { __, sprintf } from '../i18n';
 import { broadcast, subscribe } from '../broadcast';
 import { enqueueUpdateJob } from './update-queue';
+import { buildInstalledDetail } from './installed-detail';
+import { attachIconFallback } from './icon-fallback';
 import {
 	activateInstalledPlugin,
 	deactivateInstalledPlugin,
@@ -224,6 +226,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	table.setAttribute( 'striped', '' );
 	table.setAttribute( 'bordered', '' );
 	table.setAttribute( 'loading', '' );
+	// Marker the stylesheet hooks for the row-cursor cue.
+	table.setAttribute( 'data-installed-rows', '' );
 
 	const empty = document.createElement( 'div' );
 	empty.setAttribute( 'slot', 'empty' );
@@ -239,6 +243,27 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		row.plugin || String( index );
 	table.getRowId = getRowId;
 	table.columns = buildColumns();
+
+	// Expandable row: every plugin gets a sub-row that renders a
+	// rich detail panel (description, metadata, lazy-loaded wp.org
+	// sections when the plugin ships from the directory).
+	table.subTable = ( row: InstalledPlugin ): Node => buildInstalledDetail( row );
+
+	// Make the Plugin name cell click-to-expand. The action buttons
+	// in the trailing column carry `data-noclick` so they stay
+	// independent of this toggle.
+	table.addEventListener( 'wpd-table-row-click', ( ev: Event ) => {
+		const detail = ( ev as CustomEvent< { row: InstalledPlugin; index: number } > )
+			.detail;
+		if ( ! detail ) {
+			return;
+		}
+		if ( table.isExpanded( detail.index ) ) {
+			table.collapse( detail.index );
+		} else {
+			table.expand( detail.index );
+		}
+	} );
 
 	tableWrap.appendChild( table );
 
@@ -318,14 +343,13 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		const url = row.desktop_mode_icon_url;
 		if ( url ) {
 			const img = document.createElement( 'img' );
-			img.src = url;
 			img.alt = '';
 			img.loading = 'lazy';
 			img.decoding = 'async';
 			img.style.cssText =
 				'width:100%;height:100%;max-width:100%;max-height:100%;' +
 				'object-fit:contain;display:block;';
-			img.addEventListener( 'error', () => {
+			img.src = attachIconFallback( img, url, () => {
 				icon.replaceChildren( buildFallbackIcon() );
 			} );
 			icon.appendChild( img );

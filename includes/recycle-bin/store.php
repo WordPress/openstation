@@ -475,6 +475,7 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 	$item = array(
 		'id'            => (int) $comment->comment_ID,
 		'type'          => 'comment',
+		'type_label'    => __( 'Comment', 'desktop-mode' ),
 		'title'         => $title,
 		'subtitle'      => $subtitle,
 		'mime'          => '',
@@ -547,9 +548,26 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 	$user      = $user_id ? get_userdata( $user_id ) : false;
 	$user_name = $user ? $user->display_name : '';
 
+	// Resolve a human label for the type badge. `attachment` collapses
+	// to "Media" to match the toolbar filter; every other registered
+	// post type uses its singular label so CPTs read correctly (e.g.
+	// "Product" for WooCommerce). Unknown types fall back to a
+	// title-cased slug.
+	if ( 'attachment' === $type ) {
+		$type_label = __( 'Media', 'desktop-mode' );
+	} else {
+		$post_type_obj = get_post_type_object( $type );
+		if ( $post_type_obj && isset( $post_type_obj->labels->singular_name ) && '' !== (string) $post_type_obj->labels->singular_name ) {
+			$type_label = (string) $post_type_obj->labels->singular_name;
+		} else {
+			$type_label = ucwords( str_replace( array( '_', '-' ), ' ', $type ) );
+		}
+	}
+
 	$item = array(
 		'id'            => (int) $post->ID,
 		'type'          => $type,
+		'type_label'    => $type_label,
 		'title'         => '' !== $title ? $title : sprintf( '#%d', $post->ID ),
 		'subtitle'      => $subtitle,
 		'mime'          => $mime,

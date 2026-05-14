@@ -109,6 +109,12 @@ function desktop_mode_default_os_settings() {
 		// the server-side cap gate (`edit_posts`) means the toggle only
 		// matters for users who could see the Comments tile anyway.
 		'nativeCommentsEnabled'    => true,
+		// When true, left-clicking the empty wallpaper triggers the
+		// "Show desktop" toggle (macOS-style) and the matching entry is
+		// hidden from the wallpaper context menu. When false (default),
+		// the entry stays in the menu and left clicks on the wallpaper
+		// do nothing. Per-user.
+		'showDesktopOnWallpaperClick' => false,
 		// Per-item placement preferences. Map of item id (dock-item
 		// slug or registered desktop-icon id) → one of:
 		//   'both'    — show on both dock and desktop.
@@ -354,6 +360,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['nativeCommentsEnabled']
 		: $defaults['nativeCommentsEnabled'];
 
+	$show_desktop_on_wallpaper_click = isset( $raw['showDesktopOnWallpaperClick'] )
+		? (bool) $raw['showDesktopOnWallpaperClick']
+		: $defaults['showDesktopOnWallpaperClick'];
+
 	// itemVisibility — map<sanitize_key, enum>. Unknown ids are kept
 	// (a deactivated plugin's setting should survive reactivation);
 	// invalid placement values are dropped.
@@ -416,6 +426,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativeUsersEnabled'       => $native_users_enabled,
 		'nativePluginsEnabled'     => $native_plugins_enabled,
 		'nativeCommentsEnabled'    => $native_comments_enabled,
+		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'itemVisibility'           => $item_visibility,
 		'dockOrder'                => $dock_order,
 	);

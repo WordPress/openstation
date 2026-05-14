@@ -60,6 +60,25 @@ desktop_mode_register_window( 'jorvy', array(
     'styles'         => array( 'jorvy-panel' ),
 
     // Optional window defaults. Overridable per-open via the JS API.
+    // `width` / `height` are the size used the very first time a
+    // user opens this window. From then on, the shell remembers
+    // the last size, position, AND maximize state the user left
+    // the window in (per baseId, in localStorage under
+    // `desktop-mode-native-window-geometry`) and replays them on
+    // the next fresh open. The same persistence covers classic
+    // iframe-backed windows opened from a dock click or desktop
+    // icon. Size is clamped to `min_width` / `min_height` so
+    // raising the minimum in a plugin update never reopens at the
+    // older smaller size. Position is clamped to the current
+    // desktop area so a window remembered at x=2800 on a 3440px
+    // display doesn't open off-screen on a laptop. Snap-zone tiles
+    // are not persisted; only geometry the user picks while the
+    // window is in the normal floating state. Width / height /
+    // position ALWAYS represent the floating values, even when
+    // state=maximized; they are what un-maximize restores to.
+    // Duplicate instances opened via `openNewWindow` or the "+"
+    // dock-peek affordance always cascade off the primary's
+    // remembered position into a fresh floating slot.
     'width'          => 420,
     'height'         => 320,
     'min_width'      => 320,

@@ -26,6 +26,14 @@ declare global {
 export interface RecycleBinItem {
 	id: number;
 	type: string;
+	/**
+	 * Human-friendly singular label for the item's type. Populated
+	 * server-side from the post-type-object label (or "Comment" /
+	 * "Media") so CPTs render correctly. May be empty for legacy or
+	 * filter-extended rows — the JS renderer falls back to a
+	 * title-cased version of `type`.
+	 */
+	type_label?: string;
 	title: string;
 	subtitle: string;
 	mime: string;

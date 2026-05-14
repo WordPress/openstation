@@ -62,6 +62,7 @@ import {
 	updateSnapZoneForDrag,
 } from './snap-zones';
 import { enterOverview, exitOverview } from './overview';
+import { loadNativeWindowGeometry } from './native-window-geometry';
 
 /** Base z-index for desktop windows. */
 const BASE_Z_INDEX = 100;
@@ -452,13 +453,30 @@ export class WindowManager {
 	/**
 	 * Open a brand-new window even if one is already open for this
 	 * page. Only makes sense for pages flagged `multi`.
+	 *
+	 * Duplicates always open in the floating ('normal') state and at
+	 * a fresh cascade slot — the per-baseId saved size / state /
+	 * position preferences apply to the primary instance only.
+	 * Spawning a maximized twin alongside the maximized primary
+	 * would hide the primary; landing a twin on top of the primary's
+	 * remembered position would hide it too. Callers can override
+	 * either default by passing `initialState` / `x` / `y` explicitly.
 	 */
 	public async openNew(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string },
 	): Promise< Window > {
 		const baseId = config.baseId || config.id;
 		const nextId = this.nextInstanceId( baseId );
-		return this.createWindow( { ...config, id: nextId, baseId } );
+		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
+		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
+		return this.createWindow( {
+			initialState: 'normal',
+			x: cascadeX,
+			y: cascadeY,
+			...config,
+			id: nextId,
+			baseId,
+		} );
 	}
 
 	/**
@@ -474,16 +492,83 @@ export class WindowManager {
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 
+		// When the caller didn't pin geometry (a fresh dock click or
+		// desktop-icon open, not a session restore which passes
+		// everything, not an `openNew` duplicate which passes its own
+		// cascade), fall back to the per-baseId localStorage geometry
+		// store before the desktopRect-based defaults. Same store as
+		// native windows — keyed by baseId, lets a user's "this is
+		// the size and place I want this window" preference survive
+		// close/reopen even when the window wasn't open at the last
+		// session save.
+		const resolvedBaseId = config.baseId || config.id;
+		const minWidth = config.minWidth ?? 320;
+		const minHeight = config.minHeight ?? 200;
+		const hasExplicitWidth = typeof config.width === 'number';
+		const hasExplicitHeight = typeof config.height === 'number';
+		const hasExplicitX = typeof config.x === 'number';
+		const hasExplicitY = typeof config.y === 'number';
+		const hasExplicitState = typeof config.initialState === 'string';
+		const saved =
+			! hasExplicitWidth ||
+			! hasExplicitHeight ||
+			! hasExplicitState ||
+			! hasExplicitX ||
+			! hasExplicitY
+				? loadNativeWindowGeometry( resolvedBaseId )
+				: null;
+		const resolvedWidth =
+			config.width ??
+			( saved ? Math.max( saved.width, minWidth ) : defaultWidth );
+		const resolvedHeight =
+			config.height ??
+			( saved ? Math.max( saved.height, minHeight ) : defaultHeight );
+		const resolvedState =
+			config.initialState ??
+			( saved?.state === 'maximized' ? 'maximized' : undefined );
+
+		// Clamp saved x / y to the current desktop area so a window
+		// remembered at x=2800 on a 3440px display doesn't open
+		// off-screen on a laptop. Mirrors the clamp the session-restore
+		// path applies via `clampGeometryToViewport`.
+		let clampedSavedX: number | undefined;
+		let clampedSavedY: number | undefined;
+		if (
+			saved &&
+			typeof saved.x === 'number' &&
+			typeof saved.y === 'number'
+		) {
+			const margin = 12;
+			const maxX = Math.max(
+				0,
+				desktopRect.width - resolvedWidth - margin,
+			);
+			const maxY = Math.max(
+				0,
+				desktopRect.height - resolvedHeight - margin,
+			);
+			clampedSavedX = Math.max( margin, Math.min( saved.x, maxX ) );
+			clampedSavedY = Math.max( margin, Math.min( saved.y, maxY ) );
+		}
+		const resolvedX = config.x ?? clampedSavedX ?? cascadeX;
+		const resolvedY = config.y ?? clampedSavedY ?? cascadeY;
+
 		const fullConfig: WindowConfig = {
 			icon: config.icon || 'dashicons-admin-generic',
-			x: config.x ?? cascadeX,
-			y: config.y ?? cascadeY,
-			width: config.width ?? defaultWidth,
-			height: config.height ?? defaultHeight,
-			minWidth: config.minWidth ?? 320,
-			minHeight: config.minHeight ?? 200,
 			...config,
-			baseId: config.baseId || config.id,
+			// Spread `config` first so callers can pass through any
+			// extras (render, ownerHandle, parentUrl, …), then pin the
+			// dimensions + state we resolved above. The pin has to
+			// follow the spread because an explicit `width: undefined`
+			// from the caller would otherwise blow away the default.
+			x: resolvedX,
+			y: resolvedY,
+			width: resolvedWidth,
+			height: resolvedHeight,
+			minWidth,
+			minHeight,
+			...( resolvedState ? { initialState: resolvedState } : {} ),
+			baseId: resolvedBaseId,
 			// New windows always join the active desktop. A caller can
 			// pre-seed `desktopId` (e.g. session restore) by passing it
 			// in `config`, which the spread above preserves.

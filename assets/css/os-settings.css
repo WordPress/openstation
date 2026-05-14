@@ -867,6 +867,23 @@
 	min-height: 22px;
 }
 
+/* One toggle + hint pair. Stacking these without separators reads as
+ * a wall of checkboxes; a hairline above each item (after the first)
+ * groups the label with its description and gives the eye a stopping
+ * point between unrelated settings. The first item sits flush so the
+ * section heading already serves as its top boundary. */
+.desktop-mode-features__item {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-features__item + .desktop-mode-features__item {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
 /* "Reset what's-new dialogs" row — separates the action from the
  * native-Posts toggle above and gives breathing room around the
  * button. `align-items: flex-start` keeps the inline-flex

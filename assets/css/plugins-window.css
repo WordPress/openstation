@@ -988,3 +988,10 @@
 	outline: 2px dashed var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
+/* Row-click cue — pointer-cursor on Installed-tab body rows so users
+ * discover that clicking the plugin name expands the detail panel.
+ * `<wpd-table>` exposes each body `<tr>` as a `row` shadow part. */
+
+wpd-table[ data-installed-rows ]::part( row ) {
+	cursor: pointer;
+}

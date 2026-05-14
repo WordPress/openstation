@@ -415,11 +415,12 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 
 	/**
 	 * `desktop_mode_icon_url` should derive a wp.org icon URL from the
-	 * row's `textdomain` and respect the per-row filter.
+	 * plugin's folder name — the wp.org repo slug. Textdomain is a
+	 * fallback only for single-file plugins.
 	 *
 	 * @covers ::desktop_mode_plugins_window_field_icon_url
 	 */
-	public function test_icon_url_derives_from_textdomain() {
+	public function test_icon_url_derives_from_folder_slug() {
 		$row = array(
 			'plugin'     => 'akismet/akismet.php',
 			'textdomain' => 'akismet',
@@ -432,11 +433,59 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Folder name and textdomain often diverge (e.g. WooCommerce ships
+	 * folder `woocommerce` but text domain `woo`). The .org repo URL
+	 * is keyed on the folder, so that's what we must use.
+	 *
 	 * @covers ::desktop_mode_plugins_window_field_icon_url
 	 */
-	public function test_icon_url_returns_null_when_no_textdomain() {
+	public function test_icon_url_prefers_folder_over_mismatched_textdomain() {
+		$row = array(
+			'plugin'     => 'woocommerce/woocommerce.php',
+			'textdomain' => 'woo',
+		);
+		$url = desktop_mode_plugins_window_field_icon_url( $row );
+		$this->assertSame(
+			'https://ps.w.org/woocommerce/assets/icon.svg',
+			$url
+		);
+	}
+
+	/**
+	 * Plugins with no `Text Domain:` header still resolve via folder
+	 * name — the dominant cause of the "blank icon" regression that
+	 * the textdomain-only resolver produced.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 */
+	public function test_icon_url_works_without_textdomain() {
 		$row = array( 'plugin' => 'something/something.php' );
-		$this->assertNull( desktop_mode_plugins_window_field_icon_url( $row ) );
+		$this->assertSame(
+			'https://ps.w.org/something/assets/icon.svg',
+			desktop_mode_plugins_window_field_icon_url( $row )
+		);
+	}
+
+	/**
+	 * Single-file plugins (no folder) fall back to textdomain. With
+	 * neither folder nor textdomain available, the field is null and
+	 * JS paints the placeholder.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 */
+	public function test_icon_url_single_file_uses_textdomain_fallback() {
+		$row = array(
+			'plugin'     => 'hello.php',
+			'textdomain' => 'hello-dolly',
+		);
+		$this->assertSame(
+			'https://ps.w.org/hello-dolly/assets/icon.svg',
+			desktop_mode_plugins_window_field_icon_url( $row )
+		);
+
+		$this->assertNull(
+			desktop_mode_plugins_window_field_icon_url( array( 'plugin' => 'hello.php' ) )
+		);
 	}
 
 	/**

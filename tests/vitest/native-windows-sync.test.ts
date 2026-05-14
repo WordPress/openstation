@@ -20,6 +20,13 @@ import { Dock } from '../../src/dock';
 import { createNativeWindowSync } from '../../src/native-windows';
 import * as vendorLoader from '../../src/wallpapers/vendor-loader';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
+import {
+	__resetNativeWindowGeometryForTests,
+	loadNativeWindowGeometry,
+	saveNativeWindowGeometry,
+	setNativeWindowSavedState,
+} from '../../src/window-manager/native-window-geometry';
+import { HOOKS } from '../../src/hooks';
 import type { WindowManager } from '../../src/window-manager';
 import type { NativeWindowServerEntry } from '../../src/types';
 
@@ -43,6 +50,7 @@ function setupHarness(): Harness {
 	const manager = {
 		open: managerOpen,
 		getById: () => null,
+		getByBaseIdOnActiveDesktop: () => undefined,
 		getFocused: () => null,
 		getAll: () => [],
 		getCount: () => 0,
@@ -101,6 +109,7 @@ function tilesIn( el: HTMLElement ): string[] {
 describe( 'native-windows.createNativeWindowSync — live activation / deactivation', () => {
 	beforeEach( () => {
 		installHooksStub();
+		__resetNativeWindowGeometryForTests();
 		// `loadVendorScript` is exercised when an entry has a non-empty
 		// scriptUrl. We stub it so tests don't try to inject real
 		// `<script>` tags. Most tests use scriptUrl='' and bypass it.
@@ -108,6 +117,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 	} );
 	afterEach( () => {
 		clearHooksStub();
+		__resetNativeWindowGeometryForTests();
 		vi.restoreAllMocks();
 		document.body.innerHTML = '';
 	} );
@@ -291,5 +301,301 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 		await sync( [] );
 		expect( openById( 'calculator' ) ).toBe( false );
+	} );
+
+	describe( 'remembered window size (issue #203)', () => {
+		test( 'openById uses the registered defaults when nothing is remembered', async () => {
+			const h = setupHarness();
+			const { sync, openById } = createNativeWindowSync(
+				depsFromHarness( h ),
+			);
+
+			await sync( [
+				entry( 'calculator', {
+					width: 520,
+					height: 400,
+					minWidth: 280,
+					minHeight: 220,
+				} ),
+			] );
+
+			openById( 'calculator' );
+
+			expect( h.managerOpen ).toHaveBeenCalledTimes( 1 );
+			const call = h.managerOpen.mock.calls[ 0 ]?.[ 0 ] as {
+				width: number;
+				height: number;
+			};
+			expect( call.width ).toBe( 520 );
+			expect( call.height ).toBe( 400 );
+		} );
+
+		test( 'openById prefers a previously-saved size over the registered defaults', async () => {
+			saveNativeWindowGeometry( 'calculator', {
+				width: 1500,
+				height: 900,
+			} );
+
+			const h = setupHarness();
+			const { sync, openById } = createNativeWindowSync(
+				depsFromHarness( h ),
+			);
+
+			await sync( [
+				entry( 'calculator', {
+					width: 520,
+					height: 400,
+					minWidth: 280,
+					minHeight: 220,
+				} ),
+			] );
+
+			openById( 'calculator' );
+
+			const call = h.managerOpen.mock.calls[ 0 ]?.[ 0 ] as {
+				width: number;
+				height: number;
+			};
+			expect( call.width ).toBe( 1500 );
+			expect( call.height ).toBe( 900 );
+		} );
+
+		test( 'openById does not pin x / y, so createWindow can apply the saved position', async () => {
+			// Regression: native open path used to hard-code
+			// `x: 0, y: 0`, which short-circuited the saved-position
+			// replay in `WindowManager.createWindow`. After dragging
+			// a native window like Posts to the bottom-right, closing
+			// it, and reopening from the dock, it would land back at
+			// (0, 0) instead of the user's last position.
+			const h = setupHarness();
+			const { sync, openById } = createNativeWindowSync(
+				depsFromHarness( h ),
+			);
+
+			await sync( [ entry( 'calculator' ) ] );
+
+			openById( 'calculator' );
+
+			const call = h.managerOpen.mock.calls[ 0 ]?.[ 0 ] as {
+				x?: number;
+				y?: number;
+			};
+			expect( call.x ).toBeUndefined();
+			expect( call.y ).toBeUndefined();
+		} );
+
+		test( 'a stored size smaller than the current minimum is clamped up', async () => {
+			// A previous version registered a smaller minimum and the
+			// user resized down. After the plugin update raises
+			// minWidth, the next open must respect the new floor.
+			saveNativeWindowGeometry( 'calculator', {
+				width: 320,
+				height: 240,
+			} );
+
+			const h = setupHarness();
+			const { sync, openById } = createNativeWindowSync(
+				depsFromHarness( h ),
+			);
+
+			await sync( [
+				entry( 'calculator', {
+					width: 520,
+					height: 400,
+					minWidth: 500,
+					minHeight: 350,
+				} ),
+			] );
+
+			openById( 'calculator' );
+
+			const call = h.managerOpen.mock.calls[ 0 ]?.[ 0 ] as {
+				width: number;
+				height: number;
+			};
+			expect( call.width ).toBe( 500 );
+			expect( call.height ).toBe( 350 );
+		} );
+
+		test( 'WINDOW_RESIZE_END persists the new size for a native window in normal state', async () => {
+			const h = setupHarness();
+			const fakeWin = {
+				id: 'calculator',
+				state: 'normal' as const,
+				config: { native: true, baseId: 'calculator' },
+			};
+			h.manager.getById = ( ( id: string ) =>
+				id === 'calculator' ? fakeWin : null ) as WindowManager[ 'getById' ];
+
+			createNativeWindowSync( depsFromHarness( h ) );
+
+			window.wp!.hooks.doAction( HOOKS.WINDOW_RESIZE_END, {
+				windowId: 'calculator',
+				width: 1500,
+				height: 900,
+			} );
+
+			expect( loadNativeWindowGeometry( 'calculator' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+			} );
+		} );
+
+		test( 'WINDOW_RESIZE_END persists the new size for classic (non-native) windows too', async () => {
+			const h = setupHarness();
+			h.manager.getById = ( () => ( {
+				id: 'edit-php',
+				state: 'normal' as const,
+				config: { native: false, baseId: 'edit-php' },
+			} ) ) as WindowManager[ 'getById' ];
+
+			createNativeWindowSync( depsFromHarness( h ) );
+
+			window.wp!.hooks.doAction( HOOKS.WINDOW_RESIZE_END, {
+				windowId: 'edit-php',
+				width: 1500,
+				height: 900,
+			} );
+
+			expect( loadNativeWindowGeometry( 'edit-php' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+			} );
+		} );
+
+		test( 'WINDOW_RESIZE_END is ignored when the window is not in normal state', async () => {
+			const h = setupHarness();
+			h.manager.getById = ( () => ( {
+				id: 'calculator',
+				state: 'maximized' as const,
+				config: { native: true, baseId: 'calculator' },
+			} ) ) as WindowManager[ 'getById' ];
+
+			createNativeWindowSync( depsFromHarness( h ) );
+
+			window.wp!.hooks.doAction( HOOKS.WINDOW_RESIZE_END, {
+				windowId: 'calculator',
+				width: 1500,
+				height: 900,
+			} );
+
+			expect( loadNativeWindowGeometry( 'calculator' ) ).toBeNull();
+		} );
+
+		test( 'WINDOW_MAXIMIZED records the maximize preference, preserving the floating size', async () => {
+			saveNativeWindowGeometry( 'calculator', {
+				width: 1500,
+				height: 900,
+			} );
+
+			const h = setupHarness();
+			h.manager.getById = ( () => ( {
+				id: 'calculator',
+				state: 'maximized' as const,
+				config: { native: true, baseId: 'calculator' },
+			} ) ) as WindowManager[ 'getById' ];
+
+			const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+			await sync( [
+				entry( 'calculator', { width: 520, height: 400 } ),
+			] );
+
+			window.wp!.hooks.doAction( HOOKS.WINDOW_MAXIMIZED, {
+				windowId: 'calculator',
+			} );
+
+			expect( loadNativeWindowGeometry( 'calculator' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+				state: 'maximized',
+			} );
+		} );
+
+		test( 'WINDOW_MAXIMIZED seeds floating size from entry defaults when nothing was stored', async () => {
+			const h = setupHarness();
+			h.manager.getById = ( () => ( {
+				id: 'calculator',
+				state: 'maximized' as const,
+				config: { native: true, baseId: 'calculator' },
+			} ) ) as WindowManager[ 'getById' ];
+
+			const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+			await sync( [
+				entry( 'calculator', { width: 520, height: 400 } ),
+			] );
+
+			window.wp!.hooks.doAction( HOOKS.WINDOW_MAXIMIZED, {
+				windowId: 'calculator',
+			} );
+
+			expect( loadNativeWindowGeometry( 'calculator' ) ).toEqual( {
+				width: 520,
+				height: 400,
+				state: 'maximized',
+			} );
+		} );
+
+		test( 'WINDOW_DRAG_END seeds size + position even when nothing was previously stored', async () => {
+			// Regression: open-drag-close (no manual resize) was
+			// dropping the position because `saveNativeWindowPosition`
+			// requires a prior entry to layer onto.
+			const h = setupHarness();
+			const element = document.createElement( 'div' );
+			Object.defineProperty( element, 'offsetLeft', { value: 1200, configurable: true } );
+			Object.defineProperty( element, 'offsetTop', { value: 700, configurable: true } );
+			Object.defineProperty( element, 'offsetWidth', { value: 820, configurable: true } );
+			Object.defineProperty( element, 'offsetHeight', { value: 540, configurable: true } );
+			h.manager.getById = ( () => ( {
+				id: 'edit-php',
+				state: 'normal' as const,
+				config: { native: false, baseId: 'edit-php' },
+				element,
+			} ) ) as WindowManager[ 'getById' ];
+
+			createNativeWindowSync( depsFromHarness( h ) );
+
+			window.wp!.hooks.doAction( HOOKS.WINDOW_DRAG_END, {
+				windowId: 'edit-php',
+				x: 1200,
+				y: 700,
+			} );
+
+			expect( loadNativeWindowGeometry( 'edit-php' ) ).toEqual( {
+				width: 820,
+				height: 540,
+				x: 1200,
+				y: 700,
+			} );
+		} );
+
+		test( 'WINDOW_UNMAXIMIZED clears the maximize preference, preserving the floating size', async () => {
+			setNativeWindowSavedState( 'calculator', 'maximized', {
+				width: 520,
+				height: 400,
+			} );
+			saveNativeWindowGeometry( 'calculator', {
+				width: 1500,
+				height: 900,
+			} );
+
+			const h = setupHarness();
+			h.manager.getById = ( () => ( {
+				id: 'calculator',
+				state: 'normal' as const,
+				config: { native: true, baseId: 'calculator' },
+			} ) ) as WindowManager[ 'getById' ];
+
+			createNativeWindowSync( depsFromHarness( h ) );
+
+			window.wp!.hooks.doAction( HOOKS.WINDOW_UNMAXIMIZED, {
+				windowId: 'calculator',
+			} );
+
+			expect( loadNativeWindowGeometry( 'calculator' ) ).toEqual( {
+				width: 1500,
+				height: 900,
+			} );
+		} );
+
 	} );
 } );

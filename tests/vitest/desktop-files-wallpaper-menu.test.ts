@@ -69,6 +69,20 @@ describe( 'wallpaper context menu', () => {
 		);
 	} );
 
+	test( 'buildMenuItems omits show-desktop when includeShowDesktop is false', async () => {
+		const { buildMenuItems } = await load();
+		const items = buildMenuItems(
+			stubDeps( { includeShowDesktop: false } ),
+		);
+		expect( items.map( ( i ) => i.id ) ).toEqual( [
+			'create-folder',
+			'new-url',
+			'sort-by',
+			'os-settings',
+			'wallpapers',
+		] );
+	} );
+
 	test( 'clicking New URL invokes deps.createUrl', async () => {
 		const { openWallpaperMenu, buildMenuItems } = await load();
 		const deps = stubDeps();

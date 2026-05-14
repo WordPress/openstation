@@ -71,6 +71,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onShowDesktopOnClickToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.showDesktopOnWallpaperClick = checked;
+		ctx.save();
+		paint();
+	};
+
 	// AI moderation toggle — admin-only, persisted as a SITE option
 	// (not user meta) via the dedicated REST endpoint. Local mirror of
 	// the shell snapshot so paint() reflects the new value
@@ -189,75 +196,101 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						'Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.',
 					) }
 				>
-					<wpd-checkbox-label
-						label=${ __( 'Use the native Posts window' ) }
-						?checked=${ ctx.state.nativePostsEnabled }
-						@wpd-checkbox-change=${ onNativePostsToggle }
-					></wpd-checkbox-label>
-					<p class="desktop-mode-features__hint">
-						${ __(
-							'Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.',
-						) }
-					</p>
-					<wpd-checkbox-label
-						label=${ __( 'Use the native Pages window' ) }
-						?checked=${ ctx.state.nativePagesEnabled }
-						@wpd-checkbox-change=${ onNativePagesToggle }
-					></wpd-checkbox-label>
-					<p class="desktop-mode-features__hint">
-						${ __(
-							'Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.',
-						) }
-					</p>
-					<wpd-checkbox-label
-						label=${ __( 'Use the native Users window' ) }
-						?checked=${ ctx.state.nativeUsersEnabled }
-						@wpd-checkbox-change=${ onNativeUsersToggle }
-					></wpd-checkbox-label>
-					<p class="desktop-mode-features__hint">
-						${ __(
-							'A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.',
-						) }
-					</p>
-					<wpd-checkbox-label
-						label=${ __( 'Use the native Plugins window' ) }
-						?checked=${ ctx.state.nativePluginsEnabled }
-						@wpd-checkbox-change=${ onNativePluginsToggle }
-					></wpd-checkbox-label>
-					<p class="desktop-mode-features__hint">
-						${ __(
-							'A native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it. On by default.',
-						) }
-					</p>
-					<wpd-checkbox-label
-						label=${ __( 'Use the native Comments window' ) }
-						?checked=${ ctx.state.nativeCommentsEnabled }
-						@wpd-checkbox-change=${ onNativeCommentsToggle }
-					></wpd-checkbox-label>
-					<p class="desktop-mode-features__hint">
-						${ __(
-							'A redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo). On by default.',
-						) }
-					</p>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Posts window' ) }
+							?checked=${ ctx.state.nativePostsEnabled }
+							@wpd-checkbox-change=${ onNativePostsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Pages window' ) }
+							?checked=${ ctx.state.nativePagesEnabled }
+							@wpd-checkbox-change=${ onNativePagesToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Users window' ) }
+							?checked=${ ctx.state.nativeUsersEnabled }
+							@wpd-checkbox-change=${ onNativeUsersToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Plugins window' ) }
+							?checked=${ ctx.state.nativePluginsEnabled }
+							@wpd-checkbox-change=${ onNativePluginsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'A native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it. On by default.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Comments window' ) }
+							?checked=${ ctx.state.nativeCommentsEnabled }
+							@wpd-checkbox-change=${ onNativeCommentsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'A redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo). On by default.',
+							) }
+						</p>
+					</div>
 					${ shellCfg?.commentsAi
 						? html`
-							<wpd-checkbox-label
-								label=${ __( 'Score new comments with AI' ) }
-								?checked=${ aiState.enabled }
-								?disabled=${ aiState.saving || ! aiState.providerConfigured }
-								@wpd-checkbox-change=${ onCommentsAiToggle }
-							></wpd-checkbox-label>
-							<p class="desktop-mode-features__hint">
-								${ aiState.providerConfigured
-									? __(
-										'When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.',
-									)
-									: __(
-										'Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival.',
-									) }
-							</p>
+							<div class="desktop-mode-features__item">
+								<wpd-checkbox-label
+									label=${ __( 'Score new comments with AI' ) }
+									?checked=${ aiState.enabled }
+									?disabled=${ aiState.saving || ! aiState.providerConfigured }
+									@wpd-checkbox-change=${ onCommentsAiToggle }
+								></wpd-checkbox-label>
+								<p class="desktop-mode-features__hint">
+									${ aiState.providerConfigured
+										? __(
+											'When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.',
+										)
+										: __(
+											'Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival.',
+										) }
+								</p>
+							</div>
 						`
 						: '' }
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __(
+								'Show desktop when clicking the wallpaper',
+							) }
+							?checked=${ ctx.state.showDesktopOnWallpaperClick }
+							@wpd-checkbox-change=${ onShowDesktopOnClickToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching "Show desktop" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.',
+							) }
+						</p>
+					</div>
 					<div class="desktop-mode-features__row">
 						<wpd-button
 							variant="secondary"

@@ -363,13 +363,17 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 				},
 			],
 		},
-		{
-			id: 'show-desktop',
-			label: deps.labels.showDesktop,
-			icon: 'dashicons-desktop',
-			sort: 20,
-			onClick: () => deps.toggleShowDesktop(),
-		},
+		...( deps.includeShowDesktop === false
+			? []
+			: [
+					{
+						id: 'show-desktop',
+						label: deps.labels.showDesktop,
+						icon: 'dashicons-desktop',
+						sort: 20,
+						onClick: () => deps.toggleShowDesktop(),
+					} as WallpaperMenuItem,
+			] ),
 		{
 			id: 'os-settings',
 			label: deps.labels.osSettings,
@@ -441,6 +445,13 @@ export interface WallpaperMenuDeps {
 	 * so users see at a glance which order is auto-arranging.
 	 */
 	currentSortMode?: SortMode | null;
+	/**
+	 * Whether to render the built-in "Show desktop" entry. When `false`,
+	 * the caller has wired the wallpaper's left-click to drive the same
+	 * toggle (macOS-style) and the menu entry would be redundant.
+	 * Default `true`.
+	 */
+	includeShowDesktop?: boolean;
 	labels: {
 		createFolder: string;
 		showDesktop: string;

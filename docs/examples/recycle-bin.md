@@ -85,6 +85,17 @@ add_filter( 'desktop_mode_recycle_bin_item', function ( $item, $post ) {
 }, 10, 2 );
 ```
 
+The `type_label` field on every row carries a human-readable label for the entity kind (`Post`, `Page`, `Media`, `Comment`, or the CPT's singular label). The bin renders it as a small inline badge next to the title; column-filter authors can also reuse it for their own cells. Override it from the same filter if your CPT needs a custom label:
+
+```php
+add_filter( 'desktop_mode_recycle_bin_item', function ( $item, $post ) {
+    if ( 'product' === $post->post_type ) {
+        $item[ 'type_label' ] = __( 'Catalog item', 'myplugin' );
+    }
+    return $item;
+}, 10, 2 );
+```
+
 ## Push your own real-time channel
 
 If you run a websocket or SSE service alongside WordPress, hook the unified signal so you don't have to subscribe to every delete action individually:
