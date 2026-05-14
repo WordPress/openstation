@@ -116,6 +116,19 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 			`[desktop-mode] files REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
 		);
 	}
+	// A 2xx with an empty or unparseable body is something the
+	// consumers can't usefully do anything with (every route in
+	// this module returns a shaped object). It happens transiently
+	// when desktop-mode replaces itself live — REST routes briefly
+	// re-register, a redirect to wp-login HTML can sneak through,
+	// etc. — and crashes the consumer with a cryptic
+	// `Cannot read properties of null` if we forward it. Throw
+	// here so the caller's `.catch` logs a meaningful line.
+	if ( null === body ) {
+		throw new Error(
+			`[desktop-mode] files REST ${ res.status }: empty or unparseable body.`,
+		);
+	}
 	return body as T;
 }
 
