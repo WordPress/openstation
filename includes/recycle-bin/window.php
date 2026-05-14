@@ -39,7 +39,20 @@ function desktop_mode_recycle_bin_render_template() {
 					<wpd-segment value="" selected><?php esc_html_e( 'All', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="post"><?php esc_html_e( 'Posts', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="page"><?php esc_html_e( 'Pages', 'desktop-mode' ); ?></wpd-segment>
-					<wpd-segment value="attachment"><?php esc_html_e( 'Media', 'desktop-mode' ); ?></wpd-segment>
+					<?php
+					// The Media segment is only useful when WP itself routes
+					// attachment deletions through Trash. That gate is the
+					// `MEDIA_TRASH` constant — defaults to false in core, can
+					// be flipped to true from `wp-config.php`. Without it,
+					// attachments permanent-delete on first click and the
+					// Trash bin will never have anything in this bucket, so
+					// the tab would always read "0" and confuse users.
+					if ( defined( 'MEDIA_TRASH' ) && MEDIA_TRASH ) :
+						?>
+						<wpd-segment value="attachment"><?php esc_html_e( 'Media', 'desktop-mode' ); ?></wpd-segment>
+						<?php
+					endif;
+					?>
 					<wpd-segment value="comment"><?php esc_html_e( 'Comments', 'desktop-mode' ); ?></wpd-segment>
 					<wpd-segment value="desktop"><?php esc_html_e( 'Desktop', 'desktop-mode' ); ?></wpd-segment>
 				</wpd-segmented>

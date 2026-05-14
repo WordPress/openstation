@@ -1108,7 +1108,13 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 				__( '%s on desktop', 'desktop-mode' ),
 				(string) $row['file_type']
 			);
-		$out[] = array(
+		// `type_label` is the short uppercase badge the JS renders
+		// inline before the title. Most placements collapse to the
+		// generic "Placement" badge (the JS humanizes the bucket
+		// slug when no label is set). `link` placements — created
+		// via "New URL" on the desktop — deserve a more specific
+		// label so they read as URL-shortcuts, not generic tiles.
+		$item = array(
 			'id'            => (int) $row['id'],
 			'type'          => $bucket,
 			'title'         => $title,
@@ -1123,6 +1129,10 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 			'can_purge'     => desktop_mode_files_user_can_purge_placement( $user_id, $row ),
 			'edit_link'     => '',
 		);
+		if ( 'link' === (string) $row['file_type'] ) {
+			$item['type_label'] = __( 'URL', 'desktop-mode' );
+		}
+		$out[] = $item;
 	}
 
 	// Trashed folders owned by this user.

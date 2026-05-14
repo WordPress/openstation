@@ -187,16 +187,35 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 			`[desktop-mode] files REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
 		);
 	}
-	// Surface JSON-parse failures on 2xx responses — the usual
-	// cause is a PHP notice / warning that landed in the response
-	// body before the actual JSON. Silently returning null
-	// turns the parse error into a downstream TypeError far from
-	// the actual root cause.
-	if ( parseError && text ) {
-		const head = text.slice( 0, 120 ).replace( /\s+/g, ' ' );
+	// A 2xx with an empty or unparseable body is something the
+	// consumers can't usefully do anything with (every route in
+	// this module returns a shaped object). Two sources in
+	// practice:
+	//
+	//   - Desktop Mode replacing itself live (REST routes
+	//     briefly re-register, a redirect to wp-login HTML can
+	//     sneak through) — `text` is non-empty but not JSON.
+	//   - A genuinely empty 200 body (rare; usually a server
+	//     misconfiguration).
+	//
+	// Silently returning `null` would crash the consumer with a
+	// cryptic `Cannot read properties of null` far from the
+	// actual root cause. Throw with as much diagnostic as we
+	// have so the caller's `.catch` logs a meaningful line: when
+	// `text` is non-empty include the parse error + the first
+	// 120 chars of the body (usually enough to spot the PHP
+	// notice or the login-form HTML that crept in), otherwise
+	// fall back to the plain "empty body" message.
+	if ( null === body ) {
+		if ( parseError && text ) {
+			const head = text.slice( 0, 120 ).replace( /\s+/g, ' ' );
+			throw new Error(
+				`[desktop-mode] files REST ${ res.status } returned non-JSON body — ` +
+					`${ parseError.message }. First 120 chars: ${ head }`,
+			);
+		}
 		throw new Error(
-			`[desktop-mode] files REST ${ res.status } returned non-JSON body — ` +
-				`${ parseError.message }. First 120 chars: ${ head }`,
+			`[desktop-mode] files REST ${ res.status }: empty or unparseable body.`,
 		);
 	}
 	return body as T;
