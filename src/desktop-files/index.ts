@@ -42,6 +42,8 @@ import { registerBuiltInFileTypes } from './built-in-types';
 import { registerBuiltInFileOpeners } from './built-in-openers';
 import { installEmbedPersistence } from './embed-window';
 import { registerFileAssociationsTab } from './settings-tab';
+import { installShareMenuItems } from './share-menu-items';
+import { installShareInviteBanner } from './share-invite-banner';
 import * as filesRest from './rest';
 import {
 	getFilesState,
@@ -61,6 +63,8 @@ registerBuiltInFileTypes();
 registerBuiltInFileOpeners();
 installEmbedPersistence();
 registerFileAssociationsTab();
+installShareMenuItems();
+installShareInviteBanner();
 
 /**
  * Public API surface for the files registry. Mirrored on

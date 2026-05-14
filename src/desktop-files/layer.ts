@@ -43,6 +43,7 @@ import {
 } from './grid';
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
+import { isConflict, showConflictToast } from './conflict-toast';
 import type { DragManagerApi, DropTarget } from '../drag';
 import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
 import type {
@@ -374,20 +375,28 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					placementId: data.placement.id,
 				} );
 				void rest
-					.updatePlacement( data.placement.id, {
-						x: cell.x,
-						y: cell.y,
-						parentId: folderId,
-					} )
+					.updatePlacement(
+						data.placement.id,
+						{
+							x: cell.x,
+							y: cell.y,
+							parentId: folderId,
+						},
+						data.placement.updatedAtMs,
+					)
 					.then( ( server ) => {
 						filesStoreApi.upsertPlacement( server, 'remote' );
 					} )
 					.catch( ( err ) => {
-						// eslint-disable-next-line no-console
-						console.error(
-							'[desktop-mode] files: drag persist failed',
-							err,
-						);
+						if ( isConflict( err ) ) {
+							showConflictToast( err );
+						} else {
+							// eslint-disable-next-line no-console
+							console.error(
+								'[desktop-mode] files: drag persist failed',
+								err,
+							);
+						}
 						filesStoreApi.upsertPlacement( data.placement );
 					} );
 				return;
@@ -813,18 +822,24 @@ function registerFolderDropTarget(
 				};
 				filesStoreApi.upsertPlacement( next );
 				void rest
-					.updatePlacement( data.placement.id, {
-						parentId: targetFolderId,
-					} )
+					.updatePlacement(
+						data.placement.id,
+						{ parentId: targetFolderId },
+						data.placement.updatedAtMs,
+					)
 					.then( ( server ) => {
 						filesStoreApi.upsertPlacement( server, 'remote' );
 					} )
 					.catch( ( err ) => {
-						// eslint-disable-next-line no-console
-						console.error(
-							'[desktop-mode] files: move-into-folder persist failed',
-							err,
-						);
+						if ( isConflict( err ) ) {
+							showConflictToast( err );
+						} else {
+							// eslint-disable-next-line no-console
+							console.error(
+								'[desktop-mode] files: move-into-folder persist failed',
+								err,
+							);
+						}
 						filesStoreApi.upsertPlacement( data.placement );
 					} );
 				return;
@@ -1061,9 +1076,14 @@ function attachContextMenu(
 							};
 							filesStoreApi.upsertPlacement( optimistic );
 							try {
+								const folderUpdatedAtMs =
+									filesStoreApi
+										.getState()
+										.folders.get( folderId )?.updatedAtMs ?? 0;
 								const updated = await rest.updateFolder(
 									folderId,
 									{ name: trimmed },
+									folderUpdatedAtMs,
 								);
 								filesStoreApi.upsertFolder( updated );
 								// Refresh the placement list for the

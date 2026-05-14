@@ -45,13 +45,20 @@ class Desktop_Mode_Folder_File extends Desktop_Mode_File {
 		if ( ! $row ) {
 			return false;
 		}
-		// Owner always sees their folder. Phase 6's visibility
-		// filter evaluates share modes for everyone else; we
-		// reuse the same machinery here so a `can_read()` call
-		// stays consistent with `desktop_mode_files_get_visible_folders`.
 		if ( (int) $row['owner_id'] === (int) $user_id ) {
 			return true;
 		}
+		// Since 0.18.0 the capability resolver is the authority —
+		// it knows about direct shares, role decisions, AND cascade
+		// (a folder nested inside a shared folder is reachable).
+		if ( function_exists( 'desktop_mode_folder_share_user_capability' ) ) {
+			$cap = desktop_mode_folder_share_user_capability( (int) $row['id'], (int) $user_id );
+			if ( 'none' !== $cap ) {
+				return true;
+			}
+		}
+		// Back-compat fallback for legacy `share_meta` rows that
+		// pre-date the shares table.
 		$visible_ids = wp_list_pluck( desktop_mode_files_get_visible_folders( $user_id ), 'id' );
 		return in_array( (int) $row['id'], array_map( 'intval', (array) $visible_ids ), true );
 	}

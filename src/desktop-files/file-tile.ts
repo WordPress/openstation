@@ -22,6 +22,7 @@ import { applyFilters, doAction } from '../hooks';
 import { renderIcon } from '../icon';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
+import { showToast } from '../toast';
 import type { RestPlacementShape } from './rest';
 
 /** CSS class on every tile. */
@@ -58,6 +59,14 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 	);
 	if ( ! placement.file.exists ) {
 		tile.classList.add( `${ TILE_CLASS }--missing` );
+	}
+	if ( placement.accessGated ) {
+		// Recipient sees the icon but lacks read access on the
+		// underlying entity. Dim it and label it; the click
+		// handler below short-circuits the opener with a toast.
+		tile.classList.add( `${ TILE_CLASS }--access-gated` );
+		tile.title = 'You don’t have permission to open this — ask the folder owner for access.';
+		tile.setAttribute( 'aria-disabled', 'true' );
 	}
 
 	const visual = document.createElement( 'span' );
@@ -127,6 +136,15 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();
+		if ( placement.accessGated ) {
+			showToast( {
+				message:
+					`You don’t have permission to open "${ placement.file.title || file.title() }". ` +
+					'Ask the folder owner if you need access to this item.',
+				duration: 6000,
+			} );
+			return;
+		}
 		void openFile( file, {
 			placement: {
 				id: placement.id,
@@ -136,6 +154,13 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 			},
 		} );
 	} );
+
+	if ( placement.accessGated ) {
+		const lock = document.createElement( 'span' );
+		lock.className = `${ TILE_CLASS }__lock dashicons dashicons-lock`;
+		lock.setAttribute( 'aria-hidden', 'true' );
+		tile.appendChild( lock );
+	}
 
 	doAction( 'desktop-mode.files.tile-rendered', { tile, placement } );
 	return tile;

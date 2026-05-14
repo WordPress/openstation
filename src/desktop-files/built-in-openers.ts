@@ -134,11 +134,22 @@ export function registerBuiltInFileOpeners(): void {
 					return;
 				}
 				const id = `desktop-mode-folder-${ folderId }`;
+				// Visual cue when the viewer is a recipient (not
+				// the folder's owner) — append "· Shared" to the
+				// title so it's clear this folder is collaborative.
+				const folderRow = filesStoreApi.getState().folders.get( folderId );
+				const viewerId = Number( window.desktopModeConfig?.currentUserId ?? 0 );
+				const isRecipient =
+					!! folderRow && folderRow.ownerId > 0 && folderRow.ownerId !== viewerId;
+				const baseTitle = file.title();
+				const titleWithCue = isRecipient
+					? `${ baseTitle } · Shared`
+					: baseTitle;
 				wm.open( {
 					id,
 					baseId: id,
 					url: `#folder-${ folderId }`,
-					title: file.title(),
+					title: titleWithCue,
 					icon: file.icon(),
 					native: true,
 					render: ( body: HTMLElement ) => {

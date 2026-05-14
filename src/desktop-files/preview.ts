@@ -99,6 +99,15 @@ export function renderPlacementPreview(
 		host.replaceChildren( filtered );
 		return;
 	}
+	// Access-gated short-circuit. Whenever the recipient sees an
+	// icon they can't open (shared-folder visibility), the preview
+	// pane shows a friendly "you don't have permission" empty state
+	// instead of triggering a REST fetch that will 403/404. Cheaper
+	// AND clearer to the user.
+	if ( placement.accessGated ) {
+		host.replaceChildren( renderAccessGated( placement ) );
+		return;
+	}
 	host.replaceChildren( renderLoading() );
 	void renderByType( placement )
 		.then( ( node ) => {
@@ -107,6 +116,37 @@ export function renderPlacementPreview(
 		.catch( ( err: unknown ) => {
 			host.replaceChildren( renderError( err ) );
 		} );
+}
+
+function renderAccessGated( placement: RestPlacementShape ): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'desktop-mode-files__access-gated';
+
+	const ring = document.createElement( 'div' );
+	ring.className = 'desktop-mode-files__access-gated-ring';
+	const glyph = document.createElement( 'span' );
+	glyph.className = 'dashicons dashicons-lock desktop-mode-files__access-gated-glyph';
+	glyph.setAttribute( 'aria-hidden', 'true' );
+	ring.appendChild( glyph );
+	wrap.appendChild( ring );
+
+	const title = document.createElement( 'h2' );
+	title.className = 'desktop-mode-files__access-gated-title';
+	title.textContent = 'No permission to view';
+	wrap.appendChild( title );
+
+	const sub = document.createElement( 'p' );
+	sub.className = 'desktop-mode-files__access-gated-sub';
+	const target = placement.file.title || placement.file.type;
+	sub.textContent = `You don’t have access to "${ target }". The folder owner shared this folder with you, but your role doesn’t include permission to open this item.`;
+	wrap.appendChild( sub );
+
+	const hint = document.createElement( 'p' );
+	hint.className = 'desktop-mode-files__access-gated-hint';
+	hint.textContent = 'Ask the owner to grant access on the underlying item, or to remove it from the shared folder.';
+	wrap.appendChild( hint );
+
+	return wrap;
 }
 
 async function renderByType(

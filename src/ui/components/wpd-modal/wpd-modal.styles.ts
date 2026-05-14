@@ -1,0 +1,110 @@
+import { css } from '../../core';
+
+export const modalStyles = css`
+	:host {
+		display: none;
+		position: fixed;
+		inset: 0;
+		align-items: center;
+		justify-content: center;
+		background: rgba( 0, 0, 0, 0.45 );
+		backdrop-filter: blur( 2px );
+		z-index: 10000;
+	}
+
+	:host( [ open ] ) {
+		display: flex;
+	}
+
+	.dialog {
+		max-width: 92vw;
+		max-height: 90vh;
+		background: var( --wpd-modal-bg, var( --desktop-mode-bg, #1d2327 ) );
+		color: var( --wpd-modal-fg, var( --desktop-mode-fg, #fff ) );
+		border: 1px solid rgba( 255, 255, 255, 0.08 );
+		border-radius: 10px;
+		box-shadow: 0 20px 50px rgba( 0, 0, 0, 0.6 );
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	:host( [ size='sm' ] ) .dialog {
+		width: min( 360px, 92vw );
+	}
+
+	:host( :not( [ size ] ) ) .dialog,
+	:host( [ size='md' ] ) .dialog {
+		width: min( 540px, 92vw );
+	}
+
+	:host( [ size='lg' ] ) .dialog {
+		width: min( 760px, 94vw );
+	}
+
+	.header {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 16px 20px 12px;
+		border-bottom: 1px solid rgba( 255, 255, 255, 0.06 );
+	}
+
+	.title {
+		margin: 0;
+		flex: 1;
+		font-size: 15px;
+		font-weight: 600;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 6px;
+	}
+	.header-actions ::slotted( * ) {
+		margin-inline-start: 6px;
+	}
+
+	.close {
+		background: transparent;
+		border: 0;
+		color: inherit;
+		font-size: 18px;
+		line-height: 1;
+		padding: 4px 8px;
+		border-radius: 4px;
+		cursor: pointer;
+		opacity: 0.7;
+	}
+	.close:hover {
+		opacity: 1;
+		background: rgba( 255, 255, 255, 0.08 );
+	}
+
+	.body {
+		padding: 16px 20px;
+		overflow: auto;
+		flex: 1 1 auto;
+		font-size: 13px;
+		line-height: 1.5;
+	}
+
+	.footer {
+		padding: 12px 20px 16px;
+		border-top: 1px solid rgba( 255, 255, 255, 0.06 );
+	}
+	/* The slot is the flex container — gap on .footer would only
+	   space the slot from its siblings (there are none), not the
+	   slotted buttons. Making the slot flex applies the gap to the
+	   actual rendered button row. */
+	.footer slot {
+		display: flex;
+		justify-content: flex-end;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	:host( [ mandatory ] ) .close {
+		display: none;
+	}
+`;

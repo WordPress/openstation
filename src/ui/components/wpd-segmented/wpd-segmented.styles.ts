@@ -12,7 +12,7 @@ export const segmentedStyles = css`
 	:host {
 		display: inline-flex;
 		padding: 3px;
-		background: rgba( 0, 0, 0, 0.05 );
+		background: var( --wpd-segmented-bg, rgba( 0, 0, 0, 0.05 ) );
 		border-radius: 7px;
 		gap: 2px;
 	}

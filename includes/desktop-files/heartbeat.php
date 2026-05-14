@@ -64,6 +64,7 @@ function desktop_mode_files_heartbeat_received( $response, $data ) {
 		? $sub['folderVersions']
 		: array();
 	$plc_v    = isset( $sub['placementsVersion'] ) ? (int) $sub['placementsVersion'] : 0;
+	$shr_v    = isset( $sub['sharesVersion'] ) ? (int) $sub['sharesVersion'] : 0;
 
 	$user_id = (int) get_current_user_id();
 	if ( $user_id <= 0 ) {
@@ -85,7 +86,8 @@ function desktop_mode_files_heartbeat_received( $response, $data ) {
 		$user_id,
 		$folder_v,
 		$plc_v,
-		$cap
+		$cap,
+		$shr_v
 	);
 	return $response;
 }
@@ -102,7 +104,7 @@ add_filter( 'heartbeat_received', 'desktop_mode_files_heartbeat_received', 5, 2 
  * @param int   $cap                Row cap.
  * @return array
  */
-function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions, $placements_version, $cap ) {
+function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions, $placements_version, $cap, $shares_version = 0 ) {
 	global $wpdb;
 
 	$tables    = desktop_mode_files_table_names();
@@ -230,10 +232,38 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 		$removed['folders'][] = (int) $id;
 	}
 
+	// 5) Pending share invites for this viewer (across every folder
+	//    they're invited to). Owner-side share-status changes flow
+	//    through the folder upserts above; this channel is for the
+	//    recipient's "you've been invited" placeholder UI.
+	$shares = array();
+	if ( function_exists( 'desktop_mode_files_get_pending_shares_for_user' ) ) {
+		$pending = desktop_mode_files_get_pending_shares_for_user( $user_id, $shares_version );
+		foreach ( $pending as $row ) {
+			$shape = desktop_mode_files_shape_share( $row );
+			$folder = desktop_mode_files_get_folder( $row['folder_id'] );
+			if ( $folder ) {
+				$shape['folderName']    = (string) $folder['name'];
+				$shape['ownerId']       = (int) $folder['owner_id'];
+				$owner_user             = get_userdata( (int) $folder['owner_id'] );
+				$shape['ownerName']     = $owner_user ? $owner_user->display_name : '';
+				$shape['ownerAvatar']   = $owner_user ? get_avatar_url( $owner_user->ID, array( 'size' => 48 ) ) : '';
+			}
+			$shares[] = $shape;
+			if ( count( $shares ) >= $cap ) {
+				$truncated = true;
+				break;
+			}
+		}
+	}
+
 	return array(
 		'placements'   => $placement_upserts,
 		'folders'      => $folder_upserts,
 		'removed'      => $removed,
+		'shares'       => array(
+			'pending' => $shares,
+		),
 		'serverTimeMs' => desktop_mode_files_now_ms(),
 		'truncated'    => $truncated,
 	);

@@ -178,6 +178,39 @@ do_action( 'desktop_mode_files_before_purge_folder',   int $id, int $user_id, ar
 do_action( 'desktop_mode_files_after_purge_folder',    int $id, int $user_id );
 ```
 
+### Folder sharing (since 0.18.0, Experimental)
+
+Per-principal grants (read / write) with opt-in flow. The shares
+table is `wp_desktop_mode_folder_shares`; rows are keyed by
+`(target_type, folder_id, principal_type, principal_ref)` and
+carry a `state` of `pending | accepted | denied`.
+
+Actions:
+
+```php
+do_action( 'desktop_mode_files_share_invited',             int $share_id, array $row, int $actor_id );
+do_action( 'desktop_mode_files_share_accepted',            int $share_id, array $row, int $user_id );
+do_action( 'desktop_mode_files_share_denied',              int $share_id, array $row, int $user_id );
+do_action( 'desktop_mode_files_share_left',                int $share_id, array $row, int $user_id ); // recipient-initiated leave
+do_action( 'desktop_mode_files_share_revoked',             int $share_id, array $row, int $actor_id );
+do_action( 'desktop_mode_files_share_capability_changed',  int $share_id, array $next, array $prev, int $actor_id );
+```
+
+Filters:
+
+```php
+apply_filters( 'desktop_mode_files_share_eligible_roles', array $roles ); // [{ slug, name }, ...]
+apply_filters( 'desktop_mode_files_share_can_manage',     bool $can, int $folder_id, int $user_id, ?array $folder ); // default: owner only
+apply_filters( 'desktop_mode_folder_share_user_capability', string $cap, int $folder_id, int $user_id, array $folder ); // 'none'|'read'|'write'
+apply_filters( 'desktop_mode_files_share_all_default_capability', string $cap, int $folder_id, int $user_id ); // default 'read' for share_mode='all'
+apply_filters( 'desktop_mode_files_share_user_query_args', array $args, array $request_params ); // WP_User_Query args for /files/users/search
+apply_filters( 'desktop_mode_folder_share_accept_default_parent', int $parent_id, int $folder_id, int $user_id, array $share_row ); // where the recipient's placement lands
+
+// Polymorphic shape (future-proof). v1 ships with target_type='folder' only.
+apply_filters( 'desktop_mode_files_shareable_types',     string[] $types ); // default [ 'folder' ]
+apply_filters( 'desktop_mode_files_share_target_owner',  int $owner_id, string $target_type, string $target_id );
+```
+
 Filters:
 
 ```php

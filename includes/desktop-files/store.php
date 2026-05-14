@@ -71,6 +71,25 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You are not allowed to place this file.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
+	// Write-gate: placing INTO a non-owned folder requires the
+	// folder's `write` cap. Owner / desktop-root placements are
+	// always allowed.
+	if ( (int) $parent_id > 0 ) {
+		$target_folder = desktop_mode_files_get_folder( (int) $parent_id );
+		if ( $target_folder && (int) $target_folder['owner_id'] !== $user_id ) {
+			$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
+				? desktop_mode_folder_share_user_capability( (int) $parent_id, $user_id )
+				: 'none';
+			if ( 'write' !== $cap ) {
+				return new WP_Error(
+					'desktop_mode_files_no_write_in_shared_folder',
+					__( 'You only have read access to that folder.', 'desktop-mode' ),
+					array( 'status' => 403 )
+				);
+			}
+		}
+	}
+
 	$args = wp_parse_args(
 		$args,
 		array(
@@ -204,10 +223,57 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	if ( ! $row ) {
 		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	// Owner-only edits for now. Phase 6 introduces shared-folder
-	// edits via folder-ACL — until then a placement is private.
-	if ( (int) $row['user_id'] !== $user_id ) {
+
+	// Permission check. Owner of the row is always allowed. For
+	// rows inside a shared folder, the FOLDER's write cap is the
+	// gate — anyone with write on the folder can move/rearrange
+	// every icon in it, regardless of which user originally placed
+	// the row (shared-namespace semantics).
+	$is_row_owner = (int) $row['user_id'] === $user_id;
+	if ( (int) $row['parent_id'] > 0 ) {
+		$source_folder = desktop_mode_files_get_folder( (int) $row['parent_id'] );
+		if ( $source_folder ) {
+			$is_folder_owner = (int) $source_folder['owner_id'] === $user_id;
+			$source_cap      = function_exists( 'desktop_mode_folder_share_user_capability' )
+				? desktop_mode_folder_share_user_capability( (int) $row['parent_id'], $user_id )
+				: 'none';
+			if ( ! $is_row_owner && ! $is_folder_owner && 'write' !== $source_cap ) {
+				return new WP_Error(
+					'desktop_mode_files_no_write_in_shared_folder',
+					__( 'You only have read access to this folder.', 'desktop-mode' ),
+					array( 'status' => 403 )
+				);
+			}
+			// Folder reader on their own row inside the folder — still no.
+			if ( $is_row_owner && ! $is_folder_owner && 'write' !== $source_cap ) {
+				return new WP_Error(
+					'desktop_mode_files_no_write_in_shared_folder',
+					__( 'You only have read access to this folder.', 'desktop-mode' ),
+					array( 'status' => 403 )
+				);
+			}
+		}
+	} elseif ( ! $is_row_owner ) {
+		// Row at root, viewer doesn't own it.
 		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot edit this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
+	}
+	if ( isset( $changes['parent_id'] ) ) {
+		$target_parent = max( 0, (int) $changes['parent_id'] );
+		if ( $target_parent > 0 ) {
+			$target = desktop_mode_files_get_folder( $target_parent );
+			if ( $target && (int) $target['owner_id'] !== $user_id ) {
+				$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
+					? desktop_mode_folder_share_user_capability( $target_parent, $user_id )
+					: 'none';
+				if ( 'write' !== $cap ) {
+					return new WP_Error(
+						'desktop_mode_files_no_write_in_shared_folder',
+						__( 'You only have read access to that folder.', 'desktop-mode' ),
+						array( 'status' => 403 )
+					);
+				}
+			}
+		}
 	}
 
 	$tables = desktop_mode_files_table_names();
@@ -274,7 +340,17 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	if ( ! $row ) {
 		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	if ( (int) $row['user_id'] !== $user_id ) {
+	// Same shared-namespace rule as the trash gate: owner of the
+	// row OR write cap on the parent folder.
+	$is_row_owner = (int) $row['user_id'] === $user_id;
+	$allowed      = $is_row_owner;
+	if ( ! $allowed && (int) $row['parent_id'] > 0 ) {
+		$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
+			? desktop_mode_folder_share_user_capability( (int) $row['parent_id'], $user_id )
+			: 'none';
+		$allowed = 'write' === $cap;
+	}
+	if ( ! $allowed ) {
 		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot remove this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
@@ -341,16 +417,39 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 
 	$tables = desktop_mode_files_table_names();
 
+	// Access gate + shared-namespace decision for non-root folders.
+	// Desktop root (parent_id = 0) is always per-user. For sub-
+	// folders, the contents of a SHARED folder are visible to every
+	// user who has at least 'read' on it — the icons inside belong
+	// to the folder, not to the user who originally placed them.
+	$share_view = false;
+	if ( $parent_id > 0 ) {
+		$folder = desktop_mode_files_get_folder( $parent_id );
+		if ( ! $folder ) {
+			return array();
+		}
+		if ( (int) $folder['owner_id'] !== $user_id ) {
+			$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
+				? desktop_mode_folder_share_user_capability( $parent_id, $user_id )
+				: 'none';
+			if ( 'none' === $cap ) {
+				return array();
+			}
+			$share_view = true;
+		}
+	}
+
 	$args = array(
-		'user_id'   => $user_id,
-		'parent_id' => $parent_id,
+		'user_id'    => $user_id,
+		'parent_id'  => $parent_id,
+		'share_view' => $share_view,
 	);
 	/**
 	 * Filter the args used to read placements.
 	 *
 	 * @since 0.9.0
 	 *
-	 * @param array $args        Defaults: `{ user_id, parent_id }`.
+	 * @param array $args        Defaults: `{ user_id, parent_id, share_view }`.
 	 * @param int   $user_id     Viewer.
 	 * @param int   $parent_id   Folder id.
 	 */
@@ -358,31 +457,61 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 
 	// Active queries always exclude trashed rows. Recycle-bin
 	// callers reach for the dedicated trash store.
-	$rows = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']}
-			WHERE user_id = %d
-				AND parent_id = %d
-				AND trashed_at_ms IS NULL
-			ORDER BY sort_order ASC, id ASC",
-			(int) $args['user_id'],
-			(int) $args['parent_id']
-		),
-		ARRAY_A
-	);
+	if ( ! empty( $args['share_view'] ) ) {
+		// Shared sub-folder — return every placement in the folder
+		// regardless of which user originally placed it. The icons
+		// are part of the folder; the user_id column is audit info,
+		// not a permission gate.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$tables['placements']}
+				WHERE parent_id = %d
+					AND trashed_at_ms IS NULL
+				ORDER BY sort_order ASC, id ASC",
+				(int) $args['parent_id']
+			),
+			ARRAY_A
+		);
+	} else {
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$tables['placements']}
+				WHERE user_id = %d
+					AND parent_id = %d
+					AND trashed_at_ms IS NULL
+				ORDER BY sort_order ASC, id ASC",
+				(int) $args['user_id'],
+				(int) $args['parent_id']
+			),
+			ARRAY_A
+		);
+	}
 	if ( ! is_array( $rows ) ) {
 		return array();
 	}
 	$out = array();
 	foreach ( $rows as $row ) {
 		$normalized = desktop_mode_files_normalize_placement_row( $row );
-		// Drop entries the viewer can't read (e.g. attached to a
-		// post they no longer have access to). Phase 6 turns this
-		// into an "access denied" placeholder shape; for now we
-		// simply skip.
-		$file = desktop_mode_resolve_file( $normalized['file_type'], $normalized['file_ref'] );
-		if ( $file && ! $file->can_read( $user_id ) ) {
-			continue;
+		$file       = desktop_mode_resolve_file( $normalized['file_type'], $normalized['file_ref'] );
+		if ( empty( $args['share_view'] ) ) {
+			// Private folder / desktop root — keep the existing
+			// per-row read filter so stale/inaccessible entities
+			// don't clutter the user's own view.
+			if ( $file && ! $file->can_read( $user_id ) ) {
+				continue;
+			}
+		} else {
+			// Shared folder view — every placement the OWNER chose
+			// to include is surfaced to the recipient. When the
+			// recipient lacks read on the underlying entity, we
+			// mark the row as `access_gated` so the tile renderer
+			// can paint a lock overlay + tooltip + intercept the
+			// open. Entity-level access enforcement still happens
+			// at open time in each opener — this flag is just the
+			// pre-emptive visual cue.
+			if ( $file && ! $file->can_read( $user_id ) ) {
+				$normalized['access_gated'] = true;
+			}
 		}
 		$out[] = $normalized;
 	}

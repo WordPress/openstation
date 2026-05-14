@@ -25,11 +25,13 @@ import {
 	upsertPlacement,
 } from './store';
 import { listPlacements, type RestFolderShape, type RestPlacementShape } from './rest';
+import { ingestPendingInvites, sharesStore, type PendingInvite } from './shares-store';
 
 interface FilesHeartbeatPayload {
 	placements?: RestPlacementShape[];
 	folders?: RestFolderShape[];
 	removed?: { placements?: number[]; folders?: number[] };
+	shares?: { pending?: PendingInvite[] };
 	serverTimeMs?: number;
 	truncated?: boolean;
 }
@@ -53,6 +55,7 @@ export function startFilesHeartbeat(): void {
 		return {
 			folderVersions,
 			placementsVersion: highWaterMs,
+			sharesVersion: sharesStore().state.sharesVersion,
 		};
 	} );
 
@@ -85,6 +88,11 @@ function applyDelta( payload: FilesHeartbeatPayload ): void {
 	}
 	if ( typeof payload.serverTimeMs === 'number' && payload.serverTimeMs > highWaterMs ) {
 		highWaterMs = payload.serverTimeMs;
+	}
+
+	const pending = payload.shares?.pending;
+	if ( Array.isArray( pending ) && pending.length > 0 ) {
+		ingestPendingInvites( pending );
 	}
 
 	if ( payload.truncated ) {

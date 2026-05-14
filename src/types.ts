@@ -1667,6 +1667,37 @@ export interface DesktopConfig {
 	 */
 	filesUrl?: string;
 	/**
+	 * Roles eligible to appear in the folder Share Settings role
+	 * picker. Server applies `desktop_mode_files_share_eligible_roles`
+	 * before serializing — default = roles with `edit_posts`.
+	 *
+	 * @since 0.18.0
+	 */
+	shareEligibleRoles?: Array< { slug: string; name: string } >;
+	/**
+	 * Numeric WordPress user id of the viewer. Surfaced for shell
+	 * code that gates UI on ownership (e.g. only render the folder
+	 * Share button when the viewer is the folder's owner).
+	 *
+	 * @since 0.18.0
+	 */
+	currentUserId?: number;
+	/**
+	 * REST URL of the user-search autocomplete endpoint, gated by
+	 * `edit_posts`. Used by `<wpd-user-search>` in the Share
+	 * Settings modal.
+	 *
+	 * @since 0.18.0
+	 */
+	filesUsersSearchUrl?: string;
+	/**
+	 * Base REST URL for /folders — the Share Settings modal appends
+	 * `/{id}/shares` / `/{id}/shares/{shareId}` etc.
+	 *
+	 * @since 0.18.0
+	 */
+	folderSharesUrl?: string;
+	/**
 	 * PHP-shipped wallpaper context-menu items. Each entry has
 	 * `id`, `label`, optional `icon`/`sort`/`disabled`, and an
 	 * optional `callbackId` resolved by a JS-side bundle's

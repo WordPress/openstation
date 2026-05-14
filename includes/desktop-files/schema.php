@@ -32,8 +32,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '7' );
+define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '9' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
+define( 'DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION', 'desktop_mode_files_shares_migrated' );
 
 /**
  * Returns the per-table names with the active prefix applied.
@@ -48,6 +49,8 @@ function desktop_mode_files_table_names() {
 		'placements' => $wpdb->prefix . 'desktop_mode_file_placements',
 		'folders'    => $wpdb->prefix . 'desktop_mode_folders',
 		'tombstones' => $wpdb->prefix . 'desktop_mode_file_tombstones',
+		'shares'     => $wpdb->prefix . 'desktop_mode_folder_shares',
+		'decisions'  => $wpdb->prefix . 'desktop_mode_share_user_decisions',
 	);
 }
 
@@ -123,9 +126,56 @@ function desktop_mode_files_install_schema() {
 		KEY kind_removed (kind, removed_at_ms)
 	) $charset_collate;";
 
+	// Schema v8 (since 0.18.0): per-principal grants. Replaces the
+	// JSON `share_meta.users` / `share_meta.roles` shape with one
+	// row per (target, principal) so we can carry per-recipient
+	// capability + opt-in state (pending / accepted / denied).
+	// `share_mode='all'` is left intact on the folders table — a
+	// single column flag is the cheapest expression of "everyone."
+	//
+	// `target_type` defaults to `'folder'`. The column is here from
+	// v8 so a future "share a post / attachment / shortcut" feature
+	// only has to register a new type + an owner resolver via
+	// `desktop_mode_files_shareable_types` — no schema change.
+	$shares_sql = "CREATE TABLE {$tables['shares']} (
+		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+		target_type VARCHAR(32) NOT NULL DEFAULT 'folder',
+		folder_id BIGINT UNSIGNED NOT NULL,
+		principal_type VARCHAR(16) NOT NULL,
+		principal_ref VARCHAR(191) NOT NULL,
+		capability VARCHAR(8) NOT NULL DEFAULT 'read',
+		state VARCHAR(16) NOT NULL DEFAULT 'pending',
+		invited_by BIGINT UNSIGNED NOT NULL,
+		invited_at_ms BIGINT UNSIGNED NOT NULL,
+		decided_at_ms BIGINT UNSIGNED NULL,
+		PRIMARY KEY  (id),
+		UNIQUE KEY uniq_principal (target_type, folder_id, principal_type, principal_ref),
+		KEY by_principal (principal_type, principal_ref, state),
+		KEY target (target_type, folder_id)
+	) $charset_collate;";
+
+	// Per-user decisions for role-principal shares. User-principal
+	// shares carry the recipient's opt-in state on the shares row
+	// itself (single user, single decision); role-principal shares
+	// need a row per (share, user) so each role member can opt in
+	// independently. Without this, the first role member to accept
+	// or deny decides for the whole role.
+	$decisions_sql = "CREATE TABLE {$tables['decisions']} (
+		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+		share_id BIGINT UNSIGNED NOT NULL,
+		user_id BIGINT UNSIGNED NOT NULL,
+		state VARCHAR(16) NOT NULL DEFAULT 'pending',
+		decided_at_ms BIGINT UNSIGNED NOT NULL,
+		PRIMARY KEY  (id),
+		UNIQUE KEY uniq_share_user (share_id, user_id),
+		KEY by_user (user_id, state)
+	) $charset_collate;";
+
 	dbDelta( $placements_sql );
 	dbDelta( $folders_sql );
 	dbDelta( $tombstones_sql );
+	dbDelta( $shares_sql );
+	dbDelta( $decisions_sql );
 
 	// dbDelta has well-documented quirks with `NULL`-only columns
 	// (no DEFAULT) — under some MySQL/MariaDB combos it silently
@@ -147,6 +197,13 @@ function desktop_mode_files_install_schema() {
 	// the duplicate shortcuts again. Must run AFTER dedupe —
 	// adding a unique key against duplicate rows would fail.
 	desktop_mode_files_ensure_unique_placement_index();
+
+	// v8: belt-and-suspenders existence check for the shares
+	// table, then one-shot backfill of the legacy
+	// `share_meta.users` / `share_meta.roles` JSON into rows.
+	desktop_mode_files_ensure_shares_table();
+	desktop_mode_files_ensure_decisions_table();
+	desktop_mode_files_migrate_share_meta_to_shares();
 
 	update_option( DESKTOP_MODE_FILES_SCHEMA_OPTION, DESKTOP_MODE_FILES_SCHEMA_VERSION );
 
@@ -270,6 +327,193 @@ function desktop_mode_files_ensure_unique_placement_index() {
 				(user_id, parent_id, file_type, file_ref)"
 		);
 	}
+}
+
+/**
+ * Belt-and-suspenders verifier for the v8 `shares` table. `dbDelta`
+ * has known edge cases where a brand-new table with `UNIQUE KEY`
+ * declarations on a non-`utf8mb4` collation gets silently skipped
+ * on some MySQL/MariaDB combos; we mirror the trash-columns
+ * pattern and `CREATE TABLE IF NOT EXISTS` the row explicitly.
+ *
+ * @since 0.18.0
+ * @internal
+ */
+function desktop_mode_files_ensure_shares_table() {
+	global $wpdb;
+	$tables          = desktop_mode_files_table_names();
+	$charset_collate = $wpdb->get_charset_collate();
+	$tbl             = $tables['shares'];
+
+	$exists = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME   = %s",
+			$tbl
+		)
+	);
+	if ( 0 === $exists ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			"CREATE TABLE IF NOT EXISTS `{$tbl}` (
+				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				target_type VARCHAR(32) NOT NULL DEFAULT 'folder',
+				folder_id BIGINT UNSIGNED NOT NULL,
+				principal_type VARCHAR(16) NOT NULL,
+				principal_ref VARCHAR(191) NOT NULL,
+				capability VARCHAR(8) NOT NULL DEFAULT 'read',
+				state VARCHAR(16) NOT NULL DEFAULT 'pending',
+				invited_by BIGINT UNSIGNED NOT NULL,
+				invited_at_ms BIGINT UNSIGNED NOT NULL,
+				decided_at_ms BIGINT UNSIGNED NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY uniq_principal (target_type, folder_id, principal_type, principal_ref),
+				KEY by_principal (principal_type, principal_ref, state),
+				KEY target (target_type, folder_id)
+			) $charset_collate"
+		);
+	} else {
+		// Existing table — make sure `target_type` is there for
+		// installs that ran a pre-target_type build of v8.
+		$has_col = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE()
+					AND TABLE_NAME = %s
+					AND COLUMN_NAME = %s",
+				$tbl,
+				'target_type'
+			)
+		);
+		if ( 0 === $has_col ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `target_type` VARCHAR(32) NOT NULL DEFAULT 'folder' AFTER `id`" );
+		}
+	}
+}
+
+/**
+ * Belt-and-suspenders verifier for the decisions table.
+ *
+ * @since 0.18.0
+ * @internal
+ */
+function desktop_mode_files_ensure_decisions_table() {
+	global $wpdb;
+	$tables          = desktop_mode_files_table_names();
+	$charset_collate = $wpdb->get_charset_collate();
+	$tbl             = $tables['decisions'];
+
+	$exists = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME   = %s",
+			$tbl
+		)
+	);
+	if ( 0 === $exists ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			"CREATE TABLE IF NOT EXISTS `{$tbl}` (
+				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				share_id BIGINT UNSIGNED NOT NULL,
+				user_id BIGINT UNSIGNED NOT NULL,
+				state VARCHAR(16) NOT NULL DEFAULT 'pending',
+				decided_at_ms BIGINT UNSIGNED NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY uniq_share_user (share_id, user_id),
+				KEY by_user (user_id, state)
+			) $charset_collate"
+		);
+	}
+}
+
+/**
+ * One-shot backfill of the legacy `share_meta.users` /
+ * `share_meta.roles` JSON shape into per-principal rows on the new
+ * shares table. Idempotent: guarded by
+ * `DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION`, and every INSERT is
+ * an `INSERT IGNORE` so re-running against a partially-migrated
+ * site is a no-op.
+ *
+ * Pre-existing grants migrate as `state='accepted'` (they were
+ * already implicitly opt-in under the old visibility model — the
+ * new opt-in is for *future* grants, not retroactive).
+ *
+ * @since 0.18.0
+ * @internal
+ */
+function desktop_mode_files_migrate_share_meta_to_shares() {
+	global $wpdb;
+	if ( '1' === (string) get_option( DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION, '' ) ) {
+		return;
+	}
+	$tables = desktop_mode_files_table_names();
+	$rows   = $wpdb->get_results(
+		"SELECT id, owner_id, share_mode, share_meta FROM {$tables['folders']} WHERE share_mode IN ( 'users', 'roles' )",
+		ARRAY_A
+	);
+	$now = desktop_mode_files_now_ms();
+	foreach ( (array) $rows as $row ) {
+		$meta_raw = isset( $row['share_meta'] ) ? (string) $row['share_meta'] : '';
+		$meta     = '' !== $meta_raw ? json_decode( $meta_raw, true ) : array();
+		if ( ! is_array( $meta ) ) {
+			$meta = array();
+		}
+		$folder_id  = (int) $row['id'];
+		$invited_by = (int) $row['owner_id'];
+		$mode       = (string) $row['share_mode'];
+
+		if ( 'users' === $mode && isset( $meta['users'] ) && is_array( $meta['users'] ) ) {
+			foreach ( $meta['users'] as $uid ) {
+				$uid = (int) $uid;
+				if ( $uid <= 0 ) {
+					continue;
+				}
+				$wpdb->query(
+					$wpdb->prepare(
+						"INSERT IGNORE INTO {$tables['shares']}
+						(folder_id, principal_type, principal_ref, capability, state, invited_by, invited_at_ms, decided_at_ms)
+						VALUES (%d, %s, %s, %s, %s, %d, %d, %d)",
+						$folder_id,
+						'user',
+						(string) $uid,
+						'read',
+						'accepted',
+						$invited_by,
+						$now,
+						$now
+					)
+				);
+			}
+		}
+		if ( 'roles' === $mode && isset( $meta['roles'] ) && is_array( $meta['roles'] ) ) {
+			foreach ( $meta['roles'] as $role ) {
+				$role = (string) $role;
+				if ( '' === $role ) {
+					continue;
+				}
+				$wpdb->query(
+					$wpdb->prepare(
+						"INSERT IGNORE INTO {$tables['shares']}
+						(folder_id, principal_type, principal_ref, capability, state, invited_by, invited_at_ms, decided_at_ms)
+						VALUES (%d, %s, %s, %s, %s, %d, %d, %d)",
+						$folder_id,
+						'role',
+						$role,
+						'read',
+						'accepted',
+						$invited_by,
+						$now,
+						$now
+					)
+				);
+			}
+		}
+	}
+	update_option( DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION, '1' );
 }
 
 /**
