@@ -1618,7 +1618,7 @@ add_filter( 'desktop_mode_recycle_bin_capture_post_types', function ( $types ) {
 
 ### `desktop_mode_recycle_bin_should_capture` — Experimental (filter)
 
-Per-attachment opt-out. Returning `false` for a specific `WP_Post` lets that single deletion bypass the bin.
+Per-attachment opt-out, applied when something has set `MEDIA_TRASH` (or otherwise routes attachment deletes through `wp_trash_post()`). Returning `false` for a specific `WP_Post` lets that single deletion bypass the bin's metadata stamping.
 
 ```php
 apply_filters( 'desktop_mode_recycle_bin_should_capture', bool $capture, WP_Post $post );

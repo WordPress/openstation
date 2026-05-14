@@ -2,15 +2,18 @@
 /**
  * Desktop Mode — Recycle Bin: capture.
  *
- * Intercepts media deletion so attachments are routed to the WordPress
- * trash instead of being permanently deleted on first call. Posts and
- * pages already use the trash by default — this file's job is to bring
- * media in line so the Recycle Bin window has something to show.
+ * Stamps "who-deleted-what-when" metadata onto posts, pages, and
+ * comments as they pass through `wp_trash_post()` / `trashed_comment`,
+ * so the Recycle Bin window can show "deleted by Alice, 5 minutes ago"
+ * without a second roundtrip.
  *
- * The interception is filterable end-to-end:
+ * Media attachments are NOT auto-routed through Trash — they follow
+ * vanilla WordPress behavior (permanent-delete on first click). To
+ * enable trash for media, define `MEDIA_TRASH` as `true` in
+ * `wp-config.php`; the Recycle Bin window will surface trashed
+ * attachments automatically because `attachment` is in the default
+ * `desktop_mode_recycle_bin_capture_post_types` list.
  *
- *   - `desktop_mode_recycle_bin_should_capture` decides whether a given
- *     attachment is captured at all (capability gates, plugin opt-out).
  *   - `desktop_mode_recycle_bin_capture_post_types` controls which post
  *     types we listen for in the first place.
  *   - The `desktop_mode_recycle_bin_item_captured` action fires after a
@@ -51,85 +54,6 @@ function desktop_mode_recycle_bin_capture_post_types() {
 	$types = apply_filters( 'desktop_mode_recycle_bin_capture_post_types', $types );
 
 	return array_values( array_filter( array_map( 'strval', (array) $types ) ) );
-}
-
-/**
- * Whether the recycle bin should capture a given attachment.
- *
- * Returning `false` from the `desktop_mode_recycle_bin_should_capture`
- * filter restores vanilla `wp_delete_attachment()` semantics for that
- * single call — useful for "really delete now" admin flows.
- *
- * @since 0.19.0
- *
- * @param WP_Post $post  Attachment post object.
- * @param bool    $force Whether `wp_delete_attachment( $id, true )` was used.
- * @return bool
- */
-function desktop_mode_recycle_bin_should_capture_attachment( $post, $force ) {
-	// Honor explicit force-delete: that's the user (or a plugin) saying
-	// "skip the bin." Same contract as posts.
-	if ( $force ) {
-		return false;
-	}
-
-	if ( ! in_array( 'attachment', desktop_mode_recycle_bin_capture_post_types(), true ) ) {
-		return false;
-	}
-
-	/**
-	 * Filter whether a specific attachment should be soft-deleted into
-	 * the recycle bin instead of being permanently deleted.
-	 *
-	 * @since 0.19.0
-	 *
-	 * @param bool    $capture Default true.
-	 * @param WP_Post $post    Attachment being deleted.
-	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_should_capture', true, $post );
-}
-
-/**
- * Short-circuits `wp_delete_attachment()` to route the attachment
- * through the trash instead.
- *
- * Returning a non-null value from the `pre_delete_attachment` filter
- * tells core to skip its delete codepath and use our return value as
- * the function result. We call `wp_trash_post()`, stash a marker so
- * the bin knows when it was deleted and by whom, and return the
- * trashed post object — same shape `wp_delete_attachment()` would.
- *
- * @since 0.19.0
- *
- * @param mixed   $delete Default null (continue with deletion).
- * @param WP_Post $post   Attachment about to be deleted.
- * @param bool    $force  Whether force-delete was requested.
- * @return mixed Non-null short-circuits core deletion.
- */
-function desktop_mode_recycle_bin_intercept_attachment_delete( $delete, $post, $force ) {
-	if ( null !== $delete ) {
-		// Another plugin already short-circuited — don't double-handle.
-		return $delete;
-	}
-
-	if ( ! ( $post instanceof WP_Post ) || 'attachment' !== $post->post_type ) {
-		return $delete;
-	}
-
-	if ( ! desktop_mode_recycle_bin_should_capture_attachment( $post, $force ) ) {
-		return $delete;
-	}
-
-	$trashed = wp_trash_post( $post->ID );
-	if ( ! $trashed ) {
-		// Trash failed — let core try its normal deletion so we don't
-		// silently drop the user's request on the floor.
-		return $delete;
-	}
-
-	desktop_mode_recycle_bin_record_capture( $post->ID );
-
-	return $trashed;
 }
 
 /**
@@ -189,7 +113,6 @@ function desktop_mode_recycle_bin_record_capture( $post_id ) {
 	do_action( 'desktop_mode_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
 }
 
-add_filter( 'pre_delete_attachment', 'desktop_mode_recycle_bin_intercept_attachment_delete', 10, 3 );
 add_action( 'wp_trash_post', 'desktop_mode_recycle_bin_on_trash_post', 10, 1 );
 
 /**

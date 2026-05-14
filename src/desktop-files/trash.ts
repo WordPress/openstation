@@ -27,14 +27,28 @@ import type { RestPlacementShape } from './rest';
  * Broadcast a "this kind of thing changed in trash state" event so
  * cross-window listeners (recycle-bin, badge counters, …) can refresh
  * without waiting for the next Heartbeat tick.
+ *
+ * Payload follows the cross-window convention:
+ *   { source, action: 'trashed' | 'untrashed' | 'deleted', ids }
+ * so the badge subscriber can delta-update by `ids.length` and the
+ * Recycle Bin window's own listener can skip its self-emitted events
+ * by checking `source`.
  */
-function broadcastFilesChange( kind: 'placement' | 'shortcut' | 'folder' ): void {
+function broadcastFilesChange(
+	kind: 'placement' | 'shortcut' | 'folder',
+	action: 'trashed' | 'untrashed' | 'deleted',
+	ids: number[],
+): void {
 	const api = (
 		window as {
 			wp?: { desktop?: { broadcast?: ( topic: string, payload: unknown ) => void } };
 		}
 	).wp?.desktop;
-	api?.broadcast?.( `desktop-mode.${ kind }.changed`, { reason: 'trash' } );
+	api?.broadcast?.( `desktop-mode.${ kind }.changed`, {
+		source: 'desktop-files',
+		action,
+		ids,
+	} );
 }
 
 function showTrashedToast( message: string, onUndo: () => void ): void {
@@ -72,13 +86,13 @@ export async function trashPlacementWithUndo(
 	filesStoreApi.removePlacement( placementId );
 	try {
 		await rest.deletePlacement( placementId );
-		broadcastFilesChange( kind );
+		broadcastFilesChange( kind, 'trashed', [ placementId ] );
 		showTrashedToast( `"${ title }" moved to Trash`, async () => {
 			try {
 				await rest.restoreTrashedItem( placementId, 'placement' );
 				const res = await rest.listPlacements( parentId );
 				filesStoreApi.setFolderPlacements( parentId, res.placements );
-				broadcastFilesChange( kind );
+				broadcastFilesChange( kind, 'untrashed', [ placementId ] );
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
 				console.error( '[desktop-mode] restore failed:', err );
@@ -112,13 +126,13 @@ export async function trashFolderWithUndo(
 	filesStoreApi.removeFolder( folderId );
 	try {
 		await rest.deleteFolder( folderId );
-		broadcastFilesChange( 'folder' );
+		broadcastFilesChange( 'folder', 'trashed', [ folderId ] );
 		showTrashedToast( `"${ title }" moved to Trash`, async () => {
 			try {
 				await rest.restoreTrashedItem( folderId, 'folder' );
 				const res = await rest.listPlacements( parentId );
 				filesStoreApi.setFolderPlacements( parentId, res.placements );
-				broadcastFilesChange( 'folder' );
+				broadcastFilesChange( 'folder', 'untrashed', [ folderId ] );
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
 				console.error( '[desktop-mode] restore folder failed:', err );

@@ -382,6 +382,13 @@ function wireBroadcastDeltas(): void {
 	subscribe( 'desktop-mode.page.changed', onDomain );
 	subscribe( 'desktop-mode.attachment.changed', onDomain );
 	subscribe( 'desktop-mode.comment.changed', onDomain );
+	// Files-on-the-desktop trash mutations (URL placements, plugin
+	// shortcuts, user folders). Without these, dragging a URL tile to
+	// the Recycle Bin trashes the placement but the dock badge stays
+	// at its previous value until the next Heartbeat tick.
+	subscribe( 'desktop-mode.placement.changed', onDomain );
+	subscribe( 'desktop-mode.shortcut.changed', onDomain );
+	subscribe( 'desktop-mode.folder.changed', onDomain );
 }
 
 /**

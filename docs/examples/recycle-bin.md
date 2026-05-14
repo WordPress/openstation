@@ -54,6 +54,14 @@ wp_delete_attachment( $attachment_id, true );
 
 `wp_delete_attachment( $id, true )` with the force flag skips capture automatically — the filter is the per-call escape hatch when you can't pass `force_delete = true`.
 
+By default media files are NOT auto-routed through Trash: vanilla WordPress permanent-deletes attachments on first click, and the Recycle Bin tracks only posts, pages, and comments. Sites that want media in the bin should define `MEDIA_TRASH` in `wp-config.php`:
+
+```php
+define( 'MEDIA_TRASH', true );
+```
+
+Once set, deleting from the Media library routes the attachment through the WP trash and the Recycle Bin window surfaces it automatically (`attachment` is already in the default `desktop_mode_recycle_bin_capture_post_types` list). The constant has to live in `wp-config.php` because Core locks it before any plugin loads.
+
 ## Add a custom column to the table
 
 The JS layer applies a filter to the column descriptor before assignment:
