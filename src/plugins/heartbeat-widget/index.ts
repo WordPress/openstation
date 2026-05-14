@@ -203,11 +203,24 @@ function renderFallback( container: HTMLElement, message: string ): void {
  * menu. Width stays locked at 310 in both modes.
  */
 const FRAME_HEIGHT_WITH_HEART = 230;
-// Compact mode: chrome (~36) + card-body padding (32) + widget
-// padding (~6) + meta (16) + gap (8) + bar (10) + slack ≈ 120 px.
-// Round up to 130 for comfortable breathing room above and below
-// the bar.
-const FRAME_HEIGHT_NO_HEART = 130;
+// Compact mode is just `title bar + label/time + progress bar` —
+// no stage, no heart. The actual content adds up to:
+//
+//   chrome           32
+// + card-body pad    16   (8 + 8, this widget's override)
+// + meta row         16
+// + 8-px gap          8
+// + bar              10
+// ─────────────────────
+//   ≈ 82 px
+//
+// 88 leaves a couple of pixels of breathing room without the
+// large empty band the old 130-px frame produced (the user-
+// reported "strange gap at the top"). The meta row keeps its
+// `margin-top: auto` so any remaining slack settles between the
+// title bar and the label, NOT below the progress bar — the bar
+// should always hug the card's bottom edge as a status footer.
+const FRAME_HEIGHT_NO_HEART = 88;
 
 async function mountWithPixi(
 	container: HTMLElement,

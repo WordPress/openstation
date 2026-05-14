@@ -1270,7 +1270,19 @@ function desktop_mode_files_trash_folder_for_user( $folder_id, $user_id ) {
 			array( '%d', '%d' ),
 			array( '%d' )
 		);
-		desktop_mode_files_write_tombstone( 'placement', $pid );
+		// Soft-trash only — DO NOT write a tombstone here.
+		// Tombstones represent permanent removal (hard delete); the
+		// heartbeat already surfaces soft-trashed rows via the
+		// `trashed_at_ms IS NOT NULL` query in
+		// `desktop_mode_files_compute_heartbeat_delta`. Writing a
+		// tombstone on every soft-trash conflates the two states and,
+		// when the row is later restored (e.g. the recipient re-
+		// accepts the same share), the lingering tombstone keeps
+		// telling clients "this is gone" while the same placement
+		// row is also being upserted as alive — causing the row to
+		// disappear from the desktop on every heartbeat tick. See
+		// the user-reported "shared folder vanishes after refresh"
+		// bug fixed in 0.18.x.
 		$count++;
 	}
 	return $count;

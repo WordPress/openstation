@@ -184,6 +184,103 @@ describe( 'FilesLayer', () => {
 		handle.dispose();
 	} );
 
+	test( 'heartbeat upsert arriving BEFORE REST hydration still surfaces in the open folder', async () => {
+		// Corner case: layer mounted on an unhydrated folder, REST
+		// listPlacements still in-flight, heartbeat arrives first
+		// with a new placement. Both the heartbeat upsert AND the
+		// REST hydration must end up reflected in the rendered DOM.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+
+		// REST resolves to a list containing the SAME placement that
+		// the heartbeat delivered out-of-band. setFolderPlacements
+		// happens after our heartbeat upsert; the final state should
+		// reflect REST as the authority but still include the
+		// placement.
+		let resolveRest: ( v: Response ) => void = () => undefined;
+		const fetchSpy = vi.fn(
+			() =>
+				new Promise< Response >( ( res ) => {
+					resolveRest = res;
+				} ),
+		);
+		vi.stubGlobal( 'fetch', fetchSpy );
+
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 9 );
+
+		// Heartbeat upsert arrives first.
+		store.upsertPlacement(
+			{ ...placement( 100 ), parentId: 9 },
+			'remote',
+		);
+
+		// Then REST hydration completes.
+		resolveRest(
+			new Response(
+				JSON.stringify( {
+					placements: [ { ...placement( 100 ), parentId: 9 } ],
+					folderId: 9,
+				} ),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } },
+			),
+		);
+		await Promise.resolve();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		const tiles = host.querySelectorAll< HTMLElement >( '.desktop-mode-file-tile' );
+		expect( tiles.length ).toBe( 1 );
+		expect( tiles[ 0 ].getAttribute( 'data-placement-id' ) ).toBe( '100' );
+		handle.dispose();
+	} );
+
+	test( 'live upsertPlacement repaints the open folder layer (heartbeat → live update)', async () => {
+		// Simulates the user-reported scenario: recipient has the
+		// shared folder window open, owner drops a new file inside,
+		// the heartbeat brings the placement upsert, and the open
+		// layer must paint the new tile WITHOUT a page refresh.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+
+		// Hydrate the shared folder with one initial placement
+		// (everything the recipient saw before the owner's add).
+		store.setFolderPlacements( 7, [
+			{ ...placement( 1 ), parentId: 7 },
+		] );
+
+		// Recipient opens the folder window — mount a layer on it.
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 7 );
+		expect(
+			host.querySelectorAll( '.desktop-mode-file-tile' ).length,
+		).toBe( 1 );
+
+		// Heartbeat tick: owner just dropped a new link into folder 7.
+		// `upsertPlacement` is what `applyDelta` in heartbeat.ts calls
+		// for every placement in the payload's `placements` array.
+		store.upsertPlacement(
+			{ ...placement( 42, { parentId: 7, file: { type: 'link', ref: 'https://example.com/', title: 'example.com', icon: 'dashicons-admin-links', previewUrl: '', exists: true } } ), parentId: 7 },
+			'remote',
+		);
+
+		// The open layer must have repainted: the new placement's
+		// tile should now be in the DOM.
+		const tiles = host.querySelectorAll< HTMLElement >( '.desktop-mode-file-tile' );
+		expect( tiles.length ).toBe( 2 );
+		const ids = Array.from( tiles ).map(
+			( t ) => t.getAttribute( 'data-placement-id' ),
+		);
+		expect( ids ).toContain( '1' );
+		expect( ids ).toContain( '42' );
+		handle.dispose();
+	} );
+
 	test( 'fingerprint short-circuit avoids rebuilding tiles when nothing changed', async () => {
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();

@@ -121,6 +121,23 @@ function readServerIcons(): DesktopIconServerEntry[] {
 let reentrant = false;
 
 /**
+ * Cache of server-icon placements that the sync removed from the
+ * files store because the user set their visibility to `'dock'` or
+ * `'hidden'`.
+ *
+ * Why we cache them: the placements still exist in the database (the
+ * removal is JS-only) but if we don't keep a copy here, flipping the
+ * visibility back to `'desktop'` / `'both'` has nothing to put back —
+ * the wallpaper-grid path renders the change correctly, but the
+ * files-layer can't surface a placement it no longer has. That's
+ * exactly the "right-click → 'Also show on desktop' → tile doesn't
+ * appear until F5" bug.
+ *
+ * Keyed by the canonical icon id (`placement.file.ref`).
+ */
+const removedServerPlacementsByRef = new Map< string, RestPlacementShape >();
+
+/**
  * Bring the files store in line with the current
  * {@link OsSettingsState.itemVisibility} map.
  */
@@ -186,14 +203,39 @@ export function syncShortcutsWithVisibility(
 			}
 		}
 
-		// 2. Hide server-registered shortcuts that the user has
-		//    suppressed (placement = 'dock' or 'hidden').
+		// 2. Reconcile server-registered shortcuts (icons registered via
+		//    `desktop_mode_register_icon()`) with the user's visibility:
+		//
+		//    - 'dock' / 'hidden' → remove the placement from the files
+		//      store so the wallpaper stops painting the tile. Cache
+		//      the row so we can restore it on a future flip-back
+		//      without a REST round-trip.
+		//    - 'desktop' / 'both' → if the cached copy says we removed
+		//      this icon earlier, put the placement back in the store.
+		//      The wallpaper-grid CSS-toggle path (`renderDesktopIcons`)
+		//      handles this for `.desktop-mode-icons` already, but that
+		//      grid is hidden whenever a files-layer is mounted
+		//      (see `desktop-files.css`'s `:has(...)` rule) — so the
+		//      visible surface is the files-layer, and the files-layer
+		//      needs the placement back in its bucket to paint it.
 		for ( const icon of serverIcons ) {
 			const placement = visibility[ icon.id ];
+			const inStore = realByRef.get( icon.id );
 			if ( placement === 'dock' || placement === 'hidden' ) {
-				const p = realByRef.get( icon.id );
-				if ( p ) {
-					filesApi.store.removePlacement( p.id );
+				if ( inStore ) {
+					removedServerPlacementsByRef.set( icon.id, inStore );
+					filesApi.store.removePlacement( inStore.id );
+				}
+				continue;
+			}
+			// 'desktop' / 'both' / undefined (native default) — should
+			// be visible. If the store currently doesn't have it AND we
+			// have a cached copy from an earlier hide, restore it.
+			if ( ! inStore ) {
+				const cached = removedServerPlacementsByRef.get( icon.id );
+				if ( cached ) {
+					filesApi.store.upsertPlacement( cached );
+					removedServerPlacementsByRef.delete( icon.id );
 				}
 			}
 		}

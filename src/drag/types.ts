@@ -152,6 +152,22 @@ export interface DragManagerApi {
 	registerDropTarget( target: DropTarget ): () => void;
 	/** Is a session currently active? */
 	isDragging(): boolean;
+	/**
+	 * Whether a real (lifted) drag ended within `withinMs` of now.
+	 *
+	 * Surfaces that bind plain `click` listeners on a backdrop or
+	 * wallpaper element use this to ignore the synthesized click
+	 * that fires immediately after a drop. Without the guard, every
+	 * successful cross-window drag whose pointerup happens to land
+	 * over the wallpaper (or whose ghost teardown bubbles a click
+	 * up to it) would invoke "Show Desktop" — minimizing every
+	 * window the user was working in.
+	 *
+	 * Default window of 500 ms covers the browser's ~10–50 ms
+	 * pointerup→click gap with margin for any plugin-side
+	 * `requestAnimationFrame` chains.
+	 */
+	recentlyEndedDrag( withinMs?: number ): boolean;
 	/** Currently active session, or null. */
 	getActive(): DragSession | null;
 	/** Diagnostics — exposed for tests + manual QA. */

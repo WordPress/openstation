@@ -3188,6 +3188,17 @@ function init(): void {
 		if ( isWallpaperMenuOpen() ) {
 			return;
 		}
+		// Swallow the click that synthesizes after a real drag ends
+		// — without this gate, dragging a tile from one window to
+		// another whose drop or ghost teardown bubbles a click up to
+		// the wallpaper would minimize every open window (the
+		// "windows go invisible after drop" bug). The drag manager
+		// stamps `_lastLiftedEndAt` at commit / lifted-cancel time;
+		// 500 ms covers the browser's pointerup→click gap with
+		// margin.
+		if ( dragManager.recentlyEndedDrag() ) {
+			return;
+		}
 		manager.toggleShowDesktop();
 	} );
 

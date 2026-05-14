@@ -558,6 +558,13 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 		array( '%d' )
 	);
 
+	// Enforce the "tombstones never refer to alive rows" invariant:
+	// a placement coming back to life must not carry lingering
+	// tombstones from an earlier (reversible) removal. Without this,
+	// every heartbeat tick would re-deliver those tombstones to the
+	// client and the row would flicker off the desktop on each tick.
+	desktop_mode_files_clear_tombstones_for( 'placement', $placement_id );
+
 	/**
 	 * @since 0.8.0
 	 *
@@ -911,6 +918,27 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 	// Recursively restore nested folders captured in the snapshot.
 	foreach ( (array) $nested_ids as $nid ) {
 		desktop_mode_files_restore_folder( $user_id, (int) $nid );
+	}
+
+	// Enforce the "tombstones never refer to alive rows" invariant
+	// across the restored cohort: the folder itself, every cascade-
+	// restored placement that lived inside it, and every nested
+	// folder recursed into above already clears its own. Here we
+	// scrub the FOLDER's own tombstones plus those of every cascade-
+	// restored placement so a fresh heartbeat tick can't surface
+	// them as `removed.*` against the now-alive rows.
+	desktop_mode_files_clear_tombstones_for( 'folder', $folder_id );
+	$restored_placement_ids = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT id FROM {$tables['placements']}
+			WHERE trashed_via_folder IS NULL
+				AND ( parent_id = %d OR ( file_type = 'folder' AND file_ref = %s ) )",
+			$folder_id,
+			(string) $folder_id
+		)
+	);
+	foreach ( (array) $restored_placement_ids as $rpid ) {
+		desktop_mode_files_clear_tombstones_for( 'placement', (int) $rpid );
 	}
 
 	/**

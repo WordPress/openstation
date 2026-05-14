@@ -85,6 +85,18 @@ export class DragManager implements DragManagerApi {
 	private readonly _registry = new DropTargetRegistry();
 	private _active: InternalSession | null = null;
 	private _docListenersAttached = false;
+	/**
+	 * `Date.now()` of the last LIFTED-drag's pointerup/cancel. Used
+	 * by surfaces that bind plain `click` handlers (e.g. the
+	 * wallpaper's Show-Desktop toggle) to ignore the synthesized
+	 * click that fires immediately after a real drag ends. The click
+	 * normally targets whichever element was under the cursor at
+	 * release — for a drop onto a window, that's not the wallpaper,
+	 * but ghost teardown + browser quirks can bubble a click up to
+	 * the desktop area regardless. Without this marker, every
+	 * successful cross-window drag would also minimize every window.
+	 */
+	private _lastLiftedEndAt = 0;
 
 	start( opts: StartOpts ): DragSession | null {
 		// Reject when another session is in flight — at most one drag
@@ -133,6 +145,24 @@ export class DragManager implements DragManagerApi {
 
 	isDragging(): boolean {
 		return this._active !== null && this._active._lifted;
+	}
+
+	/**
+	 * Whether a real (lifted) drag ended within `withinMs` of now.
+	 * Surfaces that bind plain `click` listeners use this to ignore
+	 * the synthesized click that fires after a drop. 500 ms is a
+	 * generous default — browsers fire the click within 10–50 ms of
+	 * pointerup, but plugins may chain post-drag work into a
+	 * `requestAnimationFrame` and call back into a click-driven API.
+	 *
+	 * @public
+	 * @since 0.18.x
+	 */
+	recentlyEndedDrag( withinMs = 500 ): boolean {
+		if ( this._lastLiftedEndAt === 0 ) {
+			return false;
+		}
+		return Date.now() - this._lastLiftedEndAt < withinMs;
 	}
 
 	getActive(): DragSession | null {
@@ -312,6 +342,11 @@ export class DragManager implements DragManagerApi {
 		clientY: number,
 	): void {
 		session._finished = true;
+		// Stamp the marker so click handlers wired on the wallpaper
+		// (Show Desktop) can ignore the synthesized click that fires
+		// after pointerup. `_commit` only runs for lifted sessions —
+		// safe to set unconditionally.
+		this._lastLiftedEndAt = Date.now();
 		// Drop the LEAVE on the active target before invoking onDrop
 		// so target callbacks see a clean enter/leave pair.
 		fireLeave( target, session );
@@ -348,6 +383,14 @@ export class DragManager implements DragManagerApi {
 			return;
 		}
 		session._finished = true;
+		// Same rationale as `_commit`: stamp the marker so the next
+		// synthesized click on the wallpaper is ignored. Only stamp
+		// when the gesture had actually lifted — a sub-threshold
+		// click that gets cancelled here is genuinely a click and
+		// should fall through to its surface's handler.
+		if ( session._lifted ) {
+			this._lastLiftedEndAt = Date.now();
+		}
 		if ( session._currentTarget ) {
 			fireLeave( session._currentTarget, session );
 		}

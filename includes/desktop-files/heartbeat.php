@@ -257,6 +257,53 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 		}
 	}
 
+	// Safety net: a row that is currently being delivered as an
+	// upsert (alive) must NOT also appear in `removed.*`. Otherwise
+	// the client applies upserts first, then removals, and the
+	// alive row disappears every heartbeat tick.
+	//
+	// This can happen when stale tombstones linger after a
+	// soft-trash → restore cycle (e.g. a recipient leaves a shared
+	// folder, then re-accepts the invite — the placement row is
+	// restored but any tombstones written in error during the trash
+	// path stay in the table). Cleaning them up server-side prevents
+	// the same client-side glitch on every subsequent tick.
+	$upsert_placement_ids = array_map(
+		static function ( $p ) { return (int) $p['id']; },
+		$placement_upserts
+	);
+	$upsert_folder_ids = array_map(
+		static function ( $f ) { return (int) $f['id']; },
+		$folder_upserts
+	);
+	if ( ! empty( $upsert_placement_ids ) ) {
+		$alive_placements = array_flip( $upsert_placement_ids );
+		$removed['placements'] = array_values(
+			array_filter(
+				$removed['placements'],
+				static function ( $id ) use ( $alive_placements ) {
+					return ! isset( $alive_placements[ (int) $id ] );
+				}
+			)
+		);
+		// Cleanup: drop any tombstones referring to placement ids
+		// that are demonstrably alive in this tick. Bounded by the
+		// upsert set so the work is per-tick, not table-wide.
+		desktop_mode_files_purge_stale_tombstones( 'placement', $upsert_placement_ids );
+	}
+	if ( ! empty( $upsert_folder_ids ) ) {
+		$alive_folders = array_flip( $upsert_folder_ids );
+		$removed['folders'] = array_values(
+			array_filter(
+				$removed['folders'],
+				static function ( $id ) use ( $alive_folders ) {
+					return ! isset( $alive_folders[ (int) $id ] );
+				}
+			)
+		);
+		desktop_mode_files_purge_stale_tombstones( 'folder', $upsert_folder_ids );
+	}
+
 	return array(
 		'placements'   => $placement_upserts,
 		'folders'      => $folder_upserts,
@@ -266,5 +313,35 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 		),
 		'serverTimeMs' => desktop_mode_files_now_ms(),
 		'truncated'    => $truncated,
+	);
+}
+
+/**
+ * Delete tombstones for refs that are currently alive (still
+ * present in the placements / folders table without
+ * `trashed_at_ms`). One-shot cleanup of stale rows written by
+ * earlier buggy code paths — once removed, the heartbeat no longer
+ * surfaces them every tick.
+ *
+ * @since 0.18.0
+ *
+ * @param string $kind 'placement' | 'folder'.
+ * @param int[]  $ids  Ids known to be alive in the current tick.
+ */
+function desktop_mode_files_purge_stale_tombstones( $kind, $ids ) {
+	if ( empty( $ids ) ) {
+		return;
+	}
+	global $wpdb;
+	$tables       = desktop_mode_files_table_names();
+	$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	$wpdb->query(
+		$wpdb->prepare(
+			"DELETE FROM {$tables['tombstones']}
+			WHERE kind = %s
+				AND ref_id IN ($placeholders)",
+			array_merge( array( (string) $kind ), array_map( 'intval', $ids ) )
+		)
 	);
 }

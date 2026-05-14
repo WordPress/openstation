@@ -227,6 +227,68 @@ describe( 'DragManager', () => {
 		expect( onCancel ).toHaveBeenCalledWith( 'rejected' );
 	} );
 
+	test( 'recentlyEndedDrag is true right after a committed drop', () => {
+		const manager = new DragManager();
+		const source = makeSource( 'src' );
+		const targetEl = makeTargetElement( 'tgt', { x: 200, y: 200, w: 100, h: 100 } );
+		installElementFromPointStub( [ { el: targetEl, rect: { x: 200, y: 200, w: 100, h: 100 } } ] );
+		manager.registerDropTarget( {
+			id: 'tgt',
+			element: targetEl,
+			accept: () => true,
+			onDrop: () => undefined,
+		} );
+
+		expect( manager.recentlyEndedDrag() ).toBe( false );
+
+		manager.start( {
+			payload: { type: 'desktop-file', source, data: {} },
+			origin: pointerEvent( 'pointerdown', 50, 50, source ),
+		} );
+		document.dispatchEvent( pointerEvent( 'pointermove', 250, 250 ) );
+		document.dispatchEvent( pointerEvent( 'pointerup', 250, 250 ) );
+
+		// Synthesized click that fires after pointerup must see the
+		// marker stamped — gates the wallpaper Show-Desktop toggle.
+		expect( manager.recentlyEndedDrag() ).toBe( true );
+		expect( manager.recentlyEndedDrag( 0 ) ).toBe( false );
+	} );
+
+	test( 'recentlyEndedDrag is true right after a lifted-then-cancelled drop', () => {
+		const manager = new DragManager();
+		const source = makeSource( 'src' );
+		installElementFromPointStub( [] );
+
+		manager.start( {
+			payload: { type: 'desktop-file', source, data: {} },
+			origin: pointerEvent( 'pointerdown', 50, 50, source ),
+		} );
+		document.dispatchEvent( pointerEvent( 'pointermove', 250, 250 ) );
+		document.dispatchEvent( pointerEvent( 'pointerup', 250, 250 ) );
+
+		// No drop target — drag ended via the `_cancel` path. The
+		// marker still gates the post-drag click on the wallpaper.
+		expect( manager.recentlyEndedDrag() ).toBe( true );
+	} );
+
+	test( 'recentlyEndedDrag stays false after a SUB-threshold click-only gesture', () => {
+		const manager = new DragManager();
+		const source = makeSource( 'src' );
+		const onClickOnly = vi.fn();
+
+		manager.start( {
+			payload: { type: 'desktop-file', source, data: {} },
+			origin: pointerEvent( 'pointerdown', 50, 50, source ),
+			onClickOnly,
+		} );
+		// Release without crossing the lift threshold — it's a click,
+		// not a drag. The wallpaper toggle SHOULD fire normally.
+		document.dispatchEvent( pointerEvent( 'pointerup', 51, 51 ) );
+
+		expect( onClickOnly ).toHaveBeenCalled();
+		expect( manager.recentlyEndedDrag() ).toBe( false );
+	} );
+
 	test( 'no-target drop fires onCancel with no-target reason', () => {
 		const manager = new DragManager();
 		const source = makeSource( 'src' );

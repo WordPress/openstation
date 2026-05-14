@@ -165,6 +165,14 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 			}
 		}
 
+		// Belt-and-suspenders: even on the non-trashed-revival branch
+		// (caller re-placed an already-active row at new coords), any
+		// stale tombstones for this id should be cleared so a fresh
+		// heartbeat tick can't surface "alive + removed" together.
+		// `restore_placement` already clears its own tombstones, so
+		// this is a no-op in the soft-trashed branch above.
+		desktop_mode_files_clear_tombstones_for( 'placement', $existing_id );
+
 		$move = desktop_mode_files_move(
 			$existing_id,
 			$user_id,
@@ -747,6 +755,22 @@ function desktop_mode_files_normalize_placement_row( $row ) {
 /**
  * Write a tombstone row.
  *
+ * Invariant (enforced by callers): tombstones may exist only for
+ * ids of PERMANENTLY-DELETED rows. Never write one for a soft-
+ * trashed row — soft-trash is reversible and the heartbeat already
+ * surfaces it via the `trashed_at_ms IS NOT NULL` query in
+ * `desktop_mode_files_compute_heartbeat_delta`. A tombstone on a
+ * soft-trashed row lingers past restore and tells clients the row
+ * is gone while it is in fact alive — see the "shared folder
+ * disappears on refresh" bug fixed in 0.18.x.
+ *
+ * Pair every revival path (`desktop_mode_files_restore_placement`,
+ * `desktop_mode_files_restore_folder`, and the duplicate-key
+ * revival branch in `desktop_mode_files_place`) with
+ * {@see desktop_mode_files_clear_tombstones_for} so a row coming
+ * back to life never carries lingering tombstones from a previous
+ * removal that turned out to be reversible.
+ *
  * @since 0.9.0
  *
  * @param string $kind 'placement' | 'folder'.
@@ -763,6 +787,36 @@ function desktop_mode_files_write_tombstone( $kind, $ref ) {
 			'removed_at_ms' => desktop_mode_files_now_ms(),
 		),
 		array( '%s', '%d', '%d' )
+	);
+}
+
+/**
+ * Drop every tombstone referring to `($kind, $ref_id)`. Called from
+ * the row-revival paths so a placement/folder coming back to life
+ * never carries lingering "this is gone" tombstones from a
+ * previous removal that turned out to be reversible.
+ *
+ * Idempotent — running it on a ref with no tombstones is a no-op.
+ *
+ * @since 0.18.0
+ *
+ * @param string $kind 'placement' | 'folder'.
+ * @param int    $ref_id Row id whose tombstones should be dropped.
+ */
+function desktop_mode_files_clear_tombstones_for( $kind, $ref_id ) {
+	global $wpdb;
+	$ref_id = (int) $ref_id;
+	if ( $ref_id <= 0 ) {
+		return;
+	}
+	$tables = desktop_mode_files_table_names();
+	$wpdb->delete(
+		$tables['tombstones'],
+		array(
+			'kind'   => (string) $kind,
+			'ref_id' => $ref_id,
+		),
+		array( '%s', '%d' )
 	);
 }
 

@@ -187,6 +187,25 @@
 }
 
 /*
+ * `pointer-events: none` on the window root above is not enough on
+ * its own: a number of descendants (most notably `.desktop-mode-
+ * file-tile`, but also other tile renderers) explicitly set
+ * `pointer-events: auto` so the wallpaper / folder layer doesn't
+ * eat their clicks. That `auto` overrides the parent's `none`, and
+ * after "Show Desktop" minimizes every window, hovering the empty
+ * space where a tile used to sit would still trigger its tooltip
+ * / dock peek — the invisible-but-still-interactive bug.
+ *
+ * The universal selector is scoped INSIDE the minimized window so
+ * it doesn't touch anything else, and `!important` is required to
+ * win over the per-tile `pointer-events: auto`.
+ */
+.desktop-mode-window--minimized *,
+.desktop-mode-window--closing * {
+	pointer-events: none !important;
+}
+
+/*
  * Closing animation — fade out + slight scale down.
  * The JS waits for transitionend then removes the element.
  */
