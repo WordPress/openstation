@@ -1303,15 +1303,50 @@ function desktop_mode_files_trash_folder_for_user( $folder_id, $user_id ) {
  */
 function desktop_mode_files_share_gate_trash( $can, $user_id, $row ) {
 	$parent_id = isset( $row['parent_id'] ) ? (int) $row['parent_id'] : 0;
+	$user_id   = (int) $user_id;
+
+	// Root-level placement of a SHARED FOLDER (the recipient's
+	// desktop copy of a folder owned by someone else). The
+	// recipient technically "owns" their placement row, so the
+	// default ownership rule grants trash — but the destructive
+	// "Move to Trash" affordance is misleading here. The correct
+	// action is "Leave shared folder", which fires the share-leave
+	// flow (revokes their decision, scrubs the placement, leaves
+	// the original intact). Veto the trash gate when the viewer
+	// has no WRITE cap on the folder so the client suppresses
+	// "Move to Trash" + rejects the trash drop, leaving "Leave
+	// shared folder" as the only way out.
+	if (
+		$parent_id <= 0 &&
+		isset( $row['file_type'] ) &&
+		'folder' === (string) $row['file_type'] &&
+		isset( $row['file_ref'] )
+	) {
+		$folder_ref = (int) $row['file_ref'];
+		if ( $folder_ref > 0 ) {
+			$folder_row = desktop_mode_files_get_folder( $folder_ref );
+			if (
+				$folder_row &&
+				(int) $folder_row['owner_id'] !== $user_id
+			) {
+				$root_cap = desktop_mode_folder_share_user_capability( $folder_ref, $user_id );
+				if ( 'write' !== $root_cap ) {
+					return false;
+				}
+			}
+		}
+		return $can;
+	}
+
 	if ( $parent_id <= 0 ) {
-		// Root placement — default ownership rule stands.
+		// Any other root placement (not a shared-folder tile) —
+		// default ownership rule stands.
 		return $can;
 	}
 	$folder = desktop_mode_files_get_folder( $parent_id );
 	if ( ! $folder ) {
 		return $can;
 	}
-	$user_id  = (int) $user_id;
 	$is_owner = (int) $folder['owner_id'] === $user_id;
 	$cap      = desktop_mode_folder_share_user_capability( $parent_id, $user_id );
 

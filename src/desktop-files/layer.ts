@@ -1150,14 +1150,24 @@ function attachContextMenu(
 					} );
 				},
 			} );
-			items.push( {
-				id: 'delete-folder',
-				label: 'Move folder to Trash',
-				icon: 'dashicons-trash',
-				sort: 90,
-				danger: true,
-				onClick: () => trashFolderWithUndo( placement ),
-			} );
+			// Only surface "Move folder to Trash" when the server
+			// says the viewer is allowed to. For a recipient's root
+			// placement of a SHARED folder the share-trash gate
+			// returns false (the correct affordance is "Leave shared
+			// folder", added by `share-menu-items.ts`), so the
+			// destructive entry stays out of their menu entirely.
+			// `undefined` falls through for legacy payloads — the
+			// server REST 403 + toast still backstop those.
+			if ( placement.canTrash !== false ) {
+				items.push( {
+					id: 'delete-folder',
+					label: 'Move folder to Trash',
+					icon: 'dashicons-trash',
+					sort: 90,
+					danger: true,
+					onClick: () => trashFolderWithUndo( placement ),
+				} );
+			}
 		} else {
 			// Two cases get "Hide from desktop" instead of "Move to
 			// Trash":
@@ -1190,7 +1200,16 @@ function attachContextMenu(
 					sort: 90,
 					onClick: () => hidePromotedDockItem( hideId ),
 				} );
-			} else {
+			} else if ( placement.canTrash !== false ) {
+				// Only surface "Move to Trash" when the server says
+				// the viewer is allowed to. `canTrash === false`
+				// applies to placements inside a shared folder where
+				// the viewer lacks write capability — without this
+				// guard the user could pick the menu item, attempt
+				// the REST call, and only see the failure logged to
+				// the console while the tile sat un-moved. `undefined`
+				// (legacy payloads) falls through to "let it through"
+				// so older clients keep behaving as today.
 				items.push( {
 					id: 'remove',
 					label: 'Move to Trash',

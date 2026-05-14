@@ -165,6 +165,137 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The placement shape must carry a `canTrash` flag that mirrors
+	 * the server's `desktop_mode_files_user_can_trash_placement`
+	 * decision. The client uses this to hide the "Move to Trash"
+	 * menu item and to make the trash drop target reject the drag
+	 * — without it, a recipient of a shared folder would attempt to
+	 * trash the owner's placement and only see a 403 logged to the
+	 * console.
+	 *
+	 * @covers ::desktop_mode_files_shape_placement
+	 */
+	public function test_shape_placement_carries_can_trash_for_share_recipient() {
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$share_id = desktop_mode_folder_share_invite(
+			$folder_id,
+			self::$owner_id,
+			'user',
+			(string) self::$editor_id,
+			'read'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// Owner drops a post into the shared folder.
+		$post_id = self::factory()->post->create( array(
+			'post_status' => 'publish',
+			'post_author' => self::$owner_id,
+		) );
+		$placement_id = desktop_mode_files_place(
+			self::$owner_id,
+			$folder_id,
+			'post',
+			(string) $post_id
+		);
+		$this->assertNotInstanceOf( WP_Error::class, $placement_id );
+		$row = desktop_mode_files_get_placement( (int) $placement_id );
+
+		// Owner is the placement owner — must be allowed to trash.
+		wp_set_current_user( self::$owner_id );
+		$owner_shape = desktop_mode_files_shape_placement( $row );
+		$this->assertTrue(
+			(bool) $owner_shape['canTrash'],
+			'Owner should be allowed to trash their own placement.'
+		);
+
+		// Recipient with read-only share — must NOT be allowed.
+		wp_set_current_user( self::$editor_id );
+		$recipient_shape = desktop_mode_files_shape_placement( $row );
+		$this->assertFalse(
+			(bool) $recipient_shape['canTrash'],
+			"Read-only recipient must not be allowed to trash the owner's placement; the client uses canTrash to hide the Move to Trash menu item and reject the trash drop."
+		);
+	}
+
+	/**
+	 * The recipient's root placement of a READ-ONLY shared folder
+	 * must report `canTrash: false`. The client uses this to hide
+	 * the "Move to Trash" tile-menu item and to reject the trash
+	 * drop target — the user is expected to use "Leave shared
+	 * folder" instead (which fires the share-leave flow, not a
+	 * destructive trash).
+	 *
+	 * Writers (recipients with `write` capability) keep the
+	 * default ownership-based behavior, since they can already
+	 * mutate the folder's contents.
+	 *
+	 * @covers ::desktop_mode_files_share_gate_trash
+	 * @covers ::desktop_mode_files_shape_placement
+	 */
+	public function test_root_shared_folder_placement_can_trash_respects_capability() {
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$share_id = desktop_mode_folder_share_invite(
+			$folder_id,
+			self::$owner_id,
+			'user',
+			(string) self::$editor_id,
+			'read'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// `accept` placed the folder at the recipient's desktop
+		// root (parent_id=0). Find that row.
+		$rows = desktop_mode_files_get_for_user_folder( self::$editor_id, 0 );
+		$folder_placements = array_values( array_filter(
+			$rows,
+			static fn( $r ) => 'folder' === $r['file_type']
+				&& (string) $folder_id === (string) $r['file_ref']
+		) );
+		$this->assertNotEmpty( $folder_placements, 'Accept should have placed the folder at recipient root.' );
+		$root_row = $folder_placements[ 0 ];
+
+		// READ-only recipient — must NOT be allowed to trash.
+		wp_set_current_user( self::$editor_id );
+		$shape = desktop_mode_files_shape_placement( $root_row );
+		$this->assertFalse(
+			(bool) $shape['canTrash'],
+			'Read-only recipient must not be allowed to trash the root shared-folder tile; they should use "Leave shared folder" instead.'
+		);
+
+		// Promote the recipient to write. Root-folder placement
+		// should now be trashable again (writers retain the
+		// default ownership-based behavior).
+		desktop_mode_folder_share_update_capability( $share_id, self::$owner_id, 'write' );
+		$shape_writer = desktop_mode_files_shape_placement( $root_row );
+		$this->assertTrue(
+			(bool) $shape_writer['canTrash'],
+			'Writer recipient should retain trash access on their root placement.'
+		);
+
+		// Owner of the folder is unaffected — they trash their
+		// OWN placement of their OWN folder via the default
+		// ownership path.
+		$owner_placement_id = desktop_mode_files_place(
+			self::$owner_id,
+			0,
+			'folder',
+			(string) $folder_id
+		);
+		$this->assertNotInstanceOf( WP_Error::class, $owner_placement_id );
+		$owner_row = desktop_mode_files_get_placement( (int) $owner_placement_id );
+		wp_set_current_user( self::$owner_id );
+		$owner_shape = desktop_mode_files_shape_placement( $owner_row );
+		$this->assertTrue(
+			(bool) $owner_shape['canTrash'],
+			'Folder owner should retain trash access on their own placement of their folder.'
+		);
+	}
+
+	/**
 	 * Reproduces the reported regression: owner adds a NEW file
 	 * to an already-shared folder, recipient's next heartbeat
 	 * delta must include the new placement.

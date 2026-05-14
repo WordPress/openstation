@@ -90,7 +90,30 @@ function registerOn(
 	return dragManager.registerDropTarget( {
 		id,
 		element: el,
-		accept: ( payload ) => payload.type === 'desktop-file',
+		// Reject the drop UP FRONT when the viewer can't trash the
+		// payload's placement (e.g. an item inside a read-only
+		// shared folder, or someone else's tile in a shared
+		// namespace). `accept` flipping to `false` means the
+		// drop-active highlight never lights up + onDrop never
+		// fires + the drag manager surfaces a `rejected` outcome.
+		// The user sees the icon snap back instead of attempting a
+		// REST call that would 403 and only log to the console.
+		accept: ( payload ) => {
+			if ( payload.type !== 'desktop-file' ) {
+				return false;
+			}
+			const data = payload.data as Partial< DesktopFilePayloadData >;
+			const placement = data?.placement;
+			if ( ! placement ) {
+				return false;
+			}
+			// `canTrash === false` is an explicit veto from the
+			// server. `undefined` (legacy clients / older payloads
+			// that pre-date the flag) defaults to "let it through"
+			// — the existing REST 403 path still backstops anything
+			// that slips past this check.
+			return placement.canTrash !== false;
+		},
 		onEnter: () => {
 			el.setAttribute( TRASH_DROP_ACTIVE_ATTR, '' );
 		},

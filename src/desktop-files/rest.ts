@@ -39,6 +39,23 @@ export interface RestPlacementShape {
 	 * @since 0.18.0
 	 */
 	accessGated?: boolean;
+	/**
+	 * Server's "can this viewer trash this placement?" answer. Set
+	 * from `desktop_mode_files_user_can_trash_placement` at shape
+	 * time so the client can suppress trash affordances upfront —
+	 * hiding the "Move to recycle bin" tile-menu entry AND making
+	 * the trash drop target reject the drag — instead of letting
+	 * the user attempt the action and surface a 403 in the
+	 * console.
+	 *
+	 * Always `true` for placements the viewer owns; falsy for
+	 * placements inside a shared folder where the viewer lacks
+	 * write capability, plus anything a `desktop_mode_files_user_can_trash_placement`
+	 * filter customisation has vetoed.
+	 *
+	 * @since 0.18.x
+	 */
+	canTrash?: boolean;
 }
 
 export interface RestFolderShape {

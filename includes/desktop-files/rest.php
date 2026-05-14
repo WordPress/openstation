@@ -433,6 +433,22 @@ function desktop_mode_files_shape_placement( $row ) {
 		'previewUrl' => '',
 		'exists'     => false,
 	);
+	// `canTrash` carries the server's answer to "can the viewer
+	// move this placement to the recycle bin?" so the client can
+	// proactively suppress the trash affordance — both the tile's
+	// right-click "Move to recycle bin" menu item and the trash
+	// drop target's accept-check. Without it, the only feedback for
+	// a forbidden drop was a 403 logged to the console, leaving the
+	// user staring at a tile that wouldn't move. Falls back to
+	// `false` when the helper isn't loaded (defensive — early-boot
+	// REST calls before trash.php is required can't grant permission
+	// they don't know about).
+	$viewer_id  = (int) get_current_user_id();
+	$can_trash  = false;
+	if ( $viewer_id > 0 && function_exists( 'desktop_mode_files_user_can_trash_placement' ) ) {
+		$can_trash = desktop_mode_files_user_can_trash_placement( $viewer_id, $row );
+	}
+
 	return array(
 		'id'           => (int) $row['id'],
 		'parentId'     => (int) $row['parent_id'],
@@ -447,6 +463,7 @@ function desktop_mode_files_shape_placement( $row ) {
 		// shared-folder-view UX). Tile renderer surfaces it as a
 		// lock overlay + tooltip.
 		'accessGated'  => ! empty( $row['access_gated'] ),
+		'canTrash'     => $can_trash,
 	);
 }
 

@@ -37,6 +37,40 @@ function broadcastFilesChange( kind: 'placement' | 'shortcut' | 'folder' ): void
 	api?.broadcast?.( `desktop-mode.${ kind }.changed`, { reason: 'trash' } );
 }
 
+/**
+ * Surface a non-blocking error toast when a trash attempt is
+ * rejected (typically by the `desktop_mode_files_forbidden` 403 from
+ * `desktop_mode_files_user_can_trash_placement`). Defensive: the
+ * tile-menu entry and the drop target's `accept` are both gated on
+ * `placement.canTrash` so the user shouldn't be able to reach this
+ * path through the normal UI, but legacy clients and concurrent
+ * permission changes can still produce one. Better to show the
+ * server's reason in a toast than to leave the user staring at a
+ * tile that didn't move with only a `console.error` for explanation.
+ */
+function showTrashErrorToast( err: unknown ): void {
+	const api = (
+		window as {
+			wp?: { desktop?: { showToast?: ( opts: unknown ) => void } };
+		}
+	).wp?.desktop;
+	if ( ! api?.showToast ) {
+		return;
+	}
+	const raw = err instanceof Error ? err.message : String( err );
+	// `call()` formats REST failures as
+	// "[desktop-mode] files REST 403: desktop_mode_files_forbidden …".
+	// Strip the prefix + error code so the user-facing toast keeps
+	// just the human-readable reason.
+	const friendly = raw
+		.replace( /^\[desktop-mode\][^:]*:\s*/, '' )
+		.replace( /^desktop_mode_files_[a-z_]+\s*/, '' );
+	api.showToast( {
+		message: friendly || 'Could not move this item to the recycle bin.',
+		duration: 5000,
+	} );
+}
+
 function showTrashedToast( message: string, onUndo: () => void ): void {
 	const api = (
 		window as {
@@ -87,6 +121,7 @@ export async function trashPlacementWithUndo(
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
 		console.error( '[desktop-mode] deletePlacement failed:', err );
+		showTrashErrorToast( err );
 		void rest.listPlacements( parentId ).then( ( res ) => {
 			filesStoreApi.setFolderPlacements( parentId, res.placements );
 		} );
@@ -127,6 +162,7 @@ export async function trashFolderWithUndo(
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
 		console.error( '[desktop-mode] deleteFolder failed:', err );
+		showTrashErrorToast( err );
 		void rest.listPlacements( parentId ).then( ( res ) => {
 			filesStoreApi.setFolderPlacements( parentId, res.placements );
 		} );
