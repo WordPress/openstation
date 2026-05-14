@@ -29,6 +29,10 @@ import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
+import {
+	loadNativeWindowGeometry,
+	saveNativeWindowGeometry,
+} from './window-manager/native-window-geometry';
 import type { SystemDockItem } from './dock';
 import type {
 	NativeRenderContext,
@@ -866,6 +870,28 @@ export function createNativeWindowSync(
 	// Always reflects the most recent sync.
 	const entriesById = new Map< string, NativeWindowServerEntry >();
 
+	/**
+	 * Resolve the size to open a native window at, preferring the
+	 * user's last manually-resized dimensions over the registered
+	 * defaults. Clamps to the registered `minWidth` / `minHeight` so
+	 * a stale entry from a wider-minimum version of a plugin can't
+	 * open the window smaller than the plugin currently allows.
+	 *
+	 * @since 0.8.5
+	 */
+	const resolveSizeForEntry = (
+		entry: NativeWindowServerEntry,
+	): { width: number; height: number } => {
+		const saved = loadNativeWindowGeometry( entry.id );
+		if ( ! saved ) {
+			return { width: entry.width, height: entry.height };
+		}
+		return {
+			width: Math.max( saved.width, entry.minWidth ),
+			height: Math.max( saved.height, entry.minHeight ),
+		};
+	};
+
 	const ensureTemplate = ( entry: NativeWindowServerEntry ): void => {
 		if ( injectedTemplates.has( entry.templateId ) ) {
 			return;
@@ -996,6 +1022,8 @@ export function createNativeWindowSync(
 			return render?.( body, ctx );
 		};
 
+		const size = resolveSizeForEntry( entry );
+
 		void manager.open( {
 			id: entry.id,
 			baseId: entry.id,
@@ -1005,8 +1033,8 @@ export function createNativeWindowSync(
 			icon: entry.icon,
 			x: 0,
 			y: 0,
-			width: entry.width,
-			height: entry.height,
+			width: size.width,
+			height: size.height,
 			minWidth: entry.minWidth,
 			minHeight: entry.minHeight,
 			render: finalRender,
@@ -1032,6 +1060,8 @@ export function createNativeWindowSync(
 			return render?.( body, ctx );
 		};
 
+		const size = resolveSizeForEntry( entry );
+
 		void manager.openNew( {
 			id: entry.id,
 			baseId: entry.id,
@@ -1039,8 +1069,8 @@ export function createNativeWindowSync(
 			url: `#${ entry.id }`,
 			title: entry.title,
 			icon: entry.icon,
-			width: entry.width,
-			height: entry.height,
+			width: size.width,
+			height: size.height,
 			minWidth: entry.minWidth,
 			minHeight: entry.minHeight,
 			render: finalRender,
@@ -1161,6 +1191,45 @@ export function createNativeWindowSync(
 		openNewFromEntry( entry );
 		return true;
 	};
+
+	// Persist the user's manually-resized size for native windows so
+	// the next open lands at the same dimensions instead of the
+	// plugin-author defaults. WINDOW_RESIZE_END only fires from the
+	// pointer-drag resize handler, so programmatic re-tiles
+	// (arrange.ts / snap-zones.ts) don't poison the persisted size.
+	//
+	// Skipped for non-normal states: a snap-zone tile (left half,
+	// quarter, …) isn't the user saying "this is my preferred size",
+	// it's a temporary layout intent. Restoring those on next open
+	// would defeat the purpose.
+	addAction(
+		HOOKS.WINDOW_RESIZE_END,
+		'desktop-mode-native-window-geometry',
+		( payload: unknown ) => {
+			const p = payload as
+				| { windowId?: string; width?: number; height?: number }
+				| null;
+			const windowId = p?.windowId;
+			const width = p?.width;
+			const height = p?.height;
+			if (
+				! windowId ||
+				typeof width !== 'number' ||
+				typeof height !== 'number'
+			) {
+				return;
+			}
+			const win = manager.getById( windowId );
+			if ( ! win || ! win.config.native ) {
+				return;
+			}
+			if ( win.state !== 'normal' ) {
+				return;
+			}
+			const baseId = win.config.baseId || win.id;
+			saveNativeWindowGeometry( baseId, { width, height } );
+		},
+	);
 
 	return { sync, openById, openNewById };
 }

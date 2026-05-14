@@ -60,6 +60,15 @@ desktop_mode_register_window( 'jorvy', array(
     'styles'         => array( 'jorvy-panel' ),
 
     // Optional window defaults. Overridable per-open via the JS API.
+    // `width` / `height` are the size used the very first time a user
+    // opens this window. From then on, the shell remembers the last
+    // size the user dragged the window to (per baseId, in
+    // localStorage under `desktop-mode-native-window-geometry`) and
+    // reopens at that size — clamped to `min_width` / `min_height`
+    // so raising the minimum in a plugin update never reopens at the
+    // older smaller size. Snapped / maximized / fullscreen sizes are
+    // not persisted; only sizes the user picks by dragging the resize
+    // handle in the normal floating state.
     'width'          => 420,
     'height'         => 320,
     'min_width'      => 320,
