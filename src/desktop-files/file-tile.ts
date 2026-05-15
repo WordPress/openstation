@@ -23,6 +23,7 @@ import { renderIcon } from '../icon';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
 import { showToast } from '../toast';
+import { applyTileEntryStagger } from '../utils';
 import type { RestPlacementShape } from './rest';
 
 /** CSS class on every tile. */
@@ -161,6 +162,8 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 		lock.setAttribute( 'aria-hidden', 'true' );
 		tile.appendChild( lock );
 	}
+
+	applyTileEntryStagger( tile );
 
 	doAction( 'desktop-mode.files.tile-rendered', { tile, placement } );
 	return tile;

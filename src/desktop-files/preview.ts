@@ -732,7 +732,10 @@ function renderLoading(): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'desktop-mode-my-wordpress__preview-loading';
 	const spinner = document.createElement( 'wpd-spinner' );
-	spinner.setAttribute( 'size', '128' );
+	// Size driven by the shared
+	// `.desktop-mode-my-wordpress__preview-loading wpd-spinner` rule
+	// in `assets/css/my-wordpress.css` so the wallpaper-preview loader
+	// stays in lockstep with the My WordPress one.
 	wrap.appendChild( spinner );
 	return wrap;
 }

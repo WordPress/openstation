@@ -383,12 +383,29 @@ export interface PostsWindowClient {
 		taxonomy: 'categories' | 'tags',
 		params?: TermsListParams,
 	): Promise< TermsListPage >;
+	fetchTagCooccurrence(
+		taxonomy?: 'tags' | 'categories',
+		limit?: number,
+	): Promise< Map< number, TermNeighbor[] > >;
 	updateTerm(
 		taxonomy: 'categories' | 'tags',
 		id: number,
 		patch: Partial< Pick< TermRow, 'name' | 'slug' | 'description' | 'parent' > >,
 	): Promise< TermRow >;
 	deleteTerm( taxonomy: 'categories' | 'tags', id: number ): Promise< void >;
+}
+
+/**
+ * One co-occurring sibling term as reported by
+ * `/desktop-mode/v1/tag-cooccurrence`. `shared` is the number of
+ * posts the two terms share.
+ *
+ * @public
+ * @since 0.8.5
+ */
+export interface TermNeighbor {
+	id: number;
+	shared: number;
 }
 
 /**
@@ -844,6 +861,59 @@ export function createPostsWindowClient(
 		};
 	};
 
+	const fetchTagCooccurrence = async (
+		taxonomy: 'tags' | 'categories' = 'tags',
+		limit = 8,
+	): Promise< Map< number, TermNeighbor[] > > => {
+		const cfg = getConfig();
+		const url = new URL(
+			joinRestUrl(
+				cfg.restRoot,
+				'desktop-mode/v1/tag-cooccurrence',
+			),
+		);
+		// Server speaks WP taxonomy slugs, not the wp/v2 plural form.
+		url.searchParams.set(
+			'taxonomy',
+			taxonomy === 'tags' ? 'post_tag' : 'category',
+		);
+		url.searchParams.set( 'limit', String( limit ) );
+		const { data } = await request<
+			{ pairs?: Record< string, TermNeighbor[] > } | TermNeighbor[]
+		>( url.toString(), { method: 'GET' } );
+		const out = new Map< number, TermNeighbor[] >();
+		const pairs =
+			data && typeof data === 'object' && ! Array.isArray( data )
+				? data.pairs
+				: undefined;
+		if ( ! pairs ) {
+			return out;
+		}
+		for ( const [ key, neighbors ] of Object.entries( pairs ) ) {
+			const id = parseInt( key, 10 );
+			if ( ! Number.isFinite( id ) || id <= 0 ) {
+				continue;
+			}
+			const clean: TermNeighbor[] = [];
+			for ( const raw of neighbors ) {
+				const nid = Number( raw?.id );
+				const sh = Number( raw?.shared );
+				if (
+					Number.isFinite( nid ) &&
+					nid > 0 &&
+					Number.isFinite( sh ) &&
+					sh > 0
+				) {
+					clean.push( { id: nid, shared: sh } );
+				}
+			}
+			if ( clean.length > 0 ) {
+				out.set( id, clean );
+			}
+		}
+		return out;
+	};
+
 	const updateTerm = async (
 		taxonomy: 'categories' | 'tags',
 		id: number,
@@ -905,6 +975,7 @@ export function createPostsWindowClient(
 		createCategory,
 		updatePostCategories,
 		fetchTerms,
+		fetchTagCooccurrence,
 		updateTerm,
 		deleteTerm,
 	};

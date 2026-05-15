@@ -228,6 +228,24 @@ export async function mountCategoriesMindmap(
 	recenterBtn.innerHTML =
 		'<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>' +
 		__( 'Recenter' );
+	// Fuzzy-search input. Wired below, after `nodes` + `focusNode`
+	// exist; the DOM lives here so the toolbar paints with the box in
+	// place from the first frame.
+	const searchWrap = document.createElement( 'div' );
+	searchWrap.className = 'wpd-mindmap__search';
+	const searchInput = document.createElement( 'input' );
+	searchInput.type = 'search';
+	searchInput.className = 'wpd-mindmap__search-input';
+	searchInput.placeholder = __( 'Search categories…' );
+	searchInput.setAttribute(
+		'aria-label',
+		__( 'Search categories in the mindmap' ),
+	);
+	searchWrap.appendChild( searchInput );
+	const searchResults = document.createElement( 'ul' );
+	searchResults.className = 'wpd-mindmap__search-results';
+	searchResults.hidden = true;
+	searchWrap.appendChild( searchResults );
 	const hint = document.createElement( 'span' );
 	hint.className = 'wpd-mindmap__hint';
 	hint.textContent = __(
@@ -235,6 +253,7 @@ export async function mountCategoriesMindmap(
 	);
 	toolbar.appendChild( addRootBtn );
 	toolbar.appendChild( recenterBtn );
+	toolbar.appendChild( searchWrap );
 	toolbar.appendChild( hint );
 	host.appendChild( toolbar );
 
@@ -2886,6 +2905,142 @@ export async function mountCategoriesMindmap(
 	// only Uncategorized exists AND removes it the moment a new
 	// root category is created (no F5 needed).
 
+	// --- Search wiring ------------------------------------------------
+	// Case-insensitive substring match on node name, top 10 by post
+	// count. Selecting a result (mouse OR keyboard) delegates to the
+	// existing `focusNode` (pan + zoom + sidebar). DOM was created
+	// with the toolbar above so the input is visible from the first
+	// frame.
+	//
+	// Keyboard nav: ArrowDown/ArrowUp move the highlight, Enter
+	// activates it, Escape clears. Mouse hover also moves the
+	// highlight so keyboard + mouse don't fight.
+	//
+	// Mousedown (not click) on the result + preventDefault keeps focus
+	// on the input — otherwise the button steals focus and the input's
+	// own blur fires, which used to race with the click and sometimes
+	// hide the dropdown before the click handler ran.
+	let currentMatches: MindNode[] = [];
+	let selectedIndex = 0;
+	const repaintHighlight = (): void => {
+		const items = searchResults.querySelectorAll< HTMLButtonElement >(
+			'.wpd-mindmap__search-result',
+		);
+		items.forEach( ( el, i ) => {
+			const active = i === selectedIndex;
+			el.classList.toggle( 'is-active', active );
+			if ( active ) {
+				el.scrollIntoView( { block: 'nearest' } );
+			}
+		} );
+	};
+	const selectMatch = ( n: MindNode ): void => {
+		searchInput.value = '';
+		searchResults.hidden = true;
+		searchResults.replaceChildren();
+		currentMatches = [];
+		selectedIndex = 0;
+		void focusNode( n.id );
+	};
+	const renderSearchResults = (): void => {
+		const q = searchInput.value.trim().toLowerCase();
+		if ( q.length === 0 ) {
+			searchResults.hidden = true;
+			searchResults.replaceChildren();
+			currentMatches = [];
+			selectedIndex = 0;
+			return;
+		}
+		currentMatches = Array.from( nodes.values() )
+			.filter( ( n ) => n.name.toLowerCase().includes( q ) )
+			.sort( ( a, b ) => b.count - a.count )
+			.slice( 0, 10 );
+		selectedIndex = 0;
+		searchResults.replaceChildren();
+		currentMatches.forEach( ( n, i ) => {
+			const li = document.createElement( 'li' );
+			const btn = document.createElement( 'button' );
+			btn.type = 'button';
+			btn.className = 'wpd-mindmap__search-result';
+			if ( i === 0 ) {
+				btn.classList.add( 'is-active' );
+			}
+			const nameEl = document.createElement( 'span' );
+			nameEl.className = 'wpd-mindmap__search-title';
+			nameEl.textContent = n.name || `#${ n.id }`;
+			const countEl = document.createElement( 'span' );
+			countEl.className = 'wpd-mindmap__search-meta';
+			countEl.textContent = sprintf(
+				/* translators: %d: number of posts assigned to a category. */
+				__( '%d posts' ),
+				n.count,
+			);
+			btn.appendChild( nameEl );
+			btn.appendChild( countEl );
+			btn.addEventListener( 'mousedown', ( ev ) => {
+				ev.preventDefault();
+				selectMatch( n );
+			} );
+			btn.addEventListener( 'mouseenter', () => {
+				selectedIndex = i;
+				repaintHighlight();
+			} );
+			li.appendChild( btn );
+			searchResults.appendChild( li );
+		} );
+		searchResults.hidden = currentMatches.length === 0;
+	};
+	searchInput.addEventListener( 'input', renderSearchResults );
+	searchInput.addEventListener( 'focus', renderSearchResults );
+	searchInput.addEventListener( 'keydown', ( ev ) => {
+		if ( ev.key === 'ArrowDown' ) {
+			if ( currentMatches.length === 0 ) {
+				return;
+			}
+			ev.preventDefault();
+			selectedIndex = Math.min(
+				selectedIndex + 1,
+				currentMatches.length - 1,
+			);
+			repaintHighlight();
+		} else if ( ev.key === 'ArrowUp' ) {
+			if ( currentMatches.length === 0 ) {
+				return;
+			}
+			ev.preventDefault();
+			selectedIndex = Math.max( selectedIndex - 1, 0 );
+			repaintHighlight();
+		} else if ( ev.key === 'Enter' ) {
+			if ( currentMatches.length === 0 ) {
+				return;
+			}
+			ev.preventDefault();
+			selectMatch( currentMatches[ selectedIndex ] );
+		} else if ( ev.key === 'Escape' ) {
+			searchInput.value = '';
+			searchResults.hidden = true;
+			searchResults.replaceChildren();
+			currentMatches = [];
+			selectedIndex = 0;
+		}
+	} );
+	searchInput.addEventListener( 'blur', () => {
+		// Delayed so any mousedown on a result still fires its handler
+		// before the dropdown vanishes. Mousedown+preventDefault keeps
+		// focus on the input so this blur normally won't even fire on
+		// result clicks, but this remains the dismiss path for "click
+		// somewhere else / tab away".
+		setTimeout( () => {
+			searchResults.hidden = true;
+		}, 120 );
+	} );
+	const onDocClickSearch = ( ev: Event ): void => {
+		if ( ! searchWrap.contains( ev.target as Node ) ) {
+			searchResults.hidden = true;
+		}
+	};
+	document.addEventListener( 'click', onDocClickSearch );
+
 	// --- Teardown -----------------------------------------------------
 	return () => {
 		if ( raf !== null ) {
@@ -2898,6 +3053,7 @@ export async function mountCategoriesMindmap(
 		}
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
+		document.removeEventListener( 'click', onDocClickSearch );
 		try {
 			app.destroy( true, { children: true, texture: true } );
 		} catch {

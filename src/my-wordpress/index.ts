@@ -85,6 +85,7 @@ import type {
 	UserFootprint,
 	UserListItem,
 } from './types';
+import { applyTileEntryStagger } from '../utils';
 import '../ui/components/wpd-button/wpd-button';
 import '../ui/components/wpd-context-menu/wpd-context-menu';
 import '../ui/components/wpd-spinner/wpd-spinner';
@@ -537,6 +538,8 @@ function buildIconTile( spec: {
 	label.textContent = spec.label;
 	tile.appendChild( label );
 
+	applyTileEntryStagger( tile );
+
 	return tile;
 }
 
@@ -690,7 +693,7 @@ function renderEntityList(
 		ctx.loading = true;
 		const nextPage = ctx.page + 1;
 		const isFirst = nextPage === 1;
-		showSpinner( tiles, isFirst );
+		showLoadingSkeleton( tiles, ctx.layout, isFirst );
 		try {
 			const result = await fetchEntityList( entity, {
 				page: nextPage,
@@ -699,7 +702,7 @@ function renderEntityList(
 			ctx.page = nextPage;
 			ctx.totalPages = result.totalPages;
 			ctx.total = result.total;
-			hideSpinner( tiles );
+			hideLoadingSkeleton( tiles );
 			if ( result.items.length === 0 && isFirst ) {
 				renderListEmpty( tiles, entity );
 				ctx.done = true;
@@ -715,7 +718,7 @@ function renderEntityList(
 			}
 			repaintListStatus();
 		} catch ( err ) {
-			hideSpinner( tiles );
+			hideLoadingSkeleton( tiles );
 			const msg =
 				err instanceof Error ? err.message : __( 'Unknown error.', 'desktop-mode' );
 			renderListError( tiles, msg );
@@ -776,25 +779,91 @@ function renderListError( host: HTMLElement, message: string ): void {
 	host.appendChild( err );
 }
 
-function showSpinner( host: HTMLElement, isFirst: boolean ): void {
-	const id = isFirst
-		? 'desktop-mode-my-wordpress__spinner--first'
-		: 'desktop-mode-my-wordpress__spinner--more';
-	if ( host.querySelector( `[data-spinner="${ id }"]` ) ) {
-		return;
-	}
-	const wrap = document.createElement( 'div' );
-	wrap.dataset.spinner = id;
-	wrap.className = isFirst
-		? 'desktop-mode-my-wordpress__spinner desktop-mode-my-wordpress__spinner--first'
-		: 'desktop-mode-my-wordpress__spinner';
-	const spinner = document.createElement( 'wpd-spinner' );
-	wrap.appendChild( spinner );
-	host.appendChild( wrap );
+/**
+ * Build a single placeholder tile that mirrors the real
+ * `.desktop-mode-file-tile` silhouette (icon block + label rect).
+ * The icon and label fill animate as a shimmering gradient — see
+ * `desktop-mode-my-wordpress-skeleton-shimmer` in
+ * `assets/css/my-wordpress.css`.
+ */
+function buildSkeletonTile( variant: 'first' | 'more' ): HTMLElement {
+	const tile = document.createElement( 'div' );
+	tile.className = 'desktop-mode-my-wordpress__skeleton-tile';
+	tile.dataset.loadingSkeleton = variant;
+	tile.setAttribute( 'aria-hidden', 'true' );
+	const icon = document.createElement( 'div' );
+	icon.className = 'desktop-mode-my-wordpress__skeleton-icon';
+	tile.appendChild( icon );
+	const label = document.createElement( 'div' );
+	label.className = 'desktop-mode-my-wordpress__skeleton-label';
+	tile.appendChild( label );
+	return tile;
 }
 
-function hideSpinner( host: HTMLElement ): void {
-	host.querySelectorAll( '[data-spinner]' ).forEach( ( n ) => n.remove() );
+/**
+ * Paint placeholder tiles into the same column-major slots the next
+ * batch of real tiles will fill. Two contexts share the helper:
+ *
+ *   - `first` — empty canvas, first page about to land. Eight
+ *     placeholders cover the top rows of the pane so the user sees
+ *     a partial grid forming rather than a single floating mark.
+ *   - `more` — infinite-scroll, a few more pages coming. Four
+ *     placeholders extend the existing grid from the next free
+ *     cell, so the user can scroll past the real tiles and see
+ *     exactly where the next ones will arrive.
+ *
+ * Each placeholder is `position: absolute` at the layout-derived
+ * (x, y) and carries `data-loading-skeleton="<variant>"`, both for
+ * dedup-on-show and bulk removal in `hideLoadingSkeleton`. We also
+ * bump the canvas's `min-height` so any skeleton placed past the
+ * last real tile is reachable by the scroll container — without
+ * this, "more"-variant skeletons painted into the next row sit in
+ * unscrollable territory and the user never sees them.
+ *
+ * Label widths and shimmer delays vary across a small palette so a
+ * row of placeholders reads as a soft cascade, not a uniform pulse.
+ */
+const SKELETON_LABEL_WIDTHS = [ 72, 60, 82, 48, 70 ];
+const SKELETON_DELAY_STEPS = [ 0, 0.18, 0.36, 0.54, 0.12 ];
+
+function showLoadingSkeleton(
+	host: HTMLElement,
+	layout: TileLayout,
+	isFirst: boolean,
+): void {
+	const variant: 'first' | 'more' = isFirst ? 'first' : 'more';
+	if ( host.querySelector( `[data-loading-skeleton="${ variant }"]` ) ) {
+		return;
+	}
+	const count = isFirst ? 8 : 4;
+	const cells = layout.peekNextCells( count );
+	let maxBottom = parseFloat( host.style.minHeight || '0' );
+	cells.forEach( ( cell, i ) => {
+		const tile = buildSkeletonTile( variant );
+		tile.style.left = `${ cell.x }px`;
+		tile.style.top = `${ cell.y }px`;
+		tile.style.setProperty(
+			'--desktop-mode-skeleton-delay',
+			`${ SKELETON_DELAY_STEPS[ i % SKELETON_DELAY_STEPS.length ] }s`,
+		);
+		const label = tile.querySelector< HTMLElement >(
+			'.desktop-mode-my-wordpress__skeleton-label',
+		);
+		if ( label ) {
+			label.style.width = `${
+				SKELETON_LABEL_WIDTHS[ i % SKELETON_LABEL_WIDTHS.length ]
+			}%`;
+		}
+		host.appendChild( tile );
+		maxBottom = Math.max( maxBottom, cell.y + TILE_H );
+	} );
+	host.style.minHeight = `${ maxBottom + TILE_PAD }px`;
+}
+
+function hideLoadingSkeleton( host: HTMLElement ): void {
+	host.querySelectorAll( '[data-loading-skeleton]' ).forEach( ( n ) =>
+		n.remove(),
+	);
 }
 
 function buildEntityTile(
@@ -1067,13 +1136,17 @@ async function renderPreview(
  * Replace the preview pane content with a centered, large spinner.
  * Reused by every code path that fetches preview data
  * (post select, sub-list selection, detail-view post hydration).
+ *
+ * Size is driven by the `--wpd-spinner-size` custom property on
+ * `.desktop-mode-my-wordpress__preview-loading wpd-spinner` (see
+ * `assets/css/my-wordpress.css`) so a single CSS knob retunes
+ * every preview spinner without rebuilding the JS bundle.
  */
 function showPreviewLoading( host: HTMLElement ): void {
 	host.replaceChildren();
 	const loading = document.createElement( 'div' );
 	loading.className = 'desktop-mode-my-wordpress__preview-loading';
 	const spinner = document.createElement( 'wpd-spinner' );
-	spinner.setAttribute( 'size', '128' );
 	loading.appendChild( spinner );
 	host.appendChild( loading );
 }
@@ -1242,18 +1315,19 @@ function renderDetail(
 	state.teardown.push( () => menu.dispose() );
 	state.teardown.push( () => layout.dispose() );
 
-	// Show a placeholder tile-grid spinner while we load the post.
-	const spinnerWrap = document.createElement( 'div' );
-	spinnerWrap.className = 'desktop-mode-my-wordpress__spinner';
-	spinnerWrap.appendChild( document.createElement( 'wpd-spinner' ) );
-	tiles.appendChild( spinnerWrap );
+	// Tile-grid skeleton while we load the post. Same `first`
+	// treatment the entity-list view uses for its first page load:
+	// placeholder tiles fill the slots the related-entity folder
+	// tiles are about to land in, so the user sees the spatial
+	// shape of what's coming instead of a disembodied spinner mark.
+	showLoadingSkeleton( tiles, layout, true );
 
 	void ( async () => {
 		let detail: EntityDetail;
 		try {
 			detail = await fetchEntityDetail( entity, postId );
 		} catch ( err ) {
-			tiles.removeChild( spinnerWrap );
+			hideLoadingSkeleton( tiles );
 			renderListError(
 				tiles,
 				err instanceof Error
@@ -1272,7 +1346,7 @@ function renderDetail(
 			return;
 		}
 
-		tiles.removeChild( spinnerWrap );
+		hideLoadingSkeleton( tiles );
 
 		const select = createTileSelector();
 
@@ -1546,10 +1620,10 @@ function renderSubList(
 	state.teardown.push( () => menu.dispose() );
 	state.teardown.push( () => layout.dispose() );
 
-	const spinnerWrap = document.createElement( 'div' );
-	spinnerWrap.className = 'desktop-mode-my-wordpress__spinner';
-	spinnerWrap.appendChild( document.createElement( 'wpd-spinner' ) );
-	tiles.appendChild( spinnerWrap );
+	// Empty-canvas skeleton for the sub-list pane — same `first`
+	// treatment the entity-list and detail views use, so every
+	// "tiles are about to appear" state reads with the same shape.
+	showLoadingSkeleton( tiles, layout, true );
 
 	paintStatus(
 		state,
@@ -1569,7 +1643,7 @@ function renderSubList(
 		try {
 			items = await loadSubItems( entity, postId, relation );
 		} catch ( err ) {
-			tiles.removeChild( spinnerWrap );
+			hideLoadingSkeleton( tiles );
 			renderListError(
 				tiles,
 				err instanceof Error
@@ -1587,7 +1661,7 @@ function renderSubList(
 			return;
 		}
 
-		tiles.removeChild( spinnerWrap );
+		hideLoadingSkeleton( tiles );
 
 		paintStatus(
 			state,
@@ -3370,7 +3444,7 @@ function renderUserEntityList(
 		ctx.loading = true;
 		const nextPage = ctx.page + 1;
 		const isFirst = nextPage === 1;
-		showSpinner( tiles, isFirst );
+		showLoadingSkeleton( tiles, ctx.layout, isFirst );
 		try {
 			const result = await fetchUserList( entity, {
 				page: nextPage,
@@ -3379,7 +3453,7 @@ function renderUserEntityList(
 			ctx.page = nextPage;
 			ctx.totalPages = result.totalPages;
 			ctx.total = result.total;
-			hideSpinner( tiles );
+			hideLoadingSkeleton( tiles );
 			if ( result.items.length === 0 && isFirst ) {
 				renderListEmptyMessage(
 					tiles,
@@ -3400,7 +3474,7 @@ function renderUserEntityList(
 			}
 			repaintListStatus();
 		} catch ( err ) {
-			hideSpinner( tiles );
+			hideLoadingSkeleton( tiles );
 			const msg =
 				err instanceof Error
 					? err.message
@@ -4841,6 +4915,14 @@ interface TileLayout {
 	sort: ( mode: SortMode ) => void;
 	/** Re-flow auto-placed tiles to the current canvas width. */
 	reflow: () => void;
+	/**
+	 * Compute the next N column-major free cells in canvas-pixel
+	 * coords WITHOUT claiming them in the layout's occupied set.
+	 * Used by the loading skeleton so placeholders land in the same
+	 * slots the next batch of real tiles will fill — keeping the
+	 * "where the next icons go" promise honest.
+	 */
+	peekNextCells: ( count: number ) => Array< { x: number; y: number } >;
 	dispose: () => void;
 }
 
@@ -5126,6 +5208,47 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 		resizeObserver.observe( host );
 	}
 
+	/**
+	 * Walk the same column-major auto-flow `place()` uses, starting
+	 * from the cells the layout already considers occupied, and
+	 * return the next `count` (x, y) coordinates without recording
+	 * a claim. The loading-skeleton helper uses this so a 4-page
+	 * "load more" run paints 4 placeholders into the four cells the
+	 * next four real tiles will actually fill — wrapping to the
+	 * next row when the current one runs out.
+	 */
+	const peekNextCells = (
+		count: number,
+	): Array< { x: number; y: number } > => {
+		const width =
+			host.clientWidth > 0
+				? host.clientWidth
+				: TILE_PAD + 5 * TILE_W;
+		const cols = Math.max(
+			1,
+			Math.floor( ( width - TILE_PAD ) / TILE_W ),
+		);
+		const taken = new Set< string >( occupied );
+		const out: Array< { x: number; y: number } > = [];
+		for ( let i = 0; i < count; i += 1 ) {
+			for ( let n = 0; ; n += 1 ) {
+				const col = n % cols;
+				const row = Math.floor( n / cols );
+				const key = `${ col },${ row }`;
+				if ( taken.has( key ) ) {
+					continue;
+				}
+				taken.add( key );
+				out.push( {
+					x: TILE_PAD + col * TILE_W,
+					y: TILE_PAD + row * TILE_H,
+				} );
+				break;
+			}
+		}
+		return out;
+	};
+
 	return {
 		host,
 		scope,
@@ -5133,6 +5256,7 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 		commit,
 		sort,
 		reflow,
+		peekNextCells,
 		dispose: () => {
 			resizeObserver?.disconnect();
 			resizeObserver = null;

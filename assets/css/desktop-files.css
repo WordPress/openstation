@@ -120,6 +120,37 @@
 	-webkit-user-select: none;
 	user-select: none;
 	touch-action: none;
+	/* Soft fade-in on mount — each tile carries its own randomised
+	 * `--enter-delay` / `--enter-duration` (set inline by the
+	 * tile builder), so a freshly-painted grid reads as a cascade
+	 * rather than a synchronised pop-in. Both values land in the
+	 * decimal-of-a-second range — perceivable, never sluggish.
+	 *
+	 * `backwards` keeps the tile invisible during its delay so the
+	 * cascade is honest; the animation runs once, leaves the tile
+	 * at its static `opacity: 1`, and never re-fires from later
+	 * state changes (drag, hover, drop-target).
+	 */
+	animation: desktop-mode-file-tile-enter
+		var( --desktop-mode-file-tile-enter-duration, 0.4s )
+		ease-out
+		var( --desktop-mode-file-tile-enter-delay, 0s )
+		backwards;
+}
+
+@keyframes desktop-mode-file-tile-enter {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-file-tile {
+		animation: none;
+	}
 }
 
 .desktop-mode-file-tile:hover,
