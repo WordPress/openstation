@@ -192,6 +192,7 @@ export const DEFAULTS: OsSettingsState = {
 	foldersSharingEnabled: true,
 	itemVisibility: {},
 	dockOrder: [],
+	dockPromotedPositions: {},
 };
 
 /**

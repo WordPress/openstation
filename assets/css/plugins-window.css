@@ -995,3 +995,43 @@
 wpd-table[ data-installed-rows ]::part( row ) {
 	cursor: pointer;
 }
+
+/* ─── Featured tab ─────────────────────────────────────────────── */
+
+.desktop-mode-plugins__featured {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	flex: 1 1 auto;
+}
+
+.desktop-mode-plugins__featured-intro {
+	padding: 20px 20px 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.desktop-mode-plugins__featured-heading {
+	margin: 0;
+	font-size: 1.15em;
+	font-weight: 600;
+}
+
+.desktop-mode-plugins__featured-blurb {
+	margin: 0;
+	color: var( --wpd-fg-muted, #666 );
+	font-size: 0.9em;
+	line-height: 1.45;
+}
+
+/* Curated cards get a soft inset border + a `<wpd-ribbon>` stamped
+ * onto the top-end corner. The card host carries `position: relative`
+ * so the ribbon's `position: absolute` anchors to the card itself,
+ * not to whatever positioned ancestor lives further out. The ribbon
+ * owns its own clipping geometry; nothing else here needs to know
+ * about the diagonal. */
+.desktop-mode-plugins__card--featured {
+	position: relative;
+	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 ) inset;
+}

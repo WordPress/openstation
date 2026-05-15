@@ -463,6 +463,28 @@ export async function fetchPluginInfo( slug: string ): Promise< WpOrgPluginInfo 
 	return ajaxRequest< WpOrgPluginInfo >( 'desktop_mode_plugins_info', { slug } );
 }
 
+/**
+ * Card payload for the Featured tab. Same shape as a Browse card plus
+ * a `featured` boolean — true when the row came from the curated seed
+ * list, false when auto-discovered from wp.org's `requires_plugins`.
+ */
+export interface FeaturedPlugin extends WpOrgBrowsePlugin {
+	featured?: boolean;
+	requires_plugins?: string[];
+}
+
+/**
+ * Fetch the curated + auto-discovered list of plugins that integrate
+ * with Desktop Mode. Backed by a 1h server-side transient — repeat
+ * calls within that window return the same payload.
+ */
+export async function fetchFeaturedPlugins(): Promise< {
+	plugins: FeaturedPlugin[];
+	info: { curated?: number; discovered?: number; results?: number };
+} > {
+	return ajaxRequest( 'desktop_mode_plugins_featured' );
+}
+
 /** Fetch (cached) recent reviews for a slug — falls back to histogram on parse failure. */
 export async function fetchPluginReviews(
 	slug: string,

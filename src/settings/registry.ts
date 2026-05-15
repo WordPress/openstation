@@ -140,6 +140,17 @@ export interface OsSettingsSnapshot {
 	 * @since 0.25.0
 	 */
 	dockOrder: string[];
+	/**
+	 * Persisted desktop position (in CSS px) for every dock item the
+	 * user has promoted onto the wallpaper. Keyed by dock-item id.
+	 * Missing keys mean "no override" — the synth placement falls
+	 * back to the default grid slot. See
+	 * {@link OsSettingsState.dockPromotedPositions} for the source
+	 * field.
+	 *
+	 * @since 0.20.0
+	 */
+	dockPromotedPositions: Record< string, { x: number; y: number } >;
 }
 
 export interface SettingsTabRenderCtx {

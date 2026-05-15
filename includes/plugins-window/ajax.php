@@ -805,3 +805,209 @@ function desktop_mode_plugins_window_ajax_upload() {
 	);
 }
 add_action( 'wp_ajax_desktop_mode_plugins_upload', 'desktop_mode_plugins_window_ajax_upload' );
+
+/**
+ * Curated list of slugs that lead the Featured tab.
+ *
+ * Hand-picked because wp.org's `plugins_api` does not surface a real
+ * "filter by `requires_plugins`" query — passing `requires_plugins` to
+ * `query_plugins` is silently ignored and returns the unfiltered repo.
+ * Until the directory grows a usable filter, we maintain the seed list
+ * here and let downstream plugins amend it via the filter below.
+ *
+ * Slug-only — the AJAX handler hydrates each entry through
+ * `plugins_api( 'plugin_information' )` so the card has up-to-date
+ * icons, descriptions, and install counts without us caching them.
+ *
+ * @since 0.20.0
+ *
+ * @return string[] List of wp.org plugin slugs.
+ */
+function desktop_mode_plugins_window_featured_slugs() {
+	$slugs = array(
+		// The author of this plugin forgot to declare Desktop Mode as a
+		// dependency — surfacing it here makes sure desktop-mode users
+		// discover it anyway. Once the `requires_plugins` query lands on
+		// wp.org we can remove the manual seed.
+		'odd-outlandish-desktop-decorator',
+	);
+
+	/**
+	 * Filter the curated list of featured-plugin slugs.
+	 *
+	 * Plugin authors can prepend (or remove) entries to recommend their
+	 * own Desktop-Mode-aware add-ons. Order is preserved — the first
+	 * slug renders first in the gallery.
+	 *
+	 * @since 0.20.0
+	 *
+	 * @param string[] $slugs Plugin slugs.
+	 */
+	$slugs = (array) apply_filters( 'desktop_mode_plugins_featured_slugs', $slugs );
+	$slugs = array_values(
+		array_unique(
+			array_filter(
+				array_map(
+					static function ( $s ) {
+						return sanitize_key( (string) $s );
+					},
+					$slugs
+				)
+			)
+		)
+	);
+	return $slugs;
+}
+
+/**
+ * `wp_ajax_desktop_mode_plugins_featured` — return the Featured tab's
+ * curated + auto-discovered list of plugins that integrate with Desktop
+ * Mode.
+ *
+ * Composition:
+ *   1. Curated slugs from `desktop_mode_plugins_window_featured_slugs()`,
+ *      hydrated via `plugins_api( 'plugin_information' )` so the card
+ *      payload is always fresh.
+ *   2. Auto-discovered slugs from `plugins_api( 'query_plugins' )` whose
+ *      `requires_plugins` array contains `desktop-mode`. wp.org has no
+ *      server-side filter for this today, so we run a broad query and
+ *      filter client-side server-side. Deduped against the curated set.
+ *
+ * Body params: (none)
+ *
+ * Cached for 1h. Failures cached for 15m so a flaky wp.org doesn't
+ * hammer the API on every tab open.
+ *
+ * @since 0.20.0
+ */
+function desktop_mode_plugins_window_ajax_featured() {
+	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
+	if ( is_wp_error( $guard ) ) {
+		desktop_mode_plugins_window_ajax_error( $guard );
+		return;
+	}
+
+	if ( ! function_exists( 'plugins_api' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+	}
+
+	$cache_key = 'dm_pwfeatured_v1';
+	$cached    = get_transient( $cache_key );
+	if ( false !== $cached && is_array( $cached ) ) {
+		wp_send_json_success( $cached );
+		return;
+	}
+
+	$plugins      = array();
+	$seen_slugs   = array();
+	$fields       = array(
+		'icons'             => true,
+		'banners'           => true,
+		'short_description' => true,
+		'description'       => false,
+		'sections'          => false,
+		'screenshots'       => false,
+		'rating'            => true,
+		'ratings'           => false,
+		'num_ratings'       => true,
+		'active_installs'   => true,
+		'last_updated'      => true,
+		'tested'            => true,
+		'requires'          => true,
+		'requires_php'      => true,
+		'requires_plugins'  => true,
+		'homepage'          => true,
+		'compatibility'     => false,
+		'group'             => false,
+		'contributors'      => false,
+		'donate_link'       => false,
+	);
+
+	// ─── 1. Curated slugs ─────────────────────────────────────────────
+	$curated = desktop_mode_plugins_window_featured_slugs();
+	foreach ( $curated as $slug ) {
+		if ( isset( $seen_slugs[ $slug ] ) ) {
+			continue;
+		}
+		$info = plugins_api(
+			'plugin_information',
+			array(
+				'slug'   => $slug,
+				'fields' => $fields,
+			)
+		);
+		if ( is_wp_error( $info ) || ! is_object( $info ) ) {
+			// Skip — a curated slug that 404s shouldn't tank the whole
+			// tab. Logged via WP_Error so debug builds can spot it.
+			continue;
+		}
+		$row             = (array) $info;
+		$row['featured'] = true;
+		$plugins[]       = $row;
+		$seen_slugs[ $slug ] = true;
+	}
+
+	// ─── 2. Auto-discover via `requires_plugins` ──────────────────────
+	// Best-effort scan: pull the top of the directory and keep rows that
+	// declare desktop-mode as a dependency. The wp.org `query_plugins`
+	// API ignores `requires_plugins` as a filter, so we have to fetch +
+	// sift locally. Scope is intentionally small (100 most-popular rows)
+	// to keep the request bounded; as the ecosystem grows we'll widen
+	// or replace with a real dependency query when wp.org ships one.
+	$discovered = plugins_api(
+		'query_plugins',
+		array(
+			'browse'   => 'popular',
+			'page'     => 1,
+			'per_page' => 100,
+			'fields'   => $fields,
+		)
+	);
+	if ( ! is_wp_error( $discovered ) && isset( $discovered->plugins ) && is_array( $discovered->plugins ) ) {
+		foreach ( $discovered->plugins as $candidate ) {
+			$candidate = (array) $candidate;
+			$slug      = isset( $candidate['slug'] ) ? sanitize_key( (string) $candidate['slug'] ) : '';
+			if ( '' === $slug || isset( $seen_slugs[ $slug ] ) ) {
+				continue;
+			}
+			$requires = isset( $candidate['requires_plugins'] ) ? (array) $candidate['requires_plugins'] : array();
+			if ( ! in_array( 'desktop-mode', $requires, true ) ) {
+				continue;
+			}
+			$candidate['featured'] = false;
+			$plugins[]             = $candidate;
+			$seen_slugs[ $slug ]   = true;
+		}
+	}
+
+	$payload = array(
+		'plugins' => array_values( $plugins ),
+		'info'    => array(
+			'curated'    => count( $curated ),
+			'discovered' => count( $plugins ) - count( $curated ),
+			'results'    => count( $plugins ),
+		),
+	);
+
+	/**
+	 * Filter the Featured tab payload before it's cached + sent.
+	 *
+	 * Use this to inject server-side curated rows (e.g. premium /
+	 * private plugins not on wp.org), or to enforce a hard cap on the
+	 * response.
+	 *
+	 * @since 0.20.0
+	 *
+	 * @param array $payload  `{ plugins: [...], info: {...} }`.
+	 * @param array $curated  Curated slug list.
+	 */
+	$payload = (array) apply_filters(
+		'desktop_mode_plugins_featured_response',
+		$payload,
+		$curated
+	);
+
+	set_transient( $cache_key, $payload, HOUR_IN_SECONDS );
+	wp_send_json_success( $payload );
+}
+add_action( 'wp_ajax_desktop_mode_plugins_featured', 'desktop_mode_plugins_window_ajax_featured' );

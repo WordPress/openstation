@@ -198,6 +198,21 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		}
 		lastFingerprint = fp;
 
+		// Fast path: the common case (single tile dragged within the
+		// same folder) changes only `x` / `y` / `sortOrder` for one or
+		// more existing tiles. Nuking the DOM with `replaceChildren`
+		// for that produces a visible flash that reads to users as
+		// "the desktop just reloaded." When the placement set + every
+		// structural field matches what's already in the DOM, patch
+		// positions in place and bail before the wholesale rebuild.
+		// Falls through to the rebuild for adds, removes, renames,
+		// file-type changes, parent moves, or pin-flag flips — any of
+		// which require the full pinned-slot + drop-target
+		// reconciliation below.
+		if ( tryPatchPositions( list, container, host ) ) {
+			return;
+		}
+
 		// Wholesale rebuild — simplest correct strategy. Plugins that
 		// want stable decorations re-attach via `tile-rendered`.
 		container.replaceChildren();
@@ -391,6 +406,26 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					folderId,
 					placementId: data.placement.id,
 				} );
+				if ( isSyntheticPlacement( data.placement ) ) {
+					// Synthetic placements (dock-item promotions —
+					// negative ids minted by
+					// `settings/desktop-shortcuts-sync.ts`) have no DB
+					// row, so the REST `/files/placements/(?P<id>\d+)`
+					// route can't accept the PATCH. Persist the new
+					// position into `OsSettingsState.dockPromotedPositions`
+					// instead so the synthesizer can restore it on the
+					// next page load — without this write the icon
+					// snaps back to (0, 0) every reload.
+					const dockItemId = readSynthSource( data.placement );
+					if ( dockItemId ) {
+						persistDockPromotedPosition(
+							dockItemId,
+							cell.x,
+							cell.y,
+						);
+					}
+					return;
+				}
 				void rest
 					.updatePlacement(
 						data.placement.id,
@@ -602,6 +637,12 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				sortOrder: i,
 			};
 			filesStoreApi.upsertPlacement( next );
+			if ( isSyntheticPlacement( p ) ) {
+				// No DB row — see the drop-on-canvas note below for the
+				// `\d+`-vs-negative-id reason. Store update above is
+				// enough for the visible sort outcome.
+				return;
+			}
 			void rest
 				.updatePlacement( p.id, { x, y, sortOrder: i } )
 				.catch( ( err: unknown ) => {
@@ -771,6 +812,197 @@ function readSynthSource( placement: RestPlacementShape ): string | null {
 }
 
 /**
+ * Whether `placement` is a synthetic (no DB row) one. Two signals:
+ *   - The `__synthFromDockItem` meta marker — definitive when present.
+ *   - A non-positive id — `settings/desktop-shortcuts-sync.ts` mints
+ *     deterministic negative ids for these, and Core's REST regex on
+ *     `/files/placements/(?P<id>\d+)` only matches positive integers,
+ *     so any non-positive id would 404 anyway. Treating the two as
+ *     equivalent keeps the gate robust against future synth sources
+ *     that forget to stamp the marker.
+ *
+ * Used to gate the three REST PATCH callsites in this module — synth
+ * placements live JS-only, so persisting their (x, y) / parentId
+ * would 404 with `rest_no_route`.
+ */
+function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
+	return placement.id <= 0 || readSynthSource( placement ) !== null;
+}
+
+/**
+ * Persist the new (x, y) of a synthetic dock-promoted placement
+ * into `OsSettingsState.dockPromotedPositions`. The synthesizer
+ * (`settings/desktop-shortcuts-sync.ts`) reads this map on every
+ * sync, so the next reload restores the icon at the saved coords
+ * instead of resetting to (0, 0).
+ *
+ * Silent no-op when the public OS Settings facade isn't available
+ * (tests, embedded previews, or a host that disabled the facade).
+ *
+ * @since 0.20.0
+ */
+function persistDockPromotedPosition(
+	dockItemId: string,
+	x: number,
+	y: number,
+): void {
+	const api = (
+		window as unknown as {
+			wp?: {
+				desktop?: {
+					getOsSettings?: () => {
+						dockPromotedPositions?: Record<
+							string,
+							{ x: number; y: number }
+						>;
+					};
+					updateOsSettings?: ( patch: {
+						dockPromotedPositions?: Record<
+							string,
+							{ x: number; y: number }
+						>;
+					} ) => void;
+				};
+			};
+		}
+	).wp?.desktop;
+	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
+		return;
+	}
+	const current = api.getOsSettings().dockPromotedPositions ?? {};
+	api.updateOsSettings( {
+		dockPromotedPositions: {
+			...current,
+			[ dockItemId ]: { x, y },
+		},
+	} );
+}
+
+/**
+ * Try to apply a repaint as an in-place position update — no
+ * `replaceChildren()`, no tile rebuild. Returns `true` if the patch
+ * applied; `false` if the caller must fall back to the wholesale
+ * rebuild path.
+ *
+ * The fast path is correct when the ONLY thing that changed is one
+ * or more tiles' `x` / `y` / `sortOrder` / `updatedAtMs`. We can
+ * detect that without keeping a previous-snapshot map by reading
+ * the structural fields the renderer already encodes onto tile data
+ * attributes (`data-placement-id`, `data-file-type`, `data-file-ref`)
+ * plus the `--pinned` class. Anything else — adds, removes, renames,
+ * file-type changes, parent moves, pin-flag flips — falls back so
+ * the renderer can re-run pinned-slot allocation, drop-target
+ * registration, drag wiring, etc.
+ *
+ * Why the fast path matters: after a drag-and-drop the wholesale
+ * rebuild paints to users as "the whole desktop just reloaded" —
+ * every tile vanishes for one frame and re-appears. Patching
+ * positions in place keeps DOM identity for unchanged tiles so the
+ * grid feels continuous.
+ *
+ * @since 0.20.0
+ */
+function tryPatchPositions(
+	list: readonly RestPlacementShape[],
+	container: HTMLElement,
+	host: HTMLElement,
+): boolean {
+	const tiles = Array.from(
+		container.querySelectorAll< HTMLElement >( '[data-placement-id]' ),
+	);
+	if ( tiles.length !== list.length ) {
+		return false;
+	}
+
+	const byId = new Map< number, HTMLElement >();
+	for ( const tile of tiles ) {
+		const raw = tile.dataset.placementId ?? '';
+		const id = parseInt( raw, 10 );
+		// `parseInt` on a negative-id synth placement still returns
+		// the negative number, so synth tiles roundtrip cleanly. Only
+		// genuinely unparseable values short-circuit.
+		if ( raw === '' || ( Number.isNaN( id ) && raw !== '-0' ) ) {
+			return false;
+		}
+		byId.set( id, tile );
+	}
+
+	for ( const placement of list ) {
+		const tile = byId.get( placement.id );
+		if ( ! tile ) {
+			return false;
+		}
+		if ( tile.dataset.fileType !== placement.file.type ) {
+			return false;
+		}
+		if ( tile.dataset.fileRef !== placement.file.ref ) {
+			return false;
+		}
+		// Pin flag is encoded as a class on the wholesale rebuild —
+		// disagreement means the pin state changed and the drag
+		// wiring needs to be added or removed, which only the full
+		// rebuild does.
+		const wasPinned = tile.classList.contains( `${ TILE_CLASS }--pinned` );
+		if ( wasPinned !== isPinned( placement ) ) {
+			return false;
+		}
+	}
+
+	// All checks passed — recompute pinned slots + displacement
+	// exactly as the wholesale path would, then apply positions.
+	const pinnedSlots = new Map< number, { x: number; y: number } >();
+	const occupiedCells = new Set< string >();
+	let pinnedIdx = 0;
+	for ( const placement of list ) {
+		if ( ! isPinned( placement ) ) {
+			continue;
+		}
+		const slot = cellToPos( 0, pinnedIdx );
+		pinnedSlots.set( placement.id, { x: slot.x, y: slot.y } );
+		occupiedCells.add( cellKey( slot.col, slot.row ) );
+		pinnedIdx += 1;
+	}
+	const displaced = new Map< number, { x: number; y: number } >();
+	for ( const placement of list ) {
+		if ( pinnedSlots.has( placement.id ) ) {
+			continue;
+		}
+		const target = pointToCell( placement.x, placement.y );
+		const key = cellKey( target.col, target.row );
+		if ( ! occupiedCells.has( key ) ) {
+			occupiedCells.add( key );
+			continue;
+		}
+		const free = snapToEmptyCell(
+			placement.x,
+			placement.y,
+			occupiedCells,
+			host,
+		);
+		occupiedCells.add( cellKey( free.col, free.row ) );
+		displaced.set( placement.id, { x: free.x, y: free.y } );
+	}
+
+	for ( const placement of list ) {
+		const tile = byId.get( placement.id );
+		if ( ! tile ) {
+			continue; // unreachable — guarded above; keeps the typechecker happy.
+		}
+		const pinned = pinnedSlots.get( placement.id );
+		const disp = displaced.get( placement.id );
+		if ( pinned ) {
+			setTilePosition( tile, pinned.x, pinned.y );
+		} else if ( disp ) {
+			setTilePosition( tile, disp.x, disp.y );
+		} else {
+			setTilePosition( tile, placement.x, placement.y );
+		}
+	}
+
+	return true;
+}
+
+/**
  * Hide a dock item the user previously promoted onto the desktop.
  * Mutates `OsSettingsState.itemVisibility[ dockItemId ]` to `'dock'`
  * via the public API; the shortcuts-sync subscription removes the
@@ -834,6 +1066,15 @@ function registerFolderDropTarget(
 				// so the user gets reject feedback instead of a silent
 				// no-op.
 				if ( data.placement.parentId === targetFolderId ) {
+					return false;
+				}
+				// Synthetic placements (dock-item promotions) have no
+				// DB row, so "move into folder" can't be persisted
+				// today — the REST PATCH would 404 on its negative
+				// id. Reject the drop so the user gets a clear "this
+				// can't go there" cue instead of an apparent move that
+				// silently snaps back on the next sync.
+				if ( isSyntheticPlacement( data.placement ) ) {
 					return false;
 				}
 			}

@@ -293,4 +293,181 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 
 		handle.dispose();
 	} );
+
+	test( 'drag-to-reposition keeps tile DOM identity — no full grid rebuild', async () => {
+		// Regression: on every drop the repaint did `container.replaceChildren()`
+		// — every tile was destroyed and re-created. To users that visible
+		// flash reads as "the whole desktop just reloaded." The fast path
+		// in `tryPatchPositions` patches positions in place; the tile
+		// element the user was just holding has to survive the store update.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+		installManagerOnWindow();
+
+		store.setFolderPlacements( 0, [ placement( 1 ), placement( 2 ) ] );
+
+		const host = document.createElement( 'div' );
+		Object.defineProperty( host, 'clientWidth', { value: 1024, configurable: true } );
+		Object.defineProperty( host, 'clientHeight', { value: 768, configurable: true } );
+		document.body.appendChild( host );
+		Object.defineProperty( host, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 1024, bottom: 768,
+				width: 1024, height: 768, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		const handle = layer.mountFilesLayer( host, 0 );
+
+		// Capture initial DOM identity. If the fast path works the
+		// same `<button>` element holds the placement after the drag.
+		const tileBefore = host.querySelector< HTMLElement >( '[data-placement-id="1"]' );
+		const peerBefore = host.querySelector< HTMLElement >( '[data-placement-id="2"]' );
+		expect( tileBefore ).not.toBeNull();
+		expect( peerBefore ).not.toBeNull();
+
+		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		Object.defineProperty( container!, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 1024, bottom: 768,
+				width: 1024, height: 768, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		Object.defineProperty( tileBefore!, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 100, top: 100, right: 188, bottom: 196,
+				width: 88, height: 96, x: 100, y: 100, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		installElementFromPointStub( [ { el: host, rect: { x: 0, y: 0, w: 1024, h: 768 } } ] );
+		tileBefore!.style.left = '100px';
+		tileBefore!.style.top = '100px';
+
+		tileBefore!.dispatchEvent( pointerEvent( 'pointerdown', 140, 140, tileBefore! ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 410, 320 ) );
+		document.dispatchEvent( pointerEvent( 'pointerup', 410, 320 ) );
+
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// Same DOM node — no wholesale rebuild.
+		const tileAfter = host.querySelector< HTMLElement >( '[data-placement-id="1"]' );
+		const peerAfter = host.querySelector< HTMLElement >( '[data-placement-id="2"]' );
+		expect( tileAfter ).toBe( tileBefore );
+		expect( peerAfter ).toBe( peerBefore );
+		// But the position did update.
+		expect( tileAfter!.style.left ).not.toBe( '100px' );
+
+		handle.dispose();
+	} );
+
+	test( 'synthetic dock-promoted placement: drag updates store but issues no PATCH', async () => {
+		// Regression: dragging an icon the user promoted from the dock
+		// (OS Settings → Apps & Icons) used to fire a PATCH against a
+		// negative id, which the REST regex `(?P<id>\d+)` rejects → WP
+		// returns `rest_no_route` 404 → the user sees a scary
+		// `[desktop-mode] files: drag persist failed` in the console
+		// every time they nudge a promoted icon.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		const fetchSpy = setupRestStub();
+		installManagerOnWindow();
+
+		// Spy on the OS-Settings persistence facade — the layer should
+		// route the new position through here for synth placements.
+		const updateOsSettings = vi.fn();
+		const wp = ( window as unknown as { wp: { desktop: Record< string, unknown > } } ).wp;
+		wp.desktop.getOsSettings = () => ( { dockPromotedPositions: {} } );
+		wp.desktop.updateOsSettings = updateOsSettings;
+
+		// Synthetic placement: negative id + `__synthFromDockItem`
+		// meta marker (the shape `settings/desktop-shortcuts-sync.ts`
+		// produces for a dock-item promoted to the desktop).
+		store.setFolderPlacements( 0, [
+			placement( -42, {
+				meta: { __synthFromDockItem: 'edit-php' },
+				file: {
+					type: 'shortcut',
+					ref: 'dock-promoted:edit-php',
+					title: 'Posts',
+					icon: 'dashicons-admin-post',
+					previewUrl: '',
+					exists: true,
+				},
+			} ),
+		] );
+
+		const host = document.createElement( 'div' );
+		Object.defineProperty( host, 'clientWidth', { value: 1024, configurable: true } );
+		Object.defineProperty( host, 'clientHeight', { value: 768, configurable: true } );
+		document.body.appendChild( host );
+		Object.defineProperty( host, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 1024, bottom: 768,
+				width: 1024, height: 768, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		const handle = layer.mountFilesLayer( host, 0 );
+		const tile = host.querySelector< HTMLElement >( '[data-placement-id="-42"]' );
+		expect( tile ).not.toBeNull();
+		tile!.style.left = '100px';
+		tile!.style.top = '100px';
+		Object.defineProperty( tile!, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 100, top: 100, right: 188, bottom: 196,
+				width: 88, height: 96, x: 100, y: 100, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		Object.defineProperty( container!, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 1024, bottom: 768,
+				width: 1024, height: 768, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		installElementFromPointStub( [ { el: host, rect: { x: 0, y: 0, w: 1024, h: 768 } } ] );
+
+		// Boot-time hydrate call is the only PATCH-able thing we
+		// want to ignore here.
+		fetchSpy.mockClear();
+
+		tile!.dispatchEvent( pointerEvent( 'pointerdown', 140, 140, tile! ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 310, 220 ) );
+		document.dispatchEvent( pointerEvent( 'pointerup', 310, 220 ) );
+
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// No PATCH attempted — synth placements live JS-only.
+		const patches = fetchSpy.mock.calls.filter( ( call ) => {
+			const init = call[ 1 ] as RequestInit | undefined;
+			return init?.method === 'PATCH';
+		} );
+		expect( patches.length ).toBe( 0 );
+
+		// Store should still reflect the drop position (the optimistic
+		// upsert runs before the gate), so the tile visually moved.
+		const updated = store
+			.getFilesState()
+			.placementsByFolder.get( 0 )
+			?.find( ( p ) => p.id === -42 );
+		expect( updated ).toBeDefined();
+		expect( updated!.x ).not.toBe( 100 );
+
+		// Position persisted into OS Settings keyed by the source
+		// dock-item id, so the synthesizer can restore it on reload.
+		expect( updateOsSettings ).toHaveBeenCalledTimes( 1 );
+		const patch = updateOsSettings.mock.calls[ 0 ][ 0 ] as {
+			dockPromotedPositions: Record< string, { x: number; y: number } >;
+		};
+		expect( patch.dockPromotedPositions ).toBeDefined();
+		expect( patch.dockPromotedPositions[ 'edit-php' ] ).toEqual( {
+			x: updated!.x,
+			y: updated!.y,
+		} );
+
+		handle.dispose();
+	} );
 } );

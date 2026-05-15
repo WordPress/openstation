@@ -1961,7 +1961,7 @@ Last-mile mutation of the args passed to `desktop_mode_register_window( 'desktop
 
 ### `desktop_mode_plugins_window_template_html` — Experimental *(filter, since 0.9.0)*
 
-Filters the rendered template HTML before `wp_kses` runs. Keep `data-desktop-mode-plugins-{root,tabs,installed-host,browse-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
+Filters the rendered template HTML before `wp_kses` runs. Keep `data-desktop-mode-plugins-{root,tabs,installed-host,browse-host,featured-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
 
 ### `desktop_mode_plugins_window_browse_args` — Stable *(filter, since 0.9.0)*
 
@@ -2035,6 +2035,33 @@ do_action( 'desktop_mode_plugins_window_installed', string $plugin_file );
 ```
 
 Fires after the upload-AJAX handler installs a plugin from an uploaded .zip. `$plugin_file` is the resolved plugin file (e.g. `"akismet/akismet.php"`). Hook this to seed default settings for first-install plugins, send an audit-log entry, or chain a network-wide deploy.
+
+### `desktop_mode_plugins_featured_slugs` — Experimental *(filter, since 0.20.0)*
+
+The Plugins window's third tab — "Desktop Mode plugins" — leads with a hand-curated list because wp.org's `plugins_api` does not yet expose a usable `requires_plugins` filter. The handler hydrates each curated slug through `plugins_api( 'plugin_information' )` so card metadata stays fresh; it then scans the wp.org popular feed for rows whose `requires_plugins` array contains `desktop-mode` and appends them after the curated entries.
+
+Use this filter to append your own companion plugins (or remove the default seed). Order is preserved — the first slug renders first in the gallery. Output is run through `sanitize_key()` and deduplicated.
+
+```php
+apply_filters( 'desktop_mode_plugins_featured_slugs', string[] $slugs ): string[]
+```
+
+```php
+add_filter( 'desktop_mode_plugins_featured_slugs', static function ( $slugs ) {
+    $slugs[] = 'my-companion-plugin';
+    return $slugs;
+} );
+```
+
+### `desktop_mode_plugins_featured_response` — Experimental *(filter, since 0.20.0)*
+
+Last hop before the Featured tab payload is cached (1h transient) and sent to the client. Inject premium / private rows that aren't on wp.org, or enforce a hard cap on the response.
+
+```php
+apply_filters( 'desktop_mode_plugins_featured_response', array $payload, array $curated ): array
+```
+
+`$payload` shape: `{ plugins: [ … ], info: { curated: int, discovered: int, results: int } }`. Each entry in `plugins` matches the `plugins_api( 'query_plugins' )` row shape plus a boolean `featured` (true for curated, false for auto-discovered).
 
 ---
 

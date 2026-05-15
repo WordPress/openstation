@@ -48,6 +48,8 @@ export { WpdKey } from './wpd-key/wpd-key';
 export { WpdCode } from './wpd-code/wpd-code';
 export { WpdBadge } from './wpd-badge/wpd-badge';
 export type { WpdBadgeTone } from './wpd-badge/wpd-badge';
+export { WpdRibbon } from './wpd-ribbon/wpd-ribbon';
+export type { WpdRibbonPlacement, WpdRibbonTone } from './wpd-ribbon/wpd-ribbon';
 export { WpdLog } from './wpd-log/wpd-log';
 export type { WpdLogRowRenderer } from './wpd-log/wpd-log';
 export { WpdSteps, WpdStep } from './wpd-steps/wpd-steps';

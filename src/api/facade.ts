@@ -418,6 +418,39 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 					)
 					.slice( 0, 256 );
 			}
+			if (
+				patch.dockPromotedPositions &&
+				typeof patch.dockPromotedPositions === 'object'
+			) {
+				const MAX_COORD = 100_000;
+				const next: Record< string, { x: number; y: number } > = {};
+				for ( const [ k, v ] of Object.entries(
+					patch.dockPromotedPositions as Record< string, unknown >,
+				) ) {
+					if ( typeof k !== 'string' || k === '' ) {
+						continue;
+					}
+					if ( ! v || typeof v !== 'object' ) {
+						continue;
+					}
+					const pos = v as { x?: unknown; y?: unknown };
+					if (
+						typeof pos.x !== 'number' ||
+						typeof pos.y !== 'number' ||
+						! Number.isFinite( pos.x ) ||
+						! Number.isFinite( pos.y ) ||
+						Math.abs( pos.x ) > MAX_COORD ||
+						Math.abs( pos.y ) > MAX_COORD
+					) {
+						continue;
+					}
+					next[ k ] = { x: pos.x, y: pos.y };
+					if ( Object.keys( next ).length >= 256 ) {
+						break;
+					}
+				}
+				osSettings.state.dockPromotedPositions = next;
+			}
 			osSettings.save( opts );
 			// Belt-and-suspenders live repaint for visibility / order
 			// changes. The `subscribeOsSettings` listener installed in

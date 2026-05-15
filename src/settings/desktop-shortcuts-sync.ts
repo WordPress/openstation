@@ -55,12 +55,17 @@ function hashToNegativeId( s: string ): number {
 /** Build a synthetic placement representing a promoted dock item. */
 function buildSyntheticPlacement(
 	item: DockItemConfig,
+	persistedPositions: Record< string, { x: number; y: number } >,
 ): RestPlacementShape {
+	// Restore the user's last-dragged position if we have one. Falls
+	// through to (0, 0) so the layer's `snapToEmptyCell` can find a
+	// free grid slot on first promote.
+	const saved = persistedPositions[ item.id ];
 	return {
 		id: hashToNegativeId( item.id ),
 		parentId: 0,
-		x: 0,
-		y: 0,
+		x: saved ? saved.x : 0,
+		y: saved ? saved.y : 0,
 		sortOrder: 9999,
 		updatedAtMs: Date.now(),
 		meta: { [ SYNTH_META_KEY ]: item.id },
@@ -139,10 +144,14 @@ const removedServerPlacementsByRef = new Map< string, RestPlacementShape >();
 
 /**
  * Bring the files store in line with the current
- * {@link OsSettingsState.itemVisibility} map.
+ * {@link OsSettingsState.itemVisibility} map. The `positions`
+ * argument is the matching `dockPromotedPositions` map — synth
+ * placements built from a previously-dragged dock item land at the
+ * stored coords instead of (0, 0).
  */
 export function syncShortcutsWithVisibility(
 	visibility: Record< string, ItemVisibility >,
+	positions: Record< string, { x: number; y: number } > = {},
 ): void {
 	if ( reentrant ) {
 		return;
@@ -191,7 +200,7 @@ export function syncShortcutsWithVisibility(
 				desiredSynth.add( item.id );
 				if ( ! currentSynth.has( item.id ) ) {
 					filesApi.store.upsertPlacement(
-						buildSyntheticPlacement( item ),
+						buildSyntheticPlacement( item, positions ),
 					);
 				}
 			}
@@ -253,22 +262,30 @@ export function syncShortcutsWithVisibility(
  * - The user updates visibility via OS Settings or the right-click
  *   menu (handled by an external caller passing the new snapshot).
  *
+ * `getPositions` returns the persisted `dockPromotedPositions` map
+ * (defaults to an empty record when the caller doesn't supply one,
+ * for backwards-compat with older boot paths that didn't know about
+ * the field yet).
+ *
  * Returns a teardown function for tests / hot-reload.
  */
 export function installShortcutsSync(
 	getVisibility: () => Record< string, ItemVisibility >,
+	getPositions: () => Record< string, { x: number; y: number } > = () => ( {} ),
 ): () => void {
 	// Initial reconciliation — runs on a microtask so any
 	// just-mounted desktop icons from the server hydration are in
 	// the store before we filter.
-	queueMicrotask( () => syncShortcutsWithVisibility( getVisibility() ) );
+	queueMicrotask( () =>
+		syncShortcutsWithVisibility( getVisibility(), getPositions() ),
+	);
 
 	// Re-run on every store change so server-driven hydration
 	// (e.g. a refresh fetching the full placements list) gets
 	// filtered. The reentrancy guard prevents our own writes from
 	// triggering an infinite loop.
 	const off = filesApi.store.subscribe( () => {
-		syncShortcutsWithVisibility( getVisibility() );
+		syncShortcutsWithVisibility( getVisibility(), getPositions() );
 	} );
 
 	return off;

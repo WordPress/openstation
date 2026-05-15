@@ -149,6 +149,13 @@ function desktop_mode_default_os_settings() {
 		// the list keep their server-supplied position appended after
 		// the listed ones. Unknown ids are tolerated.
 		'dockOrder'                => array(),
+		// Persisted desktop position for every dock item the user has
+		// promoted to the wallpaper via `itemVisibility[id]=desktop|both`.
+		// Keyed by item id, value is `{ x: int, y: int }`. The JS
+		// synthesizer reads this when building a synthetic placement so
+		// the icon lands where the user last dragged it instead of
+		// resetting to (0, 0) on every reload. Capped at 256 entries.
+		'dockPromotedPositions'    => array(),
 	);
 }
 
@@ -452,6 +459,44 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		}
 	}
 
+	// dockPromotedPositions — map<sanitize_key, {x: int, y: int}>.
+	// Persisted positions for synthetic dock-promoted placements, so
+	// the JS synthesizer can restore the user's manual placement on
+	// next reload. Capped at 256; absurd coordinates are dropped.
+	$dock_promoted_positions = array();
+	if ( isset( $raw['dockPromotedPositions'] ) && is_array( $raw['dockPromotedPositions'] ) ) {
+		$count     = 0;
+		$max_coord = 100000; // generous; real screens stop in the thousands.
+		foreach ( $raw['dockPromotedPositions'] as $key => $val ) {
+			if ( $count >= 256 ) {
+				break;
+			}
+			if ( ! is_string( $key ) || '' === $key ) {
+				continue;
+			}
+			$slug = sanitize_key( $key );
+			if ( '' === $slug ) {
+				continue;
+			}
+			if ( ! is_array( $val ) ) {
+				continue;
+			}
+			if ( ! isset( $val['x'] ) || ! isset( $val['y'] ) ) {
+				continue;
+			}
+			$x = is_numeric( $val['x'] ) ? (int) $val['x'] : null;
+			$y = is_numeric( $val['y'] ) ? (int) $val['y'] : null;
+			if ( null === $x || null === $y ) {
+				continue;
+			}
+			if ( abs( $x ) > $max_coord || abs( $y ) > $max_coord ) {
+				continue;
+			}
+			$dock_promoted_positions[ $slug ] = array( 'x' => $x, 'y' => $y );
+			++$count;
+		}
+	}
+
 	return array(
 		'wallpaper'                => $wallpaper,
 		'accent'                   => $accent,
@@ -473,6 +518,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'foldersSharingEnabled'    => $folders_sharing_enabled,
 		'itemVisibility'           => $item_visibility,
 		'dockOrder'                => $dock_order,
+		'dockPromotedPositions'    => $dock_promoted_positions,
 	);
 }
 

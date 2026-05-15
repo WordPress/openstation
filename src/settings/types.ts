@@ -251,6 +251,22 @@ export interface OsSettingsState {
 	 * @since 0.25.0
 	 */
 	dockOrder: string[];
+	/**
+	 * Persisted desktop position (in CSS px) for every dock item the
+	 * user has promoted onto the wallpaper via
+	 * `itemVisibility[ id ] = 'desktop' | 'both'`. The synthesizer in
+	 * `settings/desktop-shortcuts-sync.ts` reads this when building
+	 * a synthetic placement so the icon lands where the user last
+	 * dragged it instead of resetting to (0, 0).
+	 *
+	 * Missing keys mean "no override" — the synth placement falls back
+	 * to the default top-left grid slot. Unknown ids (a plugin whose
+	 * dock item is no longer registered) survive the round-trip in
+	 * case the plugin reactivates. Capped at 256 entries.
+	 *
+	 * @since 0.20.0
+	 */
+	dockPromotedPositions: Record< string, { x: number; y: number } >;
 }
 
 /**

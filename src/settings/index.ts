@@ -194,6 +194,11 @@ export class OsSettings implements SettingsCtx {
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			itemVisibility: { ...this.state.itemVisibility },
 			dockOrder: this.state.dockOrder.slice(),
+			dockPromotedPositions: Object.fromEntries(
+				Object.entries( this.state.dockPromotedPositions ).map(
+					( [ k, v ] ) => [ k, { ...v } ],
+				),
+			),
 		};
 	}
 

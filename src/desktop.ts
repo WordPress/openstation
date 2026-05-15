@@ -2746,7 +2746,10 @@ function init(): void {
 		// Bring the files-layer placements in line with the new
 		// visibility map — promotes dock items onto the wallpaper
 		// and removes hidden server icons from the grid.
-		syncShortcutsWithVisibility( snapshot.itemVisibility );
+		syncShortcutsWithVisibility(
+			snapshot.itemVisibility,
+			snapshot.dockPromotedPositions,
+		);
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
 		// having to thread the OsSettings snapshot through.
@@ -2759,6 +2762,7 @@ function init(): void {
 	// the visibility map immediately.
 	installShortcutsSync(
 		() => osSettings.getOsSettingsSnapshot().itemVisibility,
+		() => osSettings.getOsSettingsSnapshot().dockPromotedPositions,
 	);
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`
