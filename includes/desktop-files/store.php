@@ -283,6 +283,32 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 				}
 			}
 		}
+		// Folder-cycle guard. When the row being moved is itself a
+		// folder placement, the new parent must not be the folder
+		// itself OR any of the folder's descendants — otherwise we
+		// commit `X.parent_id = Y` while `Y.parent_id` still leads
+		// back through `X`, producing an unreachable cycle that
+		// strands every descendant outside the desktop root. Walk
+		// the ancestry of `$target_parent` upward; bail if we hit
+		// the moving folder's id or detect a pre-existing cycle.
+		if ( 'folder' === (string) $row['file_type'] && $target_parent > 0 ) {
+			$moving_folder_id = (int) $row['file_ref'];
+			if ( $moving_folder_id > 0 ) {
+				if (
+					desktop_mode_files_would_create_folder_cycle(
+						$user_id,
+						$moving_folder_id,
+						$target_parent
+					)
+				) {
+					return new WP_Error(
+						'desktop_mode_files_folder_cycle',
+						__( 'A folder cannot be placed inside itself or one of its descendants.', 'desktop-mode' ),
+						array( 'status' => 409 )
+					);
+				}
+			}
+		}
 	}
 
 	$tables = desktop_mode_files_table_names();
@@ -857,3 +883,81 @@ function desktop_mode_files_schedule_prune() {
 	}
 }
 add_action( 'init', 'desktop_mode_files_schedule_prune' );
+
+/**
+ * Walk the folder-parentage chain upward from `$target_parent_id` and
+ * return `true` when `$moving_folder_id` appears anywhere in it —
+ * meaning a move that sets `moving_folder.parent_id = target_parent`
+ * would produce an unreachable cycle (folder placed inside itself or
+ * inside one of its own descendants).
+ *
+ * Folder-parentage is determined by the parent_id of the folder's
+ * placement row, not by anything on the `folders` table. We look up
+ * one live placement per cursor (`LIMIT 1`) — folders with multiple
+ * placements (rare; shared semantics) are still safely covered
+ * because any one upward chain hitting the moving folder is enough
+ * to flag the cycle.
+ *
+ * Defends against pre-existing cycles in the data: if we re-visit a
+ * cursor we've already seen, we treat it as a cycle and reject, so a
+ * corrupted history can't drive this function into an infinite loop.
+ *
+ * @since 0.20.0
+ *
+ * @param int $user_id          Acting user.
+ * @param int $moving_folder_id Folder being moved (its `folders.id`).
+ * @param int $target_parent_id New container folder id (0 = desktop root).
+ * @return bool True when the move would create a cycle.
+ */
+function desktop_mode_files_would_create_folder_cycle( $user_id, $moving_folder_id, $target_parent_id ) {
+	$moving_folder_id = (int) $moving_folder_id;
+	$target_parent_id = (int) $target_parent_id;
+	$user_id          = (int) $user_id;
+	if ( $moving_folder_id <= 0 || $target_parent_id <= 0 || $user_id <= 0 ) {
+		return false;
+	}
+	if ( $moving_folder_id === $target_parent_id ) {
+		return true;
+	}
+	global $wpdb;
+	$tables  = desktop_mode_files_table_names();
+	$visited = array();
+	$cursor  = $target_parent_id;
+	// Hard cap to defend against catastrophically deep trees too —
+	// real installs won't approach 256.
+	$max_depth = 256;
+	while ( $cursor > 0 && $max_depth-- > 0 ) {
+		if ( $cursor === $moving_folder_id ) {
+			return true;
+		}
+		if ( isset( $visited[ $cursor ] ) ) {
+			// Pre-existing cycle in the data — bail safe by treating
+			// the move as cycle-creating too. Better to refuse a
+			// suspicious move than to deepen the damage.
+			return true;
+		}
+		$visited[ $cursor ] = true;
+		// `LIMIT 1` is enough — any upward chain that reaches the
+		// moving folder flags the cycle. Trashed rows excluded so a
+		// recycled-then-recovered ancestor doesn't poison the check.
+		$parent_of_cursor = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT parent_id FROM {$tables['placements']}
+				WHERE user_id = %d
+					AND file_type = 'folder'
+					AND file_ref = %s
+					AND trashed_at_ms IS NULL
+				LIMIT 1",
+				$user_id,
+				(string) $cursor
+			)
+		);
+		if ( null === $parent_of_cursor ) {
+			// Folder has no live placement under this user — chain
+			// ends here. No cycle.
+			return false;
+		}
+		$cursor = (int) $parent_of_cursor;
+	}
+	return false;
+}

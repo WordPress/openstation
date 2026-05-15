@@ -341,4 +341,136 @@ class Tests_DesktopMode_FilesStore extends WP_UnitTestCase {
 		$this->assertCount( 1, $rows );
 		$this->assertSame( 'A', $rows[0]['name'] );
 	}
+
+	// ───────────────────────────────────────────────────────────────
+	// Folder-cycle prevention. A folder must not be movable into
+	// itself or into any of its descendants — committing such a
+	// move would leave the chain looping back, stranding every
+	// descendant outside the desktop root.
+	// ───────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::desktop_mode_files_would_create_folder_cycle
+	 */
+	public function test_cycle_detector_flags_self_target() {
+		$folder = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'X' ) );
+		$this->assertTrue(
+			desktop_mode_files_would_create_folder_cycle(
+				self::$admin_id,
+				$folder,
+				$folder
+			)
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_files_would_create_folder_cycle
+	 */
+	public function test_cycle_detector_flags_descendant_target() {
+		// X (root) → Y → Z
+		$x = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'X' ) );
+		$y = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'Y' ) );
+		// Y's placement under X.
+		desktop_mode_files_place( self::$admin_id, $x, 'folder', (string) $y );
+		$z = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'Z' ) );
+		desktop_mode_files_place( self::$admin_id, $y, 'folder', (string) $z );
+
+		// Moving X into Z (a descendant of X) would form X → Z → Y → X.
+		$this->assertTrue(
+			desktop_mode_files_would_create_folder_cycle(
+				self::$admin_id,
+				$x,
+				$z
+			),
+			'Target inside the moving folder\'s subtree must flag a cycle.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_files_would_create_folder_cycle
+	 */
+	public function test_cycle_detector_allows_unrelated_target() {
+		// Two parallel trees — moving one folder under the other is fine.
+		$x = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'X' ) );
+		$y = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'Y' ) );
+
+		$this->assertFalse(
+			desktop_mode_files_would_create_folder_cycle(
+				self::$admin_id,
+				$x,
+				$y
+			)
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_files_would_create_folder_cycle
+	 */
+	public function test_cycle_detector_allows_move_to_root() {
+		$x = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'X' ) );
+		// Target parent 0 = desktop root, can never form a cycle.
+		$this->assertFalse(
+			desktop_mode_files_would_create_folder_cycle(
+				self::$admin_id,
+				$x,
+				0
+			)
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_files_move
+	 */
+	public function test_move_rejects_folder_cycle_into_descendant() {
+		// X → Y. Now try to move X into Y.
+		$x = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'X' ) );
+		$y = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'Y' ) );
+		// X has an auto-placed row at root; Y has a placement under X.
+		$x_placement = desktop_mode_files_place(
+			self::$admin_id,
+			0,
+			'folder',
+			(string) $x
+		);
+		desktop_mode_files_place( self::$admin_id, $x, 'folder', (string) $y );
+
+		$result = desktop_mode_files_move(
+			$x_placement,
+			self::$admin_id,
+			array( 'parent_id' => $y )
+		);
+		$this->assertWPError( $result );
+		$this->assertSame(
+			'desktop_mode_files_folder_cycle',
+			$result->get_error_code()
+		);
+
+		// And the row was not actually moved.
+		$row = desktop_mode_files_get_placement( $x_placement );
+		$this->assertSame( 0, (int) $row['parent_id'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_files_move
+	 */
+	public function test_move_rejects_folder_into_itself() {
+		$x = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'X' ) );
+		$x_placement = desktop_mode_files_place(
+			self::$admin_id,
+			0,
+			'folder',
+			(string) $x
+		);
+
+		$result = desktop_mode_files_move(
+			$x_placement,
+			self::$admin_id,
+			array( 'parent_id' => $x )
+		);
+		$this->assertWPError( $result );
+		$this->assertSame(
+			'desktop_mode_files_folder_cycle',
+			$result->get_error_code()
+		);
+	}
 }

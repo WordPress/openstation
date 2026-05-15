@@ -371,8 +371,30 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	const canvasDropTarget: DropTarget = {
 		id: `desktop-mode-files-canvas-${ folderId }`,
 		element: host,
-		accept: ( payload ) =>
-			payload.type === 'desktop-file' || payload.type === 'shortcut',
+		accept: ( payload ) => {
+			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
+				return false;
+			}
+			// Folder-cycle preflight for drops onto a folder
+			// window's canvas. The wallpaper root (`folderId === 0`)
+			// can never be a descendant of any folder, so this only
+			// kicks in when a folder window has the canvas. Mirror
+			// of the server-side check; the only difference here is
+			// instant snap-back vs. a 409 toast after the REST hit.
+			if ( folderId > 0 && payload.type === 'desktop-file' ) {
+				const data = payload.data as unknown as DesktopFileDragData;
+				if ( data.placement.file?.type === 'folder' ) {
+					const movingFolderId = parseInt( data.placement.file.ref, 10 );
+					if (
+						! Number.isNaN( movingFolderId ) &&
+						wouldCreateFolderCycle( movingFolderId, folderId )
+					) {
+						return false;
+					}
+				}
+			}
+			return true;
+		},
 		onEnter: () => {
 			host.setAttribute( 'data-files-drop-active', '' );
 		},
@@ -830,6 +852,84 @@ function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
 }
 
 /**
+ * Would moving folder `movingFolderId` into folder `targetParentId`
+ * create a cycle? A move is cyclic when the target parent is the
+ * moving folder itself OR any of its descendants — committing
+ * `moving.parent_id = target` would leave the chain looping back
+ * through the moving folder, stranding every descendant outside the
+ * root.
+ *
+ * Walks the parent chain by reading the live store. Treats a
+ * pre-existing visit as a cycle so a corrupted client state can't
+ * drive the loop forever. Returns `false` when the target sits at
+ * root (`<= 0`) — that case is always safe.
+ *
+ * Authoritative gate lives server-side in
+ * `desktop_mode_files_would_create_folder_cycle()`; this is a
+ * client-side preflight so the `accept` callbacks can reject the
+ * drop up-front (no REST round-trip, no 409 in the console, visible
+ * snap-back at the drop site).
+ *
+ * @since 0.20.0
+ */
+function wouldCreateFolderCycle(
+	movingFolderId: number,
+	targetParentId: number,
+): boolean {
+	if ( targetParentId <= 0 || movingFolderId <= 0 ) {
+		return false;
+	}
+	if ( movingFolderId === targetParentId ) {
+		return true;
+	}
+	// Build a folder-id → containing-folder-id map from every live
+	// placement we know about. Folder identity is `file.ref` parsed
+	// as an int; the containing folder is the placement's parentId.
+	const parentByFolderId = new Map< number, number >();
+	const state = filesStoreApi.getState();
+	for ( const bucket of state.placementsByFolder.values() ) {
+		for ( const p of bucket ) {
+			if ( p.file?.type !== 'folder' ) {
+				continue;
+			}
+			const fid = parseInt( p.file.ref, 10 );
+			if ( Number.isNaN( fid ) || fid <= 0 ) {
+				continue;
+			}
+			// First-seen wins. Folders with multiple placements
+			// (rare; shared semantics) only need one upward chain to
+			// flag a cycle.
+			if ( ! parentByFolderId.has( fid ) ) {
+				parentByFolderId.set( fid, p.parentId );
+			}
+		}
+	}
+
+	const visited = new Set< number >();
+	let cursor = targetParentId;
+	let maxDepth = 256;
+	while ( cursor > 0 && maxDepth-- > 0 ) {
+		if ( cursor === movingFolderId ) {
+			return true;
+		}
+		if ( visited.has( cursor ) ) {
+			return true; // pre-existing cycle — bail safe
+		}
+		visited.add( cursor );
+		const next = parentByFolderId.get( cursor );
+		if ( next === undefined ) {
+			// Unknown ancestry. Let the server's authoritative check
+			// decide — defaulting to "allow" here keeps shared
+			// folders the viewer can't fully see from being falsely
+			// blocked.
+			return false;
+		}
+		cursor = next;
+	}
+	return false;
+}
+
+/**
  * Persist the new (x, y) of a synthetic dock-promoted placement
  * into `OsSettingsState.dockPromotedPositions`. The synthesizer
  * (`settings/desktop-shortcuts-sync.ts`) reads this map on every
@@ -1076,6 +1176,21 @@ function registerFolderDropTarget(
 				// silently snaps back on the next sync.
 				if ( isSyntheticPlacement( data.placement ) ) {
 					return false;
+				}
+				// Folder cycle: dropping folder X onto folder Y
+				// when Y is somewhere inside X creates an
+				// unreachable loop. The server's authoritative
+				// check rejects it too, but doing the preflight
+				// here gives the user a clean "this can't go
+				// there" snap-back instead of a 409 toast.
+				if ( data.placement.file.type === 'folder' ) {
+					const movingFolderId = parseInt( data.placement.file.ref, 10 );
+					if (
+						! Number.isNaN( movingFolderId ) &&
+						wouldCreateFolderCycle( movingFolderId, targetFolderId )
+					) {
+						return false;
+					}
 				}
 			}
 			return true;
