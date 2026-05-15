@@ -5356,6 +5356,36 @@ function renderInto( body: HTMLElement ): void {
 	};
 	activeState = state;
 
+	// Register a CLAIMANT drop target on the window body that rejects
+	// every payload. My WordPress is a read-only directory listing
+	// over the WP REST API — dropping a desktop tile, a placement,
+	// or a shortcut onto it has no defined semantic. Without this
+	// claimant, the drag manager's hit-test walks past the window
+	// boundary and silently `cancel('no-target')`s — from the user's
+	// perspective the ghost just disappears with no feedback.
+	//
+	// Returning `accept: false` paints the no-drop cursor + reject
+	// snap-back animation, so users get visible "this surface
+	// doesn't take drops" feedback instead of guessing. The
+	// claimant ALSO blocks the drag from falling through to the
+	// wallpaper canvas under the window (registry.hitTest stops at
+	// the first registered target it finds in the walk-up).
+	//
+	// @since 0.20.0
+	const dragManager = getDragManager();
+	if ( dragManager ) {
+		const deregister = dragManager.registerDropTarget( {
+			id: `${ WINDOW_ID }-reject`,
+			element: body,
+			accept: () => false,
+			onDrop: () => {
+				// Unreachable — `accept: false` short-circuits the
+				// commit path. Defined for the type contract.
+			},
+		} );
+		state.teardown.push( deregister );
+	}
+
 	// Back button + crumb-click handlers are wired by the shared
 	// breadcrumb helper inside `updateBreadcrumbs` — no per-element
 	// listener wiring here anymore.
