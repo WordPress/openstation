@@ -24,3 +24,12 @@
 # Phpactor's per-project config — Zed's PHP language server re-generates
 # this on demand from sensible defaults, so tracking it just creates churn.
 /.phpactor.json
+
+# `.claude/` is gitignored in the user's global gitignore. Re-include the
+# `skills/` symlink so Claude Code's skill loader (which only scans
+# `.claude/skills/`, not `.agents/skills/`) can find the shared skill
+# library checked into `.agents/skills/`. Everything else under `.claude/`
+# (local settings, transient state) stays ignored.
+!/.claude/
+/.claude/*
+!/.claude/skills
