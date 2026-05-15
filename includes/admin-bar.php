@@ -64,59 +64,11 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 			array(
 				'parent' => 'top-secondary',
 				'id'     => 'desktop-fullscreen',
-				'title'  => '<span class="ab-icon dashicons dashicons-fullscreen-alt" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Fullscreen', 'desktop-mode' ) . '</span>',
+				'title'  => '<span class="ab-icon dashicons dashicons-fullscreen-alt" aria-hidden="true"></span>',
 				'href'   => '#',
 				'meta'   => array(
 					'class'    => 'desktop-fullscreen-btn',
 					'title'    => __( 'Enter fullscreen', 'desktop-mode' ),
-					'tabindex' => 0,
-				),
-			)
-		);
-	}
-
-	// "Report a bug" trigger — shown only when desktop mode is active.
-	// Clicking dispatches a `desktop-mode-open-bug-report` document
-	// CustomEvent that the shell listens for and answers by opening the
-	// Bug Report native window. PHP doesn't know the JS side exists; the
-	// event lets us add the button without coupling to any specific
-	// shell module.
-	if ( $is_active ) {
-		$wp_admin_bar->add_node(
-			array(
-				'parent' => 'top-secondary',
-				'id'     => 'desktop-bug-report',
-				'title'  => '<span class="ab-icon dashicons dashicons-buddicons-replies" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Report a bug', 'desktop-mode' ) . '</span>',
-				'href'   => '#',
-				'meta'   => array(
-					'class'    => 'desktop-bug-report-btn',
-					'title'    => __( 'Open the Bug Report window', 'desktop-mode' ),
-					'tabindex' => 0,
-				),
-			)
-		);
-	}
-
-	// AI Assistant trigger — shown when desktop mode is active AND the
-	// current user has AI features configured. Clicking (or pressing
-	// Cmd+K anywhere) opens the spotlight-style AI overlay.
-	if ( $is_active && function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
-		// Use dashicons-admin-comments (speech bubble) — same rendering
-		// path as the toggle + arrange buttons, no SVG / HTML parsing
-		// issues in the admin-bar context. The ⌘K badge is added via
-		// a CSS ::after on the label so it never touches the DOM.
-		$wp_admin_bar->add_node(
-			array(
-				'parent' => 'top-secondary',
-				'id'     => 'desktop-ai-assistant',
-				'title'  => '<span class="ab-icon dashicons dashicons-admin-comments" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'desktop-mode' ) . '</span>',
-				'href'   => '#',
-				'meta'   => array(
-					'class'    => 'desktop-ai-btn',
-					'title'    => __( 'Open AI Assistant (Cmd+K)', 'desktop-mode' ),
 					'tabindex' => 0,
 				),
 			)
@@ -128,13 +80,17 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 	// admin, which has no windows to arrange). Parent renders as a
 	// dashicon with a hover-opened submenu; each child is routed to
 	// `wp.desktop.windowManager.*` by the inline JS.
+	//
+	// Sits next to Fullscreen so the two shell-state actions group
+	// visually. Ask AI, then the help/meta cluster (Keyboard shortcuts
+	// + Report a bug) follow, with the help/meta pair anchored to the
+	// far right of the secondary bar next to the user identity menu.
 	if ( $is_active ) {
 		$wp_admin_bar->add_node(
 			array(
 				'parent' => 'top-secondary',
 				'id'     => 'desktop-layout-menu',
-				'title'  => '<span class="ab-icon dashicons dashicons-grid-view" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Arrange', 'desktop-mode' ) . '</span>',
+				'title'  => '<span class="ab-icon dashicons dashicons-grid-view" aria-hidden="true"></span>',
 				'href'   => '#',
 				'meta'   => array(
 					'title'    => __( 'Arrange windows', 'desktop-mode' ),
@@ -275,6 +231,74 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 			}
 		}
 	}
+
+	// AI Assistant trigger — shown when desktop mode is active AND the
+	// current user has AI features configured. Clicking (or pressing
+	// Cmd+K anywhere) opens the spotlight-style AI overlay.
+	if ( $is_active && function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
+		// Use dashicons-admin-comments (speech bubble) — same rendering
+		// path as the toggle + arrange buttons, no SVG / HTML parsing
+		// issues in the admin-bar context. The ⌘K badge is added via
+		// a CSS ::after on the label so it never touches the DOM.
+		$wp_admin_bar->add_node(
+			array(
+				'parent' => 'top-secondary',
+				'id'     => 'desktop-ai-assistant',
+				'title'  => '<span class="ab-icon dashicons dashicons-admin-comments" aria-hidden="true"></span>'
+					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'desktop-mode' ) . '</span>',
+				'href'   => '#',
+				'meta'   => array(
+					'class'    => 'desktop-ai-btn',
+					'title'    => __( 'Open AI Assistant (Cmd+K)', 'desktop-mode' ),
+					'tabindex' => 0,
+				),
+			)
+		);
+	}
+
+	// "Keyboard shortcuts" trigger — shown only when desktop mode is
+	// active. Dispatches `desktop-mode-open-help` on click; the shell
+	// answers by opening the Keyboard Shortcuts reference window.
+	if ( $is_active ) {
+		$wp_admin_bar->add_node(
+			array(
+				'parent' => 'top-secondary',
+				'id'     => 'desktop-help',
+				'title'  => '<span class="ab-icon desktop-mode-keyboard-icon" aria-hidden="true"></span>',
+				'href'   => '#',
+				'meta'   => array(
+					'class'    => 'desktop-help-btn',
+					'title'    => __( 'Keyboard shortcuts', 'desktop-mode' ),
+					'tabindex' => 0,
+				),
+			)
+		);
+	}
+
+	// "Report a bug" trigger — shown only when desktop mode is active.
+	// Clicking dispatches a `desktop-mode-open-bug-report` document
+	// CustomEvent that the shell listens for and answers by opening the
+	// Bug Report native window. PHP doesn't know the JS side exists; the
+	// event lets us add the button without coupling to any specific
+	// shell module. Anchored to the far right of the secondary bar so
+	// the meta/help cluster (Keyboard shortcuts + Report a bug) sits
+	// next to the user identity menu — matches the convention used by
+	// most SaaS products (Help / "?" at the user-menu corner).
+	if ( $is_active ) {
+		$wp_admin_bar->add_node(
+			array(
+				'parent' => 'top-secondary',
+				'id'     => 'desktop-bug-report',
+				'title'  => '<span class="ab-icon dashicons dashicons-buddicons-replies" aria-hidden="true"></span>',
+				'href'   => '#',
+				'meta'   => array(
+					'class'    => 'desktop-bug-report-btn',
+					'title'    => __( 'Open the Bug Report window', 'desktop-mode' ),
+					'tabindex' => 0,
+				),
+			)
+		);
+	}
 }
 add_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle', 190 );
 
@@ -296,7 +320,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wpadminbar #wp-admin-bar-desktop-layout-menu > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-ai-assistant > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-fullscreen > .ab-item,
-		#wpadminbar #wp-admin-bar-desktop-bug-report > .ab-item {
+		#wpadminbar #wp-admin-bar-desktop-bug-report > .ab-item,
+		#wpadminbar #wp-admin-bar-desktop-help > .ab-item {
 			display: inline-flex;
 			align-items: center;
 			gap: 6px;
@@ -305,7 +330,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-fullscreen .ab-icon,
-		#wpadminbar #wp-admin-bar-desktop-bug-report .ab-icon {
+		#wpadminbar #wp-admin-bar-desktop-bug-report .ab-icon,
+		#wpadminbar #wp-admin-bar-desktop-help .ab-icon {
 			float: none;
 			margin: 0;
 			padding: 0;
@@ -341,8 +367,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			color: inherit;
 		}
 		@media screen and (max-width: 782px) {
-			#wp-admin-bar-desktop-mode-toggle .ab-label,
-			#wp-admin-bar-desktop-layout-menu .ab-label {
+			#wp-admin-bar-desktop-mode-toggle .ab-label {
 				display: none;
 			}
 		}
@@ -439,11 +464,6 @@ function desktop_mode_enqueue_toggle_assets() {
 		body.desktop-mode-browser-fs #wp-admin-bar-desktop-bug-report {
 			display: none;
 		}
-		@media screen and (max-width: 782px) {
-			#wp-admin-bar-desktop-fullscreen .ab-label {
-				display: none;
-			}
-		}
 
 		/* Bug Report admin-bar button — same dashicons rendering pattern
 		   as the toggle. dashicons-buddicons-replies is a speech bubble
@@ -455,15 +475,187 @@ function desktop_mode_enqueue_toggle_assets() {
 			-moz-osx-font-smoothing: grayscale;
 		}
 		#wp-admin-bar-desktop-bug-report .ab-icon.dashicons::before {
-			/* dashicons-buddicons-replies */
-			content: "\f465";
+			/* dashicons-buddicons-replies — same glyph as the dock tile so
+			   the two surfaces (admin-bar + dock) match. */
+			content: "\f451";
 			top: 0;
 			position: static;
 		}
-		@media screen and (max-width: 782px) {
-			#wp-admin-bar-desktop-bug-report .ab-label {
-				display: none;
-			}
+
+		/* Keyboard shortcuts admin-bar button. Dashicons has no keyboard
+		   glyph, so we paint a small inline SVG via CSS `mask` with
+		   `background-color: currentColor` — that way the icon inherits
+		   the admin-bar text color across every WP profile scheme
+		   without us hardcoding a fill. */
+		#wp-admin-bar-desktop-help .ab-icon.desktop-mode-keyboard-icon {
+			background-color: currentColor;
+			-webkit-mask: url( "data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'black\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><rect x=\'2.5\' y=\'6\' width=\'19\' height=\'12\' rx=\'2.2\'/><path d=\'M6 10h0M10 10h0M14 10h0M18 10h0M6 14h0M10 14h4M18 14h0\'/></svg>" ) no-repeat center / 20px 20px;
+			        mask: url( "data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'black\' stroke-width=\'1.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><rect x=\'2.5\' y=\'6\' width=\'19\' height=\'12\' rx=\'2.2\'/><path d=\'M6 10h0M10 10h0M14 10h0M18 10h0M6 14h0M10 14h4M18 14h0\'/></svg>" ) no-repeat center / 20px 20px;
+		}
+
+		/* Keyboard-shortcuts floating popover — anchored under the
+		   keyboard button. Styled to match the Arrange submenu (light
+		   bg on the otherwise-dark admin bar, soft shadow, rounded
+		   corners). Built dynamically in admin-bar.js from translated
+		   content shipped via `desktopModeAdminBar.shortcuts`. */
+		#wpadminbar #wp-admin-bar-desktop-help {
+			position: relative;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover {
+			display: none;
+			position: absolute;
+			top: 100%;
+			right: 0;
+			margin-top: 0;
+			padding: 12px 14px;
+			min-width: 460px;
+			max-width: min( 90vw, 720px );
+			background: var( --desktop-mode-window-bg, #fff );
+			color: var( --desktop-mode-text, #1d2327 );
+			border: 1px solid var( --desktop-mode-window-border, #c3c4c7 );
+			border-radius: 8px;
+			box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
+				0 2px 6px rgba( 0, 0, 0, 0.08 );
+			z-index: 99999;
+			font-size: 12px;
+			line-height: 1.4;
+			text-align: left;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover.is-open {
+			display: block;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__section + .desktop-mode-shortcuts-popover__section {
+			margin-top: 12px;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__heading {
+			margin: 0 0 6px;
+			padding: 0;
+			font-size: 11px;
+			font-weight: 600;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			color: var( --desktop-mode-muted-fg, #50575e );
+			line-height: 1.2;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__table {
+			width: 100%;
+			border-collapse: collapse;
+			color: inherit;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__table th,
+		#wpadminbar .desktop-mode-shortcuts-popover__table td {
+			padding: 6px 8px;
+			vertical-align: middle;
+			text-align: left;
+			border-bottom: 1px solid rgba( 0, 0, 0, 0.06 );
+			color: inherit;
+			font-weight: 400;
+			font-size: 12px;
+			line-height: 1.4;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__table th {
+			font-weight: 600;
+			font-size: 11px;
+			color: var( --desktop-mode-muted-fg, #50575e );
+			letter-spacing: 0.02em;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__table tbody tr:last-child td {
+			border-bottom: none;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__key-cell {
+			white-space: nowrap;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__note {
+			color: var( --desktop-mode-muted-fg, #50575e );
+			font-size: 11px;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__list {
+			margin: 0;
+			padding: 0;
+			list-style: none;
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__item {
+			display: grid;
+			grid-template-columns: 120px 1fr;
+			align-items: center;
+			gap: 12px;
+			padding: 4px 8px;
+			border-radius: 4px;
+			background: rgba( 0, 0, 0, 0.03 );
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__keys {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			flex-wrap: wrap;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__kbd {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 22px;
+			height: 20px;
+			padding: 0 5px;
+			border: 1px solid rgba( 0, 0, 0, 0.18 );
+			border-bottom-width: 2px;
+			border-radius: 4px;
+			background: #fff;
+			color: var( --desktop-mode-text, #1d2327 );
+			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+			font-size: 11px;
+			font-weight: 600;
+			line-height: 1;
+			white-space: nowrap;
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__plus {
+			font-size: 10px;
+			color: var( --desktop-mode-muted-fg, #50575e );
+		}
+		#wpadminbar .desktop-mode-shortcuts-popover__description {
+			color: inherit;
+		}
+
+		/* Dock-style custom tooltip for icon-only admin-bar buttons.
+		   admin-bar.js moves the native `title` to `data-desktop-tooltip`
+		   so the OS delayed tooltip never competes with this one. Floats
+		   below the button, dark pill with white text — visually
+		   identical to the dock tooltip pattern. */
+		#wpadminbar .ab-item[ data-desktop-tooltip ] {
+			position: relative;
+		}
+		#wpadminbar .ab-item[ data-desktop-tooltip ]::after {
+			content: attr( data-desktop-tooltip );
+			position: absolute;
+			top: 100%;
+			left: 50%;
+			margin-top: 4px;
+			transform: translateX( -50% ) translateY( 4px );
+			padding: 6px 12px;
+			background: rgba( 0, 0, 0, 0.85 );
+			color: #fff;
+			font-size: 12px;
+			font-weight: 400;
+			line-height: 1.4;
+			white-space: nowrap;
+			border-radius: 6px;
+			pointer-events: none;
+			opacity: 0;
+			transition: opacity 0.15s ease, transform 0.15s ease;
+			z-index: 100000;
+		}
+		#wpadminbar .ab-item[ data-desktop-tooltip ]:hover::after,
+		#wpadminbar .ab-item[ data-desktop-tooltip ]:focus-visible::after {
+			opacity: 1;
+			transform: translateX( -50% ) translateY( 0 );
+		}
+		/* When the keyboard-shortcuts popover is open, suppress the
+		   tooltip on its own anchor so the two never stack on top of
+		   each other. */
+		#wpadminbar #wp-admin-bar-desktop-help.is-open .ab-item[ data-desktop-tooltip ]::after {
+			opacity: 0;
 		}
 
 		/* Arrange submenu — aligned visually with the <wpd-menu> component
@@ -564,6 +756,83 @@ function desktop_mode_enqueue_toggle_assets() {
 					'exitFullscreen'  => __( 'Exit fullscreen', 'desktop-mode' ),
 					'enterTitle'      => __( 'Enter fullscreen', 'desktop-mode' ),
 					'exitTitle'       => __( 'Exit fullscreen', 'desktop-mode' ),
+				),
+				/*
+				 * Keyboard-shortcuts popover content. Translated once on
+				 * the server and shipped to admin-bar.js, which renders
+				 * the popover anchored under the keyboard button.
+				 *
+				 * `contextual` is a small table that distinguishes the
+				 * three modes the shortcuts operate in (Outside Overview,
+				 * Inside Overview, Show Desktop). `general` is a flat
+				 * list for shortcuts whose behaviour doesn't shift by
+				 * mode.
+				 */
+				'shortcuts'  => array(
+					'title'      => __( 'Keyboard shortcuts', 'desktop-mode' ),
+					'contextual' => array(
+						'heading' => __( 'Desktops & Overview', 'desktop-mode' ),
+						'headers' => array(
+							'key'         => __( 'Key', 'desktop-mode' ),
+							'outside'     => __( 'Outside overview', 'desktop-mode' ),
+							'inside'      => __( 'Inside overview', 'desktop-mode' ),
+							'showDesktop' => __( 'In Show Desktop', 'desktop-mode' ),
+						),
+						'rows'    => array(
+							array(
+								'keys'        => array( '←' ),
+								'outside'     => __( 'Previous desktop (wraps)', 'desktop-mode' ),
+								'inside'      => __( 'Previous desktop (grid + top-bar update)', 'desktop-mode' ),
+								'showDesktop' => __( 'Previous desktop', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( '→' ),
+								'outside'     => __( 'Next desktop (wraps)', 'desktop-mode' ),
+								'inside'      => __( 'Next desktop (grid + top-bar update)', 'desktop-mode' ),
+								'showDesktop' => __( 'Next desktop', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( '↑' ),
+								'outside'     => __( 'Enter Overview', 'desktop-mode' ),
+								'inside'      => __( 'Exit Overview onto active desktop', 'desktop-mode' ),
+								'showDesktop' => __( 'Restore windows (exit Show Desktop)', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( '↓' ),
+								'outside'     => __( 'Toggle Show Desktop', 'desktop-mode' ),
+								'inside'      => __( 'Exit Overview (no minimize)', 'desktop-mode' ),
+								'showDesktop' => __( 'Toggle Show Desktop', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( 'Enter' ),
+								'note'        => __( '(in overview)', 'desktop-mode' ),
+								'outside'     => '—',
+								'inside'      => __( 'Commit current desktop, exit overview', 'desktop-mode' ),
+								'showDesktop' => '—',
+							),
+						),
+					),
+					'general'    => array(
+						'heading' => __( 'Windows & palette', 'desktop-mode' ),
+						'items'   => array(
+							array(
+								'keys'        => array( '`' ),
+								'description' => __( 'Cycle to the next window on the active desktop.', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( 'Shift', '`' ),
+								'description' => __( 'Cycle to the previous window on the active desktop.', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( '⌘/Ctrl', 'K' ),
+								'description' => __( 'Open the command palette / Ask AI overlay.', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( 'Esc' ),
+								'description' => __( 'Exit Overview (or Snap Overview) without changing window state.', 'desktop-mode' ),
+							),
+						),
+					),
 				),
 			)
 		) . ';',
