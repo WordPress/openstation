@@ -193,7 +193,7 @@ export function mountFeaturedView(
 					sprintf(
 						/* translators: %s: error message */
 						__( 'Install failed: %s', 'desktop-mode' ),
-						describe( err ),
+						formatError( err ),
 					),
 					6000,
 				);
@@ -239,7 +239,7 @@ export function mountFeaturedView(
 					sprintf(
 						/* translators: %s: error message */
 						__( 'Activation failed: %s', 'desktop-mode' ),
-						describe( err ),
+						formatError( err ),
 					),
 					6000,
 				);
@@ -278,7 +278,7 @@ export function mountFeaturedView(
 				sprintf(
 					/* translators: %s: error message */
 					__( 'Could not load featured plugins: %s', 'desktop-mode' ),
-					describe( err ),
+					formatError( err ),
 				),
 			);
 		} finally {
@@ -303,13 +303,16 @@ export function mountFeaturedView(
 			}
 			const card = buildCard( plugin, state.installed, cardCallbacks );
 			if ( plugin.featured ) {
-				card.classList.add( 'desktop-mode-plugins__card--featured' );
 				// `<wpd-ribbon>` self-positions absolutely on its parent's
 				// top-end corner (its host has `position: absolute`). The
-				// card host carries `position: relative` via the
-				// `__card--featured` class below so the ribbon anchors to
-				// the card boundary and not whatever ancestor the gallery
-				// inherits.
+				// `__card--featured` class below carries the matching
+				// `position: relative` on the card host — these two lines
+				// MUST stay paired. Removing the class while keeping the
+				// `prepend` would re-anchor the ribbon to whatever
+				// positioned ancestor the gallery happens to inherit
+				// (usually the window body), so it would float over the
+				// wrong thing entirely.
+				card.classList.add( 'desktop-mode-plugins__card--featured' );
 				const ribbon = document.createElement( 'wpd-ribbon' );
 				ribbon.textContent = __( 'Featured', 'desktop-mode' );
 				card.prepend( ribbon );
@@ -395,7 +398,7 @@ function indexKeyFor( plugin: InstalledPlugin ): string {
 	return plugin.textdomain || plugin.plugin;
 }
 
-function describe( err: unknown ): string {
+function formatError( err: unknown ): string {
 	if ( err instanceof Error ) {
 		return err.message;
 	}

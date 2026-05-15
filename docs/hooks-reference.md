@@ -2053,6 +2053,8 @@ add_filter( 'desktop_mode_plugins_featured_slugs', static function ( $slugs ) {
 } );
 ```
 
+**Cache scope caveat.** The Featured tab response is cached in a single site-wide transient (`dm_pwfeatured_v1`, 1h TTL) — the cache key does not vary by user or role. If your filter returns role-specific or capability-specific slugs (e.g. surfacing a premium plugin only to administrators), the first viewer's payload will be served to every viewer for the cache window. Either keep the curated list cap-agnostic, or use `desktop_mode_plugins_featured_response` to drop disallowed rows for the current viewer *after* the shared payload is composed (you'd lose the cache hit benefit per user, but no leak).
+
 ### `desktop_mode_plugins_featured_response` — Experimental *(filter, since 0.20.0)*
 
 Last hop before the Featured tab payload is cached (1h transient) and sent to the client. Inject premium / private rows that aren't on wp.org, or enforce a hard cap on the response.

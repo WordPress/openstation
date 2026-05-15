@@ -980,11 +980,18 @@ function desktop_mode_plugins_window_ajax_featured() {
 		}
 	}
 
+	// `count( $plugins ) - count( $curated )` can underflow when a
+	// curated slug fails hydration (slug typo, plugin temporarily
+	// delisted from wp.org, plugins_api returning WP_Error). The JS
+	// only uses `discovered` for informational headers, so a negative
+	// number wouldn't crash anything, but it does read as a bug.
+	// Clamp at zero so the count remains a defensible "non-curated rows
+	// in the payload."
 	$payload = array(
 		'plugins' => array_values( $plugins ),
 		'info'    => array(
 			'curated'    => count( $curated ),
-			'discovered' => count( $plugins ) - count( $curated ),
+			'discovered' => max( 0, count( $plugins ) - count( $curated ) ),
 			'results'    => count( $plugins ),
 		),
 	);
