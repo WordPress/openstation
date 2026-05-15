@@ -49,6 +49,7 @@ import {
 	getDesktops,
 	seedDesktops,
 	switchDesktop,
+	type SwitchDesktopOptions,
 } from './desktops';
 import { cascade, tile } from './arrange';
 import {
@@ -181,6 +182,16 @@ export class WindowManager {
 	public _overviewMouseHandler: ( ( e: MouseEvent ) => void ) | null = null;
 	/** @internal */
 	public _lastOverviewHoverId: string | null = null;
+	/**
+	 * Tracks whether the keyboard cursor in overview is currently
+	 * parked on the trailing "+" tile (rather than a real desktop).
+	 * Lets arrow navigation include the add affordance in its cycle —
+	 * Enter while this is `true` creates a new desktop. Reset to
+	 * `false` on overview exit.
+	 *
+	 * @internal
+	 */
+	public _overviewAddTileFocused = false;
 
 	// ---- Snap-zone state (edge-snap + split overview) ----
 
@@ -986,8 +997,8 @@ export class WindowManager {
 	public createDesktop(): Desktop {
 		return createDesktop( this );
 	}
-	public switchDesktop( id: string ): void {
-		switchDesktop( this, id );
+	public switchDesktop( id: string, opts?: SwitchDesktopOptions ): void {
+		switchDesktop( this, id, opts );
 	}
 	public closeDesktop( id: string ): void {
 		closeDesktop( this, id );

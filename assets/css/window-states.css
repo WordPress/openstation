@@ -174,6 +174,66 @@
 }
 
 /*
+ * Desktop-switch slide — applied to `.desktop-mode-area` (the windows
+ * + widgets container) when the user moves between virtual desktops
+ * via arrow keys or any other directional caller. The wallpaper lives
+ * OUTSIDE this element (sibling under `.desktop-mode-shell`), so the
+ * slide reveals the wallpaper as a backdrop — no black flash, no
+ * awkward gap on the leading edge.
+ *
+ * `--sliding-from-right` plays when moving to the next desktop (the
+ * rightward arrow press): the new desktop's content rushes in from
+ * the right and settles to centre. `--sliding-from-left` mirrors it
+ * for the previous-desktop direction. Wrap-around presses (rightmost
+ * → first via ArrowRight) keep the direction the user perceived,
+ * not the index delta.
+ *
+ * Opacity tapers from 0.35 → 1 so the moving content visibly arrives
+ * rather than just sliding in at full strength, but the wallpaper
+ * stays at full opacity behind it for an anchored sense of place.
+ * Cubic-bezier ease-out lands cleanly without overshoot.
+ *
+ * `forwards` isn't needed — the JS strips the class on `animationend`
+ * so the element returns to its natural transform / opacity state.
+ */
+@keyframes desktop-mode-area-slide-from-right {
+	from {
+		transform: translateX(64px);
+		opacity: 0.35;
+	}
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+@keyframes desktop-mode-area-slide-from-left {
+	from {
+		transform: translateX(-64px);
+		opacity: 0.35;
+	}
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+.desktop-mode-area--sliding-from-right {
+	animation: desktop-mode-area-slide-from-right 0.28s cubic-bezier( 0.2, 0.7, 0.2, 1 );
+}
+
+.desktop-mode-area--sliding-from-left {
+	animation: desktop-mode-area-slide-from-left 0.28s cubic-bezier( 0.2, 0.7, 0.2, 1 );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-area--sliding-from-right,
+	.desktop-mode-area--sliding-from-left {
+		animation: none;
+	}
+}
+
+/*
  * Minimized state — fade + scale down.
  * Uses opacity + pointer-events instead of display: none so the
  * CSS transition can animate the change. The window is invisible

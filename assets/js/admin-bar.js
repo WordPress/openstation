@@ -248,4 +248,214 @@
 			document.dispatchEvent( new CustomEvent( 'desktop-mode-open-bug-report' ) );
 		} );
 	}
+
+	// Keyboard Shortcuts button — toggles a floating popover anchored
+	// under the button, styled like the Arrange submenu. Content is
+	// passed in via `cfg.shortcuts` (translated server-side in PHP).
+	wireShortcutsPopover( document.getElementById( 'wp-admin-bar-desktop-help' ), cfg.shortcuts );
+
+	// Custom tooltips for the icon-only admin-bar buttons. The native
+	// `title` attribute renders a slow, OS-styled tooltip that conflicts
+	// with our dock-style custom tooltip; we swap each `title` to
+	// `data-desktop-tooltip` + `aria-label` so screen readers still see
+	// the label but the visual tooltip is fully ours.
+	wireTooltipsFor( [
+		'wp-admin-bar-desktop-fullscreen',
+		'wp-admin-bar-desktop-help',
+		'wp-admin-bar-desktop-bug-report',
+		'wp-admin-bar-desktop-layout-menu',
+	] );
+
+	/**
+	 * Re-anchors a native `title` attribute to a `data-desktop-tooltip`
+	 * data attribute on the same node, plus mirrors it to `aria-label`
+	 * so assistive tech keeps the description. Pure-CSS tooltip then
+	 * renders from the data attribute via the `[data-desktop-tooltip]
+	 * .ab-item::after` rule in admin-bar.php.
+	 */
+	function wireTooltipsFor( ids ) {
+		for ( var i = 0; i < ids.length; i++ ) {
+			var node = document.getElementById( ids[ i ] );
+			if ( ! node ) continue;
+			var link = node.querySelector( '.ab-item' );
+			if ( ! link ) continue;
+			var label = link.getAttribute( 'title' );
+			if ( ! label ) continue;
+			link.removeAttribute( 'title' );
+			link.setAttribute( 'data-desktop-tooltip', label );
+			if ( ! link.hasAttribute( 'aria-label' ) ) {
+				link.setAttribute( 'aria-label', label );
+			}
+		}
+	}
+
+	function wireShortcutsPopover( btn, data ) {
+		if ( ! btn || ! data ) {
+			return;
+		}
+		var anchor = btn.querySelector( '.ab-item' ) || btn;
+		var popover = buildShortcutsPopover( data );
+		btn.appendChild( popover );
+
+		var isOpen = false;
+		function open() {
+			if ( isOpen ) return;
+			isOpen = true;
+			popover.classList.add( 'is-open' );
+			btn.classList.add( 'is-open' );
+			document.addEventListener( 'mousedown', onDocMouseDown, true );
+			document.addEventListener( 'keydown', onKey, true );
+		}
+		function close() {
+			if ( ! isOpen ) return;
+			isOpen = false;
+			popover.classList.remove( 'is-open' );
+			btn.classList.remove( 'is-open' );
+			document.removeEventListener( 'mousedown', onDocMouseDown, true );
+			document.removeEventListener( 'keydown', onKey, true );
+		}
+		function onDocMouseDown( e ) {
+			if ( btn.contains( e.target ) ) return;
+			close();
+		}
+		function onKey( e ) {
+			if ( e.key === 'Escape' ) {
+				e.stopPropagation();
+				close();
+			}
+		}
+
+		anchor.addEventListener( 'click', function( e ) {
+			e.preventDefault();
+			e.stopPropagation();
+			isOpen ? close() : open();
+		} );
+		// Swallow stray clicks inside the popover so they don't bubble
+		// up to admin-bar handlers (and so the popover stays open while
+		// the user reads it).
+		popover.addEventListener( 'mousedown', function( e ) {
+			e.stopPropagation();
+		} );
+		popover.addEventListener( 'click', function( e ) {
+			e.stopPropagation();
+		} );
+	}
+
+	function buildShortcutsPopover( data ) {
+		var root = document.createElement( 'div' );
+		root.className = 'desktop-mode-shortcuts-popover';
+		root.setAttribute( 'role', 'dialog' );
+		if ( data.title ) {
+			root.setAttribute( 'aria-label', data.title );
+		}
+
+		if ( data.contextual ) {
+			root.appendChild( buildShortcutsTable( data.contextual ) );
+		}
+		if ( data.general ) {
+			root.appendChild( buildShortcutsList( data.general ) );
+		}
+		return root;
+	}
+
+	function buildShortcutsTable( section ) {
+		var wrap = document.createElement( 'section' );
+		wrap.className = 'desktop-mode-shortcuts-popover__section';
+
+		if ( section.heading ) {
+			var h = document.createElement( 'h3' );
+			h.className = 'desktop-mode-shortcuts-popover__heading';
+			h.textContent = section.heading;
+			wrap.appendChild( h );
+		}
+
+		var table = document.createElement( 'table' );
+		table.className = 'desktop-mode-shortcuts-popover__table';
+
+		var thead = document.createElement( 'thead' );
+		var headRow = document.createElement( 'tr' );
+		[ 'key', 'outside', 'inside', 'showDesktop' ].forEach( function( col ) {
+			var th = document.createElement( 'th' );
+			th.scope = 'col';
+			th.textContent = section.headers && section.headers[ col ] ? section.headers[ col ] : '';
+			headRow.appendChild( th );
+		} );
+		thead.appendChild( headRow );
+		table.appendChild( thead );
+
+		var tbody = document.createElement( 'tbody' );
+		( section.rows || [] ).forEach( function( row ) {
+			var tr = document.createElement( 'tr' );
+
+			var keyCell = document.createElement( 'td' );
+			keyCell.className = 'desktop-mode-shortcuts-popover__key-cell';
+			keyCell.appendChild( renderKeys( row.keys || [] ) );
+			if ( row.note ) {
+				var note = document.createElement( 'span' );
+				note.className = 'desktop-mode-shortcuts-popover__note';
+				note.textContent = ' ' + row.note;
+				keyCell.appendChild( note );
+			}
+			tr.appendChild( keyCell );
+
+			[ 'outside', 'inside', 'showDesktop' ].forEach( function( col ) {
+				var td = document.createElement( 'td' );
+				td.textContent = row[ col ] || '—';
+				tr.appendChild( td );
+			} );
+
+			tbody.appendChild( tr );
+		} );
+		table.appendChild( tbody );
+		wrap.appendChild( table );
+
+		return wrap;
+	}
+
+	function buildShortcutsList( section ) {
+		var wrap = document.createElement( 'section' );
+		wrap.className = 'desktop-mode-shortcuts-popover__section';
+
+		if ( section.heading ) {
+			var h = document.createElement( 'h3' );
+			h.className = 'desktop-mode-shortcuts-popover__heading';
+			h.textContent = section.heading;
+			wrap.appendChild( h );
+		}
+
+		var list = document.createElement( 'ul' );
+		list.className = 'desktop-mode-shortcuts-popover__list';
+		( section.items || [] ).forEach( function( item ) {
+			var li = document.createElement( 'li' );
+			li.className = 'desktop-mode-shortcuts-popover__item';
+			li.appendChild( renderKeys( item.keys || [] ) );
+			var desc = document.createElement( 'span' );
+			desc.className = 'desktop-mode-shortcuts-popover__description';
+			desc.textContent = item.description || '';
+			li.appendChild( desc );
+			list.appendChild( li );
+		} );
+		wrap.appendChild( list );
+
+		return wrap;
+	}
+
+	function renderKeys( keys ) {
+		var span = document.createElement( 'span' );
+		span.className = 'desktop-mode-shortcuts-popover__keys';
+		keys.forEach( function( key, idx ) {
+			if ( idx > 0 ) {
+				var plus = document.createElement( 'span' );
+				plus.className = 'desktop-mode-shortcuts-popover__plus';
+				plus.textContent = '+';
+				plus.setAttribute( 'aria-hidden', 'true' );
+				span.appendChild( plus );
+			}
+			var kbd = document.createElement( 'kbd' );
+			kbd.className = 'desktop-mode-shortcuts-popover__kbd';
+			kbd.textContent = key;
+			span.appendChild( kbd );
+		} );
+		return span;
+	}
 } )();

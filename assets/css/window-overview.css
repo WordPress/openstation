@@ -436,6 +436,20 @@
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
+/*
+ * Keyboard cursor parked on the "+" tile. Mirrors the visual weight
+ * of `--active` (solid accent border + halo) so the user sees at a
+ * glance "Enter will land here". The dashed border on the add tile
+ * flips to solid when the cursor lands, matching the desktop tiles'
+ * solid borders.
+ */
+.desktop-mode-overview-top-bar__tile--add.desktop-mode-overview-top-bar__tile--cursor {
+	border-style: solid;
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
+	background: rgba( 255, 255, 255, 0.08 );
+}
+
 .desktop-mode-overview-top-bar__tile-plus {
 	display: flex;
 	align-items: center;

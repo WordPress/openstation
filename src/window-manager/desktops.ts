@@ -14,7 +14,7 @@ import { __, sprintf } from '../i18n';
 import type { Desktop } from '../types';
 import type { Window } from '../window';
 import { computeOverviewLayout } from './geometry';
-import { createOverviewLabel } from './overview';
+import { createOverviewLabel, refreshOverviewTopBar } from './overview';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
 import type { WindowManager } from './index';
 
@@ -88,7 +88,34 @@ export function createDesktop( mgr: WindowManager ): Desktop {
  * leaving and entering desktop ids so plugins can sync per-desktop
  * state (active-desktop-aware indicators, custom widgets, etc.).
  */
-export function switchDesktop( mgr: WindowManager, id: string ): void {
+/**
+ * Optional shape `switchDesktop` accepts to drive the slide animation
+ * direction. Callers that know the user's intent (the arrow-key
+ * handler) pass `direction`; everyone else omits it and the switch is
+ * instantaneous.
+ */
+export interface SwitchDesktopOptions {
+	/**
+	 * Visual slide direction.
+	 *
+	 *   - `'next'`: content slides in from the right. Matches a
+	 *     rightward arrow press, including the wrap from last → first
+	 *     (the user perceived a rightward motion regardless of the
+	 *     index delta).
+	 *   - `'prev'`: content slides in from the left.
+	 *
+	 * Omitting it (or passing nothing) skips the animation — fine for
+	 * jump-to-desktop callers (tile click, plugin API) where there's
+	 * no left/right metaphor to honour.
+	 */
+	direction?: 'next' | 'prev';
+}
+
+export function switchDesktop(
+	mgr: WindowManager,
+	id: string,
+	opts?: SwitchDesktopOptions,
+): void {
 	if ( id === mgr._activeDesktopId ) {
 		return;
 	}
@@ -97,25 +124,86 @@ export function switchDesktop( mgr: WindowManager, id: string ): void {
 	}
 	const previousId = mgr._activeDesktopId;
 	mgr._activeDesktopId = id;
-	refreshDesktopVisibility( mgr );
 
-	// Re-focus the topmost window on the new desktop. Without this,
-	// focus / z-state would still point at the prior desktop's window
-	// — invisible and confusing if the user then triggers a dock
-	// action that reuses the focused window's context.
-	const topOnNew = [ ...mgr._stack ]
-		.reverse()
-		.find(
-			( w ) => w.config.desktopId === id && w.state !== 'minimized',
-		);
-	if ( topOnNew ) {
-		mgr.focus( topOnNew );
+	// Visibility + overview state must stay in sync. Outside overview
+	// it's a plain show/hide refresh. Mid-overview, the grid has
+	// already snapshotted the previous desktop's windows at scaled
+	// transforms — flipping `display` alone would surface the new
+	// desktop's windows at their saved (non-overview) geometry on top
+	// of a still-visible overview backdrop. `relayoutOverviewForActiveDesktop`
+	// clears the stale snapshot, surfaces the new desktop's windows
+	// with overview transforms, and the top-bar refresh moves the
+	// `--active` highlight to match. Without these two calls,
+	// keyboard-driven desktop switching mid-overview looked like
+	// "nothing happened" even though the underlying active id moved.
+	if ( mgr._overviewActive ) {
+		relayoutOverviewForActiveDesktop( mgr );
+		refreshOverviewTopBar( mgr );
+	} else {
+		refreshDesktopVisibility( mgr );
+		if ( opts?.direction ) {
+			animateDesktopSwitch( mgr, opts.direction );
+		}
+
+		// Re-focus the topmost window on the new desktop. Without this,
+		// focus / z-state would still point at the prior desktop's window
+		// — invisible and confusing if the user then triggers a dock
+		// action that reuses the focused window's context.
+		const topOnNew = [ ...mgr._stack ]
+			.reverse()
+			.find(
+				( w ) =>
+					w.config.desktopId === id && w.state !== 'minimized',
+			);
+		if ( topOnNew ) {
+			mgr.focus( topOnNew );
+		}
 	}
 
 	doAction( HOOKS.DESKTOP_SWITCHED, {
 		from: previousId,
 		to: id,
 	} );
+}
+
+/**
+ * Play the one-shot slide-in animation on the desktop area itself.
+ * The wallpaper layer is a sibling under `.desktop-mode-shell`, not
+ * a child of `_desktop`, so sliding `_desktop` reveals the wallpaper
+ * as a backdrop on the leading edge — no black gap, no flash.
+ *
+ * `void el.offsetWidth` forces a reflow so re-adding the class after a
+ * removal actually restarts the keyframe. Without it, two consecutive
+ * arrow presses would play the animation once and freeze on the
+ * second.
+ *
+ * The `animationend` listener filters on `animationName` so child
+ * animations (window-open, window-shake, …) bubbling up through the
+ * desktop area don't strip our class mid-flight.
+ */
+function animateDesktopSwitch(
+	mgr: WindowManager,
+	direction: 'next' | 'prev',
+): void {
+	const el = mgr._desktop;
+	const cls =
+		direction === 'next'
+			? 'desktop-mode-area--sliding-from-right'
+			: 'desktop-mode-area--sliding-from-left';
+	el.classList.remove(
+		'desktop-mode-area--sliding-from-right',
+		'desktop-mode-area--sliding-from-left',
+	);
+	void el.offsetWidth;
+	el.classList.add( cls );
+	const onEnd = ( e: AnimationEvent ): void => {
+		if ( ! e.animationName.startsWith( 'desktop-mode-area-slide-from-' ) ) {
+			return;
+		}
+		el.classList.remove( cls );
+		el.removeEventListener( 'animationend', onEnd );
+	};
+	el.addEventListener( 'animationend', onEnd );
 }
 
 /**
