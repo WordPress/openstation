@@ -269,7 +269,13 @@ async function renderPostPreview(
 				}
 				| undefined
 		)?.desktop?.windowManager;
+		const postType =
+			typeof file.postType === 'string'
+				? ( file.postType as string )
+				: 'post';
+		const entityId = postType === 'page' ? 'pages' : 'posts';
 		wm?.open( {
+			id: `${ entityId }-edit-${ id }`,
 			url: editUrl,
 			title: stripTags( data.title.rendered ),
 			icon: file.icon,
