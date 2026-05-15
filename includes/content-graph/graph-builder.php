@@ -351,12 +351,34 @@ function desktop_mode_content_graph_extract_internal_links( $content ) {
  */
 function desktop_mode_content_graph_flush_cache() {
 	global $wpdb;
-	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-	$like = $wpdb->esc_like( '_transient_' . DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX ) . '%';
-	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $like ) );
-	$timeout_like = $wpdb->esc_like( '_transient_timeout_' . DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX ) . '%';
-	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $timeout_like ) );
+	// Enumerate matching transient option names first, then route each
+	// through `delete_transient()` so WP's transient/options cache
+	// invalidation runs alongside the wp_options delete. The earlier
+	// raw `$wpdb->query("DELETE FROM ...")` only cleared the table —
+	// any subsequent `get_transient()` in the same process still hit
+	// the in-memory options cache and returned the stale payload.
+	// This bit the `set_object_terms` invalidation path because that
+	// hook doesn't update `post_modified_gmt`, so the cache key stayed
+	// identical and `get_transient` (cache hit) returned pre-retag data.
+	$prefix_like = $wpdb->esc_like( '_transient_' . DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX ) . '%';
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$option_names = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+			$prefix_like
+		)
+	);
 	// phpcs:enable
+	if ( ! is_array( $option_names ) || empty( $option_names ) ) {
+		return;
+	}
+	$prefix_len = strlen( '_transient_' );
+	foreach ( $option_names as $option_name ) {
+		$transient = substr( (string) $option_name, $prefix_len );
+		if ( '' !== $transient ) {
+			delete_transient( $transient );
+		}
+	}
 }
 add_action( 'save_post', 'desktop_mode_content_graph_flush_cache' );
 add_action( 'deleted_post', 'desktop_mode_content_graph_flush_cache' );
