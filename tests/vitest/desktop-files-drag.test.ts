@@ -294,6 +294,105 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		handle.dispose();
 	} );
 
+	test( 'drop into a column with a pinned tile (My WordPress) skips the pinned cell', async () => {
+		// Regression: a column rendered as
+		//   My WordPress (pinned) | empty | Icon A | Icon B
+		// — dragging Icon B at the empty cell used to highlight + drop
+		// onto the My WordPress slot. Cause: the layer's repaint
+		// reserves pinned slots (column 0, row 0..N-1) ignoring stored
+		// (x, y), but `buildOccupiedSet` only read stored coords —
+		// so the pinned cell was missing from `occupied` and
+		// `snapToEmptyCell`'s column-major scan picked (0, 0) as
+		// "empty" first.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		const fetchSpy = setupRestStub();
+		installManagerOnWindow();
+
+		// My WordPress: pinned via the `file.pinned` flag. Stored
+		// coords intentionally NOT (0, 0) — proves the test actually
+		// exercises the bug (the layer ignores them and slots it at
+		// (0, 0) regardless).
+		const myWp = placement( 100, {
+			x: 9999,
+			y: 9999,
+			file: {
+				type: 'shortcut',
+				ref: 'desktop-mode-my-wordpress',
+				title: 'My WordPress',
+				icon: 'dashicons-wordpress',
+				previewUrl: '',
+				exists: true,
+				pinned: true,
+			},
+		} );
+		// Icon A at (0, 2), Icon B at (0, 3). Cell pitch is
+		// `GRID_PADDING + row * GRID_CELL_H` = 16 + row*110.
+		const iconA = placement( 200, { x: 16, y: 236 } ); // (col 0, row 2)
+		const iconB = placement( 201, { x: 16, y: 346 } ); // (col 0, row 3)
+		store.setFolderPlacements( 0, [ myWp, iconA, iconB ] );
+
+		const host = document.createElement( 'div' );
+		Object.defineProperty( host, 'clientWidth', { value: 1024, configurable: true } );
+		Object.defineProperty( host, 'clientHeight', { value: 768, configurable: true } );
+		document.body.appendChild( host );
+		Object.defineProperty( host, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 1024, bottom: 768,
+				width: 1024, height: 768, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		const handle = layer.mountFilesLayer( host, 0 );
+		const tileB = host.querySelector< HTMLElement >( '[data-placement-id="201"]' );
+		expect( tileB ).not.toBeNull();
+		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		Object.defineProperty( container!, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 1024, bottom: 768,
+				width: 1024, height: 768, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		Object.defineProperty( tileB!, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 16, top: 346, right: 104, bottom: 442,
+				width: 88, height: 96, x: 16, y: 346, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+		installElementFromPointStub( [ { el: host, rect: { x: 0, y: 0, w: 1024, h: 768 } } ] );
+
+		fetchSpy.mockClear();
+
+		// Drag Icon B from its (16, 346) toward the empty cell at
+		// (16, 126) — that's (col 0, row 1) on screen.
+		// Pointerdown roughly at the tile's center so the ghost
+		// offset is (44, 48) — same offset the user has when
+		// grabbing a tile naturally.
+		tileB!.dispatchEvent( pointerEvent( 'pointerdown', 60, 394, tileB! ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 60, 220 ) );
+		// Release with cursor at (60, 174) → tile top-left lands at
+		// (60-44, 174-48) = (16, 126) → cell (0, 1).
+		document.dispatchEvent( pointerEvent( 'pointerup', 60, 174 ) );
+
+		await Promise.resolve();
+		await Promise.resolve();
+
+		const patch = fetchSpy.mock.calls.find( ( call ) => {
+			const init = call[ 1 ] as RequestInit | undefined;
+			return init?.method === 'PATCH' && String( call[ 0 ] ).includes( '/placements/201' );
+		} );
+		expect( patch ).toBeDefined();
+		const body = JSON.parse(
+			( patch![ 1 ] as RequestInit ).body as string,
+		) as { x: number; y: number; parentId: number };
+		// Critical assertion: the snapped cell is (0, 1) — NOT (0, 0)
+		// which is My WordPress's pinned slot.
+		expect( body.x ).toBe( 16 );
+		expect( body.y ).toBe( 126 );
+
+		handle.dispose();
+	} );
+
 	test( 'tile drag reads live placement from store, not closure — heartbeat-bumped updatedAtMs is honored', async () => {
 		// Regression: with the fast-path repaint preserving tile DOM
 		// identity, `attachTileDrag` is only attached once — the

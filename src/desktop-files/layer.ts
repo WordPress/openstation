@@ -31,7 +31,6 @@ import { openCreateFolderDialog } from './create-folder-dialog';
 import { openFile } from './open';
 import { resolve as resolveFileType } from './registry';
 import {
-	buildOccupiedSet,
 	cellKey,
 	cellToPos,
 	GRID_CELL_H,
@@ -416,7 +415,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				filesStoreApi
 					.getState()
 					.placementsByFolder.get( folderId ) ?? [];
-			const occupied = buildOccupiedSet( peers, movingId );
+			const occupied = buildVisualOccupiedSet( peers, movingId );
 			const cell = snapToEmptyCell( rawX, rawY, occupied, host );
 			previewEl.style.transform = `translate3d(${ cell.x }px, ${ cell.y }px, 0)`;
 		};
@@ -504,7 +503,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 			if ( session.payload.type === 'desktop-file' ) {
 				const data = session.payload.data as unknown as DesktopFileDragData;
-				const occupied = buildOccupiedSet( peers, data.placement.id );
+				const occupied = buildVisualOccupiedSet( peers, data.placement.id );
 				const cell = snapToEmptyCell( rawX, rawY, occupied, host );
 				const next: RestPlacementShape = {
 					...data.placement,
@@ -576,7 +575,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				// where the user released the cursor. Cursor-position
 				// snap is wrong for shortcut creates because users
 				// rarely aim precisely; row-major is the "tidy" outcome.
-				const occupied = buildOccupiedSet( peers );
+				const occupied = buildVisualOccupiedSet( peers );
 				const cell = nextRowMajorCell( occupied, host );
 				void rest
 					.createPlacement( {
@@ -942,6 +941,58 @@ function readSynthSource( placement: RestPlacementShape ): string | null {
  */
 function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
 	return placement.id <= 0 || readSynthSource( placement ) !== null;
+}
+
+/**
+ * Build an occupied-cells set that reflects what's actually painted
+ * on the grid — including pinned tiles' assigned visual slots.
+ *
+ * `grid.ts`'s `buildOccupiedSet` only consults each placement's
+ * stored `(x, y)`, but the repaint deliberately IGNORES those for
+ * pinned tiles (`desktop_mode_register_icon( …, [ 'pinned' => true ] )`),
+ * anchoring them to column 0, rows 0..N-1 in the order they appear.
+ * So a tile pinned at the top of the column has stored coords that
+ * could be anywhere — and the plain occupied set would miss it
+ * entirely, letting drop snaps land on top of the pinned slot.
+ *
+ * Symptom this fixes: in a column rendered as
+ * `My WordPress | empty | Icon A | Icon B`, dragging Icon B at the
+ * empty cell used to highlight My WordPress's slot because
+ * `snapToEmptyCell` thought (0, 0) was free.
+ *
+ * @since 0.20.0
+ */
+function buildVisualOccupiedSet(
+	placements: ReadonlyArray< RestPlacementShape >,
+	excludeId?: number,
+): Set< string > {
+	// Sort pinned-first to mirror the repaint's iteration order, so
+	// pinned-slot indices match what's on screen. `Array.sort` is
+	// stable across all engines we support — within the pinned
+	// group, original placement order is preserved.
+	const sorted = placements.slice().sort( ( a, b ) => {
+		const ap = isPinned( a ) ? 0 : 1;
+		const bp = isPinned( b ) ? 0 : 1;
+		return ap - bp;
+	} );
+
+	const set = new Set< string >();
+	let pinnedIdx = 0;
+	for ( const p of sorted ) {
+		if ( excludeId !== undefined && p.id === excludeId ) {
+			continue;
+		}
+		if ( isPinned( p ) ) {
+			// Visual slot: column 0, row = position in the pinned
+			// sequence. Stored coords ignored, same as the repaint.
+			set.add( cellKey( 0, pinnedIdx ) );
+			pinnedIdx += 1;
+		} else {
+			const cell = pointToCell( p.x, p.y );
+			set.add( cellKey( cell.col, cell.row ) );
+		}
+	}
+	return set;
 }
 
 /**
@@ -1337,7 +1388,7 @@ function registerFolderDropTarget(
 				// We can't read the destination folder window's host
 				// width from here, so default to 4 cols inside
 				// `nextRowMajorCell` — sensible for any folder window.
-				const cell = nextRowMajorCell( buildOccupiedSet( peers ) );
+				const cell = nextRowMajorCell( buildVisualOccupiedSet( peers ) );
 				void rest
 					.createPlacement( {
 						parentId: targetFolderId,
