@@ -361,12 +361,85 @@ function desktop_mode_posts_window_register_count_field() {
 add_action( 'rest_api_init', 'desktop_mode_posts_window_register_count_field' );
 
 /**
+ * Shared site-wide cache version for any term-derived endpoint
+ * payload (bulk counts, tag cooccurrence, …). Stored in a non-
+ * autoloaded option and bumped by
+ * `desktop_mode_posts_window_terms_cache_invalidate()` whenever a
+ * post/term change could move the derived data. The version is
+ * baked into every transient cache key, so a single
+ * `update_option()` retires the entire family of cached payloads
+ * in one stroke — no enumerating keys, no race window where an
+ * old entry might still be served. Stale entries fall out of the
+ * DB naturally via the transient TTL.
+ *
+ * @since 0.8.5
+ */
+function desktop_mode_posts_window_terms_cache_version() {
+	$v = (int) get_option( 'desktop_mode_terms_cache_version', 0 );
+	if ( $v <= 0 ) {
+		$v = 1;
+		// autoload = false so this doesn't ride on every page load.
+		update_option( 'desktop_mode_terms_cache_version', $v, false );
+	}
+	return $v;
+}
+
+/**
+ * Invalidate every cached terms-derived payload by incrementing
+ * the shared version. The next call to any cached endpoint will
+ * miss its transient lookup, recompute, and store under the new
+ * key.
+ *
+ * Hooked to a handful of "post→term graph changed" actions below.
+ * The signature is intentionally argument-tolerant — each hook
+ * passes different positional args (object_id, term_id, taxonomy,
+ * …) and PHP just ignores extras for a no-param target.
+ *
+ * @since 0.8.5
+ */
+function desktop_mode_posts_window_terms_cache_invalidate() {
+	$v = desktop_mode_posts_window_terms_cache_version();
+	update_option(
+		'desktop_mode_terms_cache_version',
+		$v + 1,
+		false
+	);
+}
+// Direct post→term graph changes. `set_object_terms` fires whenever
+// `wp_set_object_terms()` runs — covers post saves that change
+// terms, term-delete cleanup, REST PATCH on a post's tags array,
+// classic-editor flows, the lot. It's the ground truth.
+add_action( 'set_object_terms', 'desktop_mode_posts_window_terms_cache_invalidate' );
+// Term identity changes — a renamed term doesn't shift pair counts
+// but a deleted term does (its relationships go away). Invalidating
+// on every term mutation costs one option write per edit, which is
+// fine for the typical category/tag edit cadence.
+add_action( 'created_term', 'desktop_mode_posts_window_terms_cache_invalidate' );
+add_action( 'edited_term', 'desktop_mode_posts_window_terms_cache_invalidate' );
+add_action( 'delete_term', 'desktop_mode_posts_window_terms_cache_invalidate' );
+// Status flips that change what the SQL counts. Both endpoints
+// exclude 'trash', 'auto-draft', and 'inherit'; trashing or
+// restoring a post adds and removes counts/pairs from the graph.
+add_action( 'wp_trash_post', 'desktop_mode_posts_window_terms_cache_invalidate' );
+add_action( 'untrashed_post', 'desktop_mode_posts_window_terms_cache_invalidate' );
+// Pre-delete fires while term_relationships still exist; the row
+// will be gone by the time the next query runs. Belt-and-braces
+// alongside set_object_terms (which fires during delete cleanup
+// on most modern WP versions).
+add_action( 'before_delete_post', 'desktop_mode_posts_window_terms_cache_invalidate' );
+
+/**
  * Bulk count endpoint — returns `{ term_id: count }` for every
  * requested term in one query. The `desktop_mode_count` REST field
  * (per-term) is the canonical source, but on installs where the
  * field isn't reaching the response (caching, REST middleware,
  * stale `_fields` whitelist) the JS calls this endpoint as a
  * defensive fallback so node labels never silently show 0.
+ *
+ * Cached: a single transient holds `{ term_id: count }` for EVERY
+ * term in the taxonomy. Each call projects the caller's requested
+ * IDs out of that map, so all clients hit the same cache entry
+ * regardless of which subset they ask for.
  *
  * GET `/desktop-mode/v1/term-counts?taxonomy=category&ids=1,4,7`
  *
@@ -419,50 +492,64 @@ function desktop_mode_posts_window_term_counts_callback( $request ) {
 	// the param. 500 is far above any plausible category/tag count.
 	$ids = array_slice( $ids, 0, 500 );
 
-	// Mirror WP core's `_update_post_term_count` filtering — limit to
-	// the taxonomy's `object_type` (e.g. `post` for category) and
-	// exclude statuses core treats as non-counting:
-	//   - 'trash' + 'auto-draft' → user-not-published-and-never-will-be
-	//   - 'inherit' → attachment-only status; excluded so attachments
-	//                 aren't double-counted via parent inheritance
-	// Everything else (publish, draft, pending, future, private) is
-	// included so the user sees a "real" post count, not WP's
-	// publish-only term_taxonomy.count.
-	$object_types = array_map(
-		'sanitize_key',
-		(array) $tax_obj->object_type
-	);
-	$object_types = array_filter( $object_types, 'post_type_exists' );
-	if ( empty( $object_types ) ) {
-		$object_types = array( 'post' );
-	}
-	$id_placeholders   = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-	$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
-	$rows = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT tt.term_id, COUNT(p.ID) AS cnt
-			 FROM {$wpdb->term_taxonomy} tt
-			 LEFT JOIN {$wpdb->term_relationships} tr
-			   ON tr.term_taxonomy_id = tt.term_taxonomy_id
-			 LEFT JOIN {$wpdb->posts} p
-			   ON p.ID = tr.object_id
-			   AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
-			   AND p.post_type IN ( $type_placeholders )
-			 WHERE tt.taxonomy = %s
-			 AND tt.term_id IN ( $id_placeholders )
-			 GROUP BY tt.term_id",
-			array_merge( $object_types, array( $taxonomy ), $ids )
-		),
-		ARRAY_A
-	);
-	$out  = array();
-	foreach ( (array) $rows as $row ) {
-		$out[ (string) (int) $row['term_id'] ] = (int) $row['cnt'];
-	}
-	foreach ( $ids as $id ) {
-		if ( ! isset( $out[ (string) $id ] ) ) {
-			$out[ (string) $id ] = 0;
+	// Cache strategy: one transient holds the FULL taxonomy's
+	// { term_id => count } map. All clients project their requested
+	// ID subset out of the same cached map, so a window that asks
+	// for IDs [1, 4, 7] and one that asks for [4, 11, 22] share the
+	// same cache hit. Key shape: `dmtcnt_v<version>_<taxonomy>`.
+	$cache_version = desktop_mode_posts_window_terms_cache_version();
+	$cache_key     = sprintf( 'dmtcnt_v%d_%s', $cache_version, $taxonomy );
+	$counts        = get_transient( $cache_key );
+	if ( ! is_array( $counts ) ) {
+		// Mirror WP core's `_update_post_term_count` filtering —
+		// limit to the taxonomy's `object_type` (e.g. `post` for
+		// category) and exclude statuses core treats as non-counting:
+		//   - 'trash' + 'auto-draft' → user-not-published-and-never-will-be
+		//   - 'inherit' → attachment-only status; excluded so attachments
+		//                 aren't double-counted via parent inheritance
+		// Everything else (publish, draft, pending, future, private)
+		// is included so the user sees a "real" post count, not
+		// WP's publish-only term_taxonomy.count.
+		$object_types = array_map(
+			'sanitize_key',
+			(array) $tax_obj->object_type
+		);
+		$object_types = array_filter( $object_types, 'post_type_exists' );
+		if ( empty( $object_types ) ) {
+			$object_types = array( 'post' );
 		}
+		$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT tt.term_id, COUNT(p.ID) AS cnt
+				 FROM {$wpdb->term_taxonomy} tt
+				 LEFT JOIN {$wpdb->term_relationships} tr
+				   ON tr.term_taxonomy_id = tt.term_taxonomy_id
+				 LEFT JOIN {$wpdb->posts} p
+				   ON p.ID = tr.object_id
+				   AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
+				   AND p.post_type IN ( $type_placeholders )
+				 WHERE tt.taxonomy = %s
+				 GROUP BY tt.term_id",
+				array_merge( $object_types, array( $taxonomy ) )
+			),
+			ARRAY_A
+		);
+		$counts = array();
+		foreach ( (array) $rows as $row ) {
+			$counts[ (string) (int) $row['term_id'] ] = (int) $row['cnt'];
+		}
+		set_transient( $cache_key, $counts, DAY_IN_SECONDS );
+	}
+
+	// Project the caller's requested IDs out of the (cached or
+	// fresh) full map. Missing IDs return 0 to match the legacy
+	// shape — a caller looking up a term that no longer exists or
+	// has no associated posts still gets a zero, not a missing key.
+	$out = array();
+	foreach ( $ids as $id ) {
+		$key         = (string) $id;
+		$out[ $key ] = isset( $counts[ $key ] ) ? (int) $counts[ $key ] : 0;
 	}
 	return $out;
 }
@@ -514,73 +601,6 @@ function desktop_mode_posts_window_register_tag_cooccurrence_route() {
 }
 add_action( 'rest_api_init', 'desktop_mode_posts_window_register_tag_cooccurrence_route' );
 
-/**
- * Current site-wide cache version for the tag-cooccurrence response.
- *
- * The version sits in a non-autoloaded option and is bumped by
- * `desktop_mode_posts_window_tag_cooccurrence_invalidate()` whenever
- * a post/term change could have moved the cooccurrence graph. The
- * version is baked into the transient cache key so an invalidation
- * has the effect of making every previously-cached payload
- * unreachable in a single `update_option()` call — far cheaper than
- * enumerating + deleting individual transients. Stale entries age
- * out naturally via the transient's TTL.
- *
- * @since 0.8.5
- */
-function desktop_mode_posts_window_tag_cooccurrence_cache_version() {
-	$v = (int) get_option( 'desktop_mode_tag_cooccurrence_cache_version', 0 );
-	if ( $v <= 0 ) {
-		$v = 1;
-		// autoload = false so this doesn't ride on every page load.
-		update_option( 'desktop_mode_tag_cooccurrence_cache_version', $v, false );
-	}
-	return $v;
-}
-
-/**
- * Invalidate every cached tag-cooccurrence payload by incrementing
- * the cache version. The next call to the endpoint will miss its
- * transient lookup, recompute, and store under the new key.
- *
- * Hooked to a handful of "post-term graph changed" actions below.
- * The signature is intentionally variadic-tolerant — the hooks all
- * pass different args (object_id, term_id, taxonomy, …) and PHP
- * 7+ ignores extras for a no-param target.
- *
- * @since 0.8.5
- */
-function desktop_mode_posts_window_tag_cooccurrence_invalidate() {
-	$v = desktop_mode_posts_window_tag_cooccurrence_cache_version();
-	update_option(
-		'desktop_mode_tag_cooccurrence_cache_version',
-		$v + 1,
-		false
-	);
-}
-// Direct post→term graph changes. `set_object_terms` fires whenever
-// `wp_set_object_terms()` runs — covers post saves that change
-// terms, term-delete cleanup, REST PATCH on a post's tags array,
-// classic-editor flows, the lot. It's the ground truth.
-add_action( 'set_object_terms', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
-// Term identity changes — a renamed term doesn't shift pair counts
-// but a deleted term does (its relationships go away). Invalidating
-// on every term mutation costs one option write per edit, which is
-// fine for the typical category/tag edit cadence.
-add_action( 'created_term', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
-add_action( 'edited_term', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
-add_action( 'delete_term', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
-// Status flips that change what the SQL counts. The endpoint
-// excludes 'trash', 'auto-draft', and 'inherit'; trashing or
-// restoring a post can both add and remove pairs from the graph.
-add_action( 'wp_trash_post', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
-add_action( 'untrashed_post', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
-// Pre-delete fires while term_relationships still exist; the row
-// will be gone by the time the next query runs. Belt-and-braces
-// alongside set_object_terms (which fires during delete cleanup
-// on most modern WP versions).
-add_action( 'before_delete_post', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
-
 function desktop_mode_posts_window_tag_cooccurrence_callback( $request ) {
 	global $wpdb;
 
@@ -606,7 +626,7 @@ function desktop_mode_posts_window_tag_cooccurrence_callback( $request ) {
 	// option bump makes every old entry unreachable without us
 	// having to enumerate keys. Taxonomy + limit are part of the key
 	// because they change the response shape.
-	$cache_version = desktop_mode_posts_window_tag_cooccurrence_cache_version();
+	$cache_version = desktop_mode_posts_window_terms_cache_version();
 	$cache_key     = sprintf(
 		'dmwco_v%d_%s_l%d',
 		$cache_version,
