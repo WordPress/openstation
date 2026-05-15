@@ -82,6 +82,7 @@ interface PixiApp {
 		height: number;
 		render( container?: unknown ): void;
 	};
+	ticker?: { stop(): void };
 	init( opts: unknown ): Promise< void >;
 	render(): void;
 	destroy( clearStage?: boolean, opts?: unknown ): void;
@@ -2402,10 +2403,22 @@ export async function mountTagsCloud(
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
 		document.removeEventListener( 'click', onDocClickSearch );
+		// Same Pixi v8 multi-Application destroy race as
+		// `categories-mindmap.ts` — calling `app.destroy()` while
+		// another live Pixi.Application is on the page (e.g. the
+		// Content Graph window) corrupts the surviving app's batcher
+		// pipe map. Stop, detach, let GC reclaim. See the mindmap
+		// comment for the full diagnosis and the alternatives that
+		// don't work.
 		try {
-			app.destroy( true, { children: true, texture: true } );
+			app.ticker?.stop();
 		} catch {
-			// pixi 8 destroy quirks; ignore.
+			// Best-effort.
+		}
+		try {
+			app.canvas?.remove();
+		} catch {
+			// Best-effort.
 		}
 		host.replaceChildren();
 		host.classList.remove( 'wpd-tagcloud' );

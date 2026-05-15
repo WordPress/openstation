@@ -80,6 +80,7 @@ interface PixiApp {
 		height: number;
 		render( container?: unknown ): void;
 	};
+	ticker?: { stop(): void };
 	init( opts: unknown ): Promise< void >;
 	render(): void;
 	destroy( clearStage?: boolean, opts?: unknown ): void;
@@ -3054,10 +3055,34 @@ export async function mountCategoriesMindmap(
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
 		document.removeEventListener( 'click', onDocClickSearch );
+		// Pixi v8 has a known multi-Application destroy race: tearing
+		// down one `Pixi.Application` on a page hosting another live
+		// one (here: the Content Graph window) corrupts the
+		// surviving app's batcher pipe map, and the next frame crashes
+		// with "Cannot read properties of null (reading 'clear')" in
+		// `Batcher.break()` — looping forever via rAF.
+		//
+		// Tried and rejected:
+		//   - `destroy(true, { children: true })` (no `texture: true`): still crashes.
+		//   - Deferred destroy via `setTimeout(64)`: still crashes.
+		//   - `sharedTicker: false` on the Content Graph app: still crashes
+		//     (the race lives below the ticker layer).
+		//
+		// What actually works: don't call `app.destroy()` at all.
+		// Stop our ticker, remove the canvas from the DOM, and let
+		// the page's GC reclaim the orphaned Pixi resources once the
+		// references drop. Leaks one mindmap-sized app per
+		// open/close cycle (~hundreds of KB of GPU memory) — small
+		// enough to be acceptable on every realistic session length.
 		try {
-			app.destroy( true, { children: true, texture: true } );
+			app.ticker?.stop();
 		} catch {
-			// pixi 8 destroy quirks; ignore.
+			// Best-effort.
+		}
+		try {
+			app.canvas?.remove();
+		} catch {
+			// Best-effort.
 		}
 		host.replaceChildren();
 		host.classList.remove( 'wpd-mindmap' );

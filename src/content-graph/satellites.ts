@@ -101,11 +101,33 @@ const KIND_COLOR: Record<SatelliteRef['kind'], number> = {
 
 const KIND_DASHICON: Record<SatelliteRef['kind'], string> = {
 	user: 'admin-users',
+	// Fallback for term kinds we don't have a specific icon for.
+	// Per-taxonomy lookup (see `iconForTermRef`) overrides this for
+	// the WordPress built-ins so categories don't share the tag's
+	// visual identity.
 	term: 'tag',
 	comment: 'admin-comments',
 	media: 'admin-media',
 	revision: 'backup',
 };
+
+/**
+ * Pick a dashicon for a term satellite based on its taxonomy.
+ * Categories get the folder icon, tags keep the tag icon, anything
+ * else falls back to the generic `term` icon — gives editors a
+ * visual distinction between the two built-in WP taxonomies (which
+ * were indistinguishable green-tag pills before).
+ */
+function iconForTermRef( ref: Extract< SatelliteRef, { kind: 'term' } > ): string {
+	switch ( ref.taxonomy ) {
+		case 'category':
+			return 'category';
+		case 'post_tag':
+			return 'tag';
+		default:
+			return KIND_DASHICON.term;
+	}
+}
 
 /**
  * Per-icon visual-centre offset applied on top of the `(0.5, 0.5)`
@@ -387,7 +409,9 @@ export class SatelliteLayer {
 		const disc = new this.pixi.Graphics();
 		container.addChild( disc );
 
-		const iconChar = resolveDashicon( KIND_DASHICON[ ref.kind ] );
+		const dashName =
+			ref.kind === 'term' ? iconForTermRef( ref ) : KIND_DASHICON[ ref.kind ];
+		const iconChar = resolveDashicon( dashName );
 		// Bigger glyph + true bbox-centre anchor, then per-kind x/y
 		// nudge in KIND_ICON_NUDGE pushes the visible glyph (not the
 		// bbox) onto the disc centre. The `admin-comments` bubble

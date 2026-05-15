@@ -109,6 +109,18 @@ export class ForceSim {
 	 * smear them into each other on a typical zoom level.
 	 */
 	public groupOrderSpacing = 320;
+	/**
+	 * Optional vertical zig-zag for ordered clusters. When > 0 the
+	 * `applyClusterAttractor` pass alternates centroid Y between
+	 * `-groupOrderStaggerY` (even indices) and `+groupOrderStaggerY`
+	 * (odd indices) instead of letting Y stay emergent — useful for
+	 * dense ordered facets like year-month where ~60 clusters on a
+	 * single horizontal line would crowd into each other. Pinning Y
+	 * (not just seeding it) is necessary because the existing
+	 * gravity-toward-origin force would erode an emergent Y bias
+	 * over time.
+	 */
+	public groupOrderStaggerY = 0;
 	private alpha = ALPHA_REHEAT;
 
 	constructor(
@@ -282,15 +294,25 @@ export class ForceSim {
 			return;
 		}
 
-		// Resolve ordered-X positions for groups carried in groupOrder
-		// (e.g. chronological lattice for year / year-month). Keys not
-		// in the order array fall back to emergent X in pass 2.
+		// Resolve ordered-X (and optional zig-zagged Y) positions for
+		// groups carried in groupOrder (e.g. chronological lattice for
+		// year / year-month). Keys not in the order array fall back
+		// to emergent X / Y in pass 2.
 		const orderedX = new Map< string, number >();
+		const orderedY = new Map< string, number >();
 		if ( this.groupOrder && this.groupOrder.length > 0 ) {
 			const n = this.groupOrder.length;
 			const spacing = this.groupOrderSpacing;
+			const stagger = this.groupOrderStaggerY;
 			for ( let i = 0; i < n; i++ ) {
-				orderedX.set( this.groupOrder[ i ], ( i - ( n - 1 ) / 2 ) * spacing );
+				const key = this.groupOrder[ i ];
+				orderedX.set( key, ( i - ( n - 1 ) / 2 ) * spacing );
+				if ( stagger > 0 ) {
+					// Alternate above / below the horizontal axis so
+					// adjacent clusters don't crowd each other on
+					// dense facets like year-month.
+					orderedY.set( key, i % 2 === 0 ? -stagger : stagger );
+				}
 			}
 		}
 
@@ -330,8 +352,12 @@ export class ForceSim {
 				if ( ! c || c.count === 0 ) {
 					continue;
 				}
-				const cx = orderedX.has( key ) ? ( orderedX.get( key ) as number ) : c.sx / c.count;
-				const cy = c.sy / c.count;
+				const cx = orderedX.has( key )
+					? ( orderedX.get( key ) as number )
+					: c.sx / c.count;
+				const cy = orderedY.has( key )
+					? ( orderedY.get( key ) as number )
+					: c.sy / c.count;
 				n.vx += ( cx - n.x ) * perKey;
 				n.vy += ( cy - n.y ) * perKey;
 			}

@@ -483,7 +483,17 @@ async function mountWithPixi(
 		detach();
 		ro.disconnect();
 		app.ticker.remove( tick );
-		app.destroy( { removeView: true }, { children: true, texture: true } );
+		// Same Pixi v8 multi-Application destroy race as
+		// posts-window/categories-mindmap.ts and posts-window/tags-
+		// cloud.ts — calling `app.destroy()` while another Pixi.
+		// Application is on the page (e.g. the Content Graph window)
+		// corrupts the surviving app's batcher pipe map. Detach the
+		// canvas and let the page GC reclaim once references drop.
+		try {
+			( app as unknown as { canvas?: { remove(): void } } ).canvas?.remove();
+		} catch {
+			// Best-effort.
+		}
 		container.classList.remove( 'desktop-mode-widget-heartbeat' );
 		container.classList.remove( 'desktop-mode-widget-heartbeat--no-heart' );
 	};

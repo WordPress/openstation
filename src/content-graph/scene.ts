@@ -102,13 +102,21 @@ const ICON_NUDGE: Record< string, { x: number; y: number } > = {
  *
  * The year + year-month facets share the orange tint — both are
  * date buckets, so visually grouping them is correct.
+ *
+ * CSS strings (not Pixi colour ints) because cluster labels
+ * render as DOM elements over the canvas, not as Pixi children.
+ * Earlier they were Pixi `Graphics + Text`, but Pixi v8's batched
+ * renderer would intermittently crash with "Cannot read properties
+ * of null (reading 'clear')" when an external event (e.g. opening
+ * another desktop-mode window in an iframe) perturbed the canvas's
+ * GL context. DOM labels sidestep the Pixi renderer entirely.
  */
-const GROUP_LABEL_COLOR: Record< GroupFacet, number > = {
-	category: 0x2c6be5,
-	tag: 0x2ca97a,
-	author: 0x7c3aed,
-	year: 0xea580c,
-	year_month: 0xea580c,
+const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
+	category: '#2c6be5',
+	tag: '#2ca97a',
+	author: '#7c3aed',
+	year: '#ea580c',
+	year_month: '#ea580c',
 };
 
 const ZOOM_MIN = 0.15;
@@ -143,19 +151,18 @@ interface EdgeView {
 }
 
 /**
- * One label marker per non-empty cluster. Painted into the
- * `groupLabelLayer` and repositioned each tick at the running
- * centroid of its member nodes (centroid is recomputed in the sim
- * for the force, mirrored here for the visual). `members` is the
- * node-id list captured at grouping time so the per-frame centroid
- * recompute is O(memberCount) instead of O(all nodes).
+ * One label marker per non-empty cluster. Rendered as a DOM
+ * element overlaid on the Pixi canvas (see `GROUP_LABEL_COLOR`
+ * for why DOM, not Pixi). Repositioned each tick at the centroid
+ * of its member nodes, projected from world coords to canvas-local
+ * screen coords. `members` is the node-id list captured at grouping
+ * time so the per-frame centroid recompute is O(memberCount)
+ * instead of O(all nodes).
  */
 interface GroupView {
 	key: string;
 	label: string;
-	container: PixiContainer;
-	bg: PixiGraphics;
-	text: PixiText;
+	el: HTMLDivElement;
 	members: number[];
 }
 
@@ -170,11 +177,12 @@ export class GraphScene {
 	private spokeLayer!: PixiContainer;
 	private nodeLayer!: PixiContainer;
 	private labelLayer!: PixiContainer;
-	// Per-cluster label markers. Sits ABOVE the node-label layer so the
-	// cluster name stays readable when zoomed out (which is the moment
-	// it matters most — cluster labels fade IN as you zoom out and OUT
-	// as you zoom in past the focus-a-node range).
-	private groupLabelLayer!: PixiContainer;
+	// Per-cluster label DOM overlay — see the `GROUP_LABEL_COLOR`
+	// comment for why these are DOM elements, not Pixi children.
+	// The overlay sits absolutely positioned inside `host`, above
+	// the Pixi canvas, with `pointer-events: none` so it never
+	// steals interaction from the node layer.
+	private groupLabelOverlay: HTMLDivElement | null = null;
 	private satellites: SatelliteLayer | null = null;
 	private nodeViews = new Map< number, NodeView >();
 	private edgeViews: EdgeView[] = [];
@@ -288,6 +296,16 @@ export class GraphScene {
 			antialias: true,
 			autoDensity: true,
 			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
+			// Dedicated ticker, NOT the shared one. Other desktop-mode
+			// bundles (posts-window, recycle-bin, …) also load Pixi via
+			// `loadModules('pixijs')` — sharing `Ticker.shared` across
+			// independent Application instances has bitten us: a render
+			// triggered by another bundle's app would also drive our
+			// renderer, sometimes while the browser had perturbed our
+			// canvas (iframe mount, layout shift) and our pipes weren't
+			// ready, producing the "Cannot read properties of null
+			// (reading 'clear')" crash inside `Batcher.break()`.
+			sharedTicker: false,
 		} );
 		this.app = app;
 		this.host.appendChild( app.canvas );
@@ -306,14 +324,69 @@ export class GraphScene {
 		this.spokeLayer = new pixi.Container();
 		this.nodeLayer = new pixi.Container();
 		this.labelLayer = new pixi.Container();
-		this.groupLabelLayer = new pixi.Container();
 		this.world.addChild(
 			this.edgeLayer,
 			this.spokeLayer,
 			this.nodeLayer,
 			this.labelLayer,
-			this.groupLabelLayer,
 		);
+		// DOM overlay for cluster labels, layered above the Pixi
+		// canvas. Pointer-events disabled so clicks pass through to
+		// the canvas.
+		this.groupLabelOverlay = document.createElement( 'div' );
+		this.groupLabelOverlay.className =
+			'desktop-mode-content-graph__group-labels';
+		this.host.appendChild( this.groupLabelOverlay );
+
+		// Pixi v8's WebGL context can be lost when the browser shuffles
+		// canvases around (e.g. when another desktop-mode window opens
+		// in an iframe and forces a reflow). Without this guard the
+		// ticker keeps trying to render against a dead GL context and
+		// floods the console with "Cannot read properties of null"
+		// crashes. We stop the ticker on loss; the user can reload to
+		// recover. Restoration would require rebuilding all GPU pipes
+		// — deferred.
+		app.canvas.addEventListener(
+			'webglcontextlost',
+			( ev ) => {
+				ev.preventDefault();
+				try {
+					this.app?.ticker?.stop();
+				} catch {
+					// Ignore — best-effort.
+				}
+			},
+			false,
+		);
+
+		// Belt-and-braces: wrap the renderer's `render()` method so any
+		// internal Pixi crash (e.g., the `Batcher.break()` "Cannot read
+		// properties of null (reading 'clear')" race triggered when
+		// another Pixi.Application on the page destroys shared state)
+		// catches the throw, stops our ticker, and prevents the
+		// infinite-rAF console spam the user reported. The Pixi auto-
+		// render runs on the same ticker our `tickerCb` is on, so an
+		// unhandled throw inside it would otherwise keep firing every
+		// frame forever.
+		const renderer = app.renderer as { render: ( ...a: unknown[] ) => unknown };
+		const origRender = renderer.render.bind( renderer );
+		renderer.render = ( ...a: unknown[] ) => {
+			try {
+				return origRender( ...a );
+			} catch ( err ) {
+				try {
+					this.app?.ticker?.stop();
+				} catch {
+					// Ignore.
+				}
+				// eslint-disable-next-line no-console
+				console.warn(
+					'[content-graph] Pixi render threw, stopping ticker:',
+					err,
+				);
+				return undefined;
+			}
+		};
 
 		this.satellites = new SatelliteLayer(
 			pixi,
@@ -691,9 +764,27 @@ export class GraphScene {
 		this.lastResizeWidth = this.host.clientWidth;
 		this.lastResizeHeight = this.host.clientHeight;
 		this.resizeObserver = new ResizeObserver( () => {
+			if ( this.destroyed ) {
+				return;
+			}
 			const w = this.host.clientWidth;
 			const h = this.host.clientHeight;
-			this.app.renderer.resize( w, h );
+			// Hidden / detached host has clientWidth/clientHeight = 0.
+			// `renderer.resize(0, 0)` puts Pixi v8's batched renderer
+			// into a state that crashes the next render with
+			// "Cannot read properties of null (reading 'clear')",
+			// which then floods rAF for the rest of the session. Skip
+			// the resize entirely while we're zero-sized; the next
+			// observation, when the host has dimensions again, will
+			// catch up.
+			if ( w <= 0 || h <= 0 ) {
+				return;
+			}
+			try {
+				this.app.renderer.resize( w, h );
+			} catch {
+				return;
+			}
 			// Render synchronously so the freshly-resized canvas has
 			// pixels NOW. Without this the WebGL drawingBuffer briefly
 			// composites as white before the next ticker frame paints —
@@ -734,6 +825,12 @@ export class GraphScene {
 
 	private tick( delta: number ): void {
 		if ( this.destroyed ) {
+			return;
+		}
+		// Defensive: the Pixi app's ticker also drives the internal
+		// renderer. If we've been torn down between frames, bail
+		// before touching any layer / graphics state.
+		if ( ! this.app || ! this.world ) {
 			return;
 		}
 		if ( this.groupingTween ) {
@@ -841,62 +938,29 @@ export class GraphScene {
 		members: Map< string, number[] >,
 		facet: GroupFacet,
 	): void {
+		if ( ! this.groupLabelOverlay ) {
+			return;
+		}
 		const tint = GROUP_LABEL_COLOR[ facet ];
 		for ( const [ key, ids ] of members ) {
 			if ( ids.length === 0 ) {
 				continue;
 			}
-			const container = new this.pixi.Container();
-			const bg = new this.pixi.Graphics();
-			container.addChild( bg );
-			const text = new this.pixi.Text( {
-				text: this.labelForGroupKey( key ),
-				style: {
-					fill: 0xffffff,
-					fontSize: 14,
-					fontFamily:
-						'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-					fontWeight: '700',
-				},
-				resolution: 2,
-				anchor: { x: 0.5, y: 0.5 },
-			} );
-			container.addChild( text );
-			// Pill backing — drawn once per build, the text doesn't
-			// mutate after this so per-frame redraws would be wasted.
-			// Facet-tinted background + white text reads as a distinct
-			// "cluster label" kind, so it can't be confused with node
-			// titles (dark text on a white pill).
-			const padX = 12;
-			const padY = 5;
-			const w = text.width + padX * 2;
-			const h = text.height + padY * 2;
-			bg
-				.roundRect( -w / 2, -h / 2, w, h, h / 2 )
-				// Translucent fill so nodes / edges sitting behind the
-				// label remain visible; the stroke + white text keep
-				// the pill itself readable.
-				.fill( { color: tint, alpha: 0.7 } )
-				.stroke( { color: 0xffffff, alpha: 0.85, width: 1.5 } );
-
-			this.groupLabelLayer.addChild( container );
-			this.groupViews.set( key, {
-				key,
-				label: text.text,
-				container,
-				bg,
-				text,
-				members: ids,
-			} );
+			const label = this.labelForGroupKey( key );
+			const el = document.createElement( 'div' );
+			el.className = 'desktop-mode-content-graph__group-label';
+			el.textContent = label;
+			el.style.setProperty( '--wpd-cg-cluster-color', tint );
+			this.groupLabelOverlay.appendChild( el );
+			this.groupViews.set( key, { key, label, el, members: ids } );
 		}
 	}
 
 	private clearGroupViews(): void {
 		for ( const v of this.groupViews.values() ) {
-			v.container.destroy( { children: true } );
+			v.el.remove();
 		}
 		this.groupViews.clear();
-		this.groupLabelLayer.removeChildren();
 	}
 
 	/**
@@ -907,13 +971,15 @@ export class GraphScene {
 	 * don't clutter the close-up view.
 	 */
 	private drawGroupLabels(): void {
-		if ( this.groupViews.size === 0 ) {
+		if ( this.destroyed || this.groupViews.size === 0 ) {
 			return;
 		}
-		const inverseScale = 1 / this.world.scale.x;
 		// Mirror of the node-label fade, inverted: present at low
 		// zoom (cluster reading), gone at high zoom (close-up).
 		const fade = 1 - smoothstep( 1.2, 2.4, this.world.scale.x );
+		const scale = this.world.scale.x;
+		const ox = this.world.x;
+		const oy = this.world.y;
 		for ( const v of this.groupViews.values() ) {
 			let sx = 0;
 			let sy = 0;
@@ -927,19 +993,25 @@ export class GraphScene {
 				sy += node.y;
 				count++;
 			}
-			if ( count === 0 ) {
-				v.container.visible = false;
+			if ( count === 0 || fade <= 0.02 ) {
+				v.el.style.display = 'none';
 				continue;
 			}
-			v.container.x = sx / count;
-			v.container.y = sy / count;
-			v.container.scale.set( inverseScale );
-			v.container.alpha = fade;
-			v.container.visible = fade > 0.02;
+			// World → canvas-local screen coords. The overlay div is
+			// inside `host` (same coord space as the canvas) so we
+			// just apply the world transform.
+			const screenX = ox + ( sx / count ) * scale;
+			const screenY = oy + ( sy / count ) * scale;
+			v.el.style.display = '';
+			v.el.style.transform = `translate(${ screenX }px, ${ screenY }px) translate(-50%, -50%)`;
+			v.el.style.opacity = String( fade );
 		}
 	}
 
 	private draw(): void {
+		if ( this.destroyed ) {
+			return;
+		}
 		const focusId = this.focusedId;
 		const hoverId = this.hoveredId;
 
@@ -1169,6 +1241,13 @@ export class GraphScene {
 			}
 		}
 		const order = this.chronologicalOrder( facet, members );
+		// Year-month produces ~60 clusters on a long-lived blog, all
+		// jammed onto one horizontal line in chronological order →
+		// crowded. Alternating Y above / below the axis gives each
+		// cluster its own vertical "lane" while keeping the time
+		// reading. Year alone (single-digit cluster count) stays on
+		// the straight axis.
+		this.sim.groupOrderStaggerY = facet === 'year_month' ? 160 : 0;
 		// Hand the assignment to the sim BEFORE starting the tween so
 		// the cluster force is already wired up when the tween hands
 		// motion control back. The sim's reheat does nothing visible
@@ -1190,6 +1269,9 @@ export class GraphScene {
 	 * with an ease-out cubic. Cleans up + resumes the sim when done.
 	 */
 	private advanceGroupingTween(): void {
+		if ( this.destroyed ) {
+			return;
+		}
 		const tween = this.groupingTween;
 		if ( ! tween ) {
 			return;
@@ -1255,10 +1337,20 @@ export class GraphScene {
 
 		if ( order && order.length > 0 ) {
 			const n = order.length;
+			// Mirror the sim's zig-zag exactly so the tween lands on
+			// the cluster force's target Y instead of snapping at
+			// `y=0` then jumping to ±stagger on the first sim step.
+			const stagger = this.sim.groupOrderStaggerY;
+			const staggerY = ( idx: number ): number => {
+				if ( stagger <= 0 ) {
+					return 0;
+				}
+				return idx % 2 === 0 ? -stagger : stagger;
+			};
 			for ( let i = 0; i < n; i++ ) {
 				seeds.set( order[ i ], {
 					x: ( i - ( n - 1 ) / 2 ) * spacing,
-					y: 0,
+					y: staggerY( i ),
 				} );
 			}
 			let extra = n;
@@ -1266,7 +1358,10 @@ export class GraphScene {
 				if ( seeds.has( k ) ) {
 					continue;
 				}
-				seeds.set( k, { x: ( extra - ( n - 1 ) / 2 ) * spacing, y: 0 } );
+				seeds.set( k, {
+					x: ( extra - ( n - 1 ) / 2 ) * spacing,
+					y: staggerY( extra ),
+				} );
 				extra++;
 			}
 		} else {
@@ -1516,15 +1611,38 @@ export class GraphScene {
 
 	destroy(): void {
 		this.destroyed = true;
+		// Park the Pixi app's ticker FIRST. The ticker auto-runs an
+		// internal render every frame regardless of our own
+		// `tickerCb`; if we destroy graphics objects (via satellites /
+		// app cascade) while the ticker is still scheduled to fire,
+		// the next auto-render hits half-destroyed state and crashes
+		// in the batched renderer. Stopping the ticker quiets the
+		// auto-render before we touch any child.
+		try {
+			this.app?.ticker?.stop();
+		} catch {
+			// Ignore — destroy is best-effort.
+		}
 		if ( this.tickerCb ) {
-			this.app.ticker.remove( this.tickerCb );
+			try {
+				this.app?.ticker?.remove( this.tickerCb );
+			} catch {
+				// Ignore.
+			}
 			this.tickerCb = null;
 		}
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
 		this.satellites?.destroy();
 		this.satellites = null;
+		// DOM overlay for cluster labels lives outside the Pixi
+		// cascade — remove it explicitly.
 		this.clearGroupViews();
+		this.groupLabelOverlay?.remove();
+		this.groupLabelOverlay = null;
+		// Group views, edge views, node views, etc. are destroyed by
+		// the `app.destroy({children: true})` cascade below. Doing it
+		// here explicitly was redundant and could double-destroy.
 		try {
 			this.app.destroy( true, { children: true } );
 		} catch {

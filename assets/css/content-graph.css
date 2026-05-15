@@ -201,6 +201,41 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Cluster labels (DOM overlay) -------------------------- */
+
+.desktop-mode-content-graph__group-labels {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	/* Sit above the canvas but below any toolbar / side panel. */
+	z-index: 2;
+	overflow: hidden;
+}
+
+.desktop-mode-content-graph__group-label {
+	position: absolute;
+	top: 0;
+	left: 0;
+	padding: 5px 12px;
+	border-radius: 999px;
+	background: var( --wpd-cg-cluster-color, #2c6be5 );
+	color: #fff;
+	font-size: 14px;
+	font-weight: 700;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif;
+	white-space: nowrap;
+	box-shadow: 0 0 0 1.5px rgba( 255, 255, 255, 0.85 ),
+		0 1px 3px rgba( 0, 0, 0, 0.18 );
+	/* Translucent so nodes/edges behind the label remain visible. */
+	opacity: 0.85;
+	/* Smooth the per-frame `style.opacity` and transform updates so
+	   the cluster labels glide instead of stutter during the
+	   grouping tween. */
+	transition: opacity 120ms ease-out;
+	will-change: transform, opacity;
+}
+
 /* ---------- Body layout (stage + side panel) ----------------------- */
 
 .desktop-mode-content-graph__body {

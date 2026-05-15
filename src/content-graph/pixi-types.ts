@@ -87,6 +87,10 @@ export interface PixiText extends PixiContainer {
 export interface PixiTicker {
 	add( cb: ( ticker: { deltaTime: number } ) => void ): void;
 	remove( cb: ( ticker: { deltaTime: number } ) => void ): void;
+	// Pixi's auto-render also lives on the ticker; calling `stop()`
+	// at teardown silences it before we destroy graphics children,
+	// which otherwise can crash mid-frame in the batched renderer.
+	stop(): void;
 }
 
 export interface PixiApp {
