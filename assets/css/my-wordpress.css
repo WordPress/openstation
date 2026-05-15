@@ -259,14 +259,76 @@
 	height: 1px;
 }
 
-.desktop-mode-my-wordpress__spinner {
+/* Tile-grid loading skeleton — placeholder tiles that mimic the
+ * icon + label shape of what's about to load. We dropped the
+ * spinning WordPress mark here because it read as an alien
+ * affordance inside the file-explorer surface; a skeleton signals
+ * "tiles are landing in these slots" instead of "the system is
+ * busy doing something opaque."
+ *
+ * Each placeholder is parented directly to the positioned canvas
+ * (`__canvas--positioned`) and `position: absolute` at the
+ * (left, top) the next real tile will occupy — see
+ * `layout.peekNextCells()` and `showLoadingSkeleton()` in
+ * `src/my-wordpress/index.ts`. Per-tile shimmer delay and label
+ * width are inlined so a row of placeholders reads as a cascade,
+ * not a uniform pulse.
+ *
+ * Tile dimensions mirror the real `.desktop-mode-file-tile` width
+ * so a placeholder sits cleanly in the cell its successor will
+ * inherit.
+ */
+.desktop-mode-my-wordpress__skeleton-tile {
+	position: absolute;
 	display: flex;
-	justify-content: center;
-	padding: 16px;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	width: 88px;
+	padding: 8px 4px;
+	box-sizing: border-box;
+	pointer-events: none;
 }
 
-.desktop-mode-my-wordpress__spinner--first {
-	padding: 32px;
+.desktop-mode-my-wordpress__skeleton-icon,
+.desktop-mode-my-wordpress__skeleton-label {
+	background: linear-gradient(
+		90deg,
+		var( --desktop-mode-skeleton-low, rgba( 0, 0, 0, 0.05 ) ) 0%,
+		var( --desktop-mode-skeleton-high, rgba( 0, 0, 0, 0.13 ) ) 50%,
+		var( --desktop-mode-skeleton-low, rgba( 0, 0, 0, 0.05 ) ) 100%
+	);
+	background-size: 200% 100%;
+	animation: desktop-mode-my-wordpress-skeleton-shimmer 1.4s ease-in-out
+		var( --desktop-mode-skeleton-delay, 0s ) infinite;
+}
+
+.desktop-mode-my-wordpress__skeleton-icon {
+	width: 44px;
+	height: 44px;
+	border-radius: 10px;
+}
+
+.desktop-mode-my-wordpress__skeleton-label {
+	width: 72%;
+	height: 10px;
+	border-radius: 4px;
+}
+
+@keyframes desktop-mode-my-wordpress-skeleton-shimmer {
+	from {
+		background-position: 200% 0;
+	}
+	to {
+		background-position: -200% 0;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-my-wordpress__skeleton-icon,
+	.desktop-mode-my-wordpress__skeleton-label {
+		animation: none;
+	}
 }
 
 /* ----- Right pane: preview ----- */
@@ -296,6 +358,18 @@
 	min-height: 320px;
 	padding: 32px;
 	box-sizing: border-box;
+}
+
+/* Preview-pane loader — same scale curve as the tile-grid first
+ * spinner and the window-loading overlay. The JS used to hard-code
+ * `size="128"`, which set an inline `--wpd-spinner-size` that
+ * overrode any CSS knob; the size attribute is now omitted so this
+ * rule is the single source of truth for both the My WordPress
+ * preview and the wallpaper file-preview pane (which reuses this
+ * class deliberately).
+ */
+.desktop-mode-my-wordpress__preview-loading wpd-spinner {
+	--wpd-spinner-size: clamp( 96px, 14vw, 192px );
 }
 
 .desktop-mode-my-wordpress__article {

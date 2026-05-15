@@ -117,6 +117,33 @@ export function sanitizeClassName( value: string ): string {
 }
 
 /**
+ * Apply a randomized fade-in cadence to a freshly-built file/icon
+ * tile. The animation itself is declared in CSS on
+ * `.desktop-mode-file-tile`; this helper writes the two CSS
+ * custom properties that drive the per-tile stagger:
+ *
+ *   - `--desktop-mode-file-tile-enter-delay`: 0 → 0.25s
+ *   - `--desktop-mode-file-tile-enter-duration`: 0.3 → 0.55s
+ *
+ * Both ranges sit in the decimal-of-a-second window, so a grid of
+ * tiles reads as a soft cascade rather than a uniform pop-in.
+ *
+ * Call once per tile, immediately after creating the element.
+ *
+ * @public
+ */
+export function applyTileEntryStagger( tile: HTMLElement ): void {
+	tile.style.setProperty(
+		'--desktop-mode-file-tile-enter-delay',
+		`${ ( Math.random() * 0.25 ).toFixed( 3 ) }s`,
+	);
+	tile.style.setProperty(
+		'--desktop-mode-file-tile-enter-duration',
+		`${ ( 0.3 + Math.random() * 0.25 ).toFixed( 3 ) }s`,
+	);
+}
+
+/**
  * Returns a comparable key for two admin URLs so equality checks work
  * regardless of the chromeless flag, the portal flag, or trailing
  * slashes. Used by the window class to match submenu tabs against
