@@ -13,6 +13,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
+	cycleOverviewCursor,
 	exitOverviewIfActive,
 	exitShowDesktopIfActive,
 	switchToAdjacentDesktop,
@@ -296,6 +297,161 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 		test( 'returns false when overview is not active', async () => {
 			expect( exitOverviewIfActive( manager ) ).toBe( false );
+		} );
+	} );
+
+	describe( 'cycleOverviewCursor (+ tile in arrow cycle)', async () => {
+		test( 'arrow-right past the last desktop parks the cursor on the + tile', async () => {
+			manager.createDesktop(); // desktop-2
+			manager.enterOverview();
+			expect( manager._overviewAddTileFocused ).toBe( false );
+
+			// D1 → D2 (real switch).
+			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
+			expect( manager._overviewAddTileFocused ).toBe( false );
+
+			// D2 → +.
+			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
+			expect( manager._overviewAddTileFocused ).toBe( true );
+			// Active desktop is unchanged — there's nothing to switch to.
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
+		} );
+
+		test( 'arrow-right from the + tile wraps back to the first desktop', async () => {
+			manager.createDesktop();
+			manager.enterOverview();
+			cycleOverviewCursor( manager, 'next' ); // D1 → D2
+			cycleOverviewCursor( manager, 'next' ); // D2 → +
+			expect( manager._overviewAddTileFocused ).toBe( true );
+
+			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
+
+			expect( manager._overviewAddTileFocused ).toBe( false );
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		} );
+
+		test( 'arrow-left from the first desktop parks the cursor on the + tile', async () => {
+			manager.createDesktop();
+			manager.enterOverview();
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+
+			expect( cycleOverviewCursor( manager, 'prev' ) ).toBe( true );
+			expect( manager._overviewAddTileFocused ).toBe( true );
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		} );
+
+		test( 'arrow-left from + tile lands on the last desktop', async () => {
+			manager.createDesktop();
+			manager.enterOverview();
+			cycleOverviewCursor( manager, 'prev' ); // D1 → +
+			expect( manager._overviewAddTileFocused ).toBe( true );
+
+			expect( cycleOverviewCursor( manager, 'prev' ) ).toBe( true );
+			expect( manager._overviewAddTileFocused ).toBe( false );
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
+		} );
+
+		test( 'works with a single desktop (cycle = [D1, +])', async () => {
+			manager.enterOverview();
+			expect( manager.getDesktops() ).toHaveLength( 1 );
+
+			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
+			expect( manager._overviewAddTileFocused ).toBe( true );
+
+			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
+			expect( manager._overviewAddTileFocused ).toBe( false );
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		} );
+
+		test( 'is a no-op outside overview', async () => {
+			manager.createDesktop();
+			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( false );
+		} );
+
+		test( 'refreshes the top bar so the + tile picks up the --cursor class', async () => {
+			manager.enterOverview();
+			cycleOverviewCursor( manager, 'next' ); // D1 → +
+
+			const addTile = manager._overviewTopBar!.querySelector< HTMLElement >(
+				'.desktop-mode-overview-top-bar__tile--add',
+			);
+			expect( addTile ).not.toBeNull();
+			expect(
+				addTile!.classList.contains(
+					'desktop-mode-overview-top-bar__tile--cursor',
+				),
+			).toBe( true );
+		} );
+
+		test( 'desktop tiles drop --active while the cursor is on the + tile', async () => {
+			manager.createDesktop();
+			manager.enterOverview();
+			// Two arrows: D1 → D2 → +.
+			cycleOverviewCursor( manager, 'next' );
+			cycleOverviewCursor( manager, 'next' );
+			expect( manager._overviewAddTileFocused ).toBe( true );
+
+			const activeTiles = manager._overviewTopBar!.querySelectorAll(
+				'.desktop-mode-overview-top-bar__tile--active',
+			);
+			// No desktop tile should still be highlighted — only the
+			// "+" carries the keyboard cursor's visual weight.
+			expect( activeTiles ).toHaveLength( 0 );
+		} );
+
+		test( 'desktop tile regains --active when the cursor leaves the + tile', async () => {
+			manager.createDesktop();
+			manager.enterOverview();
+			cycleOverviewCursor( manager, 'next' ); // D1 → D2
+			cycleOverviewCursor( manager, 'next' ); // D2 → +
+			cycleOverviewCursor( manager, 'next' ); // + → D1 (wrap)
+
+			const activeTile = manager._overviewTopBar!.querySelector< HTMLElement >(
+				'.desktop-mode-overview-top-bar__tile--active',
+			);
+			expect( activeTile?.dataset.desktopId ).toBe( 'desktop-1' );
+		} );
+
+		test( 'exitOverview clears the + cursor state', async () => {
+			manager.enterOverview();
+			cycleOverviewCursor( manager, 'next' );
+			expect( manager._overviewAddTileFocused ).toBe( true );
+
+			manager.exitOverview();
+
+			expect( manager._overviewAddTileFocused ).toBe( false );
+		} );
+	} );
+
+	describe( 'Enter on + tile creates a new desktop', async () => {
+		test( 'pressing Enter while cursor is on + creates a desktop and exits overview onto it', async () => {
+			manager.enterOverview();
+			cycleOverviewCursor( manager, 'next' ); // D1 → +
+			expect( manager._overviewAddTileFocused ).toBe( true );
+			expect( manager.getDesktops() ).toHaveLength( 1 );
+
+			document.dispatchEvent(
+				new KeyboardEvent( 'keydown', { key: 'Enter' } ),
+			);
+
+			expect( manager.getDesktops() ).toHaveLength( 2 );
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
+			expect( manager._overviewActive ).toBe( false );
+			expect( manager._overviewAddTileFocused ).toBe( false );
+		} );
+
+		test( 'pressing Enter while cursor is on a desktop tile exits without creating', async () => {
+			manager.createDesktop();
+			manager.enterOverview();
+			expect( manager.getDesktops() ).toHaveLength( 2 );
+
+			document.dispatchEvent(
+				new KeyboardEvent( 'keydown', { key: 'Enter' } ),
+			);
+
+			expect( manager.getDesktops() ).toHaveLength( 2 );
+			expect( manager._overviewActive ).toBe( false );
 		} );
 	} );
 

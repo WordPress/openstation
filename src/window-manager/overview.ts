@@ -267,13 +267,18 @@ export function enterOverview( mgr: WindowManager ): void {
 			exitOverview( mgr );
 			return;
 		}
-		// Enter commits the currently active desktop — useful when the
-		// user has been arrowing through the top-bar tiles and now wants
-		// to land on whichever they've highlighted. No specific window
-		// selection: just collapse the overview onto the active desktop's
-		// existing layout.
+		// Enter commits whatever the keyboard cursor is parked on:
+		//
+		//   - "+" tile  → create a new desktop and exit onto it.
+		//   - desktop   → exit overview onto the currently active
+		//                 desktop (arrow keys keep that in sync as the
+		//                 cursor moves through tiles).
 		if ( e.key === 'Enter' ) {
 			e.preventDefault();
+			if ( mgr._overviewAddTileFocused ) {
+				commitAddTile( mgr );
+				return;
+			}
 			exitOverview( mgr );
 		}
 	};
@@ -365,21 +370,39 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	addTile.type = 'button';
 	addTile.className =
 		'desktop-mode-overview-top-bar__tile desktop-mode-overview-top-bar__tile--add';
+	if ( mgr._overviewAddTileFocused ) {
+		// Mirrors the `--active` highlight on the active desktop tile —
+		// signals "this is where Enter will land". Distinct class name
+		// so future styling can diverge from the active-desktop look
+		// without touching click handlers.
+		addTile.classList.add(
+			'desktop-mode-overview-top-bar__tile--cursor',
+		);
+	}
 	addTile.setAttribute( 'aria-label', __( 'Add new desktop' ) );
 	addTile.innerHTML =
 		'<span class="desktop-mode-overview-top-bar__tile-plus" aria-hidden="true">+</span>';
 	addTile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
-		const created = createDesktop( mgr );
-		// Auto-switch to the new desktop AND exit overview onto it —
-		// matches macOS Spaces ergonomics where pressing "+" lands
-		// you on the freshly-created blank space.
-		exitOverviewToDesktop( mgr, created.id );
+		commitAddTile( mgr );
 	} );
 	list.appendChild( addTile );
 
 	return bar;
+}
+
+/**
+ * Create a new desktop, switch to it, and exit overview onto it.
+ * Shared by the "+" tile click handler AND the Enter-key commit path
+ * when the keyboard cursor is parked on the "+" tile. macOS Spaces
+ * ergonomics — pressing "+" lands you on the freshly-created blank
+ * space without an extra hop.
+ */
+export function commitAddTile( mgr: WindowManager ): void {
+	const created = createDesktop( mgr );
+	mgr._overviewAddTileFocused = false;
+	exitOverviewToDesktop( mgr, created.id );
 }
 
 /** Build a single desktop tile for the overview top bar. */
@@ -388,7 +411,12 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	tile.type = 'button';
 	tile.className = 'desktop-mode-overview-top-bar__tile';
 	tile.dataset.desktopId = d.id;
-	if ( d.id === mgr._activeDesktopId ) {
+	// Active highlight follows the keyboard cursor: when the cursor is
+	// parked on the "+" tile, no desktop tile should also light up.
+	// The active desktop's windows still render in the grid behind the
+	// bar, so there's still context — but the visual selection is
+	// unambiguous: only the "+" reads as "Enter lands here".
+	if ( d.id === mgr._activeDesktopId && ! mgr._overviewAddTileFocused ) {
 		tile.classList.add( 'desktop-mode-overview-top-bar__tile--active' );
 	}
 	// translators: %s is the desktop label
@@ -549,6 +577,10 @@ export function exitOverview(
 		return;
 	}
 	mgr._overviewActive = false;
+	// Drop the keyboard cursor's "+ focused" state so the next overview
+	// session starts with the cursor on the active desktop, not on
+	// whatever tile the previous session left it on.
+	mgr._overviewAddTileFocused = false;
 
 	doAction( HOOKS.OVERVIEW_EXITING, {
 		windowId: selected && maximize ? selected.id : undefined,

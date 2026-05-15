@@ -29,6 +29,7 @@
  */
 
 import { isTextEntryFocus } from './switcher';
+import { refreshOverviewTopBar } from './overview';
 import type { WindowManager } from './index';
 
 export type DesktopDirection = 'prev' | 'next';
@@ -38,6 +39,10 @@ export type DesktopDirection = 'prev' | 'next';
  * the registry order. Wraps at the ends — past the last desktop loops
  * back to the first and vice versa — so a user pressing ArrowRight
  * repeatedly always cycles through every desktop.
+ *
+ * Outside overview, this is the only navigation primitive. Inside
+ * overview, callers route through {@link cycleOverviewCursor} instead
+ * so the trailing "+" tile participates in the cycle.
  *
  * Returns `true` when a switch actually happened so the keydown
  * handler knows to `preventDefault`.
@@ -61,6 +66,63 @@ export function switchToAdjacentDesktop(
 	if ( targetIdx === idx ) {
 		return false;
 	}
+	mgr.switchDesktop( desktops[ targetIdx ].id, { direction } );
+	return true;
+}
+
+/**
+ * Arrow navigation INSIDE overview. Cycle order is `[ ...desktops, + ]`
+ * — pressing past the last desktop parks the cursor on the trailing
+ * "+" tile (highlighted via `--cursor`); pressing once more wraps back
+ * to the first desktop.
+ *
+ * Cursor-on-desktop also drives the active desktop (matches the
+ * pre-existing "arrow switches active desktop in overview" behaviour
+ * so the grid + top bar repaint as the cursor moves). Cursor-on-add
+ * leaves the active desktop alone — there's nothing to switch to yet.
+ * Pressing Enter while parked on "+" creates the desktop (see
+ * `commitAddTile`).
+ *
+ * Returns `true` whenever the cycle moved, so the caller
+ * `preventDefault`s only on real navigation.
+ */
+export function cycleOverviewCursor(
+	mgr: WindowManager,
+	direction: DesktopDirection,
+): boolean {
+	if ( ! mgr._overviewActive ) {
+		return false;
+	}
+	const desktops = mgr.getDesktops();
+	// Single desktop + "+" still produces a 2-element cycle, so unlike
+	// `switchToAdjacentDesktop` we never bail on length.
+	const cycleLength = desktops.length + 1;
+	const ADD_INDEX = desktops.length;
+	const currentIdx = mgr._overviewAddTileFocused
+		? ADD_INDEX
+		: desktops.findIndex( ( d ) => d.id === mgr.getActiveDesktopId() );
+	if ( currentIdx === -1 ) {
+		return false;
+	}
+	const step = direction === 'next' ? 1 : -1;
+	const targetIdx = ( currentIdx + step + cycleLength ) % cycleLength;
+	if ( targetIdx === currentIdx ) {
+		return false;
+	}
+
+	if ( targetIdx === ADD_INDEX ) {
+		// Move cursor onto the "+" tile. Don't touch active desktop —
+		// there's no desktop to switch to. Just repaint the top bar so
+		// the cursor highlight follows.
+		mgr._overviewAddTileFocused = true;
+		refreshOverviewTopBar( mgr );
+		return true;
+	}
+
+	// Moving onto a real desktop tile — clear add-tile focus and route
+	// through the standard switch so the grid + top-bar update via the
+	// existing overview-aware path in `switchDesktop`.
+	mgr._overviewAddTileFocused = false;
 	mgr.switchDesktop( desktops[ targetIdx ].id, { direction } );
 	return true;
 }
@@ -188,10 +250,14 @@ export function installDesktopArrowShortcuts( mgr: WindowManager ): void {
 			let handled = false;
 			switch ( e.code ) {
 				case 'ArrowLeft':
-					handled = switchToAdjacentDesktop( mgr, 'prev' );
+					handled = mgr._overviewActive
+						? cycleOverviewCursor( mgr, 'prev' )
+						: switchToAdjacentDesktop( mgr, 'prev' );
 					break;
 				case 'ArrowRight':
-					handled = switchToAdjacentDesktop( mgr, 'next' );
+					handled = mgr._overviewActive
+						? cycleOverviewCursor( mgr, 'next' )
+						: switchToAdjacentDesktop( mgr, 'next' );
 					break;
 				case 'ArrowUp':
 					// Priority chain:
