@@ -70,7 +70,7 @@ export const userSearchStyles = css`
 		font-weight: 500;
 	}
 
-	.login {
+	.slug {
 		opacity: 0.6;
 		font-size: 12px;
 	}

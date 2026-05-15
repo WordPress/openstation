@@ -1089,6 +1089,126 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Share-mutation routes (`PATCH/DELETE/accept/deny`) must honor
+	 * the `{folder_id}` segment of the URL. A share id that exists
+	 * on a different folder than the URL claims must 404 — the
+	 * routes are hierarchical and a request to
+	 * `/folders/{A}/shares/{share_belonging_to_B}` is semantically
+	 * a wrong URL.
+	 *
+	 * @covers ::desktop_mode_files_rest_resolve_share_in_folder
+	 * @covers ::desktop_mode_files_rest_update_share
+	 * @covers ::desktop_mode_files_rest_delete_share
+	 * @covers ::desktop_mode_files_rest_accept_share
+	 * @covers ::desktop_mode_files_rest_deny_share
+	 */
+	public function test_share_routes_reject_folder_id_mismatch() {
+		$folder_a = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'A' ) );
+		$folder_b = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'B' ) );
+		$share_a  = desktop_mode_folder_share_invite(
+			$folder_a, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+
+		wp_set_current_user( self::$owner_id );
+
+		// PATCH /folders/{B}/shares/{share_on_A} — mismatch.
+		$req = new WP_REST_Request( 'PATCH', "/desktop-mode/v1/files/folders/{$folder_b}/shares/{$share_a}" );
+		$req['id']      = $folder_b;
+		$req['shareId'] = $share_a;
+		$req->set_param( 'capability', 'write' );
+		$res = desktop_mode_files_rest_update_share( $req );
+		$this->assertWPError( $res );
+		$this->assertSame( 'desktop_mode_files_not_found', $res->get_error_code() );
+
+		// DELETE /folders/{B}/shares/{share_on_A} — same.
+		$req = new WP_REST_Request( 'DELETE', "/desktop-mode/v1/files/folders/{$folder_b}/shares/{$share_a}" );
+		$req['id']      = $folder_b;
+		$req['shareId'] = $share_a;
+		$res = desktop_mode_files_rest_delete_share( $req );
+		$this->assertWPError( $res );
+		$this->assertSame( 'desktop_mode_files_not_found', $res->get_error_code() );
+
+		// Accept / deny under a mismatched folder also reject.
+		wp_set_current_user( self::$editor_id );
+		$req = new WP_REST_Request( 'POST', "/desktop-mode/v1/files/folders/{$folder_b}/shares/{$share_a}/accept" );
+		$req['id']      = $folder_b;
+		$req['shareId'] = $share_a;
+		$this->assertWPError( desktop_mode_files_rest_accept_share( $req ) );
+
+		$req = new WP_REST_Request( 'POST', "/desktop-mode/v1/files/folders/{$folder_b}/shares/{$share_a}/deny" );
+		$req['id']      = $folder_b;
+		$req['shareId'] = $share_a;
+		$this->assertWPError( desktop_mode_files_rest_deny_share( $req ) );
+
+		// Sanity: the share is untouched on folder A — still pending.
+		$row = desktop_mode_files_get_share( $share_a );
+		$this->assertSame( 'pending', $row['state'] );
+		$this->assertSame( 'read', $row['capability'] );
+	}
+
+	/**
+	 * The user-search response must not expose `user_login` (the
+	 * auth credential). The disambiguation handle is `user_nicename`
+	 * via the `slug` field — same shape WP's own `/wp/v2/users`
+	 * surfaces publicly.
+	 *
+	 * @covers ::desktop_mode_files_rest_search_users
+	 */
+	public function test_user_search_does_not_leak_user_login() {
+		wp_set_current_user( self::$owner_id );
+		$req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/users/search' );
+		$req->set_param( 'q', '' );
+		$res  = desktop_mode_files_rest_search_users( $req );
+		$data = is_object( $res ) && method_exists( $res, 'get_data' ) ? $res->get_data() : $res;
+		$this->assertArrayHasKey( 'users', $data );
+		$this->assertNotEmpty( $data['users'] );
+		foreach ( $data['users'] as $u ) {
+			$this->assertArrayNotHasKey( 'login', $u, 'login (user_login) must not appear in the search response.' );
+			$this->assertArrayHasKey( 'slug', $u );
+		}
+	}
+
+	/**
+	 * A malicious or misconfigured filter on
+	 * `desktop_mode_files_sharing_tables_for_purge` must not be able
+	 * to drop arbitrary tables. The purge endpoint validates every
+	 * entry against an identifier regex AND the wpdb prefix —
+	 * anything that fails the validation lands in `skipped` and is
+	 * never interpolated into a `DROP TABLE` statement.
+	 *
+	 * @covers ::desktop_mode_files_rest_purge_sharing_tables
+	 */
+	public function test_purge_filter_rejects_unsafe_table_names() {
+		global $wpdb;
+		$prefix = $wpdb->prefix;
+		$filter = static function ( $tables ) use ( $prefix ) {
+			$tables[] = $prefix . "fake; DROP TABLE {$prefix}users; --"; // sql injection
+			$tables[] = 'evil';                                          // missing prefix
+			$tables[] = $prefix . "users' OR '1";                        // special chars
+			return $tables;
+		};
+		add_filter( 'desktop_mode_files_sharing_tables_for_purge', $filter );
+
+		wp_set_current_user( self::$owner_id );
+		$response = desktop_mode_files_rest_purge_sharing_tables();
+		remove_filter( 'desktop_mode_files_sharing_tables_for_purge', $filter );
+
+		$data = is_object( $response ) && method_exists( $response, 'get_data' )
+			? $response->get_data()
+			: $response;
+
+		// All three malicious entries land in `skipped`, never dropped.
+		$this->assertSame( 3, count( $data['skipped'] ) );
+		foreach ( $data['skipped'] as $skipped ) {
+			$this->assertNotContains( $skipped, $data['dropped'] );
+		}
+		// Critical: the users table is still here.
+		$users_table = $wpdb->users;
+		$row = $wpdb->get_var( "SELECT COUNT(*) FROM {$users_table}" );
+		$this->assertNotNull( $row, 'wp_users must survive a malicious filter.' );
+	}
+
+	/**
 	 * Plugin authors must be able to veto a folder delete from
 	 * `desktop_mode_files_can_delete_folder`. The veto should keep
 	 * the folder + every share row intact.

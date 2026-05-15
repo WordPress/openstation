@@ -27,7 +27,7 @@ import { userSearchStyles } from './wpd-user-search.styles';
 interface SearchUser {
 	id: number;
 	name: string;
-	login: string;
+	slug: string;
 	avatarUrl: string;
 }
 
@@ -263,7 +263,7 @@ export class WpdUserSearch extends Component {
 					<img class="avatar" src=${ u.avatarUrl } alt="" />
 					<div>
 						<div class="name">${ u.name }</div>
-						<div class="login">${ u.login }</div>
+						<div class="slug">${ u.slug }</div>
 					</div>
 				</button>
 			`,

@@ -759,10 +759,49 @@ function desktop_mode_files_rest_create_share( WP_REST_Request $req ) {
 }
 
 /**
+ * Verify that the share id in the URL actually belongs to the
+ * folder id in the URL. Returns the loaded share row or a
+ * `WP_Error` (404 unknown share / 404 mismatch). The underlying
+ * mutation functions still gate on the share's true folder, so a
+ * mismatched URL never escalates permission — but the routes are
+ * hierarchical (`/folders/{id}/shares/{shareId}/…`), so honoring
+ * both path segments is the contract callers expect.
+ *
+ * @since 0.18.x
+ *
+ * @param WP_REST_Request $req Request.
+ * @return array|WP_Error
+ */
+function desktop_mode_files_rest_resolve_share_in_folder( WP_REST_Request $req ) {
+	$folder_id = (int) $req['id'];
+	$share_id  = (int) $req['shareId'];
+	$share     = desktop_mode_files_get_share( $share_id );
+	if ( ! $share ) {
+		return new WP_Error(
+			'desktop_mode_files_not_found',
+			__( 'Share not found.', 'desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+	if ( (int) $share['folder_id'] !== $folder_id ) {
+		return new WP_Error(
+			'desktop_mode_files_not_found',
+			__( 'Share not found in this folder.', 'desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+	return $share;
+}
+
+/**
  * PATCH /folders/<id>/shares/<shareId> — owner only.
  */
 function desktop_mode_files_rest_update_share( WP_REST_Request $req ) {
-	$share_id = (int) $req['shareId'];
+	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+	if ( is_wp_error( $share ) ) {
+		return $share;
+	}
+	$share_id = (int) $share['id'];
 	$ok = desktop_mode_folder_share_update_capability( $share_id, get_current_user_id(), (string) $req->get_param( 'capability' ) );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
@@ -774,8 +813,11 @@ function desktop_mode_files_rest_update_share( WP_REST_Request $req ) {
  * DELETE /folders/<id>/shares/<shareId> — owner only.
  */
 function desktop_mode_files_rest_delete_share( WP_REST_Request $req ) {
-	$share_id = (int) $req['shareId'];
-	$ok = desktop_mode_folder_share_revoke( $share_id, get_current_user_id() );
+	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+	if ( is_wp_error( $share ) ) {
+		return $share;
+	}
+	$ok = desktop_mode_folder_share_revoke( (int) $share['id'], get_current_user_id() );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
@@ -786,8 +828,11 @@ function desktop_mode_files_rest_delete_share( WP_REST_Request $req ) {
  * POST /folders/<id>/shares/<shareId>/accept — recipient only.
  */
 function desktop_mode_files_rest_accept_share( WP_REST_Request $req ) {
-	$share_id = (int) $req['shareId'];
-	$row = desktop_mode_folder_share_accept( $share_id, get_current_user_id() );
+	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+	if ( is_wp_error( $share ) ) {
+		return $share;
+	}
+	$row = desktop_mode_folder_share_accept( (int) $share['id'], get_current_user_id() );
 	if ( is_wp_error( $row ) ) {
 		return $row;
 	}
@@ -798,8 +843,11 @@ function desktop_mode_files_rest_accept_share( WP_REST_Request $req ) {
  * POST /folders/<id>/shares/<shareId>/deny — recipient only.
  */
 function desktop_mode_files_rest_deny_share( WP_REST_Request $req ) {
-	$share_id = (int) $req['shareId'];
-	$row = desktop_mode_folder_share_deny( $share_id, get_current_user_id() );
+	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+	if ( is_wp_error( $share ) ) {
+		return $share;
+	}
+	$row = desktop_mode_folder_share_deny( (int) $share['id'], get_current_user_id() );
 	if ( is_wp_error( $row ) ) {
 		return $row;
 	}
@@ -855,15 +903,30 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 	$to_drop = (array) apply_filters( 'desktop_mode_files_sharing_tables_for_purge', $to_drop );
 
 	$dropped = array();
+	$skipped = array();
+	$prefix  = (string) $wpdb->prefix;
 	foreach ( $to_drop as $tbl ) {
 		$tbl = (string) $tbl;
 		if ( '' === $tbl ) {
 			continue;
 		}
-		// `wpdb->query` doesn't support placeholders for table
-		// names; the input is filtered above. Suppress errors so
-		// dropping a non-existent table (legacy variant the
-		// site never had) doesn't leak a wpdb warning.
+		// Defense-in-depth: a misbehaving filter could push any
+		// string into `$to_drop` and we're about to interpolate
+		// the value directly into a `DROP TABLE` statement (wpdb
+		// has no placeholder for identifiers). Two gates:
+		//   1. Must match the `[A-Za-z0-9_]+` identifier pattern —
+		//      keeps quotes/backticks/spaces out of the SQL even
+		//      if a filter author smuggled them in.
+		//   2. Must start with the wpdb prefix — keeps a malicious
+		//      filter from dropping system tables (`wp_users`,
+		//      `wp_options`, …) on a multi-prefix install.
+		if (
+			! preg_match( '/^[A-Za-z0-9_]+$/', $tbl ) ||
+			0 !== strpos( $tbl, $prefix )
+		) {
+			$skipped[] = $tbl;
+			continue;
+		}
 		$prev_suppress = $wpdb->suppress_errors( true );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS `{$tbl}`" );
@@ -891,6 +954,7 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 
 	return rest_ensure_response( array(
 		'dropped' => $dropped,
+		'skipped' => $skipped,
 	) );
 }
 
@@ -962,10 +1026,15 @@ function desktop_mode_files_rest_search_users( WP_REST_Request $req ) {
 		if ( ! user_can( $user, 'edit_posts' ) ) {
 			continue;
 		}
+		// Disambiguation handle uses `user_nicename` (the public
+		// URL slug) instead of `user_login` — the login is the auth
+		// credential and exposing it to every `edit_posts` user is
+		// broader than needed for a share picker. Matches the
+		// `slug` field WP's own `/wp/v2/users` endpoint surfaces.
 		$out[] = array(
 			'id'        => (int) $user->ID,
 			'name'      => (string) $user->display_name,
-			'login'     => (string) $user->user_login,
+			'slug'      => (string) $user->user_nicename,
 			'avatarUrl' => get_avatar_url( $user->ID, array( 'size' => 48 ) ),
 		);
 	}

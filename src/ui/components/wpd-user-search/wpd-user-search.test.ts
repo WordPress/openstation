@@ -41,7 +41,7 @@ describe( 'wpd-user-search', () => {
 		const fetchSpy = vi.fn( async () =>
 			new Response(
 				JSON.stringify( {
-					users: [ { id: 1, name: 'Alice', login: 'alice', avatarUrl: '' } ],
+					users: [ { id: 1, name: 'Alice', slug: 'alice', avatarUrl: '' } ],
 				} ),
 				{ headers: { 'Content-Type': 'application/json' } },
 			),
@@ -73,7 +73,7 @@ describe( 'wpd-user-search', () => {
 		const fetchSpy = vi.fn( async () =>
 			new Response(
 				JSON.stringify( {
-					users: [ { id: 2, name: 'Bob', login: 'bob', avatarUrl: '' } ],
+					users: [ { id: 2, name: 'Bob', slug: 'bob', avatarUrl: '' } ],
 				} ),
 				{ headers: { 'Content-Type': 'application/json' } },
 			),
