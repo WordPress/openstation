@@ -294,6 +294,67 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		handle.dispose();
 	} );
 
+	test( 'tile drag reads live placement from store, not closure — heartbeat-bumped updatedAtMs is honored', async () => {
+		// Regression: with the fast-path repaint preserving tile DOM
+		// identity, `attachTileDrag` is only attached once — the
+		// closure-captured `placement` would otherwise hold a stale
+		// `updatedAtMs` forever after the first heartbeat bump.
+		// Server then rejected the PATCH with `If-Match` mismatch →
+		// 409 surfaced as "admin moved this to 'another folder'."
+		// Shared folders saw this most because peers bump
+		// `updatedAtMs` on every heartbeat tick.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+		const manager = installManagerOnWindow();
+
+		// Mount the layer with one placement at updatedAtMs=100.
+		store.setFolderPlacements( 0, [
+			placement( 1 ),
+		] );
+
+		const host = document.createElement( 'div' );
+		Object.defineProperty( host, 'clientWidth', { value: 1024, configurable: true } );
+		Object.defineProperty( host, 'clientHeight', { value: 768, configurable: true } );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 0 );
+		const tile = host.querySelector< HTMLElement >( '[data-placement-id="1"]' );
+		expect( tile ).not.toBeNull();
+
+		// Simulate the server-side bump that would happen after a
+		// peer-driven heartbeat tick — `upsertPlacement` from
+		// `applyDelta` in `heartbeat.ts` does exactly this.
+		store.upsertPlacement(
+			{ ...placement( 1 ), updatedAtMs: 9999 },
+			'remote',
+		);
+
+		// Fast-path took the repaint — same DOM node still in place.
+		expect(
+			host.querySelector< HTMLElement >( '[data-placement-id="1"]' ),
+		).toBe( tile );
+
+		// Capture the session payload by spying on `dragManager.start`.
+		// (The drag never actually has to threshold-lift for this
+		// test — what matters is what `start()` receives.)
+		const startSpy = vi.spyOn( manager, 'start' );
+
+		// Fire pointerdown to trigger the drag handler's `start` call.
+		tile!.dispatchEvent( pointerEvent( 'pointerdown', 50, 50, tile! ) );
+
+		expect( startSpy ).toHaveBeenCalledTimes( 1 );
+		const opts = startSpy.mock.calls[ 0 ][ 0 ];
+		const data = opts.payload.data as { placement: { updatedAtMs: number } };
+		expect( data.placement.updatedAtMs ).toBe( 9999 );
+
+		// Tear down before any pending drag manager state leaks into
+		// the next test.
+		document.dispatchEvent( pointerEvent( 'pointerup', 50, 50 ) );
+		startSpy.mockRestore();
+		handle.dispose();
+	} );
+
 	test( 'drag-to-reposition keeps tile DOM identity — no full grid rebuild', async () => {
 		// Regression: on every drop the repaint did `container.replaceChildren()`
 		// — every tile was destroyed and re-created. To users that visible

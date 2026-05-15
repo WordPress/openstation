@@ -1401,20 +1401,36 @@ function attachTileDrag(
 			// least selectable.
 			return;
 		}
+		// IMPORTANT: re-read the placement from the live store. The
+		// closure-captured `placement` is the value as of the LAST
+		// wholesale repaint — the fast-path repaint
+		// (`tryPatchPositions`) reuses tile DOM and never re-attaches
+		// the drag handler, so without this lookup the closure holds
+		// stale `updatedAtMs` indefinitely after the first move. The
+		// REST PATCH that the canvas drop fires uses that field as
+		// the `If-Match` header; a stale value lands a 409 with
+		// `reason: 'parent_changed'`, surfaced to the user as
+		// "<their own name> moved this to 'another folder'." Shared
+		// folders see this most often because the heartbeat bumps
+		// `updatedAtMs` on every tick a peer is active.
+		const liveBucket =
+			filesStoreApi.getState().placementsByFolder.get( folderId );
+		const livePlacement =
+			liveBucket?.find( ( p ) => p.id === placement.id ) ?? placement;
 		// Read the tile's CURRENT visible position from the inline
 		// styles, not the placement's server-stored (x, y). They
 		// diverge when the layer has displaced this tile to dodge
 		// a pinned slot — using `placement.x` would snap the tile
 		// back to its stored coords on the first pointermove (the
 		// "drag jumps to the pinned slot" bug).
-		const visibleX = parseFloat( tile.style.left ) || placement.x;
-		const visibleY = parseFloat( tile.style.top ) || placement.y;
+		const visibleX = parseFloat( tile.style.left ) || livePlacement.x;
+		const visibleY = parseFloat( tile.style.top ) || livePlacement.y;
 		const session = dragManager.start( {
 			payload: {
 				type: 'desktop-file',
 				source: tile,
 				data: {
-					placement,
+					placement: livePlacement,
 					sourceFolderId: folderId,
 				} satisfies DesktopFileDragData,
 				ghost: {
