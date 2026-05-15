@@ -49,6 +49,7 @@ import {
 	getDesktops,
 	seedDesktops,
 	switchDesktop,
+	type SwitchDesktopOptions,
 } from './desktops';
 import { cascade, tile } from './arrange';
 import {
@@ -986,8 +987,8 @@ export class WindowManager {
 	public createDesktop(): Desktop {
 		return createDesktop( this );
 	}
-	public switchDesktop( id: string ): void {
-		switchDesktop( this, id );
+	public switchDesktop( id: string, opts?: SwitchDesktopOptions ): void {
+		switchDesktop( this, id, opts );
 	}
 	public closeDesktop( id: string ): void {
 		closeDesktop( this, id );

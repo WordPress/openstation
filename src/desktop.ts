@@ -12,6 +12,7 @@
 
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
+import { installDesktopArrowShortcuts } from './window-manager/desktop-shortcuts';
 import {
 	installWindowLoadingTransitions,
 } from './window/loading';
@@ -1719,6 +1720,7 @@ function init(): void {
 	} );
 	installPaletteShortcut();
 	installWindowSwitcherShortcut( manager );
+	installDesktopArrowShortcuts( manager );
 
 	// Iframe command bridge — pulls `wp.data.select('core/commands')` out
 	// of whichever window has focus and exposes the commands as slash-

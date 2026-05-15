@@ -35,6 +35,32 @@ export function enterOverview( mgr: WindowManager ): void {
 	if ( mgr._overviewActive ) {
 		return;
 	}
+	// "Show Desktop → Overview" unwind. If every window on the active
+	// desktop is minimized — the canonical Show Desktop state — entering
+	// overview would otherwise show an empty grid, contradicting the
+	// user's expectation that Overview reveals their work. Restore them
+	// first so they participate in the layout below.
+	const onActive = mgr._stack.filter(
+		( w ) => w.config.desktopId === mgr._activeDesktopId,
+	);
+	if (
+		onActive.length > 0 &&
+		onActive.every( ( w ) => w.state === 'minimized' )
+	) {
+		for ( const w of onActive ) {
+			try {
+				w.restore();
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						'[desktop-mode] enterOverview: window.restore() threw for',
+						w.id,
+						err,
+					);
+				}
+			}
+		}
+	}
 	// Overview shows only the ACTIVE desktop's windows in the main
 	// grid; windows on other desktops stay hidden underneath. The top
 	// bar (rendered later) gives the user a way to switch. Native
@@ -239,6 +265,16 @@ export function enterOverview( mgr: WindowManager ): void {
 	mgr._overviewKeyHandler = ( e: KeyboardEvent ) => {
 		if ( e.key === 'Escape' ) {
 			exitOverview( mgr );
+			return;
+		}
+		// Enter commits the currently active desktop — useful when the
+		// user has been arrowing through the top-bar tiles and now wants
+		// to land on whichever they've highlighted. No specific window
+		// selection: just collapse the overview onto the active desktop's
+		// existing layout.
+		if ( e.key === 'Enter' ) {
+			e.preventDefault();
+			exitOverview( mgr );
 		}
 	};
 	mgr._desktop.addEventListener(
@@ -415,9 +451,12 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 /**
  * Re-render the top bar in place. Called after any operation that
  * mutates the desktop list (create, close) so the bar reflects the
- * new state without a full overview exit/re-enter cycle.
+ * new state without a full overview exit/re-enter cycle. Exported so
+ * cross-module callers (e.g. `switchDesktop` in `desktops.ts`) can
+ * refresh the `--active` tile highlight when the user navigates
+ * between desktops mid-overview.
  */
-function refreshOverviewTopBar( mgr: WindowManager ): void {
+export function refreshOverviewTopBar( mgr: WindowManager ): void {
 	if ( ! mgr._overviewTopBar ) {
 		return;
 	}

@@ -254,6 +254,71 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( c.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
 	} );
 
+	test( 'enterOverview restores all minimized windows when the active desktop is in Show Desktop state', async () => {
+		// Reproduces the "Show Desktop → Overview shows nothing" bug.
+		// With every window on the active desktop minimized, Overview's
+		// `state !== 'minimized'` eligibility filter would otherwise
+		// produce an empty grid.
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		a.minimize();
+		b.minimize();
+		expect( a.state ).toBe( 'minimized' );
+		expect( b.state ).toBe( 'minimized' );
+
+		manager.enterOverview();
+
+		// Both windows are back in 'normal' state and now wear the
+		// overview class — the grid actually contains them.
+		expect( a.state ).toBe( 'normal' );
+		expect( b.state ).toBe( 'normal' );
+		expect(
+			a.element.classList.contains( 'desktop-mode-window--overview' ),
+		).toBe( true );
+		expect(
+			b.element.classList.contains( 'desktop-mode-window--overview' ),
+		).toBe( true );
+	} );
+
+	test( 'Enter key in overview exits without selecting a window', async () => {
+		await manager.open( openConfig( 'a' ) );
+		manager.enterOverview();
+		expect( manager._overviewActive ).toBe( true );
+
+		document.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Enter' } ),
+		);
+
+		expect( manager._overviewActive ).toBe( false );
+	} );
+
+	test( 'enterOverview leaves partially-minimized desktops alone', async () => {
+		// Counterpart guarantee: only the "everything minimized" path
+		// auto-restores. If the user minimized one window manually, the
+		// other two are visible and Overview should show only the
+		// non-minimized cohort (existing behaviour preserved).
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		const c = await manager.open( openConfig( 'c' ) );
+		a.minimize();
+		expect( a.state ).toBe( 'minimized' );
+
+		manager.enterOverview();
+
+		expect( a.state ).toBe( 'minimized' );
+		expect( b.state ).toBe( 'normal' );
+		expect( c.state ).toBe( 'normal' );
+		expect(
+			a.element.classList.contains( 'desktop-mode-window--overview' ),
+		).toBe( false );
+		expect(
+			b.element.classList.contains( 'desktop-mode-window--overview' ),
+		).toBe( true );
+		expect(
+			c.element.classList.contains( 'desktop-mode-window--overview' ),
+		).toBe( true );
+	} );
+
 	test( 'snapshot preserves geometry for windows on non-active desktops', async () => {
 		// Regression: when a window sits on a hidden (display: none)
 		// desktop, `offsetLeft/Top/Width/Height` all return 0 because
