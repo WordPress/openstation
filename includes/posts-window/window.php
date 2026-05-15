@@ -468,6 +468,254 @@ function desktop_mode_posts_window_term_counts_callback( $request ) {
 }
 
 /**
+ * REST: tag co-occurrence aggregator. Returns, for each tag, its
+ * top-N most frequently co-occurring sibling tags + the shared
+ * post count. Used by the Tags window to precluster the pixi
+ * cloud — tags that appear together on the same post get pulled
+ * toward each other after the spiral pack.
+ *
+ * GET `/desktop-mode/v1/tag-cooccurrence?taxonomy=post_tag&limit=8`
+ *
+ * Response:
+ *   { "pairs": { "<tagId>": [ { "id": <neighborId>, "shared": N }, … ] } }
+ *
+ * Status filtering mirrors `_update_post_term_count` (exclude
+ * trash, auto-draft, inherit). Post type is bounded to the
+ * taxonomy's declared `object_type` so e.g. page-attached terms
+ * don't bleed into the post-tag graph.
+ *
+ * @since 0.8.5
+ */
+function desktop_mode_posts_window_register_tag_cooccurrence_route() {
+	register_rest_route(
+		'desktop-mode/v1',
+		'/tag-cooccurrence',
+		array(
+			'methods'             => 'GET',
+			'callback'            => 'desktop_mode_posts_window_tag_cooccurrence_callback',
+			'permission_callback' => function () {
+				return current_user_can( 'edit_posts' );
+			},
+			'args'                => array(
+				'taxonomy' => array(
+					'required'          => false,
+					'type'              => 'string',
+					'default'           => 'post_tag',
+					'sanitize_callback' => 'sanitize_key',
+				),
+				'limit'    => array(
+					'required' => false,
+					'type'     => 'integer',
+					'default'  => 8,
+				),
+			),
+		)
+	);
+}
+add_action( 'rest_api_init', 'desktop_mode_posts_window_register_tag_cooccurrence_route' );
+
+/**
+ * Current site-wide cache version for the tag-cooccurrence response.
+ *
+ * The version sits in a non-autoloaded option and is bumped by
+ * `desktop_mode_posts_window_tag_cooccurrence_invalidate()` whenever
+ * a post/term change could have moved the cooccurrence graph. The
+ * version is baked into the transient cache key so an invalidation
+ * has the effect of making every previously-cached payload
+ * unreachable in a single `update_option()` call — far cheaper than
+ * enumerating + deleting individual transients. Stale entries age
+ * out naturally via the transient's TTL.
+ *
+ * @since 0.8.5
+ */
+function desktop_mode_posts_window_tag_cooccurrence_cache_version() {
+	$v = (int) get_option( 'desktop_mode_tag_cooccurrence_cache_version', 0 );
+	if ( $v <= 0 ) {
+		$v = 1;
+		// autoload = false so this doesn't ride on every page load.
+		update_option( 'desktop_mode_tag_cooccurrence_cache_version', $v, false );
+	}
+	return $v;
+}
+
+/**
+ * Invalidate every cached tag-cooccurrence payload by incrementing
+ * the cache version. The next call to the endpoint will miss its
+ * transient lookup, recompute, and store under the new key.
+ *
+ * Hooked to a handful of "post-term graph changed" actions below.
+ * The signature is intentionally variadic-tolerant — the hooks all
+ * pass different args (object_id, term_id, taxonomy, …) and PHP
+ * 7+ ignores extras for a no-param target.
+ *
+ * @since 0.8.5
+ */
+function desktop_mode_posts_window_tag_cooccurrence_invalidate() {
+	$v = desktop_mode_posts_window_tag_cooccurrence_cache_version();
+	update_option(
+		'desktop_mode_tag_cooccurrence_cache_version',
+		$v + 1,
+		false
+	);
+}
+// Direct post→term graph changes. `set_object_terms` fires whenever
+// `wp_set_object_terms()` runs — covers post saves that change
+// terms, term-delete cleanup, REST PATCH on a post's tags array,
+// classic-editor flows, the lot. It's the ground truth.
+add_action( 'set_object_terms', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
+// Term identity changes — a renamed term doesn't shift pair counts
+// but a deleted term does (its relationships go away). Invalidating
+// on every term mutation costs one option write per edit, which is
+// fine for the typical category/tag edit cadence.
+add_action( 'created_term', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
+add_action( 'edited_term', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
+add_action( 'delete_term', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
+// Status flips that change what the SQL counts. The endpoint
+// excludes 'trash', 'auto-draft', and 'inherit'; trashing or
+// restoring a post can both add and remove pairs from the graph.
+add_action( 'wp_trash_post', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
+add_action( 'untrashed_post', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
+// Pre-delete fires while term_relationships still exist; the row
+// will be gone by the time the next query runs. Belt-and-braces
+// alongside set_object_terms (which fires during delete cleanup
+// on most modern WP versions).
+add_action( 'before_delete_post', 'desktop_mode_posts_window_tag_cooccurrence_invalidate' );
+
+function desktop_mode_posts_window_tag_cooccurrence_callback( $request ) {
+	global $wpdb;
+
+	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
+	$tax_obj  = get_taxonomy( $taxonomy );
+	if ( ! $tax_obj ) {
+		return new WP_Error(
+			'desktop_mode_invalid_taxonomy',
+			__( 'Unknown taxonomy.', 'desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	$limit = (int) $request->get_param( 'limit' );
+	if ( $limit <= 0 ) {
+		$limit = 8;
+	}
+	// Cap so a malicious caller can't fan out the response. 24 is
+	// far more neighbors than any layout pass actually consumes.
+	$limit = min( 24, $limit );
+
+	// Cache lookup. The key bakes in the current version so a single
+	// option bump makes every old entry unreachable without us
+	// having to enumerate keys. Taxonomy + limit are part of the key
+	// because they change the response shape.
+	$cache_version = desktop_mode_posts_window_tag_cooccurrence_cache_version();
+	$cache_key     = sprintf(
+		'dmwco_v%d_%s_l%d',
+		$cache_version,
+		$taxonomy,
+		$limit
+	);
+	$cached = get_transient( $cache_key );
+	if ( is_array( $cached ) && isset( $cached['pairs'] ) ) {
+		return rest_ensure_response( $cached );
+	}
+
+	$object_types = array_map(
+		'sanitize_key',
+		(array) $tax_obj->object_type
+	);
+	$object_types = array_filter( $object_types, 'post_type_exists' );
+	if ( empty( $object_types ) ) {
+		$object_types = array( 'post' );
+	}
+	$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
+
+	// One scan: every (post, term) row in the taxonomy on a
+	// non-trashed, non-attachment-inherited post of the right type.
+	// Sorted by post so we can walk in O(n) and emit pairs per post.
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT tr.object_id, tt.term_id
+			 FROM {$wpdb->term_relationships} tr
+			 INNER JOIN {$wpdb->term_taxonomy} tt
+			   ON tr.term_taxonomy_id = tt.term_taxonomy_id
+			 INNER JOIN {$wpdb->posts} p
+			   ON p.ID = tr.object_id
+			   AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
+			   AND p.post_type IN ( $type_placeholders )
+			 WHERE tt.taxonomy = %s
+			 ORDER BY tr.object_id",
+			array_merge( $object_types, array( $taxonomy ) )
+		),
+		ARRAY_A
+	);
+
+	// Group term ids per post, then emit pair counts. Sort each
+	// post's term list so we can walk i<j and double-write into the
+	// symmetric pair map (a→b and b→a both get incremented).
+	$pairs       = array(); // term_id => array( neighbor_id => shared_count )
+	$current_id  = 0;
+	$current_set = array();
+	$flush = function () use ( &$current_set, &$pairs ) {
+		$ids = array_values( array_unique( $current_set ) );
+		$n   = count( $ids );
+		if ( $n < 2 ) {
+			return;
+		}
+		sort( $ids, SORT_NUMERIC );
+		for ( $i = 0; $i < $n; $i++ ) {
+			$a = $ids[ $i ];
+			for ( $j = $i + 1; $j < $n; $j++ ) {
+				$b = $ids[ $j ];
+				if ( ! isset( $pairs[ $a ][ $b ] ) ) {
+					$pairs[ $a ][ $b ] = 0;
+				}
+				if ( ! isset( $pairs[ $b ][ $a ] ) ) {
+					$pairs[ $b ][ $a ] = 0;
+				}
+				$pairs[ $a ][ $b ]++;
+				$pairs[ $b ][ $a ]++;
+			}
+		}
+	};
+	foreach ( (array) $rows as $row ) {
+		$post_id = (int) $row['object_id'];
+		$term_id = (int) $row['term_id'];
+		if ( $post_id !== $current_id ) {
+			$flush();
+			$current_id  = $post_id;
+			$current_set = array();
+		}
+		$current_set[] = $term_id;
+	}
+	$flush();
+
+	// Trim each tag's neighbor list to top-N by shared count, then
+	// reshape into the response payload. Keep string keys so JSON
+	// preserves them as numeric-looking object properties.
+	$result = array();
+	foreach ( $pairs as $tag_id => $neighbors ) {
+		arsort( $neighbors, SORT_NUMERIC );
+		$top  = array_slice( $neighbors, 0, $limit, true );
+		$list = array();
+		foreach ( $top as $neighbor_id => $shared ) {
+			$list[] = array(
+				'id'     => (int) $neighbor_id,
+				'shared' => (int) $shared,
+			);
+		}
+		$result[ (string) (int) $tag_id ] = $list;
+	}
+
+	$payload = array( 'pairs' => $result );
+	// Store under the version-stamped key. TTL is a day; an
+	// invalidation hook bump retires the key sooner. The DAY ceiling
+	// is the floor on cache staleness if every invalidation hook
+	// somehow missed firing.
+	set_transient( $cache_key, $payload, DAY_IN_SECONDS );
+
+	return rest_ensure_response( $payload );
+}
+
+/**
  * REST get_callback for `desktop_mode_is_default`. Reads the
  * taxonomy's default-term option (e.g. `default_category`) and
  * compares against the current term's id.

@@ -510,6 +510,13 @@
 	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
 	background: rgba( 255, 255, 255, 0.6 );
 	backdrop-filter: blur( 8px );
+	/* New stacking context so the search dropdown (z-index inside)
+	 * paints above the pixi canvas in the layout sibling below. Without
+	 * this, the canvas (later in DOM, no z-index) wins the paint order
+	 * and the dropdown renders BEHIND the chips/nodes — clicks then land
+	 * on the canvas instead of the dropdown items. */
+	position: relative;
+	z-index: 2;
 }
 
 .wpd-mindmap__btn {
@@ -575,6 +582,82 @@
 	text-align: end;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpd-mindmap__search {
+	position: relative;
+	flex: 0 1 280px;
+	min-width: 180px;
+}
+
+.wpd-mindmap__search-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+}
+
+.wpd-mindmap__search-input:focus {
+	outline: none;
+	border-color: var( --wpd-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	box-shadow: 0 0 0 3px
+		var( --wpd-accent-soft, rgba( 34, 113, 177, 0.18 ) );
+}
+
+.wpd-mindmap__search-results {
+	position: absolute;
+	top: calc( 100% + 4px );
+	inset-inline-start: 0;
+	inset-inline-end: 0;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	background: var( --wpd-surface-2, #fff );
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 8px;
+	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
+	z-index: 100;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.wpd-mindmap__search-result {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 10px;
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	color: inherit;
+	cursor: pointer;
+	text-align: start;
+	font: inherit;
+	font-size: 13px;
+}
+
+.wpd-mindmap__search-result:hover,
+.wpd-mindmap__search-result.is-active {
+	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
+}
+
+.wpd-mindmap__search-title {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpd-mindmap__search-meta {
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
 	white-space: nowrap;
 }
 
@@ -819,6 +902,10 @@
 	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
 	background: rgba( 255, 255, 255, 0.6 );
 	backdrop-filter: blur( 8px );
+	/* Stacking context for the search dropdown — see the matching
+	 * comment on `.wpd-mindmap__toolbar`. */
+	position: relative;
+	z-index: 2;
 }
 
 .wpd-tagcloud__btn {
@@ -880,6 +967,82 @@
 	text-align: end;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpd-tagcloud__search {
+	position: relative;
+	flex: 0 1 280px;
+	min-width: 180px;
+}
+
+.wpd-tagcloud__search-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+}
+
+.wpd-tagcloud__search-input:focus {
+	outline: none;
+	border-color: var( --wpd-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	box-shadow: 0 0 0 3px
+		var( --wpd-accent-soft, rgba( 34, 113, 177, 0.18 ) );
+}
+
+.wpd-tagcloud__search-results {
+	position: absolute;
+	top: calc( 100% + 4px );
+	inset-inline-start: 0;
+	inset-inline-end: 0;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	background: var( --wpd-surface-2, #fff );
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 8px;
+	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
+	z-index: 100;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.wpd-tagcloud__search-result {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 10px;
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	color: inherit;
+	cursor: pointer;
+	text-align: start;
+	font: inherit;
+	font-size: 13px;
+}
+
+.wpd-tagcloud__search-result:hover,
+.wpd-tagcloud__search-result.is-active {
+	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
+}
+
+.wpd-tagcloud__search-title {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wpd-tagcloud__search-meta {
+	font-size: 11px;
+	color: var( --wpd-text-muted, #6b7280 );
 	white-space: nowrap;
 }
 

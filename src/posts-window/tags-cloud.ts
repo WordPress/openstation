@@ -32,7 +32,11 @@
 import { __, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
-import { type PostsWindowClient, type TermRow } from './rest';
+import {
+	type PostsWindowClient,
+	type TermNeighbor,
+	type TermRow,
+} from './rest';
 
 interface PixiPoint {
 	x: number;
@@ -258,6 +262,24 @@ export async function mountTagsCloud(
 	reflowBtn.title = __(
 		'Recompute the chip layout from scratch — discards manual repositioning.',
 	);
+	// Fuzzy-search input. Wired below, after `tags` + `focusTag` exist;
+	// the DOM lives here so the toolbar paints with the box in place
+	// from the first frame.
+	const searchWrap = document.createElement( 'div' );
+	searchWrap.className = 'wpd-tagcloud__search';
+	const searchInput = document.createElement( 'input' );
+	searchInput.type = 'search';
+	searchInput.className = 'wpd-tagcloud__search-input';
+	searchInput.placeholder = __( 'Search tags…' );
+	searchInput.setAttribute(
+		'aria-label',
+		__( 'Search tags in the cloud' ),
+	);
+	searchWrap.appendChild( searchInput );
+	const searchResults = document.createElement( 'ul' );
+	searchResults.className = 'wpd-tagcloud__search-results';
+	searchResults.hidden = true;
+	searchWrap.appendChild( searchResults );
 	const hint = document.createElement( 'span' );
 	hint.className = 'wpd-tagcloud__hint';
 	hint.textContent = __(
@@ -266,6 +288,7 @@ export async function mountTagsCloud(
 	toolbar.appendChild( addTagBtn );
 	toolbar.appendChild( recenterBtn );
 	toolbar.appendChild( reflowBtn );
+	toolbar.appendChild( searchWrap );
 	toolbar.appendChild( hint );
 	host.appendChild( toolbar );
 
@@ -412,6 +435,15 @@ export async function mountTagsCloud(
 	const positionsKey = computePositionsKey();
 	const persistedPositions = readPersistedPositions( positionsKey );
 
+	// Co-occurrence map: tag id → list of co-occurring sibling tags
+	// (with `shared` post counts). Populated from
+	// `/desktop-mode/v1/tag-cooccurrence` on mount and on Reflow;
+	// empty until the fetch resolves. When non-empty, the spiral pack
+	// switches to cluster-aware mode — tags that share posts sit
+	// near each other on the canvas instead of being placed in pure
+	// popularity-only order.
+	let cooccurrenceMap: Map< number, TermNeighbor[] > = new Map();
+
 	const themeHue = readAdminThemeHue();
 
 	// --- Data fetch + initial layout ---------------------------------
@@ -498,8 +530,13 @@ export async function mountTagsCloud(
 
 		// Spiral-pack any boxes that don't have a manually-set or
 		// previously-computed position. Sort by count desc so popular
-		// tags get prime real estate near the centre.
+		// tags get prime real estate near the centre. When the
+		// cooccurrence map is non-empty, `packBoxesWithClusters`
+		// anchors each fresh chip near its placed neighbours; with an
+		// empty map it falls back to the original origin-anchored
+		// spiral.
 		const placed: Array< { x: number; y: number; w: number; h: number } > = [];
+		const placedById = new Map< number, { x: number; y: number } >();
 		for ( const box of tags.values() ) {
 			if ( ! fresh.includes( box ) ) {
 				placed.push( {
@@ -508,21 +545,17 @@ export async function mountTagsCloud(
 					w: box.width,
 					h: box.height,
 				} );
+				placedById.set( box.id, { x: box.tx, y: box.ty } );
 			}
 		}
 		fresh.sort( ( a, b ) => b.count - a.count );
+		packBoxesWithClusters( fresh, placed, placedById, cooccurrenceMap );
 		for ( const box of fresh ) {
-			const slot = findSpiralSlot( box.width, box.height, placed );
-			box.tx = slot.x;
-			box.ty = slot.y;
-			box.x = slot.x;
-			box.y = slot.y;
-			placed.push( {
-				x: slot.x - box.width / 2,
-				y: slot.y - box.height / 2,
-				w: box.width,
-				h: box.height,
-			} );
+			// `packBoxesWithClusters` wrote tx/ty; mirror onto x/y so
+			// fresh chips paint at their final position instead of
+			// easing from (0,0).
+			box.x = box.tx;
+			box.y = box.ty;
 		}
 	}
 
@@ -703,21 +736,50 @@ export async function mountTagsCloud(
 	}
 
 	// --- Spiral packer ------------------------------------------------
-	// Walk an Archimedean spiral outward from (0,0) in fine angular
-	// steps, picking the first slot whose AABB doesn't intersect any
-	// already-placed AABB (with SPIRAL_PADDING breathing room). Order
-	// matters — boxes are sorted by count desc before this runs, so
-	// popular tags claim centre first. The slight Y stretch (0.7×)
-	// gives the cloud a wider, more newspaper-like aspect ratio.
+	// Walk an Archimedean spiral outward from (anchorX, anchorY) in
+	// fine angular steps, picking the first slot whose AABB doesn't
+	// intersect any already-placed AABB (with SPIRAL_PADDING breathing
+	// room). Order matters — boxes are sorted by count desc before
+	// this runs, so popular tags claim their anchor's centre first.
+	// The slight Y stretch (0.7×) gives the cloud a wider,
+	// newspaper-like aspect ratio.
+	//
+	// `anchorX`/`anchorY` default to the origin (backwards-compatible
+	// with the pre-clustering call sites that always packed at 0,0).
+	// The cooccurrence-aware path passes a non-zero anchor — the
+	// weighted centroid of already-placed co-occurring siblings — so
+	// related tags pack next to each other.
 	function findSpiralSlot(
 		w: number,
 		h: number,
 		placed: Array< { x: number; y: number; w: number; h: number } >,
+		anchorX = 0,
+		anchorY = 0,
 	): { x: number; y: number } {
 		if ( placed.length === 0 ) {
-			return { x: 0, y: 0 };
+			return { x: anchorX, y: anchorY };
 		}
 		const padding = SPIRAL_PADDING;
+		// Try the anchor itself first — if free, we want the spiral to
+		// place this chip exactly at its centroid, not one tick out.
+		{
+			const aabb = {
+				x: anchorX - w / 2 - padding,
+				y: anchorY - h / 2 - padding,
+				w: w + padding * 2,
+				h: h + padding * 2,
+			};
+			let overlap = false;
+			for ( const p of placed ) {
+				if ( aabbIntersect( aabb, p ) ) {
+					overlap = true;
+					break;
+				}
+			}
+			if ( ! overlap ) {
+				return { x: anchorX, y: anchorY };
+			}
+		}
 		// Step the spiral so the angular increment shrinks at higher
 		// radii (more candidate slots per ring further out, where they
 		// matter); inner steps stay coarse so the centre packs tight.
@@ -726,8 +788,8 @@ export async function mountTagsCloud(
 		for ( let i = 0; i < maxIter; i++ ) {
 			theta += 0.18;
 			const r = theta * 5;
-			const cx = r * Math.cos( theta );
-			const cy = r * Math.sin( theta ) * 0.7;
+			const cx = anchorX + r * Math.cos( theta );
+			const cy = anchorY + r * Math.sin( theta ) * 0.7;
 			const aabb = {
 				x: cx - w / 2 - padding,
 				y: cy - h / 2 - padding,
@@ -746,8 +808,96 @@ export async function mountTagsCloud(
 			}
 		}
 		// Should never hit — the spiral is unbounded — but a safe
-		// fallback (place far below) keeps the function total.
-		return { x: 0, y: ( placed.length + 1 ) * ( h + padding ) };
+		// fallback (place far below the anchor) keeps the function
+		// total.
+		return {
+			x: anchorX,
+			y: anchorY + ( placed.length + 1 ) * ( h + padding ),
+		};
+	}
+
+	// Cluster-aware spiral pack. For each box in `boxesInOrder`,
+	// computes an anchor as the weighted centroid of its already-
+	// placed co-occurring siblings (read from `placedById`); falls
+	// back to a freshly-allocated "new cluster" anchor on a coarse
+	// meta-spiral when the box has no placed neighbour yet. Then
+	// calls `findSpiralSlot` from that anchor and writes
+	// `box.tx`/`box.ty`. Mutates `placed` + `placedById` so later
+	// boxes see this one.
+	//
+	// When `cooccurrence` is empty the math collapses to the original
+	// origin-anchored spiral pack (every box gets the cluster-0
+	// anchor at (0,0)), so the no-cooccurrence-data path stays
+	// identical to before clustering existed.
+	function packBoxesWithClusters(
+		boxesInOrder: TagBox[],
+		placed: Array< { x: number; y: number; w: number; h: number } >,
+		placedById: Map< number, { x: number; y: number } >,
+		cooccurrence: Map< number, TermNeighbor[] >,
+	): void {
+		let clusterCounter = 0;
+		const allocateClusterAnchor = (): { x: number; y: number } => {
+			const idx = clusterCounter++;
+			if ( idx === 0 ) {
+				return { x: 0, y: 0 };
+			}
+			// Phyllotaxis-ish meta-spiral: each new cluster centre
+			// sits at golden-angle θ ≈ 137° from the previous, on a
+			// ring whose radius grows linearly. The slight Y stretch
+			// (0.8) matches the inner spiral's newspaper aspect.
+			const theta = idx * 2.4;
+			const radius = 120 + idx * 70;
+			return {
+				x: radius * Math.cos( theta ),
+				y: radius * Math.sin( theta ) * 0.8,
+			};
+		};
+		for ( const box of boxesInOrder ) {
+			let anchorX = 0;
+			let anchorY = 0;
+			let usedCentroid = false;
+			const neighbors = cooccurrence.get( box.id );
+			if ( neighbors && neighbors.length > 0 ) {
+				let sumX = 0;
+				let sumY = 0;
+				let sumW = 0;
+				for ( const n of neighbors ) {
+					const pos = placedById.get( n.id );
+					if ( ! pos ) {
+						continue;
+					}
+					sumX += pos.x * n.shared;
+					sumY += pos.y * n.shared;
+					sumW += n.shared;
+				}
+				if ( sumW > 0 ) {
+					anchorX = sumX / sumW;
+					anchorY = sumY / sumW;
+					usedCentroid = true;
+				}
+			}
+			if ( ! usedCentroid ) {
+				const anchor = allocateClusterAnchor();
+				anchorX = anchor.x;
+				anchorY = anchor.y;
+			}
+			const slot = findSpiralSlot(
+				box.width,
+				box.height,
+				placed,
+				anchorX,
+				anchorY,
+			);
+			box.tx = slot.x;
+			box.ty = slot.y;
+			placedById.set( box.id, { x: slot.x, y: slot.y } );
+			placed.push( {
+				x: slot.x - box.width / 2,
+				y: slot.y - box.height / 2,
+				w: box.width,
+				h: box.height,
+			} );
+		}
 	}
 
 	// --- Per-frame pass ----------------------------------------------
@@ -1901,7 +2051,7 @@ export async function mountTagsCloud(
 	reflowBtn.addEventListener( 'click', () => {
 		// Wipe persisted positions and rebuild the layout from
 		// scratch. Useful if the user dragged things into chaos and
-		// wants the popularity-sorted spiral back.
+		// wants the popularity-sorted clustered cloud back.
 		persistedPositions.clear();
 		writePersistedPositions( positionsKey, persistedPositions );
 		// Reset every box's target to "needs spiral placement".
@@ -1909,26 +2059,25 @@ export async function mountTagsCloud(
 			box.tx = 0;
 			box.ty = 0;
 		}
-		// Force the spiral packer to consider every chip "fresh".
+		// Re-pack every chip from scratch, using the latest
+		// cooccurrence map (if any). Background-refresh below picks
+		// up any new co-occurrence data so a future Reflow click
+		// reflects the live tag graph.
 		const allBoxes = Array.from( tags.values() );
-		const placed: Array< { x: number; y: number; w: number; h: number } > =
-			[];
 		allBoxes.sort( ( a, b ) => b.count - a.count );
-		for ( const box of allBoxes ) {
-			const slot = findSpiralSlot( box.width, box.height, placed );
-			box.tx = slot.x;
-			box.ty = slot.y;
-			placed.push( {
-				x: slot.x - box.width / 2,
-				y: slot.y - box.height / 2,
-				w: box.width,
-				h: box.height,
-			} );
-		}
+		packBoxesWithClusters(
+			allBoxes,
+			[],
+			new Map< number, { x: number; y: number } >(),
+			cooccurrenceMap,
+		);
 		// Smooth zoom-out as the cloud rearranges. Chips ease into
-		// their new spiral positions in tick(); the camera animates
-		// to the new framing in lockstep.
+		// their new positions in tick(); the camera animates to the
+		// new framing in lockstep.
 		fitToView( { animate: true } );
+		// Background: re-fetch cooccurrence so the next Reflow uses
+		// fresh data without blocking this click.
+		void refreshCooccurrence();
 	} );
 
 	// Click empty canvas → close focus. Pixi paints into the canvas,
@@ -2033,6 +2182,49 @@ export async function mountTagsCloud(
 		}
 	}
 
+	// Re-pack every non-persisted chip using the current cooccurrence
+	// map. Persisted (user-dragged) chips stay where the user put
+	// them and double as anchors that the rest packs around. Called
+	// when fresh cooccurrence data arrives — the pixi tick eases x/y
+	// toward the new tx/ty so chips smoothly drift to their cluster
+	// positions without a hard jump.
+	function relayoutWithCooccurrence(): void {
+		const placed: Array<
+			{ x: number; y: number; w: number; h: number }
+		> = [];
+		const placedById = new Map< number, { x: number; y: number } >();
+		const toRepack: TagBox[] = [];
+		for ( const box of tags.values() ) {
+			if ( persistedPositions.has( box.id ) ) {
+				placed.push( {
+					x: box.tx - box.width / 2,
+					y: box.ty - box.height / 2,
+					w: box.width,
+					h: box.height,
+				} );
+				placedById.set( box.id, { x: box.tx, y: box.ty } );
+			} else {
+				toRepack.push( box );
+			}
+		}
+		toRepack.sort( ( a, b ) => b.count - a.count );
+		packBoxesWithClusters( toRepack, placed, placedById, cooccurrenceMap );
+	}
+
+	async function refreshCooccurrence(): Promise< void > {
+		// Background fetch — empty map on failure leaves the layout
+		// in pure-spiral mode (no regression vs. pre-clustering).
+		try {
+			const fetched = await client.fetchTagCooccurrence( 'tags', 8 );
+			cooccurrenceMap = fetched;
+			if ( cooccurrenceMap.size > 0 ) {
+				relayoutWithCooccurrence();
+			}
+		} catch {
+			// Non-fatal — keep the current layout.
+		}
+	}
+
 	// --- Bootstrap ---------------------------------------------------
 	buildCloud();
 	paintSidebar();
@@ -2042,6 +2234,11 @@ export async function mountTagsCloud(
 	// counts + font sizes settle to the any-status values once the
 	// response lands.
 	void refreshCountsViaBulk();
+	// Cooccurrence is fetched async too. The initial paint uses the
+	// pure popularity spiral; when the response lands, non-persisted
+	// chips are re-packed into clusters and the pixi tick eases them
+	// from their spiral positions to the new cluster positions.
+	void refreshCooccurrence();
 
 	// Empty-state hint when no tags exist.
 	if ( terms.length === 0 ) {
@@ -2052,6 +2249,145 @@ export async function mountTagsCloud(
 		);
 		stage.appendChild( empty );
 	}
+
+	// --- Search wiring ------------------------------------------------
+	// Case-insensitive substring match on tag name + slug, top 10 by
+	// post count. Selecting a result (mouse OR keyboard) delegates to
+	// `focusTag` (pan + zoom + sidebar). DOM was created with the
+	// toolbar above.
+	//
+	// Keyboard nav: ArrowDown/ArrowUp move the highlight, Enter
+	// activates it, Escape clears. Mouse hover also moves the
+	// highlight so keyboard + mouse don't fight.
+	//
+	// Mousedown (not click) on the result + preventDefault keeps focus
+	// on the input — otherwise the button steals focus and the input's
+	// own blur fires, which used to race with the click and sometimes
+	// hide the dropdown before the click handler ran.
+	let currentMatches: TagBox[] = [];
+	let selectedIndex = 0;
+	const repaintHighlight = (): void => {
+		const items = searchResults.querySelectorAll< HTMLButtonElement >(
+			'.wpd-tagcloud__search-result',
+		);
+		items.forEach( ( el, i ) => {
+			const active = i === selectedIndex;
+			el.classList.toggle( 'is-active', active );
+			if ( active ) {
+				el.scrollIntoView( { block: 'nearest' } );
+			}
+		} );
+	};
+	const selectMatch = ( t: TagBox ): void => {
+		searchInput.value = '';
+		searchResults.hidden = true;
+		searchResults.replaceChildren();
+		currentMatches = [];
+		selectedIndex = 0;
+		void focusTag( t.id );
+	};
+	const renderSearchResults = (): void => {
+		const q = searchInput.value.trim().toLowerCase();
+		if ( q.length === 0 ) {
+			searchResults.hidden = true;
+			searchResults.replaceChildren();
+			currentMatches = [];
+			selectedIndex = 0;
+			return;
+		}
+		currentMatches = Array.from( tags.values() )
+			.filter(
+				( t ) =>
+					t.name.toLowerCase().includes( q ) ||
+					t.slug.toLowerCase().includes( q ),
+			)
+			.sort( ( a, b ) => b.count - a.count )
+			.slice( 0, 10 );
+		selectedIndex = 0;
+		searchResults.replaceChildren();
+		currentMatches.forEach( ( t, i ) => {
+			const li = document.createElement( 'li' );
+			const btn = document.createElement( 'button' );
+			btn.type = 'button';
+			btn.className = 'wpd-tagcloud__search-result';
+			if ( i === 0 ) {
+				btn.classList.add( 'is-active' );
+			}
+			const nameEl = document.createElement( 'span' );
+			nameEl.className = 'wpd-tagcloud__search-title';
+			nameEl.textContent = t.name || `#${ t.id }`;
+			const countEl = document.createElement( 'span' );
+			countEl.className = 'wpd-tagcloud__search-meta';
+			countEl.textContent = sprintf(
+				/* translators: %d: number of posts assigned to a tag. */
+				__( '%d posts' ),
+				t.count,
+			);
+			btn.appendChild( nameEl );
+			btn.appendChild( countEl );
+			btn.addEventListener( 'mousedown', ( ev ) => {
+				ev.preventDefault();
+				selectMatch( t );
+			} );
+			btn.addEventListener( 'mouseenter', () => {
+				selectedIndex = i;
+				repaintHighlight();
+			} );
+			li.appendChild( btn );
+			searchResults.appendChild( li );
+		} );
+		searchResults.hidden = currentMatches.length === 0;
+	};
+	searchInput.addEventListener( 'input', renderSearchResults );
+	searchInput.addEventListener( 'focus', renderSearchResults );
+	searchInput.addEventListener( 'keydown', ( ev ) => {
+		if ( ev.key === 'ArrowDown' ) {
+			if ( currentMatches.length === 0 ) {
+				return;
+			}
+			ev.preventDefault();
+			selectedIndex = Math.min(
+				selectedIndex + 1,
+				currentMatches.length - 1,
+			);
+			repaintHighlight();
+		} else if ( ev.key === 'ArrowUp' ) {
+			if ( currentMatches.length === 0 ) {
+				return;
+			}
+			ev.preventDefault();
+			selectedIndex = Math.max( selectedIndex - 1, 0 );
+			repaintHighlight();
+		} else if ( ev.key === 'Enter' ) {
+			if ( currentMatches.length === 0 ) {
+				return;
+			}
+			ev.preventDefault();
+			selectMatch( currentMatches[ selectedIndex ] );
+		} else if ( ev.key === 'Escape' ) {
+			searchInput.value = '';
+			searchResults.hidden = true;
+			searchResults.replaceChildren();
+			currentMatches = [];
+			selectedIndex = 0;
+		}
+	} );
+	searchInput.addEventListener( 'blur', () => {
+		// Delayed so any mousedown on a result still fires its handler
+		// before the dropdown vanishes. Mousedown+preventDefault keeps
+		// focus on the input so this blur normally won't even fire on
+		// result clicks, but this remains the dismiss path for "click
+		// somewhere else / tab away".
+		setTimeout( () => {
+			searchResults.hidden = true;
+		}, 120 );
+	} );
+	const onDocClickSearch = ( ev: Event ): void => {
+		if ( ! searchWrap.contains( ev.target as Node ) ) {
+			searchResults.hidden = true;
+		}
+	};
+	document.addEventListener( 'click', onDocClickSearch );
 
 	// --- Teardown -----------------------------------------------------
 	return () => {
@@ -2065,6 +2401,7 @@ export async function mountTagsCloud(
 		}
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
+		document.removeEventListener( 'click', onDocClickSearch );
 		try {
 			app.destroy( true, { children: true, texture: true } );
 		} catch {
