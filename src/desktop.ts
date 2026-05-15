@@ -2242,20 +2242,26 @@ function init(): void {
 	//      IS the default window — open it. The desktop is populated
 	//      with the user's chosen startup.
 	const hasSession = !! ( config.session && config.session.windows && config.session.windows.length > 0 );
-	if ( hasSession ) {
-		// Fire-and-forget: the boot path doesn't need to wait for
-		// session restore to complete before proceeding with the
-		// rest of setup. Windows appear asynchronously as the lazy
-		// `window-system[.min].js` bundle resolves and each
-		// `manager.open(...)` finishes. Restore errors are logged
-		// rather than surfaced — a broken session shouldn't strand
-		// the desktop.
-		void restoreSession( manager, config, desktopArea ).catch( ( err ) => {
+	// Session restore runs fire-and-forget so the rest of boot
+	// (manager wiring, settings, server-sync) doesn't block on the
+	// lazy `window-system[.min].js` bundle. openCurrentPage chains
+	// off the SAME promise though — running it concurrently with
+	// restore races on `manager.open()`'s existing-check: both calls
+	// pass the check while the first window's `createWindow()` is
+	// still awaiting `ensureWindowSystemLoaded`, so the dedupe by
+	// baseId misses and the user gets two copies of the same window
+	// (e.g. portal-intent + saved Dashboard → two Dashboards, second
+	// one's iframe never finishes because the chromeless bridge
+	// only handshakes with one instance per id). The comment on
+	// case 2 already says "the page they asked for opens on top of
+	// the restored stack" — sequencing this is what makes that true.
+	const sessionRestore = hasSession
+		? restoreSession( manager, config, desktopArea ).catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
 				console.error( '[desktop-mode] session restore failed:', err );
 			}
-		} );
-	}
+		} )
+		: Promise.resolve();
 	const defaultEnabled = config.defaultWindow?.enabled !== false;
 	const defaultUrlEarly = config.defaultWindow?.url ?? '';
 	const isNativeDefault =
@@ -2268,11 +2274,13 @@ function init(): void {
 		defaultEnabled,
 		isNativeDefault,
 	} ) ) {
-		void openCurrentPage( manager, config ).catch( ( err ) => {
-			if ( typeof console !== 'undefined' ) {
-				console.error( '[desktop-mode] openCurrentPage failed:', err );
-			}
-		} );
+		void sessionRestore.then( () =>
+			openCurrentPage( manager, config ).catch( ( err ) => {
+				if ( typeof console !== 'undefined' ) {
+					console.error( '[desktop-mode] openCurrentPage failed:', err );
+				}
+			} ),
+		);
 	}
 
 	// Persistence.
