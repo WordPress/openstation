@@ -106,9 +106,22 @@ let installed = false;
  * SELECT, checkbox / radio / button INPUTs are treated as non-text:
  * they don't accept character input, so stealing `` ` `` from them
  * is fine.
+ *
+ * Shadow-DOM gotcha: when focus lands on an input INSIDE an open
+ * shadow root (every `<wpd-*>` component does this — `Component`
+ * defaults `static shadow = true`), `doc.activeElement` returns the
+ * host element, not the inner input. A naïve `instanceof
+ * HTMLInputElement` check would miss it and the gate would say "not
+ * text" while the user is typing — bare arrow / `` ` `` then fires.
+ * We walk through each open shadow root's own `activeElement` until
+ * we land on the real focused leaf. Closed shadow roots stop the
+ * loop on their own (their `activeElement` is `null` from outside).
  */
 export function isTextEntryFocus( doc: Document ): boolean {
-	const el = doc.activeElement as HTMLElement | null;
+	let el: Element | null = doc.activeElement;
+	while ( el && el.shadowRoot && el.shadowRoot.activeElement ) {
+		el = el.shadowRoot.activeElement;
+	}
 	if ( ! el ) {
 		return false;
 	}
@@ -138,7 +151,7 @@ export function isTextEntryFocus( doc: Document ): boolean {
 		] );
 		return textTypes.has( el.type );
 	}
-	if ( el.isContentEditable === true ) {
+	if ( el instanceof HTMLElement && el.isContentEditable === true ) {
 		return true;
 	}
 	// Fallback for environments (jsdom) that don't implement
