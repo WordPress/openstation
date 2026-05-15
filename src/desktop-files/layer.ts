@@ -44,7 +44,7 @@ import {
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
 import { isConflict, showConflictToast } from './conflict-toast';
-import type { DragManagerApi, DropTarget } from '../drag';
+import type { DragManagerApi, DragSession, DropTarget } from '../drag';
 import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
 import type {
 	DesktopFileDragData,
@@ -368,6 +368,87 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	// repaint can deregister stale entries before rebuilding the
 	// container's children.
 	const folderDropDeregisters: Map< number, () => void > = new Map();
+
+	// ── Live drop-cell preview ─────────────────────────────────────────
+	// A soft outline that hovers at the cell the drop will land in.
+	// The user reported drops drifting "down-and-right of where I
+	// aimed"; the math fix (subtracting the ghost grab offset) does
+	// most of the work, but a visible target helps the gap between
+	// "where the cursor is" and "where the snapped cell is" stop
+	// being surprising — especially at the edges of the grid where
+	// the snap can skip a column.
+	//
+	// One outline per layer; we install a `pointermove` listener
+	// while the canvas is the active hover target, and tear it down
+	// the instant we leave / drop. The handlers live in this closure
+	// so they can reach `container`, `host`, `folderId`, and the
+	// store.
+	let dropPreviewEl: HTMLElement | null = null;
+	let dropPreviewMoveHandler: ( ( ev: PointerEvent ) => void ) | null = null;
+	const installCanvasDropPreview = ( session: DragSession ): void => {
+		if ( dropPreviewEl ) {
+			return;
+		}
+		// Only worth previewing for desktop-file payloads — for
+		// shortcut creates the layer packs row-major into the next
+		// free cell rather than snapping to the cursor, so a
+		// cursor-tracking preview would lie about the landing slot.
+		if ( session.payload.type !== 'desktop-file' ) {
+			return;
+		}
+		const previewEl = document.createElement( 'div' );
+		previewEl.className = 'desktop-mode-files-drop-preview';
+		previewEl.setAttribute( 'aria-hidden', 'true' );
+		container.appendChild( previewEl );
+		dropPreviewEl = previewEl;
+
+		const ghost = session.payload.ghost;
+		const offsetX = ghost?.offsetX ?? 0;
+		const offsetY = ghost?.offsetY ?? 0;
+		const data = session.payload.data as unknown as DesktopFileDragData;
+		const movingId = data?.placement?.id;
+
+		const updatePreview = ( clientX: number, clientY: number ): void => {
+			const rect = container.getBoundingClientRect();
+			const rawX = Math.max( 0, clientX - rect.left - offsetX );
+			const rawY = Math.max( 0, clientY - rect.top - offsetY );
+			const peers =
+				filesStoreApi
+					.getState()
+					.placementsByFolder.get( folderId ) ?? [];
+			const occupied = buildOccupiedSet( peers, movingId );
+			const cell = snapToEmptyCell( rawX, rawY, occupied, host );
+			previewEl.style.transform = `translate3d(${ cell.x }px, ${ cell.y }px, 0)`;
+		};
+
+		// Prime the preview position before the first `pointermove`
+		// fires (~16 ms gap). The drag manager hides the source tile
+		// via the `--dragging` class but doesn't move it, so its
+		// `getBoundingClientRect()` still reads the spot the user
+		// grabbed from — we synthesize a cursor at the tile center +
+		// offset and feed that into `updatePreview`.
+		const sourceRect = session.payload.source.getBoundingClientRect();
+		updatePreview(
+			sourceRect.left + offsetX,
+			sourceRect.top + offsetY,
+		);
+
+		const moveHandler = ( ev: PointerEvent ): void => {
+			updatePreview( ev.clientX, ev.clientY );
+		};
+		document.addEventListener( 'pointermove', moveHandler );
+		dropPreviewMoveHandler = moveHandler;
+	};
+	const teardownCanvasDropPreview = (): void => {
+		if ( dropPreviewMoveHandler ) {
+			document.removeEventListener( 'pointermove', dropPreviewMoveHandler );
+			dropPreviewMoveHandler = null;
+		}
+		if ( dropPreviewEl ) {
+			dropPreviewEl.remove();
+			dropPreviewEl = null;
+		}
+	};
 	const canvasDropTarget: DropTarget = {
 		id: `desktop-mode-files-canvas-${ folderId }`,
 		element: host,
@@ -395,17 +476,29 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			}
 			return true;
 		},
-		onEnter: () => {
+		onEnter: ( session ) => {
 			host.setAttribute( 'data-files-drop-active', '' );
+			installCanvasDropPreview( session );
 		},
 		onLeave: () => {
 			host.removeAttribute( 'data-files-drop-active' );
+			teardownCanvasDropPreview();
 		},
 		onDrop: ( session, ev ) => {
 			host.removeAttribute( 'data-files-drop-active' );
+			teardownCanvasDropPreview();
 			const rect = container.getBoundingClientRect();
-			const rawX = Math.max( 0, ev.clientX - rect.left );
-			const rawY = Math.max( 0, ev.clientY - rect.top );
+			// Subtract the grab offset so we snap based on where the
+			// tile's TOP-LEFT would land, not where the cursor is. The
+			// drag manager renders the ghost at
+			// `(cursor − ghost.offsetX, cursor − ghost.offsetY)` —
+			// without mirroring that here, the drop site would always
+			// drift down-and-right of where the user sees the ghost.
+			const ghost = session.payload.ghost;
+			const offsetX = ghost?.offsetX ?? 0;
+			const offsetY = ghost?.offsetY ?? 0;
+			const rawX = Math.max( 0, ev.clientX - rect.left - offsetX );
+			const rawY = Math.max( 0, ev.clientY - rect.top - offsetY );
 			const peers =
 				filesStoreApi.getState().placementsByFolder.get( folderId ) ?? [];
 

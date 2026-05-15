@@ -97,6 +97,53 @@
 	pointer-events: none;
 }
 
+/*
+ * Live drop-cell preview. A soft outline that hovers at the cell
+ * the dropped tile will land in, so the user can predict where the
+ * grid snap will place it before releasing. Positioned absolutely
+ * inside the files layer; `translate3d` updated from JS on every
+ * pointermove while a desktop-file drag hovers the canvas.
+ *
+ * The tile dimensions are baked into `grid.ts` (88 × 96 visual,
+ * 96 × 110 cell pitch). The outline matches the cell pitch — slightly
+ * larger than the tile — so the highlight reads as "this slot" rather
+ * than "this tile."
+ *
+ * @since 0.20.0
+ */
+.desktop-mode-files-drop-preview {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 88px;
+	height: 96px;
+	pointer-events: none;
+	box-sizing: border-box;
+	border-radius: 12px;
+	background: var(
+		--desktop-mode-drop-preview-bg,
+		rgba( 34, 113, 177, 0.08 )
+	);
+	border: 2px dashed
+		var(
+			--desktop-mode-drop-preview-border,
+			rgba( 34, 113, 177, 0.55 )
+		);
+	transition: transform 90ms ease-out;
+	will-change: transform;
+	/* Sit BELOW tiles so a tile being dragged over the cell isn't
+	 * visually clipped by the dashed outline; the outline still reads
+	 * because the tile is semi-transparent during drag (`--dragging`
+	 * sets `opacity: 0.4`). */
+	z-index: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-files-drop-preview {
+		transition: none;
+	}
+}
+
 .desktop-mode-file-tile {
 	pointer-events: auto;
 	position: absolute;
