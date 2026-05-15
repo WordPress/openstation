@@ -154,7 +154,16 @@ do_action( 'desktop_mode_file_unplaced', int $id, array $row );
 do_action( 'desktop_mode_folder_created', int $id, array $row );
 do_action( 'desktop_mode_folder_updated', int $id, array $next, array $prev );
 do_action( 'desktop_mode_folder_shared',  int $id, array $next, array $prev ); // share_mode or share_meta changed
+do_action( 'desktop_mode_folder_renamed', int $id, string $new_name, string $old_name, int $user_id ); // fires AFTER the folder row + pointing-placements are bumped
 do_action( 'desktop_mode_folder_deleted', int $id, array $row );
+
+// Folder delete cascade (since 0.18.x). Owner-only deletion runs
+// the cascade described in folder-sharing.md — sub-folder recursion,
+// share-row revocation, pointing-placement removal across users.
+do_action( 'desktop_mode_files_before_delete_folder',        int $id, int $user_id, array $row );
+do_action( 'desktop_mode_files_after_delete_folder_cascade', int $id, int $user_id, array $summary );
+// `$summary` carries lists keyed by:
+//   folders_deleted, shares_revoked, placements_pointing, placements_inside
 
 do_action( 'desktop_mode_files_schema_installed', string $version );
 do_action( 'desktop_mode_files_daily_prune' );
@@ -218,6 +227,16 @@ apply_filters( 'desktop_mode_files_can_place', bool $can, int $user_id, string $
 apply_filters( 'desktop_mode_files_query_args', array $args, int $user_id, int $parent_id );
 apply_filters( 'desktop_mode_files_share_modes', string[] $modes );
 apply_filters( 'desktop_mode_files_visible_folders', array $folders, int $viewer_id );
+
+// Folder delete + rename customization (since 0.18.x).
+// `can_delete_folder` runs AFTER the ownership check; return false
+// or a WP_Error to veto the cascade (UX-side confirmation prompts,
+// "too many recipients" guard).
+apply_filters( 'desktop_mode_files_can_delete_folder',  bool|WP_Error $can, int $folder_id, int $user_id, array $row );
+// `folder_rename_bump_where` controls the SQL WHERE used to bump
+// placements pointing at a renamed folder. Default = every row with
+// `file_type='folder' AND file_ref=$folder_id`. Return '' to opt out.
+apply_filters( 'desktop_mode_folder_rename_bump_where', string $where, int $folder_id, int $user_id );
 
 // Capability gates for soft-trash / restore / purge (since 0.8.0).
 // Default behavior is "owner of the row". Plugins can broaden

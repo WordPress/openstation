@@ -32,7 +32,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '9' );
+define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '10' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 define( 'DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION', 'desktop_mode_files_shares_migrated' );
 
@@ -126,56 +126,29 @@ function desktop_mode_files_install_schema() {
 		KEY kind_removed (kind, removed_at_ms)
 	) $charset_collate;";
 
-	// Schema v8 (since 0.18.0): per-principal grants. Replaces the
-	// JSON `share_meta.users` / `share_meta.roles` shape with one
-	// row per (target, principal) so we can carry per-recipient
-	// capability + opt-in state (pending / accepted / denied).
-	// `share_mode='all'` is left intact on the folders table — a
-	// single column flag is the cheapest expression of "everyone."
+	// Schema v9 — per-principal grants (`folder_shares` table) +
+	// per-user opt-in decisions (`share_user_decisions` table).
+	// Replaces the legacy `share_meta` JSON shape, which is
+	// migrated into per-row entries by
+	// `desktop_mode_files_migrate_share_meta_to_shares()` below.
 	//
-	// `target_type` defaults to `'folder'`. The column is here from
-	// v8 so a future "share a post / attachment / shortcut" feature
-	// only has to register a new type + an owner resolver via
-	// `desktop_mode_files_shareable_types` — no schema change.
-	$shares_sql = "CREATE TABLE {$tables['shares']} (
-		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-		target_type VARCHAR(32) NOT NULL DEFAULT 'folder',
-		folder_id BIGINT UNSIGNED NOT NULL,
-		principal_type VARCHAR(16) NOT NULL,
-		principal_ref VARCHAR(191) NOT NULL,
-		capability VARCHAR(8) NOT NULL DEFAULT 'read',
-		state VARCHAR(16) NOT NULL DEFAULT 'pending',
-		invited_by BIGINT UNSIGNED NOT NULL,
-		invited_at_ms BIGINT UNSIGNED NOT NULL,
-		decided_at_ms BIGINT UNSIGNED NULL,
-		PRIMARY KEY  (id),
-		UNIQUE KEY uniq_principal (target_type, folder_id, principal_type, principal_ref),
-		KEY by_principal (principal_type, principal_ref, state),
-		KEY target (target_type, folder_id)
-	) $charset_collate;";
-
-	// Per-user decisions for role-principal shares. User-principal
-	// shares carry the recipient's opt-in state on the shares row
-	// itself (single user, single decision); role-principal shares
-	// need a row per (share, user) so each role member can opt in
-	// independently. Without this, the first role member to accept
-	// or deny decides for the whole role.
-	$decisions_sql = "CREATE TABLE {$tables['decisions']} (
-		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-		share_id BIGINT UNSIGNED NOT NULL,
-		user_id BIGINT UNSIGNED NOT NULL,
-		state VARCHAR(16) NOT NULL DEFAULT 'pending',
-		decided_at_ms BIGINT UNSIGNED NOT NULL,
-		PRIMARY KEY  (id),
-		UNIQUE KEY uniq_share_user (share_id, user_id),
-		KEY by_user (user_id, state)
-	) $charset_collate;";
+	// Shares + decisions are intentionally NOT routed through
+	// dbDelta. Their `ensure_*_table()` helpers below are the sole
+	// creators. dbDelta uses `DESCRIBE` to detect existing tables
+	// and falls back to a bare `CREATE TABLE` (no IF NOT EXISTS)
+	// when DESCRIBE returns empty — under certain MySQL / MariaDB
+	// configurations (case-folding mismatches, transient connection
+	// states, the `lower_case_table_names` quirk on case-sensitive
+	// filesystems) DESCRIBE can fail on a table that physically
+	// exists, and dbDelta then issues a CREATE that blows up with
+	// "Table … already exists" (MySQL error 1050). The `ensure_*`
+	// helpers use INFORMATION_SCHEMA + explicit `CREATE TABLE IF NOT
+	// EXISTS`, which is bullet-proof; v9 → vN column additions are
+	// handled by `ALTER TABLE … ADD COLUMN` inside the same helper.
 
 	dbDelta( $placements_sql );
 	dbDelta( $folders_sql );
 	dbDelta( $tombstones_sql );
-	dbDelta( $shares_sql );
-	dbDelta( $decisions_sql );
 
 	// dbDelta has well-documented quirks with `NULL`-only columns
 	// (no DEFAULT) — under some MySQL/MariaDB combos it silently
@@ -204,6 +177,14 @@ function desktop_mode_files_install_schema() {
 	desktop_mode_files_ensure_shares_table();
 	desktop_mode_files_ensure_decisions_table();
 	desktop_mode_files_migrate_share_meta_to_shares();
+
+	// v10: `updated_by` column on placements so the If-Match 409
+	// conflict toast names the SESSION that actually won the race,
+	// not just whoever currently owns the row. Critical for the
+	// shared-write scenario where User B (writer recipient) moves a
+	// placement and User C gets the conflict — without this column,
+	// the toast would blame User A (owner of the row).
+	desktop_mode_files_ensure_updated_by_column();
 
 	update_option( DESKTOP_MODE_FILES_SCHEMA_OPTION, DESKTOP_MODE_FILES_SCHEMA_VERSION );
 
@@ -326,6 +307,42 @@ function desktop_mode_files_ensure_unique_placement_index() {
 			ADD UNIQUE KEY `placement_unique`
 				(user_id, parent_id, file_type, file_ref)"
 		);
+	}
+}
+
+/**
+ * Add the v10 `updated_by` column to the placements table.
+ *
+ * Tracks which user last mutated the row (created, moved, restored).
+ * Used by `desktop_mode_files_check_if_match()` so the If-Match 409
+ * conflict toast attributes the change to the SESSION that won the
+ * race rather than to the row's static owner — critical when a
+ * writer recipient of a shared folder rearranges placements and
+ * another viewer hits a stale `If-Match`.
+ *
+ * NULL on legacy rows (pre-v10). The conflict resolver falls back
+ * to `user_id` when this column is NULL, matching the old behavior.
+ *
+ * @since 0.18.x (schema v10)
+ * @internal
+ */
+function desktop_mode_files_ensure_updated_by_column() {
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+	$tbl    = $tables['placements'];
+	$exists = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME = %s
+				AND COLUMN_NAME = %s",
+			$tbl,
+			'updated_by'
+		)
+	);
+	if ( 0 === $exists ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `updated_by` BIGINT UNSIGNED NULL AFTER `user_id`" );
 	}
 }
 

@@ -401,6 +401,95 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
+	test( 'liberating a docked widget preserves its CURRENT rendered size, not the registered default', async () => {
+		// Reproduces the user-reported "Heartbeat widget loses its
+		// 88 px compact height on drag-out" bug. The previous
+		// `def.defaultWidth ?? rect.width` precedence stretched the
+		// widget back to its registered defaultHeight even when the
+		// widget had mutated its own column-mode height (compact
+		// toggle, dynamic-content shrink, etc.). After the fix, the
+		// on-screen rect wins.
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'compact-mov',
+			label: 'Compact movable',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			// Mimic the Heartbeat widget: registered with 310 × 230
+			// but in column mode the widget collapses to 88 high.
+			defaultWidth: 310,
+			defaultHeight: 230,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["compact-mov"]' );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		const card = host.querySelector< HTMLElement >(
+			'.desktop-mode-widgets__card',
+		)!;
+		expect( card ).toBeTruthy();
+
+		// jsdom returns zero from getBoundingClientRect /
+		// offsetWidth / offsetHeight by default — stub both on the
+		// card so the liberate snapshot AND the post-drag
+		// currentGeometry() read real numbers.
+		card.getBoundingClientRect = (): DOMRect => ( {
+			x: 100, y: 200, width: 310, height: 88, // ← compact height
+			top: 200, left: 100, right: 410, bottom: 288,
+			toJSON: () => ( {} ),
+		} );
+		Object.defineProperty( card, 'offsetWidth', { configurable: true, get: () => 310 } );
+		Object.defineProperty( card, 'offsetHeight', { configurable: true, get: () => 88 } );
+		document.body.getBoundingClientRect = (): DOMRect => ( {
+			x: 0, y: 0, width: 1024, height: 768,
+			top: 0, left: 0, right: 1024, bottom: 768,
+			toJSON: () => ( {} ),
+		} );
+
+		// Synthesize the drag: pointerdown on the chrome, move past
+		// the 5 px threshold, release. jsdom doesn't have a
+		// PointerEvent constructor — use a plain Event with the
+		// fields the frame reads (same trick `drag-manager.test.ts`
+		// uses).
+		const ptr = ( type: string, x: number, y: number ): Event => {
+			const e = new Event( type, { bubbles: true } );
+			Object.defineProperty( e, 'pointerId', { value: 1 } );
+			Object.defineProperty( e, 'button', { value: 0 } );
+			Object.defineProperty( e, 'clientX', { value: x } );
+			Object.defineProperty( e, 'clientY', { value: y } );
+			return e;
+		};
+		const chrome = card.querySelector< HTMLElement >(
+			'.desktop-mode-widgets__chrome',
+		)!;
+		// jsdom lacks setPointerCapture / releasePointerCapture; the
+		// frame calls both on the chrome element during a drag. Stub
+		// them as no-ops so the synthesized pointer flow doesn't
+		// throw mid-test.
+		( chrome as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
+		( chrome as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
+		chrome.dispatchEvent( ptr( 'pointerdown', 110, 210 ) );
+		chrome.dispatchEvent( ptr( 'pointermove', 200, 300 ) );
+		chrome.dispatchEvent( ptr( 'pointerup', 200, 300 ) );
+
+		// After liberation the card's inline height must reflect the
+		// pre-drag on-screen height (88) — NOT the registered 230.
+		expect( card.classList.contains( 'desktop-mode-widgets__card--floating' ) ).toBe( true );
+		expect( card.style.height ).toBe( '88px' );
+		expect( card.style.width ).toBe( '310px' );
+
+		// Persisted geometry mirrors it.
+		const geom = JSON.parse(
+			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) || '{}',
+		);
+		expect( geom[ 'compact-mov' ].height ).toBe( 88 );
+
+		layer.disposeAll();
+	} );
+
 	test( 'removing a widget drops its persisted geometry', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );

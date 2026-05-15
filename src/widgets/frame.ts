@@ -381,11 +381,22 @@ function attachDrag(
 		if ( ! card.classList.contains( FLOATING_CLASS ) ) {
 			const parentRect = ctx.floatingParent.getBoundingClientRect();
 			const rect = card.getBoundingClientRect();
+			// Preserve the CURRENT on-screen size when liberating —
+			// fall back to the registered defaults only when the
+			// card hasn't been laid out yet (rect.width / height ===
+			// 0). The previous order (`def.defaultWidth ?? rect.width`)
+			// always snapped back to the registered size, which broke
+			// widgets that mutate their own height in column mode —
+			// e.g. the Heartbeat widget's compact (88 px) state was
+			// stretched back to its registered 230 px on liberate,
+			// leaving an empty band where the heart used to be. What
+			// the user sees in the column is what they should keep
+			// when floating.
 			const initial: WidgetGeometry = {
 				x: rect.left - parentRect.left,
 				y: rect.top - parentRect.top,
-				width: def.defaultWidth ?? ( rect.width || DEFAULT_WIDTH ),
-				height: def.defaultHeight ?? ( rect.height || DEFAULT_HEIGHT ),
+				width: rect.width || def.defaultWidth || DEFAULT_WIDTH,
+				height: rect.height || def.defaultHeight || DEFAULT_HEIGHT,
 			};
 			applyGeometry( card, initial );
 			card.classList.add( FLOATING_CLASS );

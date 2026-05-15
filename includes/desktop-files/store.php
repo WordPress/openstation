@@ -104,6 +104,7 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	$now    = desktop_mode_files_now_ms();
 	$row    = array(
 		'user_id'       => $user_id,
+		'updated_by'    => $user_id,
 		'parent_id'     => max( 0, $parent_id ),
 		'file_type'     => $type,
 		'file_ref'      => $ref,
@@ -122,7 +123,7 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	// still holds the message, so genuine DB failures surface via the
 	// `WP_Error` we return when no existing row is found.
 	$prev_suppress = $wpdb->suppress_errors( true );
-	$ok            = $wpdb->insert( $tables['placements'], $row, array( '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s' ) );
+	$ok            = $wpdb->insert( $tables['placements'], $row, array( '%d', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s' ) );
 	$wpdb->suppress_errors( $prev_suppress );
 	if ( false === $ok ) {
 		// Disambiguate the two cases hidden behind a generic `false`:
@@ -307,6 +308,11 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	}
 
 	$set['updated_at_ms'] = desktop_mode_files_now_ms();
+	$fmt[]                = '%d';
+	// Track who actually fired this mutation so a future
+	// `If-Match` 409 can name the session that won the race,
+	// not just whoever happens to own the row.
+	$set['updated_by']    = $user_id;
 	$fmt[]                = '%d';
 
 	$ok = $wpdb->update( $tables['placements'], $set, array( 'id' => $placement_id ), $fmt, array( '%d' ) );
@@ -741,6 +747,10 @@ function desktop_mode_files_normalize_placement_row( $row ) {
 	return array(
 		'id'            => (int) $row['id'],
 		'user_id'       => (int) $row['user_id'],
+		// `updated_by` is v10. Null on legacy rows — callers that
+		// need the actor (e.g. `desktop_mode_files_check_if_match`)
+		// fall back to `user_id` when this is null/missing.
+		'updated_by'    => isset( $row['updated_by'] ) ? (int) $row['updated_by'] : null,
 		'parent_id'     => (int) $row['parent_id'],
 		'file_type'     => (string) $row['file_type'],
 		'file_ref'      => (string) $row['file_ref'],

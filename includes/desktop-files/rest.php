@@ -137,9 +137,17 @@ function desktop_mode_files_register_rest_routes() {
 			'permission_callback' => 'desktop_mode_files_rest_permission',
 			'callback'            => 'desktop_mode_files_rest_create_share',
 			'args'                => array(
-				'principalType' => array( 'type' => 'string', 'required' => true ),
+				'principalType' => array(
+					'type'     => 'string',
+					'enum'     => array( 'user', 'role' ),
+					'required' => true,
+				),
 				'principalRef'  => array( 'type' => 'string', 'required' => true ),
-				'capability'    => array( 'type' => 'string', 'default'  => 'read' ),
+				'capability'    => array(
+					'type'    => 'string',
+					'enum'    => array( 'read', 'write' ),
+					'default' => 'read',
+				),
 			),
 		),
 	) );
@@ -150,7 +158,11 @@ function desktop_mode_files_register_rest_routes() {
 			'permission_callback' => 'desktop_mode_files_rest_permission',
 			'callback'            => 'desktop_mode_files_rest_update_share',
 			'args'                => array(
-				'capability' => array( 'type' => 'string', 'required' => true ),
+				'capability' => array(
+					'type'     => 'string',
+					'enum'     => array( 'read', 'write' ),
+					'required' => true,
+				),
 			),
 		),
 		array(
@@ -529,8 +541,23 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	if ( $expected === (int) $current_ms ) {
 		return null;
 	}
-	$actor_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : ( isset( $row['owner_id'] ) ? (int) $row['owner_id'] : 0 );
-	$actor    = $actor_id ? get_userdata( $actor_id ) : null;
+	// Prefer `updated_by` (v10+) so the conflict toast attributes
+	// the change to the SESSION that won the race. Falls back to
+	// `user_id` (placement creator) or `owner_id` (folder owner)
+	// for legacy rows from before the column was added — in a
+	// non-shared-write workflow those still happen to be the right
+	// person; in shared-write the toast may be slightly misleading
+	// for the lifetime of pre-v10 rows. New mutations stamp the
+	// column accurately. See `desktop_mode_files_ensure_updated_by_column`.
+	$actor_id = 0;
+	if ( isset( $row['updated_by'] ) && (int) $row['updated_by'] > 0 ) {
+		$actor_id = (int) $row['updated_by'];
+	} elseif ( isset( $row['user_id'] ) ) {
+		$actor_id = (int) $row['user_id'];
+	} elseif ( isset( $row['owner_id'] ) ) {
+		$actor_id = (int) $row['owner_id'];
+	}
+	$actor = $actor_id ? get_userdata( $actor_id ) : null;
 
 	$parent_id   = isset( $row['parent_id'] ) ? (int) $row['parent_id'] : 0;
 	$parent_name = '';

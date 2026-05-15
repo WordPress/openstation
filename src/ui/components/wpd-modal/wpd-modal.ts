@@ -175,7 +175,12 @@ export class WpdModal extends Component {
 	}
 
 	protected render() {
-		const title = ( this as unknown as { title: string | null } ).title ?? '';
+		// `title` is reflected on every HTMLElement via the IDL — read
+		// it through `getAttribute` so the source-of-truth is explicit
+		// and we don't trip readers who'd otherwise think the cast in
+		// the old line meant the property could be null (it can't —
+		// HTMLElement.title is always a string).
+		const title = this.getAttribute( 'title' ) ?? '';
 		const mandatory = this.hasAttribute( 'mandatory' );
 		return html`
 			<div class="dialog" tabindex="-1">

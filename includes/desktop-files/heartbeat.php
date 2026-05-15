@@ -102,6 +102,11 @@ add_filter( 'heartbeat_received', 'desktop_mode_files_heartbeat_received', 5, 2 
  * @param array $folder_versions    `{ folderId => lastSeenUpdatedAtMs }`.
  * @param int   $placements_version Last-seen `updated_at_ms` for placements.
  * @param int   $cap                Row cap.
+ * @param int   $shares_version     Last-seen `invited_at_ms` /
+ *                                  `decided_at_ms` for shares. Used to
+ *                                  trim the `shares.pending` payload
+ *                                  to invites the client hasn't seen
+ *                                  yet. Defaults to `0` (deliver all).
  * @return array
  */
 function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions, $placements_version, $cap, $shares_version = 0 ) {

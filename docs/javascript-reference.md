@@ -3703,6 +3703,61 @@ interface FilesApi {
 
 The seven built-in types (`folder`, `post`, `attachment`, `user`, `term`, `comment`, `bookmark`) register themselves on bundle boot. Late registrations win — registering the same slug twice overwrites the entry. When a `DesktopFile` subclass isn't registered for a slug, `resolve()` falls back to a `DefaultDesktopFile` that just exposes the shape verbatim — so a placement for a deactivated plugin still renders something.
 
+### Placement shape — viewer-scoped extras *(since 0.18.x)*
+
+Every `RestPlacementShape` carries two viewer-scoped flags the server computes per request from the file-type and share state:
+
+```ts
+interface RestPlacementShape {
+    id: number;
+    parentId: number;
+    x: number;
+    y: number;
+    sortOrder: number;
+    updatedAtMs: number;
+    meta: Record< string, unknown > | null;
+    file: DesktopFileShape;
+    /**
+     * True when the viewer is allowed to see this placement (because
+     * the owner shared the parent folder) but doesn't have read
+     * access on the underlying entity. The tile renderer paints a
+     * lock overlay + tooltip; dblclick shows an "access denied"
+     * toast instead of routing to the opener. Default falsy.
+     */
+    accessGated?: boolean;
+    /**
+     * Server's answer to "may the current viewer trash this
+     * placement?". Drives two client-side gates so the user never
+     * sees an action they can't complete:
+     *   - layer.ts hides "Move to Trash" / "Move folder to Trash"
+     *     from the tile right-click menu when `=== false`.
+     *   - recycle-bin-targets.ts makes the bin drop target reject
+     *     the drag when `=== false`.
+     * Falsy for read-only recipients of a shared folder, for any
+     * non-owner's root-placement of a shared folder (use "Leave
+     * shared folder" instead), and anything a `desktop_mode_files_user_can_trash_placement`
+     * filter customisation has vetoed. `undefined` (legacy
+     * payloads) falls through to existing REST-403 behavior.
+     */
+    canTrash?: boolean;
+}
+```
+
+Plugin authors building custom tile renderers should respect these flags. The drop-target convention is to gate `accept` on `canTrash !== false` so the indicator never lights up for a placement the server will reject:
+
+```ts
+dragManager.registerDropTarget( {
+    id: 'my-plugin/destructive-drop',
+    element: targetEl,
+    accept: ( payload ) => {
+        if ( payload.type !== 'desktop-file' ) return false;
+        const placement = ( payload.data as { placement?: RestPlacementShape } ).placement;
+        return placement?.canTrash !== false;
+    },
+    onDrop: ( session ) => { /* … */ },
+} );
+```
+
 ### `desktop-mode.files.types` filter
 
 ```ts

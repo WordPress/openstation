@@ -155,6 +155,86 @@ try {
 Pass `0` (or omit) the third arg to keep last-write-wins
 semantics.
 
+## Veto a folder delete (confirmation prompts, audit guards)
+
+`desktop_mode_files_can_delete_folder` runs after the ownership
+check and before the cascade. Return `false` or a `WP_Error` to
+block — anything else lets the cascade proceed.
+
+```php
+add_filter(
+    'desktop_mode_files_can_delete_folder',
+    function ( $can, $folder_id, $user_id, $folder ) {
+        // Block delete when the folder has >5 active recipients
+        // until the owner explicitly revokes the shares first.
+        if ( ! function_exists( 'desktop_mode_files_get_folder_shares' ) ) {
+            return $can;
+        }
+        $shares = (array) desktop_mode_files_get_folder_shares( $folder_id );
+        $active = array_filter( $shares, fn( $s ) => 'denied' !== $s['state'] );
+        if ( count( $active ) > 5 ) {
+            return new WP_Error(
+                'my_plugin_too_many_recipients',
+                'Revoke shares before deleting a folder with >5 recipients.',
+                array( 'status' => 409 )
+            );
+        }
+        return $can;
+    },
+    10,
+    4
+);
+```
+
+## React to the cascade summary
+
+`desktop_mode_files_after_delete_folder_cascade` fires once per
+folder delete with a structured summary of everything that was
+torn down — useful for audit logs, cross-tenant cleanup, or
+sending notifications to affected recipients.
+
+```php
+add_action(
+    'desktop_mode_files_after_delete_folder_cascade',
+    function ( $root_folder_id, $user_id, $summary ) {
+        error_log( sprintf(
+            'User %d deleted folder %d → cascade removed %d folder(s), %d share(s), %d pointing placement(s), %d inside placement(s).',
+            $user_id,
+            $root_folder_id,
+            count( $summary['folders_deleted'] ),
+            count( $summary['shares_revoked'] ),
+            count( $summary['placements_pointing'] ),
+            count( $summary['placements_inside'] )
+        ) );
+    },
+    10,
+    3
+);
+```
+
+Per-share `desktop_mode_files_share_revoked` actions fire during
+the cascade for each share that gets torn down, so plugins
+already listening to that signal don't need to subscribe to the
+summary too — both fire.
+
+## React to a folder rename
+
+```php
+add_action(
+    'desktop_mode_folder_renamed',
+    function ( $folder_id, $new_name, $old_name, $user_id ) {
+        // Mirror the rename into a sidecar plugin table.
+        my_plugin_update_folder_label( $folder_id, $new_name );
+    },
+    10,
+    4
+);
+```
+
+The framework already bumps every placement pointing at the
+renamed folder so connected clients see the new title via the
+next heartbeat tick — no extra work needed for live UI sync.
+
 ## See also
 
 - [folder-sharing.md](../folder-sharing.md) — full architecture.

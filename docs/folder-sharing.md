@@ -38,19 +38,105 @@ immutable.
 
 ## Capability matrix
 
-| Action                                | Owner | Writer | Reader | Pending | Denied |
-|---------------------------------------|:-----:|:------:|:------:|:-------:|:------:|
-| See the folder in their desktop       |  ✓    |   ✓    |   ✓    |    -    |   -    |
-| Open and view icons inside            |  ✓    |   ✓    |   ✓    |    -    |   -    |
-| Drag icons in / out                   |  ✓    |   ✓    |   -    |    -    |   -    |
-| Trash icons inside                    |  ✓    |   ✓    |   -    |    -    |   -    |
-| Rename the folder                     |  ✓    |   -    |   -    |    -    |   -    |
-| Manage shares (invite / revoke)       |  ✓    |   -    |   -    |    -    |   -    |
-| Delete the folder for everyone        |  ✓    |   -    |   -    |    -    |   -    |
-| Remove their own copy from desktop    |  ✓    |   ✓    |   ✓    |    -    |   -    |
+| Action                                       | Owner | Writer | Reader | Pending | Denied |
+|----------------------------------------------|:-----:|:------:|:------:|:-------:|:------:|
+| See the folder in their desktop              |  ✓    |   ✓    |   ✓    |    -    |   -    |
+| Open and view icons inside                   |  ✓    |   ✓    |   ✓    |    -    |   -    |
+| Drag icons in / out                          |  ✓    |   ✓    |   -    |    -    |   -    |
+| Trash icons inside                           |  ✓    |   ✓    |   -    |    -    |   -    |
+| Rename the folder                            |  ✓    |   -    |   -    |    -    |   -    |
+| Manage shares (invite / revoke)              |  ✓    |   -    |   -    |    -    |   -    |
+| Delete the folder for everyone (cascade)     |  ✓    |   -    |   -    |    -    |   -    |
+| Move folder to Trash (root placement)        |  ✓    |   -    |   -    |    -    |   -    |
+| Leave shared folder (recipient-side)         |  -    |   ✓    |   ✓    |    -    |   -    |
 
-(Owner can move/trash freely; non-owners can only act through the
-shared folder's gate.)
+Non-owners — read OR write — cannot move the shared-folder root
+placement to the Trash. The "Move to Trash" affordance is hidden
+and the recycle-bin drop target rejects the drag. The intended
+action is **Leave shared folder** (the dedicated tile-menu entry),
+which fires the share-leave flow: revoke the recipient's decision,
+scrub their placement, and leave the original intact.
+
+## Path independence
+
+Sharing is keyed on **the folder row**, not on where the folder
+happens to be placed. That's true in both directions:
+
+- **Owner moves their copy** (root → sub-folder, between
+  containers, etc.). Recipients' placements are untouched. Their
+  capability stays the same.
+- **Recipient moves their copy** (out of root, into one of their
+  own folders, between their containers). Owner is untouched.
+  Recipient keeps write capability if granted; the folder's
+  contents stay visible because every read goes through
+  `desktop_mode_folder_share_user_capability( folder_id, viewer )`
+  — never through "what's the placement path."
+- **Recipient's placement starts at desktop root.** Regardless of
+  where the owner has the folder placed (root, deep inside a
+  parent the recipient cannot see, …), `share_accept` plants the
+  recipient's tile at `parent_id = 0`. The
+  `desktop_mode_folder_share_accept_default_parent` filter lets a
+  future "Shared with me" tray plugin override.
+- **Cascade still works through moves.** Sub-folders inherit
+  access via the canonical (owner-side) ancestor chain. Moving a
+  sub-folder OUT of a shared folder revokes the recipient's
+  cascade access to it; moving one IN grants it.
+
+## Folder rename
+
+The owner can rename a shared folder at any time. The implementation
+bumps two things in lock-step:
+
+1. The folder row's `updated_at_ms` → heartbeat re-delivers the
+   folder upsert.
+2. Every placement that points at the folder (`file_type='folder'`,
+   `file_ref=<id>`) has its `updated_at_ms` bumped → heartbeat
+   re-delivers each placement with a fresh `file.title`.
+
+Step 2 matters because the tile's title comes from
+`placement.file.title` (captured at shape time). Without bumping
+the placement rows, the heartbeat's folder upsert reaches every
+client but the placement upsert query skips them — leaving tiles
+showing the old name until F5.
+
+Plugins can react via `do_action( 'desktop_mode_folder_renamed',
+$folder_id, $new_name, $old_name, $user_id )`.
+
+## Folder delete cascade
+
+When the owner deletes a folder, everything that depends on it is
+cleaned up in one transaction:
+
+1. Sub-folders the owner owns are recursively deleted (their own
+   shares, placements, and children chain through the same
+   cleanup). Sub-folders owned by **another user** — e.g. a
+   writer recipient who built their own folder inside this one —
+   are left intact; only the containment placement inside the
+   parent is removed.
+2. Every share row + per-user decision row for the folder is
+   deleted.
+3. Every placement pointing at the folder is deleted across **all
+   users** (each with a tombstone so heartbeat scrubs the tile on
+   every connected client).
+4. Every placement inside the folder is deleted with a tombstone.
+5. The folder row itself is deleted with a folder tombstone.
+
+Plugins can subscribe to:
+
+- `apply_filters( 'desktop_mode_files_can_delete_folder', $can,
+  $folder_id, $user_id, $row )` — return `false` or a
+  `WP_Error` to veto the cascade (e.g. for a UX confirmation
+  prompt when many recipients are involved).
+- `do_action( 'desktop_mode_files_before_delete_folder',
+  $folder_id, $user_id, $row )` — runs once before the walk.
+- `do_action( 'desktop_mode_files_share_revoked', $share_id, $row,
+  $user_id )` — fires per share row torn down by the cascade
+  (same signature plugin authors already use for explicit
+  revokes).
+- `do_action( 'desktop_mode_files_after_delete_folder_cascade',
+  $root_folder_id, $user_id, $summary )` — single summary event
+  with lists keyed by `folders_deleted`, `shares_revoked`,
+  `placements_pointing`, `placements_inside`.
 
 ## Storage
 

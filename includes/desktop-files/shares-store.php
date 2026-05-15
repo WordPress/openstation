@@ -956,6 +956,16 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
  * don't recurse the cascade resolver to avoid infinite loops
  * and quadratic complexity.
  *
+ * @todo Up to `ancestors_limit × 2` queries per call (one user-
+ *       shares + one role-shares query per ancestor). With the
+ *       16-ancestor cap that's up to 32 queries per capability
+ *       check on cold caches. WP object-cache installs short-
+ *       circuit most of those. For sites with deeply-nested
+ *       shared folders and no persistent object cache a future
+ *       optimisation can batch ancestor ids into one IN clause —
+ *       requires reshaping `*_capability_direct` to accept a
+ *       list of folder ids.
+ *
  * @since 0.18.0
  *
  * @param int $folder_id Folder whose ancestors to walk.
@@ -1329,8 +1339,16 @@ function desktop_mode_files_share_gate_trash( $can, $user_id, $row ) {
 				$folder_row &&
 				(int) $folder_row['owner_id'] !== $user_id
 			) {
+				// ANY non-owner recipient of a shared folder is
+				// blocked from trashing their root placement — the
+				// correct action is "Leave shared folder". This
+				// applies equally to read-only AND write recipients:
+				// a writer's destructive intent should be expressed
+				// via the leave flow (which scrubs their own
+				// placement) instead of via Move to Trash (which is
+				// reserved for the owner's destructive cascade).
 				$root_cap = desktop_mode_folder_share_user_capability( $folder_ref, $user_id );
-				if ( 'write' !== $root_cap ) {
+				if ( 'none' !== $root_cap ) {
 					return false;
 				}
 			}

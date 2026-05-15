@@ -266,14 +266,17 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 			'Read-only recipient must not be allowed to trash the root shared-folder tile; they should use "Leave shared folder" instead.'
 		);
 
-		// Promote the recipient to write. Root-folder placement
-		// should now be trashable again (writers retain the
-		// default ownership-based behavior).
+		// Promoting the recipient to WRITE must not re-enable
+		// trash on the root placement — the rule is "any non-owner
+		// recipient uses Leave instead of Trash", regardless of
+		// capability. Trashing your root placement is semantically
+		// "leave", and forcing it through the leave flow keeps the
+		// share-state cleanup paired with the placement removal.
 		desktop_mode_folder_share_update_capability( $share_id, self::$owner_id, 'write' );
 		$shape_writer = desktop_mode_files_shape_placement( $root_row );
-		$this->assertTrue(
+		$this->assertFalse(
 			(bool) $shape_writer['canTrash'],
-			'Writer recipient should retain trash access on their root placement.'
+			'Writer recipient still cannot trash their root placement — the correct action is "Leave shared folder".'
 		);
 
 		// Owner of the folder is unaffected — they trash their
@@ -293,6 +296,698 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 			(bool) $owner_shape['canTrash'],
 			'Folder owner should retain trash access on their own placement of their folder.'
 		);
+	}
+
+	/**
+	 * Running `install_schema` twice in a row must not produce
+	 * "Table … already exists" errors. Reproduces a tester-reported
+	 * fatal: dbDelta's `DESCRIBE`-based existence check can return
+	 * empty for the shares table under certain MySQL configurations,
+	 * causing it to fall back to a bare CREATE that blows up.
+	 *
+	 * @covers ::desktop_mode_files_install_schema
+	 */
+	public function test_install_schema_is_idempotent_on_repeated_calls() {
+		global $wpdb;
+		$show_prev = $wpdb->show_errors( false );
+		$wpdb->last_error = '';
+		desktop_mode_files_install_schema();
+		$first_error = (string) $wpdb->last_error;
+		$wpdb->last_error = '';
+		// Second call mimics a plugin re-activation or an
+		// admin_init re-trigger after the option was cleared.
+		delete_option( DESKTOP_MODE_FILES_SCHEMA_OPTION );
+		desktop_mode_files_install_schema();
+		$second_error = (string) $wpdb->last_error;
+		$wpdb->show_errors( $show_prev );
+		$this->assertSame( '', $first_error, 'First install should not error.' );
+		$this->assertStringNotContainsString(
+			'already exists',
+			$second_error,
+			'Second install must not error with "Table … already exists" — shares/decisions skip dbDelta and use idempotent CREATE TABLE IF NOT EXISTS.'
+		);
+	}
+
+	/**
+	 * Owner deletes a folder that has active shares: every share
+	 * row + every per-user decision + every recipient's root
+	 * placement of that folder must be cleaned up, with tombstones
+	 * so heartbeat tells connected clients the tile is gone.
+	 *
+	 * @covers ::desktop_mode_files_delete_folder
+	 */
+	public function test_delete_folder_cascade_revokes_shares_and_recipient_placements() {
+		global $wpdb;
+		$tables = desktop_mode_files_table_names();
+
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		// Second user-principal recipient via a second editor —
+		// `subscriber` / `author` lack `edit_posts` so they aren't
+		// eligible for invites by default. The cascade logic is
+		// indifferent to principal type, so two user-principals
+		// give the test the coverage it needs.
+		$second_editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$user_share = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		$role_share = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) $second_editor, 'read'
+		);
+		desktop_mode_folder_share_accept( $user_share, self::$editor_id );
+		desktop_mode_folder_share_accept( $role_share, $second_editor );
+
+		// Recipients now have root placements of the folder. Owner
+		// also has their own placement (for symmetry).
+		$owner_placement = desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
+
+		// Sanity: pointing placements exist for every party.
+		$pointing_before = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['placements']}
+				WHERE file_type = 'folder' AND file_ref = %s",
+				(string) $folder_id
+			)
+		);
+		$this->assertSame( 3, $pointing_before, 'Owner + 2 recipients should each have a placement.' );
+
+		desktop_mode_files_delete_folder( $folder_id, self::$owner_id );
+
+		// Folder row gone.
+		$this->assertNull(
+			desktop_mode_files_get_folder( $folder_id ),
+			'Folder row should be deleted.'
+		);
+
+		// Every pointing placement gone.
+		$pointing_after = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['placements']}
+				WHERE file_type = 'folder' AND file_ref = %s",
+				(string) $folder_id
+			)
+		);
+		$this->assertSame( 0, $pointing_after, 'No placement should still point at the deleted folder.' );
+
+		// Every share row gone.
+		$share_rows = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['shares']} WHERE folder_id = %d",
+				$folder_id
+			)
+		);
+		$this->assertSame( 0, $share_rows, 'All shares for the deleted folder should be revoked.' );
+
+		// Every decision row gone.
+		$decision_rows = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['decisions']} WHERE share_id IN (%d, %d)",
+				$user_share,
+				$role_share
+			)
+		);
+		$this->assertSame( 0, $decision_rows, 'All per-user decisions for the deleted folder should be gone.' );
+
+		// Heartbeat tells the recipient the placement is gone.
+		$delta = desktop_mode_files_compute_heartbeat_delta(
+			self::$editor_id, array(), 0, 200
+		);
+		$this->assertContains(
+			(int) $folder_id,
+			$delta['removed']['folders'],
+			"Folder id should appear in recipient's removed.folders so the heartbeat scrubs the tile."
+		);
+	}
+
+	/**
+	 * Owner deletes a non-shared PARENT that contains a SHARED
+	 * sub-folder. The cascade must reach the sub-folder and revoke
+	 * its shares too — recipients of the sub-folder lose access in
+	 * the same step.
+	 *
+	 * @covers ::desktop_mode_files_delete_folder
+	 */
+	public function test_delete_parent_cascades_into_shared_subfolder() {
+		global $wpdb;
+		$tables = desktop_mode_files_table_names();
+
+		$parent_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Workspace',
+		) );
+		$shared_sub_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Shared sub',
+		) );
+		// Place the sub-folder INSIDE the parent (owner's view).
+		desktop_mode_files_place(
+			self::$owner_id,
+			$parent_id,
+			'folder',
+			(string) $shared_sub_id
+		);
+		// Share the sub-folder with editor.
+		$sub_share = desktop_mode_folder_share_invite(
+			$shared_sub_id,
+			self::$owner_id,
+			'user',
+			(string) self::$editor_id,
+			'write'
+		);
+		desktop_mode_folder_share_accept( $sub_share, self::$editor_id );
+
+		desktop_mode_files_delete_folder( $parent_id, self::$owner_id );
+
+		// Parent gone.
+		$this->assertNull( desktop_mode_files_get_folder( $parent_id ) );
+		// Cascade: shared sub-folder also gone.
+		$this->assertNull(
+			desktop_mode_files_get_folder( $shared_sub_id ),
+			'Cascade must delete the shared sub-folder when its owner-side parent is deleted.'
+		);
+		// Sub-folder's shares revoked.
+		$share_rows = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['shares']} WHERE folder_id = %d",
+				$shared_sub_id
+			)
+		);
+		$this->assertSame( 0, $share_rows );
+	}
+
+	/**
+	 * A sub-folder owned by SOMEONE ELSE (e.g. a write recipient
+	 * who created their own folder inside a shared folder) must NOT
+	 * be cascade-deleted when the parent goes away. Only the
+	 * containment-placement is removed; the sub-folder survives so
+	 * its own owner can still reach it via their other placements.
+	 *
+	 * @covers ::desktop_mode_files_delete_folder
+	 */
+	public function test_delete_parent_leaves_other_owner_subfolder_intact() {
+		$parent_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Workspace',
+		) );
+		// Editor (write recipient hypothetically) owns a folder.
+		$other_id = desktop_mode_files_create_folder( self::$editor_id, array(
+			'name' => 'Editor folder',
+		) );
+		// Editor's folder ends up placed inside the owner's parent
+		// (rare but legal — e.g. through a future move flow).
+		desktop_mode_files_place(
+			self::$editor_id,
+			$parent_id,
+			'folder',
+			(string) $other_id
+		);
+
+		desktop_mode_files_delete_folder( $parent_id, self::$owner_id );
+
+		// Parent gone.
+		$this->assertNull( desktop_mode_files_get_folder( $parent_id ) );
+		// Editor's folder STILL EXISTS.
+		$this->assertNotNull(
+			desktop_mode_files_get_folder( $other_id ),
+			'Cascade must NOT delete sub-folders owned by another user.'
+		);
+	}
+
+	/**
+	 * Renaming a folder must propagate to every placement that
+	 * points at it so connected clients see the new title on the
+	 * next heartbeat tick — no F5 required.
+	 *
+	 * @covers ::desktop_mode_files_update_folder
+	 */
+	public function test_rename_folder_bumps_pointing_placements() {
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Old name',
+		) );
+		$share_id = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// Baseline heartbeat for the recipient.
+		$baseline = desktop_mode_files_compute_heartbeat_delta(
+			self::$editor_id, array(), 0, 200
+		);
+		$baseline_ts = (int) $baseline['serverTimeMs'];
+		usleep( 5000 );
+
+		// Owner renames.
+		desktop_mode_files_update_folder( $folder_id, self::$owner_id, array(
+			'name' => 'New name',
+		) );
+
+		// Next heartbeat must re-deliver the recipient's placement
+		// of the folder with the fresh title.
+		$delta = desktop_mode_files_compute_heartbeat_delta(
+			self::$editor_id,
+			array( (string) $folder_id => desktop_mode_files_now_ms() ),
+			$baseline_ts,
+			200
+		);
+		$folder_placement = null;
+		foreach ( $delta['placements'] as $p ) {
+			if ( 'folder' === $p['file']['type'] && (string) $folder_id === (string) $p['file']['ref'] ) {
+				$folder_placement = $p;
+				break;
+			}
+		}
+		$this->assertNotNull(
+			$folder_placement,
+			"Recipient's placement of the renamed folder must be re-delivered as an upsert so the tile title updates live."
+		);
+		$this->assertSame( 'New name', $folder_placement['file']['title'] );
+	}
+
+	/**
+	 * The v10 `updated_by` column means the If-Match 409 conflict
+	 * response names the SESSION that won the race, not the row's
+	 * static owner. Reviewer-flagged misattribution: in a shared
+	 * folder where User A owns the folder and User B (writer) moves
+	 * a placement, User C must see "User B moved this" — not "User
+	 * A moved this" (which is what the old `user_id` fallback would
+	 * have said).
+	 *
+	 * @covers ::desktop_mode_files_move
+	 * @covers ::desktop_mode_files_check_if_match
+	 */
+	public function test_updated_by_attributes_conflict_to_mutator_not_row_owner() {
+		// Owner = $owner_id, writer recipient = $editor_id.
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$share_id = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'write'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// Owner places a post in the shared folder. Owner is the
+		// row's `user_id` (creator).
+		$post_id  = self::factory()->post->create( array( 'post_status' => 'publish' ) );
+		$pid      = (int) desktop_mode_files_place( self::$owner_id, $folder_id, 'post', (string) $post_id );
+		$original = desktop_mode_files_get_placement( $pid );
+
+		// `now_ms` has 1 ms precision and PHPUnit tests fire fast
+		// enough that consecutive calls inside the same millisecond
+		// can collide. Sleep 2 ms so the move's `updated_at_ms` is
+		// strictly greater than the placement's original.
+		usleep( 2000 );
+
+		// Writer recipient moves the placement. `updated_by` flips
+		// to the editor; `user_id` stays as the owner.
+		desktop_mode_files_move( $pid, self::$editor_id, array( 'x' => 50, 'y' => 100 ) );
+		$after = desktop_mode_files_get_placement( $pid );
+		$this->assertSame(
+			self::$editor_id,
+			(int) $after['updated_by'],
+			'updated_by must record the mutating session, not the row creator.'
+		);
+		$this->assertSame(
+			self::$owner_id,
+			(int) $after['user_id'],
+			'user_id (row creator) is unchanged by a move.'
+		);
+
+		// A third viewer's stale `If-Match` (pointing at the
+		// pre-move updated_at_ms) must surface a 409 whose actor is
+		// the editor, not the owner.
+		$req = new WP_REST_Request( 'PATCH' );
+		$req->set_header( 'if_match', (string) $original['updated_at_ms'] );
+		$err = desktop_mode_files_check_if_match( (int) $after['updated_at_ms'], $req, $after );
+		$this->assertInstanceOf( WP_Error::class, $err );
+		$data = $err->get_error_data();
+		$this->assertSame(
+			self::$editor_id,
+			(int) $data['data']['actor']['id'],
+			'Conflict toast must name the editor (who moved the placement), not the owner.'
+		);
+	}
+
+	// -----------------------------------------------------------------
+	// Path independence — the sharer's location vs the recipient's
+	// location are decoupled. Both can move the folder around their
+	// own desktop without touching the other side; the share's
+	// permission contract is on the FOLDER, not on where the folder
+	// happens to be placed.
+	// -----------------------------------------------------------------
+
+	/**
+	 * Owner shares a folder that lives INSIDE another (non-shared)
+	 * folder. The recipient's placement of it must land at the
+	 * recipient's desktop ROOT (parent_id=0), not buried inside the
+	 * owner's parent folder — the recipient doesn't have access to
+	 * that parent and couldn't reach the share otherwise.
+	 *
+	 * @covers ::desktop_mode_folder_share_accept
+	 */
+	public function test_shared_subfolder_lands_at_recipient_root() {
+		$parent_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Workspace',
+		) );
+		$sub_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		// Owner places the sub-folder INSIDE the parent. Owner sees
+		// Workspace → Marketing.
+		desktop_mode_files_place(
+			self::$owner_id,
+			$parent_id,
+			'folder',
+			(string) $sub_id
+		);
+		// Owner shares ONLY the sub-folder.
+		$share_id = desktop_mode_folder_share_invite(
+			$sub_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// Recipient's root must contain the sub-folder placement.
+		$root_rows = desktop_mode_files_get_for_user_folder( self::$editor_id, 0 );
+		$folder_refs = array_map(
+			static fn( $r ) => (string) $r['file_ref'],
+			array_filter( $root_rows, static fn( $r ) => 'folder' === $r['file_type'] )
+		);
+		$this->assertContains(
+			(string) $sub_id,
+			$folder_refs,
+			'Shared sub-folder must appear at recipient root regardless of where the owner has it placed.'
+		);
+		// Recipient must NOT have a placement of the OWNER's parent.
+		$this->assertNotContains(
+			(string) $parent_id,
+			$folder_refs,
+			"Recipient must not see the owner's non-shared parent folder."
+		);
+	}
+
+	/**
+	 * Owner moving the folder around their own desktop (e.g. from
+	 * root into another folder, or from one parent to another) must
+	 * NOT touch the recipient's placement — locations are per-user.
+	 *
+	 * @covers ::desktop_mode_files_move
+	 */
+	public function test_owner_moving_shared_folder_does_not_touch_recipient_placement() {
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$owner_pid = desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
+		$share_id = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// Snapshot recipient's placement BEFORE the owner moves.
+		$before = desktop_mode_files_get_for_user_folder( self::$editor_id, 0 );
+		$recipient_row_before = null;
+		foreach ( $before as $r ) {
+			if ( 'folder' === $r['file_type'] && (string) $folder_id === (string) $r['file_ref'] ) {
+				$recipient_row_before = $r;
+			}
+		}
+		$this->assertNotNull( $recipient_row_before );
+
+		// Owner now moves the folder into a new container they own.
+		$container_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Container',
+		) );
+		desktop_mode_files_move( $owner_pid, self::$owner_id, array(
+			'parent_id' => $container_id,
+		) );
+
+		// Recipient's placement is untouched.
+		$after = desktop_mode_files_get_for_user_folder( self::$editor_id, 0 );
+		$recipient_row_after = null;
+		foreach ( $after as $r ) {
+			if ( 'folder' === $r['file_type'] && (string) $folder_id === (string) $r['file_ref'] ) {
+				$recipient_row_after = $r;
+			}
+		}
+		$this->assertNotNull(
+			$recipient_row_after,
+			"Recipient's placement of the shared folder must still exist at their root after the owner moves."
+		);
+		$this->assertSame(
+			(int) $recipient_row_before['id'],
+			(int) $recipient_row_after['id'],
+			"Recipient's placement row id must not change when the owner moves their copy."
+		);
+		$this->assertSame( 0, (int) $recipient_row_after['parent_id'] );
+	}
+
+	/**
+	 * The recipient must be able to move their own placement around
+	 * (e.g. into one of their own folders) without affecting the
+	 * owner — and without losing access to the folder's contents,
+	 * write capability if granted, or any of the live-sync plumbing.
+	 *
+	 * @covers ::desktop_mode_files_move
+	 * @covers ::desktop_mode_folder_share_user_capability
+	 */
+	public function test_recipient_can_move_shared_folder_into_their_own_folder() {
+		$shared_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$share_id = desktop_mode_folder_share_invite(
+			$shared_id, self::$owner_id, 'user', (string) self::$editor_id, 'write'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// Recipient creates their own container folder at THEIR root.
+		$recipient_folder = desktop_mode_files_create_folder( self::$editor_id, array(
+			'name' => "Editor's stuff",
+		) );
+
+		// Find recipient's placement of the shared folder.
+		$root_rows = desktop_mode_files_get_for_user_folder( self::$editor_id, 0 );
+		$placement_id = 0;
+		foreach ( $root_rows as $r ) {
+			if ( 'folder' === $r['file_type'] && (string) $shared_id === (string) $r['file_ref'] ) {
+				$placement_id = (int) $r['id'];
+				break;
+			}
+		}
+		$this->assertNotSame( 0, $placement_id );
+
+		// Move the shared placement into recipient's own folder.
+		// Write cap is required to move into a folder — and the
+		// recipient owns the destination, so it's allowed.
+		$moved = desktop_mode_files_move( $placement_id, self::$editor_id, array(
+			'parent_id' => $recipient_folder,
+		) );
+		$this->assertNotInstanceOf( WP_Error::class, $moved );
+
+		// Recipient still has write cap on the shared folder — the
+		// share is on the folder, not on where it's placed.
+		$cap = desktop_mode_folder_share_user_capability( $shared_id, self::$editor_id );
+		$this->assertSame( 'write', $cap );
+
+		// Recipient navigates INTO their own container and finds
+		// the shared folder there.
+		$container_rows = desktop_mode_files_get_for_user_folder( self::$editor_id, $recipient_folder );
+		$found = false;
+		foreach ( $container_rows as $r ) {
+			if ( 'folder' === $r['file_type'] && (string) $shared_id === (string) $r['file_ref'] ) {
+				$found = true;
+			}
+		}
+		$this->assertTrue(
+			$found,
+			"Recipient should see the shared folder inside their own container after the move."
+		);
+
+		// Recipient enters the shared folder — contents are visible
+		// regardless of where the folder lives in their hierarchy.
+		// Sanity-add a file as the owner; recipient must see it.
+		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
+		desktop_mode_files_place(
+			self::$owner_id, $shared_id, 'post', (string) $post_id
+		);
+		$shared_contents = desktop_mode_files_get_for_user_folder( self::$editor_id, $shared_id );
+		$post_refs = array_map( static fn( $r ) => (string) $r['file_ref'], $shared_contents );
+		$this->assertContains( (string) $post_id, $post_refs );
+
+		// Recipient adds their own file (writer cap) — works because
+		// write cap is on the folder, not on the path.
+		$own_post_id = self::factory()->post->create( array(
+			'post_status' => 'publish',
+			'post_author' => self::$editor_id,
+		) );
+		$placement_for_add = desktop_mode_files_place(
+			self::$editor_id, $shared_id, 'post', (string) $own_post_id
+		);
+		$this->assertNotInstanceOf( WP_Error::class, $placement_for_add );
+	}
+
+	/**
+	 * Cascade through a SHARED sub-folder: owner has A → B → C, the
+	 * cascade from C walks the OWNER's canonical chain so the
+	 * recipient who has access to B inherits access to C through
+	 * the share cascade, regardless of where B is placed in
+	 * recipient's own hierarchy.
+	 *
+	 * @covers ::desktop_mode_folder_share_user_capability
+	 */
+	public function test_cascade_grants_access_to_subfolders_of_shared_folder() {
+		$shared_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Workspace',
+		) );
+		$nested_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Inside',
+		) );
+		// Owner places nested INSIDE shared.
+		desktop_mode_files_place( self::$owner_id, $shared_id, 'folder', (string) $nested_id );
+
+		$share_id = desktop_mode_folder_share_invite(
+			$shared_id, self::$owner_id, 'user', (string) self::$editor_id, 'write'
+		);
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		// Cascade grants access to nested via the shared ancestor.
+		$cap_shared = desktop_mode_folder_share_user_capability( $shared_id, self::$editor_id );
+		$cap_nested = desktop_mode_folder_share_user_capability( $nested_id, self::$editor_id );
+		$this->assertSame( 'write', $cap_shared );
+		$this->assertSame( 'write', $cap_nested, 'Cascade should grant the recipient access to sub-folders of the shared folder.' );
+
+		// Owner moves nested OUT of shared (to root). Recipient
+		// loses access to nested because the cascade chain is
+		// broken — but RETAINS access to shared itself.
+		$nested_placements = desktop_mode_files_get_for_user_folder( self::$owner_id, $shared_id );
+		$nested_pid = 0;
+		foreach ( $nested_placements as $r ) {
+			if ( 'folder' === $r['file_type'] && (string) $nested_id === (string) $r['file_ref'] ) {
+				$nested_pid = (int) $r['id'];
+			}
+		}
+		$this->assertNotSame( 0, $nested_pid );
+		desktop_mode_files_move( $nested_pid, self::$owner_id, array( 'parent_id' => 0 ) );
+
+		$this->assertSame(
+			'write',
+			desktop_mode_folder_share_user_capability( $shared_id, self::$editor_id ),
+			'Recipient must still have access to the directly-shared folder.'
+		);
+		$this->assertSame(
+			'none',
+			desktop_mode_folder_share_user_capability( $nested_id, self::$editor_id ),
+			'Recipient loses access to the nested folder once the owner moves it out of the shared scope.'
+		);
+	}
+
+	/**
+	 * Plugin authors must be able to veto a folder delete from
+	 * `desktop_mode_files_can_delete_folder`. The veto should keep
+	 * the folder + every share row intact.
+	 *
+	 * @covers ::desktop_mode_files_delete_folder
+	 */
+	public function test_can_delete_folder_filter_veto_blocks_cascade() {
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Important',
+		) );
+		$share_id = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		$veto = function () { return false; };
+		add_filter( 'desktop_mode_files_can_delete_folder', $veto );
+		$result = desktop_mode_files_delete_folder( $folder_id, self::$owner_id );
+		remove_filter( 'desktop_mode_files_can_delete_folder', $veto );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'desktop_mode_files_delete_vetoed', $result->get_error_code() );
+		$this->assertNotNull(
+			desktop_mode_files_get_folder( $folder_id ),
+			'Folder must still exist when the delete filter vetoed.'
+		);
+		$this->assertNotNull(
+			desktop_mode_files_get_share( $share_id ),
+			'Share row must still exist when the delete filter vetoed.'
+		);
+	}
+
+	/**
+	 * The cascade-delete must fire per-share
+	 * `desktop_mode_files_share_revoked` actions AND a single
+	 * `desktop_mode_files_after_delete_folder_cascade` summary.
+	 *
+	 * @covers ::desktop_mode_files_delete_folder
+	 */
+	public function test_cascade_fires_share_revoked_and_summary_actions() {
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$second_editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$share_a = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		$share_b = desktop_mode_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) $second_editor, 'read'
+		);
+
+		$revoked_ids = array();
+		$revoke_listener = function ( $share_id ) use ( &$revoked_ids ) {
+			$revoked_ids[] = (int) $share_id;
+		};
+		add_action( 'desktop_mode_files_share_revoked', $revoke_listener );
+
+		$summary_captured = null;
+		$summary_listener = function ( $fid, $uid, $summary ) use ( &$summary_captured ) {
+			$summary_captured = $summary;
+		};
+		add_action(
+			'desktop_mode_files_after_delete_folder_cascade',
+			$summary_listener,
+			10,
+			3
+		);
+
+		desktop_mode_files_delete_folder( $folder_id, self::$owner_id );
+
+		remove_action( 'desktop_mode_files_share_revoked', $revoke_listener );
+		remove_action( 'desktop_mode_files_after_delete_folder_cascade', $summary_listener, 10 );
+
+		sort( $revoked_ids );
+		$expected = array( (int) $share_a, (int) $share_b );
+		sort( $expected );
+		$this->assertSame(
+			$expected,
+			$revoked_ids,
+			'Cascade must fire desktop_mode_files_share_revoked for every share it tore down.'
+		);
+
+		$this->assertIsArray( $summary_captured );
+		$this->assertContains( $folder_id, $summary_captured['folders_deleted'] );
+		$this->assertCount( 2, $summary_captured['shares_revoked'] );
+	}
+
+	/**
+	 * Renaming a folder must fire `desktop_mode_folder_renamed`
+	 * with both the new and old names so plugins can audit /
+	 * broadcast / refresh other surfaces.
+	 *
+	 * @covers ::desktop_mode_files_update_folder
+	 */
+	public function test_rename_fires_folder_renamed_action() {
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array(
+			'name' => 'Old name',
+		) );
+		$captured = null;
+		$listener = function ( $fid, $new, $old, $uid ) use ( &$captured ) {
+			$captured = array( 'fid' => $fid, 'new' => $new, 'old' => $old, 'uid' => $uid );
+		};
+		add_action( 'desktop_mode_folder_renamed', $listener, 10, 4 );
+		desktop_mode_files_update_folder( $folder_id, self::$owner_id, array(
+			'name' => 'New name',
+		) );
+		remove_action( 'desktop_mode_folder_renamed', $listener, 10 );
+
+		$this->assertIsArray( $captured );
+		$this->assertSame( $folder_id, $captured['fid'] );
+		$this->assertSame( 'New name', $captured['new'] );
+		$this->assertSame( 'Old name', $captured['old'] );
+		$this->assertSame( self::$owner_id, $captured['uid'] );
 	}
 
 	/**

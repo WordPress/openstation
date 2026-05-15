@@ -76,17 +76,42 @@ export function removeShare( folderId: number, shareId: number ): void {
 	s.notify();
 }
 
+/**
+ * Compare two invites for byte-equivalence on the fields the UI
+ * reads. Used by {@link ingestPendingInvites} to skip notify()
+ * calls when the server re-sends an unchanged row (every
+ * heartbeat tick re-delivers all pending invites — we don't want
+ * each one to wake every subscriber).
+ */
+function inviteEquals( a: PendingInvite, b: PendingInvite ): boolean {
+	return (
+		a.id === b.id &&
+		a.folderId === b.folderId &&
+		a.capability === b.capability &&
+		a.invitedAtMs === b.invitedAtMs &&
+		a.folderName === b.folderName &&
+		a.ownerName === b.ownerName
+	);
+}
+
 export function ingestPendingInvites( invites: PendingInvite[] ): void {
 	const s = sharesStore();
-	const seen = new Set( s.state.pending.map( ( p ) => p.id ) );
+	const existingById = new Map( s.state.pending.map( ( p ) => [ p.id, p ] ) );
 	let mutated = false;
 	for ( const inv of invites ) {
 		// Suppress re-prompt for previously-denied folders.
 		if ( s.state.deniedFolders.has( inv.folderId ) ) {
 			continue;
 		}
-		if ( seen.has( inv.id ) ) {
-			// Replace existing snapshot (server may have updated cap).
+		const existing = existingById.get( inv.id );
+		if ( existing ) {
+			// Skip byte-identical re-deliveries — the heartbeat
+			// re-sends every pending invite each tick; without this
+			// guard the subscribers fire on every tick even when
+			// nothing changed.
+			if ( inviteEquals( existing, inv ) ) {
+				continue;
+			}
 			s.state.pending = s.state.pending.map( ( p ) => ( p.id === inv.id ? inv : p ) );
 		} else {
 			s.state.pending.push( inv );
