@@ -36,6 +36,7 @@
  * @since 0.8.2
  */
 
+import { __ } from '../i18n';
 import { resolveDashicon } from '../ui/components/wpd-icon/dashicons-map';
 import {
 	getPixi,
@@ -54,8 +55,10 @@ import {
 } from './satellites';
 import type {
 	GraphEdge,
+	GraphGroupCatalogs,
 	GraphNode,
 	GraphPayload,
+	GroupFacet,
 	PostDetail,
 	PostTypeDescriptor,
 } from './types';
@@ -65,6 +68,48 @@ const NODE_FILL_FOCUS = 0x2c6be5;
 const NODE_FILL_NEIGHBOUR = 0x4f8bf3;
 const EDGE_BASE = 0x9aa6b6;
 const EDGE_HOT = 0x2c6be5;
+
+/**
+ * Per-dashicon visual-centre nudge applied on top of the
+ * `(0.5, 0.5)` text anchor — same idea as satellites'
+ * `KIND_ICON_NUDGE`, but stored as a fraction of the live fontSize
+ * because the node icon's size scales with `2 * node.radius`. Values
+ * are bbox-centre → visible-centre offsets:
+ *
+ *   - `Y_ASCENT` is a universal baseline correction (the dashicons
+ *     font's bbox is `ascent + descent` and the descent below the
+ *     baseline is unused space, so bbox-centred always parks the
+ *     visible glyph slightly above world-y=0).
+ *   - Per-icon entries override the baseline when the glyph is also
+ *     visually off-balance left-right (e.g. `admin-post`'s pushpin
+ *     head sits in the upper-left of its bbox, so the visible glyph
+ *     reads as top-left unless we nudge it down + right).
+ *
+ * Values are tuned against rendered output; pushing further without
+ * re-checking at multiple zoom levels usually over-shoots.
+ */
+const ICON_NUDGE_Y_ASCENT = 0;
+const ICON_NUDGE: Record< string, { x: number; y: number } > = {
+	'admin-post': { x: 0.06, y: 0.06 },
+};
+
+/**
+ * Per-facet tint for cluster label pills. Picked so each facet
+ * reads as its own "kind" at a glance and so cluster labels
+ * cannot be confused with node titles (which are dark text on
+ * a white pill). White text on a saturated background gives
+ * the visual contrast.
+ *
+ * The year + year-month facets share the orange tint — both are
+ * date buckets, so visually grouping them is correct.
+ */
+const GROUP_LABEL_COLOR: Record< GroupFacet, number > = {
+	category: 0x2c6be5,
+	tag: 0x2ca97a,
+	author: 0x7c3aed,
+	year: 0xea580c,
+	year_month: 0xea580c,
+};
 
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
@@ -89,11 +134,29 @@ interface NodeView {
 	labelBg: PixiGraphics;
 	label: PixiText;
 	iconCharCode: string | null;
+	iconName: string;
 }
 
 interface EdgeView {
 	edge: GraphEdge;
 	gfx: PixiGraphics;
+}
+
+/**
+ * One label marker per non-empty cluster. Painted into the
+ * `groupLabelLayer` and repositioned each tick at the running
+ * centroid of its member nodes (centroid is recomputed in the sim
+ * for the force, mirrored here for the visual). `members` is the
+ * node-id list captured at grouping time so the per-frame centroid
+ * recompute is O(memberCount) instead of O(all nodes).
+ */
+interface GroupView {
+	key: string;
+	label: string;
+	container: PixiContainer;
+	bg: PixiGraphics;
+	text: PixiText;
+	members: number[];
 }
 
 export class GraphScene {
@@ -107,9 +170,43 @@ export class GraphScene {
 	private spokeLayer!: PixiContainer;
 	private nodeLayer!: PixiContainer;
 	private labelLayer!: PixiContainer;
+	// Per-cluster label markers. Sits ABOVE the node-label layer so the
+	// cluster name stays readable when zoomed out (which is the moment
+	// it matters most — cluster labels fade IN as you zoom out and OUT
+	// as you zoom in past the focus-a-node range).
+	private groupLabelLayer!: PixiContainer;
 	private satellites: SatelliteLayer | null = null;
 	private nodeViews = new Map< number, NodeView >();
 	private edgeViews: EdgeView[] = [];
+	private groupViews = new Map< string, GroupView >();
+	private currentGrouping: GroupFacet | null = null;
+	// Captured at setData() time; consulted by setGrouping() to
+	// resolve display labels for cluster markers (e.g. category names,
+	// author display names) without re-fetching.
+	private groupCatalogs: GraphGroupCatalogs = {
+		authors: {},
+		categories: {},
+		tags: {},
+	};
+	/**
+	 * Active grouping-change tween, or `null` when no transition is in
+	 * flight. While set, the per-frame tick lerps each non-pinned
+	 * node's position from its `start` to its `target` (ease-out
+	 * cubic) and SKIPS the sim integration so the two layout
+	 * mechanisms don't fight. When complete, the sim resumes and the
+	 * cluster force refines the final positions.
+	 *
+	 * Lets the user see a smooth flow to clusters instead of the
+	 * earlier hard snap, while still arriving at the well-separated
+	 * end state from the first frame (no need to drag a node to
+	 * trigger the "good" layout).
+	 */
+	private groupingTween: {
+		startTime: number;
+		duration: number;
+		starts: Map< number, { x: number; y: number } >;
+		targets: Map< number, { x: number; y: number } >;
+	} | null = null;
 	private nodes: GraphNode[] = [];
 	private edges: GraphEdge[] = [];
 	private sim: ForceSim | null = null;
@@ -209,11 +306,13 @@ export class GraphScene {
 		this.spokeLayer = new pixi.Container();
 		this.nodeLayer = new pixi.Container();
 		this.labelLayer = new pixi.Container();
+		this.groupLabelLayer = new pixi.Container();
 		this.world.addChild(
 			this.edgeLayer,
 			this.spokeLayer,
 			this.nodeLayer,
 			this.labelLayer,
+			this.groupLabelLayer,
 		);
 
 		this.satellites = new SatelliteLayer(
@@ -240,6 +339,15 @@ export class GraphScene {
 		for ( const n of this.nodes ) {
 			prev.set( n.id, n );
 		}
+		// Capture the group catalog up-front so subsequent setGrouping()
+		// calls (including the auto-re-apply at the end of this method
+		// when the user had a facet active across a refetch) can
+		// resolve display labels without a round-trip.
+		this.groupCatalogs = payload.groups ?? {
+			authors: {},
+			categories: {},
+			tags: {},
+		};
 
 		const nodes: GraphNode[] = payload.nodes.map( ( p ) => {
 			const old = prev.get( p.id );
@@ -292,6 +400,12 @@ export class GraphScene {
 		for ( let i = 0; i < warmupSteps; i++ ) {
 			this.sim.step( 1 );
 		}
+		// If a grouping was active before this rebuild (e.g. the post-type
+		// filter changed mid-session), re-derive the assignment against
+		// the new node set so the cluster force keeps working.
+		if ( this.currentGrouping ) {
+			this.setGrouping( this.currentGrouping );
+		}
 	}
 
 	private rebuildSprites(): void {
@@ -322,9 +436,8 @@ export class GraphScene {
 			const halo = new this.pixi.Graphics();
 			container.addChild( halo );
 
-			const iconChar = resolveDashicon(
-				this.postTypeIcon( n.type ),
-			);
+			const iconName = this.postTypeIcon( n.type );
+			const iconChar = resolveDashicon( iconName );
 			const icon = new this.pixi.Text( {
 				text: iconChar ?? '●', // black circle fallback
 				style: {
@@ -388,6 +501,7 @@ export class GraphScene {
 				labelBg,
 				label,
 				iconCharCode: iconChar,
+				iconName,
 			} );
 		}
 	}
@@ -622,7 +736,16 @@ export class GraphScene {
 		if ( this.destroyed ) {
 			return;
 		}
-		this.sim?.step( delta );
+		if ( this.groupingTween ) {
+			// While the grouping tween is active, lerp positions
+			// toward the targets and SKIP the sim integration so the
+			// two layout mechanisms don't fight. Once the tween
+			// completes the sim resumes and the cluster force
+			// polishes the final positions.
+			this.advanceGroupingTween();
+		} else {
+			this.sim?.step( delta );
+		}
 		// Ease the camera toward its targets each frame. dt-aware so
 		// the feel stays consistent across frame-rate dips. Snap when
 		// we're within sub-pixel distance to avoid the buzz.
@@ -646,7 +769,174 @@ export class GraphScene {
 			this.world.y += dyc * k;
 		}
 		this.draw();
+		this.drawGroupLabels();
 		this.satellites?.drawLinks();
+	}
+
+	private deriveGroupKeys( n: GraphNode, facet: GroupFacet ): string[] {
+		switch ( facet ) {
+			case 'category':
+				if ( n.category_ids.length === 0 ) {
+					return [ 'cat:uncat' ];
+				}
+				return n.category_ids.map( ( id ) => `cat:${ id }` );
+			case 'tag':
+				if ( n.tag_ids.length === 0 ) {
+					return [ 'tag:untagged' ];
+				}
+				return n.tag_ids.map( ( id ) => `tag:${ id }` );
+			case 'author':
+				return [ `author:${ n.author_id || 0 }` ];
+			case 'year':
+				return [ `year:${ n.year || 0 }` ];
+			case 'year_month':
+				return [ `ym:${ n.year_month || 'unknown' }` ];
+		}
+	}
+
+	private labelForGroupKey( key: string ): string {
+		const idx = key.indexOf( ':' );
+		const facet = key.slice( 0, idx );
+		const rest = key.slice( idx + 1 );
+		switch ( facet ) {
+			case 'cat': {
+				if ( rest === 'uncat' ) {
+					return __( 'Uncategorized' );
+				}
+				const id = Number( rest );
+				return this.groupCatalogs.categories[ id ]?.name ?? `#${ id }`;
+			}
+			case 'tag': {
+				if ( rest === 'untagged' ) {
+					return __( 'Untagged' );
+				}
+				const id = Number( rest );
+				return this.groupCatalogs.tags[ id ]?.name ?? `#${ id }`;
+			}
+			case 'author': {
+				const id = Number( rest );
+				if ( id <= 0 ) {
+					return __( 'Unknown author' );
+				}
+				return this.groupCatalogs.authors[ id ]?.name ?? `#${ id }`;
+			}
+			case 'year': {
+				const y = Number( rest );
+				if ( y <= 0 ) {
+					return __( 'Undated' );
+				}
+				return String( y );
+			}
+			case 'ym': {
+				if ( rest === 'unknown' || rest === '' ) {
+					return __( 'Undated' );
+				}
+				return formatYearMonth( rest );
+			}
+		}
+		return key;
+	}
+
+	private buildGroupViews(
+		members: Map< string, number[] >,
+		facet: GroupFacet,
+	): void {
+		const tint = GROUP_LABEL_COLOR[ facet ];
+		for ( const [ key, ids ] of members ) {
+			if ( ids.length === 0 ) {
+				continue;
+			}
+			const container = new this.pixi.Container();
+			const bg = new this.pixi.Graphics();
+			container.addChild( bg );
+			const text = new this.pixi.Text( {
+				text: this.labelForGroupKey( key ),
+				style: {
+					fill: 0xffffff,
+					fontSize: 14,
+					fontFamily:
+						'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+					fontWeight: '700',
+				},
+				resolution: 2,
+				anchor: { x: 0.5, y: 0.5 },
+			} );
+			container.addChild( text );
+			// Pill backing — drawn once per build, the text doesn't
+			// mutate after this so per-frame redraws would be wasted.
+			// Facet-tinted background + white text reads as a distinct
+			// "cluster label" kind, so it can't be confused with node
+			// titles (dark text on a white pill).
+			const padX = 12;
+			const padY = 5;
+			const w = text.width + padX * 2;
+			const h = text.height + padY * 2;
+			bg
+				.roundRect( -w / 2, -h / 2, w, h, h / 2 )
+				// Translucent fill so nodes / edges sitting behind the
+				// label remain visible; the stroke + white text keep
+				// the pill itself readable.
+				.fill( { color: tint, alpha: 0.7 } )
+				.stroke( { color: 0xffffff, alpha: 0.85, width: 1.5 } );
+
+			this.groupLabelLayer.addChild( container );
+			this.groupViews.set( key, {
+				key,
+				label: text.text,
+				container,
+				bg,
+				text,
+				members: ids,
+			} );
+		}
+	}
+
+	private clearGroupViews(): void {
+		for ( const v of this.groupViews.values() ) {
+			v.container.destroy( { children: true } );
+		}
+		this.groupViews.clear();
+		this.groupLabelLayer.removeChildren();
+	}
+
+	/**
+	 * Per-frame paint of the cluster label markers. Centroid is the
+	 * running average of member positions, scale is inverse of world
+	 * scale (so labels stay legible across zoom), alpha fades the
+	 * labels OUT as you zoom past the focused-node range so they
+	 * don't clutter the close-up view.
+	 */
+	private drawGroupLabels(): void {
+		if ( this.groupViews.size === 0 ) {
+			return;
+		}
+		const inverseScale = 1 / this.world.scale.x;
+		// Mirror of the node-label fade, inverted: present at low
+		// zoom (cluster reading), gone at high zoom (close-up).
+		const fade = 1 - smoothstep( 1.2, 2.4, this.world.scale.x );
+		for ( const v of this.groupViews.values() ) {
+			let sx = 0;
+			let sy = 0;
+			let count = 0;
+			for ( const id of v.members ) {
+				const node = this.nodeViews.get( id )?.node;
+				if ( ! node ) {
+					continue;
+				}
+				sx += node.x;
+				sy += node.y;
+				count++;
+			}
+			if ( count === 0 ) {
+				v.container.visible = false;
+				continue;
+			}
+			v.container.x = sx / count;
+			v.container.y = sy / count;
+			v.container.scale.set( inverseScale );
+			v.container.alpha = fade;
+			v.container.visible = fade > 0.02;
+		}
 	}
 
 	private draw(): void {
@@ -772,7 +1062,15 @@ export class GraphScene {
 			}
 
 			icon.style.fill = fill;
-			icon.style.fontSize = 2 * node.radius;
+			const fontSize = 2 * node.radius;
+			icon.style.fontSize = fontSize;
+			// Nudge the glyph onto the visible disc centre. Without this
+			// the bbox-centred anchor leaves glyphs (notably `admin-post`
+			// — the pushpin head is in the upper-left of its bbox) reading
+			// as top-left of where the user expects them.
+			const nudge = ICON_NUDGE[ v.iconName ];
+			icon.x = ( nudge?.x ?? 0 ) * fontSize;
+			icon.y = ( ( nudge?.y ?? ICON_NUDGE_Y_ASCENT ) ) * fontSize;
 
 			labelBox.x = node.x;
 			labelBox.y = node.y + node.radius + 4;
@@ -837,6 +1135,306 @@ export class GraphScene {
 		// reheating here would shake the whole cluster (see focusNode).
 	}
 
+	/**
+	 * Swap the active clustering facet. Pass `null` to disable
+	 * clustering entirely. Computes the per-node group assignment from
+	 * the current node set, hands it to the sim (which reheats), and
+	 * rebuilds the per-cluster label markers in `groupLabelLayer`.
+	 *
+	 * Cheap to call repeatedly — there's no Pixi teardown beyond
+	 * destroying / recreating the small `GroupView` containers.
+	 */
+	setGrouping( facet: GroupFacet | null ): void {
+		this.currentGrouping = facet;
+		this.clearGroupViews();
+		if ( ! facet || ! this.sim ) {
+			this.sim?.setGroupAssignment( null );
+			return;
+		}
+		const assignment = new Map< number, string[] >();
+		// `members` is built alongside the assignment so the per-frame
+		// centroid recompute in drawGroupLabels() doesn't have to walk
+		// every node for every group.
+		const members = new Map< string, number[] >();
+		for ( const n of this.nodes ) {
+			const keys = this.deriveGroupKeys( n, facet );
+			assignment.set( n.id, keys );
+			for ( const key of keys ) {
+				const list = members.get( key );
+				if ( list ) {
+					list.push( n.id );
+				} else {
+					members.set( key, [ n.id ] );
+				}
+			}
+		}
+		const order = this.chronologicalOrder( facet, members );
+		// Hand the assignment to the sim BEFORE starting the tween so
+		// the cluster force is already wired up when the tween hands
+		// motion control back. The sim's reheat does nothing visible
+		// during the tween (tick skips sim.step while the tween runs).
+		this.sim.setGroupAssignment( assignment, order );
+		// Build per-node target positions on the seed lattice, then
+		// hand them to the tween. Camera is fit-to-view'd against the
+		// targets so it zooms in parallel with the layout instead of
+		// waiting for the tween to finish.
+		const targets = this.buildGroupSeedTargets( assignment, members, order );
+		this.startGroupingTween( targets );
+		this.fitToViewOfTargets( targets );
+		this.buildGroupViews( members, facet );
+	}
+
+	/**
+	 * Drive one frame of the active grouping tween. Lerps each
+	 * non-pinned node from its captured start position to its target
+	 * with an ease-out cubic. Cleans up + resumes the sim when done.
+	 */
+	private advanceGroupingTween(): void {
+		const tween = this.groupingTween;
+		if ( ! tween ) {
+			return;
+		}
+		const t = Math.min( 1, ( performance.now() - tween.startTime ) / tween.duration );
+		const k = 1 - Math.pow( 1 - t, 3 );
+		for ( const [ nodeId, start ] of tween.starts ) {
+			const target = tween.targets.get( nodeId );
+			if ( ! target ) {
+				continue;
+			}
+			const node = this.nodeViews.get( nodeId )?.node;
+			if ( ! node || node.pinned ) {
+				continue;
+			}
+			node.x = start.x + ( target.x - start.x ) * k;
+			node.y = start.y + ( target.y - start.y ) * k;
+			node.vx = 0;
+			node.vy = 0;
+		}
+		if ( t >= 1 ) {
+			this.groupingTween = null;
+			// Brief reheat so the cluster force can polish positions
+			// post-tween (clusters land near their seeds; the force
+			// settles any small drift from emergent Y centroids).
+			this.sim?.reheat( 0.18, false );
+		}
+	}
+
+	/**
+	 * Compute a per-cluster seed position + per-node target on that
+	 * seed. The tween animates each node from its current position
+	 * to its target so the user sees a smooth flow into clusters
+	 * instead of an instant snap.
+	 *
+	 * Seeds:
+	 *   - **Ordered facets** (year, year-month): a horizontal lattice
+	 *     matching the order array, so chronological clusters land
+	 *     in the same left-to-right slots the cluster force pins
+	 *     them to. Unordered keys (e.g. `'ym:unknown'`) sit to the
+	 *     right of the chronological range.
+	 *   - **Unordered facets** (category, tag, author): polar
+	 *     distribution around the origin, radius scaling with the
+	 *     number of groups. Floor keeps small group counts (2–3)
+	 *     visually distinct.
+	 *
+	 * Multi-membership posts (a post in two categories) target the
+	 * average of their group seeds so they start at the force-balance
+	 * midpoint instead of being arbitrarily assigned to one cluster.
+	 */
+	private buildGroupSeedTargets(
+		assignment: Map< number, string[] >,
+		members: Map< string, number[] >,
+		order: string[] | null,
+	): Map< number, { x: number; y: number } > {
+		const targets = new Map< number, { x: number; y: number } >();
+		if ( ! this.sim ) {
+			return targets;
+		}
+		const groupKeys = Array.from( members.keys() );
+		const seeds = new Map< string, { x: number; y: number } >();
+		const spacing = this.sim.groupOrderSpacing;
+
+		if ( order && order.length > 0 ) {
+			const n = order.length;
+			for ( let i = 0; i < n; i++ ) {
+				seeds.set( order[ i ], {
+					x: ( i - ( n - 1 ) / 2 ) * spacing,
+					y: 0,
+				} );
+			}
+			let extra = n;
+			for ( const k of groupKeys ) {
+				if ( seeds.has( k ) ) {
+					continue;
+				}
+				seeds.set( k, { x: ( extra - ( n - 1 ) / 2 ) * spacing, y: 0 } );
+				extra++;
+			}
+		} else {
+			const n = groupKeys.length;
+			const radius = Math.max( 220, 120 + n * 40 );
+			for ( let i = 0; i < n; i++ ) {
+				const angle = ( i / Math.max( 1, n ) ) * Math.PI * 2 - Math.PI / 2;
+				seeds.set( groupKeys[ i ], {
+					x: Math.cos( angle ) * radius,
+					y: Math.sin( angle ) * radius,
+				} );
+			}
+		}
+
+		const jitter = 40;
+		for ( const node of this.nodes ) {
+			if ( node.pinned ) {
+				continue;
+			}
+			const keys = assignment.get( node.id );
+			if ( ! keys || keys.length === 0 ) {
+				continue;
+			}
+			let sx = 0;
+			let sy = 0;
+			let count = 0;
+			for ( const k of keys ) {
+				const s = seeds.get( k );
+				if ( ! s ) {
+					continue;
+				}
+				sx += s.x;
+				sy += s.y;
+				count++;
+			}
+			if ( count === 0 ) {
+				continue;
+			}
+			targets.set( node.id, {
+				x: sx / count + ( Math.random() - 0.5 ) * jitter,
+				y: sy / count + ( Math.random() - 0.5 ) * jitter,
+			} );
+		}
+		return targets;
+	}
+
+	/**
+	 * Capture the current positions as the tween starts, set the
+	 * tween clock, and let `tick()` drive each frame from there.
+	 * Replaces any in-flight tween — picking a new facet mid-tween
+	 * just retargets from wherever the nodes currently sit.
+	 */
+	private startGroupingTween(
+		targets: Map< number, { x: number; y: number } >,
+	): void {
+		if ( targets.size === 0 ) {
+			this.groupingTween = null;
+			return;
+		}
+		const starts = new Map< number, { x: number; y: number } >();
+		for ( const nodeId of targets.keys() ) {
+			const node = this.nodeViews.get( nodeId )?.node;
+			if ( ! node ) {
+				continue;
+			}
+			starts.set( nodeId, { x: node.x, y: node.y } );
+		}
+		this.groupingTween = {
+			startTime: performance.now(),
+			// Fast enough to feel responsive, long enough to read as
+			// a real transition (not a snap). Tuned by feel; if it
+			// looks sluggish on slow machines, drop to 350.
+			duration: 450,
+			starts,
+			targets,
+		};
+	}
+
+	/**
+	 * Frame the camera against the target bounds (not the current
+	 * node positions) so the zoom-out animates IN PARALLEL with the
+	 * layout tween instead of waiting for it to settle.
+	 */
+	private fitToViewOfTargets(
+		targets: Map< number, { x: number; y: number } >,
+	): void {
+		if ( targets.size === 0 ) {
+			return;
+		}
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for ( const t of targets.values() ) {
+			if ( t.x < minX ) {
+				minX = t.x;
+			}
+			if ( t.y < minY ) {
+				minY = t.y;
+			}
+			if ( t.x > maxX ) {
+				maxX = t.x;
+			}
+			if ( t.y > maxY ) {
+				maxY = t.y;
+			}
+		}
+		const padding = 100;
+		const w = maxX - minX + padding * 2;
+		const h = maxY - minY + padding * 2;
+		const sx = this.host.clientWidth / w;
+		const sy = this.host.clientHeight / h;
+		const s = Math.max( ZOOM_MIN, Math.min( 1.5, Math.min( sx, sy ) ) );
+		const cx = ( minX + maxX ) / 2;
+		const cy = ( minY + maxY ) / 2;
+		this.targetScale = s;
+		this.targetX = this.host.clientWidth / 2 - cx * s;
+		this.targetY = this.host.clientHeight / 2 - cy * s;
+	}
+
+	/**
+	 * For date facets, sort the keys oldest-to-newest so the cluster
+	 * attractor can lay them out left-to-right. For other facets,
+	 * returns `null` — those clusters stay fully emergent.
+	 *
+	 * `'year:<unknown>'` and `'ym:unknown'` are skipped from the
+	 * order: an undated post shouldn't bias one end of the timeline.
+	 */
+	private chronologicalOrder(
+		facet: GroupFacet,
+		members: Map< string, number[] >,
+	): string[] | null {
+		if ( facet !== 'year' && facet !== 'year_month' ) {
+			return null;
+		}
+		const ordered: { key: string; sort: string }[] = [];
+		for ( const key of members.keys() ) {
+			const idx = key.indexOf( ':' );
+			const rest = key.slice( idx + 1 );
+			if ( facet === 'year' ) {
+				const y = Number( rest );
+				if ( ! Number.isFinite( y ) || y <= 0 ) {
+					continue;
+				}
+				// Zero-pad so string-sort is identical to numeric-sort
+				// without parsing twice.
+				ordered.push( { key, sort: String( y ).padStart( 6, '0' ) } );
+			} else {
+				// year-month tokens are already in YYYY-MM, which
+				// string-sorts chronologically.
+				if ( rest === 'unknown' || rest === '' ) {
+					continue;
+				}
+				ordered.push( { key, sort: rest } );
+			}
+		}
+		ordered.sort( ( a, b ) => {
+			if ( a.sort < b.sort ) {
+				return -1;
+			}
+			if ( a.sort > b.sort ) {
+				return 1;
+			}
+			return 0;
+		} );
+		return ordered.map( ( e ) => e.key );
+	}
+
 	clearFocus(): void {
 		if ( this.focusedId !== null ) {
 			const view = this.nodeViews.get( this.focusedId );
@@ -869,6 +1467,16 @@ export class GraphScene {
 
 	getNodes(): GraphNode[] {
 		return this.nodes;
+	}
+
+	/**
+	 * Currently focused node id, or `null` when nothing is focused.
+	 * Used by the host orchestrator to implement click-to-deselect:
+	 * if the user clicks the already-focused node, the host calls
+	 * `clearFocus()` instead of re-focusing.
+	 */
+	getFocusedId(): number | null {
+		return this.focusedId;
 	}
 
 	fitToView(): void {
@@ -916,6 +1524,7 @@ export class GraphScene {
 		this.resizeObserver = null;
 		this.satellites?.destroy();
 		this.satellites = null;
+		this.clearGroupViews();
 		try {
 			this.app.destroy( true, { children: true } );
 		} catch {
@@ -971,6 +1580,33 @@ function smoothstep( a: number, b: number, x: number ): number {
 	}
 	const t = ( x - a ) / ( b - a );
 	return t * t * ( 3 - 2 * t );
+}
+
+/**
+ * Render a `'YYYY-MM'` token as a user-facing month label
+ * (e.g. `'2024-03'` → `'Mar 2024'`) using the browser's locale.
+ * Falls back to the raw token if parsing fails.
+ */
+function formatYearMonth( token: string ): string {
+	const m = /^(\d{4})-(\d{2})$/.exec( token );
+	if ( ! m ) {
+		return token;
+	}
+	const monthIdx = Number( m[ 2 ] ) - 1;
+	if ( monthIdx < 0 || monthIdx > 11 ) {
+		return token;
+	}
+	const year = Number( m[ 1 ] );
+	try {
+		const d = new Date( Date.UTC( year, monthIdx, 1 ) );
+		return new Intl.DateTimeFormat( undefined, {
+			month: 'short',
+			year: 'numeric',
+			timeZone: 'UTC',
+		} ).format( d );
+	} catch {
+		return token;
+	}
 }
 
 function defaultIconForPostType( slug: string ): string {

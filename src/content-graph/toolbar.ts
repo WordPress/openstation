@@ -14,14 +14,20 @@
  */
 
 import { __ } from '../i18n';
-import type { GraphNode, PostTypeDescriptor } from './types';
+import type { GraphNode, GroupFacet, PostTypeDescriptor } from './types';
 
 export interface ToolbarCallbacks {
 	onTypesChange: ( types: string[] ) => void;
 	onFitToView: () => void;
 	onSearchSelect: ( node: GraphNode ) => void;
+	onGroupChange: ( facet: GroupFacet | null ) => void;
 	getNodes: () => GraphNode[];
 }
+
+// Sentinel for the "no clustering" option. `<wpd-select>` works
+// best with non-empty values; the toolbar maps it to `null` before
+// handing it to the orchestrator.
+const GROUP_NONE = 'none';
 
 export interface ToolbarHandle {
 	setStatus: ( text: string ) => void;
@@ -121,6 +127,47 @@ export function renderToolbar(
 			dropdown.hidden = true;
 		}, 120 );
 	} );
+
+	// Group-by select lives next to the filter chips so it reads as a
+	// peer control ("filter, then group"). It's a direct child of the
+	// toolbar — NOT inside `actions` — because actions has `margin-left:
+	// auto` and would shove the select to the right edge, away from
+	// the chips it groups.
+	//
+	// Deliberately no `label` attribute: `<wpd-select>` renders its
+	// label stacked above the dropdown, which makes the control
+	// taller than the chips and breaks horizontal alignment on the
+	// toolbar row. Instead, the first option's text ("No grouping")
+	// telegraphs the purpose, with `aria-label` + `title` carrying
+	// the "Group by" semantics for screen readers and hover.
+	const groupBy = document.createElement( 'wpd-select' );
+	groupBy.className = 'desktop-mode-content-graph__group-by';
+	groupBy.setAttribute( 'value', GROUP_NONE );
+	groupBy.setAttribute( 'aria-label', __( 'Group by' ) );
+	groupBy.title = __( 'Group posts by a shared facet' );
+	for ( const [ value, label ] of [
+		[ GROUP_NONE, __( 'No grouping' ) ],
+		[ 'category', __( 'Group by category' ) ],
+		[ 'tag', __( 'Group by tag' ) ],
+		[ 'author', __( 'Group by author' ) ],
+		[ 'year', __( 'Group by year' ) ],
+		[ 'year_month', __( 'Group by year-month' ) ],
+	] as const ) {
+		const opt = document.createElement( 'wpd-option' );
+		opt.setAttribute( 'value', value );
+		opt.textContent = label;
+		groupBy.appendChild( opt );
+	}
+	groupBy.addEventListener( 'wpd-pick', ( ev: Event ) => {
+		const detail = ( ev as CustomEvent< { value: string } > ).detail;
+		const raw = detail?.value ?? GROUP_NONE;
+		const facet: GroupFacet | null =
+			raw === GROUP_NONE ? null : ( raw as GroupFacet );
+		callbacks.onGroupChange( facet );
+	} );
+	// Sit between chips and search so it lines up with the filter
+	// chips on the same row.
+	host.insertBefore( groupBy, searchWrap );
 
 	const actions = document.createElement( 'div' );
 	actions.className = 'desktop-mode-content-graph__actions';

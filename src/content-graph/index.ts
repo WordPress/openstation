@@ -23,7 +23,7 @@ import { renderPanel } from './panel';
 import { GraphScene } from './scene';
 import type { SatelliteRef } from './satellites';
 import type { DesktopApiLike } from './pixi-types';
-import type { GraphNode } from './types';
+import type { GraphNode, GroupFacet } from './types';
 
 // The framework's actual signature is wider (`() => void | (() => void) |
 // Promise<…>`) but every feature bundle re-declares it as a narrow
@@ -155,6 +155,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		},
 		onFitToView: () => scene?.fitToView(),
 		onSearchSelect: ( node: GraphNode ) => focusNode( node ),
+		onGroupChange: ( facet: GroupFacet | null ) => {
+			// Session-local: no persistence. The selector resets to None
+			// on every window open by virtue of the toolbar being
+			// constructed fresh each render.
+			scene?.setGrouping( facet );
+		},
 		getNodes: () => scene?.getNodes() ?? [],
 	} );
 
@@ -199,14 +205,29 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		}
 	};
 
+	const closeFocus = (): void => {
+		// Bump the request id so any in-flight detail fetch's late
+		// resolution doesn't re-open the panel after we close it.
+		detailRequestId++;
+		panel.hide();
+		scene?.clearFocus();
+	};
+
 	scene = new GraphScene(
 		stageHost,
 		{
-			onNodeClick: ( node ) => focusNode( node ),
-			onBackgroundClick: () => {
-				panel.hide();
-				scene?.clearFocus();
+			onNodeClick: ( node ) => {
+				// Click on the already-focused node = toggle off. Lets
+				// the user dismiss the focus with the same gesture
+				// they used to open it, instead of having to find the
+				// panel's close button or click empty canvas.
+				if ( scene?.getFocusedId() === node.id ) {
+					closeFocus();
+					return;
+				}
+				focusNode( node );
 			},
+			onBackgroundClick: closeFocus,
 		},
 		handleSatelliteClick,
 		cfg.postTypes,

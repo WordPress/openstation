@@ -23,6 +23,23 @@ export interface GraphNodePayload {
 	status: string;
 	slug: string;
 	edit_url: string;
+	/**
+	 * Grouping facets. Always present on every node so the client never
+	 * has to null-check. `author_id` is `0` for posts authored by a
+	 * deleted user; `year` is `0` when `post_date` is unavailable
+	 * (effectively never, but defensively typed).
+	 */
+	author_id: number;
+	year: number;
+	/**
+	 * `'YYYY-MM'` derived server-side from `post_date`. Empty string
+	 * when the post has no usable date (defensive — every WP post has
+	 * one, but the field is typed as required so callers don't have
+	 * to optional-chain).
+	 */
+	year_month: string;
+	category_ids: number[];
+	tag_ids: number[];
 }
 
 export interface GraphEdgePayload {
@@ -30,15 +47,39 @@ export interface GraphEdgePayload {
 	to: number;
 }
 
+/**
+ * Compact catalog of group labels referenced by at least one node in
+ * the payload. Keyed by id (string-coerced from int by JSON). Only
+ * entries actually referenced by a visible node are emitted — keeps
+ * the payload tight on sites with many unused authors / terms.
+ */
+export interface GraphGroupCatalogs {
+	authors: Record< number, { name: string } >;
+	categories: Record< number, { name: string } >;
+	tags: Record< number, { name: string } >;
+}
+
 export interface GraphPayload {
 	nodes: GraphNodePayload[];
 	edges: GraphEdgePayload[];
+	groups: GraphGroupCatalogs;
 	stats: {
 		nodes: number;
 		edges: number;
 		generated_at: number;
 	};
 }
+
+/**
+ * Which facet the group-by selector is currently clustering on. `null`
+ * means no clustering — the layout is the existing constellation.
+ */
+export type GroupFacet =
+	| 'category'
+	| 'tag'
+	| 'author'
+	| 'year'
+	| 'year_month';
 
 export interface UserRef {
 	id: number;
@@ -241,6 +282,10 @@ export interface ContentGraphConfig {
 
 /**
  * Live in-memory node — the REST payload plus simulation state.
+ * The grouping facets (`author_id`, `year`, `category_ids`,
+ * `tag_ids`) come along for free via the `GraphNodePayload` extension
+ * and are read directly by `GraphScene.setGrouping()` to derive each
+ * node's group keys.
  */
 export interface GraphNode extends GraphNodePayload {
 	x: number;
