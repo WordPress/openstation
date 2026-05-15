@@ -10,14 +10,37 @@
  */
 
 import { openPendingInviteModal } from './share-settings-modal';
-import { dropPending, sharesStore } from './shares-store';
+import { dropPending, sharesStore, type PendingInvite, type SharesState } from './shares-store';
 
 const prompted = new Set< number >();
 
+/**
+ * Reads the per-user folder-sharing kill switch. Defaults to `true`
+ * before the OS Settings snapshot is wired (early-boot window).
+ */
+function sharingEnabled(): boolean {
+	const settings = ( window as unknown as {
+		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.desktop?.getOsSettings?.();
+	if ( ! settings ) {
+		return true;
+	}
+	return settings.foldersSharingEnabled !== false;
+}
+
 export function installShareInviteBanner(): void {
 	const store = sharesStore();
-	store.subscribe( ( state ) => {
-		for ( const invite of state.pending ) {
+	const handle = ( state: Readonly< SharesState > ): void => {
+		// Bail entirely when the user has flipped sharing off. The
+		// server-side heartbeat already skips `shares.pending` for
+		// these users, so `state.pending` is normally empty — but a
+		// stale subscription (settings toggled mid-session, last
+		// heartbeat still in transit) can still carry one. Guard
+		// here so we never open the modal in either case.
+		if ( ! sharingEnabled() ) {
+			return;
+		}
+		for ( const invite of state.pending as PendingInvite[] ) {
 			if ( prompted.has( invite.id ) ) {
 				continue;
 			}
@@ -41,5 +64,11 @@ export function installShareInviteBanner(): void {
 				// (future) "Invitations" tray.
 			} );
 		}
-	} );
+	};
+	store.subscribe( handle );
+	// Fire once against the current snapshot — covers invites
+	// hydrated from the shell config on initial paint (refresh path),
+	// not just the ones that arrive later via heartbeat. `subscribe`
+	// itself doesn't replay the current state.
+	handle( store.state );
 }

@@ -167,6 +167,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick
 				: DEFAULTS.showDesktopOnWallpaperClick,
+		foldersSharingEnabled:
+			typeof parsed.foldersSharingEnabled === 'boolean'
+				? parsed.foldersSharingEnabled
+				: DEFAULTS.foldersSharingEnabled,
 		itemVisibility: sanitizeItemVisibility( parsed.itemVisibility ),
 		dockOrder: sanitizeDockOrder( parsed.dockOrder ),
 	};

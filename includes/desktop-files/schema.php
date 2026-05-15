@@ -34,7 +34,6 @@ defined( 'ABSPATH' ) || exit;
 
 define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '10' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
-define( 'DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION', 'desktop_mode_files_shares_migrated' );
 
 /**
  * Returns the per-table names with the active prefix applied.
@@ -128,9 +127,9 @@ function desktop_mode_files_install_schema() {
 
 	// Schema v9 — per-principal grants (`folder_shares` table) +
 	// per-user opt-in decisions (`share_user_decisions` table).
-	// Replaces the legacy `share_meta` JSON shape, which is
-	// migrated into per-row entries by
-	// `desktop_mode_files_migrate_share_meta_to_shares()` below.
+	// `share_meta` on the folders row stays as a diagnostic-only
+	// column; visibility is computed entirely from the shares
+	// table.
 	//
 	// Shares + decisions are intentionally NOT routed through
 	// dbDelta. Their `ensure_*_table()` helpers below are the sole
@@ -171,12 +170,14 @@ function desktop_mode_files_install_schema() {
 	// adding a unique key against duplicate rows would fail.
 	desktop_mode_files_ensure_unique_placement_index();
 
-	// v8: belt-and-suspenders existence check for the shares
-	// table, then one-shot backfill of the legacy
-	// `share_meta.users` / `share_meta.roles` JSON into rows.
+	// v9: belt-and-suspenders existence check for the shares +
+	// decisions tables. The folder-sharing feature is the
+	// canonical source of truth for "who can see this folder" —
+	// the `share_meta` JSON column on the folders table remains
+	// for diagnostic purposes only and is not consulted by the
+	// visibility resolver.
 	desktop_mode_files_ensure_shares_table();
 	desktop_mode_files_ensure_decisions_table();
-	desktop_mode_files_migrate_share_meta_to_shares();
 
 	// v10: `updated_by` column on placements so the If-Match 409
 	// conflict toast names the SESSION that actually won the race,
@@ -211,18 +212,39 @@ function desktop_mode_files_ensure_trash_columns() {
 	global $wpdb;
 	$tables = desktop_mode_files_table_names();
 
+	// Two-worker race protection: between the INFORMATION_SCHEMA
+	// check and the ALTER, a concurrent worker (cron + admin-init,
+	// REST + heartbeat) can run the same check, see the column
+	// missing, and both fire ALTER. The second hits MySQL error
+	// 1060 ("Duplicate column"). Suppressing wpdb errors around
+	// the ALTER swallows that benign log line. The column ends up
+	// present either way — we re-verify with a second
+	// INFORMATION_SCHEMA query and only surface an error when the
+	// column is genuinely missing after the attempt.
 	$ensure = static function ( $table, $column, $definition ) use ( $wpdb ) {
-		$exists = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-				WHERE TABLE_SCHEMA = DATABASE()
-					AND TABLE_NAME = %s
-					AND COLUMN_NAME = %s",
-				$table,
-				$column
-			)
-		);
-		if ( 0 === $exists ) {
+		$col_exists = static function () use ( $wpdb, $table, $column ) {
+			return (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+					WHERE TABLE_SCHEMA = DATABASE()
+						AND TABLE_NAME = %s
+						AND COLUMN_NAME = %s",
+					$table,
+					$column
+				)
+			);
+		};
+		if ( $col_exists() > 0 ) {
+			return;
+		}
+		$prev_suppress = $wpdb->suppress_errors( true );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
+		$wpdb->suppress_errors( $prev_suppress );
+		// Belt-and-suspenders: if the column STILL isn't there
+		// after the ALTER (real schema error, not a race), retry
+		// once unsuppressed so WP_DEBUG users see the cause.
+		if ( $col_exists() === 0 ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
 		}
@@ -255,6 +277,26 @@ function desktop_mode_files_dedupe_placements() {
 	global $wpdb;
 	$tables = desktop_mode_files_table_names();
 	$tbl    = $tables['placements'];
+
+	// Once the unique index exists, MySQL prevents duplicate
+	// inserts at the DB level — dedupe is a no-op and the
+	// table-scanning DELETE is pure waste on every install_schema
+	// call. Skip in that case so the cost is paid exactly once,
+	// during the v4 → v5 migration.
+	$has_unique = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME   = %s
+				AND INDEX_NAME   = %s",
+			$tbl,
+			'placement_unique'
+		)
+	);
+	if ( $has_unique > 0 ) {
+		return;
+	}
+
 	// Self-join keeps the minimum id per (user_id, parent_id,
 	// file_type, file_ref) and deletes everything else. Restricted
 	// to shortcut + folder placements, where duplicates are never
@@ -301,12 +343,18 @@ function desktop_mode_files_ensure_unique_placement_index() {
 		)
 	);
 	if ( 0 === $exists ) {
+		// Suppress errors on the ADD KEY in case a concurrent
+		// worker won the same race (MySQL 1061: "Duplicate key
+		// name"). The index ends up present either way; the
+		// check-then-add pattern is benign under contention.
+		$prev_suppress = $wpdb->suppress_errors( true );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query(
 			"ALTER TABLE `{$tbl}`
 			ADD UNIQUE KEY `placement_unique`
 				(user_id, parent_id, file_type, file_ref)"
 		);
+		$wpdb->suppress_errors( $prev_suppress );
 	}
 }
 
@@ -341,8 +389,14 @@ function desktop_mode_files_ensure_updated_by_column() {
 		)
 	);
 	if ( 0 === $exists ) {
+		// Suppress errors so a concurrent worker that already won
+		// the same race doesn't fire a benign MySQL 1060
+		// ("Duplicate column"). The column ends up present either
+		// way.
+		$prev_suppress = $wpdb->suppress_errors( true );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `updated_by` BIGINT UNSIGNED NULL AFTER `user_id`" );
+		$wpdb->suppress_errors( $prev_suppress );
 	}
 }
 
@@ -404,8 +458,13 @@ function desktop_mode_files_ensure_shares_table() {
 			)
 		);
 		if ( 0 === $has_col ) {
+			// Same TOCTOU rationale as the other ensure_* helpers
+			// — concurrent worker that already added the column
+			// surfaces a benign MySQL 1060 we should swallow.
+			$prev_suppress = $wpdb->suppress_errors( true );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `target_type` VARCHAR(32) NOT NULL DEFAULT 'folder' AFTER `id`" );
+			$wpdb->suppress_errors( $prev_suppress );
 		}
 	}
 }
@@ -445,92 +504,6 @@ function desktop_mode_files_ensure_decisions_table() {
 			) $charset_collate"
 		);
 	}
-}
-
-/**
- * One-shot backfill of the legacy `share_meta.users` /
- * `share_meta.roles` JSON shape into per-principal rows on the new
- * shares table. Idempotent: guarded by
- * `DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION`, and every INSERT is
- * an `INSERT IGNORE` so re-running against a partially-migrated
- * site is a no-op.
- *
- * Pre-existing grants migrate as `state='accepted'` (they were
- * already implicitly opt-in under the old visibility model — the
- * new opt-in is for *future* grants, not retroactive).
- *
- * @since 0.18.0
- * @internal
- */
-function desktop_mode_files_migrate_share_meta_to_shares() {
-	global $wpdb;
-	if ( '1' === (string) get_option( DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION, '' ) ) {
-		return;
-	}
-	$tables = desktop_mode_files_table_names();
-	$rows   = $wpdb->get_results(
-		"SELECT id, owner_id, share_mode, share_meta FROM {$tables['folders']} WHERE share_mode IN ( 'users', 'roles' )",
-		ARRAY_A
-	);
-	$now = desktop_mode_files_now_ms();
-	foreach ( (array) $rows as $row ) {
-		$meta_raw = isset( $row['share_meta'] ) ? (string) $row['share_meta'] : '';
-		$meta     = '' !== $meta_raw ? json_decode( $meta_raw, true ) : array();
-		if ( ! is_array( $meta ) ) {
-			$meta = array();
-		}
-		$folder_id  = (int) $row['id'];
-		$invited_by = (int) $row['owner_id'];
-		$mode       = (string) $row['share_mode'];
-
-		if ( 'users' === $mode && isset( $meta['users'] ) && is_array( $meta['users'] ) ) {
-			foreach ( $meta['users'] as $uid ) {
-				$uid = (int) $uid;
-				if ( $uid <= 0 ) {
-					continue;
-				}
-				$wpdb->query(
-					$wpdb->prepare(
-						"INSERT IGNORE INTO {$tables['shares']}
-						(folder_id, principal_type, principal_ref, capability, state, invited_by, invited_at_ms, decided_at_ms)
-						VALUES (%d, %s, %s, %s, %s, %d, %d, %d)",
-						$folder_id,
-						'user',
-						(string) $uid,
-						'read',
-						'accepted',
-						$invited_by,
-						$now,
-						$now
-					)
-				);
-			}
-		}
-		if ( 'roles' === $mode && isset( $meta['roles'] ) && is_array( $meta['roles'] ) ) {
-			foreach ( $meta['roles'] as $role ) {
-				$role = (string) $role;
-				if ( '' === $role ) {
-					continue;
-				}
-				$wpdb->query(
-					$wpdb->prepare(
-						"INSERT IGNORE INTO {$tables['shares']}
-						(folder_id, principal_type, principal_ref, capability, state, invited_by, invited_at_ms, decided_at_ms)
-						VALUES (%d, %s, %s, %s, %s, %d, %d, %d)",
-						$folder_id,
-						'role',
-						$role,
-						'read',
-						'accepted',
-						$invited_by,
-						$now,
-						$now
-					)
-				);
-			}
-		}
-	}
-	update_option( DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION, '1' );
 }
 
 /**

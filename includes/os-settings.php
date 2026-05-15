@@ -121,6 +121,21 @@ function desktop_mode_default_os_settings() {
 		// the entry stays in the menu and left clicks on the wallpaper
 		// do nothing. Per-user.
 		'showDesktopOnWallpaperClick' => false,
+		// Per-user opt-OUT for the folder-sharing feature. Defaults
+		// ON. When false:
+		//   - The Share button, share-settings modal, "Leave shared
+		//     folder" entry, and pending-invite prompt are all
+		//     suppressed in the user's shell.
+		//   - The heartbeat skips the `shares.pending` payload for
+		//     this user so they never see invites land.
+		//   - REST share routes return 404 for this user — they
+		//     can't list, invite, accept, deny, or leave.
+		// Sites that don't want the feature (solo admin, no
+		// collaborators) can flip the toggle and the surface
+		// disappears without any database changes. The site-wide
+		// "Delete folder sharing data" action in OS Settings →
+		// Features → Advanced is a separate destructive cleanup.
+		'foldersSharingEnabled'    => true,
 		// Per-item placement preferences. Map of item id (dock-item
 		// slug or registered desktop-icon id) → one of:
 		//   'both'    — show on both dock and desktop.
@@ -387,6 +402,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
 
+	$folders_sharing_enabled = isset( $raw['foldersSharingEnabled'] )
+		? (bool) $raw['foldersSharingEnabled']
+		: $defaults['foldersSharingEnabled'];
+
 	// itemVisibility — map<sanitize_key, enum>. Unknown ids are kept
 	// (a deactivated plugin's setting should survive reactivation);
 	// invalid placement values are dropped.
@@ -451,6 +470,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePluginsEnabled'     => $native_plugins_enabled,
 		'nativeCommentsEnabled'    => $native_comments_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
+		'foldersSharingEnabled'    => $folders_sharing_enabled,
 		'itemVisibility'           => $item_visibility,
 		'dockOrder'                => $dock_order,
 	);

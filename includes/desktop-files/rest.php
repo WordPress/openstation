@@ -41,6 +41,53 @@ function desktop_mode_files_rest_permission() {
 }
 
 /**
+ * Permission callback layered ON TOP of
+ * `desktop_mode_files_rest_permission` for every share-related
+ * route. Returns a 404 (looks the same as a route that doesn't
+ * exist) when the viewer has the folder-sharing feature toggled
+ * off in OS Settings — no information leak about whether the
+ * feature is even installed.
+ *
+ * @since 0.18.x
+ */
+function desktop_mode_files_rest_share_permission() {
+	$base = desktop_mode_files_rest_permission();
+	if ( is_wp_error( $base ) ) {
+		return $base;
+	}
+	if (
+		function_exists( 'desktop_mode_files_sharing_enabled_for' )
+		&& ! desktop_mode_files_sharing_enabled_for( get_current_user_id() )
+	) {
+		return new WP_Error(
+			'rest_no_route',
+			__( 'No route was found matching the URL and request method.', 'desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+	return true;
+}
+
+/**
+ * Permission callback for the destructive site-admin actions
+ * (currently: drop the folder-sharing tables). Requires
+ * `manage_options` — site-wide schema mutation should never be
+ * exposed below that capability.
+ *
+ * @since 0.18.x
+ */
+function desktop_mode_files_rest_admin_permission() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error(
+			'desktop_mode_files_forbidden',
+			__( 'You do not have permission to perform this action.', 'desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+	return true;
+}
+
+/**
  * Register the routes.
  *
  * @since 0.9.0
@@ -126,15 +173,21 @@ function desktop_mode_files_register_rest_routes() {
 		),
 	) );
 
+	// Every share-related route gates on the user's
+	// `foldersSharingEnabled` OS Setting via
+	// `desktop_mode_files_rest_share_permission` — when a user has
+	// flipped sharing off, these routes return 404 (looks the same
+	// as a feature that isn't installed; no info leak about the
+	// kill switch's existence).
 	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares', array(
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
+			'permission_callback' => 'desktop_mode_files_rest_share_permission',
 			'callback'            => 'desktop_mode_files_rest_list_shares',
 		),
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
+			'permission_callback' => 'desktop_mode_files_rest_share_permission',
 			'callback'            => 'desktop_mode_files_rest_create_share',
 			'args'                => array(
 				'principalType' => array(
@@ -155,7 +208,7 @@ function desktop_mode_files_register_rest_routes() {
 	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)', array(
 		array(
 			'methods'             => WP_REST_Server::EDITABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
+			'permission_callback' => 'desktop_mode_files_rest_share_permission',
 			'callback'            => 'desktop_mode_files_rest_update_share',
 			'args'                => array(
 				'capability' => array(
@@ -167,26 +220,26 @@ function desktop_mode_files_register_rest_routes() {
 		),
 		array(
 			'methods'             => WP_REST_Server::DELETABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
+			'permission_callback' => 'desktop_mode_files_rest_share_permission',
 			'callback'            => 'desktop_mode_files_rest_delete_share',
 		),
 	) );
 
 	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/accept', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_permission',
+		'permission_callback' => 'desktop_mode_files_rest_share_permission',
 		'callback'            => 'desktop_mode_files_rest_accept_share',
 	) );
 
 	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/deny', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_permission',
+		'permission_callback' => 'desktop_mode_files_rest_share_permission',
 		'callback'            => 'desktop_mode_files_rest_deny_share',
 	) );
 
 	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/leave', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_permission',
+		'permission_callback' => 'desktop_mode_files_rest_share_permission',
 		'callback'            => 'desktop_mode_files_rest_leave_folder',
 	) );
 
@@ -198,6 +251,15 @@ function desktop_mode_files_register_rest_routes() {
 			'q'       => array( 'type' => 'string', 'default' => '' ),
 			'exclude' => array( 'type' => 'string', 'default' => '' ),
 		),
+	) );
+
+	// Site-admin only: destructive cleanup that drops the folder-
+	// sharing tables outright (legacy + current). Surfaced from
+	// the OS Settings → Features → Advanced panel.
+	register_rest_route( $ns, '/files/folder-sharing-tables/purge', array(
+		'methods'             => WP_REST_Server::CREATABLE,
+		'permission_callback' => 'desktop_mode_files_rest_admin_permission',
+		'callback'            => 'desktop_mode_files_rest_purge_sharing_tables',
 	) );
 }
 add_action( 'rest_api_init', 'desktop_mode_files_register_rest_routes' );
@@ -571,6 +633,30 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 		$reason = 'trashed';
 	}
 
+	// PII gate. The conflict toast names the actor (display name +
+	// avatar) only when the requesting viewer is in the same
+	// collaboration scope as the actor — i.e. owns the row, owns
+	// the parent folder, or has at least read access to the parent
+	// folder via the shares table. For any other viewer the actor
+	// degrades to a generic "another session" — `id: 0`, empty
+	// name + avatar — so a write attempt can't be used to enumerate
+	// other users' display names.
+	$viewer_id        = (int) get_current_user_id();
+	$viewer_owns_row  = isset( $row['user_id'] ) && (int) $row['user_id'] === $viewer_id;
+	$viewer_can_see   = $viewer_owns_row;
+	if ( ! $viewer_can_see && $parent_id > 0 && isset( $parent_folder ) && $parent_folder ) {
+		if ( (int) $parent_folder['owner_id'] === $viewer_id ) {
+			$viewer_can_see = true;
+		} elseif ( function_exists( 'desktop_mode_folder_share_user_capability' ) ) {
+			$viewer_can_see = 'none' !== desktop_mode_folder_share_user_capability( $parent_id, $viewer_id );
+		}
+	}
+	$actor_payload = array(
+		'id'     => $viewer_can_see ? $actor_id : 0,
+		'name'   => $viewer_can_see && $actor ? $actor->display_name : '',
+		'avatar' => $viewer_can_see && $actor ? get_avatar_url( $actor->ID, array( 'size' => 32 ) ) : '',
+	);
+
 	return new WP_Error(
 		'desktop_mode_files_conflict',
 		__( 'This row was changed by another session.', 'desktop-mode' ),
@@ -578,11 +664,7 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 			'status' => 409,
 			'data'   => array(
 				'reason'  => $reason,
-				'actor'   => array(
-					'id'     => $actor_id,
-					'name'   => $actor ? $actor->display_name : '',
-					'avatar' => $actor ? get_avatar_url( $actor->ID, array( 'size' => 32 ) ) : '',
-				),
+				'actor'   => $actor_payload,
 				'current' => array(
 					'parentId'    => $parent_id,
 					'parentName'  => $parent_name,
@@ -740,6 +822,76 @@ function desktop_mode_files_rest_leave_folder( WP_REST_Request $req ) {
 		return $ok;
 	}
 	return rest_ensure_response( array( 'left' => true ) );
+}
+
+/**
+ * POST /files/folder-sharing-tables/purge — destructive cleanup
+ * that drops every table the folder-sharing feature ever created
+ * (current `folder_shares` + `share_user_decisions`, plus any
+ * future variants enumerated via the
+ * `desktop_mode_files_sharing_tables_for_purge` filter).
+ *
+ * Restricted to `manage_options` by the permission callback. The
+ * schema-version option is cleared so the next admin-init runs
+ * `install_schema` and recreates the empty tables — keeps the
+ * code path that ASSUMES the tables exist (e.g. heartbeat
+ * delivery queries) working even after a purge.
+ *
+ * @since 0.18.x
+ */
+function desktop_mode_files_rest_purge_sharing_tables() {
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+
+	$to_drop = array( $tables['shares'], $tables['decisions'] );
+	/**
+	 * Filter the list of table names dropped by the
+	 * "Delete folder sharing data" admin action.
+	 *
+	 * @since 0.18.x
+	 *
+	 * @param string[] $tables Default = shares + decisions.
+	 */
+	$to_drop = (array) apply_filters( 'desktop_mode_files_sharing_tables_for_purge', $to_drop );
+
+	$dropped = array();
+	foreach ( $to_drop as $tbl ) {
+		$tbl = (string) $tbl;
+		if ( '' === $tbl ) {
+			continue;
+		}
+		// `wpdb->query` doesn't support placeholders for table
+		// names; the input is filtered above. Suppress errors so
+		// dropping a non-existent table (legacy variant the
+		// site never had) doesn't leak a wpdb warning.
+		$prev_suppress = $wpdb->suppress_errors( true );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DROP TABLE IF EXISTS `{$tbl}`" );
+		$wpdb->suppress_errors( $prev_suppress );
+		$dropped[] = $tbl;
+	}
+
+	// Force the next admin-init / rest-init to re-run
+	// `install_schema` so the tables are recreated empty. Code
+	// paths that JOIN against them (heartbeat, sharing.php
+	// visibility) keep working without a per-request existence
+	// check.
+	delete_option( DESKTOP_MODE_FILES_SCHEMA_OPTION );
+
+	/**
+	 * Fires after the folder-sharing tables are purged. Plugins
+	 * that mirror share state into their own storage can react
+	 * here.
+	 *
+	 * @since 0.18.x
+	 *
+	 * @param string[] $dropped Table names that were dropped.
+	 */
+	do_action( 'desktop_mode_files_sharing_tables_purged', $dropped );
+
+	return rest_ensure_response( array(
+		'dropped' => $dropped,
+	) );
 }
 
 /**

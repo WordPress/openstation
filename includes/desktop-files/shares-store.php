@@ -25,6 +25,48 @@
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Whether the folder-sharing feature is enabled for a viewer.
+ *
+ * Reads `foldersSharingEnabled` from the user's OS Settings
+ * (defaults to true). Gates every share-related delivery and REST
+ * route — when a user has it off:
+ *
+ *   - The heartbeat skips the `shares.pending` payload for them.
+ *   - The REST share routes return 404 (look the same as a
+ *     plugin that doesn't ship the feature, no information leak).
+ *   - The client suppresses every share UI surface.
+ *
+ * Plugins can short-circuit via the
+ * `desktop_mode_files_sharing_enabled_for` filter (e.g. force-off
+ * on a multisite subsite, gate by capability, etc.).
+ *
+ * @since 0.18.x
+ *
+ * @param int $user_id Viewer id. `0` is treated as disabled.
+ * @return bool
+ */
+function desktop_mode_files_sharing_enabled_for( $user_id ) {
+	$user_id = (int) $user_id;
+	if ( $user_id <= 0 ) {
+		return false;
+	}
+	$enabled = true;
+	if ( function_exists( 'desktop_mode_get_os_settings' ) ) {
+		$settings = desktop_mode_get_os_settings( $user_id );
+		$enabled  = ! empty( $settings['foldersSharingEnabled'] );
+	}
+	/**
+	 * Filter the per-user folder-sharing kill switch.
+	 *
+	 * @since 0.18.x
+	 *
+	 * @param bool $enabled Default reads from OS Settings.
+	 * @param int  $user_id Viewer.
+	 */
+	return (bool) apply_filters( 'desktop_mode_files_sharing_enabled_for', $enabled, $user_id );
+}
+
 /** Allowed principal-type values. */
 function desktop_mode_files_share_principal_types() {
 	return array( 'user', 'role' );
@@ -956,15 +998,13 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
  * don't recurse the cascade resolver to avoid infinite loops
  * and quadratic complexity.
  *
- * @todo Up to `ancestors_limit × 2` queries per call (one user-
- *       shares + one role-shares query per ancestor). With the
- *       16-ancestor cap that's up to 32 queries per capability
- *       check on cold caches. WP object-cache installs short-
- *       circuit most of those. For sites with deeply-nested
- *       shared folders and no persistent object cache a future
- *       optimisation can batch ancestor ids into one IN clause —
- *       requires reshaping `*_capability_direct` to accept a
- *       list of folder ids.
+ * Performance: collapses the per-ancestor capability check into
+ * three batched queries regardless of chain depth — one
+ * `folders IN (…)` for ownership + `'all'` share-mode, one
+ * `shares IN (…)` for user-principal accepted rows, one
+ * `shares IN (…) JOIN decisions` for role-principal accepted
+ * rows. Replaces the previous loop that fired up to two queries
+ * per ancestor (32 on cold caches at the 16-level cap).
  *
  * @since 0.18.0
  *
@@ -973,20 +1013,104 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
  * @return string 'none' | 'read' | 'write'
  */
 function desktop_mode_folder_share_user_capability_cascade( $folder_id, $user_id ) {
+	$user_id   = (int) $user_id;
 	$ancestors = desktop_mode_folder_ancestors( (int) $folder_id );
-	if ( empty( $ancestors ) ) {
+	if ( empty( $ancestors ) || $user_id <= 0 ) {
 		return 'none';
 	}
+
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+
+	// Coerce + dedupe to keep the IN clause small and safe to
+	// interpolate. Every value is an int by the time it lands
+	// in the SQL.
+	$ancestor_ids = array_values( array_unique( array_map( 'intval', $ancestors ) ) );
+	$ids_csv      = implode( ',', $ancestor_ids );
+
+	// One query for ancestor folder rows — covers ownership
+	// short-circuit AND `share_mode='all'` ancestors.
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ids are intval'd above.
+	$folder_rows = $wpdb->get_results(
+		"SELECT id, owner_id, share_mode FROM {$tables['folders']} WHERE id IN ($ids_csv)",
+		ARRAY_A
+	);
+
 	$cap = 'none';
-	foreach ( $ancestors as $ancestor_id ) {
-		$ancestor_cap = desktop_mode_folder_share_user_capability_direct( $ancestor_id, (int) $user_id );
-		if ( 'write' === $ancestor_cap ) {
+	foreach ( (array) $folder_rows as $f ) {
+		if ( (int) $f['owner_id'] === $user_id ) {
 			return 'write';
 		}
-		if ( 'read' === $ancestor_cap && 'none' === $cap ) {
+		if ( 'all' === $f['share_mode'] ) {
+			$all_cap = (string) apply_filters(
+				'desktop_mode_files_share_all_default_capability',
+				'read',
+				(int) $f['id'],
+				$user_id
+			);
+			if ( 'write' === $all_cap ) {
+				return 'write';
+			}
+			if ( 'read' === $all_cap && 'none' === $cap ) {
+				$cap = 'read';
+			}
+		}
+	}
+
+	// User-principal accepted shares across every ancestor.
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- ids cast above.
+	$user_rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT folder_id, capability FROM {$tables['shares']}
+			WHERE folder_id IN ($ids_csv)
+				AND principal_type = 'user'
+				AND principal_ref = %s
+				AND state = 'accepted'",
+			(string) $user_id
+		),
+		ARRAY_A
+	);
+	foreach ( (array) $user_rows as $row ) {
+		$row_cap = (string) $row['capability'];
+		if ( 'write' === $row_cap ) {
+			return 'write';
+		}
+		if ( 'read' === $row_cap && 'none' === $cap ) {
 			$cap = 'read';
 		}
 	}
+
+	// Role-principal accepted shares — one query only when the
+	// user actually has roles to match.
+	$user       = get_userdata( $user_id );
+	$user_roles = $user ? (array) $user->roles : array();
+	if ( ! empty( $user_roles ) ) {
+		$role_placeholders = implode( ',', array_fill( 0, count( $user_roles ), '%s' ) );
+		$args              = array_merge( array( $user_id ), $user_roles );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- placeholders generated above; ids intval'd.
+		$role_rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT s.folder_id, s.capability
+				FROM {$tables['shares']} s
+				INNER JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d AND d.state = 'accepted'
+				WHERE s.folder_id IN ($ids_csv)
+					AND s.principal_type = 'role'
+					AND s.principal_ref IN ($role_placeholders)",
+				$args
+			),
+			ARRAY_A
+		);
+		foreach ( (array) $role_rows as $row ) {
+			$row_cap = (string) $row['capability'];
+			if ( 'write' === $row_cap ) {
+				return 'write';
+			}
+			if ( 'read' === $row_cap && 'none' === $cap ) {
+				$cap = 'read';
+			}
+		}
+	}
+
 	return $cap;
 }
 
@@ -1397,9 +1521,42 @@ function desktop_mode_files_share_inject_shell_config( $config ) {
 	$config['shareEligibleRoles']  = desktop_mode_files_share_eligible_roles();
 	$config['filesUsersSearchUrl'] = esc_url_raw( rest_url( 'desktop-mode/v1/files/users/search' ) );
 	$config['folderSharesUrl']     = esc_url_raw( rest_url( 'desktop-mode/v1/files/folders' ) );
+	$user_id                       = (int) get_current_user_id();
 	if ( ! isset( $config['currentUserId'] ) ) {
-		$config['currentUserId'] = (int) get_current_user_id();
+		$config['currentUserId'] = $user_id;
 	}
+
+	// Seed the shares store with the viewer's current pending invites
+	// on the first paint, so the accept/deny modal opens immediately
+	// on refresh instead of waiting for the first heartbeat tick to
+	// deliver them. Same kill-switch + shape as the heartbeat path —
+	// see `desktop_mode_files_collect_heartbeat_delta()` for the
+	// canonical builder.
+	$pending         = array();
+	$sharing_enabled = function_exists( 'desktop_mode_files_sharing_enabled_for' )
+		? desktop_mode_files_sharing_enabled_for( $user_id )
+		: true;
+	if (
+		$user_id > 0 &&
+		$sharing_enabled &&
+		function_exists( 'desktop_mode_files_get_pending_shares_for_user' )
+	) {
+		$rows = desktop_mode_files_get_pending_shares_for_user( $user_id, 0 );
+		foreach ( $rows as $row ) {
+			$shape  = desktop_mode_files_shape_share( $row );
+			$folder = desktop_mode_files_get_folder( $row['folder_id'] );
+			if ( $folder ) {
+				$shape['folderName']  = (string) $folder['name'];
+				$shape['ownerId']     = (int) $folder['owner_id'];
+				$owner_user           = get_userdata( (int) $folder['owner_id'] );
+				$shape['ownerName']   = $owner_user ? $owner_user->display_name : '';
+				$shape['ownerAvatar'] = $owner_user ? get_avatar_url( $owner_user->ID, array( 'size' => 48 ) ) : '';
+			}
+			$pending[] = $shape;
+		}
+	}
+	$config['serverPendingShares'] = $pending;
+
 	return $config;
 }
 add_filter( 'desktop_mode_shell_config', 'desktop_mode_files_share_inject_shell_config', 20 );

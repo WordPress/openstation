@@ -372,6 +372,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof patch.nativeCommentsEnabled === 'boolean' ) {
 				osSettings.state.nativeCommentsEnabled = patch.nativeCommentsEnabled;
 			}
+			if ( typeof patch.foldersSharingEnabled === 'boolean' ) {
+				osSettings.state.foldersSharingEnabled = patch.foldersSharingEnabled;
+			}
 			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
 				osSettings.state.nativePostsHiddenColumns =
 					patch.nativePostsHiddenColumns

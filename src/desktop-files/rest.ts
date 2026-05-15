@@ -450,3 +450,18 @@ export function leaveShare(
 		method: 'POST',
 	} );
 }
+
+/**
+ * Site-admin only: drop the folder-sharing tables outright. Used
+ * by the OS Settings → Features → "Delete folder sharing data"
+ * action. Server permission callback enforces `manage_options`;
+ * non-admins get a 403.
+ *
+ * @since 0.18.x
+ */
+export function purgeFolderSharingTables(): Promise< { dropped: string[] } > {
+	return call< { dropped: string[] } >(
+		'/folder-sharing-tables/purge',
+		{ method: 'POST' },
+	);
+}

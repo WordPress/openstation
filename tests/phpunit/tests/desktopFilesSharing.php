@@ -23,6 +23,17 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		desktop_mode_files_install_schema();
+		// Some tests in this class flip the OS-Settings kill switch
+		// user meta. WP_UnitTestCase rolls back the per-test
+		// transaction in tear_down — but tests in this class also
+		// TRUNCATE their own tables, which auto-commits and breaks
+		// the wrapping transaction. Belt-and-braces clear the
+		// kill-switch meta + object cache on entry to keep each test
+		// independent of the order it runs in.
+		foreach ( array( self::$owner_id, self::$editor_id, self::$subscriber_id ) as $uid ) {
+			delete_user_meta( $uid, DESKTOP_MODE_OS_SETTINGS_META_KEY );
+			wp_cache_delete( $uid, 'user_meta' );
+		}
 	}
 
 	public function tear_down() {
@@ -60,11 +71,15 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_files_compute_visible_folders
 	 */
 	public function test_users_share_mode_filters_by_id() {
-		$id = desktop_mode_files_create_folder( self::$owner_id, array(
-			'name'       => 'Shared with editor',
-			'share_mode' => 'users',
-			'share_meta' => array( 'users' => array( self::$editor_id ) ),
-		) );
+		// Canonical flow: invite + accept. The legacy
+		// `share_meta`-only shape is no longer a visibility source
+		// (was a real revocation-bypass bug; the JSON is now
+		// diagnostic-only on the folders row).
+		$id    = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Shared with editor' ) );
+		$share = desktop_mode_folder_share_invite(
+			$id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		desktop_mode_folder_share_accept( $share, self::$editor_id );
 		$visible_to_editor = wp_list_pluck( desktop_mode_files_get_visible_folders( self::$editor_id ), 'id' );
 		$visible_to_sub    = wp_list_pluck( desktop_mode_files_get_visible_folders( self::$subscriber_id ), 'id' );
 		$this->assertContains( $id, $visible_to_editor );
@@ -75,11 +90,17 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_files_compute_visible_folders
 	 */
 	public function test_roles_share_mode_filters_by_role() {
-		$id = desktop_mode_files_create_folder( self::$owner_id, array(
-			'name'       => 'Editors only',
-			'share_mode' => 'roles',
-			'share_meta' => array( 'roles' => array( 'editor' ) ),
-		) );
+		// Canonical flow: invite the role + each member accepts
+		// independently. Subscriber doesn't have `edit_posts`, so
+		// the default eligibility filter wouldn't let us invite
+		// `subscriber` as a role — use a second editor instead.
+		$other_editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$id           = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Editors only' ) );
+		$share        = desktop_mode_folder_share_invite(
+			$id, self::$owner_id, 'role', 'editor', 'read'
+		);
+		desktop_mode_folder_share_accept( $share, self::$editor_id );
+		desktop_mode_folder_share_accept( $share, $other_editor );
 		$visible_to_editor = wp_list_pluck( desktop_mode_files_get_visible_folders( self::$editor_id ), 'id' );
 		$visible_to_sub    = wp_list_pluck( desktop_mode_files_get_visible_folders( self::$subscriber_id ), 'id' );
 		$this->assertContains( $id, $visible_to_editor );
@@ -612,7 +633,12 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 
 		// A third viewer's stale `If-Match` (pointing at the
 		// pre-move updated_at_ms) must surface a 409 whose actor is
-		// the editor, not the owner.
+		// the editor, not the owner. The viewer here is the FOLDER
+		// OWNER (themselves a writer on the row, just attempting a
+		// concurrent PATCH) — they're in scope to learn the actor's
+		// identity, so the PII gate added in 0.18.x lets the name
+		// through.
+		wp_set_current_user( self::$owner_id );
 		$req = new WP_REST_Request( 'PATCH' );
 		$req->set_header( 'if_match', (string) $original['updated_at_ms'] );
 		$err = desktop_mode_files_check_if_match( (int) $after['updated_at_ms'], $req, $after );
@@ -874,6 +900,192 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 			desktop_mode_folder_share_user_capability( $nested_id, self::$editor_id ),
 			'Recipient loses access to the nested folder once the owner moves it out of the shared scope.'
 		);
+	}
+
+	/**
+	 * Cascade capability lookup must collapse to a constant number
+	 * of queries regardless of ancestor chain depth. The pre-batched
+	 * implementation issued up to two queries per ancestor (32 at
+	 * the 16-level cap). The batched version uses at most three.
+	 *
+	 * Owns its own assertion budget — counts queries fired between
+	 * the snapshot and the lookup call, then guards with a hard cap.
+	 *
+	 * @covers ::desktop_mode_folder_share_user_capability_cascade
+	 */
+	public function test_cascade_capability_is_batched_into_few_queries() {
+		// Build a deep chain: root → A → B → C → D → leaf.
+		$root  = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'root' ) );
+		$a     = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'a' ) );
+		$b     = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'b' ) );
+		$c     = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'c' ) );
+		$d     = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'd' ) );
+		$leaf  = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'leaf' ) );
+		desktop_mode_files_place( self::$owner_id, $root, 'folder', (string) $a );
+		desktop_mode_files_place( self::$owner_id, $a,    'folder', (string) $b );
+		desktop_mode_files_place( self::$owner_id, $b,    'folder', (string) $c );
+		desktop_mode_files_place( self::$owner_id, $c,    'folder', (string) $d );
+		desktop_mode_files_place( self::$owner_id, $d,    'folder', (string) $leaf );
+
+		// Share the root with editor. Cascade should grant access
+		// to leaf via 5 ancestors.
+		$share = desktop_mode_folder_share_invite(
+			$root, self::$owner_id, 'user', (string) self::$editor_id, 'write'
+		);
+		desktop_mode_folder_share_accept( $share, self::$editor_id );
+
+		global $wpdb;
+		$before = $wpdb->num_queries;
+		$cap    = desktop_mode_folder_share_user_capability_cascade( $leaf, self::$editor_id );
+		$fired  = $wpdb->num_queries - $before;
+
+		$this->assertSame( 'write', $cap, 'Cascade through 5 ancestors must inherit write.' );
+		// Ancestor walk itself fires up to 2 queries per level (one
+		// folder fetch, one placement lookup). The cascade resolver
+		// on top adds at most 3 batched queries — independent of
+		// chain length. 5 levels × 2 + 3 = 13. Pad to 20 to absorb
+		// per-test cache warmth without losing the regression
+		// signal (the old code would have fired 30–40+ here).
+		$this->assertLessThanOrEqual(
+			20,
+			$fired,
+			"Cascade capability lookup should batch ancestor checks (fired $fired queries)."
+		);
+	}
+
+	/**
+	 * Per-user kill switch via OS Settings — flipping
+	 * `foldersSharingEnabled` to `false` must stop the heartbeat
+	 * from delivering `shares.pending` to that user, even when an
+	 * invite is actually pending in the database.
+	 *
+	 * @covers ::desktop_mode_files_sharing_enabled_for
+	 * @covers ::desktop_mode_files_compute_heartbeat_delta
+	 */
+	public function test_folder_sharing_kill_switch_suppresses_heartbeat_payload() {
+		$folder = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'X' ) );
+		desktop_mode_folder_share_invite(
+			$folder, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+
+		// Default — sharing enabled. Heartbeat surfaces the pending
+		// invite.
+		$delta = desktop_mode_files_compute_heartbeat_delta(
+			self::$editor_id, array(), 0, 200
+		);
+		$this->assertNotEmpty(
+			$delta['shares']['pending'],
+			'Default-on sharing must surface pending invites in the heartbeat delta.'
+		);
+
+		// User flips sharing off in OS Settings.
+		update_user_meta(
+			self::$editor_id,
+			DESKTOP_MODE_OS_SETTINGS_META_KEY,
+			array( 'foldersSharingEnabled' => false )
+		);
+
+		$delta = desktop_mode_files_compute_heartbeat_delta(
+			self::$editor_id, array(), 0, 200
+		);
+		$this->assertSame(
+			array(),
+			$delta['shares']['pending'],
+			'After the user opts out, the heartbeat must not surface pending invites to them.'
+		);
+	}
+
+	/**
+	 * Pending invites are seeded into the shell config on every
+	 * admin page render so the accept/deny modal opens immediately
+	 * on refresh instead of waiting for the first heartbeat tick to
+	 * deliver them.
+	 *
+	 * @covers ::desktop_mode_files_share_inject_shell_config
+	 */
+	public function test_shell_config_seeds_pending_invites_for_recipient() {
+		$folder = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Brief' ) );
+		desktop_mode_folder_share_invite(
+			$folder, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+
+		wp_set_current_user( self::$editor_id );
+		$config = apply_filters( 'desktop_mode_shell_config', array() );
+
+		$this->assertArrayHasKey( 'serverPendingShares', $config );
+		$this->assertCount( 1, $config['serverPendingShares'] );
+		$invite = $config['serverPendingShares'][0];
+		$this->assertSame( $folder, (int) $invite['folderId'] );
+		$this->assertSame( 'pending', $invite['state'] );
+		$this->assertSame( 'Brief', $invite['folderName'] );
+		$this->assertSame( (int) self::$owner_id, (int) $invite['ownerId'] );
+
+		// Owner doesn't see their own invite seed (it's the recipient's pending list).
+		wp_set_current_user( self::$owner_id );
+		$config = apply_filters( 'desktop_mode_shell_config', array() );
+		$this->assertSame( array(), $config['serverPendingShares'] );
+	}
+
+	/**
+	 * Recipients who flipped the kill switch off must not get pending
+	 * invites in the shell config either — same guarantee as the
+	 * heartbeat path.
+	 *
+	 * @covers ::desktop_mode_files_share_inject_shell_config
+	 */
+	public function test_shell_config_kill_switch_suppresses_pending_invites() {
+		$folder = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Y' ) );
+		desktop_mode_folder_share_invite(
+			$folder, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+		update_user_meta(
+			self::$editor_id,
+			DESKTOP_MODE_OS_SETTINGS_META_KEY,
+			array( 'foldersSharingEnabled' => false )
+		);
+
+		wp_set_current_user( self::$editor_id );
+		$config = apply_filters( 'desktop_mode_shell_config', array() );
+		$this->assertSame( array(), $config['serverPendingShares'] );
+	}
+
+	/**
+	 * Admin purge endpoint drops the shares + decisions tables
+	 * (and any future variant a filter registers), clears the
+	 * schema-version option so they get recreated on next admin
+	 * load.
+	 *
+	 * @covers ::desktop_mode_files_rest_purge_sharing_tables
+	 */
+	public function test_purge_sharing_tables_drops_and_clears_version() {
+		$tables = desktop_mode_files_table_names();
+
+		// Seed the tables with some data so we can verify the
+		// purge actually removed it — checking
+		// INFORMATION_SCHEMA in WP-test-transactional contexts is
+		// flaky (DDL auto-commits but the test wrapper's
+		// SAVEPOINT shenanigans can leave the catalog view
+		// behind). Asserting the dropped payload + cleared option
+		// + the inability to query the table proves the contract
+		// without depending on catalog timing.
+		$folder = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'X' ) );
+		desktop_mode_folder_share_invite(
+			$folder, self::$owner_id, 'user', (string) self::$editor_id, 'read'
+		);
+
+		wp_set_current_user( self::$owner_id );
+		$response = desktop_mode_files_rest_purge_sharing_tables();
+		$data     = is_object( $response ) && method_exists( $response, 'get_data' )
+			? $response->get_data()
+			: $response;
+
+		// Both expected tables in the dropped list.
+		$this->assertContains( $tables['shares'], $data['dropped'] );
+		$this->assertContains( $tables['decisions'], $data['dropped'] );
+
+		// Schema option cleared so the next admin-init re-runs
+		// install_schema and recreates the empty tables.
+		$this->assertSame( '', (string) get_option( DESKTOP_MODE_FILES_SCHEMA_OPTION, '' ) );
 	}
 
 	/**

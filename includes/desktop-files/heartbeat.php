@@ -145,28 +145,57 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 	// Always include the desktop root (parent_id=0) for the viewer.
 	$placement_upserts = array();
 	if ( ! $truncated ) {
-		// Owner-or-visible-folder filter: WHERE (user_id = $user
-		// OR parent_id IN visible_folder_ids) AND updated_at_ms >
-		// $placements_version.
-		$where_parts = array( $wpdb->prepare( 'user_id = %d', $user_id ) );
-		if ( ! empty( $visible_folder_ids ) ) {
-			$placeholders = implode( ',', array_fill( 0, count( $visible_folder_ids ), '%d' ) );
-			$where_parts[] = $wpdb->prepare( "parent_id IN ($placeholders)", $visible_folder_ids );
-		}
-		$where_sql = '(' . implode( ' OR ', $where_parts ) . ')';
+		// Owner-or-visible-folder filter, expressed as a SINGLE
+		// `$wpdb->prepare()` call so every value goes through one
+		// pass of escaping. The earlier shape nested an inner
+		// `$wpdb->prepare(...)` for the WHERE inside an outer
+		// `$wpdb->prepare(...)` for the LIMIT/version — that path
+		// works for `%d` integers in practice but is latent-
+		// dangerous because a `%` in the inner output would be
+		// mis-interpreted by the outer prepare. Single-prepare
+		// keeps the contract clean.
+		//
 		// Active placements only — trashed rows leave the visible
 		// surface via the `removed.placements` channel a few lines
 		// down, NOT as upserts. Without this filter a heartbeat tick
 		// fired right after a soft-trash would resurrect the tile in
 		// the client store.
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$tables['placements']} WHERE $where_sql AND updated_at_ms > %d AND trashed_at_ms IS NULL ORDER BY updated_at_ms ASC LIMIT %d",
-				$placements_version,
-				$cap
-			),
-			ARRAY_A
-		);
+		if ( empty( $visible_folder_ids ) ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM {$tables['placements']}
+					WHERE user_id = %d
+						AND updated_at_ms > %d
+						AND trashed_at_ms IS NULL
+					ORDER BY updated_at_ms ASC
+					LIMIT %d",
+					$user_id,
+					$placements_version,
+					$cap
+				),
+				ARRAY_A
+			);
+		} else {
+			$placeholders = implode( ',', array_fill( 0, count( $visible_folder_ids ), '%d' ) );
+			$args         = array_merge(
+				array( $user_id ),
+				array_map( 'intval', $visible_folder_ids ),
+				array( $placements_version, $cap )
+			);
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM {$tables['placements']}
+					WHERE ( user_id = %d OR parent_id IN ($placeholders) )
+						AND updated_at_ms > %d
+						AND trashed_at_ms IS NULL
+					ORDER BY updated_at_ms ASC
+					LIMIT %d",
+					$args
+				),
+				ARRAY_A
+			);
+		}
 		foreach ( (array) $rows as $row ) {
 			$row = desktop_mode_files_normalize_placement_row( $row );
 			// Per-placement read gate: shared folder shouldn't
@@ -241,8 +270,11 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 	//    they're invited to). Owner-side share-status changes flow
 	//    through the folder upserts above; this channel is for the
 	//    recipient's "you've been invited" placeholder UI.
-	$shares = array();
-	if ( function_exists( 'desktop_mode_files_get_pending_shares_for_user' ) ) {
+	$shares          = array();
+	$sharing_enabled = function_exists( 'desktop_mode_files_sharing_enabled_for' )
+		? desktop_mode_files_sharing_enabled_for( $user_id )
+		: true;
+	if ( $sharing_enabled && function_exists( 'desktop_mode_files_get_pending_shares_for_user' ) ) {
 		$pending = desktop_mode_files_get_pending_shares_for_user( $user_id, $shares_version );
 		foreach ( $pending as $row ) {
 			$shape = desktop_mode_files_shape_share( $row );

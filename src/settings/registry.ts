@@ -113,6 +113,17 @@ export interface OsSettingsSnapshot {
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
+	 * Per-user kill switch for the folder-sharing feature.
+	 * Defaults to `true`. When `false`, every share-related
+	 * surface is suppressed for this user (UI hidden, REST routes
+	 * return 404, heartbeat skips `shares.pending`). Independent
+	 * of the destructive site-admin "Delete folder sharing data"
+	 * action, which drops the tables outright.
+	 *
+	 * @since 0.18.x
+	 */
+	foldersSharingEnabled: boolean;
+	/**
 	 * Per-item placement preferences. Map of item id → one of
 	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean
 	 * "use the item's native rail." See

@@ -210,6 +210,24 @@ export interface OsSettingsState {
 	 */
 	showDesktopOnWallpaperClick: boolean;
 	/**
+	 * Per-user kill switch for the folder-sharing feature. Defaults
+	 * to `true`. When `false`, every share-related surface is
+	 * suppressed in this user's shell:
+	 *
+	 *   - The "Share folder" tile-menu entry and title-bar People
+	 *     button never appear.
+	 *   - The pending-invite modal never opens.
+	 *   - "Leave shared folder" is hidden.
+	 *   - The heartbeat skips the `shares.pending` payload for
+	 *     this user; share REST routes return 404.
+	 *
+	 * Independent of the destructive "Delete folder sharing data"
+	 * admin action, which drops the tables site-wide.
+	 *
+	 * @since 0.18.x
+	 */
+	foldersSharingEnabled: boolean;
+	/**
 	 * Per-item placement preference. Maps an item id (dock-item slug or
 	 * registered desktop-icon id) to one of:
 	 *   - `'both'`    — show on both dock and desktop.

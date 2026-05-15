@@ -22,6 +22,8 @@ import { __ } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import { html, render } from '../../ui/core';
 import type { SettingsCtx } from '../types';
+import { wpdConfirm } from '../../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { showToast } from '../../toast';
 
 interface ShellConfigSnapshot {
 	seenIntrosUrl?: string;
@@ -31,6 +33,18 @@ interface ShellConfigSnapshot {
 		enabled: boolean;
 		providerConfigured: boolean;
 	} | null;
+	currentUserIsAdmin?: boolean;
+	/**
+	 * Base URL for the files REST namespace
+	 * (`/wp-json/desktop-mode/v1/files`). Used here so the panel
+	 * bundle can hit the destructive purge route directly via
+	 * `trackedFetch` instead of importing the REST client from
+	 * `../../desktop-files/rest` — that would pull a SECOND copy
+	 * of the REST module into the panel bundle, which has its
+	 * own uninitialized `deps` (the `installRestDeps()` call lives
+	 * in the main bundle).
+	 */
+	filesUrl?: string;
 }
 
 export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
@@ -98,6 +112,72 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		ctx.state.showDesktopOnWallpaperClick = checked;
 		ctx.save();
 		paint();
+	};
+
+	const onFolderSharingToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.foldersSharingEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
+	// Admin-only destructive action: drop the folder-sharing
+	// tables. `purging` flips the button into a busy state and
+	// guards against double-clicks while the REST round-trip is
+	// in flight.
+	let purging = false;
+	const onPurgeShareTables = async (): Promise< void > => {
+		if ( purging ) {
+			return;
+		}
+		const ok = await wpdConfirm( {
+			title: __( 'Delete folder sharing data?' ),
+			message: __(
+				'This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone.',
+			),
+			confirmLabel: __( 'Delete data' ),
+			danger: true,
+		} );
+		if ( ! ok ) {
+			return;
+		}
+		const base = shellCfg?.filesUrl;
+		const nonce = shellCfg?.restNonce;
+		if ( ! base || ! nonce ) {
+			showToast( { message: __( 'Files REST endpoint is not available.' ) } );
+			return;
+		}
+		purging = true;
+		paint();
+		try {
+			const url = base.replace( /\/+$/, '' ) + '/folder-sharing-tables/purge';
+			const res = await trackedFetch(
+				url,
+				{
+					method: 'POST',
+					headers: { 'X-WP-Nonce': nonce },
+					credentials: 'same-origin',
+				},
+				{ source: 'os-settings/folder-sharing-purge' },
+			);
+			if ( ! res.ok ) {
+				const body = await res.text();
+				throw new Error( `${ res.status }: ${ body.slice( 0, 200 ) }` );
+			}
+			const data = await res.json() as { dropped: string[] };
+			showToast( {
+				message: __( 'Folder sharing data deleted.' ) +
+					' (' + data.dropped.length + ' tables)',
+			} );
+		} catch ( err ) {
+			const detail = err instanceof Error ? err.message : String( err );
+			showToast( {
+				message: __( 'Could not delete sharing data.' ) + ' ' + detail,
+			} );
+		} finally {
+			purging = false;
+			paint();
+		}
 	};
 
 	// AI moderation toggle — admin-only, persisted as a SITE option
@@ -312,6 +392,38 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 								'macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching "Show desktop" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.',
 							) }
 						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Folder sharing' ) }
+							?checked=${ ctx.state.foldersSharingEnabled }
+							@wpd-checkbox-change=${ onFolderSharingToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, "Leave shared folder") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.',
+							) }
+						</p>
+						${ shellCfg?.currentUserIsAdmin
+							? html`
+								<div class="desktop-mode-features__danger-row">
+									<wpd-button
+										variant="danger"
+										?disabled=${ purging }
+										@click=${ onPurgeShareTables }
+									>
+										${ purging
+											? __( 'Deleting…' )
+											: __( 'Delete folder sharing data' ) }
+									</wpd-button>
+									<p class="desktop-mode-features__hint">
+										${ __(
+											'Site-wide destructive action (admin only). Drops every shares table — invites, decisions, share rows. Empty tables are recreated immediately so the feature still works for anyone who wants to start fresh. Use this on sites that never needed sharing to clear the data outright.',
+										) }
+									</p>
+								</div>
+							`
+							: '' }
 					</div>
 					<div class="desktop-mode-features__item">
 						<label class="desktop-mode-features__select-label">

@@ -31,6 +31,26 @@ function viewerId(): number {
 	return Number( window.desktopModeConfig?.currentUserId ?? 0 );
 }
 
+/**
+ * Reads the per-user kill switch from the live OS Settings
+ * snapshot. Defaults to `true` so the share UI keeps working in
+ * the (unusual) window between bundle boot and the first
+ * settings hydrate. Every share-related callback short-circuits
+ * on this — when the user has flipped sharing off, the tile-menu
+ * filter returns the unchanged item list, the title-bar match
+ * predicate returns `false`, and the invite banner subscriber
+ * exits early.
+ */
+function sharingEnabled(): boolean {
+	const settings = ( window as unknown as {
+		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.desktop?.getOsSettings?.();
+	if ( ! settings ) {
+		return true;
+	}
+	return settings.foldersSharingEnabled !== false;
+}
+
 function folderOwnerId( folderId: number ): number {
 	const folder = getFilesState().folders.get( folderId );
 	return folder ? Number( folder.ownerId ) : 0;
@@ -70,6 +90,9 @@ export function installShareMenuItems(): void {
 			items: TileMenuItem[],
 			placement: RestPlacementShape,
 		): TileMenuItem[] => {
+			if ( ! sharingEnabled() ) {
+				return items;
+			}
 			const folderId = placementFolderId( placement );
 			if ( folderId === null ) {
 				return items;
@@ -174,6 +197,9 @@ export function installShareMenuItems(): void {
 		placement: 'right',
 		order: 50,
 		match: ( w: DesktopWindow ): boolean => {
+			if ( ! sharingEnabled() ) {
+				return false;
+			}
 			const base = ( w.config as { baseId?: string } ).baseId ?? w.id;
 			const folderId = folderIdFromBaseId( base );
 			if ( folderId === null ) {

@@ -80,24 +80,58 @@ function desktop_mode_register_heartbeat_widget() {
 add_action( 'init', 'desktop_mode_register_heartbeat_widget', 6 );
 
 /**
- * Eagerly enqueue the widget's CSS handle on every Desktop Mode
- * admin page load. The JS bundle is still loaded lazily by the
- * shell's widget server-sync — only the CSS is eager.
+/**
+ * Eagerly enqueue the widget's CSS handle ONLY when the current
+ * request is a Desktop Mode SHELL request — not a chromeless
+ * iframe load, not an admin page that doesn't mount the desktop.
+ * The JS bundle stays lazy and loads via the widget server-sync
+ * the first time the picker opens or the widget mounts.
  *
- * Why eager: the shell's `loadVendorScript()` injects a `<script>`
- * for the widget at runtime, but there is no matching auto-load
- * for the stylesheet. A pure-JS CSS injection works most of the
- * time but creates a flash of unstyled content while the link's
- * stylesheet is still in flight — long enough for the widget
- * frame's children to render past the card boundary before the
- * stylesheet's flex layout kicks in. 1.9 KB ungzipped is small
- * enough to live in the always-loaded set without measurable
- * cost; the heavier JS (9 KB + PIXI) stays lazy.
+ * Why eager (on shell pages): the shell injects a `<script>` for
+ * the widget at runtime, but there is no matching auto-load for
+ * the stylesheet. A pure-JS CSS injection creates a flash of
+ * unstyled content while the link's stylesheet is still in
+ * flight — long enough for the widget frame's children to render
+ * past the card boundary before the stylesheet's flex layout
+ * kicks in. 1.9 KB ungzipped is small enough to live in the
+ * shell's always-loaded set without measurable cost; the
+ * heavier JS (9 KB + PIXI) stays lazy.
+ *
+ * Why NOT eager elsewhere: a chromeless iframe never mounts a
+ * widget, and an admin page that hasn't opted into the shell
+ * doesn't either — sending the stylesheet anyway is dead weight.
+ * The `desktop_mode_heartbeat_widget_eager_css` filter lets a
+ * site owner opt out entirely (or, conversely, force-enable on
+ * a non-shell page) without forking the plugin.
  *
  * @since 0.18.0
  */
 function desktop_mode_enqueue_heartbeat_widget_styles() {
 	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+		return;
+	}
+	// Chromeless requests render content inside an iframe owned
+	// by a shell elsewhere — they never mount widgets themselves.
+	if (
+		function_exists( 'desktop_mode_is_chromeless_request' )
+		&& desktop_mode_is_chromeless_request()
+	) {
+		return;
+	}
+	/**
+	 * Whether to enqueue the heartbeat widget's stylesheet on
+	 * this request. Defaults to `true` for shell requests in
+	 * Desktop Mode. Sites that never plan to ship the heartbeat
+	 * widget can return `false` and save the ~0.66 KB gzipped
+	 * stylesheet roundtrip.
+	 *
+	 * @since 0.18.x
+	 *
+	 * @param bool $eager Default `true` once the chromeless +
+	 *                    desktop-mode gates above have passed.
+	 */
+	$eager = (bool) apply_filters( 'desktop_mode_heartbeat_widget_eager_css', true );
+	if ( ! $eager ) {
 		return;
 	}
 	wp_enqueue_style( 'desktop-mode-heartbeat-widget' );

@@ -32,9 +32,6 @@ class Tests_DesktopMode_FilesShares extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		// Force the migration to run again per test by clearing the
-		// option guard.
-		delete_option( DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION );
 		desktop_mode_files_install_schema();
 	}
 
@@ -83,62 +80,6 @@ class Tests_DesktopMode_FilesShares extends WP_UnitTestCase {
 			)
 		);
 		$this->assertContains( 'target_type', $cols );
-	}
-
-	/**
-	 * @covers ::desktop_mode_files_migrate_share_meta_to_shares
-	 */
-	public function test_migration_backfills_share_meta_users() {
-		global $wpdb;
-		// Insert a folder bypassing the create helper so we
-		// simulate a pre-0.18 row.
-		$tables = desktop_mode_files_table_names();
-		$wpdb->insert(
-			$tables['folders'],
-			array(
-				'owner_id'      => self::$owner_id,
-				'name'          => 'Legacy',
-				'share_mode'    => 'users',
-				'share_meta'    => wp_json_encode( array( 'users' => array( self::$editor_id ) ) ),
-				'updated_at_ms' => desktop_mode_files_now_ms(),
-			),
-			array( '%d', '%s', '%s', '%s', '%d' )
-		);
-		delete_option( DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION );
-		desktop_mode_files_migrate_share_meta_to_shares();
-		$rows = $wpdb->get_results(
-			"SELECT * FROM {$tables['shares']} WHERE principal_type = 'user'",
-			ARRAY_A
-		);
-		$this->assertCount( 1, $rows );
-		$this->assertSame( (string) self::$editor_id, (string) $rows[0]['principal_ref'] );
-		$this->assertSame( 'accepted', (string) $rows[0]['state'] );
-	}
-
-	/**
-	 * Migration runs once and ignores re-runs.
-	 *
-	 * @covers ::desktop_mode_files_migrate_share_meta_to_shares
-	 */
-	public function test_migration_is_idempotent() {
-		global $wpdb;
-		$tables = desktop_mode_files_table_names();
-		$wpdb->insert(
-			$tables['folders'],
-			array(
-				'owner_id'      => self::$owner_id,
-				'name'          => 'Legacy',
-				'share_mode'    => 'roles',
-				'share_meta'    => wp_json_encode( array( 'roles' => array( 'editor' ) ) ),
-				'updated_at_ms' => desktop_mode_files_now_ms(),
-			),
-			array( '%d', '%s', '%s', '%s', '%d' )
-		);
-		delete_option( DESKTOP_MODE_FILES_SHARES_MIGRATED_OPTION );
-		desktop_mode_files_migrate_share_meta_to_shares();
-		desktop_mode_files_migrate_share_meta_to_shares();
-		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['shares']}" );
-		$this->assertSame( 1, $count );
 	}
 
 	// ---------------------------------------------------------------

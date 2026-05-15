@@ -44,6 +44,7 @@ import { installEmbedPersistence } from './embed-window';
 import { registerFileAssociationsTab } from './settings-tab';
 import { installShareMenuItems } from './share-menu-items';
 import { installShareInviteBanner } from './share-invite-banner';
+import { ingestPendingInvites, type PendingInvite } from './shares-store';
 import * as filesRest from './rest';
 import {
 	getFilesState,
@@ -64,6 +65,17 @@ registerBuiltInFileOpeners();
 installEmbedPersistence();
 registerFileAssociationsTab();
 installShareMenuItems();
+// Hydrate the shares store from the shell config snapshot BEFORE the
+// banner subscribes — the heartbeat-driven path only fires the
+// subscriber when new rows land, so the refresh case (rows seeded
+// server-side, no heartbeat tick yet) needs the store populated up
+// front for the banner's initial walk to see them.
+const seededPending = ( window as unknown as {
+	desktopModeConfig?: { serverPendingShares?: PendingInvite[] };
+} ).desktopModeConfig?.serverPendingShares;
+if ( Array.isArray( seededPending ) && seededPending.length > 0 ) {
+	ingestPendingInvites( seededPending );
+}
 installShareInviteBanner();
 
 /**
