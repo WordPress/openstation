@@ -411,13 +411,36 @@ export interface WpDesktopPublicApi {
 	/**
 	 * Live reference to the shell's widget layer (or `null` when the
 	 * widget DOM element isn't present). Companion plugins use the
-	 * public `add( id )` / `remove( id )` / `ensureMounted( id )`
-	 * methods to pin or unpin their widget programmatically — e.g.
-	 * a monitor plugin that auto-surfaces its widget on the first
-	 * error burst, or an onboarding flow that guarantees the
-	 * quick-start widget is present on a new user's first visit.
+	 * public `add( id )` / `remove( id )` / `ensureMounted( id )` /
+	 * `redock( id )` methods to pin, unpin, or re-park their widget
+	 * programmatically — e.g. a monitor plugin that auto-surfaces
+	 * its widget on the first error burst, or an onboarding flow
+	 * that guarantees the quick-start widget is present on a new
+	 * user's first visit.
+	 *
+	 * Prefer the stable {@link widgets} namespace for new code; the
+	 * `widgetLayer` reference remains for code that already grew up
+	 * against it.
 	 */
 	widgetLayer: WidgetLayer | null;
+	/**
+	 * Stable widget control surface — a thin proxy over
+	 * {@link widgetLayer} so plugin authors get a documented entry
+	 * point that doesn't depend on the shell's internal class
+	 * identity. All methods are idempotent and `null`-safe when
+	 * the layer isn't mounted (classic admin context, or the widget
+	 * DOM element hasn't been emitted by the shell for any reason).
+	 *
+	 * @since 0.25.0
+	 */
+	widgets: {
+		/**
+		 * Move a floating widget back into the column. No-op if the
+		 * widget isn't currently floating, isn't enabled, or doesn't
+		 * exist.
+		 */
+		redock: ( id: string ) => void;
+	};
 	/**
 	 * Register a shell-level system tile (a JS-owned launcher that
 	 * isn't part of the admin menu — a quick-notes panel, a

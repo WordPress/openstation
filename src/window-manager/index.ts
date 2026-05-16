@@ -29,6 +29,7 @@ import type {
 	SessionWindow,
 	VisibleWindowRect,
 	WindowConfig,
+	WindowState,
 } from '../types';
 import type { Window } from '../window';
 import {
@@ -70,6 +71,62 @@ const BASE_Z_INDEX = 100;
 
 /** Cascade offset for new windows (pixels). */
 const CASCADE_OFFSET = 30;
+
+/**
+ * Where the resolved geometry handed to {@link HOOKS.WINDOW_GEOMETRY}
+ * came from. Filter consumers branch on this to scope their override
+ * to fresh opens (`'default'`) vs caller-pinned dimensions (`'explicit'`)
+ * vs the saved per-baseId `localStorage` store (`'restored'`).
+ *
+ * @public
+ * @since 0.25.0
+ */
+export type WindowGeometrySource = 'explicit' | 'restored' | 'default';
+
+/**
+ * Geometry resolved by `WindowManager.createWindow()` and passed
+ * through {@link HOOKS.WINDOW_GEOMETRY}. Returned (possibly mutated)
+ * by the filter and then re-clamped to `minWidth`/`minHeight` before
+ * being baked into the `WindowConfig`.
+ *
+ * @public
+ * @since 0.25.0
+ */
+export interface ResolvedWindowGeometry {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	/**
+	 * Initial window state. Typically `undefined` (a normal floating
+	 * window) or `'maximized'` (when the saved geometry or caller
+	 * asked for it). A filter may return any {@link WindowState}
+	 * value to force a particular start state — e.g.
+	 * `'snapped-left'` for a side-companion plugin.
+	 */
+	state?: WindowState;
+}
+
+/**
+ * Context object the {@link HOOKS.WINDOW_GEOMETRY} filter receives
+ * alongside the resolved geometry. `windowId` is the unique
+ * per-instance id; `baseId` is the registry id (multiple windows
+ * sharing one baseId in the multi-window case). `desktopRect`
+ * carries the live desktop area dimensions so a filter can compute
+ * "bottom-right corner" without touching the DOM.
+ *
+ * @public
+ * @since 0.25.0
+ */
+export interface WindowGeometryContext {
+	windowId: string;
+	baseId: string;
+	source: WindowGeometrySource;
+	desktopRect: {
+		width: number;
+		height: number;
+	};
+}
 
 /**
  * Window Manager class.
@@ -564,6 +621,60 @@ export class WindowManager {
 		const resolvedX = config.x ?? clampedSavedX ?? cascadeX;
 		const resolvedY = config.y ?? clampedSavedY ?? cascadeY;
 
+		// Classify where the resolved geometry came from so the
+		// `WINDOW_GEOMETRY` filter consumer can branch — e.g. "only
+		// override defaults for *my* fresh window, leave restored
+		// bounds alone." Caller-explicit ANY axis dominates; otherwise
+		// a saved geometry record bumps us into `'restored'`; the
+		// remaining cases are the cascade + desktopRect defaults.
+		const callerPinned =
+			hasExplicitWidth ||
+			hasExplicitHeight ||
+			hasExplicitX ||
+			hasExplicitY ||
+			hasExplicitState;
+		let source: WindowGeometrySource;
+		if ( callerPinned ) {
+			source = 'explicit';
+		} else if ( saved ) {
+			source = 'restored';
+		} else {
+			source = 'default';
+		}
+
+		const filtered = applyFilters<
+			ResolvedWindowGeometry,
+			[ WindowGeometryContext ]
+		>(
+			HOOKS.WINDOW_GEOMETRY,
+			{
+				x: resolvedX,
+				y: resolvedY,
+				width: resolvedWidth,
+				height: resolvedHeight,
+				state: resolvedState,
+			},
+			{
+				windowId: config.id,
+				baseId: resolvedBaseId,
+				source,
+				desktopRect: {
+					width: desktopRect.width,
+					height: desktopRect.height,
+				},
+			},
+		);
+
+		// Re-clamp dimensions to the registered minima — a buggy
+		// filter cannot ship a sub-minimum window. Position is NOT
+		// re-clamped: plugins sometimes deliberately place windows
+		// partially off-screen for stylistic reasons.
+		const finalWidth = Math.max( filtered.width, minWidth );
+		const finalHeight = Math.max( filtered.height, minHeight );
+		const finalX = filtered.x;
+		const finalY = filtered.y;
+		const finalState = filtered.state;
+
 		const fullConfig: WindowConfig = {
 			icon: config.icon || 'dashicons-admin-generic',
 			...config,
@@ -572,13 +683,13 @@ export class WindowManager {
 			// dimensions + state we resolved above. The pin has to
 			// follow the spread because an explicit `width: undefined`
 			// from the caller would otherwise blow away the default.
-			x: resolvedX,
-			y: resolvedY,
-			width: resolvedWidth,
-			height: resolvedHeight,
+			x: finalX,
+			y: finalY,
+			width: finalWidth,
+			height: finalHeight,
 			minWidth,
 			minHeight,
-			...( resolvedState ? { initialState: resolvedState } : {} ),
+			...( finalState ? { initialState: finalState } : {} ),
 			baseId: resolvedBaseId,
 			// New windows always join the active desktop. A caller can
 			// pre-seed `desktopId` (e.g. session restore) by passing it

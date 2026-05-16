@@ -161,7 +161,7 @@ import type { NativeWindowDef, DesktopConfig } from '../types';
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'windowManager', 'dock', 'taskbar', 'icons', 'saveSession', 'hooks', 'HOOKS',
-	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer',
+	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer', 'widgets',
 	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
 	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
@@ -293,6 +293,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			// `ensureMounted(id)` — exposed below.
 		},
 		widgetLayer,
+		widgets: {
+			redock: ( id: string ) => {
+				widgetLayer?.redock( id );
+			},
+		},
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,

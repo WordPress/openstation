@@ -318,6 +318,7 @@ export function renderDesktopIcons(
 		return ap - bp;
 	} );
 
+	const tiles = new Map< string, HTMLElement >();
 	for ( const entry of ordered ) {
 		const tile = buildIcon( entry, deps );
 		const stored = _badges.get( entry.id ) ?? 0;
@@ -325,6 +326,7 @@ export function renderDesktopIcons(
 			_paintBadgeNode( tile, stored );
 		}
 		container.appendChild( tile );
+		tiles.set( entry.id, tile );
 	}
 
 	host.appendChild( container );
@@ -335,8 +337,15 @@ export function renderDesktopIcons(
 	// pinged exactly when the DOM actually changed. Notification
 	// badges no longer need this signal: the framework persists
 	// them in `_badges` and paints them as part of the build.
+	//
+	// `container` is the rail element; `tiles` is a frozen map of
+	// id → tile element so decorators don't have to re-`querySelector`
+	// each id. Mirrors the {@link HOOKS.DOCK_AFTER_RENDER}
+	// `tileElements` contract.
 	doAction( HOOKS.DESKTOP_ICONS_RENDERED, {
 		ids: ( icons ?? [] ).map( ( i ) => i.id ),
+		container,
+		tiles: tiles as ReadonlyMap< string, HTMLElement >,
 	} );
 }
 

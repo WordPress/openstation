@@ -12,6 +12,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
+import { HOOKS } from '../../src/hooks';
 import {
 	clearHooksStub,
 	installHooksStub,
@@ -219,5 +220,93 @@ describe( 'WindowManager — hook firing', async () => {
 			e.name.startsWith( 'desktop-mode.arrange.cascade.' ),
 		);
 		expect( cascadeEvents ).toHaveLength( 0 );
+	} );
+
+	test( 'WINDOW_GEOMETRY filter sees default-resolved geometry and can override it', async () => {
+		const seen: Array< { geometry: unknown; ctx: unknown } > = [];
+		const NEW_W = 480;
+		const NEW_H = 320;
+		hooks.addFilter(
+			HOOKS.WINDOW_GEOMETRY,
+			'vitest/geometry',
+			( ( geometry: unknown, ctx: unknown ) => {
+				seen.push( { geometry, ctx } );
+				const g = geometry as { x: number; y: number; width: number; height: number };
+				// Force the bottom-right corner with a clearly-above-min frame.
+				const desktop = ( ctx as { desktopRect: { width: number; height: number } } ).desktopRect;
+				return {
+					...g,
+					width: NEW_W,
+					height: NEW_H,
+					x: desktop.width - NEW_W - 20,
+					y: desktop.height - NEW_H - 20,
+				};
+			} ) as ( ...a: unknown[] ) => unknown,
+		);
+
+		await manager.open( openConfig( 'shop' ) );
+
+		expect( seen ).toHaveLength( 1 );
+		const ctx = seen[ 0 ].ctx as {
+			windowId: string;
+			baseId: string;
+			source: string;
+			desktopRect: { width: number; height: number };
+		};
+		expect( ctx.windowId ).toBe( 'shop' );
+		expect( ctx.baseId ).toBe( 'shop' );
+		expect( ctx.source ).toBe( 'default' );
+		expect( ctx.desktopRect.width ).toBe( 1600 );
+		expect( ctx.desktopRect.height ).toBe( 900 );
+
+		const win = manager.getById( 'shop' );
+		expect( win ).toBeDefined();
+		expect( win!.config.width ).toBe( NEW_W );
+		expect( win!.config.height ).toBe( NEW_H );
+		expect( win!.config.x ).toBe( 1600 - NEW_W - 20 );
+		expect( win!.config.y ).toBe( 900 - NEW_H - 20 );
+	} );
+
+	test( 'WINDOW_GEOMETRY filter source is "explicit" when caller pins dimensions', async () => {
+		let observedSource: string | null = null;
+		hooks.addFilter(
+			HOOKS.WINDOW_GEOMETRY,
+			'vitest/geometry-source',
+			( ( geometry: unknown, ctx: unknown ) => {
+				observedSource = ( ctx as { source: string } ).source;
+				return geometry;
+			} ) as ( ...a: unknown[] ) => unknown,
+		);
+
+		await manager.open( {
+			...openConfig( 'pinned' ),
+			width: 555,
+			height: 333,
+		} );
+
+		expect( observedSource ).toBe( 'explicit' );
+		const win = manager.getById( 'pinned' );
+		expect( win!.config.width ).toBe( 555 );
+		expect( win!.config.height ).toBe( 333 );
+	} );
+
+	test( 'WINDOW_GEOMETRY filter return values are re-clamped to minWidth/minHeight', async () => {
+		hooks.addFilter(
+			HOOKS.WINDOW_GEOMETRY,
+			'vitest/geometry-too-small',
+			( ( geometry: unknown ) => ( {
+				...( geometry as Record< string, unknown > ),
+				width:  50,
+				height: 50,
+			} ) ) as ( ...a: unknown[] ) => unknown,
+		);
+
+		await manager.open( openConfig( 'tinybox' ) );
+
+		const win = manager.getById( 'tinybox' );
+		// Default minWidth/minHeight come from createWindow's `?? 320` /
+		// `?? 200` fallbacks — a buggy filter cannot bypass them.
+		expect( win!.config.width ).toBe( 320 );
+		expect( win!.config.height ).toBe( 200 );
 	} );
 } );

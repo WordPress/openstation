@@ -621,4 +621,57 @@ describe( 'widgets/layer', () => {
 			log.some( ( e ) => e.name === 'desktop-mode.widget.mounted' ),
 		).toBe( false );
 	} );
+
+	test( 'public redock() un-floats a card, clears geometry, and reparents into the column', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'roam',
+			label: 'Roamer',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["roam"]' );
+		window.localStorage.setItem(
+			'desktop-mode-widgets-geometry',
+			JSON.stringify( { roam: { x: 50, y: 60, width: 220, height: 110 } } ),
+		);
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		const card = host.parentElement!.querySelector< HTMLElement >(
+			'.desktop-mode-widgets__card',
+		);
+		expect( card ).toBeTruthy();
+		expect(
+			card!.classList.contains( 'desktop-mode-widgets__card--floating' ),
+		).toBe( true );
+
+		layer.redock( 'roam' );
+
+		expect(
+			card!.classList.contains( 'desktop-mode-widgets__card--floating' ),
+		).toBe( false );
+		expect( card!.style.left ).toBe( '' );
+		expect( card!.style.top ).toBe( '' );
+		expect( card!.style.width ).toBe( '' );
+		expect( card!.style.height ).toBe( '' );
+		const geom = JSON.parse(
+			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) || '{}',
+		);
+		expect( geom.roam ).toBeUndefined();
+		// Re-parented under the column list, not the floating host.
+		expect(
+			host.querySelector( '.desktop-mode-widgets__list .desktop-mode-widgets__card' ),
+		).toBe( card );
+
+		// Idempotent — docked widget no-ops.
+		expect( () => layer.redock( 'roam' ) ).not.toThrow();
+		// Unknown id is silently ignored.
+		expect( () => layer.redock( 'never-registered' ) ).not.toThrow();
+
+		layer.disposeAll();
+	} );
 } );

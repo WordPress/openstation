@@ -2846,6 +2846,19 @@ wp.desktop.registerWidget( {
 
 User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Removing a widget clears its stored geometry so a re-add starts docked in the column again.
 
+##### `wp.desktop.widgets.redock( id )` — Stable since 0.25.0
+
+Programmatically un-float a liberated widget back into the right-side column. Idempotent — already-docked widgets and unknown ids silently no-op. Mirrors what the user gets by clicking the re-dock affordance in the floating widget's chrome header.
+
+```js
+// "Reset widget positions" command for a power-user palette.
+for ( const id of wp.desktop.widgetLayer?.getEnabledIds() ?? [] ) {
+    wp.desktop.widgets.redock( id );
+}
+```
+
+Equivalent legacy entry point: `wp.desktop.widgetLayer?.redock( id )`. New code should prefer `wp.desktop.widgets.redock`, which keeps a stable namespace as the widget surface grows.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `desktop-mode.widgets` | filter | Stable | the registry array |
@@ -2864,6 +2877,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
+| `desktop-mode.window.geometry` | filter | Stable *(0.25.0)* | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
 | `desktop-mode.window.opened` | action | Stable | `{ windowId, page, title, url }` |
 | `desktop-mode.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized }` — fires when `openWindow()` is called for an already-open window |
 | `desktop-mode.window.content-loading` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
@@ -2894,6 +2908,74 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 The window hooks fan out alongside the existing `desktop-mode-window-*` CustomEvents (see section 2) — both APIs fire for every state change. New code should prefer the hook bus.
 
 All hooks can be listed via `wp.hooks.hasAction()` / `hasFilter()` for defensive checks.
+
+<a id="window-geometry-filter"></a>
+##### `desktop-mode.window.geometry` filter — Stable since 0.25.0
+
+Last call before a window's resolved `x` / `y` / `width` / `height` / `initialState` are baked into the `WindowConfig` the constructor consumes. Plugins use it to:
+
+- **Override the default size of windows they own.** Compute "this should open at 40% of the desktop in the bottom-right corner" once at filter time, instead of resizing after `open()` settles.
+- **Snap restored bounds to a different region.** Re-anchor a window the user previously dragged off-screen, or clamp to a per-plugin region.
+- **Force an initial state** (e.g. always-maximized for a fullscreen-y tool).
+
+```js
+const { HOOKS } = wp.desktop;
+
+wp.desktop.hooks.addFilter(
+    HOOKS.WINDOW_GEOMETRY,
+    'my-plugin/place-shop',
+    ( geometry, ctx ) => {
+        // Only retouch the window WE own, and only on fresh opens —
+        // leave caller-pinned dims and user-saved geometry alone.
+        if ( ctx.baseId !== 'my-shop' || ctx.source !== 'default' ) {
+            return geometry;
+        }
+        const { width, height } = ctx.desktopRect;
+        return {
+            ...geometry,
+            width:  Math.min( 720, width  - 40 ),
+            height: Math.min( 540, height - 80 ),
+            x:      width  - Math.min( 720, width  - 40 ) - 20,
+            y:      height - Math.min( 540, height - 80 ) - 20,
+        };
+    }
+);
+```
+
+**Signature:**
+
+```ts
+type ResolvedWindowGeometry = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    state?: 'maximized';            // optional initial state
+};
+
+type WindowGeometrySource =
+    | 'explicit'    // caller passed at least one of {x,y,width,height,initialState}
+    | 'restored'    // values came from the per-baseId localStorage geometry store
+    | 'default';    // cascade + desktopRect defaults
+
+type WindowGeometryContext = {
+    windowId:    string;            // unique per-instance id (multi-window windows differ)
+    baseId:      string;            // registry id — stable across instances
+    source:      WindowGeometrySource;
+    desktopRect: { width: number; height: number };
+};
+
+// Filter shape
+( geometry: ResolvedWindowGeometry, ctx: WindowGeometryContext )
+    => ResolvedWindowGeometry
+```
+
+**Guarantees:**
+
+- The shell re-clamps `width`/`height` to the window's registered `minWidth`/`minHeight` after the filter returns — a buggy filter cannot ship a sub-minimum window.
+- `x`/`y` are NOT re-clamped to the desktop rect; plugins sometimes deliberately place windows partially off-screen. The filter is responsible for its own viewport math when it cares.
+- The filter runs *every time the window opens*, not just at registration — so a deactivation/reactivation of a plugin re-runs its filter with fresh `desktopRect` numbers.
+- Companion of `desktop_mode_register_window`'s server-side `width` / `height` defaults; the filter sees those as the starting `geometry` value when `source === 'default'`.
 
 #### `DockItem` shape
 
