@@ -3572,7 +3572,60 @@ wp.desktop.registerWindowChrome( def );
 wp.desktop.unregisterWindowChrome( id );
 wp.desktop.listWindowChromes();
 wp.desktop.applyWindowChrome( windowId, chromeId );
+
+// Window notices — Experimental (since 0.22.0). See subsection below.
+wp.desktop.registerWindowNotice( entry );
+wp.desktop.unregisterWindowNotice( id );
+wp.desktop.listWindowNotices();
+wp.desktop.dismissWindowNotice( id );
+wp.desktop.undismissWindowNotice( id );
 ```
+
+### Window notices — Experimental *(since 0.22.0)*
+
+Tone-coded banners pinned to the top of any matching window. The
+shell renders each entry as a `<wpd-notice>` web component inside
+the matching window's `after-titlebar` slot host, and each user's
+dismissal of a given `id` is persisted in `localStorage` under
+`desktop-mode-notice-dismissed:<userId>` so the banner never
+reappears for them.
+
+```ts
+type WindowNoticeTone =
+    | 'info' | 'success' | 'warning' | 'error' | 'danger' | 'neutral';
+
+interface WindowNoticeEntry {
+    id: string;                              // persistence + dedupe key — recommend `<plugin>/<slug>`
+    message: string;                         // HTML; links + inline formatting allowed. Treat as trusted.
+    tone?: WindowNoticeTone;                 // default 'info'
+    dismissible?: boolean;                   // default true
+    icon?: string;                           // dashicons class (e.g. 'dashicons-info')
+    match?: ( win: Window ) => boolean;      // default: every window
+    order?: number;                          // default 100. Lower renders higher in a stack.
+    owner?: string;                          // tag for bulk teardown
+}
+
+wp.desktop.registerWindowNotice( entry );   // returns an unregister fn
+wp.desktop.unregisterWindowNotice( id );
+wp.desktop.listWindowNotices();              // snapshot, sorted by (order, id)
+wp.desktop.dismissWindowNotice( id );        // imperative dismiss (writes localStorage)
+wp.desktop.undismissWindowNotice( id );      // clear a prior dismissal
+```
+
+`message` is written via `innerHTML` on the client. Include only
+content you author; if you must include user-supplied data, run it
+through an HTML sanitizer first. PHP-registered notices are passed
+through `wp_kses_post()` automatically — see
+[`docs/examples/window-notice.md`](examples/window-notice.md).
+
+`match` runs once per window-paint and any throw is treated as
+"don't render this notice on this window."
+
+Persistence key layout:
+
+| Key | Shape | Notes |
+|-----|-------|-------|
+| `desktop-mode-notice-dismissed:<userId>` | `Record< noticeId, true >` (JSON) | Falls back to `…:anon` for logged-out / pre-hydration. |
 
 ### JS hooks (under `wp.hooks` / `addFilter`-`addAction`)
 

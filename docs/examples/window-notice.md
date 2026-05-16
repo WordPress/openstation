@@ -63,6 +63,34 @@ desktop_mode_register_window_notice( array(
 ) );
 ```
 
+## How `match` selectors combine
+
+Three selector types are accepted: `window` (single id), `windows`
+(list of ids), and `urlContains`. Their combination rules:
+
+- **Within `windows`**, ids are **OR**'d — the window matches if its
+  id is any of the entries.
+- **Across selector types**, the semantics is **AND** — the window
+  must satisfy every selector that was set. For example, this notice
+  appears only on the Posts window *whose URL also contains
+  `wc-admin`*:
+
+  ```php
+  desktop_mode_register_window_notice( array(
+      'id'    => 'my-plugin/wc-posts',
+      // …
+      'match' => array(
+          'windows'     => array( 'edit-php' ),
+          'urlContains' => 'wc-admin',
+      ),
+  ) );
+  ```
+
+  It does **not** mean "every Posts window OR every wc-admin URL." To
+  get OR across selector types, register two separate notices (they
+  can share the same `id` only if you want one to replace the other —
+  use different ids otherwise).
+
 ## JavaScript — register from a plugin bundle
 
 The same API is exposed on `wp.desktop` with a fully-flexible `match`

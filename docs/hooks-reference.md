@@ -2332,7 +2332,7 @@ Actions:
 - `desktop_mode_window_chrome_script_registered( $handle )`
 - `desktop_mode_window_chrome_registered( $id, $entry )`
 
-### Window notices (since 0.22.0)
+### Window notices — Experimental  *(since 0.22.0)*
 
 ```php
 desktop_mode_register_window_notice( $args );

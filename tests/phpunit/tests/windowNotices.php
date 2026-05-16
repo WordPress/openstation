@@ -224,4 +224,84 @@ class Tests_DesktopMode_WindowNotices extends WP_UnitTestCase {
 		$ids = array_column( $payload['serverWindowNotices'], 'id' );
 		$this->assertContains( 'plugin/menu-payload', $ids );
 	}
+
+	/**
+	 * @covers ::desktop_mode_build_window_notices_payload
+	 */
+	public function test_payload_round_trips_match_icon_and_order() {
+		desktop_mode_register_window_notice(
+			array(
+				'id'      => 'plugin/round-trip',
+				'message' => 'Round trip',
+				'icon'    => 'dashicons-info',
+				'order'   => 42,
+				'match'   => array(
+					'windows'     => array( 'edit-php', 'edit-php-page' ),
+					'urlContains' => 'wc-admin',
+				),
+			)
+		);
+		$payload = desktop_mode_build_window_notices_payload();
+		$entry   = null;
+		foreach ( $payload as $candidate ) {
+			if ( 'plugin/round-trip' === $candidate['id'] ) {
+				$entry = $candidate;
+				break;
+			}
+		}
+		$this->assertNotNull( $entry, 'expected entry in payload' );
+		$this->assertSame( 'dashicons-info', $entry['icon'] );
+		$this->assertSame( 42, $entry['order'] );
+		$this->assertIsArray( $entry['match'] );
+		$this->assertSame(
+			array( 'edit-php', 'edit-php-page' ),
+			$entry['match']['windows']
+		);
+		$this->assertSame( 'wc-admin', $entry['match']['urlContains'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_register_window_notice
+	 */
+	public function test_icon_must_match_dashicons_pattern() {
+		desktop_mode_register_window_notice(
+			array(
+				'id'      => 'plugin/icon-valid',
+				'message' => 'Valid icon',
+				'icon'    => 'dashicons-info',
+			)
+		);
+		$entry = desktop_mode_window_notice_registry( 'plugin/icon-valid' );
+		$this->assertSame( 'dashicons-info', $entry['icon'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_register_window_notice
+	 */
+	public function test_icon_drops_garbage_silently() {
+		desktop_mode_register_window_notice(
+			array(
+				'id'      => 'plugin/icon-junk',
+				'message' => 'Junk icon',
+				'icon'    => 'evil class injection',
+			)
+		);
+		$entry = desktop_mode_window_notice_registry( 'plugin/icon-junk' );
+		$this->assertSame( '', $entry['icon'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_register_window_notice
+	 */
+	public function test_icon_drops_non_dashicons_prefix() {
+		desktop_mode_register_window_notice(
+			array(
+				'id'      => 'plugin/icon-no-prefix',
+				'message' => 'Other class',
+				'icon'    => 'fa-info',
+			)
+		);
+		$entry = desktop_mode_window_notice_registry( 'plugin/icon-no-prefix' );
+		$this->assertSame( '', $entry['icon'] );
+	}
 }

@@ -59,8 +59,12 @@ function desktop_mode_window_notice_tones() {
  *                               Default `true`.
  *     @type string $icon        Optional. Dashicons class for a
  *                               leading glyph (e.g.
- *                               `dashicons-info`).
- *     @type array  $match       Optional. Per-window selector. Combine
+ *                               `dashicons-info`). Must match
+ *                               `/^dashicons-[a-z0-9-]+$/`; values
+ *                               that don't are silently dropped to
+ *                               `''` rather than failing the
+ *                               registration.
+ *     @type array  $match       Optional. Per-window selector. Pick
  *                               any of:
  *                                 - `'window' => 'edit-php'` — single
  *                                   window id (e.g. `edit-php` for
@@ -69,12 +73,26 @@ function desktop_mode_window_notice_tones() {
  *                                 - `'windows' => array( 'edit-php',
  *                                   'edit-php-pagename' )` — multiple
  *                                   window ids ("all windows of kind
- *                                   X / Y / Z").
+ *                                   X / Y / Z"). Within the array the
+ *                                   semantics is OR (any id matches).
  *                                 - `'urlContains' => 'wc-admin'` —
  *                                   case-insensitive URL substring
  *                                   match. Useful for plugin pages
  *                                   whose id is derived from a long
  *                                   URL.
+ *
+ *                               When more than one selector type is
+ *                               present, all of them must match
+ *                               (AND). E.g. `array( 'windows' =>
+ *                               array( 'edit-php' ), 'urlContains'
+ *                               => 'wc-admin' )` shows the notice
+ *                               only on the Posts window when its
+ *                               URL also contains `wc-admin` — not
+ *                               on every Posts window AND every
+ *                               wc-admin-URL window. Use two
+ *                               separate `desktop_mode_register_window_notice()`
+ *                               calls for OR-across-selector-types.
+ *
  *                               When omitted, the notice paints on
  *                               every window.
  *     @type int    $order       Optional. Sort order — lower
@@ -131,12 +149,20 @@ function desktop_mode_register_window_notice( $args = array() ) {
 		);
 	}
 
+	// Icon validation. Dashicons class names are alphanumeric with
+	// hyphens and always start with `dashicons-`. Anything else is
+	// either a typo or attempted styling-injection; drop silently
+	// rather than reject the whole registration so a minor mistake
+	// in one field doesn't kill the banner entirely.
+	$icon_raw = (string) $args['icon'];
+	$icon     = preg_match( '/^dashicons-[a-z0-9-]+$/', $icon_raw ) ? $icon_raw : '';
+
 	$entry = array(
 		'id'          => strtolower( $id ),
 		'message'     => wp_kses_post( (string) $args['message'] ),
 		'tone'        => $tone,
 		'dismissible' => (bool) $args['dismissible'],
-		'icon'        => (string) $args['icon'],
+		'icon'        => $icon,
 		'match'       => is_array( $args['match'] ) ? $args['match'] : array(),
 		'order'       => (int) $args['order'],
 	);
@@ -183,9 +209,15 @@ function desktop_mode_window_notice_registry( $id = '', $entry = null ) {
 }
 
 /**
- * Test-only flush. Used by PHPUnit setUp() to keep tests independent.
+ * Drop every registered window notice. Intended for PHPUnit `set_up()`
+ * so a previous test's notices can't leak into the next test's
+ * payload-build assertions. **Not** a public API — production code
+ * that calls this would wipe every plugin's registered notice on the
+ * current request. Mirrors the same `flush_*` shape the
+ * commands / settings-tabs / window-chrome registries expose.
  *
  * @since 0.22.0
+ * @internal
  */
 function desktop_mode_flush_window_notice_registry() {
 	desktop_mode_window_notice_registry( '__flush__' );

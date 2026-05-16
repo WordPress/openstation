@@ -48,7 +48,7 @@ export type WpdNoticeTone =
 	| 'neutral';
 
 export class WpdNotice extends Component {
-	static props = [ 'tone', 'dismissible', 'notDismissible', 'icon', 'noticeId' ] as const;
+	static props = [ 'tone', 'notDismissible', 'icon', 'noticeId' ] as const;
 	static styles = [ styles ];
 
 	static help = {
@@ -153,13 +153,7 @@ export class WpdNotice extends Component {
 
 	protected render() {
 		const icon = this.getAttribute( 'icon' );
-		// Treat any explicit `not-dismissible` attr as suppressive.
-		// A legacy `dismissible="false"` string also works.
-		const notDismissibleAttr = this.hasAttribute( 'not-dismissible' );
-		const dismissibleAttr = this.getAttribute( 'dismissible' );
-		const dismissible = ! (
-			notDismissibleAttr || dismissibleAttr === 'false'
-		);
+		const dismissible = ! this.hasAttribute( 'not-dismissible' );
 
 		return html`
 			<span
