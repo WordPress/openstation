@@ -145,6 +145,13 @@ function desktop_mode_plugins_window_register_window() {
 			// through Core's existing handler, no reimplementation.
 			'updatesNonce'    => wp_create_nonce( 'updates' ),
 			'caps'            => $caps,
+			// Global "Automatic Updates" column gate — same shape Core's
+			// `WP_Plugins_List_Table::$show_autoupdates` uses (true only
+			// when the auto-update subsystem is enabled AND the viewer
+			// can update plugins). Per-row state still lives on the REST
+			// field `desktop_mode_auto_update` so the JS knows whether
+			// each individual row is enabled / forced / supported.
+			'autoUpdatesEnabled' => desktop_mode_plugins_window_auto_updates_enabled(),
 			'currentUserId'   => (int) get_current_user_id(),
 			'introSeen'       => function_exists( 'desktop_mode_has_seen_intro' )
 				? desktop_mode_has_seen_intro( get_current_user_id(), 'plugins' )

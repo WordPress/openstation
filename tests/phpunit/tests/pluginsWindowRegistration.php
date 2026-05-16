@@ -557,6 +557,205 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	// ----------------------------------------------------------------
+	// `desktop_mode_auto_update` REST field — per-row auto-update state.
+	// ----------------------------------------------------------------
+
+	/**
+	 * Plugin whose file is in the `auto_update_plugins` site option and
+	 * has an entry in the `update_plugins` transient should report
+	 * `enabled: true, supported: true, forced: null` — the most common
+	 * happy-path shape.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 */
+	public function test_auto_update_field_reports_enabled_when_in_option_and_supported() {
+		update_site_option( 'auto_update_plugins', array( 'akismet/akismet.php' ) );
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				// `no_update` rows mean "checked in, no update right now" —
+				// Core treats that as `update-supported`.
+				'no_update'    => array(
+					'akismet/akismet.php' => (object) array( 'slug' => 'akismet' ),
+				),
+			)
+		);
+		// REST controller strips `.php`.
+		$row = array(
+			'plugin'     => 'akismet/akismet',
+			'textdomain' => 'akismet',
+		);
+		$out = desktop_mode_plugins_window_field_auto_update( $row );
+		$this->assertTrue( $out['enabled'] );
+		$this->assertTrue( $out['supported'] );
+		$this->assertNull( $out['forced'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 */
+	public function test_auto_update_field_reports_disabled_when_not_in_option() {
+		update_site_option( 'auto_update_plugins', array() );
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
+					'akismet/akismet.php' => (object) array( 'slug' => 'akismet' ),
+				),
+			)
+		);
+		$row = array(
+			'plugin'     => 'akismet/akismet',
+			'textdomain' => 'akismet',
+		);
+		$out = desktop_mode_plugins_window_field_auto_update( $row );
+		$this->assertFalse( $out['enabled'] );
+		$this->assertTrue( $out['supported'] );
+		$this->assertNull( $out['forced'] );
+	}
+
+	/**
+	 * Plugins missing from both the `response` and `no_update` maps in
+	 * the transient have `supported: false` — Core hides the toggle
+	 * entirely in that case so users don't enable an auto-update that
+	 * can never fire (premium / private plugins).
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 */
+	public function test_auto_update_field_reports_unsupported_when_not_in_transient() {
+		update_site_option( 'auto_update_plugins', array() );
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(),
+			)
+		);
+		$row = array( 'plugin' => 'premium/premium' );
+		$out = desktop_mode_plugins_window_field_auto_update( $row );
+		$this->assertFalse( $out['enabled'] );
+		$this->assertFalse( $out['supported'] );
+		$this->assertNull( $out['forced'] );
+	}
+
+	/**
+	 * The `auto_update_plugin` filter forces the state irrespective of
+	 * the site option. Mirrors Core's rendering where a forced row
+	 * shows a read-only "Auto-updates enabled" label.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 */
+	public function test_auto_update_field_respects_filter_forcing_enabled() {
+		update_site_option( 'auto_update_plugins', array() );
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
+					'forced/forced.php' => (object) array( 'slug' => 'forced' ),
+				),
+			)
+		);
+		$callback = static function ( $update, $item ) {
+			if ( isset( $item->plugin ) && 'forced/forced.php' === $item->plugin ) {
+				return true;
+			}
+			return $update;
+		};
+		add_filter( 'auto_update_plugin', $callback, 10, 2 );
+		try {
+			$row = array( 'plugin' => 'forced/forced' );
+			$out = desktop_mode_plugins_window_field_auto_update( $row );
+			$this->assertTrue( $out['forced'] );
+			$this->assertTrue(
+				$out['enabled'],
+				'A filter that pins forced=true must yield enabled=true even when the option is empty.'
+			);
+		} finally {
+			remove_filter( 'auto_update_plugin', $callback, 10 );
+		}
+	}
+
+	/**
+	 * Filter pinning the state to disabled must yield
+	 * `enabled: false, forced: false` so the JS can render the
+	 * read-only "Auto-updates disabled" label and skip the toggle.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 */
+	public function test_auto_update_field_respects_filter_forcing_disabled() {
+		// Plugin IS in the option, but filter says disabled — filter wins.
+		update_site_option( 'auto_update_plugins', array( 'forced/forced.php' ) );
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
+					'forced/forced.php' => (object) array( 'slug' => 'forced' ),
+				),
+			)
+		);
+		$callback = static function ( $update, $item ) {
+			if ( isset( $item->plugin ) && 'forced/forced.php' === $item->plugin ) {
+				return false;
+			}
+			return $update;
+		};
+		add_filter( 'auto_update_plugin', $callback, 10, 2 );
+		try {
+			$row = array( 'plugin' => 'forced/forced' );
+			$out = desktop_mode_plugins_window_field_auto_update( $row );
+			$this->assertFalse( $out['forced'] );
+			$this->assertFalse( $out['enabled'] );
+		} finally {
+			remove_filter( 'auto_update_plugin', $callback, 10 );
+		}
+	}
+
+	// ----------------------------------------------------------------
+	// `desktop_mode_plugins_window_auto_updates_enabled` — global gate.
+	// ----------------------------------------------------------------
+
+	/**
+	 * Filter must be able to flip the column off even when the
+	 * underlying gate would say yes — hosts that manage auto-updates
+	 * externally (managed WordPress, internal mirrors) can suppress
+	 * the in-window toggle and rely on the existing channel instead.
+	 *
+	 * @covers ::desktop_mode_plugins_window_auto_updates_enabled
+	 */
+	public function test_auto_updates_enabled_filter_can_force_off() {
+		wp_set_current_user( $this->admin_id );
+		add_filter( 'desktop_mode_plugins_window_auto_updates_enabled', '__return_false' );
+		try {
+			$this->assertFalse( desktop_mode_plugins_window_auto_updates_enabled() );
+		} finally {
+			remove_all_filters( 'desktop_mode_plugins_window_auto_updates_enabled' );
+		}
+	}
+
+	/**
+	 * Logged-out users (or users without `update_plugins`) must not see
+	 * the column. Multisite admins on a single-site context likewise
+	 * are gated by the `manage_network_plugins` check.
+	 *
+	 * @covers ::desktop_mode_plugins_window_auto_updates_enabled
+	 */
+	public function test_auto_updates_enabled_closed_for_users_without_update_cap() {
+		wp_set_current_user( $this->editor_id );
+		$this->assertFalse( desktop_mode_plugins_window_auto_updates_enabled() );
+		wp_set_current_user( 0 );
+		$this->assertFalse( desktop_mode_plugins_window_auto_updates_enabled() );
+	}
+
 	/**
 	 * The opportunistic prime path respects the 12h `last_checked`
 	 * throttle (mirrors `_maybe_update_plugins()`), but the explicit

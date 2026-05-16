@@ -61,6 +61,14 @@ export interface PluginsWindowConfig {
 		 */
 		update: boolean;
 	};
+	/**
+	 * Mirrors Core's `WP_Plugins_List_Table::$show_autoupdates`. True
+	 * when `wp_is_auto_update_enabled_for_type( 'plugin' )` is on AND
+	 * the viewer can update plugins (and, on multisite, holds the
+	 * network-admin cap). When false the JS hides the column entirely
+	 * — identical to Core's posture on the classic Plugins screen.
+	 */
+	autoUpdatesEnabled: boolean;
 	currentUserId: number;
 	introSeen: boolean;
 	introUrl: string;
@@ -431,6 +439,50 @@ export async function updateInstalledPlugin(
 				plugin.desktop_mode_update_available?.slug ||
 				plugin.textdomain ||
 				plugin.plugin.split( '/' )[ 0 ],
+		},
+		{ nonceField: '_ajax_nonce', nonceValue: getConfig().updatesNonce },
+	);
+}
+
+/**
+ * Toggle the per-plugin auto-update state. Calls Core's existing
+ * `wp_ajax_toggle_auto_updates` handler (registered on the
+ * `toggle-auto-updates` action) — the exact same endpoint Core's
+ * own "Enable / Disable auto-updates" links hit via
+ * `wp.updates.toggleAutoUpdate()`. We reuse it verbatim rather than
+ * reimplementing the option mutation (which lives in `wp-admin/includes/`
+ * and would mean carrying the deleted-plugin cleanup logic ourselves).
+ *
+ * The handler validates `current_user_can( 'update_plugins' )`, the
+ * `'updates'` nonce, checks the plugin file against `get_plugins()`,
+ * and atomically updates the `auto_update_plugins` site option. On
+ * success Core returns an empty `wp_send_json_success()` envelope —
+ * the caller is expected to update local row state from the requested
+ * new value.
+ *
+ * @public
+ * @since 0.21.0
+ */
+export async function toggleAutoUpdate(
+	plugin: InstalledPlugin,
+	state: 'enable' | 'disable',
+): Promise< void > {
+	// Core's handler keys into `get_plugins()` with the FULL filename
+	// (`foo/foo.php`), but Core's REST controller strips the `.php`
+	// extension when populating the `plugin` field — so the value we
+	// received from `/wp/v2/plugins` is one `.php` short of what the
+	// handler needs. Re-append before firing, otherwise the asset
+	// won't match any installed plugin and Core returns "the item does
+	// not exist". Mirrors the same fix we apply for `updateInstalledPlugin`.
+	const pluginFile = plugin.plugin.endsWith( '.php' )
+		? plugin.plugin
+		: plugin.plugin + '.php';
+	await ajaxRequest< unknown >(
+		'toggle-auto-updates',
+		{
+			type: 'plugin',
+			asset: pluginFile,
+			state,
 		},
 		{ nonceField: '_ajax_nonce', nonceValue: getConfig().updatesNonce },
 	);

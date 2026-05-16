@@ -114,3 +114,74 @@ function desktop_mode_plugins_window_caps( $user_id = null ) {
 		'update'   => $user_id > 0 && user_can( $user_id, 'update_plugins' ),
 	);
 }
+
+/**
+ * Whether the Plugins window should surface an "Automatic Updates"
+ * column at all.
+ *
+ * Mirrors Core's `WP_Plugins_List_Table::__construct()` gate:
+ *
+ *   $this->show_autoupdates = wp_is_auto_update_enabled_for_type( 'plugin' )
+ *       && current_user_can( 'update_plugins' )
+ *       && ( ! is_multisite() || $this->screen->in_admin( 'network' ) );
+ *
+ * `wp_is_auto_update_enabled_for_type()` lives in
+ * `wp-admin/includes/update.php`. On admin requests `init` fires
+ * INSIDE `wp-load.php`, BEFORE `wp-admin/admin.php` requires its
+ * includes — so by the time native windows register their config on
+ * `init` priority 20, the helper isn't loaded yet. We lazy-require
+ * it from this gate so the config blob always reflects the true
+ * state. (The check is gated by `is_admin()` so REST / front-end
+ * requests don't pay the cost.)
+ *
+ * On multisite, only network admins can toggle plugin auto-updates —
+ * Core gates the column on the network screen specifically, but we
+ * use the `manage_network_plugins` capability as the user-facing
+ * equivalent (true for super admins, false for everyone else).
+ *
+ * @since 0.21.0
+ *
+ * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
+ * @return bool
+ */
+function desktop_mode_plugins_window_auto_updates_enabled( $user_id = null ) {
+	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
+
+	$enabled = false;
+	if ( $user_id > 0 && user_can( $user_id, 'update_plugins' ) ) {
+		// Lazy-require Core's admin update helper if it hasn't been
+		// loaded yet. Same posture `wp_ajax_install_plugin` uses for
+		// `plugins_api()` — admin-side files are safe to load when
+		// we're in admin context. We guard with `is_admin()` so REST
+		// / front-end requests don't pull in admin includes.
+		if ( ! function_exists( 'wp_is_auto_update_enabled_for_type' ) && is_admin() ) {
+			require_once ABSPATH . 'wp-admin/includes/update.php';
+		}
+		if (
+			function_exists( 'wp_is_auto_update_enabled_for_type' )
+			&& wp_is_auto_update_enabled_for_type( 'plugin' )
+		) {
+			if ( is_multisite() ) {
+				// Network-only — match Core's `screen->in_admin( 'network' )`
+				// gate as closely as we can outside a screen context.
+				$enabled = user_can( $user_id, 'manage_network_plugins' );
+			} else {
+				$enabled = true;
+			}
+		}
+	}
+
+	/**
+	 * Filter whether the Plugins window's "Automatic Updates" column
+	 * should be shown to the current user. Return `false` to hide the
+	 * column entirely (Core hides it when the auto-update subsystem is
+	 * disabled or when the viewer isn't on a network admin screen on
+	 * multisite).
+	 *
+	 * @since 0.21.0
+	 *
+	 * @param bool $enabled Default gate result.
+	 * @param int  $user_id User being checked.
+	 */
+	return (bool) apply_filters( 'desktop_mode_plugins_window_auto_updates_enabled', $enabled, $user_id );
+}

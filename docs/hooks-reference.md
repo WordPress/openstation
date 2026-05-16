@@ -2017,6 +2017,16 @@ apply_filters( 'desktop_mode_plugins_window_refresh_updates', bool $refresh, boo
 
 Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (when the in-window Refresh button passes `?desktop_mode_force_refresh=1`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
 
+### `desktop_mode_plugins_window_auto_updates_enabled` — Experimental *(filter, since 0.21.0)*
+
+Whether the Plugins window's "Automatic Updates" column should be shown to the current user. Mirrors Core's `WP_Plugins_List_Table::$show_autoupdates` gate (`wp_is_auto_update_enabled_for_type( 'plugin' )` + `update_plugins` cap + network-admin on multisite). Return `false` to suppress the column entirely — useful for managed-hosting environments that orchestrate auto-updates externally and don't want users toggling per-plugin state from within the shell.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_auto_updates_enabled', bool $enabled, int $user_id ): bool
+```
+
+The flag is surfaced to the JS bundle on the window's `config` blob as `autoUpdatesEnabled` and consumed at column-build time — flipping it via the filter takes effect on the next reload of the window.
+
 ### REST-field decorators on `/wp/v2/plugins` — Stable (since 0.9.0)
 
 Server-injected enrichment fields. The JS reads them on every list paint:
@@ -2027,6 +2037,7 @@ Server-injected enrichment fields. The JS reads them on every list paint:
 | `desktop_mode_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
 | `desktop_mode_icon_url` | `string\|null` | Best-effort wp.org icon URL derived from the plugin's `textdomain`. Filterable via `desktop_mode_plugins_window_icon_url`. |
 | `desktop_mode_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |
+| `desktop_mode_auto_update` | `{ enabled: bool, forced: bool\|null, supported: bool }` | (Since 0.21.0) Per-row auto-update state, mirroring Core's "Automatic Updates" column on `plugins.php`. `enabled` reflects the `auto_update_plugins` site option (overridden by `forced` when a filter pins it). `forced` is `null` for user-toggleable rows, `true`/`false` when the `auto_update_plugin` filter has pinned the state. `supported` is true when the `update_plugins` transient has an entry for the plugin (either `response` or `no_update`); when false the JS hides the toggle — premium / private plugins that never check in with wp.org. The toggle itself routes through Core's `wp_ajax_toggle_auto_updates` handler (action `toggle-auto-updates`, `'updates'` nonce). |
 
 ### Actions — Stable (since 0.9.0)
 
