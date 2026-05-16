@@ -99,6 +99,13 @@ import {
 	unregisterWindowSlot,
 } from '../window-chrome/slots/registry';
 import {
+	dismissWindowNotice,
+	listWindowNotices,
+	registerWindowNotice,
+	undismissWindowNotice,
+	unregisterWindowNotice,
+} from '../window-notices';
+import {
 	listWindowChromes,
 	registerWindowChrome,
 	unregisterWindowChrome,
@@ -180,6 +187,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'applyWindowControls',
 	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
 	'applyWindowSlot',
+	'registerWindowNotice', 'unregisterWindowNotice', 'listWindowNotices',
+	'dismissWindowNotice', 'undismissWindowNotice',
 	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
 	'applyWindowChrome',
 	'connect',
@@ -513,6 +522,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			}
 			win.setAppearanceSlot( slot, slotConfig );
 		},
+		registerWindowNotice,
+		unregisterWindowNotice,
+		listWindowNotices,
+		dismissWindowNotice,
+		undismissWindowNotice,
 		registerWindowChrome,
 		unregisterWindowChrome,
 		listWindowChromes,

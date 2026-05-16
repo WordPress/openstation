@@ -72,6 +72,7 @@ import {
 	type WindowSlotDef,
 } from './window-chrome/slots/registry';
 import { createWindowSlotRegistrySync } from './window-chrome/slots/server-sync';
+import { applyServerWindowNotices } from './window-notices-server-sync';
 import {
 	type WindowChromeDef,
 } from './window-chrome/chrome/registry';
@@ -1089,6 +1090,42 @@ export interface WpDesktopPublicApi {
 		slot: import( './types' ).WindowSlotName,
 		config: import( './types' ).WindowSlotConfig | undefined,
 	) => void;
+	/**
+	 * Register (or replace) a window notice — a tone-coded banner
+	 * rendered at the top of every matching window (inside the
+	 * `after-titlebar` slot). The notice carries an `id`, an HTML
+	 * `message`, an optional `tone` (`info` | `success` | `warning`
+	 * | `error` | `danger` | `neutral`), and an optional `match`
+	 * predicate (defaults to every window). The user's dismissal of
+	 * a given `id` persists in `localStorage` so the same banner
+	 * never reappears for that user.
+	 *
+	 * Returns an unregister function for symmetry with
+	 * {@link registerCommand}.
+	 *
+	 * @since 0.22.0
+	 */
+	registerWindowNotice: (
+		entry: import( './window-notices' ).WindowNoticeEntry,
+	) => () => void;
+	/** Remove a previously registered notice by id. @since 0.22.0 */
+	unregisterWindowNotice: ( id: string ) => void;
+	/** Snapshot of registered window notices. @since 0.22.0 */
+	listWindowNotices: () => import( './window-notices' ).WindowNoticeEntry[];
+	/**
+	 * Imperatively mark a notice id as dismissed for the current
+	 * user. Future window paints will start in the hidden state.
+	 *
+	 * @since 0.22.0
+	 */
+	dismissWindowNotice: ( id: string ) => void;
+	/**
+	 * Clear a previous dismissal so the notice will paint again on
+	 * the next mount.
+	 *
+	 * @since 0.22.0
+	 */
+	undismissWindowNotice: ( id: string ) => void;
 	/**
 	 * **Experimental** — register (or replace) a custom chrome
 	 * implementation. A chrome owns the title-bar DOM tree of any
@@ -2534,6 +2571,16 @@ function init(): void {
 			: [],
 		Array.isArray( config.serverWindowSlots )
 			? config.serverWindowSlots
+			: [],
+	);
+
+	// Window notices — declarative top-of-window banners shipped
+	// straight from PHP (no JS handle, pure data). Each entry is
+	// translated to a Layer-3 slot renderer targeting the
+	// `after-titlebar` slot.
+	applyServerWindowNotices(
+		Array.isArray( config.serverWindowNotices )
+			? config.serverWindowNotices
 			: [],
 	);
 

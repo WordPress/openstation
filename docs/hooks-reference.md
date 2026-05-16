@@ -2332,6 +2332,31 @@ Actions:
 - `desktop_mode_window_chrome_script_registered( $handle )`
 - `desktop_mode_window_chrome_registered( $id, $entry )`
 
+### Window notices (since 0.22.0)
+
+```php
+desktop_mode_register_window_notice( $args );
+```
+
+`$args`:
+- `id` *(required)* — persistence + dedupe key.
+- `message` *(required)* — HTML body. Passed through `wp_kses_post()`.
+- `tone` — `info` (default) | `success` | `warning` | `error` | `danger` | `neutral`.
+- `dismissible` — show a close button. Default `true`.
+- `icon` — optional Dashicons class.
+- `match` — optional selector: `{ window?: 'edit-php' }`, `{ windows?: [ 'edit-php', 'edit-php-page' ] }`, or `{ urlContains?: 'wc-admin' }`. Combine freely; omit for "every window."
+- `order` — sort order. Lower renders higher in a stack. Default 100.
+
+Notices render as `<wpd-notice>` inside the matching window's
+`after-titlebar` slot. Each user's dismissal is persisted in
+`localStorage` so the same banner never reappears for them.
+
+Actions / filters:
+- `desktop_mode_window_notice_registered( $id, $entry )` — action.
+- `desktop_mode_window_notices( $entries )` — filter the final list right before it ships to the shell (request-time banners).
+
+See [`docs/examples/window-notice.md`](examples/window-notice.md).
+
 ---
 
 ## Progressive Web App (since 0.8.0)

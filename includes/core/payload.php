@@ -555,6 +555,9 @@ function desktop_mode_build_menu_payload() {
 		'serverWindowChromes'       => function_exists( 'desktop_mode_build_window_chromes_payload' )
 			? desktop_mode_build_window_chromes_payload()
 			: array(),
+		'serverWindowNotices'       => function_exists( 'desktop_mode_build_window_notices_payload' )
+			? desktop_mode_build_window_notices_payload()
+			: array(),
 		'desktopIcons'     => function_exists( 'desktop_mode_build_desktop_icons_payload' )
 			? desktop_mode_build_desktop_icons_payload()
 			: array(),
@@ -842,6 +845,9 @@ function desktop_mode_flush_script_handle_registries() {
 	}
 	if ( function_exists( 'desktop_mode_flush_window_chrome_registry' ) ) {
 		desktop_mode_flush_window_chrome_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_window_notice_registry' ) ) {
+		desktop_mode_flush_window_notice_registry();
 	}
 	desktop_mode_warn_unresolvable_script_handle( '', '', '__flush__' );
 }

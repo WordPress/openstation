@@ -91,6 +91,8 @@ export type { WpdCrumbSegment } from './wpd-crumb-chain/wpd-crumb-chain';
 export { WpdCard } from './wpd-card/wpd-card';
 export { WpdRatingSummary } from './wpd-rating-summary/wpd-rating-summary';
 export type { WpdRatingBuckets } from './wpd-rating-summary/wpd-rating-summary';
+export { WpdNotice } from './wpd-notice/wpd-notice';
+export type { WpdNoticeTone } from './wpd-notice/wpd-notice';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -157,4 +159,5 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-crumb-chain',
 	'wpd-card',
 	'wpd-rating-summary',
+	'wpd-notice',
 ] as const;

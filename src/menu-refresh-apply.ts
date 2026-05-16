@@ -27,8 +27,10 @@ import type {
 	DesktopTitleBarButtonScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
+	DesktopWindowNoticeServerEntry,
 	NativeWindowServerEntry,
 } from './types';
+import { applyServerWindowNotices } from './window-notices-server-sync';
 
 /** Shape of every payload key the bridge may carry. */
 export interface MenuRefreshPayload {
@@ -42,6 +44,7 @@ export interface MenuRefreshPayload {
 	serverSettingsTabs?: unknown;
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
+	serverWindowNotices?: unknown;
 	desktopIcons?: unknown;
 }
 
@@ -186,6 +189,7 @@ export function createApplyPayload(
 		const serverSettingsTabs = payload.serverSettingsTabs;
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
+		const serverWindowNotices = payload.serverWindowNotices;
 		const desktopIcons = payload.desktopIcons;
 
 		// Guard: an empty `dockItems` list is NEVER legitimate —
@@ -310,6 +314,17 @@ export function createApplyPayload(
 			);
 			config.serverDockRailRendererScripts =
 				serverDockRailRendererScripts as DesktopConfig[ 'serverDockRailRendererScripts' ];
+		}
+
+		// Window-notice sync — reconcile declarative notices against
+		// the latest server snapshot. Plugin activation adds entries;
+		// deactivation removes them (server-owned entries only).
+		if ( Array.isArray( serverWindowNotices ) ) {
+			applyServerWindowNotices(
+				serverWindowNotices as DesktopWindowNoticeServerEntry[],
+			);
+			config.serverWindowNotices =
+				serverWindowNotices as DesktopConfig[ 'serverWindowNotices' ];
 		}
 
 		// Desktop-icon sync — re-render the wallpaper shortcut grid

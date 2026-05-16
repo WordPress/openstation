@@ -312,10 +312,15 @@ docs/
     ├── pwa-install.md           UPDATE/READ WHEN: wp.desktop.pwa.promptInstall(),
     │                            install-pill UX, or desktop_mode_pwa_manifest filter
     │                            contract changes.
-    └── notify.md                UPDATE/READ WHEN: wp.desktop.notify() options shape,
-                                 fallback semantics, or
-                                 desktop-mode/notification-{requested,shown}
-                                 channel payloads change.
+    ├── notify.md                UPDATE/READ WHEN: wp.desktop.notify() options shape,
+    │                            fallback semantics, or
+    │                            desktop-mode/notification-{requested,shown}
+    │                            channel payloads change.
+    └── window-notice.md         UPDATE/READ WHEN: desktop_mode_register_window_notice()
+                                 contract, wp.desktop.registerWindowNotice() shape,
+                                 <wpd-notice> attributes, or the persistence-key
+                                 scheme (desktop-mode-notice-dismissed:<userId>)
+                                 changes.
 ```
 
 **Rules of thumb:**

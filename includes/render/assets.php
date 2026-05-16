@@ -197,6 +197,9 @@ function desktop_mode_enqueue_assets() {
 	$server_window_chromes         = isset( $menu_payload['serverWindowChromes'] )
 		? $menu_payload['serverWindowChromes']
 		: array();
+	$server_window_notices         = isset( $menu_payload['serverWindowNotices'] )
+		? $menu_payload['serverWindowNotices']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -320,6 +323,7 @@ function desktop_mode_enqueue_assets() {
 			'serverWindowSlots'         => $server_window_slots,
 			'serverWindowChromeScripts' => $server_window_chrome_scripts,
 			'serverWindowChromes'       => $server_window_chromes,
+			'serverWindowNotices'       => $server_window_notices,
 			'desktopIcons'     => $desktop_icons,
 			'serverFileTypes'        => $server_file_types,
 			'serverFileOpeners'      => $server_file_openers,

@@ -54,5 +54,6 @@ defined( 'ABSPATH' ) || exit;
 - [Track who's around — `wp.desktop.presence`](./presence.md)
 - [Surface a custom "Install as App" button](./pwa-install.md)
 - [Send a notification — `wp.desktop.notify()`](./notify.md)
+- [Show a banner at the top of a window — `desktop_mode_register_window_notice()`](./window-notice.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.
