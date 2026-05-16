@@ -444,6 +444,27 @@ export const HOOKS = {
 	/** Action, fires when a window exits fullscreen / focus mode. */
 	WINDOW_FULLSCREEN_EXITED: 'desktop-mode.window.fullscreen-exited',
 	/**
+	 * Filter, decides whether a fullscreen ("focus mode") window
+	 * should auto-exit when focus moves to a different window.
+	 *
+	 * Default is `true` so a newly-focused window is never silently
+	 * occluded by a fullscreen one (its `z-index` sits above all
+	 * other windows). Plugins whose fullscreen surface is meant to
+	 * persist across focus changes — slideshows, video players,
+	 * immersive games — can return `false` to keep their window
+	 * fullscreen.
+	 *
+	 * Signature:
+	 *
+	 *     ( shouldExit: boolean, ctx: {
+	 *         windowId: string,    // the fullscreen window
+	 *         focusedTo: string,   // the window gaining focus
+	 *     } ) => boolean
+	 *
+	 * @since 0.8.6
+	 */
+	WINDOW_AUTO_EXIT_FULLSCREEN: 'desktop-mode.window.auto-exit-fullscreen',
+	/**
 	 * Action, fires at most once per animation frame during an
 	 * active drag or resize with the live geometry. Payload: `{
 	 * windowId: string, x: number, y: number, width: number,

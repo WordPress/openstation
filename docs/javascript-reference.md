@@ -2894,6 +2894,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 | `desktop-mode.window.unmaximized` | action | Stable | `{ windowId }` |
 | `desktop-mode.window.fullscreen-entered` | action | Stable | `{ windowId }` |
 | `desktop-mode.window.fullscreen-exited` | action | Stable | `{ windowId }` |
+| `desktop-mode.window.auto-exit-fullscreen` | filter | Stable *(0.8.6)* | `( shouldExit: boolean, ctx: { windowId, focusedTo } ) => boolean` — decides whether a fullscreen window should auto-exit when focus moves elsewhere. Default `true`. Return `false` to keep persistent-fullscreen surfaces (slideshow, video, game) in fullscreen across focus changes. |
 | `desktop-mode.window.drag-start` | action | Stable | `{ windowId }` |
 | `desktop-mode.window.drag-end` | action | Stable | `{ windowId, x, y }` |
 | `desktop-mode.window.moved` | action | Stable | `{ windowId, x, y }` — fires with drag-end |

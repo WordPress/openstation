@@ -539,4 +539,80 @@ describe( 'WindowManager — hook firing', async () => {
 		const win = manager.getById( 'chain' );
 		expect( win!.config.width ).toBe( 1000 );
 	} );
+
+	test( 'focusing a different window auto-exits the prior window from fullscreen', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		manager.focus( a );
+		a.toggleFullscreen();
+		expect( a.isFullscreen() ).toBe( true );
+
+		manager.focus( b );
+
+		expect( a.isFullscreen() ).toBe( false );
+	} );
+
+	test( 'opening a new window auto-exits a fullscreen prior window', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		a.toggleFullscreen();
+		expect( a.isFullscreen() ).toBe( true );
+
+		await manager.open( openConfig( 'b' ) );
+
+		expect( a.isFullscreen() ).toBe( false );
+	} );
+
+	test( 'restoring a minimized window auto-exits a fullscreen prior window', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		b.minimize();
+		manager.focus( a );
+		a.toggleFullscreen();
+		expect( a.isFullscreen() ).toBe( true );
+
+		b.restore();
+
+		expect( a.isFullscreen() ).toBe( false );
+	} );
+
+	test( 'WINDOW_AUTO_EXIT_FULLSCREEN filter can veto the auto-exit', async () => {
+		hooks.addFilter(
+			HOOKS.WINDOW_AUTO_EXIT_FULLSCREEN,
+			'vitest/keep-fullscreen',
+			( () => false ) as ( ...a: unknown[] ) => unknown,
+		);
+
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		manager.focus( a );
+		a.toggleFullscreen();
+		expect( a.isFullscreen() ).toBe( true );
+
+		manager.focus( b );
+
+		expect( a.isFullscreen() ).toBe( true );
+	} );
+
+	test( 'WINDOW_AUTO_EXIT_FULLSCREEN filter receives { windowId, focusedTo }', async () => {
+		const seen: Array< { windowId: string; focusedTo: string } > = [];
+		hooks.addFilter(
+			HOOKS.WINDOW_AUTO_EXIT_FULLSCREEN,
+			'vitest/inspect-ctx',
+			( ( shouldExit: unknown, ctx: unknown ) => {
+				seen.push( ctx as { windowId: string; focusedTo: string } );
+				return shouldExit;
+			} ) as ( ...a: unknown[] ) => unknown,
+		);
+
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		manager.focus( a );
+		a.toggleFullscreen();
+		seen.length = 0;
+
+		manager.focus( b );
+
+		expect( seen ).toHaveLength( 1 );
+		expect( seen[ 0 ] ).toEqual( { windowId: 'a', focusedTo: 'b' } );
+	} );
 } );
