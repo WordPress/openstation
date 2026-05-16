@@ -281,12 +281,22 @@ export const HOOKS = {
 	 *         => ResolvedWindowGeometry
 	 *
 	 * Where `ResolvedWindowGeometry = { x, y, width, height, state? }`
-	 * and `ctx = { windowId, baseId, source, desktopRect }`. `source`
-	 * is `'explicit'` when the caller passed at least one of
-	 * {x, y, width, height, initialState} (session restore,
-	 * `openNew` with explicit dims), `'restored'` when the values
-	 * came from the per-baseId `localStorage` geometry store, and
-	 * `'default'` for the cascade + desktopRect defaults.
+	 * and `ctx = { windowId, baseId, hasSavedGeometry, callerPinned,
+	 * desktopRect }`.
+	 *
+	 * - `hasSavedGeometry` is `true` when the user previously
+	 *   dragged or resized this window and the resolved geometry
+	 *   includes those restored values. Plugins that want to
+	 *   "leave the user's saved layout alone" should bail when
+	 *   this is true.
+	 * - `callerPinned` is `true` when the caller of `manager.open()`
+	 *   passed at least one of `{ x, y, width, height, initialState }`
+	 *   explicitly. For NATIVE windows this is usually true (the
+	 *   framework's native-window opener passes the registry's
+	 *   declared dimensions); for admin-page iframe windows opened
+	 *   from the dock this is usually false. The filter is free to
+	 *   override registry defaults — `callerPinned: true` does NOT
+	 *   mean "leave it alone."
 	 *
 	 * The shell re-clamps `width`/`height` to the registered
 	 * `minWidth`/`minHeight` after the filter returns — a buggy

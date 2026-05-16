@@ -2925,9 +2925,10 @@ wp.desktop.hooks.addFilter(
     HOOKS.WINDOW_GEOMETRY,
     'my-plugin/place-shop',
     ( geometry, ctx ) => {
-        // Only retouch the window WE own, and only on fresh opens —
-        // leave caller-pinned dims and user-saved geometry alone.
-        if ( ctx.baseId !== 'my-shop' || ctx.source !== 'default' ) {
+        // Only retouch the window WE own, and only when the user
+        // hasn't dragged or resized it yet — once they have, respect
+        // their layout.
+        if ( ctx.baseId !== 'my-shop' || ctx.hasSavedGeometry ) {
             return geometry;
         }
         const { width, height } = ctx.desktopRect;
@@ -2950,25 +2951,26 @@ type ResolvedWindowGeometry = {
     y: number;
     width: number;
     height: number;
-    state?: 'maximized';            // optional initial state
+    state?: WindowState;            // optional initial state
 };
 
-type WindowGeometrySource =
-    | 'explicit'    // caller passed at least one of {x,y,width,height,initialState}
-    | 'restored'    // values came from the per-baseId localStorage geometry store
-    | 'default';    // cascade + desktopRect defaults
-
 type WindowGeometryContext = {
-    windowId:    string;            // unique per-instance id (multi-window windows differ)
-    baseId:      string;            // registry id — stable across instances
-    source:      WindowGeometrySource;
-    desktopRect: { width: number; height: number };
+    windowId:         string;        // unique per-instance id (multi-window windows differ)
+    baseId:           string;        // registry id — stable across instances
+    hasSavedGeometry: boolean;       // user previously dragged/resized — respect their layout
+    callerPinned:     boolean;       // caller passed at least one explicit dim (native windows: usually true)
+    desktopRect:      { width: number; height: number };
 };
 
 // Filter shape
 ( geometry: ResolvedWindowGeometry, ctx: WindowGeometryContext )
     => ResolvedWindowGeometry
 ```
+
+**About the booleans.** `hasSavedGeometry` and `callerPinned` carry the only two distinctions a filter actually needs:
+
+- **`hasSavedGeometry: true`** — the user previously dragged or resized this window and the values you're being handed are the restored layout. Bail in this case to respect the user's choice. (`hasSavedGeometry` is the most common guard plugins want.)
+- **`callerPinned: true`** — the caller of `manager.open()` passed at least one explicit dimension. For **native windows** this is usually `true` (the framework's native-window opener passes the registry's declared `width`/`height` defaults); for **iframe admin pages opened from the dock** this is usually `false`. The filter is free to override registry-declared defaults — `callerPinned: true` does NOT mean "leave the window alone."
 
 **Guarantees:**
 

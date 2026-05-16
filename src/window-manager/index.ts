@@ -73,17 +73,6 @@ const BASE_Z_INDEX = 100;
 const CASCADE_OFFSET = 30;
 
 /**
- * Where the resolved geometry handed to {@link HOOKS.WINDOW_GEOMETRY}
- * came from. Filter consumers branch on this to scope their override
- * to fresh opens (`'default'`) vs caller-pinned dimensions (`'explicit'`)
- * vs the saved per-baseId `localStorage` store (`'restored'`).
- *
- * @public
- * @since 0.25.0
- */
-export type WindowGeometrySource = 'explicit' | 'restored' | 'default';
-
-/**
  * Geometry resolved by `WindowManager.createWindow()` and passed
  * through {@link HOOKS.WINDOW_GEOMETRY}. Returned (possibly mutated)
  * by the filter and then re-clamped to `minWidth`/`minHeight` before
@@ -115,13 +104,29 @@ export interface ResolvedWindowGeometry {
  * carries the live desktop area dimensions so a filter can compute
  * "bottom-right corner" without touching the DOM.
  *
+ * The two booleans capture the only useful distinctions a filter
+ * actually cares about:
+ *
+ *   - `hasSavedGeometry`: the user previously dragged/resized this
+ *     window and we just restored that layout. Plugins that want to
+ *     "leave the user's layout alone" should bail when this is true.
+ *   - `callerPinned`: the caller of `manager.open()` passed at least
+ *     one of `{ x, y, width, height, initialState }` explicitly. For
+ *     native windows registered via `desktop_mode_register_window()`
+ *     this is usually `true` (the framework's native-window opener
+ *     passes the registry's declared dimensions); for admin-page
+ *     iframe windows opened from the dock this is usually `false`.
+ *     The filter is free to override registry-declared defaults —
+ *     `callerPinned: true` does not mean "leave it alone."
+ *
  * @public
  * @since 0.25.0
  */
 export interface WindowGeometryContext {
 	windowId: string;
 	baseId: string;
-	source: WindowGeometrySource;
+	hasSavedGeometry: boolean;
+	callerPinned: boolean;
 	desktopRect: {
 		width: number;
 		height: number;
@@ -621,59 +626,89 @@ export class WindowManager {
 		const resolvedX = config.x ?? clampedSavedX ?? cascadeX;
 		const resolvedY = config.y ?? clampedSavedY ?? cascadeY;
 
-		// Classify where the resolved geometry came from so the
-		// `WINDOW_GEOMETRY` filter consumer can branch — e.g. "only
-		// override defaults for *my* fresh window, leave restored
-		// bounds alone." Caller-explicit ANY axis dominates; otherwise
-		// a saved geometry record bumps us into `'restored'`; the
-		// remaining cases are the cascade + desktopRect defaults.
+		// `WINDOW_GEOMETRY` filter context — two booleans that capture
+		// the only useful distinctions a filter actually cares about:
+		// did we just restore a user-saved layout, and did the caller
+		// pin any of the dimensions explicitly. See the
+		// `WindowGeometryContext` jsdoc above for plugin-author
+		// guidance.
 		const callerPinned =
 			hasExplicitWidth ||
 			hasExplicitHeight ||
 			hasExplicitX ||
 			hasExplicitY ||
 			hasExplicitState;
-		let source: WindowGeometrySource;
-		if ( callerPinned ) {
-			source = 'explicit';
-		} else if ( saved ) {
-			source = 'restored';
-		} else {
-			source = 'default';
+		const hasSavedGeometry = !! saved;
+
+		const preFilterGeometry: ResolvedWindowGeometry = {
+			x: resolvedX,
+			y: resolvedY,
+			width: resolvedWidth,
+			height: resolvedHeight,
+			state: resolvedState,
+		};
+		let filtered: ResolvedWindowGeometry;
+		try {
+			filtered = applyFilters<
+				ResolvedWindowGeometry,
+				[ WindowGeometryContext ]
+			>(
+				HOOKS.WINDOW_GEOMETRY,
+				preFilterGeometry,
+				{
+					windowId: config.id,
+					baseId: resolvedBaseId,
+					hasSavedGeometry,
+					callerPinned,
+					desktopRect: {
+						width: desktopRect.width,
+						height: desktopRect.height,
+					},
+				},
+			);
+		} catch ( err ) {
+			// A throwing filter must NOT bring down the window open.
+			// Fall back to the pre-filter geometry and surface the
+			// error on the shell-error channel so plugin authors find
+			// it in devtools.
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-geometry-filter',
+				windowId: config.id,
+				error: err,
+			} );
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[desktop-mode] WINDOW_GEOMETRY filter threw for "${ config.id }":`,
+					err,
+				);
+			}
+			filtered = preFilterGeometry;
 		}
 
-		const filtered = applyFilters<
-			ResolvedWindowGeometry,
-			[ WindowGeometryContext ]
-		>(
-			HOOKS.WINDOW_GEOMETRY,
-			{
-				x: resolvedX,
-				y: resolvedY,
-				width: resolvedWidth,
-				height: resolvedHeight,
-				state: resolvedState,
-			},
-			{
-				windowId: config.id,
-				baseId: resolvedBaseId,
-				source,
-				desktopRect: {
-					width: desktopRect.width,
-					height: desktopRect.height,
-				},
-			},
+		// Defensive coalesce — a careless filter can return a partial
+		// object, a non-finite number, or even something that isn't a
+		// geometry shape at all. Treat any field that isn't a finite
+		// number as "leave the resolved value alone." Re-clamp width
+		// and height to the registered minima — a buggy filter cannot
+		// ship a sub-minimum window. Position is NOT re-clamped:
+		// plugins sometimes deliberately place windows partially
+		// off-screen for stylistic reasons.
+		const coalesce = ( v: unknown, fallback: number ): number =>
+			typeof v === 'number' && Number.isFinite( v ) ? v : fallback;
+		const safeFiltered: ResolvedWindowGeometry =
+			filtered && typeof filtered === 'object' ? filtered : preFilterGeometry;
+		const finalWidth = Math.max(
+			coalesce( safeFiltered.width, resolvedWidth ),
+			minWidth,
 		);
-
-		// Re-clamp dimensions to the registered minima — a buggy
-		// filter cannot ship a sub-minimum window. Position is NOT
-		// re-clamped: plugins sometimes deliberately place windows
-		// partially off-screen for stylistic reasons.
-		const finalWidth = Math.max( filtered.width, minWidth );
-		const finalHeight = Math.max( filtered.height, minHeight );
-		const finalX = filtered.x;
-		const finalY = filtered.y;
-		const finalState = filtered.state;
+		const finalHeight = Math.max(
+			coalesce( safeFiltered.height, resolvedHeight ),
+			minHeight,
+		);
+		const finalX = coalesce( safeFiltered.x, resolvedX );
+		const finalY = coalesce( safeFiltered.y, resolvedY );
+		const finalState: WindowState | undefined =
+			safeFiltered.state ?? resolvedState;
 
 		const fullConfig: WindowConfig = {
 			icon: config.icon || 'dashicons-admin-generic',
