@@ -926,6 +926,23 @@ export class WindowManager {
 		const previouslyFocused =
 			this._stack.length > 0 ? this._stack[ this._stack.length - 1 ] : null;
 
+		// Exit immersive fullscreen ("focus mode") on the previously-
+		// focused window when focus is moving to a different window —
+		// whether it just opened, was activated, or restored from
+		// minimize. A fullscreen window pins itself above all chrome via
+		// `z-index: var(--desktop-mode-z-fullscreen)`, so without this,
+		// a newly-focused window would silently render behind it and
+		// the user would think nothing happened (repro: maximize
+		// Appearance → focus-mode → Theme Files Editor → functions.php
+		// opens a new window the user can't see).
+		if (
+			previouslyFocused &&
+			previouslyFocused !== win &&
+			previouslyFocused.isFullscreen()
+		) {
+			previouslyFocused.toggleFullscreen();
+		}
+
 		// Remove from current position and push to top.
 		const idx = this._stack.indexOf( win );
 		if ( idx > -1 ) {
