@@ -229,6 +229,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			}
 		}
 		folderDropDeregisters.clear();
+		for ( const [ , deregister ] of tileRejectDeregisters ) {
+			try {
+				deregister();
+			} catch {
+				// ignore
+			}
+		}
+		tileRejectDeregisters.clear();
 
 		// Pinned tiles (registered with `pinned: true` —
 		// `desktop_mode_register_icon`) anchor to a fixed slot and
@@ -303,6 +311,28 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				// opens the window normally.
 				attachContextMenu( tile, placement );
 				attachSelectOnClick( tile, placement );
+				// Pinned tiles (My WordPress today) are system
+				// shortcuts — never valid drop targets. Without an
+				// explicit reject claimant the hit-test walks past
+				// them to the canvas drop target → green "Drop here
+				// to move" chip on hover, misleading because the
+				// drop snaps elsewhere (the cell is in the visual-
+				// occupied set). The Recycle Bin is excluded — its
+				// own trash-accepting drop target registers from
+				// `recycle-bin-targets.ts` and the registry
+				// overwrites by element.
+				if ( shouldRejectTileDrops( placement ) ) {
+					const dragManager = getDragManager();
+					if ( dragManager ) {
+						const deregister = dragManager.registerDropTarget( {
+							id: `desktop-mode-files-tile-${ placement.id }-reject`,
+							element: tile,
+							accept: () => false,
+							onDrop: () => {},
+						} );
+						tileRejectDeregisters.set( placement.id, deregister );
+					}
+				}
 				container.appendChild( tile );
 				continue;
 			}
@@ -330,6 +360,36 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 						);
 						folderDropDeregisters.set( placement.id, deregister );
 					}
+				}
+			} else if ( shouldRejectTileDrops( placement ) ) {
+				// Non-folder shortcut tiles (My WordPress, dock
+				// promotions, plugin-registered icons that don't
+				// claim drops themselves) need an explicit reject
+				// claimant. Without one, the hit-test walks PAST
+				// the tile up to the canvas drop target, which
+				// accepts → the user sees the green "Drop here to
+				// move" chip even though the drop would land in
+				// the next free cell (because pinned/occupied
+				// tiles are in the visual-occupied set).
+				//
+				// The Recycle Bin is excluded — `recycle-bin-targets.ts`
+				// registers its OWN trash-accepting drop target on
+				// the bin tile, and the registry overwrites by
+				// element. Stamping a reject claimant here would
+				// hide the trash gesture.
+				const dragManager = getDragManager();
+				if ( dragManager ) {
+					const deregister = dragManager.registerDropTarget( {
+						id: `desktop-mode-files-tile-${ placement.id }-reject`,
+						element: tile,
+						accept: () => false,
+						onDrop: () => {
+							// Unreachable — `accept: false` short-
+							// circuits commit. Defined for the type
+							// contract.
+						},
+					} );
+					tileRejectDeregisters.set( placement.id, deregister );
 				}
 			}
 			container.appendChild( tile );
@@ -367,6 +427,15 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	// repaint can deregister stale entries before rebuilding the
 	// container's children.
 	const folderDropDeregisters: Map< number, () => void > = new Map();
+	// Per-tile REJECT claimants for non-folder, non-bin shortcut
+	// tiles. Without these, dragging onto e.g. the My WordPress tile
+	// walks past it to the canvas drop target → green "Drop here to
+	// move" chip, but the drop snaps to the next free cell (since
+	// pinned/occupied tiles are in the visual-occupied set). The
+	// chip text and the actual outcome disagreed. Claiming with
+	// `accept: false` paints the red "Can't drop here" chip
+	// + reject snap-back instead.
+	const tileRejectDeregisters: Map< number, () => void > = new Map();
 
 	// ── Live drop-cell preview ─────────────────────────────────────────
 	// A soft outline that hovers at the cell the drop will land in.
@@ -873,6 +942,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				}
 			}
 			folderDropDeregisters.clear();
+			for ( const deregister of tileRejectDeregisters.values() ) {
+				try {
+					deregister();
+				} catch {
+					// ignore
+				}
+			}
+			tileRejectDeregisters.clear();
 			host.removeEventListener( 'click', onCanvasClick );
 			selectionListeners.clear();
 			container.remove();
@@ -941,6 +1018,40 @@ function readSynthSource( placement: RestPlacementShape ): string | null {
  */
 function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
 	return placement.id <= 0 || readSynthSource( placement ) !== null;
+}
+
+/** Recycle-bin tile id; matched on the shortcut tile's `file.ref`. */
+const RECYCLE_BIN_REF = 'desktop-mode-recycle-bin';
+
+/**
+ * Whether a tile should claim drops with `accept: false` — i.e.
+ * surface the red "Can't drop here" chip when the user drags
+ * another tile over it.
+ *
+ * Folders are excluded because `registerFolderDropTarget` already
+ * claims them with `accept: true` for matching payloads. The
+ * Recycle Bin is excluded because `recycle-bin-targets.ts` claims
+ * it as a TRASH target (the registry overwrites by element, so
+ * adding a reject claimant on the bin tile would silently break
+ * trash-by-drop). Everything else — system shortcuts (My
+ * WordPress), dock-item promotions, plugin-registered icons,
+ * post / page references — gets the rejection.
+ *
+ * Plugins that register icons via `desktop_mode_register_icon` and
+ * WANT to accept drops can register their own drop target on the
+ * tile element from a `desktop-mode.files.tile-rendered` listener;
+ * the registry overwrites by element, so their target wins.
+ *
+ * @since 0.20.0
+ */
+function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
+	if ( placement.file?.type === 'folder' ) {
+		return false;
+	}
+	if ( placement.file?.ref === RECYCLE_BIN_REF ) {
+		return false;
+	}
+	return true;
 }
 
 /**

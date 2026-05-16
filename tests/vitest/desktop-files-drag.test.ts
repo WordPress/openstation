@@ -294,6 +294,111 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		handle.dispose();
 	} );
 
+	test( 'hovering a non-folder tile during a drag flips the chip to reject', async () => {
+		// Regression: dragging onto a non-folder, non-bin tile
+		// (My WordPress, dock-promotion, plugin-registered icon,
+		// post / page shortcut) used to leave the chip green —
+		// "Drop here to move." The drop would silently snap to the
+		// next free cell, never landing INTO the tile, so the green
+		// affordance lied. Fix: tile-level reject claimant with
+		// `accept: () => false` so the chip turns red on hover.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+		const manager = installManagerOnWindow();
+
+		// My WordPress as a pinned shortcut at slot (0, 0); Icon B
+		// as a regular post placement at (0, 2). We drag B onto
+		// My WordPress's tile.
+		const myWp = placement( 100, {
+			file: {
+				type: 'shortcut',
+				ref: 'desktop-mode-my-wordpress',
+				title: 'My WordPress',
+				icon: 'dashicons-wordpress',
+				previewUrl: '',
+				exists: true,
+				pinned: true,
+			},
+		} );
+		const iconB = placement( 200, { x: 16, y: 236 } );
+		store.setFolderPlacements( 0, [ myWp, iconB ] );
+
+		const host = document.createElement( 'div' );
+		Object.defineProperty( host, 'clientWidth', { value: 1024, configurable: true } );
+		Object.defineProperty( host, 'clientHeight', { value: 768, configurable: true } );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 0 );
+		const myWpTile = host.querySelector< HTMLElement >(
+			'[data-placement-id="100"]',
+		);
+		expect( myWpTile ).not.toBeNull();
+
+		// Verify the reject claimant is in the registry, keyed on the
+		// My WordPress tile element. Confirms the tile owns the
+		// drop-target slot, so a hit-test on the tile resolves to
+		// `accept: false` and the framework chip flips to "Can't
+		// drop here."
+		const target = manager
+			.debug()
+			.listTargets()
+			.find( ( t ) => t.id === 'desktop-mode-files-tile-100-reject' );
+		expect( target ).toBeDefined();
+		expect( target!.element ).toBe( myWpTile );
+		expect(
+			target!.accept( {
+				type: 'desktop-file',
+				source: host,
+				data: { placement: iconB, sourceFolderId: 0 },
+			} ),
+		).toBe( false );
+
+		handle.dispose();
+	} );
+
+	test( 'recycle-bin tile is NOT reject-claimed — its trash target survives', async () => {
+		// Mirror of the above for the bin exclusion. The bin tile is
+		// claimed by `recycle-bin-targets.ts` as a TRASH-accepting
+		// drop target — if `shouldRejectTileDrops` accidentally
+		// returned true for the bin, the layer's reject claimant
+		// would overwrite the bin's trash target (the registry keys
+		// by element).
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+		const manager = installManagerOnWindow();
+
+		const bin = placement( 99, {
+			file: {
+				type: 'shortcut',
+				ref: 'desktop-mode-recycle-bin',
+				title: 'Recycle Bin',
+				icon: 'dashicons-trash',
+				previewUrl: '',
+				exists: true,
+				pinned: true,
+			},
+		} );
+		store.setFolderPlacements( 0, [ bin ] );
+
+		const host = document.createElement( 'div' );
+		Object.defineProperty( host, 'clientWidth', { value: 1024, configurable: true } );
+		Object.defineProperty( host, 'clientHeight', { value: 768, configurable: true } );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 0 );
+
+		// The layer-level reject claimant must NOT exist for the bin.
+		const rejected = manager
+			.debug()
+			.listTargets()
+			.find( ( t ) => t.id === 'desktop-mode-files-tile-99-reject' );
+		expect( rejected ).toBeUndefined();
+
+		handle.dispose();
+	} );
+
 	test( 'drop into a column with a pinned tile (My WordPress) skips the pinned cell', async () => {
 		// Regression: a column rendered as
 		//   My WordPress (pinned) | empty | Icon A | Icon B
