@@ -33,6 +33,10 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		// Make sure no test leaks an opt-in state into the next.
 		remove_all_filters( 'desktop_mode_plugins_window_user_can_register' );
 		remove_all_filters( 'desktop_mode_plugins_window_user_can_use' );
+		remove_all_filters( 'desktop_mode_plugins_window_auto_updates_enabled' );
+		remove_all_filters( 'desktop_mode_plugins_window_refresh_updates' );
+		remove_all_filters( 'desktop_mode_plugins_window_icon_url' );
+		remove_all_filters( 'auto_update_plugin' );
 		parent::tear_down();
 	}
 

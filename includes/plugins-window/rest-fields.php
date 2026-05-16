@@ -24,9 +24,10 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the four enrichment fields on the `plugin` REST resource.
+ * Register the five enrichment fields on the `plugin` REST resource.
  *
  * @since 0.9.0
+ * @since 0.21.0 Added `desktop_mode_auto_update`.
  */
 function desktop_mode_plugins_window_register_rest_fields() {
 	register_rest_field(
