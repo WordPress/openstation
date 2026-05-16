@@ -2946,12 +2946,16 @@ wp.desktop.hooks.addFilter(
 **Signature:**
 
 ```ts
+type WindowState =
+    | 'normal' | 'maximized' | 'minimized'
+    | 'fullscreen' | 'snapped-left' | 'snapped-right';
+
 type ResolvedWindowGeometry = {
     x: number;
     y: number;
     width: number;
     height: number;
-    state?: WindowState;            // optional initial state
+    state?: WindowState;            // optional initial state — e.g. force 'maximized' or 'snapped-left'
 };
 
 type WindowGeometryContext = {
@@ -2977,7 +2981,7 @@ type WindowGeometryContext = {
 - The shell re-clamps `width`/`height` to the window's registered `minWidth`/`minHeight` after the filter returns — a buggy filter cannot ship a sub-minimum window.
 - `x`/`y` are NOT re-clamped to the desktop rect; plugins sometimes deliberately place windows partially off-screen. The filter is responsible for its own viewport math when it cares.
 - The filter runs *every time the window opens*, not just at registration — so a deactivation/reactivation of a plugin re-runs its filter with fresh `desktopRect` numbers.
-- Companion of `desktop_mode_register_window`'s server-side `width` / `height` defaults; the filter sees those as the starting `geometry` value when `source === 'default'`.
+- Companion of `desktop_mode_register_window`'s server-side `width` / `height` defaults: the filter sees those defaults as the starting `geometry` value, and `ctx.callerPinned` is `true` for native windows because the framework's own opener passes them through as explicit `manager.open()` args. The filter is free to override anyway — `callerPinned` is signal, not veto.
 
 #### `DockItem` shape
 
