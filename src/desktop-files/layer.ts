@@ -1037,10 +1037,18 @@ const RECYCLE_BIN_REF = 'desktop-mode-recycle-bin';
  * WordPress), dock-item promotions, plugin-registered icons,
  * post / page references — gets the rejection.
  *
- * Plugins that register icons via `desktop_mode_register_icon` and
- * WANT to accept drops can register their own drop target on the
- * tile element from a `desktop-mode.files.tile-rendered` listener;
- * the registry overwrites by element, so their target wins.
+ * No plugin escape hatch yet. `desktop-mode.files.tile-rendered`
+ * fires from inside `buildTile` BEFORE the layer registers the
+ * reject claimant on the returned element. Since
+ * `registerDropTarget` overwrites by element and the reject
+ * claimant runs last, any plugin target installed during
+ * `tile-rendered` is immediately overwritten — the claimant wins,
+ * not the plugin. If a real plugin needs to accept drops on its
+ * own icon, the right fix is a new action fired AFTER the layer's
+ * registration (e.g. `desktop-mode.files.tile-drop-registered`)
+ * so plugins can install their own target last. Not adding that
+ * action speculatively — the feature is 0.20.0 / Experimental and
+ * no in-tree caller needs it today.
  *
  * @since 0.20.0
  */
