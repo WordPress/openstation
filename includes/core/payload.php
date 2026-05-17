@@ -166,9 +166,10 @@ function desktop_mode_build_dock_items() {
 			'url'       => $url,
 			'badge'     => $badge,
 			'submenu'   => $sub_items,
-			'multi'     => desktop_mode_dock_item_is_multi( $item[2] ),
-			'placement' => desktop_mode_dock_placement( $item[2] ),
-			'isCore'    => desktop_mode_is_core_menu_slug( $item[2] ),
+			'multi'      => desktop_mode_dock_item_is_multi( $item[2] ),
+			'placement'  => desktop_mode_dock_placement( $item[2] ),
+			'isCore'     => desktop_mode_is_core_menu_slug( $item[2] ),
+			'pluginFile' => desktop_mode_resolve_menu_plugin_file( $item[2] ),
 		);
 
 		/**
@@ -416,6 +417,138 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
 	);
 
 	return in_array( $base, $core_files, true );
+}
+
+/**
+ * Resolve the plugin file (e.g. `woocommerce/woocommerce.php`) that owns
+ * a given top-level admin menu slug, by reflecting on the callbacks
+ * registered for the menu's page hook.
+ *
+ * Returns the plugin's main file path (relative to `WP_PLUGIN_DIR`) when
+ * the menu was registered by a regular plugin, `null` otherwise. Core
+ * menus, mu-plugins, drop-ins, theme-registered menus, and Desktop Mode
+ * itself all return `null` — none of these are deactivatable through the
+ * `wp/v2/plugins` REST route, so the dock right-click menu should not
+ * offer a deactivate action for them.
+ *
+ * Resolution algorithm:
+ *
+ *   1. Skip core menu slugs outright — `plugins.php`, `edit.php?post_type=…`,
+ *      etc. are never owned by a deactivatable plugin.
+ *   2. Compute the page hookname via `get_plugin_page_hookname()` and read
+ *      `$wp_filter[ $hookname ]->callbacks`. This is the action list WP
+ *      walks to render the menu's body — the plugin's own render callback
+ *      lives here.
+ *   3. Reflect each callback to find its declaring file. Match the file
+ *      path against `WP_PLUGIN_DIR/<folder>/…` and use `<folder>` to look
+ *      up an entry in `get_plugins()`. Return the matching `<folder>/<file>.php`.
+ *   4. Exclude Desktop Mode itself — deactivating from inside the shell
+ *      is handled by the plugins-window's self-deactivate path.
+ *
+ * @since 0.27.0
+ *
+ * @param string $menu_slug The menu slug from `$menu[$i][2]` (e.g. `woocommerce`,
+ *                          `admin.php?page=jetpack`, `edit.php?post_type=foo`).
+ * @return string|null Plugin file path relative to `WP_PLUGIN_DIR`, or null
+ *                     when the slug isn't owned by a deactivatable plugin.
+ */
+function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
+	if ( desktop_mode_is_core_menu_slug( $menu_slug ) ) {
+		return null;
+	}
+
+	global $wp_filter;
+
+	if ( ! function_exists( 'get_plugin_page_hookname' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+	if ( ! function_exists( 'get_plugins' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+
+	$hookname = get_plugin_page_hookname( (string) $menu_slug, '' );
+	if ( empty( $hookname ) || empty( $wp_filter[ $hookname ] ) ) {
+		return null;
+	}
+
+	$plugins_dir   = wp_normalize_path( WP_PLUGIN_DIR );
+	$installed     = get_plugins();
+	$self_basename = defined( 'DESKTOP_MODE_FILE' ) ? plugin_basename( DESKTOP_MODE_FILE ) : '';
+
+	$hook = $wp_filter[ $hookname ];
+	// `WP_Hook::$callbacks` is keyed by priority; iterate in WP's order.
+	foreach ( $hook->callbacks as $cbs ) {
+		foreach ( $cbs as $cb ) {
+			$file = desktop_mode_callback_source_file( $cb['function'] ?? null );
+			if ( ! $file ) {
+				continue;
+			}
+			$file = wp_normalize_path( $file );
+			if ( 0 !== strpos( $file, $plugins_dir . '/' ) ) {
+				continue;
+			}
+
+			// Derive `<folder>` from `<plugins_dir>/<folder>/…`. Plugins
+			// can ship in a folder or as a single-file plugin at the
+			// plugin-dir root — handle both.
+			$rel = ltrim( substr( $file, strlen( $plugins_dir ) ), '/' );
+			$folder = ( false !== strpos( $rel, '/' ) ) ? strtok( $rel, '/' ) : '';
+
+			foreach ( $installed as $plugin_file => $_data ) {
+				$match = false;
+				if ( '' !== $folder && 0 === strpos( $plugin_file, $folder . '/' ) ) {
+					$match = true;
+				} elseif ( '' === $folder && $plugin_file === $rel ) {
+					$match = true;
+				}
+				if ( ! $match ) {
+					continue;
+				}
+				if ( $self_basename && $plugin_file === $self_basename ) {
+					return null;
+				}
+				return $plugin_file;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Resolve the declaring file of a hook callback. Handles closures,
+ * `[ $object, 'method' ]`, `[ 'Class', 'method' ]`, plain function names,
+ * and `'Class::method'` strings. Returns null when reflection fails or
+ * the callback shape isn't reflectable (rare — e.g. an invocable object
+ * whose `__invoke` lives in PHP core).
+ *
+ * @since 0.27.0
+ *
+ * @param mixed $callback A callback as stored in `WP_Hook::$callbacks[$prio][$id]['function']`.
+ * @return string|null Absolute filesystem path of the declaring file, or null.
+ */
+function desktop_mode_callback_source_file( $callback ) {
+	if ( empty( $callback ) ) {
+		return null;
+	}
+	try {
+		if ( is_string( $callback ) && false !== strpos( $callback, '::' ) ) {
+			list( $class, $method ) = explode( '::', $callback, 2 );
+			$ref = new ReflectionMethod( $class, $method );
+		} elseif ( is_array( $callback ) && isset( $callback[0], $callback[1] ) ) {
+			$ref = new ReflectionMethod( $callback[0], (string) $callback[1] );
+		} elseif ( is_object( $callback ) && ! ( $callback instanceof Closure ) && method_exists( $callback, '__invoke' ) ) {
+			$ref = new ReflectionMethod( $callback, '__invoke' );
+		} elseif ( is_callable( $callback ) ) {
+			$ref = new ReflectionFunction( $callback );
+		} else {
+			return null;
+		}
+		$file = $ref->getFileName();
+		return $file ? $file : null;
+	} catch ( ReflectionException $e ) {
+		return null;
+	}
 }
 
 /**

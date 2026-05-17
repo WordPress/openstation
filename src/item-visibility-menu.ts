@@ -22,9 +22,13 @@
  * @since 0.25.0
  */
 
-import { __ } from './i18n';
+import { __, sprintf } from './i18n';
 import { openWithShellOverlays } from './shell-overlays/loader';
 import { canonicalItemId } from './settings/item-placement';
+import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { trackedFetch } from './tracked-fetch';
+import { showToast } from './toast';
+import { joinRestUrl } from './rest-url';
 import type { ItemVisibility } from './settings/types';
 import type { OsSettingsSnapshot } from './settings/registry';
 
@@ -80,6 +84,15 @@ export interface OpenItemVisibilityMenuOpts {
 	title: string;
 	/** Which surface the user right-clicked on. */
 	surface: 'dock' | 'desktop';
+	/**
+	 * Plugin file (e.g. `woocommerce/woocommerce.php`) when the item is
+	 * owned by an active, deactivatable plugin. When non-null the menu
+	 * surfaces a "Deactivate <title>" action that calls
+	 * `PUT /wp/v2/plugins/<file>` with `{ status: 'inactive' }`.
+	 *
+	 * @since 0.27.0
+	 */
+	pluginFile?: string | null;
 }
 
 /**
@@ -120,13 +133,16 @@ function openItemVisibilityMenuImmediate(
 
 	const canonical = canonicalItemId( opts.id );
 
-	type MenuOption = {
-		id: string;
-		label: string;
-		icon?: string;
-		danger?: boolean;
-		onPick: () => void;
-	};
+	type MenuOption =
+		| {
+				kind?: 'option';
+				id: string;
+				label: string;
+				icon?: string;
+				danger?: boolean;
+				onPick: () => void;
+			}
+		| { kind: 'separator' };
 
 	const options: MenuOption[] = [];
 
@@ -175,6 +191,25 @@ function openItemVisibilityMenuImmediate(
 		},
 	} );
 
+	// When the tile is owned by an active, deactivatable plugin, surface
+	// a danger action at the bottom. `pluginFile` is `null` for core
+	// menus, mu-plugins, drop-ins, and Desktop Mode itself — see
+	// `desktop_mode_resolve_menu_plugin_file()`.
+	if ( opts.pluginFile ) {
+		const pluginFile = opts.pluginFile;
+		options.push( { kind: 'separator' } );
+		options.push( {
+			id: 'deactivate-plugin',
+			// translators: %s is the dock tile's display title.
+			label: sprintf( __( 'Deactivate %s…' ), opts.title ),
+			icon: 'dashicons-trash',
+			danger: true,
+			onPick: () => {
+				void confirmAndDeactivatePlugin( pluginFile, opts.title );
+			},
+		} );
+	}
+
 	const menu = document.createElement( 'wpd-context-menu' );
 	menu.setAttribute( 'open', '' );
 	menu.classList.add( 'desktop-mode-item-visibility-menu' );
@@ -186,8 +221,16 @@ function openItemVisibilityMenuImmediate(
 	menu.style.visibility = 'hidden';
 	menu.style.zIndex = '10000';
 
-	const byKey = new Map< string, MenuOption >();
+	type PickableOption = Exclude< MenuOption, { kind: 'separator' } >;
+	const byKey = new Map< string, PickableOption >();
 	for ( const opt of options ) {
+		if ( opt.kind === 'separator' ) {
+			const hr = document.createElement( 'hr' );
+			hr.style.cssText =
+				'border: 0; border-top: 1px solid rgba(255,255,255,0.12); margin: 4px 6px;';
+			menu.appendChild( hr );
+			continue;
+		}
 		byKey.set( opt.id, opt );
 		const node = document.createElement( 'wpd-context-menu-option' );
 		// `<wpd-context-menu-option>` emits `detail.id` from
@@ -285,4 +328,112 @@ function openItemVisibilityMenuImmediate(
 	};
 	document.addEventListener( 'mousedown', onOutside, true );
 	document.addEventListener( 'keydown', onKey, true );
+}
+
+/**
+ * Confirm + deactivate a plugin by file path. On success the dock
+ * auto-refreshes via the existing `desktop-mode-plugins-changed`
+ * postMessage path that the chromeless bridge fires when WP repaints
+ * the admin menu — but the user right-clicked from the shell, not
+ * from `plugins.php`, so we additionally call `wp.desktop.refreshMenu()`
+ * (when available) to trigger the hidden-iframe probe.
+ *
+ * @since 0.27.0
+ */
+async function confirmAndDeactivatePlugin(
+	pluginFile: string,
+	title: string,
+): Promise< void > {
+	const confirmed = await wpdConfirm( {
+		/* translators: %s: plugin title. */
+		title: sprintf( __( 'Deactivate %s?' ), title ),
+		message: __(
+			'This plugin will stop running on the site. You can re-activate it later from the Plugins screen.',
+		),
+		confirmLabel: __( 'Deactivate' ),
+		cancelLabel: __( 'Cancel' ),
+		danger: true,
+	} );
+	if ( ! confirmed ) {
+		return;
+	}
+
+	type ConfigShape = { restRoot?: string; restNonce?: string };
+	const cfg =
+		( window as unknown as { desktopModeConfig?: ConfigShape } )
+			.desktopModeConfig ?? {};
+	const restRoot =
+		typeof cfg.restRoot === 'string' && cfg.restRoot
+			? cfg.restRoot
+			: `${ window.location.origin }/wp-json/`;
+	const restNonce =
+		typeof cfg.restNonce === 'string' && cfg.restNonce ? cfg.restNonce : '';
+
+	// Core's REST route is registered with regex
+	// `(?P<plugin>[^.\/]+(?:\/[^.\/]+)?)` — segments may not contain
+	// dots, which means the `.php` extension on the plugin file MUST
+	// be stripped before it goes into the URL (Core's REST controller
+	// already returns the stripped form on read). And literal slashes
+	// must be preserved (Apache's `AllowEncodedSlashes Off` default
+	// rejects `%2F`), so we encode each segment individually and
+	// rejoin with `/`. Same pattern as the plugins-window's
+	// `encodePluginPath()`.
+	const stripped = pluginFile.endsWith( '.php' )
+		? pluginFile.slice( 0, -4 )
+		: pluginFile;
+	const encoded = stripped
+		.split( '/' )
+		.map( encodeURIComponent )
+		.join( '/' );
+	const url = joinRestUrl( restRoot, `wp/v2/plugins/${ encoded }` );
+
+	try {
+		const res = await trackedFetch(
+			url,
+			{
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': restNonce,
+				},
+				body: JSON.stringify( { status: 'inactive' } ),
+				credentials: 'same-origin',
+			},
+			{ source: 'desktop-mode/dock-deactivate-plugin' },
+		);
+		if ( ! res.ok ) {
+			throw new Error( `HTTP ${ res.status }` );
+		}
+	} catch ( err ) {
+		showToast( {
+			message: sprintf(
+				/* translators: %s: plugin title. */
+				__( 'Could not deactivate %s.' ),
+				title,
+			),
+			duration: 4000,
+		} );
+		// Surface for debugging — the activity-bus already logged the
+		// failed fetch through trackedFetch.
+		// eslint-disable-next-line no-console
+		console.error( '[desktop-mode] deactivate plugin failed', err );
+		return;
+	}
+
+	showToast( {
+		message: sprintf(
+			/* translators: %s: plugin title. */
+			__( '%s deactivated.' ),
+			title,
+		),
+		duration: 3000,
+	} );
+
+	// Ask the shell to repaint the dock from a fresh menu probe. The
+	// dock's own `desktop-mode-plugins-changed` listener will pick up
+	// the new $menu shape and remove the now-inactive plugin's tile.
+	const w = window as unknown as {
+		wp?: { desktop?: { refreshMenu?: () => void } };
+	};
+	w.wp?.desktop?.refreshMenu?.();
 }

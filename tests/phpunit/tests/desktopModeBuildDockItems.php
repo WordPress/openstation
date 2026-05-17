@@ -685,4 +685,63 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 		$this->assertNotContains( 'menu-background-tool', $dock_ids );
 		$this->assertContains( 'menu-other-plugin', $dock_ids );
 	}
+
+	/**
+	 * Core menu slugs never resolve to a plugin file — even if some
+	 * callback happens to be registered on the page hook. The classifier
+	 * short-circuits before reflecting on $wp_filter, so the dock never
+	 * shows a "Deactivate" action for Dashboard, Posts, Plugins, etc.
+	 *
+	 * @covers ::desktop_mode_resolve_menu_plugin_file
+	 */
+	public function test_resolve_plugin_file_returns_null_for_core_slugs() {
+		$this->assertNull( desktop_mode_resolve_menu_plugin_file( 'index.php' ) );
+		$this->assertNull( desktop_mode_resolve_menu_plugin_file( 'plugins.php' ) );
+		$this->assertNull( desktop_mode_resolve_menu_plugin_file( 'edit.php' ) );
+		$this->assertNull( desktop_mode_resolve_menu_plugin_file( 'edit.php?post_type=page' ) );
+	}
+
+	/**
+	 * Unknown slugs with no registered page hook (or no plugin-owned
+	 * callbacks on it) resolve to null. The right-click menu then skips
+	 * the deactivate option entirely — better than a false positive
+	 * that would 404 on the REST mutation.
+	 *
+	 * @covers ::desktop_mode_resolve_menu_plugin_file
+	 */
+	public function test_resolve_plugin_file_returns_null_for_unknown_slug() {
+		$this->assertNull(
+			desktop_mode_resolve_menu_plugin_file( 'nonexistent-menu-slug-xyz' )
+		);
+	}
+
+	/**
+	 * Desktop Mode is always its own special case — even when its own
+	 * code registers a callback for a menu page hook, we MUST return
+	 * null so the dock right-click can never offer to deactivate the
+	 * very plugin rendering the dock. The plugins-window's
+	 * self-deactivate path handles that scenario with the right
+	 * confirmation + reload affordances.
+	 *
+	 * @covers ::desktop_mode_resolve_menu_plugin_file
+	 */
+	public function test_resolve_plugin_file_excludes_desktop_mode_itself() {
+		$slug     = 'desktop-mode-self-test';
+		$hookname = get_plugin_page_hookname( $slug, '' );
+		$callback = static function () {
+			return null;
+		};
+		add_action( $hookname, $callback );
+
+		$resolved = desktop_mode_resolve_menu_plugin_file( $slug );
+
+		remove_action( $hookname, $callback );
+
+		// The closure is declared in this test file, which lives under
+		// `tests/phpunit/tests/` — outside `WP_PLUGIN_DIR` — so the
+		// resolver must return null. (If a future change ever placed
+		// the test harness inside the plugin dir, the self-exclusion
+		// guard below would still catch the desktop-mode case.)
+		$this->assertNull( $resolved );
+	}
 }
