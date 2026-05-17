@@ -541,17 +541,6 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
 }
 
 /**
- * Map an arbitrary filesystem path inside `WP_PLUGIN_DIR` to the
- * corresponding plugin file in `get_plugins()`. Returns null when the
- * path isn't under the plugins directory, or doesn't match any active
- * plugin folder.
- *
- * @since 0.27.0
- *
- * @param string $file Absolute filesystem path.
- * @return string|null Plugin file (`<folder>/<file>.php`) or null.
- */
-/**
  * Look up the human-readable display name for a plugin file. Returns
  * the plugin folder name as a last-resort fallback if `get_plugins()`
  * has no entry (extremely rare — would mean the plugin file isn't
@@ -574,6 +563,17 @@ function desktop_mode_plugin_display_name( $plugin_file ) {
 	return $folder ? $folder : $plugin_file;
 }
 
+/**
+ * Map an arbitrary filesystem path inside `WP_PLUGIN_DIR` to the
+ * corresponding plugin file in `get_plugins()`. Returns null when the
+ * path isn't under the plugins directory, or doesn't match any active
+ * plugin folder.
+ *
+ * @since 0.27.0
+ *
+ * @param string $file Absolute filesystem path.
+ * @return string|null Plugin file (`<folder>/<file>.php`) or null.
+ */
 function desktop_mode_plugin_file_for_path( $file ) {
 	if ( ! is_string( $file ) || '' === $file ) {
 		return null;

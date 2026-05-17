@@ -739,10 +739,10 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_plugin_file_for_path
 	 */
 	public function test_resolve_plugin_file_returns_plugin_basename_when_callback_lives_in_plugin_dir() {
-		$fake_folder = 'dm-positive-resolver-fixture';
-		$fake_dir    = WP_PLUGIN_DIR . '/' . $fake_folder;
+		$fake_folder   = 'dm-positive-resolver-fixture';
+		$fake_dir      = WP_PLUGIN_DIR . '/' . $fake_folder;
 		$fake_basename = $fake_folder . '/' . $fake_folder . '.php';
-		$fake_file   = WP_PLUGIN_DIR . '/' . $fake_basename;
+		$fake_file     = WP_PLUGIN_DIR . '/' . $fake_basename;
 
 		if ( ! is_dir( $fake_dir ) ) {
 			mkdir( $fake_dir, 0755, true );
@@ -775,37 +775,71 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 		$hookname = get_plugin_page_hookname( $slug, '' );
 		add_action( $hookname, 'dm_positive_resolver_fixture_render' );
 
-		$resolved = desktop_mode_resolve_menu_plugin_file( $slug );
-
-		remove_action( $hookname, 'dm_positive_resolver_fixture_render' );
-		remove_filter( 'all_plugins', $inject );
-		wp_cache_delete( 'plugins', 'plugins' );
-		// Best-effort cleanup; harmless if the file is already gone.
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
-		@unlink( $fake_file );
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.rmdir_rmdir
-		@rmdir( $fake_dir );
-
-		$this->assertSame( $fake_basename, $resolved );
+		// `try`/`finally` so an assertion failure can't leave the
+		// fixture directory + plugin-cache override behind for the
+		// next test run. Without this, `get_plugins()` would
+		// permanently pick up `dm-positive-resolver-fixture` as an
+		// installed plugin on subsequent runs.
+		try {
+			$resolved = desktop_mode_resolve_menu_plugin_file( $slug );
+			$this->assertSame( $fake_basename, $resolved );
+		} finally {
+			remove_action( $hookname, 'dm_positive_resolver_fixture_render' );
+			remove_filter( 'all_plugins', $inject );
+			wp_cache_delete( 'plugins', 'plugins' );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+			@unlink( $fake_file );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.rmdir_rmdir
+			@rmdir( $fake_dir );
+		}
 	}
 
+	/**
+	 * The self-exclusion guard fires when the page-hook reflection
+	 * lands on a callback that lives inside Desktop Mode's own folder
+	 * — the dock right-click should never offer the "Deactivate
+	 * Desktop Mode" action (that's the plugins-window's
+	 * self-deactivate path's job, which knows how to handle the
+	 * shell-shutdown side effects).
+	 *
+	 * To exercise the guard specifically (not the "no callback in
+	 * WP_PLUGIN_DIR" early return), we register a real Desktop Mode
+	 * function — `desktop_mode_is_pure_core_file()` — as the callback
+	 * on a fake page hook. Reflection on that function returns a
+	 * filename inside `WP_PLUGIN_DIR/desktop-mode/…`, so the resolver
+	 * walks through the page-hook reflection branch, matches the
+	 * desktop-mode plugin file, then hits the `$self_basename` guard
+	 * and returns null.
+	 *
+	 * @covers ::desktop_mode_resolve_menu_plugin_file
+	 */
 	public function test_resolve_plugin_file_excludes_desktop_mode_itself() {
-		$slug     = 'desktop-mode-self-test';
+		$slug     = 'desktop-mode-self-exclusion-test';
 		$hookname = get_plugin_page_hookname( $slug, '' );
-		$callback = static function () {
-			return null;
-		};
-		add_action( $hookname, $callback );
 
-		$resolved = desktop_mode_resolve_menu_plugin_file( $slug );
+		// Sanity-check the precondition the test depends on. If this
+		// fails, the test is exercising the wrong branch and should be
+		// re-thought rather than silently regress to the old "outside
+		// WP_PLUGIN_DIR" path.
+		$callback_file = ( new ReflectionFunction( 'desktop_mode_is_pure_core_file' ) )
+			->getFileName();
+		$this->assertNotFalse(
+			$callback_file,
+			'Cannot reflect on desktop_mode_is_pure_core_file — test cannot exercise self-exclusion.'
+		);
+		$this->assertStringStartsWith(
+			wp_normalize_path( WP_PLUGIN_DIR ) . '/',
+			wp_normalize_path( $callback_file ),
+			'Desktop Mode must live under WP_PLUGIN_DIR for the self-exclusion branch to trigger.'
+		);
 
-		remove_action( $hookname, $callback );
+		add_action( $hookname, 'desktop_mode_is_pure_core_file' );
+		try {
+			$resolved = desktop_mode_resolve_menu_plugin_file( $slug );
+		} finally {
+			remove_action( $hookname, 'desktop_mode_is_pure_core_file' );
+		}
 
-		// The closure is declared in this test file, which lives under
-		// `tests/phpunit/tests/` — outside `WP_PLUGIN_DIR` — so the
-		// resolver must return null. (If a future change ever placed
-		// the test harness inside the plugin dir, the self-exclusion
-		// guard below would still catch the desktop-mode case.)
 		$this->assertNull( $resolved );
 	}
 }
