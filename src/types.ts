@@ -1770,13 +1770,11 @@ export interface DesktopConfig {
 	 * surface that catches files dragged in from the user's
 	 * native OS (Finder, Explorer, Nautilus). Server-side
 	 * filterable via `desktop_mode_drop_allowed_mimes` /
-	 * `desktop_mode_drop_max_size`.
+	 * `desktop_mode_drop_max_size`. See
+	 * {@link import('./os-file-drop/types').DropConfig} for the
+	 * single source of truth on the shape.
 	 *
 	 * @since 0.30.0
-	 */
-	/**
-	 * @see {@link import('./os-file-drop/types').DropConfig}
-	 *      — single source of truth for the shape.
 	 */
 	dropConfig?: import( './os-file-drop/types' ).DropConfig;
 	/** REST endpoint for saving the default-window preference. */

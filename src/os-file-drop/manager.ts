@@ -36,6 +36,7 @@ import { applyFilters, doAction } from '../hooks';
 import { showToast } from '../toast';
 import { FILE_DROP_HOOKS } from './hooks';
 import type {
+	DropConfig,
 	DropContext,
 	DropFileEntry,
 	DropRejection,
@@ -117,8 +118,6 @@ function resolveWindowIdFromSource(
 	}
 	return undefined;
 }
-
-import type { DropConfig } from './types';
 
 interface MountOptions {
 	config: DropConfig;

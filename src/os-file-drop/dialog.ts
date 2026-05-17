@@ -178,7 +178,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			modal.remove();
 			resolve();
 		} );
-		modal.addEventListener( 'remove', () => resolve(), { once: true } );
 		// Resolve when the modal leaves the DOM.
 		const observer = new MutationObserver( () => {
 			if ( ! modal.isConnected ) {
