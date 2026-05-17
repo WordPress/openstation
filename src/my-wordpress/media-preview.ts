@@ -282,7 +282,13 @@ export function resolvePreviewActions(
 				return false;
 			}
 		}
-		if ( a.mime && ctx.mime ) {
+		if ( a.mime ) {
+			// MIME-scoped descriptor: fail closed on the
+			// non-media-context call site so a `^image/` action
+			// doesn't leak into a Posts preview pane.
+			if ( ! ctx.mime ) {
+				return false;
+			}
 			try {
 				const re = new RegExp( a.mime );
 				if ( ! re.test( ctx.mime ) ) {

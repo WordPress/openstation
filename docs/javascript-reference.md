@@ -4118,6 +4118,33 @@ wp.hooks.addAction(
 );
 ```
 
+### Filter — `desktop-mode.my-wordpress.tile-context-menu`
+
+Decorate the per-tile right-click menu. Same descriptor shape as
+the preview-actions row; plugin entries must carry an `onSelect`
+handler (built-ins are dispatched by the bundle's static switch).
+
+```ts
+wp.hooks.addFilter(
+    'desktop-mode.my-wordpress.tile-context-menu',
+    'my-plugin/duplicate',
+    ( options, ctx ) => {
+        options.push( {
+            id: 'my-plugin/duplicate',
+            label: 'Duplicate',
+            icon: 'dashicons-admin-page',
+            onSelect: () => duplicatePost( ctx.item.id ),
+        } );
+        return options;
+    },
+);
+```
+
+Context: `{ entityId, kind, item }`. Currently wired on the post /
+page tile menu; user and media tile menus will subscribe to the
+same hook in a follow-up — write the filter as if the hook fires
+for every section.
+
 ### Filter — `desktop-mode.my-wordpress.status-bar` (existing)
 
 Already documented above — unchanged.

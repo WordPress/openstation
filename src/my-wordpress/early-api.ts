@@ -15,9 +15,21 @@
  * @since 0.21.0
  */
 
+/**
+ * Per-call mutable slot the stub closes over. Until the lazy bundle
+ * mounts, `unregister` is `null` and the stub-returned unregister
+ * splices from `__pendingKinds`. After drain, the lazy bundle fills
+ * `unregister` with the real registry closure, and any cached
+ * stub-unregister forwards through it.
+ */
+export interface PendingKindSlot {
+	unregister: ( () => void ) | null;
+}
+
 export interface PendingKindRegistration {
 	kind: string;
 	renderer: ( ...args: unknown[] ) => void;
+	slot: PendingKindSlot;
 }
 
 interface MyWordpressEarlyStub {
@@ -66,11 +78,19 @@ export function installMyWordpressEarlyStub(): void {
 	const queue: PendingKindRegistration[] = [];
 	const stub: MyWordpressEarlyStub = {
 		registerEntityKind: ( kind, renderer ) => {
-			queue.push( { kind, renderer } );
+			const slot: PendingKindSlot = { unregister: null };
+			const entry: PendingKindRegistration = { kind, renderer, slot };
+			queue.push( entry );
 			return () => {
-				const i = queue.findIndex(
-					( e ) => e.kind === kind && e.renderer === renderer,
-				);
+				// After drain — forward to the real registry closure.
+				if ( slot.unregister ) {
+					slot.unregister();
+					slot.unregister = null;
+					return;
+				}
+				// Before drain — pull the entry out of the queue so
+				// the lazy bundle never sees it.
+				const i = queue.indexOf( entry );
 				if ( i !== -1 ) {
 					queue.splice( i, 1 );
 				}

@@ -3228,22 +3228,61 @@ function openTileMenu(
 		menu.appendChild( opt );
 	};
 
-	addOption(
-		'open',
-		__( 'Open in editor', 'desktop-mode' ),
-		'dashicons-edit',
+	interface TileMenuOption {
+		id: string;
+		label: string;
+		icon: string;
+		danger?: boolean;
+		/**
+		 * Plugin-supplied click handler. Built-ins set this to null
+		 * so the static `wpd-context-menu-pick` switch below routes
+		 * them — keeps the existing semantics.
+		 */
+		onSelect?: ( () => void ) | null;
+	}
+
+	const baseOptions: TileMenuOption[] = [
+		{
+			id: 'open',
+			label: __( 'Open in editor', 'desktop-mode' ),
+			icon: 'dashicons-edit',
+		},
+		{
+			id: 'navigate-into',
+			label: __( 'Navigate into', 'desktop-mode' ),
+			icon: 'dashicons-category',
+		},
+		{
+			id: 'trash',
+			label: __( 'Move to Trash', 'desktop-mode' ),
+			icon: 'dashicons-trash',
+			danger: true,
+		},
+	];
+
+	/**
+	 * Let plugins add / remove / reorder context-menu entries
+	 * uniformly across every section. Plugin-added entries must
+	 * supply an `onSelect` handler (built-ins are dispatched by
+	 * the static switch below).
+	 */
+	const ctxFilter = {
+		entityId: entity.id,
+		kind: entity.kind ?? 'post',
+		item: item as unknown as Record< string, unknown >,
+	};
+	const options = applyFilters<
+		TileMenuOption[],
+		[ typeof ctxFilter ]
+	>(
+		'desktop-mode.my-wordpress.tile-context-menu',
+		baseOptions,
+		ctxFilter,
 	);
-	addOption(
-		'navigate-into',
-		__( 'Navigate into', 'desktop-mode' ),
-		'dashicons-category',
-	);
-	addOption(
-		'trash',
-		__( 'Move to Trash', 'desktop-mode' ),
-		'dashicons-trash',
-		true,
-	);
+	const finalOptions = Array.isArray( options ) ? options : baseOptions;
+	for ( const o of finalOptions ) {
+		addOption( o.id, o.label, o.icon, o.danger );
+	}
 
 	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
@@ -3263,6 +3302,20 @@ function openTileMenu(
 		}
 		if ( detail.id === 'trash' ) {
 			void confirmTrash( state, ctx, entity, item.id, title );
+			return;
+		}
+		// Plugin-supplied entry — dispatch its `onSelect`.
+		const match = finalOptions.find( ( o ) => o.id === detail.id );
+		if ( match && typeof match.onSelect === 'function' ) {
+			try {
+				match.onSelect();
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					`[my-wordpress] tile-context-menu '${ detail.id }' onSelect threw:`,
+					err,
+				);
+			}
 		}
 	} );
 
@@ -5645,9 +5698,19 @@ interface MyWordpressApi {
 	registerEntityKind: ( kind: string, renderer: EntityRenderer ) => () => void;
 }
 
+interface PendingEntry {
+	kind: string;
+	renderer: EntityRenderer;
+	slot: { unregister: ( () => void ) | null };
+}
+
 const desktopGlobal = (
 	window.wp as
-		| { desktop?: Record< string, unknown > & { myWordpress?: MyWordpressApi & { __pendingKinds?: Array< { kind: string; renderer: EntityRenderer } > } } }
+		| { desktop?: Record< string, unknown > & {
+				myWordpress?: MyWordpressApi & {
+					__pendingKinds?: PendingEntry[];
+				};
+			} }
 		| undefined
 )?.desktop;
 if ( desktopGlobal ) {
@@ -5655,12 +5718,17 @@ if ( desktopGlobal ) {
 	// `src/my-wordpress/early-api.ts` (which ships in the main
 	// `desktop.min.js` bundle). Lets plugin scripts that load
 	// before this lazy bundle register kinds without timing
-	// guards.
+	// guards. We write the real `unregister` closure back into
+	// each queued entry's `slot` so any stub-unregister that the
+	// plugin already cached still works after the swap.
 	const pending = desktopGlobal.myWordpress?.__pendingKinds;
 	if ( Array.isArray( pending ) ) {
 		for ( const entry of pending ) {
 			try {
-				registerEntityKind( entry.kind, entry.renderer );
+				entry.slot.unregister = registerEntityKind(
+					entry.kind,
+					entry.renderer,
+				);
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
 				console.error(

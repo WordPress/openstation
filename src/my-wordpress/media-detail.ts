@@ -30,24 +30,23 @@ import { getConfig } from './rest';
 import { getDragManager } from './dom-utils';
 
 /**
- * Resolve a row's `postType` to a My WordPress entity id.
+ * Resolve a row's `postType` to the matching My WordPress entity.
  *
  * Strategy:
  *   1. Find an entity whose `restPath` ends in the post type slug
  *      (e.g. `wp/v2/product` for WooCommerce's `product` CPT).
- *      That's the most reliable match — restPath is what the
- *      detail-view fetcher uses.
- *   2. Fall back to the built-in `'posts'` / `'pages'` ids when
- *      no custom entity is registered.
- *   3. Last resort: `'posts'`, knowing the detail-view fetch will
- *      404 if the CPT isn't reachable under `wp/v2/posts`. That's
- *      better than silently ignoring the click — the empty pane
- *      makes the gap visible.
+ *      restPath is what the detail-view fetcher uses, so this is
+ *      the most reliable match.
+ *   2. Returns `undefined` when no entity is registered — caller
+ *      decides on a fallback (id, icon, etc.).
  */
-function entityIdForPostType( postType: string ): string {
-	const entities = getConfig().entities;
+function entityForPostType( postType: string ) {
 	const suffix = '/' + postType;
-	const match = entities.find( ( e ) => e.restPath.endsWith( suffix ) );
+	return getConfig().entities.find( ( e ) => e.restPath.endsWith( suffix ) );
+}
+
+function entityIdForPostType( postType: string ): string {
+	const match = entityForPostType( postType );
 	if ( match ) {
 		return match.id;
 	}
@@ -55,6 +54,17 @@ function entityIdForPostType( postType: string ): string {
 		return 'pages';
 	}
 	return 'posts';
+}
+
+function entityIconForPostType( postType: string ): string {
+	const match = entityForPostType( postType );
+	if ( match ) {
+		return match.icon;
+	}
+	if ( postType === 'page' ) {
+		return 'dashicons-admin-page';
+	}
+	return 'dashicons-admin-post';
 }
 
 function openDetailInWindow( payload: {
@@ -148,10 +158,7 @@ function buildUsageRow( row: MediaUsage[ 'usedIn' ][ number ] ): HTMLElement {
 	iconWrap.className = 'desktop-mode-my-wordpress__usage-icon';
 	iconWrap.setAttribute( 'aria-hidden', 'true' );
 	const icon = document.createElement( 'span' );
-	icon.className =
-		row.postType === 'page'
-			? 'dashicons dashicons-admin-page'
-			: 'dashicons dashicons-admin-post';
+	icon.className = `dashicons ${ entityIconForPostType( row.postType ) }`;
 	iconWrap.appendChild( icon );
 	tile.appendChild( iconWrap );
 
@@ -247,6 +254,9 @@ export async function renderMediaDetail(
 	try {
 		usage = await fetchMediaUsage( mediaId );
 	} catch ( err ) {
+		if ( ! wrap.isConnected ) {
+			return;
+		}
 		left.replaceChildren();
 		const errBox = document.createElement( 'div' );
 		errBox.className = 'desktop-mode-my-wordpress__error';
@@ -255,6 +265,17 @@ export async function renderMediaDetail(
 				? err.message
 				: __( 'Failed to load usage data.', 'desktop-mode' );
 		left.appendChild( errBox );
+		return;
+	}
+
+	// Guard against the user navigating away while the fetch was
+	// in flight. `navigate()` calls `state.body.replaceChildren()`
+	// which detaches `wrap`; the status bar lives in a sibling
+	// region and would otherwise be overwritten by stale data
+	// from this resolved promise. The `host.route` snapshot
+	// captured in `makeRenderHost()` is FROZEN at dispatch time —
+	// we can't trust it to reflect the live route.
+	if ( ! wrap.isConnected ) {
 		return;
 	}
 
