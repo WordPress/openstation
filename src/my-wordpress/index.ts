@@ -468,15 +468,16 @@ function updateBreadcrumbs( state: RenderState ): void {
 
 	renderBreadcrumbs( state.breadcrumbs, segments, {
 		onBack: () => {
-			if ( state.route.kind === 'root' ) {
-				return;
-			}
 			// Prefer history (navigation back) over hierarchy
 			// (parent folder) so cross-tree jumps unwind in the
-			// order the user made them. Fall back to the parent
-			// route when there's no history — e.g. the consumer
-			// opened the window straight into a detail view via
-			// `wp.desktop.myWordpress.openDetail`.
+			// order the user made them. The breadcrumb "My
+			// WordPress" jump lands at root WITH history non-empty
+			// — we mustn't early-return on `route.kind === 'root'`
+			// or that lands as a visually-enabled-but-no-op back
+			// button. `backDisabled` below gates the empty-history-
+			// at-root case, and the parent-route fallback collapses
+			// to a same-route no-op (routesEqual short-circuits
+			// the history push).
 			const previous = state.history.pop();
 			if ( previous ) {
 				navigate( state, previous, { fromBack: true } );
