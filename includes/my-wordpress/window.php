@@ -89,6 +89,13 @@ function desktop_mode_my_wordpress_entities() {
 			'restPath' => 'wp/v2/users',
 			'kind'     => 'user',
 		),
+		array(
+			'id'       => 'media',
+			'label'    => __( 'Media', 'desktop-mode' ),
+			'icon'     => 'dashicons-admin-media',
+			'restPath' => 'wp/v2/media',
+			'kind'     => 'media',
+		),
 	);
 
 	/**
@@ -178,6 +185,10 @@ function desktop_mode_my_wordpress_register_window() {
 			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'entities'        => desktop_mode_my_wordpress_entities(),
 			'perPage'         => 24,
+			'mediaPerPage'    => 48,
+			'previewActions'  => function_exists( 'desktop_mode_my_wordpress_collect_preview_actions' )
+				? desktop_mode_my_wordpress_collect_preview_actions()
+				: array(),
 		),
 	);
 

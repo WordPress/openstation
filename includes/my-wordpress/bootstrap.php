@@ -21,3 +21,5 @@ require_once __DIR__ . '/user-list-fields.php';
 require_once __DIR__ . '/user-footprint.php';
 require_once __DIR__ . '/term-stats.php';
 require_once __DIR__ . '/comment-stats.php';
+require_once __DIR__ . '/media-usage.php';
+require_once __DIR__ . '/preview-actions.php';

@@ -4022,6 +4022,115 @@ Backed by `wp.desktop.createSharedStore( 'desktop-mode/plugins-window/tab-target
 
 ---
 
+## My WordPress — extensibility surface (Experimental, since 0.21.0)
+
+The native window registered under id `desktop-mode-my-wordpress`
+exposes three JS hook points and a small public API. Every section
+(Posts, Pages, Users, Media, plugin-defined kinds) uses the same
+hooks, so a single plugin descriptor can decorate any preview pane.
+
+### Public API — `wp.desktop.myWordpress`
+
+```ts
+interface MyWordpressApi {
+    /**
+     * Open the post-detail dossier for a given post id. Idempotent
+     * — opens the window first if it isn't already.
+     */
+    openDetail( args: { entityId: string; postId: number; postTitle: string } ): void;
+
+    /**
+     * Open the Media drill-in ("used in") view for an attachment.
+     * Mirror of `openDetail`.
+     *
+     * @since 0.21.0
+     */
+    openMedia( args: { mediaId: number; mediaTitle?: string } ): void;
+
+    /**
+     * Register a renderer for a custom entity kind so a plugin
+     * can ship its own section type without patching the bundle.
+     * Pair with a PHP entry in `desktop_mode_my_wordpress_entities`
+     * carrying the same `kind` slug.
+     *
+     * Returns an unregister function.
+     *
+     * @since 0.21.0
+     */
+    registerEntityKind(
+        kind: string,
+        renderer: ( host: EntityRenderHost, entity: MyWordPressEntity ) => void,
+    ): () => void;
+}
+```
+
+`EntityRenderHost` surfaces just enough state to paint and navigate:
+
+```ts
+interface EntityRenderHost {
+    body: HTMLElement;
+    route: Route;
+    navigate( route: Route ): void;
+    addTeardown( fn: () => void ): void;
+}
+```
+
+### Filter — `desktop-mode.my-wordpress.preview-actions`
+
+Decorate the right-pane action button row. Receives the
+server-declared descriptors (already capability-gated) merged with
+any client-only entries the filter chain has added on prior calls.
+Wire the `onSelect` handler here — server descriptors only carry
+metadata.
+
+```ts
+wp.hooks.addFilter(
+    'desktop-mode.my-wordpress.preview-actions',
+    'my-plugin/compress',
+    ( actions, ctx ) =>
+        actions.map( ( a ) =>
+            a.id === 'my-plugin/compress-image'
+                ? { ...a, onSelect: ( c ) => { /* run */ } }
+                : a,
+        ),
+);
+```
+
+Context shape: `{ entityId, kind, mime?, item }`. `item` is the
+raw server record (a `MediaListItem`, post `EntityListItem`, etc.).
+
+### Action — `desktop-mode.my-wordpress.preview-extras`
+
+Inject DOM into named slots on the right pane (`'header' | 'meta'
+| 'footer'`). Fires once per slot per preview render.
+
+```ts
+wp.hooks.addAction(
+    'desktop-mode.my-wordpress.preview-extras',
+    'my-plugin/footer',
+    ( ctx ) => {
+        if ( ctx.slot === 'footer' ) {
+            const badge = document.createElement( 'span' );
+            badge.textContent = '✓ checked';
+            ctx.container.appendChild( badge );
+        }
+    },
+);
+```
+
+### Filter — `desktop-mode.my-wordpress.status-bar` (existing)
+
+Already documented above — unchanged.
+
+### postMessage / CustomEvents
+
+None new. Media drag-out uses the existing `'shortcut'` drag
+payload with `data.kind === 'attachment'`.
+
+See [Examples — My WordPress media action](./examples/my-wordpress-media-action.md).
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.

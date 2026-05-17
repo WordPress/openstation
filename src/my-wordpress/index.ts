@@ -27,6 +27,14 @@ import {
 } from '../desktop-files/folder-status-bar';
 import type { DragManagerApi } from '../drag';
 import type { ShortcutDragData } from '../desktop-files/drag-payloads';
+import {
+	getEntityRenderer,
+	registerEntityKind,
+	type EntityRenderHost,
+	type EntityRenderer,
+} from './kind-registry';
+import { renderMediaList } from './media-list';
+import { renderMediaDetail } from './media-detail';
 
 /**
  * Read the runtime DragManager. Boot order guarantees this exists by
@@ -193,6 +201,16 @@ interface RenderState {
 	breadcrumbs: HTMLElement;
 	statusBar: HTMLElement;
 	teardown: Array< () => void >;
+	/**
+	 * Navigation history stack. Every `navigate()` call (except
+	 * "back") pushes the route it's leaving onto this stack; the
+	 * breadcrumb back button pops. Lets the user retrace cross-
+	 * hierarchy jumps (Media-detail → referenced post → back to
+	 * Media-detail), not just walk up the static folder tree.
+	 *
+	 * @since 0.21.0
+	 */
+	history: Route[];
 }
 
 interface StatusContext {
@@ -237,7 +255,20 @@ function pluralLabel(
 	return `${ n.toLocaleString() } ${ n === 1 ? singular : plural }`;
 }
 
-function navigate( state: RenderState, route: Route ): void {
+function navigate(
+	state: RenderState,
+	route: Route,
+	opts: { fromBack?: boolean } = {},
+): void {
+	// Push the route we're leaving onto the history stack so the
+	// back button can retrace cross-hierarchy jumps (e.g. Media
+	// → Media-detail → referenced post → back lands on Media-detail,
+	// not on the post's parent folder). Skipped on back-pops (we'd
+	// just re-add what we just removed) and on no-op re-navigations.
+	const sameRoute = routesEqual( state.route, route );
+	if ( ! opts.fromBack && ! sameRoute ) {
+		state.history.push( state.route );
+	}
 	clearTeardown( state );
 	state.route = route;
 	updateBreadcrumbs( state );
@@ -255,11 +286,16 @@ function navigate( state: RenderState, route: Route ): void {
 		return;
 	}
 	if ( route.kind === 'list' ) {
-		if ( entity.kind === 'user' ) {
-			renderUserEntityList( state, entity );
-		} else {
-			renderEntityList( state, entity );
+		const renderer = getEntityRenderer( entity.kind );
+		if ( renderer ) {
+			const host = makeRenderHost( state );
+			renderer( host, entity );
+			return;
 		}
+		// Unknown kind — fall back to the post renderer so older
+		// plugins that ship entities without a `kind` field keep
+		// working as they did before the registry.
+		renderEntityList( state, entity );
 		return;
 	}
 	if ( route.kind === 'detail' ) {
@@ -278,6 +314,63 @@ function navigate( state: RenderState, route: Route ): void {
 	}
 	if ( route.kind === 'user-footprint' ) {
 		renderUserFootprint( state, entity, route.userId, route.userName );
+		return;
+	}
+	if ( route.kind === 'media-detail' ) {
+		void renderMediaDetail( makeRenderHost( state ), route.mediaId );
+	}
+}
+
+/**
+ * Adapt the internal `RenderState` to the public `EntityRenderHost`
+ * contract consumed by registry-installed renderers. Hides the
+ * internal teardown / breadcrumb plumbing.
+ */
+function makeRenderHost( state: RenderState ): EntityRenderHost {
+	return {
+		body: state.body,
+		route: state.route,
+		navigate: ( route ) => navigate( state, route ),
+		addTeardown: ( fn ) => state.teardown.push( fn ),
+	};
+}
+
+/**
+ * Structural equality for `Route` discriminated-union values. Used
+ * to drop no-op re-navigations from the history stack — clicking
+ * the same tile twice shouldn't poison the back button.
+ */
+function routesEqual( a: Route, b: Route ): boolean {
+	if ( a.kind !== b.kind ) {
+		return false;
+	}
+	switch ( a.kind ) {
+		case 'root':
+			return true;
+		case 'list':
+			return a.entityId === ( b as { entityId: string } ).entityId;
+		case 'detail': {
+			const o = b as Extract< Route, { kind: 'detail' } >;
+			return a.entityId === o.entityId && a.postId === o.postId;
+		}
+		case 'sub-list': {
+			const o = b as Extract< Route, { kind: 'sub-list' } >;
+			return (
+				a.entityId === o.entityId &&
+				a.postId === o.postId &&
+				a.relation === o.relation
+			);
+		}
+		case 'user-footprint': {
+			const o = b as Extract< Route, { kind: 'user-footprint' } >;
+			return a.entityId === o.entityId && a.userId === o.userId;
+		}
+		case 'media-detail': {
+			const o = b as Extract< Route, { kind: 'media-detail' } >;
+			return a.entityId === o.entityId && a.mediaId === o.mediaId;
+		}
+		default:
+			return false;
 	}
 }
 
@@ -297,6 +390,8 @@ function parentRoute( route: Route ): Route {
 				postTitle: route.postTitle,
 			};
 		case 'user-footprint':
+			return { kind: 'list', entityId: route.entityId };
+		case 'media-detail':
 			return { kind: 'list', entityId: route.entityId };
 		default:
 			return { kind: 'root' };
@@ -380,15 +475,29 @@ function updateBreadcrumbs( state: RenderState ): void {
 			),
 		} );
 	}
+	if ( route.kind === 'media-detail' ) {
+		segments.push( { label: route.mediaTitle } );
+	}
 
 	renderBreadcrumbs( state.breadcrumbs, segments, {
 		onBack: () => {
 			if ( state.route.kind === 'root' ) {
 				return;
 			}
-			navigate( state, parentRoute( state.route ) );
+			// Prefer history (navigation back) over hierarchy
+			// (parent folder) so cross-tree jumps unwind in the
+			// order the user made them. Fall back to the parent
+			// route when there's no history — e.g. the consumer
+			// opened the window straight into a detail view via
+			// `wp.desktop.myWordpress.openDetail`.
+			const previous = state.history.pop();
+			if ( previous ) {
+				navigate( state, previous, { fromBack: true } );
+				return;
+			}
+			navigate( state, parentRoute( state.route ), { fromBack: true } );
 		},
-		backDisabled: isRoot,
+		backDisabled: isRoot && state.history.length === 0,
 	} );
 }
 
@@ -5353,6 +5462,7 @@ function renderInto( body: HTMLElement ): void {
 		breadcrumbs: breadcrumbsHost,
 		statusBar: statusHost,
 		teardown: [],
+		history: [],
 	};
 	activeState = state;
 
@@ -5424,6 +5534,40 @@ const callback: RenderCallback = ( body ) => {
 window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
 window.desktopModeNativeWindows[ WINDOW_ID ] = callback;
 
+// Built-in entity-kind renderers. Third-party plugins can register
+// their own via `wp.desktop.myWordpress.registerEntityKind()`.
+registerEntityKind( 'post', ( host, entity ) => {
+	renderEntityList( asRenderState( host ), entity );
+} );
+registerEntityKind( 'user', ( host, entity ) => {
+	renderUserEntityList( asRenderState( host ), entity );
+} );
+registerEntityKind( 'media', renderMediaList );
+
+/**
+ * Recover the internal `RenderState` from an `EntityRenderHost`.
+ * Only the legacy renderers (`renderEntityList`,
+ * `renderUserEntityList`) still take the internal state directly;
+ * the registry passes the public host shape so plugins can call
+ * `host.navigate` / `host.addTeardown`. This shim bridges the
+ * two during the gradual rewrite.
+ */
+function asRenderState( host: EntityRenderHost ): RenderState {
+	if ( ! activeState ) {
+		throw new Error(
+			'[my-wordpress] asRenderState: called outside an active render.',
+		);
+	}
+	// Sanity check — the host MUST be derived from the active state
+	// or we're about to scribble into a defunct render frame.
+	if ( host.body !== activeState.body ) {
+		throw new Error(
+			'[my-wordpress] asRenderState: host body does not match active state.',
+		);
+	}
+	return activeState;
+}
+
 /* ------------------------------------------------------------------ *
  *  Public API — `wp.desktop.myWordpress.openDetail( … )`.
  *
@@ -5475,8 +5619,49 @@ function openDetail( args: OpenDetailArgs ): void {
 	desktop?.openWindow?.( WINDOW_ID, { source: 'my-wordpress/open-detail' } );
 }
 
+interface OpenMediaArgs {
+	mediaId: number;
+	mediaTitle?: string;
+}
+
+/**
+ * Route the My WordPress window directly into the media drill-in
+ * view for the given attachment. Mirrors `openDetail()` for posts.
+ *
+ * @public
+ * @since 0.21.0
+ */
+function openMedia( args: OpenMediaArgs ): void {
+	const route: Route = {
+		kind: 'media-detail',
+		entityId: 'media',
+		mediaId: args.mediaId,
+		mediaTitle: args.mediaTitle ?? `#${ args.mediaId }`,
+	};
+	if ( activeState ) {
+		navigate( activeState, route );
+		return;
+	}
+	pendingRoute = route;
+	const desktop = (
+		window.wp as
+			| {
+					desktop?: {
+						openWindow?: (
+							id: string,
+							opts?: { source?: string },
+						) => boolean;
+					};
+			}
+			| undefined
+	)?.desktop;
+	desktop?.openWindow?.( WINDOW_ID, { source: 'my-wordpress/open-media' } );
+}
+
 interface MyWordpressApi {
 	openDetail: ( args: OpenDetailArgs ) => void;
+	openMedia: ( args: OpenMediaArgs ) => void;
+	registerEntityKind: ( kind: string, renderer: EntityRenderer ) => () => void;
 }
 
 const desktopGlobal = (
@@ -5485,5 +5670,9 @@ const desktopGlobal = (
 		| undefined
 )?.desktop;
 if ( desktopGlobal ) {
-	desktopGlobal.myWordpress = { openDetail };
+	desktopGlobal.myWordpress = {
+		openDetail,
+		openMedia,
+		registerEntityKind,
+	};
 }

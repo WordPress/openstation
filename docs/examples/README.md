@@ -17,6 +17,7 @@ defined( 'ABSPATH' ) || exit;
 - [Replace the dock rail entirely](./dock-rail-renderer.md)
 - [Gate desktop mode by role](./gate-by-role.md)
 - [React to window events](./react-to-window-events.md)
+- [My WordPress — add a preview-pane action button](./my-wordpress-media-action.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)
 - [Custom arrange-menu action](./arrange-action.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)

@@ -2202,6 +2202,46 @@ apply_filters( 'desktop_mode_my_wordpress_user_footprint', array $payload, int $
 
 The per-user activity-footprint payload returned by `GET /desktop-mode/v1/user-footprint/<id>` — drives the full-body "View activity footprint" surface (right-click on a user tile → footprint). Carries a year of day-by-day activity, weekday + hour-of-day distribution, streak math, recent-events timeline, and totals. Plugins can extend the timeline with their own activity rows (deploys, badges earned, etc.) or replace the streak math with a domain-specific definition.
 
+### `desktop_mode_my_wordpress_media_usage` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_media_usage', array $payload, int $attachment_id ): array
+```
+
+The "used in" payload returned by `GET /desktop-mode/v1/media-usage/<id>` — drives the Media drill-in view (double-click a media tile). Each `usedIn` row carries `{ postId, postType, postTypeLabel, title, status, link, editLink, usedAs:'featured'|'content'|'meta', authorId, authorName, date }`. Plugins (ACF, page builders, Yoast image meta) can push additional rows describing references their own data layer holds — e.g. ACF image fields, gallery blocks, theme-mod backgrounds.
+
+Rows are already filtered per-row through `current_user_can('read_post', $row['postId'])`, so the viewer never sees drafts they can't read. The payload is transient-cached (default 5 min) per attachment + viewer-capability bucket; cache busts on `save_post`, `deleted_post`, `delete_attachment`.
+
+### `desktop_mode_my_wordpress_media_usage_cache_ttl` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_media_usage_cache_ttl', int $seconds, int $attachment_id ): int
+```
+
+Lifetime (seconds) of the per-attachment media-usage transient. Lower it on sites that frequently bulk-import or rewrite content; raise it on stable libraries.
+
+### `desktop_mode_my_wordpress_preview_actions` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_preview_actions', array[] $actions ): array[]
+```
+
+Server-declared descriptors for the right-pane action button row that appears in every My WordPress section (posts, pages, users, media, plugin-defined kinds). Each entry:
+
+```php
+array(
+    'id'         => 'my-plugin/compress-image', // required, unique
+    'label'      => 'Compress this image',      // required
+    'icon'       => 'dashicons-image-rotate',   // optional
+    'capability' => 'upload_files',             // optional, default 'read'
+    'mime'       => '^image/',                  // optional PCRE
+    'sections'   => array( 'media' ),           // optional, default all
+    'script'     => 'my-plugin-actions',        // optional wp_register_script handle
+)
+```
+
+`capability` is enforced server-side before the descriptor ships to the bundle, so an action the current user can't run never appears in their UI. `script`, if registered, is auto-enqueued. Wire the click handler on the JS side via `wp.hooks.addFilter('desktop-mode.my-wordpress.preview-actions', …)` — see [`examples/my-wordpress-media-action.md`](./examples/my-wordpress-media-action.md).
+
 ---
 
 ## Presence

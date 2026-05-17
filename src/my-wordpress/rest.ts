@@ -200,10 +200,16 @@ export async function fetchEntityTotal(
 		url.searchParams.set( 'page', '1' );
 		url.searchParams.set( 'per_page', '1' );
 		url.searchParams.set( '_fields', 'id' );
-		if ( entity.kind !== 'user' ) {
+		if ( entity.kind === 'user' ) {
+			if ( withWho ) {
+				url.searchParams.set( 'who', 'authors' );
+			}
+		} else if ( entity.kind === 'media' ) {
+			// Attachments live under `status=inherit` — passing the
+			// post-status list above 400s on `wp/v2/media`.
+			url.searchParams.set( 'status', 'inherit' );
+		} else {
 			url.searchParams.set( 'status', 'publish,future,draft,pending,private' );
-		} else if ( withWho ) {
-			url.searchParams.set( 'who', 'authors' );
 		}
 		return url.toString();
 	};
