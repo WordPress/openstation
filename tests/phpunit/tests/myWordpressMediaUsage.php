@@ -46,8 +46,13 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		delete_transient( 'dm_media_usage_' . $this->attachment_id . '_edit_v1' );
-		delete_transient( 'dm_media_usage_' . $this->attachment_id . '_read_v1' );
+		// Use the shared cache-key helper so a future change to the
+		// key scheme propagates here automatically.
+		foreach ( desktop_mode_my_wordpress_media_usage_cache_buckets() as $bucket ) {
+			delete_transient(
+				desktop_mode_my_wordpress_media_usage_cache_key( $this->attachment_id, $bucket )
+			);
+		}
 		remove_all_filters( 'desktop_mode_my_wordpress_media_usage' );
 		remove_all_filters( 'desktop_mode_my_wordpress_media_usage_cache_ttl' );
 		parent::tear_down();
@@ -149,8 +154,12 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertSame( 200, $first->get_status() );
 		$this->assertCount( 1, $first->get_data()['usedIn'] );
 
-		// Cache key was written.
-		$cached = get_transient( 'dm_media_usage_' . $this->attachment_id . '_edit_v1' );
+		// Cache key was written — read it through the same helper
+		// the writer uses, so the test isn't coupled to the literal
+		// key format.
+		$cached = get_transient(
+			desktop_mode_my_wordpress_media_usage_cache_key( $this->attachment_id, 'edit' )
+		);
 		$this->assertIsArray( $cached );
 
 		// Add a second referencing post. With the bust hook removed,
@@ -198,6 +207,79 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$rows     = $response->get_data()['usedIn'];
 		$ids      = wp_list_pluck( $rows, 'postId' );
 		$this->assertContains( 999, $ids );
+	}
+
+	/**
+	 * Regression: the LIKE-scan `%wp-image-12%` also matches
+	 * `wp-image-123`. The PHP-side word-boundary recheck must
+	 * reject the false positive.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_media_usage_build
+	 */
+	public function test_word_boundary_excludes_numeric_prefix_matches() {
+		// Stand up a post referencing a HIGHER-id attachment whose
+		// number prefixes our subject attachment's id (e.g. subject
+		// is 12, false-positive is 120). Order isn't guaranteed by
+		// factory ids — we synthesize ids using string content.
+		$subject_id = $this->attachment_id;
+		$prefix_id  = $subject_id . '0'; // numerically distinct, prefix-overlapping
+
+		$false_positive = self::factory()->post->create(
+			array(
+				'post_status'  => 'publish',
+				'post_title'   => 'False positive',
+				'post_content' => '<p>Embed: <img class="wp-image-' . $prefix_id . '" src="x"/>.</p>',
+			)
+		);
+		$true_positive = self::factory()->post->create(
+			array(
+				'post_status'  => 'publish',
+				'post_title'   => 'True positive',
+				'post_content' => '<p>Embed: <img class="wp-image-' . $subject_id . '" src="x"/>.</p>',
+			)
+		);
+
+		$response = $this->dispatch( $subject_id );
+		$this->assertSame( 200, $response->get_status() );
+		$ids = wp_list_pluck( $response->get_data()['usedIn'], 'postId' );
+		$this->assertContains( $true_positive, $ids );
+		$this->assertNotContains( $false_positive, $ids );
+	}
+
+	/**
+	 * Regression: removing a `wp-image-N` block from a post must
+	 * bust the cache for attachment N — otherwise the drill-in
+	 * view shows that post as a reference until the TTL expires.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_media_usage_bust_for_post
+	 */
+	public function test_reference_removal_busts_cache() {
+		$post = self::factory()->post->create(
+			array(
+				'post_status'  => 'publish',
+				'post_title'   => 'Has reference',
+				'post_content' => '<p><img class="wp-image-' . $this->attachment_id . '" src="x"/></p>',
+			)
+		);
+
+		// Warm the cache.
+		$first = $this->dispatch( $this->attachment_id );
+		$ids   = wp_list_pluck( $first->get_data()['usedIn'], 'postId' );
+		$this->assertContains( $post, $ids );
+
+		// Remove the reference. `wp_update_post` runs both
+		// `pre_post_update` and `save_post`, so the union-of-refs
+		// buster should clear the cache for attachment N.
+		wp_update_post(
+			array(
+				'ID'           => $post,
+				'post_content' => '<p>No more image.</p>',
+			)
+		);
+
+		$second = $this->dispatch( $this->attachment_id );
+		$ids    = wp_list_pluck( $second->get_data()['usedIn'], 'postId' );
+		$this->assertNotContains( $post, $ids );
 	}
 
 	/**

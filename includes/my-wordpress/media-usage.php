@@ -270,11 +270,29 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment ) {
 				$query_args
 			)
 		);
+		// The LIKE scan over-fetches: `%wp-image-12%` matches
+		// `wp-image-123` too. Re-check each candidate with a
+		// word-boundary regex (matches `wp-image-12` followed by
+		// any non-digit, or end of string) and accept the row only
+		// if the precise class pattern OR the full attachment URL
+		// is present.
+		$class_re = '/wp-image-' . $attachment_id . '(?!\d)/';
 		foreach ( (array) $content_rows as $pid ) {
 			$pid = (int) $pid;
-			if ( $pid > 0 && ! isset( $rows_by_post[ $pid ] ) ) {
-				$rows_by_post[ $pid ] = 'content';
+			if ( $pid <= 0 || isset( $rows_by_post[ $pid ] ) ) {
+				continue;
 			}
+			$content_post = get_post( $pid );
+			if ( ! $content_post || ! isset( $content_post->post_content ) ) {
+				continue;
+			}
+			$haystack    = (string) $content_post->post_content;
+			$has_class   = (bool) preg_match( $class_re, $haystack );
+			$has_url     = '' !== $file_url && false !== strpos( $haystack, $file_url );
+			if ( ! $has_class && ! $has_url ) {
+				continue;
+			}
+			$rows_by_post[ $pid ] = 'content';
 		}
 	}
 
@@ -330,12 +348,83 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment ) {
 }
 
 /**
+ * Per-post stash of attachment ids referenced BEFORE an in-progress
+ * update. Populated on `pre_post_update` (where the DB row still
+ * reflects the previous state), drained on `save_post` so the
+ * buster can union pre + post sets — otherwise removing a
+ * `wp-image-N` block from a post would leave the cache for
+ * attachment N stale until the TTL expires.
+ *
+ * @since 0.21.0
+ *
+ * @var array<int,array<int,true>>
+ */
+$GLOBALS['desktop_mode_media_usage_pre_save_refs'] = array();
+
+/**
+ * Extract attachment ids referenced by a post: `_thumbnail_id` +
+ * every `wp-image-<id>` class in its content. Used by both the
+ * pre-save snapshot and the post-save buster.
+ *
+ * @since 0.21.0
+ *
+ * @param int|WP_Post $post Post id or object.
+ * @return array<int,true> Set of attachment ids keyed for dedup.
+ */
+function desktop_mode_my_wordpress_media_usage_extract_refs( $post ) {
+	$ids = array();
+	$obj = is_object( $post ) ? $post : get_post( (int) $post );
+	if ( ! $obj || ! isset( $obj->ID ) ) {
+		return $ids;
+	}
+	$thumb = (int) get_post_meta( (int) $obj->ID, '_thumbnail_id', true );
+	if ( $thumb > 0 ) {
+		$ids[ $thumb ] = true;
+	}
+	$content = isset( $obj->post_content ) ? (string) $obj->post_content : '';
+	if ( '' !== $content && false !== strpos( $content, 'wp-image-' ) ) {
+		if ( preg_match_all( '/wp-image-(\d+)/', $content, $m ) ) {
+			foreach ( $m[1] as $id ) {
+				$ids[ (int) $id ] = true;
+			}
+		}
+	}
+	return $ids;
+}
+
+/**
+ * Snapshot the attachment refs of a post just before it's updated.
+ * Fired by `pre_post_update`, which runs before the DB row mutates,
+ * so `get_post` here returns the OLD content. We stash the ref set
+ * in a per-request global and read it back in the `save_post` hook.
+ *
+ * @since 0.21.0
+ *
+ * @param int $post_id Post id about to be updated.
+ */
+function desktop_mode_my_wordpress_media_usage_snapshot_pre_save( $post_id ) {
+	$post_id = (int) $post_id;
+	if ( $post_id <= 0 ) {
+		return;
+	}
+	$GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ] =
+		desktop_mode_my_wordpress_media_usage_extract_refs( $post_id );
+}
+add_action( 'pre_post_update', 'desktop_mode_my_wordpress_media_usage_snapshot_pre_save' );
+
+/**
  * Bust the transient when a post changes. The cache key is
  * per-attachment, so we don't know which entries reference what —
- * the cheap correct move is to delete cache for every attachment
- * referenced by the saved/deleted post. Bounded by the actual
- * count of `wp-image-N` matches in the saved content + the post's
- * `_thumbnail_id`.
+ * the correct move is to delete cache for every attachment
+ * referenced by the saved/deleted post. The union of:
+ *
+ *   - pre-save refs (captured by `pre_post_update` above) so a
+ *     reference removal still busts the dropped attachment's cache,
+ *   - post-save refs (read here) so a freshly-added reference
+ *     busts the cache too.
+ *
+ * Bounded by the actual count of `wp-image-N` matches in either
+ * version of the content + the post's `_thumbnail_id`.
  *
  * @since 0.21.0
  *
@@ -346,20 +435,12 @@ function desktop_mode_my_wordpress_media_usage_bust_for_post( $post_id ) {
 	if ( $post_id <= 0 ) {
 		return;
 	}
-	$ids = array();
 
-	$thumb = (int) get_post_meta( $post_id, '_thumbnail_id', true );
-	if ( $thumb > 0 ) {
-		$ids[ $thumb ] = true;
-	}
+	$ids = desktop_mode_my_wordpress_media_usage_extract_refs( $post_id );
 
-	$post = get_post( $post_id );
-	if ( $post && isset( $post->post_content ) && false !== strpos( $post->post_content, 'wp-image-' ) ) {
-		if ( preg_match_all( '/wp-image-(\d+)/', $post->post_content, $m ) ) {
-			foreach ( $m[1] as $id ) {
-				$ids[ (int) $id ] = true;
-			}
-		}
+	if ( isset( $GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ] ) ) {
+		$ids += $GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ];
+		unset( $GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ] );
 	}
 
 	foreach ( array_keys( $ids ) as $attachment_id ) {
@@ -372,6 +453,8 @@ function desktop_mode_my_wordpress_media_usage_bust_for_post( $post_id ) {
 }
 add_action( 'save_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
 add_action( 'deleted_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
+// New posts skip `pre_post_update` but still go through `save_post`,
+// so the buster works as-is — the pre-snapshot is just empty.
 
 /**
  * Bust the transient when the attachment itself is deleted.

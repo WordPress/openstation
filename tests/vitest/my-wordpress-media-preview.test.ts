@@ -114,6 +114,19 @@ describe( 'media-preview', () => {
 		expect( ids ).not.toContain( 'b' );
 		expect( ids ).toContain( 'c' );
 		expect( ids ).not.toContain( 'd' );
+
+		// MIME-scoped actions must NOT leak into a non-media
+		// context (no `ctx.mime` provided). Fail-closed semantics.
+		const nonMediaOut = resolvePreviewActions( actions, {
+			entityId: 'posts',
+			kind: 'post',
+			item: {},
+		} );
+		const nonMediaIds = nonMediaOut.map( ( a ) => a.id );
+		expect( nonMediaIds ).not.toContain( 'c' );
+		expect( nonMediaIds ).not.toContain( 'd' );
+		// Section-scoped to 'posts' still allowed.
+		expect( nonMediaIds ).toContain( 'b' );
 	} );
 
 	test( 'JS preview-actions filter can attach onSelect handlers', async () => {
