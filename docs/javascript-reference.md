@@ -297,6 +297,32 @@ The cross-iframe `wp-desktop-drag-*` events from `wp.desktop.dragBridge`
 (Media Library payload channel) are a separate, lower-level surface
 and remain Stable since 0.14.0.
 
+### OS-file drop hooks — Experimental *(since 0.30.0)*
+
+When the user drags a file in from the host operating system
+(Finder, Explorer, Nautilus) onto any surface in Desktop Mode
+— the wallpaper, a folder, a native window, or a chromeless
+admin iframe — the shell catches it and routes it through a
+confirmation dialog. The full pipeline is hookable via
+`window.wp.hooks`:
+
+| Hook | Kind | Notes |
+| --- | --- | --- |
+| `desktop-mode.drop.files-detected` | filter | `(files: File[], ctx) => File[]` — before mime / size filter. Return `[]` to abort. |
+| `desktop-mode.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
+| `desktop-mode.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate per-file defaults. |
+| `desktop-mode.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — last call before `wp/v2/media`; `null` cancels. |
+| `desktop-mode.drop.after-upload` | action | `{ result, fields, context }` |
+| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` |
+
+Iframes forward OS drops to the parent shell via
+`postMessage` of type `desktop-mode-os-file-drop` with a
+`{ files: File[], x, y }` payload — same-origin only.
+
+See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md)
+for two end-to-end recipes (stamping the active folder on
+every upload, hand-off to a CSV importer).
+
 ---
 
 ### `desktop-mode-registry-changed` — Stable *(since 0.18.1)*

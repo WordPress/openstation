@@ -220,6 +220,70 @@ function desktop_mode_enqueue_assets() {
 		? desktop_mode_build_wallpaper_menu_items()
 		: array();
 
+	/*
+	 * OS-file drop config — what the browser drop manager will
+	 * accept when the user drags a file from their native desktop
+	 * onto any surface inside Desktop Mode (wallpaper, a folder,
+	 * a window, or a chromeless iframe). The allowed-mimes list is
+	 * the user-scoped `get_allowed_mime_types()` (already capability
+	 * gated by WordPress); the size cap is `wp_max_upload_size()`.
+	 *
+	 * Both are filterable so plugins can narrow or widen the set —
+	 * e.g. a media-only plugin can restrict drops to images, or a
+	 * docs plugin can opt PDFs in for a specific role.
+	 */
+	$drop_allowed_mimes_map = current_user_can( 'upload_files' )
+		? get_allowed_mime_types( get_current_user_id() )
+		: array();
+	/**
+	 * Filter the allowed-mime map used by the OS-file drop manager.
+	 *
+	 * @since 0.30.0
+	 *
+	 * @param array<string,string> $mimes_map  `ext => mime-type` map (same shape `get_allowed_mime_types()` returns).
+	 * @param int                  $user_id    The current user id.
+	 */
+	$drop_allowed_mimes_map = apply_filters( 'desktop_mode_drop_allowed_mimes', $drop_allowed_mimes_map, get_current_user_id() );
+	$drop_allowed_mimes_map = is_array( $drop_allowed_mimes_map ) ? $drop_allowed_mimes_map : array();
+	$drop_allowed_mimes     = array_values( array_unique( array_values( $drop_allowed_mimes_map ) ) );
+
+	$drop_max_size = (int) wp_max_upload_size();
+	/**
+	 * Filter the per-file size cap (in bytes) used by the OS-file
+	 * drop manager. Returning `0` disables the client-side cap —
+	 * the server still enforces its own.
+	 *
+	 * @since 0.30.0
+	 *
+	 * @param int $max_size  Default `wp_max_upload_size()`.
+	 * @param int $user_id   The current user id.
+	 */
+	$drop_max_size = (int) apply_filters( 'desktop_mode_drop_max_size', $drop_max_size, get_current_user_id() );
+
+	/**
+	 * Filter the master OS-file drop enable gate. Lets plugins
+	 * disable the drop manager by role / capability beyond the
+	 * default `upload_files` check (e.g. only for admins, or
+	 * only on specific multisite blogs).
+	 *
+	 * @since 0.30.0
+	 *
+	 * @param bool $enabled  Default — `current_user_can( 'upload_files' )`.
+	 * @param int  $user_id  The current user id.
+	 */
+	$drop_enabled = (bool) apply_filters(
+		'desktop_mode_drop_enabled',
+		current_user_can( 'upload_files' ),
+		get_current_user_id()
+	);
+
+	$drop_config = array(
+		'enabled'      => $drop_enabled,
+		'allowedMimes' => $drop_allowed_mimes,
+		'extToMime'    => $drop_allowed_mimes_map,
+		'maxSize'      => $drop_max_size,
+	);
+
 	// Lazy-bundle URL builder. Each lazy-loaded bundle (AI Assistant,
 	// About-scene, OS Settings panel, shell-overlays, window-system)
 	// is `<script>`-injected by the main bundle on demand — they don't
@@ -336,6 +400,7 @@ function desktop_mode_enqueue_assets() {
 			'session'          => desktop_mode_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
 			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),
+			'dropConfig'       => $drop_config,
 			'defaultWindowUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/default-window' ) ),
 			'defaultWindow'    => desktop_mode_get_default_window( get_current_user_id() ),
 			'canUpload'        => current_user_can( 'upload_files' ),

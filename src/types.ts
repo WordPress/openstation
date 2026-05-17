@@ -1765,6 +1765,20 @@ export interface DesktopConfig {
 	sessionUrl: string;
 	/** REST endpoint for media uploads (wp/v2/media). */
 	mediaUrl: string;
+	/**
+	 * OS-file drop manager config. Drives the cross-shell drop
+	 * surface that catches files dragged in from the user's
+	 * native OS (Finder, Explorer, Nautilus). Server-side
+	 * filterable via `desktop_mode_drop_allowed_mimes` /
+	 * `desktop_mode_drop_max_size`.
+	 *
+	 * @since 0.30.0
+	 */
+	/**
+	 * @see {@link import('./os-file-drop/types').DropConfig}
+	 *      — single source of truth for the shape.
+	 */
+	dropConfig?: import( './os-file-drop/types' ).DropConfig;
 	/** REST endpoint for saving the default-window preference. */
 	defaultWindowUrl: string;
 	/**

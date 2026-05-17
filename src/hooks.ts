@@ -1111,6 +1111,28 @@ export const HOOKS = {
 	 * @since 0.18.0
 	 */
 	IFRAME_CONNECTION_REQUEST: 'desktop-mode.iframe.connection-request',
+
+	// ------------------------------------------------------------------
+	// OS-file drop manager (since 0.30.0). Catches files dragged from
+	// the user's host OS (Finder / Explorer / Nautilus) onto any
+	// desktop-mode surface and routes them through a confirmation
+	// dialog before uploading to the Media Library. Authoritative
+	// constants live in `src/os-file-drop/hooks.ts`; mirrored here so
+	// every hook the shell fires is reachable from a single `HOOKS`
+	// import. See `docs/examples/os-file-drop.md`.
+	// ------------------------------------------------------------------
+	/** Filter — `(files: File[], ctx) => File[]`, before mime/size check. */
+	FILE_DROP_FILES_DETECTED: 'desktop-mode.drop.files-detected',
+	/** Action — `{ rejections, context }` for files that failed policy. */
+	FILE_DROP_FILES_REJECTED: 'desktop-mode.drop.files-rejected',
+	/** Filter — `(entry, ctx) => entry`, per-file dialog defaults. */
+	FILE_DROP_DIALOG_FIELDS: 'desktop-mode.drop.dialog-fields',
+	/** Filter — `(payload, ctx) => payload | null`, last call before POST. */
+	FILE_DROP_BEFORE_UPLOAD: 'desktop-mode.drop.before-upload',
+	/** Action — `{ result, fields, context }` after successful upload. */
+	FILE_DROP_AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
+	/** Action — `{ file, error, context }` on upload failure. */
+	FILE_DROP_UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
 } as const;
 
 /**

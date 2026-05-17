@@ -3460,6 +3460,19 @@ function init(): void {
 	// `config.portalUrl` stays in the shell config so plugins that want
 	// to build "home" links can still point at the portal.
 
+	// OS-file drop manager — catches files dragged from the user's
+	// host OS (Finder / Explorer / Nautilus) anywhere on the shell
+	// and routes them through a confirmation dialog before uploading
+	// to the Media Library. Idempotent; no-op when the user lacks
+	// `upload_files`.
+	void import( './os-file-drop' ).then( ( mod ) => {
+		mod.bootOsFileDrop( {
+			config: config.dropConfig,
+			mediaUrl: config.mediaUrl,
+			restNonce: config.restNonce,
+		} );
+	} );
+
 	document.dispatchEvent(
 		new CustomEvent( 'desktop-mode-init', {
 			detail: { config, restored: hasSession },

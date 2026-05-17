@@ -56,5 +56,6 @@ defined( 'ABSPATH' ) || exit;
 - [Surface a custom "Install as App" button](./pwa-install.md)
 - [Send a notification — `wp.desktop.notify()`](./notify.md)
 - [Show a banner at the top of a window — `desktop_mode_register_window_notice()`](./window-notice.md)
+- [Catch files dragged in from the host OS — `desktop-mode.drop.*`](./os-file-drop.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.

@@ -1488,6 +1488,55 @@ Handler signature: `function( array $args, int $user_id ): array|WP_Error`. A `W
 
 ---
 
+## OS-file drop manager — Experimental (since 0.30.0)
+
+The drop manager (`src/os-file-drop/`) catches files dragged from the user's native OS (Finder / Explorer / Nautilus) anywhere on the shell and routes them through a confirmation dialog before uploading to the Media Library. See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md) for the full recipe.
+
+### `desktop_mode_drop_allowed_mimes`
+
+Narrows or widens the allowed-MIMEs list surfaced to the JS drop manager. Default is `get_allowed_mime_types( $user_id )` — already capability-gated by WordPress.
+
+```php
+apply_filters( 'desktop_mode_drop_allowed_mimes', array $mimes_map, int $user_id );
+```
+
+`$mimes_map` is the `ext => mime` map (same shape `get_allowed_mime_types()` returns). The drop manager flattens to canonical MIMEs before the policy check.
+
+---
+
+### `desktop_mode_drop_max_size`
+
+Caps the per-file size the JS drop manager enforces locally before upload. Default is `wp_max_upload_size()`. Returning `0` disables the client-side cap — the server still enforces its own.
+
+```php
+apply_filters( 'desktop_mode_drop_max_size', int $max_size, int $user_id );
+```
+
+---
+
+### `desktop_mode_drop_enabled`
+
+Master gate for the OS-file drop manager. Defaults to `current_user_can( 'upload_files' )`. Return `false` to disable drop handling entirely for the current user (e.g. role-gated, multisite-gated, or environment-gated).
+
+```php
+apply_filters( 'desktop_mode_drop_enabled', bool $enabled, int $user_id );
+```
+
+---
+
+### JS hooks fired by the drop manager
+
+| Hook | Kind | Notes |
+| --- | --- | --- |
+| `desktop-mode.drop.files-detected` | filter | `(files: File[], ctx) => File[]`, before mime / size filter. Return `[]` to abort silently. |
+| `desktop-mode.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
+| `desktop-mode.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate the per-file defaults. |
+| `desktop-mode.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — return `null` to cancel. |
+| `desktop-mode.drop.after-upload` | action | `{ result, fields, context }` |
+| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` |
+
+---
+
 ## Planned (not yet fired)
 
 The filters and actions below are **reserved names** documented for forward compatibility. They will land with the phase indicated. Do not register listeners in production code until the status flips to Stable.

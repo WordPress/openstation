@@ -559,10 +559,121 @@ interface IframeWp {
 	// -----------------------------------------------------------------
 	const sentinelHost = window as unknown as {
 		__desktopModeScreenMetaInstalled?: boolean;
+		__desktopModeOsFileDropForwarderInstalled?: boolean;
 	};
 	if ( ! sentinelHost.__desktopModeScreenMetaInstalled ) {
 		sentinelHost.__desktopModeScreenMetaInstalled = true;
 		installScreenMetaHoist( parentOrigin );
+	}
+
+	/*
+	 * OS-file drop forwarder. Mirrors the inline equivalent in
+	 * `includes/render/chromeless-bridge.php`. Any same-origin
+	 * iframe that loads this bundle (declared as
+	 * `iframeContent: { bridge: true }` on a native window, or
+	 * a chromeless admin page that lost the inline bridge to
+	 * navigation timing) gets the same upload-from-OS coverage.
+	 *
+	 * Same-origin `postMessage` preserves `File` identity so the
+	 * parent shell's OS-file drop manager receives real `File`
+	 * objects with no base64 round-trip.
+	 */
+	if ( ! sentinelHost.__desktopModeOsFileDropForwarderInstalled ) {
+		sentinelHost.__desktopModeOsFileDropForwarderInstalled = true;
+		const hasFiles = ( ev: DragEvent ): boolean => {
+			const types = ev.dataTransfer?.types;
+			if ( ! types ) {
+				return false;
+			}
+			const list = types as unknown as {
+				includes?: ( s: string ) => boolean;
+				contains?: ( s: string ) => boolean;
+				length: number;
+				[ i: number ]: string;
+			};
+			if ( typeof list.includes === 'function' ) {
+				return list.includes( 'Files' );
+			}
+			if ( typeof list.contains === 'function' ) {
+				return list.contains( 'Files' );
+			}
+			for ( let i = 0; i < list.length; i++ ) {
+				if ( list[ i ] === 'Files' ) {
+					return true;
+				}
+			}
+			return false;
+		};
+		const dropPassthroughSelectors = [
+			'.components-drop-zone',
+			'[data-drop-zone]',
+			'.uploader-window',
+			'.media-frame-content',
+		];
+		const targetWantsFile = ( target: EventTarget | null ): boolean => {
+			const el = target as Element | null;
+			if ( ! el || ! el.closest ) {
+				return false;
+			}
+			for ( const sel of dropPassthroughSelectors ) {
+				if ( el.closest( sel ) ) {
+					return true;
+				}
+			}
+			return false;
+		};
+		document.addEventListener(
+			'dragover',
+			( ev: DragEvent ) => {
+				if ( ! hasFiles( ev ) ) {
+					return;
+				}
+				if ( targetWantsFile( ev.target ) ) {
+					return;
+				}
+				ev.preventDefault();
+				if ( ev.dataTransfer ) {
+					ev.dataTransfer.dropEffect = 'copy';
+				}
+			},
+			true,
+		);
+		document.addEventListener(
+			'drop',
+			( ev: DragEvent ) => {
+				if ( ! hasFiles( ev ) ) {
+					return;
+				}
+				if ( targetWantsFile( ev.target ) ) {
+					return;
+				}
+				ev.preventDefault();
+				ev.stopPropagation();
+				const files: File[] = [];
+				if ( ev.dataTransfer?.files ) {
+					for ( let i = 0; i < ev.dataTransfer.files.length; i++ ) {
+						files.push( ev.dataTransfer.files[ i ] );
+					}
+				}
+				if ( files.length === 0 ) {
+					return;
+				}
+				try {
+					window.parent.postMessage(
+						{
+							type: 'desktop-mode-os-file-drop',
+							files,
+							x: ev.clientX,
+							y: ev.clientY,
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* cross-origin parent; swallow */
+				}
+			},
+			true,
+		);
 	}
 
 	function installScreenMetaHoist( origin: string ): void {
