@@ -2998,6 +2998,14 @@ interface DockItem {
     submenu:  { title: string; url: string }[];
     multi:    boolean;       // hover-peek + Ghost Card eligibility
     isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
+    pluginFile: string | null; // owning plugin file (e.g. `woocommerce/woocommerce.php`)
+                               // when the menu was registered by an active,
+                               // deactivatable plugin; null for core menus,
+                               // mu-plugins, drop-ins, and Desktop Mode itself.
+                               // Drives the dock right-click "Deactivate …" action.
+                               // Resolved server-side by reflecting on the
+                               // menu page hook's registered callbacks.
+                               // Stable since 0.27.0.
 }
 ```
 
