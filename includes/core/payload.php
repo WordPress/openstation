@@ -850,7 +850,7 @@ function desktop_mode_is_pure_core_file( $base ) {
  */
 function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
 	if ( false !== strpos( $slug, 'edit.php?' ) && false !== strpos( $slug, 'post_type=' ) ) {
-		$qs = parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
+		$qs = wp_parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
 		parse_str( (string) $qs, $args );
 		$pt = isset( $args['post_type'] ) ? (string) $args['post_type'] : '';
 		if ( '' === $pt ) {
@@ -860,7 +860,7 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
 		return $map['post_type'][ $pt ] ?? null;
 	}
 	if ( false !== strpos( $slug, 'edit-tags.php?' ) && false !== strpos( $slug, 'taxonomy=' ) ) {
-		$qs = parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
+		$qs = wp_parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
 		parse_str( (string) $qs, $args );
 		$tx = isset( $args['taxonomy'] ) ? (string) $args['taxonomy'] : '';
 		if ( '' === $tx ) {
