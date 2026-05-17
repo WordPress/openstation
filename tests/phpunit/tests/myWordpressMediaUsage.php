@@ -201,11 +201,15 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Unknown attachment id returns 404.
+	 * Unknown attachment id is rejected by the permission callback
+	 * (returns false → REST issues 403). The callback runs before
+	 * the body fetch, so we never reach the 404-emitting branch in
+	 * the callback — both outcomes are correct, the difference is
+	 * which gate rejects first.
 	 *
 	 * @covers ::desktop_mode_my_wordpress_media_usage_callback
 	 */
-	public function test_unknown_attachment_returns_404() {
+	public function test_unknown_attachment_returns_403_via_permission_gate() {
 		$response = $this->dispatch( 999999 );
 		$this->assertSame( 403, $response->get_status() );
 	}

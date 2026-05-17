@@ -10,6 +10,10 @@
  * @since 6.9.0
  */
 
+// Install the `wp.desktop.myWordpress` early-registration stub so
+// plugin scripts can call `registerEntityKind()` before the lazy
+// my-wordpress bundle mounts. Side-effect import — runs once.
+import './my-wordpress/early-api';
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import { installDesktopArrowShortcuts } from './window-manager/desktop-shortcuts';

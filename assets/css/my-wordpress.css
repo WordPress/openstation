@@ -1672,19 +1672,18 @@ a.desktop-mode-my-wordpress__footprint-event-title:hover {
 	grid-template-columns: max-content 1fr;
 	gap: 4px 16px;
 	font-size: 13px;
-}
-
-.desktop-mode-my-wordpress__media-meta-row {
-	display: contents;
+	margin: 0;
 }
 
 .desktop-mode-my-wordpress__media-meta-term {
 	color: var( --desktop-mode-muted, #787c82 );
+	margin: 0;
 }
 
 .desktop-mode-my-wordpress__media-meta-value {
 	color: var( --desktop-mode-text, #1d2327 );
 	word-break: break-word;
+	margin: 0;
 }
 
 .desktop-mode-my-wordpress__media-actions {

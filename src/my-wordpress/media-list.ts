@@ -18,26 +18,13 @@
 import { __, _n, sprintf } from '../i18n';
 import { renderStatusBarSegments, type StatusBarSegment } from '../desktop-files/folder-status-bar';
 import { applyFilters } from '../hooks';
-import type { DragManagerApi } from '../drag';
 import type { ShortcutDragData } from '../desktop-files/drag-payloads';
 import type { EntityRenderHost } from './kind-registry';
 import type { MediaListItem, MyWordPressEntity, MediaPreviewAction } from './types';
 import { fetchMediaPage } from './media-rest';
 import { getConfig } from './rest';
 import { dashiconForMime, renderMediaPreview } from './media-preview';
-
-function getDragManager(): DragManagerApi | null {
-	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
-	return api ?? null;
-}
-
-function stripTags( html: string ): string {
-	const div = document.createElement( 'div' );
-	div.innerHTML = html;
-	return ( div.textContent ?? '' ).trim();
-}
+import { getDragManager, stripTags } from './dom-utils';
 
 interface MediaListContext {
 	page: number;
@@ -380,6 +367,19 @@ export function renderMediaList(
 		);
 		observer.observe( sentinel );
 		host.addTeardown( () => observer.disconnect() );
+	} else {
+		// Graceful fallback for environments without
+		// IntersectionObserver (very old browsers, some test
+		// harnesses). A scroll-driven check keeps infinite scroll
+		// working — measurably less efficient, but better than
+		// page-1-only.
+		const onScroll = () => {
+			if ( sentinelIsVisible() ) {
+				void loadMore();
+			}
+		};
+		left.addEventListener( 'scroll', onScroll, { passive: true } );
+		host.addTeardown( () => left.removeEventListener( 'scroll', onScroll ) );
 	}
 
 	paintStatus( ctx );

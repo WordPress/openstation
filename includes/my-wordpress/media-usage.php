@@ -90,17 +90,47 @@ function desktop_mode_my_wordpress_media_usage_ttl( $attachment_id ) {
 }
 
 /**
+ * Capability buckets the cache namespaces over. A second-tier
+ * change to the gating logic must update this list — the busters
+ * iterate over the same array, so the writer and the buster can
+ * never go out of sync.
+ *
+ * @since 0.21.0
+ *
+ * @return string[]
+ */
+function desktop_mode_my_wordpress_media_usage_cache_buckets() {
+	return array( 'edit', 'read' );
+}
+
+/**
+ * Bucket key for the current user — the writer's view of which
+ * cache slot to read/write.
+ *
+ * @since 0.21.0
+ *
+ * @return string
+ */
+function desktop_mode_my_wordpress_media_usage_current_bucket() {
+	return current_user_can( 'edit_others_posts' ) ? 'edit' : 'read';
+}
+
+/**
  * Build the transient key — namespaces the cache by attachment id
  * AND a coarse capability bucket so admins and viewers never share
  * a hit.
  *
  * @since 0.21.0
  *
- * @param int $attachment_id Attachment id.
+ * @param int    $attachment_id Attachment id.
+ * @param string $bucket        Optional bucket override. Defaults to
+ *                              the current user's bucket.
  * @return string
  */
-function desktop_mode_my_wordpress_media_usage_cache_key( $attachment_id ) {
-	$bucket = current_user_can( 'edit_others_posts' ) ? 'edit' : 'read';
+function desktop_mode_my_wordpress_media_usage_cache_key( $attachment_id, $bucket = null ) {
+	if ( null === $bucket ) {
+		$bucket = desktop_mode_my_wordpress_media_usage_current_bucket();
+	}
 	return 'dm_media_usage_' . (int) $attachment_id . '_' . $bucket . '_v1';
 }
 
@@ -126,6 +156,15 @@ function desktop_mode_my_wordpress_media_usage_callback( $request ) {
 	$cache_key = desktop_mode_my_wordpress_media_usage_cache_key( $attachment_id );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
+		/*
+		 * Cache stores the PRE-filter payload. We re-run the filter
+		 * on every hit so plugin extensions (ACF image meta, page-
+		 * builder galleries, etc.) stay live even while the heavy
+		 * SQL portion of the payload is cached. Plugin output is
+		 * cheaper to recompute than the LIKE-scan; the base payload
+		 * only refreshes on the cache-bust events (save_post,
+		 * deleted_post, delete_attachment).
+		 */
 		/** This filter is documented in includes/my-wordpress/media-usage.php */
 		return apply_filters( 'desktop_mode_my_wordpress_media_usage', $cached, $attachment_id );
 	}
@@ -324,8 +363,11 @@ function desktop_mode_my_wordpress_media_usage_bust_for_post( $post_id ) {
 	}
 
 	foreach ( array_keys( $ids ) as $attachment_id ) {
-		delete_transient( 'dm_media_usage_' . (int) $attachment_id . '_edit_v1' );
-		delete_transient( 'dm_media_usage_' . (int) $attachment_id . '_read_v1' );
+		foreach ( desktop_mode_my_wordpress_media_usage_cache_buckets() as $bucket ) {
+			delete_transient(
+				desktop_mode_my_wordpress_media_usage_cache_key( (int) $attachment_id, $bucket )
+			);
+		}
 	}
 }
 add_action( 'save_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
@@ -343,7 +385,10 @@ function desktop_mode_my_wordpress_media_usage_bust_for_attachment( $post_id ) {
 	if ( $post_id <= 0 ) {
 		return;
 	}
-	delete_transient( 'dm_media_usage_' . $post_id . '_edit_v1' );
-	delete_transient( 'dm_media_usage_' . $post_id . '_read_v1' );
+	foreach ( desktop_mode_my_wordpress_media_usage_cache_buckets() as $bucket ) {
+		delete_transient(
+			desktop_mode_my_wordpress_media_usage_cache_key( $post_id, $bucket )
+		);
+	}
 }
 add_action( 'delete_attachment', 'desktop_mode_my_wordpress_media_usage_bust_for_attachment' );

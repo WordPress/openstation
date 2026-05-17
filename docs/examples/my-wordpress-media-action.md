@@ -159,6 +159,11 @@ wp.desktop.myWordpress.registerEntityKind(
 );
 ```
 
+You can call `registerEntityKind` at script-load time — no timing
+guard needed. The main desktop bundle installs an early-load stub
+that buffers calls; when the lazy My WordPress bundle mounts (on
+first open of the window), it drains the queue.
+
 The renderer receives the same `EntityRenderHost` the built-in
 sections do — paint into `host.body`, route via `host.navigate`,
 register cleanup via `host.addTeardown`.

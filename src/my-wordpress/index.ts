@@ -25,8 +25,8 @@ import {
 	renderStatusBarSegments,
 	type StatusBarSegment,
 } from '../desktop-files/folder-status-bar';
-import type { DragManagerApi } from '../drag';
 import type { ShortcutDragData } from '../desktop-files/drag-payloads';
+import { getDragManager, stripTags } from './dom-utils';
 import {
 	getEntityRenderer,
 	registerEntityKind,
@@ -35,19 +35,6 @@ import {
 } from './kind-registry';
 import { renderMediaList } from './media-list';
 import { renderMediaDetail } from './media-detail';
-
-/**
- * Read the runtime DragManager. Boot order guarantees this exists by
- * the time this module's tile builders run — the My WordPress window
- * only mounts after `installPublicApi(desktopApi)` has wired the
- * manager onto `wp.desktop.dragManager`.
- */
-function getDragManager(): DragManagerApi | null {
-	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
-	return api ?? null;
-}
 import {
 	renderBreadcrumbs,
 	type BreadcrumbSegment,
@@ -172,12 +159,6 @@ function openIframeWindow( opts: OpenWindowOptions ): void {
 		title: opts.title,
 		icon: opts.icon,
 	} );
-}
-
-function stripTags( html: string ): string {
-	const div = document.createElement( 'div' );
-	div.innerHTML = html;
-	return ( div.textContent ?? '' ).trim();
 }
 
 function getThumbnail( item: EntityListItem | EntityDetail ): string {
@@ -5666,10 +5647,30 @@ interface MyWordpressApi {
 
 const desktopGlobal = (
 	window.wp as
-		| { desktop?: Record< string, unknown > & { myWordpress?: MyWordpressApi } }
+		| { desktop?: Record< string, unknown > & { myWordpress?: MyWordpressApi & { __pendingKinds?: Array< { kind: string; renderer: EntityRenderer } > } } }
 		| undefined
 )?.desktop;
 if ( desktopGlobal ) {
+	// Drain the early-registration queue installed by
+	// `src/my-wordpress/early-api.ts` (which ships in the main
+	// `desktop.min.js` bundle). Lets plugin scripts that load
+	// before this lazy bundle register kinds without timing
+	// guards.
+	const pending = desktopGlobal.myWordpress?.__pendingKinds;
+	if ( Array.isArray( pending ) ) {
+		for ( const entry of pending ) {
+			try {
+				registerEntityKind( entry.kind, entry.renderer );
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					`[my-wordpress] queued registerEntityKind('${ entry.kind }') failed:`,
+					err,
+				);
+			}
+		}
+		pending.length = 0;
+	}
 	desktopGlobal.myWordpress = {
 		openDetail,
 		openMedia,

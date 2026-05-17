@@ -21,8 +21,9 @@
  * @since 0.21.0
  */
 
-import { __, sprintf } from '../i18n';
+import { __ } from '../i18n';
 import { applyFilters, doAction } from '../hooks';
+import { stripTags } from './dom-utils';
 import type {
 	MediaListItem,
 	MediaPreviewAction,
@@ -37,7 +38,7 @@ const MIME_DASHICON_MAP: Array< { test: RegExp; icon: string } > = [
 	{ test: /^video\//, icon: 'dashicons-format-video' },
 	{ test: /^audio\//, icon: 'dashicons-format-audio' },
 	{ test: /pdf$/, icon: 'dashicons-media-document' },
-	{ test: /^application\/zip|x-tar|x-rar|x-7z/, icon: 'dashicons-media-archive' },
+	{ test: /^application\/(zip|x-tar|x-rar|x-7z)/, icon: 'dashicons-media-archive' },
 	{ test: /spreadsheet|excel/, icon: 'dashicons-media-spreadsheet' },
 	{ test: /word|document/, icon: 'dashicons-media-document' },
 	{ test: /^text\//, icon: 'dashicons-media-text' },
@@ -101,12 +102,6 @@ function formatDate( iso: string | undefined ): string {
 		month: 'short',
 		day: 'numeric',
 	} );
-}
-
-function stripTags( html: string ): string {
-	const div = document.createElement( 'div' );
-	div.innerHTML = html;
-	return ( div.textContent ?? '' ).trim();
 }
 
 function buildMediaVisual( media: MediaListItem ): HTMLElement {
@@ -182,27 +177,30 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 	return wrap;
 }
 
+/**
+ * Build a single `<dt>` + `<dd>` pair for the metadata grid. The
+ * outer `<dl>` keeps the semantic list intact for screen readers
+ * that support definition-list navigation; CSS Grid handles the
+ * two-column layout via `display: contents` on the wrapper.
+ */
 function buildMetaRow(
-	dt: string,
-	dd: string | HTMLElement,
-): HTMLElement | null {
-	if ( typeof dd === 'string' && dd.trim() === '' ) {
+	label: string,
+	value: string | HTMLElement,
+): Array< HTMLElement > | null {
+	if ( typeof value === 'string' && value.trim() === '' ) {
 		return null;
 	}
-	const row = document.createElement( 'div' );
-	row.className = 'desktop-mode-my-wordpress__media-meta-row';
-	const term = document.createElement( 'span' );
-	term.className = 'desktop-mode-my-wordpress__media-meta-term';
-	term.textContent = dt;
-	const val = document.createElement( 'span' );
-	val.className = 'desktop-mode-my-wordpress__media-meta-value';
-	if ( typeof dd === 'string' ) {
-		val.textContent = dd;
+	const dt = document.createElement( 'dt' );
+	dt.className = 'desktop-mode-my-wordpress__media-meta-term';
+	dt.textContent = label;
+	const dd = document.createElement( 'dd' );
+	dd.className = 'desktop-mode-my-wordpress__media-meta-value';
+	if ( typeof value === 'string' ) {
+		dd.textContent = value;
 	} else {
-		val.appendChild( dd );
+		dd.appendChild( value );
 	}
-	row.append( term, val );
-	return row;
+	return [ dt, dd ];
 }
 
 function buildMetadataGrid( media: MediaListItem ): HTMLElement {
@@ -222,7 +220,7 @@ function buildMetadataGrid( media: MediaListItem ): HTMLElement {
 	const caption = stripTags( media.caption?.rendered ?? '' );
 	const description = stripTags( media.description?.rendered ?? '' );
 
-	const rows: Array< HTMLElement | null > = [
+	const rows: Array< Array< HTMLElement > | null > = [
 		buildMetaRow( __( 'Filename', 'desktop-mode' ), filename ),
 		buildMetaRow( __( 'Type', 'desktop-mode' ), media.mime_type ),
 		buildMetaRow( __( 'Dimensions', 'desktop-mode' ), dims ),
@@ -234,9 +232,9 @@ function buildMetadataGrid( media: MediaListItem ): HTMLElement {
 		buildMetaRow( __( 'Description', 'desktop-mode' ), description ),
 	];
 
-	for ( const row of rows ) {
-		if ( row ) {
-			grid.appendChild( row );
+	for ( const pair of rows ) {
+		if ( pair ) {
+			grid.append( ...pair );
 		}
 	}
 	return grid;
@@ -416,8 +414,4 @@ export function renderMediaPreview(
 	}
 
 	host.appendChild( pane );
-
-	// Suppress an unused-import diagnostic when sprintf isn't used in
-	// this build — keep the i18n surface ready for future strings.
-	void sprintf;
 }

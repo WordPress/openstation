@@ -21,18 +21,40 @@
 import { __, _n, sprintf } from '../i18n';
 import { applyFilters } from '../hooks';
 import { renderStatusBarSegments, type StatusBarSegment } from '../desktop-files/folder-status-bar';
-import type { DragManagerApi } from '../drag';
 import type { ShortcutDragData } from '../desktop-files/drag-payloads';
 import type { EntityRenderHost } from './kind-registry';
 import type { MediaUsage } from './types';
 import { fetchMediaUsage } from './media-rest';
 import { dashiconForMime } from './media-preview';
+import { getConfig } from './rest';
+import { getDragManager } from './dom-utils';
 
-function getDragManager(): DragManagerApi | null {
-	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
-	return api ?? null;
+/**
+ * Resolve a row's `postType` to a My WordPress entity id.
+ *
+ * Strategy:
+ *   1. Find an entity whose `restPath` ends in the post type slug
+ *      (e.g. `wp/v2/product` for WooCommerce's `product` CPT).
+ *      That's the most reliable match — restPath is what the
+ *      detail-view fetcher uses.
+ *   2. Fall back to the built-in `'posts'` / `'pages'` ids when
+ *      no custom entity is registered.
+ *   3. Last resort: `'posts'`, knowing the detail-view fetch will
+ *      404 if the CPT isn't reachable under `wp/v2/posts`. That's
+ *      better than silently ignoring the click — the empty pane
+ *      makes the gap visible.
+ */
+function entityIdForPostType( postType: string ): string {
+	const entities = getConfig().entities;
+	const suffix = '/' + postType;
+	const match = entities.find( ( e ) => e.restPath.endsWith( suffix ) );
+	if ( match ) {
+		return match.id;
+	}
+	if ( postType === 'page' ) {
+		return 'pages';
+	}
+	return 'posts';
 }
 
 function openDetailInWindow( payload: {
@@ -236,7 +258,15 @@ export async function renderMediaDetail(
 		return;
 	}
 
-	const entityId = host.route.kind === 'media-detail' ? host.route.entityId : 'media';
+	// `renderMediaDetail` is only ever dispatched when the active
+	// route is `media-detail` — the type-narrowed `entityId` is the
+	// section we're inside.
+	if ( host.route.kind !== 'media-detail' ) {
+		throw new Error(
+			'[my-wordpress] renderMediaDetail invoked outside a media-detail route.',
+		);
+	}
+	const entityId = host.route.entityId;
 
 	// Right pane: source media on top, selected referrer below.
 	const sourceWrap = document.createElement( 'header' );
@@ -279,8 +309,7 @@ export async function renderMediaDetail(
 		const tile = buildUsageRow( row );
 		tile.addEventListener( 'click', () => {
 			openDetailInWindow( {
-				entityId:
-					row.postType === 'page' ? 'pages' : 'posts',
+				entityId: entityIdForPostType( row.postType ),
 				postId: row.postId,
 				postTitle: row.title,
 			} );
