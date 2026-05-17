@@ -23,7 +23,7 @@
  * @since 0.9.0
  */
 
-import { doAction } from '../hooks';
+import { applyFilters, doAction } from '../hooks';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
 import { showToast } from '../toast';
@@ -86,13 +86,31 @@ export function buildTile(
 ): HTMLElement {
 	const file = resolveFileType( placement.file );
 	const tile = buildTileFromSpec( placementToSpec( placement, folderId ) );
-	// Ensure connectedCallback fires (initializes the tile's DOM)
-	// before the internal subscriber (`share-menu-items.ts`)
-	// decorates it on the action below. Layers re-parent the tile
-	// to the live grid after this — re-connecting is harmless.
-	if ( ! tile.isConnected ) {
-		const detachedRoot = document.createElement( 'div' );
-		detachedRoot.appendChild( tile );
+
+	// Back-compat: placement-shaped class filter. Documented in
+	// docs/files-on-desktop.md since 0.9; third-party plugins rely
+	// on the exact filter name + the `TILE_CLASS` default input +
+	// the `RestPlacementShape` signature. The `<wpd-tile>` host
+	// re-asserts `TILE_CLASS` in `_paint()`, so any extra classes
+	// the filter returns ride alongside it.
+	const classFiltered = applyFilters< string, [ RestPlacementShape ] >(
+		'desktop-mode.files.tile-class',
+		TILE_CLASS,
+		placement,
+	);
+	if ( classFiltered && classFiltered !== TILE_CLASS ) {
+		tile.className = classFiltered;
+	}
+
+	// Back-compat: placement-shaped extra-element filter. Plugins
+	// returning a non-Element get ignored (same as before).
+	const extra = applyFilters< Element | null, [ RestPlacementShape ] >(
+		'desktop-mode.files.tile-element',
+		null,
+		placement,
+	);
+	if ( extra instanceof Element ) {
+		tile.appendChild( extra );
 	}
 
 	tile.addEventListener( 'dblclick', ( e ) => {

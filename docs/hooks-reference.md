@@ -2212,6 +2212,14 @@ The "used in" payload returned by `GET /desktop-mode/v1/media-usage/<id>` — dr
 
 Rows are already filtered per-row through `current_user_can('read_post', $row['postId'])`, so the viewer never sees drafts they can't read. The payload is transient-cached (default 5 min) per attachment + viewer-capability bucket; cache busts on `save_post`, `deleted_post`, `delete_attachment`.
 
+### `desktop_mode_my_wordpress_attached_media` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_attached_media', int[] $ids, int $post_id ): int[]
+```
+
+Attachment ids referenced by a post — featured image plus everything resolved from `post_content` (block-class scan, classic `[caption]` shortcodes, `data-id` / `data-attachment-id`, and raw `<img src>` URL resolution including `-scaled.jpg` ↔ original swaps). Exposed on every public post type as the `desktop_mode_attached_media` REST field (read-only, integer array). Plugins that store attachment references outside `post_content` (ACF image fields, page-builder block storage, post-meta galleries) should append their ids here. Sanitized post-filter — non-positive values and non-arrays are discarded.
+
 ### `desktop_mode_my_wordpress_media_usage_cache_ttl` — Experimental (filter, since 0.21.0)
 
 ```php
