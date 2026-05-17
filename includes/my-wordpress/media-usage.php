@@ -452,7 +452,14 @@ function desktop_mode_my_wordpress_media_usage_bust_for_post( $post_id ) {
 	}
 }
 add_action( 'save_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
-add_action( 'deleted_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
+// `before_delete_post`, NOT `deleted_post`. By the time `deleted_post`
+// fires, `delete_all_meta_for_post` has already wiped `_thumbnail_id`
+// and the row itself is gone — `extract_refs()` would return an empty
+// set, so the cache for any referenced attachment would survive until
+// its 5-minute TTL. `before_delete_post` fires while the post + meta
+// are still readable. Signature matches (we only consume the first
+// arg, the post id).
+add_action( 'before_delete_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
 // New posts skip `pre_post_update` but still go through `save_post`,
 // so the buster works as-is — the pre-snapshot is just empty.
 

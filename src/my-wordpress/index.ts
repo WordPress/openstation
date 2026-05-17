@@ -299,6 +299,12 @@ function navigate(
 	}
 	if ( route.kind === 'media-detail' ) {
 		void renderMediaDetail( makeRenderHost( state ), route.mediaId );
+		// Defensive: every other branch in this switch ends with an
+		// explicit `return`. Keeping the symmetry means a new route
+		// kind added below won't silently fall through after a
+		// successful media-detail dispatch.
+		// eslint-disable-next-line no-useless-return
+		return;
 	}
 }
 

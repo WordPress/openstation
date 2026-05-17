@@ -283,6 +283,38 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression: deleting a post that references an attachment
+	 * must bust the cache for that attachment. We rely on the
+	 * `before_delete_post` hook (NOT `deleted_post`, which fires
+	 * after `_thumbnail_id` meta + the row itself are already
+	 * gone) so the buster can still read the refs out of the
+	 * about-to-be-deleted post.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_media_usage_bust_for_post
+	 */
+	public function test_post_deletion_busts_attachment_cache() {
+		$post = self::factory()->post->create(
+			array(
+				'post_status'  => 'publish',
+				'post_content' => '<img class="wp-image-' . $this->attachment_id . '" src="x"/>',
+			)
+		);
+
+		// Warm the cache.
+		$this->dispatch( $this->attachment_id );
+		$cache_key = desktop_mode_my_wordpress_media_usage_cache_key(
+			$this->attachment_id,
+			'edit'
+		);
+		$this->assertIsArray( get_transient( $cache_key ) );
+
+		// Force-delete the post — cache must be busted before the
+		// post row + meta are wiped.
+		wp_delete_post( $post, true );
+		$this->assertFalse( get_transient( $cache_key ) );
+	}
+
+	/**
 	 * Unknown attachment id is rejected by the permission callback
 	 * (returns false → REST issues 403). The callback runs before
 	 * the body fetch, so we never reach the 404-emitting branch in
