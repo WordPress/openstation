@@ -23,13 +23,14 @@
  * @since 0.21.0
  */
 
-import '../ui/components/wpd-tile/wpd-tile';
+import { TILE_CLASS, getDragManager } from '../ui/components/wpd-tile/wpd-tile';
 import { applyFilters } from '../hooks';
-import type { DragManagerApi } from '../drag';
 import type { ShortcutDragData } from './drag-payloads';
 
-/** CSS class on every tile — single source of truth. */
-export const TILE_CLASS = 'desktop-mode-file-tile';
+// Re-export so existing consumers (`file-tile.ts`, downstream) keep
+// pulling the canonical class from the desktop-files entry without
+// caring that the source moved into the component.
+export { TILE_CLASS };
 
 /**
  * Status-ribbon discriminators we recognize. Any string is accepted
@@ -218,13 +219,6 @@ export interface TileDragOutPayload {
 	title?: string;
 	/** Optional dashicon class for the ghost. */
 	icon?: string;
-}
-
-function getDragManager(): DragManagerApi | null {
-	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
-	return api ?? null;
 }
 
 /**

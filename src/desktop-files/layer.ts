@@ -168,15 +168,18 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		if ( newId === selectedId ) {
 			return;
 		}
-		// Strip the previous tile's class.
+		// Selected state lives on the `selected` attribute —
+		// `<wpd-tile>._paint()` derives the `--selected` class from
+		// it. Toggling the class directly survives until the next
+		// attribute change repaints the tile and wipes it.
 		container
 			.querySelectorAll( `.${ TILE_CLASS }--selected` )
-			.forEach( ( n ) => n.classList.remove( `${ TILE_CLASS }--selected` ) );
+			.forEach( ( n ) => n.removeAttribute( 'selected' ) );
 		if ( placement ) {
 			const tile = container.querySelector< HTMLElement >(
 				`[data-placement-id="${ placement.id }"]`,
 			);
-			tile?.classList.add( `${ TILE_CLASS }--selected` );
+			tile?.setAttribute( 'selected', '' );
 		}
 		selectedId = newId;
 		notifySelection( placement );
@@ -403,11 +406,12 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			selectedId = null;
 			notifySelection( null );
 		} else if ( selectedId !== null ) {
-			// Re-apply the selected class after a wholesale rebuild.
+			// Re-apply the selected state after a wholesale rebuild
+			// (attribute, not class — see notes in `setSelectedId`).
 			const tile = container.querySelector< HTMLElement >(
 				`[data-placement-id="${ selectedId }"]`,
 			);
-			tile?.classList.add( `${ TILE_CLASS }--selected` );
+			tile?.setAttribute( 'selected', '' );
 		}
 		doAction( 'desktop-mode.files.grid-rendered', {
 			folderId,

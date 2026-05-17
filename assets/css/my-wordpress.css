@@ -1604,8 +1604,16 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 .desktop-mode-my-wordpress__media-tile {
 	/* Override the base `.desktop-mode-file-tile` (position: absolute,
 	 * width: 88px) so media tiles flow inside the CSS Grid instead of
-	 * stacking at (0,0) like the absolute-positioned post/user tiles. */
-	position: static;
+	 * stacking at (0,0) like the absolute-positioned post/user tiles.
+	 *
+	 * `relative` (not `static`) so the tile remains a containing
+	 * block for absolutely-positioned descendants — the `::after`
+	 * shortcut-arrow badge on attachment tiles, and the
+	 * `<wpd-ribbon>` post-status corner ribbon — both of which
+	 * would otherwise escape to the nearest positioned ancestor
+	 * (the window, the desktop, the viewport) and render way off
+	 * the tile. */
+	position: relative;
 	width: auto;
 	display: flex;
 	flex-direction: column;

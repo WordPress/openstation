@@ -67,7 +67,15 @@ function statusRibbonsEnabled(): boolean {
 	}
 }
 
-function getDragManager(): DragManagerApi | null {
+/**
+ * Resolve the shell-side drag manager off `window.wp.desktop`.
+ * Exported so the desktop-files `attachTileDragOut` helper can
+ * reuse the same accessor — single source of truth.
+ *
+ * @public
+ * @since 0.21.0
+ */
+export function getDragManager(): DragManagerApi | null {
 	const api = (
 		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
 	).wp?.desktop?.dragManager;
@@ -231,13 +239,18 @@ export class WpdTile extends Component {
 		if ( ! this.hasAttribute( 'tabindex' ) ) {
 			this.setAttribute( 'tabindex', '0' );
 		}
+		// Sentinel used to detect our own previously-set title so we
+		// don't clobber a title set by some other code path. Kept as
+		// a constant so the set + the compare can never drift on
+		// curly-vs-straight quotes.
+		const accessGatedTitle =
+			'You don’t have permission to open this — ask the folder owner for access.';
 		if ( accessGated ) {
-			this.title =
-				'You don’t have permission to open this — ask the folder owner for access.';
+			this.title = accessGatedTitle;
 			this.setAttribute( 'aria-disabled', 'true' );
 		} else {
 			this.removeAttribute( 'aria-disabled' );
-			if ( this.title.startsWith( 'You don’t have permission' ) ) {
+			if ( this.title === accessGatedTitle ) {
 				this.removeAttribute( 'title' );
 			}
 		}

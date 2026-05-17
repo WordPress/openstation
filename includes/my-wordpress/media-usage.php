@@ -397,9 +397,17 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment ) {
 $GLOBALS['desktop_mode_media_usage_pre_save_refs'] = array();
 
 /**
- * Extract attachment ids referenced by a post: `_thumbnail_id` +
- * every `wp-image-<id>` class in its content. Used by both the
- * pre-save snapshot and the post-save buster.
+ * Extract attachment ids referenced by a post — featured image plus
+ * everything resolvable from `post_content`. Defers to the canonical
+ * resolver in `attached-media.php` so this buster catches the same
+ * cases the REST field does (block-class scan, classic `[caption]`
+ * shortcodes, `data-id` / `data-attachment-id`, and raw `<img src>`
+ * URL resolution including `-scaled.jpg` ↔ original swaps), plus
+ * any ids appended via the `desktop_mode_my_wordpress_attached_media`
+ * filter (ACF, page builders, post-meta galleries). Without this
+ * delegation, editing a post to add or remove a raw URL embed
+ * wouldn't bust the affected attachment's media-usage cache until
+ * the TTL expired.
  *
  * @since 0.21.0
  *
@@ -412,16 +420,27 @@ function desktop_mode_my_wordpress_media_usage_extract_refs( $post ) {
 	if ( ! $obj || ! isset( $obj->ID ) ) {
 		return $ids;
 	}
-	$thumb = (int) get_post_meta( (int) $obj->ID, '_thumbnail_id', true );
-	if ( $thumb > 0 ) {
-		$ids[ $thumb ] = true;
-	}
-	$content = isset( $obj->post_content ) ? (string) $obj->post_content : '';
-	if ( '' !== $content && false !== strpos( $content, 'wp-image-' ) ) {
-		if ( preg_match_all( '/wp-image-(\d+)/', $content, $m ) ) {
+	if ( ! function_exists( 'desktop_mode_my_wordpress_post_attached_media' ) ) {
+		// Defensive: bootstrap order should always load
+		// attached-media.php before this can be called from a save
+		// hook, but fall back to the legacy minimal scan just in
+		// case so the buster never silently no-ops.
+		$thumb = (int) get_post_meta( (int) $obj->ID, '_thumbnail_id', true );
+		if ( $thumb > 0 ) {
+			$ids[ $thumb ] = true;
+		}
+		$content = isset( $obj->post_content ) ? (string) $obj->post_content : '';
+		if ( '' !== $content && preg_match_all( '/wp-image-(\d+)/', $content, $m ) ) {
 			foreach ( $m[1] as $id ) {
 				$ids[ (int) $id ] = true;
 			}
+		}
+		return $ids;
+	}
+	foreach ( desktop_mode_my_wordpress_post_attached_media( (int) $obj->ID ) as $id ) {
+		$id = (int) $id;
+		if ( $id > 0 ) {
+			$ids[ $id ] = true;
 		}
 	}
 	return $ids;

@@ -155,12 +155,14 @@ function selectTile(
 	tile: HTMLElement,
 	media: MediaListItem,
 ): void {
+	// Selected state lives on the `selected` attribute — `<wpd-tile>`
+	// derives the `--selected` class from it on every `_paint()`.
+	// Toggling the class directly would be wiped out by the next
+	// repaint (label edit, thumbnail swap, hover-title toggle…).
 	if ( ctx.selectedTile ) {
-		ctx.selectedTile.classList.remove(
-			'desktop-mode-file-tile--selected',
-		);
+		ctx.selectedTile.removeAttribute( 'selected' );
 	}
-	tile.classList.add( 'desktop-mode-file-tile--selected' );
+	tile.setAttribute( 'selected', '' );
 	ctx.selectedTile = tile;
 	ctx.selectedId = media.id;
 

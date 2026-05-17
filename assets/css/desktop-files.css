@@ -380,11 +380,18 @@
  *
  * @since 0.8.0
  */
-.desktop-mode-file-tile[ data-file-type="post" ]::after,
-.desktop-mode-file-tile[ data-file-type="attachment" ]::after,
-.desktop-mode-file-tile[ data-file-type="comment" ]::after,
-.desktop-mode-file-tile[ data-file-type="user" ]::after,
-.desktop-mode-file-tile[ data-file-type="term" ]::after {
+/* Only real placements get the badge — i.e. tiles built by
+ * `buildTile(placement)` on the desktop / folder windows, which
+ * are the only surface where "this is a shortcut" actually means
+ * something. Tiles in My WordPress grids (and any future content
+ * surface) are the entity, not a shortcut to it, so the arrow
+ * would just be noise. `[data-placement-id]` is the canonical
+ * placement marker. */
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="post" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="attachment" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="comment" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="user" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="term" ]::after {
 	content: "↗";
 	position: absolute;
 	right: 14px;
