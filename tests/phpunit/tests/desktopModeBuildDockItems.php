@@ -725,6 +725,70 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 	 *
 	 * @covers ::desktop_mode_resolve_menu_plugin_file
 	 */
+	/**
+	 * Positive path: a callback whose declaring file lives under
+	 * `WP_PLUGIN_DIR/<folder>/…` resolves to the plugin file
+	 * `get_plugins()` has under that folder.
+	 *
+	 * Setup is messy on purpose — we need a real on-disk PHP file
+	 * inside the plugins directory (Reflection reads the absolute
+	 * path) and a matching entry in `get_plugins()`. The fixture is
+	 * written, included, used, and torn down within a single test.
+	 *
+	 * @covers ::desktop_mode_resolve_menu_plugin_file
+	 * @covers ::desktop_mode_plugin_file_for_path
+	 */
+	public function test_resolve_plugin_file_returns_plugin_basename_when_callback_lives_in_plugin_dir() {
+		$fake_folder = 'dm-positive-resolver-fixture';
+		$fake_dir    = WP_PLUGIN_DIR . '/' . $fake_folder;
+		$fake_basename = $fake_folder . '/' . $fake_folder . '.php';
+		$fake_file   = WP_PLUGIN_DIR . '/' . $fake_basename;
+
+		if ( ! is_dir( $fake_dir ) ) {
+			mkdir( $fake_dir, 0755, true );
+		}
+		// Write a real plugin header so `get_plugins()` discovers the
+		// fixture on its filesystem scan after we bust the plugin cache.
+		// Without a `Plugin Name:` header WP skips the file entirely.
+		file_put_contents(
+			$fake_file,
+			"<?php\n/**\n * Plugin Name: DM Positive Resolver Fixture\n * Version: 0.0.0\n */\nfunction dm_positive_resolver_fixture_render() {}\n"
+		);
+		require_once $fake_file;
+
+		$inject = static function ( $plugins ) use ( $fake_basename ) {
+			$plugins[ $fake_basename ] = array(
+				'Name'        => 'DM Positive Resolver Fixture',
+				'Version'     => '0.0.0',
+				'Description' => 'Fixture for desktop-mode resolver test.',
+			);
+			return $plugins;
+		};
+		add_filter( 'all_plugins', $inject );
+		// `get_plugins()` caches results per request and only runs the
+		// `all_plugins` filter on a cache miss. The bootstrap has
+		// almost certainly populated that cache already, so we must
+		// invalidate it for our injected entry to be visible.
+		wp_cache_delete( 'plugins', 'plugins' );
+
+		$slug     = 'dm-positive-resolver-fixture-page';
+		$hookname = get_plugin_page_hookname( $slug, '' );
+		add_action( $hookname, 'dm_positive_resolver_fixture_render' );
+
+		$resolved = desktop_mode_resolve_menu_plugin_file( $slug );
+
+		remove_action( $hookname, 'dm_positive_resolver_fixture_render' );
+		remove_filter( 'all_plugins', $inject );
+		wp_cache_delete( 'plugins', 'plugins' );
+		// Best-effort cleanup; harmless if the file is already gone.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		@unlink( $fake_file );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.rmdir_rmdir
+		@rmdir( $fake_dir );
+
+		$this->assertSame( $fake_basename, $resolved );
+	}
+
 	public function test_resolve_plugin_file_excludes_desktop_mode_itself() {
 		$slug     = 'desktop-mode-self-test';
 		$hookname = get_plugin_page_hookname( $slug, '' );

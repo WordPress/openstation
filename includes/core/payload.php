@@ -170,7 +170,11 @@ function desktop_mode_build_dock_items() {
 			'placement'  => desktop_mode_dock_placement( $item[2] ),
 			'isCore'     => desktop_mode_is_core_menu_slug( $item[2] ),
 			'pluginFile' => desktop_mode_resolve_menu_plugin_file( $item[2] ),
+			'pluginName' => null,
 		);
+		if ( $dock_item['pluginFile'] ) {
+			$dock_item['pluginName'] = desktop_mode_plugin_display_name( $dock_item['pluginFile'] );
+		}
 
 		/**
 		 * Filters a single dock item's data.
@@ -453,67 +457,538 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
  *                     when the slug isn't owned by a deactivatable plugin.
  */
 function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
-	if ( desktop_mode_is_core_menu_slug( $menu_slug ) ) {
+	$slug = (string) $menu_slug;
+
+	// `get_plugin_page_hookname` + `get_plugins` come from
+	// `wp-admin/includes/plugin.php`, which Core loads itself on
+	// every admin request. The resolver only runs in admin context
+	// (called during `admin_enqueue_scripts` and the `_admin_menu`
+	// tracker), so the symbols are always available. Bail rather
+	// than `require_once` something that's Core's job to load.
+	if ( ! function_exists( 'get_plugin_page_hookname' ) || ! function_exists( 'get_plugins' ) ) {
 		return null;
 	}
 
+	$self_basename = defined( 'DESKTOP_MODE_FILE' ) ? plugin_basename( DESKTOP_MODE_FILE ) : '';
+
+	// Strategy 1 — registration-time attribution. The admin_menu hook
+	// wrapper (see `desktop_mode_install_menu_attribution_tracker`) snapshots
+	// `$menu`/`$submenu` around every admin_menu callback and records
+	// "this plugin file added this slug". This is the authoritative
+	// source — it captures menus whose page hook isn't predictable from
+	// the slug (e.g. WC's `wc-admin&path=/marketing`) and handles
+	// callbacks that simply forward to a shared renderer (which
+	// reflection would mis-attribute).
+	$map = desktop_mode_menu_attribution_map();
+	if ( isset( $map[ $slug ] ) ) {
+		$plugin_file = $map[ $slug ];
+		if ( $self_basename && $plugin_file === $self_basename ) {
+			return null;
+		}
+		return $plugin_file;
+	}
+
+	// Strategy 2 — CPT / taxonomy registration tracker. Core's `edit.php`
+	// / `edit-tags.php` handle the render, so the page hook would never
+	// point at the registering plugin. We caught the plugin at
+	// `register_post_type()` / `register_taxonomy()` time via
+	// `debug_backtrace()`.
+	$tracked = desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug );
+	if ( null !== $tracked ) {
+		if ( $self_basename && $tracked === $self_basename ) {
+			return null;
+		}
+		return $tracked;
+	}
+
+	$base = strtok( $slug, '?' );
+
+	// Cheap reject: literal core PHP files with no `?page=` parameter
+	// (the universal "a plugin registered an admin route" signal). We
+	// can't reuse `desktop_mode_is_core_menu_slug()` here — that
+	// classifier strtok's the query string and treats `admin.php?page=foo`
+	// as core, which would hide every plugin-registered top-level tile.
+	if ( desktop_mode_is_pure_core_file( $base ) && false === strpos( $slug, '?page=' ) ) {
+		return null;
+	}
+
+	// Strategy 3 — page-hook reflection fallback. The earlier strategies
+	// can miss when a plugin is loaded after admin_menu has fired (rare),
+	// or when the menu was injected by a non-admin_menu pathway. Reflect
+	// on `$wp_filter[$hookname]` to find the callback's declaring file
+	// and map it back to an active plugin.
 	global $wp_filter;
-
-	if ( ! function_exists( 'get_plugin_page_hookname' ) ) {
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-	}
-	if ( ! function_exists( 'get_plugins' ) ) {
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-	}
-
-	$hookname = get_plugin_page_hookname( (string) $menu_slug, '' );
+	$hookname = get_plugin_page_hookname( $slug, '' );
 	if ( empty( $hookname ) || empty( $wp_filter[ $hookname ] ) ) {
 		return null;
 	}
 
-	$plugins_dir   = wp_normalize_path( WP_PLUGIN_DIR );
-	$installed     = get_plugins();
-	$self_basename = defined( 'DESKTOP_MODE_FILE' ) ? plugin_basename( DESKTOP_MODE_FILE ) : '';
-
 	$hook = $wp_filter[ $hookname ];
-	// `WP_Hook::$callbacks` is keyed by priority; iterate in WP's order.
 	foreach ( $hook->callbacks as $cbs ) {
 		foreach ( $cbs as $cb ) {
-			$file = desktop_mode_callback_source_file( $cb['function'] ?? null );
-			if ( ! $file ) {
+			$plugin_file = desktop_mode_plugin_file_for_callback( $cb['function'] ?? null );
+			if ( ! $plugin_file ) {
 				continue;
 			}
-			$file = wp_normalize_path( $file );
-			if ( 0 !== strpos( $file, $plugins_dir . '/' ) ) {
-				continue;
+			if ( $self_basename && $plugin_file === $self_basename ) {
+				return null;
 			}
-
-			// Derive `<folder>` from `<plugins_dir>/<folder>/…`. Plugins
-			// can ship in a folder or as a single-file plugin at the
-			// plugin-dir root — handle both.
-			$rel = ltrim( substr( $file, strlen( $plugins_dir ) ), '/' );
-			$folder = ( false !== strpos( $rel, '/' ) ) ? strtok( $rel, '/' ) : '';
-
-			foreach ( $installed as $plugin_file => $_data ) {
-				$match = false;
-				if ( '' !== $folder && 0 === strpos( $plugin_file, $folder . '/' ) ) {
-					$match = true;
-				} elseif ( '' === $folder && $plugin_file === $rel ) {
-					$match = true;
-				}
-				if ( ! $match ) {
-					continue;
-				}
-				if ( $self_basename && $plugin_file === $self_basename ) {
-					return null;
-				}
-				return $plugin_file;
-			}
+			return $plugin_file;
 		}
 	}
 
 	return null;
 }
+
+/**
+ * Map an arbitrary filesystem path inside `WP_PLUGIN_DIR` to the
+ * corresponding plugin file in `get_plugins()`. Returns null when the
+ * path isn't under the plugins directory, or doesn't match any active
+ * plugin folder.
+ *
+ * @since 0.27.0
+ *
+ * @param string $file Absolute filesystem path.
+ * @return string|null Plugin file (`<folder>/<file>.php`) or null.
+ */
+/**
+ * Look up the human-readable display name for a plugin file. Returns
+ * the plugin folder name as a last-resort fallback if `get_plugins()`
+ * has no entry (extremely rare — would mean the plugin file isn't
+ * installed but somehow registered a menu).
+ *
+ * @since 0.27.0
+ *
+ * @param string $plugin_file Plugin file relative to `WP_PLUGIN_DIR`.
+ * @return string Display name.
+ */
+function desktop_mode_plugin_display_name( $plugin_file ) {
+	if ( ! function_exists( 'get_plugins' ) ) {
+		return strtok( $plugin_file, '/' ) ?: $plugin_file;
+	}
+	$installed = get_plugins();
+	if ( isset( $installed[ $plugin_file ]['Name'] ) && '' !== $installed[ $plugin_file ]['Name'] ) {
+		return (string) $installed[ $plugin_file ]['Name'];
+	}
+	$folder = strtok( $plugin_file, '/' );
+	return $folder ? $folder : $plugin_file;
+}
+
+function desktop_mode_plugin_file_for_path( $file ) {
+	if ( ! is_string( $file ) || '' === $file ) {
+		return null;
+	}
+	$plugins_dir = wp_normalize_path( WP_PLUGIN_DIR );
+	$norm        = wp_normalize_path( $file );
+	if ( 0 !== strpos( $norm, $plugins_dir . '/' ) ) {
+		return null;
+	}
+	if ( ! function_exists( 'get_plugins' ) ) {
+		return null;
+	}
+	$installed = get_plugins();
+
+	$rel    = ltrim( substr( $norm, strlen( $plugins_dir ) ), '/' );
+	$folder = ( false !== strpos( $rel, '/' ) ) ? strtok( $rel, '/' ) : '';
+
+	foreach ( $installed as $plugin_file => $_data ) {
+		if ( '' !== $folder && 0 === strpos( $plugin_file, $folder . '/' ) ) {
+			return $plugin_file;
+		}
+		if ( '' === $folder && $plugin_file === $rel ) {
+			return $plugin_file;
+		}
+	}
+	return null;
+}
+
+/**
+ * Convenience wrapper: reflect on a callback to find its declaring
+ * file, then map that file to an active plugin via
+ * {@see desktop_mode_plugin_file_for_path()}.
+ *
+ * @since 0.27.0
+ *
+ * @param mixed $callback A WP-style callback.
+ * @return string|null Plugin file or null.
+ */
+function desktop_mode_plugin_file_for_callback( $callback ) {
+	$file = desktop_mode_callback_source_file( $callback );
+	return $file ? desktop_mode_plugin_file_for_path( $file ) : null;
+}
+
+/**
+ * Lazy accessor + lazy initializer for the registration-time menu
+ * attribution map: `slug → plugin_file`. The map is populated by the
+ * wrapped admin_menu callbacks installed by
+ * {@see desktop_mode_install_menu_attribution_tracker()}.
+ *
+ * @since 0.27.0
+ *
+ * @return array<string,string>
+ */
+function &desktop_mode_menu_attribution_map() {
+	static $map = null;
+	if ( null === $map ) {
+		$map = array();
+	}
+	return $map;
+}
+
+/**
+ * Install admin_menu callback wrappers that record which plugin file
+ * registered each `$menu` / `$submenu` slug.
+ *
+ * Approach:
+ *
+ *   1. Hooked on `_admin_menu` priority `-PHP_INT_MAX`, just before
+ *      `admin_menu` fires.
+ *   2. Walk `$wp_filter['admin_menu']->callbacks`. For each callback,
+ *      reflect on the function to find its declaring file → plugin
+ *      file. If the callback doesn't live in `WP_PLUGIN_DIR`, leave it
+ *      alone (Core's own callbacks).
+ *   3. Replace the callback in-place with a closure that snapshots
+ *      `$menu` and `$submenu` keys, invokes the original, then diffs
+ *      the globals. Every new top-level slug and every new submenu
+ *      entry gets attributed to that plugin file.
+ *
+ * This is the source of truth for plugin → menu ownership because it
+ * captures menus regardless of slug shape, hook name predictability,
+ * or whether the plugin shares a render callback. Reflection on the
+ * page hook (in `desktop_mode_resolve_menu_plugin_file`) is now a
+ * fallback for the rare cases where the tracker wasn't able to install
+ * in time.
+ *
+ * Idempotent — runs at most once per request via a static `$installed`
+ * flag.
+ *
+ * @since 0.27.0
+ *
+ * @return void
+ */
+function desktop_mode_install_menu_attribution_tracker() {
+	static $installed = false;
+	if ( $installed ) {
+		return;
+	}
+	$installed = true;
+
+	global $wp_filter;
+	if ( empty( $wp_filter['admin_menu'] ) ) {
+		return;
+	}
+	$hook = $wp_filter['admin_menu'];
+
+	foreach ( $hook->callbacks as $priority => $cbs ) {
+		foreach ( $cbs as $id => $cb ) {
+			$orig        = $cb['function'] ?? null;
+			$plugin_file = desktop_mode_plugin_file_for_callback( $orig );
+			if ( ! $plugin_file || ! is_callable( $orig ) ) {
+				continue;
+			}
+			$accepted_args = (int) ( $cb['accepted_args'] ?? 1 );
+
+			$wrapper = static function () use ( $orig, $plugin_file ) {
+				global $menu, $submenu;
+
+				$before_top_slugs = array();
+				if ( is_array( $menu ) ) {
+					foreach ( $menu as $entry ) {
+						if ( isset( $entry[2] ) ) {
+							$before_top_slugs[ (string) $entry[2] ] = true;
+						}
+					}
+				}
+				$before_submenu_keys = is_array( $submenu ) ? array_keys( $submenu ) : array();
+				$before_submenu_sigs = array();
+				if ( is_array( $submenu ) ) {
+					foreach ( $submenu as $parent => $children ) {
+						$sigs = array();
+						foreach ( (array) $children as $child ) {
+							if ( isset( $child[2] ) ) {
+								$sigs[ (string) $child[2] ] = true;
+							}
+						}
+						$before_submenu_sigs[ $parent ] = $sigs;
+					}
+				}
+
+				$args   = func_get_args();
+				$return = call_user_func_array( $orig, $args );
+
+				$map = &desktop_mode_menu_attribution_map();
+
+				if ( is_array( $menu ) ) {
+					foreach ( $menu as $entry ) {
+						if ( ! isset( $entry[2] ) ) {
+							continue;
+						}
+						$slug = (string) $entry[2];
+						if ( ! isset( $before_top_slugs[ $slug ] ) && ! isset( $map[ $slug ] ) ) {
+							$map[ $slug ] = $plugin_file;
+						}
+					}
+				}
+
+				if ( is_array( $submenu ) ) {
+					foreach ( $submenu as $parent => $children ) {
+						$prev_sigs = $before_submenu_sigs[ $parent ] ?? array();
+						foreach ( (array) $children as $child ) {
+							if ( ! isset( $child[2] ) ) {
+								continue;
+							}
+							$slug = (string) $child[2];
+							if ( isset( $prev_sigs[ $slug ] ) ) {
+								continue;
+							}
+							if ( ! isset( $map[ $slug ] ) ) {
+								$map[ $slug ] = $plugin_file;
+							}
+							// Also attribute the parent if it isn't
+							// already attributed and Core doesn't own it.
+							// Lets a submenu-only plugin (registered
+							// under a Core parent like `tools.php`) be
+							// resolvable too.
+						}
+						if (
+							! in_array( $parent, $before_submenu_keys, true )
+							&& ! isset( $map[ $parent ] )
+						) {
+							$map[ $parent ] = $plugin_file;
+						}
+					}
+				}
+
+				return $return;
+			};
+
+			// Preserve the `accepted_args` metadata so callbacks
+			// expecting parameters from `do_action_ref_array()` still
+			// receive them. The wrapper uses `func_get_args()` so it
+			// forwards everything.
+			$wp_filter['admin_menu']->callbacks[ $priority ][ $id ] = array(
+				'function'      => $wrapper,
+				'accepted_args' => $accepted_args,
+			);
+		}
+	}
+}
+
+add_action( '_admin_menu', 'desktop_mode_install_menu_attribution_tracker', -PHP_INT_MAX );
+add_action( '_network_admin_menu', 'desktop_mode_install_menu_attribution_tracker', -PHP_INT_MAX );
+add_action( '_user_admin_menu', 'desktop_mode_install_menu_attribution_tracker', -PHP_INT_MAX );
+
+/**
+ * The subset of `desktop_mode_is_core_menu_slug`'s "core files" that's
+ * actually owned by Core regardless of any query string — this is what
+ * we use inside the plugin-file resolver to reject Posts / Pages / etc.
+ * without rejecting `admin.php?page=…` (a universal plugin signal that
+ * the public is_core classifier also incorrectly treats as core for
+ * legacy reasons we don't want to disturb).
+ *
+ * The list intentionally drops `admin.php` so plugin-registered
+ * top-level pages can still be resolved.
+ *
+ * @since 0.27.0
+ *
+ * @param string $base Slug with query string already stripped.
+ * @return bool True when the base filename is a Core admin handler.
+ */
+function desktop_mode_is_pure_core_file( $base ) {
+	$core_files = array(
+		'index.php',
+		'edit-comments.php',
+		'upload.php',
+		'term.php',
+		'post-new.php',
+		'post.php',
+		'themes.php',
+		'nav-menus.php',
+		'widgets.php',
+		'customize.php',
+		'plugins.php',
+		'plugin-install.php',
+		'plugin-editor.php',
+		'users.php',
+		'user-new.php',
+		'profile.php',
+		'user-edit.php',
+		'tools.php',
+		'import.php',
+		'export.php',
+		'site-health.php',
+		'export-personal-data.php',
+		'erase-personal-data.php',
+		'options-general.php',
+		'options-writing.php',
+		'options-reading.php',
+		'options-discussion.php',
+		'options-media.php',
+		'options-permalink.php',
+		'options-privacy.php',
+		'link-manager.php',
+		'update-core.php',
+	);
+	return in_array( $base, $core_files, true );
+}
+
+/**
+ * Resolve a CPT / taxonomy URL slug (`edit.php?post_type=X` or
+ * `edit-tags.php?taxonomy=Y`) to the plugin file that registered the
+ * type. The mapping is built lazily on `init` by capturing the
+ * filename of whichever code called `register_post_type()` /
+ * `register_taxonomy()` for non-builtin types.
+ *
+ * Returns null when the slug isn't a CPT / taxonomy URL, when the
+ * registered type is builtin, or when the registrant lives outside
+ * `WP_PLUGIN_DIR` (theme-registered or mu-plugin).
+ *
+ * @since 0.27.0
+ *
+ * @param string $slug Menu slug.
+ * @return string|null Plugin file or null.
+ */
+function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
+	if ( false !== strpos( $slug, 'edit.php?' ) && false !== strpos( $slug, 'post_type=' ) ) {
+		$qs = parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
+		parse_str( (string) $qs, $args );
+		$pt = isset( $args['post_type'] ) ? (string) $args['post_type'] : '';
+		if ( '' === $pt ) {
+			return null;
+		}
+		$map = desktop_mode_get_typed_plugin_map();
+		return $map['post_type'][ $pt ] ?? null;
+	}
+	if ( false !== strpos( $slug, 'edit-tags.php?' ) && false !== strpos( $slug, 'taxonomy=' ) ) {
+		$qs = parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
+		parse_str( (string) $qs, $args );
+		$tx = isset( $args['taxonomy'] ) ? (string) $args['taxonomy'] : '';
+		if ( '' === $tx ) {
+			return null;
+		}
+		$map = desktop_mode_get_typed_plugin_map();
+		return $map['taxonomy'][ $tx ] ?? null;
+	}
+	return null;
+}
+
+/**
+ * Lazy accessor for the CPT/taxonomy → plugin file map. The map is
+ * populated by `desktop_mode_record_type_registrant()` (hooked early on
+ * `init`), so by the time the dock payload is built — on
+ * `admin_enqueue_scripts`, well after `init` — every plugin-registered
+ * non-builtin type has an entry. Stored in a static so repeated
+ * lookups during a single request don't trigger the populator twice.
+ *
+ * @since 0.27.0
+ *
+ * @return array{post_type: array<string,string>, taxonomy: array<string,string>}
+ */
+function &desktop_mode_get_typed_plugin_map() {
+	static $map = null;
+	if ( null === $map ) {
+		$map = array(
+			'post_type' => array(),
+			'taxonomy'  => array(),
+		);
+	}
+	return $map;
+}
+
+/**
+ * Record the registering plugin file for a CPT or taxonomy. Hooked at
+ * `registered_post_type` / `registered_taxonomy` priority 9999 so we
+ * fire after every other listener has run (lets a plugin re-register
+ * its own type on top of someone else's — last writer wins, which
+ * matches WP's runtime semantics).
+ *
+ * Resolution is via `debug_backtrace()`: walk frames until we hit one
+ * whose `file` lives under `WP_PLUGIN_DIR`, then map the folder back
+ * to a `get_plugins()` entry. Cheap — the backtrace is bounded to 12
+ * frames and runs once per type registration, all during `init`.
+ *
+ * @since 0.27.0
+ *
+ * @param string $type_or_post_type Type name (CPT or taxonomy).
+ * @param string $kind              Either `'post_type'` or `'taxonomy'`.
+ * @return void
+ */
+function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
+	if ( '' === (string) $type_or_post_type ) {
+		return;
+	}
+	// Skip Core builtin types — they're registered from Core itself
+	// (Posts, Pages, Categories, …) and the backtrace would never land
+	// inside WP_PLUGIN_DIR anyway. Cheap pre-filter.
+	if ( 'post_type' === $kind ) {
+		$obj = get_post_type_object( $type_or_post_type );
+		if ( $obj && ! empty( $obj->_builtin ) ) {
+			return;
+		}
+	} elseif ( 'taxonomy' === $kind ) {
+		$obj = get_taxonomy( $type_or_post_type );
+		if ( $obj && ! empty( $obj->_builtin ) ) {
+			return;
+		}
+	}
+
+	$plugin_file = desktop_mode_plugin_file_for_callback_backtrace();
+	if ( null === $plugin_file ) {
+		return;
+	}
+	$map = &desktop_mode_get_typed_plugin_map();
+	$map[ $kind ][ $type_or_post_type ] = $plugin_file;
+}
+
+/**
+ * Walk the current PHP backtrace and return the plugin file owning
+ * the closest frame inside `WP_PLUGIN_DIR`. Returns null when no
+ * frame qualifies or when `get_plugins()` isn't available (Core
+ * hasn't loaded `wp-admin/includes/plugin.php` yet — true on
+ * non-admin requests and very early admin bootstrap).
+ *
+ * Used by the CPT / taxonomy registration tracker to attribute
+ * `register_post_type()` / `register_taxonomy()` calls without
+ * forcing Core to load its admin include earlier than it would.
+ *
+ * @since 0.27.0
+ *
+ * @return string|null Plugin file or null.
+ */
+function desktop_mode_plugin_file_for_callback_backtrace() {
+	if ( ! function_exists( 'get_plugins' ) ) {
+		return null;
+	}
+	$bt = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 12 );
+	foreach ( $bt as $frame ) {
+		if ( empty( $frame['file'] ) ) {
+			continue;
+		}
+		$plugin_file = desktop_mode_plugin_file_for_path( (string) $frame['file'] );
+		if ( null !== $plugin_file ) {
+			return $plugin_file;
+		}
+	}
+	return null;
+}
+
+add_action(
+	'registered_post_type',
+	static function ( $post_type ) {
+		desktop_mode_record_type_registrant( $post_type, 'post_type' );
+	},
+	9999,
+	1
+);
+
+add_action(
+	'registered_taxonomy',
+	static function ( $taxonomy ) {
+		desktop_mode_record_type_registrant( $taxonomy, 'taxonomy' );
+	},
+	9999,
+	1
+);
 
 /**
  * Resolve the declaring file of a hook callback. Handles closures,

@@ -3003,8 +3003,16 @@ interface DockItem {
                                // deactivatable plugin; null for core menus,
                                // mu-plugins, drop-ins, and Desktop Mode itself.
                                // Drives the dock right-click "Deactivate …" action.
-                               // Resolved server-side by reflecting on the
-                               // menu page hook's registered callbacks.
+                               // Resolved server-side by snapshotting $menu/$submenu
+                               // around every admin_menu callback (registration-time
+                               // attribution), with page-hook reflection + a CPT/
+                               // taxonomy registration tracker as fallbacks.
+                               // Stable since 0.27.0.
+    pluginName: string | null; // owning plugin's display name (the `Name:` field
+                               // from its plugin header). Used in the right-click
+                               // "Deactivate <pluginName>…" label so sub-page tiles
+                               // (e.g. WC's Analytics) read as the parent plugin.
+                               // Always null when pluginFile is null.
                                // Stable since 0.27.0.
 }
 ```

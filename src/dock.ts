@@ -118,6 +118,15 @@ export interface DockItem {
 	 * itself — none of those are deactivatable via `wp/v2/plugins`.
 	 */
 	pluginFile?: string | null;
+	/**
+	 * Human-readable display name of the owning plugin (e.g.
+	 * `"WooCommerce"`), as read from the plugin header's `Name:` field
+	 * via `get_plugins()`. Used in the right-click "Deactivate …"
+	 * label so a sub-page tile (e.g. WC's "Analytics") still presents
+	 * the parent plugin's identity in the destructive action. Null
+	 * when `pluginFile` is null.
+	 */
+	pluginName?: string | null;
 }
 
 /** Which edge of the screen the rail hugs. Drives tooltip anchoring + modifier CSS. */
@@ -915,6 +924,7 @@ export class Dock {
 				title: item.title,
 				surface: 'dock',
 				pluginFile: item.pluginFile ?? null,
+				pluginName: item.pluginName ?? null,
 			} );
 		} );
 

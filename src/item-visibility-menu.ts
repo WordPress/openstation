@@ -93,6 +93,15 @@ export interface OpenItemVisibilityMenuOpts {
 	 * @since 0.27.0
 	 */
 	pluginFile?: string | null;
+	/**
+	 * Owning plugin's display name (e.g. `"WooCommerce"`). When the
+	 * dock tile is a sub-page (Analytics, Marketing, …) this is the
+	 * label we show in the destructive action — the user is
+	 * deactivating the plugin, not the tile.
+	 *
+	 * @since 0.27.0
+	 */
+	pluginName?: string | null;
 }
 
 /**
@@ -197,15 +206,20 @@ function openItemVisibilityMenuImmediate(
 	// `desktop_mode_resolve_menu_plugin_file()`.
 	if ( opts.pluginFile ) {
 		const pluginFile = opts.pluginFile;
+		// Prefer the owning plugin's display name so a sub-page tile
+		// (e.g. WC's "Analytics") reads as "Deactivate WooCommerce…".
+		// Falls back to the tile title for plugins whose `Name:` header
+		// is missing — extremely rare, but cheaper than throwing.
+		const pluginLabel = opts.pluginName || opts.title;
 		options.push( { kind: 'separator' } );
 		options.push( {
 			id: 'deactivate-plugin',
-			// translators: %s is the dock tile's display title.
-			label: sprintf( __( 'Deactivate %s…' ), opts.title ),
+			// translators: %s is the owning plugin's display name.
+			label: sprintf( __( 'Deactivate %s…' ), pluginLabel ),
 			icon: 'dashicons-trash',
 			danger: true,
 			onPick: () => {
-				void confirmAndDeactivatePlugin( pluginFile, opts.title );
+				void confirmAndDeactivatePlugin( pluginFile, pluginLabel );
 			},
 		} );
 	}
@@ -219,15 +233,23 @@ function openItemVisibilityMenuImmediate(
 	menu.style.left = '-9999px';
 	menu.style.top = '-9999px';
 	menu.style.visibility = 'hidden';
-	menu.style.zIndex = '10000';
+	// Must sit above the dock-peek popover (z-index: 999999 in
+	// assets/css/dock-peek.css). The peek is still visible when the
+	// user right-clicks a tile, so without this the menu opens
+	// underneath the thumbnail strip.
+	menu.style.zIndex = '1000000';
 
 	type PickableOption = Exclude< MenuOption, { kind: 'separator' } >;
 	const byKey = new Map< string, PickableOption >();
 	for ( const opt of options ) {
 		if ( opt.kind === 'separator' ) {
 			const hr = document.createElement( 'hr' );
+			// Pull the separator color from a CSS variable so light-mode
+			// docks and theme overrides can re-color it without touching
+			// JS. Fallback matches the dark dock chrome the rest of
+			// `<wpd-context-menu>` is built against.
 			hr.style.cssText =
-				'border: 0; border-top: 1px solid rgba(255,255,255,0.12); margin: 4px 6px;';
+				'border: 0; border-top: 1px solid var( --wpd-context-menu-separator-color, rgba(255,255,255,0.12) ); margin: 4px 6px;';
 			menu.appendChild( hr );
 			continue;
 		}
@@ -420,14 +442,28 @@ async function confirmAndDeactivatePlugin(
 		return;
 	}
 
-	showToast( {
-		message: sprintf(
-			/* translators: %s: plugin title. */
-			__( '%s deactivated.' ),
-			title,
-		),
-		duration: 3000,
-	} );
+	// Close every open window that belongs to the deactivated plugin —
+	// otherwise the user is left with an iframe pointing at a now-403
+	// admin route (or a native window whose render bundle just stopped
+	// loading). Walk the current menu, find dock items whose
+	// `pluginFile` matches the target, then close every instance
+	// keyed by that item's derived window id.
+	const closedTitles = closeWindowsForPlugin( pluginFile );
+
+	const deactivatedMsg =
+		closedTitles.length > 0
+			? sprintf(
+				/* translators: 1: plugin title. 2: number of windows that were closed. */
+				__( '%1$s deactivated. Closed %2$d window(s).' ),
+				title,
+				closedTitles.length,
+			)
+			: sprintf(
+				/* translators: %s: plugin title. */
+				__( '%s deactivated.' ),
+				title,
+			);
+	showToast( { message: deactivatedMsg, duration: 3000 } );
 
 	// Ask the shell to repaint the dock from a fresh menu probe. The
 	// dock's own `desktop-mode-plugins-changed` listener will pick up
@@ -436,4 +472,124 @@ async function confirmAndDeactivatePlugin(
 		wp?: { desktop?: { refreshMenu?: () => void } };
 	};
 	w.wp?.desktop?.refreshMenu?.();
+}
+
+/**
+ * Close every open window owned by `pluginFile`. Returns the titles
+ * of windows that were closed (used by the deactivation toast).
+ *
+ * Lookup pathway:
+ *
+ *   1. Read the current dock items via `wp.desktop.getMenuItems()`.
+ *      Each item carries the `pluginFile` resolved server-side.
+ *   2. For each matching item, derive the window `baseId` from its
+ *      url and close every instance under that base (`getAllByBaseId`)
+ *      plus any singleton keyed under the dock item id itself
+ *      (`getById( item.id )`).
+ *   3. Also walk every open window once more by url substring — covers
+ *      `admin.php?page=<plugin-slug>…` instances that diverged from the
+ *      registered dock url (deep links, custom navigations).
+ *
+ * @since 0.27.0
+ */
+function closeWindowsForPlugin( pluginFile: string ): string[] {
+	interface DockItemLike {
+		id: string;
+		title: string;
+		url: string;
+		pluginFile?: string | null;
+	}
+	interface WindowLike {
+		id: string;
+		iframe?: HTMLIFrameElement | null;
+		config?: { title?: string; baseId?: string; url?: string };
+		close: () => void;
+	}
+	interface ShellShim {
+		getMenuItems?: () => DockItemLike[];
+		deriveWindowId?: ( url: string ) => string;
+		windowManager?: {
+			getAll?: () => WindowLike[];
+		};
+	}
+	const api = ( window as unknown as { wp?: { desktop?: ShellShim } } )
+		.wp?.desktop;
+	if ( ! api?.windowManager?.getAll ) {
+		return [];
+	}
+
+	const items = api.getMenuItems?.() ?? [];
+	const owned = items.filter( ( i ) => i.pluginFile === pluginFile );
+	if ( owned.length === 0 ) {
+		return [];
+	}
+
+	// Build the set of identity keys that any owned tile could
+	// produce: the slug-derived dock id AND the URL-derived window
+	// baseId (they typically agree, but session-restored or
+	// cross-rail tiles can diverge).
+	const ownedKeys = new Set< string >();
+	for ( const item of owned ) {
+		ownedKeys.add( item.id );
+		if ( api.deriveWindowId ) {
+			ownedKeys.add( api.deriveWindowId( item.url ) );
+		}
+	}
+
+	// Walk every open window once and check ownership four ways. Each
+	// path independently catches a real-world case the others miss:
+	// matching by `id` covers freshly opened singletons; matching by
+	// `config.baseId` covers multi-instance windows whose `id` is
+	// suffixed (`<baseId>-2`); deriving from `config.url` covers
+	// windows opened with a URL that differs from the dock item's
+	// landing URL (deep links); deriving from the live iframe URL
+	// covers windows that navigated away from where they started.
+	const toClose = new Map< string, WindowLike >();
+	const windows = api.windowManager.getAll() ?? [];
+	const derive = api.deriveWindowId;
+	for ( const w of windows ) {
+		if ( ownedKeys.has( w.id ) ) {
+			toClose.set( w.id, w );
+			continue;
+		}
+		if ( w.config?.baseId && ownedKeys.has( w.config.baseId ) ) {
+			toClose.set( w.id, w );
+			continue;
+		}
+		if ( derive && w.config?.url ) {
+			const derivedFromConfig = derive( w.config.url );
+			if ( ownedKeys.has( derivedFromConfig ) ) {
+				toClose.set( w.id, w );
+				continue;
+			}
+		}
+		if ( derive && w.iframe ) {
+			// `iframe.src` reflects the iframe's CURRENT location, not
+			// just its initial URL — covers the case where the user
+			// navigated a single window through several WC subpages.
+			let liveUrl = '';
+			try {
+				liveUrl = w.iframe.src || '';
+			} catch {
+				/* cross-origin iframe — leave liveUrl empty */
+			}
+			if ( liveUrl ) {
+				const derivedFromLive = derive( liveUrl );
+				if ( ownedKeys.has( derivedFromLive ) ) {
+					toClose.set( w.id, w );
+				}
+			}
+		}
+	}
+
+	const titles: string[] = [];
+	for ( const w of toClose.values() ) {
+		titles.push( w.config?.title ?? w.id );
+		try {
+			w.close();
+		} catch {
+			/* swallow — one bad close shouldn't block the rest */
+		}
+	}
+	return titles;
 }
