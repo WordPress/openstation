@@ -121,6 +121,11 @@ function desktop_mode_default_os_settings() {
 		// the entry stays in the menu and left clicks on the wallpaper
 		// do nothing. Per-user.
 		'showDesktopOnWallpaperClick' => false,
+		// Diagonal corner ribbon on My WordPress tiles whose post
+		// status isn't `publish` (draft / pending / private /
+		// scheduled). On by default — surfaces unpublished work at
+		// a glance. Per-user.
+		'showPostStatusRibbons'    => true,
 		// Per-user opt-OUT for the folder-sharing feature. Defaults
 		// ON. When false:
 		//   - The Share button, share-settings modal, "Leave shared
@@ -409,6 +414,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
 
+	$show_post_status_ribbons = isset( $raw['showPostStatusRibbons'] )
+		? (bool) $raw['showPostStatusRibbons']
+		: $defaults['showPostStatusRibbons'];
+
 	$folders_sharing_enabled = isset( $raw['foldersSharingEnabled'] )
 		? (bool) $raw['foldersSharingEnabled']
 		: $defaults['foldersSharingEnabled'];
@@ -515,6 +524,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePluginsEnabled'     => $native_plugins_enabled,
 		'nativeCommentsEnabled'    => $native_comments_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
+		'showPostStatusRibbons'    => $show_post_status_ribbons,
 		'foldersSharingEnabled'    => $folders_sharing_enabled,
 		'itemVisibility'           => $item_visibility,
 		'dockOrder'                => $dock_order,

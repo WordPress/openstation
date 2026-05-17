@@ -25,7 +25,7 @@ import {
 	renderStatusBarSegments,
 	type StatusBarSegment,
 } from '../desktop-files/folder-status-bar';
-import type { ShortcutDragData } from '../desktop-files/drag-payloads';
+import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
 import { getDragManager, stripTags } from './dom-utils';
 import {
 	getEntityRenderer,
@@ -80,7 +80,6 @@ import type {
 	UserFootprint,
 	UserListItem,
 } from './types';
-import { applyTileEntryStagger } from '../utils';
 import '../ui/components/wpd-button/wpd-button';
 import '../ui/components/wpd-context-menu/wpd-context-menu';
 import '../ui/components/wpd-spinner/wpd-spinner';
@@ -520,7 +519,7 @@ function renderRoot( state: RenderState ): void {
 	const layout = createTileLayout( grid, 'root' );
 	const select = createTileSelector();
 
-	const tilesByEntity = new Map< string, HTMLButtonElement >();
+	const tilesByEntity = new Map< string, HTMLElement >();
 
 	cfg.entities.forEach( ( entity, idx ) => {
 		const tile = buildIconTile( {
@@ -612,32 +611,25 @@ function buildIconTile( spec: {
 	role: 'folder' | 'entry';
 	icon: string;
 	label: string;
-} ): HTMLButtonElement {
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className =
-		'desktop-mode-file-tile desktop-mode-my-wordpress__tile' +
-		( spec.role === 'folder'
-			? ' desktop-mode-my-wordpress__tile--folder'
-			: ' desktop-mode-my-wordpress__tile--entry' );
-	tile.setAttribute( 'role', 'listitem' );
-	tile.dataset.role = spec.role;
-
-	const visual = document.createElement( 'span' );
-	visual.className = `desktop-mode-file-tile__icon dashicons ${ sanitizeClass(
-		spec.icon,
-	) }`;
-	visual.setAttribute( 'aria-hidden', 'true' );
-	tile.appendChild( visual );
-
-	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-file-tile__label';
-	label.textContent = spec.label;
-	tile.appendChild( label );
-
-	applyTileEntryStagger( tile );
-
-	return tile;
+} ): HTMLElement {
+	// Adapter onto the canonical `buildTileFromSpec` — same visual
+	// chrome the desktop / folder windows use. The My WordPress
+	// `__tile` modifier stays in the class list so the section-
+	// specific CSS (selection ring, locked, status ribbon) keeps
+	// applying.
+	return buildTileFromSpec( {
+		type: spec.role === 'folder' ? 'folder' : '__my-wordpress-entry',
+		ref: spec.label,
+		label: spec.label,
+		icon: sanitizeClass( spec.icon ),
+		role: spec.role,
+		extraClasses: [
+			'desktop-mode-my-wordpress__tile',
+			spec.role === 'folder'
+				? 'desktop-mode-my-wordpress__tile--folder'
+				: 'desktop-mode-my-wordpress__tile--entry',
+		],
+	} );
 }
 
 function renderError( state: RenderState, message: string ): void {
@@ -977,57 +969,28 @@ function buildEntityTile(
 		label: titleText,
 	} );
 	tile.dataset.entryId = String( item.id );
+	if ( item.status ) {
+		// `<wpd-tile>` reads the `status` attribute and slots a
+		// `<wpd-ribbon>` for non-publish values, honoring the
+		// `showPostStatusRibbons` OS-setting.
+		tile.setAttribute( 'status', item.status );
+	}
 
 	// Drag-out: the user picks up an entity tile and drops it on the
 	// wallpaper, a folder icon, or inside an open folder window. The
-	// desktop FilesLayer's drop targets accept the `'shortcut'` payload
-	// and POST a new placement at the drop coordinates.
-	//
-	// We route through the centralized DragManager rather than HTML5
-	// drag because:
-	//   1. HTML5 drag's `dragstart` fails to fire when an ancestor or
-	//      sibling listener has called `setPointerCapture` on the
-	//      tile — the long-standing "I can lift the tile but no drop
-	//      target sees the payload" bug.
-	//   2. We want a single cancellation path (Escape, blur,
-	//      visibilitychange) for every in-shell drag.
-	//   3. Phase 8's "Lift and Drop" cross-iframe pattern needs
-	//      pointer-event control anyway. Building on it now keeps a
-	//      single mental model.
-	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const dragManager = getDragManager();
-		if ( ! dragManager ) {
-			return;
-		}
-		dragManager.start( {
-			payload: {
-				type: 'shortcut',
-				source: tile,
-				data: {
-					kind: 'post',
-					ref: String( item.id ),
-					title: titleText,
-					icon: entity.icon,
-				} satisfies ShortcutDragData,
-				ghost: {
-					offsetX: e.clientX - tile.getBoundingClientRect().left,
-					offsetY: e.clientY - tile.getBoundingClientRect().top,
-				},
-			},
-			origin: e,
-			onClickOnly: () => {
-				// Sub-threshold gesture — the regular `click` listener
-				// (added below by `attachSelectAndDragHandlers`) handles
-				// selection. Hiding the tooltip here is harmless even
-				// if the click handler also fires; tooltip is gone
-				// either way.
-				hideTooltip();
-			},
-		} );
-	} );
+	// shared `attachTileDragOut` helper owns the pointerdown ->
+	// DragManager dance — every tile-emitting surface (desktop,
+	// folders, My WordPress) uses it.
+	attachTileDragOut(
+		tile,
+		{
+			kind: 'post',
+			ref: String( item.id ),
+			title: titleText,
+			icon: entity.icon,
+		},
+		() => hideTooltip(),
+	);
 
 	// If another user is editing right now, surface that on the
 	// tile itself (overlay lock badge + class for styling) so the
@@ -1183,10 +1146,10 @@ function selectTile(
 ): void {
 	if ( ctx.selectedTile ) {
 		ctx.selectedTile.classList.remove(
-			'desktop-mode-my-wordpress__tile--selected',
+			'desktop-mode-file-tile--selected',
 		);
 	}
-	tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+	tile.classList.add( 'desktop-mode-file-tile--selected' );
 	ctx.selectedTile = tile;
 	ctx.selectedId = id;
 	void renderPreview( state, ctx, entity, id );
@@ -1804,11 +1767,11 @@ function renderSubList(
 			tile.addEventListener( 'click', () => {
 				if ( selectedTile ) {
 					selectedTile.classList.remove(
-						'desktop-mode-my-wordpress__tile--selected',
+						'desktop-mode-file-tile--selected',
 					);
 				}
 				tile.classList.add(
-					'desktop-mode-my-wordpress__tile--selected',
+					'desktop-mode-file-tile--selected',
 				);
 				selectedTile = tile;
 				selectedKey = tileKey;
@@ -1902,9 +1865,23 @@ async function loadSubItems(
 		if ( detail.featured_media && detail.featured_media > 0 ) {
 			ids.add( detail.featured_media );
 		}
-		extractContentMediaIds( detail.content?.rendered ?? '' ).forEach(
-			( id ) => ids.add( id ),
-		);
+		// Prefer the authoritative server-computed list when present
+		// — it includes `<img src>` URL→id resolution that catches
+		// images inserted via the cross-window drag-bridge or other
+		// paths that emit raw `<img>` without `wp-image-N` classes.
+		// Fall back to the client-side regex on older API responses.
+		const serverList = detail.desktop_mode_attached_media;
+		if ( Array.isArray( serverList ) && serverList.length > 0 ) {
+			for ( const id of serverList ) {
+				if ( typeof id === 'number' && id > 0 ) {
+					ids.add( id );
+				}
+			}
+		} else {
+			extractContentMediaIds( detail.content?.rendered ?? '' ).forEach(
+				( id ) => ids.add( id ),
+			);
+		}
 
 		// Parent-attached pass runs in parallel with the include-batch
 		// fetch since they don't depend on each other.
@@ -3675,39 +3652,39 @@ function buildUserTile(
 ): HTMLElement {
 	const displayName = item.name || item.slug || `#${ item.id }`;
 
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className =
-		'desktop-mode-file-tile desktop-mode-my-wordpress__tile desktop-mode-my-wordpress__tile--user';
-	tile.setAttribute( 'role', 'listitem' );
-	tile.dataset.role = 'user';
-	tile.dataset.userId = String( item.id );
-
-	const avatarWrap = document.createElement( 'span' );
-	avatarWrap.className = 'desktop-mode-my-wordpress__user-tile-avatar';
-	avatarWrap.setAttribute( 'aria-hidden', 'true' );
 	const avatarUrl = pickAvatar( item.avatar_urls ) ?? '';
-	if ( avatarUrl ) {
-		const img = document.createElement( 'img' );
-		img.src = avatarUrl;
-		img.alt = '';
-		img.loading = 'lazy';
-		img.decoding = 'async';
-		avatarWrap.appendChild( img );
-	} else {
-		// No avatar — show initials so the tile still has an
-		// identity-shaped visual instead of a hollow ring.
-		const fallback = document.createElement( 'span' );
-		fallback.className = 'desktop-mode-my-wordpress__user-tile-initials';
-		fallback.textContent = initialsOf( displayName );
-		avatarWrap.appendChild( fallback );
-	}
-	tile.appendChild( avatarWrap );
+	const tile = buildTileFromSpec( {
+		type: 'user',
+		ref: String( item.id ),
+		label: displayName,
+		thumbnail: avatarUrl || undefined,
+		// No avatar: fall back to a generic users dashicon so the
+		// tile still has a visual. The initials block below
+		// replaces that icon as a richer fallback.
+		icon: avatarUrl ? undefined : 'dashicons-admin-users',
+		role: 'entry',
+		dataset: { userId: item.id, role: 'user' },
+		extraClasses: [
+			'desktop-mode-my-wordpress__tile',
+			'desktop-mode-my-wordpress__tile--user',
+		],
+	} );
 
-	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-file-tile__label';
-	label.textContent = displayName;
-	tile.appendChild( label );
+	if ( ! avatarUrl ) {
+		// Identity-shaped fallback: replace the generic dashicon
+		// with the user's initials so the tile reads as a person,
+		// not "any user".
+		const iconHost = tile.querySelector(
+			'.desktop-mode-file-tile__visual',
+		);
+		if ( iconHost ) {
+			iconHost.replaceChildren();
+			const initials = document.createElement( 'span' );
+			initials.className = 'desktop-mode-my-wordpress__user-tile-initials';
+			initials.textContent = initialsOf( displayName );
+			iconHost.appendChild( initials );
+		}
+	}
 
 	const summary = item.desktop_mode_summary;
 	const postCount = summary?.postCount ?? 0;
@@ -3756,44 +3733,21 @@ function buildUserTile(
 	tile.addEventListener( 'mouseleave', hideTooltip );
 	state.teardown.push( hideTooltip );
 
-	// Drag-out: same gesture the post/page tile uses to drop a
-	// shortcut on the wallpaper / inside a folder window. The
-	// `'user'` file type already has a server-side resolver
-	// (`Desktop_Mode_User_File`) + opener registered, so a drop on
-	// any FilesLayer target POSTs a placement carrying
+	// Drag-out via the shared `attachTileDragOut`. The `'user'`
+	// file type's resolver + opener are already registered
+	// server-side (`Desktop_Mode_User_File`), so a drop on any
+	// FilesLayer target POSTs a placement carrying
 	// `kind: 'user', ref: '<id>'` — no extra wiring needed here.
-	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const dragManager = getDragManager();
-		if ( ! dragManager ) {
-			return;
-		}
-		dragManager.start( {
-			payload: {
-				type: 'shortcut',
-				source: tile,
-				data: {
-					kind: 'user',
-					ref: String( item.id ),
-					title: displayName,
-					icon: 'dashicons-admin-users',
-				} satisfies ShortcutDragData,
-				ghost: {
-					offsetX: e.clientX - tile.getBoundingClientRect().left,
-					offsetY: e.clientY - tile.getBoundingClientRect().top,
-				},
-			},
-			origin: e,
-			onClickOnly: () => {
-				// Sub-threshold gesture — the `click` listener below
-				// handles selection. Hide the tooltip in case it was
-				// hovering so the click feels snappy.
-				hideTooltip();
-			},
-		} );
-	} );
+	attachTileDragOut(
+		tile,
+		{
+			kind: 'user',
+			ref: String( item.id ),
+			title: displayName,
+			icon: 'dashicons-admin-users',
+		},
+		() => hideTooltip(),
+	);
 
 	const tileKey = `entry:${ item.id }`;
 	ctx.layout.place( tile, tileKey, {
@@ -3903,10 +3857,10 @@ function selectUserTile(
 ): void {
 	if ( ctx.selectedTile ) {
 		ctx.selectedTile.classList.remove(
-			'desktop-mode-my-wordpress__tile--selected',
+			'desktop-mode-file-tile--selected',
 		);
 	}
-	tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+	tile.classList.add( 'desktop-mode-file-tile--selected' );
 	ctx.selectedTile = tile;
 	ctx.selectedId = item.id;
 	void renderUserPreviewPane( state, ctx, item );
@@ -5009,10 +4963,10 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
 		}
 		if ( selected ) {
 			selected.classList.remove(
-				'desktop-mode-my-wordpress__tile--selected',
+				'desktop-mode-file-tile--selected',
 			);
 		}
-		tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+		tile.classList.add( 'desktop-mode-file-tile--selected' );
 		selected = tile;
 	};
 }

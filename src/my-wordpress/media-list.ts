@@ -18,13 +18,13 @@
 import { __, _n, sprintf } from '../i18n';
 import { renderStatusBarSegments, type StatusBarSegment } from '../desktop-files/folder-status-bar';
 import { applyFilters } from '../hooks';
-import type { ShortcutDragData } from '../desktop-files/drag-payloads';
+import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
 import type { EntityRenderHost } from './kind-registry';
 import type { MediaListItem, MyWordPressEntity, MediaPreviewAction } from './types';
 import { fetchMediaPage } from './media-rest';
 import { getConfig } from './rest';
 import { dashiconForMime, renderMediaPreview } from './media-preview';
-import { getDragManager, stripTags } from './dom-utils';
+import { stripTags } from './dom-utils';
 
 interface MediaListContext {
 	page: number;
@@ -106,74 +106,34 @@ function buildMediaTile(
 ): HTMLElement {
 	const titleText =
 		stripTags( media.title.rendered ) || __( '(no title)', 'desktop-mode' );
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className =
-		'desktop-mode-my-wordpress__media-tile desktop-mode-file-tile desktop-mode-my-wordpress__tile desktop-mode-my-wordpress__tile--media';
-	tile.setAttribute( 'role', 'listitem' );
-	tile.dataset.mediaId = String( media.id );
-	tile.dataset.mime = media.mime_type;
-
-	const thumbWrap = document.createElement( 'span' );
-	thumbWrap.className = 'desktop-mode-my-wordpress__media-tile-thumb';
-	thumbWrap.setAttribute( 'aria-hidden', 'true' );
 
 	const sizes = media.media_details?.sizes;
-	const thumbUrl =
-		media.mime_type.startsWith( 'image/' )
-			? (
-				sizes?.thumbnail?.source_url ??
-					sizes?.medium?.source_url ??
-					media.source_url
-			)
-			: '';
-	if ( thumbUrl ) {
-		const img = document.createElement( 'img' );
-		img.src = thumbUrl;
-		img.alt = '';
-		img.loading = 'lazy';
-		img.decoding = 'async';
-		thumbWrap.appendChild( img );
-	} else {
-		const icon = document.createElement( 'span' );
-		icon.className = `dashicons ${ dashiconForMime( media.mime_type ) }`;
-		thumbWrap.appendChild( icon );
-	}
-	tile.appendChild( thumbWrap );
+	const thumbUrl = media.mime_type.startsWith( 'image/' )
+		? ( sizes?.thumbnail?.source_url ??
+			sizes?.medium?.source_url ??
+			media.source_url )
+		: '';
 
-	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-file-tile__label';
-	label.textContent = titleText;
-	tile.appendChild( label );
+	const tile = buildTileFromSpec( {
+		type: 'attachment',
+		ref: String( media.id ),
+		label: titleText,
+		thumbnail: thumbUrl || undefined,
+		icon: thumbUrl ? undefined : dashiconForMime( media.mime_type ),
+		role: 'entry',
+		dataset: { mediaId: media.id, mime: media.mime_type },
+		extraClasses: [
+			'desktop-mode-my-wordpress__media-tile',
+			'desktop-mode-my-wordpress__tile',
+			'desktop-mode-my-wordpress__tile--media',
+		],
+	} );
 
-	// Drag-out: the user drops a media tile on the wallpaper / inside
-	// a folder window — the `'attachment'` file type already has a
-	// server resolver + opener.
-	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const dragManager = getDragManager();
-		if ( ! dragManager ) {
-			return;
-		}
-		dragManager.start( {
-			payload: {
-				type: 'shortcut',
-				source: tile,
-				data: {
-					kind: 'attachment',
-					ref: String( media.id ),
-					title: titleText,
-					icon: dashiconForMime( media.mime_type ),
-				} satisfies ShortcutDragData,
-				ghost: {
-					offsetX: e.clientX - tile.getBoundingClientRect().left,
-					offsetY: e.clientY - tile.getBoundingClientRect().top,
-				},
-			},
-			origin: e,
-		} );
+	attachTileDragOut( tile, {
+		kind: 'attachment',
+		ref: String( media.id ),
+		title: titleText,
+		icon: dashiconForMime( media.mime_type ),
 	} );
 
 	tile.addEventListener( 'click', () => selectTile( ctx, tile, media ) );
@@ -197,10 +157,10 @@ function selectTile(
 ): void {
 	if ( ctx.selectedTile ) {
 		ctx.selectedTile.classList.remove(
-			'desktop-mode-my-wordpress__tile--selected',
+			'desktop-mode-file-tile--selected',
 		);
 	}
-	tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+	tile.classList.add( 'desktop-mode-file-tile--selected' );
 	ctx.selectedTile = tile;
 	ctx.selectedId = media.id;
 

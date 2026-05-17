@@ -210,6 +210,18 @@ export interface OsSettingsState {
 	 */
 	showDesktopOnWallpaperClick: boolean;
 	/**
+	 * When true, post-type tiles inside the My WordPress window
+	 * carry a diagonal corner ribbon (`Draft` / `Pending` /
+	 * `Private` / `Scheduled`) for non-published rows. Per-user.
+	 * Defaults to `true` — the ribbon is most users' easiest signal
+	 * that a tile won't show up on the front-end yet, so we surface
+	 * it out-of-the-box and let people who find it noisy toggle it
+	 * off.
+	 *
+	 * @since 0.21.0
+	 */
+	showPostStatusRibbons: boolean;
+	/**
 	 * Per-user kill switch for the folder-sharing feature. Defaults
 	 * to `true`. When `false`, every share-related surface is
 	 * suppressed in this user's shell:

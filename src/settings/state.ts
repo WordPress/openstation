@@ -167,6 +167,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick
 				: DEFAULTS.showDesktopOnWallpaperClick,
+		showPostStatusRibbons:
+			typeof parsed.showPostStatusRibbons === 'boolean'
+				? parsed.showPostStatusRibbons
+				: DEFAULTS.showPostStatusRibbons,
 		foldersSharingEnabled:
 			typeof parsed.foldersSharingEnabled === 'boolean'
 				? parsed.foldersSharingEnabled

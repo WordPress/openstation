@@ -50,6 +50,7 @@ export { WpdBadge } from './wpd-badge/wpd-badge';
 export type { WpdBadgeTone } from './wpd-badge/wpd-badge';
 export { WpdRibbon } from './wpd-ribbon/wpd-ribbon';
 export type { WpdRibbonPlacement, WpdRibbonTone } from './wpd-ribbon/wpd-ribbon';
+export { WpdTile } from './wpd-tile/wpd-tile';
 export { WpdLog } from './wpd-log/wpd-log';
 export type { WpdLogRowRenderer } from './wpd-log/wpd-log';
 export { WpdSteps, WpdStep } from './wpd-steps/wpd-steps';

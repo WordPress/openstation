@@ -189,6 +189,7 @@ export const DEFAULTS: OsSettingsState = {
 	// opt-out posture; cap-gated on `edit_posts` server-side.
 	nativeCommentsEnabled: true,
 	showDesktopOnWallpaperClick: false,
+	showPostStatusRibbons: true,
 	foldersSharingEnabled: true,
 	itemVisibility: {},
 	dockOrder: [],

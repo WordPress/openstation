@@ -21,13 +21,12 @@
 import { __, _n, sprintf } from '../i18n';
 import { applyFilters } from '../hooks';
 import { renderStatusBarSegments, type StatusBarSegment } from '../desktop-files/folder-status-bar';
-import type { ShortcutDragData } from '../desktop-files/drag-payloads';
+import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
 import type { EntityRenderHost } from './kind-registry';
-import type { MediaUsage } from './types';
+import type { MediaListItem, MediaUsage } from './types';
 import { fetchMediaUsage } from './media-rest';
-import { dashiconForMime } from './media-preview';
+import { renderMediaPreview } from './media-preview';
 import { getConfig } from './rest';
-import { getDragManager } from './dom-utils';
 
 /**
  * Resolve a row's `postType` to the matching My WordPress entity.
@@ -85,102 +84,149 @@ function openDetailInWindow( payload: {
 	myWp?.openDetail?.( payload );
 }
 
-function buildMediaSourceTile( usage: MediaUsage ): HTMLElement {
-	// The drill-in view still exposes the source attachment as a
-	// drag handle in the preview header — so the user can drag-out
-	// from this view too.
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className =
-		'desktop-mode-my-wordpress__media-source-tile desktop-mode-file-tile';
-	tile.dataset.mediaId = String( usage.media.id );
+/**
+ * Build a file-tile for a referencing post — visually consistent
+ * with the Media / Posts grids: icon on top, title below, a small
+ * badge for the `usedAs` discriminator. Draggable (drops to the
+ * desktop as a `kind: 'post'` shortcut), double-click navigates
+ * into the post's My WordPress detail dossier, right-click opens
+ * a small context menu.
+ */
+function buildUsageTile(
+	row: MediaUsage[ 'usedIn' ][ number ],
+): HTMLElement {
+	const titleText = row.title || `#${ row.postId }`;
 
-	const thumbWrap = document.createElement( 'span' );
-	thumbWrap.className = 'desktop-mode-my-wordpress__media-tile-thumb';
-	thumbWrap.setAttribute( 'aria-hidden', 'true' );
-	if ( usage.media.mime.startsWith( 'image/' ) ) {
-		const img = document.createElement( 'img' );
-		img.src = usage.media.sourceUrl;
-		img.alt = usage.media.title;
-		img.loading = 'lazy';
-		thumbWrap.appendChild( img );
-	} else {
-		const icon = document.createElement( 'span' );
-		icon.className = `dashicons ${ dashiconForMime( usage.media.mime ) }`;
-		thumbWrap.appendChild( icon );
-	}
-	tile.appendChild( thumbWrap );
+	// Canonical tile chrome — same as every other surface. The
+	// status ribbon falls out of `spec.status` (the renderer honors
+	// the `showPostStatusRibbons` OS-setting itself).
+	const tile = buildTileFromSpec( {
+		type: 'post',
+		ref: String( row.postId ),
+		label: titleText,
+		icon: entityIconForPostType( row.postType ),
+		role: 'entry',
+		status: row.status,
+		dataset: { postId: row.postId, postType: row.postType },
+		extraClasses: [
+			'desktop-mode-my-wordpress__tile',
+			'desktop-mode-my-wordpress__tile--entry',
+			'desktop-mode-my-wordpress__media-tile',
+			'desktop-mode-my-wordpress__tile--usage',
+		],
+	} );
 
-	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-file-tile__label';
-	label.textContent = usage.media.title;
-	tile.appendChild( label );
-
-	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const dragManager = getDragManager();
-		if ( ! dragManager ) {
-			return;
-		}
-		dragManager.start( {
-			payload: {
-				type: 'shortcut',
-				source: tile,
-				data: {
-					kind: 'attachment',
-					ref: String( usage.media.id ),
-					title: usage.media.title,
-					icon: dashiconForMime( usage.media.mime ),
-				} satisfies ShortcutDragData,
-				ghost: {
-					offsetX: e.clientX - tile.getBoundingClientRect().left,
-					offsetY: e.clientY - tile.getBoundingClientRect().top,
-				},
-			},
-			origin: e,
-		} );
+	attachTileDragOut( tile, {
+		kind: 'post',
+		ref: String( row.postId ),
+		title: titleText,
+		icon: entityIconForPostType( row.postType ),
 	} );
 
 	return tile;
 }
 
-function buildUsageRow( row: MediaUsage[ 'usedIn' ][ number ] ): HTMLElement {
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className =
-		'desktop-mode-my-wordpress__usage-row desktop-mode-file-tile';
-	tile.dataset.postId = String( row.postId );
-	tile.dataset.postType = row.postType;
+let openContextMenu: HTMLElement | null = null;
 
-	const iconWrap = document.createElement( 'span' );
-	iconWrap.className = 'desktop-mode-my-wordpress__usage-icon';
-	iconWrap.setAttribute( 'aria-hidden', 'true' );
-	const icon = document.createElement( 'span' );
-	icon.className = `dashicons ${ entityIconForPostType( row.postType ) }`;
-	iconWrap.appendChild( icon );
-	tile.appendChild( iconWrap );
+function closeContextMenu(): void {
+	if ( openContextMenu && openContextMenu.isConnected ) {
+		openContextMenu.remove();
+	}
+	openContextMenu = null;
+}
 
-	const text = document.createElement( 'span' );
-	text.className = 'desktop-mode-my-wordpress__usage-text';
-	const title = document.createElement( 'span' );
-	title.className = 'desktop-mode-my-wordpress__usage-title';
-	title.textContent = row.title || `#${ row.postId }`;
-	text.appendChild( title );
+/**
+ * Minimal right-click context menu for a usage tile. Mirrors the
+ * options the regular post-tile menu offers (open in editor,
+ * navigate into) plus an "Open original URL" option that goes to
+ * the post on the front-end.
+ */
+function openUsageTileMenu(
+	row: MediaUsage[ 'usedIn' ][ number ],
+	pos: { x: number; y: number },
+): void {
+	closeContextMenu();
+	const menu = document.createElement( 'wpd-context-menu' );
+	menu.setAttribute( 'open', '' );
+	menu.classList.add( 'desktop-mode-my-wordpress__menu' );
+	( menu as HTMLElement ).style.left = `${ pos.x }px`;
+	( menu as HTMLElement ).style.top = `${ pos.y }px`;
 
-	const meta = document.createElement( 'span' );
-	meta.className = 'desktop-mode-my-wordpress__usage-meta';
-	const usedAsLabel: Record< MediaUsage[ 'usedIn' ][ number ][ 'usedAs' ], string > = {
-		featured: __( 'Featured image', 'desktop-mode' ),
-		content: __( 'Embedded in content', 'desktop-mode' ),
-		meta: __( 'In meta field', 'desktop-mode' ),
+	const addOption = ( id: string, label: string, icon: string ) => {
+		const opt = document.createElement( 'wpd-context-menu-option' );
+		( opt as HTMLElement ).dataset.menuItemId = id;
+		opt.setAttribute( 'value', id );
+		opt.setAttribute( 'icon', icon );
+		opt.textContent = label;
+		menu.appendChild( opt );
 	};
-	meta.textContent = `${ row.postTypeLabel } · ${ usedAsLabel[ row.usedAs ] }`;
-	text.appendChild( meta );
 
-	tile.appendChild( text );
-	return tile;
+	addOption( 'navigate-into', __( 'Open in My WordPress', 'desktop-mode' ), 'dashicons-category' );
+	if ( row.editLink ) {
+		addOption( 'open-editor', __( 'Open in editor', 'desktop-mode' ), 'dashicons-edit' );
+	}
+	if ( row.link ) {
+		addOption( 'open-front', __( 'View on site', 'desktop-mode' ), 'dashicons-external' );
+	}
+
+	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+		const detail = ( e as CustomEvent< { id: string } > ).detail;
+		closeContextMenu();
+		if ( detail.id === 'navigate-into' ) {
+			openDetailInWindow( {
+				entityId: entityIdForPostType( row.postType ),
+				postId: row.postId,
+				postTitle: row.title,
+			} );
+			return;
+		}
+		if ( detail.id === 'open-editor' && row.editLink ) {
+			window.open( row.editLink, '_blank', 'noopener,noreferrer' );
+			return;
+		}
+		if ( detail.id === 'open-front' && row.link ) {
+			window.open( row.link, '_blank', 'noopener,noreferrer' );
+		}
+	} );
+
+	document.body.appendChild( menu );
+	openContextMenu = menu;
+
+	// Reposition if menu overflows the viewport.
+	const rect = menu.getBoundingClientRect();
+	if ( rect.right > window.innerWidth ) {
+		( menu as HTMLElement ).style.left = `${ Math.max(
+			0,
+			window.innerWidth - rect.width - 8,
+		) }px`;
+	}
+	if ( rect.bottom > window.innerHeight ) {
+		( menu as HTMLElement ).style.top = `${ Math.max(
+			0,
+			window.innerHeight - rect.height - 8,
+		) }px`;
+	}
+
+	queueMicrotask( () => {
+		const onDoc = ( ev: PointerEvent ) => {
+			const target = ev.target;
+			if ( target instanceof Node && menu.contains( target ) ) {
+				return;
+			}
+			closeContextMenu();
+			document.removeEventListener( 'pointerdown', onDoc, true );
+			document.removeEventListener( 'keydown', onKey );
+		};
+		const onKey = ( ev: KeyboardEvent ) => {
+			if ( ev.key === 'Escape' ) {
+				closeContextMenu();
+				document.removeEventListener( 'pointerdown', onDoc, true );
+				document.removeEventListener( 'keydown', onKey );
+			}
+		};
+		document.addEventListener( 'pointerdown', onDoc, true );
+		document.addEventListener( 'keydown', onKey );
+	} );
 }
 
 function paintStatus(
@@ -289,14 +335,15 @@ export async function renderMediaDetail(
 	}
 	const entityId = host.route.entityId;
 
-	// Right pane: source media on top, selected referrer below.
-	const sourceWrap = document.createElement( 'header' );
-	sourceWrap.className = 'desktop-mode-my-wordpress__media-detail-header';
-	sourceWrap.appendChild( buildMediaSourceTile( usage ) );
-
-	const summary = document.createElement( 'p' );
-	summary.className = 'desktop-mode-my-wordpress__media-detail-summary';
-	summary.textContent = sprintf(
+	// Right pane: usage summary on top, then a full type-aware
+	// media preview below — same component the browse-view uses, so
+	// plugin authors' `preview-actions` / `preview-extras` hooks
+	// fire here too.
+	const summary = document.createElement( 'div' );
+	summary.className = 'desktop-mode-my-wordpress__media-detail-summary-bar';
+	const summaryText = document.createElement( 'p' );
+	summaryText.className = 'desktop-mode-my-wordpress__media-detail-summary';
+	summaryText.textContent = sprintf(
 		// translators: %d is the count of posts/pages referencing this file.
 		_n(
 			'%d entry references this file.',
@@ -305,11 +352,38 @@ export async function renderMediaDetail(
 		),
 		usage.usedIn.length,
 	);
-	sourceWrap.appendChild( summary );
+	summary.appendChild( summaryText );
 
-	right.replaceChildren( sourceWrap );
+	right.replaceChildren( summary );
 
-	// Left pane: list of references.
+	// Inline media preview — adapt the `MediaUsage.media` payload to
+	// the `MediaListItem` shape the renderer expects. Same right-pane
+	// preview the browse view shows, so the same plugin hooks fire.
+	const mediaItem: MediaListItem = {
+		id: usage.media.id,
+		title: { rendered: usage.media.title },
+		date: usage.media.date,
+		mime_type: usage.media.mime,
+		source_url: usage.media.sourceUrl,
+		media_details: {
+			file: usage.media.filename,
+		},
+		_embedded: usage.media.author.name
+			? { author: [ { id: usage.media.author.id, name: usage.media.author.name } ] }
+			: undefined,
+	} as MediaListItem;
+
+	const previewHost = document.createElement( 'div' );
+	previewHost.className = 'desktop-mode-my-wordpress__media-detail-preview';
+	renderMediaPreview( previewHost, mediaItem, {
+		entityId,
+		previewActions: getConfig().previewActions ?? [],
+	} );
+	right.appendChild( previewHost );
+
+	// Left pane: grid of referencing posts. Same file-tile shape
+	// the Media browse view uses — drag-out, double-click navigate,
+	// right-click context menu.
 	left.replaceChildren();
 	if ( usage.usedIn.length === 0 ) {
 		const empty = document.createElement( 'div' );
@@ -323,21 +397,27 @@ export async function renderMediaDetail(
 		return;
 	}
 
-	const list = document.createElement( 'div' );
-	list.className = 'desktop-mode-my-wordpress__usage-rows';
-	list.setAttribute( 'role', 'list' );
+	const grid = document.createElement( 'div' );
+	grid.className = 'desktop-mode-my-wordpress__media-grid desktop-mode-my-wordpress__usage-grid';
+	grid.setAttribute( 'role', 'list' );
 	for ( const row of usage.usedIn ) {
-		const tile = buildUsageRow( row );
-		tile.addEventListener( 'click', () => {
+		const tile = buildUsageTile( row );
+		tile.addEventListener( 'dblclick', ( e ) => {
+			e.preventDefault();
 			openDetailInWindow( {
 				entityId: entityIdForPostType( row.postType ),
 				postId: row.postId,
 				postTitle: row.title,
 			} );
 		} );
-		list.appendChild( tile );
+		tile.addEventListener( 'contextmenu', ( e ) => {
+			e.preventDefault();
+			openUsageTileMenu( row, { x: e.clientX, y: e.clientY } );
+		} );
+		grid.appendChild( tile );
 	}
-	left.appendChild( list );
+	left.appendChild( grid );
 
+	host.addTeardown( closeContextMenu );
 	paintStatus( statusBar, usage.usedIn.length, entityId );
 }

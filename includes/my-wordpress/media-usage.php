@@ -252,30 +252,59 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment ) {
 	}
 
 	// --- Content embeds (block class + raw URL) -------------------------
+	// We need to match the file basename AND its variants — WP
+	// auto-generates `image-scaled.jpg` for big uploads and stores
+	// THAT as `_wp_attached_file`, while editors emit the original
+	// URL in `<img src>`. Without trying both, a post embedding the
+	// unscaled URL never matches a `-scaled` attachment.
 	if ( '' !== $file_basename ) {
-		$placeholders   = implode( ',', array_fill( 0, count( $public_types ), '%s' ) );
-		$class_pattern  = '%wp-image-' . $attachment_id . '%';
-		$url_pattern    = '%' . $wpdb->esc_like( $file_basename ) . '%';
-		$query_args     = array_merge(
-			array( $class_pattern, $url_pattern ),
-			$public_types
-		);
+		$basename_variants = array( $file_basename );
+		if ( preg_match( '/^(.*)-scaled(\.[a-zA-Z0-9]+)$/', $file_basename, $m ) ) {
+			$basename_variants[] = $m[1] . $m[2];
+		}
+		$basename_variants = array_values( array_unique( $basename_variants ) );
+
+		$class_pattern   = '%wp-image-' . $attachment_id . '%';
+		$url_patterns    = array();
+		foreach ( $basename_variants as $variant ) {
+			$url_patterns[] = '%' . $wpdb->esc_like( $variant ) . '%';
+		}
+
+		// Build the OR-arms — one for class, N for URL variants.
+		$pattern_args   = array_merge( array( $class_pattern ), $url_patterns );
+		$pattern_clause = implode( ' OR ', array_fill( 0, count( $pattern_args ), 'post_content LIKE %s' ) );
+		$type_holders   = implode( ',', array_fill( 0, count( $public_types ), '%s' ) );
+		$query_args     = array_merge( $pattern_args, $public_types );
+
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$content_rows = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT ID FROM {$wpdb->posts}
-				 WHERE ( post_content LIKE %s OR post_content LIKE %s )
+				 WHERE ( {$pattern_clause} )
 				   AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )
-				   AND post_type IN ( {$placeholders} )",
+				   AND post_type IN ( {$type_holders} )",
 				$query_args
 			)
 		);
+
+		// Build the URL-variant list (canonical + unscaled) for the
+		// confirmation pass below. `wp_get_attachment_image_src` is
+		// unaware of these — we precompute them here.
+		$url_variants = array();
+		if ( '' !== $file_url ) {
+			$url_variants[] = $file_url;
+			if ( preg_match( '/^(.*)-scaled(\.[a-zA-Z0-9]+)$/', $file_url, $m ) ) {
+				$url_variants[] = $m[1] . $m[2];
+			} elseif ( preg_match( '/^(.*)(\.[a-zA-Z0-9]+)$/', $file_url, $m ) ) {
+				$url_variants[] = $m[1] . '-scaled' . $m[2];
+			}
+		}
+
 		// The LIKE scan over-fetches: `%wp-image-12%` matches
-		// `wp-image-123` too. Re-check each candidate with a
-		// word-boundary regex (matches `wp-image-12` followed by
-		// any non-digit, or end of string) and accept the row only
-		// if the precise class pattern OR the full attachment URL
-		// is present.
+		// `wp-image-123`. Re-check each candidate with a word-
+		// boundary regex (matches `wp-image-12` followed by any
+		// non-digit, or end of string), AND accept any post that
+		// contains any of the URL variants.
 		$class_re = '/wp-image-' . $attachment_id . '(?!\d)/';
 		foreach ( (array) $content_rows as $pid ) {
 			$pid = (int) $pid;
@@ -286,9 +315,15 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment ) {
 			if ( ! $content_post || ! isset( $content_post->post_content ) ) {
 				continue;
 			}
-			$haystack    = (string) $content_post->post_content;
-			$has_class   = (bool) preg_match( $class_re, $haystack );
-			$has_url     = '' !== $file_url && false !== strpos( $haystack, $file_url );
+			$haystack  = (string) $content_post->post_content;
+			$has_class = (bool) preg_match( $class_re, $haystack );
+			$has_url   = false;
+			foreach ( $url_variants as $variant ) {
+				if ( '' !== $variant && false !== strpos( $haystack, $variant ) ) {
+					$has_url = true;
+					break;
+				}
+			}
 			if ( ! $has_class && ! $has_url ) {
 				continue;
 			}

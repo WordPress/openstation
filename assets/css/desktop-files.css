@@ -210,8 +210,29 @@
 }
 
 .desktop-mode-file-tile:focus-visible {
-	box-shadow: 0 0 0 2px
+	/* Inset focus ring — outset rings extended past the tile and
+	 * visually overlapped the colindant icon when the canvas cell
+	 * pitch is tight (96 px cell, 88 px tile → only 4 px clearance
+	 * per side). Inset keeps the ring fully inside the tile. */
+	box-shadow: inset 0 0 0 2px
 		var( --desktop-mode-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+}
+
+/* Status ribbon sizing inside tiles. The `<wpd-ribbon>` defaults
+ * are tuned for cards (~90 px clipping window); 88 px-wide tiles
+ * need a tighter footprint or the ribbon dominates the icon. We
+ * override the component's CSS custom-property theming surface so
+ * the ribbon stays a small accent in the corner. Authors who want
+ * different sizing can override per-tile or per-section. */
+.desktop-mode-file-tile > wpd-ribbon {
+	--wpd-ribbon-size: 48px;
+	--wpd-ribbon-banner-width: 72px;
+	--wpd-ribbon-banner-offset: 12px;
+	--wpd-ribbon-banner-pull: -18px;
+	--wpd-ribbon-padding: 1px 0;
+	--wpd-ribbon-font: 700 7px/1.4 var( --desktop-mode-font, system-ui );
+	--wpd-ribbon-tracking: 0.05em;
+	--wpd-ribbon-shadow: 0 1px 2px rgba( 0, 0, 0, 0.2 );
 }
 
 .desktop-mode-file-tile--dragging {

@@ -133,11 +133,12 @@
 	transform: none;
 }
 
-/* Selection highlight on the post/page tile. */
-.desktop-mode-my-wordpress__tile--selected.desktop-mode-file-tile,
-.desktop-mode-my-wordpress__tile--selected.desktop-mode-file-tile:hover {
-	background: var( --desktop-mode-selected, rgba( 34, 113, 177, 0.12 ) );
-}
+/* Selected state for every tile in My WordPress is rendered by
+ * the canonical `.desktop-mode-file-tile--selected` rule in
+ * `desktop-files.css` — same accent border + tinted background
+ * the folder windows + wallpaper tiles use. No section-specific
+ * override here — visual parity across the whole shell.
+ */
 
 /* Lock state — another user is currently editing this post. We dim
  * the tile a touch and overlay a small dashicon-lock badge on the
@@ -1540,6 +1541,54 @@ a.desktop-mode-my-wordpress__footprint-event-title:hover {
 }
 
 /* ============================================================ *
+ *  Status ribbon — diagonal corner banner for non-published tiles
+ *  (since 0.21.0)
+ *
+ *  Classic 45° corner ribbon — same affordance as a stamp on a
+ *  document. Applied to every tile whose post status isn't
+ *  `publish` across every My WordPress section (Posts, Pages,
+ *  Media drill-in, plugin kinds).
+ *
+ *  Implementation:
+ *   1. Tiles with a status modifier get `overflow: hidden` so the
+ *      ribbon's overshoot clips to the tile bounds.
+ *   2. Ribbon is a wide strip (`width: 110px`) anchored to the
+ *      top-right corner, rotated +45° so it forms a diagonal
+ *      banner across that corner. The strip extends past the
+ *      tile edges; `overflow: hidden` on the parent crops it
+ *      into a clean triangle.
+ *
+ *  The status tiles need a positioning context. `.desktop-mode-
+ *  file-tile` is `position: absolute` (canvas layout) on the
+ *  Posts/Pages browse views — that satisfies the positioning-
+ *  context requirement. For the Media drill-in usage tiles we
+ *  swap from `static` to `relative` via the per-status rule
+ *  below so the ribbon stays anchored to its own tile.
+ * ============================================================ */
+
+/* Status ribbon — the diagonal corner banner — is now drawn by
+ * the `<wpd-ribbon>` web component slotted inside `<wpd-tile>`.
+ * The component's own shadow-DOM styles own placement, rotation,
+ * background, lettering, and the WP admin-theme tint. The only
+ * surface-specific rule left here is dimming the icon on non-
+ * published tiles so the unpublished signal carries even when
+ * the ribbon is hidden via the OS-settings toggle. */
+
+.desktop-mode-my-wordpress__tile--draft,
+.desktop-mode-my-wordpress__tile--pending,
+.desktop-mode-my-wordpress__tile--private,
+.desktop-mode-my-wordpress__tile--future {
+	overflow: hidden;
+}
+
+wpd-tile[ status='draft' ] .desktop-mode-file-tile__icon,
+wpd-tile[ status='pending' ] .desktop-mode-file-tile__icon,
+wpd-tile[ status='private' ] .desktop-mode-file-tile__icon,
+wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
+	opacity: 0.7;
+}
+
+/* ============================================================ *
  *  Media section (since 0.21.0)
  * ============================================================ */
 
@@ -1575,32 +1624,48 @@ a.desktop-mode-my-wordpress__footprint-event-title:hover {
 	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.04 ) );
 }
 
-.desktop-mode-my-wordpress__media-tile.desktop-mode-my-wordpress__tile--selected {
-	border-color: var( --desktop-mode-accent, #2271b1 );
-	background: var( --desktop-mode-accent-soft, rgba( 34, 113, 177, 0.08 ) );
-}
+/* Media tiles inherit the canonical `.desktop-mode-file-tile--selected`
+ * rule from `desktop-files.css` — accent inset border + tinted
+ * background — same as every other tile in the shell. */
 
-.desktop-mode-my-wordpress__media-tile-thumb {
+/* Override the canonical 48×48 visual/preview sizing — media tiles
+ * want the visual to fill the full grid-cell width as a square
+ * thumbnail (or icon-fallback square). Photos browser look, not
+ * folder-icon look. Applies to BOTH the `<img>` (real thumbnail)
+ * and the dashicon fallback (non-image MIME), so the two tile
+ * shapes are visually consistent in the grid. */
+.desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__visual {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 100%;
+	height: auto;
 	aspect-ratio: 1 / 1;
 	overflow: hidden;
 	border-radius: 6px;
-	background: var( --desktop-mode-media-tile-bg, rgba( 0, 0, 0, 0.05 ) );
+	background: var(
+		--desktop-mode-media-tile-bg,
+		rgba( 0, 0, 0, 0.05 )
+	);
+	/* Reset the base 32px font + 48px size since we're sizing the
+	 * inner img/icon explicitly below. */
+	font-size: 0;
+	line-height: 1;
 }
 
-.desktop-mode-my-wordpress__media-tile-thumb img {
+.desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__preview {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
+	border-radius: 0;
 }
 
-.desktop-mode-my-wordpress__media-tile-thumb .dashicons {
+.desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__icon {
+	/* Centered dashicon fallback — proportional to the larger
+	 * thumbnail well so it doesn't look like a postage stamp. */
+	width: auto;
+	height: auto;
 	font-size: 36px;
-	width: 36px;
-	height: 36px;
 	color: var( --desktop-mode-muted, #787c82 );
 }
 
@@ -1696,76 +1761,50 @@ a.desktop-mode-my-wordpress__footprint-event-title:hover {
 
 /* ----- Media drill-in ----- */
 
-.desktop-mode-my-wordpress__usage-list {
+/* Drill-in: referencing-posts list. Visually identical to the
+ * Posts / Pages tiles — same `desktop-mode-file-tile` chrome (48px
+ * dashicon + 88px-wide two-line label). We can't reuse the
+ * absolute-positioning canvas layout from `renderEntityList` here
+ * (those internals don't export), so this surface uses a flex-wrap
+ * of fixed-width tiles to reproduce the look.
+ *
+ * NOTE: this rule INTENTIONALLY overrides the `__media-grid`
+ * defaults (which target square thumbnails on 130px columns) so
+ * usage tiles match the canvas-flowed post tiles instead.
+ */
+.desktop-mode-my-wordpress__usage-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px 8px;
 	padding: 16px;
+	align-content: flex-start;
 }
 
-.desktop-mode-my-wordpress__usage-rows {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.desktop-mode-my-wordpress__usage-row {
-	position: static;
-	width: auto;
-	display: flex;
+/* Reset the `__media-tile` overrides for usage tiles so they
+ * inherit the unmodified `.desktop-mode-file-tile` chrome the
+ * canvas-positioned post tiles use — except for `position: static`
+ * so they participate in the flex layout. */
+.desktop-mode-my-wordpress__tile--usage {
+	width: 88px;
 	align-items: center;
-	gap: 12px;
-	padding: 8px 12px;
-	background: transparent;
-	border: 1px solid transparent;
-	border-radius: 6px;
-	cursor: pointer;
-	text-align: start;
+	padding: 8px 4px;
+	gap: 6px;
 }
 
-.desktop-mode-my-wordpress__usage-row:hover {
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.04 ) );
-}
-
-.desktop-mode-my-wordpress__usage-text {
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-}
-
-.desktop-mode-my-wordpress__usage-title {
-	font-weight: 500;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.desktop-mode-my-wordpress__usage-meta {
-	font-size: 12px;
-	color: var( --desktop-mode-muted, #787c82 );
-}
-
-.desktop-mode-my-wordpress__media-detail-header {
-	display: flex;
-	align-items: center;
-	gap: 16px;
-	padding: 16px;
+/* Right-pane summary bar sits ABOVE the inline media preview. */
+.desktop-mode-my-wordpress__media-detail-summary-bar {
+	padding: 12px 16px;
 	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
-}
-
-.desktop-mode-my-wordpress__media-source-tile {
-	position: static;
-	width: auto;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.desktop-mode-my-wordpress__media-source-tile .desktop-mode-my-wordpress__media-tile-thumb {
-	width: 56px;
-	height: 56px;
-	aspect-ratio: 1 / 1;
 }
 
 .desktop-mode-my-wordpress__media-detail-summary {
 	margin: 0;
 	color: var( --desktop-mode-muted, #787c82 );
 	font-size: 13px;
+}
+
+.desktop-mode-my-wordpress__media-detail-preview {
+	/* Lets the embedded `__media-pane` keep its own padding without
+	 * fighting the summary bar's spacing. */
+	display: block;
 }

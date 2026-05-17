@@ -76,7 +76,7 @@ export async function fetchEntityList(
 	url.searchParams.set( 'per_page', String( params.perPage ) );
 	url.searchParams.set(
 		'_fields',
-		'id,title,excerpt,date,featured_media,link,desktop_mode_lock,_links,_embedded',
+		'id,title,excerpt,date,status,featured_media,link,desktop_mode_lock,_links,_embedded',
 	);
 	url.searchParams.set( '_embed', 'wp:featuredmedia' );
 	// Surface drafts/private/pending so authors see their unpublished
@@ -116,7 +116,7 @@ export async function fetchEntityDetail(
 	const url = new URL( buildUrl( `${ entity.restPath }/${ id }` ) );
 	url.searchParams.set(
 		'_fields',
-		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,desktop_mode_contributors,_links,_embedded',
+		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,desktop_mode_contributors,desktop_mode_attached_media,_links,_embedded',
 	);
 	url.searchParams.set( '_embed', 'author,wp:term,wp:featuredmedia,replies' );
 

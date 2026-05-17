@@ -139,6 +139,13 @@ export interface EntityListItem {
 	title: { rendered: string };
 	excerpt?: { rendered: string };
 	date: string;
+	/**
+	 * Publication status — `'publish' | 'draft' | 'pending' |
+	 * 'private' | 'future' | 'trash'`. Surfaced on the list response
+	 * since 0.21.0 so tiles can paint a status ribbon for non-
+	 * published rows.
+	 */
+	status?: string;
 	featured_media?: number;
 	link?: string;
 	desktop_mode_lock?: EntityLock | null;
@@ -170,6 +177,17 @@ export interface EntityDetail {
 	tags?: number[];
 	comment_status?: string;
 	desktop_mode_contributors?: ContributorRef[];
+	/**
+	 * Authoritative list of attachment ids referenced by this post —
+	 * featured image + every attachment found in `post_content`
+	 * (class scan + raw `<img src>` URL resolution). Computed
+	 * server-side by the `desktop_mode_attached_media` REST field;
+	 * the regex-based `extractContentMediaIds` is a fallback for
+	 * older API responses that don't carry this.
+	 *
+	 * @since 0.21.0
+	 */
+	desktop_mode_attached_media?: number[];
 	_links?: Record< string, Array< { href: string; count?: number } > >;
 	_embedded?: EntityListItem[ '_embedded' ] & {
 		author?: Array< {
