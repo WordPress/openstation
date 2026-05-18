@@ -73,22 +73,22 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-		// Author B saves a revision of A's post — that's the
-		// editorial "contribution" signal the client uses.
-		wp_update_post(
+		// Insert a revision authored by user B directly. The
+		// `wp_save_post_revision` path WP uses on `wp_update_post`
+		// captures the CURRENT user as the revision author — in unit
+		// tests no current user is set, so we'd get a revision
+		// authored by `0`. Inserting the revision row explicitly
+		// avoids that and matches the shape `desktop_mode_content_
+		// graph_collect_post_contributors` reads from.
+		wp_insert_post(
 			array(
-				'ID'          => $post_id,
-				'post_author' => self::$author_b_id,
-				'post_title'  => 'Revision by B',
-			)
-		);
-		// Restore Author A as the primary author so they remain the
-		// post owner; the revision row by B persists in wp_posts.
-		wp_update_post(
-			array(
-				'ID'          => $post_id,
-				'post_author' => self::$author_a_id,
-				'post_title'  => 'Restored by A',
+				'post_type'    => 'revision',
+				'post_status'  => 'inherit',
+				'post_parent'  => $post_id,
+				'post_author'  => self::$author_b_id,
+				'post_title'   => 'Revision by B',
+				'post_content' => 'edit content',
+				'post_name'    => $post_id . '-revision-v1',
 			)
 		);
 
