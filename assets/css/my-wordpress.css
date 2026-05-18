@@ -1879,3 +1879,235 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	 * fighting the summary bar's spacing. */
 	display: block;
 }
+
+/* ----- Agents section (UX mock) -----
+ *
+ * Two-pane layout reuses `__split` / `__list` / `__preview` from the
+ * post + user sections, plus a few agents-only classes for the
+ * tile grid, the always-present "+ Create agent" row, the empty
+ * state, and the Define / Tools / Triggers stack. See
+ * `src/my-wordpress/agents-renderer.ts`.
+ */
+
+.desktop-mode-my-wordpress__agents-list {
+	padding: 12px;
+}
+
+.desktop-mode-my-wordpress__agents-tiles {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 96px, 1fr ) );
+	gap: 8px;
+	align-content: start;
+}
+
+.desktop-mode-my-wordpress__agents-tiles .desktop-mode-my-wordpress__agent-tile {
+	/* Override the absolute-positioned canvas layout the post + media
+	 * sections use — agent tiles sit in a CSS grid, not on a
+	 * positioned canvas, so `position: absolute` would collapse the
+	 * grid. */
+	position: static;
+}
+
+.desktop-mode-my-wordpress__agents-preview {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.desktop-mode-my-wordpress__agents-create {
+	padding: 12px 16px;
+	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
+	display: flex;
+	justify-content: flex-end;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-my-wordpress__agents-detail {
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.desktop-mode-my-wordpress__agents-detail > wpd-empty-state {
+	margin-block-start: 24px;
+}
+
+.desktop-mode-my-wordpress__agent-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.desktop-mode-my-wordpress__agent-header {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	gap: 12px;
+	align-items: center;
+}
+
+.desktop-mode-my-wordpress__agent-header-icon {
+	width: 32px;
+	height: 32px;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.desktop-mode-my-wordpress__agent-header-title {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.desktop-mode-my-wordpress__agent-header-title h2 {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-header-title p {
+	margin: 0;
+	color: var( --desktop-mode-muted, #50575e );
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.desktop-mode-my-wordpress__agent-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.desktop-mode-my-wordpress__agent-section h3 {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-define {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-define-label {
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-define wpd-textarea {
+	width: 100%;
+}
+
+.desktop-mode-my-wordpress__agent-tools-meta {
+	margin: 0 0 4px;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-tools-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.desktop-mode-my-wordpress__agent-tools-row {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 10px;
+	align-items: center;
+	padding: 8px 12px;
+}
+
+.desktop-mode-my-wordpress__agent-tools-row + .desktop-mode-my-wordpress__agent-tools-row {
+	border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__agent-tools-row--on {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.03 ) );
+}
+
+.desktop-mode-my-wordpress__agent-tools-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.desktop-mode-my-wordpress__agent-tools-body code {
+	font-size: 12px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-tools-body small {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #50575e );
+	line-height: 1.4;
+}
+
+.desktop-mode-my-wordpress__agent-triggers {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.desktop-mode-my-wordpress__agent-triggers-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 10px;
+	align-items: start;
+	padding: 10px 12px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-icon {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	line-height: 18px;
+	color: var( --desktop-mode-link, #2271b1 );
+}
+
+.desktop-mode-my-wordpress__agent-trigger-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-body strong {
+	font-size: 13px;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-trigger-body p {
+	margin: 0;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+	line-height: 1.4;
+}

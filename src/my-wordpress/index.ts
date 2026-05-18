@@ -36,6 +36,8 @@ import {
 import { renderListToolbar } from './list-toolbar';
 import { renderMediaList } from './media-list';
 import { renderMediaDetail } from './media-detail';
+import { renderAgentsKind } from './agents-renderer';
+import { MOCK_AGENT_COUNT } from './agents-mock';
 import {
 	renderBreadcrumbs,
 	type BreadcrumbSegment,
@@ -557,29 +559,49 @@ function renderRoot( state: RenderState ): void {
 	// is `?per_page=1&_fields=id` — payload size of one id, total
 	// served via `X-WP-Total`. Failures fall through silently
 	// (the bare label is still useful).
+	//
+	// The `agents` kind is a client-side UX mock with no REST
+	// endpoint, so we paint its count from the static mock array
+	// instead of issuing a doomed fetch (which would otherwise
+	// 404 and leave the tile suffix-less).
+	const paintCountSuffix = ( entityId: string, total: number ): void => {
+		if ( state.route.kind !== 'root' ) {
+			return;
+		}
+		const tile = tilesByEntity.get( entityId );
+		if ( ! tile ) {
+			return;
+		}
+		const label = tile.querySelector< HTMLElement >(
+			'.desktop-mode-file-tile__label',
+		);
+		if ( label ) {
+			const entity = cfg.entities.find( ( e ) => e.id === entityId );
+			if ( entity ) {
+				label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
+			}
+		}
+	};
+	state.body.appendChild( grid );
+
+	// Now that the grid is attached to the document, the per-tile
+	// `<wpd-tile>` `connectedCallback` has fired and the `__label`
+	// span exists — only then can the count suffix paint deterministic-
+	// ally. Async fetch callbacks resolve later than this, so they
+	// were always safe; the synchronous agents-mock path needs the
+	// grid to be live first, hence painting AFTER the appendChild.
 	cfg.entities.forEach( ( entity ) => {
+		if ( entity.kind === 'agents' ) {
+			paintCountSuffix( entity.id, MOCK_AGENT_COUNT );
+			return;
+		}
 		void fetchEntityTotal( entity )
-			.then( ( total ) => {
-				if ( state.route.kind !== 'root' ) {
-					return; // Navigated away — don't paint stale.
-				}
-				const tile = tilesByEntity.get( entity.id );
-				if ( ! tile ) {
-					return;
-				}
-				const label = tile.querySelector< HTMLElement >(
-					'.desktop-mode-file-tile__label',
-				);
-				if ( label ) {
-					label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
-				}
-			} )
+			.then( ( total ) => paintCountSuffix( entity.id, total ) )
 			.catch( () => {
 				// Silent — the unsuffixed label still works.
 			} );
 	} );
 
-	state.body.appendChild( grid );
 	const menu = attachIconCanvasMenu( grid, {
 		scope: 'my-wordpress:root',
 		onSort: ( mode ) => layout.sort( mode ),
@@ -618,11 +640,23 @@ function buildIconTile( spec: {
 	// `__tile` modifier stays in the class list so the section-
 	// specific CSS (selection ring, locked, status ribbon) keeps
 	// applying.
+	//
+	// `sanitizeClass` is only valid for dashicons-style icons
+	// (`dashicons-foo-bar`). The shared `renderIcon` helper also
+	// understands `data:image/(svg+xml|png|…);base64,…` URIs and
+	// `http(s)://…` URLs — passing those through the class
+	// sanitizer would strip every `:` `/` `+` `=` `;`, mangling
+	// the icon string and forcing `renderIcon` to fall back to
+	// its letter-badge ("AG" for "Agents", etc.). Skip the
+	// sanitizer for those shapes so the icon reaches `renderIcon`
+	// intact.
 	return buildTileFromSpec( {
 		type: spec.role === 'folder' ? 'folder' : '__my-wordpress-entry',
 		ref: spec.label,
 		label: spec.label,
-		icon: sanitizeClass( spec.icon ),
+		icon: isIconPassthrough( spec.icon )
+			? spec.icon
+			: sanitizeClass( spec.icon ),
 		role: spec.role,
 		extraClasses: [
 			'desktop-mode-my-wordpress__tile',
@@ -631,6 +665,22 @@ function buildIconTile( spec: {
 				: 'desktop-mode-my-wordpress__tile--entry',
 		],
 	} );
+}
+
+/**
+ * Whether an icon string is a data URI or http(s) URL — both shapes
+ * `renderIcon` paints directly and must not be passed through the
+ * class-name sanitizer.
+ */
+function isIconPassthrough( icon: string ): boolean {
+	if ( typeof icon !== 'string' || icon === '' ) {
+		return false;
+	}
+	return (
+		icon.startsWith( 'data:' ) ||
+		icon.startsWith( 'http://' ) ||
+		icon.startsWith( 'https://' )
+	);
 }
 
 function renderError( state: RenderState, message: string ): void {
@@ -6015,6 +6065,7 @@ registerEntityKind( 'user', ( host, entity ) => {
 	renderUserEntityList( asRenderState( host ), entity );
 } );
 registerEntityKind( 'media', renderMediaList );
+registerEntityKind( 'agents', renderAgentsKind );
 
 /**
  * Recover the internal `RenderState` from an `EntityRenderHost`.

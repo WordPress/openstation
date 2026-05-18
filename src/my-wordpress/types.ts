@@ -19,7 +19,7 @@
  * `string` so the union accepts arbitrary slugs without sacrificing
  * IDE autocomplete on the in-tree set.
  */
-export type EntityKind = 'post' | 'user' | 'media' | string;
+export type EntityKind = 'post' | 'user' | 'media' | 'agents' | string;
 
 export interface MyWordPressEntity {
 	id: string;
