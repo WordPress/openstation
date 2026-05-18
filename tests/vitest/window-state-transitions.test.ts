@@ -37,8 +37,26 @@ function baseConfig( overrides: Partial< WindowConfig > = {} ): WindowConfig {
 	};
 }
 
+/**
+ * JSDOM returns 0 for every `offsetLeft / offsetTop / offsetWidth /
+ * offsetHeight` regardless of the inline styles the Window writes, so
+ * the saved-geometry assertions need explicit stubs to be meaningful.
+ * Without these stubs, the "did we preserve the original floating
+ * geometry?" tests reduce to `0 === 0` and pass for the wrong reason.
+ *
+ * The stubs are read by every code path that captures geometry
+ * (`maximize()`, `toggleFullscreen()`, `_savedFullscreenState`,
+ * `applySnap` callers) so they form the ground truth of "what does
+ * 'the current rect' resolve to" for this test fixture.
+ */
 function mountWindow(
 	cfg: WindowConfig,
+	rect: { left: number; top: number; width: number; height: number } = {
+		left: 40,
+		top: 60,
+		width: 800,
+		height: 600,
+	},
 ): { win: Window; parent: HTMLElement; cleanup: () => void } {
 	const parent = document.createElement( 'div' );
 	Object.defineProperty( parent, 'clientWidth', { value: 1200, configurable: true } );
@@ -46,6 +64,22 @@ function mountWindow(
 	document.body.appendChild( parent );
 	const win = new Window( cfg );
 	parent.appendChild( win.element );
+	Object.defineProperty( win.element, 'offsetLeft', {
+		value: rect.left,
+		configurable: true,
+	} );
+	Object.defineProperty( win.element, 'offsetTop', {
+		value: rect.top,
+		configurable: true,
+	} );
+	Object.defineProperty( win.element, 'offsetWidth', {
+		value: rect.width,
+		configurable: true,
+	} );
+	Object.defineProperty( win.element, 'offsetHeight', {
+		value: rect.height,
+		configurable: true,
+	} );
 	return {
 		win,
 		parent,
@@ -79,11 +113,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	afterEach( () => {
 		handle.cleanup();
 		clearHooksStub();
-		// `installHooksStub` mutates window.wp.hooks; the cleanup re-
-		// installs a fresh stub each test so individual cases stay
-		// isolated. `hooks` reference is retained for assertions in
-		// tests that recordActions on it directly.
-		void hooks;
 	} );
 
 	test( 'fullscreen → maximize: exits fullscreen, enters maximized, no class stacking', () => {
@@ -130,23 +159,21 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'normal → fullscreen → exit fullscreen: returns to normal with original geometry', () => {
-		// Force a known starting position so we can assert the restore
-		// lands on it. The base config's `x: 40, y: 40, width: 800,
-		// height: 600` is applied by the Window constructor.
-		const startLeft = handle.win.element.offsetLeft;
-		const startTop = handle.win.element.offsetTop;
-		const startW = handle.win.element.offsetWidth;
-		const startH = handle.win.element.offsetHeight;
-
+		// The stubbed `offsetLeft/Top/Width/Height` from `mountWindow`
+		// are the ground truth for "current rect" — `toggleFullscreen`
+		// captures them into `_savedFullscreenState`, and the exit
+		// path writes them back to inline styles. Assertions compare
+		// inline styles against the known stubbed values so the test
+		// fails loudly if the save/restore round-trip drops anything.
 		handle.win.toggleFullscreen();
 		handle.win.toggleFullscreen();
 
 		expect( handle.win.state ).toBe( 'normal' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [] );
-		expect( handle.win.element.style.left ).toBe( `${ startLeft }px` );
-		expect( handle.win.element.style.top ).toBe( `${ startTop }px` );
-		expect( handle.win.element.style.width ).toBe( `${ startW }px` );
-		expect( handle.win.element.style.height ).toBe( `${ startH }px` );
+		expect( handle.win.element.style.left ).toBe( '40px' );
+		expect( handle.win.element.style.top ).toBe( '60px' );
+		expect( handle.win.element.style.width ).toBe( '800px' );
+		expect( handle.win.element.style.height ).toBe( '600px' );
 	} );
 
 	test( 'snapped-left → fullscreen → exit fullscreen: returns to snapped-left', () => {
@@ -231,61 +258,154 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'normal → fullscreen → maximize → toggle-off: returns to original floating geometry', () => {
-		const startLeft = handle.win.element.offsetLeft;
-		const startTop = handle.win.element.offsetTop;
-		const startW = handle.win.element.offsetWidth;
-		const startH = handle.win.element.offsetHeight;
-
 		handle.win.toggleFullscreen();
 		handle.win.toggleMaximize(); // fullscreen → maximized
 		handle.win.toggleMaximize(); // maximized → normal
 
-		// The original floating geometry must survive the chain — at
-		// each transition the saved geometry rule "capture only when
-		// leaving 'normal'" prevents the maximized 0,0,parentW,parentH
-		// from overwriting the real pre-flight rect.
+		// The original floating geometry (stubbed via `mountWindow`)
+		// must survive the chain — at each transition the saved
+		// geometry rule "capture only when leaving 'normal'" prevents
+		// the maximized 0,0,parentW,parentH from overwriting the real
+		// pre-flight rect.
 		expect( handle.win.state ).toBe( 'normal' );
-		expect( handle.win.element.style.left ).toBe( `${ startLeft }px` );
-		expect( handle.win.element.style.top ).toBe( `${ startTop }px` );
-		expect( handle.win.element.style.width ).toBe( `${ startW }px` );
-		expect( handle.win.element.style.height ).toBe( `${ startH }px` );
+		expect( handle.win.element.style.left ).toBe( '40px' );
+		expect( handle.win.element.style.top ).toBe( '60px' );
+		expect( handle.win.element.style.width ).toBe( '800px' );
+		expect( handle.win.element.style.height ).toBe( '600px' );
 	} );
 
 	test( 'maximize → fullscreen → toggle-off fullscreen → toggle-off maximize: lands on original geometry', () => {
-		const startLeft = handle.win.element.offsetLeft;
-		const startTop = handle.win.element.offsetTop;
-		const startW = handle.win.element.offsetWidth;
-		const startH = handle.win.element.offsetHeight;
-
 		handle.win.toggleMaximize(); // normal → maximized (geo saved)
 		handle.win.toggleFullscreen(); // maximized → fullscreen (geo stays)
 		handle.win.toggleFullscreen(); // fullscreen → maximized
 		handle.win.toggleMaximize(); // maximized → normal
 
+		// This is the exact case the bug 2 review flagged: when exiting
+		// fullscreen via the "saved state was maximized" branch, an
+		// earlier revision re-saved `_savedGeometry` from the inline
+		// maximized rect (0,0,parentW,parentH). The final
+		// toggle-off-maximize would then restore to the desktop area's
+		// full bounds rather than the original 40,60 / 800×600.
 		expect( handle.win.state ).toBe( 'normal' );
-		expect( handle.win.element.style.left ).toBe( `${ startLeft }px` );
-		expect( handle.win.element.style.top ).toBe( `${ startTop }px` );
-		expect( handle.win.element.style.width ).toBe( `${ startW }px` );
-		expect( handle.win.element.style.height ).toBe( `${ startH }px` );
+		expect( handle.win.element.style.left ).toBe( '40px' );
+		expect( handle.win.element.style.top ).toBe( '60px' );
+		expect( handle.win.element.style.width ).toBe( '800px' );
+		expect( handle.win.element.style.height ).toBe( '600px' );
 	} );
 
 	test( 'maximize() one-way does not overwrite saved geometry when called from fullscreen', () => {
-		const startLeft = handle.win.element.offsetLeft;
-		const startTop = handle.win.element.offsetTop;
-		const startW = handle.win.element.offsetWidth;
-		const startH = handle.win.element.offsetHeight;
-
 		handle.win.toggleFullscreen();
 		// Direct call to one-way maximize — exercises the
-		// "state !== 'normal' → don't re-save" branch.
+		// "state !== 'normal' → don't re-save" branch. After the
+		// transition the toggle-off should still land us on the
+		// original floating rect.
 		handle.win.maximize();
+		handle.win.toggleMaximize();
 
-		expect( handle.win.state ).toBe( 'maximized' );
-		expect( handle.win._savedGeometry ).toEqual( {
-			x: startLeft,
-			y: startTop,
-			width: startW,
-			height: startH,
-		} );
+		expect( handle.win.state ).toBe( 'normal' );
+		expect( handle.win.element.style.left ).toBe( '40px' );
+		expect( handle.win.element.style.top ).toBe( '60px' );
+		expect( handle.win.element.style.width ).toBe( '800px' );
+		expect( handle.win.element.style.height ).toBe( '600px' );
+	} );
+
+	test( 'fullscreen exit-to-maximized emits state-change exactly once', () => {
+		// Bug-3 regression guard. The exit-to-maximized path used to
+		// call `this.maximize()` (which `_emitChange`s) and then the
+		// shared tail also `_emitChange`d — two events per transition.
+		handle.win.toggleMaximize();
+		handle.win.toggleFullscreen();
+
+		const events: Event[] = [];
+		const listener = ( e: Event ): void => {
+			events.push( e );
+		};
+		document.addEventListener( 'desktop-mode-window-changed', listener );
+		handle.win.toggleFullscreen(); // exit fullscreen → restore to maximized
+		document.removeEventListener( 'desktop-mode-window-changed', listener );
+
+		expect( events ).toHaveLength( 1 );
+	} );
+
+	test( 'fullscreen → maximize via Maximize button fires FULLSCREEN_EXITED then MAXIMIZED, in that order', () => {
+		// Bug-5 regression guard — the two code paths that produce a
+		// fullscreen → maximized transition must fire actions in the
+		// same order so plugin authors get a predictable sequence
+		// regardless of which button the user clicked.
+		const fired: string[] = [];
+		hooks.addAction(
+			'desktop-mode.window.fullscreen-exited',
+			'test',
+			() => {
+				fired.push( 'fullscreen-exited' );
+			},
+		);
+		hooks.addAction(
+			'desktop-mode.window.maximized',
+			'test',
+			() => {
+				fired.push( 'maximized' );
+			},
+		);
+
+		handle.win.toggleFullscreen();
+		fired.length = 0; // reset — we only care about what the next click fires
+		handle.win.toggleMaximize();
+
+		expect( fired ).toEqual( [ 'fullscreen-exited', 'maximized' ] );
+	} );
+
+	test( 'fullscreen → exit-to-maximized via Focus button fires same hook sequence', () => {
+		// Symmetric to the previous test — exiting fullscreen with a
+		// saved maximized prior state should produce the same hook
+		// order as toggleMaximize-from-fullscreen.
+		const fired: string[] = [];
+		hooks.addAction(
+			'desktop-mode.window.fullscreen-exited',
+			'test',
+			() => {
+				fired.push( 'fullscreen-exited' );
+			},
+		);
+		hooks.addAction(
+			'desktop-mode.window.maximized',
+			'test',
+			() => {
+				fired.push( 'maximized' );
+			},
+		);
+
+		handle.win.toggleMaximize(); // normal → maximized
+		handle.win.toggleFullscreen(); // maximized → fullscreen
+		fired.length = 0;
+		handle.win.toggleFullscreen(); // fullscreen → maximized (restore)
+
+		expect( fired ).toEqual( [ 'fullscreen-exited', 'maximized' ] );
+	} );
+
+	test( 'subscribers reading state in FULLSCREEN_EXITED handler see the new state, not stale fullscreen', () => {
+		// Bug 5 sibling concern — when the exit hook fires, `win.state`
+		// must already reflect the post-transition value. Otherwise a
+		// plugin author who branches on state inside their handler
+		// gets inconsistent results depending on which code path
+		// triggered the exit.
+		const observed: string[] = [];
+		hooks.addAction(
+			'desktop-mode.window.fullscreen-exited',
+			'test',
+			() => {
+				observed.push( handle.win.state );
+			},
+		);
+
+		// Path A: toggleFullscreen exit when saved was maximized.
+		handle.win.toggleMaximize();
+		handle.win.toggleFullscreen();
+		handle.win.toggleFullscreen();
+		// Path B: toggleMaximize from fullscreen.
+		handle.win.toggleFullscreen();
+		handle.win.toggleMaximize();
+
+		expect( observed ).toEqual( [ 'maximized', 'maximized' ] );
 	} );
 } );
