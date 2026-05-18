@@ -583,6 +583,7 @@ export function renderMediaList(
 	addAction<
 		[
 			{
+				file: File;
 				result: DropUploadResult;
 				fields: { filename: string };
 				context: unknown;

@@ -82,11 +82,14 @@ function refreshOpenLibraries(): void {
 			frame.contentWindow?.location.reload();
 		} catch {
 			// Cross-origin (shouldn't happen for an admin iframe, but
-			// guard anyway) — `src` reassignment is the cross-origin-
-			// safe fallback. Always-same-origin in practice.
-			const src = frame.getAttribute( 'src' );
-			if ( src ) {
-				frame.setAttribute( 'src', src );
+			// guard anyway). Re-assigning the current `href` — not
+			// the initial `src` attribute — preserves any in-iframe
+			// navigation (filter, pagination) the user has done.
+			// `resolveIframeUrl` already fell back to `src` when it
+			// couldn't read `contentWindow.location.href`.
+			const reloadHref = resolveIframeUrl( frame );
+			if ( reloadHref ) {
+				frame.setAttribute( 'src', reloadHref );
 			}
 		}
 	}

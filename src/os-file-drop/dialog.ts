@@ -18,6 +18,7 @@ import '../ui/components/wpd-text-field/wpd-text-field';
 import '../ui/components/wpd-textarea/wpd-textarea';
 import '../ui/components/wpd-button/wpd-button';
 import { showToast } from '../toast';
+import { formatBytes } from './format-bytes';
 import {
 	uploadFile,
 	UploadAbortedError,
@@ -145,6 +146,15 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		// Per-file failure messages — kept for single-file batches
 		// where the summary toast doesn't carry the error detail.
 		const failureDetails: string[] = [];
+		// NOTE: sequential `await` — uploads run one at a time on
+		// purpose. The HUD assumes one active progress bar per
+		// `UPLOAD_STARTED` and won't reconcile concurrent streams
+		// (the per-file state is keyed by `File`, but the panel's
+		// "Uploading N of M…" header reads from a single counter).
+		// Parallelising here would also let a 10-file batch swamp
+		// the WordPress process pool / fpm workers on shared hosts.
+		// If a future change introduces a concurrency knob, the HUD
+		// header logic and the rate-limit story both need a look.
 		for ( let i = 0; i < total; i++ ) {
 			const entry = args.entries[ i ];
 			try {
@@ -236,16 +246,6 @@ function textareaField(
 		}
 	} );
 	return el;
-}
-
-function formatBytes( bytes: number ): string {
-	if ( bytes >= 1024 * 1024 ) {
-		return `${ ( bytes / ( 1024 * 1024 ) ).toFixed( 1 ) } MB`;
-	}
-	if ( bytes >= 1024 ) {
-		return `${ ( bytes / 1024 ).toFixed( 0 ) } KB`;
-	}
-	return `${ bytes } B`;
 }
 
 interface BatchSummaryArgs {

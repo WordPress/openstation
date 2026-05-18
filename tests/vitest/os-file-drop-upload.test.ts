@@ -73,6 +73,7 @@ interface FakeXhrConfig {
 }
 
 class FakeXhr {
+	static instances: FakeXhr[] = [];
 	static lastInstance: FakeXhr | null = null;
 	static nextConfig: FakeXhrConfig = {
 		status: 201,
@@ -87,10 +88,12 @@ class FakeXhr {
 	withCredentials = false;
 	method = '';
 	url = '';
+	aborted = false;
 	private headers: Record< string, string > = {};
 
 	constructor() {
 		FakeXhr.lastInstance = this;
+		FakeXhr.instances.push( this );
 	}
 
 	open( method: string, url: string ): void {
@@ -106,10 +109,21 @@ class FakeXhr {
 		this.listeners.set( name, arr );
 	}
 	abort(): void {
+		this.aborted = true;
 		queueMicrotask( () => this.emit( 'abort', new Event( 'abort' ) ) );
 	}
 	send( _body: unknown ): void {
 		const cfg = FakeXhr.nextConfig;
+		// DELETE requests (the late-cancel cleanup path) don't drive
+		// the upload-progress event stream and respond with 200 OK.
+		if ( this.method === 'DELETE' ) {
+			queueMicrotask( () => {
+				this.status = 200;
+				this.responseText = '{}';
+				this.emit( 'loadend', new Event( 'loadend' ) );
+			} );
+			return;
+		}
 		queueMicrotask( () => {
 			// Simulate one upload progress tick + the synthetic
 			// `upload.load` the production code listens for.
@@ -154,6 +168,7 @@ describe( 'os-file-drop/upload', () => {
 		( globalThis as unknown as { XMLHttpRequest: unknown } ).XMLHttpRequest =
 			FakeXhr;
 		FakeXhr.lastInstance = null;
+		FakeXhr.instances = [];
 		FakeXhr.nextConfig = {
 			status: 201,
 			responseText: JSON.stringify( {
@@ -175,16 +190,21 @@ describe( 'os-file-drop/upload', () => {
 
 	test( 'POSTs multipart form-data and emits after-upload', async () => {
 		const file = makeFile( 'test.png', 'image/png' );
-		const seen: unknown[] = [];
+		const seen: Array< { file: File; result: { id: number } } > = [];
 		window.wp!.hooks!.addAction(
 			FILE_DROP_HOOKS.AFTER_UPLOAD,
 			'test/after',
-			( p: unknown ) => seen.push( p ),
+			( p: { file: File; result: { id: number } } ) => seen.push( p ),
 		);
 		const result = await uploadFile( defaultArgs( file, 'image/png' ) );
 		expect( result.id ).toBe( 42 );
 		expect( result.url ).toContain( '/uploads/' );
 		expect( seen ).toHaveLength( 1 );
+		// The File ref must travel through so per-file UIs (HUD,
+		// My WordPress live-refresh) can match by identity rather
+		// than filename — two `photo.jpg` drops from different
+		// folders would otherwise collide.
+		expect( seen[ 0 ].file ).toBe( file );
 		expect( FakeXhr.lastInstance?.method ).toBe( 'POST' );
 	} );
 
@@ -265,5 +285,72 @@ describe( 'os-file-drop/upload', () => {
 		await expect(
 			uploadFile( defaultArgs( file, 'image/png' ) ),
 		).rejects.toBeInstanceOf( UploadAbortedError );
+		// Body never made it to the server → no cleanup DELETE.
+		expect( FakeXhr.instances.some( ( i ) => i.method === 'DELETE' ) ).toBe(
+			false,
+		);
+	} );
+
+	test( 'late abort() — after body is fully sent — DELETEs the created attachment', async () => {
+		const file = makeFile( 'test.png', 'image/png' );
+		// Defer the abort to `UPLOAD_PROGRESS` at 100% so it fires
+		// AFTER `xhr.upload.load` has flipped `bodyFullySent`. By
+		// that point `xhr.abort()` would be too late — the server
+		// will respond 201 with the new attachment, and the
+		// production code is supposed to DELETE it before
+		// surfacing the failure.
+		let abortHandle: ( () => void ) | null = null;
+		window.wp!.hooks!.addAction(
+			FILE_DROP_HOOKS.UPLOAD_STARTED,
+			'test/late-abort/capture',
+			( p: { abort: () => void } ) => {
+				abortHandle = p.abort;
+			},
+		);
+		window.wp!.hooks!.addAction(
+			FILE_DROP_HOOKS.UPLOAD_PROGRESS,
+			'test/late-abort/trigger',
+			( p: { loaded: number; total: number } ) => {
+				if ( p.loaded === p.total && abortHandle ) {
+					abortHandle();
+					abortHandle = null;
+				}
+			},
+		);
+		const failures: Array< { error: Error } > = [];
+		window.wp!.hooks!.addAction(
+			FILE_DROP_HOOKS.UPLOAD_FAILED,
+			'test/late-abort/fail',
+			( p: { error: Error } ) => failures.push( p ),
+		);
+
+		await expect(
+			uploadFile( defaultArgs( file, 'image/png' ) ),
+		).rejects.toBeInstanceOf( UploadAbortedError );
+
+		// The upload XHR must NOT have been wire-aborted — the
+		// production code lets it complete so it knows the
+		// attachment id to clean up.
+		const uploadXhr = FakeXhr.instances.find(
+			( i ) => i.method === 'POST',
+		);
+		expect( uploadXhr ).toBeDefined();
+		expect( uploadXhr!.aborted ).toBe( false );
+
+		// A DELETE must follow, pointing at the attachment the
+		// server reported (id=42 in the default fixture) with
+		// `force=true` so it skips trash.
+		const deleteXhr = FakeXhr.instances.find(
+			( i ) => i.method === 'DELETE',
+		);
+		expect( deleteXhr ).toBeDefined();
+		expect( deleteXhr!.url ).toContain( '/wp/v2/media/42' );
+		expect( deleteXhr!.url ).toContain( 'force=true' );
+
+		// And the failure surface must report an abort (not a
+		// generic failure) so HUDs can distinguish cancellation
+		// from a real error.
+		expect( failures ).toHaveLength( 1 );
+		expect( failures[ 0 ].error ).toBeInstanceOf( UploadAbortedError );
 	} );
 } );

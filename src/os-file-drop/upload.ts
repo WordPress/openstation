@@ -240,6 +240,7 @@ export async function uploadFile(
 				filename: data.media_details?.file || filtered.fields.filename,
 			};
 			doAction( FILE_DROP_HOOKS.AFTER_UPLOAD, {
+				file: filtered.file,
 				result,
 				fields: filtered.fields,
 				context: args.context,
@@ -301,10 +302,35 @@ function deleteAttachment(
 	cleanup.withCredentials = true;
 	cleanup.setRequestHeader( 'X-WP-Nonce', restNonce );
 	return new Promise( ( resolve ) => {
-		cleanup.addEventListener( 'loadend', () => resolve() );
+		cleanup.addEventListener( 'loadend', () => {
+			// Cleanup failures are recoverable from the user's
+			// perspective (they can delete the file manually), so
+			// we don't reject — but a warning makes the "phantom
+			// attachment" class of bug discoverable instead of
+			// silent for plugin authors investigating.
+			if ( cleanup.status < 200 || cleanup.status >= 300 ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[os-file-drop] late-cancel cleanup failed for attachment ${ id } (HTTP ${ cleanup.status }). The attachment remains in the Media Library; delete it manually.`,
+				);
+			}
+			resolve();
+		} );
+		cleanup.addEventListener( 'error', () => {
+			// eslint-disable-next-line no-console
+			console.warn(
+				`[os-file-drop] late-cancel cleanup network error for attachment ${ id }. The attachment remains in the Media Library; delete it manually.`,
+			);
+			resolve();
+		} );
 		try {
 			cleanup.send();
-		} catch {
+		} catch ( err ) {
+			// eslint-disable-next-line no-console
+			console.warn(
+				`[os-file-drop] late-cancel cleanup could not be dispatched for attachment ${ id }:`,
+				err,
+			);
 			resolve();
 		}
 	} );

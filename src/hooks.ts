@@ -1133,7 +1133,7 @@ export const HOOKS = {
 	FILE_DROP_UPLOAD_STARTED: 'desktop-mode.drop.upload-started',
 	/** Action — `{ file, fields, context, loaded, total, indeterminate }` per progress tick. @since 0.31.0 */
 	FILE_DROP_UPLOAD_PROGRESS: 'desktop-mode.drop.upload-progress',
-	/** Action — `{ result, fields, context }` after successful upload. */
+	/** Action — `{ file, result, fields, context }` after successful upload. `file` since 0.31.0. */
 	FILE_DROP_AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
 	/** Action — `{ file, error, context }` on upload failure. */
 	FILE_DROP_UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',

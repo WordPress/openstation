@@ -99,6 +99,36 @@ describe( '<wpd-progress-bar>', () => {
 		expect( parseFloat( fill.style.width ) ).toBeCloseTo( 75, 5 );
 	} );
 
+	test( 'progressbar role + aria-value* live on the host element, not just the shadow track', async () => {
+		// AT / browser combos that don't surface shadow-DOM roles
+		// rely on the host carrying the canonical semantics, the
+		// same way native <progress> exposes itself.
+		host.innerHTML = `<wpd-progress-bar value="60" max="200" label="Saving"></wpd-progress-bar>`;
+		await tick();
+		const bar = host.querySelector( 'wpd-progress-bar' )!;
+		expect( bar.getAttribute( 'role' ) ).toBe( 'progressbar' );
+		expect( bar.getAttribute( 'aria-valuemin' ) ).toBe( '0' );
+		expect( bar.getAttribute( 'aria-valuemax' ) ).toBe( '200' );
+		expect( bar.getAttribute( 'aria-valuenow' ) ).toBe( '60' );
+		expect( bar.getAttribute( 'aria-label' ) ).toBe( 'Saving' );
+	} );
+
+	test( 'indeterminate drops the host aria-valuenow / aria-valuemax', async () => {
+		host.innerHTML = `<wpd-progress-bar value="60" indeterminate></wpd-progress-bar>`;
+		await tick();
+		const bar = host.querySelector( 'wpd-progress-bar' )!;
+		expect( bar.getAttribute( 'role' ) ).toBe( 'progressbar' );
+		expect( bar.hasAttribute( 'aria-valuenow' ) ).toBe( false );
+		expect( bar.hasAttribute( 'aria-valuemax' ) ).toBe( false );
+	} );
+
+	test( 'author-provided aria-label on the host wins over `label`', async () => {
+		host.innerHTML = `<wpd-progress-bar value="10" label="Saving" aria-label="Custom"></wpd-progress-bar>`;
+		await tick();
+		const bar = host.querySelector( 'wpd-progress-bar' )!;
+		expect( bar.getAttribute( 'aria-label' ) ).toBe( 'Custom' );
+	} );
+
 	test( 'max <= 0 falls back to indeterminate behavior', async () => {
 		host.innerHTML = `<wpd-progress-bar value="5" max="0"></wpd-progress-bar>`;
 		await tick();

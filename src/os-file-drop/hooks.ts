@@ -85,8 +85,20 @@ export const FILE_DROP_HOOKS = {
 
 	/**
 	 * Action — fires after a successful upload. Payload:
-	 * `{ result: DropUploadResult, fields: DropDialogFields,
-	 * context: DropContext }`.
+	 * `{ file: File, result: DropUploadResult, fields:
+	 * DropDialogFields, context: DropContext }`.
+	 *
+	 * The `file` field carries the same `File` reference that
+	 * `UPLOAD_STARTED` / `UPLOAD_PROGRESS` exposed (i.e. the
+	 * payload returned by the `BEFORE_UPLOAD` filter, in case a
+	 * plugin swapped the file). Subscribers tracking per-file
+	 * state — progress HUDs, sequence counters — should match on
+	 * this identity rather than the filename: two drops of
+	 * `photo.jpg` from different folders would otherwise route
+	 * each other's success event to the wrong row.
+	 *
+	 * @since 0.31.0 the `file` field was added; pre-0.31.0 code
+	 * that destructured `{ result, fields, context }` keeps working.
 	 */
 	AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
 

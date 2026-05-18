@@ -28,6 +28,7 @@
 
 import { addAction } from '../hooks';
 import { activity } from '../activity';
+import { formatBytes } from './format-bytes';
 import { FILE_DROP_HOOKS } from './hooks';
 import type { DropContext, DropDialogFields, DropUploadResult } from './types';
 
@@ -102,13 +103,14 @@ export function mountUploadProgressHud(): void {
 	addAction<
 		[
 			{
+				file: File;
 				result: DropUploadResult;
 				fields: DropDialogFields;
 				context: DropContext;
 			},
 		]
 	>( FILE_DROP_HOOKS.AFTER_UPLOAD, ns, ( payload ) =>
-		onComplete( payload.fields, payload.result ),
+		onComplete( payload.file, payload.fields, payload.result ),
 	);
 
 	addAction<
@@ -216,12 +218,15 @@ function onProgress(
 }
 
 function onComplete(
+	file: File,
 	fields: DropDialogFields,
 	result: DropUploadResult,
 ): void {
-	// We track by File object; the after-upload payload doesn't carry
-	// it, so fall back to filename matching.
-	const r = findRowByFilename( fields.filename || result.filename );
+	// Match by File identity — two drops of `photo.jpg` from
+	// different folders would otherwise route each other's success
+	// event to the wrong row and leave one stuck in "running"
+	// forever.
+	const r = ROWS.get( file );
 	if ( ! r ) {
 		return;
 	}
@@ -270,20 +275,6 @@ function dismissRow( r: HudRow ): void {
 	if ( ROWS.size === 0 && panel ) {
 		panel.hidden = true;
 	}
-}
-
-function findRowByFilename( filename: string ): HudRow | null {
-	for ( const r of ROWS.values() ) {
-		if ( ( r.file.name === filename || nameMatches( r, filename ) ) ) {
-			return r;
-		}
-	}
-	return null;
-}
-
-function nameMatches( r: HudRow, filename: string ): boolean {
-	const labelEl = r.root.querySelector( '.desktop-mode-upload-hud__name' );
-	return ( labelEl?.textContent ?? '' ) === filename;
 }
 
 function ensurePanel(): HTMLElement {
@@ -357,17 +348,3 @@ function updateHeader(): void {
 	}
 }
 
-function formatBytes( n: number ): string {
-	if ( ! Number.isFinite( n ) || n <= 0 ) {
-		return '0 B';
-	}
-	const units = [ 'B', 'KB', 'MB', 'GB' ];
-	let v = n;
-	let i = 0;
-	while ( v >= 1024 && i < units.length - 1 ) {
-		v /= 1024;
-		i++;
-	}
-	const decimals = v >= 100 || i === 0 ? 0 : 1;
-	return `${ v.toFixed( decimals ) } ${ units[ i ] }`;
-}

@@ -158,6 +158,14 @@ export class WpdProgressBar extends Component {
 			percentEl.textContent = `${ percent }%`;
 		}
 
+		// Mirror ARIA onto BOTH the host AND the inner track. Some
+		// browser / AT combos don't surface shadow-DOM `role` to
+		// the accessibility tree, so the host carries the canonical
+		// progressbar semantics (matching how native `<progress>`
+		// exposes itself). The inner track keeps a copy so authors
+		// inspecting the shadow root for styling tests still see
+		// the role they expect.
+		this._syncAria( max, value, indeterminate, label );
 		const track = root.querySelector( '.track' ) as HTMLElement | null;
 		if ( track ) {
 			track.setAttribute( 'role', 'progressbar' );
@@ -174,6 +182,44 @@ export class WpdProgressBar extends Component {
 			} else {
 				track.removeAttribute( 'aria-label' );
 			}
+		}
+	}
+
+	/**
+	 * Track which `aria-label` values we wrote ourselves so an
+	 * author-provided `aria-label` is never clobbered by a `label`
+	 * change. Without this we'd overwrite on every paint.
+	 */
+	private _ownedAriaLabel: string | null = null;
+
+	private _syncAria(
+		max: number,
+		value: number,
+		indeterminate: boolean,
+		label: string,
+	): void {
+		this.setAttribute( 'role', 'progressbar' );
+		this.setAttribute( 'aria-valuemin', '0' );
+		if ( indeterminate ) {
+			this.removeAttribute( 'aria-valuenow' );
+			this.removeAttribute( 'aria-valuemax' );
+		} else {
+			this.setAttribute( 'aria-valuemax', String( max ) );
+			this.setAttribute( 'aria-valuenow', String( value ) );
+		}
+		// Mirror `label` → `aria-label` on the host so AT reads it
+		// even when the visible header is hidden by `show-percent`
+		// off + no label space. If the author wrote their own
+		// `aria-label`, leave it alone.
+		const existing = this.getAttribute( 'aria-label' );
+		if ( label ) {
+			if ( existing === null || existing === this._ownedAriaLabel ) {
+				this.setAttribute( 'aria-label', label );
+				this._ownedAriaLabel = label;
+			}
+		} else if ( existing !== null && existing === this._ownedAriaLabel ) {
+			this.removeAttribute( 'aria-label' );
+			this._ownedAriaLabel = null;
 		}
 	}
 

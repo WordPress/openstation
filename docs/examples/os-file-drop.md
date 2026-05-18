@@ -40,7 +40,7 @@ on `window.wp.hooks`). All hook names live on
 | `desktop-mode.drop.before-upload` | filter | `({ file, mime, fields }, ctx) => payload \| null` — last chance to swap the file or cancel (returning `null`). |
 | `desktop-mode.drop.upload-started` | action | _Since 0.31.0._ `{ file, fields, context, abort: () => void }` — XHR is open and about to `send()`. Call `abort()` to cancel mid-flight; the manager will reject with `UploadAbortedError`. |
 | `desktop-mode.drop.upload-progress` | action | _Since 0.31.0._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` tick. A synthetic 100% event is fired on `upload.load`. |
-| `desktop-mode.drop.after-upload` | action | `{ result: DropUploadResult, fields, context }` |
+| `desktop-mode.drop.after-upload` | action | `{ file: File, result: DropUploadResult, fields, context }` — `file` (since 0.31.0) carries the same `File` ref as `upload-started`, so per-file UI can match by identity. |
 | `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `error.name === 'UploadAbortedError'` for a caller-cancelled upload. |
 
 `DropContext.surface` is one of `'wallpaper' | 'window' |
@@ -182,13 +182,14 @@ wp.hooks.addAction(
 wp.hooks.addAction(
     FILE_DROP_HOOKS.AFTER_UPLOAD,
     'my-plugin/progress',
-    ( { fields } ) => {
-        for ( const [ file, bar ] of bars ) {
-            if ( file.name === fields.filename ) {
-                bar.setAttribute( 'tone', 'success' );
-                bars.delete( file );
-            }
-        }
+    ( { file } ) => {
+        // Match on the `File` reference itself — two drops of
+        // `photo.jpg` from different folders would otherwise route
+        // each other's success event to the wrong row.
+        const bar = bars.get( file );
+        if ( ! bar ) return;
+        bar.setAttribute( 'tone', 'success' );
+        bars.delete( file );
     }
 );
 ```
