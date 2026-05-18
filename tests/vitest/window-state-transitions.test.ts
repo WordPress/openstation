@@ -229,13 +229,9 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.restore();
 
 		expect( handle.win.state ).toBe( 'fullscreen' );
-		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--fullscreen',
-			'desktop-mode-window--minimized',
-		].filter( ( c ) => handle.win.element.classList.contains( c ) ) );
-		// Tightened: only `--fullscreen` should remain. The `--minimized`
-		// is removed by `restore()`; if either side gets stuck the test
-		// catches it.
+		// `--fullscreen` must persist through the minimize/restore
+		// round-trip (minimize composed `--minimized` on top); restore
+		// strips `--minimized` and leaves the underlying state class.
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'desktop-mode-window--fullscreen',
 		] );
