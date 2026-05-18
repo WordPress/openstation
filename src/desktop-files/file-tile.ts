@@ -1,130 +1,109 @@
 /**
- * Desktop Mode — File-tile renderer.
+ * Desktop Mode — placement → tile adapter.
  *
- * One tile = one placement. Renders an absolutely-positioned
- * button with icon + label + optional preview. Tile DOM is
- * intentionally simple so that plugins can decorate it via the
- * `desktop-mode.files.tile-rendered` action without fighting a
- * deep render tree.
+ * Thin layer over the generic `buildTileFromSpec()` renderer in
+ * `tile-spec.ts`. Converts a `RestPlacementShape` into a `TileSpec`,
+ * paints it, and adds the desktop-files-specific behavior:
  *
- * Tile contract (data attributes used by hit-testing /
- * decoration / tests):
+ *   - Double-click → `openFile()` (the desktop opens; folder
+ *     windows open child folders; My WordPress windows don't run
+ *     through this path).
+ *   - Per-placement `meta.iconUrl` / `meta.name` overrides.
+ *   - A lock badge + access-gated toast when the recipient lacks
+ *     read permission on the underlying entity.
+ *   - Fires the internal `desktop-mode.files.tile-rendered` action
+ *     consumed by `share-menu-items.ts` for the shared-folder
+ *     badge overlay.
  *
- *   data-placement-id  Numeric placement id.
- *   data-file-type     File-type slug.
- *   data-file-ref      Entity reference.
- *   data-folder-id     Folder this tile lives in (0 for root).
+ * The canonical tile chrome (DOM shape, status ribbon, drag-out
+ * helper) lives in `tile-spec.ts`. Adding a feature there lights
+ * it up on every surface — desktop, folders, My WordPress, plugin
+ * windows — without forking the renderer.
  *
  * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';
-import { renderIcon } from '../icon';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
 import { showToast } from '../toast';
-import { applyTileEntryStagger } from '../utils';
 import type { RestPlacementShape } from './rest';
+import {
+	buildTileFromSpec,
+	TILE_CLASS,
+	type TileSpec,
+} from './tile-spec';
 
-/** CSS class on every tile. */
-export const TILE_CLASS = 'desktop-mode-file-tile';
+export { TILE_CLASS };
 
-/** Build the DOM for a single placement. */
-export function buildTile( placement: RestPlacementShape, folderId: number ): HTMLElement {
+/**
+ * Convert a placement into the generic spec the unified renderer
+ * consumes. Picks up per-placement `meta.iconUrl` / `meta.name`
+ * overrides + the file-type defaults.
+ */
+function placementToSpec(
+	placement: RestPlacementShape,
+	folderId: number,
+): TileSpec {
 	const file = resolveFileType( placement.file );
-
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className = applyFilters< string, [ RestPlacementShape ] >(
-		'desktop-mode.files.tile-class',
-		TILE_CLASS,
-		placement,
-	);
-	tile.dataset.placementId = String( placement.id );
-	tile.dataset.fileType = placement.file.type;
-	tile.dataset.fileRef = placement.file.ref;
-	tile.dataset.folderId = String( folderId );
-	tile.style.position = 'absolute';
-	tile.style.left = `${ placement.x }px`;
-	tile.style.top = `${ placement.y }px`;
-	tile.setAttribute( 'role', 'listitem' );
-	tile.setAttribute(
-		'aria-label',
-		(
-			placement.meta &&
-			typeof ( placement.meta as { name?: unknown } ).name === 'string' &&
-			( ( placement.meta as { name: string } ).name.trim() !== '' )
-		)
-			? ( placement.meta as { name: string } ).name.trim()
-			: file.title(),
-	);
-	if ( ! placement.file.exists ) {
-		tile.classList.add( `${ TILE_CLASS }--missing` );
-	}
-	if ( placement.accessGated ) {
-		// Recipient sees the icon but lacks read access on the
-		// underlying entity. Dim it and label it; the click
-		// handler below short-circuits the opener with a toast.
-		tile.classList.add( `${ TILE_CLASS }--access-gated` );
-		tile.title = 'You don’t have permission to open this — ask the folder owner for access.';
-		tile.setAttribute( 'aria-disabled', 'true' );
-	}
-
-	const visual = document.createElement( 'span' );
-	visual.className = `${ TILE_CLASS }__visual`;
 	const previewUrl = file.previewUrl();
-	// Per-placement icon override on `meta.iconUrl` — set by the
-	// favicon resolver for `link` placements, but generic enough
-	// that any plugin can attach a custom icon (URL, data URI) per
-	// placement without subclassing the file type.
-	const metaIconUrl =
-		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
-			? ( placement.meta as { iconUrl: string } ).iconUrl.trim()
-			: '';
-	if ( previewUrl ) {
-		const img = document.createElement( 'img' );
-		img.src = previewUrl;
-		img.alt = '';
-		img.className = `${ TILE_CLASS }__preview`;
-		// `<img>` is `draggable=true` by default — leaving it as
-		// such lets the browser intercept pointerdown with a native
-		// HTML5 image-drag, which silently kills the DragManager's
-		// pointer-event-driven tile rearrange.
-		img.draggable = false;
-		visual.appendChild( img );
-	} else {
-		// Single canonical dispatch — `renderIcon` handles every shape
-		// the icon can take: dashicons class, http(s) URL,
-		// `data:image/svg+xml;base64,…` or `data:image/png;base64,…`
-		// data URI, or letter-badge fallback. `meta.iconUrl` wins
-		// over `file.icon()` so a per-placement override (e.g. a
-		// resolved favicon) shows in place of the file type's
-		// generic glyph.
-		const iconSource = '' !== metaIconUrl ? metaIconUrl : file.icon();
-		const icon = renderIcon( iconSource, {
-			title: file.title(),
-			className: `${ TILE_CLASS }__icon`,
-		} );
-		visual.appendChild( icon );
-	}
-	tile.appendChild( visual );
 
-	const label = document.createElement( 'span' );
-	label.className = `${ TILE_CLASS }__label`;
-	// Per-placement name override — set by the wallpaper menu's
-	// "New web link / window" flow so two tiles pointing at the same
-	// URL can carry different labels. Generic enough that any
-	// type/plugin can opt in by writing `meta.name` on the placement.
 	const metaName =
 		placement.meta && typeof ( placement.meta as { name?: unknown } ).name === 'string'
 			? ( placement.meta as { name: string } ).name.trim()
 			: '';
-	label.textContent = metaName !== '' ? metaName : file.title();
-	tile.appendChild( label );
+	const label = metaName !== '' ? metaName : file.title();
 
-	// Plugin extension point: custom DOM injected at the end of the
-	// tile. Filters return null when they want to skip; non-Element
-	// returns are ignored.
+	const metaIconUrl =
+		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
+			? ( placement.meta as { iconUrl: string } ).iconUrl.trim()
+			: '';
+
+	return {
+		type: placement.file.type,
+		ref: placement.file.ref,
+		label,
+		// Preview wins over icon (matches the previous behavior).
+		thumbnail: previewUrl || undefined,
+		icon: previewUrl ? undefined : ( metaIconUrl || file.icon() ),
+		x: placement.x,
+		y: placement.y,
+		dataset: {
+			placementId: placement.id,
+			folderId,
+		},
+		meta: placement.meta as Record< string, unknown > | undefined,
+		missing: ! placement.file.exists,
+		accessGated: Boolean( placement.accessGated ),
+		ariaLabel: label,
+	};
+}
+
+/** Build a `<wpd-tile>` for a single placement. */
+export function buildTile(
+	placement: RestPlacementShape,
+	folderId: number,
+): HTMLElement {
+	const file = resolveFileType( placement.file );
+	const tile = buildTileFromSpec( placementToSpec( placement, folderId ) );
+
+	// Back-compat: placement-shaped class filter. Documented in
+	// docs/files-on-desktop.md since 0.9; third-party plugins rely
+	// on the exact filter name + the `TILE_CLASS` default input +
+	// the `RestPlacementShape` signature. The `<wpd-tile>` host
+	// re-asserts `TILE_CLASS` in `_paint()`, so any extra classes
+	// the filter returns ride alongside it.
+	const classFiltered = applyFilters< string, [ RestPlacementShape ] >(
+		'desktop-mode.files.tile-class',
+		TILE_CLASS,
+		placement,
+	);
+	if ( classFiltered && classFiltered !== TILE_CLASS ) {
+		tile.className = classFiltered;
+	}
+
+	// Back-compat: placement-shaped extra-element filter. Plugins
+	// returning a non-Element get ignored (same as before).
 	const extra = applyFilters< Element | null, [ RestPlacementShape ] >(
 		'desktop-mode.files.tile-element',
 		null,
@@ -156,15 +135,10 @@ export function buildTile( placement: RestPlacementShape, folderId: number ): HT
 		} );
 	} );
 
-	if ( placement.accessGated ) {
-		const lock = document.createElement( 'span' );
-		lock.className = `${ TILE_CLASS }__lock dashicons dashicons-lock`;
-		lock.setAttribute( 'aria-hidden', 'true' );
-		tile.appendChild( lock );
-	}
-
-	applyTileEntryStagger( tile );
-
+	// Internal consumer: `share-menu-items.ts` paints the shared-
+	// folder badge on every render. Kept on the placement-shaped
+	// signature so that subscriber doesn't have to re-derive the
+	// placement from the generic spec.
 	doAction( 'desktop-mode.files.tile-rendered', { tile, placement } );
 	return tile;
 }

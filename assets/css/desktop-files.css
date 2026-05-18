@@ -97,6 +97,53 @@
 	pointer-events: none;
 }
 
+/*
+ * Live drop-cell preview. A soft outline that hovers at the cell
+ * the dropped tile will land in, so the user can predict where the
+ * grid snap will place it before releasing. Positioned absolutely
+ * inside the files layer; `translate3d` updated from JS on every
+ * pointermove while a desktop-file drag hovers the canvas.
+ *
+ * The tile dimensions are baked into `grid.ts` (88 × 96 visual,
+ * 96 × 110 cell pitch). The outline matches the cell pitch — slightly
+ * larger than the tile — so the highlight reads as "this slot" rather
+ * than "this tile."
+ *
+ * @since 0.20.0
+ */
+.desktop-mode-files-drop-preview {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 88px;
+	height: 96px;
+	pointer-events: none;
+	box-sizing: border-box;
+	border-radius: 12px;
+	background: var(
+		--desktop-mode-drop-preview-bg,
+		rgba( 34, 113, 177, 0.08 )
+	);
+	border: 2px dashed
+		var(
+			--desktop-mode-drop-preview-border,
+			rgba( 34, 113, 177, 0.55 )
+		);
+	transition: transform 90ms ease-out;
+	will-change: transform;
+	/* Sit BELOW tiles so a tile being dragged over the cell isn't
+	 * visually clipped by the dashed outline; the outline still reads
+	 * because the tile is semi-transparent during drag (`--dragging`
+	 * sets `opacity: 0.4`). */
+	z-index: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.desktop-mode-files-drop-preview {
+		transition: none;
+	}
+}
+
 .desktop-mode-file-tile {
 	pointer-events: auto;
 	position: absolute;
@@ -163,8 +210,29 @@
 }
 
 .desktop-mode-file-tile:focus-visible {
-	box-shadow: 0 0 0 2px
+	/* Inset focus ring — outset rings extended past the tile and
+	 * visually overlapped the colindant icon when the canvas cell
+	 * pitch is tight (96 px cell, 88 px tile → only 4 px clearance
+	 * per side). Inset keeps the ring fully inside the tile. */
+	box-shadow: inset 0 0 0 2px
 		var( --desktop-mode-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+}
+
+/* Status ribbon sizing inside tiles. The `<wpd-ribbon>` defaults
+ * are tuned for cards (~90 px clipping window); 88 px-wide tiles
+ * need a tighter footprint or the ribbon dominates the icon. We
+ * override the component's CSS custom-property theming surface so
+ * the ribbon stays a small accent in the corner. Authors who want
+ * different sizing can override per-tile or per-section. */
+.desktop-mode-file-tile > wpd-ribbon {
+	--wpd-ribbon-size: 48px;
+	--wpd-ribbon-banner-width: 72px;
+	--wpd-ribbon-banner-offset: 12px;
+	--wpd-ribbon-banner-pull: -18px;
+	--wpd-ribbon-padding: 1px 0;
+	--wpd-ribbon-font: 700 7px/1.4 var( --desktop-mode-font, system-ui );
+	--wpd-ribbon-tracking: 0.05em;
+	--wpd-ribbon-shadow: 0 1px 2px rgba( 0, 0, 0, 0.2 );
 }
 
 .desktop-mode-file-tile--dragging {
@@ -312,11 +380,18 @@
  *
  * @since 0.8.0
  */
-.desktop-mode-file-tile[ data-file-type="post" ]::after,
-.desktop-mode-file-tile[ data-file-type="attachment" ]::after,
-.desktop-mode-file-tile[ data-file-type="comment" ]::after,
-.desktop-mode-file-tile[ data-file-type="user" ]::after,
-.desktop-mode-file-tile[ data-file-type="term" ]::after {
+/* Only real placements get the badge — i.e. tiles built by
+ * `buildTile(placement)` on the desktop / folder windows, which
+ * are the only surface where "this is a shortcut" actually means
+ * something. Tiles in My WordPress grids (and any future content
+ * surface) are the entity, not a shortcut to it, so the arrow
+ * would just be noise. `[data-placement-id]` is the canonical
+ * placement marker. */
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="post" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="attachment" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="comment" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="user" ]::after,
+.desktop-mode-file-tile[ data-placement-id ][ data-file-type="term" ]::after {
 	content: "↗";
 	position: absolute;
 	right: 14px;
@@ -926,4 +1001,125 @@ button.desktop-mode-folder-status-bar__segment:hover {
 
 .desktop-mode-drag-ghost--reject {
 	cursor: no-drop;
+}
+
+/* ============================================================ *
+ *  Upload progress HUD (since 0.31.0)
+ *
+ *  Pinned floating panel that surfaces the OS-file-drop manager's
+ *  in-flight uploads. One row per file with a `<wpd-progress-bar>`,
+ *  a filename + status, and a Cancel/Dismiss action. The panel
+ *  hides itself when there are no rows; it's purely reactive to
+ *  the four upload-lifecycle hooks.
+ * ============================================================ */
+
+.desktop-mode-upload-hud {
+	position: fixed;
+	inset-block-end: 16px;
+	inset-inline-end: 16px;
+	width: 320px;
+	max-width: calc( 100vw - 32px );
+	background: var( --desktop-mode-panel-bg, #fff );
+	color: var( --desktop-mode-fg-on-light, #1d2327 );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 10px;
+	box-shadow: 0 8px 28px rgba( 0, 0, 0, 0.18 );
+	z-index: 99998;
+	font: inherit;
+	pointer-events: auto;
+	overflow: hidden;
+}
+
+.desktop-mode-upload-hud[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-upload-hud__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var( --desktop-mode-panel-header-bg, rgba( 0, 0, 0, 0.04 ) );
+	border-block-end: 1px solid var( --desktop-mode-border, #dcdcde );
+	font-weight: 600;
+	font-size: 12px;
+}
+
+.desktop-mode-upload-hud__title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-upload-hud__close {
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font-size: 16px;
+	line-height: 1;
+	width: 22px;
+	height: 22px;
+	border-radius: 4px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.desktop-mode-upload-hud__close:hover,
+.desktop-mode-upload-hud__close:focus-visible {
+	background: rgba( 0, 0, 0, 0.08 );
+	outline: none;
+}
+
+.desktop-mode-upload-hud__list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 10px 12px;
+	max-height: 50vh;
+	overflow-y: auto;
+}
+
+.desktop-mode-upload-hud__row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-areas:
+		'meta actions'
+		'bar bar';
+	gap: 6px 8px;
+	align-items: center;
+	font-size: 12px;
+}
+
+.desktop-mode-upload-hud__meta {
+	grid-area: meta;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.desktop-mode-upload-hud__name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+}
+
+.desktop-mode-upload-hud__status {
+	font-size: 11px;
+	opacity: 0.75;
+	font-variant-numeric: tabular-nums;
+}
+
+.desktop-mode-upload-hud__row wpd-progress-bar {
+	grid-area: bar;
+}
+
+.desktop-mode-upload-hud__actions {
+	grid-area: actions;
+	display: inline-flex;
+	gap: 4px;
 }

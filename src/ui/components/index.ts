@@ -48,6 +48,9 @@ export { WpdKey } from './wpd-key/wpd-key';
 export { WpdCode } from './wpd-code/wpd-code';
 export { WpdBadge } from './wpd-badge/wpd-badge';
 export type { WpdBadgeTone } from './wpd-badge/wpd-badge';
+export { WpdRibbon } from './wpd-ribbon/wpd-ribbon';
+export type { WpdRibbonPlacement, WpdRibbonTone } from './wpd-ribbon/wpd-ribbon';
+export { WpdTile } from './wpd-tile/wpd-tile';
 export { WpdLog } from './wpd-log/wpd-log';
 export type { WpdLogRowRenderer } from './wpd-log/wpd-log';
 export { WpdSteps, WpdStep } from './wpd-steps/wpd-steps';
@@ -89,6 +92,10 @@ export type { WpdCrumbSegment } from './wpd-crumb-chain/wpd-crumb-chain';
 export { WpdCard } from './wpd-card/wpd-card';
 export { WpdRatingSummary } from './wpd-rating-summary/wpd-rating-summary';
 export type { WpdRatingBuckets } from './wpd-rating-summary/wpd-rating-summary';
+export { WpdNotice } from './wpd-notice/wpd-notice';
+export type { WpdNoticeTone } from './wpd-notice/wpd-notice';
+export { WpdProgressBar } from './wpd-progress-bar/wpd-progress-bar';
+export type { WpdProgressTone } from './wpd-progress-bar/wpd-progress-bar';
 
 // List of tags registered by this barrel. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
@@ -155,4 +162,6 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-crumb-chain',
 	'wpd-card',
 	'wpd-rating-summary',
+	'wpd-notice',
+	'wpd-progress-bar',
 ] as const;

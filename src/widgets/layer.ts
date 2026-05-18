@@ -433,14 +433,21 @@ export class WidgetLayer {
 	 * Inverse of {@link liberate}: move a floating card back into
 	 * the column and drop its persisted geometry so a subsequent
 	 * shell boot brings it up docked. Called when the user clicks
-	 * the re-dock button in the card's chrome header.
+	 * the re-dock button in the card's chrome header, or
+	 * programmatically by companion plugins via
+	 * `wp.desktop.widgets.redock( id )` /
+	 * `wp.desktop.widgetLayer.redock( id )`.
 	 *
-	 * Idempotent — a docked widget silently no-ops. The `--floating`
-	 * class on the card is removed as part of the same write so CSS
-	 * rules that depend on it (re-dock button visibility, absolute
-	 * positioning) flip back in one paint.
+	 * Idempotent — a docked widget silently no-ops, an unknown id
+	 * silently no-ops. The `--floating` class on the card is
+	 * removed as part of the same write so CSS rules that depend
+	 * on it (re-dock button visibility, absolute positioning) flip
+	 * back in one paint.
+	 *
+	 * @since 0.7.0 (private)
+	 * @since 0.25.0 (public)
 	 */
-	private redock( id: string ): void {
+	public redock( id: string ): void {
 		const record = this.mounted.get( id );
 		if ( ! record || ! record.floating ) {
 			return;

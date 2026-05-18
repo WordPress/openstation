@@ -17,6 +17,7 @@ defined( 'ABSPATH' ) || exit;
 - [Replace the dock rail entirely](./dock-rail-renderer.md)
 - [Gate desktop mode by role](./gate-by-role.md)
 - [React to window events](./react-to-window-events.md)
+- [My WordPress — add a preview-pane action button](./my-wordpress-media-action.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)
 - [Custom arrange-menu action](./arrange-action.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)
@@ -36,6 +37,7 @@ defined( 'ABSPATH' ) || exit;
 - [`<wpd-flyout>` — sliding edge-anchored panel](./wpd-flyout.md)
 - [Render a data table — filters, sticky columns, sub-tables](./data-table.md)
 - [Loading spinner — presets and color overrides](./spinner.md)
+- [Progress bar — determinate, indeterminate, tones](./progress-bar.md)
 - [Window loading state — spinner overlay + ready signal](./window-loading.md)
 - [Native windows — overview + render-callback contract](./native-windows.md)
 - [Native window with bundle-bound config (REST URLs, nonces)](./window-with-config.md)
@@ -54,5 +56,7 @@ defined( 'ABSPATH' ) || exit;
 - [Track who's around — `wp.desktop.presence`](./presence.md)
 - [Surface a custom "Install as App" button](./pwa-install.md)
 - [Send a notification — `wp.desktop.notify()`](./notify.md)
+- [Show a banner at the top of a window — `desktop_mode_register_window_notice()`](./window-notice.md)
+- [Catch files dragged in from the host OS — `desktop-mode.drop.*`](./os-file-drop.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.

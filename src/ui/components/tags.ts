@@ -70,4 +70,5 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-category-picker',
 	'wpd-crumb-chain',
 	'wpd-card',
+	'wpd-notice',
 ] as const;

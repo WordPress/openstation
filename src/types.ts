@@ -1205,6 +1205,40 @@ export interface DesktopWindowSlotServerEntry {
 }
 
 /**
+ * Server-declared window-notice metadata entry — emitted by
+ * `desktop_mode_register_window_notice()`. Notices are pure
+ * declarative data so there is no script handle.
+ *
+ * `match` is optional and supports three selectors (combine freely):
+ *   - `window: <windowId>` — render only on the window with this id
+ *     (e.g. `'edit-php'` for Posts, `'plugins'` for the native
+ *     Plugins window).
+ *   - `windows: string[]` — render on any window whose id is in the
+ *     list (the "all windows of kind X / Y / Z" shape).
+ *   - `urlContains: <substring>` — render on any window whose URL
+ *     contains the substring (case-insensitive). Useful for plugin
+ *     pages where the id is derived from a long admin URL.
+ *
+ * When `match` is omitted, the notice renders on every window.
+ *
+ * @public
+ * @since 0.22.0
+ */
+export interface DesktopWindowNoticeServerEntry {
+	id: string;
+	message: string;
+	tone: 'info' | 'success' | 'warning' | 'error' | 'danger' | 'neutral';
+	dismissible: boolean;
+	icon?: string;
+	match?: {
+		window?: string;
+		windows?: string[];
+		urlContains?: string;
+	};
+	order?: number;
+}
+
+/**
  * Server-declared custom-chrome script entry. One per
  * `desktop_mode_register_window_chrome_script()` call.
  *
@@ -1600,6 +1634,16 @@ export interface DesktopConfig {
 	 */
 	serverWindowChromes?: DesktopWindowChromeServerEntry[];
 	/**
+	 * Server-declared window notices (from
+	 * `desktop_mode_register_window_notice()`). Each entry is rendered
+	 * as a `<wpd-notice>` inside the matching window's
+	 * `after-titlebar` slot. Pure declarative data — no script handle
+	 * required.
+	 *
+	 * @since 0.22.0
+	 */
+	serverWindowNotices?: DesktopWindowNoticeServerEntry[];
+	/**
 	 * Server-declared desktop icons (from `desktop_mode_register_icon()`).
 	 * The shell renders these as shortcut tiles on the wallpaper;
 	 * click-through opens either the referenced native window (if
@@ -1721,6 +1765,18 @@ export interface DesktopConfig {
 	sessionUrl: string;
 	/** REST endpoint for media uploads (wp/v2/media). */
 	mediaUrl: string;
+	/**
+	 * OS-file drop manager config. Drives the cross-shell drop
+	 * surface that catches files dragged in from the user's
+	 * native OS (Finder, Explorer, Nautilus). Server-side
+	 * filterable via `desktop_mode_drop_allowed_mimes` /
+	 * `desktop_mode_drop_max_size`. See
+	 * {@link import('./os-file-drop/types').DropConfig} for the
+	 * single source of truth on the shape.
+	 *
+	 * @since 0.30.0
+	 */
+	dropConfig?: import( './os-file-drop/types' ).DropConfig;
 	/** REST endpoint for saving the default-window preference. */
 	defaultWindowUrl: string;
 	/**

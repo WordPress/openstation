@@ -297,6 +297,8 @@ docs/
     │                            or wpd-table-{filter-change,row-click,expand-change} event details.
     ├── spinner.md               UPDATE/READ WHEN: <wpd-spinner> contract changes — preset list,
     │                            attribute names, CSS-variable surface, or accessibility defaults.
+    ├── progress-bar.md          UPDATE/READ WHEN: <wpd-progress-bar> contract changes — value/max,
+    │                            indeterminate, tone list, label/show-percent header, or CSS-variable surface.
     ├── register-icon.md        UPDATE/READ WHEN: desktop_mode_register_icon() contract changes.
     ├── register-wallpaper.md   UPDATE/READ WHEN: WallpaperDef or desktop_mode_register_wallpaper() changes.
     ├── shared-store.md          UPDATE/READ WHEN: wp.desktop.createSharedStore() contract,
@@ -312,10 +314,15 @@ docs/
     ├── pwa-install.md           UPDATE/READ WHEN: wp.desktop.pwa.promptInstall(),
     │                            install-pill UX, or desktop_mode_pwa_manifest filter
     │                            contract changes.
-    └── notify.md                UPDATE/READ WHEN: wp.desktop.notify() options shape,
-                                 fallback semantics, or
-                                 desktop-mode/notification-{requested,shown}
-                                 channel payloads change.
+    ├── notify.md                UPDATE/READ WHEN: wp.desktop.notify() options shape,
+    │                            fallback semantics, or
+    │                            desktop-mode/notification-{requested,shown}
+    │                            channel payloads change.
+    └── window-notice.md         UPDATE/READ WHEN: desktop_mode_register_window_notice()
+                                 contract, wp.desktop.registerWindowNotice() shape,
+                                 <wpd-notice> attributes, or the persistence-key
+                                 scheme (desktop-mode-notice-dismissed:<userId>)
+                                 changes.
 ```
 
 **Rules of thumb:**

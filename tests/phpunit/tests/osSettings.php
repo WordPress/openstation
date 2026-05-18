@@ -139,4 +139,119 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		);
 		$this->assertSame( 'off', $clean['ai']['transport'] );
 	}
+
+	// ────────────────────────────────────────────────────────────────
+	// dockPromotedPositions — persisted x/y for dock-item icons the
+	// user promoted to the desktop wallpaper.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_includes_empty_dock_promoted_positions() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertArrayHasKey( 'dockPromotedPositions', $defaults );
+		$this->assertSame( array(), $defaults['dockPromotedPositions'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_well_formed_dock_promoted_positions() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'dockPromotedPositions' => array(
+					'edit-php'    => array( 'x' => 200, 'y' => 150 ),
+					'upload-php'  => array( 'x' => 320, 'y' => 240 ),
+				),
+			)
+		);
+		$this->assertArrayHasKey( 'dockPromotedPositions', $clean );
+		$this->assertCount( 2, $clean['dockPromotedPositions'] );
+		$this->assertSame(
+			array( 'x' => 200, 'y' => 150 ),
+			$clean['dockPromotedPositions']['edit-php']
+		);
+	}
+
+	/**
+	 * Slugs go through `sanitize_key()`, so values from an evil JSON
+	 * blob with spaces / uppercase get normalized rather than passed
+	 * through verbatim.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_normalizes_dock_promoted_position_keys() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'dockPromotedPositions' => array(
+					'Edit Php' => array( 'x' => 10, 'y' => 20 ),
+				),
+			)
+		);
+		$this->assertArrayNotHasKey( 'Edit Php', $clean['dockPromotedPositions'] );
+		$this->assertArrayHasKey( 'editphp', $clean['dockPromotedPositions'] );
+	}
+
+	/**
+	 * Non-numeric / missing coords are dropped — the JS shouldn't
+	 * receive a half-shaped position that would crash the synthesizer.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_drops_malformed_dock_promoted_position_values() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'dockPromotedPositions' => array(
+					'a' => array( 'x' => 'not-a-number', 'y' => 0 ),
+					'b' => array( 'x' => 0 ), // missing y
+					'c' => 'not-an-array',
+					'd' => array( 'x' => 50, 'y' => 60 ),
+				),
+			)
+		);
+		$this->assertSame(
+			array( 'd' => array( 'x' => 50, 'y' => 60 ) ),
+			$clean['dockPromotedPositions']
+		);
+	}
+
+	/**
+	 * Out-of-range coordinates are dropped. A corrupted JSON blob with
+	 * coords of ±10^9 shouldn't make it into user meta where it could
+	 * later inflate a screen-position math expression.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_drops_absurd_dock_promoted_position_coords() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'dockPromotedPositions' => array(
+					'huge'    => array( 'x' => 999999999, 'y' => 0 ),
+					'neg'     => array( 'x' => -999999999, 'y' => 0 ),
+					'normal'  => array( 'x' => 100, 'y' => 100 ),
+				),
+			)
+		);
+		$this->assertSame(
+			array( 'normal' => array( 'x' => 100, 'y' => 100 ) ),
+			$clean['dockPromotedPositions']
+		);
+	}
+
+	/**
+	 * Cap-at-256 prevents an evil blob from ballooning user meta.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_caps_dock_promoted_positions_at_256() {
+		$input = array();
+		for ( $i = 0; $i < 300; $i++ ) {
+			$input[ 'item-' . $i ] = array( 'x' => $i, 'y' => $i );
+		}
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'dockPromotedPositions' => $input )
+		);
+		$this->assertCount( 256, $clean['dockPromotedPositions'] );
+	}
 }

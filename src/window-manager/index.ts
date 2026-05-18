@@ -29,6 +29,7 @@ import type {
 	SessionWindow,
 	VisibleWindowRect,
 	WindowConfig,
+	WindowState,
 } from '../types';
 import type { Window } from '../window';
 import {
@@ -70,6 +71,67 @@ const BASE_Z_INDEX = 100;
 
 /** Cascade offset for new windows (pixels). */
 const CASCADE_OFFSET = 30;
+
+/**
+ * Geometry resolved by `WindowManager.createWindow()` and passed
+ * through {@link HOOKS.WINDOW_GEOMETRY}. Returned (possibly mutated)
+ * by the filter and then re-clamped to `minWidth`/`minHeight` before
+ * being baked into the `WindowConfig`.
+ *
+ * @public
+ * @since 0.25.0
+ */
+export interface ResolvedWindowGeometry {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	/**
+	 * Initial window state. Typically `undefined` (a normal floating
+	 * window) or `'maximized'` (when the saved geometry or caller
+	 * asked for it). A filter may return any {@link WindowState}
+	 * value to force a particular start state — e.g.
+	 * `'snapped-left'` for a side-companion plugin.
+	 */
+	state?: WindowState;
+}
+
+/**
+ * Context object the {@link HOOKS.WINDOW_GEOMETRY} filter receives
+ * alongside the resolved geometry. `windowId` is the unique
+ * per-instance id; `baseId` is the registry id (multiple windows
+ * sharing one baseId in the multi-window case). `desktopRect`
+ * carries the live desktop area dimensions so a filter can compute
+ * "bottom-right corner" without touching the DOM.
+ *
+ * The two booleans capture the only useful distinctions a filter
+ * actually cares about:
+ *
+ *   - `hasSavedGeometry`: the user previously dragged/resized this
+ *     window and we just restored that layout. Plugins that want to
+ *     "leave the user's layout alone" should bail when this is true.
+ *   - `callerPinned`: the caller of `manager.open()` passed at least
+ *     one of `{ x, y, width, height, initialState }` explicitly. For
+ *     native windows registered via `desktop_mode_register_window()`
+ *     this is usually `true` (the framework's native-window opener
+ *     passes the registry's declared dimensions); for admin-page
+ *     iframe windows opened from the dock this is usually `false`.
+ *     The filter is free to override registry-declared defaults —
+ *     `callerPinned: true` does not mean "leave it alone."
+ *
+ * @public
+ * @since 0.25.0
+ */
+export interface WindowGeometryContext {
+	windowId: string;
+	baseId: string;
+	hasSavedGeometry: boolean;
+	callerPinned: boolean;
+	desktopRect: {
+		width: number;
+		height: number;
+	};
+}
 
 /**
  * Window Manager class.
@@ -564,6 +626,90 @@ export class WindowManager {
 		const resolvedX = config.x ?? clampedSavedX ?? cascadeX;
 		const resolvedY = config.y ?? clampedSavedY ?? cascadeY;
 
+		// `WINDOW_GEOMETRY` filter context — two booleans that capture
+		// the only useful distinctions a filter actually cares about:
+		// did we just restore a user-saved layout, and did the caller
+		// pin any of the dimensions explicitly. See the
+		// `WindowGeometryContext` jsdoc above for plugin-author
+		// guidance.
+		const callerPinned =
+			hasExplicitWidth ||
+			hasExplicitHeight ||
+			hasExplicitX ||
+			hasExplicitY ||
+			hasExplicitState;
+		const hasSavedGeometry = !! saved;
+
+		const preFilterGeometry: ResolvedWindowGeometry = {
+			x: resolvedX,
+			y: resolvedY,
+			width: resolvedWidth,
+			height: resolvedHeight,
+			state: resolvedState,
+		};
+		let filtered: ResolvedWindowGeometry;
+		try {
+			filtered = applyFilters<
+				ResolvedWindowGeometry,
+				[ WindowGeometryContext ]
+			>(
+				HOOKS.WINDOW_GEOMETRY,
+				preFilterGeometry,
+				{
+					windowId: config.id,
+					baseId: resolvedBaseId,
+					hasSavedGeometry,
+					callerPinned,
+					desktopRect: {
+						width: desktopRect.width,
+						height: desktopRect.height,
+					},
+				},
+			);
+		} catch ( err ) {
+			// A throwing filter must NOT bring down the window open.
+			// Fall back to the pre-filter geometry and surface the
+			// error on the shell-error channel so plugin authors find
+			// it in devtools.
+			doAction( HOOKS.SHELL_ERROR, {
+				scope: 'window-geometry-filter',
+				windowId: config.id,
+				error: err,
+			} );
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[desktop-mode] WINDOW_GEOMETRY filter threw for "${ config.id }":`,
+					err,
+				);
+			}
+			filtered = preFilterGeometry;
+		}
+
+		// Defensive coalesce — a careless filter can return a partial
+		// object, a non-finite number, or even something that isn't a
+		// geometry shape at all. Treat any field that isn't a finite
+		// number as "leave the resolved value alone." Re-clamp width
+		// and height to the registered minima — a buggy filter cannot
+		// ship a sub-minimum window. Position is NOT re-clamped:
+		// plugins sometimes deliberately place windows partially
+		// off-screen for stylistic reasons.
+		const coalesce = ( v: unknown, fallback: number ): number =>
+			typeof v === 'number' && Number.isFinite( v ) ? v : fallback;
+		const safeFiltered: ResolvedWindowGeometry =
+			filtered && typeof filtered === 'object' ? filtered : preFilterGeometry;
+		const finalWidth = Math.max(
+			coalesce( safeFiltered.width, resolvedWidth ),
+			minWidth,
+		);
+		const finalHeight = Math.max(
+			coalesce( safeFiltered.height, resolvedHeight ),
+			minHeight,
+		);
+		const finalX = coalesce( safeFiltered.x, resolvedX );
+		const finalY = coalesce( safeFiltered.y, resolvedY );
+		const finalState: WindowState | undefined =
+			safeFiltered.state ?? resolvedState;
+
 		const fullConfig: WindowConfig = {
 			icon: config.icon || 'dashicons-admin-generic',
 			...config,
@@ -572,13 +718,13 @@ export class WindowManager {
 			// dimensions + state we resolved above. The pin has to
 			// follow the spread because an explicit `width: undefined`
 			// from the caller would otherwise blow away the default.
-			x: resolvedX,
-			y: resolvedY,
-			width: resolvedWidth,
-			height: resolvedHeight,
+			x: finalX,
+			y: finalY,
+			width: finalWidth,
+			height: finalHeight,
 			minWidth,
 			minHeight,
-			...( resolvedState ? { initialState: resolvedState } : {} ),
+			...( finalState ? { initialState: finalState } : {} ),
 			baseId: resolvedBaseId,
 			// New windows always join the active desktop. A caller can
 			// pre-seed `desktopId` (e.g. session restore) by passing it
@@ -779,6 +925,36 @@ export class WindowManager {
 		// id is misleading.
 		const previouslyFocused =
 			this._stack.length > 0 ? this._stack[ this._stack.length - 1 ] : null;
+
+		// A fullscreen window pins itself above all other windows via
+		// `z-index: var(--desktop-mode-z-fullscreen)`, so any newly-
+		// focused window would render behind it. Default: exit
+		// fullscreen on focus change. Plugins whose fullscreen surface
+		// is meant to persist (slideshow, video, game) can opt out via
+		// the `WINDOW_AUTO_EXIT_FULLSCREEN` filter.
+		//
+		// `previouslyFocused` above is `_stack[length-1]` — but `open()`
+		// pushes the new window onto the stack BEFORE calling `focus()`,
+		// so on the open path that snapshot is `win` itself. Find the
+		// other fullscreen window by `isFocused()` instead so the
+		// auto-exit covers open, activate, and restore-from-minimize
+		// uniformly.
+		const priorFullscreen = this._stack.find(
+			( w ) => w !== win && w.isFocused() && w.isFullscreen(),
+		);
+		if ( priorFullscreen ) {
+			const shouldExit = applyFilters<
+				boolean,
+				[ { windowId: string; focusedTo: string } ]
+			>(
+				HOOKS.WINDOW_AUTO_EXIT_FULLSCREEN,
+				true,
+				{ windowId: priorFullscreen.id, focusedTo: win.id },
+			);
+			if ( shouldExit ) {
+				priorFullscreen.toggleFullscreen();
+			}
+		}
 
 		// Remove from current position and push to top.
 		const idx = this._stack.indexOf( win );

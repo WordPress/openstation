@@ -76,7 +76,7 @@ export async function fetchEntityList(
 	url.searchParams.set( 'per_page', String( params.perPage ) );
 	url.searchParams.set(
 		'_fields',
-		'id,title,excerpt,date,featured_media,link,desktop_mode_lock,_links,_embedded',
+		'id,title,excerpt,date,status,featured_media,link,desktop_mode_lock,_links,_embedded',
 	);
 	url.searchParams.set( '_embed', 'wp:featuredmedia' );
 	// Surface drafts/private/pending so authors see their unpublished
@@ -116,7 +116,7 @@ export async function fetchEntityDetail(
 	const url = new URL( buildUrl( `${ entity.restPath }/${ id }` ) );
 	url.searchParams.set(
 		'_fields',
-		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,desktop_mode_contributors,_links,_embedded',
+		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,desktop_mode_contributors,desktop_mode_attached_media,_links,_embedded',
 	);
 	url.searchParams.set( '_embed', 'author,wp:term,wp:featuredmedia,replies' );
 
@@ -200,10 +200,16 @@ export async function fetchEntityTotal(
 		url.searchParams.set( 'page', '1' );
 		url.searchParams.set( 'per_page', '1' );
 		url.searchParams.set( '_fields', 'id' );
-		if ( entity.kind !== 'user' ) {
+		if ( entity.kind === 'user' ) {
+			if ( withWho ) {
+				url.searchParams.set( 'who', 'authors' );
+			}
+		} else if ( entity.kind === 'media' ) {
+			// Attachments live under `status=inherit` — passing the
+			// post-status list above 400s on `wp/v2/media`.
+			url.searchParams.set( 'status', 'inherit' );
+		} else {
 			url.searchParams.set( 'status', 'publish,future,draft,pending,private' );
-		} else if ( withWho ) {
-			url.searchParams.set( 'who', 'authors' );
 		}
 		return url.toString();
 	};

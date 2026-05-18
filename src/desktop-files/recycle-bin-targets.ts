@@ -107,6 +107,18 @@ function registerOn(
 			if ( ! placement ) {
 				return false;
 			}
+			// Never trash the recycle bin into itself. Both drop
+			// surfaces (the bin's wallpaper tile + the bin window
+			// body) share this `accept`, so dragging the bin onto
+			// either one used to land on `trashByFileType` →
+			// `trashPlacementWithUndo` and the bin's own placement
+			// got soft-trashed. Visible result: the bin vanished
+			// from the desktop, with no obvious way back short of a
+			// reload (which re-auto-placed it because the orphan
+			// backfill only counts non-trashed placements).
+			if ( placement.file?.ref === RECYCLE_BIN_WINDOW_ID ) {
+				return false;
+			}
 			// `canTrash === false` is an explicit veto from the
 			// server. `undefined` (legacy clients / older payloads
 			// that pre-date the flag) defaults to "let it through"

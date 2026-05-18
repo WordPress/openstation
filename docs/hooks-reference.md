@@ -1488,6 +1488,57 @@ Handler signature: `function( array $args, int $user_id ): array|WP_Error`. A `W
 
 ---
 
+## OS-file drop manager — Experimental (since 0.30.0)
+
+The drop manager (`src/os-file-drop/`) catches files dragged from the user's native OS (Finder / Explorer / Nautilus) anywhere on the shell and routes them through a confirmation dialog before uploading to the Media Library. See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md) for the full recipe.
+
+### `desktop_mode_drop_allowed_mimes`
+
+Narrows or widens the allowed-MIMEs list surfaced to the JS drop manager. Default is `get_allowed_mime_types( $user_id )` — already capability-gated by WordPress.
+
+```php
+apply_filters( 'desktop_mode_drop_allowed_mimes', array $mimes_map, int $user_id );
+```
+
+`$mimes_map` is the `ext => mime` map (same shape `get_allowed_mime_types()` returns). The drop manager flattens to canonical MIMEs before the policy check.
+
+---
+
+### `desktop_mode_drop_max_size`
+
+Caps the per-file size the JS drop manager enforces locally before upload. Default is `wp_max_upload_size()`. Returning `0` disables the client-side cap — the server still enforces its own.
+
+```php
+apply_filters( 'desktop_mode_drop_max_size', int $max_size, int $user_id );
+```
+
+---
+
+### `desktop_mode_drop_enabled`
+
+Master gate for the OS-file drop manager. Defaults to `current_user_can( 'upload_files' )`. Return `false` to disable drop handling entirely for the current user (e.g. role-gated, multisite-gated, or environment-gated).
+
+```php
+apply_filters( 'desktop_mode_drop_enabled', bool $enabled, int $user_id );
+```
+
+---
+
+### JS hooks fired by the drop manager
+
+| Hook | Kind | Notes |
+| --- | --- | --- |
+| `desktop-mode.drop.files-detected` | filter | `(files: File[], ctx) => File[]`, before mime / size filter. Return `[]` to abort silently. |
+| `desktop-mode.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
+| `desktop-mode.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate the per-file defaults. |
+| `desktop-mode.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — return `null` to cancel. |
+| `desktop-mode.drop.upload-started` | action | _Since 0.31.0._ `{ file, fields, context, abort }` — fires once the XHR is `open()`ed and immediately before `send()`. Call `abort()` to cancel the in-flight upload; the manager rejects with `UploadAbortedError` and emits `upload-failed`. If `abort()` is called after the request body has been fully sent, the manager lets the server respond and then DELETEs the resulting attachment so the user's Media Library never shows a "cancelled" file. |
+| `desktop-mode.drop.upload-progress` | action | _Since 0.31.0._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` event. `total === 0` / `indeterminate === true` when the request length isn't known. A synthetic 100% event is dispatched on `upload.load` so a HUD can show "wrapping up" while the server finishes the response. |
+| `desktop-mode.drop.after-upload` | action | `{ file, result, fields, context }` — `file` (since 0.31.0) is the same `File` reference exposed by `upload-started` / `upload-progress`, so per-file state can be looked up by identity rather than filename. |
+| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `file` carries the same identity as `upload-started` / `upload-progress` / `after-upload` (the post-`before-upload` `File`, in case a plugin swapped it). Match by reference, not filename. `error.name === 'UploadAbortedError'` when the failure came from a `upload-started` `abort()` call. |
+
+---
+
 ## Planned (not yet fired)
 
 The filters and actions below are **reserved names** documented for forward compatibility. They will land with the phase indicated. Do not register listeners in production code until the status flips to Stable.
@@ -1961,7 +2012,7 @@ Last-mile mutation of the args passed to `desktop_mode_register_window( 'desktop
 
 ### `desktop_mode_plugins_window_template_html` — Experimental *(filter, since 0.9.0)*
 
-Filters the rendered template HTML before `wp_kses` runs. Keep `data-desktop-mode-plugins-{root,tabs,installed-host,browse-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
+Filters the rendered template HTML before `wp_kses` runs. Keep `data-desktop-mode-plugins-{root,tabs,installed-host,browse-host,featured-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
 
 ### `desktop_mode_plugins_window_browse_args` — Stable *(filter, since 0.9.0)*
 
@@ -2017,6 +2068,16 @@ apply_filters( 'desktop_mode_plugins_window_refresh_updates', bool $refresh, boo
 
 Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (when the in-window Refresh button passes `?desktop_mode_force_refresh=1`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
 
+### `desktop_mode_plugins_window_auto_updates_enabled` — Experimental *(filter, since 0.21.0)*
+
+Whether the Plugins window's "Automatic Updates" column should be shown to the current user. Mirrors Core's `WP_Plugins_List_Table::$show_autoupdates` gate (`wp_is_auto_update_enabled_for_type( 'plugin' )` + `update_plugins` cap + network-admin on multisite). Return `false` to suppress the column entirely — useful for managed-hosting environments that orchestrate auto-updates externally and don't want users toggling per-plugin state from within the shell.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_auto_updates_enabled', bool $enabled, int $user_id ): bool
+```
+
+The flag is surfaced to the JS bundle on the window's `config` blob as `autoUpdatesEnabled` and consumed at column-build time — flipping it via the filter takes effect on the next reload of the window.
+
 ### REST-field decorators on `/wp/v2/plugins` — Stable (since 0.9.0)
 
 Server-injected enrichment fields. The JS reads them on every list paint:
@@ -2027,6 +2088,7 @@ Server-injected enrichment fields. The JS reads them on every list paint:
 | `desktop_mode_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
 | `desktop_mode_icon_url` | `string\|null` | Best-effort wp.org icon URL derived from the plugin's `textdomain`. Filterable via `desktop_mode_plugins_window_icon_url`. |
 | `desktop_mode_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |
+| `desktop_mode_auto_update` | `{ enabled: bool, forced: bool\|null, supported: bool }` | (Since 0.21.0) Per-row auto-update state, mirroring Core's "Automatic Updates" column on `plugins.php`. `enabled` reflects the `auto_update_plugins` site option (overridden by `forced` when a filter pins it). `forced` is `null` for user-toggleable rows, `true`/`false` when the `auto_update_plugin` filter has pinned the state. `supported` is true when the `update_plugins` transient has an entry for the plugin (either `response` or `no_update`); when false the JS hides the toggle — premium / private plugins that never check in with wp.org. The toggle itself routes through Core's `wp_ajax_toggle_auto_updates` handler (action `toggle-auto-updates`, `'updates'` nonce). |
 
 ### Actions — Stable (since 0.9.0)
 
@@ -2035,6 +2097,35 @@ do_action( 'desktop_mode_plugins_window_installed', string $plugin_file );
 ```
 
 Fires after the upload-AJAX handler installs a plugin from an uploaded .zip. `$plugin_file` is the resolved plugin file (e.g. `"akismet/akismet.php"`). Hook this to seed default settings for first-install plugins, send an audit-log entry, or chain a network-wide deploy.
+
+### `desktop_mode_plugins_featured_slugs` — Experimental *(filter, since 0.20.0)*
+
+The Plugins window's third tab — "Desktop Mode plugins" — leads with a hand-curated list because wp.org's `plugins_api` does not yet expose a usable `requires_plugins` filter. The handler hydrates each curated slug through `plugins_api( 'plugin_information' )` so card metadata stays fresh; it then scans the wp.org popular feed for rows whose `requires_plugins` array contains `desktop-mode` and appends them after the curated entries.
+
+Use this filter to append your own companion plugins (or remove the default seed). Order is preserved — the first slug renders first in the gallery. Output is run through `sanitize_key()` and deduplicated.
+
+```php
+apply_filters( 'desktop_mode_plugins_featured_slugs', string[] $slugs ): string[]
+```
+
+```php
+add_filter( 'desktop_mode_plugins_featured_slugs', static function ( $slugs ) {
+    $slugs[] = 'my-companion-plugin';
+    return $slugs;
+} );
+```
+
+**Cache scope caveat.** The Featured tab response is cached in a single site-wide transient (`dm_pwfeatured_v1`, 1h TTL) — the cache key does not vary by user or role. If your filter returns role-specific or capability-specific slugs (e.g. surfacing a premium plugin only to administrators), the first viewer's payload will be served to every viewer for the cache window. Either keep the curated list cap-agnostic, or use `desktop_mode_plugins_featured_response` to drop disallowed rows for the current viewer *after* the shared payload is composed (you'd lose the cache hit benefit per user, but no leak).
+
+### `desktop_mode_plugins_featured_response` — Experimental *(filter, since 0.20.0)*
+
+Last hop before the Featured tab payload is cached (1h transient) and sent to the client. Inject premium / private rows that aren't on wp.org, or enforce a hard cap on the response.
+
+```php
+apply_filters( 'desktop_mode_plugins_featured_response', array $payload, array $curated ): array
+```
+
+`$payload` shape: `{ plugins: [ … ], info: { curated: int, discovered: int, results: int } }`. Each entry in `plugins` matches the `plugins_api( 'query_plugins' )` row shape plus a boolean `featured` (true for curated, false for auto-discovered).
 
 ---
 
@@ -2161,6 +2252,54 @@ apply_filters( 'desktop_mode_my_wordpress_user_footprint', array $payload, int $
 ```
 
 The per-user activity-footprint payload returned by `GET /desktop-mode/v1/user-footprint/<id>` — drives the full-body "View activity footprint" surface (right-click on a user tile → footprint). Carries a year of day-by-day activity, weekday + hour-of-day distribution, streak math, recent-events timeline, and totals. Plugins can extend the timeline with their own activity rows (deploys, badges earned, etc.) or replace the streak math with a domain-specific definition.
+
+### `desktop_mode_my_wordpress_media_usage` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_media_usage', array $payload, int $attachment_id ): array
+```
+
+The "used in" payload returned by `GET /desktop-mode/v1/media-usage/<id>` — drives the Media drill-in view (double-click a media tile). Each `usedIn` row carries `{ postId, postType, postTypeLabel, title, status, link, editLink, usedAs:'featured'|'content'|'meta', authorId, authorName, date }`. Plugins (ACF, page builders, Yoast image meta) can push additional rows describing references their own data layer holds — e.g. ACF image fields, gallery blocks, theme-mod backgrounds.
+
+Rows are already filtered per-row through `current_user_can('read_post', $row['postId'])`, so the viewer never sees drafts they can't read. The payload is transient-cached (default 5 min) per attachment + viewer-capability bucket; cache busts on `save_post`, `deleted_post`, `delete_attachment`.
+
+### `desktop_mode_my_wordpress_attached_media` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_attached_media', int[] $ids, int $post_id ): int[]
+```
+
+Attachment ids referenced by a post — featured image plus everything resolved from `post_content` (block-class scan, classic `[caption]` shortcodes, `data-id` / `data-attachment-id`, and raw `<img src>` URL resolution including `-scaled.jpg` ↔ original swaps). Exposed on every public post type as the `desktop_mode_attached_media` REST field (read-only, integer array). Plugins that store attachment references outside `post_content` (ACF image fields, page-builder block storage, post-meta galleries) should append their ids here. Sanitized post-filter — non-positive values and non-arrays are discarded.
+
+### `desktop_mode_my_wordpress_media_usage_cache_ttl` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_media_usage_cache_ttl', int $seconds, int $attachment_id ): int
+```
+
+Lifetime (seconds) of the per-attachment media-usage transient. Lower it on sites that frequently bulk-import or rewrite content; raise it on stable libraries.
+
+### `desktop_mode_my_wordpress_preview_actions` — Experimental (filter, since 0.21.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_preview_actions', array[] $actions ): array[]
+```
+
+Server-declared descriptors for the right-pane action button row that appears in every My WordPress section (posts, pages, users, media, plugin-defined kinds). Each entry:
+
+```php
+array(
+    'id'         => 'my-plugin/compress-image', // required, unique
+    'label'      => 'Compress this image',      // required
+    'icon'       => 'dashicons-image-rotate',   // optional
+    'capability' => 'upload_files',             // optional, default 'read'
+    'mime'       => '^image/',                  // optional PCRE
+    'sections'   => array( 'media' ),           // optional, default all
+    'script'     => 'my-plugin-actions',        // optional wp_register_script handle
+)
+```
+
+`capability` is enforced server-side before the descriptor ships to the bundle, so an action the current user can't run never appears in their UI. `script`, if registered, is auto-enqueued. Wire the click handler on the JS side via `wp.hooks.addFilter('desktop-mode.my-wordpress.preview-actions', …)` — see [`examples/my-wordpress-media-action.md`](./examples/my-wordpress-media-action.md).
 
 ---
 
@@ -2291,6 +2430,31 @@ desktop_mode_register_window_chrome( $args );
 Actions:
 - `desktop_mode_window_chrome_script_registered( $handle )`
 - `desktop_mode_window_chrome_registered( $id, $entry )`
+
+### Window notices — Experimental  *(since 0.22.0)*
+
+```php
+desktop_mode_register_window_notice( $args );
+```
+
+`$args`:
+- `id` *(required)* — persistence + dedupe key.
+- `message` *(required)* — HTML body. Passed through `wp_kses_post()`.
+- `tone` — `info` (default) | `success` | `warning` | `error` | `danger` | `neutral`.
+- `dismissible` — show a close button. Default `true`.
+- `icon` — optional Dashicons class.
+- `match` — optional selector: `{ window?: 'edit-php' }`, `{ windows?: [ 'edit-php', 'edit-php-page' ] }`, or `{ urlContains?: 'wc-admin' }`. Combine freely; omit for "every window."
+- `order` — sort order. Lower renders higher in a stack. Default 100.
+
+Notices render as `<wpd-notice>` inside the matching window's
+`after-titlebar` slot. Each user's dismissal is persisted in
+`localStorage` so the same banner never reappears for them.
+
+Actions / filters:
+- `desktop_mode_window_notice_registered( $id, $entry )` — action.
+- `desktop_mode_window_notices( $entries )` — filter the final list right before it ships to the shell (request-time banners).
+
+See [`docs/examples/window-notice.md`](examples/window-notice.md).
 
 ---
 

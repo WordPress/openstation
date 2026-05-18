@@ -167,12 +167,19 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick
 				: DEFAULTS.showDesktopOnWallpaperClick,
+		showPostStatusRibbons:
+			typeof parsed.showPostStatusRibbons === 'boolean'
+				? parsed.showPostStatusRibbons
+				: DEFAULTS.showPostStatusRibbons,
 		foldersSharingEnabled:
 			typeof parsed.foldersSharingEnabled === 'boolean'
 				? parsed.foldersSharingEnabled
 				: DEFAULTS.foldersSharingEnabled,
 		itemVisibility: sanitizeItemVisibility( parsed.itemVisibility ),
 		dockOrder: sanitizeDockOrder( parsed.dockOrder ),
+		dockPromotedPositions: sanitizeDockPromotedPositions(
+			parsed.dockPromotedPositions,
+		),
 	};
 }
 
@@ -225,6 +232,48 @@ function sanitizeDockOrder( raw: unknown ): string[] {
 		if ( out.length >= 256 ) {
 			break;
 		}
+	}
+	return out;
+}
+
+/**
+ * Coerce an untrusted `dockPromotedPositions` value into the shape
+ * the rest of the bundle expects. Caps at 256 entries; rejects any
+ * non-finite or absurdly large coordinate so a corrupted blob can't
+ * make the synth-placement positioner blow up.
+ */
+function sanitizeDockPromotedPositions(
+	raw: unknown,
+): Record< string, { x: number; y: number } > {
+	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
+		return {};
+	}
+	const out: Record< string, { x: number; y: number } > = {};
+	let count = 0;
+	const MAX_COORD = 100_000; // generous; real screens stop in the thousands
+	for ( const [ k, v ] of Object.entries( raw as Record< string, unknown > ) ) {
+		if ( count >= 256 ) {
+			break;
+		}
+		if ( typeof k !== 'string' || k === '' ) {
+			continue;
+		}
+		if ( ! v || typeof v !== 'object' || Array.isArray( v ) ) {
+			continue;
+		}
+		const pos = v as { x?: unknown; y?: unknown };
+		if (
+			typeof pos.x !== 'number' ||
+			typeof pos.y !== 'number' ||
+			! Number.isFinite( pos.x ) ||
+			! Number.isFinite( pos.y ) ||
+			Math.abs( pos.x ) > MAX_COORD ||
+			Math.abs( pos.y ) > MAX_COORD
+		) {
+			continue;
+		}
+		out[ k ] = { x: pos.x, y: pos.y };
+		count++;
 	}
 	return out;
 }
@@ -282,6 +331,12 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
 		dockOrder: state.dockOrder.slice(),
+		dockPromotedPositions: Object.fromEntries(
+			Object.entries( state.dockPromotedPositions ).map( ( [ k, v ] ) => [
+				k,
+				{ ...v },
+			] ),
+		),
 	};
 }
 

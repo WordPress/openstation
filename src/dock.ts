@@ -109,6 +109,24 @@ export interface DockItem {
 	 * in `desktop_mode_is_core_menu_slug`.
 	 */
 	isCore?: boolean;
+	/**
+	 * Plugin file (e.g. `woocommerce/woocommerce.php`) that owns this
+	 * menu, when resolvable. Set server-side by
+	 * `desktop_mode_resolve_menu_plugin_file()`. Used by the dock
+	 * right-click menu to surface a "Deactivate plugin" action. Always
+	 * `null` for core menus, mu-plugins, drop-ins, and Desktop Mode
+	 * itself — none of those are deactivatable via `wp/v2/plugins`.
+	 */
+	pluginFile?: string | null;
+	/**
+	 * Human-readable display name of the owning plugin (e.g.
+	 * `"WooCommerce"`), as read from the plugin header's `Name:` field
+	 * via `get_plugins()`. Used in the right-click "Deactivate …"
+	 * label so a sub-page tile (e.g. WC's "Analytics") still presents
+	 * the parent plugin's identity in the destructive action. Null
+	 * when `pluginFile` is null.
+	 */
+	pluginName?: string | null;
 }
 
 /** Which edge of the screen the rail hugs. Drives tooltip anchoring + modifier CSS. */
@@ -905,6 +923,8 @@ export class Dock {
 				id: item.id,
 				title: item.title,
 				surface: 'dock',
+				pluginFile: item.pluginFile ?? null,
+				pluginName: item.pluginName ?? null,
 			} );
 		} );
 

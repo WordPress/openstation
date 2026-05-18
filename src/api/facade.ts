@@ -99,6 +99,13 @@ import {
 	unregisterWindowSlot,
 } from '../window-chrome/slots/registry';
 import {
+	dismissWindowNotice,
+	listWindowNotices,
+	registerWindowNotice,
+	undismissWindowNotice,
+	unregisterWindowNotice,
+} from '../window-notices';
+import {
 	listWindowChromes,
 	registerWindowChrome,
 	unregisterWindowChrome,
@@ -154,7 +161,7 @@ import type { NativeWindowDef, DesktopConfig } from '../types';
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'windowManager', 'dock', 'taskbar', 'icons', 'saveSession', 'hooks', 'HOOKS',
-	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer',
+	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer', 'widgets',
 	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
 	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
@@ -180,6 +187,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'applyWindowControls',
 	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
 	'applyWindowSlot',
+	'registerWindowNotice', 'unregisterWindowNotice', 'listWindowNotices',
+	'dismissWindowNotice', 'undismissWindowNotice',
 	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
 	'applyWindowChrome',
 	'connect',
@@ -284,6 +293,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			// `ensureMounted(id)` — exposed below.
 		},
 		widgetLayer,
+		widgets: {
+			redock: ( id: string ) => {
+				widgetLayer?.redock( id );
+			},
+		},
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		registerWindow,
@@ -418,6 +432,39 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 					)
 					.slice( 0, 256 );
 			}
+			if (
+				patch.dockPromotedPositions &&
+				typeof patch.dockPromotedPositions === 'object'
+			) {
+				const MAX_COORD = 100_000;
+				const next: Record< string, { x: number; y: number } > = {};
+				for ( const [ k, v ] of Object.entries(
+					patch.dockPromotedPositions as Record< string, unknown >,
+				) ) {
+					if ( typeof k !== 'string' || k === '' ) {
+						continue;
+					}
+					if ( ! v || typeof v !== 'object' ) {
+						continue;
+					}
+					const pos = v as { x?: unknown; y?: unknown };
+					if (
+						typeof pos.x !== 'number' ||
+						typeof pos.y !== 'number' ||
+						! Number.isFinite( pos.x ) ||
+						! Number.isFinite( pos.y ) ||
+						Math.abs( pos.x ) > MAX_COORD ||
+						Math.abs( pos.y ) > MAX_COORD
+					) {
+						continue;
+					}
+					next[ k ] = { x: pos.x, y: pos.y };
+					if ( Object.keys( next ).length >= 256 ) {
+						break;
+					}
+				}
+				osSettings.state.dockPromotedPositions = next;
+			}
 			osSettings.save( opts );
 			// Belt-and-suspenders live repaint for visibility / order
 			// changes. The `subscribeOsSettings` listener installed in
@@ -480,6 +527,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			}
 			win.setAppearanceSlot( slot, slotConfig );
 		},
+		registerWindowNotice,
+		unregisterWindowNotice,
+		listWindowNotices,
+		dismissWindowNotice,
+		undismissWindowNotice,
 		registerWindowChrome,
 		unregisterWindowChrome,
 		listWindowChromes,

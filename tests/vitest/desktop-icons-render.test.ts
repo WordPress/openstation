@@ -17,7 +17,12 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { renderDesktopIcons } from '../../src/desktop-icons';
-import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
+import { HOOKS } from '../../src/hooks';
+import {
+	clearHooksStub,
+	installHooksStub,
+	recordActions,
+} from './helpers/hooks-stub';
 
 const SVG_DATA_URI =
 	'data:image/svg+xml;base64,' +
@@ -112,6 +117,40 @@ describe( 'desktop-icons render — data URI handling', () => {
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons' ) ).toBe( true );
 		expect( iconEl!.classList.contains( 'dashicons-star-filled' ) ).toBe( true );
+	} );
+
+	test( 'DESKTOP_ICONS_RENDERED payload carries ids + container + tiles map', () => {
+		const hooks = installHooksStub();
+		// `installHooksStub` is idempotent in beforeEach but tests may
+		// re-grab a reference; the second install is a no-op here since
+		// beforeEach already did one. Record into the live stub.
+		const log = recordActions( hooks, [ HOOKS.DESKTOP_ICONS_RENDERED ] );
+		renderDesktopIcons(
+			host,
+			[
+				{ id: 'a', title: 'A', icon: 'dashicons-admin-home', window: 'jorvy', url: '', position: 0, pinned: false },
+				{ id: 'b', title: 'B', icon: 'dashicons-admin-home', window: 'jorvy', url: '', position: 1, pinned: false },
+			],
+			{ openWindow: () => true },
+		);
+
+		// One emit, one payload — and shape is the new
+		// `{ ids, container, tiles }` form.
+		const fires = log.filter( ( e ) => e.name === HOOKS.DESKTOP_ICONS_RENDERED );
+		expect( fires ).toHaveLength( 1 );
+		const payload = fires[ 0 ].args[ 0 ] as {
+			ids: string[];
+			container: HTMLElement;
+			tiles: ReadonlyMap< string, HTMLElement >;
+		};
+		expect( payload.ids ).toEqual( [ 'a', 'b' ] );
+		expect( payload.container ).toBeInstanceOf( HTMLElement );
+		expect( payload.container.classList.contains( 'desktop-mode-icons' ) ).toBe( true );
+		expect( payload.tiles.size ).toBe( 2 );
+		expect( payload.tiles.get( 'a' )?.getAttribute( 'data-icon-id' ) ).toBe( 'a' );
+		expect( payload.tiles.get( 'b' )?.getAttribute( 'data-icon-id' ) ).toBe( 'b' );
+		// Tiles in the map are the same nodes the DOM has, not clones.
+		expect( payload.container.contains( payload.tiles.get( 'a' )! ) ).toBe( true );
 	} );
 
 	test( 'unrecognised icon strings fall back to a letter badge instead of a broken Dashicons glue', () => {

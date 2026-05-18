@@ -36,6 +36,7 @@ function desktop_mode_plugins_window_render_template() {
 			<wpd-tab value="installed"><?php esc_html_e( 'Installed', 'desktop-mode' ); ?></wpd-tab>
 			<?php if ( ! empty( $caps['install'] ) ) : ?>
 				<wpd-tab value="browse"><?php esc_html_e( 'Browse', 'desktop-mode' ); ?></wpd-tab>
+				<wpd-tab value="featured"><?php esc_html_e( 'Desktop Mode plugins', 'desktop-mode' ); ?></wpd-tab>
 			<?php endif; ?>
 		</wpd-tabs>
 
@@ -52,6 +53,12 @@ function desktop_mode_plugins_window_render_template() {
 				<div class="desktop-mode-plugins__browse" data-desktop-mode-plugins-browse-host>
 					<?php /* JS bundle paints the search + segmented filter
 					       + Upload button + <wpd-grid> of cards here. */ ?>
+				</div>
+			</wpd-tabpanel>
+			<wpd-tabpanel for="featured" class="desktop-mode-plugins__panel">
+				<div class="desktop-mode-plugins__featured" data-desktop-mode-plugins-featured-host>
+					<?php /* JS bundle paints an intro blurb + gallery of
+					       plugins that integrate with Desktop Mode here. */ ?>
 				</div>
 			</wpd-tabpanel>
 		<?php endif; ?>
@@ -138,6 +145,13 @@ function desktop_mode_plugins_window_register_window() {
 			// through Core's existing handler, no reimplementation.
 			'updatesNonce'    => wp_create_nonce( 'updates' ),
 			'caps'            => $caps,
+			// Global "Automatic Updates" column gate — same shape Core's
+			// `WP_Plugins_List_Table::$show_autoupdates` uses (true only
+			// when the auto-update subsystem is enabled AND the viewer
+			// can update plugins). Per-row state still lives on the REST
+			// field `desktop_mode_auto_update` so the JS knows whether
+			// each individual row is enabled / forced / supported.
+			'autoUpdatesEnabled' => desktop_mode_plugins_window_auto_updates_enabled(),
 			'currentUserId'   => (int) get_current_user_id(),
 			'introSeen'       => function_exists( 'desktop_mode_has_seen_intro' )
 				? desktop_mode_has_seen_intro( get_current_user_id(), 'plugins' )

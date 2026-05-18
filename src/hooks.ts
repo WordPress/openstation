@@ -268,6 +268,51 @@ export const HOOKS = {
 	// CustomEvents but ship under the hook bus so plugins can use one
 	// idiomatic API for everything the shell emits.
 	// ------------------------------------------------------------------
+	/**
+	 * Filter, last call before a window's resolved geometry (x, y,
+	 * width, height, initialState) is baked into the `WindowConfig`
+	 * passed to the `Window` constructor. Lets a plugin override
+	 * default placement for windows it owns, snap restored bounds to
+	 * a different region, or force a particular initial state.
+	 *
+	 * Signature:
+	 *
+	 *     ( geometry: ResolvedWindowGeometry, ctx: WindowGeometryContext )
+	 *         => ResolvedWindowGeometry
+	 *
+	 * Where `ResolvedWindowGeometry = { x, y, width, height, state? }`
+	 * and `ctx = { windowId, baseId, hasSavedGeometry, callerPinned,
+	 * desktopRect }`.
+	 *
+	 * - `hasSavedGeometry` is `true` when the user previously
+	 *   dragged or resized this window and the resolved geometry
+	 *   includes those restored values. Plugins that want to
+	 *   "leave the user's saved layout alone" should bail when
+	 *   this is true.
+	 * - `callerPinned` is `true` when the caller of `manager.open()`
+	 *   passed at least one of `{ x, y, width, height, initialState }`
+	 *   explicitly. For NATIVE windows this is usually true (the
+	 *   framework's native-window opener passes the registry's
+	 *   declared dimensions); for admin-page iframe windows opened
+	 *   from the dock this is usually false. The filter is free to
+	 *   override registry defaults — `callerPinned: true` does NOT
+	 *   mean "leave it alone."
+	 *
+	 * The shell re-clamps `width`/`height` to the registered
+	 * `minWidth`/`minHeight` after the filter returns — a buggy
+	 * filter cannot ship a sub-minimum window. `x` and `y` are
+	 * NOT re-clamped to the desktop rect after the filter (plugins
+	 * sometimes want to place windows partially off-screen for
+	 * deliberate stylistic reasons); the filter is responsible for
+	 * its own viewport math when it cares.
+	 *
+	 * Companion of `desktop_mode_register_window` server-side
+	 * defaults — runs every time a window opens, not just at
+	 * registration.
+	 *
+	 * @since 0.25.0
+	 */
+	WINDOW_GEOMETRY: 'desktop-mode.window.geometry',
 	/** Action, fires when a window is added to the stack. */
 	WINDOW_OPENED: 'desktop-mode.window.opened',
 	/**
@@ -398,6 +443,27 @@ export const HOOKS = {
 	WINDOW_FULLSCREEN_ENTERED: 'desktop-mode.window.fullscreen-entered',
 	/** Action, fires when a window exits fullscreen / focus mode. */
 	WINDOW_FULLSCREEN_EXITED: 'desktop-mode.window.fullscreen-exited',
+	/**
+	 * Filter, decides whether a fullscreen ("focus mode") window
+	 * should auto-exit when focus moves to a different window.
+	 *
+	 * Default is `true` so a newly-focused window is never silently
+	 * occluded by a fullscreen one (its `z-index` sits above all
+	 * other windows). Plugins whose fullscreen surface is meant to
+	 * persist across focus changes — slideshows, video players,
+	 * immersive games — can return `false` to keep their window
+	 * fullscreen.
+	 *
+	 * Signature:
+	 *
+	 *     ( shouldExit: boolean, ctx: {
+	 *         windowId: string,    // the fullscreen window
+	 *         focusedTo: string,   // the window gaining focus
+	 *     } ) => boolean
+	 *
+	 * @since 0.8.6
+	 */
+	WINDOW_AUTO_EXIT_FULLSCREEN: 'desktop-mode.window.auto-exit-fullscreen',
 	/**
 	 * Action, fires at most once per animation frame during an
 	 * active drag or resize with the live geometry. Payload: `{
@@ -585,11 +651,21 @@ export const HOOKS = {
 	DESKTOP_ICON_CLICKED: 'desktop-mode.desktop-icon.clicked',
 	/**
 	 * Action, fires after the wallpaper icon grid is rendered or
-	 * re-rendered. Payload: `{ ids: string[] }` — the ids in the
-	 * order they were painted. Plugins that decorate icons with
-	 * surfaces the framework doesn't natively expose (drag handles,
-	 * status dots) subscribe to this so their decorations survive a
-	 * live menu refresh that legitimately rebuilds the grid.
+	 * re-rendered. Payload:
+	 *
+	 *     {
+	 *         ids: string[];                          // paint order
+	 *         container: HTMLElement;                  // <div class="desktop-mode-icons">
+	 *         tiles: ReadonlyMap<string, HTMLElement>; // id → tile <button>
+	 *     }
+	 *
+	 * Plugins that decorate icons with surfaces the framework doesn't
+	 * natively expose (drag handles, status dots, cursor adornments)
+	 * subscribe here so their decorations survive a live menu refresh
+	 * that legitimately rebuilds the grid. The `container` and
+	 * `tiles` map mirror the {@link DOCK_AFTER_RENDER}
+	 * `tileElements` contract — reach into them directly instead of
+	 * re-`querySelector`ing the rendered DOM.
 	 *
 	 * Notification badges have a first-class API since 0.24.0 —
 	 * use `wp.desktop.icons.setBadge( id, count )` (and subscribe
@@ -598,12 +674,15 @@ export const HOOKS = {
 	 * a plugin that uses the API doesn't need to re-decorate on
 	 * every render.
 	 *
-	 * Idempotent payload (`{ ids: [] }`) when the icon list is
-	 * empty; suppressed entirely when the rendered DOM is
-	 * unchanged from the previous call (the fingerprint short-
-	 * circuit upstream skips both the rebuild and this signal).
+	 * Suppressed entirely when the rendered DOM is unchanged from
+	 * the previous call (the fingerprint short-circuit upstream
+	 * skips both the rebuild and this signal). When the icon list
+	 * is empty the hook does not fire at all — the previous
+	 * container is removed and no new one is appended.
 	 *
 	 * @since 0.21.0
+	 * @since 0.25.0 — `container` + `tiles` added to the payload
+	 *                  (`ids` retained for back-compat).
 	 */
 	DESKTOP_ICONS_RENDERED: 'desktop-mode.desktop-icons.rendered',
 	/**
@@ -1032,6 +1111,32 @@ export const HOOKS = {
 	 * @since 0.18.0
 	 */
 	IFRAME_CONNECTION_REQUEST: 'desktop-mode.iframe.connection-request',
+
+	// ------------------------------------------------------------------
+	// OS-file drop manager (since 0.30.0). Catches files dragged from
+	// the user's host OS (Finder / Explorer / Nautilus) onto any
+	// desktop-mode surface and routes them through a confirmation
+	// dialog before uploading to the Media Library. Authoritative
+	// constants live in `src/os-file-drop/hooks.ts`; mirrored here so
+	// every hook the shell fires is reachable from a single `HOOKS`
+	// import. See `docs/examples/os-file-drop.md`.
+	// ------------------------------------------------------------------
+	/** Filter — `(files: File[], ctx) => File[]`, before mime/size check. */
+	FILE_DROP_FILES_DETECTED: 'desktop-mode.drop.files-detected',
+	/** Action — `{ rejections, context }` for files that failed policy. */
+	FILE_DROP_FILES_REJECTED: 'desktop-mode.drop.files-rejected',
+	/** Filter — `(entry, ctx) => entry`, per-file dialog defaults. */
+	FILE_DROP_DIALOG_FIELDS: 'desktop-mode.drop.dialog-fields',
+	/** Filter — `(payload, ctx) => payload | null`, last call before POST. */
+	FILE_DROP_BEFORE_UPLOAD: 'desktop-mode.drop.before-upload',
+	/** Action — `{ file, fields, context, abort }` once XHR is open and about to send. @since 0.31.0 */
+	FILE_DROP_UPLOAD_STARTED: 'desktop-mode.drop.upload-started',
+	/** Action — `{ file, fields, context, loaded, total, indeterminate }` per progress tick. @since 0.31.0 */
+	FILE_DROP_UPLOAD_PROGRESS: 'desktop-mode.drop.upload-progress',
+	/** Action — `{ file, result, fields, context }` after successful upload. `file` since 0.31.0. */
+	FILE_DROP_AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
+	/** Action — `{ file, error, context }` on upload failure. */
+	FILE_DROP_UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
 } as const;
 
 /**

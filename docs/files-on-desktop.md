@@ -465,9 +465,16 @@ applyFilters( 'desktop-mode.files.tile-class', className: string, placement: Res
 applyFilters( 'desktop-mode.files.tile-element', extra: Element | null, placement: RestPlacementShape ): Element | null;
 doAction( 'desktop-mode.files.tile-rendered', { tile: HTMLElement, placement: RestPlacementShape } );
 doAction( 'desktop-mode.files.grid-rendered', { folderId: number, count: number } );
+
+// Generic tile surface — fires on every `<wpd-tile>` paint anywhere
+// in the shell (desktop, folders, My WordPress, plugin windows).
+applyFilters( 'desktop-mode.tile.class', className: string, spec: TileSpec ): string;
+doAction( 'desktop-mode.tile.rendered', { tile: HTMLElement } );
 ```
 
-`tile-rendered` is the canonical hook for plugin decorations (badges, status dots, drag handles). The layer's fingerprint cache preserves your decoration across no-op repaints; you only need to re-apply on `tile-rendered`.
+`tile-rendered` is the canonical hook for plugin decorations (badges, status dots, drag handles) on the **desktop-files** surface. The layer's fingerprint cache preserves your decoration across no-op repaints; you only need to re-apply on `tile-rendered`.
+
+Use the generic `desktop-mode.tile.*` pair when you want to decorate tiles **everywhere** (My WordPress sections, drill-in usage grids, any future surface using `<wpd-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** since 0.9.0 (placement-shaped) and **Experimental** since 0.21.0 (generic).
 
 ### Public API
 

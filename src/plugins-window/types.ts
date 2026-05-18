@@ -79,6 +79,28 @@ export interface InstalledPlugin {
 	desktop_mode_icon_url?: string | null;
 	/** Disk size of the plugin folder in kilobytes (null when unreadable). */
 	desktop_mode_size_kb?: number | null;
+	/**
+	 * Auto-update state for this plugin, mirroring Core's
+	 * "Automatic Updates" column on `plugins.php`.
+	 *
+	 * - `enabled`   — plugin is in the `auto_update_plugins` site option
+	 *                 OR `forced === true` (Core treats a filter-pinned
+	 *                 state as the effective state, regardless of option).
+	 * - `forced`    — `true`/`false` when the `auto_update_plugin` filter
+	 *                 has pinned the state; `null` when the user is free
+	 *                 to toggle. JS renders a static label (no toggle)
+	 *                 when forced.
+	 * - `supported` — the plugin shows up in the `update_plugins`
+	 *                 transient (either `response` or `no_update`).
+	 *                 Premium / private plugins that never check in with
+	 *                 wp.org land in neither bucket — Core hides the
+	 *                 toggle entirely for those rows.
+	 */
+	desktop_mode_auto_update?: {
+		enabled: boolean;
+		forced: boolean | null;
+		supported: boolean;
+	};
 
 	/**
 	 * Index signature so `InstalledPlugin` satisfies the

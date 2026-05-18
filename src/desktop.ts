@@ -10,6 +10,10 @@
  * @since 6.9.0
  */
 
+// Install the `wp.desktop.myWordpress` early-registration stub so
+// plugin scripts can call `registerEntityKind()` before the lazy
+// my-wordpress bundle mounts. Side-effect import — runs once.
+import './my-wordpress/early-api';
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import { installDesktopArrowShortcuts } from './window-manager/desktop-shortcuts';
@@ -72,6 +76,7 @@ import {
 	type WindowSlotDef,
 } from './window-chrome/slots/registry';
 import { createWindowSlotRegistrySync } from './window-chrome/slots/server-sync';
+import { applyServerWindowNotices } from './window-notices-server-sync';
 import {
 	type WindowChromeDef,
 } from './window-chrome/chrome/registry';
@@ -410,13 +415,36 @@ export interface WpDesktopPublicApi {
 	/**
 	 * Live reference to the shell's widget layer (or `null` when the
 	 * widget DOM element isn't present). Companion plugins use the
-	 * public `add( id )` / `remove( id )` / `ensureMounted( id )`
-	 * methods to pin or unpin their widget programmatically — e.g.
-	 * a monitor plugin that auto-surfaces its widget on the first
-	 * error burst, or an onboarding flow that guarantees the
-	 * quick-start widget is present on a new user's first visit.
+	 * public `add( id )` / `remove( id )` / `ensureMounted( id )` /
+	 * `redock( id )` methods to pin, unpin, or re-park their widget
+	 * programmatically — e.g. a monitor plugin that auto-surfaces
+	 * its widget on the first error burst, or an onboarding flow
+	 * that guarantees the quick-start widget is present on a new
+	 * user's first visit.
+	 *
+	 * Prefer the stable {@link widgets} namespace for new code; the
+	 * `widgetLayer` reference remains for code that already grew up
+	 * against it.
 	 */
 	widgetLayer: WidgetLayer | null;
+	/**
+	 * Stable widget control surface — a thin proxy over
+	 * {@link widgetLayer} so plugin authors get a documented entry
+	 * point that doesn't depend on the shell's internal class
+	 * identity. All methods are idempotent and `null`-safe when
+	 * the layer isn't mounted (classic admin context, or the widget
+	 * DOM element hasn't been emitted by the shell for any reason).
+	 *
+	 * @since 0.25.0
+	 */
+	widgets: {
+		/**
+		 * Move a floating widget back into the column. No-op if the
+		 * widget isn't currently floating, isn't enabled, or doesn't
+		 * exist.
+		 */
+		redock: ( id: string ) => void;
+	};
 	/**
 	 * Register a shell-level system tile (a JS-owned launcher that
 	 * isn't part of the admin menu — a quick-notes panel, a
@@ -1089,6 +1117,42 @@ export interface WpDesktopPublicApi {
 		slot: import( './types' ).WindowSlotName,
 		config: import( './types' ).WindowSlotConfig | undefined,
 	) => void;
+	/**
+	 * Register (or replace) a window notice — a tone-coded banner
+	 * rendered at the top of every matching window (inside the
+	 * `after-titlebar` slot). The notice carries an `id`, an HTML
+	 * `message`, an optional `tone` (`info` | `success` | `warning`
+	 * | `error` | `danger` | `neutral`), and an optional `match`
+	 * predicate (defaults to every window). The user's dismissal of
+	 * a given `id` persists in `localStorage` so the same banner
+	 * never reappears for that user.
+	 *
+	 * Returns an unregister function for symmetry with
+	 * {@link registerCommand}.
+	 *
+	 * @since 0.22.0
+	 */
+	registerWindowNotice: (
+		entry: import( './window-notices' ).WindowNoticeEntry,
+	) => () => void;
+	/** Remove a previously registered notice by id. @since 0.22.0 */
+	unregisterWindowNotice: ( id: string ) => void;
+	/** Snapshot of registered window notices. @since 0.22.0 */
+	listWindowNotices: () => import( './window-notices' ).WindowNoticeEntry[];
+	/**
+	 * Imperatively mark a notice id as dismissed for the current
+	 * user. Future window paints will start in the hidden state.
+	 *
+	 * @since 0.22.0
+	 */
+	dismissWindowNotice: ( id: string ) => void;
+	/**
+	 * Clear a previous dismissal so the notice will paint again on
+	 * the next mount.
+	 *
+	 * @since 0.22.0
+	 */
+	undismissWindowNotice: ( id: string ) => void;
 	/**
 	 * **Experimental** — register (or replace) a custom chrome
 	 * implementation. A chrome owns the title-bar DOM tree of any
@@ -2537,6 +2601,16 @@ function init(): void {
 			: [],
 	);
 
+	// Window notices — declarative top-of-window banners shipped
+	// straight from PHP (no JS handle, pure data). Each entry is
+	// translated to a Layer-3 slot renderer targeting the
+	// `after-titlebar` slot.
+	applyServerWindowNotices(
+		Array.isArray( config.serverWindowNotices )
+			? config.serverWindowNotices
+			: [],
+	);
+
 	// Layer-4 (Experimental) custom-chrome sync — same lifecycle.
 	const syncServerWindowChromes = createWindowChromeRegistrySync();
 	void syncServerWindowChromes(
@@ -2748,7 +2822,10 @@ function init(): void {
 		// Bring the files-layer placements in line with the new
 		// visibility map — promotes dock items onto the wallpaper
 		// and removes hidden server icons from the grid.
-		syncShortcutsWithVisibility( snapshot.itemVisibility );
+		syncShortcutsWithVisibility(
+			snapshot.itemVisibility,
+			snapshot.dockPromotedPositions,
+		);
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
 		// having to thread the OsSettings snapshot through.
@@ -2761,6 +2838,7 @@ function init(): void {
 	// the visibility map immediately.
 	installShortcutsSync(
 		() => osSettings.getOsSettingsSnapshot().itemVisibility,
+		() => osSettings.getOsSettingsSnapshot().dockPromotedPositions,
 	);
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`
@@ -3381,6 +3459,19 @@ function init(): void {
 	// also more transparent about where the shell is currently hosted.
 	// `config.portalUrl` stays in the shell config so plugins that want
 	// to build "home" links can still point at the portal.
+
+	// OS-file drop manager — catches files dragged from the user's
+	// host OS (Finder / Explorer / Nautilus) anywhere on the shell
+	// and routes them through a confirmation dialog before uploading
+	// to the Media Library. Idempotent; no-op when the user lacks
+	// `upload_files`.
+	void import( './os-file-drop' ).then( ( mod ) => {
+		mod.bootOsFileDrop( {
+			config: config.dropConfig,
+			mediaUrl: config.mediaUrl,
+			restNonce: config.restNonce,
+		} );
+	} );
 
 	document.dispatchEvent(
 		new CustomEvent( 'desktop-mode-init', {

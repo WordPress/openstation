@@ -75,6 +75,16 @@ Native (non-iframe) windows skip postMessage entirely — `Window.send` and the 
 
 When the connection bridge targets a **native** window (since 0.5.5), no postMessages are exchanged — `connect()` opens synchronously and `conn.send/subscribe` route through the same in-process channel bus that powers `Window.send/on`. Same `onOpen` / `isOpen` / `disconnect` semantics, no observable difference to the caller.
 
+### OS-file drop forwarder — `desktop-mode-os-file-drop`
+
+When the user drags a file from the host operating system onto a chromeless admin iframe, the chromeless bridge (and the standalone iframe bridge) intercepts the `drop` event before the browser's default handler navigates the iframe, and forwards the raw `File[]` to the parent shell.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-os-file-drop` | iframe → parent | `{ files: File[], x: number, y: number }` | Native-OS file drop captured inside the iframe. Same-origin only — `postMessage` preserves `File` identity. The parent's `OsFileDropManager` resolves the source iframe's `data-window-id` via `MessageEvent.source` and routes the files through the drop pipeline. |
+
+The forwarder skips drops landing on in-page receivers that already accept files (`.components-drop-zone`, `[data-drop-zone]`, `.uploader-window`, `.media-frame-content`) so Gutenberg's media uploader and the legacy media library keep working as before — only drops onto the page background escalate to the shell.
+
 ## Lifecycle walkthrough — parent-initiated connection
 
 1. **Plugin calls** `wp.desktop.connect( 'edit-post', { topics: [ 'gutenberg:content' ] } )`.

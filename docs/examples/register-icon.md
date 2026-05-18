@@ -174,6 +174,35 @@ If you want to see the error path in action, comment out the `'title'` argument 
 
 The `WP_Error` contract means you find typos at plugin-load time, not at first-click time.
 
+## Decorating the rendered grid
+
+When you need to enhance the wallpaper icons themselves — a cursor adornment, a status dot, a drag handle — subscribe to `HOOKS.DESKTOP_ICONS_RENDERED`. Since 0.25.0 the payload hands you the rendered container *and* a map of `id → tile element`, so your decorator doesn't have to query the DOM (and doesn't have to re-query on every live menu refresh — the hook fires exactly when the grid is rebuilt):
+
+```js
+wp.desktop.hooks.addAction(
+    wp.desktop.HOOKS.DESKTOP_ICONS_RENDERED,
+    'my-plugin/icon-status-dot',
+    ( payload ) => {
+        const { ids, container, tiles } = payload;
+        if ( ! ids.includes( 'jorvy' ) ) {
+            return;
+        }
+        const tile = tiles.get( 'jorvy' );
+        if ( ! tile ) {
+            return;
+        }
+        const dot = document.createElement( 'span' );
+        dot.className = 'my-plugin__status-dot';
+        tile.appendChild( dot );
+        // `container` is the <div class="desktop-mode-icons"> grid root —
+        // use it if your decoration spans multiple tiles (a connector
+        // line, a hover halo) instead of decorating a single tile.
+    }
+);
+```
+
+The hook is suppressed when the rendered DOM is unchanged (fingerprint short-circuit), so decorators run exactly when the grid actually rebuilds — not on every live menu refresh.
+
 ## See also
 
 - [`desktop_mode_register_window()`](../hooks-reference.md#registration-functions) — full argument reference and error-code table.

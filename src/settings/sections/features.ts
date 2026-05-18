@@ -114,6 +114,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onShowPostStatusRibbonsToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.showPostStatusRibbons = checked;
+		ctx.save();
+		paint();
+	};
+
 	const onFolderSharingToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.foldersSharingEnabled = checked;
@@ -390,6 +397,20 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						<p class="desktop-mode-features__hint">
 							${ __(
 								'macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching "Show desktop" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __(
+								'Show post/page status ribbon',
+							) }
+							?checked=${ ctx.state.showPostStatusRibbons }
+							@wpd-checkbox-change=${ onShowPostStatusRibbonsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.',
 							) }
 						</p>
 					</div>

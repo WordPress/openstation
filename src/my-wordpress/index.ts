@@ -25,21 +25,16 @@ import {
 	renderStatusBarSegments,
 	type StatusBarSegment,
 } from '../desktop-files/folder-status-bar';
-import type { DragManagerApi } from '../drag';
-import type { ShortcutDragData } from '../desktop-files/drag-payloads';
-
-/**
- * Read the runtime DragManager. Boot order guarantees this exists by
- * the time this module's tile builders run — the My WordPress window
- * only mounts after `installPublicApi(desktopApi)` has wired the
- * manager onto `wp.desktop.dragManager`.
- */
-function getDragManager(): DragManagerApi | null {
-	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
-	return api ?? null;
-}
+import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
+import { getDragManager, stripTags } from './dom-utils';
+import {
+	getEntityRenderer,
+	registerEntityKind,
+	type EntityRenderHost,
+	type EntityRenderer,
+} from './kind-registry';
+import { renderMediaList } from './media-list';
+import { renderMediaDetail } from './media-detail';
 import {
 	renderBreadcrumbs,
 	type BreadcrumbSegment,
@@ -85,7 +80,6 @@ import type {
 	UserFootprint,
 	UserListItem,
 } from './types';
-import { applyTileEntryStagger } from '../utils';
 import '../ui/components/wpd-button/wpd-button';
 import '../ui/components/wpd-context-menu/wpd-context-menu';
 import '../ui/components/wpd-spinner/wpd-spinner';
@@ -166,12 +160,6 @@ function openIframeWindow( opts: OpenWindowOptions ): void {
 	} );
 }
 
-function stripTags( html: string ): string {
-	const div = document.createElement( 'div' );
-	div.innerHTML = html;
-	return ( div.textContent ?? '' ).trim();
-}
-
 function getThumbnail( item: EntityListItem | EntityDetail ): string {
 	const media = item._embedded?.[ 'wp:featuredmedia' ]?.[ 0 ];
 	if ( ! media ) {
@@ -193,6 +181,16 @@ interface RenderState {
 	breadcrumbs: HTMLElement;
 	statusBar: HTMLElement;
 	teardown: Array< () => void >;
+	/**
+	 * Navigation history stack. Every `navigate()` call (except
+	 * "back") pushes the route it's leaving onto this stack; the
+	 * breadcrumb back button pops. Lets the user retrace cross-
+	 * hierarchy jumps (Media-detail → referenced post → back to
+	 * Media-detail), not just walk up the static folder tree.
+	 *
+	 * @since 0.21.0
+	 */
+	history: Route[];
 }
 
 interface StatusContext {
@@ -237,7 +235,20 @@ function pluralLabel(
 	return `${ n.toLocaleString() } ${ n === 1 ? singular : plural }`;
 }
 
-function navigate( state: RenderState, route: Route ): void {
+function navigate(
+	state: RenderState,
+	route: Route,
+	opts: { fromBack?: boolean } = {},
+): void {
+	// Push the route we're leaving onto the history stack so the
+	// back button can retrace cross-hierarchy jumps (e.g. Media
+	// → Media-detail → referenced post → back lands on Media-detail,
+	// not on the post's parent folder). Skipped on back-pops (we'd
+	// just re-add what we just removed) and on no-op re-navigations.
+	const sameRoute = routesEqual( state.route, route );
+	if ( ! opts.fromBack && ! sameRoute ) {
+		state.history.push( state.route );
+	}
 	clearTeardown( state );
 	state.route = route;
 	updateBreadcrumbs( state );
@@ -255,11 +266,16 @@ function navigate( state: RenderState, route: Route ): void {
 		return;
 	}
 	if ( route.kind === 'list' ) {
-		if ( entity.kind === 'user' ) {
-			renderUserEntityList( state, entity );
-		} else {
-			renderEntityList( state, entity );
+		const renderer = getEntityRenderer( entity.kind );
+		if ( renderer ) {
+			const host = makeRenderHost( state );
+			renderer( host, entity );
+			return;
 		}
+		// Unknown kind — fall back to the post renderer so older
+		// plugins that ship entities without a `kind` field keep
+		// working as they did before the registry.
+		renderEntityList( state, entity );
 		return;
 	}
 	if ( route.kind === 'detail' ) {
@@ -278,6 +294,69 @@ function navigate( state: RenderState, route: Route ): void {
 	}
 	if ( route.kind === 'user-footprint' ) {
 		renderUserFootprint( state, entity, route.userId, route.userName );
+		return;
+	}
+	if ( route.kind === 'media-detail' ) {
+		void renderMediaDetail( makeRenderHost( state ), route.mediaId );
+		// Defensive: every other branch in this switch ends with an
+		// explicit `return`. Keeping the symmetry means a new route
+		// kind added below won't silently fall through after a
+		// successful media-detail dispatch.
+		// eslint-disable-next-line no-useless-return
+		return;
+	}
+}
+
+/**
+ * Adapt the internal `RenderState` to the public `EntityRenderHost`
+ * contract consumed by registry-installed renderers. Hides the
+ * internal teardown / breadcrumb plumbing.
+ */
+function makeRenderHost( state: RenderState ): EntityRenderHost {
+	return {
+		body: state.body,
+		route: state.route,
+		navigate: ( route ) => navigate( state, route ),
+		addTeardown: ( fn ) => state.teardown.push( fn ),
+	};
+}
+
+/**
+ * Structural equality for `Route` discriminated-union values. Used
+ * to drop no-op re-navigations from the history stack — clicking
+ * the same tile twice shouldn't poison the back button.
+ */
+function routesEqual( a: Route, b: Route ): boolean {
+	if ( a.kind !== b.kind ) {
+		return false;
+	}
+	switch ( a.kind ) {
+		case 'root':
+			return true;
+		case 'list':
+			return a.entityId === ( b as { entityId: string } ).entityId;
+		case 'detail': {
+			const o = b as Extract< Route, { kind: 'detail' } >;
+			return a.entityId === o.entityId && a.postId === o.postId;
+		}
+		case 'sub-list': {
+			const o = b as Extract< Route, { kind: 'sub-list' } >;
+			return (
+				a.entityId === o.entityId &&
+				a.postId === o.postId &&
+				a.relation === o.relation
+			);
+		}
+		case 'user-footprint': {
+			const o = b as Extract< Route, { kind: 'user-footprint' } >;
+			return a.entityId === o.entityId && a.userId === o.userId;
+		}
+		case 'media-detail': {
+			const o = b as Extract< Route, { kind: 'media-detail' } >;
+			return a.entityId === o.entityId && a.mediaId === o.mediaId;
+		}
+		default:
+			return false;
 	}
 }
 
@@ -297,6 +376,8 @@ function parentRoute( route: Route ): Route {
 				postTitle: route.postTitle,
 			};
 		case 'user-footprint':
+			return { kind: 'list', entityId: route.entityId };
+		case 'media-detail':
 			return { kind: 'list', entityId: route.entityId };
 		default:
 			return { kind: 'root' };
@@ -380,15 +461,30 @@ function updateBreadcrumbs( state: RenderState ): void {
 			),
 		} );
 	}
+	if ( route.kind === 'media-detail' ) {
+		segments.push( { label: route.mediaTitle } );
+	}
 
 	renderBreadcrumbs( state.breadcrumbs, segments, {
 		onBack: () => {
-			if ( state.route.kind === 'root' ) {
+			// Prefer history (navigation back) over hierarchy
+			// (parent folder) so cross-tree jumps unwind in the
+			// order the user made them. The breadcrumb "My
+			// WordPress" jump lands at root WITH history non-empty
+			// — we mustn't early-return on `route.kind === 'root'`
+			// or that lands as a visually-enabled-but-no-op back
+			// button. `backDisabled` below gates the empty-history-
+			// at-root case, and the parent-route fallback collapses
+			// to a same-route no-op (routesEqual short-circuits
+			// the history push).
+			const previous = state.history.pop();
+			if ( previous ) {
+				navigate( state, previous, { fromBack: true } );
 				return;
 			}
-			navigate( state, parentRoute( state.route ) );
+			navigate( state, parentRoute( state.route ), { fromBack: true } );
 		},
-		backDisabled: isRoot,
+		backDisabled: isRoot && state.history.length === 0,
 	} );
 }
 
@@ -423,7 +519,7 @@ function renderRoot( state: RenderState ): void {
 	const layout = createTileLayout( grid, 'root' );
 	const select = createTileSelector();
 
-	const tilesByEntity = new Map< string, HTMLButtonElement >();
+	const tilesByEntity = new Map< string, HTMLElement >();
 
 	cfg.entities.forEach( ( entity, idx ) => {
 		const tile = buildIconTile( {
@@ -515,32 +611,25 @@ function buildIconTile( spec: {
 	role: 'folder' | 'entry';
 	icon: string;
 	label: string;
-} ): HTMLButtonElement {
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className =
-		'desktop-mode-file-tile desktop-mode-my-wordpress__tile' +
-		( spec.role === 'folder'
-			? ' desktop-mode-my-wordpress__tile--folder'
-			: ' desktop-mode-my-wordpress__tile--entry' );
-	tile.setAttribute( 'role', 'listitem' );
-	tile.dataset.role = spec.role;
-
-	const visual = document.createElement( 'span' );
-	visual.className = `desktop-mode-file-tile__icon dashicons ${ sanitizeClass(
-		spec.icon,
-	) }`;
-	visual.setAttribute( 'aria-hidden', 'true' );
-	tile.appendChild( visual );
-
-	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-file-tile__label';
-	label.textContent = spec.label;
-	tile.appendChild( label );
-
-	applyTileEntryStagger( tile );
-
-	return tile;
+} ): HTMLElement {
+	// Adapter onto the canonical `buildTileFromSpec` — same visual
+	// chrome the desktop / folder windows use. The My WordPress
+	// `__tile` modifier stays in the class list so the section-
+	// specific CSS (selection ring, locked, status ribbon) keeps
+	// applying.
+	return buildTileFromSpec( {
+		type: spec.role === 'folder' ? 'folder' : '__my-wordpress-entry',
+		ref: spec.label,
+		label: spec.label,
+		icon: sanitizeClass( spec.icon ),
+		role: spec.role,
+		extraClasses: [
+			'desktop-mode-my-wordpress__tile',
+			spec.role === 'folder'
+				? 'desktop-mode-my-wordpress__tile--folder'
+				: 'desktop-mode-my-wordpress__tile--entry',
+		],
+	} );
 }
 
 function renderError( state: RenderState, message: string ): void {
@@ -880,57 +969,28 @@ function buildEntityTile(
 		label: titleText,
 	} );
 	tile.dataset.entryId = String( item.id );
+	if ( item.status ) {
+		// `<wpd-tile>` reads the `status` attribute and slots a
+		// `<wpd-ribbon>` for non-publish values, honoring the
+		// `showPostStatusRibbons` OS-setting.
+		tile.setAttribute( 'status', item.status );
+	}
 
 	// Drag-out: the user picks up an entity tile and drops it on the
 	// wallpaper, a folder icon, or inside an open folder window. The
-	// desktop FilesLayer's drop targets accept the `'shortcut'` payload
-	// and POST a new placement at the drop coordinates.
-	//
-	// We route through the centralized DragManager rather than HTML5
-	// drag because:
-	//   1. HTML5 drag's `dragstart` fails to fire when an ancestor or
-	//      sibling listener has called `setPointerCapture` on the
-	//      tile — the long-standing "I can lift the tile but no drop
-	//      target sees the payload" bug.
-	//   2. We want a single cancellation path (Escape, blur,
-	//      visibilitychange) for every in-shell drag.
-	//   3. Phase 8's "Lift and Drop" cross-iframe pattern needs
-	//      pointer-event control anyway. Building on it now keeps a
-	//      single mental model.
-	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const dragManager = getDragManager();
-		if ( ! dragManager ) {
-			return;
-		}
-		dragManager.start( {
-			payload: {
-				type: 'shortcut',
-				source: tile,
-				data: {
-					kind: 'post',
-					ref: String( item.id ),
-					title: titleText,
-					icon: entity.icon,
-				} satisfies ShortcutDragData,
-				ghost: {
-					offsetX: e.clientX - tile.getBoundingClientRect().left,
-					offsetY: e.clientY - tile.getBoundingClientRect().top,
-				},
-			},
-			origin: e,
-			onClickOnly: () => {
-				// Sub-threshold gesture — the regular `click` listener
-				// (added below by `attachSelectAndDragHandlers`) handles
-				// selection. Hiding the tooltip here is harmless even
-				// if the click handler also fires; tooltip is gone
-				// either way.
-				hideTooltip();
-			},
-		} );
-	} );
+	// shared `attachTileDragOut` helper owns the pointerdown ->
+	// DragManager dance — every tile-emitting surface (desktop,
+	// folders, My WordPress) uses it.
+	attachTileDragOut(
+		tile,
+		{
+			kind: 'post',
+			ref: String( item.id ),
+			title: titleText,
+			icon: entity.icon,
+		},
+		() => hideTooltip(),
+	);
 
 	// If another user is editing right now, surface that on the
 	// tile itself (overlay lock badge + class for styling) so the
@@ -1086,10 +1146,10 @@ function selectTile(
 ): void {
 	if ( ctx.selectedTile ) {
 		ctx.selectedTile.classList.remove(
-			'desktop-mode-my-wordpress__tile--selected',
+			'desktop-mode-file-tile--selected',
 		);
 	}
-	tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+	tile.classList.add( 'desktop-mode-file-tile--selected' );
 	ctx.selectedTile = tile;
 	ctx.selectedId = id;
 	void renderPreview( state, ctx, entity, id );
@@ -1707,11 +1767,11 @@ function renderSubList(
 			tile.addEventListener( 'click', () => {
 				if ( selectedTile ) {
 					selectedTile.classList.remove(
-						'desktop-mode-my-wordpress__tile--selected',
+						'desktop-mode-file-tile--selected',
 					);
 				}
 				tile.classList.add(
-					'desktop-mode-my-wordpress__tile--selected',
+					'desktop-mode-file-tile--selected',
 				);
 				selectedTile = tile;
 				selectedKey = tileKey;
@@ -1805,9 +1865,23 @@ async function loadSubItems(
 		if ( detail.featured_media && detail.featured_media > 0 ) {
 			ids.add( detail.featured_media );
 		}
-		extractContentMediaIds( detail.content?.rendered ?? '' ).forEach(
-			( id ) => ids.add( id ),
-		);
+		// Prefer the authoritative server-computed list when present
+		// — it includes `<img src>` URL→id resolution that catches
+		// images inserted via the cross-window drag-bridge or other
+		// paths that emit raw `<img>` without `wp-image-N` classes.
+		// Fall back to the client-side regex on older API responses.
+		const serverList = detail.desktop_mode_attached_media;
+		if ( Array.isArray( serverList ) && serverList.length > 0 ) {
+			for ( const id of serverList ) {
+				if ( typeof id === 'number' && id > 0 ) {
+					ids.add( id );
+				}
+			}
+		} else {
+			extractContentMediaIds( detail.content?.rendered ?? '' ).forEach(
+				( id ) => ids.add( id ),
+			);
+		}
 
 		// Parent-attached pass runs in parallel with the include-batch
 		// fetch since they don't depend on each other.
@@ -3138,22 +3212,61 @@ function openTileMenu(
 		menu.appendChild( opt );
 	};
 
-	addOption(
-		'open',
-		__( 'Open in editor', 'desktop-mode' ),
-		'dashicons-edit',
+	interface TileMenuOption {
+		id: string;
+		label: string;
+		icon: string;
+		danger?: boolean;
+		/**
+		 * Plugin-supplied click handler. Built-ins set this to null
+		 * so the static `wpd-context-menu-pick` switch below routes
+		 * them — keeps the existing semantics.
+		 */
+		onSelect?: ( () => void ) | null;
+	}
+
+	const baseOptions: TileMenuOption[] = [
+		{
+			id: 'open',
+			label: __( 'Open in editor', 'desktop-mode' ),
+			icon: 'dashicons-edit',
+		},
+		{
+			id: 'navigate-into',
+			label: __( 'Navigate into', 'desktop-mode' ),
+			icon: 'dashicons-category',
+		},
+		{
+			id: 'trash',
+			label: __( 'Move to Trash', 'desktop-mode' ),
+			icon: 'dashicons-trash',
+			danger: true,
+		},
+	];
+
+	/**
+	 * Let plugins add / remove / reorder context-menu entries
+	 * uniformly across every section. Plugin-added entries must
+	 * supply an `onSelect` handler (built-ins are dispatched by
+	 * the static switch below).
+	 */
+	const ctxFilter = {
+		entityId: entity.id,
+		kind: entity.kind ?? 'post',
+		item: item as unknown as Record< string, unknown >,
+	};
+	const options = applyFilters<
+		TileMenuOption[],
+		[ typeof ctxFilter ]
+	>(
+		'desktop-mode.my-wordpress.tile-context-menu',
+		baseOptions,
+		ctxFilter,
 	);
-	addOption(
-		'navigate-into',
-		__( 'Navigate into', 'desktop-mode' ),
-		'dashicons-category',
-	);
-	addOption(
-		'trash',
-		__( 'Move to Trash', 'desktop-mode' ),
-		'dashicons-trash',
-		true,
-	);
+	const finalOptions = Array.isArray( options ) ? options : baseOptions;
+	for ( const o of finalOptions ) {
+		addOption( o.id, o.label, o.icon, o.danger );
+	}
 
 	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
@@ -3173,6 +3286,20 @@ function openTileMenu(
 		}
 		if ( detail.id === 'trash' ) {
 			void confirmTrash( state, ctx, entity, item.id, title );
+			return;
+		}
+		// Plugin-supplied entry — dispatch its `onSelect`.
+		const match = finalOptions.find( ( o ) => o.id === detail.id );
+		if ( match && typeof match.onSelect === 'function' ) {
+			try {
+				match.onSelect();
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					`[my-wordpress] tile-context-menu '${ detail.id }' onSelect threw:`,
+					err,
+				);
+			}
 		}
 	} );
 
@@ -3525,39 +3652,39 @@ function buildUserTile(
 ): HTMLElement {
 	const displayName = item.name || item.slug || `#${ item.id }`;
 
-	const tile = document.createElement( 'button' );
-	tile.type = 'button';
-	tile.className =
-		'desktop-mode-file-tile desktop-mode-my-wordpress__tile desktop-mode-my-wordpress__tile--user';
-	tile.setAttribute( 'role', 'listitem' );
-	tile.dataset.role = 'user';
-	tile.dataset.userId = String( item.id );
-
-	const avatarWrap = document.createElement( 'span' );
-	avatarWrap.className = 'desktop-mode-my-wordpress__user-tile-avatar';
-	avatarWrap.setAttribute( 'aria-hidden', 'true' );
 	const avatarUrl = pickAvatar( item.avatar_urls ) ?? '';
-	if ( avatarUrl ) {
-		const img = document.createElement( 'img' );
-		img.src = avatarUrl;
-		img.alt = '';
-		img.loading = 'lazy';
-		img.decoding = 'async';
-		avatarWrap.appendChild( img );
-	} else {
-		// No avatar — show initials so the tile still has an
-		// identity-shaped visual instead of a hollow ring.
-		const fallback = document.createElement( 'span' );
-		fallback.className = 'desktop-mode-my-wordpress__user-tile-initials';
-		fallback.textContent = initialsOf( displayName );
-		avatarWrap.appendChild( fallback );
-	}
-	tile.appendChild( avatarWrap );
+	const tile = buildTileFromSpec( {
+		type: 'user',
+		ref: String( item.id ),
+		label: displayName,
+		thumbnail: avatarUrl || undefined,
+		// No avatar: fall back to a generic users dashicon so the
+		// tile still has a visual. The initials block below
+		// replaces that icon as a richer fallback.
+		icon: avatarUrl ? undefined : 'dashicons-admin-users',
+		role: 'entry',
+		dataset: { userId: item.id, role: 'user' },
+		extraClasses: [
+			'desktop-mode-my-wordpress__tile',
+			'desktop-mode-my-wordpress__tile--user',
+		],
+	} );
 
-	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-file-tile__label';
-	label.textContent = displayName;
-	tile.appendChild( label );
+	if ( ! avatarUrl ) {
+		// Identity-shaped fallback: replace the generic dashicon
+		// with the user's initials so the tile reads as a person,
+		// not "any user".
+		const iconHost = tile.querySelector(
+			'.desktop-mode-file-tile__visual',
+		);
+		if ( iconHost ) {
+			iconHost.replaceChildren();
+			const initials = document.createElement( 'span' );
+			initials.className = 'desktop-mode-my-wordpress__user-tile-initials';
+			initials.textContent = initialsOf( displayName );
+			iconHost.appendChild( initials );
+		}
+	}
 
 	const summary = item.desktop_mode_summary;
 	const postCount = summary?.postCount ?? 0;
@@ -3606,44 +3733,21 @@ function buildUserTile(
 	tile.addEventListener( 'mouseleave', hideTooltip );
 	state.teardown.push( hideTooltip );
 
-	// Drag-out: same gesture the post/page tile uses to drop a
-	// shortcut on the wallpaper / inside a folder window. The
-	// `'user'` file type already has a server-side resolver
-	// (`Desktop_Mode_User_File`) + opener registered, so a drop on
-	// any FilesLayer target POSTs a placement carrying
+	// Drag-out via the shared `attachTileDragOut`. The `'user'`
+	// file type's resolver + opener are already registered
+	// server-side (`Desktop_Mode_User_File`), so a drop on any
+	// FilesLayer target POSTs a placement carrying
 	// `kind: 'user', ref: '<id>'` — no extra wiring needed here.
-	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const dragManager = getDragManager();
-		if ( ! dragManager ) {
-			return;
-		}
-		dragManager.start( {
-			payload: {
-				type: 'shortcut',
-				source: tile,
-				data: {
-					kind: 'user',
-					ref: String( item.id ),
-					title: displayName,
-					icon: 'dashicons-admin-users',
-				} satisfies ShortcutDragData,
-				ghost: {
-					offsetX: e.clientX - tile.getBoundingClientRect().left,
-					offsetY: e.clientY - tile.getBoundingClientRect().top,
-				},
-			},
-			origin: e,
-			onClickOnly: () => {
-				// Sub-threshold gesture — the `click` listener below
-				// handles selection. Hide the tooltip in case it was
-				// hovering so the click feels snappy.
-				hideTooltip();
-			},
-		} );
-	} );
+	attachTileDragOut(
+		tile,
+		{
+			kind: 'user',
+			ref: String( item.id ),
+			title: displayName,
+			icon: 'dashicons-admin-users',
+		},
+		() => hideTooltip(),
+	);
 
 	const tileKey = `entry:${ item.id }`;
 	ctx.layout.place( tile, tileKey, {
@@ -3753,10 +3857,10 @@ function selectUserTile(
 ): void {
 	if ( ctx.selectedTile ) {
 		ctx.selectedTile.classList.remove(
-			'desktop-mode-my-wordpress__tile--selected',
+			'desktop-mode-file-tile--selected',
 		);
 	}
-	tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+	tile.classList.add( 'desktop-mode-file-tile--selected' );
 	ctx.selectedTile = tile;
 	ctx.selectedId = item.id;
 	void renderUserPreviewPane( state, ctx, item );
@@ -4859,10 +4963,10 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
 		}
 		if ( selected ) {
 			selected.classList.remove(
-				'desktop-mode-my-wordpress__tile--selected',
+				'desktop-mode-file-tile--selected',
 			);
 		}
-		tile.classList.add( 'desktop-mode-my-wordpress__tile--selected' );
+		tile.classList.add( 'desktop-mode-file-tile--selected' );
 		selected = tile;
 	};
 }
@@ -4879,8 +4983,19 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
  *  click-vs-drag threshold, `--dragging` class).
  * ------------------------------------------------------------------ */
 
-const TILE_W = 96;
-const TILE_H = 92;
+// Cell pitch for the in-window absolute-positioned tile canvas used
+// by Posts / Pages / users / plugin sections. Tile visual is 88px
+// wide; the previous 96×92 cell pitch left only ~4px per side
+// between neighbours, so the selected tile's background ring abutted
+// adjacent corner ribbons and read as "spillover" (regression
+// surfaced once `<wpd-ribbon>` started rendering DRAFT/PENDING
+// banners in 0.21.0). Widen the cell so the selection ring has
+// breathing room — and so wrapped 2-line labels don't push the next
+// row's tile into the cell above. Tile label is clamped to 2 lines
+// via CSS in `my-wordpress.css`; if you change that clamp, raise
+// `TILE_H` to match.
+const TILE_W = 108;
+const TILE_H = 112;
 const TILE_PAD = 16;
 
 export interface TileSortable {
@@ -5353,8 +5468,39 @@ function renderInto( body: HTMLElement ): void {
 		breadcrumbs: breadcrumbsHost,
 		statusBar: statusHost,
 		teardown: [],
+		history: [],
 	};
 	activeState = state;
+
+	// Register a CLAIMANT drop target on the window body that rejects
+	// every payload. My WordPress is a read-only directory listing
+	// over the WP REST API — dropping a desktop tile, a placement,
+	// or a shortcut onto it has no defined semantic. Without this
+	// claimant, the drag manager's hit-test walks past the window
+	// boundary and silently `cancel('no-target')`s — from the user's
+	// perspective the ghost just disappears with no feedback.
+	//
+	// Returning `accept: false` paints the no-drop cursor + reject
+	// snap-back animation, so users get visible "this surface
+	// doesn't take drops" feedback instead of guessing. The
+	// claimant ALSO blocks the drag from falling through to the
+	// wallpaper canvas under the window (registry.hitTest stops at
+	// the first registered target it finds in the walk-up).
+	//
+	// @since 0.20.0
+	const dragManager = getDragManager();
+	if ( dragManager ) {
+		const deregister = dragManager.registerDropTarget( {
+			id: `${ WINDOW_ID }-reject`,
+			element: body,
+			accept: () => false,
+			onDrop: () => {
+				// Unreachable — `accept: false` short-circuits the
+				// commit path. Defined for the type contract.
+			},
+		} );
+		state.teardown.push( deregister );
+	}
 
 	// Back button + crumb-click handlers are wired by the shared
 	// breadcrumb helper inside `updateBreadcrumbs` — no per-element
@@ -5393,6 +5539,40 @@ const callback: RenderCallback = ( body ) => {
 
 window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
 window.desktopModeNativeWindows[ WINDOW_ID ] = callback;
+
+// Built-in entity-kind renderers. Third-party plugins can register
+// their own via `wp.desktop.myWordpress.registerEntityKind()`.
+registerEntityKind( 'post', ( host, entity ) => {
+	renderEntityList( asRenderState( host ), entity );
+} );
+registerEntityKind( 'user', ( host, entity ) => {
+	renderUserEntityList( asRenderState( host ), entity );
+} );
+registerEntityKind( 'media', renderMediaList );
+
+/**
+ * Recover the internal `RenderState` from an `EntityRenderHost`.
+ * Only the legacy renderers (`renderEntityList`,
+ * `renderUserEntityList`) still take the internal state directly;
+ * the registry passes the public host shape so plugins can call
+ * `host.navigate` / `host.addTeardown`. This shim bridges the
+ * two during the gradual rewrite.
+ */
+function asRenderState( host: EntityRenderHost ): RenderState {
+	if ( ! activeState ) {
+		throw new Error(
+			'[my-wordpress] asRenderState: called outside an active render.',
+		);
+	}
+	// Sanity check — the host MUST be derived from the active state
+	// or we're about to scribble into a defunct render frame.
+	if ( host.body !== activeState.body ) {
+		throw new Error(
+			'[my-wordpress] asRenderState: host body does not match active state.',
+		);
+	}
+	return activeState;
+}
 
 /* ------------------------------------------------------------------ *
  *  Public API — `wp.desktop.myWordpress.openDetail( … )`.
@@ -5445,15 +5625,95 @@ function openDetail( args: OpenDetailArgs ): void {
 	desktop?.openWindow?.( WINDOW_ID, { source: 'my-wordpress/open-detail' } );
 }
 
+interface OpenMediaArgs {
+	mediaId: number;
+	mediaTitle?: string;
+}
+
+/**
+ * Route the My WordPress window directly into the media drill-in
+ * view for the given attachment. Mirrors `openDetail()` for posts.
+ *
+ * @public
+ * @since 0.21.0
+ */
+function openMedia( args: OpenMediaArgs ): void {
+	const route: Route = {
+		kind: 'media-detail',
+		entityId: 'media',
+		mediaId: args.mediaId,
+		mediaTitle: args.mediaTitle ?? `#${ args.mediaId }`,
+	};
+	if ( activeState ) {
+		navigate( activeState, route );
+		return;
+	}
+	pendingRoute = route;
+	const desktop = (
+		window.wp as
+			| {
+					desktop?: {
+						openWindow?: (
+							id: string,
+							opts?: { source?: string },
+						) => boolean;
+					};
+			}
+			| undefined
+	)?.desktop;
+	desktop?.openWindow?.( WINDOW_ID, { source: 'my-wordpress/open-media' } );
+}
+
 interface MyWordpressApi {
 	openDetail: ( args: OpenDetailArgs ) => void;
+	openMedia: ( args: OpenMediaArgs ) => void;
+	registerEntityKind: ( kind: string, renderer: EntityRenderer ) => () => void;
+}
+
+interface PendingEntry {
+	kind: string;
+	renderer: EntityRenderer;
+	slot: { unregister: ( () => void ) | null };
 }
 
 const desktopGlobal = (
 	window.wp as
-		| { desktop?: Record< string, unknown > & { myWordpress?: MyWordpressApi } }
+		| { desktop?: Record< string, unknown > & {
+				myWordpress?: MyWordpressApi & {
+					__pendingKinds?: PendingEntry[];
+				};
+			} }
 		| undefined
 )?.desktop;
 if ( desktopGlobal ) {
-	desktopGlobal.myWordpress = { openDetail };
+	// Drain the early-registration queue installed by
+	// `src/my-wordpress/early-api.ts` (which ships in the main
+	// `desktop.min.js` bundle). Lets plugin scripts that load
+	// before this lazy bundle register kinds without timing
+	// guards. We write the real `unregister` closure back into
+	// each queued entry's `slot` so any stub-unregister that the
+	// plugin already cached still works after the swap.
+	const pending = desktopGlobal.myWordpress?.__pendingKinds;
+	if ( Array.isArray( pending ) ) {
+		for ( const entry of pending ) {
+			try {
+				entry.slot.unregister = registerEntityKind(
+					entry.kind,
+					entry.renderer,
+				);
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					`[my-wordpress] queued registerEntityKind('${ entry.kind }') failed:`,
+					err,
+				);
+			}
+		}
+		pending.length = 0;
+	}
+	desktopGlobal.myWordpress = {
+		openDetail,
+		openMedia,
+		registerEntityKind,
+	};
 }

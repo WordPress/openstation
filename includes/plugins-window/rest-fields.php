@@ -9,6 +9,7 @@
  *   - desktop_mode_can_manage       — `{ activate, deactivate, delete }`
  *   - desktop_mode_icon_url         — best-effort wp.org icon URL
  *   - desktop_mode_size_kb          — disk size of plugin folder
+ *   - desktop_mode_auto_update      — `{ enabled, forced, supported }`
  *
  * Plugin Check posture: every callback below uses ONLY functions
  * available in `wp-includes/` (current_user_can, get_site_transient,
@@ -23,9 +24,10 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the four enrichment fields on the `plugin` REST resource.
+ * Register the five enrichment fields on the `plugin` REST resource.
  *
  * @since 0.9.0
+ * @since 0.21.0 Added `desktop_mode_auto_update`.
  */
 function desktop_mode_plugins_window_register_rest_fields() {
 	register_rest_field(
@@ -78,6 +80,20 @@ function desktop_mode_plugins_window_register_rest_fields() {
 			'schema'       => array(
 				'description' => __( 'Approximate disk footprint of the plugin folder, in kilobytes (cached 6h).', 'desktop-mode' ),
 				'type'        => array( 'integer', 'null' ),
+				'context'     => array( 'view', 'edit' ),
+				'readonly'    => true,
+			),
+		)
+	);
+
+	register_rest_field(
+		'plugin',
+		'desktop_mode_auto_update',
+		array(
+			'get_callback' => 'desktop_mode_plugins_window_field_auto_update',
+			'schema'       => array(
+				'description' => __( 'Auto-update state for this plugin (enabled / forced / supported), mirroring Core\'s plugins.php column.', 'desktop-mode' ),
+				'type'        => 'object',
 				'context'     => array( 'view', 'edit' ),
 				'readonly'    => true,
 			),
@@ -523,4 +539,109 @@ function desktop_mode_plugins_window_compute_dir_size_kb( $dir ) {
 	}
 
 	return $total_bytes > 0 ? max( 1, (int) round( $total_bytes / 1024 ) ) : 0;
+}
+
+/**
+ * `desktop_mode_auto_update` callback.
+ *
+ * Mirrors the per-row state Core derives in
+ * `WP_Plugins_List_Table::prepare_items()` for its "Automatic Updates"
+ * column. Shape:
+ *
+ *   - `enabled`   bool  — the plugin file is currently in the
+ *                          `auto_update_plugins` site option, OR a
+ *                          filter has forced auto-updates on.
+ *   - `forced`    bool|null — `true`/`false` when the
+ *                          `auto_update_plugin` filter pinned the state,
+ *                          `null` when the user is free to toggle.
+ *   - `supported` bool  — whether the `update_plugins` transient has an
+ *                          entry for this plugin (either in `response` or
+ *                          `no_update`). Core hides the toggle entirely
+ *                          when this is false — premium / private plugins
+ *                          that never check in with wp.org.
+ *
+ * NOT included here (lives on the window config instead): the global
+ * `wp_is_auto_update_enabled_for_type( 'plugin' )` flag, which depends
+ * on admin-only includes — see `desktop_mode_plugins_window_auto_updates_enabled()`.
+ *
+ * @since 0.21.0
+ *
+ * @param array $row Core REST plugin row.
+ * @return array{enabled:bool,forced:bool|null,supported:bool}
+ */
+function desktop_mode_plugins_window_field_auto_update( $row ) {
+	$plugin_file = desktop_mode_plugins_window_row_plugin_file( $row );
+	if ( '' === $plugin_file ) {
+		return array(
+			'enabled'   => false,
+			'forced'    => null,
+			'supported' => false,
+		);
+	}
+
+	$auto_updates = (array) get_site_option( 'auto_update_plugins', array() );
+	$enabled      = in_array( $plugin_file, $auto_updates, true );
+
+	// `update-supported` mirrors Core's logic: a plugin is "supported"
+	// for auto-update toggling when wp.org has either a pending update
+	// row OR an explicit no-update row in the `update_plugins` transient.
+	// Premium / private plugins that never call home land in neither
+	// bucket — Core hides the toggle so the user doesn't enable an
+	// auto-update that can't ever fire.
+	$supported = false;
+	$updates   = get_site_transient( 'update_plugins' );
+	if ( is_object( $updates ) ) {
+		if ( isset( $updates->response[ $plugin_file ] ) || isset( $updates->no_update[ $plugin_file ] ) ) {
+			$supported = true;
+		}
+	}
+
+	// Build the payload Core's filter expects (mirrors
+	// `WP_Plugins_List_Table::prepare_items()`'s `$filter_payload`).
+	// `wp_is_auto_update_forced_for_item()` itself is in
+	// `wp-admin/includes/update.php` — we can't include that from a REST
+	// callback (Plugin Check), so we run the filter directly. It's a
+	// single `apply_filters()` call under the hood.
+	//
+	// Important: `wp_parse_args( $row, $defaults )` lets `$row` keys
+	// override `$defaults`. Core's REST controller strips `.php` from
+	// the `plugin` field, but every filter that hooks `auto_update_plugin`
+	// (including Core's own) reads `$item->plugin` expecting the FULL
+	// filename. We layer the normalized `$plugin_file` AFTER the parse
+	// so it always wins.
+	$filter_payload = wp_parse_args(
+		$row,
+		array(
+			'id'            => $plugin_file,
+			'slug'          => isset( $row['textdomain'] ) ? (string) $row['textdomain'] : '',
+			'plugin'        => $plugin_file,
+			'new_version'   => '',
+			'url'           => '',
+			'package'       => '',
+			'icons'         => array(),
+			'banners'       => array(),
+			'banners_rtl'   => array(),
+			'tested'        => '',
+			'requires_php'  => '',
+			'compatibility' => new stdClass(),
+		)
+	);
+	$filter_payload['plugin'] = $plugin_file;
+	$filter_payload['id']     = $plugin_file;
+	$filter_payload           = (object) $filter_payload;
+	/** This filter is documented in wp-admin/includes/class-wp-automatic-updater.php */
+	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload );
+	if ( null !== $forced ) {
+		$forced = (bool) $forced;
+		// When a filter forces the state, that's the effective state
+		// regardless of the `auto_update_plugins` option — match Core's
+		// rendering in `single_row_columns()`.
+		$enabled = $forced;
+	}
+
+	return array(
+		'enabled'   => (bool) $enabled,
+		'forced'    => $forced,
+		'supported' => $supported,
+	);
 }

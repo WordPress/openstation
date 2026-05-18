@@ -297,6 +297,32 @@ The cross-iframe `wp-desktop-drag-*` events from `wp.desktop.dragBridge`
 (Media Library payload channel) are a separate, lower-level surface
 and remain Stable since 0.14.0.
 
+### OS-file drop hooks — Experimental *(since 0.30.0)*
+
+When the user drags a file in from the host operating system
+(Finder, Explorer, Nautilus) onto any surface in Desktop Mode
+— the wallpaper, a folder, a native window, or a chromeless
+admin iframe — the shell catches it and routes it through a
+confirmation dialog. The full pipeline is hookable via
+`window.wp.hooks`:
+
+| Hook | Kind | Notes |
+| --- | --- | --- |
+| `desktop-mode.drop.files-detected` | filter | `(files: File[], ctx) => File[]` — before mime / size filter. Return `[]` to abort. |
+| `desktop-mode.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
+| `desktop-mode.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate per-file defaults. |
+| `desktop-mode.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — last call before `wp/v2/media`; `null` cancels. |
+| `desktop-mode.drop.after-upload` | action | `{ result, fields, context }` |
+| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` |
+
+Iframes forward OS drops to the parent shell via
+`postMessage` of type `desktop-mode-os-file-drop` with a
+`{ files: File[], x, y }` payload — same-origin only.
+
+See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md)
+for two end-to-end recipes (stamping the active folder on
+every upload, hand-off to a CSV importer).
+
 ---
 
 ### `desktop-mode-registry-changed` — Stable *(since 0.18.1)*
@@ -2846,6 +2872,19 @@ wp.desktop.registerWidget( {
 
 User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Removing a widget clears its stored geometry so a re-add starts docked in the column again.
 
+##### `wp.desktop.widgets.redock( id )` — Stable since 0.25.0
+
+Programmatically un-float a liberated widget back into the right-side column. Idempotent — already-docked widgets and unknown ids silently no-op. Mirrors what the user gets by clicking the re-dock affordance in the floating widget's chrome header.
+
+```js
+// "Reset widget positions" command for a power-user palette.
+for ( const id of wp.desktop.widgetLayer?.getEnabledIds() ?? [] ) {
+    wp.desktop.widgets.redock( id );
+}
+```
+
+Equivalent legacy entry point: `wp.desktop.widgetLayer?.redock( id )`. New code should prefer `wp.desktop.widgets.redock`, which keeps a stable namespace as the widget surface grows.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `desktop-mode.widgets` | filter | Stable | the registry array |
@@ -2864,6 +2903,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
+| `desktop-mode.window.geometry` | filter | Stable *(0.25.0)* | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
 | `desktop-mode.window.opened` | action | Stable | `{ windowId, page, title, url }` |
 | `desktop-mode.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized }` — fires when `openWindow()` is called for an already-open window |
 | `desktop-mode.window.content-loading` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
@@ -2880,6 +2920,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 | `desktop-mode.window.unmaximized` | action | Stable | `{ windowId }` |
 | `desktop-mode.window.fullscreen-entered` | action | Stable | `{ windowId }` |
 | `desktop-mode.window.fullscreen-exited` | action | Stable | `{ windowId }` |
+| `desktop-mode.window.auto-exit-fullscreen` | filter | Stable *(0.8.6)* | `( shouldExit: boolean, ctx: { windowId, focusedTo } ) => boolean` — decides whether a fullscreen window should auto-exit when focus moves elsewhere. Default `true`. Return `false` to keep persistent-fullscreen surfaces (slideshow, video, game) in fullscreen across focus changes. |
 | `desktop-mode.window.drag-start` | action | Stable | `{ windowId }` |
 | `desktop-mode.window.drag-end` | action | Stable | `{ windowId, x, y }` |
 | `desktop-mode.window.moved` | action | Stable | `{ windowId, x, y }` — fires with drag-end |
@@ -2895,6 +2936,80 @@ The window hooks fan out alongside the existing `desktop-mode-window-*` CustomEv
 
 All hooks can be listed via `wp.hooks.hasAction()` / `hasFilter()` for defensive checks.
 
+<a id="window-geometry-filter"></a>
+##### `desktop-mode.window.geometry` filter — Stable since 0.25.0
+
+Last call before a window's resolved `x` / `y` / `width` / `height` / `initialState` are baked into the `WindowConfig` the constructor consumes. Plugins use it to:
+
+- **Override the default size of windows they own.** Compute "this should open at 40% of the desktop in the bottom-right corner" once at filter time, instead of resizing after `open()` settles.
+- **Snap restored bounds to a different region.** Re-anchor a window the user previously dragged off-screen, or clamp to a per-plugin region.
+- **Force an initial state** (e.g. always-maximized for a fullscreen-y tool).
+
+```js
+const { HOOKS } = wp.desktop;
+
+wp.desktop.hooks.addFilter(
+    HOOKS.WINDOW_GEOMETRY,
+    'my-plugin/place-shop',
+    ( geometry, ctx ) => {
+        // Only retouch the window WE own, and only when the user
+        // hasn't dragged or resized it yet — once they have, respect
+        // their layout.
+        if ( ctx.baseId !== 'my-shop' || ctx.hasSavedGeometry ) {
+            return geometry;
+        }
+        const { width, height } = ctx.desktopRect;
+        return {
+            ...geometry,
+            width:  Math.min( 720, width  - 40 ),
+            height: Math.min( 540, height - 80 ),
+            x:      width  - Math.min( 720, width  - 40 ) - 20,
+            y:      height - Math.min( 540, height - 80 ) - 20,
+        };
+    }
+);
+```
+
+**Signature:**
+
+```ts
+type WindowState =
+    | 'normal' | 'maximized' | 'minimized'
+    | 'fullscreen' | 'snapped-left' | 'snapped-right';
+
+type ResolvedWindowGeometry = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    state?: WindowState;            // optional initial state — e.g. force 'maximized' or 'snapped-left'
+};
+
+type WindowGeometryContext = {
+    windowId:         string;        // unique per-instance id (multi-window windows differ)
+    baseId:           string;        // registry id — stable across instances
+    hasSavedGeometry: boolean;       // user previously dragged/resized — respect their layout
+    callerPinned:     boolean;       // caller passed at least one explicit dim (native windows: usually true)
+    desktopRect:      { width: number; height: number };
+};
+
+// Filter shape
+( geometry: ResolvedWindowGeometry, ctx: WindowGeometryContext )
+    => ResolvedWindowGeometry
+```
+
+**About the booleans.** `hasSavedGeometry` and `callerPinned` carry the only two distinctions a filter actually needs:
+
+- **`hasSavedGeometry: true`** — the user previously dragged or resized this window and the values you're being handed are the restored layout. Bail in this case to respect the user's choice. (`hasSavedGeometry` is the most common guard plugins want.)
+- **`callerPinned: true`** — the caller of `manager.open()` passed at least one explicit dimension. For **native windows** this is usually `true` (the framework's native-window opener passes the registry's declared `width`/`height` defaults); for **iframe admin pages opened from the dock** this is usually `false`. The filter is free to override registry-declared defaults — `callerPinned: true` does NOT mean "leave the window alone."
+
+**Guarantees:**
+
+- The shell re-clamps `width`/`height` to the window's registered `minWidth`/`minHeight` after the filter returns — a buggy filter cannot ship a sub-minimum window.
+- `x`/`y` are NOT re-clamped to the desktop rect; plugins sometimes deliberately place windows partially off-screen. The filter is responsible for its own viewport math when it cares.
+- The filter runs *every time the window opens*, not just at registration — so a deactivation/reactivation of a plugin re-runs its filter with fresh `desktopRect` numbers.
+- Companion of `desktop_mode_register_window`'s server-side `width` / `height` defaults: the filter sees those defaults as the starting `geometry` value, and `ctx.callerPinned` is `true` for native windows because the framework's own opener passes them through as explicit `manager.open()` args. The filter is free to override anyway — `callerPinned` is signal, not veto.
+
 #### `DockItem` shape
 
 The canonical menu-item type, surfaced everywhere a custom dock surface needs to read what the admin menu contains: `wp.desktop.getMenuItems()`, the rail renderer's `mount-deps.items` and `mount-deps.fullMenu`, the controller's `replaceItems( items )` parameter, every dock decoration hook context.
@@ -2909,6 +3024,22 @@ interface DockItem {
     submenu:  { title: string; url: string }[];
     multi:    boolean;       // hover-peek + Ghost Card eligibility
     isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
+    pluginFile: string | null; // owning plugin file (e.g. `woocommerce/woocommerce.php`)
+                               // when the menu was registered by an active,
+                               // deactivatable plugin; null for core menus,
+                               // mu-plugins, drop-ins, and Desktop Mode itself.
+                               // Drives the dock right-click "Deactivate …" action.
+                               // Resolved server-side by snapshotting $menu/$submenu
+                               // around every admin_menu callback (registration-time
+                               // attribution), with page-hook reflection + a CPT/
+                               // taxonomy registration tracker as fallbacks.
+                               // Stable since 0.27.0.
+    pluginName: string | null; // owning plugin's display name (the `Name:` field
+                               // from its plugin header). Used in the right-click
+                               // "Deactivate <pluginName>…" label so sub-page tiles
+                               // (e.g. WC's Analytics) read as the parent plugin.
+                               // Always null when pluginFile is null.
+                               // Stable since 0.27.0.
 }
 ```
 
@@ -3572,7 +3703,60 @@ wp.desktop.registerWindowChrome( def );
 wp.desktop.unregisterWindowChrome( id );
 wp.desktop.listWindowChromes();
 wp.desktop.applyWindowChrome( windowId, chromeId );
+
+// Window notices — Experimental (since 0.22.0). See subsection below.
+wp.desktop.registerWindowNotice( entry );
+wp.desktop.unregisterWindowNotice( id );
+wp.desktop.listWindowNotices();
+wp.desktop.dismissWindowNotice( id );
+wp.desktop.undismissWindowNotice( id );
 ```
+
+### Window notices — Experimental *(since 0.22.0)*
+
+Tone-coded banners pinned to the top of any matching window. The
+shell renders each entry as a `<wpd-notice>` web component inside
+the matching window's `after-titlebar` slot host, and each user's
+dismissal of a given `id` is persisted in `localStorage` under
+`desktop-mode-notice-dismissed:<userId>` so the banner never
+reappears for them.
+
+```ts
+type WindowNoticeTone =
+    | 'info' | 'success' | 'warning' | 'error' | 'danger' | 'neutral';
+
+interface WindowNoticeEntry {
+    id: string;                              // persistence + dedupe key — recommend `<plugin>/<slug>`
+    message: string;                         // HTML; links + inline formatting allowed. Treat as trusted.
+    tone?: WindowNoticeTone;                 // default 'info'
+    dismissible?: boolean;                   // default true
+    icon?: string;                           // dashicons class (e.g. 'dashicons-info')
+    match?: ( win: Window ) => boolean;      // default: every window
+    order?: number;                          // default 100. Lower renders higher in a stack.
+    owner?: string;                          // tag for bulk teardown
+}
+
+wp.desktop.registerWindowNotice( entry );   // returns an unregister fn
+wp.desktop.unregisterWindowNotice( id );
+wp.desktop.listWindowNotices();              // snapshot, sorted by (order, id)
+wp.desktop.dismissWindowNotice( id );        // imperative dismiss (writes localStorage)
+wp.desktop.undismissWindowNotice( id );      // clear a prior dismissal
+```
+
+`message` is written via `innerHTML` on the client. Include only
+content you author; if you must include user-supplied data, run it
+through an HTML sanitizer first. PHP-registered notices are passed
+through `wp_kses_post()` automatically — see
+[`docs/examples/window-notice.md`](examples/window-notice.md).
+
+`match` runs once per window-paint and any throw is treated as
+"don't render this notice on this window."
+
+Persistence key layout:
+
+| Key | Shape | Notes |
+|-----|-------|-------|
+| `desktop-mode-notice-dismissed:<userId>` | `Record< noticeId, true >` (JSON) | Falls back to `…:anon` for logged-out / pre-hydration. |
 
 ### JS hooks (under `wp.hooks` / `addFilter`-`addAction`)
 
@@ -3877,6 +4061,142 @@ setPluginsWindowTab( 'browse' ); // call BEFORE openById( 'desktop-mode-plugins'
 ```
 
 Backed by `wp.desktop.createSharedStore( 'desktop-mode/plugins-window/tab-target', … )` so multiple bundles see the same value.
+
+---
+
+## My WordPress — extensibility surface (Experimental, since 0.21.0)
+
+The native window registered under id `desktop-mode-my-wordpress`
+exposes three JS hook points and a small public API. Every section
+(Posts, Pages, Users, Media, plugin-defined kinds) uses the same
+hooks, so a single plugin descriptor can decorate any preview pane.
+
+### Public API — `wp.desktop.myWordpress`
+
+```ts
+interface MyWordpressApi {
+    /**
+     * Open the post-detail dossier for a given post id. Idempotent
+     * — opens the window first if it isn't already.
+     */
+    openDetail( args: { entityId: string; postId: number; postTitle: string } ): void;
+
+    /**
+     * Open the Media drill-in ("used in") view for an attachment.
+     * Mirror of `openDetail`.
+     *
+     * @since 0.21.0
+     */
+    openMedia( args: { mediaId: number; mediaTitle?: string } ): void;
+
+    /**
+     * Register a renderer for a custom entity kind so a plugin
+     * can ship its own section type without patching the bundle.
+     * Pair with a PHP entry in `desktop_mode_my_wordpress_entities`
+     * carrying the same `kind` slug.
+     *
+     * Returns an unregister function.
+     *
+     * @since 0.21.0
+     */
+    registerEntityKind(
+        kind: string,
+        renderer: ( host: EntityRenderHost, entity: MyWordPressEntity ) => void,
+    ): () => void;
+}
+```
+
+`EntityRenderHost` surfaces just enough state to paint and navigate:
+
+```ts
+interface EntityRenderHost {
+    body: HTMLElement;
+    route: Route;
+    navigate( route: Route ): void;
+    addTeardown( fn: () => void ): void;
+}
+```
+
+### Filter — `desktop-mode.my-wordpress.preview-actions`
+
+Decorate the right-pane action button row. Receives the
+server-declared descriptors (already capability-gated) merged with
+any client-only entries the filter chain has added on prior calls.
+Wire the `onSelect` handler here — server descriptors only carry
+metadata.
+
+```ts
+wp.hooks.addFilter(
+    'desktop-mode.my-wordpress.preview-actions',
+    'my-plugin/compress',
+    ( actions, ctx ) =>
+        actions.map( ( a ) =>
+            a.id === 'my-plugin/compress-image'
+                ? { ...a, onSelect: ( c ) => { /* run */ } }
+                : a,
+        ),
+);
+```
+
+Context shape: `{ entityId, kind, mime?, item }`. `item` is the
+raw server record (a `MediaListItem`, post `EntityListItem`, etc.).
+
+### Action — `desktop-mode.my-wordpress.preview-extras`
+
+Inject DOM into named slots on the right pane (`'header' | 'meta'
+| 'footer'`). Fires once per slot per preview render.
+
+```ts
+wp.hooks.addAction(
+    'desktop-mode.my-wordpress.preview-extras',
+    'my-plugin/footer',
+    ( ctx ) => {
+        if ( ctx.slot === 'footer' ) {
+            const badge = document.createElement( 'span' );
+            badge.textContent = '✓ checked';
+            ctx.container.appendChild( badge );
+        }
+    },
+);
+```
+
+### Filter — `desktop-mode.my-wordpress.tile-context-menu`
+
+Decorate the per-tile right-click menu. Same descriptor shape as
+the preview-actions row; plugin entries must carry an `onSelect`
+handler (built-ins are dispatched by the bundle's static switch).
+
+```ts
+wp.hooks.addFilter(
+    'desktop-mode.my-wordpress.tile-context-menu',
+    'my-plugin/duplicate',
+    ( options, ctx ) => {
+        options.push( {
+            id: 'my-plugin/duplicate',
+            label: 'Duplicate',
+            icon: 'dashicons-admin-page',
+            onSelect: () => duplicatePost( ctx.item.id ),
+        } );
+        return options;
+    },
+);
+```
+
+Context: `{ entityId, kind, item }`. Currently wired on the post /
+page tile menu; user and media tile menus will subscribe to the
+same hook in a follow-up — write the filter as if the hook fires
+for every section.
+
+### Filter — `desktop-mode.my-wordpress.status-bar` (existing)
+
+Already documented above — unchanged.
+
+### postMessage / CustomEvents
+
+None new. Media drag-out uses the existing `'shortcut'` drag
+payload with `data.kind === 'attachment'`.
+
+See [Examples — My WordPress media action](./examples/my-wordpress-media-action.md).
 
 ---
 

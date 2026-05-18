@@ -178,6 +178,73 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		expect( onDrop ).not.toHaveBeenCalled();
 	} );
 
+	test( 'reject-claimant on the window body flips the hint chip to "Can\'t drop here"', () => {
+		// Regression: the user reported "we can't drop anything into
+		// MY WordPress app …" — and then "show the label CANT DROP
+		// HERE as we show in other cases." This proves the
+		// `accept: () => false` claimant on the window body is found
+		// by the registry's walk-up, drives the ghost into reject
+		// mode, and surfaces the hint chip with the framework's
+		// default reject label.
+		const manager = new DragManager();
+
+		// Faked My WordPress window: outer `.desktop-mode-window`
+		// wraps a `.desktop-mode-window__body` (the element our render
+		// callback receives). The claimant registers on the body.
+		const myWordpressWindow = document.createElement( 'div' );
+		myWordpressWindow.classList.add( 'desktop-mode-window' );
+		const bodyEl = document.createElement( 'div' );
+		bodyEl.classList.add( 'desktop-mode-window__body' );
+		myWordpressWindow.appendChild( bodyEl );
+		document.body.appendChild( myWordpressWindow );
+
+		// Mirror exactly what `renderInto` does in
+		// `src/my-wordpress/index.ts` — the only thing that matters
+		// for the chip text contract.
+		manager.registerDropTarget( {
+			id: 'desktop-mode-my-wordpress-reject',
+			element: bodyEl,
+			accept: () => false,
+			onDrop: () => {},
+		} );
+
+		// Source tile lives outside the window — typical scenario is a
+		// desktop tile dragged onto My WordPress.
+		const tile = document.createElement( 'div' );
+		document.body.appendChild( tile );
+
+		// Drag a desktop-file payload past the threshold. We DON'T
+		// need a successful drop — what we're asserting is the hover
+		// state mid-drag.
+		manager.start( {
+			payload: {
+				type: 'desktop-file',
+				source: tile,
+				data: {
+					placement: { id: 1 },
+					sourceFolderId: 0,
+				} as unknown as Record< string, unknown >,
+				ghost: { offsetX: 30, offsetY: 30 },
+			},
+			origin: pointerEvent( 'pointerdown', 50, 50, tile ),
+		} );
+
+		installElementFromPointStub( [
+			{ el: bodyEl, rect: { x: 0, y: 0, w: 500, h: 500 } },
+		] );
+
+		// Cross the lift threshold + hover the body — `_updateHover`
+		// runs against the claimant and should flip the ghost.
+		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
+
+		const hint = document.querySelector( '.desktop-mode-drag-hint' );
+		expect( hint ).not.toBeNull();
+		expect( hint!.classList.contains( 'desktop-mode-drag-hint--reject' ) ).toBe( true );
+		expect( hint!.textContent ).toBe( "Can’t drop here" );
+
+		document.dispatchEvent( pointerEvent( 'pointerup', 200, 200 ) );
+	} );
+
 	test( 'Escape mid-drag aborts without firing onDrop', () => {
 		const manager = new DragManager();
 		const tile = document.createElement( 'div' );

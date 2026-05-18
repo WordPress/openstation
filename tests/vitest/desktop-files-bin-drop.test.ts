@@ -198,6 +198,114 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		).toBe( false );
 	} );
 
+	test( 'dragging the recycle bin onto itself is rejected — no self-trash', async () => {
+		// Regression: the bin tile (a `'shortcut'` placement with
+		// `file.ref === 'desktop-mode-recycle-bin'`) is registered as
+		// BOTH a drag source (every files-layer tile is) AND a drop
+		// target (this module wires the bin icon up as one). Without
+		// a guard in `accept()`, dragging the bin onto itself fires
+		// `trashByFileType( binPlacement )` → the bin's own placement
+		// gets soft-trashed and vanishes from the desktop.
+		const { store, rest, binTargets } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+
+		const fetchSpy = vi.fn( async () =>
+			new Response(
+				JSON.stringify( { deleted: true } ),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } },
+			),
+		);
+		vi.stubGlobal( 'fetch', fetchSpy );
+
+		const manager = new DragManager();
+		installManagerOnWindow( manager );
+
+		// Build the bin tile in the same DOM shape the files layer
+		// produces — `.desktop-mode-file-tile[data-file-ref="…"]` is
+		// the first selector `findBinTile()` checks.
+		const binTile = document.createElement( 'div' );
+		binTile.classList.add( 'desktop-mode-file-tile' );
+		binTile.dataset.fileRef = 'desktop-mode-recycle-bin';
+		document.body.appendChild( binTile );
+
+		binTargets.installRecycleBinDropTargets( manager );
+		expect(
+			manager.debug().listTargets().find( ( t ) => t.id === 'recycle-bin-dock' ),
+		).toBeDefined();
+
+		// The bin's placement: positive id (it's a real DB row) +
+		// the `shortcut` file shape with the system ref.
+		const binPlacement = {
+			id: 99,
+			parentId: 0,
+			x: 0,
+			y: 0,
+			sortOrder: 0,
+			updatedAtMs: 1,
+			meta: null,
+			file: {
+				type: 'shortcut',
+				ref: 'desktop-mode-recycle-bin',
+				title: 'Recycle Bin',
+				icon: 'dashicons-trash',
+				previewUrl: '',
+				exists: true,
+			},
+		};
+		store.setFolderPlacements( 0, [ binPlacement ] );
+
+		document.elementFromPoint = ( x, y ) => {
+			if ( x >= 280 && x < 340 && y >= 280 && y < 340 ) {
+				return binTile;
+			}
+			return null;
+		};
+
+		const onCommit = vi.fn();
+		manager.start( {
+			payload: {
+				type: 'desktop-file',
+				source: binTile,
+				data: {
+					placement: binPlacement,
+					sourceFolderId: 0,
+				},
+				ghost: { offsetX: 30, offsetY: 30 },
+			},
+			origin: pointerEvent( 'pointerdown', 100, 100, binTile ),
+			onCommit,
+		} );
+
+		document.dispatchEvent( pointerEvent( 'pointermove', 110, 100 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 300, 300 ) );
+
+		// Hover highlight must NOT fire — `accept` returns false up
+		// front so the drop target never lights up.
+		expect(
+			binTile.hasAttribute( 'data-desktop-mode-trash-drop-active' ),
+		).toBe( false );
+
+		document.dispatchEvent( pointerEvent( 'pointerup', 300, 300 ) );
+
+		// `onCommit` from the drag source side fires only on accepted
+		// drops; rejected drops route through `_cancel`.
+		expect( onCommit ).not.toHaveBeenCalled();
+
+		await new Promise( ( r ) => setTimeout( r, 20 ) );
+
+		// No REST DELETE issued — the bin's placement survives.
+		const deletes = fetchSpy.mock.calls.filter( ( call ) => {
+			const init = call[ 1 ] as RequestInit | undefined;
+			return init?.method === 'DELETE';
+		} );
+		expect( deletes.length ).toBe( 0 );
+
+		// Bin still in the store at the same id.
+		const remaining = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+		expect( remaining.find( ( p ) => p.id === 99 ) ).toBeDefined();
+	} );
+
 	test( 'bin drop target re-registers after a dock re-render', async () => {
 		const { store, rest, binTargets } = await load();
 		store.__resetFilesStoreForTests();

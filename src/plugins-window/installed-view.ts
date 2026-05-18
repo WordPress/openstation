@@ -29,6 +29,7 @@ import {
 	isDesktopModeSelf,
 	refreshFrameworkMenu,
 	reloadOutOfDesktopMode,
+	toggleAutoUpdate,
 } from './rest';
 
 /**
@@ -47,7 +48,14 @@ const SOURCE = 'installed-view';
 interface PluginsChangedPayload {
 	source: string;
 	plugin?: string;
-	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'update' | 'bulk';
+	action?:
+		| 'activate'
+		| 'deactivate'
+		| 'delete'
+		| 'install'
+		| 'update'
+		| 'auto-update'
+		| 'bulk';
 }
 import type { InstalledPlugin } from './types';
 import type {
@@ -104,6 +112,13 @@ interface InstalledViewState {
 	 * the queue is still draining.
 	 */
 	updating: Set< string >;
+	/**
+	 * Set of plugin files whose auto-update toggle is currently in
+	 * flight. Mirrors Core's spinning `.dashicons-update.spin` overlay
+	 * — used to swap the toggle text/spinner while the AJAX call is
+	 * pending so the user can't double-fire.
+	 */
+	autoUpdating: Set< string >;
 }
 
 /**
@@ -119,6 +134,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		search: '',
 		loading: true,
 		updating: new Set< string >(),
+		autoUpdating: new Set< string >(),
 	};
 
 	// ─── Toolbar ────────────────────────────────────────────────────
@@ -315,13 +331,27 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 				sortValue: ( row: InstalledPlugin ) => row.desktop_mode_size_kb ?? 0,
 				render: ( _value, row ) => formatSize( row.desktop_mode_size_kb ?? null ),
 			},
-			{
-				key: '_actions',
-				label: '',
-				align: 'end',
-				render: ( _value, row ) => renderActionsCell( row ),
-			},
 		];
+		// "Automatic Updates" column — only shown when the global
+		// auto-update subsystem is enabled AND the viewer can update
+		// plugins. Mirrors Core's `WP_Plugins_List_Table::$show_autoupdates`
+		// gate on `plugins.php`.
+		if ( cfg.autoUpdatesEnabled ) {
+			cols.push( {
+				key: 'auto_updates',
+				label: __( 'Automatic Updates', 'desktop-mode' ),
+				sortable: true,
+				sortValue: ( row: InstalledPlugin ) =>
+					row.desktop_mode_auto_update?.enabled ? 1 : 0,
+				render: ( _value, row ) => renderAutoUpdateCell( row ),
+			} );
+		}
+		cols.push( {
+			key: '_actions',
+			label: '',
+			align: 'end',
+			render: ( _value, row ) => renderActionsCell( row ),
+		} );
 		return cfg.caps.activate || cfg.caps.delete ? cols : cols.slice( 0, -1 );
 	}
 
@@ -442,6 +472,94 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;';
 		const text = stripHtml( row.author ?? '' );
 		wrap.textContent = text || __( 'Unknown', 'desktop-mode' );
+		return wrap;
+	}
+
+	/**
+	 * Render the "Automatic Updates" cell. Mirrors Core's three-state
+	 * rendering on `plugins.php`:
+	 *
+	 *   1. Forced (filter pinned)  → static "Auto-updates enabled" /
+	 *                                "Auto-updates disabled" label.
+	 *   2. Not update-supported    → em-dash placeholder; the plugin
+	 *                                doesn't check in with wp.org so
+	 *                                an auto-update could never fire.
+	 *   3. User-toggleable         → clickable link that flips state.
+	 *                                Shows a spinner while in flight.
+	 */
+	function renderAutoUpdateCell( row: InstalledPlugin ): HTMLElement {
+		const wrap = document.createElement( 'div' );
+		// `data-noclick` so wpd-table doesn't fire row-click (which
+		// expands the detail panel) when the user clicks the toggle.
+		wrap.setAttribute( 'data-noclick', '' );
+		wrap.style.cssText =
+			'display:inline-flex;align-items:center;gap:6px;white-space:nowrap;';
+
+		const meta = row.desktop_mode_auto_update;
+		const forced = meta?.forced ?? null;
+
+		if ( forced !== null ) {
+			// Filter-pinned — render a read-only label, no toggle.
+			const label = document.createElement( 'span' );
+			label.style.cssText = 'color:var(--wp-desktop-text-muted,#666);';
+			label.textContent = forced
+				? __( 'Auto-updates enabled', 'desktop-mode' )
+				: __( 'Auto-updates disabled', 'desktop-mode' );
+			wrap.appendChild( label );
+			return wrap;
+		}
+
+		const supported = !! meta?.supported;
+		if ( ! supported ) {
+			// Premium / private plugin that never checks in with wp.org —
+			// Core hides the toggle entirely. Render an em-dash so the
+			// cell isn't blank.
+			const placeholder = document.createElement( 'span' );
+			placeholder.style.cssText = 'color:var(--wp-desktop-text-muted,#9ca3af);';
+			placeholder.textContent = '—';
+			placeholder.title = __(
+				'This plugin does not check in with WordPress.org, so automatic updates can\'t be scheduled.',
+				'desktop-mode',
+			);
+			wrap.appendChild( placeholder );
+			return wrap;
+		}
+
+		const enabled = !! meta?.enabled;
+		const busy = state.autoUpdating.has( row.plugin );
+		const link = document.createElement( 'a' );
+		link.href = '#';
+		link.setAttribute( 'role', 'button' );
+		link.setAttribute( 'data-wp-action', enabled ? 'disable' : 'enable' );
+		link.style.cssText =
+			'display:inline-flex;align-items:center;gap:6px;' +
+			'color:var(--wp-desktop-accent,#2271b1);text-decoration:none;' +
+			'cursor:pointer;font-size:0.9em;';
+		if ( busy ) {
+			link.style.opacity = '0.6';
+			link.style.pointerEvents = 'none';
+			link.setAttribute( 'aria-busy', 'true' );
+		}
+
+		const label = document.createElement( 'span' );
+		if ( busy ) {
+			label.textContent = enabled
+				? __( 'Disabling…', 'desktop-mode' )
+				: __( 'Enabling…', 'desktop-mode' );
+		} else {
+			label.textContent = enabled
+				? __( 'Disable auto-updates', 'desktop-mode' )
+				: __( 'Enable auto-updates', 'desktop-mode' );
+		}
+		link.appendChild( label );
+
+		link.addEventListener( 'click', ( e: MouseEvent ) => {
+			e.preventDefault();
+			e.stopPropagation();
+			void runToggleAutoUpdate( row );
+		} );
+
+		wrap.appendChild( link );
 		return wrap;
 	}
 
@@ -955,6 +1073,73 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			void refreshFrameworkMenu();
 		} finally {
 			state.updating.delete( row.plugin );
+			paintTable();
+		}
+	}
+
+	/**
+	 * Flip the per-plugin auto-update state via Core's
+	 * `toggle-auto-updates` AJAX action. Optimistic: paint the new
+	 * state immediately, revert on failure. Tracks in-flight rows in
+	 * `state.autoUpdating` so the cell can paint a spinner.
+	 */
+	async function runToggleAutoUpdate( row: InstalledPlugin ): Promise< void > {
+		if ( state.autoUpdating.has( row.plugin ) ) {
+			return; // already in flight
+		}
+		const meta = row.desktop_mode_auto_update;
+		if ( ! meta || meta.forced !== null || ! meta.supported ) {
+			// Forced or unsupported rows shouldn't surface a toggle — guard
+			// in case a stale click slips through during a state transition.
+			return;
+		}
+		const wasEnabled = meta.enabled;
+		const nextState: 'enable' | 'disable' = wasEnabled ? 'disable' : 'enable';
+
+		state.autoUpdating.add( row.plugin );
+		paintTable();
+		try {
+			await toggleAutoUpdate( row, nextState );
+			mergeRow( {
+				...row,
+				desktop_mode_auto_update: {
+					...meta,
+					enabled: ! wasEnabled,
+				},
+			} as InstalledPlugin );
+			toast(
+				wasEnabled
+					? sprintf(
+						/* translators: %s: plugin name */
+						__( 'Auto-updates disabled for %s.', 'desktop-mode' ),
+						row.name || row.plugin,
+					)
+					: sprintf(
+						/* translators: %s: plugin name */
+						__( 'Auto-updates enabled for %s.', 'desktop-mode' ),
+						row.name || row.plugin,
+					),
+			);
+			broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
+				source: SOURCE,
+				plugin: row.plugin,
+				action: 'auto-update',
+			} );
+		} catch ( err ) {
+			toast(
+				sprintf(
+					/* translators: 1: plugin name, 2: error message */
+					__(
+						'Could not toggle auto-updates for %1$s: %2$s',
+						'desktop-mode',
+					),
+					row.name || row.plugin,
+					describe( err ),
+				),
+				6000,
+			);
+		} finally {
+			state.autoUpdating.delete( row.plugin );
 			paintTable();
 		}
 	}

@@ -1153,6 +1153,108 @@ function desktop_mode_chromeless_bridge_script() {
 	}, true );
 
 	/*
+	 * OS-file drop forwarder. When the user drags a file from the
+	 * host OS into a chromeless admin iframe, intercept the drop
+	 * before the browser's default "navigate the iframe to the
+	 * file" handler fires, and `postMessage` the raw `File[]` up
+	 * to the parent shell so the OS-file drop manager
+	 * (`src/os-file-drop/manager.ts`) can show the upload dialog.
+	 *
+	 * Same-origin postMessage preserves `File` identity — the
+	 * parent receives real `File` objects, no base64 round-trip.
+	 *
+	 * We only intercept drops whose `DataTransfer.types` includes
+	 * `'Files'`. In-page DnD (Gutenberg block reorders, media
+	 * library drags) carries non-`Files` types and passes through
+	 * untouched.
+	 */
+	function bridgeHasFiles( ev ) {
+		var t = ev && ev.dataTransfer && ev.dataTransfer.types;
+		if ( ! t ) {
+			return false;
+		}
+		if ( typeof t.includes === 'function' ) {
+			return t.includes( 'Files' );
+		}
+		if ( typeof t.contains === 'function' ) {
+			return t.contains( 'Files' );
+		}
+		for ( var i = 0; i < t.length; i++ ) {
+			if ( t[ i ] === 'Files' ) {
+				return true;
+			}
+		}
+		return false;
+	}
+	/*
+	 * Selectors of in-iframe drop receivers we leave alone —
+	 * Gutenberg's drop zone, the legacy media uploader, any
+	 * element a plugin marks with `data-drop-zone`. The whole
+	 * point: file drops onto Gutenberg blocks keep firing
+	 * Gutenberg's handler; only drops on the empty page
+	 * background escalate to the shell.
+	 */
+	var bridgeDropPassthroughSelectors = [
+		'.components-drop-zone',
+		'[data-drop-zone]',
+		'.uploader-window',
+		'.media-frame-content'
+	];
+	function bridgeDropTargetWantsFile( target ) {
+		if ( ! target || ! target.closest ) {
+			return false;
+		}
+		for ( var s = 0; s < bridgeDropPassthroughSelectors.length; s++ ) {
+			if ( target.closest( bridgeDropPassthroughSelectors[ s ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+	document.addEventListener( 'dragover', function ( ev ) {
+		if ( ! bridgeHasFiles( ev ) ) {
+			return;
+		}
+		if ( bridgeDropTargetWantsFile( ev.target ) ) {
+			return;
+		}
+		ev.preventDefault();
+		if ( ev.dataTransfer ) {
+			ev.dataTransfer.dropEffect = 'copy';
+		}
+	}, true );
+	document.addEventListener( 'drop', function ( ev ) {
+		if ( ! bridgeHasFiles( ev ) ) {
+			return;
+		}
+		if ( bridgeDropTargetWantsFile( ev.target ) ) {
+			return;
+		}
+		ev.preventDefault();
+		ev.stopPropagation();
+		var files = [];
+		if ( ev.dataTransfer && ev.dataTransfer.files ) {
+			for ( var i = 0; i < ev.dataTransfer.files.length; i++ ) {
+				files.push( ev.dataTransfer.files[ i ] );
+			}
+		}
+		if ( files.length === 0 ) {
+			return;
+		}
+		try {
+			window.parent.postMessage(
+				{
+					type: 'desktop-mode-os-file-drop',
+					files: files,
+					x: ev.clientX,
+					y: ev.clientY,
+				},
+				window.location.origin
+			);
+		} catch ( err ) { /* cross-origin parent; swallow */ }
+	}, true );
+
+	/*
 	 * Cmd+K / Ctrl+K forwarder — single-press, unconditional.
 	 *
 	 * Native keydown events don't cross iframe boundaries. Inside a

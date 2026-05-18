@@ -30,6 +30,7 @@ import '../ui/components/wpd-badge/wpd-badge';
 // the class explicitly so the server-rendered element upgrades.
 import '../ui/components/wpd-flyout/wpd-flyout';
 import { mountBrowseView } from './browse-view';
+import { mountFeaturedView } from './featured-view';
 import { mountInstalledView } from './installed-view';
 import { getConfig, type PluginsWindowConfig } from './rest';
 import {
@@ -107,14 +108,26 @@ function renderPluginsWindow( body: HTMLElement ): void {
 		browseTeardown = mountBrowseView( browseHost, flyout, body );
 	}
 
+	// ─── Featured tab ───────────────────────────────────────────────
+	const featuredHost = root.querySelector< HTMLElement >(
+		'[data-desktop-mode-plugins-featured-host]',
+	);
+	let featuredTeardown: ( () => void ) | null = null;
+	if ( featuredHost && config.caps.install ) {
+		featuredTeardown = mountFeaturedView( featuredHost, flyout );
+	}
+
 	// ─── Tab routing ───────────────────────────────────────────────
 	const applyTab = ( tab: PluginsWindowTab ): void => {
 		if ( ! tabs ) {
 			return;
 		}
-		// Browse hidden when the viewer can't install — never auto-flip
-		// the tab somewhere they can't see.
-		if ( tab === 'browse' && ! config.caps.install ) {
+		// Browse + Featured share the `caps.install` gate — never auto-
+		// flip the tab somewhere the viewer can't see.
+		if (
+			( tab === 'browse' || tab === 'featured' ) &&
+			! config.caps.install
+		) {
 			tabs.setAttribute( 'value', 'installed' );
 			return;
 		}
@@ -149,6 +162,10 @@ function renderPluginsWindow( body: HTMLElement ): void {
 		if ( browseTeardown ) {
 			browseTeardown();
 			browseTeardown = null;
+		}
+		if ( featuredTeardown ) {
+			featuredTeardown();
+			featuredTeardown = null;
 		}
 	};
 	document.addEventListener( 'desktop-mode-window-closed', onClosed );

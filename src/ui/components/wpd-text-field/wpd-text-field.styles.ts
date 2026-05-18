@@ -46,6 +46,7 @@ export const textFieldStyles = css`
 		display: block;
 		width: 100%;
 		min-width: 0;
+		box-sizing: border-box;
 		padding: 7px 10px;
 		background: var( --desktop-mode-window-bg, #fff );
 		border: 1px solid var( --desktop-mode-border, #dcdcde );

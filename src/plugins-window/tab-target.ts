@@ -29,7 +29,7 @@ interface DesktopFacade {
 	) => SharedStoreApi< T >;
 }
 
-export type PluginsWindowTab = 'installed' | 'browse';
+export type PluginsWindowTab = 'installed' | 'browse' | 'featured';
 
 interface TabTargetState {
 	tab: PluginsWindowTab | null;

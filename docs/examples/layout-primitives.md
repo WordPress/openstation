@@ -275,6 +275,64 @@ The host keeps `id="my-brand-picker"`, the inner `<select>` gets `id="my-brand-p
 - `<wpd-row>` uses CSS grid under the hood — standard browser behaviour for keyboard navigation and screen readers applies to its children.
 - Auto-id guarantees that input controls have a stable `id` and a real `<label for>` pairing inside the shadow root — both silence Chrome's "form field needs an id or name" warning and give screen readers a proper accessible name.
 
+## `<wpd-ribbon>` — corner ribbon decoration *(experimental, since 0.20.0)*
+
+A 45° banner that wraps a corner of its parent — the classic "FEATURED / NEW / BETA / SALE" stamp on a card. The component owns its own clipping geometry; consumers only need to make the parent a positioned containing block.
+
+```html
+<article class="my-card" style="position: relative;">
+    <wpd-ribbon>Featured</wpd-ribbon>
+    <h3>Card title</h3>
+    <p>Card body…</p>
+</article>
+```
+
+> ⚠️ **Parent must be positioned.** `<wpd-ribbon>` uses `position: absolute` on its host. Without `position: relative` (or `absolute` / `fixed` / `sticky`) on the parent, the ribbon anchors to the next positioned ancestor up the tree — usually the window body — and floats over the wrong thing entirely.
+
+### Attribute matrix
+
+| Attribute | Values | Default | Notes |
+|---|---|---|---|
+| `placement` | `top-end` · `top-start` · `bottom-end` · `bottom-start` | `top-end` | Logical end/start, so LTR/RTL flip for free. The 45° rotation sign also flips under `[dir='rtl']`. |
+| `tone` | `primary` · `success` · `warning` · `danger` · `info` · `neutral` | `primary` | Background tint. `primary` uses `--wp-admin-theme-color` so the ribbon picks up the active color scheme automatically. Matches `<wpd-badge>`'s palette so the two surfaces feel like a set. |
+
+```html
+<wpd-ribbon placement="bottom-start" tone="success">New</wpd-ribbon>
+<wpd-ribbon placement="top-start" tone="warning">Beta</wpd-ribbon>
+```
+
+### CSS-variable surface
+
+The host honours these custom properties for per-instance tuning without touching the component source. Set them on the host (or on any ancestor) to retheme:
+
+| Variable | Default | What it controls |
+|---|---|---|
+| `--wpd-ribbon-size` | `90px` | Square clipping window edge. Smaller cards usually want `60px–70px`. |
+| `--wpd-ribbon-banner-width` | `140px` | Width of the rotated strip (before clipping). |
+| `--wpd-ribbon-banner-offset` | `20px` | Distance from the corner to the strip's perpendicular centerline. |
+| `--wpd-ribbon-banner-pull` | `-36px` | How far the strip overhangs the clip edge along the inline axis. |
+| `--wpd-ribbon-bg` | `var(--wp-admin-theme-color, #2271b1)` | Banner background — overrides `tone` when set. |
+| `--wpd-ribbon-fg` | `#fff` | Banner text color. |
+| `--wpd-ribbon-shadow` | `0 2px 4px rgba(0,0,0,0.2)` | Drop shadow under the banner. |
+| `--wpd-ribbon-padding` | `4px 0` | Vertical padding of the strip. |
+| `--wpd-ribbon-font` | `700 10px/1.4 system-ui` | Banner text typography shorthand. |
+| `--wpd-ribbon-tracking` | `0.06em` | Letter-spacing. |
+| `--wpd-ribbon-z` | `2` | Stacking order relative to other absolutely-positioned children of the parent. |
+
+### Styling the banner externally with `::part(banner)`
+
+The rotated strip is exposed as the `banner` shadow part, so consumers can apply CSS that shadow-DOM `--wpd-ribbon-*` variables don't cover (e.g. a gradient background, a custom font face):
+
+```css
+my-card wpd-ribbon::part(banner) {
+    background: linear-gradient(135deg, #ff6a00, #ee0979);
+}
+```
+
+### Accessibility
+
+The ribbon is decorative — there is no implicit `role` and `pointer-events: none` is set on the host, so it never steals clicks. If the label carries meaningful information that screen readers shouldn't miss, surface it elsewhere in the card body (e.g. a visually-hidden span repeating the status), since rotated text inside a decorative shadow boundary isn't a reliable a11y surface.
+
 ## Related docs
 
 - [`<wpd-stack>`, `<wpd-cluster>`, `<wpd-grid>`](../javascript-reference.md) — other layout primitives.
