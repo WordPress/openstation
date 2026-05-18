@@ -49,15 +49,19 @@ export function cascade( mgr: WindowManager ): void {
 
 	// Normalize state: no fullscreen/maximized during cascade, no
 	// minimized so every window appears in the new layout.
+	// Restore-from-minimized runs FIRST because `restore()` returns the
+	// window to its pre-minimize state (which may itself be
+	// fullscreen/maximized) — the unwind passes below then see that
+	// state and bring it down to 'normal'.
 	for ( const w of eligible ) {
+		if ( w.state === 'minimized' ) {
+			w.restore();
+		}
 		if ( w.state === 'fullscreen' ) {
 			w.toggleFullscreen();
 		}
 		if ( w.state === 'maximized' ) {
 			w.toggleMaximize();
-		}
-		if ( w.state === 'minimized' ) {
-			w.restore();
 		}
 	}
 
@@ -123,16 +127,19 @@ export function tile( mgr: WindowManager ): void {
 	}
 
 	// Normalize state: no fullscreen / maximized / minimized — every
-	// window participates in the tiled grid.
+	// window participates in the tiled grid. Restore-from-minimized
+	// runs FIRST because `restore()` returns the window to its pre-
+	// minimize state (potentially fullscreen / maximized); the unwind
+	// passes below have to come after that to actually catch it.
 	for ( const w of eligible ) {
+		if ( w.state === 'minimized' ) {
+			w.restore();
+		}
 		if ( w.state === 'fullscreen' ) {
 			w.toggleFullscreen();
 		}
 		if ( w.state === 'maximized' ) {
 			w.toggleMaximize();
-		}
-		if ( w.state === 'minimized' ) {
-			w.restore();
 		}
 	}
 

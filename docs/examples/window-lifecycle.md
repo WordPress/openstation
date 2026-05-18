@@ -62,7 +62,7 @@ wp.desktop.whenReady( () => {
 | `desktop-mode.window.focused` | `{ windowId }` | Every focus change (click, keyboard, iframe bridge) |
 | `desktop-mode.window.closed` | `{ windowId }` | After the close animation starts |
 | `desktop-mode.window.minimized` | `{ windowId }` | User clicks minimize or hits a dock shortcut |
-| `desktop-mode.window.restored` | `{ windowId }` | From minimized back to normal |
+| `desktop-mode.window.restored` | `{ windowId }` | From minimized back to whichever state preceded the minimize (maximized / fullscreen / snapped / normal) |
 | `desktop-mode.window.maximized` | `{ windowId }` | Full desktop-area fill |
 | `desktop-mode.window.unmaximized` | `{ windowId }` | Back to floating (e.g. drag-restore) |
 | `desktop-mode.window.fullscreen-entered` | `{ windowId }` | Covers the entire viewport |
@@ -71,6 +71,25 @@ wp.desktop.whenReady( () => {
 | `desktop-mode.window.resized` | `{ windowId, width, height }` | Fires with `resize-end` |
 | `desktop-mode.window.title-changed` | `{ windowId, title }` | Iframe-sourced title updates |
 | `desktop-mode.window.detached` | `{ windowId, url }` | Open-in-new-tab via the detach button |
+
+### Restoring from minimized — what fires
+
+`desktop-mode.window.restored` is the **only** action that fires when a window comes back from minimized. Even if the window was maximized / fullscreen / snapped at the moment it was minimized — and therefore returns to that same state on restore — `desktop-mode.window.maximized` / `desktop-mode.window.fullscreen-entered` / etc. do **not** re-fire. From the framework's perspective the window never left those states; minimize only hid it.
+
+If your subscriber cares about "the window is now visible AND in state X," combine the events:
+
+```js
+wp.desktop.hooks.addAction(
+    'desktop-mode.window.restored',
+    'my-plugin/visible-in-state-x',
+    ( { windowId } ) => {
+        const win = wp.desktop.windowManager.getById( windowId );
+        if ( win?.isMaximized() ) {
+            // Treat this like a fresh maximize for your UI purposes.
+        }
+    }
+);
+```
 
 ## Cleaning up
 

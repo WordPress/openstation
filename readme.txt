@@ -4,7 +4,7 @@ Tags: desktop, admin, ui, productivity, ai
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 0.8.5
+Stable tag: 0.8.6-rc1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -106,6 +106,25 @@ The plugin bundles the following third-party JavaScript library, loaded on deman
 * **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, and built-in canvas wallpapers (e.g. the animated WordPress logo). PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 == Changelog ==
+
+= 0.8.6-rc1 =
+* Tag cloud & category mindmap: search, clustering, server cache
+* Drag & Drop from local desktop
+* Implement loading skeletons and staggered animations for file tiles
+* Arrow-key shortcuts + Overview-from-Show-Desktop fix
+* Shortcuts popover, dock-style tooltips, reorder
+* Add Featured Plugins View and Ribbon Component
+* Add "Automatic Updates" column and related functionality to Plugins window
+* Add window notices feature with persistent dismissal and server sync
+* Polish four framework surfaces for plugin authors
+* Disable focus on other window actions
+* Add Media section to "My WordPress" + uniform preview-pane hook surface
+* Refactor My WordPress to use `<wpd-tile>` + add post status ribbons
+* Allow deactivating plugins in CMO desktop & dock
+* OS-file drop — progress UI, live refresh, cancel cleanup, CMO
+* Group-by selector + click-to-deselect + focused-icon centering
+* Test against PHP 8.3 and 8.4
+* Enhance minimize/restore behavior to preserve pre-minimize state and add cross-state transition tests
 
 = 0.8.5 =
 * Shared folders, heartbeat widget, and heartbeat-pipeline hardening

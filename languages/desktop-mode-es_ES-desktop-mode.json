@@ -33,6 +33,9 @@
             "%1$s %2$s": [
                 ""
             ],
+            "%1$s deactivated. Closed %2$d window(s).": [
+                ""
+            ],
             "%1$s updated to %2$s.": [
                 ""
             ],
@@ -63,8 +66,14 @@
             "%d day": [
                 ""
             ],
+            "%d entry references this file.": [
+                ""
+            ],
             "%d hidden by HD filter": [
                 "%d ocultas por el filtro HD"
+            ],
+            "%d item": [
+                ""
             ],
             "%d new pending — reload": [
                 ""
@@ -79,6 +88,9 @@
                 ""
             ],
             "%d published": [
+                ""
+            ],
+            "%d reference": [
                 ""
             ],
             "%d selected": [
@@ -253,6 +265,9 @@
             "Also show on dock": [
                 ""
             ],
+            "Alt text": [
+                ""
+            ],
             "Amber": [
                 "Ámbar"
             ],
@@ -307,6 +322,21 @@
             "Auto-update unavailable": [
                 ""
             ],
+            "Auto-updates disabled": [
+                ""
+            ],
+            "Auto-updates disabled for %s.": [
+                ""
+            ],
+            "Auto-updates enabled": [
+                ""
+            ],
+            "Auto-updates enabled for %s.": [
+                ""
+            ],
+            "Automatic Updates": [
+                ""
+            ],
             "Back": [
                 ""
             ],
@@ -359,6 +389,9 @@
                 ""
             ],
             "Can’t drop here": [
+                ""
+            ],
+            "Caption": [
                 ""
             ],
             "Categories": [
@@ -451,6 +484,9 @@
             "Contributors · %d": [
                 ""
             ],
+            "Could not deactivate %s.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
             "Could not delete sharing data.": [
                 "No se pudieron cargar tus medios: %s"
             ],
@@ -458,6 +494,9 @@
                 ""
             ],
             "Could not load comments.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load featured plugins: %s": [
                 "No se pudieron cargar tus medios."
             ],
             "Could not load footprint.": [
@@ -479,6 +518,12 @@
                 "No se pudieron cargar tus medios."
             ],
             "Could not load reviews.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not toggle auto-updates for %1$s: %2$s": [
+                ""
+            ],
+            "Couldn’t delete that file.": [
                 "No se pudieron cargar tus medios."
             ],
             "Couldn’t load reviews": [
@@ -511,6 +556,12 @@
             "Deactivate": [
                 ""
             ],
+            "Deactivate %s?": [
+                "Error al subir."
+            ],
+            "Deactivate %s…": [
+                "Subiendo…"
+            ],
             "Deactivation failed: %s": [
                 ""
             ],
@@ -530,6 +581,12 @@
                 ""
             ],
             "Delete folder sharing data?": [
+                ""
+            ],
+            "Delete media?": [
+                "Error al subir."
+            ],
+            "Delete permanently": [
                 ""
             ],
             "Delete plugin?": [
@@ -563,6 +620,18 @@
                 "Escritorio 1"
             ],
             "Details": [
+                ""
+            ],
+            "Dimensions": [
+                ""
+            ],
+            "Disable auto-updates": [
+                ""
+            ],
+            "Disabling…": [
+                "Subiendo…"
+            ],
+            "Dismiss notice": [
                 ""
             ],
             "Dock %s back to widget column": [
@@ -631,8 +700,14 @@
             "Enable AI for all users": [
                 ""
             ],
+            "Enable auto-updates": [
+                ""
+            ],
             "Enable drag-and-drop in the Media Library": [
                 ""
+            ],
+            "Enabling…": [
+                "Subiendo…"
             ],
             "Enter fullscreen": [
                 "Entrar en pantalla completa"
@@ -679,6 +754,9 @@
             "Failed to load graph.": [
                 ""
             ],
+            "Failed to load usage data.": [
+                "No se pudieron cargar tus medios."
+            ],
             "Fast — 15s (not recommended)": [
                 ""
             ],
@@ -695,6 +773,12 @@
                 ""
             ],
             "Fewer than 10 active": [
+                ""
+            ],
+            "File size": [
+                ""
+            ],
+            "Filename": [
                 ""
             ],
             "Files REST endpoint is not available.": [
@@ -734,6 +818,27 @@
                 ""
             ],
             "Got it": [
+                ""
+            ],
+            "Group by": [
+                ""
+            ],
+            "Group by author": [
+                ""
+            ],
+            "Group by category": [
+                ""
+            ],
+            "Group by tag": [
+                ""
+            ],
+            "Group by year": [
+                ""
+            ],
+            "Group by year-month": [
+                ""
+            ],
+            "Group posts by a shared facet": [
                 ""
             ],
             "Hidden": [
@@ -794,6 +899,9 @@
                 ""
             ],
             "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
+                ""
+            ],
+            "Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.": [
                 ""
             ],
             "Installed %s as an app.": [
@@ -892,6 +1000,9 @@
             "M": [
                 ""
             ],
+            "Made for Desktop Mode": [
+                "Cambiar a modo escritorio"
+            ],
             "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
                 ""
             ],
@@ -905,6 +1016,9 @@
                 ""
             ],
             "Media Library": [
+                "Biblioteca de medios"
+            ],
+            "Media deleted.": [
                 "Biblioteca de medios"
             ],
             "Medium — 30s": [
@@ -1030,16 +1144,28 @@
             "No description": [
                 ""
             ],
+            "No featured plugins yet.": [
+                ""
+            ],
+            "No grouping": [
+                ""
+            ],
             "No images in your Media Library yet.": [
                 "Aún no hay imágenes en tu biblioteca de medios."
             ],
             "No media attached to this post.": [
                 ""
             ],
+            "No media yet.": [
+                ""
+            ],
             "No plugins match your filters.": [
                 ""
             ],
             "No plugins matched.": [
+                ""
+            ],
+            "No posts or pages reference this file.": [
                 ""
             ],
             "No ratings yet.": [
@@ -1105,6 +1231,12 @@
             "Open another %s": [
                 "Abrir otra ventana de %s"
             ],
+            "Open file": [
+                "Abrir"
+            ],
+            "Open file in new tab": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
             "Open in My WordPress": [
                 ""
             ],
@@ -1157,6 +1289,9 @@
                 ""
             ],
             "Pages": [
+                ""
+            ],
+            "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.": [
                 ""
             ],
             "Parent": [
@@ -1220,6 +1355,9 @@
                 ""
             ],
             "Plugins and the admin menu will appear here once they’re registered.": [
+                ""
+            ],
+            "Plugins that extend Desktop Mode — desktop decorations, native windows, widgets, and other companions.": [
                 ""
             ],
             "Plugins window template missing.": [
@@ -1435,7 +1573,13 @@
             "See author, comments, categories, tags, attached media, and revisions for this entry.": [
                 ""
             ],
+            "See where this is used": [
+                ""
+            ],
             "Select a full URL (https://…) in your reply, then click the link button.": [
+                ""
+            ],
+            "Select a media item to preview it here.": [
                 ""
             ],
             "Select a user to see their profile here.": [
@@ -1468,7 +1612,13 @@
             "Show in": [
                 "Mostrando %d"
             ],
+            "Show post/page status ribbon": [
+                ""
+            ],
             "Show profile": [
+                ""
+            ],
+            "Show the posts, pages, and custom-post-type entries that reference this file.": [
                 ""
             ],
             "Showing %d": [
@@ -1591,6 +1741,9 @@
             "This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone.": [
                 ""
             ],
+            "This plugin does not check in with WordPress.org, so automatic updates can't be scheduled.": [
+                ""
+            ],
             "This plugin does not ship a wp.org download package. Update it manually from its source.": [
                 ""
             ],
@@ -1604,6 +1757,9 @@
                 ""
             ],
             "This plugin doesn’t ship screenshots.": [
+                ""
+            ],
+            "This plugin will stop running on the site. You can re-activate it later from the Plugins screen.": [
                 ""
             ],
             "This revision has no rendered content.": [
@@ -1672,6 +1828,12 @@
             "Unapproved %d.": [
                 ""
             ],
+            "Uncategorized": [
+                ""
+            ],
+            "Undated": [
+                "Añadir %s"
+            ],
             "Undo": [
                 ""
             ],
@@ -1697,6 +1859,9 @@
                 ""
             ],
             "Unknown error.": [
+                ""
+            ],
+            "Untagged": [
                 ""
             ],
             "Update %d": [
@@ -1736,6 +1901,12 @@
                 "Error al subir."
             ],
             "Upload new": [
+                "Subir nueva"
+            ],
+            "Uploaded": [
+                "Subir nueva"
+            ],
+            "Uploader": [
                 "Subir nueva"
             ],
             "Uploading and installing…": [
@@ -1793,6 +1964,9 @@
                 "Azul WordPress"
             ],
             "View on WordPress.org ↗": [
+                ""
+            ],
+            "View on site": [
                 ""
             ],
             "W": [
@@ -1914,6 +2088,9 @@
                 "· %d pestañas abiertas"
             ],
             "—": [
+                ""
+            ],
+            "“%s” will be permanently deleted. This cannot be undone.": [
                 ""
             ],
             "→ %s": [

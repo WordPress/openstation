@@ -223,6 +223,19 @@ export class Window {
 	} | null = null;
 
 	/**
+	 * The underlying state the window was in before {@link minimize}
+	 * captured it. {@link restore} returns the window here instead of
+	 * unconditionally landing in 'normal' — so a `maximize → minimize →
+	 * restore` round-trip lands back in maximized (and its class +
+	 * inline geometry stay coherent with `state`).
+	 *
+	 * `null` whenever the window isn't currently minimized.
+	 *
+	 * @internal
+	 */
+	private _stateBeforeMinimize: WindowState | null = null;
+
+	/**
 	 * External-link sub-tabs keyed by a generated tab id. Each carries
 	 * its own iframe, its label, and a cleanup hook for the readiness
 	 * probe. Exists only for iframe windows — native windows skip the
@@ -1326,14 +1339,36 @@ export class Window {
 	 * windows on desktop-area size changes.
 	 */
 	public applySnap( zone: 'left' | 'right' ): void {
+		if ( ! this._applySnapVisuals( zone ) ) {
+			return;
+		}
+		this.state = zone === 'left' ? 'snapped-left' : 'snapped-right';
+		this._emitChange( 'state' );
+	}
+
+	/**
+	 * Apply the snap-zone visuals (state class + inline geometry). Does
+	 * NOT mutate `state`, save geometry, emit a change event, or fire
+	 * any action — callers own all of those side-effects so the same
+	 * helper can power both the public {@link applySnap} (which emits +
+	 * sets state) and the fullscreen-exit-to-snapped path in
+	 * {@link toggleFullscreen} (which emits + fires hooks exactly once
+	 * across the transition).
+	 *
+	 * @return `true` when geometry was applied; `false` when the
+	 *         element has no parent and we can't size against it.
+	 * @internal
+	 */
+	private _applySnapVisuals( zone: 'left' | 'right' ): boolean {
 		const parent = this.element.parentElement;
 		if ( ! parent ) {
-			return;
+			return false;
 		}
 		const halfW = Math.floor( parent.clientWidth / 2 );
 		const height = parent.clientHeight;
 		this.element.classList.remove(
 			'desktop-mode-window--maximized',
+			'desktop-mode-window--fullscreen',
 			'desktop-mode-window--snapped-left',
 			'desktop-mode-window--snapped-right',
 		);
@@ -1342,8 +1377,7 @@ export class Window {
 		this.element.style.top = '0px';
 		this.element.style.width = `${ halfW }px`;
 		this.element.style.height = `${ height }px`;
-		this.state = zone === 'left' ? 'snapped-left' : 'snapped-right';
-		this._emitChange( 'state' );
+		return true;
 	}
 
 	/**
@@ -1403,6 +1437,13 @@ export class Window {
 	}
 
 	public minimize(): void {
+		// Re-entering minimize from minimize would clobber the saved
+		// underlying state, leaking the 'minimized' value into the
+		// restore target.
+		if ( this.state === 'minimized' ) {
+			return;
+		}
+		this._stateBeforeMinimize = this.state;
 		this.state = 'minimized';
 		this.element.classList.add( 'desktop-mode-window--minimized' );
 
@@ -1423,7 +1464,14 @@ export class Window {
 		doAction( HOOKS.WINDOW_MINIMIZED, { windowId: this.id } );
 	}
 
-	/** Restore the window from minimized state. */
+	/**
+	 * Restore the window from minimized state. Returns the window to
+	 * whichever underlying state it occupied before {@link minimize} —
+	 * so a previously-maximized window comes back maximized rather than
+	 * silently dropping into 'normal' while the `--maximized` class
+	 * (still on the element from before minimize) leaves the visual
+	 * out of sync with `this.state`.
+	 */
 	public restore(): void {
 		// Restore iframe visibility before the animation starts.
 		if ( this.iframe ) {
@@ -1433,7 +1481,28 @@ export class Window {
 		const wasMinimized = this.state === 'minimized';
 		this.element.classList.remove( 'desktop-mode-window--minimized' );
 		if ( wasMinimized ) {
-			this.state = 'normal';
+			// `null` fallback covers windows whose state was already
+			// minimized at construction time (session restore) — no
+			// prior state was captured for those, so 'normal' is the
+			// only sensible default.
+			this.state = this._stateBeforeMinimize ?? 'normal';
+			this._stateBeforeMinimize = null;
+			// Re-sync UI pieces that key off `state === 'fullscreen'`.
+			// The fullscreen body class (admin-bar hide) and the focus
+			// button's pressed/aria-label state were set when the
+			// window first entered fullscreen; if anything during the
+			// minimized window's lifetime re-rendered the title-bar
+			// controls (control re-registration, theme swap, plugin
+			// re-render) the button comes back showing the "Enter
+			// fullscreen" label even though the window is about to
+			// reappear in fullscreen. Idempotent calls — safe to fire
+			// for non-fullscreen restored states too, but guarded so
+			// we don't pointlessly walk the DOM on the common
+			// `restore-to-normal` path.
+			if ( this.state === 'fullscreen' ) {
+				updateFullscreenBodyClass();
+				this.updateFocusButtonState();
+			}
 		}
 		this.onFocusRequest?.( this );
 		this._emitChange( 'state' );
@@ -1459,28 +1528,67 @@ export class Window {
 		if ( this.state === 'maximized' ) {
 			return;
 		}
-		const parent = this.element.parentElement;
-		if ( ! parent ) {
+		// Capture floating geometry exactly once per "trip" out of
+		// 'normal'. If we're already in another alternate state
+		// (fullscreen, snapped-*), the caller that originally took us
+		// out of 'normal' has already saved the pre-flight geometry —
+		// re-saving now would overwrite it with the alternate-state
+		// rect (e.g. fullscreen's 100vw/100vh), losing the user's
+		// real floating position. `offsetLeft` / `offsetWidth` etc.
+		// ignore CSS transforms, so overview-transform callers still
+		// land the pre-transform inline position when state is
+		// 'normal'.
+		if ( this.state === 'normal' ) {
+			this._savedGeometry = {
+				x: this.element.offsetLeft,
+				y: this.element.offsetTop,
+				width: this.element.offsetWidth,
+				height: this.element.offsetHeight,
+			};
+		}
+		if ( ! this._applyMaximizeVisuals() ) {
 			return;
 		}
-		// `offsetLeft` / `offsetWidth` etc. ignore CSS transforms, so
-		// even if the caller has applied an overview transform, the
-		// saved geometry captures the pre-transform inline position
-		// that un-maximize will later restore to.
-		this._savedGeometry = {
-			x: this.element.offsetLeft,
-			y: this.element.offsetTop,
-			width: this.element.offsetWidth,
-			height: this.element.offsetHeight,
-		};
+		this.state = 'maximized';
+		this._emitChange( 'state' );
+		doAction( HOOKS.WINDOW_MAXIMIZED, { windowId: this.id } );
+	}
+
+	/**
+	 * Apply the maximize visuals (state class + inline geometry against
+	 * the live parent bounds). Mirror of {@link _applySnapVisuals} —
+	 * does NOT mutate `state`, save geometry, emit a change event, or
+	 * fire any action. Callers control all of that so the same helper
+	 * powers {@link maximize}, {@link toggleMaximize}'s fullscreen
+	 * branch, and {@link toggleFullscreen}'s exit-to-maximized branch
+	 * without duplicating the class+geometry math AND without the
+	 * idempotency-guard / save-geometry interlock that bit the
+	 * exit-to-maximized path before this refactor.
+	 *
+	 * @return `true` when geometry was applied; `false` when the
+	 *         element has no parent and we can't size against it.
+	 * @internal
+	 */
+	private _applyMaximizeVisuals(): boolean {
+		const parent = this.element.parentElement;
+		if ( ! parent ) {
+			return false;
+		}
+		// Mutually-exclusive state classes — strip the others so the
+		// element never carries two at once (e.g. `--fullscreen` would
+		// keep its `!important` 100vw/100vh in force and silently
+		// nullify the maximize visuals).
+		this.element.classList.remove(
+			'desktop-mode-window--fullscreen',
+			'desktop-mode-window--snapped-left',
+			'desktop-mode-window--snapped-right',
+		);
 		this.element.classList.add( 'desktop-mode-window--maximized' );
 		this.element.style.left = '0px';
 		this.element.style.top = '0px';
 		this.element.style.width = `${ parent.clientWidth }px`;
 		this.element.style.height = `${ parent.clientHeight }px`;
-		this.state = 'maximized';
-		this._emitChange( 'state' );
-		doAction( HOOKS.WINDOW_MAXIMIZED, { windowId: this.id } );
+		return true;
 	}
 
 	/** Toggle between maximized and normal states. */
@@ -1511,24 +1619,45 @@ export class Window {
 			this.state = 'normal';
 			this._emitChange( 'state' );
 			doAction( HOOKS.WINDOW_UNMAXIMIZED, { windowId: this.id } );
-		} else {
-			// Save current geometry, then animate to the desktop
-			// area's bounds.
-			this._savedGeometry = {
-				x: this.element.offsetLeft,
-				y: this.element.offsetTop,
-				width: this.element.offsetWidth,
-				height: this.element.offsetHeight,
-			};
-			this.element.classList.add( 'desktop-mode-window--maximized' );
-			this.element.style.left = '0px';
-			this.element.style.top = '0px';
-			this.element.style.width = `${ parent.clientWidth }px`;
-			this.element.style.height = `${ parent.clientHeight }px`;
-			this.state = 'maximized';
-			this._emitChange( 'state' );
-			doAction( HOOKS.WINDOW_MAXIMIZED, { windowId: this.id } );
+			return;
 		}
+
+		if ( this.state === 'fullscreen' ) {
+			// Fullscreen → maximize is the case the user lands on when
+			// they click "Maximize" while the focus/fullscreen button
+			// has put the window in immersive mode. Without this branch
+			// the generic `else` below would stack `--maximized` on top
+			// of `--fullscreen` — fullscreen's `!important` rules win,
+			// so the user sees no visual change while `state` silently
+			// flips, breaking every subsequent click.
+			//
+			// Use the visuals-only helper rather than calling
+			// `maximize()` so we keep tight control over the side-
+			// effects:
+			//   - state is set to `'maximized'` BEFORE either action
+			//     fires (so subscribers reading `win.state` see the
+			//     post-transition value).
+			//   - `_savedGeometry` is left untouched — the original
+			//     floating geometry was saved when the user first left
+			//     'normal' and must survive this transition.
+			//   - Single `_emitChange` and a deterministic hook order
+			//     (FULLSCREEN_EXITED before MAXIMIZED, matching the
+			//     symmetric `toggleFullscreen` exit-to-maximized path).
+			this._savedFullscreenState = null;
+			this._applyMaximizeVisuals();
+			this.state = 'maximized';
+			updateFullscreenBodyClass();
+			this.updateFocusButtonState();
+			this._emitChange( 'state' );
+			doAction( HOOKS.WINDOW_FULLSCREEN_EXITED, { windowId: this.id } );
+			doAction( HOOKS.WINDOW_MAXIMIZED, { windowId: this.id } );
+			return;
+		}
+
+		// Normal or snapped-* → maximize. `maximize()` already strips
+		// the other alternate-state classes and only re-captures the
+		// floating geometry when coming from 'normal'.
+		this.maximize();
 	}
 
 	/**
@@ -1542,43 +1671,89 @@ export class Window {
 	public toggleFullscreen(): void {
 		if ( this.state === 'fullscreen' ) {
 			// Restore whichever state the window was in before
-			// fullscreen.
+			// fullscreen. The exit branch handles every restore path
+			// itself rather than reusing `maximize()` / `applySnap()`,
+			// because those would (a) re-save `_savedGeometry` from the
+			// stale inline rect and (b) fire their own `_emitChange` —
+			// producing a double state-change event AND, in the
+			// exit-to-maximized case, clobbering the real floating
+			// geometry with the maximized 0,0,parentW,parentH.
 			this.element.classList.remove( 'desktop-mode-window--fullscreen' );
-			if ( this._savedFullscreenState ) {
-				const s = this._savedFullscreenState;
+			const s = this._savedFullscreenState;
+			this._savedFullscreenState = null;
+			let landedOnMaximize = false;
+			if ( s && s.state === 'maximized' ) {
+				this._applyMaximizeVisuals();
+				this.state = 'maximized';
+				landedOnMaximize = true;
+			} else if (
+				s && ( s.state === 'snapped-left' || s.state === 'snapped-right' )
+			) {
+				const zone: 'left' | 'right' =
+					s.state === 'snapped-left' ? 'left' : 'right';
+				this._applySnapVisuals( zone );
+				this.state = s.state;
+			} else if ( s ) {
+				// Pre-fullscreen state was normal — restore that exact
+				// inline geometry.
 				this.element.style.left = `${ s.x }px`;
 				this.element.style.top = `${ s.y }px`;
 				this.element.style.width = `${ s.width }px`;
 				this.element.style.height = `${ s.height }px`;
-				this.element.classList.toggle(
-					'desktop-mode-window--maximized',
-					s.state === 'maximized',
-				);
-				this.state = s.state;
-				this._savedFullscreenState = null;
+				this.state = 'normal';
 			} else {
 				this.state = 'normal';
 			}
-		} else {
-			this._savedFullscreenState = {
-				state: this.state,
+			updateFullscreenBodyClass();
+			this.updateFocusButtonState();
+			this._emitChange( 'state' );
+			doAction( HOOKS.WINDOW_FULLSCREEN_EXITED, { windowId: this.id } );
+			if ( landedOnMaximize ) {
+				// Re-entering maximized as a side-effect of exiting
+				// fullscreen — fire the MAXIMIZED hook so subscribers
+				// see the same sequence as the symmetric
+				// `toggleMaximize` from-fullscreen path.
+				doAction( HOOKS.WINDOW_MAXIMIZED, { windowId: this.id } );
+			}
+			return;
+		}
+
+		// Enter fullscreen.
+		// Capture floating geometry exactly once — same rule as
+		// `maximize()`. If the user reaches fullscreen via
+		// normal → maximize → fullscreen the maximize call already
+		// saved their real floating rect, so we mustn't overwrite it
+		// here with the maximized 0,0,parentW,parentH.
+		if ( this.state === 'normal' ) {
+			this._savedGeometry = {
 				x: this.element.offsetLeft,
 				y: this.element.offsetTop,
 				width: this.element.offsetWidth,
 				height: this.element.offsetHeight,
 			};
-			this.element.classList.add( 'desktop-mode-window--fullscreen' );
-			this.state = 'fullscreen';
 		}
+		this._savedFullscreenState = {
+			state: this.state,
+			x: this.element.offsetLeft,
+			y: this.element.offsetTop,
+			width: this.element.offsetWidth,
+			height: this.element.offsetHeight,
+		};
+		// Strip the other alternate-state classes so only
+		// `--fullscreen` is active. Without this a snapped-* or
+		// maximized window would carry two state classes and the
+		// fullscreen-exit restore would land in an inconsistent visual.
+		this.element.classList.remove(
+			'desktop-mode-window--maximized',
+			'desktop-mode-window--snapped-left',
+			'desktop-mode-window--snapped-right',
+		);
+		this.element.classList.add( 'desktop-mode-window--fullscreen' );
+		this.state = 'fullscreen';
 		updateFullscreenBodyClass();
 		this.updateFocusButtonState();
 		this._emitChange( 'state' );
-		doAction(
-			this.state === 'fullscreen'
-				? HOOKS.WINDOW_FULLSCREEN_ENTERED
-				: HOOKS.WINDOW_FULLSCREEN_EXITED,
-			{ windowId: this.id },
-		);
+		doAction( HOOKS.WINDOW_FULLSCREEN_ENTERED, { windowId: this.id } );
 	}
 
 	/**

@@ -33,6 +33,9 @@
             "%d mo ago": [
                 ""
             ],
+            "%d posts": [
+                ""
+            ],
             "%d posts in this category.": [
                 ""
             ],
@@ -741,8 +744,17 @@
             "Science": [
                 ""
             ],
+            "Search categories in the mindmap": [
+                ""
+            ],
             "Search categories…": [
                 ""
+            ],
+            "Search tags in the cloud": [
+                ""
+            ],
+            "Search tags…": [
+                "Buscar medios"
             ],
             "Send password reset": [
                 ""
