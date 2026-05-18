@@ -124,6 +124,40 @@ Core does not register `theme-install.php` as a submenu of `themes.php` — clas
 
 Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
 
+## The script side: dependency repairs
+
+Some plugins / themes register block-editor scripts with incomplete `wp_enqueue_script()` dep arrays. When script load order accidentally resolves in their favor in classic admin, nobody notices; when our chromeless render shifts timing, the underlying bug surfaces and the plugin's React integration crashes before it can mount any UI.
+
+We can't change the plugin's PHP, but `WP_Scripts::$registered` is a mutable in-memory map. Adding a missing dep onto an existing registration is idempotent, side-effect-free, and silently becomes a no-op the day the plugin ships a real fix upstream.
+
+### Divi — `et-builder-gutenberg` dep order + cross-frame `et_gb` scope
+
+**File**: `includes/compat/divi.php`.
+
+Two problems sit on the same script registration. Both manifest as the same console error: `Uncaught TypeError: Cannot read properties of undefined (reading 'isCleanNewPost')` thrown from `gutenberg.js` at module-load time. Symptom for the user: no "Use Divi Builder" block on new posts, no Divi `PluginSidebar`, no toggle — Divi appears completely absent inside a desktop window.
+
+**Problem 1 — missing deps.** Divi (both the Divi theme and the standalone Divi Builder plugin) registers `et-builder-gutenberg` with only `[ 'jquery', 'wp-hooks' ]` as deps. The bundle reads from `wp.data` at module-load time. Without `wp-data` and `wp-editor` declared as deps, WordPress doesn't guarantee `@wordpress/editor` (which registers the `core/editor` store) has run by the time Divi's bundle executes.
+
+**Problem 2 — cross-frame `window.et_gb`.** Divi's bundle is webpack-built with `@wordpress/data` externalised to `window.et_gb.wp.data` — not `window.wp.data`. The inline script Divi adds (`before` the bundle) sets `window.et_gb` via this expression:
+
+```js
+window.et_gb = (window.top && window.top.Cypress && window.parent === window.top && window)
+    || (window.top && window.top.Cypress && window.parent !== window.top && window.parent)
+    || window.top   // ← falls through to here in our chromeless iframe
+    || window;
+```
+
+In classic admin `window.top === window`, so `et_gb = window` and the bundle resolves `wp.data` against the page's own globals. Inside a chromeless iframe `window.top` is the desktop shell — a different document with no `wp.data` — so `et_gb.wp.data` is undefined and the bundle throws on first access.
+
+**Fix**: `desktop_mode_compat_divi_fix_gutenberg_deps()` hooks `enqueue_block_editor_assets` at priority 999 (after Divi's priority 4) and does two things:
+
+1. Push `wp-data` + `wp-editor` onto Divi's existing registration's `deps`. The script loader then orders the bundle after `core/editor` registers.
+2. *Only inside chromeless requests*, append an inline `before` script that re-assigns `window.et_gb = window;`. Multiple `wp_add_inline_script( …, 'before' )` calls concatenate in registration order, so ours runs after Divi's and wins. We scope this to chromeless because Divi's original `et_gb = window.top` is legitimate for top-level page loads and for the Cypress-iframe case.
+
+**Plugins this addresses**: Divi theme (4.x and 5.x as of 5.5.2), Divi Builder plugin (same `et-builder-gutenberg` handle).
+
+**Test**: `tests/phpunit/tests/diviCompat.php` — pins dep injection (`test_injects_missing_wp_editor_and_wp_data_deps`), the no-op-when-absent case (`test_no_op_when_divi_not_registered`), idempotence (`test_does_not_duplicate_deps_when_already_present`), the chromeless `et_gb` override (`test_chromeless_request_appends_et_gb_window_override`), and the classic-admin guard (`test_classic_request_does_not_append_et_gb_override`).
+
 ## Adding a new fix
 
 Decision tree, in order:
@@ -132,7 +166,8 @@ Decision tree, in order:
 2. **Is the offending CSS rule a `top: <pixel>` on a positioned element, with an admin-bar-height pixel value?** → Tier 2 covers it. Verify the value is in the default set or extend via `desktop_mode_chromeless_admin_bar_top_values`.
 3. **Is the offending CSS rule selector-targetable and self-contained?** → Tier 3 — write a scoped CSS override in `chromeless.css`. Follow the docblock template above.
 4. **Is the breakage in menu data, not CSS?** → Add a dock-side adaptation in `includes/helpers.php` and a PHPUnit test under `tests/phpunit/tests/desktopModeBuildDockItems.php` (or `desktopModeMenuItemUrl.php` if it's a URL-builder issue).
-5. **Is it none of the above?** Open an issue. Don't escalate to broad fixes (`overflow: hidden` on body, JS-rewriting stylesheets, etc.) without a discussion — those tend to break more than they fix.
+5. **Is a block-editor script crashing at module load because of a missing `wp_enqueue_script()` dep?** → Add a registration-mutation shim under `includes/compat/<plugin>.php` and a PHPUnit test that pins the shape. Follow `includes/compat/divi.php` as the template.
+6. **Is it none of the above?** Open an issue. Don't escalate to broad fixes (`overflow: hidden` on body, JS-rewriting stylesheets, etc.) without a discussion — those tend to break more than they fix.
 
 ## Test discipline
 

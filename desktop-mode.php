@@ -82,6 +82,7 @@ require_once DESKTOP_MODE_DIR . 'includes/comments-window/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/my-wordpress/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/content-graph/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/pwa.php';
+require_once DESKTOP_MODE_DIR . 'includes/compat/divi.php';
 
 /**
  * Cascade-deactivate plugins that declare `Requires Plugins: desktop-mode`
