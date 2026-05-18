@@ -231,7 +231,122 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		expect( handle.win.state ).toBe( 'fullscreen' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'desktop-mode-window--fullscreen',
+			'desktop-mode-window--minimized',
+		].filter( ( c ) => handle.win.element.classList.contains( c ) ) );
+		// Tightened: only `--fullscreen` should remain. The `--minimized`
+		// is removed by `restore()`; if either side gets stuck the test
+		// catches it.
+		expect( activeStateClasses( handle.win.element ) ).toEqual( [
+			'desktop-mode-window--fullscreen',
 		] );
+	} );
+
+	test( 'fullscreen → minimize → restore: refreshes fullscreen body class', () => {
+		// Regression guard for the observation that `restore()` to a
+		// fullscreen state used to leave UI side-effects stale. The
+		// body class controls admin-bar hiding (see
+		// `assets/css/desktop.css` rule on
+		// `body.desktop-mode-has-fullscreen-window`) — if it falls out
+		// of sync after restore, the admin bar reappears on top of a
+		// supposedly-fullscreen window.
+		handle.win.toggleFullscreen();
+		expect(
+			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+		).toBe( true );
+		handle.win.minimize();
+		// Simulate something else clearing the body class while the
+		// window was hidden (a re-render race, a sibling window's
+		// close path, etc.). Restore must rebuild it.
+		document.body.classList.remove( 'desktop-mode-has-fullscreen-window' );
+
+		handle.win.restore();
+
+		expect(
+			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+		).toBe( true );
+	} );
+
+	test( 'fullscreen → minimize → restore: refreshes focus-button aria-pressed/label', () => {
+		// The focus (fullscreen) title-bar button is rendered by the
+		// controls system, so the easiest reliable way to assert its
+		// state is to seed the element with a button matching the
+		// selector `updateFocusButtonState` queries, then verify the
+		// attributes after the round-trip.
+		const btn = document.createElement( 'button' );
+		btn.className = 'desktop-mode-window__btn desktop-mode-window__btn--focus';
+		handle.win.element.appendChild( btn );
+
+		handle.win.toggleFullscreen();
+		expect( btn.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+		handle.win.minimize();
+		// Simulate a re-render that reset the button to its default
+		// "not pressed" state during the minimized period.
+		btn.setAttribute( 'aria-pressed', 'false' );
+		btn.classList.remove( 'desktop-mode-window__btn--active' );
+
+		handle.win.restore();
+
+		expect( btn.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+		expect(
+			btn.classList.contains( 'desktop-mode-window__btn--active' ),
+		).toBe( true );
+	} );
+
+	test( 'restore() to maximized fires WINDOW_RESTORED but NOT WINDOW_MAXIMIZED', () => {
+		// Documents the intentional semantic from the doc note: a
+		// minimize/restore round-trip is treated as a visibility
+		// change, not a state transition. The window never left
+		// 'maximized' from the framework's perspective; firing
+		// WINDOW_MAXIMIZED again would mislead plugin authors who use
+		// it to detect "entered maximize for the first time."
+		const fired: string[] = [];
+		hooks.addAction(
+			'desktop-mode.window.restored',
+			'test',
+			() => {
+				fired.push( 'restored' );
+			},
+		);
+		hooks.addAction(
+			'desktop-mode.window.maximized',
+			'test',
+			() => {
+				fired.push( 'maximized' );
+			},
+		);
+
+		handle.win.toggleMaximize();
+		fired.length = 0;
+		handle.win.minimize();
+		handle.win.restore();
+
+		expect( fired ).toEqual( [ 'restored' ] );
+	} );
+
+	test( 'restore() to fullscreen fires WINDOW_RESTORED but NOT WINDOW_FULLSCREEN_ENTERED', () => {
+		// Same semantic for the fullscreen path.
+		const fired: string[] = [];
+		hooks.addAction(
+			'desktop-mode.window.restored',
+			'test',
+			() => {
+				fired.push( 'restored' );
+			},
+		);
+		hooks.addAction(
+			'desktop-mode.window.fullscreen-entered',
+			'test',
+			() => {
+				fired.push( 'fullscreen-entered' );
+			},
+		);
+
+		handle.win.toggleFullscreen();
+		fired.length = 0;
+		handle.win.minimize();
+		handle.win.restore();
+
+		expect( fired ).toEqual( [ 'restored' ] );
 	} );
 
 	test( 'snapped-right → minimize → restore: returns to snapped-right', () => {

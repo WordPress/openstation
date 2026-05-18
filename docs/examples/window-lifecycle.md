@@ -72,6 +72,25 @@ wp.desktop.whenReady( () => {
 | `desktop-mode.window.title-changed` | `{ windowId, title }` | Iframe-sourced title updates |
 | `desktop-mode.window.detached` | `{ windowId, url }` | Open-in-new-tab via the detach button |
 
+### Restoring from minimized — what fires
+
+`desktop-mode.window.restored` is the **only** action that fires when a window comes back from minimized. Even if the window was maximized / fullscreen / snapped at the moment it was minimized — and therefore returns to that same state on restore — `desktop-mode.window.maximized` / `desktop-mode.window.fullscreen-entered` / etc. do **not** re-fire. From the framework's perspective the window never left those states; minimize only hid it.
+
+If your subscriber cares about "the window is now visible AND in state X," combine the events:
+
+```js
+wp.desktop.hooks.addAction(
+    'desktop-mode.window.restored',
+    'my-plugin/visible-in-state-x',
+    ( { windowId } ) => {
+        const win = wp.desktop.windowManager.getById( windowId );
+        if ( win?.isMaximized() ) {
+            // Treat this like a fresh maximize for your UI purposes.
+        }
+    }
+);
+```
+
 ## Cleaning up
 
 `@wordpress/hooks` subscribers stay registered until the page unloads or you explicitly remove them:

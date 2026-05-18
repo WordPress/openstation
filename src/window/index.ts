@@ -1487,6 +1487,22 @@ export class Window {
 			// only sensible default.
 			this.state = this._stateBeforeMinimize ?? 'normal';
 			this._stateBeforeMinimize = null;
+			// Re-sync UI pieces that key off `state === 'fullscreen'`.
+			// The fullscreen body class (admin-bar hide) and the focus
+			// button's pressed/aria-label state were set when the
+			// window first entered fullscreen; if anything during the
+			// minimized window's lifetime re-rendered the title-bar
+			// controls (control re-registration, theme swap, plugin
+			// re-render) the button comes back showing the "Enter
+			// fullscreen" label even though the window is about to
+			// reappear in fullscreen. Idempotent calls — safe to fire
+			// for non-fullscreen restored states too, but guarded so
+			// we don't pointlessly walk the DOM on the common
+			// `restore-to-normal` path.
+			if ( this.state === 'fullscreen' ) {
+				updateFullscreenBodyClass();
+				this.updateFocusButtonState();
+			}
 		}
 		this.onFocusRequest?.( this );
 		this._emitChange( 'state' );
