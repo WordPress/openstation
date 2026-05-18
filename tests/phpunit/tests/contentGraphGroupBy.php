@@ -62,6 +62,52 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		$this->assertSame( '2024-03', $node['year_month'] );
 		$this->assertSame( array( $cat_id ), $node['category_ids'] );
 		$this->assertSame( array( $tag_id ), $node['tag_ids'] );
+		$this->assertSame( array(), $node['contributor_ids'] );
+	}
+
+	public function test_contributors_from_revision_authors() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_a_id,
+				'post_status' => 'publish',
+				'post_type'   => 'post',
+			)
+		);
+		// Author B saves a revision of A's post — that's the
+		// editorial "contribution" signal the client uses.
+		wp_update_post(
+			array(
+				'ID'          => $post_id,
+				'post_author' => self::$author_b_id,
+				'post_title'  => 'Revision by B',
+			)
+		);
+		// Restore Author A as the primary author so they remain the
+		// post owner; the revision row by B persists in wp_posts.
+		wp_update_post(
+			array(
+				'ID'          => $post_id,
+				'post_author' => self::$author_a_id,
+				'post_title'  => 'Restored by A',
+			)
+		);
+
+		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$node    = $this->find_node( $payload, $post_id );
+
+		$this->assertSame( self::$author_a_id, $node['author_id'] );
+		$this->assertContains( self::$author_b_id, $node['contributor_ids'] );
+		// Primary author must NOT appear in the contributor list —
+		// the server filters it out so the client can double-weight
+		// the primary without also double-counting them via the
+		// contributors array.
+		$this->assertNotContains( self::$author_a_id, $node['contributor_ids'] );
+		// The contributor's display name must be in the catalog so
+		// the client can resolve "Bob Example" without a round-trip.
+		$this->assertSame(
+			'Bob Example',
+			$payload['groups']['authors'][ self::$author_b_id ]['name']
+		);
 	}
 
 	public function test_post_with_no_terms_emits_empty_arrays() {

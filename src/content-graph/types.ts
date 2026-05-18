@@ -30,6 +30,14 @@ export interface GraphNodePayload {
 	 * (effectively never, but defensively typed).
 	 */
 	author_id: number;
+	/**
+	 * Distinct revision authors for the post, excluding the primary
+	 * `author_id`. When grouping by author, the cluster-attractor
+	 * force uses these to pull collaborator posts toward each
+	 * contributor's centroid (the primary author is weighted more
+	 * heavily so the post still lands closer to them).
+	 */
+	contributor_ids: number[];
 	year: number;
 	/**
 	 * `'YYYY-MM'` derived server-side from `post_date`. Empty string

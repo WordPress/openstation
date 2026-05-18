@@ -20,6 +20,7 @@ function makeNode( id: number, x: number, y: number ): GraphNode {
 		slug: `node-${ id }`,
 		edit_url: '',
 		author_id: 0,
+		contributor_ids: [],
 		year: 2024,
 		year_month: '2024-01',
 		category_ids: [],

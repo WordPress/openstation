@@ -215,6 +215,24 @@ export class GraphScene {
 		starts: Map< number, { x: number; y: number } >;
 		targets: Map< number, { x: number; y: number } >;
 	} | null = null;
+	// Auto-fit-follow loop. After grouping is applied, the initial
+	// `fitToViewOfTargets` frames the seed positions; the cluster
+	// force then refines and members can drift past the framed
+	// viewport. While the layout is still moving, refit every tick;
+	// once peak velocity falls below the threshold, stop chasing.
+	// Hard-capped at `fitFollowMaxDurationMs` so a stuck high-motion
+	// situation (e.g. user drags a node mid-settle) never grabs the
+	// camera forever.
+	private fitFollowActive = false;
+	private fitFollowStartedAt = 0;
+	// Has any peak-velocity sample since arming been above the threshold?
+	// Without this gate, the first `advanceFitFollow` after the tween
+	// ends finds velocities at exactly 0 (the tween zeroes them every
+	// frame by design) and disarms before the cluster force has a
+	// chance to inject any motion at all.
+	private fitFollowSawMotion = false;
+	private readonly fitFollowMaxDurationMs = 3000;
+	private readonly fitFollowVelocityThreshold = 1.0;
 	private nodes: GraphNode[] = [];
 	private edges: GraphEdge[] = [];
 	private sim: ForceSim | null = null;
@@ -868,6 +886,59 @@ export class GraphScene {
 		this.draw();
 		this.drawGroupLabels();
 		this.satellites?.drawLinks();
+		this.advanceFitFollow();
+	}
+
+	/**
+	 * Per-tick auto-fit while the layout is still moving after a
+	 * grouping change. Re-frames the camera at the current node
+	 * bounds whenever peak velocity is above the threshold; once
+	 * the layout has settled (or the hard cap has elapsed) the
+	 * loop disarms and the camera stays put. Skips while the
+	 * grouping tween is mid-lerp — velocities are zeroed there by
+	 * design, and the initial `fitToViewOfTargets` already framed
+	 * the target bounds.
+	 */
+	private advanceFitFollow(): void {
+		if ( ! this.fitFollowActive ) {
+			return;
+		}
+		if (
+			performance.now() - this.fitFollowStartedAt >
+			this.fitFollowMaxDurationMs
+		) {
+			this.fitFollowActive = false;
+			return;
+		}
+		// During the tween, our `advanceGroupingTween` zeroes vx/vy
+		// every frame — peak velocity is 0 by construction. Don't
+		// disarm on that account: wait until the tween hands control
+		// back to the sim and real motion (or stillness) is observable.
+		if ( this.groupingTween ) {
+			return;
+		}
+		let peakVelocity = 0;
+		for ( const n of this.nodes ) {
+			if ( n.pinned ) {
+				continue;
+			}
+			const v = Math.hypot( n.vx, n.vy );
+			if ( v > peakVelocity ) {
+				peakVelocity = v;
+			}
+		}
+		if ( peakVelocity >= this.fitFollowVelocityThreshold ) {
+			this.fitFollowSawMotion = true;
+			this.fitToView();
+		} else if ( this.fitFollowSawMotion ) {
+			// Only disarm AFTER we've observed non-zero motion at
+			// least once. Otherwise the first tick after the tween
+			// ends — when the sim hasn't yet run a step and velocities
+			// are still zero from the tween — would disarm before the
+			// cluster force gets a chance to spread members past the
+			// initial fit framing.
+			this.fitFollowActive = false;
+		}
 	}
 
 	private deriveGroupKeys( n: GraphNode, facet: GroupFacet ): string[] {
@@ -882,8 +953,35 @@ export class GraphScene {
 					return [ 'tag:untagged' ];
 				}
 				return n.tag_ids.map( ( id ) => `tag:${ id }` );
-			case 'author':
-				return [ `author:${ n.author_id || 0 }` ];
+			case 'author': {
+				const primaryId = n.author_id || 0;
+				const primaryKey = `author:${ primaryId }`;
+				// List the primary author TWICE so the cluster
+				// attractor weights its pull 2× per contributor.
+				// Result: a post with one contributor settles at the
+				// (2·primary + 1·contributor) / 3 balance point —
+				// between the two authors but closer to the primary.
+				// Posts with no contributors get the same 2× pull,
+				// which is mathematically equivalent to a single
+				// entry (force magnitude is unchanged after the
+				// sim's `perKey = k / keys.length` normalisation),
+				// so doubling is safe across the board.
+				const keys = [ primaryKey, primaryKey ];
+				// Defensive: an older cached server payload (predates
+				// the `contributor_ids` field) deserialises to
+				// undefined here. TS thinks it's required, but at
+				// runtime we accept missing/null/non-array and treat
+				// it as an empty contributor list rather than throwing.
+				const contribs = Array.isArray( n.contributor_ids )
+					? n.contributor_ids
+					: [];
+				for ( const cid of contribs ) {
+					if ( cid > 0 && cid !== primaryId ) {
+						keys.push( `author:${ cid }` );
+					}
+				}
+				return keys;
+			}
 			case 'year':
 				return [ `year:${ n.year || 0 }` ];
 			case 'year_month':
@@ -946,7 +1044,9 @@ export class GraphScene {
 			if ( ids.length === 0 ) {
 				continue;
 			}
-			const label = this.labelForGroupKey( key );
+			// Suffix the member count so readers see cluster size at a
+			// glance, e.g. "Recipe (15)" / "Untagged (3)".
+			const label = `${ this.labelForGroupKey( key ) } (${ ids.length })`;
 			const el = document.createElement( 'div' );
 			el.className = 'desktop-mode-content-graph__group-label';
 			el.textContent = label;
@@ -981,27 +1081,31 @@ export class GraphScene {
 		const ox = this.world.x;
 		const oy = this.world.y;
 		for ( const v of this.groupViews.values() ) {
-			let sx = 0;
-			let sy = 0;
+			let sumX = 0;
+			let sumY = 0;
 			let count = 0;
 			for ( const id of v.members ) {
 				const node = this.nodeViews.get( id )?.node;
 				if ( ! node ) {
 					continue;
 				}
-				sx += node.x;
-				sy += node.y;
+				sumX += node.x;
+				sumY += node.y;
 				count++;
 			}
 			if ( count === 0 || fade <= 0.02 ) {
 				v.el.style.display = 'none';
 				continue;
 			}
-			// World → canvas-local screen coords. The overlay div is
-			// inside `host` (same coord space as the canvas) so we
-			// just apply the world transform.
-			const screenX = ox + ( sx / count ) * scale;
-			const screenY = oy + ( sy / count ) * scale;
+			// Pure centroid positioning — labels glide smoothly with
+			// the cluster's centre of mass. Tried and rejected: top-of-
+			// bounding-box anchoring (read as detached from the
+			// cluster), and per-frame collision push-away (members
+			// rotating under the label made it twitch). Fluidity over
+			// strict non-overlap; some overlap with a node passing
+			// through the label is the accepted trade-off.
+			const screenX = ox + ( sumX / count ) * scale;
+			const screenY = oy + ( sumY / count ) * scale;
 			v.el.style.display = '';
 			v.el.style.transform = `translate(${ screenX }px, ${ screenY }px) translate(-50%, -50%)`;
 			v.el.style.opacity = String( fade );
@@ -1231,7 +1335,17 @@ export class GraphScene {
 		for ( const n of this.nodes ) {
 			const keys = this.deriveGroupKeys( n, facet );
 			assignment.set( n.id, keys );
+			// Dedupe before populating `members` — `deriveGroupKeys`
+			// can list the same key twice on purpose (e.g. the
+			// primary author gets a 2× weighting), and we don't want
+			// that duplication to inflate the visual "(15)" count
+			// or pull the cluster centroid toward duplicated nodes.
+			const seen = new Set< string >();
 			for ( const key of keys ) {
+				if ( seen.has( key ) ) {
+					continue;
+				}
+				seen.add( key );
 				const list = members.get( key );
 				if ( list ) {
 					list.push( n.id );
@@ -1261,6 +1375,12 @@ export class GraphScene {
 		this.startGroupingTween( targets );
 		this.fitToViewOfTargets( targets );
 		this.buildGroupViews( members, facet );
+		// Arm the auto-fit-follow. Stays active until peak velocity
+		// falls below the threshold post-tween (sim has settled) or
+		// the hard-cap duration elapses, whichever comes first.
+		this.fitFollowActive = true;
+		this.fitFollowStartedAt = performance.now();
+		this.fitFollowSawMotion = false;
 	}
 
 	/**
