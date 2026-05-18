@@ -62,7 +62,7 @@ wp.desktop.whenReady( () => {
 | `desktop-mode.window.focused` | `{ windowId }` | Every focus change (click, keyboard, iframe bridge) |
 | `desktop-mode.window.closed` | `{ windowId }` | After the close animation starts |
 | `desktop-mode.window.minimized` | `{ windowId }` | User clicks minimize or hits a dock shortcut |
-| `desktop-mode.window.restored` | `{ windowId }` | From minimized back to normal |
+| `desktop-mode.window.restored` | `{ windowId }` | From minimized back to whichever state preceded the minimize (maximized / fullscreen / snapped / normal) |
 | `desktop-mode.window.maximized` | `{ windowId }` | Full desktop-area fill |
 | `desktop-mode.window.unmaximized` | `{ windowId }` | Back to floating (e.g. drag-restore) |
 | `desktop-mode.window.fullscreen-entered` | `{ windowId }` | Covers the entire viewport |
