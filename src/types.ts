@@ -2012,6 +2012,14 @@ export interface PwaConfig {
 	 * rather than the current page title.
 	 */
 	appName: string;
+	/**
+	 * When `true`, our service-worker registration takes over even if
+	 * another root-scope SW is already on the origin. Sourced from the
+	 * `desktop_mode_pwa_force_replace_sw` PHP filter (default `false`)
+	 * so operators can opt in when a foreign PWA plugin is blocking
+	 * desktop-mode installability.
+	 */
+	forceReplaceSw?: boolean;
 }
 
 /**

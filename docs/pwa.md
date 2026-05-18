@@ -35,9 +35,22 @@ So the SW registers at root scope, but the fetch handler returns early
 "narrow scope" without inheriting the technical limitation.
 
 If another plugin already registered a root-scoped SW, the registration
-**bails** with a console warning rather than usurping it. To override,
-return `true` from the `desktop_mode_pwa_force_replace_sw` filter (not
-yet wired — coming as part of v2).
+**bails** with a console warning rather than usurping it. The "Install
+\<site\> as an app" tile then surfaces a focused toast pointing at the
+opt-in filter (rather than the generic "not available" fallback), so
+users on affected sites see the actionable message instead of silently
+broken behaviour.
+
+To opt this install in, return `true` from the
+`desktop_mode_pwa_force_replace_sw` filter:
+
+```php
+add_filter( 'desktop_mode_pwa_force_replace_sw', '__return_true' );
+```
+
+The filter resolves at shell-config build time; effective on the next
+page load. Use this when another PWA plugin's SW is shadowing
+desktop-mode and you want desktop-mode to take over the install path.
 
 ## Caching policy
 

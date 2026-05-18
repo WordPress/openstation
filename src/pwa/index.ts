@@ -39,7 +39,9 @@ export function bootstrapPwa(
 	);
 	// Fire-and-forget — registration is async but the rest of the
 	// shell doesn't gate on it.
-	void registerServiceWorker( config.pwa );
+	void registerServiceWorker( config.pwa, {
+		forceReplace: !! config.pwa.forceReplaceSw,
+	} );
 }
 
 export { promptInstall, undismissInstallHint } from './install';

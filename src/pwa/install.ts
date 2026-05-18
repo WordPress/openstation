@@ -40,6 +40,7 @@
 
 import { __, sprintf } from '../i18n';
 import type { ToastOptions } from '../toast';
+import { getSwRegistrationStatus } from './sw-register';
 
 /** Stable id for the tile — exported so tests can assert against it. */
 export const PWA_INSTALL_TILE_ID = 'desktop-mode-pwa-install';
@@ -239,6 +240,20 @@ async function onTileClick(
 					'%s is already installed. Open it from your apps menu or home screen.',
 				),
 				siteName,
+			),
+		} );
+		return;
+	}
+
+	// Foreign service worker blocked our registration → Chromium will
+	// never fire `beforeinstallprompt` because the installability
+	// criterion requires OUR SW to be controlling. The generic "not
+	// available" fallback leaves the user with no path forward; this
+	// branch names the cause and points at the operator-side knob.
+	if ( getSwRegistrationStatus() === 'foreign-sw' ) {
+		showToast( {
+			message: __(
+				"Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.",
 			),
 		} );
 		return;

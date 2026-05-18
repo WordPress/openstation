@@ -83,6 +83,38 @@ function desktop_mode_pwa_sw_url() {
 }
 
 /**
+ * Resolves whether desktop-mode should usurp another root-scope SW.
+ *
+ * When `false` (default), `src/pwa/sw-register.ts` bails on registration
+ * if another root-scope service worker is already on the origin — polite
+ * behaviour for sites that intentionally use a different PWA plugin. When
+ * `true`, our registration replaces the existing SW.
+ *
+ * Operators flip this to recover installability on sites where a foreign
+ * SW (Super PWA, Jetpack Boost, etc.) is shadowing the desktop-mode SW
+ * and causing the "Install <site> as an app" tile to surface the
+ * "another app is handling installs" toast.
+ *
+ * @since 0.8.6
+ *
+ * @return bool
+ */
+function desktop_mode_pwa_force_replace_sw() {
+	/**
+	 * Filters whether desktop-mode replaces an existing root-scope SW.
+	 *
+	 * Return `true` to take over from a foreign PWA plugin's service
+	 * worker so desktop-mode's "Install as app" affordance works on
+	 * sites where another plugin's SW is already active.
+	 *
+	 * @since 0.8.6
+	 *
+	 * @param bool $force_replace Defaults to `false` (yield to existing SWs).
+	 */
+	return (bool) apply_filters( 'desktop_mode_pwa_force_replace_sw', false );
+}
+
+/**
  * Detects which PWA endpoint the current request is targeting, if any.
  *
  * Mirrors `desktop_mode_is_portal_request()`'s strategy: read the

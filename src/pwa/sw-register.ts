@@ -27,10 +27,31 @@
 
 import type { PwaConfig } from '../types';
 
+/**
+ * Outcome of the most recent {@link registerServiceWorker} call.
+ *
+ *   - `'pending'` — registration hasn't been attempted yet (or is still
+ *     in-flight).
+ *   - `'registered'` — our SW is the controller (or activating).
+ *   - `'foreign-sw'` — another root-scope SW is already on this origin
+ *     and we bailed rather than usurp it. Operators can opt in via the
+ *     `desktop_mode_pwa_force_replace_sw` PHP filter.
+ *   - `'unsupported'` — `navigator.serviceWorker` not available, or the
+ *     origin isn't secure.
+ *   - `'failed'` — `register()` threw.
+ */
+export type SwRegistrationStatus =
+	| 'pending'
+	| 'registered'
+	| 'foreign-sw'
+	| 'unsupported'
+	| 'failed';
+
 let _registration: ServiceWorkerRegistration | null = null;
 let _registrationFailed = false;
 let _controllerChangeBound = false;
 let _reloadingForSwUpdate = false;
+let _status: SwRegistrationStatus = 'pending';
 
 /**
  * Wire up the auto-reload on SW takeover. Two scenarios distinguished:
@@ -134,15 +155,18 @@ export async function registerServiceWorker(
 	options: { forceReplace?: boolean } = {},
 ): Promise< ServiceWorkerRegistration | null > {
 	if ( typeof navigator === 'undefined' || ! ( 'serviceWorker' in navigator ) ) {
+		_status = 'unsupported';
 		return null;
 	}
 	if ( ! config?.swUrl ) {
+		_status = 'unsupported';
 		return null;
 	}
 	if ( ! window.isSecureContext ) {
 		// SWs require HTTPS (or `localhost`). On a plain-HTTP staging
 		// install we silently skip — no point alarming the user about
 		// something the operator can't fix from inside the shell.
+		_status = 'unsupported';
 		return null;
 	}
 	if ( _registration || _registrationFailed ) {
@@ -161,6 +185,7 @@ export async function registerServiceWorker(
 			return url !== '' && url !== config.swUrl;
 		} );
 		if ( foreign ) {
+			_status = 'foreign-sw';
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
 					'[desktop-mode] another service worker is already registered (' +
@@ -177,6 +202,7 @@ export async function registerServiceWorker(
 			scope: '/',
 			updateViaCache: 'none',
 		} );
+		_status = 'registered';
 		// Auto-reload when the new SW takes control. Bound only after a
 		// successful registration so we never reload a page that has no
 		// SW relationship in the first place.
@@ -184,11 +210,22 @@ export async function registerServiceWorker(
 		return _registration;
 	} catch ( err ) {
 		_registrationFailed = true;
+		_status = 'failed';
 		if ( typeof console !== 'undefined' ) {
 			console.warn( '[desktop-mode] SW registration failed:', err );
 		}
 		return null;
 	}
+}
+
+/**
+ * Synchronous read of the most recent registration outcome. Drives
+ * UI that needs to differentiate "install isn't available" causes —
+ * e.g. the install tile's click handler surfaces a foreign-SW-specific
+ * toast when the value is `'foreign-sw'`.
+ */
+export function getSwRegistrationStatus(): SwRegistrationStatus {
+	return _status;
 }
 
 /**
@@ -205,4 +242,5 @@ export function _resetSwRegistration(): void {
 	_registrationFailed = false;
 	_controllerChangeBound = false;
 	_reloadingForSwUpdate = false;
+	_status = 'pending';
 }

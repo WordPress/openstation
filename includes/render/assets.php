@@ -472,17 +472,24 @@ function desktop_mode_enqueue_assets() {
 			'fromPortal'       => $from_portal,
 			'fromPortalIntent' => $from_portal_intent,
 			'pwa'              => array(
-				'manifestUrl' => esc_url_raw( desktop_mode_pwa_manifest_url() ),
-				'swUrl'       => esc_url_raw( desktop_mode_pwa_sw_url() ),
-				'stateUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
-				'state'       => desktop_mode_pwa_get_user_state( get_current_user_id() ),
+				'manifestUrl'    => esc_url_raw( desktop_mode_pwa_manifest_url() ),
+				'swUrl'          => esc_url_raw( desktop_mode_pwa_sw_url() ),
+				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
+				'state'          => desktop_mode_pwa_get_user_state( get_current_user_id() ),
 				// Mirrors the manifest's `name` field — used by the
 				// install pill so the button reads "Install <site>"
 				// rather than "Install <current page>" (which would
 				// be misleading: we install the whole site as an
 				// app, not the dashboard window the user happens to
 				// be viewing).
-				'appName'     => get_bloginfo( 'name' ),
+				'appName'        => get_bloginfo( 'name' ),
+				// Operators set the `desktop_mode_pwa_force_replace_sw`
+				// filter to `true` when another root-scope service
+				// worker on the origin is blocking desktop-mode
+				// installability (foreign-SW guard in
+				// `src/pwa/sw-register.ts`). Default `false` preserves
+				// the polite behaviour where we yield to existing PWAs.
+				'forceReplaceSw' => desktop_mode_pwa_force_replace_sw(),
 			),
 		)
 	);

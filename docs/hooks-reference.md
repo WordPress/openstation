@@ -2480,11 +2480,27 @@ add_filter( 'desktop_mode_pwa_manifest', static function ( array $manifest ) {
 } );
 ```
 
+### `desktop_mode_pwa_force_replace_sw` — Stable (filter)
+
+Opt desktop-mode in to replace a foreign root-scope service worker on
+this origin. Default `false` — desktop-mode yields to any existing SW
+(Super PWA, Jetpack Boost, etc.) and the install tile shows a toast
+naming this filter as the path forward. Return `true` to take over.
+
+```php
+add_filter( 'desktop_mode_pwa_force_replace_sw', '__return_true' );
+```
+
+Use this to unblock the "Install \<site\> as an app" affordance on sites
+where another PWA plugin's SW is shadowing desktop-mode and Chromium
+therefore won't fire `beforeinstallprompt`.
+
 ### PHP helpers — Stable
 
 ```php
 desktop_mode_pwa_manifest_url();
 desktop_mode_pwa_sw_url();
+desktop_mode_pwa_force_replace_sw();
 desktop_mode_pwa_get_user_state( $user_id = 0 );
 desktop_mode_pwa_update_user_state( array $patch, $user_id = 0 );
 ```
