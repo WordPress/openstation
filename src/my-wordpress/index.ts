@@ -4983,8 +4983,19 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
  *  click-vs-drag threshold, `--dragging` class).
  * ------------------------------------------------------------------ */
 
-const TILE_W = 96;
-const TILE_H = 92;
+// Cell pitch for the in-window absolute-positioned tile canvas used
+// by Posts / Pages / users / plugin sections. Tile visual is 88px
+// wide; the previous 96×92 cell pitch left only ~4px per side
+// between neighbours, so the selected tile's background ring abutted
+// adjacent corner ribbons and read as "spillover" (regression
+// surfaced once `<wpd-ribbon>` started rendering DRAFT/PENDING
+// banners in 0.21.0). Widen the cell so the selection ring has
+// breathing room — and so wrapped 2-line labels don't push the next
+// row's tile into the cell above. Tile label is clamped to 2 lines
+// via CSS in `my-wordpress.css`; if you change that clamp, raise
+// `TILE_H` to match.
+const TILE_W = 108;
+const TILE_H = 112;
 const TILE_PAD = 16;
 
 export interface TileSortable {

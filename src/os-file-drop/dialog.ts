@@ -18,7 +18,11 @@ import '../ui/components/wpd-text-field/wpd-text-field';
 import '../ui/components/wpd-textarea/wpd-textarea';
 import '../ui/components/wpd-button/wpd-button';
 import { showToast } from '../toast';
-import { uploadFile, UploadCancelledError } from './upload';
+import {
+	uploadFile,
+	UploadAbortedError,
+	UploadCancelledError,
+} from './upload';
 import type {
 	DropContext,
 	DropFileEntry,
@@ -134,9 +138,14 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		( uploadBtn as unknown as { disabled: boolean } ).disabled = true;
 		( cancelBtn as unknown as { disabled: boolean } ).disabled = true;
 		uploadBtn.textContent = 'Uploading…';
+		const total = args.entries.length;
 		let successes = 0;
 		let failures = 0;
-		for ( let i = 0; i < args.entries.length; i++ ) {
+		let cancelled = 0;
+		// Per-file failure messages — kept for single-file batches
+		// where the summary toast doesn't carry the error detail.
+		const failureDetails: string[] = [];
+		for ( let i = 0; i < total; i++ ) {
 			const entry = args.entries[ i ];
 			try {
 				await uploadFile( {
@@ -150,26 +159,31 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				successes++;
 			} catch ( err ) {
 				if ( err instanceof UploadCancelledError ) {
-					// Filter chose to cancel — treat as a soft win.
+					// Plugin filter blocked it — count as a soft skip
+					// alongside user cancellations so the summary
+					// reads consistently.
+					cancelled++;
+					continue;
+				}
+				if ( err instanceof UploadAbortedError ) {
+					// User cancelled mid-flight via the HUD button.
+					cancelled++;
 					continue;
 				}
 				failures++;
 				const message =
 					err instanceof Error ? err.message : 'Upload failed.';
-				showToast( {
-					message: `“${ entry.file.name }” — ${ message }`,
-				} );
+				failureDetails.push( `“${ entry.file.name }” — ${ message }` );
 			}
 		}
 		modal.remove();
-		if ( successes > 0 && failures === 0 ) {
-			showToast( {
-				message:
-					successes === 1
-						? 'Uploaded to Media Library.'
-						: `Uploaded ${ successes } files to Media Library.`,
-			} );
-		}
+		showBatchSummaryToast( {
+			total,
+			successes,
+			failures,
+			cancelled,
+			failureDetails,
+		} );
 	};
 
 	renderBody();
@@ -232,4 +246,84 @@ function formatBytes( bytes: number ): string {
 		return `${ ( bytes / 1024 ).toFixed( 0 ) } KB`;
 	}
 	return `${ bytes } B`;
+}
+
+interface BatchSummaryArgs {
+	total: number;
+	successes: number;
+	failures: number;
+	cancelled: number;
+	failureDetails: string[];
+}
+
+/**
+ * One-line summary toast for the end of a batch. The phrasing
+ * adapts to what actually happened:
+ *
+ *   - All succeeded → "Uploaded N files to Media Library."
+ *   - All cancelled → "All uploads cancelled."
+ *   - All failed → either the lone error or "N uploads failed."
+ *   - Mixed → "Uploaded N. Cancelled X. Failed Y." (only the
+ *     non-zero clauses appear, so two-state batches stay short).
+ *
+ * Single-file batches keep the existing "<file> — <error>" toast
+ * for failures because there's no other way to surface the
+ * server's message.
+ */
+function showBatchSummaryToast( args: BatchSummaryArgs ): void {
+	const { total, successes, failures, cancelled, failureDetails } = args;
+
+	// Empty batch — defensive; runUploads is only called with entries.
+	if ( total === 0 ) {
+		return;
+	}
+
+	// Single-file batch — preserve the original tight feedback:
+	// one toast that either confirms or carries the server error.
+	if ( total === 1 ) {
+		if ( successes === 1 ) {
+			showToast( { message: 'Uploaded to Media Library.' } );
+		} else if ( failures === 1 && failureDetails[ 0 ] ) {
+			showToast( { message: failureDetails[ 0 ] } );
+		} else if ( cancelled === 1 ) {
+			showToast( { message: 'Upload cancelled.' } );
+		}
+		return;
+	}
+
+	// Single-state shortcuts.
+	if ( successes === total ) {
+		showToast( {
+			message: `Uploaded ${ successes } files to Media Library.`,
+		} );
+		return;
+	}
+	if ( cancelled === total ) {
+		showToast( { message: 'All uploads cancelled.' } );
+		return;
+	}
+	if ( failures === total ) {
+		showToast( {
+			message:
+				failures === 1 && failureDetails[ 0 ]
+					? failureDetails[ 0 ]
+					: `${ failures } uploads failed.`,
+		} );
+		return;
+	}
+
+	// Mixed result — assemble the non-zero clauses.
+	const parts: string[] = [];
+	if ( successes > 0 ) {
+		parts.push(
+			`Uploaded ${ successes } file${ successes === 1 ? '' : 's' }.`,
+		);
+	}
+	if ( cancelled > 0 ) {
+		parts.push( `Cancelled ${ cancelled }.` );
+	}
+	if ( failures > 0 ) {
+		parts.push( `Failed ${ failures }.` );
+	}
+	showToast( { message: parts.join( ' ' ) } );
 }

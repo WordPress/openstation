@@ -1532,8 +1532,10 @@ apply_filters( 'desktop_mode_drop_enabled', bool $enabled, int $user_id );
 | `desktop-mode.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
 | `desktop-mode.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate the per-file defaults. |
 | `desktop-mode.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — return `null` to cancel. |
+| `desktop-mode.drop.upload-started` | action | _Since 0.31.0._ `{ file, fields, context, abort }` — fires once the XHR is `open()`ed and immediately before `send()`. Call `abort()` to cancel the in-flight upload; the manager rejects with `UploadAbortedError` and emits `upload-failed`. If `abort()` is called after the request body has been fully sent, the manager lets the server respond and then DELETEs the resulting attachment so the user's Media Library never shows a "cancelled" file. |
+| `desktop-mode.drop.upload-progress` | action | _Since 0.31.0._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` event. `total === 0` / `indeterminate === true` when the request length isn't known. A synthetic 100% event is dispatched on `upload.load` so a HUD can show "wrapping up" while the server finishes the response. |
 | `desktop-mode.drop.after-upload` | action | `{ result, fields, context }` |
-| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` |
+| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `error.name === 'UploadAbortedError'` when the failure came from a `upload-started` `abort()` call. |
 
 ---
 

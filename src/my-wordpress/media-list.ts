@@ -17,11 +17,15 @@
 
 import { __, _n, sprintf } from '../i18n';
 import { renderStatusBarSegments, type StatusBarSegment } from '../desktop-files/folder-status-bar';
-import { applyFilters } from '../hooks';
+import { addAction, applyFilters, removeAction } from '../hooks';
+import { FILE_DROP_HOOKS } from '../os-file-drop/hooks';
+import type { DropUploadResult } from '../os-file-drop/types';
 import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
+import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { showToast } from '../toast';
 import type { EntityRenderHost } from './kind-registry';
 import type { MediaListItem, MyWordPressEntity, MediaPreviewAction } from './types';
-import { fetchMediaPage } from './media-rest';
+import { deleteMediaItem, fetchMediaItem, fetchMediaPage } from './media-rest';
 import { getConfig } from './rest';
 import { dashiconForMime, renderMediaPreview } from './media-preview';
 import { stripTags } from './dom-utils';
@@ -147,7 +151,231 @@ function buildMediaTile(
 		} );
 	} );
 
+	tile.addEventListener( 'contextmenu', ( e ) => {
+		e.preventDefault();
+		openMediaTileMenu( ctx, tile, media, titleText, {
+			x: ( e as MouseEvent ).clientX,
+			y: ( e as MouseEvent ).clientY,
+		} );
+	} );
+
 	return tile;
+}
+
+interface MediaTileMenuOption {
+	id: string;
+	label: string;
+	icon: string;
+	danger?: boolean;
+	onSelect?: ( () => void ) | null;
+}
+
+/**
+ * Build + position the right-click menu for a media tile. Mirrors
+ * `openTileMenu()` in `my-wordpress/index.ts` — same `<wpd-context-menu>`
+ * shape, same dismiss handling — so plugin authors only have to learn
+ * one pattern.
+ */
+function openMediaTileMenu(
+	ctx: MediaListContext,
+	tile: HTMLElement,
+	media: MediaListItem,
+	titleText: string,
+	pos: { x: number; y: number },
+): void {
+	closeAnyMediaTileMenu();
+	selectTile( ctx, tile, media );
+
+	const menu = document.createElement( 'wpd-context-menu' );
+	menu.setAttribute( 'open', '' );
+	menu.classList.add( 'desktop-mode-my-wordpress__menu' );
+	( menu as HTMLElement ).style.left = `${ pos.x }px`;
+	( menu as HTMLElement ).style.top = `${ pos.y }px`;
+
+	const base: MediaTileMenuOption[] = [
+		{
+			id: 'navigate-into',
+			label: __( 'Navigate into', 'desktop-mode' ),
+			icon: 'dashicons-category',
+		},
+		{
+			id: 'open-source',
+			label: __( 'Open file in new tab', 'desktop-mode' ),
+			icon: 'dashicons-external',
+		},
+		{
+			id: 'delete',
+			label: __( 'Delete permanently', 'desktop-mode' ),
+			icon: 'dashicons-trash',
+			danger: true,
+		},
+	];
+
+	const filterCtx = {
+		entityId: ctx.entity.id,
+		kind: 'attachment' as const,
+		item: media as unknown as Record< string, unknown >,
+	};
+	const options = applyFilters<
+		MediaTileMenuOption[],
+		[ typeof filterCtx ]
+	>(
+		'desktop-mode.my-wordpress.tile-context-menu',
+		base,
+		filterCtx,
+	);
+	const finalOptions = Array.isArray( options ) ? options : base;
+
+	for ( const o of finalOptions ) {
+		const opt = document.createElement( 'wpd-context-menu-option' );
+		( opt as HTMLElement ).dataset.menuItemId = o.id;
+		opt.setAttribute( 'value', o.id );
+		opt.setAttribute( 'icon', o.icon );
+		if ( o.danger ) {
+			opt.setAttribute( 'danger', '' );
+		}
+		opt.textContent = o.label;
+		menu.appendChild( opt );
+	}
+
+	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+		const detail = ( e as CustomEvent< { id: string } > ).detail;
+		closeAnyMediaTileMenu();
+		if ( detail.id === 'navigate-into' ) {
+			ctx.host.navigate( {
+				kind: 'media-detail',
+				entityId: ctx.entity.id,
+				mediaId: media.id,
+				mediaTitle: titleText,
+			} );
+			return;
+		}
+		if ( detail.id === 'open-source' ) {
+			window.open( media.source_url, '_blank', 'noopener,noreferrer' );
+			return;
+		}
+		if ( detail.id === 'delete' ) {
+			void confirmDeleteMedia( ctx, tile, media, titleText );
+			return;
+		}
+		const match = finalOptions.find( ( o ) => o.id === detail.id );
+		if ( match && typeof match.onSelect === 'function' ) {
+			try {
+				match.onSelect();
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					`[my-wordpress/media] tile-context-menu '${ detail.id }' onSelect threw:`,
+					err,
+				);
+			}
+		}
+	} );
+
+	document.body.appendChild( menu );
+	const rect = menu.getBoundingClientRect();
+	if ( rect.right > window.innerWidth ) {
+		( menu as HTMLElement ).style.left = `${ Math.max(
+			0,
+			window.innerWidth - rect.width - 8,
+		) }px`;
+	}
+	if ( rect.bottom > window.innerHeight ) {
+		( menu as HTMLElement ).style.top = `${ Math.max(
+			0,
+			window.innerHeight - rect.height - 8,
+		) }px`;
+	}
+
+	queueMicrotask( () => {
+		const onDocPointerDown = ( ev: PointerEvent ) => {
+			if ( ev.target instanceof Node && menu.contains( ev.target ) ) {
+				return;
+			}
+			closeAnyMediaTileMenu();
+		};
+		const onDocKey = ( ev: KeyboardEvent ) => {
+			if ( ev.key === 'Escape' ) {
+				closeAnyMediaTileMenu();
+			}
+		};
+		document.addEventListener( 'pointerdown', onDocPointerDown, true );
+		document.addEventListener( 'keydown', onDocKey );
+		menu.addEventListener( 'tile-menu-closed', () => {
+			document.removeEventListener(
+				'pointerdown',
+				onDocPointerDown,
+				true,
+			);
+			document.removeEventListener( 'keydown', onDocKey );
+		} );
+	} );
+}
+
+function closeAnyMediaTileMenu(): void {
+	document
+		.querySelectorAll( 'wpd-context-menu.desktop-mode-my-wordpress__menu' )
+		.forEach( ( n ) => {
+			n.dispatchEvent( new CustomEvent( 'tile-menu-closed' ) );
+			n.remove();
+		} );
+}
+
+async function confirmDeleteMedia(
+	ctx: MediaListContext,
+	tile: HTMLElement,
+	media: MediaListItem,
+	titleText: string,
+): Promise< void > {
+	const ok = await wpdConfirm( {
+		title: __( 'Delete media?', 'desktop-mode' ),
+		message: sprintf(
+			// translators: %s is a media item title.
+			__( '“%s” will be permanently deleted. This cannot be undone.', 'desktop-mode' ),
+			titleText,
+		),
+		confirmLabel: __( 'Delete', 'desktop-mode' ),
+		cancelLabel: __( 'Cancel', 'desktop-mode' ),
+		danger: true,
+	} );
+	if ( ! ok ) {
+		return;
+	}
+	try {
+		await deleteMediaItem( media.id );
+		removeMediaFromList( ctx, tile, media.id );
+		showToast( { message: __( 'Media deleted.', 'desktop-mode' ) } );
+	} catch ( err ) {
+		const message =
+			err instanceof Error
+				? err.message
+				: __( 'Couldn’t delete that file.', 'desktop-mode' );
+		showToast( { message } );
+	}
+}
+
+function removeMediaFromList(
+	ctx: MediaListContext,
+	tile: HTMLElement,
+	mediaId: number,
+): void {
+	tile.remove();
+	if ( ctx.selectedId === mediaId ) {
+		ctx.selectedId = null;
+		ctx.selectedTile = null;
+		// Restore the "select a media item" placeholder.
+		ctx.preview.replaceChildren();
+		const placeholder = document.createElement( 'div' );
+		placeholder.className = 'desktop-mode-my-wordpress__preview-empty';
+		placeholder.textContent = __(
+			'Select a media item to preview it here.',
+			'desktop-mode',
+		);
+		ctx.preview.appendChild( placeholder );
+	}
+	ctx.loaded = Math.max( 0, ctx.loaded - 1 );
+	ctx.total = Math.max( 0, ctx.total - 1 );
+	paintStatus( ctx );
 }
 
 function selectTile(
@@ -344,6 +572,66 @@ export function renderMediaList(
 		host.addTeardown( () => left.removeEventListener( 'scroll', onScroll ) );
 	}
 
+	// Live-refresh — fold freshly-uploaded attachments into the grid
+	// as the OS-drop manager finishes them. We do this by id (single
+	// REST GET) so the visible page-1 set + scroll position are kept
+	// intact. Subscribers added per renderMediaList() call are torn
+	// down when the host unmounts so a closed window stops listening.
+	const liveNs = `desktop-mode/my-wordpress-media-live-${ Math.random()
+		.toString( 36 )
+		.slice( 2, 8 ) }`;
+	addAction<
+		[
+			{
+				result: DropUploadResult;
+				fields: { filename: string };
+				context: unknown;
+			},
+		]
+	>( FILE_DROP_HOOKS.AFTER_UPLOAD, liveNs, ( payload ) => {
+		void spliceNewMedia( ctx, payload.result.id );
+	} );
+	host.addTeardown( () =>
+		removeAction( FILE_DROP_HOOKS.AFTER_UPLOAD, liveNs ),
+	);
+	host.addTeardown( () => closeAnyMediaTileMenu() );
+
 	paintStatus( ctx );
 	void loadMore();
+}
+
+/**
+ * Fetch and prepend a freshly-uploaded attachment. If we already
+ * have a tile for that id (rare — e.g. a second AFTER_UPLOAD fires
+ * for the same item via a plugin), the duplicate is ignored.
+ */
+async function spliceNewMedia(
+	ctx: MediaListContext,
+	mediaId: number,
+): Promise< void > {
+	if ( ! ctx.tiles.isConnected ) {
+		return;
+	}
+	if (
+		ctx.tiles.querySelector(
+			`wpd-tile[data-media-id="${ mediaId }"]`,
+		)
+	) {
+		return;
+	}
+	try {
+		const item = await fetchMediaItem( mediaId );
+		// The newest item belongs at the top of the grid; insertBefore
+		// against `firstChild` is the cheap way to prepend.
+		ctx.tiles.insertBefore( buildMediaTile( ctx, item ), ctx.tiles.firstChild );
+		ctx.loaded += 1;
+		ctx.total += 1;
+		paintStatus( ctx );
+	} catch ( err ) {
+		// eslint-disable-next-line no-console
+		console.warn(
+			'[my-wordpress/media] live-refresh fetch failed:',
+			err,
+		);
+	}
 }

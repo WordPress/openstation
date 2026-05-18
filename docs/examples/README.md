@@ -37,6 +37,7 @@ defined( 'ABSPATH' ) || exit;
 - [`<wpd-flyout>` — sliding edge-anchored panel](./wpd-flyout.md)
 - [Render a data table — filters, sticky columns, sub-tables](./data-table.md)
 - [Loading spinner — presets and color overrides](./spinner.md)
+- [Progress bar — determinate, indeterminate, tones](./progress-bar.md)
 - [Window loading state — spinner overlay + ready signal](./window-loading.md)
 - [Native windows — overview + render-callback contract](./native-windows.md)
 - [Native window with bundle-bound config (REST URLs, nonces)](./window-with-config.md)

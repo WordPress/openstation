@@ -1129,6 +1129,10 @@ export const HOOKS = {
 	FILE_DROP_DIALOG_FIELDS: 'desktop-mode.drop.dialog-fields',
 	/** Filter — `(payload, ctx) => payload | null`, last call before POST. */
 	FILE_DROP_BEFORE_UPLOAD: 'desktop-mode.drop.before-upload',
+	/** Action — `{ file, fields, context, abort }` once XHR is open and about to send. @since 0.31.0 */
+	FILE_DROP_UPLOAD_STARTED: 'desktop-mode.drop.upload-started',
+	/** Action — `{ file, fields, context, loaded, total, indeterminate }` per progress tick. @since 0.31.0 */
+	FILE_DROP_UPLOAD_PROGRESS: 'desktop-mode.drop.upload-progress',
 	/** Action — `{ result, fields, context }` after successful upload. */
 	FILE_DROP_AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
 	/** Action — `{ file, error, context }` on upload failure. */

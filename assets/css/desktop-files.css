@@ -1002,3 +1002,124 @@ button.desktop-mode-folder-status-bar__segment:hover {
 .desktop-mode-drag-ghost--reject {
 	cursor: no-drop;
 }
+
+/* ============================================================ *
+ *  Upload progress HUD (since 0.31.0)
+ *
+ *  Pinned floating panel that surfaces the OS-file-drop manager's
+ *  in-flight uploads. One row per file with a `<wpd-progress-bar>`,
+ *  a filename + status, and a Cancel/Dismiss action. The panel
+ *  hides itself when there are no rows; it's purely reactive to
+ *  the four upload-lifecycle hooks.
+ * ============================================================ */
+
+.desktop-mode-upload-hud {
+	position: fixed;
+	inset-block-end: 16px;
+	inset-inline-end: 16px;
+	width: 320px;
+	max-width: calc( 100vw - 32px );
+	background: var( --desktop-mode-panel-bg, #fff );
+	color: var( --desktop-mode-fg-on-light, #1d2327 );
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 10px;
+	box-shadow: 0 8px 28px rgba( 0, 0, 0, 0.18 );
+	z-index: 99998;
+	font: inherit;
+	pointer-events: auto;
+	overflow: hidden;
+}
+
+.desktop-mode-upload-hud[ hidden ] {
+	display: none;
+}
+
+.desktop-mode-upload-hud__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var( --desktop-mode-panel-header-bg, rgba( 0, 0, 0, 0.04 ) );
+	border-block-end: 1px solid var( --desktop-mode-border, #dcdcde );
+	font-weight: 600;
+	font-size: 12px;
+}
+
+.desktop-mode-upload-hud__title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-upload-hud__close {
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font-size: 16px;
+	line-height: 1;
+	width: 22px;
+	height: 22px;
+	border-radius: 4px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.desktop-mode-upload-hud__close:hover,
+.desktop-mode-upload-hud__close:focus-visible {
+	background: rgba( 0, 0, 0, 0.08 );
+	outline: none;
+}
+
+.desktop-mode-upload-hud__list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 10px 12px;
+	max-height: 50vh;
+	overflow-y: auto;
+}
+
+.desktop-mode-upload-hud__row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-areas:
+		'meta actions'
+		'bar bar';
+	gap: 6px 8px;
+	align-items: center;
+	font-size: 12px;
+}
+
+.desktop-mode-upload-hud__meta {
+	grid-area: meta;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.desktop-mode-upload-hud__name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+}
+
+.desktop-mode-upload-hud__status {
+	font-size: 11px;
+	opacity: 0.75;
+	font-variant-numeric: tabular-nums;
+}
+
+.desktop-mode-upload-hud__row wpd-progress-bar {
+	grid-area: bar;
+}
+
+.desktop-mode-upload-hud__actions {
+	grid-area: actions;
+	display: inline-flex;
+	gap: 4px;
+}

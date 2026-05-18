@@ -108,6 +108,68 @@ export async function fetchMediaPage(
 }
 
 /**
+ * Fetch one attachment by id. Used after an OS-drop upload to splice
+ * the new item into the visible grid without reloading the whole
+ * page (which would lose the user's scroll position).
+ *
+ * @public
+ * @since 0.31.0
+ */
+export async function fetchMediaItem(
+	mediaId: number,
+): Promise< MediaListItem > {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( `wp/v2/media/${ mediaId }` ) );
+	url.searchParams.set(
+		'_fields',
+		'id,title,date,mime_type,source_url,alt_text,caption,description,author,media_details,_embedded',
+	);
+	url.searchParams.set( '_embed', 'author' );
+	const response = await shellFetch( url.toString(), {
+		method: 'GET',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to load media item' ),
+		);
+	}
+	return ( await response.json() ) as MediaListItem;
+}
+
+/**
+ * Permanently delete an attachment. `force=true` because attachments
+ * don't go through the trash flow the way posts do — leaving them in
+ * a soft-deleted limbo state isn't what users expect from a "Delete"
+ * affordance in the media grid.
+ *
+ * @public
+ * @since 0.31.0
+ */
+export async function deleteMediaItem( mediaId: number ): Promise< void > {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( `wp/v2/media/${ mediaId }` ) );
+	url.searchParams.set( 'force', 'true' );
+	const response = await shellFetch( url.toString(), {
+		method: 'DELETE',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to delete media item' ),
+		);
+	}
+}
+
+/**
  * Drill-in payload — every public post/page/CPT that references the
  * given attachment.
  *

@@ -8,6 +8,8 @@
  */
 
 import { mountOsFileDropManager } from './manager';
+import { mountUploadProgressHud } from './progress-hud';
+import { mountMediaLibraryRefresher } from './library-refresher';
 import type { DropConfig, DropContext, DropFileEntry } from './types';
 
 interface BootArgs {
@@ -22,6 +24,8 @@ export function bootOsFileDrop( args: BootArgs ): void {
 		allowedMimes: [],
 		maxSize: 0,
 	};
+	mountUploadProgressHud();
+	mountMediaLibraryRefresher();
 	mountOsFileDropManager( {
 		config,
 		mediaUrl: args.mediaUrl,

@@ -52,6 +52,38 @@ export const FILE_DROP_HOOKS = {
 	BEFORE_UPLOAD: 'desktop-mode.drop.before-upload',
 
 	/**
+	 * Action — fires once `BEFORE_UPLOAD` has cleared and the XHR
+	 * is `open()`ed, immediately before `send()`. Payload:
+	 * `{ file: File, fields: DropDialogFields, context: DropContext,
+	 * abort: () => void }`. The `abort` handle aborts the in-flight
+	 * request; the manager rejects with `UploadAbortedError` and
+	 * fires `UPLOAD_FAILED` with that error.
+	 *
+	 * Pair with `UPLOAD_PROGRESS` to drive a progress UI; pair with
+	 * `AFTER_UPLOAD` / `UPLOAD_FAILED` to know when the upload ends.
+	 *
+	 * @since 0.31.0
+	 */
+	UPLOAD_STARTED: 'desktop-mode.drop.upload-started',
+
+	/**
+	 * Action — fires for every `XMLHttpRequestUpload.progress` event.
+	 * Payload: `{ file: File, fields: DropDialogFields, context:
+	 * DropContext, loaded: number, total: number, indeterminate:
+	 * boolean }`. `total` is `0` and `indeterminate` is `true` when
+	 * the request body length isn't known (rare for multipart, but
+	 * possible on transcoding proxies); subscribers should treat
+	 * that as an indeterminate state.
+	 *
+	 * A synthetic 100%-loaded event is dispatched once the `upload`
+	 * stream emits `load` so a HUD can show a definite "wrapping up"
+	 * state while the server finishes the response.
+	 *
+	 * @since 0.31.0
+	 */
+	UPLOAD_PROGRESS: 'desktop-mode.drop.upload-progress',
+
+	/**
 	 * Action — fires after a successful upload. Payload:
 	 * `{ result: DropUploadResult, fields: DropDialogFields,
 	 * context: DropContext }`.
@@ -61,6 +93,9 @@ export const FILE_DROP_HOOKS = {
 	/**
 	 * Action — fires after an upload fails. Payload:
 	 * `{ file: File, error: Error, context: DropContext }`.
+	 * `error` is an `UploadAbortedError` when the failure came
+	 * from the caller invoking the `abort()` handle on
+	 * `UPLOAD_STARTED`.
 	 */
 	UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
 } as const;
