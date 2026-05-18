@@ -156,7 +156,12 @@ export async function uploadFile(
 			}
 			const error = new Error( 'Network error during upload.' );
 			doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-				file: args.file,
+				// `filtered.file` — same identity as UPLOAD_STARTED /
+				// _PROGRESS / AFTER_UPLOAD. A BEFORE_UPLOAD filter
+				// that swapped the File would otherwise route this
+				// failure to a row keyed by the original (pre-swap)
+				// File, leaving the HUD row stuck in "running".
+				file: filtered.file,
 				error,
 				context: args.context,
 			} );
@@ -166,7 +171,12 @@ export async function uploadFile(
 		xhr.addEventListener( 'abort', () => {
 			const error = new UploadAbortedError();
 			doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-				file: args.file,
+				// `filtered.file` — same identity as UPLOAD_STARTED /
+				// _PROGRESS / AFTER_UPLOAD. A BEFORE_UPLOAD filter
+				// that swapped the File would otherwise route this
+				// failure to a row keyed by the original (pre-swap)
+				// File, leaving the HUD row stuck in "running".
+				file: filtered.file,
 				error,
 				context: args.context,
 			} );
@@ -181,7 +191,7 @@ export async function uploadFile(
 				const message = extractXhrMessage( xhr );
 				const error = new Error( message );
 				doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-					file: args.file,
+					file: filtered.file,
 					error,
 					context: args.context,
 				} );
@@ -203,7 +213,7 @@ export async function uploadFile(
 						? err
 						: new Error( 'Could not parse server response.' );
 				doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-					file: args.file,
+					file: filtered.file,
 					error,
 					context: args.context,
 				} );
@@ -225,7 +235,7 @@ export async function uploadFile(
 				);
 				const error = new UploadAbortedError();
 				doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-					file: args.file,
+					file: filtered.file,
 					error,
 					context: args.context,
 				} );

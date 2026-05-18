@@ -108,6 +108,14 @@ export const FILE_DROP_HOOKS = {
 	 * `error` is an `UploadAbortedError` when the failure came
 	 * from the caller invoking the `abort()` handle on
 	 * `UPLOAD_STARTED`.
+	 *
+	 * `file` carries the same identity as `UPLOAD_STARTED` /
+	 * `UPLOAD_PROGRESS` / `AFTER_UPLOAD` — the post-`BEFORE_UPLOAD`
+	 * `File`, in case a plugin swapped it. Match by reference, not
+	 * filename: a HUD that keys its row map on the started-File
+	 * needs the same key here, otherwise the row stays stuck in
+	 * "running" after a failure when a `BEFORE_UPLOAD` filter
+	 * replaced the file.
 	 */
 	UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
 } as const;

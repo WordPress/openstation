@@ -1535,7 +1535,7 @@ apply_filters( 'desktop_mode_drop_enabled', bool $enabled, int $user_id );
 | `desktop-mode.drop.upload-started` | action | _Since 0.31.0._ `{ file, fields, context, abort }` — fires once the XHR is `open()`ed and immediately before `send()`. Call `abort()` to cancel the in-flight upload; the manager rejects with `UploadAbortedError` and emits `upload-failed`. If `abort()` is called after the request body has been fully sent, the manager lets the server respond and then DELETEs the resulting attachment so the user's Media Library never shows a "cancelled" file. |
 | `desktop-mode.drop.upload-progress` | action | _Since 0.31.0._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` event. `total === 0` / `indeterminate === true` when the request length isn't known. A synthetic 100% event is dispatched on `upload.load` so a HUD can show "wrapping up" while the server finishes the response. |
 | `desktop-mode.drop.after-upload` | action | `{ file, result, fields, context }` — `file` (since 0.31.0) is the same `File` reference exposed by `upload-started` / `upload-progress`, so per-file state can be looked up by identity rather than filename. |
-| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `error.name === 'UploadAbortedError'` when the failure came from a `upload-started` `abort()` call. |
+| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `file` carries the same identity as `upload-started` / `upload-progress` / `after-upload` (the post-`before-upload` `File`, in case a plugin swapped it). Match by reference, not filename. `error.name === 'UploadAbortedError'` when the failure came from a `upload-started` `abort()` call. |
 
 ---
 

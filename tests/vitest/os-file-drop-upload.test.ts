@@ -275,6 +275,41 @@ describe( 'os-file-drop/upload', () => {
 		).rejects.toThrow( /Network error/i );
 	} );
 
+	test( 'upload-failed carries the filtered File identity (post-BEFORE_UPLOAD swap)', async () => {
+		// Regression: every UPLOAD_FAILED branch (network, HTTP,
+		// JSON parse, early abort, late cancel) used to pass
+		// `args.file` (the pre-filter File) while UPLOAD_STARTED /
+		// _PROGRESS / AFTER_UPLOAD passed `filtered.file`. A HUD
+		// keyed on the started-File would then drop the failure
+		// event and leave the row stuck in "running".
+		const original = makeFile( 'original.png', 'image/png' );
+		const swapped = makeFile( 'swapped.png', 'image/png' );
+		window.wp!.hooks!.addFilter(
+			FILE_DROP_HOOKS.BEFORE_UPLOAD,
+			'test/swap-file',
+			( payload: { file: File; mime: string; fields: unknown } ) => ( {
+				...payload,
+				file: swapped,
+			} ),
+		);
+		FakeXhr.nextConfig = {
+			status: 500,
+			responseText: JSON.stringify( { message: 'Server error' } ),
+		};
+		const failures: Array< { file: File } > = [];
+		window.wp!.hooks!.addAction(
+			FILE_DROP_HOOKS.UPLOAD_FAILED,
+			'test/failed-identity',
+			( p: { file: File } ) => failures.push( p ),
+		);
+		await expect(
+			uploadFile( defaultArgs( original, 'image/png' ) ),
+		).rejects.toThrow( /Server error/ );
+		expect( failures ).toHaveLength( 1 );
+		expect( failures[ 0 ].file ).toBe( swapped );
+		expect( failures[ 0 ].file ).not.toBe( original );
+	} );
+
 	test( 'abort() from the started payload rejects with UploadAbortedError', async () => {
 		const file = makeFile( 'test.png', 'image/png' );
 		window.wp!.hooks!.addAction(

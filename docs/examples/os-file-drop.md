@@ -41,7 +41,7 @@ on `window.wp.hooks`). All hook names live on
 | `desktop-mode.drop.upload-started` | action | _Since 0.31.0._ `{ file, fields, context, abort: () => void }` — XHR is open and about to `send()`. Call `abort()` to cancel mid-flight; the manager will reject with `UploadAbortedError`. |
 | `desktop-mode.drop.upload-progress` | action | _Since 0.31.0._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` tick. A synthetic 100% event is fired on `upload.load`. |
 | `desktop-mode.drop.after-upload` | action | `{ file: File, result: DropUploadResult, fields, context }` — `file` (since 0.31.0) carries the same `File` ref as `upload-started`, so per-file UI can match by identity. |
-| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `error.name === 'UploadAbortedError'` for a caller-cancelled upload. |
+| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `file` is the post-`before-upload` identity, same as the other lifecycle hooks. `error.name === 'UploadAbortedError'` for a caller-cancelled upload. |
 
 `DropContext.surface` is one of `'wallpaper' | 'window' |
 'folder' | 'iframe' | 'unknown'`. `windowId` is populated when
