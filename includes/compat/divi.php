@@ -172,6 +172,13 @@ function desktop_mode_compat_divi_vb_iframe_signal() {
 	if ( ! desktop_mode_is_enabled() ) {
 		return;
 	}
+	// Bail when Divi isn't active — the inline script below is
+	// shaped entirely around Divi's frame-helpers and VB preloader.
+	// Other handlers in this file already gate on
+	// `desktop_mode_compat_divi_is_active()`; this one was missed.
+	if ( ! desktop_mode_compat_divi_is_active() ) {
+		return;
+	}
 	// `app_window=1` flags the inner VB iframe Divi spawns inside the
 	// `/?p=N&et_fb=1` page. The outer ("VB-top") frame is what hosts
 	// the visible preloader the user sees; the inner is where Divi
