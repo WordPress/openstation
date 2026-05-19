@@ -158,6 +158,75 @@ In classic admin `window.top === window`, so `et_gb = window` and the bundle res
 
 **Test**: `tests/phpunit/tests/diviCompat.php` — pins dep injection (`test_injects_missing_wp_editor_and_wp_data_deps`), the no-op-when-absent case (`test_no_op_when_divi_not_registered`), idempotence (`test_does_not_duplicate_deps_when_already_present`), the chromeless `et_gb` override (`test_chromeless_request_appends_et_gb_window_override`), and the classic-admin guard (`test_classic_request_does_not_append_et_gb_override`).
 
+### Divi — Visual Builder `top_window` resolves to the desktop shell
+
+**File**: `includes/compat/divi.php` (`desktop_mode_compat_divi_vb_iframe_signal`).
+
+A second class of cross-frame bug bites once Divi's Visual Builder launches inside our chromeless iframe (e.g., user clicks the "Use Divi Builder" block, the iframe navigates to `/?p=N&et_fb=1`, VB attempts to mount). The VB bundle imports a `top_window` helper from `frontend-builder/build/frame-helpers.js`. Its resolver, simplified:
+
+```js
+try { u = !!window.top.document && window.top; } catch ( _ ) { u = false; }
+if ( u && u.__Cypress__ ) {                  // Cypress escape hatch
+    top_window = ( window.parent === u ) ? window : window.parent;
+    is_iframe  = ( window.parent !== u );
+} else if ( u ) {
+    top_window = u;                          // ← falls through here for us
+    is_iframe  = ( u !== window.self );      // ← so is_iframe = true
+}
+window.ET_Builder = …({ Frames: { top: top_window } });
+```
+
+Inside our chromeless iframe `window.top` is the desktop shell — a same-origin document with no Divi globals, no `wp.data`, no REST nonce. VB then routes its REST roundtrips, state queries, and DOM ops through that shell window and waits forever. Symptom: the `et-fb-page-preloading` loader spins forever after clicking "Use Divi Builder".
+
+**Fix part 1 — `__Cypress__` flag.** Hook `wp_head` priority 1 and, when the current request is front-end AND the current user has desktop mode enabled, emit a tiny inline script that sets `window.top.__Cypress__ = true`. That trips Divi's first branch; since `window.parent === window.top` for our single-level iframe, `top_window` resolves to `window` (the iframe itself) and `is_iframe` becomes `false`. The flag is idempotent (`OR`-with-existing) and reads nowhere else in the WP stack.
+
+**Fix part 2 — preloader bridge (VB-top frame only).** Divi 5's VB architecture is 2 frames deep (`/?et_fb=1` hosts an inner `<iframe id="et-vb-app-frame" src="…&app_window=1">`). Inside Desktop Mode that becomes 3 frames: shell → chromeless iframe (VB-top) → inner app-frame. The cleanup in `visual-builder/build/root.js` runs inside the inner app-frame and does:
+
+```js
+e( document );
+window.top && window.top !== window && window.top.document && e( window.top.document );
+```
+
+…where `e()` strips `et-fb-page-preloading` from `#et-fb-app` and `#et-fb-app-body-root`. In classic admin `window.top` IS the VB-top. In Desktop Mode `window.top` is the shell, which has no Divi elements — so the cleanup never reaches the visible preloader at the chromeless iframe level, and the loader spins forever.
+
+We mirror the removal by watching the inner app-frame from the VB-top: a MutationObserver on the child iframe's document fires the local cleanup once the inner `#et-fb-app` loses the class. A 30s watchdog timeout strips the preloader even if the observer never fires. Detection is via the `app_window=1` query flag Divi sets on the inner iframe URL — present means we're the inner frame and skip the bridge; absent means we're the VB-top and emit it.
+
+**Plugins this addresses**: Divi theme (frontend Visual Builder, `et_fb=1` activation flow) — applies to Divi 5.x with the two-frame VB architecture. Older 4.x Visual Builder uses a single frame; only Fix part 1 applies there.
+
+**Tests**: `tests/phpunit/tests/diviCompat.php` — `test_vb_iframe_signal_emits_on_front_end_for_desktop_user`, `test_vb_iframe_signal_skips_admin_requests`, `test_vb_iframe_signal_skips_when_desktop_mode_disabled`, `test_vb_top_frame_emits_preloader_bridge`, `test_inner_app_frame_skips_preloader_bridge`.
+
+### Divi — eject to top-level for Visual Builder via `Location.prototype` patch
+
+**File**: `includes/compat/divi.php` (`desktop_mode_compat_divi_eject_iframe_patch` + `desktop_mode_compat_divi_eject_parent_listener` + `desktop_mode_compat_divi_is_active`).
+
+Even with shims 1–3 above, Divi VB inside our three-level iframe nesting (shell → chromeless iframe → Divi's inner app-frame) is materially slower than running at top level. The browser de-prioritizes resource loading at each nesting depth, image-measurement scripts read 0 because `load` fires before `naturalWidth` settles, and the `et-fb-page-preloading` overlay sits up for many seconds while ~100 builder scripts parse on the throttled main thread. VB is a focus-mode editor that takes over the entire viewport anyway — the desktop metaphor doesn't add value while you're inside it.
+
+**Strategy**: catch Divi's navigation *pre-flight* inside the chromeless iframe, forward the intended URL to the parent shell via `postMessage`, and let the parent navigate the top tab. Divi's full activation flow (nonce check → `et_fb_auto_activate_builder` server-side redirect → speculation-rules prerender) then runs against a real top-level navigation.
+
+**Why prototype patching instead of click-interception**:
+
+- Divi 5's `switchEditor( DIVI )` does `window.location.href = getVBUrl()` programmatically — not an `<a>` click — so the chromeless-bridge link interceptor can't see it.
+- The Gutenberg editor canvas in WP 6.3+ is itself another nested iframe, putting the Divi placeholder block two frames below the chromeless bridge.
+- Earlier attempts that ejected by reading the iframe's `contentWindow.location.href` on `load` were too late: by then Divi's nonce had already been consumed inside the iframe and the URL was the post-redirect form. Navigating top to that URL skipped the activation step.
+
+**Fix**:
+
+1. **Iframe-side patcher** (`admin_head` priority 0, chromeless + Divi-active only). Replaces `Location.prototype.href`'s setter, `Location.prototype.assign`, and `Location.prototype.replace`. Each wrapped function checks the URL against the VB pattern (`et_fb=1` or `et_fb_activation_nonce=`); on match it `postMessage`s the parent and skips the navigation. Non-matching URLs delegate to the original implementation.
+
+   `Window.location` itself is `[Unforgeable]` and can't be reassigned, but `Location.prototype.href`'s property descriptor is plain data — `Object.defineProperty` works in every current browser (Chrome, Firefox, Safari).
+
+   The patcher also installs a capture-phase click listener on `a[href]` matching the same VB pattern, to cover the admin-bar "Edit With Divi" link which is a real `<a href>` that wouldn't go through `Location.prototype`.
+
+2. **Parent-shell listener** (`admin_footer` priority 1, non-chromeless + Divi-active only). Listens for `desktop-mode-divi-vb-eject` postMessages, checks `ev.origin === window.location.origin`, re-parses the URL and verifies same origin, then sets `window.top.location.href` to it.
+
+3. **`desktop_mode_compat_divi_is_active()`** — small helper that returns true for the Divi theme or the Divi Builder plugin. Both halves of the fix are gated on it so non-Divi sites pay nothing.
+
+**Plugins this addresses**: Divi theme + Divi Builder plugin, both editing flows (Gutenberg block "Use Divi Builder", Classic Editor's AJAX-then-redirect, admin-bar "Edit With Divi").
+
+**Tests**: `tests/phpunit/tests/diviCompat.php` — `test_iframe_patch_emits_in_chromeless_for_divi`, `test_iframe_patch_skips_when_not_chromeless`, `test_iframe_patch_skips_without_divi`, `test_parent_listener_emits_on_shell_for_divi`, `test_parent_listener_skips_in_chromeless_request`, `test_parent_listener_skips_when_desktop_mode_disabled`, `test_parent_listener_skips_without_divi`, `test_is_active_true_for_divi_theme`, `test_is_active_false_for_other_theme`. The JS patching itself is verified live — vitest in jsdom doesn't model `[Unforgeable]` realistically.
+
+> **Note**: shims 2 (`__Cypress__`) and 3 (preloader bridge) remain in place as defense-in-depth fallbacks for the brief window where the iframe is still loading the VB URL before the patcher's message reaches the parent. If the eject fires correctly, VB never finishes loading in the iframe and those shims never matter.
+
 ## Adding a new fix
 
 Decision tree, in order:
