@@ -27,6 +27,30 @@ export const dialogStyles = css`
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+		position: relative;
+	}
+
+	.close {
+		position: absolute;
+		top: 8px;
+		right: 10px;
+		width: 28px;
+		height: 28px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: 0;
+		border-radius: 6px;
+		color: var( --wpd-confirm-dialog-fg-muted, rgba( 255, 255, 255, 0.7 ) );
+		cursor: pointer;
+		font-size: 22px;
+		line-height: 1;
+		padding: 0;
+	}
+	.close:hover {
+		background: rgba( 255, 255, 255, 0.08 );
+		color: inherit;
 	}
 
 	.title {

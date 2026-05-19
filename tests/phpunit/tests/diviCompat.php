@@ -370,7 +370,11 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'ev.origin !== window.location.origin', $out );
 		// Confirm dialog is the load-bearing UX explicit step.
 		$this->assertStringContainsString( 'wp.desktop.confirm', $out );
-		$this->assertStringContainsString( 'Open in standalone tab', $out );
+		$this->assertStringContainsString( 'Open Divi in this tab', $out );
+		// No "stay" button — the dialog explains there is no other
+		// path and offers only Open + an X to dismiss.
+		$this->assertStringContainsString( 'hideCancel: true', $out );
+		$this->assertStringContainsString( 'dismissable: true', $out );
 		// URL transform: strip chromeless flag, add classic flag.
 		// Without this, top-level navigation hits the iframe URL's
 		// `desktop_mode_chromeless=1` and renders headless again.

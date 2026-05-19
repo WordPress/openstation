@@ -102,4 +102,45 @@ describe( 'wpd-confirm-dialog', () => {
 		dialog.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await expect( promise ).resolves.toBe( false );
 	} );
+
+	test( 'hideCancel hides the cancel button entirely', async () => {
+		const { wpdConfirm } = await load();
+		const promise = wpdConfirm( { message: 'X', hideCancel: true } );
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+		const dialog = document.querySelector< HTMLElement >( 'wpd-confirm-dialog' )!;
+		const cancelBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' );
+		expect( cancelBtn ).toBeNull();
+		// Confirm still works.
+		const confirmBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--primary' );
+		expect( confirmBtn ).not.toBeNull();
+		confirmBtn!.click();
+		await expect( promise ).resolves.toBe( true );
+	} );
+
+	test( 'dismissable renders an X close button that emits cancel', async () => {
+		const { wpdConfirm } = await load();
+		const promise = wpdConfirm( {
+			message: 'X',
+			hideCancel: true,
+			dismissable: true,
+		} );
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+		const dialog = document.querySelector< HTMLElement >( 'wpd-confirm-dialog' )!;
+		const closeBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.close' );
+		expect( closeBtn ).not.toBeNull();
+		expect( closeBtn!.getAttribute( 'aria-label' ) ).toBe( 'Close' );
+		closeBtn!.click();
+		await expect( promise ).resolves.toBe( false );
+	} );
+
+	test( 'without dismissable, the close button is absent', async () => {
+		const { wpdConfirm } = await load();
+		const promise = wpdConfirm( { message: 'X' } );
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+		const dialog = document.querySelector< HTMLElement >( 'wpd-confirm-dialog' )!;
+		expect( dialog.shadowRoot!.querySelector( '.close' ) ).toBeNull();
+		// Tear down to avoid a dangling Promise.
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
+		await promise;
+	} );
 } );

@@ -43,6 +43,8 @@ export class WpdConfirmDialog extends Component {
 		'confirm-label',
 		'cancel-label',
 		'danger',
+		'hide-cancel',
+		'dismissable',
 	] as const;
 	static styles = [ dialogStyles ];
 
@@ -59,6 +61,8 @@ export class WpdConfirmDialog extends Component {
 			{ name: 'confirm-label', type: 'string', default: 'Confirm', description: 'Confirm-button label.' },
 			{ name: 'cancel-label', type: 'string', default: 'Cancel', description: 'Cancel-button label.' },
 			{ name: 'danger', type: 'boolean attribute', description: 'Renders the confirm button red.' },
+			{ name: 'hide-cancel', type: 'boolean attribute', description: 'Hides the cancel button entirely. Useful when there is no alternative action — pair with `dismissable` so the user still has an explicit way to close.' },
+			{ name: 'dismissable', type: 'boolean attribute', description: 'Renders an X close button in the top-right corner. Click emits `wpd-cancel`.' },
 		],
 		events: [
 			{
@@ -126,8 +130,18 @@ export class WpdConfirmDialog extends Component {
 		const cancelLabel =
 			( this as unknown as { 'cancel-label': string | null } )[ 'cancel-label' ] || 'Cancel';
 		const isDanger = this.hasAttribute( 'danger' );
+		const hideCancel = this.hasAttribute( 'hide-cancel' );
+		const isDismissable = this.hasAttribute( 'dismissable' );
 		return html`
 			<div class="dialog" tabindex="-1">
+				${ isDismissable
+					? html`<button
+						type="button"
+						class="close"
+						aria-label="Close"
+						@click=${ () => this._cancel() }
+					>&times;</button>`
+					: html`` }
 				${ title
 					? html`<h2 class="title">${ title }</h2>`
 					: html`` }
@@ -135,13 +149,15 @@ export class WpdConfirmDialog extends Component {
 					? html`<p class="message">${ message }</p>`
 					: html`` }
 				<div class="actions">
-					<button
-						type="button"
-						class="btn btn--secondary"
-						@click=${ () => this._cancel() }
-					>
-						${ cancelLabel }
-					</button>
+					${ hideCancel
+						? html``
+						: html`<button
+							type="button"
+							class="btn btn--secondary"
+							@click=${ () => this._cancel() }
+						>
+							${ cancelLabel }
+						</button>` }
 					<button
 						type="button"
 						class="btn ${ isDanger ? 'btn--danger' : 'btn--primary' }"
@@ -162,6 +178,10 @@ export interface WpdConfirmOptions {
 	confirmLabel?: string;
 	cancelLabel?: string;
 	danger?: boolean;
+	/** Hide the cancel button entirely. Pair with `dismissable` to keep a way to close. */
+	hideCancel?: boolean;
+	/** Render an X close button in the top-right corner. Click emits `wpd-cancel`. */
+	dismissable?: boolean;
 }
 
 /**
@@ -186,6 +206,12 @@ export function wpdConfirm( options: WpdConfirmOptions ): Promise< boolean > {
 		}
 		if ( options.danger ) {
 			dialog.setAttribute( 'danger', '' );
+		}
+		if ( options.hideCancel ) {
+			dialog.setAttribute( 'hide-cancel', '' );
+		}
+		if ( options.dismissable ) {
+			dialog.setAttribute( 'dismissable', '' );
 		}
 		const cleanup = ( ok: boolean ): void => {
 			dialog.remove();

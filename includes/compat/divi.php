@@ -456,15 +456,16 @@ function desktop_mode_compat_divi_eject_parent_listener() {
 		var promptUser;
 		if ( window.wp && window.wp.desktop && typeof window.wp.desktop.confirm === 'function' ) {
 			promptUser = window.wp.desktop.confirm( {
-				title: 'Open Divi in a standalone browser tab?',
-				message: 'Divi\u2019s Visual Builder needs a full browser tab to render and save correctly \u2014 it doesn\u2019t work well inside a Desktop Mode window.\n\nContinuing will close this window and load the page editor in the current browser tab, exiting Desktop Mode. Next time you visit wp-admin you\u2019ll be back in Desktop Mode automatically.',
-				confirmLabel: 'Open in standalone tab',
-				cancelLabel: 'Stay in Desktop Mode',
+				title: 'Divi needs its own browser tab',
+				message: 'Divi\u2019s Visual Builder cannot run inside a Desktop Mode window \u2014 it needs the full browser tab to render and save correctly. There is no workaround on our side; Divi simply doesn\u2019t support being nested.',
+				confirmLabel: 'Open Divi in this tab',
+				hideCancel: true,
+				dismissable: true,
 			} );
 		} else {
 			promptUser = Promise.resolve(
 				window.confirm(
-					'Open Divi in a standalone browser tab? Desktop Mode will be exited for this editing session and resume on your next wp-admin visit.'
+					'Divi cannot run inside Desktop Mode. Click OK to open Divi in this browser tab (Desktop Mode will resume on your next wp-admin visit).'
 				)
 			);
 		}

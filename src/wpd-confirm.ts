@@ -52,6 +52,12 @@ export async function wpdConfirm(
 		if ( options.danger ) {
 			dialog.setAttribute( 'danger', '' );
 		}
+		if ( options.hideCancel ) {
+			dialog.setAttribute( 'hide-cancel', '' );
+		}
+		if ( options.dismissable ) {
+			dialog.setAttribute( 'dismissable', '' );
+		}
 		const cleanup = ( ok: boolean ): void => {
 			dialog.remove();
 			resolve( ok );
