@@ -539,18 +539,30 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		this._schedulePaint();
 	}
 
-	/** Add a row id to the selection. Emits `wpd-table-selection-change`. */
+	/**
+	 * Add a row id to the selection. Emits `wpd-table-selection-change`.
+	 *
+	 * Selection mutators (`select` / `deselect` / `selectAll` /
+	 * `clearSelection`) update the affected row in place via
+	 * {@link _syncSelectionDom} rather than re-rendering the whole
+	 * tbody. The rebuild path destroyed the focused checkbox the user
+	 * just clicked — focus fell to `<body>` and, when paint coincided
+	 * with the transient empty-tbody window, scroll-anchoring gave up
+	 * and snapped the table back to the top (GH#164).
+	 */
 	select( id: WpdTableRowId ): void {
 		if ( this._selection.has( id ) ) {
 			return;
 		}
 		const mode = this._readSelectable();
+		const previouslySelected: WpdTableRowId[] =
+			mode === 'single' ? Array.from( this._selection ) : [];
 		if ( mode === 'single' ) {
 			this._selection.clear();
 		}
 		this._selection.add( id );
 		this._emitSelectionChange();
-		this._schedulePaint();
+		this._syncSelectionDom( [ id, ...previouslySelected ] );
 	}
 
 	/** Remove a row id from the selection. */
@@ -559,7 +571,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			return;
 		}
 		this._emitSelectionChange();
-		this._schedulePaint();
+		this._syncSelectionDom( [ id ] );
 	}
 
 	/** Select every row currently in `data` (multi-mode only). */
@@ -571,7 +583,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			this._selection.add( this._getRowId( row, i ) ),
 		);
 		this._emitSelectionChange();
-		this._schedulePaint();
+		this._syncSelectionDom( 'all' );
 	}
 
 	/** Empty the selection. */
@@ -581,7 +593,87 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		}
 		this._selection.clear();
 		this._emitSelectionChange();
-		this._schedulePaint();
+		this._syncSelectionDom( 'all' );
+	}
+
+	/**
+	 * Apply a selection change to the existing tbody DOM without
+	 * rebuilding it. Updates each affected row's `is-selected` class
+	 * and `select-row-checkbox` `checked` state, then re-syncs the
+	 * header select-all checkbox (checked / indeterminate / empty).
+	 *
+	 * Called from {@link select}, {@link deselect}, {@link selectAll},
+	 * and {@link clearSelection}. The rebuild path used to flow
+	 * through `_schedulePaint` → `_paintBody` → `tbody.replaceChildren`,
+	 * which tore down the focused checkbox + transiently emptied the
+	 * scroll container; both symptoms in GH#164.
+	 *
+	 * @param ids `'all'` to walk every row, or an iterable of row ids
+	 *            whose rows need updating. Unknown ids are silently
+	 *            skipped (row may not be in the current filter/page).
+	 */
+	private _syncSelectionDom(
+		ids: 'all' | Iterable< WpdTableRowId >,
+	): void {
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return;
+		}
+		const tbody = root.querySelector( 'tbody' );
+		if ( ! tbody ) {
+			return;
+		}
+		// String-keyed lookup matches `tr.dataset.rowId`; the row's
+		// original id (number | string) is recovered when we compare
+		// against `_selection`.
+		let needle: Set< string > | null = null;
+		if ( ids !== 'all' ) {
+			needle = new Set< string >();
+			for ( const id of ids ) {
+				needle.add( String( id ) );
+			}
+		}
+		const rows = tbody.querySelectorAll< HTMLTableRowElement >(
+			'tr[data-row-id]',
+		);
+		for ( const tr of rows ) {
+			const rowIdStr = tr.dataset.rowId;
+			if ( rowIdStr === undefined ) {
+				continue;
+			}
+			if ( needle && ! needle.has( rowIdStr ) ) {
+				continue;
+			}
+			const idx = Number( tr.dataset.rowIndex );
+			if ( ! Number.isFinite( idx ) ) {
+				continue;
+			}
+			const row = this._data[ idx ];
+			if ( row === undefined ) {
+				continue;
+			}
+			const id = this._getRowId( row, idx );
+			const isSelected = this._selection.has( id );
+			tr.classList.toggle( 'is-selected', isSelected );
+			const cb = tr.querySelector< HTMLInputElement >(
+				'input.select-row-checkbox',
+			);
+			if ( cb && cb.checked !== isSelected ) {
+				cb.checked = isSelected;
+			}
+		}
+		// Re-sync the header select-all so the indeterminate / checked
+		// tri-state matches the new selection size.
+		const headerCb = root.querySelector< HTMLInputElement >(
+			'thead .select-all-checkbox',
+		);
+		if ( headerCb ) {
+			const total = this._data.length;
+			const selectedCount = this._countSelectedInData();
+			headerCb.checked = total > 0 && selectedCount === total;
+			headerCb.indeterminate =
+				selectedCount > 0 && selectedCount < total;
+		}
 	}
 
 	/** Scroll the (filtered) row at `index` into view inside the table's scroll container. */
@@ -1221,6 +1313,11 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		tr.setAttribute( 'part', 'row' );
 		tr.dataset.rowIndex = String( rowIndex );
 		const id = this._getRowId( row, rowIndex );
+		// Stamp the row id so {@link _syncSelectionDom} can find this
+		// row without rebuilding the body. `String(id)` matches the
+		// dataset round-trip; the original id type (number | string)
+		// is recovered at lookup time from the live data array.
+		tr.dataset.rowId = String( id );
 		if ( this._selection.has( id ) ) {
 			tr.classList.add( 'is-selected' );
 		}

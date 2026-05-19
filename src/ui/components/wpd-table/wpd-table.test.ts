@@ -401,6 +401,87 @@ describe( '<wpd-table>', () => {
 		expect( table.selectedRows.length ).toBe( 3 );
 	} );
 
+	test( 'toggling a row checkbox does NOT rebuild tbody children', async () => {
+		// Repro: in the native Plugins window, clicking a row checkbox
+		// rebuilt the whole tbody, dropping focus from the just-clicked
+		// checkbox and (with scroll-anchoring giving up on the transient
+		// empty body) snapping the scroll back to the top. Pin the new
+		// behavior: row identity is preserved across a selection toggle.
+		host.innerHTML = `<wpd-table selectable="multi"></wpd-table>`;
+		await tick();
+		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
+		table.columns = [ { key: 'name', label: 'Name' } ];
+		table.data = sampleData;
+		await tick();
+
+		const trsBefore = Array.from(
+			table.shadowRoot!.querySelectorAll(
+				'tbody tr:not(.subtable):not(.empty):not(.skeleton)',
+			),
+		);
+		const firstCb = trsBefore[ 0 ].querySelector(
+			'input.select-row-checkbox',
+		) as HTMLInputElement;
+		// Focus the checkbox so we can verify focus retention.
+		firstCb.focus();
+		expect( table.shadowRoot!.activeElement ).toBe( firstCb );
+
+		firstCb.checked = true;
+		firstCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await tick();
+
+		const trsAfter = Array.from(
+			table.shadowRoot!.querySelectorAll(
+				'tbody tr:not(.subtable):not(.empty):not(.skeleton)',
+			),
+		);
+		// Same DOM nodes — no rebuild. Identity equality is the
+		// load-bearing assertion: a destroy+recreate would pass a
+		// `toEqual` check but fail this.
+		expect( trsAfter.length ).toBe( trsBefore.length );
+		for ( let i = 0; i < trsBefore.length; i++ ) {
+			expect( trsAfter[ i ] ).toBe( trsBefore[ i ] );
+		}
+		// Affected row picked up the class + checkbox state.
+		expect( trsAfter[ 0 ].classList.contains( 'is-selected' ) ).toBe( true );
+		expect( firstCb.checked ).toBe( true );
+		// Focus survived the toggle.
+		expect( table.shadowRoot!.activeElement ).toBe( firstCb );
+		// Header select-all reflects partial selection.
+		const headerCb = table.shadowRoot!.querySelector(
+			'thead .select-all-checkbox',
+		) as HTMLInputElement;
+		expect( headerCb.indeterminate ).toBe( true );
+		expect( headerCb.checked ).toBe( false );
+
+		// Deselect by toggling the same checkbox.
+		firstCb.checked = false;
+		firstCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await tick();
+		expect( trsAfter[ 0 ].classList.contains( 'is-selected' ) ).toBe( false );
+		expect( headerCb.indeterminate ).toBe( false );
+		expect( headerCb.checked ).toBe( false );
+
+		// Select-all from the header still works without rebuilding.
+		headerCb.checked = true;
+		headerCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await tick();
+		const trsAfterAll = Array.from(
+			table.shadowRoot!.querySelectorAll(
+				'tbody tr:not(.subtable):not(.empty):not(.skeleton)',
+			),
+		);
+		expect( trsAfterAll.length ).toBe( trsBefore.length );
+		for ( let i = 0; i < trsBefore.length; i++ ) {
+			expect( trsAfterAll[ i ] ).toBe( trsBefore[ i ] );
+			expect( trsAfterAll[ i ].classList.contains( 'is-selected' ) ).toBe(
+				true,
+			);
+		}
+		expect( headerCb.checked ).toBe( true );
+		expect( headerCb.indeterminate ).toBe( false );
+	} );
+
 	test( 'selectable=single: enforces at-most-one selected', async () => {
 		host.innerHTML = `<wpd-table selectable="single"></wpd-table>`;
 		await tick();
