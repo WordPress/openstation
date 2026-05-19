@@ -16,6 +16,7 @@ import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
 import { hashTitleToHue } from './ui/util/hash-hue';
 import { attachDockPeek } from './dock-peek';
+import { tryOpenExternalUrl } from './external-url';
 import { openItemVisibilityMenu } from './item-visibility-menu';
 import {
 	resolveNativeUrlRemap,
@@ -1728,6 +1729,9 @@ export class Dock {
 				return;
 			}
 			if ( icon?.url ) {
+				if ( tryOpenExternalUrl( icon.url ) ) {
+					return;
+				}
 				const baseId = this.deriveWindowId( icon.url );
 				this.windowManager.open( {
 					id: baseId,
@@ -1743,6 +1747,16 @@ export class Dock {
 				} );
 				return;
 			}
+			return;
+		}
+
+		// Off-site admin menu entries (e.g. WordPress.com's "Hosting"
+		// link, which points at `wordpress.com/hosting/<site>` from a
+		// wpcomstaging.com wp-admin) can't be iframed — the chromeless
+		// guard returns null for cross-origin URLs and the iframe lands
+		// on `about:blank`. Send those to a new browser tab instead,
+		// mirroring what classic admin does for the same item.
+		if ( tryOpenExternalUrl( item.url ) ) {
 			return;
 		}
 
@@ -1776,6 +1790,13 @@ export class Dock {
 	 * windows of Posts is the explicit ask — that's what + is for.
 	 */
 	private openNewInstance( item: DockItem ): void {
+		// "+" on an off-site tile means the same thing the primary
+		// click does — open a fresh browser tab. Iframing a cross-
+		// origin URL would land on `about:blank` (see openPage).
+		if ( tryOpenExternalUrl( item.url ) ) {
+			return;
+		}
+
 		// If the item's URL is claimed by a native-window remap (Posts,
 		// Pages, Users, Comments, Plugins, …), spawn a fresh native
 		// instance via the registry — same path as the regular dock

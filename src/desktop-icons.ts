@@ -35,6 +35,7 @@
  */
 
 import { activity } from './activity';
+import { tryOpenExternalUrl } from './external-url';
 import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
 import { renderIcon } from './icon';
@@ -510,15 +511,11 @@ function openTarget(
 		return;
 	}
 	if ( entry.url ) {
+		if ( tryOpenExternalUrl( entry.url ) ) {
+			return;
+		}
 		try {
 			const parsed = new URL( entry.url, window.location.origin );
-			if ( parsed.origin !== window.location.origin ) {
-				// Off-site URL — open in a fresh tab with
-				// noopener/noreferrer.
-				window.open( parsed.toString(), '_blank', 'noopener,noreferrer' );
-				return;
-			}
-			// Same-origin admin URL — open as an iframe window.
 			void deps.manager.open( {
 				id: `desktop-icon-${ entry.id }`,
 				url: parsed.toString(),
