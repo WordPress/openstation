@@ -16,13 +16,11 @@ const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpape
 	createUrl: vi.fn(),
 	toggleShowDesktop: vi.fn(),
 	openOsSettings: vi.fn(),
-	openWallpapers: vi.fn(),
 	sortIcons: vi.fn(),
 	labels: {
 		createFolder: 'New folder',
 		showDesktop: 'Show desktop',
 		osSettings: 'OS Settings',
-		wallpapers: 'Wallpapers',
 		sortHeading: 'Sort by',
 		sortNameAsc: 'Name (A → Z)',
 		sortNameDesc: 'Name (Z → A)',
@@ -52,7 +50,6 @@ describe( 'wallpaper context menu', () => {
 			'sort-by',
 			'show-desktop',
 			'os-settings',
-			'wallpapers',
 		] );
 		const newUrl = items.find( ( i ) => i.id === 'new-url' );
 		expect( newUrl ).toBeDefined();
@@ -79,7 +76,6 @@ describe( 'wallpaper context menu', () => {
 			'new-url',
 			'sort-by',
 			'os-settings',
-			'wallpapers',
 		] );
 	} );
 

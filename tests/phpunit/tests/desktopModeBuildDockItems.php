@@ -227,11 +227,23 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 		$this->assertCount( 2, $items[0]['submenu'] );
 	}
 
-	public function test_skips_hide_if_no_customize_submenu_items() {
+	/**
+	 * Issue #241 regression — entries tagged `hide-if-no-customize`
+	 * must remain in the dock.
+	 *
+	 * Core stamps Appearance → Customize / Header / Background with
+	 * that class. It means "shown by default; hide only on
+	 * `<body class=\"no-customize-support\">`" — the inverse of what
+	 * an earlier revision of this builder assumed. The Customizer is
+	 * supported inside chromeless iframes, so the entry must stay in
+	 * the submenu; without it the user has no path from the dock to
+	 * the Additional CSS editor.
+	 */
+	public function test_preserves_hide_if_no_customize_submenu_items() {
 		global $menu, $submenu;
 		$menu                  = array( $this->make_menu_row( 'Themes', 'edit_theme_options', 'themes.php' ) );
 		$submenu['themes.php'] = array(
-			array( 'Themes', 'edit_theme_options', 'themes.php' ), // self-link, also stripped
+			array( 'Themes', 'edit_theme_options', 'themes.php' ), // self-link, stripped
 			array( 'Customize', 'customize', 'customize.php', '', 'hide-if-no-customize' ),
 			array( 'Menus', 'edit_theme_options', 'nav-menus.php' ),
 		);
@@ -239,9 +251,9 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 		$items = desktop_mode_build_dock_items();
 
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
-		$this->assertNotContains( 'Themes', $titles );      // self-link strip
-		$this->assertNotContains( 'Customize', $titles );   // hide-if-no-customize
-		$this->assertContains( 'Menus', $titles );          // genuine child
+		$this->assertNotContains( 'Themes', $titles ); // self-link strip
+		$this->assertContains( 'Customize', $titles ); // the regression — must be present
+		$this->assertContains( 'Menus', $titles );
 	}
 
 	/**

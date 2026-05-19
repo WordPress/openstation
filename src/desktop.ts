@@ -3412,7 +3412,6 @@ function init(): void {
 					),
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
-				openWallpapers: () => openOsSettings(),
 				sortIcons: ( mode ) => {
 					setRootSortMode( mode );
 					relayoutRoot( rootSortTransform( mode ) );
@@ -3424,7 +3423,6 @@ function init(): void {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',
 					osSettings: 'OS Settings',
-					wallpapers: 'Wallpapers',
 					sortHeading: 'Sort by',
 					sortNameAsc: 'Name (A → Z)',
 					sortNameDesc: 'Name (Z → A)',

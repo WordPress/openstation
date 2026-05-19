@@ -108,10 +108,14 @@ function desktop_mode_build_dock_items() {
 				if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
 					continue;
 				}
-				// Skip items with hide-if classes.
-				if ( ! empty( $sub_item[4] ) && false !== strpos( $sub_item[4], 'hide-if-no-customize' ) ) {
-					continue;
-				}
+				// Note on `hide-if-no-customize` (issue #241): WordPress
+				// tags Appearance → Customize / Header / Background with
+				// this class. The semantics are "shown by default; hide
+				// only when `<body class="no-customize-support">`." The
+				// Customizer is supported inside chromeless iframes, so
+				// these entries belong in the dock. (Earlier revisions
+				// stripped them — that read the class as "always hide"
+				// and dropped the only entry point to Additional CSS.)
 				$sub_url = desktop_mode_menu_item_url( $sub_item[2] );
 				// Capture the first capability-passing submenu URL so
 				// we can use it as the parent's effective URL below

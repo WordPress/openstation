@@ -381,13 +381,6 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 			sort: 30,
 			onClick: () => deps.openOsSettings(),
 		},
-		{
-			id: 'wallpapers',
-			label: deps.labels.wallpapers,
-			icon: 'dashicons-format-image',
-			sort: 40,
-			onClick: () => deps.openWallpapers(),
-		},
 	];
 
 	const serverItems: WallpaperMenuItem[] = ( deps.serverItems ?? [] ).map( ( s ) =>
@@ -436,7 +429,6 @@ export interface WallpaperMenuDeps {
 	createUrl: () => void;
 	toggleShowDesktop: () => void;
 	openOsSettings: () => void;
-	openWallpapers: () => void;
 	sortIcons: ( mode: SortMode ) => void;
 	/**
 	 * Currently-active sort mode, or `null` when the desktop is in
@@ -456,7 +448,6 @@ export interface WallpaperMenuDeps {
 		createFolder: string;
 		showDesktop: string;
 		osSettings: string;
-		wallpapers: string;
 		sortHeading: string;
 		sortNameAsc: string;
 		sortNameDesc: string;

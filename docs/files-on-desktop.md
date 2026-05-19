@@ -496,7 +496,6 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 | `create-folder` | New folder | Prompts for a name, then `POST /folders`. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
 | `os-settings` | OS Settings | Opens the OS Settings window. |
-| `wallpapers` | Wallpapers | Opens the OS Settings window (Phase-5 will deep-link to the Appearance tab). |
 
 ### Plugin extension
 

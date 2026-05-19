@@ -220,6 +220,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * removed `desktop_mode_chromeless_editor_preferences` override.)
  * --------------------------------------------------------------- */
 .desktop-mode-chromeless .edit-post-fullscreen-mode-close,
+.desktop-mode-chromeless .edit-post-fullscreen-mode-close__view-mode-toggle,
 .desktop-mode-chromeless .edit-site-navigation-link,
 .desktop-mode-chromeless .edit-site-site-hub,
 .desktop-mode-chromeless .edit-site-site-hub__toggle {
