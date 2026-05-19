@@ -396,7 +396,7 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
  *      `yoast-seo`). Falls back to textdomain for single-file plugins.
  *
  * We don't HEAD-check the URL — the JS card walks a candidate chain
- * (SVG → 256 PNG → 128 PNG) on `<img>` error for wp.org URLs, then
+ * (SVG → 256 PNG → 256 GIF → 128 PNG → 128 GIF) on `<img>` error for wp.org URLs, then
  * drops to a `<wpd-icon name="dashicons-admin-plugins">` placeholder.
  * A 404 here costs nothing.
  *
