@@ -95,6 +95,19 @@ export interface DockItem {
 	icon: string;
 	/** Admin page URL to open. */
 	url: string;
+	/**
+	 * Native-window id this tile targets, when known up front.
+	 * Populated for synthesized tiles built from a
+	 * `desktop_mode_register_icon()` entry whose `window` field points
+	 * at a registered native window (no `url`). The dock prefers this
+	 * over deriving an id from `url` for indicator + hover-peek
+	 * lookups — without it those synth tiles fall back to
+	 * `deriveWindowId('')` and never match the open window, so the
+	 * active/focused dot stays dark.
+	 *
+	 * @since 0.8.6
+	 */
+	windowId?: string;
 	/** Number badge (update count, comment count, etc.). 0 = no badge. */
 	badge: number;
 	/** Submenu items. */
@@ -948,8 +961,7 @@ export class Dock {
 		// lookup, hovering the Posts tile finds no instances and
 		// the peek card never appears even when the native window
 		// is open.
-		const remappedId = resolveNativeUrlRemap( item.url );
-		const baseId = remappedId ?? this.deriveWindowId( item.url );
+		const baseId = this.resolveItemBaseId( item );
 		const teardown = attachDockPeek( {
 			tile,
 			item: {
@@ -1816,6 +1828,32 @@ export class Dock {
 	}
 
 	/**
+	 * Resolve the window-manager key for a dock tile, in this order:
+	 *
+	 * 1. `item.windowId` — set by `applyDockPlacement` when the tile
+	 *    is synthesized from a `desktop_mode_register_icon()` entry
+	 *    whose target is a native window. Native-window ids never
+	 *    pass through the URL → native-window remap layer, so we
+	 *    short-circuit before touching it.
+	 * 2. {@link resolveNativeUrlRemap} on `item.url` — captures the
+	 *    `nativePostsEnabled` / `nativePagesEnabled` opt-ins that
+	 *    repoint a URL-based tile at a native window.
+	 * 3. {@link deriveWindowId} on `item.url` — the URL-based
+	 *    fallback for ordinary admin-menu tiles.
+	 *
+	 * Shared by the hover-peek card and the active/focused-dot
+	 * indicator; the two stayed in lockstep before this method existed
+	 * by hand-rolling the same chain at each call site.
+	 */
+	private resolveItemBaseId( item: DockItem ): string {
+		if ( item.windowId ) {
+			return item.windowId;
+		}
+		const remapped = resolveNativeUrlRemap( item.url );
+		return remapped ?? this.deriveWindowId( item.url );
+	}
+
+	/**
 	 * Listen to window events to update active/focused indicators on dock items.
 	 *
 	 * The event detail isn't used — we just need to re-query the
@@ -1920,16 +1958,7 @@ export class Dock {
 				continue;
 			}
 
-			// When a URL → native-window remap is currently active for
-			// this tile (e.g. the Posts dock tile under the
-			// `nativePostsEnabled` opt-in), the dock should track the
-			// native window's id, NOT the iframe slug derived from the
-			// URL. Otherwise the user opens "Posts" via the dock, the
-			// remap routes to `desktop-mode-posts`, and the dock keeps
-			// looking up `wp-window-edit-php` — finds nothing — and
-			// the tile never lights up.
-			const remappedId = resolveNativeUrlRemap( item.url );
-			const baseId = remappedId ?? this.deriveWindowId( item.url );
+			const baseId = this.resolveItemBaseId( item );
 			const instances = item.multi
 				? this.windowManager
 					.getAllByBaseId( baseId )

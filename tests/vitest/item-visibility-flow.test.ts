@@ -68,4 +68,55 @@ describe( 'item visibility — hide from dock', () => {
 	test( 'resolvePlacement falls back to nativeRail when no override', () => {
 		expect( resolvePlacement( 'woocommerce', 'dock', {} ) ).toBe( 'dock' );
 	} );
+
+	test( 'window-target icon promoted to dock carries windowId for indicator lookups', () => {
+		const out = applyDockPlacement(
+			[],
+			[
+				{
+					id: 'desktop-mode-my-wordpress',
+					title: 'My WordPress',
+					icon: 'dashicons-wordpress',
+					window: 'desktop-mode-my-wordpress',
+					url: '',
+					position: -1,
+				},
+			],
+			{
+				itemVisibility: { 'desktop-mode-my-wordpress': 'dock' },
+				dockOrder: [],
+			},
+		);
+		const synth = out.find(
+			( i ) => i.id === 'dock:desktop-mode-my-wordpress',
+		);
+		expect( synth ).toBeDefined();
+		expect( synth?.url ).toBe( '' );
+		expect( synth?.windowId ).toBe( 'desktop-mode-my-wordpress' );
+	} );
+
+	test( 'url-target icon promoted to dock leaves windowId unset', () => {
+		const out = applyDockPlacement(
+			[],
+			[
+				{
+					id: 'external-shortcut',
+					title: 'Docs',
+					icon: 'dashicons-book',
+					window: '',
+					url: 'https://example.com/docs',
+					position: 1,
+				},
+			],
+			{
+				itemVisibility: { 'external-shortcut': 'dock' },
+				dockOrder: [],
+			},
+		);
+		const synth = out.find(
+			( i ) => i.id === 'dock:external-shortcut',
+		);
+		expect( synth ).toBeDefined();
+		expect( synth?.windowId ).toBeUndefined();
+	} );
 } );
