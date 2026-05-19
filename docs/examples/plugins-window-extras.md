@@ -43,9 +43,27 @@ addFilter(
 
 ---
 
-## 2. Override the wp.org icon URL for premium plugins
+## 2. Ship a card icon for a premium / private plugin
 
-Premium plugins aren't on the .org repo, so the default icon resolver returns `null` (the JS card paints a placeholder). If your plugin ships a known asset URL on your CDN, return it via the `desktop_mode_plugins_window_icon_url` filter:
+The icon resolver tries two things in order:
+
+1. **Local file in the plugin folder.** If your plugin ships `assets/icon.svg` (or `assets/icon-256x256.png`, `assets/icon-128x128.png`, or the same names at the folder root), the resolver picks it automatically — no PHP wiring needed. Mirror the wp.org SVN /assets/ layout and you're done. This is the recommended path for premium / internal / native-bundled plugins that aren't on the .org repo.
+2. **wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`. Used as the fallback default when no local file is found.
+
+For a non-standard convention (e.g. you ship `branding/logo.svg`), extend the candidate list rather than overriding the final URL:
+
+```php
+<?php
+add_filter(
+    'desktop_mode_plugins_window_local_icon_candidates',
+    static function ( $candidates ) {
+        $candidates[] = 'branding/logo.svg';
+        return $candidates;
+    }
+);
+```
+
+To force a specific URL — e.g. a CDN-hosted icon for a premium plugin that doesn't ship art with the bundle — use the `desktop_mode_plugins_window_icon_url` filter instead:
 
 ```php
 <?php
@@ -62,7 +80,7 @@ add_filter(
 );
 ```
 
-Returning `null` suppresses the icon entirely (forces the placeholder).
+Returning `null` from `desktop_mode_plugins_window_icon_url` suppresses the icon entirely (forces the placeholder).
 
 ---
 

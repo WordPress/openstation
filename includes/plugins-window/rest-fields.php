@@ -7,7 +7,7 @@
  *
  *   - desktop_mode_update_available — `{ available, new_version }`
  *   - desktop_mode_can_manage       — `{ activate, deactivate, delete }`
- *   - desktop_mode_icon_url         — best-effort wp.org icon URL
+ *   - desktop_mode_icon_url         — local-folder icon, falling back to wp.org
  *   - desktop_mode_size_kb          — disk size of plugin folder
  *   - desktop_mode_auto_update      — `{ enabled, forced, supported }`
  *
@@ -64,7 +64,7 @@ function desktop_mode_plugins_window_register_rest_fields() {
 		array(
 			'get_callback' => 'desktop_mode_plugins_window_field_icon_url',
 			'schema'       => array(
-				'description' => __( 'Best-effort icon URL for the plugin (resolves from the wp.org slug, null when unknown).', 'desktop-mode' ),
+				'description' => __( 'Best-effort card icon URL. Prefers a local file in the plugin folder, falling back to the wp.org SVN URL; null when neither resolves.', 'desktop-mode' ),
 				'type'        => array( 'string', 'null' ),
 				'context'     => array( 'view', 'edit' ),
 				'readonly'    => true,
@@ -401,7 +401,7 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
  * A 404 here costs nothing.
  *
  * @since 0.9.0
- * @since 0.x.y Probes the plugin's own folder for an icon before
+ * @since 0.8.6 Probes the plugin's own folder for an icon before
  *              falling back to the wp.org SVN URL.
  *
  * @param array $row Core REST plugin row.
@@ -482,7 +482,7 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
  * `desktop_mode_plugins_window_local_icon_candidates` so a host can
  * support a custom convention (e.g. an `icon@2x.svg` shape).
  *
- * @since 0.x.y
+ * @since 0.8.6
  *
  * @param string $plugin_file Plugin file (e.g. `"akismet/akismet.php"`).
  * @return string|null URL of the first local icon found, or null.
@@ -502,7 +502,7 @@ function desktop_mode_plugins_window_local_icon_url( $plugin_file ) {
 	 * installed plugin's folder when looking for a card icon. The
 	 * first existing file wins; later entries are ignored.
 	 *
-	 * @since 0.x.y
+	 * @since 0.8.6
 	 *
 	 * @param string[] $candidates Relative paths under the plugin folder.
 	 * @param string   $folder     Plugin folder name (e.g. `"akismet"`).

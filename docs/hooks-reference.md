@@ -2052,10 +2052,33 @@ The use case: wp.org HTML changes occasionally. A plugin author who maintains a 
 
 ### `desktop_mode_plugins_window_icon_url` — Experimental *(filter, since 0.9.0)*
 
-Filter the resolved wp.org icon URL for an installed plugin row. Return `null` to suppress (forces the placeholder); return a different URL to override (useful for premium plugins shipping a known asset URL).
+Filter the resolved card icon URL for an installed plugin row. Return `null` to suppress (forces the placeholder); return a different URL to override (useful for premium plugins shipping a known asset URL).
 
 ```php
 apply_filters( 'desktop_mode_plugins_window_icon_url', string|null $url, string $slug, array $row ): string|null
+```
+
+The default URL is resolved in priority:
+
+1. **Local file** — if the plugin's own folder ships an icon at `assets/icon.svg`, `assets/icon-256x256.png`, `assets/icon-128x128.png`, or the same names at the folder root, the `plugins_url()` for that file is used. This is what makes premium / internal / native-bundled plugins (not on the .org repo) display their own art without any plugin-side wiring.
+2. **wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`, keyed off the plugin's folder name (the .org repo slug). The JS card walks a candidate chain (SVG → 256 PNG → 128 PNG) on `<img>` error for wp.org URLs, then drops to the placeholder. Local URLs and custom URLs (anything not under `ps.w.org/<slug>/assets/`) are one-shot, then placeholder.
+
+### `desktop_mode_plugins_window_local_icon_candidates` — Experimental *(filter, since 0.8.6)*
+
+Filter the ordered list of relative paths probed inside an installed plugin's folder when looking for a card icon. The first existing file wins; later entries are ignored. Use this to support a non-standard icon convention (e.g. `branding/logo.svg`, `icon@2x.svg`) without forking the resolver.
+
+```php
+apply_filters( 'desktop_mode_plugins_window_local_icon_candidates', string[] $candidates, string $folder ): string[]
+```
+
+```php
+add_filter(
+    'desktop_mode_plugins_window_local_icon_candidates',
+    static function ( $candidates ) {
+        $candidates[] = 'branding/logo.svg';
+        return $candidates;
+    }
+);
 ```
 
 ### `desktop_mode_plugins_window_refresh_updates` — Stable *(filter, since 0.18.0; `$force` argument added 0.8.5)*
@@ -2086,7 +2109,7 @@ Server-injected enrichment fields. The JS reads them on every list paint:
 |---|---|---|
 | `desktop_mode_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. Since 0.18.0 the transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `desktop_mode_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. Since 0.8.5 the in-window Refresh button can bypass the 12h throttle by adding `?desktop_mode_force_refresh=1` to the REST request — Core's `wp_clean_plugins_cache( true )` then deletes the transient and fans out to api.wordpress.org, mirroring what classic `plugins.php` does on load. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
 | `desktop_mode_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
-| `desktop_mode_icon_url` | `string\|null` | Best-effort wp.org icon URL derived from the plugin's `textdomain`. Filterable via `desktop_mode_plugins_window_icon_url`. |
+| `desktop_mode_icon_url` | `string\|null` | Best-effort card icon URL. Prefers a local file under the plugin's folder (`assets/icon.svg` and a handful of variants — see [`desktop_mode_plugins_window_local_icon_candidates`](#desktop_mode_plugins_window_local_icon_candidates--experimental-filter-since-0xy)) and falls back to `https://ps.w.org/<slug>/assets/icon.svg`. Filterable via `desktop_mode_plugins_window_icon_url`. |
 | `desktop_mode_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |
 | `desktop_mode_auto_update` | `{ enabled: bool, forced: bool\|null, supported: bool }` | (Since 0.21.0) Per-row auto-update state, mirroring Core's "Automatic Updates" column on `plugins.php`. `enabled` reflects the `auto_update_plugins` site option (overridden by `forced` when a filter pins it). `forced` is `null` for user-toggleable rows, `true`/`false` when the `auto_update_plugin` filter has pinned the state. `supported` is true when the `update_plugins` transient has an entry for the plugin (either `response` or `no_update`); when false the JS hides the toggle — premium / private plugins that never check in with wp.org. The toggle itself routes through Core's `wp_ajax_toggle_auto_updates` handler (action `toggle-auto-updates`, `'updates'` nonce). |
 

@@ -2,20 +2,25 @@
  * Plugins window — icon URL fallback chain.
  *
  * The PHP `desktop_mode_icon_url` REST field returns the wp.org SVG by
- * default (`https://ps.w.org/<slug>/assets/icon.svg`). Many plugins on
- * the wp.org repo only ship PNG variants — `icon-256x256.png` or
- * `icon-128x128.png` — so a one-shot `<img src>` on the SVG 404s and
- * the row looks iconless even though art exists. This helper attaches
- * an `error` handler that walks SVG → 256 PNG → 128 PNG before giving
- * up and calling `onExhausted`, at which point the caller paints its
- * placeholder.
+ * default (`https://ps.w.org/<slug>/assets/icon.svg`). Plugins on the
+ * .org repo ship a mix of formats — SVG, PNG, and animated GIF
+ * (Elementor's icons are 128/256 GIFs, for example). A one-shot
+ * `<img src>` on the SVG 404s and the row looks iconless even when
+ * the asset repo has art in another format. This helper attaches an
+ * `error` handler that walks SVG → 256 PNG → 256 GIF → 128 PNG →
+ * 128 GIF before giving up and calling `onExhausted`, at which point
+ * the caller paints its placeholder.
  *
  * Custom URLs (not under `ps.w.org/<slug>/assets/`) bypass the chain —
  * one shot, then placeholder. That matches what the
- * `desktop_mode_plugins_window_icon_url` filter docblock promises.
+ * `desktop_mode_plugins_window_icon_url` filter docblock promises and
+ * applies to both auto-detected local-folder icons and explicit
+ * filter overrides.
  *
  * @public
  * @since 0.18.0
+ * @since 0.8.6 Added `.gif` variants for plugins like Elementor that
+ *              ship animated GIF icons on the wp.org SVN.
  */
 
 const WP_ORG_ASSET_RE =
@@ -32,10 +37,16 @@ function buildCandidates( initialUrl: string ): string[] {
 		return [ initialUrl ];
 	}
 	const base = match[ 1 ];
+	// Prefer the larger 256-px variants over the 128 set, and PNG
+	// over GIF within each size — PNG is faster to decode + render
+	// for a 32-px card cell, GIF only matters when that's the only
+	// format the plugin shipped (Elementor, a handful of others).
 	return [
 		initialUrl,
 		base + 'icon-256x256.png',
+		base + 'icon-256x256.gif',
 		base + 'icon-128x128.png',
+		base + 'icon-128x128.gif',
 	];
 }
 
