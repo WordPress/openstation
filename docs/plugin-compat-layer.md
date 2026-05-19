@@ -195,37 +195,33 @@ We mirror the removal by watching the inner app-frame from the VB-top: a Mutatio
 
 **Tests**: `tests/phpunit/tests/diviCompat.php` — `test_vb_iframe_signal_emits_on_front_end_for_desktop_user`, `test_vb_iframe_signal_skips_admin_requests`, `test_vb_iframe_signal_skips_when_desktop_mode_disabled`, `test_vb_top_frame_emits_preloader_bridge`, `test_inner_app_frame_skips_preloader_bridge`.
 
-### Divi — eject to top-level for Visual Builder via `Location.prototype` patch
+### Divi — hand the VB session off to a standalone browser tab
 
 **File**: `includes/compat/divi.php` (`desktop_mode_compat_divi_eject_iframe_patch` + `desktop_mode_compat_divi_eject_parent_listener` + `desktop_mode_compat_divi_is_active`).
 
-Even with shims 1–3 above, Divi VB inside our three-level iframe nesting (shell → chromeless iframe → Divi's inner app-frame) is materially slower than running at top level. The browser de-prioritizes resource loading at each nesting depth, image-measurement scripts read 0 because `load` fires before `naturalWidth` settles, and the `et-fb-page-preloading` overlay sits up for many seconds while ~100 builder scripts parse on the throttled main thread. VB is a focus-mode editor that takes over the entire viewport anyway — the desktop metaphor doesn't add value while you're inside it.
+Even with shims 1–3 above, Divi VB inside our three-level iframe nesting (shell → chromeless iframe → Divi's inner app-frame) is materially slower than running at top level — the browser de-prioritizes resource loading at each nesting depth, image-measurement scripts read 0 because `load` fires before `naturalWidth` settles, and the `et-fb-page-preloading` overlay sits up for many seconds while ~100 builder scripts parse on the throttled main thread. VB is a focus-mode editor that takes over the entire viewport anyway — the desktop metaphor doesn't add value while you're inside it.
 
-**Strategy**: catch Divi's navigation *pre-flight* inside the chromeless iframe, forward the intended URL to the parent shell via `postMessage`, and let the parent navigate the top tab. Divi's full activation flow (nonce check → `et_fb_auto_activate_builder` server-side redirect → speculation-rules prerender) then runs against a real top-level navigation.
+**Strategy**: detect the user's *intent* to enter VB at the click layer, ask for explicit confirmation, then navigate the top tab to a classic-admin post-edit page so Divi can run in its native single-frame environment. Two clicks total to enter VB, but each is deliberate.
 
-**Why prototype patching instead of click-interception**:
+**Why click-by-text-content instead of patching navigation primitives**:
 
-- Divi 5's `switchEditor( DIVI )` does `window.location.href = getVBUrl()` programmatically — not an `<a>` click — so the chromeless-bridge link interceptor can't see it.
-- The Gutenberg editor canvas in WP 6.3+ is itself another nested iframe, putting the Divi placeholder block two frames below the chromeless bridge.
-- Earlier attempts that ejected by reading the iframe's `contentWindow.location.href` on `load` were too late: by then Divi's nonce had already been consumed inside the iframe and the URL was the post-redirect form. Navigating top to that URL skipped the activation step.
+Earlier iterations tried to transparently intercept Divi's navigation — patching `Location.prototype.href`, intercepting `fetch` / `XHR`, watching iframe `load` events — and all of them failed in different ways. Divi captures `Location` references early in its bundle init, makes its REST save through a path our `fetch`/`XHR` wraps don't reach (it goes through `@wordpress/api-fetch` which bundles its own `fetch` reference), and the page-leave tears down our console before any diagnostic we add survives. The honest fix is to detect at a layer we *can* see — the click itself — and explicitly ask the user before doing anything irreversible.
+
+Detection is by visible text content on the clicked element rather than by selector — Divi changes the button class across versions but the user-facing label has been stable for years. We match: `"Use Divi Builder"`, `"Use The Divi Builder"`, `"Edit With The Divi Builder"`, `"Edit With Divi"` (case-insensitive, trimmed). The "Use Default Editor" sibling button is not in the match set, so users can still keep editing in Gutenberg.
 
 **Fix**:
 
-1. **Iframe-side patcher** (`admin_head` priority 0, chromeless + Divi-active only). Replaces `Location.prototype.href`'s setter, `Location.prototype.assign`, and `Location.prototype.replace`. Each wrapped function checks the URL against the VB pattern (`et_fb=1` or `et_fb_activation_nonce=`); on match it `postMessage`s the parent and skips the navigation. Non-matching URLs delegate to the original implementation.
+1. **Iframe-side click handler** (`admin_head` priority 0, chromeless + Divi-active only). Installs a capture-phase `click` listener that walks up from `e.target` looking for a `BUTTON`, `A`, `INPUT`, or `SPAN` whose trimmed lowercase text matches the VB button set. On match: `preventDefault` + `stopPropagation` + `stopImmediatePropagation`, then `postMessage` to the parent shell with `{ type: 'desktop-mode-divi-vb-handoff', url: window.location.href }`. The handler is also installed inside every reachable same-origin nested iframe (Gutenberg's editor canvas, etc.) — a `MutationObserver` on `document.documentElement` walks new iframes as they're added.
 
-   `Window.location` itself is `[Unforgeable]` and can't be reassigned, but `Location.prototype.href`'s property descriptor is plain data — `Object.defineProperty` works in every current browser (Chrome, Firefox, Safari).
-
-   The patcher also installs a capture-phase click listener on `a[href]` matching the same VB pattern, to cover the admin-bar "Edit With Divi" link which is a real `<a href>` that wouldn't go through `Location.prototype`.
-
-2. **Parent-shell listener** (`admin_footer` priority 1, non-chromeless + Divi-active only). Listens for `desktop-mode-divi-vb-eject` postMessages, checks `ev.origin === window.location.origin`, re-parses the URL and verifies same origin, then sets `window.top.location.href` to it.
+2. **Parent-shell listener** (`admin_footer` priority 1, non-chromeless + Divi-active only). Listens for `desktop-mode-divi-vb-handoff` postMessages, checks `ev.origin === window.location.origin`, then reshapes the URL: strip `desktop_mode_chromeless` (the iframe-only flag would keep us in chromeless render at top level), add `desktop_mode_classic=1` (consumed by `desktop_mode_redirect_plain_admin_to_portal()` in `includes/portal.php:286-288` to skip the portal-redirect for this request). Then shows `wp.desktop.confirm()` with `hideCancel: true` + `dismissable: true` — a single "Open Divi in this tab" action plus an X to close. On confirm, sets `window.top.location.href` to the reshaped URL. On X-close or Escape, does nothing — the user stays where they were and can click the button again later to re-show the dialog.
 
 3. **`desktop_mode_compat_divi_is_active()`** — small helper that returns true for the Divi theme or the Divi Builder plugin. Both halves of the fix are gated on it so non-Divi sites pay nothing.
 
-**Plugins this addresses**: Divi theme + Divi Builder plugin, both editing flows (Gutenberg block "Use Divi Builder", Classic Editor's AJAX-then-redirect, admin-bar "Edit With Divi").
+**Plugins this addresses**: Divi theme + Divi Builder plugin, every editing flow whose "Use Divi Builder" / "Edit With Divi" button text matches one of the patterns above — Gutenberg block placeholder, Classic Editor row action, admin-bar Edit-With-Divi link.
 
-**Tests**: `tests/phpunit/tests/diviCompat.php` — `test_iframe_patch_emits_in_chromeless_for_divi`, `test_iframe_patch_skips_when_not_chromeless`, `test_iframe_patch_skips_without_divi`, `test_parent_listener_emits_on_shell_for_divi`, `test_parent_listener_skips_in_chromeless_request`, `test_parent_listener_skips_when_desktop_mode_disabled`, `test_parent_listener_skips_without_divi`, `test_is_active_true_for_divi_theme`, `test_is_active_false_for_other_theme`. The JS patching itself is verified live — vitest in jsdom doesn't model `[Unforgeable]` realistically.
+**Tests**: `tests/phpunit/tests/diviCompat.php` — `test_iframe_patch_emits_in_chromeless_for_divi`, `test_iframe_patch_skips_when_not_chromeless`, `test_iframe_patch_skips_without_divi`, `test_parent_listener_emits_on_shell_for_divi`, `test_parent_listener_skips_in_chromeless_request`, `test_parent_listener_skips_when_desktop_mode_disabled`, `test_parent_listener_skips_without_divi`, `test_is_active_true_for_divi_theme`, `test_is_active_false_for_other_theme`. Vitest covers `wpd-confirm-dialog`'s `hideCancel` / `dismissable` props in `src/ui/components/wpd-confirm-dialog/wpd-confirm-dialog.test.ts`.
 
-> **Note**: shims 2 (`__Cypress__`) and 3 (preloader bridge) remain in place as defense-in-depth fallbacks for the brief window where the iframe is still loading the VB URL before the patcher's message reaches the parent. If the eject fires correctly, VB never finishes loading in the iframe and those shims never matter.
+> **Note**: shims 1–3 remain in place. Shim 1 (deps fix) is needed so the Divi block actually *renders* with its "Use Divi Builder" button — that label is what the click handler matches on. Shims 2 (`__Cypress__`) and 3 (preloader bridge) remain as defense-in-depth for users who *don't* take the handoff and let VB load inside the iframe anyway (e.g., older Divi versions that don't show our match-text buttons, or third-party plugins that activate VB through an unintercepted path).
 
 ## Adding a new fix
 

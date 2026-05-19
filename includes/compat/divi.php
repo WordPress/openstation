@@ -396,7 +396,6 @@ function desktop_mode_compat_divi_eject_iframe_patch() {
 	<?php
 }
 add_action( 'admin_head', 'desktop_mode_compat_divi_eject_iframe_patch', 0 );
-add_action( 'admin_footer', 'desktop_mode_compat_divi_eject_iframe_patch', 999 );
 
 /**
  * Parent-shell side: receive the handoff message, ask the user
@@ -463,11 +462,13 @@ function desktop_mode_compat_divi_eject_parent_listener() {
 				dismissable: true,
 			} );
 		} else {
-			promptUser = Promise.resolve(
-				window.confirm(
-					'Divi cannot run inside Desktop Mode. Click OK to open Divi in this browser tab (Desktop Mode will resume on your next wp-admin visit).'
-				)
-			);
+			// Defense-in-depth no-op. `wp.desktop.confirm` is
+			// reliably present on every shell page where this
+			// listener emits, so this branch is unreachable in
+			// practice. A `window.confirm` here would violate the
+			// codebase-wide "no native dialogs" rule (see CLAUDE.md);
+			// resolving false is the safer empty fallback.
+			promptUser = Promise.resolve( false );
 		}
 		Promise.resolve( promptUser ).then( function ( ok ) {
 			if ( ok ) { window.top.location.href = url; }
