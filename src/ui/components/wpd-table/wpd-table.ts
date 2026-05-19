@@ -545,10 +545,9 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 	 * Selection mutators (`select` / `deselect` / `selectAll` /
 	 * `clearSelection`) update the affected row in place via
 	 * {@link _syncSelectionDom} rather than re-rendering the whole
-	 * tbody. The rebuild path destroyed the focused checkbox the user
-	 * just clicked — focus fell to `<body>` and, when paint coincided
-	 * with the transient empty-tbody window, scroll-anchoring gave up
-	 * and snapped the table back to the top (GH#164).
+	 * tbody — a rebuild would tear down the focused checkbox and
+	 * (because scroll-anchoring abandons a momentarily empty container)
+	 * could snap scroll back to the top.
 	 */
 	select( id: WpdTableRowId ): void {
 		if ( this._selection.has( id ) ) {
@@ -601,12 +600,6 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 	 * rebuilding it. Updates each affected row's `is-selected` class
 	 * and `select-row-checkbox` `checked` state, then re-syncs the
 	 * header select-all checkbox (checked / indeterminate / empty).
-	 *
-	 * Called from {@link select}, {@link deselect}, {@link selectAll},
-	 * and {@link clearSelection}. The rebuild path used to flow
-	 * through `_schedulePaint` → `_paintBody` → `tbody.replaceChildren`,
-	 * which tore down the focused checkbox + transiently emptied the
-	 * scroll container; both symptoms in GH#164.
 	 *
 	 * @param ids `'all'` to walk every row, or an iterable of row ids
 	 *            whose rows need updating. Unknown ids are silently
@@ -1313,10 +1306,6 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		tr.setAttribute( 'part', 'row' );
 		tr.dataset.rowIndex = String( rowIndex );
 		const id = this._getRowId( row, rowIndex );
-		// Stamp the row id so {@link _syncSelectionDom} can find this
-		// row without rebuilding the body. `String(id)` matches the
-		// dataset round-trip; the original id type (number | string)
-		// is recovered at lookup time from the live data array.
 		tr.dataset.rowId = String( id );
 		if ( this._selection.has( id ) ) {
 			tr.classList.add( 'is-selected' );

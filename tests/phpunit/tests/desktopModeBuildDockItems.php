@@ -228,13 +228,11 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Issue #241 regression — entries tagged `hide-if-no-customize`
-	 * must remain in the dock.
+	 * Entries tagged `hide-if-no-customize` must remain in the dock.
 	 *
 	 * Core stamps Appearance → Customize / Header / Background with
 	 * that class. It means "shown by default; hide only on
-	 * `<body class=\"no-customize-support\">`" — the inverse of what
-	 * an earlier revision of this builder assumed. The Customizer is
+	 * `<body class=\"no-customize-support\">`". The Customizer is
 	 * supported inside chromeless iframes, so the entry must stay in
 	 * the submenu; without it the user has no path from the dock to
 	 * the Additional CSS editor.
@@ -252,7 +250,7 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
 		$this->assertNotContains( 'Themes', $titles ); // self-link strip
-		$this->assertContains( 'Customize', $titles ); // the regression — must be present
+		$this->assertContains( 'Customize', $titles );
 		$this->assertContains( 'Menus', $titles );
 	}
 

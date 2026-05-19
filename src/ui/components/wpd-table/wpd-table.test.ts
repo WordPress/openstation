@@ -402,11 +402,6 @@ describe( '<wpd-table>', () => {
 	} );
 
 	test( 'toggling a row checkbox does NOT rebuild tbody children', async () => {
-		// Repro: in the native Plugins window, clicking a row checkbox
-		// rebuilt the whole tbody, dropping focus from the just-clicked
-		// checkbox and (with scroll-anchoring giving up on the transient
-		// empty body) snapping the scroll back to the top. Pin the new
-		// behavior: row identity is preserved across a selection toggle.
 		host.innerHTML = `<wpd-table selectable="multi"></wpd-table>`;
 		await tick();
 		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
