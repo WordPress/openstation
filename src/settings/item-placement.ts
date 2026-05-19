@@ -161,6 +161,13 @@ export function applyDockPlacement(
 			title: icon.title,
 			icon: icon.icon,
 			url: icon.url || '',
+			// Carry the native-window id forward so the dock can light
+			// the active-dot indicator + show the hover-peek card when
+			// the target window is open. Without this, window-target
+			// icons (no `url`) synthesize a tile whose only id-bearing
+			// field is an empty string — deriveWindowId('') matches
+			// nothing the window manager has stored.
+			windowId: icon.window || undefined,
 			badge: 0,
 			submenu: [],
 			isCore: false,
