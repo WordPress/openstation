@@ -171,6 +171,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 		$this->chromeless_user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->chromeless_user_id );
 		update_user_meta( $this->chromeless_user_id, 'desktop_mode_mode', '1' );
+		$this->activate_divi_theme();
 
 		$out = $this->capture_vb_signal_output();
 
@@ -221,6 +222,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 		$this->chromeless_user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->chromeless_user_id );
 		update_user_meta( $this->chromeless_user_id, 'desktop_mode_mode', '1' );
+		$this->activate_divi_theme();
 		// Default request — no `app_window=1`, so this IS the VB-top.
 
 		$out = $this->capture_vb_signal_output();
@@ -243,6 +245,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 		$this->chromeless_user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->chromeless_user_id );
 		update_user_meta( $this->chromeless_user_id, 'desktop_mode_mode', '1' );
+		$this->activate_divi_theme();
 		$_GET['app_window'] = '1';
 
 		$out = $this->capture_vb_signal_output();
@@ -267,6 +270,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 		$this->chromeless_user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->chromeless_user_id );
 		update_user_meta( $this->chromeless_user_id, 'desktop_mode_mode', '1' );
+		$this->activate_divi_theme();
 		$_GET['app_window'] = '1';
 
 		$out = $this->capture_vb_signal_output();
