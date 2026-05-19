@@ -36,6 +36,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		remove_all_filters( 'desktop_mode_plugins_window_auto_updates_enabled' );
 		remove_all_filters( 'desktop_mode_plugins_window_refresh_updates' );
 		remove_all_filters( 'desktop_mode_plugins_window_icon_url' );
+		remove_all_filters( 'desktop_mode_plugins_window_local_icon_candidates' );
 		remove_all_filters( 'auto_update_plugin' );
 		parent::tear_down();
 	}
@@ -511,6 +512,132 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		$url = desktop_mode_plugins_window_field_icon_url( $row );
 		$this->assertSame( 'https://cdn.example.com/custom.png', $url );
 		remove_all_filters( 'desktop_mode_plugins_window_icon_url' );
+	}
+
+	/**
+	 * Plugins that ship their own card icon inside their folder (the
+	 * common shape for premium / internal / native-bundled plugins
+	 * not on the .org repo) should resolve to the LOCAL URL — not the
+	 * wp.org SVN URL that would 404 through every fallback variant.
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 */
+	public function test_icon_url_prefers_local_assets_icon_svg() {
+		$folder = 'dm-local-icon-fixture';
+		$root   = WP_PLUGIN_DIR . '/' . $folder;
+		wp_mkdir_p( $root . '/assets' );
+		file_put_contents( $root . '/assets/icon.svg', '<svg/>' );
+
+		try {
+			$url = desktop_mode_plugins_window_field_icon_url(
+				array( 'plugin' => $folder . '/' . $folder . '.php' )
+			);
+			$this->assertSame(
+				plugins_url( 'assets/icon.svg', WP_PLUGIN_DIR . '/' . $folder . '/' . $folder . '.php' ),
+				$url
+			);
+			$this->assertStringContainsString( '/' . $folder . '/assets/icon.svg', (string) $url );
+		} finally {
+			unlink( $root . '/assets/icon.svg' );
+			rmdir( $root . '/assets' );
+			rmdir( $root );
+		}
+	}
+
+	/**
+	 * Plugins that ship only the PNG variants in their folder still
+	 * resolve locally. The probe walks SVG → 256 PNG → 128 PNG
+	 * (mirroring the wp.org SVN convention) and returns the first hit.
+	 *
+	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 */
+	public function test_icon_url_falls_through_to_local_png_variants() {
+		$folder = 'dm-local-icon-png-fixture';
+		$root   = WP_PLUGIN_DIR . '/' . $folder;
+		wp_mkdir_p( $root . '/assets' );
+		file_put_contents( $root . '/assets/icon-256x256.png', 'png' );
+
+		try {
+			$url = desktop_mode_plugins_window_field_icon_url(
+				array( 'plugin' => $folder . '/' . $folder . '.php' )
+			);
+			$this->assertStringContainsString( '/' . $folder . '/assets/icon-256x256.png', (string) $url );
+		} finally {
+			unlink( $root . '/assets/icon-256x256.png' );
+			rmdir( $root . '/assets' );
+			rmdir( $root );
+		}
+	}
+
+	/**
+	 * When the plugin folder ships no recognizable icon, fall back to
+	 * the wp.org SVN URL — the original behavior. This is the
+	 * regression guard for the 90 % of installed plugins that are on
+	 * the .org repo and use the SVN /assets/ layout (not the plugin
+	 * folder's /assets/).
+	 *
+	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 */
+	public function test_icon_url_falls_back_to_wp_org_when_no_local_icon() {
+		// Use a folder name very unlikely to exist on disk.
+		$row = array( 'plugin' => 'this-plugin-folder-does-not-exist-on-disk/main.php' );
+		$this->assertSame(
+			'https://ps.w.org/this-plugin-folder-does-not-exist-on-disk/assets/icon.svg',
+			desktop_mode_plugins_window_field_icon_url( $row )
+		);
+	}
+
+	/**
+	 * The `desktop_mode_plugins_window_local_icon_candidates` filter
+	 * lets a host support a non-standard icon convention without
+	 * forking the resolver. Plugins that ship `branding/logo.svg`
+	 * (or any other shape) can be picked up by appending a candidate.
+	 *
+	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 */
+	public function test_icon_url_local_candidates_filter() {
+		$folder = 'dm-local-icon-custom-fixture';
+		$root   = WP_PLUGIN_DIR . '/' . $folder;
+		wp_mkdir_p( $root . '/branding' );
+		file_put_contents( $root . '/branding/logo.svg', '<svg/>' );
+
+		add_filter(
+			'desktop_mode_plugins_window_local_icon_candidates',
+			static function ( $candidates ) {
+				$candidates[] = 'branding/logo.svg';
+				return $candidates;
+			}
+		);
+
+		try {
+			$url = desktop_mode_plugins_window_field_icon_url(
+				array( 'plugin' => $folder . '/' . $folder . '.php' )
+			);
+			$this->assertStringContainsString( '/' . $folder . '/branding/logo.svg', (string) $url );
+		} finally {
+			remove_all_filters( 'desktop_mode_plugins_window_local_icon_candidates' );
+			unlink( $root . '/branding/logo.svg' );
+			rmdir( $root . '/branding' );
+			rmdir( $root );
+		}
+	}
+
+	/**
+	 * Single-file plugins (`hello.php`) have no folder to scan — the
+	 * local probe must short-circuit and never poke the filesystem at
+	 * `WP_PLUGIN_DIR/./assets/icon.svg`.
+	 *
+	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 */
+	public function test_icon_url_single_file_plugin_skips_local_probe() {
+		$this->assertNull(
+			desktop_mode_plugins_window_local_icon_url( 'hello.php' )
+		);
+		$this->assertNull(
+			desktop_mode_plugins_window_local_icon_url( '' )
+		);
 	}
 
 	// ----------------------------------------------------------------

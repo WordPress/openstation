@@ -378,25 +378,31 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
 /**
  * `desktop_mode_icon_url` callback.
  *
- * Derives a wp.org icon URL from the plugin's repo slug, which is the
- * plugin's **folder name** (`dirname( plugin_file )`) — not its text
- * domain. The two coincide for some plugins, but most ship a textdomain
- * shorter or differently-suffixed than their .org slug (`woocommerce`
- * vs textdomain `woo`, `wordpress-seo` vs `yoast-seo`, …). Keying off
- * the folder is what wp.org's own /assets/ URLs use, so it matches
- * the broadest set of plugins. Falls back to `textdomain` for
- * single-file plugins (where `dirname()` returns `.`).
+ * Resolves a card icon URL for an installed plugin row, in priority:
+ *
+ *   1. **Local file** — if the plugin's own folder ships an icon at a
+ *      conventional path (`assets/icon.svg`, `assets/icon-256x256.png`,
+ *      `assets/icon-128x128.png`, or the same names at the folder
+ *      root), return its `plugins_url()`. This is what makes premium /
+ *      internal / native-bundled plugins (alcazaba-*, desktop-mode-*,
+ *      and any private plugin that ships its own art) display
+ *      correctly — they aren't on `ps.w.org/<slug>/`, so the wp.org
+ *      candidate chain 404s through every variant before the
+ *      placeholder paints.
+ *   2. **wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`,
+ *      keyed off the plugin's **folder name** (which is the .org repo
+ *      slug). Folder beats textdomain because the two often diverge
+ *      (`woocommerce` vs textdomain `woo`, `wordpress-seo` vs
+ *      `yoast-seo`). Falls back to textdomain for single-file plugins.
  *
  * We don't HEAD-check the URL — the JS card walks a candidate chain
- * (SVG → 256 PNG → 128 PNG) on `<img>` error, then drops to a
- * `<wpd-icon name="dashicons-admin-plugins">` placeholder. A 404 here
- * costs nothing.
- *
- * Plugins not on the .org repo (premium, internal, single-site) will
- * still produce a URL (we can't tell from REST data alone), and the JS
- * onerror chain reaches the placeholder after the candidates 404.
+ * (SVG → 256 PNG → 128 PNG) on `<img>` error for wp.org URLs, then
+ * drops to a `<wpd-icon name="dashicons-admin-plugins">` placeholder.
+ * A 404 here costs nothing.
  *
  * @since 0.9.0
+ * @since 0.x.y Probes the plugin's own folder for an icon before
+ *              falling back to the wp.org SVN URL.
  *
  * @param array $row Core REST plugin row.
  * @return string|null
@@ -417,31 +423,115 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
 		return null;
 	}
 
+	$default = desktop_mode_plugins_window_local_icon_url( $plugin_file );
+	if ( null === $default ) {
+		$default = 'https://ps.w.org/' . $slug . '/assets/icon.svg';
+	}
+
 	/**
 	 * Filter the resolved icon URL for a plugin row.
 	 *
 	 * Return `null` to suppress the icon (forces the placeholder).
-	 * Return a different URL to override the wp.org default — useful
-	 * for custom CDN art or premium plugins shipping a known asset URL.
+	 * Return a different URL to override the default — useful for
+	 * custom CDN art or for overriding the auto-detected local icon.
 	 *
-	 * The JS receiver walks a candidate chain on `<img>` error,
-	 * swapping `icon.svg` → `icon-256x256.png` → `icon-128x128.png`
-	 * when the returned URL is the wp.org `ps.w.org` default. Custom
-	 * URLs bypass the chain (one shot, then placeholder).
+	 * The `$url` parameter is either a local `plugins_url()` (when the
+	 * plugin's own folder ships an icon at a conventional path) or the
+	 * wp.org `ps.w.org/<slug>/assets/icon.svg` URL. The JS receiver
+	 * walks a candidate chain on `<img>` error (`icon.svg` → 256 PNG →
+	 * 128 PNG) only when the URL matches the wp.org SVN pattern;
+	 * custom URLs and local URLs are one-shot, then placeholder.
 	 *
 	 * @since 0.9.0
 	 *
-	 * @param string|null $url  Default URL (wp.org SVG by folder slug).
+	 * @param string|null $url  Default URL (local file if the plugin's
+	 *                          folder ships one, else wp.org SVG).
 	 * @param string      $slug Plugin slug (folder name, or textdomain
 	 *                          for single-file plugins).
 	 * @param array       $row  Core REST plugin row.
 	 */
 	return apply_filters(
 		'desktop_mode_plugins_window_icon_url',
-		'https://ps.w.org/' . $slug . '/assets/icon.svg',
+		$default,
 		$slug,
 		$row
 	);
+}
+
+/**
+ * Probe an installed plugin's own folder for a card icon.
+ *
+ * Many premium and private plugins (and our own native extensions —
+ * alcazaba-*, desktop-mode-*) aren't on the .org repo, so the wp.org
+ * SVN URL 404s through every candidate before the placeholder paints.
+ * Most that ship art do so at a conventional location inside their
+ * own folder — typically `assets/icon.svg` mirroring the wp.org SVN
+ * /assets/ layout, occasionally bare `icon.svg` at the root for
+ * minimal plugins. We probe both shapes and return the first URL we
+ * resolve, or `null` when nothing matches.
+ *
+ * Single-file plugins (no folder) return `null` immediately — there's
+ * no folder to scan.
+ *
+ * Cost: 1–6 `file_exists()` calls per row, ~1µs each with warm OS
+ * cache. For a 50-row paint this is well under a millisecond — not
+ * worth caching, and a cache would have to invalidate on plugin
+ * install/update/delete.
+ *
+ * The candidate list is filterable via
+ * `desktop_mode_plugins_window_local_icon_candidates` so a host can
+ * support a custom convention (e.g. an `icon@2x.svg` shape).
+ *
+ * @since 0.x.y
+ *
+ * @param string $plugin_file Plugin file (e.g. `"akismet/akismet.php"`).
+ * @return string|null URL of the first local icon found, or null.
+ */
+function desktop_mode_plugins_window_local_icon_url( $plugin_file ) {
+	if ( '' === $plugin_file ) {
+		return null;
+	}
+	$folder = dirname( $plugin_file );
+	if ( '' === $folder || '.' === $folder ) {
+		// Single-file plugin — no folder to scan.
+		return null;
+	}
+
+	/**
+	 * Filter the ordered list of relative paths probed inside an
+	 * installed plugin's folder when looking for a card icon. The
+	 * first existing file wins; later entries are ignored.
+	 *
+	 * @since 0.x.y
+	 *
+	 * @param string[] $candidates Relative paths under the plugin folder.
+	 * @param string   $folder     Plugin folder name (e.g. `"akismet"`).
+	 */
+	$candidates = apply_filters(
+		'desktop_mode_plugins_window_local_icon_candidates',
+		array(
+			'assets/icon.svg',
+			'assets/icon-256x256.png',
+			'assets/icon-128x128.png',
+			'icon.svg',
+			'icon-256x256.png',
+			'icon-128x128.png',
+		),
+		$folder
+	);
+
+	$plugin_root = WP_PLUGIN_DIR . '/' . $folder;
+	foreach ( (array) $candidates as $relative ) {
+		$relative = (string) $relative;
+		if ( '' === $relative ) {
+			continue;
+		}
+		if ( file_exists( $plugin_root . '/' . $relative ) ) {
+			return plugins_url( $relative, WP_PLUGIN_DIR . '/' . $plugin_file );
+		}
+	}
+
+	return null;
 }
 
 /**
