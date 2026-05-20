@@ -1809,6 +1809,23 @@ export class Dock {
 			return;
 		}
 
+		// Dock-promoted desktop icons whose target is a native window
+		// (My WordPress, Jorvy, plugin-registered launchers) carry the
+		// registry id on `item.windowId` and ship with an empty `url`.
+		// Route those directly through the native opener so the +
+		// spawns a fresh native instance — without this branch the
+		// `deriveWindowId('')` fallthrough below opens a chrome-only
+		// iframe whose `src=''` never loads (user-visible symptom: the
+		// duplicate window appears with just the title bar).
+		if ( item.windowId && ! item.url ) {
+			const api = ( window as unknown as {
+				wp?: { desktop?: { openNewWindow?: ( id: string, opts?: { source?: string } ) => boolean } };
+			} ).wp?.desktop;
+			if ( api?.openNewWindow?.( item.windowId, { source: 'dock-peek' } ) ) {
+				return;
+			}
+		}
+
 		// If the item's URL is claimed by a native-window remap (Posts,
 		// Pages, Users, Comments, Plugins, …), spawn a fresh native
 		// instance via the registry — same path as the regular dock

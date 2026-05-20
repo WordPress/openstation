@@ -84,7 +84,12 @@ export async function resolveAvatarUrl(
 				const canvas = document.createElement( 'canvas' );
 				canvas.width = 1;
 				canvas.height = 1;
-				const ctx = canvas.getContext( '2d' );
+				// `willReadFrequently: true` keeps the canvas CPU-backed so
+				// the `getImageData` call below doesn't pay a GPU sync. The
+				// probe runs once per distinct avatar URL; per-canvas the
+				// readback is one-shot, but Chrome's heuristic still flags
+				// the pattern across the page-wide chorus of avatar resolves.
+				const ctx = canvas.getContext( '2d', { willReadFrequently: true } );
 				if ( ! ctx ) {
 					// No 2D context — fall back to the original URL so
 					// real avatars still render. Worst case: the

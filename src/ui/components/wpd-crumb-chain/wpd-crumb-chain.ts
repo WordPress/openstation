@@ -357,7 +357,13 @@ function pickForegroundColor( bg: string ): string {
 		_readbackCanvas.width = 1;
 		_readbackCanvas.height = 1;
 	}
-	const ctx = _readbackCanvas.getContext( '2d' );
+	// `willReadFrequently: true` tells Chrome to back the canvas with
+	// a CPU buffer instead of the default GPU texture — `getImageData`
+	// below would otherwise trigger a GPU-to-CPU sync on every crumb
+	// render. The breadcrumb chain re-paints on every navigation in
+	// My WordPress / folder windows, so this fires often enough that
+	// Chrome surfaces the "willReadFrequently" perf warning.
+	const ctx = _readbackCanvas.getContext( '2d', { willReadFrequently: true } );
 	if ( ! ctx ) {
 		return '#1d2327';
 	}
