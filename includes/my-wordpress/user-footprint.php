@@ -25,10 +25,18 @@
  *     hour:    [ 0..23 ],                                      // post counts, server-local hour
  *     streak:  { longest, current, longestRange:{ from, to } },
  *     timeline:[                                               // 30 most recent activity rows
- *       { kind:'post'|'comment'|'post-update', date, title, link, status, postId? }
+ *       { kind:'post'|'comment'|'post-update', date, title, link, status, postId?, type? }
  *     ],
  *     totals:  { posts, pages, comments, updates, mostProlificMonth?:{ ym, n } }
  *   }
+ *
+ * Timeline row fields:
+ * - `kind`   — discriminator: `'post'` (publish), `'comment'`, or
+ *              `'post-update'` (revision rollup).
+ * - `type`   — only set when `kind` is `'post'` or `'post-update'`.
+ *              Carries the post's CPT slug (`'post'`, `'page'`, custom
+ *              types) so the renderer can pick a Post-vs-Page icon
+ *              without a second REST lookup.
  *
  * "Updates" are revisions saved by the user AFTER a post's original
  * creation — i.e. the user opened an existing post and saved it

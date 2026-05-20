@@ -1809,6 +1809,13 @@ export class Dock {
 			return;
 		}
 
+		// Resolved through the public-API global typed in `global.d.ts`
+		// (WpDesktopPublicApi), so a future signature change to
+		// `openNewWindow` shows up at THIS call site instead of being
+		// hidden behind an inline `as unknown as { wp?: … }` cast that
+		// pinned a stale local shape.
+		const openNewWindow = window.wp?.desktop?.openNewWindow;
+
 		// Dock-promoted desktop icons whose target is a native window
 		// (My WordPress, Jorvy, plugin-registered launchers) carry the
 		// registry id on `item.windowId` and ship with an empty `url`.
@@ -1818,10 +1825,7 @@ export class Dock {
 		// iframe whose `src=''` never loads (user-visible symptom: the
 		// duplicate window appears with just the title bar).
 		if ( item.windowId && ! item.url ) {
-			const api = ( window as unknown as {
-				wp?: { desktop?: { openNewWindow?: ( id: string, opts?: { source?: string } ) => boolean } };
-			} ).wp?.desktop;
-			if ( api?.openNewWindow?.( item.windowId, { source: 'dock-peek' } ) ) {
+			if ( openNewWindow?.( item.windowId, { source: 'dock-peek' } ) ) {
 				return;
 			}
 		}
@@ -1837,10 +1841,7 @@ export class Dock {
 		// the URL instead of a duplicate of the native window.
 		const remappedId = resolveNativeUrlRemap( item.url );
 		if ( remappedId ) {
-			const api = ( window as unknown as {
-				wp?: { desktop?: { openNewWindow?: ( id: string, opts?: { source?: string } ) => boolean } };
-			} ).wp?.desktop;
-			if ( api?.openNewWindow?.( remappedId, { source: 'dock-peek' } ) ) {
+			if ( openNewWindow?.( remappedId, { source: 'dock-peek' } ) ) {
 				return;
 			}
 		}
