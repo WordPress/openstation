@@ -1154,3 +1154,220 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .commands-command-menu__overlay {
 	display: none !important;
 }
+
+/* ----- Agents — "Agent run" window ----- */
+
+/*
+ * The run window is a transient feedback surface — when the user
+ * fires Send-To from inside a fullscreen My WordPress (or any other
+ * fullscreen window, z-index 99999), the run window opens behind
+ * and is invisible to the user. Force it above fullscreen so it
+ * always surfaces. Specificity = #id.class beats the .class
+ * fullscreen rule even though both use !important, so this wins.
+ */
+#wp-window-desktop-mode-agent-run.desktop-mode-window {
+	z-index: 100000 !important;
+}
+
+.desktop-mode-agent-run {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	height: 100%;
+	padding: 16px;
+	box-sizing: border-box;
+	color: var( --desktop-mode-fg, #1d2327 );
+}
+
+.desktop-mode-agent-run__loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 32px;
+}
+
+.desktop-mode-agent-run__header {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 12px;
+	align-items: center;
+}
+
+.desktop-mode-agent-run__avatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	background: rgba( 0, 0, 0, 0.04 );
+	padding: 4px;
+}
+
+.desktop-mode-agent-run__title-block h2 {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.desktop-mode-agent-run__subtitle {
+	margin: 2px 0 0;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desktop-mode-agent-run__progress {
+	width: 100%;
+}
+
+.desktop-mode-agent-run__status {
+	margin: 0;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-agent-run__status--done {
+	color: var( --desktop-mode-success, #00a32a );
+}
+
+.desktop-mode-agent-run__status--error {
+	color: var( --desktop-mode-danger-fg, #b32d2e );
+}
+
+.desktop-mode-agent-run__transcript {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	border-radius: 8px;
+	background: rgba( 0, 0, 0, 0.02 );
+}
+
+.desktop-mode-agent-run__message {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: #fff;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-agent-run__message strong {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-agent-run__message p {
+	margin: 0;
+	white-space: pre-wrap;
+	font-size: 13px;
+}
+
+.desktop-mode-agent-run__message--user {
+	background: rgba( 34, 113, 177, 0.08 );
+	border-color: var( --desktop-mode-link, #2271b1 );
+}
+
+.desktop-mode-agent-run__message--error {
+	background: rgba( 214, 54, 56, 0.06 );
+	border-color: var( --desktop-mode-danger-border, #d63638 );
+}
+
+.desktop-mode-agent-run__toolcall {
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: #fff;
+}
+
+.desktop-mode-agent-run__toolcall summary {
+	cursor: pointer;
+	font-size: 12px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: var( --desktop-mode-link, #2271b1 );
+}
+
+.desktop-mode-agent-run__toolcall--error summary {
+	color: var( --desktop-mode-danger-fg, #b32d2e );
+}
+
+.desktop-mode-agent-run__toolcall pre {
+	margin: 8px 0 0;
+	padding: 8px;
+	background: rgba( 0, 0, 0, 0.03 );
+	border-radius: 4px;
+	font-size: 11px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	overflow-x: auto;
+}
+
+/*
+ * "Entities used" — rendered after a successful run. The user
+ * sees exactly what the agent touched and double-clicks any tile
+ * to open it in the standard iframe window.
+ */
+.desktop-mode-agent-run__entities {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-top: 4px;
+}
+
+.desktop-mode-agent-run__entities-heading {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-agent-run__entities-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.desktop-mode-agent-run__entity {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-radius: 8px;
+	background: #fff;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	cursor: pointer;
+	user-select: none;
+	max-width: 280px;
+	transition: background 120ms ease, border-color 120ms ease;
+}
+
+.desktop-mode-agent-run__entity:hover,
+.desktop-mode-agent-run__entity:focus-visible {
+	background: rgba( 34, 113, 177, 0.06 );
+	border-color: var( --desktop-mode-link, #2271b1 );
+	outline: none;
+}
+
+.desktop-mode-agent-run__entity .dashicons {
+	color: var( --desktop-mode-link, #2271b1 );
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+}
+
+.desktop-mode-agent-run__entity-label {
+	font-size: 12px;
+	font-weight: 500;
+	color: var( --desktop-mode-fg, #1d2327 );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

@@ -23,6 +23,10 @@
 
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
+import {
+	init as initAgentsSendTo,
+	openSendToOnlyMenu,
+} from '../agents-send-to';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { showPostsIntroDialog } from './intro-dialog';
 // Side-effect imports — register the `<wpd-*>` components this
@@ -2264,6 +2268,51 @@ export async function renderPostsWindow(
 	}
 
 	maybeShowIntro( client );
+
+	// Seed the cross-bundle Send-To cache. The shared store ignores
+	// duplicate seed attempts, so the first window to open wins; this
+	// call falls back to a REST refresh when no inline seed is
+	// available (i.e. the user opened Posts before ever visiting My
+	// WordPress on this session).
+	const sendToCfg = client.getConfig();
+	initAgentsSendTo( {
+		restRoot: sendToCfg.restRoot,
+		restNonce: sendToCfg.restNonce,
+		windowId: client.windowId,
+	} );
+
+	// Map the window's mode to the entity kind agents accept. `posts`
+	// → 'post', `pages` → 'page', `users` (handled by users-render
+	// separately but kept here for forward-compat) → 'user'.
+	let entityKind = 'post';
+	let entityId = 'posts';
+	if ( sendToCfg.mode === 'pages' ) {
+		entityKind = 'page';
+		entityId = 'pages';
+	} else if ( sendToCfg.mode === 'users' ) {
+		entityKind = 'user';
+		entityId = 'users';
+	}
+
+	table.addEventListener( 'wpd-table-row-contextmenu', ( e: Event ) => {
+		const detail = ( e as CustomEvent< {
+			row: PostListItem;
+			clientX: number;
+			clientY: number;
+			originalEvent: Event;
+		} > ).detail;
+		const opened = openSendToOnlyMenu(
+			{
+				entityId,
+				kind: entityKind,
+				item: detail.row as unknown as Record< string, unknown >,
+			},
+			{ x: detail.clientX, y: detail.clientY },
+		);
+		if ( opened ) {
+			( detail.originalEvent as MouseEvent ).preventDefault();
+		}
+	} );
 
 	// Term-management tabs (Categories + Tags) — lazy-mounted on first
 	// activation so cold-load of the Posts window never pays for them

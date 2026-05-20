@@ -63,6 +63,31 @@ export interface MyWordPressConfig {
 	 * @since 0.21.0
 	 */
 	previewActions?: MediaPreviewAction[];
+	/**
+	 * Agents-section config — substrate availability, the `skill`
+	 * term id, the AJAX nonce used by the "Enable Guidelines
+	 * experiment" soft-gate button, and the initial send-to targets
+	 * payload that the context-menu filter reads on bundle boot.
+	 * Shipped via `desktop_mode_agents_window_config()` server-side.
+	 *
+	 * @since 0.23.0
+	 */
+	agentsConfig?: {
+		enabled: boolean;
+		gutenbergActive: boolean;
+		skillTermId: number;
+		restNamespace: string;
+		enableExperimentNonce: string;
+		gutenbergInstallUrl: string;
+		sendToTargets?: Array< {
+			id: number;
+			slug: string;
+			name: string;
+			description: string;
+			avatarUrl: string;
+			entityKinds: string[];
+		} >;
+	};
 }
 
 /**

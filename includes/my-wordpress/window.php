@@ -134,17 +134,20 @@ function desktop_mode_my_wordpress_entities() {
 		array(
 			'id'       => 'agents',
 			'label'    => __( 'Agents', 'desktop-mode' ),
-			// Inline SVG bot. The shared `renderIcon` helper
+			// Inline SVG bot — the shared `renderIcon` helper
 			// (assets/js/desktop.min.js) already understands the
 			// `data:image/svg+xml;base64,…` shape, so no client-side
 			// plumbing changes are needed to paint this on the root
-			// folder tile or in breadcrumbs. The Agents section is a
-			// UX mock — see `src/my-wordpress/agents-mock.ts` and
-			// `src/my-wordpress/agents-renderer.ts`.
+			// folder tile or in breadcrumbs.
 			'icon'     => desktop_mode_my_wordpress_agents_icon(),
-			// Empty — the mock renderer ignores `restPath` and
-			// reads from its own hard-coded MOCK_AGENTS array.
-			'restPath' => '',
+			// Real storage at `/desktop-mode/v1/agents` — see
+			// `includes/agents/rest.php`. The agents renderer
+			// orchestrates its own fetches (the join across
+			// wp_users / wp_guideline / user-meta isn't a vanilla
+			// list endpoint) and ignores `restPath` for now; the
+			// value is set non-empty so future generic plumbing can
+			// participate.
+			'restPath' => 'desktop-mode/v1/agents',
 			'kind'     => 'agents',
 		),
 	);
@@ -240,6 +243,9 @@ function desktop_mode_my_wordpress_register_window() {
 			'previewActions'  => function_exists( 'desktop_mode_my_wordpress_collect_preview_actions' )
 				? desktop_mode_my_wordpress_collect_preview_actions()
 				: array(),
+			'agentsConfig'    => function_exists( 'desktop_mode_agents_window_config' )
+				? desktop_mode_agents_window_config()
+				: array( 'enabled' => false ),
 		),
 	);
 

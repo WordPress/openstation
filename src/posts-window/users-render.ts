@@ -23,6 +23,10 @@
 
 import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
+import {
+	init as initAgentsSendTo,
+	openSendToOnlyMenu,
+} from '../agents-send-to';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import type { PostsWindowConfig } from './rest';
 import {
@@ -828,6 +832,36 @@ export async function renderUsersWindow(
 			return;
 		}
 		void openUserEditWindow( id );
+	} );
+
+	// Right-click row → Send-to agent submenu (no other rows actions
+	// today). The helper is a no-op when no agent accepts the `user`
+	// kind, so this listener is invisible until the user configures
+	// at least one user-targeted send-to trigger.
+	const seedCfg = client.getConfig();
+	initAgentsSendTo( {
+		restRoot: seedCfg.restRoot,
+		restNonce: seedCfg.restNonce,
+		windowId: client.windowId,
+	} );
+	table.addEventListener( 'wpd-table-row-contextmenu', ( e: Event ) => {
+		const detail = ( e as CustomEvent< {
+			row: UserListItem;
+			clientX: number;
+			clientY: number;
+			originalEvent: Event;
+		} > ).detail;
+		const opened = openSendToOnlyMenu(
+			{
+				entityId: 'users',
+				kind: 'user',
+				item: detail.row as unknown as Record< string, unknown >,
+			},
+			{ x: detail.clientX, y: detail.clientY },
+		);
+		if ( opened ) {
+			( detail.originalEvent as MouseEvent ).preventDefault();
+		}
 	} );
 
 	maybeShowUsersIntro( client );

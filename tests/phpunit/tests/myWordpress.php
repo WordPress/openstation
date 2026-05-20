@@ -90,10 +90,10 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 
 	/**
 	 * The Agents section ships alongside Posts / Pages / Users / Media
-	 * as a UX-only preview: it carries an inline-SVG data-URI icon
-	 * (so the shared `renderIcon` path lights it up without plumbing
-	 * changes), an empty `restPath` (the mock renderer hard-codes its
-	 * data client-side), and a `kind` of `'agents'`.
+	 * with an inline-SVG data-URI icon (so the shared `renderIcon` path
+	 * lights it up without plumbing changes), a `restPath` of
+	 * `desktop-mode/v1/agents` (the real REST surface), and a `kind` of
+	 * `'agents'`.
 	 *
 	 * @covers ::desktop_mode_my_wordpress_entities
 	 * @covers ::desktop_mode_my_wordpress_agents_icon
@@ -107,7 +107,7 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'agents', $by_id );
 		$agents = $by_id['agents'];
 		$this->assertSame( 'agents', $agents['kind'] );
-		$this->assertSame( '', $agents['restPath'] );
+		$this->assertSame( 'desktop-mode/v1/agents', $agents['restPath'] );
 		$this->assertStringStartsWith(
 			'data:image/svg+xml;base64,',
 			$agents['icon']
@@ -116,6 +116,27 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		$this->assertNotFalse( $decoded );
 		$this->assertStringContainsString( '<svg', $decoded );
 		$this->assertStringContainsString( '</svg>', $decoded );
+	}
+
+	/**
+	 * The My WordPress window config ships an `agentsConfig` blob that
+	 * downstream JS reads to decide whether to paint the soft-gate or
+	 * the live Agents UI.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_register_window
+	 * @covers ::desktop_mode_agents_window_config
+	 */
+	public function test_agents_config_blob_shipped_with_window() {
+		desktop_mode_my_wordpress_register_window();
+		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
+		$this->assertIsArray( $entry );
+		$this->assertArrayHasKey( 'agentsConfig', $entry['config'] );
+		$cfg = $entry['config']['agentsConfig'];
+		$this->assertArrayHasKey( 'enabled', $cfg );
+		$this->assertArrayHasKey( 'gutenbergActive', $cfg );
+		$this->assertArrayHasKey( 'restNamespace', $cfg );
+		$this->assertSame( 'desktop-mode/v1', $cfg['restNamespace'] );
+		$this->assertArrayHasKey( 'enableExperimentNonce', $cfg );
 	}
 
 	/**

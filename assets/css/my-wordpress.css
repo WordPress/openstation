@@ -1880,17 +1880,26 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	display: block;
 }
 
-/* ----- Agents section (UX mock) -----
+/* ----- Agents section -----
  *
- * Two-pane layout reuses `__split` / `__list` / `__preview` from the
- * post + user sections, plus a few agents-only classes for the
- * tile grid, the always-present "+ Create agent" row, the empty
- * state, and the Define / Tools / Triggers stack. See
- * `src/my-wordpress/agents-renderer.ts`.
+ * Real CRUD over `wp_guideline`-backed agents (see
+ * `src/my-wordpress/agents-renderer.ts`). Two-pane layout reuses
+ * `__split` / `__list` / `__preview` from the post + user sections.
+ * Detail panel renders Identity / Instructions / Abilities / Triggers
+ * / Advanced / Danger Zone sections, every field editable.
  */
+
+.desktop-mode-my-wordpress__agents-soft-gate {
+	margin: 32px auto;
+	max-width: 520px;
+	display: block;
+}
 
 .desktop-mode-my-wordpress__agents-list {
 	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
 }
 
 .desktop-mode-my-wordpress__agents-tiles {
@@ -1908,6 +1917,13 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	position: static;
 }
 
+.desktop-mode-my-wordpress__agents-empty {
+	margin: 16px 4px;
+	color: var( --desktop-mode-muted, #50575e );
+	font-size: 13px;
+	line-height: 1.5;
+}
+
 .desktop-mode-my-wordpress__agents-preview {
 	display: flex;
 	flex-direction: column;
@@ -1916,11 +1932,8 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 }
 
 .desktop-mode-my-wordpress__agents-create {
-	padding: 12px 16px;
-	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
 	display: flex;
-	justify-content: flex-end;
-	flex: 0 0 auto;
+	justify-content: flex-start;
 }
 
 .desktop-mode-my-wordpress__agents-detail {
@@ -2060,6 +2073,12 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	line-height: 1.4;
 }
 
+.desktop-mode-my-wordpress__agent-triggers-host {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
 .desktop-mode-my-wordpress__agent-triggers {
 	display: flex;
 	flex-direction: column;
@@ -2072,17 +2091,33 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 8px;
 }
 
-.desktop-mode-my-wordpress__agent-trigger {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: 10px;
-	align-items: start;
+.desktop-mode-my-wordpress__agent-triggers-empty {
+	margin: 0;
+	padding: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+	font-size: 12px;
+	text-align: center;
+	border: 1px dashed var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 	padding: 10px 12px;
 	border: 1px solid var( --desktop-mode-border, #dcdcde );
 	border-radius: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-card-header {
+	display: grid;
+	grid-template-columns: auto auto 1fr auto;
+	gap: 10px;
+	align-items: center;
 }
 
 .desktop-mode-my-wordpress__agent-trigger-icon {
@@ -2093,6 +2128,14 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	color: var( --desktop-mode-link, #2271b1 );
 }
 
+.desktop-mode-my-wordpress__agent-trigger-summary {
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .desktop-mode-my-wordpress__agent-trigger-body {
 	display: flex;
 	flex-direction: column;
@@ -2100,14 +2143,573 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	min-width: 0;
 }
 
-.desktop-mode-my-wordpress__agent-trigger-body strong {
+.desktop-mode-my-wordpress__agent-trigger-form {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding-block-start: 8px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-form fieldset {
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+	padding: 8px 12px;
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-form legend {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var( --desktop-mode-muted, #50575e );
+	padding-inline: 4px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-triggers-add {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-block-start: 4px;
+}
+
+.desktop-mode-my-wordpress__agent-triggers-add-heading {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-triggers-add-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 200px, 1fr ) );
+	gap: 8px;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-add-card {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	grid-template-areas:
+		"icon label"
+		"icon desc";
+	gap: 2px 10px;
+	padding: 10px 12px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+	background: var( --desktop-mode-input-bg, #fff );
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	text-align: start;
+	cursor: pointer;
+	font: inherit;
+	transition: border-color 120ms ease, background 120ms ease;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-add-card:hover,
+.desktop-mode-my-wordpress__agent-trigger-add-card:focus-visible {
+	border-color: var( --desktop-mode-link, #2271b1 );
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.03 ) );
+	outline: none;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-add-card-icon {
+	grid-area: icon;
+	align-self: start;
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+	line-height: 20px;
+	color: var( --desktop-mode-link, #2271b1 );
+}
+
+.desktop-mode-my-wordpress__agent-trigger-add-card-label {
+	grid-area: label;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.desktop-mode-my-wordpress__agent-trigger-add-card-desc {
+	grid-area: desc;
+	font-size: 11px;
+	line-height: 1.4;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-trigger-form-description {
+	margin: 0 0 4px;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+/* ----- Create-form / identity / advanced / danger ----- */
+
+.desktop-mode-my-wordpress__agent-create-form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.desktop-mode-my-wordpress__agent-create-form h2 {
+	margin: 0 0 4px;
+	font-size: 16px;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-create-form label {
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding-block-start: 8px;
+}
+
+.desktop-mode-my-wordpress__agent-identity {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.desktop-mode-my-wordpress__agent-identity label {
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-advanced {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.desktop-mode-my-wordpress__agent-danger {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	border: 1px solid var( --desktop-mode-danger-border, #d63638 );
+	border-radius: 6px;
+	background: var( --desktop-mode-danger-tint, rgba( 214, 54, 56, 0.06 ) );
+}
+
+.desktop-mode-my-wordpress__agent-danger p {
+	margin: 0;
+	font-size: 12px;
+	color: var( --desktop-mode-danger-fg, #b32d2e );
+	line-height: 1.4;
+}
+
+/* ----- Agent dossier (navigate INTO an agent) ----- */
+
+.desktop-mode-my-wordpress__agent-dossier {
+	/* The My WordPress `__body` is `overflow: hidden; position:
+	 * relative` rather than a flex container, so `flex` rules
+	 * don't constrain children here. Fill the parent absolutely
+	 * and own the scroll ourselves — same trick the post-detail
+	 * surface uses for its own scrollable column. */
+	position: absolute;
+	inset: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	padding: 24px;
+	box-sizing: border-box;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-content {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	max-width: 1100px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+/* Centered loading state — the dossier's REST fetch puts a WP-logo
+ * spinner here briefly. Fill the dossier container vertically so
+ * the spinner is centered both axes regardless of how tall the
+ * window is. */
+.desktop-mode-my-wordpress__agent-dossier-loading {
+	flex: 1 1 auto;
+	min-height: 240px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-loading wpd-spinner {
+	font-size: 48px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-header {
+	display: grid;
+	grid-template-columns: auto auto 1fr;
+	gap: 16px;
+	align-items: center;
+	padding-block-end: 12px;
+	border-block-end: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-avatar {
+	width: 56px;
+	height: 56px;
+	border-radius: 8px;
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.04 ) );
+	padding: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-title-block h1 {
+	margin: 0;
+	font-size: 22px;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-sub {
+	margin: 4px 0 0;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-desc {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 320px, 1fr ) );
+	gap: 16px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-section {
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 8px;
+	padding: 16px;
+	background: var( --desktop-mode-input-bg, #fff );
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-section h3 {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-rows {
+	display: grid;
+	grid-template-columns: minmax( 110px, max-content ) 1fr;
+	gap: 4px 12px;
+	margin: 0;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-rows dt {
+	font-weight: 600;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-rows dd {
+	margin: 0;
+	font-size: 13px;
+	word-break: break-word;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-instructions {
+	margin: 0;
+	padding: 12px;
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.03 ) );
+	border-radius: 6px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-empty {
+	margin: 0;
+	font-size: 12px;
+	color: var( --desktop-mode-muted, #50575e );
+	font-style: italic;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-abilities,
+.desktop-mode-my-wordpress__agent-dossier-triggers,
+.desktop-mode-my-wordpress__agent-dossier-revisions,
+.desktop-mode-my-wordpress__agent-dossier-authored {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-abilities li,
+.desktop-mode-my-wordpress__agent-dossier-triggers li {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 10px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-authored li {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-revisions li {
+	font-size: 12px;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+/* Activity log — full-width section spanning both columns of the
+ * dossier grid because invocation transcripts are long-form content
+ * and benefit from the wider canvas. */
+.desktop-mode-my-wordpress__agent-dossier-section--activity {
+	grid-column: 1 / -1;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 12px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 6px;
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.02 ) );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-row--error {
+	border-color: var( --desktop-mode-danger-border, #d63638 );
+	background: var( --desktop-mode-danger-tint, rgba( 214, 54, 56, 0.06 ) );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-head {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #50575e );
+	align-items: center;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-head time {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-summary {
+	margin-inline-start: auto;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	font-weight: 600;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-row--error
+	.desktop-mode-my-wordpress__agent-dossier-activity-summary {
+	color: var( --desktop-mode-danger-fg, #b32d2e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-msg,
+.desktop-mode-my-wordpress__agent-dossier-activity-tools,
+.desktop-mode-my-wordpress__agent-dossier-activity-reply {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-msg {
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-tools {
+	color: var( --desktop-mode-link, #2271b1 );
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 11px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-activity-reply {
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-abilities code,
+.desktop-mode-my-wordpress__agent-dossier-triggers strong {
+	font-size: 12px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-abilities small,
+.desktop-mode-my-wordpress__agent-dossier-triggers small,
+.desktop-mode-my-wordpress__agent-dossier-authored small {
+	font-size: 11px;
+	color: var( --desktop-mode-muted, #50575e );
+	line-height: 1.4;
+}
+
+/* ----- Agent dossier — chat panel ----- */
+
+.desktop-mode-my-wordpress__agent-dossier-chat {
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-radius: 8px;
+	padding: 16px;
+	background: var( --desktop-mode-input-bg, #fff );
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat h3 {
+	margin: 0;
 	font-size: 13px;
 	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
 }
 
-.desktop-mode-my-wordpress__agent-trigger-body p {
+.desktop-mode-my-wordpress__agent-dossier-chat-intro {
 	margin: 0;
 	font-size: 12px;
 	color: var( --desktop-mode-muted, #50575e );
-	line-height: 1.4;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-transcript {
+	min-height: 80px;
+	max-height: 360px;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px;
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.02 ) );
+	border-radius: 6px;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-input-row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 8px;
+	align-items: flex-end;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-message {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: #fff;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-message strong {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var( --desktop-mode-muted, #50575e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-message p {
+	margin: 0;
+	white-space: pre-wrap;
+	font-size: 13px;
+	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-message--user {
+	background: var( --desktop-mode-link-tint, rgba( 34, 113, 177, 0.08 ) );
+	border-color: var( --desktop-mode-link, #2271b1 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-message--error {
+	background: var( --desktop-mode-danger-tint, rgba( 214, 54, 56, 0.06 ) );
+	border-color: var( --desktop-mode-danger-border, #d63638 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-toolcall {
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: #fff;
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-toolcall summary {
+	cursor: pointer;
+	font-size: 12px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: var( --desktop-mode-link, #2271b1 );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-toolcall--error summary {
+	color: var( --desktop-mode-danger-fg, #b32d2e );
+}
+
+.desktop-mode-my-wordpress__agent-dossier-chat-toolcall pre {
+	margin: 8px 0 0;
+	padding: 8px;
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.03 ) );
+	border-radius: 4px;
+	font-size: 11px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	overflow-x: auto;
+}
+
+.desktop-mode-my-wordpress__agent-open-dossier {
+	display: flex;
+	justify-content: flex-start;
+	padding-block: 4px;
+}
+
+/* ----- wp-admin Users-list "Type" column ----- */
+
+.desktop-mode-agent-type {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var( --desktop-mode-link, #2271b1 );
+}
+
+.desktop-mode-agent-type .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	line-height: 16px;
+}
+
+.desktop-mode-agent-type-human {
+	color: var( --desktop-mode-muted, #50575e );
 }

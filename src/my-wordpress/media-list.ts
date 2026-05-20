@@ -18,6 +18,7 @@
 import { __, _n, sprintf } from '../i18n';
 import { renderStatusBarSegments, type StatusBarSegment } from '../desktop-files/folder-status-bar';
 import { addAction, applyFilters, removeAction } from '../hooks';
+import { attachSendToOption } from '../agents-send-to';
 import { FILE_DROP_HOOKS } from '../os-file-drop/hooks';
 import type { DropUploadResult } from '../os-file-drop/types';
 import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
@@ -270,8 +271,24 @@ function openMediaTileMenu(
 		menu.appendChild( opt );
 	}
 
+	// Send-to submenu — no-op when no agent accepts `media`.
+	attachSendToOption(
+		menu,
+		{
+			entityId: ctx.entity.id,
+			kind: ctx.entity.kind ?? 'media',
+			item: media as unknown as Record< string, unknown >,
+		},
+		{
+			onPick: () => closeAnyMediaTileMenu(),
+		},
+	);
+
 	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
+		if ( detail.id === 'desktop-mode-agent-send-to' ) {
+			return;
+		}
 		closeAnyMediaTileMenu();
 		if ( detail.id === 'navigate-into' ) {
 			ctx.host.navigate( {

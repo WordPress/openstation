@@ -167,6 +167,8 @@ import { bootStickyNotes } from './sticky-notes';
 // boot-time consumer reaches the same captured value — see the import
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
+import { registerAgentRunWindow } from './agent-run-window';
+import { bootSeed as bootSeedAgentsSendTo } from './agents-send-to';
 import {
 	installDefaultDockRailRenderer,
 	type DockRailRenderer,
@@ -1682,6 +1684,19 @@ function init(): void {
 	const widgetsEl = document.getElementById( 'desktop-mode-widgets' );
 	let widgetLayer: WidgetLayer | null = null;
 	registerBuiltInWidgets();
+	// Wire the "Agent run" native window's render callback before
+	// the first `desktop-mode.agent.send-to` dispatch — the
+	// `desktop-mode-agent-run` server registration happens on init
+	// priority 25, but the JS callback has to be on the global
+	// `desktopModeNativeWindows` map by the time the user opens it.
+	registerAgentRunWindow();
+	// Pre-warm the agents send-to cache so the first right-click on
+	// any surface (posts table, file tile, wallpaper icon) sees a hot
+	// cache. Without this, the cache only initializes on the first
+	// `attachSendToOption` call — meaning the first right-click after
+	// boot races the REST refresh and the user sees a momentarily
+	// empty "Send to…" submenu. The helper is idempotent.
+	bootSeedAgentsSendTo();
 	// Dock rail renderer registry — install the built-in `'default'`
 	// icon-strip renderer before `desktop-mode.init` fires so the
 	// layout dispatcher (constructed below) can resolve it on the
