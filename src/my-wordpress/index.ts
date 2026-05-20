@@ -4360,6 +4360,19 @@ function buildFootprintHeadlineStats(
 			'',
 		),
 	);
+	// Lifetime saves on existing content — the editor counterpart to
+	// "Total content" / "Comments left". Skipped when zero so a
+	// brand-new author doesn't see an empty card.
+	const updateCount = payload.totals.updates ?? 0;
+	if ( updateCount > 0 ) {
+		wrap.appendChild(
+			buildStatCard(
+				updateCount.toLocaleString(),
+				__( 'Updates', 'desktop-mode' ),
+				__( 'Saves on existing posts', 'desktop-mode' ),
+			),
+		);
+	}
 
 	const longestRange = payload.streak.longestRange;
 	const longestCaption =
@@ -4428,8 +4441,13 @@ function buildFootprintCalendar(
 
 	// Bucket each day by intensity. Max intensity in the window
 	// drives the scale so a sparse poster's pattern still reads.
+	// Update saves count toward the intensity alongside fresh posts
+	// and comments — same shape as GitHub, where edits to existing
+	// content paint the calendar just as boldly as net-new work.
+	const dayIntensity = ( d: UserFootprint[ 'daily' ][ number ] ): number =>
+		d.posts + d.comments + ( d.updates ?? 0 );
 	const maxIntensity = payload.daily.reduce( ( m, d ) => {
-		const v = d.posts + d.comments;
+		const v = dayIntensity( d );
 		return v > m ? v : m;
 	}, 0 );
 	const bucketize = ( v: number ): number => {
@@ -4550,18 +4568,19 @@ function buildFootprintCalendar(
 	}
 	for ( let i = 0; i < payload.daily.length; i += 1 ) {
 		const d = payload.daily[ i ];
-		const intensity = bucketize( d.posts + d.comments );
+		const intensity = bucketize( dayIntensity( d ) );
 		const cell = document.createElement( 'span' );
 		cell.className = `desktop-mode-my-wordpress__footprint-cell desktop-mode-my-wordpress__footprint-cell--l${ intensity }`;
 		cell.title = sprintf(
-			// translators: 1: date, 2: post count, 3: comment count.
+			// translators: 1: date, 2: post count, 3: comment count, 4: update (re-save) count.
 			__(
-				'%1$s — %2$d posts, %3$d comments',
+				'%1$s — %2$d posts, %3$d comments, %4$d updates',
 				'desktop-mode',
 			),
 			formatLongDate( d.date ),
 			d.posts,
 			d.comments,
+			d.updates ?? 0,
 		);
 		cell.dataset.date = d.date;
 		placeCell( cell, firstDow + i );
@@ -4786,11 +4805,13 @@ function buildFootprintTimeline(
 		const dot = document.createElement( 'span' );
 		dot.className = 'desktop-mode-my-wordpress__footprint-dot';
 		const icon = document.createElement( 'span' );
-		icon.className =
-			'dashicons ' +
-			( ev.kind === 'comment'
-				? 'dashicons-admin-comments'
-				: 'dashicons-admin-post' );
+		let iconClass = 'dashicons-admin-post';
+		if ( ev.kind === 'comment' ) {
+			iconClass = 'dashicons-admin-comments';
+		} else if ( ev.kind === 'post-update' ) {
+			iconClass = 'dashicons-edit';
+		}
+		icon.className = 'dashicons ' + iconClass;
 		icon.setAttribute( 'aria-hidden', 'true' );
 		dot.appendChild( icon );
 		li.appendChild( dot );
@@ -4804,14 +4825,21 @@ function buildFootprintTimeline(
 			: document.createElement( 'span' );
 		titleNode.className =
 			'desktop-mode-my-wordpress__footprint-event-title';
-		titleNode.textContent =
-			ev.kind === 'comment'
-				? sprintf(
-					// translators: %s is a post title the user commented on.
-					__( 'Commented on “%s”', 'desktop-mode' ),
-					title,
-				)
-				: title;
+		if ( ev.kind === 'comment' ) {
+			titleNode.textContent = sprintf(
+				// translators: %s is a post title the user commented on.
+				__( 'Commented on “%s”', 'desktop-mode' ),
+				title,
+			);
+		} else if ( ev.kind === 'post-update' ) {
+			titleNode.textContent = sprintf(
+				// translators: %s is the post title the user re-saved.
+				__( 'Updated “%s”', 'desktop-mode' ),
+				title,
+			);
+		} else {
+			titleNode.textContent = title;
+		}
 		if ( ev.link && titleNode instanceof HTMLAnchorElement ) {
 			titleNode.href = ev.link;
 			titleNode.target = '_blank';

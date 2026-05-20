@@ -273,6 +273,13 @@ export interface UserFootprint {
 		date: string;
 		posts: number;
 		comments: number;
+		/**
+		 * Revisions saved by the user that day, excluding the initial
+		 * save of brand-new posts (those count under `posts`). Added
+		 * in 0.8.7 so the heatmap registers update activity, not just
+		 * publications and comments.
+		 */
+		updates: number;
 	} >;
 	/** Sunday-indexed weekday distribution; length 7. */
 	weekday: number[];
@@ -284,7 +291,8 @@ export interface UserFootprint {
 		longestRange: { from: string; to: string };
 	};
 	timeline: Array< {
-		kind: 'post' | 'comment';
+		/** `'post-update'` rows are most-recent-save-per-parent rollups (since 0.8.7). */
+		kind: 'post' | 'comment' | 'post-update';
 		date: string;
 		title: string;
 		link: string;
@@ -296,6 +304,8 @@ export interface UserFootprint {
 		posts: number;
 		pages: number;
 		comments: number;
+		/** Lifetime revision count, excluding the initial save. Since 0.8.7. */
+		updates: number;
 		mostProlificMonth?: { ym: string; n: number };
 	};
 }

@@ -19,16 +19,22 @@
  *
  *   {
  *     profile: { id, name, avatarUrl, link, roleLabels?, registered? },
- *     range:   { from, to, days },             // YYYY-MM-DD bookends + day count
- *     daily:   [ { date, posts, comments } ], // length = range.days; missing days = 0/0
- *     weekday: [ 0..6 ],                      // post counts, Sunday-indexed
- *     hour:    [ 0..23 ],                     // post counts, server-local hour
+ *     range:   { from, to, days },                              // YYYY-MM-DD bookends + day count
+ *     daily:   [ { date, posts, comments, updates } ],         // length = range.days; missing days = 0
+ *     weekday: [ 0..6 ],                                       // post counts, Sunday-indexed
+ *     hour:    [ 0..23 ],                                      // post counts, server-local hour
  *     streak:  { longest, current, longestRange:{ from, to } },
- *     timeline:[                              // 30 most recent activity rows
- *       { kind:'post'|'comment', date, title, link, status, postId? }
+ *     timeline:[                                               // 30 most recent activity rows
+ *       { kind:'post'|'comment'|'post-update', date, title, link, status, postId? }
  *     ],
- *     totals:  { posts, pages, comments, mostProlificMonth?:{ ym, n } }
+ *     totals:  { posts, pages, comments, updates, mostProlificMonth?:{ ym, n } }
  *   }
+ *
+ * "Updates" are revisions saved by the user AFTER a post's original
+ * creation — i.e. the user opened an existing post and saved it
+ * again. The initial save (which WordPress also writes as a revision)
+ * is excluded so the per-day "updates" count doesn't double up with
+ * the per-day "posts" count.
  *
  * @package WPDesktopMode
  * @since   0.20.0
@@ -165,6 +171,35 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 		$comment_by_day[ (string) $row['d'] ] = (int) $row['n'];
 	}
 
+	// Updates = revisions saved by this user, joined back to the
+	// parent post so we can skip the initial-save revision (where the
+	// revision's `post_date_gmt` equals the parent's `post_date_gmt`).
+	// `r.post_author` (not the parent's) tracks who hit Save, so
+	// updates an editor makes to someone else's post show up on the
+	// editor's footprint — same shape GitHub's contribution graph
+	// uses for commits across repos you don't own.
+	$update_rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT DATE(r.post_date_gmt) AS d, COUNT(*) AS n
+			FROM {$wpdb->posts} r
+			INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
+			WHERE r.post_author = %d
+				AND r.post_type = 'revision'
+				AND r.post_status = 'inherit'
+				AND r.post_date_gmt > p.post_date_gmt
+				AND r.post_date_gmt >= %s
+			GROUP BY d
+			ORDER BY d ASC",
+			$user_id,
+			gmdate( 'Y-m-d 00:00:00', $from_ts )
+		),
+		ARRAY_A
+	);
+	$update_by_day = array();
+	foreach ( (array) $update_rows as $row ) {
+		$update_by_day[ (string) $row['d'] ] = (int) $row['n'];
+	}
+
 	$daily = array();
 	for ( $i = 0; $i < $days; $i += 1 ) {
 		$ts   = strtotime( '+' . $i . ' days', $from_ts );
@@ -173,6 +208,7 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 			'date'     => $date,
 			'posts'    => isset( $post_by_day[ $date ] ) ? $post_by_day[ $date ] : 0,
 			'comments' => isset( $comment_by_day[ $date ] ) ? $comment_by_day[ $date ] : 0,
+			'updates'  => isset( $update_by_day[ $date ] ) ? $update_by_day[ $date ] : 0,
 		);
 	}
 
@@ -233,8 +269,17 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	$today_str       = $range['to'];
 	$prev_day_active = false;
 
+	// "Active" = published a post, left a comment, or saved a revision.
+	// Pre-0.8.7 this only counted publish days, so an editor doing
+	// daily updates without new posts had a "0 day" streak — wrong
+	// flavour of GitHub-style for a CMS where most work is editing.
+	$is_active = static function ( $entry ) {
+		return $entry['posts'] > 0
+			|| ( isset( $entry['updates'] ) && $entry['updates'] > 0 )
+			|| ( isset( $entry['comments'] ) && $entry['comments'] > 0 );
+	};
 	foreach ( $daily as $entry ) {
-		if ( $entry['posts'] > 0 ) {
+		if ( $is_active( $entry ) ) {
 			if ( ! $prev_day_active ) {
 				$run_start = $entry['date'];
 			}
@@ -252,7 +297,7 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	}
 	// Current streak — walk backward from today.
 	for ( $i = count( $daily ) - 1; $i >= 0; $i -= 1 ) {
-		if ( $daily[ $i ]['posts'] > 0 ) {
+		if ( $is_active( $daily[ $i ] ) ) {
 			$current += 1;
 		} else {
 			break;
@@ -298,6 +343,29 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
+	// Recent updates — newest revision per parent post saved by this
+	// user. We collapse per-parent (`GROUP BY r.post_parent`) so a
+	// burst of saves on one post reads as one row in the activity
+	// list (otherwise an editor polishing a single article would push
+	// every other event off the screen). The MAX(r.post_date_gmt)
+	// surfaces the most recent save as the row's timestamp.
+	$timeline_updates = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT r.post_parent AS parent_id, MAX(r.post_date_gmt) AS last_save, p.post_title, p.post_status, p.post_type
+			FROM {$wpdb->posts} r
+			INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
+			WHERE r.post_author = %d
+				AND r.post_type = 'revision'
+				AND r.post_status = 'inherit'
+				AND r.post_date_gmt > p.post_date_gmt
+				AND p.post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )
+			GROUP BY r.post_parent
+			ORDER BY last_save DESC
+			LIMIT 30",
+			$user_id
+		),
+		ARRAY_A
+	);
 	$timeline = array();
 	foreach ( (array) $timeline_posts as $p ) {
 		$pid = (int) $p['ID'];
@@ -320,6 +388,18 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 			'status' => 'approved',
 			'postId' => $pid,
 			'link'   => $pid ? (string) get_permalink( $pid ) : '',
+		);
+	}
+	foreach ( (array) $timeline_updates as $u ) {
+		$pid = (int) $u['parent_id'];
+		$timeline[] = array(
+			'kind'   => 'post-update',
+			'date'   => mysql2date( 'c', $u['last_save'], false ),
+			'title'  => (string) $u['post_title'],
+			'status' => (string) $u['post_status'],
+			'postId' => $pid,
+			'link'   => $pid ? (string) get_permalink( $pid ) : '',
+			'type'   => (string) $u['post_type'],
 		);
 	}
 	usort(
@@ -356,6 +436,20 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 			$user_id
 		)
 	);
+	// Lifetime updates = revisions this user saved after the initial
+	// creation of the parent post. Matches the per-day `updates`
+	// definition so the hero stat and heatmap rollups agree.
+	$totals_updates = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->posts} r
+			INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
+			WHERE r.post_author = %d
+				AND r.post_type = 'revision'
+				AND r.post_status = 'inherit'
+				AND r.post_date_gmt > p.post_date_gmt",
+			$user_id
+		)
+	);
 	$month_row = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT(post_date_gmt, '%%Y-%%m') AS ym, COUNT(*) AS n
@@ -374,6 +468,7 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 		'posts'    => $totals_posts,
 		'pages'    => $totals_pages,
 		'comments' => $totals_comments,
+		'updates'  => $totals_updates,
 	);
 	if ( $month_row && isset( $month_row['ym'] ) ) {
 		$totals['mostProlificMonth'] = array(
