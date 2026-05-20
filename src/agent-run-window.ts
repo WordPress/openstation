@@ -511,7 +511,7 @@ function buildEntityTile( entity: AgentRunEntity ): HTMLElement {
 		'aria-label',
 		sprintf(
 			// translators: 1: entity kind (post / page / …), 2: title or id.
-			__( 'Open %1$s "%2$s" (double-click)', 'desktop-mode' ),
+			__( 'Open %1$s "%2$s"', 'desktop-mode' ),
 			entity.kind,
 			displayTitle,
 		),
@@ -520,6 +520,12 @@ function buildEntityTile( entity: AgentRunEntity ): HTMLElement {
 	const open = (): void => {
 		openEntity( entity );
 	};
+	// Click + dblclick + keyboard activation — the tile is small and
+	// disposable, so we don't want the user to guess between single
+	// and double click. Wallpaper desktop icons open on dblclick,
+	// but everything else in the desktop shell that *looks like a
+	// button* opens on a single click; these tiles are buttons.
+	tile.addEventListener( 'click', open );
 	tile.addEventListener( 'dblclick', open );
 	tile.addEventListener( 'keydown', ( ev: KeyboardEvent ) => {
 		if ( ev.key === 'Enter' || ev.key === ' ' ) {
@@ -550,7 +556,7 @@ function openEntity( entity: AgentRunEntity ): void {
 				desktop?: {
 					config?: { adminUrl?: string };
 					windowManager?: {
-						open?: ( args: {
+						open: ( args: {
 							id?: string;
 							url: string;
 							title: string;
@@ -564,9 +570,20 @@ function openEntity( entity: AgentRunEntity ): void {
 	const base = desktop?.config?.adminUrl ?? '/wp-admin/';
 	const url = `${ base.replace( /\/$/, '' ) }/post.php?post=${ entity.id }&action=edit`;
 	const title = entity.title || `#${ entity.id }`;
-	const open = desktop?.windowManager?.open;
-	if ( typeof open === 'function' ) {
-		open( {
+	// eslint-disable-next-line no-console
+	console.info(
+		'[desktop-mode/agents] openEntity →',
+		entity.kind,
+		entity.id,
+		url,
+	);
+	const manager = desktop?.windowManager;
+	if ( manager && typeof manager.open === 'function' ) {
+		// Call as `manager.open(...)` — NOT a destructured `open(...)` —
+		// because `WindowManager.open` uses `this` internally (focus
+		// bookkeeping, per-desktop lookup). Calling it bare throws on
+		// the first `this.` access and the editor never opens.
+		manager.open( {
 			id: `agent-run-entity-post-${ entity.id }`,
 			url,
 			title,
@@ -576,6 +593,10 @@ function openEntity( entity: AgentRunEntity ): void {
 	}
 	// Final fallback — let the browser navigate. The desktop shell's
 	// admin-link interceptor catches it on the next page load.
+	// eslint-disable-next-line no-console
+	console.warn(
+		'[desktop-mode/agents] wp.desktop.windowManager.open missing — falling back to navigate.',
+	);
 	window.location.href = url;
 }
 
