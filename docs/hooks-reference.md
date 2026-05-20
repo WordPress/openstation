@@ -2574,9 +2574,10 @@ add_filter( 'desktop_mode_nonce_refresh_actions', function ( $actions ) {
 
 Each action string is passed verbatim to `wp_create_nonce()`,
 so it MUST match whatever was used to mint the original cached
-nonce. On the client side, register a `registerNonceTarget()`
-updater (`src/nonce-refresh.ts`) keyed by the same action so the
-incoming value is written to wherever your code reads from.
+nonce. On the client side, subscribe to the `desktop_mode_nonces`
+heartbeat field via
+[`wp.desktop.heartbeat.subscribe`](./javascript-reference.md#nonce-refresh--heartbeat-field-stable-since-087)
+and write the value where your code reads from.
 
 ---
 

@@ -20,12 +20,22 @@
  * changes when the tick rolls — well before the 24-hour hard
  * expiry catches the cached value.
  *
- * Extending: feature modules that stash their own nonces in a
- * per-window config blob call `registerNonceTarget()` at boot
- * with the nonce action they care about and a tiny updater that
- * writes the fresh value where they read it from. Plain
- * registration is the public extension surface; the heartbeat
- * field name is an internal detail.
+ * Extending from third-party plugins: subscribe to the
+ * heartbeat field directly via the public heartbeat surface —
+ *
+ *     wp.desktop.heartbeat.subscribe( 'desktop_mode_nonces', ( map ) => {
+ *         // map[ 'my-plugin/admin-ajax' ] is the fresh value
+ *     } );
+ *
+ * The matching action must be published from PHP via the
+ * `desktop_mode_nonce_refresh_actions` filter so the server
+ * actually ships it.
+ *
+ * `registerNonceTarget()` below is an internal helper the
+ * framework uses to wire its own built-in targets — third-party
+ * bundles don't ship with the main bundle's module graph, so
+ * importing it directly isn't supported. The public extension
+ * surface is the heartbeat subscription above.
  *
  * @since 0.8.7
  */
@@ -63,7 +73,12 @@ let booted = false;
  * since the initial cached value (from the per-window config
  * blob) is already correct at registration time.
  *
- * @public
+ * Framework-only. Third-party plugins can't import this from a
+ * separate bundle; use
+ * `wp.desktop.heartbeat.subscribe( 'desktop_mode_nonces', cb )`
+ * instead and read the action key off the returned map.
+ *
+ * @internal
  */
 export function registerNonceTarget(
 	action: string,
@@ -88,7 +103,10 @@ export function registerNonceTarget(
  * no-op so the boot order between this and per-window
  * registrations doesn't matter.
  *
- * @public
+ * Called once from `src/desktop.ts` during shell boot. Plugin
+ * authors don't need to call this.
+ *
+ * @internal
  */
 export function bootNonceRefresh(): void {
 	if ( booted ) {

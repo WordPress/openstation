@@ -15,6 +15,9 @@ class Tests_DesktopMode_NonceRefresh extends WP_UnitTestCase {
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$user_id = $factory->user->create( array( 'role' => 'administrator' ) );
+		// Opt this user into Desktop Mode so the heartbeat gate
+		// (`desktop_mode_is_enabled()`) lets the payload through.
+		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
 	}
 
 	public function tear_down() {
@@ -34,6 +37,23 @@ class Tests_DesktopMode_NonceRefresh extends WP_UnitTestCase {
 			DESKTOP_MODE_NONCE_REFRESH_FIELD,
 			$response,
 			'Logged-out users must not receive a refreshed nonce payload.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_nonce_refresh_heartbeat_received
+	 */
+	public function test_skips_users_without_desktop_mode_enabled() {
+		$opted_out = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		// No desktop_mode_mode meta -> is_enabled() returns false.
+		wp_set_current_user( $opted_out );
+
+		$response = desktop_mode_nonce_refresh_heartbeat_received( array(), array() );
+
+		$this->assertArrayNotHasKey(
+			DESKTOP_MODE_NONCE_REFRESH_FIELD,
+			$response,
+			'Users who have not opted into Desktop Mode must not receive the payload.'
 		);
 	}
 

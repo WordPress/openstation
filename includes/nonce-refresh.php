@@ -89,14 +89,17 @@ function desktop_mode_nonce_refresh_build_payload() {
 
 /**
  * Heartbeat handler — attach the fresh nonce map to every tick
- * from a logged-in user.
+ * from a user who has Desktop Mode enabled.
  *
- * Runs unconditionally for logged-in users, not gated on a
- * client-sent opt-in field. The cost is tiny (three
- * `wp_create_nonce()` calls, all hot-cached inside a single
- * request) and we want EVERY shell tab to receive the refresh,
- * including ones that don't otherwise contribute to the heartbeat
- * payload.
+ * Gated on `desktop_mode_is_enabled()` (not just `is_user_logged_in()`)
+ * so users on classic admin screens — editors on post-edit pages,
+ * subscribers reading the front-end heartbeat — don't carry the
+ * payload around. The shell's nonces only need refreshing for
+ * users who actually run the shell.
+ *
+ * The cost is tiny when fired (three `wp_create_nonce()` calls,
+ * all hot-cached inside a single request) — the gate is about
+ * not shipping irrelevant data to non-shell users on every tick.
  *
  * @since 0.8.7
  *
@@ -109,7 +112,7 @@ function desktop_mode_nonce_refresh_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( ! is_user_logged_in() ) {
+	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
 		return $response;
 	}
 	$response[ DESKTOP_MODE_NONCE_REFRESH_FIELD ] = desktop_mode_nonce_refresh_build_payload();
