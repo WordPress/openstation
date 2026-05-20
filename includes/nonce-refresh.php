@@ -1,0 +1,118 @@
+<?php
+/**
+ * Desktop Mode — Heartbeat-driven nonce refresh.
+ *
+ * WordPress nonces are valid for `nonce_life` (24 hours by default).
+ * The desktop shell is a long-running SPA whose per-window config
+ * blobs bake `wp_create_nonce()` values into the page at render
+ * time, so any session that stays open past the 24-hour mark hits
+ * `rest_cookie_invalid_nonce` ("Cookie check failed") on the next
+ * REST call — even though the auth cookie is still valid.
+ *
+ * Fix: on every Heartbeat tick, return a fresh copy of every nonce
+ * action the shell cares about, keyed by action string. The client
+ * subscribes via `src/nonce-refresh.ts` and rewrites the cached
+ * values in place. `wp_create_nonce()` returns the same value
+ * inside a single 12-hour tick window, so the actual nonce string
+ * only changes when the tick rolls — well before the 24-hour hard
+ * expiry catches the cached value.
+ *
+ * Default actions covered:
+ *
+ *   - `wp_rest` — the canonical REST cookie nonce. Used by every
+ *      window that stashes a `restNonce` in its config blob, plus
+ *      the shell-wide auto-injection in `src/inject-rest-nonce.ts`.
+ *   - `desktop-mode-plugins` — admin-ajax nonce for our
+ *      browse/install/upload/reviews handlers.
+ *   - `updates` — Core's wp.updates nonce used by
+ *      `wp_ajax_install_plugin` / `wp_ajax_update_plugin`.
+ *
+ * Plugin authors who need to extend the set can hook
+ * `desktop_mode_nonce_refresh_actions` and add their own nonce
+ * action strings. The client side picks the new fields up
+ * automatically through the same heartbeat field — feature modules
+ * just need to register a target for the field they care about via
+ * the JS-side `registerNonceTarget()` helper.
+ *
+ * @package WPDesktopMode
+ * @since   0.8.7
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Heartbeat field name. Public — `src/nonce-refresh.ts` subscribes
+ * to this string. Keep the value stable across versions or update
+ * both ends.
+ */
+const DESKTOP_MODE_NONCE_REFRESH_FIELD = 'desktop_mode_nonces';
+
+/**
+ * Mint a fresh map of `{ action => nonce }` for every action the
+ * shell needs to keep alive past `nonce_life`. The set is
+ * filterable so other native windows / third-party plugins can
+ * extend it; the only requirement is that the action string match
+ * whatever was passed to `wp_create_nonce()` at registration.
+ *
+ * @since 0.8.7
+ *
+ * @return array<string,string> Map of nonce-action => current nonce value.
+ */
+function desktop_mode_nonce_refresh_build_payload() {
+	$actions = array(
+		'wp_rest',
+		'desktop-mode-plugins',
+		'updates',
+	);
+
+	/**
+	 * Filter the set of nonce actions refreshed on every Heartbeat tick.
+	 *
+	 * Each entry must be a literal nonce action string (the same value
+	 * passed to `wp_create_nonce()` wherever the original was minted).
+	 *
+	 * @since 0.8.7
+	 *
+	 * @param string[] $actions Default nonce actions.
+	 */
+	$actions = (array) apply_filters( 'desktop_mode_nonce_refresh_actions', $actions );
+
+	$payload = array();
+	foreach ( $actions as $action ) {
+		if ( ! is_string( $action ) || $action === '' ) {
+			continue;
+		}
+		$payload[ $action ] = wp_create_nonce( $action );
+	}
+	return $payload;
+}
+
+/**
+ * Heartbeat handler — attach the fresh nonce map to every tick
+ * from a logged-in user.
+ *
+ * Runs unconditionally for logged-in users, not gated on a
+ * client-sent opt-in field. The cost is tiny (three
+ * `wp_create_nonce()` calls, all hot-cached inside a single
+ * request) and we want EVERY shell tab to receive the refresh,
+ * including ones that don't otherwise contribute to the heartbeat
+ * payload.
+ *
+ * @since 0.8.7
+ *
+ * @param array $response Heartbeat response (filter return value).
+ * @param array $data     Client-sent payload. Unused here.
+ * @return array
+ */
+function desktop_mode_nonce_refresh_heartbeat_received( $response, $data ) {
+	unset( $data );
+	if ( ! is_array( $response ) ) {
+		$response = array();
+	}
+	if ( ! is_user_logged_in() ) {
+		return $response;
+	}
+	$response[ DESKTOP_MODE_NONCE_REFRESH_FIELD ] = desktop_mode_nonce_refresh_build_payload();
+	return $response;
+}
+add_filter( 'heartbeat_received', 'desktop_mode_nonce_refresh_heartbeat_received', 5, 2 );

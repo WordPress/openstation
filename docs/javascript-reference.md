@@ -4200,6 +4200,45 @@ See [Examples — My WordPress media action](./examples/my-wordpress-media-actio
 
 ---
 
+## Nonce refresh — `registerNonceTarget()` *(Stable, since 0.8.7)*
+
+WordPress nonces expire after `nonce_life` (24 h by default). The
+desktop shell is a long-running SPA, so cached nonces stamped
+into `window.desktopModeConfig.restNonce` (auto-injected by
+`injectRestNonce`) and per-window config blobs like
+`window.desktopModeWindowConfig['desktop-mode-plugins']` would
+otherwise go stale after a day. The server's
+`heartbeat_received` filter (see
+[`desktop_mode_nonce_refresh_actions`](./hooks-reference.md#desktop_mode_nonce_refresh_actions--stable-filter-since-087))
+ships a fresh `{ action: nonce }` map on every tick under the
+`desktop_mode_nonces` heartbeat field; the client overwrites the
+cached values in place. Defaults cover `wp_rest`,
+`desktop-mode-plugins`, and `updates`.
+
+Feature modules that stash their own nonces in a per-window
+config blob can subscribe via `registerNonceTarget()`:
+
+```ts
+import { registerNonceTarget } from 'desktop-mode/nonce-refresh';
+
+registerNonceTarget( 'my-plugin/admin-ajax', ( fresh ) => {
+    window.desktopModeWindowConfig[ 'my-plugin' ].ajaxNonce = fresh;
+} );
+```
+
+The updater fires on every Heartbeat tick that carries a value
+for the registered action. Targets compose — multiple updaters
+per action are supported. The shell-wide `restNonce` and every
+per-window blob's `restNonce` are refreshed automatically by the
+framework's built-in `wp_rest` target, so most callers don't
+need to wire anything by hand.
+
+The PHP side must publish the matching action via
+[`desktop_mode_nonce_refresh_actions`](./hooks-reference.md#desktop_mode_nonce_refresh_actions--stable-filter-since-087)
+for the value to actually be shipped over heartbeat.
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.

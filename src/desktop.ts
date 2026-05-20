@@ -146,6 +146,7 @@ import {
 } from './presence';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bootNonceRefresh } from './nonce-refresh';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { openCurrentPage, restoreSession } from './boot/session';
@@ -2886,6 +2887,13 @@ function init(): void {
 	// contributor / subscriber. Idempotent — safe to run twice
 	// if init() ever fires again.
 	bootHeartbeatBus();
+
+	// Subscribe to heartbeat-driven nonce refresh so cached
+	// `restNonce` values in `window.desktopModeConfig` and
+	// `window.desktopModeWindowConfig` stay valid past the
+	// 24-hour `nonce_life` boundary. See `src/nonce-refresh.ts`
+	// and `includes/nonce-refresh.php`.
+	bootNonceRefresh();
 
 	// Files-on-the-Desktop: hand the open() dispatcher real
 	// dependencies and seed the per-user associations from the

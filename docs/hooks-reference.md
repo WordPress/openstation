@@ -2545,6 +2545,41 @@ See [`docs/pwa.md`](./pwa.md) for the full architecture and
 
 ---
 
+## Nonce refresh (since 0.8.7)
+
+The desktop shell is a long-running SPA whose nonces would
+otherwise go stale past WordPress's `nonce_life` (24 h). To
+prevent this, `includes/nonce-refresh.php` registers a
+`heartbeat_received` filter that ships fresh values for a fixed
+set of nonce actions on every Heartbeat tick — the client
+overwrites the cached values in `window.desktopModeConfig` and
+the per-window blobs in place.
+
+### `desktop_mode_nonce_refresh_actions` — Stable *(filter, since 0.8.7)*
+
+Filter the list of nonce-action strings the server refreshes on
+every Heartbeat tick.
+
+```php
+add_filter( 'desktop_mode_nonce_refresh_actions', function ( $actions ) {
+    $actions[] = 'my-plugin/admin-ajax';
+    return $actions;
+} );
+```
+
+- **Param** `string[] $actions` — default set: `[ 'wp_rest',
+  'desktop-mode-plugins', 'updates' ]`.
+- **Return** `string[]` — non-string / empty entries are
+  silently dropped.
+
+Each action string is passed verbatim to `wp_create_nonce()`,
+so it MUST match whatever was used to mint the original cached
+nonce. On the client side, register a `registerNonceTarget()`
+updater (`src/nonce-refresh.ts`) keyed by the same action so the
+incoming value is written to wherever your code reads from.
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.
