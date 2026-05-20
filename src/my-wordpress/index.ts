@@ -33,6 +33,7 @@ import {
 	type EntityRenderHost,
 	type EntityRenderer,
 } from './kind-registry';
+import { renderListToolbar } from './list-toolbar';
 import { renderMediaList } from './media-list';
 import { renderMediaDetail } from './media-detail';
 import {
@@ -653,13 +654,62 @@ interface ListContext {
 	selectedTile: HTMLElement | null;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
+	/**
+	 * Current debounced search query — empty string means no filter.
+	 * Threaded into `fetchEntityList` as the `search` param.
+	 *
+	 * @since 0.22.0
+	 */
+	query: string;
+	/**
+	 * Aborts the in-flight page fetch when a new search query
+	 * supersedes it. Replaced on every `loadMore()` call so the
+	 * latest in-flight request is the only one that can paint.
+	 *
+	 * @since 0.22.0
+	 */
+	abort: AbortController | null;
 }
+
+/**
+ * Per-entity remembered search query. Survives a click-into-post-
+ * and-back round-trip (renderEntityList re-mounts on every list
+ * navigation; reading from this map at the top restores the prior
+ * query without baking it into the Route schema). Keyed by
+ * `entity.id` so switching Posts → Pages clears the field — see
+ * the user-facing rationale for that in the plan.
+ *
+ * @since 0.22.0
+ */
+const lastQueryByEntity = new Map< string, string >();
 
 function renderEntityList(
 	state: RenderState,
 	entity: MyWordPressEntity,
 ): void {
 	const cfg = getConfig();
+	const initialQuery = lastQueryByEntity.get( entity.id ) ?? '';
+
+	const toolbar = renderListToolbar( {
+		placeholder: sprintf(
+			// translators: %s is a lowercased entity-type label (e.g. "posts", "pages").
+			__( 'Search %s…', 'desktop-mode' ),
+			entity.label.toLowerCase(),
+		),
+		ariaLabel: sprintf(
+			// translators: %s is an entity-type label (e.g. "Posts", "Pages").
+			__( 'Search %s', 'desktop-mode' ),
+			entity.label,
+		),
+		initialValue: initialQuery,
+		onSearchChange: ( q ) => {
+			lastQueryByEntity.set( entity.id, q );
+			void resetForSearch( q );
+		},
+	} );
+	state.body.appendChild( toolbar.host );
+	state.teardown.push( () => toolbar.destroy() );
+
 	const split = document.createElement( 'div' );
 	split.className = 'desktop-mode-my-wordpress__split';
 
@@ -711,8 +761,14 @@ function renderEntityList(
 		selectedTile: null,
 		observer: null,
 		layout: tileLayout,
+		query: initialQuery,
+		abort: null,
 	};
 	state.teardown.push( () => tileLayout.dispose() );
+	// Cancel any in-flight page fetch on teardown — keeps the
+	// activity bus / loading spinner from showing a never-resolving
+	// pulse after the user navigates away.
+	state.teardown.push( () => ctx.abort?.abort() );
 
 	const repaintListStatus = () => {
 		// Show "X of Y items" while infinite scroll still has more
@@ -782,18 +838,31 @@ function renderEntityList(
 		ctx.loading = true;
 		const nextPage = ctx.page + 1;
 		const isFirst = nextPage === 1;
+		const queryAtFetchTime = ctx.query;
 		showLoadingSkeleton( tiles, ctx.layout, isFirst );
+		const controller = new AbortController();
+		ctx.abort = controller;
 		try {
 			const result = await fetchEntityList( entity, {
 				page: nextPage,
 				perPage: cfg.perPage,
+				search: queryAtFetchTime || undefined,
+				signal: controller.signal,
 			} );
+			// Race guard: a fresh search may have started while this
+			// page was in flight. The new request resets ctx.query
+			// AND aborts this controller — but if the abort lost the
+			// race (response already buffered) we'd paint stale
+			// tiles into a freshly-cleared grid.
+			if ( ctx.query !== queryAtFetchTime ) {
+				return;
+			}
 			ctx.page = nextPage;
 			ctx.totalPages = result.totalPages;
 			ctx.total = result.total;
 			hideLoadingSkeleton( tiles );
 			if ( result.items.length === 0 && isFirst ) {
-				renderListEmpty( tiles, entity );
+				renderListEmpty( tiles, entity, queryAtFetchTime );
 				ctx.done = true;
 				repaintListStatus();
 				return;
@@ -807,6 +876,12 @@ function renderEntityList(
 			}
 			repaintListStatus();
 		} catch ( err ) {
+			if ( isAbortError( err ) ) {
+				// Search query changed mid-flight. The new query's
+				// loadMore() will repaint; nothing to do here, and
+				// we explicitly avoid painting an error message.
+				return;
+			}
 			hideLoadingSkeleton( tiles );
 			const msg =
 				err instanceof Error ? err.message : __( 'Unknown error.', 'desktop-mode' );
@@ -814,12 +889,123 @@ function renderEntityList(
 			ctx.done = true;
 		} finally {
 			ctx.loading = false;
+			if ( ctx.abort === controller ) {
+				ctx.abort = null;
+			}
 		}
 		// Chain — keep pulling pages while the sentinel is still
 		// within the rootMargin slack and there's more to load.
 		// Wrapped in `requestAnimationFrame` so the layout has
 		// settled with the freshly-appended tiles before we
 		// measure the sentinel's position.
+		if ( ! ctx.done ) {
+			requestAnimationFrame( () => {
+				if ( sentinelIsVisible() ) {
+					void loadMore();
+				}
+			} );
+		}
+	};
+
+	const resetForSearch = async ( q: string ): Promise< void > => {
+		// Cancel any in-flight page so the prior query can't paint
+		// after the swap.
+		ctx.abort?.abort();
+		ctx.abort = null;
+		ctx.query = q;
+
+		// Critical UX: do NOT clear tiles + paint a skeleton up front.
+		// Search runs on every debounced keystroke; ripping the grid
+		// down to placeholders before the response lands shows the
+		// user an "intermediate page" that flashes between every
+		// refinement. Instead keep the previous results visible (the
+		// `--searching` class dims them so the change-in-progress is
+		// visible), do the fetch, then atomically swap when the new
+		// page lands.
+		tiles.classList.add(
+			'desktop-mode-my-wordpress__tiles--searching',
+		);
+		hideLoadingSkeleton( tiles );
+
+		const controller = new AbortController();
+		ctx.abort = controller;
+		ctx.loading = true;
+
+		try {
+			const result = await fetchEntityList( entity, {
+				page: 1,
+				perPage: cfg.perPage,
+				search: q || undefined,
+				signal: controller.signal,
+			} );
+			// Stale guard — a later query may have superseded us.
+			if ( ctx.query !== q ) {
+				return;
+			}
+
+			// Atomic swap. Up to this point the user has been looking
+			// at the prior result set (dimmed); the next few lines
+			// replace it with the new one in one frame.
+			tiles.replaceChildren();
+			ctx.layout.clear();
+			tiles.classList.remove(
+				'desktop-mode-my-wordpress__tiles--searching',
+			);
+
+			ctx.page = 1;
+			ctx.totalPages = result.totalPages;
+			ctx.total = result.total;
+			ctx.loaded = 0;
+			ctx.done = ctx.page >= ctx.totalPages;
+			ctx.selectedId = null;
+			ctx.selectedTile = null;
+			ctx.preview.replaceChildren();
+			const emptyPreview = document.createElement( 'div' );
+			emptyPreview.className =
+				'desktop-mode-my-wordpress__preview-empty';
+			emptyPreview.textContent = __(
+				'Select an entry to preview it here.',
+				'desktop-mode',
+			);
+			ctx.preview.appendChild( emptyPreview );
+
+			if ( result.items.length === 0 ) {
+				renderListEmpty( tiles, entity, q );
+				ctx.done = true;
+			} else {
+				for ( const item of result.items ) {
+					tiles.appendChild(
+						buildEntityTile( state, ctx, entity, item ),
+					);
+					ctx.loaded += 1;
+				}
+			}
+			repaintListStatus();
+		} catch ( err ) {
+			if ( isAbortError( err ) ) {
+				return;
+			}
+			tiles.classList.remove(
+				'desktop-mode-my-wordpress__tiles--searching',
+			);
+			tiles.replaceChildren();
+			ctx.layout.clear();
+			const msg =
+				err instanceof Error
+					? err.message
+					: __( 'Unknown error.', 'desktop-mode' );
+			renderListError( tiles, msg );
+			ctx.done = true;
+		} finally {
+			ctx.loading = false;
+			if ( ctx.abort === controller ) {
+				ctx.abort = null;
+			}
+		}
+
+		// Chain — keep pulling pages while the sentinel is still
+		// within the rootMargin slack. The first page is in; let
+		// the regular `loadMore` pipeline drive any follow-ups.
 		if ( ! ctx.done ) {
 			requestAnimationFrame( () => {
 				if ( sentinelIsVisible() ) {
@@ -847,17 +1033,31 @@ function renderEntityList(
 	void loadMore();
 }
 
+function isAbortError( err: unknown ): boolean {
+	return err instanceof DOMException && err.name === 'AbortError';
+}
+
 function renderListEmpty(
 	host: HTMLElement,
 	entity: MyWordPressEntity,
+	query?: string,
 ): void {
 	const empty = document.createElement( 'div' );
 	empty.className = 'desktop-mode-my-wordpress__empty';
-	empty.textContent = sprintf(
-		// translators: %s is an entity-type label (e.g. "Posts", "Pages").
-		__( 'No %s yet.', 'desktop-mode' ),
-		entity.label.toLowerCase(),
-	);
+	if ( query ) {
+		empty.textContent = sprintf(
+			// translators: 1: search query, 2: lowercased entity-type label.
+			__( 'No %2$s match "%1$s".', 'desktop-mode' ),
+			query,
+			entity.label.toLowerCase(),
+		);
+	} else {
+		empty.textContent = sprintf(
+			// translators: %s is an entity-type label (e.g. "Posts", "Pages").
+			__( 'No %s yet.', 'desktop-mode' ),
+			entity.label.toLowerCase(),
+		);
+	}
 	host.appendChild( empty );
 }
 
@@ -3455,6 +3655,10 @@ interface UserListContext {
 	selectedTile: HTMLElement | null;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
+	/** @since 0.22.0 */
+	query: string;
+	/** @since 0.22.0 */
+	abort: AbortController | null;
 }
 
 function renderUserEntityList(
@@ -3462,6 +3666,20 @@ function renderUserEntityList(
 	entity: MyWordPressEntity,
 ): void {
 	const cfg = getConfig();
+	const initialQuery = lastQueryByEntity.get( entity.id ) ?? '';
+
+	const toolbar = renderListToolbar( {
+		placeholder: __( 'Search users…', 'desktop-mode' ),
+		ariaLabel: __( 'Search users', 'desktop-mode' ),
+		initialValue: initialQuery,
+		onSearchChange: ( q ) => {
+			lastQueryByEntity.set( entity.id, q );
+			void resetForSearch( q );
+		},
+	} );
+	state.body.appendChild( toolbar.host );
+	state.teardown.push( () => toolbar.destroy() );
+
 	const split = document.createElement( 'div' );
 	split.className = 'desktop-mode-my-wordpress__split';
 
@@ -3513,8 +3731,11 @@ function renderUserEntityList(
 		selectedTile: null,
 		observer: null,
 		layout: tileLayout,
+		query: initialQuery,
+		abort: null,
 	};
 	state.teardown.push( () => tileLayout.dispose() );
+	state.teardown.push( () => ctx.abort?.abort() );
 
 	const repaintListStatus = () => {
 		let itemLabel: string;
@@ -3571,12 +3792,20 @@ function renderUserEntityList(
 		ctx.loading = true;
 		const nextPage = ctx.page + 1;
 		const isFirst = nextPage === 1;
+		const queryAtFetchTime = ctx.query;
 		showLoadingSkeleton( tiles, ctx.layout, isFirst );
+		const controller = new AbortController();
+		ctx.abort = controller;
 		try {
 			const result = await fetchUserList( entity, {
 				page: nextPage,
 				perPage: cfg.perPage,
+				search: queryAtFetchTime || undefined,
+				signal: controller.signal,
 			} );
+			if ( ctx.query !== queryAtFetchTime ) {
+				return;
+			}
 			ctx.page = nextPage;
 			ctx.totalPages = result.totalPages;
 			ctx.total = result.total;
@@ -3584,7 +3813,13 @@ function renderUserEntityList(
 			if ( result.items.length === 0 && isFirst ) {
 				renderListEmptyMessage(
 					tiles,
-					__( 'No users to show.', 'desktop-mode' ),
+					queryAtFetchTime
+						? sprintf(
+							// translators: %s is the user-entered search query.
+							__( 'No users match "%s".', 'desktop-mode' ),
+							queryAtFetchTime,
+						)
+						: __( 'No users to show.', 'desktop-mode' ),
 				);
 				ctx.done = true;
 				repaintListStatus();
@@ -3601,6 +3836,9 @@ function renderUserEntityList(
 			}
 			repaintListStatus();
 		} catch ( err ) {
+			if ( isAbortError( err ) ) {
+				return;
+			}
 			hideLoadingSkeleton( tiles );
 			const msg =
 				err instanceof Error
@@ -3610,7 +3848,114 @@ function renderUserEntityList(
 			ctx.done = true;
 		} finally {
 			ctx.loading = false;
+			if ( ctx.abort === controller ) {
+				ctx.abort = null;
+			}
 		}
+		if ( ! ctx.done ) {
+			requestAnimationFrame( () => {
+				if ( sentinelIsVisible() ) {
+					void loadMore();
+				}
+			} );
+		}
+	};
+
+	const resetForSearch = async ( q: string ): Promise< void > => {
+		// See `renderEntityList`'s `resetForSearch` for the full
+		// rationale — short version: don't rip the grid down to a
+		// skeleton on every keystroke; keep the old tiles visible
+		// (dimmed via the `--searching` class), fetch, then swap.
+		ctx.abort?.abort();
+		ctx.abort = null;
+		ctx.query = q;
+
+		tiles.classList.add(
+			'desktop-mode-my-wordpress__tiles--searching',
+		);
+		hideLoadingSkeleton( tiles );
+
+		const controller = new AbortController();
+		ctx.abort = controller;
+		ctx.loading = true;
+
+		try {
+			const result = await fetchUserList( entity, {
+				page: 1,
+				perPage: cfg.perPage,
+				search: q || undefined,
+				signal: controller.signal,
+			} );
+			if ( ctx.query !== q ) {
+				return;
+			}
+
+			tiles.replaceChildren();
+			ctx.layout.clear();
+			tiles.classList.remove(
+				'desktop-mode-my-wordpress__tiles--searching',
+			);
+
+			ctx.page = 1;
+			ctx.totalPages = result.totalPages;
+			ctx.total = result.total;
+			ctx.loaded = 0;
+			ctx.done = ctx.page >= ctx.totalPages;
+			ctx.selectedId = null;
+			ctx.selectedTile = null;
+			ctx.preview.replaceChildren();
+			const emptyPreview = document.createElement( 'div' );
+			emptyPreview.className =
+				'desktop-mode-my-wordpress__preview-empty';
+			emptyPreview.textContent = __(
+				'Select a user to see their profile here.',
+				'desktop-mode',
+			);
+			ctx.preview.appendChild( emptyPreview );
+
+			if ( result.items.length === 0 ) {
+				renderListEmptyMessage(
+					tiles,
+					q
+						? sprintf(
+							// translators: %s is the user-entered search query.
+							__( 'No users match "%s".', 'desktop-mode' ),
+							q,
+						)
+						: __( 'No users to show.', 'desktop-mode' ),
+				);
+				ctx.done = true;
+			} else {
+				for ( const item of result.items ) {
+					tiles.appendChild(
+						buildUserTile( state, ctx, entity, item ),
+					);
+					ctx.loaded += 1;
+				}
+			}
+			repaintListStatus();
+		} catch ( err ) {
+			if ( isAbortError( err ) ) {
+				return;
+			}
+			tiles.classList.remove(
+				'desktop-mode-my-wordpress__tiles--searching',
+			);
+			tiles.replaceChildren();
+			ctx.layout.clear();
+			const msg =
+				err instanceof Error
+					? err.message
+					: __( 'Unknown error.', 'desktop-mode' );
+			renderListError( tiles, msg );
+			ctx.done = true;
+		} finally {
+			ctx.loading = false;
+			if ( ctx.abort === controller ) {
+				ctx.abort = null;
+			}
+		}
+
 		if ( ! ctx.done ) {
 			requestAnimationFrame( () => {
 				if ( sentinelIsVisible() ) {
@@ -5038,6 +5383,16 @@ interface TileLayout {
 	 * "where the next icons go" promise honest.
 	 */
 	peekNextCells: ( count: number ) => Array< { x: number; y: number } >;
+	/**
+	 * Drop every tracked tile entry and clear the occupied set so the
+	 * same layout instance can be reused for a fresh result set. The
+	 * persisted-positions map on disk stays intact — when a previously-
+	 * placed tile's key reappears (e.g. user clears the search field),
+	 * its remembered position is restored.
+	 *
+	 * @since 0.22.0
+	 */
+	clear: () => void;
 	dispose: () => void;
 }
 
@@ -5364,6 +5719,12 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 		return out;
 	};
 
+	const clear = (): void => {
+		entries.length = 0;
+		occupied.clear();
+		host.style.minHeight = '';
+	};
+
 	return {
 		host,
 		scope,
@@ -5372,6 +5733,7 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 		sort,
 		reflow,
 		peekNextCells,
+		clear,
 		dispose: () => {
 			resizeObserver?.disconnect();
 			resizeObserver = null;

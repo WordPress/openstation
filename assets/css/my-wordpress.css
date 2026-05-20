@@ -67,6 +67,69 @@
 	min-height: 0;
 	overflow: hidden;
 	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+/* List-view toolbar — sits between the breadcrumb header and the
+ * split pane in every entity list view (Posts, Pages, Users, Media).
+ * Holds the server-side search input today; reserved for future
+ * filter / sort controls. Visual treatment mirrors the Content
+ * Graph toolbar's search row so the two surfaces read as the same
+ * control. */
+.desktop-mode-my-wordpress__list-toolbar {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: transparent;
+}
+
+.desktop-mode-my-wordpress__list-toolbar-search {
+	position: relative;
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 360px;
+}
+
+.desktop-mode-my-wordpress__list-toolbar-search-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var( --wpd-border, #d8dde4 );
+	border-radius: 6px;
+	background: var( --wpd-surface, #fff );
+	color: inherit;
+	font-size: 13px;
+	box-sizing: border-box;
+}
+
+.desktop-mode-my-wordpress__list-toolbar-search-input:focus {
+	outline: none;
+	border-color: var( --wpd-accent, #2c6be5 );
+	box-shadow: 0 0 0 3px var( --wpd-accent-soft, rgba( 44, 107, 229, 0.18 ) );
+}
+
+/* When the list-toolbar mounts, the split pane needs to claim the
+ * remaining vertical space inside the flex column body — without
+ * this rule it would size to its content (which, for an empty list,
+ * is zero) and the tile canvas would collapse. */
+.desktop-mode-my-wordpress__body > .desktop-mode-my-wordpress__split {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/* Search-in-progress dimming. The previous result set stays in place
+ * (no skeleton flash, no empty intermediate page) but reads as
+ * "stale" until the new page lands and the renderer atomically swaps
+ * the tiles. `pointer-events: none` blocks the user from clicking
+ * a tile that's about to disappear. */
+.desktop-mode-my-wordpress__tiles--searching,
+.desktop-mode-my-wordpress__media-grid--searching {
+	opacity: 0.45;
+	pointer-events: none;
+	transition: opacity 0.12s ease-out;
 }
 
 /* Reuse the file-system folder window's status-bar element
