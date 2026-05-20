@@ -25,6 +25,7 @@ import {
 	defaultFields,
 	handleFiles,
 	humanize,
+	mountOsFileDropManager,
 	partitionByPolicy,
 	resolveAllowedMime,
 	sanitizeFilename,
@@ -55,6 +56,13 @@ describe( 'os-file-drop/manager', () => {
 	afterEach( () => {
 		clearHooksStub();
 		document.body.innerHTML = '';
+		// Tear down any manager mounted during a test so the
+		// window-level sentinel + listeners don't leak across
+		// tests.
+		const host = window as unknown as {
+			__desktopModeOsFileDropMounted?: { dispose: () => void };
+		};
+		host.__desktopModeOsFileDropMounted?.dispose();
 	} );
 
 	describe( 'partitionByPolicy', () => {
@@ -284,6 +292,47 @@ describe( 'os-file-drop/manager', () => {
 					openDialog,
 				},
 			);
+			expect( openDialog ).not.toHaveBeenCalled();
+		} );
+
+		test( 'window-level drop bails when a nested handler already preventDefault-ed', async () => {
+			// Inner drop target (e.g. the Plugins .zip upload
+			// dropzone) is a child of the body and calls
+			// preventDefault on the drop. The window-level
+			// manager must NOT also process the file — that's
+			// what was opening the Media Library uploader on top
+			// of the Plugins upload dialog.
+			const openDialog = vi.fn().mockResolvedValue( undefined );
+			mountOsFileDropManager( {
+				config: {
+					enabled: true,
+					allowedMimes: IMAGE_MIMES,
+					maxSize: 0,
+				},
+				mediaUrl: '',
+				restNonce: '',
+				openDialog,
+			} );
+
+			const inner = document.createElement( 'div' );
+			document.body.appendChild( inner );
+			inner.addEventListener( 'drop', ( ev ) => ev.preventDefault() );
+
+			const file = makeFile( 'photo.png', 'image/png' );
+			const dataTransfer = {
+				types: [ 'Files' ],
+				files: [ file ],
+				dropEffect: 'copy',
+			};
+			const drop = new Event( 'drop', {
+				bubbles: true,
+				cancelable: true,
+			} );
+			Object.defineProperty( drop, 'dataTransfer', {
+				value: dataTransfer,
+			} );
+			inner.dispatchEvent( drop );
+
 			expect( openDialog ).not.toHaveBeenCalled();
 		} );
 

@@ -143,6 +143,19 @@ export function openUploadDialog(
 		overlay.appendChild( card );
 		host.appendChild( overlay );
 
+		// The modal overlay swallows stray drag/drop events so a
+		// .zip dropped on the dimmed area (outside the dropzone)
+		// can't bubble through to the Plugins window body — that
+		// would open a duplicate upload dialog — or to the
+		// shell-wide OS-file-drop manager.
+		const swallowDrag = ( ev: DragEvent ): void => {
+			ev.preventDefault();
+			ev.stopPropagation();
+		};
+		overlay.addEventListener( 'dragenter', swallowDrag );
+		overlay.addEventListener( 'dragover', swallowDrag );
+		overlay.addEventListener( 'drop', swallowDrag );
+
 		// ─── State ──────────────────────────────────────────────────
 		let pickedFile: File | null = null;
 		let uploading = false;
@@ -179,15 +192,23 @@ export function openUploadDialog(
 				input.click();
 			}
 		} );
+		// Drag/drop events are stopped at the dropzone so they
+		// don't bubble to the Plugins window body handler (which
+		// would open a second upload dialog) or to the shell-wide
+		// OS-file-drop manager (which would route the .zip to the
+		// Media Library).
 		dropZone.addEventListener( 'dragover', ( ev ) => {
 			ev.preventDefault();
+			ev.stopPropagation();
 			dropZone.classList.add( 'is-hovered' );
 		} );
-		dropZone.addEventListener( 'dragleave', () => {
+		dropZone.addEventListener( 'dragleave', ( ev ) => {
+			ev.stopPropagation();
 			dropZone.classList.remove( 'is-hovered' );
 		} );
 		dropZone.addEventListener( 'drop', ( ev: DragEvent ) => {
 			ev.preventDefault();
+			ev.stopPropagation();
 			dropZone.classList.remove( 'is-hovered' );
 			const file = ev.dataTransfer?.files?.[ 0 ];
 			if ( file && isZip( file ) ) {

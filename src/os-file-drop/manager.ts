@@ -191,6 +191,15 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 		if ( ! dragHasFiles( ev ) ) {
 			return;
 		}
+		// A closer handler already called `preventDefault()` —
+		// meaning some nested drop target (the Plugins upload
+		// dropzone, a future feature, …) is willing to accept the
+		// file. Yield to it so our overlay doesn't paint over its
+		// own hover state.
+		if ( ev.defaultPrevented ) {
+			resetOverlay();
+			return;
+		}
 		ev.preventDefault();
 		if ( ev.dataTransfer ) {
 			ev.dataTransfer.dropEffect = 'copy';
@@ -210,6 +219,14 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 
 	const onDrop = ( ev: DragEvent ): void => {
 		if ( ! dragHasFiles( ev ) ) {
+			return;
+		}
+		// A closer handler already called `preventDefault()` and
+		// took responsibility for this file (e.g. the Plugins
+		// `.zip` upload dropzone). Don't double-handle it through
+		// the Media Library pipeline.
+		if ( ev.defaultPrevented ) {
+			resetOverlay();
 			return;
 		}
 		ev.preventDefault();
