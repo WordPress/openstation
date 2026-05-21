@@ -340,24 +340,21 @@ export class Dock {
 			orientation,
 		);
 
-		// Vertical placements get two inner wrappers so menu tiles can
-		// scroll independently of the system tiles at the bottom. The
-		// outer dock keeps the placement attribute + orientation chrome;
-		// the wrappers carry the actual flow. For the bottom dock no
-		// wrappers — the flat row works as-is.
-		if ( orientation === 'bottom' ) {
-			this.itemHost = container;
-			this.systemHost = container;
-		} else {
-			const scroll = document.createElement( 'div' );
-			scroll.className = 'desktop-mode-dock__scroll';
-			const pinned = document.createElement( 'div' );
-			pinned.className = 'desktop-mode-dock__pinned';
-			container.appendChild( scroll );
-			container.appendChild( pinned );
-			this.itemHost = scroll;
-			this.systemHost = pinned;
-		}
+		// Every dock gets two inner wrappers so menu tiles can scroll
+		// independently of the system tiles. Vertical placements scroll
+		// the menu area vertically with system tiles pinned at the
+		// bottom edge; the bottom dock scrolls horizontally with system
+		// tiles pinned at the trailing edge. The outer dock keeps the
+		// placement attribute + orientation chrome; the wrappers carry
+		// the actual flow.
+		const scroll = document.createElement( 'div' );
+		scroll.className = 'desktop-mode-dock__scroll';
+		const pinned = document.createElement( 'div' );
+		pinned.className = 'desktop-mode-dock__pinned';
+		container.appendChild( scroll );
+		container.appendChild( pinned );
+		this.itemHost = scroll;
+		this.systemHost = pinned;
 
 		// Tooltip — shared across all items. Anchor class flips per
 		// orientation so the tooltip sits outside the dock regardless
@@ -474,23 +471,6 @@ export class Dock {
 			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
 		} );
 
-		// When `itemHost === systemHost` (the bottom dock), the system
-		// separator + tiles live in the same container as menu tiles,
-		// and new menu tiles need to be inserted BEFORE them to keep
-		// the menu → separator → system DOM order. For vertical docks
-		// they're in different hosts, so a simple appendChild is right.
-		const insertMenuChild = ( node: Node ): void => {
-			if (
-				this.itemHost === this.systemHost &&
-				this.systemSeparator &&
-				this.systemSeparator.parentNode === this.itemHost
-			) {
-				this.itemHost.insertBefore( node, this.systemSeparator );
-			} else {
-				this.itemHost.appendChild( node );
-			}
-		};
-
 		let insertedGroupSeparator = false;
 		let tilesInsertedThisPass = 0;
 		for ( const item of items ) {
@@ -500,13 +480,13 @@ export class Dock {
 					sep.className =
 						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
 					sep.setAttribute( 'aria-hidden', 'true' );
-					insertMenuChild( sep );
+					this.itemHost.appendChild( sep );
 				}
 				insertedGroupSeparator = true;
 			}
 			const btn = this.createItemButton( item );
 			this.itemElements.set( item.id, btn );
-			insertMenuChild( btn );
+			this.itemHost.appendChild( btn );
 			tilesInsertedThisPass++;
 			// Re-apply any client-side badge override that was set
 			// before the refresh. Without this, the live menu

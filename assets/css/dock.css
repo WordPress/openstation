@@ -575,7 +575,12 @@
 	max-width: calc( 100% - 32px );
 	flex-direction: row;
 	justify-content: center;
-	padding: 8px 12px;
+	/* Top padding is 4px instead of 8px so that the inner `__scroll`
+	 * wrapper can claim its own 4px padding-top for badge clearance
+	 * (the tile's badge sits at top: -3px). Net vertical chrome stays
+	 * symmetric: 4px pill padding + 4px wrapper padding above the
+	 * tile, 8px pill padding below — tile is 8px from both edges. */
+	padding: 4px 12px 8px;
 	gap: 6px;
 	border-radius: 18px;
 
@@ -629,12 +634,53 @@
 	transform: scale( 1.1 );
 }
 
-/* Separator — vertical hairline between menu tiles and system tiles,
- * with margin-inline-start: auto pushing system items to the end.
- * The `--group` variant keeps the hairline styling for the inline
- * core→plugin boundary but drops the auto margin so it sits where
- * inserted. Tighter margin than the auto variant so the two groups
- * read as related rather than completely isolated. */
+/*
+ * Bottom-dock inner wrappers — `__scroll` carries the menu tiles and
+ * absorbs horizontal overflow; `__pinned` carries the system tiles and
+ * stays anchored to the trailing edge. Padding-top on `__scroll` gives
+ * the badge (top: -3px on the tile) room so `overflow-y: hidden`
+ * doesn't crop it. `min-width: 0` lets the wrapper shrink below its
+ * content's natural width, so the dock pill's `max-width` is what
+ * decides when scroll kicks in instead of the content forcing the
+ * pill wider. `justify-content: center` keeps tiles balanced inside
+ * the pill when content fits; when it overflows, scroll engages and
+ * items extend past the visible area.
+ */
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] .desktop-mode-dock__scroll {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	flex: 1 1 auto;
+	min-width: 0;
+	padding-top: 4px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+}
+
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] .desktop-mode-dock__scroll::-webkit-scrollbar {
+	display: none;
+}
+
+.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] .desktop-mode-dock__pinned {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+	/* Match the scroll wrapper's badge clearance so system tiles sit
+	 * on the same vertical baseline as the menu tiles. */
+	padding-top: 4px;
+}
+
+/* Separator — vertical hairline between menu tiles and system tiles.
+ * Lives at the leading edge of `__pinned`; flex flow handles the
+ * "pinned at the trailing edge" placement, no margin-inline-start:
+ * auto needed. The `--group` variant keeps the hairline styling for
+ * the inline core→plugin boundary inside `__scroll` and sits where
+ * inserted. */
 .desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
 	.desktop-mode-dock__separator {
 	width: 1px;
@@ -643,7 +689,6 @@
 	   28px matches the dock tile inner glyph area. */
 	height: 28px;
 	margin: auto 4px auto 8px;
-	margin-inline-start: auto;
 	background: var( --desktop-mode-dock-border );
 	flex-shrink: 0;
 }

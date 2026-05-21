@@ -115,8 +115,11 @@ describe( 'dock decoration hooks', () => {
 		);
 
 		const { container } = mount( [ makeItem() ] );
-		// Wrapper is the direct child; the original tile lives inside.
-		const wrap = container.querySelector( ':scope > .plugin-wrap' );
+		// Wrapper sits inside the dock's `__scroll` host; the original
+		// tile lives inside the wrapper. Plugin contract: the returned
+		// element is what gets painted as the tile; the shell still
+		// finds `[data-menu-slug]` descendants for active state.
+		const wrap = container.querySelector( '.desktop-mode-dock__scroll > .plugin-wrap' );
 		expect( wrap ).not.toBeNull();
 		expect( wrap?.querySelector( '[data-menu-slug="edit.php"]' ) ).not.toBeNull();
 	} );
