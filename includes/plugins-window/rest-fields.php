@@ -346,6 +346,52 @@ function desktop_mode_plugins_window_field_update_available( $row ) {
 }
 
 /**
+ * Count plugin updates visible to the Plugins window — i.e. updates in
+ * the `update_plugins` site transient whose key corresponds to an
+ * actually-installed plugin file (`get_plugins()`).
+ *
+ * Core's `wp_get_update_data()` reports `count( $update_plugins->response )`
+ * verbatim, which is what `wp-admin/menu.php` embeds in the Plugins
+ * menu title (the source the dock-builder regex captures). That raw
+ * count can drift above the in-window "Update available" filter when
+ * the transient holds orphan entries — rows for plugin files that no
+ * longer exist on disk, or rows injected via the standard `Update URI`
+ * mechanism that key on a file `get_plugins()` doesn't return.
+ *
+ * The Plugins window iterates `get_plugins()` via REST and shows each
+ * row as updatable iff `update_plugins->response[ $plugin_file ]` is
+ * set — exactly the intersection we compute here. Using this count for
+ * the dock badge guarantees the two surfaces agree (GH#258).
+ *
+ * @since 0.8.8
+ *
+ * @return int Number of installed plugins with a pending update.
+ */
+function desktop_mode_plugins_window_count_visible_updates() {
+	$updates = get_site_transient( 'update_plugins' );
+	if ( ! is_object( $updates ) || empty( $updates->response ) || ! is_array( $updates->response ) ) {
+		return 0;
+	}
+
+	// `get_plugins()` lives in `wp-admin/includes/plugin.php`. Loaded by
+	// default on every admin request (which is where `$menu` is built),
+	// but require it explicitly so REST + cron + WP-CLI callers can use
+	// this helper without depending on the admin runtime.
+	if ( ! function_exists( 'get_plugins' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+	$installed = get_plugins();
+
+	$count = 0;
+	foreach ( array_keys( $updates->response ) as $plugin_file ) {
+		if ( isset( $installed[ $plugin_file ] ) ) {
+			++$count;
+		}
+	}
+	return $count;
+}
+
+/**
  * `desktop_mode_can_manage` callback.
  *
  * Per-row cap surface so the JS UI can hide actions the viewer can't
