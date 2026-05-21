@@ -2493,6 +2493,30 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 		window.addEventListener( 'load', attach, { once: true } );
 	} )();
+
+	/*
+	 * Bridge-ready signal. Every listener installed by this script
+	 * is now wired; let the parent shell know so it can fire
+	 * `HOOKS.IFRAME_READY` and re-arm any connection handshakes
+	 * (`src/connection/index.ts#onIframeReady`) that arrived before
+	 * we were listening. Without this, every consumer of
+	 * `HOOKS.IFRAME_READY` (devtools replay, connection rearm)
+	 * stays silent for the lifetime of the iframe — documented
+	 * surface that never actually fires.
+	 *
+	 * Posted to the parent's own origin only. Wrapped in try/catch
+	 * because cross-origin parents (top-level admin opened outside
+	 * the shell) would throw on the postMessage and we don't want a
+	 * single failed dispatch to wedge anything else above.
+	 */
+	try {
+		if ( window.parent && window.parent !== window ) {
+			window.parent.postMessage(
+				{ type: 'desktop-mode-ready' },
+				window.location.origin
+			);
+		}
+	} catch ( _err ) { /* parent gone or cross-origin */ }
 } )();
 JS;
 

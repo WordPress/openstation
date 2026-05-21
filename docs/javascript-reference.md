@@ -131,6 +131,19 @@ document.addEventListener( 'desktop-mode-window-content-loaded', ( e ) => {
 
 Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADED` (`desktop-mode.window.content-loaded`).
 
+#### Programmatic equivalent — `Window.whenContentReady()` *(since 0.22.0)*
+
+For code paths that don't want to wire a CustomEvent listener (e.g. a plugin coordinating with an `iframeContent: { bridge: true }` native window before its first `send`), the `Window` facade exposes a Promise-returning version:
+
+```javascript
+const win = await wp.desktop.openWindow( 'my-plugin/inbox' );
+await win.whenContentReady();
+// Bridge listeners are guaranteed wired here; safe to send / connect.
+win.send( 'init', { … } );
+```
+
+Resolves immediately for windows that are already ready, otherwise on the next matching `desktop-mode-window-content-loaded` for this window's id. Mirrors `HOOKS.WINDOW_CONTENT_LOADED` semantics — works for both iframe and native windows.
+
 ---
 
 ### `desktop-mode-window-focused` — Stable
@@ -2078,13 +2091,31 @@ wp.desktop.iframe.subscribe( 'preview:zoom', ( payload ) => {
 } );
 ```
 
-`publish( topic, payload )` fans the message out to every parent-side connection currently open against this iframe. `onConnection` callbacks are replayed for currently-open connections, so a late registration still sees who's already there.
+`publish( topic, payload )` fans the message out to every parent-side connection currently open against this iframe. **As of 0.22.0, calls with zero open connections log a `console.warn`** — the previous silent drop was a recurring footgun for plugin authors publishing before the parent's `connect()` lands. `onConnection` callbacks are replayed for currently-open connections, so a late registration still sees who's already there.
+
+#### `wp.desktop.iframe.windowId` / `whenWindowId()` — Stable *(since 0.22.0)*
+
+The id of the native window the parent shell opened to host this iframe. Populated automatically once the parent issues the first connection handshake (the handshake carries `targetWindowId`); `null` until then. Removes the cross-origin-fragile `iframe.contentWindow ===` walk that parent-side plugin code used to identify iframes.
+
+```javascript
+// Inside the iframe:
+const id = wp.desktop.iframe.windowId; // string | null
+
+// Or wait for it (Promise resolves once known):
+const id = await wp.desktop.iframe.whenWindowId();
+wp.desktop.iframe.publish( 'sidebar-opened', { windowId: id } );
+```
+
+The id is exactly what `wp.desktop.openWindow(...)` returns parent-side and what `Window.id` exposes — a stable cross-side handle for self-identification.
 
 **Lifecycle hooks** (parent-side, observability):
 
 ```javascript
 wp.desktop.hooks.addAction( 'desktop-mode.connection.opened', 'me', ( e ) => {
-    // e = { connectionId, targetWindowId, topics }
+    // e = { connectionId, targetWindowId, topics, connection }
+    // `connection` is the live WindowConnection (since 0.22.0) —
+    // subscribe to it directly without a `getConnection` round-trip.
+    e.connection.subscribe( 'live-pings', ( payload ) => { … } );
 } );
 wp.desktop.hooks.addAction( 'desktop-mode.connection.closed', 'me', ( e ) => {
     // e = { connectionId, reason }
@@ -2094,6 +2125,17 @@ wp.desktop.hooks.addAction( 'desktop-mode.connection.message', 'me', ( e ) => {
     // High-volume — keep subscribers cheap.
 } );
 ```
+
+For connections opened by the iframe (`requestConnection`), the parent can later look up the live connection by id:
+
+```javascript
+const conn = wp.desktop.getConnection( connectionId );
+if ( conn ) {
+    conn.subscribe( 'topic', cb );
+}
+```
+
+`wp.desktop.getConnection( id )` returns the same `WindowConnection` reference the `connect()` factory produces (or what `CONNECTION_OPENED` ships as `connection`). Returns `null` for unknown / destroyed ids.
 
 See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for the full live-preview recipe.
 

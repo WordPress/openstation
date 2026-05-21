@@ -79,6 +79,57 @@ interface IframeApi {
 		opts: RequestConnectionOptions,
 	): Promise< ConnectionRecord >;
 	chrome: IframeChromeApi;
+	/**
+	 * The id of the window the parent shell opened to host this
+	 * iframe. Populated after the first connection handshake from
+	 * the parent (the handshake message now carries
+	 * `targetWindowId`). `null` until then.
+	 *
+	 * Replaces the brittle `iframe.contentWindow ===` walk plugins
+	 * had to do parent-side; iframe code can now self-identify
+	 * (e.g. `wp.desktop.iframe.publish('focus-changed', {windowId:
+	 * wp.desktop.iframe.windowId})`).
+	 *
+	 * @since 0.22.0
+	 */
+	readonly windowId: string | null;
+	/**
+	 * Resolve once `windowId` is populated by the first handshake.
+	 * Resolves immediately if already known.
+	 *
+	 * @since 0.22.0
+	 */
+	whenWindowId(): Promise< string >;
+	/**
+	 * Whether the parent frame is same-origin and reachable. All
+	 * bridge messages (handshakes, publishes, drag-bridge, OS-file
+	 * forwarder) hard-filter on `window.location.origin`; a cross-
+	 * origin parent silently drops everything we post. Use this
+	 * predicate to fail fast / degrade gracefully instead of
+	 * debugging vanishing messages:
+	 *
+	 * ```js
+	 * if ( ! wp.desktop.iframe.isParentReachable() ) {
+	 *     // Cross-origin parent — bridge can't operate. Fall back
+	 *     // to in-iframe UI or skip the feature entirely.
+	 *     return;
+	 * }
+	 * ```
+	 *
+	 * Returns `true` when:
+	 *   - There IS a parent (we're in an iframe, not the top frame).
+	 *   - The parent's origin matches ours (same-origin).
+	 *
+	 * Returns `false` when:
+	 *   - Top frame (`window.parent === window`).
+	 *   - Parent is cross-origin (accessing `window.parent.location`
+	 *     throws). Includes most Gutenberg `srcdoc` canvases that
+	 *     inherited a different origin, sandboxed iframes, PWA
+	 *     wrappers loading desktop-mode in a foreign frame.
+	 *
+	 * @since 0.22.0
+	 */
+	isParentReachable(): boolean;
 }
 
 type WindowChannelCb = (
@@ -111,6 +162,29 @@ interface IframeWp {
 	const connections: Record< string, ConnectionRecord > = {};
 	const connectionListeners: ConnectionListenerCb[] = [];
 	const subs: Record< string, SubscriberCb[] > = {};
+
+	/**
+	 * The host window's id, learned from the first
+	 * `desktop-mode-bridge-handshake` the parent sends. `null` until
+	 * the parent connects; resolves through
+	 * {@link IframeApi.whenWindowId} for callers that need a wait.
+	 */
+	let _windowId: string | null = null;
+	const _windowIdWaiters: Array< ( id: string ) => void > = [];
+	const _setWindowId = ( id: string ): void => {
+		if ( ! id || _windowId === id ) {
+			return;
+		}
+		_windowId = id;
+		const waiters = _windowIdWaiters.splice( 0 );
+		for ( const waiter of waiters ) {
+			try {
+				waiter( id );
+			} catch {
+				/* swallow */
+			}
+		}
+	};
 
 	/**
 	 * Per-channel subscribers for the unified window-channel API
@@ -162,6 +236,14 @@ interface IframeWp {
 			data.type === 'desktop-mode-bridge-handshake' &&
 			typeof data.connectionId === 'string'
 		) {
+			// The parent's handshake carries the host window id since
+			// 0.22.0. Stash it so `wp.desktop.iframe.windowId` and
+			// `whenWindowId()` can serve callers that need to know
+			// which native window opened this iframe.
+			const tw = ( data as { targetWindowId?: unknown } ).targetWindowId;
+			if ( typeof tw === 'string' && tw !== '' ) {
+				_setWindowId( tw );
+			}
 			if ( connections[ data.connectionId ] ) {
 				try {
 					window.parent.postMessage(
@@ -277,7 +359,21 @@ interface IframeWp {
 			if ( typeof topic !== 'string' || topic === '' ) {
 				return;
 			}
-			for ( const id of Object.keys( connections ) ) {
+			const ids = Object.keys( connections );
+			if ( ids.length === 0 ) {
+				// Silent no-op was a recurring footgun: plugin authors
+				// publishing before any parent-side `connect()` lands
+				// see nothing happen, no error, no warn. Emit a
+				// console.warn so the missing-handshake case is at
+				// least discoverable in DevTools.
+				// eslint-disable-next-line no-console
+				console.warn(
+					'[desktop-mode] wp.desktop.iframe.publish dropped: no open connection for topic "%s". The parent shell must call `wp.desktop.connect(windowId)` first.',
+					topic,
+				);
+				return;
+			}
+			for ( const id of ids ) {
 				emitToParent( id, topic, payload );
 			}
 		},
@@ -469,6 +565,32 @@ interface IframeWp {
 					settle( false, err as Error );
 				}
 			} );
+		},
+		get windowId() {
+			return _windowId;
+		},
+		whenWindowId(): Promise< string > {
+			if ( _windowId !== null ) {
+				return Promise.resolve( _windowId );
+			}
+			return new Promise< string >( ( resolve ) => {
+				_windowIdWaiters.push( resolve );
+			} );
+		},
+		isParentReachable(): boolean {
+			if ( ! window.parent || window.parent === window ) {
+				return false;
+			}
+			try {
+				// Cross-origin parents throw on `.location.origin`
+				// access. Same-origin parents return a string we can
+				// compare to our own origin to confirm the bridge
+				// will actually accept our messages.
+				const parentOrig = window.parent.location.origin;
+				return parentOrig === parentOrigin;
+			} catch {
+				return false;
+			}
 		},
 	};
 
@@ -674,6 +796,28 @@ interface IframeWp {
 			},
 			true,
 		);
+	}
+
+	/*
+	 * Bridge-ready signal. Every listener installed by this bundle
+	 * is now wired; let the parent shell know so it can fire
+	 * `HOOKS.IFRAME_READY` and re-arm any connection handshakes
+	 * (`src/connection/index.ts#onIframeReady`) that arrived before
+	 * we were listening. Symmetric with the inline chromeless
+	 * bridge in `includes/render/chromeless-bridge.php` — both
+	 * iframe-side entry points emit the same message so the parent
+	 * sees a uniform "iframe wired" signal regardless of which
+	 * bridge is in play.
+	 */
+	try {
+		if ( window.parent && window.parent !== window ) {
+			window.parent.postMessage(
+				{ type: 'desktop-mode-ready' },
+				parentOrigin,
+			);
+		}
+	} catch {
+		/* cross-origin parent; swallow */
 	}
 
 	function installScreenMetaHoist( origin: string ): void {

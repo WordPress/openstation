@@ -1212,6 +1212,19 @@ export interface WpDesktopPublicApi {
 	 */
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	/**
+	 * Look up a live `WindowConnection` by id. Returns `null` for
+	 * unknown ids and for ids whose connection has been destroyed.
+	 *
+	 * Companion to {@link HOOKS.CONNECTION_OPENED}, which now also
+	 * carries a `connection` field in its payload — `getConnection`
+	 * is the explicit accessor for cases where the caller has the
+	 * id (e.g. from a stored snapshot, devtools, or a deferred
+	 * handler) but doesn't have a live reference yet.
+	 *
+	 * @since 0.22.0
+	 */
+	getConnection: ( connectionId: string ) => WindowConnection | null;
+	/**
 	 * Cross-window broadcast. Publishes a payload on a topic to
 	 * every window — native or iframe — that has subscribed. The
 	 * canonical built-in topic is `desktop-mode.data-changed`,
@@ -2937,6 +2950,7 @@ function init(): void {
 		dragBridge,
 		dragManager,
 		connect: connectionBridge.connect,
+		getConnection: connectionBridge.getConnection,
 		config,
 	} );
 	installPublicApi( desktopApi );

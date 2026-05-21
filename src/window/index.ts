@@ -2152,6 +2152,52 @@ export class Window {
 	}
 
 	/**
+	 * Resolve when this window's content is ready to receive sends.
+	 * Returns a Promise that resolves immediately for windows that
+	 * are already ready, and otherwise waits for the next
+	 * {@link HOOKS.WINDOW_CONTENT_LOADED} matching this window's id.
+	 *
+	 * Backstop for the iframe bridge handshake race: plugin authors
+	 * coordinating with an `iframeContent: { bridge: true }` native
+	 * window can `await win.whenContentReady()` before issuing the
+	 * first send/connect, instead of wiring iframe.load themselves
+	 * or hoping that {@link HOOKS.IFRAME_READY} has fired by their
+	 * boot.
+	 *
+	 * Resolves regardless of whether the content path was an iframe
+	 * `load`, the chromeless `desktop-mode-ready` postMessage, or a
+	 * native render's synchronous `markContentLoaded()` — all three
+	 * end up calling {@link markWindowContentReady}.
+	 *
+	 * @public
+	 * @since 0.22.0
+	 */
+	public whenContentReady(): Promise< void > {
+		if ( isWindowContentReady( this.id ) ) {
+			return Promise.resolve();
+		}
+		return new Promise< void >( ( resolve ) => {
+			const expectedId = this.id;
+			const onLoaded = ( e: Event ): void => {
+				const detail = ( e as CustomEvent< { windowId?: string } > )
+					.detail;
+				if ( ! detail || detail.windowId !== expectedId ) {
+					return;
+				}
+				document.removeEventListener(
+					'desktop-mode-window-content-loaded',
+					onLoaded,
+				);
+				resolve();
+			};
+			document.addEventListener(
+				'desktop-mode-window-content-loaded',
+				onLoaded,
+			);
+		} );
+	}
+
+	/**
 	 * Set the activity indicator's phase explicitly. Most callers
 	 * should prefer {@link trackActivity} (or `wp.desktop.fetch()`
 	 * which calls it internally) — this is the escape hatch for code

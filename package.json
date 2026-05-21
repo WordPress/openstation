@@ -8,7 +8,9 @@
 	"types": "src/public-api.ts",
 	"exports": {
 		".": {
-			"types": "./src/public-api.ts"
+			"types": "./src/public-api.ts",
+			"import": "./src/public-api.ts",
+			"default": "./src/public-api.ts"
 		},
 		"./global": {
 			"types": "./src/global.d.ts"

@@ -66,7 +66,7 @@ Native (non-iframe) windows skip postMessage entirely — `Window.send` and the 
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-bridge-handshake` | parent → iframe | `{ connectionId, topics }` | Open a new connection. Iframe must ack before parent flushes its message queue. |
+| `desktop-mode-bridge-handshake` | parent → iframe | `{ connectionId, targetWindowId, topics }` | Open a new connection. Iframe must ack before parent flushes its message queue. The `targetWindowId` (since 0.22.0) is the host window's id — the iframe stores it for `wp.desktop.iframe.windowId` / `whenWindowId()`. |
 | `desktop-mode-bridge-handshake-ack` | iframe → parent | `{ connectionId }` | Iframe acknowledges. Parent fires `HOOKS.CONNECTION_OPENED` + flushes. |
 | `desktop-mode-bridge-publish` | both ways | `{ connectionId, topic, payload }` | Pub/sub message. Wildcard subscribers (`'*'`) see every topic. |
 | `desktop-mode-bridge-disconnect` | both ways | `{ connectionId }` | Tear the connection down. Idempotent. |
@@ -95,7 +95,7 @@ The forwarder skips drops landing on in-page receivers that already accept files
 6. Iframe's bridge handler receives the handshake, stores the connection in its own `connections` map, posts `desktop-mode-bridge-handshake-ack` back.
 7. Parent's `routeIncomingFromIframe` receives the ack, dispatches to the connection's `_handleIframeMessage`, which:
    - Sets `isOpen = true`.
-   - Fires `HOOKS.CONNECTION_OPENED` with `{ connectionId, targetWindowId, topics }`.
+   - Fires `HOOKS.CONNECTION_OPENED` with `{ connectionId, targetWindowId, topics, connection }`. The `connection` field (since 0.22.0) is the live `WindowConnection` — plug in `.subscribe()` directly from the hook handler without an extra `wp.desktop.getConnection(id)` round-trip.
    - Calls `opts.onOpen?.()`.
    - Drains the queue with `flushQueue()` — every queued message becomes a real `postMessage`.
 8. Iframe receives the publishes, looks up subscribers in `subs`, calls each in turn.
@@ -160,6 +160,39 @@ When something's not working:
 - **`window.wp.desktop.iframe`** — the iframe-side API. If it's `undefined` inside an iframe, the bridge script wasn't loaded — for chromeless wp-admin pages it's inline; for `iframeContent: { bridge: true }` it's auto-injected after load; for any other same-origin iframe enqueue `desktop-mode-iframe-bridge`.
 - **`window.location.origin`** check — every postMessage in both directions filters on this. A common cause of "messages don't arrive" is a shell mounted on `https://example.test` and an iframe loaded from `http://example.test` (different origin); same domain ≠ same origin.
 - **`event.source === iframe.contentWindow`** check — even same-origin, a foreign caller posting `desktop-mode-bridge-*` messages from somewhere ELSE in the parent will be silently dropped.
+
+## Cross-origin iframes — explicit non-goal
+
+**Every bridge in this repo is same-origin only**. Three independent origin filters enforce this:
+
+- `src/iframe-bridge-standalone.ts:131` — `parentOrigin = window.location.origin`.
+- `src/connection/index.ts:39` — `INITIAL_ORIGIN = window.location.origin`.
+- `src/drag-bridge.ts:207` — `this._origin = window.location.origin`.
+
+Each postMessage's `targetOrigin` is set to its own captured origin, and each `'message'` listener rejects events whose `e.origin` doesn't match. Cross-origin parents silently drop every bridge message — no warn, no fallback. This is **deliberate**: the bridge payloads feed into drop handlers that insert HTML and into hook subscribers that may execute code, so widening the trust boundary would create a clear XSS surface.
+
+Concretely, the bridge will not operate in these contexts:
+
+- **Cross-origin parent** — desktop-mode loaded in an `<iframe>` whose parent is on a different origin (top-level admin opened outside the shell, or shell embedded in a foreign host).
+- **Foreign-origin Gutenberg `srcdoc` canvas** — by default the editor-canvas iframe inherits the parent's origin (works fine), but some plugin / theme combos override `src` to a foreign URL.
+- **Sandboxed iframes** (`<iframe sandbox>` without `allow-same-origin`) — the iframe's origin is `"null"`, which never matches.
+- **PWA wrappers** loading desktop-mode in a foreign service-worker scope.
+
+### Detecting it from inside an iframe
+
+`wp.desktop.iframe.isParentReachable()` returns `true` when the parent is same-origin and addressable, `false` otherwise:
+
+```javascript
+if ( ! wp.desktop.iframe.isParentReachable() ) {
+    // No bridge — fall back to in-iframe UI, skip the feature,
+    // or surface a "this view requires desktop mode" notice.
+    return;
+}
+// Bridge is live; publish away.
+wp.desktop.iframe.publish( 'editor:content', html );
+```
+
+The predicate accesses `window.parent.location.origin` inside a try/catch — cross-origin parents throw on the access. Cheap, no postMessage round-trip. Use it before wiring expensive subscriptions or showing UI that promises cross-window behavior.
 
 ## Cross-window drag bridge — Stable *(since 0.22.0)*
 

@@ -318,6 +318,13 @@ export function createConnectionBridge( manager: WindowManager ) {
 						connectionId: id,
 						targetWindowId,
 						topics,
+						// Ship the live Connection alongside the id so
+						// iframe-initiated connections can be subscribed
+						// to directly from the hook handler — without
+						// `wp.desktop.getConnection(id)` plumbing the
+						// payload would carry the id but no way to call
+						// `.subscribe()` against it.
+						connection: conn,
 					} );
 					try {
 						opts.onOpen?.();
@@ -480,6 +487,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 			sendToIframe( iframe, {
 				type: 'desktop-mode-bridge-handshake',
 				connectionId: id,
+				targetWindowId,
 				topics,
 			} );
 		}
@@ -615,6 +623,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 			sendToIframe( iframe, {
 				type: 'desktop-mode-bridge-handshake',
 				connectionId: conn.id,
+				targetWindowId: conn.target,
 				topics: [], // already negotiated client-side; iframe re-uses
 			} );
 		}
@@ -636,5 +645,33 @@ export function createConnectionBridge( manager: WindowManager ) {
 		}
 	};
 
-	return { connect, routeIncomingFromIframe, onIframeReady, onWindowClosed };
+	/**
+	 * Look up a live `WindowConnection` by id. Returns `null` for
+	 * unknown ids and for ids whose connection has been destroyed.
+	 *
+	 * Companion to {@link HOOKS.CONNECTION_OPENED}: shell-side plugin
+	 * code that observes a connection being opened by an iframe (via
+	 * `wp.desktop.iframe.requestConnection`) gets the id in the hook
+	 * payload but had no way to obtain the live Connection object
+	 * before this accessor existed. Now `connection` is also passed
+	 * directly in the hook payload — both paths produce the same
+	 * Connection reference; pick whichever fits the call site.
+	 *
+	 * @public
+	 * @since 0.22.0
+	 */
+	const getConnection = (
+		connectionId: string,
+	): WindowConnection | null => {
+		const conn = _connections.get( connectionId );
+		return conn ?? null;
+	};
+
+	return {
+		connect,
+		getConnection,
+		routeIncomingFromIframe,
+		onIframeReady,
+		onWindowClosed,
+	};
 }

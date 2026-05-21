@@ -226,6 +226,7 @@ export interface BuildPublicApiDeps {
 	dragBridge: DragBridgeApi;
 	dragManager: DragManagerApi;
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
+	getConnection: ( connectionId: string ) => WindowConnection | null;
 	config: DesktopConfig;
 }
 
@@ -260,6 +261,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		dragBridge,
 		dragManager,
 		connect,
+		getConnection,
 		config,
 	} = deps;
 
@@ -543,6 +545,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			win.setAppearanceChrome( chromeId );
 		},
 		connect,
+		getConnection,
 		broadcast,
 		subscribe,
 		registerPalette,
