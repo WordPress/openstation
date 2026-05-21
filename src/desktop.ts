@@ -150,7 +150,7 @@ import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
-import { openCurrentPage, restoreSession } from './boot/session';
+import { hasRestorableSession, openCurrentPage, restoreSession } from './boot/session';
 import { shouldAutoOpenCurrentPage } from './boot/auto-open';
 import { createSessionSaver } from './boot/session-saver';
 import { bindShellLifecycle, wireSessionEvents } from './boot/shell-lifecycle';
@@ -161,6 +161,7 @@ import {
 	installShortcutsSync,
 	syncShortcutsWithVisibility,
 } from './settings/desktop-shortcuts-sync';
+import { bootStickyNotes } from './sticky-notes';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
 // boot-time consumer reaches the same captured value — see the import
@@ -2373,7 +2374,7 @@ function init(): void {
 	//      portal already redirected to its URL, so the current page
 	//      IS the default window — open it. The desktop is populated
 	//      with the user's chosen startup.
-	const hasSession = !! ( config.session && config.session.windows && config.session.windows.length > 0 );
+	const hasSession = hasRestorableSession( config.session );
 	// Session restore runs fire-and-forget so the rest of boot
 	// (manager wiring, settings, server-sync) doesn't block on the
 	// lazy `window-system[.min].js` bundle. openCurrentPage chains
@@ -2959,6 +2960,25 @@ function init(): void {
 	// 24-hour `nonce_life` boundary. See `src/nonce-refresh.ts`
 	// and `includes/nonce-refresh.php`.
 	bootNonceRefresh();
+
+	bootStickyNotes( {
+		host: desktopArea,
+		config,
+		getActiveDesktopId: () => manager.getActiveDesktopId(),
+		openArtifact: ( url, title ) => {
+			const id = deriveWindowId( url, config.adminUrl );
+			void manager.open( {
+				id,
+				baseId: id,
+				url,
+				title,
+				icon: 'dashicons-edit-page',
+			} );
+		},
+		onError: ( message ) => {
+			showToast( { message } );
+		},
+	} );
 
 	// Files-on-the-Desktop: hand the open() dispatcher real
 	// dependencies and seed the per-user associations from the

@@ -710,6 +710,7 @@ array(
     'adminUrl'         => string,   // admin_url()
     'portalUrl'        => string,   // desktop_mode_portal_url()
     'sessionUrl'       => string,   // REST session URL
+    'restUrl'          => string,   // REST API root from rest_url(); compose with joinRestUrl() for pretty/plain permalink safety
     'restNonce'        => string,   // X-WP-Nonce
     'dockItems'        => array[],  // see desktop_mode_dock_items
     'session'          => array,    // prior session snapshot or empty

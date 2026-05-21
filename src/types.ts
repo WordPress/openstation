@@ -1460,8 +1460,9 @@ export interface SessionWindow {
 }
 
 /**
- * The user's saved desktop session — open windows, focused id, last-write
- * timestamp. Restored by the shell on load; written back debounced.
+ * The user's saved desktop session — open windows, virtual desktops, focused
+ * id, active desktop id, and last-write timestamp. Restored by the shell on
+ * load; written back debounced.
  *
  * `desktops` + `activeDesktop` are post-multi-desktop additions and
  * carry sane defaults from the server side, so older clients reading
@@ -1763,6 +1764,14 @@ export interface DesktopConfig {
 	session: Session;
 	/** REST endpoint for reading/writing the session. */
 	sessionUrl: string;
+	/**
+	 * REST API root from `rest_url()`. Compose arbitrary REST
+	 * endpoints with `joinRestUrl()` so plain-permalink installs
+	 * (`?rest_route=/`) work alongside pretty `/wp-json/` installs.
+	 *
+	 * @since 0.8.8
+	 */
+	restUrl?: string;
 	/** REST endpoint for media uploads (wp/v2/media). */
 	mediaUrl: string;
 	/**

@@ -18,7 +18,43 @@ import { tryNativeUrlRemap } from '../native-url-remap';
 import { deriveWindowId } from '../utils';
 import { clampGeometryToViewport, findDockEntryForUrl } from './geometry';
 import type { WindowManager } from '../window-manager';
-import type { DesktopConfig } from '../types';
+import type { DesktopConfig, Session } from '../types';
+
+/**
+ * Whether the saved payload carries meaningful shell state to restore.
+ *
+ * A session can be worth restoring even when it has no windows: virtual
+ * desktops live in the same payload, and sticky notes / desktop files can
+ * make an otherwise empty workspace meaningful. The server always sends a
+ * default one-desktop shape, so keep that as "empty" until the user has
+ * actually saved a customized desktop registry.
+ */
+export function hasRestorableSession(
+	session: Session | undefined,
+): boolean {
+	if ( ! session ) {
+		return false;
+	}
+	if ( Array.isArray( session.windows ) && session.windows.length > 0 ) {
+		return true;
+	}
+	if (
+		typeof session.updated !== 'number' ||
+		session.updated <= 0 ||
+		! Array.isArray( session.desktops ) ||
+		session.desktops.length === 0
+	) {
+		return false;
+	}
+	if ( session.desktops.length > 1 ) {
+		return true;
+	}
+	const onlyDesktop = session.desktops[ 0 ];
+	if ( onlyDesktop?.id && onlyDesktop.id !== 'desktop-1' ) {
+		return true;
+	}
+	return !! session.activeDesktop && session.activeDesktop !== 'desktop-1';
+}
 
 /**
  * Restores windows from a saved session into the manager.

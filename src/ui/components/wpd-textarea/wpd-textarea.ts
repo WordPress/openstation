@@ -43,6 +43,7 @@ export class WpdTextarea extends Component {
 		'placeholder',
 		'disabled',
 		'readonly',
+		'ariaLabel',
 		'name',
 		'rows',
 		'maxlength',
@@ -66,6 +67,7 @@ export class WpdTextarea extends Component {
 			{ name: 'placeholder', type: 'string', description: 'Native placeholder.' },
 			{ name: 'disabled', type: 'boolean attribute' },
 			{ name: 'readonly', type: 'boolean attribute' },
+			{ name: 'aria-label', type: 'string', description: 'Accessible label when no visible label is rendered.' },
 			{ name: 'name', type: 'string', description: 'Forwarded to native textarea for form submission.' },
 			{ name: 'rows', type: 'integer (string)', default: '3', description: 'Initial visible row count.' },
 			{ name: 'maxlength', type: 'integer (string)' },
@@ -106,6 +108,7 @@ export class WpdTextarea extends Component {
 		const placeholder = this._attr( 'placeholder' ) || '';
 		const disabled = this._boolAttr( 'disabled' );
 		const readonly = this._boolAttr( 'readonly' );
+		const ariaLabel = this._attr( 'aria-label' ) || label;
 		const name = this._attr( 'name' ) || '';
 		const rows = Number( this._attr( 'rows' ) ) || 3;
 		const maxLength = this._attr( 'maxlength' );
@@ -131,7 +134,7 @@ export class WpdTextarea extends Component {
 				minlength=${ minLength ?? '' }
 				name=${ name }
 				aria-invalid=${ invalid ? 'true' : 'false' }
-				aria-label=${ label || '' }
+				aria-label=${ ariaLabel || '' }
 				@input=${ ( e: Event ) => this._onInput( e ) }
 				@change=${ ( e: Event ) => this._onChange( e ) }
 				@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }

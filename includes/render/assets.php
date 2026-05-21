@@ -365,6 +365,7 @@ function desktop_mode_enqueue_assets() {
 	 *     @type array  $session      Saved session (windows, focused, updated).
 	 *     @type string $sessionUrl       REST endpoint for saving the session.
 	 *     @type string $mediaUrl         REST endpoint for media uploads (wp/v2/media).
+	 *     @type string $restUrl          REST API root from rest_url(), safe for pretty and plain permalink installs.
 	 *     @type string $defaultWindowUrl REST endpoint for saving the default-window preference.
 	 *     @type array  $defaultWindow    { enabled: bool, url: string } — current default-window preference.
 	 *     @type bool   $canUpload        Whether the user holds the `upload_files` capability.
@@ -416,6 +417,7 @@ function desktop_mode_enqueue_assets() {
 			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),
 			'session'          => desktop_mode_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
+			'restUrl'          => esc_url_raw( rest_url() ),
 			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),
 			'dropConfig'       => $drop_config,
 			'defaultWindowUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/default-window' ) ),

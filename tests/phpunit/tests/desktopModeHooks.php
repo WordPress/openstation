@@ -108,7 +108,7 @@ class Tests_DesktopMode_DesktopModeHooks extends WP_UnitTestCase {
 		desktop_mode_enqueue_assets();
 
 		$this->assertIsArray( $received );
-		foreach ( array( 'currentPage', 'currentTitle', 'currentIcon', 'adminUrl', 'colorScheme', 'dockItems', 'fromPortal', 'fromPortalIntent' ) as $key ) {
+		foreach ( array( 'currentPage', 'currentTitle', 'currentIcon', 'adminUrl', 'restUrl', 'colorScheme', 'dockItems', 'fromPortal', 'fromPortalIntent' ) as $key ) {
 			$this->assertArrayHasKey( $key, $received, "Config missing key: $key" );
 		}
 	}

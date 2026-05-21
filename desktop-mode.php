@@ -44,6 +44,7 @@ require_once DESKTOP_MODE_DIR . 'includes/admin-bar.php';
 require_once DESKTOP_MODE_DIR . 'includes/session.php';
 require_once DESKTOP_MODE_DIR . 'includes/presence.php';
 require_once DESKTOP_MODE_DIR . 'includes/nonce-refresh.php';
+require_once DESKTOP_MODE_DIR . 'includes/sticky-notes/heartbeat.php';
 require_once DESKTOP_MODE_DIR . 'includes/os-settings.php';
 require_once DESKTOP_MODE_DIR . 'includes/seen-intros.php';
 require_once DESKTOP_MODE_DIR . 'includes/welcome-dialog.php';

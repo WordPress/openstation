@@ -12,7 +12,7 @@
  * @since 0.8.1
  */
 
-import { HOOKS, doAction } from '../hooks';
+import { HOOKS, addAction, doAction } from '../hooks';
 
 /** Debounce window for the shell-resized action. Trailing-edge only. */
 const SHELL_RESIZE_DEBOUNCE_MS = 120;
@@ -30,6 +30,9 @@ export function wireSessionEvents( save: () => void ): void {
 	document.addEventListener( 'desktop-mode-window-closed', save );
 	document.addEventListener( 'desktop-mode-window-focused', save );
 	document.addEventListener( 'desktop-mode-window-changed', save );
+	addAction( HOOKS.DESKTOP_CREATED, 'desktop-mode/session-save', save );
+	addAction( HOOKS.DESKTOP_CLOSED, 'desktop-mode/session-save', save );
+	addAction( HOOKS.DESKTOP_SWITCHED, 'desktop-mode/session-save', save );
 }
 
 /**

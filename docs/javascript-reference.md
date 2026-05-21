@@ -776,6 +776,10 @@ That's the whole pattern. The dot blinks for the duration of the round-trip, fla
 
 `wp.desktop.fetch` automatically attaches `X-WP-Nonce: desktopModeConfig.restNonce` to **same-origin** requests whose URL targets a WordPress REST endpoint — either pretty-permalink (`/wp-json/...`) or plain-permalink (`?rest_route=...`). Without the header, WordPress's `rest_cookie_check_errors()` demotes the cookie session to anonymous and any capability-gated route returns `401`. You no longer need to remember to attach it by hand.
 
+When composing REST URLs inside the shell, prefer the server-provided
+`desktopModeConfig.restUrl` root over hard-coded `/wp-json/` paths so
+plain-permalink installs route correctly too.
+
 Rules:
 - **Same-origin only.** Cross-origin requests never receive the header — the nonce is a credential for this site.
 - **Caller wins.** If you pass `headers: { 'X-WP-Nonce': '...' }` (or the input `Request` already carries the header), the framework does not overwrite it.
@@ -1064,7 +1068,7 @@ Server-declared icons (registered via `desktop_mode_register_icon( $id, [ 'pinne
 ---
 
 ### `saveSession` — Stable
-A debounced function that schedules a session write. Call it after mutating window state from your own code.
+A debounced function that schedules a session write. The shell calls it automatically for window lifecycle and virtual-desktop lifecycle changes; call it after mutating session-backed state from your own code.
 
 ```javascript
 window.wp.desktop.windowManager.focus( someWindow );
