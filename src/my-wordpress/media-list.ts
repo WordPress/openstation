@@ -24,11 +24,23 @@ import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec
 import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import { showToast } from '../toast';
 import type { EntityRenderHost } from './kind-registry';
+import { renderListToolbar } from './list-toolbar';
 import type { MediaListItem, MyWordPressEntity, MediaPreviewAction } from './types';
 import { deleteMediaItem, fetchMediaItem, fetchMediaPage } from './media-rest';
 import { getConfig } from './rest';
 import { dashiconForMime, renderMediaPreview } from './media-preview';
 import { stripTags } from './dom-utils';
+
+/**
+ * Per-window media search query memory. Survives a media-detail
+ * drill-and-back round-trip so the user doesn't lose their filter.
+ * Lives in module scope but is keyed by entity id — switching from
+ * Media to a different entity clears the field, which is the
+ * intentional UX for "fresh field per entity".
+ *
+ * @since 0.22.0
+ */
+const lastQueryByMediaEntity = new Map< string, string >();
 
 interface MediaListContext {
 	page: number;
@@ -46,6 +58,10 @@ interface MediaListContext {
 	entity: MyWordPressEntity;
 	host: EntityRenderHost;
 	previewActions: MediaPreviewAction[];
+	/** @since 0.22.0 */
+	query: string;
+	/** @since 0.22.0 */
+	abort: AbortController | null;
 }
 
 function describeCount( ctx: MediaListContext ): string {
@@ -444,6 +460,19 @@ export function renderMediaList(
 	entity: MyWordPressEntity,
 ): void {
 	const cfg = getConfig();
+	const initialQuery = lastQueryByMediaEntity.get( entity.id ) ?? '';
+
+	const toolbar = renderListToolbar( {
+		placeholder: __( 'Search media…', 'desktop-mode' ),
+		ariaLabel: __( 'Search media', 'desktop-mode' ),
+		initialValue: initialQuery,
+		onSearchChange: ( q ) => {
+			lastQueryByMediaEntity.set( entity.id, q );
+			void resetForSearch( q );
+		},
+	} );
+	host.body.appendChild( toolbar.host );
+	host.addTeardown( () => toolbar.destroy() );
 
 	const split = document.createElement( 'div' );
 	split.className =
@@ -503,7 +532,10 @@ export function renderMediaList(
 		entity,
 		host,
 		previewActions: cfg.previewActions ?? [],
+		query: initialQuery,
+		abort: null,
 	};
+	host.addTeardown( () => ctx.abort?.abort() );
 
 	const sentinelIsVisible = (): boolean => {
 		const sr = sentinel.getBoundingClientRect();
@@ -519,16 +551,33 @@ export function renderMediaList(
 		ctx.loading = true;
 		const nextPage = ctx.page + 1;
 		const perPage = cfg.mediaPerPage ?? 48;
+		const queryAtFetchTime = ctx.query;
+		const controller = new AbortController();
+		ctx.abort = controller;
 		try {
 			const result = await fetchMediaPage( entity, {
 				page: nextPage,
 				perPage,
+				search: queryAtFetchTime || undefined,
+				signal: controller.signal,
 			} );
+			if ( ctx.query !== queryAtFetchTime ) {
+				return;
+			}
 			ctx.page = nextPage;
 			ctx.totalPages = result.totalPages;
 			ctx.total = result.total;
 			if ( result.items.length === 0 && nextPage === 1 ) {
-				renderEmpty( tiles, __( 'No media yet.', 'desktop-mode' ) );
+				renderEmpty(
+					tiles,
+					queryAtFetchTime
+						? sprintf(
+							// translators: %s is the user-entered search query.
+							__( 'No media match "%s".', 'desktop-mode' ),
+							queryAtFetchTime,
+						)
+						: __( 'No media yet.', 'desktop-mode' ),
+				);
 				ctx.done = true;
 				paintStatus( ctx );
 				return;
@@ -542,6 +591,9 @@ export function renderMediaList(
 			}
 			paintStatus( ctx );
 		} catch ( err ) {
+			if ( err instanceof DOMException && err.name === 'AbortError' ) {
+				return;
+			}
 			const message =
 				err instanceof Error
 					? err.message
@@ -550,7 +602,110 @@ export function renderMediaList(
 			ctx.done = true;
 		} finally {
 			ctx.loading = false;
+			if ( ctx.abort === controller ) {
+				ctx.abort = null;
+			}
 		}
+		if ( ! ctx.done ) {
+			requestAnimationFrame( () => {
+				if ( sentinelIsVisible() ) {
+					void loadMore();
+				}
+			} );
+		}
+	};
+
+	const resetForSearch = async ( q: string ): Promise< void > => {
+		// Keep the previous results visible (dimmed via the
+		// `--searching` class) until the new page lands, then swap
+		// atomically. See `renderEntityList.resetForSearch` for the
+		// full rationale — same fix shape applied here.
+		ctx.abort?.abort();
+		ctx.abort = null;
+		ctx.query = q;
+
+		tiles.classList.add(
+			'desktop-mode-my-wordpress__media-grid--searching',
+		);
+
+		const controller = new AbortController();
+		ctx.abort = controller;
+		ctx.loading = true;
+		const perPage = cfg.mediaPerPage ?? 48;
+
+		try {
+			const result = await fetchMediaPage( entity, {
+				page: 1,
+				perPage,
+				search: q || undefined,
+				signal: controller.signal,
+			} );
+			if ( ctx.query !== q ) {
+				return;
+			}
+
+			tiles.replaceChildren();
+			tiles.classList.remove(
+				'desktop-mode-my-wordpress__media-grid--searching',
+			);
+
+			ctx.page = 1;
+			ctx.totalPages = result.totalPages;
+			ctx.total = result.total;
+			ctx.loaded = 0;
+			ctx.done = ctx.page >= ctx.totalPages;
+			ctx.selectedId = null;
+			ctx.selectedTile = null;
+			ctx.preview.replaceChildren();
+			const emptyPreview = document.createElement( 'div' );
+			emptyPreview.className =
+				'desktop-mode-my-wordpress__preview-empty';
+			emptyPreview.textContent = __(
+				'Select a media item to preview it here.',
+				'desktop-mode',
+			);
+			ctx.preview.appendChild( emptyPreview );
+
+			if ( result.items.length === 0 ) {
+				renderEmpty(
+					tiles,
+					q
+						? sprintf(
+							// translators: %s is the user-entered search query.
+							__( 'No media match "%s".', 'desktop-mode' ),
+							q,
+						)
+						: __( 'No media yet.', 'desktop-mode' ),
+				);
+				ctx.done = true;
+			} else {
+				for ( const item of result.items ) {
+					tiles.appendChild( buildMediaTile( ctx, item ) );
+					ctx.loaded += 1;
+				}
+			}
+			paintStatus( ctx );
+		} catch ( err ) {
+			if ( err instanceof DOMException && err.name === 'AbortError' ) {
+				return;
+			}
+			tiles.classList.remove(
+				'desktop-mode-my-wordpress__media-grid--searching',
+			);
+			tiles.replaceChildren();
+			const message =
+				err instanceof Error
+					? err.message
+					: __( 'Unknown error.', 'desktop-mode' );
+			renderEmpty( tiles, message );
+			ctx.done = true;
+		} finally {
+			ctx.loading = false;
+			if ( ctx.abort === controller ) {
+				ctx.abort = null;
+			}
+		}
+
 		if ( ! ctx.done ) {
 			requestAnimationFrame( () => {
 				if ( sentinelIsVisible() ) {

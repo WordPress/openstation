@@ -64,6 +64,23 @@ async function shellFetch(
 interface ListParams {
 	page: number;
 	perPage: number;
+	/**
+	 * Optional server-side search query. Passed verbatim to the WP
+	 * REST endpoint via `?search=…`, which runs a LIKE against the
+	 * collection's indexed columns (`post_title` + `post_content` for
+	 * posts; see the per-fetcher comments below for the others).
+	 *
+	 * @since 0.22.0
+	 */
+	search?: string;
+	/**
+	 * Optional `AbortSignal` so callers can cancel a stale page-fetch
+	 * when the user types a new search query before the previous
+	 * round-trip lands.
+	 *
+	 * @since 0.22.0
+	 */
+	signal?: AbortSignal;
 }
 
 export async function fetchEntityList(
@@ -84,6 +101,9 @@ export async function fetchEntityList(
 	// statuses, so unauthorized users still only see what they can
 	// read.
 	url.searchParams.set( 'status', 'publish,future,draft,pending,private' );
+	if ( params.search ) {
+		url.searchParams.set( 'search', params.search );
+	}
 
 	const response = await shellFetch( url.toString(), {
 		method: 'GET',
@@ -92,6 +112,7 @@ export async function fetchEntityList(
 			'X-WP-Nonce': cfg.restNonce,
 			Accept: 'application/json',
 		},
+		signal: params.signal,
 	} );
 
 	if ( ! response.ok ) {
@@ -261,7 +282,19 @@ export async function fetchEntityTotal(
  */
 export async function fetchUserList(
 	entity: MyWordPressEntity,
-	params: { page: number; perPage: number },
+	params: {
+		page: number;
+		perPage: number;
+		/**
+		 * Optional search query. Passed verbatim to `/wp/v2/users` as
+		 * `?search=…`, which matches against user_login, user_nicename,
+		 * user_email, user_url, and display_name.
+		 *
+		 * @since 0.22.0
+		 */
+		search?: string;
+		signal?: AbortSignal;
+	},
 ): Promise< UserListResult > {
 	const cfg = getConfig();
 	const buildRequestUrl = ( mode: 'edit' | 'authors' ): string => {
@@ -279,6 +312,9 @@ export async function fetchUserList(
 		} else {
 			url.searchParams.set( 'who', 'authors' );
 		}
+		if ( params.search ) {
+			url.searchParams.set( 'search', params.search );
+		}
 		return url.toString();
 	};
 
@@ -290,6 +326,7 @@ export async function fetchUserList(
 				'X-WP-Nonce': cfg.restNonce,
 				Accept: 'application/json',
 			},
+			signal: params.signal,
 		} );
 
 	let response = await send( buildRequestUrl( 'edit' ) );

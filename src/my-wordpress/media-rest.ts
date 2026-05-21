@@ -67,7 +67,18 @@ async function readErrorMessage(
  */
 export async function fetchMediaPage(
 	entity: MyWordPressEntity,
-	params: { page: number; perPage: number },
+	params: {
+		page: number;
+		perPage: number;
+		/**
+		 * Optional search query. Passed verbatim to `/wp/v2/media` as
+		 * `?search=…`, which matches attachment titles + filenames.
+		 *
+		 * @since 0.22.0
+		 */
+		search?: string;
+		signal?: AbortSignal;
+	},
 ): Promise< MediaListResult > {
 	const cfg = getConfig();
 	const url = new URL( buildUrl( entity.restPath ) );
@@ -83,6 +94,9 @@ export async function fetchMediaPage(
 	// Attachments are stored under `status=inherit`; the default
 	// `publish` filter on `wp/v2/media` returns an empty list.
 	url.searchParams.set( 'status', 'inherit' );
+	if ( params.search ) {
+		url.searchParams.set( 'search', params.search );
+	}
 
 	const response = await shellFetch( url.toString(), {
 		method: 'GET',
@@ -91,6 +105,7 @@ export async function fetchMediaPage(
 			'X-WP-Nonce': cfg.restNonce,
 			Accept: 'application/json',
 		},
+		signal: params.signal,
 	} );
 
 	if ( ! response.ok ) {
