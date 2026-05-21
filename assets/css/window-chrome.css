@@ -344,6 +344,16 @@
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
+	/* Dashicons inherits `display: inline-block` from core, which
+	 * positions the glyph via text-layout — and the font's
+	 * baseline isn't quite centered in its em-box, so the visible
+	 * character drifts a px or two off the button's geometric
+	 * centre. Make the span itself a flex centerer so the glyph
+	 * sits dead-centre regardless of the font's intrinsic baseline. */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
 }
 
 /* Focused window: meta buttons visible. */
