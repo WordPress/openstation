@@ -75,6 +75,138 @@ const _suppressedIframes = new Map< HTMLIFrameElement, string >();
 /** Registered drop-target deregister fns during a drag, keyed by iframe. */
 const _activeRegistrations = new Map< HTMLIFrameElement, DeregisterFn >();
 
+/** Active bridge payload while iframe-to-iframe drag intercept is live. */
+let _bridgeInterceptPayload: DragBridgePayload | null = null;
+let _lastHoveredBridgeIframe: HTMLIFrameElement | null = null;
+
+function suppressIframePointerEventsBridge(): void {
+	const iframes = document.querySelectorAll< HTMLIFrameElement >(
+		IFRAME_SELECTOR,
+	);
+	iframes.forEach( ( iframe ) => {
+		if ( _suppressedIframes.has( iframe ) ) {
+			return;
+		}
+		_suppressedIframes.set( iframe, iframe.style.pointerEvents );
+		iframe.style.pointerEvents = 'none';
+	} );
+}
+
+function restoreIframePointerEvents(): void {
+	_suppressedIframes.forEach( ( prev, iframe ) => {
+		iframe.style.pointerEvents = prev;
+	} );
+	_suppressedIframes.clear();
+}
+
+/**
+ * Find the iframe-window that contains the cursor at the given
+ * client coords. With iframe pointer-events suppressed during a
+ * bridge session, `elementFromPoint` returns the body div *inside*
+ * an iframe-window; walking up to `.desktop-mode-window` and back
+ * down to the iframe child is the reliable resolution path.
+ */
+function findIframeAtCursor(
+	clientX: number,
+	clientY: number,
+): HTMLIFrameElement | null {
+	const el = document.elementFromPoint( clientX, clientY );
+	if ( ! el ) {
+		return null;
+	}
+	const win = el.closest( '.desktop-mode-window' );
+	if ( ! ( win instanceof HTMLElement ) ) {
+		return null;
+	}
+	const iframe = win.querySelector( IFRAME_SELECTOR );
+	return iframe instanceof HTMLIFrameElement ? iframe : null;
+}
+
+const onBridgeDragOver = ( e: DragEvent ): void => {
+	if ( ! _bridgeInterceptPayload ) {
+		return;
+	}
+	e.preventDefault();
+	if ( e.dataTransfer ) {
+		e.dataTransfer.dropEffect = 'copy';
+	}
+	const iframe = findIframeAtCursor( e.clientX, e.clientY );
+	if ( iframe === _lastHoveredBridgeIframe ) {
+		return;
+	}
+	if ( _lastHoveredBridgeIframe ) {
+		postIntoIframe( _lastHoveredBridgeIframe, {
+			type: 'desktop-mode-drag-leave',
+		} );
+	}
+	_lastHoveredBridgeIframe = iframe;
+	if ( iframe ) {
+		postIntoIframe( iframe, {
+			type: 'desktop-mode-drag-over',
+			payload: _bridgeInterceptPayload,
+		} );
+	}
+};
+
+const onBridgeDrop = ( e: DragEvent ): void => {
+	if ( ! _bridgeInterceptPayload ) {
+		return;
+	}
+	e.preventDefault();
+	e.stopPropagation();
+	if ( typeof e.stopImmediatePropagation === 'function' ) {
+		e.stopImmediatePropagation();
+	}
+	const iframe = findIframeAtCursor( e.clientX, e.clientY );
+	const payload = _bridgeInterceptPayload;
+	stopBridgeIntercept();
+	if ( ! iframe ) {
+		return;
+	}
+	const rect = iframe.getBoundingClientRect();
+	postIntoIframe( iframe, {
+		type: 'desktop-mode-drop',
+		payload,
+		position: {
+			x: e.clientX - rect.left,
+			y: e.clientY - rect.top,
+		},
+	} );
+};
+
+const onBridgeDragEnd = (): void => {
+	stopBridgeIntercept();
+};
+
+function startBridgeIntercept( payload: DragBridgePayload ): void {
+	if ( _bridgeInterceptPayload ) {
+		_bridgeInterceptPayload = payload;
+		return;
+	}
+	_bridgeInterceptPayload = payload;
+	suppressIframePointerEventsBridge();
+	document.addEventListener( 'dragover', onBridgeDragOver, true );
+	document.addEventListener( 'drop', onBridgeDrop, true );
+	document.addEventListener( 'dragend', onBridgeDragEnd, true );
+}
+
+function stopBridgeIntercept(): void {
+	if ( ! _bridgeInterceptPayload ) {
+		return;
+	}
+	_bridgeInterceptPayload = null;
+	if ( _lastHoveredBridgeIframe ) {
+		postIntoIframe( _lastHoveredBridgeIframe, {
+			type: 'desktop-mode-drag-leave',
+		} );
+		_lastHoveredBridgeIframe = null;
+	}
+	document.removeEventListener( 'dragover', onBridgeDragOver, true );
+	document.removeEventListener( 'drop', onBridgeDrop, true );
+	document.removeEventListener( 'dragend', onBridgeDragEnd, true );
+	restoreIframePointerEvents();
+}
+
 /**
  * Extract the cross-frame `bridgePayload` from a DragManager payload
  * regardless of payload type. Both `'shortcut'` (fresh tile from My
@@ -199,13 +331,19 @@ function onDragStart( payload: unknown ): void {
 		payload,
 	);
 	iframes.forEach( ( iframe ) => {
-		if ( _suppressedIframes.has( iframe ) ) {
-			return;
+		// Suppress pointer-events idempotently. If the bridge
+		// intercept already suppressed this iframe (shell-side
+		// drags fan a bridge-payload through desktop.ts and that
+		// fires DRAG_BRIDGE_EVENTS.START synchronously BEFORE the
+		// DragManager's DRAG_EVENTS.START listener runs here), we
+		// don't want to overwrite the prior-value snapshot — but
+		// we also must NOT early-return: this loop is also the
+		// only place that registers the per-iframe DragManager
+		// drop targets the hit-test needs to land an `onDrop`.
+		if ( ! _suppressedIframes.has( iframe ) ) {
+			_suppressedIframes.set( iframe, iframe.style.pointerEvents );
+			iframe.style.pointerEvents = 'none';
 		}
-		// Snapshot inline pointerEvents so we can restore it on END.
-		// Empty string means "no inline override — use stylesheet".
-		_suppressedIframes.set( iframe, iframe.style.pointerEvents );
-		iframe.style.pointerEvents = 'none';
 
 		// Only register a drop target when the payload is one we know
 		// how to deliver into the iframe (`bridgePayload` present).
@@ -216,6 +354,9 @@ function onDragStart( payload: unknown ): void {
 		// mode (correct UX — the iframe window doesn't want this
 		// payload type).
 		if ( ! isBridgeable ) {
+			return;
+		}
+		if ( _activeRegistrations.has( iframe ) ) {
 			return;
 		}
 		const dropTargetEl = iframe.parentElement;
@@ -277,17 +418,23 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 		onDragEnd();
 	} );
 
-	// Forward cross-frame bridge sessions to every iframe so the
-	// receiver inside (e.g. the Gutenberg drop-receiver) can stash
-	// the payload and use it on its OWN native HTML5 `drop` event.
-	// This is the path that brings the legacy Media Library patch
-	// back to life: media-library-enhanced.js posts
-	// `desktop-mode-drag-start` to the parent, the bridge stores +
-	// normalizes the payload + fires DRAG_BRIDGE_EVENTS.START on
-	// the parent's document, this listener fans the message out to
-	// every iframe, and Gutenberg's receiver inserts the matching
-	// block on drop — without depending on the custom DataTransfer
-	// MIME surviving the cross-iframe hop (which Chromium strips).
+	// Iframe-to-iframe HTML5 drag intercept. The legacy Media Library
+	// patch (`assets/js/media-library-enhanced.js`) starts a native
+	// HTML5 drag inside `upload.php`, and the user drops on
+	// Gutenberg's nested editor-canvas iframe. Without intervention,
+	// every drag event (dragover / drop) fires INSIDE whichever
+	// iframe the cursor is over and never reaches the parent shell —
+	// the bridge payload is stranded, Gutenberg's own handler
+	// doesn't recognise the drop (Chromium strips the custom MIME
+	// across iframe boundaries), and nothing inserts.
+	//
+	// The fix mirrors the DragManager pattern: while a bridge
+	// session is in flight, suppress `pointer-events` on every
+	// iframe-window. Drag events then fall through to the parent
+	// document, where we can identify which iframe-window the
+	// cursor is over and postMessage `desktop-mode-drop` to its
+	// content window — the same protocol the Gutenberg receiver
+	// already implements for shell-side DragManager drops.
 	document.addEventListener( DRAG_BRIDGE_EVENTS.START, ( e ) => {
 		const detail = ( e as CustomEvent ).detail as
 			| { payload?: DragBridgePayload }
@@ -295,23 +442,10 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 		if ( ! detail?.payload ) {
 			return;
 		}
-		const iframes = document.querySelectorAll< HTMLIFrameElement >(
-			IFRAME_SELECTOR,
-		);
-		iframes.forEach( ( iframe ) => {
-			postIntoIframe( iframe, {
-				type: 'desktop-mode-drag-over',
-				payload: detail.payload,
-			} );
-		} );
+		startBridgeIntercept( detail.payload );
 	} );
 	document.addEventListener( DRAG_BRIDGE_EVENTS.END, () => {
-		const iframes = document.querySelectorAll< HTMLIFrameElement >(
-			IFRAME_SELECTOR,
-		);
-		iframes.forEach( ( iframe ) => {
-			postIntoIframe( iframe, { type: 'desktop-mode-drag-leave' } );
-		} );
+		stopBridgeIntercept();
 	} );
 
 	// On WINDOW_CLOSED we don't need to do anything special — if the
