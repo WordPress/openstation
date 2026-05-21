@@ -222,6 +222,24 @@ export interface DockAttentionOptions {
  */
 export class Dock {
 	private container: HTMLElement;
+	/**
+	 * Where menu tiles + the inline group separator live. For vertical
+	 * placements this is the inner `.desktop-mode-dock__scroll` wrapper
+	 * (a scrollable flex column) so a long admin menu doesn't push the
+	 * system tiles off-screen; the wrapper takes the scroll while the
+	 * outer dock stays the height of the shell body. For the bottom
+	 * placement it's the dock itself — the horizontal pill has its own
+	 * width constraints and doesn't benefit from inner scrolling.
+	 */
+	private itemHost: HTMLElement;
+	/**
+	 * Where system tiles + their hairline separator live. For vertical
+	 * placements this is the `.desktop-mode-dock__pinned` wrapper sat
+	 * below `itemHost`, so OS Settings / Recycle Bin / etc. stay visible
+	 * at the bottom regardless of scroll position. For the bottom
+	 * placement it's the dock itself.
+	 */
+	private systemHost: HTMLElement;
 	private windowManager: WindowManager;
 	private items: DockItem[];
 	private tooltip: HTMLElement;
@@ -322,6 +340,25 @@ export class Dock {
 			orientation,
 		);
 
+		// Vertical placements get two inner wrappers so menu tiles can
+		// scroll independently of the system tiles at the bottom. The
+		// outer dock keeps the placement attribute + orientation chrome;
+		// the wrappers carry the actual flow. For the bottom dock no
+		// wrappers — the flat row works as-is.
+		if ( orientation === 'bottom' ) {
+			this.itemHost = container;
+			this.systemHost = container;
+		} else {
+			const scroll = document.createElement( 'div' );
+			scroll.className = 'desktop-mode-dock__scroll';
+			const pinned = document.createElement( 'div' );
+			pinned.className = 'desktop-mode-dock__pinned';
+			container.appendChild( scroll );
+			container.appendChild( pinned );
+			this.itemHost = scroll;
+			this.systemHost = pinned;
+		}
+
 		// Tooltip — shared across all items. Anchor class flips per
 		// orientation so the tooltip sits outside the dock regardless
 		// of which edge it hugs.
@@ -421,7 +458,7 @@ export class Dock {
 			el.remove();
 		}
 		// Also remove any stale group separator from a previous render.
-		this.container
+		this.itemHost
 			.querySelectorAll(
 				'.desktop-mode-dock__separator--group',
 			)
@@ -437,6 +474,23 @@ export class Dock {
 			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
 		} );
 
+		// When `itemHost === systemHost` (the bottom dock), the system
+		// separator + tiles live in the same container as menu tiles,
+		// and new menu tiles need to be inserted BEFORE them to keep
+		// the menu → separator → system DOM order. For vertical docks
+		// they're in different hosts, so a simple appendChild is right.
+		const insertMenuChild = ( node: Node ): void => {
+			if (
+				this.itemHost === this.systemHost &&
+				this.systemSeparator &&
+				this.systemSeparator.parentNode === this.itemHost
+			) {
+				this.itemHost.insertBefore( node, this.systemSeparator );
+			} else {
+				this.itemHost.appendChild( node );
+			}
+		};
+
 		let insertedGroupSeparator = false;
 		let tilesInsertedThisPass = 0;
 		for ( const item of items ) {
@@ -446,21 +500,13 @@ export class Dock {
 					sep.className =
 						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
 					sep.setAttribute( 'aria-hidden', 'true' );
-					if ( this.systemSeparator ) {
-						this.container.insertBefore( sep, this.systemSeparator );
-					} else {
-						this.container.appendChild( sep );
-					}
+					insertMenuChild( sep );
 				}
 				insertedGroupSeparator = true;
 			}
 			const btn = this.createItemButton( item );
 			this.itemElements.set( item.id, btn );
-			if ( this.systemSeparator ) {
-				this.container.insertBefore( btn, this.systemSeparator );
-			} else {
-				this.container.appendChild( btn );
-			}
+			insertMenuChild( btn );
 			tilesInsertedThisPass++;
 			// Re-apply any client-side badge override that was set
 			// before the refresh. Without this, the live menu
@@ -696,12 +742,12 @@ export class Dock {
 			this.systemSeparator = document.createElement( 'div' );
 			this.systemSeparator.className = 'desktop-mode-dock__separator';
 			this.systemSeparator.setAttribute( 'aria-hidden', 'true' );
-			this.container.appendChild( this.systemSeparator );
+			this.systemHost.appendChild( this.systemSeparator );
 		}
 
 		const tile = this.createSystemItemButton( item );
 		this.systemItemElements.set( item.id, tile );
-		this.container.appendChild( tile );
+		this.systemHost.appendChild( tile );
 		this.updateActiveStates();
 
 		doAction( HOOKS.DOCK_TILE_RENDERED, {
@@ -741,7 +787,12 @@ export class Dock {
 		}
 		this.peekTeardowns.clear();
 
-		this.container.innerHTML = '';
+		// Clear menu host only — system tiles live in their own host
+		// and survive a re-render. For the bottom dock both hosts are
+		// the same element; in that case the system tiles haven't been
+		// appended yet at constructor time so clearing here is still
+		// safe (`render()` only runs from the constructor).
+		this.itemHost.innerHTML = '';
 
 		const base = this.buildHookContextBase();
 		doAction( HOOKS.DOCK_BEFORE_RENDER, {
@@ -756,18 +807,18 @@ export class Dock {
 				// Only insert if there's at least one core tile before
 				// us — otherwise a plugin-only dock would lead with a
 				// lonely separator.
-				if ( this.container.childElementCount > 0 ) {
+				if ( this.itemHost.childElementCount > 0 ) {
 					const sep = document.createElement( 'div' );
 					sep.className =
 						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
 					sep.setAttribute( 'aria-hidden', 'true' );
-					this.container.appendChild( sep );
+					this.itemHost.appendChild( sep );
 				}
 				insertedGroupSeparator = true;
 			}
 			const btn = this.createItemButton( item );
 			this.itemElements.set( item.id, btn );
-			this.container.appendChild( btn );
+			this.itemHost.appendChild( btn );
 			doAction( HOOKS.DOCK_TILE_RENDERED, {
 				...base,
 				item,
@@ -1079,7 +1130,7 @@ export class Dock {
 		};
 
 		const eachSiblingTile = ( fn: ( el: HTMLElement ) => void ): void => {
-			for ( const child of Array.from( this.container.children ) ) {
+			for ( const child of Array.from( this.itemHost.children ) ) {
 				if ( child instanceof HTMLElement && child !== tile && isMenuTile( child ) ) {
 					fn( child );
 				}
@@ -1088,7 +1139,7 @@ export class Dock {
 
 		const snapshotMenuOrder = (): string[] => {
 			const ids: string[] = [];
-			for ( const child of Array.from( this.container.children ) ) {
+			for ( const child of Array.from( this.itemHost.children ) ) {
 				if ( isMenuTile( child ) ) {
 					ids.push( child.dataset.menuSlug as string );
 				}
@@ -1201,11 +1252,11 @@ export class Dock {
 			let reordered = false;
 			if ( insertBefore ) {
 				if ( targetTile !== tile.nextSibling ) {
-					this.container.insertBefore( tile, targetTile );
+					this.itemHost.insertBefore( tile, targetTile );
 					reordered = true;
 				}
 			} else if ( targetTile.nextSibling !== tile ) {
-				this.container.insertBefore( tile, targetTile.nextSibling );
+				this.itemHost.insertBefore( tile, targetTile.nextSibling );
 				reordered = true;
 			}
 
@@ -1330,7 +1381,7 @@ export class Dock {
 				eachSiblingTile( ( sib ) => {
 					prevRects.set( sib, sib.getBoundingClientRect() );
 				} );
-				this.container.insertBefore( tile, originalNext );
+				this.itemHost.insertBefore( tile, originalNext );
 				flipSiblings( prevRects );
 			}
 			animateHome();
