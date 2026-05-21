@@ -244,6 +244,266 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		notifySelection( placement );
 	};
 
+	/**
+	 * Compute pinned-slot map + displaced map for a list. Shared by
+	 * the wholesale rebuild and the incremental path so both end up
+	 * with bit-identical layouts.
+	 */
+	const computeLayout = (
+		list: readonly RestPlacementShape[],
+	): {
+		pinnedSlots: Map< number, { x: number; y: number } >;
+		displaced: Map< number, { x: number; y: number } >;
+	} => {
+		const pinnedSlots = new Map< number, { x: number; y: number } >();
+		const occupiedCells = new Set< string >();
+		let pinnedIdx = 0;
+		for ( const placement of list ) {
+			if ( ! isPinned( placement ) ) {
+				continue;
+			}
+			const slot = cellToPos( 0, pinnedIdx );
+			pinnedSlots.set( placement.id, { x: slot.x, y: slot.y } );
+			occupiedCells.add( cellKey( slot.col, slot.row ) );
+			pinnedIdx += 1;
+		}
+		const displaced = new Map< number, { x: number; y: number } >();
+		for ( const placement of list ) {
+			if ( pinnedSlots.has( placement.id ) ) {
+				continue;
+			}
+			const target = pointToCell( placement.x, placement.y );
+			const key = cellKey( target.col, target.row );
+			if ( ! occupiedCells.has( key ) ) {
+				occupiedCells.add( key );
+				continue;
+			}
+			const free = snapToEmptyCell(
+				placement.x,
+				placement.y,
+				occupiedCells,
+				host,
+			);
+			occupiedCells.add( cellKey( free.col, free.row ) );
+			displaced.set( placement.id, { x: free.x, y: free.y } );
+		}
+		return { pinnedSlots, displaced };
+	};
+
+	/**
+	 * Apply final position to an existing tile based on the pinned /
+	 * displaced / stored coordinates. Pure DOM mutation — no rebuild.
+	 */
+	const applyTilePosition = (
+		tile: HTMLElement,
+		placement: RestPlacementShape,
+		pinnedSlots: Map< number, { x: number; y: number } >,
+		displaced: Map< number, { x: number; y: number } >,
+	): void => {
+		const pinned = pinnedSlots.get( placement.id );
+		const moved = displaced.get( placement.id );
+		if ( pinned ) {
+			setTilePosition( tile, pinned.x, pinned.y );
+		} else if ( moved ) {
+			setTilePosition( tile, moved.x, moved.y );
+		} else {
+			setTilePosition( tile, placement.x, placement.y );
+		}
+	};
+
+	/**
+	 * Build a fully-wired tile DOM node for a placement. Encapsulates
+	 * everything the wholesale rebuild used to do inline per tile:
+	 * position, drag wiring, context menu, click-select, drop-target
+	 * registrations. Used by BOTH the wholesale rebuild and the
+	 * incremental add path so the behaviour stays in lock-step.
+	 *
+	 * Caller is responsible for appending the returned element to
+	 * `container`.
+	 */
+	const wireTile = (
+		placement: RestPlacementShape,
+		pinnedSlots: Map< number, { x: number; y: number } >,
+		displaced: Map< number, { x: number; y: number } >,
+	): HTMLElement => {
+		const tile = buildTile( placement, folderId );
+		const pinnedSlot = pinnedSlots.get( placement.id );
+		if ( pinnedSlot ) {
+			setTilePosition( tile, pinnedSlot.x, pinnedSlot.y );
+			tile.classList.add( `${ TILE_CLASS }--pinned` );
+			attachContextMenu( tile, placement );
+			attachSelectOnClick( tile, placement );
+			if ( shouldRejectTileDrops( placement ) ) {
+				const dragManager = getDragManager();
+				if ( dragManager ) {
+					const deregister = dragManager.registerDropTarget( {
+						id: `desktop-mode-files-tile-${ placement.id }-reject`,
+						element: tile,
+						accept: () => false,
+						onDrop: () => {},
+					} );
+					tileRejectDeregisters.set( placement.id, deregister );
+				}
+			}
+			return tile;
+		}
+		const moved = displaced.get( placement.id );
+		if ( moved ) {
+			setTilePosition( tile, moved.x, moved.y );
+		}
+		attachTileDrag( tile, placement, folderId );
+		attachContextMenu( tile, placement );
+		attachSelectOnClick( tile, placement );
+		if ( placement.file.type === 'folder' ) {
+			const targetFolderId = parseInt( placement.file.ref, 10 );
+			if ( targetFolderId > 0 ) {
+				const dragManager = getDragManager();
+				if ( dragManager ) {
+					const deregister = registerFolderDropTarget(
+						dragManager,
+						tile,
+						targetFolderId,
+						folderId,
+					);
+					folderDropDeregisters.set( placement.id, deregister );
+				}
+			}
+		} else if ( shouldRejectTileDrops( placement ) ) {
+			const dragManager = getDragManager();
+			if ( dragManager ) {
+				const deregister = dragManager.registerDropTarget( {
+					id: `desktop-mode-files-tile-${ placement.id }-reject`,
+					element: tile,
+					accept: () => false,
+					onDrop: () => {},
+				} );
+				tileRejectDeregisters.set( placement.id, deregister );
+			}
+		}
+		return tile;
+	};
+
+	/**
+	 * Incremental repaint path — handles the common "added and/or
+	 * removed one or more placements, otherwise same set" case
+	 * without nuking the entire container's DOM. Preserves DOM
+	 * identity for unchanged tiles so the user doesn't see a
+	 * "desktop reload" flash on file creation, shortcut drop, or
+	 * deletion.
+	 *
+	 * Returns `true` if the patch applied; `false` if the caller
+	 * must fall through to the wholesale rebuild. Bails when ANY
+	 * shared tile has a structural change (file-type, file-ref,
+	 * pinned-flag) — those cases need the wholesale path's full
+	 * re-wiring.
+	 *
+	 * @since 0.22.0
+	 */
+	const tryPatchIncremental = (
+		list: readonly RestPlacementShape[],
+	): boolean => {
+		const existing = new Map< number, HTMLElement >();
+		for ( const tile of container.querySelectorAll< HTMLElement >(
+			'[data-placement-id]',
+		) ) {
+			const raw = tile.dataset.placementId ?? '';
+			const id = parseInt( raw, 10 );
+			if ( raw === '' || ( Number.isNaN( id ) && raw !== '-0' ) ) {
+				return false;
+			}
+			existing.set( id, tile );
+		}
+
+		const wantIds = new Set< number >();
+		for ( const placement of list ) {
+			wantIds.add( placement.id );
+		}
+
+		// Verify every SHARED id has matching structural fields. If
+		// any differ (file-type, file-ref, or pinned flag flipped),
+		// the wholesale path's full re-wiring is needed.
+		for ( const placement of list ) {
+			const tile = existing.get( placement.id );
+			if ( ! tile ) {
+				continue; // added — handled below.
+			}
+			if ( tile.dataset.fileType !== placement.file.type ) {
+				return false;
+			}
+			if ( tile.dataset.fileRef !== placement.file.ref ) {
+				return false;
+			}
+			const wasPinned = tile.classList.contains(
+				`${ TILE_CLASS }--pinned`,
+			);
+			if ( wasPinned !== isPinned( placement ) ) {
+				return false;
+			}
+		}
+
+		// Remove tiles whose placements are gone — deregister their
+		// drop-target claims first so the registry doesn't keep
+		// detached-element references.
+		for ( const [ id, tile ] of existing ) {
+			if ( wantIds.has( id ) ) {
+				continue;
+			}
+			const folderDereg = folderDropDeregisters.get( id );
+			if ( folderDereg ) {
+				try {
+					folderDereg();
+				} catch {
+					// ignore
+				}
+				folderDropDeregisters.delete( id );
+			}
+			const rejectDereg = tileRejectDeregisters.get( id );
+			if ( rejectDereg ) {
+				try {
+					rejectDereg();
+				} catch {
+					// ignore
+				}
+				tileRejectDeregisters.delete( id );
+			}
+			tile.remove();
+		}
+
+		const { pinnedSlots, displaced } = computeLayout( list );
+
+		// Update positions on shared tiles + build new ones for adds.
+		for ( const placement of list ) {
+			const tile = existing.get( placement.id );
+			if ( tile ) {
+				applyTilePosition( tile, placement, pinnedSlots, displaced );
+				continue;
+			}
+			container.appendChild(
+				wireTile( placement, pinnedSlots, displaced ),
+			);
+		}
+
+		// Selection bookkeeping — match the wholesale path so right-
+		// pane consumers stay in sync when the selected tile was the
+		// removed one.
+		if (
+			selectedId !== null &&
+			! container.querySelector(
+				`[data-placement-id="${ selectedId }"]`,
+			)
+		) {
+			selectedId = null;
+			notifySelection( null );
+		}
+
+		doAction( 'desktop-mode.files.grid-rendered', {
+			folderId,
+			count: list.length,
+		} );
+
+		return true;
+	};
+
 	const repaint = ( state: FilesState ): void => {
 		const raw = state.placementsByFolder.get( folderId ) ?? [];
 		// Pinned tiles always render first so their slots are
@@ -259,23 +519,29 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		}
 		lastFingerprint = fp;
 
-		// Fast path: the common case (single tile dragged within the
-		// same folder) changes only `x` / `y` / `sortOrder` for one or
-		// more existing tiles. Nuking the DOM with `replaceChildren`
-		// for that produces a visible flash that reads to users as
-		// "the desktop just reloaded." When the placement set + every
-		// structural field matches what's already in the DOM, patch
-		// positions in place and bail before the wholesale rebuild.
-		// Falls through to the rebuild for adds, removes, renames,
-		// file-type changes, parent moves, or pin-flag flips — any of
-		// which require the full pinned-slot + drop-target
-		// reconciliation below.
+		// Fastest path: position-only changes (intra-folder drag,
+		// auto-arrange). Same set, same structure, no rewiring.
 		if ( tryPatchPositions( list, container, host ) ) {
 			return;
 		}
 
-		// Wholesale rebuild — simplest correct strategy. Plugins that
-		// want stable decorations re-attach via `tile-rendered`.
+		// Incremental path: same set MOSTLY, with adds and/or removes
+		// but no structural mutations on the unchanged tiles. Covers
+		// the file-creation, shortcut-drop, and delete flows — which
+		// otherwise would each visibly flash the wallpaper with a
+		// full `replaceChildren()` rebuild.
+		if ( tryPatchIncremental( list ) ) {
+			return;
+		}
+
+		// Wholesale rebuild — last resort. Pin-flag flips, parent-
+		// folder moves, file-type changes, all land here. Plugins
+		// that want stable decorations re-attach via `tile-rendered`.
+
+		// Wholesale rebuild — last-resort path for transitions the
+		// incremental walker can't handle (pin-flag flips, parent-
+		// folder moves, file-type changes). Plugins that want stable
+		// decorations re-attach via `tile-rendered`.
 		container.replaceChildren();
 		// Folder drop targets are tile-scoped — the previous tile DOM
 		// nodes are detached by `replaceChildren` above. Deregister
@@ -300,161 +566,16 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		}
 		tileRejectDeregisters.clear();
 
-		// Pinned tiles (registered with `pinned: true` —
-		// `desktop_mode_register_icon`) anchor to a fixed slot and
-		// drop the drag wiring entirely. Today the only pinned
-		// surface is the framework "My WordPress" shortcut, but the
-		// flag is generic so anything that should never move can
-		// opt in.
-		// Reserve column 0, top-down, for pinned tiles. Their
-		// server-stored (x, y) is ignored — the visual slot is
-		// purely a function of their pinned-order index.
-		const pinnedSlots = new Map< number, { x: number; y: number } >();
-		const occupiedCells = new Set< string >();
-		let pinnedIdx = 0;
-		for ( const placement of list ) {
-			if ( ! isPinned( placement ) ) {
-				continue;
-			}
-			const slot = cellToPos( 0, pinnedIdx );
-			pinnedSlots.set( placement.id, { x: slot.x, y: slot.y } );
-			occupiedCells.add( cellKey( slot.col, slot.row ) );
-			pinnedIdx += 1;
-		}
+		// Layout passes — pinned-slot allocation then displacement of
+		// non-pinned tiles whose stored coords landed on a pinned
+		// slot. Shared with the incremental + fast paths via
+		// `computeLayout()`.
+		const { pinnedSlots, displaced } = computeLayout( list );
 
-		// Pre-compute display cells for non-pinned tiles, evicting
-		// any whose stored coords land on a pinned slot. Pre-existing
-		// data from before pinned shortcuts existed (e.g. Recycle Bin
-		// already living at (0, 0)) would otherwise overlap visually
-		// with the new anchored "My WordPress" tile. Process in
-		// stored-position order so pre-pinned tiles keep their
-		// relative ordering when displaced.
-		const displaced = new Map<
-			number,
-			{ x: number; y: number }
-		>();
 		for ( const placement of list ) {
-			if ( pinnedSlots.has( placement.id ) ) {
-				continue;
-			}
-			const target = pointToCell( placement.x, placement.y );
-			const key = cellKey( target.col, target.row );
-			if ( ! occupiedCells.has( key ) ) {
-				occupiedCells.add( key );
-				continue;
-			}
-			// Stored cell is taken (by a pinned tile or an already-
-			// displaced peer). Snap to the next free cell.
-			const free = snapToEmptyCell(
-				placement.x,
-				placement.y,
-				occupiedCells,
-				host,
+			container.appendChild(
+				wireTile( placement, pinnedSlots, displaced ),
 			);
-			occupiedCells.add( cellKey( free.col, free.row ) );
-			displaced.set( placement.id, { x: free.x, y: free.y } );
-		}
-
-		for ( const placement of list ) {
-			const tile = buildTile( placement, folderId );
-			const pinnedSlot = pinnedSlots.get( placement.id );
-			if ( pinnedSlot ) {
-				setTilePosition( tile, pinnedSlot.x, pinnedSlot.y );
-				tile.classList.add( `${ TILE_CLASS }--pinned` );
-				// No drag wiring on pinned tiles by design — they
-				// anchor to a fixed slot. We deliberately DO NOT
-				// surface any upfront visual cue (no special cursor,
-				// bump animation, or tooltip): the tile looks +
-				// reacts identically to any other tile, and the
-				// (silent) failure to drag becomes the feedback at
-				// the moment the user attempts it. This was the
-				// 0.9.0 design call — pre-emptive cues read as "this
-				// tile is broken/disabled" even though clicking it
-				// opens the window normally.
-				attachContextMenu( tile, placement );
-				attachSelectOnClick( tile, placement );
-				// Pinned tiles (My WordPress today) are system
-				// shortcuts — never valid drop targets. Without an
-				// explicit reject claimant the hit-test walks past
-				// them to the canvas drop target → green "Drop here
-				// to move" chip on hover, misleading because the
-				// drop snaps elsewhere (the cell is in the visual-
-				// occupied set). The Recycle Bin is excluded — its
-				// own trash-accepting drop target registers from
-				// `recycle-bin-targets.ts` and the registry
-				// overwrites by element.
-				if ( shouldRejectTileDrops( placement ) ) {
-					const dragManager = getDragManager();
-					if ( dragManager ) {
-						const deregister = dragManager.registerDropTarget( {
-							id: `desktop-mode-files-tile-${ placement.id }-reject`,
-							element: tile,
-							accept: () => false,
-							onDrop: () => {},
-						} );
-						tileRejectDeregisters.set( placement.id, deregister );
-					}
-				}
-				container.appendChild( tile );
-				continue;
-			}
-			const moved = displaced.get( placement.id );
-			if ( moved ) {
-				setTilePosition( tile, moved.x, moved.y );
-			}
-			attachTileDrag( tile, placement, folderId );
-			attachContextMenu( tile, placement );
-			attachSelectOnClick( tile, placement );
-			// Folder tiles also accept drag-out drops — dropping a
-			// post (or any shortcut payload) on a folder icon files
-			// the shortcut INTO that folder rather than next to the
-			// folder on the wallpaper.
-			if ( placement.file.type === 'folder' ) {
-				const targetFolderId = parseInt( placement.file.ref, 10 );
-				if ( targetFolderId > 0 ) {
-					const dragManager = getDragManager();
-					if ( dragManager ) {
-						const deregister = registerFolderDropTarget(
-							dragManager,
-							tile,
-							targetFolderId,
-							folderId,
-						);
-						folderDropDeregisters.set( placement.id, deregister );
-					}
-				}
-			} else if ( shouldRejectTileDrops( placement ) ) {
-				// Non-folder shortcut tiles (My WordPress, dock
-				// promotions, plugin-registered icons that don't
-				// claim drops themselves) need an explicit reject
-				// claimant. Without one, the hit-test walks PAST
-				// the tile up to the canvas drop target, which
-				// accepts → the user sees the green "Drop here to
-				// move" chip even though the drop would land in
-				// the next free cell (because pinned/occupied
-				// tiles are in the visual-occupied set).
-				//
-				// The Recycle Bin is excluded — `recycle-bin-targets.ts`
-				// registers its OWN trash-accepting drop target on
-				// the bin tile, and the registry overwrites by
-				// element. Stamping a reject claimant here would
-				// hide the trash gesture.
-				const dragManager = getDragManager();
-				if ( dragManager ) {
-					const deregister = dragManager.registerDropTarget( {
-						id: `desktop-mode-files-tile-${ placement.id }-reject`,
-						element: tile,
-						accept: () => false,
-						onDrop: () => {
-							// Unreachable — `accept: false` short-
-							// circuits commit. Defined for the type
-							// contract.
-						},
-					} );
-					tileRejectDeregisters.set( placement.id, deregister );
-				}
-			}
-			container.appendChild( tile );
 		}
 		// If the previously-selected tile is gone (deleted, moved
 		// folders), drop the selection so the right pane can clear.
