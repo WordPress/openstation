@@ -68,10 +68,14 @@ function PreviewSidebar() {
     const [ streaming, setStreaming ] = useState( false );
 
     const open = async () => {
-        // We need to know our own window id so we can include it in
-        // diagnostics or sub-topic names. `whenWindowId()` resolves
-        // once the parent has handshaken (always before any user
-        // interaction in practice).
+        // Guard before awaiting the window id. `whenWindowId()` never
+        // rejects — if the parent shell never sends a handshake (e.g.
+        // cross-origin parent, page opened outside Desktop Mode) the
+        // Promise hangs forever. `isParentReachable()` resolves that
+        // ambiguity synchronously.
+        if ( ! wp.desktop.iframe.isParentReachable() ) {
+            return; // Not running inside Desktop Mode — bail silently.
+        }
         const myWindowId = await wp.desktop.iframe.whenWindowId();
 
         // Tell the parent shell to open a Preview window paired with us.

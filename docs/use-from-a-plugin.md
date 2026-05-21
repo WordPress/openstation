@@ -87,6 +87,26 @@ We could. We deliberately don't, because:
 
 If you genuinely need a registry-based install (e.g. a CI runner that can't see this repo's filesystem), open an issue and we'll re-evaluate.
 
+## Iframe bridge gotcha — `whenWindowId()` never rejects
+
+If your plugin code runs inside a chromeless wp-admin iframe and calls
+`wp.desktop.iframe.whenWindowId()`, be aware that the returned Promise
+**never rejects**. When the page is not running inside Desktop Mode (a
+cross-origin parent, a direct admin URL visit, a unit-test harness) the
+Promise simply hangs forever — any `await` after it will never resume.
+
+Always guard with `isParentReachable()` first:
+
+```javascript
+if ( ! wp.desktop.iframe.isParentReachable() ) {
+    return; // Not inside Desktop Mode — skip iframe-bridge code.
+}
+const windowId = await wp.desktop.iframe.whenWindowId();
+```
+
+The same caveat applies to `Window.whenContentReady()` on the shell side —
+it never rejects if the content iframe never signals readiness.
+
 ## Troubleshooting
 
 - **`Cannot find module 'desktop-mode'`** — confirm the `file:` path is correct relative to your plugin's `package.json` location, then re-run `npm install`.

@@ -160,11 +160,7 @@ function normalizeLegacyPayload(
 		string,
 		unknown
 	>;
-	if (
-		obj.kind === 'attachment' ||
-		obj.kind === 'post' ||
-		obj.kind === 'user'
-	) {
+	if ( obj.kind !== undefined && obj.kind !== null ) {
 		return payload;
 	}
 	// Look-alike test for the legacy Media Library payload — id +

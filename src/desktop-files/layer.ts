@@ -534,10 +534,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			return;
 		}
 
-		// Wholesale rebuild — last resort. Pin-flag flips, parent-
-		// folder moves, file-type changes, all land here. Plugins
-		// that want stable decorations re-attach via `tile-rendered`.
-
 		// Wholesale rebuild — last-resort path for transitions the
 		// incremental walker can't handle (pin-flag flips, parent-
 		// folder moves, file-type changes). Plugins that want stable
