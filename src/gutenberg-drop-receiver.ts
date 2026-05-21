@@ -98,6 +98,27 @@ function escapeHtml( s: string ): string {
 }
 
 /**
+ * Reject `javascript:` and `data:` URLs before they land in an
+ * inserted anchor's href. The bridge's same-origin postMessage check
+ * is the first line of defence, but defence-in-depth here is cheap.
+ * Accepts http(s), absolute paths, hash + query fragments, and any
+ * other scheme that isn't on the deny list.
+ */
+function isSafeUrl( raw: string ): boolean {
+	const lower = raw.trimStart().toLowerCase();
+	if ( lower.startsWith( 'javascript:' ) ) {
+		return false;
+	}
+	if ( lower.startsWith( 'data:' ) ) {
+		return false;
+	}
+	if ( lower.startsWith( 'vbscript:' ) ) {
+		return false;
+	}
+	return true;
+}
+
+/**
  * Build a Gutenberg block spec for the given payload. Returns `null`
  * for empty post/user URLs (the receiver no-ops in that case rather
  * than inserting a dead `<a href="">`).
@@ -108,6 +129,13 @@ export function buildBlockSpec(
 	payload: DragBridgePayload,
 ): BlockSpec | null {
 	if ( payload.kind === 'attachment' ) {
+		// Attachment URLs feed `core/image[.url]` / `core/video[.src]`
+		// etc. as raw attributes, never as HTML — but a hostile
+		// `javascript:` URL surviving into a `core/file` href would
+		// still be a click-to-XSS. Reject up front.
+		if ( ! payload.url || ! isSafeUrl( payload.url ) ) {
+			return null;
+		}
 		const mime = payload.mime || '';
 		if ( mime.startsWith( 'image/' ) ) {
 			return {
@@ -150,8 +178,9 @@ export function buildBlockSpec(
 	// `post` and `user` both render as a paragraph wrapping an
 	// anchor. Skip when the bridge couldn't resolve a URL — empty
 	// hrefs aren't useful and the drop should snap back instead of
-	// silently inserting a dead link.
-	if ( ! payload.url ) {
+	// silently inserting a dead link. Same scheme gate as
+	// attachments: a `javascript:` URL would be a one-click XSS.
+	if ( ! payload.url || ! isSafeUrl( payload.url ) ) {
 		return null;
 	}
 	const safeTitle = escapeHtml( payload.title || payload.url );
@@ -240,6 +269,26 @@ async function performInsert( payload: DragBridgePayload ): Promise< void > {
 	data.dispatch( 'core/block-editor' ).insertBlocks( [ block ] );
 }
 
+/**
+ * Notify the parent shell that an insert failed (timeout, throw,
+ * unknown payload). The parent listens for this message and surfaces
+ * a toast — without it the user would see no feedback when the
+ * editor wasn't ready and silently swallow the drop.
+ */
+function notifyParentOfFailure( reason: string ): void {
+	if ( window.parent === window ) {
+		return;
+	}
+	try {
+		window.parent.postMessage(
+			{ type: 'desktop-mode-drop-failed', reason },
+			window.location.origin,
+		);
+	} catch {
+		// Cross-origin parent — nothing we can do.
+	}
+}
+
 // ---------------------------------------------------------------------
 // Message wiring.
 // ---------------------------------------------------------------------
@@ -268,12 +317,14 @@ function install(): void {
 		if ( ! isDropMsg( e.data ) ) {
 			return;
 		}
-		void performInsert( e.data.payload ).catch( ( err ) => {
+		void performInsert( e.data.payload ).catch( ( err: unknown ) => {
+			const reason = err instanceof Error ? err.message : String( err );
 			// eslint-disable-next-line no-console
 			console.error(
 				'[desktop-mode] Gutenberg drop receiver insert failed:',
 				err,
 			);
+			notifyParentOfFailure( reason );
 		} );
 	} );
 }
