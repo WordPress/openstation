@@ -762,7 +762,7 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	// IDs; deep folder trees iterate.
 	$child_folder_ids = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['folders']} f
+			"SELECT f.id FROM {$tables['folders']} f
 			INNER JOIN {$tables['placements']} p ON p.file_type = 'folder' AND p.file_ref = CAST( f.id AS CHAR )
 			WHERE p.parent_id = %d AND f.trashed_at_ms IS NULL",
 			$folder_id
