@@ -1565,7 +1565,14 @@ wpd-user-profile > .desktop-mode-users__edit-layout {
 }
 .desktop-mode-users__edit-main {
 	min-width: 0;
+	width: 100%;
 	max-width: 720px;
+	/* Center within the `minmax(0, 1fr)` grid cell so the form
+	 * stays readable on wide windows instead of leaving a large
+	 * empty band on the right edge. The 720px max preserves the
+	 * intended line length; the auto inline margin pushes the
+	 * unused width equally to both sides. */
+	margin-inline: auto;
 	display: flex;
 	flex-direction: column;
 }
