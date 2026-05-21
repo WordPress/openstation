@@ -148,6 +148,54 @@ function isPayloadRequest( m: unknown ): m is PayloadRequestMsg {
 		( m as { type?: unknown } ).type === 'desktop-mode-drag-payload-request';
 }
 
+/**
+ * Map the legacy Media Library payload shape (no `kind` field, just
+ * the WP attachment record) into the tagged union receivers expect.
+ * Pass-through for already-tagged payloads.
+ */
+function normalizeLegacyPayload(
+	payload: DragBridgePayload,
+): DragBridgePayload {
+	const obj = payload as unknown as { kind?: unknown } & Record<
+		string,
+		unknown
+	>;
+	if (
+		obj.kind === 'attachment' ||
+		obj.kind === 'post' ||
+		obj.kind === 'user'
+	) {
+		return payload;
+	}
+	// Look-alike test for the legacy Media Library payload — id +
+	// url + mime are the three fields the patch always emits. Any
+	// other shape falls through unchanged and the receivers will
+	// drop it on the typed shape check.
+	if (
+		typeof obj.id === 'number' &&
+		typeof obj.url === 'string' &&
+		typeof obj.mime === 'string'
+	) {
+		return {
+			kind: 'attachment',
+			id: obj.id,
+			url: obj.url,
+			title: typeof obj.title === 'string' ? obj.title : '',
+			alt: typeof obj.alt === 'string' ? obj.alt : '',
+			mime: obj.mime,
+			thumbnailUrl:
+				typeof obj.thumbnailUrl === 'string'
+					? obj.thumbnailUrl
+					: undefined,
+			sizes:
+				obj.sizes && typeof obj.sizes === 'object'
+					? ( obj.sizes as Record< string, unknown > )
+					: undefined,
+		};
+	}
+	return payload;
+}
+
 // -----------------------------------------------------------------------
 
 export class DragBridge implements DragBridgeApi {
@@ -219,9 +267,21 @@ export class DragBridge implements DragBridgeApi {
 	};
 
 	private _startDrag( payload: DragBridgePayload ): void {
-		this._payload = payload;
+		// Legacy Media Library patch (`assets/js/media-library-enhanced.js`,
+		// since 0.14.0) emits payloads without a `kind` field — just
+		// `{ id, url, title, alt, mime, sizes, thumbnailUrl }`. Normalize
+		// to the tagged union here so every downstream consumer
+		// (Gutenberg drop-receiver, future plugin receivers) only
+		// has to handle one shape. The shape check is conservative —
+		// missing or non-matching fields fall through to the typed
+		// branch as-is, preserving forward compatibility for plugins
+		// that emit their own legitimate payload kinds.
+		const normalized = normalizeLegacyPayload( payload );
+		this._payload = normalized;
 		document.dispatchEvent(
-			new CustomEvent( DRAG_BRIDGE_EVENTS.START, { detail: { payload } } ),
+			new CustomEvent( DRAG_BRIDGE_EVENTS.START, {
+				detail: { payload: normalized },
+			} ),
 		);
 	}
 

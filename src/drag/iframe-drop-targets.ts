@@ -56,7 +56,10 @@ import type {
 	DesktopFileDragData,
 	ShortcutDragData,
 } from '../desktop-files/drag-payloads';
-import type { DragBridgePayload } from '../drag-bridge';
+import {
+	DRAG_BRIDGE_EVENTS,
+	type DragBridgePayload,
+} from '../drag-bridge';
 
 const TARGET_ID_PREFIX = 'desktop-mode-iframe-drop-';
 const IFRAME_SELECTOR = 'iframe.desktop-mode-window__iframe';
@@ -272,6 +275,43 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 	} );
 	document.addEventListener( DRAG_EVENTS.END, () => {
 		onDragEnd();
+	} );
+
+	// Forward cross-frame bridge sessions to every iframe so the
+	// receiver inside (e.g. the Gutenberg drop-receiver) can stash
+	// the payload and use it on its OWN native HTML5 `drop` event.
+	// This is the path that brings the legacy Media Library patch
+	// back to life: media-library-enhanced.js posts
+	// `desktop-mode-drag-start` to the parent, the bridge stores +
+	// normalizes the payload + fires DRAG_BRIDGE_EVENTS.START on
+	// the parent's document, this listener fans the message out to
+	// every iframe, and Gutenberg's receiver inserts the matching
+	// block on drop — without depending on the custom DataTransfer
+	// MIME surviving the cross-iframe hop (which Chromium strips).
+	document.addEventListener( DRAG_BRIDGE_EVENTS.START, ( e ) => {
+		const detail = ( e as CustomEvent ).detail as
+			| { payload?: DragBridgePayload }
+			| undefined;
+		if ( ! detail?.payload ) {
+			return;
+		}
+		const iframes = document.querySelectorAll< HTMLIFrameElement >(
+			IFRAME_SELECTOR,
+		);
+		iframes.forEach( ( iframe ) => {
+			postIntoIframe( iframe, {
+				type: 'desktop-mode-drag-over',
+				payload: detail.payload,
+			} );
+		} );
+	} );
+	document.addEventListener( DRAG_BRIDGE_EVENTS.END, () => {
+		const iframes = document.querySelectorAll< HTMLIFrameElement >(
+			IFRAME_SELECTOR,
+		);
+		iframes.forEach( ( iframe ) => {
+			postIntoIframe( iframe, { type: 'desktop-mode-drag-leave' } );
+		} );
 	} );
 
 	// On WINDOW_CLOSED we don't need to do anything special — if the

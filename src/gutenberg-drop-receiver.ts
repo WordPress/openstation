@@ -293,6 +293,15 @@ function notifyParentOfFailure( reason: string ): void {
 // Message wiring.
 // ---------------------------------------------------------------------
 
+interface DragOverMsg {
+	type: 'desktop-mode-drag-over';
+	payload: DragBridgePayload;
+}
+
+interface DragLeaveMsg {
+	type: 'desktop-mode-drag-leave';
+}
+
 function isDropMsg( m: unknown ): m is DropMsg {
 	if ( ! m || typeof m !== 'object' ) {
 		return false;
@@ -308,15 +317,60 @@ function isDropMsg( m: unknown ): m is DropMsg {
 	return p.kind === 'attachment' || p.kind === 'post' || p.kind === 'user';
 }
 
+function isDragOverMsg( m: unknown ): m is DragOverMsg {
+	if ( ! m || typeof m !== 'object' ) {
+		return false;
+	}
+	const obj = m as { type?: unknown; payload?: unknown };
+	if ( obj.type !== 'desktop-mode-drag-over' ) {
+		return false;
+	}
+	const p = obj.payload as { kind?: unknown } | undefined;
+	if ( ! p || typeof p !== 'object' ) {
+		return false;
+	}
+	return p.kind === 'attachment' || p.kind === 'post' || p.kind === 'user';
+}
+
+function isDragLeaveMsg( m: unknown ): m is DragLeaveMsg {
+	if ( ! m || typeof m !== 'object' ) {
+		return false;
+	}
+	return ( m as { type?: unknown } ).type === 'desktop-mode-drag-leave';
+}
+
+/**
+ * Latest bridge payload broadcast from the parent shell while a
+ * cross-frame drag is in flight. Set on `desktop-mode-drag-over`,
+ * cleared on `-drag-leave` or after a successful insert. Used by
+ * the native HTML5 `drop` handler below to insert the correct
+ * block when Chromium strips the custom `application/x-wp-media-
+ * attachment` MIME on the cross-iframe hop (so Gutenberg's own
+ * drop logic doesn't recognize the payload as a media drop and
+ * silently no-ops).
+ */
+let stashedBridgePayload: DragBridgePayload | null = null;
+
 function install(): void {
 	const expectedOrigin = window.location.origin;
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
 		if ( e.origin !== expectedOrigin ) {
 			return;
 		}
+		if ( isDragOverMsg( e.data ) ) {
+			stashedBridgePayload = e.data.payload;
+			return;
+		}
+		if ( isDragLeaveMsg( e.data ) ) {
+			stashedBridgePayload = null;
+			return;
+		}
 		if ( ! isDropMsg( e.data ) ) {
 			return;
 		}
+		// Explicit `desktop-mode-drop` (DragManager-driven path —
+		// shell-side tile dropped on this iframe's overlay).
+		stashedBridgePayload = null;
 		void performInsert( e.data.payload ).catch( ( err: unknown ) => {
 			const reason = err instanceof Error ? err.message : String( err );
 			// eslint-disable-next-line no-console
@@ -327,6 +381,59 @@ function install(): void {
 			notifyParentOfFailure( reason );
 		} );
 	} );
+
+	// Native HTML5 drop fallback. Fires when an iframe-source drag
+	// (e.g. legacy Media Library patch in `assets/js/media-library-
+	// enhanced.js`) completes inside this Gutenberg iframe. Without
+	// this hook, the cross-iframe DataTransfer loses its custom
+	// `application/x-wp-media-attachment` MIME (Chromium strips
+	// non-standard MIMEs at the iframe boundary) and Gutenberg's
+	// own drop handler can't recognize it as a media drop. We
+	// stash the payload via the bridge START broadcast and use it
+	// here to insert the correct block. Capture phase + stop-
+	// immediate-propagation so we win the race against Gutenberg's
+	// own drop logic and don't double-insert.
+	window.addEventListener(
+		'drop',
+		( e: DragEvent ) => {
+			if ( ! stashedBridgePayload ) {
+				return;
+			}
+			const payload = stashedBridgePayload;
+			stashedBridgePayload = null;
+			e.preventDefault();
+			e.stopPropagation();
+			if ( typeof e.stopImmediatePropagation === 'function' ) {
+				e.stopImmediatePropagation();
+			}
+			void performInsert( payload ).catch( ( err: unknown ) => {
+				const reason = err instanceof Error ? err.message : String( err );
+				// eslint-disable-next-line no-console
+				console.error(
+					'[desktop-mode] Gutenberg drop receiver native-drop insert failed:',
+					err,
+				);
+				notifyParentOfFailure( reason );
+			} );
+		},
+		true, // capture — beat Gutenberg's own drop listeners.
+	);
+	// Allow the drop in the first place. Without preventing dragover,
+	// the browser treats the iframe as a non-drop target and never
+	// fires `drop` at all.
+	window.addEventListener(
+		'dragover',
+		( e: DragEvent ) => {
+			if ( ! stashedBridgePayload ) {
+				return;
+			}
+			e.preventDefault();
+			if ( e.dataTransfer ) {
+				e.dataTransfer.dropEffect = 'copy';
+			}
+		},
+		true,
+	);
 }
 
 install();
