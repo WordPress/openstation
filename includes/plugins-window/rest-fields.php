@@ -355,9 +355,8 @@ function desktop_mode_plugins_window_field_update_available( $row ) {
  * menu title (the source the dock-builder regex captures). That raw
  * count can drift above the in-window "Update available" filter when
  * the transient holds orphan entries — rows for plugin files that no
- * longer exist on disk, or rows injected by third-party update servers
- * (`update_plugins_{hostname}` filter, custom `site_transient_update_plugins`
- * filters) that key on a file `get_plugins()` doesn't return.
+ * longer exist on disk, or rows injected via the standard `Update URI`
+ * mechanism that key on a file `get_plugins()` doesn't return.
  *
  * The Plugins window iterates `get_plugins()` via REST and shows each
  * row as updatable iff `update_plugins->response[ $plugin_file ]` is
