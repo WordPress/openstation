@@ -55,3 +55,30 @@
 	outline-offset: -6px;
 	background: color-mix(in srgb, var(--desktop-mode-accent, #2271b1) 8%, transparent);
 }
+
+/*
+ * Title-bar meta-button dashicon centring — same cache-busting
+ * reason: Dashicons inherits `display: inline-block` from core
+ * which positions the glyph via text-layout, and the font's
+ * baseline isn't the geometric centre of its em-box, so the
+ * visible `?` drifts off-centre inside the 28×28 button.
+ * Re-flexing the dashicon span re-anchors the glyph regardless
+ * of the font's intrinsic metrics. Lives in `windows.css`
+ * rather than `window-chrome.css` so the parent stylesheet's
+ * mtime stamp invalidates it on every edit — sub-sheet @imports
+ * are not version-queried and can be served from cache.
+ */
+.desktop-mode-window__meta-btn .dashicons {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	/* Reset any inherited `top` / `left` offset that bleeds in
+	 * from wp-admin or third-party stylesheets that style icons
+	 * by their glyph class (e.g. `.dashicons-editor-help` with
+	 * `top: 5px; left: 6px;` — leftover from contextual-help
+	 * styling that doesn't belong in our title bar). Without this
+	 * the glyph drifts off-centre inside the button. */
+	top: 0 !important;
+	left: 0 !important;
+}

@@ -344,17 +344,15 @@
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
-	/* Dashicons inherits `display: inline-block` from core, which
-	 * positions the glyph via text-layout — and the font's
-	 * baseline isn't quite centered in its em-box, so the visible
-	 * character drifts a px or two off the button's geometric
-	 * centre. Make the span itself a flex centerer so the glyph
-	 * sits dead-centre regardless of the font's intrinsic baseline. */
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	line-height: 1;
 }
+/* The flex-centring override for the dashicon glyph lives in
+ * `windows.css` rather than here. `windows.css` is mtime-stamped
+ * (per `desktop_mode_register_assets` in includes/assets.php) so
+ * its URL changes whenever it does, but `@import`-ed sub-sheets
+ * like this one are fetched without a version query and the
+ * browser will serve a stale cached copy across edits to this
+ * file. Co-locating cache-sensitive overrides with the parent
+ * stylesheet is the rule of the road here. */
 
 /* Focused window: meta buttons visible. */
 .desktop-mode-window--focused .desktop-mode-window__meta-btn {
