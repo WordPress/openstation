@@ -114,9 +114,54 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 	 * Update badges live inside <span class="update-plugins count-N"> in
 	 * the title HTML. The builder must extract the count and strip the
 	 * span from the visible title.
+	 *
+	 * Uses the Themes menu rather than Plugins because the Plugins entry
+	 * gets a recomputed-from-transient override (see
+	 * `test_plugins_dock_badge_recomputed_from_installed_plugin_intersection`)
+	 * — `themes.php` exercises the plain regex path.
 	 */
 	public function test_extracts_update_badge_and_strips_span_from_title() {
 		global $menu;
+		$menu = array(
+			array(
+				'Appearance <span class="update-plugins count-3"><span class="theme-count">3</span></span>',
+				'switch_themes',
+				'themes.php',
+				'',
+				'',
+				'menu-appearance',
+				'dashicons-admin-appearance',
+			),
+		);
+
+		$items = desktop_mode_build_dock_items();
+
+		$this->assertSame( 'Appearance', $items[0]['title'] );
+		$this->assertSame( 3, $items[0]['badge'] );
+	}
+
+	/**
+	 * The Plugins menu badge is built by Core from
+	 * `count( $update_plugins->response )` — a raw transient count that
+	 * can drift above the in-window "Update available" filter when the
+	 * transient holds orphan entries (deleted plugin files, rows
+	 * injected by third-party update servers that key on a file
+	 * `get_plugins()` doesn't return).
+	 *
+	 * The dock builder must recompute the badge for `plugins.php` as
+	 * the intersection of the transient with `get_plugins()` so the
+	 * dock count agrees with the Plugins window — fixes GH#258.
+	 */
+	public function test_plugins_dock_badge_recomputed_from_installed_plugin_intersection() {
+		if ( is_multisite() ) {
+			$this->markTestSkipped( 'Plugins menu badge is suppressed on multisite by Core.' );
+		}
+
+		global $menu;
+		// Title carries `count-3` even though only one of the three
+		// transient rows corresponds to an installed plugin
+		// (`desktop-mode/desktop-mode.php`). The other two are orphans
+		// — exactly the shape that produced GH#258.
 		$menu = array(
 			array(
 				'Plugins <span class="update-plugins count-3"><span class="plugin-count">3</span></span>',
@@ -129,10 +174,70 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 			),
 		);
 
-		$items = desktop_mode_build_dock_items();
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		$installed = get_plugins();
+		// Sanity check: the test environment includes desktop-mode itself.
+		$this->assertArrayHasKey( 'desktop-mode/desktop-mode.php', $installed );
 
-		$this->assertSame( 'Plugins', $items[0]['title'] );
-		$this->assertSame( 3, $items[0]['badge'] );
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(
+					'desktop-mode/desktop-mode.php'   => (object) array(
+						'new_version' => '999.0.0',
+						'package'     => '',
+						'slug'        => 'desktop-mode',
+					),
+					'orphan-one/orphan-one.php'       => (object) array(
+						'new_version' => '1.0.0',
+						'package'     => '',
+						'slug'        => 'orphan-one',
+					),
+					'orphan-two/orphan-two.php'       => (object) array(
+						'new_version' => '1.0.0',
+						'package'     => '',
+						'slug'        => 'orphan-two',
+					),
+				),
+			)
+		);
+
+		try {
+			$items = desktop_mode_build_dock_items();
+			$this->assertSame( 1, $items[0]['badge'] );
+		} finally {
+			delete_site_transient( 'update_plugins' );
+		}
+	}
+
+	/**
+	 * When the `update_plugins` transient is unset / empty, the Plugins
+	 * dock badge falls through to zero — the regex-captured value is
+	 * ignored because the override is authoritative.
+	 */
+	public function test_plugins_dock_badge_is_zero_when_transient_is_empty() {
+		if ( is_multisite() ) {
+			$this->markTestSkipped( 'Plugins menu badge is suppressed on multisite by Core.' );
+		}
+
+		global $menu;
+		$menu = array(
+			array(
+				'Plugins <span class="update-plugins count-2"><span class="plugin-count">2</span></span>',
+				'activate_plugins',
+				'plugins.php',
+				'',
+				'',
+				'menu-plugins',
+				'dashicons-admin-plugins',
+			),
+		);
+
+		delete_site_transient( 'update_plugins' );
+
+		$items = desktop_mode_build_dock_items();
+		$this->assertSame( 0, $items[0]['badge'] );
 	}
 
 	public function test_no_badge_when_count_class_missing() {

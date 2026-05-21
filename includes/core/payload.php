@@ -68,6 +68,24 @@ function desktop_mode_build_dock_items() {
 			$badge = (int) $matches[1];
 		}
 
+		// The Plugins menu badge in `wp-admin/menu.php` is built from
+		// `count( $update_plugins->response )` — a raw transient count
+		// that can include orphan rows (deleted plugin files, entries
+		// injected by third-party update servers for plugins that
+		// aren't installed locally). Our Plugins window's "Update
+		// available" filter only counts updates whose key intersects
+		// `get_plugins()`, because every row in the window comes from
+		// REST `/wp/v2/plugins` which iterates `get_plugins()`.
+		// Recompute the dock badge from the same intersection so the
+		// dock count always agrees with what the window shows (GH#258).
+		if (
+			'plugins.php' === $item[2] &&
+			! is_multisite() &&
+			function_exists( 'desktop_mode_plugins_window_count_visible_updates' )
+		) {
+			$badge = desktop_mode_plugins_window_count_visible_updates();
+		}
+
 		// Determine the icon. Menu entries can set `$item[6]` to anything
 		// — a dashicon class, a remote URL, a data:URI, 'none', or 'div'
 		// — so normalize before we serialize it for the shell JS.
