@@ -35,7 +35,7 @@ function desktop_mode_plugins_window_render_template() {
 		<wpd-tabs value="installed" class="desktop-mode-plugins__tabs" data-desktop-mode-plugins-tabs>
 			<wpd-tab value="installed"><?php esc_html_e( 'Installed', 'desktop-mode' ); ?></wpd-tab>
 			<?php if ( ! empty( $caps['install'] ) ) : ?>
-				<wpd-tab value="browse"><?php esc_html_e( 'Browse', 'desktop-mode' ); ?></wpd-tab>
+				<wpd-tab value="browse"><?php esc_html_e( 'Add Plugin', 'desktop-mode' ); ?></wpd-tab>
 				<wpd-tab value="featured"><?php esc_html_e( 'Desktop Mode plugins', 'desktop-mode' ); ?></wpd-tab>
 			<?php endif; ?>
 		</wpd-tabs>
