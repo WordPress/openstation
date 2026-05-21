@@ -297,6 +297,67 @@ The cross-iframe `wp-desktop-drag-*` events from `wp.desktop.dragBridge`
 (Media Library payload channel) are a separate, lower-level surface
 and remain Stable since 0.14.0.
 
+### `wp.desktop.dragBridge` — cross-iframe drag — Stable *(since 0.22.0)*
+
+The bridge is the postMessage channel that lets shell-side drags
+(My WordPress media tiles, post tiles, user tiles) land inside iframe
+windows (the Gutenberg editor, the site editor). When a DragManager
+session begins on a shell tile carrying a `bridgePayload`, the shell
+fans the payload into `dragBridge.start(payload)`. While the gesture
+is in flight, the shell routes pointer events through a per-window
+overlay (`src/drag/iframe-drop-targets.ts`) and posts the following
+messages into the iframe under the cursor:
+
+| postMessage type | Direction | When | Payload shape |
+| --- | --- | --- | --- |
+| `desktop-mode-drag-over` | parent → iframe | cursor entered the iframe | `{ type, payload: DragBridgePayload }` |
+| `desktop-mode-drag-leave` | parent → iframe | cursor left the iframe | `{ type }` |
+| `desktop-mode-drop` | parent → iframe | pointerup over the iframe | `{ type, payload: DragBridgePayload, position: { x, y } }` |
+| `desktop-mode-drag-start` | iframe → parent | iframe initiated its own drag | `{ type, payload: DragBridgePayload }` |
+| `desktop-mode-drag-end` | iframe → parent | iframe-initiated drag ended | `{ type }` |
+| `desktop-mode-drag-payload-request` | iframe → parent | iframe wants the current payload | reply: `{ type: 'desktop-mode-drag-payload', payload }` |
+
+`DragBridgePayload` is a discriminated union keyed on `kind`:
+
+```ts
+type DragBridgePayload =
+  | { kind: 'attachment'; id: number; url: string; title: string;
+      alt: string; mime: string; thumbnailUrl?: string;
+      sizes?: Record<string, unknown> }
+  | { kind: 'post'; id: number; postType: string; url: string;
+      title: string }
+  | { kind: 'user'; id: number; url: string; title: string };
+```
+
+Public `DragBridgeApi` surface:
+
+```ts
+interface DragBridgeApi {
+  getPayload(): DragBridgePayload | null;
+  isDragging(): boolean;
+  start( payload: DragBridgePayload ): void;
+  end(): void;
+}
+```
+
+`start` / `end` let in-process code (e.g. a plugin's own drag source)
+drive the bridge directly without postMessage round-trips. The shell
+calls these automatically when a `'shortcut'` DragManager session
+starts/ends with a `bridgePayload` attached.
+
+Same-origin messages only — the bridge checks `e.origin` against the
+parent's own origin before storing payloads or responding.
+
+The built-in Gutenberg drop receiver (`assets/js/gutenberg-drop-receiver.min.js`,
+enqueued on `post.php` / `post-new.php` / `site-editor.php`)
+listens for `desktop-mode-drop` and inserts a block:
+
+- `attachment` `image/*` → `core/image`
+- `attachment` `video/*` → `core/video`
+- `attachment` `audio/*` → `core/audio`
+- `attachment` other → `core/file`
+- `post` / `user` → `core/paragraph` with `<a href="URL">title</a>`
+
 ### OS-file drop hooks — Experimental *(since 0.30.0)*
 
 When the user drags a file in from the host operating system

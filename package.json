@@ -25,9 +25,10 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:widget-heartbeat && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:widget-heartbeat && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "DESKTOP_MODE_TARGET=iframe-bridge vite build --mode development && DESKTOP_MODE_TARGET=iframe-bridge vite build --mode production",
+		"build:gutenberg-drop-receiver": "DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode development && DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode production",
 		"build:recycle-bin": "DESKTOP_MODE_TARGET=recycle-bin vite build --mode development && DESKTOP_MODE_TARGET=recycle-bin vite build --mode production",
 		"build:posts-window": "DESKTOP_MODE_TARGET=posts-window vite build --mode development && DESKTOP_MODE_TARGET=posts-window vite build --mode production",
 		"build:plugins-window": "DESKTOP_MODE_TARGET=plugins-window vite build --mode development && DESKTOP_MODE_TARGET=plugins-window vite build --mode production",

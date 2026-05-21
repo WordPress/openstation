@@ -138,6 +138,22 @@ function buildMediaTile(
 		ref: String( media.id ),
 		title: titleText,
 		icon: dashiconForMime( media.mime_type ),
+		// Cross-frame bridge payload — lets the Gutenberg drop-
+		// receiver build a `core/image` / `core/video` / `core/audio`
+		// / `core/file` block when this tile is dropped on an open
+		// editor iframe. The full-size source URL is the right block
+		// attribute regardless of mime; the receiver picks the
+		// concrete block from the MIME prefix.
+		bridgePayload: {
+			kind: 'attachment',
+			id: media.id,
+			url: media.source_url,
+			title: titleText,
+			alt: stripTags( media.alt_text ?? '' ),
+			mime: media.mime_type,
+			thumbnailUrl: thumbUrl || undefined,
+			sizes: media.media_details?.sizes,
+		},
 	} );
 
 	tile.addEventListener( 'click', () => selectTile( ctx, tile, media ) );

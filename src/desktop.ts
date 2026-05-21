@@ -128,7 +128,8 @@ import {
 } from './pwa/install';
 import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
-import { DragManager, type DragManagerApi } from './drag';
+import { DragManager, type DragManagerApi, DRAG_EVENTS } from './drag';
+import { installIframeDropTargets } from './drag/iframe-drop-targets';
 import {
 	type DesktopCommand,
 } from './commands';
@@ -1771,6 +1772,52 @@ function init(): void {
 	// gestures for file tiles, entity tiles, and plugin-registered
 	// draggable surfaces. Drop targets register via the public API.
 	const dragManager: DragManagerApi = new DragManager();
+
+	// Fan shell-side shortcut drags into the cross-frame bridge so
+	// iframe receivers (Gutenberg drop-receiver, future Media Library
+	// receiver) participate via the same `desktop-mode-drop`
+	// protocol used by iframe-source drags. Only `'shortcut'`
+	// payloads carrying a `bridgePayload` opt in — every other drag
+	// (desktop-file repositions, plugin payloads) stays purely
+	// shell-side.
+	document.addEventListener( DRAG_EVENTS.START, ( e ) => {
+		const detail = ( e as CustomEvent ).detail as
+			| {
+					payload?: {
+						type?: string;
+						data?: { bridgePayload?: unknown };
+					};
+				}
+			| undefined;
+		const payload = detail?.payload;
+		// Both `'shortcut'` (fresh tile from My WordPress) AND
+		// `'desktop-file'` (existing placement dragged off the
+		// wallpaper) drags can carry a `bridgePayload`. Either way
+		// we feed it into the bridge so iframe receivers participate
+		// via the same `desktop-mode-drop` protocol.
+		if ( ! payload ) {
+			return;
+		}
+		if ( payload.type !== 'shortcut' && payload.type !== 'desktop-file' ) {
+			return;
+		}
+		const bridgePayload = payload.data?.bridgePayload as
+			| import( './drag-bridge' ).DragBridgePayload
+			| undefined;
+		if ( bridgePayload ) {
+			dragBridge.start( bridgePayload );
+		}
+	} );
+	document.addEventListener( DRAG_EVENTS.END, () => {
+		// `end()` is idempotent — safe to fire on every session end
+		// whether or not we started one for it.
+		dragBridge.end();
+	} );
+
+	// Cross-iframe drop targets — installs an overlay per iframe
+	// window that catches shortcut drags and forwards them as
+	// `desktop-mode-drop` postMessages. Idempotent.
+	installIframeDropTargets( dragManager );
 
 	// Register the AI Assistant as the first (default) Cmd+K palette
 	// and install the single global shortcut. Other plugins can register

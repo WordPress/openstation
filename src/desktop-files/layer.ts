@@ -42,6 +42,65 @@ import {
 } from './grid';
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
+import type { DragBridgePayload } from '../drag-bridge';
+
+/**
+ * Build a cross-frame bridge payload from a placement, or return
+ * `undefined` when the placement's file type isn't one we know how
+ * to deliver into an iframe (anything outside attachment/post/user).
+ *
+ * The placement's `file` shape carries everything we need because
+ * the PHP `Desktop_Mode_*_File::serialize()` methods surface `link`
+ * / `sourceUrl` / `alt` / `mime` / `postType` on every list
+ * response.
+ *
+ * @since 0.22.0
+ */
+function buildBridgePayloadFromPlacement(
+	placement: RestPlacementShape,
+): DragBridgePayload | undefined {
+	const file = placement.file;
+	if ( ! file ) {
+		return undefined;
+	}
+	const id = parseInt( String( file.ref ?? '' ), 10 );
+	if ( ! Number.isFinite( id ) || id <= 0 ) {
+		return undefined;
+	}
+	const title = String( file.title ?? '' );
+	if ( file.type === 'attachment' ) {
+		const url = String( file.sourceUrl ?? file.previewUrl ?? '' );
+		return {
+			kind: 'attachment',
+			id,
+			url,
+			title,
+			alt: String( file.alt ?? '' ),
+			mime: String( file.mime ?? '' ),
+			thumbnailUrl: file.previewUrl
+				? String( file.previewUrl )
+				: undefined,
+		};
+	}
+	if ( file.type === 'post' ) {
+		return {
+			kind: 'post',
+			id,
+			postType: String( file.postType ?? 'post' ),
+			url: String( file.link ?? '' ),
+			title,
+		};
+	}
+	if ( file.type === 'user' ) {
+		return {
+			kind: 'user',
+			id,
+			url: String( file.link ?? '' ),
+			title,
+		};
+	}
+	return undefined;
+}
 import { isConflict, showConflictToast } from './conflict-toast';
 import type { DragManagerApi, DragSession, DropTarget } from '../drag';
 import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
@@ -1606,6 +1665,14 @@ function attachTileDrag(
 				data: {
 					placement: livePlacement,
 					sourceFolderId: folderId,
+					// Synthesize a cross-frame bridge payload from the
+					// placement's file shape so a wallpaper-placed
+					// shortcut can be dropped into an open Gutenberg
+					// iframe and inserted as the matching block. The
+					// PHP serialize() methods (`Desktop_Mode_Post_File`,
+					// `Desktop_Mode_User_File`, `Desktop_Mode_Attachment_File`)
+					// surface the URL fields this needs.
+					bridgePayload: buildBridgePayloadFromPlacement( livePlacement ),
 				} satisfies DesktopFileDragData,
 				ghost: {
 					offsetX: e.clientX - tile.getBoundingClientRect().left,

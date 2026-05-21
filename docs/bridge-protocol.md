@@ -161,6 +161,51 @@ When something's not working:
 - **`window.location.origin`** check — every postMessage in both directions filters on this. A common cause of "messages don't arrive" is a shell mounted on `https://example.test` and an iframe loaded from `http://example.test` (different origin); same domain ≠ same origin.
 - **`event.source === iframe.contentWindow`** check — even same-origin, a foreign caller posting `desktop-mode-bridge-*` messages from somewhere ELSE in the parent will be silently dropped.
 
+## Cross-window drag bridge — Stable *(since 0.22.0)*
+
+A separate channel from the connection bridge. Where the connection bridge carries app-level pub/sub between a window and its iframe, the **drag bridge** carries an in-flight drag payload between the parent shell and ALL same-origin iframes — receivers don't need to be "connected" to receive it.
+
+### When it fires
+
+The drag bridge stores a single `DragBridgePayload` at any given time. Two ways the payload gets in:
+
+- **Shell-side drag source** — a DragManager `'shortcut'` session starts on a shell-rendered tile (My WordPress media / post / user). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
+- **Iframe-side drag source** — an iframe postMessages `{ type: 'desktop-mode-drag-start', payload }` to the parent. The bridge stores the payload and broadcasts `DRAG_BRIDGE_EVENTS.START` as a `CustomEvent` on `document` so other shell modules can react.
+
+### Receiver protocol
+
+Drop-receiver iframes have two ways to consume the payload:
+
+1. **Push** — `src/drag/iframe-drop-targets.ts` registers an overlay drop target on every iframe window. When the pointer is over an iframe and the gesture is a shortcut drag, the shell postMessages:
+
+   | Message | Direction | Payload |
+   |---|---|---|
+   | `desktop-mode-drag-over` | parent → iframe | `{ type, payload: DragBridgePayload }` |
+   | `desktop-mode-drag-leave` | parent → iframe | `{ type }` |
+   | `desktop-mode-drop` | parent → iframe | `{ type, payload: DragBridgePayload, position: { x, y } }` |
+
+   Receivers listen on `window.message`, check `event.origin === window.location.origin`, and switch on `data.payload.kind`. The built-in Gutenberg receiver (`src/gutenberg-drop-receiver.ts`) is the canonical example.
+
+2. **Pull** — any iframe can postMessage `{ type: 'desktop-mode-drag-payload-request' }` and the parent replies (directly to `event.source`) with `{ type: 'desktop-mode-drag-payload', payload }`. Useful for iframes that bind their own native `drop` handler and need the rich payload after the browser has stripped the custom MIME from DataTransfer.
+
+### Payload union
+
+```ts
+type DragBridgePayload =
+  | { kind: 'attachment'; id: number; url: string; title: string;
+      alt: string; mime: string; thumbnailUrl?: string;
+      sizes?: Record<string, unknown> }
+  | { kind: 'post'; id: number; postType: string; url: string;
+      title: string }
+  | { kind: 'user'; id: number; url: string; title: string };
+```
+
+### Sniff points
+
+- **`document.body[data-desktop-mode-dragging]`** — set by the DragManager while ANY drag is in flight. Pair with `[data-desktop-mode-drag-type="shortcut"]` to gate iframe-overlay CSS.
+- **`window.wp.desktop.dragBridge.getPayload()`** — read the current cross-frame payload from anywhere in the parent shell.
+- **`desktop-mode-cross-frame-drag-start` / `-end` CustomEvents** — dispatched on `document` each time the bridge transitions. Plugins layer drop-zone highlights on these without polling.
+
 ## Don't reinvent the wiring
 
 If you find yourself writing `window.parent.postMessage` or hand-rolling a handshake, check first:

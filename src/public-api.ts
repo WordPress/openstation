@@ -154,6 +154,17 @@ export type {
 } from './drag';
 export { DRAG_EVENTS, DRAG_THRESHOLD_PX } from './drag';
 
+// ----- Cross-iframe drag bridge -----
+
+export type {
+	AttachmentDragPayload,
+	DragBridgeApi,
+	DragBridgePayload,
+	PostDragPayload,
+	UserDragPayload,
+} from './drag-bridge';
+export { DRAG_BRIDGE_EVENTS } from './drag-bridge';
+
 // ----- DevTools / cross-plugin instrumentation -----
 
 export type {

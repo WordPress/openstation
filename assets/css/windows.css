@@ -31,3 +31,27 @@
 @import url( "window-states.css" );
 @import url( "window-overview.css" );
 @import url( "os-settings.css" );
+
+/*
+ * Cross-window drag drop highlight — kept INLINE in this file
+ * (not in any of the @import'd sub-sheets) so the mtime-stamped
+ * `?ver=…` on `windows.css` reliably invalidates the rules along
+ * with the parent stylesheet. Sub-sheets are fetched without an
+ * explicit version query and can be served from the browser's
+ * heuristic cache even after a hard reload.
+ *
+ * The cross-window pointer routing itself is driven from
+ * JavaScript by `src/drag/iframe-drop-targets.ts` — on drag
+ * START with a shortcut payload, every iframe element gets an
+ * inline `style.pointerEvents = 'none'` so pointer events fall
+ * through to the iframe's parent (`.desktop-mode-window__body`),
+ * which is registered as the drop target. No CSS rule is needed
+ * to make the routing work — this stylesheet only paints the
+ * visual feedback for whichever window is currently the active
+ * drop target.
+ */
+.desktop-mode-window__body[data-desktop-mode-iframe-drop-active] {
+	outline: 2px dashed var(--desktop-mode-accent, #2271b1);
+	outline-offset: -6px;
+	background: color-mix(in srgb, var(--desktop-mode-accent, #2271b1) 8%, transparent);
+}

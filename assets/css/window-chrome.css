@@ -512,6 +512,13 @@ wpd-tab-chip + wpd-tab-chip {
 	transition: opacity 0.25s ease;
 }
 
+/* Cross-window drag drop-overlay rules live in windows.css, NOT here.
+ * Putting them in this @import'd sub-sheet means browsers can serve a
+ * stale cached copy even when the parent windows.css has been cache-
+ * busted by mtime, leaving the drag stuck at the iframe boundary
+ * until the user manually clears their stylesheet cache. Keep them
+ * co-located with the @import declarations themselves. */
+
 /*
  * Loading-state overlay — painted by `src/window/dom.ts` into
  * every window's body and removed once the body's content reports

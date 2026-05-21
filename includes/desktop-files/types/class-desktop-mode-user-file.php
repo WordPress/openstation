@@ -51,9 +51,13 @@ class Desktop_Mode_User_File extends Desktop_Mode_File {
 	}
 
 	public function serialize(): array {
-		$shape       = parent::serialize();
-		$user        = $this->user();
+		$shape          = parent::serialize();
+		$user           = $this->user();
 		$shape['roles'] = $user ? array_values( (array) $user->roles ) : array();
+		// Author archive URL — surfaced so cross-frame drag handlers
+		// can build a `<a href>` to the author's posts on drop into
+		// Gutenberg without a REST roundtrip.
+		$shape['link']  = $user ? (string) get_author_posts_url( (int) $user->ID ) : '';
 		return $shape;
 	}
 

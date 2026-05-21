@@ -66,9 +66,16 @@ class Desktop_Mode_Attachment_File extends Desktop_Mode_File {
 	}
 
 	public function serialize(): array {
-		$shape          = parent::serialize();
-		$post           = $this->attachment();
-		$shape['mime']  = $post ? (string) $post->post_mime_type : '';
+		$shape         = parent::serialize();
+		$post          = $this->attachment();
+		$shape['mime'] = $post ? (string) $post->post_mime_type : '';
+		// Full-size source URL + alt text — surfaced so cross-frame
+		// drag handlers can build `core/image` / `core/video` /
+		// `core/audio` / `core/file` blocks on drop into Gutenberg
+		// without a REST roundtrip. `previewUrl` is a thumbnail and
+		// not the right attribute for the inserted block.
+		$shape['sourceUrl'] = $post ? (string) wp_get_attachment_url( $post->ID ) : '';
+		$shape['alt']       = $post ? (string) get_post_meta( $post->ID, '_wp_attachment_image_alt', true ) : '';
 		return $shape;
 	}
 

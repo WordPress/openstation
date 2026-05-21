@@ -22,12 +22,26 @@
  */
 
 import type { RestPlacementShape } from './rest';
+import type { DragBridgePayload } from '../drag-bridge';
 
 export interface DesktopFileDragData {
 	/** The placement being dragged (full record). */
 	placement: RestPlacementShape;
 	/** Folder the source tile lives in, BEFORE the drop. */
 	sourceFolderId: number;
+	/**
+	 * Optional cross-frame bridge payload, synthesized from the
+	 * placement's file shape at drag start when the file type is
+	 * bridgeable (attachment / post / user). Lets iframe receivers
+	 * (Gutenberg drop-receiver) react to a desktop-file drop the
+	 * same way they would a fresh shortcut drag — the user dragging
+	 * an existing post shortcut from the wallpaper into Gutenberg
+	 * gets the same `<a href>` insertion as dragging from My
+	 * WordPress.
+	 *
+	 * @since 0.22.0
+	 */
+	bridgePayload?: DragBridgePayload;
 }
 
 export interface ShortcutDragData {
@@ -39,6 +53,18 @@ export interface ShortcutDragData {
 	title?: string;
 	/** Optional dashicon class for diagnostics + ghost. */
 	icon?: string;
+	/**
+	 * Optional cross-frame bridge payload. When present the shell
+	 * fans this into `wp.desktop.dragBridge` at lift time so iframe
+	 * receivers (e.g. the Gutenberg drop-receiver) can react to the
+	 * drag — the receiver inserts a block built from this payload on
+	 * `desktop-mode-drop`. Tiles that omit it still drag-out for
+	 * placement purposes; they just don't trigger any iframe-side
+	 * drop behavior.
+	 *
+	 * @since 0.22.0
+	 */
+	bridgePayload?: DragBridgePayload;
 }
 
 /** Concrete payload shapes consumed by drop targets. */

@@ -281,6 +281,16 @@ const TARGETS = {
 		fileBase: 'iframe-bridge',
 		iifeName: 'desktopModeIframeBridge',
 	},
+	// Gutenberg drop-receiver — tiny iframe-side bundle enqueued only
+	// on post.php / post-new.php. Listens for `desktop-mode-drop`
+	// messages from the shell and inserts the corresponding block via
+	// `wp.data.dispatch('core/block-editor').insertBlocks(...)`. See
+	// `src/drag/iframe-drop-targets.ts` for the shell side.
+	'gutenberg-drop-receiver': {
+		entry:    'src/gutenberg-drop-receiver.ts',
+		fileBase: 'gutenberg-drop-receiver',
+		iifeName: 'desktopModeGutenbergDropReceiver',
+	},
 	// Recycle Bin app — a thin bundle that registers a render
 	// callback on `window.desktopModeNativeWindows['desktop-mode-recycle-bin']`
 	// and renders a `<wpd-table>` populated from the REST list. The

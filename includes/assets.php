@@ -46,11 +46,20 @@ function desktop_mode_register_assets() {
 		array( 'desktop-mode-variables' ),
 		$version
 	);
+	// `filemtime`-stamped — window-chrome iteration (drop overlays,
+	// new drag affordances, third-party-plugin compat) lands faster
+	// than plugin version bumps. Without an mtime stamp the browser
+	// keeps `?ver=<plugin-version>` valid for the whole release cycle
+	// and the user keeps seeing yesterday's CSS even after a hard
+	// reload. Stamps the parent `windows.css` only; the @imports inside
+	// (`window-chrome.css`, `window-states.css`, …) inherit the cache
+	// directive from the parent fetch, so a busted `windows.css` busts
+	// the whole subtree.
 	wp_register_style(
 		'desktop-mode-windows',
 		DESKTOP_MODE_URL . 'assets/css/windows.css',
 		array( 'desktop-mode-variables', 'dashicons' ),
-		$version
+		$built_version( 'assets/css/windows.css' )
 	);
 	wp_register_style(
 		'desktop-mode-dock',
@@ -178,6 +187,23 @@ function desktop_mode_register_assets() {
 		DESKTOP_MODE_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
 		array(),
 		$built_version( 'assets/js/iframe-bridge' . $suffix . '.js' ),
+		true
+	);
+
+	// `desktop-mode-gutenberg-drop-receiver` — iframe-side bundle
+	// enqueued only on the Block Editor screens (`post.php` /
+	// `post-new.php`) for desktop-mode users. Listens for
+	// `desktop-mode-drop` postMessages from the parent shell (see
+	// `src/drag/iframe-drop-targets.ts`) and inserts the matching
+	// Gutenberg block via `wp.data.dispatch('core/block-editor')`.
+	// Depends on `wp-blocks` + `wp-data` so the editor stores are
+	// guaranteed enqueued before the receiver runs its first message
+	// handler.
+	wp_register_script(
+		'desktop-mode-gutenberg-drop-receiver',
+		DESKTOP_MODE_URL . 'assets/js/gutenberg-drop-receiver' . $suffix . '.js',
+		array( 'wp-blocks', 'wp-data' ),
+		$built_version( 'assets/js/gutenberg-drop-receiver' . $suffix . '.js' ),
 		true
 	);
 

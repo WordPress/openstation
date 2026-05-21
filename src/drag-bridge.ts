@@ -6,52 +6,108 @@
  * DataTransfer) — but custom MIME types like `application/x-wp-media-
  * attachment` can be stripped during the cross-frame hop, depending on
  * the browser. This bridge is the authoritative channel for the full
- * attachment payload: source iframes postMessage us when a drag starts,
- * we hold the payload in memory, and any receiver iframe can request it
- * back via postMessage during its own `drop` handler.
+ * payload: source iframes postMessage us when a drag starts, the shell
+ * can also push a payload in-process when a DragManager session begins
+ * over a shell-rendered tile (My WordPress, desktop shortcut), and any
+ * receiver iframe can read it back via `desktop-mode-drag-over` /
+ * `desktop-mode-drop` messages routed by the shell, or pull it on
+ * demand via `desktop-mode-drag-payload-request`.
  *
  * Architecture:
  *
- *   Source iframe (Media Library)
- *     │  window.parent.postMessage( desktop-mode-drag-start, payload )
+ *   Shell-rendered drag source (My WordPress tile)
+ *     │  dragManager fires `desktop-mode.drag.start`
+ *     │  desktop.ts bridges that into `bridge.start(payload)`
  *     ▼
  *   Parent shell (this module)
  *     │  stores `currentPayload`
- *     │  dispatches `desktop-mode.drag.start` / `.end` CustomEvents on
- *     │  document so other shell modules can react (highlight drop
- *     │  zones, dim non-target windows, etc.)
+ *     │  dispatches `desktop-mode-cross-frame-drag-start` /
+ *     │  `-end` CustomEvents on document so other shell modules
+ *     │  can react (highlight drop zones, dim non-target windows).
+ *     │  When the pointer enters an iframe drop target, the shell
+ *     │  postMessages `desktop-mode-drag-over` into that iframe.
+ *     │  On pointerup over an iframe, postMessages `desktop-mode-drop`.
  *     ▲
- *     │  any iframe can postMessage:
- *     │    desktop-mode-drag-payload-request → we reply with the payload
+ *     │  source iframe (Media Library) can ALSO drive the bridge
+ *     │  via `window.parent.postMessage(desktop-mode-drag-start, ...)`.
  *     ▼
- *   Receiver iframe (e.g. post editor)
- *     uses the payload in its drop handler to insert the media.
+ *   Receiver iframe (Gutenberg post editor)
+ *     listens for `desktop-mode-drop`, inserts the appropriate block.
  *
- * This module is intentionally minimal — it does NOT render a ghost or
- * draw drop indicators. Those are future iterations. The foundation
- * here is the payload plumbing plus the shell-level events so other
- * modules can layer visual polish on top without duplicating the
- * source-of-truth.
+ * Payload type is a discriminated union keyed on `kind`. The receiver
+ * switches on `kind` to decide what block to create.
  *
  * @since 0.14.0
  */
 
-export interface DragPayload {
+/**
+ * Attachment payload — media item dragged from a media surface
+ * (My WordPress media view, future Media Library iframe).
+ */
+export interface AttachmentDragPayload {
+	kind: 'attachment';
 	id: number;
+	/** Full-size file URL. */
 	url: string;
 	title: string;
 	alt: string;
+	/** `image/png`, `video/mp4`, `audio/mpeg`, application MIME, etc. */
 	mime: string;
 	thumbnailUrl?: string;
-	sizes?: Record<string, unknown>;
+	sizes?: Record< string, unknown >;
 }
+
+/**
+ * Post / page / CPT payload — dragged from a post-type list tile
+ * (My WordPress posts/pages view).
+ */
+export interface PostDragPayload {
+	kind: 'post';
+	id: number;
+	/** `'post'`, `'page'`, or any CPT slug. */
+	postType: string;
+	/** Permalink (frontend URL). Receivers use this for the anchor href. */
+	url: string;
+	title: string;
+}
+
+/**
+ * User payload — dragged from a user tile (My WordPress users view).
+ * Receivers turn this into an anchor pointing at the author archive.
+ */
+export interface UserDragPayload {
+	kind: 'user';
+	id: number;
+	/** Author archive URL (or profile URL fallback). */
+	url: string;
+	title: string;
+}
+
+/** Discriminated union of all bridge payload shapes. */
+export type DragBridgePayload =
+	| AttachmentDragPayload
+	| PostDragPayload
+	| UserDragPayload;
 
 /** Public surface — mounted on `wp.desktop.dragBridge`. */
 export interface DragBridgeApi {
 	/** Current payload while a cross-frame drag is in flight, or null. */
-	getPayload(): DragPayload | null;
+	getPayload(): DragBridgePayload | null;
 	/** True when a cross-frame drag is in progress. */
 	isDragging(): boolean;
+	/**
+	 * Start a bridge session from in-process (the shell). Used when a
+	 * DragManager pointer session begins over a shell-rendered tile —
+	 * fanning the payload here lets iframe receivers participate via
+	 * the same message protocol used by iframe-source drags.
+	 *
+	 * Idempotent: calling `start` while a session is active overwrites
+	 * the payload. Calling it with the same identity payload is a
+	 * no-op.
+	 */
+	start( payload: DragBridgePayload ): void;
+	/** End the current session. Idempotent. */
+	end(): void;
 }
 
 /** Event names we dispatch on `document`. */
@@ -66,7 +122,7 @@ export const DRAG_BRIDGE_EVENTS = {
 
 interface StartMsg {
 	type: 'desktop-mode-drag-start';
-	payload: DragPayload;
+	payload: DragBridgePayload;
 }
 interface EndMsg {
 	type: 'desktop-mode-drag-end';
@@ -95,7 +151,7 @@ function isPayloadRequest( m: unknown ): m is PayloadRequestMsg {
 // -----------------------------------------------------------------------
 
 export class DragBridge implements DragBridgeApi {
-	private _payload: DragPayload | null = null;
+	private _payload: DragBridgePayload | null = null;
 	/** Snapshot of the origin at boot so later mutations can't widen trust. */
 	private readonly _origin: string;
 
@@ -104,12 +160,23 @@ export class DragBridge implements DragBridgeApi {
 		window.addEventListener( 'message', this._onMessage );
 	}
 
-	getPayload(): DragPayload | null {
+	getPayload(): DragBridgePayload | null {
 		return this._payload;
 	}
 
 	isDragging(): boolean {
 		return this._payload !== null;
+	}
+
+	start( payload: DragBridgePayload ): void {
+		if ( this._payload === payload ) {
+			return;
+		}
+		this._startDrag( payload );
+	}
+
+	end(): void {
+		this._endDrag();
 	}
 
 	// -----------------------------------------------------------
@@ -129,7 +196,7 @@ export class DragBridge implements DragBridgeApi {
 		const msg = e.data as InboundMsg | unknown;
 
 		if ( isStart( msg ) ) {
-			this._startDrag( msg.payload, e.source ?? null );
+			this._startDrag( msg.payload );
 			return;
 		}
 		if ( isEnd( msg ) ) {
@@ -151,7 +218,7 @@ export class DragBridge implements DragBridgeApi {
 		}
 	};
 
-	private _startDrag( payload: DragPayload, _source: MessageEventSource | null ): void {
+	private _startDrag( payload: DragBridgePayload ): void {
 		this._payload = payload;
 		document.dispatchEvent(
 			new CustomEvent( DRAG_BRIDGE_EVENTS.START, { detail: { payload } } ),

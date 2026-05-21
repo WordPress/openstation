@@ -219,6 +219,16 @@ export interface TileDragOutPayload {
 	title?: string;
 	/** Optional dashicon class for the ghost. */
 	icon?: string;
+	/**
+	 * Optional cross-frame bridge payload. When set the shell fans
+	 * this into `wp.desktop.dragBridge` while the gesture is live so
+	 * iframe receivers (Gutenberg drop-receiver, future Media Library
+	 * receiver) can insert a block on `desktop-mode-drop`. See
+	 * `ShortcutDragData.bridgePayload`.
+	 *
+	 * @since 0.22.0
+	 */
+	bridgePayload?: import( '../drag-bridge' ).DragBridgePayload;
 }
 
 /**
@@ -258,6 +268,7 @@ export function attachTileDragOut(
 					ref: payload.ref,
 					title: payload.title,
 					icon: payload.icon,
+					bridgePayload: payload.bridgePayload,
 				} satisfies ShortcutDragData,
 				ghost: {
 					offsetX: e.clientX - rect.left,

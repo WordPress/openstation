@@ -42,6 +42,24 @@ function desktop_mode_enqueue_assets() {
 	// accidentally classic.
 	if ( desktop_mode_is_enabled() ) {
 		wp_enqueue_script( 'desktop-mode-iframe-bridge' );
+
+		// Block Editor cross-window drop receiver. Listens for
+		// `desktop-mode-drop` postMessages from the parent shell and
+		// inserts the matching block. Only enqueue inside the Block
+		// Editor screens — every other admin page would be paying for
+		// a bundle it never uses. `$hook_suffix` is supplied by the
+		// `admin_enqueue_scripts` action; `post.php` / `post-new.php`
+		// cover both edit + new-post flows. Gutenberg also drives
+		// `site-editor.php` (full-site editing) — included so dropping
+		// onto a template / template-part window also works.
+		global $hook_suffix;
+		if (
+			'post.php' === $hook_suffix
+			|| 'post-new.php' === $hook_suffix
+			|| 'site-editor.php' === $hook_suffix
+		) {
+			wp_enqueue_script( 'desktop-mode-gutenberg-drop-receiver' );
+		}
 	}
 
 	// Chromeless requests (iframes) need chromeless styles and overrides.

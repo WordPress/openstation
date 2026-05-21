@@ -72,10 +72,15 @@ class Desktop_Mode_Post_File extends Desktop_Mode_File {
 	}
 
 	public function serialize(): array {
-		$shape         = parent::serialize();
-		$post          = $this->post();
+		$shape             = parent::serialize();
+		$post              = $this->post();
 		$shape['postType'] = $post ? (string) $post->post_type : '';
 		$shape['status']   = $post ? (string) $post->post_status : '';
+		// Permalink — surfaced on the serialized shape so cross-frame
+		// drag handlers can build a `<a href>` block on drop without
+		// a synchronous REST roundtrip. Empty string when the post is
+		// gone or has no permalink (drafts of certain post types).
+		$shape['link']     = $post ? (string) get_permalink( $post ) : '';
 		return $shape;
 	}
 
