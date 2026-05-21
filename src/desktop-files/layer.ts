@@ -43,6 +43,13 @@ import {
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
 import type { DragBridgePayload } from '../drag-bridge';
+import { isConflict, showConflictToast } from './conflict-toast';
+import type { DragManagerApi, DragSession, DropTarget } from '../drag';
+import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
+import type {
+	DesktopFileDragData,
+	ShortcutDragData,
+} from './drag-payloads';
 
 /**
  * Build a cross-frame bridge payload from a placement, or return
@@ -101,13 +108,6 @@ function buildBridgePayloadFromPlacement(
 	}
 	return undefined;
 }
-import { isConflict, showConflictToast } from './conflict-toast';
-import type { DragManagerApi, DragSession, DropTarget } from '../drag';
-import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
-import type {
-	DesktopFileDragData,
-	ShortcutDragData,
-} from './drag-payloads';
 
 /**
  * Read the runtime DragManager. Boot order guarantees this exists by

@@ -45,19 +45,18 @@ function desktop_mode_enqueue_assets() {
 
 		// Block Editor cross-window drop receiver. Listens for
 		// `desktop-mode-drop` postMessages from the parent shell and
-		// inserts the matching block. Only enqueue inside the Block
-		// Editor screens — every other admin page would be paying for
-		// a bundle it never uses. `$hook_suffix` is supplied by the
-		// `admin_enqueue_scripts` action; `post.php` / `post-new.php`
-		// cover both edit + new-post flows. Gutenberg also drives
-		// `site-editor.php` (full-site editing) — included so dropping
-		// onto a template / template-part window also works.
+		// inserts the matching block. Only enqueue inside the
+		// post-edit Block Editor screens — every other admin page
+		// would be paying for a bundle it never uses.
+		//
+		// `site-editor.php` (full-site editor) deliberately omitted:
+		// the FSE doesn't expose `wp.data.dispatch('core/block-editor')`
+		// until the user opens a template in the canvas iframe, so
+		// drops arriving before that point would silently time out
+		// after the receiver's 5 s `waitForEditor()` poll. Re-enable
+		// once we have a reliable readiness signal in that context.
 		global $hook_suffix;
-		if (
-			'post.php' === $hook_suffix
-			|| 'post-new.php' === $hook_suffix
-			|| 'site-editor.php' === $hook_suffix
-		) {
+		if ( 'post.php' === $hook_suffix || 'post-new.php' === $hook_suffix ) {
 			wp_enqueue_script( 'desktop-mode-gutenberg-drop-receiver' );
 		}
 	}

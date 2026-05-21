@@ -1819,6 +1819,24 @@ function init(): void {
 	// `desktop-mode-drop` postMessages. Idempotent.
 	installIframeDropTargets( dragManager );
 
+	// Surface a toast when an iframe receiver (Gutenberg drop-
+	// receiver today) reports a failed insert — most commonly a
+	// timeout waiting for `wp.data` in a window where the editor
+	// never finished booting. Without this the user would see no
+	// feedback and silently lose the drop.
+	window.addEventListener( 'message', ( e: MessageEvent ) => {
+		if ( e.origin !== window.location.origin ) {
+			return;
+		}
+		const data = e.data as { type?: unknown; reason?: unknown } | null;
+		if ( ! data || data.type !== 'desktop-mode-drop-failed' ) {
+			return;
+		}
+		showToast( {
+			message: 'Could not insert into the editor.',
+		} );
+	} );
+
 	// Register the AI Assistant as the first (default) Cmd+K palette
 	// and install the single global shortcut. Other plugins can register
 	// more palettes via wp.desktop.registerPalette and Cmd+K cycles

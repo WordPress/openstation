@@ -187,10 +187,9 @@ function onDragStart( payload: unknown ): void {
 	const isBridgeable = !! extractBridgePayload( payload );
 	// Diagnostic — visible in DevTools console at every drag start.
 	// Helps narrow down which side of the wiring is breaking when a
-	// regression bubbles up. Cheap (one log per drag, no inner loop
-	// noise) so it's fine to leave in shipped code.
-	// eslint-disable-next-line no-console
-	console.log(
+	// regression bubbles up. `console.info` is in the lint
+	// allowlist; `console.log` would need an inline disable.
+	console.info(
 		'[desktop-mode] drag-start: suppressing %d iframe(s); bridgeable=%s',
 		iframes.length,
 		isBridgeable,
@@ -285,13 +284,15 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 		'desktop-mode/drag/iframe-drop-targets-window-close',
 		() => {
 			// Re-walk to drop any iframes that disappeared from the
-			// DOM mid-drag.
-			_suppressedIframes.forEach( ( _prev, iframe ) => {
+			// DOM mid-drag. Iterate over a snapshot — mutating the
+			// Map inside `forEach` is spec-safe but reads as a
+			// hazard at the call site.
+			for ( const [ iframe ] of Array.from( _suppressedIframes ) ) {
 				if ( ! iframe.isConnected ) {
 					_suppressedIframes.delete( iframe );
 				}
-			} );
-			_activeRegistrations.forEach( ( deregister, iframe ) => {
+			}
+			for ( const [ iframe, deregister ] of Array.from( _activeRegistrations ) ) {
 				if ( ! iframe.isConnected ) {
 					try {
 						deregister();
@@ -300,7 +301,7 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 					}
 					_activeRegistrations.delete( iframe );
 				}
-			} );
+			}
 		},
 	);
 

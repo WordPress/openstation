@@ -158,6 +158,40 @@ describe( 'buildBlockSpec — post / user', () => {
 		expect( spec ).toBeNull();
 	} );
 
+	test( 'rejects javascript: URL on a post payload (XSS gate)', () => {
+		const spec = buildBlockSpec( {
+			kind: 'post',
+			id: 1,
+			postType: 'post',
+			// eslint-disable-next-line no-script-url
+			url: 'javascript:alert(1)',
+			title: 'Bad',
+		} );
+		expect( spec ).toBeNull();
+	} );
+
+	test( 'rejects javascript: URL with leading whitespace + uppercase', () => {
+		const spec = buildBlockSpec( {
+			kind: 'user',
+			id: 1,
+			url: '  JavaScript:alert(1)',
+			title: 'Bad',
+		} );
+		expect( spec ).toBeNull();
+	} );
+
+	test( 'rejects data: URL on an attachment payload', () => {
+		const spec = buildBlockSpec( {
+			kind: 'attachment',
+			id: 1,
+			url: 'data:text/html,<script>alert(1)</script>',
+			title: 'Bad',
+			alt: '',
+			mime: 'text/html',
+		} );
+		expect( spec ).toBeNull();
+	} );
+
 	test( 'falls back to the URL as anchor text when title is empty', () => {
 		const spec = buildBlockSpec( {
 			kind: 'post',
