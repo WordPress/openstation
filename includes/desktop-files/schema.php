@@ -32,7 +32,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '10' );
+define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '12' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
@@ -79,7 +79,7 @@ function desktop_mode_files_install_schema() {
 	// precise round-trip with no time-window heuristics.
 	$placements_sql = "CREATE TABLE {$tables['placements']} (
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-		user_id BIGINT UNSIGNED NOT NULL,
+		owner_id BIGINT UNSIGNED NOT NULL,
 		parent_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
 		file_type VARCHAR(64) NOT NULL,
 		file_ref VARCHAR(255) NOT NULL DEFAULT '',
@@ -93,7 +93,7 @@ function desktop_mode_files_install_schema() {
 		trashed_via_folder BIGINT UNSIGNED NULL,
 		trashed_meta LONGTEXT NULL,
 		PRIMARY KEY  (id),
-		KEY user_parent (user_id, parent_id),
+		KEY owner_parent (owner_id, parent_id),
 		KEY type_ref (file_type, file_ref),
 		KEY updated_at_ms (updated_at_ms),
 		KEY trashed_at_ms (trashed_at_ms)
@@ -145,6 +145,17 @@ function desktop_mode_files_install_schema() {
 	// EXISTS`, which is bullet-proof; v9 → vN column additions are
 	// handled by `ALTER TABLE … ADD COLUMN` inside the same helper.
 
+	// v11: rename `placements.user_id` to `placements.owner_id` so
+	// the placements + folders tables use the same column name for
+	// the same concept. Must run BEFORE dbDelta — once the
+	// `$placements_sql` definition switches from `user_id` to
+	// `owner_id`, dbDelta on an existing v≤10 install would see
+	// `owner_id` as a missing column and ADD it (leaving the old
+	// `user_id` in place + the new `owner_id` NULL). Running the
+	// CHANGE COLUMN first means dbDelta sees the table already
+	// matches the desired shape.
+	desktop_mode_files_rename_user_id_to_owner_id();
+
 	dbDelta( $placements_sql );
 	dbDelta( $folders_sql );
 	dbDelta( $tombstones_sql );
@@ -160,8 +171,8 @@ function desktop_mode_files_install_schema() {
 	// missing — every `WHERE trashed_at_ms IS NULL` precheck
 	// returned empty, so each pageload re-inserted every
 	// registered shortcut. Collapse runs of identical
-	// `(user_id, parent_id, file_type, file_ref)` rows down to the
-	// lowest id.
+	// `(owner_id, parent_id, file_type, file_ref)` rows down to
+	// the lowest id.
 	desktop_mode_files_dedupe_placements();
 
 	// v5: enforce uniqueness at the DB level so a future bug
@@ -263,7 +274,7 @@ function desktop_mode_files_ensure_trash_columns() {
 }
 
 /**
- * Collapse duplicate `(user_id, parent_id, file_type, file_ref)`
+ * Collapse duplicate `(owner_id, parent_id, file_type, file_ref)`
  * placement rows down to the lowest id, deleting the rest. Only
  * meaningful for `file_type IN ('shortcut','folder')` — those are
  * the types where two rows for the same ref are redundant. Other
@@ -305,7 +316,7 @@ function desktop_mode_files_dedupe_placements() {
 	$wpdb->query(
 		"DELETE p1 FROM `{$tbl}` p1
 		INNER JOIN `{$tbl}` p2
-			ON p1.user_id   = p2.user_id
+			ON p1.owner_id  = p2.owner_id
 			AND p1.parent_id = p2.parent_id
 			AND p1.file_type = p2.file_type
 			AND p1.file_ref  = p2.file_ref
@@ -316,7 +327,7 @@ function desktop_mode_files_dedupe_placements() {
 
 /**
  * Add a UNIQUE index on
- * `(user_id, parent_id, file_type, file_ref)` to make duplicate
+ * `(owner_id, parent_id, file_type, file_ref)` to make duplicate
  * placements physically impossible. Skipped when the index is
  * already present.
  *
@@ -352,7 +363,7 @@ function desktop_mode_files_ensure_unique_placement_index() {
 		$wpdb->query(
 			"ALTER TABLE `{$tbl}`
 			ADD UNIQUE KEY `placement_unique`
-				(user_id, parent_id, file_type, file_ref)"
+				(owner_id, parent_id, file_type, file_ref)"
 		);
 		$wpdb->suppress_errors( $prev_suppress );
 	}
@@ -369,7 +380,7 @@ function desktop_mode_files_ensure_unique_placement_index() {
  * another viewer hits a stale `If-Match`.
  *
  * NULL on legacy rows (pre-v10). The conflict resolver falls back
- * to `user_id` when this column is NULL, matching the old behavior.
+ * to `owner_id` when this column is NULL, matching the old behavior.
  *
  * @since 0.18.x (schema v10)
  * @internal
@@ -395,8 +406,100 @@ function desktop_mode_files_ensure_updated_by_column() {
 		// way.
 		$prev_suppress = $wpdb->suppress_errors( true );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `updated_by` BIGINT UNSIGNED NULL AFTER `user_id`" );
+		$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `updated_by` BIGINT UNSIGNED NULL AFTER `owner_id`" );
 		$wpdb->suppress_errors( $prev_suppress );
+	}
+}
+
+/**
+ * Rename `placements.user_id` to `placements.owner_id` and the
+ * matching `user_parent` index to `owner_parent`. The two
+ * desktop-mode-owned tables historically used different names for
+ * the same "row's owner" concept — folders carried `owner_id` from
+ * day one, placements carried `user_id`. v11 unifies them so SQL
+ * and PHP read identically across the two tables.
+ *
+ * Idempotent: skips when the table doesn't exist (fresh install —
+ * dbDelta runs after this and creates the table with the new
+ * column name directly) and when the column is already renamed.
+ *
+ * Must run BEFORE `dbDelta( $placements_sql )` in
+ * `desktop_mode_files_install_schema()` — dbDelta does NOT rename
+ * columns, so against a v≤10 table whose definition says
+ * `owner_id` it would ADD a new `owner_id` column and leave the
+ * stale `user_id` in place. Running the CHANGE COLUMN first puts
+ * the table in the desired shape so dbDelta sees no diff.
+ *
+ * Schema version was bumped from 11 to 12 so any install that
+ * stamped 11 but never actually renamed the column (a silent
+ * partial run during dev iteration) gets a clean retry. The
+ * function is idempotent — early-returns when `user_id` is absent,
+ * so healthy v11 installs see a cheap no-op on the retry.
+ *
+ * @since 0.22.0 (schema v11, redelivered at v12)
+ * @internal
+ */
+function desktop_mode_files_rename_user_id_to_owner_id() {
+	global $wpdb;
+	$tables = desktop_mode_files_table_names();
+	$tbl    = $tables['placements'];
+
+	// Fresh install — the table doesn't exist yet; dbDelta creates
+	// it with `owner_id` directly. Nothing to migrate.
+	$table_exists = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s",
+			$tbl
+		)
+	);
+	if ( 0 === $table_exists ) {
+		return;
+	}
+
+	$has_user_id = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME = %s
+				AND COLUMN_NAME = 'user_id'",
+			$tbl
+		)
+	);
+	if ( 0 === $has_user_id ) {
+		return; // Already renamed (or column was never there — fresh install via test factory).
+	}
+
+	// DELIBERATELY NOT suppressing errors here. An earlier draft
+	// wrapped the ALTER in `suppress_errors( true )` "in case of
+	// concurrent migration race" — there's no realistic race for
+	// this ALTER (schema migrations run inside one request) and the
+	// suppression hid a real failure mode on at least one local
+	// install: the option got stamped at v11 but the CHANGE COLUMN
+	// never landed, so every later placements query 500'd silently.
+	// Let any wpdb error surface to `debug.log` so the failure is
+	// visible the next time this code runs.
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	$wpdb->query(
+		"ALTER TABLE `{$tbl}` CHANGE COLUMN `user_id` `owner_id` BIGINT UNSIGNED NOT NULL"
+	);
+
+	// MySQL/MariaDB auto-update index column references on CHANGE
+	// COLUMN, but the index NAMES are baked in. Rename them too so
+	// `EXPLAIN`/`SHOW INDEX` output reads consistently with the
+	// column.
+	$has_user_parent = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME = %s
+				AND INDEX_NAME = 'user_parent'",
+			$tbl
+		)
+	);
+	if ( 0 < $has_user_parent ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE `{$tbl}` RENAME INDEX `user_parent` TO `owner_parent`" );
 	}
 }
 

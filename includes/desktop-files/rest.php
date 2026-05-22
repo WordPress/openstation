@@ -614,8 +614,6 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	$actor_id = 0;
 	if ( isset( $row['updated_by'] ) && (int) $row['updated_by'] > 0 ) {
 		$actor_id = (int) $row['updated_by'];
-	} elseif ( isset( $row['user_id'] ) ) {
-		$actor_id = (int) $row['user_id'];
 	} elseif ( isset( $row['owner_id'] ) ) {
 		$actor_id = (int) $row['owner_id'];
 	}
@@ -642,7 +640,7 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	// name + avatar — so a write attempt can't be used to enumerate
 	// other users' display names.
 	$viewer_id        = (int) get_current_user_id();
-	$viewer_owns_row  = isset( $row['user_id'] ) && (int) $row['user_id'] === $viewer_id;
+	$viewer_owns_row  = isset( $row['owner_id'] ) && (int) $row['owner_id'] === $viewer_id;
 	$viewer_can_see   = $viewer_owns_row;
 	if ( ! $viewer_can_see && $parent_id > 0 && isset( $parent_folder ) && $parent_folder ) {
 		if ( (int) $parent_folder['owner_id'] === $viewer_id ) {

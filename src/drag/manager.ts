@@ -316,7 +316,12 @@ export class DragManager implements DragManagerApi {
 		if ( next.target ) {
 			if ( next.accepted ) {
 				fireEnter( next.target, session );
-				session._ghost?.setMode( 'accept' );
+				// Per-target accept label (e.g. recycle bin → "Move
+				// to Trash") overrides the payload-default chip text
+				// while the cursor is over this specific target.
+				session._ghost?.setMode( 'accept', {
+					acceptLabel: next.target.acceptLabel,
+				} );
 				mode = 'accept';
 			} else {
 				session._ghost?.setMode( 'reject' );

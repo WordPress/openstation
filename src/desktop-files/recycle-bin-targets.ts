@@ -32,10 +32,40 @@
  * @since 0.18.0
  */
 
+import { __ } from '../i18n';
 import { addAction, HOOKS } from '../hooks';
 import type { DragManagerApi, DragSession } from '../drag';
 import { trashByFileType } from './trash';
 import type { RestPlacementShape } from './rest';
+import type { ShortcutDragData } from './drag-payloads';
+
+/**
+ * My WordPress entity kinds the recycle bin knows how to trash via
+ * the cross-bundle `wp.desktop.myWordpress.trashEntity()` API. `kind`
+ * here is the abstract drag-payload kind (matches `ShortcutDragData
+ * .kind`), not the entity id — both posts and pages drag as
+ * `'post'`. The `entityId` field on the payload disambiguates which
+ * REST endpoint the trash hits.
+ *
+ * Limited to `'post'` for now (covers Posts + Pages). `'user'` and
+ * `'media'` require different DELETE semantics (user reassignment,
+ * attachment vs post-trash) — wire those when the corresponding
+ * confirm + REST paths are in place.
+ */
+const TRASHABLE_SHORTCUT_KINDS: ReadonlySet< string > = new Set( [ 'post' ] );
+
+interface MyWordpressTrashApi {
+	trashEntity?: ( entityId: string, id: number ) => Promise< void >;
+}
+
+function getMyWordpressTrashApi(): MyWordpressTrashApi | null {
+	const api = (
+		window as unknown as {
+			wp?: { desktop?: { myWordpress?: MyWordpressTrashApi } };
+		}
+	).wp?.desktop?.myWordpress;
+	return api && typeof api.trashEntity === 'function' ? api : null;
+}
 
 const TRASH_DROP_ACTIVE_ATTR = 'data-desktop-mode-trash-drop-active';
 const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
@@ -82,6 +112,33 @@ function isDesktopFilePayload(
 	return session.payload.type === 'desktop-file';
 }
 
+function isShortcutPayload(
+	session: DragSession,
+): session is DragSession & { payload: { type: 'shortcut'; data: ShortcutDragData } } {
+	return session.payload.type === 'shortcut';
+}
+
+/**
+ * Whether a shortcut payload describes a trashable My WordPress
+ * entity. Both the `entityId` (REST routing) and the My Wordpress
+ * trash API must be available — otherwise the drop would either 403
+ * or no-op, and we'd rather refuse it up-front so the tile snaps
+ * back instead of disappearing into a silent failure.
+ */
+function isTrashableShortcut( data: Partial< ShortcutDragData > ): boolean {
+	if ( ! data.kind || ! data.ref || ! data.entityId ) {
+		return false;
+	}
+	if ( ! TRASHABLE_SHORTCUT_KINDS.has( data.kind ) ) {
+		return false;
+	}
+	const numericRef = Number.parseInt( data.ref, 10 );
+	if ( ! Number.isFinite( numericRef ) || numericRef <= 0 ) {
+		return false;
+	}
+	return getMyWordpressTrashApi() !== null;
+}
+
 function registerOn(
 	dragManager: DragManagerApi,
 	id: string,
@@ -90,6 +147,13 @@ function registerOn(
 	return dragManager.registerDropTarget( {
 		id,
 		element: el,
+		// Override the ghost-chip label: while the cursor is over
+		// the bin the user is trashing, not creating a shortcut /
+		// moving the placement. The DragManager swaps this in for
+		// the payload-default "Drop here to create shortcut" /
+		// "Drop here to move" chip text whenever this target is the
+		// current accept-mode target.
+		acceptLabel: __( 'Move to Trash', 'desktop-mode' ),
 		// Reject the drop UP FRONT when the viewer can't trash the
 		// payload's placement (e.g. an item inside a read-only
 		// shared folder, or someone else's tile in a shared
@@ -99,32 +163,42 @@ function registerOn(
 		// The user sees the icon snap back instead of attempting a
 		// REST call that would 403 and only log to the console.
 		accept: ( payload ) => {
-			if ( payload.type !== 'desktop-file' ) {
-				return false;
+			if ( payload.type === 'desktop-file' ) {
+				const data = payload.data as Partial< DesktopFilePayloadData >;
+				const placement = data?.placement;
+				if ( ! placement ) {
+					return false;
+				}
+				// Never trash the recycle bin into itself. Both drop
+				// surfaces (the bin's wallpaper tile + the bin window
+				// body) share this `accept`, so dragging the bin onto
+				// either one used to land on `trashByFileType` →
+				// `trashPlacementWithUndo` and the bin's own placement
+				// got soft-trashed. Visible result: the bin vanished
+				// from the desktop, with no obvious way back short of
+				// a reload (which re-auto-placed it because the orphan
+				// backfill only counts non-trashed placements).
+				if ( placement.file?.ref === RECYCLE_BIN_WINDOW_ID ) {
+					return false;
+				}
+				// `canTrash === false` is an explicit veto from the
+				// server. `undefined` (legacy clients / older payloads
+				// that pre-date the flag) defaults to "let it through"
+				// — the existing REST 403 path still backstops anything
+				// that slips past this check.
+				return placement.canTrash !== false;
 			}
-			const data = payload.data as Partial< DesktopFilePayloadData >;
-			const placement = data?.placement;
-			if ( ! placement ) {
-				return false;
+			// `'shortcut'` payloads originate from My WordPress entity
+			// tiles (and any plugin that builds the same shape). The
+			// recycle bin accepts those whose `kind` we know how to
+			// trash via the cross-bundle `wp.desktop.myWordpress
+			// .trashEntity()` API. Mirrors the right-click "Move to
+			// Trash" CMO so both gestures end at the same REST call.
+			if ( payload.type === 'shortcut' ) {
+				const data = payload.data as Partial< ShortcutDragData >;
+				return isTrashableShortcut( data );
 			}
-			// Never trash the recycle bin into itself. Both drop
-			// surfaces (the bin's wallpaper tile + the bin window
-			// body) share this `accept`, so dragging the bin onto
-			// either one used to land on `trashByFileType` →
-			// `trashPlacementWithUndo` and the bin's own placement
-			// got soft-trashed. Visible result: the bin vanished
-			// from the desktop, with no obvious way back short of a
-			// reload (which re-auto-placed it because the orphan
-			// backfill only counts non-trashed placements).
-			if ( placement.file?.ref === RECYCLE_BIN_WINDOW_ID ) {
-				return false;
-			}
-			// `canTrash === false` is an explicit veto from the
-			// server. `undefined` (legacy clients / older payloads
-			// that pre-date the flag) defaults to "let it through"
-			// — the existing REST 403 path still backstops anything
-			// that slips past this check.
-			return placement.canTrash !== false;
+			return false;
 		},
 		onEnter: () => {
 			el.setAttribute( TRASH_DROP_ACTIVE_ATTR, '' );
@@ -134,11 +208,31 @@ function registerOn(
 		},
 		onDrop: ( session ) => {
 			el.removeAttribute( TRASH_DROP_ACTIVE_ATTR );
-			if ( ! isDesktopFilePayload( session ) ) {
+			if ( isDesktopFilePayload( session ) ) {
+				const placement = session.payload.data.placement;
+				void trashByFileType( placement );
 				return;
 			}
-			const placement = session.payload.data.placement;
-			void trashByFileType( placement );
+			if ( isShortcutPayload( session ) ) {
+				const data = session.payload.data;
+				const api = getMyWordpressTrashApi();
+				if ( ! api?.trashEntity || ! data.entityId ) {
+					return;
+				}
+				const numericRef = Number.parseInt( data.ref, 10 );
+				if ( ! Number.isFinite( numericRef ) || numericRef <= 0 ) {
+					return;
+				}
+				void api.trashEntity( data.entityId, numericRef ).catch(
+					( err: unknown ) => {
+						// eslint-disable-next-line no-console
+						console.error(
+							'[desktop-mode] recycle-bin: shortcut trash failed:',
+							err,
+						);
+					},
+				);
+			}
 		},
 	} );
 }

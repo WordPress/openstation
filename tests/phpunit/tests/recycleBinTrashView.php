@@ -135,7 +135,7 @@ class Tests_DesktopMode_RecycleBinTrashView extends WP_UnitTestCase {
 		$wpdb->insert(
 			$tables['placements'],
 			array(
-				'user_id'       => self::$admin_id,
+				'owner_id'      => self::$admin_id,
 				'parent_id'     => 0,
 				'file_type'     => $file_type,
 				'file_ref'      => $file_ref,

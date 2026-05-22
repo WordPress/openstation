@@ -220,6 +220,16 @@ export interface TileDragOutPayload {
 	/** Optional dashicon class for the ghost. */
 	icon?: string;
 	/**
+	 * Source-side My WordPress entity id (`'posts'`, `'pages'`,
+	 * `'users'`, plugin-defined). Forwarded onto `ShortcutDragData
+	 * .entityId` so drop targets that need to act on the source
+	 * entity (notably the recycle bin's drag-to-trash) can resolve
+	 * which REST endpoint the `ref` belongs to.
+	 *
+	 * @since 0.22.0
+	 */
+	entityId?: string;
+	/**
 	 * Optional cross-frame bridge payload. When set the shell fans
 	 * this into `wp.desktop.dragBridge` while the gesture is live so
 	 * iframe receivers (Gutenberg drop-receiver, future Media Library
@@ -268,6 +278,7 @@ export function attachTileDragOut(
 					ref: payload.ref,
 					title: payload.title,
 					icon: payload.icon,
+					entityId: payload.entityId,
 					bridgePayload: payload.bridgePayload,
 				} satisfies ShortcutDragData,
 				ghost: {

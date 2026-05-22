@@ -44,7 +44,10 @@ export interface GhostHandle {
 	/** Position the ghost so its origin sits at (clientX, clientY) minus its offset. */
 	moveTo( clientX: number, clientY: number ): void;
 	/** Toggle visual feedback for over-accepting vs over-rejecting target. */
-	setMode( mode: 'accept' | 'reject' | 'neutral' ): void;
+	setMode(
+		mode: 'accept' | 'reject' | 'neutral',
+		overrides?: { acceptLabel?: string },
+	): void;
 	/**
 	 * Hide the ghost from `elementFromPoint` without removing it from
 	 * the DOM. Used during hit-testing so the ghost itself isn't
@@ -104,7 +107,7 @@ export function mountGhost(
 				hint.style.transform = `translate3d(${ cx + HINT_OFFSET_X }px, ${ cy + HINT_OFFSET_Y }px, 0)`;
 			}
 		},
-		setMode( mode ) {
+		setMode( mode, overrides ) {
 			ghost.classList.remove( GHOST_ACCEPT_CLASS, GHOST_REJECT_CLASS );
 			if ( mode === 'accept' ) {
 				ghost.classList.add( GHOST_ACCEPT_CLASS );
@@ -119,7 +122,13 @@ export function mountGhost(
 				);
 				if ( mode === 'accept' ) {
 					hint.classList.add( HINT_ACCEPT_CLASS );
-					hint.textContent = labels.accept;
+					// Per-target override (e.g. recycle bin → "Move
+					// to Trash") wins over the payload-side default
+					// ("Drop here to create shortcut"). Caller passes
+					// the target's `acceptLabel` when the cursor is
+					// over a target whose semantic differs from a
+					// generic placement.
+					hint.textContent = overrides?.acceptLabel ?? labels.accept;
 				} else if ( mode === 'reject' ) {
 					hint.classList.add( HINT_REJECT_CLASS );
 					hint.textContent = labels.reject;

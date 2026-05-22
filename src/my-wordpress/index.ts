@@ -1188,6 +1188,11 @@ function buildEntityTile(
 			ref: String( item.id ),
 			title: titleText,
 			icon: entity.icon,
+			// Source entity id (`'posts'` / `'pages'` / future
+			// CPT-backed entities). Lets the recycle bin's drop
+			// handler resolve the right REST endpoint when the user
+			// drags this tile to the bin to trash it.
+			entityId: entity.id,
 			// Cross-frame bridge payload — the Gutenberg drop-receiver
 			// turns this into a `core/paragraph` with an `<a href>` to
 			// the permalink. Tiles without a `link` (very old REST
@@ -3569,6 +3574,44 @@ function closeAnyTileMenu(): void {
 			n.dispatchEvent( new CustomEvent( 'tile-menu-closed' ) );
 			n.remove();
 		} );
+}
+
+/**
+ * Programmatic trash entry-point. Looks up the entity by id from the
+ * shell config, calls the REST DELETE, and broadcasts
+ * `desktop-mode-my-wordpress-entity-trashed` so every live list view
+ * can drop the tile reactively. Does NOT show a confirm dialog — that
+ * UX layer belongs to the caller (the right-click `confirmTrash` adds
+ * its own; the recycle-bin drag-to-trash doesn't, matching macOS).
+ *
+ * Exposed on `wp.desktop.myWordpress.trashEntity(entityId, id)` so
+ * cross-bundle drop targets (notably the recycle bin) can trash an
+ * entity without depending on this bundle's internals.
+ *
+ * @public
+ * @since 0.22.0
+ */
+async function trashEntityById(
+	entityId: string,
+	id: number,
+): Promise< void > {
+	const cfg = getConfig();
+	const entity = cfg.entities.find( ( e ) => e.id === entityId );
+	if ( ! entity ) {
+		throw new Error(
+			sprintf(
+				// translators: %s is the entity id (e.g. 'posts').
+				__( 'Unknown My WordPress entity: %s', 'desktop-mode' ),
+				entityId,
+			),
+		);
+	}
+	await trashEntity( entity, id );
+	document.dispatchEvent(
+		new CustomEvent( 'desktop-mode-my-wordpress-entity-trashed', {
+			detail: { entityId, id },
+		} ),
+	);
 }
 
 async function confirmTrash(
@@ -6140,6 +6183,22 @@ interface MyWordpressApi {
 	openDetail: ( args: OpenDetailArgs ) => void;
 	openMedia: ( args: OpenMediaArgs ) => void;
 	registerEntityKind: ( kind: string, renderer: EntityRenderer ) => () => void;
+	/**
+	 * Trash an entity by its My WordPress entity id (`'posts'`,
+	 * `'pages'`, `'users'`, plugin-defined). Returns a Promise that
+	 * resolves when the REST DELETE succeeds and broadcasts
+	 * `desktop-mode-my-wordpress-entity-trashed` so every live list
+	 * view drops the tile reactively.
+	 *
+	 * Does NOT show a confirm dialog — UX layer is the caller's
+	 * responsibility. The right-click "Move to Trash" menu wraps this
+	 * with its own confirm; the recycle-bin drag-to-trash calls it
+	 * directly (macOS pattern: drag is the deliberate gesture, no
+	 * extra confirm).
+	 *
+	 * @since 0.22.0
+	 */
+	trashEntity: ( entityId: string, id: number ) => Promise< void >;
 }
 
 interface PendingEntry {
@@ -6187,5 +6246,30 @@ if ( desktopGlobal ) {
 		openDetail,
 		openMedia,
 		registerEntityKind,
+		trashEntity: trashEntityById,
 	};
+
+	// Live-tile pruning on trash. Every live My WordPress list body
+	// listens for the broadcast — `trashEntityById` fires this after
+	// a successful REST DELETE; the right-click `confirmTrash` path
+	// removes the tile inline first, so the query here finds nothing
+	// and no-ops. Lets the drag-to-trash flow share the same UI
+	// cleanup as the CMO without duplicating the tile-removal logic.
+	document.addEventListener(
+		'desktop-mode-my-wordpress-entity-trashed',
+		( e: Event ) => {
+			const detail = (
+				e as CustomEvent< { entityId: string; id: number } >
+			).detail;
+			if ( ! detail || typeof detail.id !== 'number' ) {
+				return;
+			}
+			for ( const state of liveStates.values() ) {
+				const tile = state.body.querySelector< HTMLElement >(
+					`[data-entry-id="${ detail.id }"]`,
+				);
+				tile?.remove();
+			}
+		},
+	);
 }

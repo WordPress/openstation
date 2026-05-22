@@ -588,7 +588,7 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 	 * static owner. Reviewer-flagged misattribution: in a shared
 	 * folder where User A owns the folder and User B (writer) moves
 	 * a placement, User C must see "User B moved this" — not "User
-	 * A moved this" (which is what the old `user_id` fallback would
+	 * A moved this" (which is what the old `owner_id` fallback would
 	 * have said).
 	 *
 	 * @covers ::desktop_mode_files_move
@@ -605,7 +605,7 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
 
 		// Owner places a post in the shared folder. Owner is the
-		// row's `user_id` (creator).
+		// row's `owner_id` (creator).
 		$post_id  = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$pid      = (int) desktop_mode_files_place( self::$owner_id, $folder_id, 'post', (string) $post_id );
 		$original = desktop_mode_files_get_placement( $pid );
@@ -617,7 +617,7 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 		usleep( 2000 );
 
 		// Writer recipient moves the placement. `updated_by` flips
-		// to the editor; `user_id` stays as the owner.
+		// to the editor; `owner_id` stays as the row creator.
 		desktop_mode_files_move( $pid, self::$editor_id, array( 'x' => 50, 'y' => 100 ) );
 		$after = desktop_mode_files_get_placement( $pid );
 		$this->assertSame(
@@ -627,8 +627,8 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 		);
 		$this->assertSame(
 			self::$owner_id,
-			(int) $after['user_id'],
-			'user_id (row creator) is unchanged by a move.'
+			(int) $after['owner_id'],
+			'owner_id (row creator) is unchanged by a move.'
 		);
 
 		// A third viewer's stale `If-Match` (pointing at the

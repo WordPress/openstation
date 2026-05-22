@@ -195,7 +195,7 @@ class Tests_DesktopMode_FilesStore extends WP_UnitTestCase {
 
 		$rows = desktop_mode_files_get_for_user_folder( self::$admin_id, 0 );
 		$this->assertCount( 1, $rows );
-		$this->assertSame( (int) self::$admin_id, $rows[0]['user_id'] );
+		$this->assertSame( (int) self::$admin_id, $rows[0]['owner_id'] );
 	}
 
 	/**

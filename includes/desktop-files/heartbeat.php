@@ -164,7 +164,7 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM {$tables['placements']}
-					WHERE user_id = %d
+					WHERE owner_id = %d
 						AND updated_at_ms > %d
 						AND trashed_at_ms IS NULL
 					ORDER BY updated_at_ms ASC
@@ -186,7 +186,7 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM {$tables['placements']}
-					WHERE ( user_id = %d OR parent_id IN ($placeholders) )
+					WHERE ( owner_id = %d OR parent_id IN ($placeholders) )
 						AND updated_at_ms > %d
 						AND trashed_at_ms IS NULL
 					ORDER BY updated_at_ms ASC

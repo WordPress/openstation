@@ -132,6 +132,17 @@ export interface DropTarget {
 	 * true. Coordinates are in client (viewport) space.
 	 */
 	onDrop( session: DragSession, ev: { clientX: number; clientY: number } ): void | Promise< void >;
+	/**
+	 * Optional override for the ghost hint chip's "accept" label
+	 * while the cursor is over this target. Falls back to the
+	 * payload-default ("Drop here to create shortcut" / "Drop here
+	 * to move") when omitted. Use it when the target's semantic
+	 * differs from a generic placement — e.g. the recycle bin shows
+	 * "Move to Trash" instead of "create shortcut".
+	 *
+	 * @since 0.22.0
+	 */
+	acceptLabel?: string;
 }
 
 /** Public manager API. Mounted on `wp.desktop.dragManager`. */

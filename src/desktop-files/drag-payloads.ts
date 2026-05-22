@@ -54,6 +54,18 @@ export interface ShortcutDragData {
 	/** Optional dashicon class for diagnostics + ghost. */
 	icon?: string;
 	/**
+	 * Source-side My WordPress entity id (e.g. `'posts'`, `'pages'`,
+	 * `'users'`, `'media'`). Populated when the drag originates from a
+	 * My WordPress entity tile so drop targets that need to act on the
+	 * source entity (e.g. the recycle bin trashing a post via its
+	 * canonical REST endpoint) can resolve which entity the `ref`
+	 * belongs to. `kind` alone is ambiguous — both Posts and Pages
+	 * carry `kind: 'post'` but have different REST paths.
+	 *
+	 * @since 0.22.0
+	 */
+	entityId?: string;
+	/**
 	 * Optional cross-frame bridge payload. When present the shell
 	 * fans this into `wp.desktop.dragBridge` at lift time so iframe
 	 * receivers (e.g. the Gutenberg drop-receiver) can react to the

@@ -722,7 +722,7 @@ class Tests_DesktopMode_FilesShares extends WP_UnitTestCase {
 		$wpdb->insert(
 			$tables['placements'],
 			array(
-				'user_id'       => self::$editor_id,
+				'owner_id'      => self::$editor_id,
 				'parent_id'     => $root_other,
 				'file_type'     => 'folder',
 				'file_ref'      => (string) $mid,

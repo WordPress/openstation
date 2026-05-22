@@ -1232,7 +1232,7 @@ function desktop_mode_folder_ancestors( $folder_id, $limit = 16 ) {
 		$row   = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT parent_id FROM {$tables['placements']}
-				WHERE user_id = %d
+				WHERE owner_id = %d
 					AND file_type = 'folder'
 					AND file_ref = %s
 					AND trashed_at_ms IS NULL
@@ -1379,7 +1379,7 @@ function desktop_mode_files_trash_folder_for_user( $folder_id, $user_id ) {
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
-			WHERE user_id = %d
+			WHERE owner_id = %d
 				AND trashed_at_ms IS NULL
 				AND (
 					( file_type = 'folder' AND file_ref = %s AND parent_id = 0 )
@@ -1584,7 +1584,7 @@ function desktop_mode_files_place_at_next_free_slot( $user_id, $parent_id, $type
 	$existing = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT x, y FROM {$tables['placements']}
-			WHERE user_id = %d
+			WHERE owner_id = %d
 				AND parent_id = %d
 				AND trashed_at_ms IS NULL",
 			$user_id,

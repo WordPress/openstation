@@ -45,8 +45,8 @@ defined( 'ABSPATH' ) || exit;
 function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
 	$user_id = (int) $user_id;
 	$can     = ( $user_id > 0 )
-		&& isset( $row['user_id'] )
-		&& (int) $row['user_id'] === $user_id;
+		&& isset( $row['owner_id'] )
+		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * Filter whether the user can trash this placement.
 	 *
@@ -76,8 +76,8 @@ function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
 function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
 	$user_id = (int) $user_id;
 	$can     = ( $user_id > 0 )
-		&& isset( $row['user_id'] )
-		&& (int) $row['user_id'] === $user_id;
+		&& isset( $row['owner_id'] )
+		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * @since 0.8.0
 	 *
@@ -101,8 +101,8 @@ function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
 function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
 	$user_id = (int) $user_id;
 	$can     = ( $user_id > 0 )
-		&& isset( $row['user_id'] )
-		&& (int) $row['user_id'] === $user_id;
+		&& isset( $row['owner_id'] )
+		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * @since 0.8.0
 	 *
@@ -1095,7 +1095,7 @@ function desktop_mode_files_count_trashed_for_recycle_bin( $user_id ) {
 	$placements = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM {$tables['placements']}
-			WHERE user_id = %d
+			WHERE owner_id = %d
 				AND trashed_at_ms IS NOT NULL
 				AND trashed_via_folder IS NULL",
 			$user_id
@@ -1131,7 +1131,7 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 	$placements = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['placements']}
-			WHERE user_id = %d AND trashed_at_ms IS NOT NULL
+			WHERE owner_id = %d AND trashed_at_ms IS NOT NULL
 			ORDER BY trashed_at_ms DESC",
 			$user_id
 		),

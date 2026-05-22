@@ -103,7 +103,7 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	$tables = desktop_mode_files_table_names();
 	$now    = desktop_mode_files_now_ms();
 	$row    = array(
-		'user_id'       => $user_id,
+		'owner_id'      => $user_id,
 		'updated_by'    => $user_id,
 		'parent_id'     => max( 0, $parent_id ),
 		'file_type'     => $type,
@@ -141,7 +141,7 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$tables['placements']}
-				WHERE user_id = %d
+				WHERE owner_id = %d
 					AND parent_id = %d
 					AND file_type = %s
 					AND file_ref = %s
@@ -238,7 +238,7 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	// gate — anyone with write on the folder can move/rearrange
 	// every icon in it, regardless of which user originally placed
 	// the row (shared-namespace semantics).
-	$is_row_owner = (int) $row['user_id'] === $user_id;
+	$is_row_owner = (int) $row['owner_id'] === $user_id;
 	if ( (int) $row['parent_id'] > 0 ) {
 		$source_folder = desktop_mode_files_get_folder( (int) $row['parent_id'] );
 		if ( $source_folder ) {
@@ -382,7 +382,7 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	}
 	// Same shared-namespace rule as the trash gate: owner of the
 	// row OR write cap on the parent folder.
-	$is_row_owner = (int) $row['user_id'] === $user_id;
+	$is_row_owner = (int) $row['owner_id'] === $user_id;
 	$allowed      = $is_row_owner;
 	if ( ! $allowed && (int) $row['parent_id'] > 0 ) {
 		$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
@@ -500,7 +500,7 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 	if ( ! empty( $args['share_view'] ) ) {
 		// Shared sub-folder — return every placement in the folder
 		// regardless of which user originally placed it. The icons
-		// are part of the folder; the user_id column is audit info,
+		// are part of the folder; the owner_id column is audit info,
 		// not a permission gate.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
@@ -516,7 +516,7 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$tables['placements']}
-				WHERE user_id = %d
+				WHERE owner_id = %d
 					AND parent_id = %d
 					AND trashed_at_ms IS NULL
 				ORDER BY sort_order ASC, id ASC",
@@ -632,7 +632,7 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 		$placed_ids     = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT file_ref FROM {$tables['placements']}
-				WHERE user_id = %d
+				WHERE owner_id = %d
 					AND file_type = 'shortcut'
 					AND trashed_at_ms IS NULL
 					AND file_ref IN ($placeholders)",
@@ -658,7 +658,7 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 	$existing = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT x, y FROM {$tables['placements']}
-			WHERE user_id = %d
+			WHERE owner_id = %d
 				AND parent_id = 0
 				AND trashed_at_ms IS NULL",
 			$user_id
@@ -772,10 +772,10 @@ function desktop_mode_files_normalize_placement_row( $row ) {
 	$meta     = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
 	return array(
 		'id'            => (int) $row['id'],
-		'user_id'       => (int) $row['user_id'],
+		'owner_id'      => (int) $row['owner_id'],
 		// `updated_by` is v10. Null on legacy rows — callers that
 		// need the actor (e.g. `desktop_mode_files_check_if_match`)
-		// fall back to `user_id` when this is null/missing.
+		// fall back to `owner_id` when this is null/missing.
 		'updated_by'    => isset( $row['updated_by'] ) ? (int) $row['updated_by'] : null,
 		'parent_id'     => (int) $row['parent_id'],
 		'file_type'     => (string) $row['file_type'],
@@ -943,7 +943,7 @@ function desktop_mode_files_would_create_folder_cycle( $user_id, $moving_folder_
 		$parent_of_cursor = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT parent_id FROM {$tables['placements']}
-				WHERE user_id = %d
+				WHERE owner_id = %d
 					AND file_type = 'folder'
 					AND file_ref = %s
 					AND trashed_at_ms IS NULL
