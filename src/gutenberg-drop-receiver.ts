@@ -293,15 +293,6 @@ function notifyParentOfFailure( reason: string ): void {
 // Message wiring.
 // ---------------------------------------------------------------------
 
-interface DragOverMsg {
-	type: 'desktop-mode-drag-over';
-	payload: DragBridgePayload;
-}
-
-interface DragLeaveMsg {
-	type: 'desktop-mode-drag-leave';
-}
-
 function isDropMsg( m: unknown ): m is DropMsg {
 	if ( ! m || typeof m !== 'object' ) {
 		return false;
@@ -317,148 +308,15 @@ function isDropMsg( m: unknown ): m is DropMsg {
 	return p.kind === 'attachment' || p.kind === 'post' || p.kind === 'user';
 }
 
-function isDragOverMsg( m: unknown ): m is DragOverMsg {
-	if ( ! m || typeof m !== 'object' ) {
-		return false;
-	}
-	const obj = m as { type?: unknown; payload?: unknown };
-	if ( obj.type !== 'desktop-mode-drag-over' ) {
-		return false;
-	}
-	const p = obj.payload as { kind?: unknown } | undefined;
-	if ( ! p || typeof p !== 'object' ) {
-		return false;
-	}
-	return p.kind === 'attachment' || p.kind === 'post' || p.kind === 'user';
-}
-
-function isDragLeaveMsg( m: unknown ): m is DragLeaveMsg {
-	if ( ! m || typeof m !== 'object' ) {
-		return false;
-	}
-	return ( m as { type?: unknown } ).type === 'desktop-mode-drag-leave';
-}
-
-/**
- * Latest bridge payload broadcast from the parent shell while a
- * cross-frame drag is in flight. Set on `desktop-mode-drag-over`,
- * cleared on `-drag-leave` or after a successful insert. Used by
- * the native HTML5 `drop` handler below to insert the correct
- * block when Chromium strips the custom `application/x-wp-media-
- * attachment` MIME on the cross-iframe hop (so Gutenberg's own
- * drop logic doesn't recognize the payload as a media drop and
- * silently no-ops).
- */
-let stashedBridgePayload: DragBridgePayload | null = null;
-
-interface AttachedDocSentinel extends Document {
-	__desktopModeDropReceiverAttached?: boolean;
-}
-
-// Diagnostic counters — surfaced via the debug helper below so we
-// can immediately see at runtime which side of the pipeline is
-// reaching the user and which is silent.
-const _debugCounters = {
-	dragOverMsgs: 0,
-	dragLeaveMsgs: 0,
-	nativeDrops: 0,
-	nativeDropsWithStash: 0,
-	docsAttached: 0,
-};
-
-function onNativeDrop( e: DragEvent ): void {
-	_debugCounters.nativeDrops++;
-	if ( ! stashedBridgePayload ) {
-		return;
-	}
-	_debugCounters.nativeDropsWithStash++;
-	const payload = stashedBridgePayload;
-	stashedBridgePayload = null;
-	e.preventDefault();
-	e.stopPropagation();
-	if ( typeof e.stopImmediatePropagation === 'function' ) {
-		e.stopImmediatePropagation();
-	}
-	void performInsert( payload ).catch( ( err: unknown ) => {
-		const reason = err instanceof Error ? err.message : String( err );
-		// eslint-disable-next-line no-console
-		console.error(
-			'[desktop-mode] Gutenberg drop receiver native-drop insert failed:',
-			err,
-		);
-		notifyParentOfFailure( reason );
-	} );
-}
-
-function onNativeDragOver( e: DragEvent ): void {
-	if ( ! stashedBridgePayload ) {
-		return;
-	}
-	e.preventDefault();
-	if ( e.dataTransfer ) {
-		e.dataTransfer.dropEffect = 'copy';
-	}
-}
-
-/**
- * Attach native HTML5 `drop` + `dragover` listeners to a Document
- * (the outer post.php iframe AND every nested same-origin iframe
- * inside it — Gutenberg's editor canvas runs in a sub-iframe so
- * drops on the canvas never reach `window` of the outer iframe
- * where this script runs).
- *
- * Idempotent — each document is marked with a sentinel so repeated
- * walks don't pile up listeners.
- */
-function attachToDocument( doc: Document ): void {
-	const sentinel = doc as AttachedDocSentinel;
-	if ( sentinel.__desktopModeDropReceiverAttached ) {
-		return;
-	}
-	sentinel.__desktopModeDropReceiverAttached = true;
-	doc.addEventListener( 'drop', onNativeDrop, true );
-	doc.addEventListener( 'dragover', onNativeDragOver, true );
-	_debugCounters.docsAttached++;
-}
-
-function attachToAllFrames(): void {
-	attachToDocument( document );
-	document
-		.querySelectorAll< HTMLIFrameElement >( 'iframe' )
-		.forEach( ( iframe ) => {
-			try {
-				const innerDoc = iframe.contentDocument;
-				if ( innerDoc ) {
-					attachToDocument( innerDoc );
-				}
-			} catch {
-				// Cross-origin sub-iframe — can't access; skip.
-			}
-		} );
-}
-
 function install(): void {
 	const expectedOrigin = window.location.origin;
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
 		if ( e.origin !== expectedOrigin ) {
 			return;
 		}
-		if ( isDragOverMsg( e.data ) ) {
-			stashedBridgePayload = e.data.payload;
-			_debugCounters.dragOverMsgs++;
-			return;
-		}
-		if ( isDragLeaveMsg( e.data ) ) {
-			stashedBridgePayload = null;
-			_debugCounters.dragLeaveMsgs++;
-			return;
-		}
 		if ( ! isDropMsg( e.data ) ) {
 			return;
 		}
-		// Explicit `desktop-mode-drop` (DragManager-driven path —
-		// shell-side tile dropped on this iframe's overlay).
-		stashedBridgePayload = null;
 		void performInsert( e.data.payload ).catch( ( err: unknown ) => {
 			const reason = err instanceof Error ? err.message : String( err );
 			// eslint-disable-next-line no-console
@@ -468,42 +326,6 @@ function install(): void {
 			);
 			notifyParentOfFailure( reason );
 		} );
-	} );
-
-	// Attach now (covers the outer post.php iframe + any sub-
-	// iframes already in the DOM at script-run time). Then mount a
-	// MutationObserver so any iframe Gutenberg adds later (its
-	// editor-canvas iframe lands on first paint, sometimes after
-	// our boot) is picked up. Also re-walk on iframe `load` since
-	// reloading a nested iframe replaces its document and clears
-	// our sentinel.
-	attachToAllFrames();
-	if ( typeof MutationObserver !== 'undefined' && document.documentElement ) {
-		new MutationObserver( () => attachToAllFrames() ).observe(
-			document.documentElement,
-			{ childList: true, subtree: true },
-		);
-	}
-	document.addEventListener(
-		'load',
-		( e: Event ) => {
-			if ( e.target instanceof HTMLIFrameElement ) {
-				attachToAllFrames();
-			}
-		},
-		true,
-	);
-
-	// Diagnostic surface — paste `window.__desktopModeDropReceiverDebug()`
-	// in DevTools (inside the post.php iframe) to inspect.
-	type DebugWindow = Window & {
-		__desktopModeDropReceiverDebug?: () => Record< string, unknown >;
-	};
-	( window as DebugWindow ).__desktopModeDropReceiverDebug = () => ( {
-		..._debugCounters,
-		hasStash: stashedBridgePayload !== null,
-		stashKind: stashedBridgePayload?.kind ?? null,
-		iframesNow: document.querySelectorAll( 'iframe' ).length,
 	} );
 }
 
