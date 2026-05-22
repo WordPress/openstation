@@ -35,24 +35,18 @@
 ( function () {
 	'use strict';
 
-	// Runtime guard — wp.media may not be present on every admin page.
-	// If it's not, there's nothing to enhance, so we bail silently.
-	if ( ! window.wp || ! window.wp.media || typeof window.wp.media.attachment !== 'function' ) {
-		// wp.media might be loaded lazily — register a short polling
-		// loop that gives up after 3 seconds. In practice it either
-		// lands within a few hundred ms or never arrives on this page.
-		var tries = 0;
-		var poll = setInterval( function () {
-			tries++;
-			if ( window.wp && window.wp.media && typeof window.wp.media.attachment === 'function' ) {
-				clearInterval( poll );
-				start();
-			} else if ( tries > 30 ) {
-				clearInterval( poll );
-			}
-		}, 100 );
-		return;
-	}
+	// `start()` runs unconditionally — `wp.media` is only required by
+	// the grid + detail enhancers (those selectors won't match on
+	// pages that don't load the Backbone media library). The list-
+	// view delegated handler uses DOM-only fallbacks (row markup +
+	// thumbnail src + anchor href) and works without `wp.media`,
+	// which is the case on `upload.php?mode=list` — the list table
+	// is a server-rendered `WP_List_Table`, no media-views.js bundle.
+	//
+	// If `wp.media` arrives later (e.g. a modal opens and pulls it
+	// in), the MutationObserver picks up the freshly-rendered grid
+	// tiles and runs `enhance()` on them — at which point the
+	// grid-side `wp.media.attachment()` lookup is safe.
 	start();
 
 	// Flag set during our own attachment drags so the capture-phase
@@ -74,17 +68,27 @@
 	//     refuses to start a native drag from the big preview.
 	var GRID_SELECTOR = '.attachment';
 	var DETAIL_SELECTOR = '.attachment-details, .edit-attachment-frame';
+	// `upload.php?mode=list` renders attachments inside `table.media`.
+	// Each `tbody tr[id^="post-"]` is one attachment row. Scoped to
+	// the `.media` table class so we don't enhance unrelated WP list
+	// tables (Posts, Pages, …) that share the same row-id convention.
+	var LIST_SELECTOR = 'table.media tbody tr[id^="post-"]';
 
 	function start() {
 		// Enhance whatever's already on the page.
 		document.querySelectorAll( GRID_SELECTOR ).forEach( enhance );
 		document.querySelectorAll( DETAIL_SELECTOR ).forEach( enhanceDetail );
+		// List view uses event delegation (no per-row wiring) — install
+		// once and the dragstart handler picks up rows that arrive
+		// later (pagination, search, mode-switch).
+		installListDelegation();
 
-		// Watch for new tiles + detail panes — the media grid is a
-		// Backbone collection view that appends tiles on scroll, filter
-		// change, or modal open; the detail sidebar swaps its content
-		// node every time the user picks a different attachment.
-		// MutationObserver on the body catches all of them.
+		// Watch for new tiles + detail panes + list rows. Grid is a
+		// Backbone collection view that appends tiles on scroll /
+		// filter / modal open; the detail sidebar swaps content on
+		// every attachment pick; the list view refreshes rows on
+		// pagination / search. MutationObserver on the body catches
+		// all of them.
 		var observer = new MutationObserver( function ( mutations ) {
 			for ( var i = 0; i < mutations.length; i++ ) {
 				var added = mutations[ i ].addedNodes;
@@ -99,9 +103,13 @@
 					if ( node.matches && node.matches( DETAIL_SELECTOR ) ) {
 						enhanceDetail( node );
 					}
+					if ( node.matches && node.matches( LIST_SELECTOR ) ) {
+						enhanceListRow( node );
+					}
 					if ( node.querySelectorAll ) {
 						node.querySelectorAll( GRID_SELECTOR ).forEach( enhance );
 						node.querySelectorAll( DETAIL_SELECTOR ).forEach( enhanceDetail );
+						node.querySelectorAll( LIST_SELECTOR ).forEach( enhanceListRow );
 					}
 				}
 			}
@@ -268,6 +276,108 @@
 		} );
 
 		el.addEventListener( 'dragend', onDragEnd );
+	}
+
+	/**
+	 * List-view path — `upload.php?mode=list` renders attachments in
+	 * a `wp-list-table` instead of the grid. Each row carries the
+	 * attachment id in its DOM id (`post-{id}`) and the thumbnail
+	 * lives inside `<a><span class="media-icon"><img></span></a>`
+	 * in the title cell. Without this companion the user can drag
+	 * from the grid but the list-view drag is silently lost.
+	 *
+	 * Per-row enhancement loses against the browser's default
+	 * native drag — `<a>` and `<img>` are both `draggable=true` by
+	 * default, and Chromium's behaviour for "the innermost
+	 * draggable element wins" is fragile under runtime
+	 * `draggable=false` attribute changes. The delegated
+	 * `dragstart` listener below sidesteps the whole "which element
+	 * owns the drag" question: the event bubbles from wherever the
+	 * browser decides to start it, and we re-populate the transfer
+	 * with our payload + post the bridge handshake. Whatever the
+	 * browser's default drag put in `DataTransfer` (the img's URL,
+	 * the anchor's href) gets overwritten by our `setData` calls in
+	 * the same event.
+	 *
+	 * Mounted ONCE per page (sentinel-guarded) from `start()`. No
+	 * per-row work, no MutationObserver bookkeeping for list rows.
+	 */
+	var LIST_DELEGATION_INSTALLED = false;
+	function installListDelegation() {
+		if ( LIST_DELEGATION_INSTALLED ) {
+			return;
+		}
+		LIST_DELEGATION_INSTALLED = true;
+		document.body.addEventListener( 'dragstart', function ( e ) {
+			var target = e.target;
+			if ( ! target || ! target.closest ) {
+				return;
+			}
+			var row = target.closest( LIST_SELECTOR );
+			if ( ! row ) {
+				return;
+			}
+			var id = parseInt( ( row.id || '' ).replace( /^post-/, '' ), 10 );
+			if ( ! id ) {
+				return;
+			}
+			// `wp.media` isn't loaded on `upload.php?mode=list` (the
+			// list table is server-rendered, no Backbone media bundle).
+			// Skip the model lookup when it's absent — the DOM
+			// fallbacks below (`rowImg.src`, `rowAnchor.href`,
+			// `rowAnchor.textContent`) give us everything the
+			// receiver needs to insert a `core/image` block.
+			var model =
+				window.wp &&
+				window.wp.media &&
+				typeof window.wp.media.attachment === 'function'
+					? window.wp.media.attachment( id )
+					: null;
+			var a = ( model && model.attributes ) ? model.attributes : {};
+
+			// Fallbacks — the list view doesn't pre-warm wp.media's
+			// attachment cache the way the grid does, so any of
+			// `model.url` / `model.title` may be missing on first
+			// drag. Pull from the row markup instead.
+			var rowImg = row.querySelector( '.media-icon img, img' );
+			var rowAnchor = row.querySelector( 'a.row-title, .column-title a' );
+			var url = resolveOriginalUrl( a, '' )
+				|| ( rowImg && ( rowImg.currentSrc || rowImg.src ) )
+				|| ( rowAnchor && rowAnchor.getAttribute( 'href' ) )
+				|| '';
+			if ( ! url ) {
+				return;
+			}
+			var title = a.title
+				|| ( rowAnchor && rowAnchor.textContent.trim() )
+				|| '';
+
+			populateDragTransfer( e, row, {
+				id: id,
+				url: url,
+				title: title,
+				alt: a.alt || title,
+				mime: a.mime || a.mimeType || guessMimeFromUrl( url ),
+				sizes: a.sizes || {},
+			} );
+		}, true );
+
+		// `dragend` cleanup runs once per drag — same delegation.
+		document.body.addEventListener( 'dragend', function ( e ) {
+			var target = e.target;
+			if ( ! target || ! target.closest ) {
+				return;
+			}
+			if ( ! target.closest( LIST_SELECTOR ) ) {
+				return;
+			}
+			onDragEnd();
+		}, true );
+	}
+
+	/** Compat shim — the start() walk still calls enhanceListRow. */
+	function enhanceListRow() {
+		installListDelegation();
 	}
 
 	/**
