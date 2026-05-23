@@ -525,6 +525,198 @@ function desktop_mode_enqueue_assets() {
 add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
 
 /**
+ * Emits `<link rel="preload">` hints for the shell's critical-path
+ * assets so the browser starts fetching them as soon as it parses
+ * the document `<head>`.
+ *
+ * Without this, the browser doesn't discover the main `desktop.min.js`
+ * bundle URL until it parses the footer `<script>` tag — typically
+ * ~1 RTT after the rest of the page has started loading. For a 464 KB
+ * bundle on a midrange phone that's a measurable FCP delay; on a
+ * slow connection it dominates first paint entirely.
+ *
+ * Hooked at `admin_print_styles @ 1` so the preload tags land in
+ * `<head>` BEFORE the regular `<link rel="stylesheet">` tags (which
+ * default to priority 10) and well before the footer `<script>`
+ * tag. The `wp_resource_hints` filter is frontend-only (`wp_head`-
+ * driven) and isn't invoked in admin context, so we emit our own
+ * tags.
+ *
+ * Four targets by default:
+ *   - `desktop[.min].js`        — the shell bundle (biggest win).
+ *   - `desktop.css`             — shell base CSS, needed for first paint.
+ *   - `window-system[.min].js`  — lazy bundle preloaded by JS after
+ *     first paint; hinting in HTML lets the browser start the fetch
+ *     in parallel with the main bundle's parse instead of waiting.
+ *   - `shell-overlays[.min].js` — same rationale.
+ *
+ * Plugins can extend the hint list via the `desktop_mode_preload_hints`
+ * filter — e.g. a settings tab whose bundle the user opens on every
+ * visit can opt its own URL into the preload phase.
+ *
+ * Same-origin resources only — no `crossorigin` attribute. CDN hosts
+ * that serve `wp-content/plugins/` from a different origin should
+ * supply absolute URLs through the filter; in that case the consumer
+ * is responsible for the `crossorigin` semantics.
+ *
+ * @since 0.8.9
+ */
+function desktop_mode_print_preload_hints() {
+	if (
+		! is_admin()
+		|| ! desktop_mode_is_enabled()
+		|| desktop_mode_is_chromeless_request()
+		|| desktop_mode_is_classic_request()
+	) {
+		return;
+	}
+
+	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+
+	$build_url = static function ( $relative ) {
+		$path = DESKTOP_MODE_DIR . $relative;
+		$ver  = file_exists( $path ) ? (string) filemtime( $path ) : DESKTOP_MODE_VERSION;
+		return DESKTOP_MODE_URL . $relative . '?ver=' . $ver;
+	};
+
+	$hints = array(
+		array(
+			'href' => $build_url( 'assets/js/desktop' . $suffix . '.js' ),
+			'as'   => 'script',
+		),
+		array(
+			'href' => $build_url( 'assets/css/desktop.css' ),
+			'as'   => 'style',
+		),
+		array(
+			'href' => $build_url( 'assets/js/window-system' . $suffix . '.js' ),
+			'as'   => 'script',
+		),
+		array(
+			'href' => $build_url( 'assets/js/shell-overlays' . $suffix . '.js' ),
+			'as'   => 'script',
+		),
+	);
+
+	/**
+	 * Filters the list of resource preload hints emitted in `<head>`.
+	 *
+	 * Each entry is a `{ 'href' => string, 'as' => string }` array
+	 * rendered as `<link rel="preload" as="<as>" href="<href>">`.
+	 * Unrecognized entries are silently skipped — keep the contract
+	 * permissive so a misconfigured plugin can't tank first paint.
+	 *
+	 * @since 0.8.9
+	 *
+	 * @param array $hints Default hints (main bundle, base CSS,
+	 *                     window-system, shell-overlays).
+	 */
+	$hints = apply_filters( 'desktop_mode_preload_hints', $hints );
+
+	if ( ! is_array( $hints ) ) {
+		return;
+	}
+
+	foreach ( $hints as $hint ) {
+		if ( ! is_array( $hint ) ) {
+			continue;
+		}
+		$href = isset( $hint['href'] ) ? (string) $hint['href'] : '';
+		$as   = isset( $hint['as'] ) ? (string) $hint['as'] : '';
+		if ( '' === $href || '' === $as ) {
+			continue;
+		}
+		printf(
+			'<link rel="preload" as="%s" href="%s" />' . "\n",
+			esc_attr( $as ),
+			esc_url( $href )
+		);
+	}
+}
+add_action( 'admin_print_styles', 'desktop_mode_print_preload_hints', 1 );
+
+/**
+ * Defers loading of non-critical desktop-mode stylesheets so they
+ * don't block first paint.
+ *
+ * Three stylesheets in the default enqueue list are only needed
+ * after a user interaction — `dock-peek` (mouseover a dock tile),
+ * `ai-assistant` (Cmd+K palette), `bug-report` (Report-a-bug
+ * window). With the normal `<link rel="stylesheet">` tag they sit
+ * on the critical path and the browser blocks first paint waiting
+ * for them, even though nothing on screen needs them yet.
+ *
+ * The well-known mitigation is the `media="print" onload="…"`
+ * pattern:
+ *
+ *   <link rel="stylesheet" media="print"
+ *         onload="this.media='all'; this.onload=null" href="…">
+ *   <noscript><link rel="stylesheet" href="…"></noscript>
+ *
+ * `media="print"` makes the browser treat the sheet as
+ * non-applicable to the current display, so it downloads with
+ * low priority and doesn't block render. The `onload` handler
+ * swaps `media` to the original value once the bytes arrive
+ * (within ms of page load), making the styles take effect long
+ * before the user clicks anything that needs them. The
+ * `<noscript>` fallback restores critical-path behavior for JS-off
+ * browsers, so accessibility isn't degraded.
+ *
+ * Filterable via `desktop_mode_deferred_styles` so plugins can opt
+ * their own non-critical stylesheets in (or pull a built-in out).
+ * Chromeless iframes are skipped — their CSS pipeline is separate.
+ *
+ * @since 0.8.9
+ *
+ * @param string $html   The original <link> tag HTML.
+ * @param string $handle The stylesheet handle WP is printing.
+ * @param string $href   The full URL of the stylesheet.
+ * @param string $media  The media attribute value WP resolved.
+ * @return string Possibly-rewritten tag.
+ */
+function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media ) {
+	if ( desktop_mode_is_chromeless_request() ) {
+		return $html;
+	}
+
+	/**
+	 * Filters the list of stylesheet handles that should be loaded
+	 * deferred via the media-print-onload pattern. Plugins can add
+	 * their own non-critical stylesheets here, or pull a built-in
+	 * out (e.g. a plugin that surfaces the AI assistant on every
+	 * page might want to keep its CSS critical-path).
+	 *
+	 * @since 0.8.9
+	 *
+	 * @param string[] $handles Default deferred handles.
+	 */
+	$deferred = apply_filters(
+		'desktop_mode_deferred_styles',
+		array(
+			'desktop-mode-dock-peek',
+			'desktop-mode-ai-assistant',
+			'desktop-mode-bug-report',
+		)
+	);
+
+	if ( ! in_array( $handle, (array) $deferred, true ) ) {
+		return $html;
+	}
+
+	$resolved_media = $media ? $media : 'all';
+	$id             = $handle . '-css';
+
+	return sprintf(
+		'<link rel=\'stylesheet\' id=\'%1$s\' href=\'%2$s\' media=\'print\' onload="this.media=\'%3$s\'; this.onload=null;" />' . "\n" .
+			'<noscript><link rel=\'stylesheet\' id=\'%1$s-noscript\' href=\'%2$s\' media=\'%3$s\' /></noscript>' . "\n",
+		esc_attr( $id ),
+		esc_url( $href ),
+		esc_attr( $resolved_media )
+	);
+}
+add_filter( 'style_loader_tag', 'desktop_mode_defer_non_critical_styles', 10, 4 );
+
+/**
  * Build the admin-menu command map (name → URL) and expose it on
  * `window.__desktopModeMenuCommands`. The shell command harvester
  * (`src/commands/shell-harvester.ts`) reads this slot to resolve URLs
