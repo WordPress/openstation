@@ -35,6 +35,7 @@ import {
 } from './grid';
 import { renderPlacementPreview, renderPreviewEmpty } from './preview';
 import { openEmbedWindow } from './embed-window';
+import { deriveWindowId } from '../utils';
 
 interface ConfigShape {
 	adminUrl?: string;
@@ -443,7 +444,27 @@ export function registerBuiltInFileOpeners(): void {
 							window.open( u.toString(), '_blank', 'noopener,noreferrer' );
 							return;
 						}
-						const id = `desktop-icon-${ file.ref() }`;
+						// Derive the window id from the URL so this
+						// shortcut opens (or focuses) the SAME window
+						// the dock and the in-shell link interceptor
+						// produce for the same URL. Without this, a
+						// dock-promoted shortcut on the wallpaper
+						// (`file.ref() === 'dock-promoted:<menu-id>'`)
+						// opens window id
+						// `desktop-icon-dock-promoted:<menu-id>` while
+						// clicking the same app from the dock opens
+						// `wp-window-<url-slug>` — two parallel
+						// windows with independent minimize/focus
+						// state, dock indicator never reflects
+						// what's open. Fixed in 0.8.9. Falls back to
+						// the legacy `desktop-icon-…` id only when
+						// adminUrl isn't available (defensive — the
+						// shell config should always be present by
+						// click time).
+						const adminUrl = wp.config?.adminUrl;
+						const id = adminUrl
+							? deriveWindowId( u.toString(), adminUrl )
+							: `desktop-icon-${ file.ref() }`;
 						wp.windowManager.open( {
 							id,
 							baseId: id,

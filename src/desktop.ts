@@ -2172,6 +2172,8 @@ function init(): void {
 			renderDesktopIcons( desktopArea, icons, {
 				openWindow: nativeWindows.openById,
 				manager,
+				deriveWindowId: ( url: string ) =>
+					deriveWindowId( url, config.adminUrl ),
 			} );
 		};
 		layoutDispatcher = createLayoutDispatcher(
@@ -2884,6 +2886,8 @@ function init(): void {
 		renderDesktopIcons( desktopArea, icons, {
 			openWindow: nativeWindows.openById,
 			manager,
+			deriveWindowId: ( url: string ) =>
+				deriveWindowId( url, config.adminUrl ),
 		} );
 	};
 

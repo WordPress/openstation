@@ -60,6 +60,19 @@ export interface DesktopIconRenderDeps {
 	openWindow: ( id: string ) => boolean;
 	/** Open an URL as a same-origin admin iframe window. */
 	manager: WindowManager;
+	/**
+	 * Convert an admin URL into the canonical window id used across
+	 * EVERY shell surface — the dock, the in-shell link
+	 * interceptor (admin-bar links, in-page anchors), and now the
+	 * wallpaper icon rail. Sharing one id lets the window manager
+	 * dedupe correctly: clicking the same app from the dock and
+	 * the wallpaper icon focuses the SAME window, and lifecycle
+	 * events (minimize, restore, focus) propagate to a single dock
+	 * tile state. Previously the icon path generated a per-entry
+	 * id (`desktop-icon-<id>`) that split the same app across two
+	 * parallel windows with independent state — fixed in 0.8.9.
+	 */
+	deriveWindowId: ( url: string ) => string;
 }
 
 /* --------------------------------------------------------------- *
@@ -516,8 +529,19 @@ function openTarget(
 		}
 		try {
 			const parsed = new URL( entry.url, window.location.origin );
+			// Use the canonical URL-derived window id so the dock
+			// and the wallpaper icon converge on the SAME window
+			// for the same app. Without this, clicking WooCommerce
+			// from the dock opened `wp-window-admin-php-page-woocommerce`
+			// while clicking the wallpaper icon opened
+			// `desktop-icon-woocommerce` — two parallel windows,
+			// independent minimize / focus state, no shared dock
+			// indicator. See the docstring on
+			// `DesktopIconRenderDeps.deriveWindowId`.
+			const windowId = deps.deriveWindowId( parsed.toString() );
 			void deps.manager.open( {
-				id: `desktop-icon-${ entry.id }`,
+				id: windowId,
+				baseId: windowId,
 				url: parsed.toString(),
 				title: entry.title,
 				icon: entry.icon,
