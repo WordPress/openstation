@@ -90,24 +90,44 @@ interface SWGlobal {
 // concise.
 const sw = globalThis as unknown as SWGlobal;
 
-const VERSION = '0.8.0-pwa-3';
+const VERSION = '0.8.0-pwa-4';
 const STATIC_CACHE = `desktop-mode-static-${ VERSION }`;
 const RUNTIME_CACHE = `desktop-mode-runtime-${ VERSION }`;
 const OFFLINE_URL = '/desktop-mode/?offline=1';
 
 /**
- * Asset URLs precached on install. Kept tiny on purpose — additional
- * assets are picked up at runtime via stale-while-revalidate. We only
- * need enough here to render the shell shell-of-a-shell when offline.
+ * Asset URLs precached on install. Kept narrow on purpose — paths
+ * are unversioned, and the runtime cache lookups pass
+ * `ignoreSearch: true` so a versioned request like
+ * `desktop.min.js?ver=1717519200` finds the cached unversioned
+ * `desktop.min.js`. This gives the SW a real-bytes fallback when
+ * the network fails or is too slow to serve the navigation —
+ * without forcing the SW to know each build's `?ver=` upfront.
+ *
+ * What goes here: the JS bundles + CSS the shell needs to paint
+ * its first frame. Lazy bundles (`window-system`, `shell-overlays`)
+ * are included because the main bundle's preloader requests them
+ * immediately after first paint, so they're effectively
+ * critical-path for any user who opens a window or triggers an
+ * overlay.
  *
  * Paths are relative to `/wp-content/plugins/desktop-mode/`; we
  * resolve to the actual origin at install time using `sw.location`.
+ *
+ * Production builds ship `.min.js`; dev/SCRIPT_DEBUG builds ship
+ * the un-minified `.js`. We precache the minified set (the common
+ * production shape) and the runtime `staleWhileRevalidate` path
+ * picks up the un-minified bundle on demand for any host running
+ * with SCRIPT_DEBUG on.
  */
 const PRECACHE_PATHS: readonly string[] = [
 	'assets/css/desktop.css',
 	'assets/css/variables.css',
 	'assets/css/dock.css',
 	'assets/css/windows.css',
+	'assets/js/desktop.min.js',
+	'assets/js/window-system.min.js',
+	'assets/js/shell-overlays.min.js',
 	'assets/images/wp-logo.png',
 ];
 
@@ -296,9 +316,21 @@ async function networkFirstForAsset( req: Request ): Promise< Response > {
 		}
 		return fresh;
 	} catch {
-		const cached = await cache.match( req );
-		if ( cached ) {
-			return cached;
+		// Try the runtime cache first (request URL with `?ver=` etc),
+		// then fall back to the static precache with `ignoreSearch` so a
+		// versioned URL like `desktop.min.js?ver=…` can resolve to the
+		// unversioned precached `desktop.min.js`. Without the second
+		// lookup, the first navigation after an offline reload would
+		// 504 even though the bundle is sitting right there in the
+		// install-time precache.
+		const cachedRuntime = await cache.match( req );
+		if ( cachedRuntime ) {
+			return cachedRuntime;
+		}
+		const staticCache = await caches.open( STATIC_CACHE );
+		const cachedStatic = await staticCache.match( req, { ignoreSearch: true } );
+		if ( cachedStatic ) {
+			return cachedStatic;
 		}
 		return new Response( '', { status: 504 } );
 	}
@@ -306,7 +338,16 @@ async function networkFirstForAsset( req: Request ): Promise< Response > {
 
 async function staleWhileRevalidate( req: Request ): Promise< Response > {
 	const cache = await caches.open( RUNTIME_CACHE );
-	const cached = await cache.match( req );
+	// Lookup with `ignoreSearch: true` so an incoming versioned request
+	// (`desktop.css?ver=…`) hits the precached unversioned URL even
+	// before runtime has seen this exact version. Without this the
+	// first navigation after a deploy would always go to network for
+	// every CSS file, defeating the precache.
+	let cached = await cache.match( req, { ignoreSearch: true } );
+	if ( ! cached ) {
+		const staticCache = await caches.open( STATIC_CACHE );
+		cached = await staticCache.match( req, { ignoreSearch: true } );
+	}
 	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available; raw fetch is the API.
 	const network = fetch( req )
 		.then( ( res ) => {
