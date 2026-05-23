@@ -106,55 +106,59 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 		return;
 	}
 
-	$js = <<<JS
-(function(C){
-	var TOPS={};
-	for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}
-	function fixOne(el){
-		if(!el||el.nodeType!==1)return;
-		var cs;
-		try{cs=getComputedStyle(el);}catch(_e){return;}
-		if(cs.position==='static')return;
-		if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}
-	}
-	function walkSubtree(root){
-		if(!root)return;
-		if(root.nodeType===1){fixOne(root);}
-		var els=root.querySelectorAll?root.querySelectorAll('*'):[];
-		for(var i=0;i<els.length;i++){fixOne(els[i]);}
-	}
-	var started=false;
-	function start(){
-		if(started)return;
-		if(!document.body||!document.body.classList.contains('desktop-mode-chromeless'))return;
-		started=true;
-		var MO=window.MutationObserver;
-		if(MO){
-			var observer=new MO(function(records){
-				for(var r=0;r<records.length;r++){
-					var rec=records[r];
-					if(rec.type!=='childList')continue;
-					var added=rec.addedNodes;
-					for(var n=0;n<added.length;n++){walkSubtree(added[n]);}
-				}
-			});
-			observer.observe(document.body,{childList:true,subtree:true});
-		}
-		walkSubtree(document.body);
-		if(!MO){
-			// Defense in depth — pre-MO browsers fall back to the
-			// original double-walk so React-mounted components after
-			// DOMContentLoaded still get neutralized at load.
-			window.addEventListener('load',function(){walkSubtree(document.body);},{once:true});
-		}
-	}
-	if(document.readyState==='loading'){
-		document.addEventListener('DOMContentLoaded',start,{once:true});
-	}else{
-		start();
-	}
-})({$config});
-JS;
+	// Build the inline JS as a concatenated single-quoted string —
+	// Plugin Check disallows heredoc syntax (PluginCheck.CodeAnalysis.
+	// Heredoc.NotAllowed), so the source is uglier than the original
+	// `<<<JS … JS;` block but functionally identical. The trailing
+	// `$config` JSON is appended at the end so the whole body is a
+	// closure receiving a `{tops: [...]}` argument.
+	$js  = '(function(C){';
+	$js .= 'var TOPS={};';
+	$js .= 'for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}';
+	$js .= 'function fixOne(el){';
+	$js .=   'if(!el||el.nodeType!==1)return;';
+	$js .=   'var cs;';
+	$js .=   'try{cs=getComputedStyle(el);}catch(_e){return;}';
+	$js .=   "if(cs.position==='static')return;";
+	$js .=   "if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}";
+	$js .= '}';
+	$js .= 'function walkSubtree(root){';
+	$js .=   'if(!root)return;';
+	$js .=   'if(root.nodeType===1){fixOne(root);}';
+	$js .=   "var els=root.querySelectorAll?root.querySelectorAll('*'):[];";
+	$js .=   'for(var i=0;i<els.length;i++){fixOne(els[i]);}';
+	$js .= '}';
+	$js .= 'var started=false;';
+	$js .= 'function start(){';
+	$js .=   'if(started)return;';
+	$js .=   "if(!document.body||!document.body.classList.contains('desktop-mode-chromeless'))return;";
+	$js .=   'started=true;';
+	$js .=   'var MO=window.MutationObserver;';
+	$js .=   'if(MO){';
+	$js .=     'var observer=new MO(function(records){';
+	$js .=       'for(var r=0;r<records.length;r++){';
+	$js .=         'var rec=records[r];';
+	$js .=         "if(rec.type!=='childList')continue;";
+	$js .=         'var added=rec.addedNodes;';
+	$js .=         'for(var n=0;n<added.length;n++){walkSubtree(added[n]);}';
+	$js .=       '}';
+	$js .=     '});';
+	$js .=     'observer.observe(document.body,{childList:true,subtree:true});';
+	$js .=   '}';
+	$js .=   'walkSubtree(document.body);';
+	// Defense in depth — pre-MutationObserver browsers fall back to the
+	// original double-walk so React-mounted components added between
+	// DOMContentLoaded and load still get neutralized.
+	$js .=   'if(!MO){';
+	$js .=     "window.addEventListener('load',function(){walkSubtree(document.body);},{once:true});";
+	$js .=   '}';
+	$js .= '}';
+	$js .= "if(document.readyState==='loading'){";
+	$js .=   "document.addEventListener('DOMContentLoaded',start,{once:true});";
+	$js .= '}else{';
+	$js .=   'start();';
+	$js .= '}';
+	$js .= '})(' . $config . ');';
 
 	wp_print_inline_script_tag( $js );
 }

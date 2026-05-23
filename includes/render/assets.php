@@ -706,13 +706,17 @@ function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media )
 	$resolved_media = $media ? $media : 'all';
 	$id             = $handle . '-css';
 
-	return sprintf(
+	// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- This filter rewrites a tag WordPress is in the process of emitting for an already-registered+enqueued stylesheet handle; the linter doesn't trace the `style_loader_tag` filter context, so the raw <link rel="stylesheet"> output is a false-positive.
+	$markup = sprintf(
 		'<link rel=\'stylesheet\' id=\'%1$s\' href=\'%2$s\' media=\'print\' onload="this.media=\'%3$s\'; this.onload=null;" />' . "\n" .
 			'<noscript><link rel=\'stylesheet\' id=\'%1$s-noscript\' href=\'%2$s\' media=\'%3$s\' /></noscript>' . "\n",
 		esc_attr( $id ),
 		esc_url( $href ),
 		esc_attr( $resolved_media )
 	);
+	// phpcs:enable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet
+
+	return $markup;
 }
 add_filter( 'style_loader_tag', 'desktop_mode_defer_non_critical_styles', 10, 4 );
 
