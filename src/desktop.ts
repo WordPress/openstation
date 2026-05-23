@@ -2749,8 +2749,16 @@ function init(): void {
 	// uses today: Recycle Bin publishes `desktop-mode.data-changed`
 	// when items move in/out of trash; iframes (Posts list, Media
 	// Library, …) and other native windows can react.
+	//
+	// `attachBroadcastBus` stays eager — outgoing broadcasts emitted
+	// during init() need the manager reference in place when they
+	// fan out to iframes. `installBroadcastReceiver` (which only
+	// listens for INCOMING messages from iframes) is deferred to
+	// idle: iframes can't post messages until they finish their own
+	// `admin_footer` bootstrap, which lands well after init() returns
+	// and the idle callback drains.
 	attachBroadcastBus( manager );
-	installBroadcastReceiver();
+	scheduleIdleBoot( () => installBroadcastReceiver() );
 
 	// Loading-state transitions — show the `<wpd-spinner>` overlay
 	// while a window's iframe boots / native render fetches data,
@@ -3120,14 +3128,18 @@ function init(): void {
 	}
 
 	// Wire the Files-on-the-Desktop Heartbeat sync. Idempotent —
-	// safe to call again on a re-init.
-	startFilesHeartbeat();
+	// safe to call again on a re-init. Deferred to idle: it's a
+	// pure heartbeat contributor + subscriber, no UI rendering and
+	// no synchronous public-API surface. First heartbeat tick is
+	// ~15 s out, well after the idle callback fires.
+	scheduleIdleBoot( () => startFilesHeartbeat() );
 
 	// Restore-from-bin sync: refetches hydrated folders the moment the
 	// Recycle Bin broadcasts `action: 'untrashed'` so a restored
 	// folder/placement lands back on the desktop without waiting for
-	// the next Heartbeat tick.
-	startFilesRestoreSync();
+	// the next Heartbeat tick. Deferred to idle: pure broadcast
+	// subscriber, only fires when the user restores something.
+	scheduleIdleBoot( () => startFilesRestoreSync() );
 
 	// Boot the framework presence probe — always runs in desktop
 	// mode, regardless of whether the chat feature is enabled. The
