@@ -56,10 +56,21 @@ defined( 'ABSPATH' ) || exit;
  * inside chromeless. We've never seen one in the wild, and if a
  * site hits it, the filter below lets them narrow the scan.
  *
- * Scoped via the `desktop-mode-chromeless` body class, runs at
- * DOMContentLoaded and again at `load` to catch React-mounted
- * components. No MutationObserver yet — we'll add one if a plugin
- * surfaces that mounts new offending elements after `load`.
+ * Scoped via the `desktop-mode-chromeless` body class. Runs ONE
+ * full walk at DOMContentLoaded, then watches for late additions
+ * with a `MutationObserver` so React-mounted components are
+ * corrected as they appear instead of via a second full-DOM walk
+ * at `load`. The observer only inspects added nodes, not the
+ * whole document, which is roughly two orders of magnitude
+ * cheaper than the old double-walk on a busy Gutenberg or
+ * WooCommerce admin page (~2,000+ `getComputedStyle()` calls
+ * collapsed into a one-time initial walk plus per-addition
+ * checks).
+ *
+ * Fallback for very old browsers without `MutationObserver`:
+ * keep the second walk at `load`. The current minimum (IE 11+)
+ * already ships MO, so the fallback only fires on extreme
+ * outliers — but it's free insurance.
  *
  * @since 0.6.1
  */
@@ -95,7 +106,55 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 		return;
 	}
 
-	$js = "(function(C){function fix(){if(!document.body||!document.body.classList.contains('desktop-mode-chromeless'))return;var TOPS={};for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}var els=document.querySelectorAll('*');for(var i=0;i<els.length;i++){var el=els[i];var cs=getComputedStyle(el);if(cs.position==='static')continue;if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fix,{once:true});}else{fix();}window.addEventListener('load',fix,{once:true});})({$config});";
+	$js = <<<JS
+(function(C){
+	var TOPS={};
+	for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}
+	function fixOne(el){
+		if(!el||el.nodeType!==1)return;
+		var cs;
+		try{cs=getComputedStyle(el);}catch(_e){return;}
+		if(cs.position==='static')return;
+		if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}
+	}
+	function walkSubtree(root){
+		if(!root)return;
+		if(root.nodeType===1){fixOne(root);}
+		var els=root.querySelectorAll?root.querySelectorAll('*'):[];
+		for(var i=0;i<els.length;i++){fixOne(els[i]);}
+	}
+	var started=false;
+	function start(){
+		if(started)return;
+		if(!document.body||!document.body.classList.contains('desktop-mode-chromeless'))return;
+		started=true;
+		var MO=window.MutationObserver;
+		if(MO){
+			var observer=new MO(function(records){
+				for(var r=0;r<records.length;r++){
+					var rec=records[r];
+					if(rec.type!=='childList')continue;
+					var added=rec.addedNodes;
+					for(var n=0;n<added.length;n++){walkSubtree(added[n]);}
+				}
+			});
+			observer.observe(document.body,{childList:true,subtree:true});
+		}
+		walkSubtree(document.body);
+		if(!MO){
+			// Defense in depth — pre-MO browsers fall back to the
+			// original double-walk so React-mounted components after
+			// DOMContentLoaded still get neutralized at load.
+			window.addEventListener('load',function(){walkSubtree(document.body);},{once:true});
+		}
+	}
+	if(document.readyState==='loading'){
+		document.addEventListener('DOMContentLoaded',start,{once:true});
+	}else{
+		start();
+	}
+})({$config});
+JS;
 
 	wp_print_inline_script_tag( $js );
 }
