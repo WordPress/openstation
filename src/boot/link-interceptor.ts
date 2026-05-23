@@ -152,16 +152,45 @@ export function bindTopWindowLinkInterceptor(
 			const fallbackTitle =
 				( anchor.textContent || '' ).trim() || dockEntry?.title || '';
 
-			void manager.open( {
+			// Admin-bar "+ New" menu items always spawn a NEW window
+			// instance, even if one is already open for the same URL.
+			// The "+ New" affordance is fundamentally about creating a
+			// fresh thing — clicking it twice expresses "I want a
+			// second draft / second order / second user", not
+			// "show me the one I already opened". Detect by walking
+			// the composed path for the well-known WP admin bar id;
+			// every child anchor of `#wp-admin-bar-new-content` (Post,
+			// Page, Media, plus plugin-contributed entries like
+			// WooCommerce's Order, Product, Coupon) qualifies. The
+			// parent "+ New" anchor itself (`<a>` directly on the
+			// `<li id="wp-admin-bar-new-content">`) also matches and
+			// goes through the same path — clicking the parent and
+			// clicking the first child both land on post-new.php
+			// anyway.
+			//
+			// `openNew` is the same path the dock's per-tile "+"
+			// affordance uses; the window-manager mints a unique id
+			// (`<baseId>-2`, `-3`, …) so multiple instances coexist
+			// in the dock + taskbar.
+			const isAdminBarNew = !! anchor.closest( '#wp-admin-bar-new-content' );
+
+			const openOpts = {
 				id: windowId,
 				baseId: windowId,
-				multi: !! dockEntry?.multi,
+				multi: !! dockEntry?.multi || isAdminBarNew,
 				url: url.href,
 				parentUrl: dockEntry?.url ?? url.href,
 				title: dockEntry?.title || fallbackTitle,
 				icon: dockEntry?.icon || 'dashicons-admin-generic',
 				submenu: dockEntry?.submenu,
-			} );
+			};
+
+			if ( isAdminBarNew ) {
+				void manager.openNew( openOpts );
+				return;
+			}
+
+			void manager.open( openOpts );
 		},
 		true,
 	);
