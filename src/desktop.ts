@@ -295,6 +295,34 @@ let _earlyReady = false;
 const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
 
 /**
+ * Run a non-critical boot task during browser idle time. Falls
+ * back to a 0 ms timer when `requestIdleCallback` isn't available
+ * (Safari < 17).
+ *
+ * Used by boot calls that wire event listeners or heartbeat
+ * subscribers — work that doesn't need to be ready before first
+ * paint. Pulling them off the critical path lets the shell mount
+ * sooner; the deferred listeners attach within ~1 frame of init()
+ * returning, well before any user interaction can race them.
+ *
+ * Note: this is intentionally separate from the existing
+ * `preloadShellOverlays` / `preloadWindowSystem` idle block at the
+ * end of `init()` — that one preloads lazy bundles (network), this
+ * one runs sync registration work (CPU). Splitting them lets the
+ * browser interleave network prefetch with idle-CPU boot.
+ *
+ * @param cb      Work to run when the browser has spare time.
+ * @param timeout Hard deadline (ms). Defaults to 1500.
+ */
+function scheduleIdleBoot( cb: () => void, timeout = 1500 ): void {
+	if ( typeof window.requestIdleCallback === 'function' ) {
+		window.requestIdleCallback( cb, { timeout } );
+	} else {
+		window.setTimeout( cb, 0 );
+	}
+}
+
+/**
  * Public surface exposed on `window.wp.desktop`. Third-party plugins
  * rely on these members being stable — new fields may be added over
  * time, but nothing here is removed without a major-version bump.
@@ -1830,8 +1858,10 @@ function init(): void {
 
 	// Cross-iframe drop targets — installs an overlay per iframe
 	// window that catches shortcut drags and forwards them as
-	// `desktop-mode-drop` postMessages. Idempotent.
-	installIframeDropTargets( dragManager );
+	// `desktop-mode-drop` postMessages. Idempotent. Deferred to
+	// idle: drop overlays only matter when the user actually
+	// drags something, which can't happen before init() returns.
+	scheduleIdleBoot( () => installIframeDropTargets( dragManager ) );
 
 	// Surface a toast when an iframe receiver (Gutenberg drop-
 	// receiver today) reports a failed insert — most commonly a
@@ -1870,23 +1900,29 @@ function init(): void {
 	// of whichever window has focus and exposes the commands as slash-
 	// commands in the shell palette. Navigation commands rewrite to open
 	// a new desktop window; actions proxy back into the iframe.
-	new IframeCommandBridge( {
-		manager,
-		adminUrl: config.adminUrl,
-	} ).install();
+	// Deferred to idle: the bridge wires focus listeners and message
+	// handlers, none of which need to fire before the user opens the
+	// Cmd+K palette for the first time (typically seconds after first
+	// paint). The harvester below is deferred for the same reason.
+	scheduleIdleBoot( () => {
+		new IframeCommandBridge( {
+			manager,
+			adminUrl: config.adminUrl,
+		} ).install();
 
-	// Shell-side baseline harvester — pulls the WordPress-wide command
-	// set (Add new post, Manage plugins, Switch theme, Browse patterns,
-	// …) from `core/commands` running in the shell's own runtime and
-	// registers them under `owner: 'global'`. Without this the palette
-	// only shows commands from the focused iframe — native windows
-	// (Posts, Files, Plugins, Comments) contribute none, so the user
-	// would never see the WP baseline while one of those is focused.
-	// Re-harvests automatically on `desktop-mode-plugins-changed`.
-	new ShellCommandHarvester( {
-		manager,
-		adminUrl: config.adminUrl,
-	} ).install();
+		// Shell-side baseline harvester — pulls the WordPress-wide command
+		// set (Add new post, Manage plugins, Switch theme, Browse patterns,
+		// …) from `core/commands` running in the shell's own runtime and
+		// registers them under `owner: 'global'`. Without this the palette
+		// only shows commands from the focused iframe — native windows
+		// (Posts, Files, Plugins, Comments) contribute none, so the user
+		// would never see the WP baseline while one of those is focused.
+		// Re-harvests automatically on `desktop-mode-plugins-changed`.
+		new ShellCommandHarvester( {
+			manager,
+			adminUrl: config.adminUrl,
+		} ).install();
+	} );
 
 	// Admin-bar "Ask AI" button and programmatic `desktop-mode-open-ai`
 	// dispatches now route through openPaletteOnly so any other plugin
@@ -2960,7 +2996,9 @@ function init(): void {
 	// the recycle-bin drop targets (dock icon + window body). The
 	// installer is idempotent — it listens for `DOCK_AFTER_RENDER`
 	// and `WINDOW_OPENED` to (re-)attach when the elements appear.
-	installRecycleBinDropTargets( dragManager );
+	// Deferred to idle: drop targets only matter when the user is
+	// actively dragging, never on first paint.
+	scheduleIdleBoot( () => installRecycleBinDropTargets( dragManager ) );
 
 	// Wire the cross-feature Heartbeat bus before any consumer
 	// (presence, recycle bin, third-party plugins) registers a
@@ -2972,8 +3010,12 @@ function init(): void {
 	// `restNonce` values in `window.desktopModeConfig` and
 	// `window.desktopModeWindowConfig` stay valid past the
 	// 24-hour `nonce_life` boundary. See `src/nonce-refresh.ts`
-	// and `includes/nonce-refresh.php`.
-	bootNonceRefresh();
+	// and `includes/nonce-refresh.php`. Deferred to idle: the
+	// first heartbeat tick fires ~15 s after init regardless, so
+	// the subscription doesn't need to be in place at first paint.
+	// `bootHeartbeatBus()` above is still eager so the bus is
+	// ready when this subscribe call lands.
+	scheduleIdleBoot( () => bootNonceRefresh() );
 
 	bootStickyNotes( {
 		host: desktopArea,
@@ -3092,7 +3134,11 @@ function init(): void {
 	// probe wires Heartbeat send/tick listeners that bump server
 	// presence and ingest the snapshot. Idempotent on repeat
 	// init() calls (the underlying singleton-guards itself).
-	bootPresenceProbe();
+	// Deferred to idle: the first heartbeat tick is ~15 s out and
+	// the probe is purely a Heartbeat consumer — no UI rendering,
+	// no synchronous public-API surface, no race against other
+	// boot calls.
+	scheduleIdleBoot( () => bootPresenceProbe() );
 
 	// Fire `desktop-mode.init` — plugins can now register wallpapers
 	// and hook other surfaces. Fired AFTER `window.wp.desktop` is
