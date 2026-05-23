@@ -3453,6 +3453,24 @@ function init(): void {
 	// wallpaper context menu instead. When on, we mirror the macOS
 	// gesture and the matching menu entry is suppressed (see the
 	// `includeShowDesktop` flag passed to the menu builder below).
+	//
+	// Track whether the most-recent pointerdown landed DIRECTLY on
+	// the bare wallpaper. Browsers fire `click` on the closest
+	// common ancestor of the pointerdown + pointerup targets — so a
+	// pointerdown on a window's resize handle (a child of
+	// `desktopArea`) that ends with a pointerup over the wallpaper
+	// still triggers a `click` on `desktopArea` with
+	// `e.target === desktopArea`. Without this guard the toggle
+	// fires on every "resize a window quickly and let go on the
+	// backdrop" gesture, surprise-minimizing every window. The
+	// `dragManager.recentlyEndedDrag()` check below catches the
+	// tile-drag case specifically, but it doesn't cover window
+	// resize / window drag (those use the window's own pointer
+	// handlers, not the drag manager).
+	let pointerdownOnWallpaper = false;
+	desktopArea.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
+		pointerdownOnWallpaper = e.target === desktopArea;
+	} );
 	desktopArea.addEventListener( 'click', ( e: MouseEvent ) => {
 		if ( ! osSettings.state.showDesktopOnWallpaperClick ) {
 			return;
@@ -3460,6 +3478,15 @@ function init(): void {
 		// Only the bare wallpaper — clicks on a tile, widget, or any
 		// inner surface bubble up but shouldn't trigger the toggle.
 		if ( e.target !== desktopArea ) {
+			return;
+		}
+		// The pointerdown that opened this gesture must ALSO have
+		// landed on the bare wallpaper. See the comment block above
+		// the listeners — this catches mouseup-over-wallpaper from a
+		// window resize / drag, which the existing `e.target` check
+		// can't (the browser synthesizes the click on the common
+		// ancestor, which IS `desktopArea`).
+		if ( ! pointerdownOnWallpaper ) {
 			return;
 		}
 		// Suppress while overview is active — overview has its own

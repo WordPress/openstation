@@ -50,14 +50,30 @@ class Tests_DesktopMode_AjaxSave extends WP_Ajax_UnitTestCase {
 	}
 
 	/**
-	 * Enabling must return the portal URL so the client navigates into
-	 * the shell, not back to classic admin.
+	 * Enabling must return the Dashboard URL with the portal flag so
+	 * the client navigates directly into the shell on a stable entry
+	 * point (`wp-admin/index.php?desktop_mode_portal=1`). Previously
+	 * the redirect was the `/desktop-mode/` portal URL, which would
+	 * forward through the session-restore / default-window logic — but
+	 * the explicit "Switch to Desktop Mode" action is a deliberate
+	 * user gesture that benefits from a predictable starting point.
+	 * Visiting `/desktop-mode/` directly (a bookmark or shared link)
+	 * still goes through the portal handler; only the toggle's
+	 * redirect changed.
 	 */
-	public function test_enable_response_redirects_to_portal() {
+	public function test_enable_response_redirects_to_dashboard_with_portal_flag() {
 		$this->_setRole( 'administrator' );
 		$response = $this->dispatch( '1' );
 
-		$this->assertSame( desktop_mode_portal_url(), $response['data']['redirect'] );
+		$expected = admin_url( 'index.php?' . DESKTOP_MODE_PORTAL_FLAG . '=1' );
+		$this->assertSame( $expected, $response['data']['redirect'] );
+		// Sanity: this URL carries the portal flag the shell reads as
+		// `config.fromPortal=true` at boot.
+		$this->assertStringContainsString( 'desktop_mode_portal=1', $response['data']['redirect'] );
+		// Sanity: it is NOT the home-relative `/desktop-mode/` portal
+		// URL — that path keeps working for users hitting it directly,
+		// but the toggle no longer forwards through it.
+		$this->assertNotSame( desktop_mode_portal_url(), $response['data']['redirect'] );
 	}
 
 	public function test_disables_desktop_mode_for_user() {

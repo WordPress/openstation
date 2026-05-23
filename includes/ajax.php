@@ -43,13 +43,29 @@ function desktop_mode_ajax_save() {
 
 	update_user_meta( get_current_user_id(), 'desktop_mode_mode', $enabled );
 
-	// Tell the client where to land. Enabling from classic admin forwards
-	// through the portal so the shell takes over and the address bar
-	// collapses to /desktop-mode/. Disabling from the shell jumps to a
-	// plain admin URL — NOT the portal, which would auto-re-enable the
-	// mode via the `desktop_mode_portal_auto_enable` filter and trap the
-	// user in a loop.
-	$redirect = '1' === $enabled ? desktop_mode_portal_url() : admin_url();
+	// Tell the client where to land.
+	//
+	// Enabling from classic admin: land directly on the Dashboard with
+	// the portal flag (`wp-admin/index.php?desktop_mode_portal=1`).
+	// Previously this redirected through `/desktop-mode/` so the
+	// portal handler could pick a landing page (saved-session focused
+	// window, `?target=`, or Dashboard fallback). That logic remains
+	// in place for users who visit `/desktop-mode/` directly — a
+	// bookmark or shared link — but the explicit "Switch to Desktop
+	// Mode" button is a deliberate user action that consistently
+	// lands on the Dashboard, so users get a predictable starting
+	// point regardless of what they did last session. The shell still
+	// honours session restore and the user's default-window pref via
+	// its own boot-time logic — the URL just provides a stable entry
+	// point rather than a portal hop.
+	//
+	// Disabling from the shell jumps to a plain admin URL — NOT the
+	// portal, which would auto-re-enable the mode via the
+	// `desktop_mode_portal_auto_enable` filter and trap the user in a
+	// loop.
+	$redirect = '1' === $enabled
+		? admin_url( 'index.php?' . DESKTOP_MODE_PORTAL_FLAG . '=1' )
+		: admin_url();
 
 	wp_send_json_success(
 		array(

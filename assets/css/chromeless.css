@@ -125,51 +125,113 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
 
 /* ---------------------------------------------------------------
  * Page title & header
- * The window title bar already shows the page title, and the
- * submenu tab strip below it already exposes actions like
- * "Add New". Hide the in-page <h1>, the adjacent action button
- * (.page-title-action), and the header separator (.wp-header-end)
- * so the window content starts flush without a redundant header.
+ * The window title bar already shows the page title, so the
+ * in-page <h1> + header separator (.wp-header-end) are redundant
+ * inside chromeless iframes. Hide them so the window content
+ * starts flush.
  *
- * Plugins that need their action button to remain visible can
- * override these rules by enqueueing CSS on the
- * 'desktop_mode_chromeless_styles' action.
+ * `.page-title-action` (the "Add New" / "Add Order" button next to
+ * the H1) stays VISIBLE by default — it's the only entry point to
+ * the add-new flow on many plugin pages (WooCommerce Orders, custom
+ * CPTs, plugin settings pages, etc.). Earlier versions of this CSS
+ * hid it on the assumption that the submenu tab strip exposed the
+ * same action — which holds for WP Core pages with a registered
+ * "Add New" submenu (Posts, Pages, Users) but breaks every third-
+ * party plugin page that has no submenu equivalent. A small bit of
+ * redundancy with the submenu strip on Core pages is the better
+ * trade-off vs. losing the primary affordance on plugin pages
+ * entirely.
+ *
+ * Sites that prefer the cleaner Core-page look can hide the button
+ * on specific pages via the `desktop_mode_chromeless_styles`
+ * action — e.g.:
+ *
+ *     body.edit-php .wrap > .page-title-action { display: none; }
+ *
  * --------------------------------------------------------------- */
 .desktop-mode-chromeless .wrap > h1,
 .desktop-mode-chromeless .wrap > h1.wp-heading-inline,
 .desktop-mode-chromeless #wpbody-content > .wrap > h1,
-.desktop-mode-chromeless .wrap > .page-title-action,
 .desktop-mode-chromeless .wrap > .wp-header-end {
 	display: none;
 }
 
 /*
- * Exceptions: keep .page-title-action visible where it's the only
- * entry point to a sub-flow:
- *  - plugin-install.php → "Upload Plugin"
- *  - theme-install.php  → "Upload Theme"
+ * The H1 above it is hidden, so the button would float at the very
+ * top of the iframe area without breathing room — give it a small
+ * margin so it lands cleanly. inline-block matches WP Core's
+ * computed style on this element (matters for vertical-align with
+ * any adjacent inline content like the `.subsubsub` filter row).
  *
- * themes.php's native "Add Theme" page-title-action used to live
- * here, but the iframe scrolled past it on load (the focus-target
- * heuristic on the visible theme grid stole the scroll position),
- * which made the only entry point to theme-install.php disappear.
- * The Appearance window now ships an "Add Theme" tab in the
- * submenu strip (see desktop_mode_inject_appearance_tabs in
- * includes/themes-tabs.php), so the in-page button is redundant
- * and stays hidden.
- *
- * The theme-install.php "Upload Theme" exception is necessary
- * because the upload form is its own sub-flow with no equivalent
- * affordance elsewhere in the chromeless shell — without this
- * rule, users who want to install a .zip theme have no entry
- * point.
- *
- * See issue #38.
+ * Themes.php's native "Add Theme" button lives in the submenu tab
+ * strip via `desktop_mode_inject_appearance_tabs`
+ * (includes/themes-tabs.php), so its in-page page-title-action is
+ * redundant on that one screen — keep the per-page hide rule below
+ * so we don't ship two "Add Theme" entry points.
  */
-.desktop-mode-chromeless.plugin-install-php .wrap > .page-title-action,
-.desktop-mode-chromeless.theme-install-php .wrap > .page-title-action {
+.desktop-mode-chromeless .wrap > .page-title-action {
 	display: inline-block;
 	margin-top: 12px;
+}
+
+.desktop-mode-chromeless.themes-php .wrap > .page-title-action {
+	display: none;
+}
+
+/* ---------------------------------------------------------------
+ * WooCommerce "embed page" header overlay.
+ *
+ * Background: WC renders TWO layouts simultaneously on "connected"
+ * pages like `wc-orders` — the PHP-rendered legacy `.wrap` (with
+ * the h1 + the "Add order" `.page-title-action`) AND a React-mounted
+ * `EmbedHeader` (`client/admin/client/header/embed.tsx`) that
+ * `position: fixed`-overlays the page from the top. References:
+ *   - `src/Internal/Admin/Loader.php::embed_page_header`
+ *   - `includes/react-admin/connect-existing-pages.php` (registers
+ *      wc-orders as a connected page when HPOS is on)
+ *   - `client/admin/client/header/shared.tsx::useUpdateBodyMargin`
+ *      (the hook that pushes `#wpbody.style.marginTop` to make
+ *      room for the fixed header)
+ *
+ * In a chromeless iframe we have two conflicting affordances on
+ * the same screen:
+ *   1. The legacy `.wrap > .page-title-action` ("Add order") at the
+ *      very top of the document body — that's the primary
+ *      add-new-item button users expect.
+ *   2. The React `EmbedHeader` rendered fixed-position over the
+ *      top with a redundant `<h1>Orders</h1>` and an Activity
+ *      Panel toggle.
+ *
+ * The fixed React header OBSCURES the `.page-title-action`
+ * button when we reset `#wpbody`'s margin-top — the button paints
+ * at y≈19px inside the iframe, the header overlays y=0..~60px.
+ * Keeping the margin-top pushes the legacy content down but
+ * leaves a dead Activity-Panel-only banner that duplicates info
+ * the window title bar already shows.
+ *
+ * Resolution: hide the entire React header inside chromeless
+ * iframes. The window title bar already shows the page name; the
+ * Activity Panel's unread-notifications affordance is useful but
+ * not critical inside a per-window iframe (it's also reachable
+ * from the WC Home dashboard). Removing the fixed overlay lets
+ * the legacy `.wrap > .page-title-action` button paint at the top
+ * of the iframe where users expect it.
+ *
+ * Targeted by body class — both `.woocommerce-page` (set by PHP
+ * before React boots) and `.woocommerce-admin-page` (set by WC's
+ * React loader). We also keep a hard reset on `#wpbody`'s
+ * inline margin-top in case `useUpdateBodyMargin` runs before our
+ * `display: none` on the header takes effect.
+ *
+ * @since 0.8.9
+ */
+.desktop-mode-chromeless.woocommerce-page .woocommerce-layout__header,
+.desktop-mode-chromeless.woocommerce-admin-page .woocommerce-layout__header {
+	display: none !important;
+}
+.desktop-mode-chromeless.woocommerce-page #wpbody,
+.desktop-mode-chromeless.woocommerce-admin-page #wpbody {
+	margin-top: 0 !important;
 }
 
 /* ---------------------------------------------------------------

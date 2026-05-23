@@ -90,7 +90,7 @@ interface SWGlobal {
 // concise.
 const sw = globalThis as unknown as SWGlobal;
 
-const VERSION = '0.8.0-pwa-4';
+const VERSION = '0.8.0-pwa-5';
 const STATIC_CACHE = `desktop-mode-static-${ VERSION }`;
 const RUNTIME_CACHE = `desktop-mode-runtime-${ VERSION }`;
 const OFFLINE_URL = '/desktop-mode/?offline=1';
@@ -338,12 +338,24 @@ async function networkFirstForAsset( req: Request ): Promise< Response > {
 
 async function staleWhileRevalidate( req: Request ): Promise< Response > {
 	const cache = await caches.open( RUNTIME_CACHE );
-	// Lookup with `ignoreSearch: true` so an incoming versioned request
-	// (`desktop.css?ver=…`) hits the precached unversioned URL even
-	// before runtime has seen this exact version. Without this the
-	// first navigation after a deploy would always go to network for
-	// every CSS file, defeating the precache.
-	let cached = await cache.match( req, { ignoreSearch: true } );
+	// **Runtime cache: EXACT match (no `ignoreSearch`).** The runtime
+	// cache stores responses keyed by their full URL including any
+	// `?ver=<filemtime>` cache-bust suffix WordPress appends on every
+	// asset enqueue. We must respect that suffix — earlier versions of
+	// this function passed `ignoreSearch: true` here, which collapsed
+	// every version of an asset onto the same cache entry. The visible
+	// failure: after editing a CSS or JS file, the new `?ver=` URL hit
+	// the SWR path, the lookup matched the stale `?ver=` entry, SWR
+	// returned the stale bytes immediately. Users saw old CSS / old JS
+	// for as long as the SW lived in their profile. Fixed in pwa-5.
+	let cached = await cache.match( req );
+	// **Static precache fallback: `ignoreSearch: true`.** The precache
+	// list stores UNVERSIONED URLs (`assets/css/desktop.css`); runtime
+	// requests carry `?ver=<mtime>`. So a precache match REQUIRES
+	// ignoring the search params on the lookup. Only used as fallback
+	// when the runtime cache has nothing — that way the precache acts
+	// purely as a "real bytes when nothing else is around" fallback,
+	// without overriding fresh runtime cache entries.
 	if ( ! cached ) {
 		const staticCache = await caches.open( STATIC_CACHE );
 		cached = await staticCache.match( req, { ignoreSearch: true } );
