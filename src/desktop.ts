@@ -305,6 +305,20 @@ const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
  * sooner; the deferred listeners attach within ~1 frame of init()
  * returning, well before any user interaction can race them.
  *
+ * **Coalesced execution.** Multiple `scheduleIdleBoot` calls within
+ * the same synchronous tick share ONE `requestIdleCallback`
+ * registration. init() makes ~8 calls today; the browser previously
+ * saw 8 separate idle requests and could spread them across 8
+ * different idle frames over the page's first second of life. With
+ * the queue + drain pattern below, the browser sees ONE request
+ * and picks a single idle window large enough to run all of them.
+ *
+ * Per-callback try/catch keeps one bad subscriber from skipping
+ * the rest. Calls made AFTER the queue has been drained (rare —
+ * would require an idle-callback-driven module to schedule more
+ * idle work) schedule a fresh idle window; subsequent same-tick
+ * calls after that re-coalesce.
+ *
  * Note: this is intentionally separate from the existing
  * `preloadShellOverlays` / `preloadWindowSystem` idle block at the
  * end of `init()` — that one preloads lazy bundles (network), this
@@ -312,13 +326,49 @@ const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
  * browser interleave network prefetch with idle-CPU boot.
  *
  * @param cb      Work to run when the browser has spare time.
- * @param timeout Hard deadline (ms). Defaults to 1500.
+ * @param timeout Hard deadline (ms). The SHORTEST timeout among
+ *                queued callbacks wins for the shared idle
+ *                request — a caller that needs work to land within
+ *                500 ms doesn't get held back by another caller
+ *                that's happy with 1500 ms. Defaults to 1500.
  */
+let _idleBootQueue: Array< () => void > = [];
+let _idleBootTimeout = Number.POSITIVE_INFINITY;
+let _idleBootScheduled = false;
 function scheduleIdleBoot( cb: () => void, timeout = 1500 ): void {
+	_idleBootQueue.push( cb );
+	if ( timeout < _idleBootTimeout ) {
+		_idleBootTimeout = timeout;
+	}
+	if ( _idleBootScheduled ) {
+		return;
+	}
+	_idleBootScheduled = true;
+	const drain = (): void => {
+		const callbacks = _idleBootQueue;
+		const effectiveTimeout = _idleBootTimeout;
+		_idleBootQueue = [];
+		_idleBootTimeout = Number.POSITIVE_INFINITY;
+		_idleBootScheduled = false;
+		void effectiveTimeout; // consumed by the scheduler below; kept in scope for clarity.
+		for ( const fn of callbacks ) {
+			try {
+				fn();
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					// eslint-disable-next-line no-console
+					console.error(
+						'[desktop-mode] scheduleIdleBoot callback threw:',
+						err,
+					);
+				}
+			}
+		}
+	};
 	if ( typeof window.requestIdleCallback === 'function' ) {
-		window.requestIdleCallback( cb, { timeout } );
+		window.requestIdleCallback( drain, { timeout: _idleBootTimeout } );
 	} else {
-		window.setTimeout( cb, 0 );
+		window.setTimeout( drain, 0 );
 	}
 }
 
@@ -3473,6 +3523,16 @@ function init(): void {
 	// handlers, not the drag manager).
 	let pointerdownOnWallpaper = false;
 	desktopArea.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
+		// Only the PRIMARY pointer (`e.isPrimary === true`) drives the
+		// click intent. Under multi-touch (pinch-to-zoom on a touch
+		// screen during a window resize), each touch fires its own
+		// pointerdown — without the `isPrimary` gate, a second finger
+		// that incidentally lands on the wallpaper would set the flag
+		// to true and re-arm the show-desktop minimize gesture
+		// mid-resize. On a mouse this is always true.
+		if ( ! e.isPrimary ) {
+			return;
+		}
 		pointerdownOnWallpaper = e.target === desktopArea;
 	} );
 	desktopArea.addEventListener( 'click', ( e: MouseEvent ) => {

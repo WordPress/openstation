@@ -675,6 +675,18 @@ add_action( 'admin_print_styles', 'desktop_mode_print_preload_hints', 1 );
  * @return string Possibly-rewritten tag.
  */
 function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media ) {
+	// Cheap gates first — `style_loader_tag` fires once per enqueued
+	// stylesheet on EVERY admin page (frontend doesn't go through
+	// this filter, but admin does, including pages where desktop mode
+	// is disabled). The deferred handles only ship when desktop mode
+	// is active, so the in_array check below would always miss on
+	// classic-only admin pages — but the `apply_filters` call still
+	// builds an array and walks subscribers per stylesheet. Short-
+	// circuit on the cheap helper checks (`is_admin` / enabled /
+	// chromeless) so non-desktop-mode users pay nothing.
+	if ( ! desktop_mode_is_enabled() ) {
+		return $html;
+	}
 	if ( desktop_mode_is_chromeless_request() ) {
 		return $html;
 	}
@@ -706,12 +718,30 @@ function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media )
 	$resolved_media = $media ? $media : 'all';
 	$id             = $handle . '-css';
 
+	// Two contexts, two escapers for the same `$resolved_media` value:
+	//
+	//   - `%3$s` lands inside a JS string literal inside the HTML
+	//     `onload="…"` attribute (`this.media='%3$s'`). `esc_attr`
+	//     escapes `"` and `&` but NOT single quotes, so a media
+	//     value containing `'` would break out of the JS string.
+	//     `esc_js` is the correct escaper for "string literal inside
+	//     an event-handler attribute" — escapes single quotes, double
+	//     quotes, backslashes, newlines. Today `$resolved_media`
+	//     comes from `wp_enqueue_style()`'s `$media` parameter (always
+	//     a CSS media type / query produced by WordPress core), so
+	//     this is pure defense-in-depth, but the cost is one extra
+	//     function call.
+	//
+	//   - `%4$s` lands inside an HTML attribute in the `<noscript>`
+	//     fallback (`media='%4$s'`). That's standard `esc_attr`.
+	//
 	// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- This filter rewrites a tag WordPress is in the process of emitting for an already-registered+enqueued stylesheet handle; the linter doesn't trace the `style_loader_tag` filter context, so the raw <link rel="stylesheet"> output is a false-positive.
 	$markup = sprintf(
 		'<link rel=\'stylesheet\' id=\'%1$s\' href=\'%2$s\' media=\'print\' onload="this.media=\'%3$s\'; this.onload=null;" />' . "\n" .
-			'<noscript><link rel=\'stylesheet\' id=\'%1$s-noscript\' href=\'%2$s\' media=\'%3$s\' /></noscript>' . "\n",
+			'<noscript><link rel=\'stylesheet\' id=\'%1$s-noscript\' href=\'%2$s\' media=\'%4$s\' /></noscript>' . "\n",
 		esc_attr( $id ),
 		esc_url( $href ),
+		esc_js( $resolved_media ),
 		esc_attr( $resolved_media )
 	);
 	// phpcs:enable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet

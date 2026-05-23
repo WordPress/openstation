@@ -262,18 +262,23 @@ async function precache(): Promise< void > {
 }
 
 function pluginAssetBase(): string {
-	const here = sw.location.pathname;
-	const idx = here.indexOf( '/desktop-mode/' );
-	const origin = sw.location.origin;
-	// Plugin URL — we can't read DESKTOP_MODE_URL from JS-side, so
-	// hardcode the conventional path. Hosts using a non-default
-	// `wp-content/plugins/` path will see the precache silently
-	// no-op; runtime caching still works because it keys off the
-	// real URL the page asks for.
-	if ( idx >= 0 ) {
-		return origin + '/wp-content/plugins/desktop-mode/';
-	}
-	return origin + '/wp-content/plugins/desktop-mode/';
+	// Plugin URL — we can't read DESKTOP_MODE_URL from the JS-side
+	// service-worker context, so we hardcode the conventional path.
+	// Hosts using a non-default `wp-content/plugins/` directory
+	// (Bedrock/Trellis's `web/app/plugins/`, Composer-based sites,
+	// custom `WP_CONTENT_DIR`, multisite with `wp-content` moved out)
+	// will see precache silently no-op — `addAll` rejects on the
+	// first 404 and the install handler swallows the error. Runtime
+	// caching still works because it keys off the real URL the page
+	// requests, so the only user-visible loss is the install-time
+	// precache warmup.
+	//
+	// TODO: in the next SW revision, surface the plugin URL via the
+	// PHP-side `?ver=` query string (`<script src="…/sw.js?plugin_url=…">`)
+	// so non-standard install layouts get the precache benefit too.
+	// Today this lives as a hardcoded fallback because every
+	// non-trivial alternative needs that PHP-side handoff.
+	return sw.location.origin + '/wp-content/plugins/desktop-mode/';
 }
 
 function isStaticAssetPath( pathname: string ): boolean {

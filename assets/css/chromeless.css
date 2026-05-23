@@ -179,7 +179,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
 }
 
 /* ---------------------------------------------------------------
- * WooCommerce "embed page" header overlay.
+ * WooCommerce "embed page" header overlay — page-scoped.
  *
  * Background: WC renders TWO layouts simultaneously on "connected"
  * pages like `wc-orders` — the PHP-rendered legacy `.wrap` (with
@@ -193,44 +193,38 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  *      (the hook that pushes `#wpbody.style.marginTop` to make
  *      room for the fixed header)
  *
- * In a chromeless iframe we have two conflicting affordances on
- * the same screen:
- *   1. The legacy `.wrap > .page-title-action` ("Add order") at the
- *      very top of the document body — that's the primary
- *      add-new-item button users expect.
- *   2. The React `EmbedHeader` rendered fixed-position over the
- *      top with a redundant `<h1>Orders</h1>` and an Activity
- *      Panel toggle.
+ * The conflict, narrowly:
+ *   1. The legacy `.wrap > .page-title-action` ("Add order") at
+ *      the top of the document body — primary add-new affordance.
+ *   2. The React `EmbedHeader` overlays the top of the iframe with
+ *      a redundant `<h1>Orders</h1>` and an Activity Panel toggle.
  *
- * The fixed React header OBSCURES the `.page-title-action`
- * button when we reset `#wpbody`'s margin-top — the button paints
- * at y≈19px inside the iframe, the header overlays y=0..~60px.
- * Keeping the margin-top pushes the legacy content down but
- * leaves a dead Activity-Panel-only banner that duplicates info
- * the window title bar already shows.
+ * The fixed React header OBSCURES the legacy `.page-title-action`
+ * button when we reset `#wpbody`'s margin-top.
  *
- * Resolution: hide the entire React header inside chromeless
- * iframes. The window title bar already shows the page name; the
- * Activity Panel's unread-notifications affordance is useful but
- * not critical inside a per-window iframe (it's also reachable
- * from the WC Home dashboard). Removing the fixed overlay lets
- * the legacy `.wrap > .page-title-action` button paint at the top
- * of the iframe where users expect it.
+ * Scope: ONLY the pages where the dual rendering is genuinely a
+ * problem — `wc-orders` (Orders list, the user-reported failure
+ * mode) and `wc-orders--shop_order` (the trash view variant). Other
+ * WC-admin pages (Analytics, Marketing, Customers, Coupons,
+ * Products, Reports, …) DON'T render a competing legacy `.wrap`
+ * with a `.page-title-action` button; their primary content IS the
+ * React app. On those pages the Activity Panel + EmbedHeader are
+ * the only header affordance the user has, so we keep them visible.
  *
- * Targeted by body class — both `.woocommerce-page` (set by PHP
- * before React boots) and `.woocommerce-admin-page` (set by WC's
- * React loader). We also keep a hard reset on `#wpbody`'s
- * inline margin-top in case `useUpdateBodyMargin` runs before our
- * `display: none` on the header takes effect.
+ * If new HPOS-style connected pages emerge where the same dual
+ * layout creates the same conflict, add their per-page body class
+ * (`.woocommerce_page_<slug>`) to the selector — don't broaden the
+ * rule to `.woocommerce-admin-page` (that would silently strip the
+ * Activity Panel from every WC screen).
  *
  * @since 0.8.9
  */
-.desktop-mode-chromeless.woocommerce-page .woocommerce-layout__header,
-.desktop-mode-chromeless.woocommerce-admin-page .woocommerce-layout__header {
+.desktop-mode-chromeless.woocommerce_page_wc-orders .woocommerce-layout__header,
+.desktop-mode-chromeless.woocommerce_page_wc-orders--shop_order .woocommerce-layout__header {
 	display: none !important;
 }
-.desktop-mode-chromeless.woocommerce-page #wpbody,
-.desktop-mode-chromeless.woocommerce-admin-page #wpbody {
+.desktop-mode-chromeless.woocommerce_page_wc-orders #wpbody,
+.desktop-mode-chromeless.woocommerce_page_wc-orders--shop_order #wpbody {
 	margin-top: 0 !important;
 }
 
