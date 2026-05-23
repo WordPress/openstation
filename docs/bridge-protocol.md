@@ -83,7 +83,12 @@ When the user drags a file from the host operating system onto a chromeless admi
 |---|---|---|---|
 | `desktop-mode-os-file-drop` | iframe → parent | `{ files: File[], x: number, y: number }` | Native-OS file drop captured inside the iframe. Same-origin only — `postMessage` preserves `File` identity. The parent's `OsFileDropManager` resolves the source iframe's `data-window-id` via `MessageEvent.source` and routes the files through the drop pipeline. |
 
-The forwarder skips drops landing on in-page receivers that already accept files (`.components-drop-zone`, `[data-drop-zone]`, `.uploader-window`, `.media-frame-content`) so Gutenberg's media uploader and the legacy media library keep working as before — only drops onto the page background escalate to the shell.
+The forwarder listens in **bubble phase** at the iframe's `document`, so any in-page drop receiver runs first and gets the chance to claim the drop. Two bail conditions, in order:
+
+1. **Curated allowlist** — `.components-drop-zone`, `[data-drop-zone]`, `.uploader-window`, `.media-frame-content` always yield, so Gutenberg's media uploader and the legacy media library keep working as before even on edge cases that skip the spec dance.
+2. **`event.defaultPrevented === true`** — any inner handler that called `preventDefault()` on `dragover` or `drop` is signalling ownership per the HTML5 drag-and-drop contract. The forwarder yields. Third-party plugin drop zones (e.g. "Administrador de archivos WP") that already work in classic admin keep working untouched inside desktop-mode iframes — no opt-in required.
+
+Only drops where neither bail fires (the empty page background, or an inner handler that never called `preventDefault()`) escalate to the shell.
 
 ## Lifecycle walkthrough — parent-initiated connection
 

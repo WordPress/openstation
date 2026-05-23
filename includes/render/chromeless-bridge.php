@@ -1274,6 +1274,28 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 		return false;
 	}
+	/*
+	 * Bubble phase (not capture): the inner-most handler — Gutenberg's
+	 * drop zone, the legacy media uploader, or a third-party plugin
+	 * like "Administrador de archivos WP" — runs FIRST and gets the
+	 * chance to call `preventDefault()` to claim the drop. Our
+	 * forwarder then runs LAST at the document level and yields to
+	 * anyone who already took ownership.
+	 *
+	 * Two bail conditions, in order:
+	 *   1. `bridgeDropTargetWantsFile()` — the curated allowlist
+	 *      (Gutenberg, wp.media, anything tagged `[data-drop-zone]`).
+	 *      Kept as the primary check so the well-known core surfaces
+	 *      behave identically to before, even if some edge case skips
+	 *      the `preventDefault()` step.
+	 *   2. `ev.defaultPrevented` — the universal HTML5 contract: any
+	 *      drop zone willing to receive a file calls `preventDefault()`
+	 *      on `dragover` (mandatory per spec) and `drop` (to suppress
+	 *      the browser's default navigate-to-file). When that's true,
+	 *      some inner handler has taken the drop — yield so plugins
+	 *      outside the allowlist (WP File Manager, Yoast, etc.) keep
+	 *      their native UX.
+	 */
 	document.addEventListener( 'dragover', function ( ev ) {
 		if ( ! bridgeHasFiles( ev ) ) {
 			return;
@@ -1281,16 +1303,22 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( bridgeDropTargetWantsFile( ev.target ) ) {
 			return;
 		}
+		if ( ev.defaultPrevented ) {
+			return;
+		}
 		ev.preventDefault();
 		if ( ev.dataTransfer ) {
 			ev.dataTransfer.dropEffect = 'copy';
 		}
-	}, true );
+	}, false );
 	document.addEventListener( 'drop', function ( ev ) {
 		if ( ! bridgeHasFiles( ev ) ) {
 			return;
 		}
 		if ( bridgeDropTargetWantsFile( ev.target ) ) {
+			return;
+		}
+		if ( ev.defaultPrevented ) {
 			return;
 		}
 		ev.preventDefault();
@@ -1315,7 +1343,7 @@ function desktop_mode_chromeless_bridge_script() {
 				window.location.origin
 			);
 		} catch ( err ) { /* cross-origin parent; swallow */ }
-	}, true );
+	}, false );
 
 	/*
 	 * Cmd+K / Ctrl+K forwarder — single-press, unconditional.
