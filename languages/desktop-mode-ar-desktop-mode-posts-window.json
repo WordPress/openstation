@@ -1,13 +1,13 @@
 {
-    "translation-revision-date": "2026-04-19 20:42+0200",
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
     "generator": "desktop-mode/build-i18n.sh",
     "domain": "messages",
     "locale_data": {
         "messages": {
             "": {
                 "domain": "messages",
-                "lang": "es_ES",
-                "plural-forms": "nplurals=2; plural=(n != 1);"
+                "lang": "ar",
+                "plural-forms": "nplurals=2; plural=(n > 1);"
             },
             "\"%1$s\" last used %2$s": [
                 ""
@@ -28,7 +28,7 @@
                 ""
             ],
             "%d min ago": [
-                "Navegación del administrador"
+                ""
             ],
             "%d mo ago": [
                 ""
@@ -46,7 +46,7 @@
                 ""
             ],
             "%d selected": [
-                "%d seleccionado"
+                "تم تحديد %d"
             ],
             "%d total": [
                 ""
@@ -58,7 +58,7 @@
                 ""
             ],
             "%s is currently editing": [
-                "%s está editando actualmente"
+                "%s يقوم بالتحرير حاليًا"
             ],
             "(empty comment)": [
                 ""
@@ -67,10 +67,10 @@
                 ""
             ],
             "(no title)": [
-                "(sin título)"
+                "(بدون عنوان)"
             ],
             "+ %d pages": [
-                "Subpáginas de %s"
+                ""
             ],
             "+ Child": [
                 ""
@@ -100,13 +100,13 @@
                 ""
             ],
             "Add New Post": [
-                "Añadir nuevo escritorio"
+                ""
             ],
             "Add root category": [
                 ""
             ],
             "Add tag": [
-                "Añadir %s"
+                ""
             ],
             "Add tag…": [
                 ""
@@ -121,7 +121,7 @@
                 ""
             ],
             "All": [
-                "Todo"
+                ""
             ],
             "All authors": [
                 ""
@@ -148,7 +148,7 @@
                 ""
             ],
             "Author": [
-                "Autor"
+                "الكاتب"
             ],
             "Backyard telescope": [
                 ""
@@ -169,10 +169,10 @@
                 ""
             ],
             "Cancel": [
-                "Cancelar"
+                "إلغاء"
             ],
             "Categories": [
-                "Categorías"
+                "فئات"
             ],
             "Categorize": [
                 ""
@@ -226,7 +226,7 @@
                 ""
             ],
             "Comments": [
-                "Comentarios"
+                "التعليقات"
             ],
             "Comments column, Parent column, View link, lock indicator, multi-select bulk actions, inline search, status segments. All in one screen, no reloads.": [
                 ""
@@ -241,16 +241,16 @@
                 ""
             ],
             "Could not create the user.": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Could not destroy sessions (%s).": [
                 ""
             ],
             "Could not load insights (%s).": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Could not load profile (%s).": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Could not load users. Try Refresh.": [
                 ""
@@ -265,10 +265,10 @@
                 ""
             ],
             "Couldn’t add category.": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t add tag \"%s\".": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Couldn’t assign new category.": [
                 ""
@@ -277,7 +277,7 @@
                 ""
             ],
             "Couldn’t create:": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Couldn’t delete category.": [
                 ""
@@ -286,25 +286,25 @@
                 ""
             ],
             "Couldn’t load categories:": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t load posts:": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t load tags:": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t remove tag \"%s\".": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Couldn’t reparent:": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Couldn’t save:": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Couldn’t update categories.": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t update post categories after delete.": [
                 ""
@@ -322,10 +322,10 @@
                 ""
             ],
             "Default template": [
-                "Predeterminada"
+                ""
             ],
             "Delete": [
-                "Borrar"
+                "يمسح"
             ],
             "Delete category?": [
                 ""
@@ -334,7 +334,7 @@
                 ""
             ],
             "Description": [
-                "Descripción"
+                "الوصف"
             ],
             "Description (optional)": [
                 ""
@@ -451,7 +451,7 @@
                 ""
             ],
             "Loading profile…": [
-                "Subiendo…"
+                ""
             ],
             "Local elections": [
                 ""
@@ -481,7 +481,7 @@
                 ""
             ],
             "Member": [
-                "Ámbar"
+                ""
             ],
             "Methodology notes": [
                 ""
@@ -601,16 +601,16 @@
                 ""
             ],
             "Pages": [
-                "paginas"
+                "الصفحات"
             ],
             "Parent": [
-                "Padre"
+                "الوالد"
             ],
             "Password generated and copied to clipboard.": [
                 ""
             ],
             "Pending": [
-                "Pendiente"
+                "قيد الانتظار"
             ],
             "Per-user content stats: posts, pages, comments at a glance.": [
                 ""
@@ -637,7 +637,7 @@
                 ""
             ],
             "Posts": [
-                "Publicaciones"
+                "المقالات"
             ],
             "Posts page": [
                 ""
@@ -670,19 +670,19 @@
                 ""
             ],
             "Published": [
-                "Publicado"
+                "تم النشر"
             ],
             "Reader letters": [
                 ""
             ],
             "Recent activity": [
-                "Actividad reciente"
+                "النشاط الأخير"
             ],
             "Recent comments": [
                 ""
             ],
             "Recent posts": [
-                "Publicaciones recientes"
+                "المشاركات الأخيرة"
             ],
             "Recenter": [
                 ""
@@ -697,7 +697,7 @@
                 ""
             ],
             "Reparent failed:": [
-                "Error al subir."
+                ""
             ],
             "Replication study": [
                 ""
@@ -730,13 +730,13 @@
                 ""
             ],
             "Save": [
-                "Ahorrar"
+                "حفظ"
             ],
             "Save changes": [
                 ""
             ],
             "Save failed.": [
-                "Error al subir."
+                ""
             ],
             "Scheduled": [
                 ""
@@ -754,7 +754,7 @@
                 ""
             ],
             "Search tags…": [
-                "Buscar medios"
+                ""
             ],
             "Send password reset": [
                 ""
@@ -793,7 +793,7 @@
                 ""
             ],
             "Site default": [
-                "Predeterminada"
+                ""
             ],
             "Slug": [
                 ""
@@ -829,10 +829,10 @@
                 ""
             ],
             "Tags": [
-                "Etiquetas"
+                "العلامات"
             ],
             "Take me to settings": [
-                "Llévame a configuración"
+                "خذني إلى الإعدادات"
             ],
             "Template": [
                 ""
@@ -850,7 +850,7 @@
                 ""
             ],
             "Title": [
-                "Título"
+                "العنوان"
             ],
             "Title cards reborn": [
                 ""
@@ -868,7 +868,7 @@
                 ""
             ],
             "Trash": [
-                "Basura"
+                "سلة المهملات"
             ],
             "Type as identity": [
                 ""
@@ -877,7 +877,7 @@
                 ""
             ],
             "Unknown": [
-                "Desconocido"
+                ""
             ],
             "User created — welcome email sent to %s.": [
                 ""
@@ -889,10 +889,10 @@
                 ""
             ],
             "View": [
-                "Vista"
+                "منظر"
             ],
             "Website": [
-                "Sitio web"
+                "موقع إلكتروني"
             ],
             "Weekly briefing": [
                 ""
@@ -913,7 +913,7 @@
                 ""
             ],
             "WordPress at scale": [
-                "Azul WordPress"
+                ""
             ],
             "WordPress will email %s a password-reset link.": [
                 ""
@@ -925,7 +925,7 @@
                 ""
             ],
             "You are not allowed to assign that role.": [
-                "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+                ""
             ],
             "You're looking at the redesigned Pages list — same data you already manage, with a UX tuned for how Desktop Mode wants you to work.": [
                 ""
@@ -955,7 +955,7 @@
                 ""
             ],
             "on": [
-                "Monocromo"
+                ""
             ],
             "pending": [
                 ""

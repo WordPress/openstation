@@ -1,55 +1,55 @@
 {
-    "translation-revision-date": "2026-04-19 20:42+0200",
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
     "generator": "desktop-mode/build-i18n.sh",
     "domain": "messages",
     "locale_data": {
         "messages": {
             "": {
                 "domain": "messages",
-                "lang": "es_ES",
-                "plural-forms": "nplurals=2; plural=(n != 1);"
+                "lang": "fa_IR",
+                "plural-forms": "nplurals=2; plural=(n > 1);"
             },
             "%d item(s) skipped (insufficient permissions).": [
                 ""
             ],
             "%d selected": [
-                "%d seleccionado"
+                "%d انتخاب شد"
             ],
             "By": [
-                ""
+                "توسط"
             ],
             "Delete forever": [
-                ""
+                "برای همیشه حذف کنید"
             ],
             "Delete forever?": [
-                ""
+                "برای همیشه حذف شود؟"
             ],
             "Deleted": [
-                ""
+                "حذف شد"
             ],
             "Empty bin": [
                 ""
             ],
             "Empty bin?": [
-                ""
+                "سطل خالی؟"
             ],
             "Empty the recycle bin? Every item visible in the current view will be permanently deleted.": [
                 ""
             ],
             "Emptying…": [
-                "Subiendo…"
+                "در حال خالی کردن…"
             ],
             "Emptying… %1$d of %2$d": [
-                ""
+                "در حال خالی کردن… %1$d از %2$d"
             ],
             "Permanently delete %d item(s)? This cannot be undone.": [
-                ""
+                "%d مورد(ها) برای همیشه حذف شود؟ این قابل واگرد نیست."
             ],
             "Restore": [
-                "Restaurar"
+                "بازگردانی"
             ],
             "Title": [
-                "Título"
+                "عنوان"
             ]
         }
     }

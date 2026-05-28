@@ -1,170 +1,169 @@
 {
-    "translation-revision-date": "2026-04-19 20:42+0200",
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
     "generator": "desktop-mode/build-i18n.sh",
     "domain": "messages",
     "locale_data": {
         "messages": {
             "": {
                 "domain": "messages",
-                "lang": "es_ES",
-                "plural-forms": "nplurals=2; plural=(n != 1);"
+                "lang": "ar",
+                "plural-forms": "nplurals=2; plural=(n > 1);"
             },
             "%1$d %3$s, %2$d failed.": [
                 ""
             ],
             "%1$d nodes · %2$d links": [
-                "%1$d nodos · %2$d enlaces"
+                "%1$d عقدة · %2$d رابط"
             ],
             "%1$d of %2$d items": [
-                "%1$d de %2$d artículos"
+                "%1$d من %2$d عنصر"
             ],
             "%1$d of %2$d users": [
-                "%1$d de %2$d usuarios"
+                "%1$d من %2$d مستخدم"
             ],
             "%1$d plugin(s) %2$s.": [
                 ""
             ],
             "%1$d posts · %2$d comments tracked": [
-                "%1$d publicaciones · %2$d comentarios rastreados"
+                "%1$d من المشاركات · تم تتبع %2$d من التعليقات"
             ],
             "%1$d posts · %2$d pages": [
-                "%1$d publicaciones · %2$d páginas"
+                "%1$d مشاركة · %2$d صفحة"
             ],
             "%1$s %2$s": [
                 ""
             ],
             "%1$s deactivated. Closed %2$d window(s).": [
-                "%1$s desactivado. Cerró %2$d ventana(s)."
+                "تم تعطيل %1$s. تم إغلاق %2$d نافذة (نوافذ)."
             ],
             "%1$s updated to %2$s.": [
                 ""
             ],
             "%1$s · %2$d": [
-                "%1$s · %2$d"
+                "%1$s · %2$د"
             ],
             "%1$s · %2$d posts": [
-                "%1$s · %2$d publicaciones"
+                "%1$s · %2$d من المشاركات"
             ],
             "%1$s · %2$s KB": [
                 ""
             ],
             "%1$s — %2$d posts, %3$d comments, %4$d updates": [
-                "%1$s — %2$d publicaciones, %3$d comentarios, %4$d actualizaciones"
+                "%1$s — %2$d من المشاركات، %3$d تعليق، %4$d تحديثات"
             ],
             "%1$s — currently being edited by %2$s": [
-                "%1$s — actualmente siendo editado por %2$s"
+                "%1$s — يتم تحريره حاليًا بواسطة %2$s"
             ],
             "%1$s → %2$s": [
                 "%1$s → %2$s"
             ],
             "%d KB": [
-                "%d KB"
+                ""
             ],
             "%d comment site-wide": [
-                ""
+                "%d تعليق على مستوى الموقع"
             ],
             "%d day": [
-                ""
+                "يوم واحد"
             ],
             "%d entry references this file.": [
-                ""
+                "يشير الإدخال %d إلى هذا الملف."
             ],
             "%d hidden by HD filter": [
-                "%d ocultas por el filtro HD"
+                ""
             ],
             "%d item": [
-                ""
+                "%d عنصر"
             ],
             "%d new pending — reload": [
-                "%d nuevo pendiente - recargar"
+                "%d جديد معلق — إعادة التحميل"
             ],
             "%d notification": [
-                ""
+                "إشعار %d"
             ],
             "%d post": [
-                ""
+                "مشاركة واحدة"
             ],
             "%d post published — their personal record.": [
-                ""
+                "تم نشر %d مشاركة — سجلهم الشخصي."
             ],
             "%d published": [
-                "%d publicado"
+                "تم نشر %d"
             ],
             "%d reference": [
-                ""
+                "مرجع %d"
             ],
             "%d selected": [
-                "%d seleccionado"
+                "تم تحديد %d"
             ],
             "%d update": [
-                "%d actualización",
-                "%d actualizaciones"
+                "تحديث %d"
             ],
             "%d ★": [
-                "%d ★"
+                "%د ★"
             ],
             "%d+ million active": [
-                "%d+ millones activos"
+                "%d+ مليون نشط"
             ],
             "%d:00": [
-                "%d:00"
+                "%د:00"
             ],
             "%s (already added)": [
-                "%s (ya añadido)"
+                ""
             ],
             "%s MB": [
-                "%sMB"
+                ""
             ],
             "%s activated.": [
-                "%s activado."
+                "تم تفعيل %s."
             ],
             "%s deactivated.": [
-                "%s desactivado."
+                "تم إلغاء تنشيط %s."
             ],
             "%s deleted.": [
-                "%s eliminado."
+                "تم حذف %s."
             ],
             "%s is already installed. Open it from your apps menu or home screen.": [
                 ""
             ],
             "%s is already up to date.": [
-                "%s (ya añadido)"
+                ""
             ],
             "%s is currently editing": [
-                "%s está editando actualmente"
+                "%s يقوم بالتحرير حاليًا"
             ],
             "%s sub-pages": [
-                "Subpáginas de %s"
+                ""
             ],
             "%s — activity footprint": [
-                "%s — huella de actividad"
+                ""
             ],
             "%s — open windows": [
-                "%s - ventanas abiertas"
+                "%s — فتح النوافذ"
             ],
             "%s+": [
-                "%s+"
+                ""
             ],
             "%s+ active": [
-                "%s+ activo"
+                "%s+ نشط"
             ],
             "%s+ active installs": [
-                "%s+ instalaciones activas"
+                "%s+ عمليات التثبيت النشطة"
             ],
             "(folder)": [
-                "(carpeta)"
+                "(مجلد)"
             ],
             "(no title)": [
-                "(sin título)"
+                "(بدون عنوان)"
             ],
             "+ %d replies": [
-                "Subpáginas de %s"
+                "+ %d رد"
             ],
             "1 item": [
-                "1 artículo"
+                "1 عنصر"
             ],
             "A moderation surface built around how you actually triage: bulk actions with undo, an inline reply editor, keyboard shortcuts, and a spam score that surfaces the obvious junk first.": [
-                "Una superficie de moderación creada en torno a cómo realiza la clasificación: acciones masivas con deshacer, un editor de respuestas en línea, atajos de teclado y una puntuación de spam que muestra primero la basura obvia."
+                "سطح إشراف مبني على كيفية الفرز الفعلي: إجراءات مجمعة مع التراجع، ومحرر الرد المضمن، واختصارات لوحة المفاتيح، ونقاط البريد العشوائي التي تظهر الرسائل غير المرغوب فيها الواضحة أولاً."
             ],
             "A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.": [
                 ""
@@ -188,169 +187,169 @@
                 ""
             ],
             "A short summary": [
-                "Un breve resumen"
+                "ملخص قصير"
             ],
             "A year of activity": [
-                "Un año de actividad"
+                "سنة من النشاط"
             ],
             "AI Settings": [
                 ""
             ],
             "AI integration": [
-                "Navegación del administrador"
+                ""
             ],
             "AI: hostile / abusive tone.": [
-                "AI: tono hostil/abusivo."
+                "منظمة العفو الدولية: لهجة معادية / مسيئة."
             ],
             "AI: looks like promotional spam.": [
-                "IA: parece spam promocional."
+                "AI: يبدو وكأنه بريد عشوائي ترويجي."
             ],
             "AI: looks safe.": [
-                "AI: parece seguro."
+                "AI: تبدو آمنة."
             ],
             "API key": [
                 ""
             ],
             "About": [
-                "Acerca de"
+                "عن"
             ],
             "Accent color": [
-                "Color de acento"
+                ""
             ],
             "Activate": [
-                "Activar"
+                "فعل"
             ],
             "Activate Plugin": [
-                "Subiendo…"
+                ""
             ],
             "Activate failed: %s": [
-                "Error al subir."
+                ""
             ],
             "Activating…": [
-                "Subiendo…"
+                "جارٍ التنشيط…"
             ],
             "Activation failed: %s": [
-                "Error de activación: %s"
+                "فشل التنشيط: %s"
             ],
             "Active": [
-                "Activo"
+                "نشيط"
             ],
             "Activity (last 12 months)": [
-                "Actividad (últimos 12 meses)"
+                "النشاط (آخر 12 شهرًا)"
             ],
             "Add %s": [
-                "Añadir %s"
+                ""
             ],
             "Add new desktop": [
-                "Añadir nuevo escritorio"
+                ""
             ],
             "Add widget": [
-                "Añadir widget"
+                ""
             ],
             "Added": [
-                "Añadido"
+                ""
             ],
             "Akismet cleared this comment.": [
-                "Akismet borró este comentario."
+                "قام Akismet بمسح هذا التعليق."
             ],
             "Akismet flagged this comment as spam.": [
-                "Akismet marcó este comentario como spam."
+                "قام Akismet بوضع علامة على هذا التعليق باعتباره بريدًا عشوائيًا."
             ],
             "All": [
-                "Todo"
+                ""
             ],
             "Also show on desktop": [
-                "Añadir nuevo escritorio"
+                "تظهر أيضا على سطح المكتب"
             ],
             "Also show on dock": [
-                "Mostrar también en el muelle"
+                "تظهر أيضا على قفص الاتهام"
             ],
             "Alt text": [
-                "Texto alternativo"
+                "نص بديل"
             ],
             "Amber": [
-                "Ámbar"
+                ""
             ],
             "Angle": [
-                "Ángulo"
+                ""
             ],
             "Anonymous": [
-                "Anónimo"
+                "مجهول"
             ],
             "Appearance": [
                 ""
             ],
             "Approve": [
-                "Aprobar"
+                "الموافقة"
             ],
             "Approved": [
-                "Aprobado"
+                "موافقة"
             ],
             "Approved %d.": [
-                "Aprobado %d."
+                "تمت الموافقة %d."
             ],
             "Apps & Icons": [
                 ""
             ],
             "Apps & Icons settings…": [
-                "Configuración de aplicaciones e iconos..."
+                "إعدادات التطبيقات والأيقونات..."
             ],
             "Attached media": [
-                "Buscar medios"
+                "الوسائط المرفقة"
             ],
             "Author": [
-                "Autor"
+                "الكاتب"
             ],
             "Author URL": [
-                "URL del autor"
+                ""
             ],
             "Author archive": [
-                "Archivo de autor"
+                "أرشيف المؤلف"
             ],
             "Author insights drawer": [
-                "Cajón de información del autor"
+                "درج رؤى المؤلف"
             ],
             "Author website": [
-                "Sitio web del autor"
+                "موقع المؤلف"
             ],
             "Author · %s": [
-                "Autor · %s"
+                "المؤلف · %s"
             ],
             "Authors": [
-                "Autores"
+                "المؤلفون"
             ],
             "Auto-update unavailable": [
                 ""
             ],
             "Auto-updates disabled": [
-                "Actualizaciones automáticas deshabilitadas"
+                ""
             ],
             "Auto-updates disabled for %s.": [
                 ""
             ],
             "Auto-updates enabled": [
-                "Actualizaciones automáticas habilitadas"
+                ""
             ],
             "Auto-updates enabled for %s.": [
                 ""
             ],
             "Automatic Updates": [
-                "Actualizaciones automáticas"
+                ""
             ],
             "Back": [
-                "Atrás"
+                "خلف"
             ],
             "Back to post": [
-                "Volver a la publicación"
+                "العودة إلى آخر"
             ],
             "Beta": [
-                "Beta"
+                "بيتا"
             ],
             "Bold": [
-                "Atrevido"
+                "عريض"
             ],
             "Bookmark": [
-                "Marcador"
+                "إشارة مرجعية"
             ],
             "Bottom": [
                 ""
@@ -359,25 +358,25 @@
                 ""
             ],
             "Breadcrumb": [
-                "Migaja de pan"
+                "مسار التنقل"
             ],
             "Bug": [
-                "Bicho"
+                "حشرة"
             ],
             "Bulk %s failed.": [
-                "Error al subir."
+                "فشل الجزء الأكبر من %s."
             ],
             "Bulk moderation with undo": [
-                "Moderación masiva con deshacer"
+                "الإشراف الجماعي مع التراجع"
             ],
             "Bulleted list": [
-                "Lista con viñetas"
+                "قائمة نقطية"
             ],
             "By hour of day (site time)": [
-                "Por hora del día (hora del sitio)"
+                "حسب الساعة من اليوم (وقت الموقع)"
             ],
             "By weekday": [
-                "Por día laborable"
+                "بحلول أيام الأسبوع"
             ],
             "CPT": [
                 "CPT"
@@ -386,22 +385,22 @@
                 ""
             ],
             "Cancel": [
-                "Cancelar"
+                "إلغاء"
             ],
             "Can’t drop here": [
-                "No puedo caer aquí"
+                "لا يمكن أن تسقط هنا"
             ],
             "Caption": [
-                "Subtítulo"
+                "التسمية التوضيحية"
             ],
             "Categories": [
-                "Categorías"
+                "فئات"
             ],
             "Categories · %d": [
-                ""
+                "الفئات · %d"
             ],
             "Changelog": [
-                "Registro de cambios"
+                "سجل التغيير"
             ],
             "Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.": [
                 ""
@@ -410,55 +409,55 @@
                 ""
             ],
             "Click an avatar to see the author's full history — total comments, spam rate, first seen, and one-click block.": [
-                "Haga clic en un avatar para ver el historial completo del autor: comentarios totales, tasa de spam, visto por primera vez y bloqueo con un solo clic."
+                "انقر فوق الصورة الرمزية لرؤية السجل الكامل للمؤلف - إجمالي التعليقات، ومعدل البريد العشوائي، والمشاهدة لأول مرة، والحظر بنقرة واحدة."
             ],
             "Clock": [
-                "Reloj"
-            ],
-            "Close": [
-                "Cerrar"
-            ],
-            "Close %s": [
-                "Cerrar %s"
-            ],
-            "Close panel": [
-                "Cerrar pestaña"
-            ],
-            "Close plugin details": [
-                "Cerrar detalles del complemento"
-            ],
-            "Close tab": [
-                "Cerrar pestaña"
-            ],
-            "Co-occurring": [
-                "Co-ocurrencia"
-            ],
-            "Comment": [
-                "Comentario"
-            ],
-            "Comment updated.": [
-                "Comentario actualizado."
-            ],
-            "Commented on “%s”": [
-                "Comentado en “%s”"
-            ],
-            "Comments": [
-                "Comentarios"
-            ],
-            "Comments left": [
-                "Comentarios dejados"
-            ],
-            "Comments received": [
-                "Comentarios recibidos"
-            ],
-            "Comments window configuration missing.": [
-                "Falta la configuración de la ventana de comentarios."
-            ],
-            "Comments · %d": [
                 ""
             ],
+            "Close": [
+                "إغلاق"
+            ],
+            "Close %s": [
+                ""
+            ],
+            "Close panel": [
+                "إغلاق اللوحة"
+            ],
+            "Close plugin details": [
+                "إغلاق تفاصيل البرنامج المساعد"
+            ],
+            "Close tab": [
+                ""
+            ],
+            "Co-occurring": [
+                "حدوث مشترك"
+            ],
+            "Comment": [
+                "تعليق"
+            ],
+            "Comment updated.": [
+                "تم تحديث التعليق."
+            ],
+            "Commented on “%s”": [
+                "تم التعليق على \"%s\""
+            ],
+            "Comments": [
+                "التعليقات"
+            ],
+            "Comments left": [
+                "التعليقات اليسار"
+            ],
+            "Comments received": [
+                "التعليقات الواردة"
+            ],
+            "Comments window configuration missing.": [
+                "تكوين نافذة التعليقات مفقود."
+            ],
+            "Comments · %d": [
+                "التعليقات · %د"
+            ],
             "Compact": [
-                "Compacta"
+                ""
             ],
             "Component library": [
                 ""
@@ -473,112 +472,112 @@
                 ""
             ],
             "Content Graph container missing.": [
-                "Falta el contenedor de gráfico de contenido."
+                "حاوية الرسم البياني للمحتوى مفقودة."
             ],
             "Contributor": [
-                "Contribuyente"
+                "مساهم"
             ],
             "Contributors": [
-                "Colaboradores"
+                "المساهمين"
             ],
             "Contributors · %d": [
-                ""
+                "المساهمون · %d"
             ],
             "Could not deactivate %s.": [
-                "No se pudieron cargar tus medios: %s"
+                "تعذر إلغاء تنشيط %s."
             ],
             "Could not delete sharing data.": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Could not initialise the graph renderer.": [
-                "No se pudo inicializar el renderizador de gráficos."
+                "تعذر تهيئة عارض الرسم البياني."
             ],
             "Could not load comments.": [
-                "No se pudieron cargar tus medios."
+                "لا يمكن تحميل التعليقات."
             ],
             "Could not load featured plugins: %s": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل المكونات الإضافية المميزة: %s"
             ],
             "Could not load footprint.": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل البصمة."
             ],
             "Could not load insights.": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل الرؤى."
             ],
             "Could not load plugin details.": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل تفاصيل البرنامج المساعد."
             ],
             "Could not load plugins: %s": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل المكونات الإضافية: %s"
             ],
             "Could not load post #%d.": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل المشاركة #%d."
             ],
             "Could not load replies.": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل الردود."
             ],
             "Could not load reviews.": [
-                "No se pudieron cargar tus medios."
+                "تعذر تحميل المراجعات."
             ],
             "Could not save sticky note.": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Could not toggle auto-updates for %1$s: %2$s": [
                 ""
             ],
             "Couldn’t delete that file.": [
-                "No se pudieron cargar tus medios."
+                "تعذر حذف هذا الملف."
             ],
             "Couldn’t load reviews": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t load the revision content. You may not have permission to view it.": [
-                "No se pudo cargar el contenido de la revisión. Es posible que no tenga permiso para verlo."
+                "تعذر تحميل محتوى المراجعة. قد لا يكون لديك إذن لمشاهدته."
             ],
             "Couldn’t load your media.": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t load your media: %s": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Crafted with curiosity": [
                 ""
             ],
             "Current streak": [
-                "Racha actual"
+                "الخط الحالي"
             ],
             "Custom gradient": [
-                "Gradiente personalizado"
+                ""
             ],
             "Custom image": [
-                "Imagen personalizada"
+                ""
             ],
             "Custom image wallpaper": [
-                "Fondo de imagen personalizada"
+                ""
             ],
             "Deactivate": [
-                "Desactivar"
+                "إلغاء التنشيط"
             ],
             "Deactivate %s?": [
-                "Error al subir."
+                "إلغاء تنشيط %s؟"
             ],
             "Deactivate %s…": [
-                "Subiendo…"
+                "إلغاء تنشيط %s..."
             ],
             "Deactivation failed: %s": [
-                "Error de desactivación: %s"
+                "فشل إلغاء التنشيط: %s"
             ],
             "Default": [
-                "Predeterminada"
+                ""
             ],
             "Delete": [
-                "Borrar"
+                "يمسح"
             ],
             "Delete data": [
                 ""
             ],
             "Delete failed: %s": [
-                "Error al subir."
+                "فشل الحذف: %s"
             ],
             "Delete folder sharing data": [
                 ""
@@ -587,52 +586,52 @@
                 ""
             ],
             "Delete media?": [
-                "Error al subir."
+                "هل تريد حذف الوسائط؟"
             ],
             "Delete permanently": [
-                "Eliminar permanentemente"
+                "حذف نهائيا"
             ],
             "Delete plugin?": [
-                "¿Eliminar complemento?"
+                "هل تريد حذف المكوّن الإضافي؟"
             ],
             "Delete selected plugins?": [
                 ""
             ],
             "Deleting…": [
-                "Subiendo…"
+                ""
             ],
             "Describe the issue or the feature you have in mind.": [
-                "Describe el problema o la característica que tienes en mente."
+                "قم بوصف المشكلة أو الميزة التي تفكر فيها."
             ],
             "Description": [
-                "Descripción"
+                "الوصف"
             ],
             "Desktop %d": [
-                "Escritorio %d"
+                ""
             ],
             "Desktop Mode deactivated. Reloading…": [
-                "Modo escritorio desactivado. Recargando…"
+                "تم إلغاء تنشيط وضع سطح المكتب. جارٍ إعادة التحميل…"
             ],
             "Desktop Mode deleted. Reloading…": [
-                "Modo de escritorio eliminado. Recargando…"
+                "تم حذف وضع سطح المكتب. جارٍ إعادة التحميل…"
             ],
             "Desktop icons": [
-                "Escritorio 1"
+                "أيقونات سطح المكتب"
             ],
             "Desktop layout": [
-                "Escritorio 1"
+                ""
             ],
             "Details": [
-                "Detalles"
+                "تفاصيل"
             ],
             "Dimensions": [
-                "Dimensiones"
+                "أبعاد"
             ],
             "Disable auto-updates": [
                 ""
             ],
             "Disabling…": [
-                "Subiendo…"
+                ""
             ],
             "Dismiss notice": [
                 ""
@@ -641,61 +640,61 @@
                 ""
             ],
             "Dock size": [
-                "Tamaño del dock"
+                ""
             ],
             "Dock style": [
-                "Tamaño del dock"
+                ""
             ],
             "Done": [
                 ""
             ],
             "Double-click to open.": [
-                "Haga doble clic para abrir."
+                "انقر نقرا مزدوجا لفتح."
             ],
             "Drag a .zip onto the window to install — or drag a Browse card straight to the dock to pin a shortcut. The framework drag bridge handles the rest.": [
                 ""
             ],
             "Drop a .zip plugin file here, or click to choose a file.": [
-                "Suelta una imagen aquí, o haz clic para subir"
+                ""
             ],
             "Drop an image here, or click to upload": [
-                "Suelta una imagen aquí, o haz clic para subir"
+                ""
             ],
             "Drop here": [
-                "Caer aquí"
+                "أسقط هنا"
             ],
             "Drop here to create shortcut": [
-                "Suelte aquí para crear un acceso directo"
+                "أسقط هنا لإنشاء الاختصار"
             ],
             "Drop here to move": [
-                "Déjate caer aquí para moverte"
+                "أسقط هنا للتحرك"
             ],
             "Drop in a folder": [
-                "Colocar en una carpeta"
+                "أسقط في مجلد"
             ],
             "Drop on the desktop or a folder": [
-                "Soltar en el escritorio o en una carpeta"
+                "إسقاط على سطح المكتب أو مجلد"
             ],
             "Drop the .zip to install.": [
-                "Suelte el .zip para instalar."
+                "قم بإسقاط ملف .zip للتثبيت."
             ],
             "Drop your .zip here or click to browse": [
-                "Suelta una imagen aquí, o haz clic para subir"
+                ""
             ],
             "Edit": [
-                "Editar"
+                "يحرر"
             ],
             "Edit comment…": [
-                "Editar comentario…"
+                "تعديل التعليق..."
             ],
             "Edit failed.": [
-                "Error al subir."
+                "فشل التعديل."
             ],
             "Edit user": [
-                "Editar usuario"
+                "تحرير المستخدم"
             ],
             "Emerald": [
-                "Esmeralda"
+                ""
             ],
             "Enable AI features": [
                 ""
@@ -710,13 +709,13 @@
                 ""
             ],
             "Enabling…": [
-                "Subiendo…"
+                ""
             ],
             "Enter fullscreen": [
-                "Entrar en pantalla completa"
+                ""
             ],
             "Environment included with the report": [
-                "Medio ambiente incluido en el informe."
+                "البيئة متضمنة في التقرير"
             ],
             "Events": [
                 ""
@@ -725,22 +724,22 @@
                 ""
             ],
             "Every comment gets a 0–100 score from Akismet + heuristics. Optionally turn on AI scoring in OS Settings → Features so each new comment is also scored by your configured AI provider on arrival.": [
-                "Cada comentario obtiene una puntuación de 0 a 100 según la heurística Akismet +. Opcionalmente, active la puntuación de IA en Configuración del sistema operativo → Funciones para que su proveedor de IA configurado también califique cada nuevo comentario al llegar."
+                "يحصل كل تعليق على درجة 0-100 من Akismet + الاستدلال. اختياريًا، قم بتشغيل تسجيل الذكاء الاصطناعي في إعدادات نظام التشغيل → الميزات بحيث يتم أيضًا تسجيل كل تعليق جديد بواسطة موفر الذكاء الاصطناعي الذي تم تكوينه عند الوصول."
             ],
             "Example": [
                 ""
             ],
             "Exit Desktop Mode": [
-                "Escritorio %d"
+                "الخروج من وضع سطح المكتب"
             ],
             "Exit fullscreen": [
-                "Salir de pantalla completa"
+                ""
             ],
             "Experimental": [
                 ""
             ],
             "Explore details": [
-                "Explorar detalles"
+                "استكشاف التفاصيل"
             ],
             "Extended Options": [
                 ""
@@ -749,58 +748,58 @@
                 ""
             ],
             "F": [
-                "F"
+                "ف"
             ],
             "FAQ": [
-                "Preguntas frecuentes"
+                "التعليمات"
             ],
             "Failed to load graph.": [
-                "No se pudo cargar el gráfico."
+                "فشل تحميل الرسم البياني."
             ],
             "Failed to load usage data.": [
-                "No se pudieron cargar tus medios."
+                "فشل تحميل بيانات الاستخدام."
             ],
             "Fast — 15s (not recommended)": [
                 ""
             ],
             "Favorites": [
-                "Favoritos"
+                "المفضلة"
             ],
             "Feature request": [
-                "Solicitud de función"
+                "طلب الميزة"
             ],
             "Featured": [
-                "Presentado"
+                "مميز"
             ],
             "Features": [
                 ""
             ],
             "Fewer than 10 active": [
-                "Menos de 10 activos"
+                "أقل من 10 نشطة"
             ],
             "File size": [
-                "Tamaño del archivo"
+                "حجم الملف"
             ],
             "Filename": [
-                "Nombre del archivo"
+                "اسم الملف"
             ],
             "Files REST endpoint is not available.": [
                 ""
             ],
             "First post": [
-                "Primera publicación"
+                "المشاركة الأولى"
             ],
             "First published": [
-                "Publicado por primera vez"
+                "نشرت لأول مرة"
             ],
             "First seen": [
-                "visto por primera vez"
+                "شوهد لأول مرة"
             ],
             "Fit": [
-                "Adaptar"
+                "ملائم"
             ],
             "Fit graph to view": [
-                "Ajustar gráfico para ver"
+                "تناسب الرسم البياني لعرضه"
             ],
             "Folder sharing": [
                 ""
@@ -809,13 +808,13 @@
                 ""
             ],
             "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
-                "¿Encontró un error o tiene una idea para una característica? Complete esto y abriremos una edición de GitHub precargada para que la revise y envíe."
+                "وجدت خطأ أو لديك فكرة الميزة؟ املأ هذا وسنفتح لك مشكلة GitHub المملوءة مسبقًا لمراجعتها وإرسالها."
             ],
             "Friday": [
-                "Viernes"
+                "جمعة"
             ],
             "From": [
-                "Desde"
+                ""
             ],
             "Global settings": [
                 ""
@@ -824,37 +823,37 @@
                 ""
             ],
             "Group by": [
-                "Agrupar por"
+                "تجميع حسب"
             ],
             "Group by author": [
-                "Grupo por autor"
+                "المجموعة حسب المؤلف"
             ],
             "Group by category": [
-                "Agrupar por categoría"
+                "المجموعة حسب الفئة"
             ],
             "Group by tag": [
-                "Agrupar por etiqueta"
+                "المجموعة حسب العلامة"
             ],
             "Group by year": [
-                "Grupo por año"
+                "المجموعة حسب السنة"
             ],
             "Group by year-month": [
-                "Grupo por año-mes"
+                "المجموعة حسب السنة والشهر"
             ],
             "Group posts by a shared facet": [
-                "Agrupar publicaciones por una faceta compartida"
+                "تجميع المشاركات حسب واجهة مشتركة"
             ],
             "Hidden": [
                 ""
             ],
             "Hide everywhere": [
-                "Esconderse en todas partes"
+                "إخفاء في كل مكان"
             ],
             "Hide from desktop": [
-                "Añadir nuevo escritorio"
+                "إخفاء من سطح المكتب"
             ],
             "Hide from dock": [
-                "Esconderse del muelle"
+                "إخفاء من قفص الاتهام"
             ],
             "Hide sticky note": [
                 ""
@@ -869,31 +868,31 @@
                 ""
             ],
             "IP": [
-                "IP"
+                "الملكية الفكرية"
             ],
             "Image source": [
                 ""
             ],
             "In reply to %s": [
-                "En respuesta a %s"
+                "رداً على %s"
             ],
             "In response to": [
-                "En respuesta a"
+                "ردا على"
             ],
             "Inactive": [
-                "Inactivo"
+                "غير نشط"
             ],
             "Including today": [
-                "Incluyendo hoy"
+                "بما في ذلك اليوم"
             ],
             "Indigo": [
-                "Índigo"
+                ""
             ],
             "Inline reply": [
-                "Respuesta en línea"
+                "الرد المضمن"
             ],
             "Install": [
-                "Instalar"
+                "ثَبَّتَ"
             ],
             "Install %s as an app": [
                 ""
@@ -902,7 +901,7 @@
                 ""
             ],
             "Install failed: %s": [
-                "Error de instalación: %s"
+                "فشل التثبيت: %s"
             ],
             "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
                 ""
@@ -914,52 +913,52 @@
                 ""
             ],
             "Installed %s.": [
-                "%s instalados."
+                "تم تثبيت %s."
             ],
             "Installing…": [
-                "Subiendo…"
+                "جارٍ التثبيت…"
             ],
             "Italic": [
-                "Itálico"
+                "مائل"
             ],
             "J/K to navigate, A approve, S spam, D trash, R reply, E edit, U undo. Press ? any time for the cheat sheet.": [
-                "J/K para navegar, A aprobar, S spam, D papelera, R responder, E editar, U deshacer. Prensa ? en cualquier momento para la hoja de trucos."
+                "J/K للتنقل، الموافقة A، البريد العشوائي S، سلة المهملات D، الرد R، التحرير E، التراجع U. يضعط ؟ في أي وقت لورقة الغش."
             ],
             "JPEG, PNG, or WebP · goes straight to your Media Library": [
-                "JPEG, PNG o WebP · va directo a tu biblioteca de medios"
+                ""
             ],
             "Keyboard moderation": [
-                "Moderación del teclado"
+                "الاعتدال في لوحة المفاتيح"
             ],
             "Large": [
-                "Grande"
+                ""
             ],
             "Last post": [
-                "Última publicación"
+                "آخر مشاركة"
             ],
             "Last published": [
-                "Último publicado"
+                "آخر نشر"
             ],
             "Last published %s": [
-                "Última publicación %s"
+                "آخر مشاركة تم نشرها %s"
             ],
             "Last seen": [
-                "visto por última vez"
+                "شوهد آخر مرة"
             ],
             "Latest": [
-                "El último"
+                ""
             ],
             "Latest post": [
-                "Última publicación"
+                "آخر مشاركة"
             ],
             "Left": [
                 ""
             ],
             "Less": [
-                "Menos"
+                "أقل"
             ],
             "Let me moderate": [
-                "Déjame moderar"
+                "اسمحوا لي أن معتدلة"
             ],
             "Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, \"Leave shared folder\") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.": [
                 ""
@@ -968,364 +967,364 @@
                 ""
             ],
             "Load more": [
-                "Cargar más"
+                ""
             ],
             "Loading author insights…": [
-                "Subiendo…"
+                "جارٍ تحميل رؤى المؤلف…"
             ],
             "Loading description…": [
-                "Subiendo…"
+                "جارٍ تحميل الوصف…"
             ],
             "Loading details…": [
-                "Subiendo…"
+                "جارٍ تحميل التفاصيل…"
             ],
             "Loading footprint…": [
-                "Cargando huella…"
+                "جارٍ تحميل البصمة…"
             ],
             "Loading from WordPress.org…": [
-                "Cargando desde WordPress.org…"
+                ""
             ],
             "Loading graph…": [
-                "Subiendo…"
+                "جارٍ تحميل الرسم البياني…"
             ],
             "Loading recent reviews…": [
-                "Cargando reseñas recientes…"
+                "جارٍ تحميل أحدث التقييمات…"
             ],
             "Loading window content": [
                 ""
             ],
             "Loading…": [
-                "Subiendo…"
+                "تحميل…"
             ],
             "Local time and date, refreshed every second.": [
-                "Hora y fecha locales, se actualiza cada segundo."
+                ""
             ],
             "Longest streak": [
-                "Racha más larga"
+                "أطول خط"
             ],
             "M": [
-                "METRO"
+                "م"
             ],
             "Made for Desktop Mode": [
-                "Cambiar a modo escritorio"
+                "صنع لوضع سطح المكتب"
             ],
             "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
                 ""
             ],
             "Marked %d as spam.": [
-                "Marcado %d como spam."
+                "تم وضع علامة على %d كرسالة غير مرغوب فيها."
             ],
             "Maximize": [
-                "Maximizar"
+                ""
             ],
             "Media": [
-                "Medios de comunicación"
+                "الوسائط"
             ],
             "Media Library": [
-                "Biblioteca de medios"
+                ""
             ],
             "Media deleted.": [
-                "Biblioteca de medios"
+                "تم حذف الوسائط."
             ],
             "Medium — 30s": [
                 ""
             ],
             "Member since": [
-                "Miembro desde"
+                "عضو منذ"
             ],
             "Member since %s": [
-                "Miembro desde %s"
+                "عضو منذ %s"
             ],
             "Milestones": [
-                "Hitos"
+                "المعالم"
             ],
             "Minimize": [
-                "Minimizar"
+                ""
             ],
             "Missing-import warner — live demo": [
                 ""
             ],
             "Moderate": [
-                "Moderado"
+                "معتدل"
             ],
             "Modified": [
-                "Modificado"
+                "معدل"
             ],
             "Monday": [
-                "Lunes"
+                "الاثنين"
             ],
             "More": [
-                "Más"
+                "أكثر"
             ],
             "Most prolific month": [
-                "Mes más prolífico"
+                "الشهر الأكثر غزارة"
             ],
             "Move \"%s\" to Trash?": [
-                "¿Mover \"%s\" a la Papelera?"
+                "هل تريد نقل \"%s\" إلى سلة المهملات؟"
             ],
             "Move to Trash": [
-                "Mover a la papelera"
+                "الانتقال إلى سلة المهملات"
             ],
             "Move your cursor through the swarm · click for a spark": [
                 ""
             ],
             "Multi-select and approve, spam, or trash dozens at once. Every action shows an 8-second undo toast.": [
-                "Realice selección múltiple y apruebe, envíe spam o elimine docenas a la vez. Cada acción muestra un brindis para deshacer de 8 segundos."
+                "يمكنك الاختيار المتعدد والموافقة أو إرسال بريد عشوائي أو التخلص من العشرات في وقت واحد. يُظهر كل إجراء نخبًا للتراجع مدته 8 ثوانٍ."
             ],
             "My WordPress": [
-                "Azul WordPress"
+                "ووردبريس الخاص بي"
             ],
             "Name": [
                 ""
             ],
             "Name (A → Z)": [
-                "Nombre (A → Z)"
+                "الاسم (أ → ي)"
             ],
             "Name (Z → A)": [
-                "Nombre (Z → A)"
+                "الاسم (ي → أ)"
             ],
             "Navigate into": [
-                "Navegar hacia"
+                "انتقل إلى"
             ],
             "Network error — check your connection.": [
                 ""
             ],
             "Network only": [
-                "Sólo red"
+                ""
             ],
             "New": [
-                "Añadir %s"
+                "جديد"
             ],
             "New %s": [
-                "Noticias"
+                "أخبار"
             ],
             "New sticky note": [
                 ""
             ],
             "Newest first": [
-                "Lo nuevo primero"
+                "الأحدث أولاً"
             ],
             "Next": [
-                "Próximo"
+                "التالي"
             ],
             "No %2$s match \"%1$s\".": [
-                "Ningún %2$s coincide con \"%1$s\"."
+                "لا يوجد %2$s مطابق لـ \"%1$s\"."
             ],
             "No %s yet.": [
-                "Aún no hay %s."
+                "لا يوجد %s حتى الآن."
             ],
             "No FAQ": [
-                "Sin preguntas frecuentes"
+                ""
             ],
             "No HD images found. Try unchecking the filter, or upload a larger image.": [
-                "No se encontraron imágenes HD. Prueba a desactivar el filtro o sube una imagen más grande."
+                ""
             ],
             "No activity recorded in the last year.": [
-                "No se registró actividad en el último año."
+                "لم يتم تسجيل أي نشاط في العام الماضي."
             ],
             "No activity today": [
-                "No hay actividad hoy"
+                "لا يوجد نشاط اليوم"
             ],
             "No additional contributors.": [
-                "No hay contribuyentes adicionales."
+                "لا يوجد مساهمين إضافيين."
             ],
             "No apps registered yet": [
                 ""
             ],
             "No author available.": [
-                "No hay autor disponible."
+                "لا يوجد مؤلف متاح."
             ],
             "No categories assigned.": [
-                "No hay categorías asignadas."
+                "لم يتم تعيين فئات."
             ],
             "No changelog": [
-                "Sin registro de cambios"
+                ""
             ],
             "No comments on this post yet.": [
-                "Aún no hay comentarios en esta publicación."
+                "لا توجد تعليقات على هذا المنصب حتى الآن."
             ],
             "No comments to moderate here.": [
-                "No hay comentarios para moderar aquí."
+                "لا توجد تعليقات معتدلة هنا."
             ],
             "No components registered.": [
                 ""
             ],
             "No content available.": [
-                "No hay contenido disponible."
+                "لا يوجد محتوى متاح."
             ],
             "No description": [
-                "Sin descripción"
+                "لا يوجد وصف"
             ],
             "No featured plugins yet.": [
-                "Aún no hay complementos destacados."
+                "لا توجد ملحقات إضافية مميزة حتى الآن."
             ],
             "No grouping": [
-                "Sin agrupación"
+                "لا يوجد تجميع"
             ],
             "No images in your Media Library yet.": [
-                "Aún no hay imágenes en tu biblioteca de medios."
+                ""
             ],
             "No media attached to this post.": [
-                "No hay medios adjuntos a esta publicación."
+                "لا توجد وسائل الإعلام المرفقة بهذا المنصب."
             ],
             "No media match \"%s\".": [
-                "Ningún medio coincide con \"%s\"."
+                "لا توجد وسائط تطابق \"%s\"."
             ],
             "No media yet.": [
-                "Aún no hay medios."
+                "لا توجد وسائل الإعلام بعد."
             ],
             "No plugins match your filters.": [
-                "Ningún complemento coincide con sus filtros."
+                ""
             ],
             "No plugins matched.": [
-                "No hay complementos coincidentes."
+                "لا توجد مكونات إضافية متطابقة."
             ],
             "No posts or pages reference this file.": [
-                "Ninguna publicación o página hace referencia a este archivo."
+                "لا توجد منشورات أو صفحات تشير إلى هذا الملف."
             ],
             "No ratings yet.": [
-                "Aún no hay calificaciones."
+                "لا يوجد تقييمات حتى الآن."
             ],
             "No revisions yet.": [
-                "Aún no hay revisiones."
+                "لا توجد مراجعات حتى الآن."
             ],
             "No tags assigned.": [
-                "No hay etiquetas asignadas."
+                "لم يتم تعيين أي علامات."
             ],
             "No users match \"%s\".": [
-                "Ningún usuario coincide con \"%s\"."
+                "لا يوجد مستخدمون يطابقون \"%s\"."
             ],
             "No users to show.": [
-                "No hay usuarios para mostrar."
+                "لا يوجد مستخدمين لإظهارهم."
             ],
             "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.": [
-                "No hay widgets disponibles. Activa un plugin que registre alguno, o consulta la documentación de la API registerWidget."
+                ""
             ],
             "Not spam": [
-                "No spam"
+                "ليس البريد المزعج"
             ],
             "Nothing to show yet.": [
-                "Nada que mostrar todavía."
+                "لا شيء لإظهاره حتى الآن."
             ],
             "Nothing to show.": [
-                "Nada que mostrar."
+                "لا شيء لإظهاره."
             ],
             "Numbered list": [
-                "lista numerada"
+                "قائمة مرقمة"
             ],
             "Often paired categories": [
-                "No se pudieron cargar tus medios."
+                "في كثير من الأحيان الفئات المقترنة"
             ],
             "Often paired tags": [
-                "Etiquetas a menudo emparejadas"
+                "في كثير من الأحيان العلامات المقترنة"
             ],
             "Oldest first": [
-                "El más viejo primero"
+                "الأقدم أولاً"
             ],
             "On both": [
                 ""
             ],
             "On post": [
-                "En la publicación"
+                "على البريد"
             ],
             "On the desktop": [
-                "Añadir nuevo escritorio"
+                ""
             ],
             "On the dock": [
                 ""
             ],
             "One step per line": [
-                "Un paso por línea"
+                "خطوة واحدة لكل سطر"
             ],
             "Only .zip files are accepted.": [
                 ""
             ],
             "Only HD (≥%1$d×%2$d)": [
-                "Solo HD (≥%1$d×%2$d)"
+                ""
             ],
             "Open": [
-                "Abrir"
+                ""
             ],
             "Open another %s": [
-                "Abrir otra ventana de %s"
+                ""
             ],
             "Open artifact": [
                 ""
             ],
             "Open file": [
-                "Abrir"
+                "افتح الملف"
             ],
             "Open file in new tab": [
-                "Abrir en una nueva pestaña del navegador"
+                "افتح الملف في علامة تبويب جديدة"
             ],
             "Open in My WordPress": [
-                "Abrir en Mi WordPress"
+                "افتح في موقع WordPress الخاص بي"
             ],
             "Open in WordPress": [
-                "Abrir en WordPress"
+                "افتح في ووردبريس"
             ],
             "Open in a new browser tab": [
-                "Abrir en una nueva pestaña del navegador"
+                ""
             ],
             "Open in browser tab": [
-                "Abrir en una nueva pestaña del navegador"
+                ""
             ],
             "Open in editor": [
-                "Abrir en una nueva pestaña del navegador"
+                "فتح في المحرر"
             ],
             "Open in new window": [
-                "Abrir en una nueva pestaña del navegador"
+                ""
             ],
             "Open issue on GitHub": [
-                "Problema abierto en GitHub"
+                "قضية مفتوحة على جيثب"
             ],
             "Open on startup": [
-                "Abrir al iniciar"
+                ""
             ],
             "Open reviews on WordPress.org ↗": [
-                "Abrir reseñas en WordPress.org ↗"
+                ""
             ],
             "Open revision in WordPress": [
-                "Abrir revisión en WordPress"
+                "فتح المراجعة في ووردبريس"
             ],
             "Open the full activity footprint surface for this user.": [
-                "Abra la superficie de huella de actividad completa para este usuario."
+                "افتح سطح بصمة النشاط الكامل لهذا المستخدم."
             ],
             "Open this user’s profile editor in a new window.": [
-                "Abra el editor de perfil de este usuario en una nueva ventana."
+                "افتح محرر الملف الشخصي لهذا المستخدم في نافذة جديدة."
             ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
-                "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
+                ""
             ],
             "Or use your own image": [
-                "O usa tu propia imagen"
+                ""
             ],
             "Overview": [
-                "Vista general"
+                "ملخص"
             ],
             "Page %1$d of %2$d": [
-                "Página %1$d de %2$d"
+                "الصفحة %1$d من %2$d"
             ],
             "Page %1$d of %2$d (%3$d total)": [
-                "Página %1$d de %2$d (%3$d en total)"
+                "الصفحة %1$d من %2$d (إجمالي %3$d)"
             ],
             "Pages": [
-                "paginas"
+                "الصفحات"
             ],
             "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.": [
                 ""
             ],
             "Parent": [
-                "Padre"
+                "الوالد"
             ],
             "Pending": [
-                "Pendiente"
+                "قيد الانتظار"
             ],
             "Pending / All / Spam / Trash / Mine tabs — every status surface in a single window with live counts.": [
-                "Pestañas Pendientes / Todo / Spam / Papelera / Mina: cada estado aparece en una sola ventana con recuentos en vivo."
+                "علامات التبويب معلقة / الكل / البريد العشوائي / سلة المهملات / الألغام - كل سطح حالة في نافذة واحدة مع التعداد المباشر."
             ],
             "Per page": [
-                "Por página"
+                "لكل صفحة"
             ],
             "Per-row capability flags so the UI hides actions you can't perform — and the server re-validates every mutation, so flags can't be tampered into more permissions.": [
                 ""
@@ -1334,16 +1333,16 @@
                 ""
             ],
             "Permanently delete %s? Its files will be removed from disk. This cannot be undone.": [
-                "¿Eliminar %s permanentemente? Sus archivos se eliminarán del disco. Esto no se puede deshacer."
+                "هل تريد حذف %s نهائيًا؟ ستتم إزالة ملفاته من القرص. لا يمكن التراجع عن هذا."
             ],
             "Personalize your desktop. Changes apply instantly and are saved to this browser.": [
-                "Personaliza tu escritorio. Los cambios se aplican al instante y se guardan en este navegador."
+                ""
             ],
             "Pick a .zip file from your computer, or drop one onto the area below.": [
                 ""
             ],
             "Pinned %s to the dock.": [
-                "Fijado %s al muelle."
+                "تم تثبيت %s في قفص الاتهام."
             ],
             "Planned": [
                 ""
@@ -1355,46 +1354,46 @@
                 ""
             ],
             "Plugin": [
-                "Complemento"
+                ""
             ],
             "Plugin URL": [
-                "URL del complemento"
+                ""
             ],
             "Plugin activated.": [
                 ""
             ],
             "Plugin file": [
-                "Archivo de complemento"
+                ""
             ],
             "Plugin installed successfully.": [
                 ""
             ],
             "Plugin shortcut. Double-click to open.": [
-                "Acceso directo al complemento. Haga doble clic para abrir."
+                "اختصار البرنامج المساعد. انقر نقرا مزدوجا لفتح."
             ],
             "Plugin website": [
-                "Sitio web de complemento"
+                "موقع البرنامج المساعد"
             ],
             "Plugins and the admin menu will appear here once they’re registered.": [
                 ""
             ],
             "Plugins that extend Desktop Mode — desktop decorations, native windows, widgets, and other companions.": [
-                "Complementos que amplían el modo de escritorio: decoraciones de escritorio, ventanas nativas, widgets y otros complementos."
+                "المكونات الإضافية التي تعمل على توسيع وضع سطح المكتب - زخارف سطح المكتب، والنوافذ الأصلية، والأدوات، وغيرها من المرافق."
             ],
             "Plugins window template missing.": [
-                "Falta la plantilla de ventana de complementos."
+                "قالب نافذة المكونات الإضافية مفقود."
             ],
             "Popular": [
-                "Popular"
+                "شائع"
             ],
             "Posts": [
-                "Publicaciones"
+                "المقالات"
             ],
             "Prefer the classic Comments screen? You can switch back any time from OS Settings → Features.": [
-                "¿Prefieres la clásica pantalla de Comentarios? Puede volver a cambiar en cualquier momento desde Configuración del sistema operativo → Funciones."
+                "هل تفضل شاشة التعليقات الكلاسيكية؟ يمكنك التبديل مرة أخرى في أي وقت من إعدادات نظام التشغيل → الميزات."
             ],
             "Previous": [
-                "Anterior"
+                "السابق"
             ],
             "Props": [
                 ""
@@ -1403,67 +1402,67 @@
                 ""
             ],
             "Published": [
-                "Publicado"
+                "تم النشر"
             ],
             "Publishing rhythm": [
-                "Ritmo editorial"
+                "إيقاع النشر"
             ],
             "Question": [
-                "Pregunta"
+                "سؤال"
             ],
             "Rated %s out of 5": [
-                "Calificación %s de 5"
+                "تم التقييم %s من أصل 5"
             ],
             "Re-shows the one-time introduction dialog the next time you open each redesigned native window.": [
                 ""
             ],
             "Read all reviews on WordPress.org ↗": [
-                "Lea todas las reseñas en WordPress.org ↗"
+                ""
             ],
             "Read full review ↗": [
-                "Leer reseña completa ↗"
+                ""
             ],
             "Read on WordPress.org ↗": [
-                "Leer en WordPress.org ↗"
+                "اقرأ على WordPress.org ↗"
             ],
             "Read reviews on WordPress.org ↗": [
-                "Leer reseñas en WordPress.org ↗"
+                "اقرأ المراجعات على WordPress.org ↗"
             ],
             "Recent activity": [
-                "Actividad reciente"
+                "النشاط الأخير"
             ],
             "Recent posts": [
-                "Publicaciones recientes"
+                "المشاركات الأخيرة"
             ],
             "Recent reviews aren’t available right now. %s": [
-                "Las reseñas recientes no están disponibles en este momento. %s"
+                "المراجعات الأخيرة غير متاحة الآن. %s"
             ],
             "Recommended": [
-                "Recomendado"
+                "مُستَحسَن"
             ],
             "Recycle Bin — empty": [
-                "Papelera de reciclaje: vacía"
+                "سلة المحذوفات — فارغة"
             ],
             "Refresh": [
-                "Refrescar"
+                "تحديث"
             ],
             "Reliability: %d / 100": [
-                "Fiabilidad: %d / 100"
+                "الموثوقية: %d / 100"
             ],
             "Reload": [
-                "Recargar"
+                "إعادة تحميل"
             ],
             "Remove": [
-                "Eliminar"
+                ""
             ],
             "Remove %s": [
-                "Eliminar %s"
+                ""
             ],
             "Remove custom image": [
-                "Eliminar imagen personalizada"
+                ""
             ],
             "Replace": [
-                "Error al subir."
+                ""
             ],
             "Replace existing plugin?": [
                 ""
@@ -1475,37 +1474,37 @@
                 ""
             ],
             "Replies (%d)": [
-                "Respuestas (%d)"
+                "الردود (%d)"
             ],
             "Reply (%d)": [
-                ""
+                "الرد (%d)"
             ],
             "Reply failed.": [
-                "Error al subir."
+                "فشل الرد."
             ],
             "Reply is empty.": [
-                "La respuesta está vacía."
+                "الرد فارغ."
             ],
             "Reply posted.": [
-                "Respuesta publicada."
+                "تم نشر الرد."
             ],
             "Reply right inside the row — no modal, no full-page navigation. Press R on any row to jump straight to the editor.": [
-                "Responda justo dentro de la fila: sin modal, sin navegación de página completa. Presione R en cualquier fila para saltar directamente al editor."
+                "قم بالرد مباشرة داخل الصف - لا يوجد شكل مشروط، ولا يوجد تنقل بملء الصفحة. اضغط على R في أي صف للانتقال مباشرة إلى المحرر."
             ],
             "Requires PHP": [
-                "Requiere PHP"
+                ""
             ],
             "Requires PHP %s+": [
-                "Requiere PHP %s+"
+                ""
             ],
             "Requires WP %s+": [
-                "Requiere WP %s+"
+                ""
             ],
             "Requires WordPress": [
-                "Azul WordPress"
+                ""
             ],
             "Reset to defaults": [
-                "Restablecer valores predeterminados"
+                ""
             ],
             "Reset what’s-new dialogs": [
                 ""
@@ -1514,130 +1513,130 @@
                 ""
             ],
             "Restore": [
-                "Restaurar"
+                "استعادة"
             ],
             "Restored %d.": [
-                "Restaurado %d."
+                "تمت استعادة %d."
             ],
             "Reviews": [
-                "Vista general"
+                "التعليقات"
             ],
             "Reviews live on WordPress.org": [
-                "Reseñas en vivo en WordPress.org"
+                ""
             ],
             "Revision": [
-                "Revisión"
+                "المراجعة"
             ],
             "Revisions": [
-                "Revisiones"
+                "المراجعات"
             ],
             "Right": [
                 ""
             ],
             "Roles": [
-                "Roles"
+                "الأدوار"
             ],
             "Rose": [
-                "Rosa"
+                ""
             ],
             "S": [
-                "S"
+                "س"
             ],
             "Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.": [
                 ""
             ],
             "Saturday": [
-                "Sábado"
+                "السبت"
             ],
             "Save": [
-                "Ahorrar"
+                "حفظ"
             ],
             "Saved": [
-                "Guardado"
+                "أنقذ"
             ],
             "Saved %s": [
-                "%s guardados"
+                "تم حفظ %s"
             ],
             "Saves on existing posts": [
-                "Guarda en publicaciones existentes"
+                "يحفظ على المشاركات الموجودة"
             ],
             "Saving…": [
-                "Subiendo…"
+                ""
             ],
             "Scope": [
-                "Alcance"
+                ""
             ],
             "Score new comments with AI": [
                 ""
             ],
             "Screenshots": [
-                "Capturas de pantalla"
+                "لقطات الشاشة"
             ],
             "Search": [
-                "Buscar medios"
+                "بحث"
             ],
             "Search %s": [
-                "Buscar medios"
+                "بحث %s"
             ],
             "Search %s…": [
-                "Buscar medios"
+                "بحث %s..."
             ],
             "Search WordPress.org…": [
-                "Buscar en WordPress.org…"
+                "البحث في WordPress.org..."
             ],
             "Search comments…": [
-                "Buscar medios"
+                "البحث في التعليقات..."
             ],
             "Search installed plugins…": [
-                "Buscar complementos instalados…"
+                ""
             ],
             "Search media": [
-                "Buscar medios"
+                "بحث في الوسائط"
             ],
             "Search media…": [
-                "Buscar medios"
+                "بحث في الوسائط..."
             ],
             "Search nodes…": [
-                "Buscar nodos…"
+                "عقد البحث..."
             ],
             "Search posts and pages in the graph": [
-                "Buscar publicaciones y páginas en el gráfico."
+                "بحث المشاركات والصفحات في الرسم البياني"
             ],
             "Search users": [
-                "Buscar medios"
+                "بحث المستخدمين"
             ],
             "Search users…": [
-                "Buscar medios"
+                "بحث المستخدمين..."
             ],
             "Search your media": [
-                "Busca en tus medios"
+                ""
             ],
             "Search…": [
-                "Buscar medios"
+                "يبحث…"
             ],
             "See author, comments, categories, tags, attached media, and revisions for this entry.": [
-                "Vea el autor, los comentarios, las categorías, las etiquetas, los medios adjuntos y las revisiones de esta entrada."
+                "راجع المؤلف والتعليقات والفئات والعلامات والوسائط المرفقة والمراجعات لهذا الإدخال."
             ],
             "See where this is used": [
-                "Vea dónde se usa esto"
+                "انظر أين يتم استخدام هذا"
             ],
             "Select a full URL (https://…) in your reply, then click the link button.": [
-                "Seleccione una URL completa (https://…) en su respuesta y luego haga clic en el botón de enlace."
+                "حدد عنوان URL كاملاً (https://...) في ردك، ثم انقر فوق زر الارتباط."
             ],
             "Select a media item to preview it here.": [
-                "Seleccione un elemento multimedia para obtener una vista previa aquí."
+                "حدد عنصر وسائط لمعاينته هنا."
             ],
             "Select a user to see their profile here.": [
-                "Seleccione un usuario para ver su perfil aquí."
+                "حدد مستخدمًا لرؤية ملفه الشخصي هنا."
             ],
             "Select an entry to preview it here.": [
-                "Seleccione una entrada para obtener una vista previa aquí."
+                "حدد إدخالاً لمعاينته هنا."
             ],
             "Select an item to preview it here.": [
-                "Seleccione un elemento para obtener una vista previa aquí."
+                "حدد عنصرًا لمعاينته هنا."
             ],
             "Send reply": [
-                "Enviar respuesta"
+                "إرسال الرد"
             ],
             "Settings sections": [
                 ""
@@ -1646,28 +1645,28 @@
                 ""
             ],
             "Shortcut": [
-                "Atajo"
+                "الاختصار"
             ],
             "Show author insights": [
-                "Mostrar información del autor"
+                "عرض رؤى المؤلف"
             ],
             "Show desktop when clicking the wallpaper": [
                 ""
             ],
             "Show in": [
-                "Mostrando %d"
+                ""
             ],
             "Show post/page status ribbon": [
                 ""
             ],
             "Show profile": [
-                "Mostrar perfil"
+                "إظهار الملف الشخصي"
             ],
             "Show the posts, pages, and custom-post-type entries that reference this file.": [
-                "Muestra las publicaciones, páginas y entradas de tipo de publicación personalizada que hacen referencia a este archivo."
+                "إظهار المنشورات والصفحات وإدخالات نوع المنشورات المخصصة التي تشير إلى هذا الملف."
             ],
             "Showing %d": [
-                "Mostrando %d"
+                ""
             ],
             "Side bar with the core admin menus, plus a bottom dock for plugin apps.": [
                 ""
@@ -1685,10 +1684,10 @@
                 ""
             ],
             "Size": [
-                "Tamaño"
+                ""
             ],
             "Size on disk": [
-                "Tamaño en disco"
+                ""
             ],
             "Slots": [
                 ""
@@ -1697,19 +1696,19 @@
                 ""
             ],
             "Sort by": [
-                "Ordenar por"
+                "الترتيب حسب"
             ],
             "Spam": [
-                "Correo basura"
+                "مزعج"
             ],
             "Spam confidence score": [
-                "Puntuación de confianza del spam"
+                "درجة الثقة في البريد العشوائي"
             ],
             "Spam score: %1$d / 100. %2$s": [
-                "Puntuación de spam: %1$d / 100. %2$s"
+                "نتيجة البريد العشوائي: %1$d / 100. %2$s"
             ],
             "Spam score: %d / 100.": [
-                "Puntuación de spam: %d / 100."
+                "نتيجة البريد العشوائي: %d / 100."
             ],
             "Spatial": [
                 ""
@@ -1718,10 +1717,10 @@
                 ""
             ],
             "Status": [
-                "Estado"
+                "الحالة"
             ],
             "Steps to reproduce (bug only)": [
-                "Pasos para reproducir (solo error)"
+                "خطوات إعادة الإنتاج (الأخطاء فقط)"
             ],
             "Sticky note text": [
                 ""
@@ -1733,49 +1732,49 @@
                 ""
             ],
             "Submitted on": [
-                "Presentado el"
+                "تم تقديمه بتاريخ"
             ],
             "Sunday": [
-                "Domingo"
+                "الأحد"
             ],
             "Switch to %s": [
-                "Cambiar a %s"
-            ],
-            "System Preferences": [
-                "Preferencias del sistema"
-            ],
-            "T": [
-                "Hasta"
-            ],
-            "Tags": [
-                "Etiquetas"
-            ],
-            "Tags · %d": [
                 ""
             ],
+            "System Preferences": [
+                "تفضيلات النظام"
+            ],
+            "T": [
+                "ت"
+            ],
+            "Tags": [
+                "العلامات"
+            ],
+            "Tags · %d": [
+                "العلامات · %d"
+            ],
             "Take me to settings": [
-                "Llévame a configuración"
+                "خذني إلى الإعدادات"
             ],
             "Taxonomies": [
-                "Taxonomías"
+                "التصنيفات"
             ],
             "Teal": [
-                "Verde azulado"
+                ""
             ],
             "Tested up to WP %s": [
-                "Probado hasta WP %s"
+                "تم اختباره حتى WP %s"
             ],
             "Tested up to WordPress %s": [
-                "Probado hasta WordPress %s"
+                "تم اختباره حتى WordPress %s"
             ],
             "Text domain": [
-                "Dominio de texto"
+                ""
             ],
             "That file isn’t an image.": [
-                "Ese archivo no es una imagen."
+                ""
             ],
             "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.": [
-                "El fondo tras tus ventanas. Elige un preestablecido, mezcla tu propio gradiente o suelta una imagen."
+                ""
             ],
             "The detail flyout shows screenshots, the ratings histogram, recent reviews, the changelog and FAQ — all without leaving the window.": [
                 ""
@@ -1787,7 +1786,7 @@
                 ""
             ],
             "The underlying entity is no longer available.": [
-                "La entidad subyacente ya no está disponible."
+                "الكيان الأساسي لم يعد متاحًا."
             ],
             "This component has no help descriptor yet. Add `static help` to its class for a fuller reference.": [
                 ""
@@ -1796,70 +1795,70 @@
                 ""
             ],
             "This plugin does not check in with WordPress.org, so automatic updates can't be scheduled.": [
-                "Este complemento no se registra en WordPress.org, por lo que no se pueden programar actualizaciones automáticas."
+                ""
             ],
             "This plugin does not ship a wp.org download package. Update it manually from its source.": [
                 ""
             ],
             "This plugin doesn’t ship a changelog.": [
-                "Este complemento no incluye un registro de cambios."
+                ""
             ],
             "This plugin doesn’t ship a description in its header.": [
-                "Este complemento no incluye una descripción en su encabezado."
+                "لا يقوم هذا المكون الإضافي بشحن وصف في رأسه."
             ],
             "This plugin doesn’t ship an FAQ.": [
-                "Este complemento no incluye preguntas frecuentes."
+                ""
             ],
             "This plugin doesn’t ship screenshots.": [
-                "Este complemento no incluye capturas de pantalla."
+                "لا يرسل هذا البرنامج المساعد لقطات الشاشة."
             ],
             "This plugin will stop running on the site. You can re-activate it later from the Plugins screen.": [
-                "Este complemento dejará de ejecutarse en el sitio. Puede reactivarlo más tarde desde la pantalla Complementos."
+                "سيتوقف هذا البرنامج المساعد عن العمل على الموقع. ويمكنك إعادة تنشيطه لاحقًا من شاشة المكونات الإضافية."
             ],
             "This revision has no rendered content.": [
-                "Esta revisión no tiene contenido renderizado."
+                "لا تحتوي هذه المراجعة على محتوى معروض."
             ],
             "Thursday": [
-                "Jueves"
+                "يوم الخميس"
             ],
             "Title": [
-                "Título"
+                "العنوان"
             ],
             "Title and description are both required.": [
-                "Tanto el título como la descripción son obligatorios."
+                "العنوان والوصف كلاهما مطلوبان."
             ],
             "To": [
-                "Hasta"
+                ""
             ],
             "Top authors": [
-                "Autores principales"
+                "كبار المؤلفين"
             ],
             "Top categories & tags": [
-                "Categorías y etiquetas principales"
+                "أهم الفئات والعلامات"
             ],
             "Top contributors": [
-                "Principales contribuyentes"
+                "أهم المساهمين"
             ],
             "Top topics": [
-                "Temas principales"
+                "أهم المواضيع"
             ],
             "Total comments": [
-                "Comentarios totales"
+                "إجمالي التعليقات"
             ],
             "Total content": [
-                "Contenido total"
+                "المحتوى الإجمالي"
             ],
             "Trash": [
-                "Basura"
+                "سلة المهملات"
             ],
             "Trashed %d.": [
-                "Desechado %d."
+                "تم نقله إلى المهملات %d."
             ],
             "Triage in one place": [
-                "Triaje en un solo lugar"
+                "الفرز في مكان واحد"
             ],
             "Tuesday": [
-                "Martes"
+                "يوم الثلاثاء"
             ],
             "Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
                 ""
@@ -1868,115 +1867,115 @@
                 ""
             ],
             "Type": [
-                "Tipo"
+                "النوع"
             ],
             "Type: %s": [
-                "Tipo: %s"
+                "النوع: %s"
             ],
             "Un-spammed %d.": [
-                "%d sin spam."
+                "تم إلغاء البريد العشوائي %d."
             ],
             "Unapprove": [
-                "Desaprobar"
+                "إلغاء الموافقة"
             ],
             "Unapproved %d.": [
-                "%d no aprobado."
+                "غير معتمد %d."
             ],
             "Uncategorized": [
-                "Sin categoría"
+                "غير مصنف"
             ],
             "Undated": [
-                "Añadir %s"
+                "غير مؤرخ"
             ],
             "Undo": [
-                "Deshacer"
+                "تراجع"
             ],
             "Undo failed.": [
-                "Error al subir."
+                "فشل التراجع."
             ],
             "Undocumented — declared via static props.": [
                 ""
             ],
             "Undone.": [
-                "Deshecho."
+                "تم التراجع عنه."
             ],
             "Unified": [
                 ""
             ],
             "Unknown": [
-                "Desconocido"
+                ""
             ],
             "Unknown My WordPress entity: %s": [
-                "Desconocida Mi entidad de WordPress: %s"
+                "كيان WordPress الخاص بي غير معروف: %s"
             ],
             "Unknown author": [
-                "Autor desconocido"
+                "مؤلف غير معروف"
             ],
             "Unknown entity type.": [
-                "Tipo de entidad desconocido."
+                "نوع كيان غير معروف."
             ],
             "Unknown error.": [
-                "Error desconocido."
+                "خطأ غير معروف."
             ],
             "Untagged": [
-                "Sin etiquetar"
+                "بدون علامات"
             ],
             "Update %d": [
-                "Añadir %s"
+                ""
             ],
             "Update available": [
-                "Actualización disponible"
+                ""
             ],
             "Update of %1$s failed: %2$s": [
-                "Error al subir."
+                ""
             ],
             "Update to %s": [
-                "Añadir %s"
+                "التحديث إلى %s"
             ],
             "Updated %s": [
-                "Añadir %s"
+                "تم تحديث %s"
             ],
             "Updated “%s”": [
-                "Añadir %s"
+                "تم تحديث \"%s\""
             ],
             "Updates": [
-                "Añadir %s"
+                "التحديثات"
             ],
             "Updating…": [
-                "Subiendo…"
+                ""
             ],
             "Upload Plugin": [
-                "Subir nueva"
+                "تحميل البرنامج المساعد"
             ],
             "Upload a plugin": [
-                "Subir nueva"
+                ""
             ],
             "Upload a plugin .zip": [
                 ""
             ],
             "Upload a wallpaper image": [
-                "Subir una imagen de fondo"
+                ""
             ],
             "Upload failed.": [
-                "Error al subir."
+                ""
             ],
             "Upload failed: %s": [
-                "Error al subir."
+                ""
             ],
             "Upload new": [
-                "Subir nueva"
+                ""
             ],
             "Uploaded": [
-                "Subir nueva"
+                "تم الرفع"
             ],
             "Uploader": [
-                "Subir nueva"
+                "الرافع"
             ],
             "Uploading and installing…": [
-                "Subiendo…"
+                ""
             ],
             "Uploading…": [
-                "Subiendo…"
+                ""
             ],
             "Use the native Comments window": [
                 ""
@@ -1994,109 +1993,109 @@
                 ""
             ],
             "Used in focused window title bars, buttons, and focus rings.": [
-                "Usado en barras de título enfocadas, botones y anillos de foco."
+                ""
             ],
             "User agent": [
-                "agente de usuario"
+                "وكيل المستخدم"
             ],
             "Using platform key — enter to override": [
                 ""
             ],
             "Version": [
-                "Versión"
+                ""
             ],
             "Very slow — 60s (default)": [
                 ""
             ],
             "View": [
-                "Vista"
+                "منظر"
             ],
             "View activity footprint": [
-                "Ver huella de actividad"
+                "عرض بصمة النشاط"
             ],
             "View archive": [
-                "Ver archivo"
+                "عرض الأرشيف"
             ],
             "View author archive": [
-                "Ver archivo del autor"
+                "عرض أرشيف المؤلف"
             ],
             "View details for %s": [
-                "Ver detalles de %s"
+                "عرض التفاصيل لـ %s"
             ],
             "View on WordPress.org": [
-                "Azul WordPress"
+                "عرض على WordPress.org"
             ],
             "View on WordPress.org ↗": [
-                "Ver en WordPress.org ↗"
+                "عرض على WordPress.org ↗"
             ],
             "View on site": [
-                "Ver en el sitio"
+                "عرض على الموقع"
             ],
             "W": [
-                "W."
+                "دبليو"
             ],
             "Wallpaper": [
-                "Fondo de pantalla"
+                ""
             ],
             "We couldn’t pull the review feed here. Open the full thread on WordPress.org to read every review.": [
-                "No pudimos obtener el feed de reseñas aquí. Abra el hilo completo en WordPress.org para leer cada reseña."
+                ""
             ],
             "Website": [
-                "Sitio web"
+                "موقع إلكتروني"
             ],
             "Wednesday": [
-                "Miércoles"
+                "الأربعاء"
             ],
             "Welcome to the new Comments": [
-                "Cambiar a modo escritorio"
+                "مرحبا بكم في التعليقات الجديدة"
             ],
             "Welcome to the new Plugins window": [
                 ""
             ],
             "What happened? What did you expect?": [
-                "¿Qué pasó? ¿Qué esperabas?"
+                "ماذا حدث؟ ماذا كنت تتوقع؟"
             ],
             "When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.": [
                 ""
             ],
             "Width of the dock and size of its icons.": [
-                "Anchura del dock y tamaño de sus iconos."
+                ""
             ],
             "Window %1$s → %2$s": [
-                "Ventana %1$s → %2$s"
+                "النافذة %1$s → %2$s"
             ],
             "Window actions": [
-                "Acciones de ventana"
+                ""
             ],
             "WordPress Blue": [
-                "Azul WordPress"
+                ""
             ],
             "WordPress Desktop Mode": [
-                "Escritorio %d"
+                ""
             ],
             "WordPress Heartbeat rate": [
-                "Azul WordPress"
+                ""
             ],
             "WordPress.org didn’t respond. Try again in a moment.": [
-                "WordPress.org no respondió. Inténtalo de nuevo en un momento."
+                ""
             ],
             "Wrap selection in a link": [
-                "Envolver selección en un enlace"
+                "التفاف التحديد في الرابط"
             ],
             "Write a reply…": [
-                "Escribe una respuesta…"
+                "أكتب الرد..."
             ],
             "Write a review on WordPress.org ↗": [
-                "Escribe una reseña en WordPress.org ↗"
+                ""
             ],
             "You can't edit this comment.": [
-                "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+                "لا يمكنك تعديل هذا التعليق."
             ],
             "You do not have permission to manage plugins.": [
-                "No tienes permiso para administrar complementos."
+                "ليس لديك إذن لإدارة المكونات الإضافية."
             ],
             "You will review and submit on GitHub.": [
-                "Lo revisará y enviará en GitHub."
+                "سوف تقوم بالمراجعة والتقديم على GitHub."
             ],
             "You're looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how Desktop Mode wants you to work.": [
                 ""
@@ -2108,13 +2107,13 @@
                 ""
             ],
             "by": [
-                "por"
+                "بواسطة"
             ],
             "by %s": [
-                "por %s"
+                "بواسطة %s"
             ],
             "comments": [
-                "comentarios"
+                "تعليقات"
             ],
             "components registered.": [
                 ""
@@ -2123,41 +2122,40 @@
                 ""
             ],
             "default": [
-                "Predeterminada"
+                ""
             ],
             "deleted": [
                 ""
             ],
             "in %s": [
-                "en %s"
+                "في %s"
             ],
             "macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching \"Show desktop\" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.": [
                 ""
             ],
             "one contributor": [
-                "un colaborador"
+                "مساهم واحد"
             ],
             "sk-…": [
                 ""
             ],
             "updated": [
-                "%d actualización"
+                ""
             ],
             "v%s": [
-                "v%s"
+                "الخامس%s"
             ],
             "· %d open tab": [
-                "· %d pestaña abierta",
-                "· %d pestañas abiertas"
+                ""
             ],
             "—": [
                 ""
             ],
             "“%s” will be permanently deleted. This cannot be undone.": [
-                "“%s” se eliminará permanentemente. Esto no se puede deshacer."
+                "سيتم حذف \"%s\" نهائيًا. لا يمكن التراجع عن هذا."
             ],
             "→ %s": [
-                "→ %s"
+                ""
             ]
         }
     }

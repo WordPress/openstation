@@ -1,170 +1,169 @@
 {
-    "translation-revision-date": "2026-04-19 20:42+0200",
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
     "generator": "desktop-mode/build-i18n.sh",
     "domain": "messages",
     "locale_data": {
         "messages": {
             "": {
                 "domain": "messages",
-                "lang": "es_ES",
-                "plural-forms": "nplurals=2; plural=(n != 1);"
+                "lang": "fa_IR",
+                "plural-forms": "nplurals=2; plural=(n > 1);"
             },
             "%1$d %3$s, %2$d failed.": [
-                ""
+                "%1$d %3$s، %2$d ناموفق بود."
             ],
             "%1$d nodes · %2$d links": [
-                "%1$d nodos · %2$d enlaces"
+                "%1$d گره · %2$d پیوند"
             ],
             "%1$d of %2$d items": [
-                "%1$d de %2$d artículos"
+                "%1$d از %2$d مورد"
             ],
             "%1$d of %2$d users": [
-                "%1$d de %2$d usuarios"
+                "%1$d از %2$d کاربر"
             ],
             "%1$d plugin(s) %2$s.": [
-                ""
+                "%1$d افزونه %2$s."
             ],
             "%1$d posts · %2$d comments tracked": [
-                "%1$d publicaciones · %2$d comentarios rastreados"
+                "%1$d پست · %2$d نظر پیگیری شد"
             ],
             "%1$d posts · %2$d pages": [
-                "%1$d publicaciones · %2$d páginas"
+                "%1$d پست · %2$d صفحه"
             ],
             "%1$s %2$s": [
-                ""
+                "%1$s %2$s"
             ],
             "%1$s deactivated. Closed %2$d window(s).": [
-                "%1$s desactivado. Cerró %2$d ventana(s)."
+                "%1$s غیرفعال شد. %2$d پنجره(ها) بسته شد."
             ],
             "%1$s updated to %2$s.": [
-                ""
+                "%1$s به %2$s به‌روزرسانی شد."
             ],
             "%1$s · %2$d": [
                 "%1$s · %2$d"
             ],
             "%1$s · %2$d posts": [
-                "%1$s · %2$d publicaciones"
+                "%1$s · %2$d پست"
             ],
             "%1$s · %2$s KB": [
-                ""
+                "%1$s · %2$s کیلوبایت"
             ],
             "%1$s — %2$d posts, %3$d comments, %4$d updates": [
-                "%1$s — %2$d publicaciones, %3$d comentarios, %4$d actualizaciones"
+                "%1$s — %2$d پست، %3$d نظر، %4$d به‌روزرسانی"
             ],
             "%1$s — currently being edited by %2$s": [
-                "%1$s — actualmente siendo editado por %2$s"
+                "%1$s — در حال حاضر توسط %2$s در حال ویرایش است"
             ],
             "%1$s → %2$s": [
                 "%1$s → %2$s"
             ],
             "%d KB": [
-                "%d KB"
+                "%d کیلوبایت"
             ],
             "%d comment site-wide": [
-                ""
+                "%d نظر در کل سایت"
             ],
             "%d day": [
-                ""
+                "%d روز"
             ],
             "%d entry references this file.": [
-                ""
+                "%d ورودی به این فایل اشاره دارد."
             ],
             "%d hidden by HD filter": [
-                "%d ocultas por el filtro HD"
+                ""
             ],
             "%d item": [
-                ""
+                "%d مورد"
             ],
             "%d new pending — reload": [
-                "%d nuevo pendiente - recargar"
+                "%d جدید در انتظار - بارگیری مجدد"
             ],
             "%d notification": [
-                ""
+                "%d اعلان"
             ],
             "%d post": [
-                ""
+                "%d پست"
             ],
             "%d post published — their personal record.": [
-                ""
+                "%d پست منتشر شد - سابقه شخصی آنها."
             ],
             "%d published": [
-                "%d publicado"
+                "%d منتشر شد"
             ],
             "%d reference": [
-                ""
+                "%d مرجع"
             ],
             "%d selected": [
-                "%d seleccionado"
+                "%d انتخاب شد"
             ],
             "%d update": [
-                "%d actualización",
-                "%d actualizaciones"
+                "%d به روز رسانی"
             ],
             "%d ★": [
                 "%d ★"
             ],
             "%d+ million active": [
-                "%d+ millones activos"
+                "%d+ میلیون فعال است"
             ],
             "%d:00": [
                 "%d:00"
             ],
             "%s (already added)": [
-                "%s (ya añadido)"
-            ],
-            "%s MB": [
-                "%sMB"
-            ],
-            "%s activated.": [
-                "%s activado."
-            ],
-            "%s deactivated.": [
-                "%s desactivado."
-            ],
-            "%s deleted.": [
-                "%s eliminado."
-            ],
-            "%s is already installed. Open it from your apps menu or home screen.": [
                 ""
             ],
+            "%s MB": [
+                "%s مگابایت"
+            ],
+            "%s activated.": [
+                "%s فعال شد."
+            ],
+            "%s deactivated.": [
+                "%s غیرفعال شد."
+            ],
+            "%s deleted.": [
+                "%s حذف شد."
+            ],
+            "%s is already installed. Open it from your apps menu or home screen.": [
+                "%s قبلاً نصب شده است. آن را از منوی برنامه ها یا صفحه اصلی باز کنید."
+            ],
             "%s is already up to date.": [
-                "%s (ya añadido)"
+                "%s از قبل به‌روز است."
             ],
             "%s is currently editing": [
-                "%s está editando actualmente"
+                "%s در حال ویرایش است"
             ],
             "%s sub-pages": [
-                "Subpáginas de %s"
+                ""
             ],
             "%s — activity footprint": [
-                "%s — huella de actividad"
+                "%s — ردپای فعالیت"
             ],
             "%s — open windows": [
-                "%s - ventanas abiertas"
+                "%s - پنجره ها را باز کنید"
             ],
             "%s+": [
                 "%s+"
             ],
             "%s+ active": [
-                "%s+ activo"
+                "%s+ فعال است"
             ],
             "%s+ active installs": [
-                "%s+ instalaciones activas"
+                "%s+ نصب فعال"
             ],
             "(folder)": [
-                "(carpeta)"
+                "(پوشه)"
             ],
             "(no title)": [
-                "(sin título)"
+                "(بدون عنوان)"
             ],
             "+ %d replies": [
-                "Subpáginas de %s"
+                "+ %d پاسخ"
             ],
             "1 item": [
-                "1 artículo"
+                "1 مورد"
             ],
             "A moderation surface built around how you actually triage: bulk actions with undo, an inline reply editor, keyboard shortcuts, and a spam score that surfaces the obvious junk first.": [
-                "Una superficie de moderación creada en torno a cómo realiza la clasificación: acciones masivas con deshacer, un editor de respuestas en línea, atajos de teclado y una puntuación de spam que muestra primero la basura obvia."
+                "یک سطح تعدیل مبتنی بر نحوه تریاژ شما: اقدامات انبوه با لغو، ویرایشگر پاسخ درون خطی، میانبرهای صفحه کلید، و امتیاز هرزنامه که ابتدا ناخواسته آشکار را نشان می دهد."
             ],
             "A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.": [
                 ""
@@ -176,181 +175,181 @@
                 ""
             ],
             "A plugin with the same folder name is already installed.": [
-                ""
+                "افزونه ای با همان نام پوشه قبلاً نصب شده است."
             ],
             "A plugin with the same folder name is already installed. Replacing it overwrites the installed files. Any local edits to the plugin will be lost. The plugin will keep its activation state.": [
-                ""
+                "افزونه ای با همان نام پوشه قبلاً نصب شده است. با تعویض آن، فایل های نصب شده رونویسی می شوند. هر گونه ویرایش محلی افزونه از بین خواهد رفت. پلاگین حالت فعال سازی خود را حفظ خواهد کرد."
             ],
             "A real gallery on Browse — clean cards with rating, install count, last updated, and a click-anywhere detail flyout. Subtle hover lift, lazy-loaded icons, infinite scroll.": [
-                ""
+                "یک گالری واقعی در «مرور» - کارت‌های تمیز با رتبه‌بندی، تعداد نصب، آخرین به‌روزرسانی، و نمایش جزئیات با کلیک در هر نقطه. بالابر شناور ظریف، نمادهای تنبل، اسکرول بی نهایت."
             ],
             "A redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo). On by default.": [
                 ""
             ],
             "A short summary": [
-                "Un breve resumen"
+                "خلاصه ای کوتاه"
             ],
             "A year of activity": [
-                "Un año de actividad"
+                "یک سال فعالیت"
             ],
             "AI Settings": [
                 ""
             ],
             "AI integration": [
-                "Navegación del administrador"
+                ""
             ],
             "AI: hostile / abusive tone.": [
-                "AI: tono hostil/abusivo."
+                "هوش مصنوعی: لحن خصمانه / توهین آمیز."
             ],
             "AI: looks like promotional spam.": [
-                "IA: parece spam promocional."
+                "هوش مصنوعی: شبیه هرزنامه تبلیغاتی است."
             ],
             "AI: looks safe.": [
-                "AI: parece seguro."
+                "هوش مصنوعی: امن به نظر می رسد."
             ],
             "API key": [
                 ""
             ],
             "About": [
-                "Acerca de"
+                "درباره"
             ],
             "Accent color": [
-                "Color de acento"
+                ""
             ],
             "Activate": [
-                "Activar"
+                "فعال کنید"
             ],
             "Activate Plugin": [
-                "Subiendo…"
+                "افزونه را فعال کنید"
             ],
             "Activate failed: %s": [
-                "Error al subir."
+                "فعال سازی انجام نشد: %s"
             ],
             "Activating…": [
-                "Subiendo…"
+                "فعال سازی…"
             ],
             "Activation failed: %s": [
-                "Error de activación: %s"
+                "فعال سازی انجام نشد: %s"
             ],
             "Active": [
-                "Activo"
+                "فعال"
             ],
             "Activity (last 12 months)": [
-                "Actividad (últimos 12 meses)"
+                "فعالیت (12 ماه گذشته)"
             ],
             "Add %s": [
-                "Añadir %s"
+                ""
             ],
             "Add new desktop": [
-                "Añadir nuevo escritorio"
+                ""
             ],
             "Add widget": [
-                "Añadir widget"
+                ""
             ],
             "Added": [
-                "Añadido"
+                ""
             ],
             "Akismet cleared this comment.": [
-                "Akismet borró este comentario."
+                "Akismet این نظر را پاک کرد."
             ],
             "Akismet flagged this comment as spam.": [
-                "Akismet marcó este comentario como spam."
+                "Akismet این نظر را به عنوان هرزنامه پرچم گذاری کرد."
             ],
             "All": [
-                "Todo"
+                "همه"
             ],
             "Also show on desktop": [
-                "Añadir nuevo escritorio"
+                "همچنین در دسکتاپ نمایش داده شود"
             ],
             "Also show on dock": [
-                "Mostrar también en el muelle"
+                "همچنین در حوض نمایش داده شود"
             ],
             "Alt text": [
-                "Texto alternativo"
+                "متن جایگزین"
             ],
             "Amber": [
-                "Ámbar"
+                ""
             ],
             "Angle": [
-                "Ángulo"
+                ""
             ],
             "Anonymous": [
-                "Anónimo"
+                "ناشناس"
             ],
             "Appearance": [
                 ""
             ],
             "Approve": [
-                "Aprobar"
+                "پذیرفتن"
             ],
             "Approved": [
-                "Aprobado"
+                "تصویب شد"
             ],
             "Approved %d.": [
-                "Aprobado %d."
+                "%d تأیید شد."
             ],
             "Apps & Icons": [
                 ""
             ],
             "Apps & Icons settings…": [
-                "Configuración de aplicaciones e iconos..."
+                "تنظیمات برنامه‌ها و نمادها…"
             ],
             "Attached media": [
-                "Buscar medios"
+                "رسانه پیوست شده"
             ],
             "Author": [
-                "Autor"
+                "نویسنده"
             ],
             "Author URL": [
-                "URL del autor"
+                "آدرس نویسنده"
             ],
             "Author archive": [
-                "Archivo de autor"
+                "آرشیو نویسنده"
             ],
             "Author insights drawer": [
-                "Cajón de información del autor"
+                "کشوی بینش نویسنده"
             ],
             "Author website": [
-                "Sitio web del autor"
+                "وب سایت نویسنده"
             ],
             "Author · %s": [
-                "Autor · %s"
+                "نویسنده · %s"
             ],
             "Authors": [
-                "Autores"
+                "نویسندگان"
             ],
             "Auto-update unavailable": [
-                ""
+                "به روز رسانی خودکار در دسترس نیست"
             ],
             "Auto-updates disabled": [
-                "Actualizaciones automáticas deshabilitadas"
+                "به روز رسانی خودکار غیرفعال است"
             ],
             "Auto-updates disabled for %s.": [
-                ""
+                "به روز رسانی خودکار برای %s غیرفعال شد."
             ],
             "Auto-updates enabled": [
-                "Actualizaciones automáticas habilitadas"
+                "به روز رسانی خودکار فعال شد"
             ],
             "Auto-updates enabled for %s.": [
-                ""
+                "به روز رسانی خودکار برای %s فعال شد."
             ],
             "Automatic Updates": [
-                "Actualizaciones automáticas"
+                "به روز رسانی های خودکار"
             ],
             "Back": [
-                "Atrás"
+                "برگشت"
             ],
             "Back to post": [
-                "Volver a la publicación"
+                "بازگشت به پست"
             ],
             "Beta": [
-                "Beta"
+                "بتا"
             ],
             "Bold": [
-                "Atrevido"
+                "پررنگ"
             ],
             "Bookmark": [
-                "Marcador"
+                "نشانک"
             ],
             "Bottom": [
                 ""
@@ -359,25 +358,25 @@
                 ""
             ],
             "Breadcrumb": [
-                "Migaja de pan"
+                "خرده نان"
             ],
             "Bug": [
-                "Bicho"
+                "اشکال"
             ],
             "Bulk %s failed.": [
-                "Error al subir."
+                "%s انبوه ناموفق بود."
             ],
             "Bulk moderation with undo": [
-                "Moderación masiva con deshacer"
+                "تعدیل انبوه با لغو"
             ],
             "Bulleted list": [
-                "Lista con viñetas"
+                "لیست گلوله شده"
             ],
             "By hour of day (site time)": [
-                "Por hora del día (hora del sitio)"
+                "بر اساس ساعت روز (زمان سایت)"
             ],
             "By weekday": [
-                "Por día laborable"
+                "در روز هفته"
             ],
             "CPT": [
                 "CPT"
@@ -386,22 +385,22 @@
                 ""
             ],
             "Cancel": [
-                "Cancelar"
+                "انصراف"
             ],
             "Can’t drop here": [
-                "No puedo caer aquí"
+                "نمی توان اینجا رها کرد"
             ],
             "Caption": [
-                "Subtítulo"
+                "عنوان"
             ],
             "Categories": [
-                "Categorías"
+                "دسته بندی ها"
             ],
             "Categories · %d": [
-                ""
+                "دسته ها · %d"
             ],
             "Changelog": [
-                "Registro de cambios"
+                "تغییرات"
             ],
             "Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.": [
                 ""
@@ -410,55 +409,55 @@
                 ""
             ],
             "Click an avatar to see the author's full history — total comments, spam rate, first seen, and one-click block.": [
-                "Haga clic en un avatar para ver el historial completo del autor: comentarios totales, tasa de spam, visto por primera vez y bloqueo con un solo clic."
+                "روی یک آواتار کلیک کنید تا تاریخچه کامل نویسنده را ببینید - کل نظرات، نرخ هرزنامه، اولین بار مشاهده شده و بلوک با یک کلیک."
             ],
             "Clock": [
-                "Reloj"
-            ],
-            "Close": [
-                "Cerrar"
-            ],
-            "Close %s": [
-                "Cerrar %s"
-            ],
-            "Close panel": [
-                "Cerrar pestaña"
-            ],
-            "Close plugin details": [
-                "Cerrar detalles del complemento"
-            ],
-            "Close tab": [
-                "Cerrar pestaña"
-            ],
-            "Co-occurring": [
-                "Co-ocurrencia"
-            ],
-            "Comment": [
-                "Comentario"
-            ],
-            "Comment updated.": [
-                "Comentario actualizado."
-            ],
-            "Commented on “%s”": [
-                "Comentado en “%s”"
-            ],
-            "Comments": [
-                "Comentarios"
-            ],
-            "Comments left": [
-                "Comentarios dejados"
-            ],
-            "Comments received": [
-                "Comentarios recibidos"
-            ],
-            "Comments window configuration missing.": [
-                "Falta la configuración de la ventana de comentarios."
-            ],
-            "Comments · %d": [
                 ""
             ],
+            "Close": [
+                "بستن"
+            ],
+            "Close %s": [
+                ""
+            ],
+            "Close panel": [
+                "پانل را ببندید"
+            ],
+            "Close plugin details": [
+                "جزئیات افزونه را ببندید"
+            ],
+            "Close tab": [
+                ""
+            ],
+            "Co-occurring": [
+                "همزمان اتفاق می افتد"
+            ],
+            "Comment": [
+                "نظر دهید"
+            ],
+            "Comment updated.": [
+                "نظر به روز شد."
+            ],
+            "Commented on “%s”": [
+                "در مورد \"%s\" نظر داد"
+            ],
+            "Comments": [
+                "دیدگاه‌ها"
+            ],
+            "Comments left": [
+                "نظرات باقی مانده است"
+            ],
+            "Comments received": [
+                "نظرات دریافت شد"
+            ],
+            "Comments window configuration missing.": [
+                "پیکربندی پنجره نظرات وجود ندارد."
+            ],
+            "Comments · %d": [
+                "نظرات · %d"
+            ],
             "Compact": [
-                "Compacta"
+                ""
             ],
             "Component library": [
                 ""
@@ -473,112 +472,112 @@
                 ""
             ],
             "Content Graph container missing.": [
-                "Falta el contenedor de gráfico de contenido."
+                "محفظه نمودار محتوا وجود ندارد."
             ],
             "Contributor": [
-                "Contribuyente"
+                "مشارکت کننده"
             ],
             "Contributors": [
-                "Colaboradores"
+                "مشارکت کنندگان"
             ],
             "Contributors · %d": [
-                ""
+                "مشارکت کنندگان · %d"
             ],
             "Could not deactivate %s.": [
-                "No se pudieron cargar tus medios: %s"
+                "نمی‌توان %s را غیرفعال کرد."
             ],
             "Could not delete sharing data.": [
-                "No se pudieron cargar tus medios: %s"
-            ],
-            "Could not initialise the graph renderer.": [
-                "No se pudo inicializar el renderizador de gráficos."
-            ],
-            "Could not load comments.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load featured plugins: %s": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load footprint.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load insights.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load plugin details.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load plugins: %s": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load post #%d.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load replies.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not load reviews.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not save sticky note.": [
-                "No se pudieron cargar tus medios."
-            ],
-            "Could not toggle auto-updates for %1$s: %2$s": [
                 ""
             ],
+            "Could not initialise the graph renderer.": [
+                "رندر گراف را نمی توان مقداردهی اولیه کرد."
+            ],
+            "Could not load comments.": [
+                "نظرات بارگیری نشد."
+            ],
+            "Could not load featured plugins: %s": [
+                "افزونه های ویژه بارگیری نشد: %s"
+            ],
+            "Could not load footprint.": [
+                "ردپای بارگیری نشد."
+            ],
+            "Could not load insights.": [
+                "اطلاعات آماری بارگیری نشد."
+            ],
+            "Could not load plugin details.": [
+                "جزئیات افزونه بارگیری نشد."
+            ],
+            "Could not load plugins: %s": [
+                "پلاگین ها بارگیری نشد: %s"
+            ],
+            "Could not load post #%d.": [
+                "پست #%d بارگیری نشد."
+            ],
+            "Could not load replies.": [
+                "پاسخ ها بارگیری نشد."
+            ],
+            "Could not load reviews.": [
+                "نظرات بارگیری نشد."
+            ],
+            "Could not save sticky note.": [
+                ""
+            ],
+            "Could not toggle auto-updates for %1$s: %2$s": [
+                "نمی‌توان به‌روزرسانی‌های خودکار را برای %1$s تغییر داد: %2$s"
+            ],
             "Couldn’t delete that file.": [
-                "No se pudieron cargar tus medios."
+                "نمی توان آن فایل را حذف کرد."
             ],
             "Couldn’t load reviews": [
-                "No se pudieron cargar tus medios."
+                "نظرات بارگیری نشد"
             ],
             "Couldn’t load the revision content. You may not have permission to view it.": [
-                "No se pudo cargar el contenido de la revisión. Es posible que no tenga permiso para verlo."
+                "محتوای بازبینی بارگیری نشد. ممکن است اجازه مشاهده آن را نداشته باشید."
             ],
             "Couldn’t load your media.": [
-                "No se pudieron cargar tus medios."
+                ""
             ],
             "Couldn’t load your media: %s": [
-                "No se pudieron cargar tus medios: %s"
+                ""
             ],
             "Crafted with curiosity": [
                 ""
             ],
             "Current streak": [
-                "Racha actual"
+                "رگه فعلی"
             ],
             "Custom gradient": [
-                "Gradiente personalizado"
+                ""
             ],
             "Custom image": [
-                "Imagen personalizada"
+                ""
             ],
             "Custom image wallpaper": [
-                "Fondo de imagen personalizada"
+                ""
             ],
             "Deactivate": [
-                "Desactivar"
+                "غیر فعال کردن"
             ],
             "Deactivate %s?": [
-                "Error al subir."
+                "%s غیرفعال شود؟"
             ],
             "Deactivate %s…": [
-                "Subiendo…"
+                "غیرفعال کردن %s…"
             ],
             "Deactivation failed: %s": [
-                "Error de desactivación: %s"
+                "غیرفعال سازی انجام نشد: %s"
             ],
             "Default": [
-                "Predeterminada"
+                ""
             ],
             "Delete": [
-                "Borrar"
+                "حذف کنید"
             ],
             "Delete data": [
                 ""
             ],
             "Delete failed: %s": [
-                "Error al subir."
+                "حذف نشد: %s"
             ],
             "Delete folder sharing data": [
                 ""
@@ -587,52 +586,52 @@
                 ""
             ],
             "Delete media?": [
-                "Error al subir."
+                "رسانه حذف شود؟"
             ],
             "Delete permanently": [
-                "Eliminar permanentemente"
+                "برای همیشه حذف کنید"
             ],
             "Delete plugin?": [
-                "¿Eliminar complemento?"
+                "افزونه حذف شود؟"
             ],
             "Delete selected plugins?": [
-                ""
+                "افزونه های انتخابی حذف شوند؟"
             ],
             "Deleting…": [
-                "Subiendo…"
-            ],
-            "Describe the issue or the feature you have in mind.": [
-                "Describe el problema o la característica que tienes en mente."
-            ],
-            "Description": [
-                "Descripción"
-            ],
-            "Desktop %d": [
-                "Escritorio %d"
-            ],
-            "Desktop Mode deactivated. Reloading…": [
-                "Modo escritorio desactivado. Recargando…"
-            ],
-            "Desktop Mode deleted. Reloading…": [
-                "Modo de escritorio eliminado. Recargando…"
-            ],
-            "Desktop icons": [
-                "Escritorio 1"
-            ],
-            "Desktop layout": [
-                "Escritorio 1"
-            ],
-            "Details": [
-                "Detalles"
-            ],
-            "Dimensions": [
-                "Dimensiones"
-            ],
-            "Disable auto-updates": [
                 ""
             ],
+            "Describe the issue or the feature you have in mind.": [
+                "مشکل یا ویژگی را که در ذهن دارید توضیح دهید."
+            ],
+            "Description": [
+                "توضیحات"
+            ],
+            "Desktop %d": [
+                ""
+            ],
+            "Desktop Mode deactivated. Reloading…": [
+                "حالت دسکتاپ غیرفعال شد. در حال بارگیری مجدد…"
+            ],
+            "Desktop Mode deleted. Reloading…": [
+                "حالت دسکتاپ حذف شد. در حال بارگیری مجدد…"
+            ],
+            "Desktop icons": [
+                "آیکون های دسکتاپ"
+            ],
+            "Desktop layout": [
+                ""
+            ],
+            "Details": [
+                "جزئیات"
+            ],
+            "Dimensions": [
+                "ابعاد"
+            ],
+            "Disable auto-updates": [
+                "به روز رسانی خودکار را غیرفعال کنید"
+            ],
             "Disabling…": [
-                "Subiendo…"
+                "غیرفعال کردن…"
             ],
             "Dismiss notice": [
                 ""
@@ -641,61 +640,61 @@
                 ""
             ],
             "Dock size": [
-                "Tamaño del dock"
+                ""
             ],
             "Dock style": [
-                "Tamaño del dock"
+                ""
             ],
             "Done": [
-                ""
+                "انجام شد"
             ],
             "Double-click to open.": [
-                "Haga doble clic para abrir."
+                "برای باز کردن دوبار کلیک کنید."
             ],
             "Drag a .zip onto the window to install — or drag a Browse card straight to the dock to pin a shortcut. The framework drag bridge handles the rest.": [
-                ""
+                "برای نصب، یک .zip را روی پنجره بکشید - یا یک کارت مرور را مستقیماً به داک بکشید تا میانبر را پین کنید. پل کشیدن فریمورک بقیه موارد را اداره می کند."
             ],
             "Drop a .zip plugin file here, or click to choose a file.": [
-                "Suelta una imagen aquí, o haz clic para subir"
+                "یک فایل افزونه .zip را در اینجا رها کنید یا برای انتخاب فایل کلیک کنید."
             ],
             "Drop an image here, or click to upload": [
-                "Suelta una imagen aquí, o haz clic para subir"
+                ""
             ],
             "Drop here": [
-                "Caer aquí"
+                "اینجا را رها کنید"
             ],
             "Drop here to create shortcut": [
-                "Suelte aquí para crear un acceso directo"
+                "برای ایجاد میانبر اینجا را رها کنید"
             ],
             "Drop here to move": [
-                "Déjate caer aquí para moverte"
+                "برای حرکت اینجا را رها کنید"
             ],
             "Drop in a folder": [
-                "Colocar en una carpeta"
+                "در یک پوشه رها کنید"
             ],
             "Drop on the desktop or a folder": [
-                "Soltar en el escritorio o en una carpeta"
+                "روی دسکتاپ یا پوشه رها کنید"
             ],
             "Drop the .zip to install.": [
-                "Suelte el .zip para instalar."
+                "برای نصب، .zip را رها کنید."
             ],
             "Drop your .zip here or click to browse": [
-                "Suelta una imagen aquí, o haz clic para subir"
+                "زیپ خود را اینجا رها کنید یا برای مرور کلیک کنید"
             ],
             "Edit": [
-                "Editar"
+                "ویرایش کنید"
             ],
             "Edit comment…": [
-                "Editar comentario…"
+                "ویرایش نظر…"
             ],
             "Edit failed.": [
-                "Error al subir."
+                "ویرایش انجام نشد."
             ],
             "Edit user": [
-                "Editar usuario"
+                "کاربر را ویرایش کنید"
             ],
             "Emerald": [
-                "Esmeralda"
+                ""
             ],
             "Enable AI features": [
                 ""
@@ -704,19 +703,19 @@
                 ""
             ],
             "Enable auto-updates": [
-                ""
+                "به روز رسانی خودکار را فعال کنید"
             ],
             "Enable drag-and-drop in the Media Library": [
                 ""
             ],
             "Enabling…": [
-                "Subiendo…"
+                "فعال کردن…"
             ],
             "Enter fullscreen": [
-                "Entrar en pantalla completa"
+                ""
             ],
             "Environment included with the report": [
-                "Medio ambiente incluido en el informe."
+                "محیط زیست همراه با گزارش"
             ],
             "Events": [
                 ""
@@ -725,22 +724,22 @@
                 ""
             ],
             "Every comment gets a 0–100 score from Akismet + heuristics. Optionally turn on AI scoring in OS Settings → Features so each new comment is also scored by your configured AI provider on arrival.": [
-                "Cada comentario obtiene una puntuación de 0 a 100 según la heurística Akismet +. Opcionalmente, active la puntuación de IA en Configuración del sistema operativo → Funciones para que su proveedor de IA configurado también califique cada nuevo comentario al llegar."
+                "هر نظر از Akismet + Heuristics امتیاز 0-100 دریافت می کند. به صورت اختیاری امتیازدهی هوش مصنوعی را در تنظیمات سیستم عامل ← ویژگی ها روشن کنید تا هر نظر جدید در هنگام ورود توسط ارائه دهنده هوش مصنوعی پیکربندی شده شما نیز امتیازدهی شود."
             ],
             "Example": [
                 ""
             ],
             "Exit Desktop Mode": [
-                "Escritorio %d"
+                "از حالت دسکتاپ خارج شوید"
             ],
             "Exit fullscreen": [
-                "Salir de pantalla completa"
+                ""
             ],
             "Experimental": [
                 ""
             ],
             "Explore details": [
-                "Explorar detalles"
+                "جزئیات را کاوش کنید"
             ],
             "Extended Options": [
                 ""
@@ -749,58 +748,58 @@
                 ""
             ],
             "F": [
-                "F"
+                "اف"
             ],
             "FAQ": [
-                "Preguntas frecuentes"
+                "سوالات متداول"
             ],
             "Failed to load graph.": [
-                "No se pudo cargar el gráfico."
+                "نمودار بارگیری نشد."
             ],
             "Failed to load usage data.": [
-                "No se pudieron cargar tus medios."
+                "داده های استفاده بارگیری نشد."
             ],
             "Fast — 15s (not recommended)": [
                 ""
             ],
             "Favorites": [
-                "Favoritos"
+                "موارد دلخواه"
             ],
             "Feature request": [
-                "Solicitud de función"
+                "درخواست ویژگی"
             ],
             "Featured": [
-                "Presentado"
+                "برجسته"
             ],
             "Features": [
                 ""
             ],
             "Fewer than 10 active": [
-                "Menos de 10 activos"
+                "کمتر از 10 فعال"
             ],
             "File size": [
-                "Tamaño del archivo"
+                "اندازه فایل"
             ],
             "Filename": [
-                "Nombre del archivo"
+                "نام فایل"
             ],
             "Files REST endpoint is not available.": [
                 ""
             ],
             "First post": [
-                "Primera publicación"
+                "پست اول"
             ],
             "First published": [
-                "Publicado por primera vez"
+                "اولین بار منتشر شد"
             ],
             "First seen": [
-                "visto por primera vez"
+                "اولین بار دیده شد"
             ],
             "Fit": [
-                "Adaptar"
+                "مناسب"
             ],
             "Fit graph to view": [
-                "Ajustar gráfico para ver"
+                "متناسب کردن نمودار برای مشاهده"
             ],
             "Folder sharing": [
                 ""
@@ -809,52 +808,52 @@
                 ""
             ],
             "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
-                "¿Encontró un error o tiene una idea para una característica? Complete esto y abriremos una edición de GitHub precargada para que la revise y envíe."
+                "اشکالی پیدا کردید یا ایده خاصی دارید؟ این را پر کنید و ما یک شماره از پیش پر شده GitHub را برای بررسی و ارسال برای شما باز می کنیم."
             ],
             "Friday": [
-                "Viernes"
+                "جمعه"
             ],
             "From": [
-                "Desde"
+                ""
             ],
             "Global settings": [
                 ""
             ],
             "Got it": [
-                ""
+                "متوجه شدم"
             ],
             "Group by": [
-                "Agrupar por"
+                "گروه بندی بر اساس"
             ],
             "Group by author": [
-                "Grupo por autor"
+                "گروه بر اساس نویسنده"
             ],
             "Group by category": [
-                "Agrupar por categoría"
+                "گروه بندی بر اساس دسته بندی"
             ],
             "Group by tag": [
-                "Agrupar por etiqueta"
+                "گروه بر اساس برچسب"
             ],
             "Group by year": [
-                "Grupo por año"
+                "گروه بر حسب سال"
             ],
             "Group by year-month": [
-                "Grupo por año-mes"
+                "گروه بندی بر اساس سال-ماه"
             ],
             "Group posts by a shared facet": [
-                "Agrupar publicaciones por una faceta compartida"
+                "گروه بندی پست ها بر اساس یک جنبه مشترک"
             ],
             "Hidden": [
                 ""
             ],
             "Hide everywhere": [
-                "Esconderse en todas partes"
+                "همه جا پنهان شو"
             ],
             "Hide from desktop": [
-                "Añadir nuevo escritorio"
+                "از دسکتاپ مخفی شوید"
             ],
             "Hide from dock": [
-                "Esconderse del muelle"
+                "از اسکله پنهان شوید"
             ],
             "Hide sticky note": [
                 ""
@@ -875,91 +874,91 @@
                 ""
             ],
             "In reply to %s": [
-                "En respuesta a %s"
+                "در پاسخ به %s"
             ],
             "In response to": [
-                "En respuesta a"
+                "در پاسخ به"
             ],
             "Inactive": [
-                "Inactivo"
+                "غیر فعال"
             ],
             "Including today": [
-                "Incluyendo hoy"
+                "از جمله امروز"
             ],
             "Indigo": [
-                "Índigo"
+                ""
             ],
             "Inline reply": [
-                "Respuesta en línea"
+                "پاسخ درون خطی"
             ],
             "Install": [
-                "Instalar"
+                "نصب کنید"
             ],
             "Install %s as an app": [
-                ""
+                "%s را به عنوان برنامه نصب کنید"
             ],
             "Install cancelled.": [
-                ""
+                "نصب لغو شد."
             ],
             "Install failed: %s": [
-                "Error de instalación: %s"
+                "نصب انجام نشد: %s"
             ],
             "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
-                ""
+                "نصب در حال حاضر در دسترس نیست. به استفاده از صفحه ادامه دهید؛ اگر باز هم ظاهر نشد، ممکن است برنامه قبلاً در این مرورگر نصب شده باشد."
             ],
             "Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.": [
-                ""
+                "نصب در دسترس نیست — کارمند خدمات افزونه دیگری در این سایت فعال است. یک مدیر سایت می تواند با تنظیم فیلتر desktop_mode_pwa_force_replace_sw روی true انتخاب کند."
             ],
             "Installed %s as an app.": [
-                ""
+                "%s را به عنوان یک برنامه نصب کرد."
             ],
             "Installed %s.": [
-                "%s instalados."
+                "%s نصب شد."
             ],
             "Installing…": [
-                "Subiendo…"
+                "در حال نصب…"
             ],
             "Italic": [
-                "Itálico"
+                "کج"
             ],
             "J/K to navigate, A approve, S spam, D trash, R reply, E edit, U undo. Press ? any time for the cheat sheet.": [
-                "J/K para navegar, A aprobar, S spam, D papelera, R responder, E editar, U deshacer. Prensa ? en cualquier momento para la hoja de trucos."
+                "J/K برای پیمایش، تأیید، ارسال هرزنامه، سطل زباله، پاسخ R، ویرایش، لغو لغو. فشار دهید؟ هر زمان برای برگه تقلب."
             ],
             "JPEG, PNG, or WebP · goes straight to your Media Library": [
-                "JPEG, PNG o WebP · va directo a tu biblioteca de medios"
+                ""
             ],
             "Keyboard moderation": [
-                "Moderación del teclado"
+                "تعدیل صفحه کلید"
             ],
             "Large": [
-                "Grande"
+                ""
             ],
             "Last post": [
-                "Última publicación"
+                "آخرین پست"
             ],
             "Last published": [
-                "Último publicado"
+                "آخرین منتشر شده"
             ],
             "Last published %s": [
-                "Última publicación %s"
+                "آخرین انتشار %s"
             ],
             "Last seen": [
-                "visto por última vez"
+                "آخرین حضور"
             ],
             "Latest": [
-                "El último"
+                "آخرین"
             ],
             "Latest post": [
-                "Última publicación"
+                "آخرین پست"
             ],
             "Left": [
                 ""
             ],
             "Less": [
-                "Menos"
+                "کمتر"
             ],
             "Let me moderate": [
-                "Déjame moderar"
+                "اجازه بدهید تعدیل کنم"
             ],
             "Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, \"Leave shared folder\") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.": [
                 ""
@@ -968,382 +967,382 @@
                 ""
             ],
             "Load more": [
-                "Cargar más"
+                ""
             ],
             "Loading author insights…": [
-                "Subiendo…"
+                "در حال بارگیری اطلاعات آماری نویسنده…"
             ],
             "Loading description…": [
-                "Subiendo…"
+                "در حال بارگیری توضیحات…"
             ],
             "Loading details…": [
-                "Subiendo…"
+                "در حال بارگیری جزئیات…"
             ],
             "Loading footprint…": [
-                "Cargando huella…"
+                "در حال بارگیری ردپای…"
             ],
             "Loading from WordPress.org…": [
-                "Cargando desde WordPress.org…"
+                "در حال بارگیری از WordPress.org…"
             ],
             "Loading graph…": [
-                "Subiendo…"
+                "در حال بارگیری نمودار…"
             ],
             "Loading recent reviews…": [
-                "Cargando reseñas recientes…"
+                "بارگیری مرورهای اخیر…"
             ],
             "Loading window content": [
                 ""
             ],
             "Loading…": [
-                "Subiendo…"
+                "در حال بارگیری…"
             ],
             "Local time and date, refreshed every second.": [
-                "Hora y fecha locales, se actualiza cada segundo."
+                ""
             ],
             "Longest streak": [
-                "Racha más larga"
+                "طولانی ترین دوره"
             ],
             "M": [
-                "METRO"
+                "م"
             ],
             "Made for Desktop Mode": [
-                "Cambiar a modo escritorio"
+                "ساخته شده برای حالت دسکتاپ"
             ],
             "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
                 ""
             ],
             "Marked %d as spam.": [
-                "Marcado %d como spam."
+                "%d به عنوان هرزنامه علامت‌گذاری شد."
             ],
             "Maximize": [
-                "Maximizar"
+                ""
             ],
             "Media": [
-                "Medios de comunicación"
+                "رسانه"
             ],
             "Media Library": [
-                "Biblioteca de medios"
+                ""
             ],
             "Media deleted.": [
-                "Biblioteca de medios"
+                "رسانه حذف شد"
             ],
             "Medium — 30s": [
                 ""
             ],
             "Member since": [
-                "Miembro desde"
+                "عضو از"
             ],
             "Member since %s": [
-                "Miembro desde %s"
+                "عضو از %s"
             ],
             "Milestones": [
-                "Hitos"
+                "نقاط عطف"
             ],
             "Minimize": [
-                "Minimizar"
+                ""
             ],
             "Missing-import warner — live demo": [
                 ""
             ],
             "Moderate": [
-                "Moderado"
+                "متوسط"
             ],
             "Modified": [
-                "Modificado"
+                "اصلاح شد"
             ],
             "Monday": [
-                "Lunes"
+                "دوشنبه"
             ],
             "More": [
-                "Más"
+                "بیشتر"
             ],
             "Most prolific month": [
-                "Mes más prolífico"
+                "پربارترین ماه"
             ],
             "Move \"%s\" to Trash?": [
-                "¿Mover \"%s\" a la Papelera?"
+                "\"%s\" به سطل زباله منتقل شود؟"
             ],
             "Move to Trash": [
-                "Mover a la papelera"
+                "به سطل زباله بروید"
             ],
             "Move your cursor through the swarm · click for a spark": [
                 ""
             ],
             "Multi-select and approve, spam, or trash dozens at once. Every action shows an 8-second undo toast.": [
-                "Realice selección múltiple y apruebe, envíe spam o elimine docenas a la vez. Cada acción muestra un brindis para deshacer de 8 segundos."
+                "چند انتخاب و تأیید، هرزنامه، یا سطل زباله به طور همزمان. هر عمل یک نان تست خنثی کننده 8 ثانیه ای را نشان می دهد."
             ],
             "My WordPress": [
-                "Azul WordPress"
+                "وردپرس من"
             ],
             "Name": [
-                ""
+                "نام"
             ],
             "Name (A → Z)": [
-                "Nombre (A → Z)"
+                "نام (A → Z)"
             ],
             "Name (Z → A)": [
-                "Nombre (Z → A)"
+                "نام (Z → A)"
             ],
             "Navigate into": [
-                "Navegar hacia"
+                "پیمایش به"
             ],
             "Network error — check your connection.": [
                 ""
             ],
             "Network only": [
-                "Sólo red"
+                "فقط شبکه"
             ],
             "New": [
-                "Añadir %s"
+                "جدید"
             ],
             "New %s": [
-                "Noticias"
+                "%s جدید"
             ],
             "New sticky note": [
                 ""
             ],
             "Newest first": [
-                "Lo nuevo primero"
+                "اول جدیدترین"
             ],
             "Next": [
-                "Próximo"
+                "بعدی"
             ],
             "No %2$s match \"%1$s\".": [
-                "Ningún %2$s coincide con \"%1$s\"."
+                "هیچ %2$s با «%1$s» مطابقت ندارد."
             ],
             "No %s yet.": [
-                "Aún no hay %s."
+                "هنوز %s وجود ندارد."
             ],
             "No FAQ": [
-                "Sin preguntas frecuentes"
+                "بدون پرسش و پاسخ"
             ],
             "No HD images found. Try unchecking the filter, or upload a larger image.": [
-                "No se encontraron imágenes HD. Prueba a desactivar el filtro o sube una imagen más grande."
+                ""
             ],
             "No activity recorded in the last year.": [
-                "No se registró actividad en el último año."
+                "هیچ فعالیتی در سال گذشته ثبت نشده است."
             ],
             "No activity today": [
-                "No hay actividad hoy"
+                "امروز هیچ فعالیتی نداریم"
             ],
             "No additional contributors.": [
-                "No hay contribuyentes adicionales."
+                "هیچ مشارکت کننده دیگری وجود ندارد."
             ],
             "No apps registered yet": [
                 ""
             ],
             "No author available.": [
-                "No hay autor disponible."
+                "نویسنده ای موجود نیست"
             ],
             "No categories assigned.": [
-                "No hay categorías asignadas."
+                "هیچ دسته ای اختصاص داده نشده است."
             ],
             "No changelog": [
-                "Sin registro de cambios"
+                "بدون تغییرات"
             ],
             "No comments on this post yet.": [
-                "Aún no hay comentarios en esta publicación."
+                "هنوز نظری در مورد این پست وجود ندارد."
             ],
             "No comments to moderate here.": [
-                "No hay comentarios para moderar aquí."
+                "هیچ نظری برای تعدیل در اینجا وجود ندارد."
             ],
             "No components registered.": [
                 ""
             ],
             "No content available.": [
-                "No hay contenido disponible."
+                "هیچ محتوایی در دسترس نیست."
             ],
             "No description": [
-                "Sin descripción"
+                "بدون شرح"
             ],
             "No featured plugins yet.": [
-                "Aún no hay complementos destacados."
+                "هنوز هیچ پلاگین ویژه ای وجود ندارد."
             ],
             "No grouping": [
-                "Sin agrupación"
+                "بدون گروه بندی"
             ],
             "No images in your Media Library yet.": [
-                "Aún no hay imágenes en tu biblioteca de medios."
+                ""
             ],
             "No media attached to this post.": [
-                "No hay medios adjuntos a esta publicación."
+                "هیچ رسانه ای به این پست پیوست نشده است."
             ],
             "No media match \"%s\".": [
-                "Ningún medio coincide con \"%s\"."
+                "هیچ رسانه ای با \"%s\" مطابقت ندارد."
             ],
             "No media yet.": [
-                "Aún no hay medios."
+                "هنوز رسانه ای وجود ندارد."
             ],
             "No plugins match your filters.": [
-                "Ningún complemento coincide con sus filtros."
+                "هیچ پلاگینی با فیلترهای شما مطابقت ندارد."
             ],
             "No plugins matched.": [
-                "No hay complementos coincidentes."
+                "هیچ افزونه ای مطابقت ندارد."
             ],
             "No posts or pages reference this file.": [
-                "Ninguna publicación o página hace referencia a este archivo."
+                "هیچ پست یا صفحه ای به این فایل اشاره نمی کند."
             ],
             "No ratings yet.": [
-                "Aún no hay calificaciones."
+                "هنوز رتبه بندی نشده است."
             ],
             "No revisions yet.": [
-                "Aún no hay revisiones."
+                "هنوز هیچ تجدیدنظری وجود ندارد."
             ],
             "No tags assigned.": [
-                "No hay etiquetas asignadas."
+                "هیچ برچسبی اختصاص داده نشده است."
             ],
             "No users match \"%s\".": [
-                "Ningún usuario coincide con \"%s\"."
+                "هیچ کاربری با \"%s\" مطابقت ندارد."
             ],
             "No users to show.": [
-                "No hay usuarios para mostrar."
+                "هیچ کاربری برای نمایش وجود ندارد."
             ],
             "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.": [
-                "No hay widgets disponibles. Activa un plugin que registre alguno, o consulta la documentación de la API registerWidget."
+                ""
             ],
             "Not spam": [
-                "No spam"
+                "اسپم نیست"
             ],
             "Nothing to show yet.": [
-                "Nada que mostrar todavía."
+                "هنوز چیزی برای نشان دادن وجود ندارد."
             ],
             "Nothing to show.": [
-                "Nada que mostrar."
+                "چیزی برای نشان دادن نیست."
             ],
             "Numbered list": [
-                "lista numerada"
+                "لیست شماره گذاری شده"
             ],
             "Often paired categories": [
-                "No se pudieron cargar tus medios."
+                "دسته بندی اغلب جفت شده است"
             ],
             "Often paired tags": [
-                "Etiquetas a menudo emparejadas"
+                "اغلب تگ های جفت شده"
             ],
             "Oldest first": [
-                "El más viejo primero"
+                "اول قدیمی ترین"
             ],
             "On both": [
                 ""
             ],
             "On post": [
-                "En la publicación"
+                "در پست"
             ],
             "On the desktop": [
-                "Añadir nuevo escritorio"
+                ""
             ],
             "On the dock": [
                 ""
             ],
             "One step per line": [
-                "Un paso por línea"
+                "یک قدم در هر خط"
             ],
             "Only .zip files are accepted.": [
-                ""
+                "فقط فایل های .zip پذیرفته می شوند."
             ],
             "Only HD (≥%1$d×%2$d)": [
-                "Solo HD (≥%1$d×%2$d)"
+                ""
             ],
             "Open": [
-                "Abrir"
+                ""
             ],
             "Open another %s": [
-                "Abrir otra ventana de %s"
+                ""
             ],
             "Open artifact": [
                 ""
             ],
             "Open file": [
-                "Abrir"
+                "باز کردن فایل"
             ],
             "Open file in new tab": [
-                "Abrir en una nueva pestaña del navegador"
+                "فایل را در تب جدید باز کنید"
             ],
             "Open in My WordPress": [
-                "Abrir en Mi WordPress"
+                "در My WordPress باز کنید"
             ],
             "Open in WordPress": [
-                "Abrir en WordPress"
+                "در وردپرس باز کنید"
             ],
             "Open in a new browser tab": [
-                "Abrir en una nueva pestaña del navegador"
+                ""
             ],
             "Open in browser tab": [
-                "Abrir en una nueva pestaña del navegador"
+                ""
             ],
             "Open in editor": [
-                "Abrir en una nueva pestaña del navegador"
+                "در ویرایشگر باز کنید"
             ],
             "Open in new window": [
-                "Abrir en una nueva pestaña del navegador"
+                ""
             ],
             "Open issue on GitHub": [
-                "Problema abierto en GitHub"
+                "موضوع را در GitHub باز کنید"
             ],
             "Open on startup": [
-                "Abrir al iniciar"
+                ""
             ],
             "Open reviews on WordPress.org ↗": [
-                "Abrir reseñas en WordPress.org ↗"
+                "نظرات را در WordPress.org باز کنید ↗"
             ],
             "Open revision in WordPress": [
-                "Abrir revisión en WordPress"
+                "بازبینی در وردپرس را باز کنید"
             ],
             "Open the full activity footprint surface for this user.": [
-                "Abra la superficie de huella de actividad completa para este usuario."
+                "سطح ردپای کامل فعالیت را برای این کاربر باز کنید."
             ],
             "Open this user’s profile editor in a new window.": [
-                "Abra el editor de perfil de este usuario en una nueva ventana."
+                "ویرایشگر نمایه این کاربر را در یک پنجره جدید باز کنید."
             ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
-                "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
+                ""
             ],
             "Or use your own image": [
-                "O usa tu propia imagen"
+                ""
             ],
             "Overview": [
-                "Vista general"
+                "نمای کلی"
             ],
             "Page %1$d of %2$d": [
-                "Página %1$d de %2$d"
+                "صفحه %1$d از %2$d"
             ],
             "Page %1$d of %2$d (%3$d total)": [
-                "Página %1$d de %2$d (%3$d en total)"
+                "صفحه %1$d از %2$d (%3$d کل)"
             ],
             "Pages": [
-                "paginas"
+                "برگه‌ها"
             ],
             "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.": [
                 ""
             ],
             "Parent": [
-                "Padre"
+                "پدر و مادر"
             ],
             "Pending": [
-                "Pendiente"
+                "در انتظار بررسی"
             ],
             "Pending / All / Spam / Trash / Mine tabs — every status surface in a single window with live counts.": [
-                "Pestañas Pendientes / Todo / Spam / Papelera / Mina: cada estado aparece en una sola ventana con recuentos en vivo."
+                "در حال تعلیق / همه / هرزنامه / سطل زباله / برگه های معدن - هر سطح وضعیت در یک پنجره واحد با شمارش زنده."
             ],
             "Per page": [
-                "Por página"
+                "در هر صفحه"
             ],
             "Per-row capability flags so the UI hides actions you can't perform — and the server re-validates every mutation, so flags can't be tampered into more permissions.": [
-                ""
+                "قابلیت هر ردیف پرچم‌گذاری می‌کند تا UI اقداماتی را که نمی‌توانید انجام دهید پنهان می‌کند - و سرور هر جهش را دوباره تأیید می‌کند، بنابراین پرچم‌ها نمی‌توانند در مجوزهای بیشتر دستکاری شوند."
             ],
             "Permanently delete %d plugin(s)? Their files will be removed from disk. This cannot be undone.": [
-                ""
+                "%d افزونه برای همیشه حذف شود؟ فایل های آنها از دیسک حذف خواهد شد. این قابل واگرد نیست."
             ],
             "Permanently delete %s? Its files will be removed from disk. This cannot be undone.": [
-                "¿Eliminar %s permanentemente? Sus archivos se eliminarán del disco. Esto no se puede deshacer."
+                "%s برای همیشه حذف شود؟ فایل های آن از دیسک حذف خواهد شد. این قابل واگرد نیست."
             ],
             "Personalize your desktop. Changes apply instantly and are saved to this browser.": [
-                "Personaliza tu escritorio. Los cambios se aplican al instante y se guardan en este navegador."
-            ],
-            "Pick a .zip file from your computer, or drop one onto the area below.": [
                 ""
             ],
+            "Pick a .zip file from your computer, or drop one onto the area below.": [
+                "یک فایل zip. را از رایانه خود انتخاب کنید یا آن را در قسمت زیر رها کنید."
+            ],
             "Pinned %s to the dock.": [
-                "Fijado %s al muelle."
+                "%s به داک سنجاق شد."
             ],
             "Planned": [
                 ""
@@ -1355,46 +1354,46 @@
                 ""
             ],
             "Plugin": [
-                "Complemento"
+                "پلاگین"
             ],
             "Plugin URL": [
-                "URL del complemento"
+                "URL پلاگین"
             ],
             "Plugin activated.": [
-                ""
+                "افزونه فعال شد"
             ],
             "Plugin file": [
-                "Archivo de complemento"
+                "فایل پلاگین"
             ],
             "Plugin installed successfully.": [
-                ""
+                "افزونه با موفقیت نصب شد."
             ],
             "Plugin shortcut. Double-click to open.": [
-                "Acceso directo al complemento. Haga doble clic para abrir."
+                "میانبر افزونه. برای باز کردن دوبار کلیک کنید."
             ],
             "Plugin website": [
-                "Sitio web de complemento"
+                "وب سایت افزونه"
             ],
             "Plugins and the admin menu will appear here once they’re registered.": [
                 ""
             ],
             "Plugins that extend Desktop Mode — desktop decorations, native windows, widgets, and other companions.": [
-                "Complementos que amplían el modo de escritorio: decoraciones de escritorio, ventanas nativas, widgets y otros complementos."
+                "پلاگین هایی که حالت دسکتاپ را گسترش می دهند - تزئینات دسکتاپ، پنجره های بومی، ویجت ها و سایر همراهان."
             ],
             "Plugins window template missing.": [
-                "Falta la plantilla de ventana de complementos."
+                "قالب پنجره پلاگین ها از دست رفته است."
             ],
             "Popular": [
-                "Popular"
+                "محبوب"
             ],
             "Posts": [
-                "Publicaciones"
+                "نوشته‌ها"
             ],
             "Prefer the classic Comments screen? You can switch back any time from OS Settings → Features.": [
-                "¿Prefieres la clásica pantalla de Comentarios? Puede volver a cambiar en cualquier momento desde Configuración del sistema operativo → Funciones."
+                "صفحه نظرات کلاسیک را ترجیح می دهید؟ هر زمان که بخواهید می توانید از تنظیمات سیستم عامل → ویژگی ها به عقب برگردید."
             ],
             "Previous": [
-                "Anterior"
+                "قبلی"
             ],
             "Props": [
                 ""
@@ -1403,109 +1402,109 @@
                 ""
             ],
             "Published": [
-                "Publicado"
+                "منتشر شده"
             ],
             "Publishing rhythm": [
-                "Ritmo editorial"
+                "ریتم انتشار"
             ],
             "Question": [
-                "Pregunta"
+                "سوال"
             ],
             "Rated %s out of 5": [
-                "Calificación %s de 5"
+                "امتیاز %s از 5"
             ],
             "Re-shows the one-time introduction dialog the next time you open each redesigned native window.": [
                 ""
             ],
             "Read all reviews on WordPress.org ↗": [
-                "Lea todas las reseñas en WordPress.org ↗"
+                "همه نظرات را در WordPress.org بخوانید ↗"
             ],
             "Read full review ↗": [
-                "Leer reseña completa ↗"
+                "بررسی کامل را بخوانید ↗"
             ],
             "Read on WordPress.org ↗": [
-                "Leer en WordPress.org ↗"
+                "در WordPress.org بخوانید ↗"
             ],
             "Read reviews on WordPress.org ↗": [
-                "Leer reseñas en WordPress.org ↗"
+                "نظرات را در WordPress.org بخوانید ↗"
             ],
             "Recent activity": [
-                "Actividad reciente"
+                "فعالیت اخیر"
             ],
             "Recent posts": [
-                "Publicaciones recientes"
+                "پست های اخیر"
             ],
             "Recent reviews aren’t available right now. %s": [
-                "Las reseñas recientes no están disponibles en este momento. %s"
+                "بررسی‌های اخیر در حال حاضر در دسترس نیست. %s"
             ],
             "Recommended": [
-                "Recomendado"
+                "توصیه می شود"
             ],
             "Recycle Bin — empty": [
-                "Papelera de reciclaje: vacía"
+                "سطل بازیافت - خالی"
             ],
             "Refresh": [
-                "Refrescar"
+                "بروزرسانی"
             ],
             "Reliability: %d / 100": [
-                "Fiabilidad: %d / 100"
+                "قابلیت اطمینان: %d / 100"
             ],
             "Reload": [
-                "Recargar"
+                "بارگذاری مجدد"
             ],
             "Remove": [
-                "Eliminar"
+                ""
             ],
             "Remove %s": [
-                "Eliminar %s"
+                ""
             ],
             "Remove custom image": [
-                "Eliminar imagen personalizada"
+                ""
             ],
             "Replace": [
-                "Error al subir."
+                "جایگزین کنید"
             ],
             "Replace existing plugin?": [
-                ""
+                "افزونه موجود جایگزین شود؟"
             ],
             "Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.": [
                 ""
             ],
             "Replacing existing plugin…": [
-                ""
+                "در حال جایگزینی افزونه موجود…"
             ],
             "Replies (%d)": [
-                "Respuestas (%d)"
+                "پاسخ ها (%d)"
             ],
             "Reply (%d)": [
-                ""
+                "پاسخ (%d)"
             ],
             "Reply failed.": [
-                "Error al subir."
+                "پاسخ ناموفق بود."
             ],
             "Reply is empty.": [
-                "La respuesta está vacía."
+                "پاسخ خالی است"
             ],
             "Reply posted.": [
-                "Respuesta publicada."
+                "پاسخ ارسال شد."
             ],
             "Reply right inside the row — no modal, no full-page navigation. Press R on any row to jump straight to the editor.": [
-                "Responda justo dentro de la fila: sin modal, sin navegación de página completa. Presione R en cualquier fila para saltar directamente al editor."
+                "درست در داخل ردیف پاسخ دهید - بدون مدال، بدون پیمایش تمام صفحه. R را روی هر ردیف فشار دهید تا مستقیماً به ویرایشگر بروید."
             ],
             "Requires PHP": [
-                "Requiere PHP"
+                "به PHP نیاز دارد"
             ],
             "Requires PHP %s+": [
-                "Requiere PHP %s+"
+                "به PHP %s+ نیاز دارد"
             ],
             "Requires WP %s+": [
-                "Requiere WP %s+"
+                "به WP %s+ نیاز دارد"
             ],
             "Requires WordPress": [
-                "Azul WordPress"
+                "نیاز به وردپرس دارد"
             ],
             "Reset to defaults": [
-                "Restablecer valores predeterminados"
+                ""
             ],
             "Reset what’s-new dialogs": [
                 ""
@@ -1514,130 +1513,130 @@
                 ""
             ],
             "Restore": [
-                "Restaurar"
+                "بازگردانی"
             ],
             "Restored %d.": [
-                "Restaurado %d."
+                "%d بازیابی شد."
             ],
             "Reviews": [
-                "Vista general"
+                "بررسی ها"
             ],
             "Reviews live on WordPress.org": [
-                "Reseñas en vivo en WordPress.org"
+                "بررسی ها در WordPress.org به صورت زنده"
             ],
             "Revision": [
-                "Revisión"
+                "تجدید نظر"
             ],
             "Revisions": [
-                "Revisiones"
+                "تجدید نظرها"
             ],
             "Right": [
                 ""
             ],
             "Roles": [
-                "Roles"
+                "نقش ها"
             ],
             "Rose": [
-                "Rosa"
+                ""
             ],
             "S": [
-                "S"
+                "اس"
             ],
             "Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.": [
                 ""
             ],
             "Saturday": [
-                "Sábado"
+                "شنبه"
             ],
             "Save": [
-                "Ahorrar"
+                "ذخیره"
             ],
             "Saved": [
-                "Guardado"
+                "ذخیره شد"
             ],
             "Saved %s": [
-                "%s guardados"
+                "%s ذخیره شد"
             ],
             "Saves on existing posts": [
-                "Guarda en publicaciones existentes"
+                "در پست های موجود صرفه جویی می کند"
             ],
             "Saving…": [
-                "Subiendo…"
+                ""
             ],
             "Scope": [
-                "Alcance"
+                "دامنه"
             ],
             "Score new comments with AI": [
                 ""
             ],
             "Screenshots": [
-                "Capturas de pantalla"
+                "اسکرین شات ها"
             ],
             "Search": [
-                "Buscar medios"
+                "جستجو"
             ],
             "Search %s": [
-                "Buscar medios"
+                "%s را جستجو کنید"
             ],
             "Search %s…": [
-                "Buscar medios"
+                "جستجوی %s…"
             ],
             "Search WordPress.org…": [
-                "Buscar en WordPress.org…"
+                "جستجو در WordPress.org…"
             ],
             "Search comments…": [
-                "Buscar medios"
+                "جستجوی دیدگاه‌ها..."
             ],
             "Search installed plugins…": [
-                "Buscar complementos instalados…"
+                "جستجوی افزونه های نصب شده…"
             ],
             "Search media": [
-                "Buscar medios"
+                "جستجو در رسانه"
             ],
             "Search media…": [
-                "Buscar medios"
+                "جستجوی رسانه…"
             ],
             "Search nodes…": [
-                "Buscar nodos…"
+                "جستجو گره ها…"
             ],
             "Search posts and pages in the graph": [
-                "Buscar publicaciones y páginas en el gráfico."
+                "پست ها و صفحات را در نمودار جستجو کنید"
             ],
             "Search users": [
-                "Buscar medios"
+                "جستجوی کاربران"
             ],
             "Search users…": [
-                "Buscar medios"
+                "جستجوی کاربران…"
             ],
             "Search your media": [
-                "Busca en tus medios"
+                ""
             ],
             "Search…": [
-                "Buscar medios"
+                "جستجو…"
             ],
             "See author, comments, categories, tags, attached media, and revisions for this entry.": [
-                "Vea el autor, los comentarios, las categorías, las etiquetas, los medios adjuntos y las revisiones de esta entrada."
+                "نویسنده، نظرات، دسته‌ها، برچسب‌ها، رسانه‌های پیوست شده و بازبینی‌ها را برای این ورودی ببینید."
             ],
             "See where this is used": [
-                "Vea dónde se usa esto"
+                "ببینید کجا از این استفاده می شود"
             ],
             "Select a full URL (https://…) in your reply, then click the link button.": [
-                "Seleccione una URL completa (https://…) en su respuesta y luego haga clic en el botón de enlace."
+                "یک URL کامل (https://…) را در پاسخ خود انتخاب کنید، سپس روی دکمه پیوند کلیک کنید."
             ],
             "Select a media item to preview it here.": [
-                "Seleccione un elemento multimedia para obtener una vista previa aquí."
+                "یک مورد رسانه ای را برای پیش نمایش آن در اینجا انتخاب کنید."
             ],
             "Select a user to see their profile here.": [
-                "Seleccione un usuario para ver su perfil aquí."
+                "یک کاربر را برای دیدن نمایه خود در اینجا انتخاب کنید."
             ],
             "Select an entry to preview it here.": [
-                "Seleccione una entrada para obtener una vista previa aquí."
+                "یک ورودی را برای پیش نمایش آن در اینجا انتخاب کنید."
             ],
             "Select an item to preview it here.": [
-                "Seleccione un elemento para obtener una vista previa aquí."
+                "یک مورد را برای پیش نمایش در اینجا انتخاب کنید."
             ],
             "Send reply": [
-                "Enviar respuesta"
+                "ارسال پاسخ"
             ],
             "Settings sections": [
                 ""
@@ -1646,28 +1645,28 @@
                 ""
             ],
             "Shortcut": [
-                "Atajo"
+                "میانبر"
             ],
             "Show author insights": [
-                "Mostrar información del autor"
+                "نمایش بینش نویسنده"
             ],
             "Show desktop when clicking the wallpaper": [
                 ""
             ],
             "Show in": [
-                "Mostrando %d"
+                ""
             ],
             "Show post/page status ribbon": [
                 ""
             ],
             "Show profile": [
-                "Mostrar perfil"
+                "نمایش نمایه"
             ],
             "Show the posts, pages, and custom-post-type entries that reference this file.": [
-                "Muestra las publicaciones, páginas y entradas de tipo de publicación personalizada que hacen referencia a este archivo."
+                "پست‌ها، صفحات و ورودی‌های نوع پست سفارشی که به این فایل ارجاع می‌دهند را نشان دهید."
             ],
             "Showing %d": [
-                "Mostrando %d"
+                ""
             ],
             "Side bar with the core admin menus, plus a bottom dock for plugin apps.": [
                 ""
@@ -1685,10 +1684,10 @@
                 ""
             ],
             "Size": [
-                "Tamaño"
+                "اندازه"
             ],
             "Size on disk": [
-                "Tamaño en disco"
+                "اندازه روی دیسک"
             ],
             "Slots": [
                 ""
@@ -1697,19 +1696,19 @@
                 ""
             ],
             "Sort by": [
-                "Ordenar por"
+                "مرتب سازی بر اساس"
             ],
             "Spam": [
-                "Correo basura"
+                "هرزنامه"
             ],
             "Spam confidence score": [
-                "Puntuación de confianza del spam"
+                "امتیاز اطمینان اسپم"
             ],
             "Spam score: %1$d / 100. %2$s": [
-                "Puntuación de spam: %1$d / 100. %2$s"
+                "امتیاز هرزنامه: %1$d / 100. %2$s"
             ],
             "Spam score: %d / 100.": [
-                "Puntuación de spam: %d / 100."
+                "امتیاز هرزنامه: %d / 100."
             ],
             "Spatial": [
                 ""
@@ -1718,10 +1717,10 @@
                 ""
             ],
             "Status": [
-                "Estado"
+                "وضعیت"
             ],
             "Steps to reproduce (bug only)": [
-                "Pasos para reproducir (solo error)"
+                "مراحل تولید مثل (فقط باگ)"
             ],
             "Sticky note text": [
                 ""
@@ -1733,61 +1732,61 @@
                 ""
             ],
             "Submitted on": [
-                "Presentado el"
+                "ارسال شده در"
             ],
             "Sunday": [
-                "Domingo"
+                "یکشنبه"
             ],
             "Switch to %s": [
-                "Cambiar a %s"
+                ""
             ],
             "System Preferences": [
-                "Preferencias del sistema"
+                "تنظیمات سیستم"
             ],
             "T": [
-                "Hasta"
+                "تی"
             ],
             "Tags": [
-                "Etiquetas"
+                "برچسب ها"
             ],
             "Tags · %d": [
-                ""
+                "برچسب ها · %d"
             ],
             "Take me to settings": [
-                "Llévame a configuración"
+                "منو به تنظیمات ببر"
             ],
             "Taxonomies": [
-                "Taxonomías"
+                "طبقه بندی ها"
             ],
             "Teal": [
-                "Verde azulado"
+                ""
             ],
             "Tested up to WP %s": [
-                "Probado hasta WP %s"
+                "تا WP %s تست شده است"
             ],
             "Tested up to WordPress %s": [
-                "Probado hasta WordPress %s"
+                "تا وردپرس %s تست شده است"
             ],
             "Text domain": [
-                "Dominio de texto"
+                "دامنه متن"
             ],
             "That file isn’t an image.": [
-                "Ese archivo no es una imagen."
+                ""
             ],
             "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.": [
-                "El fondo tras tus ventanas. Elige un preestablecido, mezcla tu propio gradiente o suelta una imagen."
+                ""
             ],
             "The detail flyout shows screenshots, the ratings histogram, recent reviews, the changelog and FAQ — all without leaving the window.": [
-                ""
+                "پرتاب جزئیات تصاویر، هیستوگرام رتبه‌بندی، بررسی‌های اخیر، گزارش تغییرات و پرسش‌های متداول را نشان می‌دهد - همه بدون خروج از پنجره."
             ],
             "The dock repaints LIVE after every install / activate / deactivate / delete. No reload, no stale tile, no \"wait, did that work?\".": [
-                ""
+                "داک پس از هر نصب/فعال/غیرفعال/حذف دوباره به صورت زنده رنگ می شود. بدون بارگذاری مجدد، بدون کاشی کهنه، بدون \"صبر کنید، آیا کار کرد؟\""
             ],
             "The three <wpd-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.": [
                 ""
             ],
             "The underlying entity is no longer available.": [
-                "La entidad subyacente ya no está disponible."
+                "موجودیت اساسی دیگر در دسترس نیست."
             ],
             "This component has no help descriptor yet. Add `static help` to its class for a fuller reference.": [
                 ""
@@ -1796,187 +1795,187 @@
                 ""
             ],
             "This plugin does not check in with WordPress.org, so automatic updates can't be scheduled.": [
-                "Este complemento no se registra en WordPress.org, por lo que no se pueden programar actualizaciones automáticas."
+                "این افزونه با WordPress.org بررسی نمی‌شود، بنابراین به‌روزرسانی‌های خودکار را نمی‌توان برنامه‌ریزی کرد."
             ],
             "This plugin does not ship a wp.org download package. Update it manually from its source.": [
-                ""
+                "این افزونه بسته دانلودی wp.org را ارسال نمی کند. آن را به صورت دستی از منبع خود به روز کنید."
             ],
             "This plugin doesn’t ship a changelog.": [
-                "Este complemento no incluye un registro de cambios."
+                "این افزونه تغییراتی را ارسال نمی کند."
             ],
             "This plugin doesn’t ship a description in its header.": [
-                "Este complemento no incluye una descripción en su encabezado."
+                "این افزونه توضیحاتی را در هدر خود ارسال نمی کند."
             ],
             "This plugin doesn’t ship an FAQ.": [
-                "Este complemento no incluye preguntas frecuentes."
+                "این افزونه سؤال متداول ارسال نمی کند."
             ],
             "This plugin doesn’t ship screenshots.": [
-                "Este complemento no incluye capturas de pantalla."
+                "این افزونه اسکرین شات ها را ارسال نمی کند."
             ],
             "This plugin will stop running on the site. You can re-activate it later from the Plugins screen.": [
-                "Este complemento dejará de ejecutarse en el sitio. Puede reactivarlo más tarde desde la pantalla Complementos."
+                "اجرای این افزونه در سایت متوقف می شود. بعداً می‌توانید آن را از صفحه افزونه‌ها دوباره فعال کنید."
             ],
             "This revision has no rendered content.": [
-                "Esta revisión no tiene contenido renderizado."
+                "این ویرایش هیچ محتوای رندر شده ای ندارد."
             ],
             "Thursday": [
-                "Jueves"
+                "پنج شنبه"
             ],
             "Title": [
-                "Título"
+                "عنوان"
             ],
             "Title and description are both required.": [
-                "Tanto el título como la descripción son obligatorios."
+                "عنوان و توضیحات هر دو مورد نیاز است."
             ],
             "To": [
-                "Hasta"
+                ""
             ],
             "Top authors": [
-                "Autores principales"
+                "نویسندگان برتر"
             ],
             "Top categories & tags": [
-                "Categorías y etiquetas principales"
+                "دسته ها و برچسب های برتر"
             ],
             "Top contributors": [
-                "Principales contribuyentes"
+                "مشارکت کنندگان برتر"
             ],
             "Top topics": [
-                "Temas principales"
+                "موضوعات برتر"
             ],
             "Total comments": [
-                "Comentarios totales"
+                "مجموع نظرات"
             ],
             "Total content": [
-                "Contenido total"
+                "کل مطالب"
             ],
             "Trash": [
-                "Basura"
+                "زباله‌دان"
             ],
             "Trashed %d.": [
-                "Desechado %d."
+                "%d حذف شده است."
             ],
             "Triage in one place": [
-                "Triaje en un solo lugar"
+                "تریاژ در یک مکان"
             ],
             "Tuesday": [
-                "Martes"
+                "سه شنبه"
             ],
             "Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
                 ""
             ],
             "Two tabs in one window — Installed for managing what you have, Browse for discovering new plugins. No more bouncing between Plugins → Add New → back to Installed.": [
-                ""
+                "دو تب در یک پنجره - برای مدیریت آنچه دارید نصب شده است، برای کشف افزونه های جدید مرور کنید. دیگر بین پلاگین ها → افزودن جدید → بازگشت به نصب شده وجود ندارد."
             ],
             "Type": [
-                "Tipo"
+                "نوع"
             ],
             "Type: %s": [
-                "Tipo: %s"
+                "نوع: %s"
             ],
             "Un-spammed %d.": [
-                "%d sin spam."
+                "%d هرزنامه را لغو کنید."
             ],
             "Unapprove": [
-                "Desaprobar"
+                "جلوگیری از انتشار"
             ],
             "Unapproved %d.": [
-                "%d no aprobado."
+                "تأیید نشده %d."
             ],
             "Uncategorized": [
-                "Sin categoría"
+                "دسته بندی نشده"
             ],
             "Undated": [
-                "Añadir %s"
+                "بدون تاریخ"
             ],
             "Undo": [
-                "Deshacer"
+                "برگرداندن"
             ],
             "Undo failed.": [
-                "Error al subir."
+                "واگرد نشد."
             ],
             "Undocumented — declared via static props.": [
                 ""
             ],
             "Undone.": [
-                "Deshecho."
+                "لغو شد."
             ],
             "Unified": [
                 ""
             ],
             "Unknown": [
-                "Desconocido"
+                "ناشناس"
             ],
             "Unknown My WordPress entity: %s": [
-                "Desconocida Mi entidad de WordPress: %s"
+                "ناشناس موجودیت وردپرس من: %s"
             ],
             "Unknown author": [
-                "Autor desconocido"
+                "نویسنده ناشناس"
             ],
             "Unknown entity type.": [
-                "Tipo de entidad desconocido."
+                "نوع موجودیت ناشناخته"
             ],
             "Unknown error.": [
-                "Error desconocido."
+                "خطای ناشناخته"
             ],
             "Untagged": [
-                "Sin etiquetar"
+                "بدون برچسب"
             ],
             "Update %d": [
-                "Añadir %s"
+                "%d را به‌روزرسانی کنید"
             ],
             "Update available": [
-                "Actualización disponible"
+                "به روز رسانی موجود است"
             ],
             "Update of %1$s failed: %2$s": [
-                "Error al subir."
+                "به‌روزرسانی %1$s ناموفق بود: %2$s"
             ],
             "Update to %s": [
-                "Añadir %s"
+                "به %s به روز کنید"
             ],
             "Updated %s": [
-                "Añadir %s"
+                "%s به روز شد"
             ],
             "Updated “%s”": [
-                "Añadir %s"
+                "«%s» به‌روزرسانی شد"
             ],
             "Updates": [
-                "Añadir %s"
+                "به روز رسانی ها"
             ],
             "Updating…": [
-                "Subiendo…"
+                "در حال به روز رسانی…"
             ],
             "Upload Plugin": [
-                "Subir nueva"
+                "آپلود افزونه"
             ],
             "Upload a plugin": [
-                "Subir nueva"
+                "یک افزونه آپلود کنید"
             ],
             "Upload a plugin .zip": [
-                ""
+                "یک افزونه .zip آپلود کنید"
             ],
             "Upload a wallpaper image": [
-                "Subir una imagen de fondo"
+                ""
             ],
             "Upload failed.": [
-                "Error al subir."
+                ""
             ],
             "Upload failed: %s": [
-                "Error al subir."
+                "آپلود انجام نشد: %s"
             ],
             "Upload new": [
-                "Subir nueva"
+                ""
             ],
             "Uploaded": [
-                "Subir nueva"
+                "آپلود شد"
             ],
             "Uploader": [
-                "Subir nueva"
+                "آپلود کننده"
             ],
             "Uploading and installing…": [
-                "Subiendo…"
+                "در حال آپلود و نصب…"
             ],
             "Uploading…": [
-                "Subiendo…"
+                ""
             ],
             "Use the native Comments window": [
                 ""
@@ -1994,167 +1993,166 @@
                 ""
             ],
             "Used in focused window title bars, buttons, and focus rings.": [
-                "Usado en barras de título enfocadas, botones y anillos de foco."
+                ""
             ],
             "User agent": [
-                "agente de usuario"
+                "عامل کاربر"
             ],
             "Using platform key — enter to override": [
                 ""
             ],
             "Version": [
-                "Versión"
+                "نسخه"
             ],
             "Very slow — 60s (default)": [
                 ""
             ],
             "View": [
-                "Vista"
+                "مشاهده کنید"
             ],
             "View activity footprint": [
-                "Ver huella de actividad"
+                "مشاهده ردپای فعالیت"
             ],
             "View archive": [
-                "Ver archivo"
+                "مشاهده آرشیو"
             ],
             "View author archive": [
-                "Ver archivo del autor"
+                "مشاهده آرشیو نویسنده"
             ],
             "View details for %s": [
-                "Ver detalles de %s"
+                "مشاهده جزئیات %s"
             ],
             "View on WordPress.org": [
-                "Azul WordPress"
+                "مشاهده در WordPress.org"
             ],
             "View on WordPress.org ↗": [
-                "Ver en WordPress.org ↗"
+                "مشاهده در WordPress.org ↗"
             ],
             "View on site": [
-                "Ver en el sitio"
+                "مشاهده در سایت"
             ],
             "W": [
-                "W."
+                "دبلیو"
             ],
             "Wallpaper": [
-                "Fondo de pantalla"
-            ],
-            "We couldn’t pull the review feed here. Open the full thread on WordPress.org to read every review.": [
-                "No pudimos obtener el feed de reseñas aquí. Abra el hilo completo en WordPress.org para leer cada reseña."
-            ],
-            "Website": [
-                "Sitio web"
-            ],
-            "Wednesday": [
-                "Miércoles"
-            ],
-            "Welcome to the new Comments": [
-                "Cambiar a modo escritorio"
-            ],
-            "Welcome to the new Plugins window": [
                 ""
             ],
+            "We couldn’t pull the review feed here. Open the full thread on WordPress.org to read every review.": [
+                "ما نتوانستیم فید بررسی را اینجا بکشیم. برای خواندن هر بررسی، موضوع کامل را در WordPress.org باز کنید."
+            ],
+            "Website": [
+                "وب سایت"
+            ],
+            "Wednesday": [
+                "چهارشنبه"
+            ],
+            "Welcome to the new Comments": [
+                "به نظرات جدید خوش آمدید"
+            ],
+            "Welcome to the new Plugins window": [
+                "به پنجره جدید افزونه ها خوش آمدید"
+            ],
             "What happened? What did you expect?": [
-                "¿Qué pasó? ¿Qué esperabas?"
+                "چه اتفاقی افتاد؟ چه انتظاری داشتید؟"
             ],
             "When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.": [
                 ""
             ],
             "Width of the dock and size of its icons.": [
-                "Anchura del dock y tamaño de sus iconos."
+                ""
             ],
             "Window %1$s → %2$s": [
-                "Ventana %1$s → %2$s"
+                "پنجره %1$s → %2$s"
             ],
             "Window actions": [
-                "Acciones de ventana"
+                ""
             ],
             "WordPress Blue": [
-                "Azul WordPress"
+                ""
             ],
             "WordPress Desktop Mode": [
-                "Escritorio %d"
+                ""
             ],
             "WordPress Heartbeat rate": [
-                "Azul WordPress"
+                ""
             ],
             "WordPress.org didn’t respond. Try again in a moment.": [
-                "WordPress.org no respondió. Inténtalo de nuevo en un momento."
+                "WordPress.org پاسخ نداد. یک لحظه دیگر دوباره امتحان کنید."
             ],
             "Wrap selection in a link": [
-                "Envolver selección en un enlace"
+                "انتخاب را در یک پیوند بپیچید"
             ],
             "Write a reply…": [
-                "Escribe una respuesta…"
+                "پاسخ بنویس…"
             ],
             "Write a review on WordPress.org ↗": [
-                "Escribe una reseña en WordPress.org ↗"
+                "نظر خود را در WordPress.org بنویسید ↗"
             ],
             "You can't edit this comment.": [
-                "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+                "شما نمی توانید این نظر را ویرایش کنید."
             ],
             "You do not have permission to manage plugins.": [
-                "No tienes permiso para administrar complementos."
+                "شما اجازه مدیریت افزونه ها را ندارید."
             ],
             "You will review and submit on GitHub.": [
-                "Lo revisará y enviará en GitHub."
+                "شما در GitHub بررسی و ارسال خواهید کرد."
             ],
             "You're looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how Desktop Mode wants you to work.": [
-                ""
+                "شما به ادمین پلاگین‌های طراحی‌شده مجدد نگاه می‌کنید - همان مخزن WordPress.org در زیر سرپوش، با یک گردش کار تنظیم شده برای نحوه عملکرد Desktop Mode."
             ],
             "activated": [
-                ""
+                "فعال شد"
             ],
             "an experiment by Automattic": [
                 ""
             ],
             "by": [
-                "por"
+                "توسط"
             ],
             "by %s": [
-                "por %s"
+                "توسط %s"
             ],
             "comments": [
-                "comentarios"
+                "نظرات"
             ],
             "components registered.": [
                 ""
             ],
             "deactivated": [
-                ""
+                "غیر فعال شده است"
             ],
             "default": [
-                "Predeterminada"
-            ],
-            "deleted": [
                 ""
             ],
+            "deleted": [
+                "حذف شده است"
+            ],
             "in %s": [
-                "en %s"
+                "در %s"
             ],
             "macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching \"Show desktop\" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.": [
                 ""
             ],
             "one contributor": [
-                "un colaborador"
+                "یک مشارکت کننده"
             ],
             "sk-…": [
                 ""
             ],
             "updated": [
-                "%d actualización"
+                "به روز شد"
             ],
             "v%s": [
                 "v%s"
             ],
             "· %d open tab": [
-                "· %d pestaña abierta",
-                "· %d pestañas abiertas"
-            ],
-            "—": [
                 ""
             ],
+            "—": [
+                "-"
+            ],
             "“%s” will be permanently deleted. This cannot be undone.": [
-                "“%s” se eliminará permanentemente. Esto no se puede deshacer."
+                "\"%s\" برای همیشه حذف خواهد شد. این قابل واگرد نیست."
             ],
             "→ %s": [
                 "→ %s"

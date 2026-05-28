@@ -1,0 +1,968 @@
+{
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "fa_IR",
+                "plural-forms": "nplurals=2; plural=(n > 1);"
+            },
+            "\"%1$s\" last used %2$s": [
+                "\"%1$s\" آخرین استفاده از %2$s"
+            ],
+            "%1$s — %2$d posts": [
+                "%1$s — %2$d پست"
+            ],
+            "%d comments": [
+                "%d نظر"
+            ],
+            "%d d ago": [
+                "%d روز پیش"
+            ],
+            "%d days": [
+                "%d روز"
+            ],
+            "%d h ago": [
+                "%d ساعت قبل"
+            ],
+            "%d min ago": [
+                "%d دقیقه قبل"
+            ],
+            "%d mo ago": [
+                "%d ماه پیش"
+            ],
+            "%d posts": [
+                "%d پست"
+            ],
+            "%d posts in this category.": [
+                "%d پست در این دسته."
+            ],
+            "%d posts tagged with this.": [
+                "%d پست با این برچسب گذاری شده است."
+            ],
+            "%d received": [
+                "%d دریافت شد"
+            ],
+            "%d selected": [
+                "%d انتخاب شد"
+            ],
+            "%d total": [
+                "%d کل"
+            ],
+            "%d y ago": [
+                "%d سال پیش"
+            ],
+            "%d 💬": [
+                "%d 💬"
+            ],
+            "%s is currently editing": [
+                "%s در حال ویرایش است"
+            ],
+            "(empty comment)": [
+                "(کامنت خالی)"
+            ],
+            "(no excerpt)": [
+                "(بدون گزیده)"
+            ],
+            "(no title)": [
+                "(بدون عنوان)"
+            ],
+            "+ %d pages": [
+                "+ %d صفحه"
+            ],
+            "+ Child": [
+                "+ بچه"
+            ],
+            "A new visual editor for Categories and Tags awaits inside — drag, drop, and reorganize your taxonomy in seconds.": [
+                "یک ویرایشگر بصری جدید برای دسته‌ها و برچسب‌ها در داخل منتظر می‌ماند — در چند ثانیه طبقه‌بندی خود را بکشید، رها کنید و سازماندهی مجدد کنید."
+            ],
+            "A redesigned Posts experience built around how you actually work. Try the new Categories canvas — grab a node and drop it on another to reparent it.": [
+                "یک تجربه بازطراحی شده در پست‌ها که بر اساس نحوه کار شما ساخته شده است. بوم دسته‌بندی‌های جدید را امتحان کنید - یک گره را بردارید و آن را روی گره دیگری رها کنید تا دوباره آن را نشان دهید."
+            ],
+            "A valid email address is required.": [
+                "آدرس ایمیل معتبر مورد نیاز است."
+            ],
+            "Account management": [
+                "مدیریت حساب"
+            ],
+            "Actions": [
+                "اقدامات"
+            ],
+            "Active 30d": [
+                "فعال 30d"
+            ],
+            "Active sessions": [
+                "جلسات فعال"
+            ],
+            "Active sessions & app access": [
+                "جلسات فعال و دسترسی به برنامه"
+            ],
+            "Add New Post": [
+                "افزودن پست جدید"
+            ],
+            "Add root category": [
+                "اضافه کردن دسته ریشه"
+            ],
+            "Add tag": [
+                "برچسب اضافه کنید"
+            ],
+            "Add tag…": [
+                "افزودن برچسب…"
+            ],
+            "Admin colour scheme": [
+                "طرح رنگ ادمین"
+            ],
+            "Album art trends": [
+                "گرایش های هنری آلبوم"
+            ],
+            "Album re-listen": [
+                "آلبوم دوباره گوش کن"
+            ],
+            "All": [
+                "همه"
+            ],
+            "All authors": [
+                "همه نویسندگان"
+            ],
+            "All tags": [
+                "همه برچسب ها"
+            ],
+            "Anamorphic notes": [
+                "نت های آنامورفیک"
+            ],
+            "Application password name is required.": [
+                "نام رمز برنامه مورد نیاز است."
+            ],
+            "Application password revoked.": [
+                "رمز برنامه باطل شد"
+            ],
+            "Application passwords": [
+                "رمزهای عبور برنامه"
+            ],
+            "Apply": [
+                "درخواست کنید"
+            ],
+            "Astronomy": [
+                "نجوم"
+            ],
+            "Author": [
+                "نویسنده"
+            ],
+            "Backyard telescope": [
+                "تلسکوپ حیاط خلوت"
+            ],
+            "Biographical info": [
+                "اطلاعات بیوگرافی"
+            ],
+            "Biology": [
+                "زیست شناسی"
+            ],
+            "Birding weekend": [
+                "آخر هفته پرنده"
+            ],
+            "Bulk role change with strict role-permission enforcement — never accidentally promote anyone above your own level.": [
+                "تغییر نقش انبوه با اجرای دقیق مجوز نقش - هرگز به طور تصادفی کسی را بالاتر از سطح خودتان ارتقاء نخواهید داد."
+            ],
+            "Campaign trail": [
+                "دنباله کمپین"
+            ],
+            "Cancel": [
+                "انصراف"
+            ],
+            "Categories": [
+                "دسته بندی ها"
+            ],
+            "Categorize": [
+                "دسته بندی کنید"
+            ],
+            "Cell shapes": [
+                "اشکال سلولی"
+            ],
+            "Central banks": [
+                "بانک های مرکزی"
+            ],
+            "Change role for selected users?": [
+                "تغییر نقش برای کاربران منتخب؟"
+            ],
+            "Cinema": [
+                "سینما"
+            ],
+            "City walks": [
+                "پیاده روی در شهر"
+            ],
+            "Click a node on the mindmap to edit its name, description, and posts.": [
+                "روی یک گره در نقشه ذهنی کلیک کنید تا نام، توضیحات و پست‌های آن را ویرایش کنید."
+            ],
+            "Click a node to focus + edit · drag onto another to reparent · wheel to zoom": [
+                "برای فوکوس + ویرایش روی یک گره کلیک کنید"
+            ],
+            "Click a tag on the cloud to edit it, or click + Add tag to create a new one.": [
+                "برای ویرایش یک برچسب در ابر کلیک کنید یا برای ایجاد یک برچسب جدید، روی + افزودن تگ کلیک کنید."
+            ],
+            "Click a tag to focus + edit · drag to reposition · wheel to zoom": [
+                "برای فوکوس + ویرایش روی برچسب کلیک کنید · برای تغییر موقعیت بکشید · چرخ برای بزرگنمایی"
+            ],
+            "Click again to delete": [
+                "برای حذف دوباره کلیک کنید"
+            ],
+            "Click to copy email": [
+                "برای کپی ایمیل کلیک کنید"
+            ],
+            "Click to copy slug": [
+                "برای کپی کردن Slug کلیک کنید"
+            ],
+            "Click-to-copy email and a long-overdue search that matches name, username, AND email.": [
+                "ایمیل کلیک برای کپی و جستجوی طولانی مدت که با نام، نام کاربری و ایمیل مطابقت دارد."
+            ],
+            "Code as method": [
+                "کد به عنوان روش"
+            ],
+            "Coffee shop economics": [
+                "اقتصاد کافی شاپ"
+            ],
+            "Comet schedule": [
+                "برنامه دنباله دار"
+            ],
+            "Comments": [
+                "دیدگاه‌ها"
+            ],
+            "Comments column, Parent column, View link, lock indicator, multi-select bulk actions, inline search, status segments. All in one screen, no reloads.": [
+                "ستون نظرات، ستون والد، مشاهده پیوند، نشانگر قفل، اقدامات انبوه چند انتخابی، جستجوی درون خطی، بخش‌های وضعیت. همه در یک صفحه، بدون بارگیری مجدد."
+            ],
+            "Confirm new password": [
+                "رمز عبور جدید را تایید کنید"
+            ],
+            "Content": [
+                "محتوا"
+            ],
+            "Copied!": [
+                "کپی شده!"
+            ],
+            "Could not create the user.": [
+                "کاربر ایجاد نشد."
+            ],
+            "Could not destroy sessions (%s).": [
+                "نمی توان جلسات (%s) را از بین برد."
+            ],
+            "Could not load insights (%s).": [
+                "اطلاعات آماری (%s) بارگیری نشد."
+            ],
+            "Could not load profile (%s).": [
+                "نمایه (%s) بارگیری نشد."
+            ],
+            "Could not load users. Try Refresh.": [
+                "کاربران بارگیری نشدند. Refresh را امتحان کنید."
+            ],
+            "Could not open profile window — desktop shell unavailable.": [
+                "پنجره نمایه باز نشد - پوسته دسکتاپ در دسترس نیست."
+            ],
+            "Could not resend welcome (%s).": [
+                "ارسال مجدد خوش آمد (%s) امکان پذیر نیست."
+            ],
+            "Could not send reset email (%s).": [
+                "ایمیل بازنشانی (%s) ارسال نشد."
+            ],
+            "Couldn’t add category.": [
+                "دسته اضافه نشد."
+            ],
+            "Couldn’t add tag \"%s\".": [
+                "برچسب \"%s\" اضافه نشد."
+            ],
+            "Couldn’t assign new category.": [
+                "دسته جدید اختصاص داده نشد."
+            ],
+            "Couldn’t create category.": [
+                "دسته ایجاد نشد."
+            ],
+            "Couldn’t create:": [
+                "ایجاد نشد:"
+            ],
+            "Couldn’t delete category.": [
+                "دسته بندی حذف نشد."
+            ],
+            "Couldn’t delete:": [
+                "حذف نشد:"
+            ],
+            "Couldn’t load categories:": [
+                "دسته ها بارگیری نشد:"
+            ],
+            "Couldn’t load posts:": [
+                "پست ها بارگیری نشد:"
+            ],
+            "Couldn’t load tags:": [
+                "برچسب ها بارگیری نشد:"
+            ],
+            "Couldn’t remove tag \"%s\".": [
+                "برچسب \"%s\" حذف نشد."
+            ],
+            "Couldn’t reparent:": [
+                "نمی‌توانم جبران کنم:"
+            ],
+            "Couldn’t save:": [
+                "ذخیره نشد:"
+            ],
+            "Couldn’t update categories.": [
+                "دسته‌ها به‌روزرسانی نشد."
+            ],
+            "Couldn’t update post categories after delete.": [
+                "پس از حذف نمی‌توان دسته‌های پست را به‌روزرسانی کرد."
+            ],
+            "Create": [
+                "ایجاد کنید"
+            ],
+            "Created. Copy the password now: %s": [
+                "ایجاد شد. اکنون رمز عبور را کپی کنید: %s"
+            ],
+            "Culture": [
+                "فرهنگ"
+            ],
+            "Date": [
+                "تاریخ"
+            ],
+            "Default template": [
+                "قالب پیش فرض"
+            ],
+            "Delete": [
+                "حذف کنید"
+            ],
+            "Delete category?": [
+                "دسته حذف شود؟"
+            ],
+            "Delete the category \"%s\"? Posts assigned only to it will fall back to Uncategorized.": [
+                "دسته \"%s\" حذف شود؟ پست هایی که فقط به آن اختصاص داده می شوند به دسته بندی نشده برمی گردند."
+            ],
+            "Description": [
+                "توضیحات"
+            ],
+            "Description (optional)": [
+                "توضیحات (اختیاری)"
+            ],
+            "Director cut": [
+                "کارگردان برش"
+            ],
+            "Disable syntax highlighting when editing code": [
+                "هنگام ویرایش کد، برجسته کردن نحو را غیرفعال کنید"
+            ],
+            "Disable the visual editor when writing": [
+                "هنگام نوشتن، ویرایشگر تصویری را غیرفعال کنید"
+            ],
+            "Display name publicly as": [
+                "نمایش نام عمومی به عنوان"
+            ],
+            "Draft": [
+                "پیش نویس"
+            ],
+            "Drafts": [
+                "پیش نویس ها"
+            ],
+            "Economics": [
+                "اقتصاد"
+            ],
+            "Email": [
+                "ایمیل"
+            ],
+            "Email (required)": [
+                "ایمیل (الزامی)"
+            ],
+            "Email address is not valid.": [
+                "آدرس ایمیل معتبر نیست"
+            ],
+            "Enable keyboard shortcuts for comment moderation": [
+                "میانبرهای صفحه کلید را برای نظارت بر نظرات فعال کنید"
+            ],
+            "Excerpt": [
+                "گزیده"
+            ],
+            "Field portraits": [
+                "پرتره های میدانی"
+            ],
+            "Fieldwork log": [
+                "گزارش کار میدانی"
+            ],
+            "Filter by author": [
+                "فیلتر بر اساس نویسنده"
+            ],
+            "Filter by tag": [
+                "فیلتر بر اساس برچسب"
+            ],
+            "First name": [
+                "نام کوچک"
+            ],
+            "Front page": [
+                "صفحه اول"
+            ],
+            "Front page and Posts page badges right on the title — no more \"wait, which one is the homepage?\".": [
+                "نشان‌های صفحه اول و صفحه پست‌ها درست روی عنوان - دیگر خبری از \"صبر کنید، کدام یک صفحه اصلی است؟\" نیست."
+            ],
+            "Future-proof tropes": [
+                "استارهای مقاوم در برابر آینده"
+            ],
+            "Generate strong": [
+                "قوی تولید کنید"
+            ],
+            "Generated password copied to clipboard.": [
+                "رمز عبور ایجاد شده در کلیپ بورد کپی شد."
+            ],
+            "Got it": [
+                "متوجه شدم"
+            ],
+            "Grant super admin privileges for the network": [
+                "اعطای امتیازات مدیریت فوق العاده برای شبکه"
+            ],
+            "Greenhouse notes": [
+                "یادداشت های گلخانه ای"
+            ],
+            "Includes the current device.": [
+                "شامل دستگاه فعلی است."
+            ],
+            "Inflation trail": [
+                "دنباله تورم"
+            ],
+            "Lab notebook": [
+                "دفترچه یادداشت آزمایشگاهی"
+            ],
+            "Language": [
+                "زبان"
+            ],
+            "Last login": [
+                "آخرین ورود"
+            ],
+            "Last name": [
+                "نام خانوادگی"
+            ],
+            "Last-login column so you finally know who is actually using the site.": [
+                "آخرین ستون ورود به سیستم تا در نهایت بدانید چه کسی واقعاً از سایت استفاده می کند."
+            ],
+            "Leave blank to keep the current password.": [
+                "برای حفظ رمز عبور فعلی، آن را خالی بگذارید."
+            ],
+            "Liner notes": [
+                "یادداشت های لاینر"
+            ],
+            "Live online indicator on every row — see who is around right now.": [
+                "نشانگر آنلاین زنده در هر ردیف - ببینید چه کسی در حال حاضر در اطراف است."
+            ],
+            "Live this week": [
+                "این هفته زندگی کن"
+            ],
+            "Loading insights…": [
+                "در حال بارگیری اطلاعات آماری…"
+            ],
+            "Loading profile…": [
+                "در حال بارگیری نمایه…"
+            ],
+            "Local elections": [
+                "انتخابات محلی"
+            ],
+            "Log out everywhere else": [
+                "از همه جا خارج شوید"
+            ],
+            "Log this user out everywhere": [
+                "این کاربر را از همه جا خارج کنید"
+            ],
+            "Logged in across multiple devices.": [
+                "در چندین دستگاه وارد شده است."
+            ],
+            "Lunar tides": [
+                "جزر و مد ماه"
+            ],
+            "Macro recap": [
+                "خلاصه کلان"
+            ],
+            "Make root": [
+                "روت کنید"
+            ],
+            "Market mood": [
+                "حال و هوای بازار"
+            ],
+            "Markets recap": [
+                "خلاصه بازارها"
+            ],
+            "Member": [
+                "عضو"
+            ],
+            "Methodology notes": [
+                "یادداشت های روش شناسی"
+            ],
+            "Microscope diary": [
+                "دفتر خاطرات میکروسکوپی"
+            ],
+            "Migration map": [
+                "نقشه مهاجرت"
+            ],
+            "Mindmap unavailable.": [
+                "نقشه ذهنی در دسترس نیست."
+            ],
+            "Mindmap unavailable: shell modules API missing.": [
+                "نقشه ذهنی در دسترس نیست: API ماژول‌های پوسته وجود ندارد."
+            ],
+            "Move %d post(s) to the trash?": [
+                "%d پست(ها) به سطل زباله منتقل شود؟"
+            ],
+            "Move to trash": [
+                "انتقال به سطل زباله"
+            ],
+            "Music": [
+                "موسیقی"
+            ],
+            "Name": [
+                "نام"
+            ],
+            "Native species": [
+                "گونه های بومی"
+            ],
+            "Never": [
+                "هرگز"
+            ],
+            "Never logged in": [
+                "هرگز وارد نشدید"
+            ],
+            "New application password name": [
+                "نام رمز برنامه جدید"
+            ],
+            "New child of %s": [
+                "فرزند جدید %s"
+            ],
+            "New password": [
+                "رمز عبور جدید"
+            ],
+            "New root category": [
+                "دسته بندی ریشه جدید"
+            ],
+            "New tag": [
+                "برچسب جدید"
+            ],
+            "Nickname": [
+                "نام مستعار"
+            ],
+            "No activity in the last 12 months.": [
+                "بدون فعالیت در 12 ماه گذشته."
+            ],
+            "No app passwords issued yet.": [
+                "هنوز گذرواژه برنامه ای صادر نشده است."
+            ],
+            "No application passwords issued yet.": [
+                "هنوز هیچ رمز عبور برنامه ای صادر نشده است."
+            ],
+            "No category selected": [
+                "هیچ دسته ای انتخاب نشده است"
+            ],
+            "No custom categories yet. Click \"Add root category\" to start branching.": [
+                "هنوز دسته بندی سفارشی وجود ندارد. برای شروع انشعاب روی \"افزودن دسته ریشه\" کلیک کنید."
+            ],
+            "No posts": [
+                "بدون پست"
+            ],
+            "No recent comments.": [
+                "هیچ نظر اخیری وجود ندارد."
+            ],
+            "No recent posts.": [
+                "هیچ پست اخیری وجود ندارد."
+            ],
+            "No recent use.": [
+                "بدون استفاده اخیر"
+            ],
+            "No role": [
+                "بدون نقش"
+            ],
+            "No tag selected": [
+                "هیچ برچسبی انتخاب نشده است"
+            ],
+            "No tags yet. Click \"Add tag\" to start building the cloud.": [
+                "هنوز هیچ برچسبی وجود ندارد. برای شروع ساخت ابر، روی «افزودن برچسب» کلیک کنید."
+            ],
+            "No users updated.": [
+                "هیچ کاربری به روز نشد."
+            ],
+            "Numbers I noticed": [
+                "اعدادی که متوجه شدم"
+            ],
+            "One-click password reset and resend-welcome buttons, with sensible rate-limiting.": [
+                "دکمه های بازنشانی رمز عبور و ارسال مجدد خوش آمد گویی با یک کلیک با محدودیت نرخ معقول."
+            ],
+            "Online": [
+                "آنلاین"
+            ],
+            "Open questions": [
+                "سوالات باز"
+            ],
+            "Open-source orbits": [
+                "مدارهای منبع باز"
+            ],
+            "Page %1$d of %2$d · %3$d posts": [
+                "صفحه %1$d از %2$d · %3$d پست"
+            ],
+            "Page %1$d of %2$d · %3$d users": [
+                "صفحه %1$d از %2$d · %3$d کاربر"
+            ],
+            "Page Template column so you can spot which template each page uses at a glance.": [
+                "ستون الگوی صفحه تا بتوانید با یک نگاه تشخیص دهید که هر صفحه از کدام الگو استفاده می کند."
+            ],
+            "Pages": [
+                "برگه‌ها"
+            ],
+            "Parent": [
+                "پدر و مادر"
+            ],
+            "Password generated and copied to clipboard.": [
+                "رمز عبور تولید و در کلیپ بورد کپی شد."
+            ],
+            "Pending": [
+                "در انتظار بررسی"
+            ],
+            "Per-user content stats: posts, pages, comments at a glance.": [
+                "آمار محتوای هر کاربر: پست ها، صفحات، نظرات در یک نگاه."
+            ],
+            "Personal options": [
+                "گزینه های شخصی"
+            ],
+            "Phase transitions": [
+                "انتقال فاز"
+            ],
+            "Physics": [
+                "فیزیک"
+            ],
+            "Pixel pipelines": [
+                "خطوط لوله پیکسل"
+            ],
+            "Plugins economy": [
+                "اقتصاد پلاگین"
+            ],
+            "Policy explainer": [
+                "توضیح دهنده سیاست"
+            ],
+            "Politics": [
+                "سیاست"
+            ],
+            "Posts": [
+                "نوشته‌ها"
+            ],
+            "Posts page": [
+                "صفحه پست ها"
+            ],
+            "Posts published — last 12 months": [
+                "پست های منتشر شده - 12 ماه گذشته"
+            ],
+            "Prefer the classic Posts list? You can switch back any time from OS Settings → Features.": [
+                "فهرست پست‌های کلاسیک را ترجیح می‌دهید؟ هر زمان که بخواهید می توانید از تنظیمات سیستم عامل → ویژگی ها به عقب برگردید."
+            ],
+            "Pressed leaves": [
+                "برگ های فشرده"
+            ],
+            "Pricing tactics": [
+                "تاکتیک های قیمت گذاری"
+            ],
+            "Private": [
+                "خصوصی"
+            ],
+            "Profile completeness": [
+                "کامل بودن پروفایل"
+            ],
+            "Profile saved.": [
+                "نمایه ذخیره شد."
+            ],
+            "Profile window not registered — see console.": [
+                "پنجره نمایه ثبت نشده است - کنسول را ببینید."
+            ],
+            "Promote this category to a top-level root (no parent).": [
+                "این دسته را به یک ریشه سطح بالا (بدون والد) ارتقا دهید."
+            ],
+            "Published": [
+                "منتشر شده"
+            ],
+            "Reader letters": [
+                "نامه های خواننده"
+            ],
+            "Recent activity": [
+                "فعالیت اخیر"
+            ],
+            "Recent comments": [
+                "نظرات اخیر"
+            ],
+            "Recent posts": [
+                "پست های اخیر"
+            ],
+            "Recenter": [
+                "مرکز جدید"
+            ],
+            "Recompute the chip layout from scratch — discards manual repositioning.": [
+                "طرح تراشه را از ابتدا محاسبه کنید - تغییر موقعیت دستی را کنار می گذارد."
+            ],
+            "Reflow": [
+                "جریان مجدد"
+            ],
+            "Registered": [
+                "ثبت شده است"
+            ],
+            "Reparent failed:": [
+                "بازپرداخت ناموفق:"
+            ],
+            "Replication study": [
+                "مطالعه تکرار"
+            ],
+            "Resend": [
+                "ارسال مجدد"
+            ],
+            "Resend welcome email": [
+                "ایمیل خوش آمدگویی را دوباره ارسال کنید"
+            ],
+            "Resend welcome email?": [
+                "ایمیل خوش آمدگویی مجدد ارسال شود؟"
+            ],
+            "Reset email sent to %s.": [
+                "ایمیل ارسال شده به %s را بازنشانی کنید."
+            ],
+            "Revert": [
+                "برگردانید"
+            ],
+            "Revoke": [
+                "لغو"
+            ],
+            "Role": [
+                "نقش"
+            ],
+            "Role updated for %1$d user(s) (%2$d skipped).": [
+                "نقش برای %1$d کاربر (ها) به‌روزرسانی شد (%2$d نادیده گرفته شد)."
+            ],
+            "Same data you already manage, with the polish the Users list has been waiting for.": [
+                "همان داده‌هایی که قبلاً مدیریت می‌کردید، با جلادهنده‌ای که فهرست کاربران منتظر آن بود."
+            ],
+            "Save": [
+                "ذخیره"
+            ],
+            "Save changes": [
+                "ذخیره تغییرات"
+            ],
+            "Save failed.": [
+                "ذخیره انجام نشد."
+            ],
+            "Scheduled": [
+                "برنامه ریزی شده است"
+            ],
+            "Science": [
+                "علم"
+            ],
+            "Search categories in the mindmap": [
+                "دسته ها را در نقشه ذهنی جستجو کنید"
+            ],
+            "Search categories…": [
+                "جستجوی دسته‌ها…"
+            ],
+            "Search tags in the cloud": [
+                "جستجوی برچسب ها در ابر"
+            ],
+            "Search tags…": [
+                "جستجوی برچسب ها…"
+            ],
+            "Send password reset": [
+                "ارسال مجدد رمز عبور"
+            ],
+            "Send password reset email?": [
+                "ایمیل بازنشانی رمز عبور ارسال شود؟"
+            ],
+            "Send reset email": [
+                "ارسال ایمیل ریست"
+            ],
+            "Sessions destroyed.": [
+                "جلسات تخریب شد."
+            ],
+            "Set %1$d user(s)' role to %2$s?": [
+                "نقش %1$d کاربر(ها) روی %2$s تنظیم شود؟"
+            ],
+            "Set on the road": [
+                "در جاده تنظیم شده است"
+            ],
+            "Set role": [
+                "نقش را تنظیم کنید"
+            ],
+            "Set role to…": [
+                "تنظیم نقش به…"
+            ],
+            "Share a little about yourself — visible on author archives.": [
+                "کمی درباره خود به اشتراک بگذارید - در بایگانی نویسنده قابل مشاهده است."
+            ],
+            "Show columns": [
+                "نمایش ستون ها"
+            ],
+            "Show toolbar when viewing site": [
+                "نمایش نوار ابزار هنگام مشاهده سایت"
+            ],
+            "Sim notebooks": [
+                "نوت بوک سیم کارت"
+            ],
+            "Site default": [
+                "پیش فرض سایت"
+            ],
+            "Slug": [
+                "حلزون حرکت کردن"
+            ],
+            "Slug column with one-click copy — perfect when configuring redirects or sharing canonical URLs.": [
+                "ستون Slug با کپی یک کلیک - هنگام پیکربندی تغییر مسیرها یا به اشتراک گذاری URL های متعارف عالی است."
+            ],
+            "Society": [
+                "جامعه"
+            ],
+            "Stage to screen": [
+                "مرحله به صفحه نمایش"
+            ],
+            "Sticky header and sticky title column so long lists stay readable as you scroll.": [
+                "هدر چسبنده و ستون عنوان چسبنده به طوری که لیست های طولانی در حین پیمایش قابل خواندن باقی می مانند."
+            ],
+            "Sunday digest": [
+                "خلاصه یکشنبه"
+            ],
+            "Sunday playlist": [
+                "لیست پخش یکشنبه"
+            ],
+            "Tag": [
+                "برچسب بزنید"
+            ],
+            "Tag cloud unavailable.": [
+                "ابر برچسب در دسترس نیست."
+            ],
+            "Tag cloud unavailable: shell modules API missing.": [
+                "ابر برچسب در دسترس نیست: API ماژول‌های پوسته وجود ندارد."
+            ],
+            "Tag created but description failed:": [
+                "برچسب ایجاد شد اما شرح ناموفق بود:"
+            ],
+            "Tags": [
+                "برچسب ها"
+            ],
+            "Take me to settings": [
+                "منو به تنظیمات ببر"
+            ],
+            "Template": [
+                "الگو"
+            ],
+            "That email is already in use.": [
+                "آن ایمیل در حال حاضر در حال استفاده است."
+            ],
+            "That username is already in use.": [
+                "آن نام کاربری در حال حاضر در حال استفاده است."
+            ],
+            "The two password fields do not match.": [
+                "دو قسمت رمز عبور مطابقت ندارند."
+            ],
+            "Three-act notes": [
+                "یادداشت های سه پرده ای"
+            ],
+            "Title": [
+                "عنوان"
+            ],
+            "Title cards reborn": [
+                "کارت های عنوان دوباره متولد شدند"
+            ],
+            "Top-level page": [
+                "صفحه سطح بالا"
+            ],
+            "Town hall notes": [
+                "یادداشت های تالار شهر"
+            ],
+            "Toy models": [
+                "مدل های اسباب بازی"
+            ],
+            "Tracks at dawn": [
+                "آهنگ در سحر"
+            ],
+            "Trash": [
+                "زباله‌دان"
+            ],
+            "Type as identity": [
+                "به عنوان هویت تایپ کنید"
+            ],
+            "Type the new password again.": [
+                "رمز جدید را دوباره تایپ کنید."
+            ],
+            "Unknown": [
+                "ناشناس"
+            ],
+            "User created — welcome email sent to %s.": [
+                "کاربر ایجاد شد — ایمیل خوش آمدگویی به %s ارسال شد."
+            ],
+            "Username": [
+                "نام کاربری"
+            ],
+            "Username is not valid.": [
+                "نام کاربری معتبر نیست"
+            ],
+            "View": [
+                "مشاهده کنید"
+            ],
+            "Website": [
+                "وب سایت"
+            ],
+            "Weekly briefing": [
+                "جلسه توجیهی هفتگی"
+            ],
+            "Welcome email resent to %s.": [
+                "ایمیل خوش آمدگویی مجدد به %s ارسال شد."
+            ],
+            "Welcome to the new Pages window": [
+                "به پنجره جدید صفحات خوش آمدید"
+            ],
+            "Welcome to the new Posts": [
+                "به پست های جدید خوش آمدید"
+            ],
+            "Welcome to the new Users window": [
+                "به پنجره کاربران جدید خوش آمدید"
+            ],
+            "What we learned": [
+                "چیزی که یاد گرفتیم"
+            ],
+            "WordPress at scale": [
+                "وردپرس در مقیاس"
+            ],
+            "WordPress will email %s a password-reset link.": [
+                "وردپرس یک پیوند بازنشانی رمز عبور را برای %s ایمیل خواهد کرد."
+            ],
+            "WordPress will resend the original welcome email to %s.": [
+                "وردپرس ایمیل خوش آمد گویی اصلی را دوباره به %s ارسال می کند."
+            ],
+            "Worldbuilding 101": [
+                "Worldbuilding 101"
+            ],
+            "You are not allowed to assign that role.": [
+                "شما مجاز به تعیین آن نقش نیستید."
+            ],
+            "You're looking at the redesigned Pages list — same data you already manage, with a UX tuned for how Desktop Mode wants you to work.": [
+                "شما به فهرست صفحات بازطراحی شده نگاه می‌کنید - همان داده‌هایی که قبلاً مدیریت می‌کردید، با یک UX که برای نحوه عملکرد Desktop Mode تنظیم شده است."
+            ],
+            "auto-from-name": [
+                "خودکار از نام"
+            ],
+            "e.g. Recipes": [
+                "به عنوان مثال دستور العمل ها"
+            ],
+            "e.g. featured": [
+                "به عنوان مثال برجسته"
+            ],
+            "e.g. iPhone, WP-CLI, Backup tool": [
+                "به عنوان مثال آیفون، WP-CLI، ابزار پشتیبان گیری"
+            ],
+            "just now": [
+                "همین الان"
+            ],
+            "last used %s": [
+                "آخرین استفاده %s"
+            ],
+            "modified": [
+                "اصلاح شده است"
+            ],
+            "never used": [
+                "هرگز استفاده نشده است"
+            ],
+            "on": [
+                "در"
+            ],
+            "pending": [
+                "در انتظار"
+            ],
+            "↳ #%d": [
+                "↳ #%d"
+            ]
+        }
+    }
+}
