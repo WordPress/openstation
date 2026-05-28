@@ -1,0 +1,2162 @@
+{
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "fa_IR",
+                "plural-forms": "nplurals=2; plural=(n > 1);"
+            },
+            "%1$d %3$s, %2$d failed.": [
+                "%1$d %3$s، %2$d ناموفق بود."
+            ],
+            "%1$d nodes · %2$d links": [
+                "%1$d گره · %2$d پیوند"
+            ],
+            "%1$d of %2$d items": [
+                "%1$d از %2$d مورد"
+            ],
+            "%1$d of %2$d users": [
+                "%1$d از %2$d کاربر"
+            ],
+            "%1$d plugin(s) %2$s.": [
+                "%1$d افزونه %2$s."
+            ],
+            "%1$d posts · %2$d comments tracked": [
+                "%1$d پست · %2$d نظر پیگیری شد"
+            ],
+            "%1$d posts · %2$d pages": [
+                "%1$d پست · %2$d صفحه"
+            ],
+            "%1$s %2$s": [
+                "%1$s %2$s"
+            ],
+            "%1$s deactivated. Closed %2$d window(s).": [
+                "%1$s غیرفعال شد. %2$d پنجره(ها) بسته شد."
+            ],
+            "%1$s updated to %2$s.": [
+                "%1$s به %2$s به‌روزرسانی شد."
+            ],
+            "%1$s · %2$d": [
+                "%1$s · %2$d"
+            ],
+            "%1$s · %2$d posts": [
+                "%1$s · %2$d پست"
+            ],
+            "%1$s · %2$s KB": [
+                "%1$s · %2$s کیلوبایت"
+            ],
+            "%1$s — %2$d posts, %3$d comments, %4$d updates": [
+                "%1$s — %2$d پست، %3$d نظر، %4$d به‌روزرسانی"
+            ],
+            "%1$s — currently being edited by %2$s": [
+                "%1$s — در حال حاضر توسط %2$s در حال ویرایش است"
+            ],
+            "%1$s → %2$s": [
+                "%1$s → %2$s"
+            ],
+            "%d KB": [
+                "%d کیلوبایت"
+            ],
+            "%d comment site-wide": [
+                "%d نظر در کل سایت"
+            ],
+            "%d day": [
+                "%d روز"
+            ],
+            "%d entry references this file.": [
+                "%d ورودی به این فایل اشاره دارد."
+            ],
+            "%d hidden by HD filter": [
+                ""
+            ],
+            "%d item": [
+                "%d مورد"
+            ],
+            "%d new pending — reload": [
+                "%d جدید در انتظار - بارگیری مجدد"
+            ],
+            "%d notification": [
+                "%d اعلان"
+            ],
+            "%d post": [
+                "%d پست"
+            ],
+            "%d post published — their personal record.": [
+                "%d پست منتشر شد - سابقه شخصی آنها."
+            ],
+            "%d published": [
+                "%d منتشر شد"
+            ],
+            "%d reference": [
+                "%d مرجع"
+            ],
+            "%d selected": [
+                "%d انتخاب شد"
+            ],
+            "%d update": [
+                "%d به روز رسانی"
+            ],
+            "%d ★": [
+                "%d ★"
+            ],
+            "%d+ million active": [
+                "%d+ میلیون فعال است"
+            ],
+            "%d:00": [
+                "%d:00"
+            ],
+            "%s (already added)": [
+                ""
+            ],
+            "%s MB": [
+                "%s مگابایت"
+            ],
+            "%s activated.": [
+                "%s فعال شد."
+            ],
+            "%s deactivated.": [
+                "%s غیرفعال شد."
+            ],
+            "%s deleted.": [
+                "%s حذف شد."
+            ],
+            "%s is already installed. Open it from your apps menu or home screen.": [
+                "%s قبلاً نصب شده است. آن را از منوی برنامه ها یا صفحه اصلی باز کنید."
+            ],
+            "%s is already up to date.": [
+                "%s از قبل به‌روز است."
+            ],
+            "%s is currently editing": [
+                "%s در حال ویرایش است"
+            ],
+            "%s sub-pages": [
+                ""
+            ],
+            "%s — activity footprint": [
+                "%s — ردپای فعالیت"
+            ],
+            "%s — open windows": [
+                "%s - پنجره ها را باز کنید"
+            ],
+            "%s+": [
+                "%s+"
+            ],
+            "%s+ active": [
+                "%s+ فعال است"
+            ],
+            "%s+ active installs": [
+                "%s+ نصب فعال"
+            ],
+            "(folder)": [
+                "(پوشه)"
+            ],
+            "(no title)": [
+                "(بدون عنوان)"
+            ],
+            "+ %d replies": [
+                "+ %d پاسخ"
+            ],
+            "1 item": [
+                "1 مورد"
+            ],
+            "A moderation surface built around how you actually triage: bulk actions with undo, an inline reply editor, keyboard shortcuts, and a spam score that surfaces the obvious junk first.": [
+                "یک سطح تعدیل مبتنی بر نحوه تریاژ شما: اقدامات انبوه با لغو، ویرایشگر پاسخ درون خطی، میانبرهای صفحه کلید، و امتیاز هرزنامه که ابتدا ناخواسته آشکار را نشان می دهد."
+            ],
+            "A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.": [
+                ""
+            ],
+            "A native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it. On by default.": [
+                ""
+            ],
+            "A platform-wide AI key is configured. You can optionally set a personal key below to override it.": [
+                ""
+            ],
+            "A plugin with the same folder name is already installed.": [
+                "افزونه ای با همان نام پوشه قبلاً نصب شده است."
+            ],
+            "A plugin with the same folder name is already installed. Replacing it overwrites the installed files. Any local edits to the plugin will be lost. The plugin will keep its activation state.": [
+                "افزونه ای با همان نام پوشه قبلاً نصب شده است. با تعویض آن، فایل های نصب شده رونویسی می شوند. هر گونه ویرایش محلی افزونه از بین خواهد رفت. پلاگین حالت فعال سازی خود را حفظ خواهد کرد."
+            ],
+            "A real gallery on Browse — clean cards with rating, install count, last updated, and a click-anywhere detail flyout. Subtle hover lift, lazy-loaded icons, infinite scroll.": [
+                "یک گالری واقعی در «مرور» - کارت‌های تمیز با رتبه‌بندی، تعداد نصب، آخرین به‌روزرسانی، و نمایش جزئیات با کلیک در هر نقطه. بالابر شناور ظریف، نمادهای تنبل، اسکرول بی نهایت."
+            ],
+            "A redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo). On by default.": [
+                ""
+            ],
+            "A short summary": [
+                "خلاصه ای کوتاه"
+            ],
+            "A year of activity": [
+                "یک سال فعالیت"
+            ],
+            "AI Settings": [
+                ""
+            ],
+            "AI integration": [
+                ""
+            ],
+            "AI: hostile / abusive tone.": [
+                "هوش مصنوعی: لحن خصمانه / توهین آمیز."
+            ],
+            "AI: looks like promotional spam.": [
+                "هوش مصنوعی: شبیه هرزنامه تبلیغاتی است."
+            ],
+            "AI: looks safe.": [
+                "هوش مصنوعی: امن به نظر می رسد."
+            ],
+            "API key": [
+                ""
+            ],
+            "About": [
+                "درباره"
+            ],
+            "Accent color": [
+                ""
+            ],
+            "Activate": [
+                "فعال کنید"
+            ],
+            "Activate Plugin": [
+                "افزونه را فعال کنید"
+            ],
+            "Activate failed: %s": [
+                "فعال سازی انجام نشد: %s"
+            ],
+            "Activating…": [
+                "فعال سازی…"
+            ],
+            "Activation failed: %s": [
+                "فعال سازی انجام نشد: %s"
+            ],
+            "Active": [
+                "فعال"
+            ],
+            "Activity (last 12 months)": [
+                "فعالیت (12 ماه گذشته)"
+            ],
+            "Add %s": [
+                ""
+            ],
+            "Add new desktop": [
+                ""
+            ],
+            "Add widget": [
+                ""
+            ],
+            "Added": [
+                ""
+            ],
+            "Akismet cleared this comment.": [
+                "Akismet این نظر را پاک کرد."
+            ],
+            "Akismet flagged this comment as spam.": [
+                "Akismet این نظر را به عنوان هرزنامه پرچم گذاری کرد."
+            ],
+            "All": [
+                "همه"
+            ],
+            "Also show on desktop": [
+                "همچنین در دسکتاپ نمایش داده شود"
+            ],
+            "Also show on dock": [
+                "همچنین در حوض نمایش داده شود"
+            ],
+            "Alt text": [
+                "متن جایگزین"
+            ],
+            "Amber": [
+                ""
+            ],
+            "Angle": [
+                ""
+            ],
+            "Anonymous": [
+                "ناشناس"
+            ],
+            "Appearance": [
+                ""
+            ],
+            "Approve": [
+                "پذیرفتن"
+            ],
+            "Approved": [
+                "تصویب شد"
+            ],
+            "Approved %d.": [
+                "%d تأیید شد."
+            ],
+            "Apps & Icons": [
+                ""
+            ],
+            "Apps & Icons settings…": [
+                "تنظیمات برنامه‌ها و نمادها…"
+            ],
+            "Attached media": [
+                "رسانه پیوست شده"
+            ],
+            "Author": [
+                "نویسنده"
+            ],
+            "Author URL": [
+                "آدرس نویسنده"
+            ],
+            "Author archive": [
+                "آرشیو نویسنده"
+            ],
+            "Author insights drawer": [
+                "کشوی بینش نویسنده"
+            ],
+            "Author website": [
+                "وب سایت نویسنده"
+            ],
+            "Author · %s": [
+                "نویسنده · %s"
+            ],
+            "Authors": [
+                "نویسندگان"
+            ],
+            "Auto-update unavailable": [
+                "به روز رسانی خودکار در دسترس نیست"
+            ],
+            "Auto-updates disabled": [
+                "به روز رسانی خودکار غیرفعال است"
+            ],
+            "Auto-updates disabled for %s.": [
+                "به روز رسانی خودکار برای %s غیرفعال شد."
+            ],
+            "Auto-updates enabled": [
+                "به روز رسانی خودکار فعال شد"
+            ],
+            "Auto-updates enabled for %s.": [
+                "به روز رسانی خودکار برای %s فعال شد."
+            ],
+            "Automatic Updates": [
+                "به روز رسانی های خودکار"
+            ],
+            "Back": [
+                "برگشت"
+            ],
+            "Back to post": [
+                "بازگشت به پست"
+            ],
+            "Beta": [
+                "بتا"
+            ],
+            "Bold": [
+                "پررنگ"
+            ],
+            "Bookmark": [
+                "نشانک"
+            ],
+            "Bottom": [
+                ""
+            ],
+            "Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper.": [
+                ""
+            ],
+            "Breadcrumb": [
+                "خرده نان"
+            ],
+            "Bug": [
+                "اشکال"
+            ],
+            "Bulk %s failed.": [
+                "%s انبوه ناموفق بود."
+            ],
+            "Bulk moderation with undo": [
+                "تعدیل انبوه با لغو"
+            ],
+            "Bulleted list": [
+                "لیست گلوله شده"
+            ],
+            "By hour of day (site time)": [
+                "بر اساس ساعت روز (زمان سایت)"
+            ],
+            "By weekday": [
+                "در روز هفته"
+            ],
+            "CPT": [
+                "CPT"
+            ],
+            "CSS custom properties": [
+                ""
+            ],
+            "Cancel": [
+                "انصراف"
+            ],
+            "Can’t drop here": [
+                "نمی توان اینجا رها کرد"
+            ],
+            "Caption": [
+                "عنوان"
+            ],
+            "Categories": [
+                "دسته بندی ها"
+            ],
+            "Categories · %d": [
+                "دسته ها · %d"
+            ],
+            "Changelog": [
+                "تغییرات"
+            ],
+            "Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.": [
+                ""
+            ],
+            "Classic": [
+                ""
+            ],
+            "Click an avatar to see the author's full history — total comments, spam rate, first seen, and one-click block.": [
+                "روی یک آواتار کلیک کنید تا تاریخچه کامل نویسنده را ببینید - کل نظرات، نرخ هرزنامه، اولین بار مشاهده شده و بلوک با یک کلیک."
+            ],
+            "Clock": [
+                ""
+            ],
+            "Close": [
+                "بستن"
+            ],
+            "Close %s": [
+                ""
+            ],
+            "Close panel": [
+                "پانل را ببندید"
+            ],
+            "Close plugin details": [
+                "جزئیات افزونه را ببندید"
+            ],
+            "Close tab": [
+                ""
+            ],
+            "Co-occurring": [
+                "همزمان اتفاق می افتد"
+            ],
+            "Comment": [
+                "نظر دهید"
+            ],
+            "Comment updated.": [
+                "نظر به روز شد."
+            ],
+            "Commented on “%s”": [
+                "در مورد \"%s\" نظر داد"
+            ],
+            "Comments": [
+                "دیدگاه‌ها"
+            ],
+            "Comments left": [
+                "نظرات باقی مانده است"
+            ],
+            "Comments received": [
+                "نظرات دریافت شد"
+            ],
+            "Comments window configuration missing.": [
+                "پیکربندی پنجره نظرات وجود ندارد."
+            ],
+            "Comments · %d": [
+                "نظرات · %d"
+            ],
+            "Compact": [
+                ""
+            ],
+            "Component library": [
+                ""
+            ],
+            "Components": [
+                ""
+            ],
+            "Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival.": [
+                ""
+            ],
+            "Connect an AI provider to power assistive features across the desktop.": [
+                ""
+            ],
+            "Content Graph container missing.": [
+                "محفظه نمودار محتوا وجود ندارد."
+            ],
+            "Contributor": [
+                "مشارکت کننده"
+            ],
+            "Contributors": [
+                "مشارکت کنندگان"
+            ],
+            "Contributors · %d": [
+                "مشارکت کنندگان · %d"
+            ],
+            "Could not deactivate %s.": [
+                "نمی‌توان %s را غیرفعال کرد."
+            ],
+            "Could not delete sharing data.": [
+                ""
+            ],
+            "Could not initialise the graph renderer.": [
+                "رندر گراف را نمی توان مقداردهی اولیه کرد."
+            ],
+            "Could not load comments.": [
+                "نظرات بارگیری نشد."
+            ],
+            "Could not load featured plugins: %s": [
+                "افزونه های ویژه بارگیری نشد: %s"
+            ],
+            "Could not load footprint.": [
+                "ردپای بارگیری نشد."
+            ],
+            "Could not load insights.": [
+                "اطلاعات آماری بارگیری نشد."
+            ],
+            "Could not load plugin details.": [
+                "جزئیات افزونه بارگیری نشد."
+            ],
+            "Could not load plugins: %s": [
+                "پلاگین ها بارگیری نشد: %s"
+            ],
+            "Could not load post #%d.": [
+                "پست #%d بارگیری نشد."
+            ],
+            "Could not load replies.": [
+                "پاسخ ها بارگیری نشد."
+            ],
+            "Could not load reviews.": [
+                "نظرات بارگیری نشد."
+            ],
+            "Could not save sticky note.": [
+                ""
+            ],
+            "Could not toggle auto-updates for %1$s: %2$s": [
+                "نمی‌توان به‌روزرسانی‌های خودکار را برای %1$s تغییر داد: %2$s"
+            ],
+            "Couldn’t delete that file.": [
+                "نمی توان آن فایل را حذف کرد."
+            ],
+            "Couldn’t load reviews": [
+                "نظرات بارگیری نشد"
+            ],
+            "Couldn’t load the revision content. You may not have permission to view it.": [
+                "محتوای بازبینی بارگیری نشد. ممکن است اجازه مشاهده آن را نداشته باشید."
+            ],
+            "Couldn’t load your media.": [
+                ""
+            ],
+            "Couldn’t load your media: %s": [
+                ""
+            ],
+            "Crafted with curiosity": [
+                ""
+            ],
+            "Current streak": [
+                "رگه فعلی"
+            ],
+            "Custom gradient": [
+                ""
+            ],
+            "Custom image": [
+                ""
+            ],
+            "Custom image wallpaper": [
+                ""
+            ],
+            "Deactivate": [
+                "غیر فعال کردن"
+            ],
+            "Deactivate %s?": [
+                "%s غیرفعال شود؟"
+            ],
+            "Deactivate %s…": [
+                "غیرفعال کردن %s…"
+            ],
+            "Deactivation failed: %s": [
+                "غیرفعال سازی انجام نشد: %s"
+            ],
+            "Default": [
+                ""
+            ],
+            "Delete": [
+                "حذف کنید"
+            ],
+            "Delete data": [
+                ""
+            ],
+            "Delete failed: %s": [
+                "حذف نشد: %s"
+            ],
+            "Delete folder sharing data": [
+                ""
+            ],
+            "Delete folder sharing data?": [
+                ""
+            ],
+            "Delete media?": [
+                "رسانه حذف شود؟"
+            ],
+            "Delete permanently": [
+                "برای همیشه حذف کنید"
+            ],
+            "Delete plugin?": [
+                "افزونه حذف شود؟"
+            ],
+            "Delete selected plugins?": [
+                "افزونه های انتخابی حذف شوند؟"
+            ],
+            "Deleting…": [
+                ""
+            ],
+            "Describe the issue or the feature you have in mind.": [
+                "مشکل یا ویژگی را که در ذهن دارید توضیح دهید."
+            ],
+            "Description": [
+                "توضیحات"
+            ],
+            "Desktop %d": [
+                ""
+            ],
+            "Desktop Mode deactivated. Reloading…": [
+                "حالت دسکتاپ غیرفعال شد. در حال بارگیری مجدد…"
+            ],
+            "Desktop Mode deleted. Reloading…": [
+                "حالت دسکتاپ حذف شد. در حال بارگیری مجدد…"
+            ],
+            "Desktop icons": [
+                "آیکون های دسکتاپ"
+            ],
+            "Desktop layout": [
+                ""
+            ],
+            "Details": [
+                "جزئیات"
+            ],
+            "Dimensions": [
+                "ابعاد"
+            ],
+            "Disable auto-updates": [
+                "به روز رسانی خودکار را غیرفعال کنید"
+            ],
+            "Disabling…": [
+                "غیرفعال کردن…"
+            ],
+            "Dismiss notice": [
+                ""
+            ],
+            "Dock %s back to widget column": [
+                ""
+            ],
+            "Dock size": [
+                ""
+            ],
+            "Dock style": [
+                ""
+            ],
+            "Done": [
+                "انجام شد"
+            ],
+            "Double-click to open.": [
+                "برای باز کردن دوبار کلیک کنید."
+            ],
+            "Drag a .zip onto the window to install — or drag a Browse card straight to the dock to pin a shortcut. The framework drag bridge handles the rest.": [
+                "برای نصب، یک .zip را روی پنجره بکشید - یا یک کارت مرور را مستقیماً به داک بکشید تا میانبر را پین کنید. پل کشیدن فریمورک بقیه موارد را اداره می کند."
+            ],
+            "Drop a .zip plugin file here, or click to choose a file.": [
+                "یک فایل افزونه .zip را در اینجا رها کنید یا برای انتخاب فایل کلیک کنید."
+            ],
+            "Drop an image here, or click to upload": [
+                ""
+            ],
+            "Drop here": [
+                "اینجا را رها کنید"
+            ],
+            "Drop here to create shortcut": [
+                "برای ایجاد میانبر اینجا را رها کنید"
+            ],
+            "Drop here to move": [
+                "برای حرکت اینجا را رها کنید"
+            ],
+            "Drop in a folder": [
+                "در یک پوشه رها کنید"
+            ],
+            "Drop on the desktop or a folder": [
+                "روی دسکتاپ یا پوشه رها کنید"
+            ],
+            "Drop the .zip to install.": [
+                "برای نصب، .zip را رها کنید."
+            ],
+            "Drop your .zip here or click to browse": [
+                "زیپ خود را اینجا رها کنید یا برای مرور کلیک کنید"
+            ],
+            "Edit": [
+                "ویرایش کنید"
+            ],
+            "Edit comment…": [
+                "ویرایش نظر…"
+            ],
+            "Edit failed.": [
+                "ویرایش انجام نشد."
+            ],
+            "Edit user": [
+                "کاربر را ویرایش کنید"
+            ],
+            "Emerald": [
+                ""
+            ],
+            "Enable AI features": [
+                ""
+            ],
+            "Enable AI for all users": [
+                ""
+            ],
+            "Enable auto-updates": [
+                "به روز رسانی خودکار را فعال کنید"
+            ],
+            "Enable drag-and-drop in the Media Library": [
+                ""
+            ],
+            "Enabling…": [
+                "فعال کردن…"
+            ],
+            "Enter fullscreen": [
+                ""
+            ],
+            "Environment included with the report": [
+                "محیط زیست همراه با گزارش"
+            ],
+            "Events": [
+                ""
+            ],
+            "Every <wpd-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code.": [
+                ""
+            ],
+            "Every comment gets a 0–100 score from Akismet + heuristics. Optionally turn on AI scoring in OS Settings → Features so each new comment is also scored by your configured AI provider on arrival.": [
+                "هر نظر از Akismet + Heuristics امتیاز 0-100 دریافت می کند. به صورت اختیاری امتیازدهی هوش مصنوعی را در تنظیمات سیستم عامل ← ویژگی ها روشن کنید تا هر نظر جدید در هنگام ورود توسط ارائه دهنده هوش مصنوعی پیکربندی شده شما نیز امتیازدهی شود."
+            ],
+            "Example": [
+                ""
+            ],
+            "Exit Desktop Mode": [
+                "از حالت دسکتاپ خارج شوید"
+            ],
+            "Exit fullscreen": [
+                ""
+            ],
+            "Experimental": [
+                ""
+            ],
+            "Explore details": [
+                "جزئیات را کاوش کنید"
+            ],
+            "Extended Options": [
+                ""
+            ],
+            "Extended options": [
+                ""
+            ],
+            "F": [
+                "اف"
+            ],
+            "FAQ": [
+                "سوالات متداول"
+            ],
+            "Failed to load graph.": [
+                "نمودار بارگیری نشد."
+            ],
+            "Failed to load usage data.": [
+                "داده های استفاده بارگیری نشد."
+            ],
+            "Fast — 15s (not recommended)": [
+                ""
+            ],
+            "Favorites": [
+                "موارد دلخواه"
+            ],
+            "Feature request": [
+                "درخواست ویژگی"
+            ],
+            "Featured": [
+                "برجسته"
+            ],
+            "Features": [
+                ""
+            ],
+            "Fewer than 10 active": [
+                "کمتر از 10 فعال"
+            ],
+            "File size": [
+                "اندازه فایل"
+            ],
+            "Filename": [
+                "نام فایل"
+            ],
+            "Files REST endpoint is not available.": [
+                ""
+            ],
+            "First post": [
+                "پست اول"
+            ],
+            "First published": [
+                "اولین بار منتشر شد"
+            ],
+            "First seen": [
+                "اولین بار دیده شد"
+            ],
+            "Fit": [
+                "مناسب"
+            ],
+            "Fit graph to view": [
+                "متناسب کردن نمودار برای مشاهده"
+            ],
+            "Folder sharing": [
+                ""
+            ],
+            "Folder sharing data deleted.": [
+                ""
+            ],
+            "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
+                "اشکالی پیدا کردید یا ایده خاصی دارید؟ این را پر کنید و ما یک شماره از پیش پر شده GitHub را برای بررسی و ارسال برای شما باز می کنیم."
+            ],
+            "Friday": [
+                "جمعه"
+            ],
+            "From": [
+                ""
+            ],
+            "Global settings": [
+                ""
+            ],
+            "Got it": [
+                "متوجه شدم"
+            ],
+            "Group by": [
+                "گروه بندی بر اساس"
+            ],
+            "Group by author": [
+                "گروه بر اساس نویسنده"
+            ],
+            "Group by category": [
+                "گروه بندی بر اساس دسته بندی"
+            ],
+            "Group by tag": [
+                "گروه بر اساس برچسب"
+            ],
+            "Group by year": [
+                "گروه بر حسب سال"
+            ],
+            "Group by year-month": [
+                "گروه بندی بر اساس سال-ماه"
+            ],
+            "Group posts by a shared facet": [
+                "گروه بندی پست ها بر اساس یک جنبه مشترک"
+            ],
+            "Hidden": [
+                ""
+            ],
+            "Hide everywhere": [
+                "همه جا پنهان شو"
+            ],
+            "Hide from desktop": [
+                "از دسکتاپ مخفی شوید"
+            ],
+            "Hide from dock": [
+                "از اسکله پنهان شوید"
+            ],
+            "Hide sticky note": [
+                ""
+            ],
+            "How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately.": [
+                ""
+            ],
+            "How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see \"Lost connection to the assistant\" errors).": [
+                ""
+            ],
+            "How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer.": [
+                ""
+            ],
+            "IP": [
+                "IP"
+            ],
+            "Image source": [
+                ""
+            ],
+            "In reply to %s": [
+                "در پاسخ به %s"
+            ],
+            "In response to": [
+                "در پاسخ به"
+            ],
+            "Inactive": [
+                "غیر فعال"
+            ],
+            "Including today": [
+                "از جمله امروز"
+            ],
+            "Indigo": [
+                ""
+            ],
+            "Inline reply": [
+                "پاسخ درون خطی"
+            ],
+            "Install": [
+                "نصب کنید"
+            ],
+            "Install %s as an app": [
+                "%s را به عنوان برنامه نصب کنید"
+            ],
+            "Install cancelled.": [
+                "نصب لغو شد."
+            ],
+            "Install failed: %s": [
+                "نصب انجام نشد: %s"
+            ],
+            "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
+                "نصب در حال حاضر در دسترس نیست. به استفاده از صفحه ادامه دهید؛ اگر باز هم ظاهر نشد، ممکن است برنامه قبلاً در این مرورگر نصب شده باشد."
+            ],
+            "Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.": [
+                "نصب در دسترس نیست — کارمند خدمات افزونه دیگری در این سایت فعال است. یک مدیر سایت می تواند با تنظیم فیلتر desktop_mode_pwa_force_replace_sw روی true انتخاب کند."
+            ],
+            "Installed %s as an app.": [
+                "%s را به عنوان یک برنامه نصب کرد."
+            ],
+            "Installed %s.": [
+                "%s نصب شد."
+            ],
+            "Installing…": [
+                "در حال نصب…"
+            ],
+            "Italic": [
+                "کج"
+            ],
+            "J/K to navigate, A approve, S spam, D trash, R reply, E edit, U undo. Press ? any time for the cheat sheet.": [
+                "J/K برای پیمایش، تأیید، ارسال هرزنامه، سطل زباله، پاسخ R، ویرایش، لغو لغو. فشار دهید؟ هر زمان برای برگه تقلب."
+            ],
+            "JPEG, PNG, or WebP · goes straight to your Media Library": [
+                ""
+            ],
+            "Keyboard moderation": [
+                "تعدیل صفحه کلید"
+            ],
+            "Large": [
+                ""
+            ],
+            "Last post": [
+                "آخرین پست"
+            ],
+            "Last published": [
+                "آخرین منتشر شده"
+            ],
+            "Last published %s": [
+                "آخرین انتشار %s"
+            ],
+            "Last seen": [
+                "آخرین حضور"
+            ],
+            "Latest": [
+                "آخرین"
+            ],
+            "Latest post": [
+                "آخرین پست"
+            ],
+            "Left": [
+                ""
+            ],
+            "Less": [
+                "کمتر"
+            ],
+            "Let me moderate": [
+                "اجازه بدهید تعدیل کنم"
+            ],
+            "Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, \"Leave shared folder\") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.": [
+                ""
+            ],
+            "Live progress updates": [
+                ""
+            ],
+            "Load more": [
+                ""
+            ],
+            "Loading author insights…": [
+                "در حال بارگیری اطلاعات آماری نویسنده…"
+            ],
+            "Loading description…": [
+                "در حال بارگیری توضیحات…"
+            ],
+            "Loading details…": [
+                "در حال بارگیری جزئیات…"
+            ],
+            "Loading footprint…": [
+                "در حال بارگیری ردپای…"
+            ],
+            "Loading from WordPress.org…": [
+                "در حال بارگیری از WordPress.org…"
+            ],
+            "Loading graph…": [
+                "در حال بارگیری نمودار…"
+            ],
+            "Loading recent reviews…": [
+                "بارگیری مرورهای اخیر…"
+            ],
+            "Loading window content": [
+                ""
+            ],
+            "Loading…": [
+                "در حال بارگیری…"
+            ],
+            "Local time and date, refreshed every second.": [
+                ""
+            ],
+            "Longest streak": [
+                "طولانی ترین دوره"
+            ],
+            "M": [
+                "م"
+            ],
+            "Made for Desktop Mode": [
+                "ساخته شده برای حالت دسکتاپ"
+            ],
+            "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
+                ""
+            ],
+            "Marked %d as spam.": [
+                "%d به عنوان هرزنامه علامت‌گذاری شد."
+            ],
+            "Maximize": [
+                ""
+            ],
+            "Media": [
+                "رسانه"
+            ],
+            "Media Library": [
+                ""
+            ],
+            "Media deleted.": [
+                "رسانه حذف شد"
+            ],
+            "Medium — 30s": [
+                ""
+            ],
+            "Member since": [
+                "عضو از"
+            ],
+            "Member since %s": [
+                "عضو از %s"
+            ],
+            "Milestones": [
+                "نقاط عطف"
+            ],
+            "Minimize": [
+                ""
+            ],
+            "Missing-import warner — live demo": [
+                ""
+            ],
+            "Moderate": [
+                "متوسط"
+            ],
+            "Modified": [
+                "اصلاح شد"
+            ],
+            "Monday": [
+                "دوشنبه"
+            ],
+            "More": [
+                "بیشتر"
+            ],
+            "Most prolific month": [
+                "پربارترین ماه"
+            ],
+            "Move \"%s\" to Trash?": [
+                "\"%s\" به سطل زباله منتقل شود؟"
+            ],
+            "Move to Trash": [
+                "به سطل زباله بروید"
+            ],
+            "Move your cursor through the swarm · click for a spark": [
+                ""
+            ],
+            "Multi-select and approve, spam, or trash dozens at once. Every action shows an 8-second undo toast.": [
+                "چند انتخاب و تأیید، هرزنامه، یا سطل زباله به طور همزمان. هر عمل یک نان تست خنثی کننده 8 ثانیه ای را نشان می دهد."
+            ],
+            "My WordPress": [
+                "وردپرس من"
+            ],
+            "Name": [
+                "نام"
+            ],
+            "Name (A → Z)": [
+                "نام (A → Z)"
+            ],
+            "Name (Z → A)": [
+                "نام (Z → A)"
+            ],
+            "Navigate into": [
+                "پیمایش به"
+            ],
+            "Network error — check your connection.": [
+                ""
+            ],
+            "Network only": [
+                "فقط شبکه"
+            ],
+            "New": [
+                "جدید"
+            ],
+            "New %s": [
+                "%s جدید"
+            ],
+            "New sticky note": [
+                ""
+            ],
+            "Newest first": [
+                "اول جدیدترین"
+            ],
+            "Next": [
+                "بعدی"
+            ],
+            "No %2$s match \"%1$s\".": [
+                "هیچ %2$s با «%1$s» مطابقت ندارد."
+            ],
+            "No %s yet.": [
+                "هنوز %s وجود ندارد."
+            ],
+            "No FAQ": [
+                "بدون پرسش و پاسخ"
+            ],
+            "No HD images found. Try unchecking the filter, or upload a larger image.": [
+                ""
+            ],
+            "No activity recorded in the last year.": [
+                "هیچ فعالیتی در سال گذشته ثبت نشده است."
+            ],
+            "No activity today": [
+                "امروز هیچ فعالیتی نداریم"
+            ],
+            "No additional contributors.": [
+                "هیچ مشارکت کننده دیگری وجود ندارد."
+            ],
+            "No apps registered yet": [
+                ""
+            ],
+            "No author available.": [
+                "نویسنده ای موجود نیست"
+            ],
+            "No categories assigned.": [
+                "هیچ دسته ای اختصاص داده نشده است."
+            ],
+            "No changelog": [
+                "بدون تغییرات"
+            ],
+            "No comments on this post yet.": [
+                "هنوز نظری در مورد این پست وجود ندارد."
+            ],
+            "No comments to moderate here.": [
+                "هیچ نظری برای تعدیل در اینجا وجود ندارد."
+            ],
+            "No components registered.": [
+                ""
+            ],
+            "No content available.": [
+                "هیچ محتوایی در دسترس نیست."
+            ],
+            "No description": [
+                "بدون شرح"
+            ],
+            "No featured plugins yet.": [
+                "هنوز هیچ پلاگین ویژه ای وجود ندارد."
+            ],
+            "No grouping": [
+                "بدون گروه بندی"
+            ],
+            "No images in your Media Library yet.": [
+                ""
+            ],
+            "No media attached to this post.": [
+                "هیچ رسانه ای به این پست پیوست نشده است."
+            ],
+            "No media match \"%s\".": [
+                "هیچ رسانه ای با \"%s\" مطابقت ندارد."
+            ],
+            "No media yet.": [
+                "هنوز رسانه ای وجود ندارد."
+            ],
+            "No plugins match your filters.": [
+                "هیچ پلاگینی با فیلترهای شما مطابقت ندارد."
+            ],
+            "No plugins matched.": [
+                "هیچ افزونه ای مطابقت ندارد."
+            ],
+            "No posts or pages reference this file.": [
+                "هیچ پست یا صفحه ای به این فایل اشاره نمی کند."
+            ],
+            "No ratings yet.": [
+                "هنوز رتبه بندی نشده است."
+            ],
+            "No revisions yet.": [
+                "هنوز هیچ تجدیدنظری وجود ندارد."
+            ],
+            "No tags assigned.": [
+                "هیچ برچسبی اختصاص داده نشده است."
+            ],
+            "No users match \"%s\".": [
+                "هیچ کاربری با \"%s\" مطابقت ندارد."
+            ],
+            "No users to show.": [
+                "هیچ کاربری برای نمایش وجود ندارد."
+            ],
+            "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.": [
+                ""
+            ],
+            "Not spam": [
+                "اسپم نیست"
+            ],
+            "Nothing to show yet.": [
+                "هنوز چیزی برای نشان دادن وجود ندارد."
+            ],
+            "Nothing to show.": [
+                "چیزی برای نشان دادن نیست."
+            ],
+            "Numbered list": [
+                "لیست شماره گذاری شده"
+            ],
+            "Often paired categories": [
+                "دسته بندی اغلب جفت شده است"
+            ],
+            "Often paired tags": [
+                "اغلب تگ های جفت شده"
+            ],
+            "Oldest first": [
+                "اول قدیمی ترین"
+            ],
+            "On both": [
+                ""
+            ],
+            "On post": [
+                "در پست"
+            ],
+            "On the desktop": [
+                ""
+            ],
+            "On the dock": [
+                ""
+            ],
+            "One step per line": [
+                "یک قدم در هر خط"
+            ],
+            "Only .zip files are accepted.": [
+                "فقط فایل های .zip پذیرفته می شوند."
+            ],
+            "Only HD (≥%1$d×%2$d)": [
+                ""
+            ],
+            "Open": [
+                ""
+            ],
+            "Open another %s": [
+                ""
+            ],
+            "Open artifact": [
+                ""
+            ],
+            "Open file": [
+                "باز کردن فایل"
+            ],
+            "Open file in new tab": [
+                "فایل را در تب جدید باز کنید"
+            ],
+            "Open in My WordPress": [
+                "در My WordPress باز کنید"
+            ],
+            "Open in WordPress": [
+                "در وردپرس باز کنید"
+            ],
+            "Open in a new browser tab": [
+                ""
+            ],
+            "Open in browser tab": [
+                ""
+            ],
+            "Open in editor": [
+                "در ویرایشگر باز کنید"
+            ],
+            "Open in new window": [
+                ""
+            ],
+            "Open issue on GitHub": [
+                "موضوع را در GitHub باز کنید"
+            ],
+            "Open on startup": [
+                ""
+            ],
+            "Open reviews on WordPress.org ↗": [
+                "نظرات را در WordPress.org باز کنید ↗"
+            ],
+            "Open revision in WordPress": [
+                "بازبینی در وردپرس را باز کنید"
+            ],
+            "Open the full activity footprint surface for this user.": [
+                "سطح ردپای کامل فعالیت را برای این کاربر باز کنید."
+            ],
+            "Open this user’s profile editor in a new window.": [
+                "ویرایشگر نمایه این کاربر را در یک پنجره جدید باز کنید."
+            ],
+            "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
+                ""
+            ],
+            "Or use your own image": [
+                ""
+            ],
+            "Overview": [
+                "نمای کلی"
+            ],
+            "Page %1$d of %2$d": [
+                "صفحه %1$d از %2$d"
+            ],
+            "Page %1$d of %2$d (%3$d total)": [
+                "صفحه %1$d از %2$d (%3$d کل)"
+            ],
+            "Pages": [
+                "برگه‌ها"
+            ],
+            "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.": [
+                ""
+            ],
+            "Parent": [
+                "پدر و مادر"
+            ],
+            "Pending": [
+                "در انتظار بررسی"
+            ],
+            "Pending / All / Spam / Trash / Mine tabs — every status surface in a single window with live counts.": [
+                "در حال تعلیق / همه / هرزنامه / سطل زباله / برگه های معدن - هر سطح وضعیت در یک پنجره واحد با شمارش زنده."
+            ],
+            "Per page": [
+                "در هر صفحه"
+            ],
+            "Per-row capability flags so the UI hides actions you can't perform — and the server re-validates every mutation, so flags can't be tampered into more permissions.": [
+                "قابلیت هر ردیف پرچم‌گذاری می‌کند تا UI اقداماتی را که نمی‌توانید انجام دهید پنهان می‌کند - و سرور هر جهش را دوباره تأیید می‌کند، بنابراین پرچم‌ها نمی‌توانند در مجوزهای بیشتر دستکاری شوند."
+            ],
+            "Permanently delete %d plugin(s)? Their files will be removed from disk. This cannot be undone.": [
+                "%d افزونه برای همیشه حذف شود؟ فایل های آنها از دیسک حذف خواهد شد. این قابل واگرد نیست."
+            ],
+            "Permanently delete %s? Its files will be removed from disk. This cannot be undone.": [
+                "%s برای همیشه حذف شود؟ فایل های آن از دیسک حذف خواهد شد. این قابل واگرد نیست."
+            ],
+            "Personalize your desktop. Changes apply instantly and are saved to this browser.": [
+                ""
+            ],
+            "Pick a .zip file from your computer, or drop one onto the area below.": [
+                "یک فایل zip. را از رایانه خود انتخاب کنید یا آن را در قسمت زیر رها کنید."
+            ],
+            "Pinned %s to the dock.": [
+                "%s به داک سنجاق شد."
+            ],
+            "Planned": [
+                ""
+            ],
+            "Platform API key": [
+                ""
+            ],
+            "Platform-wide AI configuration. Applies to all users and to background jobs (cron, WP-CLI, anonymous comments). Individual users can override with their own key above.": [
+                ""
+            ],
+            "Plugin": [
+                "پلاگین"
+            ],
+            "Plugin URL": [
+                "URL پلاگین"
+            ],
+            "Plugin activated.": [
+                "افزونه فعال شد"
+            ],
+            "Plugin file": [
+                "فایل پلاگین"
+            ],
+            "Plugin installed successfully.": [
+                "افزونه با موفقیت نصب شد."
+            ],
+            "Plugin shortcut. Double-click to open.": [
+                "میانبر افزونه. برای باز کردن دوبار کلیک کنید."
+            ],
+            "Plugin website": [
+                "وب سایت افزونه"
+            ],
+            "Plugins and the admin menu will appear here once they’re registered.": [
+                ""
+            ],
+            "Plugins that extend Desktop Mode — desktop decorations, native windows, widgets, and other companions.": [
+                "پلاگین هایی که حالت دسکتاپ را گسترش می دهند - تزئینات دسکتاپ، پنجره های بومی، ویجت ها و سایر همراهان."
+            ],
+            "Plugins window template missing.": [
+                "قالب پنجره پلاگین ها از دست رفته است."
+            ],
+            "Popular": [
+                "محبوب"
+            ],
+            "Posts": [
+                "نوشته‌ها"
+            ],
+            "Prefer the classic Comments screen? You can switch back any time from OS Settings → Features.": [
+                "صفحه نظرات کلاسیک را ترجیح می دهید؟ هر زمان که بخواهید می توانید از تنظیمات سیستم عامل → ویژگی ها به عقب برگردید."
+            ],
+            "Previous": [
+                "قبلی"
+            ],
+            "Props": [
+                ""
+            ],
+            "Provider": [
+                ""
+            ],
+            "Published": [
+                "منتشر شده"
+            ],
+            "Publishing rhythm": [
+                "ریتم انتشار"
+            ],
+            "Question": [
+                "سوال"
+            ],
+            "Rated %s out of 5": [
+                "امتیاز %s از 5"
+            ],
+            "Re-shows the one-time introduction dialog the next time you open each redesigned native window.": [
+                ""
+            ],
+            "Read all reviews on WordPress.org ↗": [
+                "همه نظرات را در WordPress.org بخوانید ↗"
+            ],
+            "Read full review ↗": [
+                "بررسی کامل را بخوانید ↗"
+            ],
+            "Read on WordPress.org ↗": [
+                "در WordPress.org بخوانید ↗"
+            ],
+            "Read reviews on WordPress.org ↗": [
+                "نظرات را در WordPress.org بخوانید ↗"
+            ],
+            "Recent activity": [
+                "فعالیت اخیر"
+            ],
+            "Recent posts": [
+                "پست های اخیر"
+            ],
+            "Recent reviews aren’t available right now. %s": [
+                "بررسی‌های اخیر در حال حاضر در دسترس نیست. %s"
+            ],
+            "Recommended": [
+                "توصیه می شود"
+            ],
+            "Recycle Bin — empty": [
+                "سطل بازیافت - خالی"
+            ],
+            "Refresh": [
+                "بروزرسانی"
+            ],
+            "Reliability: %d / 100": [
+                "قابلیت اطمینان: %d / 100"
+            ],
+            "Reload": [
+                "بارگذاری مجدد"
+            ],
+            "Remove": [
+                ""
+            ],
+            "Remove %s": [
+                ""
+            ],
+            "Remove custom image": [
+                ""
+            ],
+            "Replace": [
+                "جایگزین کنید"
+            ],
+            "Replace existing plugin?": [
+                "افزونه موجود جایگزین شود؟"
+            ],
+            "Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.": [
+                ""
+            ],
+            "Replacing existing plugin…": [
+                "در حال جایگزینی افزونه موجود…"
+            ],
+            "Replies (%d)": [
+                "پاسخ ها (%d)"
+            ],
+            "Reply (%d)": [
+                "پاسخ (%d)"
+            ],
+            "Reply failed.": [
+                "پاسخ ناموفق بود."
+            ],
+            "Reply is empty.": [
+                "پاسخ خالی است"
+            ],
+            "Reply posted.": [
+                "پاسخ ارسال شد."
+            ],
+            "Reply right inside the row — no modal, no full-page navigation. Press R on any row to jump straight to the editor.": [
+                "درست در داخل ردیف پاسخ دهید - بدون مدال، بدون پیمایش تمام صفحه. R را روی هر ردیف فشار دهید تا مستقیماً به ویرایشگر بروید."
+            ],
+            "Requires PHP": [
+                "به PHP نیاز دارد"
+            ],
+            "Requires PHP %s+": [
+                "به PHP %s+ نیاز دارد"
+            ],
+            "Requires WP %s+": [
+                "به WP %s+ نیاز دارد"
+            ],
+            "Requires WordPress": [
+                "نیاز به وردپرس دارد"
+            ],
+            "Reset to defaults": [
+                ""
+            ],
+            "Reset what’s-new dialogs": [
+                ""
+            ],
+            "Resetting…": [
+                ""
+            ],
+            "Restore": [
+                "بازگردانی"
+            ],
+            "Restored %d.": [
+                "%d بازیابی شد."
+            ],
+            "Reviews": [
+                "بررسی ها"
+            ],
+            "Reviews live on WordPress.org": [
+                "بررسی ها در WordPress.org به صورت زنده"
+            ],
+            "Revision": [
+                "تجدید نظر"
+            ],
+            "Revisions": [
+                "تجدید نظرها"
+            ],
+            "Right": [
+                ""
+            ],
+            "Roles": [
+                "نقش ها"
+            ],
+            "Rose": [
+                ""
+            ],
+            "S": [
+                "اس"
+            ],
+            "Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.": [
+                ""
+            ],
+            "Saturday": [
+                "شنبه"
+            ],
+            "Save": [
+                "ذخیره"
+            ],
+            "Saved": [
+                "ذخیره شد"
+            ],
+            "Saved %s": [
+                "%s ذخیره شد"
+            ],
+            "Saves on existing posts": [
+                "در پست های موجود صرفه جویی می کند"
+            ],
+            "Saving…": [
+                ""
+            ],
+            "Scope": [
+                "دامنه"
+            ],
+            "Score new comments with AI": [
+                ""
+            ],
+            "Screenshots": [
+                "اسکرین شات ها"
+            ],
+            "Search": [
+                "جستجو"
+            ],
+            "Search %s": [
+                "%s را جستجو کنید"
+            ],
+            "Search %s…": [
+                "جستجوی %s…"
+            ],
+            "Search WordPress.org…": [
+                "جستجو در WordPress.org…"
+            ],
+            "Search comments…": [
+                "جستجوی دیدگاه‌ها..."
+            ],
+            "Search installed plugins…": [
+                "جستجوی افزونه های نصب شده…"
+            ],
+            "Search media": [
+                "جستجو در رسانه"
+            ],
+            "Search media…": [
+                "جستجوی رسانه…"
+            ],
+            "Search nodes…": [
+                "جستجو گره ها…"
+            ],
+            "Search posts and pages in the graph": [
+                "پست ها و صفحات را در نمودار جستجو کنید"
+            ],
+            "Search users": [
+                "جستجوی کاربران"
+            ],
+            "Search users…": [
+                "جستجوی کاربران…"
+            ],
+            "Search your media": [
+                ""
+            ],
+            "Search…": [
+                "جستجو…"
+            ],
+            "See author, comments, categories, tags, attached media, and revisions for this entry.": [
+                "نویسنده، نظرات، دسته‌ها، برچسب‌ها، رسانه‌های پیوست شده و بازبینی‌ها را برای این ورودی ببینید."
+            ],
+            "See where this is used": [
+                "ببینید کجا از این استفاده می شود"
+            ],
+            "Select a full URL (https://…) in your reply, then click the link button.": [
+                "یک URL کامل (https://…) را در پاسخ خود انتخاب کنید، سپس روی دکمه پیوند کلیک کنید."
+            ],
+            "Select a media item to preview it here.": [
+                "یک مورد رسانه ای را برای پیش نمایش آن در اینجا انتخاب کنید."
+            ],
+            "Select a user to see their profile here.": [
+                "یک کاربر را برای دیدن نمایه خود در اینجا انتخاب کنید."
+            ],
+            "Select an entry to preview it here.": [
+                "یک ورودی را برای پیش نمایش آن در اینجا انتخاب کنید."
+            ],
+            "Select an item to preview it here.": [
+                "یک مورد را برای پیش نمایش در اینجا انتخاب کنید."
+            ],
+            "Send reply": [
+                "ارسال پاسخ"
+            ],
+            "Settings sections": [
+                ""
+            ],
+            "Shadow parts": [
+                ""
+            ],
+            "Shortcut": [
+                "میانبر"
+            ],
+            "Show author insights": [
+                "نمایش بینش نویسنده"
+            ],
+            "Show desktop when clicking the wallpaper": [
+                ""
+            ],
+            "Show in": [
+                ""
+            ],
+            "Show post/page status ribbon": [
+                ""
+            ],
+            "Show profile": [
+                "نمایش نمایه"
+            ],
+            "Show the posts, pages, and custom-post-type entries that reference this file.": [
+                "پست‌ها، صفحات و ورودی‌های نوع پست سفارشی که به این فایل ارجاع می‌دهند را نشان دهید."
+            ],
+            "Showing %d": [
+                ""
+            ],
+            "Side bar with the core admin menus, plus a bottom dock for plugin apps.": [
+                ""
+            ],
+            "Since": [
+                ""
+            ],
+            "Single bottom dock holding every menu — core and plugin apps share one rail.": [
+                ""
+            ],
+            "Site-wide destructive action (admin only). Drops every shares table — invites, decisions, share rows. Empty tables are recreated immediately so the feature still works for anyone who wants to start fresh. Use this on sites that never needed sharing to clear the data outright.": [
+                ""
+            ],
+            "Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.": [
+                ""
+            ],
+            "Size": [
+                "اندازه"
+            ],
+            "Size on disk": [
+                "اندازه روی دیسک"
+            ],
+            "Slots": [
+                ""
+            ],
+            "Slow — 45s": [
+                ""
+            ],
+            "Sort by": [
+                "مرتب سازی بر اساس"
+            ],
+            "Spam": [
+                "هرزنامه"
+            ],
+            "Spam confidence score": [
+                "امتیاز اطمینان اسپم"
+            ],
+            "Spam score: %1$d / 100. %2$s": [
+                "امتیاز هرزنامه: %1$d / 100. %2$s"
+            ],
+            "Spam score: %d / 100.": [
+                "امتیاز هرزنامه: %d / 100."
+            ],
+            "Spatial": [
+                ""
+            ],
+            "Stable": [
+                ""
+            ],
+            "Status": [
+                "وضعیت"
+            ],
+            "Steps to reproduce (bug only)": [
+                "مراحل تولید مثل (فقط باگ)"
+            ],
+            "Sticky note text": [
+                ""
+            ],
+            "Sticky notes": [
+                ""
+            ],
+            "Sticky term is unavailable.": [
+                ""
+            ],
+            "Submitted on": [
+                "ارسال شده در"
+            ],
+            "Sunday": [
+                "یکشنبه"
+            ],
+            "Switch to %s": [
+                ""
+            ],
+            "System Preferences": [
+                "تنظیمات سیستم"
+            ],
+            "T": [
+                "تی"
+            ],
+            "Tags": [
+                "برچسب ها"
+            ],
+            "Tags · %d": [
+                "برچسب ها · %d"
+            ],
+            "Take me to settings": [
+                "منو به تنظیمات ببر"
+            ],
+            "Taxonomies": [
+                "طبقه بندی ها"
+            ],
+            "Teal": [
+                ""
+            ],
+            "Tested up to WP %s": [
+                "تا WP %s تست شده است"
+            ],
+            "Tested up to WordPress %s": [
+                "تا وردپرس %s تست شده است"
+            ],
+            "Text domain": [
+                "دامنه متن"
+            ],
+            "That file isn’t an image.": [
+                ""
+            ],
+            "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.": [
+                ""
+            ],
+            "The detail flyout shows screenshots, the ratings histogram, recent reviews, the changelog and FAQ — all without leaving the window.": [
+                "پرتاب جزئیات تصاویر، هیستوگرام رتبه‌بندی، بررسی‌های اخیر، گزارش تغییرات و پرسش‌های متداول را نشان می‌دهد - همه بدون خروج از پنجره."
+            ],
+            "The dock repaints LIVE after every install / activate / deactivate / delete. No reload, no stale tile, no \"wait, did that work?\".": [
+                "داک پس از هر نصب/فعال/غیرفعال/حذف دوباره به صورت زنده رنگ می شود. بدون بارگذاری مجدد، بدون کاشی کهنه، بدون \"صبر کنید، آیا کار کرد؟\""
+            ],
+            "The three <wpd-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.": [
+                ""
+            ],
+            "The underlying entity is no longer available.": [
+                "موجودیت اساسی دیگر در دسترس نیست."
+            ],
+            "This component has no help descriptor yet. Add `static help` to its class for a fuller reference.": [
+                ""
+            ],
+            "This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone.": [
+                ""
+            ],
+            "This plugin does not check in with WordPress.org, so automatic updates can't be scheduled.": [
+                "این افزونه با WordPress.org بررسی نمی‌شود، بنابراین به‌روزرسانی‌های خودکار را نمی‌توان برنامه‌ریزی کرد."
+            ],
+            "This plugin does not ship a wp.org download package. Update it manually from its source.": [
+                "این افزونه بسته دانلودی wp.org را ارسال نمی کند. آن را به صورت دستی از منبع خود به روز کنید."
+            ],
+            "This plugin doesn’t ship a changelog.": [
+                "این افزونه تغییراتی را ارسال نمی کند."
+            ],
+            "This plugin doesn’t ship a description in its header.": [
+                "این افزونه توضیحاتی را در هدر خود ارسال نمی کند."
+            ],
+            "This plugin doesn’t ship an FAQ.": [
+                "این افزونه سؤال متداول ارسال نمی کند."
+            ],
+            "This plugin doesn’t ship screenshots.": [
+                "این افزونه اسکرین شات ها را ارسال نمی کند."
+            ],
+            "This plugin will stop running on the site. You can re-activate it later from the Plugins screen.": [
+                "اجرای این افزونه در سایت متوقف می شود. بعداً می‌توانید آن را از صفحه افزونه‌ها دوباره فعال کنید."
+            ],
+            "This revision has no rendered content.": [
+                "این ویرایش هیچ محتوای رندر شده ای ندارد."
+            ],
+            "Thursday": [
+                "پنج شنبه"
+            ],
+            "Title": [
+                "عنوان"
+            ],
+            "Title and description are both required.": [
+                "عنوان و توضیحات هر دو مورد نیاز است."
+            ],
+            "To": [
+                ""
+            ],
+            "Top authors": [
+                "نویسندگان برتر"
+            ],
+            "Top categories & tags": [
+                "دسته ها و برچسب های برتر"
+            ],
+            "Top contributors": [
+                "مشارکت کنندگان برتر"
+            ],
+            "Top topics": [
+                "موضوعات برتر"
+            ],
+            "Total comments": [
+                "مجموع نظرات"
+            ],
+            "Total content": [
+                "کل مطالب"
+            ],
+            "Trash": [
+                "زباله‌دان"
+            ],
+            "Trashed %d.": [
+                "%d حذف شده است."
+            ],
+            "Triage in one place": [
+                "تریاژ در یک مکان"
+            ],
+            "Tuesday": [
+                "سه شنبه"
+            ],
+            "Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
+                ""
+            ],
+            "Two tabs in one window — Installed for managing what you have, Browse for discovering new plugins. No more bouncing between Plugins → Add New → back to Installed.": [
+                "دو تب در یک پنجره - برای مدیریت آنچه دارید نصب شده است، برای کشف افزونه های جدید مرور کنید. دیگر بین پلاگین ها → افزودن جدید → بازگشت به نصب شده وجود ندارد."
+            ],
+            "Type": [
+                "نوع"
+            ],
+            "Type: %s": [
+                "نوع: %s"
+            ],
+            "Un-spammed %d.": [
+                "%d هرزنامه را لغو کنید."
+            ],
+            "Unapprove": [
+                "جلوگیری از انتشار"
+            ],
+            "Unapproved %d.": [
+                "تأیید نشده %d."
+            ],
+            "Uncategorized": [
+                "دسته بندی نشده"
+            ],
+            "Undated": [
+                "بدون تاریخ"
+            ],
+            "Undo": [
+                "برگرداندن"
+            ],
+            "Undo failed.": [
+                "واگرد نشد."
+            ],
+            "Undocumented — declared via static props.": [
+                ""
+            ],
+            "Undone.": [
+                "لغو شد."
+            ],
+            "Unified": [
+                ""
+            ],
+            "Unknown": [
+                "ناشناس"
+            ],
+            "Unknown My WordPress entity: %s": [
+                "ناشناس موجودیت وردپرس من: %s"
+            ],
+            "Unknown author": [
+                "نویسنده ناشناس"
+            ],
+            "Unknown entity type.": [
+                "نوع موجودیت ناشناخته"
+            ],
+            "Unknown error.": [
+                "خطای ناشناخته"
+            ],
+            "Untagged": [
+                "بدون برچسب"
+            ],
+            "Update %d": [
+                "%d را به‌روزرسانی کنید"
+            ],
+            "Update available": [
+                "به روز رسانی موجود است"
+            ],
+            "Update of %1$s failed: %2$s": [
+                "به‌روزرسانی %1$s ناموفق بود: %2$s"
+            ],
+            "Update to %s": [
+                "به %s به روز کنید"
+            ],
+            "Updated %s": [
+                "%s به روز شد"
+            ],
+            "Updated “%s”": [
+                "«%s» به‌روزرسانی شد"
+            ],
+            "Updates": [
+                "به روز رسانی ها"
+            ],
+            "Updating…": [
+                "در حال به روز رسانی…"
+            ],
+            "Upload Plugin": [
+                "آپلود افزونه"
+            ],
+            "Upload a plugin": [
+                "یک افزونه آپلود کنید"
+            ],
+            "Upload a plugin .zip": [
+                "یک افزونه .zip آپلود کنید"
+            ],
+            "Upload a wallpaper image": [
+                ""
+            ],
+            "Upload failed.": [
+                ""
+            ],
+            "Upload failed: %s": [
+                "آپلود انجام نشد: %s"
+            ],
+            "Upload new": [
+                ""
+            ],
+            "Uploaded": [
+                "آپلود شد"
+            ],
+            "Uploader": [
+                "آپلود کننده"
+            ],
+            "Uploading and installing…": [
+                "در حال آپلود و نصب…"
+            ],
+            "Uploading…": [
+                ""
+            ],
+            "Use the native Comments window": [
+                ""
+            ],
+            "Use the native Pages window": [
+                ""
+            ],
+            "Use the native Plugins window": [
+                ""
+            ],
+            "Use the native Posts window": [
+                ""
+            ],
+            "Use the native Users window": [
+                ""
+            ],
+            "Used in focused window title bars, buttons, and focus rings.": [
+                ""
+            ],
+            "User agent": [
+                "عامل کاربر"
+            ],
+            "Using platform key — enter to override": [
+                ""
+            ],
+            "Version": [
+                "نسخه"
+            ],
+            "Very slow — 60s (default)": [
+                ""
+            ],
+            "View": [
+                "مشاهده کنید"
+            ],
+            "View activity footprint": [
+                "مشاهده ردپای فعالیت"
+            ],
+            "View archive": [
+                "مشاهده آرشیو"
+            ],
+            "View author archive": [
+                "مشاهده آرشیو نویسنده"
+            ],
+            "View details for %s": [
+                "مشاهده جزئیات %s"
+            ],
+            "View on WordPress.org": [
+                "مشاهده در WordPress.org"
+            ],
+            "View on WordPress.org ↗": [
+                "مشاهده در WordPress.org ↗"
+            ],
+            "View on site": [
+                "مشاهده در سایت"
+            ],
+            "W": [
+                "دبلیو"
+            ],
+            "Wallpaper": [
+                ""
+            ],
+            "We couldn’t pull the review feed here. Open the full thread on WordPress.org to read every review.": [
+                "ما نتوانستیم فید بررسی را اینجا بکشیم. برای خواندن هر بررسی، موضوع کامل را در WordPress.org باز کنید."
+            ],
+            "Website": [
+                "وب سایت"
+            ],
+            "Wednesday": [
+                "چهارشنبه"
+            ],
+            "Welcome to the new Comments": [
+                "به نظرات جدید خوش آمدید"
+            ],
+            "Welcome to the new Plugins window": [
+                "به پنجره جدید افزونه ها خوش آمدید"
+            ],
+            "What happened? What did you expect?": [
+                "چه اتفاقی افتاد؟ چه انتظاری داشتید؟"
+            ],
+            "When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.": [
+                ""
+            ],
+            "Width of the dock and size of its icons.": [
+                ""
+            ],
+            "Window %1$s → %2$s": [
+                "پنجره %1$s → %2$s"
+            ],
+            "Window actions": [
+                ""
+            ],
+            "WordPress Blue": [
+                ""
+            ],
+            "WordPress Desktop Mode": [
+                ""
+            ],
+            "WordPress Heartbeat rate": [
+                ""
+            ],
+            "WordPress.org didn’t respond. Try again in a moment.": [
+                "WordPress.org پاسخ نداد. یک لحظه دیگر دوباره امتحان کنید."
+            ],
+            "Wrap selection in a link": [
+                "انتخاب را در یک پیوند بپیچید"
+            ],
+            "Write a reply…": [
+                "پاسخ بنویس…"
+            ],
+            "Write a review on WordPress.org ↗": [
+                "نظر خود را در WordPress.org بنویسید ↗"
+            ],
+            "You can't edit this comment.": [
+                "شما نمی توانید این نظر را ویرایش کنید."
+            ],
+            "You do not have permission to manage plugins.": [
+                "شما اجازه مدیریت افزونه ها را ندارید."
+            ],
+            "You will review and submit on GitHub.": [
+                "شما در GitHub بررسی و ارسال خواهید کرد."
+            ],
+            "You're looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how Desktop Mode wants you to work.": [
+                "شما به ادمین پلاگین‌های طراحی‌شده مجدد نگاه می‌کنید - همان مخزن WordPress.org در زیر سرپوش، با یک گردش کار تنظیم شده برای نحوه عملکرد Desktop Mode."
+            ],
+            "activated": [
+                "فعال شد"
+            ],
+            "an experiment by Automattic": [
+                ""
+            ],
+            "by": [
+                "توسط"
+            ],
+            "by %s": [
+                "توسط %s"
+            ],
+            "comments": [
+                "نظرات"
+            ],
+            "components registered.": [
+                ""
+            ],
+            "deactivated": [
+                "غیر فعال شده است"
+            ],
+            "default": [
+                ""
+            ],
+            "deleted": [
+                "حذف شده است"
+            ],
+            "in %s": [
+                "در %s"
+            ],
+            "macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching \"Show desktop\" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.": [
+                ""
+            ],
+            "one contributor": [
+                "یک مشارکت کننده"
+            ],
+            "sk-…": [
+                ""
+            ],
+            "updated": [
+                "به روز شد"
+            ],
+            "v%s": [
+                "v%s"
+            ],
+            "· %d open tab": [
+                ""
+            ],
+            "—": [
+                "-"
+            ],
+            "“%s” will be permanently deleted. This cannot be undone.": [
+                "\"%s\" برای همیشه حذف خواهد شد. این قابل واگرد نیست."
+            ],
+            "→ %s": [
+                "→ %s"
+            ]
+        }
+    }
+}

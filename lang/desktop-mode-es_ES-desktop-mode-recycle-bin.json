@@ -1,0 +1,56 @@
+{
+    "translation-revision-date": "2026-04-19 20:42+0200",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "es_ES",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "%d item(s) skipped (insufficient permissions).": [
+                ""
+            ],
+            "%d selected": [
+                "%d seleccionado"
+            ],
+            "By": [
+                ""
+            ],
+            "Delete forever": [
+                ""
+            ],
+            "Delete forever?": [
+                ""
+            ],
+            "Deleted": [
+                ""
+            ],
+            "Empty bin": [
+                ""
+            ],
+            "Empty bin?": [
+                ""
+            ],
+            "Empty the recycle bin? Every item visible in the current view will be permanently deleted.": [
+                ""
+            ],
+            "Emptying…": [
+                "Subiendo…"
+            ],
+            "Emptying… %1$d of %2$d": [
+                ""
+            ],
+            "Permanently delete %d item(s)? This cannot be undone.": [
+                ""
+            ],
+            "Restore": [
+                "Restaurar"
+            ],
+            "Title": [
+                "Título"
+            ]
+        }
+    }
+}

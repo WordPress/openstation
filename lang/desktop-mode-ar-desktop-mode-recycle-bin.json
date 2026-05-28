@@ -1,0 +1,56 @@
+{
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "ar",
+                "plural-forms": "nplurals=2; plural=(n > 1);"
+            },
+            "%d item(s) skipped (insufficient permissions).": [
+                ""
+            ],
+            "%d selected": [
+                "تم تحديد %d"
+            ],
+            "By": [
+                ""
+            ],
+            "Delete forever": [
+                ""
+            ],
+            "Delete forever?": [
+                ""
+            ],
+            "Deleted": [
+                ""
+            ],
+            "Empty bin": [
+                ""
+            ],
+            "Empty bin?": [
+                ""
+            ],
+            "Empty the recycle bin? Every item visible in the current view will be permanently deleted.": [
+                ""
+            ],
+            "Emptying…": [
+                ""
+            ],
+            "Emptying… %1$d of %2$d": [
+                ""
+            ],
+            "Permanently delete %d item(s)? This cannot be undone.": [
+                ""
+            ],
+            "Restore": [
+                "استعادة"
+            ],
+            "Title": [
+                "العنوان"
+            ]
+        }
+    }
+}

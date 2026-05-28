@@ -1,0 +1,2164 @@
+{
+    "translation-revision-date": "2026-04-19 20:42+0200",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "es_ES",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "%1$d %3$s, %2$d failed.": [
+                ""
+            ],
+            "%1$d nodes · %2$d links": [
+                "%1$d nodos · %2$d enlaces"
+            ],
+            "%1$d of %2$d items": [
+                "%1$d de %2$d artículos"
+            ],
+            "%1$d of %2$d users": [
+                "%1$d de %2$d usuarios"
+            ],
+            "%1$d plugin(s) %2$s.": [
+                ""
+            ],
+            "%1$d posts · %2$d comments tracked": [
+                "%1$d publicaciones · %2$d comentarios rastreados"
+            ],
+            "%1$d posts · %2$d pages": [
+                "%1$d publicaciones · %2$d páginas"
+            ],
+            "%1$s %2$s": [
+                ""
+            ],
+            "%1$s deactivated. Closed %2$d window(s).": [
+                "%1$s desactivado. Cerró %2$d ventana(s)."
+            ],
+            "%1$s updated to %2$s.": [
+                ""
+            ],
+            "%1$s · %2$d": [
+                "%1$s · %2$d"
+            ],
+            "%1$s · %2$d posts": [
+                "%1$s · %2$d publicaciones"
+            ],
+            "%1$s · %2$s KB": [
+                ""
+            ],
+            "%1$s — %2$d posts, %3$d comments, %4$d updates": [
+                "%1$s — %2$d publicaciones, %3$d comentarios, %4$d actualizaciones"
+            ],
+            "%1$s — currently being edited by %2$s": [
+                "%1$s — actualmente siendo editado por %2$s"
+            ],
+            "%1$s → %2$s": [
+                "%1$s → %2$s"
+            ],
+            "%d KB": [
+                "%d KB"
+            ],
+            "%d comment site-wide": [
+                ""
+            ],
+            "%d day": [
+                ""
+            ],
+            "%d entry references this file.": [
+                ""
+            ],
+            "%d hidden by HD filter": [
+                "%d ocultas por el filtro HD"
+            ],
+            "%d item": [
+                ""
+            ],
+            "%d new pending — reload": [
+                "%d nuevo pendiente - recargar"
+            ],
+            "%d notification": [
+                ""
+            ],
+            "%d post": [
+                ""
+            ],
+            "%d post published — their personal record.": [
+                ""
+            ],
+            "%d published": [
+                "%d publicado"
+            ],
+            "%d reference": [
+                ""
+            ],
+            "%d selected": [
+                "%d seleccionado"
+            ],
+            "%d update": [
+                "%d actualización",
+                "%d actualizaciones"
+            ],
+            "%d ★": [
+                "%d ★"
+            ],
+            "%d+ million active": [
+                "%d+ millones activos"
+            ],
+            "%d:00": [
+                "%d:00"
+            ],
+            "%s (already added)": [
+                "%s (ya añadido)"
+            ],
+            "%s MB": [
+                "%sMB"
+            ],
+            "%s activated.": [
+                "%s activado."
+            ],
+            "%s deactivated.": [
+                "%s desactivado."
+            ],
+            "%s deleted.": [
+                "%s eliminado."
+            ],
+            "%s is already installed. Open it from your apps menu or home screen.": [
+                ""
+            ],
+            "%s is already up to date.": [
+                "%s (ya añadido)"
+            ],
+            "%s is currently editing": [
+                "%s está editando actualmente"
+            ],
+            "%s sub-pages": [
+                "Subpáginas de %s"
+            ],
+            "%s — activity footprint": [
+                "%s — huella de actividad"
+            ],
+            "%s — open windows": [
+                "%s - ventanas abiertas"
+            ],
+            "%s+": [
+                "%s+"
+            ],
+            "%s+ active": [
+                "%s+ activo"
+            ],
+            "%s+ active installs": [
+                "%s+ instalaciones activas"
+            ],
+            "(folder)": [
+                "(carpeta)"
+            ],
+            "(no title)": [
+                "(sin título)"
+            ],
+            "+ %d replies": [
+                "Subpáginas de %s"
+            ],
+            "1 item": [
+                "1 artículo"
+            ],
+            "A moderation surface built around how you actually triage: bulk actions with undo, an inline reply editor, keyboard shortcuts, and a spam score that surfaces the obvious junk first.": [
+                "Una superficie de moderación creada en torno a cómo realiza la clasificación: acciones masivas con deshacer, un editor de respuestas en línea, atajos de teclado y una puntuación de spam que muestra primero la basura obvia."
+            ],
+            "A native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions. On by default.": [
+                ""
+            ],
+            "A native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it. On by default.": [
+                ""
+            ],
+            "A platform-wide AI key is configured. You can optionally set a personal key below to override it.": [
+                ""
+            ],
+            "A plugin with the same folder name is already installed.": [
+                ""
+            ],
+            "A plugin with the same folder name is already installed. Replacing it overwrites the installed files. Any local edits to the plugin will be lost. The plugin will keep its activation state.": [
+                ""
+            ],
+            "A real gallery on Browse — clean cards with rating, install count, last updated, and a click-anywhere detail flyout. Subtle hover lift, lazy-loaded icons, infinite scroll.": [
+                ""
+            ],
+            "A redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo). On by default.": [
+                ""
+            ],
+            "A short summary": [
+                "Un breve resumen"
+            ],
+            "A year of activity": [
+                "Un año de actividad"
+            ],
+            "AI Settings": [
+                ""
+            ],
+            "AI integration": [
+                "Navegación del administrador"
+            ],
+            "AI: hostile / abusive tone.": [
+                "AI: tono hostil/abusivo."
+            ],
+            "AI: looks like promotional spam.": [
+                "IA: parece spam promocional."
+            ],
+            "AI: looks safe.": [
+                "AI: parece seguro."
+            ],
+            "API key": [
+                ""
+            ],
+            "About": [
+                "Acerca de"
+            ],
+            "Accent color": [
+                "Color de acento"
+            ],
+            "Activate": [
+                "Activar"
+            ],
+            "Activate Plugin": [
+                "Subiendo…"
+            ],
+            "Activate failed: %s": [
+                "Error al subir."
+            ],
+            "Activating…": [
+                "Subiendo…"
+            ],
+            "Activation failed: %s": [
+                "Error de activación: %s"
+            ],
+            "Active": [
+                "Activo"
+            ],
+            "Activity (last 12 months)": [
+                "Actividad (últimos 12 meses)"
+            ],
+            "Add %s": [
+                "Añadir %s"
+            ],
+            "Add new desktop": [
+                "Añadir nuevo escritorio"
+            ],
+            "Add widget": [
+                "Añadir widget"
+            ],
+            "Added": [
+                "Añadido"
+            ],
+            "Akismet cleared this comment.": [
+                "Akismet borró este comentario."
+            ],
+            "Akismet flagged this comment as spam.": [
+                "Akismet marcó este comentario como spam."
+            ],
+            "All": [
+                "Todo"
+            ],
+            "Also show on desktop": [
+                "Añadir nuevo escritorio"
+            ],
+            "Also show on dock": [
+                "Mostrar también en el muelle"
+            ],
+            "Alt text": [
+                "Texto alternativo"
+            ],
+            "Amber": [
+                "Ámbar"
+            ],
+            "Angle": [
+                "Ángulo"
+            ],
+            "Anonymous": [
+                "Anónimo"
+            ],
+            "Appearance": [
+                ""
+            ],
+            "Approve": [
+                "Aprobar"
+            ],
+            "Approved": [
+                "Aprobado"
+            ],
+            "Approved %d.": [
+                "Aprobado %d."
+            ],
+            "Apps & Icons": [
+                ""
+            ],
+            "Apps & Icons settings…": [
+                "Configuración de aplicaciones e iconos..."
+            ],
+            "Attached media": [
+                "Buscar medios"
+            ],
+            "Author": [
+                "Autor"
+            ],
+            "Author URL": [
+                "URL del autor"
+            ],
+            "Author archive": [
+                "Archivo de autor"
+            ],
+            "Author insights drawer": [
+                "Cajón de información del autor"
+            ],
+            "Author website": [
+                "Sitio web del autor"
+            ],
+            "Author · %s": [
+                "Autor · %s"
+            ],
+            "Authors": [
+                "Autores"
+            ],
+            "Auto-update unavailable": [
+                ""
+            ],
+            "Auto-updates disabled": [
+                "Actualizaciones automáticas deshabilitadas"
+            ],
+            "Auto-updates disabled for %s.": [
+                ""
+            ],
+            "Auto-updates enabled": [
+                "Actualizaciones automáticas habilitadas"
+            ],
+            "Auto-updates enabled for %s.": [
+                ""
+            ],
+            "Automatic Updates": [
+                "Actualizaciones automáticas"
+            ],
+            "Back": [
+                "Atrás"
+            ],
+            "Back to post": [
+                "Volver a la publicación"
+            ],
+            "Beta": [
+                "Beta"
+            ],
+            "Bold": [
+                "Atrevido"
+            ],
+            "Bookmark": [
+                "Marcador"
+            ],
+            "Bottom": [
+                ""
+            ],
+            "Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper.": [
+                ""
+            ],
+            "Breadcrumb": [
+                "Migaja de pan"
+            ],
+            "Bug": [
+                "Bicho"
+            ],
+            "Bulk %s failed.": [
+                "Error al subir."
+            ],
+            "Bulk moderation with undo": [
+                "Moderación masiva con deshacer"
+            ],
+            "Bulleted list": [
+                "Lista con viñetas"
+            ],
+            "By hour of day (site time)": [
+                "Por hora del día (hora del sitio)"
+            ],
+            "By weekday": [
+                "Por día laborable"
+            ],
+            "CPT": [
+                "CPT"
+            ],
+            "CSS custom properties": [
+                ""
+            ],
+            "Cancel": [
+                "Cancelar"
+            ],
+            "Can’t drop here": [
+                "No puedo caer aquí"
+            ],
+            "Caption": [
+                "Subtítulo"
+            ],
+            "Categories": [
+                "Categorías"
+            ],
+            "Categories · %d": [
+                ""
+            ],
+            "Changelog": [
+                "Registro de cambios"
+            ],
+            "Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.": [
+                ""
+            ],
+            "Classic": [
+                ""
+            ],
+            "Click an avatar to see the author's full history — total comments, spam rate, first seen, and one-click block.": [
+                "Haga clic en un avatar para ver el historial completo del autor: comentarios totales, tasa de spam, visto por primera vez y bloqueo con un solo clic."
+            ],
+            "Clock": [
+                "Reloj"
+            ],
+            "Close": [
+                "Cerrar"
+            ],
+            "Close %s": [
+                "Cerrar %s"
+            ],
+            "Close panel": [
+                "Cerrar pestaña"
+            ],
+            "Close plugin details": [
+                "Cerrar detalles del complemento"
+            ],
+            "Close tab": [
+                "Cerrar pestaña"
+            ],
+            "Co-occurring": [
+                "Co-ocurrencia"
+            ],
+            "Comment": [
+                "Comentario"
+            ],
+            "Comment updated.": [
+                "Comentario actualizado."
+            ],
+            "Commented on “%s”": [
+                "Comentado en “%s”"
+            ],
+            "Comments": [
+                "Comentarios"
+            ],
+            "Comments left": [
+                "Comentarios dejados"
+            ],
+            "Comments received": [
+                "Comentarios recibidos"
+            ],
+            "Comments window configuration missing.": [
+                "Falta la configuración de la ventana de comentarios."
+            ],
+            "Comments · %d": [
+                ""
+            ],
+            "Compact": [
+                "Compacta"
+            ],
+            "Component library": [
+                ""
+            ],
+            "Components": [
+                ""
+            ],
+            "Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival.": [
+                ""
+            ],
+            "Connect an AI provider to power assistive features across the desktop.": [
+                ""
+            ],
+            "Content Graph container missing.": [
+                "Falta el contenedor de gráfico de contenido."
+            ],
+            "Contributor": [
+                "Contribuyente"
+            ],
+            "Contributors": [
+                "Colaboradores"
+            ],
+            "Contributors · %d": [
+                ""
+            ],
+            "Could not deactivate %s.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Could not delete sharing data.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Could not initialise the graph renderer.": [
+                "No se pudo inicializar el renderizador de gráficos."
+            ],
+            "Could not load comments.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load featured plugins: %s": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load footprint.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load insights.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load plugin details.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load plugins: %s": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load post #%d.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load replies.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load reviews.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not save sticky note.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not toggle auto-updates for %1$s: %2$s": [
+                ""
+            ],
+            "Couldn’t delete that file.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load reviews": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load the revision content. You may not have permission to view it.": [
+                "No se pudo cargar el contenido de la revisión. Es posible que no tenga permiso para verlo."
+            ],
+            "Couldn’t load your media.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load your media: %s": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Crafted with curiosity": [
+                ""
+            ],
+            "Current streak": [
+                "Racha actual"
+            ],
+            "Custom gradient": [
+                "Gradiente personalizado"
+            ],
+            "Custom image": [
+                "Imagen personalizada"
+            ],
+            "Custom image wallpaper": [
+                "Fondo de imagen personalizada"
+            ],
+            "Deactivate": [
+                "Desactivar"
+            ],
+            "Deactivate %s?": [
+                "Error al subir."
+            ],
+            "Deactivate %s…": [
+                "Subiendo…"
+            ],
+            "Deactivation failed: %s": [
+                "Error de desactivación: %s"
+            ],
+            "Default": [
+                "Predeterminada"
+            ],
+            "Delete": [
+                "Borrar"
+            ],
+            "Delete data": [
+                ""
+            ],
+            "Delete failed: %s": [
+                "Error al subir."
+            ],
+            "Delete folder sharing data": [
+                ""
+            ],
+            "Delete folder sharing data?": [
+                ""
+            ],
+            "Delete media?": [
+                "Error al subir."
+            ],
+            "Delete permanently": [
+                "Eliminar permanentemente"
+            ],
+            "Delete plugin?": [
+                "¿Eliminar complemento?"
+            ],
+            "Delete selected plugins?": [
+                ""
+            ],
+            "Deleting…": [
+                "Subiendo…"
+            ],
+            "Describe the issue or the feature you have in mind.": [
+                "Describe el problema o la característica que tienes en mente."
+            ],
+            "Description": [
+                "Descripción"
+            ],
+            "Desktop %d": [
+                "Escritorio %d"
+            ],
+            "Desktop Mode deactivated. Reloading…": [
+                "Modo escritorio desactivado. Recargando…"
+            ],
+            "Desktop Mode deleted. Reloading…": [
+                "Modo de escritorio eliminado. Recargando…"
+            ],
+            "Desktop icons": [
+                "Escritorio 1"
+            ],
+            "Desktop layout": [
+                "Escritorio 1"
+            ],
+            "Details": [
+                "Detalles"
+            ],
+            "Dimensions": [
+                "Dimensiones"
+            ],
+            "Disable auto-updates": [
+                ""
+            ],
+            "Disabling…": [
+                "Subiendo…"
+            ],
+            "Dismiss notice": [
+                ""
+            ],
+            "Dock %s back to widget column": [
+                ""
+            ],
+            "Dock size": [
+                "Tamaño del dock"
+            ],
+            "Dock style": [
+                "Tamaño del dock"
+            ],
+            "Done": [
+                ""
+            ],
+            "Double-click to open.": [
+                "Haga doble clic para abrir."
+            ],
+            "Drag a .zip onto the window to install — or drag a Browse card straight to the dock to pin a shortcut. The framework drag bridge handles the rest.": [
+                ""
+            ],
+            "Drop a .zip plugin file here, or click to choose a file.": [
+                "Suelta una imagen aquí, o haz clic para subir"
+            ],
+            "Drop an image here, or click to upload": [
+                "Suelta una imagen aquí, o haz clic para subir"
+            ],
+            "Drop here": [
+                "Caer aquí"
+            ],
+            "Drop here to create shortcut": [
+                "Suelte aquí para crear un acceso directo"
+            ],
+            "Drop here to move": [
+                "Déjate caer aquí para moverte"
+            ],
+            "Drop in a folder": [
+                "Colocar en una carpeta"
+            ],
+            "Drop on the desktop or a folder": [
+                "Soltar en el escritorio o en una carpeta"
+            ],
+            "Drop the .zip to install.": [
+                "Suelte el .zip para instalar."
+            ],
+            "Drop your .zip here or click to browse": [
+                "Suelta una imagen aquí, o haz clic para subir"
+            ],
+            "Edit": [
+                "Editar"
+            ],
+            "Edit comment…": [
+                "Editar comentario…"
+            ],
+            "Edit failed.": [
+                "Error al subir."
+            ],
+            "Edit user": [
+                "Editar usuario"
+            ],
+            "Emerald": [
+                "Esmeralda"
+            ],
+            "Enable AI features": [
+                ""
+            ],
+            "Enable AI for all users": [
+                ""
+            ],
+            "Enable auto-updates": [
+                ""
+            ],
+            "Enable drag-and-drop in the Media Library": [
+                ""
+            ],
+            "Enabling…": [
+                "Subiendo…"
+            ],
+            "Enter fullscreen": [
+                "Entrar en pantalla completa"
+            ],
+            "Environment included with the report": [
+                "Medio ambiente incluido en el informe."
+            ],
+            "Events": [
+                ""
+            ],
+            "Every <wpd-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code.": [
+                ""
+            ],
+            "Every comment gets a 0–100 score from Akismet + heuristics. Optionally turn on AI scoring in OS Settings → Features so each new comment is also scored by your configured AI provider on arrival.": [
+                "Cada comentario obtiene una puntuación de 0 a 100 según la heurística Akismet +. Opcionalmente, active la puntuación de IA en Configuración del sistema operativo → Funciones para que su proveedor de IA configurado también califique cada nuevo comentario al llegar."
+            ],
+            "Example": [
+                ""
+            ],
+            "Exit Desktop Mode": [
+                "Escritorio %d"
+            ],
+            "Exit fullscreen": [
+                "Salir de pantalla completa"
+            ],
+            "Experimental": [
+                ""
+            ],
+            "Explore details": [
+                "Explorar detalles"
+            ],
+            "Extended Options": [
+                ""
+            ],
+            "Extended options": [
+                ""
+            ],
+            "F": [
+                "F"
+            ],
+            "FAQ": [
+                "Preguntas frecuentes"
+            ],
+            "Failed to load graph.": [
+                "No se pudo cargar el gráfico."
+            ],
+            "Failed to load usage data.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Fast — 15s (not recommended)": [
+                ""
+            ],
+            "Favorites": [
+                "Favoritos"
+            ],
+            "Feature request": [
+                "Solicitud de función"
+            ],
+            "Featured": [
+                "Presentado"
+            ],
+            "Features": [
+                ""
+            ],
+            "Fewer than 10 active": [
+                "Menos de 10 activos"
+            ],
+            "File size": [
+                "Tamaño del archivo"
+            ],
+            "Filename": [
+                "Nombre del archivo"
+            ],
+            "Files REST endpoint is not available.": [
+                ""
+            ],
+            "First post": [
+                "Primera publicación"
+            ],
+            "First published": [
+                "Publicado por primera vez"
+            ],
+            "First seen": [
+                "visto por primera vez"
+            ],
+            "Fit": [
+                "Adaptar"
+            ],
+            "Fit graph to view": [
+                "Ajustar gráfico para ver"
+            ],
+            "Folder sharing": [
+                ""
+            ],
+            "Folder sharing data deleted.": [
+                ""
+            ],
+            "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
+                "¿Encontró un error o tiene una idea para una característica? Complete esto y abriremos una edición de GitHub precargada para que la revise y envíe."
+            ],
+            "Friday": [
+                "Viernes"
+            ],
+            "From": [
+                "Desde"
+            ],
+            "Global settings": [
+                ""
+            ],
+            "Got it": [
+                ""
+            ],
+            "Group by": [
+                "Agrupar por"
+            ],
+            "Group by author": [
+                "Grupo por autor"
+            ],
+            "Group by category": [
+                "Agrupar por categoría"
+            ],
+            "Group by tag": [
+                "Agrupar por etiqueta"
+            ],
+            "Group by year": [
+                "Grupo por año"
+            ],
+            "Group by year-month": [
+                "Grupo por año-mes"
+            ],
+            "Group posts by a shared facet": [
+                "Agrupar publicaciones por una faceta compartida"
+            ],
+            "Hidden": [
+                ""
+            ],
+            "Hide everywhere": [
+                "Esconderse en todas partes"
+            ],
+            "Hide from desktop": [
+                "Añadir nuevo escritorio"
+            ],
+            "Hide from dock": [
+                "Esconderse del muelle"
+            ],
+            "Hide sticky note": [
+                ""
+            ],
+            "How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately.": [
+                ""
+            ],
+            "How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see \"Lost connection to the assistant\" errors).": [
+                ""
+            ],
+            "How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer.": [
+                ""
+            ],
+            "IP": [
+                "IP"
+            ],
+            "Image source": [
+                ""
+            ],
+            "In reply to %s": [
+                "En respuesta a %s"
+            ],
+            "In response to": [
+                "En respuesta a"
+            ],
+            "Inactive": [
+                "Inactivo"
+            ],
+            "Including today": [
+                "Incluyendo hoy"
+            ],
+            "Indigo": [
+                "Índigo"
+            ],
+            "Inline reply": [
+                "Respuesta en línea"
+            ],
+            "Install": [
+                "Instalar"
+            ],
+            "Install %s as an app": [
+                ""
+            ],
+            "Install cancelled.": [
+                ""
+            ],
+            "Install failed: %s": [
+                "Error de instalación: %s"
+            ],
+            "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
+                ""
+            ],
+            "Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.": [
+                ""
+            ],
+            "Installed %s as an app.": [
+                ""
+            ],
+            "Installed %s.": [
+                "%s instalados."
+            ],
+            "Installing…": [
+                "Subiendo…"
+            ],
+            "Italic": [
+                "Itálico"
+            ],
+            "J/K to navigate, A approve, S spam, D trash, R reply, E edit, U undo. Press ? any time for the cheat sheet.": [
+                "J/K para navegar, A aprobar, S spam, D papelera, R responder, E editar, U deshacer. Prensa ? en cualquier momento para la hoja de trucos."
+            ],
+            "JPEG, PNG, or WebP · goes straight to your Media Library": [
+                "JPEG, PNG o WebP · va directo a tu biblioteca de medios"
+            ],
+            "Keyboard moderation": [
+                "Moderación del teclado"
+            ],
+            "Large": [
+                "Grande"
+            ],
+            "Last post": [
+                "Última publicación"
+            ],
+            "Last published": [
+                "Último publicado"
+            ],
+            "Last published %s": [
+                "Última publicación %s"
+            ],
+            "Last seen": [
+                "visto por última vez"
+            ],
+            "Latest": [
+                "El último"
+            ],
+            "Latest post": [
+                "Última publicación"
+            ],
+            "Left": [
+                ""
+            ],
+            "Less": [
+                "Menos"
+            ],
+            "Let me moderate": [
+                "Déjame moderar"
+            ],
+            "Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, \"Leave shared folder\") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.": [
+                ""
+            ],
+            "Live progress updates": [
+                ""
+            ],
+            "Load more": [
+                "Cargar más"
+            ],
+            "Loading author insights…": [
+                "Subiendo…"
+            ],
+            "Loading description…": [
+                "Subiendo…"
+            ],
+            "Loading details…": [
+                "Subiendo…"
+            ],
+            "Loading footprint…": [
+                "Cargando huella…"
+            ],
+            "Loading from WordPress.org…": [
+                "Cargando desde WordPress.org…"
+            ],
+            "Loading graph…": [
+                "Subiendo…"
+            ],
+            "Loading recent reviews…": [
+                "Cargando reseñas recientes…"
+            ],
+            "Loading window content": [
+                ""
+            ],
+            "Loading…": [
+                "Subiendo…"
+            ],
+            "Local time and date, refreshed every second.": [
+                "Hora y fecha locales, se actualiza cada segundo."
+            ],
+            "Longest streak": [
+                "Racha más larga"
+            ],
+            "M": [
+                "METRO"
+            ],
+            "Made for Desktop Mode": [
+                "Cambiar a modo escritorio"
+            ],
+            "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
+                ""
+            ],
+            "Marked %d as spam.": [
+                "Marcado %d como spam."
+            ],
+            "Maximize": [
+                "Maximizar"
+            ],
+            "Media": [
+                "Medios de comunicación"
+            ],
+            "Media Library": [
+                "Biblioteca de medios"
+            ],
+            "Media deleted.": [
+                "Biblioteca de medios"
+            ],
+            "Medium — 30s": [
+                ""
+            ],
+            "Member since": [
+                "Miembro desde"
+            ],
+            "Member since %s": [
+                "Miembro desde %s"
+            ],
+            "Milestones": [
+                "Hitos"
+            ],
+            "Minimize": [
+                "Minimizar"
+            ],
+            "Missing-import warner — live demo": [
+                ""
+            ],
+            "Moderate": [
+                "Moderado"
+            ],
+            "Modified": [
+                "Modificado"
+            ],
+            "Monday": [
+                "Lunes"
+            ],
+            "More": [
+                "Más"
+            ],
+            "Most prolific month": [
+                "Mes más prolífico"
+            ],
+            "Move \"%s\" to Trash?": [
+                "¿Mover \"%s\" a la Papelera?"
+            ],
+            "Move to Trash": [
+                "Mover a la papelera"
+            ],
+            "Move your cursor through the swarm · click for a spark": [
+                ""
+            ],
+            "Multi-select and approve, spam, or trash dozens at once. Every action shows an 8-second undo toast.": [
+                "Realice selección múltiple y apruebe, envíe spam o elimine docenas a la vez. Cada acción muestra un brindis para deshacer de 8 segundos."
+            ],
+            "My WordPress": [
+                "Azul WordPress"
+            ],
+            "Name": [
+                ""
+            ],
+            "Name (A → Z)": [
+                "Nombre (A → Z)"
+            ],
+            "Name (Z → A)": [
+                "Nombre (Z → A)"
+            ],
+            "Navigate into": [
+                "Navegar hacia"
+            ],
+            "Network error — check your connection.": [
+                ""
+            ],
+            "Network only": [
+                "Sólo red"
+            ],
+            "New": [
+                "Añadir %s"
+            ],
+            "New %s": [
+                "Noticias"
+            ],
+            "New sticky note": [
+                ""
+            ],
+            "Newest first": [
+                "Lo nuevo primero"
+            ],
+            "Next": [
+                "Próximo"
+            ],
+            "No %2$s match \"%1$s\".": [
+                "Ningún %2$s coincide con \"%1$s\"."
+            ],
+            "No %s yet.": [
+                "Aún no hay %s."
+            ],
+            "No FAQ": [
+                "Sin preguntas frecuentes"
+            ],
+            "No HD images found. Try unchecking the filter, or upload a larger image.": [
+                "No se encontraron imágenes HD. Prueba a desactivar el filtro o sube una imagen más grande."
+            ],
+            "No activity recorded in the last year.": [
+                "No se registró actividad en el último año."
+            ],
+            "No activity today": [
+                "No hay actividad hoy"
+            ],
+            "No additional contributors.": [
+                "No hay contribuyentes adicionales."
+            ],
+            "No apps registered yet": [
+                ""
+            ],
+            "No author available.": [
+                "No hay autor disponible."
+            ],
+            "No categories assigned.": [
+                "No hay categorías asignadas."
+            ],
+            "No changelog": [
+                "Sin registro de cambios"
+            ],
+            "No comments on this post yet.": [
+                "Aún no hay comentarios en esta publicación."
+            ],
+            "No comments to moderate here.": [
+                "No hay comentarios para moderar aquí."
+            ],
+            "No components registered.": [
+                ""
+            ],
+            "No content available.": [
+                "No hay contenido disponible."
+            ],
+            "No description": [
+                "Sin descripción"
+            ],
+            "No featured plugins yet.": [
+                "Aún no hay complementos destacados."
+            ],
+            "No grouping": [
+                "Sin agrupación"
+            ],
+            "No images in your Media Library yet.": [
+                "Aún no hay imágenes en tu biblioteca de medios."
+            ],
+            "No media attached to this post.": [
+                "No hay medios adjuntos a esta publicación."
+            ],
+            "No media match \"%s\".": [
+                "Ningún medio coincide con \"%s\"."
+            ],
+            "No media yet.": [
+                "Aún no hay medios."
+            ],
+            "No plugins match your filters.": [
+                "Ningún complemento coincide con sus filtros."
+            ],
+            "No plugins matched.": [
+                "No hay complementos coincidentes."
+            ],
+            "No posts or pages reference this file.": [
+                "Ninguna publicación o página hace referencia a este archivo."
+            ],
+            "No ratings yet.": [
+                "Aún no hay calificaciones."
+            ],
+            "No revisions yet.": [
+                "Aún no hay revisiones."
+            ],
+            "No tags assigned.": [
+                "No hay etiquetas asignadas."
+            ],
+            "No users match \"%s\".": [
+                "Ningún usuario coincide con \"%s\"."
+            ],
+            "No users to show.": [
+                "No hay usuarios para mostrar."
+            ],
+            "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.": [
+                "No hay widgets disponibles. Activa un plugin que registre alguno, o consulta la documentación de la API registerWidget."
+            ],
+            "Not spam": [
+                "No spam"
+            ],
+            "Nothing to show yet.": [
+                "Nada que mostrar todavía."
+            ],
+            "Nothing to show.": [
+                "Nada que mostrar."
+            ],
+            "Numbered list": [
+                "lista numerada"
+            ],
+            "Often paired categories": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Often paired tags": [
+                "Etiquetas a menudo emparejadas"
+            ],
+            "Oldest first": [
+                "El más viejo primero"
+            ],
+            "On both": [
+                ""
+            ],
+            "On post": [
+                "En la publicación"
+            ],
+            "On the desktop": [
+                "Añadir nuevo escritorio"
+            ],
+            "On the dock": [
+                ""
+            ],
+            "One step per line": [
+                "Un paso por línea"
+            ],
+            "Only .zip files are accepted.": [
+                ""
+            ],
+            "Only HD (≥%1$d×%2$d)": [
+                "Solo HD (≥%1$d×%2$d)"
+            ],
+            "Open": [
+                "Abrir"
+            ],
+            "Open another %s": [
+                "Abrir otra ventana de %s"
+            ],
+            "Open artifact": [
+                ""
+            ],
+            "Open file": [
+                "Abrir"
+            ],
+            "Open file in new tab": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open in My WordPress": [
+                "Abrir en Mi WordPress"
+            ],
+            "Open in WordPress": [
+                "Abrir en WordPress"
+            ],
+            "Open in a new browser tab": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open in browser tab": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open in editor": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open in new window": [
+                "Abrir en una nueva pestaña del navegador"
+            ],
+            "Open issue on GitHub": [
+                "Problema abierto en GitHub"
+            ],
+            "Open on startup": [
+                "Abrir al iniciar"
+            ],
+            "Open reviews on WordPress.org ↗": [
+                "Abrir reseñas en WordPress.org ↗"
+            ],
+            "Open revision in WordPress": [
+                "Abrir revisión en WordPress"
+            ],
+            "Open the full activity footprint surface for this user.": [
+                "Abra la superficie de huella de actividad completa para este usuario."
+            ],
+            "Open this user’s profile editor in a new window.": [
+                "Abra el editor de perfil de este usuario en una nueva ventana."
+            ],
+            "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
+                "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
+            ],
+            "Or use your own image": [
+                "O usa tu propia imagen"
+            ],
+            "Overview": [
+                "Vista general"
+            ],
+            "Page %1$d of %2$d": [
+                "Página %1$d de %2$d"
+            ],
+            "Page %1$d of %2$d (%3$d total)": [
+                "Página %1$d de %2$d (%3$d en total)"
+            ],
+            "Pages": [
+                "paginas"
+            ],
+            "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.": [
+                ""
+            ],
+            "Parent": [
+                "Padre"
+            ],
+            "Pending": [
+                "Pendiente"
+            ],
+            "Pending / All / Spam / Trash / Mine tabs — every status surface in a single window with live counts.": [
+                "Pestañas Pendientes / Todo / Spam / Papelera / Mina: cada estado aparece en una sola ventana con recuentos en vivo."
+            ],
+            "Per page": [
+                "Por página"
+            ],
+            "Per-row capability flags so the UI hides actions you can't perform — and the server re-validates every mutation, so flags can't be tampered into more permissions.": [
+                ""
+            ],
+            "Permanently delete %d plugin(s)? Their files will be removed from disk. This cannot be undone.": [
+                ""
+            ],
+            "Permanently delete %s? Its files will be removed from disk. This cannot be undone.": [
+                "¿Eliminar %s permanentemente? Sus archivos se eliminarán del disco. Esto no se puede deshacer."
+            ],
+            "Personalize your desktop. Changes apply instantly and are saved to this browser.": [
+                "Personaliza tu escritorio. Los cambios se aplican al instante y se guardan en este navegador."
+            ],
+            "Pick a .zip file from your computer, or drop one onto the area below.": [
+                ""
+            ],
+            "Pinned %s to the dock.": [
+                "Fijado %s al muelle."
+            ],
+            "Planned": [
+                ""
+            ],
+            "Platform API key": [
+                ""
+            ],
+            "Platform-wide AI configuration. Applies to all users and to background jobs (cron, WP-CLI, anonymous comments). Individual users can override with their own key above.": [
+                ""
+            ],
+            "Plugin": [
+                "Complemento"
+            ],
+            "Plugin URL": [
+                "URL del complemento"
+            ],
+            "Plugin activated.": [
+                ""
+            ],
+            "Plugin file": [
+                "Archivo de complemento"
+            ],
+            "Plugin installed successfully.": [
+                ""
+            ],
+            "Plugin shortcut. Double-click to open.": [
+                "Acceso directo al complemento. Haga doble clic para abrir."
+            ],
+            "Plugin website": [
+                "Sitio web de complemento"
+            ],
+            "Plugins and the admin menu will appear here once they’re registered.": [
+                ""
+            ],
+            "Plugins that extend Desktop Mode — desktop decorations, native windows, widgets, and other companions.": [
+                "Complementos que amplían el modo de escritorio: decoraciones de escritorio, ventanas nativas, widgets y otros complementos."
+            ],
+            "Plugins window template missing.": [
+                "Falta la plantilla de ventana de complementos."
+            ],
+            "Popular": [
+                "Popular"
+            ],
+            "Posts": [
+                "Publicaciones"
+            ],
+            "Prefer the classic Comments screen? You can switch back any time from OS Settings → Features.": [
+                "¿Prefieres la clásica pantalla de Comentarios? Puede volver a cambiar en cualquier momento desde Configuración del sistema operativo → Funciones."
+            ],
+            "Previous": [
+                "Anterior"
+            ],
+            "Props": [
+                ""
+            ],
+            "Provider": [
+                ""
+            ],
+            "Published": [
+                "Publicado"
+            ],
+            "Publishing rhythm": [
+                "Ritmo editorial"
+            ],
+            "Question": [
+                "Pregunta"
+            ],
+            "Rated %s out of 5": [
+                "Calificación %s de 5"
+            ],
+            "Re-shows the one-time introduction dialog the next time you open each redesigned native window.": [
+                ""
+            ],
+            "Read all reviews on WordPress.org ↗": [
+                "Lea todas las reseñas en WordPress.org ↗"
+            ],
+            "Read full review ↗": [
+                "Leer reseña completa ↗"
+            ],
+            "Read on WordPress.org ↗": [
+                "Leer en WordPress.org ↗"
+            ],
+            "Read reviews on WordPress.org ↗": [
+                "Leer reseñas en WordPress.org ↗"
+            ],
+            "Recent activity": [
+                "Actividad reciente"
+            ],
+            "Recent posts": [
+                "Publicaciones recientes"
+            ],
+            "Recent reviews aren’t available right now. %s": [
+                "Las reseñas recientes no están disponibles en este momento. %s"
+            ],
+            "Recommended": [
+                "Recomendado"
+            ],
+            "Recycle Bin — empty": [
+                "Papelera de reciclaje: vacía"
+            ],
+            "Refresh": [
+                "Refrescar"
+            ],
+            "Reliability: %d / 100": [
+                "Fiabilidad: %d / 100"
+            ],
+            "Reload": [
+                "Recargar"
+            ],
+            "Remove": [
+                "Eliminar"
+            ],
+            "Remove %s": [
+                "Eliminar %s"
+            ],
+            "Remove custom image": [
+                "Eliminar imagen personalizada"
+            ],
+            "Replace": [
+                "Error al subir."
+            ],
+            "Replace existing plugin?": [
+                ""
+            ],
+            "Replaces the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. On by default. Toggle off to return to the classic experience.": [
+                ""
+            ],
+            "Replacing existing plugin…": [
+                ""
+            ],
+            "Replies (%d)": [
+                "Respuestas (%d)"
+            ],
+            "Reply (%d)": [
+                ""
+            ],
+            "Reply failed.": [
+                "Error al subir."
+            ],
+            "Reply is empty.": [
+                "La respuesta está vacía."
+            ],
+            "Reply posted.": [
+                "Respuesta publicada."
+            ],
+            "Reply right inside the row — no modal, no full-page navigation. Press R on any row to jump straight to the editor.": [
+                "Responda justo dentro de la fila: sin modal, sin navegación de página completa. Presione R en cualquier fila para saltar directamente al editor."
+            ],
+            "Requires PHP": [
+                "Requiere PHP"
+            ],
+            "Requires PHP %s+": [
+                "Requiere PHP %s+"
+            ],
+            "Requires WP %s+": [
+                "Requiere WP %s+"
+            ],
+            "Requires WordPress": [
+                "Azul WordPress"
+            ],
+            "Reset to defaults": [
+                "Restablecer valores predeterminados"
+            ],
+            "Reset what’s-new dialogs": [
+                ""
+            ],
+            "Resetting…": [
+                ""
+            ],
+            "Restore": [
+                "Restaurar"
+            ],
+            "Restored %d.": [
+                "Restaurado %d."
+            ],
+            "Reviews": [
+                "Vista general"
+            ],
+            "Reviews live on WordPress.org": [
+                "Reseñas en vivo en WordPress.org"
+            ],
+            "Revision": [
+                "Revisión"
+            ],
+            "Revisions": [
+                "Revisiones"
+            ],
+            "Right": [
+                ""
+            ],
+            "Roles": [
+                "Roles"
+            ],
+            "Rose": [
+                "Rosa"
+            ],
+            "S": [
+                "S"
+            ],
+            "Same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and the same lock indicator when another user is editing a page. On by default. Toggle off to return to the classic experience.": [
+                ""
+            ],
+            "Saturday": [
+                "Sábado"
+            ],
+            "Save": [
+                "Ahorrar"
+            ],
+            "Saved": [
+                "Guardado"
+            ],
+            "Saved %s": [
+                "%s guardados"
+            ],
+            "Saves on existing posts": [
+                "Guarda en publicaciones existentes"
+            ],
+            "Saving…": [
+                "Subiendo…"
+            ],
+            "Scope": [
+                "Alcance"
+            ],
+            "Score new comments with AI": [
+                ""
+            ],
+            "Screenshots": [
+                "Capturas de pantalla"
+            ],
+            "Search": [
+                "Buscar medios"
+            ],
+            "Search %s": [
+                "Buscar medios"
+            ],
+            "Search %s…": [
+                "Buscar medios"
+            ],
+            "Search WordPress.org…": [
+                "Buscar en WordPress.org…"
+            ],
+            "Search comments…": [
+                "Buscar medios"
+            ],
+            "Search installed plugins…": [
+                "Buscar complementos instalados…"
+            ],
+            "Search media": [
+                "Buscar medios"
+            ],
+            "Search media…": [
+                "Buscar medios"
+            ],
+            "Search nodes…": [
+                "Buscar nodos…"
+            ],
+            "Search posts and pages in the graph": [
+                "Buscar publicaciones y páginas en el gráfico."
+            ],
+            "Search users": [
+                "Buscar medios"
+            ],
+            "Search users…": [
+                "Buscar medios"
+            ],
+            "Search your media": [
+                "Busca en tus medios"
+            ],
+            "Search…": [
+                "Buscar medios"
+            ],
+            "See author, comments, categories, tags, attached media, and revisions for this entry.": [
+                "Vea el autor, los comentarios, las categorías, las etiquetas, los medios adjuntos y las revisiones de esta entrada."
+            ],
+            "See where this is used": [
+                "Vea dónde se usa esto"
+            ],
+            "Select a full URL (https://…) in your reply, then click the link button.": [
+                "Seleccione una URL completa (https://…) en su respuesta y luego haga clic en el botón de enlace."
+            ],
+            "Select a media item to preview it here.": [
+                "Seleccione un elemento multimedia para obtener una vista previa aquí."
+            ],
+            "Select a user to see their profile here.": [
+                "Seleccione un usuario para ver su perfil aquí."
+            ],
+            "Select an entry to preview it here.": [
+                "Seleccione una entrada para obtener una vista previa aquí."
+            ],
+            "Select an item to preview it here.": [
+                "Seleccione un elemento para obtener una vista previa aquí."
+            ],
+            "Send reply": [
+                "Enviar respuesta"
+            ],
+            "Settings sections": [
+                ""
+            ],
+            "Shadow parts": [
+                ""
+            ],
+            "Shortcut": [
+                "Atajo"
+            ],
+            "Show author insights": [
+                "Mostrar información del autor"
+            ],
+            "Show desktop when clicking the wallpaper": [
+                ""
+            ],
+            "Show in": [
+                "Mostrando %d"
+            ],
+            "Show post/page status ribbon": [
+                ""
+            ],
+            "Show profile": [
+                "Mostrar perfil"
+            ],
+            "Show the posts, pages, and custom-post-type entries that reference this file.": [
+                "Muestra las publicaciones, páginas y entradas de tipo de publicación personalizada que hacen referencia a este archivo."
+            ],
+            "Showing %d": [
+                "Mostrando %d"
+            ],
+            "Side bar with the core admin menus, plus a bottom dock for plugin apps.": [
+                ""
+            ],
+            "Since": [
+                ""
+            ],
+            "Single bottom dock holding every menu — core and plugin apps share one rail.": [
+                ""
+            ],
+            "Site-wide destructive action (admin only). Drops every shares table — invites, decisions, share rows. Empty tables are recreated immediately so the feature still works for anyone who wants to start fresh. Use this on sites that never needed sharing to clear the data outright.": [
+                ""
+            ],
+            "Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.": [
+                ""
+            ],
+            "Size": [
+                "Tamaño"
+            ],
+            "Size on disk": [
+                "Tamaño en disco"
+            ],
+            "Slots": [
+                ""
+            ],
+            "Slow — 45s": [
+                ""
+            ],
+            "Sort by": [
+                "Ordenar por"
+            ],
+            "Spam": [
+                "Correo basura"
+            ],
+            "Spam confidence score": [
+                "Puntuación de confianza del spam"
+            ],
+            "Spam score: %1$d / 100. %2$s": [
+                "Puntuación de spam: %1$d / 100. %2$s"
+            ],
+            "Spam score: %d / 100.": [
+                "Puntuación de spam: %d / 100."
+            ],
+            "Spatial": [
+                ""
+            ],
+            "Stable": [
+                ""
+            ],
+            "Status": [
+                "Estado"
+            ],
+            "Steps to reproduce (bug only)": [
+                "Pasos para reproducir (solo error)"
+            ],
+            "Sticky note text": [
+                ""
+            ],
+            "Sticky notes": [
+                ""
+            ],
+            "Sticky term is unavailable.": [
+                ""
+            ],
+            "Submitted on": [
+                "Presentado el"
+            ],
+            "Sunday": [
+                "Domingo"
+            ],
+            "Switch to %s": [
+                "Cambiar a %s"
+            ],
+            "System Preferences": [
+                "Preferencias del sistema"
+            ],
+            "T": [
+                "Hasta"
+            ],
+            "Tags": [
+                "Etiquetas"
+            ],
+            "Tags · %d": [
+                ""
+            ],
+            "Take me to settings": [
+                "Llévame a configuración"
+            ],
+            "Taxonomies": [
+                "Taxonomías"
+            ],
+            "Teal": [
+                "Verde azulado"
+            ],
+            "Tested up to WP %s": [
+                "Probado hasta WP %s"
+            ],
+            "Tested up to WordPress %s": [
+                "Probado hasta WordPress %s"
+            ],
+            "Text domain": [
+                "Dominio de texto"
+            ],
+            "That file isn’t an image.": [
+                "Ese archivo no es una imagen."
+            ],
+            "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.": [
+                "El fondo tras tus ventanas. Elige un preestablecido, mezcla tu propio gradiente o suelta una imagen."
+            ],
+            "The detail flyout shows screenshots, the ratings histogram, recent reviews, the changelog and FAQ — all without leaving the window.": [
+                ""
+            ],
+            "The dock repaints LIVE after every install / activate / deactivate / delete. No reload, no stale tile, no \"wait, did that work?\".": [
+                ""
+            ],
+            "The three <wpd-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.": [
+                ""
+            ],
+            "The underlying entity is no longer available.": [
+                "La entidad subyacente ya no está disponible."
+            ],
+            "This component has no help descriptor yet. Add `static help` to its class for a fuller reference.": [
+                ""
+            ],
+            "This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone.": [
+                ""
+            ],
+            "This plugin does not check in with WordPress.org, so automatic updates can't be scheduled.": [
+                "Este complemento no se registra en WordPress.org, por lo que no se pueden programar actualizaciones automáticas."
+            ],
+            "This plugin does not ship a wp.org download package. Update it manually from its source.": [
+                ""
+            ],
+            "This plugin doesn’t ship a changelog.": [
+                "Este complemento no incluye un registro de cambios."
+            ],
+            "This plugin doesn’t ship a description in its header.": [
+                "Este complemento no incluye una descripción en su encabezado."
+            ],
+            "This plugin doesn’t ship an FAQ.": [
+                "Este complemento no incluye preguntas frecuentes."
+            ],
+            "This plugin doesn’t ship screenshots.": [
+                "Este complemento no incluye capturas de pantalla."
+            ],
+            "This plugin will stop running on the site. You can re-activate it later from the Plugins screen.": [
+                "Este complemento dejará de ejecutarse en el sitio. Puede reactivarlo más tarde desde la pantalla Complementos."
+            ],
+            "This revision has no rendered content.": [
+                "Esta revisión no tiene contenido renderizado."
+            ],
+            "Thursday": [
+                "Jueves"
+            ],
+            "Title": [
+                "Título"
+            ],
+            "Title and description are both required.": [
+                "Tanto el título como la descripción son obligatorios."
+            ],
+            "To": [
+                "Hasta"
+            ],
+            "Top authors": [
+                "Autores principales"
+            ],
+            "Top categories & tags": [
+                "Categorías y etiquetas principales"
+            ],
+            "Top contributors": [
+                "Principales contribuyentes"
+            ],
+            "Top topics": [
+                "Temas principales"
+            ],
+            "Total comments": [
+                "Comentarios totales"
+            ],
+            "Total content": [
+                "Contenido total"
+            ],
+            "Trash": [
+                "Basura"
+            ],
+            "Trashed %d.": [
+                "Desechado %d."
+            ],
+            "Triage in one place": [
+                "Triaje en un solo lugar"
+            ],
+            "Tuesday": [
+                "Martes"
+            ],
+            "Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
+                ""
+            ],
+            "Two tabs in one window — Installed for managing what you have, Browse for discovering new plugins. No more bouncing between Plugins → Add New → back to Installed.": [
+                ""
+            ],
+            "Type": [
+                "Tipo"
+            ],
+            "Type: %s": [
+                "Tipo: %s"
+            ],
+            "Un-spammed %d.": [
+                "%d sin spam."
+            ],
+            "Unapprove": [
+                "Desaprobar"
+            ],
+            "Unapproved %d.": [
+                "%d no aprobado."
+            ],
+            "Uncategorized": [
+                "Sin categoría"
+            ],
+            "Undated": [
+                "Añadir %s"
+            ],
+            "Undo": [
+                "Deshacer"
+            ],
+            "Undo failed.": [
+                "Error al subir."
+            ],
+            "Undocumented — declared via static props.": [
+                ""
+            ],
+            "Undone.": [
+                "Deshecho."
+            ],
+            "Unified": [
+                ""
+            ],
+            "Unknown": [
+                "Desconocido"
+            ],
+            "Unknown My WordPress entity: %s": [
+                "Desconocida Mi entidad de WordPress: %s"
+            ],
+            "Unknown author": [
+                "Autor desconocido"
+            ],
+            "Unknown entity type.": [
+                "Tipo de entidad desconocido."
+            ],
+            "Unknown error.": [
+                "Error desconocido."
+            ],
+            "Untagged": [
+                "Sin etiquetar"
+            ],
+            "Update %d": [
+                "Añadir %s"
+            ],
+            "Update available": [
+                "Actualización disponible"
+            ],
+            "Update of %1$s failed: %2$s": [
+                "Error al subir."
+            ],
+            "Update to %s": [
+                "Añadir %s"
+            ],
+            "Updated %s": [
+                "Añadir %s"
+            ],
+            "Updated “%s”": [
+                "Añadir %s"
+            ],
+            "Updates": [
+                "Añadir %s"
+            ],
+            "Updating…": [
+                "Subiendo…"
+            ],
+            "Upload Plugin": [
+                "Subir nueva"
+            ],
+            "Upload a plugin": [
+                "Subir nueva"
+            ],
+            "Upload a plugin .zip": [
+                ""
+            ],
+            "Upload a wallpaper image": [
+                "Subir una imagen de fondo"
+            ],
+            "Upload failed.": [
+                "Error al subir."
+            ],
+            "Upload failed: %s": [
+                "Error al subir."
+            ],
+            "Upload new": [
+                "Subir nueva"
+            ],
+            "Uploaded": [
+                "Subir nueva"
+            ],
+            "Uploader": [
+                "Subir nueva"
+            ],
+            "Uploading and installing…": [
+                "Subiendo…"
+            ],
+            "Uploading…": [
+                "Subiendo…"
+            ],
+            "Use the native Comments window": [
+                ""
+            ],
+            "Use the native Pages window": [
+                ""
+            ],
+            "Use the native Plugins window": [
+                ""
+            ],
+            "Use the native Posts window": [
+                ""
+            ],
+            "Use the native Users window": [
+                ""
+            ],
+            "Used in focused window title bars, buttons, and focus rings.": [
+                "Usado en barras de título enfocadas, botones y anillos de foco."
+            ],
+            "User agent": [
+                "agente de usuario"
+            ],
+            "Using platform key — enter to override": [
+                ""
+            ],
+            "Version": [
+                "Versión"
+            ],
+            "Very slow — 60s (default)": [
+                ""
+            ],
+            "View": [
+                "Vista"
+            ],
+            "View activity footprint": [
+                "Ver huella de actividad"
+            ],
+            "View archive": [
+                "Ver archivo"
+            ],
+            "View author archive": [
+                "Ver archivo del autor"
+            ],
+            "View details for %s": [
+                "Ver detalles de %s"
+            ],
+            "View on WordPress.org": [
+                "Azul WordPress"
+            ],
+            "View on WordPress.org ↗": [
+                "Ver en WordPress.org ↗"
+            ],
+            "View on site": [
+                "Ver en el sitio"
+            ],
+            "W": [
+                "W."
+            ],
+            "Wallpaper": [
+                "Fondo de pantalla"
+            ],
+            "We couldn’t pull the review feed here. Open the full thread on WordPress.org to read every review.": [
+                "No pudimos obtener el feed de reseñas aquí. Abra el hilo completo en WordPress.org para leer cada reseña."
+            ],
+            "Website": [
+                "Sitio web"
+            ],
+            "Wednesday": [
+                "Miércoles"
+            ],
+            "Welcome to the new Comments": [
+                "Cambiar a modo escritorio"
+            ],
+            "Welcome to the new Plugins window": [
+                ""
+            ],
+            "What happened? What did you expect?": [
+                "¿Qué pasó? ¿Qué esperabas?"
+            ],
+            "When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.": [
+                ""
+            ],
+            "Width of the dock and size of its icons.": [
+                "Anchura del dock y tamaño de sus iconos."
+            ],
+            "Window %1$s → %2$s": [
+                "Ventana %1$s → %2$s"
+            ],
+            "Window actions": [
+                "Acciones de ventana"
+            ],
+            "WordPress Blue": [
+                "Azul WordPress"
+            ],
+            "WordPress Desktop Mode": [
+                "Escritorio %d"
+            ],
+            "WordPress Heartbeat rate": [
+                "Azul WordPress"
+            ],
+            "WordPress.org didn’t respond. Try again in a moment.": [
+                "WordPress.org no respondió. Inténtalo de nuevo en un momento."
+            ],
+            "Wrap selection in a link": [
+                "Envolver selección en un enlace"
+            ],
+            "Write a reply…": [
+                "Escribe una respuesta…"
+            ],
+            "Write a review on WordPress.org ↗": [
+                "Escribe una reseña en WordPress.org ↗"
+            ],
+            "You can't edit this comment.": [
+                "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+            ],
+            "You do not have permission to manage plugins.": [
+                "No tienes permiso para administrar complementos."
+            ],
+            "You will review and submit on GitHub.": [
+                "Lo revisará y enviará en GitHub."
+            ],
+            "You're looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how Desktop Mode wants you to work.": [
+                ""
+            ],
+            "activated": [
+                ""
+            ],
+            "an experiment by Automattic": [
+                ""
+            ],
+            "by": [
+                "por"
+            ],
+            "by %s": [
+                "por %s"
+            ],
+            "comments": [
+                "comentarios"
+            ],
+            "components registered.": [
+                ""
+            ],
+            "deactivated": [
+                ""
+            ],
+            "default": [
+                "Predeterminada"
+            ],
+            "deleted": [
+                ""
+            ],
+            "in %s": [
+                "en %s"
+            ],
+            "macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching \"Show desktop\" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.": [
+                ""
+            ],
+            "one contributor": [
+                "un colaborador"
+            ],
+            "sk-…": [
+                ""
+            ],
+            "updated": [
+                "%d actualización"
+            ],
+            "v%s": [
+                "v%s"
+            ],
+            "· %d open tab": [
+                "· %d pestaña abierta",
+                "· %d pestañas abiertas"
+            ],
+            "—": [
+                ""
+            ],
+            "“%s” will be permanently deleted. This cannot be undone.": [
+                "“%s” se eliminará permanentemente. Esto no se puede deshacer."
+            ],
+            "→ %s": [
+                "→ %s"
+            ]
+        }
+    }
+}
