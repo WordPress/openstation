@@ -92,13 +92,14 @@ jobs:
           docker version --format 'engine {{.Server.Version}}' || true
           docker compose version || true
           echo "::endgroup::"
-          CFG=$(ls -d "$HOME"/.wp-env/*/ 2>/dev/null | head -1)
-          echo "wp-env config dir: $CFG"
+          CFG="$(npx wp-env install-path 2>/dev/null | tail -1)"
+          echo "wp-env install-path: [$CFG]"
+          ls -la "$CFG" 2>/dev/null || true
           echo "::group::docker-compose.yml"
-          cat "${CFG}docker-compose.yml" 2>/dev/null || echo "(no compose file found)"
+          cat "${CFG}/docker-compose.yml" 2>/dev/null || echo "(no compose file found)"
           echo "::endgroup::"
           echo "::group::direct docker compose up -d (real stderr)"
-          docker compose -f "${CFG}docker-compose.yml" up -d 2>&1 || true
+          docker compose -f "${CFG}/docker-compose.yml" up -d 2>&1 || true
           echo "::endgroup::"
           echo "::group::docker ps -a after direct up"
           docker ps -a
