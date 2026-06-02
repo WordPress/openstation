@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: [ '8.3', '8.4' ]
+        php: [ '8.3' ]   # DEBUG: single leg while diagnosing
 
     steps:
       - uses: actions/checkout@v6
@@ -79,6 +79,30 @@ jobs:
           echo "::endgroup::"
           echo "::group::wp-env logs (tests)"; timeout 25 npx wp-env logs tests --watch=false 2>&1 || true; echo "::endgroup::"
           echo "::group::resources"; df -h / || true; free -h || true; echo "::endgroup::"
+
+      - name: Show generated compose + direct `docker compose up` (always)
+        if: always()
+        # DEBUG: wp-env swallows the docker-compose error (it only prints
+        # "Command failed with exit code 1"). Dump the generated compose file
+        # and run `docker compose up` directly so the REAL stderr is visible
+        # (e.g. "dependency failed to start: container ... is unhealthy",
+        # a port bind clash, or a compose-version incompatibility).
+        run: |
+          echo "::group::versions"
+          docker version --format 'engine {{.Server.Version}}' || true
+          docker compose version || true
+          echo "::endgroup::"
+          CFG=$(ls -d "$HOME"/.wp-env/*/ 2>/dev/null | head -1)
+          echo "wp-env config dir: $CFG"
+          echo "::group::docker-compose.yml"
+          cat "${CFG}docker-compose.yml" 2>/dev/null || echo "(no compose file found)"
+          echo "::endgroup::"
+          echo "::group::direct docker compose up -d (real stderr)"
+          docker compose -f "${CFG}docker-compose.yml" up -d 2>&1 || true
+          echo "::endgroup::"
+          echo "::group::docker ps -a after direct up"
+          docker ps -a
+          echo "::endgroup::"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
