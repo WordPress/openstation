@@ -53,53 +53,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # `wp-env start` exits 0 with no error partway through its host-side work,
-      # right after the DB containers come up, before recording the runtime --
-      # so `wp-env run` then reports "Environment not initialized". The abrupt
-      # exit drops buffered stdout, so wp-env's own logs don't reveal the last
-      # call. Shim git+docker to an append-only logfile (survives the exit) to
-      # capture the exact final command before the process vanishes.
-      - name: Install git/docker tracing shim
-        run: |
-          mkdir -p /tmp/shim
-          WPENV_REAL_GIT="$(command -v git)"
-          WPENV_REAL_DOCKER="$(command -v docker)"
-          echo "WPENV_REAL_GIT=$WPENV_REAL_GIT" >> "$GITHUB_ENV"
-          echo "WPENV_REAL_DOCKER=$WPENV_REAL_DOCKER" >> "$GITHUB_ENV"
-          echo "/tmp/shim" >> "$GITHUB_PATH"
-          cat > /tmp/shim/git <<'EOF'
-          #!/usr/bin/env bash
-          echo "$(date +%s.%3N) [git] $*" >> /tmp/cmd.log
-          "$WPENV_REAL_GIT" "$@"
-          rc=$?
-          echo "$(date +%s.%3N) [git] -> exit $rc" >> /tmp/cmd.log
-          exit $rc
-          EOF
-          cat > /tmp/shim/docker <<'EOF'
-          #!/usr/bin/env bash
-          echo "$(date +%s.%3N) [docker] $*" >> /tmp/cmd.log
-          "$WPENV_REAL_DOCKER" "$@"
-          rc=$?
-          echo "$(date +%s.%3N) [docker] -> exit $rc" >> /tmp/cmd.log
-          exit $rc
-          EOF
-          chmod +x /tmp/shim/git /tmp/shim/docker
-
-      - name: Start wp-env (traced)
+      - name: Start wp-env
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        run: |
-          which git docker
-          npm run env:start; echo "wp-env start exit code: $?"
+        run: npm run env:start
 
       - name: Diagnostics (always)
         if: always()
         run: |
-          echo "::group::traced git/docker commands (last before exit)"; cat /tmp/cmd.log 2>/dev/null || echo "(no cmd.log)"; echo "::endgroup::"
           echo "::group::docker ps -a"; docker ps -a; echo "::endgroup::"
-          echo "::group::~/.wp-env and ~/wp-env"; ls -la ~/.wp-env ~/wp-env 2>/dev/null || true; echo "::endgroup::"
-          echo "::group::wp-env-cache.json"; find ~/.wp-env ~/wp-env -maxdepth 2 -name 'wp-env-cache.json' -print -exec cat {} \; 2>/dev/null || true; echo "::endgroup::"
-          echo "::group::workdir source dirs"; find ~/.wp-env ~/wp-env -maxdepth 2 -type d 2>/dev/null || true; echo "::endgroup::"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install

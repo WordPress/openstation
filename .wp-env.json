@@ -1,8 +1,6 @@
 {
 	"core": null,
-	"plugins": [
-		"https://downloads.wordpress.org/plugin/gutenberg.zip"
-	],
+	"plugins": [],
 	"mappings": {
 		"wp-content/plugins/desktop-mode": "."
 	},
