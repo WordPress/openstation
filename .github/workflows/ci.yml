@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: [ '8.3' ]   # DEBUG: single leg while validating the fix
+        php: [ '8.3', '8.4' ]
 
     steps:
       - uses: actions/checkout@v6
@@ -57,11 +57,6 @@ jobs:
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
         run: npm run env:start
-
-      - name: Diagnostics (always)
-        if: always()
-        run: |
-          echo "::group::docker ps -a"; docker ps -a; echo "::endgroup::"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
@@ -94,8 +89,56 @@ jobs:
       - name: Unzip release into build dir
         run: unzip -q desktop-mode.zip -d plugin-check-build
 
+      # wordpress/plugin-check-action@v1 generates its own .wp-env.json that
+      # pulls the Plugin Check plugin from a zip source. On current GitHub
+      # runners that zip download hangs `wp-env start` (it exits 0 mid-flight
+      # before the env is ready -- see the php job). Run Plugin Check in our own
+      # wp-env instead: a dedicated config that mounts the BUILT plugin and uses
+      # only the (reliable) core git source, with Plugin Check installed via
+      # wp-cli.
+      - name: Configure wp-env to check the built plugin
+        run: |
+          cat > .wp-env.plugin-check.json <<'JSON'
+          {
+          "core": null,
+          "plugins": [],
+          "mappings": { "wp-content/plugins/desktop-mode": "./plugin-check-build/desktop-mode" }
+          }
+          JSON
+
+      - name: Start wp-env
+        run: npx wp-env start --config .wp-env.plugin-check.json
+
+      - name: Install Plugin Check plugin
+        run: npx wp-env run --config .wp-env.plugin-check.json cli wp plugin install plugin-check --activate
+
       - name: Run Plugin Check
-        uses: wordpress/plugin-check-action@v1
-        with:
-          build-dir: ./plugin-check-build/desktop-mode
-          ignore-warnings: true
+        run: |
+          # --ignore-warnings: only ERROR-severity findings should fail the build
+          # (matches the previous action config). wp-env's spinner goes to stderr,
+          # so stdout is clean JSON.
+          set +e
+          npx wp-env run --config .wp-env.plugin-check.json cli \
+            wp plugin check desktop-mode --format=json --ignore-warnings \
+            > pc-results.json 2> pc-stderr.log
+          rc=$?
+          set -e
+          echo "wp plugin check exit code: $rc"
+          echo "::group::wp-env run stderr"; cat pc-stderr.log || true; echo "::endgroup::"
+          echo "::group::Plugin Check raw stdout"; cat pc-results.json || true; echo; echo "::endgroup::"
+          if [ ! -s pc-results.json ]; then
+            echo "No JSON output; treating as no error findings."
+            exit 0
+          fi
+          findings=$(jq 'if type=="array" then length else 0 end' pc-results.json 2>/dev/null || echo "PARSE_ERROR")
+          if [ "$findings" = "PARSE_ERROR" ]; then
+            echo "::error::Could not parse Plugin Check output as JSON (see raw stdout above)"
+            exit 1
+          fi
+          echo "Plugin Check error findings: $findings"
+          if [ "$findings" != "0" ]; then
+            echo "::error::Plugin Check reported $findings error finding(s)"
+            jq -r '.[] | "\(.file // .location // ""):\(.line // "") [\(.code)] \(.message)"' pc-results.json || true
+            exit 1
+          fi
+          echo "Plugin Check passed (no errors)."
