@@ -34,7 +34,9 @@ jobs:
 
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
-    runs-on: ubuntu-latest
+    # DEBUG: pin to the older runner image (Docker/Compose) to test whether
+    # the ubuntu-24.04 20260525 build is what breaks `wp-env start`.
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
