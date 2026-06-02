@@ -83,6 +83,9 @@ jobs:
       - name: wp-env start log + trace (always)
         if: always()
         run: |
+          echo "::group::errors + phase markers in start.log"
+          grep -inE "error|fail|cannot|fatal|could not|not found|fetching |checking out|phpunit suite|wp_version|throw|ENOENT|couldn't find|tag '?[0-9]" /tmp/start.log 2>/dev/null | tail -40 || echo "(none)"
+          echo "::endgroup::"
           echo "::group::wp-env start --debug (tail 60)"
           tail -60 /tmp/start.log 2>/dev/null || echo "(no start log)"
           echo "::endgroup::"
