@@ -405,28 +405,15 @@ add_filter( 'heartbeat_received', 'desktop_mode_presence_heartbeat_received', 5,
 
 /**
  * Permission gate for presence endpoints — login required +
- * desktop mode enabled.
+ * desktop mode enabled. Delegates to the shared
+ * {@see desktop_mode_rest_require_enabled()} gate.
  *
  * @since 0.5.5
  *
- * @return bool|WP_Error
+ * @return true|WP_Error
  */
 function desktop_mode_presence_rest_permission() {
-	if ( ! is_user_logged_in() ) {
-		return new WP_Error(
-			'rest_forbidden',
-			__( 'Authentication required.', 'desktop-mode' ),
-			array( 'status' => 401 )
-		);
-	}
-	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
-		return new WP_Error(
-			'rest_forbidden',
-			__( 'Desktop mode is not enabled for your account.', 'desktop-mode' ),
-			array( 'status' => 403 )
-		);
-	}
-	return true;
+	return desktop_mode_rest_require_enabled();
 }
 
 /**

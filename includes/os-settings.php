@@ -566,12 +566,17 @@ add_action( 'rest_api_init', 'desktop_mode_register_os_settings_rest_routes' );
 /**
  * Permission gate for OS settings REST routes.
  *
- * @since 0.14.0
+ * Requires the caller to be logged in *and* have desktop mode enabled —
+ * see {@see desktop_mode_rest_require_enabled()} for why `read` alone is
+ * insufficient.
  *
- * @return bool
+ * @since 0.14.0
+ * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
+ *
+ * @return true|WP_Error
  */
 function desktop_mode_rest_os_settings_permission() {
-	return is_user_logged_in() && current_user_can( 'read' );
+	return desktop_mode_rest_require_enabled();
 }
 
 /**

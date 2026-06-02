@@ -190,15 +190,18 @@ function desktop_mode_register_seen_intros_routes() {
 add_action( 'rest_api_init', 'desktop_mode_register_seen_intros_routes' );
 
 /**
- * Permission gate — any logged-in user may manage their own seen-
- * intros list.
+ * Permission gate — any logged-in user with desktop mode enabled may
+ * manage their own seen-intros list. See
+ * {@see desktop_mode_rest_require_enabled()} for why `read` alone is
+ * insufficient.
  *
  * @since 0.8.0
+ * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
  *
- * @return bool
+ * @return true|WP_Error
  */
 function desktop_mode_rest_seen_intros_permission() {
-	return is_user_logged_in() && current_user_can( 'read' );
+	return desktop_mode_rest_require_enabled();
 }
 
 /**

@@ -58,6 +58,51 @@ function desktop_mode_is_enabled( $user_id = 0 ) {
 	return (bool) apply_filters( 'desktop_mode_mode_enabled', true, $user_id );
 }
 
+/**
+ * Shared REST permission gate for Desktop Mode's per-user endpoints.
+ *
+ * Routes that only ever read or write the *current* user's own Desktop
+ * Mode state (OS settings, session, default-window, seen-intros, PWA
+ * state, presence) must not be reachable by accounts that haven't
+ * actually entered Desktop Mode.
+ *
+ * `current_user_can( 'read' )` alone is too loose: every authenticated
+ * role — Subscriber included — carries `read`, so the old gate let any
+ * logged-in user touch these routes without ever enabling Desktop Mode.
+ * We gate on {@see desktop_mode_is_enabled()} instead (the same opt-in +
+ * `desktop_mode_mode_enabled` filter the shell itself uses) and return
+ * the conventional 401/403 split so REST clients can tell "log in" from
+ * "not allowed".
+ *
+ * This is the canonical gate; `desktop_mode_presence_rest_permission()`
+ * pioneered the shape and now delegates here.
+ *
+ * @since 0.8.10
+ *
+ * @return true|WP_Error True when allowed; a `rest_forbidden` WP_Error
+ *                       (401 when logged out, 403 when desktop mode is
+ *                       not enabled for the account) otherwise.
+ */
+function desktop_mode_rest_require_enabled() {
+	if ( ! is_user_logged_in() ) {
+		return new WP_Error(
+			'rest_forbidden',
+			__( 'Authentication required.', 'desktop-mode' ),
+			array( 'status' => 401 )
+		);
+	}
+
+	if ( ! desktop_mode_is_enabled() ) {
+		return new WP_Error(
+			'rest_forbidden',
+			__( 'Desktop mode is not enabled for your account.', 'desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+
+	return true;
+}
+
 // Chromeless / classic admin-bar suppression and the `wp_redirect`
 // flag-preservation filter pair were moved to
 // `includes/core/routing.php` in 0.8.1. The functions and the

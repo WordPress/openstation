@@ -157,6 +157,51 @@ class Tests_DesktopMode_DesktopMode extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The shared REST gate denies logged-out callers with a 401.
+	 *
+	 * @covers ::desktop_mode_rest_require_enabled
+	 */
+	public function test_rest_require_enabled_denies_logged_out() {
+		wp_set_current_user( 0 );
+
+		$result = desktop_mode_rest_require_enabled();
+
+		$this->assertWPError( $result );
+		$this->assertSame( 401, $result->get_error_data()['status'] );
+	}
+
+	/**
+	 * A logged-in user who has NOT enabled desktop mode is denied with a
+	 * 403 — this is the regression guard for the broken-access-control
+	 * report (a Subscriber, or any role, reaching these routes without
+	 * opting into desktop mode).
+	 *
+	 * @covers ::desktop_mode_rest_require_enabled
+	 */
+	public function test_rest_require_enabled_denies_logged_in_without_desktop_mode() {
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $subscriber );
+		// Meta intentionally not set — desktop mode never enabled.
+
+		$result = desktop_mode_rest_require_enabled();
+
+		$this->assertWPError( $result );
+		$this->assertSame( 403, $result->get_error_data()['status'] );
+	}
+
+	/**
+	 * A logged-in user with desktop mode enabled passes the gate.
+	 *
+	 * @covers ::desktop_mode_rest_require_enabled
+	 */
+	public function test_rest_require_enabled_allows_enabled_user() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$this->assertTrue( desktop_mode_rest_require_enabled() );
+	}
+
+	/**
 	 * @covers ::desktop_mode_is_chromeless_request
 	 */
 	public function test_chromeless_false_without_query_param() {

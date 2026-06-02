@@ -464,15 +464,17 @@ function desktop_mode_register_session_rest_routes() {
 add_action( 'rest_api_init', 'desktop_mode_register_session_rest_routes' );
 
 /**
- * Permission gate for the session REST routes: logged-in users with
- * basic admin-read capability.
+ * Permission gate for the session REST routes: logged-in users who have
+ * desktop mode enabled. See {@see desktop_mode_rest_require_enabled()}
+ * for why `read` alone is insufficient.
  *
  * @since 0.4.0
+ * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
  *
- * @return bool
+ * @return true|WP_Error
  */
 function desktop_mode_rest_session_permission() {
-	return is_user_logged_in() && current_user_can( 'read' );
+	return desktop_mode_rest_require_enabled();
 }
 
 /**

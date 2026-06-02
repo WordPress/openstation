@@ -21,6 +21,14 @@ class Tests_DesktopMode_DefaultWindow extends WP_UnitTestCase {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 	}
 
+	public function set_up() {
+		parent::set_up();
+		// The default-window REST route now requires desktop mode enabled
+		// for the caller. Opt the test user in so the REST tests reach the
+		// route body rather than stopping at the permission gate.
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+	}
+
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, DESKTOP_MODE_DEFAULT_WINDOW_META );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );

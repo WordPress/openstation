@@ -565,12 +565,17 @@ function desktop_mode_pwa_register_rest_routes() {
 add_action( 'rest_api_init', 'desktop_mode_pwa_register_rest_routes' );
 
 /**
- * REST permission gate — same shape as the session routes.
+ * REST permission gate — same shape as the session routes: logged in
+ * with desktop mode enabled. See
+ * {@see desktop_mode_rest_require_enabled()}.
  *
  * @since 0.8.0
+ * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
+ *
+ * @return true|WP_Error
  */
 function desktop_mode_pwa_rest_permission() {
-	return is_user_logged_in() && current_user_can( 'read' );
+	return desktop_mode_rest_require_enabled();
 }
 
 /**
