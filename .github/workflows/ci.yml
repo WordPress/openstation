@@ -28,14 +28,12 @@ jobs:
         run: npm run test:js
 
   php:
-    name: "PHPUnit (core=${{ matrix.core || 'default' }})"
+    name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # leg 1: default (core:null -> latest stable WP, currently 7.0) -> capture the literal error
-        # leg 2: the proposed fix -> WordPress 7.0 from wordpress-develop (version 7.0.1-alpha)
-        core: [ "", "WordPress/wordpress-develop#7.0" ]
+        php: [ '8.3' ]   # DEBUG: single leg while validating the fix
 
     steps:
       - uses: actions/checkout@v6
@@ -50,47 +48,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Apply core override
-        if: matrix.core != ''
-        run: |
-          printf '{ "core": "%s" }\n' '${{ matrix.core }}' > .wp-env.override.json
-          echo "override:"; cat .wp-env.override.json
-
-      - name: Start wp-env (traced + debug)
+      - name: Start wp-env
         env:
-          WP_ENV_PHP_VERSION: '8.3'
+          WP_ENV_PHP_VERSION: ${{ matrix.php }}
+        # wp-env start on the current runner brings up only the dev DB and
+        # returns (sometimes exit 0, sometimes non-zero). Don't let that fail
+        # the job; we bring the rest up explicitly next.
+        run: npm run env:start || echo "::warning::wp-env start returned $? (continuing; bringing stack up explicitly)"
+
+      - name: Ensure full container stack is up
+        # FIX (option 1): docker compose up against wp-env's own generated
+        # compose file reliably starts ALL services (proven), whereas
+        # wp-env's own orchestration stops after mysql on the current runner.
         run: |
-          mkdir -p /tmp/shim
-          for t in docker git svn; do
-            real="$(command -v "$t" || true)"
-            [ -z "$real" ] && continue
-            {
-              printf '%s\n' '#!/usr/bin/env bash'
-              printf 'echo "[%s] $*" >> /tmp/dc.log\n' "$t"
-              printf '%s "$@"; rc=$?\n' "$real"
-              printf 'echo "   -> [%s] exit=$rc" >> /tmp/dc.log\n' "$t"
-              printf '%s\n' 'exit $rc'
-            } > "/tmp/shim/$t"
-            chmod +x "/tmp/shim/$t"
-          done
-          : > /tmp/dc.log
-          export PATH="/tmp/shim:$PATH"
-          set +e
-          npx wp-env start --debug > /tmp/start.log 2>&1
-          echo "WPENV_EXIT=$?"
+          CFG="$(npx wp-env install-path 2>/dev/null | tail -1)"
+          echo "compose file: $CFG/docker-compose.yml"
+          docker compose -f "$CFG/docker-compose.yml" up -d
+          echo "--- containers ---"
+          docker ps --format '{{.Names}}\t{{.Status}}'
 
       - name: Diagnostics (always)
         if: always()
         run: |
-          echo "::group::errors in start.log"
-          grep -inE "error|fail|cannot|fatal|could not|not found|throw|ENOENT|couldn't|exit code|reject|at /|establishing a database|undefined|TypeError" /tmp/start.log 2>/dev/null | tail -50 || echo "(none)"
-          echo "::endgroup::"
-          echo "::group::start.log tail 120"
-          tail -120 /tmp/start.log 2>/dev/null || echo "(no log)"
-          echo "::endgroup::"
-          echo "::group::traced commands that exited non-zero"
-          grep -B1 'exit=[^0]' /tmp/dc.log 2>/dev/null || echo "(all traced commands exited 0)"
-          echo "::endgroup::"
           echo "::group::docker ps -a"; docker ps -a; echo "::endgroup::"
 
       - name: Install PHP dev dependencies
