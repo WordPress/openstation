@@ -53,25 +53,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The GitHub runner image rolled out Docker Compose v2.38.2 (late May 2026),
-      # which the docker-compose npm wrapper that wp-env drives mis-handles: a
-      # `docker compose` child returns in a way the wrapper maps to a null exit
-      # code, so wp-env's CLI does `process.exit(error.exitCode)` (= exit 0) and
-      # `wp-env start` silently aborts mid-flight before recording the runtime.
-      # Pin a known-good pre-2.38 Compose CLI to sidestep the interaction.
-      - name: Pin Docker Compose to v2.37.3
-        run: |
-          mkdir -p ~/.docker/cli-plugins
-          curl -fsSL "https://github.com/docker/compose/releases/download/v2.37.3/docker-compose-linux-x86_64" \
-            -o ~/.docker/cli-plugins/docker-compose
-          chmod +x ~/.docker/cli-plugins/docker-compose
-          echo "--- docker compose version (after pin) ---"
-          docker compose version
-
-      - name: Start wp-env (debug)
+      # On a COLD GitHub runner, `wp-env start` exits 0 with no error partway
+      # through its host-side source work (the simple-git clone of WordPress
+      # core + zip downloads), before bringing up the WordPress/cli containers
+      # and before it records the runtime -- so `wp-env run` then reports
+      # "Environment not initialized". Local dev never sees this because a warm
+      # ~/.wp-env cache means the clones already exist and wp-env skips them.
+      #
+      # The clones live in the host workdir and persist across `start` runs, and
+      # wp-env skips any source already present. So re-running `start` warms the
+      # cache step by step until a run gets far enough to finish. Probe tests-cli
+      # to detect a fully-initialized env and stop as soon as it's ready.
+      - name: Start wp-env (retry until ready)
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        run: npm run env:start -- --debug
+        run: |
+          ready=0
+          for i in 1 2 3 4 5; do
+            echo "::group::wp-env start attempt $i"
+            npm run env:start -- --debug || echo "start attempt $i returned $?"
+            echo "::endgroup::"
+            if npx wp-env run tests-cli true >/dev/null 2>&1; then
+              echo "::notice::tests-cli ready after attempt $i"
+              ready=1
+              break
+            fi
+            echo "not ready after attempt $i"
+          done
+          [ "$ready" = "1" ]
 
       - name: Diagnostics (always)
         if: always()
@@ -103,17 +112,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      # Same Compose pin as the php job: the plugin-check action runs its own
-      # `wp-env start` internally, which hits the same v2.38.2 wrapper bug.
-      - name: Pin Docker Compose to v2.37.3
-        run: |
-          mkdir -p ~/.docker/cli-plugins
-          curl -fsSL "https://github.com/docker/compose/releases/download/v2.37.3/docker-compose-linux-x86_64" \
-            -o ~/.docker/cli-plugins/docker-compose
-          chmod +x ~/.docker/cli-plugins/docker-compose
-          echo "--- docker compose version (after pin) ---"
-          docker compose version
 
       - name: Build
         run: npm run build
