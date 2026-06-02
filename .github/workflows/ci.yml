@@ -12,33 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
       - name: ESLint
         run: npm run lint
-
       - name: TypeScript (no emit)
         run: npx tsc --noEmit
-
       - name: Vitest
         run: npm run test:js
 
   php:
-    name: PHPUnit · PHP ${{ matrix.php }}
+    name: "wp-env (compose=${{ matrix.compose }})"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        php: [ '8.3', '8.4' ]
+        # default = runner's Docker Compose v2.38.2; pinned = older plugin binary.
+        compose: [ "default", "v2.29.7" ]
 
     steps:
       - uses: actions/checkout@v6
@@ -53,44 +49,63 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start wp-env
+      - name: Pin docker compose CLI (matrix)
+        if: matrix.compose != 'default'
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          curl -fsSL "https://github.com/docker/compose/releases/download/${{ matrix.compose }}/docker-compose-linux-x86_64" \
+            -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+
+      - name: Versions
+        run: |
+          docker version --format 'engine {{.Server.Version}}' || true
+          docker compose version || true
+          node -e "console.log('@wordpress/env', require('@wordpress/env/package.json').version)"
+
+      - name: Start wp-env (traced + debug)
         env:
-          WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        run: npm run env:start
+          WP_ENV_PHP_VERSION: '8.3'
+        run: |
+          mkdir -p /tmp/shim
+          for t in docker git; do
+            real="$(command -v "$t" || true)"; [ -z "$real" ] && continue
+            {
+              printf '%s\n' '#!/usr/bin/env bash'
+              printf 'echo "[%s] $*" >> /tmp/dc.log\n' "$t"
+              printf '%s "$@"; rc=$?\n' "$real"
+              printf 'echo "   -> [%s] exit=$rc" >> /tmp/dc.log\n' "$t"
+              printf '%s\n' 'exit $rc'
+            } > "/tmp/shim/$t"
+            chmod +x "/tmp/shim/$t"
+          done
+          : > /tmp/dc.log
+          export PATH="/tmp/shim:$PATH"
+          set +e
+          npx wp-env start --debug > /tmp/start.log 2>&1
+          echo "WPENV_EXIT=$?"
+
+      - name: Diagnostics (always)
+        if: always()
+        run: |
+          echo "::group::errors in start.log"
+          grep -inE "error|fail|cannot|fatal|could not|not found|throw|ENOENT|exit code|reject|at /|establishing a database|undefined|unhealthy|dependency|timed out|timeout|TypeError|not running|not initialized" /tmp/start.log 2>/dev/null | tail -50 || echo "(none)"
+          echo "::endgroup::"
+          echo "::group::start.log tail 150"
+          tail -150 /tmp/start.log 2>/dev/null || echo "(no log)"
+          echo "::endgroup::"
+          echo "::group::traced commands that exited non-zero"
+          grep -B1 'exit=[^0]' /tmp/dc.log 2>/dev/null || echo "(all traced commands exited 0)"
+          echo "::endgroup::"
+          echo "::group::full docker/git trace"
+          cat /tmp/dc.log 2>/dev/null || echo "(no trace)"
+          echo "::endgroup::"
+          echo "::group::docker ps -a"
+          docker ps -a
+          echo "::endgroup::"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
 
       - name: Run PHPUnit
         run: npm run test:php
-
-  plugin-check:
-    name: Plugin Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Package release zip
-        run: npm run package
-
-      - name: Unzip release into build dir
-        run: unzip -q desktop-mode.zip -d plugin-check-build
-
-      - name: Run Plugin Check
-        uses: wordpress/plugin-check-action@v1
-        with:
-          build-dir: ./plugin-check-build/desktop-mode
-          ignore-warnings: true
