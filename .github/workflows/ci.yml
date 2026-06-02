@@ -53,33 +53,45 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start wp-env (traced)
+      - name: Start wp-env (traced + debug)
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        # DEBUG: shim `docker` to log every invocation + exit code, so we
-        # capture the EXACT command wp-env runs that exits non-zero (every
-        # command reproduced by hand exits 0, so we need the real argv).
+        # DEBUG: shim docker/git/svn to log argv + exit code, and run wp-env
+        # with --debug capturing full output. The failure is a non-docker
+        # step (downloadSources/readWordPressVersion/downloadWPPHPUnit) that
+        # exits 1; this pins down exactly which command.
         run: |
-          REAL="$(command -v docker)"
-          echo "real docker: $REAL"
           mkdir -p /tmp/shim
-          {
-            echo '#!/usr/bin/env bash'
-            echo 'echo "ARGV: $*" >> /tmp/dc.log'
-            echo "$REAL"' "$@"; rc=$?'
-            echo 'echo "   -> exit=$rc" >> /tmp/dc.log'
-            echo 'exit $rc'
-          } > /tmp/shim/docker
-          chmod +x /tmp/shim/docker
+          for t in docker git svn; do
+            real="$(command -v "$t" || true)"
+            [ -z "$real" ] && continue
+            {
+              printf '%s\n' '#!/usr/bin/env bash'
+              printf 'echo "[%s] $*" >> /tmp/dc.log\n' "$t"
+              printf '%s "$@"; rc=$?\n' "$real"
+              printf 'echo "   -> [%s] exit=$rc" >> /tmp/dc.log\n' "$t"
+              printf '%s\n' 'exit $rc'
+            } > "/tmp/shim/$t"
+            chmod +x "/tmp/shim/$t"
+          done
           : > /tmp/dc.log
           export PATH="/tmp/shim:$PATH"
-          npm run env:start
+          set +e
+          npx wp-env start --debug > /tmp/start.log 2>&1
+          echo "WPENV_EXIT=$?"
 
-      - name: Traced docker calls (always)
+      - name: wp-env start log + trace (always)
         if: always()
         run: |
-          echo "=== docker invocations during wp-env start (with exit codes) ==="
+          echo "::group::wp-env start --debug (tail 60)"
+          tail -60 /tmp/start.log 2>/dev/null || echo "(no start log)"
+          echo "::endgroup::"
+          echo "::group::traced commands that exited non-zero"
+          grep -B1 'exit=[^0]' /tmp/dc.log 2>/dev/null || echo "(all traced docker/git/svn commands exited 0)"
+          echo "::endgroup::"
+          echo "::group::full docker/git/svn trace"
           cat /tmp/dc.log 2>/dev/null || echo "(no trace)"
+          echo "::endgroup::"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
