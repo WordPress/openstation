@@ -35,12 +35,6 @@ jobs:
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
-    # FIX TEST: Docker Compose 2.38 makes BuildKit `bake` the default for
-    # `--build`. wp-env runs `up --build -d mysql` for the image-only DB
-    # service (no build context); under bake that errors with no target,
-    # so `wp-env start` aborts right after creating mysql. Disable bake.
-    env:
-      COMPOSE_BAKE: "false"
     strategy:
       fail-fast: false
       matrix:
@@ -59,34 +53,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start wp-env
+      - name: Start wp-env (traced)
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        run: npm run env:start
+        # DEBUG: shim `docker` to log every invocation + exit code, so we
+        # capture the EXACT command wp-env runs that exits non-zero (every
+        # command reproduced by hand exits 0, so we need the real argv).
+        run: |
+          REAL="$(command -v docker)"
+          echo "real docker: $REAL"
+          mkdir -p /tmp/shim
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'echo "ARGV: $*" >> /tmp/dc.log'
+            echo "$REAL"' "$@"; rc=$?'
+            echo 'echo "   -> exit=$rc" >> /tmp/dc.log'
+            echo 'exit $rc'
+          } > /tmp/shim/docker
+          chmod +x /tmp/shim/docker
+          : > /tmp/dc.log
+          export PATH="/tmp/shim:$PATH"
+          npm run env:start
 
-      - name: Mechanism check (always)
+      - name: Traced docker calls (always)
         if: always()
         run: |
-          echo "::group::versions"; docker compose version || true; echo "::endgroup::"
-          echo "::group::docker ps -a"; docker ps -a; echo "::endgroup::"
-          # Prove the cause: reproduce wp-env's upOne('mysql', {--build})
-          # both ways. Expect bake -> non-zero, no-bake -> 0.
-          CFG="$(npx wp-env install-path 2>/dev/null | tail -1)"
-          F="$CFG/docker-compose.yml"
-          if [ -f "$F" ]; then
-            docker compose -f "$F" down -v >/dev/null 2>&1 || true
-            echo "--- COMPOSE_BAKE=true (expect non-zero) ---"
-            COMPOSE_BAKE=true docker compose -f "$F" up --build --force-recreate -d mysql > /tmp/b1.log 2>&1 \
-              && echo "EXIT(bake)=0" || echo "EXIT(bake)=$?"
-            tail -8 /tmp/b1.log
-            docker compose -f "$F" down -v >/dev/null 2>&1 || true
-            echo "--- COMPOSE_BAKE=false (expect 0) ---"
-            COMPOSE_BAKE=false docker compose -f "$F" up --build --force-recreate -d mysql > /tmp/b2.log 2>&1 \
-              && echo "EXIT(no-bake)=0" || echo "EXIT(no-bake)=$?"
-            tail -8 /tmp/b2.log
-          else
-            echo "no compose file at [$F]"
-          fi
+          echo "=== docker invocations during wp-env start (with exit codes) ==="
+          cat /tmp/dc.log 2>/dev/null || echo "(no trace)"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
@@ -97,10 +90,6 @@ jobs:
   plugin-check:
     name: Plugin Check
     runs-on: ubuntu-latest
-    # FIX TEST: same Compose-bake issue; the plugin-check action runs
-    # `wp-env start` internally, so disable bake at the job level too.
-    env:
-      COMPOSE_BAKE: "false"
     steps:
       - uses: actions/checkout@v6
 
