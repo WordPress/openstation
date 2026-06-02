@@ -13,13 +13,14 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | Route | Verb | Handler file | Permission |
 |---|---|---|---|
 | `/session` | GET / POST / DELETE | `includes/session.php` | logged-in + desktop mode enabled |
-| `/default-window` | GET / POST | `includes/default-window.php` | logged-in + desktop mode enabled |
-| `/seen-intros` | GET / POST | `includes/seen-intros.php` | logged-in + desktop mode enabled |
+| `/default-window` | POST | `includes/default-window.php` | logged-in + desktop mode enabled |
+| `/intros/seen` | POST | `includes/seen-intros.php` | logged-in + desktop mode enabled |
+| `/intros` | DELETE | `includes/seen-intros.php` | logged-in + desktop mode enabled |
 | `/os-settings` | GET / POST | `includes/os-settings.php` | logged-in + desktop mode enabled |
 | `/extended-options/*` | various | `includes/extended-options.php` | `manage_options` |
-| `/pwa/*` | various | `includes/pwa.php` | logged-in + desktop mode enabled |
+| `/pwa-state` | GET / POST | `includes/pwa.php` | logged-in + desktop mode enabled |
 | `/devtools/*` | various | `includes/devtools.php` | `manage_options` |
-| `/presence` | GET | `includes/presence.php` | logged-in + desktop mode enabled |
+| `/presence` | GET / POST | `includes/presence.php` | logged-in + desktop mode enabled |
 | `/posts/*` | various | `includes/posts-window/window.php` | `edit_posts` |
 | `/my-wordpress/comments/*` | various | `includes/my-wordpress/comment-stats.php` | `read` |
 | `/my-wordpress/terms/*` | various | `includes/my-wordpress/term-stats.php` | `read` |
@@ -33,7 +34,7 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 ## Conventions
 
 - **Nonce.** Every state-changing route requires `X-WP-Nonce` (the standard REST nonce). Read routes that depend on per-user state also require it.
-- **Permission.** Permission callbacks use either `is_user_logged_in()` + capability checks or domain predicates. Shell-internal endpoints that only touch the caller's own per-user desktop state (`/session`, `/default-window`, `/seen-intros`, `/os-settings`, `/pwa/*`, `/presence`) share the `desktop_mode_rest_require_enabled()` gate (`includes/helpers.php`): logged-in **and** `desktop_mode_is_enabled()`, returning `401` when logged out and `403` when desktop mode is off. `read` alone is deliberately not enough — every authenticated role carries it. Filtering with `desktop_mode_*` hooks lets plugins extend or harden access.
+- **Permission.** Permission callbacks use either `is_user_logged_in()` + capability checks or domain predicates. Shell-internal endpoints that only touch the caller's own per-user desktop state (`/session`, `/default-window`, `/intros`, `/os-settings`, `/pwa-state`, `/presence`) share the `desktop_mode_rest_require_enabled()` gate (`includes/helpers.php`): logged-in **and** `desktop_mode_is_enabled()`, returning `401` when logged out and `403` when desktop mode is off. `read` alone is deliberately not enough — every authenticated role carries it. Filtering with `desktop_mode_*` hooks lets plugins extend or harden access.
 - **Errors.** Failures return `WP_Error` with a stable `code`, a translated `message`, and a `data: { status: <int> }` block. Codes are documented per-endpoint in `docs/hooks-reference.md`.
 
 ## Why no central registration
