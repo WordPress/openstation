@@ -34,9 +34,7 @@ jobs:
 
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
-    # DEBUG: pin to the older runner image (Docker/Compose) to test whether
-    # the ubuntu-24.04 20260525 build is what breaks `wp-env start`.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -100,10 +98,22 @@ jobs:
           echo "::group::docker-compose.yml"
           cat "${CFG}/docker-compose.yml" 2>/dev/null || echo "(no compose file found)"
           echo "::endgroup::"
-          echo "::group::direct docker compose up -d (real stderr)"
-          docker compose -f "${CFG}/docker-compose.yml" up -d 2>&1 || true
+          F="${CFG}/docker-compose.yml"
+          echo "::group::reset (down -v) so we reproduce a clean failure"
+          docker compose -f "$F" down -v 2>&1 || true
           echo "::endgroup::"
-          echo "::group::docker ps -a after direct up"
+          echo "::group::EXACT wp-env upMany command (real stderr)"
+          # Mirrors @wordpress/env runtime/docker/index.js:
+          #   dockerCompose.upMany(['wordpress','tests-wordpress','cli','tests-cli'],
+          #     { commandOptions: ['--build','--force-recreate'] })
+          docker compose -f "$F" up -d --build --force-recreate \
+            wordpress tests-wordpress cli tests-cli 2>&1
+          echo "EXIT=$?"
+          echo "::endgroup::"
+          echo "::group::plain up -d (control: no --build/--force-recreate)"
+          docker compose -f "$F" up -d 2>&1; echo "EXIT=$?"
+          echo "::endgroup::"
+          echo "::group::docker ps -a"
           docker ps -a
           echo "::endgroup::"
 
