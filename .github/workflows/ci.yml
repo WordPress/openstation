@@ -53,10 +53,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start wp-env
+      - name: Start wp-env (verbose)
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        run: npm run env:start
+        # DEBUG: --debug surfaces the docker-compose invocation + output that
+        # `npm run env:start` (plain `wp-env start`) swallows in CI.
+        run: npx wp-env start --debug
+
+      - name: Diagnose wp-env (always)
+        if: always()
+        # DEBUG: capture WHY a container (esp. tests-cli/tests-*) isn't running.
+        # `wp-env start` has been exiting 0 in CI without the tests env up, so
+        # we dump container states + logs to see the real failure (crash, OOM,
+        # port clash, image pull, MySQL init, ...).
+        run: |
+          echo "::group::wp-env version"; npx wp-env --version || true; echo "::endgroup::"
+          echo "::group::docker ps -a"; docker ps -a; echo "::endgroup::"
+          echo "::group::container states + logs"
+          for c in $(docker ps -a --format '{{.Names}}'); do
+            state=$(docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$c" 2>/dev/null)
+            echo "===== $c :: $state ====="
+            docker logs --tail 150 "$c" 2>&1 || true
+            echo
+          done
+          echo "::endgroup::"
+          echo "::group::wp-env logs (tests)"; timeout 25 npx wp-env logs tests --watch=false 2>&1 || true; echo "::endgroup::"
+          echo "::group::resources"; df -h / || true; free -h || true; echo "::endgroup::"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
