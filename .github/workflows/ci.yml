@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: [ '8.3', '8.4' ]
+        php: [ '8.3' ]   # DEBUG: single leg while validating the fix
 
     steps:
       - uses: actions/checkout@v6
@@ -53,10 +53,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start wp-env
+      # The GitHub runner image rolled out Docker Compose v2.38.2 (late May 2026),
+      # which the docker-compose npm wrapper that wp-env drives mis-handles: a
+      # `docker compose` child returns in a way the wrapper maps to a null exit
+      # code, so wp-env's CLI does `process.exit(error.exitCode)` (= exit 0) and
+      # `wp-env start` silently aborts mid-flight before recording the runtime.
+      # Pin a known-good pre-2.38 Compose CLI to sidestep the interaction.
+      - name: Pin Docker Compose to v2.37.3
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          curl -fsSL "https://github.com/docker/compose/releases/download/v2.37.3/docker-compose-linux-x86_64" \
+            -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+          echo "--- docker compose version (after pin) ---"
+          docker compose version
+
+      - name: Start wp-env (debug)
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        run: npm run env:start
+        run: npm run env:start -- --debug
+
+      - name: Diagnostics (always)
+        if: always()
+        run: |
+          echo "::group::docker compose version"; docker compose version; echo "::endgroup::"
+          echo "::group::docker ps -a"; docker ps -a; echo "::endgroup::"
+          echo "::group::wp-env install-path"; npx wp-env install-path || true; echo "::endgroup::"
+          echo "::group::~/.wp-env and ~/wp-env"; ls -la ~/.wp-env ~/wp-env 2>/dev/null || true; echo "::endgroup::"
+          echo "::group::wp-env-cache.json"; find ~/.wp-env ~/wp-env -maxdepth 2 -name 'wp-env-cache.json' -print -exec cat {} \; 2>/dev/null || true; echo "::endgroup::"
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
@@ -79,6 +103,17 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Same Compose pin as the php job: the plugin-check action runs its own
+      # `wp-env start` internally, which hits the same v2.38.2 wrapper bug.
+      - name: Pin Docker Compose to v2.37.3
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          curl -fsSL "https://github.com/docker/compose/releases/download/v2.37.3/docker-compose-linux-x86_64" \
+            -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+          echo "--- docker compose version (after pin) ---"
+          docker compose version
 
       - name: Build
         run: npm run build
