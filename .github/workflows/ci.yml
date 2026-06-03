@@ -6,12 +6,23 @@ on:
   pull_request:
     branches: [ trunk ]
 
+# Least privilege: this workflow only reads the repo to lint, build, and test.
+# It never writes commits, comments, or releases, so the token needs no more
+# than read access to repository contents.
+permissions:
+  contents: read
+
 jobs:
   js:
     name: Lint · Types · Vitest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Don't leave the GITHUB_TOKEN in .git/config; later steps run
+          # PR-authored code (npm scripts, build) and this job never needs
+          # git auth after checkout.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -42,6 +53,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Don't leave the GITHUB_TOKEN in .git/config; later steps run
+          # PR-authored code (npm scripts, build) and this job never needs
+          # git auth after checkout.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -69,6 +85,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Don't leave the GITHUB_TOKEN in .git/config; later steps run
+          # PR-authored code (npm scripts, build) and this job never needs
+          # git auth after checkout.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v6
