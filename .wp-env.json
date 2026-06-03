@@ -1,12 +1,12 @@
 {
-  "core": null,
-  "plugins": [],
-  "mappings": {
-    "wp-content/plugins/desktop-mode": "."
-  },
-  "lifecycleScripts": {
-    "afterStart": "./bin/setup-wp-env.sh"
-  },
-  "port": 8890,
-  "testsPort": 8891
+	"core": null,
+	"plugins": [],
+	"mappings": {
+		"wp-content/plugins/desktop-mode": "."
+	},
+	"lifecycleScripts": {
+		"afterStart": "./bin/setup-wp-env.sh"
+	},
+	"port": 8890,
+	"testsPort": 8891
 }
