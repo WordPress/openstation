@@ -240,10 +240,10 @@ async function markIntroSeen( config: PluginsWindowConfig ): Promise< void > {
 
 function openOsSettingsFeatures(): void {
 	const api = ( window as unknown as {
-		wp?: { desktop?: { openOsSettings?: ( tab?: string ) => void } };
+		wp?: { desktop?: { openOsSettings?: ( opts?: { tabId?: string } ) => void } };
 	} ).wp?.desktop;
 	if ( typeof api?.openOsSettings === 'function' ) {
-		api.openOsSettings( 'features' );
+		api.openOsSettings( { tabId: 'features' } );
 	}
 }
 

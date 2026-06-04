@@ -383,6 +383,37 @@
 	align-items: flex-start;
 }
 
+/* Inline "AI Settings" link inside the "AI not enabled" error — opens
+ * OS Settings on the AI tab. Styled as a link within the surrounding
+ * error text, not a standalone button: inherits the error color and
+ * flows with the sentence. */
+.desktop-mode-ai__settings-link {
+	appearance: none;
+	border: 0;
+	margin: 0;
+	padding: 0;
+	background: none;
+	font: inherit;
+	font-weight: 600;
+	color: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.desktop-mode-ai__settings-link:hover {
+	text-decoration: none;
+}
+
+/* The shell forces `cursor: default !important` on every clickable
+ * surface (see the cursor policy at the top of desktop.css). This
+ * recovery link is an explicit, user-approved exception: it keeps a
+ * pointer so it reads as the actionable link it is. Scoped under
+ * `body.desktop-mode-active` so it out-specifies the policy's
+ * `!important` rule, same trick the resize-handle exceptions use. */
+body.desktop-mode-active .desktop-mode-ai__settings-link {
+	cursor: pointer !important;
+}
+
 @keyframes desktop-mode-spin {
 	to { transform: rotate( 360deg ); }
 }

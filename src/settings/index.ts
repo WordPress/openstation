@@ -370,6 +370,30 @@ export class OsSettings implements SettingsCtx {
 	 * that actually shrinks `desktop.min.js`. See the Stage 8
 	 * section of `BUNDLE-SIZE-REPORT.md` for the full picture.
 	 */
+	/**
+	 * Switch the active settings tab. Records the choice on
+	 * {@link activeTabId} (so the next render mounts on it) and, when
+	 * the panel is currently mounted, flips the live `<wpd-tabs>` value
+	 * in place so an already-open OS Settings window jumps to the tab
+	 * without a full re-render. Deep-linking entry points
+	 * (`openOsSettings({ tabId })`) call this after opening the window.
+	 *
+	 * @param tabId Settings tab id, e.g. `'ai'`, `'apps-icons'`.
+	 */
+	public focusTab( tabId: string ): void {
+		this.activeTabId = tabId;
+		const body = this._lastRenderedBody;
+		if ( ! body?.isConnected ) {
+			return;
+		}
+		const tabs = body.querySelector( 'wpd-tabs' ) as
+			| ( HTMLElement & { value?: string } )
+			| null;
+		if ( tabs ) {
+			tabs.value = tabId;
+		}
+	}
+
 	public renderPanel( body: HTMLElement ): void {
 		// Track the body so the save-failure rollback handler can
 		// re-render after restoring the last-confirmed state.

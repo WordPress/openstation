@@ -944,7 +944,7 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.18.0
 	 */
-	openOsSettings: () => void;
+	openOsSettings: ( opts?: { tabId?: string } ) => void;
 	/**
 	 * Read the current OS Settings snapshot. Mirrors the same shape
 	 * any settings tab sees via its `ctx.getOsSettings()`. Use this
@@ -2345,9 +2345,17 @@ function init(): void {
 	 * — custom rail renderers needed a portable way to surface OS
 	 * Settings inside their own UI.
 	 *
+	 * Pass `{ tabId }` to land directly on a specific settings tab
+	 * (e.g. `'ai'`, `'apps-icons'`). The tab is set before the window
+	 * opens so a fresh render mounts on it; if the window is already
+	 * open, `focusTab` switches the live tab strip in place.
+	 *
 	 * @since 0.18.0
 	 */
-	function openOsSettings(): void {
+	function openOsSettings( opts: { tabId?: string } = {} ): void {
+		if ( opts.tabId ) {
+			osSettings.activeTabId = opts.tabId;
+		}
 		void manager.open( {
 			id: OS_SETTINGS_WINDOW_ID,
 			baseId: OS_SETTINGS_WINDOW_ID,
@@ -2361,6 +2369,9 @@ function init(): void {
 			minWidth: 560,
 			minHeight: 480,
 		} );
+		if ( opts.tabId ) {
+			osSettings.focusTab( opts.tabId );
+		}
 	}
 
 	/**

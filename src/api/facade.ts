@@ -221,7 +221,7 @@ export interface BuildPublicApiDeps {
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;
-	openOsSettings: () => void;
+	openOsSettings: ( opts?: { tabId?: string } ) => void;
 	aiAssistant: AiAssistantApi;
 	dragBridge: DragBridgeApi;
 	dragManager: DragManagerApi;

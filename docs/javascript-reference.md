@@ -2362,13 +2362,24 @@ Snapshot of every currently registered rail renderer in registration order. Used
 
 ---
 
-### `openOsSettings()` — Stable *(since 0.18.0)*
+### `openOsSettings( opts? )` — Stable *(since 0.18.0)*
 
 Open (or focus, if already open) the shell's OS Settings window. Routes through the same `windowManager.open()` call the dock's OS Settings tile uses, so a window opened via `wp.desktop.openOsSettings()` is indistinguishable from one opened by clicking the dock tile — same id, same render callback, same dimensions, same focus / minimize behaviour.
 
 ```js
 wp.desktop.openOsSettings();
 ```
+
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'features'`, `'apps-icons'`, `'extended'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. The tab is selected before the window opens, and if OS Settings is already open the live tab strip switches in place:
+
+```js
+// Deep-link straight to the AI Settings tab.
+wp.desktop.openOsSettings( { tabId: 'ai' } );
+```
+
+| Param | Type | Notes |
+|---|---|---|
+| `opts.tabId` | `string` (optional) | Settings tab to activate. Unknown ids are ignored (the panel keeps its current/default tab). |
 
 The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OS Settings tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OS Settings from inside the renderer used to require DOM-scraping `[data-system-id="desktop-mode-os-settings"]` and clicking it; this method is the documented portable path.
 

@@ -30,6 +30,9 @@ body.desktop-mode-active {
  *     them would make corner-grabs guesswork.
  *   - Text inputs / textareas / contenteditable surfaces keep the
  *     browser-default I-beam.
+ *   - The AI assistant's inline "AI Settings" recovery link keeps a
+ *     pointer so it reads as a genuine link (rule lives in
+ *     ai-assistant.css).
  *
  * `!important` is needed because the specific `cursor: pointer` and
  * drag-state declarations elsewhere in the codebase have the same or

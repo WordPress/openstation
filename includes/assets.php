@@ -86,11 +86,16 @@ function desktop_mode_register_assets() {
 		$built_version( 'assets/css/chromeless.css' )
 	);
 
+	// `filemtime`-stamped — the AI assistant surface (error states,
+	// inline affordances) iterates faster than plugin version bumps.
+	// Without an mtime stamp the browser keeps `?ver=<plugin-version>`
+	// valid for the whole release cycle and the user keeps seeing
+	// yesterday's CSS even after a hard reload.
 	wp_register_style(
 		'desktop-mode-ai-assistant',
 		DESKTOP_MODE_URL . 'assets/css/ai-assistant.css',
 		array( 'desktop-mode-variables' ),
-		$version
+		$built_version( 'assets/css/ai-assistant.css' )
 	);
 
 	wp_register_style(
