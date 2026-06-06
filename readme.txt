@@ -4,7 +4,7 @@ Tags: desktop, admin, ui, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.10.0
+Stable tag: 0.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,8 +43,8 @@ This plugin's optional **AI Copilot** sends data to **OpenAI** (`https://api.ope
 
 When the AI Copilot is enabled and a user invokes it (via Cmd+K or the slash-command palette):
 
-* **What is sent:** the user's prompt, the conversation history for the active session, the chosen model identifier (e.g. `gpt-4o-mini`), and tool-call metadata. The plugin's built-in tools (`search_posts`, `search_pages`, `search_comments`) may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to OpenAI as part of the agentic loop.
-* **When it is sent:** on user-initiated AI requests, and (if enabled) on `save_post`, term-save, and comment-save hooks for auto-analysis. Auto-analysis runs server-side as part of the post-save flow.
+* **What is sent:** the user's prompt, the conversation history for the active session, the chosen model identifier (e.g. `gpt-4o-mini`), and tool-call metadata. The plugin's built-in tools (`search_posts`, `search_pages`, `search_comments`) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to OpenAI as part of the agentic loop.
+* **When it is sent:** on user-initiated AI requests, and (if enabled) on comment-save hooks for spam analysis. Comment spam analysis runs server-side as part of the comment-insert flow. Posts, pages, and taxonomy terms are not sent automatically.
 * **Why it is sent:** to obtain model completions and tool-call decisions that drive the AI Copilot.
 * **Who provides the service:** OpenAI, L.L.C. — see the [OpenAI Terms of Use](https://openai.com/policies/row-terms-of-use/) and the [OpenAI Privacy Policy](https://openai.com/policies/row-privacy-policy/).
 
@@ -106,6 +106,13 @@ The plugin bundles the following third-party JavaScript library, loaded on deman
 * **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, and built-in canvas wallpapers (e.g. the animated WordPress logo). PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 == Changelog ==
+
+= 0.11.0 =
+* AI scope narrowed: the only automatic AI analysis is now comment spam scoring — posts, pages, and taxonomy terms are no longer sent to OpenAI on save
+* The AI assistant now finds posts, pages, and comments with WordPress's native keyword search instead of pre-analyzed summaries
+* Removed the bulk `/ai/reindex` REST endpoint
+* One-time upgrade unschedules any leftover post/term analysis cron events
+* Breaking: the post/term analysis hooks (`desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`, `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_schema_content`) have been removed — see docs/migration-ai-comment-only.md
 
 = 0.10.0 =
 * The native Posts, Pages, Users, Plugins, and Comments windows are now opt-in Beta — they no longer replace the classic admin screens by default

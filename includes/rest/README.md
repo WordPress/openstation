@@ -29,7 +29,6 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/desktop-files/*` | various | `includes/desktop-files/rest.php` | logged-in + per-file caps |
 | `/ai/search` | POST | `includes/ai-copilot/search.php` | logged-in + AI feature flag |
 | `/ai/platform-settings` | GET / POST | `includes/ai-copilot/platform-settings.php` | `manage_options` |
-| `/ai/reindex` | POST | `includes/ai-copilot/reindex.php` | `manage_options` |
 
 ## Conventions
 

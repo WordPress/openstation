@@ -1733,6 +1733,8 @@ window.wp.desktop.listDestructiveAdminActions().forEach( ( e ) => console.log( e
 
 Programmatic access to the AI Copilot — same endpoint the built-in overlay talks to. Resolves to an `AskResult`; rejects on network errors, HTTP failures, or abort.
 
+The built-in content tools (`search_posts`, `search_pages`, `search_comments`, `search_comments_by_post`) run WordPress's native keyword search — the model derives a `query` from the user's request and the tools return matching titles + excerpts. (Posts, pages, and terms are no longer pre-analyzed; comment spam scoring is the only automatic AI analysis.) When you continue an exhausted search with `resumeTool` / `startOffset`, the original query is reused automatically.
+
 ```javascript
 const res = await wp.desktop.ai.ask( 'where do I manage categories?' );
 // res = { answer_type: 'navigation', message: '…', admin_links: [ … ], request_id: '…' }

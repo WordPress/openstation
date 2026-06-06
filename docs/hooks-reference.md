@@ -1240,49 +1240,29 @@ add_filter( 'desktop_mode_ai_model', function ( $model, $schema ) {
 }, 10, 2 );
 ```
 
-### `desktop_mode_ai_supported_post_types` / `desktop_mode_ai_supported_taxonomies` — Stable
+> **Removed in 0.11.0.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
-Gate which post types and taxonomies receive auto-analysis on save. Defaults include `post`, `page`, and all public custom post types / taxonomies.
+### `desktop_mode_ai_schema_comment` — Experimental
 
-```php
-apply_filters( 'desktop_mode_ai_supported_post_types', array $types );
-apply_filters( 'desktop_mode_ai_supported_taxonomies', array $taxonomies );
-```
-
-### `desktop_mode_ai_supported_types` — Stable
-
-Umbrella gate applied by the job scheduler (`desktop_mode_ai_schedule_job`). Return a subset of `[ 'post', 'term', 'comment' ]` to disable a whole entity class.
+Mutate the JSON Schema handed to OpenAI for structured-output comment analysis. Use this to add custom fields (compliance flags, sentiment buckets, …) the model should populate alongside the built-in `spam` / `harmful` verdict.
 
 ```php
-apply_filters( 'desktop_mode_ai_supported_types', array $types );
-```
-
-### `desktop_mode_ai_schema_content` / `desktop_mode_ai_schema_comment` — Experimental
-
-Mutate the JSON Schema handed to OpenAI for structured-output post/term and comment analysis. Use this to add custom fields (brand voice scoring, compliance flags, …) the model should populate.
-
-```php
-apply_filters( 'desktop_mode_ai_schema_content', array $schema );
 apply_filters( 'desktop_mode_ai_schema_comment', array $schema );
 ```
 
-### `desktop_mode_ai_post_prompt` / `desktop_mode_ai_term_prompt` / `desktop_mode_ai_comment_prompt` — Stable
+### `desktop_mode_ai_comment_prompt` — Stable
 
-Customise the user-side prompt handed to the model per entity. Each filter receives the default prompt plus the entity object.
+Customise the user-side prompt handed to the model for comment analysis. The filter receives the default prompt plus the comment object.
 
 ```php
-apply_filters( 'desktop_mode_ai_post_prompt',    string $prompt, WP_Post    $post );
-apply_filters( 'desktop_mode_ai_term_prompt',    string $prompt, WP_Term    $term );
 apply_filters( 'desktop_mode_ai_comment_prompt', string $prompt, WP_Comment $comment );
 ```
 
-### `desktop_mode_ai_post_analyzed` / `desktop_mode_ai_term_analyzed` / `desktop_mode_ai_comment_analyzed` — Stable
+### `desktop_mode_ai_comment_analyzed` — Stable
 
-Fire after a successful analysis. The result array contains the fields emitted by the schema (typically `summary`, `topics`, `sentiment`, `embedding`, …). Use these to mirror data into a custom index or trigger downstream jobs.
+Fires after a comment has been successfully analyzed. The result array contains the fields emitted by the schema (`topic`, `ai_summary`, `harmful`, `spam`). Use it to mirror the verdict into a custom moderation queue or trigger downstream jobs.
 
 ```php
-do_action( 'desktop_mode_ai_post_analyzed',    int $post_id,    array $result, WP_Post    $post );
-do_action( 'desktop_mode_ai_term_analyzed',    int $term_id,    array $result, WP_Term    $term );
 do_action( 'desktop_mode_ai_comment_analyzed', int $comment_id, array $result, WP_Comment $comment );
 ```
 

@@ -2,15 +2,18 @@
 /**
  * Desktop Mode — AI Copilot WordPress hooks.
  *
- * Intercepts post saves, term creates/updates, and comment inserts/edits
- * then schedules async WP-Cron jobs to run the OpenAI analysis outside
- * the current HTTP request. The editor stays responsive even when the
- * OpenAI API is slow.
+ * Intercepts comment inserts/edits, then schedules an async WP-Cron job
+ * to run the OpenAI spam/harmful analysis outside the current HTTP
+ * request. Moderation stays responsive even when the OpenAI API is slow.
+ *
+ * Comment analysis is the only auto-analysis the copilot performs — it
+ * feeds the comments-window spam score. Posts, pages, and taxonomy terms
+ * are NOT analyzed; the AI assistant finds them with native WordPress
+ * keyword search instead (see search.php).
  *
  * Deduplication: a 60-second transient (`desktop_mode_ai_q_{type}_{id}`) prevents
- * the same entity from being queued twice when WordPress fires the hook
- * multiple times in one request (e.g. `save_post` fires for the revision
- * AND the parent on autosave-adjacent events).
+ * the same comment from being queued twice when WordPress fires the hook
+ * multiple times in one request.
  *
  * @package WPDesktopMode
  */
@@ -149,111 +152,6 @@ function desktop_mode_ai_find_enabled_user() {
 
 	return 0;
 }
-
-// ---------------------------------------------------------------------------
-// Posts & pages
-// ---------------------------------------------------------------------------
-
-/**
- * Fires after a post is saved (both create and update).
- *
- * Excluded:
- *   - Auto-saves (DOING_AUTOSAVE constant)
- *   - Revisions (post_type = 'revision')
- *   - Auto-draft / trash / inherit statuses
- *   - Unsupported post types (filtered by `desktop_mode_ai_supported_post_types`)
- *
- * We use the DOING_AUTOSAVE constant directly rather than wp_doing_autosave()
- * and check post_type directly rather than calling wp_is_post_revision() —
- * both wrapper functions may be unavailable in test/CLI bootstrap contexts
- * where the hook still fires, while the underlying constants/properties are
- * always present.
- *
- * @since 0.14.0
- *
- * @param int     $post_id Post ID.
- * @param WP_Post $post    Post object.
- * @param bool    $update  Whether this is an update.
- */
-function desktop_mode_ai_on_save_post( $post_id, WP_Post $post, $update ) {
-	// Skip autosaves — constant is reliable in all contexts.
-	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-		return;
-	}
-	// Skip revisions — post_type is always populated on the $post object.
-	if ( 'revision' === $post->post_type ) {
-		return;
-	}
-	if ( in_array( $post->post_status, array( 'auto-draft', 'trash', 'inherit' ), true ) ) {
-		return;
-	}
-
-	$supported_types = (array) apply_filters(
-		'desktop_mode_ai_supported_post_types',
-		array( 'post', 'page' )
-	);
-	if ( ! in_array( $post->post_type, $supported_types, true ) ) {
-		return;
-	}
-
-	$user_id = desktop_mode_ai_resolve_user_id( (int) $post->post_author );
-	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		return;
-	}
-
-	desktop_mode_ai_schedule_job(
-		'desktop_mode_ai_analyze_post',
-		array( $post_id, $user_id ),
-		'post_' . $post_id
-	);
-}
-add_action( 'save_post', 'desktop_mode_ai_on_save_post', 20, 3 );
-
-// ---------------------------------------------------------------------------
-// Taxonomy terms — categories & tags (and any registered taxonomy)
-// ---------------------------------------------------------------------------
-
-/**
- * Shared handler for term creation and edit.
- *
- * @since 0.14.0
- *
- * @param int    $term_id  Term ID.
- * @param int    $tt_id    Term taxonomy ID (unused).
- * @param string $taxonomy Taxonomy slug.
- */
-function desktop_mode_ai_on_term_change( $term_id, $tt_id, $taxonomy ) {
-	$supported_taxonomies = (array) apply_filters(
-		'desktop_mode_ai_supported_taxonomies',
-		array( 'category', 'post_tag' )
-	);
-	if ( ! in_array( $taxonomy, $supported_taxonomies, true ) ) {
-		return;
-	}
-
-	$user_id = desktop_mode_ai_resolve_user_id();
-	if ( $user_id <= 0 ) {
-		// No identifiable user for this term change — skip.
-		// Term creates/edits in WP-CLI or batch imports will simply not
-		// get analyzed unless a specific user context is available.
-		return;
-	}
-	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		return;
-	}
-
-	desktop_mode_ai_schedule_job(
-		'desktop_mode_ai_analyze_term',
-		array( $term_id, $taxonomy, $user_id ),
-		'term_' . $term_id . '_' . $taxonomy
-	);
-}
-
-// `created_term` fires on new term insertion (all taxonomies).
-add_action( 'created_term', 'desktop_mode_ai_on_term_change', 20, 3 );
-
-// `edited_term` fires after a term has been updated.
-add_action( 'edited_term', 'desktop_mode_ai_on_term_change', 20, 3 );
 
 // ---------------------------------------------------------------------------
 // Comments

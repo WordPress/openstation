@@ -24,10 +24,14 @@ defined( 'ABSPATH' ) || exit;
  * - 1: native list windows flipped from opt-out (default ON) to opt-in
  *   Beta (default OFF). Clears the five `native*Enabled` flags from every
  *   user who had them persisted so the whole install reverts to opt-in.
+ * - 2: post & taxonomy-term AI analysis was removed (the copilot now only
+ *   analyzes comments for spam, and the assistant finds content via native
+ *   WordPress search). Unschedules any queued `desktop_mode_ai_analyze_post`
+ *   / `desktop_mode_ai_analyze_term` cron events left over from prior versions.
  *
  * @since 0.10.0
  */
-const DESKTOP_MODE_MIGRATION_VERSION = 1;
+const DESKTOP_MODE_MIGRATION_VERSION = 2;
 
 /** Option storing the highest migration version that has run. autoload=no. */
 const DESKTOP_MODE_MIGRATION_OPTION = 'desktop_mode_migration_version';
@@ -67,6 +71,10 @@ function desktop_mode_run_pending_migrations( $from ) {
 
 	if ( $from < 1 ) {
 		desktop_mode_migrate_os_settings_optin();
+	}
+
+	if ( $from < 2 ) {
+		desktop_mode_migrate_unschedule_post_term_ai();
 	}
 }
 
@@ -130,4 +138,26 @@ function desktop_mode_migrate_os_settings_optin() {
 		// settings array is normalized exactly as a client write would be.
 		desktop_mode_save_os_settings( (int) $user_id, $raw );
 	}
+}
+
+/**
+ * Migration 2 — unschedule leftover post/term AI analysis jobs.
+ *
+ * Post and taxonomy-term analysis was removed: the copilot now only
+ * analyzes comments (for the spam score), and the AI assistant finds
+ * content with native WordPress keyword search. Their cron callbacks no
+ * longer exist, so any single-events still queued from a prior version
+ * would simply no-op — but we clear them so the cron array stays tidy and
+ * `wp cron event list` doesn't show orphaned hooks.
+ *
+ * Existing `_desktop_mode_ai_analysis` meta on posts/terms is left in place
+ * (hidden, harmless, and cheap to ignore).
+ *
+ * @since 0.11.0
+ *
+ * @return void
+ */
+function desktop_mode_migrate_unschedule_post_term_ai() {
+	wp_unschedule_hook( 'desktop_mode_ai_analyze_post' );
+	wp_unschedule_hook( 'desktop_mode_ai_analyze_term' );
 }

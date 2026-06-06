@@ -3,23 +3,26 @@
  * Desktop Mode — AI Copilot analysis: prompts, schemas, meta storage.
  *
  * This module owns:
- *   - JSON Schema definitions for each entity type (filterable).
- *   - Prompt builders that convert WP entities into chat message arrays.
- *   - Meta read/write helpers so job callbacks never touch meta keys
- *     directly; the key names live in one place.
+ *   - The JSON Schema for comment analysis (filterable).
+ *   - The prompt builder that converts a comment into a chat message array.
+ *   - Meta read/write helpers so the job callback never touches meta keys
+ *     directly; the key name lives in one place.
  *
- * Meta key used for all entity types: `_desktop_mode_ai_analysis` (prefixed
- * underscore → hidden from the Custom Fields UI by default).
+ * Comment analysis is the only auto-analysis the copilot performs (it feeds
+ * the comments-window spam score). Posts, pages, and terms are not analyzed.
+ *
+ * Meta key: `_desktop_mode_ai_analysis` (prefixed underscore → hidden from
+ * the Custom Fields UI by default).
  *
  * @package WPDesktopMode
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Meta key used across posts, terms, and comments. */
+/** Meta key used to store the per-comment AI analysis. */
 const DESKTOP_MODE_AI_META_KEY = '_desktop_mode_ai_analysis';
 
-/** Max characters of post content / comment text sent to OpenAI. */
+/** Max characters of comment text sent to OpenAI. */
 const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
 
 // ---------------------------------------------------------------------------
@@ -27,51 +30,10 @@ const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
 // ---------------------------------------------------------------------------
 
 /**
- * JSON Schema for post/page/term analysis.
- *
- * OpenAI strict mode requires `additionalProperties: false` at every level
- * and all properties listed in `required`.
- *
- * @since 0.14.0
- *
- * @return array
- */
-function desktop_mode_ai_schema_content() {
-	$schema = array(
-		'type'                 => 'object',
-		'additionalProperties' => false,
-		'required'             => array( 'topic', 'ai_summary' ),
-		'properties'           => array(
-			'topic'      => array(
-				'type'        => 'string',
-				'description' => 'A concise topic label (max 10 words) capturing the main subject.',
-			),
-			'ai_summary' => array(
-				'type'        => 'string',
-				'description' => 'A 2-3 sentence summary of the content, written in plain language.',
-			),
-		),
-	);
-
-	/**
-	 * Filters the JSON Schema used for post/page/term AI analysis.
-	 *
-	 * Must comply with OpenAI strict JSON Schema rules: every object level
-	 * needs `additionalProperties: false` and all property names listed in
-	 * `required`. Changing the shape here also requires updating any JS or
-	 * PHP code that reads `_desktop_mode_ai_analysis` meta.
-	 *
-	 * @since 0.14.0
-	 *
-	 * @param array $schema The JSON Schema array.
-	 */
-	return (array) apply_filters( 'desktop_mode_ai_schema_content', $schema );
-}
-
-/**
  * JSON Schema for comment analysis.
  *
- * Extends the content schema with `harmful` and `spam` booleans.
+ * Captures a topic label and summary plus the `harmful` and `spam`
+ * booleans that drive the comments-window spam score.
  *
  * @since 0.14.0
  *
@@ -117,100 +79,10 @@ function desktop_mode_ai_schema_comment() {
 // ---------------------------------------------------------------------------
 
 /**
- * Builds the messages array for a post or page.
- *
- * @since 0.14.0
- *
- * @param WP_Post $post
- * @return array Chat messages array.
- */
-function desktop_mode_ai_messages_for_post( WP_Post $post ) {
-	$type    = ucfirst( $post->post_type );
-	$title   = wp_strip_all_tags( $post->post_title );
-	$content = wp_strip_all_tags( $post->post_content );
-	$content = preg_replace( '/\s+/', ' ', trim( $content ) );
-	$content = mb_substr( $content, 0, DESKTOP_MODE_AI_CONTENT_MAX_CHARS );
-	$excerpt = wp_strip_all_tags( $post->post_excerpt );
-
-	$user_text  = "Analyze the following WordPress {$type}.\n\n";
-	$user_text .= "Title: {$title}\n";
-	if ( $excerpt ) {
-		$user_text .= "Excerpt: {$excerpt}\n";
-	}
-	$user_text .= "Content:\n{$content}";
-
-	/**
-	 * Filters the user message sent to OpenAI for post/page analysis.
-	 *
-	 * @since 0.14.0
-	 *
-	 * @param string  $user_text The composed user message.
-	 * @param WP_Post $post      The post being analyzed.
-	 */
-	$user_text = (string) apply_filters( 'desktop_mode_ai_post_prompt', $user_text, $post );
-
-	return array(
-		array(
-			'role'    => 'system',
-			'content' => 'You are a content analysis assistant for a WordPress site. Analyze the provided content objectively and return structured data exactly matching the required schema.',
-		),
-		array(
-			'role'    => 'user',
-			'content' => $user_text,
-		),
-	);
-}
-
-/**
- * Builds the messages array for a taxonomy term (category, tag, etc.).
- *
- * @since 0.14.0
- *
- * @param WP_Term $term
- * @return array Chat messages array.
- */
-function desktop_mode_ai_messages_for_term( WP_Term $term ) {
-	$taxonomy    = ucwords( str_replace( '_', ' ', $term->taxonomy ) );
-	$name        = $term->name;
-	$description = wp_strip_all_tags( $term->description );
-	$description = mb_substr( preg_replace( '/\s+/', ' ', trim( $description ) ), 0, DESKTOP_MODE_AI_CONTENT_MAX_CHARS );
-
-	$user_text  = "Analyze the following WordPress {$taxonomy} term.\n\n";
-	$user_text .= "Name: {$name}\n";
-	if ( $description ) {
-		$user_text .= "Description: {$description}";
-	} else {
-		$user_text .= 'No description provided. Base your analysis on the term name alone.';
-	}
-
-	/**
-	 * Filters the user message sent to OpenAI for term analysis.
-	 *
-	 * @since 0.14.0
-	 *
-	 * @param string  $user_text The composed user message.
-	 * @param WP_Term $term      The term being analyzed.
-	 */
-	$user_text = (string) apply_filters( 'desktop_mode_ai_term_prompt', $user_text, $term );
-
-	return array(
-		array(
-			'role'    => 'system',
-			'content' => 'You are a content analysis assistant for a WordPress site. Analyze the provided taxonomy term and return structured data exactly matching the required schema.',
-		),
-		array(
-			'role'    => 'user',
-			'content' => $user_text,
-		),
-	);
-}
-
-/**
  * Builds the messages array for a comment.
  *
- * When the parent post has an existing AI analysis, its summary is
- * included so the model can accurately judge `spam` (off-topic detection
- * requires knowing what the post is about).
+ * The parent post's title is included so the model can judge `spam`
+ * (off-topic detection requires knowing what the post is about).
  *
  * @since 0.14.0
  *
@@ -230,11 +102,6 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
 		$post = get_post( $post_id );
 		if ( $post instanceof WP_Post ) {
 			$user_text .= 'Post title: ' . wp_strip_all_tags( $post->post_title ) . "\n";
-		}
-
-		$post_analysis = desktop_mode_ai_get_meta( 'post', $post_id );
-		if ( $post_analysis && ! empty( $post_analysis['ai_summary'] ) ) {
-			$user_text .= 'Post summary: ' . $post_analysis['ai_summary'] . "\n";
 		}
 	}
 
