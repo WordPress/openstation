@@ -1002,9 +1002,28 @@ export class WindowManager {
 			this._stack.splice( idx, 1 );
 		}
 
-		// Focus the next topmost window.
-		if ( this._stack.length > 0 ) {
-			this.focus( this._stack[ this._stack.length - 1 ] );
+		// Focus the next topmost FOCUSABLE window — walk the stack
+		// top-down and skip windows the user can't actually see take
+		// focus: minimized ones, and ones living on another virtual
+		// desktop (the stack spans every desktop). Blindly focusing
+		// `_stack[length-1]` would hand focus to an invisible window —
+		// leaving every visible window looking unfocused (and, with an
+		// unfocus effect active, darkened with nothing bright). Mirrors
+		// the active-desktop filter used by `getByBaseIdOnActiveDesktop`.
+		// If nothing qualifies (only minimized / off-desktop windows
+		// remain), we focus nothing rather than force-restore one.
+		for ( let i = this._stack.length - 1; i >= 0; i-- ) {
+			const candidate = this._stack[ i ];
+			if ( candidate.state === 'minimized' ) {
+				continue;
+			}
+			const candidateDesktop =
+				candidate.config.desktopId || this._activeDesktopId;
+			if ( candidateDesktop !== this._activeDesktopId ) {
+				continue;
+			}
+			this.focus( candidate );
+			break;
 		}
 
 		// `closing` fires FIRST, while the element is still in the DOM
