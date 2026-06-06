@@ -1905,7 +1905,7 @@ desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
 
 ### `registerUnfocusEffect( def )` — Experimental  *(since 0.26.0)*
 
-Register a visual treatment applied to every window that **isn't** focused — surfaced in **OS Settings → Effects → "Unfocused windows"**. The built-in `darken` effect is registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
+Register a visual treatment applied to every window that **isn't** focused — surfaced in **OS Settings → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
 
 **Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, or neither `className` nor `apply` provided).
 
@@ -1922,6 +1922,8 @@ Register a visual treatment applied to every window that **isn't** focused — s
 | `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
 
 At least one of `className` / `apply` is required.
+
+> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph, posts mind-map / tag-cloud, the About scene) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
 
 ```javascript
 wp.desktop.ready( () => {
@@ -1944,7 +1946,7 @@ The raw `desktop-mode.unfocus-effects` JS filter receives the registry array on 
 
 ### `unregisterUnfocusEffect( id )` / `listUnfocusEffects()` — Experimental  *(since 0.26.0)*
 
-Remove an effect by id, or read the current list (post-filter). `listUnfocusEffects()` always includes the built-in `darken` unless a filter removed it.
+Remove an effect by id, or read the current list (post-filter). `listUnfocusEffects()` always includes the built-ins (`darken`, `frost`, `grayscale`) unless a filter removed them.
 
 ---
 

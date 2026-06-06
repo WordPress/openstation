@@ -104,6 +104,28 @@ describe( 'effects/unfocus-engine.ts', () => {
 		).toBe( 'darken' );
 	} );
 
+	test( 'does not apply to windows hosting a WebGL <canvas> (Pixi scenes)', async () => {
+		const { engine } = await loadModules();
+		const pixi = makeWin( 'graph', false );
+		// Native Pixi window: a <canvas> lives in the window root's
+		// parent DOM. Filtering it would risk a WebGL context loss.
+		pixi.element.appendChild( document.createElement( 'canvas' ) );
+		const plain = makeWin( 'posts', false );
+		const { osSettings } = makeOsSettings( 'darken' );
+
+		engine.startUnfocusEngine( {
+			manager: makeManager( [ pixi, plain ] ),
+			osSettings,
+		} );
+
+		// The canvas window is exempt; the plain window still darkens.
+		expect( pixi.element.classList.contains( DARKEN_CLASS ) ).toBe( false );
+		expect(
+			pixi.element.hasAttribute( 'data-desktop-unfocus-effect' ),
+		).toBe( false );
+		expect( plain.element.classList.contains( DARKEN_CLASS ) ).toBe( true );
+	} );
+
 	test( 'does not apply to minimized windows', async () => {
 		const { engine } = await loadModules();
 		const minimized = makeWin( 'm', false, 'minimized' );

@@ -437,7 +437,7 @@ desktop_mode_register_unfocus_effect_script( 'my-plugin-effects' );
 
 For live unregistration on deactivation, set `owner: 'my-plugin-effects'` on each `registerUnfocusEffect` call. Untagged effects survive past deactivation until the next page reload — graceful backwards-compat.
 
-The built-in `darken` effect is registered through the same JS hook (`wp.desktop.registerUnfocusEffect`) — there is no PHP for it, since it is pure CSS shipped with the plugin.
+The built-in effects (`darken`, `frost`, `grayscale`) are registered through the same JS hook (`wp.desktop.registerUnfocusEffect`) — there is no PHP for them, since they are pure CSS shipped with the plugin.
 
 ---
 

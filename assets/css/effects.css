@@ -20,18 +20,68 @@
  */
 
 /*
- * Built-in `darken` effect. Dims unfocused windows — title bar and
- * body alike — so the focused window reads as the active surface.
- * Exposed as custom properties so a theme or plugin can re-tune the
- * intensity without overriding the whole rule.
+ * Built-in effect tuning knobs. Every shipped effect is driven by
+ * custom properties so a theme or plugin can re-tune the intensity
+ * without overriding the whole rule (and so the values read as a set).
  */
 .desktop-mode-window {
+	/* How long an effect takes to ramp in/out as focus moves between
+	 * windows. Drives the `filter` entry of the shared window
+	 * transition (see `window-chrome.css`); applies to every
+	 * filter-based effect (darken, frost, grayscale) in BOTH
+	 * directions — losing focus and regaining it. Bump it up for a
+	 * slower, dreamier blur; drop it for a snappier feel. Collapses to
+	 * instant under `prefers-reduced-motion`. */
+	--desktop-mode-fx-transition-duration: 0.5s;
+
+	/* darken — dim + slight desaturate */
 	--desktop-mode-fx-darken-brightness: 0.82;
 	--desktop-mode-fx-darken-saturate: 0.92;
+
+	/* frost — frosted-glass blur, lifted + cooled */
+	--desktop-mode-fx-frost-blur: 3px;
+	--desktop-mode-fx-frost-saturate: 0.7;
+	--desktop-mode-fx-frost-brightness: 1.08;
+
+	/* grayscale — drain colour, settle brightness */
+	--desktop-mode-fx-grayscale-amount: 1;
+	--desktop-mode-fx-grayscale-brightness: 0.95;
 }
 
+/*
+ * `darken` — dims unfocused windows (title bar and body alike) so the
+ * focused window reads as the active surface.
+ */
 .desktop-mode-window--fx-darken {
 	filter:
 		brightness( var( --desktop-mode-fx-darken-brightness, 0.82 ) )
 		saturate( var( --desktop-mode-fx-darken-saturate, 0.92 ) );
+}
+
+/*
+ * `frost` — throws the window literally out of focus. Blur is the
+ * universal "not in focus" cue; lifting the brightness and pulling the
+ * saturation down turns it into a pane of cold, frosted glass between
+ * the user and the content. `filter: blur()` rasterizes the whole
+ * window subtree — iframe content included — so the frosting is total,
+ * not just chrome-deep.
+ */
+.desktop-mode-window--fx-frost {
+	filter:
+		blur( var( --desktop-mode-fx-frost-blur, 3px ) )
+		saturate( var( --desktop-mode-fx-frost-saturate, 0.7 ) )
+		brightness( var( --desktop-mode-fx-frost-brightness, 1.08 ) );
+}
+
+/*
+ * `grayscale` — drains the colour from unfocused windows so the focused
+ * one is the only thing still in colour. The eye is drawn to colour, so
+ * this makes the active window pop without dimming anything into the
+ * dark. A touch of brightness settling keeps the mono windows from
+ * glaring.
+ */
+.desktop-mode-window--fx-grayscale {
+	filter:
+		grayscale( var( --desktop-mode-fx-grayscale-amount, 1 ) )
+		brightness( var( --desktop-mode-fx-grayscale-brightness, 0.95 ) );
 }

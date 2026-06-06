@@ -2,10 +2,10 @@
 
 An **unfocus effect** is a visual treatment applied to every window
 that isn't the focused one — the family of effects surfaced in
-**OS Settings → Effects → "Unfocused windows"**. The plugin ships one
-built-in, `darken` (it dims unfocused windows), registered through the
-exact same public hook a plugin would use. This page shows a plugin
-adding its own.
+**OS Settings → Effects → "Unfocused windows"**. The plugin ships three
+built-ins — `darken` (dims), `frost` (frosted-glass blur), and
+`grayscale` (drains colour) — each registered through the exact same
+public hook a plugin would use. This page shows a plugin adding its own.
 
 **Status:** Experimental since 0.26.0.
 

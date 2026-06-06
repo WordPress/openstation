@@ -29,6 +29,19 @@ const NONE = 'none';
 /** Data attribute stamped on a window root carrying the active effect id. */
 const EFFECT_ATTR = 'data-desktop-unfocus-effect';
 
+/**
+ * True when the window root contains a `<canvas>` in the parent
+ * document — i.e. a native WebGL/Pixi scene. Such windows are exempt
+ * from unfocus effects: a CSS `filter` over a live WebGL canvas can
+ * cause a GPU context loss that crashes the Pixi render loop. Iframe
+ * windows hide their content in a separate document, so a canvas there
+ * isn't matched (and filtering the iframe element is safe for the
+ * non-WebGL admin pages we host).
+ */
+function hostsCanvas( el: HTMLElement ): boolean {
+	return el.querySelector( 'canvas' ) !== null;
+}
+
 export interface UnfocusEngineDeps {
 	manager: WindowManager;
 	osSettings: OsSettings;
@@ -85,6 +98,20 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 			// leaves a stale class behind.
 			clear( el );
 			if ( ! def || win.isFocused() || win.state === 'minimized' ) {
+				continue;
+			}
+			// Never paint an unfocus effect over a window that hosts a
+			// WebGL `<canvas>` — the native Pixi scenes (content graph,
+			// posts mind-map / tag-cloud, About scene). A CSS `filter`
+			// (or any property that re-rasterizes the subtree) on an
+			// element wrapping a live WebGL canvas can trigger a context
+			// loss, and the shell's Pixi apps run on their own tickers
+			// that then crash on a dead GL context ("null geometry").
+			// See the context-loss guard in `content-graph/scene.ts`.
+			// Canvases inside iframe windows live in a separate document
+			// and aren't reached by this query — that's fine, admin
+			// iframes don't run WebGL.
+			if ( hostsCanvas( el ) ) {
 				continue;
 			}
 			apply( el, def );

@@ -37,6 +37,24 @@ describe( 'effects/registry.ts', () => {
 		).toContain( 'darken' );
 	} );
 
+	test( 'ships the built-in `frost` and `grayscale` effects with classes', async () => {
+		const { listUnfocusEffects, getUnfocusEffect } = await loadRegistry();
+		expect( getUnfocusEffect( 'frost' )?.className ).toBe(
+			'desktop-mode-window--fx-frost',
+		);
+		expect( getUnfocusEffect( 'grayscale' )?.className ).toBe(
+			'desktop-mode-window--fx-grayscale',
+		);
+		// All three built-ins resolve and each carries a description.
+		const ids = listUnfocusEffects().map( ( e ) => e.id );
+		expect( ids ).toEqual(
+			expect.arrayContaining( [ 'darken', 'frost', 'grayscale' ] ),
+		);
+		for ( const id of [ 'darken', 'frost', 'grayscale' ] ) {
+			expect( getUnfocusEffect( id )?.description ).toBeTruthy();
+		}
+	} );
+
 	test( 'register adds an effect', async () => {
 		const { registerUnfocusEffect, getUnfocusEffect } = await loadRegistry();
 		registerUnfocusEffect( {

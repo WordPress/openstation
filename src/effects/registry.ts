@@ -195,3 +195,21 @@ registerUnfocusEffect( {
 	description: __( 'Dim unfocused windows so the focused one stands out.' ),
 	className: 'desktop-mode-window--fx-darken',
 } );
+
+registerUnfocusEffect( {
+	id: 'frost',
+	label: __( 'Frost' ),
+	description: __(
+		'Throw unfocused windows out of focus — a soft, frosted-glass blur, as if you were looking at them through an iced-over pane.',
+	),
+	className: 'desktop-mode-window--fx-frost',
+} );
+
+registerUnfocusEffect( {
+	id: 'grayscale',
+	label: __( 'Grayscale' ),
+	description: __(
+		'Drain the colour from unfocused windows so the focused one is the only thing still in colour — your eye snaps right to it.',
+	),
+	className: 'desktop-mode-window--fx-grayscale',
+} );
