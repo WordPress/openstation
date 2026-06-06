@@ -4,7 +4,7 @@ Tags: desktop, admin, ui, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.9.0
+Stable tag: 0.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -106,6 +106,11 @@ The plugin bundles the following third-party JavaScript library, loaded on deman
 * **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, and built-in canvas wallpapers (e.g. the animated WordPress logo). PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 == Changelog ==
+
+= 0.10.0 =
+* The native Posts, Pages, Users, Plugins, and Comments windows are now opt-in Beta — they no longer replace the classic admin screens by default
+* New "Beta features" section in OS Settings → Features to turn each native window on
+* One-time upgrade resets the native windows to off so the redesigned screens are a deliberate choice
 
 = 0.9.0 =
 * Gate per-user REST routes on desktop mode enabled

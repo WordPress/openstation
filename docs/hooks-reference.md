@@ -1884,11 +1884,11 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-OUT as of 0.8.0** — fresh installs land on it; users can flip it off via **OS Settings → Features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `true`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.8.0–0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
 
 ### `desktop_mode_posts_window_user_can_use` — Stable *(filter, since 0.8.0)*
 
-The two-condition gate: `edit_posts` AND the user hasn't toggled the opt-out. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
+The two-condition gate: `edit_posts` AND the user has turned the opt-in toggle on. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
 
 ```php
 apply_filters( 'desktop_mode_posts_window_user_can_use', bool $can, int $user_id );
@@ -1987,7 +1987,7 @@ Returning `false` from `enabled` (or `matches`) lets the click fall through. An 
 
 ## Native Plugins window (since 0.9.0)
 
-A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-OUT** — fresh installs land on it; users can flip it off via **OS Settings → Features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `true`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
 
 Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_desktop_mode_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.desktop.refreshMenu()` so the dock repaints live.
 
@@ -2001,7 +2001,7 @@ apply_filters( 'desktop_mode_plugins_window_user_can_register', bool $can, int $
 
 ### `desktop_mode_plugins_window_user_can_use` — Stable *(filter, since 0.9.0)*
 
-Combined cap-and-opt-in. Returns `true` when the user has `activate_plugins` AND has not flipped `nativePluginsEnabled` to `false`.
+Combined cap-and-opt-in. Returns `true` when the user has `activate_plugins` AND has turned `nativePluginsEnabled` on (default `false`).
 
 ```php
 apply_filters( 'desktop_mode_plugins_window_user_can_use', bool $can, int $user_id ): bool
@@ -2157,7 +2157,7 @@ apply_filters( 'desktop_mode_plugins_featured_response', array $payload, array $
 
 Replaces the chromeless `edit-comments.php` iframe with a moderation queue native window: Pending / All / Spam / Trash / Mine tabs, bulk approve / spam / trash with an 8-second undo, inline reply editor, keyboard moderation (`j/k/a/s/d/r/e/u/?`), spam-confidence chip per row, author-insights drawer.
 
-Per-user opt-out via OS Settings → Features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
+Per-user opt-in Beta (default `false` as of 0.10.0) via OS Settings → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
 
 ### `desktop_mode_comments_window_user_can_register` — Stable *(filter, since 0.19.0)*
 

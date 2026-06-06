@@ -1,6 +1,6 @@
 # Example: native Posts window
 
-A `<wpd-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-OUT as of 0.8.0** — fresh installs use it by default; users can flip it off via **OS Settings → Features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
+A `<wpd-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.8.0–0.9.0) — fresh installs use the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
 
 > Status: **Experimental** since 0.8.0. Hook names are stable; the JS column-filter shape may grow.
 
@@ -304,7 +304,7 @@ The recycle bin window is already a subscriber — that's how trashing 12 posts 
 ## Hooks reference (Experimental, 0.8.0)
 
 PHP:
-- `desktop_mode_posts_window_user_can_use( $can, $user_id )` — gate. Default: `edit_posts` AND the user hasn't flipped the opt-out toggle off.
+- `desktop_mode_posts_window_user_can_use( $can, $user_id )` — gate. Default: `edit_posts` AND the user has turned the opt-in toggle on.
 - `desktop_mode_posts_window_args( $args )` — args passed to `desktop_mode_register_window()` (title, icon, dimensions, config blob).
 - `desktop_mode_posts_window_template_html( $html )` — the rendered template HTML before `wp_kses`.
 - `desktop_mode_posts_window_query_args( $args )` — outbound REST query params (`_fields`, `_embed`, `post_type`).

@@ -79,42 +79,42 @@ function desktop_mode_default_os_settings() {
 			'apiKeys'   => array(), // Per-provider keys: { [provider_id]: string }.
 			'transport' => 'off',   // Live-progress transport: 'sse' | 'off'. Default off — see DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS.
 		),
-		// Per-user opt-OUT for the native Posts window. When true,
+		// Per-user opt-IN for the native Posts window. When true,
 		// clicking the Posts dock tile opens the `<wpd-table>`-driven
 		// native window instead of the chromeless `edit.php` iframe.
-		// Default ON as of 0.8.0 — the native UI is the canonical
-		// Desktop Mode Posts experience; users can flip it off to fall
-		// back to the classic iframe.
+		// Default OFF as of 0.10.0 — the native windows are now opt-in
+		// Beta. Fresh installs land on the classic iframe; users turn
+		// this on in OS Settings → Features → Beta features to try it.
 		// Per-user override of the WordPress Heartbeat interval, in
 		// seconds. 60s matches Core's "idle" default; values below
 		// 15 force a lower `minimalInterval` too. See
 		// `desktop_mode_apply_heartbeat_rate_setting` for the
 		// `heartbeat_settings` filter that applies this.
 		'heartbeatRate'               => 60,
-		'nativePostsEnabled'          => true,
+		'nativePostsEnabled'          => false,
 		// Per-user list of column keys hidden in the native Posts
 		// window (e.g. array( 'author', 'tags' )). Empty array means
 		// every column is visible. The sticky 'title' column is always
 		// shown — the UI prevents toggling it.
 		'nativePostsHiddenColumns'    => array(),
-		// Per-user opt-OUT for the native Pages window. Same posture as
-		// nativePostsEnabled — defaults ON, users can flip off to keep
-		// the classic `edit.php?post_type=page` iframe.
-		'nativePagesEnabled'          => true,
-		// Per-user opt-OUT for the native Users window. Defaults ON;
-		// the server-side cap gate (`list_users`) means the toggle
-		// only matters for users who could see the Users tile anyway.
-		'nativeUsersEnabled'          => true,
-		// Per-user opt-OUT for the native Plugins window. Defaults ON;
-		// the server-side cap gate (`activate_plugins`) means the
-		// toggle only matters for users who could see the Plugins
-		// tile anyway. When `false`, the dock click falls back to the
-		// classic `plugins.php` chromeless iframe path.
-		'nativePluginsEnabled'        => true,
-		// Per-user opt-OUT for the native Comments window. Defaults ON;
-		// the server-side cap gate (`edit_posts`) means the toggle only
-		// matters for users who could see the Comments tile anyway.
-		'nativeCommentsEnabled'       => true,
+		// Per-user opt-IN for the native Pages window. Same posture as
+		// nativePostsEnabled — defaults OFF (Beta), users opt in to swap
+		// the classic `edit.php?post_type=page` iframe for the native UI.
+		'nativePagesEnabled'          => false,
+		// Per-user opt-IN for the native Users window. Defaults OFF
+		// (Beta); the server-side cap gate (`list_users`) means the
+		// toggle only matters for users who could see the Users tile.
+		'nativeUsersEnabled'          => false,
+		// Per-user opt-IN for the native Plugins window. Defaults OFF
+		// (Beta); the server-side cap gate (`activate_plugins`) means
+		// the toggle only matters for users who could see the Plugins
+		// tile anyway. When `false`, the dock click uses the classic
+		// `plugins.php` chromeless iframe path.
+		'nativePluginsEnabled'        => false,
+		// Per-user opt-IN for the native Comments window. Defaults OFF
+		// (Beta); the server-side cap gate (`edit_posts`) means the
+		// toggle only matters for users who could see the Comments tile.
+		'nativeCommentsEnabled'       => false,
 		// When true, left-clicking the empty wallpaper triggers the
 		// "Show desktop" toggle (macOS-style) and the matching entry is
 		// hidden from the wallpaper context menu. When false (default),

@@ -165,29 +165,30 @@ export const DEFAULTS: OsSettingsState = {
 		apiKeys: {},
 		transport: 'off',
 	},
-	// Opt-out as of 0.8.0. Fresh installs land on the native Posts
-	// window — same screen the rest of desktop mode is built for. A
-	// user can still flip this off to fall back to the chromeless
-	// `edit.php` iframe, but the new default is "use the native UI."
+	// Opt-IN Beta as of 0.10.0. Fresh installs land on the classic
+	// chromeless `edit.php` iframe; a user opts in via OS Settings →
+	// Features → Beta features to get the native Posts window. The
+	// native windows used to default ON (opt-out, 0.8.0) but are now
+	// opt-in so the redesign is a deliberate choice, not imposed.
 	heartbeatRate: 60,
-	nativePostsEnabled: true,
+	nativePostsEnabled: false,
 	nativePostsHiddenColumns: [],
-	// Same opt-out posture as Posts — fresh installs land on the
-	// native Pages window, users can flip back to the iframe.
-	nativePagesEnabled: true,
-	// Native Users window — same opt-out posture. Capability-gated
+	// Same opt-in Beta posture as Posts — fresh installs keep the
+	// iframe; users opt in to the native Pages window.
+	nativePagesEnabled: false,
+	// Native Users window — same opt-in Beta posture. Capability-gated
 	// server-side (the window is only registered for users with
-	// `list_users`), so flipping this off only affects the small set
-	// of users who can see the Users tile in the first place.
-	nativeUsersEnabled: true,
+	// `list_users`), so this toggle only affects the small set of
+	// users who can see the Users tile in the first place.
+	nativeUsersEnabled: false,
 	// Native Plugins window — replaces `plugins.php` and
-	// `plugin-install.php`. Same opt-out posture; cap-gated on
-	// `activate_plugins` server-side, so flipping this off only
-	// affects users who could see the Plugins tile anyway.
-	nativePluginsEnabled: true,
+	// `plugin-install.php`. Same opt-in Beta posture; cap-gated on
+	// `activate_plugins` server-side, so this toggle only affects
+	// users who could see the Plugins tile anyway.
+	nativePluginsEnabled: false,
 	// Native Comments window — replaces `edit-comments.php`. Same
-	// opt-out posture; cap-gated on `edit_posts` server-side.
-	nativeCommentsEnabled: true,
+	// opt-in Beta posture; cap-gated on `edit_posts` server-side.
+	nativeCommentsEnabled: false,
 	showDesktopOnWallpaperClick: false,
 	showPostStatusRibbons: true,
 	foldersSharingEnabled: true,

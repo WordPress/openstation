@@ -17,19 +17,19 @@
 class Tests_DesktopMode_PostsWindowSettings extends WP_UnitTestCase {
 
 	/**
-	 * As of 0.8.0 the native Posts window is the default — fresh
-	 * installs should land on it, with the legacy iframe available
-	 * as an opt-OUT. This guards against an accidental flip back to
-	 * opt-in semantics.
+	 * As of 0.10.0 the native Posts window is opt-in Beta — fresh
+	 * installs land on the classic iframe and users explicitly turn
+	 * the native window ON. This guards against an accidental flip
+	 * back to opt-out (default ON) semantics.
 	 *
 	 * @covers ::desktop_mode_default_os_settings
 	 */
 	public function test_default_includes_native_posts_enabled() {
 		$defaults = desktop_mode_default_os_settings();
 		$this->assertArrayHasKey( 'nativePostsEnabled', $defaults );
-		$this->assertTrue(
+		$this->assertFalse(
 			$defaults['nativePostsEnabled'],
-			'`nativePostsEnabled` defaults ON: the native Posts window is the canonical Desktop Mode experience; users explicitly toggle it OFF to fall back to the classic iframe.'
+			'`nativePostsEnabled` defaults OFF: the native Posts window is opt-in Beta; users explicitly toggle it ON to replace the classic iframe.'
 		);
 	}
 
@@ -85,9 +85,9 @@ class Tests_DesktopMode_PostsWindowSettings extends WP_UnitTestCase {
 		$clean = desktop_mode_sanitize_os_settings(
 			array( 'wallpaper' => 'dark' )
 		);
-		$this->assertTrue(
+		$this->assertFalse(
 			$clean['nativePostsEnabled'],
-			'Missing field should fall back to the default — opt-OUT means the default is ON.'
+			'Missing field should fall back to the default — opt-in Beta means the default is OFF.'
 		);
 	}
 

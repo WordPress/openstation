@@ -93,10 +93,19 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
+	 * Opt-in Beta as of 0.10.0: an admin who has not turned the native
+	 * Plugins window on gets the classic iframe. Opting in opens the gate.
+	 *
 	 * @covers ::desktop_mode_plugins_window_user_can_use
 	 */
-	public function test_gate_open_by_default_for_admins() {
+	public function test_gate_closed_by_default_until_admin_opts_in() {
 		wp_set_current_user( $this->admin_id );
+		$this->assertFalse( desktop_mode_plugins_window_user_can_use() );
+
+		desktop_mode_save_os_settings(
+			$this->admin_id,
+			array( 'nativePluginsEnabled' => true )
+		);
 		$this->assertTrue( desktop_mode_plugins_window_user_can_use() );
 	}
 
@@ -207,15 +216,15 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Default OS Settings payload must include the new flag with its
-	 * documented default (true / opt-out).
+	 * Default OS Settings payload must include the flag with its
+	 * documented default (false / opt-in Beta as of 0.10.0).
 	 *
 	 * @covers ::desktop_mode_default_os_settings
 	 */
-	public function test_native_plugins_enabled_defaults_on() {
+	public function test_native_plugins_enabled_defaults_off() {
 		$defaults = desktop_mode_default_os_settings();
 		$this->assertArrayHasKey( 'nativePluginsEnabled', $defaults );
-		$this->assertTrue( $defaults['nativePluginsEnabled'] );
+		$this->assertFalse( $defaults['nativePluginsEnabled'] );
 	}
 
 	/**
