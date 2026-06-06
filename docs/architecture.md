@@ -131,6 +131,7 @@ Robustness guarantees:
 Persistence:
 
 - `dockRailRenderer` lives on `OsSettingsState` (REST-synced to user meta via `/wp-json/desktop-mode/v1/os-settings`). The field takes any `sanitize_key()`-clean string; the JS-side registry resolves at use time and falls back to `'default'` when the named renderer is missing (plugin deactivated, typo). No server-side allow-list — renderers register from JS at runtime.
+- `unfocusEffect` lives on `OsSettingsState` the same way (default `'darken'`, `'none'` disables). The value is an unfocus-effect registry id or `'none'`; it is lower-cased and stripped to `[a-z0-9_/-]` server-side (slashes preserved so `vendor/sub-id` round-trips — unlike `sanitize_key()`). The engine resolves it at use time and treats an unknown id as "no effect". Plugin effects register from JS at runtime; PHP opt-in via `desktop_mode_register_unfocus_effect_script()` adds the `serverUnfocusEffectScripts` payload entry so a plugin's effect surfaces in OS Settings → Effects without an F5.
 
 See [`docs/dock-customization.md`](./dock-customization.md) for the plugin-author overview and [`docs/examples/`](./examples/README.md) for full walk-throughs.
 

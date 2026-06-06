@@ -64,6 +64,7 @@ import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
+import { buildEffectsSection } from './sections/effects';
 import { buildExtendedSection } from './sections/extended';
 import { buildFeaturesSection } from './sections/features';
 import { buildHelpSection } from './sections/help';
@@ -210,6 +211,16 @@ export function renderOsSettingsPanel(
 			>`,
 			panel: html`<wpd-tabpanel for="apps-icons">
 				<wpd-panel>${ buildAppsIconsSection( ctx ) }</wpd-panel>
+			</wpd-tabpanel>`,
+		},
+		{
+			id: 'effects',
+			order: 27,
+			tab: html`<wpd-tab value="effects"
+				>${ __( 'Effects' ) }</wpd-tab
+			>`,
+			panel: html`<wpd-tabpanel for="effects">
+				<wpd-panel>${ buildEffectsSection( ctx ) }</wpd-panel>
 			</wpd-tabpanel>`,
 		},
 	];

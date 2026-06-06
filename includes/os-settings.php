@@ -65,6 +65,7 @@ function desktop_mode_default_os_settings() {
 		'dockSize'                    => 'default',
 		'desktopLayout'               => 'classic',
 		'dockRailRenderer'            => 'default',
+		'unfocusEffect'               => 'darken',
 		'customGradient'              => array(
 			'from'  => '#2271b1',
 			'to'    => '#7c3aed',
@@ -263,6 +264,21 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		$slug = sanitize_key( $raw['dockRailRenderer'] );
 		if ( '' !== $slug ) {
 			$dock_rail_renderer = $slug;
+		}
+	}
+
+	// Unfocus effect id — accept the `none` sentinel or any registry id.
+	// Effect ids mirror the JS registry pattern `^[a-z0-9_/-]+$` (slashes
+	// allowed for `vendor/sub-id` namespacing), so we lower-case and strip
+	// to that charset rather than using sanitize_key() (which would drop
+	// the slash and break a namespaced id on round-trip). No allow-list:
+	// the JS engine resolves at use time and treats an unknown id as "no
+	// effect".
+	$unfocus_effect = $defaults['unfocusEffect'];
+	if ( isset( $raw['unfocusEffect'] ) && is_string( $raw['unfocusEffect'] ) ) {
+		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['unfocusEffect'] ) );
+		if ( '' !== $slug ) {
+			$unfocus_effect = $slug;
 		}
 	}
 
@@ -515,6 +531,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'dockSize'                    => $dock_size,
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
+		'unfocusEffect'               => $unfocus_effect,
 		'customGradient'              => $custom_gradient,
 		'customImage'                 => $custom_image,
 		'libraryHdOnly'               => $library_hd_only,

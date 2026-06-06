@@ -409,6 +409,38 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
+### `desktop_mode_unfocus_effect_script_registered` — Experimental (since 0.26.0)
+
+Fires after `desktop_mode_register_unfocus_effect_script()` stores an unfocus-effect script handle.
+
+```php
+do_action( 'desktop_mode_unfocus_effect_script_registered', string $handle );
+```
+
+### `desktop_mode_register_unfocus_effect_script( $handle )` — Experimental (PHP function, since 0.26.0)
+
+Declares a WP-registered script handle as an unfocused-window-effect provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerUnfocusEffect()` calls made by the plugin's JS surface in **OS Settings → Effects** (and apply to unfocused windows) **without a page reload**.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-effects',
+        plugins_url( 'js/effects.js', __FILE__ ),
+        array( 'desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-effects' );
+} );
+desktop_mode_register_unfocus_effect_script( 'my-plugin-effects' );
+```
+
+For live unregistration on deactivation, set `owner: 'my-plugin-effects'` on each `registerUnfocusEffect` call. Untagged effects survive past deactivation until the next page reload — graceful backwards-compat.
+
+The built-in `darken` effect is registered through the same JS hook (`wp.desktop.registerUnfocusEffect`) — there is no PHP for it, since it is pure CSS shipped with the plugin.
+
+---
+
 ### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument.

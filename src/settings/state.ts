@@ -121,6 +121,14 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_-]+$/.test( parsed.dockRailRenderer )
 				? parsed.dockRailRenderer
 				: DEFAULTS.dockRailRenderer,
+		// Unfocus effect — any registry id (`vendor/sub-id` allowed) or
+		// the `'none'` sentinel survives; the engine resolves at use
+		// time and treats an unknown id as "no effect".
+		unfocusEffect:
+			typeof parsed.unfocusEffect === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.unfocusEffect )
+				? parsed.unfocusEffect
+				: DEFAULTS.unfocusEffect,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
 		libraryHdOnly:

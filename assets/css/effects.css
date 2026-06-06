@@ -1,0 +1,37 @@
+/**
+ * Desktop Mode — Window effects.
+ *
+ * Visual treatments applied to windows by the unfocus-effect engine
+ * (`src/effects/unfocus-engine.ts`). The engine toggles a per-effect
+ * class on the window root (`.desktop-mode-window`) while the window
+ * is NOT focused; each effect ships the matching rule here (or, for
+ * plugin effects, in the plugin's own stylesheet).
+ *
+ * The fade is driven by the `filter` entry in the shared
+ * `.desktop-mode-window` transition (see `window-chrome.css`), so
+ * effects that animate via `filter` get a smooth two-way transition as
+ * focus moves between windows — and collapse to instant under
+ * `prefers-reduced-motion` along with every other window transition.
+ *
+ * Loaded as an @import from `windows.css` so it ships under the single
+ * `desktop-mode-windows` style handle.
+ *
+ * @since 0.26.0
+ */
+
+/*
+ * Built-in `darken` effect. Dims unfocused windows — title bar and
+ * body alike — so the focused window reads as the active surface.
+ * Exposed as custom properties so a theme or plugin can re-tune the
+ * intensity without overriding the whole rule.
+ */
+.desktop-mode-window {
+	--desktop-mode-fx-darken-brightness: 0.82;
+	--desktop-mode-fx-darken-saturate: 0.92;
+}
+
+.desktop-mode-window--fx-darken {
+	filter:
+		brightness( var( --desktop-mode-fx-darken-brightness, 0.82 ) )
+		saturate( var( --desktop-mode-fx-darken-saturate, 0.92 ) );
+}

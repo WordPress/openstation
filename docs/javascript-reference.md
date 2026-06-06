@@ -1903,6 +1903,51 @@ desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
 
 ---
 
+### `registerUnfocusEffect( def )` — Experimental  *(since 0.26.0)*
+
+Register a visual treatment applied to every window that **isn't** focused — surfaced in **OS Settings → Effects → "Unfocused windows"**. The built-in `darken` effect is registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
+
+**Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, or neither `className` nor `apply` provided).
+
+**`UnfocusEffectDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique. `[a-z0-9_/-]+` (slashes welcome for `vendor/sub-id`). `'none'` is reserved (it is the selector's "no effect" sentinel). Re-registering replaces. |
+| `label` | `string` | Shown in the selector. |
+| `description` | `string` | Optional. Shown under the selector when this effect is active. |
+| `className` | `string` | Optional. CSS class toggled on the window root (`.desktop-mode-window`) while unfocused. The cheap, declarative path — ship the matching rule in your stylesheet. |
+| `apply` | `( el ) => void` | Optional. Imperative apply, called with the window root when it becomes unfocused under this effect. Use when a static class isn't enough. |
+| `clear` | `( el ) => void` | Optional. Teardown, called when the window regains focus or the effect is switched away. Must undo `apply`; the framework removes `className` for you. |
+| `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
+
+At least one of `className` / `apply` is required.
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerUnfocusEffect( {
+        id:        'acme/blur',
+        label:     'Blur',
+        className: 'acme-window--blur', // ship `.acme-window--blur { filter: blur(2px); }`
+        owner:     'my-plugin-effects',
+    } );
+} );
+```
+
+PHP companion (so plugins activated mid-session surface in the selector live):
+
+```php
+desktop_mode_register_unfocus_effect_script( 'my-plugin-effects' );
+```
+
+The raw `desktop-mode.unfocus-effects` JS filter receives the registry array on every read, mirroring `desktop-mode.wallpapers` — use it to reorder, remove, or conditionally swap effects. The user's selection persists in the `unfocusEffect` OS-settings key (effect id or `'none'`; default `'darken'`), readable via `getOsSettings().unfocusEffect`.
+
+### `unregisterUnfocusEffect( id )` / `listUnfocusEffects()` — Experimental  *(since 0.26.0)*
+
+Remove an effect by id, or read the current list (post-filter). `listUnfocusEffects()` always includes the built-in `darken` unless a filter removed it.
+
+---
+
 ### `Window.setTitle( title )` — Stable
 
 Update a window's title bar from outside it. Useful for plugins that want to retitle a preview window as the user types ("Live Preview — My Post"), prefix with status, etc. Fires `desktop-mode.window.title-changed` with `{ windowId, title }` so other subscribers can react.
@@ -2167,7 +2212,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, ai: { enabled, provider, apiKey, transport } }`. `transport` is `'sse' \| 'off'` (default `'off'`) — the user's preferred live-progress transport for AI search; SSE is opt-in because some hosts block long-lived `text/event-stream` connections. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled, provider, apiKey, transport } }`. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `transport` is `'sse' \| 'off'` (default `'off'`) — the user's preferred live-progress transport for AI search; SSE is opt-in because some hosts block long-lived `text/event-stream` connections. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user edits the AI key in the adjacent AI tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript

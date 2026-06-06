@@ -51,6 +51,14 @@ export interface OsSettingsSnapshot {
 	 * @since 0.18.0
 	 */
 	dockRailRenderer: string;
+	/**
+	 * Active unfocused-window effect id; mirrors the unfocus-effect
+	 * registry's resolution. `'darken'` is the shipped built-in,
+	 * `'none'` disables the effect.
+	 *
+	 * @since 0.26.0
+	 */
+	unfocusEffect: string;
 	ai: {
 		enabled: boolean;
 		provider: string;

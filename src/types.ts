@@ -1059,6 +1059,32 @@ export interface DesktopTitleBarButtonScriptServerEntry {
 }
 
 /**
+ * Server-declared unfocus-effect script entry. One per
+ * `desktop_mode_register_unfocus_effect_script()` call. The shell
+ * injects each `scriptUrl` on mid-session activation; the loaded
+ * script calls `wp.desktop.registerUnfocusEffect()` and the effects
+ * registry subscriber re-runs the engine so the new effect appears in
+ * the OS Settings selector without an F5.
+ *
+ * @public
+ * @since 0.26.0
+ */
+export interface DesktopUnfocusEffectScriptServerEntry {
+	/** WordPress script handle — doubles as the effect `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+	/** @since 0.6.0 */
+	scriptBefore?: string[];
+	/** @since 0.6.0 */
+	scriptAfter?: string[];
+	/** @since 0.6.0 */
+	scriptL10n?: string[];
+	/** @since 0.6.0 */
+	scriptTranslations?: string;
+}
+
+/**
  * Server-declared window-theme script entry. One per
  * `desktop_mode_register_window_theme_script()` call. The shell
  * injects each `scriptUrl` on mid-session activation; the loaded
@@ -1571,6 +1597,16 @@ export interface DesktopConfig {
 	 * @since 0.17.0
 	 */
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_unfocus_effect_script()`. Shell injects
+	 * each URL on boot and on mid-session activation so newly-installed
+	 * plugins surface their unfocus effect in OS Settings → Effects
+	 * live. Owner-tagged registrations live-unregister on deactivation.
+	 *
+	 * @since 0.26.0
+	 */
+	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_window_theme_script()`. The shell loads

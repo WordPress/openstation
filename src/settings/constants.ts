@@ -151,6 +151,7 @@ export const DEFAULTS: OsSettingsState = {
 	dockSize: 'default',
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
+	unfocusEffect: 'darken',
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',

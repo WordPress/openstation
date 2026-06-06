@@ -97,6 +97,9 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 |---|---|---|
 | `registerTitleBarButton` | `( def: TitleBarButtonDef ) => void` | Stable *(0.17.0)* |
 | `unregisterTitleBarButton` | `( id: string ) => void` | Stable *(0.17.0)* |
+| `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental *(0.26.0)* |
+| `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental *(0.26.0)* |
+| `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental *(0.26.0)* |
 | `registerWindowTheme` | `( def: WindowThemeDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowControl` | `( def: WindowControlDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowSlot` | `( def: WindowSlotDef ) => void` | Stable *(0.6.0)* |
