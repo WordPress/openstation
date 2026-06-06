@@ -28,6 +28,14 @@ import type { UnfocusEffectDef } from './types';
 
 type RegistryListener = () => void;
 
+/**
+ * Reserved effect id meaning "no effect". It is offered in the OS
+ * Settings selector and is the engine's sentinel, but it is never a
+ * registered def — `registerUnfocusEffect` rejects it. Single source
+ * of truth, imported by the engine and the settings section.
+ */
+export const UNFOCUS_EFFECT_NONE = 'none';
+
 interface UnfocusEffectRegistryStore {
 	registry: Map< string, UnfocusEffectDef >;
 	listeners: Set< RegistryListener >;
@@ -72,7 +80,7 @@ export function registerUnfocusEffect( def: UnfocusEffectDef ): void {
 			errors.push(
 				`id (must match ${ UNFOCUS_EFFECT_ID } — lowercase alphanum, hyphens, underscores, slashes for vendor/sub-id)`,
 			);
-		} else if ( def.id.trim().toLowerCase() === 'none' ) {
+		} else if ( def.id.trim().toLowerCase() === UNFOCUS_EFFECT_NONE ) {
 			// `none` is the engine's reserved "no effect" sentinel — it
 			// is offered in the selector but is never a registered def.
 			errors.push( 'id ("none" is reserved)' );

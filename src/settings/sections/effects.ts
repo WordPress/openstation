@@ -20,12 +20,10 @@ import { html, render } from '../../ui/core';
 import {
 	listUnfocusEffects,
 	subscribeUnfocusEffects,
+	UNFOCUS_EFFECT_NONE as NONE,
 } from '../../effects/registry';
 import type { UnfocusEffectDef } from '../../effects/types';
 import type { SettingsCtx } from '../types';
-
-/** The reserved value meaning "no effect"; mirrors the engine. */
-const NONE = 'none';
 
 export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 	const wrapper = document.createElement( 'div' );
@@ -99,6 +97,13 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 			observer.disconnect();
 		}
 	} );
+	// Note: this watches `wrapper.parentNode` for direct child removals,
+	// so it fires when the panel unmounts `wrapper` — the only teardown
+	// path in practice (the OS Settings panel always removes the section
+	// wrapper directly). If an ancestor higher up were detached without
+	// touching the parent's child list, the observer wouldn't fire and
+	// the registry listener would leak. Matches the accepted pattern in
+	// the sibling settings sections (e.g. `dock-rail-renderer.ts`).
 	queueMicrotask( () => {
 		if ( wrapper.parentNode ) {
 			observer.observe( wrapper.parentNode, {

@@ -186,4 +186,61 @@ describe( 'effects/unfocus-engine.ts', () => {
 		expect( a.element.classList.contains( DARKEN_CLASS ) ).toBe( true );
 		expect( b.element.classList.contains( DARKEN_CLASS ) ).toBe( false );
 	} );
+
+	test( 'removes the applied class even after the effect is unregistered', async () => {
+		const { engine, registry } = await loadModules();
+		const pluginClass = 'plugin-fx-glow';
+		registry.registerUnfocusEffect( {
+			id: 'plugin/glow',
+			label: 'Glow',
+			className: pluginClass,
+			owner: 'plugin-a',
+		} );
+		const unfocused = makeWin( 'b', false );
+		// User has the plugin effect selected.
+		const { osSettings } = makeOsSettings( 'plugin/glow' );
+
+		engine.startUnfocusEngine( {
+			manager: makeManager( [ unfocused ] ),
+			osSettings,
+		} );
+		expect( unfocused.element.classList.contains( pluginClass ) ).toBe(
+			true,
+		);
+
+		// Plugin deactivates: its def leaves the registry, which fires
+		// the engine's registry subscriber → recompute. The class must
+		// be removed even though the registry can no longer map the id
+		// back to its class.
+		registry.unregisterUnfocusEffectsByOwner( 'plugin-a' );
+
+		expect( unfocused.element.classList.contains( pluginClass ) ).toBe(
+			false,
+		);
+		expect(
+			unfocused.element.hasAttribute(
+				'data-desktop-unfocus-effect-class',
+			),
+		).toBe( false );
+	} );
+
+	test( 'a second startUnfocusEngine call is a no-op (no doubled listeners)', async () => {
+		const { engine } = await loadModules();
+		const { osSettings } = makeOsSettings( 'darken' );
+		const manager = makeManager( [ makeWin( 'a', true ) ] );
+
+		const spy = vi.spyOn( document, 'addEventListener' );
+
+		engine.startUnfocusEngine( { manager, osSettings } );
+		const afterFirst = spy.mock.calls.length;
+
+		engine.startUnfocusEngine( { manager, osSettings } );
+		const afterSecond = spy.mock.calls.length;
+
+		// The first call wired the listeners; the second added none.
+		expect( afterFirst ).toBeGreaterThan( 0 );
+		expect( afterSecond ).toBe( afterFirst );
+
+		spy.mockRestore();
+	} );
 } );

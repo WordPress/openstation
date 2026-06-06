@@ -18,16 +18,38 @@
  * @since 0.26.0
  */
 
-import { getUnfocusEffect, listUnfocusEffects, subscribeUnfocusEffects } from './registry';
+import {
+	getUnfocusEffect,
+	listUnfocusEffects,
+	subscribeUnfocusEffects,
+	UNFOCUS_EFFECT_NONE,
+} from './registry';
 import type { UnfocusEffectDef } from './types';
 import type { OsSettings } from '../settings';
 import type { WindowManager } from '../window-manager';
 
-/** The reserved id that means "no effect". Never a registered def. */
-const NONE = 'none';
-
 /** Data attribute stamped on a window root carrying the active effect id. */
 const EFFECT_ATTR = 'data-desktop-unfocus-effect';
+
+/**
+ * Data attribute stamped with the exact CSS class an effect applied.
+ * Persisting the class (not just the effect id) means `clear()` can
+ * always remove it — even after the effect's def has been unregistered
+ * (plugin deactivation), when the registry can no longer tell us which
+ * class an id used.
+ */
+const EFFECT_CLASS_ATTR = 'data-desktop-unfocus-effect-class';
+
+/**
+ * Module-level once-guard. The engine wires `document` event listeners
+ * that — unlike registry subscribers held in a Set — can't be cheaply
+ * deduped or inspected after the fact, so a double `startUnfocusEngine`
+ * (HMR, a future refactor, test bleed) would silently double every
+ * `recompute`. The engine is only imported by the main shell bundle,
+ * so a plain module-level flag is sufficient; `vi.resetModules()`
+ * resets it between tests.
+ */
+let _started = false;
 
 /**
  * True when the window root contains a `<canvas>` in the parent
@@ -54,22 +76,40 @@ export interface UnfocusEngineDeps {
  * navigation, which discards the listeners with it).
  */
 export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps ): void {
+	if ( _started ) {
+		return;
+	}
+	_started = true;
+
 	let currentId = osSettings.getOsSettingsSnapshot().unfocusEffect;
 
-	/** Strip every effect marker we might have set from a window root. */
-	const clear = ( el: HTMLElement ): void => {
-		// Remove the class for whatever effect the element currently
-		// carries (read from the data attr) even if that def has since
-		// been unregistered, plus defensively sweep all known classes.
+	/**
+	 * Strip every effect marker we might have set from a window root.
+	 *
+	 * @param el         Window root.
+	 * @param allEffects Snapshot of registered effects, hoisted out of
+	 *                   the per-window loop so the `applyFilters` behind
+	 *                   `listUnfocusEffects()` runs once per recompute,
+	 *                   not once per window.
+	 */
+	const clear = ( el: HTMLElement, allEffects: UnfocusEffectDef[] ): void => {
+		// Remove the exact class we applied — read from the dedicated
+		// attribute so it works even after the effect's def has been
+		// unregistered (the registry can no longer map the id → class).
+		const storedClass = el.getAttribute( EFFECT_CLASS_ATTR );
+		if ( storedClass ) {
+			el.classList.remove( storedClass );
+			el.removeAttribute( EFFECT_CLASS_ATTR );
+		}
+		// Run the effect's own teardown if it's still registered.
 		const priorId = el.getAttribute( EFFECT_ATTR );
 		if ( priorId ) {
-			const prior = getUnfocusEffect( priorId );
-			if ( prior?.className ) {
-				el.classList.remove( prior.className );
-			}
-			prior?.clear?.( el );
+			getUnfocusEffect( priorId )?.clear?.( el );
 		}
-		for ( const def of listUnfocusEffects() ) {
+		// Defensive sweep across still-registered effects, in case an
+		// effect's class was added by some path that didn't stamp the
+		// attribute.
+		for ( const def of allEffects ) {
 			if ( def.className ) {
 				el.classList.remove( def.className );
 			}
@@ -81,6 +121,7 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 	const apply = ( el: HTMLElement, def: UnfocusEffectDef ): void => {
 		if ( def.className ) {
 			el.classList.add( def.className );
+			el.setAttribute( EFFECT_CLASS_ATTR, def.className );
 		}
 		el.setAttribute( EFFECT_ATTR, def.id );
 		def.apply?.( el );
@@ -88,7 +129,12 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 
 	const recompute = (): void => {
 		const def =
-			currentId === NONE ? undefined : getUnfocusEffect( currentId );
+			currentId === UNFOCUS_EFFECT_NONE
+				? undefined
+				: getUnfocusEffect( currentId );
+		// One filter call per recompute, shared across every window's
+		// clear() sweep below.
+		const allEffects = listUnfocusEffects();
 		for ( const win of manager.getAll() ) {
 			const el = win.element;
 			if ( ! el ) {
@@ -96,7 +142,7 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 			}
 			// Reset first so switching effects (or to "none") never
 			// leaves a stale class behind.
-			clear( el );
+			clear( el, allEffects );
 			if ( ! def || win.isFocused() || win.state === 'minimized' ) {
 				continue;
 			}
