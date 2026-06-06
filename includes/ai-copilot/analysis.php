@@ -138,65 +138,50 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
 // ---------------------------------------------------------------------------
 
 /**
- * Saves an AI analysis result as meta for the given entity.
+ * Saves an AI analysis result as comment meta.
+ *
+ * Comments are the only entity the copilot analyzes. The `$entity_type`
+ * parameter is retained for call-site/signature stability but only
+ * `'comment'` is supported — any other value is a no-op that returns false.
  *
  * @since 0.14.0
  *
- * @param string $entity_type 'post' | 'term' | 'comment'.
- * @param int    $entity_id
+ * @param string $entity_type Only `'comment'` is supported.
+ * @param int    $entity_id   Comment ID.
  * @param array  $analysis    The structured output array from OpenAI.
  * @return bool
  */
 function desktop_mode_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
 	$entity_id = (int) $entity_id;
-	if ( $entity_id <= 0 ) {
+	if ( $entity_id <= 0 || 'comment' !== $entity_type ) {
 		return false;
 	}
 
 	// Stamp when the analysis was performed so consumers can detect staleness.
 	$analysis['analyzed_at'] = time();
 
-	switch ( $entity_type ) {
-		case 'post':
-			return false !== update_post_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
-
-		case 'term':
-			return false !== update_term_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
-
-		case 'comment':
-			return false !== update_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
-	}
-
-	return false;
+	return false !== update_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
 }
 
 /**
- * Retrieves a previously saved AI analysis, or null if none exists.
+ * Retrieves a previously saved comment AI analysis, or null if none exists.
+ *
+ * Only `'comment'` is supported (see {@see desktop_mode_ai_save_meta}); any
+ * other `$entity_type` returns null.
  *
  * @since 0.14.0
  *
- * @param string $entity_type 'post' | 'term' | 'comment'.
- * @param int    $entity_id
+ * @param string $entity_type Only `'comment'` is supported.
+ * @param int    $entity_id   Comment ID.
  * @return array|null
  */
 function desktop_mode_ai_get_meta( $entity_type, $entity_id ) {
 	$entity_id = (int) $entity_id;
-	if ( $entity_id <= 0 ) {
+	if ( $entity_id <= 0 || 'comment' !== $entity_type ) {
 		return null;
 	}
 
-	$raw = null;
-	switch ( $entity_type ) {
-		case 'post':
-			$raw = get_post_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
-			break;
-		case 'term':
-			$raw = get_term_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
-			break;
-		case 'comment':
-			$raw = get_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
-			break;
-	}
+	$raw = get_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
 
 	return is_array( $raw ) && ! empty( $raw ) ? $raw : null;
 }

@@ -5,8 +5,11 @@
  * Agentic search loop: the user describes something in natural language and
  * the OpenAI agent calls focused tools — search_posts, search_pages,
  * search_comments — choosing the right one based on query semantics. Each
- * tool fetches 10 entities with their _desktop_mode_ai_analysis meta so the model
- * can compare AI-generated summaries to the user's description.
+ * tool runs WordPress's native search (WP_Query `s=` / get_comments
+ * `search=`) for the keywords the model distils from the request, then
+ * returns up to 10 matching entities with their real title + content
+ * excerpt for the model to compare to the user's description. No AI
+ * pre-analysis is required — every published post/page/comment is findable.
  *
  * Three tools instead of one parameter:
  *   - "I remember a comment where someone said congratulations…" → agent
@@ -449,6 +452,18 @@ function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
+	// Prime the parent posts in a single query so the per-comment
+	// get_post() calls below are cache hits, not N+1 round-trips.
+	$parent_ids = array_unique( array_map(
+		static function ( $c ) {
+			return (int) $c->comment_post_ID;
+		},
+		$comments
+	) );
+	if ( $parent_ids ) {
+		_prime_post_caches( $parent_ids, false, false );
+	}
+
 	$items = array();
 	foreach ( $comments as $comment ) {
 		$parent_post  = get_post( $comment->comment_post_ID );
@@ -628,26 +643,6 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 // ---------------------------------------------------------------------------
 
 /**
- * Runs the agentic content-search loop.
- *
- * The model receives three focused tools — search_posts, search_pages,
- * search_comments — and a system prompt that guides it to choose the right
- * tool based on query semantics. "Someone said congratulations" → it calls
- * search_comments. "I wrote about paella" → it calls search_posts. No
- * entity_type routing from the caller is needed for a fresh search.
- *
- * For continuation runs ($initial_tool + $start_offset > 0), the system
- * message primes the agent to resume from the last searched position.
- *
- * @since 0.14.0
- *
- * @param string      $api_key      OpenAI API key.
- * @param string      $query        User's natural-language search.
- * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
- * @param int         $start_offset Offset to resume from (0 for fresh).
- * @return array|WP_Error
- */
-/**
  * Returns a friendly progress message for a tool name — surfaced to the
  * client via SSE so the user sees "Looking through your posts…" rather
  * than the raw tool call.
@@ -670,6 +665,30 @@ function desktop_mode_ai_progress_message( $tool_name ) {
 	return 'Thinking…';
 }
 
+/**
+ * Runs the agentic content-search loop.
+ *
+ * The model receives focused tools — search_posts, search_pages,
+ * search_comments, search_comments_by_post — and a system prompt that
+ * guides it to choose the right one based on query semantics and pass the
+ * distilled keywords as `query`. "Someone said congratulations" → it calls
+ * search_comments. "I wrote about paella" → it calls search_posts. No
+ * entity_type routing from the caller is needed for a fresh search.
+ *
+ * For continuation runs ($initial_tool + $start_offset > 0), the system
+ * message primes the agent to resume from the last searched position with
+ * the same keywords.
+ *
+ * @since 0.14.0
+ *
+ * @param string      $api_key      OpenAI API key.
+ * @param string      $query        User's natural-language search.
+ * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
+ * @param int         $start_offset Offset to resume from (0 for fresh).
+ * @param callable|null $on_progress Optional progress emitter for SSE ticks.
+ * @param array       $extra        Extensibility context (command tools, prompt overrides, …).
+ * @return array|WP_Error
+ */
 function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
 	/**
 	 * Progress emitter — sends a tick to the caller if they provided a
