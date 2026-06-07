@@ -30,6 +30,15 @@ type SavePhase = 'idle' | 'pending' | 'saving' | 'saved' | 'failed';
 interface StickyNotesLayerOptions {
 	host: HTMLElement;
 	config: StickyNotesRestConfig;
+	/**
+	 * Whether the Gutenberg Guidelines experiment (the `wp_guideline`
+	 * CPT + `wp_guideline_type` taxonomy) is registered server-side.
+	 * When `false`, `boot()` returns immediately without touching the
+	 * network — the supporting REST routes would only 404. Defaults to
+	 * `true` so a shell that doesn't pass the flag keeps the prior
+	 * boot-and-swallow behavior.
+	 */
+	available?: boolean;
 	openArtifact: ( url: string, title: string, guidelineId: number ) => void;
 	getActiveDesktopId?: () => string;
 	onError?: ( message: string ) => void;
@@ -50,6 +59,7 @@ const SAVE_DEBOUNCE_MS = 1000;
 export class StickyNotesLayer {
 	private host: HTMLElement;
 	private config: StickyNotesRestConfig;
+	private available: boolean;
 	private openArtifact: ( url: string, title: string, guidelineId: number ) => void;
 	private getActiveDesktopId: () => string;
 	private onError?: ( message: string ) => void;
@@ -64,12 +74,24 @@ export class StickyNotesLayer {
 	constructor( options: StickyNotesLayerOptions ) {
 		this.host = options.host;
 		this.config = options.config;
+		this.available = options.available ?? true;
 		this.openArtifact = options.openArtifact;
 		this.getActiveDesktopId = options.getActiveDesktopId ?? ( () => 'desktop-1' );
 		this.onError = options.onError;
 	}
 
 	async boot(): Promise< void > {
+		// Sticky notes ride on Gutenberg's Guidelines experiment (the
+		// `wp_guideline` CPT + `wp_guideline_type` taxonomy). When that
+		// experiment isn't registered the supporting REST routes 404 —
+		// harmless (the errors below are swallowed) but noisy in the
+		// console and a wasted round-trip on every boot. The shell tells
+		// us up front whether the routes exist; skip the boot entirely
+		// when they don't. `available` defaults to `true`, so a shell
+		// that predates the flag keeps the prior boot-and-swallow path.
+		if ( ! this.available ) {
+			return;
+		}
 		try {
 			this.terms = await resolveStickyTerms( this.config );
 			if ( ! this.terms ) {

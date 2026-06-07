@@ -17,6 +17,38 @@ const DESKTOP_MODE_STICKY_NOTES_POST_TYPE = 'wp_guideline';
 const DESKTOP_MODE_STICKY_NOTES_TAXONOMY  = 'wp_guideline_type';
 
 /**
+ * Whether the sticky-notes surface is available on this site.
+ *
+ * Sticky notes are backed by Gutenberg's Guidelines experiment, which
+ * registers the `wp_guideline` CPT and `wp_guideline_type` taxonomy
+ * (exposed at `wp/v2/guidelines` + `wp/v2/wp_guideline_type`) only when
+ * the experiment is enabled — Gutenberg plugin 22.7+, opt-in under
+ * Gutenberg → Experiments. Without it those REST routes return 404, so
+ * the shell skips booting the sticky-notes layer entirely and the
+ * Heartbeat handler short-circuits.
+ *
+ * @since 0.11.0
+ *
+ * @return bool True when both the guideline CPT and taxonomy are registered.
+ */
+function desktop_mode_sticky_notes_is_available() {
+	$available = post_type_exists( DESKTOP_MODE_STICKY_NOTES_POST_TYPE )
+		&& taxonomy_exists( DESKTOP_MODE_STICKY_NOTES_TAXONOMY );
+
+	/**
+	 * Filters whether the sticky-notes surface is available.
+	 *
+	 * Lets a site force sticky notes off (return `false`) or wire the
+	 * layer up to a different guidelines-compatible backend.
+	 *
+	 * @since 0.11.0
+	 *
+	 * @param bool $available Whether the guideline CPT + taxonomy are registered.
+	 */
+	return (bool) apply_filters( 'desktop_mode_sticky_notes_available', $available );
+}
+
+/**
  * Add sticky-note deltas to the Heartbeat response.
  *
  * @since 0.21.0
@@ -35,10 +67,7 @@ function desktop_mode_sticky_notes_heartbeat_received( $response, $data ) {
 	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
 		return $response;
 	}
-	if (
-		! post_type_exists( DESKTOP_MODE_STICKY_NOTES_POST_TYPE ) ||
-		! taxonomy_exists( DESKTOP_MODE_STICKY_NOTES_TAXONOMY )
-	) {
+	if ( ! desktop_mode_sticky_notes_is_available() ) {
 		return $response;
 	}
 

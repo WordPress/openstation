@@ -377,6 +377,7 @@ function desktop_mode_enqueue_assets() {
 	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/desktop-mode/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
 	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
+	 *     @type array  $stickyNotes  { available: bool } — whether the Gutenberg Guidelines experiment (the `wp_guideline` CPT + `wp_guideline_type` taxonomy) is registered. The shell skips booting the sticky-notes layer when false, avoiding the REST probes that 404 without the experiment. See `desktop_mode_sticky_notes_is_available()`.
 	 * }
 	 */
 	$config = apply_filters(
@@ -462,6 +463,14 @@ function desktop_mode_enqueue_assets() {
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
 			'seenIntros'            => desktop_mode_get_seen_intros( get_current_user_id() ),
 			'seenIntrosUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros' ) ),
+			// Sticky notes ride on Gutenberg's Guidelines experiment
+			// (the `wp_guideline` CPT + `wp_guideline_type` taxonomy).
+			// When that experiment isn't active the `wp/v2/guidelines`
+			// + `wp/v2/wp_guideline_type` probes 404 — harmless but
+			// noisy — so the shell skips booting the layer entirely.
+			'stickyNotes'           => array(
+				'available' => desktop_mode_sticky_notes_is_available(),
+			),
 			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? desktop_mode_ai_get_platform_settings() : null,
@@ -542,13 +551,22 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
  * driven) and isn't invoked in admin context, so we emit our own
  * tags.
  *
- * Four targets by default:
- *   - `desktop[.min].js`        — the shell bundle (biggest win).
- *   - `desktop.css`             — shell base CSS, needed for first paint.
- *   - `window-system[.min].js`  — lazy bundle preloaded by JS after
- *     first paint; hinting in HTML lets the browser start the fetch
- *     in parallel with the main bundle's parse instead of waiting.
- *   - `shell-overlays[.min].js` — same rationale.
+ * Four targets by default, split across two relationship types:
+ *   - `desktop[.min].js`  (preload)  — the shell bundle (biggest win),
+ *     consumed by the footer `<script>` on this very load.
+ *   - `desktop.css`       (preload)  — shell base CSS, needed for first
+ *     paint. Its registered handle is `filemtime`-stamped so the
+ *     stylesheet URL matches this hint exactly (a `?ver=` mismatch makes
+ *     the browser treat the preload as unused).
+ *   - `window-system[.min].js`  (prefetch) — lazy bundle `<script>`-
+ *     injected by the main bundle on the first `open()`.
+ *   - `shell-overlays[.min].js` (prefetch) — lazy bundle injected on the
+ *     first toast / dialog / context-menu.
+ *
+ * The lazy bundles use `prefetch` rather than `preload`: they're loaded
+ * later (often beyond the ~3s window Chrome allows a `preload` before it
+ * warns "preloaded but not used in time"), so `prefetch` keeps the early
+ * low-priority cache fill without the must-use-now contract.
  *
  * Plugins can extend the hint list via the `desktop_mode_preload_hints`
  * filter — e.g. a settings tab whose bundle the user opens on every
@@ -580,36 +598,55 @@ function desktop_mode_print_preload_hints() {
 	};
 
 	$hints = array(
+		// Critical path — consumed on this very page load (the footer
+		// `<script>` and the shell stylesheet), so `preload` is correct.
 		array(
 			'href' => $build_url( 'assets/js/desktop' . $suffix . '.js' ),
 			'as'   => 'script',
+			'rel'  => 'preload',
 		),
 		array(
 			'href' => $build_url( 'assets/css/desktop.css' ),
 			'as'   => 'style',
+			'rel'  => 'preload',
 		),
+		// Lazy bundles — `<script>`-injected by the main bundle after
+		// first paint (window-system on the first `open()`, shell-overlays
+		// on the first toast / dialog / context-menu). They are frequently
+		// NOT requested within the ~3s window Chrome allows a `preload`,
+		// which produced "resource was preloaded but not used in time"
+		// warnings. `prefetch` is the right hint: same early, low-priority
+		// fetch into the cache, but no must-use-now contract — so the
+		// injected `<script src>` is served from cache with no warning.
 		array(
 			'href' => $build_url( 'assets/js/window-system' . $suffix . '.js' ),
 			'as'   => 'script',
+			'rel'  => 'prefetch',
 		),
 		array(
 			'href' => $build_url( 'assets/js/shell-overlays' . $suffix . '.js' ),
 			'as'   => 'script',
+			'rel'  => 'prefetch',
 		),
 	);
 
 	/**
 	 * Filters the list of resource preload hints emitted in `<head>`.
 	 *
-	 * Each entry is a `{ 'href' => string, 'as' => string }` array
-	 * rendered as `<link rel="preload" as="<as>" href="<href>">`.
-	 * Unrecognized entries are silently skipped — keep the contract
-	 * permissive so a misconfigured plugin can't tank first paint.
+	 * Each entry is a `{ 'href' => string, 'as' => string,
+	 * 'rel' => 'preload'|'prefetch' }` array rendered as
+	 * `<link rel="<rel>" as="<as>" href="<href>">`. `rel` is optional and
+	 * defaults to `preload`; any value other than `prefetch` is coerced
+	 * back to `preload`. Unrecognized entries are silently skipped — keep
+	 * the contract permissive so a misconfigured plugin can't tank first
+	 * paint.
 	 *
 	 * @since 0.8.9
+	 * @since 0.11.0 Entries may carry a `rel` key (`preload` | `prefetch`).
 	 *
-	 * @param array $hints Default hints (main bundle, base CSS,
-	 *                     window-system, shell-overlays).
+	 * @param array $hints Default hints (main bundle + base CSS as
+	 *                     `preload`; window-system + shell-overlays as
+	 *                     `prefetch`).
 	 */
 	$hints = apply_filters( 'desktop_mode_preload_hints', $hints );
 
@@ -626,8 +663,16 @@ function desktop_mode_print_preload_hints() {
 		if ( '' === $href || '' === $as ) {
 			continue;
 		}
+		// `preload` (critical, used on this load) vs `prefetch` (lazy,
+		// used on a later interaction). Anything else falls back to
+		// `preload` so a typo can't emit an invalid relationship.
+		$rel = isset( $hint['rel'] ) ? (string) $hint['rel'] : 'preload';
+		if ( 'prefetch' !== $rel ) {
+			$rel = 'preload';
+		}
 		printf(
-			'<link rel="preload" as="%s" href="%s" />' . "\n",
+			'<link rel="%s" as="%s" href="%s" />' . "\n",
+			esc_attr( $rel ),
 			esc_attr( $as ),
 			esc_url( $href )
 		);

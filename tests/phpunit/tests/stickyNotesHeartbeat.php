@@ -132,6 +132,60 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::desktop_mode_sticky_notes_is_available
+	 */
+	public function test_is_available_when_guidelines_surface_is_registered() {
+		$this->assertTrue( desktop_mode_sticky_notes_is_available() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sticky_notes_is_available
+	 */
+	public function test_is_not_available_without_the_guidelines_taxonomy() {
+		unregister_taxonomy( DESKTOP_MODE_STICKY_NOTES_TAXONOMY );
+
+		$this->assertFalse( desktop_mode_sticky_notes_is_available() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sticky_notes_is_available
+	 */
+	public function test_availability_can_be_forced_off_by_filter() {
+		add_filter( 'desktop_mode_sticky_notes_available', '__return_false' );
+
+		$this->assertFalse(
+			desktop_mode_sticky_notes_is_available(),
+			'The desktop_mode_sticky_notes_available filter should be able to force the surface off.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_sticky_notes_heartbeat_received
+	 * @covers ::desktop_mode_sticky_notes_is_available
+	 */
+	public function test_heartbeat_skips_delta_when_surface_is_unavailable() {
+		unregister_taxonomy( DESKTOP_MODE_STICKY_NOTES_TAXONOMY );
+
+		$response = desktop_mode_sticky_notes_heartbeat_received(
+			array( 'other' => 'untouched' ),
+			array(
+				'desktop_mode_sticky_notes_subscribe' => array(
+					'stickyTermId' => 123,
+					'knownIds'     => array(),
+					'version'      => 0,
+				),
+			)
+		);
+
+		$this->assertSame( 'untouched', $response['other'] );
+		$this->assertArrayNotHasKey(
+			'desktop_mode_sticky_notes',
+			$response,
+			'No sticky delta should be computed when the Guidelines surface is absent.'
+		);
+	}
+
 	protected function register_guidelines_surface() {
 		if ( ! post_type_exists( DESKTOP_MODE_STICKY_NOTES_POST_TYPE ) ) {
 			register_post_type(

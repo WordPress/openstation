@@ -3130,6 +3130,11 @@ function init(): void {
 	bootStickyNotes( {
 		host: desktopArea,
 		config,
+		// Only boot when the Gutenberg Guidelines experiment is live
+		// server-side; otherwise the layer's REST probes would 404. The
+		// flag is `undefined` on shells older than the one that added it
+		// → the layer treats that as available (boot and swallow).
+		available: config.stickyNotes?.available,
 		getActiveDesktopId: () => manager.getActiveDesktopId(),
 		openArtifact: ( url, title ) => {
 			const id = deriveWindowId( url, config.adminUrl );

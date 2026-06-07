@@ -28,7 +28,7 @@ const DESKTOP_MODE_WELCOME_INTRO_SLUG = 'activation-welcome';
 /**
  * Decides whether the welcome dialog should render on the current request.
  *
- * Five gates:
+ * Six gates:
  *
  * 1. We're inside `/wp-admin` (`is_admin()`).
  * 2. The user is logged in and can `read` (sanity gate — the dialog has
@@ -36,8 +36,15 @@ const DESKTOP_MODE_WELCOME_INTRO_SLUG = 'activation-welcome';
  * 3. The request is NOT chromeless — chromeless pages are iframes
  *    rendering inside the desktop shell; the parent shell already shows
  *    its own UX.
- * 4. The user has not already dismissed this intro.
- * 5. The `desktop_mode_show_welcome_dialog` filter returns truthy, so
+ * 4. Desktop Mode is NOT already enabled for the user. This is a
+ *    "switch to Desktop Mode" promo, so it has nothing to say once the
+ *    user is in the shell. The desktop shell's *parent* page is admin
+ *    context and is not chromeless, so without this gate the dialog
+ *    re-renders there the moment the user clicks "Enable it now" — read
+ *    as a duplicate dialog, because the fire-and-forget seen-intro POST
+ *    races the redirect into the shell and often loses.
+ * 5. The user has not already dismissed this intro.
+ * 6. The `desktop_mode_show_welcome_dialog` filter returns truthy, so
  *    sites can suppress the dialog entirely (e.g. managed-host onboarding
  *    flows that ship their own).
  *
@@ -53,6 +60,9 @@ function desktop_mode_should_show_welcome_dialog() {
 		return false;
 	}
 	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+		return false;
+	}
+	if ( function_exists( 'desktop_mode_is_enabled' ) && desktop_mode_is_enabled() ) {
 		return false;
 	}
 	$user_id = get_current_user_id();
@@ -629,6 +639,13 @@ function desktop_mode_render_welcome_dialog() {
 		// again next page load — exactly the behavior a user would
 		// expect from a "save my dismissal" call that didn't reach the
 		// server.
+		//
+		// `keepalive: true` keeps the POST alive across the navigation
+		// that "Enable it now" triggers — otherwise the redirect into the
+		// shell can abort the in-flight request and the dismissal is lost.
+		// (The `desktop_mode_is_enabled()` gate already stops the dialog
+		// re-rendering in the shell, but this keeps the seen-state correct
+		// for the classic admin too, e.g. if the user switches back.)
 		try {
 			var headers = { 'Content-Type': 'application/json' };
 			if ( cfg.nonce ) {
@@ -637,6 +654,7 @@ function desktop_mode_render_welcome_dialog() {
 			fetch( cfg.url, {
 				method: 'POST',
 				credentials: 'same-origin',
+				keepalive: true,
 				headers: headers,
 				body: JSON.stringify( { slug: cfg.slug } ),
 			} ).catch( function () {} );

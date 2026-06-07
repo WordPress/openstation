@@ -28,6 +28,7 @@ afterEach( () => {
 	_resetHeartbeatBusForTests();
 	__resetStickyNotesHeartbeatForTests();
 	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
 	window.localStorage.removeItem( 'desktop-mode-sticky-notes-geometry' );
 	delete ( window as unknown as { jQuery?: unknown } ).jQuery;
 } );
@@ -294,6 +295,43 @@ describe( 'sticky notes layer', () => {
 					'{}',
 			)[ 'guideline:5' ].desktopId,
 		).toBe( 'desktop-2' );
+
+		host.remove();
+	} );
+
+	test( 'does not touch the network when the Guidelines surface is unavailable', async () => {
+		const host = createSizedHost();
+		const fetchMock = vi.fn();
+		vi.stubGlobal( 'fetch', fetchMock );
+
+		const layer = new StickyNotesLayer( {
+			host,
+			config: { adminUrl: 'https://example.test/wp-admin/' },
+			available: false,
+			openArtifact: vi.fn(),
+		} );
+		await layer.boot();
+
+		expect( fetchMock ).not.toHaveBeenCalled();
+
+		host.remove();
+	} );
+
+	test( 'still attempts term resolution when availability is unspecified', async () => {
+		const host = createSizedHost();
+		const fetchMock = vi.fn().mockRejectedValue( new Error( 'offline' ) );
+		vi.stubGlobal( 'fetch', fetchMock );
+		// boot() swallows the rejection via console.debug — keep it quiet.
+		vi.spyOn( console, 'debug' ).mockImplementation( () => undefined );
+
+		const layer = new StickyNotesLayer( {
+			host,
+			config: { adminUrl: 'https://example.test/wp-admin/' },
+			openArtifact: vi.fn(),
+		} );
+		await layer.boot();
+
+		expect( fetchMock ).toHaveBeenCalled();
 
 		host.remove();
 	} );

@@ -3474,7 +3474,7 @@ wp.desktop.registerWallpaper( {
 | `isReady()` | Stable | Synchronous boolean — has `desktop-mode.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
 | `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation; manual calls spawn a hidden iframe at `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1` whose server-side handler short-circuits the response with the fresh menu payload (a `<script>` that postMessages `desktop-mode-plugins-changed`) without rendering admin-header / admin-footer — resolves in milliseconds. The full chromeless bridge still emits the same payload when the iframe lands on a real admin page (`plugins.php` etc.). |
 | `setDefaultWindow( url \| null )` | Stable | Update the user's "open on startup" preference. |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features). Filterable server-side via `desktop_mode_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean, since 0.11.0 — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist). Filterable server-side via `desktop_mode_shell_config`. |
 
 ### System tiles
 

@@ -2594,6 +2594,93 @@ and write the value where your code reads from.
 
 ---
 
+## Sticky notes (since 0.11.0)
+
+Sticky notes are backed by **Gutenberg's Guidelines experiment** — the
+`wp_guideline` CPT and `wp_guideline_type` taxonomy (exposed at
+`wp/v2/guidelines` and `wp/v2/wp_guideline_type`). That experiment is
+opt-in (Gutenberg plugin 22.7+, under Gutenberg → Experiments). When it
+isn't active those REST routes 404, so both the Heartbeat delta handler
+and the client-side layer gate on availability.
+
+### `desktop_mode_sticky_notes_available` — Stable *(filter, since 0.11.0)*
+
+Filters whether the sticky-notes surface is treated as available. The
+default is `post_type_exists( 'wp_guideline' ) && taxonomy_exists(
+'wp_guideline_type' )`. The result is read by
+`desktop_mode_sticky_notes_is_available()`, which gates both the
+`heartbeat_received` delta handler and the `stickyNotes.available` flag
+in the shell config (so the client skips booting the layer — and its
+404-prone REST probes — when `false`).
+
+```php
+apply_filters( 'desktop_mode_sticky_notes_available', bool $available );
+```
+
+**Example — force sticky notes off site-wide even when Guidelines is enabled:**
+
+```php
+add_filter( 'desktop_mode_sticky_notes_available', '__return_false' );
+```
+
+- **Param** `bool $available` — whether the guideline CPT + taxonomy are registered.
+- **Return** `bool` — coerced with `(bool)`.
+
+---
+
+## Asset loading
+
+### `desktop_mode_preload_hints` — Stable *(filter, since 0.8.9)*
+
+Filters the `<link>` resource hints emitted in `<head>` for the shell's
+critical-path and lazy bundles. Each entry is
+`{ 'href' => string, 'as' => string, 'rel' => 'preload'|'prefetch' }`.
+`rel` is optional and defaults to `preload`; any value other than
+`prefetch` is coerced back to `preload`. Entries missing `href` or `as`
+are skipped.
+
+Use `preload` for resources consumed on the current load (high priority,
+must be used within a few seconds or the browser warns); use `prefetch`
+for lazy bundles `<script>`-injected on a later interaction.
+
+```php
+add_filter( 'desktop_mode_preload_hints', function ( $hints ) {
+    // Warm a settings-tab bundle the user opens on every visit.
+    $hints[] = array(
+        'href' => plugins_url( 'assets/my-tab.min.js', __FILE__ ),
+        'as'   => 'script',
+        'rel'  => 'prefetch',
+    );
+    return $hints;
+} );
+```
+
+- **Param** `array $hints` — default: shell bundle + `desktop.css` as `preload`; `window-system` + `shell-overlays` lazy bundles as `prefetch`.
+- **Return** `array` — non-array entries are skipped.
+
+**Note.** A `preload` hint only counts as "used" when an actual request
+for the *exact same URL* (including `?ver=`) follows. The shell stamps
+`desktop.css` (and the JS bundles) with `filemtime` in both the hint and
+the enqueue so the two URLs match — a `?ver=` mismatch makes the browser
+log "preloaded but not used in time".
+
+### `desktop_mode_deferred_styles` — Stable *(filter, since 0.8.9)*
+
+Filters the list of stylesheet **handles** loaded via the
+`media="print"` + `onload` deferral pattern (so they don't block first
+paint). Default: `desktop-mode-dock-peek`, `desktop-mode-ai-assistant`,
+`desktop-mode-bug-report`. Add a handle to defer it, or remove one to
+keep it on the critical path.
+
+```php
+add_filter( 'desktop_mode_deferred_styles', function ( $handles ) {
+    $handles[] = 'my-plugin-heavy-panel';
+    return $handles;
+} );
+```
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

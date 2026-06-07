@@ -40,11 +40,18 @@ function desktop_mode_register_assets() {
 		array(),
 		$version
 	);
+	// `filemtime`-stamped so the `<link rel="stylesheet">` URL matches the
+	// `<link rel="preload" as="style">` hint emitted by
+	// `desktop_mode_print_preload_hints()` (which stamps with filemtime).
+	// Registering this with the plain `$version` instead produced two
+	// different `?ver=` query strings for the same file, so the browser
+	// never matched the preload to the stylesheet and logged "preloaded
+	// but not used within a few seconds from the window's load event".
 	wp_register_style(
 		'desktop-mode',
 		DESKTOP_MODE_URL . 'assets/css/desktop.css',
 		array( 'desktop-mode-variables' ),
-		$version
+		$built_version( 'assets/css/desktop.css' )
 	);
 	// `filemtime`-stamped — window-chrome iteration (drop overlays,
 	// new drag affordances, third-party-plugin compat) lands faster
