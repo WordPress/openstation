@@ -1954,7 +1954,11 @@ function desktop_mode_chromeless_bridge_script() {
 	// surface a dead gear button.
 	function hasScreenOptionsContent() {
 		var wrap = document.getElementById( 'screen-options-wrap' );
-		return !! wrap && !! wrap.querySelector( 'input, select, textarea, button, fieldset' );
+		// WP always renders a nonce hidden input and an "Apply" submit
+		// inside the wrap, so match only interactive option controls
+		// (toggles, per-page, radios, selects) — never that always-
+		// present scaffolding — or an empty panel reads as non-empty.
+		return !! wrap && !! wrap.querySelector( 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea' );
 	}
 	// A help tab registered with empty content + no callback still
 	// produces #contextual-help-link but an empty panel. Require some

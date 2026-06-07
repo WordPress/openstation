@@ -35,6 +35,7 @@ import { filesApi } from '../desktop-files';
 import type { RestPlacementShape } from '../desktop-files/rest';
 import type { DesktopConfig, DesktopIconServerEntry, DockItemConfig } from '../types';
 import type { ItemVisibility, OsSettingsState } from './types';
+import type { OsSettingsSnapshot } from './registry';
 
 /** Marker on `placement.meta` for shortcuts we synthesized. */
 const SYNTH_META_KEY = '__synthFromDockItem';
@@ -158,18 +159,10 @@ function prunePromotedPositions( ids: string[] ): void {
 	const api = ( window as unknown as {
 		wp?: {
 			desktop?: {
-				getOsSettings?: () => {
-					dockPromotedPositions?: Record<
-						string,
-						{ x: number; y: number }
-					>;
-				};
-				updateOsSettings?: ( patch: {
-					dockPromotedPositions: Record<
-						string,
-						{ x: number; y: number }
-					>;
-				} ) => void;
+				getOsSettings?: () => OsSettingsSnapshot;
+				updateOsSettings?: (
+					patch: Partial< OsSettingsSnapshot >,
+				) => void;
 			};
 		};
 	} ).wp?.desktop;

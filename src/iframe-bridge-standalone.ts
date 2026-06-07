@@ -853,10 +853,15 @@ interface IframeWp {
 		// filter but rendered nothing — should not surface a dead gear.
 		const hasScreenOptionsContent = (): boolean => {
 			const wrap = document.getElementById( 'screen-options-wrap' );
+			// WP always renders a nonce hidden input and an "Apply"
+			// submit inside the wrap, so match only *interactive option*
+			// controls (column toggles, per-page number, view-mode
+			// radios, custom selects) — never that always-present
+			// scaffolding — or an empty panel would read as non-empty.
 			return (
 				!! wrap &&
 				!! wrap.querySelector(
-					'input, select, textarea, button, fieldset',
+					'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea',
 				)
 			);
 		};

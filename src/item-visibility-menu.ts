@@ -83,8 +83,13 @@ function writeVisibility(
  * the DOM id. A bare id means the tile is rendered on its native rail
  * (so the native rail equals the surface it was right-clicked on); a
  * `dock:` / `desktop:` prefix names the originating rail explicitly.
+ *
+ * Exported for unit testing — it is otherwise an internal helper.
  */
-function railFromId( id: string, surface: 'dock' | 'desktop' ): NativeRail {
+export function railFromId(
+	id: string,
+	surface: 'dock' | 'desktop',
+): NativeRail {
 	if ( id.startsWith( 'dock:' ) ) {
 		return 'dock';
 	}
@@ -105,13 +110,16 @@ function railFromId( id: string, surface: 'dock' | 'desktop' ): NativeRail {
  *   opposite rail here was the bug: "Hide from dock" on a dock-only
  *   tile wrote 'desktop' and the tile reappeared on the wallpaper
  *   instead of disappearing.
+ *
+ * Pure in `visibility` (the caller passes the live map) so it can be
+ * unit-tested without stubbing the shell API.
  */
-function computeHideTarget(
+export function computeHideTarget(
 	canonicalId: string,
 	nativeRail: NativeRail,
 	hideSurface: 'dock' | 'desktop',
+	visibility: Record< string, ItemVisibility >,
 ): ItemVisibility {
-	const visibility = getApi()?.getOsSettings?.().itemVisibility ?? {};
 	const current = resolvePlacement( canonicalId, nativeRail, visibility );
 	if ( current === 'both' ) {
 		return hideSurface === 'dock' ? 'desktop' : 'dock';
@@ -218,7 +226,12 @@ function openItemVisibilityMenuImmediate(
 			onPick: () =>
 				writeVisibility(
 					canonical,
-					computeHideTarget( canonical, nativeRail, 'dock' ),
+					computeHideTarget(
+						canonical,
+						nativeRail,
+						'dock',
+						getApi()?.getOsSettings?.().itemVisibility ?? {},
+					),
 				),
 		} );
 		if ( currentPlacement !== 'both' ) {
@@ -237,7 +250,12 @@ function openItemVisibilityMenuImmediate(
 			onPick: () =>
 				writeVisibility(
 					canonical,
-					computeHideTarget( canonical, nativeRail, 'desktop' ),
+					computeHideTarget(
+						canonical,
+						nativeRail,
+						'desktop',
+						getApi()?.getOsSettings?.().itemVisibility ?? {},
+					),
 				),
 		} );
 		if ( currentPlacement !== 'both' ) {

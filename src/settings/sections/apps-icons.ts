@@ -15,6 +15,7 @@ import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
 import { renderIcon } from '../../icon';
 import type { ItemVisibility, SettingsCtx } from '../types';
+import type { OsSettingsSnapshot } from '../registry';
 import { listPlaceableItems } from '../item-placement';
 import type { DesktopConfig } from '../../types';
 import type { DockItem } from '../../dock';
@@ -171,9 +172,7 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 		wp?: {
 			desktop?: {
 				subscribeOsSettings?: (
-					cb: ( snapshot: {
-						itemVisibility: Record< string, ItemVisibility >;
-					} ) => void,
+					cb: ( snapshot: OsSettingsSnapshot ) => void,
 				) => () => void;
 			};
 		};
