@@ -52,9 +52,16 @@ export interface FootprintTarget {
 	 */
 	userName: string;
 	/**
-	 * `Date.now()` of the last `set` — lets consumers tell a fresh
-	 * request apart from a stale one and dedupe the mount-read vs the
-	 * subscribe callback.
+	 * `Date.now()` of the last `set`. Currently informational and
+	 * reserved for future dedup — e.g. telling a fresh request apart
+	 * from a stale one, or distinguishing the mount-read from the
+	 * subscribe callback if the shell ever batches notifications. No
+	 * consumer reads it today: the subscribe callback navigates on any
+	 * `userId > 0`, which is correct under the current synchronous
+	 * notify model (two quick opens on different users should navigate
+	 * twice and land on the last one — a `requestedAt`-based skip with
+	 * `Date.now()`'s millisecond resolution could wrongly drop the
+	 * second).
 	 */
 	requestedAt: number;
 }
@@ -70,11 +77,15 @@ interface DesktopFacade {
 	) => boolean | undefined;
 }
 
-const _initial: FootprintTarget = {
+// Frozen sentinel — only ever spread into a fresh mutable object
+// (`{ ..._initial }`), never mutated in place. Freezing turns an
+// accidental direct mutation into a loud error instead of silent
+// shared-state corruption.
+const _initial: Readonly< FootprintTarget > = Object.freeze( {
 	userId: null,
 	userName: '',
 	requestedAt: 0,
-};
+} );
 
 function getDesktop(): DesktopFacade | undefined {
 	return ( window as unknown as { wp?: { desktop?: DesktopFacade } } ).wp
@@ -82,6 +93,22 @@ function getDesktop(): DesktopFacade | undefined {
 }
 
 let _store: SharedStoreApi< FootprintTarget > | null = null;
+
+/**
+ * Resolve the shared store, memoizing once `wp.desktop.createSharedStore`
+ * is available. Returns `null` until then, which routes `set`/`read`
+ * to the `window._wpdFootprintTarget` stash fallback.
+ *
+ * Known, accepted trade-off (mirrors `user-edit-target.ts`): a target
+ * stashed via the fallback BEFORE the store exists is NOT promoted
+ * into the store once it initialises. A subsequent `readFootprintTarget`
+ * after init reads the freshly-created store (empty) and the stash is
+ * silently dropped. This only bites in the narrow window before
+ * `wp.desktop.createSharedStore` is wired at boot — well before any
+ * users-table click can reach `openUserFootprintWindow` — so it's left
+ * as-is rather than adding stash→store reconciliation. Documented here
+ * so it's a deliberate choice, not a latent surprise.
+ */
 function getStore(): SharedStoreApi< FootprintTarget > | null {
 	if ( _store ) {
 		return _store;

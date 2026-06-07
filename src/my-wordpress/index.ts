@@ -201,9 +201,16 @@ interface RenderState {
 }
 
 interface StatusContext {
-	view: 'root' | 'list' | 'detail' | 'sub-list';
+	view: 'root' | 'list' | 'detail' | 'sub-list' | 'user-footprint';
 	entityId?: string;
 	postId?: number;
+	/**
+	 * Target user id. Only set on the `'user-footprint'` view — kept
+	 * distinct from `postId` so `desktop-mode.my-wordpress.status-bar`
+	 * filters can tell a user surface apart from a post surface
+	 * instead of mistaking a user id for a post id.
+	 */
+	userId?: number;
 	relation?: string;
 }
 
@@ -4596,7 +4603,7 @@ function renderUserFootprint(
 				sort: 10,
 			},
 		],
-		{ view: 'detail', entityId: entity.id, postId: userId },
+		{ view: 'user-footprint', entityId: entity.id, userId },
 	);
 
 	void ( async () => {
@@ -4615,7 +4622,7 @@ function renderUserFootprint(
 						sort: 10,
 					},
 				],
-				{ view: 'detail', entityId: entity.id, postId: userId },
+				{ view: 'user-footprint', entityId: entity.id, userId },
 			);
 			return;
 		}
@@ -4674,7 +4681,7 @@ function renderUserFootprint(
 					sort: 10,
 				},
 			],
-			{ view: 'detail', entityId: entity.id, postId: userId },
+			{ view: 'user-footprint', entityId: entity.id, userId },
 		);
 	} )();
 }

@@ -182,3 +182,37 @@ describe( 'iframe-bridge — desktop-mode-open-user-footprint', () => {
 		expect( openWindow ).not.toHaveBeenCalled();
 	} );
 } );
+
+describe( 'footprint-target — window-stash fallback (no shared store yet)', () => {
+	test( 'set / read round-trip via window._wpdFootprintTarget before the store exists', async () => {
+		// A fresh module instance so its memoized `_store` starts null,
+		// plus a facade with no `createSharedStore`, so `getStore()`
+		// returns null and the `window._wpdFootprintTarget` stash path
+		// runs end to end (the env always has the real store otherwise).
+		vi.resetModules();
+		( window as unknown as { wp?: unknown } ).wp = {};
+		delete ( window as unknown as { _wpdFootprintTarget?: unknown } )
+			._wpdFootprintTarget;
+
+		const mod = await import( '../../src/my-wordpress/footprint-target' );
+		mod.setFootprintTarget( 77, 'Stash User' );
+
+		// The stash actually held the value...
+		expect(
+			(
+				window as unknown as {
+					_wpdFootprintTarget?: { userId: number };
+				}
+			)._wpdFootprintTarget?.userId,
+		).toBe( 77 );
+
+		// ...and read returns it while the store is still unavailable.
+		const got = mod.readFootprintTarget();
+		expect( got.userId ).toBe( 77 );
+		expect( got.userName ).toBe( 'Stash User' );
+
+		// clear zeroes the stash too.
+		mod.clearFootprintTarget();
+		expect( mod.readFootprintTarget().userId ).toBeNull();
+	} );
+} );
