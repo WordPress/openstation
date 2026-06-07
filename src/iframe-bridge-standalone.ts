@@ -847,26 +847,60 @@ interface IframeWp {
 	}
 
 	function installScreenMetaHoist( origin: string ): void {
+		// Real screen options render form controls (column toggles, a
+		// per-page input, custom settings). An empty wrap — a screen
+		// that forced the toggle on via the `screen_options_show_screen`
+		// filter but rendered nothing — should not surface a dead gear.
+		const hasScreenOptionsContent = (): boolean => {
+			const wrap = document.getElementById( 'screen-options-wrap' );
+			return (
+				!! wrap &&
+				!! wrap.querySelector(
+					'input, select, textarea, button, fieldset',
+				)
+			);
+		};
+		// A help tab registered with empty `content` and no callback
+		// still produces `#contextual-help-link` but an empty panel.
+		// Require at least one tab-content panel (or the sidebar) to
+		// carry non-whitespace text before announcing the Help button.
+		const hasHelpContent = (): boolean => {
+			const wrap = document.getElementById( 'contextual-help-wrap' );
+			if ( ! wrap ) {
+				return false;
+			}
+			const panelEls = wrap.querySelectorAll(
+				'.help-tab-content, .contextual-help-sidebar',
+			);
+			for ( let i = 0; i < panelEls.length; i++ ) {
+				if ( ( panelEls[ i ].textContent || '' ).trim() !== '' ) {
+					return true;
+				}
+			}
+			return false;
+		};
+
 		const start = (): void => {
 			const links = document.getElementById( 'screen-meta-links' );
-			if ( ! links ) {
-				return;
-			}
-			const screenOptionsBtn = document.getElementById(
-				'show-settings-link',
-			);
-			const helpBtn = document.getElementById( 'contextual-help-link' );
+			const screenOptionsBtn = links
+				? document.getElementById( 'show-settings-link' )
+				: null;
+			const helpBtn = links
+				? document.getElementById( 'contextual-help-link' )
+				: null;
 			const panels: string[] = [];
-			if ( screenOptionsBtn ) {
+			if ( screenOptionsBtn && hasScreenOptionsContent() ) {
 				panels.push( 'screen-options' );
 			}
-			if ( helpBtn ) {
+			if ( helpBtn && hasHelpContent() ) {
 				panels.push( 'help' );
 			}
-			if ( panels.length === 0 ) {
-				return;
-			}
 
+			// ALWAYS announce — including an empty array — so the parent
+			// removes stale gear/Help buttons when this page (e.g. after
+			// an in-place same-slug navigation) has no screen meta. The
+			// parent's addScreenMetaButtons() clears then repopulates, so
+			// `[]` is the correct "remove everything" signal.
 			try {
 				window.parent.postMessage(
 					{ type: 'desktop-mode-screen-meta', panels },
@@ -874,6 +908,10 @@ interface IframeWp {
 				);
 			} catch {
 				/* parent gone */
+			}
+
+			if ( panels.length === 0 ) {
+				return; // Nothing to observe or toggle on this page.
 			}
 
 			const getOpenPanel = (): 'screen-options' | 'help' | null => {

@@ -53,7 +53,7 @@ import '../ui/components/wpd-swatch/wpd-swatch';
 import '../ui/components/wpd-swatch-grid/wpd-swatch-grid';
 import '../ui/components/wpd-tabs/wpd-tabs';
 import '../ui/components/wpd-text-field/wpd-text-field';
-import { DEFAULTS } from './constants';
+import { structuredDefaults } from './state';
 import type { OsSettings } from './index';
 import type { DesktopSettingsTab } from './registry';
 import { listSettingsTabs, subscribeSettingsTabs } from './registry';
@@ -139,7 +139,10 @@ export function renderOsSettingsPanel(
 		// image still lives in Media Library, and it's an easy
 		// re-pick.
 		const preservedImage = ctx.state.customImage;
-		ctx.state = { ...DEFAULTS, customImage: preservedImage };
+		// `structuredDefaults()` deep-clones the nested objects, so the
+		// reset can never alias (and later corrupt) the module-level
+		// DEFAULTS singleton — see the function's own note.
+		ctx.state = { ...structuredDefaults(), customImage: preservedImage };
 		ctx.save();
 		ctx.apply();
 		ctx.renderPanel( body );

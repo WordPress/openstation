@@ -254,4 +254,45 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		);
 		$this->assertCount( 256, $clean['dockPromotedPositions'] );
 	}
+
+	/**
+	 * dockOrder entries may carry a rail-synthesis prefix
+	 * (`desktop:<id>` / `dock:<id>`) for cross-rail tiles the user
+	 * promoted. `sanitize_key()` would strip the colon and silently
+	 * break the JS order match (and risk an id collision) on reload, so
+	 * the sanitizer must preserve it.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_preserves_rail_prefix_colon_in_dock_order() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'dockOrder' => array( 'desktop:my-icon', 'edit-php', 'dock:woocommerce' ),
+			)
+		);
+		$this->assertSame(
+			array( 'desktop:my-icon', 'edit-php', 'dock:woocommerce' ),
+			$clean['dockOrder']
+		);
+	}
+
+	/**
+	 * The dockOrder sanitizer still rejects characters outside the JS
+	 * id charset — spaces collapse, case folds, and punctuation/markup
+	 * is stripped — so an evil blob can't smuggle anything unexpected
+	 * into the persisted order.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_normalizes_dock_order_ids() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'dockOrder' => array( 'Edit Php', '<script>x', 'desktop:My-Icon' ),
+			)
+		);
+		$this->assertSame(
+			array( 'editphp', 'scriptx', 'desktop:my-icon' ),
+			$clean['dockOrder']
+		);
+	}
 }

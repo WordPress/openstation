@@ -143,6 +143,54 @@ let reentrant = false;
 const removedServerPlacementsByRef = new Map< string, RestPlacementShape >();
 
 /**
+ * Strip the given source-item ids from the persisted
+ * `dockPromotedPositions` map via the public OS-settings writer.
+ *
+ * Called when a promoted item is demoted or hidden, so its
+ * last-dragged coordinate doesn't linger forever (counting toward the
+ * 256-entry cap for, say, a deactivated plugin) or silently resurrect
+ * the old slot if the item is re-promoted later. The `reentrant` guard
+ * in {@link syncShortcutsWithVisibility} blocks the resulting
+ * settings-change notification from re-running the sync synchronously,
+ * and a later async re-run is a no-op (the position is already gone).
+ */
+function prunePromotedPositions( ids: string[] ): void {
+	const api = ( window as unknown as {
+		wp?: {
+			desktop?: {
+				getOsSettings?: () => {
+					dockPromotedPositions?: Record<
+						string,
+						{ x: number; y: number }
+					>;
+				};
+				updateOsSettings?: ( patch: {
+					dockPromotedPositions: Record<
+						string,
+						{ x: number; y: number }
+					>;
+				} ) => void;
+			};
+		};
+	} ).wp?.desktop;
+	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
+		return;
+	}
+	const current = api.getOsSettings().dockPromotedPositions ?? {};
+	const next: Record< string, { x: number; y: number } > = { ...current };
+	let changed = false;
+	for ( const id of ids ) {
+		if ( id in next ) {
+			delete next[ id ];
+			changed = true;
+		}
+	}
+	if ( changed ) {
+		api.updateOsSettings( { dockPromotedPositions: next } );
+	}
+}
+
+/**
  * Bring the files store in line with the current
  * {@link OsSettingsState.itemVisibility} map. The `positions`
  * argument is the matching `dockPromotedPositions` map — synth
@@ -205,11 +253,20 @@ export function syncShortcutsWithVisibility(
 				}
 			}
 		}
-		// Remove synthetic placements that are no longer wanted.
+		// Remove synthetic placements that are no longer wanted, and
+		// prune their persisted drag position so stale coordinates can't
+		// leak or silently resurrect on a future re-promote.
+		const positionsToPrune: string[] = [];
 		for ( const [ sourceId, p ] of currentSynth ) {
 			if ( ! desiredSynth.has( sourceId ) ) {
 				filesApi.store.removePlacement( p.id );
+				if ( positions[ sourceId ] ) {
+					positionsToPrune.push( sourceId );
+				}
 			}
+		}
+		if ( positionsToPrune.length > 0 ) {
+			prunePromotedPositions( positionsToPrune );
 		}
 
 		// 2. Reconcile server-registered shortcuts (icons registered via

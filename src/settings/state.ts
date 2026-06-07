@@ -539,6 +539,14 @@ export function structuredDefaults(): OsSettingsState {
 		customGradient: { ...DEFAULTS.customGradient },
 		customImage: null,
 		ai: { ...DEFAULTS.ai },
+		// Clone the collection fields too. A shallow `...DEFAULTS`
+		// aliases these nested objects, so a later in-place mutation
+		// (e.g. dragging the gradient editor after a Reset, which spreads
+		// these defaults into live state) would corrupt the module-level
+		// DEFAULTS singleton for the rest of the session.
+		itemVisibility: { ...DEFAULTS.itemVisibility },
+		dockOrder: [ ...DEFAULTS.dockOrder ],
+		dockPromotedPositions: { ...DEFAULTS.dockPromotedPositions },
 	};
 }
 

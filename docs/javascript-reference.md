@@ -2791,11 +2791,13 @@ Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever
 ```
 
 #### `desktop-mode-screen-meta` — Stable
-Announces the screen-meta panels (Screen Options / Help) that the iframe page exposes. The parent renders corresponding title-bar buttons.
+Announces the screen-meta panels (Screen Options / Help) that the iframe page exposes. The parent renders one title-bar button per announced panel, replacing any previously rendered set.
 
 ```typescript
 { type: 'desktop-mode-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
 ```
+
+The iframe sends this on every load — **including an empty `panels: []`** — so the parent can clear stale buttons when a page (e.g. after an in-place same-slug navigation) exposes no screen meta. A panel is announced only when its toggle link is present **and** the panel actually has content: a Screen Options panel with no form controls, or a Help tab registered with empty `content` and no callback, is omitted so the title bar never shows a button that opens an empty panel.
 
 #### `desktop-mode-screen-meta-state` — Stable
 Reports which screen-meta panel (if any) is currently open inside the iframe.

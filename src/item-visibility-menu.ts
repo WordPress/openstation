@@ -24,7 +24,11 @@
 
 import { __, sprintf } from './i18n';
 import { openWithShellOverlays } from './shell-overlays/loader';
-import { canonicalItemId } from './settings/item-placement';
+import {
+	canonicalItemId,
+	resolvePlacement,
+	type NativeRail,
+} from './settings/item-placement';
 import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import { trackedFetch } from './tracked-fetch';
 import { showToast } from './toast';
@@ -72,6 +76,47 @@ function writeVisibility(
 	// desktop" / "Also show on dock" back into single-rail behavior.
 	next[ canonicalId ] = placement;
 	api.updateOsSettings( { itemVisibility: next } );
+}
+
+/**
+ * The item's native rail, derived from the rail-synthesis prefix on
+ * the DOM id. A bare id means the tile is rendered on its native rail
+ * (so the native rail equals the surface it was right-clicked on); a
+ * `dock:` / `desktop:` prefix names the originating rail explicitly.
+ */
+function railFromId( id: string, surface: 'dock' | 'desktop' ): NativeRail {
+	if ( id.startsWith( 'dock:' ) ) {
+		return 'dock';
+	}
+	if ( id.startsWith( 'desktop:' ) ) {
+		return 'desktop';
+	}
+	return surface;
+}
+
+/**
+ * Compute the placement a "Hide from <surface>" pick should write,
+ * branching on the item's CURRENT placement rather than blindly
+ * setting the opposite rail.
+ *
+ * - A 'both' item is demoted to the rail it is NOT being hidden from
+ *   (it stays visible where it still belongs).
+ * - A single-rail item is genuinely hidden ('hidden'). Writing the
+ *   opposite rail here was the bug: "Hide from dock" on a dock-only
+ *   tile wrote 'desktop' and the tile reappeared on the wallpaper
+ *   instead of disappearing.
+ */
+function computeHideTarget(
+	canonicalId: string,
+	nativeRail: NativeRail,
+	hideSurface: 'dock' | 'desktop',
+): ItemVisibility {
+	const visibility = getApi()?.getOsSettings?.().itemVisibility ?? {};
+	const current = resolvePlacement( canonicalId, nativeRail, visibility );
+	if ( current === 'both' ) {
+		return hideSurface === 'dock' ? 'desktop' : 'dock';
+	}
+	return 'hidden';
 }
 
 export interface OpenItemVisibilityMenuOpts {
@@ -141,6 +186,16 @@ function openItemVisibilityMenuImmediate(
 	closeMenu();
 
 	const canonical = canonicalItemId( opts.id );
+	const nativeRail = railFromId( opts.id, opts.surface );
+	// Current resolved placement drives which options are offered: the
+	// "Also show on <rail>" entry is hidden when the item is already on
+	// that rail (it would be a no-op), and "Hide from <surface>" reads
+	// the live state at pick time via computeHideTarget.
+	const currentPlacement = resolvePlacement(
+		canonical,
+		nativeRail,
+		getApi()?.getOsSettings?.().itemVisibility ?? {},
+	);
 
 	type MenuOption =
 		| {
@@ -160,27 +215,39 @@ function openItemVisibilityMenuImmediate(
 			id: 'hide-from-dock',
 			label: __( 'Hide from dock' ),
 			icon: 'dashicons-hidden',
-			onPick: () => writeVisibility( canonical, 'desktop' ),
+			onPick: () =>
+				writeVisibility(
+					canonical,
+					computeHideTarget( canonical, nativeRail, 'dock' ),
+				),
 		} );
-		options.push( {
-			id: 'show-on-desktop-too',
-			label: __( 'Also show on desktop' ),
-			icon: 'dashicons-desktop',
-			onPick: () => writeVisibility( canonical, 'both' ),
-		} );
+		if ( currentPlacement !== 'both' ) {
+			options.push( {
+				id: 'show-on-desktop-too',
+				label: __( 'Also show on desktop' ),
+				icon: 'dashicons-desktop',
+				onPick: () => writeVisibility( canonical, 'both' ),
+			} );
+		}
 	} else {
 		options.push( {
 			id: 'hide-from-desktop',
 			label: __( 'Hide from desktop' ),
 			icon: 'dashicons-hidden',
-			onPick: () => writeVisibility( canonical, 'dock' ),
+			onPick: () =>
+				writeVisibility(
+					canonical,
+					computeHideTarget( canonical, nativeRail, 'desktop' ),
+				),
 		} );
-		options.push( {
-			id: 'show-on-dock-too',
-			label: __( 'Also show on dock' ),
-			icon: 'dashicons-menu',
-			onPick: () => writeVisibility( canonical, 'both' ),
-		} );
+		if ( currentPlacement !== 'both' ) {
+			options.push( {
+				id: 'show-on-dock-too',
+				label: __( 'Also show on dock' ),
+				icon: 'dashicons-menu',
+				onPick: () => writeVisibility( canonical, 'both' ),
+			} );
+		}
 	}
 	options.push( {
 		id: 'hide-everywhere',

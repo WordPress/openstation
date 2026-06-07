@@ -256,7 +256,7 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( bottomTiles ).not.toContain( 'edit.php' );
 	} );
 
-	test( 'spatial: renders only synthesized core icons, drops server icons', () => {
+	test( 'spatial: drops non-pinned server icons without an override', () => {
 		const { deps, renderIcons } = makeDeps();
 		const serverIcons: DesktopIconServerEntry[] = [
 			{
@@ -280,14 +280,75 @@ describe( 'desktop-layout dispatcher', () => {
 		const ids = ( lastCall as DesktopIconServerEntry[] ).map(
 			( i ) => i.id,
 		);
-		// Server-registered plugin icons are deliberately suppressed
-		// in Spatial — the wallpaper is the "core surface." Plugin
-		// menus live in the bottom dock; doubling them up on the
-		// wallpaper was the user-reported bug.
+		// Plugin icons with no explicit placement override stay
+		// suppressed in Spatial — the wallpaper is the "core surface,"
+		// and their admin menu lives in the bottom dock. Doubling them
+		// up on the wallpaper was the original user-reported bug.
 		expect( ids ).toEqual( [
 			'dock-core:index.php',
 			'dock-core:edit.php',
 		] );
+	} );
+
+	test( 'spatial: keeps pinned server icons (e.g. My WordPress)', () => {
+		const { deps, renderIcons } = makeDeps();
+		const serverIcons: DesktopIconServerEntry[] = [
+			{
+				id: 'desktop-mode-my-wordpress',
+				title: 'My WordPress',
+				icon: 'dashicons-wordpress',
+				window: 'desktop-mode-my-wordpress',
+				url: '',
+				position: -1,
+				pinned: true,
+			},
+		];
+		createLayoutDispatcher(
+			deps,
+			'spatial',
+			[ dashboard, posts ],
+			serverIcons,
+		);
+
+		const ids = (
+			renderIcons.mock.calls.at( -1 )![ 0 ] as DesktopIconServerEntry[]
+		).map( ( i ) => i.id );
+		// Regression guard: a framework-owned pinned icon must survive
+		// the Spatial layout. Suppressing it made My WordPress vanish
+		// from the wallpaper on installs using Spatial.
+		expect( ids ).toContain( 'desktop-mode-my-wordpress' );
+	} );
+
+	test( 'spatial: keeps server icons the user explicitly promoted to the desktop', () => {
+		const { deps, renderIcons } = makeDeps( {
+			getSettings: () => ( {
+				itemVisibility: { 'plugin-icon': 'desktop' },
+				dockOrder: [],
+			} ),
+		} );
+		const serverIcons: DesktopIconServerEntry[] = [
+			{
+				id: 'plugin-icon',
+				title: 'Plugin',
+				icon: 'dashicons-admin-plugins',
+				window: 'plugin-window',
+				url: '',
+				position: 50,
+			},
+		];
+		createLayoutDispatcher(
+			deps,
+			'spatial',
+			[ dashboard, posts ],
+			serverIcons,
+		);
+
+		const ids = (
+			renderIcons.mock.calls.at( -1 )![ 0 ] as DesktopIconServerEntry[]
+		).map( ( i ) => i.id );
+		// The OS Settings → Apps & Icons "On the desktop" choice must
+		// not silently no-op in Spatial.
+		expect( ids ).toContain( 'plugin-icon' );
 	} );
 
 	test( 'classic + unified: renderIcons gets only the server list (no synthesis)', () => {

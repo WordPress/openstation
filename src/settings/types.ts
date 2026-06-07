@@ -257,8 +257,11 @@ export interface OsSettingsState {
 	 *   - `'hidden'`  — hide from every shell surface.
 	 *
 	 * Missing keys mean "no override" — items use whichever rail they
-	 * natively live on. The `'both'` value is never persisted (the
-	 * server drops it on save) so the map stays compact.
+	 * natively live on. All four values — including `'both'` — are
+	 * persisted verbatim: PHP's sanitizer
+	 * (`includes/os-settings.php`, `$allowed_placements`) whitelists
+	 * `'both'`, and the right-click menu stores it explicitly, so a
+	 * "show on both rails" choice survives a reload.
 	 *
 	 * @since 0.25.0
 	 */

@@ -341,15 +341,32 @@ export function createLayoutDispatcher(
 			return;
 		}
 		// Spatial owns the wallpaper as the "core surface": synthesized
-		// core menu icons render here. Server-registered plugin
-		// desktop icons are deliberately suppressed — plugin admin
-		// menus live in the bottom dock, and duplicating them on the
-		// wallpaper would create two paths to the same screen. The
-		// only Spatial-mode wallpaper additions beyond core synthesis
-		// are items the user EXPLICITLY promoted via OS Settings (an
-		// `itemVisibility` override on a dock-native item).
+		// core menu icons render here. Server-registered PLUGIN desktop
+		// icons with no override are deliberately suppressed — their
+		// admin menu lives in the bottom dock, and duplicating them on
+		// the wallpaper would create two paths to the same screen.
+		//
+		// Two classes of server icon MUST survive the Spatial layout,
+		// or the layout choice silently eats them:
+		//   1. Framework-owned `pinned` icons (e.g. My WordPress). These
+		//      are not plugin menus and have no dock equivalent;
+		//      suppressing them made the icon vanish from the wallpaper
+		//      with the ONLY recovery being "move it to the dock" via
+		//      OS Settings.
+		//   2. Icons the user EXPLICITLY moved to the desktop / both in
+		//      OS Settings → Apps & Icons. Without this the picker's
+		//      "On the desktop" choice silently no-ops in Spatial.
+		// Dock-native items the user promoted are appended separately
+		// below (they have no serverIcons entry).
 		const { core } = partition();
 		const synthesized = core.map( coreItemToIconEntry );
+		const keptServerIcons = serverIcons.filter( ( icon ) => {
+			const override = settings.itemVisibility[ icon.id ];
+			if ( override ) {
+				return override === 'desktop' || override === 'both';
+			}
+			return Boolean( icon.pinned );
+		} );
 		const explicitlyPromoted: DesktopIconServerEntry[] = [];
 		let synthIndex = 0;
 		for ( const item of items ) {
@@ -365,7 +382,11 @@ export function createLayoutDispatcher(
 				} );
 			}
 		}
-		deps.renderIcons( [ ...synthesized, ...explicitlyPromoted ] );
+		deps.renderIcons( [
+			...synthesized,
+			...keptServerIcons,
+			...explicitlyPromoted,
+		] );
 	};
 
 	const tearDownDocks = (): void => {

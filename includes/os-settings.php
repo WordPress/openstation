@@ -464,7 +464,13 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// dockOrder — ordered list of sanitize_key()-clean ids.
+	// dockOrder — ordered list of item ids. Most are sanitize_key()-
+	// clean dock slugs, but cross-rail tiles the user promoted carry a
+	// rail-synthesis prefix (`desktop:<id>` / `dock:<id>`, built by
+	// src/settings/item-placement.ts). sanitize_key() strips the colon,
+	// which silently breaks the JS order match on reload and can collide
+	// with an unrelated id — so allow the colon (and hyphen/underscore)
+	// while still rejecting anything outside the JS id charset.
 	$dock_order = array();
 	if ( isset( $raw['dockOrder'] ) && is_array( $raw['dockOrder'] ) ) {
 		$seen = array();
@@ -472,7 +478,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 			if ( ! is_string( $id ) || '' === $id ) {
 				continue;
 			}
-			$slug = sanitize_key( $id );
+			$slug = (string) preg_replace( '/[^a-z0-9_:-]+/', '', strtolower( $id ) );
 			if ( '' === $slug || isset( $seen[ $slug ] ) ) {
 				continue;
 			}

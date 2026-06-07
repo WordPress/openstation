@@ -1949,29 +1949,55 @@ function desktop_mode_chromeless_bridge_script() {
 	}
 	window.__desktopModeScreenMetaInstalled = true;
 
-	var links = document.getElementById( 'screen-meta-links' );
-	if ( ! links ) {
-		return;
+	// Real screen options render form controls (column toggles, a
+	// per-page input, custom settings). An empty wrap should not
+	// surface a dead gear button.
+	function hasScreenOptionsContent() {
+		var wrap = document.getElementById( 'screen-options-wrap' );
+		return !! wrap && !! wrap.querySelector( 'input, select, textarea, button, fieldset' );
 	}
-	var screenOptionsBtn = document.getElementById( 'show-settings-link' );
-	var helpBtn = document.getElementById( 'contextual-help-link' );
+	// A help tab registered with empty content + no callback still
+	// produces #contextual-help-link but an empty panel. Require some
+	// non-whitespace tab/sidebar text before announcing the button.
+	function hasHelpContent() {
+		var wrap = document.getElementById( 'contextual-help-wrap' );
+		if ( ! wrap ) {
+			return false;
+		}
+		var panelEls = wrap.querySelectorAll( '.help-tab-content, .contextual-help-sidebar' );
+		for ( var i = 0; i < panelEls.length; i++ ) {
+			if ( ( panelEls[ i ].textContent || '' ).trim() !== '' ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	var links = document.getElementById( 'screen-meta-links' );
+	var screenOptionsBtn = links ? document.getElementById( 'show-settings-link' ) : null;
+	var helpBtn = links ? document.getElementById( 'contextual-help-link' ) : null;
 	var panels = [];
-	if ( screenOptionsBtn ) {
+	if ( screenOptionsBtn && hasScreenOptionsContent() ) {
 		panels.push( 'screen-options' );
 	}
-	if ( helpBtn ) {
+	if ( helpBtn && hasHelpContent() ) {
 		panels.push( 'help' );
-	}
-	if ( panels.length === 0 ) {
-		return;
 	}
 
 	var origin = window.location.origin;
 
+	// ALWAYS announce — including an empty array — so the parent removes
+	// stale gear/Help buttons when this page (e.g. after an in-place
+	// same-slug navigation) has no screen meta. addScreenMetaButtons()
+	// clears then repopulates, so an empty array removes everything.
 	window.parent.postMessage( {
 		type: 'desktop-mode-screen-meta',
 		panels: panels
 	}, origin );
+
+	if ( panels.length === 0 ) {
+		return;
+	}
 
 	function getOpenPanel() {
 		if ( screenOptionsBtn && screenOptionsBtn.getAttribute( 'aria-expanded' ) === 'true' ) {
