@@ -97,14 +97,20 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * Native Posts is opt-OUT — admins (any user with `edit_posts`)
-	 * are in by default. Toggling the OS Settings flag off is what
-	 * closes the gate.
+	 * Native Posts is opt-in Beta as of 0.10.0 — even a user with
+	 * `edit_posts` gets the classic iframe until they turn the toggle
+	 * on. Opting in is what opens the gate.
 	 *
 	 * @covers ::desktop_mode_posts_window_user_can_use
 	 */
-	public function test_gate_open_by_default_for_admins() {
+	public function test_gate_closed_by_default_until_admin_opts_in() {
 		wp_set_current_user( $this->admin_id );
+		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
+
+		desktop_mode_save_os_settings(
+			$this->admin_id,
+			array( 'nativePostsEnabled' => true )
+		);
 		$this->assertTrue( desktop_mode_posts_window_user_can_use() );
 	}
 

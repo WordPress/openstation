@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/bin/sync-to-wp-develop.sh\" || true",
+            "timeout": 1200,
+            "statusMessage": "Syncing completed changes to wp-develop"
+          }
+        ]
+      }
+    ]
+  }
+}

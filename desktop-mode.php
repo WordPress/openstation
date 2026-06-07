@@ -3,7 +3,7 @@
  * Plugin Name:       Desktop Mode
  * Plugin URI:        https://github.com/WordPress/desktop-mode
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
- * Version:           0.8.9
+ * Version:           0.11.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel López Sánchez
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_VERSION', '0.8.9' );
+define( 'DESKTOP_MODE_VERSION', '0.10.0' );
 define( 'DESKTOP_MODE_FILE', __FILE__ );
 define( 'DESKTOP_MODE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
@@ -46,6 +46,9 @@ require_once DESKTOP_MODE_DIR . 'includes/presence.php';
 require_once DESKTOP_MODE_DIR . 'includes/nonce-refresh.php';
 require_once DESKTOP_MODE_DIR . 'includes/sticky-notes/heartbeat.php';
 require_once DESKTOP_MODE_DIR . 'includes/os-settings.php';
+// One-time data migrations. After os-settings.php so the meta-key
+// constant and save/sanitize helpers the migrations call already exist.
+require_once DESKTOP_MODE_DIR . 'includes/migrations.php';
 require_once DESKTOP_MODE_DIR . 'includes/seen-intros.php';
 require_once DESKTOP_MODE_DIR . 'includes/welcome-dialog.php';
 require_once DESKTOP_MODE_DIR . 'includes/portal.php';
@@ -64,6 +67,7 @@ require_once DESKTOP_MODE_DIR . 'includes/commands.php';
 require_once DESKTOP_MODE_DIR . 'includes/settings-tabs.php';
 require_once DESKTOP_MODE_DIR . 'includes/dock-rail-renderer.php';
 require_once DESKTOP_MODE_DIR . 'includes/title-bar-buttons.php';
+require_once DESKTOP_MODE_DIR . 'includes/unfocus-effects.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-chrome.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-notices.php';
 require_once DESKTOP_MODE_DIR . 'includes/wallpapers.php';

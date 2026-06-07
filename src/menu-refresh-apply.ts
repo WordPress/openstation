@@ -25,6 +25,7 @@ import type {
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
+	DesktopUnfocusEffectScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
@@ -44,6 +45,7 @@ export interface MenuRefreshPayload {
 	serverSettingsTabs?: unknown;
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
+	serverUnfocusEffectScripts?: unknown;
 	serverWindowNotices?: unknown;
 	desktopIcons?: unknown;
 }
@@ -78,6 +80,9 @@ export interface MenuRefreshDeps {
 	) => Promise< void >;
 	syncServerTitleBarButtons: (
 		scripts: DesktopTitleBarButtonScriptServerEntry[],
+	) => Promise< void >;
+	syncServerUnfocusEffects: (
+		scripts: DesktopUnfocusEffectScriptServerEntry[],
 	) => Promise< void >;
 	syncServerDockRailRenderers: (
 		scripts: DesktopDockRailRendererScriptServerEntry[],
@@ -174,6 +179,7 @@ export function createApplyPayload(
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerUnfocusEffects,
 		syncServerDockRailRenderers,
 		renderIcons,
 	} = deps;
@@ -189,6 +195,7 @@ export function createApplyPayload(
 		const serverSettingsTabs = payload.serverSettingsTabs;
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
+		const serverUnfocusEffectScripts = payload.serverUnfocusEffectScripts;
 		const serverWindowNotices = payload.serverWindowNotices;
 		const desktopIcons = payload.desktopIcons;
 
@@ -301,6 +308,18 @@ export function createApplyPayload(
 			);
 			config.serverTitleBarButtonScripts =
 				serverTitleBarButtonScripts as DesktopConfig[ 'serverTitleBarButtonScripts' ];
+		}
+
+		// Unfocus-effect sync — same shape. Loads plugin effect scripts
+		// on activation (their `registerUnfocusEffect()` surfaces in
+		// OS Settings → Effects and re-runs the engine); owner-tagged
+		// sweep on deactivation.
+		if ( Array.isArray( serverUnfocusEffectScripts ) ) {
+			void syncServerUnfocusEffects(
+				serverUnfocusEffectScripts as DesktopUnfocusEffectScriptServerEntry[],
+			);
+			config.serverUnfocusEffectScripts =
+				serverUnfocusEffectScripts as DesktopConfig[ 'serverUnfocusEffectScripts' ];
 		}
 
 		// Dock rail renderer sync — load plugin renderer scripts on

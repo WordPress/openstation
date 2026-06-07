@@ -409,6 +409,38 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
+### `desktop_mode_unfocus_effect_script_registered` — Experimental (since 0.26.0)
+
+Fires after `desktop_mode_register_unfocus_effect_script()` stores an unfocus-effect script handle.
+
+```php
+do_action( 'desktop_mode_unfocus_effect_script_registered', string $handle );
+```
+
+### `desktop_mode_register_unfocus_effect_script( $handle )` — Experimental (PHP function, since 0.26.0)
+
+Declares a WP-registered script handle as an unfocused-window-effect provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerUnfocusEffect()` calls made by the plugin's JS surface in **OS Settings → Effects** (and apply to unfocused windows) **without a page reload**.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-effects',
+        plugins_url( 'js/effects.js', __FILE__ ),
+        array( 'desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-effects' );
+} );
+desktop_mode_register_unfocus_effect_script( 'my-plugin-effects' );
+```
+
+For live unregistration on deactivation, set `owner: 'my-plugin-effects'` on each `registerUnfocusEffect` call. Untagged effects survive past deactivation until the next page reload — graceful backwards-compat.
+
+The built-in effects (`darken`, `frost`, `grayscale`) are registered through the same JS hook (`wp.desktop.registerUnfocusEffect`) — there is no PHP for them, since they are pure CSS shipped with the plugin.
+
+---
+
 ### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.17.0)*
 
 Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument.
@@ -1240,49 +1272,29 @@ add_filter( 'desktop_mode_ai_model', function ( $model, $schema ) {
 }, 10, 2 );
 ```
 
-### `desktop_mode_ai_supported_post_types` / `desktop_mode_ai_supported_taxonomies` — Stable
+> **Removed in 0.11.0.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
-Gate which post types and taxonomies receive auto-analysis on save. Defaults include `post`, `page`, and all public custom post types / taxonomies.
+### `desktop_mode_ai_schema_comment` — Experimental
 
-```php
-apply_filters( 'desktop_mode_ai_supported_post_types', array $types );
-apply_filters( 'desktop_mode_ai_supported_taxonomies', array $taxonomies );
-```
-
-### `desktop_mode_ai_supported_types` — Stable
-
-Umbrella gate applied by the job scheduler (`desktop_mode_ai_schedule_job`). Return a subset of `[ 'post', 'term', 'comment' ]` to disable a whole entity class.
+Mutate the JSON Schema handed to OpenAI for structured-output comment analysis. Use this to add custom fields (compliance flags, sentiment buckets, …) the model should populate alongside the built-in `spam` / `harmful` verdict.
 
 ```php
-apply_filters( 'desktop_mode_ai_supported_types', array $types );
-```
-
-### `desktop_mode_ai_schema_content` / `desktop_mode_ai_schema_comment` — Experimental
-
-Mutate the JSON Schema handed to OpenAI for structured-output post/term and comment analysis. Use this to add custom fields (brand voice scoring, compliance flags, …) the model should populate.
-
-```php
-apply_filters( 'desktop_mode_ai_schema_content', array $schema );
 apply_filters( 'desktop_mode_ai_schema_comment', array $schema );
 ```
 
-### `desktop_mode_ai_post_prompt` / `desktop_mode_ai_term_prompt` / `desktop_mode_ai_comment_prompt` — Stable
+### `desktop_mode_ai_comment_prompt` — Stable
 
-Customise the user-side prompt handed to the model per entity. Each filter receives the default prompt plus the entity object.
+Customise the user-side prompt handed to the model for comment analysis. The filter receives the default prompt plus the comment object.
 
 ```php
-apply_filters( 'desktop_mode_ai_post_prompt',    string $prompt, WP_Post    $post );
-apply_filters( 'desktop_mode_ai_term_prompt',    string $prompt, WP_Term    $term );
 apply_filters( 'desktop_mode_ai_comment_prompt', string $prompt, WP_Comment $comment );
 ```
 
-### `desktop_mode_ai_post_analyzed` / `desktop_mode_ai_term_analyzed` / `desktop_mode_ai_comment_analyzed` — Stable
+### `desktop_mode_ai_comment_analyzed` — Stable
 
-Fire after a successful analysis. The result array contains the fields emitted by the schema (typically `summary`, `topics`, `sentiment`, `embedding`, …). Use these to mirror data into a custom index or trigger downstream jobs.
+Fires after a comment has been successfully analyzed. The result array contains the fields emitted by the schema (`topic`, `ai_summary`, `harmful`, `spam`). Use it to mirror the verdict into a custom moderation queue or trigger downstream jobs.
 
 ```php
-do_action( 'desktop_mode_ai_post_analyzed',    int $post_id,    array $result, WP_Post    $post );
-do_action( 'desktop_mode_ai_term_analyzed',    int $term_id,    array $result, WP_Term    $term );
 do_action( 'desktop_mode_ai_comment_analyzed', int $comment_id, array $result, WP_Comment $comment );
 ```
 
@@ -1884,11 +1896,11 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-OUT as of 0.8.0** — fresh installs land on it; users can flip it off via **OS Settings → Features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `true`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.8.0–0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
 
 ### `desktop_mode_posts_window_user_can_use` — Stable *(filter, since 0.8.0)*
 
-The two-condition gate: `edit_posts` AND the user hasn't toggled the opt-out. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
+The two-condition gate: `edit_posts` AND the user has turned the opt-in toggle on. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
 
 ```php
 apply_filters( 'desktop_mode_posts_window_user_can_use', bool $can, int $user_id );
@@ -1987,7 +1999,7 @@ Returning `false` from `enabled` (or `matches`) lets the click fall through. An 
 
 ## Native Plugins window (since 0.9.0)
 
-A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-OUT** — fresh installs land on it; users can flip it off via **OS Settings → Features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `true`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
 
 Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_desktop_mode_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.desktop.refreshMenu()` so the dock repaints live.
 
@@ -2001,7 +2013,7 @@ apply_filters( 'desktop_mode_plugins_window_user_can_register', bool $can, int $
 
 ### `desktop_mode_plugins_window_user_can_use` — Stable *(filter, since 0.9.0)*
 
-Combined cap-and-opt-in. Returns `true` when the user has `activate_plugins` AND has not flipped `nativePluginsEnabled` to `false`.
+Combined cap-and-opt-in. Returns `true` when the user has `activate_plugins` AND has turned `nativePluginsEnabled` on (default `false`).
 
 ```php
 apply_filters( 'desktop_mode_plugins_window_user_can_use', bool $can, int $user_id ): bool
@@ -2157,7 +2169,7 @@ apply_filters( 'desktop_mode_plugins_featured_response', array $payload, array $
 
 Replaces the chromeless `edit-comments.php` iframe with a moderation queue native window: Pending / All / Spam / Trash / Mine tabs, bulk approve / spam / trash with an 8-second undo, inline reply editor, keyboard moderation (`j/k/a/s/d/r/e/u/?`), spam-confidence chip per row, author-insights drawer.
 
-Per-user opt-out via OS Settings → Features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
+Per-user opt-in Beta (default `false` as of 0.10.0) via OS Settings → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
 
 ### `desktop_mode_comments_window_user_can_register` — Stable *(filter, since 0.19.0)*
 

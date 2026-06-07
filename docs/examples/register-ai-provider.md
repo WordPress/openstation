@@ -10,7 +10,7 @@ Three callables, all small:
 
 - `make_turn_input( $kind, $payload )` — build whatever you'd like to receive in `agentic_call` next turn. Opaque to the shell.
 - `agentic_call( $api_key, $turn_input, $tools, $text_format, $instructions, $state )` — one turn of the agentic loop.
-- `structured_request( $api_key, $messages, $schema, $schema_name, $model )` — single-shot structured-output request (used by the post / term / comment analysis jobs).
+- `structured_request( $api_key, $messages, $schema, $schema_name, $model )` — single-shot structured-output request (used by the comment spam-analysis job).
 
 Plus metadata: a label, a link to where the user gets an API key, an optional default model.
 

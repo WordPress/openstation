@@ -20,8 +20,17 @@ class Tests_DesktopMode_Session extends WP_UnitTestCase {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 	}
 
+	public function set_up() {
+		parent::set_up();
+		// The session REST routes now require desktop mode to be enabled
+		// for the caller. Opt the test user in so the happy-path REST
+		// tests exercise the route body rather than the permission gate.
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+	}
+
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, DESKTOP_MODE_SESSION_META_KEY );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		parent::tear_down();
 	}
 
@@ -565,14 +574,32 @@ class Tests_DesktopMode_Session extends WP_UnitTestCase {
 	 */
 	public function test_rest_permission_denies_logged_out() {
 		wp_set_current_user( 0 );
-		$this->assertFalse( desktop_mode_rest_session_permission() );
+		$result = desktop_mode_rest_session_permission();
+		$this->assertWPError( $result );
+		$this->assertSame( 401, $result->get_error_data()['status'] );
+	}
+
+	/**
+	 * A logged-in user who hasn't enabled desktop mode is denied (403).
+	 * Regression guard for the broken-access-control report.
+	 *
+	 * @covers ::desktop_mode_rest_session_permission
+	 */
+	public function test_rest_permission_denies_logged_in_without_desktop_mode() {
+		wp_set_current_user( self::$admin_id );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+
+		$result = desktop_mode_rest_session_permission();
+		$this->assertWPError( $result );
+		$this->assertSame( 403, $result->get_error_data()['status'] );
 	}
 
 	/**
 	 * @covers ::desktop_mode_rest_session_permission
 	 */
-	public function test_rest_permission_allows_logged_in_user_with_read_cap() {
+	public function test_rest_permission_allows_enabled_user() {
 		wp_set_current_user( self::$admin_id );
+		// set_up() opts this user into desktop mode.
 		$this->assertTrue( desktop_mode_rest_session_permission() );
 	}
 

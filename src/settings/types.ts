@@ -112,6 +112,15 @@ export interface OsSettingsState {
 	 * @since 0.18.0
 	 */
 	dockRailRenderer: string;
+	/**
+	 * Active unfocused-window effect id. Resolves through the
+	 * unfocus-effect registry; `'none'` means no effect, an unknown id
+	 * is treated as `'none'` by the engine until/if a matching effect
+	 * registers. Default `'darken'`.
+	 *
+	 * @since 0.26.0
+	 */
+	unfocusEffect: string;
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
 	/**

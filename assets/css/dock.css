@@ -209,6 +209,33 @@
 	top: -4px;
 }
 
+/*
+ * Recycle Bin count — unlike unread/update badges, the trash count
+ * is ambient state. Keep it inside the bin glyph as a quiet neutral
+ * marker instead of a red alert on the tile corner.
+ */
+.desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ] .desktop-mode-dock__badge {
+	top: 20px;
+	inset-inline-end: 7px;
+	min-width: 13px;
+	height: 13px;
+	padding: 0 3px;
+	border-radius: 999px;
+	background: rgba( 29, 35, 39, 0.72 );
+	color: rgba( 255, 255, 255, 0.92 );
+	font-size: 8px;
+	font-weight: 700;
+	letter-spacing: 0;
+	box-shadow:
+		inset 0 0 0 1px rgba( 255, 255, 255, 0.26 ),
+		0 1px 2px rgba( 0, 0, 0, 0.24 );
+}
+
+.desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ]:hover .desktop-mode-dock__badge {
+	top: 20px;
+	transform: scale( 1.03 );
+}
+
 /* System tiles — same footprint as menu tiles, no badges, no rails. */
 .desktop-mode-dock__item--system .desktop-mode-dock__item-primary {
 	color: rgba( 255, 255, 255, 0.8 );

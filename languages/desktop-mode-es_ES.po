@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Desktop Mode 0.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/alcazaba-plugin\n"
-"POT-Creation-Date: 2026-05-23T15:34:17+00:00\n"
+"POT-Creation-Date: 2026-06-05T13:36:22+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: Desktop Mode team\n"
 "Language-Team: Español\n"
@@ -409,16 +409,16 @@ msgid "Undo"
 msgstr "Deshacer"
 
 #. %s: bulk action name (e.g. "approve", "spam").
-#: src/comments-window/index.ts:1557
+#: src/comments-window/index.ts:1566
 #, fuzzy
 msgid "Bulk %s failed."
 msgstr "Error al subir."
 
-#: src/comments-window/index.ts:1573
+#: src/comments-window/index.ts:1582
 msgid "Undone."
 msgstr "Deshecho."
 
-#: src/comments-window/index.ts:1577
+#: src/comments-window/index.ts:1586
 #, fuzzy
 msgid "Undo failed."
 msgstr "Error al subir."
@@ -5725,6 +5725,14 @@ msgid ""
 "Dock rail renderer script registration requires a non-empty script handle."
 msgstr ""
 
+#: includes/helpers.php:90
+msgid "Authentication required."
+msgstr ""
+
+#: includes/helpers.php:98
+msgid "Desktop mode is not enabled for your account."
+msgstr ""
+
 #: includes/media-query.php:83
 msgid "Only return images at least this many pixels wide."
 msgstr "Devolver solo imágenes con al menos esta anchura en píxeles."
@@ -6004,14 +6012,6 @@ msgstr ""
 msgid "Whether this term is the taxonomy's default (fallback) term."
 msgstr ""
 
-#: includes/presence.php:418
-msgid "Authentication required."
-msgstr ""
-
-#: includes/presence.php:425
-msgid "Desktop mode is not enabled for your account."
-msgstr ""
-
 #. translators: %s: site name
 #: includes/pwa.php:273
 #, php-format
@@ -6254,7 +6254,7 @@ msgstr "Navegación del administrador"
 msgid "Widgets"
 msgstr "Widgets"
 
-#: includes/seen-intros.php:218
+#: includes/seen-intros.php:221
 #, fuzzy
 msgid "The `slug` parameter must be a non-empty string."
 msgstr "El parámetro «url» debe ser una cadena o null."

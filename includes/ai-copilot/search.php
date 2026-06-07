@@ -5,8 +5,11 @@
  * Agentic search loop: the user describes something in natural language and
  * the OpenAI agent calls focused tools — search_posts, search_pages,
  * search_comments — choosing the right one based on query semantics. Each
- * tool fetches 10 entities with their _desktop_mode_ai_analysis meta so the model
- * can compare AI-generated summaries to the user's description.
+ * tool runs WordPress's native search (WP_Query `s=` / get_comments
+ * `search=`) for the keywords the model distils from the request, then
+ * returns up to 10 matching entities with their real title + content
+ * excerpt for the model to compare to the user's description. No AI
+ * pre-analysis is required — every published post/page/comment is findable.
  *
  * Three tools instead of one parameter:
  *   - "I remember a comment where someone said congratulations…" → agent
@@ -55,11 +58,15 @@ const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
 function desktop_mode_ai_search_tool_definitions() {
 	// Responses API tool definitions are FLAT — no nested `function` wrapper.
 	// The `type`, `name`, `description`, and `parameters` sit at the top level.
-	$offset_param = array(
+	$query_offset_param = array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
-		'required'             => array( 'offset' ),
+		'required'             => array( 'query', 'offset' ),
 		'properties'           => array(
+			'query'  => array(
+				'type'        => 'string',
+				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences.',
+			),
 			'offset' => array(
 				'type'        => 'integer',
 				'description' => 'Zero-based starting position. Use 0 for the first batch, 10 for the second, and so on.',
@@ -71,33 +78,37 @@ function desktop_mode_ai_search_tool_definitions() {
 		array(
 			'type'        => 'function',
 			'name'        => 'search_posts',
-			'description' => 'Searches published WordPress blog posts that have been analyzed by the AI. Use this when the user is looking for content they or someone else wrote as a post or article. Returns up to 10 posts with their topic label, AI summary, title, date, and URLs. If has_more is true, call again with the next offset.',
-			'parameters'  => $offset_param,
+			'description' => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article. Pass the key search terms as `query`. Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
+			'parameters'  => $query_offset_param,
 		),
 		array(
 			'type'        => 'function',
 			'name'        => 'search_pages',
-			'description' => 'Searches published WordPress pages (About, Contact, Services, Portfolio, etc.) that have been analyzed by the AI. Use this when the user is looking for a static page, landing page, or informational page on the site. Returns up to 10 pages with their topic label, AI summary, title, and URLs. If has_more is true, call again with the next offset.',
-			'parameters'  => $offset_param,
+			'description' => 'Keyword-searches published WordPress pages (About, Contact, Services, Portfolio, etc.) by title and content. Use this when the user is looking for a static page, landing page, or informational page on the site. Pass the key search terms as `query`. Returns up to 10 matching pages with their title, a content excerpt, and URLs. If has_more is true, call again with the next offset.',
+			'parameters'  => $query_offset_param,
 		),
 		array(
 			'type'        => 'function',
 			'name'        => 'search_comments',
-			'description' => 'Searches approved WordPress comments across ALL posts that have been analyzed by the AI. Use this when the user remembers something a reader said but does not know which post it was on. Returns up to 10 comments with their topic, AI summary, excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
-			'parameters'  => $offset_param,
+			'description' => 'Keyword-searches approved WordPress comments across ALL posts by their text (WordPress native search). Use this when the user remembers something a reader said but does not know which post it was on. Pass the distinctive words from the comment as `query`. Returns up to 10 matching comments with an excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
+			'parameters'  => $query_offset_param,
 		),
 		array(
 			'type'        => 'function',
 			'name'        => 'search_comments_by_post',
-			'description' => 'Searches approved comments on a SPECIFIC post by its WordPress ID. Use this when you have already identified a post (via search_posts) and the user\'s query also mentions something a reader said on that post — e.g. "I remember a comment on my Málaga post asking about the Alcazaba at night." Call search_posts first to find the post ID, then call this tool with that ID. Much more precise than search_comments when the parent post is known. If has_more is true, call again with the next offset.',
+			'description' => 'Keyword-searches approved comments on a SPECIFIC post by its WordPress ID. Use this when you have already identified a post (via search_posts) and the user\'s query also mentions something a reader said on that post — e.g. "I remember a comment on my Málaga post asking about the Alcazaba at night." Call search_posts first to find the post ID, then call this tool with that ID and the distinctive words as `query`. Much more precise than search_comments when the parent post is known. If has_more is true, call again with the next offset.',
 			'parameters'  => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
-				'required'             => array( 'post_id', 'offset' ),
+				'required'             => array( 'post_id', 'query', 'offset' ),
 				'properties'           => array(
 					'post_id' => array(
 						'type'        => 'integer',
 						'description' => 'The WordPress ID of the post whose comments should be searched. Obtain this from a prior search_posts call.',
+					),
+					'query'   => array(
+						'type'        => 'string',
+						'description' => 'Keyword search terms matched against the comment text. Pass the distinctive words the user remembers; use an empty string to list the post\'s comments without keyword filtering.',
 					),
 					'offset'  => array(
 						'type'        => 'integer',
@@ -283,17 +294,10 @@ function desktop_mode_ai_search_answer_schema() {
 /**
  * Routes a tool call to the correct DB query by function name.
  *
- * @since 0.14.0
- *
- * @param string $tool_name 'search_posts' | 'search_pages' | 'search_comments'.
- * @param int    $offset
- * @return array Tool result payload.
- */
-/**
- * Routes a tool call to the correct DB query by function name.
- *
- * `search_comments_by_post` requires an additional `post_id` arg; all
- * other tools only need `offset`. The caller passes the full decoded
+ * The content-search tools (`search_posts`, `search_pages`,
+ * `search_comments`, `search_comments_by_post`) take a keyword `query`
+ * matched with WordPress's native search; `search_comments_by_post`
+ * needs an additional `post_id`. The caller passes the full decoded
  * arguments array so this function can extract whatever it needs.
  *
  * @since 0.14.0
@@ -303,18 +307,19 @@ function desktop_mode_ai_search_answer_schema() {
  * @return array Tool result payload.
  */
 function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
-	$offset  = max( 0, (int) ( $args['offset'] ?? 0 ) );
+	$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
+	$query  = isset( $args['query'] ) ? sanitize_text_field( (string) $args['query'] ) : '';
 
 	switch ( $tool_name ) {
 		case 'search_posts':
-			return desktop_mode_ai_search_fetch_posts( 'post', $offset );
+			return desktop_mode_ai_search_fetch_posts( 'post', $query, $offset );
 		case 'search_pages':
-			return desktop_mode_ai_search_fetch_posts( 'page', $offset );
+			return desktop_mode_ai_search_fetch_posts( 'page', $query, $offset );
 		case 'search_comments':
-			return desktop_mode_ai_search_fetch_comments( $offset );
+			return desktop_mode_ai_search_fetch_comments( $query, $offset );
 		case 'search_comments_by_post':
 			$post_id = max( 0, (int) ( $args['post_id'] ?? 0 ) );
-			return desktop_mode_ai_search_fetch_comments_by_post( $post_id, $offset );
+			return desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offset );
 		case 'list_admin_pages':
 			return array(
 				'tool'  => 'list_admin_pages',
@@ -348,89 +353,95 @@ function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
 }
 
 /**
- * Fetches a batch of posts or pages with AI analysis, returning data
- * rich enough for the agent to compare AND for the UI to render links.
+ * Keyword-searches published posts or pages with WordPress's native search
+ * (`WP_Query` `s=`), returning data rich enough for the agent to compare
+ * AND for the UI to render links.
+ *
+ * No AI analysis is required — every published post/page is searchable.
  *
  * @since 0.14.0
  *
  * @param string $post_type 'post' | 'page'.
+ * @param string $query     Keyword search terms (may be empty to list newest).
  * @param int    $offset
  * @return array
  */
-function desktop_mode_ai_search_fetch_posts( $post_type, $offset ) {
-	$query = new WP_Query(
+function desktop_mode_ai_search_fetch_posts( $post_type, $query, $offset ) {
+	$wp_query = new WP_Query(
 		array(
 			'post_type'              => $post_type,
 			'post_status'            => 'publish',
+			's'                      => (string) $query,
 			'posts_per_page'         => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 			'offset'                 => $offset,
 			'no_found_rows'          => false,
 			'update_post_term_cache' => false,
-			'update_post_meta_cache' => true,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- AI search batch fetch; targets only the small subset of posts that already have an AI summary stamped, single EXISTS clause against an indexed key.
-			'meta_query'             => array(
-				array(
-					'key'     => DESKTOP_MODE_AI_META_KEY,
-					'compare' => 'EXISTS',
-				),
-			),
+			'update_post_meta_cache' => false,
 		)
 	);
 
 	$items = array();
-	foreach ( $query->posts as $post ) {
-		$meta = desktop_mode_ai_get_meta( 'post', $post->ID );
-		if ( ! $meta ) {
-			continue;
-		}
+	foreach ( $wp_query->posts as $post ) {
 		$items[] = array(
 			// Identity — used to build the final entity detail.
-			'id'         => $post->ID,
-			'type'       => $post->post_type,
-			// Comparison data for the model.
-			'title'      => wp_strip_all_tags( $post->post_title ),
-			'topic'      => isset( $meta['topic'] ) ? (string) $meta['topic'] : '',
-			'ai_summary' => isset( $meta['ai_summary'] ) ? (string) $meta['ai_summary'] : '',
-			'date'       => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
+			'id'       => $post->ID,
+			'type'     => $post->post_type,
+			// Comparison data for the model — real title + content excerpt.
+			'title'    => wp_strip_all_tags( $post->post_title ),
+			'excerpt'  => desktop_mode_ai_search_excerpt( $post->post_content ),
+			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
 			// Links — passed through so the UI can link to the entity
 			// once the agent identifies a match.
-			'url'        => (string) get_permalink( $post ),
-			'edit_url'   => (string) get_edit_post_link( $post->ID, 'raw' ),
+			'url'      => (string) get_permalink( $post ),
+			'edit_url' => (string) get_edit_post_link( $post->ID, 'raw' ),
 		);
 	}
 
-	$total = (int) $query->found_posts;
+	$total = (int) $wp_query->found_posts;
 
 	return array(
-		'tool'       => 'search_' . $post_type . 's',
-		'offset'     => $offset,
-		'items'      => $items,
-		'count'      => count( $items ),
-		'total'      => $total,
-		'has_more'   => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
+		'tool'        => 'search_' . $post_type . 's',
+		'query'       => (string) $query,
+		'offset'      => $offset,
+		'items'       => $items,
+		'count'       => count( $items ),
+		'total'       => $total,
+		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
 		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
 	);
 }
 
 /**
- * Fetches a batch of approved comments with AI analysis.
+ * Trims raw post/comment content into a plain-text excerpt for the model.
+ *
+ * @since 0.11.0
+ *
+ * @param string $content Raw post/comment content.
+ * @return string
+ */
+function desktop_mode_ai_search_excerpt( $content ) {
+	$text = wp_strip_all_tags( (string) $content );
+	$text = preg_replace( '/\s+/', ' ', trim( $text ) );
+	return (string) mb_substr( $text, 0, 300 );
+}
+
+/**
+ * Keyword-searches approved comments across all posts with WordPress's
+ * native comment search (`get_comments` `search=`).
+ *
+ * No AI analysis is required — every approved comment is searchable.
  *
  * @since 0.14.0
  *
- * @param int $offset
+ * @param string $query Keyword search terms (may be empty to list newest).
+ * @param int    $offset
  * @return array
  */
-function desktop_mode_ai_search_fetch_comments( $offset ) {
+function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
 	$base_args = array(
-		'status'     => 'approve',
-		'type'       => 'comment',
-		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- AI search batch fetch for comments; targets only AI-summarised entries via single EXISTS clause.
-		'meta_query' => array(
-			array(
-				'key'     => DESKTOP_MODE_AI_META_KEY,
-				'compare' => 'EXISTS',
-			),
-		),
+		'status' => 'approve',
+		'type'   => 'comment',
+		'search' => (string) $query,
 	);
 
 	$comments = get_comments( array_merge( $base_args, array(
@@ -441,35 +452,120 @@ function desktop_mode_ai_search_fetch_comments( $offset ) {
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
+	// Prime the parent posts in a single query so the per-comment
+	// get_post() calls below are cache hits, not N+1 round-trips.
+	$parent_ids = array_unique( array_map(
+		static function ( $c ) {
+			return (int) $c->comment_post_ID;
+		},
+		$comments
+	) );
+	if ( $parent_ids ) {
+		_prime_post_caches( $parent_ids, false, false );
+	}
+
 	$items = array();
 	foreach ( $comments as $comment ) {
-		$meta = desktop_mode_ai_get_meta( 'comment', $comment->comment_ID );
-		if ( ! $meta ) {
-			continue;
-		}
 		$parent_post  = get_post( $comment->comment_post_ID );
 		$parent_title = $parent_post ? wp_strip_all_tags( $parent_post->post_title ) : '';
 
 		$items[] = array(
-			'id'           => (int) $comment->comment_ID,
-			'type'         => 'comment',
-			// Comparison data.
-			'post_title'   => $parent_title,
-			'excerpt'      => mb_substr( wp_strip_all_tags( $comment->comment_content ), 0, 250 ),
-			'topic'        => isset( $meta['topic'] ) ? (string) $meta['topic'] : '',
-			'ai_summary'   => isset( $meta['ai_summary'] ) ? (string) $meta['ai_summary'] : '',
-			'harmful'      => isset( $meta['harmful'] ) ? (bool) $meta['harmful'] : false,
-			'spam'         => isset( $meta['spam'] ) ? (bool) $meta['spam'] : false,
+			'id'         => (int) $comment->comment_ID,
+			'type'       => 'comment',
+			// Comparison data — real comment text + parent post title.
+			'post_title' => $parent_title,
+			'excerpt'    => desktop_mode_ai_search_excerpt( $comment->comment_content ),
 			// Links.
-			'url'          => (string) get_comment_link( $comment ),
-			'edit_url'     => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
-			'post_id'      => (int) $comment->comment_post_ID,
-			'post_url'     => $parent_post ? (string) get_permalink( $parent_post ) : '',
+			'url'        => (string) get_comment_link( $comment ),
+			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
+			'post_id'    => (int) $comment->comment_post_ID,
+			'post_url'   => $parent_post ? (string) get_permalink( $parent_post ) : '',
 		);
 	}
 
 	return array(
 		'tool'        => 'search_comments',
+		'query'       => (string) $query,
+		'offset'      => $offset,
+		'items'       => $items,
+		'count'       => count( $items ),
+		'total'       => $total,
+		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
+		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Entity detail builder — final REST response
+// ---------------------------------------------------------------------------
+
+/**
+ * Keyword-searches approved comments on a specific post.
+ *
+ * Used by the `search_comments_by_post` tool — the model calls this after
+ * identifying a post via `search_posts`, giving it a scoped, precise set of
+ * comments to compare against the user's description. An empty `$query`
+ * lists the post's comments without keyword filtering.
+ *
+ * @since 0.14.0
+ *
+ * @param int    $post_id The WordPress post ID.
+ * @param string $query   Keyword search terms (may be empty).
+ * @param int    $offset
+ * @return array Tool result payload.
+ */
+function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offset ) {
+	$post_id = (int) $post_id;
+
+	if ( $post_id <= 0 ) {
+		return array(
+			'tool'     => 'search_comments_by_post',
+			'post_id'  => $post_id,
+			'offset'   => $offset,
+			'items'    => array(),
+			'count'    => 0,
+			'total'    => 0,
+			'has_more' => false,
+			'error'    => 'post_id must be a positive integer.',
+		);
+	}
+
+	$base_args = array(
+		'post_id' => $post_id,
+		'status'  => 'approve',
+		'type'    => 'comment',
+		'search'  => (string) $query,
+	);
+
+	$comments = get_comments( array_merge( $base_args, array(
+		'number' => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
+		'offset' => $offset,
+		'count'  => false,
+	) ) );
+
+	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
+
+	$parent_post  = get_post( $post_id );
+	$parent_title = $parent_post ? wp_strip_all_tags( $parent_post->post_title ) : '';
+
+	$items = array();
+	foreach ( $comments as $comment ) {
+		$items[] = array(
+			'id'         => (int) $comment->comment_ID,
+			'type'       => 'comment',
+			'post_id'    => $post_id,
+			'post_title' => $parent_title,
+			'excerpt'    => desktop_mode_ai_search_excerpt( $comment->comment_content ),
+			'url'        => (string) get_comment_link( $comment ),
+			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
+		);
+	}
+
+	return array(
+		'tool'        => 'search_comments_by_post',
+		'post_id'     => $post_id,
+		'post_title'  => $parent_title,
+		'query'       => (string) $query,
 		'offset'      => $offset,
 		'items'       => $items,
 		'count'       => count( $items ),
@@ -487,98 +583,11 @@ function desktop_mode_ai_search_fetch_comments( $offset ) {
  * Returns the full entity record used in the `entity` field of the REST
  * response. All URLs are included so the UI can render direct links.
  *
-/**
- * Fetches a batch of approved comments on a specific post.
+ * Built entirely from core post/comment fields — no AI analysis meta is
+ * required. Comments opportunistically surface the `spam` / `harmful`
+ * verdict when the comment-moderation analysis happens to have run, but
+ * its absence never blocks the entity from being returned.
  *
- * Used by the `search_comments_by_post` tool — the model calls this after
- * identifying a post via `search_posts`, giving it a scoped, precise set of
- * comments to compare against the user's description.
- *
- * @since 0.14.0
- *
- * @param int $post_id The WordPress post ID.
- * @param int $offset
- * @return array Tool result payload.
- */
-function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $offset ) {
-	$post_id = (int) $post_id;
-
-	if ( $post_id <= 0 ) {
-		return array(
-			'tool'     => 'search_comments_by_post',
-			'post_id'  => $post_id,
-			'offset'   => $offset,
-			'items'    => array(),
-			'count'    => 0,
-			'total'    => 0,
-			'has_more' => false,
-			'error'    => 'post_id must be a positive integer.',
-		);
-	}
-
-	$base_args = array(
-		'post_id'    => $post_id,
-		'status'     => 'approve',
-		'type'       => 'comment',
-		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- comments-by-post AI search; further narrowed by post_id + EXISTS on the AI summary key.
-		'meta_query' => array(
-			array(
-				'key'     => DESKTOP_MODE_AI_META_KEY,
-				'compare' => 'EXISTS',
-			),
-		),
-	);
-
-	$comments = get_comments( array_merge( $base_args, array(
-		'number' => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
-		'offset' => $offset,
-		'count'  => false,
-	) ) );
-
-	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
-
-	$parent_post  = get_post( $post_id );
-	$parent_title = $parent_post ? wp_strip_all_tags( $parent_post->post_title ) : '';
-
-	$items = array();
-	foreach ( $comments as $comment ) {
-		$meta = desktop_mode_ai_get_meta( 'comment', $comment->comment_ID );
-		if ( ! $meta ) {
-			continue;
-		}
-		$items[] = array(
-			'id'         => (int) $comment->comment_ID,
-			'type'       => 'comment',
-			'post_id'    => $post_id,
-			'post_title' => $parent_title,
-			'excerpt'    => mb_substr( wp_strip_all_tags( $comment->comment_content ), 0, 250 ),
-			'topic'      => isset( $meta['topic'] ) ? (string) $meta['topic'] : '',
-			'ai_summary' => isset( $meta['ai_summary'] ) ? (string) $meta['ai_summary'] : '',
-			'harmful'    => isset( $meta['harmful'] ) ? (bool) $meta['harmful'] : false,
-			'spam'       => isset( $meta['spam'] ) ? (bool) $meta['spam'] : false,
-			'url'        => (string) get_comment_link( $comment ),
-			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
-		);
-	}
-
-	return array(
-		'tool'        => 'search_comments_by_post',
-		'post_id'     => $post_id,
-		'post_title'  => $parent_title,
-		'offset'      => $offset,
-		'items'       => $items,
-		'count'       => count( $items ),
-		'total'       => $total,
-		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
-		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
-	);
-}
-
-// ---------------------------------------------------------------------------
-// Entity detail builder — final REST response
-// ---------------------------------------------------------------------------
-
-/**
  * @since 0.14.0
  *
  * @param string $entity_type 'post' | 'page' | 'comment'.
@@ -593,17 +602,15 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 		if ( ! $post instanceof WP_Post ) {
 			return null;
 		}
-		$meta = desktop_mode_ai_get_meta( 'post', $entity_id );
 		return array(
-			'id'         => $entity_id,
-			'type'       => $post->post_type,
-			'title'      => wp_strip_all_tags( $post->post_title ),
-			'status'     => $post->post_status,
-			'date'       => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
-			'url'        => (string) get_permalink( $post ),
-			'edit_url'   => (string) get_edit_post_link( $entity_id, 'raw' ),
-			'topic'      => $meta ? (string) ( $meta['topic'] ?? '' ) : '',
-			'ai_summary' => $meta ? (string) ( $meta['ai_summary'] ?? '' ) : '',
+			'id'       => $entity_id,
+			'type'     => $post->post_type,
+			'title'    => wp_strip_all_tags( $post->post_title ),
+			'status'   => $post->post_status,
+			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
+			'url'      => (string) get_permalink( $post ),
+			'edit_url' => (string) get_edit_post_link( $entity_id, 'raw' ),
+			'excerpt'  => desktop_mode_ai_search_excerpt( $post->post_content ),
 		);
 	}
 
@@ -615,18 +622,16 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 		$meta        = desktop_mode_ai_get_meta( 'comment', $entity_id );
 		$parent_post = get_post( $comment->comment_post_ID );
 		return array(
-			'id'          => $entity_id,
-			'type'        => 'comment',
-			'excerpt'     => mb_substr( wp_strip_all_tags( $comment->comment_content ), 0, 300 ),
-			'post_id'     => (int) $comment->comment_post_ID,
-			'post_title'  => $parent_post ? wp_strip_all_tags( $parent_post->post_title ) : '',
-			'post_url'    => $parent_post ? (string) get_permalink( $parent_post ) : '',
-			'url'         => (string) get_comment_link( $comment ),
-			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . $entity_id ),
-			'topic'       => $meta ? (string) ( $meta['topic'] ?? '' ) : '',
-			'ai_summary'  => $meta ? (string) ( $meta['ai_summary'] ?? '' ) : '',
-			'harmful'     => $meta ? (bool) ( $meta['harmful'] ?? false ) : false,
-			'spam'        => $meta ? (bool) ( $meta['spam'] ?? false ) : false,
+			'id'         => $entity_id,
+			'type'       => 'comment',
+			'excerpt'    => desktop_mode_ai_search_excerpt( $comment->comment_content ),
+			'post_id'    => (int) $comment->comment_post_ID,
+			'post_title' => $parent_post ? wp_strip_all_tags( $parent_post->post_title ) : '',
+			'post_url'   => $parent_post ? (string) get_permalink( $parent_post ) : '',
+			'url'        => (string) get_comment_link( $comment ),
+			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . $entity_id ),
+			'harmful'    => $meta ? (bool) ( $meta['harmful'] ?? false ) : false,
+			'spam'       => $meta ? (bool) ( $meta['spam'] ?? false ) : false,
 		);
 	}
 
@@ -637,26 +642,6 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 // Agentic search loop
 // ---------------------------------------------------------------------------
 
-/**
- * Runs the agentic content-search loop.
- *
- * The model receives three focused tools — search_posts, search_pages,
- * search_comments — and a system prompt that guides it to choose the right
- * tool based on query semantics. "Someone said congratulations" → it calls
- * search_comments. "I wrote about paella" → it calls search_posts. No
- * entity_type routing from the caller is needed for a fresh search.
- *
- * For continuation runs ($initial_tool + $start_offset > 0), the system
- * message primes the agent to resume from the last searched position.
- *
- * @since 0.14.0
- *
- * @param string      $api_key      OpenAI API key.
- * @param string      $query        User's natural-language search.
- * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
- * @param int         $start_offset Offset to resume from (0 for fresh).
- * @return array|WP_Error
- */
 /**
  * Returns a friendly progress message for a tool name — surfaced to the
  * client via SSE so the user sees "Looking through your posts…" rather
@@ -680,6 +665,30 @@ function desktop_mode_ai_progress_message( $tool_name ) {
 	return 'Thinking…';
 }
 
+/**
+ * Runs the agentic content-search loop.
+ *
+ * The model receives focused tools — search_posts, search_pages,
+ * search_comments, search_comments_by_post — and a system prompt that
+ * guides it to choose the right one based on query semantics and pass the
+ * distilled keywords as `query`. "Someone said congratulations" → it calls
+ * search_comments. "I wrote about paella" → it calls search_posts. No
+ * entity_type routing from the caller is needed for a fresh search.
+ *
+ * For continuation runs ($initial_tool + $start_offset > 0), the system
+ * message primes the agent to resume from the last searched position with
+ * the same keywords.
+ *
+ * @since 0.14.0
+ *
+ * @param string      $api_key      OpenAI API key.
+ * @param string      $query        User's natural-language search.
+ * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
+ * @param int         $start_offset Offset to resume from (0 for fresh).
+ * @param callable|null $on_progress Optional progress emitter for SSE ticks.
+ * @param array       $extra        Extensibility context (command tools, prompt overrides, …).
+ * @return array|WP_Error
+ */
 function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
 	/**
 	 * Progress emitter — sends a tick to the caller if they provided a
@@ -746,7 +755,7 @@ function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $st
 	$continuation_note = '';
 	if ( $initial_tool !== null && ( $start_offset > 0 || $initial_tool !== 'search_posts' ) ) {
 		$continuation_note = sprintf(
-			"\n\nNote: This is a continuation of a previous search. Begin with %s(offset=%d) and work forward.",
+			"\n\nNote: This is a continuation of a previous search. Begin with %s using the same search keywords at offset=%d and work forward.",
 			$initial_tool,
 			$start_offset
 		);
@@ -764,7 +773,7 @@ You are a friendly, conversational assistant embedded in a WordPress site. You h
 Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's where you'll find that…\"). Not a search engine tone — no \"Match found\" or robot phrasing.
 
 Tools:
-- search_posts / search_pages / search_comments / search_comments_by_post(post_id, offset): content-lookup tools. Compare each item's topic + ai_summary to the user's description. Stop once you find a good match. Use the same tool with next_offset if has_more is true and no match yet. When the query mentions BOTH a post and a comment on that post, call search_posts first to identify the post, THEN search_comments_by_post with the ID.
+- search_posts / search_pages / search_comments / search_comments_by_post(post_id, query, offset): keyword content-lookup tools backed by WordPress's native search. Distil the user's description into the essential search keywords and pass them as `query` (e.g. \"that long post about making paella\" → query \"paella\"). Inspect the returned title + excerpt and stop once you find a good match. If has_more is true and nothing matched, call the same tool with next_offset (reuse the same query), or try different keywords. When the query mentions BOTH a post and a comment on that post, call search_posts first to identify the post, THEN search_comments_by_post with the ID. If keyword search returns nothing, broaden or simplify the keywords before giving up.
 - list_admin_pages: returns the full catalog of wp-admin destinations. Call once per navigation query, then select the 1-3 most relevant entries.
 - search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation (\"a plugin for X\", \"is there a plugin that does Y?\"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like \"Plugin Name · 5M+ installs · 4.8★\" (rating is 0-100, divide by 20 to get stars).
 - get_php_error_log(lines): reads the tail of the site's PHP error log. Admin-only (the tool itself checks). Use when the user asks \"any errors?\", \"check the logs\", \"what's broken?\", troubleshooting. Each entry has { timestamp, level, message }. Summarise the most important errors (Fatal > Warning > Notice) in your message; don't copy-paste everything.

@@ -131,6 +131,7 @@ Robustness guarantees:
 Persistence:
 
 - `dockRailRenderer` lives on `OsSettingsState` (REST-synced to user meta via `/wp-json/desktop-mode/v1/os-settings`). The field takes any `sanitize_key()`-clean string; the JS-side registry resolves at use time and falls back to `'default'` when the named renderer is missing (plugin deactivated, typo). No server-side allow-list — renderers register from JS at runtime.
+- `unfocusEffect` lives on `OsSettingsState` the same way (default `'darken'`, `'none'` disables). The value is an unfocus-effect registry id or `'none'`; it is lower-cased and stripped to `[a-z0-9_/-]` server-side (slashes preserved so `vendor/sub-id` round-trips — unlike `sanitize_key()`). The engine resolves it at use time and treats an unknown id as "no effect". Plugin effects register from JS at runtime; PHP opt-in via `desktop_mode_register_unfocus_effect_script()` adds the `serverUnfocusEffectScripts` payload entry so a plugin's effect surfaces in OS Settings → Effects without an F5.
 
 See [`docs/dock-customization.md`](./dock-customization.md) for the plugin-author overview and [`docs/examples/`](./examples/README.md) for full walk-throughs.
 
@@ -169,7 +170,7 @@ REST surface:
 - `POST /wp-json/desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], desktops: [...], activeDesktop, focused, updated } }`.
 - `DELETE /wp-json/desktop-mode/v1/session` — clear it.
 
-All session routes require a valid `X-WP-Nonce` (the standard REST nonce) and the current user to be logged in with capability `read`.
+All session routes require a valid `X-WP-Nonce` (the standard REST nonce) and the current user to be logged in **with desktop mode enabled** (`desktop_mode_is_enabled()`, via the shared `desktop_mode_rest_require_enabled()` gate). The `read` capability alone is intentionally insufficient: every authenticated role (including Subscriber) carries `read`, so a `read`-only gate would admit users who never opted into the desktop. Logged-out callers get `401`; logged-in callers without desktop mode get `403`.
 
 We also extend Core's `/wp/v2/media` endpoint with two opt-in query parameters so the OS Settings wallpaper picker (and any plugin that wants the same capability) can ask the server to filter out images that are too small to look good stretched across the desktop:
 

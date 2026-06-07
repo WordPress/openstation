@@ -187,9 +187,9 @@ function desktop_mode_register_default_window_routes() {
 		array(
 			'methods'             => 'POST',
 			'callback'            => 'desktop_mode_rest_set_default_window',
-			'permission_callback' => function () {
-				return is_user_logged_in() && current_user_can( 'read' );
-			},
+			// Logged in + desktop mode enabled. `read` alone is too
+			// loose — see desktop_mode_rest_require_enabled().
+			'permission_callback' => 'desktop_mode_rest_require_enabled',
 			// No schema type on `url` — the param is fundamentally
 			// mixed (string | null) and WP REST's multi-type schema
 			// validation has historically been flaky for this case

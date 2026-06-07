@@ -1159,6 +1159,9 @@ function desktop_mode_build_menu_payload() {
 		'serverTitleBarButtonScripts' => function_exists( 'desktop_mode_build_desktop_titlebar_button_scripts_payload' )
 			? desktop_mode_build_desktop_titlebar_button_scripts_payload()
 			: array(),
+		'serverUnfocusEffectScripts' => function_exists( 'desktop_mode_build_desktop_unfocus_effect_scripts_payload' )
+			? desktop_mode_build_desktop_unfocus_effect_scripts_payload()
+			: array(),
 		'serverWindowThemeScripts'  => function_exists( 'desktop_mode_build_window_theme_scripts_payload' )
 			? desktop_mode_build_window_theme_scripts_payload()
 			: array(),
@@ -1449,6 +1452,9 @@ function desktop_mode_flush_script_handle_registries() {
 	}
 	if ( function_exists( 'desktop_mode_flush_desktop_titlebar_button_script_registry' ) ) {
 		desktop_mode_flush_desktop_titlebar_button_script_registry();
+	}
+	if ( function_exists( 'desktop_mode_flush_desktop_unfocus_effect_script_registry' ) ) {
+		desktop_mode_flush_desktop_unfocus_effect_script_registry();
 	}
 	if ( function_exists( 'desktop_mode_flush_window_theme_script_registry' ) ) {
 		desktop_mode_flush_window_theme_script_registry();

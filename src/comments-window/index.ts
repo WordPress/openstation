@@ -1552,6 +1552,15 @@ async function runBulk(
 		} );
 		updateDockBadge( result.counts.pending );
 		await refresh( state.tab, { force: true } );
+		// The acted-on rows have left (or changed in) the current tab, but
+		// `<wpd-table>` deliberately keeps its selection set across data
+		// refreshes (stale ids are only hidden at paint time — see
+		// wpd-table.ts). Left alone, those ids linger in `table.selection`,
+		// so the next row the user picks reads as "2 selected" and a
+		// follow-up bulk action operates on the phantom id too. Reset the
+		// selection here; clearSelection() emits `wpd-table-selection-change`,
+		// which refreshes the "N selected" chip and hides the bulk bar.
+		state.table?.clearSelection();
 	} catch ( err ) {
 		/* translators: %s: bulk action name (e.g. "approve", "spam"). */
 		const fallback = sprintf( __( 'Bulk %s failed.' ), action );

@@ -19,8 +19,17 @@ class Tests_DesktopMode_SeenIntros extends WP_UnitTestCase {
 		self::$user_id = $factory->user->create( array( 'role' => 'editor' ) );
 	}
 
+	public function set_up() {
+		parent::set_up();
+		// The seen-intros REST routes now require desktop mode enabled for
+		// the caller. Opt the test user in so the REST tests reach the
+		// route body rather than stopping at the permission gate.
+		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
+	}
+
 	public function tear_down() {
 		delete_user_meta( self::$user_id, DESKTOP_MODE_SEEN_INTROS_META_KEY );
+		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 		parent::tear_down();
 	}
 

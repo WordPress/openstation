@@ -30,6 +30,9 @@ body.desktop-mode-active {
  *     them would make corner-grabs guesswork.
  *   - Text inputs / textareas / contenteditable surfaces keep the
  *     browser-default I-beam.
+ *   - The AI assistant's inline "AI Settings" recovery link keeps a
+ *     pointer so it reads as a genuine link (rule lives in
+ *     ai-assistant.css).
  *
  * `!important` is needed because the specific `cursor: pointer` and
  * drag-state declarations elsewhere in the codebase have the same or
@@ -420,6 +423,23 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		0 0 0 1.5px rgba( 0, 0, 0, 0.4 ),
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
 	pointer-events: none;
+}
+
+.desktop-mode-icon[ data-icon-id="desktop-mode-recycle-bin" ] > .desktop-mode-icon__badge {
+	top: 39px;
+	inset-inline-end: 20px;
+	min-width: 15px;
+	height: 15px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: rgba( 29, 35, 39, 0.74 );
+	color: rgba( 255, 255, 255, 0.96 );
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0;
+	box-shadow:
+		inset 0 0 0 1px rgba( 255, 255, 255, 0.28 ),
+		0 1px 2px rgba( 0, 0, 0, 0.28 );
 }
 
 .desktop-mode-icon:hover,

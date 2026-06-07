@@ -6,12 +6,23 @@ on:
   pull_request:
     branches: [ trunk ]
 
+# Least privilege: this workflow only reads the repo to lint, build, and test.
+# It never writes commits, comments, or releases, so the token needs no more
+# than read access to repository contents.
+permissions:
+  contents: read
+
 jobs:
   js:
     name: Lint · Types · Vitest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Don't leave the GITHUB_TOKEN in .git/config; later steps run
+          # PR-authored code (npm scripts, build) and this job never needs
+          # git auth after checkout.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -42,6 +53,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Don't leave the GITHUB_TOKEN in .git/config; later steps run
+          # PR-authored code (npm scripts, build) and this job never needs
+          # git auth after checkout.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -69,6 +85,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Don't leave the GITHUB_TOKEN in .git/config; later steps run
+          # PR-authored code (npm scripts, build) and this job never needs
+          # git auth after checkout.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -89,8 +110,59 @@ jobs:
       - name: Unzip release into build dir
         run: unzip -q desktop-mode.zip -d plugin-check-build
 
+      # wordpress/plugin-check-action@v1 generates its own .wp-env.json that
+      # pulls the Plugin Check plugin from a zip source. On current GitHub
+      # runners that zip download hangs `wp-env start` (it exits 0 mid-flight
+      # before the env is ready -- see the php job). Run Plugin Check in our own
+      # wp-env instead: a dedicated config that mounts the BUILT plugin and uses
+      # only the (reliable) core git source, with Plugin Check installed via
+      # wp-cli.
+      - name: Configure wp-env to check the built plugin
+        run: |
+          cat > .wp-env.plugin-check.json <<'JSON'
+          {
+          "core": null,
+          "plugins": [],
+          "mappings": { "wp-content/plugins/desktop-mode": "./plugin-check-build/desktop-mode" }
+          }
+          JSON
+
+      - name: Start wp-env
+        run: npx wp-env start --config .wp-env.plugin-check.json
+
+      - name: Install Plugin Check plugin
+        run: npx wp-env run --config .wp-env.plugin-check.json cli wp plugin install plugin-check --activate
+
       - name: Run Plugin Check
-        uses: wordpress/plugin-check-action@v1
-        with:
-          build-dir: ./plugin-check-build/desktop-mode
-          ignore-warnings: true
+        run: |
+          # --ignore-warnings: only ERROR-severity findings fail the build.
+          # --ignore-codes: wp_enqueue_command_palette_assets() (WP 6.9) is called
+          #   behind a function_exists() guard in includes/render/assets.php, which
+          #   is the correct pattern for using a newer function while keeping the
+          #   6.0 minimum. Plugin Check's static rule doesn't credit the guard, so
+          #   this code is a false positive for us.
+          # wp-env's spinner writes to stderr; the container command's output is
+          # on stdout. Plugin Check prefixes each file's findings with a "FILE: …"
+          # line, so strip those and slurp the per-file JSON arrays.
+          set +e
+          npx wp-env run --config .wp-env.plugin-check.json cli \
+            wp plugin check desktop-mode --format=json --ignore-warnings \
+            --ignore-codes=wp_function_not_compatible_with_requires_wp \
+            > pc-results.json 2> pc-stderr.log
+          rc=$?
+          set -e
+          echo "wp plugin check exit code: $rc"
+          echo "::group::wp-env run stderr"; cat pc-stderr.log || true; echo "::endgroup::"
+          echo "::group::Plugin Check raw stdout"; cat pc-results.json || true; echo; echo "::endgroup::"
+          findings=$(grep -v '^FILE:' pc-results.json | jq -s 'add // [] | length' 2>/dev/null || echo "PARSE_ERROR")
+          if [ "$findings" = "PARSE_ERROR" ]; then
+            echo "::error::Could not parse Plugin Check output (see raw stdout above)"
+            exit 1
+          fi
+          echo "Plugin Check error findings: $findings"
+          if [ "$findings" != "0" ]; then
+            echo "::error::Plugin Check reported $findings error finding(s)"
+            grep -v '^FILE:' pc-results.json | jq -s -r 'add // [] | .[] | "[\(.code)] line \(.line // "?"): \(.message)"' || true
+            exit 1
+          fi
+          echo "Plugin Check passed (no errors)."

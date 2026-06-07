@@ -62,6 +62,9 @@ import {
 	type TitleBarButtonDef,
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
+import { type UnfocusEffectDef } from './effects/types';
+import { createUnfocusEffectRegistrySync } from './effects/server-sync';
+import { startUnfocusEngine } from './effects/unfocus-engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
 import {
 	type WindowThemeDef,
@@ -944,7 +947,7 @@ export interface WpDesktopPublicApi {
 	 *
 	 * @since 0.18.0
 	 */
-	openOsSettings: () => void;
+	openOsSettings: ( opts?: { tabId?: string } ) => void;
 	/**
 	 * Read the current OS Settings snapshot. Mirrors the same shape
 	 * any settings tab sees via its `ctx.getOsSettings()`. Use this
@@ -1122,6 +1125,23 @@ export interface WpDesktopPublicApi {
 	unregisterTitleBarButton: ( id: string ) => void;
 	/** Snapshot of registered title-bar buttons. @since 0.17.0 */
 	listTitleBarButtons: () => TitleBarButtonDef[];
+	/**
+	 * Register (or replace) an unfocused-window effect — a visual
+	 * treatment applied to every window that isn't focused, surfaced in
+	 * OS Settings → Effects. Ship a `className` to toggle (the cheap
+	 * path) and/or `apply`/`clear` callbacks. Set `owner` to the script
+	 * handle for live unregistration on deactivation. The built-in
+	 * `darken` is registered through this same API.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.26.0
+	 */
+	registerUnfocusEffect: ( def: UnfocusEffectDef ) => void;
+	/** Remove a previously registered unfocus effect. @since 0.26.0 */
+	unregisterUnfocusEffect: ( id: string ) => void;
+	/** Snapshot of registered unfocus effects (filter applied). @since 0.26.0 */
+	listUnfocusEffects: () => UnfocusEffectDef[];
 	/**
 	 * Register (or replace) a per-window theme — a CSS-variable map
 	 * applied to every matching window's outer element. The shell
@@ -2345,9 +2365,17 @@ function init(): void {
 	 * — custom rail renderers needed a portable way to surface OS
 	 * Settings inside their own UI.
 	 *
+	 * Pass `{ tabId }` to land directly on a specific settings tab
+	 * (e.g. `'ai'`, `'apps-icons'`). The tab is set before the window
+	 * opens so a fresh render mounts on it; if the window is already
+	 * open, `focusTab` switches the live tab strip in place.
+	 *
 	 * @since 0.18.0
 	 */
-	function openOsSettings(): void {
+	function openOsSettings( opts: { tabId?: string } = {} ): void {
+		if ( opts.tabId ) {
+			osSettings.activeTabId = opts.tabId;
+		}
 		void manager.open( {
 			id: OS_SETTINGS_WINDOW_ID,
 			baseId: OS_SETTINGS_WINDOW_ID,
@@ -2361,6 +2389,9 @@ function init(): void {
 			minWidth: 560,
 			minHeight: 480,
 		} );
+		if ( opts.tabId ) {
+			osSettings.focusTab( opts.tabId );
+		}
 	}
 
 	/**
@@ -2700,6 +2731,22 @@ function init(): void {
 			: [],
 	);
 
+	// Unfocus-effect sync — same pattern. Loads opted-in scripts so a
+	// plugin's `registerUnfocusEffect()` lands and surfaces in
+	// OS Settings → Effects; deactivation drops effects by `owner` tag.
+	const syncServerUnfocusEffects = createUnfocusEffectRegistrySync();
+	void syncServerUnfocusEffects(
+		Array.isArray( config.serverUnfocusEffectScripts )
+			? config.serverUnfocusEffectScripts
+			: [],
+	);
+
+	// Unfocus-effect engine — applies the user's chosen effect to every
+	// unfocused window and keeps it in sync with focus changes, the
+	// effect registry, and the OS Settings selection. Purely additive:
+	// it only listens to existing window-lifecycle events.
+	startUnfocusEngine( { manager, osSettings } );
+
 	// Dock rail renderer sync — loads plugin renderer scripts on
 	// activation so OS Settings → Dock style surfaces them
 	// without an F5; owner-tagged sweep on deactivation. The
@@ -2961,6 +3008,7 @@ function init(): void {
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerUnfocusEffects,
 		syncServerDockRailRenderers,
 		renderIcons,
 	} );

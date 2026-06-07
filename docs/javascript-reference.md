@@ -1733,6 +1733,8 @@ window.wp.desktop.listDestructiveAdminActions().forEach( ( e ) => console.log( e
 
 Programmatic access to the AI Copilot — same endpoint the built-in overlay talks to. Resolves to an `AskResult`; rejects on network errors, HTTP failures, or abort.
 
+The built-in content tools (`search_posts`, `search_pages`, `search_comments`, `search_comments_by_post`) run WordPress's native keyword search — the model derives a `query` from the user's request and the tools return matching titles + excerpts. (Posts, pages, and terms are no longer pre-analyzed; comment spam scoring is the only automatic AI analysis.) When you continue an exhausted search with `resumeTool` / `startOffset`, the original query is reused automatically.
+
 ```javascript
 const res = await wp.desktop.ai.ask( 'where do I manage categories?' );
 // res = { answer_type: 'navigation', message: '…', admin_links: [ … ], request_id: '…' }
@@ -1898,6 +1900,53 @@ PHP companion (so plugins activated mid-session paint live):
 ```php
 desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
+
+---
+
+### `registerUnfocusEffect( def )` — Experimental  *(since 0.26.0)*
+
+Register a visual treatment applied to every window that **isn't** focused — surfaced in **OS Settings → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
+
+**Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, or neither `className` nor `apply` provided).
+
+**`UnfocusEffectDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique. `[a-z0-9_/-]+` (slashes welcome for `vendor/sub-id`). `'none'` is reserved (it is the selector's "no effect" sentinel). Re-registering replaces. |
+| `label` | `string` | Shown in the selector. |
+| `description` | `string` | Optional. Shown under the selector when this effect is active. |
+| `className` | `string` | Optional. CSS class toggled on the window root (`.desktop-mode-window`) while unfocused. The cheap, declarative path — ship the matching rule in your stylesheet. |
+| `apply` | `( el ) => void` | Optional. Imperative apply, called with the window root when it becomes unfocused under this effect. Use when a static class isn't enough. |
+| `clear` | `( el ) => void` | Optional. Teardown, called when the window regains focus or the effect is switched away. Must undo `apply`; the framework removes `className` for you. |
+| `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
+
+At least one of `className` / `apply` is required.
+
+> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph, posts mind-map / tag-cloud, the About scene) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerUnfocusEffect( {
+        id:        'acme/blur',
+        label:     'Blur',
+        className: 'acme-window--blur', // ship `.acme-window--blur { filter: blur(2px); }`
+        owner:     'my-plugin-effects',
+    } );
+} );
+```
+
+PHP companion (so plugins activated mid-session surface in the selector live):
+
+```php
+desktop_mode_register_unfocus_effect_script( 'my-plugin-effects' );
+```
+
+The raw `desktop-mode.unfocus-effects` JS filter receives the registry array on every read, mirroring `desktop-mode.wallpapers` — use it to reorder, remove, or conditionally swap effects. The user's selection persists in the `unfocusEffect` OS-settings key (effect id or `'none'`; default `'darken'`), readable via `getOsSettings().unfocusEffect`.
+
+### `unregisterUnfocusEffect( id )` / `listUnfocusEffects()` — Experimental  *(since 0.26.0)*
+
+Remove an effect by id, or read the current list (post-filter). `listUnfocusEffects()` always includes the built-ins (`darken`, `frost`, `grayscale`) unless a filter removed them.
 
 ---
 
@@ -2165,7 +2214,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, ai: { enabled, provider, apiKey, transport } }`. `transport` is `'sse' \| 'off'` (default `'off'`) — the user's preferred live-progress transport for AI search; SSE is opt-in because some hosts block long-lived `text/event-stream` connections. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled, provider, apiKey, transport } }`. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `transport` is `'sse' \| 'off'` (default `'off'`) — the user's preferred live-progress transport for AI search; SSE is opt-in because some hosts block long-lived `text/event-stream` connections. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user edits the AI key in the adjacent AI tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -2362,13 +2411,24 @@ Snapshot of every currently registered rail renderer in registration order. Used
 
 ---
 
-### `openOsSettings()` — Stable *(since 0.18.0)*
+### `openOsSettings( opts? )` — Stable *(since 0.18.0)*
 
 Open (or focus, if already open) the shell's OS Settings window. Routes through the same `windowManager.open()` call the dock's OS Settings tile uses, so a window opened via `wp.desktop.openOsSettings()` is indistinguishable from one opened by clicking the dock tile — same id, same render callback, same dimensions, same focus / minimize behaviour.
 
 ```js
 wp.desktop.openOsSettings();
 ```
+
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'features'`, `'apps-icons'`, `'extended'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. The tab is selected before the window opens, and if OS Settings is already open the live tab strip switches in place:
+
+```js
+// Deep-link straight to the AI Settings tab.
+wp.desktop.openOsSettings( { tabId: 'ai' } );
+```
+
+| Param | Type | Notes |
+|---|---|---|
+| `opts.tabId` | `string` (optional) | Settings tab to activate. Unknown ids are ignored (the panel keeps its current/default tab). |
 
 The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OS Settings tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OS Settings from inside the renderer used to require DOM-scraping `[data-system-id="desktop-mode-os-settings"]` and clicking it; this method is the documented portable path.
 

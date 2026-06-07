@@ -50,7 +50,13 @@
 		border-radius 0.25s ease,
 		transform 0.2s ease,
 		opacity 0.2s ease,
-		box-shadow 0.2s ease;
+		box-shadow 0.2s ease,
+		/* Unfocus effects (e.g. `--fx-darken` / `--fx-frost`) toggle
+		 * `filter`; keep it in the shared transition list so the
+		 * treatment fades both ways as focus moves between windows.
+		 * Duration is a custom property (default in `effects.css`) so
+		 * the blur/darken ramp can be tuned without editing this list. */
+		filter var( --desktop-mode-fx-transition-duration, 0.5s ) ease-in-out;
 }
 
 /*
