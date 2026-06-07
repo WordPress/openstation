@@ -148,6 +148,26 @@ Modifier-key clicks (cmd / ctrl / shift / alt, middle-click, `target="_blank"`, 
 
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `desktop_mode_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `desktop-mode-iframe-admin-form-submit` message.
 
+## Activity-footprint launcher inside chromeless iframes — Stable *(since 0.23.0)*
+
+The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `desktop_mode_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the **My WordPress** native window, *without* closing the Users list.
+
+This deliberately does NOT reuse the admin-link path above: that path closes the source iframe on a native-window remap hit (it models a navigation *away*). A row action is an auxiliary *peek*, so it gets its own message.
+
+**Carrier contract.** The row-action link declares the target on the anchor itself:
+
+| Attribute | Value |
+|---|---|
+| `data-desktop-mode-footprint` | Target user id (positive integer). **Required** — its presence is what the bridge sniffs. |
+| `data-desktop-mode-footprint-name` | Display name, used to seed the footprint breadcrumb before the REST payload resolves. Optional. |
+| `href` | A real `user-edit.php?user_id=N` / `profile.php` URL — the graceful fallback followed only when JS is off or on a modifier / middle click. |
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-desktop-mode-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the My WordPress window on that user's footprint route and leaves the source window open. |
+
+**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.desktop.openWindow`. Cold-start safe: the My WordPress bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.desktop.myWordpress.openUserFootprint`.
+
 ## Public hooks
 
 | Hook | Kind | Status | Payload |

@@ -1056,6 +1056,41 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 		/*
+		 * Activity-footprint launcher. A "View activity footprint" row
+		 * action (added to the Users list table by
+		 * `desktop_mode_user_footprint_row_action`) carries the target
+		 * user id in `data-desktop-mode-footprint`. The iframe has no
+		 * shell API of its own, so we escalate the click to the parent
+		 * shell, which opens the My WordPress window on that user's
+		 * footprint. Checked BEFORE classifyLink so the link's real
+		 * href — a graceful profile-edit fallback for no-JS — is never
+		 * followed inside the shell. Modifier-key / middle clicks are
+		 * already filtered above, so cmd/ctrl-click still opens that
+		 * fallback in a new browser tab.
+		 */
+		var footprintAttr = link.getAttribute( 'data-desktop-mode-footprint' );
+		if ( footprintAttr ) {
+			var footprintUid = parseInt( footprintAttr, 10 );
+			if ( footprintUid > 0 ) {
+				e.preventDefault();
+				try {
+					window.parent.postMessage(
+						{
+							type: 'desktop-mode-open-user-footprint',
+							userId: footprintUid,
+							userName: link.getAttribute( 'data-desktop-mode-footprint-name' ) || ''
+						},
+						window.location.origin
+					);
+				} catch ( footprintErr ) {
+					/* Same-origin postMessage can only fail in a sandbox
+					 * we don't support — swallow rather than block the
+					 * click. */
+				}
+				return;
+			}
+		}
+		/*
 		 * WordPress core's wp-admin/js/updates.js owns the click on these
 		 * AJAX-driven plugin/theme management buttons — it binds in bubble
 		 * phase and calls preventDefault to take over with an in-place

@@ -2761,6 +2761,13 @@ Posted when a link inside the iframe points off-site; the parent opens an extern
 { type: 'desktop-mode-external-link'; url: string; label?: string }
 ```
 
+#### `desktop-mode-open-user-footprint` — Stable *(since 0.23.0)*
+Posted when a `[data-desktop-mode-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the My WordPress window on that user's footprint route and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `desktop-mode-iframe-admin-link`, which closes the source on a remap hit). The public entry point is [`wp.desktop.myWordpress.openUserFootprint`](#public-api--wpdesktopmywordpress); see also `bridge-protocol.md`.
+
+```typescript
+{ type: 'desktop-mode-open-user-footprint'; userId: number; userName: string }
+```
+
 #### `desktop-mode-iframe-error` — Stable
 Posted from inside the chromeless iframe's `error` / `unhandledrejection` handlers. The parent re-dispatches as `HOOKS.IFRAME_ERROR` with `{ windowId, kind, message, filename, lineno, colno, stack }` so monitor widgets can subscribe.
 
@@ -4257,6 +4264,22 @@ interface MyWordpressApi {
      * @since 0.21.0
      */
     openMedia( args: { mediaId: number; mediaTitle?: string } ): void;
+
+    /**
+     * Open a user's GitHub-style activity footprint. Mirror of
+     * `openDetail` / `openMedia`, for users. Idempotent and
+     * cold-start safe — opens (or focuses) the window and navigates
+     * it to the footprint route even from a session that never
+     * opened My WordPress.
+     *
+     * This is the same window the "View activity footprint" row
+     * action in the classic Users table reaches (that path routes
+     * through the `desktop-mode-open-user-footprint` bridge message;
+     * see § 3 and `bridge-protocol.md`).
+     *
+     * @since 0.23.0
+     */
+    openUserFootprint( args: { userId: number; userName?: string } ): void;
 
     /**
      * Register a renderer for a custom entity kind so a plugin

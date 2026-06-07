@@ -18,6 +18,7 @@ import { dispatchFromWindow, markWindowContentReady } from '../window-channels';
 import { tryNativeUrlRemap } from '../native-url-remap';
 import { createSharedStore } from '../shared-store';
 import { matchDestructiveAdminAction } from '../destructive-admin-actions';
+import { openUserFootprintWindow } from '../my-wordpress/footprint-target';
 
 /**
  * Origin snapshot taken once at module load. Any subsequent mutation
@@ -248,6 +249,29 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 				typeof data.label === 'string' ? data.label : '';
 			handleCrossPageAdminLink( win, data.url, linkLabel, deps );
 		}
+	}
+
+	// Activity-footprint launcher. A "View activity footprint" row
+	// action inside the chromeless `users.php` iframe posts this; we
+	// open (or focus) the My WordPress window on that user's footprint
+	// route via the shared-store hand-off (cold-start safe — see
+	// `my-wordpress/footprint-target.ts`).
+	//
+	// Deliberately NOT the admin-link remap path above: that path
+	// calls `win.close()` on a remap hit because it models a
+	// navigation away from the source page. A row action is an
+	// auxiliary "peek" at another user — closing the users list out
+	// from under the click would be hostile, so the source window is
+	// left untouched.
+	if (
+		data.type === 'desktop-mode-open-user-footprint' &&
+		typeof data.userId === 'number' &&
+		data.userId > 0
+	) {
+		openUserFootprintWindow( {
+			userId: data.userId,
+			userName: typeof data.userName === 'string' ? data.userName : '',
+		} );
 	}
 
 	// Iframe-initiated toast. Plugin pages inside iframes use this

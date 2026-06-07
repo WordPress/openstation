@@ -36,6 +36,16 @@ export type BridgeEventFromIframe =
 		open: 'screen-options' | 'help' | null;
 	}
 	| { type: 'desktop-mode-commands-list'; commands: HarvestedCommand[] }
+	// Activity-footprint launcher — a "View activity footprint" row
+	// action inside the chromeless `users.php` iframe escalates a
+	// click to the parent shell, which opens the My WordPress window
+	// on that user's footprint route. `userName` seeds the breadcrumb
+	// before the REST payload resolves (empty string when unknown).
+	| {
+		type: 'desktop-mode-open-user-footprint';
+		userId: number;
+		userName: string;
+	}
 	// -------------------------------------------------------------------
 	// Cross-window connection bridge — extensible pub/sub between any
 	// parent-side caller (e.g. a plugin's title-bar dropdown) and a
@@ -98,6 +108,7 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'desktop-mode-screen-meta',
 	'desktop-mode-screen-meta-state',
 	'desktop-mode-commands-list',
+	'desktop-mode-open-user-footprint',
 	'desktop-mode-bridge-handshake-ack',
 	// To iframe.
 	'desktop-mode-focus',
