@@ -19,6 +19,13 @@ class Tests_DesktopMode_WelcomeDialog extends WP_UnitTestCase {
 		// `desktop_mode_should_show_welcome_dialog()` gates on `is_admin()`;
 		// a dashboard screen makes that return true under PHPUnit.
 		set_current_screen( 'dashboard' );
+		// Start every test from a known baseline — Desktop Mode OFF and the
+		// intro NOT dismissed. A test that enables DM or marks the intro seen
+		// would otherwise leak that state forward, and a later test would
+		// then return false via the wrong gate (e.g. the seen-intro / filter
+		// tests passing via the desktop_mode_is_enabled() gate instead).
+		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
+		desktop_mode_clear_seen_intros( self::$user_id );
 	}
 
 	public function tear_down() {

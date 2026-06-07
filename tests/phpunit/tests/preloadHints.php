@@ -11,7 +11,6 @@ class Tests_DesktopMode_PreloadHints extends WP_UnitTestCase {
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$user_id = $factory->user->create( array( 'role' => 'administrator' ) );
-		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
 	}
 
 	public function set_up() {
@@ -19,6 +18,12 @@ class Tests_DesktopMode_PreloadHints extends WP_UnitTestCase {
 		wp_set_current_user( self::$user_id );
 		// `desktop_mode_print_preload_hints()` gates on `is_admin()`.
 		set_current_screen( 'dashboard' );
+		// Re-establish the enabled baseline every test. The disabled-state
+		// test below flips the meta to '' for its assertion; setting it here
+		// (rather than once in wpSetUpBeforeClass) means it doesn't have to
+		// restore the value afterwards — so a failed assertion can't leave
+		// later tests stuck in a disabled-DM state.
+		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
 		// Ensure the style handles are registered so the version-match
 		// assertion can read the registered stylesheet version.
 		desktop_mode_register_assets();
@@ -96,10 +101,11 @@ class Tests_DesktopMode_PreloadHints extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_print_preload_hints
 	 */
 	public function test_no_hints_when_desktop_mode_disabled() {
+		// set_up() re-enables Desktop Mode before the next test, so there's
+		// no need to restore the meta here — and no risk of leaking the
+		// disabled state if this assertion fails.
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '' );
 
 		$this->assertSame( '', $this->capture_hints() );
-
-		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
 	}
 }
