@@ -190,17 +190,53 @@ function desktop_mode_register_seen_intros_routes() {
 add_action( 'rest_api_init', 'desktop_mode_register_seen_intros_routes' );
 
 /**
- * Permission gate — any logged-in user with desktop mode enabled may
- * manage their own seen-intros list. See
- * {@see desktop_mode_rest_require_enabled()} for why `read` alone is
- * insufficient.
+ * Permission gate for the seen-intros routes.
+ *
+ * In-shell intros (slug `posts`, `pages`, …) are only ever shown to a
+ * user who has already entered Desktop Mode, so they keep the strict
+ * {@see desktop_mode_rest_require_enabled()} gate — `read` alone is
+ * insufficient (every role, Subscriber included, carries `read`).
+ *
+ * The one exception is the first-run welcome dialog
+ * ({@see DESKTOP_MODE_WELCOME_INTRO_SLUG}): it renders in the *classic*
+ * admin precisely when Desktop Mode is NOT enabled, which is the only
+ * state it ever appears in. Gating its dismissal behind
+ * `desktop_mode_rest_require_enabled()` would make the dismissal POST
+ * return 403 every time, so the slug could never be recorded as seen and
+ * the dialog re-rendered on every classic-admin page load. We therefore
+ * let that single slug through for any logged-in `read`-capable account
+ * (the exact audience the dialog is shown to); writing one's own
+ * dismissal flag carries no privileged surface. The DELETE /intros route
+ * ("Reset what's-new dialogs") carries no slug and keeps the strict gate.
  *
  * @since 0.8.0
  * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
+ * @since 0.30.1 Allow the `activation-welcome` slug without the enabled
+ *               gate, so the welcome dialog's dismissal can persist.
  *
+ * @param WP_REST_Request $request The REST request.
  * @return true|WP_Error
  */
-function desktop_mode_rest_seen_intros_permission() {
+function desktop_mode_rest_seen_intros_permission( WP_REST_Request $request ) {
+	$slug = sanitize_key( (string) $request->get_param( 'slug' ) );
+	if ( defined( 'DESKTOP_MODE_WELCOME_INTRO_SLUG' ) && DESKTOP_MODE_WELCOME_INTRO_SLUG === $slug ) {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error(
+				'rest_forbidden',
+				__( 'Authentication required.', 'desktop-mode' ),
+				array( 'status' => 401 )
+			);
+		}
+		if ( ! current_user_can( 'read' ) ) {
+			return new WP_Error(
+				'rest_forbidden',
+				__( 'You are not allowed to do that.', 'desktop-mode' ),
+				array( 'status' => 403 )
+			);
+		}
+		return true;
+	}
+
 	return desktop_mode_rest_require_enabled();
 }
 

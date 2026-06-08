@@ -176,4 +176,53 @@ class Tests_DesktopMode_SeenIntros extends WP_UnitTestCase {
 		$response = rest_get_server()->dispatch( $request );
 		$this->assertSame( 401, $response->get_status() );
 	}
+
+	/**
+	 * Regression: the first-run welcome dialog (slug `activation-welcome`)
+	 * renders only while Desktop Mode is *disabled*, so its dismissal must
+	 * persist through this route without the enabled gate. Previously the
+	 * shared `desktop_mode_rest_require_enabled()` gate 403'd the POST, the
+	 * slug was never recorded, and the dialog re-appeared on every
+	 * classic-admin page load.
+	 *
+	 * @covers ::desktop_mode_rest_seen_intros_permission
+	 */
+	public function test_rest_welcome_slug_persists_without_desktop_mode_enabled() {
+		// Reproduce the exact state the welcome dialog appears in: a
+		// logged-in, `read`-capable account that has NOT enabled Desktop Mode.
+		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
+		wp_set_current_user( self::$user_id );
+
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/intros/seen' );
+		$request->set_param( 'slug', DESKTOP_MODE_WELCOME_INTRO_SLUG );
+
+		$response = rest_get_server()->dispatch( $request );
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertContains(
+			DESKTOP_MODE_WELCOME_INTRO_SLUG,
+			$response->get_data()['seenIntros']
+		);
+		$this->assertTrue(
+			desktop_mode_has_seen_intro( self::$user_id, DESKTOP_MODE_WELCOME_INTRO_SLUG )
+		);
+	}
+
+	/**
+	 * The welcome-slug exception is scoped to that one slug: every other
+	 * (in-shell) intro still requires Desktop Mode enabled, so a not-enabled
+	 * caller posting e.g. `posts` is still rejected with 403.
+	 *
+	 * @covers ::desktop_mode_rest_seen_intros_permission
+	 */
+	public function test_rest_non_welcome_slug_still_requires_enabled() {
+		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
+		wp_set_current_user( self::$user_id );
+
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/intros/seen' );
+		$request->set_param( 'slug', 'posts' );
+
+		$response = rest_get_server()->dispatch( $request );
+		$this->assertSame( 403, $response->get_status() );
+		$this->assertFalse( desktop_mode_has_seen_intro( self::$user_id, 'posts' ) );
+	}
 }
