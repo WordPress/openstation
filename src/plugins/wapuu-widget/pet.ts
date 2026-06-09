@@ -212,6 +212,14 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 	let squashLand = 1;
 	let petBob = 0;
 	let tailKick = 0;
+	// Accumulated oscillator phases. We integrate `phase += dt * freq`
+	// each frame rather than computing `sin( t * freq )`, because `freq`
+	// varies (tail with `excite`, breath with `breathSpeed`) and
+	// `sin( t * freq )` injects a `t · dfreq/dt` term that makes the
+	// phase jump erratically whenever the frequency changes — the tail
+	// "flicker"/"two overlapping animations" artifact.
+	let tailPhase = 0;
+	let breathPhase = 0;
 	const earTw: { L: number; R: number } = { L: 0, R: 0 };
 	// Drag-reaction state — Wapuu leans into the direction the WHOLE
 	// widget is being carried and pins his ears back. `tilt` eases back
@@ -268,9 +276,14 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 			tag: 'act',
 			ease: E.linear,
 			onUpdate( p ) {
-				hopOffset = Math.sin( p * Math.PI ) * height;
-				const st = Math.sin( p * Math.PI );
-				squashY = 1 + st * 0.12 - ( p < 0.12 || p > 0.88 ? 0.14 : 0 );
+				const arc = Math.sin( p * Math.PI );
+				hopOffset = arc * height;
+				// Smooth squash-and-stretch: crouched at takeoff/landing
+				// (p≈0 and p≈1), stretched at the apex. `cos²` ramps the
+				// crouch in/out instead of the old hard step at p=0.12 /
+				// 0.88 (which popped rather than blended).
+				const crouch = 0.14 * Math.pow( Math.cos( p * Math.PI ), 2 );
+				squashY = 1 + arc * 0.12 - crouch;
 			},
 			onComplete() {
 				hopOffset = 0;
@@ -296,6 +309,11 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		if ( state !== 'pet' ) {
 			state = 'pet';
 			killTag( 'act' );
+			// A tap can interrupt a jump. `killTag` drops the hop tween
+			// without running its `onComplete`, so reset the offsets it
+			// was driving — otherwise Wapuu freezes floating mid-air.
+			hopOffset = 0;
+			squashY = 1;
 		}
 		happyEyes( 0.7 );
 		excite = 1;
@@ -535,7 +553,8 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		tailKick = Math.max( 0, tailKick - dt * 1.5 );
 
 		// ================= POSE =================
-		const br = Math.sin( t * 1.8 * breathSpeed );
+		breathPhase += dt * 1.8 * breathSpeed;
+		const br = Math.sin( breathPhase );
 		const sY = squashY * squashLand * ( 1 + br * ( asleep ? 0.05 : 0.03 ) );
 		const sX =
 			( 1 / Math.sqrt( squashY * squashLand ) ) *
@@ -549,14 +568,17 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		// Lean while carried, with a tiny wobble; settle upright otherwise.
 		root.rotation = tilt + ( dragging ? Math.sin( t * 5 ) * 0.02 : 0 );
 
-		// Tail sway. The source demo used `1.5 + excite * 4`, which whipped
-		// the tail "ultra fast" the moment Wapuu got excited (a pet pushes
-		// `excite` to 1, taking the frequency to 5.5 rad/s). Slowed to
-		// `1.2 + excite * 1.4` (idle ≈ 0.19 Hz, excited ≈ 0.41 Hz) for a
-		// calm, friendly wag. Amplitude is unchanged.
-		const tailSpd = 1.2 + excite * 1.4;
+		// Tail sway frequency. The source demo whipped it "ultra fast"
+		// when excited (`1.5 + excite * 4` → 5.5 rad/s). Excitement now
+		// barely raises the FREQUENCY — it shows as a bigger AMPLITUDE
+		// (the `excite`/`tailKick` terms below) instead, so a happy wag
+		// reads as energetic, not frantic. `1.0 + excite * 0.35` →
+		// idle ≈ 0.16 Hz, excited ≈ 0.21 Hz. Phase is integrated (see
+		// `tailPhase`) so this varying frequency stays glitch-free.
+		const tailSpd = 1.0 + excite * 0.35;
+		tailPhase += dt * tailSpd;
 		parts.tail.rotation =
-			Math.sin( t * tailSpd ) * ( 0.12 + excite * 0.18 + tailKick * 0.25 );
+			Math.sin( tailPhase ) * ( 0.12 + excite * 0.18 + tailKick * 0.25 );
 
 		// Ears: pin back while carried, otherwise a gentle breathing bob.
 		const earBob = dragging ? -0.18 : br * 0.03;
