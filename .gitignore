@@ -5,6 +5,10 @@
 /tests/phpunit/.phpunit.result.cache
 /.scratch/
 
+# Local working copy of imported source art / prototypes (e.g. the
+# original Wapuu pet demo). Reference material, not shipped.
+/.scratch/
+
 # Vite build output under assets/js/ — regenerate locally with `npm run
 # build`. Adding a new bundle in vite.config.js does not require updating
 # this list. Hand-written JS files that should stay tracked are explicitly

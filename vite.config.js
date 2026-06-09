@@ -489,6 +489,18 @@ const TARGETS = {
 		iifeName: 'desktopModeStarterWidget',
 	},
 
+	// Wapuu widget — a PixiJS pet that lives on the desktop. Same
+	// registration shape as the heartbeat widget: PHP declares it via
+	// `desktop_mode_register_widget()` with the `desktop-mode-wapuu-widget`
+	// script handle; the shell's widgets server-sync loads the bundle on
+	// demand. Ships JS + a co-located `styles.css` chunk. Loads PixiJS
+	// lazily through `wp.desktop.loadModules(['pixijs'])`, so the heavy
+	// renderer stays out of the main bundle.
+	'widget-wapuu': {
+		entry:    'src/plugins/wapuu-widget/index.ts',
+		fileBase: 'widget-wapuu',
+		iifeName: 'desktopModeWapuuWidget',
+	},
 };
 
 export default defineConfig( ( { mode } ) => {

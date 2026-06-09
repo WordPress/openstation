@@ -1,0 +1,130 @@
+/**
+ * Wapuu widget styles. Bundled with the widget's JS (Vite emits a
+ * separate `widget-wapuu[.min].css`); the script registration enqueues
+ * this CSS alongside the JS handle so it loads on demand the same way
+ * the JS does.
+ *
+ * Design goal: *just the pet*. The card frame is stripped to nothing —
+ * no glass background, no border, no shadow — so Wapuu appears to sit
+ * directly on the wallpaper with the whole card as his play area.
+ */
+
+/* Card frame goes invisible — Wapuu is the only thing on screen. The
+ * card is a flex column so the body fills the card's height. */
+.desktop-mode-widgets__card.desktop-mode-widgets__card--wapuu {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+}
+
+/* Docked, Wapuu's only flow content is an absolutely-positioned stage,
+ * so the card has no intrinsic height and would collapse. A min-height
+ * floor keeps him visible — and, crucially, survives the framework's
+ * `redock()` which clears the inline height (the "disappears on re-dock"
+ * bug). Floating cards (`--floating`) are excluded: their size comes
+ * from the registered default geometry. */
+.desktop-mode-widgets__card--wapuu:not( .desktop-mode-widgets__card--floating ) {
+	min-height: 340px;
+}
+
+/* The default card hover re-introduces a lift + shadow (i.e. a visible
+ * frame). Suppress it so Wapuu stays frameless on hover too. */
+.desktop-mode-widgets__card.desktop-mode-widgets__card--wapuu:hover {
+	transform: none;
+	box-shadow: none;
+}
+
+/* The widget body is the card-body element; drop its default 16px
+ * padding + 48px min-height and let it flex to fill the card so the
+ * canvas gets the whole card. */
+.desktop-mode-widgets__card-body.desktop-mode-widget-wapuu {
+	padding: 0;
+	min-height: 0;
+	flex: 1 1 auto;
+}
+
+/* Drag from ANYWHERE: stretch the framework's (already drag-wired)
+ * chrome over the WHOLE card as a transparent overlay above the canvas.
+ * `z-index: 1` puts it over the canvas; the close/re-dock children ride
+ * above that. Grabbing anywhere on Wapuu drags the widget; a press that
+ * doesn't move is forwarded as a pet (see index.ts). */
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__chrome {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	display: block;
+	padding: 0;
+	border-bottom: none;
+	background: transparent;
+	cursor: grab;
+}
+
+/* No grip dots, no title — the whole card is the (invisible) handle. */
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__grip,
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__title {
+	display: none;
+}
+
+/* Close + re-dock: pinned to the top-right corner, above the drag
+ * overlay, fading in on hover only so at rest it's just Wapuu. */
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__card-close,
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__card-redock {
+	position: absolute;
+	inset-block-start: 6px;
+	z-index: 2;
+	opacity: 0;
+}
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__card-close {
+	inset-inline-end: 6px;
+}
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__card-redock {
+	inset-inline-end: 32px;
+}
+.desktop-mode-widgets__card--wapuu:hover .desktop-mode-widgets__card-close,
+.desktop-mode-widgets__card--wapuu:hover .desktop-mode-widgets__card-redock,
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__card-close:focus-visible,
+.desktop-mode-widgets__card--wapuu .desktop-mode-widgets__card-redock:focus-visible {
+	opacity: 0.7;
+}
+
+.desktop-mode-widget-wapuu {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	box-sizing: border-box;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+/* Full-bleed PixiJS stage. `resizeTo: stage` reads this box's size. */
+.desktop-mode-widget-wapuu__stage {
+	position: absolute;
+	inset: 0;
+	display: block;
+}
+
+.desktop-mode-widget-wapuu__stage canvas {
+	display: block;
+	width: 100% !important;
+	height: 100% !important;
+	max-width: 100%;
+	max-height: 100%;
+}
+
+/* Fallback when the animation engine can't load. */
+.desktop-mode-widget-wapuu--fallback .desktop-mode-widget-wapuu__fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	font-size: 12px;
+	color: rgba( 255, 255, 255, 0.7 );
+	text-align: center;
+	padding: 12px;
+}
