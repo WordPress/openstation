@@ -49,7 +49,7 @@
  * `prefers-reduced-motion: reduce` disables every animation inside
  * the SVG. The mark + rings still render statically.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import { Component, defineComponent, html, type TemplateResult } from '../../core';
@@ -188,7 +188,7 @@ export class WpdSpinner extends Component {
 		summary:
 			'Animated WordPress-mark loading indicator with four curated presets and full per-attribute overrides. CSS variables drive disc + accent colors and size; reduced-motion preferences are respected.',
 		status: 'experimental',
-		since: '0.18.0',
+		since: '0.6.0',
 		props: [
 			{
 				name: 'preset',

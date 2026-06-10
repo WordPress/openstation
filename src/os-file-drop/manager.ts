@@ -16,7 +16,9 @@
  *   - Chromeless admin iframes — handled by the chromeless bridge
  *     embedded in `includes/render/chromeless-bridge.php`, which
  *     intercepts iframe-side drops and `postMessage`s the raw
- *     `File[]` up to the parent shell (see `forwardIframeDrops`).
+ *     `File[]` up to the parent shell (see the OS-file drop
+ *     forwarder block there — `bridgeHasFiles` /
+ *     `bridgeDropTargetWantsFile`).
  *
  * Filtering: every dropped file is checked against the
  * server-supplied allowed-mime list and the size cap. Rejected
@@ -57,10 +59,14 @@ interface SentinelHost {
 /**
  * Selectors of in-iframe drop receivers we leave untouched —
  * Gutenberg's drop zone, the legacy media uploader, and any
- * element a plugin marks with `data-drop-zone`. The chromeless
- * bridge consults this list before escalating an OS-file drop
- * up to the parent shell, so plugins that own their own file
- * handling inside an iframe keep working.
+ * element a plugin marks with `data-drop-zone`. Only the
+ * parent-shell no-op handler (`mountNoOp`) consults this list.
+ * The iframe-side bridges keep their own independent copies of
+ * the same selectors — `bridgeDropPassthroughSelectors` in
+ * `includes/render/chromeless-bridge.php` and
+ * `dropPassthroughSelectors` in `src/iframe-bridge-standalone.ts`
+ * — anyone changing one must update all three (and the list in
+ * `docs/bridge-protocol.md`).
  *
  * Public surface — re-exported via the bridge protocol doc.
  */

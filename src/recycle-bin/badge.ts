@@ -18,7 +18,7 @@
  * shows as `99+` so the pill stays compact regardless of how
  * full the trash gets.
  *
- * @since 0.21.0
+ * @since 0.6.0
  */
 
 import { addAction, HOOKS } from '../hooks';

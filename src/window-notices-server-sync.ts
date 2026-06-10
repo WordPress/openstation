@@ -8,7 +8,7 @@
  * `desktop-mode-plugins-changed` payload so plugin activation /
  * deactivation reflects without an F5.
  *
- * @since 0.22.0
+ * @since 0.8.6
  */
 
 import {

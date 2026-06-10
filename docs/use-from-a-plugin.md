@@ -34,14 +34,16 @@ Everything re-exported from `src/public-api.ts`:
 
 - **TypeScript types** — `WindowConfig`, `WallpaperDef`, `WidgetDef`, `DragManagerApi`, `DragBridgePayload`, `WindowConnection`, …
 - **Component classes** — `WpdLog`, `WpdCode`, `WpdTabs`, `WpdAvatar`, `WpdBadge`, …
-- **Hook constants** — `HOOKS.WINDOW_OPENED`, `HOOKS.CONNECTION_OPENED`, `HOOKS.DRAG_BRIDGE_EVENTS`, …
+- **Hook constants** — `HOOKS.WINDOW_OPENED`, `HOOKS.CONNECTION_OPENED`, `HOOKS.WINDOW_FOCUSED`, …
 - **Public surface helpers** — `DRAG_EVENTS`, `DRAG_BRIDGE_EVENTS`, etc.
 
 Both runtime values AND types — the same file backs both conditions in the `exports` map.
 
-## Runtime use of components — you usually don't need the import at all
+## Runtime use of components — the import is what registers the tags
 
-The `wpd-*` custom elements are **already registered globally** by `desktop.min.js` when desktop mode is active. Plugin templates can just emit the markup:
+`wpd-*` custom elements are **side-effect registered at import time, per bundle** — they are *not* all registered globally by `desktop.min.js`. The shell bundle registers only a core subset and pre-loads `shell-overlays.min.js` (the toast / confirm-dialog / context-menu / menu / select / window-chrome kit) right after first paint; every other tag upgrades only once a loaded bundle has imported its module. Emitting a tag that no loaded bundle has imported renders inert HTML, and the missing-component warner logs a `console.error` with the exact import line to add.
+
+For plugin bundles the fix is built in: **any** import from `'desktop-mode'` registers every tag as a side effect (the package entry re-exports the component barrel). Once your bundle imports it, templates can just emit the markup:
 
 ```html
 <wpd-log id="agent-trace" max-rows="500"></wpd-log>
@@ -49,10 +51,10 @@ The `wpd-*` custom elements are **already registered globally** by `desktop.min.
 
 ```javascript
 const log = document.getElementById( 'agent-trace' );
-log.appendRow( { level: 'info', message: 'Agent started' } );
+log.push( { level: 'info', message: 'Agent started' } );
 ```
 
-The class import (`import { WpdLog } from 'desktop-mode'`) is only useful for:
+See [`components-reference.md`](./components-reference.md) for the full tag → class → source mapping. Beyond registration, the named class import (`import { WpdLog } from 'desktop-mode'`) is useful for:
 
 1. **TypeScript type-checking** of the element handle (`document.getElementById('agent-trace') as WpdLog`).
 2. **Subclassing** a component to override behavior.
@@ -111,5 +113,5 @@ it never rejects if the content iframe never signals readiness.
 
 - **`Cannot find module 'desktop-mode'`** — confirm the `file:` path is correct relative to your plugin's `package.json` location, then re-run `npm install`.
 - **Types resolve but runtime imports fail** — your bundler is configured to externalize without a runtime shim. Either remove the externalization or wire a global resolver.
-- **Duplicate custom element warning in DevTools** — the `wpd-*` elements register themselves on import; if both your bundle AND `desktop.min.js` define them, browsers log a warning (harmless — the registry is idempotent per tag name).
+- **Defining `wpd-*` elements twice** — the elements register themselves on import through a guarded `defineComponent()` that silently skips already-defined tags, so loading both your bundle and `desktop.min.js` is a no-op (the first-loaded class wins for each tag); no browser warning is logged.
 - **Editing `desktop-mode/src/*` doesn't reflect in your plugin** — `file:` dependencies on some npm versions copy at install time. Run `npm install` again, or switch to `npm link` for an active symlink while developing both packages in parallel.

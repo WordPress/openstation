@@ -2,7 +2,7 @@
 /**
  * Desktop Mode — built-in file-type registrations.
  *
- * Registers the seven file types that ship with the plugin
+ * Registers the file types that ship with the plugin
  * through the same public API third-party plugins use. Hooked on
  * `init` priority 5 so the types land in the registry before the
  * shell config is built and before any third-party plugin that
@@ -15,8 +15,8 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the built-in file types (post, user, attachment,
- * term, comment, folder, bookmark).
+ * Registers the built-in file types (post, attachment, user,
+ * term, comment, bookmark, folder, shortcut, link, embed).
  *
  * @since 0.9.0
  */

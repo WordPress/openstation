@@ -26,7 +26,7 @@
  * backwards-compat). Plugin authors using the documented pattern get
  * full live activate/deactivate behaviour.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import { doAction, HOOKS } from './../hooks';

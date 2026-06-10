@@ -8,8 +8,12 @@ name: PR Preview Publish
 #
 # Trust model: this workflow never checks out or executes the PR's
 # code. It only reads `blueprint.json` from the base branch and
-# consumes the already-built zip artifact from the build run. Do NOT
-# add steps here that run untrusted PR code.
+# consumes the already-built zip artifact from the build run. The PR
+# identity (number + head SHA) is derived exclusively from the trusted
+# `workflow_run` event payload — never from artifacts, because the
+# build run executes fork-controlled code that can write arbitrary
+# artifact contents. Do NOT add steps here that run untrusted PR code
+# or that trust artifact bytes for anything beyond the zip itself.
 #
 # Note: this file must already exist on the default branch before the
 # `workflow_run` trigger will fire — it won't run for the very first
@@ -32,23 +36,39 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download PR metadata
-        uses: actions/download-artifact@v4
-        with:
-          name: pr-meta
-          path: ./pr-meta
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Read PR metadata
+      - name: Resolve PR from trusted workflow_run data
         id: meta
-        run: |
-          echo "pr-number=$(cat ./pr-meta/pr-number)" >> "$GITHUB_OUTPUT"
-          echo "head-sha=$(cat ./pr-meta/head-sha)" >> "$GITHUB_OUTPUT"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // The `pr-meta` artifact is written by the fork-controlled build
+            // run, so its contents are untrusted — a malicious PR could point
+            // the preview comment at any PR. Derive the identity from the
+            // `workflow_run` event instead: GitHub sets `head_sha` and it
+            // cannot be spoofed by PR code. `workflow_run.pull_requests` is
+            // empty for fork PRs, so resolve the PR number via the API and
+            // require its head SHA to match before publishing anything.
+            const headSha = context.payload.workflow_run.head_sha;
+            if (!/^[0-9a-f]{40}$/.test(headSha)) {
+              core.setFailed(`Unexpected workflow_run head SHA: ${headSha}`);
+              return;
+            }
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: headSha,
+            });
+            const pr = prs.find((p) => p.head.sha === headSha);
+            if (!pr) {
+              core.setFailed(`No pull request found with head SHA ${headSha}; refusing to publish a preview.`);
+              return;
+            }
+            core.setOutput('pr-number', String(pr.number));
+            core.setOutput('head-sha', headSha);
 
       - name: Expose built artifact on a public URL
         id: expose
-        uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@v2
+        uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@06d6a7e5e287101f5a496ef3361aa07967448813 # v2.0.1
         with:
           artifact-name: 'built-plugin'
           artifact-filename: 'desktop-mode.zip'
@@ -73,7 +93,7 @@ jobs:
           result-encoding: string
 
       - name: Post preview to PR
-        uses: WordPress/action-wp-playground-pr-preview@v2
+        uses: WordPress/action-wp-playground-pr-preview@06d6a7e5e287101f5a496ef3361aa07967448813 # v2.0.1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           blueprint: ${{ steps.blueprint.outputs.result }}

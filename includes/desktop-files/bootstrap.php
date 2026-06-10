@@ -3,7 +3,7 @@
  * Desktop Mode — Files-on-the-desktop bootstrap.
  *
  * Loads the `Desktop_Mode_File` base class, the type registry, the
- * built-in leaf-type subclasses, and the registration of the seven
+ * built-in leaf-type subclasses, and the registration of the
  * built-in file types on `init` priority 5.
  *
  * Future phases (schema/REST, UI, sharing, drag-from-recycle-bin)

@@ -15,7 +15,7 @@
  * live). On any of those it recomputes from scratch — cheap, since
  * there are only ever a handful of open windows.
  *
- * @since 0.26.0
+ * @since 0.9.1
  */
 
 import {

@@ -1,6 +1,6 @@
 # Pulse a window's icon — `Window.requestAttention()`
 
-**Stable** — shipped 0.22.0.
+**Stable** — shipped 0.6.0.
 
 A live "pay attention to me" affordance for any registered native
 window. Use it when something happens in the background that the
@@ -20,7 +20,7 @@ const win = wp.desktop.windowManager.getById( 'my-plugin-inbox' );
 win?.requestAttention( 'pulse', { durationMs: 4000 } );
 
 // Or route through the rail directly:
-wp.desktop.taskbar?.setAttention( 'my-plugin-inbox', 'shake', {
+wp.desktop.dock?.setAttention( 'my-plugin-inbox', 'shake', {
     durationMs: 1500,
     intensity: 'strong',
 } );
@@ -55,12 +55,12 @@ window.requestAttention(
 Sister API for setting the numeric badge without poking the DOM:
 
 ```js
-wp.desktop.dock?.setBadge?.(    'my-plugin-inbox', 7 );
-wp.desktop.taskbar?.setBadge?.( 'my-plugin-inbox', 7 );
-wp.desktop.icons?.setBadge?.(   'my-plugin-inbox', 7 );
-wp.desktop.dock?.clearBadge?.(    'my-plugin-inbox' );
-wp.desktop.taskbar?.clearBadge?.( 'my-plugin-inbox' );
-wp.desktop.icons?.clearBadge?.(   'my-plugin-inbox' );
+wp.desktop.dock?.setBadge?.(     'my-plugin-inbox', 7 );
+wp.desktop.sideDock?.setBadge?.( 'my-plugin-inbox', 7 );
+wp.desktop.icons?.setBadge?.(    'my-plugin-inbox', 7 );
+wp.desktop.dock?.clearBadge?.(     'my-plugin-inbox' );
+wp.desktop.sideDock?.clearBadge?.( 'my-plugin-inbox' );
+wp.desktop.icons?.clearBadge?.(    'my-plugin-inbox' );
 ```
 
 Fan to all three rails — the rail that owns the id paints, the

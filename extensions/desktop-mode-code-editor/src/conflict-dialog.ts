@@ -16,7 +16,7 @@
  * conflicts are "two tabs of the same editor"; offering reload /
  * overwrite covers them without the diff complexity.
  *
- * @since 0.18.0
+ * @since 0.7.0
  */
 
 export type ConflictChoice = 'reload' | 'overwrite' | 'cancel';

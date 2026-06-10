@@ -3,15 +3,16 @@
  *
  * Plugins register additional tabs in the OS Settings window via the
  * public `wp.desktop.registerSettingsTab()` API. Built-in tabs
- * (appearance, ai, extended, help) live directly in `index.ts`; this
- * registry extends the panel with externally-contributed tabs without
- * the core module needing to know about them.
+ * (appearance, ai, apps-icons, features, effects, extended, help,
+ * about) live directly in `panel.ts`; this registry extends the panel
+ * with externally-contributed tabs without the core module needing to
+ * know about them.
  *
  * Rendering is the tab's own responsibility — `render( body )` receives
  * the tabpanel body element and may do whatever it wants inside it
  * (plain DOM, `html`/`render` from `../ui/core`, a framework, etc.).
  *
- * @since 0.17.0
+ * @since 0.5.1
  */
 
 import { createSharedStore } from '../shared-store';
@@ -27,7 +28,7 @@ import { createSharedStore } from '../shared-store';
  * AI widget uses to pick up the provider + API key the user configured
  * in the built-in AI Settings tab.
  *
- * @since 0.17.0
+ * @since 0.5.1
  */
 export interface OsSettingsSnapshot {
 	wallpaper: string;
@@ -41,14 +42,14 @@ export interface OsSettingsSnapshot {
 	 * - `spatial` — bottom dock with plugins; core menus rendered as
 	 *   icons on the wallpaper.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	desktopLayout: 'classic' | 'unified' | 'spatial';
 	/**
 	 * Active dock rail-renderer id; mirrors the dock-rail registry's
 	 * resolution. `'default'` is the shipped icon-strip renderer.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	dockRailRenderer: string;
 	/**
@@ -56,7 +57,7 @@ export interface OsSettingsSnapshot {
 	 * registry's resolution. `'darken'` is the shipped built-in,
 	 * `'none'` disables the effect.
 	 *
-	 * @since 0.26.0
+	 * @since 0.9.1
 	 */
 	unfocusEffect: string;
 	ai: {
@@ -68,7 +69,7 @@ export interface OsSettingsSnapshot {
 		 * `'off'`. Surfaced so a third-party AI tab can read the user's
 		 * preferred transport without rebuilding the picker.
 		 *
-		 * @since 0.18.1
+		 * @since 0.6.0
 		 */
 		transport: 'sse' | 'off';
 	};
@@ -91,23 +92,23 @@ export interface OsSettingsSnapshot {
 	/**
 	 * Per-user opt-in for the native Pages window. When true, the Pages
 	 * dock tile / `edit.php?post_type=page` links open the native
-	 * `<wpd-table>` window instead of the chromeless iframe. Default on.
+	 * `<wpd-table>` window instead of the chromeless iframe. Default off.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	nativePagesEnabled: boolean;
 	/**
 	 * Per-user opt-in for the native Users window. Same posture as
 	 * {@link nativePagesEnabled} — UI-side gate; the window itself is
-	 * cap-gated on the server. Default on.
+	 * cap-gated on the server. Default off.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	nativeUsersEnabled: boolean;
 	/**
 	 * Per-user opt-in for the native Plugins window. Same posture as
 	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
-	 * cap-gated on the server (`activate_plugins`). Default on.
+	 * cap-gated on the server (`activate_plugins`). Default off.
 	 *
 	 * @since 0.9.0
 	 */
@@ -115,9 +116,9 @@ export interface OsSettingsSnapshot {
 	/**
 	 * Per-user opt-in for the native Comments window. Same posture as
 	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
-	 * cap-gated on the server (`edit_posts`). Default on.
+	 * cap-gated on the server (`edit_posts`). Default off.
 	 *
-	 * @since 0.19.0
+	 * @since 0.8.3
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
@@ -128,7 +129,7 @@ export interface OsSettingsSnapshot {
 	 * of the destructive site-admin "Delete folder sharing data"
 	 * action, which drops the tables outright.
 	 *
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 */
 	foldersSharingEnabled: boolean;
 	/**
@@ -137,7 +138,7 @@ export interface OsSettingsSnapshot {
 	 * "use the item's native rail." See
 	 * {@link OsSettingsState.itemVisibility} for full semantics.
 	 *
-	 * @since 0.25.0
+	 * @since 0.8.2
 	 */
 	itemVisibility: Record< string, 'both' | 'dock' | 'desktop' | 'hidden' >;
 	/**
@@ -145,7 +146,7 @@ export interface OsSettingsSnapshot {
 	 * from the list render after the listed ones in server-supplied
 	 * order.
 	 *
-	 * @since 0.25.0
+	 * @since 0.8.2
 	 */
 	dockOrder: string[];
 	/**
@@ -156,7 +157,7 @@ export interface OsSettingsSnapshot {
 	 * {@link OsSettingsState.dockPromotedPositions} for the source
 	 * field.
 	 *
-	 * @since 0.20.0
+	 * @since 0.8.6
 	 */
 	dockPromotedPositions: Record< string, { x: number; y: number } >;
 }
@@ -175,11 +176,12 @@ export interface SettingsTabRenderCtx {
 	 * return).
 	 *
 	 * Returns a defensive copy — mutating the result does not change
-	 * persisted state. To change settings, a tab must either own its
-	 * own REST endpoint or rely on the user visiting the corresponding
-	 * built-in tab.
+	 * persisted state. To change settings, call
+	 * `wp.desktop.updateOsSettings( patch )` — the public write path
+	 * that persists, notifies subscribers, and fires the save
+	 * lifecycle.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 */
 	getOsSettings(): OsSettingsSnapshot;
 	/**
@@ -188,11 +190,12 @@ export interface SettingsTabRenderCtx {
 	 * etc.) — typically while they're in a different tab than yours.
 	 * Returns an unsubscribe function.
 	 *
-	 * Scope caveat: only fires for in-panel edits. Changes made on
-	 * another device/browser (which land via REST on the *next* page
-	 * load) won't trigger this.
+	 * Scope caveat: only fires for local (in-tab) edits — in-panel
+	 * changes or `wp.desktop.updateOsSettings()` calls. Changes made
+	 * on another device/browser (which land via REST on the *next*
+	 * page load) won't trigger this.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 */
 	subscribeOsSettings( cb: ( snapshot: OsSettingsSnapshot ) => void ): () => void;
 }
@@ -212,8 +215,10 @@ export interface DesktopSettingsTab {
 	capability?: string;
 	/**
 	 * Sort order relative to built-in tabs:
-	 * appearance = 10, ai = 20, extended = 30, help = 40.
-	 * Default 100 — third-party tabs render after the built-ins.
+	 * appearance = 10, ai = 20, apps-icons = 22, features = 25,
+	 * effects = 27, extended = 30, help = 40 (About is pinned last
+	 * with a sentinel order). Default 100 — third-party tabs render
+	 * after the built-ins, before About.
 	 */
 	order?: number;
 	/**
@@ -281,7 +286,7 @@ const listeners = store.state.listeners;
  * case-insensitive; a second registration with the same id replaces
  * the first — mirrors WordPress's `register_*` semantics.
  *
- * @since 0.17.0
+ * @since 0.5.1
  */
 export function registerSettingsTab( tab: DesktopSettingsTab ): void {
 	if ( ! tab || typeof tab.id !== 'string' || tab.id.trim() === '' ) {

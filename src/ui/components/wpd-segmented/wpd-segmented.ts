@@ -138,7 +138,7 @@ export class WpdSegmented extends Component {
 	 * ];
 	 * ```
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		const existing = this.querySelectorAll( ':scope > wpd-segment' );

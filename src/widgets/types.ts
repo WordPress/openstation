@@ -33,7 +33,7 @@ export type WidgetTeardown = () => void;
  * on the caller side when you need those.
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface WidgetStorage {
 	/**
@@ -79,7 +79,7 @@ export interface WidgetContext {
  * A registered widget definition.
  *
  * `mount` receives the card body (already styled with the glass
- * backdrop, rounded corners, 12 px inner padding) and paints its own
+ * backdrop, rounded corners, 16 px inner padding) and paints its own
  * contents. It must return a teardown that reverses every side effect
  * — event listeners, intervals, observers, subscriptions.
  */

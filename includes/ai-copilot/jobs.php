@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Analyzes a comment and stores the result in comment meta.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int $comment_id The comment ID.
  * @param int $user_id    The ID of the user whose API key to use.
@@ -65,7 +65,7 @@ function desktop_mode_ai_job_analyze_comment( $comment_id, $user_id ) {
 	 * and `spam`. Downstream plugins (e.g. a moderation helper) can act on
 	 * `harmful` or `spam` here rather than polling meta.
 	 *
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 *
 	 * @param int        $comment_id The comment ID.
 	 * @param array      $result     The structured analysis result.

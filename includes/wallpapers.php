@@ -2,8 +2,9 @@
 /**
  * Desktop Mode — Built-in wallpaper presets.
  *
- * The five gradient / solid presets that ship with the plugin, each
- * registered through the same public API third-party plugins use
+ * The built-in wallpapers that ship with the plugin — five gradient /
+ * solid CSS presets plus the Animated WordPress Logo canvas wallpaper —
+ * each registered through the same public API third-party plugins use
  * (`desktop_mode_register_wallpaper()`). Dogfooding the registration
  * surface for the built-ins is how we discover whether the API is
  * expressive enough for plugin authors — if we couldn't describe our
@@ -16,15 +17,16 @@
  * `desktop_mode_wallpaper_registered` action.
  *
  * @package WPDesktopMode
- * @since   0.11.0
+ * @since   0.5.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the five built-in wallpaper presets.
+ * Registers the built-in wallpapers: five gradient / solid CSS presets
+ * plus the Animated WordPress Logo canvas wallpaper.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 function desktop_mode_register_builtin_wallpapers() {
 	$presets = array(

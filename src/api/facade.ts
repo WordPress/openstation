@@ -165,10 +165,13 @@ import type { NativeWindowDef, DesktopConfig } from '../types';
  * @since 0.8.1
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
-	'windowManager', 'dock', 'taskbar', 'icons', 'saveSession', 'hooks', 'HOOKS',
+	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout', 'icons',
+	'files', 'confirm', 'saveSession', 'hooks', 'HOOKS',
 	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer', 'widgets',
-	'registerSystemTile', 'registerWindow', 'openWindow', 'cloneTemplate',
-	'onWindow', 'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
+	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
+	'cloneTemplate', 'onWindow', 'createInfiniteList', 'startOAuth',
+	'repaintLoadingOverlays',
+	'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'dragManager', 'registerCommand',
 	'unregisterCommand', 'listCommands',
@@ -197,7 +200,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'dismissWindowNotice', 'undismissWindowNotice',
 	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
 	'applyWindowChrome',
-	'connect',
+	'connect', 'getConnection',
 	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
 	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',

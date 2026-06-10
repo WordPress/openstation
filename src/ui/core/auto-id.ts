@@ -28,7 +28,7 @@
  * author passed an explicit `id`) are left alone — the function is
  * opt-in per component via a connected-callback check.
  *
- * @since 0.12.0
+ * @since 0.5.0
  */
 
 /**

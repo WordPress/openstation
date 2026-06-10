@@ -13,7 +13,7 @@
  * registry primitives) means the registry stays dependency-free — it
  * never has to reach into the shell config or window manager.
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 
 import { applyFilters } from './hooks';
@@ -215,7 +215,7 @@ const openCommand: DesktopCommand = {
  * Register every built-in command. Called once from `desktop.ts` after
  * the public API has been mounted.
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 export function registerBuiltInCommands(): void {
 	registerCommand( openCommand );

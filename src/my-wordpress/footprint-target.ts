@@ -30,7 +30,7 @@
  * footprint click in a session that never opened My WordPress would
  * silently no-op.
  *
- * @since 0.23.0
+ * @since 0.9.1
  */
 
 /** Native My WordPress window id — the lazy bundle's `WINDOW_ID`. */
@@ -199,7 +199,7 @@ export function subscribeFootprintTarget(
  * footprint. Cold-start safe: stashes the shared target first, then
  * opens the window so the freshly-mounted bundle reads it back.
  *
- * @since 0.23.0
+ * @since 0.9.1
  *
  * @param args          Footprint target.
  * @param args.userId   Target user id (must be a positive integer).

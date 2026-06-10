@@ -8,12 +8,13 @@
  * cross-feature poll instead of N parallel ones.
  *
  * Wire format. Client sends `desktop_mode_files_subscribe` keyed
- * to two version markers:
+ * to three version markers:
  *
  *   {
  *       desktop_mode_files_subscribe: {
  *           folderVersions:    { '<folderId>': lastSeenUpdatedAtMs, ... },
- *           placementsVersion: lastSeenUpdatedAtMs
+ *           placementsVersion: lastSeenUpdatedAtMs,
+ *           sharesVersion:     lastSeenInvitedAtMs
  *       }
  *   }
  *
@@ -25,6 +26,9 @@
  *       removed: {
  *           placements: [ ids ],
  *           folders:    [ ids ]
+ *       },
+ *       shares: {
+ *           pending: [ <RestShareShape + folderName/ownerId/ownerName/ownerAvatar> ]
  *       },
  *       serverTimeMs: int,
  *       truncated:    bool
@@ -360,7 +364,7 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
  * earlier buggy code paths — once removed, the heartbeat no longer
  * surfaces them every tick.
  *
- * @since 0.18.0
+ * @since 0.8.5
  *
  * @param string $kind 'placement' | 'folder'.
  * @param int[]  $ids  Ids known to be alive in the current tick.

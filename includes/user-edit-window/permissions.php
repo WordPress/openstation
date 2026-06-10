@@ -9,7 +9,7 @@
  * applies the same check before returning data.
  *
  * @package WPDesktopMode
- * @since   0.18.0
+ * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  * disables registration entirely, which falls back to the classic
  * `user-edit.php` / `profile.php` iframe path.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -35,7 +35,7 @@ function desktop_mode_user_edit_window_user_can_register( $user_id = null ) {
 	 * Filter whether the current user can have the User Edit window
 	 * registered.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 *
 	 * @param bool $can     Default: any logged-in user.
 	 * @param int  $user_id User being checked.
@@ -52,7 +52,7 @@ function desktop_mode_user_edit_window_user_can_register( $user_id = null ) {
  * canonical check used by the insights endpoint and any plugin code
  * that wants to mirror the gating.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param int $viewer_id
  * @param int $target_id

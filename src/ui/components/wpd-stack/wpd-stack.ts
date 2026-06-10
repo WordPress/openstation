@@ -25,7 +25,7 @@
  * `main_tab_padding` registration arg + the
  * `desktop_mode_native_window_tab_wrap_padding` filter.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -40,7 +40,7 @@ export class WpdStack extends Component {
 		summary:
 			'Vertical flex layout with a gap — the "stack" primitive every design system eventually invents. Use it instead of hand-rolling display:flex; flex-direction:column.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

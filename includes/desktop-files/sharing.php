@@ -2,12 +2,15 @@
 /**
  * Desktop Mode — Folder sharing visibility logic.
  *
- * Computes which folders a viewer can see based on each folder's
- * `share_mode` / `share_meta` columns:
+ * Computes which folders a viewer can see from each folder's
+ * `share_mode` plus the shares / decisions tables:
  *
  *   - `private` — owner only.
- *   - `users`   — owner + ids in `share_meta.users`.
- *   - `roles`   — owner + users with any role in `share_meta.roles`.
+ *   - `users` / `roles` — owner + principals holding an accepted
+ *     grant in the `_desktop_mode_folder_shares` table (role grants
+ *     additionally require a per-user accepted row in the decisions
+ *     table). The folders row's `share_meta` column is
+ *     diagnostic-only and is never consulted for visibility.
  *   - `all`     — every desktop-mode user on the site.
  *
  * Hooked at priority 5 on `desktop_mode_files_visible_folders`

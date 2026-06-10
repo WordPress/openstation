@@ -124,5 +124,5 @@ When the component disconnects (the host is removed from the DOM, or its window 
 
 ## See also
 
-- [`wpd-confirm-dialog.md`](./register-command.md) — the modal Yes/No sibling for "block everything until the user decides".
+- [`<wpd-confirm-dialog>`](../components-reference.md) — the modal Yes/No sibling for "block everything until the user decides".
 - [`layout-primitives.md`](./layout-primitives.md) — `<wpd-*>` layout components for the panel content.

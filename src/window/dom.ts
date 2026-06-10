@@ -64,7 +64,7 @@ function getWindowConfigFromElement( el: HTMLElement ): WindowConfig | undefined
  * `withChromelessParam` compares against this value so a mutation of
  * `window.location` after boot can't relax the cross-origin guard.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 const INITIAL_ORIGIN = window.location.origin;
 

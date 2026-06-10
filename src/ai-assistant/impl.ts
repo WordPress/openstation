@@ -15,7 +15,7 @@
  * The overlay stays open until the user explicitly closes it with the ×
  * button, the Escape key, or Cmd+K again.
  *
- * @since 0.14.0
+ * @since 0.8.4
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
@@ -411,7 +411,7 @@ export class AiAssistant implements AiAssistantApi {
 	 * {@link attachAsk} after the shell config is ready so plugins
 	 * can `wp.desktop.ai.ask( '…' )` without poking the DOM.
 	 *
-	 * @since 0.17.0
+	 * @since 0.8.4
 	 */
 	public ask: AskFn = () => {
 		throw new Error(

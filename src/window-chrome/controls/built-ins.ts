@@ -27,7 +27,7 @@ import { __ } from '../../i18n';
 import { registerWindowControl } from './registry';
 
 /**
- * Register the six built-in title-bar controls. Idempotent — calling
+ * Register the four built-in title-bar controls. Idempotent — calling
  * it twice replaces the entries with identical definitions.
  *
  * Called once by the shell during boot. Plugins should NOT call this;

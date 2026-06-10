@@ -31,7 +31,7 @@ const DESKTOP_MODE_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
 /**
  * Returns the extended options with defaults filled in.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return array{ media_library_enhanced: bool }
  */
@@ -57,7 +57,7 @@ function desktop_mode_get_extended_options() {
 /**
  * Persists extended options to `wp_options`.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param mixed $raw Incoming payload.
  * @return bool
@@ -79,7 +79,7 @@ function desktop_mode_save_extended_options( $raw ) {
 /**
  * Registers the extended options REST route.
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 function desktop_mode_register_extended_options_rest_routes() {
 	register_rest_route(
@@ -110,7 +110,7 @@ add_action( 'rest_api_init', 'desktop_mode_register_extended_options_rest_routes
 /**
  * Permission: admins only.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return bool|WP_Error
  */
@@ -128,7 +128,7 @@ function desktop_mode_rest_extended_options_permission() {
 /**
  * GET /desktop-mode/v1/extended-options
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return WP_REST_Response
  */
@@ -139,7 +139,7 @@ function desktop_mode_rest_get_extended_options() {
 /**
  * POST /desktop-mode/v1/extended-options
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response
@@ -160,7 +160,7 @@ function desktop_mode_rest_save_extended_options( WP_REST_Request $request ) {
  * loaded (it checks at runtime), so there's no harm in enqueuing
  * globally in the admin.
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 function desktop_mode_enqueue_media_library_enhancement() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {

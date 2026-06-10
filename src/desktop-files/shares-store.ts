@@ -6,7 +6,7 @@
  * heartbeat. The store is `createSharedStore`-backed so every
  * bundle (main + lazy + future plugin bundles) sees the same data.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 
 import { createSharedStore, type SharedStore } from '../shared-store';

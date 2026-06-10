@@ -224,6 +224,49 @@ class Tests_DesktopMode_Files_Favicon extends WP_UnitTestCase {
 		$this->assertNull( desktop_mode_resolve_favicon( 'https://example.com/' ) );
 	}
 
+	/**
+	 * The size caps must be enforced DURING download, not only after
+	 * the fact: both the page fetch and the icon fetch send a
+	 * `limit_response_size` so WP_Http truncates an oversize (or
+	 * maliciously unbounded) body instead of buffering it whole into
+	 * memory before the `strlen()` check runs.
+	 *
+	 * @covers ::desktop_mode_favicon_request_args
+	 * @covers ::desktop_mode_resolve_favicon
+	 */
+	public function test_fetches_send_limit_response_size() {
+		$html     = '<html><head><link rel="icon" href="/icon.png"></head></html>';
+		$captured = array();
+		$icon     = $this->http_response( self::PNG_BYTES, 200, 'image/png' );
+		$page     = $this->http_response( $html );
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $args, $url ) use ( &$captured, $icon, $page ) {
+				$captured[ $url ] = $args;
+				return false !== strpos( $url, '/icon.png' ) ? $icon : $page;
+			},
+			10,
+			3
+		);
+
+		$result = desktop_mode_resolve_favicon( 'https://example.com/page' );
+		$this->assertSame( $this->expected_png_data_uri(), $result );
+
+		$this->assertArrayHasKey( 'https://example.com/page', $captured );
+		$this->assertSame(
+			DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES,
+			$captured['https://example.com/page']['limit_response_size'],
+			'Page fetch must cap the download at the page-HTML limit.'
+		);
+
+		$this->assertArrayHasKey( 'https://example.com/icon.png', $captured );
+		$this->assertSame(
+			DESKTOP_MODE_FAVICON_MAX_BYTES + 1,
+			$captured['https://example.com/icon.png']['limit_response_size'],
+			'Icon fetch must cap the download one byte over the icon limit so the post-fetch size check still rejects truncated over-cap bodies.'
+		);
+	}
+
 	// Note: SSRF protection (loopback / private-IP rejection) is
 	// `wp_safe_remote_get`'s job, not ours — not unit-testable here
 	// because `pre_http_request` runs BEFORE `wp_http_validate_url`,

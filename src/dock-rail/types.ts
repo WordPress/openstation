@@ -13,7 +13,7 @@
  * controller. The shell handles error isolation and live-sync
  * registration.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import type {
@@ -75,7 +75,7 @@ export interface DockRailMountDeps {
 	 * logic for its own UX — reads this. Updates with every live
 	 * menu refresh.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	fullMenu: DockItem[];
 	/**
@@ -93,7 +93,7 @@ export interface DockRailMountDeps {
 	 * through the controller's `appendSystemItem` /
 	 * `removeSystemItem` hooks.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	fullSystemTiles: SystemDockItem[];
 	orientation: DockOrientation;
@@ -119,7 +119,7 @@ export interface DockRailMountDeps {
 	 * default renderers address the same window with the same id at
 	 * runtime.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	openSubmenuPick( item: DockItem, sub: SubmenuItem ): void;
 	openSystemItem( item: SystemDockItem ): void;
@@ -191,7 +191,7 @@ export interface DockRailController {
  * `dockRailRenderer` OS Settings pick (default `'default'`).
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export interface DockRailRenderer {
 	/**

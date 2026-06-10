@@ -21,7 +21,7 @@
  * state so the visual language matches `<wpd-segmented>` while the
  * interactive behaviour stays OS-correct.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 
 import {
@@ -47,7 +47,7 @@ export class WpdOption extends Component {
 		summary:
 			'Opaque data carrier for <wpd-select>. Carries its identifier in `value` and its visible label in textContent. Not rendered directly — the parent reads these and builds a native <select>.',
 		status: 'stable',
-		since: '0.11.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'value',
@@ -89,7 +89,7 @@ export class WpdSelect extends Component {
 		summary:
 			'Dropdown picker that wraps a native <select>. Mirrors the <wpd-segmented> contract (set value, listen for wpd-pick) so callers can swap tag names when a list outgrows a pill bar.',
 		status: 'stable',
-		since: '0.11.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'value',
@@ -156,7 +156,7 @@ export class WpdSelect extends Component {
 	 * ];
 	 * ```
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		const existing = this.querySelectorAll( ':scope > wpd-option' );

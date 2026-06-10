@@ -64,7 +64,7 @@ export interface NativeUrlRemap {
 	 * does NOT block the open — the framework still tries the
 	 * native open and falls back if it fails.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	onMatch?( url: string, parsed: URL ): void;
 }

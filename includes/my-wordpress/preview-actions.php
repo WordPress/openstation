@@ -28,7 +28,7 @@
  *   ]
  *
  * @package WPDesktopMode
- * @since   0.21.0
+ * @since   0.8.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  * Collect plugin-registered descriptors, drop ones the current user
  * can't run, and return the array ready for the window config blob.
  *
- * @since 0.21.0
+ * @since 0.8.6
  *
  * @return array[]
  */
@@ -50,7 +50,7 @@ function desktop_mode_my_wordpress_collect_preview_actions() {
 	 * fields. Existing fields (`id`, `label`, `icon`, `capability`,
 	 * `mime`, `sections`, `script`) will continue to work.
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 *
 	 * @param array[] $actions Default: empty array.
 	 */
@@ -93,7 +93,7 @@ function desktop_mode_my_wordpress_collect_preview_actions() {
  * descriptors. Called from the bundle's `admin_enqueue_scripts`
  * hook so the handlers are wired before the bundle paints.
  *
- * @since 0.21.0
+ * @since 0.8.6
  */
 function desktop_mode_my_wordpress_enqueue_preview_action_scripts() {
 	if ( ! function_exists( 'desktop_mode_my_wordpress_user_can_use' ) || ! desktop_mode_my_wordpress_user_can_use() ) {

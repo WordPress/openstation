@@ -8,7 +8,7 @@ This package isn't published to npm yet — it lives in-tree under `packages/des
 
 For now, plugin authors can either:
 
-- **Vendor it.** Copy `packages/desktop-mode-types/src/*.d.ts` into the plugin's repo (or git-submodule it).
+- **Submodule it.** Git-submodule the full desktop-mode repo and point at `packages/desktop-mode-types` inside it. The `.d.ts` files here are relative re-exports of the in-tree source (`../../../src/*`), not self-contained declarations, so copying just this directory won't compile.
 - **Path-alias it.** Add a `paths` entry in the plugin's `tsconfig.json` pointing at this directory.
 
 ## What you get
@@ -19,8 +19,6 @@ import type {
     WallpaperDef,
     WidgetDef,
     NativeWindowDef,
-    DesktopCommand,
-    Palette,
     DesktopSettingsTab,
     HOOKS,
     SessionWindow,
@@ -30,7 +28,7 @@ import type {
 } from '@desktop-mode/types';
 ```
 
-Every `Stable` type re-exported from `src/public-api.ts` — windows, wallpapers, widgets, native windows, commands, palettes, settings tabs, dock items, the hook constants, and the bridge protocol.
+Every `Stable` type re-exported from `src/public-api.ts` — windows, wallpapers, widgets, native windows, settings tabs, dock items, the hook constants, and the bridge protocol.
 
 ## Ambient `wp.desktop`
 
@@ -67,7 +65,7 @@ await wp.desktop.fetch( '/wp-json/myplugin/v1/save', {
 
 ## Versioning
 
-The package version mirrors the desktop-mode plugin version. The Stable types follow semver — a backwards-incompatible signature change ships a major bump and a deprecation shim. See [`docs/migration-0.7-to-0.8.1.md`](../../docs/migration-0.7-to-0.8.1.md) for the running list of renames.
+The Stable types follow semver — a backwards-incompatible signature change ships a major bump and a deprecation shim. Renames and breaking changes are documented per release in the `docs/migration-*.md` notes (e.g. [`docs/migration-0.8.4-async-windowmanager.md`](../../docs/migration-0.8.4-async-windowmanager.md)), indexed in [`docs/README.md`](../../docs/README.md).
 
 ## License
 

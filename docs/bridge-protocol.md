@@ -14,10 +14,10 @@ A single page that maps every layer of the cross-window connection bridge end-to
        ▼
   ┌─────────────────────────────┐                            ┌──────────────────────┐
   │  src/connection/index.ts    │                            │  iframe-bridge.js    │
-  │  ────────────────           │ ── handshake ──────────▶   │  (or chromeless      │
-  │  • createConnectionBridge   │ ◀── handshake-ack ──       │   inline equivalent  │
-  │  • _connections (Map)       │                            │   in render.php)     │
-  │  • _connectionsByTarget     │ ── publish ───────────▶    │                      │
+  │  ────────────────           │ ── handshake ──────────▶   │  (or inline bridge   │
+  │  • createConnectionBridge   │ ◀── handshake-ack ──       │   from includes/     │
+  │  • _connections (Map)       │                            │   render/chromeless- │
+  │  • _connectionsByTarget     │ ── publish ───────────▶    │   bridge.php)        │
   │  • _syntheticIframes        │ ◀── publish ────────       │  • wp.desktop.iframe │
   │  • routeIncomingFromIframe  │ ── disconnect ────────▶    │     .publish         │
   │  • handleConnectionRequest  │ ◀── disconnect ─────       │     .subscribe       │
@@ -66,7 +66,7 @@ Native (non-iframe) windows skip postMessage entirely — `Window.send` and the 
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-bridge-handshake` | parent → iframe | `{ connectionId, targetWindowId, topics }` | Open a new connection. Iframe must ack before parent flushes its message queue. The `targetWindowId` (since 0.22.0) is the host window's id — the iframe stores it for `wp.desktop.iframe.windowId` / `whenWindowId()`. |
+| `desktop-mode-bridge-handshake` | parent → iframe | `{ connectionId, targetWindowId, topics }` | Open a new connection. Iframe must ack before parent flushes its message queue. The `targetWindowId` (since 0.8.8) is the host window's id — the iframe stores it for `wp.desktop.iframe.windowId` / `whenWindowId()`. |
 | `desktop-mode-bridge-handshake-ack` | iframe → parent | `{ connectionId }` | Iframe acknowledges. Parent fires `HOOKS.CONNECTION_OPENED` + flushes. |
 | `desktop-mode-bridge-publish` | both ways | `{ connectionId, topic, payload }` | Pub/sub message. Wildcard subscribers (`'*'`) see every topic. |
 | `desktop-mode-bridge-disconnect` | both ways | `{ connectionId }` | Tear the connection down. Idempotent. |
@@ -100,7 +100,7 @@ Only drops where neither bail fires (the empty page background, or an inner hand
 6. Iframe's bridge handler receives the handshake, stores the connection in its own `connections` map, posts `desktop-mode-bridge-handshake-ack` back.
 7. Parent's `routeIncomingFromIframe` receives the ack, dispatches to the connection's `_handleIframeMessage`, which:
    - Sets `isOpen = true`.
-   - Fires `HOOKS.CONNECTION_OPENED` with `{ connectionId, targetWindowId, topics, connection }`. The `connection` field (since 0.22.0) is the live `WindowConnection` — plug in `.subscribe()` directly from the hook handler without an extra `wp.desktop.getConnection(id)` round-trip.
+   - Fires `HOOKS.CONNECTION_OPENED` with `{ connectionId, targetWindowId, topics, connection }`. The `connection` field (since 0.8.8) is the live `WindowConnection` — plug in `.subscribe()` directly from the hook handler without an extra `wp.desktop.getConnection(id)` round-trip.
    - Calls `opts.onOpen?.()`.
    - Drains the queue with `flushQueue()` — every queued message becomes a real `postMessage`.
 8. Iframe receives the publishes, looks up subscribers in `subs`, calls each in turn.
@@ -136,19 +136,19 @@ The chromeless bridge intercepts every same-origin `<a href="/wp-admin/…">` cl
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-iframe-admin-link` | iframe → parent | `{ url }` | Posted from the chromeless bridge's link interceptor for every admin-internal click that survived the modifier-key / target / download filters. The bridge `preventDefault`s the click first; the parent owns the navigation. |
+| `desktop-mode-iframe-admin-link` | iframe → parent | `{ url, label }` | Posted from the chromeless bridge's link interceptor for every admin-internal click that survived the modifier-key / target / download filters. `label` is the clicked link's visible text (falling back to its `title` / `aria-label`, truncated to 80 chars). The bridge `preventDefault`s the click first; the parent owns the navigation. |
 
 Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispatch` in `desktop.ts`):
 
 1. **Native-window remap** — the URL goes through `tryNativeUrlRemap`. On a hit the parent opens the native window and closes the source iframe so the brief in-flight nav never paints.
 2. **Same-slug click** — `deriveWindowId(url, adminUrl)` matches the source window's `baseId`. The parent calls `iframe.contentWindow.location.assign(url)`, which navigates the iframe in place AND adds a session-history entry. Pagination, list filtering, and per-window tab strips ride this path.
-3. **Cross-slug click** — slug differs from the source. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry (or fallbacks when no dock tile owns the destination). The source iframe is left untouched, so the user keeps both contexts.
+3. **Cross-slug click** — slug differs from the source. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry. When no dock tile owns the destination, the title falls back to the `label` from the message (the clicked link's visible text), then to the derived slug as a last resort. The source iframe is left untouched, so the user keeps both contexts.
 
 Modifier-key clicks (cmd / ctrl / shift / alt, middle-click, `target="_blank"`, `target` other than `_self`, `download` attribute) short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab path runs unchanged.
 
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `desktop_mode_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `desktop-mode-iframe-admin-form-submit` message.
 
-## Activity-footprint launcher inside chromeless iframes — Stable *(since 0.23.0)*
+## Activity-footprint launcher inside chromeless iframes — Stable *(since 0.9.1)*
 
 The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `desktop_mode_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the **My WordPress** native window, *without* closing the Users list.
 
@@ -172,8 +172,8 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.connection.opened` | action | Experimental | `{ connectionId, targetWindowId, topics }` |
-| `desktop-mode.connection.closed` | action | Experimental | `{ connectionId, reason: 'disconnect' \| 'window-closed' \| 'navigated' }` |
+| `desktop-mode.connection.opened` | action | Experimental | `{ connectionId, targetWindowId, topics, connection? }` — `connection` (the live `WindowConnection`) is present for iframe-target opens; native-target opens currently omit it |
+| `desktop-mode.connection.closed` | action | Experimental | `{ connectionId, reason: 'disconnect' \| 'window-closed' \| 'navigated' }` — `'navigated'` is reserved in the type union; no code path emits it yet, so today only the first two are observed |
 | `desktop-mode.connection.message` | action | Experimental | `{ connectionId, topic, direction: 'in' \| 'out' }` — high-volume, keep subscribers cheap |
 | `desktop-mode.iframe.connection-request` | filter | Experimental | `boolean \| { topics: string[] } ← (accept, ctx)` — return `false` to reject, an object to accept-with-narrowing |
 
@@ -188,11 +188,13 @@ When something's not working:
 
 ## Cross-origin iframes — explicit non-goal
 
-**Every bridge in this repo is same-origin only**. Three independent origin filters enforce this:
+**Every bridge listener in this repo validates `event.origin`**, and three of the four are strictly same-origin:
 
-- `src/iframe-bridge-standalone.ts:131` — `parentOrigin = window.location.origin`.
-- `src/connection/index.ts:39` — `INITIAL_ORIGIN = window.location.origin`.
-- `src/drag-bridge.ts:207` — `this._origin = window.location.origin`.
+- `src/iframe-bridge-standalone.ts` — `parentOrigin = window.location.origin`.
+- `src/connection/index.ts` — `INITIAL_ORIGIN = window.location.origin`.
+- `src/drag-bridge.ts` — `this._origin = window.location.origin`.
+
+The fourth listener — `src/native-windows.ts`'s `iframeContent` message handler — validates against the iframe URL's *resolved* origin (falling back to the shell origin for relative / invalid URLs) and forwards `desktop-mode-bridge-*` messages into the connection registry. A native window configured with a cross-origin `iframeContent.url` therefore grants that foreign origin bridge access for that window: only point `iframeContent.url` at origins you trust.
 
 Each postMessage's `targetOrigin` is set to its own captured origin, and each `'message'` listener rejects events whose `e.origin` doesn't match. Cross-origin parents silently drop every bridge message — no warn, no fallback. This is **deliberate**: the bridge payloads feed into drop handlers that insert HTML and into hook subscribers that may execute code, so widening the trust boundary would create a clear XSS surface.
 
@@ -219,7 +221,7 @@ wp.desktop.iframe.publish( 'editor:content', html );
 
 The predicate accesses `window.parent.location.origin` inside a try/catch — cross-origin parents throw on the access. Cheap, no postMessage round-trip. Use it before wiring expensive subscriptions or showing UI that promises cross-window behavior.
 
-## Cross-window drag bridge — Stable *(since 0.22.0)*
+## Cross-window drag bridge — Stable *(since 0.6.0)*
 
 A separate channel from the connection bridge. Where the connection bridge carries app-level pub/sub between a window and its iframe, the **drag bridge** carries an in-flight drag payload between the parent shell and ALL same-origin iframes — receivers don't need to be "connected" to receive it.
 
@@ -227,14 +229,14 @@ A separate channel from the connection bridge. Where the connection bridge carri
 
 The drag bridge stores a single `DragBridgePayload` at any given time. Two ways the payload gets in:
 
-- **Shell-side drag source** — a DragManager `'shortcut'` session starts on a shell-rendered tile (My WordPress media / post / user). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
+- **Shell-side drag source** — a DragManager `'shortcut'` or `'desktop-file'` session whose payload carries `data.bridgePayload` starts (a shell-rendered tile from My WordPress media / post / user, or an existing wallpaper placement dragged off the desktop). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
 - **Iframe-side drag source** — an iframe postMessages `{ type: 'desktop-mode-drag-start', payload }` to the parent. The bridge stores the payload and broadcasts `DRAG_BRIDGE_EVENTS.START` as a `CustomEvent` on `document` so other shell modules can react.
 
 ### Receiver protocol
 
 Drop-receiver iframes have two ways to consume the payload:
 
-1. **Push** — `src/drag/iframe-drop-targets.ts` registers an overlay drop target on every iframe window. When the pointer is over an iframe and the gesture is a shortcut drag, the shell postMessages:
+1. **Push** — `src/drag/iframe-drop-targets.ts` suppresses `pointer-events` on every iframe window for the drag's duration and registers each window body as a drop target. When the pointer is over an iframe window and the gesture is a `'shortcut'` or `'desktop-file'` drag carrying a `bridgePayload`, the shell postMessages:
 
    | Message | Direction | Payload |
    |---|---|---|
@@ -260,7 +262,7 @@ type DragBridgePayload =
 
 ### Sniff points
 
-- **`document.body[data-desktop-mode-dragging]`** — set by the DragManager while ANY drag is in flight. Pair with `[data-desktop-mode-drag-type="shortcut"]` to gate iframe-overlay CSS.
+- **`document.body[data-desktop-mode-dragging]`** — set by the DragManager while ANY drag is in flight. Pair with `[data-desktop-mode-drag-type="shortcut"]` to gate drag-state CSS in the shell.
 - **`window.wp.desktop.dragBridge.getPayload()`** — read the current cross-frame payload from anywhere in the parent shell.
 - **`desktop-mode-cross-frame-drag-start` / `-end` CustomEvents** — dispatched on `document` each time the bridge transitions. Plugins layer drop-zone highlights on these without polling.
 
@@ -271,6 +273,6 @@ If you find yourself writing `window.parent.postMessage` or hand-rolling a hands
 - For shell-registered iframe windows (chromeless wp-admin) → use `wp.desktop.connect()` + `wp.desktop.iframe.publish/subscribe`.
 - For your own iframe pages → enqueue `desktop-mode-iframe-bridge` OR set `iframeContent: { bridge: true }` on a native window.
 - For iframe-initiated requests → `wp.desktop.iframe.requestConnection()`.
-- For source-validation + load-vs-listener-race → `wp.desktop.registerWindow({ iframeContent: { onReady, onMessage } })`.
+- For source-validation + load-vs-listener-race → `wp.desktop.registerWindow({ iframeContent: { bridge: true, onMessage } })` — `onMessage` is pre-validated against the iframe's `contentWindow`, and readiness needs no callback: `Window.send` payloads queue and flush automatically once the iframe loads (`HOOKS.IFRAME_READY` fires for observers).
 
 The whole "shell.js coordinator" pattern is gone if you reach for these. The plugin's parent-shell footprint goes from ~150 lines of postMessage plumbing to a ~5-line config object.

@@ -6,7 +6,7 @@
  * The dock always starts with a WordPress logo "Show Desktop" button
  * that minimizes all open windows.
  *
- * @since 6.9.0
+ * @since 0.5.0
  */
 
 import { activity } from './activity';
@@ -80,7 +80,7 @@ export interface SystemDockItem {
  * mount-deps callback.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export interface SubmenuItem {
 	title: string;
@@ -158,7 +158,7 @@ export type DockOrientation = 'left' | 'right' | 'bottom';
  * `orientation` carries the placement.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export interface DockHookContextBase {
 	rail: 'dock' | 'taskbar';
@@ -173,7 +173,7 @@ export interface DockHookContextBase {
  * when `false`, a {@link DockItem} from the admin menu.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export interface DockTileContext extends DockHookContextBase {
 	item: DockItem | SystemDockItem;
@@ -187,7 +187,7 @@ export interface DockTileContext extends DockHookContextBase {
  * desyncs the rail.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export interface DockRenderContext extends DockHookContextBase {
 	items: DockItem[];
@@ -575,7 +575,7 @@ export class Dock {
 	 *
 	 * Idempotent: applying the same count is a no-op (no DOM mutation).
 	 *
-	 * @since 0.22.0
+	 * @since 0.6.0
 	 *
 	 * @param itemId Tile id (menu slug for admin pages, system id
 	 *               for `appendSystemItem` / `registerSystemTile`).
@@ -622,7 +622,7 @@ export class Dock {
 	/**
 	 * Clear the badge on a tile. Equivalent to `setBadge( id, 0 )`.
 	 *
-	 * @since 0.22.0
+	 * @since 0.6.0
 	 */
 	public clearBadge( itemId: string ): void {
 		this.setBadge( itemId, 0 );
@@ -641,7 +641,7 @@ export class Dock {
 	 * same duration so the affordance still works. `durationMs` of
 	 * `0` keeps the attention until the next call clears it.
 	 *
-	 * @since 0.22.0
+	 * @since 0.6.0
 	 *
 	 * @param itemId Tile id.
 	 * @param mode   Animation mode or `null` to clear.
@@ -1064,7 +1064,7 @@ export class Dock {
 	 *    and the layout-dispatcher subscriber re-applies. Cancellation
 	 *    (Escape, pointercancel) reverts to the original order.
 	 *
-	 * @since 0.25.0
+	 * @since 0.8.2
 	 */
 	private attachDragReorder( tile: HTMLElement, itemId: string ): void {
 		const THRESHOLD = 5; // px the pointer must move before claiming.

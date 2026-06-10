@@ -13,7 +13,7 @@
  * the user-edit code into its own bundle keeps the same single
  * source of truth across bundles (per CLAUDE.md guidance).
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 interface SharedStoreApi< T > {

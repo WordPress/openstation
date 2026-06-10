@@ -11,14 +11,14 @@ One table per surface. Use this to grep for a method, see its status at a glance
 
 ## `wp.desktop.*` — JavaScript API
 
-The full surface is documented in [`javascript-reference.md`](./javascript-reference.md). This table is the inventory.
+The full surface is documented in [`javascript-reference.md`](./javascript-reference.md). This table indexes the most-used members — for the exhaustive inventory, use the reference.
 
 ### Bootstrap & lifecycle
 
 | Member | Signature | Status |
 |---|---|---|
-| `whenReady` | `( cb: () => void ) => void` | Stable *(0.6.1)* |
-| `ready` | `( cb: () => void ) => void` *(alias of `whenReady`, idiomatic)* | Stable *(0.17.0)* |
+| `whenReady` | `( cb: () => void ) => void` | Stable *(0.5.0)* |
+| `ready` | `( cb: () => void ) => void` *(alias of `whenReady`, idiomatic)* | Stable *(0.5.1)* |
 | `isReady` | `() => boolean` | Stable *(0.6.1)* |
 | `isActive` | `() => boolean` *(true iff the desktop shell is mounted)* | Stable |
 | `config` | `DesktopConfig` *(shell config blob)* | Stable |
@@ -32,20 +32,22 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 |---|---|---|
 | [`fetch`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable-since-080) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** *(0.8.0)* |
 | `confirm` | `( opts: WpdConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable *(0.9.0)* |
-| `notify` | `( opts: NotifyOptions ) => Promise<NotifyHandle>` *(local notification w/ fallback)* | Stable *(0.8.0)* |
+| `notify` | `( opts: NotifyOptions ) => () => void` *(local notification w/ fallback; returns a dismiss function)* | Stable *(0.8.0)* |
 
 ### Window management
 
 | Member | Signature | Status |
 |---|---|---|
 | `windowManager` | `WindowManager` instance | Stable |
-| `openWindow` | `( id: string, opts?: { source?: string } ) => boolean` | Stable *(0.18.0)* |
-| `registerWindow` | `( def: NativeWindowDef ) => Window` | Stable *(0.10.0)* |
-| `onWindow` | `( id, handlers, opts? ) => () => void` | Stable *(0.10.0)* |
+| `openWindow` | `( id: string, opts?: { source?: string } ) => boolean` | Stable *(0.6.0)* |
+| `openNewWindow` | `( id: string, opts?: { source?: string } ) => boolean` *(always spawns a new instance)* | Stable *(0.8.3)* |
+| `registerWindow` | `( def: NativeWindowDef ) => Promise<Window>` | Stable *(returns a `Promise` since 0.8.4)* |
+| `cloneTemplate` | `( templateOrId: string \| HTMLTemplateElement ) => DocumentFragment` | Stable |
+| `onWindow` | `( id, handlers, opts? ) => () => void` | Stable *(0.6.0)* |
 | `connect` | `( windowId, opts? ) => ConnectionHandle` | Stable *(0.5.5)* |
 | `getWindowConfig` | `<T>( id: string ) => T \| undefined` | Stable *(0.6.0)* |
-| `setDefaultWindow` | `( id: string \| null ) => void` | Stable |
-| `deriveWindowId` | `( url: string, adminUrl?: string ) => string` | Stable *(0.18.0)* |
+| `setDefaultWindow` | `( url: string \| null ) => Promise<void>` | Stable |
+| `deriveWindowId` | `( url: string, adminUrl?: string ) => string` | Stable *(0.6.0)* |
 | `debug.window` | `( id: string ) => DesktopDebugWindow \| null` | Stable *(0.6.0)* |
 
 ### Surfaces — dock, taskbar, icons, layout
@@ -53,13 +55,12 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | Member | Signature | Status |
 |---|---|---|
 | `dock` | `Dock \| null` *(primary / bottom rail)* | Stable |
-| `sideDock` | `Dock \| null` *(left rail; classic only)* | Stable *(0.18.0)* |
-| `desktopLayout` | `'classic' \| 'unified' \| 'spatial'` | Stable *(0.18.0)* |
-| `Dock.setBadge` | `( id: string, count: number ) => void` | Stable *(0.22.0)* |
-| `Dock.removeSystemItem` | `( id: string ) => void` | Stable *(0.24.0)* |
-| `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable *(0.24.0)* |
-| `icons.setBadge` | `( iconId: string, count: number ) => void` | Stable *(0.24.0)* |
-| `taskbar.setBadge` | `( id: string, count: number ) => void` | Stable *(0.24.0)* |
+| `sideDock` | `Dock \| null` *(left rail; classic only)* | Stable *(0.6.0)* |
+| `desktopLayout` | `'classic' \| 'unified' \| 'spatial'` | Stable *(0.6.0)* |
+| `Dock.setBadge` | `( id: string, count: number ) => void` | Stable *(0.6.0)* |
+| `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
+| `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable *(0.6.0)* |
+| `icons.setBadge` | `( iconId: string, count: number ) => void` | Stable *(0.6.0)* |
 | `registerSystemTile` | `( item: SystemDockItem ) => void` | Stable |
 | `widgetLayer` | `WidgetLayer \| null` | Stable |
 | `registerWidget` | `( def: WidgetDef ) => void` | Stable |
@@ -80,26 +81,25 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 
 | Member | Signature | Status |
 |---|---|---|
-| `registerCommand` | `( def: CommandDef ) => void` | Stable *(0.15.0)* |
-| `unregisterCommand` | `( id: string ) => void` | Stable *(0.15.0)* |
-| `listCommands` | `() => CommandDef[]` | Stable *(0.15.0)* |
-| `runCommand` | `( id: string, args? ) => unknown` | Stable *(0.15.0)* |
-| `registerPalette` | `( def: PaletteDef ) => void` | Experimental *(0.16.0)* |
-| `ai.ask` | `( prompt: string, opts? ) => Promise<AiAnswer>` | Experimental *(0.17.0)* |
-| `ai.registerProvider` | `( def: AiProviderDef ) => void` | Experimental *(0.17.0)* |
-| `registerSettingsTab` | `( def: SettingsTabDef ) => void` | Stable *(0.17.0)* |
+| `registerCommand` | `( def: CommandDef ) => void` | Stable *(0.5.0)* |
+| `unregisterCommand` | `( id: string ) => void` | Stable *(0.5.0)* |
+| `listCommands` | `() => CommandDef[]` | Stable *(0.5.0)* |
+| `registerPalette` | `( def: PaletteDef ) => void` | Experimental *(0.5.0)* |
+| `ai.ask` | `( prompt: string, opts? ) => Promise<AiAnswer>` | Experimental *(0.5.1)* |
+| `registerSettingsTab` | `( def: SettingsTabDef ) => void` | Stable *(0.5.2)* |
 | `subscribeOsSettings` | `( cb ) => () => void` | Stable *(0.8.0)* |
-| `updateOsSettings` | `( patch, opts? ) => void` | Stable *(0.8.0)* |
+| `updateOsSettings` | `( patch, opts? ) => void` | Stable *(0.7.2)* |
 
 ### Title-bar buttons, themes, controls, slots, chrome
 
 | Member | Signature | Status |
 |---|---|---|
-| `registerTitleBarButton` | `( def: TitleBarButtonDef ) => void` | Stable *(0.17.0)* |
-| `unregisterTitleBarButton` | `( id: string ) => void` | Stable *(0.17.0)* |
-| `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental *(0.26.0)* |
-| `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental *(0.26.0)* |
-| `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental *(0.26.0)* |
+| `registerTitleBarButton` | `( def: TitleBarButtonDef ) => void` | Stable *(0.5.2)* |
+| `unregisterTitleBarButton` | `( id: string ) => void` | Stable *(0.5.2)* |
+| `listTitleBarButtons` | `() => TitleBarButtonDef[]` | Experimental |
+| `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental *(0.9.1)* |
+| `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental *(0.9.1)* |
+| `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental *(0.9.1)* |
 | `registerWindowTheme` | `( def: WindowThemeDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowControl` | `( def: WindowControlDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowSlot` | `( def: WindowSlotDef ) => void` | Stable *(0.6.0)* |
@@ -119,15 +119,19 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 
 | Member | Signature | Status |
 |---|---|---|
-| `pwa.promptInstall` | `() => Promise<boolean>` | Stable *(0.8.0)* |
-| `pwa.canInstall` | `() => boolean` | Stable *(0.8.0)* |
+| `pwa.promptInstall` | `() => Promise<'accepted' \| 'dismissed' \| 'unavailable'>` | Stable *(0.8.0)* |
+| `pwa.undismissInstallHint` | `() => void` | Stable *(0.8.0)* |
+| `pwa.getState` | `() => { installHintDismissed: boolean, notificationsEnabled: boolean }` | Stable *(0.8.0)* |
+| `pwa.subscribe` | `( cb: ( state ) => void ) => () => void` | Stable *(0.8.0)* |
+| `pwa.requestNotificationPermission` | `() => Promise<'granted' \| 'denied' \| 'default' \| 'unsupported'>` | Stable *(0.8.0)* |
+| `pwa.getNotificationPermission` | `() => 'granted' \| 'denied' \| 'default' \| 'unsupported'` | Stable *(0.8.0)* |
 
 ### Drag bridge
 
 | Member | Signature | Status |
 |---|---|---|
-| `dragManager` | `DragManager` *(in-shell drag)* | Stable *(0.18.0)* |
-| `dragBridge` | `DragBridge` *(cross-iframe drag)* | Stable *(0.14.0)* |
+| `dragManager` | `DragManager` *(in-shell drag)* | Stable *(0.8.1)* |
+| `dragBridge` | `DragBridge` *(cross-iframe drag)* | Stable *(0.5.0)* |
 
 ### Iframe-side bridge — `wp.desktop.iframe.*`
 
@@ -137,7 +141,7 @@ Inside an iframe window, after the chromeless bridge installs the API:
 |---|---|---|
 | `iframe.publish` | `( channel: string, payload? ) => void` | Stable *(0.5.5)* |
 | `iframe.subscribe` | `( channel, cb ) => () => void` | Stable *(0.5.5)* |
-| `iframe.requestConnection` | `( windowId, opts ) => ConnectionHandle` | Stable *(0.5.5)* |
+| `iframe.requestConnection` | `( opts: RequestConnectionOptions ) => Promise<ConnectionRecord>` | Stable *(0.5.5)* |
 | `iframe.onConnection` | `( cb ) => () => void` | Stable *(0.5.5)* |
 
 ### Module loader
@@ -169,10 +173,15 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `desktop-mode-window-closed` | Stable |
 | `desktop-mode-window-changed` | Experimental |
 | `desktop-mode-presence-changed` | Stable *(0.5.5)* |
-| `desktop-mode-layout-changed` | Stable *(0.18.0)* |
-| `desktop-mode-registry-changed` | Stable *(0.18.1)* |
-| `desktop-mode.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable *(0.18.0)* |
-| `wp-desktop-drag-*` *(cross-iframe drag bridge)* | Stable *(0.14.0)* |
+| `desktop-mode-layout-changed` | Stable *(0.6.0)* |
+| `desktop-mode-registry-changed` | Stable *(0.7.0)* |
+| `desktop-mode.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable *(0.8.1)* |
+| `desktop-mode-cross-frame-drag-start` / `-end` *(cross-iframe drag bridge)* | Stable *(0.7.0)* |
+| `desktop-mode-os-settings-save-lifecycle` | Stable *(0.7.2)* |
+| `desktop-mode-default-window-changed` | Stable *(0.7.0)* |
+| `desktop-mode-open-ai` *(plugin-dispatched; the shell listens)* | Experimental *(0.7.0)* |
+| `desktop-mode-intros-reset` | Experimental *(0.8.3)* |
+| `desktop-mode-my-wordpress-entity-trashed` | Experimental *(0.8.9)* |
 
 ---
 
@@ -186,9 +195,11 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `desktop-mode-window-publish` | iframe → parent | Stable *(0.5.5)* |
 | `desktop-mode-window-send` | parent → iframe | Stable *(0.5.5)* |
 | `desktop-mode-bridge-*` *(connection-bridge family)* | both | Stable *(0.5.5)* |
-| `desktop-mode-plugins-changed` | iframe → parent | Stable *(0.18.1)* |
-| `desktop-mode-code-open` | parent → iframe | Stable *(0.17.0)* |
-| `wp-desktop-drag-start` / `-over` / `-drop` | both | Stable *(0.14.0)* |
+| `desktop-mode-plugins-changed` | iframe → parent | Stable *(0.7.0)* |
+| `wp-desktop-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable *(0.5.4)* |
+| `desktop-mode-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable *(0.7.0)* |
+| `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable *(0.7.0)* |
+| `desktop-mode-drag-over` / `-leave` / `desktop-mode-drop` | parent → iframe | Stable *(0.8.7)* |
 
 ---
 

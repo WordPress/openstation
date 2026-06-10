@@ -26,10 +26,11 @@
  * Options dispatch a bubbling `wpd-context-menu-pick` CustomEvent
  * with `{ id, value? }` when activated. Headings ignore clicks.
  *
- * Submenus: an option with a `<wpd-context-menu>` slotted as its
- * child renders a chevron and shows the nested menu on hover /
- * activate. The framework positions the submenu to the right
- * (or left when it'd spill).
+ * Submenus are consumer-driven: set the `has-children` attribute
+ * to render the trailing chevron, then open and position your own
+ * flyout `<wpd-context-menu>` on hover / activate (see
+ * src/desktop-files/wallpaper-menu.ts and src/icon-canvas/menu.ts
+ * for the canonical rigs).
  *
  * @since 0.9.0
  */
@@ -140,7 +141,7 @@ export class WpdContextMenuOption extends Component {
 			},
 		],
 		slots: [
-			{ name: '(default)', description: 'Visible label + optional nested <wpd-context-menu>.' },
+			{ name: '(default)', description: 'Visible label.' },
 		],
 		events: [
 			{

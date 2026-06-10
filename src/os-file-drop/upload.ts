@@ -20,9 +20,9 @@
  * progress only via XHR's `upload.onprogress` callback (the Streams-
  * based fetch upload-progress proposal isn't yet broadly supported,
  * and our floating HUD needs determinate bars). Activity-bus
- * attribution for the request lives in the manager's surrounding
- * `wp.desktop.activity.publish` calls — XHR doesn't route through
- * `wp.desktop.fetch` by design.
+ * visibility comes from the progress HUD (`progress-hud.ts`
+ * publishes `desktop-mode/upload-hud-complete` on completion) —
+ * XHR doesn't route through `wp.desktop.fetch` by design.
  *
  * @since 0.30.0
  */

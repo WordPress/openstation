@@ -134,6 +134,43 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression: the transient stores only the viewer-independent
+	 * reference map, and the per-row `read_post` gate runs on every
+	 * request. An Author and a Subscriber share the same 'read'
+	 * cache bucket (neither has `edit_others_posts`) — a cache hit
+	 * warmed during the Author's request must NOT serve the Author's
+	 * own draft rows to the Subscriber.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_media_usage_callback
+	 * @covers ::desktop_mode_my_wordpress_media_usage_build
+	 */
+	public function test_cached_scan_does_not_leak_authors_draft_to_subscriber() {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		$draft     = self::factory()->post->create(
+			array(
+				'post_status' => 'draft',
+				'post_title'  => 'Author-only draft',
+				'post_author' => $author_id,
+			)
+		);
+		update_post_meta( $draft, '_thumbnail_id', $this->attachment_id );
+
+		// Warm the cache as the Author — they can read their own
+		// draft, so the row is in THEIR response.
+		wp_set_current_user( $author_id );
+		$first = $this->dispatch( $this->attachment_id );
+		$this->assertSame( 200, $first->get_status() );
+		$this->assertContains( $draft, wp_list_pluck( $first->get_data()['usedIn'], 'postId' ) );
+
+		// Same warm cache, different viewer: the Subscriber shares
+		// the 'read' bucket but must not inherit the Author's rows.
+		wp_set_current_user( $this->subscriber_id );
+		$second = $this->dispatch( $this->attachment_id );
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertNotContains( $draft, wp_list_pluck( $second->get_data()['usedIn'], 'postId' ) );
+	}
+
+	/**
 	 * Second call returns the cached payload. We can't reliably
 	 * compare query counts (cap checks run on every dispatch), so
 	 * we verify cache presence directly and confirm the second

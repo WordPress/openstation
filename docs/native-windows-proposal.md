@@ -1,6 +1,6 @@
 # Native Windows & Framework Interop
 
-**Status:** Stable — shipped in 0.11.0. `desktop_mode_register_window()` and `desktop_mode_register_window_tab()` are the public PHP API; `wp.desktop.registerWindow()` is the JS counterpart. See [`examples/native-windows.md`](./examples/native-windows.md) and [`examples/native-window-with-tabs.md`](./examples/native-window-with-tabs.md) for working recipes.
+**Status:** Historical RFC — kept for the design rationale. The API has since shipped — `desktop_mode_register_window()` and `desktop_mode_register_window_tab()` are the public PHP API; `wp.desktop.registerWindow()` is the JS counterpart — but the shipped argument surface differs from this proposal: a required `template` callback plus singular `script` / `style` handles replaced the `custom_element` / `render` / `module` authoring paths and the `scripts` / `styles` arrays; a `capabilities` array replaced `capability`; `placement` (`'dock'` / `'none'`) replaced `show_in_dock`; and the size defaults are 520×400 with a 280×220 minimum, not 420×320 / 320×200. The shipped docs are authoritative: see [`examples/native-windows.md`](./examples/native-windows.md) and [`examples/native-window-with-tabs.md`](./examples/native-window-with-tabs.md) for working recipes.
 
 This document describes the public contract for **native desktop windows** — windows whose content renders directly in the parent DOM instead of through an iframe — and the story for how plugins written with React, Vue, Svelte, Lit, or plain custom elements plug in without the shell taking a framework dependency.
 
@@ -23,6 +23,8 @@ The goal is to make one decision up front: **the shell's extension contract is t
 ## The API
 
 ### PHP: `desktop_mode_register_window()`
+
+> **As shipped, the signature differs** — see the status note at the top and [`examples/native-windows.md`](./examples/native-windows.md) for the real argument list. The proposal-era shape:
 
 ```php
 desktop_mode_register_window( 'jorvy', array(
@@ -94,7 +96,7 @@ desktop_mode_register_window( 'jorvy', array(
 ) );
 ```
 
-Behind the scenes this populates a registry exposed to the shell via `desktop_mode_shell_config` → `nativeWindows`. The registry is filterable as `desktop_mode_native_windows` for last-mile overrides.
+Behind the scenes this populates a registry exposed to the shell via `desktop_mode_shell_config` → `nativeWindows`. There is no registry-level filter; the shipped extension points are the `desktop_mode_native_window_registered` action (fires after every successful registration) and the `desktop_mode_native_window_allowed_html` filter (the kses allowlist used to escape `<template>` payloads).
 
 #### Shipping config to the bundle
 
@@ -128,21 +130,29 @@ For diagnostics, `wp.desktop.debug.window( id )` (read-only) reports the load pa
 For windows whose definition is easier to express in JS than in PHP (or for shell-internal modules like OS Settings):
 
 ```js
-wp.desktop.registerWindow( 'jorvy', {
-    title:         'Jorvy',
-    icon:          'dashicons-star-filled',
-    customElement: 'jorvy-panel', // or render: ( container ) => { … }
-    width:         420,
-    height:        320,
+// Shipped shape: a single def object (including `id`); returns a
+// Promise that resolves to the opened DesktopWindow — registering
+// also opens the window. There is no `customElement` option:
+// create and append your element inside `render()` instead.
+wp.desktop.registerWindow( {
+    id:     'jorvy',
+    title:  'Jorvy',
+    icon:   'dashicons-star-filled',
+    width:  420,
+    height: 320,
+    render: ( body ) => {
+        body.appendChild( document.createElement( 'jorvy-panel' ) );
+    },
 } );
-
-// Open programmatically.
-wp.desktop.openWindow( 'jorvy' );
 ```
 
 The PHP and JS registries merge at shell boot — JS wins on conflict, so a plugin that needs to override a PHP registration from its own script can do so without juggling hook priorities.
 
 ## Three authoring paths, one contract
+
+> **As shipped, only one path exists** — closest to Path B: a PHP `template` callback (cloned into the window body) plus an optional JS render callback the plugin's `script` registers at `window.desktopModeNativeWindows[ <id> ]`. The `custom_element` and `module` args below were never shipped; a plugin can still use a custom element or a dynamic `import()` *inside* its render callback.
+>
+> The shell also consults the legacy `window.wpDesktopNativeWindows` bag for backwards compatibility — it merges both at read time, with the canonical `desktopModeNativeWindows` winning on id collisions. New code registers on `desktopModeNativeWindows`.
 
 Each path reduces to: *the shell gives you an empty HTML element, you fill it, you get lifecycle callbacks.*
 
@@ -210,25 +220,25 @@ The shell does `const { default: mount } = await import( config.module ); mount(
 
 ## Lifecycle contract
 
-Every native window, regardless of authoring path, sees the same lifecycle events:
+Every native window sees the same shipped lifecycle surface, delivered through the render callback's second argument (`NativeRenderContext`) and document-level CustomEvents:
 
-| Event | When | Web Component hook | Render callback |
-|---|---|---|---|
-| **mount** | Window opens. | `connectedCallback` | Function is called. |
-| **focus** | Window gains focus. | `desktop-mode-focus` CustomEvent on the element. | `ctx.onFocus( fn )`. |
-| **blur** | Loses focus. | `desktop-mode-blur` CustomEvent. | `ctx.onBlur( fn )`. |
-| **resize** | Geometry changes. | `desktop-mode-resize` CustomEvent with `{ width, height }`. | `ctx.onResize( fn )`. |
-| **hidden** | Window minimized. | `desktop-mode-hidden` CustomEvent. | `ctx.onHidden( fn )`. |
-| **visible** | Window restored. | `desktop-mode-visible` CustomEvent. | `ctx.onVisible( fn )`. |
-| **unmount** | Window closed. | `disconnectedCallback` | Teardown function returned from mount is called. |
+| Event | When | Shipped surface |
+|---|---|---|
+| **mount** | Window opens. | The render callback is invoked after the registered template is cloned into the body. |
+| **focus** | Window gains focus. | `desktop-mode-window-focused` CustomEvent on `document` (hook: `desktop-mode.window.focused`). |
+| **blur** | Loses focus. | `desktop-mode-window-blurred` CustomEvent on `document` (hook: `desktop-mode.window.blurred`). |
+| **resize** | Geometry changes. | `ctx.onResize( ( width, height ) => { … } )`. |
+| **hidden** | Window minimized. | `ctx.onHide( fn )`. |
+| **visible** | Window restored. | `ctx.onShow( fn )`. |
+| **unmount** | Window closed. | `ctx.signal` (an `AbortSignal`) aborts, then the teardown function returned from render is called. |
 
-The `ctx` object passed to callbacks exposes the read-only window handle, the drag-bridge API (Phase 8), and a `setTitle( string )` shortcut so a native window can rename itself after data loads.
+The `ctx` object also exposes the window-scoped channel pair (`ctx.window.send` / `ctx.window.on`) and the loading-overlay controls (`ctx.markLoading()` / `ctx.markReady()`). To rename a window after data loads, use the window handle: `wp.desktop.windowManager.getById( id ).setTitle( title )`. See [`examples/render-ctx.md`](./examples/render-ctx.md) for the full contract.
 
 ## Security & sandboxing
 
 - **Same origin, same realm.** Native window code executes in the parent shell's JS realm — there is no iframe boundary. This is the point: direct DOM access, shared state, cross-window coordination. But it means a misbehaving plugin can reach the rest of the shell. Treat this like any other `wp_enqueue_script` — it's a plugin author surface, not an end-user one.
-- **Capability checks stay server-side.** `desktop_mode_register_window()` enforces `capability` before emitting the registration into the shell config. A user without the cap never sees the icon and cannot open the window via `wp.desktop.openWindow()`.
-- **No eval, no Function constructors.** The render-path strings (`render`, `module`, `custom_element`) are looked up / imported, never evaluated as code. `render: 'jorvy.renderQuotePanel'` resolves via walking `window` — if it's missing, the shell logs and shows an error state rather than creating a sink for arbitrary strings.
+- **Capability checks stay server-side.** `desktop_mode_register_window()` enforces the `capabilities` array (every listed capability must match — fail closed) before storing the registration. A user without the caps never sees the icon and cannot open the window via `wp.desktop.openWindow()`.
+- **No eval, no Function constructors.** The shipped render callback is a function the plugin's own script registers at `window.desktopModeNativeWindows[ <id> ]` — the shell looks it up by id and invokes it; no strings are ever evaluated as code. (The legacy `window.wpDesktopNativeWindows` bag is also consulted for backwards compatibility — the shell merges both at read time, canonical wins on id collisions.) Template HTML is escaped through the `desktop_mode_native_window_allowed_html` kses allowlist before it is emitted.
 - **Nonces for server interaction** are the plugin's responsibility; the shell doesn't wrap fetch calls.
 
 ## Why not just…
@@ -242,6 +252,8 @@ The `ctx` object passed to callbacks exposes the read-only window handle, the dr
 **…let the render callback return JSX / a Vue vnode / a Svelte component?** That's a framework opinion baked into the core contract. Keep the shell's surface strictly DOM; the plugin does the framework glue. Two lines in the plugin, zero lines in the shell.
 
 ## Worked example: Jorvy as a Web Component
+
+> Proposal-era recipe — the `custom_element` / `scripts` args did not ship. For the working equivalent (PHP `template` callback + singular `script` handle + JS render callback), see [`examples/register-icon.md`](./examples/register-icon.md).
 
 ```php
 // jorvy.php
@@ -296,6 +308,8 @@ No build step, no framework, ~30 lines total. This is the bar.
 
 ## Worked example: the same panel in React
 
+> Proposal-era recipe — the `module` arg did not ship. The shipped equivalent is a render callback that does the `createRoot()` mount itself (dynamic `import()` inside the callback if you want code splitting).
+
 ```js
 // Same registration in PHP, but with 'module' instead of 'custom_element':
 //     'module' => plugins_url( 'jorvy-panel.js', __FILE__ ),
@@ -328,7 +342,7 @@ Same window, same dock icon, same OS Settings theming — different authoring st
 
 ## Migration plan for what already exists
 
-The only native-window content shipping today is the **OS Settings** panel (shell-internal, Phase 6). Its `render( body )` callback already matches Path B exactly. When this API lands, OS Settings will:
+*(Proposal-era section.)* When this was written, the only native-window content was the **OS Settings** panel (shell-internal, Phase 6); its `render( body )` callback already matched Path B exactly. The API has since landed and is used in-tree by the shipped Posts, Pages, Users, Plugins, Comments, Recycle Bin, My WordPress, Content Graph, and user-edit windows — all registered via `desktop_mode_register_window()`. The original plan for OS Settings:
 
 1. Stay a render callback (it's shell-internal, no reason to register it through the public registry).
 2. Gain the same `ctx` lifecycle wiring other plugins get — currently it does nothing on focus / blur / resize; with `ctx` it can, e.g., re-check `matchMedia` on resize if we ever add a "follow system dark mode" toggle.

@@ -22,7 +22,7 @@
  * a guard flag so a second import doesn't double-attach.
  *
  * @public
- * @since 0.18.0
+ * @since 0.7.0
  */
 
 const FLAG = '__wpdcEditorListenersInstalled';

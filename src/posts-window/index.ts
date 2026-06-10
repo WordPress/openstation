@@ -635,7 +635,7 @@ function _buildBaseColumns(
  * — acceptable for v1; a small batched-include fetch can lift this
  * to full-title resolution later.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 const _parentTitleByPageRoster: Map< number, string > = new Map();
 
@@ -645,7 +645,7 @@ const _parentTitleByPageRoster: Map< number, string > = new Map();
  * Otherwise we render the parent's title (if known) or a fallback
  * numeric label.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function buildParentCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -675,7 +675,7 @@ function buildParentCell( row: PostListItem ): HTMLElement {
  * `textContent` reflects the freshly-known titles on the next
  * memoized rebuild (cell cache is wiped per refresh).
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function refreshParentTitleRoster( rows: PostListItem[] ): void {
 	_parentTitleByPageRoster.clear();
@@ -691,7 +691,7 @@ function refreshParentTitleRoster( rows: PostListItem[] ): void {
  * template the config blob doesn't carry a label for, so users see
  * SOMETHING rather than a blank cell.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -718,7 +718,7 @@ function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTML
  * redirects or sharing canonical URLs; one click puts the slug on
  * the clipboard.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function buildSlugCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'button' );
@@ -774,7 +774,7 @@ function buildSlugCell( row: PostListItem ): HTMLElement {
  * with the classic Pages list. Renders "—" when the field is
  * absent (e.g. a plugin-restricted query).
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function buildCommentsCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -1384,7 +1384,7 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 /**
  * Render a small inline assignment badge (Front page / Posts page).
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function buildAssignmentBadge(
 	label: string,

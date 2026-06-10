@@ -128,6 +128,10 @@ do_action( 'desktop_mode_wallpaper_registered', string $id, array $entry );
 
 Fires after `desktop_mode_register_icon()` successfully stores a desktop shortcut tile. Same contract as the other registration actions — no fire on `WP_Error` return.
 
+```php
+do_action( 'desktop_mode_icon_registered', string $id, array $entry );
+```
+
 ---
 
 ### `desktop_mode_file_type_registered` — Experimental (since 0.9.0)
@@ -157,7 +161,7 @@ do_action( 'desktop_mode_folder_shared',  int $id, array $next, array $prev ); /
 do_action( 'desktop_mode_folder_renamed', int $id, string $new_name, string $old_name, int $user_id ); // fires AFTER the folder row + pointing-placements are bumped
 do_action( 'desktop_mode_folder_deleted', int $id, array $row );
 
-// Folder delete cascade (since 0.18.x). Owner-only deletion runs
+// Folder delete cascade (since 0.8.5). Owner-only deletion runs
 // the cascade described in folder-sharing.md — sub-folder recursion,
 // share-row revocation, pointing-placement removal across users.
 do_action( 'desktop_mode_files_before_delete_folder',        int $id, int $user_id, array $row );
@@ -179,6 +183,12 @@ do_action( 'desktop_mode_files_after_restore_placement',  int $id, int $user_id 
 do_action( 'desktop_mode_files_before_purge_placement',   int $id, int $user_id, array $row );
 do_action( 'desktop_mode_files_after_purge_placement',    int $id, int $user_id );
 
+// Cascade trash (since 0.8.9). Fires for each placement that is
+// soft-trashed because the source entity it points at (post,
+// attachment, user, …) was trashed — distinct from the
+// user-initiated per-placement trash actions above.
+do_action( 'desktop_mode_files_after_cascade_trash_placement', int $placement_id, int $owner_id, string $file_type, string|int $file_ref );
+
 do_action( 'desktop_mode_files_before_trash_folder',   int $id, int $user_id, array $row );
 do_action( 'desktop_mode_files_after_trash_folder',    int $id, int $user_id );
 do_action( 'desktop_mode_files_before_restore_folder', int $id, int $user_id, array $row );
@@ -187,7 +197,7 @@ do_action( 'desktop_mode_files_before_purge_folder',   int $id, int $user_id, ar
 do_action( 'desktop_mode_files_after_purge_folder',    int $id, int $user_id );
 ```
 
-### Folder sharing (since 0.18.0, Experimental)
+### Folder sharing (since 0.8.5, Experimental)
 
 Per-principal grants (read / write) with opt-in flow. The shares
 table is `wp_desktop_mode_folder_shares`; rows are keyed by
@@ -203,6 +213,7 @@ do_action( 'desktop_mode_files_share_denied',              int $share_id, array 
 do_action( 'desktop_mode_files_share_left',                int $share_id, array $row, int $user_id ); // recipient-initiated leave
 do_action( 'desktop_mode_files_share_revoked',             int $share_id, array $row, int $actor_id );
 do_action( 'desktop_mode_files_share_capability_changed',  int $share_id, array $next, array $prev, int $actor_id );
+do_action( 'desktop_mode_files_sharing_tables_purged',     string[] $dropped ); // after the "Delete folder sharing data" admin action drops the sharing tables
 ```
 
 Filters:
@@ -214,6 +225,9 @@ apply_filters( 'desktop_mode_folder_share_user_capability', string $cap, int $fo
 apply_filters( 'desktop_mode_files_share_all_default_capability', string $cap, int $folder_id, int $user_id ); // default 'read' for share_mode='all'
 apply_filters( 'desktop_mode_files_share_user_query_args', array $args, array $request_params ); // WP_User_Query args for /files/users/search
 apply_filters( 'desktop_mode_folder_share_accept_default_parent', int $parent_id, int $folder_id, int $user_id, array $share_row ); // where the recipient's placement lands
+apply_filters( 'desktop_mode_files_sharing_enabled_for', bool $enabled, int $user_id ); // per-user kill switch; default reads `foldersSharingEnabled` from OS Settings
+apply_filters( 'desktop_mode_files_user_can_see_folder', bool $can, array $folder, int $user_id, string[] $roles ); // per-folder visibility decision (owner / share_mode / shares table)
+apply_filters( 'desktop_mode_files_sharing_tables_for_purge', string[] $tables ); // tables dropped by "Delete folder sharing data"; default shares + decisions
 
 // Polymorphic shape (future-proof). v1 ships with target_type='folder' only.
 apply_filters( 'desktop_mode_files_shareable_types',     string[] $types ); // default [ 'folder' ]
@@ -228,7 +242,7 @@ apply_filters( 'desktop_mode_files_query_args', array $args, int $user_id, int $
 apply_filters( 'desktop_mode_files_share_modes', string[] $modes );
 apply_filters( 'desktop_mode_files_visible_folders', array $folders, int $viewer_id );
 
-// Folder delete + rename customization (since 0.18.x).
+// Folder delete + rename customization (since 0.8.5).
 // `can_delete_folder` runs AFTER the ownership check; return false
 // or a WP_Error to veto the cascade (UX-side confirmation prompts,
 // "too many recipients" guard).
@@ -247,6 +261,13 @@ apply_filters( 'desktop_mode_files_user_can_purge_placement',   bool $can, int $
 apply_filters( 'desktop_mode_files_user_can_trash_folder',      bool $can, int $user_id, array $row );
 apply_filters( 'desktop_mode_files_user_can_restore_folder',    bool $can, int $user_id, array $row );
 apply_filters( 'desktop_mode_files_user_can_purge_folder',      bool $can, int $user_id, array $row );
+
+// Heartbeat delta row cap (since 0.9.0). Default 200, floored at 1.
+// Lower it on slow links to force REST fallback sooner; raise it for
+// fast-LAN intranets where a fatter Heartbeat is fine. When the cap
+// is hit the payload is flagged `truncated: true` and the client
+// issues a full REST resync — see files-on-desktop.md.
+apply_filters( 'desktop_mode_files_heartbeat_max_rows', int $cap );
 ```
 
 The recycle-bin REST list / restore / purge dispatch the new
@@ -254,7 +275,12 @@ The recycle-bin REST list / restore / purge dispatch the new
 automatically (`desktop_mode_recycle_bin_restore` /
 `desktop_mode_recycle_bin_purge` route by `$type`). The
 `desktop_mode_recycle_bin_count` filter signature gained a fourth
-arg in 0.8.0: `int $files_count`.
+arg in 0.8.0: `int $files_count`. The `$post_count` / `$total`
+inputs are capability-scoped per user: tracked post types the
+viewer cannot edit at all contribute zero, and types where the
+viewer can only edit their own posts are counted author-scoped —
+the badge never discloses the global trash total to
+low-capability users.
 
 ---
 
@@ -298,7 +324,7 @@ Return: `true` on success, `WP_Error` otherwise. Error codes: `desktop_mode_miss
 
 ### `desktop_mode_register_file_type( $type, $args )` — Experimental (PHP function, since 0.9.0)
 
-Registers a `Desktop_Mode_File` subclass against the desktop file-type registry. The seven built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`) register through this same surface.
+Registers a `Desktop_Mode_File` subclass against the desktop file-type registry. The ten built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`, `shortcut`, `link`, `embed`) register through this same surface.
 
 ```php
 desktop_mode_register_file_type( 'jorvy-quote', array(
@@ -322,7 +348,7 @@ Return: `true` on success, `WP_Error` otherwise. Error codes: `desktop_mode_miss
 
 ### `desktop_mode_command_script_registered` — Stable
 
-Fires after `desktop_mode_register_command_script()` stores a command-palette script handle. Also fires when `desktop_mode_register_command()` implicitly registers its `script` argument.
+Fires after `desktop_mode_register_command_script()` stores a command-palette script handle. Also fires when `desktop_mode_register_command()` implicitly registers its `script` argument (it routes through `desktop_mode_register_command_script()`).
 
 ```php
 do_action( 'desktop_mode_command_script_registered', string $handle );
@@ -358,7 +384,7 @@ For live *unregistration* on deactivation, the plugin's JS should set `owner: 'h
 
 ### `desktop_mode_register_command( $args )` — Stable (PHP function)
 
-Optional companion that also declares command metadata server-side. Advisory today — reserved for future pre-registration shims (showing a greyed-out command before the plugin's JS loads). Implicitly calls `desktop_mode_register_command_script( $args['script'] )` when `script` is provided.
+Optional companion that also declares command metadata server-side. Advisory today — reserved for future pre-registration shims (showing a greyed-out command before the plugin's JS loads). Implicitly registers `$args['script']` in the command-script registry when `script` is provided (without firing `desktop_mode_command_script_registered`).
 
 ```php
 desktop_mode_register_command( array(
@@ -371,15 +397,11 @@ desktop_mode_register_command( array(
 ) );
 ```
 
-**No `ai_callable` PHP-side flag — by design.** The [`aiCallable`](./javascript-reference.md#wpdesktopaiask-query-opts--stable-since-0170) opt-in lives on the JS-side `registerCommand` call only, because `wp.desktop.ai.ask()` harvests from the client registry (not server metadata). To gate further per-user once a command has opted in, use the `desktop_mode_ai_command_allowed` filter below.
-
-```php
-do_action( 'desktop_mode_icon_registered', string $id, array $entry );
-```
+**No `ai_callable` PHP-side flag — by design.** The [`aiCallable`](./javascript-reference.md#wpdesktopaiask-query-opts--experimental-since-051) opt-in lives on the JS-side `registerCommand` call only, because `wp.desktop.ai.ask()` harvests from the client registry (not server metadata). To gate further per-user once a command has opted in, use the `desktop_mode_ai_command_allowed` filter below.
 
 ---
 
-### `desktop_mode_titlebar_button_script_registered` — Experimental (since 0.17.0)
+### `desktop_mode_titlebar_button_script_registered` — Experimental (since 0.5.2)
 
 Fires after `desktop_mode_register_titlebar_button_script()` stores a title-bar button script handle.
 
@@ -387,7 +409,7 @@ Fires after `desktop_mode_register_titlebar_button_script()` stores a title-bar 
 do_action( 'desktop_mode_titlebar_button_script_registered', string $handle );
 ```
 
-### `desktop_mode_register_titlebar_button_script( $handle )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_titlebar_button_script( $handle )` — Experimental (PHP function, since 0.5.2)
 
 Declares a WP-registered script handle as a title-bar button provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerTitleBarButton()` calls made by the plugin's JS render in matching window title bars **without a page reload**.
 
@@ -409,7 +431,7 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
-### `desktop_mode_unfocus_effect_script_registered` — Experimental (since 0.26.0)
+### `desktop_mode_unfocus_effect_script_registered` — Experimental (since 0.9.1)
 
 Fires after `desktop_mode_register_unfocus_effect_script()` stores an unfocus-effect script handle.
 
@@ -417,7 +439,7 @@ Fires after `desktop_mode_register_unfocus_effect_script()` stores an unfocus-ef
 do_action( 'desktop_mode_unfocus_effect_script_registered', string $handle );
 ```
 
-### `desktop_mode_register_unfocus_effect_script( $handle )` — Experimental (PHP function, since 0.26.0)
+### `desktop_mode_register_unfocus_effect_script( $handle )` — Experimental (PHP function, since 0.9.1)
 
 Declares a WP-registered script handle as an unfocused-window-effect provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerUnfocusEffect()` calls made by the plugin's JS surface in **OS Settings → Effects** (and apply to unfocused windows) **without a page reload**.
 
@@ -441,15 +463,15 @@ The built-in effects (`darken`, `frost`, `grayscale`) are registered through the
 
 ---
 
-### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.17.0)*
+### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.5.2)*
 
-Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument.
+Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument (it routes through `desktop_mode_register_settings_tab_script()`).
 
 ```php
 do_action( 'desktop_mode_settings_tab_script_registered', string $handle );
 ```
 
-### `desktop_mode_settings_tab_registered` — Stable *(since 0.17.0)*
+### `desktop_mode_settings_tab_registered` — Stable *(since 0.5.2)*
 
 Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's metadata. Does not fire on `WP_Error`.
 
@@ -457,7 +479,7 @@ Fires after `desktop_mode_register_settings_tab()` successfully stores a tab's m
 do_action( 'desktop_mode_settings_tab_registered', string $id, array $entry );
 ```
 
-### `desktop_mode_register_settings_tab_script( $handle )` — Stable *(PHP function, since 0.17.0)*
+### `desktop_mode_register_settings_tab_script( $handle )` — Stable *(PHP function, since 0.5.2)*
 
 Declares a WP-registered script handle as an OS Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerSettingsTab()` calls made by the plugin's JS appear in the OS Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
 
@@ -481,9 +503,9 @@ For live *unregistration* on deactivation, either:
 
 Tabs using neither mechanism stay until the next page reload.
 
-### `desktop_mode_register_settings_tab( $args )` — Stable *(PHP function, since 0.17.0)*
+### `desktop_mode_register_settings_tab( $args )` — Stable *(PHP function, since 0.5.2)*
 
-Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly calls `desktop_mode_register_settings_tab_script( $args['script'] )` when `script` is provided.
+Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly registers `$args['script']` in the settings-tab script registry when `script` is provided (without firing `desktop_mode_settings_tab_script_registered`).
 
 ```php
 desktop_mode_register_settings_tab( array(
@@ -506,7 +528,7 @@ desktop_mode_register_settings_tab( array(
 
 ---
 
-### `desktop_mode_dock_rail_renderer_script_registered` — Stable *(since 0.18.0)*
+### `desktop_mode_dock_rail_renderer_script_registered` — Stable *(since 0.6.0)*
 
 Fires after `desktop_mode_register_dock_rail_renderer_script()` stores a dock rail renderer script handle.
 
@@ -516,7 +538,7 @@ do_action( 'desktop_mode_dock_rail_renderer_script_registered', string $handle )
 
 ---
 
-### `desktop_mode_register_dock_rail_renderer_script( $handle )` — Stable *(PHP function, since 0.18.0)*
+### `desktop_mode_register_dock_rail_renderer_script( $handle )` — Stable *(PHP function, since 0.6.0)*
 
 Declare a WP-registered script handle as a dock rail renderer provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerDockRailRenderer()` calls made by the plugin's JS surface in OS Settings → Dock style **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep renderer definitions in TypeScript and only touch PHP to declare the handle.
 
@@ -546,6 +568,26 @@ Fires after `desktop_mode_register_window_tab()` successfully attaches a tab to 
 
 ```php
 do_action( 'desktop_mode_window_tab_registered', string $window_id, string $value, array $entry );
+```
+
+---
+
+### `desktop_mode_oauth_relay_registered` — Stable *(since 0.8.2)*
+
+Fires after `desktop_mode_register_oauth_relay()` stores a relay entry. `$entry` is the stored registry entry with `client_secret` redacted, so observability logs can't leak credentials. See [`examples/oauth-relay.md`](./examples/oauth-relay.md) for the full relay walk-through.
+
+```php
+do_action( 'desktop_mode_oauth_relay_registered', string $service, array $entry );
+```
+
+---
+
+### `desktop_mode_oauth_relay_connected` — Stable *(since 0.8.2)*
+
+Fires after a successful OAuth round-trip — once the relay's `on_success` callback has persisted the tokens. Use it to refresh badges, re-render dock items, or surface a "connected" toast in sibling windows via the activity bus. See [`examples/oauth-relay.md`](./examples/oauth-relay.md).
+
+```php
+do_action( 'desktop_mode_oauth_relay_connected', string $service, int $user_id );
 ```
 
 ---
@@ -647,7 +689,7 @@ add_filter( 'desktop_mode_resolve_file_opener', function ( $opener_id, $type, $u
 
 ---
 
-### `desktop_mode_resolve_favicon` — Stable (since 0.20.0)
+### `desktop_mode_resolve_favicon` — Stable (since 0.8.2)
 
 Last-mile filter on the favicon data URI returned by `desktop_mode_resolve_favicon()`. The resolver runs inline during `POST /placements` for `link`-type placements: it fetches the page via `wp_safe_remote_get`, walks `<link rel="icon|shortcut icon|apple-touch-icon">`, falls back to `/favicon.ico`, and base64-encodes the bytes into a `data:image/<subtype>;base64,…` URI for the placement's `meta.iconUrl`. The filter lets plugins short-circuit the network round-trips (return a synthetic data URI), force-skip caching (return `null`), or post-process whatever the resolver produced.
 
@@ -691,7 +733,7 @@ apply_filters( 'desktop_mode_mode_enabled', bool $enabled, int $user_id );
 
 ```php
 add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
-    if ( user_can( $user_id, 'contributor' ) && ! user_can( $user_id, 'edit_posts' ) ) {
+    if ( user_can( $user_id, 'contributor' ) ) {
         return false;
     }
     return $enabled;
@@ -705,7 +747,7 @@ A `false` return has two effects:
 
 ---
 
-### `desktop_mode_show_welcome_dialog` — Stable *(since 0.18.5)*
+### `desktop_mode_show_welcome_dialog` — Stable *(since 0.8.2)*
 
 Decides whether the first-run welcome dialog (rendered in classic `/wp-admin` on `admin_footer`, never inside the desktop shell or a chromeless iframe) should display for the current user on the current request.
 
@@ -735,7 +777,7 @@ The JS configuration blob injected as `window.desktopModeConfig`. Powers the win
 apply_filters( 'desktop_mode_shell_config', array $config );
 ```
 
-`$config` shape:
+Core keys (non-exhaustive — the full blob carries many more keys, e.g. `colorScheme`, `pluginVersion`, the `server*` registry-sync arrays, lazy-bundle URLs, and feature payloads; the authoritative shape is the array passed to `apply_filters( 'desktop_mode_shell_config', … )` in `includes/render/assets.php`. Do not treat absence from this list as unavailability):
 
 ```php
 array(
@@ -787,7 +829,7 @@ Each item:
 
 ```php
 array(
-    'slug'    => string,   // stable ID; drives the window ID too
+    'id'      => string,   // stable ID; drives the window ID too
     'title'   => string,   // hover tooltip
     'icon'    => string,   // dashicons-* or a sanitized http(s)/data: URL
     'url'     => string,   // page to open when clicked
@@ -796,12 +838,14 @@ array(
 )
 ```
 
+Items built from the admin menu also carry `multi`, `placement`, `isCore`, `pluginFile`, and `pluginName` keys — see the `desktop_mode_dock_item_multi` and `desktop_mode_dock_placement` filters below.
+
 **Example — add a virtual dock item:**
 
 ```php
 add_filter( 'desktop_mode_dock_items', function ( $items ) {
     $items[] = array(
-        'slug'    => 'analytics',
+        'id'      => 'analytics',
         'title'   => __( 'Analytics', 'my-ext' ),
         'icon'    => 'dashicons-chart-bar',
         'url'     => admin_url( 'admin.php?page=my-analytics' ),
@@ -812,11 +856,11 @@ add_filter( 'desktop_mode_dock_items', function ( $items ) {
 } );
 ```
 
-**Example — remove an item by slug:**
+**Example — remove an item by id:**
 
 ```php
 add_filter( 'desktop_mode_dock_items', function ( $items ) {
-    return array_values( array_filter( $items, fn( $i ) => 'edit-comments.php' !== $i['slug'] ) );
+    return array_values( array_filter( $items, fn( $i ) => 'edit-comments.php' !== $i['id'] ) );
 } );
 ```
 
@@ -1091,7 +1135,7 @@ A filter that returns a non-array value drops the list entirely (empty `serverWa
 
 ### `desktop_mode_icons` — Stable
 
-Last-chance filter over the desktop-icon registry before it ships to the shell as `config.desktopIcons`. Each entry is the shape stored by `desktop_mode_register_icon()` (`id`, `title`, `icon`, `window`, `url`, `position`).
+Last-chance filter over the desktop-icon registry before it ships to the shell as `config.desktopIcons`. Each entry is the shape stored by `desktop_mode_register_icon()` (`id`, `title`, `icon`, `window`, `url`, `position`, `pinned`).
 
 ```php
 apply_filters( 'desktop_mode_icons', array $registry );
@@ -1152,13 +1196,93 @@ add_filter( 'desktop_mode_native_window_tab_wrap_padding', function ( $padding, 
 
 ---
 
+### `desktop_mode_admin_target_allowlist` — Experimental (since 0.7.0)
+
+The wp-admin filename allowlist consulted when resolving portal `target=` query args — only files on the list may resolve as a window target. Filtered values are restricted to strings, lowercased, and deduplicated after the filter runs.
+
+```php
+apply_filters( 'desktop_mode_admin_target_allowlist', string[] $files );
+```
+
+---
+
+### `desktop_mode_chromeless_sec_fetch_fallback` — Experimental (since 0.5.2)
+
+Controls the `Sec-Fetch-*` fallback in chromeless detection: when a request arrives without the explicit `?desktop_mode_chromeless=1` query flag but the browser reports `Sec-Fetch-Dest: iframe` + `Sec-Fetch-Site: same-origin`, it is treated as chromeless. Default `true`. Return `false` to require the explicit query flag — useful for environments where a reverse proxy strips the `Sec-Fetch-*` headers and they can't be trusted.
+
+```php
+apply_filters( 'desktop_mode_chromeless_sec_fetch_fallback', bool $allow );
+```
+
+---
+
+### `desktop_mode_chromeless_admin_bar_top_values` — Experimental (since 0.6.1)
+
+The set of `top` pixel values the chromeless offset neutralizer treats as admin-bar offset clones. Defaults match the two admin-bar heights Core ships: `32px` (desktop) and `46px` (mobile breakpoint). Sites that customize the admin-bar height (some accessibility themes raise it to 50px) can extend the list. See [plugin-compat-layer.md](./plugin-compat-layer.md) for where the neutralizer sits in the compat stack.
+
+```php
+apply_filters( 'desktop_mode_chromeless_admin_bar_top_values', string[] $values );
+```
+
+---
+
+### `desktop_mode_native_window_allowed_html` — Experimental (since 0.7.0)
+
+The `wp_kses`-shaped allowlist used when escaping native-window `<template>` payloads. The default extends `wp_kses_allowed_html( 'post' )` with form controls, `<wpd-*>` web components, dashicon spans, and permissive `data-*` / `aria-*` attributes. Plugins registering their own native windows can extend the list with custom tags or attributes if their templates need markup not covered by the default.
+
+```php
+apply_filters( 'desktop_mode_native_window_allowed_html', array $allowed );
+```
+
+---
+
+### `desktop_mode_cascade_deactivate_dependents` — Experimental (since 0.8.2)
+
+The list of plugin files to cascade-deactivate when Desktop Mode itself is deactivated. Defaults to every plugin whose `Requires Plugins` header lists Desktop Mode's directory slug. Return an empty array to opt out of the cascade entirely.
+
+```php
+apply_filters( 'desktop_mode_cascade_deactivate_dependents', string[] $dependents, string $slug );
+```
+
+---
+
+### `desktop_mode_heartbeat_widget_eager_css` — Experimental (since 0.8.5)
+
+Whether the heartbeat widget's stylesheet is eagerly enqueued on shell requests once the desktop-mode and chromeless gates have passed (chromeless iframes never receive it — they don't mount widgets). Default `true`. Sites that never plan to ship the heartbeat widget can return `false` and save the stylesheet roundtrip.
+
+```php
+apply_filters( 'desktop_mode_heartbeat_widget_eager_css', bool $eager );
+```
+
+---
+
+### `desktop_mode_oauth_authorize_query` — Stable (since 0.8.2)
+
+The query parameters appended to an OAuth relay's authorize URL. Lets plugins inject service-specific extras (`access_type=offline` for Google, `force_login=true` for Twitter, `prompt=consent`, …) without forking the relay. `$entry` is the registry entry with `client_secret` redacted. See [`examples/oauth-relay.md`](./examples/oauth-relay.md).
+
+```php
+apply_filters( 'desktop_mode_oauth_authorize_query', array $query, string $service, array $entry );
+```
+
+---
+
+### `desktop_mode_wallpaper_context_menu_items` — Experimental (since 0.9.0)
+
+The server-borne items appended to the wallpaper's right-click context menu. Each item must carry at least `id` and `label`; optional keys are `icon`, `sort`, `disabled`, and `callbackId`. Items missing `id` or `label` are dropped. See [files-on-desktop.md](./files-on-desktop.md) for the item shape and the JS-side activation hook (`desktop-mode.wallpaper-context-menu.activated`).
+
+```php
+apply_filters( 'desktop_mode_wallpaper_context_menu_items', array[] $items );
+```
+
+---
+
 ## AI Copilot hooks — Stable
 
 The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
 
-The shell ships with a built-in **OpenAI** provider (Responses API). Other providers are pluggable — see [`desktop_mode_register_ai_provider`](#desktop_mode_register_ai_provider-args--experimental-php-function-since-0180) below.
+The shell ships with a built-in **OpenAI** provider (Responses API). Other providers are pluggable — see [`desktop_mode_register_ai_provider`](#desktop_mode_register_ai_provider-args--experimental-php-function-since-052) below.
 
-### `desktop_mode_register_ai_provider( $args )` — Experimental (PHP function, since 0.18.0)
+### `desktop_mode_register_ai_provider( $args )` — Experimental (PHP function, since 0.5.2)
 
 Register an alternative AI back-end (Anthropic, Gemini, a local LLM, …). Each provider supplies three callables that fully encapsulate its wire format; the shell drives the agentic loop, observability, and tool dispatch unchanged.
 
@@ -1225,11 +1349,11 @@ add_action( 'desktop_mode_ai_register_providers', function () {
 
 See [`docs/examples/register-ai-provider.md`](./examples/register-ai-provider.md) for a worked example.
 
-### `desktop_mode_unregister_ai_provider( $id )` — Experimental (PHP function, since 0.18.0)
+### `desktop_mode_unregister_ai_provider( $id )` — Experimental (PHP function, since 0.5.2)
 
 Removes a provider from the registry. Returns `true` if a provider was removed, `false` if the id was unknown.
 
-### `desktop_mode_ai_register_providers` — Experimental (since 0.18.0)
+### `desktop_mode_ai_register_providers` — Experimental (since 0.5.2)
 
 Action fired exactly once per request, the first time the registry is read. Hook it to call `desktop_mode_register_ai_provider()`.
 
@@ -1237,7 +1361,7 @@ Action fired exactly once per request, the first time the registry is read. Hook
 do_action( 'desktop_mode_ai_register_providers' );
 ```
 
-### `desktop_mode_ai_provider_registered` — Experimental (since 0.18.0)
+### `desktop_mode_ai_provider_registered` — Experimental (since 0.5.2)
 
 Fires after a provider has been successfully registered.
 
@@ -1245,7 +1369,7 @@ Fires after a provider has been successfully registered.
 do_action( 'desktop_mode_ai_provider_registered', string $id, array $def );
 ```
 
-### `desktop_mode_ai_active_provider` — Experimental (since 0.18.0)
+### `desktop_mode_ai_active_provider` — Experimental (since 0.5.2)
 
 Filter the resolved active-provider id. Useful for per-request pinning (e.g., based on capability or query content).
 
@@ -1263,7 +1387,7 @@ add_filter( 'desktop_mode_ai_active_provider', function ( $id, $user_id ) {
 
 ### `desktop_mode_ai_model` — Stable
 
-Overrides the OpenAI model used per schema. Defaults to `'gpt-4o-mini'`. `$schema_name` identifies the call site (`'search'`, `'analyze_content'`, `'analyze_comment'`, etc.).
+Overrides the model used per schema. Defaults to `'gpt-5.4-nano'` (`DESKTOP_MODE_AI_DEFAULT_MODEL`). `$schema_name` identifies the call site: `'agentic_search'` for the assistant's agentic search loop, `'comment_analysis'` for comment analysis.
 
 ```php
 apply_filters( 'desktop_mode_ai_model', string $model, string $schema_name );
@@ -1271,11 +1395,11 @@ apply_filters( 'desktop_mode_ai_model', string $model, string $schema_name );
 
 ```php
 add_filter( 'desktop_mode_ai_model', function ( $model, $schema ) {
-    return 'search' === $schema ? 'gpt-4o' : $model;
+    return 'agentic_search' === $schema ? 'gpt-4o' : $model;
 }, 10, 2 );
 ```
 
-> **Removed in 0.11.0.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
+> **Removed in 0.9.1.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
 ### `desktop_mode_ai_schema_comment` — Experimental
 
@@ -1303,7 +1427,7 @@ do_action( 'desktop_mode_ai_comment_analyzed', int $comment_id, array $result, W
 
 ### `desktop_mode_ai_admin_page_catalog` — Stable
 
-Last-chance filter over the catalog of admin pages the AI search tool can link to. Each entry is `{ id, title, url, description }`. Plugins that expose admin UIs typically inject their top-level pages here so the assistant can offer them as navigation results.
+Last-chance filter over the catalog of admin pages the AI search tool can link to. Each entry is `{ title, url, icon, description }` — `icon` is a Dashicons class used when the assistant opens the page in an iframe window. Plugins that expose admin UIs typically inject their top-level pages here so the assistant can offer them as navigation results.
 
 ```php
 apply_filters( 'desktop_mode_ai_admin_page_catalog', array $catalog );
@@ -1311,15 +1435,15 @@ apply_filters( 'desktop_mode_ai_admin_page_catalog', array $catalog );
 
 ### `desktop_mode_ai_error_log_candidates` — Experimental
 
-Filter the set of error candidates the AI exposes when the user asks about site health. Return an array of `{ message, source, timestamp }`.
+Filter the ordered list of log-file paths the `get_php_error_log` AI tool probes. Defaults to `WP_CONTENT_DIR . '/debug.log'`, then the PHP `error_log` ini value (omitted when empty or `'syslog'`). Return `string[]` file paths in probe order — the first readable file wins. Plugins that redirect PHP errors to a non-standard location can prepend their path here.
 
 ```php
-apply_filters( 'desktop_mode_ai_error_log_candidates', array $candidates );
+apply_filters( 'desktop_mode_ai_error_log_candidates', string[] $candidates );
 ```
 
 ---
 
-## AI Copilot extensibility — `/ai/search` (Experimental, since 0.17.0)
+## AI Copilot extensibility — `/ai/search` (Experimental, since 0.5.2)
 
 Every `POST /desktop-mode/v1/ai/search` call — whether driven by the built-in overlay or by `wp.desktop.ai.ask()` — runs through this layered hook surface. Use it to:
 
@@ -1463,16 +1587,18 @@ do_action( 'desktop_mode_ai_search_completed', array $payload );
 
 ### `desktop_mode_ai_search_error` — Stable
 
-Fires on any `WP_Error` path — REST permission deny, OpenAI failure, tool handler exception. Includes the `request_id` so subscribers can correlate with `desktop_mode_ai_search_started`.
+Fires on any `WP_Error` from the search / follow-up run (provider failure, response-parse failure, etc.) or on a tool handler exception. REST permission denials do NOT fire it — REST core rejects those requests before the route callback runs. Includes the `request_id` so subscribers can correlate with `desktop_mode_ai_search_started`.
 
 ```php
 do_action( 'desktop_mode_ai_search_error', array $error );
 // $error = { code, message, data, user_id?, request_id? }
 ```
 
+On the tool-exception path the action additionally receives `string $tool_name` and `Throwable $e` — register with `add_action( ..., 10, 3 )` to receive them.
+
 ---
 
-### `desktop_mode_register_ai_tool( $args )` — Experimental (PHP function, since 0.17.0)
+### `desktop_mode_register_ai_tool( $args )` — Experimental (PHP function, since 0.5.2)
 
 Register a server-dispatched AI tool. Tool handlers run on the server, return a JSON-serialisable array, and the result is fed straight back to the OpenAI agent loop. This is the right home for integrations that are inherently server-side: site-health checks, order lookups, WP-CLI wrappers, database-heavy queries.
 
@@ -1498,19 +1624,19 @@ function my_plugin_list_orders( array $args, int $user_id ) : array {
 }
 ```
 
-Handler signature: `function( array $args, int $user_id ): array|WP_Error`. A `WP_Error` return, or a thrown exception, is caught automatically — the error envelope goes back to the model as the tool result (so the agent can try something else) and fires `desktop_mode_ai_search_error`. Never surfaces raw exception messages to the user.
+Handler signature: `function( array $args, int $user_id ): array|WP_Error`. A `WP_Error` return, or a thrown exception, is caught automatically — the error envelope goes back to the model as the tool result so the agent can try something else. Only thrown exceptions additionally fire `desktop_mode_ai_search_error`; a `WP_Error` return is treated as a handled outcome and does not fire the action. Never surfaces raw exception messages to the user.
 
 `capability` is enforced **before** the tool is visible to the model — unauthorised users never see it exists.
 
 ---
 
-## OS-file drop manager — Experimental (since 0.30.0)
+## OS-file drop manager — Experimental (since 0.8.6)
 
 The drop manager (`src/os-file-drop/`) catches files dragged from the user's native OS (Finder / Explorer / Nautilus) anywhere on the shell and routes them through a confirmation dialog before uploading to the Media Library. See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md) for the full recipe.
 
 ### `desktop_mode_drop_allowed_mimes`
 
-Narrows or widens the allowed-MIMEs list surfaced to the JS drop manager. Default is `get_allowed_mime_types( $user_id )` — already capability-gated by WordPress.
+Narrows or widens the allowed-MIMEs list surfaced to the JS drop manager. Default is `get_allowed_mime_types( $user_id )` when the user has `upload_files`, otherwise an empty array — the plugin applies the `upload_files` gate itself. A filter can widen the (empty) map for such users, but `desktop_mode_drop_enabled` still defaults to off for them.
 
 ```php
 apply_filters( 'desktop_mode_drop_allowed_mimes', array $mimes_map, int $user_id );
@@ -1548,9 +1674,9 @@ apply_filters( 'desktop_mode_drop_enabled', bool $enabled, int $user_id );
 | `desktop-mode.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
 | `desktop-mode.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate the per-file defaults. |
 | `desktop-mode.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — return `null` to cancel. |
-| `desktop-mode.drop.upload-started` | action | _Since 0.31.0._ `{ file, fields, context, abort }` — fires once the XHR is `open()`ed and immediately before `send()`. Call `abort()` to cancel the in-flight upload; the manager rejects with `UploadAbortedError` and emits `upload-failed`. If `abort()` is called after the request body has been fully sent, the manager lets the server respond and then DELETEs the resulting attachment so the user's Media Library never shows a "cancelled" file. |
-| `desktop-mode.drop.upload-progress` | action | _Since 0.31.0._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` event. `total === 0` / `indeterminate === true` when the request length isn't known. A synthetic 100% event is dispatched on `upload.load` so a HUD can show "wrapping up" while the server finishes the response. |
-| `desktop-mode.drop.after-upload` | action | `{ file, result, fields, context }` — `file` (since 0.31.0) is the same `File` reference exposed by `upload-started` / `upload-progress`, so per-file state can be looked up by identity rather than filename. |
+| `desktop-mode.drop.upload-started` | action | _Since 0.8.6._ `{ file, fields, context, abort }` — fires once the XHR is `open()`ed and immediately before `send()`. Call `abort()` to cancel the in-flight upload; the manager rejects with `UploadAbortedError` and emits `upload-failed`. If `abort()` is called after the request body has been fully sent, the manager lets the server respond and then DELETEs the resulting attachment so the user's Media Library never shows a "cancelled" file. |
+| `desktop-mode.drop.upload-progress` | action | _Since 0.8.6._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` event. `total === 0` / `indeterminate === true` when the request length isn't known. A synthetic 100% event is dispatched on `upload.load` so a HUD can show "wrapping up" while the server finishes the response. |
+| `desktop-mode.drop.after-upload` | action | `{ file, result, fields, context }` — `file` (since 0.8.6) is the same `File` reference exposed by `upload-started` / `upload-progress`, so per-file state can be looked up by identity rather than filename. |
 | `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `file` carries the same identity as `upload-started` / `upload-progress` / `after-upload` (the post-`before-upload` `File`, in case a plugin swapped it). Match by reference, not filename. `error.name === 'UploadAbortedError'` when the failure came from a `upload-started` `abort()` call. |
 
 ---
@@ -1597,7 +1723,7 @@ apply_filters( 'desktop_mode_native_windows',       array $windows );
 apply_filters( 'desktop_mode_native_window_config', array $window_config, string $window_id );
 ```
 
-> Native windows themselves are **shipped** (0.11.0) — plugins declare them with `desktop_mode_register_window()` and react via the Stable registration actions (`desktop_mode_native_window_registered`) and JS lifecycle hooks (`desktop-mode.native-window.before-render` / `after-render` / `before-close`). The two filter names above are reserved for a future read-only view of the registry and per-window config overrides.
+> Native windows themselves are **shipped** — plugins declare them with `desktop_mode_register_window()` and react via the Stable registration actions (`desktop_mode_native_window_registered`) and JS lifecycle hooks (`desktop-mode.native-window.before-render` / `after-render` / `before-close`). The two filter names above are reserved for a future read-only view of the registry and per-window config overrides.
 
 ### Drag & Drop — Phase 8
 ```php
@@ -1623,7 +1749,7 @@ $result = desktop_mode_register_window( 'jorvy', array(
     'title'    => 'Jorvy',
     'template' => 'jorvy_render_template',
     'script'   => 'jorvy-render',
-    'style'    => 'jorvy-render', // optional, since 0.18.1
+    'style'    => 'jorvy-render', // optional, since 0.7.0
 ) );
 
 if ( is_wp_error( $result ) ) {
@@ -1631,11 +1757,11 @@ if ( is_wp_error( $result ) ) {
 }
 ```
 
-> **`style` (since 0.18.1).** Optional `wp_register_style()` handle. The shell resolves it to a `styleUrl` (and any `wp_add_inline_style()` blobs) and lazy-injects a `<link rel="stylesheet">` when the window's plugin is activated mid-session. Without `style`, a peer plugin activated from inside an open shell renders its window with **no CSS** until the user reloads — the parent shell already finished `wp_print_styles` before the plugin existed. If the handle isn't registered, the field is silently dropped (no error, no link); plugins active at boot continue to print through the normal `wp_print_styles` pipeline as before.
+> **`style` (since 0.7.0).** Optional `wp_register_style()` handle. The shell resolves it to a `styleUrl` (and any `wp_add_inline_style()` blobs) and lazy-injects a `<link rel="stylesheet">` when the window's plugin is activated mid-session. Without `style`, a peer plugin activated from inside an open shell renders its window with **no CSS** until the user reloads — the parent shell already finished `wp_print_styles` before the plugin existed. If the handle isn't registered, the field is silently dropped (no error, no link); plugins active at boot continue to print through the normal `wp_print_styles` pipeline as before.
 
 ### Backwards compatibility
 
-Prior to `0.11.0` these functions returned `bool`. `WP_Error` is an object and therefore truthy, so legacy `if ( desktop_mode_register_window( … ) )` guards continue to compile and reach their success branch. New code should use `is_wp_error()` to distinguish success from failure.
+Early development builds of these functions returned `bool`; every tagged release returns `true|WP_Error`. `WP_Error` is an object and therefore truthy, so legacy `if ( desktop_mode_register_window( … ) )` guards continue to compile and reach their success branch. New code should use `is_wp_error()` to distinguish success from failure.
 
 ### Error codes
 
@@ -1645,7 +1771,7 @@ Prior to `0.11.0` these functions returned `bool`. `WP_Error` is an object and t
 | `desktop_mode_missing_window_id` | `desktop_mode_register_window_tab` | The `$window_id` argument was empty. |
 | `desktop_mode_missing_title` | `desktop_mode_register_window`, `desktop_mode_register_icon` | The `title` field was empty. |
 | `desktop_mode_missing_label` | `desktop_mode_register_widget`, `desktop_mode_register_wallpaper`, `desktop_mode_register_window_tab` | The `label` field was empty. |
-| `desktop_mode_missing_script` | `desktop_mode_register_window`, `desktop_mode_register_wallpaper` (canvas) | The `script` handle was empty. |
+| `desktop_mode_missing_script` | `desktop_mode_register_wallpaper` (canvas) | The `script` handle was empty. (`script` is optional on `desktop_mode_register_window` — native windows can be template-only.) |
 | `desktop_mode_missing_tab_value` | `desktop_mode_register_window_tab` | The `value` field was empty. |
 | `desktop_mode_reserved_tab_value` | `desktop_mode_register_window_tab` | Tab `value` was `main` (reserved for the window's own template tab). |
 | `desktop_mode_invalid_template` | `desktop_mode_register_window`, `desktop_mode_register_window_tab` | The `template` callback is not callable. |
@@ -1654,7 +1780,7 @@ Prior to `0.11.0` these functions returned `bool`. `WP_Error` is an object and t
 | `desktop_mode_invalid_url` | `desktop_mode_register_icon` | The `url` argument isn't a valid http(s) URL. |
 | `desktop_mode_capability_denied` | all five | Current user lacks a capability declared in `capabilities`. The offending cap is available on `get_error_data()['capability']`. |
 
-All five functions ship as **Stable** in `0.11.0`.
+All five functions ship as **Stable**.
 
 ### `desktop_mode_register_window_tab()`
 
@@ -1722,11 +1848,11 @@ See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrument
 
 ## Recycle Bin
 
-The Recycle Bin window captures attachments into the WordPress trash (posts and pages already trash by default) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
+The Recycle Bin stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
 
 ### `desktop_mode_recycle_bin_capture_post_types` — Experimental (filter)
 
-Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]`. Returning a list excluding `attachment` disables the soft-delete interception entirely — vanilla `wp_delete_attachment()` resumes.
+Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]`. Returning a list excluding `attachment` stops the bin from stamping and listing trashed attachments; it does not change how WordPress deletes media (that is governed by `MEDIA_TRASH`).
 
 ```php
 add_filter( 'desktop_mode_recycle_bin_capture_post_types', function ( $types ) {
@@ -1735,9 +1861,9 @@ add_filter( 'desktop_mode_recycle_bin_capture_post_types', function ( $types ) {
 } );
 ```
 
-### `desktop_mode_recycle_bin_should_capture` — Experimental (filter)
+### `desktop_mode_recycle_bin_should_capture` — Planned (filter, not yet fired)
 
-Per-attachment opt-out, applied when something has set `MEDIA_TRASH` (or otherwise routes attachment deletes through `wp_trash_post()`). Returning `false` for a specific `WP_Post` lets that single deletion bypass the bin's metadata stamping.
+**Reserved name — not yet fired.** Intended as a per-deletion opt-out: returning `false` for a specific `WP_Post` would let that single deletion bypass the bin's metadata stamping. Today the capture path consults `desktop_mode_recycle_bin_capture_post_types` only. Do not subscribe in production until the status flips.
 
 ```php
 apply_filters( 'desktop_mode_recycle_bin_should_capture', bool $capture, WP_Post $post );
@@ -1751,18 +1877,56 @@ Customize the `WP_Query` args used to populate the bin — scope it to the curre
 apply_filters( 'desktop_mode_recycle_bin_query_args', array $query_args, array $caller_args );
 ```
 
+### `desktop_mode_recycle_bin_comment_query_args` — Experimental (filter)
+
+Mirror of `desktop_mode_recycle_bin_query_args` for the comment side of the bin — customize the `get_comments()` args used to populate the trashed-comments list.
+
+```php
+apply_filters( 'desktop_mode_recycle_bin_comment_query_args', array $comment_args, array $caller_args );
+```
+
+### `desktop_mode_recycle_bin_comments_enabled` — Experimental (filter)
+
+Whether the bin tracks trashed comments at all. Default: `current_user_can( 'moderate_comments' )`. Return `false` to hide the comments segment without touching the JS — e.g. read-only blogs or headless setups that don't moderate comments.
+
+```php
+apply_filters( 'desktop_mode_recycle_bin_comments_enabled', bool $on );
+```
+
 ### `desktop_mode_recycle_bin_items` / `desktop_mode_recycle_bin_item` — Experimental (filter)
 
 `..._item` reshapes a single row before it's returned to JS; `..._items` filters the final list. The `id`, `type`, and `deleted_at` fields are load-bearing — keep them when extending.
 
 ```php
 apply_filters( 'desktop_mode_recycle_bin_item', array $item, WP_Post $post );
-apply_filters( 'desktop_mode_recycle_bin_items', array $items, WP_Query $query );
+apply_filters( 'desktop_mode_recycle_bin_items', array $items, $query );
+```
+
+The second argument of `..._items` is currently always `null` — the bin merges posts, comments, and desktop files into one list, so there is no single underlying `WP_Query`. Do not type-hint the second parameter; it is reserved (`array|null` per the in-code docblock).
+
+### `desktop_mode_recycle_bin_comment_item` — Experimental (filter)
+
+Mirror of `desktop_mode_recycle_bin_item` for trashed comments — reshapes a single comment row before it's returned to JS. The same `id`, `type`, and `deleted_at` fields are load-bearing.
+
+```php
+apply_filters( 'desktop_mode_recycle_bin_comment_item', array $item, WP_Comment $comment );
 ```
 
 ### `desktop_mode_recycle_bin_user_can_view|restore|purge|use` — Experimental (filter)
 
 Per-item capability gates. `_use` controls whether the bin window is registered at all for the current user; the others gate individual operations. Defaults: `_use` → `edit_posts`, `_view` → `edit_post`, `_restore`/`_purge` → `delete_post` (the same gate WP itself uses for trash/untrash).
+
+### `desktop_mode_recycle_bin_user_can_view|restore|purge_comment` — Experimental (filter)
+
+Per-comment capability gates — mirrors of the post gates above, each receiving `( bool $can, WP_Comment $comment )`. Unlike the post variants, all three default to `edit_comment` (the WP-native moderation check).
+
+### `desktop_mode_recycle_bin_count` — Experimental (filter)
+
+The total surfaced to the dock/icon badge. `$total` defaults to `$post_count + $comment_count + $files_count` — the trashed-post query (capability-scoped to what the current user can edit), the trashed-comment count (only counted when comments are enabled for the bin), and the desktop-files trash. The `$files_count` argument was added in 0.8.0.
+
+```php
+apply_filters( 'desktop_mode_recycle_bin_count', int $total, int $post_count, int $comment_count, int $files_count );
+```
 
 ### `desktop_mode_recycle_bin_window_args` / `desktop_mode_recycle_bin_icon_args` — Experimental (filter)
 
@@ -1789,6 +1953,13 @@ do_action( 'desktop_mode_recycle_bin_after_restore',  int $post_id );
 do_action( 'desktop_mode_recycle_bin_before_purge',   int $post_id, WP_Post $post );
 do_action( 'desktop_mode_recycle_bin_after_purge',    int $post_id, string $type );
 do_action( 'desktop_mode_recycle_bin_emptied',        int $purged, int $skipped );
+
+// Comment twins — same lifecycle, keyed by comment id.
+do_action( 'desktop_mode_recycle_bin_comment_captured',       int $comment_id, int $user_id, string $now_gmt );
+do_action( 'desktop_mode_recycle_bin_before_restore_comment', int $comment_id, WP_Comment $comment );
+do_action( 'desktop_mode_recycle_bin_after_restore_comment',  int $comment_id );
+do_action( 'desktop_mode_recycle_bin_before_purge_comment',   int $comment_id, WP_Comment $comment );
+do_action( 'desktop_mode_recycle_bin_after_purge_comment',    int $comment_id );
 ```
 
 ### REST endpoints
@@ -1796,8 +1967,9 @@ do_action( 'desktop_mode_recycle_bin_emptied',        int $purged, int $skipped 
 | Method | Route | Purpose |
 |---|---|---|
 | `GET`  | `/desktop-mode/v1/recycle-bin` | List trashed items (`page`, `per_page`, `type`, `search`). |
-| `POST` | `/desktop-mode/v1/recycle-bin/restore` | Restore by id. Body: `{ ids: int[] }`. |
-| `POST` | `/desktop-mode/v1/recycle-bin/purge` | Permanently delete. Body: `{ ids: int[] }`. |
+| `GET`  | `/desktop-mode/v1/recycle-bin/count` | Global trash count for the dock/icon badge. |
+| `POST` | `/desktop-mode/v1/recycle-bin/restore` | Restore. Body: `{ items: [{ id, type }] }` (preferred — `type` matches the item's `type` field from the list response, e.g. `'post'`, `'comment'`, `'placement'`, `'folder'`). `{ ids: int[] }` accepted as legacy, posts only. |
+| `POST` | `/desktop-mode/v1/recycle-bin/purge` | Permanently delete. Same body shapes as restore. |
 | `POST` | `/desktop-mode/v1/recycle-bin/empty` | Empty everything the current user can purge. |
 
 ### JS extension points
@@ -1899,20 +2071,29 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.8.0–0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<wpd-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-IN Beta as of 0.9.1** (was opt-out in 0.8.0–0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+
+### `desktop_mode_posts_window_user_can_register` — Stable *(filter, since 0.8.0)*
+
+Cap-only gate (`edit_posts`) that decides whether the native Posts window is registered for this user at boot. Returning `false` skips the entire registration — no script handle, no template, no entry in the native-window registry — so every click path falls back to the classic chromeless `edit.php` iframe. Deliberately decoupled from the opt-in toggle: registration runs once on `init`, while the toggle is enforced at runtime by the JS-side URL remap, so flipping the OS-Settings flag mid-session never requires an F5.
+
+```php
+apply_filters( 'desktop_mode_posts_window_user_can_register', bool $can, int $user_id ): bool
+```
+
+Use cases:
+- Restrict to `edit_others_posts` on a multi-author site so contributors stay on the iframe.
+- Per-user A/B rollouts driven by an external flag store.
 
 ### `desktop_mode_posts_window_user_can_use` — Stable *(filter, since 0.8.0)*
 
-The two-condition gate: `edit_posts` AND the user has turned the opt-in toggle on. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
+The combined cap-and-opt-in answer: `edit_posts` AND the user has turned the opt-in toggle on. **Informational only** — this filter has no effect on window registration (that's `desktop_mode_posts_window_user_can_register` above) or on the dock-click URL remap (that consults the JS-side `nativePostsEnabled` settings snapshot). Hook it when your own code needs the combined answer (analytics, conditional UI), not to gate the window.
 
 ```php
 apply_filters( 'desktop_mode_posts_window_user_can_use', bool $can, int $user_id );
 ```
 
-Use cases:
-- Force the window on for everyone on a managed install.
-- Restrict to `edit_others_posts` on a multi-author site so contributors stay on the iframe.
-- Per-user A/B rollouts driven by an external flag store.
+To keep a user or role on the classic iframe, return `false` from `desktop_mode_posts_window_user_can_register` instead. Note that "force the native window on for everyone" is not possible from either PHP filter — the opt-in lives in the JS-side settings snapshot.
 
 ### `desktop_mode_posts_window_args` — Experimental *(filter, since 0.8.0)*
 
@@ -1943,7 +2124,7 @@ Default args:
 ```php
 [
     '_embed'  => 'author,wp:term,wp:featuredmedia',
-    '_fields' => 'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,_links,_embedded',
+    '_fields' => 'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,desktop_mode_lock,_links,_embedded',
 ]
 ```
 
@@ -1986,7 +2167,7 @@ Fired after every bulk trash. The recycle bin and any other listener are cross-w
 Centralized in `src/native-url-remap.ts`. Every code path that opens an admin URL (dock click, portal deep-link, `<a href="/wp-admin/…">` anywhere in the shell) consults `tryNativeUrlRemap()` before falling back to the iframe. Future native windows (Pages, Media, Users) register themselves with one line:
 
 ```js
-wp.desktop.registerNativeUrlRemap( {           // public API in 0.9.0; internal today
+wp.desktop.registerNativeUrlRemap( {           // planned public API; internal today — not yet exposed on wp.desktop
     id: 'myplugin-pages',
     nativeWindowId: 'myplugin-pages',
     matches: ( _url, parsed ) =>
@@ -2000,9 +2181,63 @@ Returning `false` from `enabled` (or `matches`) lets the click fall through. An 
 
 ---
 
+## Native Pages window (since 0.8.1)
+
+Reuses the Posts window bundle (the registration passes `mode: 'pages'` on the config blob as the JS-side discriminator) to replace the chromeless `edit.php?post_type=page` iframe — parent column, menu-order default sort, Template column, "Front page" / "Posts page" badges. Per-user opt-in Beta (default `false`) via OS Settings → Features → Beta features → `nativePagesEnabled`.
+
+### `desktop_mode_pages_window_user_can_register` — Stable *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_pages_window_user_can_register', bool $can, int $user_id ): bool
+```
+
+Cap-only gate (`edit_pages`) that decides whether the native Pages window is registered for this user at boot. Returning `false` skips the entire registration, so every click path falls back to the classic iframe. Decoupled from the opt-in toggle — same register/use split as the Posts window.
+
+### `desktop_mode_pages_window_user_can_use` — Stable *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_pages_window_user_can_use', bool $can, int $user_id ): bool
+```
+
+The combined cap-and-opt-in answer (`edit_pages` AND `nativePagesEnabled`). Informational only — it does not affect registration or the dock-click remap; same semantics as `desktop_mode_posts_window_user_can_use`.
+
+### `desktop_mode_pages_window_args` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_pages_window_args', array $window_args ): array
+```
+
+Filters the args passed to `desktop_mode_register_window( 'desktop-mode-pages', … )` — title, icon, dimensions, `config` blob (including `frontPageId`, `postsPageId`, and the `pageTemplates` label map).
+
+### `desktop_mode_pages_window_template_html` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_pages_window_template_html', string $html ): string
+```
+
+The full template body before it's `wp_kses`'d into the native-window template element. Keep the `data-desktop-mode-posts-*` hooks intact — the shared bundle reuses the Posts mount points.
+
+### `desktop_mode_pages_window_query_args` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_pages_window_query_args', array $args ): array
+```
+
+Default outbound REST query args the bundle merges into every `/wp/v2/pages` request. Defaults include `orderby=menu_order`, `order=asc`, and a `_fields` whitelist carrying `parent`, `menu_order`, `slug`, `link`, `template`, `desktop_mode_lock`, and `desktop_mode_comment_count` for the Pages-only columns.
+
+### `desktop_mode_pages_window_template_labels` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_pages_window_template_labels', array $labels ): array
+```
+
+The `{ slug: label }` map for the active theme's registered page templates, used by the Template column. The default template is keyed under the empty string (`''`) for parity with core's `/wp/v2/pages` responses. Pages-only — the Posts window has no equivalent.
+
+---
+
 ## Native Plugins window (since 0.9.0)
 
-A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-IN Beta as of 0.9.1** (was opt-out in 0.9.0) — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
 
 Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_desktop_mode_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.desktop.refreshMenu()` so the dock repaints live.
 
@@ -2097,7 +2332,7 @@ add_filter(
 );
 ```
 
-### `desktop_mode_plugins_window_refresh_updates` — Stable *(filter, since 0.18.0; `$force` argument added 0.8.5)*
+### `desktop_mode_plugins_window_refresh_updates` — Stable *(filter, since 0.8.3; `$force` argument added 0.8.5)*
 
 Short-circuit the lazy refresh of the `update_plugins` site transient that runs on the first row of every REST plugins collection. Core only refreshes that transient on `load-plugins.php` / `load-update-core.php` / cron — REST is not on that list — so without this hop the Plugins window can show "no updates" while the dock badge (computed off `$menu`) reports pending updates. The refresh inherits Core's own 12h throttle (`_maybe_update_plugins()`), so the steady-state cost is a single transient read per request.
 
@@ -2107,7 +2342,7 @@ apply_filters( 'desktop_mode_plugins_window_refresh_updates', bool $refresh, boo
 
 Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (when the in-window Refresh button passes `?desktop_mode_force_refresh=1`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
 
-### `desktop_mode_plugins_window_auto_updates_enabled` — Experimental *(filter, since 0.21.0)*
+### `desktop_mode_plugins_window_auto_updates_enabled` — Experimental *(filter, since 0.8.6)*
 
 Whether the Plugins window's "Automatic Updates" column should be shown to the current user. Mirrors Core's `WP_Plugins_List_Table::$show_autoupdates` gate (`wp_is_auto_update_enabled_for_type( 'plugin' )` + `update_plugins` cap + network-admin on multisite). Return `false` to suppress the column entirely — useful for managed-hosting environments that orchestrate auto-updates externally and don't want users toggling per-plugin state from within the shell.
 
@@ -2123,11 +2358,11 @@ Server-injected enrichment fields. The JS reads them on every list paint:
 
 | Field | Shape | What it carries |
 |---|---|---|
-| `desktop_mode_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. Since 0.18.0 the transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `desktop_mode_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. Since 0.8.5 the in-window Refresh button can bypass the 12h throttle by adding `?desktop_mode_force_refresh=1` to the REST request — Core's `wp_clean_plugins_cache( true )` then deletes the transient and fans out to api.wordpress.org, mirroring what classic `plugins.php` does on load. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
+| `desktop_mode_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. Since 0.8.3 the transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `desktop_mode_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. Since 0.8.5 the in-window Refresh button can bypass the 12h throttle by adding `?desktop_mode_force_refresh=1` to the REST request — Core's `wp_clean_plugins_cache( true )` then deletes the transient and fans out to api.wordpress.org, mirroring what classic `plugins.php` does on load. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
 | `desktop_mode_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
 | `desktop_mode_icon_url` | `string\|null` | Best-effort card icon URL. Prefers a local file under the plugin's folder (`assets/icon.svg` and a handful of variants — see [`desktop_mode_plugins_window_local_icon_candidates`](#desktop_mode_plugins_window_local_icon_candidates--experimental-filter-since-086)) and falls back to `https://ps.w.org/<slug>/assets/icon.svg`. Filterable via `desktop_mode_plugins_window_icon_url`. |
 | `desktop_mode_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |
-| `desktop_mode_auto_update` | `{ enabled: bool, forced: bool\|null, supported: bool }` | (Since 0.21.0) Per-row auto-update state, mirroring Core's "Automatic Updates" column on `plugins.php`. `enabled` reflects the `auto_update_plugins` site option (overridden by `forced` when a filter pins it). `forced` is `null` for user-toggleable rows, `true`/`false` when the `auto_update_plugin` filter has pinned the state. `supported` is true when the `update_plugins` transient has an entry for the plugin (either `response` or `no_update`); when false the JS hides the toggle — premium / private plugins that never check in with wp.org. The toggle itself routes through Core's `wp_ajax_toggle_auto_updates` handler (action `toggle-auto-updates`, `'updates'` nonce). |
+| `desktop_mode_auto_update` | `{ enabled: bool, forced: bool\|null, supported: bool }` | (Since 0.8.6) Per-row auto-update state, mirroring Core's "Automatic Updates" column on `plugins.php`. `enabled` reflects the `auto_update_plugins` site option (overridden by `forced` when a filter pins it). `forced` is `null` for user-toggleable rows, `true`/`false` when the `auto_update_plugin` filter has pinned the state. `supported` is true when the `update_plugins` transient has an entry for the plugin (either `response` or `no_update`); when false the JS hides the toggle — premium / private plugins that never check in with wp.org. The toggle itself routes through Core's `wp_ajax_toggle_auto_updates` handler (action `toggle-auto-updates`, `'updates'` nonce). |
 
 ### Actions — Stable (since 0.9.0)
 
@@ -2137,7 +2372,7 @@ do_action( 'desktop_mode_plugins_window_installed', string $plugin_file );
 
 Fires after the upload-AJAX handler installs a plugin from an uploaded .zip. `$plugin_file` is the resolved plugin file (e.g. `"akismet/akismet.php"`). Hook this to seed default settings for first-install plugins, send an audit-log entry, or chain a network-wide deploy.
 
-### `desktop_mode_plugins_featured_slugs` — Experimental *(filter, since 0.20.0)*
+### `desktop_mode_plugins_featured_slugs` — Experimental *(filter, since 0.8.6)*
 
 The Plugins window's third tab — "Desktop Mode plugins" — leads with a hand-curated list because wp.org's `plugins_api` does not yet expose a usable `requires_plugins` filter. The handler hydrates each curated slug through `plugins_api( 'plugin_information' )` so card metadata stays fresh; it then scans the wp.org popular feed for rows whose `requires_plugins` array contains `desktop-mode` and appends them after the curated entries.
 
@@ -2156,7 +2391,7 @@ add_filter( 'desktop_mode_plugins_featured_slugs', static function ( $slugs ) {
 
 **Cache scope caveat.** The Featured tab response is cached in a single site-wide transient (`dm_pwfeatured_v1`, 1h TTL) — the cache key does not vary by user or role. If your filter returns role-specific or capability-specific slugs (e.g. surfacing a premium plugin only to administrators), the first viewer's payload will be served to every viewer for the cache window. Either keep the curated list cap-agnostic, or use `desktop_mode_plugins_featured_response` to drop disallowed rows for the current viewer *after* the shared payload is composed (you'd lose the cache hit benefit per user, but no leak).
 
-### `desktop_mode_plugins_featured_response` — Experimental *(filter, since 0.20.0)*
+### `desktop_mode_plugins_featured_response` — Experimental *(filter, since 0.8.6)*
 
 Last hop before the Featured tab payload is cached (1h transient) and sent to the client. Inject premium / private rows that aren't on wp.org, or enforce a hard cap on the response.
 
@@ -2168,13 +2403,13 @@ apply_filters( 'desktop_mode_plugins_featured_response', array $payload, array $
 
 ---
 
-## Native Comments window (since 0.19.0)
+## Native Comments window (since 0.8.3)
 
 Replaces the chromeless `edit-comments.php` iframe with a moderation queue native window: Pending / All / Spam / Trash / Mine tabs, bulk approve / spam / trash with an 8-second undo, inline reply editor, keyboard moderation (`j/k/a/s/d/r/e/u/?`), spam-confidence chip per row, author-insights drawer.
 
-Per-user opt-in Beta (default `false` as of 0.10.0) via OS Settings → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
+Per-user opt-in Beta (default `false` as of 0.9.1) via OS Settings → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
 
-### `desktop_mode_comments_window_user_can_register` — Stable *(filter, since 0.19.0)*
+### `desktop_mode_comments_window_user_can_register` — Stable *(filter, since 0.8.3)*
 
 ```php
 apply_filters( 'desktop_mode_comments_window_user_can_register', bool $can, int $user_id ): bool
@@ -2182,7 +2417,7 @@ apply_filters( 'desktop_mode_comments_window_user_can_register', bool $can, int 
 
 Whether the window should be registered for `$user_id`. Default: `user_can( $user_id, 'edit_posts' )`.
 
-### `desktop_mode_comments_window_user_can_use` — Stable *(filter, since 0.19.0)*
+### `desktop_mode_comments_window_user_can_use` — Stable *(filter, since 0.8.3)*
 
 ```php
 apply_filters( 'desktop_mode_comments_window_user_can_use', bool $can, int $user_id ): bool
@@ -2190,15 +2425,15 @@ apply_filters( 'desktop_mode_comments_window_user_can_use', bool $can, int $user
 
 Combined cap-and-opt-in check. Hooks here override the default ("can register AND the user toggled `nativeCommentsEnabled` on").
 
-### `desktop_mode_comments_window_args` — Experimental *(filter, since 0.19.0)*
+### `desktop_mode_comments_window_args` — Experimental *(filter, since 0.8.3)*
 
 ```php
 apply_filters( 'desktop_mode_comments_window_args', array $window_args ): array
 ```
 
-Filters the args passed to `desktop_mode_register_window()` for the Comments window — title, icon, dimensions, `config` blob. The `config` keys are the bundle's source of truth; treat the shape as Experimental until 0.20.
+Filters the args passed to `desktop_mode_register_window()` for the Comments window — title, icon, dimensions, `config` blob. The `config` keys are the bundle's source of truth; treat the shape as Experimental.
 
-### `desktop_mode_comments_window_template_html` — Experimental *(filter, since 0.19.0)*
+### `desktop_mode_comments_window_template_html` — Experimental *(filter, since 0.8.3)*
 
 ```php
 apply_filters( 'desktop_mode_comments_window_template_html', string $html ): string
@@ -2206,7 +2441,7 @@ apply_filters( 'desktop_mode_comments_window_template_html', string $html ): str
 
 Filters the rendered template body. The output is run through `desktop_mode_kses_native_window_template()` after this filter, so unsafe HTML is dropped regardless.
 
-### `desktop_mode_comments_window_query_args` — Experimental *(filter, since 0.19.0)*
+### `desktop_mode_comments_window_query_args` — Experimental *(filter, since 0.8.3)*
 
 ```php
 apply_filters( 'desktop_mode_comments_window_query_args', array $args ): array
@@ -2214,7 +2449,7 @@ apply_filters( 'desktop_mode_comments_window_query_args', array $args ): array
 
 Filters the outbound `wp/v2/comments` query args the bundle uses for its first list paint. Use to whitelist additional `_fields`, override `per_page`, or scope the default tab.
 
-### `desktop_mode_comments_window_spam_score` — Experimental *(filter, since 0.19.0)*
+### `desktop_mode_comments_window_spam_score` — Experimental *(filter, since 0.8.3)*
 
 ```php
 apply_filters( 'desktop_mode_comments_window_spam_score', int $score, WP_Comment $comment ): int
@@ -2222,15 +2457,15 @@ apply_filters( 'desktop_mode_comments_window_spam_score', int $score, WP_Comment
 
 Filters the 0–100 spam-confidence score the bundle paints per row. Hook here to plug in an AI-provider fallback when Akismet isn't installed but a Desktop Mode AI provider is configured. Return value is clamped to `0..100`.
 
-### `desktop_mode_comments_window_reply_editor` — Experimental *(filter, since 0.19.0)*
+### `desktop_mode_comments_window_reply_editor` — Experimental *(filter, since 0.8.3)*
 
 ```php
 apply_filters( 'desktop_mode_comments_window_reply_editor', string $editor, int $user_id ): string
 ```
 
-Selects the inline-reply editor flavor — `'rich'` (default contenteditable rich editor), `'plain'` (textarea), or `'gutenberg'` (planned — falls back to `'rich'` in 0.19).
+Selects the inline-reply editor flavor — `'rich'` (default contenteditable rich editor), `'plain'` (textarea), or `'gutenberg'` (planned — currently falls back to `'rich'`).
 
-### `desktop_mode_comments_window_after_bulk` — Stable *(action, since 0.19.0)*
+### `desktop_mode_comments_window_after_bulk` — Stable *(action, since 0.8.3)*
 
 ```php
 do_action( 'desktop_mode_comments_window_after_bulk', string $action, int[] $processed, int[] $skipped );
@@ -2238,11 +2473,135 @@ do_action( 'desktop_mode_comments_window_after_bulk', string $action, int[] $pro
 
 Fires after `/desktop-mode/v1/comments/bulk` finishes a batch. `$action` is one of `approve|unapprove|spam|unspam|trash|untrash`. `$processed` is the list of ids successfully acted on; `$skipped` is the list that failed a per-target cap or soft error.
 
+### `desktop_mode_comments_ai_is_enabled` — Experimental *(filter, since 0.8.3)*
+
+```php
+apply_filters( 'desktop_mode_comments_ai_is_enabled', bool $enabled ): bool
+```
+
+Whether AI moderation for new comments is enabled. Site-wide, not per-user — hooks here override the `desktop_mode_comments_ai_moderation` site option, which is useful for gating by environment (staging vs. production) or by feature flag.
+
+### `desktop_mode_comments_ai_toggled` — Experimental *(action, since 0.8.3)*
+
+```php
+do_action( 'desktop_mode_comments_ai_toggled', bool $enabled );
+```
+
+Fires after the Comments AI moderation toggle is changed via `POST /desktop-mode/v1/comments/ai-settings`. `$enabled` is the new state.
+
+---
+
+## Native Users window (since 0.8.1)
+
+Reuses the Posts window bundle (`mode: 'users'` config discriminator) to replace the chromeless `users.php` iframe: role filter, bulk role change / delete / remove, "Add new user" form, per-row quick actions, and a Profile tab. Per-user opt-in Beta (default `false`) via OS Settings → Features → Beta features → `nativeUsersEnabled`. UI-side gating is UX polish only — the REST routes re-validate every capability and per-target permission before mutating anything.
+
+### `desktop_mode_users_window_user_can_register` — Stable *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_users_window_user_can_register', bool $can, int $user_id ): bool
+```
+
+Cap-only gate (`list_users`) that decides whether the native Users window is registered for this user at boot. Returning `false` skips the entire registration. Decoupled from the opt-in toggle — same register/use split as the Posts window.
+
+### `desktop_mode_users_window_user_can_use` — Stable *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_users_window_user_can_use', bool $can, int $user_id ): bool
+```
+
+The combined cap-and-opt-in answer (`list_users` AND `nativeUsersEnabled`). Informational only — it does not affect registration or the dock-click remap; same semantics as `desktop_mode_posts_window_user_can_use`.
+
+### `desktop_mode_users_window_assignable_roles` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_users_window_assignable_roles', string[] $slugs, int $viewer_id, int $target_id ): string[]
+```
+
+The role slugs `$viewer_id` may assign to `$target_id`. Default: the keys of core's `get_editable_roles()` evaluated from the viewer's perspective (empty when the viewer lacks `promote_users`). Use it to LOCK DOWN role assignment further — e.g. "site managers can't promote anyone to administrator". Returning an empty array fully disables role mutation for the viewer. Returning a superset widens the REST endpoints too — both the bulk-role route and the create-user route validate the requested role against this same filtered list, so only add roles you genuinely intend to make assignable.
+
+### `desktop_mode_users_window_args` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_users_window_args', array $window_args ): array
+```
+
+Filters the args passed to `desktop_mode_register_window( 'desktop-mode-users', … )` — title, icon, dimensions, `config` blob (capability flags, role maps, locale map, REST mutation routes).
+
+### `desktop_mode_users_window_template_html` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_users_window_template_html', string $html ): string
+```
+
+The full template body before it's `wp_kses`'d into the native-window template element.
+
+### `desktop_mode_users_window_query_args` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_users_window_query_args', array $args ): array
+```
+
+Default outbound REST query args the bundle merges into every `/wp/v2/users` request. Defaults ship a `_fields` whitelist (including the `desktop_mode_user_stats`, `desktop_mode_last_login`, `desktop_mode_presence`, `desktop_mode_can_edit`, and `desktop_mode_assignable_roles` REST fields), `context=edit` (required for `email` / `roles` / `registered_date` to appear at all), and `per_page=20`.
+
+### `desktop_mode_users_window_user_created` — Stable *(action, since 0.8.1)*
+
+```php
+do_action( 'desktop_mode_users_window_user_created', int $user_id, WP_User $user, array $args );
+```
+
+Fires after the Users window's create-user REST route has created a new account (and queued the optional notification email). `$args` is the sanitized `wp_insert_user()` arg array used for creation.
+
+### `desktop_mode_users_window_login_recorded` — Stable *(action, since 0.8.1)*
+
+```php
+do_action( 'desktop_mode_users_window_login_recorded', int $user_id, int $timestamp );
+```
+
+Fires on `wp_login` after the last-login user meta has been written — piggy-back here to update your own last-seen tracking without duplicating the `wp_login` listener.
+
+---
+
+## Native User Edit window (since 0.8.1)
+
+A native profile-editing window (`desktop-mode-user-edit`) that opens when a row in the native Users window is clicked, or when a chromeless `user-edit.php?user_id=N` navigation is remapped. The window is registered for any logged-in user (everyone has a profile to edit); per-target capability is re-checked at REST time — saving uses core's `/wp/v2/users/<id>` PUT, which enforces `edit_user`, and the insights endpoint applies the same check.
+
+### `desktop_mode_user_edit_window_user_can_register` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_user_edit_window_user_can_register', bool $can, int $user_id ): bool
+```
+
+Fires inside the `desktop_mode_user_edit_window_user_can_register()` helper. Default: `true` for any logged-in user. Note the framework's own registration path currently registers the window for every logged-in user without consulting this helper — hook it for plugin code that mirrors the gate, not to unregister the window.
+
+### `desktop_mode_user_edit_window_args` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_user_edit_window_args', array $window_args ): array
+```
+
+Filters the args passed to `desktop_mode_register_window( 'desktop-mode-user-edit', … )` — title, icon, dimensions, `config` blob (role / locale / color-scheme maps, contact methods, insights endpoint base).
+
+### `desktop_mode_user_edit_window_template_html` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_user_edit_window_template_html', string $html ): string
+```
+
+The template body (a `<wpd-user-profile>` host element) before it's `wp_kses`'d into the native-window template element.
+
+### `desktop_mode_user_edit_window_insights` — Experimental *(filter, since 0.8.1)*
+
+```php
+apply_filters( 'desktop_mode_user_edit_window_insights', array $payload, WP_User $user ): array
+```
+
+The per-user insights payload returned by `GET /desktop-mode/v1/users/<id>/insights` — drives the profile sidebar tiles. Plugins can append their own metrics (security-event counts, subscription tier, …) by extending the `stats` map or adding new top-level keys; the JS bundle tolerates unknown keys. **The filtered output is transient-cached for 60 seconds** (`dm_user_insights_<id>`), so make the filter deterministic — a request with `?fresh=1` bypasses the cache.
+
 ---
 
 ## My WordPress (since 0.8.0)
 
-A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Ships with Posts, Pages, and (since 0.20.0) Users. The entity list is filterable so plugin authors can extend it without forking the bundle.
+A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Ships with Posts, Pages, (since 0.8.2) Users, and (since 0.8.6) Media. The entity list is filterable so plugin authors can extend it without forking the bundle.
 
 ### `desktop_mode_my_wordpress_user_can_use` — Experimental (filter)
 
@@ -2268,9 +2627,9 @@ The list of entity types rendered as folder tiles in the window's root view. Eac
 - `label` — human-readable folder name.
 - `icon` — Dashicons class.
 - `restPath` — appended to `restRoot` (e.g. `wp/v2/posts`, `wp/v2/comments`).
-- `kind` *(optional, since 0.20.0)* — `'post'` (default for back-compat) or `'user'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface. Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`.
+- `kind` *(optional, since 0.8.2)* — `'post'` (default for back-compat), `'user'`, or (since 0.8.6) `'media'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface; `'media'`-shaped entities use the media-grid tile and the media drill-in preview ("used in" view). Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`. Plugins can register further kinds on the JS side via `wp.desktop.myWordpress.registerEntityKind()`.
 
-Defaults ship `posts`, `pages`, and `users`. Plugins can pre-stage Comments / Tags / Categories without waiting for new code in this module — the bundle treats every entry uniformly.
+Defaults ship `posts`, `pages`, `users`, and `media`. Plugins can pre-stage Comments / Tags / Categories without waiting for new code in this module — the bundle treats every entry uniformly.
 
 ### `desktop_mode_my_wordpress_template_html` — Experimental (filter)
 
@@ -2284,7 +2643,9 @@ apply_filters( 'desktop_mode_my_wordpress_user_stats', array $payload, int $user
 
 The aggregated per-user dossier payload returned by `GET /desktop-mode/v1/user-stats/<id>` — drives the right-pane preview for a selected user (Author / Contributors sub-folders, and the Users folder root). Plugins can drop additional sections (badges, milestones, contribution streaks) without forking the JS render.
 
-### `desktop_mode_my_wordpress_user_footprint` — Experimental (filter, since 0.20.0)
+The payload is permission-shaped before this filter runs: viewers without `list_users` (who are not the subject user) receive a published-only dossier — the recent-posts list is restricted to `publish`, `counts.posts` / `counts.pages` collapse to published-only totals, and sensitive profile fields (email, registered date, role) are withheld.
+
+### `desktop_mode_my_wordpress_user_footprint` — Experimental (filter, since 0.8.2)
 
 ```php
 apply_filters( 'desktop_mode_my_wordpress_user_footprint', array $payload, int $user_id ): array
@@ -2292,7 +2653,9 @@ apply_filters( 'desktop_mode_my_wordpress_user_footprint', array $payload, int $
 
 The per-user activity-footprint payload returned by `GET /desktop-mode/v1/user-footprint/<id>` — drives the full-body "View activity footprint" surface (right-click on a user tile → footprint). Carries a year of day-by-day activity, weekday + hour-of-day distribution, streak math, recent-events timeline, and totals. Plugins can extend the timeline with their own activity rows (deploys, badges earned, etc.) or replace the streak math with a domain-specific definition.
 
-### `desktop_mode_user_footprint_row_action` — Stable (filter, since 0.23.0)
+Timeline rows whose underlying post is not published (draft, pending, private, future) are only emitted when the viewer passes `current_user_can( 'read_post' )` for that post — the gate applies across the post, post-update, and comment row sources — so unpublished titles never leak to ordinary logged-in users.
+
+### `desktop_mode_user_footprint_row_action` — Stable (filter, since 0.9.1)
 
 ```php
 apply_filters( 'desktop_mode_user_footprint_row_action', bool $show, WP_User $user_object ): bool
@@ -2302,7 +2665,31 @@ Gates the **"View activity footprint"** row action added to the classic Users li
 
 The action carries the target user id in a `data-desktop-mode-footprint` attribute; the chromeless bridge escalates the click as the `desktop-mode-open-user-footprint` message (see [`bridge-protocol.md`](bridge-protocol.md) and [`javascript-reference.md`](javascript-reference.md)), opening the My WordPress window on that user's footprint without closing the Users list. The link's `href` is a real `user-edit.php` / `profile.php` URL — the graceful fallback for no-JS or modifier clicks.
 
-### `desktop_mode_my_wordpress_media_usage` — Experimental (filter, since 0.21.0)
+### `desktop_mode_my_wordpress_comment_stats` — Experimental (filter, since 0.8.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_comment_stats', array $payload, int $comment_id ): array
+```
+
+The per-comment dossier payload returned by `GET /desktop-mode/v1/comment-stats/<id>` — carries the comment body (`comment`), the author aggregate (`author`), the post it belongs to (`post`), its parent (`parent`), and replies (`replies`). Plugins can append their own sections without forking the JS render.
+
+### `desktop_mode_my_wordpress_term_stats` — Experimental (filter, since 0.8.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_term_stats', array $payload, string $taxonomy, int $term_id ): array
+```
+
+The per-term stats payload returned by `GET /desktop-mode/v1/term-stats/<taxonomy>/<id>` — profile, counts, recent posts, top authors, co-terms, activity, and milestones. Filter it to splice in extra metrics before it reaches the My WordPress folder window.
+
+### `desktop_mode_my_wordpress_post_contributors` — Experimental (filter, since 0.8.0)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_post_contributors', int[] $ids, int $post_id ): int[]
+```
+
+The contributor user ids for a post — drives the Contributors sub-folder. Defaults gather Co-Authors Plus authors, revision authors, and the `_edit_last` meta; plugins that track contributors via custom meta, a taxonomy, a join table, or any other mechanism append their ids here. Each id should resolve to a `WP_User`; non-resolving ids, duplicates, and the primary author are dropped after the filter runs.
+
+### `desktop_mode_my_wordpress_media_usage` — Experimental (filter, since 0.8.6)
 
 ```php
 apply_filters( 'desktop_mode_my_wordpress_media_usage', array $payload, int $attachment_id ): array
@@ -2310,9 +2697,9 @@ apply_filters( 'desktop_mode_my_wordpress_media_usage', array $payload, int $att
 
 The "used in" payload returned by `GET /desktop-mode/v1/media-usage/<id>` — drives the Media drill-in view (double-click a media tile). Each `usedIn` row carries `{ postId, postType, postTypeLabel, title, status, link, editLink, usedAs:'featured'|'content'|'meta', authorId, authorName, date }`. Plugins (ACF, page builders, Yoast image meta) can push additional rows describing references their own data layer holds — e.g. ACF image fields, gallery blocks, theme-mod backgrounds.
 
-Rows are already filtered per-row through `current_user_can('read_post', $row['postId'])`, so the viewer never sees drafts they can't read. The payload is transient-cached (default 5 min) per attachment + viewer-capability bucket; cache busts on `save_post`, `deleted_post`, `delete_attachment`.
+Rows are already filtered per-row through `current_user_can('read_post', $row['postId'])`, so the viewer never sees drafts they can't read. Only the viewer-independent reference scan (post id → `usedAs` map, the heavy SQL portion) is transient-cached (default 5 min), keyed by attachment + a coarse capability bucket (key hygiene, not a security boundary) — the per-row `read_post` gate and this filter both run on every request, so a cache hit can never leak unreadable rows across viewers and filter extensions stay live. Cache busts on `save_post`, `before_delete_post` (deliberately not `deleted_post` — by then the post's refs are gone and the stale cache would survive), and `delete_attachment`.
 
-### `desktop_mode_my_wordpress_attached_media` — Experimental (filter, since 0.21.0)
+### `desktop_mode_my_wordpress_attached_media` — Experimental (filter, since 0.8.6)
 
 ```php
 apply_filters( 'desktop_mode_my_wordpress_attached_media', int[] $ids, int $post_id ): int[]
@@ -2320,7 +2707,7 @@ apply_filters( 'desktop_mode_my_wordpress_attached_media', int[] $ids, int $post
 
 Attachment ids referenced by a post — featured image plus everything resolved from `post_content` (block-class scan, classic `[caption]` shortcodes, `data-id` / `data-attachment-id`, and raw `<img src>` URL resolution including `-scaled.jpg` ↔ original swaps). Exposed on every public post type as the `desktop_mode_attached_media` REST field (read-only, integer array). Plugins that store attachment references outside `post_content` (ACF image fields, page-builder block storage, post-meta galleries) should append their ids here. Sanitized post-filter — non-positive values and non-arrays are discarded.
 
-### `desktop_mode_my_wordpress_media_usage_cache_ttl` — Experimental (filter, since 0.21.0)
+### `desktop_mode_my_wordpress_media_usage_cache_ttl` — Experimental (filter, since 0.8.6)
 
 ```php
 apply_filters( 'desktop_mode_my_wordpress_media_usage_cache_ttl', int $seconds, int $attachment_id ): int
@@ -2328,7 +2715,7 @@ apply_filters( 'desktop_mode_my_wordpress_media_usage_cache_ttl', int $seconds, 
 
 Lifetime (seconds) of the per-attachment media-usage transient. Lower it on sites that frequently bulk-import or rewrite content; raise it on stable libraries.
 
-### `desktop_mode_my_wordpress_preview_actions` — Experimental (filter, since 0.21.0)
+### `desktop_mode_my_wordpress_preview_actions` — Experimental (filter, since 0.8.6)
 
 ```php
 apply_filters( 'desktop_mode_my_wordpress_preview_actions', array[] $actions ): array[]
@@ -2349,6 +2736,45 @@ array(
 ```
 
 `capability` is enforced server-side before the descriptor ships to the bundle, so an action the current user can't run never appears in their UI. `script`, if registered, is auto-enqueued. Wire the click handler on the JS side via `wp.hooks.addFilter('desktop-mode.my-wordpress.preview-actions', …)` — see [`examples/my-wordpress-media-action.md`](./examples/my-wordpress-media-action.md).
+
+---
+
+## Content Graph (since 0.8.1)
+
+An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors the My WordPress module shape.
+
+### `desktop_mode_content_graph_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_content_graph_user_can_use', bool $can ): bool
+```
+
+Gates icon registration and window registration in one shot. Default `current_user_can( 'edit_posts' )` — anyone who can edit posts can view the link map of the content they author and maintain.
+
+### `desktop_mode_content_graph_post_types` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_content_graph_post_types', array[] $post_types ): array[]
+```
+
+The list of post types shown in the graph's filter bar. Each entry declares `slug`, `label`, and `icon`. Default: every public post type except `attachment` (media renders in the side panel rather than as nodes). Removing an entry hides it from the filter bar AND excludes it from the graph entirely.
+
+### `desktop_mode_content_graph_template_html` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_content_graph_template_html', string $html ): string
+```
+
+The window's static template body before it's `wp_kses`'d. The bundle mounts into `[data-desktop-mode-content-graph-root]` — keep the `data-desktop-mode-content-graph-*` hooks intact.
+
+### `desktop_mode_content_graph_window_args` / `desktop_mode_content_graph_icon_args` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_content_graph_window_args', array $window_args ): array
+apply_filters( 'desktop_mode_content_graph_icon_args',   array $icon_args ): array
+```
+
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the Content Graph — dimensions, dashicon, icon position, or the `config` blob (REST endpoints, edit-URL bases, post-type descriptors).
 
 ---
 
@@ -2399,7 +2825,7 @@ do_action( 'desktop_mode_presence_changed',  $user_id, $new_status, $old_status 
   transitions (`online ↔ inactive ↔ offline`). The right hook
   for "user came online → notify a slack channel" type work.
 
-### PHP helpers (since 0.5.5)
+### PHP helpers (since 0.6.0)
 
 ```php
 desktop_mode_presence_record( $user_id, $active = true );
@@ -2448,7 +2874,7 @@ desktop_mode_register_window_control( $args );
 
 `$args`: `id`, `label`, `icon`, `placement` (`'left'|'right'|'controls'`, default `'left'`), `order` (default 100), `script`.
 
-Built-in control ids registered by the framework: `core/minimize`, `core/maximize`, `core/focus-tab`, `core/detach`, `core/close`. Plugins can `unregisterWindowControl()` any of them globally, or use per-window `appearance.controls.{order, hide, custom}` for window-scoped mutations.
+Built-in control ids registered by the framework: `core/minimize`, `core/maximize`, `core/focus-tab`, `core/close`. (`core/detach` and `core/reload` are no longer title-bar controls — detach/reload moved into the title-bar three-dots menu in 0.6.2.) Plugins can `unregisterWindowControl()` any of them globally, or use per-window `appearance.controls.{order, hide, custom}` for window-scoped mutations.
 
 Actions:
 - `desktop_mode_window_control_script_registered( $handle )`
@@ -2480,7 +2906,7 @@ Actions:
 - `desktop_mode_window_chrome_script_registered( $handle )`
 - `desktop_mode_window_chrome_registered( $id, $entry )`
 
-### Window notices — Experimental  *(since 0.22.0)*
+### Window notices — Experimental  *(since 0.8.6)*
 
 ```php
 desktop_mode_register_window_notice( $args );
@@ -2607,7 +3033,7 @@ and write the value where your code reads from.
 
 ---
 
-## Sticky notes (since 0.11.0)
+## Sticky notes (since 0.8.8)
 
 Sticky notes are backed by **Gutenberg's Guidelines experiment** — the
 `wp_guideline` CPT and `wp_guideline_type` taxonomy (exposed at
@@ -2616,7 +3042,7 @@ opt-in (Gutenberg plugin 22.7+, under Gutenberg → Experiments). When it
 isn't active those REST routes 404, so both the Heartbeat delta handler
 and the client-side layer gate on availability.
 
-### `desktop_mode_sticky_notes_available` — Stable *(filter, since 0.11.0)*
+### `desktop_mode_sticky_notes_available` — Stable *(filter, since 0.9.1)*
 
 Filters whether the sticky-notes surface is treated as available. The
 default is `post_type_exists( 'wp_guideline' ) && taxonomy_exists(

@@ -97,71 +97,12 @@ export type { WpdNoticeTone } from './wpd-notice/wpd-notice';
 export { WpdProgressBar } from './wpd-progress-bar/wpd-progress-bar';
 export type { WpdProgressTone } from './wpd-progress-bar/wpd-progress-bar';
 
-// List of tags registered by this barrel. `doAction(
+// List of tags registered by this barrel. Defined in `./tags`
+// (the single source of truth, kept side-effect-free so tag-only
+// consumers don't drag every component module into their bundle)
+// and re-exported here for convenience. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
 // `src/desktop.ts` after the module graph settles, so
 // subscribers needing to defer work until every `<wpd-*>` is
 // callable have a single signal to latch onto.
-export const WPD_COMPONENT_TAGS = [
-	'wpd-section',
-	'wpd-button',
-	'wpd-swatch',
-	'wpd-swatch-grid',
-	'wpd-segmented',
-	'wpd-segment',
-	'wpd-select',
-	'wpd-option',
-	'wpd-multiselect',
-	'wpd-color-field',
-	'wpd-range-field',
-	'wpd-text-field',
-	'wpd-number-field',
-	'wpd-checkbox',
-	'wpd-checkbox-label',
-	'wpd-toast',
-	'wpd-toast-container',
-	'wpd-tabs',
-	'wpd-tab',
-	'wpd-tabpanel',
-	'wpd-window-button',
-	'wpd-menu',
-	'wpd-menu-item',
-	'wpd-context-menu',
-	'wpd-context-menu-option',
-	'wpd-confirm-dialog',
-	'wpd-modal',
-	'wpd-user-search',
-	'wpd-role-picker',
-	'wpd-flyout',
-	'wpd-tab-chip',
-	'wpd-stack',
-	'wpd-cluster',
-	'wpd-icon',
-	'wpd-body',
-	'wpd-panel',
-	'wpd-row',
-	'wpd-grid',
-	'wpd-display',
-	'wpd-empty-state',
-	'wpd-key',
-	'wpd-code',
-	'wpd-badge',
-	'wpd-log',
-	'wpd-steps',
-	'wpd-step',
-	'wpd-table',
-	'wpd-spinner',
-	'wpd-relative-time',
-	'wpd-avatar',
-	'wpd-textarea',
-	'wpd-chip',
-	'wpd-tag-input',
-	'wpd-form',
-	'wpd-save-status',
-	'wpd-category-picker',
-	'wpd-crumb-chain',
-	'wpd-card',
-	'wpd-rating-summary',
-	'wpd-notice',
-	'wpd-progress-bar',
-] as const;
+export { WPD_COMPONENT_TAGS } from './tags';

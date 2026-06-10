@@ -25,7 +25,7 @@
  * ></wpd-textarea>
  * ```
  *
- * @since 0.22.0
+ * @since 0.6.0
  */
 
 import {
@@ -60,7 +60,7 @@ export class WpdTextarea extends Component {
 		summary:
 			'Multi-line text input. Same event shape as wpd-text-field. Optional auto-grow up to max-rows; optional submit-on-enter (Enter sends, Shift+Enter newlines).',
 		status: 'stable',
-		since: '0.22.0',
+		since: '0.6.0',
 		props: [
 			{ name: 'label', type: 'string', description: 'Visible label above the textarea.' },
 			{ name: 'value', type: 'string', description: 'Current value; reflected two-way.' },

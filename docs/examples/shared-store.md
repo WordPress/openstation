@@ -103,7 +103,7 @@ export function setItems( items: MyState[ 'items' ] ) {
 import { setItems, selectItem } from './state';
 
 // Hydrate from REST on boot — runs once per page load.
-fetch( '/wp-json/my-plugin/v1/items' )
+wp.desktop.fetch( '/wp-json/my-plugin/v1/items', undefined, { source: 'my-plugin/items' } )
     .then( ( r ) => r.json() )
     .then( ( items ) => setItems( items ) );
 
@@ -151,6 +151,9 @@ interface SharedStore< T > {
     getState(): Readonly< T >;                               // same ref, narrower type
     notify(): void;                                          // wake subscribers
     subscribe( cb: ( s: Readonly< T > ) => void ): () => void;
+    setState( patch: Partial< T > ): void;                   // patch + notify in one call
+                                                             // (since 0.8.1; object-shaped
+                                                             // state only)
     reset(): void;                                           // tests only — preserves
                                                              // outer object identity
                                                              // for object state
@@ -161,6 +164,10 @@ wp.desktop.createSharedStore< T >(
     initialState: () => T,
 ): SharedStore< T >;
 ```
+
+`setState()` collapses the mutate-then-notify pair into one call
+for flat patches; on a primitive-shaped store it warns and no-ops —
+use the `state` setter there instead.
 
 ## Conventions
 

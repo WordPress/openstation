@@ -84,13 +84,13 @@ export class WpdMultiselect extends Component {
 				name: 'name',
 				type: 'string',
 				description:
-					'Forwarded to the hidden form-field for HTML form submission.',
+					'Reserved for HTML form submission; not yet wired to a form field.',
 			},
 			{
 				name: 'open',
 				type: 'boolean attribute',
 				description:
-					'Reflects the open state of the popover. Toggle programmatically to open/close, or read from a CSS selector.',
+					'Read-only reflection of the popover state, set by the component when it opens/closes. Useful from a CSS selector; toggling it programmatically does not open/close the popover — click the trigger instead.',
 			},
 		],
 		slots: [

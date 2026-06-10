@@ -26,7 +26,7 @@
  * their own references.
  *
  * @package WPDesktopMode
- * @since   0.21.0
+ * @since   0.8.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,7 +34,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register `desktop_mode_attached_media` on every public post type.
  *
- * @since 0.21.0
+ * @since 0.8.6
  */
 function desktop_mode_my_wordpress_register_attached_media_field() {
 	$types = get_post_types(
@@ -81,7 +81,7 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_attached_media_
  *      Resolver results are cached in-process so a post embedding
  *      the same image twice only takes one DB hit per URL.
  *
- * @since 0.21.0
+ * @since 0.8.6
  *
  * @param int $post_id Post id.
  * @return int[] Attachment ids, deduped, no order guarantee.
@@ -152,7 +152,7 @@ function desktop_mode_my_wordpress_post_attached_media( $post_id ) {
 	 * (ACF image fields, page-builder block storage, post-meta
 	 * galleries) can append their ids here.
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 *
 	 * @param int[] $out      Attachment ids resolved by the core scan.
 	 * @param int   $post_id  Subject post id.
@@ -179,7 +179,7 @@ function desktop_mode_my_wordpress_post_attached_media( $post_id ) {
  * multiple times (gallery + cover + content) would otherwise pay
  * for each occurrence.
  *
- * @since 0.21.0
+ * @since 0.8.6
  *
  * @param string $url Image URL pulled from `<img src>`.
  * @return int Attachment id, or 0 when no match.

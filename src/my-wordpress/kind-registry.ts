@@ -14,7 +14,7 @@
  * private to `index.ts`.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 
 import type { MyWordPressEntity, Route } from './types';
@@ -25,7 +25,7 @@ import type { MyWordPressEntity, Route } from './types';
  * route.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export interface EntityRenderHost {
 	/** The window body element the renderer should paint into. */
@@ -50,7 +50,7 @@ export interface EntityRenderHost {
  * descriptor whose section is being entered.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export type EntityRenderer = (
 	host: EntityRenderHost,
@@ -65,7 +65,7 @@ const renderers = new Map< string, EntityRenderer >();
  * default, by design.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  *
  * @param kind     Entity kind slug (`'post'`, `'user'`, plugin slug).
  * @param renderer Render callback.
@@ -101,7 +101,7 @@ export function registerEntityKind(
  * a generic "unknown kind" error in that case.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export function getEntityRenderer(
 	kind: string | undefined,
@@ -116,7 +116,7 @@ export function getEntityRenderer(
  * Snapshot of registered kinds — diagnostics only.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export function listRegisteredKinds(): string[] {
 	return Array.from( renderers.keys() );

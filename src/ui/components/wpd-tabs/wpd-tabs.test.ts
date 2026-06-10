@@ -153,7 +153,7 @@ describe( '<wpd-tabs> + <wpd-tab>', () => {
 		expect( tabs.getAttribute( 'value' ) ).toBe( 'x' );
 	} );
 
-	// Regression guard: an earlier 0.11.0 build declared the panel
+	// Regression guard: an earlier 0.5.0 build declared the panel
 	// as light DOM with a `<slot>` render, which wrote `<slot></slot>`
 	// into the panel itself on first mount — wiping every
 	// server-rendered child. The fix moves the slot into a shadow

@@ -22,14 +22,15 @@
  * broadcast.
  *
  * Re-discovery: the wallpaper's bin tile is rebuilt on every store
- * change (the FilesLayer's wholesale repaint). We listen for both
- * `desktop-mode-files-changed` (store mutations) and
- * `HOOKS.DOCK_AFTER_RENDER` (legacy dock rebuild) and a
+ * change (the FilesLayer's wholesale repaint). We listen for
+ * `desktop-mode-files-changed` (store mutations),
+ * `HOOKS.DESKTOP_ICONS_RENDERED` (legacy icon-rail rebuild), and
+ * `HOOKS.DOCK_AFTER_RENDER` (legacy dock rebuild), plus a
  * `MutationObserver` on the wallpaper area as a belt-and-braces
  * fallback so the drop target is guaranteed to point at the LIVE
  * DOM element.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import { __ } from '../i18n';
@@ -250,8 +251,9 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 	// Re-register the bin TILE drop target whenever the wallpaper
 	// might have rebuilt it. The unified files layer rebuilds tile
 	// DOM on every store change (`desktop-mode-files-changed`); the
+	// legacy icon rail rebuilds on `DESKTOP_ICONS_RENDERED`; the
 	// legacy dock rail rebuilds on `DOCK_AFTER_RENDER`. We listen to
-	// both and re-discover via `findBinTile()`. Idempotent
+	// all three and re-discover via `findBinTile()`. Idempotent
 	// re-registration via the registry's id-based replacement.
 	const reprobeTile = (): void => {
 		const el = findBinTile();
@@ -282,9 +284,12 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 	document.addEventListener( 'desktop-mode-files-changed', reprobeTile );
 
 	// Legacy desktop-icons rail rebuild signal — `renderDesktopIcons`
-	// fires this CustomEvent (and the dock-after-render hook) on each
-	// render.
-	document.addEventListener( 'desktop-mode-desktop-icons-rendered', reprobeTile );
+	// fires this hook action on each render that changed the DOM.
+	addAction(
+		HOOKS.DESKTOP_ICONS_RENDERED,
+		'desktop-mode/files/recycle-bin-icons-target',
+		reprobeTile,
+	);
 	addAction(
 		HOOKS.DOCK_AFTER_RENDER,
 		'desktop-mode/files/recycle-bin-dock-target',

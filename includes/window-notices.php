@@ -22,7 +22,7 @@
  * ) );
  * ```
  *
- * @since 0.22.0
+ * @since 0.8.6
  * @package DesktopMode
  */
 
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
  * Allowed tones — mirror the `<wpd-notice>` component's `tone`
  * attribute.
  *
- * @since 0.22.0
+ * @since 0.8.6
  * @return string[]
  */
 function desktop_mode_window_notice_tones() {
@@ -42,7 +42,7 @@ function desktop_mode_window_notice_tones() {
 /**
  * Register (or replace) a declarative window notice.
  *
- * @since 0.22.0
+ * @since 0.8.6
  *
  * @param array $args {
  *     @type string $id          Required. Persistence + dedupe key.
@@ -172,7 +172,7 @@ function desktop_mode_register_window_notice( $args = array() ) {
 	/**
 	 * Fires after a window notice is successfully registered.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.6
 	 *
 	 * @param string $id    The notice id.
 	 * @param array  $entry The stored registry entry.
@@ -185,7 +185,7 @@ function desktop_mode_register_window_notice( $args = array() ) {
 /**
  * Internal module-level registry for window notices.
  *
- * @since 0.22.0
+ * @since 0.8.6
  * @internal
  *
  * @param string     $id    Id to read or write.
@@ -216,7 +216,7 @@ function desktop_mode_window_notice_registry( $id = '', $entry = null ) {
  * current request. Mirrors the same `flush_*` shape the
  * commands / settings-tabs / window-chrome registries expose.
  *
- * @since 0.22.0
+ * @since 0.8.6
  * @internal
  */
 function desktop_mode_flush_window_notice_registry() {
@@ -229,7 +229,7 @@ function desktop_mode_flush_window_notice_registry() {
  * `desktop_mode_window_notices` filter so plugins can mutate the
  * final list (e.g. add a dynamic notice computed at request time).
  *
- * @since 0.22.0
+ * @since 0.8.6
  *
  * @return array[]
  */
@@ -243,7 +243,7 @@ function desktop_mode_build_window_notices_payload() {
 	 * request-dependent banners (e.g. "your trial expires today")
 	 * without registering them statically.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.6
 	 *
 	 * @param array[] $entries List of notice entries.
 	 */

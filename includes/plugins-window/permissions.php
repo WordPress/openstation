@@ -139,7 +139,7 @@ function desktop_mode_plugins_window_caps( $user_id = null ) {
  * use the `manage_network_plugins` capability as the user-facing
  * equivalent (true for super admins, false for everyone else).
  *
- * @since 0.21.0
+ * @since 0.8.6
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -178,7 +178,7 @@ function desktop_mode_plugins_window_auto_updates_enabled( $user_id = null ) {
 	 * disabled or when the viewer isn't on a network admin screen on
 	 * multisite).
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 *
 	 * @param bool $enabled Default gate result.
 	 * @param int  $user_id User being checked.

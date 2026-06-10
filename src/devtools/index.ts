@@ -236,11 +236,16 @@ function ensureState( windowId: string ): WindowState {
  * document lands with `__wpdInstrument.headers` empty because the
  * chromeless inline bridge resets that slot on every fresh page.
  *
- * The shell's `IFRAME_READY` action is the spec'd path for the
- * same job, but `desktop-mode-ready` isn't actually emitted by the
- * chromeless bridge today, so relying on that hook leaves a
- * timing gap. The native `load` event fires unconditionally and
- * is also same-origin-safe to attach to.
+ * The shell's `IFRAME_READY` action covers the same job — the
+ * chromeless bridge posts `desktop-mode-ready`, the iframe bridge
+ * fires the hook, and the replay handler below consumes it — but
+ * it only fires for documents the chromeless bridge actually runs
+ * in. This `load` listener is the belt-and-braces for navigations
+ * where the bridge never runs and no ready signal is posted
+ * (`iframe.src` mutated to a URL without the chromeless flag,
+ * error pages, pages that skip `admin_footer`). The native `load`
+ * event fires unconditionally and is also same-origin-safe to
+ * attach to.
  *
  * Idempotent: re-runs cheaply when the iframe element changes
  * (rare — mostly happens if a window is reused after destroy /

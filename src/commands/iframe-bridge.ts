@@ -20,7 +20,7 @@
  *     distraction-free toggled, etc.) shows up in the palette without
  *     any user interaction.
  *
- * @since 0.16.0
+ * @since 0.5.1
  */
 
 import {
@@ -110,11 +110,12 @@ export class IframeCommandBridge {
 			}
 		} );
 
-		// A minimized window is visually gone — showing its commands
-		// in the palette would confuse the user ("where would that
-		// even run?"). Evict on minimize; on restore, the window
-		// manager fires a fresh `desktop-mode-window-focused` which flows
-		// through `onFocused` and rebuilds the list.
+		// When the focused window is minimized we only clear the
+		// subscription guard — the window's commands stay registered
+		// in the palette until the window is closed or refocused. On
+		// restore, the window manager fires a fresh
+		// `desktop-mode-window-focused` which flows through `onFocused`
+		// and rebuilds the list.
 		document.addEventListener( 'desktop-mode-window-changed', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { windowId?: string; reason?: string; state?: string } > ).detail;
 			if ( ! detail || typeof detail.windowId !== 'string' ) {

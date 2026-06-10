@@ -2,7 +2,7 @@
 
 End-to-end recipe for the connection bridge: a plugin adds a button in the Gutenberg window's title bar, the button shows a dropdown of other open windows, hovering an item highlights the candidate window, clicking opens a `wp.desktop.connect()` channel, and Gutenberg keystrokes stream into a preview window in real time.
 
-This is the canonical use case for the four 0.17.0 APIs working together:
+This is the canonical use case for the four 0.5.2 APIs working together:
 
 1. `wp.desktop.registerTitleBarButton` — UI entry point
 2. `Window.setHighlight` — visual feedback
@@ -176,7 +176,9 @@ That's the whole live-preview flow: keystroke in Gutenberg → `wp.data.subscrib
 If your preview window is itself an iframe pointing at a custom plugin URL, skip the manual `body.appendChild( iframe )` dance. The `iframeContent` shorthand lets `registerWindow` own the iframe lifecycle:
 
 ```javascript
-const previewWin = wp.desktop.registerWindow( {
+// `registerWindow` is async — it resolves to the DesktopWindow, so the
+// enclosing function must be `async`.
+const previewWin = await wp.desktop.registerWindow( {
     id:    'live-preview/preview',
     title: 'Live Preview',
     icon:  'dashicons-visibility',

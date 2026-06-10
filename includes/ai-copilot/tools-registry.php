@@ -41,19 +41,20 @@ defined( 'ABSPATH' ) || exit;
  * ```
  *
  * Handlers receive `( array $args, int $user_id )` and return
- * `array|WP_Error`. An error return is caught, reported via the
+ * `array|WP_Error`. A thrown exception is caught, reported via the
  * `desktop_mode_ai_search_error` action, and relayed to the model as a
- * structured `{ error: ... }` tool result so the agent can decide
- * whether to try another tool.
+ * structured `{ error: ... }` tool result; a `WP_Error` return is
+ * relayed to the model the same way (without firing the action) so the
+ * agent can decide whether to try another tool.
  *
- * @since 0.17.0
+ * @since 0.5.1
  * @package WPDesktopMode
  */
 
 /**
  * Register a server-side AI tool.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @param array $args {
  *     @type string   $name             Unique tool name, `[a-z0-9_]+` (1-64 chars).
@@ -63,8 +64,10 @@ defined( 'ABSPATH' ) || exit;
  *                                       Required.
  *     @type array    $parameters       JSON-Schema object describing the tool's arguments. Follow the
  *                                       OpenAI function-calling shape — `{ type: "object", properties: {...},
- *                                       required: [...] }`. Default `{ type: "object", properties: [] }`
- *                                       for tools that take no arguments.
+ *                                       required: [...] }`. Default `{ type: "object", properties: {} }`
+ *                                       for tools that take no arguments (in PHP, use `(object) array()` or
+ *                                       `new stdClass()` for `properties` so it JSON-encodes as an object,
+ *                                       not an array).
  *     @type callable $handler          `function( array $args, int $user_id ): array|WP_Error`. Return
  *                                       value is JSON-encoded and passed back to the model. Required.
  *     @type string   $capability       WordPress capability the current user must hold for the tool to
@@ -133,7 +136,7 @@ function desktop_mode_register_ai_tool( $args ) {
 	/**
 	 * Fires after a desktop AI tool is successfully registered.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 *
 	 * @param string $name  The tool name.
 	 * @param array  $entry The stored registry entry (handler included).
@@ -147,7 +150,7 @@ function desktop_mode_register_ai_tool( $args ) {
  * Internal module-level registry for AI tools declared via
  * {@see desktop_mode_register_ai_tool()}.
  *
- * @since 0.17.0
+ * @since 0.5.1
  * @internal
  *
  * @param string     $name  Tool name to read or write.
@@ -169,11 +172,12 @@ function desktop_mode_desktop_ai_tool_registry( $name = '', $entry = null ) {
 /**
  * Capability-filtered list of registered AI tools for the current user.
  *
- * Walks the registry, drops any tool whose `capability` the current
- * user doesn't hold, and runs the surviving list through the
- * `desktop_mode_ai_tools` filter alongside the built-in tools.
+ * Walks the registry and drops any tool whose `capability` the current
+ * user doesn't hold. The caller (the agent loop in search.php) later
+ * merges the result with the built-in and command tools and runs the
+ * combined list through the `desktop_mode_ai_tools` filter.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @param int $user_id User whose capabilities gate visibility.
  * @return array[] List of tool entries with `handler` still attached —
@@ -202,7 +206,7 @@ function desktop_mode_get_registered_ai_tools_for_user( $user_id ) {
  * Project a registered tool entry into the OpenAI function-calling
  * tool definition shape. Strips the handler + internal metadata.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @param array $entry Registry entry.
  * @return array OpenAI tool definition.
@@ -221,7 +225,7 @@ function desktop_mode_ai_tool_entry_to_definition( array $entry ) {
  * `WP_Error` returns into a structured error payload the model can
  * reason about without aborting the run.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @param array $entry   Registry entry (must include `handler`).
  * @param array $args    Decoded arguments from the model's tool call.
@@ -236,7 +240,7 @@ function desktop_mode_ai_invoke_registered_tool( array $entry, array $args, $use
 		/**
 		 * Fires when an AI tool handler throws.
 		 *
-		 * @since 0.17.0
+		 * @since 0.5.1
 		 *
 		 * @param array     $error { code, message, data } scrubbed of
 		 *                           exception internals.

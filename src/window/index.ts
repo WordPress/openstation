@@ -12,7 +12,7 @@
  * Kept `public` at the TypeScript level only because `private`
  * prevents the sibling modules from seeing them.
  *
- * @since 6.9.0
+ * @since 0.5.0
  */
 
 import type { WindowConfig, WindowState } from './../types';
@@ -74,7 +74,7 @@ import {
  * module compare against this value so a plugin script that mutates
  * `window.location` after boot can't relax the check.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 const INITIAL_ORIGIN = window.location.origin;
 import {
@@ -626,14 +626,14 @@ export class Window {
 	 *
 	 * No-op for iframe windows.
 	 *
-	 * Per-event contract preserved from 0.10.x:
+	 * Per-event contract preserved from 0.5.0:
 	 *   - `NATIVE_WINDOW_BEFORE_RENDER` filter fires, same args.
 	 *   - `NATIVE_WINDOW_AFTER_RENDER` action fires, same args.
 	 *   - `config.autofocus` is honoured with a `requestAnimationFrame`
 	 *     defer so layout side-effects of `render()` settle before
 	 *     `.focus()` resolves.
 	 *
-	 * @since 0.12.0
+	 * @since 0.5.0
 	 * @internal
 	 */
 	public hydrateNative(): void {
@@ -926,7 +926,7 @@ export class Window {
 		// `bindEvents()` runs, so the controls cluster is live before
 		// drag / resize bindings.
 
-		// Title-bar actions menu (iframe windows only).
+		// Title-bar actions menu (all windows; some items are iframe-only).
 		const menuBtn = this.element.querySelector<HTMLElement>(
 			'.desktop-mode-window__menu-btn',
 		);
@@ -1390,18 +1390,18 @@ export class Window {
 	 * 'snapped-left' | 'snapped-right'`.
 	 *
 	 * @public
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	public isMinimized(): boolean {
 		return this.state === 'minimized';
 	}
 
-	/** Predicate: is this window currently maximized? @since 0.18.0 */
+	/** Predicate: is this window currently maximized? @since 0.5.2 */
 	public isMaximized(): boolean {
 		return this.state === 'maximized';
 	}
 
-	/** Predicate: is this window in fullscreen mode? @since 0.18.0 */
+	/** Predicate: is this window in fullscreen mode? @since 0.5.2 */
 	public isFullscreen(): boolean {
 		return this.state === 'fullscreen';
 	}
@@ -1411,7 +1411,7 @@ export class Window {
 	 * Returns `true` for both half-screen positions; pass an explicit
 	 * side string if you need to distinguish.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	public isSnapped( side?: 'left' | 'right' ): boolean {
 		if ( side === 'left' ) {
@@ -1430,7 +1430,7 @@ export class Window {
 	 * window? Reads the `desktop-mode-window--focused` class the manager
 	 * toggles in `focus()` so the result matches what's visible.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	public isFocused(): boolean {
 		return this.element.classList.contains( 'desktop-mode-window--focused' );
@@ -1848,9 +1848,10 @@ export class Window {
 	 * external tabs fall back to re-assigning `iframe.src`.
 	 *
 	 * No-op for native windows — they own their DOM directly and the
-	 * `core/reload` built-in's `match` predicate already filters them
-	 * out, but this guard keeps the contract honest if the method is
-	 * called by other code paths in the future.
+	 * title-bar menu's Reload item is only built for iframe windows
+	 * (`dom.ts` skips it when `config.native`), but this guard keeps
+	 * the contract honest if the method is called by other code paths
+	 * in the future.
 	 */
 	public reload(): void {
 		if ( this.config.native ) {
@@ -2197,7 +2198,7 @@ export class Window {
 	 * end up calling {@link markWindowContentReady}.
 	 *
 	 * @public
-	 * @since 0.22.0
+	 * @since 0.6.0
 	 */
 	public whenContentReady(): Promise< void > {
 		if ( isWindowContentReady( this.id ) ) {
@@ -2294,7 +2295,7 @@ export class Window {
 	 * this, fast fetches (50–200 ms) settle before the modem-blink
 	 * animation has had time to play even one full burst — the user
 	 * sees the dot fill in and immediately flash green, never the
-	 * blink. Holding the phase for ~1.1s guarantees the blink reads
+	 * blink. Holding the phase for ~1.2s guarantees the blink reads
 	 * as "data flowing" before the success/failure flash.
 	 *
 	 * @internal
@@ -2430,24 +2431,6 @@ export class Window {
 	}
 
 	/**
-	 * Toggle a visual highlight on the window. Used by plugins that
-	 * need to point at a window from outside it — e.g. a "connect to"
-	 * dropdown that highlights candidate windows on hover.
-	 *
-	 *   - `'preview'`     — temporary ring; caller is expected to
-	 *                       clear on `mouseleave`. Multiple plugins
-	 *                       can hover-preview without stomping each
-	 *                       other (last write wins).
-	 *   - `'persistent'`  — sticky ring; caller is responsible for
-	 *                       clearing it.
-	 *   - `null` / unset  — clear all highlight state.
-	 *
-	 * Override the colour per-call via `opts.color`, or globally
-	 * via the `--wp-window-highlight-color` custom property.
-	 *
-	 * @since 0.17.0
-	 */
-	/**
 	 * Request a visual "attention" signal on this window's tile in
 	 * the dock or taskbar — pulse, shake, or bounce. Used by plugins
 	 * that need to grab the user's eye when the window is closed or
@@ -2470,7 +2453,7 @@ export class Window {
 	 * users see a static accent ring for the same duration so the
 	 * affordance still works.
 	 *
-	 * @since 0.22.0
+	 * @since 0.6.0
 	 */
 	public requestAttention(
 		mode: 'pulse' | 'shake' | 'bounce' | null,
@@ -2579,7 +2562,7 @@ export class Window {
 	 * duration. Authors who want a different visual can listen on
 	 * the JS filter `desktop-mode.window.shake` and return falsy to mute.
 	 *
-	 * @since 0.22.11
+	 * @since 0.6.0
 	 */
 	public shake(): void {
 		const filtered = applyFilters< boolean, [ { windowId: string } ] >(
@@ -2603,6 +2586,24 @@ export class Window {
 		el.addEventListener( 'animationend', onEnd );
 	}
 
+	/**
+	 * Toggle a visual highlight on the window. Used by plugins that
+	 * need to point at a window from outside it — e.g. a "connect to"
+	 * dropdown that highlights candidate windows on hover.
+	 *
+	 *   - `'preview'`     — temporary ring; caller is expected to
+	 *                       clear on `mouseleave`. Multiple plugins
+	 *                       can hover-preview without stomping each
+	 *                       other (last write wins).
+	 *   - `'persistent'`  — sticky ring; caller is responsible for
+	 *                       clearing it.
+	 *   - `null` / unset  — clear all highlight state.
+	 *
+	 * Override the colour per-call via `opts.color`, or globally
+	 * via the `--wp-window-highlight-color` custom property.
+	 *
+	 * @since 0.5.2
+	 */
 	public setHighlight(
 		mode: 'preview' | 'persistent' | null,
 		opts?: { color?: string },

@@ -1,4 +1,4 @@
-# Migration — AI scoped to comment spam + native-search assistant (0.11.0)
+# Migration — AI scoped to comment spam + native-search assistant (0.9.1)
 
 > **TL;DR.** The AI Copilot no longer auto-analyzes posts, pages, or
 > taxonomy terms. The only automatic AI analysis is **comment spam

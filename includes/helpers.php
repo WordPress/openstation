@@ -107,10 +107,10 @@ function desktop_mode_rest_require_enabled() {
 // flag-preservation filter pair were moved to
 // `includes/core/routing.php` in 0.8.1. The functions and the
 // add_filter / add_action hookings live there now; this file
-// remains the home of `desktop_mode_is_chromeless_request()` and
-// `desktop_mode_is_classic_request()` (called from the routing
-// helpers at hook-fire time), which is why
-// `desktop-mode.php` requires routing.php BEFORE helpers.php.
+// remains the home of `desktop_mode_is_enabled()` (called from the
+// routing helpers at hook-fire time, after every include has
+// loaded), which is why `desktop-mode.php` can safely require
+// routing.php BEFORE helpers.php.
 
 /**
  * `desktop_mode_is_chromeless_request()` and `desktop_mode_is_classic_request()`
@@ -138,7 +138,7 @@ function desktop_mode_rest_require_enabled() {
  * that returns an invalid slug degrades to the empty string (and the
  * shell falls back to its hard-coded `'dark'` preset).
  *
- * @since 0.11.0
+ * @since 0.5.0
  *
  * @return string Wallpaper id. Empty string if the filter returns
  *                an invalid value.
@@ -147,7 +147,7 @@ function desktop_mode_get_default_wallpaper() {
 	/**
 	 * Filters the wallpaper id loaded on first boot / new user.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 *
 	 * @param string $id Default wallpaper slug.
 	 */
@@ -166,7 +166,7 @@ function desktop_mode_get_default_wallpaper() {
  * consistent contract. The canonical error-code list lives in
  * `docs/hooks-reference.md`.
  *
- * @since 0.11.0
+ * @since 0.5.0
  *
  * @param string $code    Short error slug (e.g. `desktop_mode_missing_title`).
  * @param string $message Human-readable message. Should be translated.

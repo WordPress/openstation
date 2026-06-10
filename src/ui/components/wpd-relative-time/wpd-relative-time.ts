@@ -20,7 +20,7 @@
  * formatted datetime so users can always reach the precise
  * timestamp without losing the at-a-glance relative copy.
  *
- * @since 0.21.0
+ * @since 0.6.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -135,7 +135,7 @@ export class WpdRelativeTime extends Component {
 		summary:
 			'Auto-ticking relative timestamp. Renders "5 minutes ago" / "yesterday" / "in 3 hours" via Intl.RelativeTimeFormat and updates itself every 30s while connected. Useful for any list cell that should age live (recycle bin, notifications, activity log) without forcing the surrounding view to repaint.',
 		status: 'experimental',
-		since: '0.21.0',
+		since: '0.6.0',
 		props: [
 			{
 				name: 'datetime',

@@ -3,15 +3,21 @@
  * Desktop Mode — AI Copilot content search via OpenAI tool use.
  *
  * Agentic search loop: the user describes something in natural language and
- * the OpenAI agent calls focused tools — search_posts, search_pages,
- * search_comments — choosing the right one based on query semantics. Each
- * tool runs WordPress's native search (WP_Query `s=` / get_comments
- * `search=`) for the keywords the model distils from the request, then
- * returns up to 10 matching entities with their real title + content
- * excerpt for the model to compare to the user's description. No AI
- * pre-analysis is required — every published post/page/comment is findable.
+ * the agent calls focused tools, choosing the right one based on query
+ * semantics. Built-in tools: four content-search tools — search_posts,
+ * search_pages, search_comments, search_comments_by_post — plus
+ * list_admin_pages (admin navigation catalog), search_wporg_plugins
+ * (WordPress.org plugin directory), and get_php_error_log (error-log
+ * tail). Each content-search tool runs WordPress's native search
+ * (WP_Query `s=` / get_comments `search=`) for the keywords the model
+ * distils from the request, then returns up to 10 matching entities with
+ * their real title + content excerpt for the model to compare to the
+ * user's description. No AI pre-analysis is required — every published
+ * post/page/comment is findable. PHP-registered tools
+ * (desktop_mode_register_ai_tool()) and client command tools are merged
+ * into the same loop.
  *
- * Three tools instead of one parameter:
+ * Focused tools instead of one routing parameter:
  *   - "I remember a comment where someone said congratulations…" → agent
  *     calls search_comments without needing a routing parameter.
  *   - "I wrote a post about paella in Canarias" → agent calls search_posts.
@@ -42,16 +48,20 @@ const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
 // ---------------------------------------------------------------------------
 
 /**
- * Returns all three search tools as an array ready for the OpenAI `tools`
- * field. Providing three focused tools (rather than one with an entity_type
- * parameter) lets the model reason about the query — "someone said X" →
- * search_comments; "I published a post about Y" → search_posts — without
- * needing an explicit routing hint from the user or the system prompt.
+ * Returns the built-in tool definitions — four content-search tools
+ * (search_posts, search_pages, search_comments, search_comments_by_post),
+ * admin navigation (list_admin_pages), WordPress.org plugin search
+ * (search_wporg_plugins), and the error-log tail (get_php_error_log) — as
+ * an array ready for the OpenAI `tools` field. Providing focused tools
+ * (rather than one with an entity_type parameter) lets the model reason
+ * about the query — "someone said X" → search_comments; "I published a
+ * post about Y" → search_posts — without needing an explicit routing hint
+ * from the user or the system prompt.
  *
- * Each tool schema uses `strict: true` with a single `offset` parameter so
- * the model can never hallucinate extra arguments.
+ * Each tool schema sets `additionalProperties: false` with an explicit
+ * `required` list so the model cannot hallucinate extra arguments.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return array[]
  */
@@ -175,7 +185,7 @@ function desktop_mode_ai_search_tool_definitions() {
  * plugins can contribute their own admin destinations (e.g. a plugin
  * adding a top-level menu can surface its settings page here).
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return array[]
  */
@@ -216,7 +226,7 @@ function desktop_mode_ai_get_admin_page_catalog() {
 	/**
 	 * Filters the wp-admin page catalog surfaced by the AI assistant.
 	 *
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 *
 	 * @param array[] $catalog Array of entries, each with title/url/icon/description.
 	 */
@@ -230,7 +240,7 @@ function desktop_mode_ai_get_admin_page_catalog() {
 /**
  * JSON Schema for the agent's final structured answer.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return array
  */
@@ -300,7 +310,7 @@ function desktop_mode_ai_search_answer_schema() {
  * needs an additional `post_id`. The caller passes the full decoded
  * arguments array so this function can extract whatever it needs.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $tool_name Tool function name.
  * @param array  $args      Decoded arguments from the model's tool call.
@@ -359,7 +369,7 @@ function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
  *
  * No AI analysis is required — every published post/page is searchable.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $post_type 'post' | 'page'.
  * @param string $query     Keyword search terms (may be empty to list newest).
@@ -414,7 +424,7 @@ function desktop_mode_ai_search_fetch_posts( $post_type, $query, $offset ) {
 /**
  * Trims raw post/comment content into a plain-text excerpt for the model.
  *
- * @since 0.11.0
+ * @since 0.9.1
  *
  * @param string $content Raw post/comment content.
  * @return string
@@ -431,7 +441,7 @@ function desktop_mode_ai_search_excerpt( $content ) {
  *
  * No AI analysis is required — every approved comment is searchable.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $query Keyword search terms (may be empty to list newest).
  * @param int    $offset
@@ -507,7 +517,7 @@ function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
  * comments to compare against the user's description. An empty `$query`
  * lists the post's comments without keyword filtering.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int    $post_id The WordPress post ID.
  * @param string $query   Keyword search terms (may be empty).
@@ -588,7 +598,7 @@ function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offse
  * verdict when the comment-moderation analysis happens to have run, but
  * its absence never blocks the entity from being returned.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $entity_type 'post' | 'page' | 'comment'.
  * @param int    $entity_id
@@ -647,7 +657,7 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
  * client via SSE so the user sees "Looking through your posts…" rather
  * than the raw tool call.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $tool_name
  * @return string
@@ -666,6 +676,24 @@ function desktop_mode_ai_progress_message( $tool_name ) {
 }
 
 /**
+ * Returns the tools a client may resume an exhausted search from.
+ *
+ * Single source of truth for every `resume_tool` allowlist — the REST
+ * arg sanitizer, the SSE handler, and the `$initial_tool` validation
+ * inside `desktop_mode_ai_run_search()`. `search_comments_by_post` is
+ * deliberately absent: the `continue` payload carries no `post_id`, so
+ * it cannot truly resume — exhausted runs map it to `search_comments`
+ * when building the `continue` object.
+ *
+ * @since 0.5.0
+ *
+ * @return string[] Tool names.
+ */
+function desktop_mode_ai_search_resumable_tools() {
+	return array( 'search_posts', 'search_pages', 'search_comments' );
+}
+
+/**
  * Runs the agentic content-search loop.
  *
  * The model receives focused tools — search_posts, search_pages,
@@ -679,7 +707,7 @@ function desktop_mode_ai_progress_message( $tool_name ) {
  * message primes the agent to resume from the last searched position with
  * the same keywords.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string      $api_key      OpenAI API key.
  * @param string      $query        User's natural-language search.
@@ -728,7 +756,7 @@ function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $st
 	 * (`desktop_mode_ai_search_started` / `desktop_mode_ai_tool_called`
 	 * / `desktop_mode_ai_search_completed`).
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 *
 	 * @param array $context {
 	 *     @type string $query      User query.
@@ -745,7 +773,7 @@ function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $st
 		)
 	);
 
-	if ( $initial_tool !== null && ! in_array( $initial_tool, $search_tools, true ) ) {
+	if ( $initial_tool !== null && ! in_array( $initial_tool, desktop_mode_ai_search_resumable_tools(), true ) ) {
 		$initial_tool = null;
 	}
 
@@ -802,8 +830,9 @@ The message field is always a friendly sentence or two shown directly to the use
 	// client override (append/replace with capability gate), and final
 	// transform — live in `desktop_mode_ai_compose_instructions()` so the
 	// primary run and the follow-up leg stay in lockstep. See the
-	// helper for the order of application; see the filter docblocks
-	// below for the public contract on each extension point.
+	// helper for the order of application; the filter docblocks at its
+	// `apply_filters()` call sites carry the public contract on each
+	// extension point.
 	// -----------------------------------------------------------------------
 	$prompt_context = array(
 		'query'      => $query,
@@ -811,40 +840,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		'request_id' => $request_id,
 	);
 
-	/**
-	 * Short-circuit extension — appended to the built-in instructions
-	 * verbatim. Use this when a plugin just wants to add domain
-	 * context (room list, product catalogue, company jargon) without
-	 * restructuring the core rules. Fires for both the primary
-	 * `/ai/search` run and the follow-up composed-reply leg.
-	 *
-	 * @since 0.17.0
-	 *
-	 * @param string $appendix Accumulated appendix. Default empty.
-	 * @param array  $context  { query, user_id, request_id, client_override, phase? }.
-	 */
-
-	/**
-	 * Capability required for a client to send
-	 * `system_prompt: { mode: 'replace' }`. Defaults to `manage_options`
-	 * — replacing the whole prompt can effectively hijack the
-	 * assistant, so it's admin-only out of the box.
-	 *
-	 * @since 0.17.0
-	 *
-	 * @param string $capability Default `manage_options`.
-	 * @param array  $context
-	 */
-
-	/**
-	 * Final transform pass. Fires after the built-in instructions,
-	 * server appendix, and client override have all been composed.
-	 *
-	 * @since 0.17.0
-	 *
-	 * @param string $instructions Composed system prompt.
-	 * @param array  $context
-	 */
 	$instructions = desktop_mode_ai_compose_instructions(
 		$instructions,
 		$prompt_context,
@@ -891,7 +886,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		 * `false` to drop a command entirely before it reaches the
 		 * model — the right hook for per-role / per-command gating.
 		 *
-		 * @since 0.17.0
+		 * @since 0.5.1
 		 *
 		 * @param bool|array $allowed Either the (possibly mutated) command
 		 *                            tool entry, or `false` to drop it.
@@ -938,7 +933,7 @@ The message field is always a friendly sentence or two shown directly to the use
 	 * built-in + registered tools. Useful for bulk gating, renaming,
 	 * or injecting synthetic command tools.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 *
 	 * @param array $command_defs Command tool definitions.
 	 * @param array $context      { user_id, request_id }.
@@ -956,7 +951,7 @@ The message field is always a friendly sentence or two shown directly to the use
 	 * just before it goes to OpenAI. Fires once per run — changes apply
 	 * to every iteration in the agent loop.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 *
 	 * @param array $tools   Full OpenAI tool definitions array.
 	 * @param array $context { user_id, request_id, query }.
@@ -1083,7 +1078,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			 * response is returned. Plugins can rewrite `message`,
 			 * inject `admin_links`, coerce `answer_type`, etc.
 			 *
-			 * @since 0.17.0
+			 * @since 0.5.1
 			 *
 			 * @param array $answer  Final answer payload.
 			 * @param array $context { query, user_id, request_id }.
@@ -1121,9 +1116,8 @@ The message field is always a friendly sentence or two shown directly to the use
 		foreach ( $function_calls as $fc ) {
 			$name = (string) ( $fc['name'] ?? '' );
 			if ( isset( $command_tools_by_name[ $name ] ) ) {
-				$decoded = is_array( json_decode( $fc['arguments'] ?? '{}', true ) )
-					? json_decode( $fc['arguments'], true )
-					: array();
+				$raw     = json_decode( $fc['arguments'] ?? '{}', true );
+				$decoded = is_array( $raw ) ? $raw : array();
 				$command_tool_call = array(
 					'slug' => $command_tools_by_name[ $name ]['slug'],
 					'args' => isset( $decoded['args'] ) ? (string) $decoded['args'] : '',
@@ -1191,9 +1185,8 @@ The message field is always a friendly sentence or two shown directly to the use
 				continue;
 			}
 
-			$args   = is_array( json_decode( $fc['arguments'] ?? '{}', true ) )
-				? json_decode( $fc['arguments'], true )
-				: array();
+			$raw    = json_decode( $fc['arguments'] ?? '{}', true );
+			$args   = is_array( $raw ) ? $raw : array();
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
 			// Registered PHP-dispatched tool — handler lives in the
@@ -1238,7 +1231,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			 * Transform a tool result before it goes back to the
 			 * model. Fires for every tool, built-in and registered.
 			 *
-			 * @since 0.17.0
+			 * @since 0.5.1
 			 *
 			 * @param array  $batch     Tool result payload.
 			 * @param string $tool_name Tool function name.
@@ -1293,10 +1286,14 @@ The message field is always a friendly sentence or two shown directly to the use
 	$continue = null;
 	if ( $last_has_more ) {
 		$next_offset = $last_offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE;
-		$type_label  = str_replace( 'search_', '', $last_tool ) . 's';
+		// `search_comments_by_post` cannot resume — the continue payload
+		// carries no post_id — so fall back to plain comment search,
+		// keeping `tool` inside desktop_mode_ai_search_resumable_tools().
+		$resume_tool = 'search_comments_by_post' === $last_tool ? 'search_comments' : $last_tool;
+		$type_label  = str_replace( 'search_', '', $resume_tool ) . 's';
 		$continue    = array(
-			'tool'        => $last_tool,
-			'entity_type' => rtrim( str_replace( 'search_', '', $last_tool ), 's' ),
+			'tool'        => $resume_tool,
+			'entity_type' => rtrim( str_replace( 'search_', '', $resume_tool ), 's' ),
 			'offset'      => $next_offset,
 			'label'       => sprintf( 'Continue searching in %s (from item %d)', $type_label, $next_offset + 1 ),
 		);
@@ -1350,7 +1347,7 @@ The message field is always a friendly sentence or two shown directly to the use
  *      preserved rather than dropped.
  *   3. `desktop_mode_ai_system_prompt` — final transform pass.
  *
- * @since 0.17.0
+ * @since 0.5.1
  * @internal
  *
  * @param string $core    Built-in instructions for this phase
@@ -1372,7 +1369,18 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 	$ctx_for_filter = $context;
 	$ctx_for_filter['client_override'] = '' !== $client_text ? $client_mode : null;
 
-	/** @see desktop_mode_ai_system_prompt_appendix — documented at primary call site. */
+	/**
+	 * Short-circuit extension — appended to the built-in instructions
+	 * verbatim. Use this when a plugin just wants to add domain
+	 * context (room list, product catalogue, company jargon) without
+	 * restructuring the core rules. Fires for both the primary
+	 * `/ai/search` run and the follow-up composed-reply leg.
+	 *
+	 * @since 0.5.1
+	 *
+	 * @param string $appendix Accumulated appendix. Default empty.
+	 * @param array  $context  { query, user_id, request_id, client_override, phase? }.
+	 */
 	$server_appendix = (string) apply_filters( 'desktop_mode_ai_system_prompt_appendix', '', $ctx_for_filter );
 	if ( '' !== $server_appendix ) {
 		$instructions .= "\n\n" . $server_appendix;
@@ -1380,7 +1388,17 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 
 	if ( '' !== $client_text ) {
 		if ( 'replace' === $client_mode ) {
-			/** @see desktop_mode_ai_system_prompt_replace_capability — documented at primary call site. */
+			/**
+			 * Capability required for a client to send
+			 * `system_prompt: { mode: 'replace' }`. Defaults to `manage_options`
+			 * — replacing the whole prompt can effectively hijack the
+			 * assistant, so it's admin-only out of the box.
+			 *
+			 * @since 0.5.1
+			 *
+			 * @param string $capability Default `manage_options`.
+			 * @param array  $context
+			 */
 			$required_cap = (string) apply_filters(
 				'desktop_mode_ai_system_prompt_replace_capability',
 				'manage_options',
@@ -1398,7 +1416,15 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 		}
 	}
 
-	/** @see desktop_mode_ai_system_prompt — documented at primary call site. */
+	/**
+	 * Final transform pass. Fires after the built-in instructions,
+	 * server appendix, and client override have all been composed.
+	 *
+	 * @since 0.5.1
+	 *
+	 * @param string $instructions Composed system prompt.
+	 * @param array  $context
+	 */
 	return (string) apply_filters( 'desktop_mode_ai_system_prompt', $instructions, $ctx_for_filter );
 }
 
@@ -1417,7 +1443,7 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
  * appending instructions via `desktop_mode_ai_system_prompt_appendix`
  * see consistent voice across the two legs.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @param string $api_key   OpenAI API key.
  * @param string $query     Original user query.
@@ -1617,7 +1643,7 @@ Rules:
 /**
  * Registers the AI search REST route.
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 function desktop_mode_register_ai_search_rest_route() {
 	register_rest_route(
@@ -1645,7 +1671,7 @@ function desktop_mode_register_ai_search_rest_route() {
 					'type'              => array( 'string', 'null' ),
 					'default'           => null,
 					'sanitize_callback' => static function ( $v ) {
-						return in_array( $v, array( 'search_posts', 'search_pages', 'search_comments' ), true )
+						return in_array( $v, desktop_mode_ai_search_resumable_tools(), true )
 							? $v : null;
 				},
 				),
@@ -1711,7 +1737,7 @@ add_action( 'rest_api_init', 'desktop_mode_register_ai_search_rest_route' );
 /**
  * Permission callback.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return bool|WP_Error
  */
@@ -1736,7 +1762,7 @@ function desktop_mode_rest_ai_search_permission() {
 /**
  * POST /desktop-mode/v1/ai/search
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
@@ -1766,7 +1792,7 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 	 * Plugins get one hook to rewrite query, swap tools, or inject
 	 * metadata before the agent loop starts.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 *
 	 * @param array $extra Extended context (mutable).
 	 * @param array $core  Core request params { query, resume_tool, start_offset }.
@@ -1820,7 +1846,7 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 /**
  * Search the WordPress.org plugin directory.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $query Search terms.
  * @return array Tool result payload ready for the model.
@@ -1966,7 +1992,7 @@ function desktop_mode_ai_fetch_wporg_plugins( $query ) {
  * a readable file the tool reports log_available=false rather than
  * throwing.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int $lines Number of lines to return (clamped 1-500 by caller).
  * @return array
@@ -1985,7 +2011,7 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
 	 * Filter the list of log-file paths to probe in order. Plugins that
 	 * redirect errors somewhere non-standard can add their path here.
 	 *
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 *
 	 * @param string[] $candidates File paths, in probe order.
 	 */
@@ -2037,7 +2063,7 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
  * prefix is usually "PHP Fatal error", "PHP Warning", etc. Falls back
  * to a raw line when the format doesn't match.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $line
  * @return array
@@ -2074,7 +2100,7 @@ function desktop_mode_ai_parse_log_line( $line ) {
  * in the kilobyte range when admins look at them; if a site routinely
  * lets logs grow into tens of MB, that's the symptom, not this read.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $path Absolute path to the file.
  * @param int    $lines
@@ -2126,7 +2152,7 @@ function desktop_mode_ai_tail_file( $path, $lines ) {
  *   data: { "event": "done",     "result": { … } }
  *   data: { "event": "error",    "message": "…" }
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 function desktop_mode_ai_ajax_search_stream() {
 	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
@@ -2152,7 +2178,7 @@ function desktop_mode_ai_ajax_search_stream() {
 
 	$resume_tool  = isset( $_GET['resume_tool'] ) ? sanitize_key( wp_unslash( $_GET['resume_tool'] ) ) : null; // phpcs:ignore WordPress.Security
 	$start_offset = isset( $_GET['start_offset'] ) ? absint( $_GET['start_offset'] ) : 0; // phpcs:ignore WordPress.Security
-	if ( $resume_tool !== null && ! in_array( $resume_tool, array( 'search_posts', 'search_pages', 'search_comments', 'search_comments_by_post' ), true ) ) {
+	if ( $resume_tool !== null && ! in_array( $resume_tool, desktop_mode_ai_search_resumable_tools(), true ) ) {
 		$resume_tool = null;
 	}
 

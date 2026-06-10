@@ -195,7 +195,7 @@ add_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script', 1
  * default gear icon on a live refresh until the next full page load
  * — strictly better than today's "dock doesn't update at all."
  *
- * @since 0.18.4
+ * @since 0.8.2
  */
 function desktop_mode_emit_menu_refresh_probe() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest; capability-gated by chromeless gate below.
@@ -2286,6 +2286,24 @@ function desktop_mode_chromeless_bridge_script() {
 	var _wpdSubs = {};   // topic → [cb, ...]
 	var _wpdChannelSubs = {};   // channel → [cb, ...] (window-channel API)
 	var _wpdParentOrigin = window.location.origin;
+	var _wpdWindowId = null;        // host window id, from the handshake
+	var _wpdWindowIdWaiters = [];   // pending whenWindowId() resolvers
+
+	/* Stash the host window's id (the parent's handshake carries
+	 * `targetWindowId`) and flush any `whenWindowId()` waiters. Same
+	 * contract as `assets/js/iframe-bridge.js`. */
+	function _wpdSetWindowId( id ) {
+		if ( ! id || _wpdWindowId === id ) {
+			return;
+		}
+		_wpdWindowId = id;
+		var waiters = _wpdWindowIdWaiters.splice( 0 );
+		for ( var i = 0; i < waiters.length; i++ ) {
+			try {
+				waiters[ i ]( id );
+			} catch ( _err ) { /* swallow */ }
+		}
+	}
 
 	function _wpdEmitToParent( connectionId, topic, payload ) {
 		try {
@@ -2308,6 +2326,13 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 
 		if ( data.type === 'desktop-mode-bridge-handshake' && typeof data.connectionId === 'string' ) {
+			/* The parent's handshake carries the host window id —
+			 * stash it so `wp.desktop.iframe.windowId` and
+			 * `whenWindowId()` can serve callers that need to know
+			 * which native window opened this iframe. */
+			if ( typeof data.targetWindowId === 'string' && data.targetWindowId !== '' ) {
+				_wpdSetWindowId( data.targetWindowId );
+			}
 			if ( _wpdConnections[ data.connectionId ] ) {
 				/* Re-handshake on iframe-ready re-arm — no-op besides
 				 * acking again so the parent can resume. */
@@ -2529,6 +2554,82 @@ function desktop_mode_chromeless_bridge_script() {
 					settle( false, err );
 				}
 			} );
+		},
+		/**
+		 * Window-chrome helpers. See `assets/js/iframe-bridge.js` —
+		 * same shape, same protocol. `setSlot` is HTML-only
+		 * (sandboxed via `textContent` on the parent side).
+		 */
+		chrome: {
+			setTheme: function ( tokens ) {
+				try {
+					window.parent.postMessage( {
+						type: 'desktop-mode-chrome-theme',
+						tokens: tokens || {}
+					}, _wpdParentOrigin );
+				} catch ( _err ) { /* parent gone */ }
+			},
+			setControls: function ( config ) {
+				try {
+					window.parent.postMessage( {
+						type: 'desktop-mode-chrome-controls',
+						config: config === undefined ? null : config
+					}, _wpdParentOrigin );
+				} catch ( _err ) { /* parent gone */ }
+			},
+			setSlot: function ( name, html ) {
+				if ( typeof name !== 'string' || name === '' ) {
+					return;
+				}
+				try {
+					window.parent.postMessage( {
+						type: 'desktop-mode-chrome-slot',
+						slot: name,
+						html: typeof html === 'string' ? html : ''
+					}, _wpdParentOrigin );
+				} catch ( _err ) { /* parent gone */ }
+			}
+		},
+		/**
+		 * The id of the window the parent shell opened to host this
+		 * iframe. Populated by the first connection handshake (the
+		 * parent's handshake carries `targetWindowId`). `null` until
+		 * then.
+		 */
+		get windowId() {
+			return _wpdWindowId;
+		},
+		/**
+		 * Resolve once `windowId` is populated by the first handshake.
+		 * Resolves immediately if already known. Never rejects — guard
+		 * with `isParentReachable()` first.
+		 */
+		whenWindowId: function () {
+			if ( _wpdWindowId !== null ) {
+				return Promise.resolve( _wpdWindowId );
+			}
+			return new Promise( function ( resolve ) {
+				_wpdWindowIdWaiters.push( resolve );
+			} );
+		},
+		/**
+		 * Whether the parent frame is same-origin and reachable. All
+		 * bridge messages hard-filter on origin — a cross-origin
+		 * parent silently drops everything we post. Use this predicate
+		 * to fail fast instead of debugging vanishing messages.
+		 */
+		isParentReachable: function () {
+			if ( ! window.parent || window.parent === window ) {
+				return false;
+			}
+			try {
+				/* Cross-origin parents throw on `.location.origin`
+				 * access; same-origin parents return a string we can
+				 * compare to our own origin. */
+				return window.parent.location.origin === _wpdParentOrigin;
+			} catch ( _err ) {
+				return false;
+			}
 		}
 	};
 

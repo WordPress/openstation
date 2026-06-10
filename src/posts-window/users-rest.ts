@@ -7,7 +7,7 @@
  * the per-window-client shape of `./rest.ts`.
  *
  * @public
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -104,7 +104,7 @@ export interface BulkDeleteResponse {
  * and threaded through render code instead of imported as free
  * functions.
  *
- * @since 0.18.x
+ * @since 0.8.3
  */
 export interface UsersWindowClient {
 	readonly windowId: string;
@@ -136,7 +136,7 @@ export interface UsersWindowClient {
  * any sibling window registered by a plugin that wants the same
  * Users surface (e.g. a per-blog users window on multisite).
  *
- * @since 0.18.x
+ * @since 0.8.3
  */
 export function createUsersWindowClient(
 	windowId: string = 'desktop-mode-users',

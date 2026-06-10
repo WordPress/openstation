@@ -10,16 +10,18 @@
  * midnight desktop, no pitch-black pane on a fresh-light desktop).
  *
  * @public
- * @since 0.18.0
+ * @since 0.7.0
  */
 
 /**
- * Schemes WordPress paints with a dark base. Anything not in this
- * set defaults to a light Monaco theme, including unknown schemes
+ * Schemes WordPress paints with a dark base. Any other non-empty
+ * scheme defaults to a light Monaco theme, including unknown schemes
  * a user may have installed via a third-party "color scheme"
  * plugin — light is the safer default since misjudged colors on a
  * dark base read as "broken" while extra contrast on a light base
- * just looks high-contrast.
+ * just looks high-contrast. A missing/empty scheme (no shell
+ * config, e.g. tests) falls back to dark instead — see
+ * monacoThemeForScheme().
  */
 const DARK_SCHEMES: ReadonlySet< string > = new Set( [
 	'midnight',
@@ -33,7 +35,7 @@ const DARK_SCHEMES: ReadonlySet< string > = new Set( [
  * fits visually.
  *
  * @public
- * @since 0.18.0
+ * @since 0.7.0
  */
 export function monacoThemeForScheme( scheme: string | undefined | null ): 'vs' | 'vs-dark' {
 	if ( ! scheme ) {
@@ -47,7 +49,7 @@ export function monacoThemeForScheme( scheme: string | undefined | null ): 'vs' 
  * `''` if the config isn't present (e.g. tests).
  *
  * @public
- * @since 0.18.0
+ * @since 0.7.0
  */
 export function currentColorScheme(): string {
 	const cfg = ( window as unknown as {

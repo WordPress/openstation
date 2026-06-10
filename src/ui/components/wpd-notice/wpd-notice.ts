@@ -27,7 +27,7 @@
  * `<wpd-notice>.undismiss()` instance method, or
  * `wp.desktop.undismissWindowNotice( id )` for code-registered notices.
  *
- * @since 0.22.0
+ * @since 0.8.6
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -56,7 +56,7 @@ export class WpdNotice extends Component {
 		summary:
 			'Full-width banner placed inside a window (typically the after-titlebar slot). Tone-coded background + accent stripe, optional close button, optional dashicons leading glyph. Slotted content is HTML — links and basic formatting are supported.',
 		status: 'experimental',
-		since: '0.22.0',
+		since: '0.8.6',
 		props: [
 			{
 				name: 'tone',

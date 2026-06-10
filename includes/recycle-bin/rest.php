@@ -2,19 +2,20 @@
 /**
  * Desktop Mode — Recycle Bin: REST routes.
  *
- * Three routes, all under `/desktop-mode/v1/recycle-bin`:
+ * Five routes, all under `/desktop-mode/v1/recycle-bin`:
  *
  *   GET    /                  — list trashed items
  *   POST   /restore           — body { ids: int[] }
  *   POST   /purge             — body { ids: int[] }
  *   POST   /empty             — empties the visible bin
+ *   GET    /count             — total items in the bin (badge polling)
  *
  * Permission gating delegates to `desktop_mode_recycle_bin_user_can_*` per item;
  * the route-level callback only checks "are you logged in and in
  * desktop mode at all?" via `desktop_mode_is_enabled()`.
  *
  * @package WPDesktopMode
- * @since   0.19.0
+ * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register REST routes.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_recycle_bin_register_rest_routes() {
 	$namespace = 'desktop-mode/v1';
@@ -137,7 +138,7 @@ add_action( 'rest_api_init', 'desktop_mode_recycle_bin_register_rest_routes' );
  * only enforce "logged-in user with desktop mode opted in" — same
  * baseline as every other desktop REST surface.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return bool|WP_Error
  */
@@ -162,7 +163,7 @@ function desktop_mode_recycle_bin_rest_permission() {
 /**
  * GET /recycle-bin
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
@@ -183,7 +184,7 @@ function desktop_mode_recycle_bin_rest_list( $request ) {
 /**
  * POST /recycle-bin/restore
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
@@ -196,7 +197,7 @@ function desktop_mode_recycle_bin_rest_restore( $request ) {
 /**
  * POST /recycle-bin/purge
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
@@ -211,7 +212,7 @@ function desktop_mode_recycle_bin_rest_purge( $request ) {
  * (legacy) and normalise into a list of `[id, type]` pairs the
  * bulk runner can hand straight to a typed callback.
  *
- * @since 0.21.0
+ * @since 0.6.0
  *
  * @param WP_REST_Request $request REST request.
  * @return array<int, array{id:int, type:string}>
@@ -256,7 +257,7 @@ function desktop_mode_recycle_bin_normalize_items( $request ) {
 /**
  * POST /recycle-bin/empty
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return WP_REST_Response
  */
@@ -267,8 +268,8 @@ function desktop_mode_recycle_bin_rest_empty() {
 /**
  * Run a per-item callback over a list, capturing per-item results.
  *
- * @since 0.19.0
- * @since 0.21.0 `$items` now carries `{id, type}` pairs; the
+ * @since 0.6.0
+ * @since 0.6.0 `$items` now carries `{id, type}` pairs; the
  *               callback receives both arguments. Legacy id-only
  *               callers go through `desktop_mode_recycle_bin_normalize_items`,
  *               which fills `type` with `''` (post default).

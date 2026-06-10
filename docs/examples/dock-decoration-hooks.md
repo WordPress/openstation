@@ -14,7 +14,7 @@ The default `Dock` renderer fires a small set of filters and actions while it
 paints. Plugins compose decoration — animations, classNames, wrappers,
 custom tooltips — through these instead of replacing the whole rail.
 
-**Status:** Stable since 0.18.0.
+**Status:** Stable since 0.6.0.
 
 ## The hook surface
 

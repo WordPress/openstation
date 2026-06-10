@@ -36,7 +36,7 @@ export interface RestPlacementShape {
 	 * a toast explaining the permission gap instead of routing to
 	 * the opener.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.5
 	 */
 	accessGated?: boolean;
 	/**
@@ -53,7 +53,7 @@ export interface RestPlacementShape {
 	 * write capability, plus anything a `desktop_mode_files_user_can_trash_placement`
 	 * filter customisation has vetoed.
 	 *
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 */
 	canTrash?: boolean;
 }
@@ -70,7 +70,13 @@ export interface RestFolderShape {
 	 * `listShares()` response just to paint the "this folder is
 	 * shared" overlay badge.
 	 *
-	 * @since 0.18.0
+	 * `shared` is viewer-agnostic, but `recipientCount` is
+	 * owner-scoped: the server returns the real count only when
+	 * the viewer can manage the folder's shares (per
+	 * `desktop_mode_files_share_can_manage`) and `0` for every
+	 * other viewer, keeping the wire shape stable.
+	 *
+	 * @since 0.8.5
 	 */
 	shareSummary?: { shared: boolean; recipientCount: number };
 }
@@ -129,7 +135,7 @@ function ensureDeps(): FilesRestDeps {
  * user whose mutation won the race; `current` is the row's new
  * state after that mutation. Clients surface this in a toast.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 export interface FilesConflictDetail {
 	reason: 'parent_changed' | 'trashed' | 'forbidden' | 'gone' | string;
@@ -441,7 +447,7 @@ export function denyShare(
  * it can target a role-principal share without affecting other
  * role members — the server writes a per-user decision row.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 export function leaveShare(
 	folderId: number,
@@ -457,7 +463,7 @@ export function leaveShare(
  * action. Server permission callback enforces `manage_options`;
  * non-admins get a 403.
  *
- * @since 0.18.x
+ * @since 0.8.5
  */
 export function purgeFolderSharingTables(): Promise< { dropped: string[] } > {
 	return call< { dropped: string[] } >(

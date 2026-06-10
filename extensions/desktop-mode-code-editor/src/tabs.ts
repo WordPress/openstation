@@ -12,7 +12,7 @@
  * the right-neighbour, then the left if there's no right, then
  * goes back to the placeholder if no tabs remain.
  *
- * @since 0.18.0
+ * @since 0.7.0
  */
 
 import { showConfirm } from './dialog';

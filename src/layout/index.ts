@@ -66,8 +66,9 @@ export function setCurrentLayout( layout: DesktopLayoutId ): void {
  * Subscribe to layout changes. Returns an unsubscribe function.
  *
  * The callback fires synchronously inside `setCurrentLayout` —
- * after the value has been written, before
- * `desktop-mode-layout-changed` is dispatched on `document`.
+ * after the value has been written. Note the shell publishes here
+ * after `desktop-mode-layout-changed` has already been dispatched
+ * on `document`.
  *
  * @since 0.8.1
  */

@@ -14,7 +14,7 @@
  * repaint live via the registry's subscribe fan-out (see
  * `Window.renderCustomTitleBarButtons`).
  *
- * @since 0.17.0
+ * @since 0.5.2
  */
 
 import { doAction, HOOKS } from './../hooks';

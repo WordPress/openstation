@@ -30,7 +30,7 @@
  *   - `row-gap`     — px between rows when children wrap
  *                     (overrides `gap` on the y-axis).
  *
- * @since 0.12.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -45,7 +45,7 @@ export class WpdRow extends Component {
 		summary:
 			'Horizontal 12-column grid row. Children declare their width via a `col="N"` attribute (1..12); a child without `col` spans the full row. The col attribute lives on the child, so any element type works.',
 		status: 'stable',
-		since: '0.12.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

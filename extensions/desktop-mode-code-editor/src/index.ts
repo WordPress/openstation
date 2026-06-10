@@ -18,7 +18,7 @@
  * placeholder.
  *
  * @public
- * @since 0.18.0
+ * @since 0.7.0
  */
 
 import { showConflictDialog } from './conflict-dialog';
@@ -46,11 +46,11 @@ type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
+		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
-/** Mount selectors — kept in lockstep with `wpdc_render_editor_template()`. */
+/** Mount selectors — kept in lockstep with `desktop_mode_code_editor_render_template()`. */
 export const ROOT_SELECTOR = '[data-wpdc-editor-root]';
 export const MONACO_MOUNT_SELECTOR = '[data-wpdc-editor-monaco]';
 export const LOADING_CLASS = 'wpdc-editor--loading';
@@ -138,7 +138,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	if ( ! root || ! monacoSlot ) {
 		// eslint-disable-next-line no-console
 		console.error(
-			'[wp-desktop-code-editor] Template mount nodes missing; ensure wpdc_render_editor_template ran.',
+			'[wp-desktop-code-editor] Template mount nodes missing; ensure desktop_mode_code_editor_render_template ran.',
 		);
 		return;
 	}
@@ -500,7 +500,10 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			if ( ( err as Error ).name === 'AbortError' ) {
 				return;
 			}
-			if ( err instanceof RestError && err.code === 'wpdc_conflict' ) {
+			if (
+				err instanceof RestError &&
+				err.code === 'desktop_mode_code_editor_conflict'
+			) {
 				const data = ( err.data ?? null ) as ConflictData | null;
 				if ( ! data ) {
 					setStatus(
@@ -630,8 +633,8 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 installEditorGlobalListeners();
 
 const registry =
-	( window.wpDesktopNativeWindows ??
-		( window.wpDesktopNativeWindows = {} ) ) as Record<
+	( window.desktopModeNativeWindows ??
+		( window.desktopModeNativeWindows = {} ) ) as Record<
 		string,
 		RenderCallback | undefined
 	>;

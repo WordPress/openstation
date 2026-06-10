@@ -35,7 +35,7 @@ The dock is built from the admin `$menu` global by default. To surface a purely 
 ```php
 add_filter( 'desktop_mode_dock_items', function ( $items ) {
     $items[] = array(
-        'slug'     => 'my-extension-panel',
+        'id'       => 'my-extension-panel',
         'title'    => 'My Panel',
         'icon'     => 'dashicons-superhero',
         'url'      => admin_url( 'admin.php?page=my-extension' ),

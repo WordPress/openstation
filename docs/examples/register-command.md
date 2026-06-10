@@ -256,7 +256,7 @@ The difference is **scope**: `exceptIds` applies only to one call site; the filt
 |---|---|
 | `ctx.close()` | Dismiss the AI Assistant panel. |
 | `ctx.openInWindow( url, title, icon? )` | Open a wp-admin URL in a legacy iframe window inside the desktop. |
-| `ctx.confirm( message, details? )` *(since 0.14.0)* | Prompt the user to confirm a destructive action. Returns `Promise<boolean>`. |
+| `ctx.confirm( message, details? )` *(since 0.5.0)* | Prompt the user to confirm a destructive action. Returns `Promise<boolean>`. |
 
 ---
 

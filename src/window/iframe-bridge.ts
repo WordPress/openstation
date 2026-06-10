@@ -26,7 +26,7 @@ import { openUserFootprintWindow } from '../my-wordpress/footprint-target';
  * relax the same-origin check — we always compare against the value
  * that was valid when the shell booted.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 const INITIAL_ORIGIN = window.location.origin;
 
@@ -340,12 +340,6 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		} );
 	}
 
-	// Iframe network completion — bridged from the fetch + XHR
-	// wrappers inside the chromeless iframe. Every completed call
-	// (success or failure) fires here. `status === 0` indicates a
-	// network-level failure before a response arrived; `failed` is
-	// pre-computed server-side so subscribers don't have to re-derive
-	// the success / 4xx / 5xx / network boundary.
 	// Layer-1 theme — iframe content can re-theme its own window
 	// via the bridge. `tokens` is a CSS-variable map; `setAppearanceTheme`
 	// validates inline overrides match the framework's shape.
@@ -411,6 +405,13 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		}
 	}
 
+	// Iframe network completion — bridged from the fetch + XHR
+	// wrappers inside the chromeless iframe. Every completed call
+	// (success or failure) fires here. `status === 0` indicates a
+	// network-level failure before a response arrived; `failed` is
+	// pre-computed inside the iframe (by the chromeless bridge's
+	// fetch/XHR wrappers) so subscribers don't have to re-derive
+	// the success / 4xx / 5xx / network boundary.
 	if ( data.type === 'desktop-mode-iframe-network' ) {
 		const networkPayload: Record< string, unknown > = {
 			windowId: win.id,

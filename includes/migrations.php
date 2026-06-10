@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  *   WordPress search). Unschedules any queued `desktop_mode_ai_analyze_post`
  *   / `desktop_mode_ai_analyze_term` cron events left over from prior versions.
  *
- * @since 0.10.0
+ * @since 0.9.1
  */
 const DESKTOP_MODE_MIGRATION_VERSION = 2;
 
@@ -42,7 +42,7 @@ const DESKTOP_MODE_MIGRATION_OPTION = 'desktop_mode_migration_version';
  * Idempotent: bails immediately when the stored version is already at
  * or above the shipped version, so it is safe to fire on every request.
  *
- * @since 0.10.0
+ * @since 0.9.1
  *
  * @return void
  */
@@ -61,7 +61,7 @@ add_action( 'admin_init', 'desktop_mode_maybe_run_migrations' );
 /**
  * Dispatches each migration whose version is newer than what has run.
  *
- * @since 0.10.0
+ * @since 0.9.1
  *
  * @param int $from The highest migration version already applied.
  * @return void
@@ -94,7 +94,7 @@ function desktop_mode_run_pending_migrations( $from ) {
  * Only users who actually have the meta are queried — fresh accounts and
  * users who never touched OS Settings are skipped entirely.
  *
- * @since 0.10.0
+ * @since 0.9.1
  *
  * @return void
  */
@@ -153,7 +153,7 @@ function desktop_mode_migrate_os_settings_optin() {
  * Existing `_desktop_mode_ai_analysis` meta on posts/terms is left in place
  * (hidden, harmless, and cheap to ignore).
  *
- * @since 0.11.0
+ * @since 0.9.1
  *
  * @return void
  */

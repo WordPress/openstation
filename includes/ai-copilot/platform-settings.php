@@ -28,9 +28,9 @@ const DESKTOP_MODE_AI_PLATFORM_OPTION = 'desktop_mode_ai_platform';
 /**
  * Returns the platform AI settings, with defaults merged in.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
- * @return array{ enabled: bool, provider: string, apiKey: string }
+ * @return array{ enabled: bool, provider: string, apiKey: string, apiKeys: array<string,string> }
  */
 function desktop_mode_ai_get_platform_settings() {
 	$defaults = array(
@@ -80,7 +80,7 @@ function desktop_mode_ai_get_platform_settings() {
 /**
  * Sanitizes and saves platform AI settings to `wp_options`.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param mixed $raw Incoming settings payload (from REST or direct call).
  * @return bool True on success.
@@ -131,7 +131,7 @@ function desktop_mode_ai_save_platform_settings( $raw ) {
 /**
  * Registers the platform settings REST route.
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 function desktop_mode_register_ai_platform_settings_rest_route() {
 	register_rest_route(
@@ -162,7 +162,7 @@ add_action( 'rest_api_init', 'desktop_mode_register_ai_platform_settings_rest_ro
 /**
  * Permission: administrators only.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return bool|WP_Error
  */
@@ -180,7 +180,7 @@ function desktop_mode_rest_ai_platform_permission() {
 /**
  * GET /desktop-mode/v1/ai/platform-settings
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return WP_REST_Response
  */
@@ -191,7 +191,7 @@ function desktop_mode_rest_get_ai_platform_settings() {
 /**
  * POST /desktop-mode/v1/ai/platform-settings
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response

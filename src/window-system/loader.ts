@@ -130,11 +130,11 @@ export async function ensureWindowSystemLoaded(
 		//     reads `window.desktopModeWindowSystem`, which is the
 		//     right failure mode.
 		//
-		//   - Mis-configured production deploys. Returning the
-		//     undefined slot causes the caller's
-		//     `factory.createWindow( … )` to throw immediately
-		//     with a clear stack — better than silently
-		//     rejecting and leaving the user with a hung click.
+		//   - Mis-configured production deploys. We throw an
+		//     explicit, descriptive Error (rejecting the returned
+		//     promise) — far easier to diagnose than returning the
+		//     undefined slot and letting the caller crash later
+		//     with an opaque TypeError on `factory.createWindow( … )`.
 		const fn = window.desktopModeWindowSystem;
 		if ( fn ) {
 			return fn;

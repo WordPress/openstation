@@ -31,7 +31,7 @@
  * in within the heartbeat cadence (15s active, 60s away).
  *
  * @package WPDesktopMode
- * @since   0.20.0
+ * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -45,7 +45,7 @@ const DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION = '_desktop_mode_recycle_bin_change
  * within the same PHP request. Reading without args returns the
  * current value; passing `true` sets it.
  *
- * @since 0.20.0
+ * @since 0.6.0
  *
  * @param bool|null $set Set the flag.
  * @return bool
@@ -69,7 +69,7 @@ function desktop_mode_recycle_bin_request_dirty( $set = null ) {
  * loaded options query — recycle-bin polling is a "you opened the
  * window, you opted in" cost, not a per-pageload cost.
  *
- * @since 0.20.0
+ * @since 0.6.0
  */
 function desktop_mode_recycle_bin_signal_change() {
 	$ts = (int) round( microtime( true ) * 1000 );
@@ -82,7 +82,7 @@ function desktop_mode_recycle_bin_signal_change() {
 	 * signal (websocket, SSE, etc.) without re-hooking every delete
 	 * action individually.
 	 *
-	 * @since 0.20.0
+	 * @since 0.6.0
 	 *
 	 * @param int $ts Milliseconds-since-epoch timestamp of the change.
 	 */
@@ -98,7 +98,7 @@ function desktop_mode_recycle_bin_signal_change() {
  * `attachment`, …). Subscribers — the recycle bin window, plus
  * any plugin that registered a domain listener — react.
  *
- * @since 0.20.0
+ * @since 0.6.0
  *
  * @param int    $post_id Post id being mutated.
  * @param string $action  One of 'trashed', 'untrashed', 'deleted'.
@@ -118,7 +118,7 @@ function desktop_mode_recycle_bin_signal_change_for_post( $post_id, $action = 't
  * post_type. Static-store pattern, same shape as the dirty
  * helper above so test introspection is symmetric.
  *
- * @since 0.21.0
+ * @since 0.6.0
  *
  * @param string $post_type Optional. Mutate this domain.
  * @param int    $post_id   Optional. Id to record.
@@ -156,7 +156,7 @@ function desktop_mode_recycle_bin_record_change( $post_type = '', $post_id = 0, 
  * can refresh if its `seenTs` is older. The cost is one cached
  * `get_option` + ~12 lines of inline JS per chromeless render.
  *
- * @since 0.20.0
+ * @since 0.6.0
  *
  * @return bool
  */
@@ -172,7 +172,7 @@ function desktop_mode_recycle_bin_should_emit_footer_signal() {
 	 * Filter whether to emit the chromeless footer postMessage on
 	 * the current request.
 	 *
-	 * @since 0.20.0
+	 * @since 0.6.0
 	 *
 	 * @param bool $emit Default true on any chromeless render. The
 	 *                   `desktop_mode_recycle_bin_request_dirty()` helper
@@ -193,7 +193,7 @@ function desktop_mode_recycle_bin_should_emit_footer_signal() {
  * a no-op when `window.parent === window` (defensive — the same
  * gate the existing chromeless bridge uses).
  *
- * @since 0.20.0
+ * @since 0.6.0
  */
 function desktop_mode_recycle_bin_emit_footer_signal() {
 	if ( ! desktop_mode_recycle_bin_should_emit_footer_signal() ) {
@@ -279,7 +279,7 @@ function desktop_mode_recycle_bin_emit_footer_signal() {
  * key is absent we early-return so users without the bin open pay
  * zero per tick.
  *
- * @since 0.20.0
+ * @since 0.6.0
  *
  * @param array $response Heartbeat response (passed by ref via filter).
  * @param array $data     Client-sent payload.
@@ -323,7 +323,7 @@ function desktop_mode_recycle_bin_heartbeat_received( $response, $data ) {
  * Hooked together inside one bootstrap to make the wiring auditable
  * — `grep desktop_mode_recycle_bin_signal_change` finds every emitter.
  *
- * @since 0.20.0
+ * @since 0.6.0
  */
 function desktop_mode_recycle_bin_register_realtime_hooks() {
 	add_action( 'wp_trash_post', function ( $post_id ) {
@@ -340,9 +340,9 @@ function desktop_mode_recycle_bin_register_realtime_hooks() {
 	// `untrashed_comment` / `deleted_comment` fire from
 	// `wp_set_comment_status`. Map each into our changelog so the
 	// chromeless footer can broadcast `desktop-mode.comment.changed`
-	// to the Comments-list iframe; the bin doesn't capture comments
-	// today, but having the topic available means a third-party
-	// "comment trash" plugin can opt in by hooking the changelog.
+	// to the Comments-list iframe; the bin captures and lists trashed
+	// comments too, and third-party plugins can subscribe to the same
+	// topic by hooking the changelog.
 	add_action( 'trashed_comment', function ( $comment_id ) {
 		desktop_mode_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
 		desktop_mode_recycle_bin_signal_change();

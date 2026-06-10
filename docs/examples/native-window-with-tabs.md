@@ -3,7 +3,7 @@
 Two ways to add tabs to a native window:
 
 1. **[PHP-only (zero template boilerplate)](#option-a-php-only-registration)** — register the window, then register extra tabs with `desktop_mode_register_window_tab()`. The shell emits the `<wpd-tabs>` + `<wpd-tabpanel>` markup for you. Matches the legacy iframe-window DX where submenus auto-become tabs.
-2. **[Hand-rolled markup (still supported)](#option-b-hand-rolled-wpd-tabpanel)** — write the `<wpd-tabs>` + `<wpd-tabpanel>` elements directly in your template callback. Auto-swap via `<wpd-tabpanel>` (from `0.11.0`) still handles pane visibility — you just author the tab strip yourself.
+2. **[Hand-rolled markup (still supported)](#option-b-hand-rolled-wpd-tabpanel)** — write the `<wpd-tabs>` + `<wpd-tabpanel>` elements directly in your template callback. Auto-swap via `<wpd-tabpanel>` (from `0.5.0`) still handles pane visibility — you just author the tab strip yourself.
 
 Pick option A for the common case (static tab list, one plugin owns the window). Pick option B when you need dynamic tabs, conditional panes, or custom layouts the auto-wrap can't express.
 
@@ -52,7 +52,7 @@ That's the entire tab-strip wiring. The shell produces this rendered template au
 
 ```html
 <template id="desktop-mode-native-window-jorvy">
-    <wpd-stack gap="12" style="padding:16px;">
+    <wpd-stack gap="12" padding="16">
         <wpd-tabs value="main">
             <wpd-tab value="main">Quotes</wpd-tab>
             <wpd-tab value="about">About</wpd-tab>
@@ -61,14 +61,14 @@ That's the entire tab-strip wiring. The shell produces this rendered template au
             <p class="jorvy__quote"></p>
             <cite class="jorvy__attr"></cite>
         </wpd-tabpanel>
-        <wpd-tabpanel for="about">
+        <wpd-tabpanel for="about" hidden>
             <!-- About pane markup -->
         </wpd-tabpanel>
     </wpd-stack>
 </template>
 ```
 
-`<wpd-tabpanel>` auto-swap handles visibility. `role="tablist"` / `role="tab"` / `role="tabpanel"` wired by the components.
+`<wpd-tabpanel>` auto-swap handles visibility — non-active panels arrive with `hidden` pre-stamped so first paint is correct regardless of upgrade order. `role="tablist"` / `role="tab"` / `role="tabpanel"` wired by the components. The wrap's `padding="16"` is configurable via the `main_tab_padding` registration arg or the `desktop_mode_native_window_tab_wrap_padding` filter.
 
 ### Companion-plugin extension
 
@@ -84,7 +84,7 @@ desktop_mode_register_window_tab( 'jorvy', array(
     'template' => function () {
         ?>
         <wpd-stack gap="8">
-            <wpd-display size="large" data-hook="quote-count">—</wpd-display>
+            <wpd-display size="xl" data-hook="quote-count">—</wpd-display>
             <p><?php esc_html_e( 'Quotes shown this session.', 'jorvy-stats' ); ?></p>
         </wpd-stack>
         <?php
@@ -123,14 +123,14 @@ Tabs that ship static markup need no JS at all — the About pane in the example
 
 ### When a tab needs its own JS module
 
-Pass `script` on the tab registration. The shell enqueues it as a dep of the window:
+Pass `script` on the tab registration. The shell enqueues the handle whenever the desktop shell loads (alongside the window's own script):
 
 ```php
 desktop_mode_register_window_tab( 'jorvy', array(
     'value'    => 'stats',
     'label'    => __( 'Stats', 'jorvy-stats' ),
     'template' => 'jorvy_stats_template',
-    'script'   => 'jorvy-stats',  // enqueued when the window opens
+    'script'   => 'jorvy-stats',  // enqueued when the shell loads
 ) );
 ```
 
@@ -142,19 +142,9 @@ The stats script can then wire its own pane in isolation (it only looks inside `
 
 Useful when Option A is too prescriptive — e.g. you want panels wrapped in a custom card, or dynamic tabs that change based on server state the shell doesn't know about.
 
-Earlier versions of the kit shipped `<wpd-tabs>` + `<wpd-tab>` but left pane management as homework — every multi-tab native window ended up copying the same `wpd-tab-change` listener and `panel.hidden = …` ladder. The `<wpd-tabpanel>` auto-swap (from `0.11.0`) removes that half.
+Earlier versions of the kit shipped `<wpd-tabs>` + `<wpd-tab>` but left pane management as homework — every multi-tab native window ended up copying the same `wpd-tab-change` listener and `panel.hidden = …` ladder. The `<wpd-tabpanel>` auto-swap (from `0.5.0`) removes that half.
 
 ## The pattern
-
-```php
-desktop_mode_component( 'wpd-stack', array( 'gap' => 12 ), (
-    wpd_tabs_block( 'calc' ) .
-    wpd_tabpanel_block( 'calc', $calc_ui ) .
-    wpd_tabpanel_block( 'convert', $convert_ui )
-) );
-```
-
-Or inline:
 
 ```html
 <wpd-stack gap="12">
@@ -211,7 +201,7 @@ desktop_mode_register_window( 'two-tab-demo', array(
             </wpd-tabs>
 
             <wpd-tabpanel for="hello">
-                <wpd-display size="large">Hello, world.</wpd-display>
+                <wpd-display size="xl">Hello, world.</wpd-display>
             </wpd-tabpanel>
 
             <wpd-tabpanel for="form">
@@ -325,6 +315,6 @@ The auto-swap is opt-in — using `<wpd-tabpanel>` is what activates it. If you 
 
 ## Related docs
 
-- [`<wpd-tabs>`, `<wpd-tab>`, `<wpd-tabpanel>`](../javascript-reference.md#3-postmessage-bridge) — full prop + event reference.
-- [`<wpd-text-field>`, `<wpd-number-field>`](../javascript-reference.md#3-postmessage-bridge) — the form primitives used in the example.
+- [`<wpd-tabs>`, `<wpd-tab>`, `<wpd-tabpanel>`](../components-reference.md#tabs--navigation) — component reference (props/events via each class's `static help`).
+- [`<wpd-text-field>`, `<wpd-number-field>`](../components-reference.md#form-controls) — the form primitives used in the example.
 - [`docs/examples/register-icon.md`](./register-icon.md) — companion-plugin pattern for adding a wallpaper shortcut that opens the native window.

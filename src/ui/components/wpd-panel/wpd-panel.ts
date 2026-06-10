@@ -23,7 +23,7 @@
  * markup:
  *   <div style="padding:16px;display:flex;flex-direction:column;gap:12px">…</div>
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -38,7 +38,7 @@ export class WpdPanel extends Component {
 		summary:
 			'Padded, flex-column container matching the default inset and rhythm of a native-window body. Opt-in for the OS-Settings-style padded layout.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

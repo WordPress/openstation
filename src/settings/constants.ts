@@ -64,7 +64,7 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
  * swatches. Falls back to {@link DEFAULT_ACCENTS} when the config is
  * missing or yields zero valid entries.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 export function getAccents(): readonly AccentColor[] {
 	const config = ( window as unknown as {
@@ -97,7 +97,7 @@ export function getAccents(): readonly AccentColor[] {
  * `window.wp.desktop.config.defaultWallpaper` and falls back to
  * {@link DEFAULT_WALLPAPER_ID} when absent/invalid.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 export function getDefaultWallpaperId(): string {
 	const config = ( window as unknown as {
@@ -166,7 +166,7 @@ export const DEFAULTS: OsSettingsState = {
 		apiKeys: {},
 		transport: 'off',
 	},
-	// Opt-IN Beta as of 0.10.0. Fresh installs land on the classic
+	// Opt-IN Beta as of 0.9.1. Fresh installs land on the classic
 	// chromeless `edit.php` iframe; a user opts in via OS Settings →
 	// Features → Beta features to get the native Posts window. The
 	// native windows used to default ON (opt-out, 0.8.0) but are now
@@ -205,7 +205,7 @@ export const DEFAULTS: OsSettingsState = {
  * server (and any reverse proxy in front of it) to allow long-lived
  * `text/event-stream` connections.
  *
- * @since 0.18.1
+ * @since 0.6.0
  */
 export const AI_TRANSPORTS = [
 	{ id: 'off', label: 'Off' },

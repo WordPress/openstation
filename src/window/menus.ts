@@ -1,10 +1,11 @@
 /**
  * Desktop Mode — Window title-bar actions menu.
  *
- * Open / close lifecycle for the ⋯ menu that sits in the title bar of
- * iframe-backed windows. Items today: "Open on startup" (checkable) +
- * optional "Open another <page>" for multi-capable pages. Each free
- * function here takes the `Window` instance as its first arg.
+ * Open / close lifecycle for the ⋯ menu in every window's title bar
+ * (native and iframe). Items today: "Open on startup" (checkable),
+ * optional "Open another <page>" for multi-capable pages, and — iframe
+ * windows only — "Open in new window", "Reload", "Open in browser tab".
+ * Each free function here takes the `Window` instance as its first arg.
  *
  * @since 0.8.1
  */

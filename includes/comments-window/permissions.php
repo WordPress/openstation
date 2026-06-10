@@ -19,7 +19,7 @@
  * mutating anything.
  *
  * @package WPDesktopMode
- * @since   0.19.0
+ * @since   0.8.3
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Whether the user is eligible to have the Comments window registered.
  *
- * @since 0.19.0
+ * @since 0.8.3
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -39,7 +39,7 @@ function desktop_mode_comments_window_user_can_register( $user_id = null ) {
 	/**
 	 * Filter whether the current user can have the Comments window registered.
 	 *
-	 * @since 0.19.0
+	 * @since 0.8.3
 	 *
 	 * @param bool $can     Default: `edit_posts` capability.
 	 * @param int  $user_id User being checked.
@@ -54,7 +54,7 @@ function desktop_mode_comments_window_user_can_register( $user_id = null ) {
 /**
  * Combined cap-and-opt-in check.
  *
- * @since 0.19.0
+ * @since 0.8.3
  *
  * @param int|null $user_id Optional.
  * @return bool
@@ -75,7 +75,7 @@ function desktop_mode_comments_window_user_can_use( $user_id = null ) {
 	/**
 	 * Filter whether the current user has opted into the native Comments experience.
 	 *
-	 * @since 0.19.0
+	 * @since 0.8.3
 	 *
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.

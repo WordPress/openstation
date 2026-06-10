@@ -2,10 +2,10 @@
 /**
  * Desktop Mode — Files-on-the-Desktop schema.
  *
- * Three custom tables back the system:
+ * Five custom tables back the system:
  *
  *   - `_desktop_mode_file_placements` — every (user, parent_folder,
- *     type, ref, x, y, sort) tuple. Indexed on `(user_id, parent_id)`
+ *     type, ref, x, y, sort) tuple. Indexed on `(owner_id, parent_id)`
  *     and `(file_type, file_ref)` for two queries we run constantly:
  *     "show me what's on user X's folder Y" and "where else does
  *     this entity appear" (used when an entity is deleted to clean
@@ -21,6 +21,14 @@
  *   - `_desktop_mode_file_tombstones` — id ledger of removals so the
  *     Heartbeat delta sync (Phase 6) can tell connected clients
  *     "this placement / folder is gone." Pruned daily.
+ *
+ *   - `_desktop_mode_folder_shares` — one row per (folder, principal)
+ *     grant: user- or role-principal, `read` | `write` capability,
+ *     `pending` | `accepted` | `denied` state.
+ *
+ *   - `_desktop_mode_share_user_decisions` — per-user opt-ins for
+ *     role-principal shares (each member of the role accepts or
+ *     denies individually; the shares row itself stays `pending`).
  *
  * dbDelta is the only safe path for schema migrations against the
  * Core tables environment — Phase 6 re-uses this file by bumping
@@ -40,7 +48,7 @@ define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' 
  *
  * @since 0.9.0
  *
- * @return array{ placements: string, folders: string, tombstones: string }
+ * @return array{ placements: string, folders: string, tombstones: string, shares: string, decisions: string }
  */
 function desktop_mode_files_table_names() {
 	global $wpdb;
@@ -275,11 +283,16 @@ function desktop_mode_files_ensure_trash_columns() {
 
 /**
  * Collapse duplicate `(owner_id, parent_id, file_type, file_ref)`
- * placement rows down to the lowest id, deleting the rest. Only
- * meaningful for `file_type IN ('shortcut','folder')` — those are
- * the types where two rows for the same ref are redundant. Other
- * types (post / page / attachment / …) might legitimately appear
- * twice on the same desktop, so the dedupe leaves them alone.
+ * placement rows down to the lowest id, deleting the rest. The
+ * DELETE is restricted to `file_type IN ('shortcut','folder')` —
+ * the types where legacy duplicates were actually observed. Note
+ * that the v5 `placement_unique` index added right after this
+ * covers EVERY file type, so duplicates of any type within the
+ * same (owner, parent) are disallowed at the DB level; if legacy
+ * duplicates of another type exist, the (error-suppressed)
+ * `ADD UNIQUE` in
+ * `desktop_mode_files_ensure_unique_placement_index()` will fail
+ * and leave the index absent until those rows are cleaned up.
  *
  * @since 0.8.0
  * @internal
@@ -382,7 +395,7 @@ function desktop_mode_files_ensure_unique_placement_index() {
  * NULL on legacy rows (pre-v10). The conflict resolver falls back
  * to `owner_id` when this column is NULL, matching the old behavior.
  *
- * @since 0.18.x (schema v10)
+ * @since 0.8.5 (schema v10)
  * @internal
  */
 function desktop_mode_files_ensure_updated_by_column() {
@@ -436,7 +449,7 @@ function desktop_mode_files_ensure_updated_by_column() {
  * function is idempotent — early-returns when `user_id` is absent,
  * so healthy v11 installs see a cheap no-op on the retry.
  *
- * @since 0.22.0 (schema v11, redelivered at v12)
+ * @since 0.8.9 (schema v11, redelivered at v12)
  * @internal
  */
 function desktop_mode_files_rename_user_id_to_owner_id() {
@@ -510,7 +523,7 @@ function desktop_mode_files_rename_user_id_to_owner_id() {
  * on some MySQL/MariaDB combos; we mirror the trash-columns
  * pattern and `CREATE TABLE IF NOT EXISTS` the row explicitly.
  *
- * @since 0.18.0
+ * @since 0.8.5
  * @internal
  */
 function desktop_mode_files_ensure_shares_table() {
@@ -575,7 +588,7 @@ function desktop_mode_files_ensure_shares_table() {
 /**
  * Belt-and-suspenders verifier for the decisions table.
  *
- * @since 0.18.0
+ * @since 0.8.5
  * @internal
  */
 function desktop_mode_files_ensure_decisions_table() {

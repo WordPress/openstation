@@ -134,7 +134,9 @@ function desktop_mode_pwa_endpoint_kind() {
 	if ( '' === $path ) {
 		return '';
 	}
-	$portal = '/' . trim( DESKTOP_MODE_PORTAL_PATH, '/' ) . '/';
+	$home_path = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+	$home_path = is_string( $home_path ) ? rtrim( $home_path, '/' ) : '';
+	$portal    = $home_path . '/' . trim( DESKTOP_MODE_PORTAL_PATH, '/' ) . '/';
 	if ( $path === $portal . DESKTOP_MODE_PWA_MANIFEST_FRAGMENT ) {
 		return 'manifest';
 	}
@@ -393,8 +395,8 @@ function desktop_mode_pwa_serve_service_worker() {
 	$path   = DESKTOP_MODE_DIR . 'assets/js/sw' . $suffix . '.js';
 
 	if ( ! file_exists( $path ) ) {
-		// Avoid logging in the test environment where vfsStream paths
-		// are expected to fail; only log when ABSPATH is real.
+		// Guard against hosts that disable error_log() via the
+		// `disable_functions` ini directive.
 		if ( function_exists( 'error_log' ) ) {
 			error_log( '[desktop-mode] service worker bundle missing at ' . $path . ' — run `npm run build` to generate it.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}

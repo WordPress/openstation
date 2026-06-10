@@ -13,7 +13,7 @@
  * to their components so renaming a prop forces a descriptor update
  * in the same diff (no separate docs file to drift).
  *
- * @since 0.16.0
+ * @since 0.5.1
  */
 
 import { __ } from '../../i18n';

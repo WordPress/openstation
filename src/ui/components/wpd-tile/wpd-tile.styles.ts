@@ -5,7 +5,7 @@
  * the host-level resets so the custom element doesn't disrupt
  * layout.
  *
- * @since 0.21.0
+ * @since 0.8.6
  */
 import { css } from '../../core';
 

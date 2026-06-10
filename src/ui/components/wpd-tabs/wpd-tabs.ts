@@ -23,7 +23,7 @@
  * replacement for the event.
  *
  * @since 0.7.0
- * @since 0.11.0 Added `<wpd-tabpanel>` + auto-swap.
+ * @since 0.5.0 Added `<wpd-tabpanel>` + auto-swap.
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -153,7 +153,7 @@ export class WpdTabs extends Component {
 	 * ];
 	 * ```
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		replaceChildren( this, 'wpd-tab', list );
@@ -220,7 +220,7 @@ defineComponent( 'wpd-tabs', WpdTabs );
  * Accessibility: `role="tabpanel"` + `tabindex="0"` are set
  * automatically so keyboard users can tab into an active panel.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 export class WpdTabPanel extends Component {
 	static props = [ 'for' ] as const;
@@ -231,7 +231,7 @@ export class WpdTabPanel extends Component {
 		summary:
 			'Auto-managed panel paired with a sibling <wpd-tabs>. Declares which tab it belongs to via `for="<tab-value>"`; the parent strip toggles `hidden` whenever the active tab changes. role="tabpanel" and tabindex="0" are set automatically.',
 		status: 'stable',
-		since: '0.11.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'for',
@@ -251,7 +251,7 @@ export class WpdTabPanel extends Component {
 	// move them), so `panel.querySelector(...)` from plugin render
 	// callbacks keeps working.
 	//
-	// Earlier 0.11.0 builds of this component used light DOM with
+	// Earlier 0.5.0 builds of this component used light DOM with
 	// a `<slot>` render, which wiped the panel's server-rendered
 	// template content on first mount — every `render()` writes
 	// into `_renderRoot`, and with light DOM that's the panel

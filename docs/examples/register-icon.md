@@ -27,7 +27,7 @@ desktop_mode_register_window( 'jorvy', array(
     // mid-session activation — without this, a peer plugin activated
     // from inside an open shell renders its window with no CSS until
     // the user reloads, because `wp_print_styles` already ran for the
-    // parent shell page. @since 0.18.1
+    // parent shell page. @since 0.7.0
     'style'    => 'jorvy-desktop',
     'template' => function () {
         ?>
@@ -107,7 +107,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
 ### `desktop_mode_register_window( $id, $args )`
 
-Declares the native window — its title, icon, initial dimensions, template markup, and render script. Returns `true` on success, `WP_Error` on any validation failure (missing `title`, missing `script`, non-callable `template`, unmet capability).
+Declares the native window — its title, icon, initial dimensions, template markup, and render script. Returns `true` on success, `WP_Error` on any validation failure (missing `title`, non-callable `template`, unmet capability). `script` is optional — omit it for a purely declarative window whose body is exactly the cloned template.
 
 ### `desktop_mode_register_icon( $id, $args )`
 
@@ -162,7 +162,7 @@ Native windows render in JS because a `render( body )` callback can't cross the 
 2. Enable desktop mode via the admin-bar toggle.
 3. A star icon labeled *Jorvy* appears on the wallpaper.
 4. Click it — the Marvel-quote panel opens; the quote rotates every ten seconds.
-5. Check the action history: `desktop_mode_window_registered` and `desktop_mode_icon_registered` each fired once.
+5. Check the action history: `desktop_mode_native_window_registered` and `desktop_mode_icon_registered` each fired once.
 
 ## Error handling
 
@@ -176,7 +176,7 @@ The `WP_Error` contract means you find typos at plugin-load time, not at first-c
 
 ## Decorating the rendered grid
 
-When you need to enhance the wallpaper icons themselves — a cursor adornment, a status dot, a drag handle — subscribe to `HOOKS.DESKTOP_ICONS_RENDERED`. Since 0.25.0 the payload hands you the rendered container *and* a map of `id → tile element`, so your decorator doesn't have to query the DOM (and doesn't have to re-query on every live menu refresh — the hook fires exactly when the grid is rebuilt):
+When you need to enhance the wallpaper icons themselves — a cursor adornment, a status dot, a drag handle — subscribe to `HOOKS.DESKTOP_ICONS_RENDERED`. Since 0.6.0 the payload hands you the rendered container *and* a map of `id → tile element`, so your decorator doesn't have to query the DOM (and doesn't have to re-query on every live menu refresh — the hook fires exactly when the grid is rebuilt):
 
 ```js
 wp.desktop.hooks.addAction(

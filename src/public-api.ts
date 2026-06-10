@@ -218,7 +218,7 @@ export type { PwaConfig, PwaUserState } from './types';
  * updates — the only reliable way to keep clicks working on rows
  * that may re-render mid-press.
  *
- * @since 0.22.10
+ * @since 0.6.0
  */
 export {
 	renderKeyedList,

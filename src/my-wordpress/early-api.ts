@@ -12,7 +12,7 @@
  * stub with the real API.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 
 /**
@@ -34,10 +34,10 @@ export interface PendingKindRegistration {
 
 interface MyWordpressEarlyStub {
 	/**
-	 * Stub registerEntityKind — buffers the call. Returns a stub
-	 * unregister that's a no-op (the real unregister isn't available
-	 * yet; if a plugin needs to unregister before mount it can mutate
-	 * `__pendingKinds` directly).
+	 * Stub registerEntityKind — buffers the call. Returns an
+	 * unregister that splices the buffered entry out of
+	 * `__pendingKinds` before drain, and forwards to the real
+	 * registry closure after drain (see `PendingKindSlot`).
 	 */
 	registerEntityKind: (
 		kind: string,
@@ -57,7 +57,7 @@ interface MyWordpressEarlyStub {
  * the full public API is wired, so a partial shape is expected here.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export function installMyWordpressEarlyStub(): void {
 	type Loose = {

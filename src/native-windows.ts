@@ -22,7 +22,7 @@
  * state. Plugins that outgrow them can always call the underlying
  * APIs directly.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { activity } from './activity';
@@ -62,7 +62,7 @@ import {
  * argument to `onWindow`).
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface WindowLifecycleHandlers {
 	opened?: () => void;
@@ -321,8 +321,11 @@ export { buildNativeRenderContext as _buildNativeRenderContext };
  * inside the native window's body and manages its lifecycle:
  *
  *   - Creates the `<iframe>` with the configured URL + sandbox.
- *   - On the iframe's `load` event, calls `onReady( send )` and
- *     flushes any messages queued before load.
+ *   - On the iframe's `load` event, marks the window content ready
+ *     (flushing any `Window.send()` payloads queued before load in
+ *     FIFO order) and resolves the promise the shell awaits before
+ *     clearing the window's loading state. Readiness needs no
+ *     callback from the plugin.
  *   - Listens for `message` events whose `event.source` matches
  *     the iframe's `contentWindow` (the source-check every plugin
  *     would otherwise reinvent) and forwards `event.data` to
@@ -763,7 +766,7 @@ export function onWindow(
  * plugins that stick to the JS-only path self-manage their tiles.
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface NativeWindowRegistryDeps {
 	manager: WindowManager;
@@ -794,7 +797,7 @@ export interface NativeWindowRegistryDeps {
  * `window.send/on` channel API. Existing unary callbacks
  * (`( body ) => …`) keep working — `ctx` is detected by arity, never
  * required. *Since 0.8.2 for the ctx arg; the unary form has been the
- * contract since 0.10.0.*
+ * contract since 0.5.0.*
  *
  * @public
  */
@@ -805,6 +808,32 @@ type RenderCallback = (
 
 interface NativeWindowGlobals {
 	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+	/**
+	 * Deprecated legacy registry bag. Extension bundles built before
+	 * the rename (cron-manager, code-editor, phpMyAdmin) register
+	 * their render callbacks here; the shell merges it at read time
+	 * so those windows stay interactive. New code must register on
+	 * `desktopModeNativeWindows`.
+	 */
+	wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
+}
+
+/**
+ * Resolve the render-callback registry, merging the deprecated
+ * `wpDesktopNativeWindows` bag under the canonical
+ * `desktopModeNativeWindows` one (canonical wins on id collisions).
+ *
+ * Merged at every read — not copied once at load — because some
+ * legacy bundles rewrite their entry after the bundle executes
+ * (e.g. cron-manager's whenDefined wrapper), so a boot-time copy
+ * would capture a stale callback.
+ */
+function readGlobalRegistry(): Record< string, RenderCallback | undefined > {
+	const g = window as unknown as NativeWindowGlobals;
+	return {
+		...( g.wpDesktopNativeWindows || {} ),
+		...( g.desktopModeNativeWindows || {} ),
+	};
 }
 
 /**
@@ -853,7 +882,7 @@ export interface NativeWindowSync {
 	 *
 	 * Returns `false` when the id isn't registered.
 	 *
-	 * @since 0.19.0
+	 * @since 0.8.3
 	 */
 	openNewById: ( id: string ) => boolean;
 }
@@ -1001,10 +1030,7 @@ export function createNativeWindowSync(
 	};
 
 	const openFromEntry = ( entry: NativeWindowServerEntry ): void => {
-		const globalRegistry =
-			( window as unknown as NativeWindowGlobals ).desktopModeNativeWindows ||
-			{};
-		const render = globalRegistry[ entry.id ];
+		const render = readGlobalRegistry()[ entry.id ];
 
 		// Pre-populate the window body with the cloned template, then
 		// hand it to the optional render callback. The render contract
@@ -1059,10 +1085,7 @@ export function createNativeWindowSync(
 	 * its own template clone and its own teardown.
 	 */
 	const openNewFromEntry = ( entry: NativeWindowServerEntry ): void => {
-		const globalRegistry =
-			( window as unknown as NativeWindowGlobals ).desktopModeNativeWindows ||
-			{};
-		const render = globalRegistry[ entry.id ];
+		const render = readGlobalRegistry()[ entry.id ];
 
 		const finalRender: RenderCallback = ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );

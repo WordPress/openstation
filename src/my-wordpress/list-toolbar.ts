@@ -13,7 +13,7 @@
  * pass-through.
  *
  * @public
- * @since 0.22.0
+ * @since 0.8.7
  */
 
 import { __ } from '../i18n';
@@ -51,7 +51,7 @@ export interface ListToolbarHandle {
  * every list renderer.
  *
  * @public
- * @since 0.22.0
+ * @since 0.8.7
  */
 export function renderListToolbar(
 	options: ListToolbarOptions,

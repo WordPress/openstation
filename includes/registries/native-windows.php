@@ -65,8 +65,8 @@ defined( 'ABSPATH' ) || exit;
  * `wp.desktop.windowManager.open()` programmatically) to surface
  * the window.
  *
- * @since 0.10.0
- * @since 0.11.0 Returns `WP_Error` on validation failure instead of
+ * @since 0.8.1
+ * @since 0.8.1 Returns `WP_Error` on validation failure instead of
  *               silent `false`. Legacy `if ( $result )` callers remain
  *               correct because `WP_Error` is truthy; new code should
  *               prefer `is_wp_error( $result )` for diagnostics.
@@ -159,7 +159,7 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		// `<link rel="stylesheet">` when a peer plugin is activated
 		// mid-session — without this, the parent shell page already
 		// finished `wp_print_styles` and the plugin's CSS is missing
-		// until F5. @since 0.18.1
+		// until F5. @since 0.8.1
 		'style'            => '',
 		'width'            => 520,
 		'height'           => 400,
@@ -243,7 +243,7 @@ function desktop_mode_register_window( $id, $args = array() ) {
 	 * exposes. Does NOT fire when `desktop_mode_register_window()`
 	 * returns a `WP_Error`.
 	 *
-	 * @since 0.11.0
+	 * @since 0.8.1
 	 *
 	 * @param string $id    The window id.
 	 * @param array  $entry The stored registry entry (id, title,
@@ -262,7 +262,7 @@ function desktop_mode_register_window( $id, $args = array() ) {
  * stored value (or null). Kept small and side-effect-free so
  * tests can introspect.
  *
- * @since 0.10.0
+ * @since 0.8.1
  * @internal
  *
  * @param string     $id    Window id.
@@ -283,24 +283,6 @@ function desktop_mode_native_window_registry( $id = '', $entry = null ) {
 }
 
 
-/**
- * Render a native window's template HTML to a string, wrapping
- * with tabs when the window has at least one additional tab
- * registered. Shared by `desktop_mode_render_native_window_templates()`
- * (which emits the live `<template>` element) and
- * `desktop_mode_build_native_windows_payload()` (which captures the same
- * string for the shell config so mid-session activation can inject
- * the template without a reload).
- *
- * Single-tab windows (no additional tabs registered) render the
- * same flat body they always did — backwards-compatible with
- * every existing caller.
- *
- * @since 0.11.0
- *
- * @param array $entry Window registry entry.
- * @return string Template body HTML (no outer `<template>` tag).
- */
 /**
  * Returns the `wp_kses`-shaped allowlist used to escape native-window
  * `<template>` payloads (and the recycle-bin template) before they're
@@ -553,7 +535,7 @@ function desktop_mode_native_window_allowed_html() {
  * `wp_kses( $html, desktop_mode_native_window_allowed_html() )`
  * dance can call this instead and get tag-discovery for free.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param string $html Template HTML to sanitize.
  * @return string Sanitized HTML.
@@ -576,6 +558,24 @@ function desktop_mode_kses_native_window_template( $html ) {
 	return wp_kses( (string) $html, $allowed );
 }
 
+/**
+ * Render a native window's template HTML to a string, wrapping
+ * with tabs when the window has at least one additional tab
+ * registered. Shared by `desktop_mode_render_native_window_templates()`
+ * (which emits the live `<template>` element) and
+ * `desktop_mode_build_native_windows_payload()` (which captures the same
+ * string for the shell config so mid-session activation can inject
+ * the template without a reload).
+ *
+ * Single-tab windows (no additional tabs registered) render the
+ * same flat body they always did — backwards-compatible with
+ * every existing caller.
+ *
+ * @since 0.8.1
+ *
+ * @param array $entry Window registry entry.
+ * @return string Template body HTML (no outer `<template>` tag).
+ */
 function desktop_mode_build_native_window_template_html( $entry ) {
 	if ( ! is_array( $entry ) || ! is_callable( $entry['template'] ) ) {
 		return '';
@@ -619,7 +619,7 @@ function desktop_mode_build_native_window_template_html( $entry ) {
 	 * Return `0` for edge-to-edge content. Negative values are
 	 * clamped to 0.
 	 *
-	 * @since 0.13.0
+	 * @since 0.8.1
 	 *
 	 * @param int    $padding   Default padding in px.
 	 * @param string $window_id The native window id.
@@ -680,7 +680,7 @@ function desktop_mode_build_native_window_template_html( $entry ) {
  * shell enqueue so ordering (shell → plugin scripts) is
  * deterministic.
  *
- * @since 0.10.0
+ * @since 0.8.1
  */
 function desktop_mode_enqueue_native_window_scripts() {
 	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
@@ -764,7 +764,7 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_native_window_scripts
  * these via `document.getElementById( `desktop-mode-native-window-${id}` )`
  * and clones them into each opened window's body.
  *
- * @since 0.10.0
+ * @since 0.8.1
  */
 function desktop_mode_render_native_window_templates() {
 	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {

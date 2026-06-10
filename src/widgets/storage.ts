@@ -10,7 +10,7 @@
  * require persistence can wire their own defensive re-read after
  * set, but most shouldn't need to.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import type { WidgetStorage } from './types';

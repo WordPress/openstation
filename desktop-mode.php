@@ -130,7 +130,7 @@ require_once DESKTOP_MODE_DIR . 'includes/compat/divi.php';
  * firing them mid-cascade can trigger the same fatal we're trying
  * to prevent. Skipping them is the safer default.
  *
- * @since 0.18.4
+ * @since 0.8.2
  */
 function desktop_mode_cascade_deactivate_dependents() {
 	// Defer to `shutdown` so we run AFTER the outer
@@ -149,7 +149,7 @@ register_deactivation_hook( DESKTOP_MODE_FILE, 'desktop_mode_cascade_deactivate_
  * {@see desktop_mode_cascade_deactivate_dependents} for the timing
  * rationale.
  *
- * @since 0.18.4
+ * @since 0.8.2
  */
 function desktop_mode_do_cascade_deactivate() {
 	if ( ! class_exists( 'WP_Plugin_Dependencies' ) ) {
@@ -173,7 +173,7 @@ function desktop_mode_do_cascade_deactivate() {
 	 * Desktop Mode is deactivated. Defaults to every plugin whose
 	 * `Requires Plugins` header lists our directory slug.
 	 *
-	 * @since 0.18.4
+	 * @since 0.8.2
 	 *
 	 * @param string[] $dependents Plugin files (e.g. "foo/foo.php").
 	 * @param string   $slug       Desktop Mode's directory slug.

@@ -76,7 +76,7 @@
  *     clicks on `data-noclick` descendants).
  *   - `wpd-table-expand-change` — `{ row, index, expanded }`.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import { Component, defineComponent, html, render as renderTemplate, type TemplateResult } from '../../core';
@@ -250,7 +250,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		summary:
 			'Data-driven table. Assign `columns` + `data` and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns/header, sub-tables, custom cell renderers, loading skeleton, and a slottable empty state.',
 		status: 'experimental',
-		since: '0.18.0',
+		since: '0.6.0',
 		props: [
 			{
 				name: 'sticky-columns',

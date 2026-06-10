@@ -1,7 +1,7 @@
 /**
  * Desktop Mode — Shared Utilities.
  *
- * @since 6.9.0
+ * @since 0.5.0
  */
 
 /**

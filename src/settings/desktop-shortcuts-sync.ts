@@ -21,14 +21,14 @@
  *    this module re-applies on every change, so the icon disappears
  *    again immediately.
  *
- * Synthetic placements aren't persisted via REST; they live only
- * in the JS store. The source of truth is `itemVisibility`, so
- * promotion survives reloads even though placement positions don't.
- * If/when we want true position persistence for promoted items, a
- * follow-up can swap the in-memory upsert for `createPlacement` +
- * track the assigned real id in a side-map on the user meta.
+ * Synthetic placements aren't persisted via the files REST layer;
+ * they live only in the JS store. The sources of truth are
+ * `itemVisibility` (promotion) and `dockPromotedPositions`
+ * (positions), both in the OS Settings user meta — so promotion
+ * *and* the user's last-dragged position survive reloads; this
+ * module restores both on every sync.
  *
- * @since 0.25.0
+ * @since 0.8.2
  */
 
 import { filesApi } from '../desktop-files';

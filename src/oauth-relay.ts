@@ -10,15 +10,22 @@
  *   1. POST `/desktop-mode/v1/oauth/start` with `{ service }` to get
  *      the assembled authorize URL (server-side `state` already baked
  *      in).
- *   2. `window.open( authorize_url, '_blank', '…' )`.
+ *   2. Open the authorize URL in a named popup
+ *      (`desktop-mode-oauth-<service>`) via `window.open()` with
+ *      explicit size/position features. The opener relationship is
+ *      kept intentionally — the popup needs it for the postMessage
+ *      handshake.
  *   3. Listen for `'message'` events of `type:
  *      'desktop-mode-oauth-callback'` from the popup, validate origin.
  *   4. If `payload.ok`, resolve with the payload. Otherwise reject
  *      with a tagged Error whose `cause` is the payload.
  *
  * The listener detaches automatically on resolve / reject — including
- * the popup-closed-without-callback rejection. Multiple concurrent
- * `startOAuth(service)` calls for different services are independent.
+ * the popup-closed-without-callback rejection. Concurrent
+ * `startOAuth()` flows are NOT isolated: the listener matches on
+ * origin + message type only (it does not compare `payload.service`
+ * or the source popup), so the first callback to arrive settles every
+ * in-flight promise. Run one flow at a time.
  *
  * @since 0.8.2
  */

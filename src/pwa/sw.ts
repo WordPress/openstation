@@ -13,19 +13,24 @@
  *   1. Only intercept GETs whose path starts with `/desktop-mode/` or
  *      `/wp-admin/`. Everything else falls through to the network with
  *      no SW involvement.
- *   2. Static assets shipped by this plugin (CSS / JS / icons under
- *      `/wp-content/plugins/desktop-mode/assets/`) — stale-while-
- *      revalidate. Lets a returning user open the shell instantly
- *      while the SW updates the cache in the background.
+ *   2. Static assets shipped by this plugin (under
+ *      `/wp-content/plugins/desktop-mode/assets/`): CSS / images /
+ *      fonts — stale-while-revalidate, letting a returning user open
+ *      the shell instantly while the SW updates the cache in the
+ *      background. JS bundles — network-first with cache fallback,
+ *      so a fresh deploy reaches online users immediately.
  *   3. Everything else (HTML, REST, AJAX) — network-only with an
  *      offline fallback for navigation requests so the user sees a
  *      friendly placeholder instead of the browser's default offline
  *      page.
  *
- * Push + notification-click handlers are registered as no-ops in v1.
- * They claim the events so a future v2 push payload doesn't fall
- * through to the browser's default — but emit nothing themselves
- * until the push REST surface ships.
+ * The `push` handler is a no-op in v1 — it claims the event so a
+ * future v2 push payload doesn't fall through to the browser's
+ * default, but emits nothing until the push REST surface ships.
+ * The `notificationclick` handler is live: it closes the
+ * notification, focuses an existing `/desktop-mode/` window client,
+ * or opens `notification.data.url` (default `/desktop-mode/`) when
+ * none exists.
  *
  * @since 0.8.0
  */

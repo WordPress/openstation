@@ -257,8 +257,10 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 	}
 
 	// "Keyboard shortcuts" trigger — shown only when desktop mode is
-	// active. Dispatches `desktop-mode-open-help` on click; the shell
-	// answers by opening the Keyboard Shortcuts reference window.
+	// active. Clicking toggles the keyboard-shortcuts popover wired by
+	// assets/js/admin-bar.js (wireShortcutsPopover); the popover content
+	// is translated server-side and shipped via the `shortcuts` key of
+	// the desktopModeAdminBar config blob below.
 	if ( $is_active ) {
 		$wp_admin_bar->add_node(
 			array(
@@ -303,10 +305,13 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 add_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle', 190 );
 
 /**
- * Enqueues the inline CSS and JS for the desktop mode toggle.
+ * Enqueues the CSS and JS for the desktop mode toggle.
  *
- * Uses `admin-bar` as the carrier handle so the inline assets always ship
- * with the admin bar itself — no matter which admin screen is showing.
+ * The CSS is inline, attached to the `admin-bar` style handle so it always
+ * ships with the admin bar itself — no matter which admin screen is showing.
+ * The JS is the external assets/js/admin-bar.js bundle, registered as
+ * `desktop-mode-admin-bar` with `admin-bar` as a dependency; its config is
+ * emitted as an inline JSON literal `before` the script.
  *
  * @since 0.1.0
  */

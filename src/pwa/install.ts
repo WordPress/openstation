@@ -8,12 +8,14 @@
  *
  * UX policy:
  *
- *   - **Always visible.** The tile registers unconditionally on boot
- *     so users see a stable affordance, even on platforms where
- *     `beforeinstallprompt` never fires (Safari) or where the site
- *     is already installed. The icon is the *entry point*, not the
- *     *trigger*; the trigger is whatever the browser will let us do
- *     when the user clicks.
+ *   - **Visible whenever installing could be useful.** desktop.ts
+ *     registers the tile on boot unless the shell is already running
+ *     standalone, and removes it live when the display mode flips to
+ *     standalone or `getInstalledRelatedApps()` reports the app
+ *     installed; on platforms without those signals (Safari,
+ *     Firefox) the tile persists as a fallback. The icon is the
+ *     *entry point*, not the *trigger*; the trigger is whatever the
+ *     browser will let us do when the user clicks.
  *
  *   - **Click → context-aware action.**
  *       - Installable now (we have a deferred `beforeinstallprompt`):

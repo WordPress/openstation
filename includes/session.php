@@ -66,7 +66,7 @@ function desktop_mode_empty_session() {
  * @since 0.4.0
  *
  * @param int $user_id The user ID.
- * @return array{windows: array, focused: string, updated: int}
+ * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
 function desktop_mode_get_session( $user_id ) {
 	$user_id = (int) $user_id;
@@ -168,7 +168,7 @@ function desktop_mode_clear_session( $user_id ) {
  * @since 0.4.0
  *
  * @param mixed $session Raw session data from the client.
- * @return array{windows: array, focused: string, updated: int}
+ * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
 function desktop_mode_sanitize_session( $session ) {
 	$clean = desktop_mode_empty_session();
@@ -396,12 +396,13 @@ function desktop_mode_sanitize_session( $session ) {
  * bounds, falling back to `$min` for anything non-numeric so the
  * window restores to a sane geometry rather than colliding with 0.
  *
- * `INF`, `NAN`, and array/object input are rejected by `is_numeric()`
- * before the `(int)` cast, eliminating any overflow or type-juggling
- * surprise.
+ * Array/object input and non-numeric strings are rejected by
+ * `is_numeric()`; float `INF`/`NAN` pass that gate but cast to 0 and
+ * are then clamped into `[min, max]`, so no out-of-range value
+ * survives.
  *
  * @since 0.4.0
- * @since 0.11.0 Rejects non-numeric input explicitly instead of
+ * @since 0.5.0 Rejects non-numeric input explicitly instead of
  *               relying on PHP's permissive `(int)` cast.
  *
  * @param mixed $value The raw value.

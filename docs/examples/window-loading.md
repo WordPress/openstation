@@ -256,7 +256,10 @@ Idempotent and cheap — windows that already finished loading are unaffected.
 If you only want to retune the spinner colors / size, the CSS variables work fine — no JS needed:
 
 ```css
-#wp-window-my-plugin-inbox .desktop-mode-window__loading wpd-spinner {
+/* Window element ids are `wp-window-` + your window id verbatim, so a
+   slashed id like `my-plugin/inbox` needs an attribute selector (or an
+   escaped `#wp-window-my-plugin\/inbox`). */
+[id='wp-window-my-plugin/inbox'] .desktop-mode-window__loading wpd-spinner {
     --wpd-spinner-color: #6f42c1;
     --wpd-spinner-accent: #fff8e7;
 }
@@ -269,4 +272,4 @@ The overlay has `pointer-events: none` so it never blocks clicks even if it ling
 - [`desktop-mode-window-content-loading` / `desktop-mode-window-content-loaded` CustomEvents](../javascript-reference.md#desktop-mode-window-content-loading--stable-since-060)
 - [`Window.markContentLoading()` / `Window.markContentLoaded()`](../javascript-reference.md#windowmarkcontentloading--windowmarkcontentloaded--stable-since-060)
 - [`<wpd-spinner>` component](./spinner.md)
-- [`HOOKS.WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED`](../hooks-reference.md#window-lifecycle)
+- [`HOOKS.WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED`](../javascript-reference.md#4-hooks--desktop-mode)

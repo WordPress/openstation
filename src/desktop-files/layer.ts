@@ -61,7 +61,7 @@ import type {
  * / `sourceUrl` / `alt` / `mime` / `postType` on every list
  * response.
  *
- * @since 0.22.0
+ * @since 0.8.7
  */
 function buildBridgePayloadFromPlacement(
 	placement: RestPlacementShape,
@@ -182,7 +182,7 @@ export interface FilesLayer {
 	 * mount path and the promise still resolves so the caller's
 	 * reveal-after-hydrate isn't stranded forever.
 	 *
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 */
 	readonly hydrated: Promise< void >;
 	dispose: () => void;
@@ -397,7 +397,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	 * pinned-flag) — those cases need the wholesale path's full
 	 * re-wiring.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	const tryPatchIncremental = (
 		list: readonly RestPlacementShape[],
@@ -1227,10 +1227,10 @@ const RECYCLE_BIN_REF = 'desktop-mode-recycle-bin';
  * own icon, the right fix is a new action fired AFTER the layer's
  * registration (e.g. `desktop-mode.files.tile-drop-registered`)
  * so plugins can install their own target last. Not adding that
- * action speculatively — the feature is 0.20.0 / Experimental and
+ * action speculatively — the feature is 0.8.6 / Experimental and
  * no in-tree caller needs it today.
  *
- * @since 0.20.0
+ * @since 0.8.6
  */
 function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
 	if ( placement.file?.type === 'folder' ) {
@@ -1259,7 +1259,7 @@ function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
  * empty cell used to highlight My WordPress's slot because
  * `snapToEmptyCell` thought (0, 0) was free.
  *
- * @since 0.20.0
+ * @since 0.8.6
  */
 function buildVisualOccupiedSet(
 	placements: ReadonlyArray< RestPlacementShape >,
@@ -1313,7 +1313,7 @@ function buildVisualOccupiedSet(
  * drop up-front (no REST round-trip, no 409 in the console, visible
  * snap-back at the drop site).
  *
- * @since 0.20.0
+ * @since 0.8.6
  */
 function wouldCreateFolderCycle(
 	movingFolderId: number,
@@ -1382,7 +1382,7 @@ function wouldCreateFolderCycle(
  * Silent no-op when the public OS Settings facade isn't available
  * (tests, embedded previews, or a host that disabled the facade).
  *
- * @since 0.20.0
+ * @since 0.8.6
  */
 function persistDockPromotedPosition(
 	dockItemId: string,
@@ -1443,7 +1443,7 @@ function persistDockPromotedPosition(
  * positions in place keeps DOM identity for unchanged tiles so the
  * grid feels continuous.
  *
- * @since 0.20.0
+ * @since 0.8.6
  */
 function tryPatchPositions(
 	list: readonly RestPlacementShape[],

@@ -26,9 +26,10 @@ add_filter(
 );
 ```
 
-JS side, push the new segment into the toolbar before the bundle paints:
+JS side — **Planned, not yet implemented**: the `desktop_mode.pluginsWindow.browseFilters` filter below does not exist yet (the Browse segments are currently hard-coded in the bundle). The intended shape, once the JS filter registry lands:
 
 ```js
+// Planned — not yet implemented.
 addFilter(
     'desktop_mode.pluginsWindow.browseFilters',
     'my-plugin/curated',
@@ -157,7 +158,7 @@ import { setPluginsWindowTab } from 'desktop-mode/plugins-window/tab-target';
 const myButton = document.querySelector( '#explore-plugins' )!;
 myButton.addEventListener( 'click', () => {
     setPluginsWindowTab( 'browse' );
-    window.wp.desktop.openWindow( { id: 'desktop-mode-plugins' } );
+    window.wp.desktop.openWindow( 'desktop-mode-plugins' );
 } );
 ```
 

@@ -30,7 +30,7 @@
  * Reported to Elegant Themes. Remove this file when Divi ships
  * the fix upstream.
  *
- * @since   0.18.x
+ * @since   0.8.6
  * @package WP_Desktop_Mode\Compat
  */
 
@@ -83,7 +83,7 @@ defined( 'ABSPATH' ) || exit;
  * Reported to Elegant Themes. Remove this file when Divi ships
  * the fix upstream.
  *
- * @since 0.18.x
+ * @since 0.8.6
  *
  * @return void
  */
@@ -161,7 +161,7 @@ add_action( 'enqueue_block_editor_assets', 'desktop_mode_compat_divi_fix_gutenbe
  * Reported to Elegant Themes. Remove this hook when Divi makes
  * `top_window` iframe-aware upstream.
  *
- * @since 0.18.x
+ * @since 0.8.6
  *
  * @return void
  */
@@ -312,7 +312,7 @@ add_action( 'wp_head', 'desktop_mode_compat_divi_vb_iframe_signal', 1 );
  * Gutenberg editor canvas (when Gutenberg keeps it for non-Divi
  * blocks) is covered.
  *
- * @since 0.18.x
+ * @since 0.8.6
  *
  * @return void
  */
@@ -420,7 +420,7 @@ add_action( 'admin_head', 'desktop_mode_compat_divi_eject_iframe_patch', 0 );
  * own origin AND the URL we navigate to must parse back to the
  * same origin. Foreign frames can't trigger the handoff.
  *
- * @since 0.18.x
+ * @since 0.8.6
  *
  * @return void
  */
@@ -493,7 +493,7 @@ add_action( 'admin_footer', 'desktop_mode_compat_divi_eject_parent_listener', 1 
  * is active. Used to gate both the iframe-side patcher and the
  * parent-side listener — both no-ops on non-Divi sites.
  *
- * @since 0.18.x
+ * @since 0.8.6
  *
  * @return bool True when the Divi theme is active OR the Divi
  *              Builder plugin is active.

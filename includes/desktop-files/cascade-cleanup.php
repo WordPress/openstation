@@ -33,7 +33,7 @@
  * trash status — restoring a post does NOT auto-restore its shortcut).
  *
  * @package WPDesktopMode
- * @since   0.22.0
+ * @since   0.8.9
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -56,7 +56,7 @@ defined( 'ABSPATH' ) || exit;
  * is unbounded by the API but bounded in practice by the number
  * of users who shortcutted the same entity.
  *
- * @since 0.22.0
+ * @since 0.8.9
  *
  * @param string     $file_type File-type slug — `'post'`,
  *                              `'attachment'`, `'user'`, plugin-
@@ -137,7 +137,7 @@ function desktop_mode_files_cascade_trash_placements_for_entity( $file_type, $fi
 		 * Fires after a placement has been cascade-trashed because
 		 * its source entity was trashed.
 		 *
-		 * @since 0.22.0
+		 * @since 0.8.9
 		 *
 		 * @param int        $placement_id Placement id.
 		 * @param int        $owner_id     Placement owner.
@@ -166,7 +166,7 @@ function desktop_mode_files_cascade_trash_placements_for_entity( $file_type, $fi
  * (not `'post'`), so this wrapper would miss them. The separate
  * `delete_attachment` hook below covers attachments.
  *
- * @since 0.22.0
+ * @since 0.8.9
  *
  * @param int $post_id Post id.
  */
@@ -203,7 +203,7 @@ add_action( 'before_delete_post', 'desktop_mode_files_cascade_on_post_trash', 10
  * fires this BEFORE the attachment row is gone, so `get_post()` is
  * still resolvable for any plugin that needs the metadata.
  *
- * @since 0.22.0
+ * @since 0.8.9
  *
  * @param int $attachment_id Attachment id.
  */
@@ -227,7 +227,7 @@ add_action( 'delete_attachment', 'desktop_mode_files_cascade_on_attachment_delet
  * Core involves reassigning content; we don't need the live user
  * row, only its id.
  *
- * @since 0.22.0
+ * @since 0.8.9
  *
  * @param int $user_id Deleted user id.
  */

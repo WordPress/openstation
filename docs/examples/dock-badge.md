@@ -13,7 +13,7 @@ add_filter( 'desktop_mode_dock_items', function ( $items ) {
     $pending = (int) get_option( 'my_pending_order_count', 0 );
 
     $items[] = array(
-        'slug'    => 'my-orders',
+        'id'      => 'my-orders',
         'title'   => __( 'Orders', 'my-ext' ),
         'icon'    => 'dashicons-cart',
         'url'     => admin_url( 'admin.php?page=my-orders' ),
@@ -27,20 +27,21 @@ add_filter( 'desktop_mode_dock_items', function ( $items ) {
 
 ## Updating the badge live (without a refresh)
 
-**Stable** — shipped 0.22.0; rail discriminator + icon rail
-since 0.24.0.
+**Stable** — shipped 0.6.0; rail discriminator + icon rail
+since 0.6.0.
 
 Use the platform API instead of poking the DOM. The framework
 exposes the same `setBadge( id, count )` shape on three rails —
-**dock**, **taskbar**, and **icons** (wallpaper shortcuts) — so a
-plugin author can fan a count to whichever rail happens to host
-the tile without branching:
+**dock** (bottom), **sideDock** (Classic-layout left rail), and
+**icons** (wallpaper shortcuts) — so a plugin author can fan a
+count to whichever rail happens to host the tile without
+branching:
 
 ```js
 function setOrdersBadge( count ) {
-    wp.desktop.dock?.setBadge?.(    'my-orders', count );
-    wp.desktop.taskbar?.setBadge?.( 'my-orders', count );
-    wp.desktop.icons?.setBadge?.(   'my-orders', count );
+    wp.desktop.dock?.setBadge?.(     'my-orders', count );
+    wp.desktop.sideDock?.setBadge?.( 'my-orders', count );
+    wp.desktop.icons?.setBadge?.(    'my-orders', count );
 }
 setOrdersBadge( 7 );
 setOrdersBadge( 0 );  // clear
@@ -51,7 +52,7 @@ id silently no-op — the rail that does paints, records the
 override (so a live menu refresh re-applies it), and emits
 exactly once.
 
-The id is the dock item's `slug`, the system tile's id, or the
+The id is the dock item's `id`, the system tile's id, or the
 desktop icon's id — same id space across rails. Idempotent:
 applying the same count twice does not mutate the DOM, does not
 re-emit.

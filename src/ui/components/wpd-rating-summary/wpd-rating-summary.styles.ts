@@ -7,7 +7,7 @@
  * reads from a CSS custom property so callers can theme just the
  * fills (matching their plugin brand) without overriding the layout.
  *
- * @since 0.21.0
+ * @since 0.8.5
  */
 import { css } from '../../core';
 

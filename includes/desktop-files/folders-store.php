@@ -7,9 +7,10 @@
  * mode, and a JSON `share_meta` column carrying the user / role
  * lists when `share_mode` is `users` or `roles`.
  *
- * Phase 2 ships private folders only. Phase 6 lights up the
- * other share modes plus the `desktop_mode_files_visible_folders`
- * filter that gates which folders a viewer can see.
+ * Visibility beyond the owner is computed by sharing.php, which
+ * hooks the `desktop_mode_files_visible_folders` filter at
+ * priority 5 to merge accepted shares and `share_mode='all'`
+ * folders onto the owner's list.
  *
  * @package WPDesktopMode
  * @since   0.9.0
@@ -180,7 +181,7 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		 * the propagation by returning a non-null SQL fragment via
 		 * this filter. Return `null` to opt OUT entirely (rare).
 		 *
-		 * @since 0.18.x
+		 * @since 0.8.5
 		 *
 		 * @param string $where     Default WHERE clause body.
 		 * @param int    $folder_id Folder being renamed.
@@ -211,7 +212,7 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		 * dispatch their own cross-window broadcasts, refresh sidebar
 		 * displays of the folder name).
 		 *
-		 * @since 0.18.x
+		 * @since 0.8.5
 		 *
 		 * @param int    $folder_id Folder id.
 		 * @param string $new_name  New name (sanitized).
@@ -310,7 +311,7 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 *   - Require a confirmation token / nonce stored in the user's
 	 *     session.
 	 *
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 *
 	 * @param bool|WP_Error $can       Default `true`.
 	 * @param int           $folder_id Folder id about to be deleted.
@@ -341,7 +342,7 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 * stage a notification to recipients ("the folder you had
 	 * access to is being deleted in 10 s").
 	 *
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 *
 	 * @param int   $folder_id Folder being deleted.
 	 * @param int   $user_id   Acting user.
@@ -375,7 +376,7 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 *   - `placements_inside`    — placement ids removed (contents of
 	 *                              the deleted folders).
 	 *
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 *
 	 * @param int   $folder_id Root folder of the cascade.
 	 * @param int   $user_id   Acting user.
@@ -404,12 +405,17 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
  * ever corrupted with one. The owner check happens at the public
  * entry point above; this worker trusts its caller.
  *
- * @since 0.18.x
+ * @since 0.8.5
  * @internal
  *
- * @param int   $folder_id Folder id to delete.
- * @param int   $user_id   Owner.
- * @param array $visited   Folder ids already processed.
+ * @param int        $folder_id Folder id to delete.
+ * @param int        $user_id   Owner.
+ * @param array      $visited   Folder ids already processed.
+ * @param array|null $summary   Optional. By-reference cascade summary
+ *                              accumulator (`folders_deleted`,
+ *                              `shares_revoked`, `placements_pointing`,
+ *                              `placements_inside`); initialized when
+ *                              null.
  * @return true|WP_Error
  */
 function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$visited, &$summary = null ) {
@@ -589,7 +595,11 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
  *
  * @since 0.9.0
  *
- * @param int $folder_id Folder id.
+ * @param int  $folder_id       Folder id.
+ * @param bool $include_trashed Optional. Return the row even when
+ *                              soft-trashed (recycle-bin callers).
+ *                              Default false — trashed folders
+ *                              resolve to null.
  * @return array|null
  */
 function desktop_mode_files_get_folder( $folder_id, $include_trashed = false ) {
@@ -611,8 +621,8 @@ function desktop_mode_files_get_folder( $folder_id, $include_trashed = false ) {
 }
 
 /**
- * Folders visible to `$user_id`. Phase 2 ships private only —
- * the viewer is the owner. Phase 6 expands this with the
+ * Folders visible to `$user_id`. Returns the folders the viewer
+ * owns; sharing.php merges shared folders in via the
  * `desktop_mode_files_visible_folders` filter.
  *
  * @since 0.9.0
@@ -642,8 +652,10 @@ function desktop_mode_files_get_visible_folders( $user_id ) {
 	}
 
 	/**
-	 * Filter the folders visible to a viewer. Phase 6's sharing
-	 * logic merges shared folders onto this list.
+	 * Filter the folders visible to a viewer. sharing.php's
+	 * `desktop_mode_files_compute_visible_folders` (priority 5)
+	 * merges accepted shares and `share_mode='all'` folders onto
+	 * this list.
 	 *
 	 * @since 0.9.0
 	 *

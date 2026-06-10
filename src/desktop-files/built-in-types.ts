@@ -1,8 +1,8 @@
 /**
  * Desktop Mode — Built-in JS file-type registrations.
  *
- * Registers the seven types that ship with the plugin against the
- * JS-side registry. None of them ship a custom {@link DesktopFile}
+ * Registers the built-in file types that ship with the plugin
+ * against the JS-side registry. None of them ship a custom {@link DesktopFile}
  * subclass; they all use {@link DefaultDesktopFile} because the
  * PHP `serialize()` filter already produces the shape the renderer
  * needs. Plugins that want richer rendering can re-register the

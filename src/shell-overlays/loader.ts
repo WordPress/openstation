@@ -15,13 +15,12 @@
  *     `showToast()`, `wpdConfirm()`, and every context-menu
  *     construction site before they `createElement( … )`.
  *
- * Detection: the bundle's `entry.ts` side-effect-imports the three
- * overlay-component leaf modules. After load, every one of
- * `customElements.get( 'wpd-toast' )`, `'wpd-confirm-dialog'`,
- * `'wpd-context-menu' )` is non-null. We use `wpd-confirm-dialog`
- * as the canary because it's the "smallest" of the three (one
- * tag, no compound siblings) and is registered last in the entry
- * if a bundler-side reorder shuffles imports.
+ * Detection: the bundle's `entry.ts` side-effect-imports the
+ * Stage-9 overlay trio (toast / confirm-dialog / context-menu)
+ * plus the Stage-10 window-chrome and form components. After
+ * load, `customElements.get( 'wpd-confirm-dialog' )` is
+ * non-null; we use it as the canary because it's a single tag
+ * with no compound siblings.
  *
  * @since 0.8.4
  */

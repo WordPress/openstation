@@ -20,7 +20,7 @@
  * the existing `aiSearchStreamUrl` (admin-ajax) surface; `ask()` is
  * the "give me the answer" API.
  *
- * @since 0.17.0
+ * @since 0.5.1
  */
 
 import {
@@ -54,8 +54,8 @@ export interface AskOptions {
 	 *                         is harvested and sent as a tool.
 	 *   - `string[]`        — explicit slug allowlist (subset of the
 	 *                         `aiCallable: true` set).
-	 *   - `( cmd ) => bool` — custom predicate; receives the full
-	 *                         `DesktopCommand` and returns whether it
+	 *   - `( slug ) => bool` — custom predicate; receives the
+	 *                         command's slug and returns whether it
 	 *                         should be offered. Use this for per-user
 	 *                         gating or env-specific overrides.
 	 *
@@ -96,7 +96,7 @@ export interface AskOptions {
 	 * degrades gracefully — the primary `toolCall.result` is
 	 * preserved and `message` falls back to the raw `run()` return.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 */
 	followUp?: boolean;
 
@@ -264,7 +264,7 @@ function serialiseOutcome(
  * Factory — binds to a config getter so the caller (desktop.ts) can
  * hand in the live shell config without this module reading globals.
  *
- * @since 0.17.0
+ * @since 0.5.1
  */
 export function createAsk( deps: AskDeps ) {
 	// ------------------------------------------------------------

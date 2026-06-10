@@ -154,10 +154,10 @@ function desktop_mode_posts_window_render_template() {
  * Register the native Posts window on `init` (priority 20, after
  * `components.php` has bootstrapped the registry).
  *
- * Gated on `desktop_mode_posts_window_user_can_use()` — when the user
- * has not opted in (or lacks `edit_posts`), the window is simply not
- * registered and the dock-click swap silently falls back to the
- * iframe path.
+ * Gated on `desktop_mode_posts_window_user_can_register()` — cap-only,
+ * so when the user lacks `edit_posts` the window is simply not
+ * registered. The opt-in toggle is enforced at runtime by the JS-side
+ * URL remap, so flipping it mid-session never requires a reload.
  *
  * @since 0.8.0
  */

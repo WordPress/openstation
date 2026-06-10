@@ -15,10 +15,11 @@
  * through. Behaviorally this is "narrow scope" from the user's POV
  * without inheriting the technical limitation.
  *
- * Co-existence: another root-scoped SW already on the origin (Jetpack
- * Boost, Super PWA, etc.) means our `register()` will replace it.
- * We detect the case before registering and bail with a console
- * warning unless the operator explicitly opts in via the
+ * Co-existence: another SW already on the origin (Jetpack Boost,
+ * Super PWA, etc.) — at any scope, not just root — would be replaced
+ * or shadowed by our root-scope `register()`. We detect any foreign
+ * registration before registering and bail with a console warning
+ * unless the operator explicitly opts in via the
  * `desktop_mode_pwa_force_replace_sw` PHP filter (returning `true`
  * surfaces as `forceReplace` on the JS-side config object).
  *
@@ -33,9 +34,9 @@ import type { PwaConfig } from '../types';
  *   - `'pending'` — registration hasn't been attempted yet (or is still
  *     in-flight).
  *   - `'registered'` — our SW is the controller (or activating).
- *   - `'foreign-sw'` — another root-scope SW is already on this origin
- *     and we bailed rather than usurp it. Operators can opt in via the
- *     `desktop_mode_pwa_force_replace_sw` PHP filter.
+ *   - `'foreign-sw'` — another SW (at any scope) is already registered
+ *     on this origin and we bailed rather than usurp it. Operators can
+ *     opt in via the `desktop_mode_pwa_force_replace_sw` PHP filter.
  *   - `'unsupported'` — `navigator.serviceWorker` not available, or the
  *     origin isn't secure.
  *   - `'failed'` — `register()` threw.
@@ -173,9 +174,11 @@ export async function registerServiceWorker(
 		return _registration;
 	}
 
-	// Detect a foreign SW already controlling the page. Without this
-	// check, our `register()` call silently usurps the existing one
-	// — bad form for hosts who deliberately enabled another PWA.
+	// Detect a foreign SW already registered on this origin — at any
+	// scope, not just one controlling this page. Without this check,
+	// our `register()` call silently usurps (or fights with) the
+	// existing one — bad form for hosts who deliberately enabled
+	// another PWA.
 	if ( ! options.forceReplace ) {
 		const existing = await navigator.serviceWorker
 			.getRegistrations()

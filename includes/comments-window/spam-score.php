@@ -8,8 +8,9 @@
  *
  *   - +35  Akismet flagged this comment as spam.
  *   - +25  Comment is in the 'spam' status.
- *   - +20  Author's prior spam rate ≥ 20%.
- *   - +15  Comment contains 4+ links.
+ *   - +30  Author's prior spam rate ≥ 50%, or +20 when ≥ 20%
+ *          (requires 3+ prior comments).
+ *   - +15  Comment contains 4+ links, or +5 for 2–3 links.
  *   - +10  Comment matches the disallowed-keys list.
  *   - +10  Comment is from an unauthenticated author with no
  *          previously-approved comment.
@@ -20,7 +21,7 @@
  * but does have an AI provider configured.
  *
  * @package WPDesktopMode
- * @since   0.19.0
+ * @since   0.8.3
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -28,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Compute a 0–100 spam confidence score for a comment.
  *
- * @since 0.19.0
+ * @since 0.8.3
  *
  * @param int|WP_Comment $comment Comment id or object.
  * @return int 0–100. Higher = more spam-like.
@@ -133,7 +134,7 @@ function desktop_mode_comments_window_spam_score( $comment ) {
 	 * but an AI provider is. The callback should return an integer
 	 * clamped to 0–100 — values outside that range are clamped back.
 	 *
-	 * @since 0.19.0
+	 * @since 0.8.3
 	 *
 	 * @param int        $score   Default heuristic score (0–100).
 	 * @param WP_Comment $comment Comment object.

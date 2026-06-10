@@ -15,7 +15,7 @@
  * in. The workspace indexer feeds this same filter.
  *
  * @package DesktopModeCodeEditor
- * @since   0.22.0
+ * @since   0.7.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -31,7 +31,7 @@ const DESKTOP_MODE_CODE_EDITOR_INDEX_TTL = 30 * DAY_IN_SECONDS;
  * Returns the WP core symbol index. Cached as a transient keyed on
  * the WP version.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @return array{ functions: array<string, array>, hooks: array<string, array> }
  */
@@ -50,7 +50,7 @@ function desktop_mode_code_editor_get_wp_core_index() {
 /**
  * Drop the cached index.
  *
- * @since 0.22.0
+ * @since 0.7.0
  */
 function desktop_mode_code_editor_flush_wp_core_index() {
 	delete_transient( 'desktop_mode_code_editor_php_index_' . get_bloginfo( 'version' ) );
@@ -63,7 +63,7 @@ function desktop_mode_code_editor_flush_wp_core_index() {
 /**
  * Build the index from scratch. Slow — call only via the cached reader.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @return array
  */
@@ -81,7 +81,7 @@ function desktop_mode_code_editor_build_wp_core_index() {
  * Index every defined function whose source file lives under
  * `ABSPATH` but outside `WP_CONTENT_DIR`.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @return array<string, array>
  */
@@ -151,7 +151,7 @@ function desktop_mode_code_editor_index_wp_core_functions() {
  * Walk wp-includes / wp-admin and pull out every literal-string
  * `do_action` / `apply_filters` call.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @return array<string, array>
  */
@@ -210,7 +210,7 @@ function desktop_mode_code_editor_index_wp_core_hooks() {
  * Tokenize a single PHP file and append every literal-string
  * `do_action` / `apply_filters` (and `_ref_array` variants) into `$out`.
  *
- * @since 0.22.0
+ * @since 0.7.0
  * @internal
  *
  * @param string $path Absolute path to a PHP file.
@@ -388,7 +388,7 @@ function desktop_mode_code_editor_format_signature( $name, array $params, $retur
 /**
  * Pull the human-readable summary out of a PHPDoc block.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @param string $doc Full docblock text including delimiters.
  * @return string
@@ -421,7 +421,7 @@ function desktop_mode_code_editor_phpdoc_summary( $doc ) {
 /**
  * Pull a single `@tag` value out of a PHPDoc block.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @param string $doc PHPDoc block.
  * @param string $tag Tag name without `@`.
@@ -460,7 +460,7 @@ function desktop_mode_code_editor_path_relative_to_abspath( $path ) {
  * Query the index — prefix-match across functions + hooks, optionally
  * filtered by `$kinds`.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @param string   $prefix Lower-cased identifier prefix.
  * @param string[] $kinds  Subset of {`function`, `action`, `filter`}.
@@ -498,7 +498,7 @@ function desktop_mode_code_editor_query_php_symbols( $prefix, array $kinds = arr
 	 * Inject extra symbols (workspace functions, framework
 	 * dictionaries, etc.).
 	 *
-	 * @since 0.22.0
+	 * @since 0.7.0
 	 *
 	 * @param array  $pool   Symbols collected from WP core.
 	 * @param string $prefix The prefix being queried.
@@ -534,7 +534,7 @@ function desktop_mode_code_editor_query_php_symbols( $prefix, array $kinds = arr
 /**
  * Look up a single symbol by exact name.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @param string $name
  * @return array|null

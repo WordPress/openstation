@@ -2,11 +2,12 @@
 /**
  * Desktop Mode — Native Users Window: REST mutation routes.
  *
- * Three endpoints under `desktop-mode/v1`:
+ * Five endpoints under `desktop-mode/v1`:
  *
  *   - POST /users/bulk-role               { ids: int[], role: string }
  *   - POST /users/<id>/send-password-reset
  *   - POST /users/<id>/resend-welcome
+ *   - POST /users                         { username, email, role?, … }
  *   - POST /users/bulk-delete             { ids: int[], reassign?: int }
  *
  * SECURITY POSTURE
@@ -19,9 +20,13 @@
  *      non-admin from even reaching the callback.
  *
  *   2. Per-target re-validation inside the callback:
- *        - bulk-role re-derives `get_editable_roles()` and rejects
- *          any role outside it. This is what stops an Editor from
- *          forging a request that promotes someone to Administrator.
+ *        - bulk-role and create validate the requested role against
+ *          the filtered `desktop_mode_users_window_assignable_roles()`
+ *          list and reject any role outside it. What stops an Editor
+ *          from forging a promote-to-Administrator request is the
+ *          `promote_users` permission_callback — and, as defense in
+ *          depth, the helper itself returns an empty array for
+ *          viewers without `promote_users`.
  *        - bulk-delete checks `current_user_can( 'delete_user', $id )`
  *          per row. Multisite uses `remove_user_from_blog` instead.
  *        - mutation routes refuse self-targeting on operations that
@@ -29,15 +34,15 @@
  *          delete-self).
  *
  * @package WPDesktopMode
- * @since   0.18.0
+ * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the four routes.
+ * Register the five routes.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function desktop_mode_users_window_register_rest_routes() {
 	register_rest_route(
@@ -164,7 +169,7 @@ add_action( 'rest_api_init', 'desktop_mode_users_window_register_rest_routes' );
  * edit four of them succeeds for those four and reports `forbidden`
  * for the fifth.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -261,7 +266,7 @@ function desktop_mode_users_window_rest_bulk_role( $req ) {
  * core's `retrieve_password()` so the email format stays consistent
  * with the login screen's "Lost your password?" link.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -327,7 +332,7 @@ function desktop_mode_users_window_rest_send_password_reset( $req ) {
  * never opened the original (filtered to spam, typo'd address that's
  * since been corrected, …).
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -389,7 +394,7 @@ function desktop_mode_users_window_rest_resend_welcome( $req ) {
  * Multisite: removes the user from the current site (network user
  * record stays). Per-target re-validation either way.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -495,7 +500,7 @@ function desktop_mode_users_window_rest_bulk_delete( $req ) {
  * On failure returns the matching `WP_Error` (404/400/403/409
  * depending on cause).
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -613,7 +618,7 @@ function desktop_mode_users_window_rest_create( $req ) {
 	/**
 	 * Fires after the Users window has created a new account.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 *
 	 * @param int     $user_id
 	 * @param WP_User $user    Wrapped user object.

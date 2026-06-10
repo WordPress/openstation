@@ -36,7 +36,7 @@ const DESKTOP_MODE_AI_REQUEST_TIMEOUT = 30;
  * All callers go through here so auth headers, timeout, and error handling
  * live in one place.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $api_key OpenAI secret key.
  * @param array  $body    Already-validated request body.
@@ -121,7 +121,7 @@ function desktop_mode_ai_do_request( $api_key, array $body ) {
  * We check all known locations so a future API change doesn't silently
  * break text extraction.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param array $response Decoded Responses API response.
  * @return string|null The text content, or null when absent.
@@ -151,7 +151,7 @@ function desktop_mode_ai_extract_text( array $response ) {
 /**
  * Return all `function_call` items from a Responses API output array.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param array $response Decoded Responses API response.
  * @return array[] Array of function_call output items.
@@ -181,7 +181,7 @@ function desktop_mode_ai_extract_function_calls( array $response ) {
  *   system message  → `instructions`
  *   other messages  → `input`
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $api_key     OpenAI secret key.
  * @param array  $messages    Chat-style messages: `[['role'=>..., 'content'=>...], …]`.
@@ -258,7 +258,7 @@ function desktop_mode_ai_openai_structured_request(
  * `function_call_output` items — the Responses API reconstructs the full
  * context from the chain automatically.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string      $api_key              OpenAI secret key.
  * @param array       $input                Input items for this turn.
@@ -319,7 +319,7 @@ function desktop_mode_ai_openai_responses_call(
  * kinds — a fresh user message, or a batch of tool results to resume an
  * agentic loop with `previous_response_id` already in state.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param string $kind 'user_message' | 'tool_results'.
  * @param mixed  $payload For 'user_message': string. For 'tool_results':
@@ -357,7 +357,7 @@ function desktop_mode_ai_openai_make_turn_input( $kind, $payload ) {
 /**
  * One turn of the agentic loop via the OpenAI Responses API.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param string     $api_key      OpenAI key.
  * @param array      $turn_input   Output of {@see desktop_mode_ai_openai_make_turn_input}.
@@ -415,7 +415,7 @@ function desktop_mode_ai_openai_provider_agentic_call(
  *
  * Thin wrapper that selects a default model when the caller passes ''.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param string $api_key
  * @param array  $messages
@@ -441,7 +441,7 @@ function desktop_mode_ai_openai_provider_structured_request(
  * Registration runs on `desktop_mode_ai_register_providers` (fired lazily on
  * first lookup) so the registry doesn't depend on plugin load order.
  *
- * @since 0.18.0
+ * @since 0.5.2
  */
 function desktop_mode_ai_register_openai_provider() {
 	desktop_mode_register_ai_provider(

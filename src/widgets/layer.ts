@@ -445,7 +445,7 @@ export class WidgetLayer {
 	 * back in one paint.
 	 *
 	 * @since 0.7.0 (private)
-	 * @since 0.25.0 (public)
+	 * @since 0.8.6 (public)
 	 */
 	public redock( id: string ): void {
 		const record = this.mounted.get( id );

@@ -35,7 +35,7 @@
  *   https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-amd-cross.md
  *
  * @public
- * @since 0.18.0
+ * @since 0.7.0
  */
 
 import loader from '@monaco-editor/loader';
@@ -45,11 +45,12 @@ import { registerPhpProviders } from './providers/php';
 import type * as Monaco from 'monaco-editor';
 
 /**
- * Shape of the localized config every editor module reads. Sourced
- * from `wpdc_localize_editor_config()` in
- * `includes/code-editor/window.php`. Re-declared here in
- * `monaco-bootstrap.ts` only — every other module imports the type
- * to keep one canonical declaration.
+ * Shape of the config every editor module reads. Injected as
+ * `window.wpDesktopCodeEditorConfig` by
+ * `desktop_mode_code_editor_serve_bundle()` in `includes/window.php`,
+ * which prepends the config assignment to the AJAX-served bundle.
+ * Re-declared here in `monaco-bootstrap.ts` only — every other module
+ * imports the type to keep one canonical declaration.
  */
 export interface CodeEditorConfig {
 	monacoVendorUrl: string;
@@ -115,7 +116,7 @@ function installWorkerEnvironment( monacoVendorUrl: string ): void {
  * Resolves with the `monaco` namespace on success. Subsequent calls
  * return the cached module without re-running the loader.
  *
- * @since 0.18.0
+ * @since 0.7.0
  */
 export async function loadMonaco(): Promise< typeof Monaco > {
 	if ( cached ) {

@@ -1,7 +1,7 @@
 /**
  * Desktop Mode type definitions.
  *
- * @since 6.9.0
+ * @since 0.5.0
  */
 
 /**
@@ -367,10 +367,10 @@ export interface WindowControlInline {
  * left-to-right order:
  *
  * `before-titlebar` (above the bar) → `before-icon` → `icon` →
- * `title` → `after-title` → screen-meta cluster → menu (iframe-only)
- * → custom-button left slot → `before-controls` → `controls` →
- * `after-controls` → custom-button right slot → `after-titlebar`
- * (below the bar).
+ * activity indicator → `title` → `after-title` → custom-button left
+ * slot → screen-meta cluster → ⋯ actions menu → custom-button right
+ * slot → `before-controls` → `controls` → `after-controls` →
+ * `after-titlebar` (below the bar).
  *
  * @public
  * @since 0.6.0
@@ -434,7 +434,7 @@ export type WindowSlotConfig =
  * ```
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 'submenu' | 'x' | 'y' > {
 	/** Optional `#hash`-style URL for history. Auto-generated from `id` when absent. */
@@ -459,7 +459,7 @@ export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 
 	 * single config block. When you set this, **don't pass `render`**
 	 * — the shell synthesises the body for you.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	iframeContent?: NativeWindowIframeContent;
 }
@@ -469,7 +469,7 @@ export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 
  * shell-managed iframe. Used by `NativeWindowDef.iframeContent`.
  *
  * @public
- * @since 0.18.0
+ * @since 0.5.2
  */
 export interface NativeWindowIframeContent {
 	/**
@@ -672,7 +672,7 @@ export interface NativeRenderContext {
  * / `url` unset, while a failed XHR fills them all.
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface MonitorEntry {
 	/** Unix timestamp in milliseconds (Date.now()). */
@@ -711,7 +711,7 @@ export interface MonitorEntry {
  * disappear cleanly.
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface NativeWindowServerEntry {
 	/** Window id + dock-tile id. */
@@ -761,10 +761,10 @@ export interface NativeWindowServerEntry {
 	 * its CSS would otherwise be missing until F5. Empty when the
 	 * plugin declared no `style` arg.
 	 *
-	 * @since 0.18.1
+	 * @since 0.7.0
 	 */
 	styleUrl?: string;
-	/** WordPress style handle (informational). @since 0.18.1 */
+	/** WordPress style handle (informational). @since 0.7.0 */
 	styleHandle?: string;
 	/**
 	 * `wp_add_inline_style( $h, $css )` blobs harvested from the
@@ -772,7 +772,7 @@ export interface NativeWindowServerEntry {
 	 * after the `<link>` so cascade order matches what
 	 * `WP_Styles::print_inline_style()` would have written.
 	 *
-	 * @since 0.18.1
+	 * @since 0.7.0
 	 */
 	styleInline?: string[];
 	/**
@@ -796,7 +796,7 @@ export interface NativeWindowServerEntry {
 	 * metadata — useful for plugins that want to inspect or extend
 	 * a window's tab list without re-parsing the template.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	tabs?: NativeWindowTabEntry[];
 }
@@ -807,7 +807,7 @@ export interface NativeWindowServerEntry {
  * registered `desktop_mode_register_window_tab()` entry.
  *
  * @public
- * @since 0.11.0
+ * @since 0.5.0
  */
 export interface NativeWindowTabEntry {
 	value: string;
@@ -842,7 +842,7 @@ export interface NativeWindowTabEntry {
  * plugins surface in the widget picker without a shell reload.
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface DesktopWidgetServerEntry {
 	id: string;
@@ -882,7 +882,7 @@ export interface DesktopWidgetServerEntry {
  * forwards to the normal wallpaper registry.
  *
  * @public
- * @since 0.10.0
+ * @since 0.5.0
  */
 export interface DesktopWallpaperServerEntry {
 	id: string;
@@ -898,7 +898,7 @@ export interface DesktopWallpaperServerEntry {
 	 * When set, the shell can register the wallpaper purely from
 	 * the server-side entry without any accompanying JS bundle.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	value: string;
 	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
@@ -928,7 +928,7 @@ export interface DesktopWallpaperServerEntry {
  * any open palette without a reload.
  *
  * @public
- * @since 0.15.0
+ * @since 0.5.0
  */
 export interface DesktopCommandScriptServerEntry {
 	/** WordPress script handle — doubles as the command `owner` key used for live unregistration. */
@@ -953,7 +953,7 @@ export interface DesktopCommandScriptServerEntry {
  * deactivation.
  *
  * @public
- * @since 0.18.0
+ * @since 0.5.2
  */
 export interface DesktopDockRailRendererScriptServerEntry {
 	handle: string;
@@ -976,7 +976,7 @@ export interface DesktopDockRailRendererScriptServerEntry {
  * Advisory today — reserved for future pre-registration shims.
  *
  * @public
- * @since 0.15.0
+ * @since 0.5.0
  */
 export interface DesktopCommandServerEntry {
 	slug: string;
@@ -992,7 +992,7 @@ export interface DesktopCommandServerEntry {
 	 * to set `owner` on each JS `registerCommand` call — the sync walks
 	 * the previous payload's slug→handle mapping when a handle leaves.
 	 *
-	 * @since 0.15.0
+	 * @since 0.5.0
 	 */
 	scriptHandle: string;
 	/** @since 0.6.0 */
@@ -1016,7 +1016,7 @@ export interface DesktopCommandServerEntry {
  * OS Settings window (subscribed to the tab registry) repaints.
  *
  * @public
- * @since 0.17.0
+ * @since 0.5.1
  */
 export interface DesktopSettingsTabScriptServerEntry {
 	/** WordPress script handle — doubles as the tab `owner` key used for live unregistration. */
@@ -1041,7 +1041,7 @@ export interface DesktopSettingsTabScriptServerEntry {
  * window-class registry subscriber repaints every open window.
  *
  * @public
- * @since 0.17.0
+ * @since 0.5.1
  */
 export interface DesktopTitleBarButtonScriptServerEntry {
 	/** WordPress script handle — doubles as the button `owner` key for live unregistration. */
@@ -1067,7 +1067,7 @@ export interface DesktopTitleBarButtonScriptServerEntry {
  * the OS Settings selector without an F5.
  *
  * @public
- * @since 0.26.0
+ * @since 0.9.1
  */
 export interface DesktopUnfocusEffectScriptServerEntry {
 	/** WordPress script handle — doubles as the effect `owner` key for live unregistration. */
@@ -1248,7 +1248,7 @@ export interface DesktopWindowSlotServerEntry {
  * When `match` is omitted, the notice renders on every window.
  *
  * @public
- * @since 0.22.0
+ * @since 0.8.6
  */
 export interface DesktopWindowNoticeServerEntry {
 	id: string;
@@ -1317,7 +1317,7 @@ export interface DesktopWindowChromeServerEntry {
  * payload's id→handle mapping when a handle leaves.
  *
  * @public
- * @since 0.17.0
+ * @since 0.5.1
  */
 export interface DesktopSettingsTabServerEntry {
 	id: string;
@@ -1349,7 +1349,7 @@ export interface DesktopSettingsTabServerEntry {
  * that opens a native window or a URL on click. Registered via PHP
  * with `desktop_mode_register_icon()`.
  *
- * @since 0.11.0
+ * @since 0.5.0
  * @public
  */
 export interface DesktopIconServerEntry {
@@ -1553,14 +1553,14 @@ export interface DesktopConfig {
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new slash-commands appear in the palette without a reload.
 	 *
-	 * @since 0.15.0
+	 * @since 0.5.0
 	 */
 	serverCommandScripts?: DesktopCommandScriptServerEntry[];
 	/**
 	 * Server-declared command metadata (from `desktop_mode_register_command()`).
 	 * Advisory today — reserved for future pre-registration shims.
 	 *
-	 * @since 0.15.0
+	 * @since 0.5.0
 	 */
 	serverCommands?: DesktopCommandServerEntry[];
 	/**
@@ -1568,7 +1568,7 @@ export interface DesktopConfig {
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new OS Settings tabs appear without a reload.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 */
 	serverSettingsTabScripts?: DesktopSettingsTabScriptServerEntry[];
 	/**
@@ -1576,7 +1576,7 @@ export interface DesktopConfig {
 	 * `desktop_mode_register_settings_tab()`). Enables live unregistration
 	 * on deactivation without per-call `owner` in JS.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 */
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
 	/**
@@ -1585,7 +1585,7 @@ export interface DesktopConfig {
 	 * each URL on boot and on mid-session activation so plugin
 	 * renderers surface in OS Settings → Dock style without an F5.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	serverDockRailRendererScripts?: DesktopDockRailRendererScriptServerEntry[];
 	/**
@@ -1594,7 +1594,7 @@ export interface DesktopConfig {
 	 * each URL on boot and on mid-session activation so newly-
 	 * installed plugins paint their title-bar buttons live.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 */
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
 	/**
@@ -1604,7 +1604,7 @@ export interface DesktopConfig {
 	 * plugins surface their unfocus effect in OS Settings → Effects
 	 * live. Owner-tagged registrations live-unregister on deactivation.
 	 *
-	 * @since 0.26.0
+	 * @since 0.9.1
 	 */
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
 	/**
@@ -1677,7 +1677,7 @@ export interface DesktopConfig {
 	 * `after-titlebar` slot. Pure declarative data — no script handle
 	 * required.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.6
 	 */
 	serverWindowNotices?: DesktopWindowNoticeServerEntry[];
 	/**
@@ -1686,7 +1686,7 @@ export interface DesktopConfig {
 	 * click-through opens either the referenced native window (if
 	 * `window` is set) or the URL (if `url` is set).
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	desktopIcons?: DesktopIconServerEntry[];
 	/**
@@ -1752,7 +1752,7 @@ export interface DesktopConfig {
 	 * picker. Server applies `desktop_mode_files_share_eligible_roles`
 	 * before serializing — default = roles with `edit_posts`.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	shareEligibleRoles?: Array< { slug: string; name: string } >;
 	/**
@@ -1760,7 +1760,7 @@ export interface DesktopConfig {
 	 * code that gates UI on ownership (e.g. only render the folder
 	 * Share button when the viewer is the folder's owner).
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	currentUserId?: number;
 	/**
@@ -1768,14 +1768,14 @@ export interface DesktopConfig {
 	 * `edit_posts`. Used by `<wpd-user-search>` in the Share
 	 * Settings modal.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	filesUsersSearchUrl?: string;
 	/**
 	 * Base REST URL for /folders — the Share Settings modal appends
 	 * `/{id}/shares` / `/{id}/shares/{shareId}` etc.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	folderSharesUrl?: string;
 	/**
@@ -1851,7 +1851,7 @@ export interface DesktopConfig {
 	 * `registerWindow` and exposed for plugins that need to inject
 	 * the bridge into their own same-origin iframes manually.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	iframeBridgeUrl?: string;
 	/** Nonce for the REST endpoint (X-WP-Nonce header). */
@@ -1894,7 +1894,7 @@ export interface DesktopConfig {
 	 * side falls back to a built-in default list when this is missing
 	 * (older PHP builds, hostile filter that returned garbage, etc.).
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	accentColors?: AccentColor[];
 	/**
@@ -1902,7 +1902,7 @@ export interface DesktopConfig {
 	 * `desktop_mode_toast_types`. Optional — same fallback story as
 	 * `accentColors`.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	toastTypes?: ToastTypeDef[];
 	/**
@@ -1910,7 +1910,7 @@ export interface DesktopConfig {
 	 * server-side via `desktop_mode_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	defaultWallpaper?: string;
 	/**
@@ -1921,25 +1921,25 @@ export interface DesktopConfig {
 	 *
 	 * Optional — absent on older PHP builds that predate this field.
 	 *
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	osSettings?: Record<string, unknown>;
 	/**
 	 * REST endpoint for reading/writing OS settings.
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	osSettingsUrl?: string;
 	/**
 	 * REST endpoint for the AI content search.
 	 * Shape: `desktop-mode/v1/ai/search`.
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	aiSearchUrl?: string;
 	/**
 	 * SSE streaming endpoint for the agentic search — admin-ajax.php with
 	 * `action=desktop_mode_ai_search_stream` pre-filled. The JS EventSource appends
 	 * &nonce= and &query= when connecting.
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	aiSearchStreamUrl?: string;
 	/**
@@ -1996,31 +1996,31 @@ export interface DesktopConfig {
 	/**
 	 * Platform-wide AI settings — only present for admins (null for
 	 * non-admin users so the key is never leaked in the page source).
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	aiPlatformSettings?: { enabled: boolean; provider: string; apiKey: string } | null;
 	/**
 	 * REST endpoint for reading/writing platform AI settings (admin only).
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	aiPlatformSettingsUrl?: string;
 	/**
 	 * Whether the current user has the `manage_options` capability.
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	currentUserIsAdmin?: boolean;
 	/**
 	 * Platform-wide extended options (admin-only). Contains toggles
 	 * for optional site-level enhancements such as Media Library
 	 * drag-and-drop. Null for non-admin users.
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	extendedOptions?: {
 		media_library_enhanced: boolean;
 	} | null;
 	/**
 	 * REST endpoint for reading/writing extended options (admin only).
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 */
 	extendedOptionsUrl?: string;
 	/**
@@ -2032,10 +2032,10 @@ export interface DesktopConfig {
 	 * Experiments) is active. The shell skips booting the sticky-notes
 	 * layer when `false`, avoiding the `wp/v2/guidelines` +
 	 * `wp/v2/wp_guideline_type` REST probes that 404 without it. Absent
-	 * on shells older than 0.11.0 → treated as available (boot and
+	 * on shells older than 0.5.0 → treated as available (boot and
 	 * swallow), preserving prior behavior.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.0
 	 */
 	stickyNotes?: {
 		available: boolean;
@@ -2087,7 +2087,7 @@ export interface PwaConfig {
 /**
  * A single entry in the OS Settings accent-color picker.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 export interface AccentColor {
 	id: string;
@@ -2098,7 +2098,7 @@ export interface AccentColor {
 /**
  * A single toast-notification type declared by the server.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 export interface ToastTypeDef {
 	id: string;
@@ -2121,7 +2121,7 @@ export interface ToastTypeDef {
  * mode. Anything else is `action` — the parent proxies execution back
  * into the iframe via `desktop-mode-commands-invoke`.
  *
- * @since 0.16.0
+ * @since 0.5.1
  */
 export interface HarvestedCommand {
 	name: string;
@@ -2147,7 +2147,7 @@ export interface HarvestedCommand {
 }
 
 // -----------------------------------------------------------------------------
-// Bridge events — moved to `src/protocol/window-messages.ts` in 1.0.
+// Bridge events — moved to `src/protocol/window-messages.ts` in 0.8.1.
 // Re-exported here for backwards compatibility; new code should
 // import from `@protocol/window-messages` (or via `@protocol/guards`
 // for the `isBridgeEvent` / `assertBridgeEventType` helpers).

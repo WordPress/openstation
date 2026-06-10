@@ -26,13 +26,14 @@
  *   5. On `pointerup`: hit-test once more (with the ghost hidden);
  *      if a target accepts, fire its `onDrop` and the COMMIT event;
  *      otherwise fire CANCEL with `'no-target'` or `'rejected'`.
- *   6. Cleanup runs from a single `_finish()` path, idempotently.
+ *   6. Cleanup funnels through `_commit()` / `_cancel()` — both end
+ *      in `_cleanupDom()`, idempotently via the `_finished` marker.
  *
- * Cancellation paths (Escape, blur, visibilitychange, error,
- * pointercancel, manual `session.cancel()`) all funnel into the same
- * `_finish('cancel', reason)` exit.
+ * Cancellation paths (Escape, blur, visibilitychange, pointercancel,
+ * manual `session.cancel()`) all funnel into the same
+ * `_cancel( session, reason )` exit.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import { DropTargetRegistry } from './drop-target-registry';
@@ -60,7 +61,7 @@ const FILES_DROP_ACTIVE_ATTR = 'data-files-drop-active';
  * folder tiles, etc.) without each surface having to subscribe to the
  * DragManager's CustomEvents.
  *
- * @since 0.20.0
+ * @since 0.8.2
  */
 const BODY_DRAGGING_ATTR = 'data-desktop-mode-dragging';
 const BODY_DRAG_TYPE_ATTR = 'data-desktop-mode-drag-type';
@@ -156,7 +157,7 @@ export class DragManager implements DragManagerApi {
 	 * `requestAnimationFrame` and call back into a click-driven API.
 	 *
 	 * @public
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 */
 	recentlyEndedDrag( withinMs = 500 ): boolean {
 		if ( this._lastLiftedEndAt === 0 ) {

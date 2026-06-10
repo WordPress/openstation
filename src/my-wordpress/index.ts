@@ -195,7 +195,7 @@ interface RenderState {
 	 * hierarchy jumps (Media-detail → referenced post → back to
 	 * Media-detail), not just walk up the static folder tree.
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 */
 	history: Route[];
 }
@@ -556,7 +556,6 @@ function renderRoot( state: RenderState ): void {
 		// double-click can't race the tile out of the DOM), double
 		// click navigates. No drag-out: folder tiles aren't filed as
 		// shortcuts — only entity tiles are.
-		void tileKey;
 		tile.addEventListener( 'click', () => select( tile ) );
 		tile.addEventListener( 'dblclick', ( e ) => {
 			e.preventDefault();
@@ -671,7 +670,7 @@ interface ListContext {
 	 * Current debounced search query — empty string means no filter.
 	 * Threaded into `fetchEntityList` as the `search` param.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	query: string;
 	/**
@@ -679,7 +678,7 @@ interface ListContext {
 	 * supersedes it. Replaced on every `loadMore()` call so the
 	 * latest in-flight request is the only one that can paint.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	abort: AbortController | null;
 }
@@ -692,7 +691,7 @@ interface ListContext {
  * `entity.id` so switching Posts → Pages clears the field — see
  * the user-facing rationale for that in the plan.
  *
- * @since 0.22.0
+ * @since 0.8.7
  */
 const lastQueryByEntity = new Map< string, string >();
 
@@ -1280,7 +1279,6 @@ function buildEntityTile(
 	// pointerdown fires manager.start(); manager treats it as a
 	// click on pointerup; the browser dispatches `click`; this
 	// listener selects.
-	void tileKey;
 	tile.addEventListener( 'click', () => {
 		selectTile( state, ctx, tile, entity, item.id );
 	} );
@@ -1788,7 +1786,6 @@ function renderDetail(
 			// only), double click navigates. Disabled tiles still
 			// receive the selection so the user has a hover/focus
 			// affordance, but no dblclick listener below.
-			void tileKey;
 			tile.addEventListener( 'click', () => select( tile ) );
 			if ( ! sub.disabled ) {
 				tile.addEventListener( 'dblclick', ( e ) => {
@@ -3602,7 +3599,7 @@ function closeAnyTileMenu(): void {
  * entity without depending on this bundle's internals.
  *
  * @public
- * @since 0.22.0
+ * @since 0.8.7
  */
 async function trashEntityById(
 	entityId: string,
@@ -3706,7 +3703,7 @@ function showToast( message: string ): void {
  *  pane, and a dedicated "activity footprint" surface that
  *  replaces the body when the user picks it from the context menu.
  *
- *  @since 0.20.0
+ *  @since 0.8.2
  * =================================================================== */
 
 interface UserListContext {
@@ -3723,9 +3720,9 @@ interface UserListContext {
 	selectedTile: HTMLElement | null;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
-	/** @since 0.22.0 */
+	/** @since 0.8.7 */
 	query: string;
-	/** @since 0.22.0 */
+	/** @since 0.8.7 */
 	abort: AbortController | null;
 }
 
@@ -5430,7 +5427,7 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
  *  in `localStorage` so reopening the window keeps your arrangement.
  *
  *  We don't reuse `FilesLayer` directly because it's bound to the
- *  REST `_desktop_mode_placements` table — virtual entities don't
+ *  REST `desktop_mode_file_placements` table — virtual entities don't
  *  belong there. The interaction model is the same (pointer capture,
  *  click-vs-drag threshold, `--dragging` class).
  * ------------------------------------------------------------------ */
@@ -5441,7 +5438,7 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
 // between neighbours, so the selected tile's background ring abutted
 // adjacent corner ribbons and read as "spillover" (regression
 // surfaced once `<wpd-ribbon>` started rendering DRAFT/PENDING
-// banners in 0.21.0). Widen the cell so the selection ring has
+// banners in 0.8.6). Widen the cell so the selection ring has
 // breathing room — and so wrapped 2-line labels don't push the next
 // row's tile into the cell above. Tile label is clamped to 2 lines
 // via CSS in `my-wordpress.css`; if you change that clamp, raise
@@ -5497,7 +5494,7 @@ interface TileLayout {
 	 * placed tile's key reappears (e.g. user clears the search field),
 	 * its remembered position is restored.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	clear: () => void;
 	dispose: () => void;
@@ -5896,7 +5893,7 @@ function storageKey( scope: string ): string {
 // future cross-window drag-out, but it set `setPointerCapture` on the
 // tile which BROKE HTML5 `dragstart` detection on the `draggable=true`
 // post tiles — the long-standing "I can lift the tile but no drop
-// target sees it" bug. Removed in 0.18.0; entity tiles now use the
+// target sees it" bug. Removed in 0.8.1; entity tiles now use the
 // centralized DragManager (`pointerdown` -> `dragManager.start()`)
 // for drag-out and a plain `click` listener for selection.
 
@@ -5991,7 +5988,7 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 	// wallpaper canvas under the window (registry.hitTest stops at
 	// the first registered target it finds in the walk-up).
 	//
-	// @since 0.20.0
+	// @since 0.8.2
 	const dragManager = getDragManager();
 	if ( dragManager ) {
 		rejectIdCounter += 1;
@@ -6198,7 +6195,7 @@ interface OpenMediaArgs {
  * view for the given attachment. Mirrors `openDetail()` for posts.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 function openMedia( args: OpenMediaArgs ): void {
 	const route: Route = {
@@ -6241,7 +6238,7 @@ interface OpenUserFootprintArgs {
  * `openDetail()` / `openMedia()`, for users.
  *
  * @public
- * @since 0.23.0
+ * @since 0.9.1
  *
  * @param args Footprint target (`userId` required, `userName` optional).
  */
@@ -6267,7 +6264,7 @@ interface MyWordpressApi {
 	 * directly (macOS pattern: drag is the deliberate gesture, no
 	 * extra confirm).
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	trashEntity: ( entityId: string, id: number ) => Promise< void >;
 }

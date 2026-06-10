@@ -17,7 +17,7 @@
  *      buggy server whose `remaining` never decreases despite
  *      `purged > 0`. Far above any realistic bin size.
  *
- * @since 0.21.1
+ * @since 0.8.0
  */
 
 import type { EmptyResponse } from './rest';

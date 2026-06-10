@@ -12,13 +12,13 @@
  * the current desktop area on the JS side).
  *
  * @package WPDesktopMode
- * @since   0.18.0
+ * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.18.0
+ * @since 0.8.1
  */
 class Desktop_Mode_Embed_File extends Desktop_Mode_File {
 
